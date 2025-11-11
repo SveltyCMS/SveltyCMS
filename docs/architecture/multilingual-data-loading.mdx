@@ -1,0 +1,394 @@
+---
+path: 'docs/architecture/multilingual-data-loading.mdx'
+title: 'Multilingual Data Loading'
+description: 'Two-tier SSR strategy for loading multilingual content with language-specific caching and translation progress tracking.'
+order: 52
+icon: 'mdi:translate'
+author: 'admin'
+created: '2025-01-04'
+updated: '2025-01-04'
+tags:
+  - 'architecture'
+  - 'ssr'
+  - 'multilingual'
+  - 'i18n'
+  - 'translation'
+---
+
+# Multilingual Data Loading
+
+## Architecture Overview
+
+SveltyCMS implements a **two-tier data loading strategy** for optimal performance when handling multilingual content at scale.
+
+### The Challenge
+
+Traditional approaches to multilingual content management face scalability issues:
+
+- **Over-fetching**: Loading all languages for list views (100 entries × 5 languages = 500 data objects)
+- **Wrong language display**: Client-side language selection from multilingual objects leads to race conditions
+- **Cache inefficiency**: Single cache key for all languages prevents language-specific optimization
+- **Edit mode overhead**: Loading minimal data prevents effective translation workflows
+
+### The Solution: Two-Tier SSR
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    TIER 1: EntryList (View Mode)                │
+│                                                                 │
+│  URL: /en/Collections/Names?page=1                              │
+│  Cache Key: collection:Names:page:1:lang:EN                     │
+│  Data: [{first_name: "John", last_name: "Doe"}, ...]            │
+│        ↑ Language-projected (EN only)                           │
+│                                                                 │
+│  Performance:                                                   │
+│  • 100 entries × 1 language = ~50KB                             │
+│  • Cache hit rate: 95%                                          │
+│  • No client-side language selection needed                     │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    TIER 2: Fields (Edit Mode)                   │
+│                                                                 │
+│  URL: /en/Collections/Names?entry=123                           │
+│  Cache Key: entry:123                                           │
+│  Data: {                                                        │
+│    first_name: {en: "John", de: "Johann", fr: "Jean"},          │
+│    last_name: {en: "Doe", de: "Schmidt", fr: "Dupont"}          │
+│  }  ↑ Full multilingual data                                    │
+│                                                                 │
+│  Performance:                                                   │
+│  • 1 entry × 5 languages = ~5KB                                 │
+│  • Enables simultaneous translation editing                     │
+│  • Per-field translation progress calculation                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Implementation
+
+### Server-Side Language Projection
+
+**File**: `src/routes/(app)/[language]/[...collection]/+page.server.ts`
+
+After enriching entries with `modifyRequest`, project language-specific data for view mode:
+
+```typescript
+// =================================================================
+// 5.5. ENTERPRISE SSR: LANGUAGE PROJECTION FOR VIEW MODE
+// =================================================================
+if (mode === 'view') {
+	for (let i = 0; i < entries.length; i++) {
+		const entry = entries[i];
+		for (const field of currentCollection.fields) {
+			const fieldName = field.db_fieldName || field.label;
+			if (field.translated && entry[fieldName] && typeof entry[fieldName] === 'object' && !Array.isArray(entry[fieldName])) {
+				// Project current language value
+				entry[fieldName] = entry[fieldName][language] || Object.values(entry[fieldName])[0] || null;
+			}
+		}
+	}
+}
+```
+
+### Cache Key Strategy
+
+Cache keys include language for view mode, enabling language-specific caching:
+
+```typescript
+const cacheKey = `collection:${currentCollection._id}:page:${page}:lang:${language}:tenant:${tenantId}`;
+```
+
+**Benefits:**
+
+- Natural cache miss when switching languages (new `lang` param)
+- Each language cached independently
+- No cache invalidation needed for language switches
+
+### Translation Status Component
+
+**File**: `src/components/collectionDisplay/TranslationStatus.svelte`
+
+The language switcher dropdown:
+
+1. **View Mode**: Changes URL → triggers SSR reload with new language
+2. **Edit Mode**: Updates local store → recalculates translation progress
+
+**Recommended: Anchor Tag Approach**
+
+```svelte
+<!-- Best practice: Use anchor tags with preloading -->
+<script lang="ts">
+	import { contentLanguage } from '@stores/store.svelte';
+	import { page } from '$app/stores';
+
+	function handleLanguageChange(selectedLanguage: Locale): void {
+		contentLanguage.set(selectedLanguage);
+		isOpen = false;
+	}
+
+	function getLanguageUrl(selectedLanguage: Locale): string {
+		const currentPath = $page.url.pathname;
+		const pathParts = currentPath.split('/').filter(Boolean);
+		pathParts[0] = selectedLanguage;
+		return '/' + pathParts.join('/') + $page.url.search;
+	}
+</script>
+
+<!-- Anchor tag with automatic preloading -->
+<a
+	href={getLanguageUrl(selectedLanguage)}
+	data-sveltekit-preload-data="hover"
+	data-sveltekit-reload
+	onclick={() => handleLanguageChange(selectedLanguage)}
+>
+	{selectedLanguage.toUpperCase()}
+</a>
+```
+
+**Alternative: Programmatic Navigation** (use only when needed for complex logic)
+
+```typescript
+import { goto } from '$app/navigation';
+
+async function handleLanguageChange(selectedLanguage: Locale): Promise<void> {
+	contentLanguage.set(selectedLanguage);
+	isOpen = false;
+
+	// Navigate to new URL with updated language
+	const currentPath = $page.url.pathname;
+	const pathParts = currentPath.split('/').filter(Boolean);
+	pathParts[0] = selectedLanguage;
+	const newPath = '/' + pathParts.join('/') + $page.url.search;
+
+	// SvelteKit navigation with SSR reload
+	await goto(newPath, { invalidateAll: true });
+}
+```
+
+**Why anchor tags are better:**
+
+- ✅ Automatic hover preloading (instant navigation feel)
+- ✅ Better SEO and accessibility
+- ✅ Native browser features (right-click, keyboard nav)
+- ✅ No async/await complexity
+
+**When to use `goto()`:**
+
+- Complex dropdowns with `<select>` elements
+- Navigation combined with modal closing or animations
+- Conditional navigation based on validation
+
+## Performance Characteristics
+
+| Scenario                | Data Size | HTTP Requests | Cache Hit Rate      | User Experience |
+| ----------------------- | --------- | ------------- | ------------------- | --------------- |
+| Load 100 entries (EN)   | ~50KB     | 1             | 95%                 | Instant         |
+| Switch to DE            | ~50KB     | 1             | 95% (new cache key) | <200ms          |
+| Load 1000 entries (EN)  | ~500KB    | 1             | 95%                 | <1s             |
+| Edit single entry       | ~5KB      | 1             | 80%                 | Instant         |
+| Toggle language in edit | 0KB       | 0             | N/A (local)         | Instant         |
+| Save entry              | ~5KB      | 1             | N/A (write)         | <500ms          |
+
+### Cache Invalidation Rules
+
+```typescript
+// Entry save/update
+await invalidateAll(); // Invalidates all collection:* keys
+
+// Language change (view mode)
+// → Natural cache miss (different lang param in key)
+
+// Pagination
+// → Natural cache miss (different page param in key)
+```
+
+## Translation Progress Tracking
+
+### View Mode (EntryList)
+
+- Shows overall completion per language in TranslationStatus dropdown
+- Updated after saving any entry in edit mode
+- Calculated server-side and cached
+
+### Edit Mode (Fields)
+
+- Shows per-field translation percentage across all languages
+- Icon colors indicate completion status:
+  - 🟢 Green (100%): Fully translated
+  - 🟡 Yellow (1-99%): Partially translated
+  - 🔴 Red (0%): Untranslated
+- Updates in real-time as user types
+
+**File**: `src/components/collectionDisplay/Fields.svelte`
+
+```typescript
+function getFieldTranslationPercentage(fieldName: string): number {
+	const allLanguages = Object.keys(availableLanguages);
+	const fieldData = entryData[fieldName];
+
+	if (!fieldData || typeof fieldData !== 'object') return 0;
+
+	const translated = allLanguages.filter((lang) => {
+		const value = fieldData[lang];
+		return value !== null && value !== undefined && value !== '';
+	});
+
+	return Math.round((translated.length / allLanguages.length) * 100);
+}
+```
+
+## Database Structure
+
+### Database-Agnostic Multilingual Format
+
+SveltyCMS uses a **database-agnostic architecture** where the application layer always works with multilingual data in a consistent nested object format, regardless of the underlying database:
+
+```typescript
+// Application layer format (what widgets and components see):
+const entry = {
+	_id: '507f1f77bcf86cd799439011',
+	first_name: {
+		en: 'John',
+		de: 'Johann',
+		fr: 'Jean'
+	},
+	last_name: {
+		en: 'Doe',
+		de: 'Schmidt',
+		fr: 'Dupont'
+	},
+	bio: {
+		en: 'Software engineer',
+		de: 'Softwareentwickler'
+		// fr missing (untranslated)
+	}
+};
+```
+
+### Storage Implementation by Adapter
+
+The database adapter transparently handles storage format differences:
+
+**MongoDB Adapter** (current):
+
+- Stores nested objects directly in documents
+- Natural fit for the application format
+- No transformation needed on read/write
+
+**Future SQL/Drizzle Adapters**:
+
+- Would use relational tables (e.g., `posts` + `post_translations`)
+- Adapter reconstructs nested objects on read
+- Adapter flattens nested objects on write
+- Application layer remains unchanged
+
+**Key Principle**: Widgets, components, and SSR logic never know the underlying storage format—they always receive and send the same multilingual object structure.
+
+### Query Optimization Strategy
+
+**View Mode (EntryList)**:
+
+- Language projection happens in application layer after database fetch
+- Reduces payload: 100 entries × 1 language instead of × 5 languages
+- Database-agnostic: Works with any adapter implementation
+
+**Edit Mode (Fields)**:
+
+- Full multilingual data fetched per entry
+- Minimal overhead: 1 entry × 5 languages = ~5KB
+- Enables simultaneous translation editing
+
+**Indexing**:
+
+- Indexes created on scalar fields (`_id`, `tenantId`, `status`, etc.)
+- Language-specific content not indexed (adapter handles optimization)
+
+## Content Language Behavior
+
+SveltyCMS handles two types of collection data:
+
+### 1. Non-Translated Collections
+
+Fields store single values in the default content language (defined in environment):
+
+```typescript
+const entry = {
+	_id: '507f1f77bcf86cd799439011',
+	title: 'Hello World',
+	slug: 'hello-world',
+	description: 'A simple post'
+};
+```
+
+- No language projection needed
+- Data displayed as-is in all language routes
+- Common for: slugs, IDs, numeric values, dates, media references
+
+### 2. Translated Collections
+
+Fields marked as `translated: true` store multilingual nested objects:
+
+```typescript
+const entry = {
+	_id: '507f1f77bcf86cd799439011',
+	title: {
+		en: 'Hello World',
+		de: 'Hallo Welt',
+		fr: 'Bonjour Monde'
+	},
+	slug: 'hello-world', // Not translated
+	description: {
+		en: 'A simple post',
+		de: 'Ein einfacher Beitrag'
+		// fr missing - shows as untranslated
+	}
+};
+```
+
+- Language projection applied in view mode
+- Full multilingual data available in edit mode
+- Translation progress tracked per field and per language
+
+**Field Configuration:**
+
+```typescript
+{
+	label: 'Title',
+	db_fieldName: 'title',
+	translated: true,  // ← Enables multilingual storage
+	// ...
+}
+```
+
+## Troubleshooting
+
+### Issue: EntryList shows wrong language data
+
+**Symptom**: English data displayed on `/de/Collections/Names` page
+
+**Root cause**: Language projection not applied in SSR
+
+**Fix**: Verify `mode === 'view'` check in `+page.server.ts` at line ~192
+
+### Issue: Edit mode breaks after language projection
+
+**Symptom**: Translation progress shows 0% for all languages
+
+**Root cause**: Language projection applied to edit mode data
+
+**Fix**: Ensure projection only runs when `mode === 'view'`
+
+### Issue: Cache not invalidating after save
+
+**Symptom**: Old data displayed after entry update
+
+**Root cause**: Missing `invalidateAll()` in save handler
+
+**Fix**: Add `await invalidateAll()` in `entryActions.ts` after successful save
+
+## Related Documentation
+
+- **[Collection Store Dataflow](./collection-store-dataflow.mdx)** - Foundation SSR architecture (read this first)
+- [Cache System](./cache-system.mdx) - Redis caching implementation
+- [Content Type System](./content-type-system.mdx) - Field types and translation configuration
+- [Database Methods](./database-methods.mdx) - Database query patterns

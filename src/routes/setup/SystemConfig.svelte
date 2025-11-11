@@ -1,66 +1,39 @@
 <!--
 @file src/routes/setup/SystemConfig.svelte
-@summary
-SveltyCMS Setup Wizard – System Configuration Step
-
-This component handles the system configuration step of the SveltyCMS setup wizard. It allows the user to:
-- Enter the site name
-- Select the default language (auto-detected from browser if available)
-- Select available languages
-- Select the timezone (auto-detected and preset to user's local timezone if supported)
-- Set the media storage path
-- View and resolve validation errors
-
-Key Features:
-- Uses Svelte 5 runes for state management
-- TypeScript for type safety
-- Skeleton UI for consistent styling
-- Smart presetting of timezone and language fields based on user environment
-- Fully modular and ready for integration into multi-step setup flows
+@description System configuration step.
 -->
-
 <script lang="ts">
 	import * as m from '@src/paraglide/messages';
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';
+	import { locales as systemLocales } from '@src/paraglide/runtime';
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
-	import type { SystemSettings } from '@stores/setupStore.svelte';
-	// Validation
+	// ✅ FIX: Import types from the store
+	import type { SystemSettings, ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { systemSettingsSchema } from '@utils/formSchemas';
 
 	// --- PROPS ---
-	const {
-		systemSettings,
-		validationErrors,
-		availableLanguages = [] // system lange form paraglideJS
-	} = $props<{
+	// ✅ FIX: Added $bindable() to systemSettings
+	let { systemSettings = $bindable(), validationErrors } = $props<{
 		systemSettings: SystemSettings;
-		validationErrors: Record<string, string>;
-		availableLanguages?: string[];
+		validationErrors: ValidationErrors; // Now uses imported type
 	}>();
 
+	const availableLanguages: string[] = [...systemLocales];
+
 	// Real-time validation state
-	let localValidationErrors = $state<Record<string, string>>({});
+	let localValidationErrors = $state<ValidationErrors>({});
 	let touchedFields = $state<Set<string>>(new Set());
 
-	// Validate form data in real-time
 	const validationResult = $derived(
 		safeParse(systemSettingsSchema, {
-			siteName: systemSettings.siteName,
-			hostProd: systemSettings.hostProd,
-			defaultSystemLanguage: systemSettings.defaultSystemLanguage,
-			systemLanguages: systemSettings.systemLanguages,
-			defaultContentLanguage: systemSettings.defaultContentLanguage,
-			contentLanguages: systemSettings.contentLanguages,
-			mediaStorageType: systemSettings.mediaStorageType,
-			mediaFolder: systemSettings.mediaFolder
+			...systemSettings
 		})
 	);
 
-	// Update local validation errors when validation result changes
 	$effect(() => {
-		const newErrors: Record<string, string> = {};
+		const newErrors: ValidationErrors = {};
 		if (!validationResult.success) {
 			for (const issue of validationResult.issues) {
 				const path = issue.path?.[0]?.key as string;
@@ -72,47 +45,33 @@ Key Features:
 		localValidationErrors = newErrors;
 	});
 
-	// Only display errors for fields that have been touched (blurred)
 	const displayErrors = $derived.by(() => {
-		const errors: Record<string, string> = {};
-
-		// Show validation errors only for touched fields
+		const errors: ValidationErrors = {};
 		for (const field of touchedFields) {
 			if (localValidationErrors[field]) {
 				errors[field] = localValidationErrors[field];
 			}
 		}
-
-		// Parent validation errors always show (from API responses)
-		return {
-			...errors,
-			...validationErrors
-		};
+		return { ...errors, ...validationErrors };
 	});
 
-	// Mark field as touched on blur
 	function handleBlur(fieldName: string) {
 		touchedFields.add(fieldName);
 		touchedFields = touchedFields;
 	}
-	// Utility: human friendly language label
+
 	function displayLang(code: string) {
 		try {
-			// Try to find in full ISO list first for content languages
-			const isoLang = iso6391.find((l) => l.code === code);
-			if (isoLang) return `${isoLang.name} (${isoLang.native})`;
-			// Fallback for system languages which might have different source
-			if (availableLanguages.includes(code)) return `${getLanguageName(code)} (${code.toUpperCase()})`;
-			// Final fallback for any other case
-			return /[a-z]{2,}/i.test(code) ? `${code.toLowerCase()} (${code.toUpperCase()})` : code;
+			const name = getLanguageName(code);
+			return `${name} (${code.toUpperCase()})`;
 		} catch {
-			return code;
+			return code.toUpperCase();
 		}
 	}
 
-	// System languages chip management
+	// System languages
 	function removeSystemLang(code: string) {
-		if (code === systemSettings.defaultSystemLanguage) return;
+		if (code === systemSettings.defaultSystemLanguage && systemSettings.systemLanguages.length === 1) return;
 		systemSettings.systemLanguages = systemSettings.systemLanguages.filter((c: string) => c !== code);
 		if (!systemSettings.systemLanguages.includes(systemSettings.defaultSystemLanguage)) {
 			systemSettings.defaultSystemLanguage = systemSettings.systemLanguages[0] || 'en';
@@ -130,7 +89,7 @@ Key Features:
 	}
 	function addSystemLanguage(code: string) {
 		const c = code.toLowerCase();
-		if (!availableLanguages.includes(c)) return; // ✅ restrict to project languages only
+		if (!availableLanguages.includes(c)) return;
 		if (!systemSettings.systemLanguages.includes(c)) {
 			systemSettings.systemLanguages = [...systemSettings.systemLanguages, c];
 			if (!systemSettings.defaultSystemLanguage) systemSettings.defaultSystemLanguage = c;
@@ -150,9 +109,9 @@ Key Features:
 		if (e.key === 'Escape') closeSystemPicker();
 	}
 
-	// Content languages chip management
+	// Content languages
 	function removeContentLang(code: string) {
-		if (code === systemSettings.defaultContentLanguage) return;
+		if (code === systemSettings.defaultContentLanguage && systemSettings.contentLanguages.length === 1) return;
 		systemSettings.contentLanguages = systemSettings.contentLanguages.filter((c: string) => c !== code);
 		if (!systemSettings.contentLanguages.includes(systemSettings.defaultContentLanguage)) {
 			systemSettings.defaultContentLanguage = systemSettings.contentLanguages[0] || '';
@@ -160,20 +119,17 @@ Key Features:
 	}
 	let showContentPicker = $state(false);
 	let contentPickerSearch = $state('');
-
 	function openContentPicker() {
 		showContentPicker = true;
 		queueMicrotask(() => document.getElementById('content-lang-search')?.focus());
 	}
-
 	function closeContentPicker() {
 		showContentPicker = false;
 		contentPickerSearch = '';
 	}
-
 	function addContentLanguage(code: string) {
-		const c = code.toLowerCase();
-		if (!c || c.length !== 2 || !iso6391.some((lang) => lang.code === c)) return;
+		const c = code.toLowerCase().trim();
+		if (!c || c.length < 2) return;
 		if (!systemSettings.contentLanguages.includes(c)) {
 			systemSettings.contentLanguages = [...systemSettings.contentLanguages, c];
 			if (!systemSettings.defaultContentLanguage) systemSettings.defaultContentLanguage = c;
@@ -201,12 +157,9 @@ Key Features:
 	let systemAvailable = $state<string[]>([]);
 	let contentAvailable = $state<{ code: string; name: string; native: string }[]>([]);
 	$effect(() => {
-		// ✅ system languages can only be those defined in availableLanguages
 		systemAvailable = availableLanguages.filter(
 			(l: string) => !systemSettings.systemLanguages.includes(l) && l.toLowerCase().includes(systemPickerSearch.toLowerCase())
 		);
-
-		// ✅ content languages can still be from iso6391 (no restriction)
 		const search = contentPickerSearch.toLowerCase();
 		contentAvailable = iso6391.filter(
 			(lang) =>
@@ -215,7 +168,7 @@ Key Features:
 		);
 	});
 
-	// Per-label popup settings (click for better mobile support; still discoverable via icon hover cursor)
+	// Popups
 	const popupSiteName: PopupSettings = { event: 'click', target: 'popupSiteName', placement: 'top' };
 	const popupHostProd: PopupSettings = { event: 'click', target: 'popupHostProd', placement: 'top' };
 	const popupDefaultSystem: PopupSettings = { event: 'click', target: 'popupDefaultSystem', placement: 'top' };
@@ -227,7 +180,6 @@ Key Features:
 </script>
 
 <div class="fade-in">
-	<!-- System Settings -->
 	<div class="mb-8">
 		<p class="text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">
 			{m.setup_system_intro()}
@@ -258,12 +210,11 @@ Key Features:
 						class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
 					>
 						<p>{m.setup_help_site_name()}</p>
-						<div class="arrow bg-surface-50 dark:bg-surface-700"></div>
+						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
 					</div>
 					<input
 						id="site-name"
 						bind:value={systemSettings.siteName}
-						oninput={(e) => (systemSettings.siteName = (e.target as HTMLInputElement).value.trim())}
 						onblur={() => handleBlur('siteName')}
 						type="text"
 						placeholder={m.setup_system_site_name_placeholder?.() || 'My SveltyCMS Site'}
@@ -293,7 +244,7 @@ Key Features:
 						class="card z-30 hidden w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
 					>
 						<p>The production URL where your CMS will be accessible (e.g., https://mysite.com). Used for OAuth callbacks and email links.</p>
-						<div class="arrow bg-surface-50 dark:bg-surface-700"></div>
+						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
 					</div>
 					<input
 						id="host-prod"
@@ -357,10 +308,7 @@ Key Features:
 						data-popup="popupMediaFolder"
 						class="card z-30 hidden w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
 					>
-						<p>
-							For local storage: specify the folder path where media files will be stored (e.g., ./mediaFolder). For cloud storage: enter the bucket
-							or container name.
-						</p>
+						<p>For local storage: specify the folder path (e.g., ./mediaFolder). For cloud storage: enter the bucket or container name.</p>
 						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
 					</div>
 					<input
@@ -375,7 +323,8 @@ Key Features:
 						<div class="rounded-md border border-amber-300/50 bg-amber-50/50 p-3 dark:border-amber-700/50 dark:bg-amber-900/20" role="status">
 							<p class="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300">
 								<iconify-icon icon="mdi:information-outline" width="16" aria-hidden="true"></iconify-icon>
-								<strong>Note:</strong> Cloud storage credentials (API keys, secrets, regions) must be configured in System Settings after setup is complete.
+								<strong>Note:</strong>
+								Cloud storage credentials must be configured in System Settings after setup.
 							</p>
 						</div>
 					{/if}
@@ -388,7 +337,7 @@ Key Features:
 				<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
 					<label for="default-system-lang" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:translate" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span>{m.setup_label_default_system_language?.() || m.setup_help_default_system_language?.() || 'Default System Language'}</span>
+						<span>{m.setup_label_default_system_language?.() || 'Default System Language'}</span>
 						<button
 							tabindex="-1"
 							type="button"
@@ -407,14 +356,14 @@ Key Features:
 						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
 					</div>
 					<select id="default-system-lang" bind:value={systemSettings.defaultSystemLanguage} class="input w-full rounded">
-						{#each systemSettings.contentLanguages as lang, index (index)}
+						{#each systemSettings.systemLanguages as lang (lang)}
 							<option value={lang}>{displayLang(lang)}</option>
 						{/each}
 					</select>
 					<div>
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
 							<iconify-icon icon="mdi:translate-variant" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-							<span>{m.setup_label_system_languages?.() || m.setup_help_system_languages?.() || 'System Languages'}</span>
+							<span>{m.setup_label_system_languages?.() || 'System Languages'}</span>
 							<button
 								tabindex="-1"
 								type="button"
@@ -435,7 +384,7 @@ Key Features:
 						<div
 							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border border-slate-300/50 bg-surface-50 p-2 pr-16 dark:border-slate-600 dark:bg-surface-700/40"
 						>
-							{#each systemSettings.systemLanguages as lang, index (index)}
+							{#each systemSettings.systemLanguages as lang (lang)}
 								<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
 									{displayLang(lang)}
 									{#if systemSettings.systemLanguages.length > 1}
@@ -482,7 +431,7 @@ Key Features:
 										{#if systemAvailable.length === 0}
 											<p class="px-1 py-2 text-center text-[11px] text-slate-500">{m.setup_help_no_matches?.() || 'No matches'}</p>
 										{/if}
-										{#each systemAvailable as sug, index (index)}
+										{#each systemAvailable as sug (sug)}
 											<button
 												type="button"
 												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"
@@ -497,11 +446,7 @@ Key Features:
 							{/if}
 						</div>
 						<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
-							{#if systemAvailable.length > 0}
-								Click + to add more languages. At least one language must remain.
-							{:else}
-								All configured system languages are active.
-							{/if}
+							{systemAvailable.length > 0 ? 'Click + to add more languages.' : 'All configured system languages are active.'}
 						</p>
 					</div>
 				</div>
@@ -509,7 +454,7 @@ Key Features:
 					<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
 						></iconify-icon>
-						<span>{m.setup_label_default_content_language?.() || m.setup_help_default_content_language?.() || 'Default Content Language'}</span>
+						<span>{m.setup_label_default_content_language?.() || 'Default Content Language'}</span>
 						<button
 							tabindex="-1"
 							type="button"
@@ -534,7 +479,7 @@ Key Features:
 						aria-invalid={!!displayErrors.defaultContentLanguage}
 						aria-describedby={displayErrors.defaultContentLanguage ? 'default-content-lang-error' : undefined}
 					>
-						{#each systemSettings.contentLanguages as lang, index (index)}
+						{#each systemSettings.contentLanguages as lang (lang)}
 							<option value={lang}>{displayLang(lang)}</option>
 						{/each}
 					</select>
@@ -544,7 +489,7 @@ Key Features:
 					<div>
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
 							<iconify-icon icon="mdi:book-multiple" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-							<span>{m.setup_label_content_languages?.() || m.setup_help_content_languages?.() || 'Content Languages'}</span>
+							<span>{m.setup_label_content_languages?.() || 'Content Languages'}</span>
 							<button
 								tabindex="-1"
 								type="button"
@@ -567,10 +512,10 @@ Key Features:
 								? 'border-error-500 bg-error-50 dark:bg-error-900/20'
 								: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 						>
-							{#each systemSettings.contentLanguages as lang, index (index)}
+							{#each systemSettings.contentLanguages as lang (lang)}
 								<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
 									{displayLang(lang)}
-									{#if lang !== systemSettings.defaultContentLanguage}
+									{#if lang !== systemSettings.defaultContentLanguage || systemSettings.contentLanguages.length > 1}
 										<button
 											type="button"
 											class="opacity-60 transition hover:opacity-100"
@@ -605,31 +550,20 @@ Key Features:
 									<input
 										id="content-lang-search"
 										class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
-										placeholder="Search or type code..."
+										placeholder="Search languages..."
 										bind:value={contentPickerSearch}
 									/>
-									{#if contentPickerSearch.trim() && !availableLanguages.includes(contentPickerSearch.trim())}
-										<button
-											type="button"
-											class="mb-2 w-full rounded bg-primary-500/10 px-2 py-1 text-left text-xs text-primary-600 hover:bg-primary-500/20 dark:text-primary-300"
-											onclick={() => addContentLanguage(contentPickerSearch.trim())}
-											>{m.button_add_code?.({ code: contentPickerSearch.trim() }) || `Add "${contentPickerSearch.trim()}"`}</button
-										>
-									{/if}
 									<div class="max-h-48 overflow-auto">
 										{#if contentAvailable.length === 0}
 											<p class="px-1 py-2 text-center text-[11px] text-slate-500">{m.setup_help_no_matches?.() || 'No matches'}</p>
 										{/if}
-										{#each contentAvailable as sug, index (index)}
+										{#each contentAvailable as sug (sug.code)}
 											<button
 												type="button"
 												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"
 												onclick={() => addContentLanguage(sug.code)}
 											>
-												<span
-													>{sug.name} ({sug.code.toUpperCase()})
-													<span class="text-slate-500 dark:text-slate-400"> - {sug.native}</span></span
-												>
+												<span>{sug.name} ({sug.code.toUpperCase()}) <span class="text-slate-500">- {sug.native}</span></span>
 												<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500" aria-hidden="true"></iconify-icon>
 											</button>
 										{/each}
@@ -646,10 +580,6 @@ Key Features:
 					</div>
 				</div>
 			</div>
-		</section>
-
-		<section class="space-y-8">
-			<div class="grid grid-cols-1 gap-6 md:grid-cols-2"></div>
 		</section>
 	</div>
 </div>

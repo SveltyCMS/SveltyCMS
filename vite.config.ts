@@ -5,9 +5,9 @@
  *
  * Key Features:
  * - Centralized path management and logging utilities.
- * - Efficient, direct Hot Module Replacement (HMR) for roles and content structure without fake HTTP requests.
+ * - Efficient, direct Hot Module Replacement (HMR) for content structure without fake HTTP requests.
  * - Dynamic compilation of user-defined collections with real-time feedback.
- * - Seamless integration with Paraglide for i18n and svelte-email-tailwind for email templating.
+ * - Seamless integration with Paraglide for i18n and better-svelte-email for email templating.
  */
 
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
@@ -15,7 +15,6 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { existsSync, promises as fs } from 'fs';
 import { builtinModules } from 'module';
 import path from 'path';
-import svelteEmailTailwind from 'svelte-email-tailwind/vite';
 import type { Plugin, UserConfig, ViteDevServer } from 'vite';
 import { defineConfig } from 'vite';
 import { compile } from './src/utils/compilation/compile';
@@ -47,16 +46,14 @@ const paths = {
 	privateConfig: path.resolve(CWD, 'config/private.ts'),
 	userCollections: path.resolve(CWD, 'config/collections'),
 	compiledCollections: path.resolve(CWD, 'compiledCollections'),
-	roles: path.resolve(CWD, 'config/roles.ts'),
 	widgets: path.resolve(CWD, 'src/widgets')
 };
 
 // --- Utilities ---
 const useColor = process.stdout.isTTY;
 
-/**
- * Standardized logger for build-time scripts, mimicking the main application logger's style.
- */
+// Standardized logger for build-time scripts, mimicking the main application logger's style.
+
 // Colored tag printed once so message-local color codes render correctly.
 const TAG = useColor ? `\x1b[34m[SveltyCMS]\x1b[0m` : `[SveltyCMS]`;
 const log = {
@@ -203,7 +200,7 @@ export const privateEnv = createPrivateConfig({
 }
 
 /**
- * Plugin to watch for changes in collections, roles, and widgets, triggering
+ * Plugin to watch for changes in collections and widgets, triggering
  * recompilation and efficient HMR updates.
  */
 function cmsWatcherPlugin(): Plugin {
@@ -212,7 +209,6 @@ function cmsWatcherPlugin(): Plugin {
 
 	const handleHmr = async (server: ViteDevServer, file: string) => {
 		const isCollectionFile = file.startsWith(paths.userCollections) && /\.(ts|js)$/.test(file);
-		const isRolesFile = file === paths.roles;
 		const isWidgetFile = file.startsWith(paths.widgets) && (file.endsWith('index.ts') || file.endsWith('.svelte'));
 
 		if (isCollectionFile) {
@@ -256,19 +252,6 @@ function cmsWatcherPlugin(): Plugin {
 					log.error(`Error recompiling collections:`, error);
 				}
 			}, 150); // Debounce changes
-		}
-
-		if (isRolesFile) {
-			log.info('Roles file changed. Performing HMR...');
-			try {
-				const { roles } = await server.ssrLoadModule('./config/roles.ts?t=' + Date.now());
-				const { setLoadedRoles } = await server.ssrLoadModule('./src/auth/types.ts?t=' + Date.now());
-				setLoadedRoles(roles);
-				server.ws.send({ type: 'full-reload', path: '*' });
-				log.success('Roles reloaded and client updated.');
-			} catch (err) {
-				log.error('Error reloading roles.ts:', err);
-			}
 		}
 
 		// ---  WATCHER LOGIC  ---
@@ -336,18 +319,23 @@ export default defineConfig((): UserConfig => {
 			paraglideVitePlugin({
 				project: './project.inlang',
 				outdir: './src/paraglide'
-			}),
-			svelteEmailTailwind({
-				pathToEmailFolder: './src/components/emails'
 			})
 		],
 
 		server: {
-			fs: { allow: ['static', '.'] },
+			fs: {
+				allow: ['static', '.'],
+				deny: ['**/tests/**']
+			},
 			watch: {
 				// Prevent watcher from triggering on generated/sensitive files
-				ignored: ['**/config/private.ts', '**/config/private.backup.*.ts', '**/compiledCollections/**']
+				ignored: ['**/config/private.ts', '**/config/private.backup.*.ts', '**/compiledCollections/**', '**/tests/**']
 			}
+		},
+
+		ssr: {
+			noExternal: [],
+			external: ['bun:test']
 		},
 
 		resolve: {
@@ -478,7 +466,8 @@ export default defineConfig((): UserConfig => {
 
 		optimizeDeps: {
 			exclude: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
-			include: ['@skeletonlabs/skeleton']
+			include: ['@skeletonlabs/skeleton'],
+			entries: ['!tests/**/*']
 		}
 	};
 });

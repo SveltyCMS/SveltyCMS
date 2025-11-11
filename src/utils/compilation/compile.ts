@@ -19,6 +19,9 @@ import path from 'path';
 import * as ts from 'typescript';
 import { v4 as uuidv4 } from 'uuid';
 
+// Note: Cannot import logger.server here as this file is imported by vite.config.ts
+// which runs before SvelteKit is initialized. Use console for build-time logging.
+
 interface CompileOptions {
 	systemCollections?: string;
 	userCollections?: string;
@@ -302,7 +305,7 @@ async function compileFile(
 			: { outputText: sourceContent };
 
 		let finalCode = transformCodeWithAST(transpileResult.outputText, uuid);
-		finalCode = processHashAndUUID(finalCode, sourceContentHash, uuid, targetJsPathRelative);
+		finalCode = processHashAndUUID(finalCode, sourceContentHash, targetJsPathRelative);
 
 		await writeCompiledFile(targetJsPathAbsolute, finalCode);
 		console.log(`Compiled \x1b[32m${shortPath}\x1b[0m (\x1b[36m${uuidReason}\x1b[0m: \x1b[33m${uuid}\x1b[0m)`);
@@ -492,7 +495,7 @@ const schemaUuidTransformer =
 		return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
 	};
 
-function processHashAndUUID(code: string, hash: string, uuid: string, targetJsPathRelative: string): string {
+function processHashAndUUID(code: string, hash: string, targetJsPathRelative: string): string {
 	let processedCode = code;
 	processedCode = processedCode.replace(/(\s*\*\s*@file\s+)(.*)/, `$1compiledCollections/${targetJsPathRelative}`);
 	processedCode = processedCode.replace(/^\/\/\s*HASH:\s*[a-f0-9]+\s*$/gm, '').replace(/^\/\/\s*UUID:\s*[a-f0-9-]+\s*$/gm, '');

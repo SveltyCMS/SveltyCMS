@@ -3,7 +3,13 @@
 @component
 **FileInput component**
 
-Features:
+### Props
+- `value`: File | MediaImage | undefined - Currently selected file or media image.
+- `multiple`: boolean - Allow multiple file selection.
+- `show`: boolean - Whether to show the file input area.
+- `className`: string - Additional CSS classes for styling.
+
+### Features
 - File input 
 - Multiple file input
 - Drag and drop
@@ -98,7 +104,7 @@ Features:
 	>
 		<div class="grid grid-cols-6 items-center p-4">
 			<iconify-icon icon="fa6-solid:file-arrow-up" width="40"></iconify-icon>
-			<span class="text-white"> testdjksdalksdjl</span>
+			<span class="text-white"> test</span>
 
 			<div class="col-span-5">
 				{#if !show}

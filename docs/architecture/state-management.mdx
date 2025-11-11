@@ -134,12 +134,6 @@ An unauthenticated endpoint for monitoring tools, load balancers, and Kubernetes
   - `overallStatus: "FAILED"`
   - `overallStatus: "INITIALIZING"`
 
-### Performance API
-
-An endpoint that provides a detailed performance summary, including bottlenecks and detected anomalies.
-
-- **Endpoint:** `GET /api/system/performance`
-
 ### Key Functions for Developers
 
 - **`isSystemReady(): boolean`**: A synchronous check to see if the system is `READY` or `DEGRADED`. Used by the `handleSystemState` hook.

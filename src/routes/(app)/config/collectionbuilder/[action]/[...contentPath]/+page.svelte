@@ -2,9 +2,23 @@
 @files src/routes/(app)/config/collectionbuilder/[...contentTypes]/+page.svelte
 @component  
 **This component sets up and displays the collection page.**
+
 It provides a user-friendly interface for creating, editing, and deleting collections.
+
+### Props
+- `data`: An object containing:
+- `collection`: The collection schema data (if editing an existing collection).
+- `contentLanguage`: The current content language setting.
+- `user`: The authenticated user information.
+
+### Features
+- Dynamically sets the page title based on whether the user is creating a new collection or editing an existing one.
+- Loads collection data when editing, and initializes state accordingly.
+- Provides tabs for editing collection forms and widget fields.
 -->
+
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import axios from 'axios';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -78,7 +92,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			setCollection(data.collection);
 			originalName = String(data.collection.name || '');
 		} else {
-			console.error('Collection data not found for editing.');
+			logger.error('Collection data not found for editing.');
 			// Optionally, redirect or show a proper error message
 		}
 	}
@@ -195,7 +209,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 					goto(`/collection`);
 				} else {
 					// User cancelled, do not delete
-					console.log('User cancelled deletion.');
+					logger.debug('User cancelled deletion.');
 				}
 			}
 		};
@@ -245,7 +259,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	<div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
 	<TabGroup bind:group={localTabSet}>
 		<!-- User Permissions -->
-		{#if page.data.user && page.data.user.isAdmin}
+		{#if page.data.isAdmin}
 			<!-- Edit -->
 			<Tab bind:group={localTabSet} name="default" value={0}>
 				<div class="flex items-center gap-1">

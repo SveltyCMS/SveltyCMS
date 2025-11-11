@@ -551,14 +551,22 @@ const user = await auth.getUserByEmail(userLookupCriteria);
 
 ## User Roles
 
-Standard roles (configurable in `config/roles.ts`):
+Roles are stored in the database (`auth_roles` collection) and can be managed via the Access Management interface (`/config/accessManagement`).
 
-- **Admin** - Full system access
-- **Editor** - Content management
-- **Contributor** - Content creation only
-- **Viewer** - Read-only access
+**Default Roles** (seeded during setup):
 
-Each role has specific permissions that can be customized.
+- **admin** - Full system access (superuser)
+- **developer** - Development tools, APIs, and system configuration
+- **editor** - Content management and media access
+
+**Custom Roles:**
+
+- Create new roles via Access Management interface
+- Assign specific permissions per role
+- Roles are tenant-isolated in multi-tenant mode
+- All role changes are immediately cached and available
+
+Each role has specific permissions that can be customized dynamically through the database.
 
 ---
 

@@ -25,7 +25,7 @@
  * @see https://csrc.nist.gov/projects/post-quantum-cryptography for PQC updates
  */
 
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 // Import argon2 and crypto (server-side only)
 let argon2: typeof import('argon2') | null = null;

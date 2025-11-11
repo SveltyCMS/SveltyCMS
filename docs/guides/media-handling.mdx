@@ -1,23 +1,26 @@
 ---
 path: 'docs/guides/media-handling.mdx'
 title: 'Media Gallery and Handling'
-description: 'A comprehensive guide to the SveltyCMS Media Gallery and media handling system.'
+description: 'A comprehensive guide to the SveltyCMS Media Gallery, cloud-native storage, and media handling system.'
 order: 5
 icon: 'mdi:image-multiple'
 author: 'ai-agent'
 created: '2025-10-12'
-updated: '2025-10-12'
+updated: '2025-11-07'
 tags:
   - 'media'
   - 'gallery'
   - 'upload'
   - 'api'
   - 'guide'
+  - 'cloud'
+  - 's3'
+  - 'r2'
 ---
 
 # Media Gallery and Handling
 
-SveltyCMS provides a powerful and flexible system for managing media files. This guide covers the Media Gallery UI, file uploading, media processing, storage, and the underlying API.
+SveltyCMS provides a powerful and flexible system for managing media files. This guide covers the Media Gallery UI, file uploading, media processing, the storage architecture, and the API.
 
 ---
 
@@ -25,7 +28,7 @@ SveltyCMS provides a powerful and flexible system for managing media files. This
 
 The Media Gallery is the central hub for managing all your media files. It provides a user-friendly interface with the following features:
 
-- **Virtual Folders:** Organize your media files into a hierarchical folder structure.
+- **Virtual Folders:** Organize your media files into a hierarchical folder structure (e.g., `global/`, `avatars/`).
 - **Grid and Table Views:** Choose between a visual grid view or a detailed table view to display your files.
 - **Filtering and Sorting:** Filter files by type (image, document, etc.) and sort them by name, size, or date.
 - **Search:** Quickly find files using the global search bar.
@@ -38,13 +41,13 @@ The Media Gallery is the central hub for managing all your media files. It provi
 
 SveltyCMS supports two primary methods for uploading files:
 
-### Local Upload
+### Direct Upload
 
 You can upload files directly from your local machine using the "Add Media" button in the Media Gallery. This will open a modal where you can drag and drop files or browse your computer to select them.
 
 ### Remote Upload
 
-The remote upload feature allows you to upload files from a URL. This is useful for importing media from external sources. You can paste a list of URLs, and SveltyCMS will download and save them to your media library.
+The remote upload feature allows you to "upload" a file from an existing URL (e.g., YouTube, Vimeo). SveltyCMS saves a reference to this remote media, allowing you to manage its metadata just like a locally hosted file.
 
 ---
 
@@ -52,57 +55,133 @@ The remote upload feature allows you to upload files from a URL. This is useful 
 
 When a file is uploaded, SveltyCMS performs several processing steps to ensure consistency and efficiency:
 
-- **Hashing:** The content of each file is hashed to generate a unique identifier. This prevents duplicate files from being stored.
+- **Hashing:** The file content is hashed to generate a unique identifier. This prevents duplicate file storage.
 - **Sanitization:** Filenames are sanitized to remove special characters and ensure they are URL-safe.
-- **Image Resizing:** For image files, SveltyCMS automatically creates multiple resized versions (e.g., thumbnail, small, medium, large) to optimize delivery for different use cases. These sizes are configurable in the system settings.
+- **Image Resizing (Server-Side):** Using a high-performance image processing library (sharp), SveltyCMS automatically creates multiple resized versions (e.g., `thumbnail`, `sm`, `md`, `lg`) to optimize delivery. These sizes are configurable in the system settings.
+- **Format Conversion (Optional):** You can configure SveltyCMS to automatically convert all uploaded images to a modern, efficient format like WebP or AVIF.
 
 ---
 
-## Media Storage
+## Storage Architecture
 
-Media files are stored in a structured directory layout within the `mediaFiles` folder (configurable). Here's an overview of the structure:
+SveltyCMS is storage-agnostic. It uses a flexible adapter-based system to store files, allowing you to switch between local storage and cloud providers seamlessly.
 
-- **`mediaFiles/`**: The root folder for all media files.
-  - **`images/`**: Contains different sizes of uploaded images.
-    - **`original/`**: The original, full-resolution images.
-    - **`thumbnail/`**: Small thumbnails for previews.
-    - **`sm/`**, **`md/`**, **`lg/`**: Different resized versions of the images.
-  - **`documents/`**: For document files like PDFs, DOCX, etc.
-  - **`audio/`**: For audio files.
-  - **`videos/`**: For video files.
-  - **`.trash/`**: When a file is deleted, it is moved to this directory. This allows for recovery if needed.
+### Supported Storage Adapters
+
+You can configure your storage provider in the system settings:
+
+- **`local`:** Stores files on the server's local filesystem. Ideal for development and small projects.
+- **`s3`:** Stores files in any S3-compatible service (e.g., AWS S3, MinIO, DigitalOcean Spaces).
+- **`r2`:** A specific adapter optimized for Cloudflare R2.
+- **`cloudinary`:** Stores files directly in your Cloudinary media library.
+
+### Configuration
+
+| Setting                  | Example (Local) | Example (S3)              | Description                                                                     |
+| ------------------------ | --------------- | ------------------------- | ------------------------------------------------------------------------------- |
+| `MEDIA_STORAGE_TYPE`     | `local`         | `s3`                      | Selects the storage adapter to use.                                             |
+| `MEDIA_FOLDER`           | `./mediaFiles`  | `cms-media`               | Local: The filesystem path. Cloud: The path prefix (folder) inside your bucket. |
+| `MEDIA_BUCKET_NAME`      | (Not used)      | `my-cms-bucket`           | (Cloud Only) The name of your S3/R2 bucket.                                     |
+| `MEDIA_CLOUD_PUBLIC_URL` | (Not used)      | `https://cdn.my-site.com` | (Cloud Only) The public URL for accessing your files.                           |
+
+### File Path Structure
+
+The `MediaService` saves files to a logical path, which is then handled by the storage adapter.
+
+- **Original Files:** `[basePath]/original/[sanitized-name]-[hash].[ext]`
+  - Example: `global/original/my-image-abc123.jpg`
+- **Resized Images:** `[basePath]/[size]/[sanitized-name]-[hash].[ext]`
+  - Example: `global/thumbnail/my-image-abc123.webp`
+- **Avatars:**
+  - Example: `avatars/original/avatar-user-hash.png`
+
+### Trash / Deletion
+
+- **Local Storage:** When a file is deleted, it is moved to a `.trash` directory within your `MEDIA_FOLDER`. This allows for recovery.
+- **Cloud Storage:** When a file is deleted, it is permanently removed from the cloud bucket (or follows your bucket's versioning/lifecycle rules).
+
+---
+
+## Using Media in Collections (Headless CMS)
+
+SveltyCMS is a headless CMS, which means you manage media independently from where you use it. You link media to your content using a "Media Picker" widget.
+
+1. **Add a Field:** In your collection schema (e.g., for a "Blog Post"), you add a "Media" field.
+2. **Pick a File:** In the editor, this field becomes a "Media Picker" button. Clicking it opens the Media Gallery.
+3. **Store a Reference:** When you select an image, SveltyCMS does not copy the image. It simply stores a reference to that media item (e.g., its `_id`) in your "Blog Post" document.
+
+**This is the key concept:**
+
+- **User Avatars** are not a special type of media. They are simply a "Media" field added to the User collection.
+- **Blog Post Hero Images** are a "Media" field added to the Post collection.
+- Both fields pick from the same central Media Gallery.
 
 ---
 
 ## Media API
 
-SveltyCMS provides a comprehensive REST API for managing media files programmatically. The API is located at `/api/media`.
+SveltyCMS provides a clean, RESTful API for managing media, based on the `MediaService`.
 
-For a detailed reference of all API endpoints, please see the [Media API Documentation](/docs/api/media-api.mdx).
+**Base Path:** `/api/media`
 
-Here is a high-level overview of the available endpoints:
+### `GET /api/media`
 
-- **`GET /api/media`**: Lists media files with pagination and filtering.
-- **`POST /api/media/process`**: A versatile endpoint for processing files. It can be used to:
-  - `save`: Upload and save new files.
-    - This is a `multipart/form-data` endpoint that accepts `files` and a `processType` of `save`.
-  - `delete`: Delete a media file.
-  - `metadata`: Extract metadata from a file without saving it.
-- **`POST /api/media/remote`**: Saves a media file from a remote URL.
-- **`POST /api/media/trash`**: Moves a media file to the trash.
-- **`GET /api/media/exists`**: Checks if a media file exists.
-- **`GET /api/media/get`**: Retrieves a media file.
-- **`DELETE /api/media/delete`**: Permanently deletes a media file.
+Lists all media files. Supports pagination and searching.
+
+**Query Params:**
+
+- `?page=1&limit=20`
+- `?search=my-image`
+
+**Maps to:** `MediaService.listMedia()` and `MediaService.searchMedia()`
+
+### `POST /api/media`
+
+Uploads a new media file.
+
+**Body:** `multipart/form-data` with a `File` object.
+
+**Maps to:** `MediaService.saveMedia()`
+
+### `POST /api/media/remote`
+
+Saves a reference to a remote media file (e.g., YouTube URL).
+
+**Body:** `{ "url": "https://...", "access": "public" }`
+
+**Maps to:** `MediaService.saveRemoteMedia()`
+
+### `GET /api/media/[id]`
+
+Retrieves the database metadata for a single media file.
+
+**Maps to:** `MediaService.getMedia()`
+
+### `PATCH /api/media/[id]`
+
+Updates the metadata for a media file (e.g., alt text, title).
+
+**Body:** `{ "metadata": { "title": "New Title" } }`
+
+**Maps to:** `MediaService.updateMedia()`
+
+### `DELETE /api/media/[id]`
+
+Deletes a media file. This moves the local file to `.trash` or deletes it from the cloud.
+
+**Maps to:** `MediaService.deleteMedia()`
+
+For a detailed reference of all API endpoints, see the [Media API Documentation](/docs/api/Media_API.mdx).
 
 ---
 
 ## Media Service
 
-The `MediaService` class (`src/services/MediaService.ts`) is the core of the media handling system. It encapsulates all the business logic for media operations, including:
+The `MediaService` class (`src/services/MediaService.ts`) is the core of the media handling system. It encapsulates all business logic and is the single source of truth for all media operations, including:
 
-- Uploading files to storage.
+- Uploading files to the correct storage adapter (via `mediaStorage.ts`).
 - Creating and updating media records in the database.
-- Deleting media files and moving them to the trash.
+- Deleting media files from storage and the database.
 - Managing media permissions and access control.
 
 The service uses a database-agnostic adapter (`dbInterface`) to interact with the database, making it compatible with different database backends.

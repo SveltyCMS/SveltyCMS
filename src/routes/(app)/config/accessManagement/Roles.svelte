@@ -22,7 +22,6 @@ It provides the following functionality:
 	// Auth
 	import type { Role } from '@src/databases/auth/types';
 	// Components
-	import Loading from '@components/Loading.svelte';
 	import RoleModal from './RoleModal.svelte';
 	// Skeleton
 	import { getModalStore, popup, type ModalSettings, type PopupSettings } from '@skeletonlabs/skeleton';
@@ -40,7 +39,6 @@ It provides the following functionality:
 	let roles = $state<Role[]>([]);
 	let selectedPermissions = $state<string[]>([]);
 	let selectedRoles = $state<Set<string>>(new Set());
-	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 	let modifiedRoles = $state(new Set<string>());
 	// Define DndItem type for dndzone compatibility
@@ -52,31 +50,15 @@ It provides the following functionality:
 	let currentRoleId = $state<string | null>(null);
 	let currentGroupName = $state('');
 
-	// Initialize data when component mounts
+	// Initialize data when component mounts (run once)
 	$effect(() => {
-		loadData();
-	});
-
-	const loadData = async () => {
-		try {
-			await loadRoleGroups();
-		} catch (err) {
-			error = `Failed to initialize: ${err instanceof Error ? err.message : String(err)}`;
-		} finally {
-			isLoading = false;
-		}
-	};
-
-	const loadRoleGroups = async () => {
-		try {
-			// Add id property for dndzone while keeping _id for data
+		// Only initialize if data hasn't been loaded yet
+		if (roles.length === 0 && roleData.length > 0) {
 			const rolesWithId = roleData.map((role: Role) => ({ ...role, id: role._id }));
 			roles = rolesWithId;
 			items = rolesWithId;
-		} catch (err) {
-			error = `Failed to load roles: ${err instanceof Error ? err.message : String(err)}`;
 		}
-	};
+	});
 
 	const openModal = (role: Role | null = null, groupName = '') => {
 		isEditMode = !!role;
@@ -231,9 +213,7 @@ It provides the following functionality:
 	}
 </script>
 
-{#if isLoading}
-	<Loading customTopText="Loading Roles..." customBottomText="" />
-{:else if error}
+{#if error}
 	<p class="error">{error}</p>
 {:else}
 	<h3 class="mb-2 text-center text-xl font-bold">Roles Management:</h3>

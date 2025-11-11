@@ -98,6 +98,12 @@ function mergeValues(current: unknown, imported: unknown): unknown {
 async function applyImport(importData: ExportData, options: ImportOptions, conflicts: Conflict[]): Promise<ImportResult> {
 	const result: ImportResult = { success: true, imported: 0, skipped: 0, merged: 0, errors: [], conflicts };
 	const db = getDb();
+
+	if (!db) {
+		logger.error('Database adapter not initialized');
+		throw new Error('Database adapter not initialized');
+	}
+
 	if (importData.settings) {
 		for (const [key, value] of Object.entries(importData.settings)) {
 			const conflict = conflicts.find((c) => c.key === key);
@@ -199,7 +205,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			return json({ success: true, dryRun: true, conflicts, validation });
 		}
 		const result: ImportResult = await applyImport(importData, importOptions, conflicts);
-		await logImport(locals.user.id, importData.metadata, result);
+		await logImport(locals.user._id, importData.metadata, result);
 		return json(
 			{
 				success: result.success,
@@ -214,7 +220,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			{ status: result.success ? 200 : 207 }
 		);
 	} catch (error) {
-		console.error('Import error:', error);
+		logger.error('Import error:', error);
 		return json({ success: false, error: 'Import failed', message: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
 	}
 };

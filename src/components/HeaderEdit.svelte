@@ -28,6 +28,7 @@
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { untrack } from 'svelte';
 	import { deleteCurrentEntry, saveEntry } from '@utils/entryActions';
 	// Types
@@ -44,11 +45,12 @@
 
 	// Modal types import
 	// Stores
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { collection, collectionValue, mode, setCollectionValue, setMode } from '@src/stores/collectionStore.svelte';
 	import { isDesktop, screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
-	import { contentLanguage, headerActionButton, shouldShowNextButton, tabSet, validationStore } from '@stores/store.svelte';
+	import { contentLanguage, headerActionButton, shouldShowNextButton, tabSet, validationStore, dataChangeStore } from '@stores/store.svelte';
 
 	let user = $derived(page.data.user as User);
 	let isAdmin = $derived(page.data.isAdmin || false);
@@ -195,8 +197,26 @@
 	// Shared save logic for HeaderEdit and RightSidebar
 	async function prepareAndSaveEntry() {
 		if (!validationStore.isValid) {
-			console.warn('[HeaderEdit] Save blocked due to validation errors.');
+			logger.warn('[HeaderEdit] Save blocked due to validation errors.');
 			showToast(m.validation_fix_before_save(), 'error');
+			return;
+		}
+
+		// Check if there are any changes using the centralized store
+		if (!dataChangeStore.hasChanges) {
+			// No changes - but still need to reload full list view
+			logger.debug('[HeaderEdit] No changes detected, returning to list view without save');
+			toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed');
+			dataChangeStore.reset();
+
+			// ✅ Navigate back to list view with full data reload
+			// Remove ?edit= and ?create= parameters to trigger SSR reload of full entry list
+			const currentPath = page.url.pathname; // pathname excludes query parameters
+			logger.debug('[HeaderEdit] No changes - Navigating to:', currentPath, 'from:', page.url.href);
+			await goto(currentPath, { invalidateAll: true });
+
+			// Update mode after navigation
+			setMode('view');
 			return;
 		}
 
@@ -214,12 +234,12 @@
 
 		// Set metadata for all saves
 		if (mode.value === 'create') {
-			dataToSave.createdBy = user?.username ?? 'system';
+			dataToSave.createdBy = getDisplayName(user?.username, user);
 		}
-		dataToSave.updatedBy = user?.username ?? 'system';
+		dataToSave.updatedBy = getDisplayName(user?.username, user);
 
 		if (process.env.NODE_ENV !== 'production') {
-			console.log(
+			logger.debug(
 				'[HeaderEdit] Saving with status:',
 				dataToSave.status,
 				'collectionValue.status:',
@@ -229,9 +249,21 @@
 
 		await saveEntry(dataToSave); // Wait for save to complete (includes setMode('view'))
 		toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed');
-	}
 
-	// Save form data with validation
+		// Reset change tracking
+		dataChangeStore.reset();
+
+		// ✅ Navigate back to list view with full data reload
+		// Remove ?edit= and ?create= parameters to trigger SSR reload of full entry list
+		const currentPath = page.url.pathname; // pathname excludes query parameters
+		logger.debug('[HeaderEdit] Navigating to:', currentPath, 'from:', page.url.href);
+		await goto(currentPath, { invalidateAll: true });
+
+		// Update mode after navigation
+		setMode('view');
+
+		logger.debug('[Save] Navigated back to list view with full data');
+	} // Save form data with validation
 	async function saveData() {
 		await prepareAndSaveEntry();
 	}
@@ -239,10 +271,49 @@
 	// Permission and UI derived values
 	const canWrite = $derived(collection.value?.permissions?.[user.role]?.write !== false);
 
+	// Helper to get a display-friendly username
+	function getDisplayName(value: string | undefined | null, fallbackUser?: typeof user): string {
+		if (!value) {
+			if (fallbackUser) {
+				if (fallbackUser.username && !isUUID(fallbackUser.username)) {
+					return fallbackUser.username;
+				}
+				if (fallbackUser.firstName || fallbackUser.lastName) {
+					return [fallbackUser.firstName, fallbackUser.lastName].filter(Boolean).join(' ');
+				}
+				if (fallbackUser.email) {
+					return fallbackUser.email.split('@')[0];
+				}
+			}
+			return 'system';
+		}
+
+		if (isUUID(value)) {
+			if (fallbackUser) {
+				if (fallbackUser.username && !isUUID(fallbackUser.username)) {
+					return fallbackUser.username;
+				}
+				if (fallbackUser.firstName || fallbackUser.lastName) {
+					return [fallbackUser.firstName, fallbackUser.lastName].filter(Boolean).join(' ');
+				}
+				if (fallbackUser.email) {
+					return fallbackUser.email.split('@')[0];
+				}
+			}
+			return 'system';
+		}
+		return value;
+	}
+
+	function isUUID(value: string): boolean {
+		const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+		return uuidPattern.test(value);
+	}
+
 	const canDelete = $derived(collection.value?.permissions?.[user.role]?.delete !== false);
 
 	// function to undo the changes made by handleButtonClick
-	function handleCancel() {
+	async function handleCancel() {
 		// Dispatch cancel event to prevent auto-save draft
 		const cancelEvent = new CustomEvent('cancelEdit', {
 			bubbles: true,
@@ -254,13 +325,26 @@
 		if (mode.value === 'create') {
 			setCollectionValue({});
 		}
-		setMode('view');
+
+		// Reset change tracking
+		dataChangeStore.reset();
 
 		// Hide right sidebar
 		toggleUIElement('rightSidebar', 'hidden');
 
 		// Restore left sidebar to appropriate state
 		toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed');
+
+		// ✅ Navigate back to list view with full data reload
+		// Remove ?edit= and ?create= parameters to trigger SSR reload of full entry list
+		const currentPath = page.url.pathname; // pathname excludes query parameters
+		logger.debug('[HeaderEdit] Cancel - Navigating to:', currentPath, 'from:', page.url.href);
+		await goto(currentPath, { invalidateAll: true });
+
+		// Update mode after navigation
+		setMode('view');
+
+		logger.debug('[Cancel] Navigated back to list view with full data');
 	}
 
 	// Delete confirmation modal - use centralized function
@@ -268,7 +352,7 @@
 		deleteCurrentEntry(getModalStore(), isAdmin);
 	} // Next button handler for menu creation workflow
 	function next(): void {
-		console.log('[HeaderEdit] Next button clicked');
+		logger.debug('[HeaderEdit] Next button clicked');
 		// Add your next logic here
 	}
 
@@ -417,10 +501,6 @@
 			<button type="button" onclick={handleCancel} aria-label="Cancel" class="variant-ghost-surface btn-icon">
 				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 			</button>
-			<!-- {:else}
-			<button type="button" onclick={handleReload} aria-label="Reload" class="variant-ghost-surface btn-icon">
-				<iconify-icon icon="fa:refresh" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-			</button> -->
 		{/if}
 	</div>
 </header>
@@ -499,10 +579,10 @@
 			{/if}
 
 			<div class="mt-2 text-sm">
-				<p>Created by: {collectionValue.value?.createdBy || user.username}</p>
+				<p>Created by: {getDisplayName(collectionValue.value?.createdBy as string, user)}</p>
 				{#if collectionValue.value?.updatedBy}
 					<p class="text-tertiary-500">
-						Last updated by: {collectionValue.value.updatedBy}
+						Last updated by: {getDisplayName(collectionValue.value.updatedBy as string, user)}
 					</p>
 				{/if}
 			</div>

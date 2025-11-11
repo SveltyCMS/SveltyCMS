@@ -2,6 +2,19 @@
 @file: /src/components/Dropdown.svelte
 @component: 
 **Dropdown component that allows selection from a list of items. It supports custom styling, item modification, and an optional icon.**
+
+### Props
+- `items`: Array<any> - List of items to choose from.
+- `selected`: any - Currently selected item (default: first item in `items`).
+- `label`: string - Optional label for the dropdown button.
+- `modifier`: (input: any) => any - Function to modify how items are displayed.
+- `class`: string - Custom class for the dropdown container.
+
+### Features
+- **Customizable Items**: Accepts any array of items for selection.
+- **Default Selection**: Automatically selects the first item if none is provided.
+- **Item Modification**: Allows a function to modify item display.
+- **Expandable Dropdown**: Toggles visibility of the item list.
 -->
 
 <script lang="ts">

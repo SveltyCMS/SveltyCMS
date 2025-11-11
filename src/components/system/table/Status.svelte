@@ -3,13 +3,19 @@
 @component
 **Status component for table displaying different badges for different statuses**
 
-Value can be: publish, unpublish, schedule, delete, clone, test, draft, archive
+Values form StatusTypes
 
 @example
 <Status value="publish" />
 
-@props
+### Props
 - `value` {string}: The status value to display
+
+### Features:
+- Displays different badges for different statuses
+- Uses icons and colors to represent each status visually
+
+
 -->
 
 <script lang="ts">
@@ -26,7 +32,7 @@ Value can be: publish, unpublish, schedule, delete, clone, test, draft, archive
 
 <!-- Display different badges for different statuses -->
 <div
-	class="grid w-full max-w-44 grid-cols-1 items-center justify-center overflow-hidden rounded py-1.5 text-left text-white sm:grid-cols-2
+	class="grid w-full max-w-96 grid-cols-1 items-center justify-center overflow-hidden rounded py-1.5 text-left text-white sm:grid-cols-2
 		{value === StatusTypes.publish
 		? 'gradient-primary'
 		: value === StatusTypes.unpublish
@@ -57,10 +63,10 @@ Value can be: publish, unpublish, schedule, delete, clone, test, draft, archive
 		<p class="hidden sm:block">{m.entrylist_multibutton_schedule()}</p>
 	{:else if value === 'deleted'}
 		<iconify-icon icon="bi:trash3-fill" width="20" class="mx-auto"></iconify-icon>
-		<p class="hidden sm:block">Deleted</p>
+		<p class="hidden sm:block">{m.button_delete()}</p>
 	{:else if value === StatusTypes.delete}
 		<iconify-icon icon="bi:trash3-fill" width="20" class="mx-auto"></iconify-icon>
-		<p class="hidden sm:block">Deleted</p>
+		<p class="hidden sm:block">{m.button_delete()}</p>
 	{:else if value === StatusTypes.clone}
 		<iconify-icon icon="bi:clipboard-data-fill" width="20" class="mx-auto"></iconify-icon>
 		<p class="hidden sm:block">{m.entrylist_multibutton_clone()}</p>
@@ -69,10 +75,10 @@ Value can be: publish, unpublish, schedule, delete, clone, test, draft, archive
 		<p class="hidden sm:block">{m.entrylist_multibutton_testing()}</p>
 	{:else if value === StatusTypes.draft}
 		<iconify-icon icon="bi:pencil-square" width="20" class="mx-auto"></iconify-icon>
-		<p class="hidden sm:block">Draft</p>
+		<p class="hidden sm:block">{m.entrylist_multibutton_draft()}</p>
 	{:else if value === StatusTypes.archive}
 		<iconify-icon icon="bi:archive-fill" width="20" class="mx-auto"></iconify-icon>
-		<p class="hidden sm:block">Archive</p>
+		<p class="hidden sm:block">{m.button_archive()}</p>
 	{:else}
 		<p class="col-span-2">{value}</p>
 	{/if}

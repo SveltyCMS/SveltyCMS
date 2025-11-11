@@ -12,6 +12,8 @@ New Features:
 - All features opt-in and backward compatible
 -->
 <script lang="ts">
+	import { logger } from '@utils/logger';
+
 	type Snippet<T = any> = (args: T) => any;
 	type WidgetSize = { w: number; h: number };
 
@@ -102,7 +104,7 @@ New Features:
 				})
 			);
 		} catch (err) {
-			console.warn(`Failed to cache widget data for ${label}:`, err);
+			logger.warn(`Failed to cache widget data for ${label}:`, err);
 		}
 	}
 
@@ -148,14 +150,14 @@ New Features:
 
 			// Retry logic with exponential backoff
 			if (retryAttempt < retryCount) {
-				console.warn(`[${label}] Retry ${retryAttempt + 1}/${retryCount}:`, errorMsg);
+				logger.warn(`[${label}] Retry ${retryAttempt + 1}/${retryCount}:`, errorMsg);
 				const delay = retryDelay * Math.pow(2, retryAttempt); // Exponential backoff
 				await new Promise((resolve) => setTimeout(resolve, delay));
 				return fetchData(retryAttempt + 1);
 			}
 
 			error = errorMsg;
-			console.error(`[${label}] Failed after ${retryCount} attempts:`, error);
+			logger.error(`[${label}] Failed after ${retryCount} attempts:`, error);
 		} finally {
 			loading = false;
 		}

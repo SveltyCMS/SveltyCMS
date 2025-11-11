@@ -1,11 +1,12 @@
 import adapter from '@sveltejs/adapter-node'; // To generate a standalone Node server
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+import { betterSvelteEmailPreprocessor } from 'better-svelte-email';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
 	// Consult https://kit.svelte.dev/docs/integrations#preprocessors
 	// for more information about preprocessors
-	preprocess: vitePreprocess(),
+	preprocess: [vitePreprocess(), betterSvelteEmailPreprocessor()],
 
 	// ✅ **ACTION REQUIRED**: Uncomment this to enable Svelte 5 runes mode!
 	// This is essential for using the latest Svelte 5 features.
@@ -51,7 +52,18 @@ const config = {
 				'script-src': ['self', 'unsafe-eval', 'blob:'], // unsafe-eval for dev HMR, blob: for workers
 				'worker-src': ['self', 'blob:'], // Allow workers from same origin and blob URLs
 				'style-src': ['self', 'unsafe-inline'], // unsafe-inline for faster builds
-				'img-src': ['self', 'data:', 'https://api.iconify.design', 'https://api.unisvg.com', 'https://api.simplesvg.com', 'https://placehold.co'],
+				'img-src': [
+					'self',
+					'data:',
+					'blob:',
+					'https://api.iconify.design',
+					'https://api.unisvg.com',
+					'https://api.simplesvg.com',
+					'https://placehold.co',
+					'https://api.qrserver.com',
+					'https://github.com',
+					'https://raw.githubusercontent.com'
+				],
 				'font-src': ['self', 'data:'],
 				'connect-src': [
 					'self',

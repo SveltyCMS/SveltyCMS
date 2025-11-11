@@ -119,10 +119,25 @@ It handles token creation, updates, and deletion with proper validation and erro
 				throw new Error(responseData.message || 'Operation failed');
 			}
 
-			showToast(
-				`<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> ${isEditMode ? 'Token updated' : 'Token created'} successfully`,
-				'success'
-			);
+			// Check if SMTP is not configured
+			if (responseData.smtp_not_configured) {
+				showToast(
+					`<iconify-icon icon="mdi:email-alert" color="white" width="24" class="mr-1"></iconify-icon> ${isEditMode ? 'Token updated' : 'Token created'} - Email not sent: SMTP not configured`,
+					'warning'
+				);
+			} else if (responseData.dev_mode && !responseData.email_sent) {
+				// Email was skipped due to dev mode or dummy config
+				showToast(
+					`<iconify-icon icon="mdi:dev-to" color="white" width="24" class="mr-1"></iconify-icon> ${isEditMode ? 'Token updated' : 'Token created'} - Email sending skipped (dev mode)`,
+					'info'
+				);
+			} else {
+				// Success - email sent
+				showToast(
+					`<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> ${isEditMode ? 'Token updated' : 'Token created'} successfully`,
+					'success'
+				);
+			}
 
 			// Invalidate data first, then close modal
 			await invalidateAll();
@@ -223,7 +238,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 					required
 					autocomplete="email"
 					icon="mdi:email"
-					inputClass="dark-mode-input"
+					textColor="text-tertiary-500 dark:text-white"
 				/>
 				{#if errorStatus.email.status}
 					<div class="absolute left-0 top-11 text-xs text-error-500">
@@ -231,7 +246,6 @@ It handles token creation, updates, and deletion with proper validation and erro
 					</div>
 				{/if}
 			</div>
-
 			<!-- Token field (hidden but still submitted with form) -->
 			<input bind:value={formData.token} type="hidden" name="token" />
 
@@ -303,11 +317,5 @@ It handles token creation, updates, and deletion with proper validation and erro
 {/if}
 
 <style>
-	:global(.dark-mode-input) {
-		color: black;
-	}
-
-	:global(.dark .dark-mode-input) {
-		color: white;
-	}
+	/* Removed: dark-mode-input styles - now handled via textColor prop */
 </style>

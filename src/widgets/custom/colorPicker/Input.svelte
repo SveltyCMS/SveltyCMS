@@ -1,3 +1,26 @@
+<!--
+@file src/widgets/custom/colorPicker/Input.svelte
+@component
+**ColorPicker Widget Input Component**
+
+Provides a color selection interface using native HTML color input or custom swatch picker.
+Part of the Three Pillars Architecture for widget system.
+
+@example
+<ColorPickerInput bind:value={selectedColor} field={fieldDefinition} />
+Renders a color input with label, helper, and validation
+
+### Props
+- `field: FieldType` - Widget field definition with label, helper, etc.
+- `value: string | null | undefined` - Selected color value (bindable)
+
+### Features
+- **Semantic HTML**: Uses proper input and label markup
+- **Color Selection**: Native color input or custom swatch
+- **Required Field Indicators**: Visual asterisk for mandatory fields
+- **Tailwind Styling**: Utility-first CSS for layout and color
+- **Screen Reader Support**: Proper ARIA attributes and semantic markup
+-->
 <script lang="ts">
 	import type { FieldType } from './';
 	import * as m from '@src/paraglide/messages';

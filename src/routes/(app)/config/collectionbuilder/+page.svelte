@@ -27,6 +27,9 @@
 		return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
 	}
 
+	// Logger
+	import { logger } from '@utils/logger';
+
 	// Stores
 	import { setCollectionValue, setMode, setContentStructure, contentStructure } from '@src/stores/collectionStore.svelte';
 
@@ -101,7 +104,7 @@
 						addNewCategory(response);
 					}
 				} catch (error) {
-					console.error('Error handling category modal response:', error);
+					logger.error('Error handling category modal response:', error);
 					showToast('Error updating categories', 'error');
 				}
 			}
@@ -227,7 +230,7 @@
 				throw new Error(result.error || 'Failed to update categories');
 			}
 		} catch (error) {
-			console.error('Error saving categories:', error);
+			logger.error('Error saving categories:', error);
 			showToast(error instanceof Error ? error.message : 'Failed to save categories', 'error');
 			apiError = error instanceof Error ? error.message : 'Unknown error occurred';
 		} finally {

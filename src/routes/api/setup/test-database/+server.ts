@@ -91,7 +91,7 @@ async function installDriver(packageName: string): Promise<{ success: boolean; e
 		return {
 			success: false,
 			error: errorMessage,
-			output: error instanceof Error && 'stdout' in error ? (error.stdout as string) + (error.stderr as string) : undefined
+			output: error instanceof Error && 'stdout' in error && 'stderr' in error ? (error.stdout as string) + (error.stderr as string) : undefined
 		};
 	}
 }
@@ -440,6 +440,8 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 // =================================================================================================
 
 // Tests a PostgreSQL connection using Drizzle
+// Currently unused as only MongoDB is supported by the schema
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function testPostgresConnection(dbConfig: DatabaseConfig) {
 	const start = Date.now();
 	let client;
@@ -505,6 +507,8 @@ async function testPostgresConnection(dbConfig: DatabaseConfig) {
 }
 
 // Tests a MySQL/MariaDB connection using Drizzle
+// Currently unused as only MongoDB is supported by the schema
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function testMySqlConnection(dbConfig: DatabaseConfig) {
 	const start = Date.now();
 	let connection;
@@ -613,16 +617,13 @@ export const POST: RequestHandler = async ({ request }) => {
 		logger.info(`🎯 Database type ${dbConfig.type} is supported, proceeding with test...`);
 
 		// Dispatch to the correct test function based on db type
+		// Currently only MongoDB is supported by the schema
 		switch (dbConfig.type) {
 			case 'mongodb':
 			case 'mongodb+srv':
 				return await testMongoDbConnection(dbConfig);
-			case 'postgresql':
-				return await testPostgresConnection(dbConfig);
-			case 'mysql':
-			case 'mariadb':
-				return await testMySqlConnection(dbConfig);
 			default:
+				// This should never happen due to schema validation, but TypeScript requires it
 				logger.warn(`Unsupported database type requested: ${dbConfig.type}`);
 				return json(
 					{

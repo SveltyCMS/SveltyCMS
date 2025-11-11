@@ -26,21 +26,25 @@ Renders current language text with truncation for long content
 
 <script lang="ts">
 	import { contentLanguage } from '@src/stores/store.svelte';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import type { FieldType } from './';
 
 	let { field, value }: { field: FieldType; value: Record<string, string> | null | undefined } = $props();
 
 	// Determine the current language (uses store API from contentLanguage)
-	const lang = (field?.translated ? (contentLanguage.value?.toLowerCase?.() ?? contentLanguage.value) : contentLanguage.value) ?? 'en';
+	const lang = $derived(
+		field?.translated ? contentLanguage.value.toLowerCase() : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase()
+	);
 
 	// Compute display text for the current language with safe fallbacks and truncation
-	const getDisplayText = () => {
+	const displayText = $derived(() => {
 		const text = value?.[lang] ?? value?.[Object.keys(value || {})[0]] ?? '–';
 		if (typeof text !== 'string') return String(text);
-		return text.length > 50 ? text.substring(0, 50) + '...' : text;
-	};
+		return text.length > 50 ? `${text.substring(0, 50)}...` : text;
+	});
 
-	const displayText = getDisplayText();
+	// Get full text for tooltip
+	const fullText = $derived(value?.[lang] ?? '');
 </script>
 
-<span title={value?.[lang]}>{displayText}</span>
+<span title={fullText}>{displayText}</span>

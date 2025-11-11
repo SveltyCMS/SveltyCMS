@@ -95,17 +95,20 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 		if (!isValidPassword) {
 			logger.warn(`Login attempt failed: Invalid password for user: ${email}`, { userId: user._id, tenantId });
 			throw error(401, 'Invalid credentials.');
-		} // Credentials are valid, create a session.
+		}
+
+		// Credentials are valid, create a session.
 		// The expiration should ideally come from a central config.
 
 		const session = await auth.createSession({
 			user_id: user._id,
 			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }), // Add tenantId to the session
-			expires: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24-hour session
+			expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as import('@databases/dbInterface').ISODateString // 24-hour session
 		}); // Cache user in session store
 
 		const sessionCookie = auth.createSessionCookie(session._id);
-		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes as any);
 
 		logger.info(`User logged in successfully: ${user.email}`, { userId: user._id, tenantId });
 

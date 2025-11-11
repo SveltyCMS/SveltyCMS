@@ -63,7 +63,9 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 
 		for (const field of fields) {
 			const fieldStart = performance.now();
-			const widget = widgets[field.widget.Name];
+			// Access widget from store with proper type casting
+			const widgetStore = widgets as unknown as Record<string, unknown>;
+			const widget = widgetStore[field.widget.Name];
 			const fieldName = getFieldName(field);
 
 			logger.trace(`Processing field: \x1b[34m${fieldName}\x1b[0m, widget: \x1b[34m${field.widget.Name}\x1b[0m`);

@@ -6,12 +6,13 @@
 import { error } from '@sveltejs/kit';
 import mime from 'mime-types';
 import Path from 'path';
+import sharp from 'sharp';
 
 // Database Interface
 import type { DatabaseId, dbInterface, ISODateString, MediaItem } from '@src/databases/dbInterface';
 
 // Media
-import type { MediaAccess, MediaBase, MediaType } from './mediaModels';
+import type { MediaAccess, MediaBase, MediaImage, MediaType, ResizedImage } from './mediaModels';
 import { MediaTypeEnum } from './mediaModels';
 import { getSanitizedFileName, hashFileContent } from './mediaProcessing';
 import { saveFileToDisk, saveResizedImages } from './mediaStorage';
@@ -118,28 +119,37 @@ export class MediaService {
 
 			// Process image if it's an image type
 			const isImage = mimeType.startsWith('image/');
-			let resizedImages: Record<string, ResizedImage> = {};
+			let thumbnails: Record<string, ResizedImage> = {};
+			let width: number | undefined;
+			let height: number | undefined;
 
 			if (isImage) {
 				logger.debug('Processing image variants', {
 					fileName,
 					mimeType
 				});
-				resizedImages = await saveResizedImages(buffer, hash, sanitizedFileName, mimeType, ext, basePath);
+				const image = sharp(buffer);
+				const metadata = await image.metadata();
+				width = metadata.width;
+				height = metadata.height;
+				thumbnails = await saveResizedImages(buffer, hash, sanitizedFileName, mimeType, ext, basePath);
 			}
 
 			const fileInfo: MediaImage = {
-				type: MediaTypeEnum.Image,
-				name: sanitizedFileName,
+				type: MediaTypeEnum.Image as const,
+				filename: sanitizedFileName,
 				hash,
 				path: Path.join(basePath, originalSubfolder),
 				url: originalUrl,
 				mimeType,
 				size: buffer.length,
-				resized: resizedImages,
+				thumbnails,
 				access,
-				createdAt: new Date(),
-				updatedAt: new Date()
+				width: width ?? 0,
+				height: height ?? 0,
+				createdAt: new Date().toISOString() as ISODateString,
+				updatedAt: new Date().toISOString() as ISODateString,
+				user: userId
 			};
 
 			logger.info('File upload completed', {
@@ -147,7 +157,7 @@ export class MediaService {
 				url: originalUrl,
 				fileSize: buffer.length,
 				isImage,
-				resizedVariants: Object.keys(resizedImages),
+				resizedVariants: Object.keys(thumbnails),
 				totalProcessingTime: performance.now() - startTime
 			});
 
@@ -171,8 +181,7 @@ export class MediaService {
 		logger.trace('Starting media upload process', {
 			filename: file.name,
 			fileSize: file.size,
-			mimeType: file.type,
-			tenantId
+			mimeType: file.type
 		});
 		if (!file) {
 			const message = 'File is required';
@@ -213,13 +222,13 @@ export class MediaService {
 				type: mediaType,
 				hash: fileInfo.hash,
 				filename: file.name,
-				path: fileInfo.path,
+				path: fileInfo.path || '',
 				url: fileInfo.url,
 				mimeType: fileInfo.mimeType,
 				size: file.size,
 				user: userId,
-				createdAt: new Date(),
-				updatedAt: new Date(),
+				createdAt: new Date().toISOString() as ISODateString,
+				updatedAt: new Date().toISOString() as ISODateString,
 				metadata: {
 					originalFilename: file.name,
 					uploadedBy: userId,
@@ -230,12 +239,12 @@ export class MediaService {
 					{
 						version: 1,
 						url: fileInfo.url,
-						createdAt: new Date(),
+						createdAt: new Date().toISOString() as ISODateString,
 						createdBy: userId
 					}
 				],
 				access,
-				thumbnails: fileInfo.resized || {}
+				thumbnails: fileInfo.thumbnails || {}
 			};
 
 			// Create clean media object for database storage
@@ -247,30 +256,30 @@ export class MediaService {
 				processingTime: performance.now() - startTime
 			});
 
-			const mediaId = await this.db.crud.insert('MediaItem', cleanMedia);
+			const mediaResult = await this.db.crud.insert('MediaItem', cleanMedia);
+			if (!mediaResult.success) {
+				throw new Error(`Failed to insert media: ${mediaResult.message}`);
+			}
+			const mediaId = mediaResult.data;
 			logger.debug('Media saved to database', {
 				mediaId,
 				processingTime: performance.now() - startTime
 			});
 
-			// Retrieve the saved media with its ID
-			const savedMedia = await this.db.crud.findOne('MediaItem', { _id: mediaId });
+			const savedMedia = { ...cleanMedia, _id: mediaId };
 
 			// Cache the saved media
-			if (savedMedia) {
-				await cacheService.set(`media:${mediaId}`, savedMedia, 3600);
-			} else {
-				logger.warn('Saved media not found in database', { mediaId });
-			}
+			await cacheService.set(`media:${mediaId}`, savedMedia, 3600);
 
 			logger.info('Media processing completed successfully', {
 				mediaId,
-				originalUrl: savedMedia?.url,
+				originalUrl: savedMedia?.path,
 				thumbnails: savedMedia?.thumbnails ? Object.keys(savedMedia.thumbnails) : [],
 				totalProcessingTime: performance.now() - startTime
 			});
 
-			return savedMedia!;
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			return savedMedia as any as MediaType;
 		} catch (err) {
 			const message = `Error saving media: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, {
@@ -286,13 +295,15 @@ export class MediaService {
 	private createCleanMediaObject(object: MediaBaseWithThumbnails): Omit<MediaItem, '_id'> {
 		const dbObject: Omit<MediaItem, '_id'> = {
 			...object,
+			path: object.path || '',
 			originalFilename: object.filename, // Use filename as originalFilename
-			createdAt: object.createdAt.toISOString() as ISODateString,
-			updatedAt: object.updatedAt.toISOString() as ISODateString,
+			createdAt: object.createdAt,
+			updatedAt: object.updatedAt,
 			createdBy: object.user as DatabaseId,
 			updatedBy: object.user as DatabaseId,
 			thumbnails: object.thumbnails || {},
-			metadata: object.metadata || {}
+			metadata: object.metadata || {},
+			size: object.size || 0
 		};
 
 		return dbObject;
@@ -311,7 +322,11 @@ export class MediaService {
 		}
 
 		try {
-			await this.db.updateOne('media_collection', { _id: this.db.convertId(id) }, updates);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const result = await this.db.crud.update('MediaItem', id as DatabaseId, updates as any);
+			if (!result.success) {
+				throw new Error(result.message);
+			}
 			// Invalidate cache
 			await cacheService.delete(`media:${id}`);
 			logger.info('Media updated successfully', { id });
@@ -331,7 +346,10 @@ export class MediaService {
 		}
 
 		try {
-			await this.db.deleteOne('media_collection', { _id: this.db.convertId(id) });
+			const result = await this.db.crud.delete('MediaItem', id as DatabaseId);
+			if (!result.success) {
+				throw new Error(result.message);
+			}
 			// Remove from cache
 			await cacheService.delete(`media:${id}`);
 			logger.info('Media deleted successfully', { id });
@@ -355,7 +373,11 @@ export class MediaService {
 		}
 
 		try {
-			await this.db.updateOne('media_collection', { _id: this.db.convertId(id) }, { access });
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const result = await this.db.crud.update('MediaItem', id as DatabaseId, { access } as any);
+			if (!result.success) {
+				throw new Error(result.message);
+			}
 			// Invalidate cache
 			await cacheService.delete(`media:${id}`);
 			logger.info('Media access updated successfully', { id, access });
@@ -390,7 +412,11 @@ export class MediaService {
 				return cachedMedia;
 			}
 
-			const media = await this.db.findOne('media_collection', { _id: this.db.convertId(id) });
+			const mediaResult = await this.db.crud.findOne('MediaItem', { _id: id as DatabaseId });
+			if (!mediaResult.success) {
+				throw Error(mediaResult.message);
+			}
+			const media = mediaResult.data;
 
 			if (!media) {
 				throw Error('Media not found');
@@ -405,7 +431,7 @@ export class MediaService {
 			// Cache the media for future requests
 			await cacheService.set(`media:${id}`, media, 3600);
 
-			return media;
+			return media as MediaType;
 		} catch (err) {
 			const message = `Error retrieving media: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
@@ -422,13 +448,16 @@ export class MediaService {
 		}
 
 		try {
-			const convertedIds = ids.map((id) => {
+			// Use crud.deleteMany with array of IDs
+			for (const id of ids) {
 				if (!id || typeof id !== 'string' || id.trim().length === 0) {
 					throw Error('Invalid id in array: Must be a non-empty string');
 				}
-				return this.db.convertId(id);
-			});
-			await this.db.deleteMany('media_collection', { _id: { $in: convertedIds } });
+				const result = await this.db.crud.delete('MediaItem', id as DatabaseId);
+				if (!result.success) {
+					logger.error(`Failed to delete media ${id}: ${result.message}`);
+				}
+			}
 			// Remove from cache
 			await Promise.all(ids.map((id) => cacheService.delete(`media:${id}`)));
 			logger.info('Bulk media deletion successful', { count: ids.length });
@@ -460,16 +489,25 @@ export class MediaService {
 				$or: [{ name: { $regex: query, $options: 'i' } }, { 'metadata.tags': { $regex: query, $options: 'i' } }]
 			};
 
-			const [media, total] = await Promise.all([
-				this.db.findMany('media_collection', searchCriteria),
-				this.db.countDocuments('media_collection', searchCriteria)
+			const [mediaResult, totalResult] = await Promise.all([
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				this.db.crud.findMany('MediaItem', searchCriteria as any),
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				this.db.crud.count('MediaItem', searchCriteria as any)
 			]);
+
+			if (!mediaResult.success || !totalResult.success) {
+				throw new Error('Failed to search media');
+			}
+
+			const media = mediaResult.data || [];
+			const total = totalResult.data || 0;
 
 			// Apply pagination in memory since findMany doesn't support it
 			const startIndex = (page - 1) * limit;
 			const paginatedMedia = media.slice(startIndex, startIndex + limit);
 
-			return { media: paginatedMedia, total };
+			return { media: paginatedMedia as MediaType[], total };
 		} catch (err) {
 			const message = `Error searching media: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
@@ -490,13 +528,20 @@ export class MediaService {
 		}
 
 		try {
-			const [media, total] = await Promise.all([this.db.findMany('media_collection', {}), this.db.countDocuments('media_collection', {})]);
+			const [mediaResult, totalResult] = await Promise.all([this.db.crud.findMany('MediaItem', {}), this.db.crud.count('MediaItem', {})]);
+
+			if (!mediaResult.success || !totalResult.success) {
+				throw new Error('Failed to list media');
+			}
+
+			const media = mediaResult.data || [];
+			const total = totalResult.data || 0;
 
 			// Apply pagination in memory since findMany doesn't support it
 			const startIndex = (page - 1) * limit;
 			const paginatedMedia = media.slice(startIndex, startIndex + limit);
 
-			return { media: paginatedMedia, total };
+			return { media: paginatedMedia as MediaType[], total };
 		} catch (err) {
 			const message = `Error listing media: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);

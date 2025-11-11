@@ -26,6 +26,7 @@ import { error } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import type { User } from '@src/databases/auth/types';
+import type { ISODateString } from '@databases/dbInterface';
 import { auth, dbAdapter } from '@src/databases/db';
 import { cacheService, SESSION_CACHE_TTL_MS } from '@src/databases/CacheService';
 import { logger } from '@utils/logger.server';
@@ -303,7 +304,7 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 		// Create new session with same user
 		const newSession = await auth.createSession({
 			user_id: user._id,
-			expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+			expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() as ISODateString, // 30 days
 			tenantId: event.locals.tenantId
 		});
 
@@ -371,7 +372,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	}
 
 	// Skip public routes
-	const publicRoutes = ['/login', '/register', '/forgot-password'];
+	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/setup'];
 	if (publicRoutes.some((r) => url.pathname.startsWith(r))) {
 		return resolve(event);
 	}

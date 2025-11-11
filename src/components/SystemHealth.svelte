@@ -20,6 +20,7 @@ Allows administrators to monitor system status and restart services.
 	import { systemState, type SystemState, type ServiceHealth } from '@src/stores/system';
 	import { getToastStore } from '@skeletonlabs/skeleton';
 	import { formatDisplayDate } from '@utils/dateUtils';
+	import { logger } from '@utils/logger';
 
 	const toastStore = getToastStore();
 
@@ -93,7 +94,7 @@ Allows administrators to monitor system status and restart services.
 		try {
 			await fetch('/api/system?action=health');
 		} catch (err) {
-			console.error('Failed to fetch health:', err);
+			logger.error('Failed to fetch health:', err);
 			toastStore.trigger({ message: 'Failed to fetch system health', background: 'variant-filled-error', timeout: 3000 });
 		}
 	}

@@ -1,6 +1,19 @@
 <!-- 
  @file src/components/system/buttons/CheckBox.svelte
- @description - Checkbox component 
+ @component
+ **CheckBox component**
+
+ ### Props
+ - `checked?: boolean` - Bindable boolean value representing the checkbox state
+ - `label?: string` - Optional label text displayed next to the checkbox
+ - `class?: string` - Optional additional CSS classes for the checkbox container
+ - `svg?: any` - Optional SVG icon to display when checked
+
+ ### Features
+ - **Accessible**: ARIA roles and attributes for screen readers
+ - **Keyboard Navigable**: Focus styles for keyboard users
+ - **Custom SVG Support**: Ability to pass custom SVG icons for the checked state
+ - **Simple API**: Easy to use with bindable value and optional label
  -->
 
 <script lang="ts">

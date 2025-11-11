@@ -7,6 +7,7 @@ This page serves as a demo and testing environment for the image editor.
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { page } from '$app/state';
 	import ImageEditor from './ImageEditor.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
@@ -16,20 +17,20 @@ This page serves as a demo and testing environment for the image editor.
 
 	// Handle save callback
 	const handleSave = (dataURL: string, file: File) => {
-		console.log('Image saved:', { dataURL, file });
+		logger.debug('Image saved:', { dataURL, file });
 		// TODO: Implement actual save logic (upload to media API, etc.)
 		alert('Image saved successfully!');
 	};
 
 	// Handle cancel callback
 	const handleCancel = () => {
-		console.log('Edit canceled');
+		logger.debug('Edit canceled');
 		// TODO: Implement navigation back or close modal
 		alert('Edit canceled');
 	};
 </script>
 
-<PageTitle title="Image Editor" />
+<PageTitle name="Image Editor" />
 
 <div class="wrapper h-screen w-full">
 	<div class="flex h-full w-full flex-col">

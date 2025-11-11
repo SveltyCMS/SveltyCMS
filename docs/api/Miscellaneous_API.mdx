@@ -71,17 +71,14 @@ Content-Type: application/json
 
 ```json
 {
-	"success": true,
-	"message": "Permissions updated successfully",
-	"rolesUpdated": 2,
-	"file": "config/roles.ts"
+	"success": true
 }
 ```
 
 **Error Responses:**
 
 ```json
-// 501 Not Implemented - Multi-tenant mode
+// 403 Forbidden - Not admin
 {
   "success": false,
   "error": "This feature is not available in multi-tenant mode."
@@ -103,10 +100,11 @@ Content-Type: application/json
 
 **Important Notes:**
 
-- **NOT compatible with multi-tenant mode** (disabled for security)
-- Modifies global `config/roles.ts` file
-- Requires server restart to take effect
-- Creates backup before modification
+- **Fully supports multi-tenant mode** with tenant-specific role isolation
+- Updates roles directly in database (`auth_roles` collection)
+- Changes take effect immediately (roles cache is invalidated)
+- Validates all roles before applying changes
+- Requires at least one admin role in the system
 
 ---
 
@@ -198,16 +196,18 @@ Requires environment variables:
 
 ---
 
-## Virtual Folders
+## System Virtual Folders
 
-### List Virtual Folders
+System virtual folders organize media files in a hierarchical structure.
 
-Retrieves all virtual folders for organizing media.
+### List All Virtual Folders
+
+Retrieves all system virtual folders for the current tenant.
 
 #### Request
 
 ```http
-GET /api/virtualFolder
+GET /api/systemVirtualFolder
 ```
 
 **Headers:**
@@ -229,21 +229,26 @@ Cookie: session=your-session-id
 		{
 			"_id": "folder123",
 			"name": "Product Images",
-			"path": "/media/products",
-			"parent": null,
+			"path": "/Product Images",
+			"parentId": null,
+			"type": "folder",
+			"order": 0,
 			"tenantId": "tenant-abc",
-			"createdAt": "2025-10-01T10:00:00Z"
+			"createdAt": "2025-10-01T10:00:00Z",
+			"updatedAt": "2025-10-01T10:00:00Z"
 		},
 		{
 			"_id": "folder124",
 			"name": "Blog Images",
-			"path": "/media/blog",
-			"parent": null,
+			"path": "/Blog Images",
+			"parentId": null,
+			"type": "folder",
+			"order": 1,
 			"tenantId": "tenant-abc",
-			"createdAt": "2025-10-02T12:00:00Z"
+			"createdAt": "2025-10-02T12:00:00Z",
+			"updatedAt": "2025-10-02T12:00:00Z"
 		}
-	],
-	"message": "Found 2 virtual folders."
+	]
 }
 ```
 
@@ -251,12 +256,12 @@ Cookie: session=your-session-id
 
 ### Create Virtual Folder
 
-Creates a new virtual folder.
+Creates a new system virtual folder.
 
 #### Request
 
 ```http
-POST /api/virtualFolder
+POST /api/systemVirtualFolder
 ```
 
 **Headers:**
@@ -271,47 +276,69 @@ Content-Type: application/json
 ```json
 {
 	"name": "Marketing Assets",
-	"path": "/media/marketing",
-	"parent": null
+	"parentId": null
 }
 ```
 
-**Permissions Required:** `media:write` or `admin`
+**Field Descriptions:**
+
+- `name` (string, required) - Name of the folder
+- `parentId` (string | null, optional) - ID of parent folder, null for root-level folder
+
+**Permissions Required:** Authenticated user
 
 #### Response
 
-**Success (201):**
+**Success (200):**
 
 ```json
 {
 	"success": true,
-	"data": {
+	"folder": {
 		"_id": "folder125",
 		"name": "Marketing Assets",
-		"path": "/media/marketing",
-		"parent": null,
+		"path": "/Marketing Assets",
+		"parentId": null,
+		"type": "folder",
+		"order": 0,
 		"tenantId": "tenant-abc",
-		"createdAt": "2025-10-05T14:30:00Z"
-	},
-	"message": "Virtual folder created successfully."
+		"createdAt": "2025-10-05T14:30:00Z",
+		"updatedAt": "2025-10-05T14:30:00Z"
+	}
+}
+```
+
+**Error Responses:**
+
+```json
+// 400 Bad Request - Invalid name
+{
+	"success": false,
+	"error": "Name is required and must be a string"
+}
+
+// 400 Bad Request - Parent not found
+{
+	"success": false,
+	"error": "Parent folder not found"
 }
 ```
 
 ---
 
-### Get Folder Details
+### Get Folder Contents
 
-Retrieves details of a specific virtual folder.
+Retrieves a specific virtual folder with its contents (subfolders and files).
 
 #### Request
 
 ```http
-GET /api/virtualFolder/[folderId]
+GET /api/systemVirtualFolder/[id]
 ```
 
 **Path Parameters:**
 
-- `folderId` (string) - The folder ID
+- `id` (string) - The folder ID, or `"root"` for root folder
 
 **Headers:**
 
@@ -329,27 +356,54 @@ Cookie: session=your-session-id
 {
 	"success": true,
 	"data": {
-		"_id": "folder123",
-		"name": "Product Images",
-		"path": "/media/products",
-		"parent": null,
-		"children": ["folder126", "folder127"],
-		"fileCount": 42,
-		"tenantId": "tenant-abc"
+		"currentFolder": {
+			"_id": "folder123",
+			"name": "Product Images",
+			"path": "/Product Images",
+			"parentId": null,
+			"type": "folder",
+			"order": 0
+		},
+		"contents": {
+			"folders": [
+				{
+					"_id": "folder126",
+					"name": "Electronics",
+					"path": "/Product Images/Electronics",
+					"parentId": "folder123",
+					"order": 0
+				}
+			],
+			"files": [
+				{
+					"_id": "img001",
+					"filename": "product1.jpg",
+					"virtualFolderId": "folder123",
+					"url": "/media/images/product1.jpg",
+					"thumbnail": {
+						"url": "/media/thumbnails/product1.jpg",
+						"width": 200,
+						"height": 200
+					}
+				}
+			]
+		}
 	}
 }
 ```
+
+**Note:** When `id` is `"root"`, `currentFolder` will be `null` and contents will show root-level items.
 
 ---
 
 ### Update Virtual Folder
 
-Updates an existing virtual folder.
+Updates an existing virtual folder's name.
 
 #### Request
 
 ```http
-PATCH /api/virtualFolder/[folderId]
+PATCH /api/systemVirtualFolder/[id]
 ```
 
 **Headers:**
@@ -363,12 +417,11 @@ Content-Type: application/json
 
 ```json
 {
-	"name": "Updated Folder Name",
-	"parent": "folder123"
+	"name": "Updated Folder Name"
 }
 ```
 
-**Permissions Required:** `media:write` or `admin`
+**Permissions Required:** Authenticated user
 
 #### Response
 
@@ -377,13 +430,29 @@ Content-Type: application/json
 ```json
 {
 	"success": true,
-	"data": {
+	"folder": {
 		"_id": "folder125",
 		"name": "Updated Folder Name",
-		"parent": "folder123",
+		"path": "/Updated Folder Name",
+		"parentId": null,
 		"updatedAt": "2025-10-05T14:35:00Z"
-	},
-	"message": "Virtual folder updated successfully."
+	}
+}
+```
+
+**Error Responses:**
+
+```json
+// 404 Not Found
+{
+	"success": false,
+	"error": "Folder not found"
+}
+
+// 400 Bad Request
+{
+	"success": false,
+	"error": "Name is required and must be a string"
 }
 ```
 
@@ -391,12 +460,12 @@ Content-Type: application/json
 
 ### Delete Virtual Folder
 
-Deletes a virtual folder.
+Deletes a virtual folder. Cannot delete folders with subfolders or media files.
 
 #### Request
 
 ```http
-DELETE /api/virtualFolder/[folderId]
+DELETE /api/systemVirtualFolder/[id]
 ```
 
 **Headers:**
@@ -405,7 +474,7 @@ DELETE /api/virtualFolder/[folderId]
 Cookie: session=your-session-id
 ```
 
-**Permissions Required:** `media:delete` or `admin`
+**Permissions Required:** Authenticated user
 
 #### Response
 
@@ -413,16 +482,100 @@ Cookie: session=your-session-id
 
 ```json
 {
-	"success": true,
-	"message": "Virtual folder deleted successfully."
+	"success": true
+}
+```
+
+**Error Responses:**
+
+```json
+// 400 Bad Request - Has children
+{
+	"success": false,
+	"error": "Cannot delete folder with subfolders. Delete subfolders first."
+}
+
+// 404 Not Found
+{
+	"success": false,
+	"error": "Folder not found"
 }
 ```
 
 ---
 
-## System Virtual Folders
+### Reorder Folders
 
-System virtual folders follow similar endpoints but are under `/api/systemVirtualFolder/*` and require admin permissions.
+Updates the order and/or parent of multiple folders.
+
+#### Request
+
+```http
+PATCH /api/systemVirtualFolder
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"action": "reorder",
+	"orderUpdates": [
+		{
+			"folderId": "folder123",
+			"order": 0,
+			"parentId": null
+		},
+		{
+			"folderId": "folder124",
+			"order": 1,
+			"parentId": "folder123"
+		}
+	]
+}
+```
+
+**Field Descriptions:**
+
+- `action` (string, required) - Must be `"reorder"`
+- `orderUpdates` (array, required) - Array of folder updates
+  - `folderId` (string, required) - ID of folder to update
+  - `order` (number, required) - New order position
+  - `parentId` (string | null, optional) - New parent folder ID
+
+**Permissions Required:** Authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true
+}
+```
+
+**Error Responses:**
+
+```json
+// 400 Bad Request - Invalid action
+{
+	"success": false,
+	"error": "Invalid action"
+}
+
+// 500 Internal Server Error - Update failed
+{
+	"success": false,
+	"error": "Error reordering folders"
+}
+```
 
 ---
 
@@ -754,30 +907,40 @@ Content-Type: application/json
 All miscellaneous endpoints use database adapters:
 
 ```typescript
-// Virtual folders
-await dbAdapter.findMany('system_virtual_folders', filter);
-await dbAdapter.create('system_virtual_folders', folderData);
+// System virtual folders
+await dbAdapter.systemVirtualFolder.getAll();
+await dbAdapter.systemVirtualFolder.create(folderData);
+await dbAdapter.systemVirtualFolder.getById(id);
+await dbAdapter.systemVirtualFolder.getByParentId(parentId);
+await dbAdapter.systemVirtualFolder.update(id, data);
+await dbAdapter.systemVirtualFolder.delete(id);
 
-// Permissions (file-based in single-tenant, DB in multi-tenant)
-// Uses abstraction layers
+// Permissions - Database-only via auth adapter
+await dbAdapter.auth.getAllRoles(tenantId);
+await dbAdapter.auth.createRole(roleData);
+await dbAdapter.auth.updateRole(roleId, roleData, tenantId);
+await dbAdapter.auth.deleteRole(roleId, tenantId);
 
 // Email (no database operations)
 // Uses Nodemailer with SMTP
 
-// Content structure
-// Retrieved from ContentManager (file + DB)
+// Media files queried from multiple collections
+await dbAdapter.crud.findMany('media_images', filter);
+await dbAdapter.crud.findMany('media_documents', filter);
+await dbAdapter.crud.findMany('media_audio', filter);
+await dbAdapter.crud.findMany('media_videos', filter);
 ```
 
 ---
 
 ## Multi-Tenancy Support
 
-Most endpoints support multi-tenancy:
+All endpoints fully support multi-tenancy:
 
-- Virtual folders scoped per tenant
-- Permissions updated globally (single-tenant only)
-- Email sent with tenant context
-- Content structure filtered by tenant
+- **System virtual folders**: Scoped per tenant, all operations respect `tenantId`
+- **Permissions**: Database-backed with tenant-specific role isolation
+- **Email**: Sent with tenant context
+- **Media files**: Filtered by tenant in folder queries
 
 ---
 
@@ -799,22 +962,47 @@ await fetch('/api/sendMail', {
 	})
 });
 
-// Create virtual folder
-await fetch('/api/virtualFolder', {
+// Create system virtual folder
+await fetch('/api/systemVirtualFolder', {
 	method: 'POST',
 	credentials: 'include',
 	headers: { 'Content-Type': 'application/json' },
 	body: JSON.stringify({
 		name: 'New Folder',
-		path: '/media/new'
+		parentId: null
 	})
 });
 
-// Get content structure
-const response = await fetch('/api/content-structure', {
+// Get folder contents (root level)
+const response = await fetch('/api/systemVirtualFolder/root', {
 	credentials: 'include'
 });
-const { structure } = await response.json();
+const { data } = await response.json();
+console.log(data.contents.folders, data.contents.files);
+
+// Update folder
+await fetch('/api/systemVirtualFolder/folder123', {
+	method: 'PATCH',
+	credentials: 'include',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({
+		name: 'Renamed Folder'
+	})
+});
+
+// Reorder folders
+await fetch('/api/systemVirtualFolder', {
+	method: 'PATCH',
+	credentials: 'include',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({
+		action: 'reorder',
+		orderUpdates: [
+			{ folderId: 'folder123', order: 0, parentId: null },
+			{ folderId: 'folder124', order: 1, parentId: 'folder123' }
+		]
+	})
+});
 ```
 
 ---
@@ -832,8 +1020,9 @@ const { structure } = await response.json();
 
 For implementation details, see:
 
-- `src/routes/api/permission/update/+server.ts` - Permission updates
+- `src/routes/api/permission/update/+server.ts` - Permission updates (database-backed roles)
 - `src/routes/api/sendMail/+server.ts` - Email sending
-- `src/routes/api/virtualFolder/+server.ts` - Virtual folders
+- `src/routes/api/systemVirtualFolder/+server.ts` - Virtual folder management
+- `src/routes/api/systemVirtualFolder/[id]/+server.ts` - Individual folder operations
 - `src/routes/api/content-structure/+server.ts` - Content structure
 - `src/routes/api/marketplace/widgets/+server.ts` - Marketplace

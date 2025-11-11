@@ -65,12 +65,14 @@ const distributedStore = {
 	/**
 	 * Adds/sets a value in the store (required by sveltekit-rate-limiter)
 	 */
-	async add(key: string, value: number, ttlSeconds: number): Promise<void> {
+	async add(key: string, ttlSeconds: number): Promise<number> {
 		try {
 			const expires = Date.now() + ttlSeconds * 1000;
-			await cacheService.set(`ratelimit:${key}`, { count: value, expires }, ttlSeconds);
+			await cacheService.set(`ratelimit:${key}`, { count: 1, expires }, ttlSeconds);
+			return 1;
 		} catch (err) {
 			logger.error(`Distributed rate limit store ADD failed: ${err instanceof Error ? err.message : String(err)}`);
+			return 0;
 		}
 	},
 
@@ -88,6 +90,13 @@ const distributedStore = {
 		} catch (err) {
 			logger.error(`Distributed rate limit store INCREMENT failed: ${err instanceof Error ? err.message : String(err)}`);
 			return 1; // Fail open to prevent blocking all traffic
+		}
+	},
+	async clear(): Promise<void> {
+		try {
+			await cacheService.delete(`ratelimit:*`); // Clear all rate limit keys
+		} catch (err) {
+			logger.error(`Distributed rate limit store CLEAR failed: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	}
 };

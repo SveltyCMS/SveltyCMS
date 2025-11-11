@@ -1,23 +1,16 @@
 /**
- * @file src/routes/(app)/config/collection/[...contentTypes]/+page.server.ts
- * @description Server-side logic for collection management in the CMS.
+ * @file src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/+page.server.ts
+ * @description Server-side logic for creating and editing individual collections.
  *
- * This module handles:
- * - Authentication and authorization for collection management
- * - CRUD operations for collections (Create, Read, Update, Delete)
- * - Processing and saving collection schemas
- * - Managing collection configurations
- * - Compiling and updating collections
- *
- * Key features:
- * - Role-based access control
- * - Dynamic field processing for widgets
- * - Permission management for collections
- * - File system operations for collection storage
- * - Integration with collection compilation and update processes
- *
- * The module uses SvelteKit's load and actions functions to handle
- * server-side operations and data preparation for the client.
+ * #Features:
+ * - Handles 'new' and 'edit' actions based on URL parameters.
+ * - Checks for authenticated user in locals (set by hooks.server.ts).
+ * - Verifies user permissions: Must be admin or have 'config:collection:manage' permission.
+ * - Fetches all permissions and roles to pass to the client (for UI selectors).
+ * - For 'edit' mode, fetches the specific collection data from contentManager.
+ * - For 'new' mode, returns a null collection object.
+ * - Serializes collection data, removing functions before sending to the client.
+ * - Provides 'saveCollection' and 'deleteCollections' actions for persistence.
  */
 
 import fs from 'fs';
@@ -34,13 +27,38 @@ import { compile } from '@src/utils/compilation/compile';
 import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 
 // Auth
-import { hasPermissionByAction } from '@src/databases/auth/permissions';
+// Use hasPermissionWithRoles and roles from locals, like the example pattern
+import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { permissionConfigs } from '@src/databases/auth/permissions';
-import { roles } from '@root/config/roles';
+
 import { permissions } from '@src/databases/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.server';
+
+// Type definitions for widget field structure
+interface WidgetConfig {
+	Name: string;
+	key: string;
+	GuiFields: Record<string, unknown>;
+}
+
+interface FieldWithWidget {
+	widget?: WidgetConfig;
+	[key: string]: unknown;
+}
+
+interface WidgetGuiSchema {
+	imports?: string[];
+	[key: string]: unknown;
+}
+
+interface WidgetDefinition {
+	GuiSchema?: Record<string, WidgetGuiSchema>;
+	[key: string]: unknown;
+}
+
+type FieldsData = Record<string, FieldWithWidget>;
 
 // Load Prettier config
 async function getPrettierConfig() {
@@ -53,13 +71,14 @@ async function getPrettierConfig() {
 	}
 }
 
-type fields = ReturnType<WidgetType[keyof WidgetType]>;
-
 // Define load function as async function that takes an event parameter
 export const load: PageServerLoad = async ({ locals, params }) => {
 	try {
-		const { user } = locals;
+		// 1. Get user, roles, and admin status from locals (set by hook)
+		const { user, roles: tenantRoles, isAdmin } = locals;
+		const { action } = params;
 
+		// 2. User authentication (already done by hook, this is a fallback)
 		if (!user) {
 			logger.warn('User not authenticated, redirecting to login');
 			throw redirect(302, '/login');
@@ -67,40 +86,48 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
 
-		// Check user permission for collection management
-		const collectionManagementConfig = permissionConfigs.collectionManagement;
-		const permissionCheck = await hasPermissionByAction(user, collectionManagementConfig);
-		// Find user role and check admin status
-		const userRole = roles.find((r) => r._id === user.role);
-		const isAdmin = userRole?.isAdmin;
-		if (!permissionCheck.hasPermission && !isAdmin) {
-			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access collection management`;
-			logger.warn(message);
+		// 3. Authorization check
+		// Use the 'config:collection:manage' permission string (adjust if needed)
+		const hasManagePermission = hasPermissionWithRoles(user, 'config:collection:manage', tenantRoles);
+
+		// Replicate original logic: User must be an Admin OR have the specific permission.
+		if (!isAdmin && !hasManagePermission) {
+			const message = `User \x1b[34m${user._id}\x1b[0m lacks 'config:collection:manage' permission and is not admin.`;
+			logger.warn(message, { userId: user._id, isAdmin, hasManagePermission });
 			throw error(403, 'Insufficient permissions');
 		}
 
-		const action = params.action;
+		// 4. Serialize user data (like the example)
 		const { _id, ...rest } = user;
+		const serializedUser = {
+			id: _id.toString(),
+			...rest,
+			isAdmin // Include admin status
+		};
 
+		// 5. Handle 'new' action
 		if (action === 'new') {
 			return {
-				user: { ...rest, id: _id.toString() },
-				roles, // Add roles data
-				permissions, // Add permissions data
-				permissionConfigs // Add permission configs
+				user: serializedUser,
+				roles: tenantRoles || [], // Roles:' key
+				permissions, // Permissions data
+				permissionConfigs, // Permission configs
+				collection: null // Pass null for 'new' action
 			};
 		}
 
+		// 6. Handle 'edit' action (default)
 		await contentManager.refresh(); // Force a refresh to bypass any stale cache
-		const navStructure = await contentManager.getNavigationStructure();
-		logger.trace('navStructure:', JSON.stringify(navStructure, null, 2));
 		const collection = params.contentPath;
-
 		const currentCollection = await contentManager.getCollection(`/${collection}`);
 
-		logger.trace('currentCollection in server load (after refresh):', currentCollection);
+		if (!currentCollection) {
+			logger.warn(`Collection not found at path: /${collection}`, { path: `/${collection}` });
+			throw error(404, 'Collection not found');
+		}
 
-		function deepCloneAndRemoveFunctions(obj: any): any {
+		// Helper function to deep clone and remove functions
+		function deepCloneAndRemoveFunctions(obj: unknown): unknown {
 			if (obj === null || typeof obj !== 'object') {
 				return obj;
 			}
@@ -110,16 +137,17 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			}
 
 			if (Array.isArray(obj)) {
-				return obj.map((item) => deepCloneAndRemoveFunctions(item));
+				return (obj as unknown[]).map((item) => deepCloneAndRemoveFunctions(item));
 			}
 
-			const newObj = {};
-			for (const key in obj) {
+			const newObj: Record<string, unknown> = {};
+			for (const key in obj as Record<string, unknown>) {
 				if (Object.prototype.hasOwnProperty.call(obj, key)) {
-					if (typeof obj[key] === 'function') {
+					const value = (obj as Record<string, unknown>)[key];
+					if (typeof value === 'function') {
 						continue; // Skip functions
 					}
-					newObj[key] = deepCloneAndRemoveFunctions(obj[key]);
+					newObj[key] = deepCloneAndRemoveFunctions(value);
 				}
 			}
 			return newObj;
@@ -128,10 +156,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		const serializableCollection = currentCollection ? deepCloneAndRemoveFunctions(currentCollection) : null;
 
 		return {
-			user: { ...rest, id: _id.toString() },
-			roles, // Add roles data
-			permissions, // Add permissions data
-			permissionConfigs, // Add permission configs
+			user: serializedUser,
+			roles: tenantRoles || [], // roles:' key
+			permissions, // Permissions data
+			permissionConfigs, //Permission configs
 			collection: serializableCollection
 		};
 	} catch (err) {
@@ -159,7 +187,7 @@ export const actions: Actions = {
 			const collectionStatus = formData.get('status') as string;
 
 			// Widgets Fields
-			const fields = JSON.parse(fieldsData) as Array<fields>;
+			const fields = JSON.parse(fieldsData) as FieldsData;
 			const imports = await goThrough(fields, fieldsData);
 
 			// Generate collection file using AST transformation
@@ -182,7 +210,7 @@ export const actions: Actions = {
 			await compile();
 			//await contentManager.generateContentTypes();
 			//await contentManager.generateCollectionFieldTypes();
-			await contentManager.updateCollections(true);
+			await contentManager.refresh();
 			return { status: 200 };
 		} catch (err) {
 			const message = `Error in saveCollection action: ${err instanceof Error ? err.message : String(err)}`;
@@ -198,19 +226,27 @@ export const actions: Actions = {
 			const categories = JSON.parse(formData.get('categories') as string);
 
 			// Convert categories to path-based structure
-			const pathCategories = categories.map((cat) => ({
+			interface Category {
+				name: string;
+				path?: string;
+				collections?: Array<{
+					name: string;
+					path?: string;
+				}>;
+			}
+
+			const pathCategories = (categories as Category[]).map((cat) => ({
 				...cat,
 				path: cat.name.toLowerCase().replace(/\s+/g, '-'),
 				collections:
 					cat.collections?.map((col) => ({
 						...col,
-						path: `${cat.path}/${col.name.toLowerCase().replace(/\s+/g, '-')}`
+						path: `${cat.path || cat.name.toLowerCase().replace(/\s+/g, '-')}/${col.name.toLowerCase().replace(/\s+/g, '-')}`
 					})) || []
 			}));
 
 			// Update collections with new category paths
-			await contentManager.updateCollections(true);
-			await getCollectionModels();
+			await contentManager.refresh();
 
 			return {
 				status: 200,
@@ -241,41 +277,58 @@ export const actions: Actions = {
 };
 
 // Recursively goes through a collection's fields
-async function goThrough(object: Record<string, unknown>, fields: string): Promise<string> {
+async function goThrough(object: FieldsData, fields: string): Promise<string> {
 	const imports = new Set<string>();
-	/// processfields
-	async function processField(field: unknown, fields?: string) {
+
+	async function processField(field: FieldWithWidget | FieldsData, fields?: string): Promise<void> {
 		if (!(field instanceof Object)) return;
 
 		for (const key in field) {
-			await processField(field[key], fields);
+			const fieldValue = field[key];
 
-			if (!field[key]?.widget) continue;
+			// Recursively process nested fields
+			if (typeof fieldValue === 'object' && fieldValue !== null) {
+				await processField(fieldValue as FieldWithWidget, fields);
+			}
 
-			const widget = widgets[field[key].widget.Name];
+			// Check if this field has a widget configuration
+			if (!fieldValue || typeof fieldValue !== 'object') continue;
+			const fieldWithWidget = fieldValue as FieldWithWidget;
+			if (!fieldWithWidget.widget) continue;
+
+			// Get widget definition
+			const widgetName = fieldWithWidget.widget.Name;
+			const widgetStore = widgets as unknown as Record<string, WidgetDefinition>;
+			const widget = widgetStore[widgetName];
 			if (!widget || !widget.GuiSchema) continue;
 
+			// Process widget imports
 			for (const importKey in widget.GuiSchema) {
 				const widgetImport = widget.GuiSchema[importKey].imports;
 				if (!widgetImport) continue;
 
 				for (const _import of widgetImport) {
-					const replacement = (field[key][importKey] || '').replace(/🗑️/g, '').trim();
+					const importValue = fieldWithWidget[importKey];
+					const replacement = (typeof importValue === 'string' ? importValue : '').replace(/🗑️/g, '').trim();
 					imports.add(_import.replace(`{${importKey}}`, replacement));
 				}
 			}
 
-			field[key] = `🗑️widgets.${field[key].widget.key}(${JSON.stringify(field[key].widget.GuiFields, (k, value) =>
+			// Convert widget to string representation
+			const widgetCall = `🗑️widgets.${fieldWithWidget.widget.key}(${JSON.stringify(fieldWithWidget.widget.GuiFields, (_k, value) =>
 				typeof value === 'string' ? String(value.replace(/\s*🗑️\s*/g, '🗑️').trim()) : value
 			)})🗑️`;
-			const parsedFields = JSON.parse(fields || '{}');
 
+			field[key] = widgetCall as unknown as FieldWithWidget;
+
+			// Add permissions if present
+			const parsedFields = JSON.parse(fields || '{}') as FieldsData;
 			if (parsedFields[key]?.permissions) {
-				const subWidget = field[key].split('}');
+				const subWidget = widgetCall.split('}');
 				const permissions = removeFalseValues(parsedFields[key].permissions);
 				const permissionStr = `,"permissions":${JSON.stringify(permissions)}}`;
 				const newWidget = subWidget[0] + permissionStr + subWidget[1];
-				field[key] = newWidget;
+				field[key] = newWidget as unknown as FieldWithWidget;
 			}
 		}
 	}
@@ -318,7 +371,7 @@ interface CollectionData {
 	collectionStatus: string;
 	collectionDescription: string | FormDataEntryValue | null;
 	collectionSlug: string;
-	fields: Array<fields>;
+	fields: FieldsData;
 	imports: string;
 }
 
@@ -391,11 +444,13 @@ function createCollectionTransformer(data: CollectionData): ts.TransformerFactor
 					// Create the schema object with actual data
 					const schemaObject = createSchemaObjectLiteral(data);
 
-					// Create new variable declaration
+					// Create new variable declaration (TypeScript 5.9+ API)
+					// createVariableDeclaration(name, exclamationToken, type, initializer)
 					const newDeclaration = ts.factory.createVariableDeclaration(
 						ts.factory.createIdentifier('schema'),
-						ts.factory.createTypeReferenceNode('Schema'),
-						schemaObject
+						undefined, // exclamation token
+						undefined, // type  - let TypeScript infer
+						schemaObject // initializer
 					);
 
 					// Create new variable statement with export modifier

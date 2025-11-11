@@ -21,8 +21,8 @@
  */
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
-
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
+
 // System Logs
 import { logger } from '@utils/logger.server';
 
@@ -88,9 +88,16 @@ interface GraphQLContext {
 // GraphQL parent type for media resolvers
 type MediaResolverParent = unknown;
 
-// Builds resolvers for querying media data with pagination support.
-import type { DatabaseAdapter } from '@src/databases/dbInterface';
+// Media entity type with tenantId support
+interface MediaEntity {
+	_id?: string;
+	url?: string;
+	createdAt?: string;
+	updatedAt?: string;
+	tenantId?: string;
+}
 
+// Builds resolvers for querying media data with pagination support.
 export function mediaResolvers(dbAdapter: DatabaseAdapter) {
 	if (!dbAdapter) {
 		logger.error('Database adapter is not initialized');
@@ -114,13 +121,17 @@ export function mediaResolvers(dbAdapter: DatabaseAdapter) {
 
 		try {
 			// --- MULTI-TENANCY: Scope the query by tenantId ---
-			const query: { tenantId?: string } = {};
+			const query: Partial<MediaEntity> = {};
 			if (getPrivateSettingSync('MULTI_TENANT')) {
 				query.tenantId = context.tenantId;
 			}
 
 			// Use query builder pattern consistent with REST API
-			const queryBuilder = dbAdapter.queryBuilder(contentTypes).where(query).sort('createdAt', 'desc').paginate({ page, pageSize: limit });
+			const queryBuilder = dbAdapter
+				.queryBuilder<MediaEntity>(contentTypes)
+				.where(query)
+				.sort('createdAt', 'desc')
+				.paginate({ page, pageSize: limit });
 
 			const result = await queryBuilder.execute();
 

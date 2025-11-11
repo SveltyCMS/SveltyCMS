@@ -124,12 +124,10 @@ Efficiently manages user data updates with validation, role selection, and delet
 			changes.push('password');
 		}
 
-		// Create a clean data object, conditionally including password fields
+		// Create a clean data object for the API call (just the user fields)
 		const submitData: Record<string, any> = {
-			user_id: formData.user_id,
 			username: formData.username,
-			email: formData.email,
-			_changes: changes // Include changes for the response handler
+			email: formData.email
 		};
 
 		// Only include role if user is not editing their own profile
@@ -140,7 +138,6 @@ Efficiently manages user data updates with validation, role selection, and delet
 		// Only include password fields if they're not empty
 		if (formData.password && formData.password.trim() !== '') {
 			submitData.password = formData.password;
-			submitData.confirmPassword = formData.confirmPassword;
 		}
 
 		// Access the current modal from the store and await response to avoid unhandled promise warnings
@@ -212,6 +209,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 					required
 					disabled={isGivenData && user_id !== user?._id}
 					autocomplete="username"
+					textColor="text-tertiary-500 dark:text-white"
 				/>
 				{#if errorStatus.username.status}
 					<div class="absolute left-0 top-11 text-xs text-error-500">{errorStatus.username.msg}</div>
@@ -230,12 +228,12 @@ Efficiently manages user data updates with validation, role selection, and delet
 					required
 					disabled
 					autocomplete="email"
+					textColor="text-tertiary-500 dark:text-white"
 				/>
 				{#if errorStatus.email.status}
 					<div class="absolute left-0 top-11 text-xs text-error-500">{errorStatus.email.msg}</div>
 				{/if}
 			</div>
-
 			<!-- Password Change Section -->
 			{#if canChangePassword}
 				{#if !isOwnProfile && user?.isAdmin}
@@ -261,12 +259,13 @@ Efficiently manages user data updates with validation, role selection, and delet
 						bind:showPassword
 						onkeydown={() => (errorStatus.password.status = false)}
 						autocomplete="new-password"
+						textColor="text-tertiary-500 dark:text-white"
+						passwordIconColor="text-tertiary-500 dark:text-white"
 					/>
 					{#if errorStatus.password.status}
 						<div class="absolute left-0 top-11 text-xs text-error-500">{errorStatus.password.msg}</div>
 					{/if}
 				</div>
-
 				<!-- Password Confirm -->
 				<div class="group relative z-0 mb-6 w-full">
 					<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
@@ -279,13 +278,14 @@ Efficiently manages user data updates with validation, role selection, and delet
 						bind:showPassword
 						onkeydown={() => (errorStatus.confirm.status = false)}
 						autocomplete="new-password"
+						textColor="text-tertiary-500 dark:text-white"
+						passwordIconColor="text-tertiary-500 dark:text-white"
 					/>
 					{#if errorStatus.confirm.status}
 						<div class="absolute left-0 top-11 text-xs text-error-500">{errorStatus.confirm.msg}</div>
 					{/if}
 				</div>
 			{/if}
-
 			<!-- Role Select -->
 			<PermissionGuard config={modaleEditFormConfig} silent={true}>
 				{#if !isOwnProfile}

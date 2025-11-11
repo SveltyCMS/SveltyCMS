@@ -29,6 +29,9 @@ export interface RichTextProps {
 	 * An empty array shows no toolbar.
 	 */
 	toolbar?: RichTextToolbarOption[];
+
+	// Index signature to satisfy WidgetProps constraint
+	[key: string]: unknown;
 }
 
 // Defines the data structure for the RichText widget's value.

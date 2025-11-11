@@ -6,6 +6,7 @@
 <script lang="ts">
 	// Stores
 	import { contentStructure } from '@src/stores/collectionStore.svelte';
+	import { logger } from '@utils/logger';
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 
 	// Components
@@ -71,7 +72,7 @@
 	async function onFormSubmit(event: Event): Promise<void> {
 		event.preventDefault(); // Prevent default form submission
 		if (!validateForm()) {
-			console.error('Form validation failed.');
+			logger.error('Form validation failed.');
 			return;
 		}
 
@@ -89,7 +90,7 @@
 			}
 			modalStore.close(); // Close modal on success
 		} catch (error) {
-			console.error('Error submitting category form:', error);
+			logger.error('Error submitting category form:', error);
 			formError = error instanceof Error ? error.message : 'Error submitting form';
 		} finally {
 			isSubmitting = false;
@@ -154,10 +155,10 @@
 					}
 
 					// Update the global content structure store after successful deletion
-					contentStructure.set(newStructure);
+					contentStructure.value = newStructure;
 					modalStore.close(); // Close modal after successful deletion
 				} catch (error) {
-					console.error('Error deleting category:', error);
+					logger.error('Error deleting category:', error);
 					formError = error instanceof Error ? error.message : 'Failed to delete category';
 				} finally {
 					isSubmitting = false;

@@ -14,8 +14,12 @@
 -->
 
 <script lang="ts">
-	import PreviewInterface from 'svelte-email-tailwind/preview/PreviewInterface.svelte';
-	export let data;
+	import { EmailPreview } from 'better-svelte-email/preview';
+	import type { PageData } from './$types';
+
+	export let data: PageData;
 </script>
 
-<PreviewInterface {data} email="info@svelteycms.com" />
+{#if data.emails}
+	<EmailPreview emailList={{ ...data, files: data.emails?.map((e) => e.path) || null, path: '/src/components/emails' }} />
+{/if}

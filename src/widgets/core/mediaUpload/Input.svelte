@@ -1,11 +1,32 @@
+<!--
+@file src/widgets/core/mediaUpload/Input.svelte
+@component
+**Media Upload Widget Component**
+
+@example
+<Input field={{ label: "Upload Image", db_fieldName: "image", translated: true, required: true }} />
+
+### Props
+- `field: FieldType` - Configuration object for the media upload field
+- `value: string | string[] | null | undefined` - Current value(s) representing media IDs
+- `error?: string | null` - Optional error message to display
+
+### Features
+- **Single and Multiple Uploads**: Supports both single and multi-file uploads based on the `multiupload` property in the `field` prop.
+- **Drag-and-Drop Reordering**: Utilizes `svelte-dnd-action` for drag-and-drop reordering of selected media files.
+- **Media Library Integration**: Opens a modal media library for selecting files, with a callback to handle selected files.
+- **Dynamic Fetching**: Automatically fetches media data when IDs change.
+-->
+
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import type { FieldType } from './';
 	import type { MediaFile } from './types';
 
-	let { field, value, error }: { field: FieldType; value: string | string[] | null | undefined; error?: string | null } = $props();
+	let { field, value = $bindable(), error }: { field: FieldType; value: string | string[] | null | undefined; error?: string | null } = $props();
 
 	// A local, reactive array of the full, resolved media file objects for display.
 	let selectedFiles = $state<MediaFile[]>([]);
@@ -14,7 +35,7 @@
 	async function fetchMediaData(ids: string[]): Promise<MediaFile[]> {
 		// In a real app, this would be an API call: GET /api/media?ids=id1,id2,...
 		// For this example, we'll simulate it with a timeout.
-		console.log('Fetching data for IDs:', ids);
+		logger.debug('Fetching data for IDs:', ids);
 		return new Promise((resolve) =>
 			setTimeout(() => {
 				const files: MediaFile[] = ids.map((id) => ({
@@ -76,91 +97,40 @@
 	}
 </script>
 
-<div class="media-input-container" class:invalid={error}>
+<div class="min-h-[120px] rounded-lg border-2 border-dashed border-surface-300 p-4 dark:border-surface-600" class:!border-error-500={error}>
 	{#if selectedFiles.length > 0}
-		<div class="preview-grid" use:dndzone={{ items: selectedFiles }} onconsider={(e) => (selectedFiles = e.detail.items)}>
+		<div
+			class="mb-4 grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(100px,1fr))]"
+			use:dndzone={{ items: selectedFiles }}
+			onconsider={(e) => (selectedFiles = e.detail.items)}
+		>
 			{#each selectedFiles as file (file._id)}
-				<div class="preview-item" animate:flip>
-					<img src={file.thumbnailUrl} alt={file.name} class="thumbnail" />
-					<span class="name">{file.name}</span>
-					<button onclick={() => removeFile(file._id)} class="remove-btn" aria-label="Remove">&times;</button>
+				<div class="relative overflow-hidden rounded border border-surface-200 dark:border-surface-700" animate:flip>
+					<img src={file.thumbnailUrl} alt={file.name} class="h-[100px] w-full object-cover" />
+					<span class="block truncate p-1 text-center text-xs">{file.name}</span>
+					<button
+						onclick={() => removeFile(file._id)}
+						class="absolute right-1 top-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
+						aria-label="Remove"
+					>
+						&times;
+					</button>
 				</div>
 			{/each}
 		</div>
 	{/if}
 
 	{#if field.multiupload || selectedFiles.length === 0}
-		<button type="button" onclick={openMediaLibrary} class="add-btn"> + Add Media </button>
+		<button
+			type="button"
+			onclick={openMediaLibrary}
+			class="w-full cursor-pointer rounded border-none bg-surface-100 p-3 transition-colors hover:bg-surface-200 dark:bg-surface-700 dark:hover:bg-surface-600"
+		>
+			+ Add Media
+		</button>
 	{/if}
 
 	{#if error}
-		<p class="error-message" role="alert">{error}</p>
+		<p class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">{error}</p>
 	{/if}
 </div>
-
-<style lang="postcss">
-	/* Add styles for preview grid, items, thumbnails, and buttons */
-	.media-input-container {
-		border: 2px dashed #ccc;
-		border-radius: 8px;
-		padding: 1rem;
-		min-height: 120px;
-	}
-	.media-input-container.invalid {
-		border-color: #ef4444;
-	}
-	.preview-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-		gap: 1rem;
-		margin-bottom: 1rem;
-	}
-	.preview-item {
-		position: relative;
-		border: 1px solid #ddd;
-		border-radius: 4px;
-		overflow: hidden;
-	}
-	.thumbnail {
-		width: 100%;
-		height: 100px;
-		object-fit: cover;
-	}
-	.name {
-		font-size: 0.75rem;
-		padding: 4px;
-		display: block;
-		text-align: center;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-	.remove-btn {
-		position: absolute;
-		top: 4px;
-		right: 4px;
-		background: rgba(0, 0, 0, 0.5);
-		color: white;
-		border-radius: 50%;
-		width: 20px;
-		height: 20px;
-		border: none;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-	.add-btn {
-		width: 100%;
-		padding: 0.75rem;
-		background: #f0f0f0;
-		border: none;
-		border-radius: 4px;
-		cursor: pointer;
-	}
-	.error-message {
-		font-size: 0.75rem;
-		color: #ef4444;
-		margin-top: 0.5rem;
-	}
-</style>

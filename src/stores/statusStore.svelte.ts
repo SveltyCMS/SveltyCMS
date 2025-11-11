@@ -14,6 +14,7 @@ import type { ToastStore } from '@skeletonlabs/skeleton';
 import { collection, collectionValue, mode, setCollectionValue } from '@src/stores/collectionStore.svelte';
 import { updateEntryStatus } from '@src/utils/apiClient';
 import { showToast } from '@utils/toast';
+import type { StatusType } from '@src/content/types';
 
 import { logger } from '@utils/logger';
 
@@ -45,9 +46,7 @@ function getInitialStatus(): boolean {
 }
 
 // Derived status that updates when collection/entry data changes
-const derivedStatus = $derived(() => {
-	return getInitialStatus();
-});
+const derivedStatus = $derived(getInitialStatus());
 
 // Centralized status store
 export const statusStore = {

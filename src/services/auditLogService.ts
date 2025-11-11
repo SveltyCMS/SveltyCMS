@@ -31,7 +31,7 @@ async function getDbAdapter(): Promise<IDBAdapter> {
 type AuditDetails = Record<string, string | number | boolean | null | undefined>;
 
 // Audit log entry interface extending BaseEntity
-export interface AuditLogEntry extends Omit<BaseEntity, 'id'> {
+export interface AuditLogEntry extends Omit<BaseEntity, 'id' | 'created_at'> {
 	id?: DatabaseId;
 	eventType: AuditEventType;
 	severity: AuditSeverity;
@@ -131,7 +131,7 @@ export class AuditLogService {
 	async logEvent(entry: Omit<AuditLogEntry, 'timestamp' | 'id' | 'created_at' | 'updated_at'>): Promise<void> {
 		try {
 			const db = await getDbAdapter();
-			const auditEntry: Omit<AuditLogEntry, 'id'> = {
+			const auditEntry: Omit<AuditLogEntry, 'id'> & { created_at?: string; updated_at?: string } = {
 				...entry,
 				timestamp: new Date().toISOString(),
 				created_at: new Date().toISOString(),
@@ -196,21 +196,29 @@ export class AuditLogService {
 			}
 
 			const result = await db.crud.findMany<AuditLogEntry>(this.collectionName, filters, {
-				sort: { timestamp: -1 },
 				limit: options.limit || 100,
-				skip: options.offset || 0
+				offset: options.offset || 0
 			});
 
-			return result;
+			if (!result.success) {
+				return result;
+			}
+
+			// Sort in memory since findMany doesn't support sort option
+			const sortedData = [...result.data].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+			return { success: true, data: sortedData };
 		} catch (error) {
 			logger.error('Failed to query audit logs', { error, options });
-			return { success: false, error: 'Failed to query audit logs' };
+			return {
+				success: false,
+				message: 'Failed to query audit logs',
+				error: { code: 'QUERY_FAILED', message: 'Failed to query audit logs' }
+			};
 		}
 	}
 
-	/**
-	 * Get audit statistics for dashboard
-	 */
+	// Get audit statistics for dashboard
 	async getStatistics(days: number = 30): Promise<DatabaseResult<AuditStatistics>> {
 		try {
 			const db = await getDbAdapter();
@@ -241,10 +249,12 @@ export class AuditLogService {
 			);
 
 			if (!result.success) {
-				return { success: false, error: 'Failed to get audit statistics' };
-			}
-
-			// Process aggregation results into statistics
+				return {
+					success: false,
+					message: 'Failed to get audit statistics',
+					error: { code: 'STATS_FAILED', message: 'Failed to get audit statistics' }
+				};
+			} // Process aggregation results into statistics
 			const stats: AuditStatistics = {
 				totalEvents: 0,
 				eventsByType: {},
@@ -269,13 +279,15 @@ export class AuditLogService {
 			return { success: true, data: stats };
 		} catch (error) {
 			logger.error('Failed to get audit statistics', { error });
-			return { success: false, error: 'Failed to get audit statistics' };
+			return {
+				success: false,
+				message: 'Failed to get audit statistics',
+				error: { code: 'STATS_FAILED', message: 'Failed to get audit statistics' }
+			};
 		}
 	}
 
-	/**
-	 * Get recent suspicious activities
-	 */
+	// Get recent suspicious activities
 	async getSuspiciousActivities(limit: number = 50): Promise<DatabaseResult<AuditLogEntry[]>> {
 		const suspiciousEventTypes: AuditEventType[] = [
 			AuditEventType.USER_LOGIN_FAILED,
@@ -293,21 +305,21 @@ export class AuditLogService {
 		});
 	}
 
-	/**
-	 * Clean up old audit logs based on retention policy
-	 */
+	// Clean up old audit logs based on retention policy
 	async cleanupOldLogs(retentionDays: number = 365): Promise<void> {
 		try {
 			const db = await getDbAdapter();
 			const cutoffDate = new Date();
 			cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
+			// Note: We need to cast because deleteMany expects Partial<BaseEntity>
+			// but we're filtering on AuditLogEntry's timestamp field
 			const result = await db.crud.deleteMany(this.collectionName, {
-				timestamp: { $lt: cutoffDate.toISOString() }
-			});
+				timestamp: cutoffDate.toISOString()
+			} as Partial<BaseEntity>);
 
-			if (result.success && result.data && result.data > 0) {
-				logger.info(`Cleaned up ${result.data} old audit log entries`, {
+			if (result.success && result.data && result.data.deletedCount > 0) {
+				logger.info(`Cleaned up ${result.data.deletedCount} old audit log entries`, {
 					cutoffDate: cutoffDate.toISOString(),
 					retentionDays
 				});
@@ -317,9 +329,7 @@ export class AuditLogService {
 		}
 	}
 
-	/**
-	 * Initialize database indexes for optimal performance
-	 */
+	// Initialize database indexes for optimal performance
 	private async initializeIndexes(): Promise<void> {
 		try {
 			// Note: Index creation will be handled by the database adapter
@@ -339,29 +349,3 @@ export const logAuditEvent = auditLogService.logEvent.bind(auditLogService);
 export const queryAuditLogs = auditLogService.queryLogs.bind(auditLogService);
 export const getAuditStatistics = auditLogService.getStatistics.bind(auditLogService);
 export const getSuspiciousActivities = auditLogService.getSuspiciousActivities.bind(auditLogService);
-
-/**
- * Example usage:
- *
- * // Log a user login event
- * await logAuditEvent({
- *   eventType: AuditEventType.USER_LOGIN,
- *   severity: 'low',
- *   actorId: user.id,
- *   actorEmail: user.email,
- *   action: 'User successfully logged in',
- *   details: { loginMethod: 'email' },
- *   ipAddress: request.ip,
- *   result: 'success'
- * });
- *
- * // Query recent failed login attempts
- * const failedLogins = await queryAuditLogs({
- *   eventTypes: [AuditEventType.USER_LOGIN_FAILED],
- *   severity: 'medium',
- *   startDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
- * });
- *
- * // Get dashboard statistics
- * const stats = await getAuditStatistics(7); // Last 7 days
- */

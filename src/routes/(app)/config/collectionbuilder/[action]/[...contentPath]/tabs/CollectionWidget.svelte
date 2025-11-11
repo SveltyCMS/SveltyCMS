@@ -7,6 +7,7 @@ component
 <script lang="ts">
 	// Stores
 	import { page } from '$app/state';
+	import { logger } from '@utils/logger';
 	import { collection, setTargetWidget } from '@src/stores/collectionStore.svelte';
 	import { tabSet } from '@stores/store.svelte';
 	import { asAny, getGuiFields } from '@utils/utils';
@@ -175,7 +176,7 @@ component
 
 			await props.handleCollectionSave();
 		} catch (error) {
-			console.error('Error saving collection:', error);
+			logger.error('Error saving collection:', error);
 		}
 	}
 </script>

@@ -3,12 +3,17 @@
  * @description Defines media models and interfaces for the CMS
  */
 
+import type { ISODateString, DatabaseId } from '@src/content/types';
+
+// Storage type for media files
+export type StorageType = 'local' | 's3' | 'r2' | 'cloudinary';
+
 // Enum representing media types
 export enum MediaTypeEnum {
 	Image = 'image',
-	Document = 'document',
-	Audio = 'audio',
 	Video = 'video',
+	Audio = 'audio',
+	Document = 'document',
 	RemoteVideo = 'remoteVideo'
 }
 
@@ -23,15 +28,8 @@ export enum Permission {
 export interface MediaVersion {
 	version: number;
 	url: string;
-	createdAt: Date;
-	createdBy: string;
-}
-
-// Represents access permissions for a media item
-export interface MediaAccess {
-	userId?: string;
-	roleId?: string;
-	permissions: Permission[];
+	createdAt: ISODateString;
+	createdBy: string; // Should be DatabaseId
 }
 
 // Represents a thumbnail for an image
@@ -61,7 +59,7 @@ export interface MediaMetadata {
 	[key: string]: unknown;
 }
 
-// Image metadata interface
+// Image metadata interface (for extraction)
 export interface ImageMetadata {
 	width: number;
 	height: number;
@@ -71,70 +69,63 @@ export interface ImageMetadata {
 }
 
 // Base interface for all media types
-export interface MediaBase {
-	_id?: string; // Unique identifier
-	type: MediaTypeEnum; // Discriminator
-	hash: string;
-	filename: string;
-	path: string;
-	url: string;
-	mimeType: string;
-	size: number;
-	user: string;
-	createdAt: Date;
-	updatedAt: Date;
-	metadata?: MediaMetadata;
-	isDeleted?: boolean;
-	deletedAt?: Date;
-	versions: MediaVersion[];
-	access: MediaAccess;
-}
-
-// Represents an image media item
-export interface MediaImage extends MediaBase {
-	type: MediaTypeEnum.Image; // Discriminator
-	width: number;
-	height: number;
-	thumbnail: Thumbnail;
-	thumbnails: Record<string, Thumbnail>; // Use string instead of keyof typeof publicEnv.IMAGE_SIZES
-}
-
-// Represents a document media item
-export interface MediaDocument extends MediaBase {
-	type: MediaTypeEnum.Document; // Discriminator
-	pageCount?: number;
-	createdBy: string;
-}
-
-// Represents an audio media item
-export interface MediaAudio extends MediaBase {
-	type: MediaTypeEnum.Audio; // Discriminator
-	duration?: number;
-}
-
-// Represents a video media item
-export interface MediaVideo extends MediaBase {
-	type: MediaTypeEnum.Video; // Discriminator
-	duration?: number;
-	thumbnailUrl?: string;
-}
-
-// Represents a remote video media item
-export interface MediaRemoteVideo extends MediaBase {
-	type: MediaTypeEnum.RemoteVideo; // Discriminator
-	provider: string;
-	externalId: string;
-}
-
-// Union type for all media items
-export type MediaType = MediaImage | MediaDocument | MediaAudio | MediaVideo | MediaRemoteVideo;
+export type MediaAccess = 'public' | 'private' | 'protected';
 
 // Type for resized image versions
 export interface ResizedImage {
 	url: string;
 	width: number;
 	height: number;
+	size: number;
+	mimeType: string;
 }
 
-// Type for image sizes
-export type ImageSizes = Record<string, ResizedImage>;
+// Base interface for all media types
+export interface MediaBase {
+	_id?: DatabaseId;
+	type: MediaTypeEnum;
+	hash: string;
+	filename: string; // Original filename
+	path: string; // Relative path in storage (e.g., "global/original/image-hash.jpg")
+	url: string; // Publicly accessible URL (e.g., "https://cdn.com/..." or "/files/...")
+	mimeType: string;
+	size: number;
+	user: string; // DatabaseId of user who uploaded
+	createdAt: ISODateString;
+	updatedAt: ISODateString;
+	metadata?: MediaMetadata;
+	versions?: MediaVersion[];
+	access?: MediaAccess;
+}
+
+export interface MediaImage extends MediaBase {
+	type: MediaTypeEnum.Image;
+	width: number;
+	height: number;
+	thumbnails?: Record<string, ResizedImage>;
+}
+
+export interface MediaVideo extends MediaBase {
+	type: MediaTypeEnum.Video;
+	duration?: number;
+	thumbnailUrl?: string;
+}
+
+export interface MediaAudio extends MediaBase {
+	type: MediaTypeEnum.Audio;
+	duration?: number;
+}
+
+export interface MediaDocument extends MediaBase {
+	type: MediaTypeEnum.Document;
+	pageCount?: number;
+}
+
+export interface MediaRemoteVideo extends MediaBase {
+	type: MediaTypeEnum.RemoteVideo;
+	provider: 'youtube' | 'vimeo' | 'other' | string; // Made provider more flexible
+	externalId: string;
+	thumbnails?: Record<string, ResizedImage>;
+}
+
+export type MediaType = MediaImage | MediaVideo | MediaAudio | MediaDocument | MediaRemoteVideo;

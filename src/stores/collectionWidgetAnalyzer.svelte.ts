@@ -4,7 +4,7 @@
  */
 
 import type { Schema, FieldDefinition } from '@src/content/types';
-import type { WidgetPlaceholder } from '@widgets/types';
+import type { WidgetPlaceholder } from '@widgets/placeholder';
 import { logger } from '@utils/logger';
 
 export interface CollectionWidgetDependency {
@@ -55,7 +55,7 @@ export function analyzeCollectionWidgets(schema: Schema, activeWidgets: string[]
 			if (widgetType) {
 				// For now, consider all widgets as required for the collection to function
 				// This could be enhanced based on field.required property
-				const isRequired = typeof field === 'object' && 'required' in field ? field.required : true;
+				const isRequired = typeof field === 'object' && field !== null && 'required' in field ? field.required : true;
 
 				if (isRequired) {
 					if (!requiredWidgets.includes(widgetType)) {
@@ -69,7 +69,7 @@ export function analyzeCollectionWidgets(schema: Schema, activeWidgets: string[]
 			}
 
 			// Handle nested fields (e.g., group widgets)
-			if (typeof field === 'object' && 'fields' in field && Array.isArray(field.fields)) {
+			if (typeof field === 'object' && field !== null && 'fields' in field && Array.isArray(field.fields)) {
 				analyzeFields(field.fields);
 			}
 		}
@@ -81,7 +81,7 @@ export function analyzeCollectionWidgets(schema: Schema, activeWidgets: string[]
 	const missingWidgets = requiredWidgets.filter((widget) => !activeWidgets.includes(widget));
 
 	return {
-		collectionId: schema._id,
+		collectionId: schema._id as string,
 		collectionName: schema.name || 'Unknown',
 		requiredWidgets,
 		optionalWidgets,

@@ -32,6 +32,9 @@ export interface MegaMenuProps {
 
 	// Custom validation rules for menu structure
 	validationRules?: MenuValidationRules;
+
+	// Index signature to satisfy WidgetProps constraint
+	[key: string]: unknown;
 }
 
 // Validation rules for menu structure

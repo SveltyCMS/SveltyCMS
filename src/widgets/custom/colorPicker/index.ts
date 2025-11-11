@@ -37,7 +37,7 @@ const validationSchema = (field: FieldInstance) => {
 };
 
 // Create the widget definition using the factory.
-const ColorPickerWidget = createWidget<ColorPickerProps, ReturnType<typeof validationSchema>>({
+const ColorPickerWidget = createWidget<ColorPickerProps>({
 	Name: 'ColorPicker',
 	Icon: 'ic:outline-colorize',
 	Description: m.widget_colorPicker_description(),

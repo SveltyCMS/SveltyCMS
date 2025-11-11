@@ -1,26 +1,21 @@
 /**
  * @file src/utils/media/mediaStorage.ts
  * @description Core media storage functionality for the CMS.
- * This module handles all file system operations and media processing.
+ * This module handles all file system (I/O) operations and media processing.
+ * Supports both local filesystem and cloud storage (S3, R2, Cloudinary).
+ * THIS FILE MUST NOT CONTAIN ANY DATABASE LOGIC.
  */
 
-import { cacheService } from '@src/databases/CacheService';
-import { dbAdapter } from '@src/databases/db';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { error } from '@sveltejs/kit';
-import { sanitize } from '@utils/utils';
-import crypto from 'crypto';
 import mime from 'mime-types';
 import Path from 'path';
 import Sharp from 'sharp';
-import { MediaTypeEnum, Permission } from './mediaModels';
-import { getSanitizedFileName, hashFileContent } from './mediaProcessing';
-
-import type { MediaAccess, MediaRemoteVideo, ResizedImage } from './mediaModels';
+import { isCloudStorage, uploadToCloud, deleteFromCloud, getCloudUrl, cloudFileExists, getCloudStorageConfig } from './cloudStorage';
+import type { ResizedImage } from './mediaModels';
 
 // System Logger
 import { logger } from '@utils/logger.server';
-
 import { getPublicSettingSync } from '@src/services/settingsService';
 
 // Image sizes configuration
@@ -58,16 +53,41 @@ export async function resizeImage(buffer: Buffer, width: number, height?: number
 	});
 }
 
-// Saves a file to disk
-export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void> {
+/**
+ * Saves a file to disk or cloud storage.
+ * @param buffer The file buffer
+ * @param relativePath The relative path to save the file (e.g., "global/original/image-hash.jpg")
+ * @returns The public URL of the saved file
+ */
+export async function saveFileToDisk(buffer: Buffer, relativePath: string): Promise<string> {
 	try {
+		// Check if using cloud storage
+		if (isCloudStorage()) {
+			logger.debug('Uploading file to cloud storage', {
+				relativePath,
+				bufferSize: buffer.length
+			});
+
+			// Upload to cloud and return the public URL
+			const publicUrl = await uploadToCloud(buffer, relativePath);
+
+			logger.info('File uploaded to cloud storage', {
+				relativePath,
+				publicUrl,
+				fileSize: buffer.length
+			});
+
+			return publicUrl;
+		}
+
+		// LOCAL STORAGE: Save to filesystem
 		const fs = await getFs();
-		const fullPath = Path.join(getMediaFolder(), url);
+		const fullPath = Path.join(getMediaFolder(), relativePath);
 		const dir = Path.dirname(fullPath);
 
 		logger.debug('Creating directory for file', {
 			directory: dir,
-			url,
+			relativePath,
 			bufferSize: buffer.length
 		});
 
@@ -76,21 +96,24 @@ export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void>
 		logger.debug('Writing file to disk', {
 			fullPath,
 			fileSize: buffer.length,
-			url
+			relativePath
 		});
 
 		await fs.promises.writeFile(fullPath, buffer);
 
 		logger.info('File saved to disk', {
-			url,
+			relativePath,
 			fullPath,
 			fileSize: buffer.length,
 			directoryCreated: dir
 		});
+
+		// Return local URL format
+		return `/files/${relativePath}`;
 	} catch (err) {
-		const message = `Failed to save file to disk: ${err instanceof Error ? err.message : String(err)}`;
+		const message = `Failed to save file: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, {
-			url,
+			relativePath,
 			error: err,
 			bufferSize: buffer?.length
 		});
@@ -108,6 +131,8 @@ export async function saveResizedImages(
 	basePath: string
 ): Promise<Record<string, ResizedImage>> {
 	const resizedImages: Record<string, ResizedImage> = {};
+	const sharpInstance = Sharp(buffer);
+	const metadata = await sharpInstance.metadata();
 
 	logger.debug('Starting image resizing', {
 		fileName,
@@ -122,52 +147,55 @@ export async function saveResizedImages(
 
 		try {
 			logger.debug('Resizing image', { size, width });
-			let resizedBuffer = await resizeImage(buffer, width);
+			let resizedSharp = sharpInstance.clone().resize(width, null, {
+				fit: 'cover',
+				position: 'center'
+			}); // Use null for height to maintain aspect ratio
 
 			// Apply format conversion if configured
 			const formatQuality = publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY;
+			let outputExt = ext;
+			let mimeType = mime.lookup(ext) || 'application/octet-stream';
+
 			if (formatQuality && formatQuality.format !== 'original') {
-				resizedBuffer = resizedBuffer.toFormat(formatQuality.format as 'avif' | 'webp', {
+				const format = formatQuality.format as 'avif' | 'webp';
+				resizedSharp = resizedSharp.toFormat(format, {
 					quality: formatQuality.quality,
 					lossless: false
 				});
+				outputExt = format;
+				mimeType = `image/${format}`;
 			}
 
-			// Use correct extension based on output format
-			const outputExt = formatQuality && formatQuality.format === 'original' ? ext : `.${formatQuality?.format ?? ''}`;
-
-			const resizedUrl = Path.posix.join(basePath, size, `${fileName}-${hash}.${outputExt}`);
+			const resizedFileName = `${fileName}-${hash}.${outputExt}`;
+			const resizedRelativePath = Path.posix.join(basePath, size, resizedFileName);
 
 			logger.debug('Saving resized image', {
 				size,
-				url: resizedUrl,
+				url: resizedRelativePath,
 				width,
-				format: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format,
-				quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality
+				format: formatQuality?.format || 'original',
+				quality: formatQuality?.quality || 'default'
 			});
 
-			try {
-				await saveFileToDisk(await resizedBuffer.toBuffer(), resizedUrl);
-			} catch (err) {
-				logger.error(`Failed to save ${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format} image`, {
-					error: err instanceof Error ? err.message : String(err),
-					size,
-					width,
-					format: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format
-				});
-				throw err;
-			}
+			const resizedBuffer = await resizedSharp.toBuffer();
+			const publicUrl = await saveFileToDisk(resizedBuffer, resizedRelativePath);
+
+			// Get height from metadata, scaled by width
+			const height = metadata.height ? Math.round((width / (metadata.width || width)) * metadata.height) : width;
 
 			resizedImages[size] = {
-				url: resizedUrl,
+				url: publicUrl,
 				width,
-				height: width
+				height: height,
+				size: resizedBuffer.length,
+				mimeType: mimeType
 			};
 
 			logger.debug('Resized image saved', {
 				size,
-				url: resizedUrl,
-				dimensions: `${width}x${width}`
+				url: publicUrl,
+				dimensions: `${width}x${height}`
 			});
 		} catch (err) {
 			logger.error(`Failed to process size ${size}`, {
@@ -192,13 +220,48 @@ export async function saveResizedImages(
 // Deletes a file from storage
 export async function deleteFile(url: string): Promise<void> {
 	const startTime = performance.now();
+	let relativePath = url;
 
 	try {
-		const fs = await getFs();
-		const filePath = Path.join(getMediaFolder(), url);
+		// Normalize URL to relative path
+		if (url.startsWith('http://') || url.startsWith('https://')) {
+			relativePath = new URL(url).pathname;
+		}
+		if (isCloudStorage()) {
+			// Cloud URL: https://cdn.com/cms-media/avatars/image.jpg -> /cms-media/avatars/image.jpg
+			// We must strip the prefix, which is part of the path
+			const config = getCloudStorageConfig();
+			if (config.mediaFolder && relativePath.startsWith(`/${config.mediaFolder}/`)) {
+				relativePath = relativePath.substring(`/${config.mediaFolder}/`.length);
+			}
+		} else {
+			// Local URL: /files/avatars/image.jpg -> avatars/image.jpg
+			if (relativePath.startsWith('/files/')) {
+				relativePath = relativePath.substring('/files/'.length);
+			}
+		}
+		relativePath = relativePath.replace(/^\/+/, ''); // Clean leading slash
 
-		logger.debug('Deleting file', {
+		// Check if using cloud storage
+		if (isCloudStorage()) {
+			logger.debug('Deleting file from cloud storage', { url, relativePath });
+			await deleteFromCloud(relativePath);
+
+			logger.info('File deleted from cloud storage', {
+				url,
+				relativePath,
+				processingTime: performance.now() - startTime
+			});
+			return;
+		}
+
+		// Local filesystem deletion
+		const fs = await getFs();
+		const filePath = Path.join(getMediaFolder(), relativePath);
+
+		logger.debug('Deleting file from local storage', {
 			url,
+			relativePath,
 			filePath
 		});
 
@@ -213,6 +276,7 @@ export async function deleteFile(url: string): Promise<void> {
 		const message = `Error deleting file: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, {
 			url,
+			relativePath,
 			error: err,
 			stack: new Error().stack,
 			processingTime: performance.now() - startTime
@@ -223,10 +287,44 @@ export async function deleteFile(url: string): Promise<void> {
 
 // Retrieves a file from storage
 export async function getFile(url: string): Promise<Buffer> {
+	let relativePath = url;
+	// Normalize URL to relative path
+	if (url.startsWith('http://') || url.startsWith('https://')) {
+		relativePath = new URL(url).pathname;
+	}
+
+	// For cloud storage
+	if (isCloudStorage()) {
+		const config = getCloudStorageConfig();
+		if (config.mediaFolder && relativePath.startsWith(`/${config.mediaFolder}/`)) {
+			relativePath = relativePath.substring(`/${config.mediaFolder}/`.length);
+		}
+		relativePath = relativePath.replace(/^\/+/, ''); // Clean leading slash
+
+		const cloudUrl = getCloudUrl(relativePath);
+		logger.warn('getFile called for cloud storage - files should be accessed directly', { url, cloudUrl });
+
+		// Fetch from cloud URL
+		const response = await fetch(cloudUrl);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch cloud file: ${response.statusText}`);
+		}
+		const buffer = Buffer.from(await response.arrayBuffer());
+		logger.info('File retrieved from cloud storage', { url, cloudUrl, size: buffer.length });
+		return buffer;
+	}
+
+	// Local filesystem retrieval
+	// Local URL: /files/avatars/image.jpg -> avatars/image.jpg
+	if (relativePath.startsWith('/files/')) {
+		relativePath = relativePath.substring('/files/'.length);
+	}
+	relativePath = relativePath.replace(/^\/+/, ''); // Clean leading slash
+
 	const fs = await getFs();
-	const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
+	const filePath = Path.join(getMediaFolder(), relativePath);
 	const buffer = await fs.promises.readFile(filePath);
-	logger.info('File retrieved from disk', { url });
+	logger.info('File retrieved from disk', { url, filePath, size: buffer.length });
 	return buffer;
 }
 
@@ -234,48 +332,96 @@ export async function getFile(url: string): Promise<Buffer> {
  * Checks if a file exists in storage
  */
 export async function fileExists(url: string): Promise<boolean> {
+	let relativePath = url;
+	// Normalize URL to relative path
+	if (url.startsWith('http://') || url.startsWith('https://')) {
+		relativePath = new URL(url).pathname;
+	}
+
+	// Check cloud storage
+	if (isCloudStorage()) {
+		try {
+			const config = getCloudStorageConfig();
+			if (config.mediaFolder && relativePath.startsWith(`/${config.mediaFolder}/`)) {
+				relativePath = relativePath.substring(`/${config.mediaFolder}/`.length);
+			}
+			relativePath = relativePath.replace(/^\/+/, ''); // Clean leading slash
+
+			const exists = await cloudFileExists(relativePath);
+			logger.debug('Cloud file existence check', { url, relativePath, exists });
+			return exists;
+		} catch (err) {
+			logger.error('Error checking cloud file existence', { url, error: err });
+			return false;
+		}
+	}
+
+	// Check local filesystem
+	// Local URL: /files/avatars/image.jpg -> avatars/image.jpg
+	if (relativePath.startsWith('/files/')) {
+		relativePath = relativePath.substring('/files/'.length);
+	}
+	relativePath = relativePath.replace(/^\/+/, ''); // Clean leading slash
+
 	const fs = await getFs();
-	const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
+	const filePath = Path.join(getMediaFolder(), relativePath);
 	try {
 		await fs.promises.access(filePath);
+		logger.debug('Local file existence check', { url, filePath, exists: true });
 		return true;
 	} catch {
+		logger.debug('Local file existence check', { url, filePath, exists: false });
 		return false;
 	}
 }
 
 // Moves a file to trash
 export async function moveMediaToTrash(url: string): Promise<void> {
-	const fs = await getFs();
-	const mediaFolder = publicEnv.MEDIA_FOLDER;
+	let relativePath = url;
 
-	// Normalize various possible forms:
-	// - /files/avatars/...
-	// - /mediaFiles/avatars/...
-	// - mediaFiles/avatars/...
-	// - avatars/...
-	let input = (url || '').toString();
-	// Strip origin
-	input = input.replace(/^https?:\/\/[^/]+/i, '');
-	// Remove leading slashes
-	input = input.replace(/^\/+/, '');
-	// Map files/ to media folder space
-	if (input.startsWith('files/')) {
-		input = input.slice('files/'.length);
-	}
-	// Remove media folder prefix if present
-	if (input.startsWith(`${mediaFolder}/`)) {
-		input = input.slice(mediaFolder.length + 1);
+	// Normalize URL to relative path
+	if (url.startsWith('http://') || url.startsWith('https://')) {
+		relativePath = new URL(url).pathname;
 	}
 
-	// Guard: invalid or empty path
-	if (!input || input.endsWith('/')) {
-		logger.warn('moveMediaToTrash called with invalid path; skipping', { url, normalized: input });
+	// Check if using cloud storage
+	if (isCloudStorage()) {
+		logger.info("Deleting file from cloud storage (cloud storage doesn't have trash)", { url });
+
+		const config = getCloudStorageConfig();
+		if (config.mediaFolder && relativePath.startsWith(`/${config.mediaFolder}/`)) {
+			relativePath = relativePath.substring(`/${config.mediaFolder}/`.length);
+		}
+		relativePath = relativePath.replace(/^\/+/, ''); // Clean leading slash
+
+		try {
+			await deleteFromCloud(relativePath);
+			logger.info('File deleted from cloud storage', { url, relativePath });
+		} catch (err) {
+			logger.error('Failed to delete from cloud storage', { url, error: err });
+			// Don't throw - treat as best-effort
+		}
 		return;
 	}
 
-	const sourceAbs = Path.join(process.cwd(), mediaFolder, input);
-	const trashAbs = Path.join(process.cwd(), mediaFolder, '.trash', input); // preserve subdirs
+	// LOCAL STORAGE: Move to .trash directory
+	const fs = await getFs();
+	const mediaFolder = getMediaFolder();
+
+	// Local URL: /files/avatars/image.jpg -> avatars/image.jpg
+	if (relativePath.startsWith('/files/')) {
+		relativePath = relativePath.substring('/files/'.length);
+	}
+	relativePath = relativePath.replace(/^\/+/, ''); // Clean leading slash
+
+	// Guard: invalid or empty path
+	if (!relativePath || relativePath.endsWith('/')) {
+		logger.warn('moveMediaToTrash called with invalid path; skipping', { url, normalized: relativePath });
+		return;
+	}
+
+	const sourceAbs = Path.join(process.cwd(), mediaFolder, relativePath);
+	const trashAbs = Path.join(process.cwd(), mediaFolder, '.trash', relativePath); // preserve subdirs
 
 	// Ensure trash dir exists
 	await fs.promises.mkdir(Path.dirname(trashAbs), { recursive: true });
@@ -283,7 +429,7 @@ export async function moveMediaToTrash(url: string): Promise<void> {
 	try {
 		const stat = await fs.promises.stat(sourceAbs).catch(() => null);
 		if (!stat) {
-			logger.warn('Source file not found for trash; skipping', { sourceAbs });
+			logger.warn('Source file not found for trash; skipping', { sourceAbs, url, normalized: relativePath });
 			return;
 		}
 		if (!stat.isFile()) {
@@ -292,279 +438,61 @@ export async function moveMediaToTrash(url: string): Promise<void> {
 			return;
 		}
 		await fs.promises.rename(sourceAbs, trashAbs);
-		logger.info('File moved to trash', { originalUrl: url, trashUrl: trashAbs });
+		logger.info('File moved to trash successfully', { originalUrl: url, sourceAbs, trashAbs });
 	} catch (err) {
 		const code = err && typeof err === 'object' && 'code' in err ? (err as { code?: string }).code : undefined;
 		if (code === 'ENOENT') {
-			logger.warn('File not found during trash operation; skipping', { sourceAbs });
+			logger.warn('File not found during trash operation; skipping', { sourceAbs, url });
 			return;
 		}
 		// Re-throw for upstream handling for unexpected errors
+		logger.error('Unexpected error moving file to trash', { sourceAbs, trashAbs, error: err });
 		throw err;
 	}
-}
-
-// Cleans up media directory
+} // Cleans up media directory
 
 export async function cleanMediaDirectory(): Promise<void> {
 	// Implementation for cleaning up unused files
 	logger.info('Media directory cleanup completed');
 }
 
-// Saves a remote media file to the database
-export async function saveRemoteMedia(fileUrl: string, contentTypes: string, user_id: string): Promise<{ id: string; fileInfo: MediaRemoteVideo }> {
-	try {
-		// Fetch the media file from the provided URL
-		const response = await fetch(fileUrl);
-		if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
-
-		// Get buffer from fetched response
-		const arrayBuffer = await response.arrayBuffer();
-		const hash = await hashFileContent(arrayBuffer); // Use arrayBuffer directly for hashing
-
-		// Extract and sanitize the file name
-		const fileName = decodeURI(fileUrl.split('/').pop() ?? 'defaultName');
-		const { fileNameWithoutExt, ext } = getSanitizedFileName(fileName);
-		const url = `remote_media/${hash}-${fileNameWithoutExt}.${ext}`;
-
-		// Create user access entry with all permissions
-		const userAccess: MediaAccess = {
-			userId: user_id,
-			permissions: [Permission.Read, Permission.Write, Permission.Delete]
-		};
-
-		// Construct file info object for the remote video
-		const fileInfo: MediaRemoteVideo = {
-			hash,
-			filename: fileName,
-			path: 'remote_media',
-			url,
-			type: MediaTypeEnum.RemoteVideo,
-			size: parseInt(response.headers.get('content-length') || '0', 10),
-			user: user_id,
-			createdAt: new Date(),
-			updatedAt: new Date(),
-			provider: new URL(fileUrl).hostname,
-			externalId: fileUrl,
-			versions: [
-				{
-					version: 1,
-					url,
-					createdAt: new Date(),
-					createdBy: user_id
-				}
-			],
-			access: userAccess,
-			mimeType: mime.lookup(url) || 'application/octet-stream'
-		};
-
-		// Ensure the database adapter is initialized
-		if (!dbAdapter) {
-			const errorMessage = 'Database adapter is not initialized';
-			logger.error(errorMessage);
-			throw new Error(errorMessage);
-		}
-
-		// Check if the file already exists in the database
-		const existingFile = await dbAdapter.crud.findOne('media_remote_videos', { hash });
-		if (existingFile && existingFile.success && existingFile.data) {
-			logger.info('Remote file already exists in the database', {
-				fileId: existingFile.data._id,
-				collection: 'media_remote_videos'
-			});
-			return { id: existingFile.data._id || '', fileInfo: existingFile.data as MediaRemoteVideo };
-		}
-
-		// Save the file info to the database
-		const insertResult = await dbAdapter.crud.create('media_remote_videos', fileInfo);
-		if (!insertResult.success) {
-			throw new Error(`Failed to save remote media: ${insertResult.error.message}`);
-		}
-
-		const id = insertResult.data._id || '';
-		await cacheService.set(`media:${id}`, fileInfo, 3600);
-
-		logger.info('Remote media saved to database', { fileInfo });
-		return { id, fileInfo };
-	} catch (error) {
-		logger.error('Error saving remote media:', error instanceof Error ? error : new Error(String(error)));
-		throw error;
-	}
-}
-
 /**
- * Saves an avatar image to disk and database
- * The avatar URL will also be saved to the user's database record by the calling API
+ * Saves an avatar image with proper resizing and storage.
+ * @param avatarFile - The uploaded File object
+ * @param userId - The user ID for naming the avatar
+ * @returns The public URL of the saved avatar
  */
-export async function saveAvatarImage(file: File, userId: string = 'system'): Promise<string> {
+export async function saveAvatarImage(avatarFile: File, userId: string): Promise<string> {
 	try {
-		if (!file) throw new Error('No file provided');
+		logger.info('Saving avatar image', { userId, fileName: avatarFile.name, fileSize: avatarFile.size });
 
-		// Check if database adapter is available, but don't fail if it's not fully ready
-		const isDatabaseReady = dbAdapter && dbAdapter.utils && typeof dbAdapter.utils.generateId === 'function';
-		if (!isDatabaseReady) {
-			logger.warn('Database adapter not fully ready - avatar will be saved to disk only');
-		}
-
-		const fs = await getFs();
-		// Create avatars directory under the media folder
-		const avatarsPath = Path.join(process.cwd(), publicEnv.MEDIA_FOLDER, 'avatars');
-		if (!fs.existsSync(avatarsPath)) {
-			await fs.promises.mkdir(avatarsPath, { recursive: true });
-		}
-
-		const arrayBuffer = await file.arrayBuffer();
+		// Convert File to Buffer
+		const arrayBuffer = await avatarFile.arrayBuffer();
 		const buffer = Buffer.from(arrayBuffer);
-		const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 32);
 
-		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
-		const sanitizedBlobName = sanitize(fileNameWithoutExt);
+		// Get file extension
+		const ext = Path.extname(avatarFile.name) || '.jpg';
 
-		// Check for existing avatar by hash only if database is ready
-		const existingFile = isDatabaseReady ? await dbAdapter.crud.findOne('media_images', { hash }).catch(() => null) : null;
-		if (existingFile && existingFile.success && existingFile.data) {
-			const mediaData = existingFile.data as { url?: string };
-			let fileUrl = mediaData.url || '';
-			const mediaServerUrl = publicEnv.MEDIASERVER_URL;
-			if (mediaServerUrl) {
-				fileUrl = `${mediaServerUrl}/${fileUrl}`;
-			} else {
-				fileUrl = `${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
-			}
-			return fileUrl;
-		}
+		// Resize avatar to 200x200
+		const resizedImage = await Sharp(buffer)
+			.resize(200, 200, {
+				fit: 'cover',
+				position: 'center'
+			})
+			.toBuffer();
 
-		let avatarUrl: string;
-		let width = 0;
-		let height = 0;
-		let mimeType = file.type;
+		// Save to avatars directory with user ID as filename
+		const relativePath = `avatars/${userId}${ext}`;
+		const avatarUrl = await saveFileToDisk(resizedImage, relativePath);
 
-		if (ext === 'svg') {
-			// Save SVG as-is
-			avatarUrl = `avatars/${hash}-${sanitizedBlobName}.${ext}`;
-			await saveFileToDisk(buffer, avatarUrl);
-			// SVGs don't have width/height here
-		} else {
-			// Convert to AVIF thumbnail (200px as defined in SIZES.thumbnail)
-			// Use faster resize settings for avatars
-			const resizedImage = await resizeImage(buffer, SIZES.thumbnail);
-			resizedImage.jpeg({ quality: 80, progressive: true }); // Set quality for faster processing
-			avatarUrl = `avatars/${hash}-${sanitizedBlobName}-thumbnail.avif`;
+		logger.info('Avatar saved successfully', { userId, avatarUrl, fileSize: resizedImage.length });
 
-			// Process metadata and buffer in parallel
-			const [resizedBuffer, meta] = await Promise.all([resizedImage.toBuffer(), resizedImage.metadata()]);
-
-			await saveFileToDisk(resizedBuffer, avatarUrl);
-			width = meta.width || 0;
-			height = meta.height || 0;
-			mimeType = 'image/avif';
-		}
-
-		// Create MediaItem-compatible object for database storage
-		const mediaItemForDB = {
-			filename: file.name,
-			hash,
-			path: 'avatars',
-			size: buffer.length,
-			mimeType,
-			thumbnails: { avatar: { url: avatarUrl, width, height } },
-			metadata: { width, height },
-			user: userId, // Required field for the media schema
-			createdBy: userId,
-			updatedBy: userId,
-			status: 'private' // Default status for avatars
-		};
-
-		logger.info('Avatar image prepared for database save', {
-			filename: file.name,
-			hash,
-			path: 'avatars',
-			size: buffer.length,
-			mimeType,
-			userId: userId?.includes('@') ? userId.replace(/(.{2}).*@(.*)/, '$1****@$2') : userId
-		});
-
-		// Try to upload to database only if it's ready - run in background to not block response
-		if (isDatabaseReady) {
-			// Don't await this - let it run in background
-			Promise.resolve()
-				.then(async () => {
-					try {
-						// Check if the media upload method exists
-						if (dbAdapter.media && dbAdapter.media.files && typeof dbAdapter.media.files.upload === 'function') {
-							const uploadResult = await dbAdapter.media.files.upload(mediaItemForDB);
-
-							if (uploadResult && uploadResult.success) {
-								logger.debug('Avatar successfully saved to database');
-							} else {
-								const errorMsg = uploadResult?.error?.message || uploadResult?.error || 'Unknown error';
-								logger.error('Failed to upload avatar to database:', {
-									error: errorMsg,
-									details: uploadResult?.error?.details || 'No additional details',
-									code: uploadResult?.error?.code || 'UNKNOWN_ERROR'
-								});
-								logger.warn('Avatar file saved to disk but not to database metadata');
-							}
-						} else {
-							// Fallback: Try to use the CRUD interface to create a media record
-							try {
-								const createResult = await dbAdapter.crud.create('media_images', mediaItemForDB);
-								if (createResult && createResult.success) {
-									logger.debug('Avatar successfully saved to database via CRUD');
-								} else {
-									const errorMsg = createResult?.error?.message || createResult?.error || 'Unknown error';
-									logger.error('Failed to create avatar record via CRUD:', {
-										error: errorMsg,
-										details: createResult?.error?.details || 'No additional details',
-										code: createResult?.error?.code || 'UNKNOWN_ERROR'
-									});
-									logger.warn('Avatar file saved to disk but not to database metadata');
-								}
-							} catch (crudError) {
-								logger.error('Media upload method not available and CRUD fallback failed:', {
-									error: crudError instanceof Error ? crudError.message : String(crudError),
-									stack: crudError instanceof Error ? crudError.stack : undefined,
-									type: 'CRUD_FALLBACK_ERROR'
-								});
-								logger.info('Avatar saved to disk only - database metadata will not be stored');
-							}
-						}
-					} catch (dbError) {
-						logger.error('Database upload failed for avatar:', {
-							error: dbError instanceof Error ? dbError.message : String(dbError),
-							stack: dbError instanceof Error ? dbError.stack : undefined,
-							type: 'DATABASE_UPLOAD_ERROR'
-						});
-						logger.warn('Proceeding with avatar URL despite database upload failure');
-					}
-				})
-				.catch(() => {
-					// Silent catch for background operation
-				});
-		} else {
-			logger.info('Database not ready - skipping avatar metadata save');
-		}
-
-		// Return the URL for serving to the client - this will be saved to user.avatar field
-		const fileUrl = `/${publicEnv.MEDIA_FOLDER}/${avatarUrl}`;
-
-		logger.info('Avatar saved successfully to disk', {
-			userId: userId?.includes('@') ? userId.replace(/(.{2}).*@(.*)/, '$1****@$2') : userId,
-			avatarUrl: fileUrl,
-			fileSize: buffer.length,
-			mimeType,
-			note: 'Avatar URL will be saved to user database record by calling API'
-		});
-
-		return fileUrl;
+		return avatarUrl;
 	} catch (err) {
-		const error = err instanceof Error ? err : new Error('Unknown error occurred');
-		logger.error('Error saving avatar image:', {
-			error: error.message,
-			stack: error.stack,
-			fileName: file?.name,
-			fileSize: file?.size
+		logger.error('Error saving avatar image', {
+			userId,
+			error: err instanceof Error ? err.message : String(err)
 		});
-		throw error;
+		throw err;
 	}
 }

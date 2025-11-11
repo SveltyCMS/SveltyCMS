@@ -36,7 +36,6 @@
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onDestroy, onMount } from 'svelte';
-	import { fade } from 'svelte/transition';
 
 	// Type Imports
 	import type { User } from '@src/databases/auth/types';
@@ -60,7 +59,6 @@
 	// Components
 	import HeaderEdit from '@components/HeaderEdit.svelte';
 	import LeftSidebar from '@components/LeftSidebar.svelte';
-	import Loading from '@components/Loading.svelte';
 	import PageFooter from '@components/PageFooter.svelte';
 	import RightSidebar from '@components/RightSidebar.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
@@ -126,27 +124,6 @@
 	// ============================================================================
 	// DERIVED STATE
 	// ============================================================================
-
-	// Loading state derived from global store
-	const shouldShowLoading = $derived(globalLoadingStore.isLoading);
-
-	// Dynamic loading text based on operation type
-	const loadingTopText = $derived((): string => {
-		switch (globalLoadingStore.loadingReason) {
-			case loadingOperations.initialization:
-				return 'Initializing';
-			case loadingOperations.navigation:
-				return 'Navigating';
-			case loadingOperations.dataFetch:
-				return 'Loading data';
-			case loadingOperations.authentication:
-				return 'Authenticating';
-			case loadingOperations.formSubmission:
-				return 'Submitting';
-			default:
-				return 'Loading';
-		}
-	});
 
 	// SEO meta content
 	const siteName = publicEnv?.SITE_NAME || 'SveltyCMS';
@@ -301,7 +278,7 @@
 <svelte:head>
 	<!-- Dark Mode Initialization (CSP-compliant with nonce) -->
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-	{@html '<script nonce="' + data.nonce + '">(' + setInitialClassState.toString() + ')();</script>'}
+	{@html '<script nonce="' + (data?.nonce || '') + '">(' + setInitialClassState.toString() + ')();</script>'}
 
 	<!-- Basic SEO -->
 	<meta name="description" content={seoDescription} />
@@ -383,27 +360,12 @@
 						</header>
 					{/if}
 
-					<!-- Router Slot with Loading Overlay -->
+					<!-- Router Slot -->
 					<div
 						class="relative flex-1 overflow-visible {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {isDesktop.value
 							? 'mb-2'
 							: 'mb-16'}"
 					>
-						<!-- Loading Overlay -->
-						{#if shouldShowLoading}
-							<div
-								transition:fade={{ duration: 200 }}
-								class="variant-glass-surface absolute z-50 flex h-full w-full items-center justify-center"
-								role="status"
-								aria-live="polite"
-							>
-								<Loading
-									customTopText={loadingTopText()}
-									customBottomText={globalLoadingStore.loadingReason === loadingOperations.initialization ? 'Loading application...' : 'Please wait'}
-								/>
-							</div>
-						{/if}
-
 						<!-- Page Content Slot -->
 						{@render children?.()}
 					</div>

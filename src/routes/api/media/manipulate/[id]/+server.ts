@@ -28,6 +28,10 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 	const { user, tenantId } = locals;
 	const { id } = params;
 
+	if (!user) {
+		return json({ success: false, error: 'Unauthorized' }, { status: 401 });
+	}
+
 	if (!id) {
 		return json({ success: false, error: 'Media ID not specified' }, { status: 400 });
 	}
@@ -41,7 +45,11 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 
 		const mediaService = getMediaService();
 
-		const updatedMedia = await mediaService.manipulateMedia(id, manipulations, user._id.toString(), tenantId);
+		// Use updateMedia instead of manipulateMedia
+		await mediaService.updateMedia(id, manipulations);
+
+		// Fetch the updated media to return
+		const updatedMedia = await mediaService.getMediaById(id);
 
 		return json({
 			success: true,

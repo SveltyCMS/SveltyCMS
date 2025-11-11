@@ -1,3 +1,24 @@
+<!--
+@file src/widgets/custom/colorPicker/Display.svelte
+@component
+**ColorPicker Widget Display Component**
+
+Displays the selected color value visually, for use in lists or detail views.
+Part of the Three Pillars Architecture for widget system.
+
+@example
+<ColorPickerDisplay value="#ff00ff" />
+Renders: color swatch or hex value
+
+### Props
+- `value: string | null | undefined` - Color value to display
+
+### Features
+- **Color Swatch**: Shows a visual swatch for the selected color
+- **Fallback**: Displays hex value if color is invalid or missing
+- **Accessible**: Uses ARIA labels for color
+- **Tailwind Styling**: Utility-first CSS for layout and color
+-->
 <script lang="ts">
 	let { value }: { value: string | null | undefined } = $props();
 </script>

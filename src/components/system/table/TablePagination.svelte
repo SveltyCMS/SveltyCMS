@@ -14,6 +14,11 @@
 - `totalItems` {number}: The total number of items in the table (default: 0)
 - `onUpdatePage` {(page: number) => void}: Event handler for updating the current page
 - `onUpdateRowsPerPage` {(rows: number) => void}: Event handler for updating the number of rows per page
+
+### Features
+- Provides pagination controls for navigating through table data
+- Displays current page, total pages, and item range
+- Allows selection of rows per page from predefined options
 -->
 
 <script lang="ts">

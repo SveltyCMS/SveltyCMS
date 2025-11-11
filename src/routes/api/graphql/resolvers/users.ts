@@ -18,6 +18,7 @@
  */
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
+import type { ISODateString } from '@src/databases/dbInterface';
 // System Logger
 import { logger } from '@utils/logger.server';
 
@@ -72,27 +73,36 @@ const userTypeSample: Partial<User> = {
 	username: '',
 	avatar: '',
 	lastAuthMethod: '',
-	lastActiveAt: new Date(),
-	expiresAt: new Date(),
+	lastActiveAt: new Date().toISOString() as ISODateString,
+	expiresAt: new Date().toISOString() as ISODateString,
 	isRegistered: false,
 	blocked: false,
-	resetRequestedAt: new Date(),
+	resetRequestedAt: new Date().toISOString() as ISODateString,
 	resetToken: '',
 	failedAttempts: 0,
-	lockoutUntil: new Date(),
+	lockoutUntil: new Date().toISOString() as ISODateString,
 	is2FAEnabled: false,
 	permissions: []
 };
 
 // TypeDefs
 export function userTypeDefs() {
-	return generateGraphQLTypeDefsFromType(userTypeSample, 'User');
+	return generateGraphQLTypeDefsFromType(userTypeSample as Record<string, GraphQLValue>, 'User');
 }
 
 // GraphQL context type
 interface GraphQLContext {
 	user?: User;
 	tenantId?: string;
+}
+
+// User entity type with tenantId support for query building
+interface UserEntity {
+	_id?: string;
+	email?: string;
+	tenantId?: string;
+	createdAt?: string;
+	updatedAt?: string;
 }
 
 // Resolvers with pagination support
@@ -116,16 +126,18 @@ export function userResolvers(dbAdapter: DatabaseAdapter) {
 
 		try {
 			// --- MULTI-TENANCY: Scope the query by tenantId ---
-			const query: { tenantId?: string } = {};
+			const query: Partial<UserEntity> = {};
 			if (getPrivateSettingSync('MULTI_TENANT')) {
 				query.tenantId = context.tenantId;
 			}
 
 			// Use query builder pattern consistent with REST API
-			const queryBuilder = dbAdapter.queryBuilder(contentTypes).where(query).sort('lastActiveAt', 'desc').paginate({ page, pageSize: limit });
-
+			const queryBuilder = dbAdapter
+				.queryBuilder<UserEntity>(contentTypes)
+				.where(query)
+				.sort('updatedAt', 'desc')
+				.paginate({ page, pageSize: limit });
 			const result = await queryBuilder.execute();
-
 			if (!result.success) {
 				throw new Error(`Database query failed: ${result.error?.message || 'Unknown error'}`);
 			}

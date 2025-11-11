@@ -52,7 +52,7 @@ Usage:
 		>
 			<img
 				src={media.url}
-				alt={media.name}
+				alt={media.filename}
 				class="h-auto w-full border-2 transition-all duration-300 {media === selectedMedia
 					? 'scale-95 border-blue-500'
 					: 'border-transparent hover:border-gray-300'}"

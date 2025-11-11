@@ -10,6 +10,7 @@
 - Demonstrates live updates from the backend using GraphQL subscriptions.
 -->
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { onMount } from 'svelte';
 	import { createClient } from 'graphql-ws';
 
@@ -42,7 +43,7 @@
 					error = err;
 				},
 				complete: () => {
-					console.log('Subscription complete');
+					logger.debug('Subscription complete');
 				}
 			}
 		);

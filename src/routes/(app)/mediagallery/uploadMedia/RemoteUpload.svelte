@@ -18,6 +18,7 @@
 
 <script lang="ts">
 	import { showToast } from '@utils/toast';
+	import { logger } from '@utils/logger';
 
 	let remoteUrls: string[] = $state([]);
 
@@ -56,7 +57,7 @@
 				throw Error(result.error || 'Upload failed');
 			}
 		} catch (error) {
-			console.error('Error uploading URLs:', error);
+			logger.error('Error uploading URLs:', error);
 			showToast('Error uploading URLs: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
 		}
 	}

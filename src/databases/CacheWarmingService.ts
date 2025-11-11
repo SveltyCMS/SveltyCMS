@@ -178,23 +178,23 @@ async function warmWidgetsCache(): Promise<void> {
  * Call this when a tenant logs in or becomes active
  */
 export async function warmTenantCache(tenantId: string): Promise<void> {
-	logger.info(`🔥 Warming cache for tenant: ${tenantId}`);
+	logger.info(`🔥 Warming cache for tenant: \x1b[31m${tenantId}\x1b[0m`);
 
 	try {
 		await cacheService.warmCache({
 			keys: ['config', 'settings', 'theme', 'collections'],
 			fetcher: async () => {
 				// Fetch tenant-specific data
-				logger.debug(`Tenant cache warmer called for ${tenantId}`);
+				logger.debug(`Tenant cache warmer called for \x1b[31m${tenantId}\x1b[0m`);
 				return {};
 			},
 			category: CacheCategory.API,
 			tenantId
 		});
 
-		logger.info(`✅ Cache warmed for tenant: ${tenantId}`);
+		logger.info(`✅ Cache warmed for tenant: \x1b[31m${tenantId}\x1b[0m`);
 	} catch (error) {
-		logger.error(`Failed to warm cache for tenant ${tenantId}:`, error);
+		logger.error(`Failed to warm cache for tenant \x1b[31m${tenantId}\x1b[0m:`, error);
 	}
 }
 

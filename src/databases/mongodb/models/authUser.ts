@@ -163,6 +163,7 @@ export class UserAdapter {
 			}
 
 			const user = await this.UserModel.findOneAndUpdate(filter, userData, { new: true }).lean();
+
 			if (!user) {
 				return {
 					success: false,
@@ -173,6 +174,7 @@ export class UserAdapter {
 					}
 				};
 			}
+
 			user._id = user._id.toString();
 			logger.debug(`User attributes updated: \x1b[34m${user_id}\x1b[0m`, { tenantId });
 			return {

@@ -24,6 +24,7 @@
 	import { modeCurrent } from '@skeletonlabs/skeleton';
 	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
 	import { systemPreferences } from '@stores/systemPreferences.svelte';
+	import { logger } from '@utils/logger';
 	import { onMount } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import type { PageData } from './$types';
@@ -87,7 +88,7 @@
 			loadedWidgets.set(widgetId, module.default);
 			loadedWidgets = new Map(loadedWidgets); // Trigger reactivity
 		} catch (error) {
-			console.error(`Failed to load widget: ${componentName}`, error);
+			logger.error(`Failed to load widget: ${componentName}`, error);
 			loadedWidgets.set(widgetId, null); // Mark as failed
 			loadedWidgets = new Map(loadedWidgets);
 		}
@@ -218,7 +219,7 @@
 	function addNewWidget(componentName: string) {
 		const componentInfo = widgetComponentRegistry[componentName];
 		if (!componentInfo) {
-			console.error(`SveltyCMS: Widget component info for "${componentName}" not found in registry.`);
+			logger.error(`SveltyCMS: Widget component info for "${componentName}" not found in registry.`);
 			return;
 		}
 

@@ -39,8 +39,8 @@ const usernameSchema = pipe(
 	string(),
 	trim(),
 	minLength(2, 'Username must be at least 2 characters'),
-	maxLength(24, 'Username must be at most 24 characters'),
-	regex(/^[a-zA-Z0-9@$!%*#]+$/, 'Username contains invalid characters')
+	maxLength(50, 'Username must be at most 50 characters'),
+	regex(/^[a-zA-Z0-9@$!%*#._-]+$/, 'Username contains invalid characters')
 );
 
 // --- Reusable Email Schemas ---
@@ -232,21 +232,32 @@ const dbNameSchema = pipe(
 	regex(/^[a-zA-Z0-9_-]+$/, 'Database name can only contain letters, numbers, hyphens, and underscores')
 );
 
-// Database User Schema
-const dbUserSchema = pipe(string(), trim(), minLength(1, 'Database user is required'), maxLength(63, 'Database user is too long'));
+// Database User Schema (optional for MongoDB without auth)
+const dbUserSchema = pipe(string(), trim(), maxLength(63, 'Database user is too long'));
 
-// Database Password Schema
-const dbPasswordSchema = pipe(string(), trim(), minLength(1, 'Database password is required'));
+// Database Password Schema (optional for MongoDB without auth)
+const dbPasswordSchema = pipe(string(), trim());
 
 // Complete Database Configuration Schema
-export const dbConfigSchema = object({
-	type: dbTypeSchema,
-	host: dbHostSchema,
-	port: dbPortSchema,
-	name: dbNameSchema,
-	user: dbUserSchema,
-	password: dbPasswordSchema
-});
+export const dbConfigSchema = pipe(
+	object({
+		type: dbTypeSchema,
+		host: dbHostSchema,
+		port: dbPortSchema,
+		name: dbNameSchema,
+		user: dbUserSchema,
+		password: dbPasswordSchema
+	}),
+	check((input) => {
+		// For PostgreSQL and MySQL, username and password are required
+		if (input.type === 'postgresql' || input.type === 'mysql') {
+			return input.user.length > 0 && input.password.length > 0;
+		}
+		// For MongoDB (both standard and Atlas), authentication is optional
+		// This allows local development without auth (e.g., MongoDB Compass)
+		return true;
+	}, 'Username and password are required for this database type.')
+);
 
 // --- System Settings Schemas ---
 

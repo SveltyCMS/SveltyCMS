@@ -123,21 +123,28 @@ export const schema: Schema = {
 		}),
 
 		widgets.Radio({
-			label: 'Radio',
+			label: 'Radio Test',
 			db_fieldName: 'radio',
 			icon: 'akar-icons:radio-fill',
-			color: 'pink',
 			required: true,
-			width: 4
+			width: 4,
+			color: 'pink', // selector color
+			legend: 'Select Radio option',
+			options: [
+				{ label: 'Yes', value: 'yes' },
+				{ label: 'No', value: 'no' },
+				{ label: 'Maybe', value: 'maybe' }
+			]
 		}),
 
 		widgets.Checkbox({
-			label: 'Checkbox',
+			label: 'Checkbox Test',
 			db_fieldName: 'checkbox',
 			icon: 'mdi:check-bold',
-			color: 'pink',
 			required: true,
-			width: 4
+			width: 4,
+			color: 'yellow', // selector color
+			legend: 'Select Checkbox option'
 		}),
 
 		widgets.ColorPicker({

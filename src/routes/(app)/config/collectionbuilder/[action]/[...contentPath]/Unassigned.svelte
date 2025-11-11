@@ -2,10 +2,15 @@
 @files src/routes/(app)/config/collection/Unassigned.svelte
 @component
 **This component displays a list of unassigned collections**
+
+### Props
+- `items` {any[]} - Array of unassigned collection items
+- `onDrop` {Function} - Callback function to handle drop events
+
+### Features
+- Drag and drop support for reassigning collections
 -->
 <script lang="ts">
-	import { goto } from '$app/navigation';
-
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -27,11 +32,6 @@
 
 	function handleDndFinalizeCards(e: any) {
 		onDrop(e.detail.items);
-	}
-
-	function handleCollectionClick(contentTypes: string) {
-		// Define the logic for handling the click on a collection
-		goto(`/collection/${contentTypes}/edit`);
 	}
 </script>
 
@@ -55,9 +55,14 @@
 					{item.name}</span
 				>
 
-				<button onclick={() => handleCollectionClick(item.name)} aria-label="Edit" class="text-black">
+				<a
+					href={`/collection/${item.name}/edit`}
+					aria-label="Edit {item.name}"
+					class="text-black hover:text-primary-500"
+					data-sveltekit-preload-data="hover"
+				>
 					<iconify-icon icon="mdi:pen" width="18" class="pr-0.5"></iconify-icon>
-				</button>
+				</a>
 			</div>
 		{/each}
 	</div>

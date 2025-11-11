@@ -23,6 +23,7 @@ import { logger } from '@utils/logger.server';
 
 // Types
 import type { SystemVirtualFolder } from '@src/databases/dbInterface';
+import type { DatabaseId } from '@src/content/types';
 
 // GET /api/systemVirtualFolder - Fetches all system virtual folders for the current tenant
 export const GET: RequestHandler = async ({ locals }) => {
@@ -93,10 +94,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(400, 'Name is required and must be a string');
 		}
 
+		// Check if dbAdapter is initialized
+		if (!dbAdapter) {
+			logger.error('Database adapter not initialized');
+			throw error(500, 'Database adapter not initialized');
+		}
+
 		// Build the path based on parent folder
 		let folderPath = '';
 		if (parentId) {
-			const parentResult = await dbAdapter.systemVirtualFolder.getById(parentId);
+			const parentResult = await dbAdapter.systemVirtualFolder.getById(parentId as DatabaseId);
 			if (parentResult.success && parentResult.data) {
 				folderPath = `${parentResult.data.path}/${name.trim()}`;
 			} else {
@@ -108,15 +115,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Create folder data, including tenantId if in multi-tenant mode
-		const folderData: Partial<SystemVirtualFolder> = {
+		const folderData: Omit<SystemVirtualFolder, '_id' | 'createdAt' | 'updatedAt'> = {
 			name: name.trim(),
 			path: folderPath,
 			type: 'folder',
-			parentId: parentId || null,
+			parentId: parentId ? (parentId as DatabaseId) : null,
 			order: 0,
-			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }),
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString()
+			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId })
 		}; // Create the folder
 
 		const result = await dbAdapter.systemVirtualFolder.create(folderData);
@@ -166,13 +171,22 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 			throw error(400, 'orderUpdates must be an array');
 		}
 
+		// Check if dbAdapter is initialized
+		if (!dbAdapter) {
+			logger.error('Database adapter not initialized');
+			throw error(500, 'Database adapter not initialized');
+		}
+
+		// Store reference for use in async callbacks
+		const adapter = dbAdapter;
+
 		// Update each folder in a transaction
 		const results = await Promise.all(
 			orderUpdates.map(async (update: { folderId: string; order: number; parentId?: string | null }) => {
 				const { folderId, order, parentId: newParentId } = update;
 
 				// Get current folder to access its name
-				const currentFolder = await dbAdapter.systemVirtualFolder.getById(folderId);
+				const currentFolder = await adapter.systemVirtualFolder.getById(folderId as DatabaseId);
 				if (!currentFolder.success || !currentFolder.data) {
 					logger.error('Folder not found for reordering', { folderId });
 					return { success: false, error: { message: 'Folder not found' } };
@@ -182,11 +196,11 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 
 				// If parentId changed, rebuild path
 				if (newParentId !== undefined) {
-					updateData.parentId = newParentId;
+					updateData.parentId = newParentId ? (newParentId as DatabaseId) : null;
 
 					// Build new path based on new parent
 					if (newParentId) {
-						const parentResult = await dbAdapter.systemVirtualFolder.getById(newParentId);
+						const parentResult = await adapter.systemVirtualFolder.getById(newParentId as DatabaseId);
 						if (parentResult.success && parentResult.data) {
 							updateData.path = `${parentResult.data.path}/${currentFolder.data.name}`;
 						} else {
@@ -199,7 +213,7 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 					}
 				}
 
-				return dbAdapter.systemVirtualFolder.update(folderId, updateData);
+				return adapter.systemVirtualFolder.update(folderId as DatabaseId, updateData);
 			})
 		);
 

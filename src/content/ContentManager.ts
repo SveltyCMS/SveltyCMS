@@ -190,16 +190,15 @@ class ContentManager {
 	public async getFirstCollectionRedirectUrl(language: string = 'en', tenantId?: string): Promise<string | null> {
 		const collection = await this.getFirstCollection(tenantId);
 
-		if (!collection || !collection.path) {
-			logger.debug('Cannot build redirect URL - no collection or path available');
+		if (!collection || !collection._id) {
+			logger.debug('Cannot build redirect URL - no collection or _id available');
 			return null;
 		}
 
-		// Ensure the collection path has a leading slash
-		const collectionPath = collection.path.startsWith('/') ? collection.path : `/${collection.path}`;
-		const redirectUrl = `/${language}${collectionPath}`;
+		// The collection ID is the UUID.
+		const redirectUrl = `/${language}/${collection._id}`;
 
-		logger.debug(`📍 First collection redirect URL: \x1b[34m${redirectUrl}\x1b[0m`);
+		logger.debug(`📍 First collection redirect URL (UUID-based): \x1b[34m${redirectUrl}\x1b[0m`);
 		return redirectUrl;
 	}
 
@@ -518,7 +517,7 @@ class ContentManager {
 				order: dbNode?.order ?? 999,
 				nodeType: 'category',
 				translations: dbNode?.translations ?? [],
-				createdAt: dbNode?.createdAt ?? now,
+				createdAt: dbNode?.createdAt ? dateToISODateString(new Date(dbNode.createdAt)) : now,
 				updatedAt: now
 			});
 		}
@@ -539,7 +538,7 @@ class ContentManager {
 				// Store FULL schema in memory for getCollection() to work
 				collectionDef: schema,
 				tenantId: schema.tenantId,
-				createdAt: dbNode?.createdAt ?? now,
+				createdAt: dbNode?.createdAt ? dateToISODateString(new Date(dbNode.createdAt)) : now,
 				updatedAt: now
 			});
 		}

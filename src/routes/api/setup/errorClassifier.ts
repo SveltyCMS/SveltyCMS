@@ -24,7 +24,7 @@ export function classifyDatabaseError(
 	logger.error('🔍 Classifying database error:', { raw, lower, code, engine });
 
 	// 🎯 MongoDB Atlas specific errors (check first for most specific errors)
-	if (engine === 'mongodb' && dbConfig?.host?.includes('mongodb.net')) {
+	if (engine === 'mongodb' && dbConfig?.host && /^([a-zA-Z0-9-]+\.)*mongodb\.net$/.test(dbConfig.host.split(':')[0])) {
 		// TLS/SSL errors for Atlas
 		if (/tls|ssl|certificate|self[- ]?signed/i.test(lower)) {
 			return {

@@ -20,11 +20,10 @@ Features:
 
 	// Function to handle permission updates
 	function handlePermissionUpdate(updatedPermissions: Record<string, Record<PermissionAction, boolean>>) {
-		targetWidget.update((w) => {
-			if (!w) return w;
-			w.permissions = updatedPermissions;
-			return w;
-		});
+		const w = targetWidget.value;
+		if (!w) return;
+		w.permissions = updatedPermissions;
+		targetWidget.value = w;
 	}
 
 	// Get roles from the modal store

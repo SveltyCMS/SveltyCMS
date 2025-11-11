@@ -15,8 +15,8 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 -->
 
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { logger } from '@utils/logger';
+	import { page } from '$app/state';
 	import { motion } from '@src/utils/utils';
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { linear } from 'svelte/easing';
@@ -56,7 +56,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	};
 
 	// Get user from page data
-	let user = $derived($page.data.user as User | undefined);
+	let user = $derived(page.data.user as User | undefined);
 
 	// Endpoint definitions
 	const ALL_ENDPOINTS: Endpoint[] = [
@@ -64,6 +64,12 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			tooltip: 'Home',
 			url: { external: false, path: '/' },
 			icon: 'solar:home-bold'
+		},
+		{
+			tooltip: 'Dashboard',
+			url: { external: false, path: '/dashboard' },
+			icon: 'mdi:view-dashboard',
+			color: 'bg-blue-500'
 		},
 		{
 			tooltip: 'User Profile',
@@ -93,6 +99,12 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			url: { external: false, path: '/config' },
 			icon: 'mynaui:config',
 			color: 'bg-surface-400'
+		},
+		{
+			tooltip: 'Access Management',
+			url: { external: false, path: '/config/accessManagement' },
+			icon: 'mdi:shield-account',
+			color: 'bg-purple-500'
 		},
 		{
 			tooltip: 'Marketplace',
@@ -130,9 +142,9 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 	// Refs
 	let firstLine = $state<SVGLineElement | undefined>(undefined);
-	let firstCircle = $state<HTMLDivElement | undefined>(undefined);
+	let firstCircle = $state<HTMLElement | undefined>(undefined);
 	let svg = $state<SVGElement | undefined>(undefined);
-	let circles = $state<(HTMLDivElement | undefined)[]>([]);
+	let circles = $state<(HTMLElement | undefined)[]>([]);
 
 	// Popup ID
 	const NAV_POPUP_ID = 'floatingNavTooltip';
@@ -149,7 +161,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 	// Helper functions
 	function getBasePath(pathname: string): string {
-		const params = Object.values($page.params);
+		const params = Object.values(page.params);
 		const replaced = params.reduce((acc, param) => acc.replace(param, ''), pathname);
 		return params.length > 0 ? replaced : pathname;
 	}
@@ -173,7 +185,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 		try {
 			const navigationInfo = JSON.parse(localStorage.getItem('navigation') || '{}');
-			const key = getBasePath($page.url.pathname);
+			const key = getBasePath(page.url.pathname);
 			const saved = navigationInfo[key] as { x?: number; y?: number } | undefined;
 
 			if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
@@ -199,11 +211,11 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 		try {
 			const navigationInfo = JSON.parse(localStorage.getItem('navigation') || '{}');
-			const key = getBasePath($page.url.pathname);
+			const key = getBasePath(page.url.pathname);
 			navigationInfo[key] = { x: buttonInfo.x, y: buttonInfo.y };
 			localStorage.setItem('navigation', JSON.stringify(navigationInfo));
 		} catch (error) {
-			console.error('Failed to save position:', error);
+			logger.error('Failed to save position:', error);
 		}
 	}
 
@@ -251,27 +263,17 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		if (e.key === 'Escape') closeMenu();
 	}
 
-	async function navigateToEndpoint(endpoint: Endpoint): Promise<void> {
-		if (endpoint.url.external) {
-			window.open(endpoint.url.path, '_blank');
-		} else {
-			await goto(endpoint.url.path, { replaceState: false });
-		}
+	function handleNavigateToEndpoint(): void {
 		showRoutes = false;
+		// Navigation is handled by <a> tag href attribute
 	}
 
-	async function navigateHome(): Promise<void> {
+	function handleNavigateHome(): void {
 		setMode('view');
 		modalStore.clear();
 		toggleUIElement('leftSidebar', 'hidden');
-
-		const homeEndpoint = endpoints[0];
-		if (homeEndpoint?.url?.external) {
-			location.href = homeEndpoint.url.path || '/';
-		} else {
-			await goto(homeEndpoint?.url?.path || '/', { replaceState: false });
-		}
 		showRoutes = false;
+		// Navigation will be handled by <a> tag
 	}
 
 	// Drag functionality
@@ -448,7 +450,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	aria-expanded={showRoutes}
 	tabindex="0"
 	use:drag
-	class="circle flex touch-none items-center justify-center bg-tertiary-500 [&>*]:pointer-events-none"
+	class="fixed z-[99999999] flex -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full bg-tertiary-500 active:scale-90 [&&>*]:pointer-events-none"
 	style="top:{(Math.min(buttonInfo.y, browser ? window.innerHeight - BUTTON_RADIUS : 0) / (browser ? window.innerHeight : 1)) * 100}%;
 	       left:{(Math.min(isRightToLeft() ? BUTTON_RADIUS : buttonInfo.x, browser ? window.innerWidth - BUTTON_RADIUS : 0) /
 		(browser ? window.innerWidth : 1)) *
@@ -467,7 +469,12 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 {#if showRoutes}
 	<button out:keepAlive|local onclick={closeMenu} class="fixed left-0 top-0 z-[9999999]" aria-label="Close navigation overlay">
-		<svg bind:this={svg} xmlns="http://www.w3.org/2000/svg" use:setDash>
+		<svg
+			bind:this={svg}
+			xmlns="http://www.w3.org/2000/svg"
+			use:setDash
+			class="pointer-events-none fixed left-0 top-0 h-full w-full [&&>line]:pointer-events-none [&&>line]:stroke-[#da1f1f] [&&>line]:stroke-[3px]"
+		>
 			<line bind:this={firstLine} x1={buttonInfo.x} y1={buttonInfo.y} x2={center.x} y2={center.y} />
 			{#each endpointsWithPos.slice(1) as endpoint (endpoint.tooltip)}
 				<line x1={center.x} y1={center.y} x2={endpoint.x} y2={endpoint.y} />
@@ -476,106 +483,61 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 		<div
 			transition:fade
-			class="absolute left-1/2 top-1/4 -z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
+			class="absolute left-1/2 top-1/4 z-[9999998] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40"
 			style="top:{center.y}px;
 			       left:{center.x}px;
 			       width:{MENU_RADIUS * 2}px;
-			       height:{MENU_RADIUS * 2}px;
-			       visibility:hidden;
-			       animation: showEndPoints 0.2s 0.2s forwards"
+			       height:{MENU_RADIUS * 2}px"
 		></div>
 
-		<div
+		<a
 			bind:this={circles[0]}
+			href={endpoints[0]?.url?.path || '/'}
+			target={endpoints[0]?.url?.external ? '_blank' : undefined}
+			rel={endpoints[0]?.url?.external ? 'noopener noreferrer' : undefined}
+			data-sveltekit-preload-data={endpoints[0]?.url?.external ? undefined : 'hover'}
 			use:popup={{ event: 'hover', target: NAV_POPUP_ID, placement: 'top' }}
 			onmouseenter={() => (activeTooltipText = endpoints[0]?.tooltip || '')}
 			onmouseleave={() => (activeTooltipText = '')}
-			role="button"
+			onclick={handleNavigateHome}
 			aria-label={endpoints[0]?.tooltip || 'Home'}
-			tabindex="0"
-			onclick={navigateHome}
-			onkeydown={(event) => {
-				if (event.key === 'Enter' || event.key === ' ') {
-					event.preventDefault();
-					navigateHome();
-				}
-			}}
-			class="circle flex items-center justify-center border-2 bg-gray-600"
+			class="fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] cursor-pointer items-center justify-center rounded-full border-2 bg-tertiary-500"
 			style="top:{center.y}px;
-			       left:{center.x}px;
-			       visibility:hidden;
-			       animation: showEndPoints 0.2s 0.2s forwards"
+			       left:{center.x}px"
 		>
 			<iconify-icon width="32" style="color:white" icon={endpoints[0]?.icon || 'solar:home-bold'}></iconify-icon>
-		</div>
+		</a>
 
 		{#each endpointsWithPos.slice(1) as endpoint, index (endpoint.tooltip)}
-			<div
+			<a
 				bind:this={circles[index + 1]}
+				href={endpoint.url.path}
+				target={endpoint.url.external ? '_blank' : undefined}
+				rel={endpoint.url.external ? 'noopener noreferrer' : undefined}
+				data-sveltekit-preload-data={endpoint.url.external ? undefined : 'hover'}
 				use:popup={{ event: 'hover', target: NAV_POPUP_ID, placement: 'top' }}
 				onmouseenter={() => (activeTooltipText = endpoint.tooltip)}
 				onmouseleave={() => (activeTooltipText = '')}
-				role="button"
+				onclick={handleNavigateToEndpoint}
 				aria-label={endpoint.tooltip}
-				tabindex="0"
-				onclick={() => navigateToEndpoint(endpoint)}
-				onkeydown={(event) => {
-					if (event.key === 'Enter' || event.key === ' ') {
-						event.preventDefault();
-						navigateToEndpoint(endpoint);
-					}
-				}}
-				class="circle flex items-center justify-center {endpoint.color || 'bg-tertiary-500'}"
+				class="fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full {endpoint.color ||
+					'bg-tertiary-500'} animate-[showEndPoints_0.2s_0.4s_forwards] hover:scale-150 active:scale-100"
 				style="top:{endpoint.y}px;
-				       left:{endpoint.x}px;
-				       animation: showEndPoints 0.2s 0.4s forwards"
+			       left:{endpoint.x}px"
 			>
 				<iconify-icon width="32" style="color:white" icon={endpoint.icon}></iconify-icon>
-			</div>
+			</a>
 		{/each}
 	</button>
 {/if}
 
 <style lang="postcss">
-	.circle {
-		position: fixed;
-		transform: translate(-50%, -50%);
-		border-radius: 50%;
-		width: 50px;
-		height: 50px;
-		cursor: pointer;
-		z-index: 99999999;
-	}
-	.circle:not(:first-of-type):hover {
-		transform: translate(-50%, -50%) scale(1.5);
-	}
-	.circle:not(:first-of-type):active {
-		transform: translate(-50%, -50%) scale(1) !important;
-	}
-	.circle:first-of-type:active {
-		transform: translate(-50%, -50%) scale(0.9) !important;
-	}
-
-	svg {
-		position: fixed;
-		left: 0;
-		top: 0;
-		height: 100%;
-		width: 100%;
-		pointer-events: none;
-	}
-
-	line {
-		stroke: #da1f1f;
-		stroke-width: 3;
-		pointer-events: none;
-	}
-
-	@keyframes -global-showEndPoints {
+	@keyframes :global(showEndPoints) {
 		from {
+			opacity: 0;
 			visibility: hidden;
 		}
-		100% {
+		to {
 			opacity: 1;
 			visibility: visible;
 		}

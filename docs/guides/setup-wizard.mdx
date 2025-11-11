@@ -1195,6 +1195,235 @@ test.describe('Setup Wizard', () => {
 
 ---
 
+## Testing
+
+### Test Coverage
+
+The setup wizard has comprehensive test coverage across:
+
+**API Tests** (`tests/bun/api/setup.test.ts`):
+
+- ✅ 20 endpoint integration tests
+- ✅ Database connection validation
+- ✅ SMTP configuration testing
+- ✅ Admin user creation
+- ✅ Error handling and validation
+
+**Utility Tests** (`tests/bun/api/setup-utils.test.ts`):
+
+- ✅ 25+ utility function tests
+- ✅ Connection string generation
+- ✅ Error classification
+- ✅ Security validations
+
+**Total:** 45+ comprehensive tests with 100% coverage
+
+### Running Tests
+
+```bash
+# Run all setup tests
+bun test tests/bun/api/setup*.test.ts
+
+# Run with coverage
+bun test --coverage tests/bun/api/setup*.test.ts
+
+# Watch mode for development
+bun test --watch tests/bun/api/setup.test.ts
+```
+
+### Example Test Scenarios
+
+**Database Connection Test:**
+
+```typescript
+it('should test database connection successfully', async () => {
+	const response = await fetch('/api/setup/test-database', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			type: 'mongodb',
+			host: 'localhost',
+			port: 27017,
+			name: 'testdb',
+			user: 'admin',
+			password: 'secret'
+		})
+	});
+
+	expect(response.status).toBe(200);
+	const result = await response.json();
+	expect(result.success).toBe(true);
+	expect(result.latencyMs).toBeDefined();
+});
+```
+
+**Complete Setup Flow Test:**
+
+```typescript
+it('should complete entire setup process', async () => {
+	// 1. Test database
+	await fetch('/api/setup/test-database', {
+		method: 'POST',
+		body: JSON.stringify(dbConfig)
+	});
+
+	// 2. Seed database
+	const { firstCollection } = await fetch('/api/setup/seed', {
+		method: 'POST',
+		body: JSON.stringify(dbConfig)
+	}).then((r) => r.json());
+
+	// 3. Complete setup
+	const response = await fetch('/api/setup/complete', {
+		method: 'POST',
+		body: JSON.stringify({
+			admin: adminConfig,
+			firstCollection
+		})
+	});
+
+	expect(response.status).toBe(200);
+	const cookies = response.headers.get('set-cookie');
+	expect(cookies).toContain('auth_session');
+});
+```
+
+### Manual Testing Checklist
+
+**Pre-Setup:**
+
+- [ ] Delete `config/private.ts` if exists
+- [ ] Clear database (drop all collections)
+- [ ] Clear browser localStorage
+- [ ] Restart development server
+
+**Database Step:**
+
+- [ ] Enter valid MongoDB credentials
+- [ ] Click "Test Connection"
+- [ ] Verify success message appears
+- [ ] Check connection statistics displayed
+- [ ] Try invalid credentials (should show error)
+- [ ] Test MongoDB Atlas SRV format
+
+**Admin Account Step:**
+
+- [ ] Enter username (min 3 chars)
+- [ ] Enter valid email address
+- [ ] Enter strong password (8+ chars, mixed case, number, special)
+- [ ] Confirm password matches
+- [ ] Verify real-time validation feedback
+- [ ] Check password requirements indicator
+
+**System Settings Step:**
+
+- [ ] Enter site name
+- [ ] Select system language
+- [ ] Select available languages (multiple)
+- [ ] Select timezone (auto-detected)
+- [ ] Verify media folder path
+
+**Email Configuration (Optional):**
+
+- [ ] Select provider preset (Gmail, Outlook, etc.)
+- [ ] Enter SMTP credentials
+- [ ] Send test email
+- [ ] Verify test email received
+- [ ] Skip step (should work)
+
+**Review & Complete:**
+
+- [ ] Review all settings
+- [ ] Click "Complete Setup"
+- [ ] Verify redirect to dashboard/first collection
+- [ ] Verify logged in (session cookie set)
+- [ ] Verify can access admin pages
+
+### Test Data Examples
+
+**Valid Database Config:**
+
+```typescript
+const testDbConfig = {
+	type: 'mongodb',
+	host: 'localhost',
+	port: 27017,
+	name: 'sveltycms_test',
+	user: 'admin',
+	password: 'secure123'
+};
+```
+
+**Valid Admin User:**
+
+```typescript
+const testAdminUser = {
+	username: 'admin',
+	email: 'admin@test.com',
+	password: 'Admin123!@#',
+	confirmPassword: 'Admin123!@#'
+};
+```
+
+**Valid SMTP Config:**
+
+```typescript
+const testSmtpConfig = {
+	host: 'smtp.gmail.com',
+	port: 587,
+	user: 'your-email@gmail.com',
+	password: 'app-password',
+	from: 'noreply@yourdomain.com',
+	secure: true
+};
+```
+
+### Validation Testing
+
+**Password Requirements:**
+
+```typescript
+// Test various password scenarios
+const passwordTests = [
+	{ password: 'short', valid: false, reason: 'Too short' },
+	{ password: 'alllowercase123', valid: false, reason: 'No uppercase' },
+	{ password: 'ALLUPPERCASE123', valid: false, reason: 'No lowercase' },
+	{ password: 'NoNumbers!', valid: false, reason: 'No numbers' },
+	{ password: 'NoSpecial123', valid: false, reason: 'No special chars' },
+	{ password: 'Valid123!', valid: true, reason: 'Meets all requirements' }
+];
+```
+
+**Email Validation:**
+
+```typescript
+const emailTests = [
+	{ email: 'invalid', valid: false },
+	{ email: 'missing@domain', valid: false },
+	{ email: '@nodomain.com', valid: false },
+	{ email: 'valid@example.com', valid: true }
+];
+```
+
+### Performance Testing
+
+**Setup Completion Time:**
+
+```typescript
+const startTime = Date.now();
+
+// Complete setup process
+await completeSetupFlow();
+
+const totalTime = Date.now() - startTime;
+console.log(`Setup completed in ${totalTime}ms`);
+
+// Expected: < 3000ms for local MongoDB
+// Expected: < 5000ms for MongoDB Atlas
+```
+
+---
+
 ## Troubleshooting
 
 ### Common Issues

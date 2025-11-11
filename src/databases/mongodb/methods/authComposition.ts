@@ -17,14 +17,15 @@
  * providing a single interface for the MongoDB adapter.
  */
 
-import type { IDBAdapter, DatabaseResult } from '@src/databases/dbInterface';
-import type { User, Session } from '@src/databases/auth/types';
+import type { IDBAdapter, DatabaseResult, ISODateString } from '@src/databases/dbInterface';
+import type { User, Session, Role } from '@src/databases/auth/types';
 
 import { SessionAdapter } from '../models/authSession';
 import { TokenAdapter } from '../models/authToken';
 import { UserAdapter } from '../models/authUser';
 import { logger } from '@utils/logger.server';
 import { hashPassword } from '@utils/crypto';
+import mongoose from 'mongoose';
 
 // Type helper to extract the auth interface from IDBAdapter
 type AuthInterface = IDBAdapter['auth'];
@@ -69,7 +70,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
 		// Combined Performance-Optimized Methods
 		createUserAndSession: async (
 			userData: Partial<User>,
-			sessionData: { expires: Date; tenantId?: string }
+			sessionData: { expires: ISODateString; tenantId?: string }
 		): Promise<DatabaseResult<{ user: User; session: Session }>> => {
 			try {
 				// Hash password if provided
@@ -163,7 +164,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
 					};
 				}
 
-				logger.info(`User and sessions deleted: user=${user_id}, sessions=${deletedSessionCount}`, {
+				logger.info(`User and sessions deleted: user=\x1b[34m${user_id}\x1b[0m, sessions=\x1b[34m${deletedSessionCount}\x1b[0m`, {
 					user_id,
 					deletedSessionCount,
 					tenantId
@@ -213,7 +214,277 @@ export function composeMongoAuthAdapter(): AuthInterface {
 		updateToken: tokenAdapter.updateToken.bind(tokenAdapter),
 		deleteTokens: tokenAdapter.deleteTokens.bind(tokenAdapter),
 		blockTokens: tokenAdapter.blockTokens.bind(tokenAdapter),
-		unblockTokens: tokenAdapter.unblockTokens.bind(tokenAdapter)
+		unblockTokens: tokenAdapter.unblockTokens.bind(tokenAdapter),
+
+		// Role Management Methods (basic implementation)
+		createRole: async (role: Role): Promise<DatabaseResult<Role>> => {
+			try {
+				// Get or create Role model (stored in 'auth_roles' collection)
+				const RoleModel =
+					mongoose.models.auth_roles ||
+					mongoose.model<Role>(
+						'auth_roles',
+						new mongoose.Schema(
+							{
+								_id: { type: String, required: true },
+								name: { type: String, required: true },
+								description: String,
+								isAdmin: Boolean,
+								permissions: [String],
+								tenantId: { type: String, index: true }, // Multi-tenant support
+								groupName: String,
+								icon: String,
+								color: String
+							},
+							{
+								_id: false,
+								timestamps: true,
+								collection: 'auth_roles'
+							}
+						)
+					);
+
+				// Create indexes for multi-tenant queries
+				await RoleModel.collection.createIndex({ tenantId: 1 });
+				await RoleModel.collection.createIndex({ tenantId: 1, _id: 1 });
+
+				const newRole = await RoleModel.create(role);
+
+				return {
+					success: true,
+					data: newRole.toObject() as Role
+				};
+			} catch (err) {
+				const message = `Error creating role: ${err instanceof Error ? err.message : String(err)}`;
+				logger.error(message);
+				return {
+					success: false,
+					message,
+					error: {
+						code: 'CREATE_ROLE_ERROR',
+						message: err instanceof Error ? err.message : String(err)
+					}
+				};
+			}
+		},
+
+		getAllRoles: async (tenantId?: string): Promise<Role[]> => {
+			try {
+				const RoleModel =
+					mongoose.models.auth_roles ||
+					mongoose.model<Role>(
+						'auth_roles',
+						new mongoose.Schema(
+							{
+								_id: { type: String, required: true },
+								name: { type: String, required: true },
+								description: String,
+								isAdmin: Boolean,
+								permissions: [String],
+								tenantId: { type: String, index: true },
+								groupName: String,
+								icon: String,
+								color: String
+							},
+							{
+								_id: false,
+								timestamps: true,
+								collection: 'auth_roles'
+							}
+						)
+					);
+
+				// Filter by tenantId if in multi-tenant mode
+				const filter = tenantId ? { tenantId } : { tenantId: { $exists: false } };
+				const roles = await RoleModel.find(filter).lean<Role[]>();
+
+				return roles;
+			} catch (err) {
+				logger.error(`Error fetching roles: ${err instanceof Error ? err.message : String(err)}`);
+				return [];
+			}
+		},
+
+		getRoleById: async (roleId: string, tenantId?: string): Promise<DatabaseResult<Role | null>> => {
+			try {
+				const RoleModel =
+					mongoose.models.auth_roles ||
+					mongoose.model<Role>(
+						'auth_roles',
+						new mongoose.Schema(
+							{
+								_id: { type: String, required: true },
+								name: { type: String, required: true },
+								description: String,
+								isAdmin: Boolean,
+								permissions: [String],
+								tenantId: { type: String, index: true },
+								groupName: String,
+								icon: String,
+								color: String
+							},
+							{
+								_id: false,
+								timestamps: true,
+								collection: 'auth_roles'
+							}
+						)
+					);
+
+				const filter: { _id: string; tenantId?: { $exists: boolean } | string } = { _id: roleId };
+				if (tenantId) {
+					filter.tenantId = tenantId;
+				} else {
+					filter.tenantId = { $exists: false };
+				}
+
+				const role = await RoleModel.findOne(filter).lean<Role>();
+
+				return {
+					success: true,
+					data: role || null
+				};
+			} catch (err) {
+				const message = `Error fetching role: ${err instanceof Error ? err.message : String(err)}`;
+				logger.error(message);
+				return {
+					success: false,
+					message,
+					error: {
+						code: 'GET_ROLE_ERROR',
+						message: err instanceof Error ? err.message : String(err)
+					}
+				};
+			}
+		},
+
+		updateRole: async (roleId: string, roleData: Partial<Role>, tenantId?: string): Promise<DatabaseResult<Role>> => {
+			try {
+				const RoleModel =
+					mongoose.models.auth_roles ||
+					mongoose.model<Role>(
+						'auth_roles',
+						new mongoose.Schema(
+							{
+								_id: { type: String, required: true },
+								name: { type: String, required: true },
+								description: String,
+								isAdmin: Boolean,
+								permissions: [String],
+								tenantId: { type: String, index: true },
+								groupName: String,
+								icon: String,
+								color: String
+							},
+							{
+								_id: false,
+								timestamps: true,
+								collection: 'auth_roles'
+							}
+						)
+					);
+
+				const filter: { _id: string; tenantId?: { $exists: boolean } | string } = { _id: roleId };
+				if (tenantId) {
+					filter.tenantId = tenantId;
+				} else {
+					filter.tenantId = { $exists: false };
+				}
+
+				const updatedRole = await RoleModel.findOneAndUpdate(filter, { $set: roleData }, { new: true }).lean<Role>();
+
+				if (!updatedRole) {
+					return {
+						success: false,
+						message: 'Role not found',
+						error: {
+							code: 'ROLE_NOT_FOUND',
+							message: 'Role not found'
+						}
+					};
+				}
+
+				return {
+					success: true,
+					data: updatedRole
+				};
+			} catch (err) {
+				const message = `Error updating role: ${err instanceof Error ? err.message : String(err)}`;
+				logger.error(message);
+				return {
+					success: false,
+					message,
+					error: {
+						code: 'UPDATE_ROLE_ERROR',
+						message: err instanceof Error ? err.message : String(err)
+					}
+				};
+			}
+		},
+
+		deleteRole: async (roleId: string, tenantId?: string): Promise<DatabaseResult<void>> => {
+			try {
+				const RoleModel =
+					mongoose.models.auth_roles ||
+					mongoose.model<Role>(
+						'auth_roles',
+						new mongoose.Schema(
+							{
+								_id: { type: String, required: true },
+								name: { type: String, required: true },
+								description: String,
+								isAdmin: Boolean,
+								permissions: [String],
+								tenantId: { type: String, index: true },
+								groupName: String,
+								icon: String,
+								color: String
+							},
+							{
+								_id: false,
+								timestamps: true,
+								collection: 'auth_roles'
+							}
+						)
+					);
+
+				const filter: { _id: string; tenantId?: { $exists: boolean } | string } = { _id: roleId };
+				if (tenantId) {
+					filter.tenantId = tenantId;
+				} else {
+					filter.tenantId = { $exists: false };
+				}
+
+				const result = await RoleModel.deleteOne(filter);
+
+				if (result.deletedCount === 0) {
+					return {
+						success: false,
+						message: 'Role not found',
+						error: {
+							code: 'ROLE_NOT_FOUND',
+							message: 'Role not found'
+						}
+					};
+				}
+
+				return {
+					success: true,
+					data: undefined
+				};
+			} catch (err) {
+				const message = `Error deleting role: ${err instanceof Error ? err.message : String(err)}`;
+				logger.error(message);
+				return {
+					success: false,
+					message,
+					error: {
+						code: 'DELETE_ROLE_ERROR',
+						message: err instanceof Error ? err.message : String(err)
+					}
+				};
+			}
+		}
 	};
 
 	// Return the composed adapter (TypeScript will enforce type compatibility)

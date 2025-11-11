@@ -38,7 +38,6 @@
 		field.label = field.widget.GuiFields.label;
 		fields = [...fields, field];
 		addField = false;
-		// console.log(fields);
 	}
 
 	function handleCancel() {

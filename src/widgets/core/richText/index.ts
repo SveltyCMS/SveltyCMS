@@ -15,14 +15,33 @@
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
-import { check, object, optional, string, type InferInput as ValibotInput } from 'valibot';
+import { object, optional, pipe, string, custom, type InferInput } from 'valibot';
 import type { RichTextProps } from './types';
 
 // Helper to check if HTML content is effectively empty.
 const isContentEmpty = (html: string) => {
 	if (!html) return true;
-	const stripped = html.replace(/<[^>]+>/g, '').trim();
-	return stripped.length === 0;
+
+	// Remove <script> tags and their content first for security
+	// Use loop to prevent bypass via malformed/nested tags
+	let noScripts = html;
+	let prev: string;
+	do {
+		prev = noScripts;
+		// Remove <script>...</script> blocks (with any whitespace/attributes in closing tag)
+		noScripts = noScripts.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
+		// Remove orphaned <script> opening tags
+		noScripts = noScripts.replace(/<script\b[^>]*>/gi, '');
+	} while (noScripts !== prev);
+
+	// Remove all remaining HTML tags, also using loop for security
+	let stripped = noScripts;
+	do {
+		prev = stripped;
+		stripped = stripped.replace(/<[^>]+>/g, '');
+	} while (stripped !== prev);
+
+	return stripped.trim().length === 0;
 };
 
 // The validation schema is a function to accommodate the `required` flag.
@@ -33,10 +52,14 @@ const validationSchema = (field: FieldInstance) => {
 		content: string() // HTML content.
 	});
 
-	// If the field is required, use `check` to check if the content is truly empty.
+	// If the field is required, validate that content is not empty
 	if (field.required) {
-		return check(schema, (data) => !isContentEmpty(data.content), {
-			message: 'Content is required.'
+		return object({
+			title: string(),
+			content: pipe(
+				string(),
+				custom((input) => !isContentEmpty(input as string), 'Content is required.')
+			)
 		});
 	}
 
@@ -44,7 +67,7 @@ const validationSchema = (field: FieldInstance) => {
 };
 
 // Create the widget definition using the factory.
-const RichTextWidget = createWidget<RichTextProps, ReturnType<typeof validationSchema>>({
+const RichTextWidget = createWidget<RichTextProps>({
 	Name: 'RichText',
 	Icon: 'mdi:format-pilcrow-arrow-right',
 	Description: m.widget_richText_description(),
@@ -68,4 +91,4 @@ export default RichTextWidget;
 
 // Export helper types.
 export type FieldType = ReturnType<typeof RichTextWidget>;
-export type RichTextWidgetData = Input<ReturnType<typeof validationSchema>>;
+export type RichTextWidgetData = InferInput<ReturnType<typeof validationSchema>>;

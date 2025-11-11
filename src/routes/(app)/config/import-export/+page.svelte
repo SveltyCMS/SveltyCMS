@@ -68,7 +68,7 @@ is handled in reusable backend APIs.
 
 	<p class="text-sm">
 		Welcome <span class="font-bold text-primary-500">{user.username}</span>
-		({user.role}{user.isAdmin ? ', Admin' : ''})
+		({user.role})
 	</p>
 
 	<div class="flex gap-3">

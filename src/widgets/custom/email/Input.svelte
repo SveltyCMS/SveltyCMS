@@ -4,12 +4,7 @@
 **Email Widget Component**
 
 @example
-<Email field={{ label: "Email", d			id={field.db_fieldName}
-			placeholder={(field.placeholder as string) || field.db_fieldName}
-			required={field?.required as boolean | undefined}
-			readonly={field?.readonly as boolean | undefined}
-			disabled={field?.disabled as boolean | undefined}
-			class="input w-full text-black dark:text-primary-500"dName: "email", required: true }} />
+<Email bind:field={field} bind:value={value} />
 
 ### Props
 - `field`: FieldType

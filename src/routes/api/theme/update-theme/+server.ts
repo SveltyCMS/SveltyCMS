@@ -57,25 +57,28 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			query.tenantId = tenantId;
 		} // Fetch the theme from the database to ensure it exists for the current tenant
 
-		const selectedTheme: Theme | null = await dbAdapter.findOne('themes', query);
+		const themeResult = await dbAdapter.crud.findOne<Theme>('themes', query);
 
-		if (!selectedTheme) {
+		if (!themeResult.success || !themeResult.data) {
 			logger.warn(`Theme '${themeName}' does not exist for this tenant.`, { tenantId });
 			throw error(404, `Theme '${themeName}' does not exist.`);
-		} // Set the selected theme as the default in the database for the current tenant
+		}
 
-		await dbAdapter.setDefaultTheme(themeName, tenantId); // Update the theme in ThemeManager for the current tenant
+		const selectedTheme = themeResult.data;
 
-		await themeManager.setTheme(selectedTheme, tenantId); // Fetch the updated default theme to confirm the change for the current tenant
+		// Set the selected theme as the default in the database for the current tenant
+		await dbAdapter.themes.setDefault(selectedTheme._id); // Update the theme in ThemeManager for the current tenant
+
+		// Fetch the updated default theme to confirm the change for the current tenant
 
 		const updatedTheme: Theme = await themeManager.getTheme(tenantId);
 
-		logger.info(`Theme successfully updated to '${updatedTheme.name}' by user '${user.id}'.`, { tenantId });
+		logger.info(`Theme successfully updated to '${updatedTheme.name}' by user '${user._id}'.`, { tenantId });
 
 		return json({ success: true, theme: updatedTheme });
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : String(err);
 		logger.error('Error updating theme:', { error: errorMessage, tenantId });
-		return json({ success: false, error: `Error updating theme: ${err.message}` }, { status: 500 });
+		return json({ success: false, error: `Error updating theme: ${errorMessage}` }, { status: 500 });
 	}
 };

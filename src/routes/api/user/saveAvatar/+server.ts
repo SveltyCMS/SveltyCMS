@@ -36,6 +36,15 @@ import { saveAvatarImage } from '@utils/media/mediaStorage';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
+		// Check authentication
+		if (!locals.user) {
+			throw error(401, 'Unauthorized');
+		}
+
+		if (!auth) {
+			throw error(500, 'Authentication system not available');
+		}
+
 		// Check if user is updating their own avatar or has admin permissions
 		const formData = await request.formData();
 		const targetUserId = (formData.get('userId') as string) || (formData.get('user_id') as string) || locals.user._id; // Default to self if no userId provided
@@ -85,31 +94,29 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (currentUser && currentUser.avatar) {
 			try {
 				const { moveMediaToTrash } = await import('@utils/media/mediaStorage');
-				// Clean the avatar path to remove any duplicate media folder prefixes
-				let avatarPath = currentUser.avatar;
-				if (avatarPath.startsWith('/')) {
-					avatarPath = avatarPath.substring(1);
-				}
-				if (avatarPath.startsWith('mediaFiles/')) {
-					avatarPath = avatarPath.substring('mediaFiles/'.length);
-				}
-				await moveMediaToTrash(avatarPath);
-				logger.info('Old avatar moved to trash', { userId: targetUserId, oldAvatar: avatarPath });
+				// moveMediaToTrash handles all URL normalization internally
+				// Just pass the avatar URL as-is (can be /files/..., http://..., or relative path)
+				await moveMediaToTrash(currentUser.avatar);
+				logger.info('Old avatar moved to trash', { userId: targetUserId, oldAvatar: currentUser.avatar });
 			} catch (err) {
 				// Log the error but don't block the upload if moving the old file fails.
-				logger.warn('Failed to move old avatar to trash. Proceeding with new avatar upload.', { userId: targetUserId, error: err });
+				logger.warn('Failed to move old avatar to trash. Proceeding with new avatar upload.', {
+					userId: targetUserId,
+					error: err instanceof Error ? err.message : String(err)
+				});
 			}
 		}
 
 		// Save the new avatar image and update the user's profile
 		const avatarUrl = await saveAvatarImage(avatarFile, targetUserId);
 
-		// Persist DB with raw media path (typically /mediaFiles/avatars/..)
-		await auth.updateUserAttributes(targetUserId, { avatar: avatarUrl }, locals.tenantId);
+		// The avatarUrl from saveAvatarImage is already in the correct format:
+		// - For local storage: /files/avatars/...
+		// - For cloud storage: https://cdn.example.com/mediaFolder/avatars/...
+		// We can use it directly
 
-		// Normalize URL for client consumption to route through /files
-		const mediaFolder = getPrivateSettingSync('MEDIA_FOLDER') || 'mediaFiles';
-		const normalizedAvatarUrl = avatarUrl.replace(/^https?:\/\/[^/]+/i, '').replace(new RegExp(`^\\/?(?:${mediaFolder}|mediaFiles)\\/`), '/files/');
+		// Persist DB with the avatar URL
+		await auth.updateUserAttributes(targetUserId, { avatar: avatarUrl }, locals.tenantId);
 
 		// Invalidate any cached session data to reflect the change immediately.
 		const session_id = locals.session_id;
@@ -118,12 +125,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			await cacheService.set(session_id, { user, timestamp: Date.now() }, 3600);
 		}
 
-		logger.info('Avatar saved successfully', { userId: targetUserId, avatarUrl: normalizedAvatarUrl });
+		// Invalidate cache for users list so UI updates
+		try {
+			await cacheService.clearByPattern('api:*:/api/admin/users*', locals.tenantId);
+			logger.debug('Cache invalidated for users list after avatar update');
+		} catch (cacheError) {
+			logger.warn('Failed to invalidate cache after avatar update', { error: cacheError });
+		}
+
+		logger.info('Avatar saved successfully', { userId: targetUserId, avatarUrl });
 
 		return json({
 			success: true,
 			message: 'Avatar saved successfully',
-			avatarUrl: normalizedAvatarUrl
+			avatarUrl
 		});
 	} catch (err) {
 		const httpError = err as HttpError;

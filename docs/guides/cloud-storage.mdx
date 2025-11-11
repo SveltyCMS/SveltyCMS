@@ -1,0 +1,465 @@
+---
+path: 'docs/guides/cloud-storage.mdx'
+title: 'Cloud Storage Guide'
+description: 'Complete guide to configuring and using cloud storage (S3, R2, Cloudinary) in SveltyCMS'
+order: 15
+icon: 'mdi:cloud-upload'
+author: 'admin'
+created: '2025-11-05'
+updated: '2025-11-05'
+tags:
+  - 'guide'
+  - 'cloud-storage'
+  - 's3'
+  - 'r2'
+  - 'cloudinary'
+  - 'media'
+  - 'configuration'
+---
+
+# Cloud Storage Guide
+
+## Overview
+
+SveltyCMS supports multiple storage backends for media files, allowing you to choose between local filesystem storage and cloud providers like Amazon S3, Cloudflare R2, or Cloudinary.
+
+## Why Use Cloud Storage?
+
+**Benefits:**
+
+- ✅ **Scalability**: Unlimited storage capacity
+- ✅ **CDN Integration**: Fast global content delivery
+- ✅ **Reliability**: Built-in redundancy and backups
+- ✅ **Cost-Effective**: Pay only for what you use
+- ✅ **Performance**: Offload storage from your application server
+
+**Use Cases:**
+
+- High-traffic websites requiring CDN
+- Multi-region deployments
+- Large media libraries (images, videos, documents)
+- Applications with storage constraints
+- Compliance requirements (data residency, backups)
+
+## Architecture
+
+### Storage Flow
+
+```
+┌─────────────┐
+│   Upload    │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────────────┐
+│  saveFileToDisk()   │
+│  (mediaStorage.ts)  │
+└──────┬──────────────┘
+       │
+       ├─────────────────┐
+       │                 │
+       ▼ (local)         ▼ (cloud)
+┌──────────────┐  ┌─────────────────┐
+│  Filesystem  │  │  uploadToCloud() │
+│  ./media/... │  │  cloudStorage.ts │
+└──────────────┘  └─────┬───────────┘
+                        │
+                   ┌────┴────┐
+                   │         │
+              ┌────▼────┐ ┌──▼────────┐
+              │   S3    │ │Cloudinary │
+              │   R2    │ └───────────┘
+              └─────────┘
+```
+
+### URL Resolution
+
+All media files are stored in the database with a unified `/files/` path:
+
+```javascript
+// Database Storage (same for all storage types)
+user.avatar = '/files/avatars/hash-image.avif';
+```
+
+**Local Storage:**
+
+```
+GET /files/avatars/hash-image.avif
+→ Server reads: ./mediaFolder/avatars/hash-image.avif
+→ Returns: File content
+```
+
+**Cloud Storage:**
+
+```
+GET /files/avatars/hash-image.avif
+→ Server returns: 307 Redirect
+→ Browser follows: https://cdn.example.com/cms-media/avatars/hash-image.avif
+→ CDN serves file
+```
+
+### MEDIA_FOLDER Prefix
+
+The `MEDIA_FOLDER` setting acts as a path prefix in all storage types:
+
+| Storage Type | MEDIA_FOLDER    | Example Path                                |
+| ------------ | --------------- | ------------------------------------------- |
+| Local        | `./mediaFolder` | `./mediaFolder/avatars/image.avif`          |
+| S3/R2        | `cms-media`     | `cms-media/avatars/image.avif` (bucket key) |
+| Cloudinary   | `cms-media`     | `cms-media/avatars/image` (public_id)       |
+
+## Configuration
+
+### 1. Amazon S3
+
+**Prerequisites:**
+
+- AWS account
+- S3 bucket created
+- IAM user with S3 permissions
+- Access key and secret key
+
+**System Settings** (Dashboard → System Settings → Media):
+
+```javascript
+{
+  MEDIA_STORAGE_TYPE: 's3',
+  MEDIA_FOLDER: 'my-cms-media', // Prefix within bucket
+  MEDIA_CLOUD_REGION: 'us-east-1',
+  MEDIA_CLOUD_ENDPOINT: 'https://s3.amazonaws.com', // Optional
+  MEDIA_CLOUD_PUBLIC_URL: 'https://your-bucket.s3.amazonaws.com'
+  // Or with CloudFront CDN:
+  // MEDIA_CLOUD_PUBLIC_URL: 'https://d1234567890.cloudfront.net'
+}
+```
+
+**Environment Variables** (`.env`):
+
+```bash
+MEDIA_ACCESS_KEY_ID=AKIA...
+MEDIA_SECRET_ACCESS_KEY=wJalrXUtn...
+```
+
+**S3 Bucket Policy** (Permissions → Bucket Policy):
+
+```json
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Sid": "PublicReadGetObject",
+			"Effect": "Allow",
+			"Principal": "*",
+			"Action": "s3:GetObject",
+			"Resource": "arn:aws:s3:::your-bucket/my-cms-media/*"
+		}
+	]
+}
+```
+
+**IAM User Policy** (User → Permissions):
+
+```json
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Effect": "Allow",
+			"Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject", "s3:ListBucket"],
+			"Resource": ["arn:aws:s3:::your-bucket", "arn:aws:s3:::your-bucket/*"]
+		}
+	]
+}
+```
+
+### 2. Cloudflare R2
+
+**Prerequisites:**
+
+- Cloudflare account
+- R2 bucket created
+- API token with R2 permissions
+
+**System Settings:**
+
+```javascript
+{
+  MEDIA_STORAGE_TYPE: 'r2',
+  MEDIA_FOLDER: 'cms-media',
+  MEDIA_CLOUD_REGION: 'auto',
+  MEDIA_CLOUD_ENDPOINT: 'https://<account-id>.r2.cloudflarestorage.com',
+  MEDIA_CLOUD_PUBLIC_URL: 'https://media.yourdomain.com'
+  // Configure custom domain in Cloudflare R2 dashboard
+}
+```
+
+**Environment Variables:**
+
+```bash
+MEDIA_ACCESS_KEY_ID=your-r2-access-key-id
+MEDIA_SECRET_ACCESS_KEY=your-r2-secret-access-key
+```
+
+**R2 Setup Steps:**
+
+1. **Create Bucket**: Cloudflare Dashboard → R2 → Create Bucket
+2. **Custom Domain**: Bucket Settings → Custom Domains → Add
+3. **API Token**: R2 → Manage R2 API Tokens → Create API Token
+   - Permissions: Object Read & Write
+   - Bucket: Your bucket name
+
+**Why R2?**
+
+- S3-compatible API (easy migration)
+- No egress fees (free data transfer)
+- Global CDN included
+- Cheaper than S3 for high-traffic sites
+
+### 3. Cloudinary
+
+**Prerequisites:**
+
+- Cloudinary account (free tier available)
+- Cloud name, API key, and API secret
+
+**System Settings:**
+
+```javascript
+{
+  MEDIA_STORAGE_TYPE: 'cloudinary',
+  MEDIA_FOLDER: 'cms-media' // Folder in Cloudinary
+}
+```
+
+**Environment Variables:**
+
+```bash
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=123456789012345
+CLOUDINARY_API_SECRET=abcdefghijklmnopqrstuvwxyz
+```
+
+**Cloudinary Features:**
+
+- Automatic image optimization
+- On-the-fly transformations (resize, crop, format)
+- Video processing and streaming
+- CDN included
+- AI-powered features (auto-tagging, background removal)
+
+## Installation
+
+### Install Required Packages
+
+**For S3/R2:**
+
+```bash
+npm install @aws-sdk/client-s3
+# or
+bun add @aws-sdk/client-s3
+```
+
+**For Cloudinary:**
+
+```bash
+npm install cloudinary
+# or
+bun add cloudinary
+```
+
+The cloud storage modules are lazy-loaded, so you only need to install packages for the storage type you're using.
+
+## Migration
+
+### Migrating from Local to Cloud
+
+1. **Backup**: Create a backup of your `mediaFolder` directory
+2. **Upload Existing Files**: Use a tool like AWS CLI or Cloudinary CLI
+3. **Update Database**: Run migration script to update file URLs
+4. **Switch Configuration**: Update system settings to new storage type
+5. **Test**: Verify all media files are accessible
+6. **Cleanup**: Archive local files (don't delete immediately)
+
+**AWS CLI Example:**
+
+```bash
+aws s3 sync ./mediaFolder s3://your-bucket/cms-media/ \
+  --acl public-read \
+  --region us-east-1
+```
+
+**Cloudflare R2 Example (using Rclone):**
+
+```bash
+rclone sync ./mediaFolder r2:your-bucket/cms-media/
+```
+
+### Migrating Between Cloud Providers
+
+Use the respective CLI tools or APIs to transfer files between services. Update only the configuration settings—database URLs remain the same.
+
+## Best Practices
+
+### Security
+
+1. **Environment Variables**: Never commit API keys to version control
+2. **IAM Policies**: Use least-privilege permissions
+3. **Bucket Policies**: Restrict public access to necessary paths only
+4. **HTTPS Only**: Always use HTTPS for public URLs
+5. **Token Rotation**: Rotate API keys regularly
+
+### Performance
+
+1. **CDN**: Use CloudFront, Cloudflare, or built-in CDN
+2. **Compression**: Enable automatic compression (Cloudinary, Cloudflare)
+3. **Image Optimization**: Use format conversion (AVIF, WebP)
+4. **Caching**: Configure proper Cache-Control headers
+5. **Lazy Loading**: Load images only when needed
+
+### Cost Optimization
+
+1. **Lifecycle Policies**: Archive or delete old media automatically
+2. **Storage Classes**: Use cheaper storage for infrequently accessed files
+3. **Compression**: Reduce file sizes before upload
+4. **CDN Caching**: Maximize cache hit ratio
+5. **Monitor Usage**: Set up billing alerts
+
+### Monitoring
+
+1. **Error Logging**: Monitor upload/delete failures
+2. **Access Logs**: Track which files are accessed
+3. **Bandwidth**: Monitor data transfer costs
+4. **Storage Size**: Track total storage usage
+5. **Performance**: Measure upload/download speeds
+
+## Troubleshooting
+
+### Common Issues
+
+**Files Not Uploading:**
+
+```
+Error: AccessDenied
+```
+
+- **Solution**: Check IAM permissions, bucket policy, and CORS settings
+
+**Files Not Accessible:**
+
+```
+Error: 403 Forbidden
+```
+
+- **Solution**: Verify bucket/folder is public or has correct ACL
+
+**Redirects Not Working:**
+
+```
+Error: Failed to redirect to cloud URL
+```
+
+- **Solution**: Check `MEDIA_CLOUD_PUBLIC_URL` is configured and accessible
+
+**Wrong File Paths:**
+
+```
+Files uploaded to root instead of MEDIA_FOLDER
+```
+
+- **Solution**: Verify `MEDIA_FOLDER` setting doesn't have leading/trailing slashes
+
+### Debug Mode
+
+Enable detailed logging:
+
+```javascript
+// In your .env file
+LOG_LEVEL = debug;
+```
+
+Check logs for upload/download operations:
+
+```javascript
+// Look for these log entries:
+'Uploading to cloud storage';
+'File uploaded to cloud storage';
+'Redirecting to cloud storage';
+```
+
+## Examples
+
+### Upload Avatar
+
+```javascript
+// Client-side
+const formData = new FormData();
+formData.append('avatar', file);
+
+const response = await fetch('/api/user/saveAvatar', {
+	method: 'POST',
+	body: formData
+});
+
+const { avatarUrl } = await response.json();
+// Local:  /files/avatars/hash-image.avif
+// Cloud:  https://cdn.example.com/cms-media/avatars/hash-image.avif
+```
+
+### Direct Cloud Upload (Advanced)
+
+```typescript
+// Server-side - utils/media/cloudStorage.ts
+import { uploadToCloud, getCloudUrl } from '@utils/media/cloudStorage';
+
+const buffer = await file.arrayBuffer();
+const publicUrl = await uploadToCloud(Buffer.from(buffer), 'avatars/image.avif');
+// Returns: https://cdn.example.com/cms-media/avatars/image.avif
+```
+
+### Check Storage Type
+
+```typescript
+// Server-side
+import { isCloudStorage, getCloudStorageConfig } from '@utils/media/cloudStorage';
+
+if (isCloudStorage()) {
+	const config = getCloudStorageConfig();
+	console.log('Using cloud storage:', config.storageType);
+	console.log('Media folder prefix:', config.mediaFolder);
+}
+```
+
+## API Reference
+
+See [Media API Documentation](/docs/api/Media_API.mdx) for complete API details.
+
+## FAQ
+
+**Q: Can I use multiple storage backends simultaneously?**
+A: Not currently. All media uses one configured storage type.
+
+**Q: What happens to local files when switching to cloud?**
+A: They remain on disk. You must manually migrate and can delete after verification.
+
+**Q: Do I need to update my code when switching storage types?**
+A: No. The cloud storage layer is transparent to application code.
+
+**Q: Can I use a custom CDN with S3/R2?**
+A: Yes. Set `MEDIA_CLOUD_PUBLIC_URL` to your CDN domain.
+
+**Q: How are files deleted from cloud storage?**
+A: Files are deleted immediately (no trash folder). Cloud providers typically have versioning features for recovery.
+
+**Q: Can I use Cloudinary's transformation features?**
+A: Yes, but you'll need to modify URLs client-side or create custom API endpoints.
+
+**Q: What's the difference between S3 and R2?**
+A: R2 is S3-compatible but has no egress fees, making it cheaper for high-traffic sites.
+
+## Support
+
+For issues or questions:
+
+- GitHub: [github.com/SveltyCMS/SveltyCMS/issues](https://github.com/SveltyCMS/SveltyCMS/issues)
+- Documentation: [docs.sveltycms.dev](https://docs.sveltycms.dev)
+- Community: [Discord](https://discord.gg/sveltycms)

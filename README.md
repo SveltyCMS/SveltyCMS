@@ -1,33 +1,26 @@
 <p style="border: none; margin-bottom:0; padding-bottom: 0;" align="center">
-  <img width="200" alt="SveltyCMS logo" src="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/SveltyCMS.png">
+  <img width="200" alt="SveltyCMS logo" src="https://raw.githubusercontent.com/SveltyCMS/SveltyCMS/main/static/SveltyCMS.png">
 </p>
 
 <h1 align="center"><strong>SveltyCMS - Headless CMS with Sveltekit Power</strong></h1>
 <p align="center"><strong>(Still in Development - Your Support is always Appreciated!!)</strong></>
 
-<p align="center">
+<div align="center">
+
+[![Chat](https://img.shields.io/discord/1369537436656603188?label=chat&logo=discord&color=7289da)](https://discord.gg/qKQRB6mP)
+
  <img alt="Latest SemVer" src="https://img.shields.io/github/v/tag/SveltyCMS/SveltyCMS">
  <img alt="GitHub issues" src="https://img.shields.io/github/issues/SveltyCMS/SveltyCMS">
  <img alt="Bundle Size" src="https://img.shields.io/badge/Bundle-508%20KB%20Brotli-success?style=flat">
-</p>
+</div>
+<div align="center">
 
-<p align="center">
-  <a href="https://kit.svelte.dev/">
-    <img src="https://img.shields.io/badge/Svelte-FF3E00?logo=svelte&amp;logoColor=fff&amp;" alt="Sveltekit Badge"/>
-  </a>
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![SvelteKit](https://img.shields.io/badge/SvelteKit-V2-FF3E00?logo=svelte)](https://kit.svelte.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![Tailwindcss](https://img.shields.io/badge/Tailwind%20CSS-4-38B2AC)](https://tailwindcss.com/)
 
-  <a href="https://www.typescriptlang.org/">
-    <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&amp;logoColor=fff&amp;" alt="TypeScript Badge"/>
-  </a>
-
-  <a href="https://www.mongodb.com/">
-    <img src="https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&amp;logoColor=fff&amp;" alt="Mongodb Badge" />
-  </a>
-
-  <a href="https://tailwindcss.com/">
-    <img src="https://img.shields.io/badge/Tailwind%20CSS-06B6D4?logo=tailwindcss&logoColor=fff&" alt="Tailwindcss Badge" />
-  </a>
-</p>
+</div>
 
 <p align="center">
   <a href="https://github.com/SveltyCMS/SveltyCMS/actions/workflows/github-code-scanning/codeql"><img alt="CodeQL" src="https://github.com/SveltyCMS/SveltyCMS/actions/workflows/github-code-scanning/codeql/badge.svg"></a>
@@ -52,7 +45,7 @@ We used [tailwindcss](https://tailwindcss.com) and a [skeleton UI toolkit](https
 The Backend Data is provided via Rest Api or [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server), to build extremely fast frontends.
 
 <p align="center">
- <img width="100%" alt="SveltyCMS Gui" src="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo1.png">
+ <img width="100%" alt="SveltyCMS Gui" src="https://raw.githubusercontent.com/SveltyCMS/SveltyCMS/main/static/docs/SveltyCMS-Demo1.png">
 </p>
 
 ## :toolbox: SveltyCMS & DXP: Your Gateway to Streamlined Digital Experiences
@@ -251,7 +244,8 @@ Comprehensive documentation is available to help you get started:
 Contact us if you're struggling with installation or other issues:
 
 - 💬 [GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)
-- 🐛 [Report Issues](https://github.com/SveltyCMS/SveltyCMS/issues)
+- 💬 [Discord Server](https://discord.gg/qKQRB6mP)
+- 🔧 [Report Issues](https://github.com/SveltyCMS/SveltyCMS/issues)
 - 📖 [Documentation](docs/)
 - 📧 Email: support@sveltycms.com
 
@@ -302,6 +296,6 @@ To all our contributors without this SveltyCMS would never have been possible.
 If you like what we're doing, give us a `star` and share our `SveltyCMS` project with others
 
 <p align="center">
-<img width="100%" alt="SveltyCMS Builder" src="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo2.png">
-<img width="100%" alt="SveltyCMS User" src="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo3.png">
+<img width="100%" alt="SveltyCMS Builder" src="https://raw.githubusercontent.com/SveltyCMS/SveltyCMS/main/static/docs/SveltyCMS-Demo2.png">
+<img width="100%" alt="SveltyCMS User" src="https://raw.githubusercontent.com/SveltyCMS/SveltyCMS/main/static/docs/SveltyCMS-Demo3.png">
 </p>

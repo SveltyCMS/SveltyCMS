@@ -26,9 +26,9 @@ This document details the architecture of the SveltyCMS System Settings. The sys
 
 1.  **Database as the Source of Truth:** All dynamic system settings are stored in the database. This allows for real-time changes without needing to restart the server.
 2.  **In-Memory Cache for Performance:** For maximum performance, all settings are loaded from the database into a server-side in-memory cache at startup. All runtime requests read from this fast cache, avoiding database queries.
-3.  **Filesystem for Defaults & Roles:**
-    - **`/src/routes/setup/seed.ts`**: Defines the initial, default values for all system settings. This provides a predictable fallback and is used to seed the database during the initial setup.
-    - **`config/roles.ts`**: Defines the user roles and their associated permissions, which is a core part of the system's configuration.
+3.  **Filesystem for Defaults:**
+    - **`/src/routes/setup/seed.ts`**: Defines the initial, default values for all system settings and default roles. This provides a predictable fallback and is used to seed the database during the initial setup.
+    - User roles are stored in the `auth_roles` database collection and managed via the Access Management interface.
 4.  **Reactive Client-Side Store:** The `src/stores/globalSettings.svelte.ts` store holds **public** settings and automatically updates in near real-time using a polling mechanism, ensuring a dynamic UI.
 
 ## The Data Flow

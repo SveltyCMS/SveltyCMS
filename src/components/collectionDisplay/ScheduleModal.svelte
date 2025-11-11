@@ -15,8 +15,6 @@ Features:
 -->
 
 <script lang="ts">
-
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 

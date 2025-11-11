@@ -35,6 +35,16 @@ import { logger } from '@utils/logger.server';
 
 // Content Manager for validation
 
+// Entry type for imported data
+interface ImportEntry {
+	_id?: string;
+	id?: string;
+	createdAt?: string;
+	updatedAt?: string;
+	status?: string;
+	[key: string]: unknown;
+}
+
 interface ImportOptions {
 	overwrite?: boolean;
 	validate?: boolean;
@@ -49,7 +59,7 @@ interface ImportResult {
 	errors: Array<{
 		index: number;
 		error: string;
-		entry?: any;
+		entry?: unknown;
 	}>;
 }
 
@@ -67,6 +77,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const startTime = performance.now();
 
 	try {
+		if (!locals.user) {
+			throw error(401, 'Unauthorized');
+		}
+
 		logger.info('Starting collection data import', {
 			userId: locals.user._id,
 			userEmail: locals.user.email
@@ -100,7 +114,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			logger.debug(`Processing import for collection: ${collectionName}`);
 
 			// Validate collection exists
-			if (!availableCollections[collectionName]) {
+			if (!(collectionName in availableCollections)) {
 				const errorResult: ImportResult = {
 					collection: collectionName,
 					imported: 0,
@@ -118,10 +132,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}
 
 			// Get collection schema for validation
-			const schema = availableCollections[collectionName];
+			const schema = availableCollections[collectionName as keyof typeof availableCollections];
 
 			// Import entries for this collection
-			const result = await importCollectionEntries(collectionName, entries as any[], schema, importOptions);
+			const result = await importCollectionEntries(collectionName, entries as unknown[], schema, importOptions);
 
 			results.push(result);
 			totalImported += result.imported;
@@ -132,7 +146,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const duration = performance.now() - startTime;
 
 		const response: ImportResponse = {
-			success: totalErrors === 0 || (totalImported > 0 && importOptions.skipInvalid),
+			success: totalErrors === 0 || (totalImported > 0 && (importOptions.skipInvalid ?? false)),
 			message:
 				totalErrors === 0
 					? `Successfully imported ${totalImported} entries across ${results.length} collections`
@@ -164,7 +178,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			duration: `${duration.toFixed(2)}ms`
 		});
 
-		if (err.status && err.body) {
+		if (typeof err === 'object' && err !== null && 'status' in err && 'body' in err) {
 			// This is a SvelteKit error, re-throw it
 			throw err;
 		}
@@ -176,7 +190,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 /**
  * Import entries for a specific collection
  */
-async function importCollectionEntries(collectionName: string, entries: any[], schema: any, options: ImportOptions): Promise<ImportResult> {
+async function importCollectionEntries(collectionName: string, entries: unknown[], schema: unknown, options: ImportOptions): Promise<ImportResult> {
 	const result: ImportResult = {
 		collection: collectionName,
 		imported: 0,
@@ -194,11 +208,20 @@ async function importCollectionEntries(collectionName: string, entries: any[], s
 
 	// Process entries in batches
 	const batchSize = options.batchSize || 100;
+
+	if (!dbAdapter) {
+		result.errors.push({
+			index: -1,
+			error: 'Database adapter not available'
+		});
+		return result;
+	}
+
 	for (let i = 0; i < entries.length; i += batchSize) {
 		const batch = entries.slice(i, i + batchSize);
 
 		for (let j = 0; j < batch.length; j++) {
-			const entry = batch[j];
+			const entry = batch[j] as ImportEntry;
 			const entryIndex = i + j;
 
 			try {
@@ -225,7 +248,7 @@ async function importCollectionEntries(collectionName: string, entries: any[], s
 				}
 
 				// Prepare entry data
-				const entryData = {
+				const entryData: Record<string, unknown> = {
 					...entry,
 					// Remove MongoDB-specific fields that might cause conflicts
 					_id: undefined,
@@ -241,8 +264,8 @@ async function importCollectionEntries(collectionName: string, entries: any[], s
 				if (entry._id || entry.id) {
 					const searchId = entry._id || entry.id;
 					const searchResult = await dbAdapter.crud.findOne(collectionName, {
-						$or: [{ _id: searchId }, { id: searchId }]
-					});
+						_id: searchId
+					} as Record<string, unknown>);
 					if (searchResult.success && searchResult.data) {
 						existingEntry = searchResult.data;
 					}
@@ -275,7 +298,7 @@ async function importCollectionEntries(collectionName: string, entries: any[], s
 					}
 				} else {
 					// Create new entry
-					const createResult = await dbAdapter.crud.create(collectionName, entryData);
+					const createResult = await dbAdapter.crud.insertOne(collectionName, entryData);
 
 					if (createResult.success) {
 						result.imported++;
@@ -307,7 +330,7 @@ async function importCollectionEntries(collectionName: string, entries: any[], s
 /**
  * Validate an entry against collection schema
  */
-function validateEntry(entry: any, schema: any): { isValid: boolean; errors: string[] } {
+function validateEntry(entry: unknown, schema: unknown): { isValid: boolean; errors: string[] } {
 	const errors: string[] = [];
 
 	if (!entry || typeof entry !== 'object') {
@@ -316,10 +339,18 @@ function validateEntry(entry: any, schema: any): { isValid: boolean; errors: str
 	}
 
 	// Basic validation - check for required fields if schema defines them
-	if (schema.fields) {
+	if (typeof schema === 'object' && schema !== null && 'fields' in schema && Array.isArray(schema.fields)) {
 		for (const field of schema.fields) {
-			if (field.required && !entry[field.db_fieldName || field.name]) {
-				errors.push(`Required field '${field.label || field.name}' is missing`);
+			if (
+				typeof field === 'object' &&
+				field !== null &&
+				'required' in field &&
+				field.required &&
+				!(entry as Record<string, unknown>)[
+					(field as { db_fieldName?: string; name?: string }).db_fieldName || (field as { name?: string }).name || ''
+				]
+			) {
+				errors.push(`Required field '${(field as { label?: string; name?: string }).label || (field as { name?: string }).name}' is missing`);
 			}
 		}
 	}

@@ -6,10 +6,12 @@
  * ensuring that all operations are correctly protected by admin authentication.
  */
 
+// @ts-expect-error - bun:test is a runtime module provided by Bun
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
 import { cleanupTestDatabase, cleanupTestEnvironment, initializeTestEnvironment, testFixtures } from '../helpers/testSetup';
+import { getApiBaseUrl, waitForServer } from '../helpers/server';
 
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5173';
+const API_BASE_URL = getApiBaseUrl();
 
 /**
  * Helper function to create an admin user, log in, and return the auth token.
@@ -51,6 +53,7 @@ describe('Token API Endpoints', () => {
 	let authToken: string;
 
 	beforeAll(async () => {
+		await waitForServer(); // Wait for SvelteKit server to be ready
 		await initializeTestEnvironment();
 	});
 
@@ -73,23 +76,23 @@ describe('Token API Endpoints', () => {
 					Authorization: `Bearer ${authToken}`
 				},
 				body: JSON.stringify({
-					email: testFixtures.users.invitedUser.email,
+					email: testFixtures.users.secondUser.email,
 					role: 'user',
-					expiresIn: '7d'
+					expiresIn: '2 days'
 				})
 			});
 
 			const result = await response.json();
 			expect(response.status).toBe(200);
 			expect(result.success).toBe(true);
-			expect(result.data.token).toBeDefined();
+			expect(result.token).toBeDefined();
 		});
 
 		it('should reject token creation without authentication', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/token/createToken`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email: testFixtures.users.invitedUser.email, role: 'user' })
+				body: JSON.stringify({ email: testFixtures.users.secondUser.email, role: 'user', expiresIn: '2 days' })
 			});
 
 			expect(response.status).toBe(401);
@@ -114,10 +117,10 @@ describe('Token API Endpoints', () => {
 			const createResponse = await fetch(`${API_BASE_URL}/api/token/createToken`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-				body: JSON.stringify({ email: testFixtures.users.invitedUser.email, role: 'user' })
+				body: JSON.stringify({ email: testFixtures.users.secondUser.email, role: 'user', expiresIn: '2 days' })
 			});
 			const createResult = await createResponse.json();
-			invitationToken = createResult.data.token;
+			invitationToken = createResult.token.value;
 		});
 
 		describe('GET /api/token/[tokenID]', () => {

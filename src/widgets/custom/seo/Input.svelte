@@ -29,6 +29,7 @@ Part of the Three Pillars Architecture for wSidget system.
 
 <script lang="ts">
 	import { Tab, TabGroup } from '@skeletonlabs/skeleton';
+	import { logger } from '@utils/logger';
 	import { contentLanguage } from '@stores/store.svelte';
 	import { debounce } from '@utils/utils';
 	import type { FieldType } from './';
@@ -103,7 +104,7 @@ Part of the Three Pillars Architecture for wSidget system.
 				data.canonicalUrl
 			);
 		} catch (error) {
-			console.error('SEO Analysis failed:', error);
+			logger.error('SEO Analysis failed:', error);
 		}
 	}, 500);
 

@@ -20,6 +20,9 @@ export interface RelationProps {
 	 * The field from the related collection to display in the selector.
 	 */
 	displayField: string;
+
+	// Index signature to satisfy WidgetProps constraint
+	[key: string]: unknown;
 }
 
 /**

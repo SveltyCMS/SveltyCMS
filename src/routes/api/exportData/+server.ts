@@ -31,16 +31,12 @@ import { dbAdapter } from '@src/databases/db';
 
 // Stores
 import { collections } from '@stores/collectionStore.svelte';
-import type { CollectionEntry } from '@src/content/types';
+import type { CollectionEntry, Schema } from '@src/content/types';
 
 // Permissions
 
 // System Logger
 import { logger } from '@utils/logger.server';
-
-interface DatabaseCollection {
-	name: string;
-}
 
 export const GET: RequestHandler = async ({ locals }) => {
 	const { user, tenantId } = locals;
@@ -58,7 +54,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		logger.debug('User has permission to export data', { tenantId });
 
 		// Fetch data from all collections concurrently, scoped to the tenant
-		const data = await fetchAllCollectionData(collections.value, tenantId);
+		const data = await fetchAllCollectionData(Object.values(collections), tenantId);
 
 		// Ensure the EXTRACT_DATA_PATH environment variable is configured
 
@@ -82,9 +78,10 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		return new Response('Data export completed successfully', { status: 200 });
 	} catch (err) {
-		if (err.status && err.body) {
+		if (err && typeof err === 'object' && 'status' in err && 'body' in err) {
 			// This is likely an error thrown by the `error` function
-			logger.error(`Error during data export: ${err.body.message}`, { tenantId });
+			const svelteKitError = err as { status: number; body: { message: string } };
+			logger.error(`Error during data export: ${svelteKitError.body.message}`, { tenantId });
 			throw err; // Re-throw the SvelteKit error
 		} else {
 			// This is an unexpected error
@@ -96,14 +93,24 @@ export const GET: RequestHandler = async ({ locals }) => {
 };
 
 // Fetches data from all collections concurrently
-async function fetchAllCollectionData(collections: Record<string, DatabaseCollection>, tenantId?: string) {
-	const fetchPromises = Object.values(collections).map(async (collection: DatabaseCollection) => {
+async function fetchAllCollectionData(collections: Schema[], tenantId?: string) {
+	const fetchPromises = collections.map(async (collection: Schema) => {
 		const name = collection.name;
+		if (!name) {
+			logger.warn('Collection without name encountered', { tenantId });
+			return ['unknown', []];
+		}
+
 		logger.debug(`Fetching data for collection: ${name}`, { tenantId });
 
 		try {
+			if (!dbAdapter) {
+				logger.error('Database adapter is not available');
+				return [name, []];
+			}
+
 			const filter = getPrivateSettingSync('MULTI_TENANT') && tenantId ? { tenantId } : {}; // Use the database adapter to fetch collection entries, scoped by tenant
-			const result = await dbAdapter.getCollectionEntries(name, filter);
+			const result = await dbAdapter.crud.findMany(`collection_${collection._id}`, filter as Record<string, unknown>);
 			const entryList = result.success ? result.data : [];
 			return [name, entryList];
 		} catch (error) {

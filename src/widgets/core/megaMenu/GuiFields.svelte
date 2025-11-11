@@ -51,31 +51,43 @@ Interactive level configuration with add/remove level capabilities
 	}
 </script>
 
-<div class="megamenu-gui-fields">
-	<div class="header-section">
-		<h3 class="section-title">Menu Structure Configuration</h3>
-		<p class="section-description">
+<div class="space-y-6">
+	<div class="border-b border-surface-200 pb-4 dark:border-surface-700">
+		<h3 class="mb-2 text-lg font-semibold text-surface-900 dark:text-surface-100">Menu Structure Configuration</h3>
+		<p class="text-sm leading-relaxed text-surface-600 dark:text-surface-300">
 			Define the fields available at each level of your hierarchical menu. Each level can have different widgets and configurations.
 		</p>
 	</div>
 
-	<div class="levels-container">
+	<div class="levels-container space-y-4">
 		{#each value as levelFields, levelIndex}
-			<div class="level-card" class:first-level={levelIndex === 0}>
-				<div class="level-header">
-					<div class="level-info">
-						<h4 class="level-title">Level {levelIndex + 1}</h4>
+			<div
+				class="level-card rounded-lg border border-surface-200 bg-surface-50/50 dark:border-surface-700 dark:bg-surface-800/50 {levelIndex === 0
+					? '!border-primary-200 !bg-primary-50/30 dark:!border-primary-700 dark:!bg-primary-900/20'
+					: ''}"
+			>
+				<div
+					class="level-header flex items-center justify-between border-b border-surface-200 bg-surface-100/50 p-4 dark:border-surface-700 dark:bg-surface-800"
+				>
+					<div class="level-info flex items-center gap-3">
+						<h4 class="level-title text-base font-medium text-surface-800 dark:text-surface-100">Level {levelIndex + 1}</h4>
 						{#if levelIndex === 0}
-							<span class="level-badge primary">Root Level</span>
+							<span
+								class="level-badge rounded-full bg-primary-100 px-2 py-1 text-xs font-medium text-primary-700 dark:bg-primary-900 dark:text-primary-200"
+								>Root Level</span
+							>
 						{:else}
-							<span class="level-badge secondary">Nested Level</span>
+							<span
+								class="level-badge rounded-full bg-secondary-100 px-2 py-1 text-xs font-medium text-secondary-700 dark:bg-secondary-900 dark:text-secondary-200"
+								>Nested Level</span
+							>
 						{/if}
 					</div>
 
 					{#if value.length > 1}
 						<button
 							type="button"
-							class="remove-level-btn"
+							class="variant-filled-error btn"
 							onclick={() => removeLevel(levelIndex)}
 							aria-label="Remove level {levelIndex + 1}"
 							title="Remove this menu level"
@@ -85,21 +97,25 @@ Interactive level configuration with add/remove level capabilities
 					{/if}
 				</div>
 
-				<div class="level-content">
+				<div class="space-y-4 p-4">
 					<div class="space-y-3">
-						<label class="fields-label" for={'widget-builder-' + levelIndex}>
+						<label class="block text-sm font-medium text-surface-700 dark:text-surface-200" for={'widget-builder-' + levelIndex}>
 							Fields for Level {levelIndex + 1}
-							<span class="field-count">({levelFields.length} field{levelFields.length !== 1 ? 's' : ''})</span>
+							<span class="field-count font-normal text-surface-500 dark:text-surface-400"
+								>({levelFields.length} field{levelFields.length !== 1 ? 's' : ''})</span
+							>
 						</label>
 
 						<WidgetBuilder fields={levelFields} onFieldsChange={(newFields) => updateLevelFields(levelIndex, newFields)} />
 					</div>
 
 					{#if levelFields.length === 0}
-						<div class="empty-fields-notice">
-							<iconify-icon icon="mdi:information-outline" width="20"></iconify-icon>
-							<span>No fields configured for this level yet.</span>
-							<span>Use the Widget Builder above to add fields.</span>
+						<div
+							class="empty-fields-notice flex flex-col items-center gap-2 rounded-lg border-2 border-dashed border-surface-300 bg-surface-100/50 p-6 text-center dark:border-surface-600 dark:bg-surface-800/50"
+						>
+							<iconify-icon icon="mdi:information-outline" width="20" class="text-surface-400"></iconify-icon>
+							<span class="text-sm font-medium text-surface-600 dark:text-surface-300">No fields configured for this level yet.</span>
+							<span class="text-xs text-surface-500 dark:text-surface-400">Use the Widget Builder above to add fields.</span>
 						</div>
 					{/if}
 				</div>
@@ -107,159 +123,10 @@ Interactive level configuration with add/remove level capabilities
 		{/each}
 	</div>
 
-	<div class="actions-section">
-		<button type="button" class="add-level-btn" onclick={addLevel}>
+	<div class=" border-t border-surface-200 pt-4 dark:border-surface-700">
+		<button type="button" class="variant-filled-tertiary btn dark:variant-filled-primary" onclick={addLevel}>
 			<iconify-icon icon="mdi:plus" width="20"></iconify-icon>
 			Add Menu Level
 		</button>
 	</div>
 </div>
-
-<style lang="postcss">
-	.megamenu-gui-fields {
-		@apply space-y-6;
-	}
-
-	.header-section {
-		@apply border-b border-surface-200 pb-4;
-	}
-
-	.section-title {
-		@apply mb-2 text-lg font-semibold text-surface-900;
-	}
-
-	.section-description {
-		@apply text-sm leading-relaxed text-surface-600;
-	}
-
-	.levels-container {
-		@apply space-y-4;
-	}
-
-	.level-card {
-		@apply rounded-lg border border-surface-200 bg-surface-50/50;
-	}
-
-	.level-card.first-level {
-		@apply border-primary-200 bg-primary-50/30;
-	}
-
-	.level-header {
-		@apply flex items-center justify-between border-b border-surface-200 bg-surface-100/50 p-4;
-	}
-
-	.level-info {
-		@apply flex items-center gap-3;
-	}
-
-	.level-title {
-		@apply text-base font-medium text-surface-800;
-	}
-
-	.level-badge {
-		@apply rounded-full px-2 py-1 text-xs font-medium;
-	}
-
-	.level-badge.primary {
-		@apply bg-primary-100 text-primary-700;
-	}
-
-	.level-badge.secondary {
-		@apply bg-secondary-100 text-secondary-700;
-	}
-
-	.remove-level-btn {
-		@apply rounded-md p-2 text-surface-400 transition-colors hover:bg-error-50 hover:text-error-500;
-	}
-
-	.level-content {
-		@apply space-y-4 p-4;
-	}
-
-	.fields-label {
-		@apply block text-sm font-medium text-surface-700;
-	}
-
-	.field-count {
-		@apply font-normal text-surface-500;
-	}
-
-	.empty-fields-notice {
-		@apply flex flex-col items-center gap-2 rounded-lg border-2 border-dashed border-surface-300 bg-surface-100/50 p-6 text-center;
-	}
-
-	.empty-fields-notice iconify-icon {
-		@apply text-surface-400;
-	}
-
-	.empty-fields-notice span:first-of-type {
-		@apply text-sm font-medium text-surface-600;
-	}
-
-	.empty-fields-notice span:last-of-type {
-		@apply text-xs text-surface-500;
-	}
-
-	.actions-section {
-		@apply border-t border-surface-200 pt-4;
-	}
-
-	.add-level-btn {
-		@apply flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 font-medium text-white transition-colors hover:bg-primary-700;
-	}
-
-	/* Dark mode adjustments */
-	@media (prefers-color-scheme: dark) {
-		.level-card {
-			@apply border-surface-700 bg-surface-800/50;
-		}
-
-		.level-card.first-level {
-			@apply border-primary-700 bg-primary-900/20;
-		}
-
-		.level-header {
-			@apply border-surface-700 bg-surface-800;
-		}
-
-		.level-title {
-			@apply text-surface-100;
-		}
-
-		.level-badge.primary {
-			@apply bg-primary-900 text-primary-200;
-		}
-
-		.level-badge.secondary {
-			@apply bg-secondary-900 text-secondary-200;
-		}
-
-		.remove-level-btn {
-			@apply text-surface-500 hover:bg-error-900/20 hover:text-error-400;
-		}
-
-		.fields-label {
-			@apply text-surface-200;
-		}
-
-		.field-count {
-			@apply text-surface-400;
-		}
-
-		.empty-fields-notice {
-			@apply border-surface-600 bg-surface-800/50;
-		}
-
-		.empty-fields-notice span:first-of-type {
-			@apply text-surface-300;
-		}
-
-		.empty-fields-notice span:last-of-type {
-			@apply text-surface-400;
-		}
-
-		.actions-section {
-			@apply border-surface-700;
-		}
-	}
-</style>

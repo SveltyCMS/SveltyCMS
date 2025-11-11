@@ -176,12 +176,12 @@ class RedisStore implements ICacheStore {
 
 	async clearByPattern(pattern: string): Promise<void> {
 		await this.ensureReady();
-		let cursor: number | string = 0;
+		let cursor: string = '0';
 		do {
 			const result = await this.client!.scan(cursor, { MATCH: pattern, COUNT: 100 });
-			cursor = result.cursor; // Keep it as-is (Redis returns it in the format it expects next)
+			cursor = result.cursor; // Redis returns cursor as string
 			if (result.keys.length > 0) await this.client!.del(result.keys);
-		} while (cursor !== 0 && cursor !== '0');
+		} while (cursor !== '0');
 	}
 
 	async disconnect(): Promise<void> {
@@ -239,9 +239,7 @@ class CacheService {
 		return baseKey;
 	}
 
-	/**
-	 * Track cache access for analytics and predictive prefetching
-	 */
+	// Track cache access for analytics and predictive prefetching
 	private trackAccess(key: string): void {
 		const now = Date.now();
 		const accesses = this.accessLog.get(key) || [];
@@ -255,9 +253,7 @@ class CacheService {
 		this.accessLog.set(key, accesses);
 	}
 
-	/**
-	 * Check if a key should be predictively prefetched based on patterns
-	 */
+	// Check if a key should be predictively prefetched based on patterns
 	private async checkPrefetch(key: string, tenantId?: string): Promise<void> {
 		for (const pattern of this.prefetchPatterns) {
 			if (pattern.pattern.test(key)) {
@@ -269,9 +265,7 @@ class CacheService {
 		}
 	}
 
-	/**
-	 * Prefetch multiple keys in the background
-	 */
+	// Prefetch multiple keys in the background
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	private async prefetchKeys(keys: string[], category?: CacheCategory, _tenantId?: string): Promise<void> {
 		// This is a placeholder - in a real implementation, you would:
@@ -279,7 +273,7 @@ class CacheService {
 		// 2. Fetch the data from the database
 		// 3. Store it in cache
 		// For now, we just log the intent
-		logger.debug(`Predictive prefetch triggered for ${keys.length} keys in category ${category || 'default'}`);
+		logger.debug(`Predictive prefetch triggered for \x1b[34m${keys.length}\x1b[0m keys in category \x1b[34m${category || 'default'}\x1b[0m`);
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -306,9 +300,7 @@ class CacheService {
 		await this.store.set<T>(key, value, finalTTL);
 	}
 
-	/**
-	 * Set with automatic category-based TTL
-	 */
+	// Set with automatic category-based TTL
 	async setWithCategory<T>(baseKey: string, value: T, category: CacheCategory, tenantId?: string): Promise<void> {
 		await this.ensureInitialized();
 		const key = this.generateKey(baseKey, tenantId);
@@ -334,7 +326,7 @@ class CacheService {
 	 */
 	async warmCache(config: WarmCacheConfig): Promise<void> {
 		await this.ensureInitialized();
-		logger.info(`Warming cache for ${config.keys.length} keys in category ${config.category || 'default'}`);
+		logger.info(`Warming cache for \x1b[34m${config.keys.length}\x1b[0m keys in category \x1b[34m${config.category || 'default'}\x1b[0m`);
 
 		try {
 			const data = await config.fetcher();
@@ -344,7 +336,7 @@ class CacheService {
 				await this.set(key, data, ttl, config.tenantId, config.category);
 			}
 
-			logger.info(`Cache warmed successfully for ${config.keys.length} keys`);
+			logger.info(`Cache warmed successfully for \x1b[34m${config.keys.length}\x1b[0m keys`);
 		} catch (error) {
 			logger.error('Cache warming failed:', error);
 		}
@@ -356,12 +348,10 @@ class CacheService {
 	 */
 	registerPrefetchPattern(pattern: PrefetchPattern): void {
 		this.prefetchPatterns.push(pattern);
-		logger.info(`Registered prefetch pattern: ${pattern.pattern.source}`);
+		logger.info(`Registered prefetch pattern: \x1b[34m${pattern.pattern.source}\x1b[0m`);
 	}
 
-	/**
-	 * Get cache access analytics
-	 */
+	// Get cache access analytics
 	getAccessAnalytics(key: string): { count: number; avgInterval: number; lastAccess: number } | null {
 		const accesses = this.accessLog.get(key);
 		if (!accesses || accesses.length === 0) return null;
@@ -543,16 +533,14 @@ function getCategoryTTL(category: CacheCategory): number {
 		}
 	} catch (error) {
 		// If settings not loaded yet, fall through to defaults
-		logger.debug(`Failed to get TTL for ${category}, using default:`, error);
+		logger.debug(`Failed to get TTL for \x1b[34m${category}\x1b[0m, using default:`, error);
 	}
 
 	// Fall back to default TTL
 	return DEFAULT_CATEGORY_TTLS[category];
 }
 
-/**
- * Interface for cache warming configuration
- */
+// Interface for cache warming configuration
 interface WarmCacheConfig {
 	keys: string[];
 	fetcher: () => Promise<unknown>;
@@ -560,9 +548,7 @@ interface WarmCacheConfig {
 	tenantId?: string;
 }
 
-/**
- * Interface for predictive prefetch configuration
- */
+// Interface for predictive prefetch configuration
 interface PrefetchPattern {
 	pattern: RegExp;
 	prefetchKeys: (matchedKey: string) => string[];

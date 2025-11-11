@@ -10,6 +10,7 @@ import { dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger.server';
 import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 import { constructMediaUrl } from '@utils/media/mediaUtils';
+import type { ISODateString } from '@src/content/types';
 
 type MediaDoc = {
 	_id?: string;
@@ -34,6 +35,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
+		if (!dbAdapter) {
+			throw error(500, 'Database adapter not available');
+		}
+
 		let currentFolder: SystemVirtualFolder | null = null;
 		let folders: SystemVirtualFolder[] = [];
 		let files: MediaDoc[] = [];
@@ -45,49 +50,55 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			const folderResult = await dbAdapter.systemVirtualFolder.getByParentId(null);
 			folders = folderResult.success ? folderResult.data || [] : [];
 
-			const fileQuery = { virtualFolderId: null, ...tenantFilter };
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const fileQuery = { virtualFolderId: null, ...tenantFilter } as any;
 			const [imagesResult, documentsResult, audioResult, videosResult] = await Promise.all([
 				dbAdapter.crud.findMany('media_images', fileQuery),
 				dbAdapter.crud.findMany('media_documents', fileQuery),
 				dbAdapter.crud.findMany('media_audio', fileQuery),
 				dbAdapter.crud.findMany('media_videos', fileQuery)
 			]);
-			const images = imagesResult.success ? imagesResult.data || [] : [];
-			const documents = documentsResult.success ? documentsResult.data || [] : [];
-			const audio = audioResult.success ? audioResult.data || [] : [];
-			const videos = videosResult.success ? videosResult.data || [] : [];
+			const images = imagesResult.success ? ((imagesResult.data || []) as unknown as MediaDoc[]) : [];
+			const documents = documentsResult.success ? ((documentsResult.data || []) as unknown as MediaDoc[]) : [];
+			const audio = audioResult.success ? ((audioResult.data || []) as unknown as MediaDoc[]) : [];
+			const videos = videosResult.success ? ((videosResult.data || []) as unknown as MediaDoc[]) : [];
 			files = [...images, ...documents, ...audio, ...videos];
 		} else {
 			// Specific folder
-			const folderResult = await dbAdapter.systemVirtualFolder.getById(id);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const folderResult = await dbAdapter.systemVirtualFolder.getById(id as any);
 			currentFolder = folderResult.success ? folderResult.data : null;
 
 			if (!currentFolder) {
 				throw error(404, 'Folder not found');
 			}
 
-			const subfolderResult = await dbAdapter.systemVirtualFolder.getByParentId(id);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const subfolderResult = await dbAdapter.systemVirtualFolder.getByParentId(id as any);
 			folders = subfolderResult.success ? subfolderResult.data || [] : [];
 
-			const fileQuery = { virtualFolderId: id, ...tenantFilter };
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const fileQuery = { virtualFolderId: id, ...tenantFilter } as any;
 			const [imagesResult, documentsResult, audioResult, videosResult] = await Promise.all([
 				dbAdapter.crud.findMany('media_images', fileQuery),
 				dbAdapter.crud.findMany('media_documents', fileQuery),
 				dbAdapter.crud.findMany('media_audio', fileQuery),
 				dbAdapter.crud.findMany('media_videos', fileQuery)
 			]);
-			const images = imagesResult.success ? imagesResult.data || [] : [];
-			const documents = documentsResult.success ? documentsResult.data || [] : [];
-			const audio = audioResult.success ? audioResult.data || [] : [];
-			const videos = videosResult.success ? videosResult.data || [] : [];
+			const images = imagesResult.success ? ((imagesResult.data || []) as unknown as MediaDoc[]) : [];
+			const documents = documentsResult.success ? ((documentsResult.data || []) as unknown as MediaDoc[]) : [];
+			const audio = audioResult.success ? ((audioResult.data || []) as unknown as MediaDoc[]) : [];
+			const videos = videosResult.success ? ((videosResult.data || []) as unknown as MediaDoc[]) : [];
 			files = [...images, ...documents, ...audio, ...videos];
 		}
 
 		// Process files with URL construction
 		const processedFiles = files.map((file) => {
 			try {
-				const originalUrl = constructMediaUrl(file, 'original');
-				const thumbnailUrl = constructMediaUrl(file, 'thumbnail');
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const originalUrl = constructMediaUrl(file as any, 'original');
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const thumbnailUrl = constructMediaUrl(file as any, 'thumbnail');
 				return {
 					...file,
 					url: originalUrl,
@@ -144,6 +155,10 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
+		if (!dbAdapter) {
+			throw error(500, 'Database adapter not available');
+		}
+
 		const body = await request.json();
 		const { name } = body;
 
@@ -152,7 +167,8 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		}
 
 		// Get the current folder to update its path
-		const currentResult = await dbAdapter.systemVirtualFolder.getById(id);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const currentResult = await dbAdapter.systemVirtualFolder.getById(id as any);
 		if (!currentResult.success || !currentResult.data) {
 			throw error(404, 'Folder not found');
 		}
@@ -162,7 +178,8 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		// Build new path
 		let newPath = '';
 		if (currentFolder.parentId) {
-			const parentResult = await dbAdapter.systemVirtualFolder.getById(currentFolder.parentId as string);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const parentResult = await dbAdapter.systemVirtualFolder.getById(currentFolder.parentId as any);
 			if (parentResult.success && parentResult.data) {
 				newPath = `${parentResult.data.path}/${name.trim()}`;
 			} else {
@@ -175,10 +192,11 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		const updateData = {
 			name: name.trim(),
 			path: newPath,
-			updatedAt: new Date().toISOString()
+			updatedAt: new Date().toISOString() as ISODateString
 		};
 
-		const result = await dbAdapter.systemVirtualFolder.update(id, updateData);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = await dbAdapter.systemVirtualFolder.update(id as any, updateData);
 
 		if (!result.success) {
 			logger.error('Failed to update folder', { error: result.error });
@@ -212,6 +230,10 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
+		if (!dbAdapter) {
+			throw error(500, 'Database adapter not available');
+		}
+
 		// Check if folder has children
 		const allFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
 		if (allFoldersResult.success && allFoldersResult.data) {
@@ -224,7 +246,8 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		// Check if folder has media files
 		// TODO: Add media file check when media is properly linked to folders
 
-		const result = await dbAdapter.systemVirtualFolder.delete(id);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = await dbAdapter.systemVirtualFolder.delete(id as any);
 
 		if (!result.success) {
 			logger.error('Failed to delete folder', { error: result.error });

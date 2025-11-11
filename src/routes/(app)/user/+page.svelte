@@ -21,7 +21,7 @@
 	import type { PageData } from './$types';
 	// Auth
 	import type { User } from '@src/databases/auth/types';
-	import TwoFactorAuth from './components/TwoFactorAuth.svelte';
+	import ModalTwoFactorAuth from './components/ModalTwoFactorAuth.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -60,8 +60,26 @@
 	// Define password as state
 	let password = $state('hash-password');
 
-	// Two-Factor Auth modal state
-	let show2FAModal = $state(false);
+	// Function to open 2FA modal
+	function open2FAModal(): void {
+		const modalComponent: ModalComponent = {
+			ref: ModalTwoFactorAuth,
+			props: { user }
+		};
+		const d: ModalSettings = {
+			type: 'component',
+			title: 'Two-Factor Authentication',
+			body: 'Add an extra layer of security to your account by requiring a verification code from your mobile device.',
+			component: modalComponent,
+			response: async (r: any) => {
+				if (r) {
+					// Refresh user data after 2FA changes
+					await invalidateAll();
+				}
+			}
+		};
+		showModal(d);
+	}
 
 	// Function to execute actions
 	function executeActions() {
@@ -187,7 +205,7 @@
 				</div>
 				<!-- Two-Factor Authentication Status -->
 				{#if is2FAEnabledGlobal}
-					<button onclick={() => (show2FAModal = !show2FAModal)} class="variant-ghost-surface btn-sm w-full max-w-xs">
+					<button onclick={open2FAModal} class="variant-ghost-surface btn-sm w-full max-w-xs">
 						<div class="flex w-full items-center justify-between">
 							<span>Two-Factor Auth</span>
 							<div class="flex items-center gap-1">
@@ -253,13 +271,6 @@
 			{/if}
 		</div>
 	</div>
-
-	<!-- Two-Factor Authentication Section -->
-	{#if is2FAEnabledGlobal && show2FAModal}
-		<div class="wrapper2 mb-4">
-			<TwoFactorAuth {user} />
-		</div>
-	{/if}
 
 	<!-- Admin area -->
 	<PermissionGuard

@@ -1,36 +1,44 @@
 <!--
 @file src/widgets/core/dateRange/Display.svelte
 @component
-**DateRange display component**
+**DateRange Display Component**
 
-A lightweight renderer for the DateRange widget. It formats a `{ start, end }`
-value (ISO 8601 strings) into a human-readable date range string, shows an
-optional duration and a simple relative context (Current / Past / Future).
+A lightweight renderer for the DateRange widget. Formats a `{ start, end }` value
+(ISO 8601 strings) into a human-readable date range string with duration and context.
 
 @example
-<DateRange field={field} value={value} format="medium" />
+<DateRangeDisplay value={value} format="medium" />
 
-### Props
-- `field: FieldType` - The date range field configuration
+#### Props
 - `value: DateRangeWidgetData | null | undefined` - The date range value ({ start, end })
-- `format?: 'short' | 'medium' | 'long' | 'full'` - Display month formatting
+- `format?: 'short' | 'medium' | 'long' | 'full'` - Display month formatting (default: 'medium')
 
-### Features
-- **Compact display**: Small, synchronous renderer optimized for lists
-- **Duration & context**: Shows time span and whether the range is past/current/future
-- **Locale-aware**: Uses browser locale for formatting
+#### Features
+- Compact synchronous renderer optimized for lists
+- Shows duration (days, weeks, months, years)
+- Shows temporal context (Current / Past / Future)
+- Locale-aware formatting using browser locale
+- Single date display when start equals end
+- Graceful error handling
 -->
 
 <script lang="ts">
 	import type { DateRangeWidgetData } from './';
+	import { logger } from '@utils/logger';
 
-	let { value, format = 'medium' }: { value: DateRangeWidgetData | null | undefined; format?: 'short' | 'medium' | 'long' | 'full' } = $props();
+	interface Props {
+		value: DateRangeWidgetData | null | undefined;
+		format?: 'short' | 'medium' | 'long' | 'full';
+	}
 
-	// Get the user's preferred language from the browser.
-	const userLocale = document.documentElement.lang || 'en-US';
+	let { value, format = 'medium' }: Props = $props();
 
-	// Memoize the formatted range string for performance and ensure the formatter
-	// is recreated when `format` or `userLocale` changes.
+	// Get the user's preferred language from the browser
+	const userLocale = $derived(typeof document !== 'undefined' ? document.documentElement.lang || 'en-US' : 'en-US');
+
+	/**
+	 * Format the date range string
+	 */
 	const formattedRange = $derived.by(() => {
 		if (!value?.start || !value?.end) return '–';
 
@@ -42,7 +50,6 @@ optional duration and a simple relative context (Current / Past / Future).
 				return 'Invalid Range';
 			}
 
-			// Create formatter here so it picks up changes to `format` and locale.
 			const dateFormatter = new Intl.DateTimeFormat(userLocale, {
 				year: 'numeric',
 				month: format === 'short' ? 'short' : 'long',
@@ -59,12 +66,14 @@ optional duration and a simple relative context (Current / Past / Future).
 
 			return `${startFormatted} → ${endFormatted}`;
 		} catch (e) {
-			console.warn('Date range formatting error:', e);
+			logger.warn('Date range formatting error:', e);
 			return 'Invalid Range';
 		}
 	});
 
-	// Calculate duration for additional context
+	/**
+	 * Calculate duration for additional context
+	 */
 	const duration = $derived.by(() => {
 		if (!value?.start || !value?.end) return null;
 
@@ -76,15 +85,24 @@ optional duration and a simple relative context (Current / Past / Future).
 
 			if (diffDays === 1) return '1 day';
 			if (diffDays < 7) return `${diffDays} days`;
-			if (diffDays < 30) return `${Math.ceil(diffDays / 7)} week${Math.ceil(diffDays / 7) > 1 ? 's' : ''}`;
-			if (diffDays < 365) return `${Math.ceil(diffDays / 30)} month${Math.ceil(diffDays / 30) > 1 ? 's' : ''}`;
-			return `${Math.ceil(diffDays / 365)} year${Math.ceil(diffDays / 365) > 1 ? 's' : ''}`;
+			if (diffDays < 30) {
+				const weeks = Math.ceil(diffDays / 7);
+				return `${weeks} week${weeks > 1 ? 's' : ''}`;
+			}
+			if (diffDays < 365) {
+				const months = Math.ceil(diffDays / 30);
+				return `${months} month${months > 1 ? 's' : ''}`;
+			}
+			const years = Math.ceil(diffDays / 365);
+			return `${years} year${years > 1 ? 's' : ''}`;
 		} catch {
 			return null;
 		}
 	});
 
-	// Relative time context
+	/**
+	 * Determine temporal context (Current / Past / Future)
+	 */
 	const relativeContext = $derived.by(() => {
 		if (!value?.start || !value?.end) return null;
 
@@ -102,40 +120,45 @@ optional duration and a simple relative context (Current / Past / Future).
 			return null;
 		}
 	});
+
+	/**
+	 * Get context badge classes
+	 */
+	const contextClasses = $derived.by(() => {
+		const baseClasses = 'ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium';
+		const contextMap = {
+			Current: 'bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200',
+			Past: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+			Future: 'bg-success-100 text-success-800 dark:bg-success-900 dark:text-success-200'
+		};
+		return `${baseClasses} ${relativeContext ? contextMap[relativeContext as keyof typeof contextMap] : ''}`;
+	});
+
+	/**
+	 * Get tooltip text
+	 */
+	const tooltipText = $derived.by(() => {
+		if (!value?.start || !value?.end) return undefined;
+		try {
+			const start = new Date(value.start).toISOString();
+			const end = new Date(value.end).toISOString();
+			return `${start} to ${end}`;
+		} catch {
+			return undefined;
+		}
+	});
 </script>
 
-<span class="date-range-display" title={value ? `${new Date(value.start).toISOString()} to ${new Date(value.end).toISOString()}` : undefined}>
-	{formattedRange}
+<span class="inline-flex items-center font-medium text-gray-900 dark:text-gray-100" title={tooltipText}>
+	<span>{formattedRange}</span>
 	{#if duration}
-		<span class="duration" aria-label="Duration: {duration}">({duration})</span>
+		<span class="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400" aria-label="Duration: {duration}">
+			({duration})
+		</span>
 	{/if}
 	{#if relativeContext}
-		<span class="context context-{relativeContext.toLowerCase()}" aria-label="Time context: {relativeContext}">{relativeContext}</span>
+		<span class={contextClasses} aria-label="Time context: {relativeContext}">
+			{relativeContext}
+		</span>
 	{/if}
 </span>
-
-<style lang="postcss">
-	.date-range-display {
-		@apply font-medium text-gray-900 dark:text-gray-100;
-	}
-
-	.duration {
-		@apply ml-2 text-sm font-normal text-gray-500 dark:text-gray-400;
-	}
-
-	.context {
-		@apply ml-2 rounded-full px-2 py-0.5 text-xs font-medium;
-	}
-
-	.context-current {
-		@apply bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200;
-	}
-
-	.context-past {
-		@apply bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300;
-	}
-
-	.context-future {
-		@apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200;
-	}
-</style>

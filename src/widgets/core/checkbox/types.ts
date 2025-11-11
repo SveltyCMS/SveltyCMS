@@ -18,8 +18,9 @@ export interface CheckboxProps {
 	 */
 	size?: 'sm' | 'md' | 'lg';
 
-	/**
-	 * Allow additional widget properties
-	 */
+	// Allow additional widget properties
 	[key: string]: unknown;
+
+	// Legend text for the Checkbox
+	legend?: string;
 }

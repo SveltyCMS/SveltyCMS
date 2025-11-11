@@ -7,7 +7,6 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { logger } from '@utils/logger.server';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-import { roles } from '@root/config/roles';
 
 // Mock marketplace widgets - replace with actual marketplace API integration
 const MARKETPLACE_WIDGETS = [
@@ -112,7 +111,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		}
 
 		// Check permission
-		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', roles);
+		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', locals.roles || []);
 		if (!hasWidgetPermission) {
 			logger.warn(`User ${user._id} denied access to marketplace API due to insufficient permissions`);
 			throw error(403, 'Insufficient permissions');

@@ -1,4 +1,3 @@
-/* Moved from src/utils/media/MediaService.ts */
 /**
  * @file src/services/MediaService.ts
  * @description Provides a service class for media operations.
@@ -9,16 +8,18 @@ import mime from 'mime-types';
 import Path from 'path';
 
 // Database Interface
-import type { DatabaseId, dbInterface, ISODateString, MediaItem } from '@src/databases/dbInterface';
+import type { DatabaseId, IDBAdapter, MediaItem } from '@src/databases/dbInterface';
 
 // Media
-import type { MediaAccess, MediaBase, MediaType } from '@src/utils/media/mediaModels';
+import type { MediaAccess, MediaBase, MediaType, ResizedImage } from '@src/utils/media/mediaModels'; // Added ResizedImage
 import { MediaTypeEnum } from '@src/utils/media/mediaModels';
 import { getSanitizedFileName, hashFileContent } from '@src/utils/media/mediaProcessing';
 import { saveFileToDisk, saveResizedImages } from '@src/utils/media/mediaStorage';
-import { validateMediaFile } from '@src/utils/media/mediaUtils';
+// IMPORT SERVER-SIDE VALIDATION
+import { validateMediaFileServer } from '@src/utils/media/mediaUtils';
 
 // Permission Management
+import { validateUserPermission as checkMediaAccess } from '@src/databases/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -28,28 +29,16 @@ import { cacheService } from '@src/databases/CacheService';
 
 // Extended MediaBase interface to include thumbnails
 interface MediaBaseWithThumbnails extends MediaBase {
-	thumbnails?: {
-		thumbnail?: {
-			url: string;
-			width: number;
-			height: number;
-		};
-		[key: string]:
-			| {
-					url: string;
-					width: number;
-					height: number;
-			  }
-			| undefined;
-	};
+	thumbnails?: Record<string, ResizedImage | undefined>;
 }
 
 export class MediaService {
-	private db: dbInterface;
+	private db: IDBAdapter;
 	private initialized: boolean = false;
-	private readonly mimeTypePattern = /^(image|video|audio)\/(jpeg|png|gif|svg\+xml|webp|mp4|webm|ogg|mpeg|pdf)$/;
+	// Define your allowed types regex - removed unnecessary escape `\+`
+	private readonly mimeTypePattern = /^(image|video|audio)\/(jpeg|png|gif|svg+xml|webp|mp4|webm|ogg|mpeg)|(application\/pdf)$/;
 
-	constructor(db: dbInterface) {
+	constructor(db: IDBAdapter) {
 		this.db = db;
 		this.checkDatabaseConnection();
 	}
@@ -73,91 +62,62 @@ export class MediaService {
 	}
 
 	/**
-	 * Uploads a file to storage (disk) and creates media record
+	 * Uploads a file to storage (disk or cloud)
 	 */
-	private async uploadFile(file: File | Blob, userId: string, access: MediaAccess): Promise<{ url: string; fileInfo: MediaImage }> {
+	private async uploadFile(
+		buffer: Buffer,
+		fileName: string,
+		mimeType: string,
+		userId: string,
+		basePath: string
+	): Promise<{ url: string; path: string; hash: string; resized: Record<string, ResizedImage> }> {
 		const startTime = performance.now();
 
 		try {
-			logger.debug('Starting file upload', {
-				fileName: file instanceof File ? file.name : 'blob',
-				fileSize: file.size,
-				userId
-			});
-
-			const buffer = Buffer.from(await file.arrayBuffer());
-			const fileName = file instanceof File ? file.name : 'blob';
-			const mimeType = file.type || mime.lookup(fileName) || 'application/octet-stream';
-
-			logger.debug('File processed', {
-				fileName,
-				mimeType,
-				bufferSize: buffer.length,
-				processingTime: performance.now() - startTime
-			});
+			logger.debug('Starting file upload', { fileName, fileSize: buffer.length, userId });
 
 			const hash = await hashFileContent(buffer);
 			const { fileNameWithoutExt, ext } = getSanitizedFileName(fileName);
 			const sanitizedFileName = fileNameWithoutExt;
 
-			// Define the base path for media gallery images
-			const basePath = 'global';
-
 			// Save original image in 'original' subfolder
 			const originalSubfolder = 'original';
 			const originalFileName = `${sanitizedFileName}-${hash}.${ext}`;
-			const originalUrl = Path.posix.join(basePath, originalSubfolder, originalFileName);
+			// This is the RELATIVE path, e.g., "avatars/original/image-hash.jpg"
+			const relativePath = Path.posix.join(basePath, originalSubfolder, originalFileName);
 
-			logger.debug('Saving original file', {
-				originalUrl,
-				basePath,
-				subfolder: originalSubfolder
-			});
+			logger.debug('Saving original file', { relativePath, basePath, subfolder: originalSubfolder });
 
-			await saveFileToDisk(buffer, originalUrl);
+			// saveFileToDisk handles both local and cloud saving
+			const publicUrl = await saveFileToDisk(buffer, relativePath);
 
 			// Process image if it's an image type
 			const isImage = mimeType.startsWith('image/');
 			let resizedImages: Record<string, ResizedImage> = {};
 
-			if (isImage) {
-				logger.debug('Processing image variants', {
-					fileName,
-					mimeType
-				});
+			if (isImage && ext !== 'svg') {
+				// Don't resize SVGs
+				logger.debug('Processing image variants', { fileName, mimeType });
 				resizedImages = await saveResizedImages(buffer, hash, sanitizedFileName, mimeType, ext, basePath);
 			}
 
-			const fileInfo: MediaImage = {
-				type: MediaTypeEnum.Image,
-				name: sanitizedFileName,
-				hash,
-				path: Path.join(basePath, originalSubfolder),
-				url: originalUrl,
-				mimeType,
-				size: buffer.length,
-				resized: resizedImages,
-				access,
-				createdAt: new Date(),
-				updatedAt: new Date()
-			};
-
 			logger.info('File upload completed', {
 				fileName,
-				url: originalUrl,
+				url: publicUrl,
+				relativePath,
 				fileSize: buffer.length,
 				isImage,
 				resizedVariants: Object.keys(resizedImages),
 				totalProcessingTime: performance.now() - startTime
 			});
 
-			return { url: originalUrl, fileInfo };
+			return { url: publicUrl, path: relativePath, hash, resized: resizedImages };
 		} catch (err) {
 			const message = `Error uploading file: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, {
-				fileName: file instanceof File ? file.name : 'blob',
+				fileName,
 				error: err,
-				stack: new Error().stack,
+				stack: err instanceof Error ? err.stack : undefined,
 				processingTime: performance.now() - startTime
 			});
 			throw new Error(message);
@@ -165,25 +125,26 @@ export class MediaService {
 	}
 
 	// Saves a media file and its associated data
-	public async saveMedia(file: File, userId: string, access: MediaAccess): Promise<MediaType> {
+	public async saveMedia(file: File, userId: string, access: MediaAccess, basePath: string = 'global'): Promise<MediaType> {
 		const startTime = performance.now();
 		this.ensureInitialized();
 		logger.trace('Starting media upload process', {
 			filename: file.name,
 			fileSize: file.size,
-			mimeType: file.type,
-			tenantId
+			mimeType: file.type
 		});
 		if (!file) {
 			const message = 'File is required';
-			logger.error(message, {
-				processingTime: performance.now() - startTime
-			});
+			logger.error(message, { processingTime: performance.now() - startTime });
 			throw Error(message);
 		}
 
-		// Validate the media file before processing
-		const validation = validateMediaFile(file, this.mimeTypePattern, 50 * 1024 * 1024); // 50MB limit
+		// Convert File to Buffer
+		const buffer = Buffer.from(await file.arrayBuffer());
+		const mimeType = file.type || mime.lookup(file.name) || 'application/octet-stream';
+
+		// USE SERVER-SIDE VALIDATION
+		const validation = validateMediaFileServer(buffer, file.name, this.mimeTypePattern, 50 * 1024 * 1024); // 50MB limit
 		if (!validation.isValid) {
 			const message = `File validation failed: ${validation.message}`;
 			logger.error(message, {
@@ -196,30 +157,27 @@ export class MediaService {
 
 		try {
 			// First upload the file and get basic file info
-			const { fileInfo } = await this.uploadFile(file, userId, access);
+			const { url, path, hash, resized } = await this.uploadFile(buffer, file.name, mimeType, userId, basePath);
 
 			// Create media object with required properties
-			const mediaType = this.getMediaType(fileInfo.mimeType);
+			const mediaType = this.getMediaType(mimeType);
 			if (!mediaType) {
 				const message = 'Invalid media type';
-				logger.error(message, {
-					mimeType: fileInfo.mimeType,
-					processingTime: performance.now() - startTime
-				});
+				logger.error(message, { mimeType, processingTime: performance.now() - startTime });
 				throw Error(message);
 			}
 
 			const media: MediaBaseWithThumbnails = {
 				type: mediaType,
-				hash: fileInfo.hash,
+				hash: hash,
 				filename: file.name,
-				path: fileInfo.path,
-				url: fileInfo.url,
-				mimeType: fileInfo.mimeType,
+				path: path, // Store the relative path
+				url: url, // Store the public URL
+				mimeType: mimeType,
 				size: file.size,
 				user: userId,
-				createdAt: new Date(),
-				updatedAt: new Date(),
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
 				metadata: {
 					originalFilename: file.name,
 					uploadedBy: userId,
@@ -229,16 +187,13 @@ export class MediaService {
 				versions: [
 					{
 						version: 1,
-						url: fileInfo.url,
-						createdAt: new Date(),
-						createdBy: userId,
-						size: file.size,
-						hash: fileInfo.hash,
-						processingTimeMs: performance.now() - startTime
+						url: url,
+						createdAt: new Date().toISOString(),
+						createdBy: userId
 					}
 				],
 				access,
-				thumbnails: fileInfo.resized || {}
+				thumbnails: resized || {}
 			};
 
 			// Create clean media object for database storage
@@ -246,18 +201,30 @@ export class MediaService {
 
 			logger.debug('Saving media to database', {
 				filename: cleanMedia.filename,
-				type: cleanMedia.type,
-				processingTime: performance.now() - startTime
+				mimeType: cleanMedia.mimeType,
+				collection: 'MediaItem' // <-- Log the correct collection
 			});
 
-			const mediaId = await this.db.crud.insert('MediaItem', cleanMedia);
+			//  Save to 'MediaItem'
+			const result = await this.db.crud.insert<MediaItem>('MediaItem', cleanMedia);
+
+			if (!result.success) {
+				throw result.error;
+			}
+			const mediaId = result.data._id;
+
 			logger.debug('Media saved to database', {
 				mediaId,
 				processingTime: performance.now() - startTime
 			});
 
 			// Retrieve the saved media with its ID
-			const savedMedia = await this.db.crud.findOne('MediaItem', { _id: mediaId });
+			const findResult = await this.db.crud.findOne<MediaItem>('MediaItem', { _id: mediaId });
+
+			if (!findResult.success) {
+				throw findResult.error;
+			}
+			const savedMedia = findResult.data;
 
 			// Cache the saved media
 			if (savedMedia) {
@@ -268,12 +235,12 @@ export class MediaService {
 
 			logger.info('Media processing completed successfully', {
 				mediaId,
-				originalUrl: savedMedia?.url,
-				thumbnails: savedMedia?.thumbnails ? Object.keys(savedMedia.thumbnails) : [],
+				originalUrl: (savedMedia as MediaItem).url,
+				thumbnails: (savedMedia as MediaItem).thumbnails ? Object.keys((savedMedia as MediaItem).thumbnails) : [],
 				totalProcessingTime: performance.now() - startTime
 			});
 
-			return savedMedia!;
+			return savedMedia as MediaType;
 		} catch (err) {
 			const message = `Error saving media: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, {
@@ -282,95 +249,68 @@ export class MediaService {
 				stack: err instanceof Error ? err.stack : undefined,
 				processingTime: performance.now() - startTime
 			});
-			throw error(500, {
-				message,
-				fileName: file?.name,
-				error: err instanceof Error ? err.stack : undefined,
-				processingTime: performance.now() - startTime
-			});
+			throw error(500, message);
 		}
 	}
 
-	private createCleanMediaObject(object: MediaBaseWithThumbnails): Omit<MediaItem, '_id'> {
-		const dbObject = {
-			...object,
-			createdAt: object.createdAt.toISOString() as ISODateString,
-			updatedAt: object.updatedAt.toISOString() as ISODateString,
+	private createCleanMediaObject(object: MediaBaseWithThumbnails): Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'> {
+		// Type-safe mapping from MediaBaseWithThumbnails to a database-ready object
+		return {
+			filename: object.filename,
+			originalFilename: object.filename,
+			hash: object.hash,
+			path: object.path,
+			size: object.size,
+			mimeType: object.mimeType,
+			thumbnails: object.thumbnails || {},
+			metadata: object.metadata || {},
 			createdBy: object.user as DatabaseId,
 			updatedBy: object.user as DatabaseId
-		} as Omit<MediaItem, '_id'>;
-
-		return dbObject;
+		};
 	}
 
 	// Updates a media item with new data
-	public async updateMedia(id: string, updates: Partial<MediaBase>): Promise<void> {
+	public async updateMedia(id: string, updates: Partial<MediaItem>): Promise<void> {
 		this.ensureInitialized();
-
 		if (!id || typeof id !== 'string' || id.trim().length === 0) {
 			throw Error('Invalid id: Must be a non-empty string');
 		}
 
 		if (!updates || typeof updates !== 'object') {
-			throw Error('Invalid updates: Must be a valid MediaBase partial object');
+			throw Error('Invalid updates: Must be a valid MediaItem partial object');
 		}
-
 		try {
-			await this.db.updateOne('media_collection', { _id: this.db.convertId(id) }, updates);
+			const result = await this.db.crud.update('MediaItem', id as DatabaseId, updates);
+			if (!result.success) {
+				throw result.error;
+			}
 			// Invalidate cache
 			await cacheService.delete(`media:${id}`);
 			logger.info('Media updated successfully', { id });
 		} catch (err) {
 			const message = `Error updating media: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message);
+			logger.error(message, { error: err });
 			throw error(500, message);
 		}
-	}
-
-	// Manipulates an image with operations like focal point and watermarking
-	public async manipulateMedia(id: string, manipulations: any, userId: string, tenantId?: string): Promise<MediaType> {
-		this.ensureInitialized();
-		logger.info('Media manipulation called', { id, manipulations, userId, tenantId });
-
-		// Placeholder implementation
-		if (!id) {
-			throw error(400, 'Media ID is required for manipulation.');
-		}
-
-		// TODO: Full implementation will involve:
-		// 1. Fetching the media item from the DB.
-		// 2. Reading the image file from storage.
-		// 3. Using `sharp` to apply manipulations.
-		// 4. Saving the new image as a new version.
-		// 5. Updating the media item in the DB with the new version info.
-		// 6. Returning the updated media item.
-
-		logger.warn('Media manipulation not yet implemented.', { id, manipulations });
-
-		// Return the original media item for now
-		const mediaItem = await this.db.crud.findOne('MediaItem', { _id: this.db.convertId(id), tenantId });
-		if (!mediaItem) {
-			throw error(404, 'Media item not found');
-		}
-		return mediaItem;
 	}
 
 	// Deletes a media item
 	public async deleteMedia(id: string): Promise<void> {
 		this.ensureInitialized();
-
 		if (!id || typeof id !== 'string' || id.trim().length === 0) {
 			throw Error('Invalid id: Must be a non-empty string');
 		}
-
 		try {
-			await this.db.deleteOne('media_collection', { _id: this.db.convertId(id) });
+			const result = await this.db.crud.delete('MediaItem', id as DatabaseId);
+			if (!result.success) {
+				throw result.error;
+			}
 			// Remove from cache
 			await cacheService.delete(`media:${id}`);
 			logger.info('Media deleted successfully', { id });
 		} catch (err) {
 			const message = `Error deleting media: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message);
+			logger.error(message, { error: err });
 			throw error(500, message);
 		}
 	}
@@ -378,7 +318,6 @@ export class MediaService {
 	// Sets access permissions for a media item
 	public async setMediaAccess(id: string, access: MediaAccess[]): Promise<void> {
 		this.ensureInitialized();
-
 		if (!id || typeof id !== 'string' || id.trim().length === 0) {
 			throw Error('Invalid id: Must be a non-empty string');
 		}
@@ -386,5 +325,177 @@ export class MediaService {
 		if (!Array.isArray(access)) {
 			throw Error('Invalid access: Must be an array of MediaAccess');
 		}
+		try {
+			const result = await this.db.crud.update('MediaItem', id as DatabaseId, { access } as unknown as Partial<MediaItem>);
+			if (!result.success) {
+				throw result.error;
+			}
+			// Invalidate cache
+			await cacheService.delete(`media:${id}`);
+			logger.info('Media access updated successfully', { id, access });
+		} catch (err) {
+			const message = `Error setting media access: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { error: err });
+			throw error(500, message);
+		}
+	}
+
+	// Retrieves a media item by its ID, enforcing access control
+	public async getMedia(id: string, userRoles: string[]): Promise<MediaType> {
+		this.ensureInitialized();
+		if (!id || typeof id !== 'string' || id.trim().length === 0) {
+			throw Error('Invalid id: Must be a non-empty string');
+		}
+		try {
+			// Check cache first
+			const cachedMedia = await cacheService.get<MediaType>(`media:${id}`);
+			if (cachedMedia) {
+				logger.info('Media retrieved from cache', { id });
+				return cachedMedia;
+			}
+
+			const result = await this.db.crud.findOne<MediaItem>('MediaItem', { _id: id as DatabaseId });
+
+			if (!result.success) {
+				throw result.error;
+			}
+			const media = result.data;
+
+			if (!media) {
+				throw error(404, 'Media not found');
+			}
+
+			const hasAccess = checkMediaAccess(userRoles, 'some_permission'); // TODO: Fix permission check logic
+
+			if (!hasAccess) {
+				throw error(403, 'Access denied');
+			}
+
+			// Cache the media for future requests
+			await cacheService.set(`media:${id}`, media, 3600);
+
+			return media as MediaType;
+		} catch (err) {
+			const message = `Error getting media: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { error: err });
+			if (typeof err === 'object' && err !== null && 'status' in err) {
+				const status = (err as { status?: number }).status;
+				if (status === 403 || status === 404) throw err;
+			}
+			throw error(500, message);
+		}
+	}
+
+	// Bulk delete media items
+	public async bulkDeleteMedia(ids: string[]): Promise<void> {
+		this.ensureInitialized();
+		if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string' || id.trim().length === 0)) {
+			throw Error('Invalid ids: Must be an array of non-empty strings');
+		}
+		try {
+			const convertedIds = ids.map((id) => id as DatabaseId);
+			// Use `as unknown` to allow for complex query operators like $in
+			const result = await this.db.crud.deleteMany('MediaItem', { _id: { $in: convertedIds } } as unknown as Partial<BaseEntity>);
+			if (!result.success) {
+				throw result.error;
+			}
+			// Remove from cache
+			await Promise.all(ids.map((id) => cacheService.delete(`media:${id}`)));
+			logger.info('Bulk media deletion successful', { count: ids.length });
+		} catch (err) {
+			const message = `Error bulk deleting media: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { error: err });
+			throw error(500, message);
+		}
+	}
+
+	// Search media items
+	public async searchMedia(query: string, page: number = 1, limit: number = 20): Promise<{ media: MediaType[]; total: number }> {
+		this.ensureInitialized();
+		try {
+			const searchCriteria = {
+				$or: [{ filename: { $regex: query, $options: 'i' } }, { 'metadata.tags': { $regex: query, $options: 'i' } }]
+			};
+
+			const options = { offset: (page - 1) * limit, limit: limit };
+
+			const [mediaResult, totalResult] = await Promise.all([
+				this.db.crud.findMany<MediaItem>('MediaItem', searchCriteria as unknown as Partial<MediaItem>, options),
+				this.db.crud.count('MediaItem', searchCriteria as unknown as Partial<BaseEntity>)
+			]);
+
+			if (!mediaResult.success) {
+				throw mediaResult.error;
+			}
+			if (!totalResult.success) {
+				throw totalResult.error;
+			}
+
+			return { media: mediaResult.data as MediaType[], total: totalResult.data };
+		} catch (err) {
+			const message = `Error searching media: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { error: err });
+			throw error(500, message);
+		}
+	}
+
+	// List media items
+	public async listMedia(page: number = 1, limit: number = 20): Promise<{ media: MediaType[]; total: number }> {
+		this.ensureInitialized();
+		try {
+			const options = { offset: (page - 1) * limit, limit: limit };
+
+			const [mediaResult, totalResult] = await Promise.all([
+				this.db.crud.findMany<MediaItem>('MediaItem', {}, options),
+				this.db.crud.count('MediaItem', {})
+			]);
+
+			if (!mediaResult.success) {
+				throw mediaResult.error;
+			}
+			if (!totalResult.success) {
+				throw totalResult.error;
+			}
+
+			return { media: mediaResult.data as MediaType[], total: totalResult.data };
+		} catch (err) {
+			const message = `Error listing media: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { error: err });
+			throw error(500, message);
+		}
+	}
+
+	// Determines the media type based on the MIME type
+	private getMediaType(mimeType: string): MediaTypeEnum {
+		if (!mimeType) throw Error('Mime type is required');
+
+		if (mimeType.startsWith('image/')) {
+			return MediaTypeEnum.Image;
+		} else if (mimeType.startsWith('video/')) {
+			return MediaTypeEnum.Video;
+		} else if (mimeType.startsWith('audio/')) {
+			return MediaTypeEnum.Audio;
+		} else if (mimeType === 'application/pdf') {
+			return MediaTypeEnum.Document;
+		} else {
+			// Fallback for other document types
+			if (mimeType.startsWith('application/') || mimeType.startsWith('text/')) {
+				return MediaTypeEnum.Document;
+			}
+			throw Error(`Unsupported media type: ${mimeType}`);
+		}
+	}
+
+	public async saveRemoteMedia(url: string, userId: string, access: MediaAccess, basePath: string = 'global'): Promise<MediaType> {
+		const response = await fetch(url);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch remote file: ${response.statusText}`);
+		}
+		const buffer = Buffer.from(await response.arrayBuffer());
+		const fileName = Path.basename(new URL(url).pathname);
+		const mimeType = response.headers.get('content-type') || mime.lookup(fileName) || 'application/octet-stream';
+		const file = new File([buffer], fileName, { type: mimeType });
+
+		return this.saveMedia(file, userId, access, basePath);
 	}
 }

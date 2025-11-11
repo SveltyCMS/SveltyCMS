@@ -7,7 +7,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { logger } from '@utils/logger.server';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-import { roles } from '@root/config/roles';
+
 import { widgetStoreActions, customWidgets, getWidgetFunction } from '@stores/widgetStore.svelte';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
@@ -19,12 +19,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		}
 
 		// Check permission
-		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', roles);
+		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', locals.roles);
 		if (!hasWidgetPermission) {
 			logger.warn(`User ${user._id} denied access to widget API due to insufficient permissions`);
 			throw error(403, 'Insufficient permissions');
 		}
-		const tenantId = url.searchParams.get('tenantId') || user.tenantId || 'default-tenant';
+		const tenantId = url.searchParams.get('tenantId') || locals.tenantId || 'default-tenant';
 
 		// Initialize widgets to get custom widgets list
 		await widgetStoreActions.initializeWidgets(tenantId);

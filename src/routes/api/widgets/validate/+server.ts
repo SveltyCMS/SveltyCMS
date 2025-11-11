@@ -16,7 +16,7 @@ export const GET: RequestHandler = async ({ locals, request, url }) => {
 		const activeWidgets = activeWidgetsParam ? activeWidgetsParam.split(',') : [];
 
 		// Get all collections from ContentManager, scoped by tenantId
-		const { collections: allCollections } = await contentManager.getCollectionData(tenantId);
+		const allCollections = contentManager.getCollections();
 
 		if (!allCollections || Object.keys(allCollections).length === 0) {
 			return json({ valid: 0, invalid: 0, warnings: [], tenantId });
@@ -27,7 +27,8 @@ export const GET: RequestHandler = async ({ locals, request, url }) => {
 		let invalidCollections = 0;
 
 		for (const [, collection] of Object.entries(allCollections)) {
-			if (!collection.fields) {
+			const coll = collection as Record<string, unknown>;
+			if (!coll.fields) {
 				validCollections++;
 				continue;
 			}
@@ -35,7 +36,7 @@ export const GET: RequestHandler = async ({ locals, request, url }) => {
 			let collectionValid = true;
 			const missingWidgets: string[] = [];
 
-			for (const field of collection.fields) {
+			for (const field of coll.fields as Array<Record<string, unknown>>) {
 				if (field && typeof field === 'object') {
 					let widgetType: string | undefined;
 
@@ -63,7 +64,7 @@ export const GET: RequestHandler = async ({ locals, request, url }) => {
 				validCollections++;
 			} else {
 				invalidCollections++;
-				warnings.push(`Collection "${collection.name || collection._id}" requires inactive widgets: ${missingWidgets.join(', ')}`);
+				warnings.push(`Collection "${(coll.name as string) || (coll._id as string)}" requires inactive widgets: ${missingWidgets.join(', ')}`);
 			}
 		}
 

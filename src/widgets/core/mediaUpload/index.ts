@@ -39,7 +39,7 @@ const validationSchema = (field: FieldInstance) => {
 };
 
 // Create the widget definition using the factory.
-const MediaWidget = createWidget<MediaProps, ReturnType<typeof validationSchema>>({
+const MediaWidget = createWidget<MediaProps>({
 	Name: 'Media',
 	Icon: 'mdi:image-multiple',
 	Description: m.widget_media_description(),
@@ -80,4 +80,4 @@ export default MediaWidget;
 
 // Export helper types.
 export type FieldType = ReturnType<typeof MediaWidget>;
-export type MediaWidgetData = Input<ReturnType<typeof validationSchema>>;
+export type MediaWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;

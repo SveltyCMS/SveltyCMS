@@ -22,11 +22,12 @@ import type { Model, Types } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
 
 // Types
-import type { DatabaseResult } from '@src/databases/dbInterface';
+import type { DatabaseResult, ISODateString } from '@src/databases/dbInterface';
 import type { Session, User } from '@src/databases/auth/types';
 
 // Utilities
 import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
+import { toISOString } from '@utils/dateUtils';
 
 // System Logging
 import { logger } from '@utils/logger.server';
@@ -94,7 +95,7 @@ export class SessionAdapter {
 			});
 
 			if (result.deletedCount && result.deletedCount > 0) {
-				logger.info(`🔄 Migrated sessions: Removed ${result.deletedCount} old ObjectId-based sessions`);
+				logger.info(`🔄 Migrated sessions: Removed \x1b[34m${result.deletedCount}\x1b[0m old ObjectId-based sessions`);
 			}
 		} catch (err) {
 			// Non-critical error - old sessions will expire naturally
@@ -161,7 +162,7 @@ export class SessionAdapter {
 	}
 
 	// Create a new session
-	async createSession(sessionData: { user_id: string; expires: Date; tenantId?: string }): Promise<DatabaseResult<Session>> {
+	async createSession(sessionData: { user_id: string; expires: ISODateString; tenantId?: string }): Promise<DatabaseResult<Session>> {
 		try {
 			// Create the new session with UUID
 			const sessionId = generateId();
@@ -171,7 +172,9 @@ export class SessionAdapter {
 			const sessionObj = session.toObject();
 			return {
 				success: true,
-				data: this.formatSession(sessionObj as unknown as { [key: string]: unknown; _id: string | Types.ObjectId; user_id: string; expires: Date })
+				data: this.formatSession(
+					sessionObj as unknown as { [key: string]: unknown; _id: string | Types.ObjectId; user_id: string; expires: ISODateString }
+				)
 			};
 		} catch (err) {
 			const message = `Error in SessionAdapter.createSession: ${err instanceof Error ? err.message : String(err)}`;
@@ -189,7 +192,7 @@ export class SessionAdapter {
 
 	// Create a new session with options (optimized with atomic bulkWrite)
 	async createSessionWithOptions(
-		sessionData: { user_id: string; expires: Date; tenantId?: string },
+		sessionData: { user_id: string; expires: ISODateString; tenantId?: string },
 		options: { invalidateOthers?: boolean } = {}
 	): Promise<Session> {
 		try {
@@ -257,7 +260,7 @@ export class SessionAdapter {
 	}
 
 	// Rotate token - create new session and gracefully transition from old one
-	async rotateToken(oldToken: string, expires: Date): Promise<DatabaseResult<string>> {
+	async rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>> {
 		try {
 			// Get old session data
 			const oldSession = await this.SessionModel.findById(oldToken).lean();
@@ -585,7 +588,7 @@ export class SessionAdapter {
 	}
 
 	// Get session token metadata including expiration (enhanced to handle rotated sessions)
-	async getSessionTokenData(session_id: string): Promise<DatabaseResult<{ expiresAt: Date; user_id: string } | null>> {
+	async getSessionTokenData(session_id: string): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: string } | null>> {
 		try {
 			const session = await this.SessionModel.findById(session_id).lean();
 			if (!session) {
@@ -601,7 +604,7 @@ export class SessionAdapter {
 			return {
 				success: true,
 				data: {
-					expiresAt: new Date(session.expires),
+					expiresAt: toISOString(session.expires),
 					user_id: session.user_id // Include user_id as required by authDBInterface
 				}
 			};
@@ -641,11 +644,16 @@ export class SessionAdapter {
 		}
 	}
 
-	private formatSession(session: { _id: Types.ObjectId | string; user_id: string; expires: Date; [key: string]: unknown }): Session {
+	private formatSession(session: {
+		_id: Types.ObjectId | string;
+		user_id: string;
+		expires: Date | ISODateString | string;
+		[key: string]: unknown;
+	}): Session {
 		return {
 			...session,
 			_id: typeof session._id === 'string' ? session._id : session._id.toString(),
-			expires: new Date(session.expires) // Ensure expires is a Date object
+			expires: toISOString(session.expires) // Convert to ISODateString
 		} as Session;
 	}
 }

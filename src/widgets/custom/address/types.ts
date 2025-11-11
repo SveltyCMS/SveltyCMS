@@ -20,6 +20,9 @@ export interface AddressProps {
 
 	// An array of field names to hide from the UI e.g., ['latitude', 'longitude', 'name']
 	hiddenFields?: Array<keyof AddressData>;
+
+	// Index signature to satisfy WidgetProps constraint
+	[key: string]: unknown;
 }
 
 // Defines the data structure for a complete address object

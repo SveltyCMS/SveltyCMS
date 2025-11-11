@@ -97,6 +97,17 @@
 		keywordDensity = result;
 	}
 
+	function getHeatClasses(heatLevel: number): string {
+		const heatMap = {
+			1: 'bg-green-500/20',
+			2: 'bg-yellow-500/20',
+			3: 'bg-orange-500/20',
+			4: 'bg-red-500/20',
+			5: 'bg-purple-500/20'
+		};
+		return heatMap[heatLevel as keyof typeof heatMap] || '';
+	}
+
 	// Effect to handle content changes with debounced analysis
 	$effect(() => {
 		// React to content, language, or keywords changes
@@ -109,24 +120,28 @@
 	});
 </script>
 
-<div class="heatmap-content">
+<div class="break-words leading-6 max-sm:text-sm max-sm:leading-tight">
 	{#if heatmapData.length > 0}
 		{#each heatmapData as { word, heatLevel, isKeyword }}
 			<span
-				class="heat-{heatLevel} {isKeyword ? 'keyword' : ''}"
-				tabindex="0"
-				role="textbox"
+				class="relative cursor-help {getHeatClasses(heatLevel)} {isKeyword ? 'border-b-2 border-blue-500' : ''} group"
 				aria-label="Heat level {heatLevel}: {word}{isKeyword ? ', keyword' : ''}"
-				data-tooltip="Heat: {heatLevel}, {isKeyword ? 'Keyword' : 'Regular word'}"
-				transition:fade={{ duration: 200 }}>{word}</span
+				transition:fade={{ duration: 200 }}
 			>
+				{word}
+				<span
+					class="absolute bottom-full left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-800 p-1 text-xs text-white group-hover:block"
+				>
+					Heat: {heatLevel}, {isKeyword ? 'Keyword' : 'Regular word'}
+				</span>
+			</span>
 		{/each}
 	{:else}
 		<p>No content available for heatmap.</p>
 	{/if}
 </div>
 
-<div class="keyword-density">
+<div class="mt-5 text-sm max-sm:text-xs">
 	<h4>Keyword Density</h4>
 	{#if Object.keys(keywordDensity).length > 0}
 		<ul>
@@ -138,62 +153,3 @@
 		<p>No keywords provided or no matching keywords found in content.</p>
 	{/if}
 </div>
-
-<style lang="postcss">
-	.heatmap-content {
-		line-height: 1.5;
-		word-wrap: break-word;
-		font-size: 16px;
-	}
-	:global(.heat-1) {
-		background-color: rgba(0, 255, 0, 0.2);
-	}
-	:global(.heat-2) {
-		background-color: rgba(255, 255, 0, 0.2);
-	}
-	:global(.heat-3) {
-		background-color: rgba(255, 165, 0, 0.2);
-	}
-	:global(.heat-4) {
-		background-color: rgba(255, 0, 0, 0.2);
-	}
-	:global(.heat-5) {
-		background-color: rgba(128, 0, 128, 0.2);
-	}
-	:global(.keyword) {
-		border-bottom: 2px solid blue;
-	}
-
-	[data-tooltip] {
-		position: relative;
-		cursor: help;
-	}
-	[data-tooltip]:hover::after {
-		content: attr(data-tooltip);
-		position: absolute;
-		bottom: 100%;
-		left: 50%;
-		transform: translateX(-50%);
-		background-color: #333;
-		color: white;
-		padding: 5px;
-		border-radius: 3px;
-		font-size: 12px;
-		white-space: nowrap;
-	}
-
-	.keyword-density {
-		margin-top: 20px;
-		font-size: 14px;
-	}
-
-	@media (max-width: 600px) {
-		.heatmap-content {
-			font-size: 14px;
-			line-height: 1.3;
-		}
-		.keyword-density {
-			font-size: 12px;
-		}
-	}
-</style>

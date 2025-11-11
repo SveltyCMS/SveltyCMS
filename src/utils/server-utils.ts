@@ -7,6 +7,7 @@
  */
 
 import fs from 'fs/promises';
+import { logger } from '@utils/logger';
 import path from 'path';
 
 // Collection name conflict checking types
@@ -43,7 +44,7 @@ export async function checkCollectionNameConflict(name: string, collectionsPath:
 
 		return { exists: false };
 	} catch (error) {
-		console.error('Error checking collection name:', error);
+		logger.error('Error checking collection name:', error);
 		return { exists: false };
 	}
 }

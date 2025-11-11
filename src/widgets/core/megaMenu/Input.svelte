@@ -152,33 +152,44 @@ Interactive menu builder with add/edit/reorder capabilities
 			children: []
 		};
 
-		parentItem.children.push(newChild);
+		parentItem.children = [...(parentItem.children || []), newChild];
 		value = [...(value || [])]; // Trigger reactivity
 	}
 
 	// Function to toggle expanded state
 	function toggleExpanded(item: MenuItem) {
-		item._expanded = !item._expanded;
+		item._expanded = item._expanded === false; // Toggle true/undefined to false, and false to true
 		value = [...(value || [])]; // Trigger reactivity
 	}
+
+	const lang = $derived(contentLanguage.value);
 </script>
 
-<div class="megamenu-container" class:invalid={error}>
-	<div class="menu-header">
-		<h3 class="menu-title">Menu Structure</h3>
-		<button type="button" class="add-root-btn" onclick={addItem}>
+<div class="space-y-4">
+	<div class="flex items-center justify-between border-b border-surface-200 pb-3 dark:border-surface-700">
+		<h3 class=" text-lg font-semibold text-surface-900 dark:text-surface-100">Menu Structure</h3>
+		<button type="button" class="variant-filled-tertiary btn dark:variant-filled-primary" onclick={addItem}>
 			<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
 			Add Menu Item
 		</button>
 	</div>
 
-	<div class="menu-list" class:empty={!value || value.length === 0}>
+	<div
+		class="mmin-h-[200px] space-y-2"
+		class:flex={!value || value.length === 0}
+		class:items-center={!value || value.length === 0}
+		class:justify-center={!value || value.length === 0}
+	>
 		{#if value && value.length > 0}
 			{#each value as item, index (item._id)}
 				<div
-					class="menu-item"
-					class:dragged={draggedItem?._id === item._id}
-					class:drag-over={dragOverIndex === index}
+					class="rounded-lg border border-surface-200 bg-surface-50/50 transition-all duration-200 dark:border-surface-700 dark:bg-surface-800/50"
+					class:scale-95={draggedItem?._id === item._id}
+					class:opacity-50={draggedItem?._id === item._id}
+					class:!border-primary-400={dragOverIndex === index}
+					class:!bg-primary-500={dragOverIndex === index}
+					class:dark:!border-primary-600={dragOverIndex === index}
+					class:dark:!bg-primary-900={dragOverIndex === index}
 					draggable={(field as any).defaults?.enableDragDrop !== false}
 					ondragstart={(e) => handleDragStart(e, item)}
 					ondragover={(e) => handleDragOver(e, index)}
@@ -186,10 +197,13 @@ Interactive menu builder with add/edit/reorder capabilities
 					ondragend={handleDragEnd}
 					role="listitem"
 				>
-					<div class="item-header">
-						<div class="item-controls">
+					<div class="flex items-center gap-3 p-3">
+						<div class=" flex items-center gap-1">
 							{#if (field as any).defaults?.enableDragDrop !== false}
-								<div class="drag-handle" aria-label="Drag to reorder">
+								<div
+									class="cursor-move p-1 text-surface-400 transition-colors hover:text-surface-600 dark:text-surface-500 dark:hover:text-surface-300"
+									aria-label="Drag to reorder"
+								>
 									<iconify-icon icon="mdi:drag" width="16"></iconify-icon>
 								</div>
 							{/if}
@@ -197,32 +211,37 @@ Interactive menu builder with add/edit/reorder capabilities
 							{#if item.children.length > 0 && (field as any).defaults?.enableExpandCollapse !== false}
 								<button
 									type="button"
-									class="expand-btn"
+									class="variant-filled-surface btn"
 									onclick={() => toggleExpanded(item)}
 									aria-expanded={item._expanded !== false}
 									aria-label={item._expanded !== false ? 'Collapse children' : 'Expand children'}
 								>
-									<iconify-icon icon="mdi:chevron-down" width="16" class="chevron" class:rotated={item._expanded === false}></iconify-icon>
+									<iconify-icon
+										icon="mdi:chevron-down"
+										width="16"
+										class="chevron transition-transform duration-200"
+										class:-rotate-90={item._expanded === false}
+									></iconify-icon>
 								</button>
 							{:else if item.children.length === 0}
-								<div class="spacer"></div>
+								<div class="spacer w-8"></div>
 							{/if}
 						</div>
 
-						<div class="item-content">
-							<span class="item-title">
-								{(item._fields as any)?.title?.[$contentLanguage] || (item._fields as any)?.title?.en || 'Untitled Item'}
+						<div class=" min-w-0 flex-1">
+							<span class=" truncate font-medium text-surface-900 dark:text-surface-100">
+								{(item._fields as any)?.title?.[lang] || (item._fields as any)?.title?.en || 'Untitled Item'}
 							</span>
 							{#if item.children.length > 0}
-								<span class="children-count">({item.children.length} children)</span>
+								<span class=" ml-2 text-xs text-surface-500 dark:text-surface-400">({item.children.length} children)</span>
 							{/if}
 						</div>
 
-						<div class="item-actions">
+						<div class="flex items-center gap-1">
 							{#if (field as any).fields && (field as any).fields.length > 1}
 								<button
 									type="button"
-									class="action-btn add-child-btn"
+									class="variant-filled-tertiary btn dark:variant-filled-primary"
 									onclick={() => addChildItem(item)}
 									aria-label="Add child item"
 									title="Add child item"
@@ -231,194 +250,39 @@ Interactive menu builder with add/edit/reorder capabilities
 								</button>
 							{/if}
 
-							<button type="button" class="action-btn edit-btn" onclick={() => editItem(item, 0)} aria-label="Edit item" title="Edit item">
+							<button type="button" class="abtn variant-filled-surface" onclick={() => editItem(item, 0)} aria-label="Edit item" title="Edit item">
 								<iconify-icon icon="mdi:pencil" width="14"></iconify-icon>
 							</button>
 
-							<button type="button" class="action-btn delete-btn" onclick={() => deleteItem(item)} aria-label="Delete item" title="Delete item">
+							<button type="button" class="variant-filled-error btn" onclick={() => deleteItem(item)} aria-label="Delete item" title="Delete item">
 								<iconify-icon icon="mdi:delete" width="14"></iconify-icon>
 							</button>
 						</div>
 					</div>
 
 					{#if item.children.length > 0 && item._expanded !== false}
-						<div class="children-container">
-							{#each item.children as child (child._id)}
-								<MegaMenuInput bind:value={item.children} {field} {error} />
-							{/each}
+						<div class="ml-8 border-l-2 border-surface-200 pl-4 dark:border-surface-700">
+							<MegaMenuInput bind:value={item.children} {field} {error} />
 						</div>
 					{/if}
 				</div>
 			{/each}
 		{:else}
-			<div class="empty-state">
-				<iconify-icon icon="mdi:menu" width="48" class="empty-icon"></iconify-icon>
-				<p class="empty-message">No menu items yet. Click "Add Menu Item" to get started.</p>
+			<div class="py-8 text-center">
+				<iconify-icon icon="mdi:menu" width="48" class="empty-icon mb-4 text-surface-300 dark:text-surface-600"></iconify-icon>
+				<p class="empty-message text-surface-500 dark:text-surface-400">No menu items yet. Click "Add Menu Item" to get started.</p>
 			</div>
 		{/if}
 	</div>
 
 	{#if error}
-		<div class="error-message" role="alert" aria-live="polite">
+		<div
+			class="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
+			role="alert"
+			aria-live="polite"
+		>
 			<iconify-icon icon="mdi:alert-circle" width="16"></iconify-icon>
 			{error}
 		</div>
 	{/if}
 </div>
-
-<style lang="postcss">
-	.megamenu-container {
-		@apply space-y-4;
-	}
-
-	.menu-header {
-		@apply flex items-center justify-between border-b border-surface-200 pb-3;
-	}
-
-	.menu-title {
-		@apply text-lg font-semibold text-surface-900;
-	}
-
-	.add-root-btn {
-		@apply flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-2 font-medium text-white transition-colors hover:bg-primary-700;
-	}
-
-	.menu-list {
-		@apply min-h-[200px] space-y-2;
-	}
-
-	.menu-list.empty {
-		@apply flex items-center justify-center;
-	}
-
-	.menu-item {
-		@apply rounded-lg border border-surface-200 bg-surface-50/50 transition-all duration-200;
-	}
-
-	.menu-item.dragged {
-		@apply scale-95 opacity-50;
-	}
-
-	.menu-item.drag-over {
-		@apply border-primary-400 bg-primary-50/30;
-	}
-
-	.item-header {
-		@apply flex items-center gap-3 p-3;
-	}
-
-	.item-controls {
-		@apply flex items-center gap-1;
-	}
-
-	.drag-handle {
-		@apply cursor-move p-1 text-surface-400 transition-colors hover:text-surface-600;
-	}
-
-	.expand-btn {
-		@apply rounded p-1 text-surface-500 transition-colors hover:text-surface-700;
-	}
-
-	.chevron {
-		@apply transition-transform duration-200;
-	}
-
-	.chevron.rotated {
-		@apply -rotate-90;
-	}
-
-	.spacer {
-		@apply w-8;
-	}
-
-	.item-content {
-		@apply min-w-0 flex-1;
-	}
-
-	.item-title {
-		@apply truncate font-medium text-surface-900;
-	}
-
-	.children-count {
-		@apply ml-2 text-xs text-surface-500;
-	}
-
-	.item-actions {
-		@apply flex items-center gap-1;
-	}
-
-	.action-btn {
-		@apply rounded p-2 text-surface-500 transition-colors hover:text-surface-700;
-	}
-
-	.edit-btn:hover {
-		@apply text-blue-600;
-	}
-
-	.delete-btn:hover {
-		@apply text-red-600;
-	}
-
-	.add-child-btn:hover {
-		@apply text-green-600;
-	}
-
-	.empty-state {
-		@apply py-8 text-center;
-	}
-
-	.empty-icon {
-		@apply mb-4 text-surface-300;
-	}
-
-	.empty-message {
-		@apply text-surface-500;
-	}
-
-	.error-message {
-		@apply flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700;
-	}
-
-	/* Dark mode adjustments */
-	@media (prefers-color-scheme: dark) {
-		.menu-item {
-			@apply border-surface-700 bg-surface-800/50;
-		}
-
-		.menu-item.drag-over {
-			@apply border-primary-600 bg-primary-900/20;
-		}
-
-		.drag-handle {
-			@apply text-surface-500 hover:text-surface-300;
-		}
-
-		.expand-btn {
-			@apply text-surface-400 hover:text-surface-200;
-		}
-
-		.item-title {
-			@apply text-surface-100;
-		}
-
-		.children-count {
-			@apply text-surface-400;
-		}
-
-		.action-btn {
-			@apply text-surface-400 hover:text-surface-200;
-		}
-
-		.children-container {
-			@apply border-surface-700;
-		}
-
-		.empty-icon {
-			@apply text-surface-600;
-		}
-
-		.empty-message {
-			@apply text-surface-400;
-		}
-	}
-</style>

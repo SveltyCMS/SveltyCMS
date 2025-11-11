@@ -108,7 +108,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			groups: options.groups,
 			collections: options.collections
 		};
-		const exportData = await createExport(locals.user.id, exportOptions);
+		const exportData = await createExport(locals.user._id, exportOptions);
 		const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 		const environment = exportData.metadata.environment || 'unknown';
 		const filename = `sveltycms-export-${environment}-${timestamp}.json`;
@@ -120,7 +120,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			}
 		});
 	} catch (error) {
-		console.error('Export error:', error);
+		logger.error('Export error:', error);
 		return json(
 			{
 				error: 'Export failed',

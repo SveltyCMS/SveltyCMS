@@ -224,6 +224,16 @@ async function applyImport(importData: ExportData, options: ImportOptions, confl
 
 	const db = getDb();
 
+	if (!db) {
+		result.success = false;
+		result.errors.push({
+			key: 'database',
+			message: 'Database connection not available',
+			code: 'DB_ERROR'
+		});
+		return result;
+	}
+
 	// Apply settings
 	if (importData.settings) {
 		for (const [key, value] of Object.entries(importData.settings)) {
@@ -380,7 +390,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		}
 
 		// Step 1: Validate import data structure
-		const validation = validateImportData(importData);
+		const validation = await validateImportData(importData);
 
 		if (!validation.valid) {
 			return json(
@@ -420,7 +430,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const result: ImportResult = await applyImport(importData, importOptions, conflicts);
 
 		// Step 4: Log import for audit trail
-		await logImport(locals.user.id, importData.metadata, result);
+		await logImport(locals.user._id, importData.metadata, result);
 
 		// Return result
 		return json(
@@ -437,7 +447,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			{ status: result.success ? 200 : 207 } // 207 Multi-Status if partial success
 		);
 	} catch (error) {
-		console.error('Import error:', error);
+		logger.error('Import error:', error);
 		return json(
 			{
 				success: false,

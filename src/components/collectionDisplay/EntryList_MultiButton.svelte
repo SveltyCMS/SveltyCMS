@@ -40,6 +40,7 @@
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { StatusTypes } from '@src/content/types';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
@@ -51,8 +52,7 @@
 	import { getModalStore } from '@skeletonlabs/skeleton';
 
 	// Components
-	import { showCloneModal, showScheduleModal, showStatusChangeConfirm } from '@utils/modalUtils';
-import ScheduleModal from './ScheduleModal.svelte';
+	import ScheduleModal from './ScheduleModal.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -193,14 +193,14 @@ import ScheduleModal from './ScheduleModal.svelte';
 	});
 
 	// Current button state
-	let currentConfig = $derived(buttonMap[currentAction] || buttonMap.create);
+	let currentConfig = $derived(buttonMap[String(currentAction)] || buttonMap.create);
 	let isMainButtonDisabled = $derived(currentAction !== 'create' && !hasSelections);
 
 	// Get available actions for dropdown (exclude current action)
 	let availableActions = $derived(Object.entries(buttonMap).filter(([type]) => type !== currentAction));
 
 	// Helper functions
-	function isActionDisabled(actionType: string): boolean {
+	function isActionDisabled(actionType: ActionType): boolean {
 		return actionType !== 'create' && !hasSelections;
 	}
 
@@ -209,8 +209,8 @@ import ScheduleModal from './ScheduleModal.svelte';
 	}
 
 	function openScheduleModal(): void {
-		console.log('Opening schedule modal with count:', selectedCount);
-		console.log('Modal store:', modalStore);
+		logger.debug('Opening schedule modal with count:', selectedCount);
+		logger.debug('Modal store:', modalStore);
 
 		// Use the component-level modalStore directly
 		modalStore.trigger({
@@ -222,7 +222,7 @@ import ScheduleModal from './ScheduleModal.svelte';
 			},
 			response: (result: { date: Date; action: string } | boolean) => {
 				if (result && typeof result === 'object' && 'date' in result) {
-					console.log('Schedule confirmed:', result.date, result.action);
+					logger.debug('Schedule confirmed:', result.date, result.action);
 					schedule(result.date.toISOString(), result.action);
 				}
 			}
@@ -230,7 +230,7 @@ import ScheduleModal from './ScheduleModal.svelte';
 	}
 
 	function openPublishModal(): void {
-		console.log('Opening publish modal with count:', selectedCount);
+		logger.debug('Opening publish modal with count:', selectedCount);
 
 		modalStore.trigger({
 			type: 'confirm',
@@ -239,7 +239,7 @@ import ScheduleModal from './ScheduleModal.svelte';
 			buttonTextConfirm: 'Publish',
 			response: (confirmed: boolean) => {
 				if (confirmed) {
-					console.log('Publish confirmed');
+					logger.debug('Publish confirmed');
 					publish();
 				}
 			}
@@ -247,7 +247,7 @@ import ScheduleModal from './ScheduleModal.svelte';
 	}
 
 	function openUnpublishModal(): void {
-		console.log('Opening unpublish modal with count:', selectedCount);
+		logger.debug('Opening unpublish modal with count:', selectedCount);
 
 		modalStore.trigger({
 			type: 'confirm',
@@ -256,7 +256,7 @@ import ScheduleModal from './ScheduleModal.svelte';
 			buttonTextConfirm: 'Unpublish',
 			response: (confirmed: boolean) => {
 				if (confirmed) {
-					console.log('Unpublish confirmed');
+					logger.debug('Unpublish confirmed');
 					unpublish();
 				}
 			}
@@ -264,7 +264,7 @@ import ScheduleModal from './ScheduleModal.svelte';
 	}
 
 	function openCloneModal(): void {
-		console.log('Opening clone modal with count:', selectedCount);
+		logger.debug('Opening clone modal with count:', selectedCount);
 
 		modalStore.trigger({
 			type: 'confirm',
@@ -273,7 +273,7 @@ import ScheduleModal from './ScheduleModal.svelte';
 			buttonTextConfirm: m.entrylist_multibutton_clone(),
 			response: (confirmed: boolean) => {
 				if (confirmed) {
-					console.log('Clone confirmed');
+					logger.debug('Clone confirmed');
 					clone();
 				}
 			}
@@ -285,7 +285,7 @@ import ScheduleModal from './ScheduleModal.svelte';
 		event.preventDefault();
 		event.stopPropagation();
 
-		console.log('Main button clicked, action:', currentAction, 'hasSelections:', hasSelections, 'selectedCount:', selectedCount);
+		logger.debug('Main button clicked, action:', currentAction, 'hasSelections:', hasSelections, 'selectedCount:', selectedCount);
 
 		switch (currentAction) {
 			case 'create':
@@ -317,7 +317,7 @@ import ScheduleModal from './ScheduleModal.svelte';
 				test();
 				break;
 			default:
-				console.warn('Unknown action:', currentAction);
+				logger.warn('Unknown action:', currentAction);
 		}
 
 		closeDropdown();
@@ -451,7 +451,7 @@ import ScheduleModal from './ScheduleModal.svelte';
 			transition:scale={{ duration: 200, easing: quintOut, start: 0.95, opacity: 0 }}
 		>
 			{#each availableActions as [actionType, config] (actionType)}
-				{@const disabled = isActionDisabled(actionType)}
+				{@const disabled = isActionDisabled(actionType as ActionType)}
 
 				<li class={disabled ? 'opacity-50' : ''}>
 					<button

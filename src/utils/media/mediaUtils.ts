@@ -168,7 +168,8 @@ export function constructUrl(
 	// Validate all required parameters with detailed checks
 	const missingParams = [];
 	if (!path || typeof path !== 'string') missingParams.push('path');
-	if (!hash || typeof hash !== 'string' || hash.length !== 32) missingParams.push('hash');
+	// Accept both 20-char (truncated) and 32-char (full) hashes
+	if (!hash || typeof hash !== 'string' || (hash.length !== 20 && hash.length !== 32)) missingParams.push('hash');
 	if (!fileName || typeof fileName !== 'string') missingParams.push('fileName');
 	if (!format || typeof format !== 'string') missingParams.push('format');
 	if (!contentTypes || typeof contentTypes !== 'string') missingParams.push('contentTypes');
@@ -360,5 +361,69 @@ export function validateMediaFile(
 			isValid: false,
 			message
 		};
+	}
+}
+
+/**
+ * Validates a media file against allowed types and size limits (SERVER-SIDE)
+ * @param buffer The file buffer
+ * @param fileName The original file name
+ * @param allowedTypesPattern The regex pattern to test against
+ * @param maxSizeBytes The maximum allowed size in bytes
+ */
+export function validateMediaFileServer(
+	buffer: Buffer,
+	fileName: string,
+	allowedTypesPattern: RegExp,
+	maxSizeBytes: number = 10 * 1024 * 1024 // Default to 10MB
+): { isValid: boolean; message?: string } {
+	const startTime = performance.now();
+
+	try {
+		// 1. Get MIME type from file name (browser-compatible)
+		const fileType = getBrowserMimeType(fileName) || 'application/octet-stream';
+
+		logger.debug('Validating media file (server-side)', {
+			fileName,
+			fileSize: buffer.length,
+			fileType,
+			allowedTypesPattern: allowedTypesPattern.toString(),
+			maxSizeBytes
+		});
+
+		// 2. Check Type
+		if (!fileType || !allowedTypesPattern.test(fileType)) {
+			const message = `Invalid file type (${fileType}). Allowed pattern: ${allowedTypesPattern}`;
+			logger.warn(message, {
+				fileName,
+				fileType,
+				allowedTypesPattern: allowedTypesPattern.toString()
+			});
+			return { isValid: false, message };
+		}
+
+		// 3. Check Size
+		if (buffer.length > maxSizeBytes) {
+			const message = `File size (${formatBytes(buffer.length)}) exceeds limit of ${formatBytes(maxSizeBytes)}`;
+			logger.warn(message, {
+				fileName,
+				fileSize: buffer.length,
+				maxSizeBytes
+			});
+			return { isValid: false, message };
+		}
+
+		logger.debug('Media file validation passed (server-side)', {
+			fileName,
+			processingTime: performance.now() - startTime
+		});
+		return { isValid: true };
+	} catch (err) {
+		const message = `Error validating media file: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message, {
+			fileName,
+			stack: new Error().stack
+		});
+		return { isValid: false, message };
 	}
 }

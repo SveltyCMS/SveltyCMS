@@ -32,11 +32,14 @@ import { error, json, type HttpError } from '@sveltejs/kit';
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
 
+// Types
+import type { ISODateString } from '@src/content/types';
+
 // System Logger
 import { logger } from '@utils/logger.server';
 
 // Input validation
-import { email, object, optional, parse, string, type ValiError } from 'valibot';
+import { email, object, optional, parse, pipe, string } from 'valibot';
 
 // Helper function to parse session duration strings
 function parseSessionDuration(duration: string): number {
@@ -53,7 +56,7 @@ function parseSessionDuration(duration: string): number {
 
 // Define a schema for the incoming user data to ensure type safety and prevent invalid data.
 const createUserSchema = object({
-	email: string([email('Please provide a valid email address.')]),
+	email: pipe(string(), email('Please provide a valid email address.')),
 	role: string('A role ID must be provided.'),
 	username: optional(string()),
 	password: string(),
@@ -91,11 +94,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (shouldCreateSession) {
 			// Use optimized createUserAndSession for single database transaction
 			const sessionDuration = parseSessionDuration(userData.createSession || '7d');
-			const expires = new Date(Date.now() + sessionDuration);
+			const expires = new Date(Date.now() + sessionDuration).toISOString() as ISODateString;
 
 			logger.debug('Creating user with session', {
 				email: userData.email,
-				sessionExpires: expires.toISOString(),
+				sessionExpires: expires,
 				tenantId
 			});
 
@@ -110,7 +113,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			);
 
 			if (!result.success || !result.data) {
-				throw error(500, result.message || 'Failed to create user and session');
+				const errorMessage = !result.success && 'error' in result ? result.error?.message : 'Failed to create user and session';
+				throw error(500, errorMessage);
 			}
 
 			logger.info('User and session created successfully via direct API call', {
@@ -143,9 +147,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json(newUser, { status: 201 });
 	} catch (err) {
 		// Handle specific validation errors from Valibot.
-		if (err.name === 'ValiError') {
-			const valiError = err as ValiError;
-			const issues = valiError.issues.map((issue) => issue.message).join(', ');
+		if (err instanceof Error && err.name === 'ValiError') {
+			const valiError = err as unknown as { issues: Array<{ message: string }> };
+			const issues = valiError.issues.map((issue: { message: string }) => issue.message).join(', ');
 			logger.warn('Invalid input for createUser API:', { issues });
 			throw error(400, `Invalid input: ${issues}`);
 		}

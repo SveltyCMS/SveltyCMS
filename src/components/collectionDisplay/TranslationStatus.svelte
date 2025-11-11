@@ -13,10 +13,11 @@
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { untrack, onMount, onDestroy } from 'svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 
 	// Skeleton
 	import { ProgressBar } from '@skeletonlabs/skeleton';
@@ -120,31 +121,30 @@
 
 	// Initialize translation progress
 	function initializeTranslationProgress(currentCollection: { fields: unknown[]; name?: unknown; _id?: string }): void {
-		const currentProgress = { ...translationProgress.value };
+		const newProgress: typeof translationProgress.value = { ...translationProgress.value };
 		let hasTranslatableFields = false;
 
-		// Initialize total fields for each language
 		for (const lang of availableLanguages) {
-			if (!currentProgress[lang]) {
-				currentProgress[lang] = {
-					total: new Set<string>(),
-					translated: new Set<string>()
-				};
-			}
+			const newTotalSet = new Set<string>(); // <-- 1. Create a fresh, empty Set for 'total'
 
-			// Add all translatable fields to the total set
 			for (const field of currentCollection.fields as { translated?: boolean; label: string }[]) {
 				if (field.translated) {
 					const fieldName = `${currentCollection.name}.${getFieldName(field)}`;
-					currentProgress[lang].total.add(fieldName);
+					newTotalSet.add(fieldName); // <-- 2. Add fields to the new set
 					hasTranslatableFields = true;
 				}
 			}
+
+			// 3. Create a new language object with the new 'total' set
+			//    and a new, empty 'translated' set.
+			newProgress[lang] = {
+				total: newTotalSet,
+				translated: new Set<string>() // <-- 4. MUST create a new, empty 'translated' set
+			};
 		}
 
-		// Show translation progress if there are translatable fields
-		currentProgress.show = hasTranslatableFields;
-		translationProgress.value = currentProgress;
+		newProgress.show = hasTranslatableFields;
+		translationProgress.value = newProgress;
 	}
 
 	// Update translation progress from field values
@@ -152,11 +152,16 @@
 		currentCollection: { fields: unknown[]; name?: unknown },
 		currentCollectionValue: Record<string, unknown>
 	): void {
-		const currentProgress = { ...translationProgress.value };
+		const newProgress = { ...translationProgress.value }; // 1. Shallow copy the top-level store
 		let hasUpdates = false;
 
 		for (const lang of availableLanguages) {
-			if (!currentProgress[lang]) continue;
+			const originalLangProgress = newProgress[lang];
+			if (!originalLangProgress) continue;
+
+			// 2. Create a NEW Set for 'translated' based on the old one
+			const newTranslatedSet = new Set(originalLangProgress.translated);
+			let langHasUpdates = false;
 
 			for (const field of currentCollection.fields as { translated?: boolean; label: string }[]) {
 				if (field.translated) {
@@ -168,21 +173,31 @@
 					const langValue = fieldValue?.[lang];
 
 					const isTranslated = isFieldTranslated(langValue);
-					const wasTranslated = currentProgress[lang].translated.has(fieldName);
+					// 3. Check against the *original* set (important!)
+					const wasTranslated = originalLangProgress.translated.has(fieldName);
 
 					if (isTranslated && !wasTranslated) {
-						currentProgress[lang].translated.add(fieldName);
-						hasUpdates = true;
+						newTranslatedSet.add(fieldName); // 4. Modify the NEW set
+						langHasUpdates = true;
 					} else if (!isTranslated && wasTranslated) {
-						currentProgress[lang].translated.delete(fieldName);
-						hasUpdates = true;
+						newTranslatedSet.delete(fieldName); // 4. Modify the NEW set
+						langHasUpdates = true;
 					}
 				}
+			}
+
+			if (langHasUpdates) {
+				// 5. Create a new lang object, replacing the 'translated' set
+				newProgress[lang] = {
+					...originalLangProgress, // carries over the 'total' set
+					translated: newTranslatedSet // assigns the NEW 'translated' set
+				};
+				hasUpdates = true;
 			}
 		}
 
 		if (hasUpdates) {
-			translationProgress.value = currentProgress;
+			translationProgress.value = newProgress; // 6. Assign the new top-level object to the store
 			calculateCompletionTotals();
 		}
 	}
@@ -223,34 +238,41 @@
 		isOpen = !isOpen;
 	}
 
-	async function handleLanguageChange(selectedLanguage: Locale): Promise<void> {
+	// EDIT/CREATE MODE: Toggle language locally WITHOUT navigation
+	// Data is already loaded (single entry), just switch which language fields to show
+	function handleLanguageChange(selectedLanguage: Locale): void {
+		logger.debug('[TranslationStatus] Language change:', contentLanguage.value, '→', selectedLanguage);
 		contentLanguage.set(selectedLanguage);
 		isOpen = false;
 
-		// Navigate to the new URL with updated language
-		const currentPath = $page.url.pathname;
-		const pathParts = currentPath.split('/').filter(Boolean);
-
-		// Replace the language part (first segment) with the new language
-		if (pathParts.length > 0) {
-			pathParts[0] = selectedLanguage;
-			const newPath = '/' + pathParts.join('/') + $page.url.search; // Preserve query params
-
-			// Navigate and invalidate all server data to force reload
-			await goto(newPath, { replaceState: false, keepFocus: true, invalidateAll: true });
-		}
-
-		// Dispatch custom event
+		// Update URL to reflect language (passive, no reload)
+		// This allows bookmarking/sharing the correct language URL
 		if (typeof window !== 'undefined') {
+			const currentPath = window.location.pathname;
+			const pathParts = currentPath.split('/').filter(Boolean);
+
+			if (pathParts.length > 0) {
+				// Replace first segment (language) with new language
+				pathParts[0] = selectedLanguage;
+				const newPath = '/' + pathParts.join('/') + window.location.search;
+
+				// Use replaceState to update URL without navigation/reload
+				window.history.replaceState({}, '', newPath);
+				logger.debug('[TranslationStatus] Updated URL to:', newPath);
+			}
+
+			// Dispatch custom event for local reactivity
 			const customEvent = new CustomEvent('languageChanged', {
 				detail: { language: selectedLanguage },
 				bubbles: true
 			});
 			window.dispatchEvent(customEvent);
+			logger.debug('[TranslationStatus] Dispatched languageChanged event');
 		}
 	}
 
-	// Handle language change for view mode select
+	// VIEW MODE: Navigate to new language (triggers SSR reload with fresh data)
+	// Used when browsing list - need to fetch entries in the new language
 	async function handleViewModeLanguageChange(event: Event) {
 		const target = event.target as HTMLSelectElement;
 		const selectedLanguage = target.value as Locale;
@@ -258,17 +280,23 @@
 		// Update the content language store
 		contentLanguage.set(selectedLanguage);
 
-		// Navigate to the new URL with updated language
-		const currentPath = $page.url.pathname;
-		const pathParts = currentPath.split('/').filter(Boolean);
+		// ENTERPRISE: Always use collection UUID for language changes
+		const currentCollectionId = collection.value?._id;
+		const currentSearch = page.url.search;
 
-		// Replace the language part (first segment) with the new language
-		if (pathParts.length > 0) {
-			pathParts[0] = selectedLanguage;
-			const newPath = '/' + pathParts.join('/') + $page.url.search; // Preserve query params
-
-			// Navigate and invalidate all server data to force reload
-			await goto(newPath, { replaceState: false, keepFocus: true, invalidateAll: true });
+		if (currentCollectionId) {
+			// Navigate using UUID
+			const newPath = `/${selectedLanguage}/${currentCollectionId}${currentSearch}`;
+			await goto(newPath, { replaceState: false, invalidateAll: true });
+		} else {
+			// Fallback: preserve path structure
+			const currentPath = page.url.pathname;
+			const pathParts = currentPath.split('/').filter(Boolean);
+			if (pathParts.length > 0) {
+				pathParts[0] = selectedLanguage;
+				const newPath = '/' + pathParts.join('/') + currentSearch;
+				await goto(newPath, { replaceState: false, invalidateAll: true });
+			}
 		}
 
 		// Dispatch a custom event to notify parent components
@@ -288,17 +316,53 @@
 	}
 
 	// Effects
+	// This tracks the ENTRY ID, not the collection ID
+	let lastEntryId = $state<string | undefined>(undefined);
 	let lastCollectionId = $state<string | undefined>(undefined);
+
 	$effect(() => {
 		const currentCollection = collection.value;
-		const collectionId = currentCollection?._id as string | undefined;
 
-		if (currentCollection?.fields && collectionId && collectionId !== lastCollectionId) {
+		// Get the current ENTRY's ID from the collectionValue store
+		const currentEntry = collectionValue.value as { _id?: string } | undefined;
+		const entryId = currentEntry?._id;
+		const collectionId = currentCollection?._id;
+
+		// This effect now runs if:
+		// 1. Collection changed (switching collections)
+		// 2. Entry ID changed (switching entries or entering create mode)
+		const collectionChanged = collectionId !== lastCollectionId;
+		const entryChanged = entryId !== lastEntryId;
+
+		if (currentCollection?.fields && (collectionChanged || entryChanged)) {
+			logger.debug('[TranslationStatus] Initializing translation progress', {
+				collectionId,
+				entryId,
+				collectionChanged,
+				entryChanged,
+				mode: entryId ? 'edit' : 'create'
+			});
+
 			untrack(() => {
 				isInitialized = false;
+
+				// 1. Reset the progress stats (clears all 'translated' sets)
 				initializeTranslationProgress(currentCollection);
-				calculateCompletionTotals();
+
+				// 2. Check if we are in EDIT mode (we have an entryId and data)
+				if (entryId && currentEntry && Object.keys(currentEntry).length > 0) {
+					// We are in "edit" mode.
+					// Immediately calculate the progress for the entry we just loaded.
+					updateTranslationProgressFromFields(currentCollection, currentEntry);
+				} else {
+					// We are in "create" mode (no entryId).
+					// Just calculate totals (which will be 0 / Total)
+					calculateCompletionTotals();
+				}
+
+				// 3. Mark as initialized and store the new entry/collection ID
 				isInitialized = true;
+				lastEntryId = entryId;
 				lastCollectionId = collectionId;
 			});
 		}
@@ -314,10 +378,10 @@
 			// Only update if data actually changed
 			const currentStr = JSON.stringify(currentCollectionValue);
 			if (currentStr !== lastCollectionValueStr) {
-				untrack(() => {
-					updateTranslationProgressFromFields(currentCollection, currentCollectionValue);
-					lastCollectionValueStr = currentStr;
-				});
+				logger.debug('[TranslationStatus] Collection value changed, updating progress');
+				// Update translation progress from the new data
+				updateTranslationProgressFromFields(currentCollection, currentCollectionValue);
+				lastCollectionValueStr = currentStr;
 			}
 		}
 	});

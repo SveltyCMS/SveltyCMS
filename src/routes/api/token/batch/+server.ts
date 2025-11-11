@@ -36,7 +36,7 @@ import { cacheService } from '@src/databases/CacheService';
 import { logger } from '@utils/logger.server';
 
 const batchTokenActionSchema = object({
-	tokenIds: array(string([minLength(1, 'Token ID cannot be empty.')])),
+	tokenIds: array(string(), minLength(1, 'At least one token ID is required.')),
 	action: picklist(['delete', 'block', 'unblock'], 'Invalid action specified.')
 });
 
@@ -62,8 +62,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			// Use auth.getAllTokens if available to verify ownership
 			try {
 				const filter = { tenantId } as { tenantId?: string };
-				const { tokens } = await auth.getAllTokens(filter);
-				const tokenSet = new Set(tokens.map((t) => t.token));
+				const tokensResult = await auth.getAllTokens(filter);
+				if (!tokensResult.success || !tokensResult.data) {
+					throw new Error('Failed to retrieve tokens');
+				}
+				const tokenSet = new Set(tokensResult.data.map((t) => t.token));
 				const allOwned = tokenIds.every((id) => tokenSet.has(id));
 				if (!allOwned) {
 					logger.warn('Attempt to act on tokens outside of tenant', { userId: user?._id, tenantId, requestedTokenIds: tokenIds });
@@ -108,8 +111,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		return json({ success: true, message: successMessage });
 	} catch (err) {
-		if (err.name === 'ValiError') {
-			const valiError = err as ValiError;
+		if (err && typeof err === 'object' && 'name' in err && err.name === 'ValiError') {
+			const valiError = err as ValiError<typeof batchTokenActionSchema>;
 			const issues = valiError.issues.map((issue) => issue.message).join(', ');
 			logger.warn('Invalid input for token batch API:', { issues });
 			throw error(400, `Invalid input: ${issues}`);

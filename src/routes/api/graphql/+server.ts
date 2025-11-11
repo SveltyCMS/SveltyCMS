@@ -15,13 +15,14 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // GraphQL Yoga
-import type { DatabaseAdapter } from '@src/databases/dbInterface';
+import type { DatabaseAdapter, DatabaseId } from '@src/databases/dbInterface';
 import { createSchema, createYoga, createPubSub } from 'graphql-yoga';
 import { collectionsResolvers, createCleanTypeName, registerCollections } from './resolvers/collections';
 import { mediaResolvers, mediaTypeDefs } from './resolvers/media';
 import { userResolvers, userTypeDefs } from './resolvers/users';
 
 // GraphQL Subscriptions
+// @ts-expect-error - ws module types not available
 import { WebSocketServer } from 'ws';
 import { useServer } from 'graphql-ws/use/ws';
 
@@ -34,11 +35,7 @@ import { cacheService } from '@src/databases/CacheService';
 
 // Auth / Permission
 import { hasPermissionWithRoles, registerPermission } from '@src/databases/auth/permissions';
-import { PermissionAction, PermissionType } from '@src/databases/auth/types';
-import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
-
-// Roles Configuration
-import { roles } from '@root/config/roles';
+import { PermissionAction, PermissionType, type User, type Role } from '@src/databases/auth/types';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -48,10 +45,12 @@ const pubSub = createPubSub();
 
 // Define the access management permission configuration
 const accessManagementPermission = {
+	_id: 'config:accessManagement' as DatabaseId,
 	contextId: 'config/accessManagement',
 	name: 'Access Management',
 	action: PermissionAction.MANAGE,
 	contextType: PermissionType.CONFIGURATION,
+	type: PermissionType.CONFIGURATION,
 	description: 'Allows management of user access and permissions'
 };
 
@@ -95,7 +94,10 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 	const { typeDefs: collectionsTypeDefs, collections } = await registerCollections(tenantId);
 
 	// Ensure collections is properly formatted
-	const collectionsArray = Array.isArray(collections) ? collections : Object.values(collections || {});
+	const collectionsArray = (Array.isArray(collections) ? collections : Object.values(collections || {})) as Array<{
+		_id?: string;
+		name?: string;
+	}>;
 	logger.debug('Collections array for GraphQL', {
 		collectionsCount: collectionsArray.length,
 		collectionNames: collectionsArray.map((c) => c?.name).filter(Boolean)
@@ -138,19 +140,19 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 		}
 	`;
 
-	const collectionsResolversObj = await collectionsResolvers(dbAdapter, cacheClient, privateEnv, tenantId, pubSub);
+	const collectionsResolversObj = await collectionsResolvers(dbAdapter, cacheClient, pubSub, tenantId);
 
 	const resolvers = {
 		Query: {
 			...collectionsResolversObj.Query,
 			...userResolvers(dbAdapter),
 			...mediaResolvers(dbAdapter),
-			accessManagementPermission: async (_, __, context) => {
+			accessManagementPermission: async (_: unknown, __: unknown, context: { user?: User; locals?: { roles?: Role[] } }) => {
 				const { user } = context;
 				if (!user) {
 					throw new Error('Unauthorized: No user in context');
 				}
-				const userHasPermission = hasPermissionWithRoles(user, 'config:accessManagement', roles);
+				const userHasPermission = hasPermissionWithRoles(user, 'config:accessManagement', context.locals?.roles || []);
 				if (!userHasPermission) {
 					throw new Error('Forbidden: Insufficient permissions');
 				}
@@ -160,7 +162,7 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 		Subscription: {
 			postAdded: {
 				subscribe: () => pubSub.subscribe('postAdded'),
-				resolve: (payload) => payload
+				resolve: (payload: unknown) => payload
 			}
 		},
 		...Object.keys(collectionsResolversObj)
@@ -187,24 +189,23 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
 		const yogaApp = createYoga({
 			schema,
 			graphqlEndpoint: '/api/graphql',
-			landingPage: false, // Disable landing page but keep GraphiQL
-			healthCheckEndpoint: false, // Disable health check to avoid SvelteKit compatibility issues
+			landingPage: false as const,
 			plugins: [], // Disable all plugins to prevent URL compatibility issues
 			cors: false, // Let SvelteKit handle CORS
 			graphiql: {
-				subscriptionsProtocol: 'GRAPHQL_WS'
+				subscriptionsProtocol: 'WS'
 			},
 			context: async ({ request }) => {
 				// Extract the context from the request if it was passed
-				const contextData = (request as Request & { contextData?: { user: unknown; tenantId?: string } }).contextData || {};
-				const user = contextData.user as { _id?: string } | undefined;
+				const contextData = (request as Request & { contextData?: { user: unknown; tenantId?: string } }).contextData;
+				const user = contextData?.user as { _id?: string } | undefined;
 				logger.debug('GraphQL context created', {
 					userId: user?._id,
-					tenantId: contextData.tenantId
+					tenantId: contextData?.tenantId
 				});
 				return {
-					user: contextData.user,
-					tenantId: contextData.tenantId,
+					user: contextData?.user,
+					tenantId: contextData?.tenantId,
 					pubSub
 				};
 			}
@@ -261,46 +262,8 @@ async function initializeWebSocketServer(dbAdapter: DatabaseAdapter, tenantId?: 
 					// Try multiple authentication methods
 					if (connectionParams) {
 						try {
-							// Method 1: Session ID from connectionParams
-							if (connectionParams.sessionId) {
-								logger.debug('WebSocket: Attempting auth via sessionId');
-								const sessionResult = await dbAdapter.auth.getSessionById(connectionParams.sessionId, tenantId);
-								if (sessionResult?.success && sessionResult.data) {
-									const userResult = await dbAdapter.auth.getUserById(sessionResult.data.user_id, tenantId);
-									if (userResult?.success) {
-										user = userResult.data;
-										logger.info('WebSocket: User authenticated via sessionId', { userId: user._id });
-									}
-								}
-							}
-
-							// Method 2: Cookie string (e.g., "session=abc123...")
-							else if (connectionParams.cookie) {
-								logger.debug('WebSocket: Attempting auth via cookie string');
-								const cookies = connectionParams.cookie.split(';').reduce(
-									(acc, cookie) => {
-										const [key, value] = cookie.trim().split('=');
-										acc[key] = value;
-										return acc;
-									},
-									{} as Record<string, string>
-								);
-
-								const sessionId = cookies[SESSION_COOKIE_NAME];
-								if (sessionId) {
-									const sessionResult = await dbAdapter.auth.getSessionById(sessionId, tenantId);
-									if (sessionResult?.success && sessionResult.data) {
-										const userResult = await dbAdapter.auth.getUserById(sessionResult.data.user_id, tenantId);
-										if (userResult?.success) {
-											user = userResult.data;
-											logger.info('WebSocket: User authenticated via cookie', { userId: user._id });
-										}
-									}
-								}
-							}
-
-							// Method 3: Bearer token (for API tokens)
-							else if (connectionParams.authorization) {
+							// Method 1: Bearer token (for API tokens)
+							if (connectionParams.authorization) {
 								logger.debug('WebSocket: Attempting auth via bearer token');
 								const token = connectionParams.authorization.replace(/^Bearer\s+/i, '');
 								const tokenValidation = await dbAdapter.auth.validateToken(token, undefined, 'access', tenantId);
@@ -311,7 +274,7 @@ async function initializeWebSocketServer(dbAdapter: DatabaseAdapter, tenantId?: 
 										const userResult = await dbAdapter.auth.getUserById(tokenData.data.user_id, tenantId);
 										if (userResult?.success) {
 											user = userResult.data;
-											logger.info('WebSocket: User authenticated via token', { userId: user._id });
+											logger.info('WebSocket: User authenticated via token', { userId: user?._id });
 										}
 									}
 								}
@@ -405,10 +368,11 @@ const handler = async (event: RequestEvent) => {
 			headers: request.headers
 		};
 
-		// Only add body and duplex for non-GET requests
+		// Only add body for non-GET requests
 		if (request.method !== 'GET' && request.body) {
 			requestInit.body = request.body;
-			requestInit.duplex = 'half';
+			// @ts-expect-error - duplex is required for streaming bodies but not in RequestInit type
+			requestInit.wwduplex = 'half';
 		}
 
 		const compatibleRequest = new Request(request.url.toString(), requestInit);
@@ -420,7 +384,10 @@ const handler = async (event: RequestEvent) => {
 		};
 
 		// Use GraphQL Yoga's handleRequest method which is designed for server environments
-		const yogaResponse = await yogaApp.handleRequest(compatibleRequest);
+		const yogaResponse = await yogaApp.handleRequest(compatibleRequest, {
+			user: locals.user,
+			tenantId: locals.tenantId
+		});
 
 		// Convert GraphQL Yoga response to proper SvelteKit Response
 		const responseText = await yogaResponse.text();

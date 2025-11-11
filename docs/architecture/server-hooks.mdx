@@ -878,6 +878,101 @@ When extending the middleware pipeline, follow these best practices to maintain 
 
 ---
 
+## Testing Strategy
+
+The server hooks middleware employs a **strategic testing approach** that balances direct unit testing with integration coverage:
+
+### Direct Unit Tests (2 hooks, 53 tests total)
+
+Complex hooks with intricate state machines and security logic receive dedicated unit tests:
+
+#### 1. handleSystemState (26 tests)
+
+**File:** `tests/bun/hooks/system-state.test.ts`
+
+**Why dedicated tests?** Complex state machine with 5 states (IDLE, INITIALIZING, READY, DEGRADED, FAILED) and state-dependent route blocking logic.
+
+**Test Coverage:**
+
+- ✅ READY state: All routes allowed
+- ✅ DEGRADED state: Routes allowed with service warnings in `event.locals`
+- ✅ IDLE state: Only setup/health/static routes allowed
+- ✅ INITIALIZING state: Essential routes only
+- ✅ FAILED state: Only health checks allowed
+- ✅ Route pattern matching for special paths
+- ✅ State transition logging and metrics
+
+```bash
+bun test tests/bun/hooks/system-state.test.ts  # 26 tests
+```
+
+#### 2. handleFirewall (27 tests)
+
+**File:** `tests/bun/hooks/firewall.test.ts`
+
+**Why dedicated tests?** Security-critical pattern matching and bot detection requiring comprehensive validation.
+
+**Test Coverage:**
+
+- ✅ Suspicious parameter detection (password, token, secret in URLs)
+- ✅ Bulk operation abuse patterns
+- ✅ Administrative endpoint enumeration
+- ✅ Advanced bot detection (HeadlessChrome, Selenium, Puppeteer, Playwright, PhantomJS)
+- ✅ Legitimate bot allowlist (Googlebot, facebookexternalhit, Twitterbot, Bingbot)
+- ✅ Normal traffic allowance
+- ✅ Path traversal and injection pattern detection
+
+```bash
+bun test tests/bun/hooks/firewall.test.ts      # 27 tests
+```
+
+### Indirect Integration Coverage (9 hooks)
+
+Simpler hooks with straightforward logic are tested through integration and API tests:
+
+| Hook                       | Tested Via                       | Test Count | Reasoning                                             |
+| -------------------------- | -------------------------------- | ---------- | ----------------------------------------------------- |
+| `handleAuthentication`     | User API tests                   | 47         | Session validation tested via authenticated API calls |
+| `handleAuthorization`      | Collections API tests            | 19         | RBAC tested via role-specific endpoints               |
+| `handleRateLimit`          | Setup API & stress tests         | 20+        | Rate limiting validated under load                    |
+| `handleSetup`              | Setup API tests                  | 20         | Installation flow tested end-to-end                   |
+| `handleLocale`             | UI rendering & i18n tests        | 5+         | Language sync tested in component tests               |
+| `handleTheme`              | UI rendering tests               | 5+         | Theme injection tested in SSR tests                   |
+| `handleStaticAssetCaching` | Static asset integration tests   | Implicit   | Simple regex matching, validated via asset requests   |
+| `addSecurityHeaders`       | Security & CSP integration tests | 8          | Header validation in security service tests           |
+| `handleApiRequests`        | All API endpoint tests           | 80+        | API authorization/caching tested across APIs          |
+
+### Testing Philosophy
+
+**When to use direct unit tests:**
+
+- Complex state machines with multiple branches
+- Security-critical pattern matching
+- Intricate business logic requiring edge case validation
+- Performance-sensitive code needing microbenchmarks
+
+**When to rely on integration tests:**
+
+- Simple transformations (header setting, cookie reading)
+- Middleware with straightforward pass-through logic
+- Hooks that primarily compose other services
+- Functionality already validated in downstream tests
+
+### Running All Hook Tests
+
+```bash
+# Run all direct hook tests
+bun test tests/bun/hooks/
+
+# Run hook tests + related integration tests
+bun test tests/bun/hooks/ tests/bun/api/ tests/bun/services/
+
+# Full test suite
+bun test
+```
+
+---
+
 ## Utility Exports
 
 Utility functions exported from `hooks.server.ts`:

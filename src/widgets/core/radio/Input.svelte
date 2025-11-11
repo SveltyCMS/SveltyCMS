@@ -35,43 +35,43 @@ Renders radio group with options from field.options array
 		value = $bindable(),
 		error
 	}: { field: FieldType & RadioProps; value?: string | number | null | undefined; error?: string | null } = $props();
+
+	const fieldId = field.db_fieldName;
 </script>
 
-<div class="radio-container" class:invalid={error}>
-	<fieldset>
-		<legend class="legend"
-			>{field.label}{#if field.required}*{/if}</legend
+<div class="mb-4">
+	<fieldset class="rounded border border-surface-500 p-2 dark:border-surface-400" aria-describedby={error ? `${fieldId}-error` : undefined}>
+		<!-- Legend -->
+		<legend
+			class="mx-auto block w-fit px-2 text-center text-sm font-normal text-surface-700 dark:text-surface-300"
+			style="background:none;border:none;"
 		>
+			{field.legend || 'Select one option'}
+		</legend>
 
-		<div class="options-wrapper">
+		<!-- Radio options -->
+		<div class="flex flex-col gap-y-2">
 			{#each field.options || [] as option (option.value)}
-				<label class="option">
-					<input type="radio" name={field.db_fieldName} bind:group={value} value={option.value} />
+				<label class="flex cursor-pointer items-center gap-2 text-base text-surface-800 dark:text-surface-200">
+					<input
+						type="radio"
+						name={field.db_fieldName}
+						bind:group={value}
+						value={option.value}
+						aria-checked={value === option.value}
+						aria-label={option.label}
+						class={field.color ? `accent-${field.color}` : ''}
+						style={field.color ? `accent-color: ${field.color}` : ''}
+					/>
 					<span>{option.label}</span>
 				</label>
 			{/each}
 		</div>
 	</fieldset>
-
+	<!-- Error message -->
 	{#if error}
-		<p class="error-message" role="alert">{error}</p>
+		<p id={`${fieldId}-error`} class="mt-2 text-center text-xs text-error-500" role="alert">
+			{error}
+		</p>
 	{/if}
 </div>
-
-<style lang="postcss">
-	.radio-container.invalid .legend {
-		color: #ef4444;
-	}
-	.legend {
-		@apply mb-2 text-sm font-medium text-gray-800;
-	}
-	.options-wrapper {
-		@apply flex flex-wrap gap-x-6 gap-y-2;
-	}
-	.option {
-		@apply flex cursor-pointer items-center gap-2 text-sm;
-	}
-	.error-message {
-		@apply mt-2 text-center text-xs text-error-500;
-	}
-</style>

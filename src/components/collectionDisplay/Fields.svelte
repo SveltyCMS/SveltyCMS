@@ -23,8 +23,9 @@
 - **Database-Agnostic**: Widgets handle data format (MongoDB: nested objects, SQL: relation tables via IDBAdapter)
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { getFieldName } from '@utils/utils';
+	import { logger } from '@utils/logger';
 
 	// Auth & Page data
 	import { page } from '$app/state';
@@ -33,6 +34,9 @@
 
 	// Stores
 	import { collection, collectionValue, setCollectionValue } from '@src/stores/collectionStore.svelte';
+	import { translationProgress, contentLanguage, dataChangeStore } from '@stores/store.svelte';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import type { Locale } from '@src/paraglide/runtime';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -42,8 +46,6 @@
 	import { showConfirm } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 
-	// Components
-	import Loading from '@components/Loading.svelte';
 	import { widgetStoreActions, widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte';
 
 	// Eager load all widget components for immediate use in Fields
@@ -53,9 +55,10 @@
 
 	let widgetFunctions = $state<Record<string, any>>({});
 	$effect(() => {
-		widgetFunctionsStore.subscribe((value) => {
+		const unsubscribe = widgetFunctionsStore.subscribe((value) => {
 			widgetFunctions = value;
-		})();
+		});
+		return unsubscribe;
 	});
 
 	// --- 1. RECEIVE DATA AS PROPS ---
@@ -83,6 +86,22 @@
 	// Track the last entry ID to detect when switching entries
 	let lastEntryId = $state<string | undefined>(undefined);
 
+	// Track current content language for reactivity
+	let currentContentLanguage = $state<Locale>(contentLanguage.value as Locale);
+
+	// React to contentLanguage store changes and update local state
+	// This ensures widgets remount with the correct language
+	$effect(() => {
+		const newLang = contentLanguage.value as Locale;
+		if (currentContentLanguage !== newLang) {
+			logger.debug('Language changed:', currentContentLanguage, '→', newLang);
+			logger.debug('Current collectionValue keys:', Object.keys(currentCollectionValue));
+			// Update immediately to trigger {#key} block
+			currentContentLanguage = newLang;
+			logger.debug('Updated currentContentLanguage to:', currentContentLanguage);
+		}
+	});
+
 	// --- 3. DERIVED STATE FROM PROPS ---
 	let selectedRevision = $derived(revisions.find((r: any) => r._id === selectedRevisionId) || null);
 	let diffObject = $derived(selectedRevision?.diff || null);
@@ -92,13 +111,64 @@
 			await widgetStoreActions.initializeWidgets(tenantId);
 			widgetsReady = true;
 		} catch (error) {
-			console.error('[Fields] Failed to initialize widgets:', error);
+			logger.error('[Fields] Failed to initialize widgets:', error);
 			widgetsReady = true; // unblock UI
 		}
 	});
 
 	// --- 4. SIMPLIFIED LOGIC ---
 	let derivedFields = $derived(fields || []);
+
+	// Get translation progress
+	let currentTranslationProgress = $derived(translationProgress.value);
+
+	// Track changes to translation progress for debugging
+	$effect(() => {
+		logger.debug('Translation progress updated:', {
+			showProgress: translationProgress.value?.show,
+			languages: Object.keys(translationProgress.value || {}).filter((k) => k !== 'show')
+		});
+	});
+
+	// Get available languages
+	let availableLanguages = $derived.by<Locale[]>(() => {
+		// Wait for publicEnv to be initialized
+		const languages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES;
+		if (!languages || !Array.isArray(languages)) {
+			return ['en'] as Locale[];
+		}
+		return languages as Locale[];
+	});
+
+	// Helper to get field translation percentage across all languages
+	function getFieldTranslationPercentage(field: any): number {
+		if (!field.translated) return 100; // Not a translatable field
+
+		const fieldName = `${collection.value?.name}.${getFieldName(field)}`;
+		const allLangs = availableLanguages; // Use the new derived state
+
+		// Avoid division by zero if no languages are configured
+		if (allLangs.length === 0) return 100;
+
+		let translatedCount = 0;
+
+		// Count how many languages have this field translated
+		for (const lang of allLangs) {
+			const langProgress = currentTranslationProgress?.[lang as Locale];
+			if (langProgress && langProgress.translated.has(fieldName)) {
+				translatedCount++;
+			}
+		}
+
+		// Calculate the overall percentage for this field
+		return Math.round((translatedCount / allLangs.length) * 100);
+	}
+
+	// Helper to get text color based on translation status
+	function getTranslationTextColor(percentage: number): string {
+		if (percentage === 100) return 'text-tertiary-500 dark:text-primary-500';
+		return 'text-error-500';
+	}
 
 	function ensureFieldProperties(field: any) {
 		if (!field) return null;
@@ -130,26 +200,63 @@
 
 		// When a new entry is loaded (different ID), pull from global -> local
 		if (globalId && globalId !== lastEntryId) {
-			console.log('[Fields] Loading entry data:', globalId);
+			logger.debug('Loading entry data:', globalId);
 			currentCollectionValue = { ...global } as any;
 			lastEntryId = globalId;
+			// Set initial snapshot for change tracking
+			dataChangeStore.setInitialSnapshot(global as Record<string, any>);
 			return;
 		}
 
 		// If creating new entry (no ID), initialize with global state
 		if (!globalId && !lastEntryId && global && Object.keys(global).length > 0) {
-			console.log('[Fields] Initializing new entry');
+			logger.debug('Initializing new entry');
 			currentCollectionValue = { ...global } as any;
+			// Set initial snapshot for change tracking
+			dataChangeStore.setInitialSnapshot(global as Record<string, any>);
 			return;
 		}
 
 		// Otherwise, push local changes to global (user is editing)
-		const local = currentCollectionValue as Record<string, unknown> | undefined;
+		// Use untrack to read currentCollectionValue without creating a dependency loop
+		const local = untrack(() => currentCollectionValue) as Record<string, unknown> | undefined;
 		if (local && Object.keys(local).length > 0) {
 			const currentDataStr = JSON.stringify(local);
 			const globalDataStr = JSON.stringify(global ?? {});
 			if (currentDataStr !== globalDataStr) {
-				setCollectionValue({ ...local });
+				logger.debug('Pushing local changes to global store');
+				untrack(() => setCollectionValue({ ...local }));
+				// Track changes for save button state
+				dataChangeStore.compareWithCurrent(local as Record<string, any>);
+			}
+		}
+	});
+
+	// Separate effect to detect changes in currentCollectionValue and sync to store
+	// This is needed because the widget bind:value updates currentCollectionValue
+	let lastLocalValueStr = $state<string>('');
+	$effect(() => {
+		// React to currentCollectionValue changes (from widget inputs)
+		const localStr = JSON.stringify(currentCollectionValue);
+
+		// Skip if this is the initial load or empty
+		if (!currentCollectionValue || Object.keys(currentCollectionValue).length === 0) {
+			return;
+		}
+
+		// Only update if value actually changed
+		if (localStr !== lastLocalValueStr) {
+			logger.debug('currentCollectionValue changed, syncing to store');
+			lastLocalValueStr = localStr;
+
+			// Update the global store (using untrack to avoid creating dependency)
+			const global = untrack(() => collectionValue.value);
+			const globalStr = JSON.stringify(global ?? {});
+
+			if (localStr !== globalStr) {
+				untrack(() => setCollectionValue({ ...currentCollectionValue }));
+				// Track changes for save button state
+				dataChangeStore.compareWithCurrent(currentCollectionValue as Record<string, any>);
 			}
 		}
 	});
@@ -225,9 +332,17 @@
 			<div class="mb-2 text-center text-xs text-error-500">{m.form_required()}</div>
 			<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
 				{#if !widgetsReady}
-					<div class="flex h-48 items-center justify-center">
-						<Loading />
-						<p class="ml-2 text-surface-500">Loading widgets...</p>
+					<div class="dark:bg-warning-950 flex h-48 flex-col items-center justify-center rounded-lg border border-warning-500 bg-warning-50 p-8">
+						<svg class="mb-4 h-16 w-16 text-warning-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+							/>
+						</svg>
+						<h3 class="mb-2 text-xl font-bold text-warning-600 dark:text-warning-400">Widgets Not Ready</h3>
+						<p class="text-center text-warning-600 dark:text-warning-400">Widget initialization failed. Please refresh the page.</p>
 					</div>
 				{:else}
 					<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
@@ -238,11 +353,30 @@
 									class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
 									style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
 								>
-									<div class="flex justify-between px-[5px] text-start">
-										<p class="inline-block font-semibold capitalize">
-											{field.label || field.db_fieldName}
-											{#if field.required}<span class="text-error-500">*</span>{/if}
-										</p>
+									<div class="flex items-center justify-between gap-2 px-[5px] text-start">
+										<!-- Field label -->
+										<div class="flex items-center gap-2">
+											<p class="inline-block font-semibold capitalize">
+												{field.label || field.db_fieldName}
+												{#if field.required}<span class="text-error-500">*</span>{/if}
+											</p>
+										</div>
+										<div class="flex items-center gap-2">
+											<!-- Translation status -->
+											{#if field.translated}
+												{@const percentage = getFieldTranslationPercentage(field)}
+												{@const textColor = getTranslationTextColor(percentage)}
+												<div class="flex items-center gap-1 text-xs">
+													<iconify-icon icon="bi:translate" width="16"></iconify-icon>
+													<span class="font-medium text-tertiary-500 dark:text-primary-500">{currentContentLanguage.toUpperCase()}</span>
+													<span class="font-medium {textColor}">({percentage}%)</span>
+												</div>
+											{/if}
+											<!-- Icon for field type -->
+											{#if field.icon}
+												<iconify-icon icon={field.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+											{/if}
+										</div>
 									</div>
 
 									{#if field.widget}
@@ -255,7 +389,11 @@
 
 										{#if WidgetComponent}
 											{@const fieldName = getFieldName(field, false)}
-											<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
+											{#key currentContentLanguage}
+												<!-- Widget remounts when currentContentLanguage changes -->
+												<!-- Widgets read contentLanguage from store, not props -->
+												<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
+											{/key}
 										{:else}
 											<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>
 										{/if}
@@ -321,7 +459,33 @@
 				{/if}
 			</div>
 		{:else if localTabSet === 2}
-			<div class="p-4">Live Preview coming soon!</div>
+			{@const hostProd = publicEnv?.HOST_PROD || 'https://localhost:5173'}
+			{@const entryId = (collectionValue as any).value?._id || 'draft'}
+			{@const previewUrl = `${hostProd}?preview=${entryId}`}
+			<div class="flex h-[600px] flex-col p-4">
+				<div class="mb-4 flex items-center justify-between gap-4">
+					<div class="flex flex-1 items-center gap-2">
+						<iconify-icon icon="mdi:open-in-new" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<input type="text" class="input flex-grow text-sm" readonly value={previewUrl} />
+						<button class="variant-ghost-surface btn btn-sm" use:clipboard={previewUrl} aria-label="Copy preview URL">
+							<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>
+						</button>
+					</div>
+					<a href={previewUrl} target="_blank" rel="noopener noreferrer" class="variant-filled-primary btn btn-sm">
+						<iconify-icon icon="mdi:open-in-new" width="16" class="mr-1"></iconify-icon>
+						Open
+					</a>
+				</div>
+
+				<div class="flex-1 overflow-hidden rounded-lg border border-surface-300 dark:border-surface-700">
+					<iframe src={previewUrl} title="Live Preview" class="h-full w-full" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+					></iframe>
+				</div>
+
+				<div class="mt-2 text-center text-xs text-surface-500">
+					Preview URL: {hostProd}?preview={entryId}
+				</div>
+			</div>
 		{:else if localTabSet === 3}
 			<div class="space-y-4 p-4">
 				<div class="flex items-center gap-2">

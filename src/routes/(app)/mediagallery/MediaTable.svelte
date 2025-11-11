@@ -25,6 +25,7 @@ Key features:
 <script lang="ts">
 	// Utils
 	import type { MediaBase, MediaTypeEnum } from '@utils/media/mediaModels';
+	import { logger } from '@utils/logger';
 	import { getMediaUrlSafe } from '@utils/media/mediaUtils';
 	import { formatBytes } from '@utils/utils';
 	// Components
@@ -89,7 +90,7 @@ Key features:
 
 		filteredFiles = filteredFiles.sort((a, b) => {
 			if (column === 'size') {
-				return (a[column] - b[column]) * sortOrder;
+				return ((a[column] ?? 0) - (b[column] ?? 0)) * sortOrder;
 			} else {
 				return String(a[column as keyof SortableMedia]).localeCompare(String(b[column as keyof SortableMedia])) * sortOrder;
 			}
@@ -150,7 +151,7 @@ Key features:
 										onerror={(e: Event) => {
 											const target = e.target as HTMLImageElement;
 											if (target) {
-												console.error('Failed to load media thumbnail for file:', file.filename);
+												logger.error('Failed to load media thumbnail for file:', file.filename);
 												target.src = '/static/Default_User.svg';
 												target.alt = 'Fallback thumbnail image';
 											}

@@ -6,50 +6,49 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-// Auth - Ensure these imports point to optimized, efficient functions
-import { hasPermissionWithRoles, getAllPermissions } from '@src/databases/auth/permissions';
+// Auth - getAllPermissions is lightweight, no heavy queries needed
+import { getAllPermissions } from '@src/databases/auth/permissions';
 
 // System Logger - Ensure logger is optimized for performance in production (e.g., disabled debug logs)
 import { logger } from '@utils/logger.server';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
-		const { user, roles: tenantRoles, tenantId } = locals; // Use tenant-specific roles from locals
+		const { user, roles: tenantRoles, tenantId } = locals;
 
+		// User authentication and permission checks already done by handleAuthorization hook
 		if (!user) {
 			logger.warn('User not authenticated, redirecting to login');
 			throw redirect(302, '/login');
 		}
 
-		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`, { tenantId });
+		// Check if user is admin (admins have access to all config pages)
+		const userRole = (tenantRoles || []).find((role) => role._id === user.role);
+		const isAdmin = userRole?.isAdmin === true;
 
-		if (!user.role) {
-			const message = `User role is missing for user \x1b[34m${user.email}\x1b[0m`;
+		if (!isAdmin) {
+			// For non-admins, check specific permission
+			// You can add more granular permission checks here if needed
+			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access access management`;
 			logger.warn(message, { tenantId });
 			throw error(403, message);
-		} // Check user permission using tenant-specific roles
+		}
 
-		const hasAccessPermission = hasPermissionWithRoles(user, 'config:accessManagement', tenantRoles);
-
-		if (!hasAccessPermission) {
-			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access management`;
-			logger.warn(message, { tenantId });
-			throw error(403, message);
-		} // Fetch permissions. Roles are already available from locals.
-
+		// Fetch permissions (lightweight operation)
 		logger.debug('Fetching permissions...', { tenantId });
 		const permissions = getAllPermissions();
 
-		logger.debug(`Roles fetched: ${tenantRoles.length}`, { tenantId });
-		logger.debug(`Permissions fetched: ${permissions.length}`, { tenantId }); // Return only necessary user data to the client to minimize payload
+		logger.debug(`Roles available: \x1b[34m${tenantRoles.length}\x1b[0m`, { tenantId });
+		logger.debug(`Permissions fetched: \x1b[34m${permissions.length}\x1b[0m`, { tenantId });
 
+		// Return minimal user data and reuse roles from locals (already cached by handleAuthorization)
 		return {
 			user: {
 				_id: user._id.toString(),
 				email: user.email,
 				role: user.role
 			},
-			roles: tenantRoles, // Pass the tenant-specific roles to the page
+			roles: tenantRoles, // Already cached and loaded by handleAuthorization hook
 			permissions
 		};
 	} catch (err) {

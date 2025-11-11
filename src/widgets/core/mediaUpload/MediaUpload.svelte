@@ -1,22 +1,32 @@
 <!--
 @file src/widgets/core/mediaUpload/MediaUpload.svelte
-@components
-**MediaUpload widget**
+@component
+**Media Upload Widget Component**
 
-@example
-<MediaUpload label="MediaUpload" db_fieldName="mediaUpload" required={true} />
+This component allows users to upload and manage single media files (images).
+It integrates with a media library modal for selecting existing assets and provides
+functionality for image editing and basic file information display.
 
 ### Props
-- `field`: FieldType
-- `value`: any
+- `field`: FieldType & { path: string } - Configuration for the media upload field, including validation rules and storage path.
+- `value`: File | MediaImage - The currently selected file or media image object.
 
 ### Features
-- Translatable
+- **File Upload**: Allows direct file uploads via a file input.
+- **Media Library Integration**: Opens a modal to select existing media from the library.
+- **Image Preview**: Displays a preview of the selected image.
+- **Image Editing**: Provides an option to open a modal for image manipulation.
+- **File Information Display**: Shows details like file name, size, type, and timestamps.
+- **Validation**: Integrates with Valibot for client-side validation of file types.
+- **Reactivity**: Uses Svelte 5 runes (`$state`, `$props`, `$effect`) for efficient state management.
+- **Styling**: Adheres to the project's style guide using Tailwind CSS utility classes and semantic colors.
 -->
 
 <script lang="ts">
 	import type { FieldType } from '.';
+	import type { ISODateString } from '@src/content/types';
 	import { convertTimestampToDateString, getFieldName, meta_data } from '@utils/utils';
+	import { isoDateStringToDate } from '@utils/dateUtils';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -115,15 +125,17 @@
 	};
 
 	// Helper function to get timestamp
-	function getTimestamp(date: Date | number): number {
-		return typeof date === 'number' ? date : date.getTime();
+	function getTimestamp(date: Date | number | ISODateString): number {
+		if (typeof date === 'number') return date;
+		if (typeof date === 'string') return isoDateStringToDate(date as ISODateString).getTime();
+		return date.getTime();
 	}
 </script>
 
 <div class="relative mb-4 min-h-1">
 	{#if !_data}
 		<!-- File Input -->
-		<div class:error={!!validationError}>
+		<div class="rounded-lg border-2 border-dashed border-transparent" class:!border-error-500={!!validationError}>
 			<FileInput bind:value={_data} bind:multiple={field.multiupload} onChange={validateInput} />
 		</div>
 	{:else}
@@ -142,14 +154,14 @@
 
 					<p class="text-left">
 						{m.widget_ImageUpload_Size()}
-						<span class="text-tertiary-500 dark:text-primary-500">{(_data.size / 1024).toFixed(2)} KB</span>
+						<span class="text-tertiary-500 dark:text-primary-500">{((_data.size ?? 0) / 1024).toFixed(2)} KB</span>
 					</p>
 				</div>
 				<!-- Image -->
 				<div class="flex items-center justify-between">
 					{#if !isFlipped}
 						<img
-							src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnails.sm.url}
+							src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnails?.sm?.url || _data.url}
 							alt=""
 							class="col-span-11 m-auto max-h-[200px] max-w-[500px] rounded"
 						/>
@@ -207,10 +219,11 @@
 <!-- Image Editor Modal -->
 {#if showImageEditor}
 	<ModalImageEditor
-		parent={undefined}
 		{_data}
 		{field}
 		{value}
+		parent={field.path}
+		updated={Date.now()}
 		mediaOnSelect={(file: File | MediaImage) => {
 			_data = file;
 			showImageEditor = false;
@@ -218,9 +231,3 @@
 		}}
 	/>
 {/if}
-
-<style lang="postcss">
-	.error {
-		border-color: rgb(239 68 68);
-	}
-</style>

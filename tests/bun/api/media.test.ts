@@ -8,8 +8,9 @@
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
 import { cleanupTestDatabase, cleanupTestEnvironment, initializeTestEnvironment, testFixtures } from '../helpers/testSetup';
+import { getApiBaseUrl, waitForServer } from '../helpers/server';
 
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5173';
+const API_BASE_URL = getApiBaseUrl();
 
 /**
  * Helper function to create an admin user, log in, and return the auth token.
@@ -51,6 +52,7 @@ describe('Media API Endpoints', () => {
 	let authToken: string;
 
 	beforeAll(async () => {
+		await waitForServer(); // Wait for SvelteKit server to be ready
 		await initializeTestEnvironment();
 	});
 

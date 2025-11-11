@@ -19,23 +19,23 @@ import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
 import { literal, optional, union, type InferInput as ValibotInput } from 'valibot';
-import type { RadioProps } from './types';
+import type { RadioProps, RadioOption } from './types';
 
 // The validation schema is a function that generates rules based on the configured options.
-const validationSchema = (field: FieldInstance) => {
+const validationSchema = (field: FieldInstance & RadioProps) => {
 	// Extract the allowed values from the field's options array.
-	const allowedValues = field.options?.map((opt: { value: any }) => literal(opt.value)) || [];
+	const allowedValues = (field.options as RadioOption[] | undefined)?.map((opt) => literal(opt.value)) || [];
 
 	// Create a schema that only allows one of the specified literal values.
 	// This provides powerful, automatic validation.
-	const schema = union(allowedValues as any, 'Please select a valid option.');
+	const schema = union([...allowedValues], 'Please select a valid option.');
 
 	// If the field is not required, the value can be null or undefined.
 	return field.required ? schema : optional(schema);
 };
 
 // Create the widget definition using the factory.
-const RadioWidget = createWidget<RadioProps, ReturnType<typeof validationSchema>>({
+const RadioWidget = createWidget<RadioProps>({
 	Name: 'Radio',
 	Icon: 'mdi:radiobox-marked',
 	Description: m.widget_radio_description(),
@@ -50,7 +50,8 @@ const RadioWidget = createWidget<RadioProps, ReturnType<typeof validationSchema>
 	// Set widget-specific defaults.
 	defaults: {
 		options: [],
-		translated: false // A single selection is not typically translated.
+		translated: false, // A single selection is not typically translated.
+		legend: ''
 	},
 
 	// GuiSchema allows a simple text area for defining options in the collection builder.
@@ -58,6 +59,7 @@ const RadioWidget = createWidget<RadioProps, ReturnType<typeof validationSchema>
 		label: { widget: Input, required: true },
 		db_fieldName: { widget: Input, required: false },
 		required: { widget: Toggles, required: false },
+		legend: { widget: Input, required: false, helper: 'Legend text for the radio group' },
 		options: {
 			widget: Input, // Using a simple textarea for JSON/JS array input
 			required: true,

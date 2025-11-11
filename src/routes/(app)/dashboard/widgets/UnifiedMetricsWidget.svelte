@@ -38,6 +38,7 @@ for comprehensive system monitoring and performance analysis.
 
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { logger } from '@utils/logger';
 	import BaseWidget from '../BaseWidget.svelte';
 
 	// Props
@@ -245,7 +246,7 @@ for comprehensive system monitoring and performance analysis.
 			lastUpdate = Date.now();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to fetch metrics';
-			console.error('Unified metrics fetch error:', err);
+			logger.error('Unified metrics fetch error:', err);
 		} finally {
 			isLoading = false;
 		}

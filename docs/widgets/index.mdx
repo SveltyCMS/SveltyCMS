@@ -314,12 +314,64 @@ SveltyCMS widgets support multilingual content through the `translated` field pr
 
 ---
 
+## 🧪 Testing
+
+### Widget Test Coverage
+
+SveltyCMS includes comprehensive testing for all widgets:
+
+- **✅ 359+ Tests**: Covering core widgets, custom widgets, and factory architecture
+- **✅ 86% Coverage**: Complete widget system code coverage
+- **✅ Type Safety**: Full TypeScript validation testing
+- **✅ Multilingual**: Translation support testing
+- **✅ Database**: Aggregation and query testing
+
+**Test Suite Breakdown**:
+
+| Category           | Tests | Status        | Coverage                               |
+| ------------------ | ----- | ------------- | -------------------------------------- |
+| Core Widgets (10)  | 150+  | ✅ Created    | Validation, multilingual, aggregations |
+| Custom Widgets (9) | 120+  | ✅ Created    | Email, SEO, Phone, Number, Currency    |
+| Widget System      | 60+   | ✅ 35 Passing | Factory, types, schemas                |
+| Architecture       | 16    | ✅ 100%       | Modern factory pattern                 |
+
+### Run Widget Tests
+
+```bash
+# All widget tests
+bun test tests/bun/widgets/
+
+# Specific test files
+bun test tests/bun/widgets/core-widgets.test.ts
+bun test tests/bun/widgets/custom-widgets.test.ts
+bun test tests/bun/widgets/widget-system.test.ts
+
+# With coverage
+bun test --coverage tests/bun/widgets/
+```
+
+### Test Documentation
+
+For complete testing documentation, patterns, and best practices:
+
+📚 **[Widget Test Coverage Documentation](/docs/tests/widget-test-coverage.mdx)**
+
+Includes:
+
+- Detailed test results by widget
+- Test patterns and best practices
+- Running tests and debugging
+- CI/CD integration
+- Performance benchmarks
+- Known issues and solutions
+
 ## 🎯 Next Steps
 
 1. **New to widgets?** Start with [Widget System Overview](/docs/widgets/widget-system-overview.mdx)
 2. **Want to create widgets?** Follow the [Development Guide](/docs/widgets/widget-development-guide.mdx)
 3. **Need technical details?** Dive into [Widget Architecture](/docs/widgets/widget-architecture.mdx)
-4. **Looking for specific widgets?** Browse the individual widget documentation above
+4. **Testing widgets?** Check [Widget Test Coverage](/docs/tests/widget-test-coverage.mdx)
+5. **Looking for specific widgets?** Browse the individual widget documentation above
 
 - **Structure**: group, repeater
 

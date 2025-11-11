@@ -7,6 +7,7 @@
 <script lang="ts">
 	// Modern widget system
 	import { activeWidgets, widgetFunctions, widgetStoreActions } from '@stores/widgetStore.svelte';
+	import { logger } from '@utils/logger';
 	import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 	import { onMount } from 'svelte';
 	// ParaglideJS
@@ -53,7 +54,7 @@
 			// close the modal
 			modalStore.close();
 		} else {
-			console.error('No widget selected');
+			logger.error('No widget selected');
 		}
 	}
 

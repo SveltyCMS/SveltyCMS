@@ -5,7 +5,6 @@
 -->
 
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import * as m from '@src/paraglide/messages';
@@ -17,19 +16,11 @@
 		setCollection(null);
 	});
 
-	function handleInternalNavigation(href: string, target?: string) {
-		// Only handle internal links (not external ones with target="_blank")
-		if (target === '_blank') {
-			return; // Let the browser handle external links normally
-		}
-
+	function handleMobileSidebarClose() {
 		// Hide sidebar on mobile before navigation
 		if (typeof window !== 'undefined' && window.innerWidth < 768) {
 			toggleUIElement('leftSidebar', 'hidden');
 		}
-
-		// Navigate to the route
-		goto(href);
 	}
 
 	// A single, data-driven array to define all configuration items.
@@ -252,50 +243,32 @@
 
 			{#if usePermissionGuard}
 				<PermissionGuard config={item.permission}>
-					{#if item.target === '_blank'}
-						<a
-							href={item.href}
-							class={`flex h-24 flex-col items-center justify-center gap-2 rounded p-2 text-center shadow-md transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg lg:h-20 ${item.classes}`}
-							aria-label={item.label}
-							target="_blank"
-							rel="noopener noreferrer"
-						>
-							<iconify-icon icon={item.icon} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`}></iconify-icon>
-							<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
-						</a>
-					{:else}
-						<button
-							type="button"
-							class={`flex h-24 flex-col items-center justify-center gap-2 rounded p-2 text-center shadow-md transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg lg:h-20 ${item.classes}`}
-							aria-label={item.label}
-							onclick={() => handleInternalNavigation(item.href, item.target)}
-						>
-							<iconify-icon icon={item.icon} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`}></iconify-icon>
-							<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
-						</button>
-					{/if}
+					<a
+						href={item.href}
+						class={`flex h-24 flex-col items-center justify-center gap-2 rounded p-2 text-center shadow-md transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg lg:h-20 ${item.classes}`}
+						aria-label={item.label}
+						target={item.target}
+						rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
+						data-sveltekit-preload-data={item.target === '_blank' ? undefined : 'hover'}
+						onclick={handleMobileSidebarClose}
+					>
+						<iconify-icon icon={item.icon} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`}></iconify-icon>
+						<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
+					</a>
 				</PermissionGuard>
-			{:else if item.target === '_blank'}
+			{:else}
 				<a
 					href={item.href}
 					class={`flex h-24 flex-col items-center justify-center gap-2 rounded p-2 text-center shadow-md transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg lg:h-20 ${item.classes}`}
 					aria-label={item.label}
-					target="_blank"
-					rel="noopener noreferrer"
+					target={item.target}
+					rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
+					data-sveltekit-preload-data={item.target === '_blank' ? undefined : 'hover'}
+					onclick={handleMobileSidebarClose}
 				>
 					<iconify-icon icon={item.icon} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`}></iconify-icon>
 					<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
 				</a>
-			{:else}
-				<button
-					type="button"
-					class={`flex h-24 flex-col items-center justify-center gap-2 rounded p-2 text-center shadow-md transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg lg:h-20 ${item.classes}`}
-					aria-label={item.label}
-					onclick={() => handleInternalNavigation(item.href, item.target)}
-				>
-					<iconify-icon icon={item.icon} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`}></iconify-icon>
-					<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
-				</button>
 			{/if}
 		{/each}
 	</div>

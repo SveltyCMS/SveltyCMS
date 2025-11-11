@@ -2,4 +2,4 @@
 
 [test]
 # This tells Bun to run our mock file before executing any tests.
-preload = ["./tests/bun/mocks/setup.ts"]
+preload = ["./tests/bun/svelte-loader.js", "./tests/bun/mocks/setup.ts"]

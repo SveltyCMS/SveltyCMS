@@ -96,7 +96,7 @@ export class ThemeManager {
 
 			// Cache it as the global default
 			this.themeCache.set('global', defaultTheme);
-			logger.debug(`Default theme cached: ${defaultTheme.name}`);
+			logger.debug(`Default theme cached: \x1b[34m${defaultTheme.name}\x1b[0m`);
 		} catch (err) {
 			logger.error('Failed to load themes from database:', err);
 			// Fallback to DEFAULT_THEME on error
@@ -120,7 +120,7 @@ export class ThemeManager {
 		// For now, fall back to global theme since tenant-specific themes
 		// require additional schema implementation
 		if (tenantId) {
-			logger.debug(`No tenant-specific theme for ${tenantId}, using global theme`);
+			logger.debug(`No tenant-specific theme for \x1b[34m${tenantId}\x1b[0m, using global theme`);
 			const globalTheme = this.themeCache.get('global');
 			if (globalTheme) {
 				return globalTheme;
@@ -149,7 +149,7 @@ export class ThemeManager {
 			const cacheKey = tenantId || 'global';
 			this.themeCache.set(cacheKey, theme);
 
-			logger.info(`Theme updated to: ${theme.name}`, { tenantId: tenantId || 'global' });
+			logger.info(`Theme updated to: \x1b[34m${theme.name}\x1b[0m`, { tenantId: tenantId || 'global' });
 		} catch (err) {
 			const message = `Error in ThemeManager.setTheme: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { tenantId });

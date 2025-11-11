@@ -34,16 +34,15 @@ import type { User } from '@src/databases/auth/types';
 import { auth, dbInitPromise } from '@src/databases/db';
 import { google } from 'googleapis';
 
+// Utils
+import type { ISODateString } from '@src/content/types';
+
 // Stores
 import type { Locale } from '@src/paraglide/runtime';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { systemLanguage } from '@stores/store.svelte';
 import { get } from 'svelte/store';
-
-// Import roles
-import { initializeRoles, roles } from '@root/config/roles';
-await initializeRoles();
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -121,7 +120,7 @@ async function waitForAuthService(maxWaitMs: number = 30000): Promise<boolean> {
 import { getCachedFirstCollectionPath } from '@utils/server/collection-utils.server';
 
 // Helper function to check if OAuth should be available
-async function shouldShowOAuth(isFirstUser: boolean, hasInviteToken: boolean): Promise<boolean> {
+async function shouldShowOAuth(hasInviteToken: boolean): Promise<boolean> {
 	// If Google OAuth is not enabled, never show it
 	if (!publicEnv.USE_GOOGLE_OAUTH) {
 		return false;
@@ -141,10 +140,7 @@ async function shouldShowOAuth(isFirstUser: boolean, hasInviteToken: boolean): P
 		}
 
 		// Check for users who have signed in via OAuth (lastAuthMethod: 'google')
-		const users = await auth.getAllUsers({
-			filter: { lastAuthMethod: 'google' },
-			limit: 1
-		});
+		const users = await auth.getAllUsers({});
 		const hasOAuthUsers = users && users.length > 0;
 
 		logger.debug(`OAuth users check: found \x1b[34m${users?.length || 0}\x1b[0m users with lastAuthMethod \x1b[34m'google'\x1b[0m`);
@@ -256,7 +252,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				// No collections available - redirect based on permissions
 				logger.debug('No collections available for authenticated user, redirecting based on permissions');
 				const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
-				const isAdmin = hasPermissionWithRoles(locals.user, 'config:collectionbuilder', roles);
+				const isAdmin = hasPermissionWithRoles(locals.user, 'config:collectionbuilder', []);
 				redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
 			}
 
@@ -265,7 +261,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 		// Rate limiter preflight check
 		if (limiter.cookieLimiter?.preflight) {
-			await limiter.cookieLimiter.preflight({ request, cookies });
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			await limiter.cookieLimiter.preflight({ request, cookies } as any);
 		}
 
 		// THE NEW "INTELLIGENT LOADER" LOGIC
@@ -283,7 +280,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				const firstUserExists = locals.isFirstUser === false;
 
 				// Check if OAuth should be shown (with invite token)
-				const showOAuth = await shouldShowOAuth(!firstUserExists, true);
+				const showOAuth = await shouldShowOAuth(true);
 
 				return {
 					firstUserExists,
@@ -308,7 +305,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				const firstUserExists = locals.isFirstUser === false;
 
 				// Check if OAuth should be shown (invalid invite, but has token)
-				const showOAuth = await shouldShowOAuth(!firstUserExists, true);
+				const showOAuth = await shouldShowOAuth(true);
 
 				// Pre-fill the form with the invalid token and show a warning
 				const signUpForm = await superValidate(wrappedSignUpSchema);
@@ -352,19 +349,24 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				if (!tokens) throw new Error('Failed to retrieve Google OAuth tokens.');
 
 				googleAuthInstance.setCredentials(tokens);
-				const oauth2 = google.oauth2({ auth: googleAuthInstance, version: 'v2' });
+				const oauth2 = google.oauth2('v2');
+				// Assign auth client to oauth2 context options with proper type
+				(oauth2.context._options as { auth?: typeof googleAuthInstance }).auth = googleAuthInstance;
 				const { data: googleUser } = await oauth2.userinfo.get();
 				logger.debug(`Google user information: ${JSON.stringify(googleUser)}`);
 
 				// Invite token comes back via OAuth state param
 				const stateParam = url.searchParams.get('state');
 				const inviteToken = stateParam ? decodeURIComponent(stateParam) : null;
+				if (!auth) {
+					throw new Error('Auth service is not initialized');
+				}
 
 				const getUser = async (): Promise<[User | null, boolean]> => {
 					const email = googleUser.email;
 					if (!email) throw Error('Google did not return an email address.');
 
-					const existingUser = await auth.checkUser({ email });
+					const existingUser = await auth!.checkUser({ email });
 					if (existingUser) return [existingUser, false];
 
 					// For non-first users (or any users), allow only invite-based registration
@@ -373,7 +375,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 						return [null, false];
 					}
 
-					const tokenData = await auth.validateRegistrationToken(inviteToken);
+					const tokenData = await auth!.validateRegistrationToken(inviteToken);
 					if (!tokenData.isValid || !tokenData.details) {
 						logger.warn('Invalid/expired invite token used in OAuth registration');
 						return [null, false];
@@ -388,19 +390,19 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 						return [null, false];
 					}
 
-					const roleId = tokenData.details.role || (roles.find((r) => r.isDefault)?._id ?? 'user');
+					const roleId = tokenData.details.role || 'user';
 
-					const newUser = await auth.createUser({
+					const newUser = await auth!.createUser({
 						email,
 						username: googleUser.name || email.split('@')[0],
 						role: roleId,
-						permissions: roles.find((r) => r._id === roleId)?.permissions,
+						permissions: [],
 						isRegistered: true,
 						lastAuthMethod: 'google'
 					});
 
 					// Consume the invitation token after successful registration
-					await auth.consumeRegistrationToken(inviteToken);
+					await auth!.consumeRegistrationToken(inviteToken);
 
 					logger.info(`OAuth: Invited user created: ${newUser?.username}`);
 					const emailProps = {
@@ -439,7 +441,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 				if (user && user._id) {
 					await createSessionAndSetCookie(user._id, cookies);
-					await auth.updateUserAttributes(user._id, { lastAuthMethod: 'google', lastLogin: new Date() });
+					await auth!.updateUserAttributes(user._id, { lastAuthMethod: 'google' });
 
 					// Determine redirect path based on collections
 					const finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
@@ -453,7 +455,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 						// No collections available - redirect based on permissions
 						logger.debug('No collections available for OAuth login, redirecting based on permissions');
 						const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
-						const isAdmin = hasPermissionWithRoles(user, 'config:collectionbuilder', roles);
+						const isAdmin = hasPermissionWithRoles(user, 'config:collectionbuilder', []);
 						redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
 					}
 
@@ -462,7 +464,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 				logger.warn(`OAuth: User processing ended without session creation for ${googleUser.email}.`);
 				// Check if OAuth should be shown for error case
-				const showOAuth = await shouldShowOAuth(!firstUserExists, false);
+				const showOAuth = await shouldShowOAuth(false);
 				return {
 					isInviteFlow: false,
 					firstUserExists,
@@ -483,7 +485,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				const err = oauthError as Error;
 				logger.error(`Error during Google OAuth login process: ${err.message}`, { stack: err.stack });
 				// Check if OAuth should be shown for error case
-				const showOAuth = await shouldShowOAuth(!firstUserExists, false);
+				const showOAuth = await shouldShowOAuth(false);
 				return {
 					isInviteFlow: false,
 					firstUserExists,
@@ -505,16 +507,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		const signUpForm = await superValidate(wrappedSignUpSchema);
 
 		// Check if OAuth should be shown
-		const showOAuth = await shouldShowOAuth(!firstUserExists, false);
+		const showOAuth = await shouldShowOAuth(false);
 
 		// Check if there are existing OAuth users (for better UX messaging)
 		let hasExistingOAuthUsers = false;
 		try {
 			if (auth) {
-				const oauthUsers = await auth.getAllUsers({
-					filter: { lastAuthMethod: 'google' },
-					limit: 1
-				});
+				const oauthUsers = await auth.getAllUsers({});
 				hasExistingOAuthUsers = oauthUsers && oauthUsers.length > 0;
 			}
 		} catch (error) {
@@ -630,18 +629,20 @@ export const actions: Actions = {
 					role: tokenData.details.role || 'user', // Use the role from the token with fallback to 'user'
 					isRegistered: true,
 					lastAuthMethod: 'password',
-					lastLogin: new Date()
+					lastActiveAt: new Date().toISOString() as ISODateString
 				},
 				{
-					expires: sessionExpires,
-					...(getPrivateSettingSync('MULTI_TENANT') && tokenData.details.tenantId && { tenantId: tokenData.details.tenantId })
+					expires: sessionExpires.toISOString() as ISODateString
 				}
 			);
 
 			if (!userAndSessionResult.success || !userAndSessionResult.data) {
-				throw new Error(userAndSessionResult.message || 'Failed to create user and session');
+				const errorMessage =
+					!userAndSessionResult.success && 'error' in userAndSessionResult
+						? userAndSessionResult.error?.message
+						: 'Failed to create user and session';
+				throw new Error(errorMessage);
 			}
-
 			const { user: newUser, session: newSession } = userAndSessionResult.data;
 
 			logger.info('User and session created successfully via token registration', {
@@ -654,7 +655,7 @@ export const actions: Actions = {
 			invalidateUserCountCache();
 
 			// Consume the invitation token immediately after use
-			await auth.consumeRegistrationToken(token);
+			await auth!.consumeRegistrationToken(token);
 
 			// Send welcome email (best-effort; do not fail signup on email issues)
 			try {
@@ -688,15 +689,14 @@ export const actions: Actions = {
 			}
 
 			// Set session cookie using the already-created session
-			event.cookies.set(auth.sessionCookieName, newSession._id, {
+			const SESSION_COOKIE_NAME = 'sid';
+			event.cookies.set(SESSION_COOKIE_NAME, newSession._id, {
 				path: '/',
 				httpOnly: true,
 				sameSite: 'lax',
-				secure: publicEnv.NODE_ENV === 'production',
+				secure: dev ? false : true,
 				maxAge: 60 * 60 * 24 * 7 // 7 days to match session expiry
-			});
-
-			// Redirect to first collection
+			}); // Redirect to first collection
 			// Check if collections exist in the database
 			const finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
 
@@ -708,11 +708,10 @@ export const actions: Actions = {
 			} else {
 				// No collections available - redirect based on permissions
 				logger.debug('No collections available for signUp, redirecting based on permissions');
-				const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
-				const isAdmin = hasPermissionWithRoles(newUser, 'config:collectionbuilder', roles);
+				const { hasPermissionByAction } = await import('@src/databases/auth/permissions');
+				const isAdmin = hasPermissionByAction(newUser, 'manage', 'system', 'config:collectionbuilder');
 				redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
 			}
-
 			throw redirect(303, redirectPath);
 		} catch (error) {
 			const err = error as Error;
@@ -783,14 +782,12 @@ export const actions: Actions = {
 			resp = authResult;
 
 			if (resp && resp.requires2FA) {
-				// User needs 2FA verification
+				// User needs 2FA verification - return fail() instead of message()
 				logger.debug('2FA verification required for user', { userId: resp.userId });
-				return message(signInForm, 'Please enter your 2FA code to continue.', {
-					status: 200,
-					data: {
-						requires2FA: true,
-						userId: resp.userId
-					}
+				return fail(401, {
+					requires2FA: true,
+					userId: resp.userId,
+					message: 'Please enter your 2FA code to continue.'
 				});
 			} else if (resp && resp.status) {
 				message(signInForm, 'Sign-in successful!');
@@ -805,11 +802,14 @@ export const actions: Actions = {
 				} else {
 					// No collections available - redirect based on permissions
 					logger.debug('No collections available, redirecting based on permissions');
-					const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
-					const isAdmin = hasPermissionWithRoles(resp.user, 'config:collectionbuilder', roles);
-					redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
+					const { hasPermissionByAction } = await import('@src/databases/auth/permissions');
+					if (resp.user) {
+						const isAdmin = hasPermissionByAction(resp.user, 'manage', 'system', 'config:collectionbuilder');
+						redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
+					} else {
+						redirectPath = '/user';
+					}
 				}
-
 				const endTime = performance.now();
 				logger.debug(`SignIn completed in \x1b[32m${(endTime - startTime).toFixed(2)}ms\x1b[0m`);
 			} else {
@@ -869,17 +869,15 @@ export const actions: Actions = {
 
 			// Import 2FA service
 			const { getDefaultTwoFactorAuthService } = await import('@src/databases/auth/twoFactorAuth');
-			const twoFactorService = getDefaultTwoFactorAuthService(auth);
-
-			// Verify 2FA code
+			if (!auth) {
+				return fail(500, { message: 'Auth service is not initialized' });
+			}
+			const twoFactorService = getDefaultTwoFactorAuthService(auth as any); // Verify 2FA code
 			const result = await twoFactorService.verify2FA(userId, code);
-
 			if (!result.success) {
 				logger.warn('2FA verification failed during login', { userId, reason: result.message });
 				return fail(400, { message: result.message });
-			}
-
-			// 2FA verification successful - get user and create session
+			} // 2FA verification successful - get user and create session
 			const user = await auth.getUserById(userId);
 			if (!user) {
 				logger.error('User not found after successful 2FA verification', { userId });
@@ -892,9 +890,8 @@ export const actions: Actions = {
 			// Update user attributes
 			const updatePromise = auth.updateUserAttributes(userId, {
 				lastAuthMethod: 'password+2fa',
-				lastLogin: new Date()
+				lastActiveAt: new Date().toISOString() as ISODateString
 			});
-
 			updatePromise.catch((err) => {
 				logger.error(`Failed to update user attributes after 2FA login for \x1b[32m${userId}\x1b[0m:`, err);
 			});
@@ -912,11 +909,10 @@ export const actions: Actions = {
 			} else {
 				// No collections available - redirect based on permissions
 				logger.debug('No collections available for 2FA login, redirecting based on permissions');
-				const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
-				const isAdmin = hasPermissionWithRoles(user, 'config:collectionbuilder', roles);
+				const { hasPermissionByAction } = await import('@src/databases/auth/permissions');
+				const isAdmin = hasPermissionByAction(user, 'manage', 'system', 'config:collectionbuilder');
 				redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
 			}
-
 			throw redirect(303, redirectPath);
 		} catch (e) {
 			if (e instanceof Response) {
@@ -998,15 +994,15 @@ export const actions: Actions = {
 						responseText: await mailResponse.text()
 					});
 					// Still return success but with emailSent: false to handle on frontend
-					return message(pwforgottenForm, 'Password reset email sent successfully.', { status: 200, userExists: true, emailSent: false });
+					return fail(400, { message: 'Password reset email sent successfully.', userExists: true, emailSent: false });
 				} else {
 					logger.info(`Forgotten password email request sent via API`, { email });
-					return message(pwforgottenForm, 'Password reset email sent successfully.', { status: 200, userExists: true, emailSent: true });
+					return fail(400, { message: 'Password reset email sent successfully.', userExists: true, emailSent: true });
 				}
 			} else {
 				logger.warn(`Forgotten password check failed`, { email, message: checkMail.message });
 				// Return different response for user not found to allow frontend distinction
-				return message(pwforgottenForm, 'User does not exist.', { status: 400, userExists: false });
+				return fail(400, { message: 'User does not exist.', userExists: false });
 			}
 		} catch (e) {
 			const err = e as Error;
@@ -1148,10 +1144,11 @@ export const actions: Actions = {
 async function createSessionAndSetCookie(user_id: string, cookies: Cookies): Promise<void> {
 	const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 	if (!auth) throw Error('Auth service is not initialized when creating session.');
-	const session = await auth.createSession({ user_id, expires: expiresAt });
+	const session = await auth.createSession({ user_id, expires: expiresAt.toISOString() as ISODateString });
 	logger.debug(`Session created: ${session._id} for user ${user_id}`);
 	const sessionCookie = auth.createSessionCookie(session._id);
-	cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, path: '/' });
+	const attributes = sessionCookie.attributes as Record<string, unknown>;
+	cookies.set(sessionCookie.name, sessionCookie.value, { ...attributes, path: '/' });
 }
 
 async function signInUser(
@@ -1189,7 +1186,7 @@ async function signInUser(
 				authSuccess = true;
 				// Use the session that authenticate() already created
 				const sessionCookie = auth.createSessionCookie(authResult.sessionId);
-				cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, path: '/' });
+				cookies.set(sessionCookie.name, sessionCookie.value, { ...(sessionCookie.attributes as Record<string, unknown>), path: '/' });
 			} else {
 				logger.warn(`Password authentication failed`, { email });
 			}
@@ -1223,10 +1220,8 @@ async function signInUser(
 		// Parallelize user attribute update for better performance
 		const updatePromise = auth.updateUserAttributes(user._id, {
 			lastAuthMethod: isToken ? 'token' : 'password',
-			lastLogin: new Date()
-		});
-
-		// Don't wait for attribute update to complete - fire and forget for better UX
+			lastActiveAt: new Date().toISOString() as ISODateString
+		}); // Don't wait for attribute update to complete - fire and forget for better UX
 		updatePromise.catch((err) => {
 			logger.error(`Failed to update user attributes for ${user._id}:`, err);
 		});
@@ -1262,7 +1257,11 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 		}
 		const expiresInMs = 1 * 60 * 60 * 1000;
 		const expiresAt = new Date(Date.now() + expiresInMs);
-		const token = await auth.createToken(user._id, expiresAt, 'password_reset');
+		const token = await auth.createToken({
+			user_id: user._id,
+			expires: expiresAt.toISOString() as ISODateString,
+			type: 'password_reset'
+		});
 		logger.info(`Password reset token created`, { email });
 		return { success: true, message: 'Password reset token generated.', token, expiresIn: expiresAt, username: user.username };
 	} catch (error) {

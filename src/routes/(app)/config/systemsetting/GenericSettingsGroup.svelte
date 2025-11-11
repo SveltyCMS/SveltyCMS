@@ -1,7 +1,15 @@
 <!--
-@component GenericSettingsGroup.svelte
-@description Generic component for rendering any settings group
+@file  src/routes/(app)/config/systemsetting/GenericSettingsGroup.svelte
+@component
+**Generic component for rendering any settings group**
+
 Handles all field types and validation automatically
+
+### Props
+- `group`: The settings group to render, containing fields and metadata.
+
+### Feature:
+- Handles all field types including text, number, boolean, password, select, multi-select, language picker, log level picker, and array inputs
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -11,6 +19,8 @@ Handles all field types and validation automatically
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
 	import iso6391 from '@utils/iso639-1.json';
+	import { getLanguageName } from '@utils/languageUtils';
+	import { logger } from '@utils/logger';
 
 	const modalStore = getModalStore();
 
@@ -49,7 +59,7 @@ Handles all field types and validation automatically
 				allowedLocales = data.locales;
 			}
 		} catch (err) {
-			console.warn('[GenericSettingsGroup] Could not load project.inlang/settings.json, using all languages:', err);
+			logger.warn('[GenericSettingsGroup] Could not load project.inlang/settings.json, using all languages:', err);
 			// Fall back to all languages if we can't read the file
 			allowedLocales = [];
 		}
@@ -113,21 +123,19 @@ Handles all field types and validation automatically
 				throw new Error(data.error || 'Failed to load settings');
 			}
 		} catch (err) {
-			console.error(`[${group.id}] Load error:`, err);
+			logger.error(`[${group.id}] Load error:`, err);
 			error = err instanceof Error ? err.message : 'Failed to load settings';
 		} finally {
 			loading = false;
 		}
 	}
 
-	// Utility: Display language name (like SystemConfig.svelte)
+	// Utility: Display language name using Intl.DisplayNames API
 	function displayLanguage(code: string): string {
 		try {
-			const isoLang = iso6391.find((l: { code: string; name: string; native: string }) => l.code === code);
-			if (isoLang) return `${isoLang.native}`;
-			return code.toUpperCase();
+			return getLanguageName(code);
 		} catch {
-			return code;
+			return code.toUpperCase();
 		}
 	}
 
@@ -619,10 +627,9 @@ Handles all field types and validation automatically
 													{#each iso6391.filter((lang: { code: string; name: string; native: string }) => {
 														const search = (languageSearch[availableLangsField.key] || '').toLowerCase();
 														const currentValues = (values[availableLangsField.key] as string[]) || [];
-														const isAllowed = allowedLocales.length === 0 || allowedLocales.includes(lang.code);
-														return isAllowed && !currentValues.includes(lang.code) && (search === '' || lang.name
+														return !currentValues.includes(lang.code) && (search === '' || lang.name.toLowerCase().includes(search) || lang.native
 																	.toLowerCase()
-																	.includes(search) || lang.native.toLowerCase().includes(search) || lang.code.toLowerCase().includes(search));
+																	.includes(search) || lang.code.toLowerCase().includes(search));
 													}) as lang}
 														<button
 															type="button"
@@ -785,27 +792,27 @@ Handles all field types and validation automatically
 													bind:value={languageSearch[localesField.key]}
 												/>
 												<div class="max-h-48 overflow-auto">
-													{#each iso6391.filter((lang: { code: string; name: string; native: string }) => {
+													{#each allowedLocales.filter((code: string) => {
 														const search = (languageSearch[localesField.key] || '').toLowerCase();
 														const currentValues = (values[localesField.key] as string[]) || [];
-														const isAllowed = allowedLocales.length === 0 || allowedLocales.includes(lang.code);
-														return isAllowed && !currentValues.includes(lang.code) && (search === '' || lang.name
+														const langName = displayLanguage(code).toLowerCase();
+														return !currentValues.includes(code) && (search === '' || langName.includes(search) || code
 																	.toLowerCase()
-																	.includes(search) || lang.native.toLowerCase().includes(search) || lang.code.toLowerCase().includes(search));
-													}) as lang}
+																	.includes(search));
+													}) as code}
 														<button
 															type="button"
 															class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"
 															onclick={() => {
-																toggleLanguage(localesField.key, lang.code);
+																toggleLanguage(localesField.key, code);
 																showLanguagePicker[localesField.key] = false;
 																// Set as base if it's the first locale
 																if (!(values[localesField.key] as string[])?.length || !values.BASE_LOCALE) {
-																	values.BASE_LOCALE = lang.code;
+																	values.BASE_LOCALE = code;
 																}
 															}}
 														>
-															<span>{lang.native} ({lang.code})</span>
+															<span>{displayLanguage(code)} ({code.toUpperCase()})</span>
 															<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
 														</button>
 													{:else}
@@ -1035,10 +1042,9 @@ Handles all field types and validation automatically
 												{#each iso6391.filter((lang: { code: string; name: string; native: string }) => {
 													const search = (languageSearch[field.key] || '').toLowerCase();
 													const currentValues = (values[field.key] as string[]) || [];
-													const isAllowed = allowedLocales.length === 0 || allowedLocales.includes(lang.code);
-													return isAllowed && !currentValues.includes(lang.code) && (search === '' || lang.name
+													return !currentValues.includes(lang.code) && (search === '' || lang.name.toLowerCase().includes(search) || lang.native
 																.toLowerCase()
-																.includes(search) || lang.native.toLowerCase().includes(search) || lang.code.toLowerCase().includes(search));
+																.includes(search) || lang.code.toLowerCase().includes(search));
 												}) as lang}
 													<button
 														type="button"

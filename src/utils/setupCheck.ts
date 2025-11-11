@@ -66,7 +66,10 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 
 		if (!dbAdapter || !dbAdapter.auth) {
 			// Database not initialized yet - don't cache this, allow retry
-			console.log('[setupCheck] Database not initialized yet');
+			// Use console.log here since logger.server cannot be imported in setupCheck
+			if (process.env.NODE_ENV === 'development') {
+				console.log('[setupCheck] Database not initialized yet');
+			}
 			return false;
 		}
 

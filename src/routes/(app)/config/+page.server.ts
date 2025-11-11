@@ -17,7 +17,6 @@ import type { PageServerLoad } from './$types';
 import { hasPermissionByAction } from '@src/databases/auth/permissions';
 import { permissionConfigs } from '@src/databases/auth/permissions';
 import { permissions as allPermissions } from '@src/databases/auth/permissions';
-import { roles } from '@root/config/roles';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -40,12 +39,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 
 		// Check if user is admin (for UI optimization)
-		const userRole = roles.find((role) => role._id === user.role);
+		const userRole = (locals.roles || []).find((role) => role._id === user.role);
 		const isAdmin = userRole?.isAdmin === true;
 
 		const serializableUser = {
 			_id: user._id.toString(),
-			username: user.username,
 			email: user.email,
 			role: user.role,
 			permissions: user.permissions
@@ -63,16 +61,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 			if (isAdmin) {
 				permissions[config.contextId] = { hasPermission: true, isRateLimited: false };
 			} else {
-				// Check user permission for non-admin roles
+				// Check user permission for non-admin
 				// This supports fine-grained permissions like:
 				// - config:settings:cache
 				// - config:settings:database
 				// - config:settings:email
 				// etc.
-				const permissionCheck = await hasPermissionByAction(serializableUser, config);
+				const permissionCheck = await hasPermissionByAction(user, config.action, config.type, config.contextId, locals.roles || []);
 				permissions[config.contextId] = {
-					hasPermission: permissionCheck.hasPermission,
-					isRateLimited: permissionCheck.isRateLimited
+					hasPermission: permissionCheck,
+					isRateLimited: false
 				};
 			}
 		}

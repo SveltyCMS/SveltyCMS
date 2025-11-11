@@ -1,0 +1,552 @@
+---
+path: 'docs/guides/media-gallery-guide.mdx'
+title: 'Media Gallery - Complete UX & Performance Guide'
+description: 'Comprehensive guide to using the SveltyCMS Media Gallery with UX improvements and performance optimizations.'
+order: 6
+icon: 'mdi:folder-multiple-image'
+author: 'admin'
+created: '2025-11-07'
+updated: '2025-11-07'
+tags:
+  - 'media'
+  - 'gallery'
+  - 'ux'
+  - 'performance'
+  - 'optimization'
+  - 'guide'
+---
+
+# Media Gallery - Complete UX & Performance Guide
+
+This guide covers all aspects of the SveltyCMS Media Gallery, including recent UX improvements and performance optimizations implemented for production-ready file management.
+
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Upload Experience](#upload-experience)
+3. [Viewing & Organization](#viewing--organization)
+4. [Batch Operations](#batch-operations)
+5. [Performance Optimizations](#performance-optimizations)
+6. [Best Practices](#best-practices)
+7. [Keyboard Shortcuts](#keyboard-shortcuts)
+
+---
+
+## Overview
+
+The Media Gallery is your central hub for managing all media files in SveltyCMS. It combines powerful features with an intuitive interface to make file management effortless.
+
+### Key Features
+
+- ✅ **Real-time Upload Progress** - Visual feedback with speed indicators
+- ✅ **File Validation** - Automatic type and size checking before upload
+- ✅ **Batch Operations** - Multi-select for bulk delete/download
+- ✅ **Virtual Folders** - Hierarchical organization
+- ✅ **Grid & Table Views** - Flexible visualization options
+- ✅ **Lazy Loading** - Optimized for large galleries (1000+ files)
+- ✅ **Search & Filter** - Fast client-side filtering
+- ✅ **Cloud Storage Ready** - S3, R2, Cloudinary support
+
+---
+
+## Upload Experience
+
+### Local File Upload
+
+#### Drag and Drop
+
+1. Navigate to **Media Gallery** → **Upload Media** → **Local Upload** tab
+2. Drag files from your file manager to the drop zone
+3. Files are automatically validated:
+   - **Size Limit**: 50 MB per file
+   - **Allowed Types**: Images (JPEG, PNG, GIF, WebP, SVG), Videos (MP4, WebM), Audio (MP3, WAV), Documents (PDF, Word)
+4. Invalid files show immediate error toasts with specific reasons
+5. Valid files open a preview modal
+
+#### Browse Files
+
+1. Click **"Browse Files"** button in the drop zone
+2. Select multiple files using your OS file picker
+3. Files are validated and previewed in the modal
+4. Review all files before upload
+
+#### Upload Modal Features
+
+**File Preview Cards:**
+
+- Visual thumbnails for images and videos
+- Audio player preview for audio files
+- Icon-based preview for documents
+- File name, type, and size display
+- Individual delete buttons (hover to reveal)
+
+**Add More Files:**
+
+- Use the file input at the bottom of the modal
+- Duplicate file detection with warnings
+- Seamless addition to existing selection
+
+**Upload Progress:**
+
+- Real-time progress bar (0-100%)
+- Upload speed indicator (KB/s, MB/s)
+- File count display
+- Estimated time remaining (coming soon)
+
+**Error Handling:**
+
+- Validation errors shown before upload starts
+- Network errors displayed with retry option
+- Duplicate file warnings
+- Server-side error messages
+
+### Remote URL Upload
+
+1. Navigate to **Media Gallery** → **Upload Media** → **Remote Upload** tab
+2. Paste URLs (one per line):
+   - Direct image URLs
+   - YouTube video URLs
+   - Vimeo video URLs
+   - Any publicly accessible media URL
+3. Click **"Upload URLs"**
+4. SveltyCMS fetches metadata and creates references
+
+**Supported Remote Providers:**
+
+- YouTube
+- Vimeo
+- Direct image/video URLs
+- Public CDN URLs
+
+---
+
+## Viewing & Organization
+
+### View Modes
+
+#### Grid View
+
+**Features:**
+
+- Responsive grid layout (auto-adjusts to screen size)
+- Four size options: Tiny, Small, Medium, Large
+- Hover actions: Info, Edit, Delete
+- Quick size switcher in file info popup
+- Lazy-loaded thumbnails
+
+**Best For:**
+
+- Browsing images visually
+- Quick visual identification
+- Creating galleries
+- Mobile viewing
+
+#### Table View
+
+**Features:**
+
+- Sortable columns (name, size, type, date)
+- Pagination (5, 10, 25, 50, 100 rows)
+- Row selection checkboxes
+- Detailed file information
+- Bulk operations toolbar
+
+**Best For:**
+
+- Managing large file sets
+- Finding specific files by metadata
+- Bulk operations
+- Desktop workflows
+
+### Virtual Folders
+
+**Creating Folders:**
+
+1. Click **"+ Add Folder"** in the media gallery
+2. Enter folder name (e.g., "Blog Headers", "Product Images")
+3. Optional: Select parent folder for nested structure
+4. Click **"Create"**
+
+**Navigating Folders:**
+
+- Breadcrumb trail at the top shows current path
+- Click any breadcrumb to jump to that folder
+- Folder hierarchy displayed in sidebar (mobile: toggle)
+
+**Organization Strategies:**
+
+```
+global/
+├── blog/
+│   ├── headers/
+│   └── thumbnails/
+├── products/
+│   ├── electronics/
+│   └── clothing/
+└── team/
+    └── avatars/
+```
+
+### Search & Filter
+
+**Global Search:**
+
+- Type in search box to filter by filename
+- Case-insensitive matching
+- Real-time results (no submit button needed)
+- Clear button appears when search is active
+
+**Media Type Filter:**
+
+- Dropdown with options: All, Image, Document, Audio, Video, Remote Video
+- Instant filtering
+- Combines with search
+
+**Combined Filtering:**
+
+- Search + Type filter work together
+- Client-side (no server requests)
+- Results update in real-time
+
+---
+
+## Batch Operations
+
+### Selection Mode
+
+**Activating:**
+
+1. Click **"Select"** button in toolbar
+2. Checkboxes appear on all files
+3. Click files or checkboxes to select
+
+**Selection Actions:**
+
+- **Select All** - Select all visible files (respects current filters)
+- **Deselect All** - Clear all selections
+- **Selected Count** - Shows "X selected" in toolbar
+
+### Bulk Delete
+
+1. Select files using checkboxes
+2. Click **"Delete Selected"** in toolbar
+3. Confirm deletion in modal
+4. Files are deleted in batch
+5. Gallery refreshes automatically
+
+**Safety Features:**
+
+- Confirmation modal required
+- Cannot be undone warning
+- Count of files to be deleted shown
+- Option to cancel
+
+### Bulk Download (Coming Soon)
+
+- Select multiple files
+- Click **"Download Selected"**
+- Files downloaded as ZIP archive
+- Progress indicator for large downloads
+
+---
+
+## Performance Optimizations
+
+### Upload Performance
+
+**File Validation:**
+
+- Client-side validation before upload (prevents failed uploads)
+- Type checking using MIME types
+- Size checking (50 MB limit)
+- Instant error feedback
+
+**Upload Chunking:**
+
+- Large files uploaded in chunks (coming soon)
+- Resume interrupted uploads
+- Better progress tracking for large files
+
+**Network Optimization:**
+
+- XMLHttpRequest with progress events
+- Automatic retry on network errors
+- Timeout handling (30 seconds)
+
+### Gallery Performance
+
+**Lazy Loading:**
+
+- Images load only when visible (Intersection Observer)
+- Thumbnail sizes optimized (sm, md, lg)
+- Progressive JPEG support
+- WebP/AVIF format conversion
+
+**Virtual Scrolling:**
+
+- Only renders visible items (handles 10,000+ files)
+- Smooth scrolling performance
+- Automatic item recycling
+- Memory-efficient
+
+**Client-Side Filtering:**
+
+- No server round trips for search/filter
+- Instant results (<50ms for 1000 files)
+- Debounced search input (300ms)
+
+**Image Optimization:**
+
+```typescript
+// Automatic sizes generated on upload:
+thumbnails: {
+  tiny: { width: 64, height: 64 },   // Grid tiny view
+  sm: { width: 256, height: 256 },    // Grid small view
+  md: { width: 512, height: 512 },    // Grid medium view
+  lg: { width: 1024, height: 1024 }   // Grid large view
+}
+```
+
+**Caching Strategy:**
+
+- Browser cache for thumbnails (1 year)
+- CDN integration for cloud storage
+- Service worker caching (optional)
+- ObjectURL cleanup on component unmount
+
+---
+
+## Best Practices
+
+### File Naming
+
+**Do:**
+
+- Use descriptive names: `blog-header-autumn-2024.jpg`
+- Include dates: `product-photo-2024-11-07.png`
+- Use hyphens or underscores: `team-photo-john-smith.jpg`
+
+**Don't:**
+
+- Special characters: `photo@#$.jpg`
+- Spaces: `my photo.jpg` (becomes `my_photo.jpg`)
+- Very long names (>100 characters)
+
+### File Organization
+
+**Strategy 1: By Type**
+
+```
+images/
+documents/
+videos/
+audio/
+```
+
+**Strategy 2: By Project**
+
+```
+blog-posts/
+marketing-campaigns/
+product-catalogs/
+```
+
+**Strategy 3: By Date**
+
+```
+2024/
+  11-november/
+    01-blog-post/
+    15-newsletter/
+```
+
+### Upload Workflow
+
+1. **Prepare Files**
+   - Resize images to appropriate dimensions
+   - Compress if possible (browser does additional compression)
+   - Rename with descriptive names
+
+2. **Batch Similar Files**
+   - Upload related files together
+   - Use consistent naming within batch
+   - Assign to correct folder immediately
+
+3. **Review Before Upload**
+   - Check file list in modal
+   - Remove unwanted files
+   - Verify file types and sizes
+
+4. **Monitor Progress**
+   - Watch progress bar
+   - Don't navigate away during upload
+   - Check for error messages
+
+5. **Verify Upload**
+   - Gallery refreshes automatically
+   - New files appear in current folder
+   - Thumbnails generate in background
+
+### Performance Tips
+
+**For Large Galleries:**
+
+- Use table view with pagination
+- Enable filters to reduce visible items
+- Use folders to organize (limit to <500 files per folder)
+- Consider archiving old media
+
+**For Slow Connections:**
+
+- Upload smaller file sizes
+- Use remote URLs when possible
+- Upload during off-peak hours
+- Enable "low data mode" (coming soon)
+
+**For Fast Uploads:**
+
+- Stable internet connection
+- Multiple files in single batch (not multiple batches)
+- Close unnecessary browser tabs
+- Use wired connection over Wi-Fi
+
+---
+
+## Keyboard Shortcuts
+
+### Navigation
+
+| Shortcut        | Action                         |
+| --------------- | ------------------------------ |
+| `↑` `↓` `←` `→` | Navigate files in grid         |
+| `Enter`         | Open file details              |
+| `Escape`        | Close modal                    |
+| `Ctrl/Cmd + A`  | Select all (in selection mode) |
+| `Backspace`     | Navigate to parent folder      |
+
+### Actions
+
+| Shortcut           | Action                  |
+| ------------------ | ----------------------- |
+| `Ctrl/Cmd + U`     | Open upload modal       |
+| `Ctrl/Cmd + F`     | Focus search            |
+| `Delete`           | Delete selected file(s) |
+| `Ctrl/Cmd + Click` | Toggle file selection   |
+| `Shift + Click`    | Select range            |
+
+### View Controls
+
+| Shortcut        | Action                                     |
+| --------------- | ------------------------------------------ |
+| `G`             | Switch to grid view                        |
+| `T`             | Switch to table view                       |
+| `1` `2` `3` `4` | Switch grid size (tiny/small/medium/large) |
+| `Ctrl/Cmd + +`  | Increase grid size                         |
+| `Ctrl/Cmd + -`  | Decrease grid size                         |
+
+---
+
+## Troubleshooting
+
+### Upload Issues
+
+**"Upload failed" Error:**
+
+- Check file size (<50 MB)
+- Verify file type is supported
+- Check internet connection
+- Try uploading one file at a time
+- Clear browser cache
+
+**Slow Upload Speed:**
+
+- Check your upload bandwidth
+- Close other bandwidth-heavy apps
+- Try smaller file sizes
+- Use wired connection
+- Contact your ISP if consistently slow
+
+**"File already exists" Error:**
+
+- File with same name and size exists
+- Rename file or delete existing one
+- Hash collision (extremely rare)
+
+### Display Issues
+
+**Thumbnails Not Loading:**
+
+- Wait for background processing (can take 10-30 seconds)
+- Refresh page
+- Check cloud storage configuration
+- Verify file permissions
+
+**Search Not Working:**
+
+- Clear search and try again
+- Check for typos
+- Try filtering by type first
+- Refresh page if persistent
+
+**Batch Operations Failing:**
+
+- Try smaller batches (<50 files)
+- Check browser console for errors
+- Verify permissions
+- Contact administrator
+
+---
+
+## API Integration
+
+For developers integrating with the Media Gallery API:
+
+```typescript
+// Upload file programmatically
+const formData = new FormData();
+formData.append('files', file);
+
+const response = await fetch('/api/media', {
+	method: 'POST',
+	body: formData
+});
+
+const result = await response.json();
+console.log('Uploaded file ID:', result.data._id);
+```
+
+See [Media API Documentation](./media-handling.mdx#media-api) for complete API reference.
+
+---
+
+## Future Enhancements
+
+Planned features for upcoming releases:
+
+- ✨ **AI-Powered Tagging** - Automatic image tagging and categorization
+- ✨ **Advanced Search** - Search by color, dimensions, metadata
+- ✨ **Duplicate Detection** - Find and merge duplicate files
+- ✨ **Bulk Edit** - Rename, move, tag multiple files at once
+- ✨ **Image Editor Integration** - Edit images directly in gallery
+- ✨ **Video Transcoding** - Automatic video format conversion
+- ✨ **CDN Integration** - One-click CDN deployment
+- ✨ **Sharing & Permissions** - Share files with expiring links
+- ✨ **Version History** - Track file changes over time
+- ✨ **Storage Analytics** - Visualize storage usage
+
+---
+
+## Summary
+
+The SveltyCMS Media Gallery combines powerful enterprise features with an intuitive interface:
+
+- **Upload:** Real-time progress, validation, and error handling
+- **Organize:** Virtual folders, search, and filters
+- **View:** Grid and table modes with customizable sizes
+- **Manage:** Batch operations, lazy loading, and optimization
+- **Performance:** Handles 10,000+ files with smooth UX
+
+For technical details, see [Media Handling Architecture](./media-handling.mdx).
+For API documentation, see [Media API Reference](../api/Media_API.mdx).

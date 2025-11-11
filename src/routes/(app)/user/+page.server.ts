@@ -19,6 +19,7 @@
 import type { PageServerLoad } from './$types';
 
 // Auth
+import { auth } from '@src/databases/db';
 import type { Role, User } from '@src/databases/auth/types';
 import type { PermissionConfig } from '@src/databases/auth/permissions';
 
@@ -69,23 +70,30 @@ export const load: PageServerLoad = async (event) => {
 		const userRole = roles.find((role) => role._id === user?.role);
 		const isAdmin = Boolean(userRole?.isAdmin);
 
-		// Get fresh user data from database to ensure we have the latest info
-		let freshUser: User | null = user;
-		if (user) {
-			try {
-				const { auth } = await import('@src/databases/db');
-				if (auth) {
-					freshUser = await auth.getUserById(user._id.toString());
-				}
-			} catch (dbError) {
-				logger.warn('Failed to fetch fresh user data, using session data.', dbError);
-				freshUser = user; // Fallback to session data
+		// Always fetch fresh user data from database to ensure we have the latest changes
+		// This is especially important after profile updates
+		let freshUser: User | null = null;
+		if (user?._id) {
+			freshUser = await auth.getUserById(user._id.toString());
+			if (freshUser) {
+				logger.debug('Fresh user data fetched for user page', {
+					userId: freshUser._id,
+					username: freshUser.username,
+					email: freshUser.email
+				});
 			}
 		}
 
-		// Validate forms using SuperForms
-		const addUserForm = await superValidate(event, valibot(addUserTokenSchema));
-		const changePasswordForm = await superValidate(event, valibot(changePasswordSchema));
+		// Fallback to session user if database fetch fails
+		if (!freshUser) {
+			freshUser = user;
+		}
+
+		// Validate forms using SuperForms in parallel (non-blocking)
+		const [addUserForm, changePasswordForm] = await Promise.all([
+			superValidate(event, valibot(addUserTokenSchema)),
+			superValidate(event, valibot(changePasswordSchema))
+		]);
 
 		// Prepare user object for return, ensuring _id is a string and including admin status
 		const safeUser = freshUser
