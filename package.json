@@ -190,8 +190,5 @@
 		"mongoose": "^8.19.3",
 		"mysql2": "^3.15.3",
 		"postgres": "^3.4.7"
-	},
-	"overrides": {
-		"google-auth-library": "10.5.0"
 	}
 }
