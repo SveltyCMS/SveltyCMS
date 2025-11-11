@@ -60,18 +60,30 @@ Footnote: As a headless CMS fortified with GraphQL API, SveltyCMS fully harnesse
 
 ## :rocket: Setup
 
-### Clone the repository
+### Prerequisites
 
-To clone our [repository](https://github.com/SveltyCMS/SveltyCMS.git) you need to be able to use [Git](https://git-scm.com/downloads).
+Before you begin, ensure you have the following installed:
+
+- **Node.js 20+** - [Download](https://nodejs.org/en/download/) | Check: `node --version`
+- **Package Manager** - Choose one: [npm](https://www.npmjs.com/) (included with Node.js), [pnpm](https://pnpm.io/), or [bun](https://bun.sh) (recommended)
+- **MongoDB** - Choose one option:
+  - [MongoDB Community Server](https://www.mongodb.com/try/download/community) (local)
+  - [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) (cloud, free tier available)
+  - Docker: `docker run -d -p 27017:27017 mongo`
+- **Git** - [Download](https://git-scm.com/downloads)
+
+### Installation
+
+#### 1. Clone the repository
 
 ```bash
 git clone https://github.com/SveltyCMS/SveltyCMS.git
 cd SveltyCMS
 ```
 
-### Install all dependencies
+#### 2. Install dependencies
 
-Install STABLE [Node.js](https://nodejs.org/en) to get started. Then choose your preferred package manager:
+Choose your preferred package manager:
 
 <details open>
 <summary><b>npm</b></summary>
@@ -145,9 +157,66 @@ bun run preview
 
 </details>
 
-### Automated Setup via GUI Setup Installer
+#### 3. Start development server
 
-SveltyCMS features an intelligent CLI installer that automatically launches when you start the development server without configuration files. The installer handles all setup automatically:
+```bash
+bun run dev  # or npm run dev / pnpm run dev
+```
+
+The application will open at `http://localhost:5173`
+
+### Setup Wizard
+
+On first launch, the **GUI Setup Wizard** will automatically appear. Follow these steps:
+
+**Step 1: Database Configuration**
+
+- Select database type (MongoDB recommended)
+- Enter connection details (host, port, database name)
+- For local MongoDB without auth, leave username/password empty
+- Click "Test Connection" to verify
+
+**Step 2: Admin Account**
+
+- Create your administrator account
+- Enter username, email, and secure password
+
+**Step 3: System Settings**
+
+- Configure CMS name and URL
+- Set default language and timezone
+- Choose media storage location
+
+**Step 4: Complete**
+
+- Review configuration
+- Click "Complete Setup"
+- Login with your admin credentials
+
+### Troubleshooting
+
+**MongoDB connection failed**
+
+- Ensure MongoDB is running: `sudo systemctl start mongod` (Linux) or check MongoDB Compass
+- Verify connection details
+- For Atlas, check IP whitelist
+
+**Port 5173 already in use**
+
+- Stop other applications or change port in `vite.config.ts`
+
+**Setup wizard doesn't appear**
+
+- Delete `config/private.ts` if it exists and restart
+
+**Authentication timeout**
+
+- Check MongoDB has data (roles/users)
+- Use "Reset Setup" button on login page if needed
+
+### Additional Features
+
+SveltyCMS includes:
 
 - **Smart Detection**: Runs automatically via `vite.config.ts` when config files are missing
 - **Database Configuration**: Choose from MongoDB, PostgreSQL, or SQLite
