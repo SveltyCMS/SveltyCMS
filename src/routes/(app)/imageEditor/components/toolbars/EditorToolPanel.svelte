@@ -178,7 +178,7 @@ Provides a clean interface for tool parameters and quick actions.
 </div>
 
 <style lang="postcss">
-@import "tailwindcss";
+	@import "tailwindcss/theme";
 	.editor-tool-panel {
 		@apply flex w-80 flex-col border-l;
 		@apply transition-all duration-300 ease-in-out;

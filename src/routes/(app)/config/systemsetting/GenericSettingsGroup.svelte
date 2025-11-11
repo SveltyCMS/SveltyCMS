@@ -1176,7 +1176,7 @@ Handles all field types and validation automatically
 </div>
 
 <style lang="postcss">
-@import "tailwindcss";
+	@import "tailwindcss/theme";
 	.generic-settings-group {
 		@apply space-y-4;
 		/* Prevent horizontal overflow */

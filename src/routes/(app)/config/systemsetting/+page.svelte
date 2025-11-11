@@ -275,7 +275,7 @@ All dynamic CMS settings organized into logical groups
 </div>
 
 <style lang="postcss">
-@import "tailwindcss";
+	@import "tailwindcss/theme";
 	.alert {
 		@apply rounded-lg;
 	}

@@ -133,7 +133,6 @@ and proper active state indication.
 </div>
 
 <style>
-@import "tailwindcss";
 	.editor-sidebar {
 		@apply flex w-16 flex-col border-r lg:w-20;
 		background-color: rgb(var(--color-surface-100) / 1);

@@ -126,7 +126,7 @@
 </div>
 
 <style lang="postcss">
-@import "tailwindcss";
+	@import "tailwindcss/theme";
 	/* Base loader styles */
 	.loader {
 		position: absolute;

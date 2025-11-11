@@ -1238,7 +1238,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 </div>
 
 <style lang="postcss">
-@import "tailwindcss";
+	@import "tailwindcss/theme";
 	.image-editor {
 		@apply h-full w-full;
 	}

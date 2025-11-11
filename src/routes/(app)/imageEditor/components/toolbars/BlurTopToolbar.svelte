@@ -64,7 +64,6 @@ Displays blur strength slider and action buttons without blocking the canvas.
 </div>
 
 <style>
-@import "tailwindcss";
 	.blur-top-toolbar {
 		@apply absolute left-0 right-0 top-0 z-40;
 		@apply flex items-center justify-between;

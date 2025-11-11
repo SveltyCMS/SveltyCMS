@@ -149,7 +149,6 @@ Provides the interface for uploading, selecting, and managing stickers
 </div>
 
 <style>
-@import "tailwindcss";
 	.sticker-panel {
 		@apply flex w-80 flex-col border-l;
 		background-color: rgb(var(--color-surface-50) / 1);

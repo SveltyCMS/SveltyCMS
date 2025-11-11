@@ -205,7 +205,6 @@ tool controls for mobile/tablet editing experience.
 {/if}
 
 <style>
-@import "tailwindcss";
 	.mobile-toolbar {
 		@apply fixed bottom-0 left-0 right-0 z-40 border-t shadow-lg;
 		background-color: rgb(var(--color-surface-50) / 1);
