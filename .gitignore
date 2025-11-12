@@ -97,3 +97,9 @@ MIGRATION_TASKS.md
 PHASE1_COMPLETE_SUMMARY.md
 CMS_SETUP_SPLIT_REALITY_CHECK.md
 NX_MONOREPO_ARCHITECTURE_FIXED.md
+
+# Helper scripts (local only)
+create-admin.js
+create-first-admin.ts
+PR_UPDATE_SUMMARY.md
+START_HERE.md
