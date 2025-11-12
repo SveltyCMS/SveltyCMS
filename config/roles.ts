@@ -1,10 +1,11 @@
 /**
  * @file config/roles.ts
  * @description Role configuration file (SSR-compatible)
+ * This file is imported by the CMS app and provides default role definitions.
  */
 
-import { getAllPermissions } from '@src/databases/auth';
-import type { Role } from '@src/databases/auth/types';
+import { getAllPermissions } from '../apps/cms/src/databases/auth/permissions';
+import type { Role } from '../apps/cms/src/databases/auth/types';
 
 // Mutable exported roles array (will be initialized once)
 export let roles: Role[] = [];
