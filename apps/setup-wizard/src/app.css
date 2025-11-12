@@ -1,14 +1,14 @@
 /**
  * @file apps/setup-wizard/src/app.css
  * @description Global styles for the Setup Wizard
- * Uses Tailwind v4 CSS-first configuration + Skeleton v4
+ * Uses Tailwind v3
  */
 
-/* Import Skeleton v4 Svelte styles */
-@import '@skeletonlabs/skeleton-svelte';
-
-/* Tailwind v4 directives */
-@import 'tailwindcss';
+/* Tailwind directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@tailwind variants;
 
 /* Custom setup wizard styles */
 .fade-in {
