@@ -130,47 +130,61 @@ Verify MongoDB is running:
 mongosh --eval "db.version()"
 ```
 
-### Step 4: Run the Setup Wizard
+### Step 4: Run SveltyCMS
 
-SveltyCMS uses an NX monorepo structure with multiple apps. Start with the setup wizard:
-
-```bash
-# Run the setup wizard
-bun nx run setup-wizard:dev
-```
-
-The setup wizard will open at `http://localhost:5174` and guide you through:
-
-- Database configuration
-- Admin account creation
-- Email settings (optional)
-- Security configuration
-
-### Step 5: Run the CMS
-
-After completing the setup wizard, start the main CMS application:
+SveltyCMS uses a smart launcher that automatically detects if setup is needed:
 
 ```bash
-# Run the CMS
-bun nx run cms:dev
+# Smart launcher - automatically runs setup wizard or CMS
+bun dev
 ```
 
-The CMS will be available at `http://localhost:5173`
+**First Time Setup:**
+
+- The launcher detects no configuration exists
+- Automatically opens setup wizard at `http://localhost:5174`
+- Guide you through:
+  - Database configuration
+  - Admin account creation
+  - Email settings (optional)
+  - Security configuration
+
+**After Setup:**
+
+- Run `bun dev` again
+- Launcher detects valid configuration
+- Automatically starts CMS at `http://localhost:5173`
+
+**Manual Control:**
+
+```bash
+# Force setup wizard (useful for testing)
+bun dev:setup
+
+# Force CMS (skip validation)
+bun dev:cms
+```
 
 ### Quick Start Commands
 
 ```bash
-# Run setup wizard
-bun nx run setup-wizard:dev
+# Smart launcher (auto-detects setup need)
+bun dev
 
-# Run CMS (after setup)
-bun nx run cms:dev
+# Force setup wizard
+bun dev:setup
+
+# Force CMS
+bun dev:cms
+
+# Build for production
+bun build
+
+# Build all apps
+bun build:all
 
 # Run documentation site
 bun nx run docs:dev
-
-# Build for production
-bun nx run cms:build
 
 # Run all tests
 bun nx run-many --target=test --all

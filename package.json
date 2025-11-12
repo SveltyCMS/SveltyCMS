@@ -2,16 +2,20 @@
 	"name": "sveltycms",
 	"description": "A powerful Headless CMS with sveltekit power",
 	"version": "0.0.5",
+	"private": true,
 	"type": "module",
 	"engines": {
 		"node": ">=20.0.0"
 	},
 	"scripts": {
 		"-- DEVELOP -------------------------------------------": "",
-		"dev": "vite dev",
+		"dev": "bun scripts/dev.ts",
+		"dev:setup": "bun scripts/dev.ts --setup",
+		"dev:cms": "bun scripts/dev.ts --cms",
 		"devv": "LAUNCH_EDITOR='code' vite --open",
 		"-- BUILD ---------------------------------------------": "",
-		"build": "NODE_OPTIONS=\"--no-warnings --no-deprecation\" bun run vite build",
+		"build": "bun scripts/build.ts",
+		"build:all": "nx run-many --target=build --all",
 		"build:verbose": "NODE_OPTIONS=\"--no-warnings --no-deprecation\" bun run vite build",
 		"build:high-memory": "NODE_OPTIONS=\"--max-old-space-size=16384\" bun run vite build",
 		"build:low-memory": "NODE_OPTIONS=\"--max-old-space-size=4096\" bun run vite build",
