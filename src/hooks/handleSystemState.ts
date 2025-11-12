@@ -15,6 +15,7 @@ import type { Handle } from '@sveltejs/kit';
 import { getSystemState, isSystemReady } from '@src/stores/system'; // Import from your state machine
 import { logger } from '@utils/logger.server';
 import { dbInitPromise } from '@src/databases/db';
+import { isSetupComplete } from '@utils/setupCheck';
 
 let initializationAttempted = false;
 
@@ -22,16 +23,30 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
 
 	let systemState = getSystemState();
-	logger.debug(`[handleSystemState] Request to \x1b[34m${pathname}\x1b[0m, system state: \x1b[32m${systemState.overallState}\x1b[0m`);
 
-	// If the system is IDLE, it means initialization hasn't been triggered yet on the request lifecycle.
-	// This ensures that we wait for the server's startup initialization to complete.
+	// Skip trace logging for static assets and health checks to reduce log noise
+	const isHealthCheck = pathname.startsWith('/api/system/health') || pathname.startsWith('/api/dashboard/health');
+	const isStaticAsset = pathname.startsWith('/static') || pathname.startsWith('/assets') || pathname.startsWith('/_');
+
+	if (!isHealthCheck && !isStaticAsset) {
+		logger.debug(`[handleSystemState] Request to \x1b[34m${pathname}\x1b[0m, system state: \x1b[32m${systemState.overallState}\x1b[0m`);
+	}
+
+	//  Setup Mode Detection - Prevents retry loops and eliminates 15+ second delay
+	// If the system is IDLE, check if setup is complete before attempting initialization
 	if (systemState.overallState === 'IDLE' && !initializationAttempted) {
-		initializationAttempted = true;
-		logger.info('System is \x1b[34mIDLE\x1b[0m on first request, awaiting initialization...');
-		await dbInitPromise;
-		systemState = getSystemState(); // Re-fetch state after initialization has run
-		logger.info(`Initialization check complete. System state is now: \x1b[34m${systemState.overallState}\x1b[0m`);
+		if (isSetupComplete()) {
+			// Setup is complete - trigger normal initialization
+			initializationAttempted = true;
+			logger.info('System is \x1b[34mIDLE\x1b[0m and setup is complete. Awaiting initialization...');
+			await dbInitPromise;
+			systemState = getSystemState(); // Re-fetch state after initialization
+			logger.info(`Initialization complete. System state is now: \x1b[34m${systemState.overallState}\x1b[0m`);
+		} else {
+			// Setup is NOT complete - skip initialization to prevent retry loops
+			logger.info('System is \x1b[34mIDLE\x1b[0m and setup is not complete. Skipping DB initialization.');
+			initializationAttempted = true;
+		}
 	}
 
 	// Allow setup wizard and static assets during first-time setup (IDLE state)

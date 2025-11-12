@@ -17,7 +17,7 @@
 import { building } from '$app/environment';
 
 // Handle private config that might not exist during setup
-let privateEnv: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
+let privateEnv: InferOutput<typeof privateConfigSchema> | null = null;
 
 // Function to load private config when needed
 async function loadPrivateConfig(forceReload = false) {
@@ -69,7 +69,9 @@ import type { DatabaseAdapter } from './dbInterface';
 // Settings loader
 import { privateConfigSchema, publicConfigSchema } from '@src/databases/schemas';
 import { invalidateSettingsCache, setSettingsCache } from '@src/services/settingsService';
-import { safeParse } from 'valibot';
+import { safeParse, type InferOutput } from 'valibot';
+
+// Type definition for private config schema
 
 // Theme
 import { DEFAULT_THEME, ThemeManager } from '@src/databases/themeManager';
@@ -87,6 +89,15 @@ export let auth: Auth | null = null; // Authentication instance
 export let isConnected = false; // Database connection state (primarily for external checks if needed)
 let isInitialized = false; // Initialization state
 let initializationPromise: Promise<void> | null = null; // Initialization promise
+
+/**
+ * Get the in-memory private config if available.
+ * Returns null if config hasn't been loaded yet (e.g., during setup).
+ * Used by settingsService to avoid filesystem imports when config is already in memory.
+ */
+export function getPrivateEnv(): InferOutput<typeof privateConfigSchema> | null {
+	return privateEnv;
+}
 
 // Create a proper Promise for lazy initialization
 let _dbInitPromise: Promise<void> | null = null;
@@ -137,7 +148,7 @@ export async function loadSettingsFromDB() {
 			return;
 		}
 
-		// 🚀 OPTIMIZATION: Load both public and private settings in parallel (not sequential)
+		// Load both public and private settings in parallel (not sequential)
 		const [settingsResult, privateDynResult] = await Promise.all([
 			dbAdapter.systemPreferences.getMany(KNOWN_PUBLIC_KEYS, 'system'),
 			dbAdapter.systemPreferences.getMany(KNOWN_PRIVATE_KEYS, 'system')
@@ -170,14 +181,26 @@ export async function loadSettingsFromDB() {
 		const publicSettings: Record<string, unknown> = settings;
 		const databasePrivateSettings: Record<string, unknown> = {};
 
-		// Import private config file settings (infrastructure settings)
-		const { privateEnv } = await import('@root/config/private');
+		// Get private config settings (infrastructure settings)
+		// Prefer in-memory config (set by initializeWithConfig) over filesystem import
+		// This eliminates unnecessary file I/O and Vite cache dependency
+		let privateConfig: InferOutput<typeof privateConfigSchema>;
+		if (privateEnv) {
+			// Use in-memory config when available (post-setup, zero-restart mode)
+			logger.debug('Using in-memory private config (bypassing filesystem)');
+			privateConfig = privateEnv;
+		} else {
+			// Fall back to filesystem import (normal startup)
+			logger.debug('Loading private config from filesystem');
+			const imported = await import('@root/config/private');
+			privateConfig = imported.privateEnv;
+		}
 
 		// Merge private config file settings with database private settings
 		// Private config contains infrastructure settings (DB_*, JWT_*, ENCRYPTION_*)
 		// Database contains application private settings (SMTP_*, GOOGLE_*, etc.)
 		const privateSettings = {
-			...privateEnv, // Infrastructure settings from config file
+			...privateConfig, // Infrastructure settings from config (in-memory or file)
 			...databasePrivateSettings // Application settings from database
 		};
 
@@ -213,7 +236,7 @@ export async function loadSettingsFromDB() {
 		}
 
 		// Populate the cache with validated settings, merging dynamic private flags into unified cache
-		const mergedPrivate = { ...(parsedPrivate.output as Record<string, unknown>), ...privateDynamic } as any;
+		const mergedPrivate = { ...(parsedPrivate.output as Record<string, unknown>), ...privateDynamic } as InferOutput<typeof privateConfigSchema>;
 		await setSettingsCache(mergedPrivate, parsedPublic.output);
 
 		logger.info('✅ System settings loaded and cached from database.');
@@ -295,7 +318,7 @@ async function loadAdapters() {
 async function initializeDefaultTheme(): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize themes: dbAdapter is not available.');
 	try {
-		// 🚀 OPTIMIZATION: Check if theme exists before writing (avoid unnecessary DB operation)
+		// Check if theme exists before writing (avoid unnecessary DB operation)
 		const existingThemes = await dbAdapter.themes.getAllThemes();
 		const themeExists = existingThemes.some((t) => t.name === DEFAULT_THEME.name && t.isDefault);
 
@@ -332,7 +355,7 @@ async function initializeMediaFolder(): Promise<void> {
 	if (building) return;
 	const fs = await import('node:fs/promises');
 	try {
-		// 🚀 OPTIMIZATION: Fast stat() check, skip debug logging overhead
+		// Fast stat() check, skip debug logging overhead
 		await fs.stat(mediaFolderPath);
 		// Folder exists, skip logging for speed
 	} catch {
@@ -355,6 +378,7 @@ async function initializeVirtualFolders(): Promise<void> {
 	const resilience = getDatabaseResilience();
 
 	await resilience.executeWithRetry(async () => {
+		if (!dbAdapter) throw new Error('dbAdapter is null');
 		// Verify the connection is still active before querying
 		if (dbAdapter.isConnected && !dbAdapter.isConnected()) {
 			throw new Error('Database connection lost - reconnection required');
@@ -402,7 +426,7 @@ async function initializeVirtualFolders(): Promise<void> {
 // Initialize adapters (instant validation only)
 async function initializeRevisions(): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize revisions: dbAdapter is not available.');
-	// 🚀 OPTIMIZATION: Instant no-op validation (revisions are lazy-loaded on first use)
+	// Instant no-op validation (revisions are lazy-loaded on first use)
 }
 
 // Core Initialization Logic
@@ -421,7 +445,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 
 	try {
 		// Step 1: Check for setup mode (skip if called from initializeWithConfig)
-		let privateConfig;
+		let privateConfig: InferOutput<typeof privateConfigSchema> | null;
 		if (skipSetupCheck) {
 			// When called from initializeWithConfig, privateEnv is already set - don't reload
 			logger.debug('Skipping private config load - using pre-set configuration');
@@ -429,11 +453,13 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		} else {
 			// Normal initialization flow - load from Vite
 			privateConfig = await loadPrivateConfig(forceReload);
-			if (!privateConfig || !privateConfig.DB_TYPE) {
-				logger.info('Private config not available – running in setup mode (skipping full initialization).');
-				setSystemState('IDLE', 'Running in setup mode');
-				return;
-			}
+		}
+
+		// Ensure we have valid config before proceeding
+		if (!privateConfig || !privateConfig.DB_TYPE) {
+			logger.info('Private config not available – running in setup mode (skipping full initialization).');
+			setSystemState('IDLE', 'Running in setup mode');
+			return;
 		}
 
 		// Step 2: Load Adapters & Connect to DB
@@ -460,7 +486,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			connectionString = '';
 		}
 
-		// Run connection + model setup in parallel (overlapping I/O)
+		//  Run connection + model setup in parallel (overlapping I/O)
 		const step2And3StartTime = performance.now();
 		const [connectionResult] = await Promise.all([
 			dbAdapter.connect(connectionString),
@@ -528,7 +554,8 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		let mediaTime = 0,
 			revisionsTime = 0,
 			virtualFoldersTime = 0,
-			themesTime = 0;
+			themesTime = 0,
+			widgetsTime = 0;
 
 		await Promise.all([
 			(async () => {
@@ -551,6 +578,14 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 				await initializeDefaultTheme().then(() => initializeThemeManager());
 				updateServiceHealth('themeManager', 'healthy', 'Theme manager initialized');
 				themesTime = performance.now() - t;
+			})(),
+			(async () => {
+				const t = performance.now();
+				updateServiceHealth('widgets', 'initializing', 'Initializing widget store...');
+				const { widgetStoreActions } = await import('@stores/widgetStore.svelte');
+				await widgetStoreActions.initializeWidgets(undefined, dbAdapter);
+				updateServiceHealth('widgets', 'healthy', 'Widget store initialized');
+				widgetsTime = performance.now() - t;
 			})()
 		]);
 
@@ -558,7 +593,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 
 		const parallelTime = performance.now() - parallelStartTime;
 		logger.info(
-			`ThemeManager initialized successfully. Parallel I/O completed in \x1b[32m${parallelTime.toFixed(2)}ms\x1b[0m (Media: ${mediaTime.toFixed(2)}ms, Revisions: \x1b[32m${revisionsTime.toFixed(2)}ms\x1b[0m, Virtual Folders: \x1b[32m${virtualFoldersTime.toFixed(2)}ms\x1b[0m, Themes: \x1b[32m${themesTime.toFixed(2)}ms\x1b[0m)`
+			`Parallel I/O completed in \x1b[32m${parallelTime.toFixed(2)}ms\x1b[0m (Media: ${mediaTime.toFixed(2)}ms, Revisions: \x1b[32m${revisionsTime.toFixed(2)}ms\x1b[0m, Virtual Folders: \x1b[32m${virtualFoldersTime.toFixed(2)}ms\x1b[0m, Themes: \x1b[32m${themesTime.toFixed(2)}ms\x1b[0m, Widgets: \x1b[32m${widgetsTime.toFixed(2)}ms\x1b[0m)`
 		);
 
 		const step5Time = performance.now() - step5StartTime;
@@ -692,6 +727,7 @@ export async function getSystemStatus() {
 
 		// Perform health check with database ping
 		const healthResult = await resilience.healthCheck(async () => {
+			if (!dbAdapter) throw new Error('dbAdapter is null');
 			const start = Date.now();
 			// Ping the database by running a lightweight query
 			if (dbAdapter.isConnected && dbAdapter.isConnected()) {
@@ -785,7 +821,60 @@ export async function reinitializeSystem(force = false, waitForAuth = true): Pro
 }
 
 /**
+ * Initialize system with provided configuration (in-memory) - MOST EFFICIENT
+ * This is the recommended method for zero-restart setup completion.
+ * Bypasses filesystem completely by accepting configuration in memory.
+ *
+ * Use this during setup completion to avoid:
+ * - Vite module cache issues
+ * - Filesystem read operations
+ * - Double initialization
+ *
+ * @param config - Complete private environment configuration
+ * @returns Promise with initialization status
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function initializeWithConfig(config: any): Promise<{ status: string; error?: string }> {
+	try {
+		logger.info('🚀 Initializing system with provided configuration (bypassing Vite cache & filesystem)...');
+
+		// CRITICAL: Set config in memory BEFORE initialization
+		privateEnv = config;
+
+		// Clear any existing initialization state
+		initializationPromise = null;
+		isInitialized = false;
+		isConnected = false;
+		auth = null;
+		setSystemState('IDLE', 'Preparing for initialization with in-memory config');
+
+		logger.debug('In-memory config set successfully', {
+			DB_TYPE: config.DB_TYPE,
+			DB_HOST: config.DB_HOST ? '***' : 'missing',
+			hasJWT: !!config.JWT_SECRET_KEY,
+			hasEncryption: !!config.ENCRYPTION_KEY
+		});
+
+		// Initialize system with in-memory config
+		// skipSetupCheck = true tells initializeSystem to use privateEnv instead of importing
+		initializationPromise = initializeSystem(false, true);
+		await initializationPromise;
+
+		logger.info('✅ System initialized successfully with in-memory config (zero-restart)');
+		return { status: 'success' };
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Failed to initialize with in-memory config:', errorMessage);
+		initializationPromise = null;
+		privateEnv = null; // Clear failed config
+		setSystemState('FAILED', `Initialization failed: ${errorMessage}`);
+		return { status: 'failed', error: errorMessage };
+	}
+}
+
+/**
  * Initialize system by loading private.ts from filesystem (bypasses Vite cache).
+ * LEGACY METHOD - Use initializeWithConfig() for better performance when config is already in memory.
  *
  * Use this during setup when private.ts was just created on filesystem but hasn't been
  * loaded by Vite yet due to module caching.

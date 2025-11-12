@@ -35,6 +35,7 @@ declare global {
 				email: string;
 				role: string;
 				avatar?: string;
+				username?: string;
 				permissions: string[];
 				// Add other relevant user properties here
 			} | null;

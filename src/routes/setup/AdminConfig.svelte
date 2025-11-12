@@ -117,7 +117,13 @@
 				<input
 					id="admin-username"
 					bind:value={adminUser.username}
-					onblur={() => handleBlur('username')}
+					onblur={() => {
+						const trimmed = adminUser.username.trim();
+						if (trimmed !== adminUser.username) {
+							adminUser.username = trimmed;
+						}
+						handleBlur('username');
+					}}
 					type="text"
 					placeholder={m.setup_admin_placeholder_username?.() || 'Enter username'}
 					class="input w-full rounded {displayErrors.username ? 'border-error-500' : 'border-slate-200'}"
@@ -150,7 +156,13 @@
 				<input
 					id="admin-email"
 					bind:value={adminUser.email}
-					onblur={() => handleBlur('email')}
+					onblur={() => {
+						const trimmed = adminUser.email.trim();
+						if (trimmed !== adminUser.email) {
+							adminUser.email = trimmed;
+						}
+						handleBlur('email');
+					}}
 					type="email"
 					placeholder={m.setup_admin_placeholder_email?.() || 'admin@example.com'}
 					class="input w-full rounded {displayErrors.email ? 'border-error-500' : 'border-slate-200'}"

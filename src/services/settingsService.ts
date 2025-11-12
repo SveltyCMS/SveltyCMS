@@ -64,43 +64,66 @@ export async function loadSettingsCache() {
 		return cache;
 	}
 
-	const { dbAdapter } = await import('@src/databases/db');
-	if (!dbAdapter?.systemPreferences) {
-		throw new Error('Database adapter for systemPreferences is not available.');
+	try {
+		const { dbAdapter } = await import('@src/databases/db');
+		if (!dbAdapter?.systemPreferences) {
+			throw new Error('Database adapter for systemPreferences is not available.');
+		}
+
+		// Load both public and private settings in parallel
+		const [publicResult, privateResult] = await Promise.all([
+			dbAdapter.systemPreferences.getMany(KNOWN_PUBLIC_KEYS, 'system'),
+			dbAdapter.systemPreferences.getMany(KNOWN_PRIVATE_KEYS, 'system')
+		]);
+
+		if (!publicResult.success) {
+			throw new Error(`Failed to load public settings: ${publicResult.error?.message || 'Unknown error'}`);
+		}
+
+		// Get public settings from database
+		const publicSettings = publicResult.data || {};
+
+		// Get private settings from database (may be empty)
+		const privateDynamic = privateResult.success ? privateResult.data || {} : {};
+
+		// Get private config settings (infrastructure settings)
+		// Prefer in-memory config (set by initializeWithConfig) over filesystem import
+		// This eliminates unnecessary file I/O and Vite cache dependency
+		const { getPrivateEnv } = await import('@src/databases/db');
+		const inMemoryConfig = getPrivateEnv();
+
+		let privateConfig: PrivateEnv;
+		if (inMemoryConfig) {
+			// Use in-memory config when available (post-setup, zero-restart mode)
+			privateConfig = inMemoryConfig;
+		} else {
+			// Fall back to filesystem import (normal startup or first load)
+			const { privateEnv } = await import('@root/config/private');
+			privateConfig = privateEnv;
+		}
+
+		// Merge: infrastructure settings from config + dynamic settings from DB
+		const mergedPrivate = {
+			...privateConfig,
+			...privateDynamic
+		};
+
+		// Update cache with merged data
+		cache.private = mergedPrivate as PrivateEnv;
+		cache.public = publicSettings as PublicEnv;
+		cache.public.PKG_VERSION = await loadPkgVersion();
+		cache.loaded = true;
+
+		return cache;
+	} catch (error) {
+		// Log error but don't throw during initial load to prevent blocking server startup
+		const logger = (await import('@utils/logger.server')).logger;
+		logger.error('Failed to load settings cache:', error);
+
+		// Return empty cache with PKG_VERSION to allow server to continue
+		cache.public.PKG_VERSION = await loadPkgVersion();
+		throw error; // Re-throw for caller to handle
 	}
-
-	// Load both public and private settings in parallel
-	const [publicResult, privateResult] = await Promise.all([
-		dbAdapter.systemPreferences.getMany(KNOWN_PUBLIC_KEYS, 'system'),
-		dbAdapter.systemPreferences.getMany(KNOWN_PRIVATE_KEYS, 'system')
-	]);
-
-	if (!publicResult.success) {
-		throw new Error(`Failed to load public settings: ${publicResult.error?.message || 'Unknown error'}`);
-	}
-
-	// Get public settings from database
-	const publicSettings = publicResult.data || {};
-
-	// Get private settings from database (may be empty)
-	const privateDynamic = privateResult.success ? privateResult.data || {} : {};
-
-	// Import private config file settings (infrastructure settings)
-	const { privateEnv: privateConfig } = await import('@root/config/private');
-
-	// Merge: infrastructure settings from config + dynamic settings from DB
-	const mergedPrivate = {
-		...privateConfig,
-		...privateDynamic
-	};
-
-	// Update cache with merged data
-	cache.private = mergedPrivate as PrivateEnv;
-	cache.public = publicSettings as PublicEnv;
-	cache.public.PKG_VERSION = await loadPkgVersion();
-	cache.loaded = true;
-
-	return cache;
 }
 
 /**

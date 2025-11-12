@@ -12,6 +12,7 @@
 
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 
 import { logger } from '@utils/logger.server';
 
@@ -26,7 +27,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 
 		// Permission check using cached tenantRoles from locals
-		const hasPermission = tenantRoles.some((role) => role.permissions?.some((p) => p.resource === 'config' && p.actions.includes('importexport')));
+		const hasPermission = hasPermissionWithRoles(user, 'config:importexport', tenantRoles);
 
 		if (!hasPermission && !isAdmin) {
 			logger.warn(`Permission denied: user=${user._id}, role=${user.role}, missing=config:importexport`);
@@ -37,7 +38,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		return {
 			user: {
 				id: user._id.toString(),
-				username: user.username,
+				username: user.username || user.email,
 				email: user.email,
 				role: user.role,
 				isAdmin

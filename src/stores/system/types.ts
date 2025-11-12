@@ -106,7 +106,7 @@ export interface SystemPerformanceMetrics {
 	}>;
 }
 
-export const SERVICE_NAMES = ['database', 'auth', 'cache', 'contentManager', 'themeManager'] as const;
+export const SERVICE_NAMES = ['database', 'auth', 'cache', 'contentManager', 'themeManager', 'widgets'] as const;
 export type ServiceName = (typeof SERVICE_NAMES)[number];
 export type ServicesMap = {
 	[K in ServiceName]: ServiceStatus;

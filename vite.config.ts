@@ -114,60 +114,26 @@ process.on('SIGINT', () => {
 // --- Vite Plugins ---
 /**
  * A lightweight plugin to handle the initial setup wizard.
- * It creates a default private.ts and opens the setup page in the browser.
+ * Checks if private.ts exists and opens the setup page if needed.
+ * The setup wizard will create private.ts with real credentials.
  */
 function setupWizardPlugin(): Plugin {
 	let wasPrivateConfigMissing = false;
 	return {
 		name: 'svelty-cms-setup-wizard',
 		async buildStart() {
-			// Check if private config exists before creating it
+			// 🔍 CHECK ONLY: Don't create blank template
+			// The setup wizard will create private.ts with real database credentials
 			wasPrivateConfigMissing = !existsSync(paths.privateConfig);
 
-			// Ensure config directory and default private config exist.
 			if (wasPrivateConfigMissing) {
-				const content = `
-/**
- * @file config/private.ts
- * @description Private configuration file containing essential bootstrap variables.
- * These values are required for the server to start and connect to the database.
- * This file will be populated during the initial setup process.
- */
-import { createPrivateConfig } from '@src/databases/schemas';
-
-export const privateEnv = createPrivateConfig({
-	// --- Core Database Connection ---
-	DB_TYPE: 'mongodb',
-	DB_HOST: '',
-	DB_PORT: 27017,
-	DB_NAME: '',
-	DB_USER: '',
-	DB_PASSWORD: '',
-
-	// --- Connection Behavior ---
-	DB_RETRY_ATTEMPTS: 5,
-	DB_RETRY_DELAY: 3000, // 3 seconds
-
-	// --- Core Security Keys ---
-	JWT_SECRET_KEY: '',
-	ENCRYPTION_KEY: '',
-
-	// --- Fundamental Architectural Mode ---
-	MULTI_TENANT: false,
-
-	/* * NOTE: All other settings (SMTP, Google OAuth, feature flags, etc.)
-	 * are loaded dynamically from the database after the application starts.
-	 */
-});
-`;
-				try {
-					await fs.mkdir(paths.configDir, { recursive: true });
-					await fs.writeFile(paths.privateConfig, content);
-					log.info('Created initial private config -> config/private.ts');
-				} catch (e) {
-					log.error('Failed to provision private config:', e);
-				}
+				// Ensure config directory exists (but don't create the file)
+				await fs.mkdir(paths.configDir, { recursive: true });
+				log.info('Setup mode: config/private.ts will be created during setup wizard');
+			} else {
+				log.info('Setup complete: config/private.ts exists');
 			}
+
 			// Ensure collections are ready even in setup mode
 			await initializeCollectionsStructure();
 		},
@@ -175,6 +141,11 @@ export const privateEnv = createPrivateConfig({
 			define: { __FRESH_INSTALL__: JSON.stringify(wasPrivateConfigMissing) }
 		}),
 		configureServer(server) {
+			// Only open setup wizard if private.ts is missing
+			if (!wasPrivateConfigMissing) {
+				return; // Setup already completed, skip browser opening
+			}
+
 			const originalListen = server.listen;
 			server.listen = function (port?: number, isRestart?: boolean) {
 				const result = originalListen.apply(this, [port, isRestart]);
