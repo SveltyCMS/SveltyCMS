@@ -17,9 +17,9 @@ export const ADMIN_CREDENTIALS = {
 /**
  * Login as admin user
  * @param page - Playwright page object
- * @param waitForUrl - URL pattern to wait for after login (default: dashboard)
+ * @param waitForUrl - URL pattern to wait for after login (default: Collections/Names page)
  */
-export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = '**/dashboard') {
+export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = /\/(Collections|admin|dashboard)/) {
 	// First, try to logout if already logged in
 	await logout(page);
 
