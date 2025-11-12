@@ -350,11 +350,12 @@ export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
 			revisions: revisionsMeta || []
 		};
 
+		// Cache with TTL (5 minutes for dynamic content)
 		try {
 			await cacheService.set(cacheKey, returnData, 300);
 		} catch (cacheError) {
 			logger.warn('Failed to cache response', { error: cacheError });
-			// Continue without caching
+			// Continue without caching - non-fatal error
 		}
 
 		return returnData;

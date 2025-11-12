@@ -233,6 +233,7 @@ This component provides a streamlined interface for managing collection entries 
 	}
 
 	async function prepareAndSaveEntry() {
+		// ✅ FIX 1: Strict validation check before save
 		if (!isFormValid) {
 			showToast(m.validation_fix_before_save(), 'warning');
 			return;
@@ -279,22 +280,22 @@ This component provides a streamlined interface for managing collection entries 
 			logger.debug('[RightSidebar] Data to save:', dataToSave);
 		}
 
+		// ✅ FIX 2: Save entry and let it handle navigation
 		await saveEntry(dataToSave);
+
+		// Close sidebars
 		handleUILayoutToggle();
 
 		// Reset change tracking
 		dataChangeStore.reset();
 
-		// ✅ Navigate back to list view with full data reload
-		// Remove ?edit= and ?create= parameters to trigger SSR reload of full entry list
-		const currentPath = page.url.pathname; // pathname excludes query parameters
-		logger.debug('[RightSidebar] Navigating to:', currentPath, 'from:', page.url.href);
-		await goto(currentPath, { invalidateAll: true });
+		// ✅ FIX 3: Navigate to list view (saveEntry already called invalidateAll)
+		// This ensures the entry list refreshes with the new data
+		const currentPath = page.url.pathname;
+		logger.debug('[RightSidebar] Save complete - Navigating to:', currentPath);
+		await goto(currentPath, { invalidateAll: true, replaceState: false });
 
-		// Update mode after navigation
-		setMode('view');
-
-		logger.debug('[Save] Navigated back to list view with full data');
+		logger.debug('[Save] Navigated back to list view with refreshed data');
 	}
 	function saveData() {
 		prepareAndSaveEntry();

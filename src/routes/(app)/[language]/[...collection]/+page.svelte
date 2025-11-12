@@ -27,8 +27,9 @@
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { collection, mode, setCollection, collectionValue, setMode, setCollectionValue } from '@src/stores/collectionStore.svelte';
-	import { contentLanguage } from '@stores/store.svelte';
+	import { contentLanguage, validationStore } from '@stores/store.svelte';
 	import { parseURLToMode } from '@utils/navigationUtils';
+	import { getFieldName } from '@utils/utils';
 	import EntryList from '@src/components/collectionDisplay/EntryList.svelte';
 	import Fields from '@src/components/collectionDisplay/Fields.svelte';
 	import { showToast } from '@utils/toast';
@@ -63,6 +64,43 @@
 
 	// Track when we last received server data to avoid overwriting client-side language changes
 	let lastServerLanguage = $state<string | undefined>(undefined);
+
+	// Track if we've initialized validation for the current create session
+	let validationInitialized = $state(false);
+
+	// ✅ CRITICAL: Initialize validation IMMEDIATELY for create mode using $effect.pre()
+	// This runs synchronously BEFORE DOM updates, ensuring button state is correct on first render
+	$effect.pre(() => {
+		const createParam = page.url.searchParams.get('create');
+		const collectionId = collectionSchema?._id;
+
+		if (createParam === 'true' && collectionSchema && !validationInitialized) {
+			// Clear all errors first to start fresh
+			validationStore.clearAllErrors();
+
+			// Initialize validation for all required fields
+			const fields = collectionSchema.fields || [];
+			let errorCount = 0;
+			for (const field of fields) {
+				const fieldDef = field as any;
+				if (fieldDef.required) {
+					const fieldName = getFieldName(fieldDef, false);
+					validationStore.setError(fieldName, `${fieldDef.label || fieldName} is required`);
+					errorCount++;
+					console.log('🔴 [Validation Init] Set error for required field:', fieldName);
+				}
+			}
+
+			validationInitialized = true;
+			console.log('✅ [Validation Init] Initialized', errorCount, 'required field errors, isValid:', validationStore.isValid);
+		} else if (createParam !== 'true') {
+			// Reset flag when leaving create mode
+			if (validationInitialized) {
+				console.log('🔄 [Validation Init] Resetting validation flag');
+				validationInitialized = false;
+			}
+		}
+	});
 
 	// Sync contentLanguage store with server data
 	// IMPORTANT: Server language (URL) takes precedence over cookie/store
@@ -131,6 +169,29 @@
 			return; // Exit early to avoid triggering URL change logic
 		}
 
+		// CASE 1b: Initial page load with ?create=true
+		if (!hasInitiallyLoaded && createParam === 'true') {
+			hasInitiallyLoaded = true;
+			lastUrlString = currentUrl;
+
+			setMode('create');
+			const newEntry: Record<string, any> = {};
+			const fields = collection.value?.fields || [];
+
+			// Initialize empty entry
+			for (const field of fields) {
+				const fieldName = getFieldName(field as any, false);
+				newEntry[fieldName] = null;
+			}
+			setCollectionValue(newEntry);
+
+			// ✅ Validation is now handled by $effect.pre() above
+			// No need to duplicate validation logic here
+
+			logger.debug('[Initial Load] Create mode detected, entry initialized');
+			return; // Exit early to avoid triggering URL change logic
+		}
+
 		// CASE 2: URL changed (manual navigation)
 		if (currentUrl !== lastUrlString && hasInitiallyLoaded) {
 			// Check if only language changed (URL language prefix) but params stayed the same
@@ -175,17 +236,35 @@
 				// Exiting edit mode
 				setMode('view');
 			} else if (parsed.mode === 'create') {
-				// Create mode
+				// Create mode (URL change while already loaded)
 				setMode('create');
 				const newEntry: Record<string, any> = {};
 				const fields = collection.value?.fields || [];
+
+				// Initialize empty entry with null values
 				for (const field of fields) {
-					if (typeof field === 'object' && field !== null && 'label' in field) {
-						const fieldName = (field as any).label || 'field';
-						newEntry[fieldName] = null;
-					}
+					const fieldName = getFieldName(field as any, false);
+					newEntry[fieldName] = null;
 				}
 				setCollectionValue(newEntry);
+
+				// 🔧 FIX: Perform initial validation for required fields
+				validationStore.clearAllErrors();
+
+				for (const field of fields) {
+					const fieldDef = field as any;
+					if (fieldDef.required) {
+						const fieldName = getFieldName(fieldDef, false);
+						const value = newEntry[fieldName];
+
+						// Validate required field
+						if (value === null || value === undefined || value === '') {
+							validationStore.setError(fieldName, `${fieldDef.label || fieldName} is required`);
+						}
+					}
+				}
+
+				logger.debug('[URL Change] Create mode validation initialized');
 			} else if (mode.value !== parsed.mode) {
 				// Other mode changes
 				setMode(parsed.mode);

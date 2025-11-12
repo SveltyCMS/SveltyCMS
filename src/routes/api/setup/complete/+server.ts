@@ -78,6 +78,8 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			user: string;
 			password: string;
 		};
+		let jwtSecretMatch: RegExpMatchArray | null;
+		let encryptionKeyMatch: RegExpMatchArray | null;
 
 		try {
 			// Read private.ts from filesystem to bypass Vite's import cache
@@ -97,8 +99,8 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			const dbNameMatch = privateFileContent.match(/DB_NAME:\s*['"]([^'"]+)['"]/);
 			const dbUserMatch = privateFileContent.match(/DB_USER:\s*['"]([^'"]*)['"]/);
 			const dbPasswordMatch = privateFileContent.match(/DB_PASSWORD:\s*['"]([^'"]*)['"]/);
-			const jwtSecretMatch = privateFileContent.match(/JWT_SECRET_KEY:\s*['"]([^'"]+)['"]/);
-			const encryptionKeyMatch = privateFileContent.match(/ENCRYPTION_KEY:\s*['"]([^'"]+)['"]/);
+			jwtSecretMatch = privateFileContent.match(/JWT_SECRET_KEY:\s*['"]([^'"]+)['"]/);
+			encryptionKeyMatch = privateFileContent.match(/ENCRYPTION_KEY:\s*['"]([^'"]+)['"]/);
 
 			logger.debug('Regex matches', {
 				hasDbType: !!dbTypeMatch,
@@ -319,16 +321,27 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			);
 		}
 
-		// 4. Initialize the global system (db.ts) - reload private.ts from filesystem
+		// 4. Initialize the global system (db.ts) - use in-memory config (MOST EFFICIENT!)
 		try {
-			logger.info('🚀 Initializing global system from db.ts...', { correlationId });
-			const { initializeWithFreshConfig } = await import('@src/databases/db');
+			logger.info('🚀 Initializing global system with in-memory config (zero-restart optimization)...', { correlationId });
+			const { initializeWithConfig } = await import('@src/databases/db');
 
-			// Simply reload private.ts from filesystem - no manual config needed!
-			// The private.ts file was just created, so we force reload to bypass Vite cache
-			const result = await initializeWithFreshConfig();
+			// Build full config object from parsed private.ts data
+			const fullConfig = {
+				DB_TYPE: dbConfig.type,
+				DB_HOST: dbConfig.host,
+				DB_PORT: dbConfig.port,
+				DB_NAME: dbConfig.name,
+				DB_USER: dbConfig.user || '',
+				DB_PASSWORD: dbConfig.password || '',
+				JWT_SECRET_KEY: jwtSecretMatch[1],
+				ENCRYPTION_KEY: encryptionKeyMatch[1]
+			};
 
-			if (result.status !== 'initialized') {
+			// Pass config in-memory - bypasses both filesystem AND Vite cache!
+			const result = await initializeWithConfig(fullConfig);
+
+			if (result.status !== 'success') {
 				// System initialization FAILED - cannot continue
 				const errorMsg = `System initialization failed: ${result.error || 'Unknown error'}`;
 				logger.error(errorMsg, { correlationId });
@@ -341,7 +354,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 				);
 			}
 
-			logger.info('✅ Global system initialized successfully', { correlationId });
+			logger.info('✅ Global system initialized successfully (in-memory config)', { correlationId });
 		} catch (initError) {
 			// System initialization threw an exception - cannot continue
 			const errorMsg = `System initialization exception: ${initError instanceof Error ? initError.message : String(initError)}`;
@@ -443,6 +456,41 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			}
 		} else {
 			logger.info('Skipping welcome email (SMTP not configured during setup)', { correlationId });
+		}
+
+		// 6.5 CRITICAL: Warm cache BEFORE redirecting user (ensures instant first load)
+		try {
+			const warmupUrl = `${url.protocol}//${url.host}/`;
+			logger.info(`🔥 Warming cache by fetching ${warmupUrl}...`, { correlationId });
+
+			const warmupResponse = await fetch(warmupUrl, {
+				headers: {
+					'User-Agent': 'SveltyCMS-Setup-Cache-Warmer/1.0',
+					'X-Cache-Warmup': 'true'
+				}
+			});
+
+			if (warmupResponse.ok) {
+				const contentLength = warmupResponse.headers.get('content-length');
+				logger.info('✅ Cache successfully warmed - first load will be INSTANT', {
+					correlationId,
+					status: warmupResponse.status,
+					contentLength: contentLength ? `${contentLength} bytes` : 'unknown',
+					cached: 'homepage SSR pre-rendered'
+				});
+			} else {
+				logger.warn(`Cache warming returned ${warmupResponse.status}, but continuing...`, {
+					correlationId,
+					status: warmupResponse.status,
+					statusText: warmupResponse.statusText
+				});
+			}
+		} catch (warmupError) {
+			// Non-fatal: Log but continue - first load will just be slower
+			logger.warn('Cache warming failed (non-critical - first load may be slower)', {
+				correlationId,
+				error: warmupError instanceof Error ? warmupError.message : String(warmupError)
+			});
 		}
 
 		// 7. Determine redirect path

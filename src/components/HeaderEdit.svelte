@@ -55,6 +55,20 @@
 	let user = $derived(page.data.user as User);
 	let isAdmin = $derived(page.data.isAdmin || false);
 
+	// ✅ Create reactive derived state for form validity
+	let isFormValid = $derived(validationStore.isValid);
+
+	// 🔍 DEBUG: Log validation state changes
+	$effect(() => {
+		if (mode.value === 'create' || mode.value === 'edit') {
+			logger.debug('[HeaderEdit] Validation state:', {
+				isValid: isFormValid,
+				errors: validationStore.errors,
+				mode: mode.value
+			});
+		}
+	});
+
 	interface CollectionData extends Record<string, unknown> {
 		_id?: string;
 		status?: StatusType;
@@ -196,7 +210,8 @@
 
 	// Shared save logic for HeaderEdit and RightSidebar
 	async function prepareAndSaveEntry() {
-		if (!validationStore.isValid) {
+		// ✅ FIX 1: Strict validation check before save
+		if (!isFormValid) {
 			logger.warn('[HeaderEdit] Save blocked due to validation errors.');
 			showToast(m.validation_fix_before_save(), 'error');
 			return;
@@ -247,22 +262,22 @@
 			);
 		}
 
-		await saveEntry(dataToSave); // Wait for save to complete (includes setMode('view'))
+		// ✅ FIX 2: Save entry and let it handle navigation
+		await saveEntry(dataToSave);
+
+		// Close sidebars
 		toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed');
 
 		// Reset change tracking
 		dataChangeStore.reset();
 
-		// ✅ Navigate back to list view with full data reload
-		// Remove ?edit= and ?create= parameters to trigger SSR reload of full entry list
-		const currentPath = page.url.pathname; // pathname excludes query parameters
-		logger.debug('[HeaderEdit] Navigating to:', currentPath, 'from:', page.url.href);
-		await goto(currentPath, { invalidateAll: true });
+		// ✅ FIX 3: Navigate to list view (saveEntry already called invalidateAll)
+		// This ensures the entry list refreshes with the new data
+		const currentPath = page.url.pathname;
+		logger.debug('[HeaderEdit] Save complete - Navigating to:', currentPath);
+		await goto(currentPath, { invalidateAll: true, replaceState: false });
 
-		// Update mode after navigation
-		setMode('view');
-
-		logger.debug('[Save] Navigated back to list view with full data');
+		logger.debug('[Save] Navigated back to list view with refreshed data');
 	} // Save form data with validation
 	async function saveData() {
 		await prepareAndSaveEntry();
@@ -417,11 +432,9 @@
 			onclick={saveData}
 			aria-label="Save"
 			class={`btn-icon mt-1 ${
-				!validationStore.isValid || !canWrite
-					? 'variant-filled-surface cursor-not-allowed opacity-50'
-					: 'variant-ghost-surface hover:variant-filled-surface'
+				!isFormValid || !canWrite ? 'variant-filled-surface cursor-not-allowed opacity-50' : 'variant-ghost-surface hover:variant-filled-surface'
 			}`}
-			disabled={!validationStore.isValid || !canWrite}
+			disabled={!isFormValid || !canWrite}
 		>
 			<div class="flex items-center justify-center">
 				<iconify-icon icon={collection.value?.icon} width="24" class="text-error-500"></iconify-icon>
@@ -447,8 +460,8 @@
 						type="button"
 						onclick={saveData}
 						aria-label="Save"
-						class={`variant-filled-tertiary btn-icon dark:variant-filled-primary ` + (!validationStore.isValid || !canWrite ? 'btn:disabled' : 'btn')}
-						disabled={!validationStore.isValid || !canWrite}
+						class={`variant-filled-tertiary btn-icon dark:variant-filled-primary ` + (!isFormValid || !canWrite ? 'btn:disabled' : 'btn')}
+						disabled={!isFormValid || !canWrite}
 					>
 						<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
 						<span class="hidden lg:block">{m.button_save()}</span>
@@ -478,10 +491,9 @@
 						<button
 							type="button"
 							onclick={saveData}
-							class={`variant-filled-tertiary btn-icon dark:variant-filled-primary lg:hidden ` +
-								(!validationStore.isValid || !canWrite ? 'btn:disabled' : 'btn')}
+							class={`variant-filled-tertiary btn-icon dark:variant-filled-primary lg:hidden ` + (!isFormValid || !canWrite ? 'btn:disabled' : 'btn')}
 							aria-label="Save entry"
-							disabled={!validationStore.isValid || !canWrite}
+							disabled={!isFormValid || !canWrite}
 						>
 							<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
 						</button>

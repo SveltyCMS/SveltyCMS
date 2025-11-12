@@ -5,6 +5,7 @@
  */
 import { writable, derived } from 'svelte/store';
 import type { Widget, WidgetModule, WidgetFunction } from '@widgets/types';
+import type { DatabaseAdapter } from '@src/databases/dbInterface';
 import { logger } from '@utils/logger';
 
 export type WidgetStatus = 'active' | 'inactive';
@@ -125,11 +126,13 @@ export function isWidgetAvailable(name: string): boolean {
 // Main store actions
 export const widgetStoreActions = {
 	// Initialize widgets from file system with tenant context
-	async initializeWidgets(tenantId?: string): Promise<void> {
+	// Allows server-side initialization without API calls when dbAdapter is provided
+	// Prevents the "Widgets Not Ready" race condition
+	async initializeWidgets(tenantId?: string, dbAdapter?: DatabaseAdapter | null): Promise<void> {
 		widgetStore.update((state) => ({ ...state, isLoading: true, tenantId }));
 
 		try {
-			logger.trace('Initializing widgets from file system...', { tenantId });
+			logger.trace('Initializing widgets from file system...', { tenantId, serverSide: !!dbAdapter });
 
 			// Load widget modules from both core and custom directories
 			const coreModules = import.meta.glob<WidgetModule>('../widgets/core/*/index.ts', {
@@ -171,7 +174,7 @@ export const widgetStoreActions = {
 			}
 
 			// Load active widgets from database (tenant-aware)
-			const activeWidgetNames = await loadActiveWidgetsFromDatabase(tenantId);
+			const activeWidgetNames = await loadActiveWidgetsFromDatabase(tenantId, dbAdapter);
 
 			// Normalize widget names from database to match file system (folder names are lowercase/camelCase)
 			// Database might have "Input" but folder is "input", "RemoteVideo" → "remoteVideo"
@@ -515,9 +518,30 @@ export const widgetStoreActions = {
 };
 
 // Database functions with tenant support - use API calls on client side
-async function loadActiveWidgetsFromDatabase(tenantId?: string): Promise<string[]> {
+async function loadActiveWidgetsFromDatabase(tenantId?: string, dbAdapter?: DatabaseAdapter | null): Promise<string[]> {
 	try {
-		logger.debug('[widgetStore] Loading active widgets from database...', { tenantId });
+		logger.debug('[widgetStore] Loading active widgets from database...', { tenantId, serverSide: !!dbAdapter });
+
+		// Server-side: if a dbAdapter is passed, use it directly
+		if (dbAdapter && dbAdapter.widgets) {
+			logger.debug('[widgetStore] Server-side: Using provided dbAdapter');
+			const result = await dbAdapter.widgets.getActiveWidgets(tenantId);
+
+			if (result.success && result.data) {
+				const widgetNames = result.data.map((w) => w.name);
+				logger.debug('[widgetStore] Active widgets loaded via dbAdapter', {
+					tenantId,
+					count: widgetNames.length,
+					widgets: widgetNames
+				});
+				return widgetNames;
+			} else {
+				logger.warn('[widgetStore] Failed to load active widgets via dbAdapter', {
+					error: result.error
+				});
+				return [];
+			}
+		}
 
 		// Check if we're on the client side
 		if (typeof window !== 'undefined') {
@@ -604,9 +628,12 @@ async function updateWidgetStatusInDatabase(widgetName: string, isActive: boolea
 // Initialize widgets on module load
 if (typeof window !== 'undefined') {
 	// Only auto-initialize in browser environment
-	widgetStoreActions.initializeWidgets().catch((error) => {
-		logger.error('Failed to initialize widgets on module load:', error);
-	});
+	// Use setTimeout to avoid blocking initial render
+	setTimeout(() => {
+		widgetStoreActions.initializeWidgets().catch((error) => {
+			logger.error('Failed to initialize widgets on module load:', error);
+		});
+	}, 0);
 }
 
 // HMR setup

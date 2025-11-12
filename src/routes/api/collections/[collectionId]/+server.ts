@@ -251,48 +251,27 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			body = Object.fromEntries(formData.entries());
 		} else {
 			throw error(400, 'Unsupported content type');
-		} // Prepare data with metadata and tenantId
+		}
 
-		// Map form field names to database field names
-		const mappedBody = {};
+		// Check if data is nested under a 'data' property (handles both direct and nested payloads)
+		// This prevents "last_name is required" errors when data comes from different sources
+		const sourceData = body.data && typeof body.data === 'object' ? body.data : body;
 
-		// Create a mapping from form field keys to database field names
-		schema.fields.forEach((field) => {
-			// The field key used in forms is typically the lowercase label without spaces
-			const formFieldKey = field.label.toLowerCase().replace(/\s+/g, '');
-			const dbFieldName = field.db_fieldName || formFieldKey;
-
-			// Check if this form field exists in the body
-			if (formFieldKey in body) {
-				mappedBody[dbFieldName] = body[formFieldKey];
-			}
-			// Also check for exact label match
-			else if (field.label in body) {
-				mappedBody[dbFieldName] = body[field.label];
-			}
+		logger.trace('Data extraction completed', {
+			hasNestedData: !!body.data,
+			fieldCount: Object.keys(sourceData).length,
+			fields: Object.keys(sourceData)
 		});
 
-		// Add any remaining fields that don't need mapping
-		Object.entries(body).forEach(([key, value]) => {
-			const formFieldKey = key.toLowerCase().replace(/\s+/g, '');
-			const hasMapping = schema.fields.some((field) => field.label.toLowerCase().replace(/\s+/g, '') === formFieldKey || field.label === key);
-
-			if (!hasMapping) {
-				mappedBody[key] = value;
-			}
-		});
-
-		logger.trace('Field mapping completed', {
-			mappedFieldsCount: Object.keys(mappedBody).length,
-			mappedFields: Object.keys(mappedBody)
-		});
 		const entryData = {
-			...mappedBody,
+			...sourceData, // Use extracted source data directly
 			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }), // Add tenantId
 			createdBy: user._id,
 			updatedBy: user._id,
-			status: body.status || schema.status || 'draft' // Respect collection's default status
-		}; // Apply modifyRequest for pre-processing
+			status: sourceData.status || schema.status || 'draft' // Respect collection's default status
+		};
+
+		// Apply modifyRequest for pre-processing
 
 		const dataArray = [entryData];
 		try {
