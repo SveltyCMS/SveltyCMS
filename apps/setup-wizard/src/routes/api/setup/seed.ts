@@ -16,7 +16,7 @@
 import { publicConfigSchema } from '@sveltycms/shared-config/schemas';
 import type { DatabaseId } from '@sveltycms/shared-config/types';
 import type { DatabaseAdapter, Theme } from '@sveltycms/shared-config/dbInterface';
-import { invalidateSettingsCache } from '../../utils/settingsCache';
+import { invalidateSettingsCache } from '@setup-utils/settingsCache';
 import { logger } from '@utils/logger.svelte';
 import { dateToISODateString } from '@utils/dateUtils';
 import { safeParse } from 'valibot';

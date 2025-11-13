@@ -14,10 +14,19 @@
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 
+	// Initializing Skeleton stores (SAME AS next BRANCH)
+	import { initializeStores, storePopup } from '@skeletonlabs/skeleton';
+	// Import from Floating UI
+	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
+
 	// Paraglide locale bridge
 	import { locales as availableLocales, getLocale, setLocale } from '../paraglide/runtime';
 	import { systemLanguage } from '@stores/store.svelte';
 	import { initializeDarkMode } from '@stores/themeStore.svelte';
+
+	// Initialize Skeleton stores (must be at module level)
+	initializeStores();
+	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 
 	// Initialize theme on mount
 	onMount(() => {

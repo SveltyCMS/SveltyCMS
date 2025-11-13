@@ -13,7 +13,9 @@
 		},
 		"build": {
 			"executor": "nx:run-commands",
-			"outputs": ["{projectRoot}/build"],
+			"outputs": [
+				"{projectRoot}/build"
+			],
 			"options": {
 				"command": "vite build",
 				"cwd": "apps/cms"
@@ -69,5 +71,8 @@
 			}
 		}
 	},
-	"tags": ["type:app", "scope:cms"]
+	"tags": [
+		"type:app",
+		"scope:cms"
+	]
 }

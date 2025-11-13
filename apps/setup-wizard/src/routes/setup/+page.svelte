@@ -20,6 +20,7 @@
 -->
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
+	import { browser } from '$app/environment';
 	// Stores
 	import { publicEnv } from '@stores/globalSettings.svelte';
 	import { setupStore } from '@stores/setupStore.svelte';
@@ -105,10 +106,11 @@
 		welcomeModal: { ref: WelcomeModal }
 	};
 
-	// Initialize modal store at module level (after component registry)
-	const modalStore = getModalStore();
+	// Initialize modal store in onMount to avoid SSR issues
+	let modalStore: ReturnType<typeof getModalStore>;
 
 	onMount(() => {
+		modalStore = getModalStore();
 		setGlobalToastStore(getToastStore());
 
 		console.log('onMount - modalStore:', modalStore);
@@ -146,21 +148,25 @@
 	});
 
 	onDestroy(() => {
-		document.removeEventListener('click', outsideLang);
+		if (browser) {
+			document.removeEventListener('click', outsideLang);
+		}
 	});
 
 	function showWelcomeModal() {
+		if (!modalStore) {
+			console.warn('modalStore not initialized yet');
+			return;
+		}
 		console.log('showWelcomeModal called, modalStore:', modalStore);
 		const modal: ModalSettings = {
 			type: 'component',
-			component: 'welcomeModal', // Use the string key for the registered component
+			component: 'welcomeModal',
 			response: (confirmed: boolean) => {
 				if (confirmed) {
 					console.log('User clicked Get Started in welcome modal.');
-					// Potentially trigger navigation to step 1 or some other setup start action
 				} else {
 					console.log('User closed welcome modal without starting.');
-					// What happens if they close? Maybe nothing, they just see the faded setup page.
 				}
 			}
 		};
@@ -287,6 +293,9 @@
 				// Use main schema for instant feedback; server will re-validate
 				const adminResult = safeParse(setupAdminSchema, { ...wizard.adminUser });
 				if (!adminResult.success) {
+					if (mutateErrors) {
+						console.log('Admin validation failed:', adminResult.issues);
+					}
 					for (const issue of adminResult.issues) {
 						const path = issue.path?.[0]?.key as string;
 						if (path) errs[path] = issue.message;
@@ -448,9 +457,11 @@
 			// Clear store data
 			clearStore();
 
-			// Wait for toast to be visible, then redirect
+			// Wait for toast to be visible, then redirect to CMS app
 			setTimeout(() => {
-				window.location.href = data.redirectPath || '/config/collectionbuilder';
+				const cmsUrl = import.meta.env.VITE_CMS_URL || 'http://localhost:5173';
+				const redirectPath = data.redirectPath || '/config/collectionbuilder';
+				window.location.href = `${cmsUrl}${redirectPath}`;
 			}, 1500);
 		} catch (e) {
 			const errorMsg =
@@ -679,13 +690,13 @@
 	<!-- Modal with component registry for this page -->
 	<Modal components={modalComponentRegistry} />
 	<Toast />
-	<div class="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+	<div class="px-4 py-6 sm:px-6 lg:px-8 lg:py-8 mx-auto max-w-[1600px]">
 		<!-- Header -->
 		<div
-			class="border-surface-200 dark:bg-surface-800 mb-4 flex-shrink-0 rounded-xl border bg-white p-3 shadow-xl sm:p-6 lg:mb-6 dark:border-white"
+			class="border-surface-200 dark:bg-surface-800 mb-4 rounded-xl bg-white p-3 shadow-xl sm:p-6 lg:mb-6 dark:border-white flex-shrink-0 border"
 		>
-			<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-				<div class="flex flex-1 items-center gap-3 sm:gap-4">
+			<div class="gap-x-4 gap-y-2 flex flex-wrap items-center justify-between">
+				<div class="gap-3 sm:gap-4 flex flex-1 items-center">
 					<a
 						href="https://github.com/SveltyCMS/SveltyCMS"
 						target="_blank"
@@ -705,8 +716,8 @@
 					</h1>
 				</div>
 
-				<div class="flex flex-shrink-0 items-center gap-1 sm:gap-4">
-					<div class="hidden rounded border border-indigo-100 bg-indigo-50 px-3 py-1.5 lg:flex">
+				<div class="gap-1 sm:gap-4 flex flex-shrink-0 items-center">
+					<div class="rounded border-indigo-100 bg-indigo-50 px-3 py-1.5 lg:flex hidden border">
 						<div class="text-surface-500 text-xs font-medium tracking-wider uppercase">
 							{m.setup_heading_badge()}
 						</div>
@@ -714,7 +725,7 @@
 					<div class="language-selector relative">
 						{#if systemLanguages.length > 5}
 							<button onclick={toggleLang} class="variant-ghost btn rounded px-2 py-1">
-								<span class="hidden sm:inline">{getLanguageName(currentLanguageTag)}</span>
+								<span class="sm:inline hidden">{getLanguageName(currentLanguageTag)}</span>
 								<span class="font-mono text-xs font-bold">{currentLanguageTag.toUpperCase()}</span>
 								<svg
 									class="ml-1 h-3.5 w-3.5 transition-transform {isLangOpen ? 'rotate-180' : ''}"
@@ -732,7 +743,7 @@
 							</button>
 							{#if isLangOpen}
 								<div
-									class="absolute right-0 z-20 mt-2 w-52 rounded-lg border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-800"
+									class="right-0 mt-2 w-52 rounded-lg border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-800 absolute z-20 border"
 								>
 									<input
 										bind:value={langSearch}
@@ -745,7 +756,7 @@
 												.includes(langSearch.toLowerCase())) as lang}
 											<button
 												onclick={() => selectLanguage(lang)}
-												class="hover:bg-surface-200/60 dark:hover:bg-surface-600/60 flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm {currentLanguageTag ===
+												class="hover:bg-surface-200/60 dark:hover:bg-surface-600/60 rounded-md px-2 py-1.5 text-sm flex w-full items-center justify-between text-left {currentLanguageTag ===
 												lang
 													? 'bg-surface-200/80 dark:bg-surface-600/70 font-medium'
 													: ''}"
@@ -790,22 +801,22 @@
 					/>
 				</div>
 
-				<p class="w-full text-center text-sm sm:text-base">
+				<p class="text-sm sm:text-base w-full text-center">
 					{m.setup_heading_subtitle({ siteName: wizard.systemSettings.siteName || 'SveltyCMS' })}
 				</p>
 			</div>
 		</div>
 
 		<!-- Main Content with Left Side Steps -->
-		<div class="flex flex-col gap-4 lg:flex-row lg:gap-6">
+		<div class="gap-4 lg:flex-row lg:gap-6 flex flex-col">
 			<!-- Step Indicator (Left Side) - Horizontal on mobile, vertical on desktop -->
-			<div class="w-full shrink-0 lg:w-80 xl:w-96">
+			<div class="lg:w-80 xl:w-96 w-full shrink-0">
 				<div
-					class="border-surface-200 dark:bg-surface-800 flex flex-col rounded-xl border bg-white shadow-xl dark:border-white"
+					class="border-surface-200 dark:bg-surface-800 rounded-xl bg-white shadow-xl dark:border-white flex flex-col border"
 				>
 					<!-- Mobile: Horizontal step indicator -->
 					<div
-						class="relative flex items-start justify-between p-4 lg:hidden"
+						class="p-4 lg:hidden relative flex items-start justify-between"
 						role="list"
 						aria-label="Setup progress"
 					>
@@ -814,7 +825,7 @@
 							<div class="relative z-10 flex flex-1 flex-col items-center" role="listitem">
 								<button
 									type="button"
-									class="focus-visible:ring-primary-500 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 sm:h-10 sm:w-10 sm:text-sm {stepCompleted[
+									class="focus-visible:ring-primary-500 h-8 w-8 text-xs font-semibold sm:h-10 sm:w-10 sm:text-sm flex flex-shrink-0 items-center justify-center rounded-full transition-all focus:outline-none focus-visible:ring-2 {stepCompleted[
 										i
 									]
 										? 'bg-primary-500 text-white'
@@ -839,7 +850,7 @@
 									<div
 										class="text-xs font-medium sm:text-sm {i <= wizard.currentStep
 											? 'text-surface-900 dark:text-white'
-											: 'text-surface-500 dark:text-surface-400'} max-w-16 truncate sm:max-w-20"
+											: 'text-surface-500 dark:text-surface-400'} max-w-16 sm:max-w-20 truncate"
 									>
 										{_step.label.split(' ')[0]}
 									</div>
@@ -849,23 +860,23 @@
 
 						<!-- Connecting lines for mobile -->
 						<div
-							class="absolute top-8 right-12 left-12 flex h-0.5 sm:top-9 sm:right-14 sm:left-14"
+							class="top-8 right-12 left-12 h-0.5 sm:top-9 sm:right-14 sm:left-14 absolute flex"
 							aria-hidden="true"
 						>
 							{#each steps as _unused, i}{#if i !== steps.length - 1}<div
 										class="mx-1 h-0.5 flex-1 {stepCompleted[i]
 											? 'bg-primary-500'
-											: 'border-t-2 border-dashed border-slate-200 bg-transparent'}"
+											: 'border-slate-200 border-t-2 border-dashed bg-transparent'}"
 									></div>{/if}{/each}
 						</div>
 					</div>
 
 					<!-- Desktop: Vertical step indicator -->
-					<div class="hidden p-6 lg:block">
+					<div class="p-6 lg:block hidden">
 						{#each steps as _step, i}
-							<div class="relative last:pb-0">
+							<div class="last:pb-0 relative">
 								<button
-									class="flex w-full items-start gap-4 rounded-lg p-4 transition-all {stepClickable[
+									class="gap-4 rounded-lg p-4 flex w-full items-start transition-all {stepClickable[
 										i
 									] || i === wizard.currentStep
 										? 'hover:bg-slate-50 dark:hover:bg-slate-800/70'
@@ -875,13 +886,13 @@
 										(stepClickable[i] || i === wizard.currentStep) && (wizard.currentStep = i)}
 								>
 									<div
-										class="relative z-10 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold ring-2 ring-white transition-all {stepCompleted[
+										class="h-6 w-6 text-sm font-semibold ring-white relative z-10 flex flex-shrink-0 items-center justify-center rounded-full ring-2 transition-all {stepCompleted[
 											i
 										]
 											? 'bg-primary-500 text-white'
 											: i === wizard.currentStep
 												? 'bg-error-500 text-white shadow-xl'
-												: 'bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600'}"
+												: 'bg-slate-200 text-slate-600 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600 ring-1'}"
 									>
 										<span class="text-[0.65rem]">
 											{stepCompleted[i] ? '✓' : i === wizard.currentStep ? '●' : '•'}
@@ -913,12 +924,12 @@
 											i
 										]
 											? 'bg-primary-500'
-											: 'border-l-2 border-dashed border-slate-200'}"
+											: 'border-slate-200 border-l-2 border-dashed'}"
 									></div>{/if}
 							</div>
 						{/each}
 						<!-- Setup Steps Legend -->
-						<div class="mt-6 flex items-end gap-6 border-t pt-6">
+						<div class="mt-6 gap-6 pt-6 flex items-end border-t">
 							<div class="flex-1">
 								<h4
 									class="mb-4 text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-200"
@@ -927,13 +938,13 @@
 								</h4>
 								<ul class="space-y-2 text-xs">
 									{#each legendItems as item}
-										<li class="grid grid-cols-[1.4rem_auto] items-center gap-x-3">
+										<li class="gap-x-3 grid grid-cols-[1.4rem_auto] items-center">
 											<div
-												class="flex h-5 w-5 items-center justify-center rounded-full leading-none font-semibold
+												class="h-5 w-5 font-semibold flex items-center justify-center rounded-full leading-none
 												{item.key === 'completed' ? ' bg-primary-500 text-white' : ''}
 												{item.key === 'current' ? ' bg-error-500 text-white shadow-sm' : ''}
 												{item.key === 'pending'
-													? ' bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600'
+													? ' bg-slate-200 text-slate-600 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600 ring-1'
 													: ''}"
 											>
 												<span class="text-[0.65rem]">{item.content}</span>
@@ -955,11 +966,11 @@
 
 			<!-- Main Card (Right Side) -->
 			<div
-				class="border-surface-200 dark:bg-surface-800 flex flex-1 flex-col rounded-xl border bg-white shadow-xl dark:border-white"
+				class="border-surface-200 dark:bg-surface-800 rounded-xl bg-white shadow-xl dark:border-white flex flex-1 flex-col border"
 			>
 				<!-- Card Header with Step Title -->
-				<div class="flex flex-shrink-0 justify-between border-b px-4 py-3 sm:px-6 sm:py-4">
-					<h2 class="flex items-center text-lg font-semibold tracking-tight sm:text-xl">
+				<div class="px-4 py-3 sm:px-6 sm:py-4 flex flex-shrink-0 justify-between border-b">
+					<h2 class="text-lg font-semibold tracking-tight sm:text-xl flex items-center">
 						{#if wizard.currentStep === 0}
 							<iconify-icon
 								icon="mdi:database"
@@ -1046,12 +1057,12 @@
 					<!-- Status Messages -->
 					{#if (successMessage || errorMessage) && lastDbTestResult}
 						<div
-							class="mt-4 flex flex-col rounded-md border-l-4 p-0 text-sm"
+							class="mt-4 rounded-md p-0 text-sm flex flex-col border-l-4"
 							class:border-primary-400={!!successMessage}
 							class:border-error-400={!!errorMessage}
 						>
 							<div
-								class="flex items-center gap-2 px-3.5 py-3"
+								class="gap-2 px-3.5 py-3 flex items-center"
 								class:bg-primary-50={!!successMessage}
 								class:text-green-800={!!successMessage}
 								class:bg-red-50={!!errorMessage}
@@ -1079,14 +1090,14 @@
 								</div>
 								<button
 									type="button"
-									class="btn-sm flex shrink-0 items-center gap-1"
+									class="btn-sm gap-1 flex shrink-0 items-center"
 									onclick={() => (showDbDetails = !showDbDetails)}
 								>
 									<iconify-icon
 										icon={showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'}
 										class="h-4 w-4"
 									></iconify-icon>
-									<span class="hidden sm:inline"
+									<span class="sm:inline hidden"
 										>{showDbDetails
 											? m.setup_db_test_details_hide()
 											: m.setup_db_test_details_show()}</span
@@ -1095,7 +1106,7 @@
 								<!-- Dismiss status message -->
 								<button
 									type="button"
-									class="btn-icon btn-sm hover:bg-surface-200/60 dark:hover:bg-surface-600/60 h-6 w-6 shrink-0 rounded"
+									class="btn-icon btn-sm hover:bg-surface-200/60 dark:hover:bg-surface-600/60 h-6 w-6 rounded shrink-0"
 									aria-label="Close message"
 									onclick={() => {
 										successMessage = '';
@@ -1108,9 +1119,9 @@
 							</div>
 							{#if showDbDetails}
 								<div
-									class="border-surface-200 bg-surface-50 dark:border-surface-600 dark:bg-surface-700 border-t text-xs"
+									class="border-surface-200 bg-surface-50 dark:border-surface-600 dark:bg-surface-700 text-xs border-t"
 								>
-									<div class="grid grid-cols-2 gap-x-4 gap-y-2 p-3 sm:grid-cols-6">
+									<div class="gap-x-4 gap-y-2 p-3 sm:grid-cols-6 grid grid-cols-2">
 										<div class="sm:col-span-1">
 											<span class="font-semibold">{m.setup_db_test_latency()}:</span>
 											<span class="text-terrary-500 dark:text-primary-500"
@@ -1163,7 +1174,7 @@
 										{/if}
 									</div>
 									{#if !lastDbTestResult.success}
-										<div class="border-surface-200 dark:border-surface-600 border-t p-3">
+										<div class="border-surface-200 dark:border-surface-600 p-3 border-t">
 											{#if lastDbTestResult.userFriendly}
 												<div class="text-error-600 mb-2 font-semibold">Error:</div>
 												<div
@@ -1181,7 +1192,7 @@
 				</div>
 				<!-- Navigation -->
 				<div
-					class="flex flex-shrink-0 items-center justify-between border-t border-slate-200 px-4 pt-4 pb-4 sm:px-8 sm:pt-6 sm:pb-6"
+					class="border-slate-200 px-4 pt-4 pb-4 sm:px-8 sm:pt-6 sm:pb-6 flex flex-shrink-0 items-center justify-between border-t"
 				>
 					<!-- Previous Button -->
 					<div class="flex-1">
@@ -1198,7 +1209,7 @@
 					</div>
 
 					<!-- Step Indicator -->
-					<div class="flex-shrink-0 text-center text-sm font-medium">
+					<div class="text-sm font-medium flex-shrink-0 text-center">
 						{m.setup_progress_step_of({
 							current: String(wizard.currentStep + 1),
 							total: String(totalSteps)
