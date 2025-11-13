@@ -258,7 +258,9 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 						error: sessionError instanceof Error ? sessionError.message : String(sessionError),
 						stack: sessionError instanceof Error ? sessionError.stack : undefined
 					});
-					throw new Error(`Failed to create session: ${sessionError instanceof Error ? sessionError.message : String(sessionError)}`);
+					throw new Error(
+						`Failed to create session: ${sessionError instanceof Error ? sessionError.message : String(sessionError)}`
+					);
 				}
 
 				logger.info('✅ Admin user updated and session created', {
