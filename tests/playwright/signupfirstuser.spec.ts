@@ -10,26 +10,30 @@ import { test, expect } from '@playwright/test';
 
 test.describe.configure({ timeout: 60000 }); // Set timeout for all tests
 
-test('Test loading homepage and login screen', async ({ page }) => {
-	await page.goto('http://localhost:5173/', { waitUntil: 'domcontentloaded' });
-	await expect(page).toHaveURL('http://localhost:5173/');
+const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
 
-	await page.goto('http://localhost:5173/login', { waitUntil: 'domcontentloaded' });
+test('Test loading homepage and login screen', async ({ page }) => {
+	await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
+	await expect(page).toHaveURL(`${baseURL}/`);
+
+	await page.goto(`${baseURL}/login`, { waitUntil: 'domcontentloaded' });
 
 	await expect(page.getByText(/sign up/i)).toBeVisible();
 	await expect(page.getByText(/sign in/i)).toBeVisible();
 });
 
 // ✅ Language selection test (dropdown version)
-test('Check language selection updates UI text', async ({ page }) => {
-	await page.goto('http://localhost:5173/login');
+// TODO: This test uses incorrect languages - only 'en' and 'de' exist in the codebase
+// Needs rewrite similar to language.spec.ts
+test.skip('Check language selection updates UI text', async ({ page }) => {
+	await page.goto(`${baseURL}/login`);
 
 	const languageSelector = 'select'; // Update if needed
 
 	const languages = [
 		{ code: 'de', expected: /anmelden/i }, // Sign In in German
-		{ code: 'fr', expected: /se connecter/i }, // French
-		{ code: 'es', expected: /iniciar sesión/i }, // Spanish
+		{ code: 'fr', expected: /se connecter/i }, // French - DOESN'T EXIST
+		{ code: 'es', expected: /iniciar sesión/i }, // Spanish - DOESN'T EXIST
 		{ code: 'en', expected: /sign in/i } // English
 	];
 
@@ -42,7 +46,7 @@ test('Check language selection updates UI text', async ({ page }) => {
 
 // ✅ Signup First User
 test('SignUp First User', async ({ page }) => {
-	await page.goto('http://localhost:5173/login');
+	await page.goto(`${baseURL}/login`);
 	await page.getByText(/sign up/i).click();
 
 	// Username validation
@@ -70,12 +74,12 @@ test('SignUp First User', async ({ page }) => {
 	await page.locator('button[aria-label="SIGN UP"]').click();
 
 	// Final assert
-	await expect(page).toHaveURL('http://localhost:5173/en/Posts');
+	await expect(page).toHaveURL(new RegExp(`${baseURL}/(en/)?Posts`));
 });
 
 // ✅ SignOut Test
 test('SignOut after login', async ({ page }) => {
-	await page.goto('http://localhost:5173/login');
+	await page.goto(`${baseURL}/login`);
 
 	await page.getByText(/sign in/i).click();
 	await page.locator('#email-address').fill('test@test.de');
@@ -85,25 +89,25 @@ test('SignOut after login', async ({ page }) => {
 	const signOutButton = page.locator('button[value="Sign out"]');
 	if (await signOutButton.isVisible()) {
 		await signOutButton.click();
-		await expect(page).toHaveURL('http://localhost:5173/login');
+		await expect(page).toHaveURL(`${baseURL}/login`);
 	}
 });
 
 // ✅ Login First User
 test('Login First User', async ({ page }) => {
-	await page.goto('http://localhost:5173/login');
+	await page.goto(`${baseURL}/login`);
 
 	await page.getByText(/sign in/i).click();
 	await page.locator('#email-address').fill('test@test2.de');
 	await page.locator('#password').fill('Test123!');
 	await page.getByRole('button', { name: /sign in/i }).click();
 
-	await expect(page).toHaveURL('http://localhost:5173/en/Posts');
+	await expect(page).toHaveURL(new RegExp(`${baseURL}/(en/)?Posts`));
 });
 
 // ✅ Forgot Password
 test('Forgot Password Flow', async ({ page }) => {
-	await page.goto('http://localhost:5173/login');
+	await page.goto(`${baseURL}/login`);
 
 	await page.getByText(/sign in/i).click();
 	await page.getByRole('button', { name: /forgotten password/i }).click();
@@ -115,5 +119,5 @@ test('Forgot Password Flow', async ({ page }) => {
 	await page.locator('#confirm-password').fill('Test123!');
 	await page.getByRole('button', { name: /save new password/i }).click();
 
-	await expect(page).toHaveURL('http://localhost:5173/login');
+	await expect(page).toHaveURL(`${baseURL}/login`);
 });

@@ -18,24 +18,39 @@ test.describe('User Management Flow', () => {
 		console.log('✓ Admin logged in successfully');
 	});
 
-	// TODO: "User Profile" link selector needs investigation
-	test.skip('Read and Edit User Profile', async ({ page }) => {
+	test('Read and Edit User Profile', async ({ page }) => {
 		// Login
 		await loginAsAdmin(page);
 
-		// Go to User Profile
-		await page.getByRole('link', { name: /user profile/i }).click();
+		// Navigate to User Profile via avatar button in sidebar
+		await page.getByRole('button', { name: /user profile/i }).click();
+
+		// Wait for /user page to load
+		await expect(page).toHaveURL(/\/user/);
 
 		// ✅ READ operation - assert user profile visible
-		await expect(page.locator('h1')).toContainText(/user profile/i);
+		// Check for page title icon and user data fields
+		await expect(page.locator('input[name="username"]')).toBeVisible();
+		await expect(page.locator('input[name="email"]')).toBeVisible();
+		console.log('✓ User profile page loaded with user data');
 
 		// ✅ UPDATE operation - Edit user info
-		await page.getByRole('button', { name: /edit/i }).click();
-		await page.getByPlaceholder(/username/i).fill('updatedUser');
-		await page.getByRole('button', { name: /save/i }).click();
+		// Click edit user settings button
+		await page.getByRole('button', { name: /edit.*setting/i }).click();
 
-		// Confirm update saved
-		await expect(page.locator('text=updatedUser')).toBeVisible();
+		// Wait for modal to open and be visible
+		await expect(page.locator('.modal-example-form')).toBeVisible({ timeout: 5000 });
+
+		// Find and update username field in the modal (within form#change_user_form)
+		const usernameInput = page.locator('form#change_user_form input[name="username"]');
+		await usernameInput.fill('updatedAdmin');
+
+		// Click Save button - it's a submit button for the form
+		await page.locator('button[type="submit"][form="change_user_form"]').click();
+
+		// Wait for success toast
+		await expect(page.getByText(/user data updated/i)).toBeVisible({ timeout: 10000 });
+		console.log('✓ User profile updated successfully');
 	});
 
 	// TODO: Needs rewrite with loginAsAdmin helper and current selectors
