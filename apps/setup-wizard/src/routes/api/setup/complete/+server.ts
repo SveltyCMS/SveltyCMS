@@ -101,7 +101,9 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			// Read private.ts from filesystem to bypass Vite's import cache
 			const fs = await import('fs/promises');
 			const path = await import('path');
-			const privateFilePath = path.resolve(process.cwd(), 'config/private.ts');
+			// In monorepo: config is at workspace root (../../config from apps/setup-wizard)
+			const workspaceRoot = path.resolve(process.cwd(), '..', '..');
+			const privateFilePath = path.resolve(workspaceRoot, 'config/private.ts');
 
 			logger.debug('Reading private.ts from filesystem', { path: privateFilePath });
 			const privateFileContent = await fs.readFile(privateFilePath, 'utf-8');
@@ -235,21 +237,29 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 					userId: adminUser._id
 				});
 
-				// Create session for updated user
-				const sessionResult = await setupAuth.createSession({ user_id: adminUser._id, expires });
+				// Create session for updated user (returns Session directly, not DatabaseResult)
+				try {
+					session = await setupAuth.createSession({ user_id: adminUser._id, expires });
 
-				logger.debug('Session creation result:', {
-					correlationId,
-					success: sessionResult.success,
-					hasData: !!sessionResult.data,
-					message: sessionResult.message,
-					dataType: typeof sessionResult.data
-				});
+					logger.debug('Session creation result:', {
+						correlationId,
+						hasSession: !!session,
+						sessionId: session?._id,
+						sessionType: typeof session,
+						sessionKeys: session ? Object.keys(session) : []
+					});
 
-				if (!sessionResult.success || !sessionResult.data) {
-					throw new Error(sessionResult.message || 'Failed to create session');
+					if (!session || !session._id) {
+						throw new Error('Failed to create session - session object invalid');
+					}
+				} catch (sessionError) {
+					logger.error('Session creation error:', {
+						correlationId,
+						error: sessionError instanceof Error ? sessionError.message : String(sessionError),
+						stack: sessionError instanceof Error ? sessionError.stack : undefined
+					});
+					throw new Error(`Failed to create session: ${sessionError instanceof Error ? sessionError.message : String(sessionError)}`);
 				}
-				session = sessionResult.data;
 
 				logger.info('✅ Admin user updated and session created', {
 					correlationId,
