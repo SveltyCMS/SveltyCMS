@@ -11,12 +11,9 @@ import { test, expect } from '@playwright/test';
 
 test.describe('OAuth First User Signup', () => {
 	test.beforeEach(async ({ page }) => {
-		// Use different URLs for CI vs local testing
-		const testUrl = process.env.CI
-			? 'http://localhost:4173/login' // GitHub Actions uses preview server
-			: 'http://localhost:5173/login'; // Local dev server
-
-		await page.goto(testUrl, { waitUntil: 'domcontentloaded' });
+		// Use baseURL from playwright config or environment variable
+		const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
+		await page.goto(`${baseURL}/login`, { waitUntil: 'domcontentloaded' });
 	});
 
 	test('OAuth button should be visible when OAuth is enabled', async ({ page }) => {
