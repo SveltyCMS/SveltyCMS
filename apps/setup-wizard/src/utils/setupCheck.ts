@@ -8,7 +8,7 @@
  */
 
 import { join } from 'node:path';
-import { isConfigFilePopulated, invalidateConfigCache } from '@utils/configCheck';
+import { isConfigFilePopulated, invalidateConfigCache } from '../shared-utils/configCheck';
 
 // --- Path Configuration ---
 // In monorepo: config is at workspace root (../../config from apps/setup-wizard)

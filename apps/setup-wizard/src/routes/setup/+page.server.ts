@@ -41,11 +41,9 @@ function isSetupTrulyComplete(): boolean {
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
 	// --- SECURITY ---
-	// If setup is already complete (config has actual values), redirect away immediately.
-	// This is the primary protection for this route.
-	if (isSetupTrulyComplete()) {
-		throw redirect(302, '/login');
-	}
+	// If setup is already complete (config has actual values), allow access to show success
+	// The client will handle redirecting to CMS app
+	// Don't redirect here as it would cause 404 errors
 
 	// Clear any existing session cookies to ensure fresh start
 	// This prevents issues when doing a fresh database setup

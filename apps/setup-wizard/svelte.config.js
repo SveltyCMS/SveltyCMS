@@ -20,6 +20,7 @@ const config = {
 			'@src': '../cms/src',
 			'@stores': './src/stores',
 			'@utils': '../shared-utils',
+			'@setup-utils': './src/utils',
 			'@sveltycms/shared-config': '../shared-config'
 		}
 	}

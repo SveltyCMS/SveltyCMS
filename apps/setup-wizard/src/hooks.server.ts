@@ -140,16 +140,20 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Instead, let the auth system handle it (redirect to /login where they'll see auth errors).
 	// The admin can then restore the database or contact support.
 
-	// --- Step 4: Setup is Complete - Block Access to Setup Routes ---
+	// --- Step 4: Setup is Complete - Handle Routes ---
+	// After setup completes, allow the setup page to show success message
+	// The client will handle redirecting to CMS app
 	if (pathname.startsWith('/setup') && !pathname.startsWith('/api/setup')) {
 		if (!event.locals.__setupLoginRedirectLogged) {
 			logger.trace(
-				`Setup complete. Blocking access to \x1b[34m${pathname}\x1b[0m, redirecting to /login`
+				`Setup complete. Allowing access to setup page for success message display`
 			);
 			event.locals.__setupLoginRedirectLogged = true;
 		}
-		throw redirect(302, '/login');
+		return resolve(event);
 	}
 
+	// For any other route after setup is complete, just resolve normally
+	// (will return 404 if route doesn't exist, which is fine)
 	return resolve(event);
 };

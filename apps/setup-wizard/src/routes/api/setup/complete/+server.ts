@@ -26,7 +26,7 @@ import type { User, Session } from '@sveltycms/shared-config/schemas';
  * Future improvement: Extract Auth interface to shared-config if needed.
  */
 import { Auth } from '@src/databases/auth';
-import { invalidateSettingsCache } from '../../utils/settingsCache';
+import { invalidateSettingsCache } from '@setup-utils/settingsCache';
 import { setupAdminSchema } from '@utils/formSchemas';
 import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.svelte';

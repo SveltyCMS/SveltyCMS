@@ -1,10 +1,9 @@
 /**
  * @file apps/setup-wizard/src/app.css
  * @description Global styles for the Setup Wizard
- * Uses Tailwind v3
+ * Uses Tailwind v3 + SveltyCMS Theme
  */
 
-/* Tailwind directives */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
