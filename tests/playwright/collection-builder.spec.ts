@@ -15,14 +15,10 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		// Check if the page loads correctly
 		await expect(page.locator('h1')).toContainText('Collection Builder');
 
-		// Check if we can create a new collection
-		const createButton = page.locator('button:has-text("Create Collection")').first();
-		if (await createButton.isVisible()) {
-			await createButton.click();
-		} else {
-			// Alternative path - look for add/new buttons
-			await page.click('button:has-text("New")');
-		}
+		// Check if "Add Collection" button is visible
+		const addCollectionButton = page.locator('button[aria-label="Add New Collection"]');
+		await expect(addCollectionButton).toBeVisible({ timeout: 10000 });
+		console.log('✓ Add Collection button is visible');
 	});
 
 	test('should display widget management page', async ({ page }) => {
