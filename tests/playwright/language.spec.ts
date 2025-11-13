@@ -11,19 +11,28 @@ import { loginAsAdmin } from './helpers/auth';
 test.describe('System Language Change', () => {
 	test.setTimeout(60000); // 1 min
 
-	test('Login and change system language to EN, FR, DE, ES', async ({ page }) => {
+	test('Login and change system language between EN and DE', async ({ page }) => {
 		// 1. Login
 		await loginAsAdmin(page, /\/admin|\/en\/Collections\/Names/);
 
-		// 3. Loop through language options
-		const languages = ['en', 'fr', 'de', 'es'];
+		// 2. Find language selector
+		const languageSelector = page.locator('select[aria-label="Select language"]').first();
+		await expect(languageSelector).toBeVisible({ timeout: 10000 });
+
+		// 3. Loop through available language options (en, de)
+		const languages = ['en', 'de'];
 
 		for (const lang of languages) {
 			// Select language from dropdown
-			await page.selectOption('select', lang);
+			await languageSelector.selectOption(lang);
 
-			// Optional: wait briefly if UI updates after change
+			// Wait briefly for UI to update
 			await page.waitForTimeout(1000);
+
+			// Verify the selector value changed
+			const selectedValue = await languageSelector.inputValue();
+			expect(selectedValue).toBe(lang);
+			console.log(`✓ Language selector set to: ${lang.toUpperCase()}`);
 		}
 	});
 });
