@@ -277,9 +277,9 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 		systemState = getSystemState();
 	}
 
-	// Allow setup wizard during IDLE state
+	// Allow setup wizard and root redirect during IDLE state
 	if (systemState.overallState === 'IDLE') {
-		const allowedPaths = ['/setup', '/api/setup', '/api/system/health', '/static', '/.well-known'];
+		const allowedPaths = ['/setup', '/api/setup', '/api/system/health', '/login', '/static', '/.well-known'];
 		if (allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === '/') {
 			return resolve(event);
 		}
@@ -292,6 +292,23 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 			return resolve(event);
 		}
 		throw error(503, 'Service Unavailable: A critical system component has failed.');
+	}
+
+	// During INITIALIZING, wait for initialization to complete
+	if (systemState.overallState === 'INITIALIZING') {
+		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/api/setup', '/login', '/.well-known'];
+		if (allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === '/') {
+			return resolve(event);
+		}
+
+		// Wait for initialization to complete
+		await dbInitPromise;
+		systemState = getSystemState();
+
+		// If still not ready after initialization, block the request
+		if (!isSystemReady()) {
+			throw error(503, 'Service Unavailable: The system failed to initialize.');
+		}
 	}
 
 	// Allow requests only when READY or DEGRADED
@@ -310,10 +327,11 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
 **Key Features**:
 
-- Enforces state machine transitions
-- Waits for DB initialization on first request
-- Allows partial functionality in DEGRADED state
-- Health check endpoints always accessible
+- **Smart Initialization**: Waits for initialization during INITIALIZING state instead of blocking
+- **Root Path Handling**: Allows `/` during IDLE and INITIALIZING for proper redirects to /setup, /login, or first collection
+- **State Machine Enforcement**: Blocks requests appropriately based on system state
+- **Partial Functionality**: Allows essential routes in DEGRADED state
+- **Always-On Health Checks**: Health check endpoints accessible in all states
 
 ---
 
@@ -478,10 +496,75 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 
 **Key Features**:
 
-- File-based detection using `private.ts` existence
-- Allows assets during setup for UI rendering
-- Special response filter for setup API cookies
-- One-time setup (blocks setup routes after completion)
+- **Config Validation**: Checks both existence and content of `config/private.ts`
+- **Smart Redirects**: Empty config values treated as "not configured"
+- **Asset Allowance**: Static assets allowed during setup for UI rendering
+- **Special Response Filter**: Allows setup API to set cookies before redirect
+- **One-Time Setup**: Blocks setup routes after completion
+
+---
+
+### Root Path (`/`) Redirect Flow
+
+The root path has special handling to provide an optimal user experience across all system states:
+
+**Redirect Logic Sequence**:
+
+1. **No `config/private.ts`** (or empty values)
+   - `handleSetup` → Redirect to `/setup`
+   - User completes installation wizard
+
+2. **Has `config/private.ts`, no valid session**
+   - `handleSetup` → Passes through
+   - `handleAuthentication` → Sets `locals.user = null`
+   - Root `+page.server.ts` → Redirect to `/login`
+
+3. **Has `config/private.ts`, valid session**
+   - `handleSetup` → Passes through
+   - `handleAuthentication` → Sets `locals.user = User`
+   - Root `+page.server.ts` → Redirect to first collection
+
+**Implementation** (`src/routes/+page.server.ts`):
+
+```typescript
+export const load: PageServerLoad = async ({ locals, url }) => {
+	const { user } = locals;
+
+	// No session - redirect to login
+	if (!user) {
+		throw redirect(302, '/login');
+	}
+
+	// Only for root path
+	if (url.pathname !== '/') {
+		return { user, permissions: locals.permissions };
+	}
+
+	// Wait for system initialization
+	await dbInitPromise;
+	await contentManager.initialize(tenantId);
+
+	// Get first collection and redirect
+	const redirectUrl = await contentManager.getFirstCollectionRedirectUrl(redirectLanguage, tenantId);
+
+	if (redirectUrl) {
+		throw redirect(302, redirectUrl);
+	}
+
+	// No collections found - stay on root
+	return { user, permissions: locals.permissions };
+};
+```
+
+**Why Root Path is Always Allowed**:
+
+The root path (`/`) must pass through `handleSystemState` during IDLE and INITIALIZING states to enable:
+
+- Setup wizard detection and redirect
+- Login page redirect for invalid sessions
+- First collection redirect for authenticated users
+
+Blocking `/` during initialization would prevent these essential flows from working.
 
 ---
 

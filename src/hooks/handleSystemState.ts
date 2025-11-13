@@ -92,7 +92,33 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 	}
 
 	// --- State: INITIALIZING or IDLE ---
-	// If the system is not yet ready, only allow essential requests to pass.
+	// If the system is initializing, wait for it to complete (unless it's an allowed route)
+	if (systemState.overallState === 'INITIALIZING') {
+		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/api/setup', '/login', '/.well-known', '/_'];
+		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === '/';
+
+		if (isAllowedRoute) {
+			logger.trace(`Allowing request to \x1b[34m${pathname}\x1b[0m during \x1b[34mINITIALIZING\x1b[0m state.`);
+			return resolve(event);
+		}
+
+		// Wait for initialization to complete
+		logger.debug(`Request to \x1b[34m${pathname}\x1b[0m waiting for initialization to complete...`);
+		await dbInitPromise;
+		systemState = getSystemState(); // Re-fetch state after initialization
+		logger.debug(`Initialization complete. System state is now: \x1b[34m${systemState.overallState}\x1b[0m`);
+
+		// If still not ready after initialization, block the request
+		if (!isSystemReady()) {
+			logger.warn(`Request to \x1b[34m${pathname}\x1b[0m blocked: System failed to initialize properly.`);
+			throw error(503, 'Service Unavailable: The system failed to initialize. Please contact an administrator.');
+		}
+
+		// System is now ready, continue processing
+	}
+
+	// --- State: IDLE (Setup Mode) ---
+	// If the system is not yet ready and not initializing, only allow essential requests to pass.
 	if (!isReady) {
 		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/api/setup'];
 		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix));

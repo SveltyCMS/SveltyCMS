@@ -104,21 +104,24 @@ async function checkDatabaseHealth(): Promise<{ healthy: boolean; reason?: strin
 		// State looks good, verify database actually has data (setup completion check)
 		await dbInitPromise;
 
-		const { dbAdapter } = await import('@src/databases/db');
-		if (!dbAdapter) {
-			return { healthy: false, reason: 'Database adapter not initialized' };
+		const { auth } = await import('@src/databases/db');
+		if (!auth) {
+			return { healthy: false, reason: 'Authentication service not initialized' };
 		}
 
 		// Lightweight check: verify database has roles (indicates setup was completed)
-		if (!dbAdapter.roles) {
-			return { healthy: false, reason: 'Database roles interface not available' };
-		}
-
-		const rolesResult = await dbAdapter.roles.getAll();
-		if (!rolesResult.success || !rolesResult.data || rolesResult.data.length === 0) {
+		try {
+			const roles = await auth.getAllRoles();
+			if (!roles || roles.length === 0) {
+				return {
+					healthy: false,
+					reason: 'Database is empty - no roles found. Setup may not have completed successfully.'
+				};
+			}
+		} catch (error) {
 			return {
 				healthy: false,
-				reason: 'Database is empty - no roles found. Setup may not have completed successfully.'
+				reason: `Failed to query roles: ${error instanceof Error ? error.message : String(error)}`
 			};
 		}
 
