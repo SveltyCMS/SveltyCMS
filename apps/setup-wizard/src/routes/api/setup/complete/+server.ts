@@ -37,7 +37,6 @@ import type { RequestHandler } from './$types';
 // Removed ContentManager and CollectionStore dependencies
 // We use firstCollection passed from client or fallback to /collection-builder
 import type { Locale } from '$paraglide/runtime';
-import { publicEnv } from '@root/config/public';
 
 interface AdminConfig {
 	username: string;
@@ -46,12 +45,25 @@ interface AdminConfig {
 	confirmPassword: string;
 }
 
+interface SystemSettings {
+	siteName: string;
+	hostProd: string;
+	defaultSystemLanguage: string;
+	systemLanguages: string[];
+	defaultContentLanguage: string;
+	contentLanguages: string[];
+	mediaStorageType: string;
+	mediaFolder: string;
+	timezone: string;
+}
+
 export const POST: RequestHandler = async ({ request, cookies, url }) => {
 	const correlationId = randomBytes(6).toString('hex');
 	try {
 		const setupData = await request.json();
-		const { admin, firstCollection, skipWelcomeEmail } = setupData as {
+		const { admin, system, firstCollection, skipWelcomeEmail } = setupData as {
 			admin: AdminConfig;
+			system: SystemSettings;
 			firstCollection?: { name: string; path: string } | null;
 			skipWelcomeEmail?: boolean;
 		};
@@ -388,8 +400,8 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		if (!skipWelcomeEmail) {
 			try {
 				const hostLink = url.origin; // Get the full origin (protocol + host)
-				// In SSR context, use BASE_LOCALE as default language
-				const userLanguage = (publicEnv.BASE_LOCALE as Locale) || 'en';
+				// Use defaultSystemLanguage from system settings
+				const userLanguage = (system.defaultSystemLanguage as Locale) || 'en';
 
 				const emailResponse = await fetch(`${url.origin}/api/sendMail`, {
 					method: 'POST',
@@ -399,11 +411,11 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 					},
 					body: JSON.stringify({
 						recipientEmail: admin.email,
-						subject: `Welcome to ${publicEnv.SITE_NAME || 'SveltyCMS'}`,
+						subject: `Welcome to ${system.siteName || 'SveltyCMS'}`,
 						templateName: 'welcomeUser',
 						props: {
 							username: admin.username,
-							sitename: publicEnv.SITE_NAME || 'SveltyCMS',
+							sitename: system.siteName || 'SveltyCMS',
 							hostLink: hostLink
 						},
 						languageTag: userLanguage
@@ -434,8 +446,8 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		// 7. Determine redirect path
 		let redirectPath: string;
 		try {
-			// In SSR context, use BASE_LOCALE as default language
-			const userLanguage = (publicEnv.BASE_LOCALE as Locale) || 'en';
+			// Use defaultSystemLanguage from system settings
+			const userLanguage = (system.defaultSystemLanguage as Locale) || 'en';
 
 			// Use firstCollection if it was passed from the seed step (faster!)
 			if (firstCollection && firstCollection.path) {
