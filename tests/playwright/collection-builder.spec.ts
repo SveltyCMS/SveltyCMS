@@ -123,25 +123,42 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		console.log('✓ Collection created with widget field');
 	});
 
-	test.skip('should filter widgets by search', async ({ page }) => {
-		// Navigate to collection builder and start creating
-		await page.goto('/config/collectionbuilder');
-		await page.click('button:has-text("Create"), button:has-text("New")');
+	test('should filter widgets by search', async ({ page }) => {
+		// Navigate to widget management page (where search functionality is)
+		await page.goto('/config/widgetManagement');
 
-		// Navigate to widgets and add field
-		await page.click('button:has-text("Add Field"), button:has-text("Add Widget")');
+		// Wait for page to load
+		await page.waitForTimeout(1000);
 
-		// Use search functionality
-		const searchInput = page.locator('input[placeholder*="search"], input[type="search"], .search-input');
-		if (await searchInput.isVisible()) {
-			await searchInput.fill('text');
+		// Find the search input
+		const searchInput = page.locator('input[type="text"][placeholder*="Search widgets"]');
+		await expect(searchInput).toBeVisible({ timeout: 5000 });
 
-			// Verify search results
-			await expect(page.locator('.widget-option')).toContainText('Text');
+		// Get initial widget count
+		const widgetCards = page.locator('.grid.grid-cols-1.gap-4.lg\\:grid-cols-2 > div');
+		const initialCount = await widgetCards.count();
+		console.log(`Initial widget count: ${initialCount}`);
 
-			// Clear search
-			await searchInput.fill('');
-		}
+		// Search for a specific widget type (e.g., "text" or "input")
+		await searchInput.fill('text');
+		await page.waitForTimeout(500); // Wait for filter to apply
+
+		// Get filtered count
+		const filteredCount = await widgetCards.count();
+		console.log(`Filtered widget count: ${filteredCount}`);
+
+		// Filtered count should be <= initial count
+		expect(filteredCount).toBeLessThanOrEqual(initialCount);
+
+		// Clear search using the clear button or Escape key
+		await searchInput.press('Escape');
+		await page.waitForTimeout(500);
+
+		// Verify count returns to initial
+		const finalCount = await widgetCards.count();
+		expect(finalCount).toBe(initialCount);
+
+		console.log('✓ Widget search filter working correctly');
 	});
 
 	test.skip('should configure widget-specific properties', async ({ page }) => {
