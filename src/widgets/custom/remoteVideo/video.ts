@@ -11,7 +11,7 @@
  * - **Secure**: Designed for server-side execution to protect API keys.
  */
 import { getPrivateSettingSync } from '@src/services/settingsService'; // Assuming this is server-side access to private env vars
-import { logger } from '@utils/logger.server'; // Assuming this is a server-side logger
+import { logger } from '@utils/logger'; // Isomorphic logger (works client and server)
 import type { RemoteVideoData, VideoPlatform } from './types';
 
 // Cached version of RemoteVideoData with internal timestamp

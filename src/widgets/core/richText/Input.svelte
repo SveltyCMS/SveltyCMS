@@ -33,7 +33,6 @@ Interactive Tiptap editor with toolbar and title input
 	import type { FieldType } from './';
 	import { createEditor } from './tiptap';
 	import type { RichTextData } from './types';
-	// Import the decoupled editor config
 	import { contentLanguage } from '@src/stores/store.svelte';
 
 	let { field, value, error }: { field: FieldType; value: Record<string, RichTextData> | null | undefined; error?: string | null } = $props();
@@ -76,6 +75,8 @@ Interactive Tiptap editor with toolbar and title input
 		editor = createEditor(element, initialContent, lang);
 
 		// When Tiptap updates, sync its content back to the parent `value`.
+		// Note: Content is sanitized on display via Sanitize component
+		// This provides defense-in-depth security architecture
 		editor.on('update', () => {
 			const newContent = editor!.getHTML();
 			value = {
