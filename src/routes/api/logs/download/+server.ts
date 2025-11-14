@@ -20,7 +20,8 @@ import { createReadStream, existsSync, statSync, readdirSync } from 'fs';
 import { join, basename } from 'path';
 import { createGzip } from 'zlib';
 import { pipeline } from 'stream/promises';
-import logger from '@utils/logger.server';
+import { Readable } from 'stream';
+import { logger } from '@utils/logger.server';
 
 /**
  * Download error logs from the server
@@ -159,7 +160,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			const buffer = Buffer.from(combinedLogs, 'utf-8');
 			const compressed = await compressBuffer(buffer);
 
-			return new Response(compressed, {
+			return new Response(new Uint8Array(compressed), {
 				status: 200,
 				headers: {
 					'Content-Type': 'application/gzip',

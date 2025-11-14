@@ -23,6 +23,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 import type { RedisClientType } from 'redis';
 // System Logger
 import { logger } from '@utils/logger.server';
+import { CacheCategory } from './CacheCategory';
 
 // Cache config will be loaded lazily when cache is initialized
 let CACHE_CONFIG: {
@@ -486,16 +487,7 @@ export const REDIS_TTL_S = 300; // 5 minutes in seconds for Redis
  * Cache category TTLs - Configurable via database settings
  * Defaults are used if not configured in the database
  */
-export enum CacheCategory {
-	SCHEMA = 'schema',
-	WIDGET = 'widget',
-	THEME = 'theme',
-	CONTENT = 'content',
-	MEDIA = 'media',
-	SESSION = 'session',
-	USER = 'user',
-	API = 'api'
-}
+// CacheCategory enum now imported from ./CacheCategory.ts
 
 // Default TTLs (in seconds) if not configured in database
 const DEFAULT_CATEGORY_TTLS: Record<CacheCategory, number> = {

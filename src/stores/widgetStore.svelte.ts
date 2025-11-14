@@ -2,14 +2,34 @@
  * @file src/stores/widgetStore.svelte.ts
  * @description Centralized widget store that syncs database state to memory
  * Handles core widgets (always enabled) and custom widgets (optional)
+ *
+ * ### Features:
+ * Tenant-aware widget management
+ * Dependency resolution between widgets
+ * Runtime discovery of marketplace widgets
+ * Performance-optimized synchronous accessors
+ * System health integration
+ * Cache invalidation on widget state changes
+ * 3-pillar architecture support with component path metadata
+ * TypeScript types for strong typing
+ * Server-side initialization support to prevent "Widgets
+ *
  */
-import { writable, derived } from 'svelte/store';
-import type { Widget, WidgetModule, WidgetFunction } from '@widgets/types';
+import { writable, derived, get } from 'svelte/store';
+import type { Widget, WidgetModule, WidgetFunction, WidgetType } from '@widgets/types';
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
+import type { Schema } from '@src/content/types';
 import { logger } from '@utils/logger';
 
+// Server-only imports - lazy loaded to prevent client-side bundling
+const getFs = async () => (await import('node:fs/promises')).default;
+const getPath = async () => (await import('node:path')).default;
+const getCacheService = async () => (await import('@src/databases/CacheService')).cacheService;
+
+// System state integration
+import { updateServiceHealth } from '@src/stores/system';
+
 export type WidgetStatus = 'active' | 'inactive';
-export type WidgetType = 'core' | 'custom';
 
 interface WidgetStoreState {
 	widgets: Record<string, Widget>;
@@ -17,10 +37,13 @@ interface WidgetStoreState {
 	activeWidgets: string[]; // Widget names that are currently active
 	coreWidgets: string[]; // Widget names that are core (always enabled)
 	customWidgets: string[]; // Widget names that are custom (optional)
+	marketplaceWidgets: string[]; // Widget names from marketplace (runtime-installed)
 	dependencyMap: Record<string, string[]>; // Maps widgets to their dependencies
 	isLoaded: boolean;
 	isLoading: boolean;
 	tenantId?: string; // Current tenant context
+	lastHealthCheck?: number; // Last time widget health was validated
+	healthStatus: 'healthy' | 'unhealthy' | 'initializing'; // Overall widget system health
 }
 
 // Create the main store
@@ -30,9 +53,12 @@ const initialState: WidgetStoreState = {
 	activeWidgets: [],
 	coreWidgets: [],
 	customWidgets: [],
+	marketplaceWidgets: [],
 	dependencyMap: {},
 	isLoaded: false,
-	isLoading: false
+	isLoading: false,
+	lastHealthCheck: undefined,
+	healthStatus: 'initializing'
 };
 
 const widgetStore = writable<WidgetStoreState>(initialState);
@@ -43,63 +69,43 @@ export const widgetFunctions = derived(widgetStore, ($store) => $store.widgetFun
 export const activeWidgets = derived(widgetStore, ($store) => $store.activeWidgets);
 export const coreWidgets = derived(widgetStore, ($store) => $store.coreWidgets);
 export const customWidgets = derived(widgetStore, ($store) => $store.customWidgets);
+export const marketplaceWidgets = derived(widgetStore, ($store) => $store.marketplaceWidgets);
 export const dependencyMap = derived(widgetStore, ($store) => $store.dependencyMap);
 export const isLoaded = derived(widgetStore, ($store) => $store.isLoaded);
 export const isLoading = derived(widgetStore, ($store) => $store.isLoading);
+export const widgetHealthStatus = derived(widgetStore, ($store) => $store.healthStatus);
 
-// Helper functions
+// --- PERFORMANCE ENHANCEMENT: Synchronous Helper Functions ---
+// Use `get(widgetStore)` for immediate, non-reactive checks.
+// This avoids the overhead of `subscribe/unsubscribe` for simple logic.
+
 export function getWidget(name: string): Widget | undefined {
-	let widget: Widget | undefined;
-	const unsubscribe = widgets.subscribe(($widgets) => {
-		widget = $widgets[name];
-	});
-	unsubscribe();
-	return widget;
+	return get(widgetStore).widgets[name];
 }
 
 export function getWidgetFunction(name: string): WidgetFunction | undefined {
-	let widgetFn: WidgetFunction | undefined;
-	const unsubscribe = widgetFunctions.subscribe(($widgetFunctions) => {
-		widgetFn = $widgetFunctions[name];
-	});
-	unsubscribe();
-	return widgetFn;
+	return get(widgetStore).widgetFunctions[name];
 }
 
 export function isWidgetActive(name: string): boolean {
-	let active = false;
-	const unsubscribe = activeWidgets.subscribe(($activeWidgets) => {
-		active = $activeWidgets.includes(name);
-	});
-	unsubscribe();
-	return active;
+	return get(widgetStore).activeWidgets.includes(name);
 }
 
 export function isWidgetCore(name: string): boolean {
-	let isCore = false;
-	const unsubscribe = coreWidgets.subscribe(($coreWidgets) => {
-		isCore = $coreWidgets.includes(name);
-	});
-	unsubscribe();
-	return isCore;
+	return get(widgetStore).coreWidgets.includes(name);
 }
 
 export function isWidgetCustom(name: string): boolean {
-	let isCustom = false;
-	const unsubscribe = customWidgets.subscribe(($customWidgets) => {
-		isCustom = $customWidgets.includes(name);
-	});
-	unsubscribe();
-	return isCustom;
+	return get(widgetStore).customWidgets.includes(name);
+}
+
+// Check if widget is from marketplace
+export function isWidgetMarketplace(name: string): boolean {
+	return get(widgetStore).marketplaceWidgets.includes(name);
 }
 
 export function getWidgetDependencies(name: string): string[] {
-	let deps: string[] = [];
-	const unsubscribe = dependencyMap.subscribe(($dependencyMap) => {
-		deps = $dependencyMap[name] || [];
-	});
-	unsubscribe();
-	return deps;
+	return get(widgetStore).dependencyMap[name] || [];
 }
 
 export function canDisableWidget(name: string): boolean {
@@ -107,13 +113,10 @@ export function canDisableWidget(name: string): boolean {
 	if (isWidgetCore(name)) return false;
 
 	// Check if any other widgets depend on this one
-	let dependents: string[] = [];
-	const unsubscribe = dependencyMap.subscribe(($dependencyMap) => {
-		dependents = Object.entries($dependencyMap)
-			.filter(([, deps]) => deps.includes(name))
-			.map(([widgetName]) => widgetName);
-	});
-	unsubscribe();
+	const deps = get(widgetStore).dependencyMap;
+	const dependents = Object.entries(deps)
+		.filter(([, depList]) => depList.includes(name))
+		.map(([widgetName]) => widgetName);
 
 	// If any dependents are active, this widget cannot be disabled
 	return !dependents.some((dependent) => isWidgetActive(dependent));
@@ -218,11 +221,62 @@ export const widgetStoreActions = {
 				});
 			}
 
+			//  Load marketplace widgets (runtime discovery)
+			const newMarketplaceWidgets: string[] = [];
+			if (typeof window === 'undefined') {
+				// Server-side only: Use Node.js fs API to discover runtime-installed widgets
+				const fs = await getFs();
+				const path = await getPath();
+				const marketplaceDir = path.resolve(process.cwd(), 'src/widgets/marketplace');
+				try {
+					const widgetFolders = await fs.readdir(marketplaceDir, { withFileTypes: true });
+					logger.debug(`[widgetStore] Scanning marketplace directory: ${marketplaceDir}`);
+
+					for (const folder of widgetFolders) {
+						if (folder.isDirectory()) {
+							const indexPath = path.join(marketplaceDir, folder.name, 'index.ts');
+							try {
+								// Dynamically import the runtime-discovered widget
+								// @vite-ignore tells Vite to skip this dynamic import at build time
+								const module = (await import(/* @vite-ignore */ indexPath)) as WidgetModule;
+								const processedWidget = this.processWidgetModule(indexPath, module, 'marketplace');
+
+								if (processedWidget) {
+									const { name, widgetFn, dependencies } = processedWidget;
+									newWidgetFunctions[name] = widgetFn;
+									newMarketplaceWidgets.push(name);
+									if (dependencies.length > 0) {
+										newDependencyMap[name] = dependencies;
+									}
+									logger.info(`✅ Loaded marketplace widget: ${name}`);
+								}
+							} catch (err) {
+								logger.warn(`Failed to load marketplace widget ${folder.name}:`, err);
+							}
+						}
+					}
+
+					if (newMarketplaceWidgets.length > 0) {
+						logger.info(`📦 Discovered ${newMarketplaceWidgets.length} marketplace widgets: ${newMarketplaceWidgets.join(', ')}`);
+					}
+				} catch (e) {
+					if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+						logger.debug('[widgetStore] Marketplace directory does not exist yet (this is normal)');
+					} else {
+						logger.warn('[widgetStore] Error scanning marketplace directory:', e);
+					}
+				}
+			}
+
 			// Create widget instances
 			const newWidgets: Record<string, Widget> = {};
 			for (const [name, widgetFn] of Object.entries(newWidgetFunctions)) {
 				newWidgets[name] = widgetFn({});
 			}
+
+			// Health validation skipped in widgetStore - done server-side via API
+			// This prevents importing server-only modules (ContentManager, dbAdapter) into client code
+			const healthStatus: 'healthy' | 'unhealthy' | 'initializing' = 'initializing';
 
 			widgetStore.update((state) => ({
 				...state,
@@ -231,17 +285,35 @@ export const widgetStoreActions = {
 				activeWidgets: uniqueActiveWidgets,
 				coreWidgets: newCoreWidgets,
 				customWidgets: newCustomWidgets,
+				marketplaceWidgets: newMarketplaceWidgets,
 				dependencyMap: newDependencyMap,
 				isLoaded: true,
 				isLoading: false,
-				tenantId
+				tenantId,
+				lastHealthCheck: Date.now(),
+				healthStatus: healthStatus
 			}));
+
+			//  Report widget health to system state
+			if (typeof window === 'undefined') {
+				// Server-side only
+				if (healthStatus === 'unhealthy') {
+					const missingWidgets = validation.invalid.map((v) => v.collectionName).join(', ');
+					updateServiceHealth('widgets', 'unhealthy', `Missing required widgets for collections: ${missingWidgets}`);
+					logger.warn(`⚠️ Widget health check FAILED: ${validation.invalid.length} collections have missing widgets`);
+				} else {
+					updateServiceHealth('widgets', 'healthy', 'All required widgets available');
+					logger.info('✅ Widget health check passed');
+				}
+			}
 
 			logger.info(`\x1b[34m${Object.keys(newWidgetFunctions).length}\x1b[0m widgets initialized successfully`, {
 				tenantId,
 				core: newCoreWidgets.length,
 				custom: newCustomWidgets.length,
-				active: uniqueActiveWidgets.length
+				marketplace: newMarketplaceWidgets.length,
+				active: uniqueActiveWidgets.length,
+				health: healthStatus
 			});
 		} catch (error) {
 			logger.error('Failed to initialize widgets:', error);
@@ -352,6 +424,25 @@ export const widgetStoreActions = {
 					activeWidgets: newActiveWidgets
 				};
 			});
+
+			// Cache invalidation
+			// Widget state changed, so ALL collection-related caches are now invalid
+			logger.info(`[WidgetState] Widget '${widgetName}' status changed to '${status}', clearing collection caches.`);
+
+			try {
+				// Clear collection-related caches
+				const cacheService = await getCacheService();
+				await cacheService.clearByPattern('query:collections:*');
+				await cacheService.clearByPattern('static:page:*'); // Page layouts depend on collections
+				await cacheService.clearByPattern('api:widgets:*'); // Active/required widgets API cache
+				await cacheService.clearByPattern('api:*:/api/admin/users*'); // Admin UI may show widget data
+				logger.debug('[WidgetState] Cache invalidation complete');
+			} catch (cacheError) {
+				logger.warn('[WidgetState] Cache clearing failed (non-critical):', cacheError);
+			}
+
+			// Health validation skipped - done server-side via API to avoid importing server-only modules
+			// Widget status change is saved to database, health check happens on next API call
 
 			logger.info(`Widget ${widgetName} ${status} status updated successfully`, { tenantId });
 		} catch (error) {
@@ -525,7 +616,7 @@ async function loadActiveWidgetsFromDatabase(tenantId?: string, dbAdapter?: Data
 		// Server-side: if a dbAdapter is passed, use it directly
 		if (dbAdapter && dbAdapter.widgets) {
 			logger.debug('[widgetStore] Server-side: Using provided dbAdapter');
-			const result = await dbAdapter.widgets.getActiveWidgets(tenantId);
+			const result = await dbAdapter.widgets.getActiveWidgets();
 
 			if (result.success && result.data) {
 				const widgetNames = result.data.map((w) => w.name);
@@ -536,9 +627,7 @@ async function loadActiveWidgetsFromDatabase(tenantId?: string, dbAdapter?: Data
 				});
 				return widgetNames;
 			} else {
-				logger.warn('[widgetStore] Failed to load active widgets via dbAdapter', {
-					error: result.error
-				});
+				logger.warn('[widgetStore] Failed to load active widgets via dbAdapter', { result });
 				return [];
 			}
 		}

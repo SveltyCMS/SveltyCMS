@@ -106,6 +106,8 @@ export interface SystemPerformanceMetrics {
 	}>;
 }
 
+// Added 'widgets' as a monitored service
+// This allows the system health monitor to track widget availability and dependencies
 export const SERVICE_NAMES = ['database', 'auth', 'cache', 'contentManager', 'themeManager', 'widgets'] as const;
 export type ServiceName = (typeof SERVICE_NAMES)[number];
 export type ServicesMap = {

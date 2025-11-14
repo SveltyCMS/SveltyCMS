@@ -15,14 +15,19 @@
 
  */
 
-import { cacheService, REDIS_TTL_S as REDIS_TTL } from '@src/databases/CacheService';
 import type { ContentNode, Schema, ContentNodeOperation, DatabaseId } from '@src/content/types';
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger.server'; // Server-only file
 import { dateToISODateString } from '@utils/dateUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { generateCategoryNodesFromPaths, processModule } from './utils';
-import { invalidateCategoryCache, CacheCategory } from '@src/databases/mongodb/methods/mongoDBUtils';
-import { normalizeId } from '@src/databases/mongodb/methods/normalizeId';
+import { CacheCategory } from '@src/databases/CacheCategory'; // ✅ Safe for client - no Redis imports
+
+// ✅ Server-only imports - lazy loaded to prevent client-side bundling
+const getCacheService = async () => (await import('@src/databases/CacheService')).cacheService;
+const getRedisTTL = async () => (await import('@src/databases/CacheService')).REDIS_TTL_S;
+const invalidateCategoryCache = async (...args: Parameters<typeof import('@src/databases/mongodb/methods/mongoDBUtils').invalidateCategoryCache>) =>
+	(await import('@src/databases/mongodb/methods/mongoDBUtils')).invalidateCategoryCache(...args);
+const normalizeId = (id: string) => id.replace(/-/g, ''); // Inline function to avoid import
 
 // --- Server-Side Dynamic Imports ---
 const getFs = async () => (await import('node:fs/promises')).default;
@@ -747,12 +752,15 @@ class ContentManager {
 		const state = {
 			nodes: Array.from(this.contentNodeMap.values())
 		};
+		const cacheService = await getCacheService();
+		const REDIS_TTL = await getRedisTTL();
 		await cacheService.set('cms:content_structure', state, REDIS_TTL, tenantId);
 	}
 
 	// Tries to load the state from the distributed cache
 	private async _loadStateFromCache(tenantId?: string): Promise<boolean> {
 		try {
+			const cacheService = await getCacheService();
 			await cacheService.initialize();
 			const state = await cacheService.get<{ nodes: ContentNode[] }>('cms:content_structure', tenantId);
 			if (!state || !state.nodes || state.nodes.length === 0) {

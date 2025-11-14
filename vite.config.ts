@@ -306,7 +306,7 @@ export default defineConfig((): UserConfig => {
 
 		ssr: {
 			noExternal: [],
-			external: ['bun:test']
+			external: ['bun:test', 'redis']
 		},
 
 		resolve: {
@@ -436,9 +436,9 @@ export default defineConfig((): UserConfig => {
 		},
 
 		optimizeDeps: {
-			exclude: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
+			exclude: [...builtinModules, ...builtinModules.map((m) => `node:${m}`), 'redis', '@src/databases/CacheService'],
 			include: ['@skeletonlabs/skeleton'],
-			entries: ['!tests/**/*']
+			entries: ['!tests/**/*', '!**/*.server.ts', '!**/*.server.js']
 		}
 	};
 });

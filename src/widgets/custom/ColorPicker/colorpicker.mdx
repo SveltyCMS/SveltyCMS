@@ -1,0 +1,703 @@
+---
+path: '/widgets/custom/colorpicker'
+title: 'ColorPicker Widget'
+description: 'Color selection widget with native HTML5 color picker and hex input for SveltyCMS'
+order: 302
+icon: 'ic:outline-colorize'
+author: 'admin'
+created: '2025-01-15'
+updated: '2025-01-15'
+tags:
+  - widget
+  - custom
+  - color
+  - picker
+  - hex
+  - design
+  - ui
+---
+
+# ColorPicker Widget
+
+<blockquote>
+	**Color selection widget** that provides an intuitive interface combining native HTML5 color picker with hex code input for precise color selection.
+</blockquote>
+
+## Overview
+
+The **ColorPicker widget** is a specialized input designed for color selection in your content. It combines the native browser color picker (visual swatch) with a text input for manual hex code entry, providing both visual and precise color selection methods. The widget stores clean 6-digit hex color codes (e.g., `#FF5733`) that are universally compatible and easily portable.
+
+### Key Features
+
+- ✅ **Native Color Picker**: Uses HTML5 `<input type="color">` for system-native color selection
+- ✅ **Hex Code Input**: Manual entry and display of 6-digit hex codes (#RRGGBB)
+- ✅ **Bidirectional Sync**: Changes in either picker or text input update both
+- ✅ **Format Validation**: Valibot ensures valid hex format (#[0-9A-F]{6})
+- ✅ **Visual Preview**: Large color swatch shows selected color
+- ✅ **Non-Translatable**: Color codes are universal (automatically sets `translated: false`)
+- ✅ **Accessible**: Full keyboard navigation and screen reader support
+- ✅ **Mobile Optimized**: Native color picker on iOS/Android devices
+- ✅ **Monospace Font**: Hex input uses monospace for better readability
+- ✅ **Default Black**: Smart default to `#000000` for empty values
+
+---
+
+## When to Use ColorPicker Widget
+
+### ✅ Use ColorPicker When:
+
+- **Brand Colors**: Company brand colors, logo colors, theme colors
+- **UI Customization**: User-selectable theme colors, accent colors, background colors
+- **Design Systems**: Color palette management, design token colors
+- **Product Attributes**: Product colors, category colors, tag colors
+- **Data Visualization**: Chart colors, graph colors, indicator colors
+- **Content Styling**: Text colors, heading colors, link colors
+- **Accessibility**: High-contrast color selection, WCAG compliant colors
+- **Marketing**: Campaign colors, CTA button colors
+
+### ❌ Don't Use ColorPicker When:
+
+- **Complex Color Systems**: Use dedicated color palette manager instead
+- **Gradient Selection**: ColorPicker only handles solid colors
+- **Transparency Needed**: Standard color picker doesn't support alpha channel (use RGBA input)
+- **Color Themes**: For full theme management, consider theme builder widget
+- **Image Colors**: For extracting colors from images, use dedicated color extraction tool
+
+---
+
+## Installation
+
+The ColorPicker widget is included in SveltyCMS by default as a custom widget. No additional installation required.
+
+```typescript
+// Already available in your collection definitions
+import ColorPicker from '@src/widgets/custom/colorPicker';
+```
+
+---
+
+## Basic Usage
+
+### Simple Brand Color
+
+```typescript
+import ColorPicker from '@src/widgets/custom/colorPicker';
+
+export const brandCollection = {
+	name: 'Brand Settings',
+	fields: [
+		ColorPicker({
+			label: 'Primary Brand Color',
+			db_fieldName: 'primaryColor',
+			required: true,
+			width: 100
+		})
+	]
+};
+```
+
+**User Experience**:
+
+- User sees: Color swatch + hex input `#000000`
+- User clicks swatch: Native color picker opens
+- User selects blue: Swatch updates, hex shows `#2563EB`
+- Database stores: `"#2563EB"` (string)
+
+### Complete Brand Color Palette
+
+```typescript
+import ColorPicker from '@src/widgets/custom/colorPicker';
+
+export const brandCollection = {
+	name: 'Brand Settings',
+	fields: [
+		ColorPicker({
+			label: 'Primary Color',
+			db_fieldName: 'primaryColor',
+			required: true,
+			helper: 'Main brand color used throughout the site'
+		}),
+
+		ColorPicker({
+			label: 'Secondary Color',
+			db_fieldName: 'secondaryColor',
+			required: true,
+			helper: 'Accent color for CTAs and highlights'
+		}),
+
+		ColorPicker({
+			label: 'Background Color',
+			db_fieldName: 'backgroundColor',
+			required: false,
+			helper: 'Page background color (defaults to white if empty)'
+		}),
+
+		ColorPicker({
+			label: 'Text Color',
+			db_fieldName: 'textColor',
+			required: true,
+			helper: 'Default text color (ensure good contrast)'
+		}),
+
+		ColorPicker({
+			label: 'Link Color',
+			db_fieldName: 'linkColor',
+			required: true,
+			helper: 'Color for hyperlinks'
+		})
+	]
+};
+```
+
+### UI Theme Colors
+
+```typescript
+import ColorPicker from '@src/widgets/custom/colorPicker';
+import Toggles from '@src/widgets/core/toggles';
+
+export const themeCollection = {
+	name: 'UI Themes',
+	fields: [
+		ColorPicker({
+			label: 'Success Color',
+			db_fieldName: 'successColor',
+			required: true,
+			helper: 'Color for success messages and confirmations'
+		}),
+
+		ColorPicker({
+			label: 'Warning Color',
+			db_fieldName: 'warningColor',
+			required: true,
+			helper: 'Color for warning messages'
+		}),
+
+		ColorPicker({
+			label: 'Error Color',
+			db_fieldName: 'errorColor',
+			required: true,
+			helper: 'Color for error messages'
+		}),
+
+		ColorPicker({
+			label: 'Info Color',
+			db_fieldName: 'infoColor',
+			required: true,
+			helper: 'Color for informational messages'
+		}),
+
+		Toggles({
+			label: 'Dark Mode Enabled',
+			db_fieldName: 'darkModeEnabled',
+			default: false
+		}),
+
+		ColorPicker({
+			label: 'Dark Mode Background',
+			db_fieldName: 'darkModeBg',
+			required: false,
+			showIf: (data) => data.darkModeEnabled === true
+		})
+	]
+};
+```
+
+---
+
+## Configuration Properties
+
+The ColorPicker widget extends the base field properties with color-specific configuration:
+
+| Property       | Type      | Required  | Default     | Description                                      |
+| -------------- | --------- | --------- | ----------- | ------------------------------------------------ |
+| `label`        | `string`  | ✅ Yes    | -           | Display label for the field                      |
+| `db_fieldName` | `string`  | ✅ Yes    | -           | Database field name (snake_case recommended)     |
+| `required`     | `boolean` | ❌ No     | `false`     | Whether the field is mandatory                   |
+| `width`        | `number`  | ❌ No     | `undefined` | Field width in collection builder                |
+| `helper`       | `string`  | ❌ No     | `undefined` | Helper text displayed below field                |
+| `default`      | `string`  | ❌ No     | `#000000`   | Default hex color (must be valid #RRGGBB format) |
+| `readonly`     | `boolean` | ❌ No     | `false`     | Make field read-only                             |
+| `translated`   | `boolean` | 🔒 Locked | `false`     | Always false (colors are universal)              |
+
+---
+
+## Validation
+
+The ColorPicker widget uses Valibot for robust hex color validation:
+
+### Automatic Validation
+
+```typescript
+ColorPicker({
+	label: 'Brand Color',
+	db_fieldName: 'brandColor',
+	required: true
+});
+
+// Validation rules generated automatically:
+// - Must be a string
+// - Must match regex: /^#[0-9a-f]{6}$/i
+// - If required: must not be empty
+// - If not required: can be empty or valid hex
+```
+
+### Valid Hex Formats
+
+```typescript
+// ✅ Valid formats
+'#FF5733'; // Uppercase
+'#ff5733'; // Lowercase
+'#Ff5733'; // Mixed case
+
+// ❌ Invalid formats
+'FF5733'; // Missing #
+'#FFF'; // 3-digit shorthand (must expand to 6)
+'#FF57330'; // 7 digits
+'#GGGGGG'; // Invalid hex characters
+'rgb(255, 87, 51)'; // RGB format not supported
+'red'; // Named colors not supported
+```
+
+### Validation Messages
+
+| Scenario             | Error Message                                      |
+| -------------------- | -------------------------------------------------- |
+| Empty required field | "A color is required"                              |
+| Invalid hex format   | "Must be a valid 6-digit hex code (e.g., #FF5733)" |
+| Missing # symbol     | "Must be a valid 6-digit hex code (e.g., #FF5733)" |
+| Wrong length         | "Must be a valid 6-digit hex code (e.g., #FF5733)" |
+| Invalid characters   | "Must be a valid 6-digit hex code (e.g., #FF5733)" |
+
+---
+
+## Data Structure
+
+### Storage Format
+
+Color values are stored as **uppercase hex strings** in the database:
+
+```typescript
+// MongoDB Document
+{
+  "_id": "theme_123",
+  "name": "Dark Theme",
+  "primaryColor": "#2563EB",      // ✅ Hex string
+  "secondaryColor": "#10B981",
+  "backgroundColor": "#1F2937",
+  "textColor": "#F9FAFB",
+  "createdAt": ISODate("2025-01-15T10:00:00Z")
+}
+```
+
+### Why Hex Strings?
+
+**✅ Hex Strings Are**:
+
+- **Universal**: Supported by all CSS, design tools, and browsers
+- **Compact**: 7 characters (#RRGGBB) vs 16-20 characters (rgb(255, 87, 51))
+- **Portable**: Easy to copy-paste between systems
+- **Standard**: Industry-standard color format
+- **Human-Readable**: Easy to recognize and communicate
+- **Compatible**: Works in CSS, JavaScript, design tools, email templates
+
+**Hex Color Components**:
+
+```typescript
+const color = '#FF5733';
+//             ↓↓↓↓↓↓
+//             #RRGGBB
+//
+// RR = FF = 255 (red channel)
+// GG = 57 = 87  (green channel)
+// BB = 33 = 51  (blue channel)
+
+// Convert to RGB:
+const red = parseInt(color.substr(1, 2), 16); // 255
+const green = parseInt(color.substr(3, 2), 16); // 87
+const blue = parseInt(color.substr(5, 2), 16); // 51
+
+// Use in CSS:
+element.style.backgroundColor = color; // Works directly!
+```
+
+---
+
+## Color Conversion
+
+### Hex to RGB
+
+```typescript
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+	const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+	return result
+		? {
+				r: parseInt(result[1], 16),
+				g: parseInt(result[2], 16),
+				b: parseInt(result[3], 16)
+			}
+		: { r: 0, g: 0, b: 0 };
+}
+
+// Usage
+const rgb = hexToRgb('#FF5733');
+// { r: 255, g: 87, b: 51 }
+
+// Use in CSS
+const rgbString = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+// "rgb(255, 87, 51)"
+```
+
+### RGB to Hex
+
+```typescript
+function rgbToHex(r: number, g: number, b: number): string {
+	return (
+		'#' +
+		[r, g, b]
+			.map((x) => {
+				const hex = x.toString(16);
+				return hex.length === 1 ? '0' + hex : hex;
+			})
+			.join('')
+	);
+}
+
+// Usage
+const hex = rgbToHex(255, 87, 51);
+// "#ff5733"
+```
+
+### Hex to HSL
+
+```typescript
+function hexToHsl(hex: string): { h: number; s: number; l: number } {
+	const { r, g, b } = hexToRgb(hex);
+	const rNorm = r / 255;
+	const gNorm = g / 255;
+	const bNorm = b / 255;
+
+	const max = Math.max(rNorm, gNorm, bNorm);
+	const min = Math.min(rNorm, gNorm, bNorm);
+	let h = 0,
+		s = 0,
+		l = (max + min) / 2;
+
+	if (max !== min) {
+		const d = max - min;
+		s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+		switch (max) {
+			case rNorm:
+				h = ((gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)) / 6;
+				break;
+			case gNorm:
+				h = ((bNorm - rNorm) / d + 2) / 6;
+				break;
+			case bNorm:
+				h = ((rNorm - gNorm) / d + 4) / 6;
+				break;
+		}
+	}
+
+	return {
+		h: Math.round(h * 360),
+		s: Math.round(s * 100),
+		l: Math.round(l * 100)
+	};
+}
+
+// Usage
+const hsl = hexToHsl('#FF5733');
+// { h: 9, s: 100, l: 60 }
+
+// Use in CSS
+const hslString = `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
+// "hsl(9, 100%, 60%)"
+```
+
+---
+
+## Advanced Examples
+
+### Theme Generator with Color Variants
+
+```typescript
+import ColorPicker from '@src/widgets/custom/colorPicker';
+
+export const themeCollection = {
+	name: 'Theme Generator',
+	fields: [
+		ColorPicker({
+			label: 'Base Color',
+			db_fieldName: 'baseColor',
+			required: true,
+			helper: 'Main theme color - variants will be auto-generated'
+		})
+	]
+};
+
+// Server-side: Generate color variants
+function generateColorVariants(baseColor: string) {
+	const { h, s, l } = hexToHsl(baseColor);
+
+	return {
+		baseColor,
+		light: hslToHex(h, s, Math.min(l + 20, 95)),
+		lighter: hslToHex(h, s, Math.min(l + 35, 98)),
+		dark: hslToHex(h, s, Math.max(l - 20, 5)),
+		darker: hslToHex(h, s, Math.max(l - 35, 2)),
+		muted: hslToHex(h, Math.max(s - 30, 0), l)
+	};
+}
+```
+
+### Accessibility Contrast Checker
+
+```typescript
+import ColorPicker from '@src/widgets/custom/colorPicker';
+
+export const accessibilityCollection = {
+	name: 'Accessible Color Pairs',
+	fields: [
+		ColorPicker({
+			label: 'Text Color',
+			db_fieldName: 'textColor',
+			required: true
+		}),
+
+		ColorPicker({
+			label: 'Background Color',
+			db_fieldName: 'backgroundColor',
+			required: true
+		})
+	]
+};
+
+// Calculate WCAG contrast ratio
+function getContrastRatio(color1: string, color2: string): number {
+	const lum1 = getRelativeLuminance(color1);
+	const lum2 = getRelativeLuminance(color2);
+
+	const lighter = Math.max(lum1, lum2);
+	const darker = Math.min(lum1, lum2);
+
+	return (lighter + 0.05) / (darker + 0.05);
+}
+
+function getRelativeLuminance(hex: string): number {
+	const { r, g, b } = hexToRgb(hex);
+
+	const [rs, gs, bs] = [r, g, b].map((val) => {
+		const v = val / 255;
+		return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+	});
+
+	return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+}
+
+// Check WCAG compliance
+function checkWCAGCompliance(textColor: string, bgColor: string) {
+	const ratio = getContrastRatio(textColor, bgColor);
+
+	return {
+		ratio: ratio.toFixed(2),
+		wcagAA: ratio >= 4.5, // WCAG AA (normal text)
+		wcagAALarge: ratio >= 3, // WCAG AA (large text)
+		wcagAAA: ratio >= 7, // WCAG AAA (normal text)
+		wcagAAALarge: ratio >= 4.5 // WCAG AAA (large text)
+	};
+}
+```
+
+### Product Color Variants
+
+```typescript
+import ColorPicker from '@src/widgets/custom/colorPicker';
+import List from '@src/widgets/core/list';
+
+export const productsCollection = {
+	name: 'Products',
+	fields: [
+		List({
+			label: 'Color Variants',
+			db_fieldName: 'colorVariants',
+			fields: [
+				Input({
+					label: 'Color Name',
+					db_fieldName: 'name',
+					required: true,
+					placeholder: 'e.g., Ocean Blue'
+				}),
+
+				ColorPicker({
+					label: 'Color Code',
+					db_fieldName: 'hexCode',
+					required: true
+				}),
+
+				Input({
+					label: 'SKU Suffix',
+					db_fieldName: 'skuSuffix',
+					required: true,
+					placeholder: 'e.g., -BLU'
+				}),
+
+				Currency({
+					label: 'Price Adjustment',
+					db_fieldName: 'priceAdjustment',
+					currencyCode: 'USD',
+					required: false,
+					helper: 'Additional cost for this color (leave empty if same price)'
+				})
+			],
+			minItems: 1,
+			maxItems: 20
+		})
+	]
+};
+```
+
+---
+
+## Mobile Experience
+
+### Native Color Picker
+
+The ColorPicker uses the system's native color picker on mobile devices:
+
+- **iOS**: Full-screen color picker with saturation/brightness grid and hue slider
+- **Android**: Native color picker with palette and custom color options
+- **Desktop**: Browser-native color picker (varies by browser)
+
+### Touch Interaction
+
+- **Large Touch Targets**: Color swatch sized for easy tapping
+- **Haptic Feedback**: Native feedback on supported devices
+- **Swipe Gestures**: Standard mobile text input gestures for hex input
+
+---
+
+## Accessibility
+
+The ColorPicker widget is fully accessible:
+
+### ARIA Attributes
+
+```html
+<input type="color" id="brandColor" aria-label="Color Picker Swatch" />
+
+<input type="text" placeholder="Hex Color Value" aria-label="Hex Color Value" aria-invalid="false" aria-describedby="brandColor-error" />
+```
+
+### Screen Reader Support
+
+- **Swatch**: "Color Picker Swatch, button, currently selected #FF5733"
+- **Hex Input**: "Hex Color Value, text input, #FF5733"
+- **Error**: "Error: Must be a valid 6-digit hex code"
+
+### Keyboard Navigation
+
+- **Tab**: Move between swatch and hex input
+- **Enter/Space**: Open color picker (on swatch)
+- **Type**: Direct hex input
+- **Esc**: Close color picker
+
+---
+
+## Best Practices
+
+### ✅ Do's
+
+1. **Use Hex Format**
+
+   ```typescript
+   ColorPicker({ db_fieldName: 'primaryColor' });
+   // Stores: "#2563EB" ✅
+   ```
+
+2. **Provide Helpful Labels**
+
+   ```typescript
+   ColorPicker({
+   	label: 'Primary Brand Color',
+   	helper: 'Main color used for buttons and links'
+   });
+   ```
+
+3. **Check Contrast**
+   ```typescript
+   // Always verify text/background contrast for accessibility
+   const ratio = getContrastRatio(textColor, bgColor);
+   if (ratio < 4.5) {
+   	console.warn('Poor contrast - may not meet WCAG AA');
+   }
+   ```
+
+### ❌ Don'ts
+
+1. **Don't Store Other Formats**
+
+   ```typescript
+   // ❌ Don't use RGB, HSL, or named colors
+   color: 'rgb(37, 99, 235)'; // Wrong
+   color: 'hsl(221, 83%, 53%)'; // Wrong
+   color: 'blue'; // Wrong
+
+   // ✅ Always use hex
+   color: '#2563EB'; // Correct
+   ```
+
+2. **Don't Ignore Accessibility**
+   ```typescript
+   // ❌ Don't use low-contrast colors
+   textColor: "#888888",
+   backgroundColor: "#999999"  // 1.5:1 contrast - fails WCAG
+   ```
+
+---
+
+## API Reference
+
+```typescript
+function ColorPicker(props: ColorPickerProps): FieldInstance;
+
+interface ColorPickerProps {
+	label: string;
+	db_fieldName: string;
+	required?: boolean;
+	width?: number;
+	helper?: string;
+	default?: string; // Valid hex like "#FF5733"
+	readonly?: boolean;
+}
+
+type ColorPickerValue = string | null | undefined;
+// Valid: "#FF5733", "#000000", null
+// Invalid: "FF5733", "#FFF", "red", "#FF57330"
+```
+
+---
+
+## Related Widgets
+
+- **[Input Widget](/widgets/core/input)** - For text-based color descriptions
+- **[Select Widget](/widgets/core/select)** - For predefined color choices
+- **[Image Widget](/widgets/media/image)** - For color extraction from images
+
+---
+
+## Changelog
+
+### Version 1.0.0 (2025-01-15)
+
+- ✅ Initial release with native HTML5 color picker
+- ✅ Hex code input and validation
+- ✅ Bidirectional sync between swatch and hex input
+- ✅ Full accessibility support
+- ✅ Mobile-optimized color selection
+
+---
+
+## License
+
+The ColorPicker widget is part of SveltyCMS and is licensed under the MIT License.

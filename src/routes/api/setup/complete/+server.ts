@@ -493,38 +493,46 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			});
 		}
 
-		// 7. Determine redirect path
+		// 7. Determine redirect path - PREFER PATH over UUID for clean URLs
 		let redirectPath: string;
 		try {
 			const langFromStore = get(systemLanguage);
 			const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
 			const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 
-			// Check if collections exist in the database (runtime-created collections)
-			// First try the firstCollection passed from setup wizard (if available)
-			if (firstCollection?._id) {
-				// Use ID for redirect (most robust)
-				redirectPath = `/${userLanguage}/${firstCollection._id}`;
-				logger.info(`Setup complete: Redirecting to pre-seeded collection: ${firstCollection.name} (id: ${firstCollection._id})`, {
+			// ✅ PRIORITY 1: Use path from firstCollection (clean URL)
+			if (firstCollection?.path) {
+				// Ensure path has leading slash
+				const collectionPath = firstCollection.path.startsWith('/') ? firstCollection.path : `/${firstCollection.path}`;
+				redirectPath = `/${userLanguage}${collectionPath}`;
+				logger.info(`Setup complete: Redirecting to collection path: ${firstCollection.name} at ${redirectPath}`, {
 					correlationId
 				});
-			} else if (firstCollection?.path) {
-				// Fallback to path if ID not available
-				redirectPath = `/${userLanguage}${firstCollection.path}`;
-				logger.warn(`Setup complete: Using path-based redirect (missing ID): ${redirectPath}`, { correlationId });
-			} else {
-				// Fallback: Query database for available collections
+			}
+			// ✅ PRIORITY 2: Fallback to database query for collections
+			else if (!firstCollection) {
 				const collectionPath = await getCachedFirstCollectionPath(userLanguage);
 
 				if (collectionPath) {
-					// Add language prefix if not already present
-					redirectPath = collectionPath.startsWith(`/${userLanguage}`) ? collectionPath : `/${userLanguage}${collectionPath}`;
+					// getCachedFirstCollectionPath already includes language prefix
+					redirectPath = collectionPath;
 					logger.info(`Setup complete: Redirecting to collection from database: ${redirectPath}`, { correlationId });
 				} else {
 					// No collections available - redirect to collection builder
 					logger.info('Setup complete: No collections available, redirecting to collection builder', { correlationId });
 					redirectPath = '/config/collectionbuilder';
 				}
+			}
+			// ⚠️ LEGACY FALLBACK: Use UUID only if path unavailable (will auto-redirect to path via client)
+			else if (firstCollection?._id) {
+				redirectPath = `/${userLanguage}/${firstCollection._id}`;
+				logger.warn(`Setup complete: Using UUID redirect (path missing): ${redirectPath} - will redirect to path on client`, {
+					correlationId
+				});
+			} else {
+				// Should never happen - but handle gracefully
+				logger.warn('Setup complete: No valid redirect target found, using collection builder', { correlationId });
+				redirectPath = '/config/collectionbuilder';
 			}
 		} catch (redirectError) {
 			logger.warn('Failed to determine redirect path, using default', {

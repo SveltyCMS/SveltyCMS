@@ -552,7 +552,13 @@
 				bind:value={smtpUser}
 				placeholder={m.setup_email_user_placeholder()}
 				required
-				onblur={() => handleBlur('user')}
+				onblur={() => {
+					const trimmed = smtpUser.trim();
+					if (trimmed !== smtpUser) {
+						smtpUser = trimmed;
+					}
+					handleBlur('user');
+				}}
 				onchange={() => {
 					testSuccess = false;
 					testError = '';
@@ -577,7 +583,13 @@
 					bind:value={smtpPassword}
 					placeholder={m.setup_email_password_placeholder()}
 					required
-					onblur={() => handleBlur('password')}
+					onblur={() => {
+						const trimmed = smtpPassword.trim();
+						if (trimmed !== smtpPassword) {
+							smtpPassword = trimmed;
+						}
+						handleBlur('password');
+					}}
 					onchange={() => {
 						testSuccess = false;
 						testError = '';
@@ -603,7 +615,18 @@
 		<!-- From Email (Optional) -->
 		<label class="label md:col-span-2">
 			<span class="font-medium">{m.setup_email_from()}</span>
-			<input type="email" class="input" bind:value={smtpFrom} placeholder={smtpUser || 'noreply@example.com'} />
+			<input
+				type="email"
+				class="input"
+				bind:value={smtpFrom}
+				placeholder={smtpUser || 'noreply@example.com'}
+				onblur={() => {
+					const trimmed = smtpFrom.trim();
+					if (trimmed !== smtpFrom) {
+						smtpFrom = trimmed;
+					}
+				}}
+			/>
 			<span class="text-xs text-surface-600 dark:text-surface-400">{m.setup_email_from_note()}</span>
 		</label>
 	</div>

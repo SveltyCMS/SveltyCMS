@@ -25,10 +25,8 @@ export const GET: RequestHandler = async () => {
 				key: event.key,
 				category: event.category,
 				tenantId: event.tenantId,
-				timestamp: event.timestamp.toISOString()
-			}));
-
-		// Return formatted metrics
+				timestamp: event.timestamp
+			})); // Return formatted metrics
 		return json({
 			overall: {
 				hits: snapshot.hits,
