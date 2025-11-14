@@ -7,7 +7,7 @@
  *   - Invite user via email and accept invitation
  */
 import { test, expect } from '@playwright/test';
-import { loginAsAdmin, ADMIN_CREDENTIALS } from './helpers/auth';
+import { loginAsAdmin } from './helpers/auth';
 
 test.describe('User Management Flow', () => {
 	test.setTimeout(120000); // 2 min timeout
