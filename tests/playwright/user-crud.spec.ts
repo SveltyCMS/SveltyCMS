@@ -53,77 +53,71 @@ test.describe('User Management Flow', () => {
 		console.log('✓ User profile updated successfully');
 	});
 
-	// TODO: Needs rewrite with loginAsAdmin helper and current selectors
+	// TODO: Complex test - requires creating additional users first
+	// Can't delete/block the only admin user in the system
+	// Skipping as it needs full user creation workflow
 	test.skip('Delete, Block, and Unblock Users', async ({ page }) => {
-		// Login
-		await page.goto('http://localhost:5173/login');
-		await page
-			.getByRole('button', { name: /sign in/i })
-			.first()
-			.click();
-		await page.fill('input[name="email"]', adminEmail);
-		await page.fill('input[name="password"]', adminPassword);
-		await page.click('button:has-text("Sign In")');
+		await loginAsAdmin(page);
 
-		// Go to User Profile
-		await page.getByRole('link', { name: /user profile/i }).click();
+		// Navigate to user profile page (Admin Area)
+		await page.goto('/user');
 
-		const actions = ['Delete', 'Block', 'Unblock'];
-
-		for (const action of actions) {
-			// Click dropdown button to open menu
-			await page.getByRole('button', { name: /open actions menu/i }).click();
-
-			// Select action
-			await page.getByRole('menuitem', { name: new RegExp(action, 'i') }).click();
-
-			// Click Confirm
-			await page.getByRole('button', { name: /confirm/i }).click();
-
-			// Optional: Wait for confirmation toast or success message
-			await expect(page.locator('text=' + action)).toBeVisible({ timeout: 5000 });
-		}
+		// This test would need to:
+		// 1. First create additional test users (can't delete/block the only admin)
+		// 2. Show user list (if not already visible)
+		// 3. Select user checkboxes
+		// 4. Use Multibutton dropdown to select action (Block/Unblock/Delete)
+		// 5. Confirm in modal
+		//
+		// Multibutton structure:
+		// - Main button shows current action (Edit/Delete/Block/Unblock)
+		// - Dropdown button with aria-label="Open actions menu"
+		// - ListBox with available actions
+		// - Modal confirmation for destructive actions
+		//
+		// Requires investigation of user creation workflow first
 	});
 
-	// TODO: Needs rewrite with loginAsAdmin helper and current selectors
+	// TODO: Complex test - requires email token extraction from response/toast
+	// The token is generated server-side and would need to be extracted from API response
+	// Skipping as it needs investigation of how to get the actual token
 	test.skip('Invite User via Email and Accept Invitation', async ({ page }) => {
-		// Login
-		await page.goto('http://localhost:5173/login');
-		await page
-			.getByRole('button', { name: /sign in/i })
-			.first()
-			.click();
-		await page.fill('input[name="email"]', adminEmail);
-		await page.fill('input[name="password"]', adminPassword);
-		await page.click('button:has-text("Sign In")');
+		await loginAsAdmin(page);
 
-		// Go to User Profile
-		await page.getByRole('link', { name: /user profile/i }).click();
+		// Navigate to user profile page
+		await page.goto('/user');
 
-		// Click on email user registration token
-		await page.getByRole('button', { name: /email user registration token/i }).click();
+		// Click "Email User Registration token" button
+		await page.getByRole('button', { name: /email.*token/i }).click();
 
-		// Fill form
-		await page.fill('input[name="email"]', 'newuser@example.com');
-		await page.fill('input[name="username"]', 'newuser');
-		await page.selectOption('select[name="role"]', 'user');
-		await page.getByRole('button', { name: /save/i }).click();
+		// Wait for modal
+		await page.waitForTimeout(500);
 
-		// Assume invite sent, now simulate user following invite link
-		await page.goto('http://localhost:5173/signup?email=abd@gmail.com&token=5tbv_AQui_vm6StL7SSEWA69-fzwhbbtiLfGbh_8x80');
+		// Fill email in the modal form (form#token-form)
+		await page.locator('form#token-form input[name="email"]').fill('inviteduser@example.com');
 
-		// Check prefilled fields
-		await expect(page.locator('input[name="email"]')).toHaveValue('newuser@example.com');
-		await expect(page.locator('input[name="token"]')).toHaveValue('1234');
+		// Select role (chip button for admin users)
+		const userRoleChip = page.locator('button.chip:has-text("user")');
+		if (await userRoleChip.isVisible({ timeout: 2000 }).catch(() => false)) {
+			await userRoleChip.click();
+		}
 
-		// Fill remaining signup fields
-		await page.fill('input[name="username"]', 'newuser');
-		await page.fill('input[name="password"]', 'user@123');
-		await page.fill('input[name="confirm_password"]', 'user@123');
+		// Select expiration
+		await page.locator('select#expires-select').selectOption('2 days');
 
-		await page.getByRole('button', { name: /accept invitation and create account/i }).click();
+		// Click Save button
+		await page.locator('button[type="submit"][form="token-form"]').click();
 
-		// Optional: Assert signup success
-		await expect(page.locator('text=Account created')).toBeVisible({ timeout: 10000 });
+		// Wait for success (modal closes)
+		await page.waitForTimeout(2000);
+
+		// This test would need to:
+		// 1. Extract the generated token from API response or toast message
+		// 2. Navigate to signup page with email and token as query params
+		// 3. Fill signup form with username, password
+		// 4. Submit and verify account creation
+		//
+		// The token is generated server-side and returned in the API response
+		// Would need to intercept network request or extract from UI to get actual token
 	});
 });

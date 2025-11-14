@@ -12,49 +12,36 @@ import { loginAsAdmin } from './helpers/auth';
 test.describe('Full Collection & Widget Flow', () => {
 	test.setTimeout(120000); // 2 minutes
 
-	// TODO: This test needs significant updates to match current app behavior
-	// Skipping for now as it has multiple outdated selectors and workflows
-	test.skip('Login, create collection, perform actions, and add widget', async ({ page }) => {
+	test('Navigate to collection builder and verify structure', async ({ page }) => {
 		// 1. Login
-		await loginAsAdmin(page, /\/admin|\/en\/Collections\/Names/);
+		await loginAsAdmin(page);
 
-		// 2. Create Collection
-		await page.getByRole('button', { name: /create/i }).click();
-		await page.getByPlaceholder(/enter first name/i).fill('First Name');
-		await page.getByPlaceholder(/enter last name/i).fill('Last Name');
-		await page.getByRole('button', { name: /save/i }).first().click();
-		await expect(page).toHaveURL(/\/en\/Collections\/Names/);
+		// 2. Navigate to collection builder
+		await page.goto('/config/collectionbuilder');
 
-		// 3. Perform Collection Actions
-		const actions = ['Published', 'Unpublished', 'Scheduled', 'Cloned', 'Delete', 'Testing'];
+		// 3. Verify page loads correctly
+		await expect(page.locator('h1:has-text("Collection Builder")')).toBeVisible({ timeout: 10000 });
 
-		for (const action of actions) {
-			// Click action button (e.g., Published)
-			await page.getByRole('button', { name: new RegExp(`^${action}$`, 'i') }).click();
+		// 4. Verify "Add New Collection" button exists
+		const addCollectionBtn = page.getByRole('button', { name: /add new collection/i });
+		await expect(addCollectionBtn).toBeVisible();
 
-			// Select first collection checkbox
-			const checkbox = page.locator('input[type="checkbox"]').first();
-			await expect(checkbox).toBeVisible({ timeout: 5000 });
-			await checkbox.check();
+		// 5. Verify "Add Category" button exists
+		const addCategoryBtn = page.getByRole('button', { name: /add.*category/i });
+		await expect(addCategoryBtn).toBeVisible();
 
-			// Click Save
-			await page.getByRole('button', { name: /save/i }).click();
+		// 6. Check if board/categories are visible (the drag-drop area)
+		const board = page.locator('[role="region"][aria-label*="Collection Board"]');
+		await expect(board).toBeVisible({ timeout: 5000 });
 
-			// Confirm redirect to collection list
-			await expect(page).toHaveURL(/\/en\/Collections\/Names/);
-		}
-
-		// 4. Add a Widget to Dashboard
-		await page.getByRole('button', { name: /system configuration/i }).click();
-		await page.getByRole('link', { name: /dashboard/i }).click();
-		await page.getByRole('button', { name: /add widget/i }).click();
-
-		await page.getByPlaceholder(/search widgets/i).fill('CPU Usage');
-		const cpuWidget = page.getByText(/cpu usage/i, { exact: true });
-		await expect(cpuWidget).toBeVisible({ timeout: 10000 });
-		await cpuWidget.click();
-
-		// Final redirect check to dashboard
-		await expect(page).toHaveURL('http://localhost:5173/dashboard', { timeout: 15000 });
+		console.log('✓ Collection builder page structure verified');
 	});
+
+	// TODO: Full collection CRUD test would require:
+	// 1. Creating a collection via collection builder (complex modal workflow)
+	// 2. Adding fields/widgets to the collection
+	// 3. Saving the collection
+	// 4. Creating entries in that collection
+	// 5. Performing CRUD operations on entries
+	// This is a complex end-to-end integration test that needs investigation
 });
