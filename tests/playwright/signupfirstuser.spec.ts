@@ -71,8 +71,8 @@ test('SignUp First User', async ({ page }) => {
 	// Registration Token (if required)
 	await page.locator('#tokensignUp').fill('svelty-secret-key');
 
-	// Submit - use case-insensitive text match and force click
-	await page.getByRole('button', { name: /sign up/i }).click({ force: true });
+	// Submit - use exact aria-label match
+	await page.getByLabel('Sign Up').click({ force: true });
 
 	// Final assert
 	await expect(page).toHaveURL(new RegExp(`${baseURL}/(en/)?Posts`));

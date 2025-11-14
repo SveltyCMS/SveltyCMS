@@ -351,8 +351,8 @@ test.describe('Collection Builder with Modern Widgets', () => {
 
 		console.log('✓ Field added to collection');
 
-		// 7. Now save the collection
-		const saveButton = page.getByRole('button', { name: /^save$/i });
+		// 7. Now save the collection - use the main Save button (not the icon)
+		const saveButton = page.getByRole('button', { name: /^save$/i }).last();
 		await saveButton.click();
 		await page.waitForTimeout(2000);
 
