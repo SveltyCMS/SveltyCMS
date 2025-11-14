@@ -44,7 +44,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		// Verify the entry itself belongs to the current tenant before fetching its revisions.
 		if (getPrivateSettingSync('MULTI_TENANT')) {
 			const collectionName = `collection_${schema._id}`;
-			const entryResult = await dbAdapter.crud.findMany(collectionName, { _id: params.entryId, tenantId });
+			const entryResult = await dbAdapter.crud.findMany(collectionName, { _id: params.entryId, tenantId } as Record<string, unknown>);
 			if (!entryResult.success || !entryResult.data || entryResult.data.length === 0) {
 				logger.warn(`Attempt to access revisions for an entry not in the current tenant.`, {
 					userId: user._id,
@@ -59,7 +59,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		const page = parseInt(url.searchParams.get('page') ?? '1', 10);
 		const limit = parseInt(url.searchParams.get('limit') ?? '10', 10); // Get revision history for the entry, scoped by tenant
 
-		const revisionResult = await dbAdapter.content.revisions.getHistory(params.entryId, {
+		const revisionResult = await dbAdapter.content.revisions.getHistory(params.entryId as unknown as import('@src/databases/types').DatabaseId, {
 			page,
 			pageSize: limit
 		});
@@ -83,19 +83,20 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			success: true,
 			data: {
 				revisions: paginatedResult.items,
-				total: paginatedResult.totalItems,
-				page: paginatedResult.currentPage,
+				total: paginatedResult.total,
+				page: paginatedResult.page,
 				limit: paginatedResult.pageSize,
-				totalPages: paginatedResult.pagesCount
+				totalPages: paginatedResult.totalPages
 			},
 			performance: { duration }
 		});
 	} catch (e) {
-		if (e.status) throw e; // Re-throw SvelteKit errors
+		if (typeof e === 'object' && e !== null && 'status' in e) throw e; // Re-throw SvelteKit errors
 
 		const duration = performance.now() - start;
+		const errorMsg = e instanceof Error ? e.message : 'Unknown error';
 		logger.error(
-			`Failed to get revisions for entry \x1b[34m${params.entryId}\x1b[0m: \x1b[32m${e.message}\x1b[0m in \x1b[32m${duration.toFixed(2)}ms\x1b[0m`
+			`Failed to get revisions for entry \x1b[34m${params.entryId}\x1b[0m: \x1b[32m${errorMsg}\x1b[0m in \x1b[32m${duration.toFixed(2)}ms\x1b[0m`
 		);
 		throw error(500, 'Internal Server Error');
 	}

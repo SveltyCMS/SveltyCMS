@@ -68,11 +68,10 @@
 	// Track if we've initialized validation for the current create session
 	let validationInitialized = $state(false);
 
-	// ✅ CRITICAL: Initialize validation IMMEDIATELY for create mode using $effect.pre()
+	// Initialize validation IMMEDIATELY for create mode using $effect.pre()
 	// This runs synchronously BEFORE DOM updates, ensuring button state is correct on first render
 	$effect.pre(() => {
 		const createParam = page.url.searchParams.get('create');
-		const collectionId = collectionSchema?._id;
 
 		if (createParam === 'true' && collectionSchema && !validationInitialized) {
 			// Clear all errors first to start fresh

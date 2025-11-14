@@ -20,7 +20,7 @@ const OnlineUserSchema = v.object({
 });
 
 // TypeScript type from schema
-type OnlineUser = v.Output<typeof OnlineUserSchema>;
+type OnlineUser = v.InferOutput<typeof OnlineUserSchema>;
 
 // Helper function to format online duration
 function formatOnlineTime(minutes: number): string {
@@ -70,16 +70,17 @@ export const GET: RequestHandler = async ({ locals }) => {
 		const uniqueIds = Array.from(new Set(sessionsResult.data.map((s) => s.user_id)));
 
 		// Create a map of user sessions to find the earliest (longest online) session per user
+		// Extract timestamp from MongoDB ObjectId (first 4 bytes represent Unix timestamp)
 		const userSessionMap = new Map<string, Date>();
 		for (const session of sessionsResult.data) {
 			const existingStart = userSessionMap.get(session.user_id);
-			const sessionStart = new Date(session.createdAt);
+			// Extract timestamp from ObjectId: first 8 hex chars = 4 bytes = Unix timestamp in seconds
+			const timestamp = parseInt(session._id.substring(0, 8), 16) * 1000;
+			const sessionStart = new Date(timestamp);
 			if (!existingStart || sessionStart < existingStart) {
 				userSessionMap.set(session.user_id, sessionStart);
 			}
-		}
-
-		// Fetch user details
+		} // Fetch user details
 		const onlineUsers: OnlineUser[] = [];
 		logger.debug('Processing unique user IDs:', { uniqueIds, count: uniqueIds.length });
 

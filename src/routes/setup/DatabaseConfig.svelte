@@ -384,7 +384,13 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					bind:value={dbConfig.host}
 					type="text"
 					onchange={clearDbTestError}
-					onblur={() => handleBlur('host')}
+					onblur={() => {
+						const trimmed = dbConfig.host.trim();
+						if (trimmed !== dbConfig.host) {
+							dbConfig.host = trimmed;
+						}
+						handleBlur('host');
+					}}
 					onpaste={handleHostPaste}
 					placeholder={isAtlas ? 'cluster0.abcde.mongodb.net' : m.setup_database_host_placeholder?.() || 'localhost'}
 					class="input w-full rounded {displayErrors.host ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
@@ -464,7 +470,13 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					bind:value={dbConfig.name}
 					type="text"
 					onchange={clearDbTestError}
-					onblur={() => handleBlur('name')}
+					onblur={() => {
+						const trimmed = dbConfig.name.trim();
+						if (trimmed !== dbConfig.name) {
+							dbConfig.name = trimmed;
+						}
+						handleBlur('name');
+					}}
 					placeholder={m.setup_database_name_placeholder?.() || 'SveltyCMS'}
 					class="input w-full rounded {displayErrors.name ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
 					aria-invalid={!!displayErrors.name}
@@ -499,7 +511,13 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					type="text"
 					autocomplete="username"
 					onchange={clearDbTestError}
-					onblur={() => handleBlur('user')}
+					onblur={() => {
+						const trimmed = dbConfig.user.trim();
+						if (trimmed !== dbConfig.user) {
+							dbConfig.user = trimmed;
+						}
+						handleBlur('user');
+					}}
 					placeholder={m.setup_database_user_placeholder?.() || 'Database username'}
 					class="input rounded {displayErrors.user ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
 					aria-invalid={!!displayErrors.user}
@@ -533,7 +551,13 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						name="password"
 						bind:value={dbConfig.password}
 						onchange={clearDbTestError}
-						onblur={() => handleBlur('password')}
+						onblur={() => {
+							const trimmed = dbConfig.password.trim();
+							if (trimmed !== dbConfig.password) {
+								dbConfig.password = trimmed;
+							}
+							handleBlur('password');
+						}}
 						type={showDbPassword ? 'text' : 'password'}
 						autocomplete="current-password"
 						placeholder={m.setup_database_password_placeholder?.() || 'Leave blank if none'}

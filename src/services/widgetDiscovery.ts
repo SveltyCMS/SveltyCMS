@@ -203,7 +203,7 @@ export class WidgetDiscoveryService {
 					Name: widgetFn.Name || name, // Display name from widget or fallback to folder name
 					Icon: widgetFn.Icon,
 					Description: widgetFn.Description,
-					dependencies: widgetFn.dependencies || []
+					dependencies: widgetFn.__dependencies || []
 				}
 			};
 		} catch (error) {
@@ -215,7 +215,7 @@ export class WidgetDiscoveryService {
 	/**
 	 * Auto-register new widgets in database
 	 */
-	async autoRegisterNewWidgets(newWidgets: DiscoveredWidget[], widgetModel: any): Promise<void> {
+	async autoRegisterNewWidgets(newWidgets: DiscoveredWidget[], widgetModel: Record<string, unknown>): Promise<void> {
 		if (newWidgets.length === 0) return;
 
 		logger.info(`📝 Auto-registering ${newWidgets.length} new widgets...`);

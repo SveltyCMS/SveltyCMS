@@ -35,8 +35,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 		}
 
 		// Get collection schema
-		const { collections } = await contentManager.getCollectionData();
-		const schema = collections[collectionId];
+		const schema = await contentManager.getCollection(collectionId);
 
 		if (!schema) {
 			throw error(404, `Collection '${collectionId}' not found`);
@@ -72,7 +71,8 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 				// Simple filter parsing - in production you might want more sophisticated filtering
 				filterQuery = JSON.parse(filter);
 			} catch (err) {
-				logger.warn('Invalid filter format', { filter, error: err.message });
+				const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+				logger.warn('Invalid filter format', { filter, error: errorMsg });
 			}
 		}
 
@@ -84,6 +84,10 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 			offset,
 			filter: filterQuery
 		});
+
+		if (!dbAdapter) {
+			throw error(500, 'Database adapter not initialized');
+		}
 
 		const result = await dbAdapter.crud.findMany(`collection_${schema._id}`, filterQuery, queryOptions);
 
@@ -103,7 +107,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 
 		// Return data based on format
 		if (format === 'csv') {
-			const csvData = convertToCSV(exportData);
+			const csvData = convertToCSV(exportData as CollectionEntry[]);
 			return new Response(csvData, {
 				headers: {
 					'Content-Type': 'text/csv',
@@ -124,29 +128,33 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 					schema: {
 						name: schema.name,
 						label: schema.label,
-						fields: schema.fields?.map((f) => ({
-							name: f.name,
-							type: f.widget,
-							label: f.label,
-							required: f.required
-						}))
+						fields: schema.fields?.map((f: unknown) => {
+							const field = f as Record<string, unknown>;
+							return {
+								name: field.name,
+								type: field.widget,
+								label: field.label,
+								required: field.required
+							};
+						})
 					}
 				}
 			});
 		}
 	} catch (err) {
 		const duration = performance.now() - startTime;
+		const errorMsg = err instanceof Error ? err.message : 'Unknown error';
 		logger.error(`Collection export failed for ${collectionId}`, {
 			userId: locals.user?._id,
-			error: err.message,
+			error: errorMsg,
 			duration: `${duration.toFixed(2)}ms`
 		});
 
-		if (err.status && err.body) {
+		if (typeof err === 'object' && err !== null && 'status' in err && 'body' in err) {
 			throw err;
 		}
 
-		throw error(500, `Export failed: ${err.message}`);
+		throw error(500, `Export failed: ${errorMsg}`);
 	}
 };
 

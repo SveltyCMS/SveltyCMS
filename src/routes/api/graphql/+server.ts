@@ -186,8 +186,9 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
 		const schema = await createGraphQLSchema(dbAdapter, tenantId);
 
 		// Create GraphQL Yoga app with the schema
+		// Type assertion needed because createSchema doesn't know about the pubSub context property
 		const yogaApp = createYoga({
-			schema,
+			schema: schema as Parameters<typeof createYoga>[0]['schema'],
 			graphqlEndpoint: '/api/graphql',
 			landingPage: false as const,
 			plugins: [], // Disable all plugins to prevent URL compatibility issues

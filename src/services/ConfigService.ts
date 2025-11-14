@@ -32,12 +32,6 @@ function extractUUIDFromJs(content: string): string | null {
 }
 
 class ConfigService {
-	private syncDirs = {
-		collections: path.resolve(process.cwd(), 'compiledCollections')
-		// Extend with widgets, themes, etc.
-		// Note: Roles are database-only, not synced from filesystem
-	};
-
 	/** Returns current sync status between filesystem and database. */
 	public async getStatus(): Promise<ConfigSyncStatus> {
 		logger.debug('Fetching configuration sync status...');
@@ -79,7 +73,7 @@ class ConfigService {
 		// Write each entity type in parallel, streaming for large datasets
 		await Promise.all(
 			Object.entries(entities).map(async ([key, list]) => {
-				const filtered = uuids?.length ? list.filter((i) => uuids.includes(i.uuid)) : list;
+				const filtered = uuids?.length ? list.filter((i: any) => uuids.includes(i.uuid)) : list;
 				const filePath = path.join(exportDir, `${key}.json`);
 				// Stream write for large arrays
 				if (filtered.length > 10000) {
@@ -198,6 +192,8 @@ class ConfigService {
 	}
 
 	/** Scans directory and parses config files into entity objects. */
+	// Note: Currently unused but kept for future filesystem-based config loading
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	private async _scanDirectory(
 		dir: string,
 		type: string,

@@ -6,10 +6,11 @@
  */
 
 import type { DatabaseId } from '@src/content/types';
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger.server'; // Server-only file
 import { v4 as uuidv4 } from 'uuid';
 import type { DatabaseError, PaginatedResult, PaginationOptions } from '../../dbInterface';
-import { cacheService, CacheCategory } from '@src/databases/CacheService';
+import { cacheService } from '@src/databases/CacheService';
+import { CacheCategory } from '@src/databases/CacheCategory';
 import { cacheMetrics } from '@src/databases/CacheMetrics';
 
 // Pre-compiled regex for UUIDv4 validation (with or without dashes) for performance.
@@ -238,9 +239,9 @@ export function createPagination<T>(items: T[], options: PaginationOptions): Pag
 // Smart Caching Utilities
 // ===================================================================================
 
-// Note: CacheCategory enum is imported from CacheService for consistency
+// Note: CacheCategory enum is imported from standalone file for client-safe usage
 // Re-export for convenience in this module
-export { CacheCategory } from '@src/databases/CacheService';
+export { CacheCategory };
 
 /**
  * Options for cache operations

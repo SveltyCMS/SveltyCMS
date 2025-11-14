@@ -50,7 +50,8 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		try {
 			body = await request.json();
 		} catch (parseError) {
-			logger.error(`Failed to parse request body: ${parseError.message}`);
+			const errorMsg = parseError instanceof Error ? parseError.message : 'Unknown parse error';
+			logger.error(`Failed to parse request body: ${errorMsg}`);
 			throw error(400, 'Invalid JSON in request body');
 		}
 
@@ -71,19 +72,23 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			throw error(503, 'Service Unavailable: Database service is not properly initialized');
 		}
 
+		if (!schema._id) {
+			throw error(500, 'Collection ID is missing');
+		}
+
 		let results = [];
 		const normalizedCollectionId = normalizeCollectionName(schema._id);
 		const updateData = { status, updatedBy: user._id };
 		if (entries && Array.isArray(entries) && entries.length > 0) {
 			// Batch status update
-			const query = { _id: { $in: entries } };
+			const query: Record<string, unknown> = { _id: { $in: entries } };
 			if (getPrivateSettingSync('MULTI_TENANT')) {
 				query.tenantId = tenantId;
 			}
 
 			// --- MULTI-TENANCY SECURITY CHECK ---
 			// Verify all entries belong to the current tenant before updating.
-			const verificationResult = await dbAdapter.crud.findMany(normalizedCollectionId, query);
+			const verificationResult = await dbAdapter.crud.findMany(normalizedCollectionId, query as any);
 			if (!verificationResult.success || verificationResult.data.length !== entries.length) {
 				logger.warn(`Attempt to update status for entries outside of tenant`, {
 					userId: user._id,
@@ -93,7 +98,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 				throw error(403, 'Forbidden: One or more entries do not belong to your tenant or do not exist.');
 			}
 
-			const result = await dbAdapter.crud.updateMany(normalizedCollectionId, query, updateData);
+			const result = await dbAdapter.crud.updateMany(normalizedCollectionId, query as any, updateData);
 			if (result.success) {
 				results = entries.map((entryId) => ({ entryId, success: true }));
 			} else {
@@ -101,18 +106,22 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			}
 		} else {
 			// Single entry status update - verify entry exists and belongs to tenant first
-			const query = { _id: params.entryId };
+			const query: Record<string, unknown> = { _id: params.entryId };
 			if (getPrivateSettingSync('MULTI_TENANT')) {
 				query.tenantId = tenantId;
 			}
 
 			// Verify the entry exists and belongs to the current tenant
-			const verificationResult = await dbAdapter.crud.findOne(normalizedCollectionId, query);
+			const verificationResult = await dbAdapter.crud.findOne(normalizedCollectionId, query as any);
 			if (!verificationResult.success || !verificationResult.data) {
 				throw error(404, 'Entry not found or access denied');
 			}
 
-			const result = await dbAdapter.crud.update(normalizedCollectionId, params.entryId, updateData);
+			const result = await dbAdapter.crud.update(
+				normalizedCollectionId,
+				params.entryId as unknown as import('@src/databases/types').DatabaseId,
+				updateData
+			);
 
 			if (!result.success) {
 				throw error(500, result.error.message);
@@ -151,15 +160,20 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			performance: { duration }
 		});
 	} catch (e) {
-		if (e.status) {
-			logger.error(`Status update error (${e.status}): ${e.body?.message || e.message}`);
+		if (typeof e === 'object' && e !== null && 'status' in e) {
+			const errorBody =
+				'body' in e && typeof e.body === 'object' && e.body !== null && 'message' in e.body ? (e.body as { message?: string }).message : undefined;
+			const errorMsg = e instanceof Error ? e.message : 'Unknown error';
+			logger.error(`Status update error (${(e as any).status}): ${errorBody || errorMsg}`);
 			throw e; // Re-throw SvelteKit errors
 		}
 
 		const duration = performance.now() - start;
-		logger.error(`Failed to update status: ${e.message} in ${duration.toFixed(2)}ms`, {
+		const errorMsg = e instanceof Error ? e.message : 'Unknown error';
+		const stack = e instanceof Error ? e.stack : undefined;
+		logger.error(`Failed to update status: ${errorMsg} in ${duration.toFixed(2)}ms`, {
 			error: e,
-			stack: e.stack,
+			stack,
 			collectionId: params.collectionId,
 			entryId: params.entryId
 		});

@@ -50,7 +50,7 @@ import { logger } from '@utils/logger.server';
 import type { FieldDefinition } from '@src/content/types';
 import type { User } from '@src/databases/auth/types';
 
-export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
+export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const { user, tenantId, dbAdapter } = locals;
 	const typedUser = user as User; // Explicitly cast user to User type
 	const { language, collection } = params;
@@ -293,22 +293,49 @@ export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
 		}
 
 		// =================================================================
-		// 6. LOAD REVISIONS (for Fields.svelte)
+		// 6. LOAD REVISIONS (for Fields.svelte) - Direct Database Call
 		// =================================================================
 		let revisionsMeta = [];
 		// Only load revisions if we're in edit mode and have an entry ID
 		if (editEntryId && currentCollection.revision) {
 			try {
-				// Call the API endpoint internally using SvelteKit's fetch (auto-handles auth cookies)
-				const revisionsUrl = `/api/collections/${currentCollection._id}/${editEntryId}/revisions?limit=100`;
-				const response = await fetch(revisionsUrl);
-				if (response.ok) {
-					const result = await response.json();
-					if (result.success && result.data) {
-						revisionsMeta = result.data.revisions || [];
+				// ✅ ARCHITECTURE: Direct database call instead of HTTP fetch for SSR purity
+				// Bypasses HTTP overhead while maintaining same security checks
+
+				// Multi-tenancy security check (same as API endpoint)
+				if (getPrivateSettingSync('MULTI_TENANT')) {
+					const collectionTableName = `collection_${currentCollection._id}`;
+					const entryCheck = await dbAdapter.crud.findMany(collectionTableName, { _id: editEntryId, tenantId });
+					if (!entryCheck.success || !entryCheck.data || entryCheck.data.length === 0) {
+						logger.warn(`Attempt to access revisions for an entry not in the current tenant.`, {
+							userId: typedUser._id,
+							tenantId,
+							collectionId: currentCollection._id,
+							entryId: editEntryId
+						});
+						// Skip revisions but don't fail the page
+						revisionsMeta = [];
+					} else {
+						// Fetch revisions directly from database
+						const revisionResult = await dbAdapter.content.revisions.getHistory(editEntryId, {
+							page: 1,
+							pageSize: 100
+						});
+
+						if (revisionResult.success && revisionResult.data) {
+							revisionsMeta = revisionResult.data.items || [];
+						}
 					}
 				} else {
-					logger.warn('Revisions API returned error', { status: response.status, editEntryId });
+					// Single-tenant: fetch revisions directly
+					const revisionResult = await dbAdapter.content.revisions.getHistory(editEntryId, {
+						page: 1,
+						pageSize: 100
+					});
+
+					if (revisionResult.success && revisionResult.data) {
+						revisionsMeta = revisionResult.data.items || [];
+					}
 				}
 			} catch (err) {
 				logger.warn('Failed to load revisions', { error: err, editEntryId });
