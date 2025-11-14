@@ -197,10 +197,10 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		await modalInputs.first().fill('User Email');
 		await modalInputs.nth(1).fill('email');
 
-		// Toggle required checkbox
+		// Toggle required checkbox - use force since wrapper div intercepts clicks
 		const requiredToggle = page.locator('input[name="required"]');
 		if (await requiredToggle.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await requiredToggle.check();
+			await requiredToggle.check({ force: true });
 		}
 
 		// 9. Switch to "Specific" tab (tab 2) to configure widget-specific properties
