@@ -6,6 +6,15 @@ test.describe('Collection Builder with Modern Widgets', () => {
 	test.beforeEach(async ({ page }) => {
 		// Login as admin first
 		await loginAsAdmin(page);
+
+		// Sync widgets with database (required for tests - this initializes all core widgets)
+		// This ensures widgets are available for collection builder tests
+		const syncResponse = await page.request.post('/api/widgets/sync');
+		if (!syncResponse.ok()) {
+			console.warn(`Widget sync returned ${syncResponse.status()}, continuing anyway...`);
+		} else {
+			console.log('✓ Widgets synced to database');
+		}
 	});
 
 	test('should navigate to collection builder', async ({ page }) => {
@@ -77,23 +86,30 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		// 7. Click "Add Field" button (opens ModalSelectWidget)
 		await page.getByTestId('add-field-button').click();
 
-		// 8. Wait for widget selection modal to appear
+		// 8. Wait for widget buttons to appear in the modal (widgets were synced in beforeEach)
+		const widgetButtons = page.locator('[data-testid^="widget-select-"]');
+		await widgetButtons.first().waitFor({ state: 'visible', timeout: 15000 });
+		console.log(`✓ Widget selection modal opened with widgets loaded`);
+
+		// 9. Select first widget from the modal (this closes ModalSelectWidget and opens ModalWidgetForm)
+		await widgetButtons.first().click();
+
+		// 10. Wait for the second modal (ModalWidgetForm) to appear and render
 		await page.waitForTimeout(2000);
 
-		// 9. Select a widget from the modal (click first button in modal)
-		const modalButtons = page.locator('.modal button, [role="dialog"] button');
-		await modalButtons.first().waitFor({ state: 'visible', timeout: 10000 });
-		await modalButtons.first().click();
+		// The inputs have name="null" so we need to use placeholder or position
+		// Find label input by placeholder (or use nth if needed)
+		const modalInputs = page.locator('.modal input[type="text"]');
+		const firstTextInput = modalInputs.first();
 
-		// 10. Wait for ModalWidgetForm to appear and fill fields
-		await page.waitForTimeout(1000);
+		await firstTextInput.waitFor({ state: 'visible', timeout: 10000 });
+		await firstTextInput.fill('Article Title');
+		console.log('✓ Filled label field');
 
-		// Fill label (required field) - wait for it to be visible
-		await page.locator('input[name="label"]').waitFor({ state: 'visible', timeout: 10000 });
-		await page.locator('input[name="label"]').fill('Article Title');
-
-		// Fill db_fieldName (required field)
-		await page.locator('input[name="db_fieldName"]').fill('title');
+		// Fill db_fieldName (second text input)
+		const secondTextInput = modalInputs.nth(1);
+		await secondTextInput.fill('title');
+		console.log('✓ Filled db_fieldName field');
 
 		// 11. Click Save button to save the field
 		await page.getByRole('button', { name: /save/i }).first().click();
@@ -167,18 +183,19 @@ test.describe('Collection Builder with Modern Widgets', () => {
 
 		// 6. Click "Add Field" button
 		await page.getByTestId('add-field-button').click();
-		await page.waitForTimeout(2000);
 
-		// 7. Select first widget from modal
-		const modalButtons = page.locator('.modal button, [role="dialog"] button');
-		await modalButtons.first().waitFor({ state: 'visible', timeout: 10000 });
-		await modalButtons.first().click();
+		// 7. Wait for widgets to load in modal then select first widget (widgets were synced in beforeEach)
+		const widgetButtons = page.locator('[data-testid^="widget-select-"]');
+		await widgetButtons.first().waitFor({ state: 'visible', timeout: 15000 });
+		await widgetButtons.first().click();
 		await page.waitForTimeout(1000);
 
-		// 8. Configure default properties (tab 0) - wait for form to be visible
-		await page.locator('input[name="label"]').waitFor({ state: 'visible', timeout: 10000 });
-		await page.locator('input[name="label"]').fill('User Email');
-		await page.locator('input[name="db_fieldName"]').fill('email');
+		// 8. Configure default properties (tab 0) - inputs have name="null" so use nth
+		await page.waitForTimeout(1000);
+		const modalInputs = page.locator('.modal input[type="text"]');
+		await modalInputs.first().waitFor({ state: 'visible', timeout: 10000 });
+		await modalInputs.first().fill('User Email');
+		await modalInputs.nth(1).fill('email');
 
 		// Toggle required checkbox
 		const requiredToggle = page.locator('input[name="required"]');

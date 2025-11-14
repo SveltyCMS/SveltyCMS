@@ -40,9 +40,15 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		let widgetNames: string[] = [];
 		if (Array.isArray(result)) {
-			widgetNames = result;
+			// Handle both array of strings and array of objects
+			widgetNames = result.map((item: any) =>
+				typeof item === 'string' ? item : item?.name
+			).filter((name): name is string => typeof name === 'string' && name.length > 0);
 		} else if (result && typeof result === 'object' && 'success' in result && result.success) {
-			widgetNames = (result as { data: string[] }).data || [];
+			const data = (result as { data: any[] }).data || [];
+			widgetNames = data.map((item: any) =>
+				typeof item === 'string' ? item : item?.name
+			).filter((name): name is string => typeof name === 'string' && name.length > 0);
 		}
 
 		logger.debug('[/api/widgets/active] Extracted widget names', {
