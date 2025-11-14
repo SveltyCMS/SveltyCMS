@@ -20,15 +20,30 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
-import { literal, minLength, number, object, optional, pipe, string, union, url, type InferInput as ValibotInput } from 'valibot';
+import { custom, literal, minLength, number, object, optional, pipe, string, union, url, type InferInput as ValibotInput } from 'valibot';
 
 // Helper type for aggregation field parameter
 type AggregationField = { db_fieldName: string; [key: string]: unknown };
 
+// SECURITY: Strict URL validation to prevent SSRF
+const SAFE_VIDEO_URL_PATTERNS = [
+	/^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+	/^https?:\/\/(www\.)?vimeo\.com\/\d+$/,
+	/^https?:\/\/(www\.)?twitch\.tv\/videos\/\d+$/,
+	/^https?:\/\/(www\.)?tiktok\.com\/@[\w.-]+\/video\/\d+$/
+];
+
 // Define the validation schema for the RemoteVideoData object.
 const RemoteVideoDataSchema = object({
 	platform: union([literal('youtube'), literal('vimeo'), literal('twitch'), literal('tiktok'), literal('other')]),
-	url: pipe(string(), url('Must be a valid video URL.')),
+	url: pipe(
+		string(),
+		url('Must be a valid video URL.'),
+		custom((input) => {
+			const str = input as string;
+			return SAFE_VIDEO_URL_PATTERNS.some((pattern) => pattern.test(str));
+		}, 'URL must be from an allowed video platform (YouTube, Vimeo, Twitch, or TikTok)')
+	),
 	videoId: pipe(string(), minLength(1, 'Video ID is required.')),
 	title: pipe(string(), minLength(1, 'Video title is required.')),
 	thumbnailUrl: pipe(string(), url('Must be a valid thumbnail URL.')),

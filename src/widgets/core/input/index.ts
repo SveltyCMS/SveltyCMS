@@ -42,8 +42,8 @@ import {
 } from 'valibot';
 import type { InputProps } from './types';
 
-// The validation schema is a function that receives the field config and returns a schema.
-const createValidationSchema = (field: ReturnType<typeof InputWidget>): BaseSchema<unknown, unknown, BaseIssue<unknown>> => {
+// ✅ SSOT: Validation Schema - Exported for use in Input.svelte
+export const createValidationSchema = (field: ReturnType<typeof InputWidget>): BaseSchema<unknown, unknown, BaseIssue<unknown>> => {
 	// Build a string schema with text-specific rules
 	const stringRules: Array<unknown> = [transform((s: string) => (typeof s === 'string' ? s.trim() : s))];
 

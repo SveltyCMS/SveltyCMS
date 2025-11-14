@@ -1,0 +1,656 @@
+---
+path: 'docs/widgets/widget-testing-guide.mdx'
+title: 'Widget Testing Guide'
+description: 'Comprehensive guide to testing SveltyCMS widgets with enterprise-grade quality standards using Vitest, Testing Library, and Playwright.'
+order: 4
+icon: 'mdi:test-tube'
+author: 'admin'
+created: '2025-11-14'
+updated: '2025-11-14'
+tags:
+  - 'widgets'
+  - 'testing'
+  - 'vitest'
+  - 'playwright'
+  - 'unit-tests'
+  - 'e2e-tests'
+  - 'quality-assurance'
+---
+
+# Widget Testing Guide
+
+**Comprehensive guide to testing SveltyCMS widgets with enterprise-grade quality standards.**
+
+## Overview
+
+SveltyCMS widgets require thorough testing across **three pillars**:
+
+1. **Definition (index.ts)** - Schema, validation, aggregations
+2. **Input Component** - User interaction, validation, data binding
+3. **Display Component** - Read-only rendering, translation support
+
+### Testing Stack
+
+| Tool                        | Purpose           | Usage                         |
+| --------------------------- | ----------------- | ----------------------------- |
+| **Vitest**                  | Test runner       | Unit tests, integration tests |
+| **@testing-library/svelte** | Component testing | Render, query, interact       |
+| **Playwright**              | E2E testing       | Full user workflows           |
+| **Valibot**                 | Schema validation | Test validation rules         |
+
+---
+
+## 1. Definition Testing (index.ts)
+
+### Test Validation Schema
+
+```typescript
+// tests/widgets/input/definition.test.ts
+import { describe, test, expect } from 'vitest';
+import InputWidget, { createValidationSchema } from '@widgets/core/input';
+import { parse } from 'valibot';
+
+describe('Input Widget - Definition', () => {
+	test('creates widget with correct defaults', () => {
+		const widget = InputWidget({ label: 'Title' });
+
+		expect(widget.Name).toBe('Input');
+		expect(widget.translated).toBe(true); // Default from createWidget
+	});
+
+	test('validation schema: required field rejects empty', () => {
+		const field = InputWidget({ label: 'Title', required: true });
+		const schema = createValidationSchema(field);
+
+		expect(() => parse(schema, '')).toThrow('This field is required');
+		expect(() => parse(schema, '   ')).toThrow(); // Trimmed empty
+		expect(() => parse(schema, 'Valid')).not.toThrow();
+	});
+
+	test('validation schema: minLength constraint', () => {
+		const field = InputWidget({ label: 'Title', minLength: 5 });
+		const schema = createValidationSchema(field);
+
+		expect(() => parse(schema, 'abc')).toThrow('Must be at least 5 characters');
+		expect(() => parse(schema, 'Valid')).not.toThrow();
+	});
+
+	test('validation schema: maxLength constraint', () => {
+		const field = InputWidget({ label: 'Title', maxLength: 10 });
+		const schema = createValidationSchema(field);
+
+		expect(() => parse(schema, 'TooLongValue')).toThrow('Must be no more than 10 characters');
+		expect(() => parse(schema, 'Valid')).not.toThrow();
+	});
+
+	test('validation schema: translated field accepts object', () => {
+		const field = InputWidget({ label: 'Title', translated: true });
+		const schema = createValidationSchema(field);
+
+		// Translated fields store { en: "", de: "" } objects
+		expect(() => parse(schema, { en: 'Hello', de: 'Hallo' })).not.toThrow();
+		expect(() => parse(schema, 'string')).toThrow(); // Rejects strings
+	});
+
+	test('validation schema: non-translated field accepts string', () => {
+		const field = InputWidget({ label: 'Title', translated: false });
+		const schema = createValidationSchema(field);
+
+		expect(() => parse(schema, 'Hello')).not.toThrow();
+		expect(() => parse(schema, { en: 'Hello' })).toThrow(); // Rejects objects
+	});
+});
+```
+
+### Test Aggregations
+
+```typescript
+describe('Input Widget - Aggregations', () => {
+	test('filters: case-insensitive regex search', async () => {
+		const field = InputWidget({ label: 'Title', db_fieldName: 'title' });
+		const filters = await field.aggregations.filters({
+			field: { db_fieldName: 'title' },
+			filter: 'test',
+			contentLanguage: 'en'
+		});
+
+		expect(filters).toEqual([{ $match: { 'title.en': { $regex: 'test', $options: 'i' } } }]);
+	});
+
+	test('sorts: language-specific field', async () => {
+		const field = InputWidget({ label: 'Title', db_fieldName: 'title' });
+		const sort = await field.aggregations.sorts({
+			field: { db_fieldName: 'title' },
+			sortDirection: 1,
+			contentLanguage: 'de'
+		});
+
+		expect(sort).toEqual({ 'title.de': 1 });
+	});
+});
+```
+
+---
+
+## 2. Input Component Testing
+
+### Rendering Tests
+
+```typescript
+// tests/widgets/input/input.test.ts
+import { render, screen, fireEvent } from '@testing-library/svelte';
+import Input from '@widgets/core/input/Input.svelte';
+import { contentLanguage } from '@stores/store.svelte';
+
+describe('Input Widget - Input Component', () => {
+	test('renders with label and placeholder', () => {
+		const field = { label: 'Title', placeholder: 'Enter title' };
+		render(Input, { field, value: null });
+
+		const input = screen.getByPlaceholderText('Enter title');
+		expect(input).toBeInTheDocument();
+	});
+
+	test('displays initial value', () => {
+		const field = { label: 'Title', translated: true };
+		const value = { en: 'Hello' };
+
+		contentLanguage.setValue('en');
+		render(Input, { field, value });
+
+		const input = screen.getByDisplayValue('Hello');
+		expect(input).toBeInTheDocument();
+	});
+
+	test('updates value on input', async () => {
+		const field = { label: 'Title', translated: true };
+		let value = $state({ en: '' });
+
+		contentLanguage.setValue('en');
+		const { container } = render(Input, { field, value });
+		const input = container.querySelector('input') as HTMLInputElement;
+
+		await fireEvent.input(input, { target: { value: 'New Value' } });
+
+		expect(value.en).toBe('New Value');
+	});
+
+	test('switches language reactively', async () => {
+		const field = { label: 'Title', translated: true };
+		const value = { en: 'Hello', de: 'Hallo' };
+
+		contentLanguage.setValue('en');
+		const { container } = render(Input, { field, value });
+		const input = container.querySelector('input') as HTMLInputElement;
+
+		expect(input.value).toBe('Hello');
+
+		contentLanguage.setValue('de');
+		// Wait for reactive update
+		await tick();
+
+		expect(input.value).toBe('Hallo');
+	});
+});
+```
+
+### Validation Tests
+
+```typescript
+describe('Input Widget - Validation', () => {
+	test('shows error for required field when empty', async () => {
+		const field = { label: 'Title', required: true, db_fieldName: 'title' };
+		let value = $state({ en: '' });
+
+		contentLanguage.setValue('en');
+		const { container } = render(Input, { field, value, validateOnBlur: true });
+		const input = container.querySelector('input') as HTMLInputElement;
+
+		// Trigger validation
+		await fireEvent.blur(input);
+
+		const error = await screen.findByText('This field is required');
+		expect(error).toBeInTheDocument();
+	});
+
+	test('clears error when valid value entered', async () => {
+		const field = { label: 'Title', required: true, db_fieldName: 'title' };
+		let value = $state({ en: '' });
+
+		contentLanguage.setValue('en');
+		const { container } = render(Input, { field, value, validateOnChange: true });
+		const input = container.querySelector('input') as HTMLInputElement;
+
+		await fireEvent.blur(input); // Trigger error
+		await screen.findByText('This field is required');
+
+		await fireEvent.input(input, { target: { value: 'Valid' } });
+		await fireEvent.blur(input);
+
+		const error = screen.queryByText('This field is required');
+		expect(error).not.toBeInTheDocument();
+	});
+
+	test('validates minLength constraint', async () => {
+		const field = { label: 'Title', minLength: 5, db_fieldName: 'title' };
+		let value = $state({ en: 'abc' });
+
+		contentLanguage.setValue('en');
+		render(Input, { field, value, validateOnBlur: true });
+		const input = screen.getByDisplayValue('abc');
+
+		await fireEvent.blur(input);
+
+		const error = await screen.findByText('Minimum length is 5');
+		expect(error).toBeInTheDocument();
+	});
+
+	test('debounces validation on input', async () => {
+		const field = { label: 'Title', required: true, db_fieldName: 'title' };
+		let value = $state({ en: '' });
+
+		contentLanguage.setValue('en');
+		const { container } = render(Input, { field, value, validateOnChange: true, debounceMs: 300 });
+		const input = container.querySelector('input') as HTMLInputElement;
+
+		await fireEvent.input(input, { target: { value: 'T' } });
+
+		// Error should NOT appear immediately
+		let error = screen.queryByText('This field is required');
+		expect(error).not.toBeInTheDocument();
+
+		// Wait for debounce
+		await new Promise((r) => setTimeout(r, 350));
+
+		// Now validation runs (value is valid)
+		error = screen.queryByText('This field is required');
+		expect(error).not.toBeInTheDocument();
+	});
+});
+```
+
+### Character Count Tests
+
+```typescript
+describe('Input Widget - Character Count', () => {
+	test('displays character count for maxLength', () => {
+		const field = { label: 'Title', maxLength: 100 };
+		const value = { en: 'Hello' };
+
+		contentLanguage.setValue('en');
+		render(Input, { field, value });
+
+		const badge = screen.getByText('5/100');
+		expect(badge).toBeInTheDocument();
+	});
+
+	test('badge turns red when exceeding maxLength', async () => {
+		const field = { label: 'Title', maxLength: 10 };
+		let value = $state({ en: 'Short' });
+
+		contentLanguage.setValue('en');
+		const { container } = render(Input, { field, value });
+		const input = container.querySelector('input') as HTMLInputElement;
+
+		const badge = container.querySelector('.badge');
+		expect(badge).not.toHaveClass('bg-red-600'); // Normal state
+
+		await fireEvent.input(input, { target: { value: 'TooLongValue' } });
+
+		expect(badge).toHaveClass('bg-red-600'); // Error state
+	});
+
+	test('badge turns green when count target met', async () => {
+		const field = { label: 'Title', count: 10 };
+		let value = $state({ en: '' });
+
+		contentLanguage.setValue('en');
+		const { container } = render(Input, { field, value });
+		const input = container.querySelector('input') as HTMLInputElement;
+
+		await fireEvent.input(input, { target: { value: 'ExactlyTen' } }); // 10 chars
+
+		const badge = container.querySelector('.badge');
+		expect(badge).toHaveClass('bg-green-600'); // Target met
+	});
+});
+```
+
+---
+
+## 3. Display Component Testing
+
+```typescript
+// tests/widgets/input/display.test.ts
+import { render, screen } from '@testing-library/svelte';
+import Display from '@widgets/core/input/Display.svelte';
+import { contentLanguage } from '@stores/store.svelte';
+
+describe('Input Widget - Display Component', () => {
+	test('displays translated value for current language', () => {
+		const value = { en: 'Hello', de: 'Hallo' };
+
+		contentLanguage.setValue('en');
+		render(Display, { value });
+
+		expect(screen.getByText('Hello')).toBeInTheDocument();
+		expect(screen.queryByText('Hallo')).not.toBeInTheDocument();
+	});
+
+	test('switches language reactively', async () => {
+		const value = { en: 'Hello', de: 'Hallo' };
+
+		contentLanguage.setValue('en');
+		const { rerender } = render(Display, { value });
+
+		expect(screen.getByText('Hello')).toBeInTheDocument();
+
+		contentLanguage.setValue('de');
+		await rerender({ value }); // Re-render to trigger reactivity
+
+		expect(screen.getByText('Hallo')).toBeInTheDocument();
+		expect(screen.queryByText('Hello')).not.toBeInTheDocument();
+	});
+
+	test('shows empty state for missing translation', () => {
+		const value = { en: 'Hello' }; // Missing 'de'
+
+		contentLanguage.setValue('de');
+		render(Display, { value });
+
+		expect(screen.getByText('–')).toBeInTheDocument();
+	});
+
+	test('handles non-translated string value', () => {
+		const value = 'Simple String';
+
+		render(Display, { value });
+
+		expect(screen.getByText('Simple String')).toBeInTheDocument();
+	});
+
+	test('handles null/undefined value gracefully', () => {
+		render(Display, { value: null });
+
+		expect(screen.getByText('–')).toBeInTheDocument();
+	});
+});
+```
+
+---
+
+## 4. Integration Tests
+
+**Testing widget within Fields.svelte context:**
+
+```typescript
+// tests/integration/fields-widget.test.ts
+import { render, screen, fireEvent } from '@testing-library/svelte';
+import Fields from '@components/collectionDisplay/Fields.svelte';
+import { collectionStore } from '@stores/collectionStore.svelte';
+
+describe('Fields - Widget Integration', () => {
+	test('renders input widget from collection schema', () => {
+		const collection = {
+			_id: 'test123',
+			fields: [{ widget: 'Input', label: 'Title', db_fieldName: 'title', translated: true }]
+		};
+		const entry = { _id: 'entry123', title: { en: 'Test' } };
+
+		collectionStore.setCurrentCollection(collection);
+		render(Fields, { entry, mode: 'edit' });
+
+		const input = screen.getByDisplayValue('Test');
+		expect(input).toBeInTheDocument();
+	});
+
+	test('updates collectionStore when widget value changes', async () => {
+		const collection = {
+			_id: 'test123',
+			fields: [{ widget: 'Input', label: 'Title', db_fieldName: 'title', translated: true }]
+		};
+		const entry = { _id: 'entry123', title: { en: 'Original' } };
+
+		collectionStore.setCurrentCollection(collection);
+		const { container } = render(Fields, { entry, mode: 'edit' });
+
+		const input = container.querySelector('input[name="title"]') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'Updated' } });
+
+		// Check store updated
+		const currentEntry = collectionStore.currentEntry.value;
+		expect(currentEntry.title.en).toBe('Updated');
+	});
+});
+```
+
+---
+
+## 5. E2E Tests (Playwright)
+
+**Full user workflow testing:**
+
+```typescript
+// tests/playwright/widgets/input.spec.ts
+import { test, expect } from '@playwright/test';
+
+test.describe('Input Widget E2E', () => {
+	test.beforeEach(async ({ page }) => {
+		await page.goto('/en/Posts?edit=new');
+		await page.waitForSelector('[data-testid="fields-container"]');
+	});
+
+	test('creates entry with multilingual input', async ({ page }) => {
+		// Fill English
+		await page.fill('input[name="title"]', 'English Title');
+
+		// Switch to German
+		await page.click('[data-testid="language-switcher"]');
+		await page.click('text=Deutsch');
+
+		// Fill German
+		await page.fill('input[name="title"]', 'Deutscher Titel');
+
+		// Save
+		await page.click('button:has-text("Save")');
+
+		// Verify success
+		await expect(page.locator('.toast-success')).toContainText('Entry created');
+
+		// Verify data persisted
+		await page.click('[data-testid="language-switcher"]');
+		await page.click('text=English');
+		await expect(page.locator('input[name="title"]')).toHaveValue('English Title');
+	});
+
+	test('shows validation error on blur', async ({ page }) => {
+		const requiredInput = page.locator('input[name="required_field"]');
+
+		await requiredInput.focus();
+		await requiredInput.blur();
+
+		await expect(page.locator('text=This field is required')).toBeVisible();
+	});
+
+	test('character count updates in real-time', async ({ page }) => {
+		const input = page.locator('input[name="title"]');
+		const badge = page.locator('.badge:near(input[name="title"])');
+
+		await input.fill('Hello');
+		await expect(badge).toContainText('5/100');
+
+		await input.fill('Hello World');
+		await expect(badge).toContainText('11/100');
+	});
+});
+```
+
+---
+
+## 6. Testing Utilities
+
+### Mock Stores
+
+```typescript
+// tests/utils/mockStores.ts
+export function mockContentLanguage(initialLang = 'en') {
+	let currentLang = $state(initialLang);
+
+	return {
+		get value() {
+			return currentLang;
+		},
+		setValue(lang: string) {
+			currentLang = lang;
+		}
+	};
+}
+
+export function mockValidationStore() {
+	const errors = new Map<string, string>();
+
+	return {
+		getError: (field: string) => errors.get(field),
+		setError: (field: string, error: string) => errors.set(field, error),
+		clearError: (field: string) => errors.delete(field),
+		clear: () => errors.clear()
+	};
+}
+```
+
+### Factory Functions
+
+```typescript
+// tests/utils/factories.ts
+export function createTestField(overrides = {}) {
+	return {
+		widget: 'Input',
+		label: 'Test Field',
+		db_fieldName: 'test_field',
+		translated: true,
+		required: false,
+		...overrides
+	};
+}
+
+export function createTestValue(overrides = {}) {
+	return {
+		en: 'English Value',
+		de: 'German Value',
+		...overrides
+	};
+}
+```
+
+---
+
+## Testing Checklist
+
+When testing a new widget:
+
+### Definition (index.ts)
+
+- [ ] Widget creates with correct Name and Icon
+- [ ] Defaults are applied correctly
+- [ ] Validation schema: required field rejects empty
+- [ ] Validation schema: optional field allows empty
+- [ ] Validation schema: translated field accepts object
+- [ ] Validation schema: non-translated field accepts primitive
+- [ ] Aggregations: filters use contentLanguage
+- [ ] Aggregations: sorts use contentLanguage
+- [ ] GraphQL schema generates correct type
+
+### Input Component
+
+- [ ] Renders with label and placeholder
+- [ ] Displays initial value
+- [ ] Updates value on user input
+- [ ] Switches language reactively
+- [ ] Shows validation errors on blur
+- [ ] Clears errors when valid
+- [ ] Debounces validation on input
+- [ ] Character count updates correctly
+- [ ] Badge color changes based on constraints
+- [ ] Handles null/undefined values
+- [ ] Preserves other language values on update
+
+### Display Component
+
+- [ ] Displays correct language value
+- [ ] Switches language reactively
+- [ ] Shows empty state for missing translation
+- [ ] Handles non-translated values
+- [ ] Handles null/undefined values
+
+### Integration
+
+- [ ] Renders within Fields.svelte
+- [ ] Updates collectionStore on change
+- [ ] Validates on form submit
+- [ ] Saves correctly to database
+- [ ] Loads correctly from database
+
+### E2E
+
+- [ ] Create entry with multilingual data
+- [ ] Edit entry and switch languages
+- [ ] Validation errors prevent save
+- [ ] Character limits enforced
+- [ ] Translation status updates
+
+---
+
+## CI/CD Integration
+
+**GitHub Actions Workflow:**
+
+```yaml
+name: Widget Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: oven-sh/setup-bun@v1
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run unit tests
+        run: bun test --coverage
+
+      - name: Run Playwright E2E tests
+        run: bun playwright test
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/coverage-final.json
+```
+
+---
+
+## Related Documentation
+
+- [Widget Multilingual Guide](./widget-multilingual-guide.mdx) - Translation patterns
+- [Widget Architecture](../architecture/widget-architecture.mdx) - Three-pillar design
+- [Validation System](../architecture/validation-system.mdx) - Valibot integration
+
+---
+
+## Best Practices
+
+1. **Test behavior, not implementation** - Focus on user interactions and outcomes
+2. **Use data-testid attributes** - Avoid brittle CSS selectors
+3. **Mock external dependencies** - Database, API calls, file uploads
+4. **Test edge cases** - Null values, empty strings, Unicode, XSS attempts
+5. **Maintain test coverage > 80%** - Track with Codecov or similar
+6. **Run E2E tests in CI** - Catch integration issues before production
+7. **Use snapshot testing sparingly** - Only for stable UI components
+
+---
+
+All SveltyCMS widgets follow these testing patterns for consistency and reliability.

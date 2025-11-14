@@ -34,11 +34,22 @@
 	}
 
 	function handleSubmit(e: Event) {
-		e.preventDefault(); // Prevent the default form submission
+		e.preventDefault();
+
+		// SECURITY: Validate YouTube URL to prevent XSS
+		// Only allow youtube.com and youtu.be URLs (HTTPS only)
+		const youtubePattern = /^https:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+
 		if (youtube_url && editor) {
-			editor.chain().focus().setYoutubeVideo({ src: youtube_url }).run();
+			if (youtubePattern.test(youtube_url)) {
+				editor.chain().focus().setYoutubeVideo({ src: youtube_url }).run();
+				close();
+			} else {
+				alert('Invalid YouTube URL. Please use a valid youtube.com or youtu.be link.');
+			}
+		} else {
+			close();
 		}
-		close();
 	}
 
 	// Add 'Escape' key listener

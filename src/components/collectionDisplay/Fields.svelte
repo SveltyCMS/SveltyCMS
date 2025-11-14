@@ -48,10 +48,14 @@
 
 	import { widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte';
 
-	// Eager load all widget components for immediate use in Fields
-	const modules: Record<string, { default: any }> = import.meta.glob('/src/widgets/**/*.svelte', {
-		eager: true
-	});
+	// --- PERFORMANCE FIX: DYNAMIC WIDGET IMPORTS ---
+	// Lazy-load widgets for code-splitting (eager: false is default)
+	// Returns loader functions instead of eager-loaded components
+	const modules: Record<string, () => Promise<{ default: any }>> = import.meta.glob('/src/widgets/**/*.svelte');
+
+	// Import async widget loader component
+	import WidgetLoader from './WidgetLoader.svelte';
+	// --- END PERFORMANCE FIX ---
 
 	let widgetFunctions = $state<Record<string, any>>({});
 	$effect(() => {
@@ -359,18 +363,20 @@
 										widgetFunctions[widgetName]?.componentPath ||
 										widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)]?.componentPath ||
 										widgetFunctions[widgetName.toLowerCase()]?.componentPath}
-									{@const WidgetComponent = widgetPath && widgetPath in modules ? modules[widgetPath]?.default : null}
 
-									{#if WidgetComponent}
+									<!-- --- PERFORMANCE FIX: USE WIDGETLOADER --- -->
+									{@const widgetLoader = widgetPath && widgetPath in modules ? modules[widgetPath] : null}
+
+									{#if widgetLoader}
 										{@const fieldName = getFieldName(field, false)}
 										{#key currentContentLanguage}
 											<!-- Widget remounts when currentContentLanguage changes -->
-											<!-- Widgets read contentLanguage from store, not props -->
-											<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
+											<WidgetLoader loader={widgetLoader} {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
 										{/key}
 									{:else}
 										<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>
 									{/if}
+									<!-- --- END PERFORMANCE FIX --- -->
 								{/if}
 							</div>
 						{/if}

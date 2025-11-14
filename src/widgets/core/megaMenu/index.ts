@@ -18,14 +18,14 @@
 
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
-import { array, object, string } from 'valibot';
+import { array, maxLength, object, pipe, string } from 'valibot';
 import type { MegaMenuProps, MenuItem } from './types';
 
-// Define a base schema for a nested menu item's data.
+// SECURITY: Define a base schema for a nested menu item's data with validation
 const MenuItemSchema = object({
-	_id: string(),
-	_fields: object({}), // The fields inside can be anything, validated by the parent form.
-	children: array(object({})) // Allow nested children with the same structure
+	_id: pipe(string(), maxLength(100)),
+	_fields: object({}), // The fields inside validated separately
+	children: array(object({})) // Nested children with same structure
 });
 
 // The top-level schema is an array of these menu items.

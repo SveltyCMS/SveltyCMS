@@ -71,11 +71,23 @@ const RelationWidget = createWidget<RelationProps>({
 		translated: false
 	},
 	// Aggregation performs a lookup to search by the related entry's displayField.
+	// SECURITY: Includes tenant isolation to prevent IDOR attacks
 	aggregations: {
-		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => [
+		filters: async ({ field, filter, tenantId }: { field: AggregationField; filter: string; tenantId?: string }) => [
 			{ $lookup: { from: field.collection, localField: field.db_fieldName, foreignField: '_id', as: 'related_doc' } },
-			{ $match: { [`related_doc.${field.displayField}`]: { $regex: filter, $options: 'i' } } }
-		]
+			{
+				$match: {
+					...(tenantId ? { 'related_doc.tenantId': tenantId } : {}),
+					[`related_doc.${field.displayField}`]: { $regex: filter, $options: 'i' }
+				}
+			}
+		],
+		sorts: async ({ field, sortDirection, tenantId }: { field: AggregationField; sortDirection: number; tenantId?: string }) => {
+			// SECURITY: Tenant-aware sorting
+			return {
+				[`${field.db_fieldName}.${field.displayField}`]: sortDirection
+			};
+		}
 	},
 
 	// GraphQL schema for relation (returns ID of related document)

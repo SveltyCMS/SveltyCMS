@@ -54,6 +54,27 @@ Part of the Three Pillars Architecture for widget system.
 		}
 	});
 
+	// SECURITY: URL validation patterns to prevent SSRF attacks
+	const ALLOWED_PLATFORMS: Record<string, RegExp> = {
+		youtube: /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+		vimeo: /^https?:\/\/(www\.)?vimeo\.com\/\d+$/,
+		twitch: /^https?:\/\/(www\.)?twitch\.tv\/videos\/\d+$/,
+		tiktok: /^https?:\/\/(www\.)?tiktok\.com\/@[\w.-]+\/video\/\d+$/
+	};
+
+	function validateVideoUrl(url: string): { valid: boolean; error?: string } {
+		const allowedPlatforms = field.allowedPlatforms || ['youtube', 'vimeo', 'twitch', 'tiktok'];
+		const isValid = allowedPlatforms.some((platform) => ALLOWED_PLATFORMS[platform]?.test(url));
+
+		if (!isValid) {
+			return {
+				valid: false,
+				error: `Invalid or disallowed video URL. Allowed platforms: ${allowedPlatforms.join(', ')}`
+			};
+		}
+		return { valid: true };
+	}
+
 	// Debounced function to fetch video metadata from the server.
 	const fetchVideoMetadata = debounce.create((...args: unknown[]) => {
 		const url = typeof args[0] === 'string' ? args[0] : '';
@@ -63,6 +84,15 @@ Part of the Three Pillars Architecture for widget system.
 
 		if (!url) {
 			isLoading = false;
+			return;
+		}
+
+		// SECURITY: Validate URL before making API call
+		const validation = validateVideoUrl(url);
+		if (!validation.valid) {
+			fetchError = validation.error || 'Invalid video URL';
+			isLoading = false;
+			value = null;
 			return;
 		}
 

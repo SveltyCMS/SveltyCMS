@@ -25,6 +25,7 @@ Renders: Nested <ul> structure with proper hierarchy and localization
 
 <script lang="ts">
 	import { contentLanguage } from '@src/stores/store.svelte';
+	import Sanitize from '@utils/Sanitize.svelte';
 	import Display from './Display.svelte';
 	import type { MenuItem } from './types';
 
@@ -36,7 +37,7 @@ Renders: Nested <ul> structure with proper hierarchy and localization
 	<ul class="menu-display-list list-none pl-4">
 		{#each value as item (item._id)}
 			<li>
-				<span>{(item._fields?.title as Record<string, string> | undefined)?.[lang] || 'Untitled'}</span>
+				<Sanitize html={(item._fields?.title as Record<string, string> | undefined)?.[lang] || 'Untitled'} profile="strict" />
 				{#if item.children.length > 0}
 					<Display value={item.children} />
 				{/if}

@@ -26,6 +26,44 @@
 	import type { FieldType } from './';
 	import type { MediaFile } from './types';
 
+	// SECURITY: File validation constants
+	const ALLOWED_MIME_TYPES = [
+		'image/jpeg',
+		'image/png',
+		'image/gif',
+		'image/webp',
+		'image/svg+xml',
+		'video/mp4',
+		'video/webm',
+		'video/ogg',
+		'application/pdf',
+		'audio/mpeg',
+		'audio/wav'
+	];
+	const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+	const VALID_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp4', 'webm', 'ogg', 'pdf', 'mp3', 'wav'];
+
+	function validateFile(file: File): { valid: boolean; error?: string } {
+		// Check MIME type
+		if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+			return { valid: false, error: `Invalid file type: ${file.type}` };
+		}
+		// Check file size
+		if (file.size > MAX_FILE_SIZE) {
+			return { valid: false, error: `File too large (max 10MB): ${(file.size / 1024 / 1024).toFixed(2)}MB` };
+		}
+		// Check file extension
+		const ext = file.name.split('.').pop()?.toLowerCase();
+		if (!ext || !VALID_EXTENSIONS.includes(ext)) {
+			return { valid: false, error: `Invalid file extension: ${ext}` };
+		}
+		// Basic filename sanitization check (prevent path traversal)
+		if (file.name.includes('..') || file.name.includes('/') || file.name.includes('\\')) {
+			return { valid: false, error: 'Invalid filename characters detected' };
+		}
+		return { valid: true };
+	}
+
 	let { field, value = $bindable(), error }: { field: FieldType; value: string | string[] | null | undefined; error?: string | null } = $props();
 
 	// A local, reactive array of the full, resolved media file objects for display.

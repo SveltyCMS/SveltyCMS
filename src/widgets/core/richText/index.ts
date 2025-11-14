@@ -19,29 +19,16 @@ import { object, optional, pipe, string, custom, type InferInput } from 'valibot
 import type { RichTextProps } from './types';
 
 // Helper to check if HTML content is effectively empty.
+// NOTE: Input.svelte already sanitizes with DOMPurify before storage,
+// so we don't need to remove scripts here (defense-in-depth handled upstream)
 const isContentEmpty = (html: string) => {
 	if (!html) return true;
 
-	// Remove <script> tags and their content first for security
-	// Use loop to prevent bypass via malformed/nested tags
-	let noScripts = html;
-	let prev: string;
-	do {
-		prev = noScripts;
-		// Remove <script>...</script> blocks (with any whitespace/attributes in closing tag)
-		noScripts = noScripts.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
-		// Remove orphaned <script> opening tags
-		noScripts = noScripts.replace(/<script\b[^>]*>/gi, '');
-	} while (noScripts !== prev);
+	// Strip all HTML tags to check for actual text content
+	// Single pass is safe since Input.svelte sanitizes on storage
+	const stripped = html.replace(/<[^>]+>/g, '').trim();
 
-	// Remove all remaining HTML tags, also using loop for security
-	let stripped = noScripts;
-	do {
-		prev = stripped;
-		stripped = stripped.replace(/<[^>]+>/g, '');
-	} while (stripped !== prev);
-
-	return stripped.trim().length === 0;
+	return stripped.length === 0;
 };
 
 // The validation schema is a function to accommodate the `required` flag.

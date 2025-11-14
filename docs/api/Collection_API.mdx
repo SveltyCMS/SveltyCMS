@@ -39,18 +39,69 @@ All collection API endpoints follow the pattern:
 
 ### Primary Routes
 
-| Method   | Endpoint                                              | Description             |
-| -------- | ----------------------------------------------------- | ----------------------- |
-| `GET`    | `/api/collections/{collectionId}`                     | List collection entries |
-| `POST`   | `/api/collections/{collectionId}`                     | Create new entry        |
-| `GET`    | `/api/collections/{collectionId}/{entryId}`           | Get specific entry      |
-| `PATCH`  | `/api/collections/{collectionId}/{entryId}`           | Update entry            |
-| `DELETE` | `/api/collections/{collectionId}/{entryId}`           | Delete entry            |
-| `POST`   | `/api/collections/{collectionId}/batch`               | Batch operations        |
-| `PATCH`  | `/api/collections/{collectionId}/{entryId}/status`    | Update entry status     |
-| `GET`    | `/api/collections/{collectionId}/{entryId}/revisions` | Get revision history    |
-| `POST`   | `/api/collections/{collectionId}/import`              | Import data (JSON/CSV)  |
-| `GET`    | `/api/collections/{collectionId}/export`              | Export data (JSON/CSV)  |
+| Method    | Endpoint                                              | Description                 | Notes                                         |
+| --------- | ----------------------------------------------------- | --------------------------- | --------------------------------------------- |
+| ~~`GET`~~ | ~~/api/collections/{collectionId}~~                   | ~~List collection entries~~ | ❌ **REMOVED** - Use `+page.server.ts` load() |
+| `POST`    | `/api/collections/{collectionId}`                     | Create new entry            | ✅ Client-side mutation                       |
+| ~~`GET`~~ | ~~/api/collections/{collectionId}/{entryId}~~         | ~~Get specific entry~~      | ❌ **REMOVED** - Use `+page.server.ts` load() |
+| `PATCH`   | `/api/collections/{collectionId}/{entryId}`           | Update entry                | ✅ Client-side mutation                       |
+| `DELETE`  | `/api/collections/{collectionId}/{entryId}`           | Delete entry                | ✅ Client-side mutation                       |
+| `POST`    | `/api/collections/{collectionId}/batch`               | Batch operations            | ✅ Client-side mutation                       |
+| `PATCH`   | `/api/collections/{collectionId}/{entryId}/status`    | Update entry status         | ✅ Client-side mutation                       |
+| `GET`     | `/api/collections/{collectionId}/{entryId}/revisions` | Get revision history        | ✅ API endpoint                               |
+| `POST`    | `/api/collections/{collectionId}/import`              | Import data (JSON/CSV)      | ✅ Client-side mutation                       |
+| `GET`     | `/api/collections/{collectionId}/export`              | Export data (JSON/CSV)      | ✅ API endpoint                               |
+
+### ⚠️ Architecture Change: SSR-First Data Loading
+
+**GET endpoints for listing/reading entries have been removed.**
+
+**Why?**
+
+- **SSR Performance**: Eliminates redundant data fetching (server → client → server)
+- **SEO Benefits**: Search engines get fully-rendered HTML with data
+- **Reduced Latency**: Data loads with page HTML, not after JavaScript execution
+- **Type Safety**: Load function types are checked at compile-time
+
+**Migration Guide:**
+
+❌ **Old Pattern (Client-side fetch):**
+
+```typescript
+// +page.svelte
+onMount(async () => {
+	const res = await fetch(`/api/collections/${collectionId}`);
+	const { data } = await res.json();
+	entries = data.items;
+});
+```
+
+✅ **New Pattern (SSR load function):**
+
+```typescript
+// +page.server.ts
+export const load: PageServerLoad = async ({ locals, params }) => {
+	const entries = await dbAdapter
+		.queryBuilder(`collection_${collectionId}`)
+		.where({ tenantId: locals.tenantId })
+		.paginate({ page: 1, pageSize: 25 })
+		.execute();
+
+	return { entries: entries.data };
+};
+
+// +page.svelte
+export let data; // Type-safe, pre-loaded on server
+$: entries = data.entries;
+```
+
+**When to use API endpoints:**
+
+- ✅ Mutations (POST, PATCH, DELETE) - always client-side
+- ✅ Dynamic updates after initial load
+- ✅ Infinite scroll / pagination beyond initial page
+- ✅ Real-time data refresh
+- ❌ Initial page load - use load() instead
 
 ## Authentication & Authorization
 

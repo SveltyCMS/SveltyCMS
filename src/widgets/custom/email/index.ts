@@ -18,16 +18,36 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
-import { email, minLength, optional, pipe, string, type InferInput as ValibotInput } from 'valibot';
+import { custom, email, minLength, optional, pipe, string, type InferInput as ValibotInput } from 'valibot';
 import type { EmailProps } from './types';
+
+// SECURITY: Common disposable email domains to block
+const DISPOSABLE_DOMAINS = [
+	'tempmail.com',
+	'guerrillamail.com',
+	'10minutemail.com',
+	'mailinator.com',
+	'throwaway.email',
+	'yopmail.com',
+	'temp-mail.org',
+	'getnada.com'
+];
+
+const blockDisposableEmail = custom((input) => {
+	const email = input as string;
+	const domain = email.split('@')[1]?.toLowerCase();
+	return !DISPOSABLE_DOMAINS.includes(domain);
+}, 'Disposable email addresses are not allowed');
 
 // The validation schema is a function to create rules based on the field config.
 const validationSchema = (field: FieldInstance) => {
 	// Start with a base string schema that requires a valid email format.
-	const baseSchema = pipe(string(), email('Please enter a valid email address.'));
+	const baseSchema = pipe(string(), email('Please enter a valid email address.'), blockDisposableEmail);
 
 	// If the field is required, also ensure it's not empty.
-	const schema = field.required ? pipe(string(), minLength(1, 'This field is required.'), email('Please enter a valid email address.')) : baseSchema;
+	const schema = field.required
+		? pipe(string(), minLength(1, 'This field is required.'), email('Please enter a valid email address.'), blockDisposableEmail)
+		: baseSchema;
 
 	// If not required, wrap the schema to allow it to be optional.
 	return field.required ? schema : optional(schema, '');

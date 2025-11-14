@@ -21,11 +21,13 @@ import { createWidget } from '@src/widgets/factory';
 import { minLength, optional, pipe, regex, string, type InferInput as ValibotInput } from 'valibot';
 import type { PhoneNumberProps } from './types';
 
-// The validation schema is a function to create rules based on the field config.
+// SECURITY: More robust phone validation
+// E.164 format: +[country code][subscriber number]
+// Country code: 1-3 digits, Subscriber: up to 15 total digits
 const validationSchema = (field: FieldInstance) => {
-	// A robust default regex for international E.164 format (e.g., +491234567).
-	const defaultPattern = /^\+[1-9]\d{1,14}$/;
-	const validationMessage = 'Please enter a valid phone number format.';
+	// Improved regex for E.164 international format
+	const defaultPattern = /^\+[1-9]\d{1,3}[\d\s-]{4,14}$/;
+	const validationMessage = 'Please enter a valid international phone number (e.g., +49 123 456789)';
 
 	// Use the custom pattern from the field config, or fall back to the default.
 	const validationPattern = field.pattern ? new RegExp(field.pattern as string) : defaultPattern;

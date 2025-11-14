@@ -33,8 +33,17 @@ Interactive Tiptap editor with toolbar and title input
 	import type { FieldType } from './';
 	import { createEditor } from './tiptap';
 	import type { RichTextData } from './types';
-	// Import the decoupled editor config
 	import { contentLanguage } from '@src/stores/store.svelte';
+
+	// SECURITY: Import DOMPurify for server-side sanitization before storage
+	// This provides defense-in-depth: sanitize on input AND output
+	let DOMPurify: typeof import('dompurify').default | null = null;
+
+	// Load DOMPurify client-side only
+	onMount(async () => {
+		const module = await import('dompurify');
+		DOMPurify = module.default;
+	});
 
 	let { field, value, error }: { field: FieldType; value: Record<string, RichTextData> | null | undefined; error?: string | null } = $props();
 
@@ -77,7 +86,50 @@ Interactive Tiptap editor with toolbar and title input
 
 		// When Tiptap updates, sync its content back to the parent `value`.
 		editor.on('update', () => {
-			const newContent = editor!.getHTML();
+			let newContent = editor!.getHTML();
+
+			// SECURITY: Sanitize HTML before storing to database
+			// Defense-in-depth: sanitize on input AND output
+			if (DOMPurify && newContent) {
+				newContent = DOMPurify.sanitize(newContent, {
+					ALLOWED_TAGS: [
+						'p',
+						'br',
+						'strong',
+						'em',
+						'u',
+						'strike',
+						's',
+						'h1',
+						'h2',
+						'h3',
+						'h4',
+						'h5',
+						'h6',
+						'ul',
+						'ol',
+						'li',
+						'a',
+						'img',
+						'blockquote',
+						'pre',
+						'code',
+						'table',
+						'thead',
+						'tbody',
+						'tr',
+						'th',
+						'td',
+						'div',
+						'span'
+					],
+					ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style', 'src', 'alt', 'title', 'width', 'height', 'data-youtube-video'],
+					ALLOWED_URI_REGEXP: /^(?:https?:\/\/|mailto:|tel:|#|\/)/, // Block javascript:, data: URIs
+					ADD_ATTR: ['target'], // Preserve target for links
+					ALLOW_DATA_ATTR: false // Block data-* except whitelisted
+				});
+			}
+
 			value = {
 				...(value || {}),
 				[lang]: {

@@ -37,8 +37,7 @@ Cookie: session=your-session-id
 SveltyCMS uses a 3-pillar widget architecture:
 
 1. **Core Widgets** - Built-in, essential functionality
-2. **Active Widgets** - Currently enabled/active widgets
-3. **Widget Functions** - Registry of all widget capabilities
+2. **Widget Functions** - Registry of all widget capabilities
 
 ---
 
@@ -51,7 +50,7 @@ Retrieves comprehensive information about all available widgets.
 #### Request
 
 ```http
-GET /api/widgets/list
+
 ```
 
 **Query Parameters:**
@@ -79,7 +78,6 @@ Cookie: session=your-session-id
 		"widgetFunction": {
 			"name": "widgetFunction",
 			"version": "1.0.0",
-			"description": "Core widget function component",
 			"category": "core",
 			"status": "active",
 			"isCore": true,
@@ -97,7 +95,6 @@ Cookie: session=your-session-id
 			"category": "media",
 			"status": "active",
 			"isCore": true,
-			"dependencies": ["widgetFunction"],
 			"metadata": {
 				"author": "SveltyCMS",
 				"license": "MIT",
@@ -109,8 +106,7 @@ Cookie: session=your-session-id
 		"total": 25,
 		"active": 18,
 		"inactive": 5,
-		"core": 15,
-		"custom": 10
+		"core": 15
 	},
 	"tenantId": "default-tenant",
 	"processingTime": "45ms"
@@ -172,7 +168,6 @@ Content-Type: application/json
 **Success (200):**
 
 ```json
-{
 	"success": true,
 	"widgetId": "custom-widget-123",
 	"tenantId": "tenant-xyz",
@@ -187,7 +182,6 @@ Content-Type: application/json
 // 400 Bad Request - Missing widget ID
 {
   "success": false,
-  "message": "Widget ID is required"
 }
 
 // 409 Conflict - Already installed
@@ -226,7 +220,6 @@ Content-Type: application/json
 
 ```json
 {
-	"widgetName": "custom-widget",
 	"tenantId": "tenant-xyz",
 	"force": false
 }
@@ -245,7 +238,6 @@ Content-Type: application/json
 **Success (200):**
 
 ```json
-{
 	"success": true,
 	"widgetName": "custom-widget",
 	"tenantId": "tenant-xyz",
@@ -259,7 +251,6 @@ Content-Type: application/json
 ```json
 // 400 Bad Request - Missing widget name
 {
-  "success": false,
   "message": "Widget name is required"
 }
 
@@ -271,7 +262,6 @@ Content-Type: application/json
 }
 
 // 409 Conflict - Core widget
-{
   "success": false,
   "message": "Cannot uninstall core widget"
 }
@@ -299,7 +289,6 @@ Content-Type: application/json
 **Body:**
 
 ```json
-{
 	"widgetName": "custom-widget",
 	"tenantId": "tenant-xyz"
 }
@@ -330,20 +319,10 @@ Deactivates an active widget without uninstalling it.
 
 ```http
 POST /api/widgets/deactivate
-```
 
 **Headers:**
 
-```http
-Cookie: session=your-session-id
-Content-Type: application/json
-```
-
-**Body:**
-
-```json
 {
-	"widgetName": "custom-widget",
 	"tenantId": "tenant-xyz"
 }
 ```

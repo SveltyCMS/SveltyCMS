@@ -18,22 +18,25 @@ import type { RequestHandler } from './$types';
 
 import { contentManager } from '@src/content/ContentManager';
 import { dbAdapter } from '@src/databases/db';
+import type { BaseEntity, ISODateString, DatabaseId } from '@src/content/types';
 
 // System Logger
 import { logger } from '@utils/logger.server';
 
 // Validation
 import * as v from 'valibot';
+import { nowISODateString } from '@utils/dateUtils';
 
 const QuerySchema = v.object({
 	limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(20)), 5)
 });
 
+// All dates should be ISO date strings (see dateUtils)
 const ContentItemSchema = v.object({
 	id: v.string(),
 	title: v.string(),
 	collection: v.string(),
-	createdAt: v.date(),
+	createdAt: v.string(), // ISODateString
 	createdBy: v.string(),
 	status: v.string()
 });
@@ -71,7 +74,9 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			return json([]);
 		}
 
-		if (!dbAdapter) {
+		// Narrow adapter once (avoid non-null assertions later)
+		const adapter = dbAdapter;
+		if (!adapter) {
 			logger.error('Database adapter not available');
 			throw error(500, 'Database connection unavailable');
 		}
@@ -80,21 +85,58 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const collectionsEntries = Object.entries(allCollections);
 
 		// 4. Query EACH collection for its top 'limit' recent items efficiently (scoped to the tenant)
+		// NOTE: Generic CRUD methods require T extends BaseEntity.
+		// We include createdAt/updatedAt fields in the query even if we only
+		// use createdAt for ordering to satisfy the constraint.
+		interface DashboardRawEntry extends BaseEntity {
+			title?: string;
+			name?: string;
+			label?: string;
+			created?: ISODateString | string;
+			date?: ISODateString | string;
+			createdBy?: string;
+			author?: string;
+			creator?: string;
+			status?: string;
+			state?: string;
+			tenantId?: string;
+			[key: string]: unknown;
+		}
+
+		interface UserDoc extends BaseEntity {
+			username?: string;
+			firstName?: string;
+			lastName?: string;
+			email?: string;
+			[key: string]: unknown;
+		}
+
+		interface CombinedEntry extends DashboardRawEntry {
+			collectionName: string;
+			collectionId: string;
+		}
+
+		const resolveTimestamp = (e: DashboardRawEntry): string | undefined =>
+			e.createdAt || (e.created as string | undefined) || (e.date as string | undefined);
+
 		const queryPromises = collectionsEntries.map(async ([collectionId, collection]) => {
 			try {
 				const collectionName = `collection_${collection._id}`;
 				const filter = getPrivateSettingSync('MULTI_TENANT') ? { tenantId } : {};
 
-				// Use database-agnostic CRUD methods for reliable querying
-				const result = await dbAdapter.crud.findMany(collectionName, filter, {
+				// Use database-agnostic CRUD methods with explicit generic
+				const result = await adapter.crud.findMany<DashboardRawEntry>(collectionName, filter as Partial<DashboardRawEntry>, {
 					limit: query.limit,
-					fields: ['_id', 'title', 'name', 'label', 'createdAt', 'created', 'date', 'createdBy', 'author', 'creator', 'status', 'state']
+					fields: ['_id', 'title', 'name', 'label', 'createdAt', 'updatedAt', 'created', 'date', 'createdBy', 'author', 'creator', 'status', 'state']
 				});
 
-				if (result.success && result.data && Array.isArray(result.data)) {
-					return result.data.map((entry: Record<string, unknown>) => ({
+				if (result.success && Array.isArray(result.data)) {
+					return (result.data as DashboardRawEntry[]).map((entry) => ({
 						...entry,
-						collectionName: collection.name || collection.label || 'Unknown Collection',
+						collectionName:
+							(collection as unknown as { name?: string; label?: string }).name ||
+							(collection as unknown as { label?: string }).label ||
+							'Unknown Collection',
 						collectionId
 					}));
 				}
@@ -108,43 +150,39 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const results = await Promise.all(queryPromises);
 
 		// 5. Flatten and sort the combined candidates (small dataset now)
-		const allEntries = results.flat();
+		const allEntries: CombinedEntry[] = results.flat() as CombinedEntry[];
 
 		// Sort by creation date to find the absolute most recent across all collections
 		allEntries.sort((a, b) => {
-			const dateA = new Date(a.createdAt || a.created || a.date || 0).getTime();
-			const dateB = new Date(b.createdAt || b.created || b.date || 0).getTime();
-			return dateB - dateA;
+			const tsA = resolveTimestamp(a);
+			const tsB = resolveTimestamp(b);
+			return new Date(tsB || 0).getTime() - new Date(tsA || 0).getTime();
 		});
 
 		// 6. Take only the requested limit and transform to final format
-		const limitedEntries = allEntries.slice(0, query.limit);
+		const limitedEntries: CombinedEntry[] = allEntries.slice(0, query.limit);
 
 		// 7. Get unique user IDs for username lookup
-		const userIds = [...new Set(limitedEntries.map((entry) => entry.createdBy || entry.author || entry.creator).filter(Boolean))];
+		const userIds = [...new Set(limitedEntries.map((entry) => entry.createdBy || entry.author || entry.creator).filter(Boolean))] as DatabaseId[];
 
 		// 8. Lookup usernames
 		const userLookup = new Map();
 		if (userIds.length > 0) {
 			try {
-				const userResult = await dbAdapter.crud.findMany(
-					'auth_users',
-					{ _id: { $in: userIds } },
-					{ fields: ['_id', 'username', 'email', 'firstName', 'lastName'] }
-				);
-
+				const userResult = await adapter.crud.findByIds<UserDoc>('auth_users', userIds, {
+					fields: ['_id', 'username', 'email', 'firstName', 'lastName']
+				});
 				if (userResult.success && userResult.data) {
-					userResult.data.forEach((user) => {
-						// Create display name - prefer username, fallback to firstName + lastName, then email
-						let displayName = user.username;
-						if (!displayName && (user.firstName || user.lastName)) {
-							displayName = [user.firstName, user.lastName].filter(Boolean).join(' ');
+					for (const u of userResult.data) {
+						let displayName = u.username;
+						if (!displayName && (u.firstName || u.lastName)) {
+							displayName = [u.firstName, u.lastName].filter(Boolean).join(' ');
 						}
 						if (!displayName) {
-							displayName = user.email?.split('@')[0] || 'Unknown';
+							displayName = u.email?.split('@')[0] || 'Unknown';
 						}
-						userLookup.set(user._id.toString(), displayName);
-					});
+						userLookup.set(String(u._id), displayName);
+					}
 				}
 			} catch (err) {
 				logger.warn('Failed to lookup usernames for content:', err);
@@ -154,13 +192,14 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		// 9. Transform to final format with usernames
 		const recentContent = limitedEntries.map((entry) => {
 			const userId = entry.createdBy || entry.author || entry.creator || 'Unknown';
-			const username = userLookup.get(userId?.toString()) || 'Unknown';
-
+			const username = userLookup.get(String(userId)) || 'Unknown';
+			const ts = resolveTimestamp(entry);
+			const iso = ts ? new Date(ts).toISOString() : nowISODateString();
 			return {
-				id: entry._id?.toString() || entry.id || uuidv4(),
+				id: String(entry._id ?? (entry as Record<string, unknown>).id ?? uuidv4()),
 				title: entry.title || entry.name || entry.label || 'Untitled',
 				collection: entry.collectionName,
-				createdAt: new Date(entry.createdAt || entry.created || entry.date || new Date()),
+				createdAt: iso,
 				createdBy: username,
 				status: entry.status || entry.state || 'publish'
 			};

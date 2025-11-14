@@ -24,20 +24,25 @@
 
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
-import { literal, maxLength, object, optional, pipe, string, union, url, type InferInput as ValibotInput } from 'valibot';
+import { custom, literal, maxLength, object, optional, pipe, regex, string, transform, union, url, type InferInput as ValibotInput } from 'valibot';
 
 // Import components needed for the GuiSchema
 import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 
+// SECURITY: Escape HTML entities to prevent meta tag injection
+const escapeHtml = (str: string): string => {
+	return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+};
+
 // Define a robust validation schema for the SeoData object.
 const SeoValidationSchema = object({
-	title: pipe(string(), maxLength(60, 'Title should be under 60 characters.')),
-	description: pipe(string(), maxLength(160, 'Description should be under 160 characters.')),
-	focusKeyword: string(),
+	title: pipe(string(), maxLength(60, 'Title should be under 60 characters.'), transform(escapeHtml)),
+	description: pipe(string(), maxLength(160, 'Description should be under 160 characters.'), transform(escapeHtml)),
+	focusKeyword: pipe(string(), transform(escapeHtml)),
 	// Advanced
-	robotsMeta: string(),
-	canonicalUrl: optional(pipe(string(), url('Must be a valid URL.'))),
+	robotsMeta: pipe(string(), transform(escapeHtml)),
+	canonicalUrl: optional(pipe(string(), url('Must be a valid URL.'), regex(/^https?:\/\//, 'Must use HTTP or HTTPS protocol'))),
 	// Social
 	ogTitle: optional(string()),
 	ogDescription: optional(string()),
@@ -46,8 +51,22 @@ const SeoValidationSchema = object({
 	twitterTitle: optional(string()),
 	twitterDescription: optional(string()),
 	twitterImage: optional(string()), // ID of a media file
-	// Schema
-	schemaMarkup: optional(string()) // Can add `json()` validation if needed
+	// Schema - SECURITY: Validate JSON structure
+	schemaMarkup: optional(
+		pipe(
+			string(),
+			custom((input) => {
+				if (!input) return true;
+				try {
+					const parsed = JSON.parse(input as string);
+					// Must be an object, not a string or array at root level
+					return typeof parsed === 'object' && !Array.isArray(parsed);
+				} catch {
+					return false;
+				}
+			}, 'Must be valid JSON object')
+		)
+	)
 });
 
 // Create the widget definition using the factory.

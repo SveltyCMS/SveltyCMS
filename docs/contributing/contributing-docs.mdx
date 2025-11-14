@@ -6,7 +6,7 @@ order: 2
 icon: 'mdi:file-document-plus-outline'
 author: 'admin'
 created: '2025-09-28'
-updated: '2025-10-09'
+updated: '2025-11-14'
 tags:
   - 'documentation'
   - 'contributing'
@@ -28,6 +28,7 @@ All contributions **must** adhere to these foundational rules.
 > 2.  **Centralized API Docs**: All API documentation **must** be located in `/docs/api/` to provide a single, unified reference.
 > 3.  **Current Functionality Only**: Document **only** what exists in the current codebase. Do not add documentation for planned features or unmerged changes.
 > 4.  **Assets in `/static/docs`**: All non-MDX assets (images, diagrams) **must** be placed in `/static/docs/` and referenced via an absolute path.
+> 5.  **Widget API Sync**: Any change to `src/routes/api/widgets/` or `src/stores/widgetStore.svelte.ts` (add/remove/rename endpoint, response shape change) MUST update `/docs/api/Widget_API.mdx` in the same PR (refresh `updated`, status table, remove obsolete endpoints). Never leave docs out-of-sync.
 
 ---
 
@@ -234,6 +235,7 @@ Before submitting a PR:
 - [ ] File is `.mdx` format (not `.md`).
 - [ ] Linter passes: `bun ./docs/lint-docs.ts`.
 - [ ] `updated` field reflects current date.
+- [ ] If widgets API or store changed: `docs/api/Widget_API.mdx` synced (status table & removed endpoints handled).
 - [ ] Tags are relevant and lowercase/kebab-case.
 - [ ] Links to other docs use correct paths.
 - [ ] Tested rendering in the CMS (if possible).

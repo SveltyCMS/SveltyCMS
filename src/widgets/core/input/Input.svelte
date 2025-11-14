@@ -24,23 +24,14 @@
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import type { FieldType } from '.';
+	import { createValidationSchema } from '.'; // ✅ SSOT: Import validation schema from index.ts
 
 	// Utils
 	import { getFieldName } from '@src/utils/utils';
 	import { untrack } from 'svelte';
 
 	// Valibot validation
-	import {
-		string,
-		pipe,
-		parse,
-		type ValiError,
-		nonEmpty,
-		nullable,
-		transform,
-		minLength as valibotMinLength,
-		maxLength as valibotMaxLength
-	} from 'valibot';
+	import { parse, type ValiError } from 'valibot';
 	import { validationStore } from '@root/src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { contentLanguage } from '@src/stores/store.svelte';
@@ -55,7 +46,18 @@
 		debounceMs?: number;
 	}
 
-	let { field, value = $bindable(), validateOnMount = false, validateOnChange = true, validateOnBlur = true, debounceMs = 300 }: Props = $props();
+	// ✅ ENHANCEMENT: Auto-enable validateOnMount for required fields to instantly disable save button
+	let {
+		field,
+		value = $bindable(),
+		validateOnMount = field.required ?? false,
+		validateOnChange = true,
+		validateOnBlur = true,
+		debounceMs = 300
+	}: Props = $props();
+
+	// SECURITY: Maximum input length to prevent ReDoS attacks
+	const MAX_INPUT_LENGTH = 100000; // 100KB
 
 	// Use current content language for translated fields, default for non-translated
 	const _language = $derived(field.translated ? contentLanguage.value : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
@@ -89,24 +91,8 @@
 		return '!variant-ghost-surface';
 	});
 
-	// Create validation schema
-	let validationSchema = $derived.by(() => {
-		const rules: Array<unknown> = [transform((val: string) => (typeof val === 'string' ? val.trim() : val))];
-
-		if (field?.required) {
-			rules.push(nonEmpty('This field is required'));
-		}
-
-		if (typeof field?.minLength === 'number') {
-			rules.push(valibotMinLength(field.minLength, `Minimum length is ${field.minLength}`));
-		}
-
-		if (typeof field?.maxLength === 'number') {
-			rules.push(valibotMaxLength(field.maxLength, `Maximum length is ${field.maxLength}`));
-		}
-
-		return field?.required ? pipe(string(), ...(rules as [])) : nullable(pipe(string(), ...(rules as [])));
-	});
+	// ✅ SSOT: Use validation schema from index.ts
+	let validationSchema = $derived(createValidationSchema(field));
 
 	// Enhanced validation function
 	async function validateInput(immediate = false): Promise<string | null> {
@@ -123,33 +109,9 @@
 			isValidating = true;
 
 			try {
-				// Required field validation
-				if (field?.required && (currentValue === null || currentValue === undefined || currentValue === '')) {
-					const error = 'This field is required';
-					if (process.env.NODE_ENV !== 'production') {
-						logger.debug(`[Input Widget] Setting required field error for ${fieldName}:`, error);
-					}
-					validationStore.setError(fieldName, error);
-					return error;
-				}
-
-				// Length validations
-				if (currentValue !== null && currentValue !== undefined && currentValue !== '') {
-					if (typeof field?.minLength === 'number' && typeof currentValue === 'string' && currentValue.length < field.minLength) {
-						const error = `Minimum length is ${field.minLength}`;
-						validationStore.setError(fieldName, error);
-						return error;
-					}
-					if (typeof field?.maxLength === 'number' && typeof currentValue === 'string' && currentValue.length > field.maxLength) {
-						const error = `Maximum length is ${field.maxLength}`;
-						validationStore.setError(fieldName, error);
-						return error;
-					}
-				}
-
-				// Valibot schema validation
+				// ✅ SSOT: Valibot schema validation using shared schema
 				try {
-					parse(validationSchema, currentValue);
+					parse(validationSchema, field.translated ? value : currentValue);
 					validationStore.clearError(fieldName);
 					return null;
 				} catch (error) {

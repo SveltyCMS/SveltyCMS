@@ -293,22 +293,24 @@ export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
 		}
 
 		// =================================================================
-		// 6. LOAD REVISIONS (for Fields.svelte)
+		// 6. LOAD REVISIONS (for Fields.svelte) - Direct Import
 		// =================================================================
 		let revisionsMeta = [];
 		// Only load revisions if we're in edit mode and have an entry ID
 		if (editEntryId && currentCollection.revision) {
 			try {
-				// Call the API endpoint internally using SvelteKit's fetch (auto-handles auth cookies)
-				const revisionsUrl = `/api/collections/${currentCollection._id}/${editEntryId}/revisions?limit=100`;
-				const response = await fetch(revisionsUrl);
-				if (response.ok) {
-					const result = await response.json();
-					if (result.success && result.data) {
-						revisionsMeta = result.data.revisions || [];
-					}
-				} else {
-					logger.warn('Revisions API returned error', { status: response.status, editEntryId });
+				// ✅ ARCHITECTURE: Direct import instead of API call for SSR purity
+				const { getRevisions } = await import('@api/collections/[collectionId]/[entryId]/revisions/+server.ts');
+				const revisionsResult = await getRevisions({
+					collectionId: currentCollection._id,
+					entryId: editEntryId,
+					tenantId,
+					dbAdapter,
+					limit: 100
+				});
+
+				if (revisionsResult.success && revisionsResult.data) {
+					revisionsMeta = revisionsResult.data || [];
 				}
 			} catch (err) {
 				logger.warn('Failed to load revisions', { error: err, editEntryId });
