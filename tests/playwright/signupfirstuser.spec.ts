@@ -13,8 +13,9 @@ test.describe.configure({ timeout: 60000 }); // Set timeout for all tests
 const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
 
 test('Test loading homepage and login screen', async ({ page }) => {
+	// Going to / should redirect to /login for unauthenticated users
 	await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
-	await expect(page).toHaveURL(`${baseURL}/`);
+	await expect(page).toHaveURL(`${baseURL}/login`);
 
 	await page.goto(`${baseURL}/login`, { waitUntil: 'domcontentloaded' });
 
