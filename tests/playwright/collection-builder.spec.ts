@@ -58,8 +58,8 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		// 2. Click "Add New Collection" button
 		await page.getByRole('button', { name: /add new collection/i }).click();
 
-		// 3. Should navigate to create page
-		await expect(page).toHaveURL(/\/config\/collectionbuilder\/create/);
+		// 3. Should navigate to create page (URL is /new not /create)
+		await expect(page).toHaveURL(/\/config\/collectionbuilder\/(create|new)/);
 
 		// 4. Wait for page to load - should be on "Edit" tab (tab 0) by default
 		await page.waitForTimeout(1000);
@@ -170,8 +170,8 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		// 2. Click "Add New Collection" button
 		await page.getByRole('button', { name: /add new collection/i }).click();
 
-		// 3. Should navigate to create page
-		await expect(page).toHaveURL(/\/config\/collectionbuilder\/create/);
+		// 3. Should navigate to create page (URL is /new not /create)
+		await expect(page).toHaveURL(/\/config\/collectionbuilder\/(create|new)/);
 		await page.waitForTimeout(1000);
 
 		// 4. Fill collection basic info
@@ -276,23 +276,44 @@ test.describe('Collection Builder with Modern Widgets', () => {
 
 		if (toggleCount > 0) {
 			const firstToggle = toggleButtons.first();
-			const initialText = await firstToggle.textContent();
-			console.log(`Found ${toggleCount} toggleable widget(s), first widget is: ${initialText}`);
+			const initialText = (await firstToggle.textContent())?.trim() || '';
+			console.log(`Found ${toggleCount} toggleable widget(s), first widget is: "${initialText}"`);
 
-			// Toggle the widget
-			await firstToggle.click();
+			// Check if button contains "Active" or "Inactive"
+			const isActive = initialText.includes('Active');
+			console.log(`Initial state: ${isActive ? 'Active' : 'Inactive'}`);
 
-			// Wait for status change
-			await page.waitForTimeout(2000);
+			// Toggle the widget and wait for network response
+			await Promise.all([
+				page.waitForResponse(response =>
+					response.url().includes('/widgets/status') && response.status() === 200,
+					{ timeout: 10000 }
+				),
+				firstToggle.click()
+			]);
 
-			// Verify state changed
-			const newText = await firstToggle.textContent();
-			expect(newText).not.toBe(initialText);
-			console.log(`✓ Widget toggled from "${initialText}" to "${newText}"`);
+			// Wait a bit for UI to update
+			await page.waitForTimeout(1000);
+
+			// Verify state changed by checking the button text again
+			const newText = (await firstToggle.textContent())?.trim() || '';
+			const newIsActive = newText.includes('Active');
+
+			console.log(`New state: ${newIsActive ? 'Active' : 'Inactive'}`);
+
+			// The state should have flipped
+			expect(newIsActive).not.toBe(isActive);
+			console.log(`✓ Widget toggled successfully`);
 
 			// Toggle back to original state
-			await firstToggle.click();
-			await page.waitForTimeout(2000);
+			await Promise.all([
+				page.waitForResponse(response =>
+					response.url().includes('/widgets/status') && response.status() === 200,
+					{ timeout: 10000 }
+				),
+				firstToggle.click()
+			]);
+			await page.waitForTimeout(1000);
 			console.log('✓ Widget toggled back to original state');
 		} else {
 			console.log('⚠ No toggleable custom widgets found - may be expected if all widgets are core or required');
@@ -309,7 +330,7 @@ test.describe('Collection Builder with Modern Widgets', () => {
 
 		// 2. Click "Add New Collection"
 		await page.getByRole('button', { name: /add new collection/i }).click();
-		await expect(page).toHaveURL(/\/config\/collectionbuilder\/create/);
+		await expect(page).toHaveURL(/\/config\/collectionbuilder\/(create|new)/);
 		await page.waitForTimeout(1000);
 
 		// 3. Verify "Required" text is visible (validation reminder)
@@ -374,7 +395,7 @@ test.describe('Collection Builder with Modern Widgets', () => {
 
 		// 2. Click "Add New Collection"
 		await page.getByRole('button', { name: /add new collection/i }).click();
-		await expect(page).toHaveURL(/\/config\/collectionbuilder\/create/);
+		await expect(page).toHaveURL(/\/config\/collectionbuilder\/(create|new)/);
 		await page.waitForTimeout(1000);
 
 		// 3. Fill collection name
