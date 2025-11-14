@@ -21,11 +21,18 @@ Renders: color swatch or hex value
 -->
 <script lang="ts">
 	let { value }: { value: string | null | undefined } = $props();
+
+	// SECURITY: Validate hex color to prevent CSS injection
+	const isValidHex = (color: string): boolean => {
+		return /^#[0-9a-f]{6}$/i.test(color);
+	};
+
+	const safeColor = $derived(value && isValidHex(value) ? value : '#000000');
 </script>
 
-{#if value}
+{#if value && isValidHex(value)}
 	<div class="display-wrapper" title={value}>
-		<div class="swatch-preview" style:background-color={value}></div>
+		<div class="swatch-preview" style:background-color={safeColor}></div>
 		<span class="hex-code">{value}</span>
 	</div>
 {:else}

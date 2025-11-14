@@ -23,6 +23,7 @@
 
 	let insert_url = $state(false);
 	let youtube_url = $state('');
+	let errorMessage = $state('');
 
 	function close() {
 		show = false;
@@ -30,15 +31,27 @@
 		setTimeout(() => {
 			youtube_url = '';
 			insert_url = false;
+			errorMessage = '';
 		}, 200);
 	}
 
 	function handleSubmit(e: Event) {
-		e.preventDefault(); // Prevent the default form submission
+		e.preventDefault();
+
+		// SECURITY: Validate YouTube URL to prevent XSS
+		// Only allow youtube.com and youtu.be URLs (HTTPS only)
+		const youtubePattern = /^https:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})$/;
+
 		if (youtube_url && editor) {
-			editor.chain().focus().setYoutubeVideo({ src: youtube_url }).run();
+			if (youtubePattern.test(youtube_url)) {
+				editor.chain().focus().setYoutubeVideo({ src: youtube_url }).run();
+				close();
+			} else {
+				errorMessage = 'Invalid YouTube URL. Please use a valid youtube.com or youtu.be HTTPS link.';
+			}
+		} else {
+			close();
 		}
-		close();
 	}
 
 	// Add 'Escape' key listener
@@ -81,6 +94,9 @@
 		{#if insert_url}
 			<form onsubmit={handleSubmit} class="relative mt-2 flex flex-col items-center justify-center gap-4">
 				<FloatingInput bind:value={youtube_url} autofocus={true} textColor="black" name="Youtube URL" label="Youtube URL" />
+				{#if errorMessage}
+					<p class="w-full text-sm text-red-600" role="alert">{errorMessage}</p>
+				{/if}
 				<button type="submit" class="variant-filled-primary btn w-full">Add Video</button>
 			</form>
 		{:else}

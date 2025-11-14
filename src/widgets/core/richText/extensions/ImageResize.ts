@@ -150,13 +150,19 @@ const ImageResize = ImageExtension.extend({
 			const container = document.createElement('div');
 			container.style.position = 'relative';
 			container.style.display = 'inline-block';
-			container.style.float = nodeAttrs.float as string;
+			// SECURITY: Whitelist allowed float values to prevent CSS injection
+			const safeFloat = ['left', 'right', 'unset', 'none'].includes(nodeAttrs.float as string) ? (nodeAttrs.float as string) : 'unset';
+			container.style.float = safeFloat;
 			container.style.lineHeight = '0';
 
 			const resizer = document.createElement('div');
 			resizer.style.position = 'relative';
-			resizer.style.width = nodeAttrs.w as string;
-			resizer.style.height = nodeAttrs.h as string;
+			// SECURITY: Validate dimensions to prevent CSS injection
+			// Only allow numeric values with px/% units
+			const safeWidth = String(nodeAttrs.w || '200px').match(/^\d+(%|px)$/) ? String(nodeAttrs.w) : '200px';
+			const safeHeight = nodeAttrs.h && String(nodeAttrs.h).match(/^\d+(%|px)$/) ? String(nodeAttrs.h) : 'auto';
+			resizer.style.width = safeWidth;
+			resizer.style.height = safeHeight;
 			resizer.style.display = 'inline-block';
 
 			const img = document.createElement('img');
@@ -171,6 +177,8 @@ const ImageResize = ImageExtension.extend({
 
 			if (nodeAttrs.description) {
 				const desc = document.createElement('div');
+				// SECURITY: textContent auto-escapes HTML (safe)
+				// Never use innerHTML here - would allow XSS via image description
 				desc.textContent = nodeAttrs.description as string;
 				desc.style.cssText = DESCRIPTION_STYLE;
 				container.appendChild(desc);

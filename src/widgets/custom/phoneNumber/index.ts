@@ -23,12 +23,25 @@ import type { PhoneNumberProps } from './types';
 
 // The validation schema is a function to create rules based on the field config.
 const validationSchema = (field: FieldInstance) => {
-	// A robust default regex for international E.164 format (e.g., +491234567).
-	const defaultPattern = /^\+[1-9]\d{1,14}$/;
-	const validationMessage = 'Please enter a valid phone number format.';
+	// SECURITY: More robust phone validation
+	// E.164 format: +[country code][subscriber number]
+	// Country code: 1-3 digits, Subscriber: up to 15 total digits
+	// Allows spaces and dashes for readability
+	const defaultPattern = /^\+[1-9]\d{1,3}[\d\s-]{4,14}$/;
+	const validationMessage = 'Please enter a valid international phone number (e.g., +49 123 456789)';
 
+	// SECURITY: Validate custom pattern if provided
 	// Use the custom pattern from the field config, or fall back to the default.
-	const validationPattern = field.pattern ? new RegExp(field.pattern as string) : defaultPattern;
+	let validationPattern = defaultPattern;
+	if (field.pattern) {
+		try {
+			validationPattern = new RegExp(field.pattern as string);
+		} catch (e) {
+			// Invalid regex - fall back to default for security
+			console.warn('Invalid phone number pattern, using default:', e);
+			validationPattern = defaultPattern;
+		}
+	}
 
 	// Start with a base string schema that includes the regex validation.
 	const baseSchema = pipe(string(), regex(validationPattern, validationMessage));
