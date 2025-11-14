@@ -170,9 +170,8 @@ test.describe('OAuth First User Signup', () => {
 		});
 
 		// Simulate OAuth callback with authorization code
-		const testUrl = process.env.CI
-			? 'http://localhost:4173/login/oauth?code=mock_auth_code_ci_test&scope=email+profile+openid'
-			: 'http://localhost:5173/login/oauth?code=mock_auth_code_ci_test&scope=email+profile+openid';
+		const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
+		const testUrl = `${baseURL}/login/oauth?code=mock_auth_code_ci_test&scope=email+profile+openid`;
 
 		await page.goto(testUrl, {
 			waitUntil: 'networkidle'
@@ -201,9 +200,8 @@ test.describe('OAuth First User Signup', () => {
 		console.log('Testing OAuth error handling');
 
 		// Test invalid OAuth callback URL to ensure proper error handling
-		const testUrl = process.env.CI
-			? 'http://localhost:4173/login/oauth?error=access_denied&error_description=User%20denied%20access'
-			: 'http://localhost:5173/login/oauth?error=access_denied&error_description=User%20denied%20access';
+		const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
+		const testUrl = `${baseURL}/login/oauth?error=access_denied&error_description=User%20denied%20access`;
 
 		await page.goto(testUrl);
 
@@ -233,9 +231,8 @@ test.describe('OAuth First User Signup', () => {
 
 		// Simulate the OAuth callback with invalid grant error
 		// This should reproduce the issue mentioned in the conversation
-		const testUrl = process.env.CI
-			? 'http://localhost:4173/login/oauth?code=invalid_code&state=test_state'
-			: 'http://localhost:5173/login/oauth?code=invalid_code&state=test_state';
+		const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
+		const testUrl = `${baseURL}/login/oauth?code=invalid_code&state=test_state`;
 
 		await page.goto(testUrl);
 
@@ -323,9 +320,8 @@ test.describe('OAuth First User Signup', () => {
 		});
 
 		// Simulate OAuth callback with avatar-enabled user
-		const testUrl = process.env.CI
-			? 'http://localhost:4173/login/oauth?code=mock_auth_code_avatar_test&scope=email+profile+openid'
-			: 'http://localhost:5173/login/oauth?code=mock_auth_code_avatar_test&scope=email+profile+openid';
+		const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
+		const testUrl = `${baseURL}/login/oauth?code=mock_auth_code_avatar_test&scope=email+profile+openid`;
 
 		await page.goto(testUrl, {
 			waitUntil: 'networkidle'
@@ -353,7 +349,8 @@ test.describe('OAuth Configuration Check', () => {
 	test('Check if OAuth is properly configured for testing', async ({ page }) => {
 		console.log('Checking OAuth configuration for testing environment');
 
-		const testUrl = process.env.CI ? 'http://localhost:4173/login' : 'http://localhost:5173/login';
+		const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
+		const testUrl = `${baseURL}/login`;
 
 		await page.goto(testUrl);
 		await page.locator('p:has-text("Sign In")').click();
