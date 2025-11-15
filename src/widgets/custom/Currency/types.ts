@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/currency/types.ts
+ * @file src/widgets/custom/Currency/types.ts
  * @description Type definitions for the Currency widget.
  *
  * @features

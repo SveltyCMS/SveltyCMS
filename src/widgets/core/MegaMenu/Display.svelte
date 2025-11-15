@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/megaMenu/Display.svelte
+@file src/widgets/core/MegaMenu/Display.svelte
 @component
 **MegaMenu Widget Display Component**
 

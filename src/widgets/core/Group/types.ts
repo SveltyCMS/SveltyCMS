@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/group/types.ts
+ * @file src/widgets/core/Group/types.ts
  * @description Type definitions for the Group widget
  */
 

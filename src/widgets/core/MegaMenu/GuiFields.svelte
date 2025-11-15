@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/megaMenu/GuiFields.svelte
+@file src/widgets/core/MegaMenu/GuiFields.svelte
 @component - GUI fields component for mega menu configuration
 
 Provides an intuitive interface for configuring hierarchical menu structures.

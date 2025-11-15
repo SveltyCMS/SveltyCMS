@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/group/index.ts
+ * @file src/widgets/core/Group/index.ts
  * @description Group Widget Definition.
  *
  * Implements a Group widget using the Three Pillars Architecture.

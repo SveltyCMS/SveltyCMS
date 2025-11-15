@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/checkbox/index.ts
+ * @file src/widgets/core/Checkbox/index.ts
  * @description Definition of the Checkbox widget
  *
  * Implements a robust date range widget using the Three Pillars Architecture.

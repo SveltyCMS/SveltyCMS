@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/email/types.ts
+ * @file src/widgets/custom/Email/types.ts
  * @description Type definitions for the Email widget.
  *
  * @features

@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/remoteVideo/Display.svelte
+@file src/widgets/custom/RemoteVideo/Display.svelte
 @component
 **RemoteVideo Widget Display Component**
 
@@ -35,38 +35,27 @@ Renders: Thumbnail + title + duration in compact horizontal layout
 </script>
 
 {#if value?.thumbnailUrl}
-	<div class="display-wrapper" title={value.title}>
-		<img src={value.thumbnailUrl} alt={value.title} class="thumbnail" />
-		<div class="details">
-			<span class="title">{value.title}</span>
+	<div class="flex w-full max-w-full items-center gap-2.5" title={value.title ?? ''}>
+		<img
+			src={value.thumbnailUrl}
+			alt={value.title || 'Video thumbnail'}
+			class="h-auto w-[60px] flex-shrink-0 rounded-md object-cover"
+			loading="lazy"
+			decoding="async"
+		/>
+
+		<div class="flex min-w-0 flex-wrap items-center gap-x-2">
+			<span class="max-w-[12rem] truncate text-sm font-medium">
+				{value.title}
+			</span>
+
 			{#if value.duration}
-				<span class="duration">{value.duration}</span>
+				<span class="shrink-0 text-xs text-gray-500">
+					{value.duration}
+				</span>
 			{/if}
 		</div>
 	</div>
 {:else}
-	<span>–</span>
+	<span class="text-gray-400">–</span>
 {/if}
-
-<style lang="postcss">
-	.display-wrapper {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-	.thumbnail {
-		width: 60px;
-		height: auto;
-		border-radius: 4px;
-		flex-shrink: 0;
-	}
-	.title {
-		font-size: 0.875rem;
-		font-weight: 500;
-	}
-	.duration {
-		font-size: 0.75rem;
-		color: #666;
-		margin-left: 0.5rem;
-	}
-</style>

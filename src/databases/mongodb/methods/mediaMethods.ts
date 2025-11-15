@@ -7,7 +7,7 @@
  * Relies on Dependency Injection for testability.
  */
 
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 import type Mongoose from 'mongoose';
 import type { DatabaseId, MediaItem, MediaMetadata, PaginatedResult, PaginationOptions } from '../../dbInterface';
 import { mediaSchema, type IMedia } from '../models/media';
@@ -25,7 +25,7 @@ export class MongoMediaMethods {
 	 */
 	constructor(mediaModel: MediaModelType) {
 		this.mediaModel = mediaModel;
-		logger.debug('\x1b[34mMongoMediaMethods\x1b[0m initialized with media model.');
+		logger.debug('MongoMediaMethods initialized with media model.');
 	}
 
 	/**

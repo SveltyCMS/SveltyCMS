@@ -7,7 +7,7 @@
  */
 
 import { cacheService, CacheCategory } from './CacheService';
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 /**
  * Initialize cache warming for critical application paths
@@ -178,23 +178,23 @@ async function warmWidgetsCache(): Promise<void> {
  * Call this when a tenant logs in or becomes active
  */
 export async function warmTenantCache(tenantId: string): Promise<void> {
-	logger.info(`🔥 Warming cache for tenant: \x1b[31m${tenantId}\x1b[0m`);
+	logger.info(`🔥 Warming cache for tenant: ${tenantId}`);
 
 	try {
 		await cacheService.warmCache({
 			keys: ['config', 'settings', 'theme', 'collections'],
 			fetcher: async () => {
 				// Fetch tenant-specific data
-				logger.debug(`Tenant cache warmer called for \x1b[31m${tenantId}\x1b[0m`);
+				logger.debug(`Tenant cache warmer called for ${tenantId}`);
 				return {};
 			},
 			category: CacheCategory.API,
 			tenantId
 		});
 
-		logger.info(`✅ Cache warmed for tenant: \x1b[31m${tenantId}\x1b[0m`);
+		logger.info(`✅ Cache warmed for tenant: ${tenantId}`);
 	} catch (error) {
-		logger.error(`Failed to warm cache for tenant \x1b[31m${tenantId}\x1b[0m:`, error);
+		logger.error(`Failed to warm cache for tenant ${tenantId}:`, error);
 	}
 }
 

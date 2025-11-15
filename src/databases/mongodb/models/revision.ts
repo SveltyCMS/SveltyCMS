@@ -21,7 +21,7 @@ import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 import { toISOString } from '@utils/dateUtils';
 
 // System Logger
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 // Define the Revision schema
 export const revisionSchema = new Schema<ContentRevision>(

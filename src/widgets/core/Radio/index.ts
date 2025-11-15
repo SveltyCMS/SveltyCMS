@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/radio/index.ts
+ * @file src/widgets/core/Radio/index.ts
  * @description Radio Widget Definition.
  *
  * Implements a radio button group for selecting a single option from a list.

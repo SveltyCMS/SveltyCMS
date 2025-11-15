@@ -58,7 +58,7 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 	try {
 		// User access is already validated by hooks
 		logger.trace(
-			`Starting modifyRequest for type: \x1b[34m${type}\x1b[0m, user: \x1b[34m${user._id}\x1b[0m, collection: \x1b[34m${(collection as unknown as { id?: string }).id ?? 'unknown'}\x1b[0m, tenant: \x1b[34m${tenantId}\x1b[0m`
+			`Starting modifyRequest for type: ${type}, user: ${user._id}, collection: ${(collection as unknown as { id?: string }).id ?? 'unknown'}, tenant: ${tenantId}`
 		);
 
 		for (const field of fields) {
@@ -68,7 +68,7 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 			const widget = widgetStore[field.widget.Name];
 			const fieldName = getFieldName(field);
 
-			logger.trace(`Processing field: \x1b[34m${fieldName}\x1b[0m, widget: \x1b[34m${field.widget.Name}\x1b[0m`);
+			logger.trace(`Processing field: ${fieldName}, widget: ${field.widget.Name}`);
 
 			// Resolve potential modifyRequest handler in a type-safe way
 			const modifyFn = (widget as unknown as { modifyRequest?: unknown })?.modifyRequest;
@@ -123,21 +123,21 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 				);
 
 				const fieldDuration = performance.now() - fieldStart;
-				logger.trace(`Field \x1b[34m${fieldName}\x1b[0m processed in \x1b[33m${fieldDuration.toFixed(2)}ms\x1b[0m`);
+				logger.trace(`Field ${fieldName} processed in ${fieldDuration.toFixed(2)}ms`);
 			} else {
-				logger.warn(`No modifyRequest handler for widget: \x1b[34m${field.widget.Name}\x1b[0m`);
+				logger.warn(`No modifyRequest handler for widget: ${field.widget.Name}`);
 			}
 		}
 
 		const duration = performance.now() - start;
-		logger.info(`ModifyRequest completed in \x1b[33m${duration.toFixed(2)}ms\x1b[0m for \x1b[34m${data.length}\x1b[0m entries`);
+		logger.info(`ModifyRequest completed in ${duration.toFixed(2)}ms for ${data.length} entries`);
 
 		return data;
 	} catch (error) {
 		const duration = performance.now() - start;
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`ModifyRequest failed after \x1b[33m${duration.toFixed(2)}ms\x1b[0m: ${errorMessage}`, {
+		logger.error(`ModifyRequest failed after ${duration.toFixed(2)}ms: ${errorMessage}`, {
 			stack: errorStack
 		});
 		throw error;

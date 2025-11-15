@@ -21,8 +21,8 @@ try {
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import type { RedisClientType } from 'redis';
-// System Logger
-import { logger } from '@utils/logger.server';
+// System Logger - use universal logger for client/server compatibility
+import { logger } from '@utils/logger';
 import { CacheCategory } from './CacheCategory';
 
 // Cache config will be loaded lazily when cache is initialized
@@ -71,7 +71,7 @@ class InMemoryStore implements ICacheStore {
 		if (this.isInitialized) return;
 		this.interval = setInterval(() => this.cleanup(), 60_000);
 		this.isInitialized = true;
-		logger.info('\x1b[34mIn-memory cache\x1b[0m initialized.');
+		logger.info('In-memory cache initialized.');
 	}
 
 	private cleanup() {
@@ -276,7 +276,7 @@ class CacheService {
 		// 2. Fetch the data from the database
 		// 3. Store it in cache
 		// For now, we just log the intent
-		logger.debug(`Predictive prefetch triggered for \x1b[34m${keys.length}\x1b[0m keys in category \x1b[34m${category || 'default'}\x1b[0m`);
+		logger.debug(`Predictive prefetch triggered for ${keys.length} keys in category ${category || 'default'}`);
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -329,7 +329,7 @@ class CacheService {
 	 */
 	async warmCache(config: WarmCacheConfig): Promise<void> {
 		await this.ensureInitialized();
-		logger.info(`Warming cache for \x1b[34m${config.keys.length}\x1b[0m keys in category \x1b[34m${config.category || 'default'}\x1b[0m`);
+		logger.info(`Warming cache for ${config.keys.length} keys in category ${config.category || 'default'}`);
 
 		try {
 			const data = await config.fetcher();
@@ -339,7 +339,7 @@ class CacheService {
 				await this.set(key, data, ttl, config.tenantId, config.category);
 			}
 
-			logger.info(`Cache warmed successfully for \x1b[34m${config.keys.length}\x1b[0m keys`);
+			logger.info(`Cache warmed successfully for ${config.keys.length} keys`);
 		} catch (error) {
 			logger.error('Cache warming failed:', error);
 		}
@@ -351,7 +351,7 @@ class CacheService {
 	 */
 	registerPrefetchPattern(pattern: PrefetchPattern): void {
 		this.prefetchPatterns.push(pattern);
-		logger.info(`Registered prefetch pattern: \x1b[34m${pattern.pattern.source}\x1b[0m`);
+		logger.info(`Registered prefetch pattern: ${pattern.pattern.source}`);
 	}
 
 	// Get cache access analytics
@@ -527,7 +527,7 @@ function getCategoryTTL(category: CacheCategory): number {
 		}
 	} catch (error) {
 		// If settings not loaded yet, fall through to defaults
-		logger.debug(`Failed to get TTL for \x1b[34m${category}\x1b[0m, using default:`, error);
+		logger.debug(`Failed to get TTL for ${category}, using default:`, error);
 	}
 
 	// Fall back to default TTL

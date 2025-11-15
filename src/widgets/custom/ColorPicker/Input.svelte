@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/colorPicker/Input.svelte
+@file src/widgets/custom/ColorPicker/Input.svelte
 @component
 **ColorPicker Widget Input Component**
 

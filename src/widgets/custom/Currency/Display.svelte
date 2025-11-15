@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/currency/Display.svelte
+@file src/widgets/custom/Currency/Display.svelte
 @component
 **Currency Widget Display Component**
 

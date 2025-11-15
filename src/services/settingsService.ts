@@ -117,7 +117,7 @@ export async function loadSettingsCache() {
 		return cache;
 	} catch (error) {
 		// Log error but don't throw during initial load to prevent blocking server startup
-		const logger = (await import('@utils/logger.server')).logger;
+		const { logger } = await import('@utils/logger');
 		logger.error('Failed to load settings cache:', error);
 
 		// Return empty cache with PKG_VERSION to allow server to continue

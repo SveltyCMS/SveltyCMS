@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/remoteVideo/Input.svelte
+@file src/widgets/custom/RemoteVideo/Input.svelte
 @component
 **RemoteVideo Widget Input Component**
 

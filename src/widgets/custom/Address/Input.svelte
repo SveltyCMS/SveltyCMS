@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/address/Input.svelte
+@file src/widgets/custom/Address/Input.svelte
 @component
 **Address Widget Input Component**
 

@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/radio/Input.svelte
+@file src/widgets/core/Radio/Input.svelte
 @component
 **Radio Widget Input Component**
 

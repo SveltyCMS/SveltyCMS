@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/richText/Display.svelte
+@file src/widgets/core/RichText/Display.svelte
 @component
 **RichText Widget Display Component**
 

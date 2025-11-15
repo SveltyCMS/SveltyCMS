@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/number/Input.svelte
+@file src/widgets/custom/Number/Input.svelte
 @component
 **Number Widget Component**
 

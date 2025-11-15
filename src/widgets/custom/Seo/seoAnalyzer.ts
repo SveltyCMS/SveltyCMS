@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/seo/seoAnalyzer.ts
+ * @file src/widgets/custom/Seo/seoAnalyzer.ts
  * @description SEO analysis engine
  */
 

@@ -153,7 +153,7 @@ tool controls for mobile/tablet editing experience.
 							<div class="soon-dot"></div>
 						{/if}
 					</div>
-					<span class="tool-name">{tool.name}</span>
+					<span class="text-xs font-medium leading-none">{tool.name}</span>
 				</button>
 			{/each}
 		</div>
@@ -273,10 +273,6 @@ tool controls for mobile/tablet editing experience.
 
 	:global(.dark) .soon-dot {
 		--tw-ring-color: rgb(var(--color-surface-800) / 1);
-	}
-
-	.tool-name {
-		@apply text-xs font-medium leading-none;
 	}
 
 	.safe-area-spacer {
@@ -414,10 +410,6 @@ tool controls for mobile/tablet editing experience.
 
 	/* Tablet optimizations */
 	@media (min-width: 768px) and (max-width: 1023px) {
-		.toolbar-tools {
-			@apply justify-center; /* Center tools on tablet */
-		}
-
 		.mobile-tool-btn {
 			min-width: 80px;
 		}

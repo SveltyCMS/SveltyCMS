@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/email/index.ts
+ * @file src/widgets/custom/Email/index.ts
  * @description Email Widget Definition.
  *
  * Implements a robust email input widget using the Three Pillars Architecture.

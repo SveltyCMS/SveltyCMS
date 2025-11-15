@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/relation/Display.svelte
+@file src/widgets/core/Relation/Display.svelte
 @component
 **Relation Widget Display Component**
 

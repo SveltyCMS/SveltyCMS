@@ -96,7 +96,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		const duration = performance.now() - start;
 		const errorMsg = e instanceof Error ? e.message : 'Unknown error';
 		logger.error(
-			`Failed to get revisions for entry \x1b[34m${params.entryId}\x1b[0m: \x1b[32m${errorMsg}\x1b[0m in \x1b[32m${duration.toFixed(2)}ms\x1b[0m`
+			`Failed to get revisions for entry ${params.entryId}: ${errorMsg} in ${duration.toFixed(2)}ms`
 		);
 		throw error(500, 'Internal Server Error');
 	}

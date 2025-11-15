@@ -29,7 +29,7 @@ import type { Permission, Role, Session, SessionStore, Token, User } from './typ
 import { corePermissions } from './corePermissions';
 
 // System Logger
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 import { dateToISODateString } from '@src/utils/dateUtils';
 
 // Import global settings service for DB-based configuration

@@ -5,7 +5,7 @@
  * as well as activate/deactivate them.
  */
 
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 import type { Model } from 'mongoose';
 import type { DatabaseId, Widget } from '../../dbInterface';
 import type { Widget as IWidget } from '../../dbInterface'; // Assuming you have a document interface
@@ -24,7 +24,7 @@ export class MongoWidgetMethods {
 	 */
 	constructor(widgetModel: WidgetModelType) {
 		this.widgetModel = widgetModel;
-		logger.trace('\x1b[34mMongoWidgetMethods\x1b[0m initialized.');
+		logger.trace('MongoWidgetMethods initialized.');
 	}
 
 	/**

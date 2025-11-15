@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/megaMenu/Input.svelte
+@file src/widgets/core/MegaMenu/Input.svelte
 @component
 **MegaMenu Widget Input Component**
 

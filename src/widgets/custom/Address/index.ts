@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/address/index.ts
+ * @file src/widgets/custom/Address/index.ts
  * @description Address Widget Definition.
  *
  * A comprehensive widget for capturing and displaying structured address data,

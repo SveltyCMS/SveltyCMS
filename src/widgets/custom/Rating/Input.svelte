@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/rating/Input.svelte
+@file src/widgets/custom/Rating/Input.svelte
 @component
 **Rating Widget Input Component**
 

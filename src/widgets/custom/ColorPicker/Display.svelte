@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/colorPicker/Display.svelte
+@file src/widgets/custom/ColorPicker/Display.svelte
 @component
 **ColorPicker Widget Display Component**
 

@@ -15,7 +15,7 @@
 
 import type { DatabaseConfig } from '@src/databases/schemas';
 import type { IDBAdapter } from '@src/databases/dbInterface';
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 /**
  * Database connection string builder for supported database types.

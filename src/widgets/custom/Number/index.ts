@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/number/index.ts
+ * @file src/widgets/custom/Number/index.ts
  * @description Number Widget Definition.
  *
  * Implements a robust number input widget that stores a precise number.

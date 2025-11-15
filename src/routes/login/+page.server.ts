@@ -135,7 +135,7 @@ async function checkDatabaseHealth(): Promise<{ healthy: boolean; reason?: strin
 // Helper function to wait for auth service to be ready
 async function waitForAuthService(maxWaitMs: number = 10000): Promise<boolean> {
 	const startTime = Date.now();
-	logger.debug(`Waiting for auth service to be ready (timeout: \x1b[32m${maxWaitMs}ms\x1b[0m)...`);
+	logger.debug(`Waiting for auth service to be ready (timeout: ${maxWaitMs}ms)...`);
 
 	while (Date.now() - startTime < maxWaitMs) {
 		try {
@@ -152,7 +152,7 @@ async function waitForAuthService(maxWaitMs: number = 10000): Promise<boolean> {
 
 			// Check if auth service is ready
 			if (auth && typeof auth.validateSession === 'function') {
-				logger.debug(`Auth service ready after \x1b[32m${Date.now() - startTime}ms\x1b[0m`);
+				logger.debug(`Auth service ready after ${Date.now() - startTime}ms`);
 				return true;
 			}
 
@@ -160,7 +160,7 @@ async function waitForAuthService(maxWaitMs: number = 10000): Promise<boolean> {
 			const elapsed = Date.now() - startTime;
 			if (elapsed % 5000 < 100) {
 				logger.debug(
-					`Auth service not ready yet, elapsed: \x1b[32m${elapsed}ms\x1b[0m, auth: \x1b[34m${!!auth}\x1b[0m, validateSession: ${auth && typeof auth.validateSession === 'function'}`
+					`Auth service not ready yet, elapsed: ${elapsed}ms, auth: ${!!auth}, validateSession: ${auth && typeof auth.validateSession === 'function'}`
 				);
 			}
 
@@ -171,7 +171,7 @@ async function waitForAuthService(maxWaitMs: number = 10000): Promise<boolean> {
 		}
 	}
 
-	logger.error(`Auth service not ready after \x1b[32m${maxWaitMs}ms\x1b[0m timeout`);
+	logger.error(`Auth service not ready after ${maxWaitMs}ms timeout`);
 	return false;
 }
 
@@ -201,7 +201,7 @@ async function shouldShowOAuth(hasInviteToken: boolean): Promise<boolean> {
 		const users = await auth.getAllUsers({});
 		const hasOAuthUsers = users && users.length > 0;
 
-		logger.debug(`OAuth users check: found \x1b[34m${users?.length || 0}\x1b[0m users with lastAuthMethod \x1b[34m'google'\x1b[0m`);
+		logger.debug(`OAuth users check: found ${users?.length || 0} users with lastAuthMethod 'google'`);
 
 		if (hasOAuthUsers) {
 			return true; // Show OAuth for existing OAuth users to sign in
@@ -416,13 +416,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Use the firstUserExists value from locals (set by hooks)
 		const firstUserExists = locals.isFirstUser === false;
 		logger.debug(
-			`In load: firstUserExists determined as: \x1b[34m${firstUserExists}\x1b[0m (based on locals.isFirstUser: \x1b[34m${locals.isFirstUser}\x1b[0m)`
+			`In load: firstUserExists determined as: ${firstUserExists} (based on locals.isFirstUser: ${locals.isFirstUser})`
 		);
 
 		// Note: If no users exist, handleSetup hook will redirect to /setup before this code runs
 
 		const code = url.searchParams.get('code');
-		logger.debug(`Authorization code from URL: \x1b[34m${code ?? 'none'}\x1b[0m`);
+		logger.debug(`Authorization code from URL: ${code ?? 'none'}`);
 
 		// Handle Google OAuth flow if code is present
 		if (publicEnv.USE_GOOGLE_OAUTH && code) {
@@ -511,7 +511,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 							})
 						});
 						if (!mailResponse.ok) {
-							logger.error(`OAuth: Failed to send welcome email to invited user via API. Status: \x1b[34m${mailResponse.status}\x1b[0m`, {
+							logger.error(`OAuth: Failed to send welcome email to invited user via API. Status: ${mailResponse.status}`, {
 								email,
 								responseText: await mailResponse.text()
 							});
@@ -822,7 +822,7 @@ export const actions: Actions = {
 		const langFromStore = get(systemLanguage) as Locale | null;
 		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
 		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
-		logger.debug(`Validated user language for sign-in: \x1b[34m${userLanguage}\x1b[0m`);
+		logger.debug(`Validated user language for sign-in: ${userLanguage}`);
 		// --- END: Language Validation Logic ---
 
 		const startTime = performance.now();
@@ -898,7 +898,7 @@ export const actions: Actions = {
 					}
 				}
 				const endTime = performance.now();
-				logger.debug(`SignIn completed in \x1b[32m${(endTime - startTime).toFixed(2)}ms\x1b[0m`);
+				logger.debug(`SignIn completed in ${(endTime - startTime).toFixed(2)}ms`);
 			} else {
 				const errorMessage = resp?.message || 'Invalid credentials or an error occurred.';
 				logger.warn(`Sign-in failed`, { email, errorMessage });
@@ -980,10 +980,10 @@ export const actions: Actions = {
 				lastActiveAt: new Date().toISOString() as ISODateString
 			});
 			updatePromise.catch((err) => {
-				logger.error(`Failed to update user attributes after 2FA login for \x1b[32m${userId}\x1b[0m:`, err);
+				logger.error(`Failed to update user attributes after 2FA login for ${userId}:`, err);
 			});
 
-			logger.info(`User logged in successfully with 2FA: \x1b[34m${user.username}\x1b[0m (\x1b[32m${userId}\x1b[0m)`);
+			logger.info(`User logged in successfully with 2FA: ${user.username} (${userId})`);
 
 			// Determine redirect path based on collections
 			const finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
@@ -1198,7 +1198,7 @@ export const actions: Actions = {
 		// This action is called when user switches to SignIn/SignUp components
 		// to get collection info for later data fetching after authentication
 		try {
-			logger.info(`Collection lookup triggered for language: \x1b[34m${userLanguage}}\x1b[0m`);
+			logger.info(`Collection lookup triggered for language: ${userLanguage}}`);
 
 			// Get first collection from ContentManager (cached lookup)
 			const firstCollectionSchema = await contentManager.getFirstCollection();
@@ -1211,7 +1211,7 @@ export const actions: Actions = {
 				: null;
 
 			if (collectionInfo) {
-				logger.info(`Collection lookup completed successfully: \x1b[34m${collectionInfo.name}\x1b[0m`);
+				logger.info(`Collection lookup completed successfully: ${collectionInfo.name}`);
 				return { success: true, collection: collectionInfo };
 			} else {
 				logger.debug('No collection found');
@@ -1313,7 +1313,7 @@ async function signInUser(
 			logger.error(`Failed to update user attributes for ${user._id}:`, err);
 		});
 
-		logger.info(`User logged in successfully: \x1b[34m${user.username}\x1b[0m (\x1b[32m${user._id}\x1b[0m)`);
+		logger.info(`User logged in successfully: ${user.username} (${user._id})`);
 		return { status: true, message: 'Login successful', user };
 	} catch (error) {
 		const err = error as Error;

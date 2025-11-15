@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/rating/types.ts
+ * @file src/widgets/custom/Rating/types.ts
  * @description Type definitions for the Rating widget.
  *
  * @features

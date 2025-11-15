@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/input/index.ts
+ * @file src/widgets/core/Input/index.ts
  * @description Input Widget Definition - Text Input
  *
  * Implements a professional text input widget using the Three Pillars Architecture.

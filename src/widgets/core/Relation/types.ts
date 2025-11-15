@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/relation/types.ts
+ * @file src/widgets/core/Relation/types.ts
  * @description Type definitions for the Relation and RelationList widgets.
  *
  * @features

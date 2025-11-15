@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/seo/seoTypes.ts
+ * @file src/widgets/custom/Seo/seoTypes.ts
  * @description Comprehensive TypeScript types for SEO analysis
  */ export interface SeoAnalysisConfig {
 	focusKeyword?: string;

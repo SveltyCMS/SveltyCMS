@@ -70,7 +70,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			csvDelimiter: options.csvDelimiter ?? ','
 		};
 
-		logger.info(`Starting import into collection \x1b[33m${collectionId}\x1b[0m`, {
+		logger.info(`Starting import into collection ${collectionId}`, {
 			userId: locals.user._id,
 			format,
 			dataLength: Array.isArray(data) ? data.length : 'unknown',
@@ -91,7 +91,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 		const duration = performance.now() - startTime;
 
-		logger.info(`Collection import completed for \x1b[33m${collectionId}\x1b[0m`, {
+		logger.info(`Collection import completed for ${collectionId}`, {
 			userId: locals.user._id,
 			imported: result.imported,
 			skipped: result.skipped,
@@ -114,7 +114,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	} catch (err) {
 		const duration = performance.now() - startTime;
 		const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-		logger.error(`Collection import failed for \x1b[33m${collectionId}\x1b[0m`, {
+		logger.error(`Collection import failed for ${collectionId}`, {
 			userId: locals.user?._id,
 			error: errorMsg,
 			duration: `${duration.toFixed(2)}ms`
@@ -148,7 +148,7 @@ function parseCSVData(csvData: string, options: ImportOptions): CollectionEntry[
 		const values = parseCSVLine(lines[i], options.csvDelimiter);
 
 		if (values.length !== headers.length) {
-			logger.warn(`CSV line ${i + 1} has \x1b[33m${values.length}\x1b[0m values but expected \x1b[33m${headers.length}\x1b[0m`);
+			logger.warn(`CSV line ${i + 1} has ${values.length} values but expected ${headers.length}`);
 			continue;
 		}
 

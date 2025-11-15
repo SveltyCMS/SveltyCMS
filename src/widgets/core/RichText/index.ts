@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/richtext/index.ts
+ * @file src/widgets/core/RichText/index.ts
  * @description RichText Widget Definition.
  *
  * Implements a Tiptap-based rich text editor with a highly configurable toolbar
