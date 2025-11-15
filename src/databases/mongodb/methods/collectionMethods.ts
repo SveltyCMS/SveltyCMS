@@ -142,6 +142,9 @@ export class MongoCollectionMethods {
 		this.models.set(collectionId, { model, wrapped: wrappedModel });
 		logger.info(`Collection model created: ${collectionId} (${modelName})`);
 
+		// Create database indexes for optimal query performance
+		await this.createIndexes(model, schema);
+
 		// NOTE: Physical collection creation disabled
 		// Using generic system_content_structure table for all collections instead of per-collection tables
 		// This is more efficient and reduces database clutter
@@ -225,5 +228,99 @@ export class MongoCollectionMethods {
 	 */
 	getRegisteredModelIds(): string[] {
 		return Array.from(this.models.keys());
+	}
+
+	/**
+	 * Creates database indexes for optimal query performance
+	 *
+	 * This method creates indexes on:
+	 * - Common query fields (status, createdAt, updatedAt)
+	 * - Fields marked as unique or indexed in the schema
+	 * - Multi-tenant fields (tenantId)
+	 * - Sortable and filterable fields
+	 */
+	private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void> {
+		try {
+			const collectionId = schema._id;
+			logger.debug(`Creating indexes for collection: ${collectionId}`);
+
+			// Essential indexes for all collections
+			const indexes: Array<{ fields: Record<string, 1 | -1>; options?: Record<string, unknown> }> = [
+				// Primary sort/filter indexes
+				{ fields: { status: 1 } },
+				{ fields: { createdAt: -1 } },
+				{ fields: { updatedAt: -1 } },
+				{ fields: { createdBy: 1 } },
+
+				// Compound indexes for common query patterns
+				{ fields: { status: 1, createdAt: -1 } },
+				{ fields: { status: 1, updatedAt: -1 } },
+
+				// Multi-tenant support
+				{ fields: { tenantId: 1 } },
+				{ fields: { tenantId: 1, status: 1 } },
+				{ fields: { tenantId: 1, createdAt: -1 } }
+			];
+
+			// Add indexes for fields marked as indexed or unique
+			if (schema.fields && Array.isArray(schema.fields)) {
+				for (const field of schema.fields) {
+					if (typeof field === 'object' && field !== null) {
+						const fieldObj = field as Record<string, unknown>;
+						const fieldKey =
+							(fieldObj.db_fieldName as string) ||
+							(fieldObj.label
+								? String(fieldObj.label)
+										.toLowerCase()
+										.replace(/[^a-z0-9_]/g, '_')
+								: null) ||
+							(fieldObj.Name as string);
+
+						if (!fieldKey) continue;
+
+						// Unique index
+						if (fieldObj.unique) {
+							indexes.push({
+								fields: { [fieldKey]: 1 },
+								options: { unique: true, sparse: true }
+							});
+						}
+
+						// Regular index for searchable/filterable fields
+						if (fieldObj.indexed || fieldObj.searchable || fieldObj.sortable) {
+							indexes.push({ fields: { [fieldKey]: 1 } });
+						}
+
+						// Text index for searchable text fields
+						if (fieldObj.searchable && (fieldObj.type === 'text' || fieldObj.type === 'textarea')) {
+							indexes.push({
+								fields: { [fieldKey]: 'text' as unknown as 1 },
+								options: { default_language: 'english' }
+							});
+						}
+					}
+				}
+			}
+
+			// Create all indexes
+			const collection = model.collection;
+			for (const index of indexes) {
+				try {
+					await collection.createIndex(index.fields, index.options || {});
+					logger.debug(`Created index on ${Object.keys(index.fields).join(', ')} for ${collectionId}`);
+				} catch (error) {
+					// Ignore duplicate index errors
+					if ((error as Error).message.includes('already exists')) {
+						continue;
+					}
+					logger.warn(`Failed to create index for ${collectionId}: ${error}`);
+				}
+			}
+
+			logger.info(`Indexes created for collection: ${collectionId}`);
+		} catch (error) {
+			logger.error(`Error creating indexes: ${error}`);
+			// Don't throw - index creation failures shouldn't prevent model creation
+		}
 	}
 }

@@ -9,6 +9,11 @@
  */
 
 import type { Handle } from '@sveltejs/kit';
+import { ThemeManager } from '@src/databases/themeManager';
+import { logger } from '@utils/logger.server';
+
+// Get the singleton ThemeManager instance
+const themeManager = ThemeManager.getInstance();
 
 export const handleTheme: Handle = async ({ event, resolve }) => {
 	// 1. Read the theme preference cookie
@@ -30,9 +35,18 @@ export const handleTheme: Handle = async ({ event, resolve }) => {
 
 	// 3. Set darkMode (boolean) for use in other server load functions
 	event.locals.darkMode = isDarkMode;
-	event.locals.theme = null;
 
-	// 4. Transform the HTML response to prevent flickering
+	// 4. Retrieve custom CSS from the active theme
+	try {
+		const currentTheme = await themeManager.getTheme(event.locals.tenantId);
+		event.locals.theme = currentTheme; // Make the entire theme object available
+		event.locals.customCss = currentTheme?.customCss || ''; // Extract custom CSS
+	} catch (err) {
+		logger.error('Error retrieving custom CSS in handleTheme hook:', err);
+		event.locals.customCss = ''; // Fallback to empty string on error
+	}
+
+	// 5. Transform the HTML response to prevent flickering
 	return resolve(event, {
 		transformPageChunk: ({ html }) => {
 			// This string MUST match your <html ...> tag in app.html

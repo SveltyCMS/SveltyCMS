@@ -649,6 +649,30 @@ async function applyWatermark(imageBuffer: Buffer, config: WatermarkConfig): Pro
 
 ---
 
+## Related Documentation
+
+### API Reference
+
+- [**Media API Reference**](/docs/api/Media_API) - Complete API documentation:
+  - `POST /api/media/process` - Upload files
+  - `GET /api/media` - List media
+  - `POST /api/media/search` - Advanced search (18+ criteria)
+  - `GET /api/media/search` - Search suggestions
+  - `POST /api/media/bulk-download` - Download as TAR.GZ
+  - `POST /api/media/trash` - Soft delete
+  - `POST /api/media/manipulate/[id]` - Image manipulation
+  - `GET /api/media/exists` - Check existence
+  - `POST /api/media/remote` - Remote URL upload
+  - Plus DELETE, PATCH operations
+
+### User Guides
+
+- [**Media Gallery Guide**](/docs/guides/media-gallery-guide) - Complete UX guide with storage analytics
+- [**Media Gallery Implementation**](/docs/guides/media-gallery-implementation) - Code examples and patterns
+- [**Media Handling**](/docs/guides/media-handling) - MediaService architecture and storage configuration
+
+---
+
 ## 📡 API Endpoints Reference
 
 ### Core Endpoints
@@ -680,6 +704,151 @@ let currentSystemVirtualFolder = $state<SystemVirtualFolder | null>(null);
 3. Child components receive filtered data
 4. User actions trigger parent handlers
 5. Parent updates state → children re-render
+
+---
+
+### Filter Component (`Filter.svelte`)
+
+**Location:** `src/routes/(app)/mediagallery/Filter.svelte`
+
+**Purpose:** Advanced search and filtering UI for the media gallery
+
+**Features:**
+
+- ✅ Multi-criteria search (filename, tags, dimensions, file size, date ranges)
+- ✅ Real-time filtering (debounced 300ms)
+- ✅ Media type filter (All, Images, Documents, Videos, Audio)
+- ✅ System virtual folder navigation (Recent, Favorites, Trash, Large Files)
+- ✅ Advanced filter toggle (show/hide extra criteria)
+- ✅ Clear filters button
+- ✅ Search suggestions dropdown
+- ✅ Responsive design
+
+**Props Interface:**
+
+```typescript
+interface Props {
+	onFilterChange: (filters: FilterCriteria) => void;
+	onMediaTypeChange: (type: MediaTypeEnum | 'All') => void;
+	onVirtualFolderChange: (folder: SystemVirtualFolder | null) => void;
+	currentMediaType?: MediaTypeEnum | 'All';
+	currentVirtualFolder?: SystemVirtualFolder | null;
+}
+
+interface FilterCriteria {
+	filename?: string;
+	tags?: string[];
+	minWidth?: number;
+	maxWidth?: number;
+	minHeight?: number;
+	maxHeight?: number;
+	minSize?: number;
+	maxSize?: number;
+	uploadedAfter?: Date;
+	uploadedBefore?: Date;
+	hasTransparency?: boolean;
+	camera?: string;
+	focalLength?: number;
+}
+```
+
+**Usage Example:**
+
+```svelte
+<!-- In +page.svelte -->
+<script lang="ts">
+	import Filter from './Filter.svelte';
+
+	let searchFilters = $state<FilterCriteria>({});
+	let selectedMediaType = $state<'All' | MediaTypeEnum>('All');
+	let currentSystemVirtualFolder = $state<SystemVirtualFolder | null>(null);
+
+	// Derived: Apply filters to files
+	let filteredFiles = $derived(() => {
+		let result = files;
+
+		// Apply media type filter
+		if (selectedMediaType !== 'All') {
+			result = result.filter((f) => f.type === selectedMediaType);
+		}
+
+		// Apply virtual folder filter
+		if (currentSystemVirtualFolder) {
+			result = applyVirtualFolder(result, currentSystemVirtualFolder);
+		}
+
+		// Apply advanced search criteria
+		result = applySearchFilters(result, searchFilters);
+
+		return result;
+	});
+</script>
+
+<Filter
+	onFilterChange={(filters) => (searchFilters = filters)}
+	onMediaTypeChange={(type) => (selectedMediaType = type)}
+	onVirtualFolderChange={(folder) => (currentSystemVirtualFolder = folder)}
+	currentMediaType={selectedMediaType}
+	currentVirtualFolder={currentSystemVirtualFolder}
+/>
+```
+
+**Filter Application Logic:**
+
+```typescript
+// Apply advanced search filters
+function applySearchFilters(files: MediaImage[], filters: FilterCriteria): MediaImage[] {
+	let result = files;
+
+	if (filters.filename) {
+		const term = filters.filename.toLowerCase();
+		result = result.filter((f) => f.filename.toLowerCase().includes(term));
+	}
+
+	if (filters.tags?.length) {
+		result = result.filter((f) => filters.tags.some((tag) => f.tags?.includes(tag)));
+	}
+
+	if (filters.minWidth) {
+		result = result.filter((f) => f.width >= filters.minWidth);
+	}
+
+	if (filters.maxWidth) {
+		result = result.filter((f) => f.width <= filters.maxWidth);
+	}
+
+	if (filters.minSize) {
+		result = result.filter((f) => f.size >= filters.minSize);
+	}
+
+	if (filters.uploadedAfter) {
+		result = result.filter((f) => new Date(f.uploadDate) >= filters.uploadedAfter);
+	}
+
+	// ... similar checks for other criteria
+
+	return result;
+}
+```
+
+**Virtual Folder Types:**
+
+```typescript
+type SystemVirtualFolder =
+	| 'recent' // Files uploaded in last 7 days
+	| 'favorites' // User-favorited files
+	| 'trash' // Soft-deleted files
+	| 'large' // Files over 5 MB
+	| 'unused'; // Files not referenced in any collection
+```
+
+**Performance Considerations:**
+
+- Debounced search input (300ms) to avoid excessive re-filtering
+- Client-side filtering for <1000 files (instant results)
+- Server-side search API for 1000+ files (POST /api/media/search)
+- Cached filter results using `$derived` rune
+- Memoized filter functions
 
 ---
 
@@ -738,8 +907,46 @@ interface Props {
 	filteredFiles?: MediaBase[];
 	tableSize?: 'small' | 'medium' | 'large';
 	ondeleteImage?: (file: MediaBase) => void;
-	onSelectionChange?: (selectedFiles: MediaBase[]) => void;
+	onSelectionChange?: (selectedFiles: MediaBase[]) => void; // ✅ Callback for selected rows
 }
+```
+
+**Usage Example:**
+
+```svelte
+<script lang="ts">
+import MediaTable from './MediaTable.svelte';
+
+let selectedFiles = $state<MediaBase[]>([]);
+
+function handleSelectionChange(files: MediaBase[]) {
+  selectedFiles = files;
+  console.log(`${files.length} files selected`);
+}
+
+function handleBulkDelete() {
+  if (selectedFiles.length === 0) return;
+  
+  // Delete selected files
+  await Promise.all(
+    selectedFiles.map(f => fetch(`/api/media/delete`, {
+      method: 'DELETE',
+      body: JSON.stringify({ id: f._id })
+    }))
+  );
+  
+  selectedFiles = [];
+}
+</script>
+
+<MediaTable filteredFiles={files} tableSize="medium" ondeleteImage={handleDeleteSingle} onSelectionChange={handleSelectionChange} />
+
+{#if selectedFiles.length > 0}
+	<div class="bulk-actions">
+		<p>{selectedFiles.length} files selected</p>
+		<button onclick={handleBulkDelete}>Delete Selected</button>
+	</div>
+{/if}
 ```
 
 **Table Sizes:**
@@ -1238,6 +1445,7 @@ graph TD
    ```
 
 4. **Use Focal Point in Thumbnail Generation**
+
    ```typescript
    // mediaStorage.ts - saveResizedImages()
    async function saveResizedImages(
