@@ -220,7 +220,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 		}
 
 		await contentManager.refresh(tenantId);
-		logger.info(`Content node \x1b[34m${_id}\x1b[0m updated successfully`, { tenantId });
+		logger.info(`Content node ${_id} updated successfully`, { tenantId });
 		return json({
 			success: true,
 			message: 'Content Structure updated successfully',

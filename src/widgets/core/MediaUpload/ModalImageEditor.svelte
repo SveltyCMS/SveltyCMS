@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/mediaUpload/ModalImageEditor.svelte
+@file src/widgets/core/MediaUpload/ModalImageEditor.svelte
 @components
 **MediaUpload modal Image Editor widget**
 

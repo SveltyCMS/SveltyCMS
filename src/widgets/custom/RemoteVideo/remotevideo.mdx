@@ -1,5 +1,5 @@
 ---
-path: '/widgets/custom/remotevideo'
+path: '/widgets/custom/RemoteVideo'
 title: 'RemoteVideo Widget'
 description: 'Multi-platform video embedding widget with automatic metadata fetching from YouTube, Vimeo, Twitch, and TikTok for SveltyCMS'
 order: 305
@@ -141,7 +141,7 @@ async function fetchVideoMetadata(url: string, platform: string) {
 ### Simple Video Embed
 
 ```typescript
-import RemoteVideo from '@src/widgets/custom/remoteVideo';
+import RemoteVideo from '@src/widgets/custom/RemoteVideo';
 
 export const postsCollection = {
 	name: 'Blog Posts',
@@ -159,7 +159,7 @@ export const postsCollection = {
 ### Tutorial Series
 
 ```typescript
-import RemoteVideo from '@src/widgets/custom/remoteVideo';
+import RemoteVideo from '@src/widgets/custom/RemoteVideo';
 import List from '@src/widgets/core/list';
 
 export const coursesCollection = {
@@ -206,7 +206,7 @@ export const coursesCollection = {
 ### YouTube-Only Videos
 
 ```typescript
-import RemoteVideo from '@src/widgets/custom/remoteVideo';
+import RemoteVideo from '@src/widgets/custom/RemoteVideo';
 
 export const productsCollection = {
 	name: 'Products',
@@ -654,19 +654,3 @@ interface RemoteVideoData {
 - [TikTok Embed](https://developers.tiktok.com/doc/embed-videos)
 
 ---
-
-## Changelog
-
-### Version 1.0.0 (2025-01-15)
-
-- ✅ Initial release with multi-platform support
-- ✅ Automatic metadata fetching
-- ✅ Server-side API integration
-- ✅ Rich preview with thumbnails
-- ✅ Platform validation and restrictions
-
----
-
-## License
-
-The RemoteVideo widget is part of SveltyCMS and is licensed under the MIT License.

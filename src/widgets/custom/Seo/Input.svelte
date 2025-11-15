@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/seo/Input.svelte
+@file src/widgets/custom/Seo/Input.svelte
 @component
 **SEO Widget Input Component**
 

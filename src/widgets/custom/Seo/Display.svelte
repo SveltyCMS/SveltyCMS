@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/seo/Display.svelte
+@file src/widgets/custom/Seo/Display.svelte
 @component
 **SEO Widget Display Component**
 

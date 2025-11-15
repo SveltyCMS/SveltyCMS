@@ -4,7 +4,7 @@
  * This class uses Dependency Injection for the Mongoose model to ensure testability.
  */
 
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 import type { Model } from 'mongoose';
 import type { DatabaseId, Theme } from '../../dbInterface';
 import { createDatabaseError, withCache, CacheCategory, invalidateCategoryCache } from './mongoDBUtils';
@@ -21,7 +21,7 @@ export class MongoThemeMethods {
 	 */
 	constructor(themeModel: ThemeModelType) {
 		this.themeModel = themeModel;
-		logger.trace('\x1b[34mMongoThemeMethods\x1b[0m initialized.');
+		logger.trace('MongoThemeMethods initialized.');
 	}
 
 	/**

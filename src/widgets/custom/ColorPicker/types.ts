@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/colorpicker/types.ts
+ * @file src/widgets/custom/ColorPicker/types.ts
  * @description Type definitions for the ColorPicker widget.
  *
  * @features

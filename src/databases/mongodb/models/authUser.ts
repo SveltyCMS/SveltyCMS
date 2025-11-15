@@ -31,7 +31,7 @@ import type { Permission, Role, User } from '@src/databases/auth';
 import type { DatabaseResult, PaginationOption } from '@src/databases/dbInterface';
 
 // System Logging
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 // Define the User schema
 export const UserSchema = new Schema(
@@ -176,7 +176,7 @@ export class UserAdapter {
 			}
 
 			user._id = user._id.toString();
-			logger.debug(`User attributes updated: \x1b[34m${user_id}\x1b[0m`, { tenantId });
+			logger.debug(`User attributes updated: ${user_id}`, { tenantId });
 			return {
 				success: true,
 				data: user as User
@@ -248,7 +248,7 @@ export class UserAdapter {
 	async getUserCount(filter?: Record<string, unknown>): Promise<DatabaseResult<number>> {
 		try {
 			const count = await this.UserModel.countDocuments(filter || {});
-			logger.debug(`User count retrieved: \x1b[34m${count}\x1b[0m`);
+			logger.debug(`User count retrieved: ${count}`);
 			return {
 				success: true,
 				data: count
@@ -271,7 +271,7 @@ export class UserAdapter {
 	async getUsersWithPermission(permissionName: string): Promise<DatabaseResult<User[]>> {
 		try {
 			const users = await this.UserModel.find({ permissions: permissionName }).lean();
-			logger.debug(`Users with permission \x1b[34m${permissionName}\x1b[0m retrieved`);
+			logger.debug(`Users with permission ${permissionName} retrieved`);
 			const mappedUsers = users.map((user) => {
 				user._id = user._id.toString();
 				return user as User;
@@ -299,7 +299,7 @@ export class UserAdapter {
 		const allPermissions = await getAllPermissions();
 		const permission = allPermissions.find((p) => p._id === permissionName);
 		if (!permission) {
-			logger.warn(`Permission not found: \x1b[34m${permissionName}\x1b[0m`);
+			logger.warn(`Permission not found: ${permissionName}`);
 			return {
 				success: false,
 				message: `Permission not found: ${permissionName}`,
@@ -311,7 +311,7 @@ export class UserAdapter {
 		}
 		try {
 			await this.UserModel.findByIdAndUpdate(user_id, { $addToSet: { permissions: permissionName } });
-			logger.info(`Permission \x1b[34m${permissionName}\x1b[0m assigned to user\x1b[34m${user_id}\x1b[0m`);
+			logger.info(`Permission ${permissionName} assigned to user${user_id}`);
 			return {
 				success: true,
 				data: undefined
@@ -334,7 +334,7 @@ export class UserAdapter {
 	async deletePermissionFromUser(user_id: string, permissionName: string): Promise<DatabaseResult<void>> {
 		try {
 			await this.UserModel.findByIdAndUpdate(user_id, { $pull: { permissions: permissionName } });
-			logger.info(`Permission \x1b[34m${permissionName}\x1b[0m removed from user \x1b[34m${user_id}\x1b[0m`);
+			logger.info(`Permission ${permissionName} removed from user ${user_id}`);
 			return {
 				success: true,
 				data: undefined
@@ -374,7 +374,7 @@ export class UserAdapter {
 				userPermissions.find((p) => p._id === id)
 			) as Permission[];
 
-			logger.debug(`Permissions retrieved for user: \x1b[34m${user_id}\x1b[0m`);
+			logger.debug(`Permissions retrieved for user: ${user_id}`);
 			return {
 				success: true,
 				data: uniquePermissions
@@ -398,7 +398,7 @@ export class UserAdapter {
 		try {
 			const user = await this.UserModel.findById(user_id).lean();
 			if (!user) {
-				logger.warn(`User not found: \x1b[34m${user_id}\x1b[0m`);
+				logger.warn(`User not found: ${user_id}`);
 				return {
 					success: true,
 					data: false
@@ -415,7 +415,7 @@ export class UserAdapter {
 				};
 			}
 
-			logger.debug(`User ${user_id} does not have permission: \x1b[34m${permissionName}\x1b[0m`);
+			logger.debug(`User ${user_id} does not have permission: ${permissionName}`);
 			return {
 				success: true,
 				data: false
@@ -438,7 +438,7 @@ export class UserAdapter {
 	async changePassword(user_id: string, newPassword: string): Promise<DatabaseResult<void>> {
 		try {
 			await this.UserModel.findByIdAndUpdate(user_id, { password: newPassword });
-			logger.info(`Password changed for user: \x1b[34m${user_id}\x1b[0m`);
+			logger.info(`Password changed for user: ${user_id}`);
 			return {
 				success: true,
 				data: undefined
@@ -464,7 +464,7 @@ export class UserAdapter {
 				blocked: true,
 				lockoutUntil: new Date() // Set lockoutUntil to current time
 			});
-			logger.info(`User blocked: \x1b[34m${user_id}\x1b[0m`);
+			logger.info(`User blocked: ${user_id}`);
 			return {
 				success: true,
 				data: undefined
@@ -490,7 +490,7 @@ export class UserAdapter {
 				blocked: false,
 				lockoutUntil: null // Clear lockoutUntil
 			});
-			logger.info(`User unblocked: \x1b[34m${user_id}\x1b[0m`);
+			logger.info(`User unblocked: ${user_id}`);
 			return {
 				success: true,
 				data: undefined
@@ -521,7 +521,7 @@ export class UserAdapter {
 				blocked: true,
 				lockoutUntil: new Date() // Set lockoutUntil to current time
 			});
-			logger.info(`Users blocked: \x1b[34m${userIds.join(', ')}\x1b[0m`, { tenantId });
+			logger.info(`Users blocked: ${userIds.join(', ')}`, { tenantId });
 			return {
 				success: true,
 				data: { modifiedCount: result.modifiedCount }
@@ -552,7 +552,7 @@ export class UserAdapter {
 				blocked: false,
 				lockoutUntil: null // Clear lockoutUntil
 			});
-			logger.info(`Users unblocked: \x1b[34m${userIds.join(', ')}\x1b[0m`, { tenantId });
+			logger.info(`Users unblocked: ${userIds.join(', ')}`, { tenantId });
 			return {
 				success: true,
 				data: { modifiedCount: result.modifiedCount }
@@ -580,7 +580,7 @@ export class UserAdapter {
 			}
 
 			await this.UserModel.findOneAndDelete(filter);
-			logger.info(`User deleted: \x1b[34m${user_id}\x1b[0m`, { tenantId });
+			logger.info(`User deleted: ${user_id}`, { tenantId });
 			return {
 				success: true,
 				data: undefined
@@ -608,7 +608,7 @@ export class UserAdapter {
 			}
 
 			const result = await this.UserModel.deleteMany(filter);
-			logger.info(`Users deleted: \x1b[34m${userIds.join(', ')}\x1b[0m`, { tenantId });
+			logger.info(`Users deleted: ${userIds.join(', ')}`, { tenantId });
 			return {
 				success: true,
 				data: { deletedCount: result.deletedCount }
@@ -638,8 +638,8 @@ export class UserAdapter {
 			const user = await this.UserModel.findOne(filter).lean();
 			if (user) {
 				user._id = user._id.toString();
-				logger.debug(`User retrieved by ID: \x1b[34m${user_id}\x1b[0m`, {
-					tenantId: tenantId || '\x1b[34mnone\x1b[0m (single-tenant mode)'
+				logger.debug(`User retrieved by ID: ${user_id}`, {
+					tenantId: tenantId || 'none (single-tenant mode)'
 				});
 				return {
 					success: true,
@@ -655,7 +655,7 @@ export class UserAdapter {
 			const message = `Error in UserAdapter.getUserById: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, {
 				user_id,
-				tenantId: tenantId || '\x1b[34mnone\x1b[0m (single-tenant mode)'
+				tenantId: tenantId || 'none (single-tenant mode)'
 			});
 			return {
 				success: false,
@@ -687,7 +687,7 @@ export class UserAdapter {
 				user._id = user._id.toString();
 				logger.debug(`User retrieved by email:`, {
 					email: normalizedEmail,
-					tenantId: criteria.tenantId || '\x1b[34mnone\x1b[0m (single-tenant mode)'
+					tenantId: criteria.tenantId || 'none (single-tenant mode)'
 				});
 				return {
 					success: true,
@@ -703,7 +703,7 @@ export class UserAdapter {
 			const message = `Error in UserAdapter.getUserByEmail: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, {
 				email: criteria.email,
-				tenantId: criteria.tenantId || '\x1b[34mnone\x1b[0m (single-tenant mode)'
+				tenantId: criteria.tenantId || 'none (single-tenant mode)'
 			});
 			return {
 				success: false,
@@ -720,7 +720,7 @@ export class UserAdapter {
 	async assignRoleToUser(user_id: string, role: string): Promise<DatabaseResult<void>> {
 		try {
 			await this.UserModel.findByIdAndUpdate(user_id, { role });
-			logger.info(`Role ${role} assigned to user \x1b[34m${user_id}\x1b[0m`);
+			logger.info(`Role ${role} assigned to user ${user_id}`);
 			return {
 				success: true,
 				data: undefined
@@ -743,7 +743,7 @@ export class UserAdapter {
 	async removeRoleFromUser(user_id: string): Promise<DatabaseResult<void>> {
 		try {
 			await this.UserModel.findByIdAndUpdate(user_id, { $unset: { role: '' } });
-			logger.info(`Role removed from user \x1b[34m${user_id}\x1b[0m`);
+			logger.info(`Role removed from user ${user_id}`);
 			return {
 				success: true,
 				data: undefined
@@ -767,7 +767,7 @@ export class UserAdapter {
 		try {
 			const user = await this.UserModel.findById(user_id).lean();
 			if (!user || !user.role) {
-				logger.warn(`User or role not found for user ID: \x1b[34m${user_id}\x1b[0m`);
+				logger.warn(`User or role not found for user ID: ${user_id}`);
 				return {
 					success: true,
 					data: []
@@ -778,14 +778,14 @@ export class UserAdapter {
 			// Fetch the role from the file-based roles configuration
 			const role = getPrivateSettingSync('ROLES')?.find((r) => r._id === user.role);
 			if (!role) {
-				logger.warn(`Role not found: \x1b[34m${user.role}\x1b[0m for user ID: \x1b[34m${user_id}\x1b[0m`);
+				logger.warn(`Role not found: ${user.role} for user ID: ${user_id}`);
 				return {
 					success: true,
 					data: []
 				};
 			}
 
-			logger.debug(`Roles retrieved for user ID: \x1b[34m${user_id}\x1b[0m`);
+			logger.debug(`Roles retrieved for user ID: ${user_id}`);
 			return {
 				success: true,
 				data: [role]
@@ -871,7 +871,7 @@ export class UserAdapter {
 			await this.UserModel.findByIdAndUpdate(user_id, {
 				lastActiveAt: new Date()
 			});
-			logger.debug(`Updated lastActiveAt for user: \x1b[34m${user_id}\x1b[0m`);
+			logger.debug(`Updated lastActiveAt for user: ${user_id}`);
 			return {
 				success: true,
 				data: undefined
@@ -896,7 +896,7 @@ export class UserAdapter {
 			await this.UserModel.findByIdAndUpdate(user_id, {
 				expiresAt: expirationDate
 			});
-			logger.debug(`Set expiration date for user: \x1b[34m${user_id}\x1b[0m`);
+			logger.debug(`Set expiration date for user: ${user_id}`);
 			return {
 				success: true,
 				data: undefined

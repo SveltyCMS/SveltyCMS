@@ -91,12 +91,12 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		let currentCollection;
 		if (isUUID) {
 			// Direct UUID lookup
-			logger.debug(`Loading collection by UUID: \x1b[33m${collection}\x1b[0m`);
+			logger.debug(`Loading collection by UUID: ${collection}`);
 			currentCollection = contentManager.getCollectionById(collection!, tenantId);
 		} else {
 			// Path-based lookup (backward compatibility)
 			const collectionPath = `/${collection}`;
-			logger.debug(`Loading collection by path: \x1b[34m${collectionPath}\x1b[0m`);
+			logger.debug(`Loading collection by path: ${collectionPath}`);
 			currentCollection = contentManager.getCollection(collectionPath, tenantId);
 		}
 
@@ -145,10 +145,10 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 		const cachedData = await cacheService.get(cacheKey);
 		if (cachedData) {
-			logger.debug(`Cache HIT for key: \x1b[33m${cacheKey}\x1b[0m`);
+			logger.debug(`Cache HIT for key: ${cacheKey}`);
 			return cachedData;
 		}
-		logger.debug(`Cache MISS for key: \x1b[33m${cacheKey}\x1b[0m`);
+		logger.debug(`Cache MISS for key: ${cacheKey}`);
 
 		// =================================================================
 		// 4. LOAD PAGINATED ENTRIES (DB QUERY)

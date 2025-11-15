@@ -6,7 +6,7 @@
  */
 
 import type { DatabaseId } from '@src/content/types';
-import { logger } from '@utils/logger.server'; // Server-only file
+import { logger } from '@utils/logger'; // Server-only file
 import { v4 as uuidv4 } from 'uuid';
 import type { DatabaseError, PaginatedResult, PaginationOptions } from '../../dbInterface';
 import { cacheService } from '@src/databases/CacheService';

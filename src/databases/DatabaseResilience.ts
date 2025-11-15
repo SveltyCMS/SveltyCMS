@@ -10,7 +10,7 @@
  * - Comprehensive error tracking
  */
 
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 import { updateServiceHealth, getSystemState } from '@src/stores/system';
 import type { DatabaseError } from './dbInterface';
 

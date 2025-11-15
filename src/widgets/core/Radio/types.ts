@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/radio/types.ts
+ * @file src/widgets/core/Radio/types.ts
  * @description Type definitions for the Radio widget.
  *
  * @features

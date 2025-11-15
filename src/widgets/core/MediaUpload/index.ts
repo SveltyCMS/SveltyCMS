@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/media/index.ts
+ * @file src/widgets/core/MediaUpload/index.ts
  * @description Media Widget Definition.
  *
  * Implements a powerful media selector using the Three Pillars Architecture.

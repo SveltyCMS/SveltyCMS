@@ -193,7 +193,7 @@ if (typeof setInterval !== 'undefined') {
 				}
 			}
 
-			logger.trace(`Session cache cleanup: \x1b[34m${strongRefs.size}\x1b[0m strong refs, \x1b[34m${sessionCache.size}\x1b[0m weak refs`);
+			logger.trace(`Session cache cleanup: ${strongRefs.size} strong refs, ${sessionCache.size} weak refs`);
 		},
 		5 * 60 * 1000
 	);
@@ -224,7 +224,7 @@ async function getUserFromSession(sessionId: string, tenantId?: string): Promise
 	// Layer 1: In-memory cache with WeakRef (fastest)
 	const memCached = getSessionFromCache(sessionId);
 	if (memCached) {
-		logger.trace(`Session cache hit (memory): \x1b[33m${sessionId.substring(0, 8)}...\x1b[0m`);
+		logger.trace(`Session cache hit (memory): ${sessionId.substring(0, 8)}...`);
 		return memCached.user;
 	}
 
@@ -260,7 +260,7 @@ async function getUserFromSession(sessionId: string, tenantId?: string): Promise
 			await cacheService
 				.set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId)
 				.catch((err) => logger.warn(`Session cache set failed: ${err.message}`));
-			logger.trace(`Session validated from DB: \x1b[33m${sessionId.substring(0, 8)}...\x1b[0m`);
+			logger.trace(`Session validated from DB: ${sessionId.substring(0, 8)}...`);
 			return user;
 		}
 	} catch (err) {
@@ -290,7 +290,7 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 
 	// Rate limit check
 	if (await rotationRateLimiter.isLimited(event)) {
-		logger.debug(`Session rotation rate limited for session \x1b[33m${oldSessionId.substring(0, 8)}...\x1b[0m`);
+		logger.debug(`Session rotation rate limited for session ${oldSessionId.substring(0, 8)}...`);
 		return;
 	}
 
@@ -344,7 +344,7 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 			lastRotationAttempt.set(newSessionId, now);
 
 			metricsService.incrementAuthValidations();
-			logger.info(`Session rotated for user \x1b[34m${user._id}\x1b[0m: ${oldSessionId.substring(0, 8)}... → ${newSessionId.substring(0, 8)}...`);
+			logger.info(`Session rotated for user ${user._id}: ${oldSessionId.substring(0, 8)}... → ${newSessionId.substring(0, 8)}...`);
 		}
 	} catch (err) {
 		// Non-fatal error - log but don't break the session
@@ -410,7 +410,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 		if (user) {
 			// Tenant isolation check
 			if (locals.tenantId && user.tenantId && user.tenantId !== locals.tenantId) {
-				logger.warn(`Tenant isolation violation: User \x1b[34m${user._id}\x1b[0m (tenant: ${user.tenantId}) tried ${locals.tenantId}`);
+				logger.warn(`Tenant isolation violation: User ${user._id} (tenant: ${user.tenantId}) tried ${locals.tenantId}`);
 				metricsService.incrementAuthFailures();
 				cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 				throw error(403, 'Access denied: Tenant isolation violation');
@@ -420,7 +420,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 			locals.user = user;
 			locals.session_id = sessionId;
 			locals.permissions = user.permissions || [];
-			logger.trace(`User authenticated: \x1b[34m${user._id}\x1b[0m`);
+			logger.trace(`User authenticated: ${user._id}`);
 
 			// Step 3: Automatic session rotation (security enhancement)
 			// Rotates session token every 15 minutes for active users

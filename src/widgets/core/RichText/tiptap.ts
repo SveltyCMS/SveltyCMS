@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/richtext/tiptap.ts
+ * @file src/widgets/core/RichText/tiptap.ts
  * @description Tiptap Editor Configuration.
  *
  * Centralizes the creation and configuration of the Tiptap editor instance,

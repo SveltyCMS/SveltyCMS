@@ -307,13 +307,13 @@ export const widgetStoreActions = {
 				}
 			}
 
-			logger.info(`\x1b[34m${Object.keys(newWidgetFunctions).length}\x1b[0m widgets initialized successfully`, {
-				tenantId,
-				core: newCoreWidgets.length,
-				custom: newCustomWidgets.length,
-				marketplace: newMarketplaceWidgets.length,
-				active: uniqueActiveWidgets.length,
-				health: healthStatus
+			logger.info(`${Object.keys(newWidgetFunctions).length} widgets initialized successfully`, {
+				// tenantId,
+				// core: newCoreWidgets.length,
+				// custom: newCustomWidgets.length,
+				// marketplace: newMarketplaceWidgets.length,
+				// active: uniqueActiveWidgets.length,
+				// health: healthStatus
 			});
 		} catch (error) {
 			logger.error('Failed to initialize widgets:', error);

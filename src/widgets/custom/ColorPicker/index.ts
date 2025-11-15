@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/colorpicker/index.ts
+ * @file src/widgets/custom/ColorPicker/index.ts
  * @description ColorPicker Widget Definition.
  *
  * Implements an intuitive color picker using the Three Pillars Architecture.

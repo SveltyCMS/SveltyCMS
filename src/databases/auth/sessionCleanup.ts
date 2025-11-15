@@ -21,7 +21,7 @@
 import { auth, dbAdapter } from '@src/databases/db';
 
 // System Logger
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 // Cleanup configuration
 const CLEANUP_INTERVAL = 15 * 60 * 1000; // 15 minutes
@@ -65,10 +65,10 @@ export async function cleanupExpiredSessions(): Promise<{
 
 		if (totalCleaned > 0) {
 			logger.info(
-				`Session cleanup completed: \x1b[34m${totalCleaned}\x1b[0m sessions cleaned, \x1b[34m${expiredSessions}\x1b[0m expired, \x1b[34m${rotatedSessions}\x1b[0m rotated sessions cleaned in \x1b[32m${duration.toFixed(2)}ms\x1b[0m`
+				`Session cleanup completed: ${totalCleaned} sessions cleaned, ${expiredSessions} expired, ${rotatedSessions} rotated sessions cleaned in ${duration.toFixed(2)}ms`
 			);
 		} else {
-			logger.debug(`Session cleanup completed: no sessions to clean (\x1b[32m${duration.toFixed(2)}ms\x1b[0m)`);
+			logger.debug(`Session cleanup completed: no sessions to clean (${duration.toFixed(2)}ms)`);
 		}
 
 		return { expiredSessions, rotatedSessions, totalCleaned };

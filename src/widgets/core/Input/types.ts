@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/input/types.ts
+ * @file src/widgets/core/Input/types.ts
  * @description Type definitions for the Input widget (Text-only)
  *
  * @features

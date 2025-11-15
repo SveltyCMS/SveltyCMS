@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/relation/index.ts
+ * @file src/widgets/core/Relation/index.ts
  * @description Relation (One-to-One) Widget Definition.
  *
  * Implements a one-to-one relationship selector. Stores a single string ID

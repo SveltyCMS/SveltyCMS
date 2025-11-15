@@ -70,7 +70,7 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
 		await cleanupOrphanedFiles(compiledCollections, existingFilesByPath, processedJsPaths);
 	} catch (error) {
 		if (error instanceof Error && error.message.includes('Collection name conflict')) {
-			console.error('\x1b[31mError:\x1b[0m', error.message);
+			console.error('Error:', error.message);
 			// Propagate the specific error
 			throw error;
 		}
@@ -178,7 +178,7 @@ export async function cleanupOrphanedFiles(
 		if (!processedJsPaths.has(relativePath)) {
 			const fullPath = path.posix.join(compiledCollections, relativePath);
 			// Keep essential log for removal action
-			console.log(`\x1b[31mRemoving orphaned collection file:\x1b[0m \x1b[34m${relativePath}\x1b[0m`);
+			console.log(`Removing orphaned collection file: ${relativePath}`);
 			// Add the unlink promise to the array
 			unlinkPromises.push(fs.unlink(fullPath).catch((err) => console.error(`Error removing orphaned file ${fullPath}:`, err)));
 		}
@@ -308,7 +308,7 @@ async function compileFile(
 		finalCode = processHashAndUUID(finalCode, sourceContentHash, targetJsPathRelative, uuid);
 
 		await writeCompiledFile(targetJsPathAbsolute, finalCode);
-		console.log(`Compiled \x1b[32m${shortPath}\x1b[0m (\x1b[36m${uuidReason}\x1b[0m: \x1b[33m${uuid}\x1b[0m)`);
+		console.log(`Compiled ${shortPath} (${uuidReason}: ${uuid})`);
 
 		return targetJsPathRelative;
 	} catch (error) {

@@ -54,16 +54,16 @@ function safelySetLanguage(cookieName: string, cookieValue: string | undefined, 
 	if (!cookieValue) return false;
 
 	if (!isValidLocale(cookieValue)) {
-		logger.warn(`Invalid \x1b[34m${cookieName}\x1b[0m cookie value: "\x1b[32m${cookieValue}\x1b[0m". ` + `Supported locales: ${locales.join(', ')}`);
+		logger.warn(`Invalid ${cookieName} cookie value: "${cookieValue}". ` + `Supported locales: ${locales.join(', ')}`);
 		return false;
 	}
 
 	try {
 		setter(cookieValue);
-		logger.trace(`\x1b[34m${cookieName}\x1b[0m set to: \x1b[32m${cookieValue}\x1b[0m`);
+		logger.trace(`${cookieName} set to: ${cookieValue}`);
 		return true;
 	} catch (err) {
-		logger.error(`Failed to set \x1b[34m${cookieName}\x1b[0m store: ${err instanceof Error ? err.message : String(err)}`);
+		logger.error(`Failed to set ${cookieName} store: ${err instanceof Error ? err.message : String(err)}`);
 		return false;
 	}
 }

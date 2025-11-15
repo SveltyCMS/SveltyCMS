@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/date/types.ts
+ * @file src/widgets/core/Date/types.ts
  * @description Type definitions for the Date widget
  */
 

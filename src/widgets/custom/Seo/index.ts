@@ -1,5 +1,6 @@
 /**
- * @file src/widgets/custom/seo/index.tconst SeoWidget = createWidget({
+ * @file src/widgets/custom/Seo/index.ts
+const SeoWidget = createWidget({
 	Name: 'SEO',
 	Icon: 'tabler:seo',
 	Description: m.widget_seo_description(),

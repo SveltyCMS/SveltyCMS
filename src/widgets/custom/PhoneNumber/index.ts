@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/phonenumber/index.ts
+ * @file src/widgets/custom/PhoneNumber/index.ts
  * @description PhoneNumber Widget Definition.
  *
  * Implements a robust phone number input that stores a simple string.

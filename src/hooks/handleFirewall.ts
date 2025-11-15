@@ -153,7 +153,7 @@ export const handleFirewall: Handle = async ({ event, resolve }) => {
 	// Block automation tools but allow legitimate search engine crawlers
 	if (isAdvancedBot(userAgent) && !isLegitimateBot(userAgent)) {
 		metricsService.incrementSecurityViolations();
-		logger.warn(`Advanced bot detected and blocked: UA=\x1b[33m${userAgent.substring(0, 50)}\x1b[0m, ` + `Path=\x1b[34m${pathname}\x1b[0m`);
+		logger.warn(`Advanced bot detected and blocked: UA=${userAgent.substring(0, 50)}, Path=${pathname}`);
 		throw error(403, 'Forbidden: Automated access detected');
 	}
 
@@ -161,11 +161,7 @@ export const handleFirewall: Handle = async ({ event, resolve }) => {
 	// Check for patterns that Nginx can't detect (business logic abuse)
 	if (hasApplicationThreat(pathname, search)) {
 		metricsService.incrementSecurityViolations();
-		logger.warn(
-			`Application threat detected: IP=\x1b[34m${event.getClientAddress()}\x1b[0m, ` +
-				`Path=\x1b[34m${pathname}\x1b[0m, ` +
-				`UA=\x1b[33m${userAgent.substring(0, 50)}\x1b[0m`
-		);
+		logger.warn(`Application threat detected: IP=${event.getClientAddress()}, ` + `Path=${pathname}, ` + `UA=${userAgent.substring(0, 50)}`);
 		throw error(403, 'Forbidden: Request pattern not allowed');
 	}
 
@@ -173,7 +169,7 @@ export const handleFirewall: Handle = async ({ event, resolve }) => {
 	// Check for indicators of enumeration or abuse attempts
 	if (hasSuspiciousPattern(pathname)) {
 		metricsService.incrementSecurityViolations();
-		logger.warn(`Suspicious pattern detected: IP=\x1b[34m${event.getClientAddress()}\x1b[0m, ` + `Path=\x1b[34m${pathname}\x1b[0m`);
+		logger.warn(`Suspicious pattern detected: IP=${event.getClientAddress()}, Path=${pathname}`);
 		throw error(403, 'Forbidden: Invalid request pattern');
 	}
 

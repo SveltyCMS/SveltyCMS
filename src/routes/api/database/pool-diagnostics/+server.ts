@@ -1,6 +1,6 @@
 import { json, error as svelteError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import logger from '@utils/logger.server';
+import { logger } from '@utils/logger.server';
 
 /**
  * Get database connection pool diagnostics

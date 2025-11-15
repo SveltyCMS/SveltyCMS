@@ -63,7 +63,7 @@ import { MongoQueryBuilder } from './MongoQueryBuilder';
 // Auth adapter composition
 import { composeMongoAuthAdapter } from './methods/authComposition';
 
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 import type {
 	ContentNode,
 	ContentDraft,
@@ -353,7 +353,7 @@ export class MongoDBAdapter implements IDBAdapter {
 
 		// --- 4. Build the Public-Facing Wrapped API ---
 		this._initializeWrappers();
-		logger.info('\x1b[34mMongoDB adapter\x1b[0m fully initialized.');
+		logger.info('MongoDB adapter fully initialized.');
 	}
 
 	private _initializeWrappers(): void {

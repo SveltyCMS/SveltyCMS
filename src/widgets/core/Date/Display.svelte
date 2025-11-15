@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/date/Display.svelte
+@file src/widgets/core/Date/Display.svelte
 @component
 **Date Widget Display Component**
 

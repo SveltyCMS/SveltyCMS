@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/radio/Display.svelte
+@file src/widgets/core/Radio/Display.svelte
 @component
 **Radio Widget Display Component**
 

@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/date/Input.svelte
+@file src/widgets/core/Date/Input.svelte
 @component
 **Date Widget Input Component**
 

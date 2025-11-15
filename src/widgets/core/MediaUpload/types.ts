@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/media/types.ts
+ * @file src/widgets/core/MediaUpload/types.ts
  * @description Type definitions for the Media widget.
  *
  * @features

@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/richText/Input.svelte
+@file src/widgets/core/RichText/Input.svelte
 @component
 **RichText Widget Input Component**
 

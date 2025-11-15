@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/remotevideo/video.ts
+ * @file src/widgets/custom/RemoteVideo/video.ts
  * @description Centralized utility for fetching remote video metadata from various platforms.
  *
  * This module should primarily be used on the server-side to keep API keys secure.

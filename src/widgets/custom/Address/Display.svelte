@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/address/Display.svelte
+@file src/widgets/custom/Address/Display.svelte
 @component
 **Address Widget Display Component**
 

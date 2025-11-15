@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/richtext/types.ts
+ * @file src/widgets/core/RichText/types.ts
  * @description Type definitions for the RichText widget.
  *
  * @features

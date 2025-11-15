@@ -73,7 +73,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
 	// Require authentication for all other API routes
 	if (!locals.user) {
-		logger.warn(`Unauthenticated API access attempt: \x1b[33m${url.pathname}\x1b[0m`);
+		logger.warn(`Unauthenticated API access attempt: ${url.pathname}`);
 		throw error(401, 'Authentication required');
 	}
 
@@ -83,7 +83,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 		const apiEndpoint = getApiEndpoint(url.pathname);
 
 		if (!apiEndpoint) {
-			logger.warn(`Invalid API path: \x1b[33m${url.pathname}\x1b[0m`);
+			logger.warn(`Invalid API path: ${url.pathname}`);
 			throw error(400, 'Invalid API path');
 		}
 
@@ -95,13 +95,13 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
 		if (!hasApiPermission(locals.user.role, apiEndpoint)) {
 			logger.warn(
-				`User \x1b[34m${locals.user._id}\x1b[0m (role: ${locals.user.role}, tenant: ${locals.tenantId || 'global'}) ` +
-					`denied access to\x1b[33m/api/${apiEndpoint}\x1b[0m - insufficient permissions`
+				`User ${locals.user._id} (role: ${locals.user.role}, tenant: ${locals.tenantId || 'global'}) ` +
+					`denied access to /api/${apiEndpoint} - insufficient permissions`
 			);
 			throw error(403, `Forbidden: Your role (${locals.user.role}) does not have permission to access this API endpoint.`);
 		}
 
-		logger.trace(`User \x1b[34m${locals.user._id}\x1b[0m granted access to \x1b[33m/api/${apiEndpoint}\x1b[0m`, {
+		logger.trace(`User ${locals.user._id} granted access to /api/${apiEndpoint}`, {
 			role: locals.user.role,
 			tenant: locals.tenantId || 'global'
 		});
@@ -119,9 +119,8 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 					}>(cacheKey, locals.tenantId);
 
 					if (cached) {
-						logger.debug(`Cache hit for API GET \x1b[33m${url.pathname}\x1b[0m (tenant: ${locals.tenantId || 'global'})`);
+						logger.debug(`Cache hit for API GET ${url.pathname} (tenant: ${locals.tenantId || 'global'})`);
 						metricsService.recordApiCacheHit();
-
 						return new Response(JSON.stringify(cached.data), {
 							status: 200,
 							headers: {
@@ -132,13 +131,11 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 						});
 					}
 				} catch (cacheError) {
-					logger.warn(`Cache read error for \x1b[31m${cacheKey}\x1b[0m: ${getErrorMessage(cacheError)}`);
+					logger.warn(`Cache read error for ${cacheKey}: ${getErrorMessage(cacheError)}`);
 				}
 			} else {
-				logger.debug(`Cache bypass requested for \x1b[33m${url.pathname}\x1b[0m`);
-			}
-
-			// Resolve the request (cache miss or bypassed)
+				logger.debug(`Cache bypass requested for ${url.pathname}`);
+			} // Resolve the request (cache miss or bypassed)
 			const response = await resolve(event);
 
 			// --- OPTIMIZED: GraphQL bypass, no new Response created ---
@@ -175,14 +172,14 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 							locals.tenantId
 						);
 
-						logger.trace(`Background cache set complete for \x1b[33m${url.pathname}\x1b[0m`);
+						logger.trace(`Background cache set complete for ${url.pathname}`);
 					} catch (processingError) {
 						// Only log JSON parse errors if response is expected to be JSON
 						const contentType = responseClone.headers.get('content-type');
 						if (contentType?.includes('application/json')) {
-							logger.error(`Error caching API response for \x1b[34m/api/${apiEndpoint}\x1b[0m: ${getErrorMessage(processingError)}`);
+							logger.error(`Error caching API response for /api/${apiEndpoint}: ${getErrorMessage(processingError)}`);
 						} else {
-							logger.trace(`Skipped caching non-JSON response for \x1b[34m/api/${apiEndpoint}\x1b[0m`);
+							logger.trace(`Skipped caching non-JSON response for /api/${apiEndpoint}`);
 						}
 					}
 				})();
@@ -203,7 +200,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 				await cacheService.clearByPattern(`${patternToInvalidate}*`, locals.tenantId);
 
 				logger.debug(
-					`Invalidated API cache for pattern \x1b[34m${patternToInvalidate}\x1b[0m* (tenant: ${locals.tenantId || 'global'}) after \x1b[34m${request.method}\x1b[0m request`
+					`Invalidated API cache for pattern ${patternToInvalidate}* (tenant: ${locals.tenantId || 'global'}) after ${request.method} request`
 				);
 			} catch (invalidationError) {
 				logger.error(`Failed to invalidate API cache after ${request.method}: ${getErrorMessage(invalidationError)}`);
@@ -222,13 +219,13 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 /** Manually invalidates API cache for a specific endpoint and user. */
 export async function invalidateApiCache(apiEndpoint: string, userId: string, tenantId?: string): Promise<void> {
 	const baseKey = `api:${userId}:/api/${apiEndpoint}`;
-	logger.debug(`Manually invalidating API cache for pattern \x1b[31m${baseKey}\x1b[0m* (tenant: ${tenantId || 'global'})`);
+	logger.debug(`Manually invalidating API cache for pattern ${baseKey}* (tenant: ${tenantId || 'global'})`);
 
 	try {
 		await cacheService.clearByPattern(`${baseKey}*`, tenantId);
 		await cacheService.delete(baseKey, tenantId);
 	} catch (err) {
-		logger.error(`Error during manual API cache invalidation for \x1b[31m${baseKey}\x1b[0m: ${getErrorMessage(err)}`);
+		logger.error(`Error during manual API cache invalidation for ${baseKey}: ${getErrorMessage(err)}`);
 	}
 }
 

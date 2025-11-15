@@ -1,5 +1,5 @@
 /**
-@file src/widgets/core/richText/extensions/ImageResize.ts
+@file src/widgets/core/RichText/extensions/ImageResize.ts
 @description - RichText TipTap widget image extension
 */
 import { Image as ImageExtension } from '@tiptap/extension-image';

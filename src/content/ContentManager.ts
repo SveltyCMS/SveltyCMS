@@ -16,7 +16,7 @@
  */
 
 import type { ContentNode, Schema, ContentNodeOperation, DatabaseId } from '@src/content/types';
-import { logger } from '@utils/logger.server'; // Server-only file
+import { logger } from '@utils/logger'; // Server-only file
 import { dateToISODateString } from '@utils/dateUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { generateCategoryNodesFromPaths, processModule } from './utils';
@@ -156,7 +156,7 @@ class ContentManager {
 			now - this.firstCollectionCache.timestamp < this.FIRST_COLLECTION_CACHE_TTL
 		) {
 			const cacheAge = ((now - this.firstCollectionCache.timestamp) / 1000).toFixed(1);
-			logger.debug(`⚡ First collection from cache (age: \x1b[32m${cacheAge}s\x1b[0m)`);
+			logger.debug(`⚡ First collection from cache (age: ${cacheAge}s)`);
 			return this.firstCollectionCache.collection;
 		}
 
@@ -174,10 +174,7 @@ class ContentManager {
 		};
 
 		if (firstCollection) {
-			logger.info(
-				`📋 First collection loaded: \x1b[34m${firstCollection.name}\x1b[0m ` +
-					`(\x1b[33m${firstCollection._id}\x1b[0m) in \x1b[32m${fetchTime.toFixed(2)}ms\x1b[0m`
-			);
+			logger.info(`📋 First collection loaded: ${firstCollection.name} ` + `(${firstCollection._id}) in ${fetchTime.toFixed(2)}ms`);
 		} else {
 			logger.debug('No collections available in system');
 		}
@@ -203,7 +200,7 @@ class ContentManager {
 		// The collection ID is the UUID.
 		const redirectUrl = `/${language}/${collection._id}`;
 
-		logger.debug(`📍 First collection redirect URL (UUID-based): \x1b[34m${redirectUrl}\x1b[0m`);
+		logger.debug(`📍 First collection redirect URL (UUID-based): ${redirectUrl}`);
 		return redirectUrl;
 	}
 
@@ -488,7 +485,7 @@ class ContentManager {
 			});
 
 		const schemas = (await Promise.all(schemaPromises)).filter((s): s is NonNullable<typeof s> => !!s);
-		logger.trace(`Processed \x1b[34m${schemas.length}\x1b[0m collection schemas from filesystem.`);
+		logger.trace(`Processed ${schemas.length} collection schemas from filesystem.`);
 		return schemas;
 	}
 
@@ -584,7 +581,7 @@ class ContentManager {
 			pathToIdMap.set(op.path, op._id);
 		}
 
-		logger.debug(`[ContentManager] Starting three-phase sync with \x1b[34m${operations.length}\x1b[0m operations`);
+		logger.debug(`[ContentManager] Starting three-phase sync with ${operations.length} operations`);
 
 		// Phase 1: Batch upsert to DB WITHOUT parentId
 		// This ensures all nodes get MongoDB-assigned _ids first
@@ -615,7 +612,7 @@ class ContentManager {
 				};
 			});
 
-			logger.debug(`[ContentManager] Phase 1: Upserting \x1b[34m${minimalOperations.length}\x1b[0m nodes`);
+			logger.debug(`[ContentManager] Phase 1: Upserting ${minimalOperations.length} nodes`);
 			await dbAdapter.content.nodes.bulkUpdate(minimalOperations);
 
 			// CRITICAL: Invalidate cache IMMEDIATELY after Phase 1 so Phase 2 gets fresh data
@@ -633,7 +630,7 @@ class ContentManager {
 			const insertedNodes = insertedNodesResult.data;
 			const pathToDbIdMap = new Map<string, DatabaseId>();
 
-			logger.debug(`[ContentManager] Phase 2: Retrieved \x1b[34m${insertedNodes.length}\x1b[0m nodes`);
+			logger.debug(`[ContentManager] Phase 2: Retrieved ${insertedNodes.length} nodes`);
 
 			try {
 				for (const node of insertedNodes) {
@@ -643,7 +640,7 @@ class ContentManager {
 						if (normalizedId) {
 							pathToDbIdMap.set(node.path, normalizedId as DatabaseId);
 						} else {
-							logger.warn(`[ContentManager] Phase 2: Could not normalize _id for node \x1b[32m${node.path}\x1b[0m`);
+							logger.warn(`[ContentManager] Phase 2: Could not normalize _id for node ${node.path}`);
 						}
 					}
 				}
@@ -671,14 +668,14 @@ class ContentManager {
 								changes: { parentId: parentDbId }
 							});
 						} else {
-							logger.warn(`[ContentManager] Missing parent for \x1b[34m${op.path}\x1b[0m (expected: \x1b[32m${parentPath}\x1b[0m)`);
+							logger.warn(`[ContentManager] Missing parent for ${op.path} (expected: ${parentPath})`);
 						}
 					}
 				}
 
 				// Batch update parentIds
 				if (parentIdUpdates.length > 0) {
-					logger.debug(`[ContentManager] Phase 3: Updating \x1b[34m${parentIdUpdates.length}\x1b[0m parent relationships`);
+					logger.debug(`[ContentManager] Phase 3: Updating ${parentIdUpdates.length} parent relationships`);
 					await dbAdapter.content.nodes.bulkUpdate(parentIdUpdates);
 
 					// Update the operations array with the new parentIds so they're reflected in memory
@@ -712,7 +709,7 @@ class ContentManager {
 		}
 
 		const finalNodes = finalStructureResult.data;
-		logger.debug(`[ContentManager] Final structure: \x1b[34m${finalNodes.length}\x1b[0m nodes retrieved`);
+		logger.debug(`[ContentManager] Final structure: ${finalNodes.length} nodes retrieved`);
 
 		// Clear and rebuild local maps with the complete database structure
 		this.contentNodeMap.clear();
@@ -723,7 +720,7 @@ class ContentManager {
 			// Ensure we normalize the _id
 			const normalizedId = normalizeId(node._id);
 			if (!normalizedId) {
-				logger.warn(`[ContentManager] Could not normalize _id for node \x1b[32m${node.path}\x1b[0m`);
+				logger.warn(`[ContentManager] Could not normalize _id for node ${node.path}`);
 				continue;
 			}
 
@@ -742,9 +739,7 @@ class ContentManager {
 			}
 		}
 
-		logger.debug(
-			`[ContentManager] Maps rebuilt: contentNodeMap=\x1b[34m${this.contentNodeMap.size}\x1b[0m, pathLookupMap=\x1b[32m${this.pathLookupMap.size}\x1b[0m`
-		);
+		logger.debug(`[ContentManager] Maps rebuilt: contentNodeMap=${this.contentNodeMap.size}, pathLookupMap=${this.pathLookupMap.size}`);
 	}
 
 	// Populates the distributed cache (e.g., Redis) with the current state
@@ -768,7 +763,7 @@ class ContentManager {
 				return false;
 			}
 
-			logger.debug(`[ContentManager] Cache hit - loading \x1b[34m${state.nodes.length}\x1b[0m nodes from cache`);
+			logger.debug(`[ContentManager] Cache hit - loading ${state.nodes.length} nodes from cache`);
 			this.contentNodeMap.clear();
 			this.pathLookupMap.clear();
 			for (const node of state.nodes) {
@@ -806,7 +801,7 @@ class ContentManager {
 	}
 
 	private _getElapsedTime(startTime: number): string {
-		return `\x1b[32m${(performance.now() - startTime).toFixed(2)}ms\x1b[0m`;
+		return `${(performance.now() - startTime).toFixed(2)}ms`;
 	}
 }
 

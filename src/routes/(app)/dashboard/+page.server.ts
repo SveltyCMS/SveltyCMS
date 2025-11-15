@@ -95,7 +95,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw error(403, 'Insufficient permissions to access dashboard');
 	}
 
-	logger.trace(`User authenticated successfully for dashboard: \x1b[34m${user._id}\x1b[0m`);
+	logger.trace(`User authenticated successfully for dashboard: ${user._id}`);
 
 	const { _id, ...rest } = user;
 	const availableWidgets = await discoverWidgets();

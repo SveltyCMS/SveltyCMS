@@ -83,7 +83,7 @@
 		"@semantic-release/commit-analyzer": "^13.0.1",
 		"@semantic-release/git": "^10.0.1",
 		"@semantic-release/github": "^12.0.2",
-		"@semantic-release/npm": "^13.1.1",
+		"@semantic-release/npm": "^13.1.2",
 		"@semantic-release/release-notes-generator": "^14.1.0",
 		"@skeletonlabs/skeleton": "^2.11.0",
 		"@skeletonlabs/tw-plugin": "^0.4.1",
@@ -123,7 +123,7 @@
 		"vite": "^7.2.2"
 	},
 	"dependencies": {
-		"@aws-sdk/client-s3": "^3.931.0",
+		"@aws-sdk/client-s3": "^3.932.0",
 		"@floating-ui/dom": "^1.7.4",
 		"@inlang/paraglide-js": "^2.5.0",
 		"@mapbox/mapbox-gl-geocoder": "^5.1.2",
@@ -187,7 +187,7 @@
 	},
 	"optionalDependencies": {
 		"mariadb": "^3.4.5",
-		"mongoose": "^8.19.3",
+		"mongoose": "^8.19.4",
 		"mysql2": "^3.15.3",
 		"postgres": "^3.4.7"
 	},

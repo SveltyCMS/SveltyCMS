@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/date/index.ts
+ * @file src/widgets/core/Date/index.ts
  * @description Date Widget Definition
  *
  * Implements date widget using the Three Pillars Architecture.

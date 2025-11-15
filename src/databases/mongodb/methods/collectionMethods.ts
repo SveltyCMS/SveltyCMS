@@ -15,7 +15,7 @@
  * - Content structure/drafts/revisions (use contentMethods.ts)
  */
 
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 import mongoose, { Schema as MongooseSchema, type Model } from 'mongoose';
 import type { CollectionModel } from '../../dbInterface';
 import type { Schema } from '@src/content/types';
@@ -59,7 +59,7 @@ export class MongoCollectionMethods {
 			throw new Error('Schema must have an _id field');
 		}
 
-		logger.debug(`Creating/updating collection model for: \x1b[33m${collectionId}\x1b[0m`);
+		logger.debug(`Creating/updating collection model for: ${collectionId}`);
 
 		// Invalidate cache for this collection
 		await invalidateCollectionCache(`schema:collection:${collectionId}`);
@@ -140,7 +140,7 @@ export class MongoCollectionMethods {
 		};
 
 		this.models.set(collectionId, { model, wrapped: wrappedModel });
-		logger.info(`Collection model created: \x1b[33m${collectionId}\x1b[0m \x1b[34m(${modelName})\x1b[0m`);
+		logger.info(`Collection model created: ${collectionId} (${modelName})`);
 
 		// NOTE: Physical collection creation disabled
 		// Using generic system_content_structure table for all collections instead of per-collection tables
@@ -153,11 +153,11 @@ export class MongoCollectionMethods {
 		try {
 			const collectionExists = await this.collectionExists(modelName.toLowerCase());
 			if (!collectionExists) {
-				logger.debug(`Creating physical collection: \x1b[33m${modelName}\x1b[0m in database`);
+				logger.debug(`Creating physical collection: ${modelName} in database`);
 				await mongoose.connection.db?.createCollection(modelName.toLowerCase());
-				logger.info(`✅ Physical collection created: \x1b[33m${modelName}\x1b[0m`);
+				logger.info(`✅ Physical collection created: ${modelName}`);
 			} else {
-				logger.debug(`Physical collection already exists: \x1b[33m${modelName}\x1b[0m`);
+				logger.debug(`Physical collection already exists: ${modelName}`);
 			}
 		} catch (error) {
 			// Collection might already exist or database might not support it

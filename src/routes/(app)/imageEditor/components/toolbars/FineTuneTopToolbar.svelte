@@ -98,11 +98,31 @@ Displays a single slider at the top of the editor for the selected adjustment.
 	}
 </script>
 
-<div class="finetune-top-toolbar" onclick={handleClickOutside}>
+<div
+	class="finetune-top-toolbar"
+	onclick={handleClickOutside}
+	role="presentation"
+	onkeydown={(e) => {
+		if (e.key === 'Enter' || e.key === ' ') {
+			handleClickOutside();
+		}
+	}}
+>
 	<!-- Adjustment dropdown and number input -->
 	<div class="adjustment-controls">
 		<!-- Custom dropdown with arrow -->
-		<div class="custom-dropdown" class:open={dropdownOpen} onclick={(e) => e.stopPropagation()}>
+		<div
+			<div
+			class="relative"
+			class:open={dropdownOpen}
+			onclick={(e) => e.stopPropagation()}
+			role="presentation"
+			onkeydown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.stopPropagation();
+				}
+			}}
+		>
 			<button
 				class="dropdown-button"
 				onclick={(e) => {
@@ -115,7 +135,6 @@ Displays a single slider at the top of the editor for the selected adjustment.
 				{adjustments.find((a) => a.id === activeAdjustment)?.label || 'Select Adjustment'}
 				<iconify-icon icon="mdi:chevron-down" width="16" class="dropdown-arrow" class:rotate={dropdownOpen}></iconify-icon>
 			</button>
-
 			{#if dropdownOpen}
 				<div class="dropdown-menu">
 					{#each adjustments as adjustment (adjustment.id)}
@@ -201,10 +220,6 @@ Displays a single slider at the top of the editor for the selected adjustment.
 	}
 
 	/* Custom dropdown styles */
-	.custom-dropdown {
-		@apply relative;
-	}
-
 	.dropdown-button {
 		@apply flex items-center justify-between;
 		@apply bg-transparent text-sm font-medium text-white;

@@ -21,7 +21,7 @@
  * NOTE: This is SERVER-ONLY code that uses Node.js fs module.
  */
 
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 import * as fs from 'node:fs/promises';
 import { processModule } from './utils';
 import type { Schema } from './types';
@@ -93,6 +93,6 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
 		});
 
 	const schemas = (await Promise.all(schemaPromises)).filter((s): s is NonNullable<typeof s> => !!s);
-	logger.trace(`Scanned \x1b[33m${schemas.length}\x1b[0m collection schemas from filesystem.`);
+	logger.trace(`Scanned ${schemas.length} collection schemas from filesystem.`);
 	return schemas;
 }

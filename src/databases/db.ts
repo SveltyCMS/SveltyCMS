@@ -24,7 +24,7 @@ async function loadPrivateConfig(forceReload = false) {
 	if (privateEnv && !forceReload) return privateEnv;
 
 	try {
-		logger.debug('Loading \x1b[34m/config/private.ts\x1b[0m configuration...');
+		logger.debug('Loading /config/private.ts configuration...');
 		const module = await import('@root/config/private');
 		privateEnv = module.privateEnv;
 		logger.debug('Private config loaded successfully', {
@@ -77,7 +77,7 @@ import { safeParse, type InferOutput } from 'valibot';
 import { DEFAULT_THEME, ThemeManager } from '@src/databases/themeManager';
 
 // System Logger
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 // System State Management
 import { setSystemState, updateServiceHealth, waitForServiceHealthy } from '@src/stores/system';
@@ -269,7 +269,7 @@ async function loadAdapters() {
 		return;
 	}
 
-	logger.debug(`🔌 Loading \x1b[34m${config.DB_TYPE}\x1b[0m adapters...`);
+	logger.debug(`🔌 Loading ${config.DB_TYPE} adapters...`);
 
 	// Use DatabaseResilience for adapter loading (handles transient import failures)
 	const { getDatabaseResilience } = await import('@src/databases/DatabaseResilience');
@@ -337,7 +337,7 @@ async function initializeDefaultTheme(): Promise<void> {
 async function initializeThemeManager(): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize ThemeManager: dbAdapter is not available.');
 	try {
-		logger.debug('Initializing \x1b[34mThemeManager\x1b[0m...');
+		logger.debug('Initializing ThemeManager...');
 		const themeManager = ThemeManager.getInstance();
 		await themeManager.initialize(dbAdapter);
 	} catch (err) {
@@ -360,7 +360,7 @@ async function initializeMediaFolder(): Promise<void> {
 		// Folder exists, skip logging for speed
 	} catch {
 		// If the folder does not exist, create it
-		logger.info(`Creating media folder: \x1b[34m${mediaFolderPath}\x1b[0m`);
+		logger.info(`Creating media folder: ${mediaFolderPath}`);
 		await fs.mkdir(mediaFolderPath, { recursive: true });
 	}
 }
@@ -512,13 +512,13 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		updateServiceHealth('database', 'healthy', 'Database connected successfully');
 
 		const step2And3Time = performance.now() - step2And3StartTime;
-		logger.info(`\x1b[32mSteps 1-2:\x1b[0m DB connected & adapters loaded in \x1b[32m${step2And3Time.toFixed(2)}ms\x1b[0m`);
-		logger.info(`\x1b[32mStep 3:\x1b[0m Database models setup in \x1b[32m${step2And3Time.toFixed(2)}ms\x1b[0m (⚡ parallelized with connection)`);
+		logger.info(`Steps 1-2: DB connected & adapters loaded in ${step2And3Time.toFixed(2)}ms`);
+		logger.info(`Step 3: Database models setup in ${step2And3Time.toFixed(2)}ms (⚡ parallelized with connection)`);
 
 		// Step 4: Lazy-initialize Server-Side Services (will initialize on first use)
 		// WidgetRegistryService and ContentManager are now lazy-loaded for faster startup
 		updateServiceHealth('contentManager', 'healthy', 'Will lazy-initialize on first use');
-		logger.info('\x1b[32mStep 4:\x1b[0m Server services (Widgets & Content) will lazy-initialize on first use');
+		logger.info('Step 4: Server services (Widgets & Content) will lazy-initialize on first use');
 
 		// Eagerly initialize ContentManager to prevent race conditions on first load
 		const { contentManager } = await import('@src/content/ContentManager');
@@ -593,18 +593,18 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 
 		const parallelTime = performance.now() - parallelStartTime;
 		logger.info(
-			`Parallel I/O completed in \x1b[32m${parallelTime.toFixed(2)}ms\x1b[0m (Media: ${mediaTime.toFixed(2)}ms, Revisions: \x1b[32m${revisionsTime.toFixed(2)}ms\x1b[0m, Virtual Folders: \x1b[32m${virtualFoldersTime.toFixed(2)}ms\x1b[0m, Themes: \x1b[32m${themesTime.toFixed(2)}ms\x1b[0m, Widgets: \x1b[32m${widgetsTime.toFixed(2)}ms\x1b[0m)`
+			`Parallel I/O completed in ${parallelTime.toFixed(2)}ms (Media: ${mediaTime.toFixed(2)}ms, Revisions: ${revisionsTime.toFixed(2)}ms, Virtual Folders: ${virtualFoldersTime.toFixed(2)}ms, Themes: ${themesTime.toFixed(2)}ms, Widgets: ${widgetsTime.toFixed(2)}ms)`
 		);
 
 		const step5Time = performance.now() - step5StartTime;
 		logger.info(
-			`\x1b[32mStep 5:\x1b[0m Critical components initialized in \x1b[32m${step5Time.toFixed(2)}ms\x1b[0m (Auth: \x1b[32m${authTime.toFixed(2)}ms\x1b[0, Settings: \x1b[32m${settingsTime.toFixed(2)}ms\x1b[0)`
+			`Step 5: Critical components initialized in ${step5Time.toFixed(2)}ms (Auth: ${authTime.toFixed(2)}ms, Settings: ${settingsTime.toFixed(2)}ms)`
 		);
 		isInitialized = true;
 
 		// System is now READY - state will be derived automatically from service health
 		const totalTime = performance.now() - systemStartTime;
-		logger.info(`🚀 System initialization completed successfully in \x1b[32m${totalTime.toFixed(2)}ms\x1b[0m!`);
+		logger.info(`🚀 System initialization completed successfully in ${totalTime.toFixed(2)}ms!`);
 	} catch (err) {
 		const message = `CRITICAL: System initialization failed: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, err);

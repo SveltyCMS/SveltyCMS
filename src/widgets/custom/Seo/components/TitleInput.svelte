@@ -1,5 +1,5 @@
-<!-- 
-@file src/widgets/seo/TitleInput.svelte
+<!--
+@file src/widgets/custom/Seo/components/TitleInput.svelte
 @component
 **Title widget for SEO Widget to manage meta title**
 

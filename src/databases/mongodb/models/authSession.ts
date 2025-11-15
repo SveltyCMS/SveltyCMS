@@ -30,7 +30,7 @@ import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 import { toISOString } from '@utils/dateUtils';
 
 // System Logging
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 // Define the Session schema
 export const SessionSchema = new Schema(
@@ -95,7 +95,7 @@ export class SessionAdapter {
 			});
 
 			if (result.deletedCount && result.deletedCount > 0) {
-				logger.info(`🔄 Migrated sessions: Removed \x1b[34m${result.deletedCount}\x1b[0m old ObjectId-based sessions`);
+				logger.info(`🔄 Migrated sessions: Removed ${result.deletedCount} old ObjectId-based sessions`);
 			}
 		} catch (err) {
 			// Non-critical error - old sessions will expire naturally
@@ -168,7 +168,7 @@ export class SessionAdapter {
 			const sessionId = generateId();
 			const session = new this.SessionModel({ ...sessionData, _id: sessionId });
 			await session.save();
-			logger.info(`Session created: \x1b[33m${sessionId}\x1b[0m for user: \x1b[34m${sessionData.user_id}\x1b[0m`);
+			logger.info(`Session created: ${sessionId} for user: ${sessionData.user_id}`);
 			const sessionObj = session.toObject();
 			return {
 				success: true,
@@ -234,7 +234,7 @@ export class SessionAdapter {
 					}
 				]);
 
-				logger.info(`Session created: \x1b[32m${sessionId}\x1b[0m for user: \x1b[34m${sessionData.user_id}\x1b[0m`);
+				logger.info(`Session created: ${sessionId} for user: ${sessionData.user_id}`);
 
 				// Return the formatted session
 				return this.formatSession({
@@ -368,7 +368,7 @@ export class SessionAdapter {
 	async deleteSession(session_id: string): Promise<DatabaseResult<void>> {
 		try {
 			await this.SessionModel.findByIdAndDelete(session_id);
-			logger.info(`Session deleted: \x1b[33m${session_id}\x1b[0m`);
+			logger.info(`Session deleted: ${session_id}`);
 			return {
 				success: true,
 				data: undefined
@@ -521,7 +521,7 @@ export class SessionAdapter {
 
 			const result = await this.SessionModel.deleteMany(filter);
 			logger.debug(
-				`InvalidateAllUserSessions: Attempted to delete sessions for user_id=\x1b[34m${user_id}\x1b[0m at ${now.toISOString()}. Deleted count: ${result.deletedCount}`
+				`InvalidateAllUserSessions: Attempted to delete sessions for user_id=${user_id} at ${now.toISOString()}. Deleted count: ${result.deletedCount}`
 			);
 			return { success: true, data: undefined };
 		} catch (err) {

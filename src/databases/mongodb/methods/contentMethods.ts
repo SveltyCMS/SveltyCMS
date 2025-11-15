@@ -16,7 +16,7 @@
  */
 
 import type { ContentNode, DatabaseId } from '@src/content/types';
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 import type { FilterQuery } from 'mongoose';
 import type {
 	BaseEntity,
@@ -57,7 +57,7 @@ export function buildTree(nodes: ContentNode[]): ContentNode[] {
 				parent.children!.push(node);
 			} else {
 				// Parent not found, treat as root
-				logger.warn(`[buildTree] Parent \x1b[34m${parentId}\x1b[0m not found for node \x1b[32m${node._id}\x1b[0m, treating as root`);
+				logger.warn(`[buildTree] Parent ${parentId} not found for node ${node._id}, treating as root`);
 				roots.push(node);
 			}
 		} else {
@@ -66,7 +66,7 @@ export function buildTree(nodes: ContentNode[]): ContentNode[] {
 		}
 	}
 
-	logger.trace(`[buildTree] Built tree with \x1b[34m${roots.length}\x1b[0m root nodes from \x1b[32m${nodes.length}\x1b[0m total nodes`);
+	logger.trace(`[buildTree] Built tree with ${roots.length} root nodes from ${nodes.length} total nodes`);
 	return roots;
 }
 
@@ -99,7 +99,7 @@ export class MongoContentMethods {
 		this.nodesRepo = nodesRepo;
 		this.draftsRepo = draftsRepo;
 		this.revisionsRepo = revisionsRepo;
-		logger.trace('\x1b[34mMongoContentMethods\x1b[0m initialized with repositories.');
+		logger.trace('MongoContentMethods initialized with repositories.');
 	}
 
 	// ============================================================
@@ -171,7 +171,7 @@ export class MongoContentMethods {
 	async bulkUpdateNodes(updates: Array<{ path: string; changes: Partial<ContentNode> }>): Promise<{ modifiedCount: number }> {
 		if (updates.length === 0) return { modifiedCount: 0 };
 		try {
-			logger.trace(`[bulkUpdateNodes] Processing \x1b[34m${updates.length}\x1b[0m updates`);
+			logger.trace(`[bulkUpdateNodes] Processing ${updates.length} updates`);
 			const operations = updates.map(({ path, changes }) => {
 				// Normalize parentId to string using safe helper (handles ObjectId, string, null)
 				const normalizedChanges = { ...changes } as Partial<ContentNode>;
@@ -201,10 +201,10 @@ export class MongoContentMethods {
 					}
 				};
 			});
-			logger.trace(`[bulkUpdateNodes] Executing bulkWrite with \x1b[34m${operations.length}\x1b[0m operations`);
+			logger.trace(`[bulkUpdateNodes] Executing bulkWrite with ${operations.length} operations`);
 			const result = await this.nodesRepo.model.bulkWrite(operations);
 			logger.info(
-				`[bulkUpdateNodes] Result: modified=\x1b[34m${result.modifiedCount}\x1b[0m, upserted=\x1b[34m${result.upsertedCount}\x1b[0m, total=\x1b[34m${result.modifiedCount + result.upsertedCount}\x1b[0m`
+				`[bulkUpdateNodes] Result: modified=${result.modifiedCount}, upserted=${result.upsertedCount}, total=${result.modifiedCount + result.upsertedCount}`
 			);
 
 			// Invalidate content structure caches

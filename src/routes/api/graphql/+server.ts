@@ -135,6 +135,14 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 			accessManagementPermission: AccessManagementPermission
 		}
 
+		# Minimal type for subscription payload to avoid missing type errors
+		type Post {
+			_id: String
+			title: String
+			createdAt: String
+			updatedAt: String
+		}
+
 		type Subscription {
 			postAdded: Post
 		}
@@ -373,7 +381,7 @@ const handler = async (event: RequestEvent) => {
 		if (request.method !== 'GET' && request.body) {
 			requestInit.body = request.body;
 			// @ts-expect-error - duplex is required for streaming bodies but not in RequestInit type
-			requestInit.wwduplex = 'half';
+			(requestInit as any).duplex = 'half';
 		}
 
 		const compatibleRequest = new Request(request.url.toString(), requestInit);

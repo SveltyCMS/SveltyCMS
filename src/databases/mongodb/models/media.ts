@@ -14,7 +14,7 @@ import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 import { nowISODateString, toISOString } from '@utils/dateUtils';
 
 // System Logger
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 // Define interface for MongoDB document
 export interface IMedia extends Document, Omit<MediaItem, '_id'> {

@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/seo/types.ts
+ * @file src/widgets/custom/Seo/types.ts
  * @description Type definitions for the SEO widget.
  *
  * @features

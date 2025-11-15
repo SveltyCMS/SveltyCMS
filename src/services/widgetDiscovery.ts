@@ -131,14 +131,14 @@ export class WidgetDiscoveryService {
 			.filter(Boolean)
 			.join(', ');
 
-		logger.info(`✅ Widget discovery completed in \x1b[32m${duration}ms\x1b[0m: \x1b[34m${summary}\x1b[0m`);
+		logger.info(`✅ Widget discovery completed in ${duration}ms: ${summary}`);
 
 		// Only log details if there are new widgets (first run)
 		if (newWidgets.length > 0) {
-			logger.debug(`🆕 New widgets: \x1b[34m${newWidgets.map((w) => w.name).join(', ')}\x1b[0m`);
+			logger.debug(`🆕 New widgets: ${newWidgets.map((w) => w.name).join(', ')}`);
 		}
 		if (missing.length > 0) {
-			logger.warn(`⚠️  Missing widgets: \x1b[34m${missing.map((w) => w.name).join(', ')}\x1b[0m`);
+			logger.warn(`⚠️  Missing widgets: ${missing.map((w) => w.name).join(', ')}`);
 		}
 
 		return {

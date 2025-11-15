@@ -1,5 +1,5 @@
-<!-- 
-@file src/widgets/seo/DescriptionInput.svelte
+<!--
+@file src/widgets/custom/Seo/components/DescriptionInput.svelte
 @component
 **Description widget for SEO Widget to manage meta description**
 
