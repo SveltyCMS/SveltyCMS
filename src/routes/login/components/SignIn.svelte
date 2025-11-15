@@ -527,6 +527,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							id="emailsignIn"
 							name="email"
 							type="email"
+							data-testid="signin-email"
 							tabindex={emailTabIndex}
 							autocomplete="username"
 							autocapitalize="none"
@@ -545,6 +546,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							id="passwordsignIn"
 							name="password"
 							type="password"
+							data-testid="signin-password"
 							autocomplete="current-password"
 							tabindex={passwordTabIndex}
 							bind:value={$form.password}
@@ -561,7 +563,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 					<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
 						<!-- Row 1 -->
 						<div class="flex w-full justify-between gap-2 sm:w-auto">
-							<button type="submit" form="signin-form" class="variant-filled-surface btn w-full sm:w-auto" aria-label={m.form_signin()}>
+							<button type="submit" form="signin-form" data-testid="signin-submit" class="variant-filled-surface btn w-full sm:w-auto" aria-label={m.form_signin()}>
 								{m.form_signin()}
 								<!-- Optimized loading indicators -->
 								{#if isSubmitting || isAuthenticating}
@@ -576,6 +578,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 						<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto">
 							<button
 								type="button"
+								data-testid="forgot-password-button"
 								class="variant-ringed-surface btn w-full text-black sm:w-auto"
 								aria-label={m.signin_forgottenpassword()}
 								tabindex={forgotPasswordTabIndex}
@@ -688,6 +691,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							id="emailforgot"
 							name="email"
 							type="email"
+							data-testid="forgot-email"
 							tabindex={emailTabIndex}
 							autocomplete="email"
 							autocapitalize="none"
@@ -756,6 +760,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							id="passwordreset"
 							name="password"
 							type="password"
+							data-testid="reset-password"
 							tabindex={passwordTabIndex}
 							bind:value={$resetForm.password}
 							{...$resetConstraints.password}
@@ -777,6 +782,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							id="confirm_passwordreset"
 							name="confirm_password"
 							type="password"
+							data-testid="reset-confirm-password"
 							tabindex={confirmPasswordTabIndex}
 							bind:value={$resetForm.confirm_password}
 							{showPassword}

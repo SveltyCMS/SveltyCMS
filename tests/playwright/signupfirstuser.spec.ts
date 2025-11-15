@@ -83,10 +83,10 @@ test.skip('SignUp First User', async ({ page }) => {
 test('SignOut after login', async ({ page }) => {
 	await page.goto(`${baseURL}/login`);
 
-	await page.getByText(/sign in/i).click();
-	await page.locator('#email-address').fill('test@test.de');
-	await page.locator('#password').fill('Test123!');
-	await page.getByRole('button', { name: /sign in/i }).click();
+	// Use data-testid selectors
+	await page.getByTestId('signin-email').fill('test@test.de');
+	await page.getByTestId('signin-password').fill('Test123!');
+	await page.getByTestId('signin-submit').click();
 
 	const signOutButton = page.locator('button[value="Sign out"]');
 	if (await signOutButton.isVisible()) {
@@ -99,10 +99,10 @@ test('SignOut after login', async ({ page }) => {
 test('Login First User', async ({ page }) => {
 	await page.goto(`${baseURL}/login`);
 
-	await page.getByText(/sign in/i).click();
-	await page.locator('#email-address').fill('test@test2.de');
-	await page.locator('#password').fill('Test123!');
-	await page.getByRole('button', { name: /sign in/i }).click();
+	// Use data-testid selectors
+	await page.getByTestId('signin-email').fill('test@test2.de');
+	await page.getByTestId('signin-password').fill('Test123!');
+	await page.getByTestId('signin-submit').click();
 
 	await expect(page).toHaveURL(new RegExp(`${baseURL}/(en/)?Posts`));
 });
@@ -111,14 +111,14 @@ test('Login First User', async ({ page }) => {
 test('Forgot Password Flow', async ({ page }) => {
 	await page.goto(`${baseURL}/login`);
 
-	await page.getByText(/sign in/i).click();
-	await page.getByRole('button', { name: /forgotten password/i }).click();
-	await page.locator('#email-address').fill('test@test2.de');
+	// Use data-testid selectors
+	await page.getByTestId('forgot-password-button').click();
+	await page.getByTestId('forgot-email').fill('test@test2.de');
 	await page.getByRole('button', { name: /send password reset email/i }).click();
 
 	// Assume redirected to reset form
-	await page.locator('#password').fill('Test123!');
-	await page.locator('#confirm-password').fill('Test123!');
+	await page.getByTestId('reset-password').fill('Test123!');
+	await page.getByTestId('reset-confirm-password').fill('Test123!');
 	await page.getByRole('button', { name: /save new password/i }).click();
 
 	await expect(page).toHaveURL(`${baseURL}/login`);
