@@ -47,6 +47,7 @@ import { cacheService } from '@src/databases/CacheService';
 import { modifyRequest } from '@src/routes/api/collections/modifyRequest';
 import { getPublicSettingSync, getPrivateSettingSync } from '@src/services/settingsService';
 import { logger } from '@utils/logger.server';
+import { getDisplayFields } from '@utils/fieldSelection';
 import type { FieldDefinition } from '@src/content/types';
 import type { User } from '@src/databases/auth/types';
 
@@ -201,6 +202,26 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			logger.debug(`[Global Search] Searching for "${globalSearch}" across fields: ${searchableFields.join(', ')}`);
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			query = query.search(globalSearch, searchableFields as any);
+		}
+
+		// =================================================================
+		// 4.5. ENTERPRISE OPTIMIZATION: FIELD SELECTION FOR LIST VIEWS
+		// =================================================================
+		// For list views (not editing), select only display-relevant fields
+		// to reduce payload size and improve performance
+		// Expected benefit: 50-80% payload reduction for collections with many fields
+		if (!editEntryId) {
+			const displayFields = getDisplayFields(
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				currentCollection as any,
+				'list',
+				{
+					maxDisplayFields: 5
+				}
+			);
+			logger.debug(`[Field Selection] List view loading only: ${displayFields.join(', ')}`);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			query = query.select(displayFields as any);
 		}
 
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any

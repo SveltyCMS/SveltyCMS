@@ -138,6 +138,7 @@ export interface Theme extends BaseEntity {
 	isDefault: boolean;
 	config: ThemeConfig;
 	previewImage?: string;
+	customCss?: string;
 }
 
 /** Widget Management **/

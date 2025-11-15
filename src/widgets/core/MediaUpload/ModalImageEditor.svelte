@@ -1,225 +1,62 @@
 <!--
 @file src/widgets/core/MediaUpload/ModalImageEditor.svelte
-@components
-**MediaUpload modal Image Editor widget**
-
-@example
-<MediaUpload label="MediaUpload" db_fieldName="mediaUpload" required={true} />
+@component
+**MediaUpload Modal Image Editor**
+This component renders the fully functional ImageEditor inside a modal,
+allowing users to edit images directly from the MediaUpload widget.
 
 ### Props
-- `field`: FieldType
-- `value`: any
-
-### Features
-- Translatable
+- `_data`: The image data (File or MediaImage) to be edited.
+- `onClose`: Callback function to close the modal.
+- `mediaOnSelect`: Callback function to pass the edited image back to the parent.
 -->
-
 <script lang="ts">
-	import type { SvelteComponent } from 'svelte';
-
-	// Stores (getModalStore commented for future use)
-	// import { getModalStore } from '@skeletonlabs/skeleton';
+	import ImageEditor from '@src/routes/(app)/imageEditor/ImageEditor.svelte';
+	import type { MediaImage } from '@utils/media/mediaModels';
 
 	// Props
+	let {
+		_data,
+		onClose,
+		mediaOnSelect
+	}: {
+		_data: File | MediaImage | undefined;
+		onClose: () => void;
+		mediaOnSelect: (file: File | MediaImage) => void;
+	} = $props();
 
-	interface Props {
-		/** Exposes parent props to this component. */
-		parent: SvelteComponent;
-		_data: any;
-		field: any;
-		updated: any;
-		value: any;
-		mediaOnSelect: any;
+	// Determine the initial image source
+	let imageFile: File | null = null;
+	let initialImageSrc: string = '';
+
+	if (_data) {
+		if (_data instanceof File) {
+			imageFile = _data;
+		} else if ('thumbnails' in _data) {
+			initialImageSrc = _data.thumbnails?.lg?.url || _data.url;
+		}
 	}
 
-	// Props are destructured but may be used in commented-out code below
-	let { parent: _parent, _data: _dataUnused, field: _field, updated: _updated, value: _value, mediaOnSelect: _mediaOnSelect }: Props = $props();
+	function handleSave(_dataURL: string, file: File) {
+		mediaOnSelect(file);
+		onClose(); // Close the modal on save
+	}
 
-	// Modal store for future implementation
-	// const modalStore = getModalStore();
-
-	// // Notes: Use `w-screen h-screen` to fit the visible canvas size.
-	// const cBase = 'bg-surface-100-800-token w-screen h-screen p-4 flex justify-center items-center';
-
-	// import type { MediaImage } from '@utils/media/mediaModels';
-	// import { meta_data, getFieldName } from '@utils/utils';
-	// import { mode } from '@stores/collectionStore';
-	// import axios from 'axios';
-
-	// // Components
-	// import Media from '@components/Media.svelte';
-	// import PageTitle from '@components/PageTitle.svelte';
-
-	// // Konva
-	// import type { Image as KonvaImage } from 'konva/lib/shapes/Image';
-	// import type { Transformer } from 'konva/lib/shapes/Transformer';
-	// import type { Layer } from 'konva/lib/Layer';
-	// import type { Stage } from 'konva/lib/Stage';
-	// import type { Group } from 'konva/lib/Group';
-
-	// if (mode.value == 'edit') {
-	// 	(value as MediaImage)?.thumbnail?.url &&
-	// 		axios.get((value as MediaImage).thumbnail.url, { responseType: 'blob' }).then(({ data }) => {
-	// 			if (value instanceof File) return;
-	// 			const file = new File([data], value.thumbnail.name, {
-	// 				type: value.thumbnail.type
-	// 			});
-
-	// 			_data = file;
-	// 		});
-	// }
-
-	// let editing = false;
-	// const edit = {
-	// 	stage: {} as Stage,
-	// 	group: {} as Group,
-	// 	transformers: [] as Transformer[],
-	// 	layer: {} as Layer,
-	// 	imageObj: {} as KonvaImage,
-	// 	image: {} as HTMLImageElement,
-	// 	async startEdit() {
-	// 		editing = true;
-	// 		this.image = new Image();
-	// 		if (_data && updated) {
-	// 			if (_data instanceof File) {
-	// 				this.image.src = URL.createObjectURL(_data as File);
-	// 			} else {
-	// 				this.image.src = '/media/' + _data.original.url;
-	// 			}
-	// 		} else {
-	// 			this.image.src = '/media/' + (value as MediaImage).original.url;
-	// 		}
-	// 		if (this.image.naturalHeight == 0) {
-	// 			await new Promise((resolve) => {
-	// 				this.image.onload = resolve;
-	// 			});
-	// 		}
-	// 		const Konva = (await import('konva')).default;
-	// 		const scale = Math.min((window.innerWidth - 50) / 1.5 / this.image.naturalWidth, (window.innerHeight - 80) / 1.5 / this.image.naturalHeight);
-
-	// 		this.stage = new Konva.Stage({
-	// 			container: 'canvas',
-	// 			width: window.innerWidth - 50,
-	// 			height: window.innerHeight - 80,
-	// 			scale: {
-	// 				x: scale,
-	// 				y: scale
-	// 			}
-	// 		});
-
-	// 		this.layer = new Konva.Layer();
-	// 		this.stage.add(this.layer);
-
-	// 		this.imageObj = new Konva.Image({
-	// 			image: this.image,
-	// 			x: (this.stage.width() / 2) * (1 / scale) - this.image.naturalWidth / 2,
-	// 			y: (this.stage.height() / 2) * (1 / scale) - this.image.naturalHeight / 2,
-	// 			draggable: true
-	// 		});
-	// 		this.group = new Konva.Group();
-	// 		this.group.add(this.imageObj);
-
-	// 		this.transformers = [
-	// 			new Konva.Transformer({
-	// 				nodes: [this.imageObj],
-	// 				rotateAnchorOffset: 20
-	// 			})
-	// 		];
-
-	// 		this.layer.add(this.group, ...this.transformers);
-	// 	},
-	// 	async saveEdit() {
-	// 		this.transformers.forEach((t) => {
-	// 			t.destroy();
-	// 		});
-	// 		this.stage.scale({ x: 1, y: 1 });
-	// 		_data = await new Promise((resolve) => {
-	// 			this.group.toBlob({
-	// 				callback: async (blob) => {
-	// 					if (blob && _data && _data instanceof File) {
-	// 						let name = ((value as any).original.name as string) || _data.name;
-	// 						let type = ((value as any).original.type as string) || _data.type;
-	// 						type = type.includes('svg') ? 'image/png' : type;
-	// 						name = name.endsWith('svg') ? name.replace('svg', 'png') : name;
-	// 						const file = new File([await blob.arrayBuffer()], name, {
-	// 							type
-	// 						});
-	// 						file.path = field.path;
-	// 						resolve(file);
-	// 					} else {
-	// 						resolve(undefined);
-	// 					}
-	// 				}
-	// 			});
-	// 		});
-	// 		if ('_id' in value) meta_data.add('media_images_remove', [value._id]);
-	// 		editing = false;
-	// 	},
-	// 	async addBlur() {
-	// 		const Konva = (await import('konva')).default;
-	// 		const range = document.createElement('input');
-	// 		const canvas = document.getElementsByTagName('canvas')[0] as HTMLCanvasElement;
-	// 		range.type = 'range';
-	// 		range.min = '0';
-	// 		range.max = '30';
-	// 		range.value = '15';
-	// 		range.style.position = 'absolute';
-
-	// 		range.onchange = () => {
-	// 			blurRect.pixelSize(Number(range.value));
-	// 		};
-	// 		const updateRangePos = () => {
-	// 			const rect = canvas.getBoundingClientRect();
-	// 			range.style.left = (blurRect.x() + blurRect.width() / 2) * this.stage.scaleX() - range.offsetWidth / 2 + rect.left + 'px';
-	// 			range.style.top = (blurRect.y() + blurRect.height()) * this.stage.scaleY() + 20 + rect.top + 'px';
-	// 		};
-	// 		const blurRect = new Konva.Image({
-	// 			image: this.image,
-	// 			width: 300,
-	// 			height: 100,
-	// 			pixelSize: range.value,
-	// 			draggable: true
-	// 		});
-
-	// 		blurRect.filters([Konva.Filters.Pixelate]);
-	// 		blurRect.on('dragmove', (e) => {
-	// 			blurRect.scale({ x: 1, y: 1 });
-	// 			blurRect.crop({
-	// 				x: -(this.imageObj.x() - blurRect.x()),
-	// 				y: -(this.imageObj.y() - blurRect.y()),
-	// 				width: blurRect.width(),
-	// 				height: blurRect.height()
-	// 			});
-	// 			updateRangePos();
-	// 			blurRect.cache();
-	// 		});
-	// 		blurRect.on('transform', () => {
-	// 			blurRect.setAttrs({
-	// 				width: blurRect.width() * blurRect.scaleX(),
-	// 				height: blurRect.height() * blurRect.scaleY(),
-	// 				scaleX: 1,
-	// 				scaleY: 1
-	// 			});
-	// 			blurRect.crop({
-	// 				x: -(this.imageObj.x() - blurRect.x()),
-	// 				y: -(this.imageObj.y() - blurRect.y()),
-	// 				width: blurRect.width(),
-	// 				height: blurRect.height()
-	// 			});
-	// 			blurRect.cache();
-	// 			updateRangePos();
-	// 		});
-
-	// 		canvas.parentElement?.parentElement?.appendChild(range);
-	// 		updateRangePos();
-	// 		const tr = new Konva.Transformer({
-	// 			rotateAnchorOffset: 20,
-	// 			nodes: [blurRect],
-	// 			rotateEnabled: false
-	// 		});
-	// 		this.transformers.push(tr);
-	// 		this.layer.add(tr);
-	// 		this.group.add(blurRect);
-	// 	}
-	// };
+	function handleCancel() {
+		onClose(); // Close the modal on cancel
+	}
 </script>
+
+<div class="modal-content h-full max-h-none w-full max-w-none">
+	<div class="flex h-full w-full flex-col">
+		<ImageEditor {imageFile} {initialImageSrc} onSave={handleSave} onCancel={handleCancel} />
+	</div>
+</div>
+
+<style>
+	.modal-content {
+		width: 95vw;
+		height: 90vh;
+		max-width: 1800px;
+	}
+</style>

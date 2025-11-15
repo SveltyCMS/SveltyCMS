@@ -51,6 +51,7 @@ declare global {
 			allUsers: User[]; // Using imported User type
 			allTokens: Token[]; // Using imported Token type
 			theme: Theme | null; // Ensure 'theme' is correctly typed
+			customCss: string; // The active theme's custom CSS
 			tenantId?: string; // Added for multi-tenancy support
 			darkMode: boolean; // Dark mode preference from cookies
 			dbAdapter?: DatabaseAdapter | null; // Database adapter for adapter-agnostic operations

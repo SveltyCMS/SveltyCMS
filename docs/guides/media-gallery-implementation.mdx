@@ -4,6 +4,13 @@
 
 This guide documents the enterprise-grade features implemented for the SveltyCMS Media Gallery, designed to handle 10,000+ files with optimal performance, advanced search capabilities, duplicate detection, and bulk operations.
 
+**Quick Links:**
+
+- [Media API Reference](/docs/api/Media_API) - All 12 API endpoints documented
+- [Media Gallery Guide](/docs/guides/media-gallery-guide) - UX features and storage analytics
+- [Media Gallery Structure](/docs/guides/media-gallery-structure) - Architecture and components
+- [Media Handling](/docs/guides/media-handling) - MediaService and storage configuration
+
 ## Architecture
 
 ### Headless CMS Pattern
@@ -94,65 +101,107 @@ POST /api/media/search
 }
 ```
 
-### 3. Duplicate Detection ✅
-
-**Component**: `DuplicatesModal.svelte`  
-**API Endpoints**:
-
-- `GET /api/media/duplicates` - Find all duplicates
-- `POST /api/media/duplicates` - Merge duplicates  
-  **Utility**: `duplicateDetection.ts`
-
-**Detection Method**:
-
-- SHA-256 hash-based comparison
-- Groups identical files
-- Calculates storage savings
-
-**Features**:
-
-- Visual duplicate grouping with thumbnails
-- Storage savings calculator
-- Primary file selection (radio buttons)
-- Batch merge operations
-- Reference updates (all links point to primary file)
-- Automatic cleanup of merged files
-
-**API Request (Find)**:
-
-```typescript
-GET / api / media / duplicates;
-```
-
-**API Response**:
-
-```typescript
-{
-  "duplicates": [
-    {
-      "hash": "a1b2c3d4...",
-      "files": [MediaBase, MediaBase, MediaBase],
-      "count": 3
-    }
-  ],
-  "savings": {
-    "totalSavings": 15728640, // bytes
-    "percentage": 12.5
-  }
-}
-```
-
 ### 3. Hash-Based Duplicate Prevention ✅
 
 **Implementation**: Upload-time hash checking  
-**Location**: MediaUpload widget & Gallery upload process
+**Location**: `LocalUpload.svelte`, `MediaService.ts`, `+page.server.ts`
 
 **Prevention Method**:
 
-- SHA-256 hash calculated on upload
-- Pre-upload duplicate check
+- SHA-256 hash calculated during upload
+- Pre-upload duplicate check against database
 - Rejects duplicate files with user notification
 - No post-upload cleanup needed
+- Zero storage waste from duplicates
+
+**How It Works**:
+
+1. **Client Side** (`LocalUpload.svelte`):
+   - User selects file(s) to upload
+   - Files pass validation (type, size)
+   - Modal preview shown
+
+2. **Server Side** (`MediaService.ts`):
+
+   ```typescript
+   // Calculate hash from file buffer
+   const hash = await hashFileContent(buffer);
+
+   // Check if file with this hash exists
+   const existingFile = await db.crud.findOne('MediaItem', { hash });
+
+   if (existingFile.success && existingFile.data) {
+   	throw new Error(`A file with name "${existingFile.data.filename}" already exists`);
+   }
+
+   // Proceed with upload if unique
+   await saveFileToDisk(buffer, relativePath);
+   ```
+
+3. **User Feedback** (`+page.server.ts`):
+
+   ```typescript
+   try {
+   	await mediaService.saveMedia(file, user._id, access, 'global');
+   } catch (fileError) {
+   	if (fileError.message.includes('duplicate')) {
+   		throw new Error(`A file with name "${file.name}" already exists`);
+   	}
+   }
+   ```
+
+   - Toast notification: \"A file with name 'photo.jpg' already exists\"
+   - Upload blocked immediately
+   - User can rename and retry
+
+**Benefits Over Post-Upload Detection**:
+
+- ✅ **No Wasted Storage** - Duplicates never stored
+- ✅ **No Cleanup Processes** - No merge logic needed
+- ✅ **Immediate Feedback** - User knows instantly
+- ✅ **Simpler Codebase** - No complex deduplication
+- ✅ **No Orphaned References** - Links always valid
+- ✅ **Better UX** - Proactive prevention vs reactive cleanup
+
+**Hash Calculation**:
+
+```typescript
+// src/utils/media/mediaProcessing.ts
+import crypto from 'crypto';
+
+export async function hashFileContent(buffer: Buffer): Promise<string> {
+	return crypto.createHash('sha256').update(buffer).digest('hex');
+}
+```
+
+**Database Query**:
+
+```typescript
+// Check existence by hash
+const result = await dbAdapter.crud.findOne('MediaItem', {
+	hash: fileHash
+});
+
+if (result.success && result.data) {
+	// Duplicate found - reject upload
+	return { duplicate: true, existing: result.data };
+}
+```
+
+**Testing Duplicate Prevention**:
+
+```typescript
+// Test checklist
+- [ ] Upload same file twice - should reject second upload
+- [ ] Toast notification shows correct filename
+- [ ] No duplicate files in storage
+- [ ] Database has only one record with hash
+- [ ] Works for MediaUpload widget
+- [ ] Works for Gallery upload
+- [ ] Works for remote URL upload
+```
+
+---
 
 **Features**:
 

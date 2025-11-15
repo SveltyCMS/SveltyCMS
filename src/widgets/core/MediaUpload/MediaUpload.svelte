@@ -38,6 +38,7 @@ functionality for image editing and basic file information display.
 	// Components
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import FileInput from '@components/system/inputs/FileInput.svelte';
+	import { getModalStore, type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton';
 	import ModalImageEditor from './ModalImageEditor.svelte';
 
 	// Define reactive state
@@ -45,7 +46,26 @@ functionality for image editing and basic file information display.
 	let _data = $state<File | MediaImage | undefined>(undefined); // Initialize with `undefined`
 	let validationError = $state<string | null>(null);
 	let debounceTimeout: number | undefined;
-	let showImageEditor = $state(false);
+	const modalStore = getModalStore();
+
+	function openImageEditor() {
+		const modalComponent: ModalComponent = {
+			ref: ModalImageEditor,
+			props: {
+				_data: _data,
+				onClose: modalStore.close,
+				mediaOnSelect: (file: File | MediaImage) => {
+					_data = file;
+					validateInput();
+				}
+			}
+		};
+		const modal: ModalSettings = {
+			type: 'component',
+			component: modalComponent
+		};
+		modalStore.trigger(modal);
+	}
 
 	// Define props
 	let { field, value = (collectionValue as any)[getFieldName(field)] } = $props<{
@@ -185,7 +205,7 @@ functionality for image editing and basic file information display.
 					<!-- Buttons -->
 					<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
 						<!-- Edit -->
-						<button onclick={() => (showImageEditor = true)} aria-label="Edit image" class="variant-ghost btn-icon" title="Edit image">
+						<button onclick={openImageEditor} aria-label="Edit image" class="variant-ghost btn-icon" title="Edit image">
 							<iconify-icon icon="material-symbols:edit" width="24" class="text-primary-500"></iconify-icon>
 						</button>
 
@@ -215,19 +235,3 @@ functionality for image editing and basic file information display.
 		</p>
 	{/if}
 </div>
-
-<!-- Image Editor Modal -->
-{#if showImageEditor}
-	<ModalImageEditor
-		{_data}
-		{field}
-		{value}
-		parent={field.path}
-		updated={Date.now()}
-		mediaOnSelect={(file: File | MediaImage) => {
-			_data = file;
-			showImageEditor = false;
-			validateInput();
-		}}
-	/>
-{/if}

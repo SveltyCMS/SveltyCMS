@@ -1,0 +1,302 @@
+---
+path: 'docs/todos/webhooks-implementation.mdx'
+title: 'TODO: HTTP Webhooks Implementation'
+description: 'Implementation plan for HTTP webhook functionality to trigger external systems on CMS events.'
+order: 1
+icon: 'mdi:webhook'
+author: 'admin'
+created: '2025-11-15'
+updated: '2025-11-15'
+tags:
+  - 'todo'
+  - 'webhooks'
+  - 'api'
+  - 'integration'
+  - 'events'
+---
+
+# TODO: HTTP Webhooks Implementation
+
+**Priority:** Low (GraphQL subscriptions provide real-time alternative)  
+**Status:** Not Implemented
+
+---
+
+## Overview
+
+Add HTTP webhook functionality to trigger external systems on CMS events. This feature would complement the existing GraphQL subscriptions for integration with legacy systems or services that don't support WebSockets.
+
+---
+
+## Alternative Solution (Already Implemented)
+
+**GraphQL Subscriptions** are fully operational and provide modern real-time event streaming:
+
+- WebSocket-based subscriptions
+- Real-time collection mutations
+- Media upload events
+- User management events
+
+**Implementation:** `/src/routes/api/graphql/+server.ts` (441 lines)
+
+**Example Usage:**
+
+```graphql
+subscription {
+	postAdded {
+		_id
+		title
+		createdAt
+		updatedAt
+	}
+}
+```
+
+---
+
+## Required Features (If Implemented)
+
+### 1. Webhook Configuration UI
+
+**Location:** `/config/webhooks`
+
+**Features:**
+
+- Add webhook management interface in `/config`
+- Configure webhook URLs per event type
+- Test webhook delivery
+- View webhook history
+- Enable/disable webhooks per event
+
+### 2. Event System
+
+Trigger webhooks on the following events:
+
+| Event              | Description                 | Payload                    |
+| ------------------ | --------------------------- | -------------------------- |
+| `on:publish`       | When content is published   | Entry data + metadata      |
+| `on:delete`        | When content is deleted     | Entry ID + collection info |
+| `on:create`        | When content is created     | New entry data             |
+| `on:update`        | When content is updated     | Updated entry data + diff  |
+| `on:status_change` | When content status changes | Status change details      |
+| `on:media_upload`  | When media file is uploaded | Media metadata             |
+| `on:user_create`   | When new user is created    | User info (sanitized)      |
+| `on:collection_*`  | Collection schema changes   | Schema diff                |
+
+### 3. Delivery Infrastructure
+
+**Components:**
+
+- **Webhook Queue**: Reliable delivery with retry logic
+- **Signature Verification**: HMAC signatures for security (HMAC-SHA256)
+- **Retry Mechanism**: Exponential backoff for failed deliveries (3 retries default)
+- **Timeout Handling**: Configurable timeout per webhook (default 30s)
+- **Payload Customization**: Template system for webhook payloads
+
+**Implementation Files:**
+
+```
+src/
+└── services/
+    ├── webhookService.ts        # Main webhook service
+    ├── webhookQueue.ts          # Delivery queue with retry
+    └── webhookSecurity.ts       # HMAC signature generation
+```
+
+### 4. Management Dashboard
+
+**Location:** `/config/webhooks/dashboard`
+
+**Features:**
+
+- Webhook delivery logs with filtering
+- Success/failure statistics (success rate, avg response time)
+- Manual retry for failed deliveries
+- Webhook endpoint testing (send test payload)
+- Event subscription management
+
+**Metrics to Display:**
+
+- Total deliveries (last 24h, 7d, 30d)
+- Success rate percentage
+- Average response time
+- Failed delivery queue size
+- Most recent deliveries (last 10)
+
+### 5. Integration with Audit Log
+
+**Integration Points:**
+
+- Track all webhook deliveries via `auditLogService.ts`
+- Log failures and retries with severity levels
+- Security audit trail for webhook configuration changes
+- Track webhook creation, updates, deletions
+
+**Event Types:**
+
+```typescript
+// Add to auditLogService.ts
+'webhook.created';
+'webhook.updated';
+'webhook.deleted';
+'webhook.delivered';
+'webhook.failed';
+'webhook.retry';
+```
+
+---
+
+## Database Schema
+
+### Webhook Configuration Collection
+
+```typescript
+interface WebhookConfig {
+	_id: string;
+	name: string;
+	url: string;
+	events: string[]; // ['on:publish', 'on:delete', ...]
+	secret: string; // For HMAC signature
+	enabled: boolean;
+	headers?: Record<string, string>;
+	timeout?: number; // milliseconds
+	retryCount?: number;
+	createdAt: Date;
+	updatedAt: Date;
+	createdBy: string;
+}
+```
+
+### Webhook Delivery Log Collection
+
+```typescript
+interface WebhookDelivery {
+	_id: string;
+	webhookId: string;
+	event: string;
+	payload: any;
+	url: string;
+	status: 'pending' | 'success' | 'failed' | 'retrying';
+	statusCode?: number;
+	response?: string;
+	error?: string;
+	attempts: number;
+	lastAttempt: Date;
+	nextRetry?: Date;
+	createdAt: Date;
+}
+```
+
+---
+
+## API Endpoints
+
+### Webhook Management
+
+```typescript
+// GET /api/webhooks
+// List all webhooks
+
+// POST /api/webhooks
+// Create new webhook
+
+// PUT /api/webhooks/:id
+// Update webhook configuration
+
+// DELETE /api/webhooks/:id
+// Delete webhook
+
+// POST /api/webhooks/:id/test
+// Send test webhook delivery
+
+// GET /api/webhooks/:id/deliveries
+// Get delivery history for webhook
+
+// POST /api/webhooks/deliveries/:deliveryId/retry
+// Manually retry failed delivery
+```
+
+---
+
+## Security Considerations
+
+### HMAC Signature
+
+All webhook deliveries include an HMAC-SHA256 signature:
+
+```http
+POST https://external-service.com/webhook
+X-Webhook-Signature: sha256=abc123...
+X-Webhook-Event: on:publish
+X-Webhook-ID: webhook_xyz789
+Content-Type: application/json
+
+{
+  "event": "on:publish",
+  "data": { ... },
+  "timestamp": "2025-11-15T10:30:00Z"
+}
+```
+
+**Verification:**
+
+```typescript
+const signature = crypto.createHmac('sha256', secret).update(JSON.stringify(payload)).digest('hex');
+
+if (signature !== receivedSignature) {
+	throw new Error('Invalid webhook signature');
+}
+```
+
+### Additional Security
+
+- Rate limiting per webhook endpoint
+- IP allowlist (optional)
+- SSL/TLS verification required
+- Webhook secret rotation support
+- Audit logging of all deliveries
+
+---
+
+## Implementation Checklist
+
+- [ ] Create webhook database schema
+- [ ] Implement webhook service (`webhookService.ts`)
+- [ ] Create webhook queue with retry logic (`webhookQueue.ts`)
+- [ ] Add HMAC signature generation (`webhookSecurity.ts`)
+- [ ] Build webhook configuration UI (`/config/webhooks`)
+- [ ] Create delivery dashboard (`/config/webhooks/dashboard`)
+- [ ] Add API endpoints for webhook management
+- [ ] Integrate with existing event system
+- [ ] Connect to audit log service
+- [ ] Add webhook testing functionality
+- [ ] Write unit tests for webhook service
+- [ ] Write integration tests for webhook delivery
+- [ ] Update API documentation
+- [ ] Add user guide for webhook configuration
+
+---
+
+## Implementation Priority
+
+**Low Priority** - GraphQL subscriptions already provide:
+
+- Real-time event streaming
+- Better performance (persistent connection)
+- More flexibility (query/subscription composition)
+- Modern WebSocket protocol
+
+**When to Implement:**
+
+- Client requests integration with legacy systems
+- Need to trigger external services without WebSocket support
+- Requirement for fire-and-forget event notifications
+- Integration with third-party platforms (Zapier, IFTTT, etc.)
+
+---
+
+## Related Documentation
+
+- [GraphQL API & Subscriptions](/docs/api/GraphQL_API.mdx)
+- [Activity Logging System](/docs/database/Performance_Architecture.mdx#phase-3-activity-logging-system-already-implemented)
+- [API Documentation](/docs/api/index.mdx)
