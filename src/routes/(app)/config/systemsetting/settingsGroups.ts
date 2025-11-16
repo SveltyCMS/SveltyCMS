@@ -715,7 +715,7 @@ export const settingsGroups: SettingGroup[] = [
 			{
 				key: 'CUSTOM_SITE_CSS',
 				label: 'Custom Site CSS',
-				description: 'Enter your custom CSS here. This will be injected directly into your site\'s <head>.',
+				description: "Enter your custom CSS here. This will be injected directly into your site's <head>.",
 				type: 'textarea',
 				category: 'public',
 				placeholder: '/* Your custom CSS here */',

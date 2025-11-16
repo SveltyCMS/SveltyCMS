@@ -1,82 +1,113 @@
 <!--
-@file src/routes/(app)/imageEditor/components/toolbars/controls/FineTuneControls.svelte
+@file: src/routes/(app)/imageEditor/widgets/FineTune/Controls.svelte
 @component
-Controls for FineTune tool rendered inside the Master Toolbar.
-
-### Props:
-- activeAdjustment: keyof Adjustments
-- value: number (current adjustment value)
-- onChange: (value: number) => void
-- onAdjustmentChange: (adj: string) => void
-- onReset: () => void
-- onApply: () => void
-- onComparisonStart: () => void
-- onComparisonEnd: () => void
+**Fine-Tune tool controls for master toolbar**
+(Stateless UI component, styled to match other widgets)
 -->
-
 <script lang="ts">
+	import { ADJUSTMENT_OPTIONS, type Adjustments } from './adjustments';
+
 	let {
 		activeAdjustment,
 		value = 0,
-		onChange = () => {},
-		onAdjustmentChange = () => {},
-		onReset = () => {},
-		onApply = () => {},
-		onComparisonStart = () => {},
-		onComparisonEnd = () => {}
-	} = $props<{
-		activeAdjustment: string;
-		value?: number;
-		onChange?: (v: number) => void;
-		onAdjustmentChange?: (adj: string) => void;
-		onReset?: () => void;
-		onApply?: () => void;
-		onComparisonStart?: () => void;
-		onComparisonEnd?: () => void;
-	}>();
+		onChange,
+		onAdjustmentChange,
+		onReset,
+		onApply,
+		onComparisonStart,
+		onComparisonEnd
+	}: {
+		activeAdjustment: keyof Adjustments;
+		value: number;
+		onChange: (v: number) => void;
+		onAdjustmentChange: (v: keyof Adjustments) => void;
+		onReset: () => void;
+		onApply: () => void;
+		onComparisonStart: () => void;
+		onComparisonEnd: () => void;
+	} = $props();
 
-	const options = [
-		{ key: 'brightness', label: 'Brightness' },
-		{ key: 'contrast', label: 'Contrast' },
-		{ key: 'saturation', label: 'Saturation' },
-		{ key: 'temperature', label: 'Temperature' },
-		{ key: 'exposure', label: 'Exposure' },
-		{ key: 'highlights', label: 'Highlights' },
-		{ key: 'shadows', label: 'Shadows' },
-		{ key: 'clarity', label: 'Clarity' },
-		{ key: 'vibrance', label: 'Vibrance' }
-	];
+	// Local binding for the slider
+	let sliderValue = $derived(value);
 </script>
 
-<div class="finetune-controls flex items-center gap-2">
+<div class="finetune-controls">
+	<!-- Adjustment Selector -->
 	<select
-		class="select rounded border px-2 py-1 text-sm"
+		class="select-input"
 		bind:value={activeAdjustment}
-		onchange={(e) => onAdjustmentChange((e.target as HTMLSelectElement).value)}
+		onchange={(e) => onAdjustmentChange(e.currentTarget.value as keyof Adjustments)}
+		aria-label="Select adjustment"
 	>
-		{#each options as o}
-			<option value={o.key} selected={o.key === activeAdjustment}>{o.label}</option>
+		{#each ADJUSTMENT_OPTIONS as o}
+			<option value={o.key}>{o.label}</option>
 		{/each}
 	</select>
+	<div class="divider"></div>
 
-	<div class="slider-wrap flex items-center gap-2">
-		<input type="range" min="-100" max="100" step="1" bind:value oninput={(e) => onChange(parseInt((e.target as HTMLInputElement).value))} />
-		<span class="val text-xs text-surface-600 dark:text-surface-300">{value}</span>
-	</div>
+	<!-- Slider -->
+	<span class="value">{sliderValue}</span>
+	<input
+		type="range"
+		min="-100"
+		max="100"
+		step="1"
+		bind:value={sliderValue}
+		oninput={(e) => onChange(parseInt(e.currentTarget.value))}
+		class="slider"
+	/>
 
-	<button
-		class="control-btn rounded bg-surface-200 px-3 py-1.5 text-sm dark:bg-surface-700"
-		onmousedown={onComparisonStart}
-		onmouseup={onComparisonEnd}
-		title="Hold to compare">Compare</button
-	>
-	<div class="divider h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
-	<button class="control-btn rounded bg-surface-200 px-3 py-1.5 text-sm dark:bg-surface-700" onclick={onReset}>Reset</button>
-	<button class="apply-btn rounded px-3 py-1.5 text-sm text-white" onclick={onApply}>Apply</button>
+	<div class="divider-grow"></div>
+
+	<!-- Actions -->
+	<button class="btn-tool" onmousedown={onComparisonStart} onmouseup={onComparisonEnd} onmouseleave={onComparisonEnd}>
+		<iconify-icon icon="mdi:compare" width="20"></iconify-icon>
+		<span>Compare</span>
+	</button>
+	<button class="btn-tool" onclick={onReset}>
+		<iconify-icon icon="mdi:restore" width="18"></iconify-icon>
+		<span>Reset</span>
+	</button>
+	<button class="btn-apply" onclick={onApply}>
+		<iconify-icon icon="mdi:check" width="18"></iconify-icon>
+		<span>Apply</span>
+	</button>
 </div>
 
 <style lang="postcss">
-	.apply-btn {
-		background-color: rgb(var(--color-success-500) / 1);
+	.finetune-controls {
+		@apply flex w-full items-center gap-3 px-2;
+	}
+	.select-input {
+		@apply rounded-md border border-surface-300 bg-white px-2 py-1.5 text-sm dark:border-surface-600 dark:bg-surface-800;
+	}
+	.slider {
+		@apply h-2 w-48 cursor-pointer appearance-none rounded-full bg-surface-300 dark:bg-surface-600;
+	}
+	.slider::-webkit-slider-thumb {
+		@apply h-4 w-4 appearance-none rounded-full bg-primary-600 shadow-md;
+	}
+	.slider::-moz-range-thumb {
+		@apply h-4 w-4 rounded-full border-0 bg-primary-600 shadow-md;
+	}
+	.value {
+		@apply min-w-[2.5rem] text-right text-sm font-semibold text-surface-700 dark:text-surface-200;
+	}
+	.divider {
+		@apply h-6 w-px bg-surface-300 dark:bg-surface-600;
+	}
+	.divider-grow {
+		@apply flex-grow;
+	}
+	.btn-tool {
+		@apply flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors;
+		@apply bg-surface-200 text-surface-700 dark:bg-surface-700 dark:text-surface-200;
+	}
+	.btn-tool:hover {
+		@apply bg-surface-300 dark:bg-surface-600;
+	}
+	.btn-apply {
+		@apply flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium text-white;
+		@apply bg-success-500 hover:bg-success-600;
 	}
 </style>

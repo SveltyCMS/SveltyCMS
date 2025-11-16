@@ -37,15 +37,15 @@ const createUIStores = () => {
 	const initialSize = screenSize.value;
 
 	// Tailored default state based on screen size and mode
-	// Note: Image editor route overrides these defaults in its +page.svelte onMount
+	// Note: Feature routes (e.g., Image Editor) explicitly override header/footer states locally.
 	const getDefaultState = (size: ScreenSize, isViewMode: boolean): UIState => {
-		// Mobile behavior (<768px) - Always hide sidebar on mobile to show FloatingNav
+		// Mobile behavior (<768px) - Always hide sidebars; keep page header/footer hidden by default
 		if (size === ScreenSize.XS || size === ScreenSize.SM) {
 			return {
 				leftSidebar: 'hidden', // ALWAYS hidden on mobile regardless of mode
 				rightSidebar: 'hidden',
-				pageheader: 'full', // Always show for image editor header
-				pagefooter: 'full', // Always show for image editor toolbar
+				pageheader: 'hidden',
+				pagefooter: 'hidden',
 				header: 'hidden',
 				footer: 'hidden'
 			};
@@ -56,8 +56,8 @@ const createUIStores = () => {
 			return {
 				leftSidebar: isViewMode ? 'collapsed' : 'hidden',
 				rightSidebar: 'hidden',
-				pageheader: 'full', // Always show for image editor header
-				pagefooter: 'full', // Always show for image editor toolbar
+				pageheader: 'hidden',
+				pagefooter: 'hidden',
 				header: 'hidden',
 				footer: 'hidden'
 			};
@@ -67,8 +67,8 @@ const createUIStores = () => {
 		return {
 			leftSidebar: isViewMode ? 'full' : 'collapsed',
 			rightSidebar: isViewMode ? 'hidden' : 'full',
-			pageheader: 'full', // Always show for image editor header
-			pagefooter: 'full', // Always show for image editor toolbar
+			pageheader: 'hidden',
+			pagefooter: 'hidden',
 			header: 'hidden',
 			footer: 'hidden'
 		};

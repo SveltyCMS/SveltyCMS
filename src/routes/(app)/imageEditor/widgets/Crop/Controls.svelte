@@ -1,37 +1,26 @@
 <!--
-@file src/routes/(app)/imageEditor/components/toolbars/controls/CropControls.sveltee
+@file: src/routes/(app)/imageEditor/widgets/Crop/Controls.svelte
 @component
 **Crop tool controls for master toolbar**
-Provides inline controls for crop operations.
-
-### Props
-- `onRotateLeft`: Function to rotate image -90 degrees
-- `onFlipHorizontal`: Function to flip image horizontally
-- `cropShape`: Current crop shape (rectangle/square/circular)
-- `onCropShapeChange`: Function called when crop shape changes
-- `onAspectRatio`: (Optional) Function called when aspect ratio button is clicked
-- `onApply`: Function called when Apply button is clicked
-
-### Features:
-- Buttons for rotate, flip, and apply actions
-- Dropdown for selecting crop shape
-- Aspect ratio quick-select buttons (if handler provided)
 -->
-
 <script lang="ts">
+	import type { CropShape } from './regions';
+
 	let {
+		cropShape,
+		aspectRatio,
 		onRotateLeft,
 		onFlipHorizontal,
-		cropShape,
 		onCropShapeChange,
-		onAspectRatio,
+		onAspectRatioChange,
 		onApply
 	}: {
+		cropShape: CropShape;
+		aspectRatio: string;
 		onRotateLeft: () => void;
 		onFlipHorizontal: () => void;
-		cropShape: 'rectangle' | 'square' | 'circular';
-		onCropShapeChange: (shape: 'rectangle' | 'square' | 'circular') => void;
-		onAspectRatio?: (ratio: string) => void;
+		onCropShapeChange: (s: CropShape) => void;
+		onAspectRatioChange: (r: string) => void;
 		onApply: () => void;
 	} = $props();
 
@@ -41,112 +30,110 @@ Provides inline controls for crop operations.
 		{ label: '4:3', value: '4:3' },
 		{ label: '16:9', value: '16:9' }
 	];
+
+	// Derive values for UI binding
+	let shapeValue = $derived(cropShape);
+	let aspectValue = $derived(aspectRatio);
 </script>
 
-<div class="crop-controls flex items-center gap-2">
-	<button onclick={onRotateLeft} class="control-btn flex items-center justify-center rounded-lg p-2 transition-colors" title="Rotate left 90°">
+<div class="crop-controls">
+	<!-- Transform Tools -->
+	<button onclick={onRotateLeft} class="btn-tool" title="Rotate left 90°">
 		<iconify-icon icon="mdi:rotate-left" width="20"></iconify-icon>
 	</button>
-
-	<button onclick={onFlipHorizontal} class="control-btn flex items-center justify-center rounded-lg p-2 transition-colors" title="Flip horizontal">
+	<button onclick={onFlipHorizontal} class="btn-tool" title="Flip horizontal">
 		<iconify-icon icon="mdi:flip-horizontal" width="20"></iconify-icon>
 	</button>
+	<div class="divider"></div>
 
-	<div class="divider h-6 w-px"></div>
+	<!-- Shape Selector -->
+	<span class="label">Shape:</span>
+	<div class="segment-group">
+		<button
+			class="segment-btn"
+			class:active={shapeValue === 'rectangle'}
+			onclick={() => onCropShapeChange('rectangle')}
+			aria-pressed={shapeValue === 'rectangle'}
+			title="Rectangle"
+		>
+			<iconify-icon icon="mdi:crop-square" width="20"></iconify-icon>
+		</button>
+		<button
+			class="segment-btn"
+			class:active={shapeValue === 'circular'}
+			onclick={() => onCropShapeChange('circular')}
+			aria-pressed={shapeValue === 'circular'}
+			title="Circle"
+		>
+			<iconify-icon icon="mdi:circle-outline" width="20"></iconify-icon>
+		</button>
+	</div>
+	<div class="divider"></div>
 
-	<select
-		value={cropShape}
-		onchange={(e) => onCropShapeChange(e.currentTarget.value as any)}
-		class="control-select rounded-lg border-0 px-3 py-2 text-sm outline-none transition-colors focus:ring-2 focus:ring-primary-500"
-	>
-		<option value="rectangle">Rectangle</option>
-		<option value="square">Square</option>
-		<option value="circular">Circle</option>
-	</select>
+	<!-- Aspect Ratio Selector -->
+	<span class="label">Aspect:</span>
+	<div class="segment-group">
+		{#each aspectRatios as r}
+			<button
+				class="segment-btn aspect"
+				class:active={aspectValue === r.value}
+				onclick={() => onAspectRatioChange(r.value)}
+				aria-pressed={aspectValue === r.value}
+				title="Aspect ratio {r.label}"
+			>
+				{r.label}
+			</button>
+		{/each}
+	</div>
 
-	{#if onAspectRatio && cropShape === 'rectangle'}
-		<div class="aspect-group flex items-center gap-1">
-			{#each aspectRatios as ratio}
-				<button
-					onclick={() => onAspectRatio?.(ratio.value)}
-					class="aspect-btn rounded px-2.5 py-1 text-xs font-medium transition-colors"
-					title={ratio.label}
-				>
-					{ratio.label}
-				</button>
-			{/each}
-		</div>
-	{/if}
+	<div class="divider-grow"></div>
 
-	<div class="divider h-6 w-px"></div>
-
-	<button onclick={onApply} class="apply-btn flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors">
+	<!-- Actions -->
+	<button onclick={onApply} class="btn-apply" title="Apply crop">
 		<iconify-icon icon="mdi:check" width="18"></iconify-icon>
-		Apply
+		<span>Apply</span>
 	</button>
 </div>
 
 <style lang="postcss">
-	.control-btn {
-		background-color: rgb(var(--color-surface-200) / 1);
-		color: rgb(var(--color-surface-700) / 1);
+	.crop-controls {
+		@apply flex w-full items-center gap-3 px-2;
 	}
-
-	:global(.dark) .control-btn {
-		background-color: rgb(var(--color-surface-700) / 1);
-		color: rgb(var(--color-surface-200) / 1);
+	.label {
+		@apply text-nowrap text-sm font-medium text-surface-700 dark:text-surface-200;
 	}
-
-	.control-btn:hover {
-		background-color: rgb(var(--color-surface-300) / 1);
-	}
-
-	:global(.dark) .control-btn:hover {
-		background-color: rgb(var(--color-surface-600) / 1);
-	}
-
-	.control-select {
-		background-color: rgb(var(--color-surface-200) / 1);
-		color: rgb(var(--color-surface-700) / 1);
-	}
-
-	:global(.dark) .control-select {
-		background-color: rgb(var(--color-surface-700) / 1);
-		color: rgb(var(--color-surface-200) / 1);
-	}
-
-	.aspect-btn {
-		background-color: rgb(var(--color-surface-200) / 1);
-		color: rgb(var(--color-surface-600) / 1);
-	}
-
-	:global(.dark) .aspect-btn {
-		background-color: rgb(var(--color-surface-700) / 1);
-		color: rgb(var(--color-surface-300) / 1);
-	}
-
-	.aspect-btn:hover {
-		background-color: rgb(var(--color-surface-300) / 1);
-	}
-
-	:global(.dark) .aspect-btn:hover {
-		background-color: rgb(var(--color-surface-600) / 1);
-	}
-
 	.divider {
-		background-color: rgb(var(--color-surface-300) / 1);
+		@apply h-6 w-px bg-surface-300 dark:bg-surface-600;
 	}
-
-	:global(.dark) .divider {
-		background-color: rgb(var(--color-surface-600) / 1);
+	.divider-grow {
+		@apply flex-grow;
 	}
-
-	.apply-btn {
-		background-color: rgb(var(--color-success-500) / 1);
-		color: white;
+	.btn-tool {
+		@apply flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-sm font-medium transition-colors;
+		@apply bg-surface-200 text-surface-700 dark:bg-surface-700 dark:text-surface-200;
+		min-width: 36px;
 	}
-
-	.apply-btn:hover {
-		background-color: rgb(var(--color-success-600) / 1);
+	.btn-tool:hover {
+		@apply bg-surface-300 dark:bg-surface-600;
+	}
+	.btn-apply {
+		@apply flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium text-white;
+		@apply bg-success-500 hover:bg-success-600;
+	}
+	.segment-group {
+		@apply flex items-center rounded-lg bg-surface-200 p-0.5 dark:bg-surface-700;
+	}
+	.segment-btn {
+		@apply rounded-md px-2 py-1 transition-colors;
+		@apply text-surface-500 dark:text-surface-400;
+	}
+	.segment-btn.aspect {
+		@apply px-3 text-xs font-medium;
+	}
+	.segment-btn:hover:not(.active) {
+		@apply text-surface-700 dark:text-surface-200;
+	}
+	.segment-btn.active {
+		@apply bg-white text-primary-600 shadow-sm dark:bg-surface-900;
 	}
 </style>

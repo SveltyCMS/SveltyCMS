@@ -642,131 +642,15 @@ and unified tool experiences (crop includes rotation, scale, flip).
 								<FocalPoint stage={storeState.stage} imageNode={storeState.imageNode} on:apply={(e) => handleApplyFocalPoint(e.detail)} />
 							{/if}
 							<Crop
-								stage={storeState.stage!}
-								layer={storeState.layer!}
-								imageNode={storeState.imageNode!}
-								container={storeState.imageGroup!}
-								onApply={(cropData: { x: number; y: number; width: number; height: number; shape: string }) => {
-									const { imageNode, imageGroup, layer, stage } = imageEditorStore.state;
-									if (!imageNode || !imageGroup || !layer || !stage) return;
-
-									// Apply crop transformation
-									const { x, y, width, height } = cropData;
-
-									// Validate crop dimensions
-									if (width <= 0 || height <= 0) {
-										logger.error('Invalid crop dimensions:', { width, height });
-										imageEditorStore.setActiveState('');
-										return;
-									}
-
-									// Set crop properties on the image node using explicit setters
-									imageNode.cropX(x);
-									imageNode.cropY(y);
-									imageNode.cropWidth(width);
-									imageNode.cropHeight(height);
-									imageNode.width(width);
-									imageNode.height(height);
-									imageNode.x(-width / 2);
-									imageNode.y(-height / 2);
-
-									// Apply circular clipping if needed
-									const isCircular = cropData.shape === 'circular';
-									if (isCircular) {
-										// Create an off-screen canvas to create circular mask
-										const offCanvas = document.createElement('canvas');
-										const offCtx = offCanvas.getContext('2d');
-
-										if (offCtx && imageNode.image()) {
-											const img = imageNode.image() as HTMLImageElement;
-											offCanvas.width = width;
-											offCanvas.height = height;
-
-											// Draw circular clip path
-											const radius = Math.min(width, height) / 2;
-											offCtx.beginPath();
-											offCtx.arc(width / 2, height / 2, radius, 0, Math.PI * 2);
-											offCtx.closePath();
-											offCtx.clip();
-
-											// Draw the cropped portion of the image
-											offCtx.drawImage(
-												img,
-												x,
-												y,
-												width,
-												height, // Source rectangle
-												0,
-												0,
-												width,
-												height // Destination rectangle
-											);
-
-											// Create a new image from the masked canvas
-											const circularImg = new Image();
-											circularImg.onload = () => {
-												imageNode.image(circularImg);
-												imageNode.cropX(0);
-												imageNode.cropY(0);
-												imageNode.cropWidth(width);
-												imageNode.cropHeight(height);
-												layer.batchDraw();
-											};
-											circularImg.src = offCanvas.toDataURL();
-										}
-									}
-
-									// Recenter and rescale the image group to fit the cropped size
-									const stageWidth = stage.width();
-									const stageHeight = stage.height();
-
-									// Calculate scale based on the NEW cropped dimensions
-									// This ensures we fit the cropped area to 80% of stage
-									const scaleX = (stageWidth * 0.8) / width;
-									const scaleY = (stageHeight * 0.8) / height;
-									const scale = Math.min(scaleX, scaleY);
-
-									// Preserve existing flip states ONLY (not scale)
-									const currentScaleX = imageGroup.scaleX();
-									const currentScaleY = imageGroup.scaleY();
-									const flipX = currentScaleX < 0 ? -1 : 1;
-									const flipY = currentScaleY < 0 ? -1 : 1;
-
-									// Store the rotation before resetting
-									const currentRotation = imageGroup.rotation();
-
-									// Reset imageGroup transform completely
-									imageGroup.x(stageWidth / 2);
-									imageGroup.y(stageHeight / 2);
-									imageGroup.scaleX(scale * flipX);
-									imageGroup.scaleY(scale * flipY);
-									imageGroup.rotation(currentRotation);
-
-									// Ensure imageGroup is in the layer and properly configured
-									imageGroup.moveToBottom(); // Ensure it's below any overlays
-									imageNode.moveToBottom(); // Ensure image is at bottom of group
-
-									// Force redraw to apply changes
-									layer.batchDraw();
-									stage.batchDraw();
-
-									// THEN: Exit crop mode and do final cleanup after a short delay
-									setTimeout(() => {
-										// Final cleanup to catch any stragglers
-										imageEditorStore.cleanupToolSpecific('crop');
-										imageEditorStore.setActiveState('');
-										applyEdit();
-									}, 50);
+								onCropApplied={() => {
+									applyEdit();
 								}}
 							/>
 							<FineTune />
 							<Blur />
-							<Watermark stage={storeState.stage} layer={storeState.layer} imageNode={storeState.imageNode} />
+							<Watermark />
 							<Annotate
-								stage={storeState.stage}
-								layer={storeState.layer}
-								imageNode={storeState.imageNode}
-								onAnnotationChange={() => {
+								onAnnotateApplied={() => {
 									applyEdit();
 								}}
 							/>
@@ -808,127 +692,15 @@ and unified tool experiences (crop includes rotation, scale, flip).
 					<!-- Render tool components here so they can be controlled -->
 					{#if storeState.stage && storeState.layer && storeState.imageNode && storeState.imageGroup}
 						<Crop
-							stage={storeState.stage!}
-							layer={storeState.layer!}
-							imageNode={storeState.imageNode!}
-							container={storeState.imageGroup!}
-							onApply={(cropData: { x: number; y: number; width: number; height: number; shape?: string }) => {
-								const { imageNode, imageGroup, layer, stage } = imageEditorStore.state;
-								if (!imageNode || !imageGroup || !layer || !stage) return;
-
-								// Apply crop transformation
-								const { x, y, width, height } = cropData;
-
-								// Validate crop dimensions
-								if (width <= 0 || height <= 0) {
-									logger.error('Invalid crop dimensions:', { width, height });
-									imageEditorStore.setActiveState('');
-									return;
-								}
-
-								// Set crop properties on the image node using explicit setters
-								imageNode.cropX(x);
-								imageNode.cropY(y);
-								imageNode.cropWidth(width);
-								imageNode.cropHeight(height);
-								imageNode.width(width);
-								imageNode.height(height);
-								imageNode.x(-width / 2);
-								imageNode.y(-height / 2);
-
-								// Apply circular clipping if needed
-								const isCircular = cropData.shape === 'circular';
-								if (isCircular) {
-									// Create an off-screen canvas to create circular mask
-									const offCanvas = document.createElement('canvas');
-									const offCtx = offCanvas.getContext('2d');
-
-									if (offCtx && imageNode.image()) {
-										const img = imageNode.image() as HTMLImageElement;
-										offCanvas.width = width;
-										offCanvas.height = height;
-
-										// Draw circular clip path
-										const radius = Math.min(width, height) / 2;
-										offCtx.beginPath();
-										offCtx.arc(width / 2, height / 2, radius, 0, Math.PI * 2);
-										offCtx.closePath();
-										offCtx.clip();
-
-										// Draw the cropped portion of the image
-										offCtx.drawImage(
-											img,
-											x,
-											y,
-											width,
-											height, // Source rectangle
-											0,
-											0,
-											width,
-											height // Destination rectangle
-										);
-
-										// Create a new image from the masked canvas
-										const circularImg = new Image();
-										circularImg.onload = () => {
-											imageNode.image(circularImg);
-											imageNode.cropX(0);
-											imageNode.cropY(0);
-											imageNode.cropWidth(width);
-											imageNode.cropHeight(height);
-											layer.batchDraw();
-										};
-										circularImg.src = offCanvas.toDataURL();
-									}
-								}
-
-								// Recenter and rescale the image group to fit the cropped size
-								const stageWidth = stage.width();
-								const stageHeight = stage.height();
-
-								// Calculate scale based on the NEW cropped dimensions
-								// This ensures we fit the cropped area to 80% of stage
-								const scaleX = (stageWidth * 0.8) / width;
-								const scaleY = (stageHeight * 0.8) / height;
-								const scale = Math.min(scaleX, scaleY);
-
-								// Preserve existing flip states ONLY (not scale)
-								const currentScaleX = imageGroup.scaleX();
-								const currentScaleY = imageGroup.scaleY();
-								const flipX = currentScaleX < 0 ? -1 : 1;
-								const flipY = currentScaleY < 0 ? -1 : 1;
-
-								// Store the rotation before resetting
-								const currentRotation = imageGroup.rotation();
-
-								// Reset imageGroup transform completely
-								imageGroup.x(stageWidth / 2);
-								imageGroup.y(stageHeight / 2);
-								imageGroup.scaleX(scale * flipX);
-								imageGroup.scaleY(scale * flipY);
-								imageGroup.rotation(currentRotation);
-
-								// Force redraw to apply changes
-								layer.batchDraw();
-								stage.batchDraw();
-
-								// THEN: Exit crop mode and do final cleanup after a short delay
-								setTimeout(() => {
-									// Final cleanup to catch any stragglers
-									imageEditorStore.cleanupToolSpecific('crop');
-									imageEditorStore.setActiveState('');
-									applyEdit();
-								}, 50);
+							onCropApplied={() => {
+								applyEdit();
 							}}
 						/>
 						<FineTune />
 						<Blur />
-						<Watermark stage={storeState.stage} layer={storeState.layer} imageNode={storeState.imageNode} />
+						<Watermark />
 						<Annotate
-							stage={storeState.stage}
-							layer={storeState.layer}
-							imageNode={storeState.imageNode}
-							onAnnotationChange={() => {
+							onAnnotateApplied={() => {
 								applyEdit();
 							}}
 						/>

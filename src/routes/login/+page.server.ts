@@ -415,9 +415,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 		// Use the firstUserExists value from locals (set by hooks)
 		const firstUserExists = locals.isFirstUser === false;
-		logger.debug(
-			`In load: firstUserExists determined as: ${firstUserExists} (based on locals.isFirstUser: ${locals.isFirstUser})`
-		);
+		logger.debug(`In load: firstUserExists determined as: ${firstUserExists} (based on locals.isFirstUser: ${locals.isFirstUser})`);
 
 		// Note: If no users exist, handleSetup hook will redirect to /setup before this code runs
 

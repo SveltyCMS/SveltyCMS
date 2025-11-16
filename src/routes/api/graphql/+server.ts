@@ -126,25 +126,14 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 				.filter((collection) => collection && collection.name && collection._id)
 				.map((collection) => `${createCleanTypeName(collection)}: [${createCleanTypeName(collection)}]`)
 				.join('\n')}
-			users: [User]
-			mediaImages: [MediaImage]
-			mediaDocuments: [MediaDocument]
-			mediaAudio: [MediaAudio]
-			mediaVideos: [MediaVideo]
-			mediaRemote: [MediaRemote]
+			users(pagination: PaginationInput): [User]
+			me: User
+			mediaImages(pagination: PaginationInput): [MediaImage]
+			mediaDocuments(pagination: PaginationInput): [MediaDocument]
+			mediaAudio(pagination: PaginationInput): [MediaAudio]
+			mediaVideos(pagination: PaginationInput): [MediaVideo]
+			mediaRemote(pagination: PaginationInput): [MediaRemote]
 			accessManagementPermission: AccessManagementPermission
-		}
-
-		# Minimal type for subscription payload to avoid missing type errors
-		type Post {
-			_id: String
-			title: String
-			createdAt: String
-			updatedAt: String
-		}
-
-		type Subscription {
-			postAdded: Post
 		}
 	`;
 
@@ -165,12 +154,6 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 					throw new Error('Forbidden: Insufficient permissions');
 				}
 				return accessManagementPermission;
-			}
-		},
-		Subscription: {
-			postAdded: {
-				subscribe: () => pubSub.subscribe('postAdded'),
-				resolve: (payload: unknown) => payload
 			}
 		},
 		...Object.keys(collectionsResolversObj)
