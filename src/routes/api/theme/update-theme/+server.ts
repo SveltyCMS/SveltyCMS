@@ -48,7 +48,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	try {
 		if (!dbAdapter) {
-			throw new Error('Database adapter is not initialized');	
+			throw new Error('Database adapter is not initialized');
 		}
 
 		// Fetch the theme from the database to ensure it exists for the current tenant

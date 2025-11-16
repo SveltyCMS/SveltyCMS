@@ -79,9 +79,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		}
 
 		const duration = performance.now() - start;
-		logger.info(
-			`${accessibleCollections.length} collections retrieved in ${duration.toFixed(2)}ms for tenant ${tenantId || 'default'}`
-		);
+		logger.info(`${accessibleCollections.length} collections retrieved in ${duration.toFixed(2)}ms for tenant ${tenantId || 'default'}`);
 
 		return json({
 			success: true,

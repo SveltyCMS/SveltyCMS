@@ -17,7 +17,34 @@ tags:
 
 # Image Editor Widgets Reference
 
-This document provides a complete reference for all built-in Image Editor widgets.
+This document provides a complete reference for all built-in Image Editor widgets with their modularized architecture.
+
+## 📦 Module Structure
+
+All widgets follow a consistent modular file structure for better maintainability:
+
+```
+widgets/[WidgetName]/
+├── index.ts          # Widget registration
+├── Tool.svelte       # Main canvas logic controller
+├── Controls.svelte   # Toolbar UI controls
+└── [utility files]   # Modular helper files
+```
+
+### Common Utility Modules
+
+- **regions.ts** - Region/entity class for managing canvas objects (Blur, Crop, Annotate, Watermark)
+- **adjustments.ts** - Adjustment definitions and defaults (FineTune)
+- **baseFilters.ts** - Konva built-in filters (FineTune)
+- **customFilters.ts** - Custom pixel-level filters (FineTune)
+- **draw.ts** - Drawing factory functions (Annotate)
+- **editText.ts** - Text editing utilities (Annotate)
+- **events.ts** - Event namespacing (Annotate)
+- **transformer.ts** - Transformer creation utilities (Annotate)
+- **aspect.ts** - Aspect ratio parsing (Crop)
+- **cropMath.ts** - Coordinate transformation math (Crop)
+- **highlight.ts** - Overlay cutout synchronization (Crop)
+- **overlay.ts** - Overlay group creation (Crop)
 
 ## 📋 Widget Overview
 

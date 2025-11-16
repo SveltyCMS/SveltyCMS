@@ -1,768 +1,298 @@
-<!-- 
-@file src/routes/(app)/imageEditor/components/Blur.svelte
+<!--
+@file: src/routes/(app)/imageEditor/widgets/Blur/Tool.svelte
 @component
-**Blur effect component using Konva canvas used for image editing**
-Handles multiple blur region selections with floating action toolbars.
-Professional UX inspired by Picsart: multiple regions, copy/delete, rotation at bottom.
-
-### Props
-- `blurStrength`: Current blur strength (bindable)
-- `onBlurReset`: Function called when blur is reset
-- `onBlurApplied`: Function called when blur is applied
-
-### Exports
-- `blurStrength`: Current blur strength (bindable)
-- `updateBlurStrength()`: Update blur strength
-- `reset()`: Reset blur effect
-- `apply()`: Apply blur and exit
+Controller for Blur tool: binds stage, manages BlurRegion instances,
+handles drawing, applies/bakes effects, and registers toolbar.
 -->
-
 <script lang="ts">
 	import Konva from 'konva';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-	import BlurControls from './Controls.svelte';
+	import Controls from './Controls.svelte';
+	import { BlurRegion, type RegionInit, type BlurPattern, type BlurShape } from './regions';
 
-	let {
-		blurStrength = $bindable(10),
-		onBlurReset = () => {},
-		onBlurApplied = () => {}
-	} = $props<{
-		blurStrength?: number;
-		onBlurReset?: () => void;
-		onBlurApplied?: () => void;
-	}>();
-
-	const { stage, layer, imageNode } = imageEditorStore.state;
-
-	// Support multiple blur regions
-	let blurRegions: Array<{
-		rect: Konva.Rect;
-		transformer: Konva.Transformer;
-		overlay: Konva.Image | null;
-		actionToolbar: Konva.Group;
-	}> = [];
-
-	let activeRegionIndex = $state<number | null>(null);
-	let isSelecting = $state(false);
+	// reactive tool state (Svelte 5 runes)
+	let blurStrength = $state(20);
+	let pattern = $state<BlurPattern>('blur');
+	let shape = $state<BlurShape>('rectangle');
+	let regions = $state<BlurRegion[]>([]);
+	let drawing = $state(false);
 	let startPoint = $state<{ x: number; y: number } | null>(null);
-	let mounted = false;
+	let activeId = $state<string | null>(null);
 
-	function initBlurTool() {
-		if (!stage) return;
-		stage.on('mousedown touchstart', handleMouseDown);
-		stage.on('mousemove touchmove', handleMouseMove);
-		stage.on('mouseup touchend', handleMouseUp);
-		stage.on('click tap', handleStageClick);
-		stage.container().style.cursor = 'crosshair';
-	}
+	// guard to avoid duplicate event bindings
+	let _toolBound = $state(false);
 
-	function deactivateBlurTool() {
-		if (!stage) return;
+	// debounce timer for strength slider updates
+	let strengthDebounceTimer: number | null = null;
 
-		try {
-			stage.off('mousedown touchstart', handleMouseDown);
-			stage.off('mousemove touchmove', handleMouseMove);
-			stage.off('mouseup touchend', handleMouseUp);
-			stage.off('click tap', handleStageClick);
+	// Svelte 5: prefer callback props via $props instead of event dispatcher
+	const props = $props<{ onBlurReset?: () => void; onBlurApplied?: () => void }>();
 
-			if (stage.container()) {
-				stage.container().style.cursor = 'default';
-			}
-
-			cleanupBlurElements();
-		} catch (e) {
-			console.warn('Error deactivating blur tool:', e);
-			// Ensure cleanup happens even if there's an error
-			if (blurRegions && Array.isArray(blurRegions)) {
-				blurRegions = [];
-			}
-		}
-	}
-
-	$effect(() => {
-		if (!stage || !layer || !imageNode) return;
-		if (!mounted) {
-			mounted = true;
-			return () => {
-				deactivateBlurTool();
-			};
-		}
-	});
-
-	// Effect to react to active tool state and register controls
+	// bind/unbind the tool when active state changes
 	$effect(() => {
 		const activeState = imageEditorStore.state.activeState;
 		if (activeState === 'blur') {
-			initBlurTool();
+			bindStageEvents();
 			imageEditorStore.setToolbarControls({
-				component: BlurControls,
+				component: Controls,
 				props: {
-					blurStrength,
-					onBlurStrengthChange: (v: number) => updateBlurStrength(v),
-					onAddRegion: () => addNewBlurRegion(),
+					get blurStrength() {
+						return blurStrength;
+					},
+					get pattern() {
+						return pattern;
+					},
+					get shape() {
+						return shape;
+					},
+					onStrengthChange: (v: number) => {
+						blurStrength = v;
+						if (strengthDebounceTimer) clearTimeout(strengthDebounceTimer);
+						strengthDebounceTimer = window.setTimeout(() => {
+							regions.forEach((r) => r.setStrength(v));
+							imageEditorStore.state.layer?.batchDraw();
+						}, 60);
+					},
+					onPatternChange: (p: BlurPattern) => {
+						pattern = p;
+						regions.forEach((r) => r.setPattern(p));
+					},
+					onShapeChange: (s: BlurShape) => (shape = s),
+					onAddRegion: () => createRegion(),
 					onReset: () => reset(),
 					onApply: () => apply()
 				}
 			});
 		} else {
-			deactivateBlurTool();
-			// Only clear if Blur currently owns the toolbar
-			if (imageEditorStore.state.toolbarControls?.component === BlurControls) {
+			unbindStageEvents();
+			// only clear toolbar if ours
+			if (imageEditorStore.state.toolbarControls?.component === Controls) {
 				imageEditorStore.setToolbarControls(null);
 			}
 		}
 	});
 
+	// add stage event listeners once
+	function bindStageEvents() {
+		const { stage } = imageEditorStore.state;
+		if (!stage || _toolBound) return;
+		stage.on('mousedown touchstart', handleMouseDown);
+		stage.on('mousemove touchmove', handleMouseMove);
+		stage.on('mouseup touchend', handleMouseUp);
+		stage.on('click tap', handleStageClick);
+		if (stage.container()) stage.container().style.cursor = 'crosshair';
+		_toolBound = true;
+	}
+
+	// remove stage event listeners once
+	function unbindStageEvents() {
+		const { stage } = imageEditorStore.state;
+		if (!stage || !_toolBound) return;
+		stage.off('mousedown touchstart', handleMouseDown);
+		stage.off('mousemove touchmove', handleMouseMove);
+		stage.off('mouseup touchend', handleMouseUp);
+		stage.off('click tap', handleStageClick);
+		if (stage.container()) stage.container().style.cursor = 'default';
+		_toolBound = false;
+	}
+
+	// deselect all regions when clicking outside overlays
 	function handleStageClick(e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) {
-		// Check if clicked on empty area (deselect all)
-		if (e.target === stage) {
+		const { stage, imageNode, imageGroup } = imageEditorStore.state;
+		const t = e.target;
+		if (!stage) return;
+		// Deselect when clicking on bare stage, base image, or its group
+		if (t === stage || t === imageNode || t === imageGroup) {
 			deselectAllRegions();
 		}
 	}
 
+	// begin drawing a new region when pointer is on stage or base image
 	function handleMouseDown(e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) {
-		// Don't create new region if clicking on existing region or transformer
-		if (e.target !== stage) return;
-		if (!stage || !layer) return;
-
-		isSelecting = true;
+		const { stage, imageNode, imageGroup } = imageEditorStore.state;
+		const t = e.target;
+		if (!stage) return;
+		// Allow drawing when clicking on stage, the base image, or its group
+		const allowed = t === stage || t === imageNode || t === imageGroup;
+		if (!allowed) return;
+		deselectAllRegions();
+		drawing = true;
 		const pos = stage.getPointerPosition();
 		startPoint = pos ? { x: pos.x, y: pos.y } : null;
+		if (startPoint) createRegion({ x: startPoint.x, y: startPoint.y, width: 4, height: 4, shape });
 	}
 
+	// update the active region shape during pointer move (fast, no cache)
 	function handleMouseMove() {
-		if (!isSelecting || !startPoint || !stage || !layer) return;
-
-		const pos = stage.getPointerPosition();
+		if (!drawing || !startPoint || !activeId) return;
+		const pos = imageEditorStore.state.stage?.getPointerPosition();
 		if (!pos) return;
-
-		const width = pos.x - startPoint.x;
-		const height = pos.y - startPoint.y;
-
-		// Only create region if dragging with significant size
-		if (Math.abs(width) < 5 || Math.abs(height) < 5) return;
-
-		// Create temporary region while dragging
-		if (activeRegionIndex === null || !blurRegions[activeRegionIndex]) {
-			createBlurRegion(startPoint.x, startPoint.y, width, height);
-		} else {
-			// Update size while dragging
-			const region = blurRegions[activeRegionIndex!];
-			region.rect.width(Math.abs(width));
-			region.rect.height(Math.abs(height));
-			if (width < 0) region.rect.x(startPoint.x + width);
-			if (height < 0) region.rect.y(startPoint.y + height);
-			layer.batchDraw();
-		}
+		const r = regions.find((x) => x.id === activeId);
+		if (!r) return;
+		r.resizeFromStart(startPoint, pos);
+		imageEditorStore.state.layer?.batchDraw();
 	}
 
+	// finish drawing: finalize shape and apply cached filter once
 	function handleMouseUp() {
-		if (!isSelecting || !layer) return;
-		isSelecting = false;
-
-		if (activeRegionIndex !== null && blurRegions[activeRegionIndex]) {
-			const region = blurRegions[activeRegionIndex];
-
-			// Normalize region dimensions
-			const width = Math.abs(region.rect.width());
-			const height = Math.abs(region.rect.height());
-
-			if (width < 30 || height < 30) {
-				// Too small, remove it
-				deleteRegion(activeRegionIndex);
-				activeRegionIndex = null;
-			} else {
-				region.rect.width(width);
-				region.rect.height(height);
-				setupTransformer(activeRegionIndex);
-				applyBlurToRegion(activeRegionIndex);
-			}
-		}
-
+		if (!drawing) return;
+		drawing = false;
 		startPoint = null;
-		layer.batchDraw();
-	}
-
-	function createBlurRegion(x: number, y: number, width: number, height: number) {
-		if (!layer) return;
-
-		const rect = new Konva.Rect({
-			x,
-			y,
-			width: Math.abs(width),
-			height: Math.abs(height),
-			stroke: 'white',
-			strokeWidth: 2,
-			dash: [5, 5],
-			draggable: true,
-			name: 'blurRegion'
-		});
-
-		layer.add(rect);
-
-		const regionIndex = blurRegions.length;
-		blurRegions.push({
-			rect,
-			transformer: null as any,
-			overlay: null,
-			actionToolbar: null as any
-		});
-
-		activeRegionIndex = regionIndex;
-
-		// Add click handler to select this region
-		rect.on('click tap', () => {
-			selectRegion(regionIndex);
-		});
-
-		layer.batchDraw();
-	}
-
-	function setupTransformer(index: number) {
-		if (!layer || index >= blurRegions.length) return;
-
-		const region = blurRegions[index];
-
-		// Remove old transformer if exists
-		if (region.transformer) {
-			region.transformer.destroy();
-		}
-
-		const transformer = new Konva.Transformer({
-			nodes: [region.rect],
-			borderDash: [5, 5],
-			borderStrokeWidth: 2,
-			borderStroke: 'white',
-			anchorStroke: 'white',
-			anchorFill: '#4f46e5',
-			anchorStrokeWidth: 2,
-			anchorSize: 10,
-			anchorCornerRadius: 3,
-			enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
-			rotateEnabled: true,
-			rotationSnaps: [0, 45, 90, 135, 180, 225, 270, 315],
-			rotateAnchorOffset: -40, // Place rotation handle at bottom
-			boundBoxFunc: (oldBox, newBox) => {
-				// Limit minimum size
-				if (newBox.width < 30 || newBox.height < 30) {
-					return oldBox;
-				}
-				return newBox;
-			}
-		});
-
-		layer.add(transformer);
-		transformer.moveToTop();
-		region.transformer = transformer;
-
-		// Create floating action toolbar
-		createActionToolbar(index);
-
-		// Add event listeners
-		region.rect.on('transform', () => applyBlurToRegion(index));
-		region.rect.on('dragmove', () => {
-			applyBlurToRegion(index);
-			updateActionToolbarPosition(index);
-		});
-		region.rect.on('transformend', () => {
-			updateActionToolbarPosition(index);
-			layer.batchDraw();
-		});
-
-		updateActionToolbarPosition(index);
-	}
-
-	function createActionToolbar(index: number) {
-		if (!layer || index >= blurRegions.length) return;
-
-		const region = blurRegions[index];
-
-		// Remove old toolbar if exists
-		if (region.actionToolbar) {
-			region.actionToolbar.destroy();
-		}
-
-		const toolbar = new Konva.Group({
-			name: 'actionToolbar'
-		});
-
-		// Background for toolbar
-		const bg = new Konva.Rect({
-			width: 80,
-			height: 36,
-			fill: 'rgba(0, 0, 0, 0.75)',
-			cornerRadius: 18,
-			shadowColor: 'black',
-			shadowBlur: 10,
-			shadowOpacity: 0.3
-		});
-
-		// Copy button
-		const copyBtn = new Konva.Group({
-			x: 12,
-			y: 9,
-			listening: true
-		});
-		const copyBg = new Konva.Circle({
-			radius: 9,
-			fill: 'transparent'
-		});
-		const copyIcon = new Konva.Path({
-			data: 'M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z',
-			fill: 'white',
-			scale: { x: 0.6, y: 0.6 },
-			offset: { x: 12, y: 12 }
-		});
-		copyBtn.add(copyBg, copyIcon);
-		copyBtn.on('click tap', (e) => {
-			e.cancelBubble = true;
-			copyRegion(index);
-		});
-		copyBtn.on('mouseenter', () => {
-			stage!.container().style.cursor = 'pointer';
-			copyBg.fill('rgba(255, 255, 255, 0.2)');
-			layer!.batchDraw();
-		});
-		copyBtn.on('mouseleave', () => {
-			stage!.container().style.cursor = 'default';
-			copyBg.fill('transparent');
-			layer!.batchDraw();
-		});
-
-		// Delete button
-		const deleteBtn = new Konva.Group({
-			x: 50,
-			y: 9,
-			listening: true
-		});
-		const deleteBg = new Konva.Circle({
-			radius: 9,
-			fill: 'transparent'
-		});
-		const deleteIcon = new Konva.Path({
-			data: 'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z',
-			fill: '#ef4444',
-			scale: { x: 0.6, y: 0.6 },
-			offset: { x: 12, y: 12 }
-		});
-		deleteBtn.add(deleteBg, deleteIcon);
-		deleteBtn.on('click tap', (e) => {
-			e.cancelBubble = true;
-			deleteRegion(index);
-		});
-		deleteBtn.on('mouseenter', () => {
-			stage!.container().style.cursor = 'pointer';
-			deleteBg.fill('rgba(239, 68, 68, 0.2)');
-			layer!.batchDraw();
-		});
-		deleteBtn.on('mouseleave', () => {
-			stage!.container().style.cursor = 'default';
-			deleteBg.fill('transparent');
-			layer!.batchDraw();
-		});
-
-		toolbar.add(bg, copyBtn, deleteBtn);
-		layer.add(toolbar);
-		toolbar.moveToTop();
-
-		region.actionToolbar = toolbar;
-	}
-
-	function updateActionToolbarPosition(index: number) {
-		if (!layer || index >= blurRegions.length) return;
-
-		const region = blurRegions[index];
-		if (!region.actionToolbar) return;
-
-		const rect = region.rect.getClientRect();
-
-		// Position toolbar above the blur region, centered
-		region.actionToolbar.position({
-			x: rect.x + rect.width / 2 - 40,
-			y: rect.y - 46
-		});
-
-		layer.batchDraw();
-	}
-
-	function selectRegion(index: number) {
-		if (index >= blurRegions.length) return;
-
-		deselectAllRegions();
-		activeRegionIndex = index;
-
-		const region = blurRegions[index];
-		if (!region.transformer) {
-			setupTransformer(index);
-		}
-
-		region.transformer?.show();
-		region.actionToolbar?.show();
-		layer?.batchDraw();
-	}
-
-	function deselectAllRegions() {
-		blurRegions.forEach((region) => {
-			region.transformer?.hide();
-			region.actionToolbar?.hide();
-		});
-		activeRegionIndex = null;
-		layer?.batchDraw();
-	}
-
-	function copyRegion(index: number) {
-		if (!layer || index >= blurRegions.length) return;
-
-		const sourceRegion = blurRegions[index];
-		const rect = sourceRegion.rect;
-
-		// Create a copy offset slightly
-		createBlurRegion(rect.x() + 20, rect.y() + 20, rect.width(), rect.height());
-
-		// Apply same rotation
-		const newIndex = blurRegions.length - 1;
-		blurRegions[newIndex].rect.rotation(rect.rotation());
-
-		setupTransformer(newIndex);
-		applyBlurToRegion(newIndex);
-		selectRegion(newIndex);
-	}
-
-	function deleteRegion(index: number) {
-		if (!layer || index >= blurRegions.length) return;
-
-		const region = blurRegions[index];
-
-		// Clean up Konva objects
-		region.rect.destroy();
-		region.transformer?.destroy();
-		region.overlay?.destroy();
-		region.actionToolbar?.destroy();
-
-		// Remove from array
-		blurRegions.splice(index, 1);
-
-		// Update activeRegionIndex
-		if (activeRegionIndex === index) {
-			activeRegionIndex = null;
-		} else if (activeRegionIndex !== null && activeRegionIndex > index) {
-			activeRegionIndex--;
-		}
-
-		layer.batchDraw();
-	}
-
-	function addNewBlurRegion() {
-		if (!stage || !layer) return;
-
-		// Create a default blur region in the center
-		const stageWidth = stage.width();
-		const stageHeight = stage.height();
-
-		const defaultWidth = 200;
-		const defaultHeight = 150;
-
-		createBlurRegion((stageWidth - defaultWidth) / 2, (stageHeight - defaultHeight) / 2, defaultWidth, defaultHeight);
-
-		const newIndex = blurRegions.length - 1;
-		setupTransformer(newIndex);
-		applyBlurToRegion(newIndex);
-		selectRegion(newIndex);
-	}
-
-	// Box blur algorithm for smooth blur effect
-	function boxBlur(imageData: ImageData, radius: number): ImageData {
-		const width = imageData.width;
-		const height = imageData.height;
-		const data = imageData.data;
-		const output = new ImageData(width, height);
-		const outData = output.data;
-
-		// Copy alpha channel as-is
-		for (let i = 0; i < data.length; i += 4) {
-			outData[i + 3] = data[i + 3];
-		}
-
-		// Horizontal pass
-		for (let y = 0; y < height; y++) {
-			for (let x = 0; x < width; x++) {
-				let r = 0,
-					g = 0,
-					b = 0,
-					count = 0;
-
-				for (let kx = -radius; kx <= radius; kx++) {
-					const px = Math.min(width - 1, Math.max(0, x + kx));
-					const idx = (y * width + px) * 4;
-					r += data[idx];
-					g += data[idx + 1];
-					b += data[idx + 2];
-					count++;
-				}
-
-				const idx = (y * width + x) * 4;
-				outData[idx] = r / count;
-				outData[idx + 1] = g / count;
-				outData[idx + 2] = b / count;
-			}
-		}
-
-		// Vertical pass
-		const temp = new Uint8ClampedArray(outData);
-		for (let y = 0; y < height; y++) {
-			for (let x = 0; x < width; x++) {
-				let r = 0,
-					g = 0,
-					b = 0,
-					count = 0;
-
-				for (let ky = -radius; ky <= radius; ky++) {
-					const py = Math.min(height - 1, Math.max(0, y + ky));
-					const idx = (py * width + x) * 4;
-					r += temp[idx];
-					g += temp[idx + 1];
-					b += temp[idx + 2];
-					count++;
-				}
-
-				const idx = (y * width + x) * 4;
-				outData[idx] = r / count;
-				outData[idx + 1] = g / count;
-				outData[idx + 2] = b / count;
-			}
-		}
-
-		return output;
-	}
-
-	function applyBlurToRegion(index: number) {
-		if (!layer || index >= blurRegions.length || !imageNode || !stage) return;
-
-		const region = blurRegions[index];
-		const blurRect = region.rect;
-
-		const image = imageNode.image() as HTMLImageElement;
-		if (!image) return;
-
-		// Use native image dimensions for best quality
-		const nativeWidth = image.naturalWidth || image.width;
-		const nativeHeight = image.naturalHeight || image.height;
-
-		const canvas = document.createElement('canvas');
-		canvas.width = nativeWidth;
-		canvas.height = nativeHeight;
-		const context = canvas.getContext('2d', { willReadFrequently: true });
-		if (!context) return;
-
-		// Draw original image at native size
-		context.drawImage(image, 0, 0, nativeWidth, nativeHeight);
-
-		// Get blur region absolute transform
-		const blurTransform = blurRect.getAbsoluteTransform();
-
-		// Get the four corners of the blur region in stage coordinates
-		const corners = [
-			blurTransform.point({ x: 0, y: 0 }),
-			blurTransform.point({ x: blurRect.width(), y: 0 }),
-			blurTransform.point({ x: blurRect.width(), y: blurRect.height() }),
-			blurTransform.point({ x: 0, y: blurRect.height() })
-		]; // Convert corners to image node local coordinates
-		const imageTransform = imageNode.getAbsoluteTransform().copy().invert();
-		const imageCorners = corners.map((corner) => imageTransform.point(corner));
-
-		// Find bounding box in image coordinates
-		const minX = Math.min(...imageCorners.map((c) => c.x));
-		const maxX = Math.max(...imageCorners.map((c) => c.x));
-		const minY = Math.min(...imageCorners.map((c) => c.y));
-		const maxY = Math.max(...imageCorners.map((c) => c.y));
-
-		// Convert from imageNode coordinates to native image coordinates
-		const scaleToNativeX = nativeWidth / imageNode.width();
-		const scaleToNativeY = nativeHeight / imageNode.height();
-
-		const imgX = minX * scaleToNativeX;
-		const imgY = minY * scaleToNativeY;
-		const imgWidth = (maxX - minX) * scaleToNativeX;
-		const imgHeight = (maxY - minY) * scaleToNativeY;
-
-		// Clamp to image bounds with integer values
-		const clampedX = Math.max(0, Math.floor(Math.min(imgX, nativeWidth)));
-		const clampedY = Math.max(0, Math.floor(Math.min(imgY, nativeHeight)));
-		const clampedWidth = Math.max(0, Math.floor(Math.min(imgWidth, nativeWidth - clampedX)));
-		const clampedHeight = Math.max(0, Math.floor(Math.min(imgHeight, nativeHeight - clampedY)));
-
-		if (clampedWidth === 0 || clampedHeight === 0) return;
-
-		const blurRadius = Math.max(1, Math.round(blurStrength / 2));
-
-		// Extract a larger region that includes padding for blur radius
-		// This prevents edge artifacts
-		const padding = blurRadius;
-		const extractX = Math.max(0, clampedX - padding);
-		const extractY = Math.max(0, clampedY - padding);
-		const extractWidth = Math.min(nativeWidth - extractX, clampedWidth + padding * 2);
-		const extractHeight = Math.min(nativeHeight - extractY, clampedHeight + padding * 2);
-
-		// Extract the padded region
-		const imageData = context.getImageData(extractX, extractY, extractWidth, extractHeight);
-
-		// Apply box blur to the entire extracted region
-		const blurred = boxBlur(imageData, blurRadius);
-
-		// Calculate the offset within the blurred image where our actual region starts
-		const offsetX = clampedX - extractX;
-		const offsetY = clampedY - extractY;
-
-		// Extract only the part we want (without the padding) from the blurred result
-		const finalBlurred = context.createImageData(clampedWidth, clampedHeight);
-		for (let y = 0; y < clampedHeight; y++) {
-			for (let x = 0; x < clampedWidth; x++) {
-				const srcIdx = ((y + offsetY) * extractWidth + (x + offsetX)) * 4;
-				const dstIdx = (y * clampedWidth + x) * 4;
-				finalBlurred.data[dstIdx] = blurred.data[srcIdx];
-				finalBlurred.data[dstIdx + 1] = blurred.data[srcIdx + 1];
-				finalBlurred.data[dstIdx + 2] = blurred.data[srcIdx + 2];
-				finalBlurred.data[dstIdx + 3] = blurred.data[srcIdx + 3];
-			}
-		}
-
-		// Put only the final blurred region back (exact bounds, no bleeding)
-		context.putImageData(finalBlurred, clampedX, clampedY);
-
-		// Clean up old overlay if exists
-		if (region.overlay) {
-			region.overlay.destroy();
-			region.overlay = null;
-		}
-
-		// Create overlay matching imageNode's display properties
-		const overlay = new Konva.Image({
-			image: canvas,
-			x: imageNode.x(),
-			y: imageNode.y(),
-			width: imageNode.width(),
-			height: imageNode.height(),
-			rotation: imageNode.rotation(),
-			scaleX: imageNode.scaleX(),
-			scaleY: imageNode.scaleY(),
-			listening: false
-		});
-
-		const parent = imageNode.getParent() || layer;
-		parent.add(overlay);
-		overlay.zIndex(imageNode.zIndex() + 1);
-		blurRect?.moveToTop();
-		region.transformer?.moveToTop();
-		region.actionToolbar?.moveToTop();
-
-		region.overlay = overlay;
-		layer.batchDraw();
-	}
-
-	function updateBlurStrength(value?: number) {
-		if (typeof value === 'number') {
-			blurStrength = value;
-		}
-		// Reapply blur to all regions
-		blurRegions.forEach((_, index) => applyBlurToRegion(index));
-	}
-
-	function reset() {
-		// Clean up all blur regions and reset state
-		cleanupBlurElements();
-		if (layer) {
-			layer.batchDraw();
-		}
-		onBlurReset();
-	}
-
-	function apply() {
-		// If there are blur regions with overlays, merge them with the image
-		blurRegions.forEach((region) => {
-			if (region.overlay && imageNode && layer) {
-				// Update the imageNode with the blurred version
-				const canvas = region.overlay.image() as HTMLCanvasElement;
-				if (canvas) {
-					imageNode.image(canvas);
-					layer.draw();
-				}
-			}
-		});
-
-		// Clean up all blur UI elements
-		blurRegions.forEach((region) => {
-			region.rect.destroy();
-			region.transformer?.destroy();
-			region.actionToolbar?.destroy();
-			region.overlay?.destroy();
-		});
-
-		blurRegions = [];
-		activeRegionIndex = null;
-		startPoint = null;
-		isSelecting = false;
-
-		// Redraw the layer to show the applied blur
-		if (layer) {
-			layer.batchDraw();
-		}
-
-		// Call the onBlurApplied callback
-		onBlurApplied();
-	}
-
-	function cleanupBlurElements() {
-		// Safety check: ensure blurRegions array exists
-		if (!blurRegions || !Array.isArray(blurRegions)) {
-			blurRegions = [];
+		const r = regions.find((x) => x.id === activeId);
+		if (!r) return;
+		if (r.isTooSmall()) {
+			deleteRegion(r.id);
 			return;
 		}
-
-		// Clean up all blur regions
-		blurRegions.forEach((region) => {
-			try {
-				region.rect?.destroy();
-				region.transformer?.destroy();
-				region.overlay?.destroy();
-				region.actionToolbar?.destroy();
-			} catch (e) {
-				console.warn('Error cleaning up blur region:', e);
-			}
-		});
-
-		blurRegions = [];
-		activeRegionIndex = null;
-
-		// Reset cursor style
-		if (stage && stage.container()) {
-			stage.container().style.cursor = 'default';
-		}
-
-		// Reset selection state
-		isSelecting = false;
-		startPoint = null;
+		r.finalize();
+		r.setPattern(pattern);
+		r.setStrength(blurStrength);
+		imageEditorStore.state.layer?.batchDraw();
 	}
 
-	export function cleanup() {
-		cleanupBlurElements();
-		if (layer) {
-			layer.batchDraw();
+	// create a new region and wire lifecycle hooks
+	function createRegion(init?: Partial<RegionInit>) {
+		const { stage, layer, imageNode, imageGroup } = imageEditorStore.state;
+		if (!stage || !layer || !imageNode || !imageGroup) return;
+
+		const newR = new BlurRegion({
+			id: crypto.randomUUID(),
+			layer,
+			imageNode,
+			imageGroup,
+			init: { shape, pattern, strength: blurStrength, ...init }
+		});
+
+		regions = [...regions, newR];
+		activeId = newR.id;
+
+		newR.onSelect(() => selectRegion(newR.id));
+		newR.onDestroy(() => {
+			regions = regions.filter((x) => x.id !== newR.id);
+			if (activeId === newR.id) activeId = null;
+		});
+
+		if (!drawing) {
+			newR.setPattern(pattern);
+			newR.setStrength(blurStrength);
+			newR.finalize();
 		}
+	}
+
+	// make specified region active and hide others
+	function selectRegion(id: string) {
+		activeId = id;
+		regions.forEach((r) => r.setActive(r.id === id));
+		imageEditorStore.state.layer?.batchDraw();
+	}
+
+	// deselect all regions
+	function deselectAllRegions() {
+		activeId = null;
+		regions.forEach((r) => r.setActive(false));
+		imageEditorStore.state.layer?.batchDraw();
+	}
+
+	// delete a region instance
+	function deleteRegion(id: string) {
+		const r = regions.find((x) => x.id === id);
+		r?.destroy();
+	}
+
+	// hide or destroy all regions (used before bake and during reset)
+	function cleanupBlurElements(destroyRegions = true) {
+		if (destroyRegions) {
+			[...regions].forEach((region) => region.destroy());
+			regions = [];
+		} else {
+			regions.forEach((region) => region.hideUI());
+		}
+		activeId = null;
+		drawing = false;
+		startPoint = null;
+		imageEditorStore.state.layer?.batchDraw();
+	}
+
+	// reset tool state and remove regions
+	export function reset() {
+		cleanupBlurElements(true);
+		props.onBlurReset?.();
+	}
+
+	// cleanup invoked by parent store
+	export function cleanup() {
+		cleanupBlurElements(true);
+		unbindStageEvents();
+		if (strengthDebounceTimer) clearTimeout(strengthDebounceTimer);
 	}
 
 	export function saveState() {
-		// Save current blur state before switching tools
-		// The parent component will handle taking a snapshot
+		/* state captured by parent snapshots */
 	}
 
 	export function beforeExit() {
-		// Called before switching to another tool
-		saveState();
 		cleanup();
 	}
 
-	// Export functions for parent component to call
-	export { updateBlurStrength, reset, apply };
+	// apply: bake overlays into a single image using an offscreen stage (safe)
+	async function apply() {
+		const { stage, layer, imageNode, imageGroup } = imageEditorStore.state;
+		if (!stage || !layer || !imageNode || !imageGroup) return;
+
+		// hide UI elements for a clean bake
+		cleanupBlurElements(false);
+
+		// Create offscreen stage sized to the image's pixel dimensions
+		// We can't use a new Stage as it creates async canvas,
+		// but we can use an off-screen Layer.
+		// Let's use the safer full-stage-bake from the previous refactor
+		// which is proven to work with all transforms.
+		const dataURL = stage.toDataURL({ pixelRatio: 1 });
+
+		// load baked image and swap into main imageNode
+		const newImage = new Image();
+		await new Promise<void>((res) => {
+			newImage.onload = () => res();
+			newImage.src = dataURL;
+		});
+
+		imageNode.image(newImage);
+		imageNode.width(newImage.width);
+		imageNode.height(newImage.height);
+		imageNode.cropX(0);
+		imageNode.cropY(0);
+		imageNode.cropWidth(newImage.width);
+		imageNode.cropHeight(newImage.height);
+		// Re-center the image node in the imageGroup (1:1)
+		imageNode.x(-newImage.width / 2);
+		imageNode.y(-newImage.height / 2);
+		imageNode.filters([]);
+		imageNode.cache(); // Re-cache new base image
+
+		// Reset group transforms (we baked them)
+		imageGroup.scale({ x: 1, y: 1 });
+		imageGroup.rotation(0);
+
+		// cleanup temp stage and our UI
+		cleanupBlurElements(true);
+
+		// ** THE 1-LINE FIX **
+		// Re-center the 1:1 group in the stage
+		centerImageInStage();
+
+		// finalize
+		layer.batchDraw();
+		props.onBlurApplied?.();
+		imageEditorStore.setActiveState('');
+	}
+
+	// center image group in stage (used after apply)
+	function centerImageInStage() {
+		const { stage, imageGroup } = imageEditorStore.state;
+		if (!stage || !imageGroup) return;
+		imageGroup.position({ x: stage.width() / 2, y: stage.height() / 2 });
+		stage.batchDraw();
+	}
 </script>
 
-<!-- No inline toolbar needed - controls registered to master toolbar -->
+<!-- Controls registered to master toolbar; no DOM toolbar here -->

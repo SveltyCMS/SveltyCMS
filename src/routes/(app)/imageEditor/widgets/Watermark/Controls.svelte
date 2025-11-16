@@ -1,142 +1,137 @@
 <!--
-@file src/routes/(app)/imageEditor/components/toolbars/controls/WatermarkControls.svelte
+@file: src/routes/(app)/imageEditor/widgets/Watermark/Controls.svelte
 @component
 **Watermark tool controls for master toolbar**
-
-### Props
-- `stickerCount`: Number of stickers currently added
-- `hasSelection`: Boolean indicating if a sticker is currently selected
-- `onAddSticker`: Function called when Add Watermark button is clicked
-- `onDeleteSelected`: Function called when Delete button is clicked
-- `onDeleteAll`: Function called when Clear All button is clicked
-- `onApply`: Function called when Done button is clicked
-### Features:
-- Button to add new watermark stickers
-- Displays count of current stickers
-- Button to delete selected sticker (if any)
-- Button to clear all stickers
-- Done button to apply changes
 -->
-
 <script lang="ts">
 	let {
-		stickerCount,
-		hasSelection,
-		onAddSticker,
-		onDeleteSelected,
-		onDeleteAll,
-		onApply
+		opacity,
+		onOpacityChange,
+		onAddWatermark,
+		onSnap,
+		onDelete,
+		onDone
 	}: {
-		stickerCount: number;
-		hasSelection: boolean;
-		onAddSticker: () => void;
-		onDeleteSelected: () => void;
-		onDeleteAll: () => void;
-		onApply: () => void;
+		opacity: number;
+		onOpacityChange: (v: number) => void;
+		onAddWatermark: (f: File) => void;
+		onSnap: (pos: string) => void;
+		onDelete: () => void;
+		onDone: () => void;
 	} = $props();
+
+	let fileInput: HTMLInputElement;
+
+	function handleFileSelect(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		if (input.files && input.files[0]) {
+			onAddWatermark(input.files[0]);
+			input.value = ''; // Reset for next upload
+		}
+	}
+
+	// Local binding for slider
+	let sliderValue = $derived(opacity * 100);
+	function handleOpacityInput(e: Event) {
+		const target = e.currentTarget as HTMLInputElement;
+		onOpacityChange(parseInt(target.value, 10) / 100);
+	}
+
+	const snapPositions = [
+		{ pos: 'tl', icon: 'mdi:arrow-top-left' },
+		{ pos: 'tc', icon: 'mdi:arrow-up' },
+		{ pos: 'tr', icon: 'mdi:arrow-top-right' },
+		{ pos: 'cl', icon: 'mdi:arrow-left' },
+		{ pos: 'c', icon: 'mdi:fullscreen' },
+		{ pos: 'cr', icon: 'mdi:arrow-right' },
+		{ pos: 'bl', icon: 'mdi:arrow-bottom-left' },
+		{ pos: 'bc', icon: 'mdi:arrow-down' },
+		{ pos: 'br', icon: 'mdi:arrow-bottom-right' }
+	];
 </script>
 
 <div class="watermark-controls">
-	<button onclick={onAddSticker} class="control-btn primary">
-		<iconify-icon icon="mdi:plus" width="18"></iconify-icon>
-		Add Watermark
+	<!-- Hidden file input -->
+	<input type="file" class="hidden" accept="image/png, image/jpeg, image/webp" bind:this={fileInput} onchange={handleFileSelect} />
+
+	<!-- Add Watermark -->
+	<button onclick={() => fileInput.click()} class="btn-tool" title="Upload new watermark">
+		<iconify-icon icon="mdi:upload" width="20"></iconify-icon>
+		<span>Upload Logo</span>
 	</button>
+	<div class="divider"></div>
 
-	{#if stickerCount > 0}
-		<div class="divider"></div>
+	<!-- Opacity -->
+	<label class="label" title="Opacity">
+		<iconify-icon icon="mdi:opacity" width="20"></iconify-icon>
+		<input type="range" min="0" max="100" step="1" bind:value={sliderValue} oninput={handleOpacityInput} class="slider" />
+		<span class="value">{sliderValue}%</span>
+	</label>
+	<div class="divider"></div>
 
-		<span class="count-badge">{stickerCount} item{stickerCount !== 1 ? 's' : ''}</span>
-
-		{#if hasSelection}
-			<button onclick={onDeleteSelected} class="control-btn danger">
-				<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
-				Delete
+	<!-- Snap Position -->
+	<span class="label">Position:</span>
+	<div class="snap-grid">
+		{#each snapPositions as snap}
+			<button class="snap-btn" title="Snap to {snap.pos}" onclick={() => onSnap(snap.pos)}>
+				<iconify-icon icon={snap.icon} width="16"></iconify-icon>
 			</button>
-		{/if}
+		{/each}
+	</div>
 
-		<button onclick={onDeleteAll} class="control-btn">
-			<iconify-icon icon="mdi:delete-sweep" width="18"></iconify-icon>
-			Clear All
-		</button>
+	<div class="divider-grow"></div>
 
-		<div class="divider"></div>
-
-		<button onclick={onApply} class="apply-btn">
-			<iconify-icon icon="mdi:check" width="18"></iconify-icon>
-			Done
-		</button>
-	{/if}
+	<!-- Actions -->
+	<button onclick={onDelete} class="btn-tool" title="Delete selected watermark">
+		<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
+	</button>
+	<button onclick={onDone} class="btn-apply" title="Done">
+		<iconify-icon icon="mdi:check" width="18"></iconify-icon>
+		<span>Done</span>
+	</button>
 </div>
 
 <style lang="postcss">
 	.watermark-controls {
-		@apply flex items-center gap-2;
+		@apply flex w-full items-center gap-3 px-2;
 	}
-
-	.control-btn {
-		@apply flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition-colors;
-		background-color: rgb(var(--color-surface-200) / 1);
-		color: rgb(var(--color-surface-700) / 1);
+	.label {
+		@apply flex items-center gap-1 text-nowrap text-sm font-medium text-surface-700 dark:text-surface-200;
 	}
-
-	:global(.dark) .control-btn {
-		background-color: rgb(var(--color-surface-700) / 1);
-		color: rgb(var(--color-surface-200) / 1);
-	}
-
-	.control-btn:hover {
-		background-color: rgb(var(--color-surface-300) / 1);
-	}
-
-	:global(.dark) .control-btn:hover {
-		background-color: rgb(var(--color-surface-600) / 1);
-	}
-
-	.control-btn.primary {
-		background-color: rgb(var(--color-primary-500) / 1);
-		color: white;
-	}
-
-	.control-btn.primary:hover {
-		background-color: rgb(var(--color-primary-600) / 1);
-	}
-
-	.control-btn.danger {
-		background-color: rgb(var(--color-error-500) / 1);
-		color: white;
-	}
-
-	.control-btn.danger:hover {
-		background-color: rgb(var(--color-error-600) / 1);
-	}
-
-	.count-badge {
-		@apply rounded-full px-2.5 py-1 text-xs font-semibold;
-		background-color: rgb(var(--color-surface-300) / 1);
-		color: rgb(var(--color-surface-700) / 1);
-	}
-
-	:global(.dark) .count-badge {
-		background-color: rgb(var(--color-surface-600) / 1);
-		color: rgb(var(--color-surface-200) / 1);
-	}
-
-	.apply-btn {
-		@apply flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium;
-		background-color: rgb(var(--color-success-500) / 1);
-		color: white;
-	}
-
-	.apply-btn:hover {
-		background-color: rgb(var(--color-success-600) / 1);
-	}
-
 	.divider {
-		@apply h-6 w-px;
-		background-color: rgb(var(--color-surface-300) / 1);
+		@apply h-6 w-px bg-surface-300 dark:bg-surface-600;
 	}
-
-	:global(.dark) .divider {
-		background-color: rgb(var(--color-surface-600) / 1);
+	.divider-grow {
+		@apply flex-grow;
+	}
+	.btn-tool {
+		@apply flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors;
+		@apply bg-surface-200 text-surface-700 dark:bg-surface-700 dark:text-surface-200;
+	}
+	.btn-tool:hover {
+		@apply bg-surface-300 dark:bg-surface-600;
+	}
+	.btn-apply {
+		@apply flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium text-white;
+		@apply bg-success-500 hover:bg-success-600;
+	}
+	.slider {
+		@apply h-2 w-24 cursor-pointer appearance-none rounded-full bg-surface-300 dark:bg-surface-600;
+	}
+	.slider::-webkit-slider-thumb {
+		@apply h-4 w-4 appearance-none rounded-full bg-primary-600 shadow-md;
+	}
+	.slider::-moz-range-thumb {
+		@apply h-4 w-4 rounded-full border-0 bg-primary-600 shadow-md;
+	}
+	.value {
+		@apply min-w-[3rem] text-center text-sm font-semibold text-surface-700 dark:text-surface-200;
+	}
+	.snap-grid {
+		@apply grid grid-cols-3 gap-0.5 rounded-lg bg-surface-200 p-0.5 dark:bg-surface-700;
+	}
+	.snap-btn {
+		@apply flex h-6 w-6 items-center justify-center rounded-md transition-colors;
+		@apply text-surface-500 hover:bg-white hover:text-primary-600 dark:text-surface-400 dark:hover:bg-surface-900;
 	}
 </style>

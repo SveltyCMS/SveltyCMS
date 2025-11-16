@@ -9,13 +9,24 @@ This page serves as a demo and testing environment for the image editor.
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import { page } from '$app/state';
+	import { onMount, onDestroy } from 'svelte';
+	import { toggleUIElement } from '@stores/UIStore.svelte';
 	import ImageEditor from './ImageEditor.svelte';
 
 	// Get initial image from URL params if provided
 	const initialImageSrc = $derived(page.params?.image || '');
 
-	// Note: UIStore now handles pageheader/pagefooter visibility for image editor route
-	// No need for manual onMount override
+	// Show page header/footer when component mounts
+	onMount(() => {
+		toggleUIElement('pageheader', 'full');
+		toggleUIElement('pagefooter', 'full');
+	});
+
+	// Hide page header/footer when component unmounts
+	onDestroy(() => {
+		toggleUIElement('pageheader', 'hidden');
+		toggleUIElement('pagefooter', 'hidden');
+	});
 
 	// Handle save callback
 	const handleSave = (dataURL: string, file: File) => {

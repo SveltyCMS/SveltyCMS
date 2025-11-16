@@ -395,32 +395,6 @@ export async function collectionsResolvers(
 				throw new Error(`Failed to fetch data for ${collection._id}: ${errorMessage}`);
 			}
 		};
-
-		// Add mutation resolvers
-		resolvers.Query[`create${cleanTypeName}`] = async function resolver(
-			_parent: unknown,
-			args: { input: Record<string, unknown> },
-			context: unknown
-		): Promise<DocumentBase> {
-			const ctx = context as { user?: User; tenantId?: string };
-			if (!ctx.user) {
-				throw new Error('Authentication required');
-			}
-
-			const collectionName = `collection_${collection._id}`;
-			const result = await dbAdapter.crud.insert(collectionName, args.input);
-
-			if (!result.success) {
-				throw new Error(`Database query failed: ${result.error?.message || 'Unknown error'}`);
-			}
-
-			const newPost = result.data as unknown as DocumentBase;
-
-			// Publish the new post to the subscription
-			pubSub.publish('postAdded', newPost);
-
-			return newPost;
-		};
 	}
 
 	return resolvers;

@@ -1,3 +1,4 @@
+// src/routes/(app)/imageEditor/widgets/Annotate/index.ts
 import type { Component } from 'svelte';
 import Tool from './Tool.svelte';
 import Controls from './Controls.svelte';
