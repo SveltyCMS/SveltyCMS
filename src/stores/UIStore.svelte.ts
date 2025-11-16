@@ -37,14 +37,15 @@ const createUIStores = () => {
 	const initialSize = screenSize.value;
 
 	// Tailored default state based on screen size and mode
+	// Note: Image editor route overrides these defaults in its +page.svelte onMount
 	const getDefaultState = (size: ScreenSize, isViewMode: boolean): UIState => {
 		// Mobile behavior (<768px) - Always hide sidebar on mobile to show FloatingNav
 		if (size === ScreenSize.XS || size === ScreenSize.SM) {
 			return {
 				leftSidebar: 'hidden', // ALWAYS hidden on mobile regardless of mode
 				rightSidebar: 'hidden',
-				pageheader: isViewMode ? 'hidden' : 'full',
-				pagefooter: isViewMode ? 'hidden' : 'full', // Show pagefooter on mobile when editing (Fields.svelte needs it)
+				pageheader: 'full', // Always show for image editor header
+				pagefooter: 'full', // Always show for image editor toolbar
 				header: 'hidden',
 				footer: 'hidden'
 			};
@@ -55,8 +56,8 @@ const createUIStores = () => {
 			return {
 				leftSidebar: isViewMode ? 'collapsed' : 'hidden',
 				rightSidebar: 'hidden',
-				pageheader: isViewMode ? 'hidden' : 'full',
-				pagefooter: isViewMode ? 'hidden' : 'full', // Show pagefooter on tablet when editing too
+				pageheader: 'full', // Always show for image editor header
+				pagefooter: 'full', // Always show for image editor toolbar
 				header: 'hidden',
 				footer: 'hidden'
 			};
@@ -66,8 +67,8 @@ const createUIStores = () => {
 		return {
 			leftSidebar: isViewMode ? 'full' : 'collapsed',
 			rightSidebar: isViewMode ? 'hidden' : 'full',
-			pageheader: isViewMode ? 'hidden' : 'full',
-			pagefooter: isViewMode ? 'hidden' : 'hidden', // Hide on desktop edit mode since RightSidebar shows detailed info
+			pageheader: 'full', // Always show for image editor header
+			pagefooter: 'full', // Always show for image editor toolbar
 			header: 'hidden',
 			footer: 'hidden'
 		};
