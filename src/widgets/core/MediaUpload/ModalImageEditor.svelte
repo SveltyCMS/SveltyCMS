@@ -26,14 +26,18 @@ allowing users to edit images directly from the MediaUpload widget.
 	} = $props();
 
 	// Determine the initial image source
-	let imageFile: File | null = null;
-	let initialImageSrc: string = '';
+	let imageFile: File | null = $state(null);
+	let initialImageSrc: string = $state('');
+	let mediaId: string | null = $state(null);
 
 	if (_data) {
 		if (_data instanceof File) {
 			imageFile = _data;
 		} else if ('thumbnails' in _data) {
 			initialImageSrc = _data.thumbnails?.lg?.url || _data.url;
+			// Attempt to capture media id
+			// @ts-ignore allow generic model id
+			mediaId = (_data as any)._id || (_data as any).id || null;
 		}
 	}
 
@@ -49,7 +53,7 @@ allowing users to edit images directly from the MediaUpload widget.
 
 <div class="modal-content h-full max-h-none w-full max-w-none">
 	<div class="flex h-full w-full flex-col">
-		<ImageEditor {imageFile} {initialImageSrc} onSave={handleSave} onCancel={handleCancel} />
+		<ImageEditor {imageFile} {initialImageSrc} {mediaId} onSave={handleSave} onCancel={handleCancel} />
 	</div>
 </div>
 

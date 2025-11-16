@@ -31,31 +31,35 @@ for the image editor canvas with responsive behavior.
 	});
 </script>
 
-<div class="editor-canvas-wrapper">
+<div
+	class="editor-canvas-wrapper relative flex-1 overflow-hidden rounded-lg border border-surface-200 transition-all duration-300 ease-in-out focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 focus-within:ring-offset-surface-50 dark:focus-within:ring-offset-surface-900 md:rounded-lg md:border md:border-surface-200 max-md:rounded-none max-md:border-0 max-md:border-b max-md:border-t"
+>
 	<!-- Canvas container - ALWAYS present for Konva stage -->
-	<div class="canvas-container" bind:this={containerRef}>
+	<div class="canvas-container h-full w-full transition-all duration-300 ease-in-out" bind:this={containerRef}>
 		<!-- Konva stage will be mounted here by ImageEditor -->
 	</div>
 
 	<!-- Empty state overlay - shown when no image -->
 	{#if !hasImage}
-		<div class="empty-state">
-			<div class="empty-state-content">
-				<div class="empty-icon">
+		<div class="empty-state pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+			<div class="empty-state-content flex max-w-md flex-col items-center gap-6 p-8 text-center max-md:p-6">
+				<div
+					class="empty-icon flex h-20 w-20 items-center justify-center rounded-full bg-surface-200 ring-4 ring-surface-300 dark:bg-surface-700 dark:ring-surface-600 max-md:h-16 max-md:w-16"
+				>
 					<iconify-icon icon="mdi:image-plus" width="48" class="text-surface-400 dark:text-surface-500"></iconify-icon>
 				</div>
 				<div class="empty-text">
-					<h3 class="text-lg font-medium text-surface-700 dark:text-surface-300">No Image Selected</h3>
-					<p class="text-sm text-surface-500 dark:text-surface-400">Upload an image to start editing</p>
+					<h3 class="mb-2 text-lg font-medium text-surface-700 dark:text-surface-300 max-md:text-base">No Image Selected</h3>
+					<p class="text-sm text-surface-500 dark:text-surface-400 max-md:text-xs">Upload an image to start editing</p>
 				</div>
-				<div class="empty-hints">
-					<div class="hint-item">
+				<div class="empty-hints flex flex-col gap-2">
+					<div class="hint-item flex items-center justify-center gap-2">
 						<iconify-icon icon="mdi:gesture-tap" width="16" class="text-surface-400"></iconify-icon>
-						<span class="text-xs text-surface-500 dark:text-surface-400"> Drag & drop supported </span>
+						<span class="text-xs text-surface-500 dark:text-surface-400 max-md:text-[10px]"> Drag & drop supported </span>
 					</div>
-					<div class="hint-item">
+					<div class="hint-item flex items-center justify-center gap-2">
 						<iconify-icon icon="mdi:file-image" width="16" class="text-surface-400"></iconify-icon>
-						<span class="text-xs text-surface-500 dark:text-surface-400"> PNG, JPG, WebP, GIF </span>
+						<span class="text-xs text-surface-500 dark:text-surface-400 max-md:text-[10px]"> PNG, JPG, WebP, GIF </span>
 					</div>
 				</div>
 			</div>
@@ -67,8 +71,10 @@ for the image editor canvas with responsive behavior.
 
 	<!-- Loading overlay -->
 	{#if hasImage && !mounted}
-		<div class="loading-overlay">
-			<div class="loading-spinner">
+		<div
+			class="loading-overlay absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-50/80 backdrop-blur-sm dark:bg-surface-900/80"
+		>
+			<div class="loading-spinner flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg dark:bg-surface-800">
 				<iconify-icon icon="mdi:loading" width="32" class="animate-spin text-primary-500"></iconify-icon>
 			</div>
 			<span class="text-sm text-surface-600 dark:text-surface-300">Loading image...</span>
@@ -76,11 +82,8 @@ for the image editor canvas with responsive behavior.
 	{/if}
 </div>
 
-<style>
+<style lang="postcss">
 	.editor-canvas-wrapper {
-		@apply relative flex-1;
-		@apply border border-surface-200;
-		@apply overflow-hidden rounded-lg;
 		background-color: rgb(var(--color-surface-50) / 1);
 		border-color: rgb(var(--color-surface-200) / 1);
 		min-height: 400px;
@@ -92,7 +95,6 @@ for the image editor canvas with responsive behavior.
 	}
 
 	.canvas-container {
-		@apply h-full w-full;
 		background-color: rgb(var(--color-surface-100) / 1);
 		/* Checkered pattern for transparency visualization */
 		background-image:
@@ -114,8 +116,6 @@ for the image editor canvas with responsive behavior.
 	}
 
 	.empty-state {
-		@apply absolute inset-0 flex items-center justify-center;
-		@apply pointer-events-none z-10;
 		background: linear-gradient(to bottom right, rgb(var(--color-surface-50) / 0.95), rgb(var(--color-surface-100) / 0.95));
 	}
 
@@ -123,82 +123,10 @@ for the image editor canvas with responsive behavior.
 		background: linear-gradient(to bottom right, rgb(var(--color-surface-900) / 1), rgb(var(--color-surface-800) / 1));
 	}
 
-	.empty-state-content {
-		@apply flex flex-col items-center gap-6 p-8 text-center;
-		@apply max-w-md;
-	}
-
-	.empty-icon {
-		@apply flex h-20 w-20 items-center justify-center;
-		@apply rounded-full bg-surface-200 dark:bg-surface-700;
-		@apply ring-4 ring-surface-300 dark:ring-surface-600;
-	}
-
-	.empty-text h3 {
-		@apply mb-2;
-	}
-
-	.empty-hints {
-		@apply flex flex-col gap-2;
-	}
-
-	.hint-item {
-		@apply flex items-center justify-center gap-2;
-	}
-
-	.loading-overlay {
-		@apply absolute inset-0 flex flex-col items-center justify-center gap-3;
-		@apply bg-surface-50/80 backdrop-blur-sm dark:bg-surface-900/80;
-	}
-
-	.loading-spinner {
-		@apply flex h-12 w-12 items-center justify-center;
-		@apply rounded-full bg-white shadow-lg dark:bg-surface-800;
-	}
-
 	/* Responsive adjustments */
 	@media (max-width: 768px) {
 		.editor-canvas-wrapper {
-			@apply rounded-none border-0 border-b border-t;
 			min-height: 50vh;
 		}
-
-		.empty-state-content {
-			@apply p-6;
-		}
-
-		.empty-icon {
-			@apply h-16 w-16;
-		}
-
-		.empty-text h3 {
-			@apply text-base;
-		}
-
-		.empty-text p {
-			@apply text-xs;
-		}
-
-		.hint-item span {
-			@apply text-[10px];
-		}
-	}
-
-	/* Tablet adjustments */
-	@media (min-width: 769px) and (max-width: 1023px) {
-		.empty-state-content {
-			@apply p-6;
-		}
-	}
-
-	/* Animation for state transitions */
-	.empty-state,
-	.canvas-container {
-		@apply transition-all duration-300 ease-in-out;
-	}
-
-	/* Focus indicators for accessibility */
-	.editor-canvas-wrapper:focus-within {
-		@apply ring-2 ring-primary-500 ring-offset-2 ring-offset-surface-50 dark:ring-offset-surface-900;
 	}
 </style>

@@ -23,108 +23,56 @@ and proper active state indication.
 		hasImage?: boolean;
 	} = $props();
 
-	// Tool definitions with Pintura-inspired grouping
+	// Drive tools from the widgets registry, with a focalpoint fallback
+	import { editorWidgets } from '../../widgets/registry';
+
 	const tools = [
-		{
-			id: 'crop',
-			name: 'Crop',
-			icon: 'mdi:crop',
-			description: 'Crop, rotate, scale & flip image',
-			category: 'transform'
-		},
-		{
-			id: 'finetune',
-			name: 'Finetune',
-			icon: 'mdi:tune',
-			description: 'Brightness, contrast, saturation',
-			category: 'adjust',
-			disabled: true, // Not yet implemented
-			comingSoon: true
-		},
-		{
-			id: 'blur',
-			name: 'Blur',
-			icon: 'mdi:blur',
-			description: 'Selective blur regions',
-			category: 'effects'
-		},
-		{
-			id: 'annotate',
-			name: 'Annotate',
-			icon: 'mdi:pencil',
-			description: 'Add text and shapes',
-			category: 'overlay',
-			disabled: true, // Will be implemented as combined text+shape tool
-			comingSoon: true
-		},
-		{
-			id: 'sticker',
-			name: 'Sticker',
-			icon: 'mdi:sticker',
-			description: 'Watermarks and overlays',
-			category: 'overlay',
-			actualTool: 'watermark' // Maps to watermark for now
-		},
-		{
-			id: 'focal',
-			name: 'Focal',
-			icon: 'mdi:focus-field',
-			description: 'Set focal point with rule of thirds',
-			category: 'composition',
-			actualTool: 'focalpoint'
-		}
+		...editorWidgets.map((w) => ({ id: w.key, name: w.title, icon: w.icon ?? 'mdi:cog', description: '' })),
+		{ id: 'focalpoint', name: 'Focal', icon: 'mdi:focus-field', description: 'Set focal point with rule of thirds' }
 	];
 
 	function handleToolClick(tool: any) {
-		if (tool.disabled || !hasImage) return;
-
-		// Use actualTool mapping if available, otherwise use tool.id
-		const toolId = tool.actualTool || tool.id;
-		onToolSelect(toolId);
+		if (!hasImage) return;
+		onToolSelect(tool.id);
 	}
 
 	function isToolActive(tool: any): boolean {
-		const toolId = tool.actualTool || tool.id;
-		return activeState === toolId;
+		return activeState === tool.id;
 	}
 </script>
 
-<div class="editor-sidebar">
-	<div class="sidebar-header">
-		<div class="logo">
-			<iconify-icon icon="tdesign:image-edit" width="24" class="text-primary-500"></iconify-icon>
-		</div>
-	</div>
-
-	<div class="sidebar-tools">
+<div class="editor-sidebar flex w-14 flex-col border-r lg:w-16">
+	<div class="sidebar-tools flex flex-1 flex-col gap-1 p-1.5 lg:p-2 max-lg:gap-0.5 max-lg:p-1">
 		{#each tools as tool}
 			<button
-				class="tool-button"
+				class="tool-button relative flex flex-col items-center justify-center gap-1 rounded-lg p-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 lg:p-2.5 max-lg:p-1.5"
 				class:active={isToolActive(tool)}
-				class:disabled={tool.disabled || !hasImage}
-				class:coming-soon={tool.comingSoon}
+				class:disabled={!hasImage}
+				class:bg-primary-500={isToolActive(tool)}
+				class:text-white={isToolActive(tool)}
+				class:shadow-md={isToolActive(tool)}
+				class:hover:bg-primary-600={isToolActive(tool)}
+				class:cursor-not-allowed={!hasImage}
+				class:opacity-50={!hasImage}
+				class:bg-transparent={!hasImage}
 				onclick={() => handleToolClick(tool)}
-				title="{tool.name}: {tool.description}"
+				title="{tool.name}{tool.description ? `: ${tool.description}` : ''}"
 				aria-label={tool.name}
-				disabled={tool.disabled || !hasImage}
+				disabled={!hasImage}
 			>
-				<div class="tool-icon">
+				<div class="tool-icon flex items-center justify-center">
 					<iconify-icon icon={tool.icon} width="24"></iconify-icon>
 				</div>
-				<span class="tool-label">{tool.name}</span>
+				<span class="tool-label text-xs font-medium leading-none max-lg:text-[10px]">{tool.name}</span>
 
-				{#if tool.comingSoon}
-					<div class="coming-soon-badge">
-						<span class="text-xs">Soon</span>
-					</div>
-				{/if}
+				<!-- coming soon badge removed; driven by registry now -->
 			</button>
 		{/each}
 	</div>
 
-	<div class="sidebar-footer">
+	<div class="sidebar-footer border-t p-2">
 		{#if !hasImage}
-			<div class="no-image-hint">
+			<div class="no-image-hint flex flex-col items-center gap-1 p-2 text-center">
 				<iconify-icon icon="mdi:information-outline" width="16" class="text-surface-400"></iconify-icon>
 				<span class="text-xs text-surface-500 dark:text-surface-400"> Upload an image to enable tools </span>
 			</div>
@@ -132,9 +80,8 @@ and proper active state indication.
 	</div>
 </div>
 
-<style>
+<style lang="postcss">
 	.editor-sidebar {
-		@apply flex w-16 flex-col border-r lg:w-20;
 		background-color: rgb(var(--color-surface-100) / 1);
 		border-color: rgb(var(--color-surface-200) / 1);
 		min-height: 100%;
@@ -145,26 +92,7 @@ and proper active state indication.
 		border-color: rgb(var(--color-surface-700) / 1);
 	}
 
-	.sidebar-header {
-		@apply flex items-center justify-center border-b p-4;
-		border-color: rgb(var(--color-surface-200) / 1);
-	}
-
-	:global(.dark) .sidebar-header {
-		border-color: rgb(var(--color-surface-700) / 1);
-	}
-
-	.logo {
-		@apply flex h-8 w-8 items-center justify-center lg:h-10 lg:w-10;
-	}
-
-	.sidebar-tools {
-		@apply flex flex-1 flex-col gap-1 p-2;
-	}
-
 	.tool-button {
-		@apply relative flex flex-col items-center justify-center gap-1 rounded-lg p-2 transition-all duration-200 lg:p-3;
-		@apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
 		color: rgb(var(--color-surface-600) / 1);
 		min-height: 3rem;
 	}
@@ -184,21 +112,11 @@ and proper active state indication.
 		color: rgb(var(--color-surface-200) / 1);
 	}
 
-	.tool-button.active {
-		@apply bg-primary-500 text-white shadow-md;
-	}
-
 	.tool-button.active:hover {
-		@apply bg-primary-600;
 		transform: none;
 	}
 
-	.tool-button.disabled {
-		@apply cursor-not-allowed opacity-50;
-	}
-
 	.tool-button.disabled:hover {
-		@apply bg-transparent;
 		color: rgb(var(--color-surface-600) / 1);
 		transform: none;
 	}
@@ -207,20 +125,7 @@ and proper active state indication.
 		color: rgb(var(--color-surface-300) / 1);
 	}
 
-	.tool-icon {
-		@apply flex items-center justify-center;
-	}
-
-	.tool-label {
-		@apply text-xs font-medium leading-none;
-	}
-
-	.coming-soon-badge {
-		@apply absolute -right-1 -top-1 rounded-full bg-warning-500 px-1.5 py-0.5 text-warning-50;
-	}
-
 	.sidebar-footer {
-		@apply border-t p-2;
 		border-color: rgb(var(--color-surface-200) / 1);
 	}
 
@@ -228,22 +133,9 @@ and proper active state indication.
 		border-color: rgb(var(--color-surface-700) / 1);
 	}
 
-	.no-image-hint {
-		@apply flex flex-col items-center gap-1 p-2 text-center;
-	}
-
 	/* Responsive adjustments */
 	@media (max-width: 1023px) {
-		.tool-label {
-			@apply text-[10px];
-		}
-
-		.sidebar-tools {
-			@apply gap-0.5 p-1;
-		}
-
 		.tool-button {
-			@apply p-1.5;
 			min-height: 2.5rem;
 		}
 	}
