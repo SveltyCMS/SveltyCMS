@@ -1,35 +1,19 @@
 <!--
-@file src/widgets/core/input/Input.svelte
+@file src/widgets/core/slug/Input.svelte
 @component
-**Text Input Widget Component**
+**Slug Input Widget Component**
+
+A specialized input for URL-friendly slugs that can be generated from token patterns.
 
 @example
-<Input field={{ label: "Title", db_fieldName: "title", translated: true, required: true }} />
-
-### Props
-- `field`: FieldType (configuration for the input, e.g., label, required, translated)
-- `value`: any (object storing input values, e.g., { en: "Hello", fr: "" })
-
-### Features
-- **Enhanced Validation**: Integration with improved validation store
-- **Multilingual Support**: Handles translatable fields with reactive updates
-- **Touch State Management**: Proper error display based on interaction
-- **Async Validation**: Support for server-side validation
-- **Performance Optimized**: Debounced validation with cleanup
-- **Character Counting**: Visual feedback for length constraints
-- **Accessibility**: Full ARIA support and semantic HTML
-- **Visual Indicators**: Real-time validation feedback
+<Slug field={{ label: "URL Slug", db_fieldName: "slug", pattern: "{{entry.title | slugify}}" }} />
 -->
 
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import type { FieldType } from '.';
-
-	// Utils
 	import { getFieldName } from '@src/utils/utils';
 	import { untrack } from 'svelte';
-
-	// Valibot validation
 	import {
 		string,
 		pipe,
@@ -48,12 +32,12 @@
 	// Token system
 	import TokenPicker from '@components/TokenPicker.svelte';
 	import { getAvailableTokens } from '@src/services/token/TokenRegistry';
-	import type { TokenDefinition } from '@src/services/token/types';
+	import { replaceTokens } from '@src/services/token/TokenService';
+	import type { TokenDefinition, TokenContext } from '@src/services/token/types';
 	import { collection } from '@src/stores/collectionStore.svelte';
 	import { collectionValue } from '@src/stores/collectionStore.svelte';
 	import { page } from '$app/state';
 
-	// Props
 	interface Props {
 		field: FieldType;
 		value?: Record<string, string> | null | undefined;
@@ -63,7 +47,14 @@
 		debounceMs?: number;
 	}
 
-	let { field, value = $bindable(), validateOnMount = false, validateOnChange = true, validateOnBlur = true, debounceMs = 300 }: Props = $props();
+	let {
+		field,
+		value = $bindable(),
+		validateOnMount = false,
+		validateOnChange = true,
+		validateOnBlur = true,
+		debounceMs = 300
+	}: Props = $props();
 
 	// Token picker state
 	let showTokenPicker = $state(false);
@@ -73,9 +64,9 @@
 	const currentCollection = $derived(collection.value);
 	const currentEntry = $derived(collectionValue.value as Record<string, unknown> | undefined);
 
-	// Load available tokens when token picker is enabled
+	// Load available tokens
 	$effect(() => {
-		if (field?.token && currentCollection) {
+		if (currentCollection) {
 			availableTokens = getAvailableTokens(
 				currentCollection,
 				user,
@@ -88,39 +79,25 @@
 		}
 	});
 
-	// Use current content language for translated fields, default for non-translated
-	const _language = $derived(field.translated ? contentLanguage.value : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	// Language for non-translated fields
+	const _language = $derived(
+		field.translated
+			? contentLanguage.value
+			: ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase()
+	);
 
-	// Initialize value if null/undefined
-	// Safe value access with fallback
 	let safeValue = $derived(value?.[_language] ?? '');
-
-	// Character count
 	let count = $derived(safeValue?.length ?? 0);
 
-	// Validation state - now using the enhanced validation store
+	// Validation state
 	let debounceTimeout: number | undefined;
 	let hasValidatedOnMount = $state(false);
-
-	// Get validation state from store
-	// Define fieldName using getFieldName utility
 	let fieldName = getFieldName(field);
 	let validationError = $derived(validationStore.getError(fieldName));
 	let isValidating = $state(false);
 	let isTouched = $state(false);
 
-	// Memoized badge class calculation using $derived
-	let badgeClass = $derived(() => {
-		const length = count;
-		if (field?.minLength && length < (field?.minLength as number)) return 'bg-red-600';
-		if (field?.maxLength && length > (field?.maxLength as number)) return 'bg-red-600';
-		if (field?.count && length === (field?.count as number)) return 'bg-green-600';
-		if (field?.count && length > (field?.count as number)) return 'bg-orange-600';
-		if (field?.minLength) return '!variant-filled-surface';
-		return '!variant-ghost-surface';
-	});
-
-	// Create validation schema
+	// Validation schema
 	let validationSchema = $derived.by(() => {
 		const rules: Array<unknown> = [transform((val: string) => (typeof val === 'string' ? val.trim() : val))];
 
@@ -139,46 +116,89 @@
 		return field?.required ? pipe(string(), ...(rules as [])) : nullable(pipe(string(), ...(rules as [])));
 	});
 
-	// Enhanced validation function
+	// Auto-generate slug from pattern
+	async function generateSlugFromPattern(): Promise<void> {
+		const pattern = (field as { pattern?: string }).pattern;
+		const autoUpdate = (field as { autoUpdate?: boolean }).autoUpdate ?? true;
+		if (!pattern || !autoUpdate) {
+			return;
+		}
+
+		try {
+			const context: TokenContext = {
+				entry: currentEntry,
+				collection: currentCollection,
+				user,
+				site: publicEnv as Record<string, unknown>,
+				system: {
+					now: new Date()
+				}
+			};
+
+			const result = await replaceTokens(pattern, context);
+			if (result.result && result.result !== safeValue) {
+				updateValue(result.result);
+			}
+		} catch (error) {
+			logger.error('Error generating slug from pattern:', error);
+		}
+	}
+
+	// Watch for entry changes and auto-update slug
+	$effect(() => {
+		const autoUpdate = (field as { autoUpdate?: boolean }).autoUpdate ?? true;
+		const pattern = (field as { pattern?: string }).pattern;
+		if (autoUpdate && pattern && currentEntry) {
+			// Debounce the generation
+			if (debounceTimeout) {
+				clearTimeout(debounceTimeout);
+			}
+			debounceTimeout = window.setTimeout(() => {
+				generateSlugFromPattern();
+			}, 500);
+		}
+	});
+
+	// Validation function
 	async function validateInput(immediate = false): Promise<string | null> {
 		const currentValue = safeValue;
 
-		// Clear existing timeout
 		if (debounceTimeout) {
 			clearTimeout(debounceTimeout);
 			debounceTimeout = undefined;
 		}
 
-		// Set up validation with debounce (unless immediate)
 		const doValidation = async () => {
 			isValidating = true;
 
 			try {
-				// Required field validation
 				if (field?.required && (currentValue === null || currentValue === undefined || currentValue === '')) {
 					const error = 'This field is required';
-					if (process.env.NODE_ENV !== 'production') {
-						logger.debug(`[Input Widget] Setting required field error for ${fieldName}:`, error);
-					}
 					validationStore.setError(fieldName, error);
 					return error;
 				}
 
-				// Length validations
 				if (currentValue !== null && currentValue !== undefined && currentValue !== '') {
-					if (typeof field?.minLength === 'number' && typeof currentValue === 'string' && currentValue.length < field.minLength) {
+					if (
+						typeof field?.minLength === 'number' &&
+						typeof currentValue === 'string' &&
+						currentValue.length < field.minLength
+					) {
 						const error = `Minimum length is ${field.minLength}`;
 						validationStore.setError(fieldName, error);
 						return error;
 					}
-					if (typeof field?.maxLength === 'number' && typeof currentValue === 'string' && currentValue.length > field.maxLength) {
+					if (
+						typeof field?.maxLength === 'number' &&
+						typeof currentValue === 'string' &&
+						currentValue.length > field.maxLength
+					) {
 						const error = `Maximum length is ${field.maxLength}`;
 						validationStore.setError(fieldName, error);
 						return error;
 					}
 				}
 
-				// Valibot schema validation
 				try {
 					parse(validationSchema, currentValue);
 					validationStore.clearError(fieldName);
@@ -214,14 +234,12 @@
 		}
 	}
 
-	// Handle input changes
 	function handleInput() {
 		if (validateOnChange) {
 			validateInput(false);
 		}
 	}
 
-	// Handle blur events
 	async function handleBlur() {
 		isTouched = true;
 		if (validateOnBlur) {
@@ -229,32 +247,22 @@
 		}
 	}
 
-	// Handle focus events
-	function handleFocus() {
-		// Could be used for custom focus behavior
-	}
-
-	// Safe value setter function
 	function updateValue(newValue: string) {
 		if (!value) {
 			value = {};
 		}
-		// Ensure value is treated as a new object for reactivity
 		value = { ...(value || {}), [_language]: newValue };
 	}
 
-	// Input element reference
 	let inputRef = $state<HTMLInputElement | null>(null);
 
-	// Handle token insertion
 	function handleTokenSelect(tokenString: string) {
 		const currentValue = safeValue || '';
 		const cursorPos = inputRef?.selectionStart || currentValue.length;
 		const newValue = currentValue.slice(0, cursorPos) + tokenString + currentValue.slice(cursorPos);
 		updateValue(newValue);
 		showTokenPicker = false;
-		
-		// Focus back on input and set cursor position
+
 		setTimeout(() => {
 			if (inputRef) {
 				inputRef.focus();
@@ -264,48 +272,34 @@
 		}, 0);
 	}
 
-	// Cleanup function
 	$effect(() => {
 		return () => {
 			if (debounceTimeout) {
 				clearTimeout(debounceTimeout);
 			}
-			// No cache to clear
 		};
 	});
 
-	// Initialize validation on mount if requested - only run once
 	$effect(() => {
 		if (validateOnMount && !hasValidatedOnMount) {
 			hasValidatedOnMount = true;
-			// Validation happens silently - logs only in dev mode for debugging
-			// Use untrack to prevent circular dependencies and run validation immediately
 			untrack(() => {
 				validateInput(true);
 			});
 		}
 	});
 
-	// Watch for value changes from external sources
 	$effect(() => {
-		// This effect runs when safeValue changes
 		if (isTouched && validateOnChange) {
 			validateInput(false);
 		}
 	});
 
-	// Export WidgetData for data binding with Fields.svelte
 	export const WidgetData = async () => value;
 </script>
 
 <div class="relative mb-4 min-h-10 w-full pb-6">
 	<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
-		{#if field?.prefix}
-			<button class="!px-2" type="button" aria-label={`${field.prefix} prefix`}>
-				{field?.prefix}
-			</button>
-		{/if}
-
 		<input
 			bind:this={inputRef}
 			type="text"
@@ -315,7 +309,6 @@
 				handleInput();
 			}}
 			onblur={handleBlur}
-			onfocus={handleFocus}
 			name={field?.db_fieldName}
 			id={field?.db_fieldName}
 			placeholder={(field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName) as string | undefined}
@@ -333,76 +326,63 @@
 			aria-invalid={!!validationError}
 			aria-describedby={validationError ? `${fieldName}-error` : undefined}
 			aria-required={field?.required}
-			data-testid="text-input"
+			data-testid="slug-input"
 		/>
 
 		<!-- Token Picker Button -->
-		{#if field?.token}
+		<button
+			type="button"
+			onclick={() => {
+				showTokenPicker = true;
+			}}
+			class="btn-icon btn-sm"
+			aria-label="Insert token"
+			title="Insert token"
+		>
+			<iconify-icon icon="mdi:code-tags" width="18"></iconify-icon>
+		</button>
+
+		<!-- Generate from Pattern Button -->
+		{#if (field as { pattern?: string }).pattern}
 			<button
 				type="button"
-				onclick={() => {
-					showTokenPicker = true;
-				}}
+				onclick={generateSlugFromPattern}
 				class="btn-icon btn-sm"
-				aria-label="Insert token"
-				title="Insert token"
+				aria-label="Generate from pattern"
+				title="Generate from pattern"
 			>
-				<iconify-icon icon="mdi:code-tags" width="18"></iconify-icon>
+				<iconify-icon icon="mdi:refresh" width="18"></iconify-icon>
 			</button>
-		{/if}
-
-		<!-- suffix and count -->
-		{#if field?.suffix || field?.count || field?.minLength || field?.maxLength}
-			<div class="flex items-center" role="status" aria-live="polite">
-				{#if field?.count || field?.minLength || field?.maxLength}
-					<span class="badge mr-1 rounded-full {badgeClass}" aria-label="Character count">
-						{#if field?.count && field?.minLength && field?.maxLength}
-							{count}/{field?.maxLength}
-						{:else if field?.count && field?.maxLength}
-							{count}/{field?.maxLength}
-						{:else if field?.count && field?.minLength}
-							{count} => {field?.minLength}
-						{:else if field?.minLength && field?.maxLength}
-							{count} => {field?.minLength}/{field?.maxLength}
-						{:else if field?.count}
-							{count}/{field?.count}
-						{:else if field?.maxLength}
-							{count}/{field?.maxLength}
-						{:else if field?.minLength}
-							min {field?.minLength}
-						{/if}
-					</span>
-				{/if}
-				{#if field?.suffix}
-					<span class="!px-1" aria-label={`${field.suffix} suffix`}>{field?.suffix}</span>
-				{/if}
-			</div>
-		{/if}
-
-		<!-- Validation indicator -->
-		{#if isValidating}
-			<div class="flex items-center px-2" aria-label="Validating">
-				<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
-			</div>
 		{/if}
 	</div>
 
+	<!-- Helper text showing pattern -->
+	{#if (field as { pattern?: string }).pattern}
+		<p class="mt-1 text-xs text-surface-500">
+			Pattern: <code class="text-primary-400">{(field as { pattern?: string }).pattern}</code>
+		</p>
+	{/if}
+
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
+		<p
+			id={`${fieldName}-error`}
+			class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500"
+			role="alert"
+			aria-live="polite"
+		>
 			{validationError}
 		</p>
 	{/if}
 </div>
 
 <!-- Token Picker -->
-{#if field?.token}
-	<TokenPicker
-		tokens={availableTokens}
-		onSelect={handleTokenSelect}
-		bind:open={showTokenPicker}
-		onClose={() => {
-			showTokenPicker = false;
-		}}
-	/>
-{/if}
+<TokenPicker
+	tokens={availableTokens}
+	onSelect={handleTokenSelect}
+	bind:open={showTokenPicker}
+	onClose={() => {
+		showTokenPicker = false;
+	}}
+/>
+

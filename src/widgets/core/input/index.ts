@@ -95,7 +95,8 @@ const InputWidget = createWidget<InputProps>({
 		maxLength: { widget: Input, required: false },
 		prefix: { widget: Input, required: false },
 		suffix: { widget: Input, required: false },
-		count: { widget: Input, required: false }
+		count: { widget: Input, required: false },
+		token: { widget: Toggles, required: false }
 	},
 
 	// Aggregations for text search and sorting.
