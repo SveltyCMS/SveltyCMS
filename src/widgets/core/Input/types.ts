@@ -30,6 +30,11 @@ export interface InputProps {
 	 */
 	maxLength?: number;
 
+	/**
+	 * Enable token picker for this field
+	 */
+	token?: boolean;
+
 	// Index signature for WidgetProps constraint
 	[key: string]: unknown;
 }
