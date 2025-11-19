@@ -47,6 +47,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		const filesPromises = fileIds.map(async (id) => {
+			if (!dbAdapter) return null;
 			const result = await dbAdapter.crud.findOne<MediaItem>('MediaItem', { _id: id });
 			if (result.success && result.data) {
 				return result.data;

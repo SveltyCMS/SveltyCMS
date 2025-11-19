@@ -39,7 +39,6 @@ import { logger } from '@utils/logger.server';
 // Types
 import type { User } from '@src/databases/auth/types';
 import type { Schema, FieldInstance } from '@src/content/types';
-import type { createPubSub } from 'graphql-yoga';
 
 /**
  * Creates a clean GraphQL type name from collection info
@@ -290,12 +289,7 @@ export async function registerCollections(tenantId?: string) {
 }
 
 // Builds resolvers for querying collection data.
-export async function collectionsResolvers(
-	dbAdapter: DatabaseAdapter,
-	cacheClient: CacheClient | null,
-	pubSub: ReturnType<typeof createPubSub>,
-	tenantId?: string
-) {
+export async function collectionsResolvers(dbAdapter: DatabaseAdapter, cacheClient: CacheClient | null, tenantId?: string) {
 	if (!dbAdapter) {
 		throw new Error('Database adapter is not initialized');
 	}

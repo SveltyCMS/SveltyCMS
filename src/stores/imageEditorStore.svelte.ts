@@ -23,6 +23,13 @@ export interface ToolbarControls {
 	props: Record<string, any>;
 }
 
+export interface ImageEditorTool {
+	id: string;
+	name: string;
+	icon: string;
+	description: string;
+}
+
 export interface ImageEditorState {
 	file: File | null;
 	saveEditedImage: boolean;

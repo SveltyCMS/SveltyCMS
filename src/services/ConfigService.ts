@@ -73,7 +73,7 @@ class ConfigService {
 		// Write each entity type in parallel, streaming for large datasets
 		await Promise.all(
 			Object.entries(entities).map(async ([key, list]) => {
-				const filtered = uuids?.length ? list.filter((i: any) => uuids.includes(i.uuid)) : list;
+				const filtered = uuids?.length ? (list as Array<{ uuid: string }>).filter((i) => uuids.includes(i.uuid)) : (list as Array<unknown>);
 				const filePath = path.join(exportDir, `${key}.json`);
 				// Stream write for large arrays
 				if (filtered.length > 10000) {
@@ -193,7 +193,6 @@ class ConfigService {
 
 	/** Scans directory and parses config files into entity objects. */
 	// Note: Currently unused but kept for future filesystem-based config loading
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	private async _scanDirectory(
 		dir: string,
 		type: string,

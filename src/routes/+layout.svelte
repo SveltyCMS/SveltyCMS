@@ -24,6 +24,10 @@
 	// Centralized theme management
 	import { themeStore, initializeThemeStore, initializeDarkMode } from '@stores/themeStore.svelte';
 
+	// Toast support
+	import { setGlobalToastStore } from '@utils/toast';
+	import { getToastStore, Toast } from '@skeletonlabs/skeleton';
+
 	// Initialize theme and other client-side logic on mount
 	onMount(() => {
 		initializeDarkMode();
@@ -54,6 +58,7 @@
 
 	initializeStores();
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
+	setGlobalToastStore(getToastStore());
 
 	// Props
 	interface Props {
@@ -74,4 +79,5 @@
 	{#key currentLocale}
 		{@render children?.()}
 	{/key}
+	<Toast />
 </div>

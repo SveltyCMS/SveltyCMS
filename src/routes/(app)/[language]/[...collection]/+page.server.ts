@@ -49,7 +49,12 @@ import { getPublicSettingSync, getPrivateSettingSync } from '@src/services/setti
 import { logger } from '@utils/logger.server';
 import { getDisplayFields } from '@utils/fieldSelection';
 import type { FieldDefinition } from '@src/content/types';
+import type { ContentRevision, DatabaseId, BaseEntity } from '@src/databases/dbInterface';
 import type { User } from '@src/databases/auth/types';
+
+interface TenantAwareBaseEntity extends BaseEntity {
+	tenantId?: string;
+}
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const { user, tenantId, dbAdapter } = locals;
@@ -154,7 +159,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		// =================================================================
 		// 4. LOAD PAGINATED ENTRIES (DB QUERY)
 		// =================================================================
-		const collectionTableName = `collection_${currentCollection._id}`;
+		const collectionTableName = `collection_${currentCollection._id as DatabaseId}`;
 
 		const finalFilter: Record<string, unknown> = { ...filterParams };
 		if (getPrivateSettingSync('MULTI_TENANT')) {
@@ -163,7 +168,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 		// If editing a specific entry, load only that entry
 		if (editEntryId) {
-			finalFilter._id = editEntryId;
+			finalFilter._id = editEntryId as DatabaseId;
 		}
 
 		// Build the query with search support
@@ -316,7 +321,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		// =================================================================
 		// 6. LOAD REVISIONS (for Fields.svelte) - Direct Database Call
 		// =================================================================
-		let revisionsMeta = [];
+		let revisionsMeta: ContentRevision[] = [];
 		// Only load revisions if we're in edit mode and have an entry ID
 		if (editEntryId && currentCollection.revision) {
 			try {
@@ -325,8 +330,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 				// Multi-tenancy security check (same as API endpoint)
 				if (getPrivateSettingSync('MULTI_TENANT')) {
-					const collectionTableName = `collection_${currentCollection._id}`;
-					const entryCheck = await dbAdapter.crud.findMany(collectionTableName, { _id: editEntryId, tenantId });
+					const collectionTableName = `collection_${currentCollection._id as DatabaseId}`;
+					const entryCheck = await dbAdapter.crud.findMany<TenantAwareBaseEntity>(collectionTableName, { _id: editEntryId as DatabaseId, tenantId });
 					if (!entryCheck.success || !entryCheck.data || entryCheck.data.length === 0) {
 						logger.warn(`Attempt to access revisions for an entry not in the current tenant.`, {
 							userId: typedUser._id,
@@ -338,7 +343,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 						revisionsMeta = [];
 					} else {
 						// Fetch revisions directly from database
-						const revisionResult = await dbAdapter.content.revisions.getHistory(editEntryId, {
+						const revisionResult = await dbAdapter.content.revisions.getHistory(editEntryId as DatabaseId, {
 							page: 1,
 							pageSize: 100
 						});
@@ -349,7 +354,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 					}
 				} else {
 					// Single-tenant: fetch revisions directly
-					const revisionResult = await dbAdapter.content.revisions.getHistory(editEntryId, {
+					const revisionResult = await dbAdapter.content.revisions.getHistory(editEntryId as DatabaseId, {
 						page: 1,
 						pageSize: 100
 					});

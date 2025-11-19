@@ -19,7 +19,8 @@ import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 // Utils
-import type { SystemVirtualFolder } from '@root/src/databases/dbInterface';
+import type { SystemVirtualFolder, QueryFilter, MediaItem } from '@root/src/databases/dbInterface';
+import type { DatabaseId } from '@root/src/content/types';
 import type { MediaAccess } from '@root/src/utils/media/mediaModels';
 import { MediaService } from '@src/services/MediaService';
 import { constructUrl } from '@utils/media/mediaUtils';
@@ -135,8 +136,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 		for (const collection of mediaCollections) {
 			try {
-				const query: Record<string, string | boolean | null> = {
-					folderId: folderId || null,
+				const query: QueryFilter<MediaItem> = {
+					folderId: folderId as DatabaseId | null,
 					// Filter out deleted items
 					$or: [{ isDeleted: { $ne: true } }, { isDeleted: { $exists: false } }]
 				};

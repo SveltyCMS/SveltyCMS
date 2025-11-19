@@ -28,34 +28,46 @@ export const GET: RequestHandler = async ({ locals }) => {
 		}
 
 		// Get database adapter
-		const { db } = await import('@databases/db');
+		const { getDb } = await import('@databases/db');
+		const db = getDb();
 
 		if (!db) {
 			throw svelteError(503, 'Database not initialized');
 		}
 
-		// Check if performance.getPoolDiagnostics exists
-		if (!db.performance || typeof db.performance.getPoolDiagnostics !== 'function') {
+		// Check if performance.getMetrics exists
+		if (!db.performance || typeof db.performance.getMetrics !== 'function') {
 			logger.warn('Pool diagnostics not available - method not implemented');
 			throw svelteError(501, 'Pool diagnostics not implemented for this database adapter');
 		}
 
 		// Get pool diagnostics
-		const result = await db.performance.getPoolDiagnostics();
+		const metricsResult = await db.performance.getMetrics();
 
-		if (!result.success) {
-			throw svelteError(500, result.message || 'Failed to retrieve pool diagnostics');
+		if (!metricsResult.success) {
+			throw svelteError(500, metricsResult.message || 'Failed to retrieve pool diagnostics');
 		}
+
+		const healthResult = await db.getConnectionHealth();
+		const healthData = healthResult.success ? healthResult.data : null;
+
+		const data = {
+			...(metricsResult.data || {}),
+			poolUtilization: metricsResult.data?.connectionPoolUsage,
+			healthStatus: healthData ? (healthData.healthy ? 'healthy' : 'unhealthy') : 'unknown',
+			latency: healthData?.latency,
+			activeConnections: healthData?.activeConnections
+		};
 
 		logger.debug('Pool diagnostics retrieved', {
 			user: locals.user.email,
-			utilization: result.data?.poolUtilization,
-			healthStatus: result.data?.healthStatus
+			utilization: data.poolUtilization,
+			healthStatus: data.healthStatus
 		});
 
 		return json({
 			success: true,
-			data: result.data
+			data
 		});
 	} catch (err) {
 		// Re-throw SvelteKit errors
