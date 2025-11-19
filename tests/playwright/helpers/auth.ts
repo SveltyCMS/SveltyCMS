@@ -39,15 +39,15 @@ export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = /\/
 		await page.waitForTimeout(1000);
 	}
 
-	// Wait for login form to be visible
-	await page.waitForSelector('input[name="email"]', { timeout: 15000, state: 'visible' });
+	// Wait for login form to be visible - use data-testid
+	await page.waitForSelector('[data-testid="signin-email"]', { timeout: 15000, state: 'visible' });
 
-	// Fill login form
-	await page.fill('input[name="email"]', ADMIN_CREDENTIALS.email);
-	await page.fill('input[name="password"]', ADMIN_CREDENTIALS.password);
+	// Fill login form using data-testid selectors
+	await page.getByTestId('signin-email').fill(ADMIN_CREDENTIALS.email);
+	await page.getByTestId('signin-password').fill(ADMIN_CREDENTIALS.password);
 
-	// Submit form - look for the "Sign In" submit button
-	await page.click('button[type="submit"]:has-text("Sign In")');
+	// Submit form using data-testid
+	await page.getByTestId('signin-submit').click();
 
 	// Wait for redirect after successful login
 	await page.waitForURL(waitForUrl, { timeout: 15000 });

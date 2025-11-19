@@ -7,6 +7,7 @@
  *   - Tests sign out, login, and forgot password flows
  */
 import { test, expect } from '@playwright/test';
+import { logout } from './helpers/auth';
 
 test.describe.configure({ timeout: 60000 }); // Set timeout for all tests
 
@@ -81,6 +82,9 @@ test.skip('SignUp First User', async ({ page }) => {
 
 // ✅ SignOut Test
 test('SignOut after login', async ({ page }) => {
+	// Logout first to ensure clean state
+	await logout(page);
+
 	await page.goto(`${baseURL}/login`);
 
 	// Use data-testid selectors
@@ -97,6 +101,9 @@ test('SignOut after login', async ({ page }) => {
 
 // ✅ Login First User
 test('Login First User', async ({ page }) => {
+	// Logout first to ensure clean state
+	await logout(page);
+
 	await page.goto(`${baseURL}/login`);
 
 	// Use data-testid selectors
@@ -109,6 +116,9 @@ test('Login First User', async ({ page }) => {
 
 // ✅ Forgot Password
 test('Forgot Password Flow', async ({ page }) => {
+	// Logout first to ensure clean state
+	await logout(page);
+
 	await page.goto(`${baseURL}/login`);
 
 	// Use data-testid selectors
