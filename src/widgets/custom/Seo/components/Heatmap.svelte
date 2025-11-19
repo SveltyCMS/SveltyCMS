@@ -34,7 +34,7 @@
 	}
 
 	// Props with default values
-	let { content = '', language = 'en', keywords = [], 'on:heatmapGenerated': onHeatmapGenerated = () => {} }: Props = $props();
+	const { content = '', language = 'en', keywords = [], 'on:heatmapGenerated': onHeatmapGenerated = () => {} }: Props = $props();
 
 	let heatmapData = $state<Array<{ word: string; heatLevel: number; isKeyword: boolean }>>([]);
 	let keywordDensity = $state<Record<string, number>>({});

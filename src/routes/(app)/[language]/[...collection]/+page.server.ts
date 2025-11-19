@@ -221,7 +221,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 				currentCollection as any,
 				'list',
 				{
-					maxDisplayFields: 5
+					maxListFields: 5
 				}
 			);
 			logger.debug(`[Field Selection] List view loading only: ${displayFields.join(', ')}`);

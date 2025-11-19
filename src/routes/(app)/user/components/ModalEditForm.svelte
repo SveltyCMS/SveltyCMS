@@ -59,7 +59,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 		role?: string | null;
 		user_id?: string | null;
 	}
-	let { parent, isGivenData = false, username = null, email = null, role = null, user_id = null }: Props = $props();
+	const { parent, isGivenData = false, username = null, email = null, role = null, user_id = null }: Props = $props();
 
 	// Store initialization
 	const modalStore = getModalStore();

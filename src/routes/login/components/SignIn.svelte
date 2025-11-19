@@ -70,9 +70,9 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	// State management
 	let PWforgot = $state(false);
 	let PWreset = $state(false);
-	let showPassword = $state(false);
+	const showPassword = $state(false);
 	let formElement = $state<HTMLFormElement | null>(null);
-	let tabIndex = $state(1);
+	const tabIndex = $state(1);
 
 	// Pre-calculate tab indices
 	const emailTabIndex = 1;

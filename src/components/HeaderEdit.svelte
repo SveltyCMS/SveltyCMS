@@ -52,11 +52,11 @@
 	import { toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
 	import { contentLanguage, headerActionButton, shouldShowNextButton, tabSet, validationStore, dataChangeStore } from '@stores/store.svelte';
 
-	let user = $derived(page.data.user as User);
-	let isAdmin = $derived(page.data.isAdmin || false);
+	const user = $derived(page.data.user as User);
+	const isAdmin = $derived(page.data.isAdmin || false);
 
 	// ✅ Create reactive derived state for form validity
-	let isFormValid = $derived(validationStore.isValid);
+	const isFormValid = $derived(validationStore.isValid);
 
 	// 🔍 DEBUG: Log validation state changes
 	$effect(() => {
@@ -80,10 +80,10 @@
 	}
 
 	// State declarations with proper types
-	let previousLanguage = $state<string>(contentLanguage.value);
+	const previousLanguage = $state<string>(contentLanguage.value);
 	let previousTabSet = $state<number>(tabSet.value);
 	let tempData = $state<Partial<Record<string, CollectionData>>>({});
-	let schedule = $state<string>(
+	const schedule = $state<string>(
 		typeof (collectionValue.value as CollectionData)?._scheduled === 'number' && (collectionValue.value as CollectionData)._scheduled !== undefined
 			? new Date((collectionValue.value as CollectionData)._scheduled!).toISOString().slice(0, 16)
 			: ''
@@ -100,7 +100,7 @@
 			((collectionValue.value as CollectionData)?.status as StatusType) || (collection.value?.status as StatusType) || StatusTypes.unpublish;
 		return status === StatusTypes.publish;
 	}
-	let isPublish = $derived.by(getIsPublish);
+	const isPublish = $derived.by(getIsPublish);
 
 	// Create a bindable state for the toggle component
 	let publishToggleState = $derived(isPublish);
@@ -147,7 +147,7 @@
 	}
 
 	// Disable toggle when RightSidebar is active (desktop) or in edit mode if not primary
-	let shouldDisableStatusToggle = $derived.by(() => {
+	const shouldDisableStatusToggle = $derived.by(() => {
 		// Extract boolean values to avoid TypeScript confusion
 		const isDesktopActive: boolean = Boolean(isDesktop?.value);
 		const isRightSidebarVisible: boolean = Boolean(uiStateManager?.isRightSidebarVisible?.value);

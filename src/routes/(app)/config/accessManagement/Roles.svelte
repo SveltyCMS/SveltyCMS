@@ -33,14 +33,14 @@ It provides the following functionality:
 	const flipDurationMs = 100;
 	const modalStore = getModalStore();
 
-	let { roleData, setRoleData, updateModifiedCount } = $props();
+	const { roleData, setRoleData, updateModifiedCount } = $props();
 
 	// Reactive state
 	let roles = $state<Role[]>([]);
 	let selectedPermissions = $state<string[]>([]);
 	let selectedRoles = $state<Set<string>>(new Set());
-	let error = $state<string | null>(null);
-	let modifiedRoles = $state(new Set<string>());
+	const error = $state<string | null>(null);
+	const modifiedRoles = $state(new Set<string>());
 	// Define DndItem type for dndzone compatibility
 	type DndItem = Role & { id: string };
 	let items = $state<DndItem[]>([]);

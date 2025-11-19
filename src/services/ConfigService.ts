@@ -25,12 +25,6 @@ export type ConfigSyncStatus = {
 	unmetRequirements: Array<{ key: string; value?: unknown }>;
 };
 
-/** Extracts UUID from a JS file comment header like "// UUID: abc123..." */
-function extractUUIDFromJs(content: string): string | null {
-	const match = content.match(/^\/\/\s*UUID:\s*([a-f0-9-]+)\s*$/m);
-	return match ? match[1] : null;
-}
-
 class ConfigService {
 	/** Returns current sync status between filesystem and database. */
 	public async getStatus(): Promise<ConfigSyncStatus> {
@@ -191,37 +185,7 @@ class ConfigService {
 		return [...new Map(unmet.map((i) => [i.key, i])).values()];
 	}
 
-	/** Scans directory and parses config files into entity objects. */
-	// Note: Currently unused but kept for future filesystem-based config loading
-	private async _scanDirectory(
-		dir: string,
-		type: string,
-		state: Map<string, ConfigEntity>,
-		entityParser: (content: string, uuid: string, filePath: string) => Record<string, unknown>
-	) {
-		try {
-			const files = await fs.readdir(dir);
-			await Promise.all(
-				files
-					.filter((f) => f.endsWith('.js'))
-					.map(async (file) => {
-						const filePath = path.join(dir, file);
-						const content = await fs.readFile(filePath, 'utf8');
-						const uuid = extractUUIDFromJs(content);
-						if (!uuid) return;
-						const entity = entityParser(content, uuid, filePath);
-						const hash = createChecksum(entity);
-						const name = typeof entity.name === 'string' ? entity.name : 'Unknown';
-						state.set(uuid, { uuid, type, name, hash, entity });
-					})
-			);
-		} catch (err: unknown) {
-			// Type guard for NodeJS error with code property
-			if (typeof err === 'object' && err !== null && 'code' in err && (err as { code?: string }).code !== 'ENOENT') {
-				logger.error(`Error scanning ${dir}:`, err);
-			}
-		}
-	}
+	// Note: _scanDirectory method removed as it was unused
 }
 
 export const configService = new ConfigService();

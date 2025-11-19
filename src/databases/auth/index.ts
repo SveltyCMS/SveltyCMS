@@ -85,6 +85,10 @@ export class Auth {
 		this.sessionStore = sessionStore;
 	}
 
+	public get authInterface(): DatabaseAdapter['auth'] {
+		return this.db.auth;
+	}
+
 	// Combined Performance-Optimized Methods (wrapper for db.auth methods)
 	async createUserAndSession(
 		userData: Partial<User>,

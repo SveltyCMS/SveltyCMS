@@ -42,7 +42,17 @@ export async function hashFileContent(buffer: ArrayBuffer | Buffer): Promise<str
 		const arrayBuffer = buffer instanceof Buffer ? buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) : buffer;
 
 		// Ensure we have an ArrayBuffer, not SharedArrayBuffer
-		const finalBuffer = arrayBuffer instanceof ArrayBuffer ? arrayBuffer : new Uint8Array(arrayBuffer).buffer;
+		let finalBuffer: ArrayBuffer;
+		if (arrayBuffer instanceof ArrayBuffer) {
+			finalBuffer = arrayBuffer;
+		} else if (arrayBuffer instanceof SharedArrayBuffer) {
+			// Convert SharedArrayBuffer to ArrayBuffer
+			finalBuffer = new ArrayBuffer(arrayBuffer.byteLength);
+			new Uint8Array(finalBuffer).set(new Uint8Array(arrayBuffer));
+		} else {
+			// Fallback for other ArrayLike types
+			finalBuffer = new Uint8Array(arrayBuffer as ArrayLike<number>).buffer;
+		}
 
 		const hash = (await sha256(finalBuffer)).slice(0, 20);
 

@@ -28,7 +28,7 @@ Renders: "1.234,56 €" (German) or "$1,234.56" (US) based on system language
 	import { systemLanguage } from '@src/stores/store.svelte';
 	import type { FieldType } from './';
 
-	let { field, value }: { field: FieldType; value: number | null | undefined } = $props();
+	const { field, value }: { field: FieldType; value: number | null | undefined } = $props();
 
 	// Get the user's current UI language.
 	const lang = $derived($systemLanguage);

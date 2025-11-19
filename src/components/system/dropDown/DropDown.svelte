@@ -21,7 +21,7 @@
 	import { twMerge } from 'tailwind-merge';
 
 	// Define props using $props
-	let {
+	const {
 		items, // Array of selectable items
 		selected = items[0], // Currently selected item, default to first item
 		label = '', // Optional label for the dropdown
@@ -40,7 +40,7 @@
 	let currentSelected = $state(selected);
 
 	// Derived state for filtered items
-	let filteredItems = $derived(items.filter((item: any) => item !== currentSelected));
+	const filteredItems = $derived(items.filter((item: any) => item !== currentSelected));
 
 	// Toggle dropdown expansion
 	function toggleExpanded() {

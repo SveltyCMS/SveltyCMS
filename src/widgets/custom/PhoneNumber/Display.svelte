@@ -25,7 +25,7 @@ Renders: <a href="tel:+49 30 12345678">+49 30 12345678</a>
 -->
 
 <script lang="ts">
-	let { value }: { value: string | null | undefined } = $props();
+	const { value }: { value: string | null | undefined } = $props();
 </script>
 
 {#if value}

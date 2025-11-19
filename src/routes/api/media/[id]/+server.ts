@@ -6,6 +6,7 @@
 import { dbAdapter } from '@src/databases/db';
 import { json, error } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
+import type { DatabaseId } from '@src/databases/dbInterface';
 
 // List of collections to search for the media item
 const mediaCollections = ['MediaItem', 'media_images', 'media_documents', 'media_audio', 'media_videos'];
@@ -25,7 +26,7 @@ export async function GET({ params }) {
 	try {
 		for (const collection of mediaCollections) {
 			try {
-				const result = await dbAdapter.crud.findOne(collection, { _id: id });
+				const result = await dbAdapter.crud.findOne(collection, { _id: id as unknown as DatabaseId });
 				if (result.success && result.data) {
 					// Attach collection info for context, similar to mediagallery load
 					const itemWithCollection = {
@@ -47,7 +48,7 @@ export async function GET({ params }) {
 		const message = `Error fetching media item ${id}: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);
 		// Use the error thrown from the loop (e.g., 404) or a generic 500
-		if (err.status) {
+		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
 		throw error(500, 'Internal Server Error');

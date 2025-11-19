@@ -20,7 +20,7 @@ Renders: color swatch or hex value
 - **Tailwind Styling**: Utility-first CSS for layout and color
 -->
 <script lang="ts">
-	let { value }: { value: string | null | undefined } = $props();
+	const { value }: { value: string | null | undefined } = $props();
 
 	// SECURITY: Validate hex color to prevent CSS injection
 	const isValidHex = (color: string): boolean => {

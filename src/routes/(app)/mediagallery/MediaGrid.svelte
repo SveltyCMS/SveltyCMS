@@ -43,7 +43,7 @@ Key features:
 		onBulkDelete?: (files: MediaImage[]) => void;
 	}
 
-	let { filteredFiles = [], gridSize, ondeleteImage = () => {}, onBulkDelete = () => {} }: Props = $props();
+	const { filteredFiles = [], gridSize, ondeleteImage = () => {}, onBulkDelete = () => {} }: Props = $props();
 
 	// Initialize the showInfo array with false values
 	let showInfo = $state(Array.from({ length: filteredFiles.length }, () => false));

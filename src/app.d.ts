@@ -30,15 +30,7 @@ declare global {
 		// interface PageData {}
 		// interface Platform {}
 		interface Locals {
-			user: {
-				_id: string; //mongodb
-				email: string;
-				role: string;
-				avatar?: string;
-				username?: string;
-				permissions: string[];
-				// Add other relevant user properties here
-			} | null;
+			user: User | null;
 			collections?: unknown; // Replace with your actual Collections type if available
 			permissions: string[]; // Array of user permissions
 			session_id?: string;

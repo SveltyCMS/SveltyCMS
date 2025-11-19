@@ -7,7 +7,7 @@
 <script lang="ts">
 	import type { AnnotationKind } from './regions';
 
-	let {
+	const {
 		currentTool,
 		strokeColor,
 		fillColor,

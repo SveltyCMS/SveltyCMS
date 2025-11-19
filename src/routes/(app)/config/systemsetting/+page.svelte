@@ -39,7 +39,7 @@ All dynamic CMS settings organized into logical groups
 	let searchTerm = $state('');
 
 	// Track which groups need configuration
-	let groupsNeedingConfig = writable<Set<string>>(new Set());
+	const groupsNeedingConfig = writable<Set<string>>(new Set());
 	let unconfiguredCount = $state(0);
 
 	// Subscribe to changes in groups needing config

@@ -33,7 +33,7 @@
 		languageTag?: string;
 	}
 
-	let {
+	const {
 		sitename = publicEnv?.SITE_NAME || 'SveltyCMS',
 		error = {
 			code: 'CONNECTION_FAILED',

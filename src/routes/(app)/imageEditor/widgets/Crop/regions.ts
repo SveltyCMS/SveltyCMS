@@ -1,6 +1,5 @@
 // src/routes/(app)/imageEditor/widgets/Crop/region.ts
 import Konva from 'konva';
-import type { Image as KonvaImage, Group as KonvaGroup } from 'konva';
 import { parseAspectRatio } from './aspect';
 import { syncHighlight } from './highlight';
 
@@ -13,8 +12,8 @@ export type RegionInit = { x?: number; y?: number; width?: number; height?: numb
 export class CropRegion {
 	id: string; // region id
 	layer: Konva.Layer; // owning layer
-	imageNode: KonvaImage; // reference to image node
-	imageGroup: KonvaGroup; // reference to image group
+	imageNode: Konva.Image; // reference to image node
+	imageGroup: Konva.Group; // reference to image group
 
 	shape: Konva.Rect | Konva.Circle; // visible crop tool
 	overlayGroup: Konva.Group; // cached overlay group that holds dark overlay + cutout
@@ -26,7 +25,7 @@ export class CropRegion {
 	private _onTransformEnd: (() => void) | null = null;
 	private _onDestroy: (() => void) | null = null;
 
-	constructor(opts: { id: string; layer: Konva.Layer; imageNode: KonvaImage; imageGroup: KonvaGroup; init?: RegionInit }) {
+	constructor(opts: { id: string; layer: Konva.Layer; imageNode: Konva.Image; imageGroup: Konva.Group; init?: RegionInit }) {
 		this.id = opts.id;
 		this.layer = opts.layer;
 		this.imageNode = opts.imageNode;

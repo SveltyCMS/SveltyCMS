@@ -16,7 +16,7 @@ import mongoose, { Schema } from 'mongoose';
 
 // --- Type Definitions for Mongoose Documents content structure---
 export interface ContentStructureDocument extends Omit<ContentNode, 'collectionDef' | '_id' | 'children' | 'nodeType'>, MongooseDocument {
-	_id: string;
+	_id: any;
 	nodeType: 'category' | 'collection'; // Explicitly define discriminator key
 	links?: Array<string>; // Array of string links for content structure
 	collectionDef?: import('@src/content/types').Schema;

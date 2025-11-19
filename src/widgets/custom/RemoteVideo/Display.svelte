@@ -28,7 +28,7 @@ Renders: Thumbnail + title + duration in compact horizontal layout
 <script lang="ts">
 	import type { RemoteVideoData } from './types';
 
-	let { value }: { value: RemoteVideoData | null | undefined } = $props();
+	const { value }: { value: RemoteVideoData | null | undefined } = $props();
 
 	// Construct the embed URL and iframe HTML based on the platform.
 	// Note: For now we just display thumbnail and metadata, embed logic available if needed

@@ -26,7 +26,7 @@ Renders: "Main St 123, 12345 Berlin, Germany"
 <script lang="ts">
 	import type { AddressData } from './types';
 
-	let { value }: { value: AddressData | null | undefined } = $props();
+	const { value }: { value: AddressData | null | undefined } = $props();
 
 	// Create a formatted address string from the data object.
 	const formattedAddress = $derived.by(() => {

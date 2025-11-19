@@ -75,7 +75,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 
 		// Stream to response
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 		const setHeader = (_name: string, _value: string) => {
 			// Headers will be set in Response constructor
 		};

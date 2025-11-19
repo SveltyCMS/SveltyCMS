@@ -28,7 +28,7 @@
 	let { title = $bindable(), titleCharacterWidth, handleTitleChange }: Props = $props();
 
 	// Compute class based on title length
-	let computedClass = $derived(
+	const computedClass = $derived(
 		title.length >= 50 && title.length <= 60
 			? 'input-label green'
 			: title.length >= 30 && title.length <= 49
@@ -39,7 +39,7 @@
 	);
 
 	// Compute status message based on title length
-	let titleStatus = $derived(
+	const titleStatus = $derived(
 		title.length >= 50 && title.length <= 60
 			? 'Optimal length'
 			: title.length >= 30 && title.length <= 49

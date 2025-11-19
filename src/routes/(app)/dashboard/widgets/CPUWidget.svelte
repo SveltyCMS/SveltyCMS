@@ -33,7 +33,7 @@
 	// Register Chart.js components
 	Chart.register(LineController, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
 
-	let {
+	const {
 		label = 'CPU Usage',
 		theme = 'light',
 		icon = 'mdi:cpu-64-bit',

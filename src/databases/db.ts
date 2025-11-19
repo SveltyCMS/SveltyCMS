@@ -24,15 +24,23 @@ async function loadPrivateConfig(forceReload = false) {
 	if (privateEnv && !forceReload) return privateEnv;
 
 	try {
-		logger.debug('Loading /config/private.ts configuration...');
-		const module = await import('@root/config/private');
-		privateEnv = module.privateEnv;
-		logger.debug('Private config loaded successfully', {
-			hasConfig: !!privateEnv,
-			dbType: privateEnv?.DB_TYPE,
-			dbHost: privateEnv?.DB_HOST ? '***' : 'missing'
-		});
-		return privateEnv;
+		try {
+			logger.debug('Loading /config/private.ts configuration...');
+			const module = await import(/* @vite-ignore */ '../../config/private');
+			privateEnv = module.privateEnv;
+			logger.debug('Private config loaded successfully', {
+				hasConfig: !!privateEnv,
+				dbType: privateEnv?.DB_TYPE,
+				dbHost: privateEnv?.DB_HOST ? '***' : 'missing'
+			});
+			return privateEnv;
+		} catch (error) {
+			// Private config doesn't exist during setup - this is expected
+			logger.trace('Private config not found during setup - this is expected during initial setup', {
+				error: error instanceof Error ? error.message : String(error)
+			});
+			return null;
+		}
 	} catch (error) {
 		// Private config doesn't exist during setup - this is expected
 		logger.trace('Private config not found during setup - this is expected during initial setup', {
@@ -190,10 +198,18 @@ export async function loadSettingsFromDB() {
 			logger.debug('Using in-memory private config (bypassing filesystem)');
 			privateConfig = privateEnv;
 		} else {
-			// Fall back to filesystem import (normal startup)
-			logger.debug('Loading private config from filesystem');
-			const imported = await import('@root/config/private');
-			privateConfig = imported.privateEnv;
+			try {
+				// Fall back to filesystem import (normal startup)
+				logger.debug('Loading private config from filesystem');
+				const imported = await import(/* @vite-ignore */ '../../config/private');
+				privateConfig = imported.privateEnv;
+			} catch (error) {
+				// Private config doesn't exist during setup - this is expected
+				logger.trace('Private config not found during setup - this is expected during initial setup', {
+					error: error instanceof Error ? error.message : String(error)
+				});
+				return;
+			}
 		}
 
 		// Merge private config file settings with database private settings

@@ -172,9 +172,9 @@ export class MongoDBAdapter implements IDBAdapter {
 		return new MongoQueryBuilder<T>(model);
 	}
 
-	private async _wrapResult<T>(fn: () => Promise<T>): Promise<DatabaseResult<T>> {
+	private async _wrapResult<T, A extends unknown[]>(fn: (...args: A) => Promise<T>, ...args: A): Promise<DatabaseResult<T>> {
 		try {
-			const data = await fn();
+			const data = await fn(...args);
 			return { success: true, data };
 		} catch (error: unknown) {
 			const typedError = error as { code?: string; message?: string };
@@ -708,15 +708,18 @@ export class MongoDBAdapter implements IDBAdapter {
 
 		// CRUD - Generic CRUD operations
 		this.crud = {
-			findOne: <T extends BaseEntity>(coll: string, query: FilterQuery<T>) => {
+			findOne: <T extends BaseEntity>(coll: string, query: FilterQuery<T>, options?: { fields?: (keyof T)[] }) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.findOne(query) as Promise<T | null>);
+				return this._wrapResult(() => repo.findOne(query, options as { fields?: (keyof BaseEntity)[] }) as Promise<T | null>);
 			},
-			findMany: <T extends BaseEntity>(coll: string, query: FilterQuery<T>, options?: { limit?: number; offset?: number }) => {
+			findMany: <T extends BaseEntity>(coll: string, query: FilterQuery<T>, options?: { limit?: number; offset?: number; fields?: (keyof T)[] }) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.findMany(query, { limit: options?.limit, skip: options?.offset }) as Promise<T[]>);
+				return this._wrapResult(
+					() =>
+						repo.findMany(query, { limit: options?.limit, skip: options?.offset, fields: options?.fields as (keyof BaseEntity)[] }) as Promise<T[]>
+				);
 			},
 			insert: <T extends BaseEntity>(coll: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>) => {
 				const repo = this._getRepository(coll);

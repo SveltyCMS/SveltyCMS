@@ -38,7 +38,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	let imageLoadError = $state(false); // Track if current avatar failed to load
 
 	// Computed value for avatar display with fallback
-	let displayAvatar = $derived.by(() => {
+	const displayAvatar = $derived.by(() => {
 		if (previewUrl) return previewUrl;
 		if (imageLoadError) return '/Default_User.svg';
 		const avatarUrl = avatarSrc.value || '/Default_User.svg';
@@ -61,7 +61,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		};
 	}
 
-	let { parent }: Props = $props();
+	const { parent }: Props = $props();
 
 	const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml', 'image/gif'];
 	const MAX_FILE_SIZE = 5242880; // 5MB

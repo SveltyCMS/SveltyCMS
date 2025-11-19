@@ -45,7 +45,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				widgetNames = result as string[];
 			} else if (typeof result[0] === 'object' && 'name' in result[0]) {
 				// If it's an array of Widget objects, extract the name property
-				widgetNames = (result as { name: string }[]).map(w => w.name);
+				widgetNames = (result as { name: string }[]).map((w) => w.name);
 			}
 		} else if (result && typeof result === 'object' && 'success' in result && result.success) {
 			// Accept both Widget[] and string[] in result.data
@@ -54,7 +54,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				if (typeof data[0] === 'string' || data.length === 0) {
 					widgetNames = data as string[];
 				} else if (typeof data[0] === 'object' && 'name' in data[0]) {
-					widgetNames = (data as { name: string }[]).map(w => w.name);
+					widgetNames = (data as { name: string }[]).map((w) => w.name);
 				}
 			}
 		}

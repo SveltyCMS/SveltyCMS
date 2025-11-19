@@ -19,7 +19,7 @@ import { error, json, type RequestHandler } from '@sveltejs/kit';
 import { modifyRequest } from '@api/collections/modifyRequest';
 import { contentManager } from '@src/content/ContentManager';
 import type { StatusType } from '@src/content/types';
-import type { DatabaseId, BaseEntity } from '@src/databases/dbInterface';
+import type { DatabaseId, BaseEntity, CollectionModel } from '@src/databases/dbInterface';
 
 // Validation
 import { array, object, optional, parse, picklist, string } from 'valibot';
@@ -117,7 +117,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 				userId: user._id,
 				tenantId,
 				requestedEntryIds: entryIds,
-				foundEntries: verificationResult.data?.length || 0
+				foundEntries: (verificationResult as { success: true; data: BaseEntity[] }).data.length
 			});
 			throw error(403, 'One or more entries do not belong to your tenant or do not exist');
 		}
@@ -133,7 +133,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 					await modifyRequest({
 						data: verificationResult.data as unknown as Array<Record<string, unknown>>,
 						fields: schema.fields as unknown as import('@src/content/types').FieldInstance[],
-						collection: schema as unknown as Record<string, unknown>,
+						collection: schema as unknown as CollectionModel,
 						user,
 						type: 'DELETE'
 					});

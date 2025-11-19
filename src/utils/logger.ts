@@ -308,12 +308,12 @@ export const logger = {
 if (IS_LOGGING_DISABLED) {
 	// In production with logging disabled, this entire block is removed
 	logger satisfies {
-		fatal: (...args: LoggableValue[]) => void;
-		error: (...args: LoggableValue[]) => void;
-		warn: (...args: LoggableValue[]) => void;
-		info: (...args: LoggableValue[]) => void;
-		debug: (...args: LoggableValue[]) => void;
-		trace: (...args: LoggableValue[]) => void;
+		fatal: (msg: string, ...args: LoggableValue[]) => void;
+		error: (msg: string, ...args: LoggableValue[]) => void;
+		warn: (msg: string, ...args: LoggableValue[]) => void;
+		info: (msg: string, ...args: LoggableValue[]) => void;
+		debug: (msg: string, ...args: LoggableValue[]) => void;
+		trace: (msg: string, ...args: LoggableValue[]) => void;
 		channel: (name: string) => {
 			fatal: (msg: string, ...args: LoggableValue[]) => void;
 			error: (msg: string, ...args: LoggableValue[]) => void;

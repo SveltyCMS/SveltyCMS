@@ -102,9 +102,6 @@ describe('Modern Widget Architecture', () => {
 				de: 'German text'
 			};
 
-			// Mock publicEnv for default language
-			const mockPublicEnv = { DEFAULT_CONTENT_LANGUAGE: 'en' };
-
 			const result = await display({ data, contentLanguage: 'es' }); // Spanish not available
 			expect(result).toBe('English text'); // Should fallback to English
 		});
@@ -154,12 +151,12 @@ describe('Modern Widget Architecture', () => {
 			};
 
 			const widgetFactory = createWidget(config);
-			const fieldInstance = widgetFactory({
+			const _fieldInstance = widgetFactory({
 				label: 'Test Field',
 				db_fieldName: 'test_field'
 			});
 
-			expect(() => ensureModernField(fieldInstance)).not.toThrow();
+			expect(() => ensureModernField(_fieldInstance)).not.toThrow();
 		});
 
 		test('should throw error for non-modern field', () => {

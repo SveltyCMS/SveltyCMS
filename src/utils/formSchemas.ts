@@ -300,9 +300,9 @@ export const systemSettingsSchema = object({
 	siteName: siteNameSchema,
 	hostProd: hostProdSchema,
 	defaultSystemLanguage: languageCodeSchema,
-	systemLanguages: array(languageCodeSchema, [minLength(1)], 'At least one system language is required'),
+	systemLanguages: array(languageCodeSchema, 'System languages must be an array of valid language codes.'),
 	defaultContentLanguage: languageCodeSchema,
-	contentLanguages: array(languageCodeSchema, [minLength(1)], 'At least one content language is required'),
+	contentLanguages: array(languageCodeSchema, 'Content languages must be an array of valid language codes.'),
 	timezone: timezoneSchema,
 	mediaStorageType: mediaStorageTypeSchema,
 	mediaFolder: mediaFolderSchema

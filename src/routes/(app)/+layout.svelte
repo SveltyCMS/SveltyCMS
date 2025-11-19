@@ -113,14 +113,14 @@
 	// PROPS & STATE
 	// ============================================================================
 
-	let { children, data }: Props = $props();
+	const { children, data }: Props = $props();
 
 	// Initialize global stores
 	setGlobalModalStore(getModalStore());
 	setGlobalToastStore(getToastStore());
 
 	// Component State
-	let loadError = $state<Error | null>(null);
+	const loadError = $state<Error | null>(null);
 	let mediaQuery: MediaQueryList | undefined;
 
 	// ============================================================================

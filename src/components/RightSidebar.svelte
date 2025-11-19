@@ -58,25 +58,25 @@ This component provides a streamlined interface for managing collection entries 
 	const modalStore = getModalStore();
 
 	// --- Derived State from Page Data ---
-	let user = $derived(page.data.user);
-	let isAdmin = $derived((page.data.isAdmin || false) as boolean);
+	const user = $derived(page.data.user);
+	const isAdmin = $derived((page.data.isAdmin || false) as boolean);
 
 	// --- Local State ---
 	let isLoading = $state(false);
 
 	// Track data changes using the centralized store
-	let hasDataChanged = $derived(dataChangeStore.hasChanges);
+	const hasDataChanged = $derived(dataChangeStore.hasChanges);
 
 	// --- Derived State from Stores and Props ---
-	let currentMode = $derived(mode.value);
-	let currentCollection = $derived(collection.value);
-	let currentEntry = $derived(collectionValue.value as EntryData | null); // Use EntryData type
-	let isRightSidebarVisible = $derived(uiStateManager.isRightSidebarVisible.value);
-	let currentScreenSize = $derived(screenSize.value);
-	let isFormValid = $derived(validationStore.isValid);
+	const currentMode = $derived(mode.value);
+	const currentCollection = $derived(collection.value);
+	const currentEntry = $derived(collectionValue.value as EntryData | null); // Use EntryData type
+	const isRightSidebarVisible = $derived(uiStateManager.isRightSidebarVisible.value);
+	const currentScreenSize = $derived(screenSize.value);
+	const isFormValid = $derived(validationStore.isValid);
 
 	// Derive schedule timestamp directly from currentEntry for display
-	let scheduleTimestamp = $derived(currentEntry?._scheduled ? Number(currentEntry._scheduled) : null);
+	const scheduleTimestamp = $derived(currentEntry?._scheduled ? Number(currentEntry._scheduled) : null);
 
 	// Helper to get a display-friendly username
 	// If the value looks like a UUID, try to get actual username from user object
@@ -122,17 +122,17 @@ This component provides a streamlined interface for managing collection entries 
 	}
 
 	// Permissions derived from collection schema
-	let canWrite = $derived(currentCollection?.permissions?.[user?.role]?.write !== false);
-	let canCreate = $derived(currentCollection?.permissions?.[user?.role]?.create !== false);
-	let canDelete = $derived(currentCollection?.permissions?.[user?.role]?.delete !== false);
+	const canWrite = $derived(currentCollection?.permissions?.[user?.role]?.write !== false);
+	const canCreate = $derived(currentCollection?.permissions?.[user?.role]?.create !== false);
+	const canDelete = $derived(currentCollection?.permissions?.[user?.role]?.delete !== false);
 
 	// Determine current status (local state or collection default)
-	let currentStatus = $derived(currentEntry?.status ?? currentCollection?.status ?? StatusTypes.unpublish);
-	let isPublished = $derived(currentStatus === StatusTypes.publish);
+	const currentStatus = $derived(currentEntry?.status ?? currentCollection?.status ?? StatusTypes.unpublish);
+	const isPublished = $derived(currentStatus === StatusTypes.publish);
 	// Removed unused isScheduled
 
 	// Disable status toggle logic
-	let shouldDisableStatusToggle = $derived(
+	const shouldDisableStatusToggle = $derived(
 		(currentMode === 'create' && !isRightSidebarVisible) ||
 			(currentMode === 'edit' && !isRightSidebarVisible && currentScreenSize !== 'LG') ||
 			isLoading
@@ -154,13 +154,13 @@ This component provides a streamlined interface for managing collection entries 
 			return '-';
 		}
 	};
-	let dates = $derived({
+	const dates = $derived({
 		created: formatDate(currentEntry?.createdAt as string | undefined),
 		updated: formatDate(currentEntry?.updatedAt as string | undefined)
 	});
 
 	// Visibility of the sidebar itself
-	let showSidebar = $derived(['edit', 'create'].includes(currentMode) || canWrite);
+	const showSidebar = $derived(['edit', 'create'].includes(currentMode) || canWrite);
 
 	// --- Effects ---
 

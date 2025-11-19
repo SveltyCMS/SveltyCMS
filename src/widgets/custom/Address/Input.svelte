@@ -38,7 +38,7 @@ Interactive form with map, country selector, and address validation
 	let { field, value, error }: { field: FieldType; value: AddressData | null | undefined; error?: string | null } = $props();
 
 	// Local reactive state for the form, initialized from the parent `value`.
-	let address = $state<AddressData>(
+	const address = $state<AddressData>(
 		value ?? {
 			street: '',
 			houseNumber: '',
@@ -59,7 +59,7 @@ Interactive form with map, country selector, and address validation
 	});
 
 	// Note: Map functionality is placeholder for future Mapbox integration
-	let map: any = null; // Placeholder for future Mapbox integration
+	const map: any = null; // Placeholder for future Mapbox integration
 
 	onDestroy(() => {
 		if (map && typeof map.remove === 'function') {

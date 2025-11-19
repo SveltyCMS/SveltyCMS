@@ -35,7 +35,7 @@ Structure optimized for LLM integration and AI-powered search.
 		onClose: () => void;
 	}
 
-	let { files, onSearch, onClose }: Props = $props();
+	const { files, onSearch, onClose }: Props = $props();
 
 	// Search criteria state (not used directly, converted from formValues)
 	// let criteria = $state<SearchCriteria>({...});
@@ -63,7 +63,7 @@ Structure optimized for LLM integration and AI-powered search.
 	});
 
 	// Search suggestions (computed from files)
-	let suggestions = $derived.by(() => {
+	const suggestions = $derived.by(() => {
 		const tags = new Set<string>();
 		const cameras = new Set<string>();
 		const dimensions = new Set<string>();

@@ -55,7 +55,7 @@ Key features:
 	let density = $state('normal');
 
 	// Selection state
-	let selectedFiles = $state<Set<string>>(new Set());
+	const selectedFiles = $state<Set<string>>(new Set());
 
 	function handleSelection(file: MediaBase, checked: boolean) {
 		if (checked) {
@@ -69,8 +69,8 @@ Key features:
 	// Pagination state
 	let currentPage = $state(1);
 	let rowsPerPage = $state(10);
-	let pagesCount = $derived(Math.ceil(filteredFiles.length / rowsPerPage));
-	let paginatedFiles = $derived(filteredFiles.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage));
+	const pagesCount = $derived(Math.ceil(filteredFiles.length / rowsPerPage));
+	const paginatedFiles = $derived(filteredFiles.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage));
 
 	function handleDelete(file: MediaBase) {
 		ondeleteImage(file);
