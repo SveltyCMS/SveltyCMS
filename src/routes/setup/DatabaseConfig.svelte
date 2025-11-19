@@ -42,7 +42,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	}>();
 
 	let unsupportedDbSelected = $state(false);
-	let isAtlas = $derived(dbConfig.type === 'mongodb+srv');
+	const isAtlas = $derived(dbConfig.type === 'mongodb+srv');
 	let isInstallingDriver = $state(false);
 	let installError = $state('');
 	let installSuccess = $state('');

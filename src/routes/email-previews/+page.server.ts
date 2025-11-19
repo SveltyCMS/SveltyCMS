@@ -31,7 +31,7 @@ let eventFetch: typeof globalThis.fetch;
 // We mirror that shape here so `PageData` and `EmailPreview` agree.
 interface PreviewData {
 	user?: User | null;
-	path?: string;
+	path?: string | null;
 	files: string[] | null;
 	emails?: { name: string; path: string }[];
 	components?: Record<string, unknown>;

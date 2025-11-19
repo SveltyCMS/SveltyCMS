@@ -20,7 +20,6 @@ import { dbAdapter } from '@src/databases/db';
 
 // Content Management
 import { contentManager } from '@src/content/ContentManager';
-import type { CollectionEntry } from '@src/content/types';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -107,7 +106,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 
 		// Return data based on format
 		if (format === 'csv') {
-			const csvData = convertToCSV(exportData as CollectionEntry[]);
+			const csvData = convertToCSV(exportData);
 			return new Response(csvData, {
 				headers: {
 					'Content-Type': 'text/csv',
@@ -161,7 +160,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 /**
  * Convert array of objects to CSV format
  */
-function convertToCSV(data: CollectionEntry[]): string {
+function convertToCSV(data: unknown[]): string {
 	if (!data || data.length === 0) {
 		return '';
 	}
@@ -169,7 +168,9 @@ function convertToCSV(data: CollectionEntry[]): string {
 	// Get all unique keys from the data
 	const allKeys = new Set<string>();
 	data.forEach((item) => {
-		Object.keys(item).forEach((key) => allKeys.add(key));
+		if (item && typeof item === 'object') {
+			Object.keys(item as Record<string, unknown>).forEach((key) => allKeys.add(key));
+		}
 	});
 
 	const headers = Array.from(allKeys);
@@ -179,10 +180,11 @@ function convertToCSV(data: CollectionEntry[]): string {
 		// Header row
 		headers.map((header) => `"${header}"`).join(','),
 		// Data rows
-		...data.map((item) =>
-			headers
+		...data.map((item) => {
+			const record = item as Record<string, unknown>;
+			return headers
 				.map((header) => {
-					const value = item[header];
+					const value = record[header];
 					if (value === null || value === undefined) {
 						return '""';
 					}
@@ -190,8 +192,8 @@ function convertToCSV(data: CollectionEntry[]): string {
 					const stringValue = String(value).replace(/"/g, '""');
 					return `"${stringValue}"`;
 				})
-				.join(',')
-		)
+				.join(',');
+		})
 	];
 
 	return csvRows.join('\n');

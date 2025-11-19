@@ -44,7 +44,7 @@
 	}
 
 	// Combine default theme with dynamically loaded custom themes
-	let themes = $derived([
+	const themes = $derived([
 		{
 			_id: 'default-theme' as unknown as DatabaseId,
 			name: 'SveltyCMSTheme',

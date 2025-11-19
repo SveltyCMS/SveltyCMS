@@ -43,11 +43,11 @@
 		uploadFiles: (files: File[]) => Promise<void>;
 	}
 
-	let { parent, sectionName, files: initialFiles = [], onDelete, uploadFiles }: Props = $props();
+	const { parent, sectionName, files: initialFiles = [], onDelete, uploadFiles }: Props = $props();
 
 	// Use internal state to prevent $bindable loop
 	let files = $state<File[]>([...initialFiles]);
-	let fileSet = $state(new Set<string>(initialFiles.map((f) => `${f.name}-${f.size}`))); // Initialize with initial files
+	const fileSet = $state(new Set<string>(initialFiles.map((f) => `${f.name}-${f.size}`))); // Initialize with initial files
 	let duplicateWarning = $state('');
 	let objectUrls = $state<Map<string, string>>(new Map()); // Map fileKey to ObjectURL
 

@@ -54,7 +54,7 @@ The `children` snippet is passed an object with the following properties:
 		children?: import('svelte').Snippet<[VersionStatus]>;
 	};
 
-	let { transparent = false, compact = false, onStatusChange, children }: VersionProps = $props();
+	const { transparent = false, compact = false, onStatusChange, children }: VersionProps = $props();
 
 	// --- State Management ---
 	// Use the pkg version passed from the server load function

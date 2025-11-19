@@ -52,7 +52,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			tenantId
 		});
 
-		return new Response(buffer.buffer, {
+		return new Response(new Uint8Array(buffer), {
 			headers: {
 				'Content-Type': 'application/octet-stream',
 				'Content-Disposition': `attachment; filename="${fileUrl.split('/').pop()}"`,

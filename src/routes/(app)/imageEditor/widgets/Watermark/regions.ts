@@ -1,6 +1,5 @@
 // @file: src/routes/(app)/imageEditor/widgets/Watermark/region.ts
 import Konva from 'konva';
-import type { Group as KonvaGroup, Layer as KonvaLayer } from 'konva';
 
 /**
  * WatermarkItem encapsulates a Konva.Image node, its transformer,
@@ -9,20 +8,21 @@ import type { Group as KonvaGroup, Layer as KonvaLayer } from 'konva';
 export class WatermarkItem {
 	id: string;
 	node: Konva.Image;
-	layer: KonvaLayer;
-	imageGroup: KonvaGroup;
+	layer: Konva.Layer;
+	imageGroup: Konva.Group;
 	private objectUrl: string | null = null; // To revoke on destroy
 
 	private _onSelect: (() => void) | null = null;
 	private _onDestroy: (() => void) | null = null;
 
-	constructor(opts: { id: string; layer: KonvaLayer; imageGroup: KonvaGroup }) {
+	constructor(opts: { id: string; layer: Konva.Layer; imageGroup: Konva.Group }) {
 		this.id = opts.id;
 		this.layer = opts.layer;
 		this.imageGroup = opts.imageGroup;
 
 		// Create an empty Konva.Image node as a placeholder
 		this.node = new Konva.Image({
+			image: undefined,
 			draggable: true,
 			name: 'watermark'
 		});

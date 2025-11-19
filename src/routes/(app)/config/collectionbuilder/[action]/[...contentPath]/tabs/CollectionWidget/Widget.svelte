@@ -42,7 +42,7 @@
 		[key: string]: unknown;
 	}
 
-	let { 'on:save': onSave = () => {} }: Props = $props() as Props;
+	const { 'on:save': onSave = () => {} }: Props = $props() as Props;
 
 	const modalStore = getModalStore();
 

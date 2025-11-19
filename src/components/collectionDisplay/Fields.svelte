@@ -62,7 +62,7 @@
 	});
 
 	// --- 1. RECEIVE DATA AS PROPS ---
-	let {
+	const {
 		fields,
 		revisions = []
 		// contentLanguage prop received but not directly used - widgets access contentLanguage store
@@ -102,13 +102,13 @@
 	});
 
 	// --- 3. DERIVED STATE FROM PROPS ---
-	let selectedRevision = $derived(revisions.find((r: any) => r._id === selectedRevisionId) || null);
+	const selectedRevision = $derived(revisions.find((r: any) => r._id === selectedRevisionId) || null);
 
 	// --- 4. SIMPLIFIED LOGIC ---
-	let derivedFields = $derived(fields || []);
+	const derivedFields = $derived(fields || []);
 
 	// Get translation progress
-	let currentTranslationProgress = $derived(translationProgress.value);
+	const currentTranslationProgress = $derived(translationProgress.value);
 
 	// Track changes to translation progress for debugging
 	$effect(() => {
@@ -119,7 +119,7 @@
 	});
 
 	// Get available languages
-	let availableLanguages = $derived.by<Locale[]>(() => {
+	const availableLanguages = $derived.by<Locale[]>(() => {
 		// Wait for publicEnv to be initialized
 		const languages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES;
 		if (!languages || !Array.isArray(languages)) {
@@ -168,7 +168,7 @@
 		};
 	}
 
-	let filteredFields = $derived(
+	const filteredFields = $derived(
 		derivedFields
 			.map(ensureFieldProperties)
 			.filter(Boolean)

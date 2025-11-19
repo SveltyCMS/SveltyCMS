@@ -20,7 +20,7 @@
 		data: PageData;
 	}
 
-	let { data }: Props = $props();
+	const { data }: Props = $props();
 
 	let token = $state('');
 	let formError = $state('');

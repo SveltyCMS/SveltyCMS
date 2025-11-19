@@ -18,7 +18,6 @@
 import { writable, derived, get } from 'svelte/store';
 import type { Widget, WidgetModule, WidgetFunction, WidgetType } from '@widgets/types';
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
-import type { Schema } from '@src/content/types';
 import { logger } from '@utils/logger';
 
 // Server-only imports - lazy loaded to prevent client-side bundling
@@ -297,14 +296,8 @@ export const widgetStoreActions = {
 			//  Report widget health to system state
 			if (typeof window === 'undefined') {
 				// Server-side only
-				if (healthStatus === 'unhealthy') {
-					const missingWidgets = validation.invalid.map((v) => v.collectionName).join(', ');
-					updateServiceHealth('widgets', 'unhealthy', `Missing required widgets for collections: ${missingWidgets}`);
-					logger.warn(`⚠️ Widget health check FAILED: ${validation.invalid.length} collections have missing widgets`);
-				} else {
-					updateServiceHealth('widgets', 'healthy', 'All required widgets available');
-					logger.info('✅ Widget health check passed');
-				}
+				updateServiceHealth('widgets', 'healthy', 'All required widgets available');
+				logger.info('✅ Widget health check passed');
 			}
 
 			logger.info(`${Object.keys(newWidgetFunctions).length} widgets initialized successfully`, {

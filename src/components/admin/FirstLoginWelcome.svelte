@@ -47,7 +47,7 @@
 	}
 
 	// Welcome steps for new admin users
-	let welcomeSteps = $state([
+	const welcomeSteps = $state([
 		{
 			id: 'data-management',
 			title: 'Data Import & Export',

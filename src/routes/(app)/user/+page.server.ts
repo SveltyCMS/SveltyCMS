@@ -37,7 +37,6 @@ export const load: PageServerLoad = async (event) => {
 		// If user or roles are missing, log details and return fallback response
 		if (!user) {
 			logger.warn('User object missing in event.locals. Returning fallback response.', {
-				session: event.locals.session ?? null,
 				request: event.request.url
 			});
 			return {
@@ -66,7 +65,7 @@ export const load: PageServerLoad = async (event) => {
 		// Always fetch fresh user data from database to ensure we have the latest changes
 		// This is especially important after profile updates
 		let freshUser: User | null = null;
-		if (user?._id) {
+		if (user?._id && auth) {
 			freshUser = await auth.getUserById(user._id.toString());
 			if (freshUser) {
 				logger.debug('Fresh user data fetched for user page', {
@@ -111,9 +110,10 @@ export const load: PageServerLoad = async (event) => {
 		// Provide manageUsersPermissionConfig to the client
 		const manageUsersPermissionConfig: PermissionConfig = {
 			contextId: 'config/userManagement',
-			requiredRole: 'admin',
 			action: 'manage',
-			contextType: 'system'
+			contextType: 'system',
+			name: 'User Management',
+			description: 'Manage user accounts and roles'
 		};
 
 		// Return data to the client

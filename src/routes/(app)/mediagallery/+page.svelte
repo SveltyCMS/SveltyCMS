@@ -95,8 +95,8 @@ Displays a collection of media files (images, documents, audio, video) with:
 	];
 
 	// Computed value for filtered files based on search and type
-	let filteredFiles = $derived.by(() => {
-		let results = files.filter((file) => {
+	const filteredFiles = $derived.by(() => {
+		const results = files.filter((file) => {
 			const matchesSearch = (file.filename || '').toLowerCase().includes(globalSearchValue.toLowerCase());
 			const matchesType = selectedMediaType === 'All' || file.type === selectedMediaType;
 			return matchesSearch && matchesType;
@@ -113,10 +113,10 @@ Displays a collection of media files (images, documents, audio, video) with:
 	});
 
 	// Performance optimization: Use virtual scrolling for large collections
-	let useVirtualScrolling = $derived(filteredFiles.length > USE_VIRTUAL_THRESHOLD);
+	const useVirtualScrolling = $derived(filteredFiles.length > USE_VIRTUAL_THRESHOLD);
 
 	// Computed folders for breadcrumb - create a mapping of breadcrumb paths to folder IDs
-	let breadcrumbFolders = $derived.by(() => {
+	const breadcrumbFolders = $derived.by(() => {
 		const folders: { _id: string; name: string; path: string[] }[] = [];
 
 		// Always add root as first folder
@@ -170,7 +170,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	}
 
 	// Computed safe table size (MediaTable doesn't support 'tiny')
-	let safeTableSize = $derived<'small' | 'medium' | 'large'>(tableSize === 'tiny' ? 'small' : tableSize);
+	const safeTableSize = $derived<'small' | 'medium' | 'large'>(tableSize === 'tiny' ? 'small' : tableSize);
 
 	// Initialize component with runes
 	// Run once on mount to set up initial data

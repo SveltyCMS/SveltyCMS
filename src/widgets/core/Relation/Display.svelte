@@ -27,7 +27,7 @@ Renders: "Article Title" (fetched from related entry's display field)
 <script lang="ts">
 	import type { FieldType } from './';
 
-	let { value }: { field: FieldType; value: string | null | undefined } = $props();
+	const { value }: { field: FieldType; value: string | null | undefined } = $props();
 
 	// Local state for the resolved entry's display text.
 	let displayText = $state('Loading...');

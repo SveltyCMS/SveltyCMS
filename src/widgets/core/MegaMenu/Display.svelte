@@ -29,7 +29,7 @@ Renders: Nested <ul> structure with proper hierarchy and localization
 	import Display from './Display.svelte';
 	import type { MenuItem } from './types';
 
-	let { value }: { value: MenuItem[] | null | undefined } = $props();
+	const { value }: { value: MenuItem[] | null | undefined } = $props();
 	const lang = $derived(contentLanguage.value);
 </script>
 

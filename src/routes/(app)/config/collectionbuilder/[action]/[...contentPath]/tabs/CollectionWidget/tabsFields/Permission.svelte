@@ -27,7 +27,7 @@ Features:
 	}
 
 	// Get roles from the modal store
-	let roles = $derived($modalStore[0]?.value?.roles || []);
+	const roles = $derived($modalStore[0]?.value?.roles || []);
 </script>
 
 {#if $modalStore[0]}

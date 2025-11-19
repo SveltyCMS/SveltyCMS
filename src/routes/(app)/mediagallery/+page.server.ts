@@ -38,45 +38,46 @@ interface StackItem {
 	value: unknown;
 }
 
-function convertIdToString(obj: Record<string, unknown> | Array<unknown>): Record<string, unknown> | Array<unknown> {
+function convertIdToString(obj: unknown): unknown {
 	const stack: StackItem[] = [{ parent: null, key: '', value: obj }];
 	const seen = new WeakSet();
-	const root: Record<string, unknown> | Array<unknown> = Array.isArray(obj) ? [] : {};
+	const root: unknown = {};
 
 	while (stack.length) {
 		const { parent, key, value } = stack.pop()!;
 
 		// If value is not an object, assign directly
 		if (value === null || typeof value !== 'object') {
-			if (parent) parent[key] = value;
+			if (parent) (parent as Record<string, unknown>)[key] = value;
 			continue;
 		}
 
 		// Handle circular references
 		if (seen.has(value)) {
-			if (parent) parent[key] = value;
+			if (parent) (parent as Record<string, unknown>)[key] = value;
 			continue;
 		}
 		seen.add(value);
 
-		// Initialize object or array
-		const result: Record<string, unknown> | Array<unknown> = Array.isArray(value) ? [] : {};
-		if (parent) parent[key] = result;
+		// Initialize object
+		const result: Record<string, unknown> = {};
+		if (parent) (parent as Record<string, unknown>)[key] = result;
 
-		// Process each key/value pair or array element
-		for (const k in value) {
-			if (value[k] === null) {
-				root[k] = null;
+		// Process each key/value pair
+		for (const k in value as Record<string, unknown>) {
+			const val = (value as Record<string, unknown>)[k];
+			if (val === null) {
+				result[k] = null;
 			} else if (k === '_id' || k === 'parent') {
-				root[k] = value[k]?.toString() || null;
+				result[k] = val?.toString() || null;
 				// Convert _id or parent to string
-			} else if (Buffer.isBuffer(value[k])) {
-				root[k] = value[k].toString('hex'); // Convert Buffer to hex string
-			} else if (typeof value[k] === 'object') {
+			} else if (Buffer.isBuffer(val)) {
+				result[k] = val.toString('hex'); // Convert Buffer to hex string
+			} else if (typeof val === 'object') {
 				// Add object to the stack for further processing
-				stack.push({ parent: result, key: k, value: value[k] });
+				stack.push({ parent: result, key: k, value: val });
 			} else {
-				root[k] = value[k]; // Assign primitive values
+				result[k] = val; // Assign primitive values
 			}
 		}
 	}
@@ -101,8 +102,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		// Check if user has permission to access media gallery
 		const hasMediaPermission =
 			isAdmin ||
-			tenantRoles.some((role) =>
-				role.permissions?.some((p) => p.resource === 'media' && (p.actions.includes('read') || p.actions.includes('write')))
+			Object.values(tenantRoles).some(
+				(role) =>
+					((role as { permissions?: string[] }).permissions || []).includes('media:read') ||
+					((role as { permissions?: string[] }).permissions || []).includes('media:write')
 			);
 
 		if (!hasMediaPermission) {
@@ -124,10 +127,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		// Ensure data is an array
 		const virtualFoldersData = Array.isArray(allVirtualFoldersResult.data) ? allVirtualFoldersResult.data : [];
 
-		const serializedVirtualFolders = virtualFoldersData.map((folder) => convertIdToString(folder));
+		const serializedVirtualFolders = virtualFoldersData.map((folder) => convertIdToString(folder as unknown));
 
 		// Determine current folder
-		const currentFolder = folderId ? serializedVirtualFolders.find((f) => f._id === folderId) || null : null;
+		const currentFolder = folderId ? serializedVirtualFolders.find((f) => (f as Record<string, unknown>)._id === folderId) || null : null;
 		logger.trace('Current folder determined:', currentFolder);
 
 		// Fetch from all media collections including the primary MediaItem collection
@@ -145,7 +148,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 				if (result.success && result.data) {
 					// Add collection type to each item for processing
-					const itemsWithType = result.data.map((item: Record<string, unknown>) => ({
+					const itemsWithType = result.data.map((item) => ({
 						...item,
 						collection: collection
 					}));
@@ -196,8 +199,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			})
 			.map((item) => {
 				try {
-					const extension = mime.extension(item.mimeType!) || '';
-					const filename = item.filename!.replace(`.${extension}`, '');
+					const mediaItem = item as unknown as MediaItem;
+					const extension = mime.extension(mediaItem.mimeType) || '';
+					const filename = mediaItem.filename.replace(`.${extension}`, '');
 
 					// MEDIA_FOLDER may not be eagerly available; use a safe default
 					const mediaFolder = publicEnv.MEDIA_FOLDER || 'mediaFiles';
@@ -206,16 +210,16 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 					}
 
 					// Build thumbnail URL via helper (no hard-coded routes)
-					const effectivePath = (item as Record<string, string | undefined>).path ?? '/global';
-					const thumbnailUrl = constructUrl(effectivePath, item.hash!, filename, extension, 'images', 'thumbnail');
+					const effectivePath = mediaItem.path ?? '/global';
+					const thumbnailUrl = constructUrl(effectivePath, mediaItem.hash, filename, extension, 'thumbnail');
 
 					return {
-						...item,
-						type: item.type ?? item.mimeType?.split('/')[0], // Preserve type or derive from mimeType
-						path: item.path ?? 'global',
-						name: item.filename ?? 'unnamed-media',
+						...mediaItem,
+						type: mediaItem.mimeType.split('/')[0], // Derive from mimeType
+						path: mediaItem.path ?? 'global',
+						name: mediaItem.filename ?? 'unnamed-media',
 						// Use the item's path if available when constructing the original URL
-						url: constructUrl((item.path ?? '/global') as string, item.hash!, filename, extension, 'images', 'original'),
+						url: constructUrl(mediaItem.path ?? '/global', mediaItem.hash, filename, extension, 'original'),
 						thumbnail: {
 							url: thumbnailUrl
 						}

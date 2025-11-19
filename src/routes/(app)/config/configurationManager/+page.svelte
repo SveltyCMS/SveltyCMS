@@ -25,7 +25,7 @@
 	let activeTab = $state<'sync' | 'import' | 'export' | 'debug'>('sync');
 
 	// prettier counts
-	let changeSummary = $derived(() => ({
+	const changeSummary = $derived(() => ({
 		new: status?.changes?.new?.length || 0,
 		updated: status?.changes?.updated?.length || 0,
 		deleted: status?.changes?.deleted?.length || 0
@@ -62,7 +62,7 @@
 
 		isProcessing = true;
 		try {
-			let payload: { action: string; payload?: any } = { action: 'import' };
+			const payload: { action: string; payload?: any } = { action: 'import' };
 
 			if (fileToImport) {
 				const fileContent = await fileToImport.text();

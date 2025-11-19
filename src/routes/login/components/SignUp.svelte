@@ -67,7 +67,7 @@ Features:
 	const hasExistingOAuthUsers = pageData.hasExistingOAuthUsers;
 
 	// State management
-	let tabIndex = $state(1);
+	const tabIndex = $state(1);
 	let response = $state<any>(undefined);
 	let formElement = $state<HTMLFormElement | null>(null);
 	let showPassword = $state(false);

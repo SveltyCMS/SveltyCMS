@@ -65,7 +65,7 @@
 		children?: import('svelte').Snippet;
 	}
 
-	let { children }: Props = $props();
+	const { children }: Props = $props();
 
 	// Get the site name from data loaded in layout.server.ts
 	const siteName = $derived(page.data.settings?.SITE_NAME || 'SveltyCMS');

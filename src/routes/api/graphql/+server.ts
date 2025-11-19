@@ -186,8 +186,8 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
 			graphiql: {
 				subscriptionsProtocol: 'WS'
 			},
-			typeDefs,
-			resolvers,
+			// @ts-expect-error Yoga schema type mismatch due to context generics
+			schema: createSchema({ typeDefs, resolvers }),
 			context: async ({ request }) => {
 				// Extract the context from the request if it was passed
 				const contextData = (request as Request & { contextData?: { user: unknown; tenantId?: string } }).contextData;

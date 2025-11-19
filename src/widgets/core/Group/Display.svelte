@@ -33,7 +33,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 		children?: any;
 	}
 
-	let { field, value, children }: Props = $props();
+	const { field, value, children }: Props = $props();
 
 	const fieldName = getFieldName(field);
 

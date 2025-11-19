@@ -4,7 +4,7 @@
 **Watermark tool controls for master toolbar**
 -->
 <script lang="ts">
-	let {
+	const {
 		opacity,
 		onOpacityChange,
 		onAddWatermark,

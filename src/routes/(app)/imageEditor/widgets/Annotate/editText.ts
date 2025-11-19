@@ -32,9 +32,9 @@ export function enableTextEdit(stage: Konva.Stage, textNode: Konva.Text, onCompl
 	area.style.width = `${textNode.width()}px`;
 	area.style.height = `${textNode.height() + 10}px`; // Add padding
 	area.style.fontSize = `${textNode.fontSize()}px`;
-	area.style.fontFamily = textNode.fontFamily() || 'Arial';
-	area.style.color = textNode.fill() || '#000';
-	area.style.lineHeight = textNode.lineHeight() as string;
+	area.style.fontFamily = String(textNode.fontFamily()) || 'Arial';
+	area.style.color = String(textNode.fill()) || '#000';
+	area.style.lineHeight = String(textNode.lineHeight());
 	area.style.padding = textNode.padding() + 'px';
 
 	// General styles

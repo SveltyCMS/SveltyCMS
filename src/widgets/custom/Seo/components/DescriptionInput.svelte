@@ -28,7 +28,7 @@
 	let { description = $bindable(), descriptionCharacterWidth, handleDescriptionChange }: Props = $props();
 
 	// Compute class based on description length
-	let computedClass = $derived(
+	const computedClass = $derived(
 		description.length >= 120 && description.length <= 165
 			? 'input-label green'
 			: description.length >= 30 && description.length <= 119
@@ -39,7 +39,7 @@
 	);
 
 	// Compute status message based on description length
-	let descriptionStatus = $derived(
+	const descriptionStatus = $derived(
 		description.length >= 120 && description.length <= 165
 			? 'Optimal length'
 			: description.length >= 30 && description.length <= 119

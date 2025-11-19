@@ -9,6 +9,6 @@ export default {
 	key: 'watermark',
 	title: 'Watermark',
 	icon: 'mdi:copyright',
-	tool: Tool as unknown as Component<Record<img, unknown>>,
+	tool: Tool as unknown as Component<Record<string, unknown>>,
 	controls: Controls as unknown as Component<Record<string, unknown>>
 };

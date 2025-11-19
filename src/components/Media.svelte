@@ -35,7 +35,7 @@ Displays a grid of media files with search, thumbnails, and detailed info view.
 		onselect?: (file: MediaImage) => void;
 	}
 
-	let { onselect = () => {} }: Props = $props();
+	const { onselect = () => {} }: Props = $props();
 
 	// Constants
 	const THUMBNAIL_SIZES: ThumbnailSize[] = ['sm', 'md', 'lg'];
@@ -52,7 +52,7 @@ Displays a grid of media files with search, thumbnails, and detailed info view.
 	const searchDebounced = debounce(DEBOUNCE_MS);
 
 	// Filtered files based on search
-	let filteredFiles = $derived.by(() => {
+	const filteredFiles = $derived.by(() => {
 		if (!search.trim()) return files;
 
 		const searchLower = search.toLowerCase();

@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger.server';
+import type { DatabaseId } from '@src/databases/dbInterface';
 
 export async function DELETE({ locals, params }) {
 	if (!locals.user) {

@@ -82,16 +82,16 @@
 		}
 	};
 
-	let buttons = $state(props.buttons || defaultButtons);
+	const buttons = $state(props.buttons || defaultButtons);
 	let expanded = $state(false);
 
-	let defaultButton = $derived(props.defaultButton || (mode.value === 'modify' ? 'Delete' : 'Create'));
+	const defaultButton = $derived(props.defaultButton || (mode.value === 'modify' ? 'Delete' : 'Create'));
 
 	$effect(() => {
 		expanded = mode.value === 'modify' ? expanded : false;
 	});
 
-	let activeArrow = $derived(mode.value === 'modify');
+	const activeArrow = $derived(mode.value === 'modify');
 
 	function toggleExpanded() {
 		expanded = !expanded;

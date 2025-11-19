@@ -6,7 +6,7 @@
 <script lang="ts">
 	import type { CropShape } from './regions';
 
-	let {
+	const {
 		cropShape,
 		aspectRatio,
 		onRotateLeft,
@@ -32,8 +32,8 @@
 	];
 
 	// Derive values for UI binding
-	let shapeValue = $derived(cropShape);
-	let aspectValue = $derived(aspectRatio);
+	const shapeValue = $derived(cropShape);
+	const aspectValue = $derived(aspectRatio);
 </script>
 
 <div class="crop-controls">

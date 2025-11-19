@@ -10,7 +10,7 @@ Emits `apply` with normalized coordinates { x: number, y: number } in [0,1].
 	import { createEventDispatcher } from 'svelte';
 
 	// Props
-	let {
+	const {
 		stage,
 		imageNode,
 		disabled = false
@@ -24,7 +24,7 @@ Emits `apply` with normalized coordinates { x: number, y: number } in [0,1].
 
 	// Local state
 	let containerEl: HTMLDivElement | null = null;
-	let crosshair = $state({ x: 0.5, y: 0.5 });
+	const crosshair = $state({ x: 0.5, y: 0.5 });
 	let hasPoint = $state(false);
 
 	function setFromClientPosition(clientX: number, clientY: number) {

@@ -45,7 +45,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 		expires: string;
 	}
 
-	let { parent = { regionFooter: 'modal-footer p-4' }, token = '', user_id = '', email = '', role = 'user', expires = '' }: Props = $props();
+	const { parent = { regionFooter: 'modal-footer p-4' }, token = '', user_id = '', email = '', role = 'user', expires = '' }: Props = $props();
 
 	// Form Data with format conversion
 	function convertLegacyFormat(expires: string): string {

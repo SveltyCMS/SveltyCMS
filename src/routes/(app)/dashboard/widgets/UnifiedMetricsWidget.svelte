@@ -42,7 +42,7 @@ for comprehensive system monitoring and performance analysis.
 	import BaseWidget from '../BaseWidget.svelte';
 
 	// Props
-	let {
+	const {
 		label = 'System Metrics',
 		theme = 'light',
 		icon = 'mdi:chart-donut',
@@ -120,10 +120,10 @@ for comprehensive system monitoring and performance analysis.
 	let lastUpdate = $state(0);
 
 	// Computed performance indicators - using $derived correctly
-	let overallHealth = $derived(calculateOverallHealth(metrics));
-	let healthColor = $derived(getHealthColor(overallHealth));
-	let healthIcon = $derived(getHealthIcon(overallHealth));
-	let primaryMetrics = $derived(getPrimaryMetrics(metrics));
+	const overallHealth = $derived(calculateOverallHealth(metrics));
+	const healthColor = $derived(getHealthColor(overallHealth));
+	const healthIcon = $derived(getHealthIcon(overallHealth));
+	const primaryMetrics = $derived(getPrimaryMetrics(metrics));
 
 	function calculateOverallHealth(m: UnifiedMetrics): 'excellent' | 'good' | 'fair' | 'poor' | 'critical' {
 		const factors = {

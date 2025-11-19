@@ -32,7 +32,7 @@
 		"format": "prettier --write .",
 		"-- OTHER ----------------------------------------------": "",
 		"preview": "bun run vite preview",
-		"paraglide": "paraglide-js compile --project ./project.inlang",
+		"paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide",
 		"translate": "bun x @inlang/cli machine translate --project ./project.inlang",
 		"db:push": "drizzle-kit push",
 		"db:migrate": "drizzle-kit migrate",
@@ -123,7 +123,7 @@
 		"vite": "^7.2.2"
 	},
 	"dependencies": {
-		"@aws-sdk/client-s3": "^3.934.0",
+		"@aws-sdk/client-s3": "^3.935.0",
 		"@floating-ui/dom": "^1.7.4",
 		"@inlang/paraglide-js": "^2.5.0",
 		"@mapbox/mapbox-gl-geocoder": "^5.1.2",
@@ -190,8 +190,5 @@
 		"mongoose": "^8.20.0",
 		"mysql2": "^3.15.3",
 		"postgres": "^3.4.7"
-	},
-	"overrides": {
-		"google-auth-library": "10.5.0"
 	}
 }

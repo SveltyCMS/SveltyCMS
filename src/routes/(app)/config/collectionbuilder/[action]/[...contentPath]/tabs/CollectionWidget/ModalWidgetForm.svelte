@@ -31,18 +31,18 @@ It handles widget configuration, permissions, and specific options.
 		parent: SvelteComponent;
 	}
 
-	let { parent }: Props = $props();
+	const { parent }: Props = $props();
 
 	// Local variables
-	let modalData = $derived($modalStore[0]);
+	const modalData = $derived($modalStore[0]);
 	// Widget key is the folder name (lowercase), not the widget Name
-	let widgetKey = $derived(modalData?.value?.widget?.key || (modalData?.value?.widget?.Name?.toLowerCase() as string));
-	let availableWidgets = $derived($widgetFunctions || {});
-	let guiSchema = $derived((availableWidgets[widgetKey]?.GuiSchema || {}) as Record<string, { widget?: any; [key: string]: unknown }>);
+	const widgetKey = $derived(modalData?.value?.widget?.key || (modalData?.value?.widget?.Name?.toLowerCase() as string));
+	const availableWidgets = $derived($widgetFunctions || {});
+	const guiSchema = $derived((availableWidgets[widgetKey]?.GuiSchema || {}) as Record<string, { widget?: any; [key: string]: unknown }>);
 
 	// Derive options from guiSchema
-	let options = $derived(guiSchema ? Object.keys(guiSchema) : []);
-	let specificOptions = $derived(
+	const options = $derived(guiSchema ? Object.keys(guiSchema) : []);
+	const specificOptions = $derived(
 		options.filter(
 			(option) => !['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'].includes(option)
 		)

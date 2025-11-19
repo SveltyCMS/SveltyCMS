@@ -64,13 +64,13 @@
 
 	// Initialize value if null/undefined
 	// Safe value access with fallback
-	let safeValue = $derived(value?.[_language] ?? '');
+	const safeValue = $derived(value?.[_language] ?? '');
 
 	// SECURITY: Enforce maximum length to prevent DoS
-	let safeTruncatedValue = $derived(safeValue.length > MAX_INPUT_LENGTH ? safeValue.substring(0, MAX_INPUT_LENGTH) : safeValue);
+	const safeTruncatedValue = $derived(safeValue.length > MAX_INPUT_LENGTH ? safeValue.substring(0, MAX_INPUT_LENGTH) : safeValue);
 
 	// Character count (use truncated value for safety)
-	let count = $derived(safeTruncatedValue?.length ?? 0);
+	const count = $derived(safeTruncatedValue?.length ?? 0);
 
 	// Validation state - now using the enhanced validation store
 	let debounceTimeout: number | undefined;
@@ -78,13 +78,13 @@
 
 	// Get validation state from store
 	// Define fieldName using getFieldName utility
-	let fieldName = getFieldName(field);
-	let validationError = $derived(validationStore.getError(fieldName));
+	const fieldName = getFieldName(field);
+	const validationError = $derived(validationStore.getError(fieldName));
 	let isValidating = $state(false);
 	let isTouched = $state(false);
 
 	// Memoized badge class calculation using $derived
-	let badgeClass = $derived(() => {
+	const badgeClass = $derived(() => {
 		const length = count;
 		if (field?.minLength && length < (field?.minLength as number)) return 'bg-red-600';
 		if (field?.maxLength && length > (field?.maxLength as number)) return 'bg-red-600';
@@ -96,7 +96,7 @@
 
 	// ✅ SSOT: Use validation schema from index.ts
 	// Pass the field config (which is the widget instance) to createValidationSchema
-	let validationSchema = $derived(createValidationSchema(field as unknown as ReturnType<any>));
+	const validationSchema = $derived(createValidationSchema(field as unknown as ReturnType<any>));
 
 	// Enhanced validation function
 	async function validateInput(immediate = false): Promise<string | null> {

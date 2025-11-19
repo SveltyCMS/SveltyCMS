@@ -51,12 +51,12 @@ export const handleTheme: Handle = async ({ event, resolve }) => {
 			} else {
 				logger.debug('ThemeManager not ready, skipping custom CSS.');
 			}
-			event.locals.theme = undefined;
+			event.locals.theme = null;
 			event.locals.customCss = '';
 		}
 	} else {
 		// ThemeManager not initialized yet (system is still starting up)
-		event.locals.theme = undefined;
+		event.locals.theme = null;
 		event.locals.customCss = '';
 	}
 

@@ -51,7 +51,7 @@ Interactive Tiptap editor with toolbar and title input
 	});
 
 	// Create a safe getter/setter for title binding
-	let titleValue = $derived.by(() => {
+	const titleValue = $derived.by(() => {
 		return {
 			get value() {
 				return value?.[lang]?.title || '';

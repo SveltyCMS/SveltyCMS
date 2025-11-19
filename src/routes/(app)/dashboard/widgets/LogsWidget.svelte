@@ -41,7 +41,7 @@
 		totalPages: number;
 	}
 
-	let {
+	const {
 		label = 'System Logs',
 		icon = 'mdi:file-document-outline',
 		widgetId = undefined,
