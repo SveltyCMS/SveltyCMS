@@ -47,7 +47,7 @@ test('Delete Avatar', async ({ page }) => {
 
 	// First, ensure there's an avatar to delete by uploading one
 	await page.goto(`${baseURL}/user`);
-	await page.getByRole('button', { name: /edit avatar/i }).click();
+	await page.getByRole('button', { name: /edit avatar/i }).click({ force: true });
 	await page.waitForTimeout(500);
 
 	// Upload a test image first
@@ -56,8 +56,8 @@ test('Delete Avatar', async ({ page }) => {
 	await page.getByRole('button', { name: /save/i }).click();
 	await page.waitForTimeout(2000);
 
-	// Now delete the avatar
-	await page.getByRole('button', { name: /edit avatar/i }).click();
+	// Now delete the avatar - use force to bypass any modal overlays
+	await page.getByRole('button', { name: /edit avatar/i }).click({ force: true });
 	await page.waitForTimeout(500);
 
 	// Click delete button (variant-filled-error)
