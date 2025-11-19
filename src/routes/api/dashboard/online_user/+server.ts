@@ -91,7 +91,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 				uid,
 				hasData: !!userData,
 				username: userData?.username,
-				email: userData?.email?.replace(/(.{2}).*@(.*)/, '$1****@$2')
+				email: userData?.email
 			});
 
 			if (userData) {

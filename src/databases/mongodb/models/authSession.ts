@@ -482,6 +482,11 @@ export class SessionAdapter {
 				// Normalize ID
 				user._id = user._id.toString();
 
+				// Ensure permissions are strings
+				if (user.permissions && Array.isArray(user.permissions)) {
+					user.permissions = user.permissions.map((p: unknown) => String(p));
+				}
+
 				logger.debug('Session validated', { session_id });
 				return { success: true, data: user as User };
 			}

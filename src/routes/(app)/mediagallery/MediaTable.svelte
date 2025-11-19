@@ -180,7 +180,13 @@ Key features:
 							<td>{file.type || 'Unknown'}</td>
 							<td>{file.path}</td>
 							<td>
-								<button onclick={() => handleDelete(file)} class="variant-filled-primary btn btn-sm" aria-label="Delete"> Delete </button>
+								<a
+									href="/imageEditor?mediaId={file._id?.toString()}"
+									class="variant-ghost-primary btn btn-sm"
+									aria-label="Edit"
+									data-sveltekit-preload-data="hover">Edit</a
+								>
+								<button onclick={() => handleDelete(file)} class="variant-filled-error btn btn-sm" aria-label="Delete"> Delete </button>
 							</td>
 						</tr>
 					{/each}

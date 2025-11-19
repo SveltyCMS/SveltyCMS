@@ -17,7 +17,7 @@ export async function DELETE({ locals, params }) {
 		throw error(400, 'Token ID is required');
 	}
 
-	const result = await dbAdapter.websiteTokens.delete(id);
+	const result = await dbAdapter.websiteTokens.delete(id as DatabaseId);
 
 	if (!result.success) {
 		logger.error(`Failed to delete website token ${id}:`, result.error);

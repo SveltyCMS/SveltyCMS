@@ -51,6 +51,7 @@ export interface BaseEntity {
 	_id: DatabaseId;
 	createdAt: ISODateString;
 	updatedAt: ISODateString;
+	isDeleted?: boolean; // Soft delete flag
 }
 
 // Collection Entry - A data record in a collection with common metadata

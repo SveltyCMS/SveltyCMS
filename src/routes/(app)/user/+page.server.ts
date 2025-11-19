@@ -23,11 +23,6 @@ import { auth } from '@src/databases/db';
 import type { Role, User } from '@src/databases/auth/types';
 import type { PermissionConfig } from '@src/databases/auth/permissions';
 
-// Superforms
-import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
-import { valibot } from 'sveltekit-superforms/adapters';
-import { superValidate } from 'sveltekit-superforms/server';
-
 // System Logger
 import { getUntypedSetting } from '@src/services/settingsService';
 import { logger } from '@utils/logger.server';
@@ -48,8 +43,6 @@ export const load: PageServerLoad = async (event) => {
 			return {
 				user: null,
 				roles: [],
-				addUserForm: await superValidate(event, valibot(addUserTokenSchema)),
-				changePasswordForm: await superValidate(event, valibot(changePasswordSchema)),
 				isFirstUser: false,
 				is2FAEnabledGlobal: Boolean(getUntypedSetting('USE_2FA')),
 				manageUsersPermissionConfig: {
@@ -90,10 +83,7 @@ export const load: PageServerLoad = async (event) => {
 		}
 
 		// Validate forms using SuperForms in parallel (non-blocking)
-		const [addUserForm, changePasswordForm] = await Promise.all([
-			superValidate(event, valibot(addUserTokenSchema)),
-			superValidate(event, valibot(changePasswordSchema))
-		]);
+		// Removed Superforms, forms handled on client
 
 		// Prepare user object for return, ensuring _id is a string and including admin status
 		const safeUser = freshUser
@@ -133,8 +123,6 @@ export const load: PageServerLoad = async (event) => {
 				...role,
 				_id: role._id.toString()
 			})),
-			addUserForm,
-			changePasswordForm,
 			isFirstUser,
 			is2FAEnabledGlobal: Boolean(getUntypedSetting('USE_2FA')),
 			manageUsersPermissionConfig,
@@ -149,8 +137,6 @@ export const load: PageServerLoad = async (event) => {
 		return {
 			user: null,
 			roles: [],
-			addUserForm: null,
-			changePasswordForm: null,
 			isFirstUser: false,
 			is2FAEnabledGlobal: false,
 			manageUsersPermissionConfig: {

@@ -14,14 +14,13 @@
  *   logger.info(`Saved ${id} in ${ms}ms`, meta)
  */
 
-import { browser, dev, building } from '$app/environment';
+import { browser, building } from '$app/environment';
 
 type LogLevel = 'none' | 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
 export type LoggableValue = string | number | boolean | null | unknown | undefined | Date | RegExp | object | Error;
 
 // --- COMPILE-TIME CONSTANTS ---
 // Vite will inline these and tree-shake unused code
-const IS_DEV = dev;
 const IS_BROWSER = browser;
 const IS_BUILDING = building;
 
@@ -309,13 +308,20 @@ export const logger = {
 if (IS_LOGGING_DISABLED) {
 	// In production with logging disabled, this entire block is removed
 	logger satisfies {
-		fatal: (...args: any[]) => void;
-		error: (...args: any[]) => void;
-		warn: (...args: any[]) => void;
-		info: (...args: any[]) => void;
-		debug: (...args: any[]) => void;
-		trace: (...args: any[]) => void;
-		channel: (name: string) => any;
-		dump: (data: any, label?: string) => void;
+		fatal: (...args: LoggableValue[]) => void;
+		error: (...args: LoggableValue[]) => void;
+		warn: (...args: LoggableValue[]) => void;
+		info: (...args: LoggableValue[]) => void;
+		debug: (...args: LoggableValue[]) => void;
+		trace: (...args: LoggableValue[]) => void;
+		channel: (name: string) => {
+			fatal: (msg: string, ...args: LoggableValue[]) => void;
+			error: (msg: string, ...args: LoggableValue[]) => void;
+			warn: (msg: string, ...args: LoggableValue[]) => void;
+			info: (msg: string, ...args: LoggableValue[]) => void;
+			debug: (msg: string, ...args: LoggableValue[]) => void;
+			trace: (msg: string, ...args: LoggableValue[]) => void;
+		};
+		dump: (data: LoggableValue, label?: string) => void;
 	};
 }

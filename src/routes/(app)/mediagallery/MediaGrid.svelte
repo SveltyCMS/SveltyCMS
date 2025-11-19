@@ -248,9 +248,9 @@ Key features:
 						<div class="bg-surface-100-800-token arrow"></div>
 					</div>
 
-					<button aria-label="Edit" class="btn-icon">
+					<a href="/imageEditor?mediaId={file._id?.toString()}" aria-label="Edit" class="btn-icon" data-sveltekit-preload-data="hover">
 						<iconify-icon icon="mdi:pen" width="24" class="data:text-primary-500 text-tertiary-500"></iconify-icon>
-					</button>
+					</a>
 					<button onclick={() => handleDelete(file)} aria-label="Delete" class="btn-icon">
 						<iconify-icon icon="icomoon-free:bin" width="24" class="text-error-500"> </iconify-icon>
 					</button>

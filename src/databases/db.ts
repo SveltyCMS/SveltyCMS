@@ -575,7 +575,8 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			})(),
 			(async () => {
 				const t = performance.now();
-				await initializeDefaultTheme().then(() => initializeThemeManager());
+				await initializeDefaultTheme();
+				await initializeThemeManager();
 				updateServiceHealth('themeManager', 'healthy', 'Theme manager initialized');
 				themesTime = performance.now() - t;
 			})(),
