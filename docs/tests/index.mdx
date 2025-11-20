@@ -23,8 +23,14 @@ Comprehensive testing documentation for SveltyCMS covering unit tests, integrati
 SveltyCMS uses a multi-layered testing strategy to ensure code quality and reliability:
 
 - **🧪 Bun Tests** - Fast unit and integration tests
-- **🎭 Playwright Tests** - Comprehensive E2E browser testing
-- **🔄 CI/CD Automation** - Automated testing on every commit
+### 3. End-to-End (E2E) Tests
+- **Tool:** Playwright
+- **Location:** `tests/playwright/`
+- **Focus:** Critical user journeys (Login, CRUD, Setup)
+- **Strategy:**
+    - **No UI Setup:** Database is seeded via API before tests run.
+    - **Auth Helper:** Tests use `loginAsAdmin` helper for speed.
+    - **Parallel Execution:** Runs in parallel with unit/integration tests in CI.
 - **📊 Test Coverage** - Tracking and reporting
 
 ---
@@ -259,23 +265,27 @@ For SvelteCMS, a **database-agnostic, headless CMS**, Bun provides:
 ✅ **Reliability** - Comprehensive test coverage without slowdown  
 ✅ **Developer Joy** - Instant feedback, beautiful output, watch mode
 
-**Result:** We can maintain **86% API coverage (460+ tests)** and **100% utility coverage (76 tests)** while keeping our test suite fast enough to run on every commit.
-
----
+**Result:** We can maintain **86% API coverage (460+ tests)** and **100% Current test coverage: **85%+ pass rate** with **460+ passing tests** across unit, integration, and E2E layers.
 
 ## Quick Start
 
-### Running Tests
+Run all tests in parallel (Unit + Integration + E2E):
 
 ```bash
-# Run all unit tests (fast)
-bun test tests/bun
-
-# Run E2E tests
-bun x playwright test
-
-# Run all tests
 bun run test:all
+```
+
+Run specific test layers:
+
+```bash
+# Unit Tests (Fast, no server)
+bun run test:unit
+
+# Integration Tests (API, DB - Auto-starts server)
+bun run test:integration
+
+# E2E Tests (Playwright - Auto-starts server)
+bun run test:e2e
 ```
 
 ### Test Status

@@ -25,6 +25,7 @@ vite.config.ts.timestamp-*
 trash/*
 media/*
 mediaFiles/
+mediaFolder/
 compiledCollections/*
 logs/*
 Docs/*
@@ -56,5 +57,5 @@ yarn-error.log*
 #paraglide.js
 src/paraglide/**/*.js
 
-# Media files - ignore all uploaded content
-mediaFolder/
+
+

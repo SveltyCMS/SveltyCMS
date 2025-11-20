@@ -17,7 +17,7 @@
  */
 
 import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/factory';
+import { createWidget } from '@src/widgets/widgetFactory';
 import { array, maxLength, object, pipe, string } from 'valibot';
 import type { MegaMenuProps, MenuItem } from './types';
 

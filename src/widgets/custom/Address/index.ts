@@ -16,7 +16,7 @@
 import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 
-import { createWidget } from '@src/widgets/factory';
+import { createWidget } from '@src/widgets/widgetFactory';
 import { object, string, number, minLength, pipe, type InferInput as ValibotInput } from 'valibot';
 import type { AddressProps } from './types';
 import * as m from '@src/paraglide/messages';

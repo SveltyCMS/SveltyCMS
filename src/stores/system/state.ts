@@ -55,14 +55,18 @@ function transitionServiceState(
 		metrics.consecutiveFailures = 0;
 	}
 
-	// Track failures
-	if (newStatus === 'unhealthy' && service.status !== 'unhealthy') {
-		metrics.failureCount++;
+	// Track failures - increment on every unhealthy status
+	if (newStatus === 'unhealthy') {
 		metrics.consecutiveFailures++;
-		metrics.lastFailureAt = now;
-		logger.warn(`Service ${serviceName} became unhealthy (failure #${metrics.failureCount}, consecutive: ${metrics.consecutiveFailures})`, {
-			error
-		});
+		metrics.failureCount++;
+		
+		// Log only on transition to unhealthy
+		if (service.status !== 'unhealthy') {
+			metrics.lastFailureAt = now;
+			logger.warn(`Service ${serviceName} became unhealthy (failure #${metrics.failureCount}, consecutive: ${metrics.consecutiveFailures})`, {
+				error
+			});
+		}
 	}
 
 	// Track recovery
@@ -91,7 +95,19 @@ function transitionServiceState(
 	};
 
 	// Derive the new overall system state from the updated service statuses
-	updatedState.overallState = deriveOverallState(updatedState.services);
+	const derivedState = deriveOverallState(updatedState.services);
+	updatedState.overallState = derivedState;
+	
+	// Track successful initialization if state auto-derived to READY from INITIALIZING
+	if (derivedState === 'READY' && state.overallState === 'INITIALIZING' && state.performanceMetrics.totalInitializations > 0) {
+		const duration = state.initializationStartedAt ? now - state.initializationStartedAt : 0;
+		updatedState.performanceMetrics = {
+			...state.performanceMetrics,
+			successfulInitializations: state.performanceMetrics.successfulInitializations + 1,
+			lastInitDuration: duration
+		};
+		logger.info(`✓ System auto-transitioned to READY (initialization completed in ${duration}ms)`);
+	}
 
 	return updatedState;
 }
@@ -180,30 +196,30 @@ export function setSystemState(state: SystemState, reason?: string): void {
 			performanceMetrics.totalInitializations++;
 		}
 
-		if (state === 'READY' && current.overallState === 'INITIALIZING' && current.initializationStartedAt) {
-			const duration = now - current.initializationStartedAt;
-			performanceMetrics.successfulInitializations++;
-			performanceMetrics.lastInitDuration = duration;
+		if (state === 'READY' && current.overallState !== 'READY' && performanceMetrics.totalInitializations > 0) {
+		const duration = current.initializationStartedAt ? now - current.initializationStartedAt : 0;
+		performanceMetrics.successfulInitializations++;
+		performanceMetrics.lastInitDuration = duration;
 
-			// Update running statistics
-			if (!performanceMetrics.averageTotalInitTime) {
-				performanceMetrics.averageTotalInitTime = duration;
-				performanceMetrics.minTotalInitTime = duration;
-				performanceMetrics.maxTotalInitTime = duration;
-			} else {
-				const count = performanceMetrics.successfulInitializations;
-				performanceMetrics.averageTotalInitTime = (performanceMetrics.averageTotalInitTime * (count - 1) + duration) / count;
-				performanceMetrics.minTotalInitTime = Math.min(performanceMetrics.minTotalInitTime ?? duration, duration);
-				performanceMetrics.maxTotalInitTime = Math.max(performanceMetrics.maxTotalInitTime ?? duration, duration);
-			}
-
-			logger.info(`🚀 System initialization completed in ${duration}ms`, {
-				average: performanceMetrics.averageTotalInitTime.toFixed(2),
-				min: performanceMetrics.minTotalInitTime,
-				max: performanceMetrics.maxTotalInitTime,
-				successRate: `${((performanceMetrics.successfulInitializations / performanceMetrics.totalInitializations) * 100).toFixed(1)}%`
-			});
+		// Update running statistics
+		if (!performanceMetrics.averageTotalInitTime) {
+			performanceMetrics.averageTotalInitTime = duration;
+			performanceMetrics.minTotalInitTime = duration;
+			performanceMetrics.maxTotalInitTime = duration;
+		} else {
+			const count = performanceMetrics.successfulInitializations;
+			performanceMetrics.averageTotalInitTime = (performanceMetrics.averageTotalInitTime * (count - 1) + duration) / count;
+			performanceMetrics.minTotalInitTime = Math.min(performanceMetrics.minTotalInitTime ?? duration, duration);
+			performanceMetrics.maxTotalInitTime = Math.max(performanceMetrics.maxTotalInitTime ?? duration, duration);
 		}
+
+		logger.info(`🚀 System initialization completed in ${duration}ms`, {
+			average: performanceMetrics.averageTotalInitTime.toFixed(2),
+			min: performanceMetrics.minTotalInitTime,
+			max: performanceMetrics.maxTotalInitTime,
+			successRate: `${((performanceMetrics.successfulInitializations / performanceMetrics.totalInitializations) * 100).toFixed(1)}%`
+		});
+	}
 
 		if (state === 'FAILED' && current.overallState === 'INITIALIZING') {
 			performanceMetrics.failedInitializations++;

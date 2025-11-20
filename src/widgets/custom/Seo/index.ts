@@ -24,7 +24,7 @@ const SeoWidget = createWidget({
  */
 
 import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/factory';
+import { createWidget } from '@src/widgets/widgetFactory';
 import { custom, literal, maxLength, object, optional, pipe, regex, string, transform, union, url, type InferInput as ValibotInput } from 'valibot';
 
 // Import components needed for the GuiSchema

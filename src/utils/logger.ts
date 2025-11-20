@@ -14,7 +14,22 @@
  *   logger.info(`Saved ${id} in ${ms}ms`, meta)
  */
 
-import { browser, building } from '$app/environment';
+// Detect runtime environment safely
+// In SvelteKit: $app/environment is available
+// In standalone (Bun/Node/Playwright): it's not, so we detect manually
+let browser = false;
+let building = false;
+
+try {
+	// Try to import from SvelteKit if available
+	const env = await import('$app/environment');
+	browser = env.browser;
+	building = env.building;
+} catch {
+	// Not in SvelteKit context - detect manually
+	browser = typeof window !== 'undefined' && typeof document !== 'undefined';
+	building = false; // Standalone scripts are never "building"
+}
 
 type LogLevel = 'none' | 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
 export type LoggableValue = string | number | boolean | null | unknown | undefined | Date | RegExp | object | Error;
