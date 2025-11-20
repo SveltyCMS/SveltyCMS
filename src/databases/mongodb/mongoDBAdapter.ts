@@ -53,6 +53,7 @@ import { MongoContentMethods } from './methods/contentMethods';
 import { MongoCrudMethods } from './methods/crudMethods';
 import { MongoMediaMethods } from './methods/mediaMethods';
 import * as mongoDBUtils from './methods/mongoDBUtils';
+import * as mongoDBCacheUtils from './methods/mongoDBCacheUtils';
 import { MongoSystemMethods } from './methods/systemMethods';
 import { MongoSystemVirtualFolderMethods } from './methods/systemVirtualFolderMethods';
 import { MongoThemeMethods } from './methods/themeMethods';
@@ -63,7 +64,7 @@ import { MongoQueryBuilder } from './MongoQueryBuilder';
 // Auth adapter composition
 import { composeMongoAuthAdapter } from './methods/authComposition';
 
-import { logger } from '@utils/logger';
+import { logger } from '@src/utils/logger.server';
 import type {
 	ContentNode,
 	ContentDraft,
@@ -104,6 +105,7 @@ export class MongoDBAdapter implements IDBAdapter {
 	public auth!: IDBAdapter['auth'];
 	public websiteTokens!: IDBAdapter['websiteTokens'];
 	public readonly utils = mongoDBUtils;
+	public readonly cacheUtils = mongoDBCacheUtils;
 	public collection!: IDBAdapter['collection'];
 
 	getCapabilities(): import('../dbInterface').DatabaseCapabilities {

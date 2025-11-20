@@ -366,7 +366,7 @@ async function initializeThemeManager(): Promise<void> {
 // Initialize the media folder
 async function initializeMediaFolder(): Promise<void> {
 	// During setup, MEDIA_FOLDER might not be loaded yet, so use fallback
-	const { getPublicSetting } = await import('@src/services/settingsService');
+	const { getPublicSetting } = await import(/* @vite-ignore */ '@src/services/settingsService');
 	const mediaFolderPath = (await getPublicSetting('MEDIA_FOLDER')) || './mediaFolder';
 	if (building) return;
 	const fs = await import('node:fs/promises');
@@ -421,7 +421,7 @@ async function initializeVirtualFolders(): Promise<void> {
 
 		if (systemVirtualFolders.length === 0) {
 			// Create default virtual folder
-			const { getPublicSetting } = await import('@src/services/settingsService');
+			const { getPublicSetting } = await import(/* @vite-ignore */ '@src/services/settingsService');
 			const defaultMediaFolder = (await getPublicSetting('MEDIA_FOLDER')) || 'mediaFolder';
 			const creationResult = await dbAdapter.systemVirtualFolder.create({
 				name: defaultMediaFolder,

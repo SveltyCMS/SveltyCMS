@@ -20,6 +20,7 @@ import { safeParse } from 'valibot';
 import { setupAdminSchema, dbConfigSchema, systemSettingsSchema } from '@utils/formSchemas';
 import { logger } from '@utils/logger';
 import { showToast } from '@utils/toast';
+import { goto } from '$app/navigation';
 
 // --- Types ---
 export type SupportedDbType = 'mongodb' | 'mongodb+srv' | 'postgresql' | 'mysql' | 'mariadb' | '';
@@ -498,14 +499,12 @@ function createSetupStore() {
 
 			// Call the onSuccess callback with redirect path
 			if (onSuccess && data.redirectPath) {
-				setTimeout(() => onSuccess(data.redirectPath!), 1500);
+				onSuccess(data.redirectPath!);
 			} else {
 				// Fallback: direct redirect
-				setTimeout(() => {
-					if (typeof window !== 'undefined') {
-						window.location.href = data.redirectPath || '/config/collectionbuilder';
-					}
-				}, 1500);
+				if (typeof window !== 'undefined') {
+					goto(data.redirectPath || '/config/collectionbuilder');
+				}
 			}
 
 			return true;

@@ -456,7 +456,7 @@ export class DatabaseResilience {
 export async function notifyAdminsOfDatabaseFailure(error: DatabaseError, metrics: ResilienceMetrics): Promise<void> {
 	try {
 		// Check if SMTP is configured
-		const { getPrivateSetting } = await import('@src/services/settingsService');
+		const { getPrivateSetting } = await import(/* @vite-ignore */ '@src/services/settingsService');
 		const smtpHost = await getPrivateSetting('SMTP_HOST');
 
 		if (!smtpHost) {
@@ -465,7 +465,7 @@ export async function notifyAdminsOfDatabaseFailure(error: DatabaseError, metric
 		}
 
 		// Get admin users
-		const { auth } = await import('@src/databases/db');
+		const { auth } = await import(/* @vite-ignore */ '@src/databases/db');
 		if (!auth) {
 			logger.warn('Auth service not available, cannot fetch admin users for notification');
 			return;
@@ -479,7 +479,7 @@ export async function notifyAdminsOfDatabaseFailure(error: DatabaseError, metric
 		}
 
 		// Prepare email data
-		const { publicEnv } = await import('@src/stores/globalSettings.svelte');
+		const { publicEnv } = await import(/* @vite-ignore */ '@src/stores/globalSettings.svelte');
 		const systemState = getSystemState();
 
 		const emailData = {
