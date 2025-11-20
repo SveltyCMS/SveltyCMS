@@ -21,6 +21,7 @@ import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { dbAdapter } from '@src/databases/db';
 import { contentManager } from '@src/content/ContentManager';
 import { modifyRequest } from '@api/collections/modifyRequest';
+import type { CollectionModel } from '@src/databases/dbInterface';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -124,7 +125,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 							await modifyRequest({
 								data: items as unknown as Record<string, unknown>[],
 								fields: collection.fields as unknown as import('@src/content/types').FieldInstance[],
-								collection: collection as unknown as { _id: string; name: string },
+								collection: collection as unknown as CollectionModel,
 								user,
 								type: 'GET',
 								tenantId

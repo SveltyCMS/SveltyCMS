@@ -23,7 +23,7 @@
 - **Database-Agnostic**: Widgets handle data format (MongoDB: nested objects, SQL: relation tables via IDBAdapter)
 -->
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
+	import { untrack } from 'svelte';
 	import { getFieldName } from '@utils/utils';
 	import { logger } from '@utils/logger';
 
@@ -46,7 +46,7 @@
 	import { showConfirm } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 
-	import { widgetStoreActions, widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte';
+	import { widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte';
 
 	// Eager load all widget components for immediate use in Fields
 	const modules: Record<string, { default: any }> = import.meta.glob('/src/widgets/**/*.svelte', {
@@ -62,7 +62,7 @@
 	});
 
 	// --- 1. RECEIVE DATA AS PROPS ---
-	let {
+	const {
 		fields,
 		revisions = []
 		// contentLanguage prop received but not directly used - widgets access contentLanguage store
@@ -75,7 +75,6 @@
 	// --- 2. SIMPLIFIED STATE ---
 	let localTabSet = $state(0);
 	let apiUrl = $state('');
-	let widgetsReady = $state(false);
 
 	// This is form state, not fetched data, so it remains.
 	let currentCollectionValue = $state<Record<string, any>>({});
@@ -103,24 +102,13 @@
 	});
 
 	// --- 3. DERIVED STATE FROM PROPS ---
-	let selectedRevision = $derived(revisions.find((r: any) => r._id === selectedRevisionId) || null);
-	let diffObject = $derived(selectedRevision?.diff || null);
-
-	onMount(async () => {
-		try {
-			await widgetStoreActions.initializeWidgets(tenantId);
-			widgetsReady = true;
-		} catch (error) {
-			logger.error('[Fields] Failed to initialize widgets:', error);
-			widgetsReady = true; // unblock UI
-		}
-	});
+	const selectedRevision = $derived(revisions.find((r: any) => r._id === selectedRevisionId) || null);
 
 	// --- 4. SIMPLIFIED LOGIC ---
-	let derivedFields = $derived(fields || []);
+	const derivedFields = $derived(fields || []);
 
 	// Get translation progress
-	let currentTranslationProgress = $derived(translationProgress.value);
+	const currentTranslationProgress = $derived(translationProgress.value);
 
 	// Track changes to translation progress for debugging
 	$effect(() => {
@@ -131,7 +119,7 @@
 	});
 
 	// Get available languages
-	let availableLanguages = $derived.by<Locale[]>(() => {
+	const availableLanguages = $derived.by<Locale[]>(() => {
 		// Wait for publicEnv to be initialized
 		const languages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES;
 		if (!languages || !Array.isArray(languages)) {
@@ -180,7 +168,7 @@
 		};
 	}
 
-	let filteredFields = $derived(
+	const filteredFields = $derived(
 		derivedFields
 			.map(ensureFieldProperties)
 			.filter(Boolean)
@@ -331,78 +319,63 @@
 		{#if localTabSet === 0}
 			<div class="mb-2 text-center text-xs text-error-500">{m.form_required()}</div>
 			<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
-				{#if !widgetsReady}
-					<div class="dark:bg-warning-950 flex h-48 flex-col items-center justify-center rounded-lg border border-warning-500 bg-warning-50 p-8">
-						<svg class="mb-4 h-16 w-16 text-warning-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-							/>
-						</svg>
-						<h3 class="mb-2 text-xl font-bold text-warning-600 dark:text-warning-400">Widgets Not Ready</h3>
-						<p class="text-center text-warning-600 dark:text-warning-400">Widget initialization failed. Please refresh the page.</p>
-					</div>
-				{:else}
-					<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
-						{#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
-							{#if rawField.widget}
-								{@const field = ensureFieldProperties(rawField)}
-								<div
-									class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
-									style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
-								>
-									<div class="flex items-center justify-between gap-2 px-[5px] text-start">
-										<!-- Field label -->
-										<div class="flex items-center gap-2">
-											<p class="inline-block font-semibold capitalize">
-												{field.label || field.db_fieldName}
-												{#if field.required}<span class="text-error-500">*</span>{/if}
-											</p>
-										</div>
-										<div class="flex items-center gap-2">
-											<!-- Translation status -->
-											{#if field.translated}
-												{@const percentage = getFieldTranslationPercentage(field)}
-												{@const textColor = getTranslationTextColor(percentage)}
-												<div class="flex items-center gap-1 text-xs">
-													<iconify-icon icon="bi:translate" width="16"></iconify-icon>
-													<span class="font-medium text-tertiary-500 dark:text-primary-500">{currentContentLanguage.toUpperCase()}</span>
-													<span class="font-medium {textColor}">({percentage}%)</span>
-												</div>
-											{/if}
-											<!-- Icon for field type -->
-											{#if field.icon}
-												<iconify-icon icon={field.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-											{/if}
-										</div>
+				<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
+					{#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
+						{#if rawField.widget}
+							{@const field = ensureFieldProperties(rawField)}
+							<div
+								class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
+								style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
+							>
+								<div class="flex items-center justify-between gap-2 px-[5px] text-start">
+									<!-- Field label -->
+									<div class="flex items-center gap-2">
+										<p class="inline-block font-semibold capitalize">
+											{field.label || field.db_fieldName}
+											{#if field.required}<span class="text-error-500">*</span>{/if}
+										</p>
 									</div>
-
-									{#if field.widget}
-										{@const widgetName = field.widget.Name}
-										{@const widgetPath =
-											widgetFunctions[widgetName]?.componentPath ||
-											widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)]?.componentPath ||
-											widgetFunctions[widgetName.toLowerCase()]?.componentPath}
-										{@const WidgetComponent = widgetPath && widgetPath in modules ? modules[widgetPath]?.default : null}
-
-										{#if WidgetComponent}
-											{@const fieldName = getFieldName(field, false)}
-											{#key currentContentLanguage}
-												<!-- Widget remounts when currentContentLanguage changes -->
-												<!-- Widgets read contentLanguage from store, not props -->
-												<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
-											{/key}
-										{:else}
-											<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>
+									<div class="flex items-center gap-2">
+										<!-- Translation status -->
+										{#if field.translated}
+											{@const percentage = getFieldTranslationPercentage(field)}
+											{@const textColor = getTranslationTextColor(percentage)}
+											<div class="flex items-center gap-1 text-xs">
+												<iconify-icon icon="bi:translate" width="16"></iconify-icon>
+												<span class="font-medium text-tertiary-500 dark:text-primary-500">{currentContentLanguage.toUpperCase()}</span>
+												<span class="font-medium {textColor}">({percentage}%)</span>
+											</div>
 										{/if}
-									{/if}
+										<!-- Icon for field type -->
+										{#if field.icon}
+											<iconify-icon icon={field.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										{/if}
+									</div>
 								</div>
-							{/if}
-						{/each}
-					</div>
-				{/if}
+
+								{#if field.widget}
+									{@const widgetName = field.widget.Name}
+									{@const widgetPath =
+										widgetFunctions[widgetName]?.componentPath ||
+										widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)]?.componentPath ||
+										widgetFunctions[widgetName.toLowerCase()]?.componentPath}
+									{@const WidgetComponent = widgetPath && widgetPath in modules ? modules[widgetPath]?.default : null}
+
+									{#if WidgetComponent}
+										{@const fieldName = getFieldName(field, false)}
+										{#key currentContentLanguage}
+											<!-- Widget remounts when currentContentLanguage changes -->
+											<!-- Widgets read contentLanguage from store, not props -->
+											<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
+										{/key}
+									{:else}
+										<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>
+									{/if}
+								{/if}
+							</div>
+						{/if}
+					{/each}
+				</div>
 			</div>
 		{:else if localTabSet === 1}
 			<div class="p-4">
@@ -425,33 +398,38 @@
 
 					<div class="rounded-lg border p-4 dark:border-surface-700">
 						<h3 class="mb-3 text-lg font-bold">Changes from Selected Revision</h3>
-						{#if diffObject && Object.keys(diffObject).length > 0}
-							<div class="space-y-3 font-mono text-sm">
-								{#each Object.entries(diffObject) as [key, change]}
-									{@const ch = change as any}
-									<div>
-										<strong class="font-bold text-surface-600 dark:text-surface-300">{key}:</strong>
-										{#if ch.status === 'modified'}
-											<div class="mt-1 rounded border border-error-500/30 bg-error-500/10 p-2">
-												<span class="text-error-700 dark:text-error-300">- {JSON.stringify(ch.old)}</span>
-											</div>
-											<div class="mt-1 rounded border border-success-500/30 bg-success-500/10 p-2">
-												<span class="text-success-700 dark:text-success-300">+ {JSON.stringify(ch.new)}</span>
-											</div>
-										{:else if ch.status === 'added'}
-											<div class="mt-1 rounded border border-success-500/30 bg-success-500/10 p-2">
-												<span class="text-success-700 dark:text-success-300">+ {JSON.stringify(ch.value)}</span>
-											</div>
-										{:else if ch.status === 'deleted'}
-											<div class="mt-1 rounded border border-error-500/30 bg-error-500/10 p-2">
-												<span class="text-error-700 dark:text-error-300">- {JSON.stringify(ch.value)}</span>
-											</div>
-										{/if}
-									</div>
-								{/each}
-							</div>
-						{:else if selectedRevisionId}
-							<p class="text-center text-surface-500">No differences found.</p>
+						{#if selectedRevision}
+							{@const diffObject = selectedRevision?.diff || null}
+							{#if diffObject && Object.keys(diffObject).length > 0}
+								<div class="space-y-3 font-mono text-sm">
+									{#each Object.entries(diffObject) as [key, change]}
+										{@const ch = change as any}
+										<div>
+											<strong class="font-bold text-surface-600 dark:text-surface-300">{key}:</strong>
+											{#if ch.status === 'modified'}
+												<div class="mt-1 rounded border border-error-500/30 bg-error-500/10 p-2">
+													<span class="text-error-700 dark:text-error-300">- {JSON.stringify(ch.old)}</span>
+												</div>
+												<div class="mt-1 rounded border border-success-500/30 bg-success-500/10 p-2">
+													<span class="text-success-700 dark:text-success-300">+ {JSON.stringify(ch.new)}</span>
+												</div>
+											{:else if ch.status === 'added'}
+												<div class="mt-1 rounded border border-success-500/30 bg-success-500/10 p-2">
+													<span class="text-success-700 dark:text-success-300">+ {JSON.stringify(ch.value)}</span>
+												</div>
+											{:else if ch.status === 'deleted'}
+												<div class="mt-1 rounded border border-error-500/30 bg-error-500/10 p-2">
+													<span class="text-error-700 dark:text-error-300">- {JSON.stringify(ch.value)}</span>
+												</div>
+											{/if}
+										</div>
+									{/each}
+								</div>
+							{:else if selectedRevisionId}
+								<p class="text-center text-surface-500">No differences found.</p>
+							{:else}
+								<p class="text-center text-surface-500">Select a revision to see what's changed.</p>
+							{/if}
 						{:else}
 							<p class="text-center text-surface-500">Select a revision to see what's changed.</p>
 						{/if}

@@ -24,7 +24,7 @@ import { nowISODateString } from '@utils/dateUtils';
 import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 
 // System Logger
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 // Widget schema
 export const widgetSchema = new Schema<Widget>(

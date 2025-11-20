@@ -46,8 +46,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		}
 
 		// Get collection schema
-		const { collections } = await contentManager.getCollectionData();
-		const schema = collections[collectionId];
+		const schema = await contentManager.getCollection(collectionId);
 
 		if (!schema) {
 			throw error(404, `Collection '${collectionId}' not found`);
@@ -71,7 +70,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			csvDelimiter: options.csvDelimiter ?? ','
 		};
 
-		logger.info(`Starting import into collection \x1b[33m${collectionId}\x1b[0m`, {
+		logger.info(`Starting import into collection ${collectionId}`, {
 			userId: locals.user._id,
 			format,
 			dataLength: Array.isArray(data) ? data.length : 'unknown',
@@ -92,7 +91,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 		const duration = performance.now() - startTime;
 
-		logger.info(`Collection import completed for \x1b[33m${collectionId}\x1b[0m`, {
+		logger.info(`Collection import completed for ${collectionId}`, {
 			userId: locals.user._id,
 			imported: result.imported,
 			skipped: result.skipped,
@@ -114,17 +113,18 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		});
 	} catch (err) {
 		const duration = performance.now() - startTime;
-		logger.error(`Collection import failed for \x1b[33m${collectionId}\x1b[0m`, {
+		const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+		logger.error(`Collection import failed for ${collectionId}`, {
 			userId: locals.user?._id,
-			error: err.message,
+			error: errorMsg,
 			duration: `${duration.toFixed(2)}ms`
 		});
 
-		if (err.status && err.body) {
+		if (typeof err === 'object' && err !== null && 'status' in err && 'body' in err) {
 			throw err;
 		}
 
-		throw error(500, `Import failed: ${err.message}`);
+		throw error(500, `Import failed: ${errorMsg}`);
 	}
 };
 
@@ -148,11 +148,11 @@ function parseCSVData(csvData: string, options: ImportOptions): CollectionEntry[
 		const values = parseCSVLine(lines[i], options.csvDelimiter);
 
 		if (values.length !== headers.length) {
-			logger.warn(`CSV line ${i + 1} has \x1b[33m${values.length}\x1b[0m values but expected \x1b[33m${headers.length}\x1b[0m`);
+			logger.warn(`CSV line ${i + 1} has ${values.length} values but expected ${headers.length}`);
 			continue;
 		}
 
-		const entry = {};
+		const entry: Record<string, string> = {};
 		headers.forEach((header, index) => {
 			entry[header.trim()] = values[index]?.trim() || '';
 		});
@@ -199,7 +199,11 @@ function parseCSVLine(line: string, delimiter: string = ','): string[] {
 }
 
 async function importEntries(collectionName: string, entries: CollectionEntry[], schema: Schema, options: ImportOptions) {
-	const result = {
+	const result: {
+		imported: number;
+		skipped: number;
+		errors: Array<{ index: number; error: string; entry: CollectionEntry }>;
+	} = {
 		imported: 0,
 		skipped: 0,
 		errors: []
@@ -251,12 +255,16 @@ async function importEntries(collectionName: string, entries: CollectionEntry[],
 				};
 
 				// Check for existing entry
+				if (!dbAdapter) {
+					throw new Error('Database adapter not initialized');
+				}
+
 				let existingEntry = null;
 				if (entry._id || entry.id) {
 					const searchId = entry._id || entry.id;
 					const searchResult = await dbAdapter.crud.findOne(collectionName, {
-						$or: [{ _id: searchId }, { id: searchId }]
-					});
+						_id: searchId
+					} as any);
 					if (searchResult.success && searchResult.data) {
 						existingEntry = searchResult.data;
 					}
@@ -280,8 +288,9 @@ async function importEntries(collectionName: string, entries: CollectionEntry[],
 						result.skipped++;
 					}
 				} else {
-					// Create new entry
-					const createResult = await dbAdapter.crud.create(collectionName, entryData);
+					// Create new entry - omit system fields that are auto-generated
+					const { _id, createdAt, updatedAt, ...insertData } = entryData;
+					const createResult = await dbAdapter.crud.insert(collectionName, insertData as any);
 
 					if (createResult.success) {
 						result.imported++;
@@ -322,8 +331,12 @@ function validateEntry(entry: CollectionEntry, schema: Schema): { isValid: boole
 		for (const field of schema.fields) {
 			// Handle both FieldInstance and WidgetPlaceholder types
 			const fieldDef = typeof field === 'object' && field !== null && 'db_fieldName' in field ? field : null;
-			if (fieldDef && fieldDef.required && !entry[fieldDef.db_fieldName]) {
-				errors.push(`Required field '${fieldDef.label || fieldDef.db_fieldName}' is missing`);
+			if (fieldDef && 'required' in fieldDef && fieldDef.required && 'db_fieldName' in fieldDef) {
+				const fieldName = String(fieldDef.db_fieldName);
+				if (!entry[fieldName]) {
+					const label = 'label' in fieldDef ? fieldDef.label : fieldName;
+					errors.push(`Required field '${label || fieldName}' is missing`);
+				}
 			}
 		}
 	}

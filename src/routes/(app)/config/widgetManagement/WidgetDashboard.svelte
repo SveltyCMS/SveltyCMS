@@ -18,7 +18,7 @@ Features:
 	import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 	// Props
-	let { data }: { data: any } = $props();
+	const { data }: { data: any } = $props();
 
 	// State
 	let widgets = $state<any[]>([]);

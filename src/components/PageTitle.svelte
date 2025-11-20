@@ -63,7 +63,7 @@
 		onBackClick?: (defaultBehavior: DefaultBehaviorFn) => void;
 	}
 
-	let {
+	const {
 		name,
 		highlight = '',
 		icon,
@@ -75,7 +75,7 @@
 		onBackClick
 	}: Props = $props();
 
-	let titleParts = $derived(() => {
+	const titleParts = $derived(() => {
 		if (highlight && name.toLowerCase().includes(highlight.toLowerCase())) {
 			const regex = new RegExp(`(${highlight})`, 'gi');
 			return name.split(regex);

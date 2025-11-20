@@ -25,7 +25,7 @@ component
 	import ModalSelectWidget from './CollectionWidget/ModalSelectWidget.svelte';
 	import ModalWidgetForm from './CollectionWidget/ModalWidgetForm.svelte';
 
-	let props = $props<{ fields?: Field[]; handleCollectionSave: () => Promise<void> }>();
+	const props = $props<{ fields?: Field[]; handleCollectionSave: () => Promise<void> }>();
 
 	const modalStore = getModalStore();
 

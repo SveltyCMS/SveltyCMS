@@ -441,6 +441,7 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 
 // Tests a PostgreSQL connection using Drizzle
 // Currently unused as only MongoDB is supported by the schema
+// @ts-expect-error - Function kept for future PostgreSQL support
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function testPostgresConnection(dbConfig: DatabaseConfig) {
 	const start = Date.now();
@@ -508,6 +509,7 @@ async function testPostgresConnection(dbConfig: DatabaseConfig) {
 
 // Tests a MySQL/MariaDB connection using Drizzle
 // Currently unused as only MongoDB is supported by the schema
+// @ts-expect-error - Function kept for future MySQL/MariaDB support
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function testMySqlConnection(dbConfig: DatabaseConfig) {
 	const start = Date.now();

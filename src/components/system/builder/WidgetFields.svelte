@@ -15,7 +15,7 @@
 	import type { FieldInstance } from '@content/types';
 
 	// Props
-	let { fields = [], onFieldsUpdate = () => {} } = $props<{
+	const { fields = [], onFieldsUpdate = () => {} } = $props<{
 		fields: FieldInstance[];
 		onFieldsUpdate: (newFields: FieldInstance[]) => void;
 	}>();

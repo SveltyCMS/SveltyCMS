@@ -36,9 +36,15 @@ Cookie: session=your-session-id
 
 SveltyCMS uses a 3-pillar widget architecture:
 
-1. **Core Widgets** - Built-in, essential functionality
-2. **Active Widgets** - Currently enabled/active widgets
-3. **Widget Functions** - Registry of all widget capabilities
+1. **Definition (index.ts)** - Widget metadata, validation schema, and configuration
+2. **Input (Input.svelte)** - Edit/creation interface component
+3. **Display (Display.svelte)** - Read-only display component
+
+**Widget Types:**
+
+- `core` - Built-in widgets in `/src/widgets/core/`
+- `custom` - User-created widgets in `/src/widgets/custom/`
+- `marketplace` - Runtime-installed widgets (planned feature)
 
 ---
 
@@ -137,6 +143,8 @@ Cookie: session=your-session-id
 
 ### 2. Install Widget
 
+⚠️ **Status: Planned Feature** - Currently returns mock response. Full marketplace integration is under development.
+
 Installs a widget from the marketplace.
 
 #### Request
@@ -157,11 +165,7 @@ Content-Type: application/json
 ```json
 {
 	"widgetId": "custom-widget-123",
-	"tenantId": "tenant-xyz",
-	"version": "1.0.0",
-	"config": {
-		"option1": "value1"
-	}
+	"tenantId": "tenant-xyz"
 }
 ```
 
@@ -181,25 +185,29 @@ Content-Type: application/json
 }
 ```
 
+**Note:** This endpoint currently provides a mock implementation. The actual installation logic is planned for future development.
+
 **Error Responses:**
 
 ```json
 // 400 Bad Request - Missing widget ID
 {
-  "success": false,
-  "message": "Widget ID is required"
+  "error": "Widget ID is required"
 }
 
-// 409 Conflict - Already installed
+// 401 Unauthorized
 {
-  "success": false,
-  "message": "Widget already installed"
+  "error": "Unauthorized"
+}
+
+// 403 Forbidden
+{
+  "error": "Insufficient permissions"
 }
 
 // 500 Internal Server Error
 {
-  "success": false,
-  "message": "Failed to install widget: Installation error"
+  "error": "Failed to install widget: <error message>"
 }
 ```
 
@@ -365,56 +373,7 @@ Content-Type: application/json
 
 ---
 
-### 6. Get Widget Status
-
-Retrieves the current status of a specific widget.
-
-#### Request
-
-```http
-GET /api/widgets/status/[widgetName]
-```
-
-**Path Parameters:**
-
-- `widgetName` (string) - The widget name
-
-**Query Parameters:**
-
-- `tenantId` (string, optional) - Tenant ID
-
-**Headers:**
-
-```http
-Cookie: session=your-session-id
-```
-
-**Permissions Required:** `api:widgets`
-
-#### Response
-
-**Success (200):**
-
-```json
-{
-	"success": true,
-	"widget": {
-		"name": "mediaUpload",
-		"version": "1.2.0",
-		"status": "active",
-		"isCore": true,
-		"dependencies": ["widgetFunction"],
-		"dependents": ["imageGallery", "fileManager"],
-		"installedAt": "2025-01-01T00:00:00Z",
-		"activatedAt": "2025-01-01T00:00:00Z",
-		"lastUpdated": "2025-10-05T14:30:00Z"
-	}
-}
-```
-
----
-
-### 7. Validate Widget
+### 5. Validate Widget
 
 Validates a widget's integrity and compatibility.
 
@@ -479,7 +438,7 @@ Content-Type: application/json
 
 ---
 
-### 8. Sync Widgets
+### 6. Sync Widgets
 
 Synchronizes widget registry with filesystem.
 
@@ -526,9 +485,9 @@ Content-Type: application/json
 
 ---
 
-### 9. Get Required Widgets
+### 7. Get Required Widgets
 
-Retrieves a list of required (core) widgets that cannot be disabled.
+Retrieves widgets currently used by collections (cannot be deactivated).
 
 #### Request
 
@@ -542,7 +501,7 @@ GET /api/widgets/required
 Cookie: session=your-session-id
 ```
 
-**Permissions Required:** `api:widgets`
+**Permissions Required:** Not required (uses locals)
 
 #### Response
 
@@ -550,17 +509,17 @@ Cookie: session=your-session-id
 
 ```json
 {
-	"success": true,
-	"required": ["widgetFunction", "authentication", "userManagement", "systemSettings"],
-	"count": 4
+	"requiredWidgets": ["String", "RichText", "Media", "Relation"],
+	"collectionsAnalyzed": 5,
+	"tenantId": "default-tenant"
 }
 ```
 
 ---
 
-### 10. Get Active Widgets
+### 8. Get Active Widgets
 
-Retrieves only currently active widgets.
+Retrieves currently active widgets with 3-pillar architecture metadata.
 
 #### Request
 
@@ -570,7 +529,7 @@ GET /api/widgets/active
 
 **Query Parameters:**
 
-- `tenantId` (string, optional) - Filter by tenant
+- `refresh` (boolean, optional) - Force cache refresh (`?refresh=true`)
 
 **Headers:**
 
@@ -578,7 +537,7 @@ GET /api/widgets/active
 Cookie: session=your-session-id
 ```
 
-**Permissions Required:** `api:widgets`
+**Permissions Required:** Not required (uses locals)
 
 #### Response
 
@@ -586,9 +545,17 @@ Cookie: session=your-session-id
 
 ```json
 {
-	"success": true,
-	"activeWidgets": ["widgetFunction", "mediaUpload", "userManagement", "collectionBuilder"],
-	"count": 4,
+	"widgets": [
+		{
+			"name": "String",
+			"isCore": true,
+			"icon": "mdi:text",
+			"description": "Single-line text input widget",
+			"inputComponentPath": "/src/widgets/core/string/Input.svelte",
+			"displayComponentPath": "/src/widgets/core/string/Display.svelte",
+			"dependencies": []
+		}
+	],
 	"tenantId": "default-tenant"
 }
 ```
@@ -706,32 +673,45 @@ Widgets are organized by category:
 
 ## Widget Development
 
-### Widget Structure
+### Widget Structure (3-Pillar Architecture)
 
 ```
 my-widget/
-├── index.ts          # Main entry point
-├── widget.json       # Metadata and configuration
-├── Component.svelte  # UI component
-├── api/              # API endpoints
-└── assets/           # Static assets
+├── index.ts          # Widget definition, validation schema, metadata
+├── Input.svelte      # Edit/creation interface
+├── Display.svelte    # Read-only display component
+└── types.ts          # TypeScript types (optional)
 ```
 
-### Widget Metadata (widget.json)
+### Widget Definition (index.ts)
 
-```json
-{
-	"name": "myWidget",
-	"version": "1.0.0",
-	"description": "My custom widget",
-	"author": "Developer Name",
-	"license": "MIT",
-	"category": "custom",
-	"dependencies": ["widgetFunction"],
-	"permissions": ["media:write", "content:read"],
-	"icon": "mdi:puzzle",
-	"homepage": "https://example.com"
-}
+```typescript
+import { createWidget } from '@src/widgets/factory';
+import { object, string } from 'valibot';
+import * as m from '@src/paraglide/messages';
+
+const validationSchema = object({
+	value: string()
+});
+
+const MyWidget = createWidget({
+	Name: 'MyWidget',
+	Icon: 'mdi:puzzle',
+	Description: m.widget_mywidget_description(),
+	inputComponentPath: '/src/widgets/custom/mywidget/Input.svelte',
+	displayComponentPath: '/src/widgets/custom/mywidget/Display.svelte',
+	validationSchema,
+	defaults: { placeholder: 'Enter value' },
+	GuiSchema: {
+		/* ... */
+	},
+	aggregations: {
+		/* ... */
+	},
+	GraphqlSchema: () => ({ typeID: 'String', graphql: '' })
+});
+
+export default MyWidget;
 ```
 
 ---

@@ -44,9 +44,9 @@ Features:
 	let { item, children = $bindable([]), level, onNodeReorder, isCategory = false, onEditCategory }: Props = $props();
 
 	// Derived properties for convenience
-	let name = $derived(item.name);
-	let path = $derived(item.path);
-	let icon = $derived(item.icon);
+	const name = $derived(item.name);
+	const path = $derived(item.path);
+	const icon = $derived(item.icon);
 
 	// UI state for drag operations and updates
 	let isDragging = $state(false); // True if an item is being dragged within this column's dndzone
@@ -56,7 +56,7 @@ Features:
 	const flipDurationMs = 200;
 
 	// Computed padding for visual indentation based on `level`
-	let paddingLeft = $derived(level === 0 ? '0' : `${level * 1.5}rem`);
+	const paddingLeft = $derived(level === 0 ? '0' : `${level * 1.5}rem`);
 
 	/**
 	 * Handles the `consider` event for this column's dndzone.

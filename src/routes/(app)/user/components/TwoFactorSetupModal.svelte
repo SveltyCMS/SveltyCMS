@@ -42,7 +42,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		backupCodes: string[];
 	}
 
-	let { parent = { regionFooter: 'modal-footer p-4' }, qrCodeUrl, secret, backupCodes }: Props = $props();
+	const { parent = { regionFooter: 'modal-footer p-4' }, qrCodeUrl, secret, backupCodes }: Props = $props();
 
 	const modalStore = getModalStore();
 

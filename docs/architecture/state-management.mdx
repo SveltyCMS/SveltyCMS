@@ -145,10 +145,31 @@ An unauthenticated endpoint for monitoring tools, load balancers, and Kubernetes
 The `handleSystemState` hook in `src/hooks.server.ts` acts as a gatekeeper for the entire application, using the state machine to control access:
 
 ```typescript
-// src/hooks/server.ts
+// src/hooks/handleSystemState.ts
 export const handleSystemState: Handle = async ({ event, resolve }) => {
+	const systemState = getSystemState();
+
+	// During INITIALIZING state, wait for initialization to complete
+	if (systemState.overallState === 'INITIALIZING') {
+		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/api/setup', '/login', '/.well-known', '/_'];
+		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === '/';
+
+		if (isAllowedRoute) {
+			return resolve(event);
+		}
+
+		// Wait for initialization to complete instead of blocking
+		await dbInitPromise;
+		systemState = getSystemState();
+
+		// If still not ready after initialization, block the request
+		if (!isSystemReady()) {
+			throw error(503, 'Service Unavailable: The system failed to initialize.');
+		}
+	}
+
+	// If system is not ready (IDLE without setup), block with 503 error
 	if (!isSystemReady()) {
-		// If the system is not ready, block the request and return a 503 error.
 		// (With exceptions for the setup and health check pages)
 		throw error(503, 'Service Unavailable');
 	}

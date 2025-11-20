@@ -31,6 +31,187 @@ Frontend/API → db.ts → dbInterface → Adapter (MongoDB/SQL) → Methods →
 
 ---
 
+## 🚀 Database Initialization (db.ts)
+
+Before diving into method modules, it's essential to understand the **database initialization layer** provided by `src/databases/db.ts`.
+
+### Initialization Functions
+
+```typescript
+// src/databases/db.ts - Core initialization functions
+
+/**
+ * Standard initialization - loads config from filesystem
+ * Used during: Normal server startup
+ */
+async function initializeSystem(forceReload = false, skipSetupCheck = false): Promise<void>;
+
+/**
+ * Zero-restart initialization - accepts config in-memory
+ * Used during: First-time setup completion (bypasses Vite cache)
+ */
+export async function initializeWithConfig(config: PrivateEnv): Promise<{ status: string }>;
+
+/**
+ * Re-initialization - forces system reload
+ * Used during: Configuration updates, adapter swaps
+ */
+export async function reinitializeSystem(force = false, waitForAuth = true): Promise<{ status: string; error?: string }>;
+```
+
+### initializeWithConfig() - Zero-Restart Setup
+
+**Problem:** When users complete the setup wizard, `config/private.ts` is created, but Vite caches module imports. Traditional approach required server restart.
+
+**Solution:** Pass configuration in-memory, completely bypassing filesystem imports.
+
+```mermaid
+sequenceDiagram
+    participant Setup as /api/setup/complete
+    participant File as config/private.ts
+    participant DB as db.ts
+    participant System as initializeSystem()
+    participant State as System State
+
+    Setup->>File: Write configuration file
+    Note over File: File created on disk
+
+    Setup->>DB: initializeWithConfig(fullConfig)
+    Note over DB: Config passed in-memory<br/>(no filesystem import)
+
+    DB->>DB: privateEnv = config
+    DB->>System: initializeSystem(false, true)
+    Note over System: skipSetupCheck = true<br/>uses in-memory config
+
+    System->>System: Connect to database
+    System->>System: Load adapters
+    System->>System: Setup models
+    State->>State: Set state = READY
+
+    DB-->>Setup: { status: 'success' }
+
+    Note over Setup,State: ✅ System fully operational<br/>NO RESTART NEEDED
+```
+
+**Implementation:**
+
+```typescript
+// src/databases/db.ts
+let privateEnv: PrivateEnv | null = null; // In-memory config storage
+
+export async function initializeWithConfig(config: PrivateEnv): Promise<{ status: string }> {
+	try {
+		logger.info('Initializing with provided config (bypassing Vite cache)...');
+
+		// Store config in memory (critical for zero-restart)
+		privateEnv = config;
+
+		// Initialize system with in-memory config
+		// skipSetupCheck = true tells initializeSystem to use privateEnv instead of importing
+		initializationPromise = initializeSystem(false, true);
+		await initializationPromise;
+
+		return { status: 'success' };
+	} catch (error) {
+		logger.error('Failed to initialize with config:', error);
+		throw error;
+	}
+}
+
+async function initializeSystem(forceReload = false, skipSetupCheck = false): Promise<void> {
+	// ...
+
+	let privateConfig;
+	if (skipSetupCheck) {
+		// Use in-memory config (from initializeWithConfig)
+		logger.debug('Using pre-set configuration (zero-restart mode)');
+		privateConfig = privateEnv;
+	} else {
+		// Normal mode: import from filesystem
+		privateConfig = await loadPrivateConfig(forceReload);
+	}
+
+	// ... continue with adapter loading, connection, etc.
+}
+```
+
+**Usage in Setup Flow:**
+
+```typescript
+// src/routes/api/setup/complete/+server.ts
+export const POST: RequestHandler = async ({ request }) => {
+	const setupData = await request.json();
+
+	// 1. Write config file to disk
+	await writeConfig(fullConfig);
+
+	// 2. Initialize system with in-memory config (zero-restart!)
+	await initializeWithConfig(fullConfig);
+
+	// 3. Create admin user
+	await createAdminUser(userData);
+
+	// 4. Warm cache for first page load
+	await fetch(warmupUrl);
+
+	// User is redirected to /login - system fully operational!
+	return json({ success: true, redirect: '/login' });
+};
+```
+
+### System State Transitions
+
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE: Server starts
+
+    IDLE --> INITIALIZING: First request arrives
+    IDLE --> INITIALIZING: initializeWithConfig() called
+
+    INITIALIZING --> READY: All services healthy
+    INITIALIZING --> DEGRADED: Some services unhealthy
+    INITIALIZING --> FAILED: Critical service failed
+
+    READY --> DEGRADED: Service becomes unhealthy
+    DEGRADED --> READY: Service recovered
+    DEGRADED --> FAILED: Critical service failed
+
+    FAILED --> [*]: Requires restart
+
+    note right of IDLE
+        - No database connection
+        - Only /setup paths allowed
+        - Waiting for configuration
+    end note
+
+    note right of INITIALIZING
+        - Loading configuration
+        - Connecting to database
+        - Loading adapters
+        - Setting up models
+    end note
+
+    note right of READY
+        - All services operational
+        - All requests processed
+        - Normal operation
+    end note
+
+    note right of DEGRADED
+        - Core services working
+        - Some features limited
+        - Requests still processed
+    end note
+
+    note right of FAILED
+        - Critical service down
+        - Most requests blocked
+        - Requires intervention
+    end note
+```
+
+---
+
 ## Architecture Principles
 
 ### 1. Database-Agnostic Design
@@ -85,6 +266,7 @@ Each method module has a single, well-defined responsibility:
 | **systemMethods**              | System preferences and settings     |
 | **systemVirtualFolderMethods** | Virtual folder hierarchy            |
 | **mongoDBUtils**               | Shared utilities and error handling |
+| **mongoDBCacheUtils**          | Caching utilities                   |
 
 ### 3. Dependency Injection
 
@@ -855,7 +1037,7 @@ const exists = await folderMethods.exists('/documents');
 
 ### 10. MongoDB Utilities (`mongoDBUtils.ts`)
 
-**Purpose:** Shared utilities for database operations
+**Purpose:** Shared utilities for database operations (Pure functions, no dependencies on CacheService)
 
 **Exports:**
 
@@ -874,6 +1056,14 @@ export function generateId(): string;
 ```
 
 Generates MongoDB-compatible ObjectId strings.
+
+---
+
+### 11. MongoDB Cache Utilities (`mongoDBCacheUtils.ts`)
+
+**Purpose:** Caching utilities for database operations. Separated from `mongoDBUtils` to prevent circular dependencies.
+
+**Exports:**
 
 #### Caching
 
@@ -905,6 +1095,8 @@ export interface CacheWrapperOptions {
 **Usage:**
 
 ```typescript
+import { withCache, invalidateCategoryCache } from './mongoDBCacheUtils';
+
 // Cached database query
 const result = await withCache(
 	'users:active',
@@ -1187,8 +1379,4 @@ await usersRepo.update(userId, { $set: { name: 'New Name' } });
 - [MongoDB Adapter](/docs/dev-guide/mongodb-adapter) - MongoDB-specific implementation
 - [Authentication System](/docs/dev-guide/authentication-system) - Uses authMethods
 - [Content Management](/docs/dev-guide/content-management) - Uses contentMethods
-
----
-
-_Last Updated: October 3, 2025_  
-_Architecture Version: 2.0_
+- [Database Resilience](./database-resilience.mdx) - Unified guide for resilience features, integration, metrics, and roadmap

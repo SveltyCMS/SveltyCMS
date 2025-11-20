@@ -37,7 +37,7 @@
 		confirmPassword?: string;
 	}
 
-	let { password = '', confirmPassword = '' }: Props = $props();
+	const { password = '', confirmPassword = '' }: Props = $props();
 
 	// Customizable password strength thresholds
 	const MIN_PASSWORD_LENGTH = publicEnv?.PASSWORD_LENGTH ?? 8;
@@ -106,13 +106,13 @@
 	}
 
 	// Reactive derived values
-	let longerPassword = $derived(password.length >= confirmPassword.length ? password : confirmPassword);
-	let score = $derived(calculateScore(longerPassword, complexityChecks));
-	let feedback = $derived(getFeedback(score));
-	let showStrength = $derived(password.length > 0 || confirmPassword.length > 0);
-	let percentage = $derived(Math.min(100, (longerPassword.length / GREEN_LENGTH) * 100));
-	let passwordsMatch = $derived(password === confirmPassword && confirmPassword.length > 0);
-	let showMatchIndicator = $derived(confirmPassword.length > 0);
+	const longerPassword = $derived(password.length >= confirmPassword.length ? password : confirmPassword);
+	const score = $derived(calculateScore(longerPassword, complexityChecks));
+	const feedback = $derived(getFeedback(score));
+	const showStrength = $derived(password.length > 0 || confirmPassword.length > 0);
+	const percentage = $derived(Math.min(100, (longerPassword.length / GREEN_LENGTH) * 100));
+	const passwordsMatch = $derived(password === confirmPassword && confirmPassword.length > 0);
+	const showMatchIndicator = $derived(confirmPassword.length > 0);
 </script>
 
 {#if showStrength}

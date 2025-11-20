@@ -65,7 +65,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Extract the collection name from the URL
 	let collectionPath = $state(page.params.contentPath);
-	let action = $state(page.params.action);
+	const action = $state(page.params.action);
 
 	interface Props {
 		data: {
@@ -99,7 +99,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Default widget data (tab1)
 	// Unwrap the `collection` store value for TS and template usage
-	let collectionValue = $derived(collection.value);
+	const collectionValue = $derived(collection.value);
 
 	// Page title
 	let pageTitle = $state('');

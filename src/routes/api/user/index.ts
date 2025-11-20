@@ -9,7 +9,7 @@
  * Features:
  * - **Defense in Depth**: Specific permission checks for both GET and POST.
  * - User creation with role assignment and email notification.
- * - Form validation using superforms.
+ * - Form validation 
  * - Error handling and logging.
  *
  * Usage:
@@ -18,11 +18,11 @@
  */
 
 import { auth } from '@src/databases/db';
+import type { ISODateString } from '@src/databases/dbInterface';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { error, json, type HttpError, type RequestHandler } from '@sveltejs/kit';
 import { addUserTokenSchema } from '@utils/formSchemas';
-import { valibot } from 'sveltekit-superforms/adapters';
-import { superValidate } from 'sveltekit-superforms/server';
+import { safeParse } from 'valibot';
 
 // Auth and permission helpers
 
@@ -46,13 +46,14 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		} // **SECURITY**: Authentication is handled by hooks.server.ts - user presence confirms access
 
-		const addUserForm = await superValidate(request, valibot(addUserTokenSchema));
-		if (!addUserForm.valid) {
-			logger.warn('Invalid form data for user creation', { errors: addUserForm.errors, tenantId });
-			return json({ form: addUserForm, message: 'Invalid form data' }, { status: 400 });
+		const formData = await request.json();
+		const result = safeParse(addUserTokenSchema, formData);
+		if (!result.success) {
+			logger.warn('Invalid form data for user creation', { issues: result.issues });
+			return json({ message: 'Invalid form data' }, { status: 400 });
 		}
 
-		const { email, role, expiresIn } = addUserForm.data;
+		const { email, role, expiresIn } = result.output;
 		logger.info('Request to create user received', { email, role, requestedBy: user?._id, tenantId });
 
 		const expirationTimes: Record<string, number> = {
@@ -65,7 +66,7 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 		const expirationTime = expirationTimes[expiresIn];
 		if (!expirationTime) {
 			logger.warn('Invalid value for token validity', { expiresIn, tenantId });
-			return json({ form: addUserForm, message: 'Invalid value for token validity' }, { status: 400 });
+			return json({ message: 'Invalid value for token validity' }, { status: 400 });
 		}
 
 		const checkCriteria: { email: string; tenantId?: string } = { email };
@@ -84,7 +85,12 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId })
 		});
 		const expiresAt = new Date(Date.now() + expirationTime * 1000);
-		const token = await auth.createToken(newUser._id, expiresAt, 'user-invite', tenantId);
+		const token = await auth.createToken({
+			user_id: newUser._id,
+			expires: expiresAt.toISOString() as ISODateString,
+			type: 'user-invite',
+			tenantId
+		});
 
 		logger.info('User created successfully', { userId: newUser._id, tenantId }); // Send token via email. Pass the request origin for server-side fetch.
 

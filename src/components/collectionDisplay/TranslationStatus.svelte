@@ -65,7 +65,7 @@
 	let completionTotals = $state<CompletionTotals>({ total: 0, translated: 0 });
 
 	// Derived values
-	let availableLanguages = $derived.by<Locale[]>(() => {
+	const availableLanguages = $derived.by<Locale[]>(() => {
 		// Wait for publicEnv to be initialized
 		const languages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES;
 		if (!languages || !Array.isArray(languages)) {
@@ -74,19 +74,19 @@
 		return languages as Locale[];
 	});
 
-	let currentLanguage = $derived(contentLanguage.value);
-	let currentMode = $derived(mode.value);
-	let isViewMode = $derived(currentMode === 'view');
+	const currentLanguage = $derived(contentLanguage.value);
+	const currentMode = $derived(mode.value);
+	const isViewMode = $derived(currentMode === 'view');
 
-	let overallPercentage = $derived.by(() => {
+	const overallPercentage = $derived.by(() => {
 		const { total, translated } = completionTotals;
 		return total > 0 ? Math.round((translated / total) * 100) : 0;
 	});
 
-	let showProgress = $derived(translationProgress.value?.show || completionTotals.total > 0);
+	const showProgress = $derived(translationProgress.value?.show || completionTotals.total > 0);
 
 	// Calculate language-specific progress
-	let languageProgress = $derived.by(() => {
+	const languageProgress = $derived.by(() => {
 		const progress: Record<string, number> = {};
 		const currentProgress = translationProgress.value;
 

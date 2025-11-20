@@ -14,7 +14,7 @@
  * - resolveWidgetPlaceholder: Resolves a widget placeholder
  */
 import { widgetRegistryService } from '@src/services/WidgetRegistryService';
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 import type { ContentNode, MinimalContentNode, Schema } from './types';
 
 // An extended version of ContentNode for UI purposes that includes children.
@@ -185,7 +185,7 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 		}
 
 		if (result && typeof result === 'object' && 'fields' in result && '_id' in result) {
-			logger.debug(`Processed collection: \x1b[33m${result._id}\x1b[0m`);
+			logger.debug(`Processed collection: ${result._id}`);
 			return { schema: result as Schema };
 		}
 

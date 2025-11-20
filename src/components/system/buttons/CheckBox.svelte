@@ -18,7 +18,7 @@
 
 <script lang="ts">
 	let checked = $state(false);
-	let {
+	const {
 		svg,
 		callback = () => {},
 		class: className = ''

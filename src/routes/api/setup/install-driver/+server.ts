@@ -106,7 +106,10 @@ async function installDriver(packageName: string): Promise<{ success: boolean; e
 		return {
 			success: false,
 			error: errorMessage,
-			output: error instanceof Error && 'stdout' in error ? (error.stdout as string) + (error.stderr as string) : undefined
+			output:
+				error instanceof Error && 'stdout' in error
+					? (error.stdout as string) + ('stderr' in error && typeof error.stderr === 'string' ? error.stderr : '')
+					: undefined
 		};
 	}
 }

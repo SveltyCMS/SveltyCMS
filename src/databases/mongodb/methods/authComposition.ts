@@ -23,7 +23,7 @@ import type { User, Session, Role } from '@src/databases/auth/types';
 import { SessionAdapter } from '../models/authSession';
 import { TokenAdapter } from '../models/authToken';
 import { UserAdapter } from '../models/authUser';
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 import { hashPassword } from '@utils/crypto';
 import mongoose from 'mongoose';
 
@@ -164,7 +164,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
 					};
 				}
 
-				logger.info(`User and sessions deleted: user=\x1b[34m${user_id}\x1b[0m, sessions=\x1b[34m${deletedSessionCount}\x1b[0m`, {
+				logger.info(`User and sessions deleted: user=${user_id}, sessions=${deletedSessionCount}`, {
 					user_id,
 					deletedSessionCount,
 					tenantId

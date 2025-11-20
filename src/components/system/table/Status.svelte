@@ -25,7 +25,7 @@ Values form StatusTypes
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	let { value } = $props<{
+	const { value } = $props<{
 		value: string; // The status value to display
 	}>();
 </script>

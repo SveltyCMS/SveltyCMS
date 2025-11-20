@@ -18,8 +18,17 @@
 	import type { PageData } from './$types';
 
 	export let data: PageData;
+
+	// `emailList` already returns the structure EmailPreview expects,
+	// including `path`, `files` (string[]), and any extra metadata.
+	const emailList = {
+		...data,
+		path: data.path ?? null // Ensure path is string or null, not undefined
+	};
 </script>
 
-{#if data.emails}
-	<EmailPreview emailList={{ ...data, files: data.emails?.map((e) => e.path) || null, path: '/src/components/emails' }} />
+{#if emailList.files && emailList.files.length}
+	<EmailPreview {emailList} />
+{:else}
+	<p>No email templates found in /src/components/emails.</p>
 {/if}

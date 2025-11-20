@@ -25,7 +25,7 @@ Features:
 		data: any;
 	}
 
-	let { data }: Props = $props();
+	const { data }: Props = $props();
 </script>
 
 <!-- Page Title with Back Button -->

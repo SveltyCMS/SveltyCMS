@@ -54,7 +54,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			filter,
 			limit,
 			offset: (page - 1) * limit,
-			sort: { [sort]: order === 1 ? 'asc' : 'desc' }
+			sort: { [sort]: order === 1 ? 'asc' : 'desc' } as { [key: string]: 'asc' | 'desc' }
 		};
 
 		// Use the database adapter directly for full pagination support

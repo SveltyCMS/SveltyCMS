@@ -5,11 +5,12 @@
  * as well as activate/deactivate them.
  */
 
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 import type { Model } from 'mongoose';
 import type { DatabaseId, Widget } from '../../dbInterface';
 import type { Widget as IWidget } from '../../dbInterface'; // Assuming you have a document interface
-import { createDatabaseError, withCache, CacheCategory, invalidateCollectionCache, invalidateCategoryCache, generateId } from './mongoDBUtils';
+import { createDatabaseError, generateId } from './mongoDBUtils';
+import { withCache, CacheCategory, invalidateCollectionCache, invalidateCategoryCache } from './mongoDBCacheUtils';
 import { cacheService } from '@src/databases/CacheService';
 
 // Define the model type for dependency injection.
@@ -24,7 +25,7 @@ export class MongoWidgetMethods {
 	 */
 	constructor(widgetModel: WidgetModelType) {
 		this.widgetModel = widgetModel;
-		logger.trace('\x1b[34mMongoWidgetMethods\x1b[0m initialized.');
+		logger.trace('MongoWidgetMethods initialized.');
 	}
 
 	/**

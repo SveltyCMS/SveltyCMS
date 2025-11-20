@@ -102,6 +102,311 @@ The `MediaService` saves files to a logical path, which is then handled by the s
 
 ---
 
+## MediaService Architecture
+
+The `MediaService` class is the core business logic layer for all media operations. It provides a database-agnostic, storage-agnostic API that works with any storage provider and database adapter.
+
+### Class Structure
+
+**Location:** `src/services/MediaService.ts`
+
+**Responsibilities:**
+
+- Upload processing (hash calculation, validation, duplicate prevention)
+- File storage orchestration (local/cloud)
+- Image resizing and thumbnail generation
+- Metadata extraction (EXIF, dimensions, MIME type)
+- Database CRUD operations
+- Cache management
+- Version history tracking
+- Share link generation
+
+### Initialization
+
+The MediaService is typically initialized in API endpoints or server-side code:
+
+```typescript
+import { MediaService } from '$services/MediaService';
+import type { dbAdapter } from '$databases/dbInterface';
+import type { CacheService } from '$services/CacheService';
+import type { SettingsService } from '$services/SettingsService';
+
+// Example: In an API endpoint (+server.ts)
+export async function POST({ request, locals }) {
+	const { user, dbAdapter } = locals;
+
+	// Initialize MediaService with dependencies
+	const mediaService = new MediaService(
+		dbAdapter, // Database adapter (MongoDB, PostgreSQL, etc.)
+		locals.cacheService, // Cache service instance
+		locals.settingsService // Settings service instance
+	);
+
+	// Use the service
+	const file = await request.formData().get('file');
+	const result = await mediaService.saveMedia(file, user._id, 'public', 'global');
+
+	return json(result);
+}
+```
+
+### Constructor Parameters
+
+```typescript
+class MediaService {
+	constructor(
+		private db: dbAdapter, // Database interface
+		private cache: CacheService, // Cache service
+		private settings: SettingsService // Settings service
+	) {
+		// Initialize storage adapter based on settings
+		this.storageAdapter = this.initializeStorageAdapter();
+	}
+}
+```
+
+### Storage Adapter Initialization
+
+The MediaService automatically selects and configures the correct storage adapter based on system settings:
+
+```typescript
+private initializeStorageAdapter(): StorageAdapter {
+  const storageType = this.settings.get('MEDIA_STORAGE_TYPE'); // 'local' | 's3' | 'r2' | 'cloudinary'
+
+  switch (storageType) {
+    case 's3':
+      return new S3StorageAdapter({
+        bucket: this.settings.get('MEDIA_BUCKET_NAME'),
+        region: this.settings.get('AWS_REGION'),
+        accessKeyId: this.settings.get('AWS_ACCESS_KEY_ID'),
+        secretAccessKey: this.settings.get('AWS_SECRET_ACCESS_KEY'),
+        publicUrl: this.settings.get('MEDIA_CLOUD_PUBLIC_URL')
+      });
+
+    case 'r2':
+      return new R2StorageAdapter({
+        accountId: this.settings.get('CLOUDFLARE_ACCOUNT_ID'),
+        bucket: this.settings.get('MEDIA_BUCKET_NAME'),
+        accessKeyId: this.settings.get('R2_ACCESS_KEY_ID'),
+        secretAccessKey: this.settings.get('R2_SECRET_ACCESS_KEY'),
+        publicUrl: this.settings.get('MEDIA_CLOUD_PUBLIC_URL')
+      });
+
+    case 'cloudinary':
+      return new CloudinaryAdapter({
+        cloudName: this.settings.get('CLOUDINARY_CLOUD_NAME'),
+        apiKey: this.settings.get('CLOUDINARY_API_KEY'),
+        apiSecret: this.settings.get('CLOUDINARY_API_SECRET')
+      });
+
+    case 'local':
+    default:
+      return new LocalStorageAdapter({
+        basePath: this.settings.get('MEDIA_FOLDER') || './mediaFolder'
+      });
+  }
+}
+```
+
+### Core Methods
+
+#### Save Media
+
+Upload and process a new file:
+
+```typescript
+async saveMedia(
+	file: File,
+	userId: string,
+	accessLevel: 'public' | 'private',
+	virtualFolder: string = 'global'
+): Promise<MediaImage> {
+	// 1. Validate file (type, size)
+	this.validateFile(file);
+
+	// 2. Calculate hash (SHA-256)
+	const buffer = await file.arrayBuffer();
+	const hash = await hashFileContent(Buffer.from(buffer));
+
+	// 3. Check for duplicates
+	const existing = await this.db.crud.findOne('MediaItem', { hash });
+	if (existing.success && existing.data) {
+		throw new Error(`File already exists: ${existing.data.filename}`);
+	}
+
+	// 4. Sanitize filename
+	const sanitizedName = sanitizeFilename(file.name);
+
+	// 5. Save to storage (original + thumbnails)
+	const paths = await this.storageAdapter.save(buffer, sanitizedName, hash, virtualFolder);
+
+	// 6. Extract metadata (EXIF, dimensions)
+	const metadata = await extractMetadata(buffer, file.type);
+
+	// 7. Save to database
+	const mediaItem = await this.db.crud.create('MediaItem', {
+		filename: sanitizedName,
+		hash,
+		size: file.size,
+		type: file.type,
+		uploadedBy: userId,
+		uploadDate: new Date(),
+		virtualFolder,
+		accessLevel,
+		...metadata,
+		...paths
+	});
+
+	// 8. Invalidate cache
+	await this.cache.delete(`media:list:${userId}`);
+
+	return mediaItem.data;
+}
+```
+
+#### List Media
+
+Retrieve paginated media list:
+
+```typescript
+async listMedia(
+	userId: string,
+	page = 1,
+	limit = 50,
+	virtualFolder?: string
+): Promise<{ files: MediaImage[]; total: number }> {
+	// Check cache first
+	const cacheKey = `media:list:${userId}:${page}:${limit}:${virtualFolder || 'all'}`;
+	const cached = await this.cache.get(cacheKey);
+	if (cached) return cached;
+
+	// Query database
+	const query = { uploadedBy: userId };
+	if (virtualFolder) query.virtualFolder = virtualFolder;
+
+	const result = await this.db.crud.findMany('MediaItem', query, {
+		skip: (page - 1) * limit,
+		limit,
+		sort: { uploadDate: -1 }
+	});
+
+	// Cache result (5 minutes)
+	await this.cache.set(cacheKey, result, 300);
+
+	return result;
+}
+```
+
+#### Delete Media
+
+Soft delete or permanent removal:
+
+```typescript
+async deleteMedia(mediaId: string, permanent = false): Promise<void> {
+	const media = await this.db.crud.findOne('MediaItem', { _id: mediaId });
+	if (!media.success) throw new Error('Media not found');
+
+	if (permanent) {
+		// Permanent deletion
+		await this.storageAdapter.delete(media.data.path);
+		await this.db.crud.delete('MediaItem', mediaId);
+	} else {
+		// Soft delete (move to trash)
+		await this.storageAdapter.moveToTrash(media.data.path);
+		await this.db.crud.update('MediaItem', mediaId, {
+			deletedAt: new Date(),
+			status: 'trashed'
+		});
+	}
+
+	// Invalidate cache
+	await this.cache.delete(`media:${mediaId}`);
+	await this.cache.deletePattern(`media:list:*`);
+}
+```
+
+### Usage in API Endpoints
+
+**Example: Upload Endpoint**
+
+```typescript
+// src/routes/api/media/process/+server.ts
+import { MediaService } from '$services/MediaService';
+
+export async function POST({ request, locals }) {
+	const { user, dbAdapter, cacheService, settingsService } = locals;
+
+	// Initialize service
+	const mediaService = new MediaService(dbAdapter, cacheService, settingsService);
+
+	// Parse form data
+	const formData = await request.formData();
+	const files = formData.getAll('files') as File[];
+
+	// Upload all files
+	const results = await Promise.all(files.map((file) => mediaService.saveMedia(file, user._id, 'public', 'global')));
+
+	return json({ success: true, files: results });
+}
+```
+
+**Example: List Endpoint**
+
+```typescript
+// src/routes/api/media/+server.ts
+export async function GET({ url, locals }) {
+	const { user, dbAdapter, cacheService, settingsService } = locals;
+
+	const mediaService = new MediaService(dbAdapter, cacheService, settingsService);
+
+	const page = parseInt(url.searchParams.get('page') || '1');
+	const limit = parseInt(url.searchParams.get('limit') || '50');
+	const folder = url.searchParams.get('folder') || undefined;
+
+	const result = await mediaService.listMedia(user._id, page, limit, folder);
+
+	return json(result);
+}
+```
+
+### Dependency Injection Pattern
+
+The MediaService follows dependency injection principles for better testability and flexibility:
+
+```typescript
+// Test example
+import { MediaService } from '$services/MediaService';
+import { MockDbAdapter } from '$tests/mocks/db';
+import { MockCacheService } from '$tests/mocks/cache';
+import { MockSettingsService } from '$tests/mocks/settings';
+
+describe('MediaService', () => {
+	let service: MediaService;
+	let mockDb: MockDbAdapter;
+
+	beforeEach(() => {
+		mockDb = new MockDbAdapter();
+		const mockCache = new MockCacheService();
+		const mockSettings = new MockSettingsService({
+			MEDIA_STORAGE_TYPE: 'local',
+			MEDIA_FOLDER: './test-media'
+		});
+
+		service = new MediaService(mockDb, mockCache, mockSettings);
+	});
+
+	test('should prevent duplicate uploads', async () => {
+		// First upload
+		await service.saveMedia(testFile, 'user1', 'public', 'global');
+
+		// Second upload (same file)
+		await expect(service.saveMedia(testFile, 'user1', 'public', 'global')).rejects.toThrow('File already exists');
+	});
+});
+```
+
+---
+
 ## Using Media in Collections (Headless CMS)
 
 SveltyCMS is a headless CMS, which means you manage media independently from where you use it. You link media to your content using a "Media Picker" widget.
@@ -124,7 +429,24 @@ SveltyCMS provides a clean, RESTful API for managing media, based on the `MediaS
 
 **Base Path:** `/api/media`
 
-### `GET /api/media`
+**Complete API Documentation:** See [Media API Reference](/docs/api/Media_API) for all 12 endpoints:
+
+1. ✅ `POST /api/media/process` - Upload and process files
+2. ✅ `GET /api/media` - List media with pagination
+3. ✅ `GET /api/media/[id]` - Get single file details
+4. ✅ `PATCH /api/media/[id]` - Update metadata
+5. ✅ `DELETE /api/media/[id]` - Delete file
+6. ✅ `POST /api/media/search` - Advanced search (18+ criteria)
+7. ✅ `GET /api/media/search` - Search suggestions
+8. ✅ `POST /api/media/bulk-download` - Bulk download as TAR.GZ
+9. ✅ `POST /api/media/trash` - Soft delete to trash
+10. ✅ `POST /api/media/manipulate/[id]` - Image manipulation
+11. ✅ `GET /api/media/exists` - Check file existence
+12. ✅ `POST /api/media/remote` - Upload from remote URL
+
+### Quick Examples
+
+#### `GET /api/media`
 
 Lists all media files. Supports pagination and searching.
 
@@ -135,7 +457,7 @@ Lists all media files. Supports pagination and searching.
 
 **Maps to:** `MediaService.listMedia()` and `MediaService.searchMedia()`
 
-### `POST /api/media`
+#### `POST /api/media/process`
 
 Uploads a new media file.
 

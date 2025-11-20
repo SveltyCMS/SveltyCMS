@@ -30,7 +30,11 @@ export const POST: RequestHandler = async ({ locals }) => {
 		}
 
 		// Initialize 2FA setup
-		const twoFactorService = getDefaultTwoFactorAuthService(auth);
+		if (!auth) {
+			logger.error('Auth service not initialized during 2FA setup initiation');
+			throw error(500, 'Auth service not available');
+		}
+		const twoFactorService = getDefaultTwoFactorAuthService(auth.authInterface);
 		const setupData = await twoFactorService.initiate2FASetup(user._id, user.email, tenantId);
 
 		logger.info('2FA setup initiated', { userId: user._id, tenantId });

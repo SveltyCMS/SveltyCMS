@@ -44,7 +44,7 @@
 		currentFolder?: SystemVirtualFolder | null;
 	}
 
-	let { currentFolder = null }: Props = $props();
+	const { currentFolder = null }: Props = $props();
 	let folders: SystemVirtualFolder[] = $state([]);
 	let newFolderName = '';
 	let isLoading = $state(false);

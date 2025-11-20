@@ -53,7 +53,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 					);
 				}
 
-				await configService.performImport({ changes: payload, uuids });
+				await configService.performImport({ changes: payload });
 				invalidateSettingsCache();
 
 				return json({

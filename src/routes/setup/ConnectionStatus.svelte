@@ -30,7 +30,7 @@ Features:
 		};
 	};
 
-	let { state, result, onRetry } = $props<{
+	const { state, result, onRetry } = $props<{
 		state: ConnectionState;
 		result: TestResult | null;
 		onRetry?: () => void;

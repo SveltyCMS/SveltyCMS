@@ -17,7 +17,8 @@ export const SERVICE_BASELINE_TIMES = {
 	auth: 50, // Auth initialization is nearly instant
 	cache: 200, // Cache/media setup
 	contentManager: 300, // Content loading
-	themeManager: 200 // Theme loading
+	themeManager: 200, // Theme loading
+	widgets: 150 // Widget store initialization
 } as const;
 
 // --- Default Anomaly Thresholds ---
@@ -56,7 +57,8 @@ export const initialState: SystemStateStore = {
 		auth: { status: 'initializing', message: 'Not initialized', metrics: structuredClone(initialServiceMetrics) },
 		cache: { status: 'initializing', message: 'Not initialized', metrics: structuredClone(initialServiceMetrics) },
 		contentManager: { status: 'initializing', message: 'Not initialized', metrics: structuredClone(initialServiceMetrics) },
-		themeManager: { status: 'initializing', message: 'Not initialized', metrics: structuredClone(initialServiceMetrics) }
+		themeManager: { status: 'initializing', message: 'Not initialized', metrics: structuredClone(initialServiceMetrics) },
+		widgets: { status: 'initializing', message: 'Not initialized', metrics: structuredClone(initialServiceMetrics) }
 	},
 	performanceMetrics: {
 		totalInitializations: 0,

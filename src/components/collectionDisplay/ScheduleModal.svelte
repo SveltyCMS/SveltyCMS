@@ -25,7 +25,7 @@ Features:
 	interface Props {
 		parent: any;
 	}
-	let { parent }: Props = $props();
+	const { parent }: Props = $props();
 
 	// --- Component State ---
 	const modalStore = getModalStore();
@@ -37,8 +37,8 @@ Features:
 	let action: ActionType = $state(($modalStore[0]?.meta?.initialAction as ActionType) || 'publish');
 	let errorMessage = $state('');
 
-	let scheduleDate = $derived(`${scheduleDateOnly}T${scheduleTimeOnly}`);
-	let isFormValid = $derived(scheduleDateOnly !== '' && scheduleTimeOnly !== '');
+	const scheduleDate = $derived(`${scheduleDateOnly}T${scheduleTimeOnly}`);
+	const isFormValid = $derived(scheduleDateOnly !== '' && scheduleTimeOnly !== '');
 
 	const actionOptions: Array<{ value: ActionType; label: string }> = [
 		{ value: 'publish', label: m.entrylist_multibutton_publish() },

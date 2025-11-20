@@ -9,7 +9,8 @@ import type { User } from '@src/databases/auth/types';
 import type { GuiFieldConfig } from '@utils/utils';
 import type { WidgetPlaceholder } from './placeholder';
 
-export type WidgetType = 'core' | 'custom';
+// Extended to include runtime marketplace widgets
+export type WidgetType = 'core' | 'custom' | 'marketplace';
 
 export interface Widget {
 	(field: FieldInstance): FieldInstance;

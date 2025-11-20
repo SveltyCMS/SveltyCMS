@@ -14,7 +14,7 @@ import { publicEnv } from '@src/stores/globalSettings.svelte';
 import type { Credentials, OAuth2Client } from 'google-auth-library';
 
 // System Logger
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 // Utility function to determine the correct OAuth redirect URI
 function getOAuthRedirectUri(): string {
@@ -45,7 +45,7 @@ async function googleAuth(): Promise<OAuth2Client | null> {
 			logger.debug('Setting up Google OAuth2...');
 			const { google } = await import('googleapis');
 			const redirectUri = getOAuthRedirectUri();
-			logger.debug(`Using OAuth redirect URI: \x1b[34m${redirectUri}\x1b[0m`);
+			logger.debug(`Using OAuth redirect URI: ${redirectUri}`);
 
 			googleAuthClient = new google.auth.OAuth2(googleClientId, googleClientSecret, redirectUri);
 		}

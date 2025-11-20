@@ -380,7 +380,7 @@ async function deleteFromCloudinary(relativePath: string, config: CloudStorageCo
 		logger.info('File deleted from Cloudinary', { publicId });
 	} catch (err) {
 		logger.error('Failed to delete from Cloudinary', { publicId, error: err });
-		throw error(500, `Failed to delete from Cloudinary: ${err.message}`);
+		throw error(500, `Failed to delete from Cloudinary: ${err instanceof Error ? err.message : String(err)}`);
 	}
 }
 

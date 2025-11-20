@@ -828,6 +828,73 @@ describe('Input Widget - Multilingual', () => {
 
 ## 🔧 Runtime Implementation
 
+### Widget Initialization Strategy
+
+SveltyCMS uses a **hybrid initialization approach** to optimize both server-side rendering and client-side performance:
+
+```mermaid
+sequenceDiagram
+    participant Server as SvelteKit Server
+    participant API as Widget API Endpoints
+    participant Client as Browser/Client
+    participant Store as Widget Store
+    participant DB as Database
+
+    Note over Server: Server-Side (SSR)
+    Server->>Store: initializeWidgets(tenantId)
+    Store->>Store: Scan filesystem (core + custom)
+    Store->>Store: Skip database query<br/>(returns empty array)
+    Note over Store: Widgets available but<br/>none marked as "active"
+
+    Note over Client: Client-Side (Hydration)
+    Client->>Store: initializeWidgets(tenantId)
+    Store->>Store: Check if already loaded
+    Store->>API: GET /api/widgets/active
+    API->>DB: Query active widgets for tenant
+    DB-->>API: Return active widget list
+    API-->>Store: Widget names array
+    Store->>Store: Mark widgets as active
+    Store-->>Client: Widgets ready
+
+    Note over API: API Endpoints (Direct Access)
+    API->>DB: Direct database operations
+    Note over API: Used by: Collection pages,<br/>Widget management UI,<br/>GraphQL endpoints
+```
+
+**Key Implementation Details:**
+
+```typescript
+// src/stores/widgetStore.svelte.ts
+async function loadActiveWidgetsFromDatabase(tenantId?: string): Promise<string[]> {
+	// Server-side: Return empty array (prevents SSR blocking)
+	if (typeof window === 'undefined') {
+		logger.debug('[widgetStore] Server-side - returning empty array');
+		return [];
+	}
+
+	// Client-side: Fetch from API with cache-busting on first load
+	const needsRefresh = Object.keys($store.widgetFunctions).length === 0;
+	const url = `/api/widgets/active${needsRefresh ? '?refresh=true' : ''}`;
+
+	const response = await fetch(url, {
+		headers: {
+			'Content-Type': 'application/json',
+			...(tenantId && { 'X-Tenant-ID': tenantId })
+		}
+	});
+
+	const data = await response.json();
+	return data.widgets.map((w: { name: string }) => w.name);
+}
+```
+
+**Why This Approach?**
+
+1. **Fast SSR**: Server doesn't wait for database queries during page rendering
+2. **No Race Conditions**: Client fetches fresh data after hydration
+3. **Tenant Isolation**: Each tenant gets their specific widget configuration
+4. **Cache Efficiency**: First load bypasses cache, subsequent loads use cached data
+
 ### Widget Loading Process
 
 ```mermaid
@@ -853,6 +920,63 @@ sequenceDiagram
         Store-->>App: Widget function
     end
 ```
+
+### Component Integration (No Client-Side Initialization Required)
+
+**Before (❌ Old Pattern - Removed):**
+
+```svelte
+<!-- Fields.svelte - OLD APPROACH -->
+<script>
+	import { onMount } from 'svelte';
+	import { widgetStoreActions } from '@stores/widgetStore.svelte';
+
+	let widgetsReady = false;
+
+	// ❌ DON'T DO THIS: Client-side widget initialization
+	onMount(async () => {
+		await widgetStoreActions.initializeWidgets(tenantId);
+		widgetsReady = true;
+	});
+</script>
+
+{#if !widgetsReady}
+	<div>Loading widgets...</div>
+{:else}
+	<!-- Render fields -->
+{/if}
+```
+
+**After (✅ Current Pattern):**
+
+```svelte
+<!-- Fields.svelte - CURRENT APPROACH -->
+<script>
+	import { widgetFunctions } from '@stores/widgetStore.svelte';
+
+	// ✅ Widgets are pre-initialized by layout or API endpoints
+	// Just use them directly - no onMount required
+	const { field, value } = $props();
+
+	// Direct access to widget functions
+	$: widgetFn = $widgetFunctions[field.widget];
+</script>
+
+<!-- Widgets are always ready - render immediately -->
+{#if widgetFn}
+	<svelte:component this={widgetFn.Input} {field} {value} />
+{:else}
+	<MissingWidget widgetName={field.widget} />
+{/if}
+```
+
+**Benefits of Server-Side Pre-Initialization:**
+
+- ✅ **No Loading States**: Widgets available immediately on component mount
+- ✅ **Better UX**: No flickering or "Loading..." messages
+- ✅ **Simpler Code**: Components don't manage widget initialization
+- ✅ **Consistent State**: All routes see the same initialized widgets
+- ✅ **SSR Compatible**: Works seamlessly with server-side rendering
 
 ### Error Handling and Fallbacks
 

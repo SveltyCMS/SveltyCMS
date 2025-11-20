@@ -1,0 +1,12 @@
+// src/routes/(app)/imageEditor/widgets/Annotate/index.ts
+import type { Component } from 'svelte';
+import Tool from './Tool.svelte';
+import Controls from './Controls.svelte';
+
+export default {
+	key: 'annotate',
+	title: 'Annotate',
+	icon: 'mdi:draw',
+	tool: Tool as unknown as Component<Record<string, unknown>>,
+	controls: Controls as unknown as Component<Record<string, unknown>>
+};

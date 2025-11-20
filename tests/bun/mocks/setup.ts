@@ -122,7 +122,7 @@ mock.module('@src/stores/setupStore.svelte', () => ({
 mock.module('@src/stores/store.svelte', () => ({
 	systemLanguage: {
 		value: 'en',
-		set: (lang: string) => {}
+		set: (_lang: string) => {}
 	}
 }));
 
@@ -166,7 +166,7 @@ mock.module('@src/paraglide/messages', () => ({
 
 mock.module('@src/paraglide/runtime', () => ({
 	getLocale: () => 'en',
-	setLocale: (locale: string) => {},
+	setLocale: (_locale: string) => {},
 	locales: ['en', 'de', 'fr', 'es', 'it', 'pt']
 }));
 
@@ -184,7 +184,7 @@ mock.module('@utils/logger', () => ({
 }));
 
 mock.module('@utils/languageUtils', () => ({
-	getLanguageName: (code: string, displayLang?: string) => {
+	getLanguageName: (code: string, _displayLang?: string) => {
 		const names: Record<string, string> = {
 			en: 'English',
 			de: 'German',
@@ -198,8 +198,8 @@ mock.module('@utils/languageUtils', () => ({
 }));
 
 mock.module('@utils/toast', () => ({
-	setGlobalToastStore: (store: any) => {},
-	showToast: (message: string, type?: string, duration?: number) => {
+	setGlobalToastStore: (_store: any) => {},
+	showToast: (message: string, type?: string, _duration?: number) => {
 		console.log(`[TOAST ${type || 'info'}]`, message);
 	}
 }));
@@ -210,12 +210,12 @@ mock.module('@utils/toast', () => ({
 
 mock.module('@skeletonlabs/skeleton', () => ({
 	getModalStore: () => ({
-		trigger: (settings: any) => {},
+		trigger: (_settings: any) => {},
 		close: () => {},
 		clear: () => {}
 	}),
 	getToastStore: () => ({
-		trigger: (settings: any) => {}
+		trigger: (_settings: any) => {}
 	}),
 	Modal: null,
 	Toast: null

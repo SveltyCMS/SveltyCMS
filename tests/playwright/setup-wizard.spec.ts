@@ -40,14 +40,11 @@ async function dismissWelcomeModal(page: Page) {
 async function configureDatabaseConnection(page: Page) {
 	console.log('Step 1: Configuring database connection...');
 
-	// Wait for database configuration form - longer timeout for preview mode
-	// First check if we're actually on the setup page
-	if (!page.url().includes('/setup')) {
-		console.log('Not on setup page, navigating directly...');
-		await page.goto('/setup', { waitUntil: 'networkidle', timeout: 30000 });
-	}
+	// Wait for page to be fully loaded
+	await page.waitForLoadState('networkidle');
 
-	await expect(page.getByRole('heading', { name: /database/i }).first()).toBeVisible({ timeout: 30000 });
+	// Wait for database configuration form
+	await expect(page.getByRole('heading', { name: /database/i }).first()).toBeVisible({ timeout: 15000 });
 
 	// Fill database configuration
 	await page.locator('#db-host').fill(process.env.MONGO_HOST || 'localhost');

@@ -31,6 +31,7 @@
 // Mongoose and core types
 import mongoose, { type FilterQuery } from 'mongoose';
 import type { BaseEntity, ConnectionPoolOptions, DatabaseId, DatabaseResult, IDBAdapter, DatabaseError, ISODateString } from '../dbInterface';
+import type { ConnectionPoolDiagnostics } from '../DatabaseResilience';
 
 // All Mongoose Models
 import {
@@ -52,6 +53,7 @@ import { MongoContentMethods } from './methods/contentMethods';
 import { MongoCrudMethods } from './methods/crudMethods';
 import { MongoMediaMethods } from './methods/mediaMethods';
 import * as mongoDBUtils from './methods/mongoDBUtils';
+import * as mongoDBCacheUtils from './methods/mongoDBCacheUtils';
 import { MongoSystemMethods } from './methods/systemMethods';
 import { MongoSystemVirtualFolderMethods } from './methods/systemVirtualFolderMethods';
 import { MongoThemeMethods } from './methods/themeMethods';
@@ -62,7 +64,7 @@ import { MongoQueryBuilder } from './MongoQueryBuilder';
 // Auth adapter composition
 import { composeMongoAuthAdapter } from './methods/authComposition';
 
-import { logger } from '@utils/logger.server';
+import { logger } from '@src/utils/logger.server';
 import type {
 	ContentNode,
 	ContentDraft,
@@ -103,6 +105,7 @@ export class MongoDBAdapter implements IDBAdapter {
 	public auth!: IDBAdapter['auth'];
 	public websiteTokens!: IDBAdapter['websiteTokens'];
 	public readonly utils = mongoDBUtils;
+	public readonly cacheUtils = mongoDBCacheUtils;
 	public collection!: IDBAdapter['collection'];
 
 	getCapabilities(): import('../dbInterface').DatabaseCapabilities {
@@ -171,9 +174,9 @@ export class MongoDBAdapter implements IDBAdapter {
 		return new MongoQueryBuilder<T>(model);
 	}
 
-	private async _wrapResult<T>(fn: () => Promise<T>): Promise<DatabaseResult<T>> {
+	private async _wrapResult<T, A extends unknown[]>(fn: (...args: A) => Promise<T>, ...args: A): Promise<DatabaseResult<T>> {
 		try {
-			const data = await fn();
+			const data = await fn(...args);
 			return { success: true, data };
 		} catch (error: unknown) {
 			const typedError = error as { code?: string; message?: string };
@@ -229,49 +232,94 @@ export class MongoDBAdapter implements IDBAdapter {
 				connectionString = process.env.MONGODB_URI || 'mongodb://localhost:27017/sveltycms';
 			}
 
-			// Pass options to mongoose.connect if they exist
-			if (mongooseOptions) {
-				await mongoose.connect(connectionString, mongooseOptions as mongoose.ConnectOptions);
-				logger.info('MongoDB connection established successfully with custom options.');
-			} else {
-				// Connection pool configuration for optimal performance
-				const connectOptions: mongoose.ConnectOptions = {
-					// Connection Pool Settings (MongoDB 8.0+ optimized)
-					maxPoolSize: 50, // Maximum concurrent connections
-					minPoolSize: 10, // Maintain minimum pool for fast response
-					maxIdleTimeMS: 30000, // Close idle connections after 30s
+			// Connection pool configuration for optimal performance
+			const connectOptions: mongoose.ConnectOptions = (mongooseOptions as mongoose.ConnectOptions) || {
+				// Connection Pool Settings (MongoDB 8.0+ optimized)
+				maxPoolSize: 50, // Maximum concurrent connections
+				minPoolSize: 10, // Maintain minimum pool for fast response
+				maxIdleTimeMS: 30000, // Close idle connections after 30s
 
-					// Performance Optimizations
-					// Note: Compression disabled to avoid optional dependency issues (zstd, snappy not installed)
-					// You can enable compression by installing: bun add snappy @mongodb-js/zstd
-					readPreference: 'primaryPreferred', // Balance between consistency and availability
+				// Performance Optimizations
+				// Note: Compression disabled to avoid optional dependency issues (zstd, snappy not installed)
+				// You can enable compression by installing: bun add snappy @mongodb-js/zstd
+				readPreference: 'primaryPreferred', // Balance between consistency and availability
 
-					// Timeout Settings
-					serverSelectionTimeoutMS: 5000, // Fail fast on connection issues
-					socketTimeoutMS: 45000, // Socket timeout for long-running queries
-					connectTimeoutMS: 10000, // Connection timeout
+				// Timeout Settings
+				serverSelectionTimeoutMS: 5000, // Fail fast on connection issues
+				socketTimeoutMS: 45000, // Socket timeout for long-running queries
+				connectTimeoutMS: 10000, // Connection timeout
 
-					// Reliability Settings
-					retryWrites: true, // Auto-retry failed writes
-					retryReads: true, // Auto-retry failed reads
-					w: 'majority', // Write concern for data durability
+				// Reliability Settings
+				retryWrites: true, // Auto-retry failed writes
+				retryReads: true, // Auto-retry failed reads
+				w: 'majority', // Write concern for data durability
 
-					// Monitoring
-					monitorCommands: process.env.NODE_ENV === 'development' // Enable command monitoring in dev
-				};
+				// Monitoring
+				monitorCommands: process.env.NODE_ENV === 'development' // Enable command monitoring in dev
+			};
 
+			// Use DatabaseResilience for automatic retry with exponential backoff
+			const { getDatabaseResilience } = await import('@databases/DatabaseResilience');
+			const resilience = getDatabaseResilience();
+
+			await resilience.executeWithRetry(async () => {
 				await mongoose.connect(connectionString, connectOptions);
-				logger.info('MongoDB connection established with optimized pool configuration.');
-			}
+				logger.info('MongoDB connection established with resilience and optimized pool configuration.');
+			}, 'MongoDB connection');
+
+			// Setup self-healing reconnection listeners
+			this._setupReconnectionHandlers(connectionString, connectOptions);
 
 			// Initialize models and wrappers
 			await this._initializeModelsAndWrappers();
 		});
 	}
 
-	/**
-	 * Initialize all models, repositories, method classes, and wrappers
-	 */
+	// Setup mongoose event listeners for self-healing database reconnection
+	private _setupReconnectionHandlers(connectionString: string, connectOptions: mongoose.ConnectOptions): void {
+		// Remove existing listeners to avoid duplicates
+		mongoose.connection.removeAllListeners('disconnected');
+		mongoose.connection.removeAllListeners('error');
+		mongoose.connection.removeAllListeners('reconnected');
+
+		// Handle disconnection events
+		mongoose.connection.on('disconnected', async () => {
+			logger.warn('MongoDB connection lost. Attempting self-healing reconnection...');
+
+			const { getDatabaseResilience, notifyAdminsOfDatabaseFailure } = await import('@databases/DatabaseResilience');
+			const resilience = getDatabaseResilience();
+
+			const reconnected = await resilience.attemptReconnection(
+				async () => {
+					await mongoose.connect(connectionString, connectOptions);
+				},
+				async (error) => {
+					// Notify admins on persistent failure
+					await notifyAdminsOfDatabaseFailure(error, resilience.getMetrics());
+				}
+			);
+
+			if (reconnected) {
+				logger.info('MongoDB self-healing reconnection successful');
+			} else {
+				logger.error('MongoDB self-healing reconnection failed after all attempts');
+			}
+		});
+
+		// Handle connection errors
+		mongoose.connection.on('error', (err) => {
+			logger.error('MongoDB connection error occurred', { error: err });
+		});
+
+		// Log successful reconnections
+		mongoose.connection.on('reconnected', () => {
+			logger.info('MongoDB reconnected successfully');
+		});
+
+		logger.debug('Self-healing reconnection handlers registered');
+	}
+
+	// Initialize all models, repositories, method classes, and wrappers
 	private async _initializeModelsAndWrappers(): Promise<void> {
 		// --- 1. Register All Models ---
 		this._auth = new MongoAuthModelRegistrar(mongoose);
@@ -307,7 +355,7 @@ export class MongoDBAdapter implements IDBAdapter {
 
 		// --- 4. Build the Public-Facing Wrapped API ---
 		this._initializeWrappers();
-		logger.info('\x1b[34mMongoDB adapter\x1b[0m fully initialized.');
+		logger.info('MongoDB adapter fully initialized.');
 	}
 
 	private _initializeWrappers(): void {
@@ -662,15 +710,18 @@ export class MongoDBAdapter implements IDBAdapter {
 
 		// CRUD - Generic CRUD operations
 		this.crud = {
-			findOne: <T extends BaseEntity>(coll: string, query: FilterQuery<T>) => {
+			findOne: <T extends BaseEntity>(coll: string, query: FilterQuery<T>, options?: { fields?: (keyof T)[] }) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.findOne(query) as Promise<T | null>);
+				return this._wrapResult(() => repo.findOne(query, options as { fields?: (keyof BaseEntity)[] }) as Promise<T | null>);
 			},
-			findMany: <T extends BaseEntity>(coll: string, query: FilterQuery<T>, options?: { limit?: number; offset?: number }) => {
+			findMany: <T extends BaseEntity>(coll: string, query: FilterQuery<T>, options?: { limit?: number; offset?: number; fields?: (keyof T)[] }) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.findMany(query, { limit: options?.limit, skip: options?.offset }) as Promise<T[]>);
+				return this._wrapResult(
+					() =>
+						repo.findMany(query, { limit: options?.limit, skip: options?.offset, fields: options?.fields as (keyof BaseEntity)[] }) as Promise<T[]>
+				);
 			},
 			insert: <T extends BaseEntity>(coll: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>) => {
 				const repo = this._getRepository(coll);
@@ -1118,6 +1169,21 @@ export class MongoDBAdapter implements IDBAdapter {
 				};
 			});
 			return { success: true, data: slowQueries };
+		},
+		getPoolDiagnostics: async (): Promise<DatabaseResult<ConnectionPoolDiagnostics>> => {
+			try {
+				const { getDatabaseResilience } = await import('@databases/DatabaseResilience');
+				const resilience = getDatabaseResilience();
+				const diagnostics = await resilience.getPoolDiagnostics();
+
+				return { success: true, data: diagnostics };
+			} catch (error) {
+				return {
+					success: false,
+					message: 'Failed to get pool diagnostics',
+					error: createDatabaseError(error, 'POOL_DIAGNOSTICS_ERROR', 'Failed to retrieve connection pool diagnostics')
+				};
+			}
 		}
 	};
 

@@ -658,12 +658,20 @@ function createValidationStore() {
 		setError: (fieldName: string, errorMessage: string | null) => {
 			// Silent validation error setting
 			errors[fieldName] = errorMessage;
+			// 🔍 DEBUG: Log error setting
+			if (process.env.NODE_ENV !== 'production') {
+				console.log('[ValidationStore] setError:', fieldName, errorMessage, 'isValid:', isValid());
+			}
 			notify();
 		},
 		clearError: (fieldName: string) => {
 			// Silent validation error clearing
 			if (fieldName in errors) {
 				delete errors[fieldName];
+				// 🔍 DEBUG: Log error clearing
+				if (process.env.NODE_ENV !== 'production') {
+					console.log('[ValidationStore] clearError:', fieldName, 'isValid:', isValid());
+				}
 				notify();
 			}
 		},

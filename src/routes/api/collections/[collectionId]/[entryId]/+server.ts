@@ -1,11 +1,12 @@
 /**
  * @file src/routes/api/collections/[collectionId]/[entryId]/+server.ts
- * @description API endpoint for reading, updating, and deleting a single collection entry
+ * @description API endpoint for updating and deleting a single collection entry
  *
- * @example for get/patch/delete single entry:  /api/collections/:collectionId/:entryId
+ * @example PATCH/DELETE /api/collections/:collectionId/:entryId
  *
  * Features:
- * * Handles GET, PATCH, and DELETE verbs for full CRUD on a single entry
+ * * ❌ GET removed - use +page.server.ts load() for SSR data fetching
+ * * Handles PATCH and DELETE verbs for full CRUD on a single entry
  * * Secure, granular access control per operation, scoped to the current tenant
  * * Automatic metadata updates on modification (updatedBy)
  * * ModifyRequest support for widget-based data processing
@@ -16,11 +17,14 @@ import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Databases
+import type { DatabaseId } from '@src/databases/dbInterface';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
 import { modifyRequest } from '@api/collections/modifyRequest';
-import { getDefaultRoles } from '@src/databases/auth/defaultRoles';
+
+// Types
+import type { FieldInstance } from '@src/content/types';
 
 // Helper function to normalize collection names for database operations
 const normalizeCollectionName = (collectionId: string): string => {
@@ -32,123 +36,9 @@ const normalizeCollectionName = (collectionId: string): string => {
 // System Logger
 import { logger } from '@utils/logger.server';
 
-// GET: Retrieves a single entry by its ID
-export const GET: RequestHandler = async ({ locals, params }) => {
-	const startTime = performance.now();
-	const endpoint = `GET /api/collections/${params.collectionId}/${params.entryId}`;
-	const { user, tenantId } = locals;
-
-	logger.info(`${endpoint} - Request started`, {
-		userId: user?._id,
-		userEmail: user?.email,
-		collectionId: params.collectionId,
-		entryId: params.entryId,
-		tenantId
-	});
-
-	try {
-		if (!user) {
-			logger.warn(`${endpoint} - Unauthorized access attempt`);
-			throw error(401, 'Unauthorized');
-		}
-
-		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-			logger.error(`${endpoint} - Tenant ID is missing in a multi-tenant setup.`);
-			throw error(400, 'Could not identify the tenant for this request.');
-		}
-
-		const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
-		if (!schema) {
-			logger.warn(`${endpoint} - Collection not found`, {
-				collectionId: params.collectionId,
-				entryId: params.entryId,
-				userId: user._id,
-				tenantId
-			});
-			throw error(404, 'Collection not found');
-		}
-
-		const dbAdapter = locals.dbAdapter;
-		if (!dbAdapter) {
-			throw error(503, 'Service Unavailable: Database service is not properly initialized');
-		}
-
-		const collectionName = `collection_${schema._id}`;
-		const query: { _id: string; tenantId?: string } = { _id: params.entryId };
-		if (getPrivateSettingSync('MULTI_TENANT')) {
-			query.tenantId = tenantId;
-		}
-		const result = await dbAdapter.crud.findOne(collectionName, query);
-		if (!result.success) {
-			logger.error(`${endpoint} - Database findOne failed`, {
-				collection: schema._id,
-				entryId: params.entryId,
-				error: result.error.message,
-				userId: user._id
-			});
-			throw error(500, 'Failed to retrieve entry.');
-		}
-
-		if (!result.data) {
-			logger.info(`${endpoint} - Entry not found`, {
-				collection: schema._id,
-				entryId: params.entryId,
-				userId: user._id
-			});
-			throw error(404, 'Entry not found');
-		} // Check if user can access this specific entry (status-based)
-
-		const userRole = getDefaultRoles().find((role) => role._id === user.role);
-		const isAdmin = userRole?.isAdmin === true;
-		if (!isAdmin && result.data.status !== 'published') {
-			logger.warn(`${endpoint} - Non-admin user attempted to access unpublished entry`, {
-				collection: schema._id,
-				entryId: params.entryId,
-				entryStatus: result.data.status,
-				userId: user._id,
-				userEmail: user.email,
-				userRole: user.role
-			});
-			throw error(404, 'Entry not found');
-		} // Apply modifyRequest for widget-based processing
-
-		const dataArray = [result.data];
-		try {
-			await modifyRequest({
-				data: dataArray,
-				fields: schema.fields,
-				collection: schema,
-				user: user,
-				type: 'GET',
-				tenantId
-			});
-		} catch (modifyError) {
-			logger.warn(`${endpoint} - ModifyRequest processing failed`, {
-				error: modifyError.message,
-				userId: user._id
-			});
-		}
-
-		const duration = performance.now() - startTime;
-		const responseData = {
-			success: true,
-			data: dataArray[0],
-			performance: { duration }
-		};
-
-		logger.info(`${endpoint} - Entry retrieved successfully`, {
-			duration: `${duration.toFixed(2)}ms`
-		});
-
-		return json(responseData);
-	} catch (e) {
-		if (e.status) {
-			throw e;
-		}
-		logger.error(`${endpoint} - Unexpected error`, { error: e.message, stack: e.stack });
-		throw error(500, 'Internal Server Error');
-	}
-};
+// ❌ REMOVED: GET handler - SSR data loading should use +page.server.ts load() function
+// This prevents redundant data fetching and improves SSR performance.
+// For single entry reads, use the load() function in +page.server.ts with editEntryId param.
 
 // PATCH: Updates an existing entry
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
@@ -172,6 +62,10 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			throw error(404, 'Collection not found');
 		}
 
+		if (!schema._id) {
+			throw error(500, 'Collection ID is missing');
+		}
+
 		// User access already validated by hooks
 
 		let body;
@@ -189,27 +83,29 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		const updateData = { ...body, updatedBy: user._id };
 
 		const dataArray = [updateData];
-		try {
-			await modifyRequest({
-				data: dataArray,
-				fields: schema.fields,
-				collection: schema,
-				user,
-				type: 'PATCH',
-				tenantId
-			});
-		} catch (modifyError) {
-			logger.warn(`${endpoint} - ModifyRequest pre-processing failed`, { error: modifyError.message });
-		}
 
 		const dbAdapter = locals.dbAdapter;
 		if (!dbAdapter) {
 			throw error(503, 'Service Unavailable: Database service is not properly initialized');
 		}
 
+		const collectionModel = await dbAdapter.collection.getModel(schema._id);
+		try {
+			await modifyRequest({
+				data: dataArray,
+				fields: schema.fields as FieldInstance[],
+				collection: collectionModel,
+				user,
+				type: 'PATCH',
+				tenantId
+			});
+		} catch (modifyError) {
+			logger.warn(`${endpoint} - ModifyRequest pre-processing failed`, { error: (modifyError as Error).message });
+		}
+
 		const collectionName = `collection_${schema._id}`;
 		// First verify the entry exists and belongs to the current tenant
-		const query: { _id: string; tenantId?: string } = { _id: params.entryId };
+		const query: { _id: DatabaseId; tenantId?: string } = { _id: params.entryId as DatabaseId };
 		if (getPrivateSettingSync('MULTI_TENANT')) {
 			query.tenantId = tenantId;
 		}
@@ -219,7 +115,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			throw error(404, 'Entry not found or access denied');
 		}
 
-		const result = await dbAdapter.crud.update(collectionName, params.entryId, dataArray[0]);
+		const result = await dbAdapter.crud.update(collectionName, params.entryId as DatabaseId, dataArray[0]);
 
 		if (!result.success) {
 			throw new Error(result.error.message);
@@ -243,10 +139,12 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 		return json(responseData);
 	} catch (e) {
-		if (e.status) {
+		if (typeof e === 'object' && e !== null && 'status' in e) {
 			throw e;
 		}
-		logger.error(`${endpoint} - Unexpected error`, { error: e.message, stack: e.stack });
+		const errorMsg = e instanceof Error ? e.message : 'Unknown error';
+		const stack = e instanceof Error ? e.stack : undefined;
+		logger.error(`${endpoint} - Unexpected error`, { error: errorMsg, stack });
 		throw error(500, 'Internal Server Error');
 	}
 };
@@ -278,10 +176,14 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 			throw error(503, 'Service Unavailable: Database service is not properly initialized');
 		}
 
+		if (!schema._id) {
+			throw error(500, 'Collection ID is missing');
+		}
+
 		const normalizedCollectionId = normalizeCollectionName(schema._id);
 
 		// First verify the entry exists and belongs to the current tenant
-		const query: { _id: string; tenantId?: string } = { _id: params.entryId };
+		const query: { _id: DatabaseId; tenantId?: string } = { _id: params.entryId as DatabaseId };
 		if (getPrivateSettingSync('MULTI_TENANT')) {
 			query.tenantId = tenantId;
 		}
@@ -291,7 +193,7 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 			throw error(404, 'Entry not found or access denied');
 		}
 
-		const result = await dbAdapter.crud.delete(normalizedCollectionId, params.entryId);
+		const result = await dbAdapter.crud.delete(normalizedCollectionId, params.entryId as DatabaseId);
 
 		if (!result.success) {
 			if (result.error.message.includes('not found')) {
@@ -312,10 +214,12 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 
 		return new Response(null, { status: 204 }); // 204 No Content
 	} catch (e) {
-		if (e.status) {
+		if (typeof e === 'object' && e !== null && 'status' in e) {
 			throw e;
 		}
-		logger.error(`${endpoint} - Unexpected error`, { error: e.message, stack: e.stack });
+		const errorMsg = e instanceof Error ? e.message : 'Unknown error';
+		const stack = e instanceof Error ? e.stack : undefined;
+		logger.error(`${endpoint} - Unexpected error`, { error: errorMsg, stack });
 		throw error(500, 'Internal Server Error');
 	}
 };

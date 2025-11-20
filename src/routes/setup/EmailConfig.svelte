@@ -25,9 +25,9 @@
 	let testEmailSent = $state(false);
 	let showSuccessDetails = $state(true);
 	let showWhySmtp = $state(false);
-	let validationErrors = $state<Record<string, string>>({});
+	const validationErrors = $state<Record<string, string>>({});
 	let touchedFields = $state<Set<string>>(new Set());
-	let localValidationErrors = $state<Record<string, string>>({});
+	let localValidationErrors = $derived(() => validationResult().errors);
 
 	// SMTP Configuration
 	let smtpHost = $state('');
@@ -35,10 +35,27 @@
 	let smtpUser = $state('');
 	let smtpPassword = $state('');
 	let smtpFrom = $state('');
-	let smtpSecure = $state(true);
 	let useCustomPort = $state(false);
 	let portAutoDetected = $state(false);
 	let showPassword = $state(false);
+
+	// Derived values for auto-detection
+	let detectedPort = $derived(() => {
+		if (!useCustomPort && smtpHost) {
+			const provider = detectProviderFromHost(smtpHost);
+			return provider?.port;
+		}
+		return null;
+	});
+
+	let detectedSecure = $derived(() => {
+		const port = detectedPort() ?? smtpPort;
+		return autoDetectSecure(port);
+	});
+
+	// Effective values (use detected values when available)
+	let effectivePort = $derived(() => detectedPort() ?? smtpPort);
+	let effectiveSecure = $derived(() => detectedSecure());
 
 	// Common SMTP ports with descriptions
 	const commonPorts = $derived([
@@ -154,7 +171,9 @@
 
 	// Automatically update security setting when port changes
 	$effect(() => {
-		smtpSecure = autoDetectSecure(smtpPort);
+		if (!detectedPort()) {
+			// Security is now computed by effectiveSecure()
+		}
 	});
 
 	// Watch for host changes and auto-detect provider
@@ -167,7 +186,6 @@
 			const provider = detectProviderFromHost(smtpHost);
 			if (provider) {
 				smtpPort = provider.port;
-				smtpSecure = provider.secure;
 				portAutoDetected = true;
 
 				// Show subtle feedback
@@ -181,11 +199,11 @@
 	const validationResult = $derived(() => {
 		const config: SmtpConfigSchema = {
 			host: smtpHost,
-			port: smtpPort,
+			port: effectivePort(),
 			user: smtpUser,
 			password: smtpPassword,
 			from: smtpFrom || smtpUser,
-			secure: smtpSecure
+			secure: effectiveSecure()
 		};
 
 		const result = safeParse(smtpConfigSchema, config);
@@ -209,19 +227,14 @@
 
 	const isFormValid = $derived(validationResult().valid);
 
-	// Update local validation errors when validation result changes
-	$effect(() => {
-		localValidationErrors = validationResult().errors;
-	});
-
 	// Only display errors for fields that have been touched (blurred)
 	const displayErrors = $derived.by(() => {
 		const errors: Record<string, string> = {};
 
 		// Show validation errors only for touched fields
 		for (const field of touchedFields) {
-			if (localValidationErrors[field]) {
-				errors[field] = localValidationErrors[field];
+			if (localValidationErrors()[field]) {
+				errors[field] = localValidationErrors()[field];
 			}
 		}
 
@@ -292,7 +305,6 @@
 			selectedPreset = presetName;
 			smtpHost = preset.host;
 			smtpPort = preset.port;
-			smtpSecure = preset.secure;
 			useCustomPort = false;
 			portAutoDetected = false;
 			testSuccess = false;
@@ -317,11 +329,11 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					host: smtpHost,
-					port: smtpPort,
+					port: effectivePort(),
 					user: smtpUser,
 					password: smtpPassword,
 					from: smtpFrom || smtpUser,
-					secure: smtpSecure,
+					secure: effectiveSecure(),
 					testEmail: wizard.adminUser.email,
 					saveToDatabase: true
 				})
@@ -394,7 +406,7 @@
 		<label class="label">
 			<span class="font-medium">{m.setup_email_provider()}</span>
 			<select class="select" bind:value={selectedPreset} onchange={() => applyPreset(selectedPreset)} aria-label="Select an SMTP provider preset">
-				{#each presets as preset}
+				{#each presets as preset, index (index)}
 					<option value={preset.name}>{preset.name}</option>
 				{/each}
 			</select>
@@ -510,7 +522,7 @@
 							portAutoDetected = false;
 						}}
 					>
-						{#each commonPorts as port}
+						{#each commonPorts as port, index (index)}
 							<option value={port.value}>{port.label}</option>
 						{/each}
 					</select>
@@ -527,10 +539,10 @@
 						{m.setup_email_button_custom()}
 					</button>
 				</div>
-				{@const selectedPort = commonPorts.find((p) => p.value === smtpPort)}
+				{@const selectedPort = commonPorts.find((p) => p.value === effectivePort())}
 				{#if selectedPort}
 					<div class="mt-1 flex items-center gap-2">
-						{#if smtpSecure}
+						{#if effectiveSecure()}
 							<span class="variant-soft-success badge flex items-center gap-1 text-xs">
 								<iconify-icon icon="mdi:lock" class="text-sm"></iconify-icon>
 								Encrypted
@@ -552,7 +564,13 @@
 				bind:value={smtpUser}
 				placeholder={m.setup_email_user_placeholder()}
 				required
-				onblur={() => handleBlur('user')}
+				onblur={() => {
+					const trimmed = smtpUser.trim();
+					if (trimmed !== smtpUser) {
+						smtpUser = trimmed;
+					}
+					handleBlur('user');
+				}}
 				onchange={() => {
 					testSuccess = false;
 					testError = '';
@@ -577,7 +595,13 @@
 					bind:value={smtpPassword}
 					placeholder={m.setup_email_password_placeholder()}
 					required
-					onblur={() => handleBlur('password')}
+					onblur={() => {
+						const trimmed = smtpPassword.trim();
+						if (trimmed !== smtpPassword) {
+							smtpPassword = trimmed;
+						}
+						handleBlur('password');
+					}}
 					onchange={() => {
 						testSuccess = false;
 						testError = '';
@@ -603,7 +627,18 @@
 		<!-- From Email (Optional) -->
 		<label class="label md:col-span-2">
 			<span class="font-medium">{m.setup_email_from()}</span>
-			<input type="email" class="input" bind:value={smtpFrom} placeholder={smtpUser || 'noreply@example.com'} />
+			<input
+				type="email"
+				class="input"
+				bind:value={smtpFrom}
+				placeholder={smtpUser || 'noreply@example.com'}
+				onblur={() => {
+					const trimmed = smtpFrom.trim();
+					if (trimmed !== smtpFrom) {
+						smtpFrom = trimmed;
+					}
+				}}
+			/>
 			<span class="text-xs text-surface-600 dark:text-surface-400">{m.setup_email_from_note()}</span>
 		</label>
 	</div>

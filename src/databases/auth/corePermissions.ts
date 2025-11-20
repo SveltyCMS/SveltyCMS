@@ -266,5 +266,12 @@ export const corePermissions: Permission[] = [
 	},
 
 	// Admin permissions
-	{ _id: 'admin:access', name: 'Admin Access', action: PermissionAction.MANAGE, type: PermissionType.SYSTEM, contextId: 'admin/access' }
+	{ _id: 'admin:access', name: 'Admin Access', action: PermissionAction.MANAGE, type: PermissionType.SYSTEM, contextId: 'admin/access' },
+	{
+		_id: 'config:importexport',
+		name: 'Import/Export Management',
+		action: PermissionAction.MANAGE,
+		type: PermissionType.CONFIGURATION,
+		contextId: 'config/import-export'
+	}
 ];

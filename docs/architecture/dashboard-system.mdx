@@ -174,6 +174,21 @@ Real-time system performance and health monitoring:
 - **Refresh**: 15-second intervals
 - **Size**: 3x1 grid units
 
+#### **DatabasePoolDiagnostics.svelte** ⭐ _New_
+
+- **Purpose**: Real-time database connection pool monitoring
+- **Features**:
+  - **Pool Statistics**: Total, active, idle connections, waiting requests
+  - **Health Status**: Visual health indicators (healthy/degraded/critical)
+  - **Utilization Metrics**: Pool utilization percentage with color-coded progress bar
+  - **Smart Recommendations**: Actionable optimization suggestions
+  - **Auto-refresh**: 30-second intervals for up-to-date pool health
+  - **Integration**: Uses DatabaseResilience system for diagnostics
+- **Refresh**: 30-second intervals
+- **Size**: 2x3 grid units
+- **Role-Based**: Admin-only access (requires admin role for pool diagnostics API)
+- **API Endpoint**: `/api/database/pool-diagnostics`
+
 ### 2. Security & Audit Widgets
 
 Enterprise-grade security monitoring and compliance tracking:

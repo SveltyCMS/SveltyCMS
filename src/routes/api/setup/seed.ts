@@ -159,7 +159,7 @@ export async function seedCollectionsForSetup(dbAdapter: DatabaseAdapter): Promi
 		const scanStart = performance.now();
 		const collections = await scanCompiledCollections();
 		const scanTime = performance.now() - scanStart;
-		logger.debug(`⏱️  Collection scan: \x1b[32m${scanTime.toFixed(2)}ms\x1b[0m (found ${collections.length})`);
+		logger.debug(`⏱️  Collection scan: ${scanTime.toFixed(2)}ms (found ${collections.length})`);
 
 		if (collections.length === 0) {
 			logger.info('ℹ️  No collections found in filesystem, skipping collection seeding');
@@ -184,7 +184,7 @@ export async function seedCollectionsForSetup(dbAdapter: DatabaseAdapter): Promi
 				await new Promise((resolve) => setTimeout(resolve, 100)); // 100ms delay
 
 				const createTime = performance.now() - createStart;
-				logger.info(`✅ Created collection model: ${schema.name || 'unknown'} (\x1b[33m${createTime.toFixed(2)}ms\x1b[0m)`);
+				logger.info(`✅ Created collection model: ${schema.name || 'unknown'} (${createTime.toFixed(2)}ms)`);
 				successCount++;
 
 				// Capture the first collection for redirect
@@ -195,7 +195,7 @@ export async function seedCollectionsForSetup(dbAdapter: DatabaseAdapter): Promi
 						name: collectionName,
 						path: collectionPath
 					};
-					logger.debug(`First collection identified: \x1b[34m${collectionName}\x1b[0m at ${collectionPath}`);
+					logger.debug(`First collection identified: ${collectionName} at ${collectionPath}`);
 				}
 			} catch (error) {
 				// Collection might already exist or have schema issues
@@ -216,19 +216,19 @@ export async function seedCollectionsForSetup(dbAdapter: DatabaseAdapter): Promi
 		const overallTime = performance.now() - overallStart;
 
 		logger.info(`✅ Collections seeding completed: ${successCount} created, ${skipCount} skipped`);
-		logger.info(`⏱️  Model creation time: \x1b[32m${modelCreationTime.toFixed(2)}ms\x1b[0m`);
-		logger.info(`⏱️  Total seed time: \x1b[32m${overallTime.toFixed(2)}ms\x1b[0m`);
+		logger.info(`⏱️  Model creation time: ${modelCreationTime.toFixed(2)}ms`);
+		logger.info(`⏱️  Total seed time: ${overallTime.toFixed(2)}ms`);
 
 		return { firstCollection };
 	} catch (error) {
 		const overallTime = performance.now() - overallStart;
 		if (error instanceof Error) {
-			logger.error(`Failed to seed collections after \x1b[32m${overallTime.toFixed(2)}ms\x1b[0m: ${error.message}`);
+			logger.error(`Failed to seed collections after ${overallTime.toFixed(2)}ms: ${error.message}`);
 			if (error.stack) {
 				logger.debug('Stack trace:', error.stack);
 			}
 		} else {
-			logger.error(`Failed to seed collections after \x1b[32m${overallTime.toFixed(2)}ms\x1b[0m:`, error);
+			logger.error(`Failed to seed collections after ${overallTime.toFixed(2)}ms:`, error);
 		}
 		// Don't throw - collections can be created later through the UI
 		logger.warn('Continuing setup without collection seeding...');
@@ -436,7 +436,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
 		return;
 	}
 
-	logger.info(`🌱 Seeding \x1b[34m${settingsToSeed.length}\x1b[0m missing settings (${Object.keys(existingSettings).length} already exist)...`);
+	logger.info(`🌱 Seeding ${settingsToSeed.length} missing settings (${Object.keys(existingSettings).length} already exist)...`);
 
 	// Prepare settings for batch operation with category
 	const settingsToSet: Array<{
@@ -467,7 +467,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
 			throw new Error(result.error?.message || 'Failed to seed settings');
 		}
 
-		logger.info(`✅ Seeded \x1b[34m${settingsToSeed.length}\x1b[0m missing settings`);
+		logger.info(`✅ Seeded ${settingsToSeed.length} missing settings`);
 	} catch (error) {
 		logger.error('Failed to seed settings:', error);
 		throw error;

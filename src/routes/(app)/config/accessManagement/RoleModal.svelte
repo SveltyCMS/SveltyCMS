@@ -41,7 +41,7 @@
 		selectedPermissions?: string[];
 	}
 
-	let { parent, isEditMode, currentRoleId, roleName, roleDescription, currentGroupName, selectedPermissions = [] }: Props = $props();
+	const { parent, isEditMode, currentRoleId, roleName, roleDescription, currentGroupName, selectedPermissions = [] }: Props = $props();
 
 	// Local form state
 	let formName = $state(roleName);

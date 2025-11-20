@@ -46,7 +46,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	// Popup Combobox
 	let listboxValue = $state<ActionType>('edit');
-	let {
+	const {
 		selectedRows,
 		type = 'user',
 		totalUsers = 0,
@@ -64,14 +64,14 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	});
 
 	// Normalize selection to a safe array
-	let safeSelectedRows = $derived<Array<User | Token>>(Array.isArray(selectedRows) ? (selectedRows.filter(Boolean) as Array<User | Token>) : []);
+	const safeSelectedRows = $derived<Array<User | Token>>(Array.isArray(selectedRows) ? (selectedRows.filter(Boolean) as Array<User | Token>) : []);
 
 	// Derived values
-	let isDisabled = $derived(safeSelectedRows.length === 0);
-	let isMultipleSelected = $derived(safeSelectedRows.length > 1);
+	const isDisabled = $derived(safeSelectedRows.length === 0);
+	const isMultipleSelected = $derived(safeSelectedRows.length > 1);
 
 	// Smart state detection for block/unblock actions
-	let blockState = $derived(() => {
+	const blockState = $derived(() => {
 		if (safeSelectedRows.length === 0) return null;
 
 		if (type === 'user') {
@@ -96,7 +96,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	});
 
 	// Available actions based on current state
-	let availableActions = $derived.by(() => {
+	const availableActions = $derived.by(() => {
 		const baseActions: ActionType[] = ['edit', 'delete'];
 		const currentBlockState = blockState;
 
@@ -112,7 +112,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	});
 
 	// Always provide an array for the template to iterate over
-	let filteredActions = $derived.by(() => {
+	const filteredActions = $derived.by(() => {
 		const actions = Array.isArray(availableActions) ? availableActions : [];
 		return actions.filter((action) => action !== listboxValue);
 	});
@@ -133,7 +133,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	});
 
 	// Check if delete should be disabled for users
-	let isDeleteDisabled = $derived(
+	const isDeleteDisabled = $derived(
 		type === 'user' &&
 			listboxValue === 'delete' &&
 			(totalUsers <= 1 ||
@@ -511,7 +511,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		showModal(modalSettings);
 	}
 
-	let buttonConfig = $derived({
+	const buttonConfig = $derived({
 		class: `btn bg-surface-500 hover:${actionConfig[listboxValue].buttonClass} rounded-none w-48 justify-between w-full font-semibold uppercase ${isDeleteDisabled && listboxValue === 'delete' ? 'opacity-50 cursor-not-allowed' : ''}`,
 		icon: actionConfig[listboxValue].iconValue
 	});

@@ -27,7 +27,7 @@ import type { RequestHandler } from './$types';
 import { auth } from '@src/databases/db';
 
 // Validation
-import { array, minLength, object, parse, picklist, string, type ValiError } from 'valibot';
+import { object, parse, picklist, string, type ValiError } from 'valibot';
 
 // Cache invalidation
 import { cacheService } from '@src/databases/CacheService';
@@ -35,8 +35,10 @@ import { cacheService } from '@src/databases/CacheService';
 // System Logger
 import { logger } from '@utils/logger.server';
 
+import { array } from 'valibot';
+
 const batchTokenActionSchema = object({
-	tokenIds: array(string(), minLength(1, 'At least one token ID is required.')),
+	tokenIds: array(string()),
 	action: picklist(['delete', 'block', 'unblock'], 'Invalid action specified.')
 });
 
@@ -46,7 +48,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const body = await request.json().catch(() => {
 			throw error(400, 'Invalid JSON in request body');
 		});
-		const { tokenIds, action } = parse(batchTokenActionSchema, body);
+		const parsed = parse(batchTokenActionSchema, body);
+		const { tokenIds, action } = parsed;
+		if (!Array.isArray(tokenIds) || tokenIds.length === 0) {
+			throw error(400, 'At least one token ID is required.');
+		}
 		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		if (!auth) {

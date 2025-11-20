@@ -41,7 +41,7 @@ Features:
 
 	let searchTerm = $state('');
 
-	let {
+	const {
 		label = 'Online Users',
 		theme = 'light',
 		icon = 'mdi:account-multiple-outline',

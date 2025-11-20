@@ -13,7 +13,7 @@
 	let { value = $bindable('') }: Props = $props();
 
 	// Get collection names
-	let collectionNames = $derived(Object.values(collections.value).map((c) => c.name));
+	const collectionNames = $derived(Object.values(collections.value).map((c) => c.name));
 </script>
 
 <div class="m-1 flex max-w-full items-center justify-between gap-2">

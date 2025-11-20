@@ -41,7 +41,7 @@
 
 	type FetchedData = MediaFile[] | undefined;
 
-	let {
+	const {
 		label = 'Last 5 Media',
 		theme = 'light',
 		icon = 'mdi:image-multiple-outline',

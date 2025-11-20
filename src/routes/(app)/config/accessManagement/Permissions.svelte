@@ -32,14 +32,14 @@ It provides the following functionality:
 		updateModifiedCount: any;
 	}
 
-	let { roleData, setRoleData, updateModifiedCount }: Props = $props();
+	const { roleData, setRoleData, updateModifiedCount }: Props = $props();
 
 	// Reactive state
 	let permissionsList = $state<Permission[]>([]);
 	let roles = $state<Role[]>([]);
-	let error = $state<string | null>(null);
+	const error = $state<string | null>(null);
 	let searchTerm = $state('');
-	let modifiedPermissions = $state(new Set<string>());
+	const modifiedPermissions = $state(new Set<string>());
 
 	// Sorting state
 	type SortKey = 'name' | 'action' | 'type';
@@ -120,12 +120,12 @@ It provides the following functionality:
 	};
 
 	// Derived reactive values
-	let filteredPermissions = $derived(
+	const filteredPermissions = $derived(
 		permissionsList.filter((permission) => permission._id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
 	);
-	let groups = $derived(getGroups(filteredPermissions));
-	let adminRole = $derived(roles.find((role) => role.isAdmin));
-	let nonAdminRolesCount = $derived(roles.filter((role) => !role.isAdmin).length);
+	const groups = $derived(getGroups(filteredPermissions));
+	const adminRole = $derived(roles.find((role) => role.isAdmin));
+	const nonAdminRolesCount = $derived(roles.filter((role) => !role.isAdmin).length);
 
 	// Initialize data when component mounts (run once)
 	$effect(() => {
