@@ -9,7 +9,7 @@
  * Features:
  * - **Defense in Depth**: Specific permission checks for both GET and POST.
  * - User creation with role assignment and email notification.
- * - Form validation using superforms.
+ * - Form validation 
  * - Error handling and logging.
  *
  * Usage:

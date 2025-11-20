@@ -323,15 +323,7 @@ export default defineConfig((): UserConfig => {
 
 		define: {
 			__FRESH_INSTALL__: false, // Default, may be overridden by setupWizardPlugin
-			// NOTE: PKG_VERSION is now provided by the server at runtime from package.json
-			// This ensures version always reflects installed package, not build-time snapshot
-			// SUPERFORMS_LEGACY: true, // Uncomment if using older versions of Superforms
-			// `global` polyfill for libraries that expect it (e.g., older crypto libs)
-			global: 'globalThis',
-			// Inline LOG_LEVELS at build time for aggressive tree-shaking
-			// Production default: 'info,warn,error' (no debug/trace)
-			// Development default: 'info,warn,error,debug' (includes debug)
-			// Override via LOG_LEVELS env var, e.g. LOG_LEVELS=fatal,error,warn or LOG_LEVELS=none
+			global: 'globalThis', // `global` polyfill for libraries that expect it (e.g., older crypto libs)
 			'import.meta.env.VITE_LOG_LEVELS': JSON.stringify(process.env.LOG_LEVELS || (isBuild ? 'info,warn,error' : 'info,warn,error,debug'))
 		},
 

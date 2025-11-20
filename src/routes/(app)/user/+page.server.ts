@@ -8,7 +8,7 @@
  *
  * Features:
  * - User and role information retrieval from event.locals
- * - Form handling with Superforms
+ * - Form handling 
  * - Error logging and handling
  *
  * Usage:
@@ -80,9 +80,6 @@ export const load: PageServerLoad = async (event) => {
 		if (!freshUser) {
 			freshUser = user;
 		}
-
-		// Validate forms using SuperForms in parallel (non-blocking)
-		// Removed Superforms, forms handled on client
 
 		// Prepare user object for return, ensuring _id is a string and including admin status
 		const safeUser = freshUser

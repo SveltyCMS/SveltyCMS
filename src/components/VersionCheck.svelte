@@ -36,7 +36,6 @@ The `children` snippet is passed an object with the following properties:
 -->
 <script lang="ts">
 	import { page } from '$app/state';
-	import axios from 'axios';
 
 	type VersionStatus = {
 		pkg: string;
@@ -68,10 +67,10 @@ The `children` snippet is passed an object with the following properties:
 	// --- Logic ---
 	$effect(() => {
 		// Fetch package.json DIRECTLY TO AVOID API RATE LIMITS
-		axios
-			.get('https://raw.githubusercontent.com/SveltyCMS/SveltyCMS/main/package.json')
-			.then((response) => {
-				githubVersion = response.data.version;
+		fetch('https://raw.githubusercontent.com/SveltyCMS/SveltyCMS/main/package.json')
+			.then((response) => response.json())
+			.then((data) => {
+				githubVersion = data.version;
 				const [localMajor, localMinor, localPatch] = pkg.split('.').map(Number);
 				const [githubMajor, githubMinor, githubPatch] = githubVersion.split('.').map(Number);
 				if (githubMajor > localMajor) {

@@ -11,12 +11,12 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 -->
 
 <script lang="ts">
-	import axios from 'axios';
+
 	import { invalidateAll } from '$app/navigation';
-	import { logger } from '@utils/logger';
+	import { logger } from '@src/utils/logger';
+	import axios from 'axios';
 
 	// Stores
-	import { page } from '$app/state';
 	import { avatarSrc } from '@stores/store.svelte';
 
 	// ParaglideJS
@@ -245,13 +245,13 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			// Compress large files first
 			const processedFile = await compressFile(file);
 
+			// Create FormData
 			const formData = new FormData();
 			formData.append('avatar', processedFile);
-			formData.append('user_id', page.data.user._id);
 
+			// Upload with axios for progress tracking
 			const response = await axios.post('/api/user/saveAvatar', formData, {
 				headers: { 'Content-Type': 'multipart/form-data' },
-				timeout: 30000, // 30 second timeout
 				onUploadProgress: (progressEvent) => {
 					if (progressEvent.total) {
 						uploadProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -259,28 +259,32 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				}
 			});
 
-			if (response.status === 200) {
-				avatarSrc.value = response.data.avatarUrl; // Update global store only on successful save
-				showToast('<iconify-icon icon="mdi:check" width="24" class="mr-1"></iconify-icon> Avatar updated successfully!', 'success');
-				modalStore.close();
-				await invalidateAll();
+			const result = response.data;
+
+			// Update the avatar store with the new URL from API
+			if (result.avatarUrl) {
+				avatarSrc.value = result.avatarUrl;
+				logger.info('Avatar store updated', { avatarUrl: result.avatarUrl });
 			}
+
+			// Invalidate all data to ensure consistency
+			await invalidateAll();
+
+			// Show success toast
+			showToast('Avatar updated successfully!', 'success');
+			modalStore.close();
 		} catch (error) {
-			logger.error('Error uploading avatar:', error);
-
-			// Log detailed error information
-			if (axios.isAxiosError(error)) {
-				logger.error('Server response:', error.response?.data);
-				logger.error('Status:', error.response?.status);
-			}
-
-			const msg = axios.isAxiosError(error) && error.response?.data?.message ? error.response.data.message : 'Failed to update avatar';
-			showToast(`<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${msg}`, 'error');
-			// Reset preview on error
+			console.error('Avatar upload failed:', error);
+			imageLoadError = true;
+			showToast('Failed to update avatar', 'error');
+			// Revert preview on error
 			previewUrl = null;
 		} finally {
 			isUploading = false;
-			uploadProgress = 0;
+			// Keep progress at 100 briefly so user sees it completed
+			setTimeout(() => {
+				if (!isUploading) uploadProgress = 0;
+			}, 1000);
 		}
 	}
 
@@ -314,13 +318,17 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			const currentAvatar = avatarSrc.value;
 			logger.info('Attempting to delete avatar:', currentAvatar);
 
-			const response = await axios.delete('/api/user/deleteAvatar', {
-				data: { avatarUrl: currentAvatar }
+			const response = await fetch('/api/user/deleteAvatar', {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ avatarUrl: currentAvatar })
 			});
 
-			logger.info('Delete response:', response.data);
+			const result = await response.json();
 
-			if (response.status === 200 && response.data.success) {
+			logger.info('Delete response:', result);
+
+			if (response.ok && result.success) {
 				// Update the avatar store
 				avatarSrc.value = '/Default_User.svg';
 				previewUrl = null;
@@ -334,17 +342,12 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				// Reload page data
 				await invalidateAll();
 			} else {
-				throw new Error(response.data.message || 'Delete failed');
+				throw new Error(result.message || 'Delete failed');
 			}
 		} catch (error) {
 			logger.error('Error deleting avatar:', error);
 
-			if (axios.isAxiosError(error)) {
-				logger.error('Server response:', error.response?.data);
-				logger.error('Status:', error.response?.status);
-			}
-
-			const msg = axios.isAxiosError(error) && error.response?.data?.message ? error.response.data.message : 'Failed to delete avatar';
+			const msg = error instanceof Error ? error.message : 'Failed to delete avatar';
 
 			showToast(`<iconify-icon icon="radix-icons:cross-2" color="white" width="24" class="mr-1"></iconify-icon> ${msg}`, 'error');
 
@@ -395,7 +398,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 					{/if}
 					{#if isUploading}
 						<div class="absolute inset-0 flex items-center justify-center rounded-full bg-black/60">
-							<div class="text-sm font-medium text-white">{uploadProgress}%</div>
+							<div class="text-sm font-medium text-white">...</div>
 						</div>
 					{/if}
 				</div>
@@ -429,24 +432,26 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			</div>
 			{#if !files && !isUploading}
 				<small class="block text-center text-tertiary-500 opacity-75 dark:text-primary-500">{m.modaledit_avatarfilesize()}</small>
-			{:else if isUploading}
-				<div class="flex items-center justify-center space-x-2">
-					<div class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-500"></div>
-					<small class="text-center text-primary-500">Uploading... {uploadProgress}%</small>
+			{/if}
+			<!-- Progress Bar -->
+			{#if isUploading}
+				<div class="absolute inset-0 flex items-center justify-center bg-black/50">
+					<div class="flex flex-col items-center gap-2">
+						<div class="h-16 w-16 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
+						{#if uploadProgress > 0}
+							<span class="text-sm font-bold text-white">{uploadProgress}%</span>
+						{/if}
+					</div>
 				</div>
 			{/if}
 		</form>
 
 		<footer class="modal-footer {parent.regionFooter} justify-between">
 			<!-- Delete Avatar -->
-			{#if avatarSrc.value !== '/Default_User.svg'}
+			{#if avatarSrc.value && avatarSrc.value !== '/Default_User.svg'}
 				<button
 					type="button"
-					onclick={(e) => {
-						e.preventDefault();
-						e.stopPropagation();
-						deleteAvatar();
-					}}
+					onclick={deleteAvatar}
 					class="variant-filled-error btn"
 				>
 					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
