@@ -294,7 +294,7 @@ Features:
 
 		{#if activeTab === 'installed'}
 			<!-- Summary Cards with Colored Backgrounds and Tooltips -->
-			<div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+			<div class="grid grid-cols-2 gap-4 md:grid-cols-4" data-testid="widget-stats">
 				<!-- Total Widgets -->
 				<div class="relative rounded-lg bg-blue-50 p-4 shadow-sm transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30">
 					<button
@@ -414,7 +414,7 @@ Features:
 			</div>
 			<!-- Widgets Grid - 2 Column Layout for Desktop -->
 			<!-- Widgets Grid - 2 Column Layout for Desktop -->
-			<div class="mb-12 grid grid-cols-1 gap-4 lg:grid-cols-2">
+			<div class="mb-12 grid grid-cols-1 gap-4 lg:grid-cols-2" data-testid="widget-grid">
 				{#if filteredWidgets.length === 0}
 					<div
 						class="col-span-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center dark:border-gray-600 dark:bg-gray-800"

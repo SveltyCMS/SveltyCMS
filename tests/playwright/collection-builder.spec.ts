@@ -37,25 +37,19 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		// Verify page title
 		await expect(page.locator('h1:has-text("Widget Management")')).toBeVisible({ timeout: 10000 });
 
-		// Wait for widgets to load (grid container)
-		await page.waitForSelector('.grid.grid-cols-1.gap-4.lg\\:grid-cols-2', {
-			timeout: 10000
-		});
+		// Wait for widgets to load using data-testid
+		await page.waitForSelector('[data-testid="widget-grid"]', { timeout: 10000 });
 
-		// Verify stats cards are visible (Total, Active, Core, Custom)
-		const statsGrid = page.locator('.grid.grid-cols-2.gap-4.md\\:grid-cols-4');
+		// Verify stats cards are visible using data-testid
+		const statsGrid = page.locator('[data-testid="widget-stats"]');
 		await expect(statsGrid).toBeVisible();
 
-		// Verify at least one widget card is displayed
-		// Widgets are displayed using WidgetCard component in the grid
-		const widgetCards = page.locator('.grid.grid-cols-1.gap-4.lg\\:grid-cols-2 > div');
+		// Verify at least one widget card is displayed - should fail if no widgets found
+		const widgetCards = page.locator('[data-testid="widget-grid"] > div');
 		const count = await widgetCards.count();
 
-		if (count > 0) {
-			console.log(`✓ ${count} widgets found`);
-		} else {
-			console.log('⚠ No widgets loaded - check if widgets exist in the system');
-		}
+		expect(count).toBeGreaterThan(0);
+		console.log(`✓ ${count} widgets found`);
 	});
 
 	test('should create a collection with modern widgets', async ({ page }) => {
@@ -160,92 +154,136 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		console.log('✓ Widget search filter working correctly');
 	});
 
-	test('should configure widget-specific properties', async ({ page }) => {
-		test.setTimeout(120000); // 2 minutes
-
-		// 1. Navigate to collection builder
+	test('should add a basic field to collection', async ({ page }) => {
+		// Navigate to collection builder
 		await page.goto('/config/collectionbuilder');
 
-		// 2. Click "Add New Collection" button
+		// Click "Add New Collection" button
 		await page.getByRole('button', { name: /add new collection/i }).click();
-
-		// 3. Should navigate to create page (URL is /new not /create)
 		await expect(page).toHaveURL(/\/config\/collectionbuilder\/(create|new)/);
-		await page.waitForTimeout(1000);
 
-		// 4. Fill collection basic info
+		// Fill collection basic info
 		await page.getByTestId('collection-name-input').waitFor({ state: 'visible', timeout: 10000 });
-		await page.getByTestId('collection-name-input').fill('TestFields');
+		await page.getByTestId('collection-name-input').fill('BasicFieldTest');
 
-		// 5. Switch to "Widget Fields" tab
-		await page.getByRole('button', { name: /next/i }).click();
-		await page.waitForTimeout(500);
+		// Switch to "Widget Fields" tab
+		const nextButton = page.getByRole('button', { name: /next/i });
+		await nextButton.click();
+		await expect(page.getByTestId('add-field-button')).toBeVisible();
 
-		// 6. Click "Add Field" button
+		// Click "Add Field" button
 		await page.getByTestId('add-field-button').click();
 
-		// 7. Wait for widgets to load in modal then select first widget (widgets were synced in beforeEach)
+		// Wait for widget modal and select first widget
 		const widgetButtons = page.locator('[data-testid^="widget-select-"]');
 		await widgetButtons.first().waitFor({ state: 'visible', timeout: 15000 });
 		await widgetButtons.first().click();
-		await page.waitForTimeout(1000);
 
-		// 8. Configure default properties (tab 0) - inputs have name="null" so use nth
-		await page.waitForTimeout(1000);
+		// Wait for field configuration form to appear
 		const modalInputs = page.locator('.modal input[type="text"]');
 		await modalInputs.first().waitFor({ state: 'visible', timeout: 10000 });
-		await modalInputs.first().fill('User Email');
+		await modalInputs.first().fill('Title');
+		await modalInputs.nth(1).fill('title');
+
+		// Save the field
+		const saveButton = page.getByRole('button', { name: /save/i }).last();
+		await saveButton.waitFor({ state: 'visible', timeout: 5000 });
+		await saveButton.click({ force: true });
+
+		// Verify we're back on Widget Fields page
+		await expect(page.getByTestId('add-field-button')).toBeVisible({ timeout: 10000 });
+		console.log('✓ Basic field added successfully');
+	});
+
+	test('should configure required field property', async ({ page }) => {
+		// Navigate and start adding a field
+		await page.goto('/config/collectionbuilder');
+		await page.getByRole('button', { name: /add new collection/i }).click();
+		await expect(page).toHaveURL(/\/config\/collectionbuilder\/(create|new)/);
+
+		await page.getByTestId('collection-name-input').waitFor({ state: 'visible', timeout: 10000 });
+		await page.getByTestId('collection-name-input').fill('RequiredFieldTest');
+
+		await page.getByRole('button', { name: /next/i }).click();
+		await expect(page.getByTestId('add-field-button')).toBeVisible();
+
+		await page.getByTestId('add-field-button').click();
+
+		const widgetButtons = page.locator('[data-testid^="widget-select-"]');
+		await widgetButtons.first().waitFor({ state: 'visible', timeout: 15000 });
+		await widgetButtons.first().click();
+
+		const modalInputs = page.locator('.modal input[type="text"]');
+		await modalInputs.first().waitFor({ state: 'visible', timeout: 10000 });
+		await modalInputs.first().fill('Email');
 		await modalInputs.nth(1).fill('email');
 
-		// Toggle required checkbox - click the label instead of hidden checkbox for Firefox compatibility
+		// Toggle required checkbox - the label wraps the checkbox so clicking either should work
 		const requiredCheckbox = page.locator('input[name="required"]');
-		if (await requiredCheckbox.count() > 0) {
-			const checkboxId = await requiredCheckbox.getAttribute('id');
-			if (checkboxId) {
-				// Click the label associated with the checkbox
-				const label = page.locator(`label[for="${checkboxId}"]`);
-				await label.click({ force: true });
-			}
-		}
+		const checkboxLabel = page.locator('label:has(input[name="required"])');
 
-		// 9. Switch to "Specific" tab (tab 2) to configure widget-specific properties
+		// Click the label (more reliable across browsers than clicking hidden checkbox)
+		await checkboxLabel.click();
+
+		// Verify checkbox is checked
+		await expect(requiredCheckbox).toBeChecked();
+		console.log('✓ Required checkbox toggled successfully');
+
+		const saveButton = page.getByRole('button', { name: /save/i }).last();
+		await saveButton.click({ force: true });
+		await expect(page.getByTestId('add-field-button')).toBeVisible({ timeout: 10000 });
+	});
+
+	test('should configure widget-specific properties', async ({ page }) => {
+		// Navigate and start adding a field
+		await page.goto('/config/collectionbuilder');
+		await page.getByRole('button', { name: /add new collection/i }).click();
+		await expect(page).toHaveURL(/\/config\/collectionbuilder\/(create|new)/);
+
+		await page.getByTestId('collection-name-input').waitFor({ state: 'visible', timeout: 10000 });
+		await page.getByTestId('collection-name-input').fill('SpecificPropsTest');
+
+		await page.getByRole('button', { name: /next/i }).click();
+		await expect(page.getByTestId('add-field-button')).toBeVisible();
+
+		await page.getByTestId('add-field-button').click();
+
+		const widgetButtons = page.locator('[data-testid^="widget-select-"]');
+		await widgetButtons.first().waitFor({ state: 'visible', timeout: 15000 });
+		await widgetButtons.first().click();
+
+		const modalInputs = page.locator('.modal input[type="text"]');
+		await modalInputs.first().waitFor({ state: 'visible', timeout: 10000 });
+		await modalInputs.first().fill('Description');
+		await modalInputs.nth(1).fill('description');
+
+		// Switch to "Specific" tab if it exists
 		const specificTab = page.locator('button[name="tab3"]');
-		if (await specificTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await specificTab.click();
-			await page.waitForTimeout(500);
+		const hasSpecificTab = await specificTab.isVisible({ timeout: 3000 }).catch(() => false);
 
-			// Configure Input widget specific properties
+		if (hasSpecificTab) {
+			await specificTab.click();
+			await expect(specificTab).toHaveAttribute('aria-selected', 'true');
+
+			// Configure widget-specific properties
 			const placeholderInput = page.locator('input[name="placeholder"]');
 			if (await placeholderInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-				await placeholderInput.fill('Enter your email');
+				await placeholderInput.fill('Enter description');
 			}
 
 			const maxLengthInput = page.locator('input[name="maxLength"]');
 			if (await maxLengthInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-				await maxLengthInput.fill('100');
+				await maxLengthInput.fill('500');
 			}
 
-			console.log('✓ Configured widget-specific properties (placeholder, maxLength)');
+			console.log('✓ Configured widget-specific properties');
 		} else {
 			console.log('⚠ No Specific tab found - widget may not have specific properties');
 		}
 
-		// 10. Click Save button - use last() to get the main Save button, not icon buttons
 		const saveButton = page.getByRole('button', { name: /save/i }).last();
-		await saveButton.waitFor({ state: 'visible', timeout: 5000 });
-		await saveButton.click({ force: true }); // Force click for Firefox where modal header may intercept
-
-		// Wait for modal to close - give it time then verify we're back on the page
-		await page.waitForTimeout(2000);
-
-		// 11. Verify we're back on Widget Fields page after saving
-		// Use the Add Field button as a reference point to confirm we're on the right page
+		await saveButton.click({ force: true });
 		await expect(page.getByTestId('add-field-button')).toBeVisible({ timeout: 10000 });
-		console.log('✓ Returned to Widget Fields page after saving');
-
-		// The field should now be in the widget fields list
-		// Note: The exact verification depends on how fields are displayed
-		console.log('✓ Widget configured with specific properties');
 	});
 
 	test('should handle widget dependencies', async ({ page }) => {
