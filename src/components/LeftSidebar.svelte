@@ -398,6 +398,7 @@
 							bind:value={languageTag}
 							onchange={handleLanguageSelectChange}
 							aria-label="Select language"
+							data-testid="language-selector"
 							class="variant-filled-surface !appearance-none rounded-full uppercase text-white {isSidebarFull
 								? 'btn-icon px-2.5 py-2'
 								: 'btn-icon-sm px-1.5 py-0'}"

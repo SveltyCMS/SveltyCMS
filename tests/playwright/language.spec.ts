@@ -15,8 +15,8 @@ test.describe('System Language Change', () => {
 		// 1. Login
 		await loginAsAdmin(page, /\/admin|\/en\/Collections\/Names/);
 
-		// 2. Find language selector
-		const languageSelector = page.locator('select[aria-label="Select language"]').first();
+		// 2. Find language selector using data-testid
+		const languageSelector = page.getByTestId('language-selector');
 		await expect(languageSelector).toBeVisible({ timeout: 10000 });
 
 		// 3. Loop through available language options (en, de)
