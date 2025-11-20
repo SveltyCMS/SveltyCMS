@@ -28,7 +28,7 @@ Usage
 		folders: Folder[];
 	}
 
-	let { breadcrumb, openFolder, folders }: Props = $props();
+	const { breadcrumb, openFolder, folders }: Props = $props();
 
 	// Function to handle breadcrumb item click
 	function handleBreadcrumbClick(index: number) {

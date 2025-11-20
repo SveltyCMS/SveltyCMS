@@ -18,7 +18,7 @@
  */
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
-import type { ISODateString } from '@src/databases/dbInterface';
+import type { ISODateString, BaseEntity } from '@src/databases/dbInterface';
 // System Logger
 import { logger } from '@utils/logger.server';
 
@@ -97,12 +97,9 @@ interface GraphQLContext {
 }
 
 // User entity type with tenantId support for query building
-interface UserEntity {
-	_id?: string;
+interface UserEntity extends BaseEntity {
 	email?: string;
 	tenantId?: string;
-	createdAt?: string;
-	updatedAt?: string;
 }
 
 // Resolvers with pagination support

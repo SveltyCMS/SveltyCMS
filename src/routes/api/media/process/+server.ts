@@ -96,7 +96,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				}
 				const buffer = Buffer.from(await file.arrayBuffer());
 				const metadata = await extractMetadata(buffer);
-				result = { success: true, data: metadata as Record<string, unknown> };
+				result = { success: true, data: metadata as unknown as Record<string, unknown> };
 				break;
 			}
 			case 'save': {

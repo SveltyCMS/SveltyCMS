@@ -19,10 +19,12 @@ import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 // Utils
-import type { SystemVirtualFolder } from '@root/src/databases/dbInterface';
+import type { SystemVirtualFolder, QueryFilter, MediaItem } from '@root/src/databases/dbInterface';
+import type { DatabaseId } from '@root/src/content/types';
 import type { MediaAccess } from '@root/src/utils/media/mediaModels';
 import { MediaService } from '@src/services/MediaService';
 import { constructUrl } from '@utils/media/mediaUtils';
+import { moveMediaToTrash } from '@utils/media/mediaStorage';
 import mime from 'mime-types';
 
 // Auth
@@ -37,45 +39,46 @@ interface StackItem {
 	value: unknown;
 }
 
-function convertIdToString(obj: Record<string, unknown> | Array<unknown>): Record<string, unknown> | Array<unknown> {
+function convertIdToString(obj: unknown): unknown {
 	const stack: StackItem[] = [{ parent: null, key: '', value: obj }];
 	const seen = new WeakSet();
-	const root: Record<string, unknown> | Array<unknown> = Array.isArray(obj) ? [] : {};
+	const root: unknown = {};
 
 	while (stack.length) {
 		const { parent, key, value } = stack.pop()!;
 
 		// If value is not an object, assign directly
 		if (value === null || typeof value !== 'object') {
-			if (parent) parent[key] = value;
+			if (parent) (parent as Record<string, unknown>)[key] = value;
 			continue;
 		}
 
 		// Handle circular references
 		if (seen.has(value)) {
-			if (parent) parent[key] = value;
+			if (parent) (parent as Record<string, unknown>)[key] = value;
 			continue;
 		}
 		seen.add(value);
 
-		// Initialize object or array
-		const result: Record<string, unknown> | Array<unknown> = Array.isArray(value) ? [] : {};
-		if (parent) parent[key] = result;
+		// Initialize object
+		const result: Record<string, unknown> = {};
+		if (parent) (parent as Record<string, unknown>)[key] = result;
 
-		// Process each key/value pair or array element
-		for (const k in value) {
-			if (value[k] === null) {
-				root[k] = null;
+		// Process each key/value pair
+		for (const k in value as Record<string, unknown>) {
+			const val = (value as Record<string, unknown>)[k];
+			if (val === null) {
+				result[k] = null;
 			} else if (k === '_id' || k === 'parent') {
-				root[k] = value[k]?.toString() || null;
+				result[k] = val?.toString() || null;
 				// Convert _id or parent to string
-			} else if (Buffer.isBuffer(value[k])) {
-				root[k] = value[k].toString('hex'); // Convert Buffer to hex string
-			} else if (typeof value[k] === 'object') {
+			} else if (Buffer.isBuffer(val)) {
+				result[k] = val.toString('hex'); // Convert Buffer to hex string
+			} else if (typeof val === 'object') {
 				// Add object to the stack for further processing
-				stack.push({ parent: result, key: k, value: value[k] });
+				stack.push({ parent: result, key: k, value: val });
 			} else {
-				root[k] = value[k]; // Assign primitive values
+				result[k] = val; // Assign primitive values
 			}
 		}
 	}
@@ -100,8 +103,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		// Check if user has permission to access media gallery
 		const hasMediaPermission =
 			isAdmin ||
-			tenantRoles.some((role) =>
-				role.permissions?.some((p) => p.resource === 'media' && (p.actions.includes('read') || p.actions.includes('write')))
+			Object.values(tenantRoles).some(
+				(role) =>
+					((role as { permissions?: string[] }).permissions || []).includes('media:read') ||
+					((role as { permissions?: string[] }).permissions || []).includes('media:write')
 			);
 
 		if (!hasMediaPermission) {
@@ -110,7 +115,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 
 		const folderId = url.searchParams.get('folderId'); // Get folderId from URL
-		logger.info(`Loading media gallery for folderId: \x1b[34m${folderId || 'root'}\x1b[0m`);
+		logger.info(`Loading media gallery for folderId: ${folderId || 'root'}`);
 
 		// Fetch all virtual folders first to find the current one
 		const allVirtualFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
@@ -123,10 +128,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		// Ensure data is an array
 		const virtualFoldersData = Array.isArray(allVirtualFoldersResult.data) ? allVirtualFoldersResult.data : [];
 
-		const serializedVirtualFolders = virtualFoldersData.map((folder) => convertIdToString(folder));
+		const serializedVirtualFolders = virtualFoldersData.map((folder) => convertIdToString(folder as unknown));
 
 		// Determine current folder
-		const currentFolder = folderId ? serializedVirtualFolders.find((f) => f._id === folderId) || null : null;
+		const currentFolder = folderId ? serializedVirtualFolders.find((f) => (f as Record<string, unknown>)._id === folderId) || null : null;
 		logger.trace('Current folder determined:', currentFolder);
 
 		// Fetch from all media collections including the primary MediaItem collection
@@ -135,8 +140,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 		for (const collection of mediaCollections) {
 			try {
-				const query: Record<string, string | boolean | null> = {
-					folderId: folderId || null,
+				const query: QueryFilter<MediaItem> = {
+					folderId: folderId as DatabaseId | null,
 					// Filter out deleted items
 					$or: [{ isDeleted: { $ne: true } }, { isDeleted: { $exists: false } }]
 				};
@@ -144,7 +149,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 				if (result.success && result.data) {
 					// Add collection type to each item for processing
-					const itemsWithType = result.data.map((item: Record<string, unknown>) => ({
+					const itemsWithType = result.data.map((item) => ({
 						...item,
 						collection: collection
 					}));
@@ -156,7 +161,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			}
 		}
 
-		logger.info(`Fetched \x1b[34m${allMediaResults.length}\x1b[0m total media items from all collections`);
+		logger.info(`Fetched ${allMediaResults.length} total media items from all collections`);
 
 		if (allMediaResults.length === 0) {
 			logger.info('No media items found in any collection');
@@ -171,7 +176,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			return acc;
 		}, []);
 
-		logger.info(`After deduplication: \x1b[34m${deduplicatedMedia.length}\x1b[0m unique media items`);
+		logger.info(`After deduplication: ${deduplicatedMedia.length} unique media items`);
 
 		// Process and flatten media results - Filter and validate media items before processing
 		const processedMedia = deduplicatedMedia
@@ -195,8 +200,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			})
 			.map((item) => {
 				try {
-					const extension = mime.extension(item.mimeType!) || '';
-					const filename = item.filename!.replace(`.${extension}`, '');
+					const mediaItem = item as unknown as MediaItem;
+					const extension = mime.extension(mediaItem.mimeType) || '';
+					const filename = mediaItem.filename.replace(`.${extension}`, '');
 
 					// MEDIA_FOLDER may not be eagerly available; use a safe default
 					const mediaFolder = publicEnv.MEDIA_FOLDER || 'mediaFiles';
@@ -205,16 +211,16 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 					}
 
 					// Build thumbnail URL via helper (no hard-coded routes)
-					const effectivePath = (item as Record<string, string | undefined>).path ?? '/global';
-					const thumbnailUrl = constructUrl(effectivePath, item.hash!, filename, extension, 'images', 'thumbnail');
+					const effectivePath = mediaItem.path ?? '/global';
+					const thumbnailUrl = constructUrl(effectivePath, mediaItem.hash, filename, extension, 'thumbnail');
 
 					return {
-						...item,
-						type: item.type ?? item.mimeType?.split('/')[0], // Preserve type or derive from mimeType
-						path: item.path ?? 'global',
-						name: item.filename ?? 'unnamed-media',
+						...mediaItem,
+						type: mediaItem.mimeType.split('/')[0], // Derive from mimeType
+						path: mediaItem.path ?? 'global',
+						name: mediaItem.filename ?? 'unnamed-media',
 						// Use the item's path if available when constructing the original URL
-						url: constructUrl((item.path ?? '/global') as string, item.hash!, filename, extension, 'images', 'original'),
+						url: constructUrl(mediaItem.path ?? '/global', mediaItem.hash, filename, extension, 'original'),
 						thumbnail: {
 							url: thumbnailUrl
 						}
@@ -229,8 +235,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			})
 			.filter((item): item is NonNullable<typeof item> => item !== null);
 
-		logger.info(`Fetched \x1b[34m${processedMedia.length}\x1b[0m media items for folder \x1b[34m${folderId || 'root'}\x1b[0m`);
-		logger.info(`Fetched \x1b[34m${serializedVirtualFolders.length}\x1b[0m total virtual folders`);
+		logger.info(`Fetched ${processedMedia.length} media items for folder ${folderId || 'root'}`);
+		logger.info(`Fetched ${serializedVirtualFolders.length} total virtual folders`);
 
 		const returnData = {
 			user: {
@@ -338,14 +344,12 @@ export const actions: Actions = {
 			// Move file to trash before deleting from database
 			try {
 				if (image.url) {
-					const { moveMediaToTrash } = await import('@utils/media/mediaStorage');
 					await moveMediaToTrash(image.url);
 					logger.info('File moved to trash:', image.url);
 				}
 
 				// Also move thumbnails to trash if they exist
 				if (image.thumbnails) {
-					const { moveMediaToTrash } = await import('@utils/media/mediaStorage');
 					for (const size in image.thumbnails) {
 						if (image.thumbnails[size]?.url) {
 							await moveMediaToTrash(image.thumbnails[size].url);

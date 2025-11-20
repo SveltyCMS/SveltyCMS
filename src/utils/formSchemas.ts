@@ -138,6 +138,27 @@ export const addUserSchema = object({
 	role: string()
 });
 
+// Edit User Schema
+export const editUserSchema = pipe(
+	object({
+		user_id: string(),
+		username: usernameSchema,
+		email: emailSchema,
+		role: optional(string()),
+		password: optional(string()),
+		confirmPassword: optional(string())
+	}),
+	forward(
+		check((input) => {
+			if (input.password && input.password.length > 0) {
+				return input.password === input.confirmPassword;
+			}
+			return true;
+		}, 'Passwords do not match'),
+		['confirmPassword']
+	)
+);
+
 // Setup Admin User Schema
 export const setupAdminSchema = pipe(
 	strictObject({
@@ -300,9 +321,9 @@ export const systemSettingsSchema = object({
 	siteName: siteNameSchema,
 	hostProd: hostProdSchema,
 	defaultSystemLanguage: languageCodeSchema,
-	systemLanguages: pipe(array(languageCodeSchema), minLength(1, 'At least one system language is required')),
+	systemLanguages: array(languageCodeSchema, 'System languages must be an array of valid language codes.'),
 	defaultContentLanguage: languageCodeSchema,
-	contentLanguages: pipe(array(languageCodeSchema), minLength(1, 'At least one content language is required')),
+	contentLanguages: array(languageCodeSchema, 'Content languages must be an array of valid language codes.'),
 	timezone: timezoneSchema,
 	mediaStorageType: mediaStorageTypeSchema,
 	mediaFolder: mediaFolderSchema
@@ -318,6 +339,7 @@ export type AddUserTokenSchema = InferInput<typeof addUserTokenSchema>;
 export type ChangePasswordSchemaType = InferInput<typeof changePasswordSchema>;
 export type WidgetEmailSchema = InferInput<typeof widgetEmailSchema>;
 export type AddUserSchema = InferInput<typeof addUserSchema>;
+export type EditUserSchema = InferInput<typeof editUserSchema>;
 export type SetupAdminSchema = InferInput<typeof setupAdminSchema>;
 export type SmtpConfigSchema = InferInput<typeof smtpConfigSchema>;
 export type DbConfigSchema = InferInput<typeof dbConfigSchema>;

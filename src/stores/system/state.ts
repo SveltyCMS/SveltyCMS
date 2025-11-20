@@ -209,7 +209,7 @@ export function setSystemState(state: SystemState, reason?: string): void {
 			performanceMetrics.failedInitializations++;
 		}
 
-		logger.info(`System state changed: \x1b[34m${current.overallState}\x1b[0m → \x1b[32m${state}\x1b[0m`, { reason });
+		logger.info(`System state changed: ${current.overallState} → ${state}`, { reason });
 
 		return {
 			...current,

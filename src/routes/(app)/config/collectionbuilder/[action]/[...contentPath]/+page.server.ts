@@ -84,7 +84,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			throw redirect(302, '/login');
 		}
 
-		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
+		logger.trace(`User authenticated successfully for user: ${user._id}`);
 
 		// 3. Authorization check
 		// Use the 'config:collection:manage' permission string (adjust if needed)
@@ -92,7 +92,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 		// Replicate original logic: User must be an Admin OR have the specific permission.
 		if (!isAdmin && !hasManagePermission) {
-			const message = `User \x1b[34m${user._id}\x1b[0m lacks 'config:collection:manage' permission and is not admin.`;
+			const message = `User ${user._id} lacks 'config:collection:manage' permission and is not admin.`;
 			logger.warn(message, { userId: user._id, isAdmin, hasManagePermission });
 			throw error(403, 'Insufficient permissions');
 		}

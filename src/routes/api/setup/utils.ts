@@ -15,7 +15,7 @@
 
 import type { DatabaseConfig } from '@src/databases/schemas';
 import type { IDBAdapter } from '@src/databases/dbInterface';
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 /**
  * Database connection string builder for supported database types.
@@ -43,7 +43,7 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 			let queryParams = '';
 			if (isSrv && hasCredentials) {
 				queryParams = '?retryWrites=true&w=majority';
-			} else if (!isSrv && hasCredentials && !isLocalhost) {
+			} else if (!isSrv && hasCredentials) {
 				queryParams = '?authSource=admin';
 			}
 

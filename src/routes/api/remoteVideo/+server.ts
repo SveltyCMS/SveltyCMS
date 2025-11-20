@@ -18,8 +18,8 @@
  */
 import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
-import type { RemoteVideoProps } from '@widgets/custom/remoteVideo/types';
-import { getRemoteVideoData } from '@widgets/custom/remoteVideo/video';
+import type { RemoteVideoProps } from '@widgets/custom/RemoteVideo/types';
+import { getRemoteVideoData } from '@widgets/custom/RemoteVideo/video';
 
 export async function POST({ request }) {
 	try {

@@ -1,0 +1,537 @@
+---
+path: 'docs/todos/image-editor-redesign.mdx'
+title: 'Image Editor - Pintura-Style Redesign'
+description: 'Complete redesign plan for the image editor to match Pintura UX with intelligent bottom toolbar and simplified architecture.'
+order: 2
+icon: 'mdi:image-edit'
+author: 'admin'
+created: '2025-11-15'
+updated: '2025-11-15'
+tags:
+  - 'todo'
+  - 'image-editor'
+  - 'ui-ux'
+  - 'design'
+  - 'refactoring'
+---
+
+# Image Editor - Pintura-Style Redesign
+
+**Goal:** Transform the current complex multi-toolbar editor into a clean, Pintura-inspired experience with intelligent context-aware controls.
+
+---
+
+## 🎯 Core UX Principles (Pintura-Inspired)
+
+### 1. Single Bottom Toolbar
+
+- **All controls at the bottom** (desktop & mobile)
+- Toolbar adapts intelligently based on active tool
+- No top toolbars cluttering the canvas
+- Clean, distraction-free editing area
+
+### 2. Left Sidebar for Tool Selection
+
+- **Vertical tool icons** on the left (desktop)
+- **Horizontal tool icons** at bottom (mobile)
+- Active tool highlighted
+- Tooltips on hover
+
+### 3. Context-Aware Bottom Toolbar
+
+Each tool shows **only relevant controls** in the bottom toolbar:
+
+```
+┌────────────────────────────────────────────────────────┐
+│                                                        │
+│                   CANVAS (Full Screen)                 │
+│                                                        │
+│  [Tools]                                              │
+│   Crop                                                │
+│   Adjust                                              │
+│   Filter                                              │
+│   Annotate                                            │
+│   Blur                                                │
+│   Watermark                                           │
+│                                                        │
+└────────────────────────────────────────────────────────┘
+          [Tool-Specific Controls] [Undo] [Redo] [Save]
+```
+
+---
+
+## 📋 Current Problems
+
+### Too Many Toolbars (Consolidate These)
+
+**Current Structure (OVERCOMPLICATED):**
+
+- ✗ `EditorTopToolbar.svelte` - Generic top controls
+- ✗ `CropTopToolbar.svelte` - Crop-specific top controls
+- ✗ `CropBottomBar.svelte` - Crop-specific bottom controls
+- ✗ `FineTuneTopToolbar.svelte` - FineTune top controls
+- ✗ `FineTuneBottomBar.svelte` - FineTune bottom controls
+- ✗ `BlurTopToolbar.svelte` - Blur top controls
+- ✗ `WatermarkTopToolbar.svelte` - Watermark top controls
+- ✗ `AnnotateTopToolbar.svelte` - Annotate top controls
+- ✗ `MobileToolbar.svelte` - Mobile-specific controls
+
+**This is 9 different toolbar components!**
+
+### New Structure (SIMPLIFIED)
+
+**Single Adaptive Toolbar:**
+
+- ✓ `EditorToolbar.svelte` - ONE intelligent bottom toolbar
+  - Adapts to show tool-specific controls
+  - Always shows: Undo, Redo, Save, Cancel
+  - Tool-specific section changes dynamically
+
+**Sidebar:**
+
+- ✓ `EditorSidebar.svelte` - Keep (already good)
+
+---
+
+## 🎨 New Component Architecture
+
+### File Structure
+
+```
+src/components/ImageEditor/
+├── ImageEditor.svelte          # Main component (modal-ready)
+├── EditorSidebar.svelte        # Tool selection sidebar
+├── EditorToolbar.svelte        # ✨ NEW: Single adaptive bottom toolbar
+├── EditorCanvas.svelte         # Canvas wrapper (keep as is)
+│
+├── tools/                      # Tool-specific logic
+│   ├── Crop.svelte
+│   ├── FineTune.svelte
+│   ├── Blur.svelte
+│   ├── Annotate.svelte
+│   ├── Watermark.svelte
+│   └── FocalPoint.svelte       # ✨ NEW
+│
+└── toolbars/                   # ✨ NEW: Tool-specific control panels
+    ├── CropControls.svelte
+    ├── FineTuneControls.svelte
+    ├── BlurControls.svelte
+    ├── AnnotateControls.svelte
+    ├── WatermarkControls.svelte
+    └── FocalPointControls.svelte
+```
+
+---
+
+## 🔧 EditorToolbar.svelte (New Single Toolbar)
+
+### Layout Structure
+
+```svelte
+<div class="fixed bottom-0 left-0 right-0 border-t bg-surface-100 p-4 dark:bg-surface-800">
+	<div class="mx-auto flex max-w-7xl items-center justify-between gap-4">
+		<!-- Left: Tool-Specific Controls (Dynamic) -->
+		<div class="flex flex-1 items-center gap-3">
+			{#if activeTool === 'crop'}
+				<CropControls {cropToolRef} />
+			{:else if activeTool === 'finetune'}
+				<FineTuneControls {fineTuneRef} />
+			{:else if activeTool === 'blur'}
+				<BlurControls {blurToolRef} />
+			{:else if activeTool === 'annotate'}
+				<AnnotateControls {annotateToolRef} />
+			{:else if activeTool === 'watermark'}
+				<WatermarkControls {watermarkToolRef} />
+			{/if}
+		</div>
+
+		<!-- Right: Global Actions -->
+		<div class="flex items-center gap-2">
+			<button onclick={undo} disabled={!canUndo} class="btn-icon">
+				<iconify-icon icon="mdi:undo" />
+			</button>
+			<button onclick={redo} disabled={!canRedo} class="btn-icon">
+				<iconify-icon icon="mdi:redo" />
+			</button>
+			<div class="h-8 w-px bg-surface-300" />
+			<button onclick={cancel} class="variant-ghost btn">Cancel</button>
+			<button onclick={save} class="variant-filled-primary btn">Save</button>
+		</div>
+	</div>
+</div>
+```
+
+---
+
+## 🎛️ Tool-Specific Control Components
+
+### CropControls.svelte
+
+**Purpose:** Show crop-specific controls (rotation, flip, aspect ratio, shape)
+
+```svelte
+<script lang="ts">
+	let { cropToolRef } = $props();
+</script>
+
+<div class="flex items-center gap-2">
+	<!-- Aspect Ratio Presets -->
+	<div class="btn-group">
+		<button class="btn-sm" onclick={() => cropToolRef.setAspectRatio(null)}>Free</button>
+		<button class="btn-sm" onclick={() => cropToolRef.setAspectRatio(1)}>1:1</button>
+		<button class="btn-sm" onclick={() => cropToolRef.setAspectRatio(16 / 9)}>16:9</button>
+		<button class="btn-sm" onclick={() => cropToolRef.setAspectRatio(4 / 3)}>4:3</button>
+	</div>
+
+	<div class="h-6 w-px bg-surface-300" />
+
+	<!-- Shape -->
+	<div class="btn-group">
+		<button class="btn-sm" onclick={() => cropToolRef.setCropShape('rectangle')}>
+			<iconify-icon icon="mdi:rectangle-outline" />
+		</button>
+		<button class="btn-sm" onclick={() => cropToolRef.setCropShape('circular')}>
+			<iconify-icon icon="mdi:circle-outline" />
+		</button>
+	</div>
+
+	<div class="h-6 w-px bg-surface-300" />
+
+	<!-- Rotate & Flip -->
+	<button class="btn-icon-sm" onclick={() => cropToolRef.rotateLeft()} title="Rotate Left">
+		<iconify-icon icon="mdi:rotate-left" />
+	</button>
+	<button class="btn-icon-sm" onclick={() => cropToolRef.flipHorizontal()} title="Flip Horizontal">
+		<iconify-icon icon="mdi:flip-horizontal" />
+	</button>
+
+	<div class="h-6 w-px bg-surface-300" />
+
+	<!-- Apply -->
+	<button class="variant-filled-success btn" onclick={() => cropToolRef.apply()}> Apply Crop </button>
+</div>
+```
+
+### FineTuneControls.svelte
+
+**Purpose:** Show adjustment sliders (brightness, contrast, saturation, etc.)
+
+```svelte
+<script lang="ts">
+	let { fineTuneRef, activeAdjustment } = $props();
+
+	const adjustments = [
+		{ key: 'brightness', label: 'Brightness', icon: 'mdi:brightness-6' },
+		{ key: 'contrast', label: 'Contrast', icon: 'mdi:contrast-box' },
+		{ key: 'saturation', label: 'Saturation', icon: 'mdi:palette' },
+		{ key: 'exposure', label: 'Exposure', icon: 'mdi:brightness-7' }
+	];
+</script>
+
+<div class="flex w-full items-center gap-3">
+	<!-- Adjustment Selector -->
+	<select bind:value={activeAdjustment} class="select w-40">
+		{#each adjustments as adj}
+			<option value={adj.key}>{adj.label}</option>
+		{/each}
+	</select>
+
+	<!-- Slider -->
+	<div class="flex-1">
+		<input
+			type="range"
+			min="-100"
+			max="100"
+			step="1"
+			value={fineTuneRef.getValue(activeAdjustment)}
+			oninput={(e) => fineTuneRef.adjust(activeAdjustment, e.target.value)}
+			class="range"
+		/>
+	</div>
+
+	<!-- Reset -->
+	<button class="btn-sm" onclick={() => fineTuneRef.reset(activeAdjustment)}> Reset </button>
+</div>
+```
+
+### BlurControls.svelte
+
+```svelte
+<script lang="ts">
+	let { blurToolRef, blurStrength } = $props();
+</script>
+
+<div class="flex w-96 items-center gap-3">
+	<span class="text-sm">Blur Strength</span>
+	<input
+		type="range"
+		min="0"
+		max="30"
+		step="1"
+		bind:value={blurStrength}
+		oninput={(e) => blurToolRef.setBlurStrength(e.target.value)}
+		class="range flex-1"
+	/>
+	<span class="w-12 text-sm">{blurStrength}px</span>
+</div>
+```
+
+### AnnotateControls.svelte
+
+```svelte
+<script lang="ts">
+	let { annotateToolRef, currentTool, strokeColor, fillColor } = $props();
+</script>
+
+<div class="flex items-center gap-2">
+	<!-- Tool Selection -->
+	<div class="btn-group">
+		<button class:active={currentTool === 'text'} onclick={() => annotateToolRef.setTool('text')}>
+			<iconify-icon icon="mdi:format-text" />
+		</button>
+		<button class:active={currentTool === 'arrow'} onclick={() => annotateToolRef.setTool('arrow')}>
+			<iconify-icon icon="mdi:arrow-top-right" />
+		</button>
+		<button class:active={currentTool === 'rectangle'} onclick={() => annotateToolRef.setTool('rectangle')}>
+			<iconify-icon icon="mdi:rectangle-outline" />
+		</button>
+		<button class:active={currentTool === 'circle'} onclick={() => annotateToolRef.setTool('circle')}>
+			<iconify-icon icon="mdi:circle-outline" />
+		</button>
+	</div>
+
+	<div class="h-6 w-px bg-surface-300" />
+
+	<!-- Color Pickers -->
+	<input type="color" bind:value={strokeColor} class="h-10 w-10" title="Stroke Color" />
+	<input type="color" bind:value={fillColor} class="h-10 w-10" title="Fill Color" />
+</div>
+```
+
+### WatermarkControls.svelte
+
+```svelte
+<script lang="ts">
+	let { watermarkToolRef, watermarks } = $props();
+</script>
+
+<div class="flex items-center gap-3">
+	<span class="text-sm">Watermark</span>
+	<select onchange={(e) => watermarkToolRef.selectWatermark(e.target.value)} class="select w-48">
+		<option value="">None</option>
+		{#each watermarks as wm}
+			<option value={wm.id}>{wm.name}</option>
+		{/each}
+	</select>
+
+	<!-- Position -->
+	<div class="btn-group">
+		<button onclick={() => watermarkToolRef.setPosition('top-left')}>TL</button>
+		<button onclick={() => watermarkToolRef.setPosition('top-right')}>TR</button>
+		<button onclick={() => watermarkToolRef.setPosition('bottom-left')}>BL</button>
+		<button onclick={() => watermarkToolRef.setPosition('bottom-right')}>BR</button>
+	</div>
+
+	<!-- Opacity -->
+	<input type="range" min="0" max="100" oninput={(e) => watermarkToolRef.setOpacity(e.target.value / 100)} class="range w-32" />
+</div>
+```
+
+---
+
+## 📱 Mobile Adaptation
+
+### Bottom Toolbar (Mobile)
+
+On mobile, the same `EditorToolbar.svelte` stacks vertically:
+
+```svelte
+{#if isMobile}
+	<div class="fixed bottom-0 left-0 right-0 space-y-3 bg-surface-100 p-3">
+		<!-- Tool Selection (Horizontal Scroll) -->
+		<div class="flex gap-2 overflow-x-auto pb-2">
+			<button class:active={activeTool === 'crop'} onclick={() => selectTool('crop')}>
+				<iconify-icon icon="mdi:crop" />
+				<span>Crop</span>
+			</button>
+			<!-- ... other tools ... -->
+		</div>
+
+		<!-- Tool-Specific Controls -->
+		<div class="w-full">
+			{#if activeTool === 'crop'}
+				<CropControls {cropToolRef} mobile />
+			{/if}
+			<!-- ... other tool controls ... -->
+		</div>
+
+		<!-- Actions -->
+		<div class="flex gap-2">
+			<button class="btn flex-1">Cancel</button>
+			<button class="variant-filled-primary btn flex-1">Save</button>
+		</div>
+	</div>
+{/if}
+```
+
+---
+
+## 🎯 Implementation Steps
+
+### Phase 1: Create New Components (Week 1)
+
+1. ✅ Create `EditorToolbar.svelte` (single bottom toolbar)
+2. ✅ Create `toolbars/CropControls.svelte`
+3. ✅ Create `toolbars/FineTuneControls.svelte`
+4. ✅ Create `toolbars/BlurControls.svelte`
+5. ✅ Create `toolbars/AnnotateControls.svelte`
+6. ✅ Create `toolbars/WatermarkControls.svelte`
+
+### Phase 2: Update Main Editor (Week 1)
+
+7. ✅ Remove all top toolbar logic from `ImageEditor.svelte`
+8. ✅ Replace with single `<EditorToolbar />` at bottom
+9. ✅ Update layout to full-screen canvas
+10. ✅ Test responsive behavior (desktop/mobile)
+
+### Phase 3: Delete Old Components (Week 1)
+
+11. ✅ Delete `CropTopToolbar.svelte`
+12. ✅ Delete `CropBottomBar.svelte`
+13. ✅ Delete `FineTuneTopToolbar.svelte`
+14. ✅ Delete `FineTuneBottomBar.svelte`
+15. ✅ Delete `BlurTopToolbar.svelte`
+16. ✅ Delete `WatermarkTopToolbar.svelte`
+17. ✅ Delete `AnnotateTopToolbar.svelte`
+18. ✅ Delete `MobileToolbar.svelte`
+
+### Phase 4: Polish & Test (Week 2)
+
+19. ✅ 100% Tailwind CSS (remove custom classes)
+20. ✅ Fix all TypeScript errors
+21. ✅ Add smooth transitions between tools
+22. ✅ Test all tools thoroughly
+23. ✅ Accessibility audit (ARIA labels, keyboard nav)
+24. ✅ Mobile testing
+
+---
+
+## 🎨 Visual Design (Pintura-Inspired)
+
+### Color Scheme
+
+- **Canvas Background:** `bg-surface-50 dark:bg-surface-900`
+- **Toolbar:** `bg-white dark:bg-surface-800 border-t border-surface-200 dark:border-surface-700`
+- **Active Tool:** `bg-primary-500 text-white`
+- **Buttons:** Tailwind's button variants
+
+### Spacing
+
+- **Toolbar Padding:** `p-4` (desktop), `p-3` (mobile)
+- **Control Gaps:** `gap-2` (small), `gap-3` (medium), `gap-4` (large)
+- **Canvas:** Full-screen with toolbar height offset
+
+### Typography
+
+- **Tool Labels:** `text-sm font-medium`
+- **Values:** `text-xs text-surface-600`
+
+---
+
+## 📊 Before vs After Comparison
+
+### Before (Current - Messy)
+
+```
+┌─────────────────────────────────────────┐
+│  [Upload] [Filename]  [Undo][Redo][Save]│  ← Generic Top Toolbar
+├─────────────────────────────────────────┤
+│  [Rotate][Flip][Aspect][Shape][Done]   │  ← Crop Top Toolbar
+├─────────────────────────────────────────┤
+│                                         │
+│         CANVAS (Cramped)                │
+│                                         │
+├─────────────────────────────────────────┤
+│  [Rotation Slider] [Scale Slider]      │  ← Crop Bottom Bar
+└─────────────────────────────────────────┘
+```
+
+### After (Pintura-Style - Clean)
+
+```
+┌─────────────────────────────────────────┐
+│                                         │
+│                                         │
+│         CANVAS (Full Screen)            │
+│                                         │
+│  [Crop]                                │  ← Left Sidebar
+│  [Adjust]                              │
+│  [Filter]                              │
+│                                         │
+├─────────────────────────────────────────┤
+│ [Aspect][Shape][Rotate][Flip][Apply]   │  ← Single Bottom Toolbar
+│                   [Undo][Redo][Save]    │     (Context-Aware)
+└─────────────────────────────────────────┘
+```
+
+---
+
+## ✅ Success Criteria
+
+1. **Single Bottom Toolbar** - No more top toolbars cluttering the view
+2. **Tool Context Switching** - Toolbar adapts to show only relevant controls
+3. **100% Tailwind** - No custom CSS classes
+4. **Zero TypeScript Errors** - Proper types for all props
+5. **Mobile-First** - Same UX paradigm on mobile
+6. **Accessibility** - ARIA labels, keyboard shortcuts
+7. **Performance** - Smooth transitions, no lag
+
+---
+
+## 🔗 Related Documentation
+
+- [Media Gallery Guide](/docs/guides/media-gallery-guide.mdx)
+
+---
+
+**Status:** ⏳ Planning Complete - Ready for Implementation  
+**Estimated Time:** 2 weeks  
+**Priority:** High - Critical UX improvement
+
+---
+
+## 🧩 Engineering Plan (Summary)
+
+- Architecture: `ImageEditor.svelte` orchestrates tools on a Konva stage; each tool is an isolated component; state is centralized in `imageEditorStore`.
+- Refactor Focus: Move tool-specific state into tools; define a unified tool API (activate, deactivate, apply, reset); reduce duplication between desktop/mobile via CSS-driven layout.
+- Type Safety: Add strict types for tool props/events; type Konva objects (`Stage`, `Layer`, `Image`, `Group`); avoid `any` in callbacks and event payloads.
+- Responsiveness: Single DOM structure with CSS Grid/Flex; mobile keeps same model with the bottom toolbar.
+
+## 🖥️ Server Processing & API
+
+- Endpoint: `POST /api/media/process`
+- Request shape (operations first):
+
+```
+{
+	"mediaId": "<id>",
+	"operations": [
+		{ "type": "rotate", "angle": 90 },
+		{ "type": "crop", "x": 100, "y": 50, "width": 800, "height": 600 },
+		{ "type": "watermark", "watermarkId": "<wm_id>", "position": "bottom-right", "opacity": 0.6 }
+	]
+}
+```
+
+- Focal Point is metadata (not an operation) and is persisted on the media document as `{ focalPoint: { x, y } }` via a metadata PATCH.
+- Server uses `sharp` to apply operations in sequence; saves a new variant or overwrites based on configuration.
+
+## 🔗 Integration Workflow
+
+- MediaUpload: After selecting or uploading, “Edit” opens the editor modal with the image; on Apply, the client posts to `/api/media/process`, then updates the widget with the processed asset; focal point is saved via metadata PATCH.
+- MediaGallery: “Edit” action opens the same modal with the selected image; follows the same flow as above.
+
+## 📚 Related Documentation
+
+- API: /docs/api/Media_API.mdx
+- Database & Performance: /docs/database/Performance_Architecture.mdx

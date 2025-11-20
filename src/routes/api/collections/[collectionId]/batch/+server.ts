@@ -19,9 +19,10 @@ import { error, json, type RequestHandler } from '@sveltejs/kit';
 import { modifyRequest } from '@api/collections/modifyRequest';
 import { contentManager } from '@src/content/ContentManager';
 import type { StatusType } from '@src/content/types';
+import type { DatabaseId, BaseEntity, CollectionModel } from '@src/databases/dbInterface';
 
 // Validation
-import { array, minLength, object, optional, parse, picklist, string } from 'valibot';
+import { array, object, optional, parse, picklist, string } from 'valibot';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -29,7 +30,7 @@ import { logger } from '@utils/logger.server';
 // Validation schema for batch operations
 const batchOperationSchema = object({
 	action: picklist(['delete', 'status', 'clone'], 'Invalid action specified.'),
-	entryIds: array(string([minLength(1, 'Entry ID cannot be empty.')])),
+	entryIds: array(string(), 'Entry IDs must be an array of strings'),
 	// Optional fields for specific actions
 	status: optional(string()), // Required for status action
 	cloneCount: optional(string()) // Required for clone action
@@ -95,22 +96,28 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			throw error(503, 'Service Unavailable: Database service is not properly initialized');
 		}
 
-		const normalizedCollectionId = normalizeCollectionName(schema._id);
+		if (!schema._id) {
+			throw error(500, 'Collection ID is missing');
+		}
 
-		// Build tenant-aware query
-		const query: { _id: { $in: string[] }; tenantId?: string } = { _id: { $in: entryIds } };
+		const normalizedCollectionId = normalizeCollectionName(schema._id); // Build tenant-aware query
+		const databaseEntryIds = entryIds.map((id) => id as unknown as DatabaseId);
+		const query: { _id: { $in: DatabaseId[] }; tenantId?: string } = { _id: { $in: databaseEntryIds } };
 		if (getPrivateSettingSync('MULTI_TENANT')) {
 			query.tenantId = tenantId;
 		}
 
 		// Verify all entries exist and belong to current tenant
-		const verificationResult = await dbAdapter.crud.findMany(normalizedCollectionId, query);
-		if (!verificationResult.success || verificationResult.data.length !== entryIds.length) {
+		const verificationResult = await dbAdapter.crud.findMany<BaseEntity>(
+			normalizedCollectionId,
+			query as unknown as import('@src/databases/dbInterface').QueryFilter<BaseEntity>
+		);
+		if (!verificationResult.success || !Array.isArray(verificationResult.data) || verificationResult.data.length !== entryIds.length) {
 			logger.warn(`${endpoint} - Attempted batch operation on entries outside of tenant`, {
 				userId: user._id,
 				tenantId,
 				requestedEntryIds: entryIds,
-				foundEntries: verificationResult.data?.length || 0
+				foundEntries: (verificationResult as { success: true; data: BaseEntity[] }).data.length
 			});
 			throw error(403, 'One or more entries do not belong to your tenant or do not exist');
 		}
@@ -124,21 +131,21 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 				// Apply modifyRequest for each entry before deletion
 				try {
 					await modifyRequest({
-						data: verificationResult.data,
-						fields: schema.fields,
-						collection: schema,
+						data: verificationResult.data as unknown as Array<Record<string, unknown>>,
+						fields: schema.fields as unknown as import('@src/content/types').FieldInstance[],
+						collection: schema as unknown as CollectionModel,
 						user,
 						type: 'DELETE'
 					});
 				} catch (modifyError) {
+					const errorMsg = modifyError instanceof Error ? modifyError.message : 'Unknown error';
 					logger.warn(`${endpoint} - ModifyRequest pre-processing failed`, {
-						error: modifyError.message
+						error: errorMsg
 					});
 				}
 
 				// Perform batch delete
-				const deleteResult = await dbAdapter.crud.deleteMany(normalizedCollectionId, query);
-
+				const deleteResult = await dbAdapter.crud.deleteMany(normalizedCollectionId, query as Partial<Record<string, unknown>>);
 				if (deleteResult.success) {
 					successCount = entryIds.length;
 					results.push(...entryIds.map((id) => ({ entryId: id, success: true })));
@@ -161,10 +168,13 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			}
 
 			case 'status': {
-				const updateData = { status, updatedBy: user._id };
+				const updateData = { status, updatedBy: user._id } as Partial<Omit<BaseEntity, 'createdAt' | 'updatedAt'>>;
 
-				const updateResult = await dbAdapter.crud.updateMany(normalizedCollectionId, query, updateData);
-
+				const updateResult = await dbAdapter.crud.updateMany(
+					normalizedCollectionId,
+					query as Partial<Record<string, unknown>>,
+					updateData as Partial<Omit<BaseEntity, 'createdAt' | 'updatedAt'>>
+				);
 				if (updateResult.success) {
 					successCount = entryIds.length;
 					results.push(...entryIds.map((id) => ({ entryId: id, success: true })));
@@ -191,17 +201,18 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 				// Clone entries - create duplicates with modified titles
 				const cloneResults = [];
 
-				for (const entry of verificationResult.data) {
+				for (const entry of verificationResult.data as BaseEntity[]) {
 					try {
+						const entryData = entry as unknown as Record<string, unknown>;
 						const clonedEntry = {
-							...entry,
+							...entryData,
 							_id: undefined, // Remove ID so a new one is generated
-							title: `${entry.title} (Copy)`,
+							title: `${entryData.title || 'Untitled'} (Copy)`,
 							createdBy: user._id,
 							updatedBy: user._id,
 							createdAt: new Date().toISOString(),
 							updatedAt: new Date().toISOString()
-						};
+						} as unknown as Omit<BaseEntity, '_id' | 'createdAt' | 'updatedAt'>;
 
 						const cloneResult = await dbAdapter.crud.insert(normalizedCollectionId, clonedEntry);
 
@@ -216,14 +227,14 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 							});
 						}
 					} catch (cloneError) {
+						const errorMsg = cloneError instanceof Error ? cloneError.message : 'Unknown clone error';
 						cloneResults.push({
 							entryId: entry._id,
 							success: false,
-							error: cloneError.message
+							error: errorMsg
 						});
 					}
 				}
-
 				results.push(...cloneResults);
 
 				logger.info(`${endpoint} - Batch clone completed`, {
@@ -258,14 +269,16 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			performance: { duration }
 		});
 	} catch (e) {
-		if (e.status) {
+		if (typeof e === 'object' && e !== null && 'status' in e) {
 			throw e;
 		}
 
 		const duration = performance.now() - start;
+		const errorMsg = e instanceof Error ? e.message : 'Unknown error';
+		const stack = e instanceof Error ? e.stack : undefined;
 		logger.error(`${endpoint} - Unexpected error`, {
-			error: e.message,
-			stack: e.stack,
+			error: errorMsg,
+			stack,
 			duration: `${duration.toFixed(2)}ms`
 		});
 		throw error(500, 'Internal Server Error');

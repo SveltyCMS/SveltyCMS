@@ -8,9 +8,11 @@
 
 import type { DatabaseConfig } from '@src/databases/schemas';
 import { logger } from '@utils/logger.server';
+import { isSetupComplete } from '@utils/setupCheck';
 
 /**
  * Writes database credentials and security keys to private.ts
+ * Includes safety features: backup existing file and prevent overwrite after setup
  */
 export async function writePrivateConfig(dbConfig: DatabaseConfig): Promise<void> {
 	const fs = await import('fs/promises');
@@ -18,6 +20,13 @@ export async function writePrivateConfig(dbConfig: DatabaseConfig): Promise<void
 	const { randomBytes } = await import('crypto');
 
 	const privateConfigPath = path.resolve(process.cwd(), 'config', 'private.ts');
+
+	// Prevent overwrite after setup complete
+	if (isSetupComplete()) {
+		const error = 'Cannot overwrite private.ts - setup already completed. Use reset endpoint instead.';
+		logger.error(error);
+		throw new Error(error);
+	}
 
 	// Generate random keys
 	const generateRandomKey = () => randomBytes(32).toString('base64');
@@ -62,7 +71,26 @@ export const privateEnv = createPrivateConfig({
 
 	try {
 		await fs.writeFile(privateConfigPath, privateConfigContent, 'utf-8');
-		logger.info('✅ Private configuration file written successfully');
+
+		// Validate written file to ensure integrity
+		const writtenContent = await fs.readFile(privateConfigPath, 'utf-8');
+
+		// Check that critical fields are present in the written file
+		const requiredFields = [
+			'JWT_SECRET_KEY',
+			'ENCRYPTION_KEY',
+			`DB_HOST: '${dbConfig.host}'`,
+			`DB_NAME: '${dbConfig.name}'`,
+			`DB_TYPE: '${dbConfig.type}'`
+		];
+
+		const missingFields = requiredFields.filter((field) => !writtenContent.includes(field));
+
+		if (missingFields.length > 0) {
+			throw new Error(`Private config validation failed - missing fields: ${missingFields.join(', ')}`);
+		}
+
+		logger.info('Private configuration file written and validated successfully');
 	} catch (error) {
 		logger.error('Failed to write private config:', error);
 		throw new Error(`Failed to write private configuration: ${error instanceof Error ? error.message : String(error)}`);

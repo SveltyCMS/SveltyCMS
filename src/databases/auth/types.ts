@@ -33,6 +33,7 @@ export enum PermissionType {
 // User Interface
 export interface User {
 	_id: string; // Unique identifier for the user
+	id?: string; // Alias for _id, used in some contexts
 	email: string; // Email address of the user
 	tenantId?: string; // Identifier for the tenant the user belongs to (in multi-tenant mode)
 	password?: string; // Hashed password of the user
@@ -57,6 +58,7 @@ export interface User {
 	last2FAVerification?: ISODateString; // Timestamp of last successful 2FA verification
 	permissions: string[]; // Set of permissions associated with the user
 	googleRefreshToken?: string | null; // Stores the refresh token from Google OAuth for token revocation on logout.
+	isAdmin?: boolean; // Indicates if the user has admin privileges
 }
 
 // Role Interface

@@ -298,7 +298,7 @@ async function importCollectionEntries(collectionName: string, entries: unknown[
 					}
 				} else {
 					// Create new entry
-					const createResult = await dbAdapter.crud.insertOne(collectionName, entryData);
+					const createResult = await dbAdapter.crud.insert(collectionName, entryData);
 
 					if (createResult.success) {
 						result.imported++;

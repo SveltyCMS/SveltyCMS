@@ -30,14 +30,7 @@ declare global {
 		// interface PageData {}
 		// interface Platform {}
 		interface Locals {
-			user: {
-				_id: string; //mongodb
-				email: string;
-				role: string;
-				avatar?: string;
-				permissions: string[];
-				// Add other relevant user properties here
-			} | null;
+			user: User | null;
 			collections?: unknown; // Replace with your actual Collections type if available
 			permissions: string[]; // Array of user permissions
 			session_id?: string;
@@ -50,6 +43,7 @@ declare global {
 			allUsers: User[]; // Using imported User type
 			allTokens: Token[]; // Using imported Token type
 			theme: Theme | null; // Ensure 'theme' is correctly typed
+			customCss: string; // The active theme's custom CSS
 			tenantId?: string; // Added for multi-tenancy support
 			darkMode: boolean; // Dark mode preference from cookies
 			dbAdapter?: DatabaseAdapter | null; // Database adapter for adapter-agnostic operations

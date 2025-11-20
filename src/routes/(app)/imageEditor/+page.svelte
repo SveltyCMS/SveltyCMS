@@ -9,11 +9,24 @@ This page serves as a demo and testing environment for the image editor.
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import { page } from '$app/state';
+	import { onMount, onDestroy } from 'svelte';
+	import { toggleUIElement } from '@stores/UIStore.svelte';
 	import ImageEditor from './ImageEditor.svelte';
-	import PageTitle from '@components/PageTitle.svelte';
 
 	// Get initial image from URL params if provided
 	const initialImageSrc = $derived(page.params?.image || '');
+
+	// Show page header/footer when component mounts
+	onMount(() => {
+		toggleUIElement('pageheader', 'full');
+		toggleUIElement('pagefooter', 'full');
+	});
+
+	// Hide page header/footer when component unmounts
+	onDestroy(() => {
+		toggleUIElement('pageheader', 'hidden');
+		toggleUIElement('pagefooter', 'hidden');
+	});
 
 	// Handle save callback
 	const handleSave = (dataURL: string, file: File) => {
@@ -30,10 +43,8 @@ This page serves as a demo and testing environment for the image editor.
 	};
 </script>
 
-<PageTitle name="Image Editor" />
-
-<div class="wrapper h-screen w-full">
-	<div class="flex h-full w-full flex-col">
+<div class="flex h-full w-full flex-col overflow-hidden">
+	<div class="flex flex-1 flex-col overflow-hidden">
 		<ImageEditor {initialImageSrc} onSave={handleSave} onCancel={handleCancel} />
 	</div>
 </div>

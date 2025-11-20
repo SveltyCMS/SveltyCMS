@@ -39,18 +39,19 @@ All collection API endpoints follow the pattern:
 
 ### Primary Routes
 
-| Method   | Endpoint                                              | Description             |
-| -------- | ----------------------------------------------------- | ----------------------- |
-| `GET`    | `/api/collections/{collectionId}`                     | List collection entries |
-| `POST`   | `/api/collections/{collectionId}`                     | Create new entry        |
-| `GET`    | `/api/collections/{collectionId}/{entryId}`           | Get specific entry      |
-| `PATCH`  | `/api/collections/{collectionId}/{entryId}`           | Update entry            |
-| `DELETE` | `/api/collections/{collectionId}/{entryId}`           | Delete entry            |
-| `POST`   | `/api/collections/{collectionId}/batch`               | Batch operations        |
-| `PATCH`  | `/api/collections/{collectionId}/{entryId}/status`    | Update entry status     |
-| `GET`    | `/api/collections/{collectionId}/{entryId}/revisions` | Get revision history    |
-| `POST`   | `/api/collections/{collectionId}/import`              | Import data (JSON/CSV)  |
-| `GET`    | `/api/collections/{collectionId}/export`              | Export data (JSON/CSV)  |
+| Method    | Endpoint                                              | Description                 | Notes                                         |
+| --------- | ----------------------------------------------------- | --------------------------- | --------------------------------------------- |
+| `GET`     | `/api/collections`                                    | List all collections        | ✅ API endpoint (metadata only)               |
+| ~~`GET`~~ | ~~/api/collections/{collectionId}~~                   | ~~List collection entries~~ | ❌ **REMOVED** - Use `+page.server.ts` load() |
+| `POST`    | `/api/collections/{collectionId}`                     | Create new entry            | ✅ Client-side mutation                       |
+| ~~`GET`~~ | ~~/api/collections/{collectionId}/{entryId}~~         | ~~Get specific entry~~      | ❌ **REMOVED** - Use `+page.server.ts` load() |
+| `PATCH`   | `/api/collections/{collectionId}/{entryId}`           | Update entry                | ✅ Client-side mutation                       |
+| `DELETE`  | `/api/collections/{collectionId}/{entryId}`           | Delete entry                | ✅ Client-side mutation (returns 204)         |
+| `POST`    | `/api/collections/{collectionId}/batch`               | Batch operations            | ✅ Client-side mutation                       |
+| `PATCH`   | `/api/collections/{collectionId}/{entryId}/status`    | Update entry status         | ✅ Client-side mutation                       |
+| `GET`     | `/api/collections/{collectionId}/{entryId}/revisions` | Get revision history        | ✅ API endpoint                               |
+| `POST`    | `/api/collections/{collectionId}/import`              | Import data (JSON/CSV)      | ✅ Client-side mutation                       |
+| `GET`     | `/api/collections/{collectionId}/export`              | Export data (JSON/CSV)      | ✅ API endpoint                               |
 
 ## Authentication & Authorization
 
@@ -140,9 +141,81 @@ In multi-tenant mode, all operations are automatically scoped to the tenant cont
 }
 ```
 
+## Collection Management
+
+### List Collections
+
+Retrieves metadata for all collections accessible to the authenticated user.
+
+**Request:**
+
+```http
+GET /api/collections?includeFields=true&includeStats=false
+```
+
+**Query Parameters:**
+
+- `includeFields` (boolean, optional) - Include field schemas in response (default: `false`)
+- `includeStats` (boolean, optional) - Include entry statistics (default: `false`)
+
+**Response:**
+
+```json
+{
+	"success": true,
+	"data": {
+		"collections": [
+			{
+				"id": "23d772dd3783492a9115ee9ea6bc6185",
+				"name": "posts",
+				"label": "Posts",
+				"description": "Blog posts collection",
+				"icon": "mdi:post",
+				"path": "/posts",
+				"permissions": {
+					"read": true,
+					"write": true
+				},
+				"fields": [],
+				"stats": {
+					"totalEntries": 0,
+					"publishedEntries": 0,
+					"draftEntries": 0
+				}
+			}
+		],
+		"total": 1
+	},
+	"performance": {
+		"duration": 12.5
+	}
+}
+```
+
+---
+
 ## Entry Management
 
 ### List Entries
+
+⚠️ **REMOVED** - Use `+page.server.ts` load() function for SSR data loading instead.
+
+For initial page loads, use SvelteKit's load function:
+
+```typescript
+// +page.server.ts
+export const load: PageServerLoad = async ({ locals, params }) => {
+	const entries = await dbAdapter
+		.queryBuilder(`collection_${collectionId}`)
+		.where({ tenantId: locals.tenantId })
+		.paginate({ page: 1, pageSize: 25 })
+		.execute();
+
+	return { entries: entries.data };
+};
+```
+
+### ~~List Entries (Old API - Removed)~~
 
 **Request:**
 
@@ -251,12 +324,11 @@ DELETE /api/collections/posts/entry456
 
 **Response:**
 
-```json
-{
-	"success": true,
-	"message": "Entry deleted successfully"
-}
+```http
+HTTP/1.1 204 No Content
 ```
+
+No response body is returned. A successful deletion returns HTTP status 204 (No Content).
 
 ## Batch Operations
 
@@ -271,15 +343,19 @@ Content-Type: application/json
 {
   "action": "status",
   "entryIds": ["entry1", "entry2", "entry3"],
-  "status": "published"
+  "status": "publish"
 }
 ```
 
+**Note:** Valid status values are: `publish`, `unpublish`, `draft`, `archived`.
+
+````
+
 **Available Actions:**
 
-- `status`: Update status of multiple entries
+- `status`: Update status of multiple entries (requires `status` field: `publish`, `unpublish`, `draft`, `archived`)
 - `delete`: Delete multiple entries
-- `clone`: Clone multiple entries
+- `clone`: Clone multiple entries (requires `cloneCount` field)
 
 **Response:**
 
@@ -299,7 +375,7 @@ Content-Type: application/json
 		]
 	}
 }
-```
+````
 
 ### Batch Delete Example
 

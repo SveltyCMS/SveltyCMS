@@ -1,0 +1,656 @@
+---
+path: '/widgets/custom/RemoteVideo'
+title: 'RemoteVideo Widget'
+description: 'Multi-platform video embedding widget with automatic metadata fetching from YouTube, Vimeo, Twitch, and TikTok for SveltyCMS'
+order: 305
+icon: 'mdi:video-vintage'
+author: 'admin'
+created: '2025-01-15'
+updated: '2025-01-15'
+tags:
+  - widget
+  - custom
+  - video
+  - youtube
+  - vimeo
+  - twitch
+  - tiktok
+  - media
+  - embed
+---
+
+# RemoteVideo Widget
+
+<blockquote>
+	**Multi-platform video widget** that automatically fetches metadata from YouTube, Vimeo, Twitch, and TikTok, storing rich video information for easy
+	embedding.
+</blockquote>
+
+## Overview
+
+The **RemoteVideo widget** provides a secure and efficient way to embed videos from popular platforms. Instead of storing just a URL, it fetches comprehensive metadata including title, thumbnail, duration, and platform-specific details through server-side API calls, protecting your API keys and providing a better user experience.
+
+### Key Features
+
+- ✅ **Multi-Platform**: YouTube, Vimeo, Twitch, TikTok support
+- ✅ **Automatic Metadata**: Fetches title, thumbnail, duration, channel info
+- ✅ **Server-Side APIs**: Protects API keys, prevents CORS issues
+- ✅ **Rich Preview**: Visual thumbnail and video details display
+- ✅ **Structured Data**: Stores comprehensive video object, not just URL
+- ✅ **Debounced Input**: Performance-optimized with 500ms delay
+- ✅ **Loading States**: Visual feedback during metadata fetching
+- ✅ **Error Handling**: Clear error messages for invalid URLs or API failures
+- ✅ **Platform Validation**: Restricts to allowed platforms
+- ✅ **Non-Translatable**: Video metadata is universal
+
+---
+
+## When to Use RemoteVideo Widget
+
+### ✅ Use RemoteVideo When:
+
+- **Video Content**: Embed tutorial videos, product demos, testimonials
+- **Course Materials**: Educational video libraries
+- **Portfolio Sites**: Showcase video work from various platforms
+- **News/Media**: Article video embeds
+- **Social Integration**: TikTok/YouTube content in your CMS
+- **Video Libraries**: Curated video collections
+- **Product Pages**: Product demo videos from YouTube/Vimeo
+
+### ❌ Don't Use RemoteVideo When:
+
+- **Self-Hosted Videos**: Use Media/Video widget for uploaded files
+- **Live Streams**: Consider dedicated streaming widget
+- **Multiple URLs**: Use List widget with RemoteVideo fields
+- **Audio Only**: Use dedicated audio widget instead
+
+---
+
+## Installation
+
+### Server-Side API Endpoint
+
+The RemoteVideo widget requires a server endpoint to fetch metadata. Create `/api/remoteVideo` route:
+
+```typescript
+// src/routes/api/remoteVideo/+server.ts
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+
+export const POST: RequestHandler = async ({ request }) => {
+	try {
+		const { url, allowedPlatforms } = await request.json();
+
+		// Detect platform
+		const platform = detectPlatform(url);
+
+		// Check if platform is allowed
+		if (allowedPlatforms && !allowedPlatforms.includes(platform)) {
+			return json(
+				{
+					success: false,
+					error: `Platform ${platform} is not allowed`
+				},
+				{ status: 400 }
+			);
+		}
+
+		// Fetch metadata based on platform
+		const metadata = await fetchVideoMetadata(url, platform);
+
+		return json({ success: true, data: metadata });
+	} catch (error) {
+		return json(
+			{
+				success: false,
+				error: error.message
+			},
+			{ status: 500 }
+		);
+	}
+};
+
+function detectPlatform(url: string): string {
+	if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube';
+	if (url.includes('vimeo.com')) return 'vimeo';
+	if (url.includes('twitch.tv')) return 'twitch';
+	if (url.includes('tiktok.com')) return 'tiktok';
+	return 'other';
+}
+
+async function fetchVideoMetadata(url: string, platform: string) {
+	switch (platform) {
+		case 'youtube':
+			return await fetchYouTubeData(url);
+		case 'vimeo':
+			return await fetchVimeoData(url);
+		case 'twitch':
+			return await fetchTwitchData(url);
+		case 'tiktok':
+			return await fetchTikTokData(url);
+		default:
+			throw new Error('Unsupported platform');
+	}
+}
+```
+
+---
+
+## Basic Usage
+
+### Simple Video Embed
+
+```typescript
+import RemoteVideo from '@src/widgets/custom/RemoteVideo';
+
+export const postsCollection = {
+	name: 'Blog Posts',
+	fields: [
+		RemoteVideo({
+			label: 'Featured Video',
+			db_fieldName: 'featuredVideo',
+			required: false,
+			placeholder: 'Enter YouTube, Vimeo, Twitch, or TikTok URL'
+		})
+	]
+};
+```
+
+### Tutorial Series
+
+```typescript
+import RemoteVideo from '@src/widgets/custom/RemoteVideo';
+import List from '@src/widgets/core/list';
+
+export const coursesCollection = {
+	name: 'Courses',
+	fields: [
+		RemoteVideo({
+			label: 'Introduction Video',
+			db_fieldName: 'introVideo',
+			required: true,
+			allowedPlatforms: ['youtube', 'vimeo'],
+			helper: 'Upload to YouTube or Vimeo for best compatibility'
+		}),
+
+		List({
+			label: 'Lesson Videos',
+			db_fieldName: 'lessons',
+			fields: [
+				Input({
+					label: 'Lesson Title',
+					db_fieldName: 'title',
+					required: true
+				}),
+
+				RemoteVideo({
+					label: 'Video',
+					db_fieldName: 'video',
+					required: true,
+					allowedPlatforms: ['youtube', 'vimeo']
+				}),
+
+				Textarea({
+					label: 'Description',
+					db_fieldName: 'description',
+					maxLength: 500
+				})
+			],
+			minItems: 1,
+			maxItems: 50
+		})
+	]
+};
+```
+
+### YouTube-Only Videos
+
+```typescript
+import RemoteVideo from '@src/widgets/custom/RemoteVideo';
+
+export const productsCollection = {
+	name: 'Products',
+	fields: [
+		RemoteVideo({
+			label: 'Demo Video',
+			db_fieldName: 'demoVideo',
+			required: false,
+			allowedPlatforms: ['youtube'], // Only YouTube allowed
+			helper: 'Add a YouTube video demo of your product'
+		})
+	]
+};
+```
+
+---
+
+## Configuration Properties
+
+| Property           | Type       | Required  | Default                                    | Description                                |
+| ------------------ | ---------- | --------- | ------------------------------------------ | ------------------------------------------ |
+| `label`            | `string`   | ✅ Yes    | -                                          | Display label for the field                |
+| `db_fieldName`     | `string`   | ✅ Yes    | -                                          | Database field name                        |
+| `required`         | `boolean`  | ❌ No     | `false`                                    | Whether video is mandatory                 |
+| `placeholder`      | `string`   | ❌ No     | `'Enter video URL...'`                     | Input placeholder text                     |
+| `allowedPlatforms` | `string[]` | ❌ No     | `['youtube', 'vimeo', 'twitch', 'tiktok']` | Restrict to specific platforms             |
+| `helper`           | `string`   | ❌ No     | `undefined`                                | Helper text                                |
+| `translated`       | `boolean`  | 🔒 Locked | `false`                                    | Always false (video metadata is universal) |
+
+### Allowed Platforms
+
+```typescript
+type VideoPlatform = 'youtube' | 'vimeo' | 'twitch' | 'tiktok' | 'other';
+
+// Examples:
+allowedPlatforms: ['youtube']; // YouTube only
+allowedPlatforms: ['youtube', 'vimeo']; // YouTube and Vimeo
+allowedPlatforms: ['youtube', 'vimeo', 'twitch']; // All except TikTok
+```
+
+---
+
+## Data Structure
+
+### Storage Format
+
+Video metadata is stored as a **rich structured object**:
+
+```typescript
+// MongoDB Document
+{
+  "_id": "post_123",
+  "title": "How to Use SveltyCMS",
+  "featuredVideo": {
+    "platform": "youtube",                    // Platform identifier
+    "url": "https://youtu.be/dQw4w9WgXcQ",   // Original URL
+    "videoId": "dQw4w9WgXcQ",                // Platform-specific ID
+    "title": "Rick Astley - Never Gonna Give You Up",
+    "description": "The official video for Never Gonna...",
+    "thumbnailUrl": "https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
+    "channelTitle": "Rick Astley",
+    "duration": "PT3M33S",                    // ISO 8601 duration
+    "width": 1920,
+    "height": 1080,
+    "publishedAt": "2009-10-25T06:57:33Z"    // ISO 8601 date
+  },
+  "createdAt": ISODate("2025-01-15T10:00:00Z")
+}
+```
+
+### RemoteVideoData Interface
+
+```typescript
+interface RemoteVideoData {
+	platform: 'youtube' | 'vimeo' | 'twitch' | 'tiktok' | 'other';
+	url: string; // Original URL provided by user
+	videoId: string; // Platform-specific video ID
+	title: string; // Video title
+	description?: string; // Video description (optional)
+	thumbnailUrl: string; // High-quality thumbnail URL
+	channelTitle?: string; // Channel/uploader name
+	duration?: string; // ISO 8601 duration (e.g., "PT3M33S")
+	width?: number; // Video width in pixels
+	height?: number; // Video height in pixels
+	publishedAt?: string; // ISO 8601 publish date
+}
+```
+
+### Why Rich Metadata?
+
+**✅ Rich Metadata Enables**:
+
+- **Fast Display**: No need to fetch data on every page load
+- **Offline Fallback**: Show title/thumbnail even if platform is down
+- **Search/Filter**: Query by title, channel, duration, etc.
+- **Analytics**: Track video views, popular channels, content length
+- **Caching**: Reduce API calls to video platforms
+- **Consistency**: Data persists even if video is removed
+
+---
+
+## Platform-Specific Features
+
+### YouTube
+
+```typescript
+// YouTube URL formats
+https://www.youtube.com/watch?v=dQw4w9WgXcQ
+https://youtu.be/dQw4w9WgXcQ
+https://www.youtube.com/embed/dQw4w9WgXcQ
+
+// Metadata includes:
+// - Video title, description
+// - Channel name
+// - Duration (ISO 8601)
+// - Thumbnails (multiple resolutions)
+// - Publish date
+// - View count (if using YouTube Data API v3)
+```
+
+### Vimeo
+
+```typescript
+// Vimeo URL formats
+https://vimeo.com/123456789
+https://player.vimeo.com/video/123456789
+
+// Metadata includes:
+// - Video title, description
+// - User name
+// - Duration (seconds)
+// - Thumbnails
+// - Upload date
+```
+
+### Twitch
+
+```typescript
+// Twitch URL formats
+https://www.twitch.tv/videos/123456789
+https://clips.twitch.tv/ClipSlugHere
+
+// Metadata includes:
+// - Video title
+// - Channel name
+// - Duration
+// - Thumbnail
+// - View count
+```
+
+### TikTok
+
+```typescript
+// TikTok URL formats
+https://www.tiktok.com/@username/video/1234567890
+https://vm.tiktok.com/ShortCode/
+
+// Metadata includes:
+// - Video description
+// - Author name
+// - Thumbnail
+// - Duration
+// - Like/view counts
+```
+
+---
+
+## Advanced Examples
+
+### Video Gallery
+
+```typescript
+import RemoteVideo from '@src/widgets/custom/remoteVideo';
+import List from '@src/widgets/core/list';
+
+export const videoGalleriesCollection = {
+	name: 'Video Galleries',
+	fields: [
+		List({
+			label: 'Videos',
+			db_fieldName: 'videos',
+			fields: [
+				RemoteVideo({
+					label: 'Video',
+					db_fieldName: 'video',
+					required: true
+				}),
+
+				Select({
+					label: 'Category',
+					db_fieldName: 'category',
+					options: ['Tutorial', 'Demo', 'Review', 'Testimonial']
+				}),
+
+				Toggles({
+					label: 'Featured',
+					db_fieldName: 'featured',
+					default: false
+				})
+			],
+			minItems: 1,
+			maxItems: 100
+		})
+	]
+};
+
+// Query: Find all YouTube videos
+db.galleries.aggregate([
+	{ $unwind: '$videos' },
+	{ $match: { 'videos.video.platform': 'youtube' } },
+	{
+		$group: {
+			_id: null,
+			youtubeVideos: { $push: '$videos.video' }
+		}
+	}
+]);
+```
+
+### Video Playlist with Duration Calculation
+
+```typescript
+// Calculate total playlist duration
+function calculatePlaylistDuration(videos: RemoteVideoData[]): number {
+	return videos.reduce((total, video) => {
+		if (video.duration) {
+			// Parse ISO 8601 duration (e.g., "PT3M33S")
+			const seconds = parseISO8601Duration(video.duration);
+			return total + seconds;
+		}
+		return total;
+	}, 0);
+}
+
+function parseISO8601Duration(duration: string): number {
+	const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+	if (!match) return 0;
+
+	const hours = parseInt(match[1] || '0');
+	const minutes = parseInt(match[2] || '0');
+	const seconds = parseInt(match[3] || '0');
+
+	return hours * 3600 + minutes * 60 + seconds;
+}
+
+// Format duration for display
+function formatDuration(seconds: number): string {
+	const hours = Math.floor(seconds / 3600);
+	const minutes = Math.floor((seconds % 3600) / 60);
+	const secs = seconds % 60;
+
+	if (hours > 0) {
+		return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+	}
+	return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+```
+
+---
+
+## Embedding Videos
+
+### Generate Embed Code
+
+```typescript
+function getEmbedUrl(videoData: RemoteVideoData): string {
+  switch (videoData.platform) {
+    case 'youtube':
+      return `https://www.youtube.com/embed/${videoData.videoId}`;
+    case 'vimeo':
+      return `https://player.vimeo.com/video/${videoData.videoId}`;
+    case 'twitch':
+      return `https://player.twitch.tv/?video=${videoData.videoId}`;
+    case 'tiktok':
+      return `https://www.tiktok.com/embed/${videoData.videoId}`;
+    default:
+      return videoData.url;
+  }
+}
+
+// Usage in Svelte component
+{#if video}
+  <iframe
+    src={getEmbedUrl(video)}
+    width="560"
+    height="315"
+    frameborder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+    allowfullscreen
+    title={video.title}
+  ></iframe>
+{/if}
+```
+
+### Responsive Embed
+
+```typescript
+// Svelte component
+<div class="video-container">
+  <iframe
+    src={getEmbedUrl(video)}
+    title={video.title}
+    frameborder="0"
+    allowfullscreen
+  ></iframe>
+</div>
+
+<style>
+  .video-container {
+    position: relative;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    height: 0;
+    overflow: hidden;
+  }
+
+  .video-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+</style>
+```
+
+---
+
+## Accessibility
+
+### ARIA Support
+
+```html
+<div role="region" aria-label="Video Preview">
+	<img src="{video.thumbnailUrl}" alt="{`Thumbnail" for ${video.title}`} />
+	<h3>{video.title}</h3>
+	<p>{video.channelTitle}</p>
+	<a href="{video.url}" target="_blank" rel="noopener noreferrer" aria-label="{`Watch" ${video.title} on ${video.platform}`}> Watch Video </a>
+</div>
+```
+
+### Screen Reader Support
+
+- **Video title**: Announced as heading
+- **Thumbnail**: Alt text with video title
+- **Watch link**: Clear link purpose with aria-label
+
+---
+
+## Best Practices
+
+### ✅ Do's
+
+1. **Cache Metadata**
+
+   ```typescript
+   // Store fetched metadata in database
+   // Don't fetch on every page load
+   ```
+
+2. **Handle Errors Gracefully**
+
+   ```typescript
+   if (!video) {
+     return <div>Video unavailable</div>;
+   }
+   ```
+
+3. **Use Thumbnails for Lists**
+   ```typescript
+   // Show thumbnail in video lists
+   // Only embed iframe on detail pages
+   ```
+
+### ❌ Don'ts
+
+1. **Don't Store Just URLs**
+
+   ```typescript
+   // ❌ Wrong
+   video: "https://youtube.com/watch?v=..."
+
+   // ✅ Correct
+   video: { platform, url, title, thumbnail, ... }
+   ```
+
+2. **Don't Embed Too Many Videos**
+
+   ```typescript
+   // ❌ Performance issue
+   {#each videos as video}
+     <iframe src={getEmbedUrl(video)} />
+   {/each}
+
+   // ✅ Use thumbnails, load iframe on click
+   ```
+
+---
+
+## API Reference
+
+```typescript
+function RemoteVideo(props: RemoteVideoProps): FieldInstance;
+
+interface RemoteVideoProps {
+	label: string;
+	db_fieldName: string;
+	required?: boolean;
+	placeholder?: string;
+	allowedPlatforms?: VideoPlatform[];
+	helper?: string;
+}
+
+type VideoPlatform = 'youtube' | 'vimeo' | 'twitch' | 'tiktok' | 'other';
+
+interface RemoteVideoData {
+	platform: VideoPlatform;
+	url: string;
+	videoId: string;
+	title: string;
+	description?: string;
+	thumbnailUrl: string;
+	channelTitle?: string;
+	duration?: string;
+	width?: number;
+	height?: number;
+	publishedAt?: string;
+}
+```
+
+---
+
+## Related Widgets
+
+- **[Media Widget](/widgets/media/media)** - For self-hosted video uploads
+- **[Input Widget](/widgets/core/input)** - For simple URL storage
+- **[List Widget](/widgets/core/list)** - For video playlists
+
+---
+
+## Resources
+
+- [YouTube Data API](https://developers.google.com/youtube/v3)
+- [Vimeo API](https://developer.vimeo.com/)
+- [Twitch API](https://dev.twitch.tv/)
+- [TikTok Embed](https://developers.tiktok.com/doc/embed-videos)
+
+---

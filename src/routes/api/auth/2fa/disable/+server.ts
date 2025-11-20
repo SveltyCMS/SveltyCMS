@@ -30,7 +30,11 @@ export const POST: RequestHandler = async ({ locals }) => {
 		}
 
 		// Disable 2FA
-		const twoFactorService = getDefaultTwoFactorAuthService(auth);
+		if (!auth) {
+			logger.error('Auth service not initialized during 2FA disable request');
+			throw error(500, 'Auth service not available');
+		}
+		const twoFactorService = getDefaultTwoFactorAuthService(auth.authInterface);
 		const success = await twoFactorService.disable2FA(user._id, tenantId);
 
 		if (!success) {

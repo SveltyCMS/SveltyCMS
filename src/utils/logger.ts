@@ -1,29 +1,59 @@
 /**
  * @file src/utils/logger.ts
- * @description Universal Logger for SveltyCMS (Client/Server Safe)
+ * @description Universal logger (client + server) with automatic formatting and tree-shaking.
  *
- * This logger is safe to import in:
- * - .svelte components
- * - .svelte.ts stores
- * - shared utils.ts files
- * - any code that runs on both client and server
+ * Highlights:
+ * - Auto-format tokens (paths, IDs, methods, status codes, booleans)
+ * - Sensitive data masking and dump helper
+ * - Fully stripped when `VITE_LOG_LEVELS=none` (no-ops)
  *
- * Behavior:
- * - Server (dev): Colorized console output
- * - Server (prod): Respects LOG_LEVELS from env
- * - Client (dev): Console output with emoji
- * - Client (prod): Error/fatal only
+ * Configure:
+ * - `VITE_LOG_LEVELS` (build) or `LOG_LEVELS` (runtime) e.g. `fatal,error,warn` or `none`
  *
- * For full-featured server logging (file I/O, batching, rotation),
- * use src/utils/logger.server.ts in .server.ts files only.
+ * Usage:
+ *   logger.info(`Saved ${id} in ${ms}ms`, meta)
  */
 
-import { browser, dev } from '$app/environment';
+import { browser, building } from '$app/environment';
 
-type LogLevel = 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
+type LogLevel = 'none' | 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
 export type LoggableValue = string | number | boolean | null | unknown | undefined | Date | RegExp | object | Error;
 
-const MAX_MASK_DEPTH = 10;
+// --- COMPILE-TIME CONSTANTS ---
+// Vite will inline these and tree-shake unused code
+const IS_BROWSER = browser;
+const IS_BUILDING = building;
+
+// Read log level from environment at build time
+const LOG_LEVEL_ENV = (import.meta.env?.VITE_LOG_LEVELS as string) || (typeof process !== 'undefined' ? process.env.LOG_LEVELS : undefined) || 'info';
+
+// Parse enabled levels
+const ENABLED_LEVELS = LOG_LEVEL_ENV.split(',').map((l) => l.trim().toLowerCase()) as LogLevel[];
+const IS_LOGGING_DISABLED = ENABLED_LEVELS.includes('none');
+
+// Level priorities for filtering
+const LEVEL_PRIORITY: Record<LogLevel, number> = {
+	none: 0,
+	fatal: 1,
+	error: 2,
+	warn: 3,
+	info: 4,
+	debug: 5,
+	trace: 6
+};
+
+// Calculate max priority at compile time
+// Honor LOG_LEVELS consistently across server and browser
+const MAX_PRIORITY = IS_LOGGING_DISABLED ? 0 : Math.max(0, ...ENABLED_LEVELS.map((l) => LEVEL_PRIORITY[l] || 0));
+
+// --- HELPER: Check if level is enabled (inlined by Vite) ---
+const isLevelEnabled = (level: LogLevel): boolean => {
+	if (IS_BUILDING) return false;
+	if (IS_LOGGING_DISABLED) return false;
+	return LEVEL_PRIORITY[level] <= MAX_PRIORITY;
+};
+
+// --- SENSITIVE DATA MASKING ---
 const SENSITIVE_KEYS = [
 	'password',
 	'passwd',
@@ -44,57 +74,14 @@ const SENSITIVE_KEYS = [
 	'ssn',
 	'private_key',
 	'privatekey'
-];
+] as const;
 
-// Determine enabled priority based on environment
-const getMaxPriority = (): number => {
-	if (browser) {
-		// Client: debug in dev, error in prod
-		return dev ? 5 : 2;
-	}
+const MAX_MASK_DEPTH = 10;
 
-	// Server: check env
-	try {
-		const levels = process.env.LOG_LEVELS?.split(',').map((l) => l.trim()) || ['info'];
-		if (levels.includes('none')) return 0;
-		const priorities: Record<LogLevel, number> = {
-			fatal: 1,
-			error: 2,
-			warn: 3,
-			info: 4,
-			debug: 5,
-			trace: 6
-		};
-		return Math.max(...levels.map((l) => priorities[l as LogLevel] || 0));
-	} catch {
-		return 4; // Default to info
-	}
-};
-
-const maxPriority = getMaxPriority();
-const priorities: Record<LogLevel, number> = {
-	fatal: 1,
-	error: 2,
-	warn: 3,
-	info: 4,
-	debug: 5,
-	trace: 6
-};
-
-/**
- * Recursively masks sensitive data with protection against:
- * - Circular references (prevents infinite loops)
- * - Deep nesting (prevents stack overflow)
- * - Special object types (Date, Error, RegExp)
- */
 const maskSensitive = (data: unknown, seen = new WeakSet(), depth = 0): unknown => {
-	// Primitives and null
 	if (typeof data !== 'object' || data === null) return data;
+	if (depth >= MAX_MASK_DEPTH) return '[Max Depth]';
 
-	// Depth limit reached
-	if (depth >= MAX_MASK_DEPTH) return '[Max Depth Reached]';
-
-	// Handle special types before circular check
 	if (data instanceof Date) return data.toISOString();
 	if (data instanceof RegExp) return data.toString();
 	if (data instanceof Error) {
@@ -105,8 +92,7 @@ const maskSensitive = (data: unknown, seen = new WeakSet(), depth = 0): unknown 
 		};
 	}
 
-	// Circular reference check
-	if (seen.has(data)) return '[Circular Reference]';
+	if (seen.has(data)) return '[Circular]';
 	seen.add(data);
 
 	const masked: Record<string, unknown> | unknown[] = Array.isArray(data) ? [] : {};
@@ -127,23 +113,102 @@ const maskSensitive = (data: unknown, seen = new WeakSet(), depth = 0): unknown 
 	return masked;
 };
 
+// --- SMART FORMATTING (only included if logging is enabled) ---
+type FormatPattern = {
+	regex: RegExp;
+	ansi: string;
+	css: string;
+	priority?: number; // Higher priority patterns are applied first
+};
+
+// These patterns are tree-shaken away if logging is disabled
+const PATTERNS: FormatPattern[] = IS_LOGGING_DISABLED
+	? []
+	: [
+			// High Priority - Specific patterns (applied first)
+			{ regex: /\/api\/[^\s]+/g, ansi: '\x1b[33m', css: '#f59e0b', priority: 100 },
+			{ regex: /\/[^\s]*\.(ts|js|svelte|json|css|html)/g, ansi: '\x1b[33m', css: '#f59e0b', priority: 95 },
+			{ regex: /\b[a-f0-9]{24}\b/g, ansi: '\x1b[33m', css: '#f59e0b', priority: 90 },
+			{ regex: /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, ansi: '\x1b[33m', css: '#f59e0b', priority: 90 },
+			{ regex: /\b(api|cache|user|tenant):[^\s]+/g, ansi: '\x1b[36m', css: '#06b6d4', priority: 85 },
+			{ regex: /\bsession(s)?\b/gi, ansi: '\x1b[33m', css: '#f59e0b', priority: 84 },
+			{ regex: /\btoken(s)?\b/gi, ansi: '\x1b[34m', css: '#3b82f6', priority: 84 },
+			{ regex: /\b(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\b/g, ansi: '\x1b[35m', css: '#a855f7', priority: 80 },
+			{ regex: /\b(200|201|204|301|302|304|400|401|403|404|500|502|503)\b/g, ansi: '\x1b[36m', css: '#06b6d4', priority: 75 },
+			{ regex: /\b(user|userId|tenant|tenantId):\s*([^\s,)]+)/g, ansi: '\x1b[34m', css: '#3b82f6', priority: 70 },
+			{ regex: /\b(role|permission):\s*(admin|user|editor|viewer|guest|superadmin)\b/gi, ansi: '\x1b[35m', css: '#a855f7', priority: 65 },
+
+			// Medium Priority - Keywords
+			{ regex: /\btrue\b/g, ansi: '\x1b[32m', css: '#22c55e', priority: 50 },
+			{ regex: /\bfalse\b/g, ansi: '\x1b[31m', css: '#ef4444', priority: 50 },
+			// Time/size tokens
+			{ regex: /\b\d+(\.\d+)?(ms|s)\b/g, ansi: '\x1b[32m', css: '#22c55e', priority: 55 },
+			// Plain numbers (values)
+			{ regex: /\b-?\d+(?:\.\d+)?\b/g, ansi: '\x1b[34m', css: '#3b82f6', priority: 46 },
+			{ regex: /\b\d+(\.\d+)?(MB|KB|GB|%)\b/g, ansi: '\x1b[36m', css: '#06b6d4', priority: 44 },
+			{ regex: /\b(error|failed|failure|denied|invalid|unauthorized|forbidden)\b/gi, ansi: '\x1b[31m', css: '#ef4444', priority: 40 },
+			{ regex: /\b(success|successful|granted|valid|authorized|completed)\b/gi, ansi: '\x1b[32m', css: '#22c55e', priority: 40 },
+
+			// Low Priority - Generic patterns
+			{ regex: /"([^"]+)"/g, ansi: '\x1b[33m', css: '#f59e0b', priority: 10 },
+			{ regex: /'([^']+)'/g, ansi: '\x1b[33m', css: '#f59e0b', priority: 10 }
+		].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+
+const ANSI_RESET = '\x1b[0m';
+const ANSI_DIM = '\x1b[2m';
+
+// Server-side formatting (tree-shaken if in browser or disabled)
+const formatServer =
+	!IS_BROWSER && !IS_LOGGING_DISABLED
+		? (message: string): string => {
+				let formatted = message;
+				for (const pattern of PATTERNS) {
+					formatted = formatted.replace(pattern.regex, (match) => `${pattern.ansi}${match}${ANSI_RESET}`);
+				}
+				return formatted;
+			}
+		: (message: string) => message;
+
+// Client-side formatting (tree-shaken if on server or disabled)
+const formatClient =
+	IS_BROWSER && !IS_LOGGING_DISABLED
+		? (message: string): { formatted: string; styles: string[] } => {
+				let formatted = message;
+				const styles: string[] = [];
+
+				for (const pattern of PATTERNS) {
+					formatted = formatted.replace(pattern.regex, (match) => {
+						styles.push(`color: ${pattern.css}; font-weight: 600;`);
+						styles.push('color: inherit;');
+						return `%c${match}%c`;
+					});
+				}
+
+				return { formatted, styles };
+			}
+		: (message: string) => ({ formatted: message, styles: [] });
+
+// --- CORE LOGGING FUNCTION ---
 const log = (level: LogLevel, message: string, args: LoggableValue[]): void => {
-	if (priorities[level] > maxPriority) return;
+	// Early exit - completely removed by tree-shaking if logging disabled
+	if (IS_BUILDING || IS_LOGGING_DISABLED || !isLevelEnabled(level)) return;
 
 	const masked = args.map((arg) => maskSensitive(arg));
 	const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-	if (browser) {
-		// Client: CSS styled console output with colors
-		const styles: Record<LogLevel, string> = {
-			fatal: 'color: #ff0000; font-weight: bold; font-size: 14px;',
-			error: 'color: #ff4444; font-weight: bold;',
-			warn: 'color: #ffaa00; font-weight: bold;',
-			info: 'color: #4444ff;',
-			debug: 'color: #888888;',
-			trace: 'color: #666666; font-style: italic;'
+	if (IS_BROWSER) {
+		// Browser logging
+		const levelStyles: Record<LogLevel, string> = {
+			none: '',
+			fatal: 'color: #dc2626; font-weight: bold; font-size: 14px;',
+			error: 'color: #ef4444; font-weight: bold;',
+			warn: 'color: #f59e0b; font-weight: bold;',
+			info: 'color: #3b82f6;',
+			debug: 'color: #9ca3af;',
+			trace: 'color: #6b7280; font-style: italic;'
 		};
 		const emoji: Record<LogLevel, string> = {
+			none: '',
 			fatal: '💀',
 			error: '❌',
 			warn: '⚠️',
@@ -154,25 +219,29 @@ const log = (level: LogLevel, message: string, args: LoggableValue[]): void => {
 		const method =
 			level === 'fatal' || level === 'error' ? 'error' : level === 'warn' ? 'warn' : level === 'debug' || level === 'trace' ? 'debug' : 'log';
 
+		const { formatted, styles } = formatClient(message);
+
 		console[method](
-			`%c[${timestamp}] %c${emoji[level]} [${level.toUpperCase()}] %c${message}`,
-			'color: #999999;',
-			styles[level],
+			`%c[${timestamp}] %c${emoji[level]} [${level.toUpperCase()}] %c${formatted}`,
+			'color: #9ca3af;',
+			levelStyles[level],
 			'color: inherit;',
+			...styles,
 			...masked
 		);
 	} else {
-		// Server: Professional ANSI formatted output
-		const colors: Record<LogLevel, string> = {
-			fatal: '\x1b[35;1m', // Bright magenta + bold
-			error: '\x1b[31;1m', // Bright red + bold
-			warn: '\x1b[33;1m', // Bright yellow + bold
-			info: '\x1b[36m', // Cyan
-			debug: '\x1b[90m', // Gray
-			trace: '\x1b[90;3m' // Gray + italic
+		// Server logging
+		const levelColors: Record<LogLevel, string> = {
+			none: '',
+			fatal: '\x1b[35;1m',
+			error: '\x1b[31;1m',
+			warn: '\x1b[33;1m',
+			info: '\x1b[36m',
+			debug: '\x1b[90m',
+			trace: '\x1b[90;3m'
 		};
-
 		const icons: Record<LogLevel, string> = {
+			none: '',
 			fatal: '✗',
 			error: '✗',
 			warn: '⚠',
@@ -181,48 +250,78 @@ const log = (level: LogLevel, message: string, args: LoggableValue[]): void => {
 			trace: '○'
 		};
 
-		// Format: [timestamp] icon [LEVEL] message
+		const formattedMessage = formatServer(message);
 		const formattedLevel = level.toUpperCase().padEnd(5);
-		console.log(`\x1b[2m${timestamp}\x1b[0m ${colors[level]}${icons[level]} [${formattedLevel}]\x1b[0m ${message}`, ...masked);
+
+		console.log(
+			`${ANSI_DIM}${timestamp}${ANSI_RESET} ${levelColors[level]}${icons[level]} [${formattedLevel}]${ANSI_RESET} ${formattedMessage}`,
+			...masked
+		);
 	}
 };
+
+// --- PUBLIC API ---
+// When logging is disabled, these become no-ops that Vite can completely remove
 
 export const logger = {
-	fatal: (msg: string, ...args: LoggableValue[]) => log('fatal', msg, args),
-	error: (msg: string, ...args: LoggableValue[]) => log('error', msg, args),
-	warn: (msg: string, ...args: LoggableValue[]) => log('warn', msg, args),
-	info: (msg: string, ...args: LoggableValue[]) => log('info', msg, args),
-	debug: (msg: string, ...args: LoggableValue[]) => log('debug', msg, args),
-	trace: (msg: string, ...args: LoggableValue[]) => log('trace', msg, args),
+	fatal: IS_LOGGING_DISABLED ? () => {} : (msg: string, ...args: LoggableValue[]) => log('fatal', msg, args),
+	error: IS_LOGGING_DISABLED ? () => {} : (msg: string, ...args: LoggableValue[]) => log('error', msg, args),
+	warn: IS_LOGGING_DISABLED ? () => {} : (msg: string, ...args: LoggableValue[]) => log('warn', msg, args),
+	info: IS_LOGGING_DISABLED ? () => {} : (msg: string, ...args: LoggableValue[]) => log('info', msg, args),
+	debug: IS_LOGGING_DISABLED ? () => {} : (msg: string, ...args: LoggableValue[]) => log('debug', msg, args),
+	trace: IS_LOGGING_DISABLED ? () => {} : (msg: string, ...args: LoggableValue[]) => log('trace', msg, args),
 
-	/**
-	 * Creates a namespaced logger channel.
-	 * @param name - The name for the channel (e.g., 'Auth', 'DB')
-	 */
-	channel: (name: string) => ({
-		fatal: (msg: string, ...args: LoggableValue[]) => log('fatal', `[${name}] ${msg}`, args),
-		error: (msg: string, ...args: LoggableValue[]) => log('error', `[${name}] ${msg}`, args),
-		warn: (msg: string, ...args: LoggableValue[]) => log('warn', `[${name}] ${msg}`, args),
-		info: (msg: string, ...args: LoggableValue[]) => log('info', `[${name}] ${msg}`, args),
-		debug: (msg: string, ...args: LoggableValue[]) => log('debug', `[${name}] ${msg}`, args),
-		trace: (msg: string, ...args: LoggableValue[]) => log('trace', `[${name}] ${msg}`, args)
-	}),
+	channel: IS_LOGGING_DISABLED
+		? () => ({
+				fatal: () => {},
+				error: () => {},
+				warn: () => {},
+				info: () => {},
+				debug: () => {},
+				trace: () => {}
+			})
+		: (name: string) => ({
+				fatal: (msg: string, ...args: LoggableValue[]) => log('fatal', `[${name}] ${msg}`, args),
+				error: (msg: string, ...args: LoggableValue[]) => log('error', `[${name}] ${msg}`, args),
+				warn: (msg: string, ...args: LoggableValue[]) => log('warn', `[${name}] ${msg}`, args),
+				info: (msg: string, ...args: LoggableValue[]) => log('info', `[${name}] ${msg}`, args),
+				debug: (msg: string, ...args: LoggableValue[]) => log('debug', `[${name}] ${msg}`, args),
+				trace: (msg: string, ...args: LoggableValue[]) => log('trace', `[${name}] ${msg}`, args)
+			}),
 
-	/**
-	 * Helper to quickly dump data at the 'trace' level.
-	 * @param data - The data to dump.
-	 * @param label - An optional label for the dump.
-	 */
-	dump: (data: LoggableValue, label?: string) => {
-		if (priorities.trace <= maxPriority) {
-			const prefix = label ? `DUMP[${label}]` : 'DUMP';
-			if (browser) {
-				console.group(`🔍 ${prefix}`);
-				console.dir(maskSensitive(data), { depth: null });
-				console.groupEnd();
-			} else {
-				log('trace', prefix, [data]);
+	dump: IS_LOGGING_DISABLED
+		? () => {}
+		: (data: LoggableValue, label?: string) => {
+				if (!isLevelEnabled('trace')) return;
+				const prefix = label ? `DUMP[${label}]` : 'DUMP';
+				if (IS_BROWSER) {
+					console.group(`🔍 ${prefix}`);
+					console.dir(maskSensitive(data), { depth: null });
+					console.groupEnd();
+				} else {
+					log('trace', prefix, [data]);
+				}
 			}
-		}
-	}
 };
+
+// Type guard to ensure logger calls are properly typed even when disabled
+if (IS_LOGGING_DISABLED) {
+	// In production with logging disabled, this entire block is removed
+	logger satisfies {
+		fatal: (msg: string, ...args: LoggableValue[]) => void;
+		error: (msg: string, ...args: LoggableValue[]) => void;
+		warn: (msg: string, ...args: LoggableValue[]) => void;
+		info: (msg: string, ...args: LoggableValue[]) => void;
+		debug: (msg: string, ...args: LoggableValue[]) => void;
+		trace: (msg: string, ...args: LoggableValue[]) => void;
+		channel: (name: string) => {
+			fatal: (msg: string, ...args: LoggableValue[]) => void;
+			error: (msg: string, ...args: LoggableValue[]) => void;
+			warn: (msg: string, ...args: LoggableValue[]) => void;
+			info: (msg: string, ...args: LoggableValue[]) => void;
+			debug: (msg: string, ...args: LoggableValue[]) => void;
+			trace: (msg: string, ...args: LoggableValue[]) => void;
+		};
+		dump: (data: LoggableValue, label?: string) => void;
+	};
+}

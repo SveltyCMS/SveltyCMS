@@ -38,7 +38,7 @@ const QuerySchema = v.object({
 });
 
 const LogEntrySchema = v.object({
-	timestamp: v.string() as v.BaseSchema<ISODateString>,
+	timestamp: v.string(),
 	level: v.string(),
 	message: v.string(),
 	messageHtml: v.string(),

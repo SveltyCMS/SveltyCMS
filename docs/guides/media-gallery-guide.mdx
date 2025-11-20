@@ -414,6 +414,233 @@ product-catalogs/
 
 ---
 
+## Storage Analytics & Insights
+
+**Utility**: `storageAnalytics.ts`  
+**API Endpoint**: `GET /api/media/storage-analytics`
+
+The media system includes advanced storage analytics to help you understand usage patterns, optimize storage costs, and plan for future growth.
+
+### Available Analytics Functions
+
+#### 1. Storage Analysis
+
+Get comprehensive breakdown of media storage:
+
+```typescript
+import { analyzeStorage } from '$utils/media/storageAnalytics';
+
+const analysis = await analyzeStorage(userId);
+
+// Returns:
+{
+  totalSize: 15728640,           // bytes
+  totalFiles: 245,
+  byType: {
+    'image/jpeg': { count: 120, size: 8388608 },
+    'image/png': { count: 80, size: 5242880 },
+    'video/mp4': { count: 10, size: 2097152 }
+  },
+  byCategory: {
+    images: { count: 200, size: 13631488 },
+    documents: { count: 30, size: 1572864 },
+    videos: { count: 15, size: 524288 }
+  },
+  largestFiles: [
+    { filename: 'video.mp4', size: 524288, uploadDate: '2024-11-07' },
+    // ... top 10
+  ],
+  oldestFiles: [
+    { filename: 'legacy.jpg', uploadDate: '2020-01-15', size: 102400 },
+    // ...
+  ],
+  unusedFiles: [
+    { filename: 'temp.png', lastAccessed: '2023-05-12', size: 51200 },
+    // ...
+  ]
+}
+```
+
+#### 2. AI-Powered Insights
+
+Get smart recommendations for storage optimization:
+
+```typescript
+import { generateInsights } from '$utils/media/storageAnalytics';
+
+const insights = await generateInsights(userId);
+
+// Returns array of recommendations:
+[
+  {
+    type: 'cleanup',
+    priority: 'high',
+    title: 'Remove unused files',
+    description: '15 files haven't been accessed in 6 months',
+    potentialSavings: 1572864,  // bytes
+    affectedFiles: 15,
+    action: 'review_and_delete'
+  },
+  {
+    type: 'optimization',
+    priority: 'medium',
+    title: 'Convert PNG to WebP',
+    description: '45 PNG images could be 60% smaller as WebP',
+    potentialSavings: 3145728,
+    affectedFiles: 45,
+    action: 'batch_convert'
+  },
+  {
+    type: 'warning',
+    priority: 'high',
+    title: 'Storage limit approaching',
+    description: 'You're using 85% of available storage',
+    potentialSavings: 0,
+    action: 'upgrade_plan'
+  }
+]
+```
+
+#### 3. Storage Predictions
+
+Forecast future storage needs based on historical usage:
+
+```typescript
+import { predictStorage } from '$utils/media/storageAnalytics';
+
+const predictions = await predictStorage(userId, 90); // 90 days forecast
+
+// Returns:
+{
+  currentUsage: 15728640,
+  predictedUsage: {
+    '30days': 18874368,  // +20%
+    '60days': 22020096,  // +40%
+    '90days': 25165824   // +60%
+  },
+  growthRate: 0.02,  // 2% daily
+  trend: 'increasing',
+  recommendation: 'upgrade',
+  estimatedFullDate: '2025-02-15'  // when storage hits 100%
+}
+```
+
+### Dashboard Integration
+
+Display analytics in your admin dashboard:
+
+```svelte
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { analyzeStorage, generateInsights } from '$utils/media/storageAnalytics';
+
+	let analysis = $state(null);
+	let insights = $state([]);
+
+	onMount(async () => {
+		analysis = await analyzeStorage(user._id);
+		insights = await generateInsights(user._id);
+	});
+</script>
+
+{#if analysis}
+	<div class="storage-dashboard">
+		<!-- Total Usage -->
+		<div class="stat-card">
+			<h3>Total Storage</h3>
+			<p>{(analysis.totalSize / 1024 / 1024).toFixed(2)} MB</p>
+			<span>{analysis.totalFiles} files</span>
+		</div>
+
+		<!-- By Type Chart -->
+		<div class="chart-card">
+			<h3>Storage by Type</h3>
+			{#each Object.entries(analysis.byType) as [type, data]}
+				<div class="type-row">
+					<span>{type}</span>
+					<span>{data.count} files</span>
+					<span>{(data.size / 1024).toFixed(0)} KB</span>
+				</div>
+			{/each}
+		</div>
+
+		<!-- AI Insights -->
+		<div class="insights-card">
+			<h3>Recommendations</h3>
+			{#each insights as insight}
+				<div class="insight {insight.priority}">
+					<h4>{insight.title}</h4>
+					<p>{insight.description}</p>
+					{#if insight.potentialSavings > 0}
+						<span class="savings">
+							Save {(insight.potentialSavings / 1024).toFixed(0)} KB
+						</span>
+					{/if}
+				</div>
+			{/each}
+		</div>
+	</div>
+{/if}
+```
+
+### API Endpoint Usage
+
+Fetch analytics via REST API:
+
+```bash
+# Get storage analysis
+GET /api/media/storage-analytics?userId=user123
+
+# Response:
+{
+  "analysis": { /* analyzeStorage result */ },
+  "insights": [ /* generateInsights result */ ],
+  "predictions": { /* predictStorage result */ }
+}
+```
+
+**Query Parameters**:
+
+| Parameter      | Type   | Description                   | Default |
+| -------------- | ------ | ----------------------------- | ------- |
+| `userId`       | string | User ID to analyze            | -       |
+| `forecastDays` | number | Days to forecast (7-365)      | 90      |
+| `includeAll`   | bool   | Include all analytics modules | true    |
+
+### Storage Optimization Workflow
+
+1. **Run Analysis** - Get current storage breakdown
+2. **Review Insights** - Check AI recommendations
+3. **Take Action**:
+   - Delete unused files (6+ months old)
+   - Convert large PNGs to WebP
+   - Archive old content to cold storage
+   - Compress oversized images
+4. **Monitor Predictions** - Track if actions reduced growth rate
+5. **Schedule Regular Reviews** - Weekly/monthly analytics checks
+
+### Use Cases
+
+**Content Managers**:
+
+- Identify unused media assets
+- Plan content archival schedules
+- Optimize storage costs
+
+**Developers**:
+
+- Monitor application storage health
+- Build automated cleanup workflows
+- Create storage quota systems
+
+**Business Owners**:
+
+- Forecast infrastructure costs
+- Plan storage upgrades
+- Audit content efficiency
+
+---
+
 ## Keyboard Shortcuts
 
 ### Navigation
@@ -525,16 +752,66 @@ See [Media API Documentation](./media-handling.mdx#media-api) for complete API r
 
 Planned features for upcoming releases:
 
+### In Development
+
+- 🔧 **Blur-up Placeholders** - Progressive image loading with tiny base64 previews
+  - Generate 20x20px thumbnails during upload
+  - Instant display while full image loads
+  - Improves perceived performance
+
+- 🔧 **Bulk Download as ZIP** - Windows-friendly archive format
+  - Native ZIP support alongside TAR.GZ
+  - Format selection in download UI
+  - Better cross-platform compatibility
+
+- 🔧 **Image Color Extraction** - Visual search by dominant colors
+  - Automatic color palette extraction during upload
+  - Color-based filtering in advanced search
+  - Palette preview in grid view
+
+### Planned
+
 - ✨ **AI-Powered Tagging** - Automatic image tagging and categorization
-- ✨ **Advanced Search** - Search by color, dimensions, metadata
-- ✨ **Duplicate Detection** - Find and merge duplicate files
 - ✨ **Bulk Edit** - Rename, move, tag multiple files at once
-- ✨ **Image Editor Integration** - Edit images directly in gallery
 - ✨ **Video Transcoding** - Automatic video format conversion
 - ✨ **CDN Integration** - One-click CDN deployment
-- ✨ **Sharing & Permissions** - Share files with expiring links
-- ✨ **Version History** - Track file changes over time
-- ✨ **Storage Analytics** - Visualize storage usage
+
+**Already Implemented:**
+
+- ✅ **Advanced Search** - Search by color, dimensions, metadata, EXIF (see [Media API](/docs/api/Media_API#6-advanced-media-search))
+- ✅ **Duplicate Detection** - Hash-based upload-time prevention (see [Implementation Guide](/docs/guides/media-gallery-implementation#hash-based-duplicate-prevention))
+- ✅ **Image Manipulation** - Resize, crop, rotate, filters via API (see [Media API](/docs/api/Media_API#10-image-manipulation))
+- ✅ **Bulk Download** - TAR.GZ archive download (see [Media API](/docs/api/Media_API#8-bulk-download-files))
+- ✅ **Sharing & Permissions** - Share links with expiration (see [Structure Guide](/docs/guides/media-gallery-structure))
+- ✅ **Version History** - Track file changes over time (see [Structure Guide](/docs/guides/media-gallery-structure))
+- ✅ **Storage Analytics** - Visualize usage and predictions (see [Storage Analytics](#storage-analytics--insights))
+
+---
+
+## Related Documentation
+
+### API Reference
+
+- [**Media API Reference**](/docs/api/Media_API) - Complete API documentation for all 12 endpoints:
+  - Upload & Processing
+  - Advanced Search (18+ criteria)
+  - Bulk Download (TAR.GZ)
+  - Image Manipulation
+  - Soft Delete (Trash)
+  - Remote URL Upload
+  - File Existence Check
+  - Search Suggestions
+
+### Architecture & Implementation
+
+- [**Media Gallery Structure**](/docs/guides/media-gallery-structure) - Architecture, components, and data flow
+- [**Media Gallery Implementation**](/docs/guides/media-gallery-implementation) - Implementation details and code examples
+- [**Media Handling**](/docs/guides/media-handling) - Storage configuration, MediaService, and cloud providers
+
+### Optimization Reports
+
+- [**Documentation Optimization Report**](/docs/guides/DOCUMENTATION_OPTIMIZATION_REPORT) - Accuracy analysis and improvements
+- [**Documentation Update Summary**](/docs/guides/DOCUMENTATION_UPDATE_SUMMARY) - Recent changes and coverage metrics
 
 ---
 
@@ -543,10 +820,9 @@ Planned features for upcoming releases:
 The SveltyCMS Media Gallery combines powerful enterprise features with an intuitive interface:
 
 - **Upload:** Real-time progress, validation, and error handling
-- **Organize:** Virtual folders, search, and filters
+- **Organize:** Virtual folders, advanced search (18+ criteria), filters
 - **View:** Grid and table modes with customizable sizes
-- **Manage:** Batch operations, lazy loading, and optimization
+- **Manage:** Batch operations, bulk download, soft delete, lazy loading
 - **Performance:** Handles 10,000+ files with smooth UX
-
-For technical details, see [Media Handling Architecture](./media-handling.mdx).
-For API documentation, see [Media API Reference](../api/Media_API.mdx).
+- **Analytics:** Storage insights, AI predictions, optimization recommendations
+- **API:** 12 RESTful endpoints for complete programmatic access

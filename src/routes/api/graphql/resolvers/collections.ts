@@ -39,7 +39,6 @@ import { logger } from '@utils/logger.server';
 // Types
 import type { User } from '@src/databases/auth/types';
 import type { Schema, FieldInstance } from '@src/content/types';
-import type { createPubSub } from 'graphql-yoga';
 
 /**
  * Creates a clean GraphQL type name from collection info
@@ -290,12 +289,7 @@ export async function registerCollections(tenantId?: string) {
 }
 
 // Builds resolvers for querying collection data.
-export async function collectionsResolvers(
-	dbAdapter: DatabaseAdapter,
-	cacheClient: CacheClient | null,
-	pubSub: ReturnType<typeof createPubSub>,
-	tenantId?: string
-) {
+export async function collectionsResolvers(dbAdapter: DatabaseAdapter, cacheClient: CacheClient | null, tenantId?: string) {
 	if (!dbAdapter) {
 		throw new Error('Database adapter is not initialized');
 	}
@@ -394,32 +388,6 @@ export async function collectionsResolvers(
 				logger.error(`Error fetching data for ${collection._id}: ${errorMessage}`);
 				throw new Error(`Failed to fetch data for ${collection._id}: ${errorMessage}`);
 			}
-		};
-
-		// Add mutation resolvers
-		resolvers.Query[`create${cleanTypeName}`] = async function resolver(
-			_parent: unknown,
-			args: { input: Record<string, unknown> },
-			context: unknown
-		): Promise<DocumentBase> {
-			const ctx = context as { user?: User; tenantId?: string };
-			if (!ctx.user) {
-				throw new Error('Authentication required');
-			}
-
-			const collectionName = `collection_${collection._id}`;
-			const result = await dbAdapter.crud.insert(collectionName, args.input);
-
-			if (!result.success) {
-				throw new Error(`Database query failed: ${result.error?.message || 'Unknown error'}`);
-			}
-
-			const newPost = result.data as unknown as DocumentBase;
-
-			// Publish the new post to the subscription
-			pubSub.publish('postAdded', newPost);
-
-			return newPost;
 		};
 	}
 

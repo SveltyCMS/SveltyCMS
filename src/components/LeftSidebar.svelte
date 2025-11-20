@@ -61,11 +61,11 @@
 	type SidebarState = 'full' | 'collapsed' | 'hidden';
 
 	// Reactive user data
-	let user = $derived(page.data.user);
-	let currentPath = $derived(page.url.pathname);
-	let collections: Schema[] = $derived(page.data.collections);
+	const user = $derived(page.data.user);
+	const currentPath = $derived(page.url.pathname);
+	const collections: Schema[] = $derived(page.data.collections);
 	// Check if we're in media mode
-	let isMediaMode = $derived(currentPath.includes('/mediagallery'));
+	const isMediaMode = $derived(currentPath.includes('/mediagallery'));
 
 	// Language state
 	let languageTag = $state(getLocale() as AvailableLanguage);
@@ -74,16 +74,16 @@
 	let dropdownRef = $state<HTMLElement | null>(null);
 
 	// Derived values
-	let isSidebarFull = $derived(uiStateManager.uiState.value.leftSidebar === 'full');
-	let isSidebarCollapsed = $derived(uiStateManager.uiState.value.leftSidebar === 'collapsed');
+	const isSidebarFull = $derived(uiStateManager.uiState.value.leftSidebar === 'full');
+	const isSidebarCollapsed = $derived(uiStateManager.uiState.value.leftSidebar === 'collapsed');
 
-	let firstCollectionPath = $derived(collections?.[0] ? `/Collections/${collections[0].name}` : '/Collections');
+	const firstCollectionPath = $derived(collections?.[0] ? `/Collections/${collections[0].name}` : '/Collections');
 
-	let availableLanguages = $derived([...availableLocales].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))));
+	const availableLanguages = $derived([...availableLocales].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))));
 
-	let showLanguageDropdown = $derived(availableLanguages.length > LANGUAGE_DROPDOWN_THRESHOLD);
+	const showLanguageDropdown = $derived(availableLanguages.length > LANGUAGE_DROPDOWN_THRESHOLD);
 
-	let filteredLanguages = $derived(
+	const filteredLanguages = $derived(
 		availableLanguages.filter((lang: string) => {
 			const searchLower = searchQuery.toLowerCase();
 			const systemLangName = getLanguageName(lang, systemLanguage.value).toLowerCase();
@@ -92,7 +92,7 @@
 		}) as AvailableLanguage[]
 	);
 
-	let avatarUrl = $derived.by(() => {
+	const avatarUrl = $derived.by(() => {
 		const src = avatarSrc.value;
 		if (!src) return '/Default_User.svg';
 		if (src.startsWith('data:')) return src;

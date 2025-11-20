@@ -17,6 +17,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Database
 import { dbAdapter, dbInitPromise } from '@src/databases/db';
+import type { BaseEntity } from '@src/databases/dbInterface';
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 
@@ -62,10 +63,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			// Use database adapter to search in the collection
 			const searchQuery = { $text: { $search: query } } as Partial<BaseEntity>;
 			const searchResults = await dbAdapter.crud.findMany(collectionName, searchQuery, {
-				skip,
+				offset: skip,
 				limit
 			});
-
 			if (searchResults.success && searchResults.data && searchResults.data.length > 0) {
 				results.push({
 					collection: collectionName,

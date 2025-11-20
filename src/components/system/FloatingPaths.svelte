@@ -28,7 +28,7 @@ Spring class for smooth, physics-based motion.
 		mirrorAnimation?: boolean;
 	}
 
-	let { background = 'white', position = 1, mirrorAnimation = false }: Props = $props();
+	const { background = 'white', position = 1, mirrorAnimation = false }: Props = $props();
 
 	const paths = Array.from({ length: 36 }, (_, i) => ({
 		id: i, // Unique ID for each path

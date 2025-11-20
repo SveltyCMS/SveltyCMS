@@ -63,6 +63,8 @@
 	import RightSidebar from '@components/RightSidebar.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
+	import ImageEditorHeader from './imageEditor/components/layout/ImageEditorHeader.svelte';
+	import ImageEditorFooter from './imageEditor/components/layout/ImageEditorFooter.svelte';
 
 	// Skeleton
 	import {
@@ -111,14 +113,14 @@
 	// PROPS & STATE
 	// ============================================================================
 
-	let { children, data }: Props = $props();
+	const { children, data }: Props = $props();
 
 	// Initialize global stores
 	setGlobalModalStore(getModalStore());
 	setGlobalToastStore(getToastStore());
 
 	// Component State
-	let loadError = $state<Error | null>(null);
+	const loadError = $state<Error | null>(null);
 	let mediaQuery: MediaQueryList | undefined;
 
 	// ============================================================================
@@ -128,6 +130,8 @@
 	// SEO meta content
 	const siteName = publicEnv?.SITE_NAME || 'SveltyCMS';
 	const seoDescription = `${siteName} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
+	// Hide CMS layout footer when using Image Editor route (it has its own footer toolbar)
+	const isImageEditorRoute = $derived(page.url?.pathname?.includes('/imageEditor'));
 
 	// ============================================================================
 	// REACTIVE EFFECTS
@@ -356,7 +360,11 @@
 					<!-- Page Header -->
 					{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
 						<header class="sticky top-0 z-20 w-full">
-							<HeaderEdit />
+							{#if isImageEditorRoute}
+								<ImageEditorHeader />
+							{:else}
+								<HeaderEdit />
+							{/if}
 						</header>
 					{/if}
 
@@ -373,7 +381,11 @@
 					<!-- Page Footer / Mobile Nav -->
 					{#if uiStateManager.uiState.value.pagefooter !== 'hidden'}
 						<footer class="mt-auto w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
-							<PageFooter />
+							{#if isImageEditorRoute}
+								<ImageEditorFooter />
+							{:else}
+								<PageFooter />
+							{/if}
 						</footer>
 					{/if}
 				</main>

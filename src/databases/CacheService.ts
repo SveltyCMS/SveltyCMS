@@ -21,8 +21,9 @@ try {
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import type { RedisClientType } from 'redis';
-// System Logger
-import { logger } from '@utils/logger.server';
+// System Logger - use universal logger for client/server compatibility
+import { logger } from '@utils/logger';
+import { CacheCategory } from './CacheCategory';
 
 // Cache config will be loaded lazily when cache is initialized
 let CACHE_CONFIG: {
@@ -70,7 +71,7 @@ class InMemoryStore implements ICacheStore {
 		if (this.isInitialized) return;
 		this.interval = setInterval(() => this.cleanup(), 60_000);
 		this.isInitialized = true;
-		logger.info('\x1b[34mIn-memory cache\x1b[0m initialized.');
+		logger.info('In-memory cache initialized.');
 	}
 
 	private cleanup() {
@@ -128,24 +129,26 @@ class RedisStore implements ICacheStore {
 		if (!config) {
 			throw new Error('Cache configuration is not available');
 		}
-		for (let attempt = 1; attempt <= config.RETRY_ATTEMPTS; attempt++) {
-			try {
-				const { createClient } = await import('redis');
-				this.client = createClient({ url: config.URL, password: config.PASSWORD });
-				this.client.on('error', (err) => logger.error('Redis Client Error', err));
-				this.client.on('reconnecting', () => logger.warn('Reconnecting to Redis...'));
-				await this.client.connect();
-				this.isInitialized = true;
-				logger.info('Redis client connected successfully.');
-				return;
-			} catch (err) {
-				logger.error(`Redis connection attempt ${attempt} failed: ${err instanceof Error ? err.message : String(err)}`);
-				if (attempt === config.RETRY_ATTEMPTS) {
-					throw new Error(`Failed to initialize Redis after ${config.RETRY_ATTEMPTS} attempts.`);
-				}
-				await new Promise((r) => setTimeout(r, config.RETRY_DELAY));
-			}
-		}
+
+		// Use DatabaseResilience for automatic retry with exponential backoff
+		const { getDatabaseResilience } = await import('@src/databases/DatabaseResilience');
+		const resilience = getDatabaseResilience({
+			maxAttempts: config.RETRY_ATTEMPTS,
+			initialDelayMs: config.RETRY_DELAY,
+			backoffMultiplier: 2,
+			maxDelayMs: 30000, // Max 30s delay
+			jitterMs: 500
+		});
+
+		await resilience.executeWithRetry(async () => {
+			const { createClient } = await import('redis');
+			this.client = createClient({ url: config.URL, password: config.PASSWORD });
+			this.client.on('error', (err) => logger.error('Redis Client Error', err));
+			this.client.on('reconnecting', () => logger.warn('Reconnecting to Redis...'));
+			await this.client.connect();
+			this.isInitialized = true;
+			logger.info('Redis client connected successfully.');
+		}, 'Redis Connection');
 	}
 
 	private async ensureReady(): Promise<void> {
@@ -266,17 +269,16 @@ class CacheService {
 	}
 
 	// Prefetch multiple keys in the background
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 	private async prefetchKeys(keys: string[], category?: CacheCategory, _tenantId?: string): Promise<void> {
 		// This is a placeholder - in a real implementation, you would:
 		// 1. Check which keys are not in cache
 		// 2. Fetch the data from the database
 		// 3. Store it in cache
 		// For now, we just log the intent
-		logger.debug(`Predictive prefetch triggered for \x1b[34m${keys.length}\x1b[0m keys in category \x1b[34m${category || 'default'}\x1b[0m`);
+		logger.debug(`Predictive prefetch triggered for ${keys.length} keys in category ${category || 'default'}`);
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async get<T>(baseKey: string, tenantId?: string, _category?: CacheCategory): Promise<T | null> {
 		await this.ensureInitialized();
 		const key = this.generateKey(baseKey, tenantId);
@@ -326,7 +328,7 @@ class CacheService {
 	 */
 	async warmCache(config: WarmCacheConfig): Promise<void> {
 		await this.ensureInitialized();
-		logger.info(`Warming cache for \x1b[34m${config.keys.length}\x1b[0m keys in category \x1b[34m${config.category || 'default'}\x1b[0m`);
+		logger.info(`Warming cache for ${config.keys.length} keys in category ${config.category || 'default'}`);
 
 		try {
 			const data = await config.fetcher();
@@ -336,7 +338,7 @@ class CacheService {
 				await this.set(key, data, ttl, config.tenantId, config.category);
 			}
 
-			logger.info(`Cache warmed successfully for \x1b[34m${config.keys.length}\x1b[0m keys`);
+			logger.info(`Cache warmed successfully for ${config.keys.length} keys`);
 		} catch (error) {
 			logger.error('Cache warming failed:', error);
 		}
@@ -348,7 +350,7 @@ class CacheService {
 	 */
 	registerPrefetchPattern(pattern: PrefetchPattern): void {
 		this.prefetchPatterns.push(pattern);
-		logger.info(`Registered prefetch pattern: \x1b[34m${pattern.pattern.source}\x1b[0m`);
+		logger.info(`Registered prefetch pattern: ${pattern.pattern.source}`);
 	}
 
 	// Get cache access analytics
@@ -484,16 +486,7 @@ export const REDIS_TTL_S = 300; // 5 minutes in seconds for Redis
  * Cache category TTLs - Configurable via database settings
  * Defaults are used if not configured in the database
  */
-export enum CacheCategory {
-	SCHEMA = 'schema',
-	WIDGET = 'widget',
-	THEME = 'theme',
-	CONTENT = 'content',
-	MEDIA = 'media',
-	SESSION = 'session',
-	USER = 'user',
-	API = 'api'
-}
+// CacheCategory enum now imported from ./CacheCategory.ts
 
 // Default TTLs (in seconds) if not configured in database
 const DEFAULT_CATEGORY_TTLS: Record<CacheCategory, number> = {
@@ -533,7 +526,7 @@ function getCategoryTTL(category: CacheCategory): number {
 		}
 	} catch (error) {
 		// If settings not loaded yet, fall through to defaults
-		logger.debug(`Failed to get TTL for \x1b[34m${category}\x1b[0m, using default:`, error);
+		logger.debug(`Failed to get TTL for ${category}, using default:`, error);
 	}
 
 	// Fall back to default TTL

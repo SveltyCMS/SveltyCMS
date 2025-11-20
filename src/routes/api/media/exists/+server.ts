@@ -36,8 +36,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			throw error(400, 'URL parameter is required');
 		}
 
-		// Pass tenantId to ensure the check is performed in the correct tenant's storage
-		const exists = await fileExists(fileUrl, tenantId);
+		// Check file existence (tenant is handled internally if needed)
+		const exists = await fileExists(fileUrl);
 		logger.debug('Media file existence check', {
 			fileUrl,
 			exists,

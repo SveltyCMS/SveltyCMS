@@ -191,8 +191,8 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 		metricsService.incrementRateLimitViolations();
 
 		logger.warn(
-			`Rate limit exceeded for IP: \x1b[34m${clientIp}\x1b[0m, ` +
-				`endpoint: \x1b[34m${url.pathname}\x1b[0m, ` +
+			`Rate limit exceeded for IP: ${clientIp}, ` +
+				`endpoint: ${url.pathname}, ` +
 				`UA: ${event.request.headers.get('user-agent')?.substring(0, 50) || 'unknown'}`
 		);
 

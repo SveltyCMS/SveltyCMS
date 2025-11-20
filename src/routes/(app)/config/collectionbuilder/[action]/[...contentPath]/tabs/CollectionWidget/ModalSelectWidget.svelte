@@ -24,7 +24,7 @@
 		existingCategory?: any;
 	}
 
-	let { parent, existingCategory = { name: '', icon: '' } }: Props = $props();
+	const { parent, existingCategory = { name: '', icon: '' } }: Props = $props();
 
 	// Define the search term variable
 	let searchTerm: string = $state('');
@@ -37,7 +37,7 @@
 	const widget_keys = $derived(Object.keys(availableWidgets).filter((key) => activeWidgetList.includes(key)));
 
 	// Define the selected widget variable
-	let selected: string | null = $state(null);
+	const selected: string | null = $state(null);
 
 	// Initialize widgets on mount
 	onMount(async () => {

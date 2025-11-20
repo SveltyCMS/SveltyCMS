@@ -14,7 +14,7 @@ export interface SettingField {
 	key: string;
 	label: string;
 	description: string;
-	type: 'text' | 'number' | 'boolean' | 'password' | 'select' | 'array' | 'language-multi' | 'language-select' | 'loglevel-multi';
+	type: 'text' | 'number' | 'boolean' | 'password' | 'select' | 'array' | 'language-multi' | 'language-select' | 'loglevel-multi' | 'textarea';
 	category: 'private' | 'public';
 	required?: boolean;
 	readonly?: boolean; // Field is display-only, cannot be edited
@@ -23,6 +23,7 @@ export interface SettingField {
 	options?: Array<{ value: string | number; label: string }>;
 	placeholder?: string;
 	unit?: string;
+	rows?: number;
 	validation?: (value: unknown) => string | null;
 }
 
@@ -698,6 +699,27 @@ export const settingsGroups: SettingGroup[] = [
 				max: 104857600,
 				unit: 'bytes',
 				placeholder: '10485760'
+			}
+		]
+	},
+	{
+		id: 'customCss',
+		name: 'Custom CSS',
+		icon: '💅',
+		description: 'Add custom CSS to your site for advanced styling.',
+		enabled: true,
+		requiresRestart: false,
+		adminOnly: true,
+		permissionId: 'config:settings:customCss',
+		fields: [
+			{
+				key: 'CUSTOM_SITE_CSS',
+				label: 'Custom Site CSS',
+				description: "Enter your custom CSS here. This will be injected directly into your site's <head>.",
+				type: 'textarea',
+				category: 'public',
+				placeholder: '/* Your custom CSS here */',
+				rows: 10
 			}
 		]
 	}
