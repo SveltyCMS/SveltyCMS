@@ -100,3 +100,27 @@ export async function logout(page: Page) {
 		console.log('[Auth] Error during logout, continuing anyway:', error);
 	}
 }
+
+/**
+ * Ensure sidebar is visible on mobile viewports
+ * On mobile (<768px), the sidebar is hidden by default
+ * @param page - Playwright page object
+ */
+export async function ensureSidebarVisible(page: Page) {
+	const viewport = page.viewportSize();
+	const isMobile = viewport && viewport.width < 768;
+
+	if (isMobile) {
+		// Try to find and click the menu/hamburger button to open sidebar
+		const menuButton = page.locator('button[aria-label*="menu" i], button[aria-label*="sidebar" i], button[aria-label="Open Sidebar"]').first();
+		const menuVisible = await menuButton.isVisible().catch(() => false);
+
+		if (menuVisible) {
+			await menuButton.click();
+			await page.waitForTimeout(500);
+			console.log('✓ Opened sidebar on mobile viewport');
+			return true;
+		}
+	}
+	return false;
+}

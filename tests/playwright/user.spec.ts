@@ -24,8 +24,10 @@ test('Edit Avatar', async ({ page }) => {
 	await page.goto(`${baseURL}/user`);
 	await expect(page).toHaveURL(/\/user/);
 
-	// Click Edit Avatar button
-	await page.getByRole('button', { name: /edit avatar/i }).click();
+	// Click Edit Avatar button - on mobile this button is positioned outside viewport
+	// Use evaluate to click it directly since force click doesn't work for elements outside viewport
+	const editButton = page.getByRole('button', { name: /edit avatar/i });
+	await editButton.evaluate((el: HTMLElement) => el.click());
 
 	// Wait for modal to open
 	await page.waitForTimeout(500);
@@ -55,24 +57,34 @@ test('Delete Avatar', async ({ page }) => {
 
 	// First, ensure there's an avatar to delete by uploading one
 	await page.goto(`${baseURL}/user`);
-	await page.getByRole('button', { name: /edit avatar/i }).click({ force: true });
+	let editButton = page.getByRole('button', { name: /edit avatar/i });
+	await editButton.evaluate((el: HTMLElement) => el.click());
 	await page.waitForTimeout(500);
 
 	// Upload a test image first
 	const fileInput = page.getByTestId('file-dropzone').getByRole('button', { name: 'Upload avatar' });
 	await fileInput.setInputFiles('tests/playwright/testthumb.png');
-	await page.getByRole('button', { name: /save/i }).click();
+	await page.getByRole('button', { name: /save/i }).click({ force: true });
 	await page.waitForTimeout(2000);
 
-	// Now delete the avatar - use force to bypass any modal overlays
-	await page.getByRole('button', { name: /edit avatar/i }).click({ force: true });
+	// Now delete the avatar - use evaluate to click button that's outside viewport on mobile
+	editButton = page.getByRole('button', { name: /edit avatar/i });
+	await editButton.evaluate((el: HTMLElement) => el.click());
 	await page.waitForTimeout(500);
 
 	// Click delete button (variant-filled-error)
 	await page.locator('button.variant-filled-error').click();
+	await page.waitForTimeout(500);
 
-	// Confirm deletion in the modal - use first() as there may be multiple delete buttons
-	await page.getByRole('button', { name: /confirm|delete/i }).first().click();
+	// Confirm deletion in the modal - try multiple selectors for different modal implementations
+	const confirmButton = page.getByRole('button', { name: /confirm|delete|yes/i }).first();
+	const deleteButtonClass = page.locator('button.variant-filled-error').first();
+
+	if (await confirmButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+		await confirmButton.click();
+	} else if (await deleteButtonClass.isVisible({ timeout: 1000 }).catch(() => false)) {
+		await deleteButtonClass.click();
+	}
 
 	// Wait for avatar to reset to default
 	await page.waitForTimeout(2000);

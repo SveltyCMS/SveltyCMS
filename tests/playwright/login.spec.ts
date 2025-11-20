@@ -7,7 +7,7 @@
  *   - Logs out and checks redirect to login page
  */
 import { test, expect } from '@playwright/test';
-import { ADMIN_CREDENTIALS, loginAsAdmin, logout } from './helpers/auth';
+import { ADMIN_CREDENTIALS, loginAsAdmin, logout, ensureSidebarVisible } from './helpers/auth';
 
 test('Login and logout flow', async ({ page }) => {
 	// Set a higher timeout for this test (optional)
@@ -19,6 +19,9 @@ test('Login and logout flow', async ({ page }) => {
 	// Assert we're logged in and at the Collections page
 	await expect(page).toHaveURL(/\/(Collections|admin|dashboard)/, { timeout: 10000 });
 	console.log('✓ Login successful, current URL:', page.url());
+
+	// On mobile viewports, open sidebar to access logout button
+	await ensureSidebarVisible(page);
 
 	// Wait for logout button and click it
 	const logoutButton = page.locator('button[aria-label="Sign Out"]').first();

@@ -6,7 +6,7 @@
  *   - Selects each language from the dropdown and waits for UI update
  */
 import { test, expect } from '@playwright/test';
-import { loginAsAdmin } from './helpers/auth';
+import { loginAsAdmin, ensureSidebarVisible } from './helpers/auth';
 
 test.describe('System Language Change', () => {
 	test.setTimeout(60000); // 1 min
@@ -15,7 +15,10 @@ test.describe('System Language Change', () => {
 		// 1. Login
 		await loginAsAdmin(page, /\/admin|\/en\/Collections\/Names/);
 
-		// 2. Find language selector using data-testid
+		// 2. On mobile viewports, open sidebar to access language selector
+		await ensureSidebarVisible(page);
+
+		// 3. Find language selector using data-testid
 		const languageSelector = page.getByTestId('language-selector');
 		await expect(languageSelector).toBeVisible({ timeout: 10000 });
 

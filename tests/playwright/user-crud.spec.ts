@@ -7,7 +7,7 @@
  *   - Invite user via email and accept invitation
  */
 import { test, expect } from '@playwright/test';
-import { loginAsAdmin } from './helpers/auth';
+import { loginAsAdmin, ensureSidebarVisible } from './helpers/auth';
 
 test.describe('User Management Flow', () => {
 	test.setTimeout(120000); // 2 min timeout
@@ -21,6 +21,9 @@ test.describe('User Management Flow', () => {
 	test('Read and Edit User Profile', async ({ page }) => {
 		// Login
 		await loginAsAdmin(page);
+
+		// On mobile, ensure sidebar is visible to access user profile button
+		await ensureSidebarVisible(page);
 
 		// Navigate to User Profile via avatar button in sidebar
 		await page.getByRole('button', { name: /user profile/i }).click();

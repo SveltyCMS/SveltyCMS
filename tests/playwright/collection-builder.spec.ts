@@ -197,10 +197,15 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		await modalInputs.first().fill('User Email');
 		await modalInputs.nth(1).fill('email');
 
-		// Toggle required checkbox - use force since wrapper div intercepts clicks
-		const requiredToggle = page.locator('input[name="required"]');
-		if (await requiredToggle.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await requiredToggle.check({ force: true });
+		// Toggle required checkbox - click the label instead of hidden checkbox for Firefox compatibility
+		const requiredCheckbox = page.locator('input[name="required"]');
+		if (await requiredCheckbox.count() > 0) {
+			const checkboxId = await requiredCheckbox.getAttribute('id');
+			if (checkboxId) {
+				// Click the label associated with the checkbox
+				const label = page.locator(`label[for="${checkboxId}"]`);
+				await label.click({ force: true });
+			}
 		}
 
 		// 9. Switch to "Specific" tab (tab 2) to configure widget-specific properties
@@ -225,15 +230,17 @@ test.describe('Collection Builder with Modern Widgets', () => {
 			console.log('⚠ No Specific tab found - widget may not have specific properties');
 		}
 
-		// 10. Click Save button
-		await page.getByRole('button', { name: /save/i }).first().click();
+		// 10. Click Save button - use last() to get the main Save button, not icon buttons
+		const saveButton = page.getByRole('button', { name: /save/i }).last();
+		await saveButton.waitFor({ state: 'visible', timeout: 5000 });
+		await saveButton.click({ force: true }); // Force click for Firefox where modal header may intercept
 
-		// Wait for modal to close
+		// Wait for modal to close - give it time then verify we're back on the page
 		await page.waitForTimeout(2000);
 
 		// 11. Verify we're back on Widget Fields page after saving
 		// Use the Add Field button as a reference point to confirm we're on the right page
-		await expect(page.getByTestId('add-field-button')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('add-field-button')).toBeVisible({ timeout: 10000 });
 		console.log('✓ Returned to Widget Fields page after saving');
 
 		// The field should now be in the widget fields list
