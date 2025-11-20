@@ -115,8 +115,9 @@ jobs:
           fi
 
       # ✅ ONLY setup wizard needs MongoDB credentials
+      # Only run in dev mode to avoid race conditions with preview mode
       - name: Run Setup Wizard
-        if: steps.check_setup.outputs.needs_setup == 'true'
+        if: steps.check_setup.outputs.needs_setup == 'true' && matrix.mode == 'dev'
         env:
           # These are ONLY for the setup wizard test
           MONGO_HOST: localhost
@@ -133,9 +134,28 @@ jobs:
           bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list --retries=2
           echo "=== Setup wizard completed ==="
 
+      # Preview mode: Wait for dev mode to complete setup if needed
+      - name: Wait for setup completion (preview mode)
+        if: matrix.mode == 'preview' && steps.check_setup.outputs.needs_setup == 'true'
+        run: |
+          echo "=== Waiting for dev mode to complete setup wizard ==="
+          for i in {1..120}; do
+            if [ -f config/private.ts ] && grep -q 'DB_HOST:' config/private.ts && ! grep -q "DB_HOST: ''" config/private.ts; then
+              echo "Setup completed by dev mode, config file is ready!"
+              break
+            fi
+            echo "Attempt $i/120: Waiting for setup to complete..."
+            sleep 2
+          done
+
+          if [ ! -f config/private.ts ]; then
+            echo "ERROR: Setup did not complete in time"
+            exit 1
+          fi
+
       # Restart server after setup to pick up new config
       - name: Restart server after setup
-        if: steps.check_setup.outputs.needs_setup == 'true'
+        if: steps.check_setup.outputs.needs_setup == 'true' && matrix.mode == 'dev'
         run: |
           echo "=== Restarting server to load new configuration ==="
           # Kill the existing server
