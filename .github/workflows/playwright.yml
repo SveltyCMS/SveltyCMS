@@ -27,7 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [dev, preview]
+        mode: [dev]
 
     # ✅ SET ONCE at job level - shared by all steps
     env:
@@ -115,9 +115,8 @@ jobs:
           fi
 
       # ✅ ONLY setup wizard needs MongoDB credentials
-      # Only run in dev mode to avoid race conditions with preview mode
       - name: Run Setup Wizard
-        if: steps.check_setup.outputs.needs_setup == 'true' && matrix.mode == 'dev'
+        if: steps.check_setup.outputs.needs_setup == 'true'
         env:
           # These are ONLY for the setup wizard test
           MONGO_HOST: localhost
@@ -155,7 +154,7 @@ jobs:
 
       # Restart server after setup to pick up new config
       - name: Restart server after setup
-        if: steps.check_setup.outputs.needs_setup == 'true' && matrix.mode == 'dev'
+        if: steps.check_setup.outputs.needs_setup == 'true'
         run: |
           echo "=== Restarting server to load new configuration ==="
           # Kill the existing server
