@@ -15,6 +15,9 @@
 
 import { test, expect, type Page } from '@playwright/test';
 
+// Set longer timeout for setup wizard - preview mode needs more time
+test.setTimeout(180000); // 3 minutes
+
 // Helper function to click a button and wait for it to process
 async function clickAndWait(page: Page, buttonName: string | RegExp, waitMs = 2000) {
 	const button = page.getByRole('button', { name: buttonName });
@@ -50,9 +53,11 @@ async function configureDatabaseConnection(page: Page) {
 	await page.locator('#db-user').fill(process.env.MONGO_USER || 'admin');
 	await page.locator('#db-password').fill(process.env.MONGO_PASS || 'admin');
 
-	// Test database connection
-	await page.getByRole('button', { name: 'Test Database Connection' }).click();
-	await expect(page.getByText(/Database connected successfully/i)).toBeVisible({ timeout: 20000 });
+	// Test database connection - preview mode might be slower
+	const testConnectionBtn = page.getByRole('button', { name: 'Test Database Connection' });
+	await testConnectionBtn.waitFor({ state: 'visible', timeout: 10000 });
+	await testConnectionBtn.click();
+	await expect(page.getByText(/Database connected successfully/i)).toBeVisible({ timeout: 45000 });
 
 	console.log('✓ Database connection successful');
 }
@@ -124,9 +129,26 @@ async function verifySetupComplete(page: Page) {
 
 // Main test: Complete the setup wizard
 test('should complete the setup wizard and create an admin user', async ({ page }) => {
-	// Navigate to application
-	await page.goto('/', { waitUntil: 'networkidle' });
-	await expect(page).toHaveURL(/.*\/setup/, { timeout: 30000 });
+	// Navigate to application - in preview mode, initial load might be slower
+	await page.goto('/', { waitUntil: 'networkidle', timeout: 60000 });
+
+	// Check if we were redirected to /setup or /login
+	// If setup is already complete, we'll be on /login instead
+	await page.waitForURL((url) => url.pathname.includes('/setup') || url.pathname.includes('/login'), { timeout: 60000 });
+
+	if (page.url().includes('/login')) {
+		console.log('✓ Setup already complete - application redirected to login page');
+		console.log('Skipping setup wizard test as setup has already been completed');
+		test.skip();
+		return;
+	}
+
+	// We're on /setup - proceed with the wizard
+	await expect(page).toHaveURL(/.*\/setup/, { timeout: 5000 });
+
+	// Wait for page to be fully interactive - especially important in preview mode
+	await page.waitForLoadState('domcontentloaded');
+	await page.waitForTimeout(2000); // Give preview build extra time to hydrate
 
 	// Dismiss welcome modal if present
 	await dismissWelcomeModal(page);

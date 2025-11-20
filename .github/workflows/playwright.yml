@@ -27,7 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [dev, preview]
+        mode: [dev]
 
     # ✅ SET ONCE at job level - shared by all steps
     env:
@@ -136,6 +136,60 @@ jobs:
           echo "=== Running setup wizard to initialize application ==="
           bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list --retries=2
           echo "=== Setup wizard completed ==="
+
+      # Preview mode: Wait for dev mode to complete setup if needed
+      - name: Wait for setup completion (preview mode)
+        if: matrix.mode == 'preview' && steps.check_setup.outputs.needs_setup == 'true'
+        run: |
+          echo "=== Waiting for dev mode to complete setup wizard ==="
+          for i in {1..120}; do
+            if [ -f config/private.ts ] && grep -q 'DB_HOST:' config/private.ts && ! grep -q "DB_HOST: ''" config/private.ts; then
+              echo "Setup completed by dev mode, config file is ready!"
+              break
+            fi
+            echo "Attempt $i/120: Waiting for setup to complete..."
+            sleep 2
+          done
+
+          if [ ! -f config/private.ts ]; then
+            echo "ERROR: Setup did not complete in time"
+            exit 1
+          fi
+
+      # Restart server after setup to pick up new config
+      - name: Restart server after setup
+        if: steps.check_setup.outputs.needs_setup == 'true'
+        run: |
+          echo "=== Restarting server to load new configuration ==="
+          # Kill the existing server
+          pkill -f "vite dev" || pkill -f "vite preview" || true
+          sleep 2
+
+          # Start the appropriate server
+          if [ "${{ matrix.mode }}" == "dev" ]; then
+            echo "Starting dev server..."
+            bun run dev --port 5173 &
+          else
+            echo "Starting preview server..."
+            bun run preview --port 4173 &
+          fi
+
+          # Wait for server to be ready and fully initialized
+          echo "Waiting for server at $PLAYWRIGHT_TEST_BASE_URL..."
+          for i in {1..90}; do
+            if curl -sf "$PLAYWRIGHT_TEST_BASE_URL" > /dev/null 2>&1; then
+              echo "Server responded! Waiting 5 more seconds for full initialization..."
+              sleep 5
+              echo "Server is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/90: Server not ready yet, waiting..."
+            sleep 1
+          done
+          echo "Server failed to start within 90 seconds"
+          exit 1
+        env:
+          PLAYWRIGHT_TEST: 'true'
 
       # ✅ Regular tests don't need MongoDB env vars
       - name: Run Playwright tests

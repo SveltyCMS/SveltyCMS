@@ -71,6 +71,7 @@
 				<button
 					type="button"
 					onclick={() => onToggle(widget.name)}
+					data-testid="widget-toggle-{widget.name}"
 					class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors {widget.isActive
 						? 'bg-green-600 text-white hover:bg-green-700'
 						: 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300'}"

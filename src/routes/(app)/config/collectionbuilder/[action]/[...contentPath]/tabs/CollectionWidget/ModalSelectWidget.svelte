@@ -93,6 +93,7 @@
 									onFormSubmit(item);
 								}}
 								aria-label={item}
+								data-testid="widget-select-{item}"
 								class="variant-outline-warning btn relative flex items-center justify-start gap-1 {selected === item
 									? 'bg-primary-500'
 									: ' variant-outline-warning hover:variant-ghost-warning'}"
