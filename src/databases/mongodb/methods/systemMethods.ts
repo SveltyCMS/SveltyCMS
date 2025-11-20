@@ -5,7 +5,7 @@
  */
 
 import type { Model } from 'mongoose';
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 import type { SystemPreferencesDocument } from '@src/content/types';
 import type { DatabaseId } from '../../dbInterface';
 import type { SystemSetting } from '../models/systemSetting';
@@ -27,7 +27,7 @@ export class MongoSystemMethods {
 	constructor(systemPreferencesModel: SystemPreferencesModelType, systemSettingModel: SystemSettingModelType) {
 		this.SystemPreferencesModel = systemPreferencesModel;
 		this.SystemSettingModel = systemSettingModel;
-		logger.trace('\x1b[34mMongoSystemMethods\x1b[0m initialized with models.');
+		logger.trace('MongoSystemMethods initialized with models.');
 	}
 
 	// ============================================================
@@ -121,9 +121,9 @@ export class MongoSystemMethods {
 
 			if (scope === 'system') {
 				// Single query with $in operator for all keys at once
-				logger.trace(`Querying for \x1b[34m${keys.length}\x1b[0m keys: \x1b[33m${keys.slice(0, 5).join(', ')}${keys.length > 5 ? '...' : ''}\x1b[0m`);
+				logger.trace(`Querying for ${keys.length} keys: ${keys.slice(0, 5).join(', ')}${keys.length > 5 ? '...' : ''}`);
 				const settings = await this.SystemSettingModel.find({ key: { $in: keys } }).lean();
-				logger.trace(`Found \x1b[34m${settings.length}\x1b[0m settings`);
+				logger.trace(`Found ${settings.length} settings`);
 				if (settings.length > 0) {
 					logger.trace(
 						`Sample: ${settings

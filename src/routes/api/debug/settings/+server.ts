@@ -9,7 +9,7 @@ export const GET: RequestHandler = async () => {
 			success: true,
 			settings,
 			keys: Object.keys(settings),
-			setupCompleted: settings.SETUP_COMPLETED,
+			setupCompleted: (settings as any).SETUP_COMPLETED,
 			siteName: settings.SITE_NAME
 		});
 	} catch (error) {

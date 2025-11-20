@@ -61,6 +61,169 @@ export const handle: Handle = sequence(...middleware);
 
 ---
 
+## 🚀 Server Startup & Initialization Flow
+
+### Optimized Startup Strategy
+
+SveltyCMS employs a **lazy initialization strategy** to minimize server startup time and enable **zero-restart setup completion**:
+
+```mermaid
+sequenceDiagram
+    participant Build as Vite Build
+    participant Server as SvelteKit Server
+    participant Hooks as hooks.server.ts
+    participant DB as db.ts Module
+    participant State as System State
+
+    Note over Build,Server: Server Startup (Cold Start)
+
+    alt During Build (!building = false)
+        Build->>Hooks: Skip all initialization
+        Note over Hooks: No DB import during build
+    else Production Server (!building = true)
+        Server->>Hooks: Server starts
+        Hooks->>DB: Dynamic import('@src/databases/db')
+        Note over DB: Module loaded but NOT initialized
+        State->>State: Set state = IDLE
+        Hooks-->>Server: Ready (no blocking)
+    end
+
+    Note over Server: First Request Arrives
+
+    Server->>Hooks: handleSystemState()
+    Hooks->>State: Check state
+
+    alt State = IDLE && !initializationAttempted
+        Hooks->>DB: await dbInitPromise
+        DB->>DB: loadPrivateConfig()
+
+        alt Config exists (normal startup)
+            DB->>DB: initializeSystem()
+            DB->>DB: Connect to database
+            DB->>DB: Load adapters & models
+            State->>State: Set state = READY
+        else No config (first-time setup)
+            DB->>State: Keep state = IDLE
+            Hooks->>Hooks: Allow /setup paths only
+        end
+    end
+
+    Hooks-->>Server: Continue request processing
+```
+
+### First-Time Installation Flow (Zero Restart Required)
+
+```mermaid
+sequenceDiagram
+    participant User as User/Browser
+    participant Setup as /setup Wizard
+    participant API as /api/setup/complete
+    participant DB as db.ts
+    participant State as System State
+    participant Cache as Server Cache
+
+    Note over User,Cache: Fresh Server (No Config)
+
+    User->>Setup: Navigate to /setup
+    Note over State: State = IDLE (allows /setup paths)
+    Setup-->>User: Display setup wizard
+
+    User->>Setup: Fill configuration form
+    User->>Setup: Submit setup
+
+    Setup->>API: POST /api/setup/complete
+    API->>API: Write config/private.ts file
+    API->>DB: initializeWithConfig(fullConfig)
+    Note over DB: In-memory config passed<br/>(bypasses Vite cache)
+
+    DB->>DB: privateEnv = config
+    DB->>DB: initializeSystem(false, true)
+    DB->>DB: Connect database
+    DB->>DB: Load adapters
+    DB->>DB: Setup auth models
+    State->>State: Set state = READY
+
+    API->>API: Create admin user
+    API->>Cache: Warm cache: fetch('/')
+    Note over Cache: Pre-load homepage SSR
+
+    API-->>Setup: { success: true, redirect: '/login' }
+    Setup->>User: Redirect to /login
+
+    Note over User,State: ✅ System fully operational<br/>NO SERVER RESTART NEEDED
+```
+
+### Key Implementation: hooks.server.ts
+
+```typescript
+// --- Server Startup Logic ---
+if (!building) {
+	/**
+	 * Lazy initialization: DB module is loaded but NOT initialized
+	 * until the first request arrives.
+	 *
+	 * This enables:
+	 * 1. Fast server startup (no blocking I/O)
+	 * 2. Zero-restart setup completion
+	 * 3. Dynamic configuration reloading
+	 *
+	 * State transitions: IDLE -> INITIALIZING -> READY/DEGRADED/FAILED
+	 */
+	import('@src/databases/db')
+		.then(() => {
+			logger.info('✅ DB module loaded. Will initialize on first request.');
+		})
+		.catch((error) => {
+			logger.error('Fatal: Failed to load DB module:', error);
+		});
+}
+```
+
+**Why Dynamic Import?**
+
+- ✅ **Non-Blocking**: Server starts immediately without waiting for DB
+- ✅ **Setup-Friendly**: First-time installs don't crash (IDLE state)
+- ✅ **Hot Reload**: Configuration changes don't require restarts
+- ✅ **Build-Safe**: Skipped entirely during Vite build process
+
+### Zero-Restart Setup: initializeWithConfig()
+
+**Problem Solved:** Traditional approach required server restart after creating `config/private.ts` because Vite caches module imports.
+
+**Solution:** Pass configuration in-memory, bypassing filesystem imports:
+
+```typescript
+// src/databases/db.ts
+export async function initializeWithConfig(config: PrivateEnv): Promise<{ status: string }> {
+	try {
+		logger.info('Initializing system with provided configuration (bypassing Vite cache)...');
+
+		// CRITICAL: Set config in memory BEFORE initialization
+		privateEnv = config;
+
+		// Now initialize system (skipSetupCheck = true means use in-memory config)
+		initializationPromise = initializeSystem(false, true);
+		await initializationPromise;
+
+		return { status: 'success' };
+	} catch (error) {
+		logger.error('Failed to initialize with config:', error);
+		throw error;
+	}
+}
+```
+
+**Called by:** `/api/setup/complete` endpoint after writing `config/private.ts`
+
+**Benefits:**
+
+1. **Immediate Availability**: System becomes operational instantly
+2. **No Restart**: Configuration takes effect without process restart
+3. **Cache Warming**: First page load happens during setup completion
+4. **Smooth UX**: Users redirected directly to login page
+
+---
+
 ## Hook Implementations
 
 ### 1. handleStaticAssetCaching - Performance Optimization
@@ -114,9 +277,9 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 		systemState = getSystemState();
 	}
 
-	// Allow setup wizard during IDLE state
+	// Allow setup wizard and root redirect during IDLE state
 	if (systemState.overallState === 'IDLE') {
-		const allowedPaths = ['/setup', '/api/setup', '/api/system/health', '/static', '/.well-known'];
+		const allowedPaths = ['/setup', '/api/setup', '/api/system/health', '/login', '/static', '/.well-known'];
 		if (allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === '/') {
 			return resolve(event);
 		}
@@ -129,6 +292,23 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 			return resolve(event);
 		}
 		throw error(503, 'Service Unavailable: A critical system component has failed.');
+	}
+
+	// During INITIALIZING, wait for initialization to complete
+	if (systemState.overallState === 'INITIALIZING') {
+		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/api/setup', '/login', '/.well-known'];
+		if (allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === '/') {
+			return resolve(event);
+		}
+
+		// Wait for initialization to complete
+		await dbInitPromise;
+		systemState = getSystemState();
+
+		// If still not ready after initialization, block the request
+		if (!isSystemReady()) {
+			throw error(503, 'Service Unavailable: The system failed to initialize.');
+		}
 	}
 
 	// Allow requests only when READY or DEGRADED
@@ -147,10 +327,11 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
 **Key Features**:
 
-- Enforces state machine transitions
-- Waits for DB initialization on first request
-- Allows partial functionality in DEGRADED state
-- Health check endpoints always accessible
+- **Smart Initialization**: Waits for initialization during INITIALIZING state instead of blocking
+- **Root Path Handling**: Allows `/` during IDLE and INITIALIZING for proper redirects to /setup, /login, or first collection
+- **State Machine Enforcement**: Blocks requests appropriately based on system state
+- **Partial Functionality**: Allows essential routes in DEGRADED state
+- **Always-On Health Checks**: Health check endpoints accessible in all states
 
 ---
 
@@ -315,10 +496,75 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 
 **Key Features**:
 
-- File-based detection using `private.ts` existence
-- Allows assets during setup for UI rendering
-- Special response filter for setup API cookies
-- One-time setup (blocks setup routes after completion)
+- **Config Validation**: Checks both existence and content of `config/private.ts`
+- **Smart Redirects**: Empty config values treated as "not configured"
+- **Asset Allowance**: Static assets allowed during setup for UI rendering
+- **Special Response Filter**: Allows setup API to set cookies before redirect
+- **One-Time Setup**: Blocks setup routes after completion
+
+---
+
+### Root Path (`/`) Redirect Flow
+
+The root path has special handling to provide an optimal user experience across all system states:
+
+**Redirect Logic Sequence**:
+
+1. **No `config/private.ts`** (or empty values)
+   - `handleSetup` → Redirect to `/setup`
+   - User completes installation wizard
+
+2. **Has `config/private.ts`, no valid session**
+   - `handleSetup` → Passes through
+   - `handleAuthentication` → Sets `locals.user = null`
+   - Root `+page.server.ts` → Redirect to `/login`
+
+3. **Has `config/private.ts`, valid session**
+   - `handleSetup` → Passes through
+   - `handleAuthentication` → Sets `locals.user = User`
+   - Root `+page.server.ts` → Redirect to first collection
+
+**Implementation** (`src/routes/+page.server.ts`):
+
+```typescript
+export const load: PageServerLoad = async ({ locals, url }) => {
+	const { user } = locals;
+
+	// No session - redirect to login
+	if (!user) {
+		throw redirect(302, '/login');
+	}
+
+	// Only for root path
+	if (url.pathname !== '/') {
+		return { user, permissions: locals.permissions };
+	}
+
+	// Wait for system initialization
+	await dbInitPromise;
+	await contentManager.initialize(tenantId);
+
+	// Get first collection and redirect
+	const redirectUrl = await contentManager.getFirstCollectionRedirectUrl(redirectLanguage, tenantId);
+
+	if (redirectUrl) {
+		throw redirect(302, redirectUrl);
+	}
+
+	// No collections found - stay on root
+	return { user, permissions: locals.permissions };
+};
+```
+
+**Why Root Path is Always Allowed**:
+
+The root path (`/`) must pass through `handleSystemState` during IDLE and INITIALIZING states to enable:
+
+- Setup wizard detection and redirect
+- Login page redirect for invalid sessions
+- First collection redirect for authenticated users
+
+Blocking `/` during initialization would prevent these essential flows from working.
 
 ---
 

@@ -1,222 +1,32 @@
 /**
  * @file src/routes/api/collections/[collectionId]/+server.ts
- * @description API endpoint for listing collection entries and creating new entries
+ * @description API endpoint for creating new collection entries
  *
- * @example for get/post single collection:  /api/collections/:collectionId
+ * @example POST /api/collections/:collectionId
  *
  * Features:
- * * Performance-optimized listing with QueryBuilder
- * * Handles pagination, filtering, and sorting via URL parameters
- * * Secure entry creation with automatic user metadata
+ * * ❌ GET removed - use +page.server.ts load() for SSR data fetching
+ * * Performance-optimized entry creation with automatic metadata
  * * ModifyRequest support for widget-based data processing
- * * Status-based filtering for non-admin users
- * * Content language support
+ * * Multi-tenant support with automatic tenantId scoping
  */
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Databases
-import type { BaseEntity } from '@src/databases/dbInterface';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
 import { modifyRequest } from '@api/collections/modifyRequest';
-import { getDefaultRoles } from '@src/databases/auth/defaultRoles';
 
 // System Logger
 import { logger } from '@utils/logger.server';
 
-// GET: Lists entries in a collection with pagination, filtering, and sorting
-export const GET: RequestHandler = async ({ locals, params, url }) => {
-	const startTime = performance.now();
-	const endpoint = `GET /api/collections/${params.collectionId}`;
-	const { user, tenantId } = locals; // User is guaranteed to exist due to hooks protection
-
-	// If auth service is not ready, user might be null
-	if (!user) {
-		logger.warn(`${endpoint} - Unauthorized access due to unavailable user object`, {
-			collectionId: params.collectionId,
-			tenantId
-		});
-		throw error(401, 'Unauthorized');
-	}
-
-	// Get user's role and determine admin status properly
-	const availableRoles = locals.roles && locals.roles.length > 0 ? locals.roles : getDefaultRoles();
-	const userRole = availableRoles.find((role) => role._id === user?.role);
-	const isAdmin = Boolean(userRole?.isAdmin);
-
-	try {
-		// Ensure ContentManager is initialized before accessing collections
-		await contentManager.initialize(tenantId);
-
-		// Note: tenantId validation is handled by hooks in multi-tenant mode
-		const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
-		if (!schema) {
-			logger.warn(`${endpoint} - Collection not found`, {
-				collectionId: params.collectionId,
-				userId: user._id,
-				tenantId
-			});
-			throw error(404, 'Collection not found');
-		}
-
-		const page = Number(url.searchParams.get('page') ?? 1);
-		const pageSize = Number(url.searchParams.get('pageSize') ?? 25);
-		const sortField = url.searchParams.get('sortField') || 'createdAt';
-		const sortDirectionParam = url.searchParams.get('sortDirection');
-		const sortDirection: 'asc' | 'desc' = sortDirectionParam === 'asc' || sortDirectionParam === 'desc' ? sortDirectionParam : 'desc';
-		const filterParam = url.searchParams.get('filter');
-
-		let filter = {};
-		if (filterParam) {
-			try {
-				filter = JSON.parse(filterParam);
-				// Convert string operators to MongoDB operators
-				filter = convertFilterOperators(filter);
-			} catch (parseError) {
-				logger.warn(`\x1b[34m${endpoint}\x1b[0m - Invalid filter parameter`, {
-					filterParam,
-					parseError: parseError.message,
-					collection: schema._id,
-					userId: user._id
-				});
-				throw error(400, 'Invalid filter parameter');
-			}
-		}
-
-		// Helper function to convert string operators to MongoDB operators
-		function convertFilterOperators(obj: Record<string, unknown>): Record<string, unknown> {
-			if (typeof obj !== 'object' || obj === null) {
-				return obj;
-			}
-
-			const result: Record<string, unknown> = {};
-			for (const [key, value] of Object.entries(obj)) {
-				if (typeof value === 'string' && value.startsWith('!=')) {
-					// Convert "!=value" to {$ne: "value"}
-					const actualValue = value.substring(2);
-					result[key] = { $ne: actualValue };
-				} else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-					// Recursively convert nested objects
-					result[key] = convertFilterOperators(value as Record<string, unknown>);
-				} else {
-					result[key] = value;
-				}
-			}
-			return result;
-		}
-
-		// --- MULTI-TENANCY: Scope all filters by tenantId ---
-		logger.debug(`Multi-tenant check: MULTI_TENANT=\x1b[34m${getPrivateSettingSync('MULTI_TENANT')}\x1b[0m, tenantId=\x1b[34m${tenantId}\x1b[0m`);
-		const baseFilter = getPrivateSettingSync('MULTI_TENANT') ? { ...filter, tenantId } : filter;
-		logger.debug(`Filter applied:`, { baseFilter, originalFilter: filter });
-
-		// Status filtering - non-admin users only see published content
-		let finalFilter = baseFilter;
-		if (!isAdmin) {
-			finalFilter = { ...baseFilter, status: 'published' };
-		}
-		logger.trace(`Final filter for query:`, { finalFilter, isAdmin }); // Build the query efficiently using QueryBuilder
-
-		const dbAdapter = locals.dbAdapter;
-		if (!dbAdapter) {
-			logger.error('Database adapter is not initialized in locals', {
-				hasLocals: !!locals,
-				localKeys: Object.keys(locals || {}),
-				collection: schema._id,
-				userId: user._id
-			});
-			throw error(503, 'Service Unavailable: Database service is not properly initialized. Please try again shortly.');
-		}
-
-		const collectionName = `collection_${schema._id}`;
-		const query = dbAdapter
-			.queryBuilder(collectionName)
-			.where(finalFilter)
-			.sort(sortField as keyof BaseEntity, sortDirection)
-			.paginate({ page, pageSize }); // Get both the paginated results and total count
-
-		const [result, countResult] = await Promise.all([query.execute(), dbAdapter.queryBuilder(collectionName).where(finalFilter).count()]);
-
-		if (!result.success) {
-			throw new Error(result.error.message);
-		}
-		if (!countResult.success) {
-			throw new Error(countResult.error.message);
-		}
-
-		const processedData = result.data;
-		const totalCount = countResult.data;
-
-		if (Array.isArray(processedData) && processedData.length > 0) {
-			try {
-				await modifyRequest({
-					data: processedData,
-					fields: schema.fields,
-					collection: schema,
-					user,
-					type: 'GET'
-				});
-			} catch (modifyError) {
-				logger.warn(`\x1b[34m${endpoint}\x1b[0m - ModifyRequest failed`, {
-					collection: schema._id,
-					error: modifyError.message,
-					userId: user._id,
-					itemCount: processedData.length
-				});
-			}
-		}
-
-		const duration = performance.now() - startTime;
-		const responseData = {
-			success: true,
-			data: {
-				items: processedData,
-				total: totalCount,
-				page,
-				pageSize,
-				totalPages: Math.ceil(totalCount / pageSize)
-			},
-			performance: { duration }
-		};
-
-		logger.info(`\x1b[34m${endpoint}\x1b[0m - Request completed successfully`, {
-			collection: schema._id,
-			userId: user._id,
-			tenantId,
-			itemCount: processedData.length,
-			totalCount,
-			duration: `${duration.toFixed(2)}ms`
-		});
-
-		return json(responseData);
-	} catch (e) {
-		const duration = performance.now() - startTime;
-		const userId = locals.user?._id;
-
-		if (e.status) {
-			logger.warn(`${endpoint} - Request failed`, {
-				status: e.status,
-				message: e.body?.message,
-				duration: `${duration.toFixed(2)}ms`,
-				userId,
-				collection: params.collectionId
-			});
-			throw e;
-		}
-
-		logger.error(`${endpoint} - Unexpected error`, {
-			error: e.message,
-			stack: e.stack,
-			duration: `${duration.toFixed(2)}ms`,
-			userId,
-			collection: params.collectionId
-		});
-		throw error(500, 'Internal Server Error');
-	}
-};
+// ❌ REMOVED: GET handler - SSR data loading should use +page.server.ts load() function
+// This prevents redundant data fetching and improves SSR performance.
+// Use the load() function in +page.server.ts for initial page loads,
+// and client-side API calls only for dynamic updates (create/update/delete).
 
 // POST: Creates a new entry in a collection
 export const POST: RequestHandler = async ({ locals, params, request }) => {
@@ -231,6 +41,10 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 	});
 
 	try {
+		if (!user) {
+			throw error(401, 'Unauthorized');
+		}
+
 		const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 		if (!schema) {
 			logger.warn(`${endpoint} - Collection not found`, {
@@ -251,67 +65,51 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			body = Object.fromEntries(formData.entries());
 		} else {
 			throw error(400, 'Unsupported content type');
-		} // Prepare data with metadata and tenantId
+		}
 
-		// Map form field names to database field names
-		const mappedBody = {};
+		// Check if data is nested under a 'data' property (handles both direct and nested payloads)
+		// This prevents "last_name is required" errors when data comes from different sources
+		const sourceData = body.data && typeof body.data === 'object' ? body.data : body;
 
-		// Create a mapping from form field keys to database field names
-		schema.fields.forEach((field) => {
-			// The field key used in forms is typically the lowercase label without spaces
-			const formFieldKey = field.label.toLowerCase().replace(/\s+/g, '');
-			const dbFieldName = field.db_fieldName || formFieldKey;
-
-			// Check if this form field exists in the body
-			if (formFieldKey in body) {
-				mappedBody[dbFieldName] = body[formFieldKey];
-			}
-			// Also check for exact label match
-			else if (field.label in body) {
-				mappedBody[dbFieldName] = body[field.label];
-			}
+		logger.trace('Data extraction completed', {
+			hasNestedData: !!body.data,
+			fieldCount: Object.keys(sourceData).length,
+			fields: Object.keys(sourceData)
 		});
 
-		// Add any remaining fields that don't need mapping
-		Object.entries(body).forEach(([key, value]) => {
-			const formFieldKey = key.toLowerCase().replace(/\s+/g, '');
-			const hasMapping = schema.fields.some((field) => field.label.toLowerCase().replace(/\s+/g, '') === formFieldKey || field.label === key);
-
-			if (!hasMapping) {
-				mappedBody[key] = value;
-			}
-		});
-
-		logger.trace('Field mapping completed', {
-			mappedFieldsCount: Object.keys(mappedBody).length,
-			mappedFields: Object.keys(mappedBody)
-		});
 		const entryData = {
-			...mappedBody,
+			...sourceData, // Use extracted source data directly
 			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }), // Add tenantId
 			createdBy: user._id,
 			updatedBy: user._id,
-			status: body.status || schema.status || 'draft' // Respect collection's default status
-		}; // Apply modifyRequest for pre-processing
+			status: sourceData.status || schema.status || 'draft' // Respect collection's default status
+		};
+
+		// Apply modifyRequest for pre-processing
 
 		const dataArray = [entryData];
 		try {
 			await modifyRequest({
 				data: dataArray,
-				fields: schema.fields,
-				collection: schema,
+				fields: schema.fields as any,
+				collection: schema as any,
 				user,
 				type: 'POST'
 			});
 		} catch (modifyError) {
+			const errorMsg = modifyError instanceof Error ? modifyError.message : 'Unknown error';
 			logger.warn(`${endpoint} - ModifyRequest pre-processing failed`, {
 				collection: schema._id,
-				error: modifyError.message,
+				error: errorMsg,
 				userId: user._id
 			});
 		} // Use the generic CRUD insert operation
 
 		const dbAdapter = locals.dbAdapter;
+		if (!dbAdapter) {
+			throw error(503, 'Service Unavailable: Database service is not properly initialized');
+		}
+
 		const collectionName = `collection_${schema._id}`;
 		const result = await dbAdapter.crud.insert(collectionName, dataArray[0]);
 
@@ -346,10 +144,12 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		const duration = performance.now() - startTime;
 		const userId = locals.user?._id;
 
-		if (e.status) {
+		if (typeof e === 'object' && e !== null && 'status' in e) {
+			const errorBody =
+				'body' in e && typeof e.body === 'object' && e.body !== null && 'message' in e.body ? (e.body as { message?: string }).message : undefined;
 			logger.warn(`${endpoint} - Request failed`, {
-				status: e.status,
-				message: e.body?.message,
+				status: (e as any).status,
+				message: errorBody,
 				duration: `${duration.toFixed(2)}ms`,
 				userId,
 				collection: params.collectionId
@@ -357,9 +157,11 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			throw e;
 		}
 
+		const errorMsg = e instanceof Error ? e.message : 'Unknown error';
+		const stack = e instanceof Error ? e.stack : undefined;
 		logger.error(`${endpoint} - Unexpected error`, {
-			error: e.message,
-			stack: e.stack,
+			error: errorMsg,
+			stack,
 			duration: `${duration.toFixed(2)}ms`,
 			userId,
 			collection: params.collectionId

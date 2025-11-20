@@ -9,6 +9,12 @@
  */
 
 import type { Handle } from '@sveltejs/kit';
+import { ThemeManager } from '@src/databases/themeManager';
+import { logger } from '@utils/logger.server';
+import { getSystemState } from '@src/stores/system';
+
+// Get the singleton ThemeManager instance
+const themeManager = ThemeManager.getInstance();
 
 export const handleTheme: Handle = async ({ event, resolve }) => {
 	// 1. Read the theme preference cookie
@@ -30,9 +36,31 @@ export const handleTheme: Handle = async ({ event, resolve }) => {
 
 	// 3. Set darkMode (boolean) for use in other server load functions
 	event.locals.darkMode = isDarkMode;
-	event.locals.theme = null;
 
-	// 4. Transform the HTML response to prevent flickering
+	// 4. Retrieve custom CSS from the active theme, but only if initialized
+	if (themeManager.isInitialized()) {
+		try {
+			const currentTheme = await themeManager.getTheme(event.locals.tenantId);
+			event.locals.theme = currentTheme; // Make the entire theme object available
+			event.locals.customCss = currentTheme?.customCss || '';
+		} catch (err) {
+			// Only log as error if system is ready, otherwise suppress or log as debug
+			const sysState = getSystemState();
+			if (sysState.overallState === 'READY' || sysState.overallState === 'DEGRADED') {
+				logger.error('Error retrieving custom CSS in handleTheme hook:', err);
+			} else {
+				logger.debug('ThemeManager not ready, skipping custom CSS.');
+			}
+			event.locals.theme = null;
+			event.locals.customCss = '';
+		}
+	} else {
+		// ThemeManager not initialized yet (system is still starting up)
+		event.locals.theme = null;
+		event.locals.customCss = '';
+	}
+
+	// 5. Transform the HTML response to prevent flickering
 	return resolve(event, {
 		transformPageChunk: ({ html }) => {
 			// This string MUST match your <html ...> tag in app.html

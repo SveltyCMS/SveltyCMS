@@ -8,6 +8,7 @@ calls store methods and wires store state to child components.
 -->
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 
 	// Stores
 	import { setupStore } from '@stores/setupStore.svelte';
@@ -175,7 +176,7 @@ calls store methods and wires store state to child components.
 		const success = await completeSetup((redirectPath: string) => {
 			// This callback handles the redirect after store is cleared
 			initialDataSnapshot = JSON.stringify(wizard); // Prevent unsaved changes warning
-			window.location.href = redirectPath;
+			goto(redirectPath);
 		});
 		if (success) {
 			initialDataSnapshot = JSON.stringify(wizard); // Also update snapshot immediately

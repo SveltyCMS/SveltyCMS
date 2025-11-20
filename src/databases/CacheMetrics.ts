@@ -10,7 +10,7 @@
  * - Prometheus-compatible export format
  */
 
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 import type { ISODateString } from '@src/content/types';
 import { dateToISODateString } from '@src/utils/dateUtils';
 

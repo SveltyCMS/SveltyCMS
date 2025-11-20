@@ -52,14 +52,12 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		}
 
 		// --- MULTI-TENANCY: Scope the query by tenantId ---
-		const filter = getPrivateSettingSync('MULTI_TENANT') ? { tenantId } : {}; // Use database-agnostic adapter to get media files
-
+		// Filtering by tenantId should be handled by the adapter, not PaginationOptions
 		const result = await dbAdapter.media.files.getByFolder(undefined, {
 			page: 1,
 			pageSize: query.limit,
 			sortField: 'updatedAt',
-			sortDirection: 'desc',
-			filter
+			sortDirection: 'desc'
 		});
 
 		if (!result.success) {

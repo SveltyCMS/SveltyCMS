@@ -65,7 +65,7 @@
 		data: { contentStructure: ContentNode[] };
 	}
 
-	let { data }: CollectionBuilderProps = $props();
+	const { data }: CollectionBuilderProps = $props();
 
 	// `currentConfig` holds the live, mutable state of the content structure for the UI.
 	// It's initialized from `data.contentStructure` and updated by DnD operations.

@@ -13,7 +13,7 @@ Handles Previous, Next, and Complete buttons and their states.
 		complete: void;
 	}>();
 
-	let { currentStep, totalSteps, canProceed, isLoading } = $props<{
+	const { currentStep, totalSteps, canProceed, isLoading } = $props<{
 		currentStep: number;
 		totalSteps: number;
 		canProceed: boolean;

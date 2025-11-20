@@ -23,7 +23,7 @@
 		'on:select'?: (selectedOption: string) => void;
 	}
 
-	let { options = [], placeholder = 'Select an option', 'on:select': onSelect = () => {} }: Props = $props();
+	const { options = [], placeholder = 'Select an option', 'on:select': onSelect = () => {} }: Props = $props();
 
 	// --- State ---
 	let keyword = $state('');
@@ -32,7 +32,7 @@
 	let listElement = $state<HTMLUListElement | null>(null); // Ref for scrolling
 
 	// --- Derived State (Optimized) ---
-	let filteredOptions = $derived(() => {
+	const filteredOptions = $derived(() => {
 		// This derived function runs only when `keyword` or `options` changes.
 		if (!keyword.trim()) {
 			return options; // Show all if keyword is empty

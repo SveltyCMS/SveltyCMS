@@ -47,6 +47,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		const filesPromises = fileIds.map(async (id) => {
+			if (!dbAdapter) return null;
 			const result = await dbAdapter.crud.findOne<MediaItem>('MediaItem', { _id: id });
 			if (result.success && result.data) {
 				return result.data;
@@ -74,7 +75,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 
 		// Stream to response
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 		const setHeader = (_name: string, _value: string) => {
 			// Headers will be set in Response constructor
 		};

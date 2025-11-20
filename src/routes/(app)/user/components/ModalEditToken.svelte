@@ -31,6 +31,8 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { Form } from '@utils/Form.svelte';
+	import { addUserTokenSchema } from '@utils/formSchemas';
 
 	// Get data from page store, which is populated by our server hooks
 	const { roles, user } = page.data;
@@ -45,7 +47,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 		expires: string;
 	}
 
-	let { parent = { regionFooter: 'modal-footer p-4' }, token = '', user_id = '', email = '', role = 'user', expires = '' }: Props = $props();
+	const { parent = { regionFooter: 'modal-footer p-4' }, token = '', user_id = '', email = '', role = 'user', expires = '' }: Props = $props();
 
 	// Form Data with format conversion
 	function convertLegacyFormat(expires: string): string {
@@ -76,40 +78,43 @@ It handles token creation, updates, and deletion with proper validation and erro
 		}
 	}
 
-	const formData = $state({
-		user_id, // Add user_id to state
-		email,
-		token,
-		role: role || 'user',
-		expires: !expires || expires === '' ? '2 days' : convertLegacyFormat(expires) // Force '2 days' for empty/undefined expires
-	});
-	const errorStatus = $state({ email: { status: false, msg: '' } });
+	const tokenForm = new Form(
+		{
+			user_id, // Add user_id to state
+			email,
+			token,
+			role: role || 'user',
+			expiresIn: !expires || expires === '' ? '2 days' : convertLegacyFormat(expires) // Force '2 days' for empty/undefined expires
+		},
+		addUserTokenSchema
+	);
 
 	async function onFormSubmit(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
 
-		if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-			errorStatus.email = { status: true, msg: 'A valid email is required' };
+		if (!tokenForm.validate()) {
 			return;
 		}
 
+		tokenForm.submitting = true;
+
 		try {
-			const isEditMode = !!formData.token;
-			const endpoint = isEditMode ? `/api/token/${formData.token}` : '/api/token/createToken';
+			const isEditMode = !!tokenForm.data.token;
+			const endpoint = isEditMode ? `/api/token/${tokenForm.data.token}` : '/api/token/createToken';
 			const method = isEditMode ? 'PUT' : 'POST';
 
 			const body = isEditMode
 				? {
 						newTokenData: {
-							email: formData.email,
-							role: formData.role,
-							expiresInHours: convertExpiresToHours(formData.expires)
+							email: tokenForm.data.email,
+							role: tokenForm.data.role,
+							expiresInHours: convertExpiresToHours(tokenForm.data.expiresIn)
 						}
 					}
 				: {
-						email: formData.email,
-						role: formData.role,
-						expiresIn: formData.expires // Send the API format directly
+						email: tokenForm.data.email,
+						role: tokenForm.data.role,
+						expiresIn: tokenForm.data.expiresIn // Send the API format directly
 					};
 
 			const response = await fetch(endpoint, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -154,13 +159,15 @@ It handles token creation, updates, and deletion with proper validation and erro
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'An unknown error occurred';
 			showToast(`<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${message}`, 'error');
+		} finally {
+			tokenForm.submitting = false;
 		}
 	}
 
 	async function deleteToken(): Promise<void> {
-		if (!formData.token) return;
+		if (!tokenForm.data.token) return;
 		try {
-			const response = await fetch(`/api/token/${formData.token}`, {
+			const response = await fetch(`/api/token/${tokenForm.data.token}`, {
 				method: 'DELETE',
 				headers: { 'Content-Type': 'application/json' }
 			});
@@ -233,21 +240,21 @@ It handles token creation, updates, and deletion with proper validation and erro
 					type="email"
 					name="email"
 					label={m.email()}
-					bind:value={formData.email}
-					onkeydown={() => (errorStatus.email.status = false)}
+					bind:value={tokenForm.data.email}
+					onkeydown={() => (tokenForm.errors.email = [])}
 					required
 					autocomplete="email"
 					icon="mdi:email"
 					textColor="text-tertiary-500 dark:text-white"
 				/>
-				{#if errorStatus.email.status}
+				{#if tokenForm.errors.email}
 					<div class="absolute left-0 top-11 text-xs text-error-500">
-						{errorStatus.email.msg}
+						{tokenForm.errors.email[0]}
 					</div>
 				{/if}
 			</div>
 			<!-- Token field (hidden but still submitted with form) -->
-			<input bind:value={formData.token} type="hidden" name="token" />
+			<input bind:value={tokenForm.data.token} type="hidden" name="token" />
 
 			<!-- User Role -->
 			{#if user.role === 'admin'}
@@ -261,10 +268,10 @@ It handles token creation, updates, and deletion with proper validation and erro
 								{#each roles as r}
 									<button
 										type="button"
-										class="chip {formData.role === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-										onclick={() => (formData.role = r._id)}
+										class="chip {tokenForm.data.role === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+										onclick={() => (tokenForm.data.role = r._id)}
 									>
-										{#if formData.role === r._id}
+										{#if tokenForm.data.role === r._id}
 											<span><iconify-icon icon="fa:check"></iconify-icon></span>
 										{/if}
 										<span class="capitalize">{r.name}</span>
@@ -283,7 +290,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 				<label for="expires-select" class="mb-2 block text-sm font-medium text-black dark:text-white">{m.modaltokenuser_tokenvalidity()}</label>
 				<select
 					id="expires-select"
-					bind:value={formData.expires}
+					bind:value={tokenForm.data.expiresIn}
 					class="input bg-white text-black dark:bg-surface-700 dark:text-white"
 					aria-label="Token Validity"
 				>
@@ -297,9 +304,9 @@ It handles token creation, updates, and deletion with proper validation and erro
 			</div>
 		</form>
 
-		<footer class="modal-footer flex items-center {formData.token ? 'justify-between' : 'justify-end'} p-4 {parent?.regionFooter ?? ''}">
+		<footer class="modal-footer flex items-center {tokenForm.data.token ? 'justify-between' : 'justify-end'} p-4 {parent?.regionFooter ?? ''}">
 			<!-- Delete - Only show for existing tokens -->
-			{#if formData.token}
+			{#if tokenForm.data.token}
 				<button type="button" onclick={deleteToken} class="variant-filled-error btn">
 					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
 				</button>

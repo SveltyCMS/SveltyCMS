@@ -26,10 +26,11 @@ type ImageSizesType = typeof defaultImageSizes & {
 };
 
 const SIZES: ImageSizesType = {
-	...(publicEnv.IMAGE_SIZES || defaultImageSizes),
+	...defaultImageSizes,
+	...(publicEnv.IMAGE_SIZES || {}),
 	original: 0,
 	thumbnail: 200
-} as const;
+};
 
 const getMediaFolder = () => getPublicSettingSync('MEDIA_FOLDER') || 'mediaFiles';
 

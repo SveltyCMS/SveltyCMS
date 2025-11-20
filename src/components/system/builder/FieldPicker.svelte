@@ -14,8 +14,8 @@
 	let { value = $bindable(''), collection = '' }: Props = $props();
 
 	// Get fields for the selected collection
-	let selectedCollection = $derived(Object.values(collections.value).find((c) => c.name === collection));
-	let fieldNames = $derived(selectedCollection?.fields?.map((f: any) => (f as any).db_fieldName).filter(Boolean) || []);
+	const selectedCollection = $derived(Object.values(collections.value).find((c) => c.name === collection));
+	const fieldNames = $derived(selectedCollection?.fields?.map((f: any) => (f as any).db_fieldName).filter(Boolean) || []);
 </script>
 
 <div class="m-1 flex max-w-full items-center justify-between gap-2">

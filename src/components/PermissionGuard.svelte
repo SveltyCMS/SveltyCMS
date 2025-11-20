@@ -45,7 +45,7 @@
 		children?: Snippet; // Use imported Snippet type
 	}
 
-	let {
+	const {
 		config,
 		messages = {
 			rateLimited: 'Rate limit reached. Please try again later.',
@@ -59,22 +59,22 @@
 	// --- REMOVED unused `loading` state ---
 
 	// Reactive states derived from page data and config
-	let permissions = $derived((page.data.permissions || {}) as Record<string, { hasPermission: boolean; isRateLimited: boolean }>);
-	let isAdmin = $derived((page.data.isAdmin || false) as boolean); // Default to false if undefined
+	const permissions = $derived((page.data.permissions || {}) as Record<string, { hasPermission: boolean; isRateLimited: boolean }>);
+	const isAdmin = $derived((page.data.isAdmin || false) as boolean); // Default to false if undefined
 
 	// Derive specific permission data based on config contextId
-	let permissionData = $derived(
+	const permissionData = $derived(
 		config?.contextId
 			? (permissions[config.contextId] ?? { hasPermission: false, isRateLimited: false }) // Use nullish coalescing
 			: { hasPermission: false, isRateLimited: false }
 	);
 
 	// Derive permission status, considering admin override
-	let hasPermission = $derived(isAdmin || permissionData.hasPermission);
-	let isRateLimited = $derived(permissionData.isRateLimited);
+	const hasPermission = $derived(isAdmin || permissionData.hasPermission);
+	const isRateLimited = $derived(permissionData.isRateLimited);
 
 	// Final determination if content should be shown (simplified)
-	let shouldShowContent = $derived(!!config && hasPermission && !isRateLimited);
+	const shouldShowContent = $derived(!!config && hasPermission && !isRateLimited);
 </script>
 
 {#if shouldShowContent}

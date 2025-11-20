@@ -17,7 +17,7 @@
 	const { user } = page.data;
 
 	// Convert ISO date string to formatted date
-	let dates = $derived({
+	const dates = $derived({
 		created: (collectionValue as Record<string, unknown>)?.createdAt
 			? new Date((collectionValue as Record<string, unknown>).createdAt as string | number | Date).toLocaleDateString('en-US', {
 					year: 'numeric',

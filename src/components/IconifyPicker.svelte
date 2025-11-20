@@ -77,14 +77,14 @@
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 	// Derived values
-	let hasIcons = $derived(icons.length > 0);
-	let canGoPrevious = $derived(currentPage > 0);
-	let canGoNext = $derived(icons.length >= ICONS_PER_PAGE);
-	let startIndex = $derived(currentPage * ICONS_PER_PAGE);
-	let librariesLoaded = $derived(Object.keys(iconLibraries).length > 0);
-	let hasSearchQuery = $derived(searchQuery.trim().length > 0);
+	const hasIcons = $derived(icons.length > 0);
+	const canGoPrevious = $derived(currentPage > 0);
+	const canGoNext = $derived(icons.length >= ICONS_PER_PAGE);
+	const startIndex = $derived(currentPage * ICONS_PER_PAGE);
+	const librariesLoaded = $derived(Object.keys(iconLibraries).length > 0);
+	const hasSearchQuery = $derived(searchQuery.trim().length > 0);
 
-	let sortedLibraries = $derived.by(() => {
+	const sortedLibraries = $derived.by(() => {
 		return Object.entries(iconLibraries).sort(([, a], [, b]) => a.name.localeCompare(b.name));
 	});
 

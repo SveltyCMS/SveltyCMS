@@ -173,33 +173,82 @@ await AuthService.logout(sessionId);
 ### Database Interaction
 
 ```typescript
-// All database operations use the unified db.ts interface
-export class AuthService {
-	// Find user by email
-	async findUserByEmail(email: string) {
-		return await db.findOne('users', {
-			email: email.toLowerCase()
-		});
+// All database operations use the database-agnostic interface
+// The Auth class wraps dbAdapter.auth methods for convenience
+
+export class Auth {
+	private db: DatabaseAdapter;
+	private sessionStore: SessionStore;
+
+	// User Management - delegates to dbAdapter.auth
+	async getUserByEmail(email: string, tenantId?: string): Promise<DatabaseResult<User | null>> {
+		return await this.db.auth.getUserByEmail({ email: email.toLowerCase(), tenantId });
 	}
 
-	// Create new user
-	async createUser(userData: UserData) {
-		return await db.create('users', {
-			...userData,
-			email: userData.email.toLowerCase(),
-			password: await this.hashPassword(userData.password),
-			createdAt: new Date(),
-			emailVerified: false,
-			twoFactorEnabled: false
-		});
+	async createUser(userData: Partial<User>): Promise<DatabaseResult<User>> {
+		return await this.db.auth.createUser(userData);
 	}
 
-	// Update user
-	async updateUser(userId: string, updates: Partial<User>) {
-		return await db.update('users', userId, updates);
+	async updateUserAttributes(user_id: string, updates: Partial<User>, tenantId?: string): Promise<DatabaseResult<User>> {
+		return await this.db.auth.updateUserAttributes(user_id, updates, tenantId);
+	}
+
+	// Role Management - delegates to dbAdapter.auth.roles
+	async getAllRoles(tenantId?: string): Promise<Role[]> {
+		return this.db.auth.getAllRoles(tenantId);
+	}
+
+	async getRoleById(roleId: string, tenantId?: string): Promise<DatabaseResult<Role | null>> {
+		return this.db.auth.getRoleById(roleId, tenantId);
+	}
+
+	async createRole(role: Role): Promise<DatabaseResult<Role>> {
+		return this.db.auth.createRole(role);
+	}
+
+	async updateRole(roleId: string, roleData: Partial<Role>, tenantId?: string): Promise<DatabaseResult<Role>> {
+		return this.db.auth.updateRole(roleId, roleData, tenantId);
+	}
+
+	async deleteRole(roleId: string, tenantId?: string): Promise<DatabaseResult<void>> {
+		return this.db.auth.deleteRole(roleId, tenantId);
+	}
+
+	// Session Management - delegates to dbAdapter.auth
+	async createSession(sessionData: { user_id: string; expires: ISODateString; tenantId?: string }): Promise<DatabaseResult<Session>> {
+		return await this.db.auth.createSession(sessionData);
+	}
+
+	async validateSession(session_id: string): Promise<DatabaseResult<User | null>> {
+		return await this.db.auth.validateSession(session_id);
+	}
+
+	// Token Management - delegates to dbAdapter.auth
+	async createToken(tokenData: { user_id: string; expires: ISODateString; type: string; tenantId?: string }): Promise<string> {
+		const user = await this.getUserById(tokenData.user_id, tokenData.tenantId);
+		if (!user) throw new Error('User not found');
+
+		const result = await this.db.auth.createToken({
+			user_id: tokenData.user_id,
+			email: user.email.toLowerCase(),
+			expires: tokenData.expires,
+			type: tokenData.type,
+			tenantId: tokenData.tenantId
+		});
+
+		if (typeof result === 'string') return result;
+		if (result && result.success && typeof result.data === 'string') return result.data;
+		throw new Error('Failed to create token');
 	}
 }
 ```
+
+**Database-Agnostic Pattern**:
+
+- All auth operations go through `dbAdapter.auth.*` interface
+- Role management is at `dbAdapter.auth.getAllRoles()`, `dbAdapter.auth.createRole()`, etc.
+- Works with any database adapter (MongoDB, PostgreSQL, MySQL, etc.)
+- The Auth class provides a convenient wrapper but delegates to the adapter
 
 ### Integration with Other Systems
 

@@ -29,7 +29,7 @@
 		children?: import('svelte').Snippet;
 	}
 
-	let { items, headers = [], flipDurationMs, handleDndConsider, handleDndFinalize, children }: Props = $props();
+	const { items, headers = [], flipDurationMs, handleDndConsider, handleDndFinalize, children }: Props = $props();
 
 	const gridClass = `grid grid-cols-${headers.length + 1} variant-ghost-tertiary dark:variant-ghost-primary w-full items-start justify-start p-1 py-2 pl-3 text-center font-semibold`;
 </script>
@@ -38,7 +38,7 @@
 	<!-- Header -->
 	{#if headers.length > 0}
 		<div class={gridClass}>
-			{#each headers as header}
+			{#each headers as header, index (index)}
 				<div class="ml-2 text-left">{header}:</div>
 			{/each}
 		</div>

@@ -38,7 +38,7 @@ Implements custom virtual scrolling without external dependencies.
 		onBulkEdit?: (files: MediaImage[], action: string, value: any) => void;
 	}
 
-	let {
+	const {
 		filteredFiles = [],
 		gridSize,
 		ondeleteImage = () => {},
@@ -50,15 +50,15 @@ Implements custom virtual scrolling without external dependencies.
 	// Virtual scrolling state
 	let containerHeight = $state(600);
 	let scrollTop = $state(0);
-	let itemHeight = $derived(gridSize === 'tiny' ? 120 : gridSize === 'small' ? 160 : gridSize === 'medium' ? 280 : 400);
+	const itemHeight = $derived(gridSize === 'tiny' ? 120 : gridSize === 'small' ? 160 : gridSize === 'medium' ? 280 : 400);
 	let itemsPerRow = $state(5);
-	let visibleRows = $derived(Math.ceil(containerHeight / itemHeight) + 2); // +2 for buffer
-	let totalRows = $derived(Math.ceil(filteredFiles.length / itemsPerRow));
-	let startRow = $derived(Math.max(0, Math.floor(scrollTop / itemHeight) - 1));
-	let endRow = $derived(Math.min(totalRows, startRow + visibleRows));
-	let visibleItems = $derived(filteredFiles.slice(startRow * itemsPerRow, endRow * itemsPerRow));
-	let paddingTop = $derived(startRow * itemHeight);
-	let paddingBottom = $derived((totalRows - endRow) * itemHeight);
+	const visibleRows = $derived(Math.ceil(containerHeight / itemHeight) + 2); // +2 for buffer
+	const totalRows = $derived(Math.ceil(filteredFiles.length / itemsPerRow));
+	const startRow = $derived(Math.max(0, Math.floor(scrollTop / itemHeight) - 1));
+	const endRow = $derived(Math.min(totalRows, startRow + visibleRows));
+	const visibleItems = $derived(filteredFiles.slice(startRow * itemsPerRow, endRow * itemsPerRow));
+	const paddingTop = $derived(startRow * itemHeight);
+	const paddingBottom = $derived((totalRows - endRow) * itemHeight);
 
 	// Selection and operations state
 	let selectedFiles = $state<Set<string>>(new Set());

@@ -21,7 +21,7 @@
 	import type { Role } from '@src/databases/auth/types';
 
 	// Ensure roles is an array
-	let { value, roles = [] } = $props<{ value: string; roles?: Role[] }>();
+	const { value, roles = [] } = $props<{ value: string; roles?: Role[] }>();
 
 	const roleClasses = (roleId: string) => {
 		const role = roles.find((r: Role) => r._id === roleId);

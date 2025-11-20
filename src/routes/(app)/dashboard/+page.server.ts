@@ -88,14 +88,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	// Check if user has permission to access dashboard
 	const hasDashboardPermission =
-		isAdmin || tenantRoles.some((role) => role.permissions?.some((p) => p.resource === 'dashboard' && p.actions.includes('read')));
+		isAdmin ||
+		tenantRoles.some((role) =>
+			role.permissions?.some((p) => {
+				const [resource, action] = p.split(':');
+				return resource === 'dashboard' && action === 'read';
+			})
+		);
 
 	if (!hasDashboardPermission) {
 		logger.warn(`User ${user._id} (${user.email}) does not have permission to access dashboard. Redirecting.`);
 		throw error(403, 'Insufficient permissions to access dashboard');
 	}
 
-	logger.trace(`User authenticated successfully for dashboard: \x1b[34m${user._id}\x1b[0m`);
+	logger.trace(`User authenticated successfully for dashboard: ${user._id}`);
 
 	const { _id, ...rest } = user;
 	const availableWidgets = await discoverWidgets();

@@ -9,7 +9,7 @@
  * - Generate proper TypeScript union types
  */
 
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 import * as fs from 'node:fs/promises';
 import type { ViteDevServer } from 'vite';
 

@@ -21,7 +21,7 @@ import mongoose, { Schema } from 'mongoose';
 import { nowISODateString } from '@utils/dateUtils';
 
 // System Logger
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 // Define interface for the model with custom static methods
 interface SystemPreferencesModelType extends Model<SystemPreferencesDocument> {

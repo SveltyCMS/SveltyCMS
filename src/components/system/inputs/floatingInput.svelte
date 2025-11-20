@@ -150,7 +150,7 @@
 	}: Props = $props();
 
 	let inputElement = $state<HTMLInputElement>();
-	let currentId = $derived(id || (label ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId'));
+	const currentId = $derived(id || (label ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId'));
 	const errorId = $derived(errorMessage ? `error-${currentId}` : undefined);
 	const effectiveType = $derived(showPassword && type === 'password' ? 'text' : type);
 

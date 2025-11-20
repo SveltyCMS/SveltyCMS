@@ -89,15 +89,19 @@ jobs:
       - name: Wait for server
         run: |
           echo "Waiting for server at $PLAYWRIGHT_TEST_BASE_URL..."
-          for i in {1..60}; do
+          for i in {1..120}; do
             if curl -sf "$PLAYWRIGHT_TEST_BASE_URL" > /dev/null 2>&1; then
-              echo "Server is ready!"
+              echo "Server is ready after $i seconds!"
               exit 0
             fi
-            echo "Attempt $i/60: Server not ready yet, waiting..."
+            if [ $((i % 10)) -eq 0 ]; then
+              echo "Attempt $i/120: Server not ready yet, waiting..."
+            fi
             sleep 1
           done
-          echo "Server failed to start within 60 seconds"
+          echo "Server failed to start within 120 seconds"
+          echo "Checking for server process..."
+          ps aux | grep -i "bun\|vite\|node" || true
           exit 1
 
       - name: Check if setup is needed

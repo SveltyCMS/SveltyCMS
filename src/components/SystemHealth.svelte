@@ -59,7 +59,7 @@ Allows administrators to monitor system status and restart services.
 	let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
 	// Derived values
-	let uptime = $derived.by(() => {
+	const uptime = $derived.by(() => {
 		if (initializationStartedAt) return Date.now() - initializationStartedAt;
 		return 0;
 	});
@@ -157,10 +157,10 @@ Allows administrators to monitor system status and restart services.
 	}
 
 	// Memoized service entries for better performance
-	let serviceEntries = $derived(Object.entries(services));
-	let serviceCount = $derived(serviceEntries.length);
-	let formattedLastChecked = $derived(formatDisplayDate(lastChecked, 'en', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-	let apiHealthUrl = $derived(typeof window !== 'undefined' ? `${window.location.origin}/api/system?action=health` : '/api/system?action=health');
+	const serviceEntries = $derived(Object.entries(services));
+	const serviceCount = $derived(serviceEntries.length);
+	const formattedLastChecked = $derived(formatDisplayDate(lastChecked, 'en', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+	const apiHealthUrl = $derived(typeof window !== 'undefined' ? `${window.location.origin}/api/system?action=health` : '/api/system?action=health');
 </script>
 
 <div class="card space-y-4 p-4">

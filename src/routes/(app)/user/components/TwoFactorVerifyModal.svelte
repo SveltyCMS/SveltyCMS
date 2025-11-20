@@ -29,7 +29,7 @@ This modal			class="input text-center font-mono tracking-wider"
 	import * as m from '@src/paraglide/messages';
 
 	// Props
-	let {
+	const {
 		parent,
 		title = '',
 		description = ''

@@ -21,7 +21,7 @@
  */
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
-import type { DatabaseAdapter } from '@src/databases/dbInterface';
+import type { DatabaseAdapter, BaseEntity } from '@src/databases/dbInterface';
 
 // System Logs
 import { logger } from '@utils/logger.server';
@@ -89,11 +89,8 @@ interface GraphQLContext {
 type MediaResolverParent = unknown;
 
 // Media entity type with tenantId support
-interface MediaEntity {
-	_id?: string;
+interface MediaEntity extends BaseEntity {
 	url?: string;
-	createdAt?: string;
-	updatedAt?: string;
 	tenantId?: string;
 }
 

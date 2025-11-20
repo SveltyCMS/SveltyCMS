@@ -29,7 +29,7 @@
 		charLimit?: number; // Limit before 'Show More' appears
 	}
 
-	let { text = '', term = '', charLimit = 200 }: Props = $props();
+	const { text = '', term = '', charLimit = 200 }: Props = $props();
 
 	let isExpanded = $state(false); // State for toggling 'Show More'
 
@@ -39,14 +39,14 @@
 	}
 
 	// 1) Memoized regex - only recalculates when `term` changes
-	let highlightingRegex = $derived(() => {
+	const highlightingRegex = $derived(() => {
 		if (!term || !term.trim()) return null;
 		const escaped = escapeRegex(term);
 		return new RegExp(escaped, 'gi');
 	});
 
 	// 2) Memoized segments - recalculates when term, text, charLimit or isExpanded change
-	let displayTextSegments = $derived(() => {
+	const displayTextSegments = $derived(() => {
 		const shouldLimit = !isExpanded && text.length > charLimit;
 		const currentText = shouldLimit ? text.slice(0, charLimit) + '...' : text;
 

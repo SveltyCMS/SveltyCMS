@@ -29,7 +29,7 @@ Provides clear information about the issue and actionable steps to resolve it.
 	import { logger } from '@utils/logger';
 	import Icon from '@iconify/svelte';
 
-	let {
+	const {
 		collectionName = '',
 		fieldsWithIssues = [],
 		missingWidgets = [],

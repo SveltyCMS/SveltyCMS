@@ -51,7 +51,13 @@ The setup wizard is a multi-step form that guides users through initial SveltyCM
 - **Average Completion Time**: 2-3 minutes
 - **Real-time Validation**: All input fields
 - **Auto-save**: localStorage persistence
-- **Zero Server Restarts**: Live system initialization
+- **✨ NO SERVER RESTART REQUIRED**: System becomes operational immediately after setup completion
+
+<Callout type="success">
+	**Zero-Restart Architecture**: Unlike traditional CMSs that require server restart after initial setup, SveltyCMS uses dynamic in-memory
+	configuration loading (`initializeWithConfig()`). The system transitions from `IDLE` → `READY` state instantly, with cache warming ensuring the
+	first page load is blazing fast.
+</Callout>
 
 ---
 

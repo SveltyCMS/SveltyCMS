@@ -57,7 +57,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 		// If a valid collection URL is found, redirect the user
 		if (redirectUrl) {
-			logger.info(`Redirecting to first collection: \x1b[34m${redirectUrl}\x1b[0m`, { tenantId });
+			logger.info(`Redirecting to first collection: ${redirectUrl}`, { tenantId });
 			throw redirect(302, redirectUrl);
 		}
 

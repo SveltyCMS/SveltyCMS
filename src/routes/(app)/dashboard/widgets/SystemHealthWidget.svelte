@@ -48,7 +48,7 @@
 		components: Record<string, ServiceStatus>;
 	}
 
-	let {
+	const {
 		label = 'System Health',
 		theme = 'light',
 		icon = 'mdi:heart-pulse',

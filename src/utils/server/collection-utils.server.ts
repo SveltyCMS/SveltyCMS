@@ -10,14 +10,14 @@ import { SvelteMap } from 'svelte/reactivity';
  */
 export async function fetchAndRedirectToFirstCollection(language: Locale): Promise<string | null> {
 	try {
-		logger.debug(`Fetching first collection path for language: \x1b[34m${language}\x1b[0m`);
+		logger.debug(`Fetching first collection path for language: ${language}`);
 
 		const firstCollection = await contentManager.getFirstCollection();
 		if (firstCollection?.path) {
 			// Ensure the collection path has a leading slash
 			const collectionPath = firstCollection.path.startsWith('/') ? firstCollection.path : `/${firstCollection.path}`;
 			const redirectUrl = `/${language}${collectionPath}`;
-			logger.info(`Redirecting to first collection: \x1b[34m${firstCollection.name}\x1b[0m at path: \x1b[34m${redirectUrl}\x1b[0m`);
+			logger.info(`Redirecting to first collection: ${firstCollection.name} at path: ${redirectUrl}`);
 			return redirectUrl;
 		}
 

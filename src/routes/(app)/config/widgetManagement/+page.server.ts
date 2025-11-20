@@ -28,14 +28,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw redirect(302, '/login');
 		}
 
-		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m}`);
+		logger.trace(`User authenticated successfully for user: ${user._id}}`);
 
 		// Check user permission for widget management
 		// Permissions are stored as strings like 'config:widgetManagement:manage'
 		const hasWidgetPermission = user.permissions?.includes('config:widgetManagement:manage') || tenantRoles.some((role) => role.isAdmin);
 
 		if (!hasWidgetPermission) {
-			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access widget management`;
+			const message = `User ${user._id} does not have permission to access widget management`;
 			logger.warn(message);
 			throw error(403, 'Insufficient permissions');
 		}

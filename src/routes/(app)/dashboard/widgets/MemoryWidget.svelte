@@ -41,7 +41,7 @@ Features:
 	Chart.register(PieController, ArcElement, Tooltip);
 
 	// Props passed from +page.svelte, then to BaseWidget
-	let {
+	const {
 		label = 'Memory Usage',
 		theme = 'light',
 		icon = 'mdi:memory',

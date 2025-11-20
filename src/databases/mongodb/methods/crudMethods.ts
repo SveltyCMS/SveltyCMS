@@ -42,9 +42,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		this.model = model;
 	}
 
-	async findOne(query: FilterQuery<T>): Promise<T | null> {
+	async findOne(query: FilterQuery<T>, options: { fields?: (keyof T)[] } = {}): Promise<T | null> {
 		try {
-			const result = await this.model.findOne(query).lean().exec();
+			const result = await this.model.findOne(query, options.fields?.join(' ')).lean().exec();
 			if (!result) return null;
 			return processDates(result) as T;
 		} catch (error) {
@@ -76,11 +76,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
 	async findMany(
 		query: FilterQuery<T>,
-		options: { limit?: number; skip?: number; sort?: { [key: string]: 'asc' | 'desc' | 1 | -1 } } = {}
+		options: { limit?: number; skip?: number; sort?: { [key: string]: 'asc' | 'desc' | 1 | -1 }; fields?: (keyof T)[] } = {}
 	): Promise<T[]> {
 		try {
 			const results = await this.model
-				.find(query)
+				.find(query, options.fields?.join(' '))
 				.sort(options.sort || {})
 				.skip(options.skip ?? 0)
 				.limit(options.limit ?? 0)

@@ -29,7 +29,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		if (!isAdmin) {
 			// For non-admins, check specific permission
 			// You can add more granular permission checks here if needed
-			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access access management`;
+			const message = `User ${user._id} does not have permission to access access management`;
 			logger.warn(message, { tenantId });
 			throw error(403, message);
 		}
@@ -38,8 +38,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		logger.debug('Fetching permissions...', { tenantId });
 		const permissions = getAllPermissions();
 
-		logger.debug(`Roles available: \x1b[34m${tenantRoles.length}\x1b[0m`, { tenantId });
-		logger.debug(`Permissions fetched: \x1b[34m${permissions.length}\x1b[0m`, { tenantId });
+		logger.debug(`Roles available: ${tenantRoles.length}`, { tenantId });
+		logger.debug(`Permissions fetched: ${permissions.length}`, { tenantId });
 
 		// Return minimal user data and reuse roles from locals (already cached by handleAuthorization)
 		return {

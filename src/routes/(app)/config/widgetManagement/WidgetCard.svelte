@@ -18,7 +18,7 @@
 		canManage: boolean;
 	}
 
-	let { widget, onToggle, onUninstall, canManage }: Props = $props();
+	const { widget, onToggle, onUninstall, canManage }: Props = $props();
 </script>
 
 <div class="card border border-secondary-500">

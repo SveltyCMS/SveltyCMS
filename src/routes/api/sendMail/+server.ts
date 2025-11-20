@@ -268,7 +268,7 @@ export const POST: RequestHandler = async ({ request, locals }): Promise<Respons
 	// 5. Send Email
 	try {
 		const info = await transporter.sendMail(mailOptions);
-		logger.info('Email sent successfully via Nodemailer from \x1b[34m/api/sendMail\x1b[0m:', {
+		logger.info('Email sent successfully via Nodemailer from /api/sendMail:', {
 			recipientEmail,
 			subject,
 			templateName,
@@ -278,7 +278,7 @@ export const POST: RequestHandler = async ({ request, locals }): Promise<Respons
 		return json({ success: true, message: 'Email sent successfully.' });
 	} catch (err) {
 		const sendError = err as Error;
-		logger.error('Nodemailer failed to send email from \x1b[34m/api/sendMail\x1b[0m:', {
+		logger.error('Nodemailer failed to send email from /api/sendMail:', {
 			recipientEmail,
 			subject,
 			templateName,

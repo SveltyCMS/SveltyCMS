@@ -10,11 +10,24 @@
  */
 
 import type Konva from 'konva';
+import type { Component } from 'svelte';
 
 // Types
 export interface EditAction {
 	undo: () => void;
 	redo: () => void;
+}
+
+export interface ToolbarControls {
+	component: Component<any>;
+	props: Record<string, any>;
+}
+
+export interface ImageEditorTool {
+	id: string;
+	name: string;
+	icon: string;
+	description: string;
 }
 
 export interface ImageEditorState {
@@ -28,6 +41,13 @@ export interface ImageEditorState {
 	imageGroup: Konva.Group | null;
 	activeState: string | null;
 	stateHistory: string[];
+	toolbarControls: ToolbarControls | null;
+	actions?: {
+		undo?: () => void;
+		redo?: () => void;
+		save?: () => void;
+		cancel?: () => void;
+	};
 }
 
 // Create image editor store
@@ -43,7 +63,9 @@ function createImageEditorStore() {
 		imageNode: null,
 		imageGroup: null,
 		activeState: '',
-		stateHistory: []
+		stateHistory: [],
+		toolbarControls: null,
+		actions: {}
 	});
 
 	// Derived values using $derived rune
@@ -80,6 +102,14 @@ function createImageEditorStore() {
 
 	function setActiveState(activeState: string | null) {
 		state.activeState = activeState;
+	}
+
+	function setToolbarControls(controls: ToolbarControls | null) {
+		state.toolbarControls = controls;
+	}
+
+	function setActions(actions: Partial<NonNullable<ImageEditorState['actions']>>) {
+		state.actions = { ...state.actions, ...actions };
 	}
 
 	function cleanupTempNodes() {
@@ -362,6 +392,8 @@ function createImageEditorStore() {
 		setImageNode,
 		setImageGroup,
 		setActiveState,
+		setToolbarControls,
+		setActions,
 		addEditAction,
 		saveStateHistory,
 		takeSnapshot,

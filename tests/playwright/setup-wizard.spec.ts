@@ -37,6 +37,9 @@ async function dismissWelcomeModal(page: Page) {
 async function configureDatabaseConnection(page: Page) {
 	console.log('Step 1: Configuring database connection...');
 
+	// Wait for page to be fully loaded
+	await page.waitForLoadState('networkidle');
+
 	// Wait for database configuration form
 	await expect(page.getByRole('heading', { name: /database/i }).first()).toBeVisible({ timeout: 15000 });
 

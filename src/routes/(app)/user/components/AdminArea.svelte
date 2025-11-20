@@ -57,7 +57,7 @@
 	}
 
 	// Props - Using API for scalability
-	let {
+	const {
 		currentUser = null,
 		isMultiTenant = false,
 		roles = []
@@ -519,7 +519,7 @@
 	// tableData is now the current page from API, not all data
 	// totalItems is the total count from API
 
-	let pagesCount = $derived.by<number>(() => Math.ceil(totalItems / rowsPerPage) || 1);
+	const pagesCount = $derived.by<number>(() => Math.ceil(totalItems / rowsPerPage) || 1);
 
 	// Derive selected rows from selectedMap; ensure type compatibility by mapping to UserData | TokenData
 	let selectedRows: Array<User | Token> = $derived.by(() =>

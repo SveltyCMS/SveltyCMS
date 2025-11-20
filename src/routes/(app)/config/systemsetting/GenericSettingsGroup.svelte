@@ -34,7 +34,7 @@ Handles all field types and validation automatically
 		onUnsavedChanges?: (hasChanges: boolean) => void;
 	}
 
-	let { group, groupsNeedingConfig, onUnsavedChanges }: Props = $props();
+	const { group, groupsNeedingConfig, onUnsavedChanges }: Props = $props();
 
 	let loading = $state(false);
 	let saving = $state(false);
@@ -44,10 +44,10 @@ Handles all field types and validation automatically
 	let errors = $state<Record<string, string>>({});
 	let hasEmptyRequiredFields = $state(false);
 	let hasUnsavedChanges = $state(false);
-	let showPassword = $state<Record<string, boolean>>({}); // Track password visibility per field
-	let showLanguagePicker = $state<Record<string, boolean>>({}); // Track language picker visibility per field
-	let languageSearch = $state<Record<string, string>>({}); // Track search input per field
-	let showLogLevelPicker = $state<Record<string, boolean>>({}); // Track log level picker visibility per field
+	const showPassword = $state<Record<string, boolean>>({}); // Track password visibility per field
+	const showLanguagePicker = $state<Record<string, boolean>>({}); // Track language picker visibility per field
+	const languageSearch = $state<Record<string, string>>({}); // Track search input per field
+	const showLogLevelPicker = $state<Record<string, boolean>>({}); // Track log level picker visibility per field
 	let allowedLocales = $state<string[]>([]); // Locales from project.inlang/settings.json
 
 	// Load allowed locales from project.inlang/settings.json

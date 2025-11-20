@@ -22,7 +22,7 @@
 
 import { json } from '@sveltejs/kit';
 import { exec } from 'child_process';
-import type { RequestHandler } from './$types';
+import type { RequestHandler } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 
 export const POST: RequestHandler = async ({ request }) => {

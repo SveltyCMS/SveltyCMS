@@ -9,7 +9,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 
 // --- Test Utilities ---
 
-function createMockEvent(pathname: string, configExists: boolean = true, configValid: boolean = true, hasUsers: boolean = true): RequestEvent {
+function createMockEvent(pathname: string, configExists: boolean = true, _configValid: boolean = true, _hasUsers: boolean = true): RequestEvent {
 	const url = new URL(pathname, 'http://localhost');
 
 	return {

@@ -96,9 +96,9 @@
 		}));
 	}
 
-	let processedNodes = $derived(() => mapNodesWithDerivedState(initialNodes));
+	const processedNodes = $derived(() => mapNodesWithDerivedState(initialNodes));
 
-	let filteredNodes = $derived(() => {
+	const filteredNodes = $derived(() => {
 		const searchTermLower = (search || '').toLowerCase().trim();
 		if (!searchTermLower) return processedNodes();
 
@@ -119,7 +119,7 @@
 	});
 
 	// nodeMap derived for lookups (depth + parentId)
-	let nodeMap = $derived(() => {
+	const nodeMap = $derived(() => {
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const map = new Map<string, TreeNode & { depth: number; parentId?: string }>();
 		function collect(node: TreeNode, depth = 0, parentId?: string) {

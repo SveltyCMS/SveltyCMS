@@ -24,6 +24,10 @@
 	// Centralized theme management
 	import { themeStore, initializeThemeStore, initializeDarkMode } from '@stores/themeStore.svelte';
 
+	// Toast support
+	import { setGlobalToastStore } from '@utils/toast';
+	import { getToastStore, Toast } from '@skeletonlabs/skeleton';
+
 	// Initialize theme and other client-side logic on mount
 	onMount(() => {
 		initializeDarkMode();
@@ -54,13 +58,14 @@
 
 	initializeStores();
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
+	setGlobalToastStore(getToastStore());
 
 	// Props
 	interface Props {
 		children?: import('svelte').Snippet;
 	}
 
-	let { children }: Props = $props();
+	const { children }: Props = $props();
 
 	// Get the site name from data loaded in layout.server.ts
 	const siteName = $derived(page.data.settings?.SITE_NAME || 'SveltyCMS');
@@ -74,4 +79,5 @@
 	{#key currentLocale}
 		{@render children?.()}
 	{/key}
+	<Toast />
 </div>

@@ -24,7 +24,7 @@
 		highlight?: string;
 	}
 
-	let { char = null, siteName: propSiteName, highlight }: Props = $props();
+	const { char = null, siteName: propSiteName, highlight }: Props = $props();
 
 	// Get site name dynamically from global settings store (updates live!)
 	// Fallback chain: prop → live store → page data → default
