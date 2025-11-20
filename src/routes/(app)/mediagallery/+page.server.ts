@@ -24,6 +24,7 @@ import type { DatabaseId } from '@root/src/content/types';
 import type { MediaAccess } from '@root/src/utils/media/mediaModels';
 import { MediaService } from '@src/services/MediaService';
 import { constructUrl } from '@utils/media/mediaUtils';
+import { moveMediaToTrash } from '@utils/media/mediaStorage';
 import mime from 'mime-types';
 
 // Auth
@@ -343,14 +344,12 @@ export const actions: Actions = {
 			// Move file to trash before deleting from database
 			try {
 				if (image.url) {
-					const { moveMediaToTrash } = await import('@utils/media/mediaStorage');
 					await moveMediaToTrash(image.url);
 					logger.info('File moved to trash:', image.url);
 				}
 
 				// Also move thumbnails to trash if they exist
 				if (image.thumbnails) {
-					const { moveMediaToTrash } = await import('@utils/media/mediaStorage');
 					for (const size in image.thumbnails) {
 						if (image.thumbnails[size]?.url) {
 							await moveMediaToTrash(image.thumbnails[size].url);

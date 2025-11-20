@@ -17,6 +17,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { goto } from '$app/navigation';
 
 	// Stores
 	import { page } from '$app/state';
@@ -138,11 +139,17 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				// Trigger the toast
 				showToast(m.signin_signinsuccess(), 'success');
 
-				// Clear authenticating state immediately for faster navigation
-				setTimeout(() => {
-					isAuthenticating = false;
-					globalLoadingStore.stopLoading(loadingOperations.authentication);
-				}, 100);
+				// Cancel default redirect behavior so we can use client-side navigation
+				cancel();
+
+				// Use client-side navigation for instant redirect
+				if (result.location) {
+					goto(result.location);
+				}
+
+				// Clear authenticating state immediately
+				isAuthenticating = false;
+				globalLoadingStore.stopLoading(loadingOperations.authentication);
 
 				return;
 			}
@@ -627,14 +634,19 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 							<!-- Toggle Code Type -->
 							<div class="text-center">
-								<button type="button" onclick={toggle2FACodeType} class="text-sm text-primary-500 underline hover:text-primary-600">
+								<button
+									type="button"
+									onclick={toggle2FACodeType}
+									class="text-sm text-primary-500 underline hover:text-primary-600"
+									aria-label={useBackupCode ? m.twofa_use_authenticator() : m.twofa_use_backup_code()}
+								>
 									{useBackupCode ? m.twofa_use_authenticator() : m.twofa_use_backup_code()}
 								</button>
 							</div>
 
 							<!-- Action Buttons -->
 							<div class="flex gap-3">
-								<button type="button" onclick={back2FAToLogin} class="variant-soft-surface btn flex-1">
+								<button type="button" onclick={back2FAToLogin} class="variant-soft-surface btn flex-1" aria-label={m.button_back()}>
 									<iconify-icon icon="mdi:arrow-left" width="20" class="mr-2"></iconify-icon>
 									{m.button_back()}
 								</button>
@@ -647,6 +659,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 										(!useBackupCode && twoFACode.length !== 6) ||
 										(useBackupCode && twoFACode.length < 8)}
 									class="variant-filled-primary btn flex-1"
+									aria-label={m.twofa_verify_button()}
 								>
 									{#if isVerifying2FA}
 										<img src="/Spinner.svg" alt="Loading.." class="mr-2 h-5 invert filter" />

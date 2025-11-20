@@ -11,7 +11,8 @@ import { logger } from '@utils/logger';
 import type Mongoose from 'mongoose';
 import type { DatabaseId, MediaItem, MediaMetadata, PaginatedResult, PaginationOptions } from '../../dbInterface';
 import { mediaSchema, type IMedia } from '../models/media';
-import { createDatabaseError, withCache, CacheCategory, invalidateCategoryCache } from './mongoDBUtils';
+import { createDatabaseError } from './mongoDBUtils';
+import { withCache, CacheCategory, invalidateCategoryCache } from './mongoDBCacheUtils';
 
 // Define model types for dependency injection
 type MediaModelType = Mongoose.Model<IMedia>;
