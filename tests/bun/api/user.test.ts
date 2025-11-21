@@ -26,9 +26,13 @@
  * - POST /api/user (index - invitations) (5 tests)
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, setTimeout as testTimeout } from 'bun:test';
 import { cleanupTestDatabase, cleanupTestEnvironment, initializeTestEnvironment, testFixtures } from '../helpers/testSetup';
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
+import { createTestUsers } from '../helpers/auth';
+
+// Extend default timeout for heavy async setup (default is 5 s)
+testTimeout(15000); // jest is not available in Bun test environment, but we keep the timeout for future compatibility
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -195,6 +199,9 @@ describe('User API Endpoints', () => {
 
 		// Use the helper to log in before each authenticated test
 		beforeEach(async () => {
+			// Ensure admin user exists
+			await createTestUsers();
+			// Log in as admin and obtain cookies
 			authCookies = await loginAsAdmin();
 			// Fetch the created admin's ID for use in tests that need to target a specific user
 			const batchResponse = await fetch(`${API_BASE_URL}/api/user/batch`, {

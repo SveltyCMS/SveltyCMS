@@ -1,3 +1,17 @@
+/**
+ * @file scripts/test-smart.ts
+ * @description Intelligent test runner for local development
+ * 
+ * CURRENT: Playwright E2E tests with MongoDB
+ * FUTURE: Will support parallel testing with multiple databases:
+ *   - MongoDB (current)
+ *   - PostgreSQL (via Drizzle ORM)
+ *   - MariaDB (via Drizzle ORM)
+ *   - MySQL (via Drizzle ORM)
+ * 
+ * This script is designed for LOCAL DEVELOPMENT ONLY.
+ * For CI/CD, use the standard test:integration and test:e2e scripts.
+ */
 import { spawn } from 'child_process';
 import { existsSync } from 'fs';
 import { resolve } from 'path';

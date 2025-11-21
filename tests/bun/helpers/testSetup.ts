@@ -131,13 +131,60 @@ export const testFixtures = {
 			email: 'admin@test.com',
 			username: 'admin',
 			password: 'Test123!',
+			confirm_password: 'Test123!',
 			role: 'admin'
 		},
 		secondUser: {
 			email: 'user2@test.com',
 			username: 'user2',
 			password: 'Test123!',
+			confirm_password: 'Test123!',
 			role: 'editor'
+		},
+		// Alias for consistency
+		admin: {
+			email: 'admin@test.com',
+			username: 'admin',
+			password: 'Test123!',
+			confirm_password: 'Test123!',
+			role: 'admin'
+		},
+		editor: {
+			email: 'user2@test.com',
+			username: 'user2',
+			password: 'Test123!',
+			confirm_password: 'Test123!',
+			role: 'editor'
+		}
+	},
+
+	// API Access Tokens for headless access (REST/GraphQL/GraphQL-WS)
+	// These are long-lived tokens with type 'access'
+	apiTokens: {
+		fullAccess: {
+			type: 'access',
+			email: 'admin@test.com',
+			expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year
+		},
+		readOnly: {
+			type: 'access',
+			email: 'editor@test.com',
+			expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+		}
+	},
+
+	// Invitation Tokens for user registration
+	// These are one-time use tokens with type 'user-invite'
+	invitationTokens: {
+		standard: {
+			email: 'newuser@test.com',
+			role: 'editor',
+			expiresIn: '2 days'
+		},
+		admin: {
+			email: 'newadmin@test.com',
+			role: 'admin',
+			expiresIn: '1 week'
 		}
 	}
 };
@@ -178,4 +225,49 @@ export async function loginAsAdminAndGetToken(): Promise<string> {
 	}
 
 	return setCookieHeader;
+}
+
+/**
+ * Initialize test environment for AUTHENTICATED tests
+ * - Ensures config/private.ts exists (configured CMS)
+ * - Waits for server
+ * - Does NOT clean database (tests should do this in beforeEach)
+ */
+export async function initializeAuthenticatedTests(): Promise<void> {
+	await waitForServer();
+	// Note: We don't clean database here - tests should do it in beforeEach
+	// This allows tests to control their own isolation
+	console.log('✅ Test environment setup complete');
+}
+
+/**
+ * Initialize test environment for SETUP tests
+ * - Ensures NO config/private.ts exists (fresh CMS)
+ * - Waits for server
+ * - Cleans database
+ *
+ * WARNING: This will remove config/private.ts if it exists!
+ * Only use for setup wizard tests.
+ */
+export async function initializeSetupTests(): Promise<void> {
+	await waitForServer();
+
+	// TODO: Implement config removal when needed
+	// For now, setup tests should handle their own state
+	console.warn('⚠️ initializeSetupTests: Config removal not yet implemented');
+	console.log('✅ Test environment setup complete (setup mode)');
+}
+
+/**
+ * Prepare a clean DB and a logged‑in admin for a test case.
+ * Returns the admin session cookie string.
+ */
+export async function prepareAuthenticatedContext(): Promise<string> {
+	// 1️⃣ Clean the DB
+	await cleanupTestDatabase();
+	// 2️⃣ Create fresh admin & editor users
+	await createTestUsers();
+	// 3️⃣ Log in as admin and obtain cookie
+	const adminCookie = await loginAsAdmin();
+	return adminCookie;
 }

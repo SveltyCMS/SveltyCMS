@@ -1,5 +1,6 @@
 # .github/workflows/docs-lint.yml
 # Test documentation files for linting errors on pull requests that modify docs.
+# NOTE: This workflow does not require database testing (docs only)
 name: Docs Lint
 
 on:

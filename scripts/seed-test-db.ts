@@ -1,3 +1,17 @@
+/**
+ * @file scripts/seed-test-db.ts
+ * @description Seeds the test database for integration and E2E tests
+ * 
+ * CURRENT: MongoDB only
+ * FUTURE: Will support parallel testing with multiple databases:
+ *   - MongoDB (current)
+ *   - PostgreSQL (via Drizzle ORM)
+ *   - MariaDB (via Drizzle ORM)
+ *   - MySQL (via Drizzle ORM)
+ * 
+ * The DB_TYPE environment variable will determine which database to seed.
+ * GitHub Actions will run tests in parallel matrix for each database type.
+ */
 import { spawn } from 'child_process';
 import { safeParse } from 'valibot';
 import '../tests/bun/setup'; // Mock SvelteKit environment
@@ -11,7 +25,7 @@ const RETRY_DELAY = 1000;
 
 // Test Configuration - Typed against the application schema
 const testDbConfig: DatabaseConfig = {
-	type: 'mongodb',
+	type: (process.env.DB_TYPE as 'mongodb' | 'mongodb+srv') || 'mongodb',
 	host: process.env.DB_HOST || 'localhost',
 	port: parseInt(process.env.DB_PORT || '27017'),
 	name: process.env.DB_NAME || 'sveltycms_test',

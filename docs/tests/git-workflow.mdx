@@ -1,12 +1,12 @@
 ---
 path: 'docs/tests/git-workflow.mdx'
 title: 'Git Workflow & Automated Testing'
-description: 'Complete guide to branching strategy, commit conventions, automated testing, and semantic releases with GitHub Actions.'
+description: 'Complete guide to branching strategy, commit conventions, automated testing with Bun and Playwright, and semantic releases with GitHub Actions.'
 order: 3
 icon: 'mdi:git'
 author: 'admin'
 created: '2025-09-28'
-updated: '2025-11-08'
+updated: '2025-11-21'
 tags:
   - 'git'
   - 'workflow'
@@ -24,11 +24,12 @@ SveltyCMS uses a comprehensive Git workflow with **automated testing** and **sem
 
 Our CI/CD pipeline uses:
 
-- **Bun Tests** for fast unit & integration testing
-- **Playwright** for comprehensive E2E testing
+- **Bun Tests** for fast unit & integration testing (~575 tests)
+- **Playwright** for comprehensive E2E testing (~40 tests)
 - **Semantic Release** for automated versioning
 - **GitHub Actions** for CI/CD automation
 - **Test Gating** to ensure releases only happen when tests pass
+- **Future**: Matrix testing across multiple databases (MongoDB, PostgreSQL, MariaDB, MySQL)
 
 ---
 
@@ -160,12 +161,30 @@ SveltyCMS uses two main workflows for CI/CD automation.
 
 **What it does:**
 
-1. Sets up environment (Bun, Node, Playwright)
-2. Starts MongoDB service container
-3. **Seeds database** (`scripts/seed-cms.js`)
-4. **Creates admin user** (`scripts/create-admin.js`)
-5. Runs tests in dev and preview modes
-6. Uploads test results and artifacts
+1. **Unit Tests Job**: Runs Bun unit tests (~350 tests, ~2s)
+2. **Integration Tests Job**: 
+   - Starts MongoDB service container
+   - Cleans `config/` directory for fresh state
+   - Starts dev server
+   - Seeds test database via `scripts/seed-test-db.ts`
+   - Runs Bun integration tests (~225 tests, ~15s)
+3. **E2E Tests Job**:
+   - Starts MongoDB service container
+   - Cleans `config/` directory
+   - Installs Playwright browsers
+   - Starts dev server
+   - Seeds test database
+   - Runs Playwright E2E tests (~40 tests, ~60s)
+4. Uploads test results and artifacts on failure
+
+> [!NOTE]
+> **Future Enhancement**: Matrix testing across multiple databases
+> ```yaml
+> strategy:
+>   matrix:
+>     database: [mongodb, postgresql, mariadb, mysql]
+> ```
+> This will ensure SveltyCMS works with all supported databases via Drizzle ORM.
 
 **Test Matrix:**
 
@@ -226,14 +245,21 @@ SveltyCMS uses a **dual-testing strategy** combining fast unit tests with compre
 - **Run:** `bun x playwright test`
 - **Browsers:** Chromium, Firefox, WebKit
 
-### Current Test Status
+### Current Test Status (November 21, 2025)
 
 ```
-✅ 97+ passing tests (77%+)
-⚡ ~25s execution time
-🎯 150+ assertions
-📊 8 categories fully tested
+✅ 403 passing tests (~65%)
+❌ 172 failing tests (API/Setup integration)
+⏭️ 40 skipped tests (placeholders)
+📊 615 total tests
+⚡ Unit tests: ~2s | Integration: ~15s | E2E: ~60s
 ```
+
+**Recently Fixed:**
+
+- ✅ **authorization.test.ts** (22 tests) - Fixed mock database adapter
+- ✅ **theme.test.ts** (40 tests) - Fixed `mockResolve` signature  
+- ✅ **firewall.test.ts** (27 tests) - Fixed logger import
 
 **Fully Passing Test Suites:**
 
@@ -241,10 +267,10 @@ SveltyCMS uses a **dual-testing strategy** combining fast unit tests with compre
 - ✅ **Widget Validation** (8/8 tests) - RichText, form validation
 - ✅ **Cache System** (17/17 tests) - Redis, metrics, multi-tenant
 - ✅ **UI Components** (5/5 tests) - Store management
-- ✅ **Content Utilities** (6/6 tests) - normalization, helpers
-- ✅ **User API** (47/47 tests) - Complete endpoint coverage
-- ⚠️ **Collection Builder** (4/7 tests) - Partial coverage
-- ❌ **Other APIs** (0/4 tests) - Needs database setup
+- ✅ **Content Utilities** (6/6 tests) - Normalization, helpers
+- ✅ **Server Hooks** (89/89 tests) - All middleware hooks passing
+- ⚠️ **API Endpoints** (Mixed) - Some integration test failures
+- ❌ **Setup Middleware** (0/45 tests) - Requires fixes
 
 **See full test report:** [Test Status](./test-status.mdx)
 

@@ -1,0 +1,417 @@
+# Enterprise Testing Infrastructure - Complete Documentation
+
+**Last Updated**: 2025-11-21  
+**Status**: Week 1 Complete (Foundation), Week 2 In Progress (Test Fixes)  
+**Progress**: ~20% Complete
+
+---
+
+## Table of Contents
+
+1. [Current Status](#current-status)
+2. [Implementation Plan](#implementation-plan)
+3. [Test Architecture](#test-architecture)
+4. [Code Research Findings](#code-research-findings)
+5. [Task Checklist](#task-checklist)
+6. [Next Steps](#next-steps)
+
+---
+
+## Current Status
+
+### ✅ Completed (Week 1)
+
+**Test Infrastructure Foundation:**
+
+- ✅ Created `tests/bun/helpers/auth.ts` with authentication helpers
+- ✅ Updated `tests/bun/helpers/testSetup.ts` with correct fixtures
+- ✅ Added `initializeAuthenticatedTests()` and `initializeSetupTests()`
+- ✅ Test fixtures include three categories:
+  - Users (admin, editor)
+  - API access tokens (type: 'access')
+  - Invitation tokens (type: 'user-invite')
+
+**Research & Planning:**
+
+- ✅ Researched actual code implementation
+- ✅ Identified dual token system (invitation + access)
+- ✅ Created comprehensive implementation plan
+- ✅ Documented API structure and authentication patterns
+
+### ⏳ In Progress (Week 2)
+
+- 🔄 Running `bun run test:integration` to verify current state
+- ⏳ Fixing first test file as proof of concept
+- ⏳ Scaling fixes to all 172 failing tests
+
+### ❌ Not Started
+
+**Week 2: Fix Failing Tests**
+
+- ❌ Fix 172 failing API integration tests
+- ❌ Update test files with new patterns
+- ❌ Target: 95%+ pass rate (585+ passing tests)
+
+**Week 3: Documentation**
+
+- ❌ Create `docs/api/API_Access_Tokens.mdx`
+- ❌ Update `docs/api/index.mdx`
+- ❌ Update test coverage docs (8 files)
+
+**Week 4: CI/CD**
+
+- ❌ Optimize GitHub Actions
+- ❌ Add test reporting
+- ❌ Multi-database prep
+
+### Progress Summary
+
+| Phase                 | Status         | Progress |
+| --------------------- | -------------- | -------- |
+| Week 1: Foundation    | ✅ Complete    | 100%     |
+| Week 2: Fix Tests     | 🔄 In Progress | 5%       |
+| Week 3: Documentation | ❌ Not Started | 0%       |
+| Week 4: CI/CD         | ❌ Not Started | 0%       |
+
+**Overall**: ~20% Complete
+
+---
+
+## Implementation Plan
+
+### Goal
+
+Transform SveltyCMS testing into an enterprise-grade system with proper test isolation, multiple user roles, and comprehensive coverage.
+
+### Test Statistics
+
+- **Total Tests**: 615
+- **Currently Passing**: 403 (65%)
+- **Currently Failing**: 172 (API/Setup integration)
+- **Skipped**: 40 (placeholders)
+- **Target**: 95%+ pass rate (585+ tests)
+
+### Root Causes of Failures
+
+1. Tests expect running server (`await waitForServer()`)
+2. No server when running `bun test` directly
+3. Missing proper test fixtures for multiple users
+4. Setup tests run against configured system (should be fresh)
+
+---
+
+## Test Architecture
+
+### Test Categories
+
+#### 1. Setup Tests (Special Case)
+
+- **Requirement**: NO `config/private.ts` exists
+- **State**: Fresh CMS installation
+- **Tests**: Setup wizard flow, initial configuration
+- **Files**: `tests/bun/hooks/setup.test.ts`, `tests/playwright/setup-wizard.spec.ts`
+
+#### 2. Authenticated Tests (Majority)
+
+- **Requirement**: Pre-configured CMS with `config/private.ts`
+- **State**: System ready, users exist
+- **Authentication**: Tests run as logged-in users
+- **User Roles**:
+  - **Admin**: Full permissions (manage users, settings, content)
+  - **Editor**: Content permissions only (create/edit content)
+- **Files**: All API tests, most hook tests, E2E tests
+
+### Test User Matrix
+
+| User Type     | Role     | Permissions  | Use Cases                                 |
+| ------------- | -------- | ------------ | ----------------------------------------- |
+| **Admin**     | `admin`  | Full access  | User management, settings, all CRUD       |
+| **Editor**    | `editor` | Content only | Create/edit content, no user management   |
+| **API Token** | N/A      | Token-based  | Headless access (REST/GraphQL/GraphQL-WS) |
+
+> [!NOTE]
+> **Headless CMS Architecture**: This is a headless CMS. "Viewers" don't exist as users.
+> External applications access content via **API tokens** (not user sessions).
+
+---
+
+## Code Research Findings
+
+### Token System (Two Types)
+
+#### 1. Invitation Tokens (`type: 'user-invite'`)
+
+- **Purpose**: User registration/invitation
+- **Endpoint**: `/api/token/*`
+- **Documented**: ✅ Yes (fully documented)
+- **Usage**: Admin creates → Email sent → User registers
+- **Lifecycle**: One-time use, consumed after registration
+
+#### 2. API Access Tokens (`type: 'access'`)
+
+- **Purpose**: Headless API access (REST/GraphQL/GraphQL-WS)
+- **Authentication**: `Authorization: Bearer {token}`
+- **Documented**: ❌ No (mentioned but not detailed)
+- **Usage**: External applications access CMS data
+- **Lifecycle**: Long-lived, reusable
+
+### Code Evidence
+
+**File**: `src/databases/mongodb/models/authToken.ts`
+
+```typescript
+const TokenSchema = new Schema({
+	type: { type: String, required: true } // Can be 'user-invite' OR 'access'
+});
+```
+
+**File**: `src/routes/api/graphql/+server.ts` (Line 266)
+
+```typescript
+// Bearer token authentication for GraphQL WebSocket
+const tokenValidation = await dbAdapter.auth.validateToken(
+	token,
+	undefined,
+	'access', // ← API access token type
+	tenantId
+);
+```
+
+### Test Fixtures Structure
+
+```typescript
+testFixtures = {
+	users: {
+		admin: { email: 'admin@test.com', password: 'Test123!', role: 'admin' },
+		editor: { email: 'editor@test.com', password: 'Test123!', role: 'editor' }
+	},
+
+	// API Access Tokens (long-lived, type: 'access')
+	apiTokens: {
+		fullAccess: {
+			type: 'access',
+			email: 'admin@test.com',
+			expires: '2026-11-21...' // 1 year
+		},
+		readOnly: {
+			type: 'access',
+			email: 'editor@test.com',
+			expires: '2026-11-21...'
+		}
+	},
+
+	// Invitation Tokens (one-time, type: 'user-invite')
+	invitationTokens: {
+		standard: {
+			email: 'newuser@test.com',
+			role: 'editor',
+			expiresIn: '2 days'
+		}
+	}
+};
+```
+
+---
+
+## Task Checklist
+
+### Phase 1: Test Infrastructure (✅ COMPLETE)
+
+- [x] Create `tests/bun/helpers/auth.ts`
+  - [x] `loginAsAdmin()` function
+  - [x] `loginAsEditor()` function
+  - [x] `createApiToken()` function
+  - [x] `createTestUsers()` function
+- [x] Update `tests/bun/helpers/testSetup.ts`
+  - [x] Add API access token fixtures
+  - [x] Add invitation token fixtures
+  - [x] Add `initializeAuthenticatedTests()`
+  - [x] Add `initializeSetupTests()`
+
+### Phase 2: Fix Failing Tests (🔄 IN PROGRESS)
+
+- [ ] Run `bun run test:integration` to verify current state
+- [ ] Fix first test file as proof of concept
+  - [ ] Update `tests/bun/api/user.test.ts`
+  - [ ] Verify tests pass
+- [ ] Apply pattern to remaining API tests
+  - [ ] `tests/bun/api/setup.test.ts`
+  - [ ] `tests/bun/api/collections.test.ts`
+  - [ ] `tests/bun/api/dashboard.test.ts`
+  - [ ] `tests/bun/api/settings.test.ts`
+  - [ ] `tests/bun/api/widgets.test.ts`
+  - [ ] `tests/bun/api/security.test.ts`
+  - [ ] `tests/bun/api/import-export.test.ts`
+  - [ ] `tests/bun/api/miscellaneous.test.ts`
+- [ ] Fix setup middleware tests
+- [ ] Verify hook tests
+
+### Phase 3: Documentation (❌ NOT STARTED)
+
+- [ ] Create `docs/api/API_Access_Tokens.mdx`
+- [ ] Update `docs/api/index.mdx`
+- [ ] Update `docs/api/Token_API_Endpoints.mdx`
+- [ ] Update test coverage docs (8 files)
+
+### Phase 4: CI/CD (❌ NOT STARTED)
+
+- [ ] Optimize GitHub Actions
+- [ ] Add test reporting
+- [ ] Multi-database prep
+
+---
+
+## Test Pattern Examples
+
+### Authenticated Test Pattern
+
+```typescript
+import { loginAsAdmin, loginAsEditor, createTestUsers } from '../helpers/auth';
+import { initializeAuthenticatedTests, cleanupTestDatabase, testFixtures } from '../helpers/testSetup';
+
+describe('API Endpoint', () => {
+	let adminCookies: string;
+	let editorCookies: string;
+
+	beforeAll(async () => {
+		await initializeAuthenticatedTests();
+	});
+
+	beforeEach(async () => {
+		await cleanupTestDatabase();
+		await createTestUsers();
+		adminCookies = await loginAsAdmin();
+		editorCookies = await loginAsEditor();
+	});
+
+	it('admin can perform action', async () => {
+		const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
+			headers: { Cookie: adminCookies }
+		});
+		expect(response.status).toBe(200);
+	});
+
+	it('editor cannot perform action', async () => {
+		const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
+			headers: { Cookie: editorCookies }
+		});
+		expect(response.status).toBe(403); // Forbidden
+	});
+});
+```
+
+### Setup Test Pattern
+
+```typescript
+import { initializeSetupTests } from '../helpers/testSetup';
+
+describe('Setup Wizard', () => {
+	beforeAll(async () => {
+		await initializeSetupTests(); // Ensures NO config
+	});
+
+	it('should redirect to /setup when config missing', async () => {
+		// Test setup flow
+	});
+});
+```
+
+---
+
+## Next Steps
+
+### Immediate Actions
+
+1. **Verify Test Infrastructure** (IN PROGRESS)
+   - Running `bun run test:integration`
+   - Check current test status
+   - Identify specific failures
+
+2. **Fix First Test File** (NEXT)
+   - Update `user.test.ts` as proof of concept
+   - Verify pattern works
+   - Document any issues
+
+3. **Scale to All Tests**
+   - Apply pattern to remaining 171 tests
+   - Target: 95%+ pass rate
+   - Track progress
+
+### Future Work
+
+4. **Update Documentation**
+   - Create API access token guide
+   - Update test coverage reports
+   - Add troubleshooting guides
+
+5. **Optimize CI/CD**
+   - Parallel test execution
+   - Test result caching
+   - Multi-database testing
+
+---
+
+## Success Criteria
+
+✅ **Test Pass Rate**: 95%+ (585+ passing)  
+✅ **Test Isolation**: Perfect (setup vs authenticated)  
+✅ **User Roles**: Admin + Editor tested  
+✅ **API Tokens**: Headless access tested  
+✅ **Documentation**: Complete, accurate, professional  
+✅ **CI/CD**: <3 min execution, reliable  
+✅ **Developer Experience**: Clear, fast, helpful
+
+---
+
+## Files Modified
+
+### Test Infrastructure
+
+- `tests/bun/helpers/auth.ts` - Authentication helpers
+- `tests/bun/helpers/testSetup.ts` - Test fixtures and initialization
+
+### Documentation
+
+- `docs/tests/index.mdx` - Test overview (needs update)
+- `docs/tests/git-workflow.mdx` - CI/CD integration (needs update)
+- `docs/api/Token_API_Endpoints.mdx` - Token documentation (needs clarification)
+
+### Planning Artifacts
+
+- `implementation_plan.md` - Complete implementation roadmap
+- `task.md` - Task checklist
+- `completion-status.md` - Progress tracking
+- `walkthrough.md` - Implementation walkthrough
+- `api-research.md` - Code research findings
+
+---
+
+## Blockers & Risks
+
+### Current Blockers
+
+- None
+
+### Potential Risks
+
+1. **Untested Foundation**: Helpers not yet verified to work
+2. **Documentation Lag**: API access tokens not documented
+3. **Scale Challenge**: 172 tests to fix manually
+
+### Mitigation
+
+1. Running integration tests now to verify
+2. Will update docs after tests pass
+3. Using pattern-based approach for efficiency
+
+---
+
+## Contact & Support
+
+- **Bug Reports**: GitHub Issues
+- **Questions**: GitHub Discussions
+- **Documentation**: This file + `/docs/tests/`
+
+---
+
+**End of Documentation**
