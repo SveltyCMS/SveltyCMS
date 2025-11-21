@@ -18,7 +18,7 @@ import { mock } from "bun:test";
 
 // Mock $app/environment
 mock.module("$app/environment", () => ({
-    browser: false,
+    browser: true,
     building: false,
     dev: true,
     version: "test"

@@ -10,7 +10,7 @@ import { mock } from 'bun:test';
 
 mock.module('$app/environment', () => ({
 	dev: true,
-	browser: false,
+	browser: true,
 	building: false,
 	version: '1.0.0-test'
 }));
@@ -204,6 +204,27 @@ mock.module('@utils/toast', () => ({
 	}
 }));
 
+const loggerServerPath = process.cwd() + '/src/utils/logger.server.ts';
+mock.module(loggerServerPath, () => ({
+	logger: {
+		debug: () => {},
+		info: () => {},
+		warn: () => {},
+		error: () => {},
+		trace: () => {}
+	}
+}));
+
+mock.module('@utils/logger.server', () => ({
+	logger: {
+		debug: () => {},
+		info: () => {},
+		warn: () => {},
+		error: () => {},
+		trace: () => {}
+	}
+}));
+
 // =============================================================================
 // 7. SKELETON LABS MOCKS
 // =============================================================================
@@ -255,6 +276,26 @@ mock.module('@src/widgets/factory', () => ({
 		factory.toString = () => '';
 
 		return factory;
+	}
+}));
+
+mock.module('@src/databases/db', () => ({
+	auth: {
+		getUserCount: () => Promise.resolve(1),
+		getAllRoles: () => Promise.resolve([
+			{ _id: 'admin', name: 'Administrator', isAdmin: true, permissions: [] },
+			{ _id: 'editor', name: 'Editor', isAdmin: false, permissions: [] }
+		]),
+		getUserById: () => Promise.resolve(null)
+	},
+	dbAdapter: {
+		auth: {
+			getUserCount: () => Promise.resolve(1),
+			getAllRoles: () => Promise.resolve([
+				{ _id: 'admin', name: 'Administrator', isAdmin: true, permissions: [] },
+				{ _id: 'editor', name: 'Editor', isAdmin: false, permissions: [] }
+			])
+		}
 	}
 }));
 

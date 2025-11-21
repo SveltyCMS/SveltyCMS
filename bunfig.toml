@@ -1,5 +1,24 @@
 # bunfig.toml
 
 [test]
-# This tells Bun to run our mock file before executing any tests.
+# Preload files for test setup
 preload = ["./tests/bun/svelte-loader.js", "./tests/bun/mocks/setup.ts"]
+
+[alias]
+"@paraglide/*" = "./src/paraglide/*"
+"@api/*" = "./src/routes/api/*"
+"@auth/*" = "./src/databases/auth/*"
+"@collections/*" = "./config/collections/*"
+"@components/*" = "./src/components/*"
+"@content/*" = "./src/content/*"
+"@databases/*" = "./src/databases/*"
+"@hooks/*" = "./src/hooks/*"
+"@root/*" = "./*"
+"@services/*" = "./src/services/*"
+"@src/*" = "./src/*"
+"@static/*" = "./static/*"
+"@stores/*" = "./src/stores/*"
+"@themes/*" = "./src/themes/*"
+"@types/*" = "./src/types/*"
+"@utils/*" = "./src/utils/*"
+"@widgets/*" = "./src/widgets/*"

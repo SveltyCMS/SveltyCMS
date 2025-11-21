@@ -17,17 +17,18 @@ tags:
 
 # SveltyCMS Test Suite Status
 
-> **Last Updated:** November 20, 2025
-> **Total Tests:** ~460+
-> **Overall Pass Rate:** ~85%
+> **Last Updated:** November 21, 2025
+> **Total Tests:** ~615
+> **Overall Pass Rate:** ~65% (403 passing, 172 failing)
 
 ## Executive Summary
 
 The testing suite has been optimized for **parallel execution** and **enterprise-grade reliability**.
 - **Unit Tests:** ~350 tests (Passing)
-- **Integration Tests:** ~100 tests (Passing)
+- **Integration Tests:** ~265 tests (Mixed results)
 - **E2E Tests:** Critical flows only (Optimized)
-📝 **140+ placeholder tests** (database/auth tests awaiting setup)  
+📝 **40 skipped tests** (placeholders or incomplete)
+⚠️ **172 failing tests** (mostly API integration and Setup middleware)  
 ⚠️ **Integration tests require dev server running on port 5173**
 
 ### Test Coverage by Category
@@ -35,10 +36,10 @@ The testing suite has been optimized for **parallel execution** and **enterprise
 | Category                | Status        | Pass Rate | Tests |
 | ----------------------- | ------------- | --------- | ----- |
 | **Server Hooks**        | ✅ Excellent  | 100%      | 53/53 |
-| **API - User**          | ✅ Complete   | 100%      | 47/47 |
+| **API - User**          | ⚠️ Failing    | ~60%      | 28/47 |
 | **API - GraphQL**       | ✅ Complete   | 100%      | 21/21 |
 | **API - Token**         | ✅ Complete   | 100%      | 12/12 |
-| **API - Setup**         | ✅ Complete   | 100%      | 45/45 |
+| **API - Setup**         | ❌ Failing    | 0%        | 0/45  |
 | **API - Collections**   | ✅ Complete   | 100%      | 19/19 |
 | **API - Dashboard**     | ✅ Created    | Pending   | 48/48 |
 | **API - 2FA**           | ✅ Created    | Pending   | 28/28 |

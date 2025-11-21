@@ -72,7 +72,7 @@ async function seedDatabase() {
 	if (!seedRes.ok) {
 		const err = await seedRes.text();
 		// If already seeded, that's fine
-		if (err.includes('already exists') || seedRes.status === 409) {
+		if (err.includes('already exists') || err.includes('setup already completed') || seedRes.status === 409) {
 			console.log('⚠ Configuration already exists, skipping seed.');
 		} else {
 			throw new Error(`Failed to seed configuration: ${err}`);

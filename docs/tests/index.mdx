@@ -265,7 +265,7 @@ For SvelteCMS, a **database-agnostic, headless CMS**, Bun provides:
 ✅ **Reliability** - Comprehensive test coverage without slowdown  
 ✅ **Developer Joy** - Instant feedback, beautiful output, watch mode
 
-**Result:** We can maintain **86% API coverage (460+ tests)** and **100% Current test coverage: **85%+ pass rate** with **460+ passing tests** across unit, integration, and E2E layers.
+**Result:** We have a comprehensive test suite with **~615 tests** covering unit, integration, and E2E layers. While we are currently addressing integration test failures, our unit and security tests are robust.
 
 ## Quick Start
 
@@ -286,11 +286,22 @@ bun run test:integration
 
 # E2E Tests (Playwright - Auto-starts server)
 bun run test:e2e
+
+# Smart Testing (Intelligent E2E runner)
+bun run scripts/test-smart.ts
 ```
+
+### 🧠 Smart Testing Strategy
+
+We use `scripts/test-smart.ts` to intelligently determine which tests to run based on the environment:
+
+- **Fresh Install:** Runs only Setup Wizard E2E tests.
+- **Configured System:** Runs full E2E test suite.
+- **Auto-Server:** Automatically starts/stops the dev server if needed.
 
 ### Test Status
 
-Current test coverage: **77%+ pass rate** with **97+ passing tests**
+Current test coverage: **~65% pass rate** with **403 passing tests** (172 failing, 40 skipped).
 
 See [Test Status Report](./test-status.mdx) for detailed breakdown.
 

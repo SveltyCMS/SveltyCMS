@@ -126,6 +126,14 @@ async function verifySetupComplete(page: Page) {
 test('should complete the setup wizard and create an admin user', async ({ page }) => {
 	// Navigate to application
 	await page.goto('/', { waitUntil: 'networkidle' });
+
+	// Check if we're redirected to login (meaning setup is already complete)
+	if (page.url().includes('/login')) {
+		console.log('System already configured (redirected to /login). Skipping setup wizard test.');
+		test.skip();
+		return;
+	}
+
 	await expect(page).toHaveURL(/.*\/setup/, { timeout: 30000 });
 
 	// Dismiss welcome modal if present
