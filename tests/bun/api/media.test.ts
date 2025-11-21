@@ -7,63 +7,25 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
-import { cleanupTestDatabase, cleanupTestEnvironment, initializeTestEnvironment, testFixtures } from '../helpers/testSetup';
+import { prepareAuthenticatedContext, cleanupTestDatabase } from '../helpers/testSetup';
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
 
 const API_BASE_URL = getApiBaseUrl();
 
-/**
- * Helper function to create an admin user, log in, and return the auth token.
- * @returns {Promise<string>} The authorization bearer token.
- */
-const loginAsAdminAndGetToken = async (): Promise<string> => {
-	// Create the admin user
-	await fetch(`${API_BASE_URL}/api/user/createUser`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(testFixtures.users.firstAdmin)
-	});
-
-	// Log in as the admin user
-	const loginResponse = await fetch(`${API_BASE_URL}/api/user/login`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			email: testFixtures.users.firstAdmin.email,
-			password: testFixtures.users.firstAdmin.password
-		})
-	});
-
-	if (loginResponse.status !== 200) {
-		throw new Error('Test setup failed: Could not log in as admin.');
-	}
-
-	const loginResult = await loginResponse.json();
-	const token = loginResult.data?.token;
-
-	if (!token) {
-		throw new Error('Test setup failed: Auth token was not found in login response.');
-	}
-
-	return token;
-};
-
 describe('Media API Endpoints', () => {
-	let authToken: string;
+	let authCookie: string;
 
 	beforeAll(async () => {
-		await waitForServer(); // Wait for SvelteKit server to be ready
-		await initializeTestEnvironment();
+		await waitForServer();
 	});
 
 	afterAll(async () => {
-		await cleanupTestEnvironment();
+		await cleanupTestDatabase();
 	});
 
-	// Before each test, clean the DB and get a fresh admin token.
+	// Before each test, clean the DB and get a fresh admin session
 	beforeEach(async () => {
-		await cleanupTestDatabase();
-		authToken = await loginAsAdminAndGetToken();
+		authCookie = await prepareAuthenticatedContext();
 	});
 
 	const testAuthenticatedPostEndpoint = (endpoint: string, body: object, successStatus = 200) => {
@@ -71,7 +33,7 @@ describe('Media API Endpoints', () => {
 			it('should succeed with admin authentication', async () => {
 				const response = await fetch(`${API_BASE_URL}${endpoint}`, {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+					headers: { 'Content-Type': 'application/json', Cookie: authCookie },
 					body: JSON.stringify(body)
 				});
 				// Some operations might succeed but return a different status if the resource doesn't exist.
@@ -90,7 +52,7 @@ describe('Media API Endpoints', () => {
 			it('should fail with missing required body fields', async () => {
 				const response = await fetch(`${API_BASE_URL}${endpoint}`, {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+					headers: { 'Content-Type': 'application/json', Cookie: authCookie },
 					body: JSON.stringify({}) // Empty body
 				});
 				expect(response.status).toBe(400);
@@ -107,7 +69,7 @@ describe('Media API Endpoints', () => {
 	describe('GET /api/media/remote', () => {
 		it('should handle remote media requests with authentication', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/media/remote?url=https://example.com/image.jpg`, {
-				headers: { Authorization: `Bearer ${authToken}` }
+				headers: { Cookie: authCookie }
 			});
 			// This will likely fail if it tries to fetch the actual image, so 500 is also a possible outcome.
 			expect([200, 500]).toContain(response.status);
@@ -120,7 +82,7 @@ describe('Media API Endpoints', () => {
 
 		it('should reject request with an invalid URL', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/media/remote?url=invalid-url`, {
-				headers: { Authorization: `Bearer ${authToken}` }
+				headers: { Cookie: authCookie }
 			});
 			expect(response.status).toBe(400);
 		});

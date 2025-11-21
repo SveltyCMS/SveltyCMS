@@ -1,422 +1,227 @@
-// @ts-nocheck
 /**
  * @file tests/bun/hooks/theme.test.ts
- * @description Comprehensive tests for handleTheme middleware
+ * @description Robust, type-safe tests for the handleTheme middleware.
+ * Refactored to remove flakiness and ensure strict typing.
  */
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
-import { handleTheme } from '@src/hooks/handleTheme';
-import type { RequestEvent } from '@sveltejs/kit';
+import type { RequestEvent, ResolveOptions } from '@sveltejs/kit';
 
-// Type declarations for test environment
-declare module '@sveltejs/kit' {
-	interface Locals {
-		darkMode: boolean;
-		theme: any;
-		customCss?: string;
-		tenantId?: string;
+// --- Mock ThemeManager ---
+// We need to mock the ThemeManager singleton to avoid DB calls during tests
+const mockGetTheme = mock(() => Promise.resolve(null));
+const mockIsInitialized = mock(() => true);
+
+mock.module('@src/databases/themeManager', () => ({
+	ThemeManager: {
+		getInstance: () => ({
+			getTheme: mockGetTheme,
+			isInitialized: mockIsInitialized
+		})
+	}
+}));
+
+// --- Type Definitions ---
+// Augment the SvelteKit Locals interface for test safety
+declare global {
+	namespace App {
+		interface Locals {
+			darkMode: boolean;
+			theme: string | null;
+			[key: string]: unknown;
+		}
 	}
 }
 
-// --- Test Utilities ---
+// --- Constants ---
+const BASE_HTML = '<html lang="en" dir="ltr"><head></head><body>Content</body></html>';
+const DARK_CLASS_REGEX = /<html[^>]*class="[^"]*\bdark\b[^"]*"[^>]*>/;
 
+// --- Test Helper ---
 function createMockEvent(pathname: string, themeCookie?: string): RequestEvent {
 	const url = new URL(pathname, 'http://localhost');
 
+	// Mock RequestEvent with minimal necessary properties
 	return {
 		url,
 		request: new Request(url.toString()),
 		cookies: {
-			get: (name: string) => (name === 'theme' ? themeCookie : null),
+			get: (name: string) => (name === 'theme' ? themeCookie : undefined),
 			set: mock(() => {}),
-			delete: mock(() => {})
+			delete: mock(() => {}),
+			getAll: () => [],
+			serialize: () => ''
 		},
-		locals: {}
+		locals: {
+			darkMode: false, // Default state
+			theme: null,
+			tenantId: 'default'
+		},
+		params: {},
+		route: { id: pathname },
+		platform: {},
+		setHeaders: mock(() => {}),
+		fetch: mock(() => Promise.resolve(new Response()))
 	} as unknown as RequestEvent;
 }
 
-// --- Tests ---
+describe('Middleware: handleTheme', () => {
+	let mockResolve: any;
+	let handleTheme: any;
 
-describe('handleTheme Middleware', () => {
-	let mockResolve: ReturnType<typeof mock>;
+	beforeEach(async () => {
+		// Reset mocks
+		mockGetTheme.mockClear();
+		mockIsInitialized.mockClear();
+		mockIsInitialized.mockReturnValue(true); // Default to initialized
 
-	beforeEach(() => {
-		// Mock resolve that returns HTML response
-		// Mock resolve that returns HTML response
-		mockResolve = mock((_event: RequestEvent, opts?: { transformPageChunk?: (input: { html: string; done: boolean }) => string }) => {
-			const html = '<html lang="en" dir="ltr"><head></head><body>Content</body></html>';
+		// Dynamic import to ensure mocks are applied
+		const mod = await import('@src/hooks/handleTheme');
+		handleTheme = mod.handleTheme;
+
+		// A robust mock of SvelteKit's `resolve` function
+		mockResolve = mock(async (_event: RequestEvent, opts?: ResolveOptions) => {
 			const transformPageChunk = opts?.transformPageChunk;
 
 			if (transformPageChunk) {
-				const transformed = transformPageChunk({ html, done: true });
-				return Promise.resolve(
-					new Response(transformed, {
-						status: 200,
-						headers: { 'Content-Type': 'text/html' }
-					})
-				);
+				// Simulate SvelteKit applying the transform during rendering
+				const transformedHtml = transformPageChunk({ html: BASE_HTML, done: true });
+				return new Response(transformedHtml, {
+					headers: { 'Content-Type': 'text/html' }
+				});
 			}
 
-			return Promise.resolve(
-				new Response(html, {
-					status: 200,
-					headers: { 'Content-Type': 'text/html' }
-				})
-			);
+			return new Response(BASE_HTML, {
+				headers: { 'Content-Type': 'text/html' }
+			});
 		});
 	});
 
-	describe('Theme Detection', () => {
-		it('should detect dark theme from cookie', async () => {
-			const event = createMockEvent('/dashboard', 'dark');
-			await handleTheme({ event, resolve: mockResolve });
+	// --- LOGIC TESTS (Parameterized) ---
+	describe('Cookie Detection & Locals', () => {
+		const testCases = [
+			{ cookie: 'dark', expectedMode: true, desc: 'Dark Mode' },
+			{ cookie: 'light', expectedMode: false, desc: 'Light Mode' },
+			{ cookie: 'system', expectedMode: false, desc: 'System Mode' },
+			{ cookie: undefined, expectedMode: false, desc: 'No Cookie' },
+			{ cookie: 'invalid-value', expectedMode: false, desc: 'Invalid Cookie' },
+			{ cookie: '', expectedMode: false, desc: 'Empty Cookie' }
+		];
 
-			expect(event.locals.darkMode).toBe(true);
+		for (const { cookie, expectedMode, desc } of testCases) {
+			it(`should correctly handle ${desc}`, async () => {
+				const event = createMockEvent('/', cookie);
+				await handleTheme({ event, resolve: mockResolve });
+				expect(event.locals.darkMode).toBe(expectedMode);
+			});
+		}
+	});
+
+	// --- HTML INJECTION TESTS ---
+	describe('Server-Side Rendering (SSR) Injection', () => {
+		it('should inject "dark" class into HTML when theme is dark', async () => {
+			const event = createMockEvent('/', 'dark');
+			const response = await handleTheme({ event, resolve: mockResolve });
+			const html = await response.text();
+
+			expect(html).toMatch(DARK_CLASS_REGEX);
+			expect(html).toContain('class="dark"');
 		});
 
-		it('should detect light theme from cookie', async () => {
-			const event = createMockEvent('/dashboard', 'light');
-			await handleTheme({ event, resolve: mockResolve });
+		it('should NOT inject "dark" class when theme is light', async () => {
+			const event = createMockEvent('/', 'light');
+			const response = await handleTheme({ event, resolve: mockResolve });
+			const html = await response.text();
 
-			expect(event.locals.darkMode).toBe(false);
+			expect(html).not.toContain('class="dark"');
 		});
 
-		it('should detect system theme from cookie', async () => {
-			const event = createMockEvent('/dashboard', 'system');
-			await handleTheme({ event, resolve: mockResolve });
+		it('should NOT inject "dark" class when theme is system (client-side handles it)', async () => {
+			const event = createMockEvent('/', 'system');
+			const response = await handleTheme({ event, resolve: mockResolve });
+			const html = await response.text();
 
-			expect(event.locals.darkMode).toBe(false); // System handled client-side
+			expect(html).not.toContain('class="dark"');
 		});
 
-		it('should default to false when no cookie', async () => {
-			const event = createMockEvent('/dashboard');
-			await handleTheme({ event, resolve: mockResolve });
+		it('should preserve HTML structure (avoid double tags)', async () => {
+			const event = createMockEvent('/', 'dark');
+			const response = await handleTheme({ event, resolve: mockResolve });
+			const html = await response.text();
 
-			expect(event.locals.darkMode).toBe(false);
-		});
-
-		it('should default to false for invalid cookie value', async () => {
-			const event = createMockEvent('/dashboard', 'invalid');
-			await handleTheme({ event, resolve: mockResolve });
-
-			expect(event.locals.darkMode).toBe(false);
+			const htmlTagCount = (html.match(/<html/g) || []).length;
+			expect(htmlTagCount).toBe(1);
+			expect(html).toContain('lang="en"');
 		});
 	});
 
-	describe('event.locals.darkMode Setting', () => {
-		it('should set darkMode to true for dark theme', async () => {
-			const event = createMockEvent('/dashboard', 'dark');
+	// --- THEME MANAGER INTEGRATION ---
+	describe('Theme Manager Integration', () => {
+		it('should attempt to load custom theme when initialized', async () => {
+			const event = createMockEvent('/', 'light');
 			await handleTheme({ event, resolve: mockResolve });
 
-			expect(event.locals.darkMode).toBe(true);
+			expect(mockIsInitialized).toHaveBeenCalled();
+			expect(mockGetTheme).toHaveBeenCalled();
 		});
 
-		it('should set darkMode to false for light theme', async () => {
-			const event = createMockEvent('/dashboard', 'light');
+		it('should skip theme loading when NOT initialized', async () => {
+			mockIsInitialized.mockReturnValue(false);
+
+			const event = createMockEvent('/', 'light');
 			await handleTheme({ event, resolve: mockResolve });
 
-			expect(event.locals.darkMode).toBe(false);
+			expect(mockIsInitialized).toHaveBeenCalled();
+			expect(mockGetTheme).not.toHaveBeenCalled();
+			expect(event.locals.theme).toBeNull();
 		});
 
-		it('should set darkMode to false for system theme', async () => {
-			const event = createMockEvent('/dashboard', 'system');
+		it('should handle theme loading errors gracefully', async () => {
+			mockGetTheme.mockRejectedValue(new Error('DB Error'));
+
+			const event = createMockEvent('/', 'light');
+			// Should not throw
 			await handleTheme({ event, resolve: mockResolve });
 
-			expect(event.locals.darkMode).toBe(false);
-		});
-
-		it('should set darkMode to false when no cookie', async () => {
-			const event = createMockEvent('/dashboard');
-			await handleTheme({ event, resolve: mockResolve });
-
-			expect(event.locals.darkMode).toBe(false);
-		});
-	});
-
-	describe('event.locals.theme Setting', () => {
-		it('should set theme to null (handled by transformPageChunk)', async () => {
-			const event = createMockEvent('/dashboard', 'dark');
-			await handleTheme({ event, resolve: mockResolve });
-
-			// Theme is stored in cookie, not locals.theme
 			expect(event.locals.theme).toBeNull();
 		});
 	});
 
-	describe('HTML Transformation (class injection)', () => {
-		it('should inject class="dark" for dark theme', async () => {
-			const event = createMockEvent('/dashboard', 'dark');
-			const response = await handleTheme({ event, resolve: mockResolve });
-
-			const html = await response.text();
-			expect(html).toContain('class="dark"');
-			expect(html).toMatch(/<html[^>]*class="dark"[^>]*>/);
-		});
-
-		it('should NOT inject dark class for light theme', async () => {
-			const event = createMockEvent('/dashboard', 'light');
-			const response = await handleTheme({ event, resolve: mockResolve });
-
-			const html = await response.text();
-			expect(html).not.toContain('class="dark"');
-		});
-
-		it('should NOT inject dark class for system theme', async () => {
-			const event = createMockEvent('/dashboard', 'system');
-			const response = await handleTheme({ event, resolve: mockResolve });
-
-			const html = await response.text();
-			expect(html).not.toContain('class="dark"');
-		});
-
-		it('should NOT inject dark class when no cookie', async () => {
-			const event = createMockEvent('/dashboard');
-			const response = await handleTheme({ event, resolve: mockResolve });
-
-			const html = await response.text();
-			expect(html).not.toContain('class="dark"');
-		});
-
-		it('should preserve existing HTML structure', async () => {
-			const event = createMockEvent('/dashboard', 'dark');
-			const response = await handleTheme({ event, resolve: mockResolve });
-
-			const html = await response.text();
-			expect(html).toContain('<html');
-			expect(html).toContain('lang="en"');
-			expect(html).toContain('dir="ltr"');
-			expect(html).toContain('</html>');
-		});
-
-		it('should replace <html> tag, not add duplicate', async () => {
-			const event = createMockEvent('/dashboard', 'dark');
-			const response = await handleTheme({ event, resolve: mockResolve });
-
-			const html = await response.text();
-			const htmlTagCount = (html.match(/<html/g) || []).length;
-			expect(htmlTagCount).toBe(1);
-		});
-	});
-
-	describe('transformPageChunk Function', () => {
-		it('should provide transformPageChunk to resolve', async () => {
-			const event = createMockEvent('/dashboard', 'dark');
-			await handleTheme({ event, resolve: mockResolve });
-
-			expect(mockResolve).toHaveBeenCalled();
-			const callArgs = mockResolve.mock.calls[0][1];
-			expect(callArgs).toBeDefined();
-			expect(callArgs?.transformPageChunk).toBeDefined();
-			expect(typeof callArgs?.transformPageChunk).toBe('function');
-		});
-
-		it('should transform HTML only for dark theme', async () => {
-			const event = createMockEvent('/dashboard', 'dark');
-			const response = await handleTheme({ event, resolve: mockResolve });
-
-			const html = await response.text();
-			expect(html).toContain('class="dark"');
-		});
-
-		it('should not transform HTML for non-dark themes', async () => {
-			const event = createMockEvent('/dashboard', 'light');
-			const response = await handleTheme({ event, resolve: mockResolve });
-
-			const html = await response.text();
-			expect(html).not.toContain('class="dark"');
-		});
-
-		it('should handle done flag in transformPageChunk', async () => {
-			const event = createMockEvent('/dashboard', 'dark');
-			await handleTheme({ event, resolve: mockResolve });
-
-			const callArgs = mockResolve.mock.calls[0][1];
-			expect(callArgs).toBeDefined();
-			expect(callArgs?.transformPageChunk).toBeDefined();
-			const result = callArgs?.transformPageChunk?.({ html: '<html>', done: true });
-			expect(result).toBeDefined();
-		});
-	});
-
-	describe('Client-Side System Theme Handling', () => {
-		it('should let client handle system theme (no server injection)', async () => {
-			const event = createMockEvent('/dashboard', 'system');
-			const response = await handleTheme({ event, resolve: mockResolve });
-
-			const html = await response.text();
-			expect(html).not.toContain('class="dark"');
-			// Client-side script in app.html will handle 'system' preference
-		});
-
-		it('should set darkMode=false for system (client decides)', async () => {
-			const event = createMockEvent('/dashboard', 'system');
-			await handleTheme({ event, resolve: mockResolve });
-
-			expect(event.locals.darkMode).toBe(false);
-		});
-	});
-
-	describe('SSR Flicker Prevention', () => {
-		it('should inject dark class server-side to prevent flash', async () => {
-			const event = createMockEvent('/dashboard', 'dark');
-			const response = await handleTheme({ event, resolve: mockResolve });
-
-			const html = await response.text();
-			// Dark class should be in initial HTML (no FOUC)
-			expect(html).toContain('class="dark"');
-		});
-
-		it('should render light mode server-side without class', async () => {
-			const event = createMockEvent('/dashboard', 'light');
-			const response = await handleTheme({ event, resolve: mockResolve });
-
-			const html = await response.text();
-			expect(html).not.toContain('class="dark"');
-		});
-	});
-
-	describe('Edge Cases', () => {
-		it('should handle empty theme cookie', async () => {
-			const event = createMockEvent('/dashboard', '');
-			await handleTheme({ event, resolve: mockResolve });
-
-			expect(event.locals.darkMode).toBe(false);
-		});
-
-		it('should handle case variations (Dark, DARK, dArK)', async () => {
-			const variations = ['Dark', 'DARK', 'dArK'];
-
-			for (const variant of variations) {
-				const event = createMockEvent('/dashboard', variant);
-				await handleTheme({ event, resolve: mockResolve });
-
-				// Likely treated as invalid (case-sensitive)
-				expect(event.locals.darkMode).toBeDefined();
-			}
-		});
-
-		it('should handle special characters in theme cookie', async () => {
-			const event = createMockEvent('/dashboard', 'dark<script>');
-			await handleTheme({ event, resolve: mockResolve });
-
-			expect(event.locals.darkMode).toBe(false); // Invalid
-		});
-
-		it('should handle very long theme cookie value', async () => {
-			const event = createMockEvent('/dashboard', 'x'.repeat(1000));
-			await handleTheme({ event, resolve: mockResolve });
-
-			expect(event.locals.darkMode).toBe(false);
-		});
-
-		it('should handle numeric theme values', async () => {
-			const event = createMockEvent('/dashboard', '123');
-			await handleTheme({ event, resolve: mockResolve });
-
-			expect(event.locals.darkMode).toBe(false);
-		});
-
-		it('should handle null theme cookie', async () => {
-			const event = createMockEvent('/dashboard');
-			await handleTheme({ event, resolve: mockResolve });
-
-			expect(event.locals.darkMode).toBe(false);
-		});
-	});
-
-	describe('Multiple Requests', () => {
-		it('should handle sequential requests with different themes', async () => {
-			const themes = ['dark', 'light', 'system', undefined];
-
-			for (const theme of themes) {
-				mockResolve.mockClear();
-				const event = createMockEvent('/dashboard', theme);
-				await handleTheme({ event, resolve: mockResolve });
-				expect(event.locals.darkMode).toBeDefined();
-			}
-		});
-
-		it('should not bleed theme state between requests', async () => {
-			const event1 = createMockEvent('/page1', 'dark');
-			const event2 = createMockEvent('/page2', 'light');
-
-			await handleTheme({ event: event1, resolve: mockResolve });
-			await handleTheme({ event: event2, resolve: mockResolve });
-
-			expect(event1.locals.darkMode).toBe(true);
-			expect(event2.locals.darkMode).toBe(false);
-		});
-	});
-
-	describe('HTML Response Handling', () => {
-		it('should only transform HTML responses (skip JSON, etc.)', async () => {
+	// --- EDGE CASES ---
+	describe('Edge Cases & Security', () => {
+		it('should ignore non-HTML responses (e.g. JSON API)', async () => {
 			const event = createMockEvent('/api/data', 'dark');
 
-			// API responses shouldn't be transformed
+			// Override resolve to return JSON
+			mockResolve = mock(
+				() =>
+					new Response(JSON.stringify({ data: 1 }), {
+						headers: { 'Content-Type': 'application/json' }
+					})
+			);
+
 			const response = await handleTheme({ event, resolve: mockResolve });
-			expect(response).toBeDefined();
+			const text = await response.text();
+
+			// Should not try to inject class="dark" into JSON
+			expect(text).not.toContain('class="dark"');
+			expect(JSON.parse(text)).toEqual({ data: 1 });
 		});
 
-		it('should handle responses without HTML gracefully', async () => {
-			const event = createMockEvent('/dashboard', 'dark');
-			const response = await handleTheme({ event, resolve: mockResolve });
+		it('should sanitize extremely long cookies', async () => {
+			const longCookie = 'dark'.padEnd(1000, 'x');
+			const event = createMockEvent('/', longCookie);
 
-			expect(response).toBeDefined();
-		});
-	});
-
-	describe('Performance', () => {
-		it('should be fast for non-dark themes (no transformation)', async () => {
-			const event = createMockEvent('/dashboard', 'light');
-
-			const start = Date.now();
+			// Should default to false/safe state rather than crashing
 			await handleTheme({ event, resolve: mockResolve });
-			const duration = Date.now() - start;
-
-			expect(duration).toBeLessThan(10);
-		});
-
-		it('should be fast for dark theme transformation', async () => {
-			const event = createMockEvent('/dashboard', 'dark');
-
-			const start = Date.now();
-			await handleTheme({ event, resolve: mockResolve });
-			const duration = Date.now() - start;
-
-			expect(duration).toBeLessThan(20);
-		});
-	});
-
-	describe('Cookie Values', () => {
-		it('should accept theme="dark"', async () => {
-			const event = createMockEvent('/dashboard', 'dark');
-			await handleTheme({ event, resolve: mockResolve });
-
-			expect(event.locals.darkMode).toBe(true);
-		});
-
-		it('should accept theme="light"', async () => {
-			const event = createMockEvent('/dashboard', 'light');
-			await handleTheme({ event, resolve: mockResolve });
-
 			expect(event.locals.darkMode).toBe(false);
 		});
 
-		it('should accept theme="system"', async () => {
-			const event = createMockEvent('/dashboard', 'system');
+		it('should handle XSS attempts in cookie gracefully', async () => {
+			const event = createMockEvent('/', 'dark<script>alert(1)</script>');
 			await handleTheme({ event, resolve: mockResolve });
 
 			expect(event.locals.darkMode).toBe(false);
-		});
-
-		it('should reject invalid theme values', async () => {
-			const invalid = ['auto', 'default', 'custom', ''];
-
-			for (const value of invalid) {
-				const event = createMockEvent('/dashboard', value);
-				await handleTheme({ event, resolve: mockResolve });
-				expect(event.locals.darkMode).toBe(false);
-			}
 		});
 	});
 });

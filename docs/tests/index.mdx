@@ -18,13 +18,13 @@ tags:
 
 # SveltyCMS Testing Documentation
 
-> **Last Updated:** November 21, 2025  
-> **Total Tests:** ~615  
-> **Pass Rate:** ~65% (403 passing, 172 failing, 40 skipped)
+**Last Updated:** November 21, 2025
+**Total Tests:** ~615
+**Pass Rate:** ~65% (403 passing, 172 failing, 40 skipped)
 
 ## Why Multiple Test Documentation Files?
 
-This testing documentation is organized into **12 specialized files** for easy navigation and maintenance:
+This testing documentation is organized into 12 specialized files for easy navigation and maintenance:
 
 - **By Test Type**: Unit, Integration, E2E
 - **By Coverage Area**: APIs, Hooks, Stores, Widgets, Utilities
@@ -36,45 +36,49 @@ This structure allows developers to quickly find relevant testing information wi
 
 ## Test Frameworks Overview
 
-SveltyCMS uses **two complementary test frameworks** to ensure comprehensive quality coverage:
+SveltyCMS uses two complementary test frameworks to ensure comprehensive quality coverage:
 
 ### 🧪 Bun Test - Unit & Integration Tests
 
-**Purpose**: Fast, lightweight testing for business logic, services, and API endpoints
-
+- **Purpose**: Fast, lightweight testing for business logic, services, and API endpoints
 - **Location**: `tests/bun/`
 - **Test Count**: ~575 tests
 - **Execution Time**: ~2-15 seconds
-- **What It Tests**:
-  - ✅ Services (auth, security, caching)
-  - ✅ Utilities (validation, formatting, crypto)
-  - ✅ Stores (system state, UI state, loading)
-  - ✅ Widgets (validation, rendering, security)
-  - ✅ Middleware Hooks (all 11 hooks)
-  - ✅ API Endpoints (integration tests)
-  - ✅ Database Operations (MongoDB currently)
+
+**What It Tests**:
+
+- ✅ Services (auth, security, caching)
+- ✅ Utilities (validation, formatting, crypto)
+- ✅ Stores (system state, UI state, loading)
+- ✅ Widgets (validation, rendering, security)
+- ✅ Middleware Hooks (all 11 hooks)
+- ✅ API Endpoints (integration tests)
+- ✅ Database Operations (MongoDB currently)
 
 **Why Bun?**
-- **100x faster** than Jest/Mocha
+
+- 100x faster than Jest/Mocha
 - Native TypeScript support (no transpilation)
 - Built-in mocking
 - Perfect for headless CMS architecture
 
 ### 🎭 Playwright - End-to-End Tests
 
-**Purpose**: Browser automation for critical user journeys
-
+- **Purpose**: Browser automation for critical user journeys
 - **Location**: `tests/playwright/`
 - **Test Count**: ~40 tests
 - **Execution Time**: ~30-60 seconds
-- **What It Tests**:
-  - ✅ Setup Wizard flow
-  - ✅ Login/Authentication
-  - ✅ Content CRUD operations
-  - ✅ Admin dashboard
-  - ✅ User management
+
+**What It Tests**:
+
+- ✅ Setup Wizard flow
+- ✅ Login/Authentication
+- ✅ Content CRUD operations
+- ✅ Admin dashboard
+- ✅ User management
 
 **Why Playwright?**
+
 - Cross-browser testing (Chromium, Firefox, WebKit)
 - Reliable auto-waiting
 - Screenshot/video recording on failure
@@ -86,7 +90,7 @@ SveltyCMS uses **two complementary test frameworks** to ensure comprehensive qua
 
 All tests run automatically in CI/CD via GitHub Actions:
 
-### Workflow: `.github/workflows/playwright.yml`
+**Workflow**: `.github/workflows/playwright.yml`
 
 ```yaml
 jobs:
@@ -95,7 +99,7 @@ jobs:
     steps:
       - Run Bun unit tests (~350 tests)
       - Execution time: ~2 seconds
-      
+
   integration-tests:
     runs-on: ubuntu-latest
     services:
@@ -106,7 +110,7 @@ jobs:
       - Seed test database
       - Run Bun integration tests (~225 tests)
       - Execution time: ~15 seconds
-      
+
   e2e-tests:
     runs-on: ubuntu-latest
     services:
@@ -120,23 +124,23 @@ jobs:
       - Execution time: ~60 seconds
 ```
 
-### When Tests Run
+**When Tests Run**:
 
 - **On Pull Request**: All tests must pass before merge
-- **On Push to `main`/`next`**: Full test suite + release checks
+- **On Push to main/next**: Full test suite + release checks
 - **Manual Trigger**: Via `workflow_dispatch`
 
 ### Future: Multi-Database Matrix Testing
 
 > [!NOTE]
 > **Coming Soon**: Parallel testing against multiple databases
-> 
+>
 > ```yaml
 > strategy:
 >   matrix:
 >     database: [mongodb, postgresql, mariadb, mysql]
 > ```
-> 
+>
 > This will ensure SveltyCMS works correctly with all supported databases via Drizzle ORM.
 
 ---
@@ -182,7 +186,7 @@ bun test tests/bun/hooks/
 bun test tests/bun/databases/
 ```
 
-**Or use the automated script:**
+Or use the automated script:
 
 ```bash
 # Automatically starts server, waits for ready, runs tests
@@ -214,37 +218,38 @@ bun run scripts/test-smart.ts
 ```
 
 This script:
-- Checks if server is running (starts if needed)
-- Detects if system is configured
-- Runs appropriate tests (setup tests OR full suite)
-- Cleans up after itself
+
+1. Checks if server is running (starts if needed)
+2. Detects if system is configured
+3. Runs appropriate tests (setup tests OR full suite)
+4. Cleans up after itself
 
 ---
 
 ## Test Status & Coverage
 
-### Current Status (November 21, 2025)
+**Current Status (November 21, 2025)**
 
-| Category | Passing | Failing | Skipped | Total |
-|----------|---------|---------|---------|-------|
-| **Unit Tests** | 350 | 0 | 0 | 350 |
-| **Integration Tests** | 53 | 172 | 40 | 265 |
-| **E2E Tests** | TBD | TBD | TBD | ~40 |
-| **TOTAL** | **403** | **172** | **40** | **615** |
+| Category          | Passing | Failing | Skipped | Total   |
+| ----------------- | ------- | ------- | ------- | ------- |
+| Unit Tests        | 350     | 0       | 0       | 350     |
+| Integration Tests | 53      | 172     | 40      | 265     |
+| E2E Tests         | TBD     | TBD     | TBD     | ~40     |
+| **TOTAL**         | **403** | **172** | **40**  | **615** |
 
-### Recently Fixed ✅
+**Recently Fixed ✅**
 
 - `tests/bun/hooks/authorization.test.ts` (22 tests) - Fixed mock database adapter
-- `tests/bun/hooks/theme.test.ts` (40 tests) - Fixed `mockResolve` signature
+- `tests/bun/hooks/theme.test.ts` (40 tests) - Fixed mockResolve signature
 - `tests/bun/hooks/firewall.test.ts` (27 tests) - Fixed logger import
 
-### Known Issues ⚠️
+**Known Issues ⚠️**
 
 - **172 failing tests** in API integration and Setup middleware
-- Root cause: Server connection timeouts in test environment
+- **Root cause**: Server connection timeouts in test environment
 - **Fix in progress**: Improving test environment setup
 
-See [Test Status Report](./test-status.mdx) for detailed breakdown.
+[See Test Status Report](/docs/tests/test-status) for detailed breakdown.
 
 ---
 
@@ -252,37 +257,37 @@ See [Test Status Report](./test-status.mdx) for detailed breakdown.
 
 ### Core Testing Guides
 
-- **[Test Status Report](./test-status.mdx)** - Current pass/fail rates, known issues
-- **[E2E Testing Guide](./e2e-testing-guide.mdx)** - Playwright setup and best practices
-- **[Git Workflow & CI/CD](./git-workflow.mdx)** - GitHub Actions automation
+- [Test Status Report](/docs/tests/test-status) - Current pass/fail rates, known issues
+- [E2E Testing Guide](/docs/tests/e2e) - Playwright setup and best practices
+- [Git Workflow & CI/CD](/docs/tests/git-workflow) - GitHub Actions automation
 
 ### Coverage Reports
 
-- **[API Test Coverage](./api-test-coverage.mdx)** - REST API endpoint testing (460+ tests)
-- **[Hook Test Coverage](./hook-test-coverage.mdx)** - Middleware hooks (11 hooks, 485+ tests)
-- **[Store Test Coverage](./store-test-coverage.mdx)** - Svelte stores (system, UI, loading)
-- **[Widget Test Coverage](./widget-test-coverage.mdx)** - Widget validation and security
-- **[Utility Test Coverage](./utility-test-coverage.mdx)** - Helper functions and utilities
+- [API Test Coverage](/docs/tests/api-coverage) - REST API endpoint testing (460+ tests)
+- [Hook Test Coverage](/docs/tests/hook-coverage) - Middleware hooks (11 hooks, 485+ tests)
+- [Store Test Coverage](/docs/tests/store-coverage) - Svelte stores (system, UI, loading)
+- [Widget Test Coverage](/docs/tests/widget-coverage) - Widget validation and security
+- [Utility Test Coverage](/docs/tests/utility-coverage) - Helper functions and utilities
 
 ### Specific Test Documentation
 
-- **[API Test Summary](./api-test-summary.mdx)** - Quick API test overview
-- **[User API Tests](./user-api-tests.mdx)** - User management endpoint tests
-- **[Database Tests](./database-tests.mdx)** - Database adapter testing
+- [API Test Summary](/docs/tests/api-summary) - Quick API test overview
+- [User API Tests](/docs/tests/user-api-tests) - User management endpoint tests
+- [Database Tests](/docs/tests/database-tests) - Database adapter testing
 
 ---
 
 ## Why Bun for Testing SveltyCMS?
 
-SveltyCMS is an **agnostic headless SvelteKit CMS** - it works with multiple databases and focuses on API-first architecture. Bun is the perfect testing framework for this use case:
+SveltyCMS is an agnostic headless SvelteKit CMS - it works with multiple databases and focuses on API-first architecture. Bun is the perfect testing framework for this use case:
 
 ### 🚀 Speed & Performance
 
 **Lightning-Fast Execution**
 
-- **Up to 100x faster** than Jest/Mocha
-- Our 76-test utility suite completes in **~1.5 seconds**
-- Full API test suite (460+ tests) completes in **~15-20 seconds**
+- Up to 100x faster than Jest/Mocha
+- Our 76-test utility suite completes in ~1.5 seconds
+- Full API test suite (460+ tests) completes in ~15-20 seconds
 - Instant feedback during development
 
 **Why Speed Matters for a Headless CMS:**
@@ -297,7 +302,7 @@ SveltyCMS is an **agnostic headless SvelteKit CMS** - it works with multiple dat
 **Database Agnostic Testing**
 
 - SveltyCMS supports MongoDB, PostgreSQL, MySQL, MariaDB
-- Bun's speed allows testing against **multiple database adapters** without painful wait times
+- Bun's speed allows testing against multiple database adapters without painful wait times
 - Future: Matrix testing across all databases in parallel
 
 **Headless CMS Requirements**
@@ -309,7 +314,7 @@ SveltyCMS is an **agnostic headless SvelteKit CMS** - it works with multiple dat
 - Cache layer verification (Redis operations)
 - Authentication & authorization flows
 
-**Native TypeScript Support**
+### Native TypeScript Support
 
 - Zero configuration - Bun runs `.ts` files directly
 - No transpilation overhead
@@ -327,8 +332,8 @@ const mockFn = mock(() => 'mocked value');
 
 // Async/await support
 it('should handle async operations', async () => {
-  const result = await fetchData();
-  expect(result).toBeDefined();
+	const result = await fetchData();
+	expect(result).toBeDefined();
 });
 ```
 
@@ -377,17 +382,14 @@ tests/
    ```bash
    bun run test:unit  # Quick sanity check
    ```
-
 2. **Write tests for new features**
    - Unit tests for business logic
    - Integration tests for API endpoints
    - E2E tests for critical user flows (if needed)
-
 3. **Use watch mode during development**
    ```bash
    bun test --watch tests/bun/services/MyNewService.test.ts
    ```
-
 4. **Check CI before merging**
    - All tests must pass in GitHub Actions
    - Review test failures in PR checks
@@ -395,21 +397,18 @@ tests/
 ### For Test Writers
 
 1. **Follow existing patterns**
-   - See [Hook Test Coverage](./hook-test-coverage.mdx) for examples
-
+   - See [Hook Test Coverage](/docs/tests/hook-coverage) for examples
 2. **Use descriptive test names**
    ```typescript
    it('should return 401 for unauthenticated API requests', async () => {
-     // Test implementation
+   	// Test implementation
    });
    ```
-
 3. **Mock external dependencies**
    ```typescript
    import { mock } from 'bun:test';
    const mockDb = mock(() => ({ users: [] }));
    ```
-
 4. **Test edge cases**
    - Empty inputs
    - Invalid data
@@ -422,20 +421,24 @@ tests/
 ### Common Issues
 
 **"Server did not start in time"**
+
 - Check if port 5173 is already in use
 - Run `bun run dev` manually to see errors
 - Increase timeout in `scripts/seed-test-db.ts`
 
 **"Cannot find module '@src/...'"**
+
 - Ensure `bunfig.toml` has correct path aliases
 - Run `bun install` to refresh dependencies
 
 **"Test timeout"**
+
 - Integration tests need running server
 - Use `bun run test:integration` (auto-starts server)
 - Or start server manually in separate terminal
 
 **"Database connection failed"**
+
 - Ensure MongoDB is running (for integration/E2E tests)
 - Check `DB_HOST`, `DB_PORT`, `DB_NAME` env vars
 - Run `bun run scripts/seed-test-db.ts` manually to debug
@@ -444,17 +447,15 @@ tests/
 
 ## Contributing
 
-When adding new tests:
+**When adding new tests:**
 
 1. **Choose the right test type**:
    - Unit test: Pure functions, no external dependencies
    - Integration test: API endpoints, database operations
    - E2E test: Critical user journeys only
-
 2. **Update documentation**:
    - Add test count to relevant coverage report
    - Update this index if adding new test category
-
 3. **Verify in CI**:
    - Push to PR and check GitHub Actions
    - All tests must pass before merge
@@ -463,7 +464,7 @@ When adding new tests:
 
 ## Related Documentation
 
-- [Architecture Overview](../architecture/index.mdx)
-- [API Documentation](../api/index.mdx)
-- [Contributing Guide](../contributing/index.mdx)
-- [Development Setup](../getting-started/development.mdx)
+- [Architecture Overview](/docs/architecture)
+- [API Documentation](/docs/api)
+- [Contributing Guide](/docs/contributing)
+- [Development Setup](/docs/development)

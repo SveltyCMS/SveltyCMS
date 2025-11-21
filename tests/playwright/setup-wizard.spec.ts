@@ -15,54 +15,51 @@
 
 import { test, expect, type Page } from '@playwright/test';
 
-// Helper function to click a button and wait for it to process
-async function clickAndWait(page: Page, buttonName: string | RegExp, waitMs = 2000) {
-	const button = page.getByRole('button', { name: buttonName });
-	await button.click();
-	await page.waitForTimeout(waitMs);
+// Helper: Click and wait for navigation or next step
+async function clickNext(page: Page) {
+	const nextBtn = page.getByRole('button', { name: /next/i }).first();
+	await expect(nextBtn).toBeVisible();
+	await nextBtn.click();
 }
 
-// Helper function to dismiss the welcome modal if it appears
-async function dismissWelcomeModal(page: Page) {
-	const getStartedButton = page.getByRole('button', { name: /get started/i });
+test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
+	// 1. Start at root, expect redirect to /setup or /login
+	await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-	if (await getStartedButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-		console.log('Dismissing welcome modal...');
-		await getStartedButton.click();
-		await page.waitForTimeout(2000);
+	if (page.url().includes('/login')) {
+		console.log('System already configured. Skipping setup.');
+		test.skip();
+		return;
 	}
-}
 
-// Step 1: Configure database connection
-async function configureDatabaseConnection(page: Page) {
-	console.log('Step 1: Configuring database connection...');
+	// Wait for setup to load
+	await expect(page).toHaveURL(/\/setup/);
 
-	// Wait for page to be fully loaded
-	await page.waitForLoadState('networkidle');
+	// Dismiss welcome modal if it exists (using a smarter polling check)
+	const getStarted = page.getByRole('button', { name: /get started/i });
+	if (await getStarted.isVisible()) {
+		await getStarted.click();
+	}
 
-	// Wait for database configuration form
-	await expect(page.getByRole('heading', { name: /database/i }).first()).toBeVisible({ timeout: 15000 });
+	// --- STEP 1: Database ---
+	await expect(page.getByRole('heading', { name: /database/i }).first()).toBeVisible();
 
-	// Fill database configuration
+	// Fill credentials from ENV (CI) or Defaults (Local)
 	await page.locator('#db-host').fill(process.env.MONGO_HOST || 'localhost');
 	await page.locator('#db-port').fill(process.env.MONGO_PORT || '27017');
 	await page.locator('#db-name').fill(process.env.MONGO_DB || 'SveltyCMS');
 	await page.locator('#db-user').fill(process.env.MONGO_USER || 'admin');
 	await page.locator('#db-password').fill(process.env.MONGO_PASS || 'admin');
 
-	// Test database connection
-	await page.getByRole('button', { name: 'Test Database Connection' }).click();
-	await expect(page.getByText(/Database connected successfully/i)).toBeVisible({ timeout: 20000 });
+	// Test Connection
+	await page.getByRole('button', { name: /test database/i }).click();
+	await expect(page.getByText(/connected successfully/i)).toBeVisible({ timeout: 15000 });
 
-	console.log('✓ Database connection successful');
-}
+	// Move to next step
+	await clickNext(page);
 
-// Step 2: Create admin user account
-async function createAdminUser(page: Page) {
-	console.log('Step 2: Creating admin user...');
-
-	// Wait for admin form
-	await expect(page.getByRole('heading', { name: /admin/i }).first()).toBeVisible({ timeout: 10000 });
+	// --- STEP 2: Admin User ---
+	await expect(page.getByRole('heading', { name: /admin/i }).first()).toBeVisible();
 
 	// Fill admin user details
 	await page.locator('#admin-username').fill(process.env.ADMIN_USER || 'admin');
@@ -70,86 +67,32 @@ async function createAdminUser(page: Page) {
 	await page.locator('#admin-password').fill(process.env.ADMIN_PASS || 'Admin123!');
 	await page.locator('#admin-confirm-password').fill(process.env.ADMIN_PASS || 'Admin123!');
 
-	console.log('✓ Admin user details filled');
-}
+	await clickNext(page);
 
-/**
- * Steps 3-5: Complete remaining setup steps (System, Email, Review)
- * Just clicks Next/Complete buttons to accept defaults
- */
-async function completeRemainingSteps(page: Page) {
-	console.log('Steps 3-5: Completing remaining setup steps...');
-
-	let attempts = 0;
-	const maxAttempts = 5;
-
-	while (attempts < maxAttempts && page.url().includes('/setup')) {
-		attempts++;
-
-		// Check for "Complete" button (final step)
-		const completeButton = page.getByRole('button', { name: /^complete$/i });
-		if (await completeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-			console.log('✓ Reached final step, completing setup...');
-			await completeButton.click();
-			await page.waitForTimeout(3000);
+	// --- STEPS 3-5: Defaults ---
+	// Loop through remaining steps until "Complete" appears
+	// This handles variable number of steps (Site settings, Email, etc.)
+	for (let i = 0; i < 5; i++) {
+		// Check for "Complete" button first
+		const completeBtn = page.getByRole('button', { name: /^complete$/i });
+		if (await completeBtn.isVisible()) {
+			await completeBtn.click();
 			break;
 		}
 
-		// Otherwise, click "Next" to proceed
-		const nextButton = page.getByRole('button', { name: /next/i }).first();
-		if (await nextButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await nextButton.click();
-			await page.waitForTimeout(2000);
+		// Otherwise click Next
+		const nextBtn = page.getByRole('button', { name: /next/i }).first();
+		if (await nextBtn.isVisible()) {
+			await nextBtn.click();
+			// Wait for animation/transition
+			await page.waitForTimeout(500);
 		} else {
-			console.log('No navigation button found');
-			break;
+			break; // No buttons found, maybe we are done?
 		}
 	}
-}
 
-// Verify setup completion
-async function verifySetupComplete(page: Page) {
-	console.log('Verifying setup completion...');
-
-	// Try to catch success toast (optional - appears briefly)
-	const successToast = page.getByText(/Setup complete/i);
-	if (await successToast.isVisible({ timeout: 2000 }).catch(() => false)) {
-		console.log('✓ Setup complete toast appeared');
-	}
-
-	// Verify redirect away from setup page
-	await page.waitForURL((url) => !url.pathname.includes('/setup'), { timeout: 30000 });
-	console.log('✓ Setup wizard complete, redirected to:', page.url());
-}
-
-// Main test: Complete the setup wizard
-test('should complete the setup wizard and create an admin user', async ({ page }) => {
-	// Navigate to application
-	await page.goto('/', { waitUntil: 'networkidle' });
-
-	// Check if we're redirected to login (meaning setup is already complete)
-	if (page.url().includes('/login')) {
-		console.log('System already configured (redirected to /login). Skipping setup wizard test.');
-		test.skip();
-		return;
-	}
-
-	await expect(page).toHaveURL(/.*\/setup/, { timeout: 30000 });
-
-	// Dismiss welcome modal if present
-	await dismissWelcomeModal(page);
-
-	// Step 1: Configure database
-	await configureDatabaseConnection(page);
-	await clickAndWait(page, /next/i, 1000);
-
-	// Step 2: Create admin user
-	await createAdminUser(page);
-	await clickAndWait(page, /next/i, 2000);
-
-	// Steps 3-5: Complete remaining steps
-	await completeRemainingSteps(page);
-
-	// Verify completion
-	await verifySetupComplete(page);
+	// --- VERIFICATION ---
+	// Expect redirect to Login or Dashboard
+	await expect(page).not.toHaveURL(/\/setup/, { timeout: 30000 });
+	console.log('Setup completed successfully.');
 });

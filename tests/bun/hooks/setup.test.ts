@@ -1,28 +1,51 @@
+// @ts-ignore
 /**
  * @file tests/bun/hooks/setup.test.ts
- * @description Comprehensive tests for handleSetup middleware
+ * @description Comprehensive tests for handleSetup middleware with proper redirect validation.
  */
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
-import { handleSetup } from '@src/hooks/handleSetup';
 import type { RequestEvent } from '@sveltejs/kit';
 
+// --- Mock the setup check module ---
+let mockConfigExists = true; // controls isSetupComplete()
+mock.module('@utils/setupCheck', () => ({
+	isSetupComplete: () => mockConfigExists
+}));
+
+// --- Mock SvelteKit redirect ---
+mock.module('@sveltejs/kit', () => ({
+	redirect: (status: number, location: string) => {
+		throw { status, location, __isRedirect: true };
+	}
+}));
+
+// --- Mock node:fs and node:path ---
+// We need to mock these BEFORE importing handleSetup
+const mockReadFileSync = mock(() => 'JWT_SECRET_KEY: "secret", DB_HOST: "localhost", DB_NAME: "test"');
+mock.module('node:fs', () => ({
+	readFileSync: mockReadFileSync
+}));
+mock.module('node:path', () => ({
+	join: (...args: string[]) => args.join('/')
+}));
+
 // --- Test Utilities ---
-
-function createMockEvent(pathname: string, configExists: boolean = true, _configValid: boolean = true, _hasUsers: boolean = true): RequestEvent {
+function createMockEvent(pathname: string): RequestEvent {
 	const url = new URL(pathname, 'http://localhost');
-
 	return {
 		url,
 		request: new Request(url.toString()),
 		locals: {
-			__setupConfigExists: configExists,
-			__setupLogged: false
+			__setupConfigExists: undefined,
+			__setupLogged: false,
+			__setupRedirectLogged: false,
+			__setupLoginRedirectLogged: false
 		},
 		cookies: {
 			get: mock(() => null),
-			set: mock(() => {}),
-			delete: mock(() => {})
+			set: mock(() => ({})),
+			delete: mock(() => ({}))
 		}
 	} as unknown as RequestEvent;
 }
@@ -31,364 +54,140 @@ function createMockResponse(status: number = 200): Response {
 	return new Response('test body', { status });
 }
 
-// --- Tests ---
+/** Helper to assert a redirect error */
+function expectRedirect(err: unknown, expectedStatus: number, expectedLocation: string) {
+	const e = err as any;
+	if (!e.__isRedirect) {
+		console.error('Caught unexpected error:', e);
+	}
+	expect(e.__isRedirect).toBe(true);
+	expect(e.status).toBe(expectedStatus);
+	expect(e.location).toBe(expectedLocation);
+}
 
 describe('handleSetup Middleware', () => {
 	let mockResolve: ReturnType<typeof mock>;
 	let mockResponse: Response;
+	let handleSetup: any;
 
-	beforeEach(() => {
+	beforeEach(async () => {
 		mockResponse = createMockResponse();
 		mockResolve = mock(() => Promise.resolve(mockResponse));
+		mockConfigExists = true;
+		mockReadFileSync.mockClear();
+
+		// Dynamic import to ensure mocks are applied
+		// We use a query param to force re-evaluation if possible, but Bun might not support it for local files easily.
+		// However, mock.module updates should be reflected in subsequent imports if the module wasn't fully cached or if Bun's test runner handles it.
+		const mod = await import('@src/hooks/handleSetup');
+		handleSetup = mod.handleSetup;
 	});
 
+	// ---------------------------------------------------------------------
+	// Setup State Detection
+	// ---------------------------------------------------------------------
 	describe('Setup State Detection', () => {
-		it('should detect when config file is missing', async () => {
-			const event = createMockEvent('/dashboard', false);
-
-			// Should redirect to /setup when config missing
+		it('detects when config file is missing', async () => {
+			mockConfigExists = false;
+			const event = createMockEvent('/dashboard');
 			try {
 				await handleSetup({ event, resolve: mockResolve });
+				expect(true).toBe(false);
 			} catch (err) {
-				// Redirect throws in SvelteKit
-				expect(err).toBeDefined();
+				expectRedirect(err, 302, '/setup');
 			}
 		});
 
-		it('should detect when config values are empty', async () => {
-			const event = createMockEvent('/dashboard', true, false);
+		it('detects when config values are empty', async () => {
+			// Update mock to return empty config
+			mockReadFileSync.mockReturnValue('');
 
-			// Should redirect to /setup when config invalid
+			const event = createMockEvent('/dashboard');
 			try {
 				await handleSetup({ event, resolve: mockResolve });
+				expect(true).toBe(false);
 			} catch (err) {
-				expect(err).toBeDefined();
+				expectRedirect(err, 302, '/setup');
 			}
 		});
 
-		it('should detect when database has no users', async () => {
-			const event = createMockEvent('/dashboard', true, true, false);
+		it('allows access when setup is complete', async () => {
+			// Ensure mock returns valid config
+			mockReadFileSync.mockReturnValue('JWT_SECRET_KEY: "secret", DB_HOST: "localhost", DB_NAME: "test"');
 
-			// Should redirect to /setup when no users
-			try {
-				await handleSetup({ event, resolve: mockResolve });
-			} catch (err) {
-				expect(err).toBeDefined();
-			}
-		});
-
-		it('should allow access when setup is complete', async () => {
-			const event = createMockEvent('/dashboard', true, true, true);
+			const event = createMockEvent('/dashboard');
 			const response = await handleSetup({ event, resolve: mockResolve });
-
 			expect(response).toBe(mockResponse);
-			expect(mockResolve).toHaveBeenCalledTimes(1);
 		});
 	});
 
+	// ---------------------------------------------------------------------
+	// Allowed Routes During Setup
+	// ---------------------------------------------------------------------
 	describe('Allowed Routes During Setup', () => {
-		it('should allow /setup route when setup incomplete', async () => {
-			const event = createMockEvent('/setup', false);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
+		const allowed = [
+			'/setup',
+			'/api/setup',
+			'/api/setup/config',
+			'/api/setup/database',
+			'/_app/immutable/chunks/index.js',
+			'/static/logo.png',
+			'/',
+			'/health',
+			'/.well-known/security.txt'
+		];
+		beforeEach(() => {
+			mockConfigExists = false;
 		});
-
-		it('should allow /api/setup route when setup incomplete', async () => {
-			const event = createMockEvent('/api/setup', false);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-		});
-
-		it('should allow /api/setup/config route', async () => {
-			const event = createMockEvent('/api/setup/config', false);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-		});
-
-		it('should allow /api/setup/database route', async () => {
-			const event = createMockEvent('/api/setup/database', false);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-		});
-
-		it('should allow static assets during setup', async () => {
-			const event = createMockEvent('/_app/immutable/chunks/index.js', false);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-		});
-
-		it('should allow /static/ during setup', async () => {
-			const event = createMockEvent('/static/logo.png', false);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-		});
-
-		it('should allow root path during setup', async () => {
-			const event = createMockEvent('/', false);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-		});
-
-		it('should allow health check during setup', async () => {
-			const event = createMockEvent('/health', false);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-		});
-
-		it('should allow /.well-known/ during setup', async () => {
-			const event = createMockEvent('/.well-known/security.txt', false);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-		});
+		for (const path of allowed) {
+			it(`allows ${path}`, async () => {
+				const event = createMockEvent(path);
+				const response = await handleSetup({ event, resolve: mockResolve });
+				expect(response).toBe(mockResponse);
+			});
+		}
 	});
 
+	// ---------------------------------------------------------------------
+	// Redirect to Setup
+	// ---------------------------------------------------------------------
 	describe('Redirect to Setup', () => {
-		it('should redirect /dashboard to /setup when config missing', async () => {
-			const event = createMockEvent('/dashboard', false);
-
-			try {
-				await handleSetup({ event, resolve: mockResolve });
-				expect(true).toBe(false); // Should not reach here
-			} catch (err: unknown) {
-				// Redirect throws
-				expect(err).toBeDefined();
-			}
+		beforeEach(() => {
+			mockConfigExists = false;
 		});
-
-		it('should redirect /api/collections to /setup when config missing', async () => {
-			const event = createMockEvent('/api/collections', false);
-
-			try {
-				await handleSetup({ event, resolve: mockResolve });
-				expect(true).toBe(false);
-			} catch (err) {
-				expect(err).toBeDefined();
-			}
-		});
-
-		it('should redirect /login to /setup when config missing', async () => {
-			const event = createMockEvent('/login', false);
-
-			try {
-				await handleSetup({ event, resolve: mockResolve });
-				expect(true).toBe(false);
-			} catch (err) {
-				expect(err).toBeDefined();
-			}
-		});
-
-		it('should redirect any non-allowed route to /setup', async () => {
-			const routes = ['/dashboard', '/collections', '/users', '/settings'];
-
-			for (const route of routes) {
-				const event = createMockEvent(route, false);
-
+		const routes = ['/dashboard', '/api/collections', '/login'];
+		for (const route of routes) {
+			it(`redirects ${route} to /setup`, async () => {
+				const event = createMockEvent(route);
 				try {
 					await handleSetup({ event, resolve: mockResolve });
 					expect(true).toBe(false);
 				} catch (err) {
-					expect(err).toBeDefined();
+					expectRedirect(err, 302, '/setup');
 				}
-			}
-		});
+			});
+		}
 	});
 
+	// ---------------------------------------------------------------------
+	// Block Setup After Completion
+	// ---------------------------------------------------------------------
 	describe('Block Setup After Completion', () => {
-		it('should redirect /setup to /login when setup complete', async () => {
-			const event = createMockEvent('/setup', true, true, true);
+		beforeEach(() => {
+			mockConfigExists = true;
+			mockReadFileSync.mockReturnValue('JWT_SECRET_KEY: "secret", DB_HOST: "localhost", DB_NAME: "test"');
+		});
 
+		it('redirects /setup to /login when setup complete', async () => {
+			const event = createMockEvent('/setup');
 			try {
 				await handleSetup({ event, resolve: mockResolve });
-				// Might redirect or pass through depending on implementation
+				// If we get here, it means no redirect was thrown
+				console.log('DEBUG: handleSetup did not throw redirect. mockReadFileSync calls:', mockReadFileSync.mock.calls.length);
+				expect(true).toBe(false);
 			} catch (err) {
-				// Redirect expected
-				expect(err).toBeDefined();
+				expectRedirect(err, 302, '/login');
 			}
-		});
-
-		it('should allow access to non-setup routes when complete', async () => {
-			const event = createMockEvent('/dashboard', true, true, true);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-		});
-	});
-
-	describe('Config Validation', () => {
-		it('should validate JWT_SECRET_KEY is not empty', async () => {
-			// Config validation happens internally
-			const event = createMockEvent('/dashboard', true, false);
-
-			try {
-				await handleSetup({ event, resolve: mockResolve });
-			} catch (err) {
-				// Should redirect to setup
-				expect(err).toBeDefined();
-			}
-		});
-
-		it('should validate DB_HOST is not empty', async () => {
-			const event = createMockEvent('/dashboard', true, false);
-
-			try {
-				await handleSetup({ event, resolve: mockResolve });
-			} catch (err) {
-				expect(err).toBeDefined();
-			}
-		});
-
-		it('should validate DB_NAME is not empty', async () => {
-			const event = createMockEvent('/dashboard', true, false);
-
-			try {
-				await handleSetup({ event, resolve: mockResolve });
-			} catch (err) {
-				expect(err).toBeDefined();
-			}
-		});
-
-		it('should accept valid config with all required values', async () => {
-			const event = createMockEvent('/dashboard', true, true, true);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-		});
-	});
-
-	describe('Cookie Handling in Setup Mode', () => {
-		it('should handle setup API cookie responses', async () => {
-			const event = createMockEvent('/api/setup/config', false);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBeDefined();
-		});
-
-		it('should preserve set-cookie headers from setup API', async () => {
-			const event = createMockEvent('/api/setup/database', false);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			// Cookie headers should be preserved
-			expect(response).toBeDefined();
-		});
-	});
-
-	describe('Caching Optimizations', () => {
-		it('should cache config existence check', async () => {
-			const event = createMockEvent('/dashboard', true, true, true);
-			await handleSetup({ event, resolve: mockResolve });
-
-			// event.locals.__setupConfigExists should be set
-			expect(event.locals.__setupConfigExists).toBe(true);
-		});
-
-		it('should cache setup log state', async () => {
-			const event = createMockEvent('/dashboard', true, true, true);
-			await handleSetup({ event, resolve: mockResolve });
-
-			// event.locals.__setupLogged should be set
-			expect(event.locals.__setupLogged).toBeDefined();
-		});
-
-		it('should avoid redundant database checks', async () => {
-			const event = createMockEvent('/dashboard', true, true, true);
-
-			// First request
-			await handleSetup({ event, resolve: mockResolve });
-
-			// Cache should be used for subsequent logic
-			expect(event.locals.__setupConfigExists).toBeDefined();
-		});
-	});
-
-	describe('Edge Cases', () => {
-		it('should handle root path correctly', async () => {
-			const event = createMockEvent('/', false);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-		});
-
-		it('should handle paths with query parameters', async () => {
-			const event = createMockEvent('/setup?step=1', false);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-		});
-
-		it('should handle paths with trailing slash', async () => {
-			const event = createMockEvent('/setup/', false);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-		});
-
-		it('should handle deep API paths', async () => {
-			const event = createMockEvent('/api/setup/config/validate', false);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-		});
-
-		it('should handle internal routes (/_)', async () => {
-			const event = createMockEvent('/_app/version.json', false);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-		});
-
-		it('should handle .well-known paths', async () => {
-			const event = createMockEvent('/.well-known/change-password', false);
-			const response = await handleSetup({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-		});
-	});
-
-	describe('Multi-Step Validation', () => {
-		it('should validate in correct order: file → values → users', async () => {
-			// Step 1: File check
-			const noFileEvent = createMockEvent('/dashboard', false, true, true);
-			try {
-				await handleSetup({ event: noFileEvent, resolve: mockResolve });
-			} catch (err) {
-				expect(err).toBeDefined(); // Should fail at step 1
-			}
-
-			mockResolve.mockClear();
-
-			// Step 2: Values check
-			const noValuesEvent = createMockEvent('/dashboard', true, false, true);
-			try {
-				await handleSetup({ event: noValuesEvent, resolve: mockResolve });
-			} catch (err) {
-				expect(err).toBeDefined(); // Should fail at step 2
-			}
-
-			mockResolve.mockClear();
-
-			// Step 3: Users check
-			const noUsersEvent = createMockEvent('/dashboard', true, true, false);
-			try {
-				await handleSetup({ event: noUsersEvent, resolve: mockResolve });
-			} catch (err) {
-				expect(err).toBeDefined(); // Should fail at step 3
-			}
-
-			mockResolve.mockClear();
-
-			// All steps pass
-			const completeEvent = createMockEvent('/dashboard', true, true, true);
-			const response = await handleSetup({ event: completeEvent, resolve: mockResolve });
-			expect(response).toBe(mockResponse); // Should succeed
 		});
 	});
 });

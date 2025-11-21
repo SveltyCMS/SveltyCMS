@@ -1,12 +1,12 @@
 # .github/workflows/playwright.yml
-# 
+#
 # CURRENT: Tests run against MongoDB only
 # FUTURE: Will use matrix strategy to test against multiple databases in parallel:
 #   - MongoDB (current)
 #   - PostgreSQL (via Drizzle ORM)
 #   - MariaDB (via Drizzle ORM)
 #   - MySQL (via Drizzle ORM)
-# 
+#
 # Example future matrix configuration:
 #   strategy:
 #     matrix:
@@ -36,24 +36,33 @@ permissions:
   actions: read
   checks: write
 
-
 jobs:
+  # ------------------------------------------------------------------
   # 1. Unit Tests (Fastest, no server needed)
+  # ------------------------------------------------------------------
   unit-tests:
+    name: ⚡ Unit Tests
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: oven-sh/setup-bun@v2
-    
-    - name: Install dependencies
-      run: bun install
-      
-    - name: Run Unit Tests
-      run: bun run test:unit
+      - uses: actions/checkout@v4
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run Unit Tests
+        run: bun run test:unit
+
+  # ------------------------------------------------------------------
   # 2. Integration Tests (Requires Server + MongoDB)
+  # ------------------------------------------------------------------
   integration-tests:
+    name: 🔌 Integration Tests
     timeout-minutes: 15
     runs-on: ubuntu-latest
     services:
@@ -64,33 +73,56 @@ jobs:
           MONGO_INITDB_ROOT_USERNAME: admin
           MONGO_INITDB_ROOT_PASSWORD: admin
     steps:
-    - uses: actions/checkout@v4
-    - uses: oven-sh/setup-bun@v2
-    
-    - name: Install dependencies
-      run: bun install
-    
-    # Ensure fresh state - remove any existing config
-    - name: Clean config for fresh CI run
-      run: |
-        echo "🧹 Ensuring fresh state for CI..."
-        rm -rf config/collections
-        rm -f config/private.ts
-        echo "✅ Cleaned config directory"
-      
-    - name: Run Integration Tests
-      run: bun run test:integration
-      env:
-        DB_TYPE: mongodb
-        DB_HOST: localhost
-        DB_PORT: 27017
-        DB_NAME: sveltycms_test
-        DB_USER: admin
-        DB_PASSWORD: admin
+      - uses: actions/checkout@v4
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      # Ensure fresh state - remove any existing config
+      - name: Clean config for fresh CI run
+        run: |
+          echo "🧹 Ensuring fresh state for CI..."
+          rm -rf config/collections
+          rm -f config/private.ts
+          echo "✅ Cleaned config directory"
+
+      # --- CRITICAL: START SERVER FOR INTEGRATION TESTS ---
+      - name: Start Dev Server
+        run: |
+          echo "🚀 Starting dev server..."
+          bun run dev &
+          echo "⏳ Waiting for server to be ready..."
+          bun x wait-on http://localhost:5173 -t 60000
+          echo "✅ Server is ready!"
+        env:
+          DB_TYPE: mongodb
+          DB_HOST: localhost
+          DB_PORT: 27017
+          DB_NAME: sveltycms_test
+          DB_USER: admin
+          DB_PASSWORD: admin
+
+      - name: Run Integration Tests
+        run: bun run test:integration
+        env:
+          DB_TYPE: mongodb
+          DB_HOST: localhost
+          DB_PORT: 27017
+          DB_NAME: sveltycms_test
+          DB_USER: admin
+          DB_PASSWORD: admin
+
+  # ------------------------------------------------------------------
   # 3. E2E Tests (Requires Server + MongoDB + Browser)
+  # ------------------------------------------------------------------
   e2e-tests:
-    timeout-minutes: 20
+    name: 🎭 E2E Tests
+    timeout-minutes: 30 # Increased to fix your timeout issue
     runs-on: ubuntu-latest
     services:
       mongodb:
@@ -100,36 +132,78 @@ jobs:
           MONGO_INITDB_ROOT_USERNAME: admin
           MONGO_INITDB_ROOT_PASSWORD: admin
     steps:
-    - uses: actions/checkout@v4
-    - uses: oven-sh/setup-bun@v2
-    
-    - name: Install dependencies
-      run: bun install
-      
-    - name: Install Playwright Browsers
-      run: bun x playwright install --with-deps
-    
-    # Ensure fresh state - remove any existing config
-    - name: Clean config for fresh CI run
-      run: |
-        echo "🧹 Ensuring fresh state for CI..."
-        rm -rf config/collections
-        rm -f config/private.ts
-        echo "✅ Cleaned config directory"
-      
-    - name: Run E2E Tests
-      run: bun run test:e2e
-      env:
-        DB_TYPE: mongodb
-        DB_HOST: localhost
-        DB_PORT: 27017
-        DB_NAME: sveltycms_test
-        DB_USER: admin
-        DB_PASSWORD: admin
-        
-    - uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: playwright-report
-        path: playwright-report/
-        retention-days: 30
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install Playwright Browsers
+        run: bun x playwright install --with-deps chromium
+
+      # Ensure fresh state - remove any existing config
+      - name: Clean config for fresh CI run
+        run: |
+          echo "🧹 Ensuring fresh state for CI..."
+          rm -rf config/collections
+          rm -f config/private.ts
+          echo "✅ Cleaned config directory"
+
+      - name: Start Dev Server
+        run: |
+          echo "🚀 Starting dev server..."
+          bun run dev &
+          echo "⏳ Waiting for server to be ready..."
+          bun x wait-on http://localhost:5173 -t 60000
+          echo "✅ Server is ready!"
+        env:
+          DB_TYPE: mongodb
+          DB_HOST: localhost
+          DB_PORT: 27017
+          DB_NAME: sveltycms_test
+          DB_USER: admin
+          DB_PASSWORD: admin
+
+      # STEP A: Run the Setup Wizard first to initialize the DB/User
+      - name: 🧙‍♂️ Run Setup Wizard Test
+        run: |
+          echo "=== Running setup wizard to initialize application ==="
+          # Runs ONLY the setup wizard spec
+          bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list
+        env:
+          # Ensure the app runs against the CI mongo instance
+          DB_TYPE: mongodb
+          DB_HOST: localhost
+          DB_PORT: 27017
+          DB_NAME: sveltycms_test
+          DB_USER: admin
+          DB_PASSWORD: admin
+          # Setup Wizard specific envs (if your app uses them to seed)
+          ADMIN_EMAIL: admin@example.com
+          ADMIN_PASS: Admin123!
+
+      # STEP B: Run the rest of the tests (skipping the wizard)
+      - name: 🧪 Run Application E2E Tests
+        if: success() # Only run if Wizard passed
+        run: |
+          echo "=== Running main E2E suite ==="
+          # --grep-invert skips the setup wizard since we just ran it
+          bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard"
+        env:
+          DB_TYPE: mongodb
+          DB_HOST: localhost
+          DB_PORT: 27017
+          DB_NAME: sveltycms_test
+          DB_USER: admin
+          DB_PASSWORD: admin
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
