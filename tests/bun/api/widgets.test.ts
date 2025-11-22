@@ -13,62 +13,20 @@
  * - GET /api/widgets/dependencies - Check dependencies
  */
 
-// @ts-expect-error - Bun test is available at runtime
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
-import { testFixtures, initializeTestEnvironment, cleanupTestEnvironment } from '../helpers/testSetup';
+import { prepareAuthenticatedContext, cleanupTestDatabase } from '../helpers/testSetup';
 
 const BASE_URL = getApiBaseUrl();
 let authCookie: string;
 
 beforeAll(async () => {
 	await waitForServer();
-	await initializeTestEnvironment();
-
-	// Ensure system is initialized before creating admin user
-	const setupResponse = await fetch(`${BASE_URL}/api/setup`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			admin: testFixtures.users.firstAdmin,
-			...testFixtures.setup
-		})
-	});
-	if (!setupResponse.ok) {
-		const errorText = await setupResponse.text();
-		throw new Error('Failed to initialize system: ' + errorText);
-	}
-
-	// Create and login as admin user (should succeed after setup)
-	const createUserResponse = await fetch(`${BASE_URL}/api/user/createUser`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(testFixtures.users.firstAdmin)
-	});
-	if (!createUserResponse.ok) {
-		const errorText = await createUserResponse.text();
-		throw new Error('Failed to create admin user: ' + errorText);
-	}
-
-	const loginResponse = await fetch(`${BASE_URL}/api/user/login`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			email: testFixtures.users.firstAdmin.email,
-			password: testFixtures.users.firstAdmin.password
-		})
-	});
-
-	if (!loginResponse.ok) {
-		throw new Error('Failed to authenticate for widget tests');
-	}
-
-	const setCookie = loginResponse.headers.get('set-cookie');
-	authCookie = setCookie?.split(';')[0] || '';
+	authCookie = await prepareAuthenticatedContext();
 });
 
 afterAll(async () => {
-	await cleanupTestEnvironment();
+	await cleanupTestDatabase();
 });
 
 describe('Widget API - List Widgets', () => {

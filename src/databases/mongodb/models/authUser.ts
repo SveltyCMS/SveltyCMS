@@ -107,7 +107,7 @@ export class UserAdapter {
 			// Log exactly what we received
 			logger.debug('UserAdapter.createUser received data:', {
 				...normalizedUserData,
-				email: normalizedUserData.email?.replace(/(.{2}).*@(.*)/, '$1****@$2'),
+				email: normalizedUserData.email,
 				avatar: `Avatar value: "${normalizedUserData.avatar}" (type: ${typeof normalizedUserData.avatar}, length: ${normalizedUserData.avatar?.length || 0})`
 			});
 
@@ -115,7 +115,7 @@ export class UserAdapter {
 			const userId = generateId();
 			const user = new this.UserModel({ ...normalizedUserData, _id: userId }); // Log what the model contains before saving
 			logger.debug('UserModel before save:', {
-				email: user.email?.replace(/(.{2}).*@(.*)/, '$1****@$2'),
+				email: user.email,
 				avatar: `Model avatar: "${user.avatar}" (type: ${typeof user.avatar})`,
 				hasAvatar: !!user.avatar
 			});
@@ -125,7 +125,7 @@ export class UserAdapter {
 			// Log what was actually saved
 			logger.debug('User created and saved:', {
 				_id: user._id,
-				email: user.email?.replace(/(.{2}).*@(.*)/, '$1****@$2'),
+				email: user.email,
 				avatar: `Saved avatar: "${user.avatar}" (type: ${typeof user.avatar})`,
 				allFields: Object.keys(user.toObject())
 			});
@@ -139,7 +139,7 @@ export class UserAdapter {
 		} catch (err) {
 			const message = `Error in UserAdapter.createUser: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, {
-				email: userData.email?.replace(/(.{2}).*@(.*)/, '$1****@$2'),
+				email: userData.email,
 				error: err,
 				userData: Object.keys(userData)
 			});
@@ -176,6 +176,10 @@ export class UserAdapter {
 			}
 
 			user._id = user._id.toString();
+			// Ensure permissions are strings
+			if (user.permissions && Array.isArray(user.permissions)) {
+				user.permissions = user.permissions.map((p) => String(p));
+			}
 			logger.debug(`User attributes updated: ${user_id}`, { tenantId });
 			return {
 				success: true,
@@ -224,6 +228,10 @@ export class UserAdapter {
 			const users = await query.exec();
 			const mappedUsers = users.map((user) => {
 				user._id = user._id.toString();
+				// Ensure permissions are strings
+				if (user.permissions && Array.isArray(user.permissions)) {
+					user.permissions = user.permissions.map((p) => String(p));
+				}
 				return user as User;
 			});
 			return {
@@ -274,6 +282,10 @@ export class UserAdapter {
 			logger.debug(`Users with permission ${permissionName} retrieved`);
 			const mappedUsers = users.map((user) => {
 				user._id = user._id.toString();
+				// Ensure permissions are strings
+				if (user.permissions && Array.isArray(user.permissions)) {
+					user.permissions = user.permissions.map((p) => String(p));
+				}
 				return user as User;
 			});
 			return {
@@ -638,6 +650,10 @@ export class UserAdapter {
 			const user = await this.UserModel.findOne(filter).lean();
 			if (user) {
 				user._id = user._id.toString();
+				// Ensure permissions are strings (handle potential ObjectIds from legacy data)
+				if (user.permissions && Array.isArray(user.permissions)) {
+					user.permissions = user.permissions.map((p) => String(p));
+				}
 				logger.debug(`User retrieved by ID: ${user_id}`, {
 					tenantId: tenantId || 'none (single-tenant mode)'
 				});
@@ -685,6 +701,10 @@ export class UserAdapter {
 			const user = await this.UserModel.findOne(filter).lean();
 			if (user) {
 				user._id = user._id.toString();
+				// Ensure permissions are strings (handle potential ObjectIds from legacy data)
+				if (user.permissions && Array.isArray(user.permissions)) {
+					user.permissions = user.permissions.map((p) => String(p));
+				}
 				logger.debug(`User retrieved by email:`, {
 					email: normalizedEmail,
 					tenantId: criteria.tenantId || 'none (single-tenant mode)'

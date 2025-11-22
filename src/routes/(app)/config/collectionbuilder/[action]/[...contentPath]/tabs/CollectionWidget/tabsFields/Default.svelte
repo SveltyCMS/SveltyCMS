@@ -35,19 +35,19 @@ Features:
 		guiSchema: GuiSchema;
 	}
 
-	let { guiSchema }: Props = $props();
+	const { guiSchema }: Props = $props();
 
 	// Get all properties from the guiSchema
-	let allProperties = $derived(Object.keys(guiSchema || {}));
+	const allProperties = $derived(Object.keys(guiSchema || {}));
 
 	// Define standard/default properties that should appear first
 	const standardProperties = ['label', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width'];
 
 	// Get additional properties from the widget's GuiSchema
-	let additionalProperties = $derived(allProperties.filter((prop) => !standardProperties.includes(prop) && prop !== 'permissions'));
+	const additionalProperties = $derived(allProperties.filter((prop) => !standardProperties.includes(prop) && prop !== 'permissions'));
 
 	// Combine them in order: standard first, then additional
-	let displayProperties = $derived([...standardProperties, ...additionalProperties]);
+	const displayProperties = $derived([...standardProperties, ...additionalProperties]);
 
 	function defaultValue(property: string) {
 		if (property === 'required' || property === 'translated') {

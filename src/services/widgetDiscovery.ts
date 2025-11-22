@@ -36,6 +36,10 @@ export interface WidgetDiscoveryResult {
 	active: DiscoveredWidget[]; // Active widgets
 }
 
+export interface WidgetModel {
+	create: (data: Record<string, unknown>) => Promise<unknown>;
+}
+
 export class WidgetDiscoveryService {
 	private static instance: WidgetDiscoveryService;
 
@@ -212,10 +216,8 @@ export class WidgetDiscoveryService {
 		}
 	}
 
-	/**
-	 * Auto-register new widgets in database
-	 */
-	async autoRegisterNewWidgets(newWidgets: DiscoveredWidget[], widgetModel: Record<string, unknown>): Promise<void> {
+	// Auto-register new widgets in database
+	async autoRegisterNewWidgets(newWidgets: DiscoveredWidget[], widgetModel: WidgetModel): Promise<void> {
 		if (newWidgets.length === 0) return;
 
 		logger.info(`📝 Auto-registering ${newWidgets.length} new widgets...`);

@@ -32,68 +32,20 @@
  * - GET /api/dashboard/cache-metrics - Cache performance metrics
  */
 
-// @ts-expect-error - Bun test is available at runtime
 import { describe, it, expect, beforeAll } from 'bun:test';
+import { prepareAuthenticatedContext } from '../helpers/testSetup';
 
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:5173';
-const ADMIN_EMAIL = process.env.TEST_ADMIN_EMAIL || 'admin@test.com';
-const ADMIN_PASSWORD = process.env.TEST_ADMIN_PASSWORD || 'Test123!';
 
 let authCookie: string;
 
 beforeAll(async () => {
 	console.log(`\n🔍 Dashboard API Integration Tests`);
 	console.log(`📍 Testing against: ${BASE_URL}`);
-	console.log(`📧 Admin credentials: ${ADMIN_EMAIL}`);
 
-	// Try to create a test user (will only work on fresh test database)
-	const createResponse = await fetch(`${BASE_URL}/api/user/createUser`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			email: ADMIN_EMAIL,
-			username: 'admin',
-			password: ADMIN_PASSWORD,
-			role: 'admin'
-		})
-	});
+	// Use shared helper to prepare authenticated context
+	authCookie = await prepareAuthenticatedContext();
 
-	if (createResponse.ok) {
-		console.log('✅ Created test admin user (fresh test database detected)');
-	} else if (createResponse.status === 401) {
-		console.log('ℹ️  System already initialized (cannot create users)');
-		console.log('💡 Run user API tests first to set up test database:');
-		console.log('   bun test tests/bun/api/user.test.ts && bun test tests/bun/api/dashboard.test.ts\n');
-	}
-
-	// Try to authenticate
-	const loginResponse = await fetch(`${BASE_URL}/api/user/login`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			email: ADMIN_EMAIL,
-			password: ADMIN_PASSWORD
-		})
-	});
-
-	if (!loginResponse.ok) {
-		const errorText = await loginResponse.text();
-		console.error(`\n❌ Authentication failed (${loginResponse.status})`);
-		console.error(`Response: ${errorText}`);
-		console.error(`\n📋 To run these tests:`);
-		console.error(`   1. Run user tests first: bun test tests/bun/api/user.test.ts`);
-		console.error(`   2. Then run dashboard tests: bun test tests/bun/api/dashboard.test.ts`);
-		console.error(`   3. OR provide real credentials: TEST_ADMIN_EMAIL=... TEST_ADMIN_PASSWORD=... bun test\n`);
-
-		throw new Error('Authentication required - see instructions above');
-	}
-
-	const setCookie = loginResponse.headers.get('set-cookie');
-	if (!setCookie) {
-		throw new Error('No session cookie received from login');
-	}
-
-	authCookie = setCookie.split(';')[0];
 	console.log('✅ Authentication successful - running dashboard tests\n');
 });
 

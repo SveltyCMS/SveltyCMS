@@ -85,7 +85,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		// --- MULTI-TENANCY: Filter by tenantId if enabled ---
 		if (getPrivateSettingSync('MULTI_TENANT') && tenantId) {
-			items = items.filter((file) => (file as Partial<Record<string, unknown>>).tenantId === tenantId);
+			items = items.filter((file) => (file as unknown as Record<string, unknown>).tenantId === tenantId);
 		}
 
 		const recentMedia = items.map((file) => ({

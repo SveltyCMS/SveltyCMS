@@ -1,14 +1,15 @@
 /**
  * @file src/utils/setupCheck.ts
- * @description Centralized and memoized setup completion check utility
+ * @description Centralized and memoized setup completion check utility.
  *
- * This provides a single, high-performance source of truth for setup status.
- * It is dependency-free to ensure it can be safely used in the vite.config.ts environment.
- * It is designed to be silent, returning only a boolean, leaving logging to the caller.
+ * @improvements
+ * - **Relative Imports:** Uses `../databases/db` instead of aliases to ensure safety when running inside `vite.config.ts`.
+ * - **Namespace Imports:** Uses `fs` and `path` namespaces for consistency with other server utilities.
+ * - **Robustness:** Stronger checks during dynamic imports.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import fs from 'node:fs';
+import path from 'node:path';
 
 // Memoization variable to cache the setup status.
 let setupStatus: boolean | null = null;
@@ -20,14 +21,17 @@ export function isSetupComplete(): boolean {
 	}
 
 	try {
-		const privateConfigPath = join(process.cwd(), 'config', 'private.ts');
-		if (!existsSync(privateConfigPath)) {
+		// Use process.cwd() to ensure we look at the project root
+		const privateConfigPath = path.join(process.cwd(), 'config', 'private.ts');
+
+		if (!fs.existsSync(privateConfigPath)) {
 			setupStatus = false;
 			return setupStatus;
 		}
 
-		const configContent = readFileSync(privateConfigPath, 'utf8');
+		const configContent = fs.readFileSync(privateConfigPath, 'utf8');
 
+		// Regex checks to ensure keys are not set to empty strings
 		const hasJwtSecret = !/JWT_SECRET_KEY:\s*(""|''|``)/.test(configContent);
 		const hasDbHost = !/DB_HOST:\s*(""|''|``)/.test(configContent);
 		const hasDbName = !/DB_NAME:\s*(""|''|``)/.test(configContent);
@@ -49,68 +53,66 @@ export function isSetupComplete(): boolean {
  * This is called from hooks after config check passes and database is initialized.
  */
 export async function isSetupCompleteAsync(): Promise<boolean> {
-	// First check config file
+	// 1. Fast fail: Check config file first
 	if (!isSetupComplete()) {
 		return false;
 	}
 
-	// If we've already checked the database, return cached result
+	// 2. Cache hit: If we've already checked the database, return cached result
 	if (setupStatusCheckedDb) {
 		return setupStatus ?? false;
 	}
 
 	try {
-		// Dynamically import db module to avoid circular dependencies
-		const db = await import('@src/databases/db');
+		// 3. Dynamic Import: Use relative path to avoid alias resolution issues in vite.config.ts
+		// We perform this check lazily to prevent circular dependencies during boot
+		const db = await import('../databases/db');
 		const dbAdapter = db.dbAdapter;
 
+		// Guard against uninitialized adapter
 		if (!dbAdapter || !dbAdapter.auth) {
-			// Database not initialized yet - don't cache this, allow retry
-			// Use console.log here since logger.server cannot be imported in setupCheck
 			if (process.env.NODE_ENV === 'development') {
-				console.log('[setupCheck] Database not initialized yet');
+				console.log('[setupCheck] Database adapter not ready yet');
 			}
 			return false;
 		}
 
-		// Check if admin users exist in database using dbAdapter.auth
-
+		// 4. Data Verification: Check if admin users exist
 		const result = await dbAdapter.auth.getAllUsers({ limit: 1 });
-
 		const hasUsers = result.success && result.data && result.data.length > 0;
 
+		// Update cache
 		setupStatus = hasUsers;
 		setupStatusCheckedDb = true;
 		return hasUsers;
 	} catch (error) {
-		// Database check failed - might be dropped DB or connection issue
 		console.error(`[SveltyCMS] ❌ Database validation failed during setup check:`, error);
-		// Don't cache failures - allow retry on next request
+		// Don't cache failures - allow retry on next request (e.g., if DB is temporarily down)
 		return false;
 	}
 }
 
 /**
- * Invalidates the cached setup status, forcing a recheck on the next call to isSetupComplete().
- * This should be called after setup completion to ensure the cache is updated.
- * @param clearPrivateEnv - Whether to clear private environment config (default: false during setup completion)
+ * Invalidates the cached setup status, forcing a recheck on the next call.
+ * @param clearPrivateEnv - Whether to clear private environment config (default: false)
  */
 export function invalidateSetupCache(clearPrivateEnv = false): void {
 	setupStatus = null;
 	setupStatusCheckedDb = false;
 
-	// Also clear the database initialization state to force a fresh init
-	// This ensures that after setup completes, the system will fully reinitialize
-	// During setup completion, we DON'T clear privateEnv so initialization can use it
 	if (clearPrivateEnv) {
-		import('@src/databases/db')
+		// Use relative import here as well for consistency
+		import('../databases/db')
 			.then((db) => {
-				if (db.clearPrivateConfigCache) {
-					db.clearPrivateConfigCache(false); // Don't keep privateEnv
+				if (typeof db.clearPrivateConfigCache === 'function') {
+					db.clearPrivateConfigCache(false);
 				}
 			})
-			.catch(() => {
-				// Ignore errors during cache clear (db module might not be loaded yet)
+			.catch((err) => {
+				// Ignore module load errors during invalidation, just log warning in dev
+				if (process.env.NODE_ENV === 'development') {
+					console.warn('[setupCheck] Could not clear private config cache:', err);
+				}
 			});
 	}
 }

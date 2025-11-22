@@ -44,7 +44,17 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		// Iterate over the array of collections
 		for (const collection of allCollections) {
-			const collectionInfo = {
+			const collectionInfo: {
+				id: string | undefined;
+				name: string | undefined;
+				label: string | undefined;
+				description: string | undefined;
+				icon: string | undefined;
+				path: string | undefined;
+				permissions: { read: boolean; write: boolean };
+				fields?: unknown[];
+				stats?: { totalEntries: number; publishedEntries: number; draftEntries: number };
+			} = {
 				id: collection._id,
 				name: collection.name,
 				label: collection.label || collection.name,

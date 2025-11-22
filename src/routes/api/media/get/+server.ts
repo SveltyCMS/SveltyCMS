@@ -19,7 +19,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 // Permissions
 
 // Media
-import { getFile } from '@utils/media/mediaStorage';
+import { getFile } from '@utils/media/mediaStorage.server';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -52,7 +52,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			tenantId
 		});
 
-		return new Response(buffer.buffer, {
+		return new Response(new Uint8Array(buffer), {
 			headers: {
 				'Content-Type': 'application/octet-stream',
 				'Content-Disposition': `attachment; filename="${fileUrl.split('/').pop()}"`,

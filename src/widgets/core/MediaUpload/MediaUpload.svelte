@@ -68,7 +68,7 @@ functionality for image editing and basic file information display.
 	}
 
 	// Define props
-	let { field, value = (collectionValue as any)[getFieldName(field)] } = $props<{
+	const { field, value = (collectionValue as any)[getFieldName(field)] } = $props<{
 		field: FieldType & { path: string };
 		value?: File | MediaImage;
 	}>();

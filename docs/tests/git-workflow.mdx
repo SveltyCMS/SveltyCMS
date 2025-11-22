@@ -1,12 +1,12 @@
 ---
 path: 'docs/tests/git-workflow.mdx'
 title: 'Git Workflow & Automated Testing'
-description: 'Complete guide to branching strategy, commit conventions, automated testing, and semantic releases with GitHub Actions.'
+description: 'Complete guide to branching strategy, commit conventions, automated testing with Bun and Playwright, and semantic releases with GitHub Actions.'
 order: 3
 icon: 'mdi:git'
 author: 'admin'
 created: '2025-09-28'
-updated: '2025-11-08'
+updated: '2025-11-21'
 tags:
   - 'git'
   - 'workflow'
@@ -20,17 +20,16 @@ tags:
 
 ## Introduction
 
-SveltyCMS uses a comprehensive Git workflow with **automated testing** and **semantic versioning** to ensure code quality and streamline the release process. Understanding this workflow is essential for all contributors.
+SveltyCMS uses a comprehensive Git workflow with automated testing and semantic versioning to ensure code quality and streamline the release process. Understanding this workflow is essential for all contributors.
 
 Our CI/CD pipeline uses:
 
-- **Bun Tests** for fast unit & integration testing
-- **Playwright** for comprehensive E2E testing
+- **Bun Tests** for fast unit & integration testing (~575 tests)
+- **Playwright** for comprehensive E2E testing (~40 tests)
 - **Semantic Release** for automated versioning
 - **GitHub Actions** for CI/CD automation
 - **Test Gating** to ensure releases only happen when tests pass
-
----
+- **Future**: Matrix testing across multiple databases (MongoDB, PostgreSQL, MariaDB, MySQL)
 
 ## Table of Contents
 
@@ -46,48 +45,38 @@ Our CI/CD pipeline uses:
 
 ## Branching Strategy
 
-We have two primary, long-lived branches: **main** and **next**.
+We have two primary, long-lived branches: `main` and `next`.
 
 ### `main` Branch (Production)
 
-**Purpose:** Production-ready, stable code. This branch represents the latest official release.
-
-**Protection:**
-
-- Protected branch requiring pull request reviews
-- All code must first be merged into `next`
-- Promoted to `main` only after thorough testing
-- **Tests must pass** before any release is created
-
-**Automated Actions:**
-
-- ✅ Runs full Playwright + Bun test suite
-- ✅ Only releases if tests pass
-- ✅ Creates stable semantic version (e.g., `v1.3.0`)
-- ✅ Automatically cleans `/config/collections` directory
-- ✅ Generates changelog and release notes
-
-**Key Rule:** This branch must never contain test configurations. The `/config/collections` directory is automatically removed during the release process.
+- **Purpose**: Production-ready, stable code. This branch represents the latest official release.
+- **Protection**:
+  - Protected branch requiring pull request reviews
+  - All code must first be merged into `next`
+  - Promoted to `main` only after thorough testing
+  - Tests must pass before any release is created
+- **Automated Actions**:
+  - ✅ Runs full Playwright + Bun test suite
+  - ✅ Only releases if tests pass
+  - ✅ Creates stable semantic version (e.g., `v1.3.0`)
+  - ✅ Automatically cleans `/config/collections` directory
+  - ✅ Generates changelog and release notes
+- **Key Rule**: This branch must never contain test configurations. The `/config/collections` directory is automatically removed during the release process.
 
 ### `next` Branch (Development)
 
-**Purpose:** Development and staging. This is the primary branch for all new features, bug fixes, and ongoing work.
-
-**Pull Requests:** All contributions should be made to feature branches and then submitted as pull requests targeting `next`.
-
-**Automated Actions:**
-
-- ✅ Runs full test suite on every push
-- ✅ Tests both dev and preview modes
-- ✅ Matrix testing across multiple browsers
-- ✅ No automatic releases (tests only)
-
-**Testing Strategy:**
-
-- Every push triggers comprehensive E2E and unit tests
-- Tests run in both development and production build modes
-- MongoDB service container for database testing
-- Automated database seeding before tests
+- **Purpose**: Development and staging. This is the primary branch for all new features, bug fixes, and ongoing work.
+- **Pull Requests**: All contributions should be made to feature branches and then submitted as pull requests targeting `next`.
+- **Automated Actions**:
+  - ✅ Runs full test suite on every push
+  - ✅ Tests both dev and preview modes
+  - ✅ Matrix testing across multiple browsers
+  - ✅ No automatic releases (tests only)
+- **Testing Strategy**:
+  - Every push triggers comprehensive E2E and unit tests
+  - Tests run in both development and production build modes
+  - MongoDB service container for database testing
+  - Automated database seeding before tests
 
 ---
 
@@ -109,18 +98,18 @@ Each commit message consists of a **type**, a **scope** (optional), and a **subj
 
 ### Common Commit Types
 
-| Type              | Description              | Version Impact        | Example                           |
-| ----------------- | ------------------------ | --------------------- | --------------------------------- |
-| `feat`            | A new feature            | MINOR (1.2.0 → 1.3.0) | `feat(auth): add OAuth2 login`    |
-| `fix`             | A bug fix                | PATCH (1.2.0 → 1.2.1) | `fix(api): resolve memory leak`   |
-| `docs`            | Documentation only       | None                  | `docs: update installation guide` |
-| `style`           | Code style changes       | None                  | `style: fix indentation`          |
-| `refactor`        | Code refactoring         | None                  | `refactor: simplify auth logic`   |
-| `perf`            | Performance improvements | PATCH                 | `perf(db): optimize query speed`  |
-| `test`            | Adding or updating tests | None                  | `test: add collection tests`      |
-| `chore`           | Build/tooling changes    | None                  | `chore: update dependencies`      |
-| `ci`              | CI/CD configuration      | None                  | `ci: update GitHub Actions`       |
-| `BREAKING CHANGE` | Breaking API change      | MAJOR (1.2.0 → 2.0.0) | See below                         |
+| Type              | Description              | Version Impact            | Example                           |
+| ----------------- | ------------------------ | ------------------------- | --------------------------------- |
+| `feat`            | A new feature            | **MINOR** (1.2.0 → 1.3.0) | `feat(auth): add OAuth2 login`    |
+| `fix`             | A bug fix                | **PATCH** (1.2.0 → 1.2.1) | `fix(api): resolve memory leak`   |
+| `docs`            | Documentation only       | None                      | `docs: update installation guide` |
+| `style`           | Code style changes       | None                      | `style: fix indentation`          |
+| `refactor`        | Code refactoring         | None                      | `refactor: simplify auth logic`   |
+| `perf`            | Performance improvements | **PATCH**                 | `perf(db): optimize query speed`  |
+| `test`            | Adding or updating tests | None                      | `test: add collection tests`      |
+| `chore`           | Build/tooling changes    | None                      | `chore: update dependencies`      |
+| `ci`              | CI/CD configuration      | None                      | `ci: update GitHub Actions`       |
+| `BREAKING CHANGE` | Breaking API change      | **MAJOR** (1.2.0 → 2.0.0) | See below                         |
 
 ### Breaking Changes
 
@@ -140,7 +129,7 @@ feat(api): redesign collection endpoints
 BREAKING CHANGE: The collection API now uses different parameter names
 ```
 
-**⚠️ IMPORTANT:** If your commit doesn't use `feat`, `fix`, or `BREAKING CHANGE`, the automated system will **not** create a new version.
+> ⚠️ **IMPORTANT**: If your commit doesn't use `feat`, `fix`, or `BREAKING CHANGE`, the automated system will not create a new version.
 
 ---
 
@@ -150,24 +139,44 @@ SveltyCMS uses two main workflows for CI/CD automation.
 
 ### Workflow 1: Playwright Tests
 
-**File:** `.github/workflows/playwright.yml`
+**File**: `.github/workflows/playwright.yml`
 
-**Triggers:**
+**Triggers**:
 
 - Push to `main` or `next`
 - Pull requests to `main`
 - Called by auto-release workflow
 
-**What it does:**
+**What it does**:
 
-1. Sets up environment (Bun, Node, Playwright)
-2. Starts MongoDB service container
-3. **Seeds database** (`scripts/seed-cms.js`)
-4. **Creates admin user** (`scripts/create-admin.js`)
-5. Runs tests in dev and preview modes
-6. Uploads test results and artifacts
+1. **Unit Tests Job**: Runs Bun unit tests (~350 tests, ~2s)
+2. **Integration Tests Job**:
+   - Starts MongoDB service container
+   - Cleans `config/` directory for fresh state
+   - Starts dev server
+   - Seeds test database via `scripts/seed-test-db.ts`
+   - Runs Bun integration tests (~225 tests, ~15s)
+3. **E2E Tests Job**:
+   - Starts MongoDB service container
+   - Cleans `config/` directory
+   - Installs Playwright browsers
+   - Starts dev server
+   - Seeds test database
+   - Runs Playwright E2E tests (~40 tests, ~60s)
+   - Uploads test results and artifacts on failure
 
-**Test Matrix:**
+> [!NOTE]
+> **Future Enhancement**: Matrix testing across multiple databases
+>
+> ```yaml
+> strategy:
+>   matrix:
+>     database: [mongodb, postgresql, mariadb, mysql]
+> ```
+>
+> This will ensure SveltyCMS works with all supported databases via Drizzle ORM.
+
+**Test Matrix**:
 
 ```yaml
 strategy:
@@ -178,20 +187,20 @@ strategy:
 
 ### Workflow 2: Auto-Release
 
-**File:** `.github/workflows/auto-release.yaml`
+**File**: `.github/workflows/auto-release.yaml`
 
-**Triggers:**
+**Triggers**:
 
 - Push to `main` branch only
 
-**What it does:**
+**What it does**:
 
-1. **Runs tests first** (calls playwright.yml)
-2. **Only releases if tests pass**
+1. Runs tests first (calls `playwright.yml`)
+2. Only releases if tests pass
 3. Cleans `/config/collections` directory
 4. Runs semantic-release (version bump, changelog, GitHub release)
 
-**Test Gating:**
+**Test Gating**:
 
 ```yaml
 jobs:
@@ -206,47 +215,56 @@ jobs:
 
 ## Automated Testing
 
-SveltyCMS uses a **dual-testing strategy** combining fast unit tests with comprehensive E2E testing.
+SveltyCMS uses a dual-testing strategy combining fast unit tests with comprehensive E2E testing.
 
 ### Testing Architecture
 
-**🧪 Bun Tests** (Unit & Integration)
+#### 🧪 Bun Tests (Unit & Integration)
 
-- **Speed:** ⚡ Lightning fast (<5s for full suite)
-- **Purpose:** Business logic, services, widgets, security, API endpoints
-- **Location:** `tests/bun/`
-- **Run:** `bun test tests/bun`
-- **Framework:** Bun Test v1.3.1
+- **Speed**: ⚡ Lightning fast (<5s for full suite)
+- **Purpose**: Business logic, services, widgets, security, API endpoints
+- **Location**: `tests/bun/`
+- **Run**: `bun test tests/bun`
+- **Framework**: Bun Test v1.3.1
 
-**🎭 Playwright Tests** (E2E)
+#### 🎭 Playwright Tests (E2E)
 
-- **Speed:** Thorough (30-60s per suite)
-- **Purpose:** User flows, UI interactions, cross-browser
-- **Location:** `tests/playwright/`
-- **Run:** `bun x playwright test`
-- **Browsers:** Chromium, Firefox, WebKit
+- **Speed**: Thorough (30-60s per suite)
+- **Purpose**: User flows, UI interactions, cross-browser
+- **Location**: `tests/playwright/`
+- **Run**: `bun x playwright test`
+- **Browsers**: Chromium, Firefox, WebKit
 
-### Current Test Status
+### Current Test Status (November 21, 2025)
 
-```
-✅ 97+ passing tests (77%+)
-⚡ ~25s execution time
-🎯 150+ assertions
-📊 8 categories fully tested
-```
+- ✅ **403 passing tests** (~65%)
+- ❌ **172 failing tests** (API/Setup integration)
+- ⏭️ **40 skipped tests** (placeholders)
+- 📊 **615 total tests**
+- ⚡ **Unit tests**: ~2s | **Integration**: ~15s | **E2E**: ~60s
 
-**Fully Passing Test Suites:**
+**Recently Fixed**:
 
-- ✅ **Security** (8/8 tests) - XSS detection, HTML sanitization
-- ✅ **Widget Validation** (8/8 tests) - RichText, form validation
-- ✅ **Cache System** (17/17 tests) - Redis, metrics, multi-tenant
-- ✅ **UI Components** (5/5 tests) - Store management
-- ✅ **Content Utilities** (6/6 tests) - normalization, helpers
-- ✅ **User API** (47/47 tests) - Complete endpoint coverage
-- ⚠️ **Collection Builder** (4/7 tests) - Partial coverage
-- ❌ **Other APIs** (0/4 tests) - Needs database setup
+- ✅ `authorization.test.ts` (22 tests) - Fixed mock database adapter
+- ✅ `theme.test.ts` (40 tests) - Fixed mockResolve signature
+- ✅ `firewall.test.ts` (27 tests) - Fixed logger import
+- ✅ `user.test.ts` (Integration) - Fixed auth flow & helpers
+- ✅ `collections.test.ts` (Integration) - Fixed dynamic config cleanup
+- ✅ `setup.test.ts` (Hooks) - Fixed mocking of `node:fs` & redirects
 
-**See full test report:** [Test Status](./test-status.mdx)
+**Fully Passing Test Suites**:
+
+- ✅ Security (8/8 tests) - XSS detection, HTML sanitization
+- ✅ Widget Validation (8/8 tests) - RichText, form validation
+- ✅ Cache System (17/17 tests) - Redis, metrics, multi-tenant
+- ✅ UI Components (5/5 tests) - Store management
+- ✅ Content Utilities (6/6 tests) - Normalization, helpers
+- ✅ Server Hooks (89/89 tests) - All middleware hooks passing
+
+**⚠️ API Endpoints (Mixed)** - Some integration test failures
+**❌ Setup Middleware (0/45 tests)** - Requires fixes
+
+[See full test report](/docs/tests/test-status)
 
 ### Running Tests Locally
 
@@ -286,30 +304,32 @@ bun run test:all
 
 ### Test Infrastructure
 
-**Test Configuration:**
+**Test Configuration**:
 
 - `bunfig.toml` - Bun test configuration with Svelte preload
 - `tests/bun/svelte-loader.js` - Svelte component loader
 - `tests/bun/mocks/setup.ts` - Environment mocks (500+ lines)
 - `playwright.config.ts` - E2E test configuration
 
-**Test Helpers:**
+**Test Helpers**:
 
 - `tests/bun/helpers/testSetup.ts` - Fixtures, database cleanup, role resolution
 - `tests/bun/helpers/server.ts` - Server wait utility (prevents timeouts)
+- `tests/bun/helpers/auth.ts` - Real authentication helpers (FormData support)
+- `tests/bun/helpers/db-helper.ts` - API-based verification (no direct DB access)
 - `tests/bun/mocks/setup.ts` - Comprehensive environment mocking
 
-**Mocked Services:**
+**Mocked Services**:
 
 - SvelteKit environment (`$app/environment`)
-- Global settings (publicEnv, privateEnv)
+- Global settings (`publicEnv`, `privateEnv`)
 - Svelte 5 runes (`$state`, `$derived`, `$effect`)
 - Widget factory with 30+ widgets
 - Paraglide i18n messages (100+ translations)
 - Setup wizard store
 - Skeleton UI components
 
-**CI Integration:**
+**CI Integration**:
 
 - Tests run on every push to `main` and `next`
 - Release blocked if tests fail
@@ -323,61 +343,53 @@ bun run test:all
 
 ### Complete Flow
 
-**Development (→ `next`):**
+**Development (→ `next`)**:
 
-```
-1. Create feature branch from 'next'
+1. **Create feature branch from 'next'**
+   ```bash
    git checkout -b feat/my-feature next
-
-2. Make changes with conventional commits
+   ```
+2. **Make changes with conventional commits**
+   ```bash
    git commit -m "feat(auth): add OAuth2 support"
-
-3. Push and create PR to 'next'
+   ```
+3. **Push and create PR to 'next'**
+   ```bash
    git push origin feat/my-feature
-
-4. Tests run automatically (Bun + Playwright)
-
-5. Merge after approval
+   ```
+4. **Tests run automatically** (Bun + Playwright)
+5. **Merge after approval**
    - Tests must pass
    - PR requires approval
+6. **Tests run on 'next'** (no release created)
 
-6. Tests run on 'next' (no release created)
-```
+**Release (→ `main`)**:
 
-**Release (→ `main`):**
-
-```
-1. Create PR from 'next' to 'main'
+1. **Create PR from 'next' to 'main'**
    - Ensure all features are stable
    - Review CHANGELOG
-
-2. Tests run automatically
+2. **Tests run automatically**
    - Full Playwright suite
    - All Bun tests
    - Matrix testing
-
-3. Merge after approval
+3. **Merge after approval**
    - Requires maintainer approval
    - All checks must pass
-
-4. Tests run on 'main'
+4. **Tests run on 'main'**
    - Complete test suite
    - Database seeding
    - Cross-browser testing
-
-5. If tests pass:
-   ✅ semantic-release analyzes commits
-   ✅ Determines version bump
-   ✅ Updates package.json
-   ✅ Generates CHANGELOG.md
-   ✅ Creates GitHub release
-   ✅ Cleans /config/collections
-
-6. If tests fail:
-   ❌ No release created
-   ❌ Maintainers notified
-   ❌ Fix required before retry
-```
+5. **If tests pass**:
+   - ✅ semantic-release analyzes commits
+   - ✅ Determines version bump
+   - ✅ Updates `package.json`
+   - ✅ Generates `CHANGELOG.md`
+   - ✅ Creates GitHub release
+   - ✅ Cleans `/config/collections`
+6. **If tests fail**:
+   - ❌ No release created
+   - ❌ Maintainers notified
+   - ❌ Fix required before retry
 
 ### Version Determination
 
@@ -385,9 +397,9 @@ Based on commit messages since last release:
 
 | Commits                    | Version Change | Example       |
 | -------------------------- | -------------- | ------------- |
-| `fix:` only                | PATCH          | 1.2.0 → 1.2.1 |
-| `feat:` present            | MINOR          | 1.2.0 → 1.3.0 |
-| `BREAKING CHANGE:` or `!`  | MAJOR          | 1.2.0 → 2.0.0 |
+| `fix:` only                | **PATCH**      | 1.2.0 → 1.2.1 |
+| `feat:` present            | **MINOR**      | 1.2.0 → 1.3.0 |
+| `BREAKING CHANGE:` or `!`  | **MAJOR**      | 1.2.0 → 2.0.0 |
 | No `feat`/`fix`/`BREAKING` | No release     | -             |
 
 ---
@@ -466,26 +478,22 @@ git push origin --delete feat/my-feature
 
 ### Commit Messages
 
-**✅ Good Examples:**
+✅ **Good Examples**:
 
-```bash
-feat(auth): add OAuth2 support
-fix(api): resolve memory leak in user endpoint
-docs: update testing guide
-test(user): add avatar upload tests
-perf(cache): optimize Redis queries
-refactor(widget): simplify factory logic
-```
+- `feat(auth): add OAuth2 support`
+- `fix(api): resolve memory leak in user endpoint`
+- `docs: update testing guide`
+- `test(user): add avatar upload tests`
+- `perf(cache): optimize Redis queries`
+- `refactor(widget): simplify factory logic`
 
-**❌ Bad Examples:**
+❌ **Bad Examples**:
 
-```bash
-fixed stuff
-WIP
-changes
-update
-asdf
-```
+- `fixed stuff`
+- `WIP`
+- `changes`
+- `update`
+- `asdf`
 
 ### Pull Requests
 
@@ -544,17 +552,14 @@ bun run lint
 
 **Common causes:**
 
-1. **Different Node/Bun versions**
-   - Solution: Use `.nvmrc` or check CI version
-
-2. **Missing environment variables**
-   - Solution: Check GitHub Secrets configuration
-
-3. **Database state issues**
-   - Solution: Ensure tests clean up properly
-
-4. **Timing issues**
-   - Solution: Use `waitForServer()` helper
+- **Different Node/Bun versions**
+  - _Solution_: Use `.nvmrc` or check CI version
+- **Missing environment variables**
+  - _Solution_: Check GitHub Secrets configuration
+- **Database state issues**
+  - _Solution_: Ensure tests clean up properly
+- **Timing issues**
+  - _Solution_: Use `waitForServer()` helper
 
 ### Release Not Created
 
@@ -562,13 +567,10 @@ bun run lint
 
 1. **Did tests pass?**
    - View GitHub Actions logs
-
 2. **Did commits use conventional format?**
    - Must have `feat:`, `fix:`, or `BREAKING CHANGE:`
-
 3. **Are you on `main` branch?**
    - Releases only happen on `main`
-
 4. **Is semantic-release configured?**
    - Check `.releaserc` configuration
 
@@ -576,11 +578,9 @@ bun run lint
 
 ## Related Documentation
 
-- [Test Status Report](./test-status.mdx) - Current test coverage and status
-- [User API Tests](./user-api-tests.mdx) - Complete user API test documentation
-- [Contributing Guide](/docs/contributing/contributing-docs.mdx) - How to contribute
-- [Troubleshooting](/docs/troubleshooting.mdx) - Common issues
+- [Test Status Report](/docs/tests/test-status) - Current test coverage and status
+- [User API Tests](/docs/tests/api/user) - Complete user API test documentation
+- [Contributing Guide](/docs/contributing) - How to contribute
+- [Troubleshooting](/docs/troubleshooting) - Common issues
 
----
-
-**Follow these workflows for smooth development and reliable releases! 🚀**
+Follow these workflows for smooth development and reliable releases! 🚀

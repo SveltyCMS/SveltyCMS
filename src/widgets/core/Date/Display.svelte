@@ -34,7 +34,7 @@ Part of the Three Pillars Architecture for widget system.
 		showRelative?: boolean;
 	}
 
-	let { value, format = 'medium', showRelative = true }: Props = $props();
+	const { value, format = 'medium', showRelative = true }: Props = $props();
 
 	// Get the user's preferred language from the browser
 	const userLocale = $derived(typeof document !== 'undefined' ? document.documentElement.lang || 'en-US' : 'en-US');

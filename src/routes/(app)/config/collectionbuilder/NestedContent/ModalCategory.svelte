@@ -31,12 +31,12 @@
 		id?: string; // Optional ID for existing categories
 	}
 
-	let { parent, existingCategory = { name: '', icon: '' } }: Props = $props();
+	const { parent, existingCategory = { name: '', icon: '' } }: Props = $props();
 
 	const modalStore = getModalStore();
 
 	// State variables for form and UI
-	let formData = $state<FormData>({
+	const formData = $state<FormData>({
 		newCategoryName: existingCategory.name ?? '',
 		newCategoryIcon: existingCategory.icon ?? ''
 	});

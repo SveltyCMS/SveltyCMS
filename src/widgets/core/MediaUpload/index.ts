@@ -13,7 +13,7 @@
  */
 
 import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/factory';
+import { createWidget } from '@src/widgets/widgetFactory';
 
 // Type for aggregation field parameter
 type AggregationField = { db_fieldName: string; [key: string]: unknown };

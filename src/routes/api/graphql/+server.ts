@@ -137,7 +137,7 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 		}
 	`;
 
-	const collectionsResolversObj = await collectionsResolvers(dbAdapter, cacheClient, pubSub, tenantId);
+	const collectionsResolversObj = await collectionsResolvers(dbAdapter, cacheClient, tenantId);
 
 	const resolvers = {
 		Query: {
@@ -167,26 +167,27 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 			)
 	};
 
-	return createSchema({ typeDefs, resolvers });
+	// Return raw typeDefs/resolvers; Yoga and WS server will build schemas as needed
+	return { typeDefs, resolvers };
 }
 
 async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
 	try {
 		logger.info('Setting up GraphQL schema and resolvers', { tenantId });
 
-		const schema = await createGraphQLSchema(dbAdapter, tenantId);
+		const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, tenantId);
 
-		// Create GraphQL Yoga app with the schema
-		// Type assertion needed because createSchema doesn't know about the pubSub context property
+		// Create GraphQL Yoga app; let Yoga manage the schema from typeDefs/resolvers
 		const yogaApp = createYoga({
-			schema: schema as Parameters<typeof createYoga>[0]['schema'],
 			graphqlEndpoint: '/api/graphql',
 			landingPage: false as const,
-			plugins: [], // Disable all plugins to prevent URL compatibility issues
-			cors: false, // Let SvelteKit handle CORS
+			plugins: [],
+			cors: false,
 			graphiql: {
 				subscriptionsProtocol: 'WS'
 			},
+			// @ts-expect-error Yoga schema type mismatch due to context generics
+			schema: createSchema({ typeDefs, resolvers }),
 			context: async ({ request }) => {
 				// Extract the context from the request if it was passed
 				const contextData = (request as Request & { contextData?: { user: unknown; tenantId?: string } }).contextData;
@@ -217,7 +218,10 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
 	}
 }
 
-let yogaAppPromise: Promise<ReturnType<typeof createYoga>> | null = null;
+// Store Yoga app promise with a relaxed, generic-any typing to avoid
+// tight coupling to Yoga's internal generics, which are noisy for our use case.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let yogaAppPromise: Promise<ReturnType<typeof createYoga<any, any>>> | null = null;
 let wsServerInitialized = false;
 
 // NOTE: This is a workaround for SvelteKit not exposing the HTTP server instance.
@@ -229,7 +233,8 @@ async function initializeWebSocketServer(dbAdapter: DatabaseAdapter, tenantId?: 
 	}
 
 	try {
-		const schema = await createGraphQLSchema(dbAdapter, tenantId);
+		const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, tenantId);
+		const schema = createSchema({ typeDefs, resolvers });
 
 		const wsServer = new WebSocketServer({
 			port: 3001,
@@ -344,6 +349,9 @@ const handler = async (event: RequestEvent) => {
 			yogaAppPromise = setupGraphQL(locals.dbAdapter, locals.tenantId);
 		}
 		const yogaApp = await yogaAppPromise;
+		if (!yogaApp) {
+			throw new Error('GraphQL Yoga app failed to initialize');
+		}
 
 		// Initialize WebSocket server if not already done
 		if (!wsServerInitialized) {
@@ -363,8 +371,9 @@ const handler = async (event: RequestEvent) => {
 		// Only add body for non-GET requests
 		if (request.method !== 'GET' && request.body) {
 			requestInit.body = request.body;
-			// @ts-expect-error - duplex is required for streaming bodies but not in RequestInit type
-			(requestInit as any).duplex = 'half';
+			// 'duplex' is required for streaming bodies but not in RequestInit type
+			// Assign duplex property for streaming bodies (Node.js fetch polyfill)
+			(requestInit as RequestInit & { duplex?: string }).duplex = 'half';
 		}
 
 		const compatibleRequest = new Request(request.url.toString(), requestInit);

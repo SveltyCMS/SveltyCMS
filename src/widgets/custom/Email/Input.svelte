@@ -52,8 +52,8 @@
 		}
 	});
 
-	let safeValue = $derived(value?.[_language] ?? '');
-	let validationError = $derived(validationStore.getError(fieldName));
+	const safeValue = $derived(value?.[_language] ?? '');
+	const validationError = $derived(validationStore.getError(fieldName));
 	let debounceTimeout: number | undefined;
 	let inputElement = $state<HTMLInputElement | null>(null);
 	let isTouched = $state(false);

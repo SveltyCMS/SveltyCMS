@@ -36,9 +36,31 @@ const createUIStores = () => {
 	let screenSizeUnsubscribe: (() => void) | null = null;
 	const initialSize = screenSize.value;
 
+	let routeContext = $state({ isImageEditor: false });
+
+	function setRouteContext(context: { isImageEditor: boolean }) {
+		if (routeContext.isImageEditor !== context.isImageEditor) {
+			routeContext = context;
+			logger.debug('UIStore: Route context updated', context);
+			updateLayout();
+		}
+	}
+
 	// Tailored default state based on screen size and mode
 	// Note: Feature routes (e.g., Image Editor) explicitly override header/footer states locally.
 	const getDefaultState = (size: ScreenSize, isViewMode: boolean): UIState => {
+		// Tailored default state for the image editor route
+		if (routeContext.isImageEditor) {
+			return {
+				leftSidebar: 'hidden',
+				rightSidebar: 'hidden',
+				pageheader: 'full',
+				pagefooter: 'full',
+				header: 'hidden',
+				footer: 'hidden'
+			};
+		}
+
 		// Mobile behavior (<768px) - Always hide sidebars; keep page header/footer hidden by default
 		if (size === ScreenSize.XS || size === ScreenSize.SM) {
 			return {
@@ -294,7 +316,8 @@ const createUIStores = () => {
 		toggleUIElement,
 		updateLayout,
 		initialize,
-		destroy
+		destroy,
+		setRouteContext
 	};
 };
 
@@ -334,6 +357,7 @@ export const userPreferredState = {
 // Export functions
 export const toggleUIElement = uiStateManager.toggleUIElement;
 export const handleUILayoutToggle = uiStateManager.updateLayout;
+export const setRouteContext = uiStateManager.setRouteContext;
 
 // Auto-initialize (client-side only)
 if (typeof window !== 'undefined') {

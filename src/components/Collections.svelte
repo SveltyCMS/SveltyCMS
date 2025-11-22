@@ -84,8 +84,8 @@
 	// State management
 	let search = $state('');
 	let debouncedSearch = $state('');
-	let isLoading = $state(false);
-	let error = $state<string | null>(null);
+	const isLoading = $state(false);
+	const error = $state<string | null>(null);
 	let expandedNodes = $state<Set<string>>(new Set());
 	let isSearching = $state(false);
 

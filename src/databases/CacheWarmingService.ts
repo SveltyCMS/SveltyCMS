@@ -6,7 +6,8 @@
  * for high-traffic areas based on access patterns.
  */
 
-import { cacheService, CacheCategory } from './CacheService';
+import { cacheService } from './CacheService';
+import { CacheCategory } from './CacheCategory';
 import { logger } from '@utils/logger';
 
 /**

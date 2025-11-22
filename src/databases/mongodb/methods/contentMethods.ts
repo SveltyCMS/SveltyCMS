@@ -26,7 +26,8 @@ import type {
 	PaginationOptions
 } from '../../dbInterface';
 import { MongoCrudMethods } from './crudMethods';
-import { createDatabaseError, generateId, withCache, CacheCategory, invalidateCategoryCache } from './mongoDBUtils';
+import { createDatabaseError, generateId } from './mongoDBUtils';
+import { withCache, CacheCategory, invalidateCategoryCache } from './mongoDBCacheUtils';
 import { normalizeId } from './normalizeId';
 export { normalizeId } from './normalizeId';
 

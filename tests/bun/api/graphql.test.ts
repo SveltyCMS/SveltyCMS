@@ -6,46 +6,11 @@
  * for collections, users, and media.
  */
 
-// @ts-expect-error - bun:test is a runtime module provided by Bun
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
-import { cleanupTestDatabase, cleanupTestEnvironment, initializeTestEnvironment, testFixtures } from '../helpers/testSetup';
+import { prepareAuthenticatedContext, cleanupTestDatabase } from '../helpers/testSetup';
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
 
 const API_BASE_URL = getApiBaseUrl();
-
-/**
- * Helper function to create an admin user, log in, and return the auth token.
- */
-const loginAsAdminAndGetToken = async (): Promise<string> => {
-	// Create the admin user
-	await fetch(`${API_BASE_URL}/api/user/createUser`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(testFixtures.users.firstAdmin)
-	});
-
-	// Log in as the admin user
-	const loginResponse = await fetch(`${API_BASE_URL}/api/user/login`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			email: testFixtures.users.firstAdmin.email,
-			password: testFixtures.users.firstAdmin.password
-		})
-	});
-
-	if (loginResponse.status !== 200) {
-		throw new Error('Test setup failed: Could not log in as admin.');
-	}
-
-	const sessionCookie = loginResponse.headers.get('set-cookie');
-
-	if (!sessionCookie) {
-		throw new Error('Test setup failed: No session cookie returned.');
-	}
-
-	return sessionCookie;
-};
 
 /**
  * Helper to execute GraphQL queries
@@ -73,16 +38,14 @@ describe('GraphQL API Endpoint', () => {
 
 	beforeAll(async () => {
 		await waitForServer();
-		await initializeTestEnvironment();
 	});
 
 	afterAll(async () => {
-		await cleanupTestEnvironment();
+		await cleanupTestDatabase();
 	});
 
 	beforeEach(async () => {
-		await cleanupTestDatabase();
-		authCookie = await loginAsAdminAndGetToken();
+		authCookie = await prepareAuthenticatedContext();
 	});
 
 	describe('Authentication & Authorization', () => {

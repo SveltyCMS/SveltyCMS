@@ -56,7 +56,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	};
 
 	// Get user from page data
-	let user = $derived(page.data.user as User | undefined);
+	const user = $derived(page.data.user as User | undefined);
 
 	// Endpoint definitions
 	const ALL_ENDPOINTS: Endpoint[] = [
@@ -115,7 +115,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	];
 
 	// Filter endpoints based on user role
-	let endpoints = $derived(
+	const endpoints = $derived(
 		ALL_ENDPOINTS.filter((endpoint) => {
 			if (user?.role === 'admin') return true;
 			if (endpoint.url.path === '/collection') return false;
@@ -144,26 +144,26 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	let firstLine = $state<SVGLineElement | undefined>(undefined);
 	let firstCircle = $state<HTMLElement | undefined>(undefined);
 	let svg = $state<SVGElement | undefined>(undefined);
-	let circles = $state<(HTMLElement | undefined)[]>([]);
+	const circles = $state<(HTMLElement | undefined)[]>([]);
 
 	// Popup ID
 	const NAV_POPUP_ID = 'floatingNavTooltip';
 
 	// Calculate endpoint positions
-	let endpointsWithPos = $derived(
+	const endpointsWithPos = $derived(
 		endpoints.map((endpoint, index) => {
-			const angle = ((Math.PI * 2) / endpoints.length) * (index + 1.25);
-			const x = center.x + MENU_RADIUS * Math.cos(angle);
-			const y = center.y + MENU_RADIUS * Math.sin(angle);
-			return { ...endpoint, x, y, angle };
+			const ANGLE = ((Math.PI * 2) / endpoints.length) * (index + 1.25);
+			const X = center.x + MENU_RADIUS * Math.cos(ANGLE);
+			const Y = center.y + MENU_RADIUS * Math.sin(ANGLE);
+			return { ...endpoint, x: X, y: Y, angle: ANGLE };
 		})
 	);
 
 	// Helper functions
 	function getBasePath(pathname: string): string {
-		const params = Object.values(page.params);
-		const replaced = params.reduce((acc, param) => acc.replace(param, ''), pathname);
-		return params.length > 0 ? replaced : pathname;
+		const PARAMS = Object.values(page.params);
+		const REPLACED = PARAMS.reduce((acc, param) => acc.replace(param, ''), pathname);
+		return PARAMS.length > 0 ? REPLACED : pathname;
 	}
 
 	function isRightToLeft(): boolean {
@@ -184,12 +184,12 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		if (!browser) return;
 
 		try {
-			const navigationInfo = JSON.parse(localStorage.getItem('navigation') || '{}');
-			const key = getBasePath(page.url.pathname);
-			const saved = navigationInfo[key] as { x?: number; y?: number } | undefined;
+			const NAVIGATION_INFO = JSON.parse(localStorage.getItem('navigation') || '{}');
+			const KEY = getBasePath(page.url.pathname);
+			const SAVED = NAVIGATION_INFO[KEY] as { x?: number; y?: number } | undefined;
 
-			if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
-				buttonInfo = { x: saved.x, y: saved.y, radius: BUTTON_RADIUS };
+			if (SAVED && typeof SAVED.x === 'number' && typeof SAVED.y === 'number') {
+				buttonInfo = { x: SAVED.x, y: SAVED.y, radius: BUTTON_RADIUS };
 			} else {
 				buttonInfo = {
 					x: window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN),
@@ -210,10 +210,10 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		if (!browser) return;
 
 		try {
-			const navigationInfo = JSON.parse(localStorage.getItem('navigation') || '{}');
-			const key = getBasePath(page.url.pathname);
-			navigationInfo[key] = { x: buttonInfo.x, y: buttonInfo.y };
-			localStorage.setItem('navigation', JSON.stringify(navigationInfo));
+			const NAVIGATION_INFO = JSON.parse(localStorage.getItem('navigation') || '{}');
+			const KEY = getBasePath(page.url.pathname);
+			NAVIGATION_INFO[KEY] = { x: buttonInfo.x, y: buttonInfo.y };
+			localStorage.setItem('navigation', JSON.stringify(NAVIGATION_INFO));
 		} catch (error) {
 			logger.error('Failed to save position:', error);
 		}
@@ -222,13 +222,13 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	async function handleResize(): Promise<void> {
 		if (!browser) return;
 
-		const minX = BUTTON_RADIUS + EDGE_MARGIN;
-		const maxX = window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN);
-		const minY = BUTTON_RADIUS + EDGE_MARGIN;
-		const maxY = window.innerHeight - (BUTTON_RADIUS + EDGE_MARGIN);
+		const MIN_X = BUTTON_RADIUS + EDGE_MARGIN;
+		const MAX_X = window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN);
+		const MIN_Y = BUTTON_RADIUS + EDGE_MARGIN;
+		const MAX_Y = window.innerHeight - (BUTTON_RADIUS + EDGE_MARGIN);
 
-		buttonInfo.x = Math.min(Math.max(buttonInfo.x, minX), maxX);
-		buttonInfo.y = Math.min(Math.max(buttonInfo.y, minY), maxY);
+		buttonInfo.x = Math.min(Math.max(buttonInfo.x, MIN_X), MAX_X);
+		buttonInfo.y = Math.min(Math.max(buttonInfo.y, MIN_Y), MAX_Y);
 		center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 
 		if (firstLine && firstCircle) {
@@ -291,23 +291,23 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			node.setPointerCapture(e.pointerId);
 
 			node.onpointermove = (moveEvent) => {
-				const dx = moveEvent.clientX - startX;
-				const dy = moveEvent.clientY - startY;
-				const distance = Math.sqrt(dx * dx + dy * dy);
+				const DX = moveEvent.clientX - startX;
+				const DY = moveEvent.clientY - startY;
+				const DISTANCE = Math.sqrt(DX * DX + DY * DY);
 
-				if (!dragging && distance > DRAG_THRESHOLD) {
+				if (!dragging && DISTANCE > DRAG_THRESHOLD) {
 					dragging = true;
 				}
 
 				if (dragging) {
 					moved = true;
-					const offsetX = e.offsetX - node.offsetWidth / 2;
-					const offsetY = e.offsetY - node.offsetHeight / 2;
+					const OFFSET_X = e.offsetX - node.offsetWidth / 2;
+					const OFFSET_Y = e.offsetY - node.offsetHeight / 2;
 
 					buttonInfo = {
 						...buttonInfo,
-						x: moveEvent.clientX - offsetX,
-						y: moveEvent.clientY - offsetY
+						x: moveEvent.clientX - OFFSET_X,
+						y: moveEvent.clientY - OFFSET_Y
 					};
 
 					if (firstLine) {
@@ -328,12 +328,12 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			if (!moved) return;
 
 			// Snap to nearest edge
-			const distances = [buttonInfo.x, window.innerWidth - buttonInfo.x, buttonInfo.y, window.innerHeight - buttonInfo.y];
+			const DISTANCES = [buttonInfo.x, window.innerWidth - buttonInfo.x, buttonInfo.y, window.innerHeight - buttonInfo.y];
 
-			const nearestEdgeIndex = distances.indexOf(Math.min(...distances));
+			const NEAREST_EDGE_INDEX = DISTANCES.indexOf(Math.min(...DISTANCES));
 			let promise: Promise<void> = Promise.resolve();
 
-			switch (nearestEdgeIndex) {
+			switch (NEAREST_EDGE_INDEX) {
 				case 0: // Left edge
 					promise = motion([buttonInfo.x], [BUTTON_RADIUS + EDGE_MARGIN], motionMs, async (t) => {
 						buttonInfo.x = t[0];
@@ -371,14 +371,14 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 	function setDash(node: SVGElement): void {
 		let first = true;
-		for (const lineElement of node.children) {
-			const el = lineElement as SVGLineElement;
-			const totalLength = el.getTotalLength().toString();
-			el.style.strokeDasharray = totalLength;
-			el.style.strokeDashoffset = totalLength;
+		for (const LINE_ELEMENT of node.children) {
+			const EL = LINE_ELEMENT as SVGLineElement;
+			const TOTAL_LENGTH = EL.getTotalLength().toString();
+			EL.style.strokeDasharray = TOTAL_LENGTH;
+			EL.style.strokeDashoffset = TOTAL_LENGTH;
 			setTimeout(() => {
-				el.style.transition = first ? 'stroke-dashoffset 0.2s' : 'stroke-dashoffset 0.2s 0.2s';
-				el.style.strokeDashoffset = '0';
+				EL.style.transition = first ? 'stroke-dashoffset 0.2s' : 'stroke-dashoffset 0.2s 0.2s';
+				EL.style.strokeDashoffset = '0';
 				first = false;
 			}, 0);
 		}
@@ -388,17 +388,17 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		if (!svg) return;
 
 		let first = true;
-		for (const lineElement of svg.children) {
-			const el = lineElement as SVGLineElement;
-			el.style.transition = first ? 'stroke-dashoffset 0.2s 0.2s' : 'stroke-dashoffset 0.2s';
-			const totalLength = el.getTotalLength().toString();
-			el.style.strokeDasharray = totalLength;
-			el.style.strokeDashoffset = totalLength;
+		for (const LINE_ELEMENT of svg.children) {
+			const EL = LINE_ELEMENT as SVGLineElement;
+			EL.style.transition = first ? 'stroke-dashoffset 0.2s 0.2s' : 'stroke-dashoffset 0.2s';
+			const TOTAL_LENGTH = EL.getTotalLength().toString();
+			EL.style.strokeDasharray = TOTAL_LENGTH;
+			EL.style.strokeDashoffset = TOTAL_LENGTH;
 			first = false;
 		}
 
-		for (const circle of circles) {
-			if (circle) circle.style.display = 'none';
+		for (const CIRCLE of circles) {
+			if (CIRCLE) CIRCLE.style.display = 'none';
 		}
 	}
 
@@ -532,7 +532,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 {/if}
 
 <style lang="postcss">
-	@keyframes :global(showEndPoints) {
+	@keyframes showEndPoints {
 		from {
 			opacity: 0;
 			visibility: hidden;
@@ -541,5 +541,11 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			opacity: 1;
 			visibility: visible;
 		}
+	}
+
+	/* Make animation globally available */
+	:global(.animate-\[showEndPoints_0\.2s_0\.2s_forwards\]),
+	:global(.animate-\[showEndPoints_0\.2s_0\.4s_forwards\]) {
+		animation-name: showEndPoints;
 	}
 </style>

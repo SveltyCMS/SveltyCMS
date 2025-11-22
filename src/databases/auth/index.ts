@@ -85,6 +85,10 @@ export class Auth {
 		this.sessionStore = sessionStore;
 	}
 
+	public get authInterface(): DatabaseAdapter['auth'] {
+		return this.db.auth;
+	}
+
 	// Combined Performance-Optimized Methods (wrapper for db.auth methods)
 	async createUserAndSession(
 		userData: Partial<User>,
@@ -166,19 +170,10 @@ export class Auth {
 		// No caching - getUserByEmail is only used during login/registration
 		// Caching here adds complexity without significant performance benefit
 		const result = (await this.db.auth.getUserByEmail(criteria)) as unknown;
-		logger.debug('Auth.getUserByEmail - raw result from db.auth', {
-			result,
-			isObject: typeof result === 'object',
-			hasSuccess: result && typeof result === 'object' && 'success' in result,
-			resultType: typeof result
-		});
+
 		if (result && typeof result === 'object' && result !== null && 'success' in (result as Record<string, unknown>)) {
 			const r = result as DatabaseResult<User | null>;
-			logger.debug('Auth.getUserByEmail - unwrapping DatabaseResult', {
-				success: r.success,
-				dataPresent: r.success && 'data' in r,
-				dataType: r.success && 'data' in r ? typeof (r as { data: unknown }).data : 'N/A'
-			});
+
 			if (r.success === true) {
 				const userData = 'data' in r ? (r as { data: User | null }).data : null;
 				// No caching - not needed for login/registration flows
@@ -408,21 +403,12 @@ export class Auth {
 				return null;
 			}
 
-			logger.debug('Attempting password verification', {
-				email,
-				tenantId,
-				userId: user._id,
-				hasPassword: !!user.password,
-				passwordLength: user.password.length,
-				passwordStartsWith: user.password.substring(0, 10) + '...'
-			});
-
 			const isValid = await cryptoVerifyPassword(password, user.password);
 
 			logger.debug('Password verification result', { email, isValid });
 
 			if (!isValid) {
-				logger.warn('Password authentication failed', { email: email.replace(/(.{2}).*@(.*)/, '$1****@$2') });
+				logger.warn('Password authentication failed', { email });
 				return null;
 			}
 

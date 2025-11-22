@@ -38,10 +38,11 @@
 		logs: LogEntryDisplay[];
 		page: number;
 		total: number;
-		totalPages: number;
+		totalPages?: number;
+		hasMore?: boolean;
 	}
 
-	let {
+	const {
 		label = 'System Logs',
 		icon = 'mdi:file-document-outline',
 		widgetId = undefined,
@@ -220,7 +221,7 @@
 					rowsPerPage={logsPerPage}
 					rowsPerPageOptions={[10, 20, 50, 100]}
 					totalItems={fetchedData.total || 0}
-					pagesCount={fetchedData.totalPages || 1}
+					pagesCount={fetchedData.hasMore ? (fetchedData.page || 1) + 1 : fetchedData.page || 1}
 					{onUpdatePage}
 					{onUpdateRowsPerPage}
 				/>

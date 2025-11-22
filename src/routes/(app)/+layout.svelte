@@ -113,14 +113,14 @@
 	// PROPS & STATE
 	// ============================================================================
 
-	let { children, data }: Props = $props();
+	const { children, data }: Props = $props();
 
 	// Initialize global stores
 	setGlobalModalStore(getModalStore());
 	setGlobalToastStore(getToastStore());
 
 	// Component State
-	let loadError = $state<Error | null>(null);
+	const loadError = $state<Error | null>(null);
 	let mediaQuery: MediaQueryList | undefined;
 
 	// ============================================================================
@@ -198,9 +198,7 @@
 		}
 	}
 
-	/**
-	 * Global keyboard shortcuts handler
-	 */
+	// Global keyboard shortcuts handler
 	function handleKeyDown(event: KeyboardEvent): void {
 		// Alt+S: Toggle search
 		if (event.altKey && event.key === 's') {
@@ -209,9 +207,7 @@
 		}
 	}
 
-	/**
-	 * Initialize avatar from user data
-	 */
+	// Initialize avatar from user data
 	function initializeUserAvatar(user: User | null): void {
 		if (!user) {
 			avatarSrc.value = '/Default_User.svg';

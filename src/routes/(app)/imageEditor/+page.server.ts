@@ -31,13 +31,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		logger.trace(`User authenticated successfully for image editor: ${user._id}`);
 
 		// Check user permission for image editor/media editing using cached tenantRoles from locals
-		const hasImageEditorPermission =
-			isAdmin ||
-			tenantRoles.some((role) =>
-				role.permissions?.some(
-					(p) => (p.resource === 'media' && p.actions.includes('edit')) || (p.resource === 'media' && p.actions.includes('write'))
-				)
-			);
+		const hasImageEditorPermission = isAdmin || tenantRoles.some((role) => role.permissions?.some((p) => p === 'media:edit' || p === 'media:write'));
 
 		if (!hasImageEditorPermission) {
 			const message = `User ${user._id} does not have permission to access image editor`;

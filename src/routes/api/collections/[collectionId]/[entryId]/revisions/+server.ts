@@ -20,6 +20,9 @@ import { contentManager } from '@src/content/ContentManager';
 // System Logger
 import { logger } from '@utils/logger.server';
 
+// Database types
+import type { DatabaseId } from '@src/databases/dbInterface';
+
 // GET: Retrieves revision history for an entry
 export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const start = performance.now();
@@ -59,7 +62,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		const page = parseInt(url.searchParams.get('page') ?? '1', 10);
 		const limit = parseInt(url.searchParams.get('limit') ?? '10', 10); // Get revision history for the entry, scoped by tenant
 
-		const revisionResult = await dbAdapter.content.revisions.getHistory(params.entryId as unknown as import('@src/databases/types').DatabaseId, {
+		const revisionResult = await dbAdapter.content.revisions.getHistory(params.entryId as unknown as DatabaseId, {
 			page,
 			pageSize: limit
 		});
@@ -86,7 +89,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 				total: paginatedResult.total,
 				page: paginatedResult.page,
 				limit: paginatedResult.pageSize,
-				totalPages: paginatedResult.totalPages
+				totalPages: paginatedResult.total ? Math.ceil(paginatedResult.total / paginatedResult.pageSize) : undefined
 			},
 			performance: { duration }
 		});

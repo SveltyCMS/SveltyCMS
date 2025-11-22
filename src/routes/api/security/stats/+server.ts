@@ -22,14 +22,14 @@ import { logger } from '@utils/logger.server';
  * GET /api/security/stats
  * Returns comprehensive security statistics for dashboard monitoring.
  */
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET: RequestHandler = async ({ locals, getClientAddress }) => {
 	try {
 		// Authorization check - admin only
 		if (!locals.user || !hasApiPermission(locals.user.role, 'security')) {
 			logger.warn(`Unauthorized security stats access attempt`, {
 				userId: locals.user?._id,
 				role: locals.user?.role,
-				ip: locals.clientIp
+				ip: getClientAddress()
 			});
 			return json({ error: 'Unauthorized - Admin access required' }, { status: 403 });
 		}

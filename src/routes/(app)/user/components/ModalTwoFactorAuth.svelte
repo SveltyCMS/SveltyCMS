@@ -46,7 +46,7 @@ This component provides a user interface for managing 2FA settings:
 		user?: User;
 	}
 
-	let { parent, user }: Props = $props();
+	const { parent, user }: Props = $props();
 
 	const modalStore = getModalStore();
 
@@ -57,7 +57,7 @@ This component provides a user interface for managing 2FA settings:
 	let verificationCode = $state('');
 
 	// Check if 2FA is enabled
-	let is2FAEnabled = $derived(user?.is2FAEnabled || false);
+	const is2FAEnabled = $derived(user?.is2FAEnabled || false);
 
 	// Load setup data when modal opens if 2FA is not enabled
 	$effect(() => {

@@ -239,3 +239,25 @@ export function formatDateString(
 		}
 	}
 }
+ /* Utility to parse ISO 8601 duration (e.g., "PT3M20S") into a human-readable format (e.g., "3:20").
+ * This function can be used in the Display component if the duration is stored in ISO format.
+ */
+export function formatIsoDuration(isoDuration: string | undefined): string | undefined {
+	if (!isoDuration) return undefined;
+
+	const regex = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/;
+	const matches = isoDuration.match(regex);
+
+	if (!matches) return undefined;
+
+	const hours = parseInt(matches[1] || '0', 10);
+	const minutes = parseInt(matches[2] || '0', 10);
+	const seconds = parseInt(matches[3] || '0', 10);
+
+	const parts = [];
+	if (hours > 0) parts.push(String(hours).padStart(2, '0'));
+	parts.push(String(minutes).padStart(2, '0'));
+	parts.push(String(seconds).padStart(2, '0'));
+
+	return parts.join(':');
+}

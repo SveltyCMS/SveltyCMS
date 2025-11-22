@@ -1,5 +1,5 @@
 /**
- * @file src/services/MediaService.ts
+ * @file src/services/MediaService.server.ts
  * @description Provides a service class for media operations.
  */
 
@@ -13,8 +13,9 @@ import type { DatabaseId, IDBAdapter, MediaItem } from '@src/databases/dbInterfa
 // Media
 import type { MediaAccess, MediaBase, MediaType, ResizedImage } from '@src/utils/media/mediaModels'; // Added ResizedImage
 import { MediaTypeEnum } from '@src/utils/media/mediaModels';
-import { getSanitizedFileName, hashFileContent } from '@src/utils/media/mediaProcessing';
-import { saveFileToDisk, saveResizedImages } from '@src/utils/media/mediaStorage';
+import { getSanitizedFileName } from '@src/utils/media/mediaProcessing';
+import { hashFileContent } from '@src/utils/media/mediaProcessing.server';
+import { saveFileToDisk, saveResizedImages } from '@src/utils/media/mediaStorage.server';
 // IMPORT SERVER-SIDE VALIDATION
 import { validateMediaFileServer } from '@src/utils/media/mediaUtils';
 
@@ -26,6 +27,9 @@ import { logger } from '@utils/logger.server';
 
 // Media Cache
 import { cacheService } from '@src/databases/CacheService';
+
+// Types
+import type { BaseEntity, ISODateString } from '@src/content/types';
 
 // Extended MediaBase interface to include thumbnails
 interface MediaBaseWithThumbnails extends MediaBase {
@@ -176,8 +180,8 @@ export class MediaService {
 				mimeType: mimeType,
 				size: file.size,
 				user: userId,
-				createdAt: new Date().toISOString(),
-				updatedAt: new Date().toISOString(),
+				createdAt: new Date().toISOString() as ISODateString,
+				updatedAt: new Date().toISOString() as ISODateString,
 				metadata: {
 					originalFilename: file.name,
 					uploadedBy: userId,
@@ -188,7 +192,7 @@ export class MediaService {
 					{
 						version: 1,
 						url: url,
-						createdAt: new Date().toISOString(),
+						createdAt: new Date().toISOString() as ISODateString,
 						createdBy: userId
 					}
 				],
@@ -235,12 +239,12 @@ export class MediaService {
 
 			logger.info('Media processing completed successfully', {
 				mediaId,
-				originalUrl: (savedMedia as MediaItem).url,
+				originalUrl: (savedMedia as MediaItem).path,
 				thumbnails: (savedMedia as MediaItem).thumbnails ? Object.keys((savedMedia as MediaItem).thumbnails) : [],
 				totalProcessingTime: performance.now() - startTime
 			});
 
-			return savedMedia as MediaType;
+			return savedMedia as unknown as MediaType;
 		} catch (err) {
 			const message = `Error saving media: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, {
@@ -374,7 +378,7 @@ export class MediaService {
 			// Cache the media for future requests
 			await cacheService.set(`media:${id}`, media, 3600);
 
-			return media as MediaType;
+			return media as unknown as MediaType;
 		} catch (err) {
 			const message = `Error getting media: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { error: err });
@@ -431,7 +435,7 @@ export class MediaService {
 				throw totalResult.error;
 			}
 
-			return { media: mediaResult.data as MediaType[], total: totalResult.data };
+			return { media: mediaResult.data as unknown as MediaType[], total: totalResult.data };
 		} catch (err) {
 			const message = `Error searching media: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { error: err });
@@ -457,7 +461,7 @@ export class MediaService {
 				throw totalResult.error;
 			}
 
-			return { media: mediaResult.data as MediaType[], total: totalResult.data };
+			return { media: mediaResult.data as unknown as MediaType[], total: totalResult.data };
 		} catch (err) {
 			const message = `Error listing media: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { error: err });

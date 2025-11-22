@@ -31,7 +31,7 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 		format?: 'short' | 'medium' | 'long' | 'full';
 	}
 
-	let { value, format = 'medium' }: Props = $props();
+	const { value, format = 'medium' }: Props = $props();
 
 	// Get the user's preferred language from the browser
 	const userLocale = $derived(typeof document !== 'undefined' ? document.documentElement.lang || 'en-US' : 'en-US');

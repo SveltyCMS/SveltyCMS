@@ -16,7 +16,7 @@
  */
 
 import type { ContentNode, Schema, ContentNodeOperation, DatabaseId } from '@src/content/types';
-import { logger } from '@utils/logger'; // Server-only file
+import { logger } from '@src/utils/logger.server'; // Server-only file
 import { dateToISODateString } from '@utils/dateUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { generateCategoryNodesFromPaths, processModule } from './utils';
@@ -25,8 +25,9 @@ import { CacheCategory } from '@src/databases/CacheCategory'; // ✅ Safe for cl
 // ✅ Server-only imports - lazy loaded to prevent client-side bundling
 const getCacheService = async () => (await import('@src/databases/CacheService')).cacheService;
 const getRedisTTL = async () => (await import('@src/databases/CacheService')).REDIS_TTL_S;
-const invalidateCategoryCache = async (...args: Parameters<typeof import('@src/databases/mongodb/methods/mongoDBUtils').invalidateCategoryCache>) =>
-	(await import('@src/databases/mongodb/methods/mongoDBUtils')).invalidateCategoryCache(...args);
+const invalidateCategoryCache = async (
+	...args: Parameters<typeof import('@src/databases/mongodb/methods/mongoDBCacheUtils').invalidateCategoryCache>
+) => (await import('@src/databases/mongodb/methods/mongoDBCacheUtils')).invalidateCategoryCache(...args);
 const normalizeId = (id: string) => id.replace(/-/g, ''); // Inline function to avoid import
 
 // --- Server-Side Dynamic Imports ---

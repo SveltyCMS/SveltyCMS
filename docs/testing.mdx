@@ -1,0 +1,25 @@
+# Testing and Quality Assurance
+
+This document outlines the testing strategies and tools used in this project to maintain code quality.
+
+## Bundle Size Analysis
+
+To monitor the application's bundle size and ensure it stays within reasonable limits, we use a custom script that analyzes the build output. This is particularly useful for preventing performance regressions and can be integrated into CI/CD pipelines.
+
+### How to Run
+
+To run the bundle size analysis, use the following command after building the project:
+
+```bash
+bun run build:stats
+```
+
+This command will:
+1.  Build the application if it hasn't been built already.
+2.  Analyze all JavaScript chunks in the final build output.
+3.  Print a detailed report to the console, including:
+    -   Size of each chunk (raw, gzipped, and brotli).
+    -   Comparison with the previous build's size.
+    -   Warnings or errors if any chunk exceeds the defined budget.
+4.  Generate a `bundle-report.json` file in the root directory with a summary of the analysis for CI consumption.
+5.  Exit with a non-zero exit code if a size budget is exceeded, which can be used to fail a CI pipeline.

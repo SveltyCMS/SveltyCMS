@@ -19,7 +19,7 @@ import { logger } from '@utils/logger';
 import mongoose, { Schema as MongooseSchema, type Model } from 'mongoose';
 import type { CollectionModel } from '../../dbInterface';
 import type { Schema } from '@src/content/types';
-import { withCache, CacheCategory, invalidateCollectionCache } from './mongoDBUtils';
+import { withCache, CacheCategory, invalidateCollectionCache } from './mongoDBCacheUtils';
 import { nowISODateString } from '@utils/dateUtils';
 
 /**

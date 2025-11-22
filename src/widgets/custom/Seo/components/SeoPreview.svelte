@@ -28,7 +28,7 @@
 		ontogglePreview?: () => void;
 	}
 
-	let { title, description, hostUrl, SeoPreviewToggle, ontogglePreview = () => {} }: Props = $props();
+	const { title, description, hostUrl, SeoPreviewToggle, ontogglePreview = () => {} }: Props = $props();
 
 	function handleTogglePreview() {
 		ontogglePreview();

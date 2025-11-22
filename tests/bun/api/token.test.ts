@@ -6,65 +6,26 @@
  * ensuring that all operations are correctly protected by admin authentication.
  */
 
-// @ts-expect-error - bun:test is a runtime module provided by Bun
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
-import { cleanupTestDatabase, cleanupTestEnvironment, initializeTestEnvironment, testFixtures } from '../helpers/testSetup';
+import { prepareAuthenticatedContext, cleanupTestDatabase, testFixtures } from '../helpers/testSetup';
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
 
 const API_BASE_URL = getApiBaseUrl();
 
-/**
- * Helper function to create an admin user, log in, and return the auth token.
- * @returns {Promise<string>} The authorization bearer token.
- */
-const loginAsAdminAndGetToken = async (): Promise<string> => {
-	// Create the admin user
-	await fetch(`${API_BASE_URL}/api/user/createUser`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(testFixtures.users.firstAdmin)
-	});
-
-	// Log in as the admin user
-	const loginResponse = await fetch(`${API_BASE_URL}/api/user/login`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			email: testFixtures.users.firstAdmin.email,
-			password: testFixtures.users.firstAdmin.password
-		})
-	});
-
-	if (loginResponse.status !== 200) {
-		throw new Error('Test setup failed: Could not log in as admin.');
-	}
-
-	const loginResult = await loginResponse.json();
-	const token = loginResult.data?.token;
-
-	if (!token) {
-		throw new Error('Test setup failed: Auth token was not found in login response.');
-	}
-
-	return token;
-};
-
 describe('Token API Endpoints', () => {
-	let authToken: string;
+	let authCookie: string;
 
 	beforeAll(async () => {
-		await waitForServer(); // Wait for SvelteKit server to be ready
-		await initializeTestEnvironment();
+		await waitForServer();
 	});
 
 	afterAll(async () => {
-		await cleanupTestEnvironment();
+		await cleanupTestDatabase();
 	});
 
-	// Before each test, clean the DB and get a fresh admin token.
+	// Before each test, clean the DB and get a fresh admin session
 	beforeEach(async () => {
-		await cleanupTestDatabase();
-		authToken = await loginAsAdminAndGetToken();
+		authCookie = await prepareAuthenticatedContext();
 	});
 
 	describe('POST /api/token/createToken', () => {
@@ -73,10 +34,10 @@ describe('Token API Endpoints', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
+					Cookie: authCookie
 				},
 				body: JSON.stringify({
-					email: testFixtures.users.secondUser.email,
+					email: testFixtures.users.editor.email,
 					role: 'user',
 					expiresIn: '2 days'
 				})
@@ -101,7 +62,7 @@ describe('Token API Endpoints', () => {
 		it('should reject token creation for an invalid email format', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/token/createToken`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+				headers: { 'Content-Type': 'application/json', Cookie: authCookie },
 				body: JSON.stringify({ email: 'invalid-email', role: 'user' })
 			});
 
@@ -116,7 +77,7 @@ describe('Token API Endpoints', () => {
 		beforeEach(async () => {
 			const createResponse = await fetch(`${API_BASE_URL}/api/token/createToken`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+				headers: { 'Content-Type': 'application/json', Cookie: authCookie },
 				body: JSON.stringify({ email: testFixtures.users.secondUser.email, role: 'user', expiresIn: '2 days' })
 			});
 			const createResult = await createResponse.json();
@@ -143,7 +104,7 @@ describe('Token API Endpoints', () => {
 			it('should delete a token with admin authentication', async () => {
 				const response = await fetch(`${API_BASE_URL}/api/token/${invitationToken}`, {
 					method: 'DELETE',
-					headers: { Authorization: `Bearer ${authToken}` }
+					headers: { Cookie: authCookie }
 				});
 				expect(response.status).toBe(200);
 
@@ -166,12 +127,12 @@ describe('Token API Endpoints', () => {
 			// Create a token to ensure the list is not empty
 			await fetch(`${API_BASE_URL}/api/token/createToken`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+				headers: { 'Content-Type': 'application/json', Cookie: authCookie },
 				body: JSON.stringify({ email: 'user1@test.com', role: 'user' })
 			});
 
 			const response = await fetch(`${API_BASE_URL}/api/token`, {
-				headers: { Authorization: `Bearer ${authToken}` }
+				headers: { Cookie: authCookie }
 			});
 
 			const result = await response.json();
@@ -189,7 +150,7 @@ describe('Token API Endpoints', () => {
 		it('should handle an empty token list correctly', async () => {
 			// No tokens are created in this test, so the list should be empty
 			const response = await fetch(`${API_BASE_URL}/api/token`, {
-				headers: { Authorization: `Bearer ${authToken}` }
+				headers: { Cookie: authCookie }
 			});
 
 			const result = await response.json();
@@ -203,7 +164,7 @@ describe('Token API Endpoints', () => {
 	describe('GET /api/getTokensProvided', () => {
 		it('should get tokens provided info with admin authentication', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/getTokensProvided`, {
-				headers: { Authorization: `Bearer ${authToken}` }
+				headers: { Cookie: authCookie }
 			});
 
 			const result = await response.json();

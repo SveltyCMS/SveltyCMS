@@ -20,7 +20,7 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 		iconSize?: number;
 	}
 
-	let { showTooltip = true, tooltipPlacement = 'bottom', buttonClass = 'variant-ghost btn-icon', iconSize = 22 }: Props = $props();
+	const { showTooltip = true, tooltipPlacement = 'bottom', buttonClass = 'variant-ghost btn-icon', iconSize = 22 }: Props = $props();
 
 	// Theme toggle tooltip settings
 	const themeToggleTooltip: PopupSettings = {

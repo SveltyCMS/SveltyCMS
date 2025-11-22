@@ -1,8 +1,8 @@
 // src/routes/(app)/imageEditor/widgets/Crop/cropMath.ts
-import type { Image as KonvaImage, Group as KonvaGroup } from 'konva';
+import Konva from 'konva';
 
 /** Convert a client rect in stage space into image-local pixel rect */
-export function stageRectToImageRect(rect: { x: number; y: number; width: number; height: number }, imageNode: KonvaImage, imageGroup: KonvaGroup) {
+export function stageRectToImageRect(rect: { x: number; y: number; width: number; height: number }, imageNode: Konva.Image, imageGroup: Konva.Group) {
 	const containerAbs = imageGroup.getAbsoluteTransform();
 	const inv = containerAbs.copy().invert();
 	const topLeft = inv.point({ x: rect.x, y: rect.y });

@@ -27,7 +27,7 @@ Renders: "Option Two" (looks up label from field.options)
 	import type { FieldType } from './';
 	import type { RadioProps } from './types';
 
-	let { field, value }: { field: FieldType & RadioProps; value: string | number | null | undefined } = $props();
+	const { field, value }: { field: FieldType & RadioProps; value: string | number | null | undefined } = $props();
 
 	// Find the label that corresponds to the stored value.
 	const displayLabel = $derived.by(() => {

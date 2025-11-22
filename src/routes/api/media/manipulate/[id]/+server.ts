@@ -6,7 +6,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { dbAdapter } from '@src/databases/db';
-import { MediaService } from '@src/services/MediaService';
+import { MediaService } from '@src/services/MediaService.server';
 import { logger } from '@utils/logger.server';
 
 // Helper function to get MediaService instance
@@ -49,7 +49,7 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 		await mediaService.updateMedia(id, manipulations);
 
 		// Fetch the updated media to return
-		const updatedMedia = await mediaService.getMediaById(id);
+		const updatedMedia = await mediaService.getMedia(id, []);
 
 		return json({
 			success: true,

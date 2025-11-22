@@ -43,7 +43,7 @@
 
 	// Lazy loading state for widgets
 	let loadedWidgets = $state<Map<string, any>>(new Map());
-	let widgetObservers = new Map<string, IntersectionObserver>();
+	const widgetObservers = new Map<string, IntersectionObserver>();
 
 	let showImportExport = $state(false);
 

@@ -1,5 +1,8 @@
 # .github/workflows/auto-release.yaml
 # This workflow uses semantic-release to automatically publish new versions of your package to GitHub based on commit messages.
+#
+# CURRENT: Tests run against MongoDB only before release
+# FUTURE: Will test against multiple databases (MongoDB, PostgreSQL, MariaDB, MySQL) before allowing release
 name: Semantic Release
 
 # Triggers the workflow ONLY when a push happens to the main or next branch.

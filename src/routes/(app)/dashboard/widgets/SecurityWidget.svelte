@@ -45,7 +45,7 @@ and automated response visualization for enterprise security operations.
 	const toastStore = getToastStore();
 
 	// Props
-	let {
+	const {
 		label = 'Security Monitor',
 		theme = 'light',
 		icon = 'mdi:shield-alert',
@@ -123,9 +123,9 @@ and automated response visualization for enterprise security operations.
 	let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
 	// Security status calculation - using $derived correctly
-	let overallThreatLevel = $derived(calculateOverallThreatLevel(securityStats));
-	let threatColor = $derived(getThreatColor(overallThreatLevel));
-	let statusIcon = $derived(getThreatIcon(overallThreatLevel));
+	const overallThreatLevel = $derived(calculateOverallThreatLevel(securityStats));
+	const threatColor = $derived(getThreatColor(overallThreatLevel));
+	const statusIcon = $derived(getThreatIcon(overallThreatLevel));
 
 	function calculateOverallThreatLevel(stats: SecurityStats): 'safe' | 'low' | 'medium' | 'high' | 'critical' {
 		const { threatLevelDistribution, activeIncidents } = stats;

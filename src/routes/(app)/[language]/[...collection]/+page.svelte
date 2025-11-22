@@ -48,14 +48,14 @@
 		contentLanguage: string;
 	}
 
-	let { data }: { data: PageData } = $props();
+	const { data }: { data: PageData } = $props();
 
 	// Use $derived for reactivity from server-loaded data
-	let collectionSchema = $derived(data?.collectionSchema);
-	let entries = $derived(data?.entries || []);
-	let pagination = $derived(data?.pagination || { currentPage: 1, pageSize: 10, totalItems: 0, pagesCount: 1 });
-	let revisions = $derived(data?.revisions || []);
-	let serverContentLanguage = $derived(data?.contentLanguage);
+	const collectionSchema = $derived(data?.collectionSchema);
+	const entries = $derived(data?.entries || []);
+	const pagination = $derived(data?.pagination || { currentPage: 1, pageSize: 10, totalItems: 0, pagesCount: 1 });
+	const revisions = $derived(data?.revisions || []);
+	const serverContentLanguage = $derived(data?.contentLanguage);
 
 	// Track initial collectionValue to detect changes
 	let initialCollectionValue = $state<string>('');

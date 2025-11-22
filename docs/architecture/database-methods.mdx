@@ -266,6 +266,7 @@ Each method module has a single, well-defined responsibility:
 | **systemMethods**              | System preferences and settings     |
 | **systemVirtualFolderMethods** | Virtual folder hierarchy            |
 | **mongoDBUtils**               | Shared utilities and error handling |
+| **mongoDBCacheUtils**          | Caching utilities                   |
 
 ### 3. Dependency Injection
 
@@ -1036,7 +1037,7 @@ const exists = await folderMethods.exists('/documents');
 
 ### 10. MongoDB Utilities (`mongoDBUtils.ts`)
 
-**Purpose:** Shared utilities for database operations
+**Purpose:** Shared utilities for database operations (Pure functions, no dependencies on CacheService)
 
 **Exports:**
 
@@ -1055,6 +1056,14 @@ export function generateId(): string;
 ```
 
 Generates MongoDB-compatible ObjectId strings.
+
+---
+
+### 11. MongoDB Cache Utilities (`mongoDBCacheUtils.ts`)
+
+**Purpose:** Caching utilities for database operations. Separated from `mongoDBUtils` to prevent circular dependencies.
+
+**Exports:**
 
 #### Caching
 
@@ -1086,6 +1095,8 @@ export interface CacheWrapperOptions {
 **Usage:**
 
 ```typescript
+import { withCache, invalidateCategoryCache } from './mongoDBCacheUtils';
+
 // Cached database query
 const result = await withCache(
 	'users:active',

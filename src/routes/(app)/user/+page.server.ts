@@ -8,7 +8,7 @@
  *
  * Features:
  * - User and role information retrieval from event.locals
- * - Form handling with Superforms
+ * - Form handling
  * - Error logging and handling
  *
  * Usage:
@@ -22,11 +22,6 @@ import type { PageServerLoad } from './$types';
 import { auth } from '@src/databases/db';
 import type { Role, User } from '@src/databases/auth/types';
 import type { PermissionConfig } from '@src/databases/auth/permissions';
-
-// Superforms
-import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
-import { valibot } from 'sveltekit-superforms/adapters';
-import { superValidate } from 'sveltekit-superforms/server';
 
 // System Logger
 import { getUntypedSetting } from '@src/services/settingsService';
@@ -42,14 +37,11 @@ export const load: PageServerLoad = async (event) => {
 		// If user or roles are missing, log details and return fallback response
 		if (!user) {
 			logger.warn('User object missing in event.locals. Returning fallback response.', {
-				session: event.locals.session ?? null,
 				request: event.request.url
 			});
 			return {
 				user: null,
 				roles: [],
-				addUserForm: await superValidate(event, valibot(addUserTokenSchema)),
-				changePasswordForm: await superValidate(event, valibot(changePasswordSchema)),
 				isFirstUser: false,
 				is2FAEnabledGlobal: Boolean(getUntypedSetting('USE_2FA')),
 				manageUsersPermissionConfig: {
@@ -73,7 +65,7 @@ export const load: PageServerLoad = async (event) => {
 		// Always fetch fresh user data from database to ensure we have the latest changes
 		// This is especially important after profile updates
 		let freshUser: User | null = null;
-		if (user?._id) {
+		if (user?._id && auth) {
 			freshUser = await auth.getUserById(user._id.toString());
 			if (freshUser) {
 				logger.debug('Fresh user data fetched for user page', {
@@ -88,12 +80,6 @@ export const load: PageServerLoad = async (event) => {
 		if (!freshUser) {
 			freshUser = user;
 		}
-
-		// Validate forms using SuperForms in parallel (non-blocking)
-		const [addUserForm, changePasswordForm] = await Promise.all([
-			superValidate(event, valibot(addUserTokenSchema)),
-			superValidate(event, valibot(changePasswordSchema))
-		]);
 
 		// Prepare user object for return, ensuring _id is a string and including admin status
 		const safeUser = freshUser
@@ -121,9 +107,10 @@ export const load: PageServerLoad = async (event) => {
 		// Provide manageUsersPermissionConfig to the client
 		const manageUsersPermissionConfig: PermissionConfig = {
 			contextId: 'config/userManagement',
-			requiredRole: 'admin',
 			action: 'manage',
-			contextType: 'system'
+			contextType: 'system',
+			name: 'User Management',
+			description: 'Manage user accounts and roles'
 		};
 
 		// Return data to the client
@@ -133,8 +120,6 @@ export const load: PageServerLoad = async (event) => {
 				...role,
 				_id: role._id.toString()
 			})),
-			addUserForm,
-			changePasswordForm,
 			isFirstUser,
 			is2FAEnabledGlobal: Boolean(getUntypedSetting('USE_2FA')),
 			manageUsersPermissionConfig,
@@ -149,8 +134,6 @@ export const load: PageServerLoad = async (event) => {
 		return {
 			user: null,
 			roles: [],
-			addUserForm: null,
-			changePasswordForm: null,
 			isFirstUser: false,
 			is2FAEnabledGlobal: false,
 			manageUsersPermissionConfig: {

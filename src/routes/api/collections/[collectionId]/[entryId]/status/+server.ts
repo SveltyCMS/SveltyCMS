@@ -27,6 +27,7 @@ const normalizeCollectionName = (collectionId: string): string => {
 
 // System Logger
 import { logger } from '@utils/logger.server';
+import type { BaseEntity, DatabaseId } from '@src/databases/dbInterface';
 
 // PATCH: Updates entry status
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
@@ -98,7 +99,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 				throw error(403, 'Forbidden: One or more entries do not belong to your tenant or do not exist.');
 			}
 
-			const result = await dbAdapter.crud.updateMany(normalizedCollectionId, query as any, updateData);
+			const result = await dbAdapter.crud.updateMany(normalizedCollectionId, query as any, updateData as Partial<BaseEntity>);
 			if (result.success) {
 				results = entries.map((entryId) => ({ entryId, success: true }));
 			} else {
@@ -117,11 +118,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 				throw error(404, 'Entry not found or access denied');
 			}
 
-			const result = await dbAdapter.crud.update(
-				normalizedCollectionId,
-				params.entryId as unknown as import('@src/databases/types').DatabaseId,
-				updateData
-			);
+			const result = await dbAdapter.crud.update(normalizedCollectionId, params.entryId as DatabaseId, updateData as Partial<BaseEntity>);
 
 			if (!result.success) {
 				throw error(500, result.error.message);

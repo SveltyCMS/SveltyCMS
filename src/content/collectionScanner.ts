@@ -22,77 +22,103 @@
  */
 
 import { logger } from '@utils/logger';
-import * as fs from 'node:fs/promises';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { processModule } from './utils';
 import type { Schema } from './types';
 
-// Recursively scans a directory for .js files
+/**
+ * Recursively scans a directory for .js files.
+ * Uses path.join for cross-platform compatibility.
+ */
 async function recursivelyGetFiles(dir: string): Promise<string[]> {
 	const entries = await fs.readdir(dir, { withFileTypes: true });
+
 	const files = await Promise.all(
 		entries.map(async (entry) => {
-			const fullPath = `${dir}/${entry.name}`;
+			const fullPath = path.join(dir, entry.name);
+
 			if (entry.isDirectory()) {
 				return recursivelyGetFiles(fullPath);
-			} else {
+			} else if (entry.isFile() && entry.name.endsWith('.js')) {
 				return [fullPath];
 			}
+			return [];
 		})
 	);
+
 	return files.flat();
 }
 
-// Extracts a clean path from a file path for content structure
-function extractPathFromFilePath(filePath: string): string {
-	const compiledDir = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
-	const withoutCompiledDir = filePath.replace(new RegExp(`^${compiledDir}/?`), '');
-	const withoutExtension = withoutCompiledDir.replace(/\.js$/, '');
-	return withoutExtension.replace(/\\/g, '/');
+/**
+ * Extracts a clean content path relative to the collections folder.
+ * Ensures the result always uses forward slashes '/' for database consistency.
+ */
+function extractCollectionPath(fullPath: string, baseDir: string): string {
+	// Get relative path: e.g., "subfolder/myCollection.js" or "subfolder\myCollection.js"
+	const relative = path.relative(baseDir, fullPath);
+
+	// Remove extension
+	const withoutExt = relative.replace(/\.js$/, '');
+
+	// Normalize separators to forward slashes (essential for DB consistency across OS)
+	return withoutExt.split(path.sep).join('/');
 }
 
 /**
- * Scans the compiledCollections directory and returns all collection schemas
- * This is a standalone version that doesn't require ContentManager or dbAdapter
+ * Scans the compiledCollections directory and returns all collection schemas.
+ * This is a standalone version that doesn't require ContentManager or dbAdapter.
  *
  * @returns Array of collection schemas found in the filesystem
  */
 export async function scanCompiledCollections(): Promise<Schema[]> {
-	const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
+	const envDir = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
+
+	// Resolve to absolute path to ensure we look in the project root
+	const compiledDirectoryPath = path.resolve(process.cwd(), envDir);
 
 	try {
 		await fs.access(compiledDirectoryPath);
 	} catch {
-		logger.trace(`Compiled collections directory not found: ${compiledDirectoryPath}. Assuming fresh start.`);
+		logger.trace(`Compiled collections directory not found at: ${compiledDirectoryPath}. Assuming fresh start.`);
 		return [];
 	}
 
+	// Get only relevant JS files
 	const files = await recursivelyGetFiles(compiledDirectoryPath);
-	const schemaPromises = files
-		.filter((file) => file.endsWith('.js'))
-		.map(async (filePath) => {
-			try {
-				const content = await fs.readFile(filePath, 'utf-8');
-				const moduleData = await processModule(content);
-				if (!moduleData?.schema) return null;
 
-				const schema = moduleData.schema as Schema;
-				const path = extractPathFromFilePath(filePath);
-				const fileName = filePath.split('/').pop()?.replace('.js', '') ?? 'unknown';
+	// Process files in parallel
+	const schemaPromises: Promise<Schema | null>[] = files.map(async (filePath) => {
+		try {
+			const content = await fs.readFile(filePath, 'utf-8');
+			const moduleData = await processModule(content);
 
-				return {
-					...schema,
-					_id: schema._id!, // The _id from the file is the source of truth
-					path: path,
-					name: schema.name || fileName,
-					tenantId: schema.tenantId ?? undefined
-				};
-			} catch (error) {
-				logger.warn(`Could not process collection file: ${filePath}`, error);
-				return null;
-			}
-		});
+			if (!moduleData?.schema) return null;
 
-	const schemas = (await Promise.all(schemaPromises)).filter((s): s is NonNullable<typeof s> => !!s);
+			const schema = moduleData.schema as Schema;
+
+			// Generate clean path relative to the root collection folder
+			const collectionPath = extractCollectionPath(filePath, compiledDirectoryPath);
+
+			// Use file name as fallback name if schema doesn't provide one
+			const fileName = path.basename(filePath, '.js');
+
+			return {
+				...schema,
+				_id: schema._id!, // The _id from the file is the source of truth
+				path: collectionPath, // Directory structure determines path
+				name: schema.name || fileName,
+				tenantId: schema.tenantId ?? undefined
+			} as Schema;
+		} catch (error) {
+			logger.warn(`Could not process collection file: ${filePath}`, error);
+			return null;
+		}
+	});
+
+	const results = await Promise.all(schemaPromises);
+	const schemas = results.filter((s): s is Schema => s !== null);
+
 	logger.trace(`Scanned ${schemas.length} collection schemas from filesystem.`);
 	return schemas;
 }

@@ -38,7 +38,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	import Konva from 'konva';
 
 	// Props
-	let {
+	const {
 		imageFile = null,
 		initialImageSrc = '',
 		mediaId = null,
@@ -64,7 +64,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	const storeState = imageEditorStore.state;
 
 	// Derive specific values for better reactivity tracking
-	let activeState = $derived(imageEditorStore.state.activeState);
+	const activeState = $derived(imageEditorStore.state.activeState);
 
 	// Responsive breakpoint detection
 	function checkResponsive() {
