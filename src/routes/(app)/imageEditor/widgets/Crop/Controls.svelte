@@ -96,45 +96,79 @@
 </div>
 
 <style lang="postcss">
-	@import "tailwindcss";
-	.crop-controls {
-		@apply flex w-full items-center gap-3 px-2;
-	}
-	.label {
-		@apply text-nowrap text-sm font-medium text-surface-700 dark:; color: var(--color-surface-200);
-	}
-	.divider {
-		@apply h-6 w-px bg-surface-300 dark:; background-color: var(--color-surface-600);
-	}
-	.divider-grow {
-		@apply flex-grow;
-	}
-	.btn-tool {
-		@apply flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-sm font-medium transition-colors;
-		@apply bg-surface-200 text-surface-700 dark: dark:; background-color: var(--color-surface-700); color: var(--color-surface-200);
-		min-width: 36px;
-	}
-	.btn-tool:hover {
-		@apply bg-surface-300 dark:; background-color: var(--color-surface-600);
-	}
-	.btn-apply {
-		@apply flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium text-white;
-		@apply bg-success-500 hover:; background-color: var(--color-success-600);
-	}
-	.segment-group {
-		@apply flex items-center rounded-lg bg-surface-200 p-0.5 dark:; background-color: var(--color-surface-700);
-	}
-	.segment-btn {
-		@apply rounded-md px-2 py-1 transition-colors;
-		@apply text-surface-500 dark:; color: var(--color-surface-400);
-	}
-	.segment-btn.aspect {
-		@apply px-3 text-xs font-medium;
-	}
-	.segment-btn:hover:not(.active) {
-		@apply text-surface-700 dark:; color: var(--color-surface-200);
-	}
-	.segment-btn.active {
-		@apply bg-white  shadow-sm dark:; background-color: var(--color-surface-900); color: var(--color-primary-600);
-	}
+@import "tailwindcss";
+.crop-controls {
+@apply flex w-full items-center gap-3 px-2;
+}
+.label {
+@apply text-nowrap text-sm font-medium;
+color: var(--color-surface-700);
+}
+:global(.dark) .label {
+color: var(--color-surface-200);
+}
+.divider {
+@apply h-6 w-px;
+background-color: var(--color-surface-300);
+}
+:global(.dark) .divider {
+background-color: var(--color-surface-600);
+}
+.divider-grow {
+@apply flex-grow;
+}
+.btn-tool {
+@apply flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-sm font-medium transition-colors;
+background-color: var(--color-surface-200);
+color: var(--color-surface-700);
+min-width: 36px;
+}
+:global(.dark) .btn-tool {
+background-color: var(--color-surface-700);
+color: var(--color-surface-200);
+}
+.btn-tool:hover {
+background-color: var(--color-surface-300);
+}
+:global(.dark) .btn-tool:hover {
+background-color: var(--color-surface-600);
+}
+.btn-apply {
+@apply flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium text-white;
+background-color: var(--color-success-500);
+}
+.btn-apply:hover {
+background-color: var(--color-success-600);
+}
+.segment-group {
+@apply flex items-center rounded-lg p-0.5;
+background-color: var(--color-surface-200);
+}
+:global(.dark) .segment-group {
+background-color: var(--color-surface-700);
+}
+.segment-btn {
+@apply rounded-md px-2 py-1 transition-colors;
+color: var(--color-surface-500);
+}
+:global(.dark) .segment-btn {
+color: var(--color-surface-400);
+}
+.segment-btn.aspect {
+@apply px-3 text-xs font-medium;
+}
+.segment-btn:hover:not(.active) {
+color: var(--color-surface-700);
+}
+:global(.dark) .segment-btn:hover:not(.active) {
+color: var(--color-surface-200);
+}
+.segment-btn.active {
+@apply bg-white shadow-sm;
+color: var(--color-primary-600);
+}
+:global(.dark) .segment-btn.active {
+background-color: var(--color-surface-900);
+color: var(--color-primary-600);
+}
 </style>
