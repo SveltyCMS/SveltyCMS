@@ -36,6 +36,14 @@
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { contentLanguage } from '@src/stores/store.svelte';
 
+	// Token system
+	import TokenPicker from '@components/TokenPicker.svelte';
+	import { getAvailableTokens } from '@src/services/token/TokenRegistry';
+	import type { TokenDefinition } from '@src/services/token/types';
+	import { collection } from '@src/stores/collectionStore.svelte';
+	import { collectionValue } from '@src/stores/collectionStore.svelte';
+	import { page } from '$app/state';
+
 	// Props
 	interface Props {
 		field: FieldType;
@@ -58,6 +66,29 @@
 
 	// SECURITY: Maximum input length to prevent ReDoS attacks
 	const MAX_INPUT_LENGTH = 100000; // 100KB
+
+	// Token picker state
+	let showTokenPicker = $state(false);
+	let availableTokens = $state<TokenDefinition[]>([]);
+	const user = $derived(page.data?.user);
+	const roles = $derived(page.data?.roles || []);
+	const currentCollection = $derived(collection.value);
+	const currentEntry = $derived(collectionValue.value as Record<string, unknown> | undefined);
+
+	// Load available tokens when token picker is enabled
+	$effect(() => {
+		if (field?.token && currentCollection) {
+			availableTokens = getAvailableTokens(
+				currentCollection,
+				user,
+				{},
+				currentEntry,
+				publicEnv as Record<string, unknown>,
+				roles,
+				field
+			);
+		}
+	});
 
 	// Use current content language for translated fields, default for non-translated
 	const _language = $derived(field.translated ? contentLanguage.value : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
@@ -185,6 +216,27 @@
 		value = { ...(value || {}), [_language]: newValue };
 	}
 
+	// Input element reference
+	let inputRef = $state<HTMLInputElement | null>(null);
+
+	// Handle token insertion
+	function handleTokenSelect(tokenString: string) {
+		const currentValue = safeValue || '';
+		const cursorPos = inputRef?.selectionStart || currentValue.length;
+		const newValue = currentValue.slice(0, cursorPos) + tokenString + currentValue.slice(cursorPos);
+		updateValue(newValue);
+		showTokenPicker = false;
+		
+		// Focus back on input and set cursor position
+		setTimeout(() => {
+			if (inputRef) {
+				inputRef.focus();
+				const newCursorPos = cursorPos + tokenString.length;
+				inputRef.setSelectionRange(newCursorPos, newCursorPos);
+			}
+		}, 0);
+	}
+
 	// Cleanup function
 	$effect(() => {
 		return () => {
@@ -228,6 +280,7 @@
 		{/if}
 
 		<input
+			bind:this={inputRef}
 			type="text"
 			value={safeValue}
 			oninput={(e) => {
@@ -255,6 +308,21 @@
 			aria-required={field?.required}
 			data-testid="text-input"
 		/>
+
+		<!-- Token Picker Button -->
+		{#if field?.token}
+			<button
+				type="button"
+				onclick={() => {
+					showTokenPicker = true;
+				}}
+				class="btn-icon btn-sm"
+				aria-label="Insert token"
+				title="Insert token"
+			>
+				<iconify-icon icon="mdi:code-tags" width="18"></iconify-icon>
+			</button>
+		{/if}
 
 		<!-- suffix and count -->
 		{#if field?.suffix || field?.count || field?.minLength || field?.maxLength}
@@ -299,3 +367,15 @@
 		</p>
 	{/if}
 </div>
+
+<!-- Token Picker -->
+{#if field?.token}
+	<TokenPicker
+		tokens={availableTokens}
+		onSelect={handleTokenSelect}
+		bind:open={showTokenPicker}
+		onClose={() => {
+			showTokenPicker = false;
+		}}
+	/>
+{/if}

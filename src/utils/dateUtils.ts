@@ -10,6 +10,7 @@
  */
 
 import { logger } from '@utils/logger';
+import { format } from 'date-fns';
 import type { ISODateString } from '../content/types';
 
 // Type guard for ISODateString
@@ -190,7 +191,55 @@ export function formatRelativeDate(dateInput: Date | number | string, locale: st
 }
 
 /**
- * Utility to parse ISO 8601 duration (e.g., "PT3M20S") into a human-readable format (e.g., "3:20").
+ * Format date using date-fns format string syntax
+ * Provides a centralized wrapper for date-fns format function
+ * 
+ * @param dateInput - Date, timestamp or ISO string
+ * @param formatString - date-fns format string (e.g., 'yyyy-MM-dd', 'MMM dd, yyyy')
+ * @param fallback - Fallback value if formatting fails (default: ISO string)
+ * @returns Formatted date string
+ * 
+ * @example
+ * formatDateString(new Date(), 'yyyy-MM-dd') // '2024-01-15'
+ * formatDateString('2024-01-15T10:30:00Z', 'MMM dd, yyyy') // 'Jan 15, 2024'
+ */
+export function formatDateString(
+	dateInput: Date | number | string,
+	formatString: string = 'yyyy-MM-dd',
+	fallback?: string
+): string {
+	try {
+		let date: Date;
+
+		if (typeof dateInput === 'number') {
+			// Handle MongoDB timestamp (seconds vs milliseconds)
+			date = new Date(dateInput > 1e12 ? dateInput : dateInput * 1000);
+		} else if (typeof dateInput === 'string') {
+			date = new Date(dateInput);
+		} else {
+			date = dateInput;
+		}
+
+		if (isNaN(date.getTime())) {
+			return fallback ?? 'Invalid Date';
+		}
+
+		return format(date, formatString);
+	} catch (error) {
+		logger.warn('Error formatting date with date-fns:', error);
+		// Return fallback or ISO string
+		if (fallback) return fallback;
+		try {
+			const date = typeof dateInput === 'object' && dateInput instanceof Date 
+				? dateInput 
+				: new Date(dateInput as string | number);
+			return date.toISOString();
+		} catch {
+			return 'Invalid Date';
+		}
+	}
+}
+ /* Utility to parse ISO 8601 duration (e.g., "PT3M20S") into a human-readable format (e.g., "3:20").
  * This function can be used in the Display component if the duration is stored in ISO format.
  */
 export function formatIsoDuration(isoDuration: string | undefined): string | undefined {
