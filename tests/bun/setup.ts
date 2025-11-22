@@ -24,6 +24,26 @@ mock.module('$app/environment', () => ({
 	version: 'test'
 }));
 
+// Mock logger.server.ts to prevent "cannot be imported in browser" error
+mock.module('@src/utils/logger.server', () => ({
+	logger: {
+		fatal: () => {},
+		error: () => {},
+		warn: () => {},
+		info: () => {},
+		debug: () => {},
+		trace: () => {},
+		channel: () => ({
+			fatal: () => {},
+			error: () => {},
+			warn: () => {},
+			info: () => {},
+			debug: () => {},
+			trace: () => {}
+		})
+	}
+}));
+
 // Mock $app/stores
 mock.module('$app/stores', () => ({
 	getStores: () => ({}),
@@ -48,3 +68,15 @@ mock.module('$app/paths', () => ({
 	base: '',
 	assets: ''
 }));
+
+// Mock Svelte 5 Runes
+// @ts-ignore
+globalThis.$state = (initial: any) => initial;
+// @ts-ignore
+globalThis.$derived = (fn: any) => fn();
+// @ts-ignore
+globalThis.$effect = () => {};
+// @ts-ignore
+globalThis.$effect.root = (fn: any) => fn();
+// @ts-ignore
+globalThis.$props = () => ({});

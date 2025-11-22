@@ -91,6 +91,25 @@ jobs:
           rm -f config/private.ts
           echo "✅ Cleaned config directory"
 
+      # Create placeholder config/private.ts to ensure runtime config works
+      - name: Create placeholder config/private.ts
+        run: |
+          echo "📝 Creating placeholder config/private.ts..."
+          cat > config/private.ts <<EOF
+          export const privateEnv = {
+            DB_TYPE: '${{ env.DB_TYPE }}',
+            DB_HOST: '${{ env.DB_HOST }}',
+            DB_PORT: ${{ env.DB_PORT }},
+            DB_NAME: '${{ env.DB_NAME }}',
+            DB_USER: '${{ env.DB_USER }}',
+            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
+            JWT_SECRET_KEY: 'test_jwt_secret',
+            ENCRYPTION_KEY: 'test_encryption_key',
+            MULTI_TENANT: false
+          } as const;
+          EOF
+          echo "✅ Created config/private.ts"
+
       # Build production version for faster, optimized testing
       - name: Build Production
         run: bun run build
@@ -156,6 +175,25 @@ jobs:
           rm -rf config/collections
           rm -f config/private.ts
           echo "✅ Cleaned config directory"
+
+      # Create placeholder config/private.ts to ensure runtime config works
+      - name: Create placeholder config/private.ts
+        run: |
+          echo "📝 Creating placeholder config/private.ts..."
+          cat > config/private.ts <<EOF
+          export const privateEnv = {
+            DB_TYPE: '${{ env.DB_TYPE }}',
+            DB_HOST: '${{ env.DB_HOST }}',
+            DB_PORT: ${{ env.DB_PORT }},
+            DB_NAME: '${{ env.DB_NAME }}',
+            DB_USER: '${{ env.DB_USER }}',
+            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
+            JWT_SECRET_KEY: 'test_jwt_secret',
+            ENCRYPTION_KEY: 'test_encryption_key',
+            MULTI_TENANT: false
+          } as const;
+          EOF
+          echo "✅ Created config/private.ts"
 
       # Build production version for faster, optimized testing
       - name: Build Production
