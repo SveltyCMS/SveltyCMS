@@ -19,7 +19,7 @@ Features:
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@skeletonlabs/skeleton-svelte';
 
 	// Props
 	interface Props {

@@ -23,11 +23,11 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@skeletonlabs/skeleton-svelte';
 	import { showToast } from '@utils/toast';
-	import { Avatar } from '@skeletonlabs/skeleton';
-	import { FileDropzone } from '@skeletonlabs/skeleton';
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+	import { Avatar } from '@skeletonlabs/skeleton-svelte';
+	import { FileDropzone } from '@skeletonlabs/skeleton-svelte';
+	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton-svelte';
 
 	const modalStore = getModalStore();
 

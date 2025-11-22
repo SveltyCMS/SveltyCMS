@@ -39,8 +39,8 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import PageTitle from '@components/PageTitle.svelte';
 
 	// Skeleton
-	import { Tab, TabGroup } from '@skeletonlabs/skeleton';
-	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { Tab, TabGroup } from '@skeletonlabs/skeleton-svelte';
+	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton-svelte';
 	import { showToast } from '@utils/toast';
 
 	import { widgetStoreActions } from '@stores/widgetStore.svelte';

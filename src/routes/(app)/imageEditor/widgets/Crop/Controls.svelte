@@ -101,40 +101,40 @@
 		@apply flex w-full items-center gap-3 px-2;
 	}
 	.label {
-		@apply text-nowrap text-sm font-medium text-surface-700 dark:text-surface-200;
+		@apply text-nowrap text-sm font-medium text-surface-700 dark:; color: var(--color-surface-200);
 	}
 	.divider {
-		@apply h-6 w-px bg-surface-300 dark:bg-surface-600;
+		@apply h-6 w-px bg-surface-300 dark:; background-color: var(--color-surface-600);
 	}
 	.divider-grow {
 		@apply flex-grow;
 	}
 	.btn-tool {
 		@apply flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-sm font-medium transition-colors;
-		@apply bg-surface-200 text-surface-700 dark:bg-surface-700 dark:text-surface-200;
+		@apply bg-surface-200 text-surface-700 dark: dark:; background-color: var(--color-surface-700); color: var(--color-surface-200);
 		min-width: 36px;
 	}
 	.btn-tool:hover {
-		@apply bg-surface-300 dark:bg-surface-600;
+		@apply bg-surface-300 dark:; background-color: var(--color-surface-600);
 	}
 	.btn-apply {
 		@apply flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium text-white;
-		@apply bg-success-500 hover:bg-success-600;
+		@apply bg-success-500 hover:; background-color: var(--color-success-600);
 	}
 	.segment-group {
-		@apply flex items-center rounded-lg bg-surface-200 p-0.5 dark:bg-surface-700;
+		@apply flex items-center rounded-lg bg-surface-200 p-0.5 dark:; background-color: var(--color-surface-700);
 	}
 	.segment-btn {
 		@apply rounded-md px-2 py-1 transition-colors;
-		@apply text-surface-500 dark:text-surface-400;
+		@apply text-surface-500 dark:; color: var(--color-surface-400);
 	}
 	.segment-btn.aspect {
 		@apply px-3 text-xs font-medium;
 	}
 	.segment-btn:hover:not(.active) {
-		@apply text-surface-700 dark:text-surface-200;
+		@apply text-surface-700 dark:; color: var(--color-surface-200);
 	}
 	.segment-btn.active {
-		@apply bg-white text-primary-600 shadow-sm dark:bg-surface-900;
+		@apply bg-white  shadow-sm dark:; background-color: var(--color-surface-900); color: var(--color-primary-600);
 	}
 </style>

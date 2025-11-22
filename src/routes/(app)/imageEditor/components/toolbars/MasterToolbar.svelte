@@ -60,7 +60,7 @@ Tools provide their control components which get rendered here.
 	}
 
 	.hint {
-		@apply text-sm text-surface-500 dark:text-surface-400;
+		@apply text-sm text-surface-500 dark:; color: var(--color-surface-400);
 	}
 
 	/* Responsive */

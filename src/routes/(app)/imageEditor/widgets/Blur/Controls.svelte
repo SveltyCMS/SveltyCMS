@@ -129,25 +129,25 @@ Supports strength, shapes (rect, ellipse), and patterns (blur, pixelate).
 	}
 
 	.label {
-		@apply text-nowrap text-sm font-medium text-surface-700 dark:text-surface-200;
+		@apply text-nowrap text-sm font-medium text-surface-700 dark:; color: var(--color-surface-200);
 	}
 
 	.slider {
-		@apply h-2 w-32 cursor-pointer appearance-none rounded-full bg-surface-300 dark:bg-surface-600;
+		@apply h-2 w-32 cursor-pointer appearance-none rounded-full bg-surface-300 dark:; background-color: var(--color-surface-600);
 	}
 	.slider::-webkit-slider-thumb {
-		@apply h-4 w-4 appearance-none rounded-full bg-primary-600 shadow-md;
+		@apply h-4 w-4 appearance-none rounded-full  shadow-md; background-color: var(--color-primary-600);
 	}
 	.slider::-moz-range-thumb {
-		@apply h-4 w-4 rounded-full border-0 bg-primary-600 shadow-md;
+		@apply h-4 w-4 rounded-full border-0  shadow-md; background-color: var(--color-primary-600);
 	}
 
 	.value {
-		@apply min-w-[2rem] text-center text-sm font-semibold text-surface-700 dark:text-surface-200;
+		@apply min-w-[2rem] text-center text-sm font-semibold text-surface-700 dark:; color: var(--color-surface-200);
 	}
 
 	.divider {
-		@apply h-6 w-px bg-surface-300 dark:bg-surface-600;
+		@apply h-6 w-px bg-surface-300 dark:; background-color: var(--color-surface-600);
 	}
 	.divider-grow {
 		@apply flex-grow;
@@ -155,29 +155,29 @@ Supports strength, shapes (rect, ellipse), and patterns (blur, pixelate).
 
 	.btn-tool {
 		@apply flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors;
-		@apply bg-surface-200 text-surface-700 dark:bg-surface-700 dark:text-surface-200;
+		@apply bg-surface-200 text-surface-700 dark: dark:; background-color: var(--color-surface-700); color: var(--color-surface-200);
 	}
 	.btn-tool:hover {
-		@apply bg-surface-300 dark:bg-surface-600;
+		@apply bg-surface-300 dark:; background-color: var(--color-surface-600);
 	}
 
 	.btn-apply {
 		@apply flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium text-white;
-		@apply bg-success-500 hover:bg-success-600;
+		@apply bg-success-500 hover:; background-color: var(--color-success-600);
 	}
 
 	/* Segmented Control */
 	.segment-group {
-		@apply flex items-center rounded-lg bg-surface-200 p-0.5 dark:bg-surface-700;
+		@apply flex items-center rounded-lg bg-surface-200 p-0.5 dark:; background-color: var(--color-surface-700);
 	}
 	.segment-btn {
 		@apply rounded-md px-2 py-1 transition-colors;
-		@apply text-surface-500 dark:text-surface-400;
+		@apply text-surface-500 dark:; color: var(--color-surface-400);
 	}
 	.segment-btn:hover:not(.active) {
-		@apply text-surface-700 dark:text-surface-200;
+		@apply text-surface-700 dark:; color: var(--color-surface-200);
 	}
 	.segment-btn.active {
-		@apply bg-white text-primary-600 shadow-sm dark:bg-surface-900;
+		@apply bg-white  shadow-sm dark:; background-color: var(--color-surface-900); color: var(--color-primary-600);
 	}
 </style>
