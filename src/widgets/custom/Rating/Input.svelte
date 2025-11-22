@@ -28,7 +28,7 @@ Interactive star rating with hover states and click selection
 -->
 
 <script lang="ts">
-	import { Ratings } from '@skeletonlabs/skeleton-svelte';
+	import { Ratings } from '@utils/skeletonCompat';
 	import type { FieldType } from './';
 
 	let { field, value = $bindable(), error }: { field: FieldType; value?: number | null | undefined; error?: string | null } = $props();

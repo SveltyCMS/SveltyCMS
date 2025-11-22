@@ -7,7 +7,7 @@
 	// Stores
 	import { contentStructure } from '@src/stores/collectionStore.svelte';
 	import { logger } from '@utils/logger';
-	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton-svelte';
+	import { getModalStore, type ModalSettings } from '@utils/skeletonCompat';
 
 	// Components
 	import IconifyPicker from '@components/IconifyPicker.svelte';

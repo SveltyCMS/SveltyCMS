@@ -10,7 +10,7 @@
  * - Action-specific modal templates
  */
 
-import type { ModalSettings } from '@skeletonlabs/skeleton-svelte';
+import type { ModalSettings } from '@utils/skeletonCompat';
 import { showToast } from '@utils/toast';
 import { writable } from 'svelte/store';
 

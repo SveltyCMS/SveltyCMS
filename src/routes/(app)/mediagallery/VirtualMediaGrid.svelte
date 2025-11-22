@@ -26,7 +26,7 @@ Implements custom virtual scrolling without external dependencies.
 	import { formatBytes } from '@utils/utils';
 
 	import type { MediaImage } from '@utils/media/mediaModels';
-	import { popup } from '@skeletonlabs/skeleton-svelte';
+	import { popup } from '@utils/skeletonCompat';
 	import { onMount } from 'svelte';
 
 	interface Props {

@@ -25,7 +25,7 @@ This modal			class="input text-center font-mono tracking-wider"
 -->
 
 <script lang="ts">
-	import { getModalStore } from '@skeletonlabs/skeleton-svelte';
+	import { getModalStore } from '@utils/skeletonCompat';
 	import * as m from '@src/paraglide/messages';
 
 	// Props

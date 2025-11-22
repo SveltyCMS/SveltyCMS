@@ -19,7 +19,7 @@
 	import { page } from '$app/state';
 	import { showToast } from '@utils/toast';
 	import { logger } from '@utils/logger';
-	import { TabGroup, Tab } from '@skeletonlabs/skeleton-svelte';
+	import { TabGroup, Tab } from '@utils/skeletonCompat';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Components

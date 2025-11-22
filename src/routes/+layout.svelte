@@ -20,7 +20,7 @@
 	import { themeStore, initializeThemeStore, initializeDarkMode } from '@stores/themeStore.svelte';
 
 	// Toast support (Skeleton v4)
-	import { Toast, createToaster } from '@skeletonlabs/skeleton-svelte';
+	import { Toast, createToaster } from '@utils/skeletonCompat';
 	import { setGlobalToastStore } from '@utils/toast';
 
 	// Initialize theme and other client-side logic on mount

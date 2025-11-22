@@ -18,8 +18,8 @@ Efficiently manages user data updates with validation, role selection, and delet
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	// Skeleton & Stores
-	import type { ModalComponent } from '@skeletonlabs/skeleton-svelte';
-	import { getModalStore } from '@skeletonlabs/skeleton-svelte';
+	import type { ModalComponent } from '@utils/skeletonCompat';
+	import { getModalStore } from '@utils/skeletonCompat';
 	import { showToast } from '@utils/toast';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

@@ -40,7 +40,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	import VirtualMediaGrid from './VirtualMediaGrid.svelte';
 	import AdvancedSearchModal from './AdvancedSearchModal.svelte';
 	// Skeleton
-	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton-svelte';
+	import { getModalStore, type ModalSettings } from '@utils/skeletonCompat';
 	import { showToast } from '@utils/toast';
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
