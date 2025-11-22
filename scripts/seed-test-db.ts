@@ -1,14 +1,14 @@
 /**
  * @file scripts/seed-test-db.ts
  * @description Seeds the test database for integration and E2E tests
- * 
+ *
  * CURRENT: MongoDB only
  * FUTURE: Will support parallel testing with multiple databases:
  *   - MongoDB (current)
  *   - PostgreSQL (via Drizzle ORM)
  *   - MariaDB (via Drizzle ORM)
  *   - MySQL (via Drizzle ORM)
- * 
+ *
  * The DB_TYPE environment variable will determine which database to seed.
  * GitHub Actions will run tests in parallel matrix for each database type.
  */
@@ -93,7 +93,7 @@ async function seedDatabase() {
 		}
 	} else {
 		console.log('✓ Configuration seeded');
-		
+
 		// Wait for server restart if needed (in dev mode, Vite might restart)
 		await wait(2000);
 		await waitForServer();

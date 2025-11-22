@@ -76,7 +76,7 @@ import type { DatabaseAdapter } from './dbInterface';
 
 // Settings loader
 import { privateConfigSchema, publicConfigSchema } from '@src/databases/schemas';
-import { invalidateSettingsCache, setSettingsCache } from '@src/services/settingsService';
+import { invalidateSettingsCache, setSettingsCache, getPublicSetting } from '@src/services/settingsService';
 import { safeParse, type InferOutput } from 'valibot';
 
 // Type definition for private config schema
@@ -89,6 +89,9 @@ import { logger } from '@utils/logger';
 
 // System State Management
 import { setSystemState, updateServiceHealth, waitForServiceHealthy } from '@src/stores/system';
+
+// Widget Store - Dynamic import to avoid circular dependency
+// import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 // State Variables
 export let dbAdapter: DatabaseAdapter | null = null; // Database adapter
@@ -366,7 +369,6 @@ async function initializeThemeManager(): Promise<void> {
 // Initialize the media folder
 async function initializeMediaFolder(): Promise<void> {
 	// During setup, MEDIA_FOLDER might not be loaded yet, so use fallback
-	const { getPublicSetting } = await import(/* @vite-ignore */ '@src/services/settingsService');
 	const mediaFolderPath = (await getPublicSetting('MEDIA_FOLDER')) || './mediaFolder';
 	if (building) return;
 	const fs = await import('node:fs/promises');
@@ -421,7 +423,6 @@ async function initializeVirtualFolders(): Promise<void> {
 
 		if (systemVirtualFolders.length === 0) {
 			// Create default virtual folder
-			const { getPublicSetting } = await import(/* @vite-ignore */ '@src/services/settingsService');
 			const defaultMediaFolder = (await getPublicSetting('MEDIA_FOLDER')) || 'mediaFolder';
 			const creationResult = await dbAdapter.systemVirtualFolder.create({
 				name: defaultMediaFolder,
@@ -599,6 +600,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			(async () => {
 				const t = performance.now();
 				updateServiceHealth('widgets', 'initializing', 'Initializing widget store...');
+				// Dynamic import to avoid circular dependency with client bundle
 				const { widgetStoreActions } = await import('@stores/widgetStore.svelte');
 				await widgetStoreActions.initializeWidgets(undefined, dbAdapter);
 				updateServiceHealth('widgets', 'healthy', 'Widget store initialized');

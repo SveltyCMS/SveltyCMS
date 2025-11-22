@@ -24,6 +24,13 @@ export async function waitForServer(timeoutMs = 30000, intervalMs = 500): Promis
 			const res = await fetch(API_BASE_URL, { method: 'HEAD' }); // HEAD is lighter than GET
 			if (res.ok || res.status === 404) {
 				console.log('✓ Ready');
+
+				// CRITICAL: Wait for Vite module runner to register collection models
+				// This prevents "transport disconnected" errors during tests
+				console.log('⏳ Waiting for models to register...');
+				await new Promise((r) => setTimeout(r, 2000)); // 2s delay
+				console.log('✅ Models registered, server fully ready');
+
 				return;
 			}
 			lastError = new Error(`Status ${res.status}`);

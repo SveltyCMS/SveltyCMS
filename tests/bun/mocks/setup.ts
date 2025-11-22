@@ -282,19 +282,21 @@ mock.module('@src/widgets/factory', () => ({
 mock.module('@src/databases/db', () => ({
 	auth: {
 		getUserCount: () => Promise.resolve(1),
-		getAllRoles: () => Promise.resolve([
-			{ _id: 'admin', name: 'Administrator', isAdmin: true, permissions: [] },
-			{ _id: 'editor', name: 'Editor', isAdmin: false, permissions: [] }
-		]),
+		getAllRoles: () =>
+			Promise.resolve([
+				{ _id: 'admin', name: 'Administrator', isAdmin: true, permissions: [] },
+				{ _id: 'editor', name: 'Editor', isAdmin: false, permissions: [] }
+			]),
 		getUserById: () => Promise.resolve(null)
 	},
 	dbAdapter: {
 		auth: {
 			getUserCount: () => Promise.resolve(1),
-			getAllRoles: () => Promise.resolve([
-				{ _id: 'admin', name: 'Administrator', isAdmin: true, permissions: [] },
-				{ _id: 'editor', name: 'Editor', isAdmin: false, permissions: [] }
-			])
+			getAllRoles: () =>
+				Promise.resolve([
+					{ _id: 'admin', name: 'Administrator', isAdmin: true, permissions: [] },
+					{ _id: 'editor', name: 'Editor', isAdmin: false, permissions: [] }
+				])
 		}
 	}
 }));

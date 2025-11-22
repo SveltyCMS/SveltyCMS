@@ -51,7 +51,7 @@ plugin({
 		// Handler for .svelte.ts files
 		const setupSvelteTsFile = async (args) => {
 			const code = readFileSync(args.path, 'utf8');
-			
+
 			// 1. Transpile TypeScript to JavaScript using Bun
 			const transpiler = new Bun.Transpiler({ loader: 'ts' });
 			const jsCode = await transpiler.transform(code);

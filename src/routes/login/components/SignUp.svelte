@@ -80,10 +80,7 @@ Features:
 
 	// Form setup
 	// Form setup
-	const signUpForm = new Form(
-		{ username: '', email: '', password: '', confirm_password: '', token: '' },
-		signUpFormSchema
-	);
+	const signUpForm = new Form({ username: '', email: '', password: '', confirm_password: '', token: '' }, signUpFormSchema);
 
 	const signUpSubmit = signUpForm.enhance({
 		onSubmit: ({ cancel }) => {
@@ -106,19 +103,19 @@ Features:
 			}
 
 			isRedirecting = false;
-			
-            if (result.type === 'failure' || result.type === 'error') {
-                formElement?.classList.add('wiggle');
-			    setTimeout(() => {
-				    formElement?.classList.remove('wiggle');
-			    }, 300);
-            }
+
+			if (result.type === 'failure' || result.type === 'error') {
+				formElement?.classList.add('wiggle');
+				setTimeout(() => {
+					formElement?.classList.remove('wiggle');
+				}, 300);
+			}
 
 			if (result.type === 'success') {
 				response = result.data?.message;
 			}
-            
-            await update();
+
+			await update();
 		}
 	});
 

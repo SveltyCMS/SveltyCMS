@@ -15,7 +15,7 @@ import type { RequestHandler } from './$types';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Media
-import { fileExists } from '@utils/media/mediaStorage';
+import { fileExists } from '@utils/media/mediaStorage.server';
 
 // System Logger
 import { logger } from '@utils/logger.server';

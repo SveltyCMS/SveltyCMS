@@ -59,7 +59,7 @@ function transitionServiceState(
 	if (newStatus === 'unhealthy') {
 		metrics.consecutiveFailures++;
 		metrics.failureCount++;
-		
+
 		// Log only on transition to unhealthy
 		if (service.status !== 'unhealthy') {
 			metrics.lastFailureAt = now;
@@ -97,7 +97,7 @@ function transitionServiceState(
 	// Derive the new overall system state from the updated service statuses
 	const derivedState = deriveOverallState(updatedState.services);
 	updatedState.overallState = derivedState;
-	
+
 	// Track successful initialization if state auto-derived to READY from INITIALIZING
 	if (derivedState === 'READY' && state.overallState === 'INITIALIZING' && state.performanceMetrics.totalInitializations > 0) {
 		const duration = state.initializationStartedAt ? now - state.initializationStartedAt : 0;
@@ -197,29 +197,29 @@ export function setSystemState(state: SystemState, reason?: string): void {
 		}
 
 		if (state === 'READY' && current.overallState !== 'READY' && performanceMetrics.totalInitializations > 0) {
-		const duration = current.initializationStartedAt ? now - current.initializationStartedAt : 0;
-		performanceMetrics.successfulInitializations++;
-		performanceMetrics.lastInitDuration = duration;
+			const duration = current.initializationStartedAt ? now - current.initializationStartedAt : 0;
+			performanceMetrics.successfulInitializations++;
+			performanceMetrics.lastInitDuration = duration;
 
-		// Update running statistics
-		if (!performanceMetrics.averageTotalInitTime) {
-			performanceMetrics.averageTotalInitTime = duration;
-			performanceMetrics.minTotalInitTime = duration;
-			performanceMetrics.maxTotalInitTime = duration;
-		} else {
-			const count = performanceMetrics.successfulInitializations;
-			performanceMetrics.averageTotalInitTime = (performanceMetrics.averageTotalInitTime * (count - 1) + duration) / count;
-			performanceMetrics.minTotalInitTime = Math.min(performanceMetrics.minTotalInitTime ?? duration, duration);
-			performanceMetrics.maxTotalInitTime = Math.max(performanceMetrics.maxTotalInitTime ?? duration, duration);
+			// Update running statistics
+			if (!performanceMetrics.averageTotalInitTime) {
+				performanceMetrics.averageTotalInitTime = duration;
+				performanceMetrics.minTotalInitTime = duration;
+				performanceMetrics.maxTotalInitTime = duration;
+			} else {
+				const count = performanceMetrics.successfulInitializations;
+				performanceMetrics.averageTotalInitTime = (performanceMetrics.averageTotalInitTime * (count - 1) + duration) / count;
+				performanceMetrics.minTotalInitTime = Math.min(performanceMetrics.minTotalInitTime ?? duration, duration);
+				performanceMetrics.maxTotalInitTime = Math.max(performanceMetrics.maxTotalInitTime ?? duration, duration);
+			}
+
+			logger.info(`🚀 System initialization completed in ${duration}ms`, {
+				average: performanceMetrics.averageTotalInitTime.toFixed(2),
+				min: performanceMetrics.minTotalInitTime,
+				max: performanceMetrics.maxTotalInitTime,
+				successRate: `${((performanceMetrics.successfulInitializations / performanceMetrics.totalInitializations) * 100).toFixed(1)}%`
+			});
 		}
-
-		logger.info(`🚀 System initialization completed in ${duration}ms`, {
-			average: performanceMetrics.averageTotalInitTime.toFixed(2),
-			min: performanceMetrics.minTotalInitTime,
-			max: performanceMetrics.maxTotalInitTime,
-			successRate: `${((performanceMetrics.successfulInitializations / performanceMetrics.totalInitializations) * 100).toFixed(1)}%`
-		});
-	}
 
 		if (state === 'FAILED' && current.overallState === 'INITIALIZING') {
 			performanceMetrics.failedInitializations++;

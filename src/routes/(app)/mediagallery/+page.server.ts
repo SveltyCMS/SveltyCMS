@@ -22,9 +22,9 @@ import type { Actions, PageServerLoad } from './$types';
 import type { SystemVirtualFolder, QueryFilter, MediaItem } from '@root/src/databases/dbInterface';
 import type { DatabaseId } from '@root/src/content/types';
 import type { MediaAccess } from '@root/src/utils/media/mediaModels';
-import { MediaService } from '@src/services/MediaService';
+import { MediaService } from '@src/services/MediaService.server';
 import { constructUrl } from '@utils/media/mediaUtils';
-import { moveMediaToTrash } from '@utils/media/mediaStorage';
+import { moveMediaToTrash } from '@utils/media/mediaStorage.server';
 import mime from 'mime-types';
 
 // Auth

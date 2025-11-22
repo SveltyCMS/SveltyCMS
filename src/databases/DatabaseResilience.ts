@@ -465,7 +465,8 @@ export async function notifyAdminsOfDatabaseFailure(error: DatabaseError, metric
 		}
 
 		// Get admin users
-		const { auth } = await import(/* @vite-ignore */ '@src/databases/db');
+		// Use relative path to avoid alias resolution issues
+		const { auth } = await import(/* @vite-ignore */ './db');
 		if (!auth) {
 			logger.warn('Auth service not available, cannot fetch admin users for notification');
 			return;

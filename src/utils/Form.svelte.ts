@@ -20,7 +20,10 @@ export class Form<T extends Record<string, any>> {
 	submitting = $state(false);
 	message = $state<string | undefined>(undefined);
 
-	constructor(initialData: T, private schema?: BaseSchema<any, any, any>) {
+	constructor(
+		initialData: T,
+		private schema?: BaseSchema<any, any, any>
+	) {
 		this.data = { ...initialData };
 	}
 

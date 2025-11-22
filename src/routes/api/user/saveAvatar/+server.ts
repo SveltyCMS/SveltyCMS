@@ -32,7 +32,7 @@ import { logger } from '@utils/logger.server';
 
 // Media storage
 import { cacheService } from '@src/databases/CacheService';
-import { saveAvatarImage, moveMediaToTrash } from '@utils/media/mediaStorage';
+import { saveAvatarImage, moveMediaToTrash } from '@utils/media/mediaStorage.server';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {

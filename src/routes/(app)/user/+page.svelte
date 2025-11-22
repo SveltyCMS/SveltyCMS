@@ -111,8 +111,6 @@
 			slot: '<p>Edit Form</p>'
 		};
 
-
-
 		const d: ModalSettings = {
 			type: 'component',
 			title: m.usermodaluser_edittitle(),

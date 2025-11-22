@@ -532,7 +532,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 {/if}
 
 <style lang="postcss">
-	@keyframes :global(showEndPoints) {
+	@keyframes showEndPoints {
 		from {
 			opacity: 0;
 			visibility: hidden;
@@ -541,5 +541,11 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			opacity: 1;
 			visibility: visible;
 		}
+	}
+
+	/* Make animation globally available */
+	:global(.animate-\[showEndPoints_0\.2s_0\.2s_forwards\]),
+	:global(.animate-\[showEndPoints_0\.2s_0\.4s_forwards\]) {
+		animation-name: showEndPoints;
 	}
 </style>

@@ -27,7 +27,7 @@ import { auth } from '@src/databases/db';
 import { logger } from '@utils/logger.server';
 
 // Media storage
-import { moveMediaToTrash } from '@utils/media/mediaStorage';
+import { moveMediaToTrash } from '@utils/media/mediaStorage.server';
 
 // Cache service
 import { cacheService } from '@src/databases/CacheService';

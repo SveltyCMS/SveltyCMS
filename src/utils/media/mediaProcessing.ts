@@ -1,79 +1,17 @@
 /**
- * @file utils/media/mediaProcessing.ts
- * @description Handles media processing operations such as hashing and sanitization.
- * Server-side (Sharp-based) processing is in mediaStorage.ts.
- * Client-side (Canvas-based) processing should be in a separate .client.ts file.
- *
- * Features:
- * - File content hashing using SHA-256
- * - Filename sanitization to remove unsafe characters
+ * @file src/utils/media/mediaProcessing.ts
+ * @description Client-safe media processing operations.
+ * * ✅ CLIENT-SIDE SAFE
+ * This file can be imported into .svelte components.
  */
 
-import { error } from '@sveltejs/kit';
-import { Buffer } from 'buffer';
-import { sha256, sanitize } from '@utils/utils';
-import Sharp from 'sharp';
+import { sanitize } from '@utils/utils';
+import { logger } from '@utils/logger';
 
-// System Logger
-import { logger } from '@utils/logger.server';
-
-// Hashes the content of a file using SHA-256
-export async function hashFileContent(buffer: ArrayBuffer | Buffer): Promise<string> {
-	if (!import.meta.env.SSR) {
-		const message = 'hashFileContent can only be performed on the server';
-		logger.error(message);
-		throw error(500, message);
-	}
-
-	if (!buffer || buffer.byteLength === 0) {
-		const message = 'Cannot hash empty buffer';
-		logger.error(message);
-		throw error(400, message);
-	}
-
-	try {
-		logger.trace('Starting file content hashing', {
-			fileSize: buffer.byteLength, // <-- FIX: Use byteLength
-			algorithm: 'SHA-256'
-		});
-
-		// Convert Buffer to ArrayBuffer if needed
-		// sha256 expects ArrayBuffer, so we need to extract the underlying ArrayBuffer
-		const arrayBuffer = buffer instanceof Buffer ? buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) : buffer;
-
-		// Ensure we have an ArrayBuffer, not SharedArrayBuffer
-		let finalBuffer: ArrayBuffer;
-		if (arrayBuffer instanceof ArrayBuffer) {
-			finalBuffer = arrayBuffer;
-		} else if (arrayBuffer instanceof SharedArrayBuffer) {
-			// Convert SharedArrayBuffer to ArrayBuffer
-			finalBuffer = new ArrayBuffer(arrayBuffer.byteLength);
-			new Uint8Array(finalBuffer).set(new Uint8Array(arrayBuffer));
-		} else {
-			// Fallback for other ArrayLike types
-			finalBuffer = new Uint8Array(arrayBuffer as ArrayLike<number>).buffer;
-		}
-
-		const hash = (await sha256(finalBuffer)).slice(0, 20);
-
-		logger.debug('File content hashed successfully', {
-			hash,
-			hashLength: hash.length,
-			bufferSize: buffer.byteLength
-		});
-
-		return hash;
-	} catch (err) {
-		const message = `Error hashing file content: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message, {
-			bufferSize: buffer?.byteLength,
-			error: err
-		});
-		throw error(500, message);
-	}
-}
-
-// Sanitizes the filename by removing unsafe characters
+/**
+ * Sanitizes a filename by removing unsafe characters and normalizing the extension.
+ * Useful for preparing filenames before upload.
+ */
 export function getSanitizedFileName(fileName: string): {
 	fileNameWithoutExt: string;
 	ext: string;
@@ -85,9 +23,11 @@ export function getSanitizedFileName(fileName: string): {
 	}
 
 	const lastDotIndex = fileName.lastIndexOf('.');
-	const name = lastDotIndex > -1 ? fileName.slice(0, lastDotIndex) : fileName;
-	const ext = lastDotIndex > -1 ? fileName.slice(lastDotIndex + 1) : '';
+	// Handle cases with no extension or dot at the start (hidden files)
+	const name = lastDotIndex > 0 ? fileName.slice(0, lastDotIndex) : fileName;
+	const ext = lastDotIndex > 0 ? fileName.slice(lastDotIndex + 1) : '';
 
+	// Detailed trace for debugging upload issues
 	logger.trace('Sanitizing filename', {
 		original: fileName,
 		nameWithoutExt: name,
@@ -96,34 +36,8 @@ export function getSanitizedFileName(fileName: string): {
 
 	const sanitized = {
 		fileNameWithoutExt: sanitize(name),
-		ext: ext.toLowerCase() // Normalize extension to lowercase
+		ext: ext.toLowerCase() // Normalize extension to lowercase for consistency
 	};
 
-	logger.trace('Filename sanitized', {
-		original: fileName,
-		sanitizedName: sanitized.fileNameWithoutExt,
-		normalizedExt: sanitized.ext
-	});
 	return sanitized;
-}
-
-export async function extractMetadata(buffer: Buffer): Promise<Sharp.Metadata> {
-	if (!import.meta.env.SSR) {
-		const message = 'extractMetadata can only be performed on the server';
-		logger.error(message);
-		throw error(500, message);
-	}
-
-	try {
-		const sharpInstance = Sharp(buffer);
-		const metadata = await sharpInstance.metadata();
-		return metadata;
-	} catch (err) {
-		const message = `Error extracting metadata: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message, {
-			bufferSize: buffer?.length,
-			error: err
-		});
-		throw error(500, message);
-	}
 }

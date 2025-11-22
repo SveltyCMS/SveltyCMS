@@ -9,8 +9,6 @@
  * - Clean, modern, and free of legacy patterns.
  */
 
-
-
 import type { BaseIssue, BaseSchema } from 'valibot';
 import type { FieldInstance, WidgetDefinition } from '@src/content/types';
 
@@ -131,11 +129,13 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(config: W
 		fieldInstance.required = fieldInstance.required ?? false;
 		fieldInstance.translated = fieldInstance.translated ?? false;
 		if (!fieldInstance.db_fieldName && fieldInstance.label) {
-			fieldInstance.db_fieldName = fieldInstance.label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+			fieldInstance.db_fieldName = fieldInstance.label
+				.toLowerCase()
+				.replace(/\s+/g, '_')
+				.replace(/[^a-z0-9_]/g, '');
 		} else if (!fieldInstance.db_fieldName) {
 			fieldInstance.db_fieldName = 'unnamed_field';
 		}
-
 
 		return fieldInstance;
 	};

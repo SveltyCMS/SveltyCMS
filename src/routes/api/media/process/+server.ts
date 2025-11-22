@@ -21,8 +21,8 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 import { dbAdapter } from '@src/databases/db';
 
 // Media Processing
-import { extractMetadata } from '@utils/media/mediaProcessing';
-import { MediaService } from '@src/services/MediaService';
+import { extractMetadata } from '@utils/media/mediaProcessing.server';
+import { MediaService } from '@src/services/MediaService.server';
 import type { MediaType, MediaAccess } from '@utils/media/mediaModels';
 
 // System Logger

@@ -6,7 +6,12 @@ import { betterSvelteEmailPreprocessor } from 'better-svelte-email';
 const config = {
 	// Consult https://kit.svelte.dev/docs/integrations#preprocessors
 	// for more information about preprocessors
-	preprocess: [vitePreprocess(), betterSvelteEmailPreprocessor()],
+	preprocess: [
+		vitePreprocess(),
+		betterSvelteEmailPreprocessor({
+			pathToEmailFolder: './src/components/emails'
+		})
+	],
 
 	// ✅ **ACTION REQUIRED**: Uncomment this to enable Svelte 5 runes mode!
 	// This is essential for using the latest Svelte 5 features.

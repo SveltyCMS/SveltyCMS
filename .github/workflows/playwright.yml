@@ -91,14 +91,18 @@ jobs:
           rm -f config/private.ts
           echo "✅ Cleaned config directory"
 
-      # --- CRITICAL: START SERVER FOR INTEGRATION TESTS ---
-      - name: Start Dev Server
+      # Build production version for faster, optimized testing
+      - name: Build Production
+        run: bun run build
+
+      # --- START PREVIEW SERVER (PORT 4173) ---
+      - name: Start Preview Server
         run: |
-          echo "🚀 Starting dev server..."
-          bun run dev &
+          echo "🚀 Starting preview server on port 4173..."
+          bun run preview &
           echo "⏳ Waiting for server to be ready..."
-          bun x wait-on http://localhost:5173 -t 60000
-          echo "✅ Server is ready!"
+          bun x wait-on http://localhost:4173 -t 60000
+          echo "✅ Preview server is ready!"
         env:
           DB_TYPE: mongodb
           DB_HOST: localhost
@@ -153,13 +157,18 @@ jobs:
           rm -f config/private.ts
           echo "✅ Cleaned config directory"
 
-      - name: Start Dev Server
+      # Build production version for faster, optimized testing
+      - name: Build Production
+        run: bun run build
+
+      # --- START PREVIEW SERVER (PORT 4173) ---
+      - name: Start Preview Server
         run: |
-          echo "🚀 Starting dev server..."
-          bun run dev &
+          echo "🚀 Starting preview server on port 4173..."
+          bun run preview &
           echo "⏳ Waiting for server to be ready..."
-          bun x wait-on http://localhost:5173 -t 60000
-          echo "✅ Server is ready!"
+          bun x wait-on http://localhost:4173 -t 60000
+          echo "✅ Preview server is ready!"
         env:
           DB_TYPE: mongodb
           DB_HOST: localhost

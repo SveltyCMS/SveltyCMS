@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
 
 test('should show error on bad database connection', async ({ page }) => {
 	await page.goto('/setup');
-	
+
 	// Check if we're redirected to login (meaning setup is already complete)
 	if (page.url().includes('/login')) {
 		console.log('System already configured. Skipping setup error test.');

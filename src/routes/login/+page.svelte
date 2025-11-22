@@ -317,12 +317,7 @@ Features:
 	{/if}
 
 	<!-- SignIn and SignUp Forms -->
-	<SignIn
-		bind:active
-		onClick={handleSignInClick}
-		onPointerEnter={handleSignInPointerEnter}
-		onBack={resetToInitialState}
-	/>
+	<SignIn bind:active onClick={handleSignInClick} onPointerEnter={handleSignInPointerEnter} onBack={resetToInitialState} />
 
 	<SignUp
 		bind:active

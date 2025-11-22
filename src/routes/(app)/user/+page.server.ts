@@ -8,7 +8,7 @@
  *
  * Features:
  * - User and role information retrieval from event.locals
- * - Form handling 
+ * - Form handling
  * - Error logging and handling
  *
  * Usage:

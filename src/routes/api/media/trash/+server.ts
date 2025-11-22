@@ -21,7 +21,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 import { auth } from '@src/databases/db';
 
 // Media Processing
-import { moveMediaToTrash } from '@utils/media/mediaStorage';
+import { moveMediaToTrash } from '@utils/media/mediaStorage.server';
 
 // System Logger
 import { logger } from '@utils/logger.server';

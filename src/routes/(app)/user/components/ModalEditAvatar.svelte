@@ -11,7 +11,6 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 -->
 
 <script lang="ts">
-
 	import { invalidateAll } from '$app/navigation';
 	import { logger } from '@src/utils/logger';
 	import axios from 'axios';
@@ -449,11 +448,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		<footer class="modal-footer {parent.regionFooter} justify-between">
 			<!-- Delete Avatar -->
 			{#if avatarSrc.value && avatarSrc.value !== '/Default_User.svg'}
-				<button
-					type="button"
-					onclick={deleteAvatar}
-					class="variant-filled-error btn"
-				>
+				<button type="button" onclick={deleteAvatar} class="variant-filled-error btn">
 					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
 					<span class="hidden sm:block">{m.button_delete()}</span>
 				</button>

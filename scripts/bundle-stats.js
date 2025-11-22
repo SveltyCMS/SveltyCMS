@@ -1,280 +1,258 @@
 #!/usr/bin/env node
 /**
  * @file scripts/bundle-stats.js
- * @description Bundle size monitoring and reporting script
+ * @description High-performance Bundle size monitoring
  *
- * Analyzes the build output and generates a comprehensive report of:
- * - Chunk sizes (raw and gzipped)
- * - Size trends over time
- * - Budget violations
- * - Recommendations for optimization
- *
- * @usage
- * bun run build:stats
- *
- * @requirements
- * - Run after `bun run build`
- * - Requires .svelte-kit/output/client directory
+ * Improvements over original:
+ * - **Parallel Processing:** Uses Promise.all for non-blocking compression.
+ * - **CSS Support:** Analyzes stylesheets alongside JS.
+ * - **Recursive Scan:** Finds assets in nested folders (assets/entry/chunks).
+ * - **Max Compression:** Uses max gzip/brotli levels to mimic CDNs.
  */
 
-import fs from 'fs';
-import path from 'path';
-import { gzipSync, brotliCompressSync } from 'zlib';
-import { fileURLToPath } from 'url';
+import fs from 'node:fs/promises';
+import { createReadStream, existsSync, writeFileSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import zlib from 'node:zlib';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
+import { pipeline } from 'node:stream';
+
+const pipe = promisify(pipeline);
+const gzip = promisify(zlib.gzip);
+const brotli = promisify(zlib.brotliCompress);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Configuration
+// --- CONFIGURATION ---
 const CONFIG = {
-	outputDir: path.join(__dirname, '../.svelte-kit/output/client/_app/immutable/chunks'),
+	// Scans the entire immutable folder to capture chunks, entry points, and assets
+	buildDir: path.resolve(__dirname, '../.svelte-kit/output/client/_app/immutable'),
 	budgets: {
-		maxChunkSize: 500 * 1024, // 500 KB
-		warningSize: 400 * 1024, // 400 KB
-		totalBudget: 3 * 1024 * 1024 // 3 MB total
+		maxChunkSize: 500 * 1024, // 500 KB (Error)
+		warningSize: 350 * 1024, // 350 KB (Warning) - Lowered slightly for stricter control
+		totalBudget: 3.5 * 1024 * 1024 // 3.5 MB Total
 	},
-	historyFile: path.join(__dirname, '../.bundle-history.json')
+	fileTypes: ['.js', '.css'],
+	historyFile: path.resolve(__dirname, '../.bundle-history.json'),
+	reportFile: path.resolve(__dirname, '../bundle-report.json')
 };
 
-// ANSI color codes
-const colors = {
+const COLORS = {
 	reset: '\x1b[0m',
 	red: '\x1b[31m',
 	yellow: '\x1b[33m',
 	green: '\x1b[32m',
 	blue: '\x1b[34m',
+	cyan: '\x1b[36m',
 	gray: '\x1b[90m',
 	bold: '\x1b[1m'
 };
 
-// Get all JS chunk files
-function getChunkFiles() {
+// --- UTILITIES ---
+
+const formatBytes = (bytes, decimals = 2) => {
+	if (bytes === 0) return '0 B';
+	const k = 1024;
+	const sizes = ['B', 'KB', 'MB', 'GB'];
+	const i = Math.floor(Math.log(bytes) / Math.log(k));
+	return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i];
+};
+
+/**
+ * Recursively finds all files in a directory matching specific extensions
+ */
+async function getFilesRecursively(dir) {
+	let results = [];
 	try {
-		const files = fs.readdirSync(CONFIG.outputDir);
-		return files.filter((f) => f.endsWith('.js')).map((f) => path.join(CONFIG.outputDir, f));
-	} catch {
-		console.error(`${colors.red}Error: Build output not found. Run 'bun run build' first.${colors.reset}`);
-		process.exit(1);
+		const list = await fs.readdir(dir);
+		for (const file of list) {
+			const filePath = path.resolve(dir, file);
+			const stat = await fs.stat(filePath);
+			if (stat && stat.isDirectory()) {
+				results = results.concat(await getFilesRecursively(filePath));
+			} else {
+				if (CONFIG.fileTypes.includes(path.extname(file))) {
+					results.push(filePath);
+				}
+			}
+		}
+	} catch (e) {
+		// Directory might not exist if no assets generated, allow graceful continue
+		if (e.code !== 'ENOENT') console.error(e);
+	}
+	return results;
+}
+
+/**
+ * Analyzes a file asynchronously
+ */
+async function analyzeFile(filePath) {
+	try {
+		const content = await fs.readFile(filePath);
+		const size = content.length;
+
+		// Run compressions in parallel
+		const [gzipBuffer, brotliBuffer] = await Promise.all([
+			gzip(content, { level: zlib.constants.Z_BEST_COMPRESSION }),
+			brotli(content, {
+				params: {
+					[zlib.constants.BROTLI_PARAM_MODE]: zlib.constants.BROTLI_MODE_TEXT,
+					[zlib.constants.BROTLI_PARAM_QUALITY]: zlib.constants.BROTLI_MAX_QUALITY
+				}
+			})
+		]);
+
+		return {
+			name: path.basename(filePath),
+			ext: path.extname(filePath),
+			size,
+			gzipSize: gzipBuffer.length,
+			brotliSize: brotliBuffer.length,
+			path: filePath
+		};
+	} catch (error) {
+		console.error(`${COLORS.red}Failed to analyze ${filePath}: ${error.message}${COLORS.reset}`);
+		return null;
 	}
 }
 
-// Analyze a single chunk file
-function analyzeChunk(filePath) {
-	const content = fs.readFileSync(filePath);
-	const size = content.length;
-	const gzipSize = gzipSync(content).length;
-	const brotliSize = brotliCompressSync(content).length;
-	const gzipRatio = ((1 - gzipSize / size) * 100).toFixed(1);
-	const brotliRatio = ((1 - brotliSize / size) * 100).toFixed(1);
-
-	return {
-		name: path.basename(filePath),
-		size,
-		gzipSize,
-		brotliSize,
-		gzipRatio,
-		brotliRatio,
-		path: filePath
-	};
-}
-
-// Format bytes to human-readable
-function formatBytes(bytes, decimals = 2) {
-	if (bytes === 0) return '0 B';
-	const k = 1024;
-	const sizes = ['B', 'KB', 'MB'];
-	const i = Math.floor(Math.log(bytes) / Math.log(k));
-	return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i];
-}
-
-// Get status color based on size
-function getStatusColor(size) {
-	if (size > CONFIG.budgets.maxChunkSize) return colors.red;
-	if (size > CONFIG.budgets.warningSize) return colors.yellow;
-	return colors.green;
-}
-
-// Load historical data
 function loadHistory() {
-	try {
-		if (fs.existsSync(CONFIG.historyFile)) {
-			return JSON.parse(fs.readFileSync(CONFIG.historyFile, 'utf8'));
+	if (existsSync(CONFIG.historyFile)) {
+		try {
+			return JSON.parse(readFileSync(CONFIG.historyFile, 'utf8'));
+		} catch {
+			return [];
 		}
-	} catch {
-		console.warn(`${colors.yellow}Warning: Could not load history${colors.reset}`);
 	}
 	return [];
 }
 
-// Save current stats to history
 function saveHistory(stats) {
-	try {
-		const history = loadHistory();
-		history.push({
-			timestamp: new Date().toISOString(),
-			stats: {
-				totalSize: stats.totalSize,
-				totalGzipSize: stats.totalGzipSize,
-				chunkCount: stats.chunks.length,
-				largestChunk: stats.chunks[0].size
-			}
-		});
-
-		// Keep only last 30 builds
-		const recentHistory = history.slice(-30);
-		fs.writeFileSync(CONFIG.historyFile, JSON.stringify(recentHistory, null, 2));
-	} catch {
-		console.warn(`${colors.yellow}Warning: Could not save history${colors.reset}`);
-	}
-}
-
-// Compare with previous build
-function compareWithPrevious(currentStats) {
 	const history = loadHistory();
-	if (history.length === 0) return null;
-
-	const previous = history[history.length - 1].stats;
-	return {
-		totalSizeDiff: currentStats.totalSize - previous.totalSize,
-		gzipSizeDiff: currentStats.totalGzipSize - previous.totalGzipSize,
-		chunkCountDiff: currentStats.chunks.length - previous.chunkCount,
-		largestChunkDiff: currentStats.chunks[0].size - previous.largestChunk
-	};
-}
-
-// Generate recommendations
-function generateRecommendations(chunks) {
-	const recommendations = [];
-
-	// Check for oversized chunks
-	const oversized = chunks.filter((c) => c.size > CONFIG.budgets.maxChunkSize);
-	if (oversized.length > 0) {
-		recommendations.push({
-			level: 'error',
-			message: `${oversized.length} chunk(s) exceed 500 KB limit`,
-			action: 'Consider code splitting or lazy loading'
-		});
-	}
-
-	// Check compression ratio
-	const poorCompression = chunks.filter((c) => parseFloat(c.brotliRatio) < 60);
-	if (poorCompression.length > 0) {
-		recommendations.push({
-			level: 'warning',
-			message: `${poorCompression.length} chunk(s) have poor Brotli compression (<60%)`,
-			action: 'Check for large uncompressible assets (images, fonts)'
-		});
-	}
-
-	// Check total size
-	const totalSize = chunks.reduce((sum, c) => sum + c.size, 0);
-	if (totalSize > CONFIG.budgets.totalBudget) {
-		recommendations.push({
-			level: 'error',
-			message: 'Total bundle size exceeds 3 MB budget',
-			action: 'Review vendor dependencies and implement tree-shaking'
-		});
-	}
-
-	return recommendations;
-}
-
-// Print report
-function printReport(stats, comparison, recommendations) {
-	console.log(`\n${colors.bold}${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
-	console.log(`${colors.bold}${colors.blue}          📊 BUNDLE SIZE ANALYSIS REPORT${colors.reset}`);
-	console.log(`${colors.bold}${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
-
-	// Summary
-	console.log(`${colors.bold}Summary:${colors.reset}`);
-	console.log(`  Total Chunks: ${stats.chunks.length}`);
-	console.log(`  Total Size:   ${formatBytes(stats.totalSize)}`);
-	console.log(`  Gzip:         ${formatBytes(stats.totalGzipSize)} (${stats.avgCompression}% compression)`);
-	console.log(
-		`  Brotli:       ${formatBytes(stats.totalBrotliSize)} (${stats.avgBrotliCompression}% compression) ${colors.green}⚡ Recommended${colors.reset}\n`
-	);
-
-	// Comparison
-	if (comparison) {
-		const sizeIcon = comparison.totalSizeDiff > 0 ? '📈' : '📉';
-		const sizeColor = comparison.totalSizeDiff > 0 ? colors.red : colors.green;
-		const sizeDiff = formatBytes(Math.abs(comparison.totalSizeDiff));
-		const gzipDiff = formatBytes(Math.abs(comparison.gzipSizeDiff));
-
-		console.log(`${colors.bold}Change from previous build:${colors.reset}`);
-		console.log(`  ${sizeIcon} Total Size: ${sizeColor}${comparison.totalSizeDiff > 0 ? '+' : '-'}${sizeDiff}${colors.reset}`);
-		console.log(`  ${sizeIcon} Gzipped:    ${sizeColor}${comparison.gzipSizeDiff > 0 ? '+' : '-'}${gzipDiff}${colors.reset}\n`);
-	}
-
-	// Top chunks
-	console.log(`${colors.bold}Top 10 Largest Chunks:${colors.reset}`);
-	stats.chunks.slice(0, 10).forEach((chunk, i) => {
-		const statusColor = getStatusColor(chunk.size);
-		const status = chunk.size > CONFIG.budgets.maxChunkSize ? '❌' : chunk.size > CONFIG.budgets.warningSize ? '⚠️ ' : '✅';
-		const brotliSavings = (((chunk.gzipSize - chunk.brotliSize) / chunk.gzipSize) * 100).toFixed(0);
-
-		console.log(`  ${status} ${statusColor}${(i + 1).toString().padStart(2)}. ${chunk.name.padEnd(30)}${colors.reset}`);
-		console.log(
-			`     ${colors.gray}${formatBytes(chunk.size).padEnd(10)} → gzip: ${formatBytes(chunk.gzipSize)} (${chunk.gzipRatio}%) → brotli: ${formatBytes(chunk.brotliSize)} (${chunk.brotliRatio}%, ${colors.green}-${brotliSavings}%${colors.gray})${colors.reset}`
-		);
+	history.push({
+		timestamp: new Date().toISOString(),
+		summary: {
+			totalSize: stats.totalSize,
+			totalGzip: stats.totalGzip,
+			totalBrotli: stats.totalBrotli,
+			jsCount: stats.jsCount,
+			cssCount: stats.cssCount
+		}
 	});
-
-	// Recommendations
-	if (recommendations.length > 0) {
-		console.log(`\n${colors.bold}${colors.yellow}⚡ Recommendations:${colors.reset}`);
-		recommendations.forEach((rec) => {
-			const icon = rec.level === 'error' ? '❌' : '⚠️ ';
-			const color = rec.level === 'error' ? colors.red : colors.yellow;
-			console.log(`  ${icon} ${color}${rec.message}${colors.reset}`);
-			console.log(`     ${colors.gray}→ ${rec.action}${colors.reset}`);
-		});
-	} else {
-		console.log(`\n${colors.green}✅ All chunks within budget! Great job!${colors.reset}`);
-	}
-
-	console.log(`\n${colors.bold}${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
+	// Keep last 50 entries
+	const trimmed = history.slice(-50);
+	writeFileSync(CONFIG.historyFile, JSON.stringify(trimmed, null, 2));
 }
 
-// Main execution
-function main() {
-	console.log(`${colors.blue}Analyzing build output...${colors.reset}\n`);
+// --- REPORTING ---
 
-	// Get and analyze all chunks
-	const chunkFiles = getChunkFiles();
-	const chunks = chunkFiles.map(analyzeChunk).sort((a, b) => b.size - a.size);
+function printComparison(current, previous) {
+	if (!previous) return;
+	const diff = current - previous;
+	const symbol = diff > 0 ? '🔺' : diff < 0 ? '🔻' : '▪️';
+	const color = diff > 0 ? COLORS.red : diff < 0 ? COLORS.green : COLORS.gray;
+	return `${color}${symbol} ${formatBytes(Math.abs(diff))}${COLORS.reset}`;
+}
 
-	// Calculate statistics
-	const totalSize = chunks.reduce((sum, c) => sum + c.size, 0);
-	const totalGzipSize = chunks.reduce((sum, c) => sum + c.gzipSize, 0);
-	const totalBrotliSize = chunks.reduce((sum, c) => sum + c.brotliSize, 0);
-	const avgCompression = (chunks.reduce((sum, c) => sum + parseFloat(c.gzipRatio), 0) / chunks.length).toFixed(1);
-	const avgBrotliCompression = (chunks.reduce((sum, c) => sum + parseFloat(c.brotliRatio), 0) / chunks.length).toFixed(1);
+function generateReport(results) {
+	const sorted = results.sort((a, b) => b.size - a.size);
 
 	const stats = {
-		chunks,
-		totalSize,
-		totalGzipSize,
-		totalBrotliSize,
-		avgCompression,
-		avgBrotliCompression
+		totalSize: 0,
+		totalGzip: 0,
+		totalBrotli: 0,
+		jsCount: 0,
+		cssCount: 0,
+		files: sorted
 	};
 
-	// Compare with previous build
-	const comparison = compareWithPrevious(stats);
+	sorted.forEach((f) => {
+		stats.totalSize += f.size;
+		stats.totalGzip += f.gzipSize;
+		stats.totalBrotli += f.brotliSize;
+		if (f.ext === '.js') stats.jsCount++;
+		if (f.ext === '.css') stats.cssCount++;
+	});
 
-	// Generate recommendations
-	const recommendations = generateRecommendations(chunks);
+	const history = loadHistory();
+	const prevBuild = history.length > 0 ? history[history.length - 1].summary : null;
 
-	// Print report
-	printReport(stats, comparison, recommendations);
+	console.log(`\n${COLORS.bold}${COLORS.blue}📦 BUNDLE ANALYTICS${COLORS.reset}`);
+	console.log(`${COLORS.gray}Scan path: ${CONFIG.buildDir}${COLORS.reset}\n`);
 
-	// Save to history
+	// 1. Summary Table
+	console.log(`${COLORS.bold}SUMMARY:${COLORS.reset}`);
+	console.log(`  Total Size:    ${formatBytes(stats.totalSize)}  ${prevBuild ? printComparison(stats.totalSize, prevBuild.totalSize) : ''}`);
+	console.log(`  Gzip Size:     ${formatBytes(stats.totalGzip)}  ${prevBuild ? printComparison(stats.totalGzip, prevBuild.totalGzip) : ''}`);
+	console.log(`  Brotli Size:   ${formatBytes(stats.totalBrotli)}  ${COLORS.green}(Real-world transfer size)${COLORS.reset}`);
+	console.log(`  Assets:        ${stats.jsCount} JS / ${stats.cssCount} CSS\n`);
+
+	// 2. Large File Warnings
+	const largeFiles = sorted.filter((f) => f.size > CONFIG.budgets.warningSize);
+	if (largeFiles.length > 0) {
+		console.log(`${COLORS.bold}${COLORS.yellow}⚠️  LARGE ASSETS DETECTED:${COLORS.reset}`);
+		largeFiles.forEach((f) => {
+			const isError = f.size > CONFIG.budgets.maxChunkSize;
+			const color = isError ? COLORS.red : COLORS.yellow;
+			const icon = isError ? '❌' : '⚠️ ';
+
+			console.log(`  ${icon} ${color}${f.name.padEnd(40)}${COLORS.reset} Raw: ${formatBytes(f.size).padEnd(10)} Gzip: ${formatBytes(f.gzipSize)}`);
+		});
+		console.log('');
+	} else {
+		console.log(`${COLORS.green}✅ All assets within budget limits.${COLORS.reset}\n`);
+	}
+
+	// 3. JSON Output for CI
+	const reportData = {
+		timestamp: new Date().toISOString(),
+		stats,
+		violations: largeFiles.map((f) => ({ name: f.name, size: f.size })),
+		pass: stats.totalSize <= CONFIG.budgets.totalBudget
+	};
+
+	writeFileSync(CONFIG.reportFile, JSON.stringify(reportData, null, 2));
 	saveHistory(stats);
 
-	// Exit with error code if budget exceeded
-	if (recommendations.some((r) => r.level === 'error')) {
+	// 4. Exit Code
+	if (largeFiles.some((f) => f.size > CONFIG.budgets.maxChunkSize)) {
+		console.error(`${COLORS.red}❌ Build failed: Individual chunk size limit exceeded.${COLORS.reset}`);
 		process.exit(1);
 	}
+
+	if (stats.totalSize > CONFIG.budgets.totalBudget) {
+		console.error(`${COLORS.red}❌ Build failed: Total budget exceeded.${COLORS.reset}`);
+		process.exit(1);
+	}
+}
+
+// --- MAIN ---
+
+async function main() {
+	if (!existsSync(CONFIG.buildDir)) {
+		console.error(`${COLORS.red}Error: Build directory not found at ${CONFIG.buildDir}`);
+		console.error(`Run 'bun run build' (or npm run build) before running stats.${COLORS.reset}`);
+		process.exit(1);
+	}
+
+	console.log(`${COLORS.cyan}Analyzing build output...${COLORS.reset}`);
+
+	const start = performance.now();
+	const filePaths = await getFilesRecursively(CONFIG.buildDir);
+
+	if (filePaths.length === 0) {
+		console.warn(`${COLORS.yellow}No JS or CSS files found to analyze.${COLORS.reset}`);
+		process.exit(0);
+	}
+
+	// Parallel processing of all files
+	const results = (await Promise.all(filePaths.map(analyzeFile))).filter(Boolean);
+	const end = performance.now();
+
+	generateReport(results);
+	console.log(`${COLORS.gray}Analysis completed in ${((end - start) / 1000).toFixed(2)}s${COLORS.reset}`);
 }
 
 main();

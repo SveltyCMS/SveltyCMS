@@ -61,13 +61,9 @@ if (!building) {
 	 * The handleSystemState hook will block requests appropriately
 	 * based on the current state.
 	 */
-	import('@src/databases/db')
-		.then(() => {
-			logger.info('✅ DB module loaded. System will initialize on first request via handleSystemState.');
-		})
-		.catch((error) => {
-			logger.error('Fatal: Failed to load DB module during server startup:', error);
-		});
+	// Static import ensures the module is loaded and initialization promise is created
+	import('@src/databases/db');
+	logger.info('✅ DB module loaded. System will initialize on first request via handleSystemState.');
 }
 
 // --- Middleware Sequence ---

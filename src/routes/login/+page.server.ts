@@ -681,16 +681,16 @@ export const actions: Actions = {
 		// Security: This action ONLY works for invited users with valid tokens.
 		// First-user registration must go through /setup (enforced by hooks and load function).
 		if (!token) {
-		if (!token) {
-			return fail(403, { message: 'A valid invitation is required to create an account.', form });
-		}
+			if (!token) {
+				return fail(403, { message: 'A valid invitation is required to create an account.', form });
+			}
 		}
 
 		const tokenData = await auth.validateRegistrationToken(token);
 		if (!tokenData.isValid || !tokenData.details) {
-		if (!tokenData.isValid || !tokenData.details) {
-			return fail(403, { message: 'This invitation is invalid, expired, or has already been used.', form });
-		}
+			if (!tokenData.isValid || !tokenData.details) {
+				return fail(403, { message: 'This invitation is invalid, expired, or has already been used.', form });
+			}
 		}
 
 		// Debug: Log the token details to see what we're getting
@@ -702,9 +702,9 @@ export const actions: Actions = {
 
 		// Security: Check that the email in the form matches the one in the token record
 		if (email.toLowerCase() !== tokenData.details.email.toLowerCase()) {
-		if (email.toLowerCase() !== tokenData.details.email.toLowerCase()) {
-			return fail(403, { message: 'The provided email does not match the invitation.', form });
-		}
+			if (email.toLowerCase() !== tokenData.details.email.toLowerCase()) {
+				return fail(403, { message: 'The provided email does not match the invitation.', form });
+			}
 		}
 
 		try {
@@ -868,7 +868,6 @@ export const actions: Actions = {
 		const { email, password } = result.output;
 		// isToken is already boolean from our manual parsing, but let's use result.output if schema didn't transform it weirdly
 		// actually result.output.isToken should be boolean because schema says boolean() and we passed a boolean
-
 
 		let resp;
 		let redirectPath;

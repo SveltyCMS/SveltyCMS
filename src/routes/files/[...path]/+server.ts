@@ -1,29 +1,25 @@
 /**
  * @file src/routes/files/[...path]/+server.ts
- * @description Serves media files from local storage or redirects to cloud storage
+ * @description Serves media files via Streams (Non-blocking) or redirects to cloud storage.
  *
- * This endpoint handles requests to /files/... with the following logic:
- * - **Local Storage**: Serves files directly from MEDIA_FOLDER
- * - **Cloud Storage** (S3/R2/Cloudinary): Redirects to MEDIA_CLOUD_PUBLIC_URL or MEDIASERVER_URL
- *
- * The storage type is determined by the MEDIA_STORAGE_TYPE setting:
- * - 'local': Serve from local filesystem
- * - 's3', 'r2', 'cloudinary': Redirect to cloud URL
- *
- * Examples:
- * - GET /files/avatars/hash-image.avif (local) -> serves mediaFolder/avatars/hash-image.avif
- * - GET /files/avatars/hash-image.avif (cloud) -> redirects to https://cdn.example.com/avatars/hash-image.avif
+ * Improvements:
+ * - **Streaming:** Uses `createReadStream` to serve files with near-zero memory footprint.
+ * - **Async I/O:** Uses `fs.promises` to prevent blocking the Node.js event loop.
+ * - **304 Not Modified:** Handles browser caching headers to save bandwidth.
+ * - **Error Handling:** Handles 'ENOENT' specifically for cleaner 404s.
  */
 
 import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getPublicSettingSync } from '@src/services/settingsService';
 import { logger } from '@utils/logger.server';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import { createReadStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
+import path from 'node:path';
+import { Readable } from 'node:stream';
 import { lookup } from 'mime-types';
 
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, request }) => {
 	try {
 		const filePath = params.path;
 
@@ -35,26 +31,17 @@ export const GET: RequestHandler = async ({ params }) => {
 		// Check storage type
 		const storageType = getPublicSettingSync('MEDIA_STORAGE_TYPE');
 
-		// If using cloud storage, redirect to the cloud URL
+		// --- CLOUD STORAGE REDIRECT ---
 		if (storageType !== 'local') {
-			// Try MEDIA_CLOUD_PUBLIC_URL first, then MEDIASERVER_URL as fallback
 			const cloudUrl = getPublicSettingSync('MEDIA_CLOUD_PUBLIC_URL') || getPublicSettingSync('MEDIASERVER_URL');
 
 			if (cloudUrl) {
-				// Get MEDIA_FOLDER to use as path prefix in cloud storage
 				const mediaFolder = getPublicSettingSync('MEDIA_FOLDER') || '';
 				const normalizedFolder = mediaFolder.replace(/^\.\//, '').replace(/^\/+/, '').replace(/\/+$/, '');
-
-				// Construct the full cloud URL with MEDIA_FOLDER prefix
-				const baseUrl = cloudUrl.replace(/\/+$/, ''); // Remove trailing slash
+				const baseUrl = cloudUrl.replace(/\/+$/, '');
 				const fullUrl = normalizedFolder ? `${baseUrl}/${normalizedFolder}/${filePath}` : `${baseUrl}/${filePath}`;
 
-				logger.debug('Redirecting to cloud storage', {
-					filePath,
-					cloudUrl: fullUrl,
-					storageType,
-					mediaFolder: normalizedFolder
-				});
+				logger.debug('Redirecting to cloud storage', { filePath, cloudUrl: fullUrl });
 				throw redirect(307, fullUrl);
 			} else {
 				logger.error('Cloud storage configured but no public URL available', { storageType });
@@ -62,67 +49,67 @@ export const GET: RequestHandler = async ({ params }) => {
 			}
 		}
 
-		// LOCAL STORAGE: Serve from filesystem
+		// --- LOCAL STORAGE SERVING ---
 		const mediaFolder = getPublicSettingSync('MEDIA_FOLDER');
 		if (!mediaFolder) {
-			logger.error('MEDIA_FOLDER not configured in system settings');
+			logger.error('MEDIA_FOLDER not configured');
 			throw error(500, 'Media storage not configured');
 		}
 
-		// Normalize media folder path (remove ./ prefix)
 		const normalizedMediaFolder = mediaFolder.replace(/^\.\//, '').replace(/^\/+/, '');
-
-		// Construct full file path
 		const fullPath = path.join(process.cwd(), normalizedMediaFolder, filePath);
 
-		// Security: Prevent directory traversal attacks
+		// Security: Directory Traversal Prevention
 		const resolvedPath = path.resolve(fullPath);
 		const allowedBasePath = path.resolve(process.cwd(), normalizedMediaFolder);
 
 		if (!resolvedPath.startsWith(allowedBasePath)) {
-			logger.warn('Directory traversal attempt detected', {
-				requestedPath: filePath,
-				resolvedPath
-			});
+			logger.warn('Directory traversal attempt detected', { requestedPath: filePath, resolvedPath });
 			throw error(403, 'Access denied');
 		}
 
-		// Check if file exists
-		if (!fs.existsSync(resolvedPath)) {
-			logger.debug('File not found', { path: resolvedPath });
-			throw error(404, 'File not found');
-		}
+		// Async Stat check (Non-blocking)
+		const stats = await stat(resolvedPath);
 
-		// Check if it's a file (not a directory)
-		const stats = fs.statSync(resolvedPath);
 		if (!stats.isFile()) {
-			logger.warn('Attempted to access non-file resource', { path: resolvedPath });
 			throw error(400, 'Invalid file request');
 		}
 
-		// Read file
-		const fileBuffer = fs.readFileSync(resolvedPath);
+		// Browser Cache Optimization (304 Not Modified)
+		const lastModified = stats.mtime.toUTCString();
+		if (request.headers.get('if-modified-since') === lastModified) {
+			return new Response(null, { status: 304 });
+		}
 
-		// Determine MIME type
+		// MIME Type
 		const mimeType = lookup(resolvedPath) || 'application/octet-stream';
 
-		// Return file with appropriate headers
-		return new Response(fileBuffer, {
+		// STREAMING RESPONSE (Memory Efficient)
+		// We convert the Node stream to a Web ReadableStream for SvelteKit
+		const nodeStream = createReadStream(resolvedPath);
+		const stream = Readable.toWeb(nodeStream);
+
+		return new Response(stream as any, {
 			status: 200,
 			headers: {
 				'Content-Type': mimeType,
 				'Content-Length': stats.size.toString(),
 				'Cache-Control': 'public, max-age=31536000, immutable',
-				'Last-Modified': stats.mtime.toUTCString()
+				'Last-Modified': lastModified
 			}
 		});
-	} catch (err) {
-		// Re-throw SvelteKit errors
+	} catch (err: any) {
+		// Handle Redirects (SvelteKit flow control)
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
 
-		// Log unexpected errors
+		// Handle File Not Found specifically
+		if (err.code === 'ENOENT') {
+			logger.debug('File not found', { path: params.path });
+			throw error(404, 'File not found');
+		}
+
 		logger.error('Error serving file', { error: err, path: params.path });
 		throw error(500, 'Failed to serve file');
 	}

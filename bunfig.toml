@@ -1,8 +1,8 @@
 # bunfig.toml
 
 [test]
-# Preload files for test setup
-preload = ["./tests/bun/svelte-loader.js", "./tests/bun/mocks/setup.ts"]
+# Preload files for test setup (mocks SvelteKit modules)
+preload = ["./tests/bun/setup.ts"]
 
 [alias]
 "@paraglide/*" = "./src/paraglide/*"

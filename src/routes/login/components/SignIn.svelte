@@ -125,9 +125,9 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 				// Cancel default redirect behavior so we can use client-side navigation
 				// cancel(); // Form class doesn't support cancelling redirect in onResult easily without preventing update?
-                // Actually, if we don't call update(), the redirect doesn't happen automatically?
-                // SvelteKit default applyAction handles redirect.
-                // We want to use goto.
+				// Actually, if we don't call update(), the redirect doesn't happen automatically?
+				// SvelteKit default applyAction handles redirect.
+				// We want to use goto.
 
 				// Use client-side navigation for instant redirect
 				if (result.location) {
@@ -156,19 +156,19 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 			// Reset all states on error
 			isAuthenticating = false;
 			globalLoadingStore.stopLoading(loadingOperations.authentication);
-			
-            if (result.type === 'failure' || result.type === 'error') {
-                // Trigger the toast
-                showToast(m.signin_wrong_user_or_password(), 'error');
 
-                // add wiggle animation to form element
-                formElement?.classList.add('wiggle');
-                setTimeout(() => {
-                    formElement?.classList.remove('wiggle');
-                }, 300);
-            }
-            
-            await update();
+			if (result.type === 'failure' || result.type === 'error') {
+				// Trigger the toast
+				showToast(m.signin_wrong_user_or_password(), 'error');
+
+				// add wiggle animation to form element
+				formElement?.classList.add('wiggle');
+				setTimeout(() => {
+					formElement?.classList.remove('wiggle');
+				}, 300);
+			}
+
+			await update();
 		}
 	});
 
@@ -196,16 +196,17 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 			if (result.type === 'error') {
 				// Transform the array of error messages into a single string
-                // Form class puts errors in forgotForm.errors
-                // But result.type 'error' is usually 500 or network error
-                // If it's 400 with errors, it's 'failure'
-                
-                // For now, just show generic error or message from result
+				// Form class puts errors in forgotForm.errors
+				// But result.type 'error' is usually 500 or network error
+				// If it's 400 with errors, it's 'failure'
+
+				// For now, just show generic error or message from result
 				showToast(result.error?.message || 'An error occurred', 'info');
 				return;
 			}
 
-			if (result.type === 'success' || result.type === 'failure') { // Failure can also contain data
+			if (result.type === 'success' || result.type === 'failure') {
+				// Failure can also contain data
 				// Check if user exists
 				if (result.data && result.data.userExists === false) {
 					PWreset = false;
@@ -218,26 +219,26 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 					showToast(m.signin_forgottontoast(), 'success');
 					return;
 				} else {
-                     // Fallback
-                     if (result.data?.status === false) {
-                        PWreset = false;
+					// Fallback
+					if (result.data?.status === false) {
+						PWreset = false;
 						formElement?.classList.add('wiggle');
 						setTimeout(() => formElement?.classList.remove('wiggle'), 300);
-                     } else {
-                        PWreset = true;
+					} else {
+						PWreset = true;
 						showToast(m.signin_forgottontoast(), 'success');
-                     }
-                }
+					}
+				}
 			}
-            
-            await update();
-            
-            if (result.type === 'failure') {
-                 formElement?.classList.add('wiggle');
-			    setTimeout(() => {
-				    formElement?.classList.remove('wiggle');
-			    }, 300);
-            }
+
+			await update();
+
+			if (result.type === 'failure') {
+				formElement?.classList.add('wiggle');
+				setTimeout(() => {
+					formElement?.classList.remove('wiggle');
+				}, 300);
+			}
 		}
 	});
 
@@ -261,19 +262,19 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 			if (result.type === 'success' || result.type === 'redirect') {
 				showToast(m.signin_restpasswordtoast(), 'success');
 				if (result.type === 'redirect') {
-                    if (result.location) goto(result.location);
-                    return;
-                }
+					if (result.location) goto(result.location);
+					return;
+				}
 			}
-            
-            await update();
 
-            if (result.type === 'failure') {
-			    formElement?.classList.add('wiggle');
-			    setTimeout(() => {
-				    formElement?.classList.remove('wiggle');
-			    }, 300);
-            }
+			await update();
+
+			if (result.type === 'failure') {
+				formElement?.classList.add('wiggle');
+				setTimeout(() => {
+					formElement?.classList.remove('wiggle');
+				}, 300);
+			}
 		}
 	});
 

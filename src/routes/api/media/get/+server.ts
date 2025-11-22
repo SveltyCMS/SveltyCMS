@@ -19,7 +19,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 // Permissions
 
 // Media
-import { getFile } from '@utils/media/mediaStorage';
+import { getFile } from '@utils/media/mediaStorage.server';
 
 // System Logger
 import { logger } from '@utils/logger.server';
