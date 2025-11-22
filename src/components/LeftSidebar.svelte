@@ -233,7 +233,7 @@
 	{#if isSidebarFull}
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 !no-underline">
 			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
-			<span class="text-token relative text-2xl font-bold">
+			<span class="text-inherit relative text-2xl font-bold">
 				<SiteName highlight="CMS" />
 			</span>
 		</a>

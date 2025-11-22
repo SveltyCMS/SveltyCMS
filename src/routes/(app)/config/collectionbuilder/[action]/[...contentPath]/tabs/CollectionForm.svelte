@@ -237,7 +237,7 @@
 		<!-- Separator (Optional) -->
 		<hr class="my-2 border-gray-300 dark:border-gray-600" />
 
-		<p class="text-token mb-0 text-center font-bold">{m.collectionname_optional()}:</p>
+		<p class="text-inherit mb-0 text-center font-bold">{m.collectionname_optional()}:</p>
 
 		<!-- Icon -->
 		<div class="flex flex-col">

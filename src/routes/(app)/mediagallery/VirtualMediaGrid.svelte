@@ -268,7 +268,7 @@ Implements custom virtual scrolling without external dependencies.
 											<tr><td class="font-semibold">Hash:</td><td class="truncate" title={file.hash}>{file.hash?.substring(0, 8) || 'N/A'}</td></tr>
 										</tbody>
 									</table>
-									<div class="bg-surface-100-800-token arrow"></div>
+									<div class="bg-surface-100 dark:bg-surface-800 arrow"></div>
 								</div>
 
 								{#if !isSelectionMode}

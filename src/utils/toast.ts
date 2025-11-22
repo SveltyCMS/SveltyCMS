@@ -1,15 +1,16 @@
 /**
  * @file src/utils/toast.ts
  * Centralized toast utility for consistent notifications across modals/components.
+ * Updated for Skeleton v4 with Zag.js toaster.
  */
 
-import { getToastStore, type ToastStore } from '@skeletonlabs/skeleton';
+import type { Service } from '@zag-js/toast';
 import { logger } from '@utils/logger';
 
-let toastStoreRef: ToastStore | null = null;
+let toastStoreRef: Service | null = null;
 
-export function setGlobalToastStore(store?: ToastStore): void {
-	toastStoreRef = store ?? getToastStore();
+export function setGlobalToastStore(store: Service): void {
+	toastStoreRef = store;
 }
 
 export type ToastType = 'success' | 'info' | 'warning' | 'error';
@@ -21,22 +22,14 @@ export type ToastType = 'success' | 'info' | 'warning' | 'error';
  * @param timeout Custom timeout in milliseconds. Defaults to 3000ms.
  */
 export function showToast(message: string, type: ToastType = 'info', timeout?: number): void {
-	const backgrounds: Record<ToastType, string> = {
-		success: 'gradient-primary',
-		info: 'gradient-tertiary',
-		warning: 'gradient-warning',
-		error: 'gradient-error'
-	};
-
 	if (!toastStoreRef) {
-		logger.warn('[toast] Toast store not initialized. Call setGlobalToastStore(getToastStore()) in a root component.');
+		logger.warn('[toast] Toast store not initialized. Call setGlobalToastStore(createToaster()) in a root component.');
 		return;
 	}
 
-	toastStoreRef.trigger({
-		message,
-		background: backgrounds[type],
-		timeout: timeout || 3000,
-		classes: '!shadow-2xl !rounded-xl !p-4 !min-w-[320px] !max-w-[400px] !border !border-white/10 !backdrop-blur-sm'
+	toastStoreRef.create({
+		title: message,
+		type: type === 'error' ? 'error' : type === 'success' ? 'success' : 'info',
+		duration: timeout || 3000
 	});
 }

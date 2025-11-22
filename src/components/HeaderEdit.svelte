@@ -413,7 +413,7 @@
 </script>
 
 <header
-	class="border-secondary-600-300-token sticky top-0 z-20 flex w-full items-center justify-between overflow-visible bg-white p-2 shadow-sm dark:bg-surface-700"
+	class="border-secondary-600 dark:border-secondary-300 sticky top-0 z-20 flex w-full items-center justify-between overflow-visible bg-white p-2 shadow-sm dark:bg-surface-700"
 	class:border-b={!showMore}
 >
 	<div class="flex items-center justify-start">

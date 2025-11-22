@@ -451,7 +451,7 @@ Handles all field types and validation automatically
 			<span class=" mr-2">{group.icon}</span>
 			{group.name}
 		</h2>
-		<p class="text-surface-600-300-token">{group.description}</p>
+		<p class="text-surface-600 dark:text-surface-300">{group.description}</p>
 	</div>
 
 	<!-- Restart Warning -->
@@ -588,7 +588,7 @@ Handles all field types and validation automatically
 													</span>
 												{/each}
 											{:else if availableLangsField.placeholder}
-												<span class="text-surface-500-400-token text-xs">{availableLangsField.placeholder}</span>
+												<span class="text-surface-500 dark:text-surface-400 text-xs">{availableLangsField.placeholder}</span>
 											{/if}
 
 											{#if !availableLangsField.readonly}
@@ -756,7 +756,7 @@ Handles all field types and validation automatically
 													</span>
 												{/each}
 											{:else if localesField.placeholder}
-												<span class="text-surface-500-400-token text-xs">{localesField.placeholder}</span>
+												<span class="text-surface-500 dark:text-surface-400 text-xs">{localesField.placeholder}</span>
 											{/if}
 
 											{#if !localesField.readonly}
@@ -856,7 +856,7 @@ Handles all field types and validation automatically
 									<!-- Info icon with tooltip -->
 									<button
 										type="button"
-										class="tooltip-trigger text-surface-500-400-token hover:text-surface-900 dark:hover:text-surface-50"
+										class="tooltip-trigger text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-50"
 										data-tooltip={field.description}
 										aria-label="Field information"
 									>
@@ -897,7 +897,7 @@ Handles all field types and validation automatically
 										<div class="input-group-shim text-sm">
 											{field.unit}
 											{#if typeof values[field.key] === 'number' && field.unit === 'seconds'}
-												<span class="text-surface-500-400-token ml-2">
+												<span class="text-surface-500 dark:text-surface-400 ml-2">
 													({formatDuration(values[field.key] as number)})
 												</span>
 											{/if}
@@ -922,7 +922,7 @@ Handles all field types and validation automatically
 									{#if !field.readonly}
 										<button
 											type="button"
-											class="text-surface-600-300-token absolute right-2 top-1/2 -translate-y-1/2 hover:text-surface-900 dark:hover:text-surface-50"
+											class="text-surface-600 dark:text-surface-300 absolute right-2 top-1/2 -translate-y-1/2 hover:text-surface-900 dark:hover:text-surface-50"
 											onclick={() => (showPassword[field.key] = !showPassword[field.key])}
 											aria-label={showPassword[field.key] ? 'Hide password' : 'Show password'}
 										>
@@ -975,7 +975,7 @@ Handles all field types and validation automatically
 										errors[field.key] = '';
 									}}
 								/>
-								<p class="text-surface-500-400-token mt-1 text-xs">Enter values separated by commas</p>
+								<p class="text-surface-500 dark:text-surface-400 mt-1 text-xs">Enter values separated by commas</p>
 
 								<!-- Language Multi-Select -->
 							{:else if field.type === 'language-multi'}
@@ -1003,7 +1003,7 @@ Handles all field types and validation automatically
 												</span>
 											{/each}
 										{:else if field.placeholder}
-											<span class="text-surface-500-400-token text-xs">{field.placeholder}</span>
+											<span class="text-surface-500 dark:text-surface-400 text-xs">{field.placeholder}</span>
 										{/if}
 
 										{#if !field.readonly}
@@ -1065,7 +1065,7 @@ Handles all field types and validation automatically
 									{/if}
 								</div>
 								{#if field.placeholder && (values[field.key] as string[])?.length > 0}
-									<p class="text-surface-500-400-token mt-1 text-[10px]">Example: {field.placeholder}</p>
+									<p class="text-surface-500 dark:text-surface-400 mt-1 text-[10px]">Example: {field.placeholder}</p>
 								{/if}
 
 								<!-- Log Level Multi-Select -->
@@ -1093,7 +1093,7 @@ Handles all field types and validation automatically
 												</span>
 											{/each}
 										{:else if field.placeholder}
-											<span class="text-surface-500-400-token text-xs">{field.placeholder}</span>
+											<span class="text-surface-500 dark:text-surface-400 text-xs">{field.placeholder}</span>
 										{/if}
 
 										{#if !field.readonly}
@@ -1142,7 +1142,7 @@ Handles all field types and validation automatically
 									{/if}
 								</div>
 								{#if field.placeholder && (values[field.key] as LogLevel[])?.length > 0}
-									<p class="text-surface-500-400-token mt-1 text-[10px]">Example: {field.placeholder}</p>
+									<p class="text-surface-500 dark:text-surface-400 mt-1 text-[10px]">Example: {field.placeholder}</p>
 								{/if}
 							{/if}
 
@@ -1176,6 +1176,7 @@ Handles all field types and validation automatically
 </div>
 
 <style lang="postcss">
+	@import "tailwindcss";
 	.generic-settings-group {
 		@apply space-y-4;
 		/* Prevent horizontal overflow */
@@ -1188,7 +1189,7 @@ Handles all field types and validation automatically
 	}
 
 	.alert {
-		@apply p-3 rounded-container-token md:p-4;
+		@apply p-3 rounded-lg md:p-4;
 	}
 
 	.alert-message strong {

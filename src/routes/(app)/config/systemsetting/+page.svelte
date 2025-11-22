@@ -150,7 +150,7 @@ All dynamic CMS settings organized into logical groups
 
 <PageTitle name="Dynamic System Settings" icon="mdi:cog" showBackButton={true} backUrl="/config" />
 
-<p class="text-surface-600-300-token mb-6 px-2">
+<p class="text-surface-600 dark:text-surface-300 mb-6 px-2">
 	These are critical system settings loaded dynamically from the database. Most changes take effect immediately, though settings marked with "Restart
 	Required" need a server restart. Settings are organized into <span class="font-bold text-primary-500">{availableGroups.length}</span>
 	logical groups for easy management.
@@ -275,8 +275,9 @@ All dynamic CMS settings organized into logical groups
 </div>
 
 <style lang="postcss">
+	@import "tailwindcss";
 	.alert {
-		@apply rounded-container-token;
+		@apply rounded-lg;
 	}
 	.alert-message p {
 		@apply text-sm opacity-90;

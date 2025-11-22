@@ -75,6 +75,7 @@
 </div>
 
 <style lang="postcss">
+	@import "tailwindcss";
 	.finetune-controls {
 		@apply flex w-full items-center gap-3 px-2;
 	}
