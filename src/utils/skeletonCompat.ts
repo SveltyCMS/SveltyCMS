@@ -119,9 +119,17 @@ export interface PopupSettings {
 	middleware?: any;
 }
 
-export function popup(settings: PopupSettings = {}) {
+// Popup compatibility - Svelte action that returns lifecycle methods
+export function popup(node: HTMLElement, settings: PopupSettings = {}) {
+	// In Skeleton v4, you would use Popover component instead
+	// For now, return empty action to maintain compatibility
 	return {
-		destroy() {}
+		update(newSettings: PopupSettings) {
+			// Handle settings update
+		},
+		destroy() {
+			// Cleanup if needed
+		}
 	};
 }
 
@@ -175,8 +183,6 @@ export const clipboard = {
 	}
 };
 
-// CodeBlock placeholder - you may need to implement or find alternative
-export const CodeBlock = null;
-
-// Modal component placeholder  
-export const Modal = null;
+// CodeBlock and Modal components
+export { default as CodeBlock } from '@components/compat/CodeBlock.svelte';
+export { default as Modal } from '@components/compat/Modal.svelte';
