@@ -317,14 +317,6 @@
 		</Tab>
 	{/if}
 
-	<button
-		class="variant-ghost-surface btn-icon btn-icon-sm ml-2"
-		onclick={() => activeInputStore.set({ element: null, field: { name: 'Global', label: 'Clipboard' } })}
-		title="Open Token Picker"
-	>
-		<iconify-icon icon="mdi:code-braces" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-	</button>
-
 	<svelte:fragment slot="panel">
 		<TokenPicker />
 		{#if localTabSet === 0}
@@ -359,6 +351,32 @@
 													<span class="font-medium {textColor}">({percentage}%)</span>
 												</div>
 											{/if}
+
+											<!-- Token Trigger -->
+											<button
+												type="button"
+												class="variant-ghost-surface btn-icon btn-icon-sm h-6 w-6"
+												title="Insert Token"
+												onclick={() => {
+													const fieldName = getFieldName(field, false);
+													const input = document.getElementById(fieldName);
+													if (input) {
+														activeInputStore.set({
+															element: input as HTMLInputElement,
+															field: {
+																name: field.db_fieldName,
+																label: field.label,
+																collection: collection.value?.name
+															}
+														});
+													} else {
+														showToast('Could not find input element for this field', 'warning');
+													}
+												}}
+											>
+												<iconify-icon icon="mdi:code-braces" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+											</button>
+
 											<!-- Icon for field type -->
 											{#if field.icon}
 												<iconify-icon icon={field.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>

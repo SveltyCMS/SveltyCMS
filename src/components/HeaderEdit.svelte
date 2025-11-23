@@ -440,7 +440,7 @@
 				<iconify-icon icon={collection.value?.icon} width="24" class="text-error-500"></iconify-icon>
 			</div>
 		</button>
-		{#if collection.value?.name}
+		{#if collection.value?.name && mode.value !== 'view'}
 			<div class="ml-2 flex flex-col text-left font-bold">
 				<div class="text-sm uppercase">
 					{mode.value}:

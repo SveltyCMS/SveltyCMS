@@ -94,32 +94,27 @@
 
 {#if activeInputStore.value}
 	<div
-		class="token-window fixed z-[9999] flex max-h-[500px] w-80 flex-col rounded-lg border border-surface-600 bg-surface-800 shadow-2xl ring-1 ring-black/20"
-		style="top: 20%; right: 5%;"
+		class="token-window fixed z-[9999] flex max-h-[500px] w-80 flex-col rounded-lg border border-surface-400 bg-white shadow-2xl dark:bg-surface-900"
+		style="bottom: 20px; right: 20px;"
 		transition:fade={{ duration: 150 }}
 	>
 		<!-- Header -->
-		<div use:draggable class="flex cursor-move select-none items-center justify-between rounded-t-lg border-b border-surface-700 bg-surface-900 p-3">
-			<div class="flex items-center gap-2 text-primary-500">
+		<div use:draggable class="flex cursor-move select-none items-center justify-between rounded-t-lg border-b border-surface-400 p-3">
+			<div class="flex items-center gap-2 text-tertiary-500 dark:text-primary-500">
 				<iconify-icon icon="mdi:code-braces" width="20"></iconify-icon>
-				<span class="text-sm font-bold">Token Picker</span>
+				<span class="text-base font-bold">Token Picker for</span>
 			</div>
 
-			<div class="">{activeInputStore.value.field.label || 'Clipboard'}</div>
+			<div class="variant-filled-secondary badge text-sm font-medium">{activeInputStore.value.field.label || 'Clipboard'}</div>
 
-			<button onclick={() => activeInputStore.set(null)} aria-label="Close token picker" class="variant-secondary btn-icon">
+			<button onclick={() => activeInputStore.set(null)} aria-label="Close token picker" class="variant-ghost btn-icon btn-icon-sm">
 				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 			</button>
 		</div>
 
 		<!-- Search -->
-		<div class="border-b border-surface-700 bg-surface-800 p-2">
-			<div class="relative">
-				<input bind:value={search} class="input" placeholder="Search tokens..." />
-				<div class="absolute left-2.5 top-1.5 text-surface-500">
-					<iconify-icon icon="mdi:magnify" width="16"></iconify-icon>
-				</div>
-			</div>
+		<div class="border-b border-surface-400 p-2">
+			<input bind:value={search} class="input p-2" placeholder="Search tokens..." />
 		</div>
 
 		<!-- Token List -->
@@ -131,8 +126,8 @@
 						class="flex w-full items-center justify-between rounded p-2 text-xs font-bold uppercase tracking-wider text-surface-400 transition-colors hover:bg-surface-700"
 					>
 						<div class="flex items-center gap-2">
-							<iconify-icon icon={icons[category] || 'mdi:circle-small'} width="16"></iconify-icon>
-							<span>{category}</span>
+							<iconify-icon icon={icons[category] || 'mdi:circle-small'} width="18"></iconify-icon>
+							<span class="text-tertiary-500 dark:text-primary-500">{category}</span>
 							<span class="variant-filled-tertiary badge-icon text-xs dark:variant-filled-primary">{tokens.length}</span>
 						</div>
 						<iconify-icon
@@ -147,18 +142,19 @@
 								<button
 									onclick={() => insert(t.token)}
 									class="group w-full rounded border border-transparent p-2 text-left transition-all hover:border-primary-500/50 hover:bg-primary-500/20"
+									title={t.description}
 								>
-									<div class="mb-0.5 flex items-center justify-between">
-										<span class="text-sm font-medium">{t.name}</span>
-									</div>
-									<div class="flex items-center gap-2">
-										<code class="variant-filled-tertiary badge rounded text-xs dark:variant-filled-primary">
+									<div class="mb-1 flex items-center justify-between">
+										<span class="text-sm font-semibold">{t.name}</span>
+										<code class="variant-filled-secondary badge rounded-full">
 											{t.token}
 										</code>
-										{#if t.description}
-											<span class="max-w-[120px] truncate text-[10px] text-primary-500">{t.description}</span>
-										{/if}
 									</div>
+									{#if t.description}
+										<div class="text-xs text-tertiary-500 group-hover:text-surface-300 dark:text-primary-500">
+											{t.description}
+										</div>
+									{/if}
 								</button>
 							{/each}
 						</div>

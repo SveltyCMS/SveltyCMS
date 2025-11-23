@@ -55,19 +55,40 @@ class TokenRegistryService {
 
 		// System tokens
 		if (config.includeSystem !== false) {
-			add({ token: 'system.now', name: 'Now', category: 'system', description: 'Current timestamp', resolve: () => new Date().toISOString() });
-			add({ token: 'system.year', name: 'Year', category: 'system', description: 'Current year', resolve: () => new Date().getFullYear() });
+			add({
+				token: 'system.now',
+				name: 'Current Timestamp',
+				category: 'system',
+				description: 'Inserts the current date and time in ISO format (e.g., 2023-10-27T10:00:00Z). Useful for timestamps.',
+				resolve: () => new Date().toISOString()
+			});
+			add({
+				token: 'system.year',
+				name: 'Current Year',
+				category: 'system',
+				description: 'Inserts the current 4-digit year (e.g., 2025). Useful for copyright notices.',
+				resolve: () => new Date().getFullYear()
+			});
 		}
 
 		// User tokens (whitelisted)
 		if (user && config.includeUser !== false) {
+			const fieldDescriptions: Record<string, string> = {
+				email: "The current user's email address.",
+				username: "The current user's username.",
+				role: "The current user's assigned role (e.g., admin, editor).",
+				name: "The current user's full name (if set).",
+				_id: 'The unique database ID of the current user.',
+				language: "The current user's preferred interface language."
+			};
+
 			ALLOWED_USER_FIELDS.forEach((field) => {
 				if (field in user) {
 					add({
 						token: `user.${field}`,
-						name: `User ${field}`,
+						name: `User ${field.charAt(0).toUpperCase() + field.slice(1)}`,
 						category: 'user',
-						description: `Current user ${field}`,
+						description: fieldDescriptions[field] || `The ${field} of the currently logged-in user.`,
 						resolve: (c) => c.user?.[field as keyof User]
 					});
 				}
@@ -77,6 +98,14 @@ class TokenRegistryService {
 		// Site tokens (publicEnv)
 		if (config.includeSite !== false && publicEnv) {
 			const safeSiteKeys = ['SITE_NAME', 'HOST_PROD', 'PKG_VERSION', 'DEFAULT_CONTENT_LANGUAGE', 'SEASONS'];
+			const siteDescriptions: Record<string, string> = {
+				SITE_NAME: 'The global name of this website as defined in settings.',
+				HOST_PROD: 'The production domain/URL of the website.',
+				PKG_VERSION: 'The current version number of the CMS software.',
+				DEFAULT_CONTENT_LANGUAGE: 'The default language code for content (e.g., "en").',
+				SEASONS: 'Configuration for seasonal features (if enabled).'
+			};
+
 			safeSiteKeys.forEach((key) => {
 				if (key in publicEnv) {
 					add({
@@ -86,7 +115,7 @@ class TokenRegistryService {
 							.toLowerCase()
 							.replace(/\b\w/g, (l) => l.toUpperCase()),
 						category: 'site',
-						description: `Public setting ${key}`,
+						description: siteDescriptions[key] || `Global site configuration value for ${key}.`,
 						resolve: () => publicEnv[key as keyof typeof publicEnv]
 					});
 				}
@@ -98,15 +127,42 @@ class TokenRegistryService {
 			schema.fields.forEach((field: any) => {
 				const name = field.db_fieldName || field.label;
 				if (!name) return;
+
+				// Generate a better description based on field type and props
+				let desc = field.helper || `Content of the "${field.label || name}" field.`;
+				if (field.translated) desc += ' (Translated)';
+				if (field.required) desc += ' (Required)';
+
 				add({
 					token: `entry.${name}`,
 					name: field.label || name,
 					category: 'entry',
-					description: field.helper || `Value of ${name}`,
+					description: desc,
 					resolve: (c) => c.entry?.[name]
 				});
 			});
 		}
+
+		// Modifiers (Virtual tokens for documentation)
+		const modifiers = [
+			{ name: 'upper', desc: 'Converts text to UPPERCASE.' },
+			{ name: 'lower', desc: 'Converts text to lowercase.' },
+			{ name: 'capitalize', desc: 'Capitalizes the First Letter.' },
+			{ name: 'trim', desc: 'Removes leading and trailing whitespace.' },
+			{ name: 'slug', desc: 'Converts text into a URL-friendly slug.' },
+			{ name: 'date', desc: 'Formats a date. Usage: |date(YYYY-MM-DD).' },
+			{ name: 'truncate', desc: 'Shortens text to length. Usage: |truncate(10).' }
+		];
+
+		modifiers.forEach((mod) => {
+			add({
+				token: `| ${mod.name}`,
+				name: `Modifier: ${mod.name}`,
+				category: 'system',
+				description: mod.desc,
+				resolve: () => ''
+			});
+		});
 
 		// Custom tokens
 		if (config.customTokens) config.customTokens.forEach((t) => add(t));

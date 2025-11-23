@@ -14,8 +14,7 @@
  * - Returns the processed response.
  */
 
-import { processObjectWithTokens } from '@src/utils/tokenHelper';
-import { publicEnv } from '@src/stores/globalSettings.svelte';
+import { processTokensInResponse } from '@src/utils/tokenHelper';
 import type { Handle } from '@sveltejs/kit';
 
 export const handleTokenResolution: Handle = async ({ event, resolve }) => {
@@ -24,16 +23,19 @@ export const handleTokenResolution: Handle = async ({ event, resolve }) => {
 	// Only process JSON API responses for collection endpoints
 	if (event.url.pathname.startsWith('/api/collection') && response.headers.get('content-type')?.includes('application/json')) {
 		// Clone response body
-		const body = await response.json();
-		const processed = await processObjectWithTokens(body, {
-			site: publicEnv,
-			user: event.locals.user ?? undefined,
-			system: { now: new Date() }
-		});
-		return new Response(JSON.stringify(processed), {
-			status: response.status,
-			headers: response.headers
-		});
+		try {
+			const body = await response.json();
+			const locale = (event.locals as any).locale || 'en'; // Assuming locale is set in locals, fallback to 'en'
+			const processed = await processTokensInResponse(body, event.locals.user ?? undefined, locale);
+
+			return new Response(JSON.stringify(processed), {
+				status: response.status,
+				headers: response.headers
+			});
+		} catch (e) {
+			// If JSON parsing fails or other errors, return original response
+			return response;
+		}
 	}
 
 	return response;

@@ -35,8 +35,9 @@
 	import { validationStore } from '@root/src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { contentLanguage } from '@src/stores/store.svelte';
-	import { tokenTarget } from '@src/actions/tokenTarget';
+
 	import { collection } from '@src/stores/collectionStore.svelte';
+	import { activeInputStore } from '@src/stores/activeInputStore.svelte';
 
 	// Props
 	interface Props {
@@ -174,8 +175,19 @@
 	}
 
 	// Handle focus events
-	function handleFocus() {
-		// Could be used for custom focus behavior
+	function handleFocus(e: FocusEvent) {
+		// If the token picker is already open (activeInputStore has a value),
+		// update it to point to this input.
+		if (activeInputStore.value) {
+			activeInputStore.set({
+				element: e.currentTarget as HTMLInputElement,
+				field: {
+					name: field.db_fieldName,
+					label: field.label,
+					collection: collection.value?.name
+				}
+			});
+		}
 	}
 
 	// Safe value setter function
@@ -230,11 +242,6 @@
 		{/if}
 
 		<input
-			use:tokenTarget={{
-				name: field.db_fieldName,
-				label: field.label,
-				collection: collection.value?.name
-			}}
 			type="text"
 			value={safeValue}
 			oninput={(e) => {

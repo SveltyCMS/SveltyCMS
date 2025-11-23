@@ -27,12 +27,14 @@
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Stores
+	// Stores
 	import { validationStore } from '@stores/store.svelte';
 	import { contentLanguage } from '@stores/store.svelte';
+	import { collection } from '@src/stores/collectionStore.svelte';
+	import { activeInputStore } from '@src/stores/activeInputStore.svelte';
 
 	// Utils
 	import { getFieldName } from '@utils/utils';
-	import { tokenTarget } from '@src/actions/tokenTarget';
 
 	// Valibot validation
 	import { string, email as emailValidator, pipe, parse, type ValiError, minLength, optional } from 'valibot';
@@ -123,6 +125,22 @@
 		validateInput(true);
 	}
 
+	// Handle focus events
+	function handleFocus(e: FocusEvent) {
+		// If the token picker is already open (activeInputStore has a value),
+		// update it to point to this input.
+		if (activeInputStore.value) {
+			activeInputStore.set({
+				element: e.currentTarget as HTMLInputElement,
+				field: {
+					name: field.db_fieldName,
+					label: field.label,
+					collection: collection.value?.name
+				}
+			});
+		}
+	}
+
 	// Focus management
 	onMount(() => {
 		if (field?.required && !safeValue) {
@@ -153,11 +171,7 @@
 				value={safeValue || ''}
 				oninput={handleInput}
 				onblur={handleBlur}
-				use:tokenTarget={{
-					name: field.db_fieldName,
-					label: field.label,
-					collection: (field as any).collection
-				}}
+				onfocus={handleFocus}
 				name={field?.db_fieldName}
 				id={field?.db_fieldName}
 				placeholder={typeof field?.placeholder === 'string' && field.placeholder !== '' ? field.placeholder : String(field?.db_fieldName ?? '')}

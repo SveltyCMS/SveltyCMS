@@ -28,17 +28,16 @@ import { createWidget } from '@src/widgets/widgetFactory';
 type AggregationField = { db_fieldName: string; [key: string]: unknown };
 
 import {
-	any,
 	maxLength,
 	minLength,
-	object,
 	optional,
 	pipe,
 	string,
 	transform,
 	type BaseIssue,
 	type BaseSchema,
-	type InferInput as ValibotInput
+	type InferInput as ValibotInput,
+	record
 } from 'valibot';
 import type { InputProps } from './types';
 
@@ -58,7 +57,7 @@ export const createValidationSchema = (field: ReturnType<typeof InputWidget>): B
 
 	// Translated fields store an object with language keys -> validate as flexible object
 	if (field.translated) {
-		return object({ _any: any() });
+		return optional(record(string(), string()), {});
 	}
 
 	// If not required, allow optional empty value

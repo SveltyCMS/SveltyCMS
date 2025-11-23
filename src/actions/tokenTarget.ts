@@ -22,14 +22,17 @@ interface TokenTargetOptions {
 
 export function tokenTarget(node: HTMLInputElement | HTMLTextAreaElement, options: TokenTargetOptions) {
 	function onFocus() {
-		activeInputStore.set({
-			element: node,
-			field: {
-				name: options.name,
-				label: options.label || options.name,
-				collection: options.collection
-			}
-		});
+		// Only update if the picker is already open
+		if (activeInputStore.value) {
+			activeInputStore.set({
+				element: node,
+				field: {
+					name: options.name,
+					label: options.label || options.name,
+					collection: options.collection
+				}
+			});
+		}
 	}
 
 	node.addEventListener('focus', onFocus);
