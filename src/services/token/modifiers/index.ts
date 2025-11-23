@@ -11,6 +11,8 @@ import { textModifiers } from './text';
 import { dateModifiers } from './date';
 import { logicalModifiers } from './logical';
 import { advancedModifiers } from './advanced';
+import { mathModifiers } from './math';
+import { pathModifiers } from './path';
 
 /**
  * Registry of all available modifiers
@@ -34,6 +36,16 @@ logicalModifiers.forEach((modifier) => {
 
 // Register advanced modifiers
 advancedModifiers.forEach((modifier) => {
+	modifierRegistry.set(modifier.name, modifier.fn);
+});
+
+// Register math modifiers
+mathModifiers.forEach((modifier) => {
+	modifierRegistry.set(modifier.name, modifier.fn);
+});
+
+// Register path modifiers
+pathModifiers.forEach((modifier) => {
 	modifierRegistry.set(modifier.name, modifier.fn);
 });
 

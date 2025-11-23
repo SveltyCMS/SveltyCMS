@@ -70,9 +70,18 @@ export interface TokenContext {
 	user?: User;
 	/** Site configuration (public settings) */
 	site?: Record<string, unknown>;
-	/** System globals (e.g., now) */
+	/** System globals (e.g., now, timestamp, date, time, year, month, day, hour, minute, second) */
 	system?: {
 		now: Date;
+		timestamp?: number;
+		date?: string;
+		time?: string;
+		year?: number;
+		month?: number;
+		day?: number;
+		hour?: number;
+		minute?: number;
+		second?: number;
 		[key: string]: unknown;
 	};
 	/** Additional custom context */

@@ -246,14 +246,87 @@ function discoverUserTokens(user: User | undefined): TokenDefinition[] {
  * Discovers system tokens
  */
 function discoverSystemTokens(): TokenDefinition[] {
+	const now = new Date();
 	return [
 		{
 			token: 'system.now',
 			name: 'Current Date/Time',
-			description: 'The current date and time',
+			description: 'The current date and time (Date object)',
 			category: 'system',
-			example: new Date().toISOString(),
+			example: now.toISOString(),
 			path: ['system', 'now']
+		},
+		{
+			token: 'system.timestamp',
+			name: 'Unix Timestamp',
+			description: 'Current time as Unix timestamp (seconds since epoch)',
+			category: 'system',
+			example: String(Math.floor(now.getTime() / 1000)),
+			path: ['system', 'timestamp']
+		},
+		{
+			token: 'system.date',
+			name: 'Current Date',
+			description: 'Current date in YYYY-MM-DD format',
+			category: 'system',
+			example: now.toISOString().split('T')[0],
+			path: ['system', 'date']
+		},
+		{
+			token: 'system.time',
+			name: 'Current Time',
+			description: 'Current time in HH:mm:ss format',
+			category: 'system',
+			example: now.toTimeString().split(' ')[0],
+			path: ['system', 'time']
+		},
+		{
+			token: 'system.year',
+			name: 'Current Year',
+			description: 'Current year (4 digits)',
+			category: 'system',
+			example: String(now.getFullYear()),
+			path: ['system', 'year']
+		},
+		{
+			token: 'system.month',
+			name: 'Current Month',
+			description: 'Current month (1-12)',
+			category: 'system',
+			example: String(now.getMonth() + 1),
+			path: ['system', 'month']
+		},
+		{
+			token: 'system.day',
+			name: 'Current Day',
+			description: 'Current day of month (1-31)',
+			category: 'system',
+			example: String(now.getDate()),
+			path: ['system', 'day']
+		},
+		{
+			token: 'system.hour',
+			name: 'Current Hour',
+			description: 'Current hour (0-23)',
+			category: 'system',
+			example: String(now.getHours()),
+			path: ['system', 'hour']
+		},
+		{
+			token: 'system.minute',
+			name: 'Current Minute',
+			description: 'Current minute (0-59)',
+			category: 'system',
+			example: String(now.getMinutes()),
+			path: ['system', 'minute']
+		},
+		{
+			token: 'system.second',
+			name: 'Current Second',
+			description: 'Current second (0-59)',
+			category: 'system',
+			example: String(now.getSeconds()),
+			path: ['system', 'second']
 		}
 	];
 }

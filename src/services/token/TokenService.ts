@@ -132,8 +132,41 @@ function resolveToken(tokenPath: string, context: TokenContext): unknown {
 			if (!context.user) return null;
 			return getNestedValue(context.user, path);
 		case 'system':
-			if (!context.system) return null;
-			return getNestedValue(context.system, path);
+			// Handle system tokens with computed values
+			if (path.length === 0) return null;
+			
+			const systemKey = path[0];
+			const now = context.system?.now || new Date();
+			
+			// Return computed system values
+			switch (systemKey) {
+				case 'now':
+					return now;
+				case 'timestamp':
+					return Math.floor(now.getTime() / 1000);
+				case 'date':
+					return now.toISOString().split('T')[0];
+				case 'time':
+					return now.toTimeString().split(' ')[0];
+				case 'year':
+					return now.getFullYear();
+				case 'month':
+					return now.getMonth() + 1;
+				case 'day':
+					return now.getDate();
+				case 'hour':
+					return now.getHours();
+				case 'minute':
+					return now.getMinutes();
+				case 'second':
+					return now.getSeconds();
+				default:
+					// Fall back to system object if it exists
+					if (context.system) {
+						return getNestedValue(context.system, path);
+					}
+					return null;
+			}
 		default:
 			// Try to get from context directly
 			return getNestedValue(context, [namespace, ...path]);
