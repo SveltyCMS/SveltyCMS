@@ -22,23 +22,22 @@ import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/factory';
+import { createWidget } from '@src/widgets/widgetFactory';
 
 // Type for aggregation field parameter
 type AggregationField = { db_fieldName: string; [key: string]: unknown };
 
 import {
-	any,
 	maxLength,
 	minLength,
-	object,
 	optional,
 	pipe,
 	string,
 	transform,
 	type BaseIssue,
 	type BaseSchema,
-	type InferInput as ValibotInput
+	type InferInput as ValibotInput,
+	record
 } from 'valibot';
 import type { InputProps } from './types';
 
@@ -58,7 +57,7 @@ export const createValidationSchema = (field: ReturnType<typeof InputWidget>): B
 
 	// Translated fields store an object with language keys -> validate as flexible object
 	if (field.translated) {
-		return object({ _any: any() });
+		return optional(record(string(), string()), {});
 	}
 
 	// If not required, allow optional empty value
@@ -70,8 +69,8 @@ const InputWidget = createWidget<InputProps>({
 	Name: 'Input',
 	Icon: 'mdi:form-textbox',
 	Description: m.widget_text_description(),
-	inputComponentPath: '/src/widgets/core/input/Input.svelte',
-	displayComponentPath: '/src/widgets/core/input/Display.svelte',
+	inputComponentPath: '/src/widgets/core/Input/Input.svelte',
+	displayComponentPath: '/src/widgets/core/Input/Display.svelte',
 
 	validationSchema: createValidationSchema,
 

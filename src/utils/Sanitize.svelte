@@ -33,7 +33,7 @@ already uses schema-based validation. This component provides defense-in-depth.
 		class?: string;
 	}
 
-	let { html, profile = 'default', class: className }: Props = $props();
+	const { html, profile = 'default', class: className }: Props = $props();
 
 	// Sanitization profiles
 	const PROFILES: Record<SanitizeProfile, { allowedTags: string[]; allowedAttrs: string[] }> = {
@@ -189,7 +189,7 @@ already uses schema-based validation. This component provides defense-in-depth.
 	}
 
 	// Reactive sanitization
-	let sanitized = $derived(sanitizeHtml(html));
+	const sanitized = $derived(sanitizeHtml(html));
 </script>
 
 <!-- Render sanitized HTML -->

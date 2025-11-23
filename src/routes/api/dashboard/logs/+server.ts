@@ -1,21 +1,20 @@
 /**
  * @file src/routes/api/dashboard/logs/+server.ts
- * @description API endpoint for system logs with ANSI color code support for dashboard widgets.
+ * @description Optimized API endpoint for system logs with Reverse Reading and ANSI support.
  *
  * @example GET /api/dashboard/logs?limit=20&level=all&search=&page=1
  *
  * Features:
  * - **Secure Authorization:** Access is controlled centrally by `src/hooks.server.ts`.
- * - **ANSI Color Support:** Converts ANSI escape sequences to HTML with proper colors.
- * - **High-Performance Log Reading:** Efficiently reads only the end of the log file.
- * - **Input Validation:** Safely validates and caps query parameters.
- * - **Multi-Level Filtering:** Supports filtering by log level, search text, and date range.
+ * - **Reverse Reading:** Reads plaintext logs from the end of the file (newest first).
+ * - **Early Exit:** Stops processing files once the requested page/limit is satisfied.
+ * - **Memory Efficient:** No longer loads entire files into RAM.
  */
 
 import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { error, json } from '@sveltejs/kit';
 import { createReadStream } from 'node:fs';
-import { readdir, stat } from 'node:fs/promises';
+import { open, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { createBrotliDecompress, createGunzip } from 'node:zlib';
@@ -38,7 +37,7 @@ const QuerySchema = v.object({
 });
 
 const LogEntrySchema = v.object({
-	timestamp: v.string() as v.BaseSchema<ISODateString>,
+	timestamp: v.string(),
 	level: v.string(),
 	message: v.string(),
 	messageHtml: v.string(),
@@ -73,25 +72,20 @@ interface RawLogEntry {
 	args: unknown[];
 }
 
-// Converts ANSI escape sequences to HTML spans with inline CSS colors
+// --- ANSI & Parsing Logic (Kept identical to original) ---
+
 function convertAnsiToHtml(text: string): string {
-	// Simple but effective approach: process ANSI codes sequentially
 	let result = '';
 	let currentPos = 0;
 	const openTags: string[] = [];
-
-	// Find all ANSI escape sequences
 	const ansiRegex = /\[(\d+)m/g;
 	let match;
 
 	while ((match = ansiRegex.exec(text)) !== null) {
-		// Add text before this match
 		result += text.substring(currentPos, match.index);
-
 		const code = match[1];
 
 		if (code === '0') {
-			// Reset code - close all open tags
 			while (openTags.length > 0) {
 				result += '</span>';
 				openTags.pop();
@@ -109,63 +103,50 @@ function convertAnsiToHtml(text: string): string {
 				result += '<span style="text-decoration: underline;">';
 				openTags.push('underline');
 			}
-			// Ignore unhandled codes
 		}
-
 		currentPos = match.index + match[0].length;
 	}
-
-	// Add remaining text
 	result += text.substring(currentPos);
-
-	// Close any remaining open tags
 	while (openTags.length > 0) {
 		result += '</span>';
 		openTags.pop();
 	}
-
 	return result;
 }
-// Parses a log line with ANSI color support
+
 const parseLogLineWithColors = (line: string): RawLogEntry | null => {
-	// Enhanced regex to handle ANSI codes in timestamp and message
 	const regex = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+\[([^\]]+)\]\s+(.*)$/;
 	const match = line.match(regex);
 
 	if (!match) {
-		// Fallback parsing for different log formats
+		// Fallback parsing
 		const simpleRegex = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)?\s*(?:\[([^\]]+)\])?\s*\[([A-Z]+)\](?::\s*)?(.*)$/;
 		const simpleMatch = line.match(simpleRegex);
 
 		if (simpleMatch) {
 			const [, timestamp, , level, message] = simpleMatch;
 			const cleanMessage = message || line;
-
 			return {
 				timestamp: (timestamp || new Date().toISOString()) as ISODateString,
 				level: level || 'INFO',
-				message: cleanMessage.replace(/\[\d+(?:;\d+)*m/g, ''), // Strip ANSI for plain text
+				message: cleanMessage.replace(/\[\d+(?:;\d+)*m/g, ''),
 				messageHtml: convertAnsiToHtml(cleanMessage),
 				args: []
 			};
 		}
-
-		// Last resort: treat the whole line as a message
 		return {
 			timestamp: new Date().toISOString() as ISODateString,
 			level: 'INFO',
-			message: line.replace(/\[\d+(?:;\d+)*m/g, ''), // Strip ANSI for plain text
+			message: line.replace(/\[\d+(?:;\d+)*m/g, ''),
 			messageHtml: convertAnsiToHtml(line),
 			args: []
 		};
 	}
 
 	const [, timestamp, level, contentPart] = match;
-
 	let message = contentPart.trim();
 	let args: unknown[] = [];
 
-	// Try to extract JSON args from the end
 	const lastBracketIndex = message.lastIndexOf('[');
 	if (lastBracketIndex > -1) {
 		const potentialJsonArgs = message.substring(lastBracketIndex);
@@ -176,30 +157,94 @@ const parseLogLineWithColors = (line: string): RawLogEntry | null => {
 				message = message.substring(0, lastBracketIndex).trim();
 			}
 		} catch {
-			// Not valid JSON, keep as part of message
+			/* ignore */
 		}
 	}
 
 	return {
 		timestamp: timestamp as ISODateString,
 		level,
-		message: message.replace(/\[\d+(?:;\d+)*m/g, ''), // Clean message for plain text
-		messageHtml: convertAnsiToHtml(message), // Rich HTML message with colors
+		message: message.replace(/\[\d+(?:;\d+)*m/g, ''),
+		messageHtml: convertAnsiToHtml(message),
 		args
 	};
 };
+
+// --- New Optimized Helper Functions ---
+
+/**
+ * Reads a plain text file strictly backwards in chunks.
+ * This is crucial for performance on "Page 1" of large log files.
+ */
+async function* readLinesReverse(filePath: string): AsyncGenerator<string> {
+	const fileHandle = await open(filePath, 'r');
+	try {
+		const stats = await fileHandle.stat();
+		const bufferSize = 64 * 1024; // 64KB chunks
+		const buffer = Buffer.alloc(bufferSize);
+		let position = stats.size;
+		let leftover = '';
+
+		while (position > 0) {
+			const readSize = Math.min(position, bufferSize);
+			position -= readSize;
+
+			await fileHandle.read(buffer, 0, readSize, position);
+			const chunk = buffer.toString('utf-8', 0, readSize);
+			const lines = (chunk + leftover).split('\n');
+
+			// The first element is the end of the line from the *previous* chunk (logically next line)
+			// The last element is the start of the line from the *next* chunk (logically previous line)
+			leftover = lines.shift() || '';
+
+			// Iterate lines in reverse (they are currently in file order within the chunk)
+			for (let i = lines.length - 1; i >= 0; i--) {
+				if (lines[i].trim()) yield lines[i];
+			}
+		}
+
+		if (leftover.trim()) yield leftover;
+	} finally {
+		await fileHandle.close();
+	}
+}
+
+/**
+ * Reads a compressed file stream forward.
+ * Since we can't easily read compressed files backward, we read forward
+ * but collect lines to return them in reverse order for that specific file.
+ */
+async function getCompressedLogLines(filePath: string, isBrotli: boolean): Promise<string[]> {
+	const lines: string[] = [];
+	let fileStream: NodeJS.ReadableStream = createReadStream(filePath);
+
+	if (isBrotli) {
+		fileStream = fileStream.pipe(createBrotliDecompress());
+	} else {
+		fileStream = fileStream.pipe(createGunzip());
+	}
+
+	const rl = createInterface({
+		input: fileStream,
+		crlfDelay: Infinity
+	});
+
+	for await (const line of rl) {
+		if (line.trim()) lines.push(line);
+	}
+
+	// Reverse so the newest lines (at the bottom of the file) come first
+	return lines.reverse();
+}
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	const { user } = locals;
 
 	try {
-		// Authentication is handled by hooks.server.ts
 		if (!user) {
-			logger.warn('Unauthorized attempt to access logs');
 			throw error(401, 'Unauthorized');
 		}
 
-		// Validate input parameters
 		const params = v.parse(QuerySchema, {
 			level: url.searchParams.get('level') || undefined,
 			search: url.searchParams.get('search') || undefined,
@@ -216,89 +261,114 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const startDateTime = params.startDate ? new Date(params.startDate).getTime() : 0;
 		const endDateTime = params.endDate ? new Date(new Date(params.endDate).setHours(23, 59, 59, 999)).getTime() : Infinity;
 
-		const allLogEntries: RawLogEntry[] = [];
+		// Calculate how many logs we need to skip and take
+		const neededSkip = (params.page - 1) * params.limit;
+		const neededTake = params.limit;
+		const totalNeeded = neededSkip + neededTake;
 
-		// Read log files
+		const collectedLogs: RawLogEntry[] = [];
+
+		// 1. Get Files and Sort Newest -> Oldest
 		const files = await readdir(LOG_DIRECTORY);
 		const logFiles = files
 			.filter((file) => file === LOG_FILE_NAME || file.startsWith(`${LOG_FILE_NAME}.`))
-			.sort()
-			.reverse();
+			.sort((a, b) => {
+				// Custom sort: app.log is always newest/first
+				if (a === LOG_FILE_NAME) return -1;
+				if (b === LOG_FILE_NAME) return 1;
+				// Otherwise sort by string (usually app.log.1, app.log.2)
+				// Assuming lower number = newer rotated log, or use mtime if needed
+				return a.localeCompare(b);
+			});
 
+		// 2. Process files until we have enough logs
+		// Note: We iterate files Newest -> Oldest
 		for (const file of logFiles) {
-			const filePath = join(LOG_DIRECTORY, file);
-			const stats = await stat(filePath);
+			// Early exit if we have enough logs
+			if (collectedLogs.length >= totalNeeded) break;
 
-			// Apply retention policy for rotated logs
+			const filePath = join(LOG_DIRECTORY, file);
+			const fileStats = await stat(filePath);
+
+			// Retention check
 			const isRotatedLog = file !== LOG_FILE_NAME;
-			if (isRotatedLog && stats.mtimeMs < Date.now() - LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000) {
+			if (isRotatedLog && fileStats.mtimeMs < Date.now() - LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000) {
 				continue;
 			}
 
-			let fileStream: NodeJS.ReadableStream = createReadStream(filePath);
-			// Prefer Brotli (faster & better compression) but keep gzip backwards compatibility
-			if (file.endsWith('.br')) {
-				fileStream = fileStream.pipe(createBrotliDecompress());
-			} else if (file.endsWith('.gz')) {
-				fileStream = fileStream.pipe(createGunzip());
+			const isCompressed = file.endsWith('.gz') || file.endsWith('.br');
+			const isBrotli = file.endsWith('.br');
+
+			let linesGenerator: AsyncGenerator<string> | string[];
+
+			if (isCompressed) {
+				// Compressed files must be read fully to memory (unavoidable for stream), then reversed
+				linesGenerator = await getCompressedLogLines(filePath, isBrotli);
+			} else {
+				// Plain text: Read BACKWARD efficiently
+				linesGenerator = readLinesReverse(filePath);
 			}
 
-			const rl = createInterface({
-				input: fileStream,
-				crlfDelay: Infinity
-			});
+			// Iterate lines (which are now guaranteed to be Newest -> Oldest)
+			for await (const line of linesGenerator) {
+				// Early exit loop
+				if (collectedLogs.length >= totalNeeded) break;
 
-			for await (const line of rl) {
+				// Handle AsyncGenerator vs Array
+				if (typeof line !== 'string') continue;
+
 				const entry = parseLogLineWithColors(line);
-				if (entry) {
-					allLogEntries.push(entry);
+				if (!entry) continue;
+
+				const entryTimestamp = new Date(entry.timestamp).getTime();
+
+				// Date Filter Optimization:
+				// If we are reading Newest->Oldest, and we hit a log older than startDate,
+				// we can theoretically stop EVERYTHING if we assume strict ordering.
+				// However, async logging might not be strictly ordered to the millisecond, so we just filter.
+				// But if it's WAY before, we could break. For safety, we just filter.
+				if (entryTimestamp < startDateTime) continue; // Too old
+				if (entryTimestamp > endDateTime) continue; // Too new (rare if reading reverse, but possible)
+
+				// Level & Search Filter
+				const levelMatch = params.level === 'all' || entry.level.toLowerCase() === params.level.toLowerCase();
+				const textMatch = !params.search || entry.message.toLowerCase().includes(params.search.toLowerCase());
+
+				if (levelMatch && textMatch) {
+					collectedLogs.push(entry);
 				}
 			}
 		}
 
-		// Apply filters
-		const filteredLogs = allLogEntries.filter((entry) => {
-			const entryTimestamp = new Date(entry.timestamp).getTime();
+		// 3. Slice the specific page
+		// We might have collected slightly more than needed due to loop logic, so we slice exactly.
+		// Since we collected in Newest->Oldest order, index 0 is the newest log.
+		const paginatedLogs = collectedLogs.slice(neededSkip, neededSkip + neededTake);
 
-			const levelMatch = params.level === 'all' || entry.level.toLowerCase() === params.level.toLowerCase();
-			const textMatch = !params.search || entry.message.toLowerCase().includes(params.search.toLowerCase());
-			const dateMatch = entryTimestamp >= startDateTime && entryTimestamp <= endDateTime;
-
-			return levelMatch && textMatch && dateMatch;
-		});
-
-		// Sort by timestamp (newest first)
-		filteredLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-		// Apply pagination
-		const startIndex = (params.page - 1) * params.limit;
-		const paginatedLogs = filteredLogs.slice(startIndex, startIndex + params.limit);
-
-		// Validate output
 		const validatedLogs = v.parse(v.array(LogEntrySchema), paginatedLogs);
 
-		logger.info('Logs fetched with ANSI color support', {
-			total: filteredLogs.length,
+		logger.info('Logs fetched (Optimized)', {
+			count: paginatedLogs.length,
 			page: params.page,
-			limit: params.limit,
-			level: params.level,
-			search: params.search,
 			requestedBy: user._id
 		});
 
 		return json({
 			logs: validatedLogs,
-			total: filteredLogs.length,
+			// Note: Total count is now approximate or limited because we didn't read all files.
+			// For infinite scrolling/pagination, we usually return "hasMore" or just the length.
+			// If specific total is needed, we'd have to scan everything, which defeats optimization.
+			// We return collectedLogs.length as a proxy for "logs found so far".
+			total: collectedLogs.length,
 			page: params.page,
 			limit: params.limit,
-			totalPages: Math.ceil(filteredLogs.length / params.limit)
+			// If we filled the buffer, assume there might be more pages.
+			hasMore: collectedLogs.length >= totalNeeded
 		});
 	} catch (err) {
 		if (err instanceof v.ValiError) {
-			logger.error('Logs request validation failed', { error: err.issues });
 			throw error(400, 'Invalid request parameters');
 		}
-
 		logger.error('Error fetching logs:', err);
 		throw error(500, 'Failed to fetch logs');
 	}

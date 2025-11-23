@@ -9,7 +9,8 @@ import { logger } from '@utils/logger';
 import type { Model } from 'mongoose';
 import type { DatabaseId, Widget } from '../../dbInterface';
 import type { Widget as IWidget } from '../../dbInterface'; // Assuming you have a document interface
-import { createDatabaseError, withCache, CacheCategory, invalidateCollectionCache, invalidateCategoryCache, generateId } from './mongoDBUtils';
+import { createDatabaseError, generateId } from './mongoDBUtils';
+import { withCache, CacheCategory, invalidateCollectionCache, invalidateCategoryCache } from './mongoDBCacheUtils';
 import { cacheService } from '@src/databases/CacheService';
 
 // Define the model type for dependency injection.

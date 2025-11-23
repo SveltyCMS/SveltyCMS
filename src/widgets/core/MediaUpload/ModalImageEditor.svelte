@@ -15,7 +15,7 @@ allowing users to edit images directly from the MediaUpload widget.
 	import type { MediaImage } from '@utils/media/mediaModels';
 
 	// Props
-	let {
+	const {
 		_data,
 		onClose,
 		mediaOnSelect
@@ -36,7 +36,6 @@ allowing users to edit images directly from the MediaUpload widget.
 		} else if ('thumbnails' in _data) {
 			initialImageSrc = _data.thumbnails?.lg?.url || _data.url;
 			// Attempt to capture media id
-			// @ts-ignore allow generic model id
 			mediaId = (_data as any)._id || (_data as any).id || null;
 		}
 	}

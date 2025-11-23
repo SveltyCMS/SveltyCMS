@@ -11,10 +11,10 @@ import { test, expect } from '@playwright/test';
 
 test.describe('OAuth First User Signup', () => {
 	test.beforeEach(async ({ page }) => {
-		// Use different URLs for CI vs local testing
+		// Use production preview (4173) in CI, dev server (5173) locally
 		const testUrl = process.env.CI
-			? 'http://localhost:4173/login' // GitHub Actions uses preview server
-			: 'http://localhost:5173/login'; // Local dev server
+			? 'http://localhost:4173/login' // CI: optimized production build
+			: 'http://localhost:5173/login'; // Local: dev server
 
 		await page.goto(testUrl, { waitUntil: 'domcontentloaded' });
 	});

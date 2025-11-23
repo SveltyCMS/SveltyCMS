@@ -17,7 +17,7 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/factory';
+import { createWidget } from '@src/widgets/widgetFactory';
 import { custom, email, minLength, optional, pipe, string, type InferInput as ValibotInput } from 'valibot';
 import type { EmailProps } from './types';
 
@@ -62,8 +62,8 @@ const EmailWidget = createWidget<EmailProps>({
 	Name: 'Email',
 	Icon: 'ic:outline-email',
 	Description: m.widget_email_description(),
-	inputComponentPath: '/src/widgets/custom/email/Input.svelte',
-	displayComponentPath: '/src/widgets/custom/email/Display.svelte',
+	inputComponentPath: '/src/widgets/custom/Email/Input.svelte',
+	displayComponentPath: '/src/widgets/custom/Email/Display.svelte',
 	validationSchema,
 
 	// Set widget-specific defaults.

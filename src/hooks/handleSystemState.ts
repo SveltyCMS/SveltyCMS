@@ -22,6 +22,11 @@ let initializationAttempted = false;
 export const handleSystemState: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
 
+	// Debug: Log TEST_MODE value
+	if (!pathname.startsWith('/static') && !pathname.startsWith('/assets')) {
+		logger.debug(`[handleSystemState] TEST_MODE=${process.env.TEST_MODE}, pathname=${pathname}`);
+	}
+
 	let systemState = getSystemState();
 
 	// Skip trace logging for static assets and health checks to reduce log noise
@@ -74,7 +79,18 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
 	// --- State: FAILED ---
 	// If a critical service has failed, block all requests except health checks
+	// EXCEPTION: In TEST_MODE, allow requests to proceed for testing purposes
 	if (systemState.overallState === 'FAILED') {
+		// In TEST_MODE, log the failure but allow requests to proceed
+		if (process.env.TEST_MODE === 'true') {
+			const lastFailedTransition = systemState.performanceMetrics.stateTransitions
+				.slice()
+				.reverse()
+				.find((t) => t.to === 'FAILED');
+			logger.warn(`[TEST_MODE] System is in FAILED state, but allowing request to ${pathname}. Reason: ${lastFailedTransition?.reason || 'Unknown'}`);
+			return resolve(event);
+		}
+
 		// Allow health checks and browser/tool requests even when system is FAILED
 		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/.well-known', '/_'];
 		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix));

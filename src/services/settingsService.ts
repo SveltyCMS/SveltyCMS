@@ -14,6 +14,7 @@
 
 import { privateConfigSchema, publicConfigSchema } from '@src/databases/schemas';
 import { type InferOutput } from 'valibot';
+import { logger } from '@utils/logger';
 
 type PrivateEnv = InferOutput<typeof privateConfigSchema>;
 type PublicEnv = InferOutput<typeof publicConfigSchema> & { PKG_VERSION?: string };
@@ -59,7 +60,7 @@ async function loadPkgVersion(): Promise<string> {
  * Loads settings from the database into the server-side cache if not already loaded.
  * This is the single source of truth on the server.
  */
-export async function loadSettingsCache() {
+export async function loadSettingsCache(): Promise<typeof cache> {
 	if (cache.loaded) {
 		return cache;
 	}
@@ -97,9 +98,18 @@ export async function loadSettingsCache() {
 			// Use in-memory config when available (post-setup, zero-restart mode)
 			privateConfig = inMemoryConfig;
 		} else {
-			// Fall back to filesystem import (normal startup or first load)
-			const { privateEnv } = await import('@root/config/private');
-			privateConfig = privateEnv;
+			try {
+				// Fall back to filesystem import (normal startup or first load)
+				const { privateEnv } = await import('@config/private');
+				privateConfig = privateEnv;
+			} catch (error) {
+				// Private config doesn't exist during setup - this is expected
+				logger.trace('Private config not found during setup - this is expected during initial setup', {
+					error: error instanceof Error ? error.message : String(error)
+				});
+				// During setup, allow private env to be empty but correctly typed
+				privateConfig = {} as PrivateEnv;
+			}
 		}
 
 		// Merge: infrastructure settings from config + dynamic settings from DB

@@ -53,6 +53,7 @@ import { MongoContentMethods } from './methods/contentMethods';
 import { MongoCrudMethods } from './methods/crudMethods';
 import { MongoMediaMethods } from './methods/mediaMethods';
 import * as mongoDBUtils from './methods/mongoDBUtils';
+import * as mongoDBCacheUtils from './methods/mongoDBCacheUtils';
 import { MongoSystemMethods } from './methods/systemMethods';
 import { MongoSystemVirtualFolderMethods } from './methods/systemVirtualFolderMethods';
 import { MongoThemeMethods } from './methods/themeMethods';
@@ -63,7 +64,7 @@ import { MongoQueryBuilder } from './MongoQueryBuilder';
 // Auth adapter composition
 import { composeMongoAuthAdapter } from './methods/authComposition';
 
-import { logger } from '@utils/logger';
+import { logger } from '@src/utils/logger.server';
 import type {
 	ContentNode,
 	ContentDraft,
@@ -104,6 +105,7 @@ export class MongoDBAdapter implements IDBAdapter {
 	public auth!: IDBAdapter['auth'];
 	public websiteTokens!: IDBAdapter['websiteTokens'];
 	public readonly utils = mongoDBUtils;
+	public readonly cacheUtils = mongoDBCacheUtils;
 	public collection!: IDBAdapter['collection'];
 
 	getCapabilities(): import('../dbInterface').DatabaseCapabilities {
@@ -172,9 +174,9 @@ export class MongoDBAdapter implements IDBAdapter {
 		return new MongoQueryBuilder<T>(model);
 	}
 
-	private async _wrapResult<T>(fn: () => Promise<T>): Promise<DatabaseResult<T>> {
+	private async _wrapResult<T, A extends unknown[]>(fn: (...args: A) => Promise<T>, ...args: A): Promise<DatabaseResult<T>> {
 		try {
-			const data = await fn();
+			const data = await fn(...args);
 			return { success: true, data };
 		} catch (error: unknown) {
 			const typedError = error as { code?: string; message?: string };
@@ -708,15 +710,18 @@ export class MongoDBAdapter implements IDBAdapter {
 
 		// CRUD - Generic CRUD operations
 		this.crud = {
-			findOne: <T extends BaseEntity>(coll: string, query: FilterQuery<T>) => {
+			findOne: <T extends BaseEntity>(coll: string, query: FilterQuery<T>, options?: { fields?: (keyof T)[] }) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.findOne(query) as Promise<T | null>);
+				return this._wrapResult(() => repo.findOne(query, options as { fields?: (keyof BaseEntity)[] }) as Promise<T | null>);
 			},
-			findMany: <T extends BaseEntity>(coll: string, query: FilterQuery<T>, options?: { limit?: number; offset?: number }) => {
+			findMany: <T extends BaseEntity>(coll: string, query: FilterQuery<T>, options?: { limit?: number; offset?: number; fields?: (keyof T)[] }) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.findMany(query, { limit: options?.limit, skip: options?.offset }) as Promise<T[]>);
+				return this._wrapResult(
+					() =>
+						repo.findMany(query, { limit: options?.limit, skip: options?.offset, fields: options?.fields as (keyof BaseEntity)[] }) as Promise<T[]>
+				);
 			},
 			insert: <T extends BaseEntity>(coll: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>) => {
 				const repo = this._getRepository(coll);

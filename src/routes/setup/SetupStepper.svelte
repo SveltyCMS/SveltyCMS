@@ -22,7 +22,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 		selectStep: number;
 	}>();
 
-	let { steps, currentStep, stepCompleted, stepClickable, legendItems } = $props<{
+	const { steps, currentStep, stepCompleted, stepClickable, legendItems } = $props<{
 		steps: StepDef[];
 		currentStep: number;
 		stepCompleted: boolean[];
@@ -37,7 +37,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 	}
 
 	// Hover handler for prefetching - parent can handle this if needed
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 	function handleStepHover(_stepIndex: number) {
 		// Intentionally empty - reserved for future hover prefetch optimization
 	}

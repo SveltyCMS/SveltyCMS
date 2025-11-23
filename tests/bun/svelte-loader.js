@@ -1,6 +1,6 @@
 // tests/bun/svelte-loader.js
 import { plugin } from 'bun';
-import { compile, preprocess } from 'svelte/compiler';
+import { compile, compileModule, preprocess } from 'svelte/compiler';
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { pathToFileURL } from 'url';
@@ -51,15 +51,18 @@ plugin({
 		// Handler for .svelte.ts files
 		const setupSvelteTsFile = async (args) => {
 			const code = readFileSync(args.path, 'utf8');
-			const wrappedCode = `<script lang="ts">${code}</script>`;
-			const preprocessed = await preprocess(wrappedCode, preprocessor, {
-				filename: args.path
-			});
-			const result = compile(preprocessed.code, {
-				generate: 'ssr',
+
+			// 1. Transpile TypeScript to JavaScript using Bun
+			const transpiler = new Bun.Transpiler({ loader: 'ts' });
+			const jsCode = await transpiler.transform(code);
+
+			// 2. Compile Svelte Runes
+			const result = compileModule(jsCode, {
+				generate: 'server',
 				filename: args.path,
 				runes: true
 			});
+
 			return {
 				contents: result.js.code,
 				loader: 'js'

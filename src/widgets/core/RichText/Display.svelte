@@ -25,7 +25,7 @@ Renders: Title heading + sanitized HTML in prose container
 	import type { RichTextData } from './types';
 	import Sanitize from '@utils/Sanitize.svelte';
 
-	let { value }: { value: RichTextData | null | undefined } = $props();
+	const { value }: { value: RichTextData | null | undefined } = $props();
 </script>
 
 {#if value?.content}

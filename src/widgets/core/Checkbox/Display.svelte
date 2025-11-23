@@ -28,7 +28,7 @@ Part of the CMS widget system.
 		size?: 'sm' | 'md' | 'lg';
 	}
 
-	let { value, size = 'md' }: Props = $props();
+	const { value, size = 'md' }: Props = $props();
 
 	// Size classes for icons
 	const sizeClasses = {

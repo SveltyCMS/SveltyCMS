@@ -28,7 +28,7 @@ Features:
 		onUpdate?: (permissions: Record<string, Record<string, boolean>>) => void;
 	}
 
-	let { permissions = {}, roles = [], onUpdate = () => {} }: Props = $props();
+	const { permissions = {}, roles = [], onUpdate = () => {} }: Props = $props();
 
 	// Local state
 	let error: string | null = $state(null);
@@ -63,7 +63,7 @@ Features:
 	let permissionsState: Record<string, Record<string, boolean>> = $state(initializePermissions(permissions, roles));
 
 	// Re-initialize when props change
-	// eslint-disable-next-line svelte/prefer-writable-derived
+
 	$effect(() => {
 		permissionsState = initializePermissions(permissions, roles);
 	}); // Function to toggle permission
@@ -102,7 +102,7 @@ Features:
 	}
 
 	// Filter roles based on search
-	let filteredRoles = $derived(roles.filter((role) => role.name.toLowerCase().includes(searchQuery.toLowerCase())));
+	const filteredRoles = $derived(roles.filter((role) => role.name.toLowerCase().includes(searchQuery.toLowerCase())));
 
 	// Icons for different permission actions
 	const actionIcons: Record<PermissionAction, string> = {

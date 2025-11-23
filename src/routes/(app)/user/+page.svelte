@@ -16,7 +16,6 @@
 
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import axios from 'axios';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	// Auth
@@ -43,11 +42,11 @@
 	import ModalEditForm from './components/ModalEditForm.svelte';
 
 	// Props
-	let { data } = $props<{ data: PageData }>();
-	let { user: serverUser, isFirstUser, isMultiTenant, is2FAEnabledGlobal } = $derived(data);
+	const { data } = $props<{ data: PageData }>();
+	const { user: serverUser, isFirstUser, isMultiTenant, is2FAEnabledGlobal } = $derived(data);
 
 	// Make user data reactive
-	let user = $derived<User>({
+	const user = $derived<User>({
 		_id: serverUser?._id ?? '',
 		email: serverUser?.email ?? '',
 		username: serverUser?.username ?? '',
@@ -112,24 +111,11 @@
 			slot: '<p>Edit Form</p>'
 		};
 
-		type UserFormResponse = Partial<Pick<User, 'username' | 'email' | 'role' | 'avatar'>>;
-
 		const d: ModalSettings = {
 			type: 'component',
 			title: m.usermodaluser_edittitle(),
 			body: m.usermodaluser_editbody(),
-			component: modalComponent,
-			response: async (r: UserFormResponse) => {
-				if (r) {
-					const data = { user_id: user._id, newUserData: r };
-					const res = await axios.put('/api/user/updateUserAttributes', data);
-					showToast('<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Data Updated', 'success');
-
-					if (res.status === 200) {
-						await invalidateAll();
-					}
-				}
-			}
+			component: modalComponent
 		};
 		showModal(d);
 	}

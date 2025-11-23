@@ -17,10 +17,14 @@ import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Databases
+import type { DatabaseId } from '@src/databases/dbInterface';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
 import { modifyRequest } from '@api/collections/modifyRequest';
+
+// Types
+import type { FieldInstance } from '@src/content/types';
 
 // Helper function to normalize collection names for database operations
 const normalizeCollectionName = (collectionId: string): string => {
@@ -58,6 +62,10 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			throw error(404, 'Collection not found');
 		}
 
+		if (!schema._id) {
+			throw error(500, 'Collection ID is missing');
+		}
+
 		// User access already validated by hooks
 
 		let body;
@@ -75,27 +83,29 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		const updateData = { ...body, updatedBy: user._id };
 
 		const dataArray = [updateData];
-		try {
-			await modifyRequest({
-				data: dataArray,
-				fields: schema.fields,
-				collection: schema,
-				user,
-				type: 'PATCH',
-				tenantId
-			});
-		} catch (modifyError) {
-			logger.warn(`${endpoint} - ModifyRequest pre-processing failed`, { error: modifyError.message });
-		}
 
 		const dbAdapter = locals.dbAdapter;
 		if (!dbAdapter) {
 			throw error(503, 'Service Unavailable: Database service is not properly initialized');
 		}
 
+		const collectionModel = await dbAdapter.collection.getModel(schema._id);
+		try {
+			await modifyRequest({
+				data: dataArray,
+				fields: schema.fields as FieldInstance[],
+				collection: collectionModel,
+				user,
+				type: 'PATCH',
+				tenantId
+			});
+		} catch (modifyError) {
+			logger.warn(`${endpoint} - ModifyRequest pre-processing failed`, { error: (modifyError as Error).message });
+		}
+
 		const collectionName = `collection_${schema._id}`;
 		// First verify the entry exists and belongs to the current tenant
-		const query: { _id: string; tenantId?: string } = { _id: params.entryId };
+		const query: { _id: DatabaseId; tenantId?: string } = { _id: params.entryId as DatabaseId };
 		if (getPrivateSettingSync('MULTI_TENANT')) {
 			query.tenantId = tenantId;
 		}
@@ -105,7 +115,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			throw error(404, 'Entry not found or access denied');
 		}
 
-		const result = await dbAdapter.crud.update(collectionName, params.entryId, dataArray[0]);
+		const result = await dbAdapter.crud.update(collectionName, params.entryId as DatabaseId, dataArray[0]);
 
 		if (!result.success) {
 			throw new Error(result.error.message);
@@ -173,17 +183,17 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 		const normalizedCollectionId = normalizeCollectionName(schema._id);
 
 		// First verify the entry exists and belongs to the current tenant
-		const query: Record<string, unknown> = { _id: params.entryId };
+		const query: { _id: DatabaseId; tenantId?: string } = { _id: params.entryId as DatabaseId };
 		if (getPrivateSettingSync('MULTI_TENANT')) {
 			query.tenantId = tenantId;
 		}
 
-		const verificationResult = await dbAdapter.crud.findOne(normalizedCollectionId, query as Partial<Record<string, unknown>>);
+		const verificationResult = await dbAdapter.crud.findOne(normalizedCollectionId, query);
 		if (!verificationResult.success || !verificationResult.data) {
 			throw error(404, 'Entry not found or access denied');
 		}
 
-		const result = await dbAdapter.crud.delete(normalizedCollectionId, params.entryId as unknown as import('@src/databases/types').DatabaseId);
+		const result = await dbAdapter.crud.delete(normalizedCollectionId, params.entryId as DatabaseId);
 
 		if (!result.success) {
 			if (result.error.message.includes('not found')) {

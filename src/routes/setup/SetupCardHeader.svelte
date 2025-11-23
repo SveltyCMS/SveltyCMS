@@ -15,7 +15,7 @@ Displays the current step title and icon, and a reset button.
 		reset: void;
 	}>();
 
-	let { currentStep, steps } = $props<{
+	const { currentStep, steps } = $props<{
 		currentStep: number;
 		steps: StepDef[];
 	}>();

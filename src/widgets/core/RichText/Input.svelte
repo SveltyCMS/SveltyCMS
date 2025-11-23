@@ -34,6 +34,7 @@ Interactive Tiptap editor with toolbar and title input
 	import { createEditor } from './tiptap';
 	import type { RichTextData } from './types';
 	import { contentLanguage } from '@src/stores/store.svelte';
+	import { tokenTarget } from '@src/actions/tokenTarget';
 
 	let { field, value, error }: { field: FieldType; value: Record<string, RichTextData> | null | undefined; error?: string | null } = $props();
 
@@ -51,7 +52,7 @@ Interactive Tiptap editor with toolbar and title input
 	});
 
 	// Create a safe getter/setter for title binding
-	let titleValue = $derived.by(() => {
+	const titleValue = $derived.by(() => {
 		return {
 			get value() {
 				return value?.[lang]?.title || '';
@@ -107,7 +108,21 @@ Interactive Tiptap editor with toolbar and title input
 </script>
 
 <div class="richtext-container" class:invalid={error}>
-	<input type="text" class="title-input" placeholder="Title..." bind:value={titleValue.value} />
+	<div class="relative">
+		<input
+			type="text"
+			class="title-input"
+			placeholder="Title..."
+			bind:value={titleValue.value}
+			use:tokenTarget={{
+				name: field.db_fieldName,
+				label: field.label,
+				collection: (field as any).collection
+			}}
+		/>
+		<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-surface-400" width="16"
+		></iconify-icon>
+	</div>
 
 	{#if editor}
 		<div class="toolbar">

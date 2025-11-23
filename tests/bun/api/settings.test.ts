@@ -13,44 +13,22 @@
  * - PUT /api/systemPreferences - Update user preferences
  */
 
-// @ts-expect-error - Bun test is available at runtime
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
-import { testFixtures, initializeTestEnvironment, cleanupTestEnvironment } from '../helpers/testSetup';
+import { prepareAuthenticatedContext, cleanupTestDatabase } from '../helpers/testSetup';
 
 const BASE_URL = getApiBaseUrl();
 let authCookie: string;
 
 beforeAll(async () => {
 	await waitForServer();
-	await initializeTestEnvironment();
 
-	// Create and login as admin user
-	await fetch(`${BASE_URL}/api/user/createUser`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(testFixtures.users.firstAdmin)
-	});
-
-	const loginResponse = await fetch(`${BASE_URL}/api/user/login`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			email: testFixtures.users.firstAdmin.email,
-			password: testFixtures.users.firstAdmin.password
-		})
-	});
-
-	if (!loginResponse.ok) {
-		throw new Error('Failed to authenticate for settings tests');
-	}
-
-	const setCookie = loginResponse.headers.get('set-cookie');
-	authCookie = setCookie?.split(';')[0] || '';
+	// Use shared helper to prepare authenticated context
+	authCookie = await prepareAuthenticatedContext();
 });
 
 afterAll(async () => {
-	await cleanupTestEnvironment();
+	await cleanupTestDatabase();
 });
 
 describe('Settings API - Get Settings by Group', () => {

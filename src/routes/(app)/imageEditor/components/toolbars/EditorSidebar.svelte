@@ -13,7 +13,7 @@ and proper active state indication.
 
 <script lang="ts">
 	// Props
-	let {
+	const {
 		activeState,
 		onToolSelect,
 		hasImage = false

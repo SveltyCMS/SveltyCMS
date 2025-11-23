@@ -27,7 +27,7 @@ Renders: SEO icon + "Keyword: svelte cms" with hover tooltip showing full meta d
 <script lang="ts">
 	import type { SeoData } from './types';
 
-	let { value }: { value: SeoData | null | undefined } = $props();
+	const { value }: { value: SeoData | null | undefined } = $props();
 
 	// Note: The score is not stored with the data, so we can't display it here.
 	// A more advanced implementation might store the score, or we can just show the keyword.

@@ -1,17 +1,21 @@
 /**
  * @file src/routes/api/setup/reset/+server.ts
- * @description API endpoint to reset the setup by deleting the config file
+ * @description API endpoint to reset the setup by deleting the config file.
  *
- * This allows recovery when config exists but database is empty.
- * Only accessible when:
- * 1. User is authenticated as admin, OR
- * 2. System is in FAILED state (database unavailable)
+ * Features:
+ * - **Cache Invalidation:** Explicitly invalidates the `isSetupComplete` cache so the app reacts immediately.
+ * - **Idempotency:** Handles 'ENOENT' (file missing) as success, preventing errors if already reset.
+ * - **Consistent Imports:** Uses namespace imports for `fs` and `path`.
+ * - **Security:** Only accessible when:
+ *   1. User is authenticated as admin, OR
+ *   2. System is in FAILED state (database unavailable)
  */
 
 import { json } from '@sveltejs/kit';
-import { unlink } from 'node:fs/promises';
-import { join } from 'node:path';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { logger } from '@utils/logger.server';
+import { invalidateSetupCache } from '@utils/setupCheck';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ locals }) => {
@@ -31,7 +35,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 			return json(
 				{
 					success: false,
-					error: 'Unauthorized. Only administrators or users during system failure can reset setup.',
+					error: 'Unauthorized',
 					message: 'You do not have permission to reset the setup.'
 				},
 				{ status: 403 }
@@ -39,17 +43,24 @@ export const POST: RequestHandler = async ({ locals }) => {
 		}
 
 		// Delete config file
-		const configPath = join(process.cwd(), 'config', 'private.ts');
-		await unlink(configPath);
+		const configPath = path.join(process.cwd(), 'config', process.env.TEST_MODE ? 'private.test.ts' : 'private.ts');
 
-		logger.info('Setup reset: config/private.ts deleted successfully', {
-			by: locals.user?.username || 'system',
-			systemState: systemState.overallState
-		});
+		try {
+			await fs.unlink(configPath);
+			logger.info('Setup reset: config/private.ts deleted successfully', {
+				by: locals.user?.username || 'system'
+			});
+		} catch (fsError: any) {
+			// If file doesn't exist, we consider the reset successful (idempotent)
+			if (fsError.code !== 'ENOENT') {
+				throw fsError;
+			}
+			logger.debug('Setup reset: config file already missing, proceeding with cache clear');
+		}
 
-		// Clear any cached config
-		const { clearPrivateConfigCache } = await import('@src/databases/db');
-		clearPrivateConfigCache();
+		// CRITICAL: Invalidate the global setup cache and DB config cache
+		// Passing 'true' tells the utility to also clear the private DB config cache
+		invalidateSetupCache(true);
 
 		return json({
 			success: true,
@@ -63,7 +74,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 			{
 				success: false,
 				error: errorMessage,
-				message: 'Failed to reset setup. You may need to manually delete config/private.ts'
+				message: 'Failed to reset setup. Check server logs.'
 			},
 			{ status: 500 }
 		);

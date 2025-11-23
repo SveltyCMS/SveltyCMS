@@ -36,13 +36,8 @@
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { contentLanguage } from '@src/stores/store.svelte';
 
-	// Token system
-	import TokenPicker from '@components/TokenPicker.svelte';
-	import { getAvailableTokens } from '@src/services/token/TokenRegistry';
-	import type { TokenDefinition } from '@src/services/token/types';
 	import { collection } from '@src/stores/collectionStore.svelte';
-	import { collectionValue } from '@src/stores/collectionStore.svelte';
-	import { page } from '$app/state';
+	import { activeInputStore } from '@src/stores/activeInputStore.svelte';
 
 	// Props
 	interface Props {
@@ -67,41 +62,18 @@
 	// SECURITY: Maximum input length to prevent ReDoS attacks
 	const MAX_INPUT_LENGTH = 100000; // 100KB
 
-	// Token picker state
-	let showTokenPicker = $state(false);
-	let availableTokens = $state<TokenDefinition[]>([]);
-	const user = $derived(page.data?.user);
-	const roles = $derived(page.data?.roles || []);
-	const currentCollection = $derived(collection.value);
-	const currentEntry = $derived(collectionValue.value as Record<string, unknown> | undefined);
-
-	// Load available tokens when token picker is enabled
-	$effect(() => {
-		if (field?.token && currentCollection) {
-			availableTokens = getAvailableTokens(
-				currentCollection,
-				user,
-				{},
-				currentEntry,
-				publicEnv as Record<string, unknown>,
-				roles,
-				field
-			);
-		}
-	});
-
 	// Use current content language for translated fields, default for non-translated
 	const _language = $derived(field.translated ? contentLanguage.value : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Initialize value if null/undefined
 	// Safe value access with fallback
-	let safeValue = $derived(value?.[_language] ?? '');
+	const safeValue = $derived(value?.[_language] ?? '');
 
 	// SECURITY: Enforce maximum length to prevent DoS
-	let safeTruncatedValue = $derived(safeValue.length > MAX_INPUT_LENGTH ? safeValue.substring(0, MAX_INPUT_LENGTH) : safeValue);
+	const safeTruncatedValue = $derived(safeValue.length > MAX_INPUT_LENGTH ? safeValue.substring(0, MAX_INPUT_LENGTH) : safeValue);
 
 	// Character count (use truncated value for safety)
-	let count = $derived(safeTruncatedValue?.length ?? 0);
+	const count = $derived(safeTruncatedValue?.length ?? 0);
 
 	// Validation state - now using the enhanced validation store
 	let debounceTimeout: number | undefined;
@@ -109,13 +81,13 @@
 
 	// Get validation state from store
 	// Define fieldName using getFieldName utility
-	let fieldName = getFieldName(field);
-	let validationError = $derived(validationStore.getError(fieldName));
+	const fieldName = getFieldName(field);
+	const validationError = $derived(validationStore.getError(fieldName));
 	let isValidating = $state(false);
 	let isTouched = $state(false);
 
 	// Memoized badge class calculation using $derived
-	let badgeClass = $derived(() => {
+	const badgeClass = $derived(() => {
 		const length = count;
 		if (field?.minLength && length < (field?.minLength as number)) return 'bg-red-600';
 		if (field?.maxLength && length > (field?.maxLength as number)) return 'bg-red-600';
@@ -127,7 +99,7 @@
 
 	// ✅ SSOT: Use validation schema from index.ts
 	// Pass the field config (which is the widget instance) to createValidationSchema
-	let validationSchema = $derived(createValidationSchema(field as unknown as ReturnType<any>));
+	const validationSchema = $derived(createValidationSchema(field as unknown as ReturnType<any>));
 
 	// Enhanced validation function
 	async function validateInput(immediate = false): Promise<string | null> {
@@ -203,8 +175,19 @@
 	}
 
 	// Handle focus events
-	function handleFocus() {
-		// Could be used for custom focus behavior
+	function handleFocus(e: FocusEvent) {
+		// If the token picker is already open (activeInputStore has a value),
+		// update it to point to this input.
+		if (activeInputStore.value) {
+			activeInputStore.set({
+				element: e.currentTarget as HTMLInputElement,
+				field: {
+					name: field.db_fieldName,
+					label: field.label,
+					collection: collection.value?.name
+				}
+			});
+		}
 	}
 
 	// Safe value setter function
@@ -214,27 +197,6 @@
 		}
 		// Ensure value is treated as a new object for reactivity
 		value = { ...(value || {}), [_language]: newValue };
-	}
-
-	// Input element reference
-	let inputRef = $state<HTMLInputElement | null>(null);
-
-	// Handle token insertion
-	function handleTokenSelect(tokenString: string) {
-		const currentValue = safeValue || '';
-		const cursorPos = inputRef?.selectionStart || currentValue.length;
-		const newValue = currentValue.slice(0, cursorPos) + tokenString + currentValue.slice(cursorPos);
-		updateValue(newValue);
-		showTokenPicker = false;
-		
-		// Focus back on input and set cursor position
-		setTimeout(() => {
-			if (inputRef) {
-				inputRef.focus();
-				const newCursorPos = cursorPos + tokenString.length;
-				inputRef.setSelectionRange(newCursorPos, newCursorPos);
-			}
-		}, 0);
 	}
 
 	// Cleanup function
@@ -280,7 +242,6 @@
 		{/if}
 
 		<input
-			bind:this={inputRef}
 			type="text"
 			value={safeValue}
 			oninput={(e) => {
@@ -308,21 +269,6 @@
 			aria-required={field?.required}
 			data-testid="text-input"
 		/>
-
-		<!-- Token Picker Button -->
-		{#if field?.token}
-			<button
-				type="button"
-				onclick={() => {
-					showTokenPicker = true;
-				}}
-				class="btn-icon btn-sm"
-				aria-label="Insert token"
-				title="Insert token"
-			>
-				<iconify-icon icon="mdi:code-tags" width="18"></iconify-icon>
-			</button>
-		{/if}
 
 		<!-- suffix and count -->
 		{#if field?.suffix || field?.count || field?.minLength || field?.maxLength}
@@ -367,15 +313,3 @@
 		</p>
 	{/if}
 </div>
-
-<!-- Token Picker -->
-{#if field?.token}
-	<TokenPicker
-		tokens={availableTokens}
-		onSelect={handleTokenSelect}
-		bind:open={showTokenPicker}
-		onClose={() => {
-			showTokenPicker = false;
-		}}
-	/>
-{/if}

@@ -18,7 +18,7 @@ import { invalidateUserCountCache } from '@src/hooks/handleAuthorization';
 
 // Utils
 import { contentManager } from '@root/src/content/ContentManager';
-import { saveAvatarImage } from '@utils/media/mediaStorage';
+import { saveAvatarImage } from '@utils/media/mediaStorage.server';
 
 // Stores
 import { getPrivateSettingSync } from '@src/services/settingsService';

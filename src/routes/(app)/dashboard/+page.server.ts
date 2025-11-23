@@ -88,7 +88,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	// Check if user has permission to access dashboard
 	const hasDashboardPermission =
-		isAdmin || tenantRoles.some((role) => role.permissions?.some((p) => p.resource === 'dashboard' && p.actions.includes('read')));
+		isAdmin ||
+		tenantRoles.some((role) =>
+			role.permissions?.some((p) => {
+				const [resource, action] = p.split(':');
+				return resource === 'dashboard' && action === 'read';
+			})
+		);
 
 	if (!hasDashboardPermission) {
 		logger.warn(`User ${user._id} (${user.email}) does not have permission to access dashboard. Redirecting.`);

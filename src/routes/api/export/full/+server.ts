@@ -165,8 +165,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			collections: options.collections
 		};
 
-		// Create export
-		const exportData = await createExport(locals.user.id, exportOptions);
+		// Create export (use _id as the user identifier)
+		const exportData = await createExport(locals.user._id, exportOptions);
 
 		// Determine filename
 		const timestamp = new Date().toISOString().replace(/[:.]/g, '-');

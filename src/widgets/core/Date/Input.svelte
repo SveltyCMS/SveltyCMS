@@ -29,6 +29,7 @@ Part of the Three Pillars Architecture for widget system.
 	import { getFieldName } from '@src/utils/utils';
 	import { validationStore } from '@stores/store.svelte';
 	import type { FieldType } from './';
+	import { tokenTarget } from '@src/actions/tokenTarget';
 
 	interface Props {
 		field: FieldType;
@@ -126,23 +127,32 @@ Part of the Three Pillars Architecture for widget system.
 	</label>
 
 	<!-- Date Input -->
-	<input
-		type="date"
-		id={field.db_fieldName}
-		name={field.db_fieldName}
-		required={field.required}
-		value={inputValue}
-		min={minDate}
-		max={maxDate}
-		oninput={handleInput}
-		onblur={handleBlur}
-		class="input"
-		class:invalid={error}
-		aria-invalid={!!error}
-		aria-describedby={error ? `${field.db_fieldName}-error` : field.helper ? `${field.db_fieldName}-helper` : undefined}
-		aria-required={field.required}
-		data-testid="date-input"
-	/>
+	<div class="relative w-full">
+		<input
+			type="date"
+			id={field.db_fieldName}
+			name={field.db_fieldName}
+			required={field.required}
+			value={inputValue}
+			min={minDate}
+			max={maxDate}
+			oninput={handleInput}
+			onblur={handleBlur}
+			use:tokenTarget={{
+				name: field.db_fieldName,
+				label: field.label,
+				collection: (field as any).collection
+			}}
+			class="input"
+			class:invalid={error}
+			aria-invalid={!!error}
+			aria-describedby={error ? `${field.db_fieldName}-error` : field.helper ? `${field.db_fieldName}-helper` : undefined}
+			aria-required={field.required}
+			data-testid="date-input"
+		/>
+		<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 text-surface-400" width="16"
+		></iconify-icon>
+	</div>
 
 	<!-- Helper Text -->
 	{#if field.helper && !error}

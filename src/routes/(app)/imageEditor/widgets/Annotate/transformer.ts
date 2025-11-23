@@ -1,9 +1,8 @@
 // src/routes/(app)/imageEditor/widgets/Annotate/transformer.ts
 import Konva from 'konva';
-import type { Node, Layer } from 'konva';
 
 /** Create a safe transformer with conservative defaults */
-export function createTransformer(layer: Layer) {
+export function createTransformer(layer: Konva.Layer) {
 	const tr = new Konva.Transformer({
 		keepRatio: false,
 		enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right'],
@@ -25,21 +24,23 @@ export function createTransformer(layer: Layer) {
 }
 
 /** Attach transformer to node with robust error handling */
-export function attachTransformer(tr: Konva.Transformer, node?: Node | null) {
+export function attachTransformer(tr: Konva.Transformer, node?: Konva.Node | null) {
 	try {
 		if (!node) {
 			tr.nodes([]);
 			tr.hide();
 			return;
 		}
-		tr.nodes([node as any]);
+		tr.nodes([node]);
 		tr.show();
 		tr.forceUpdate();
 		tr.moveToTop();
-	} catch (e) {
+	} catch {
 		try {
 			tr.nodes([]);
 			tr.hide();
-		} catch (e) {}
+		} catch {
+			// ignore
+		}
 	}
 }

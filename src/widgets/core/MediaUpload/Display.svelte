@@ -19,7 +19,7 @@ Renders selected media files as thumbnails for display purposes.
 <script lang="ts">
 	import type { MediaFile } from './types';
 
-	let { value }: { value: string | string[] | null | undefined } = $props();
+	const { value }: { value: string | string[] | null | undefined } = $props();
 
 	// Local state for the resolved file(s).
 	let files = $state<MediaFile[]>([]);

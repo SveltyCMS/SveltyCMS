@@ -1,50 +1,77 @@
 /**
  * @file tests/bun/helpers/db-helper.ts
- * @description Database helper functions for integration tests
- * These functions provide direct database access for test validation
+ * @description Verification helpers that check the REAL server state via API.
+ * Replaces unreliable in-memory mocks.
  */
+import { getApiBaseUrl } from './server';
+import { loginAsAdmin } from './auth';
 
-// Import database connection - adjust based on your database setup
-// For now, using mock implementations since database infrastructure may not be ready
+const BASE_URL = getApiBaseUrl();
 
-// Mock database state for testing
-let mockUsers: unknown[] = [];
-let mockUserCount = 0;
-
-// Drop the entire database (reset for tests)
-export async function dropDatabase(): Promise<void> {
-	// Mock implementation - reset mock data
-	mockUsers = [];
-	mockUserCount = 0;
-	console.log('Mock database dropped');
-}
-
-// Get user count from database
-export async function getUserCount(): Promise<number> {
-	// Mock implementation
-	return mockUserCount;
-}
-
-// Check if user exists by email
+/**
+ * Checks if a user exists by querying the Admin API.
+ * Requires a working Admin login.
+ */
 export async function userExists(email: string): Promise<boolean> {
-	// Mock implementation
-	return mockUsers.some((user) => user.email.toLowerCase() === email.toLowerCase());
-}
+	try {
+		const cookie = await loginAsAdmin();
 
-// Get user by email
-export async function getUser(email: string): Promise<unknown | null> {
-	// Mock implementation
-	return mockUsers.find((user) => user.email.toLowerCase() === email.toLowerCase()) || null;
-}
+		// Use the user listing endpoint to find the user
+		const response = await fetch(`${BASE_URL}/api/user/batch`, {
+			method: 'POST',
+			headers: {
+				Cookie: cookie,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				operation: 'list',
+				limit: 100 // Assume test DB is small
+			})
+		});
 
-// Wait for a condition to be true
-export async function waitFor(condition: () => Promise<boolean>, timeoutMs = 5000): Promise<boolean> {
-	const start = Date.now();
-	while (Date.now() - start < timeoutMs) {
-		if (await condition()) {
-			return true;
-		}
-		await new Promise((resolve) => setTimeout(resolve, 100));
+		if (!response.ok) return false;
+
+		const result = await response.json();
+		const users = result.data || [];
+
+		return users.some((u: any) => u.email === email);
+	} catch (e) {
+		console.warn('Could not verify user existence via API:', e);
+		return false;
 	}
-	return false;
+}
+
+/**
+ * Gets the total user count via API
+ */
+export async function getUserCount(): Promise<number> {
+	try {
+		const cookie = await loginAsAdmin();
+		const response = await fetch(`${BASE_URL}/api/user/batch`, {
+			method: 'POST',
+			headers: {
+				Cookie: cookie,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ operation: 'list' })
+		});
+
+		const result = await response.json();
+		return (result.data || []).length;
+	} catch {
+		return 0;
+	}
+}
+
+/**
+ * Drops the database.
+ * NOTE: This requires a specific endpoints to be enabled in your CMS
+ * or for the 'seed-test-db.ts' script to be run via shell.
+ * * Since we can't drop the DB via a standard API call for security,
+ * this function logs a warning to ensure the developer knows to clean the DB externally.
+ */
+export async function dropDatabase(): Promise<void> {
+	// In CI, the container is fresh.
+	// In Local, we rely on scripts/seed-test-db.ts
+	console.log("ℹ️ Database cleanup should be handled by 'bun run scripts/seed-test-db.ts' before tests.");
 }

@@ -10,7 +10,7 @@ import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { error } from '@sveltejs/kit';
 import mime from 'mime-types';
 import Path from 'path';
-import Sharp from 'sharp';
+import type { Sharp } from 'sharp';
 import { isCloudStorage, uploadToCloud, deleteFromCloud, getCloudUrl, cloudFileExists, getCloudStorageConfig } from './cloudStorage';
 import type { ResizedImage } from './mediaModels';
 
@@ -26,10 +26,11 @@ type ImageSizesType = typeof defaultImageSizes & {
 };
 
 const SIZES: ImageSizesType = {
-	...(publicEnv.IMAGE_SIZES || defaultImageSizes),
+	...defaultImageSizes,
+	...(publicEnv.IMAGE_SIZES || {}),
 	original: 0,
 	thumbnail: 200
-} as const;
+};
 
 const getMediaFolder = () => getPublicSettingSync('MEDIA_FOLDER') || 'mediaFiles';
 
@@ -43,10 +44,11 @@ async function getFs() {
 }
 
 // Resizes an image using Sharp
-export async function resizeImage(buffer: Buffer, width: number, height?: number): Promise<Sharp.Sharp> {
+export async function resizeImage(buffer: Buffer, width: number, height?: number): Promise<Sharp> {
 	if (!import.meta.env.SSR) {
 		throw error(500, 'File operations can only be performed on the server');
 	}
+	const { default: Sharp } = await import('sharp');
 	return Sharp(buffer).resize(width, height, {
 		fit: 'cover',
 		position: 'center'
@@ -131,6 +133,7 @@ export async function saveResizedImages(
 	basePath: string
 ): Promise<Record<string, ResizedImage>> {
 	const resizedImages: Record<string, ResizedImage> = {};
+	const { default: Sharp } = await import('sharp');
 	const sharpInstance = Sharp(buffer);
 	const metadata = await sharpInstance.metadata();
 
@@ -472,6 +475,8 @@ export async function saveAvatarImage(avatarFile: File, userId: string): Promise
 
 		// Get file extension
 		const ext = Path.extname(avatarFile.name) || '.jpg';
+
+		const { default: Sharp } = await import('sharp');
 
 		// Resize avatar to 200x200
 		const resizedImage = await Sharp(buffer)

@@ -1,0 +1,31 @@
+# Enterprise Token System Implementation
+
+## Phase 1: Core Services (Backend Engine)
+- [x] Create type definitions (`src/services/token/types.ts`)
+- [x] Create modifier library (`src/services/token/modifiers.ts`)
+- [x] Create token engine (`src/services/token/engine.ts`)
+    - [x] Expand token coverage (System, Config, Collections)
+    - [x] Improve descriptions
+
+## Phase 2: Frontend Integration (UI & Actions)
+- [x] Create active input store (`src/stores/activeInputStore.svelte.ts`)
+- [x] Create token target action (`src/actions/tokenTarget.ts`)
+    - [x] Remove auto-focus trigger
+- [x] Create Token Picker UI component (`src/components/TokenPicker.svelte`)
+    - [x] Add manual trigger support
+    - [x] Improve UX and grouping
+    - [x] Add descriptions
+
+## Phase 3: Server-Side Interceptors (Data Flow)
+- [x] Create token processing helper (`src/utils/tokenHelper.ts`)
+- [x] Update global hooks ([src/hooks.server.ts](file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/hooks.server.ts))
+
+## Phase 4: Integration Points
+- [x] Update Fields component with TokenPicker
+- [x] Update Input widget with tokenTarget action and trigger button
+- [x] Create API endpoint for token resolution (`src/routes/api/tokens/resolve/+server.ts`)
+
+## Phase 5: Documentation & Testing
+- [x] Create comprehensive documentation (`docs/guides/token-system.mdx`)
+- [ ] Create unit tests (`tests/token-system.test.ts`)
+- [ ] Verify integration with existing widgets

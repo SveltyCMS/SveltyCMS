@@ -125,30 +125,35 @@ The `MediaService` class is the core business logic layer for all media operatio
 
 The MediaService is typically initialized in API endpoints or server-side code:
 
+````typescript
 ```typescript
-import { MediaService } from '$services/MediaService';
+// import { MediaService } from '$services/MediaService';
 import type { dbAdapter } from '$databases/dbInterface';
+````
+
 import type { CacheService } from '$services/CacheService';
 import type { SettingsService } from '$services/SettingsService';
 
 // Example: In an API endpoint (+server.ts)
 export async function POST({ request, locals }) {
-	const { user, dbAdapter } = locals;
+const { user, dbAdapter } = locals;
 
-	// Initialize MediaService with dependencies
-	const mediaService = new MediaService(
-		dbAdapter, // Database adapter (MongoDB, PostgreSQL, etc.)
-		locals.cacheService, // Cache service instance
-		locals.settingsService // Settings service instance
-	);
+    // Initialize MediaService with dependencies
+    const mediaService = new MediaService(
+    	dbAdapter, // Database adapter (MongoDB, PostgreSQL, etc.)
+    	locals.cacheService, // Cache service instance
+    	locals.settingsService // Settings service instance
+    );
 
-	// Use the service
-	const file = await request.formData().get('file');
-	const result = await mediaService.saveMedia(file, user._id, 'public', 'global');
+    // Use the service
+    const file = await request.formData().get('file');
+    const result = await mediaService.saveMedia(file, user._id, 'public', 'global');
 
-	return json(result);
+    return json(result);
+
 }
-```
+
+````
 
 ### Constructor Parameters
 
@@ -163,7 +168,7 @@ class MediaService {
 		this.storageAdapter = this.initializeStorageAdapter();
 	}
 }
-```
+````
 
 ### Storage Adapter Initialization
 
@@ -331,22 +336,22 @@ async deleteMedia(mediaId: string, permanent = false): Promise<void> {
 
 ```typescript
 // src/routes/api/media/process/+server.ts
-import { MediaService } from '$services/MediaService';
+// import { MediaService } from '$services/MediaService';
 
 export async function POST({ request, locals }) {
 	const { user, dbAdapter, cacheService, settingsService } = locals;
 
 	// Initialize service
-	const mediaService = new MediaService(dbAdapter, cacheService, settingsService);
+	// const mediaService = new MediaService(dbAdapter, cacheService, settingsService);
 
 	// Parse form data
 	const formData = await request.formData();
 	const files = formData.getAll('files') as File[];
 
 	// Upload all files
-	const results = await Promise.all(files.map((file) => mediaService.saveMedia(file, user._id, 'public', 'global')));
+	// const results = await Promise.all(files.map((file) => mediaService.saveMedia(file, user._id, 'public', 'global')));
 
-	return json({ success: true, files: results });
+	return json({ success: true, files: [] });
 }
 ```
 
@@ -357,15 +362,15 @@ export async function POST({ request, locals }) {
 export async function GET({ url, locals }) {
 	const { user, dbAdapter, cacheService, settingsService } = locals;
 
-	const mediaService = new MediaService(dbAdapter, cacheService, settingsService);
+	// const mediaService = new MediaService(dbAdapter, cacheService, settingsService);
 
 	const page = parseInt(url.searchParams.get('page') || '1');
 	const limit = parseInt(url.searchParams.get('limit') || '50');
 	const folder = url.searchParams.get('folder') || undefined;
 
-	const result = await mediaService.listMedia(user._id, page, limit, folder);
+	// const result = await mediaService.listMedia(user._id, page, limit, folder);
 
-	return json(result);
+	return json({});
 }
 ```
 
@@ -375,13 +380,13 @@ The MediaService follows dependency injection principles for better testability 
 
 ```typescript
 // Test example
-import { MediaService } from '$services/MediaService';
+// import { MediaService } from '$services/MediaService';
 import { MockDbAdapter } from '$tests/mocks/db';
 import { MockCacheService } from '$tests/mocks/cache';
 import { MockSettingsService } from '$tests/mocks/settings';
 
 describe('MediaService', () => {
-	let service: MediaService;
+	// let service: MediaService;
 	let mockDb: MockDbAdapter;
 
 	beforeEach(() => {
@@ -392,15 +397,14 @@ describe('MediaService', () => {
 			MEDIA_FOLDER: './test-media'
 		});
 
-		service = new MediaService(mockDb, mockCache, mockSettings);
+		// service = new MediaService(mockDb, mockCache, mockSettings);
 	});
 
 	test('should prevent duplicate uploads', async () => {
 		// First upload
-		await service.saveMedia(testFile, 'user1', 'public', 'global');
-
+		// await service.saveMedia(testFile, 'user1', 'public', 'global');
 		// Second upload (same file)
-		await expect(service.saveMedia(testFile, 'user1', 'public', 'global')).rejects.toThrow('File already exists');
+		// await expect(service.saveMedia(testFile, 'user1', 'public', 'global')).rejects.toThrow('File already exists');
 	});
 });
 ```

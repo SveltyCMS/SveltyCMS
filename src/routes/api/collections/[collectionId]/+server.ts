@@ -15,12 +15,10 @@ import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Databases
-import type { BaseEntity } from '@src/databases/dbInterface';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
 import { modifyRequest } from '@api/collections/modifyRequest';
-import { getDefaultRoles } from '@src/databases/auth/defaultRoles';
 
 // System Logger
 import { logger } from '@utils/logger.server';

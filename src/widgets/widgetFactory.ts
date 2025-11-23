@@ -9,8 +9,8 @@
  * - Clean, modern, and free of legacy patterns.
  */
 
-import type { FieldInstance, WidgetDefinition } from '@src/content/types';
 import type { BaseIssue, BaseSchema } from 'valibot';
+import type { FieldInstance, WidgetDefinition } from '@src/content/types';
 
 // A base constraint for widget-specific properties.
 type WidgetProps = Record<string, unknown>;
@@ -105,9 +105,11 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(config: W
 
 		// 1. Apply defaults from config.defaults (for custom properties)
 		if (config.defaults) {
+			// logger.debug(`[WidgetFactory] Applying defaults for ${config.Name}`, { defaults: config.defaults });
 			for (const key in config.defaults) {
 				if (Object.prototype.hasOwnProperty.call(config.defaults, key)) {
-					(fieldInstance as Record<string, unknown>)[key] = (config.defaults as Record<string, unknown>)[key];
+					const value = (config.defaults as Record<string, unknown>)[key];
+					(fieldInstance as Record<string, unknown>)[key] = value;
 				}
 			}
 		}
@@ -127,7 +129,10 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(config: W
 		fieldInstance.required = fieldInstance.required ?? false;
 		fieldInstance.translated = fieldInstance.translated ?? false;
 		if (!fieldInstance.db_fieldName && fieldInstance.label) {
-			fieldInstance.db_fieldName = fieldInstance.label.toLowerCase().replace(/\s+/g, '_');
+			fieldInstance.db_fieldName = fieldInstance.label
+				.toLowerCase()
+				.replace(/\s+/g, '_')
+				.replace(/[^a-z0-9_]/g, '');
 		} else if (!fieldInstance.db_fieldName) {
 			fieldInstance.db_fieldName = 'unnamed_field';
 		}

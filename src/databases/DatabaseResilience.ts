@@ -264,10 +264,10 @@ export class DatabaseResilience {
 		// Get pool stats from connection
 		// Note: mongoose doesn't expose detailed pool stats directly
 		// We'll use the connection config and infer from connection state
-		const client = mongoose.connection.getClient();
+		// const client = mongoose.connection.getClient();
 
 		// Try to get pool stats from MongoDB driver
-		let poolStats = {
+		const poolStats = {
 			total: 50, // Default maxPoolSize from config
 			active: 0,
 			idle: 0,
@@ -276,39 +276,30 @@ export class DatabaseResilience {
 		};
 
 		try {
-			// Access internal pool stats if available (MongoDB Node.js driver specific)
-			// @ts-expect-error - Accessing internal pool stats
-			const topology = client?.topology;
-			if (topology && typeof topology.s === 'object') {
-				const servers = topology.s.servers;
-				if (servers && servers.size > 0) {
-					const serverArray = Array.from(servers.values());
-					// @ts-expect-error - Internal pool access
-					const firstServer = serverArray[0];
-
-					// @ts-expect-error - Pool is internal
-					if (firstServer?.s?.pool) {
-						// @ts-expect-error - Pool stats
-						const pool = firstServer.s.pool;
-
-						// Try to get current connections count
-						// @ts-expect-error - Internal API
-						const totalConnections = pool.totalConnectionCount || pool.s?.options?.maxPoolSize || 50;
-						// @ts-expect-error - Internal API
-						const availableConnections = pool.availableConnectionCount || 0;
-						// @ts-expect-error - Internal API
-						const pendingConnections = pool.pendingConnectionCount || 0;
-
-						poolStats = {
-							total: totalConnections,
-							active: totalConnections - availableConnections,
-							idle: availableConnections,
-							waiting: pendingConnections,
-							avgConnectionTime: 0 // Not available from pool
-						};
-					}
-				}
-			}
+			// TODO: Revisit this code to get pool stats without accessing internal properties
+			// // Access internal pool stats if available (MongoDB Node.js driver specific)
+			// const topology = client?.topology;
+			// if (topology && typeof topology.s === 'object') {
+			// 	const servers = topology.s.servers;
+			// 	if (servers && servers.size > 0) {
+			// 		const serverArray = Array.from(servers.values());
+			// 		const firstServer = serverArray[0];
+			// 		if (firstServer?.s?.pool) {
+			// 			const pool = firstServer.s.pool;
+			// 			// Try to get current connections count
+			// 			const totalConnections = pool.totalConnectionCount || pool.s?.options?.maxPoolSize || 50;
+			// 			const availableConnections = pool.availableConnectionCount || 0;
+			// 			const pendingConnections = pool.pendingConnectionCount || 0;
+			// 			poolStats = {
+			// 				total: totalConnections,
+			// 				active: totalConnections - availableConnections,
+			// 				idle: availableConnections,
+			// 				waiting: pendingConnections,
+			// 				avgConnectionTime: 0 // Not available from pool
+			// 			};
+			// 		}
+			// 	}
+			// }
 		} catch (err) {
 			// If we can't access internal stats, return defaults
 			logger.debug('Unable to access detailed MongoDB pool stats, using defaults', { error: err });
@@ -465,7 +456,7 @@ export class DatabaseResilience {
 export async function notifyAdminsOfDatabaseFailure(error: DatabaseError, metrics: ResilienceMetrics): Promise<void> {
 	try {
 		// Check if SMTP is configured
-		const { getPrivateSetting } = await import('@src/services/settingsService');
+		const { getPrivateSetting } = await import(/* @vite-ignore */ '@src/services/settingsService');
 		const smtpHost = await getPrivateSetting('SMTP_HOST');
 
 		if (!smtpHost) {
@@ -474,20 +465,22 @@ export async function notifyAdminsOfDatabaseFailure(error: DatabaseError, metric
 		}
 
 		// Get admin users
-		const { auth } = await import('@src/databases/db');
+		// Use relative path to avoid alias resolution issues
+		const { auth } = await import(/* @vite-ignore */ './db');
 		if (!auth) {
 			logger.warn('Auth service not available, cannot fetch admin users for notification');
 			return;
 		}
 
-		const adminUsers = await auth.getAllUsers({ role: 'admin' });
+		const allUsers = await auth.getAllUsers();
+		const adminUsers = allUsers.filter((user) => user.role === 'admin');
 		if (!adminUsers || adminUsers.length === 0) {
 			logger.warn('No admin users found to notify');
 			return;
 		}
 
 		// Prepare email data
-		const { publicEnv } = await import('@src/stores/globalSettings.svelte');
+		const { publicEnv } = await import(/* @vite-ignore */ '@src/stores/globalSettings.svelte');
 		const systemState = getSystemState();
 
 		const emailData = {

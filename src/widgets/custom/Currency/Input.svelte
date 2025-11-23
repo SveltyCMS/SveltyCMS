@@ -30,6 +30,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 <script lang="ts">
 	import { systemLanguage } from '@src/stores/store.svelte';
 	import type { FieldType } from './';
+	import { tokenTarget } from '@src/actions/tokenTarget';
 
 	let { field, value, error }: { field: FieldType; value: number | null | undefined; error?: string | null } = $props();
 
@@ -85,23 +86,51 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 	}
 </script>
 
-<div class="input-container">
-	<input
-		type="text"
-		inputmode="decimal"
-		id={field.db_fieldName}
-		name={field.db_fieldName}
-		required={field.required}
-		placeholder={(field.placeholder as string) || formatter.format(0)}
-		bind:value={formattedValue}
-		oninput={handleInput}
-		onblur={handleBlur}
-		class="input"
-		class:invalid={error}
-		aria-invalid={!!error}
-		aria-describedby={error ? `${field.db_fieldName}-error` : undefined}
-	/>
-	{#if error}
-		<p class="error-message" role="alert">{error}</p>
-	{/if}
+<div class="input-container relative mb-4">
+	<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
+		{#if field?.prefix}
+			<button class="!px-2" type="button" aria-label={`${field.prefix} prefix`}>
+				{field?.prefix}
+			</button>
+		{/if}
+
+		<div class="relative w-full flex-1">
+			<input
+				type="text"
+				bind:value={formattedValue}
+				oninput={handleInput}
+				onblur={handleBlur}
+				use:tokenTarget={{
+					name: field.db_fieldName,
+					label: field.label,
+					collection: (field as any).collection
+				}}
+				name={field?.db_fieldName}
+				id={field?.db_fieldName}
+				placeholder={typeof field?.placeholder === 'string' && field.placeholder !== '' ? field.placeholder : String(field?.db_fieldName ?? '')}
+				required={field?.required as boolean | undefined}
+				readonly={field?.readonly as boolean | undefined}
+				disabled={field?.disabled as boolean | undefined}
+				class="input w-full rounded-none text-black dark:text-primary-500"
+				class:error={!!error}
+				aria-invalid={!!error}
+				aria-describedby={error ? `${field.db_fieldName}-error` : undefined}
+				aria-required={field?.required}
+				data-testid="currency-input"
+			/>
+			<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-surface-400" width="16"
+			></iconify-icon>
+		</div>
+
+		{#if field?.suffix}
+			<button class="!px-2" type="button" aria-label={`${field.suffix} suffix`}>
+				{field?.suffix}
+			</button>
+		{/if}
+
+		<!-- Validation indicator -->
+		{#if error}
+			<p class="error-message" role="alert">{error}</p>
+		{/if}
+	</div>
 </div>

@@ -25,9 +25,9 @@ Features:
 	const defaultFields = ['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'];
 
 	// Reactive statements to derive widget-related data
-	let currentWidgetName = $derived($modalStore[0]?.value?.widget?.Name);
-	let currentGuiSchema = $derived(currentWidgetName ? $widgetFunctions[currentWidgetName]?.GuiSchema || null : null);
-	let specificFields = $derived(currentGuiSchema ? Object.keys(currentGuiSchema).filter((key) => !defaultFields.includes(key)) : []);
+	const currentWidgetName = $derived($modalStore[0]?.value?.widget?.Name);
+	const currentGuiSchema = $derived(currentWidgetName ? $widgetFunctions[currentWidgetName]?.GuiSchema || null : null);
+	const specificFields = $derived(currentGuiSchema ? Object.keys(currentGuiSchema).filter((key) => !defaultFields.includes(key)) : []);
 
 	/** Updates the target widget property */
 	function handleToggle(event: CustomEvent<boolean>, property: string) {

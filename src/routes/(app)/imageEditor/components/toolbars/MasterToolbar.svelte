@@ -16,7 +16,7 @@ Tools provide their control components which get rendered here.
 <script lang="ts">
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
-	let { embedded = false } = $props<{
+	const { embedded = false } = $props<{
 		embedded?: boolean;
 	}>();
 

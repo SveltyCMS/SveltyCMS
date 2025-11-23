@@ -9,7 +9,7 @@ Supports strength, shapes (rect, ellipse), and patterns (blur, pixelate).
 	import type { BlurPattern, BlurShape } from './regions';
 
 	// Props are passed from Tool.svelte via imageEditorStore.setToolbarControls
-	let {
+	const {
 		blurStrength,
 		shape,
 		pattern,

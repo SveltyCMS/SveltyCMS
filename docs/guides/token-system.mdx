@@ -1,0 +1,149 @@
+---
+path: 'docs/guides/token-system.mdx'
+title: 'Enterprise Token System'
+description: 'A complete guide to using and extending the SveltyCMS Token System.'
+order: 10
+icon: 'mdi:code-braces'
+author: 'admin'
+created: '2025-11-23'
+updated: '2025-11-23'
+tags:
+  - 'tokens'
+  - 'system'
+  - 'guide'
+  - 'templating'
+---
+
+# Enterprise Token System
+
+The Enterprise Token System in SveltyCMS provides a powerful way to inject dynamic content into your entries, fields, and configurations. It supports a wide range of system, user, and content-specific tokens, along with a robust modifier system for data transformation.
+
+---
+
+## 1. Token Syntax
+
+Tokens are enclosed in double curly braces: `{{token}}`.
+
+### Basic Usage
+
+```text
+Hello {{user.name}}, welcome to {{site.SITE_NAME}}!
+```
+
+### Using Modifiers
+
+You can chain modifiers using the pipe `|` character. Modifiers can also accept arguments.
+
+```text
+{{user.name|upper}}                 -> JOHN DOE
+{{entry.title|slug}}                -> my-entry-title
+{{system.now|date(YYYY-MM-DD)}}     -> 2025-11-23
+```
+
+---
+
+## 2. Available Tokens
+
+The system comes with several built-in token categories.
+
+### System Tokens (`system.`)
+
+Global system values.
+
+- `{{system.now}}`: Current timestamp (ISO format).
+- `{{system.year}}`: Current year.
+
+### User Tokens (`user.`)
+
+Information about the currently authenticated user.
+
+- `{{user.email}}`: User's email address.
+- `{{user.username}}`: User's username.
+- `{{user.role}}`: User's role (e.g., admin, editor).
+- `{{user.id}}`: User's unique ID.
+
+### Site Tokens (`site.`)
+
+Global configuration values from `publicEnv`.
+
+- `{{site.SITE_NAME}}`: The name of the CMS instance.
+- `{{site.HOST_PROD}}`: The production hostname.
+- `{{site.PKG_VERSION}}`: Current CMS version.
+
+### Entry Tokens (`entry.`)
+
+Values from the current content entry. These are dynamic and depend on the collection schema.
+
+- `{{entry.title}}`: The title of the current entry.
+- `{{entry.status}}`: The publication status.
+- `{{entry.your_field_name}}`: Value of a specific field.
+
+---
+
+## 3. Modifiers
+
+Modifiers transform the output of a token.
+
+| Modifier           | Description                  | Example |
+| :----------------- | :--------------------------- | :------ | ------------------- |
+| `upper`            | Converts to uppercase        | `{{val  | upper}}`            |
+| `lower`            | Converts to lowercase        | `{{val  | lower}}`            |
+| `capitalize`       | Capitalizes the first letter | `{{val  | capitalize}}`       |
+| `trim`             | Removes whitespace           | `{{val  | trim}}`             |
+| `slug`             | URL-friendly slug            | `{{val  | slug}}`             |
+| `date(format)`     | Formats a date               | `{{val  | date(YYYY-MM-DD)}}` |
+| `truncate(length)` | Truncates text               | `{{val  | truncate(10)}}`     |
+
+---
+
+## 4. Using the Token Picker
+
+The **Token Picker** is a UI tool that helps you find and insert tokens without memorizing them.
+
+### How to Use
+
+1.  Look for the **Token Trigger** button (`{}`) next to any supported input field label.
+2.  Click the button to open the Token Picker window.
+3.  Browse tokens by category (Entry, User, Site, System).
+4.  Use the search bar to find specific tokens.
+5.  Click on a token to insert it into the active field.
+
+> **Note:** The Token Picker stays open and follows your focus. You can click different inputs to change the target field.
+
+---
+
+## 5. Developer Guide
+
+### Architecture
+
+The system consists of three main parts:
+
+1.  **Token Registry (`src/services/token/engine.ts`)**: Manages available tokens and their resolution logic.
+2.  **Modifier Registry (`src/services/token/modifiers.ts`)**: Manages data transformation functions.
+3.  **Token Picker (`src/components/TokenPicker.svelte`)**: The frontend UI for selecting tokens.
+
+### Adding Custom Tokens
+
+You can extend the registry by adding custom tokens in `src/services/token/engine.ts`.
+
+```typescript
+// Example: Adding a custom token
+TokenRegistry.add({
+	token: 'custom.hello',
+	name: 'Hello World',
+	category: 'custom',
+	description: 'Returns a greeting',
+	resolve: () => 'Hello World!'
+});
+```
+
+### Adding Custom Modifiers
+
+Add new modifiers in `src/services/token/modifiers.ts`.
+
+```typescript
+// Example: Adding a reverse modifier
+modifierRegistry.set('reverse', (value) => {
+	return String(value).split('').reverse().join('');
+});
+```

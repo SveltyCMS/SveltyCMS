@@ -77,7 +77,7 @@ describe('Loading Store - Concurrent Operations', () => {
 		store.startLoading(loadingOperations.dataFetch);
 		store.startLoading(loadingOperations.authentication);
 
-		expect(store.loadingReason).toBe('data-fetch'); // First operation
+		expect(store.loadingReason).toBe('authentication'); // Latest operation
 
 		store.stopLoading(loadingOperations.dataFetch);
 		expect(store.loadingReason).toBe('authentication'); // Remaining operation

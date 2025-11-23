@@ -1,14 +1,43 @@
+// @ts-nocheck
 /**
  * @file tests/bun/hooks/authorization.test.ts
  * @description Tests for handleAuthorization middleware (permissions, roles, user counting)
  */
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
-import { handleAuthorization } from '@src/hooks/handleAuthorization';
+import { handleAuthorization, invalidateUserCountCache } from '@src/hooks/handleAuthorization';
 import type { RequestEvent } from '@sveltejs/kit';
 import type { User, Role } from '@src/databases/auth/types';
 
+// Type declarations for test environment
+declare module '@sveltejs/kit' {
+	interface Locals {
+		user: User | null;
+		roles: Role[];
+		permissions: string[];
+		isFirstUser: boolean;
+		isAdmin: boolean;
+		hasManageUsersPermission: boolean;
+		allUsers: User[];
+		allTokens: any[];
+		theme: any;
+		darkMode: boolean;
+		tenantId?: string;
+	}
+}
+
 // --- Test Utilities ---
+
+let mockUserCount = 1;
+let mockRoles: Role[] = [];
+
+mock.module('@src/databases/db', () => ({
+	auth: {
+		getUserCount: () => Promise.resolve(mockUserCount),
+		getAllRoles: () => Promise.resolve(mockRoles),
+		getUserById: () => Promise.resolve(null)
+	}
+}));
 
 const mockUser: User = {
 	_id: 'user123',
@@ -24,6 +53,13 @@ const mockAdminRole: Role = {
 	isAdmin: true,
 	permissions: []
 };
+
+// Reset state before each test
+beforeEach(() => {
+	mockUserCount = 1;
+	mockRoles = [mockAdminRole];
+	invalidateUserCountCache();
+});
 
 function createMockEvent(pathname: string, user?: User, roles?: Role[]): RequestEvent {
 	const url = new URL(pathname, 'http://localhost');
@@ -170,11 +206,12 @@ describe('handleAuthorization Middleware', () => {
 		});
 
 		it('should detect first user (count = 0)', async () => {
+			mockUserCount = 0;
 			const event = createMockEvent('/dashboard');
 			await handleAuthorization({ event, resolve: mockResolve });
 
 			// isFirstUser set when userCount === 0
-			expect(event.locals.isFirstUser).toBeDefined();
+			expect(event.locals.isFirstUser).toBe(true);
 		});
 	});
 

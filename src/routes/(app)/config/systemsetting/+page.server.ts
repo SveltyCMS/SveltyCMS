@@ -33,7 +33,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		// Check user permission for system settings using cached tenantRoles from locals
 		const hasSystemSettingsPermission =
-			isAdmin || tenantRoles.some((role) => role.permissions?.some((p) => p.resource === 'config' && p.actions.includes('settings')));
+			isAdmin ||
+			tenantRoles.some((role) =>
+				role.permissions?.some((p) => {
+					const [resource, action] = p.split(':');
+					return resource === 'config' && action === 'settings';
+				})
+			);
 
 		if (!hasSystemSettingsPermission) {
 			const message = `User ${user._id} does not have permission to access system settings`;

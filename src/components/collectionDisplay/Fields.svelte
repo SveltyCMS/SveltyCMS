@@ -47,6 +47,8 @@
 	import { showToast } from '@utils/toast';
 
 	import { widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte';
+	import TokenPicker from '@components/TokenPicker.svelte';
+	import { activeInputStore } from '@src/stores/activeInputStore.svelte';
 
 	// Eager load all widget components for immediate use in Fields
 	const modules: Record<string, { default: any }> = import.meta.glob('/src/widgets/**/*.svelte', {
@@ -62,7 +64,7 @@
 	});
 
 	// --- 1. RECEIVE DATA AS PROPS ---
-	let {
+	const {
 		fields,
 		revisions = []
 		// contentLanguage prop received but not directly used - widgets access contentLanguage store
@@ -102,13 +104,13 @@
 	});
 
 	// --- 3. DERIVED STATE FROM PROPS ---
-	let selectedRevision = $derived(revisions.find((r: any) => r._id === selectedRevisionId) || null);
+	const selectedRevision = $derived(revisions.find((r: any) => r._id === selectedRevisionId) || null);
 
 	// --- 4. SIMPLIFIED LOGIC ---
-	let derivedFields = $derived(fields || []);
+	const derivedFields = $derived(fields || []);
 
 	// Get translation progress
-	let currentTranslationProgress = $derived(translationProgress.value);
+	const currentTranslationProgress = $derived(translationProgress.value);
 
 	// Track changes to translation progress for debugging
 	$effect(() => {
@@ -119,7 +121,7 @@
 	});
 
 	// Get available languages
-	let availableLanguages = $derived.by<Locale[]>(() => {
+	const availableLanguages = $derived.by<Locale[]>(() => {
 		// Wait for publicEnv to be initialized
 		const languages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES;
 		if (!languages || !Array.isArray(languages)) {
@@ -168,7 +170,7 @@
 		};
 	}
 
-	let filteredFields = $derived(
+	const filteredFields = $derived(
 		derivedFields
 			.map(ensureFieldProperties)
 			.filter(Boolean)
@@ -316,65 +318,95 @@
 	{/if}
 
 	<svelte:fragment slot="panel">
+		<TokenPicker />
 		{#if localTabSet === 0}
-			<div class="mb-2 text-center text-xs text-error-500">{m.form_required()}</div>
-			<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
-				<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
-					{#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
-						{#if rawField.widget}
-							{@const field = ensureFieldProperties(rawField)}
-							<div
-								class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
-								style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
-							>
-								<div class="flex items-center justify-between gap-2 px-[5px] text-start">
-									<!-- Field label -->
-									<div class="flex items-center gap-2">
-										<p class="inline-block font-semibold capitalize">
-											{field.label || field.db_fieldName}
-											{#if field.required}<span class="text-error-500">*</span>{/if}
-										</p>
-									</div>
-									<div class="flex items-center gap-2">
-										<!-- Translation status -->
-										{#if field.translated}
-											{@const percentage = getFieldTranslationPercentage(field)}
-											{@const textColor = getTranslationTextColor(percentage)}
-											<div class="flex items-center gap-1 text-xs">
-												<iconify-icon icon="bi:translate" width="16"></iconify-icon>
-												<span class="font-medium text-tertiary-500 dark:text-primary-500">{currentContentLanguage.toUpperCase()}</span>
-												<span class="font-medium {textColor}">({percentage}%)</span>
-											</div>
-										{/if}
-										<!-- Icon for field type -->
-										{#if field.icon}
-											<iconify-icon icon={field.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-										{/if}
-									</div>
-								</div>
+			<!-- Edit Tab -->
+			<div class="flex flex-col gap-4 p-4">
+				<div class="mb-2 text-center text-xs text-error-500">{m.form_required()}</div>
+				<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
+					<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
+						{#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
+							{#if rawField.widget}
+								{@const field = ensureFieldProperties(rawField)}
+								<div
+									class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
+									style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
+								>
+									<div class="flex items-center justify-between gap-2 px-[5px] text-start">
+										<!-- Field label -->
+										<div class="flex items-center gap-2">
+											<p class="inline-block font-semibold capitalize">
+												{field.label || field.db_fieldName}
+												{#if field.required}<span class="text-error-500">*</span>{/if}
+											</p>
+										</div>
+										<div class="flex items-center gap-2">
+											<!-- Translation status -->
+											{#if field.translated}
+												{@const percentage = getFieldTranslationPercentage(field)}
+												{@const textColor = getTranslationTextColor(percentage)}
+												<div class="flex items-center gap-1 text-xs">
+													<iconify-icon icon="bi:translate" width="16"></iconify-icon>
+													<span class="font-medium text-tertiary-500 dark:text-primary-500">{currentContentLanguage.toUpperCase()}</span>
+													<span class="font-medium {textColor}">({percentage}%)</span>
+												</div>
+											{/if}
 
-								{#if field.widget}
-									{@const widgetName = field.widget.Name}
-									{@const widgetPath =
-										widgetFunctions[widgetName]?.componentPath ||
-										widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)]?.componentPath ||
-										widgetFunctions[widgetName.toLowerCase()]?.componentPath}
-									{@const WidgetComponent = widgetPath && widgetPath in modules ? modules[widgetPath]?.default : null}
+											<!-- Token Trigger -->
+											<button
+												type="button"
+												class="variant-ghost-surface btn-icon btn-icon-sm h-6 w-6"
+												title="Insert Token"
+												onclick={() => {
+													const fieldName = getFieldName(field, false);
+													const input = document.getElementById(fieldName);
+													if (input) {
+														activeInputStore.set({
+															element: input as HTMLInputElement,
+															field: {
+																name: field.db_fieldName,
+																label: field.label,
+																collection: collection.value?.name
+															}
+														});
+													} else {
+														showToast('Could not find input element for this field', 'warning');
+													}
+												}}
+											>
+												<iconify-icon icon="mdi:code-braces" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+											</button>
 
-									{#if WidgetComponent}
-										{@const fieldName = getFieldName(field, false)}
-										{#key currentContentLanguage}
-											<!-- Widget remounts when currentContentLanguage changes -->
-											<!-- Widgets read contentLanguage from store, not props -->
-											<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
-										{/key}
-									{:else}
-										<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>
+											<!-- Icon for field type -->
+											{#if field.icon}
+												<iconify-icon icon={field.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+											{/if}
+										</div>
+									</div>
+
+									{#if field.widget}
+										{@const widgetName = field.widget.Name}
+										{@const widgetPath =
+											widgetFunctions[widgetName]?.componentPath ||
+											widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)]?.componentPath ||
+											widgetFunctions[widgetName.toLowerCase()]?.componentPath}
+										{@const WidgetComponent = widgetPath && widgetPath in modules ? modules[widgetPath]?.default : null}
+
+										{#if WidgetComponent}
+											{@const fieldName = getFieldName(field, false)}
+											{#key currentContentLanguage}
+												<!-- Widget remounts when currentContentLanguage changes -->
+												<!-- Widgets read contentLanguage from store, not props -->
+												<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
+											{/key}
+										{:else}
+											<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>
+										{/if}
 									{/if}
-								{/if}
-							</div>
-						{/if}
-					{/each}
+								</div>
+							{/if}
+						{/each}
+					</div>
 				</div>
 			</div>
 		{:else if localTabSet === 1}

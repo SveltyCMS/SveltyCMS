@@ -38,7 +38,7 @@
 	// Defines the shape of the data payload fetched from the API.
 	type FetchedData = SystemMessage[] | undefined;
 
-	let {
+	const {
 		label = 'System Messages',
 		theme = 'light',
 		icon = 'mdi:message-alert-outline',

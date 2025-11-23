@@ -11,7 +11,7 @@
 		className?: string;
 	}
 
-	let { fill = 'red', className = '' }: Props = $props();
+	const { fill = 'red', className = '' }: Props = $props();
 </script>
 
 <svg width="72" height="57" xmlns="http://www.w3.org/2000/svg" xml:space="preserve" {fill} class={className} viewBox="0 0 72 57">

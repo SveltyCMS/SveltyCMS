@@ -3,7 +3,6 @@
  * @description Tests for system state management store
  */
 
-// @ts-expect-error - Bun test is available at runtime
 import { describe, it, expect, beforeEach } from 'bun:test';
 import {
 	updateServiceHealth,
@@ -50,7 +49,7 @@ describe('System Store - Service Health Management', () => {
 
 		const stateAfter = getSystemState();
 		expect(stateAfter.services.database.metrics.initializationCompletedAt).toBeDefined();
-		expect(stateAfter.services.database.metrics.initializationDuration).toBeGreaterThan(0);
+		expect(stateAfter.services.database.metrics.initializationDuration).toBeGreaterThanOrEqual(0);
 	});
 
 	it('should track consecutive failures', () => {

@@ -27,7 +27,7 @@
 
 	let tokens = $state<WebsiteToken[]>([]);
 	let users = $state<User[]>([]);
-	let userMap = $derived(new Map(users.map((u) => [u._id, u.username || u.email])));
+	const userMap = $derived(new Map(users.map((u) => [u._id, u.username || u.email])));
 	let newTokenName = $state('');
 
 	// Filter state
@@ -43,7 +43,7 @@
 	let currentPage = $state(1);
 	let rowsPerPage = $state(10);
 	let totalItems = $state(0);
-	let pagesCount = $derived(Math.ceil(totalItems / rowsPerPage) || 1);
+	const pagesCount = $derived(Math.ceil(totalItems / rowsPerPage) || 1);
 
 	const tableHeaders = [
 		{ label: 'Name', key: 'name' },

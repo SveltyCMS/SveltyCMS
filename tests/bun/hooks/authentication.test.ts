@@ -16,7 +16,7 @@ import type { User } from '@src/databases/auth/types';
 
 // --- Test Utilities ---
 
-const mockUser: User = {
+const _mockUser: User = {
 	_id: 'user123',
 	email: 'test@example.com',
 	role: 'admin',

@@ -57,7 +57,7 @@ This widget fetches and displays real-time disk usage data, including:
 	}
 
 	// Props passed from +page.svelte, then to BaseWidget
-	let {
+	const {
 		label = 'Disk Usage',
 		theme = 'light',
 		icon = 'mdi:harddisk',

@@ -35,6 +35,7 @@ Part of the Three Pillars Architecture for wSidget system.
 	import type { FieldType } from './';
 	import { SeoAnalyzer } from './seoAnalyzer';
 	import type { SeoData, SeoFeature } from './types';
+	import { tokenTarget } from '@src/actions/tokenTarget';
 
 	// Components
 	// Child component
@@ -143,10 +144,36 @@ Part of the Three Pillars Architecture for wSidget system.
 				<div class="panel">
 					{#if value && value[lang]}
 						<label for="seo-title">Title</label>
-						<input id="seo-title" type="text" class="input" bind:value={value[lang].title} />
+						<div class="relative">
+							<input
+								id="seo-title"
+								type="text"
+								class="input"
+								bind:value={value[lang].title}
+								use:tokenTarget={{
+									name: field.db_fieldName,
+									label: field.label,
+									collection: (field as any).collection
+								}}
+							/>
+							<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-surface-400" width="16"
+							></iconify-icon>
+						</div>
 
 						<label for="seo-description">Description</label>
-						<textarea id="seo-description" class="textarea" bind:value={value[lang].description}></textarea>
+						<div class="relative">
+							<textarea
+								id="seo-description"
+								class="textarea"
+								bind:value={value[lang].description}
+								use:tokenTarget={{
+									name: field.db_fieldName,
+									label: field.label,
+									collection: (field as any).collection
+								}}
+							></textarea>
+							<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-2 top-4 text-surface-400" width="16"></iconify-icon>
+						</div>
 
 						<label for="seo-keyword">Focus Keyword</label>
 						<input id="seo-keyword" type="text" class="input" bind:value={value[lang].focusKeyword} />

@@ -24,7 +24,7 @@ Renders: <a href="mailto:user@example.com">user@example.com</a>
 -->
 
 <script lang="ts">
-	let { value }: { value: string | null | undefined } = $props();
+	const { value }: { value: string | null | undefined } = $props();
 </script>
 
 {#if value}

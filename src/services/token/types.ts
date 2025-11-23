@@ -14,10 +14,11 @@ import type { User } from '@src/databases/auth/types';
 /**
  * Token categories for grouping in the UI
  */
-export type TokenCategory = 'entry' | 'collection' | 'site' | 'user' | 'system';
+export type TokenCategory = 'entry' | 'collection' | 'site' | 'user' | 'system' | 'recentlyUsed';
 
 /**
  * Token definition - describes an available token
+ * Supports both path-based resolution (legacy) and function-based resolution (optimized)
  */
 export interface TokenDefinition {
 	/** The token string (e.g., "entry.title", "collection.name") */
@@ -32,8 +33,10 @@ export interface TokenDefinition {
 	example?: string;
 	/** Whether this token requires specific permissions */
 	requiresPermission?: string;
-	/** The actual path to access the value (e.g., ["entry", "title"]) */
-	path: string[];
+	/** The actual path to access the value (e.g., ["entry", "title"]) - used for path-based resolution */
+	path?: string[];
+	/** Optimized O(1) resolver function - takes precedence over path if both are provided */
+	resolve?: (context: TokenContext) => any;
 }
 
 /**
@@ -47,7 +50,7 @@ export interface ModifierDefinition {
 	/** Description of what the modifier does */
 	description: string;
 	/** Category for grouping */
-	category: 'text' | 'date' | 'logical' | 'image' | 'relational';
+	category: 'text' | 'date' | 'logical' | 'image' | 'relational' | 'math' | 'path';
 	/** Function signature description */
 	signature: string;
 	/** Example usage */
@@ -111,6 +114,18 @@ export type ModifierFunction = (
 ) => string | Promise<string>;
 
 /**
+ * Token replacement options
+ */
+export interface TokenReplaceOptions {
+	/** Max recursion depth to prevent infinite loops (default: 10) */
+	maxDepth?: number;
+	/** If true, leaves {{token}} in the string if not found (useful for debugging) */
+	preserveUnresolved?: boolean;
+	/** If true, throws an error when a token cannot be resolved */
+	throwOnMissing?: boolean;
+}
+
+/**
  * Token registry configuration
  */
 export interface TokenRegistryConfig {
@@ -129,4 +144,3 @@ export interface TokenRegistryConfig {
 	/** Custom modifier definitions */
 	customModifiers?: ModifierDefinition[];
 }
-

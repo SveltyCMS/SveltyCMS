@@ -269,7 +269,7 @@ class CacheService {
 	}
 
 	// Prefetch multiple keys in the background
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 	private async prefetchKeys(keys: string[], category?: CacheCategory, _tenantId?: string): Promise<void> {
 		// This is a placeholder - in a real implementation, you would:
 		// 1. Check which keys are not in cache
@@ -279,7 +279,6 @@ class CacheService {
 		logger.debug(`Predictive prefetch triggered for ${keys.length} keys in category ${category || 'default'}`);
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async get<T>(baseKey: string, tenantId?: string, _category?: CacheCategory): Promise<T | null> {
 		await this.ensureInitialized();
 		const key = this.generateKey(baseKey, tenantId);

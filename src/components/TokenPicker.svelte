@@ -1,344 +1,174 @@
 <!--
 @file src/components/TokenPicker.svelte
 @component
-**Token Picker Component**
-
-A UI component for selecting and inserting tokens into input fields.
-Features fuzzy search, collapsible groups, and rich token display.
-
-@example
-<TokenPicker
-  tokens={availableTokens}
-  onSelect={(token) => insertToken(token)}
-  open={showPicker}
-  onClose={() => showPicker = false}
-/>
+**A component for cycling through all application theme states.**
+### Features:
+- 
 -->
-
 <script lang="ts">
-	import { getEditDistance } from '@utils/utils';
-	import type { TokenDefinition, TokenCategory } from '@src/services/token/types';
-	import { getTokensByCategory } from '@src/services/token/TokenRegistry';
+	import { activeInputStore } from '@src/stores/activeInputStore.svelte';
+	import { TokenRegistry } from '@src/services/token/engine';
+	import { page } from '$app/state';
+	import { collection } from '@src/stores/collectionStore.svelte';
+	import { fade, slide } from 'svelte/transition';
+	import { showToast } from '@utils/toast';
 
-	interface Props {
-		tokens: TokenDefinition[];
-		onSelect: (token: string) => void;
-		open?: boolean;
-		onClose?: () => void;
-	}
-
-	let { tokens, onSelect, open = $bindable(false), onClose }: Props = $props();
+	// Icons for categories (using Iconify)
+	const icons: Record<string, string> = {
+		entry: 'mdi:file-document-outline',
+		user: 'mdi:account-circle-outline',
+		site: 'mdi:web',
+		system: 'mdi:cog-outline',
+		recentlyUsed: 'mdi:history'
+	};
 
 	// Search state
-	let searchQuery = $state('');
-	let selectedIndex = $state(-1);
-	let inputRef = $state<HTMLInputElement | null>(null);
-	let listRef = $state<HTMLDivElement | null>(null);
+	let search = $state('');
+	let openCategories = $state<Record<string, boolean>>({ entry: true, user: false, site: false, system: false });
 
-	// Grouped tokens
-	let groupedTokens = $derived.by(() => {
-		if (!tokens || tokens.length === 0) return {};
-		return getTokensByCategory(tokens);
+	// Reactive token groups based on current collection schema and user
+	let groupedTokens = $derived(TokenRegistry.getTokens(collection.value ?? undefined, page.data?.user));
+
+	// Filter tokens by search query
+	let filteredGroups = $derived.by(() => {
+		const q = search.toLowerCase();
+		const result: Record<string, any[]> = {};
+		for (const [cat, tokens] of Object.entries(groupedTokens)) {
+			const filtered = tokens.filter((t) => t.name.toLowerCase().includes(q) || t.token.toLowerCase().includes(q));
+			if (filtered.length > 0) result[cat] = filtered;
+		}
+		return result;
 	});
 
-	// Filtered and sorted tokens based on search
-	let filteredTokens = $derived.by(() => {
-		if (!searchQuery.trim()) {
-			return tokens;
-		}
-
-		const query = searchQuery.toLowerCase();
-		const results = tokens
-			.map((token) => {
-				const nameMatch = token.name.toLowerCase().includes(query);
-				const descMatch = token.description.toLowerCase().includes(query);
-				const tokenMatch = token.token.toLowerCase().includes(query);
-
-				// Calculate edit distance for fuzzy matching
-				const nameDistance = getEditDistance(query, token.name.toLowerCase()) ?? Infinity;
-				const descDistance = getEditDistance(query, token.description.toLowerCase()) ?? Infinity;
-				const tokenDistance = getEditDistance(query, token.token.toLowerCase()) ?? Infinity;
-
-				const minDistance = Math.min(nameDistance, descDistance, tokenDistance);
-
-				return {
-					token,
-					score: nameMatch ? 0 : descMatch ? 1 : tokenMatch ? 2 : minDistance,
-					matches: nameMatch || descMatch || tokenMatch
-				};
-			})
-			.filter((item) => item.matches || item.score < 10)
-			.sort((a, b) => a.score - b.score)
-			.map((item) => item.token);
-
-		return results;
-	});
-
-	// Grouped filtered tokens
-	let filteredGrouped = $derived.by(() => {
-		if (!searchQuery.trim()) {
-			return groupedTokens;
-		}
-
-		const filtered = filteredTokens;
-		const grouped: Record<TokenCategory, TokenDefinition[]> = {
-			entry: [],
-			collection: [],
-			site: [],
-			user: [],
-			system: []
-		};
-
-		for (const token of filtered) {
-			if (token.category in grouped) {
-				grouped[token.category].push(token);
-			}
-		}
-
-		return grouped;
-	});
-
-	// Collapsed state for categories
-	let collapsedCategories = $state<Set<TokenCategory>>(new Set());
-
-	function toggleCategory(category: TokenCategory) {
-		if (collapsedCategories.has(category)) {
-			collapsedCategories.delete(category);
-		} else {
-			collapsedCategories.add(category);
-		}
-		collapsedCategories = new Set(collapsedCategories); // Trigger reactivity
+	function toggleCategory(cat: string) {
+		openCategories[cat] = !openCategories[cat];
 	}
 
-	function handleSelect(token: TokenDefinition) {
-		onSelect(`{{${token.token}}}`);
-		open = false;
-		searchQuery = '';
-		selectedIndex = -1;
+	function insert(token: string) {
+		const val = `{{${token}}}`;
+		const input = activeInputStore.value?.element;
+
+		if (!input) {
+			navigator.clipboard.writeText(val).then(() => {
+				showToast(`Token ${val} copied to clipboard`, 'success');
+			});
+			return;
+		}
+
+		const start = input.selectionStart ?? 0;
+		const end = input.selectionEnd ?? start;
+		input.value = input.value.slice(0, start) + val + input.value.slice(end);
+		input.focus();
+		input.setSelectionRange(start + val.length, start + val.length);
+		input.dispatchEvent(new Event('input', { bubbles: true }));
 	}
 
-	function handleKeyDown(event: KeyboardEvent) {
-		switch (event.key) {
-			case 'Escape':
-				event.preventDefault();
-				open = false;
-				onClose?.();
-				break;
-			case 'ArrowDown':
-				event.preventDefault();
-				if (filteredTokens.length > 0) {
-					selectedIndex = (selectedIndex + 1) % filteredTokens.length;
-					scrollToSelected();
-				}
-				break;
-			case 'ArrowUp':
-				event.preventDefault();
-				if (filteredTokens.length > 0) {
-					selectedIndex = selectedIndex <= 0 ? filteredTokens.length - 1 : selectedIndex - 1;
-					scrollToSelected();
-				}
-				break;
-			case 'Enter':
-				event.preventDefault();
-				if (selectedIndex >= 0 && filteredTokens[selectedIndex]) {
-					handleSelect(filteredTokens[selectedIndex]);
-				}
-				break;
+	// Draggable action for the window
+	function draggable(node: HTMLElement) {
+		let x = 0,
+			y = 0;
+		const container = node.closest('.token-window') as HTMLElement;
+		function onMouseDown(e: MouseEvent) {
+			if ((e.target as HTMLElement).closest('button')) return;
+			x = e.clientX;
+			y = e.clientY;
+			window.addEventListener('mousemove', onMouseMove);
+			window.addEventListener('mouseup', onMouseUp);
 		}
+		function onMouseMove(e: MouseEvent) {
+			const dx = e.clientX - x;
+			const dy = e.clientY - y;
+			x = e.clientX;
+			y = e.clientY;
+			container.style.top = `${container.offsetTop + dy}px`;
+			container.style.left = `${container.offsetLeft + dx}px`;
+		}
+		function onMouseUp() {
+			window.removeEventListener('mousemove', onMouseMove);
+			window.removeEventListener('mouseup', onMouseUp);
+		}
+		node.addEventListener('mousedown', onMouseDown);
+		return { destroy: () => node.removeEventListener('mousedown', onMouseDown) };
 	}
-
-	function scrollToSelected() {
-		if (listRef && selectedIndex >= 0) {
-			const selectedElement = listRef.querySelector(`[data-token-index="${selectedIndex}"]`);
-			if (selectedElement) {
-				selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-			}
-		}
-	}
-
-	function getCategoryIcon(category: TokenCategory): string {
-		switch (category) {
-			case 'entry':
-				return 'mdi:file-document-outline';
-			case 'collection':
-				return 'mdi:folder-outline';
-			case 'site':
-				return 'mdi:web';
-			case 'user':
-				return 'mdi:account-outline';
-			case 'system':
-				return 'mdi:cog-outline';
-			default:
-				return 'mdi:tag-outline';
-		}
-	}
-
-	function getCategoryLabel(category: TokenCategory): string {
-		switch (category) {
-			case 'entry':
-				return 'Entry Fields';
-			case 'collection':
-				return 'Collection';
-			case 'site':
-				return 'Site Settings';
-			case 'user':
-				return 'User';
-			case 'system':
-				return 'System';
-			default:
-				return category;
-		}
-	}
-
-	// Auto-focus input when opened
-	$effect(() => {
-		if (open && inputRef) {
-			setTimeout(() => {
-				inputRef?.focus();
-			}, 100);
-		}
-	});
-
-	// Reset search when closed
-	$effect(() => {
-		if (!open) {
-			searchQuery = '';
-			selectedIndex = -1;
-		}
-	});
 </script>
 
-{#if open}
-	<!-- Backdrop -->
+{#if activeInputStore.value}
 	<div
-		class="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm"
-		onclick={() => {
-			open = false;
-			onClose?.();
-		}}
-		role="presentation"
-	></div>
-
-	<!-- Picker Modal -->
-	<div
-		class="fixed left-1/2 top-1/2 z-[10000] max-h-[80vh] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-lg bg-surface-800 shadow-2xl"
-		role="dialog"
-		aria-modal="true"
-		aria-label="Token Picker"
-		onclick={(e) => e.stopPropagation()}
+		class="token-window fixed z-[9999] flex max-h-[500px] w-80 flex-col rounded-lg border border-surface-400 bg-white shadow-2xl dark:bg-surface-900"
+		style="bottom: 20px; right: 20px;"
+		transition:fade={{ duration: 150 }}
 	>
 		<!-- Header -->
-		<div class="border-b border-surface-600 p-4">
-			<div class="mb-2 flex items-center justify-between">
-				<h3 class="text-lg font-semibold text-primary-500">Insert Token</h3>
-				<button
-					type="button"
-					onclick={() => {
-						open = false;
-						onClose?.();
-					}}
-					class="btn-icon btn-sm"
-					aria-label="Close"
-				>
-					<iconify-icon icon="mdi:close" width="20"></iconify-icon>
-				</button>
+		<div use:draggable class="flex cursor-move select-none items-center justify-between rounded-t-lg border-b border-surface-400 p-3">
+			<div class="flex items-center gap-2 text-tertiary-500 dark:text-primary-500">
+				<iconify-icon icon="mdi:code-braces" width="20"></iconify-icon>
+				<span class="text-base font-bold">Token Picker for</span>
 			</div>
 
-			<!-- Search Input -->
-			<input
-				bind:this={inputRef}
-				bind:value={searchQuery}
-				onkeydown={handleKeyDown}
-				type="search"
-				placeholder="Search tokens..."
-				class="input w-full"
-				autocomplete="off"
-			/>
+			<div class="variant-filled-secondary badge text-sm font-medium">{activeInputStore.value.field.label || 'Clipboard'}</div>
+
+			<button onclick={() => activeInputStore.set(null)} aria-label="Close token picker" class="variant-ghost btn-icon btn-icon-sm">
+				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
+			</button>
+		</div>
+
+		<!-- Search -->
+		<div class="border-b border-surface-400 p-2">
+			<input bind:value={search} class="input p-2" placeholder="Search tokens..." />
 		</div>
 
 		<!-- Token List -->
-		<div
-			bind:this={listRef}
-			class="max-h-[60vh] overflow-y-auto p-4"
-			role="listbox"
-			aria-label="Available tokens"
-		>
-			{#if filteredTokens.length === 0}
-				<div class="py-8 text-center text-surface-400">No tokens found</div>
-			{:else}
-				{#each Object.entries(filteredGrouped) as [category, categoryTokens] (category)}
-					{#if categoryTokens.length > 0}
-						<!-- Category Header -->
-						<button
-							type="button"
-							onclick={() => toggleCategory(category as TokenCategory)}
-							class="mb-2 flex w-full items-center justify-between rounded px-2 py-1 text-sm font-medium text-surface-300 hover:bg-surface-700"
-						>
-							<div class="flex items-center gap-2">
-								<iconify-icon
-									icon={getCategoryIcon(category as TokenCategory)}
-									width="18"
-								></iconify-icon>
-								<span>{getCategoryLabel(category as TokenCategory)}</span>
-								<span class="text-xs text-surface-500">({categoryTokens.length})</span>
-							</div>
-							<iconify-icon
-								icon={collapsedCategories.has(category as TokenCategory)
-									? 'mdi:chevron-right'
-									: 'mdi:chevron-down'}
-								width="18"
-							></iconify-icon>
-						</button>
-
-						<!-- Category Tokens -->
-						{#if !collapsedCategories.has(category as TokenCategory)}
-							<div class="mb-4 space-y-1">
-								{#each categoryTokens as token, index (token.token)}
-									{@const globalIndex = filteredTokens.findIndex((t) => t.token === token.token)}
-									<button
-										type="button"
-										data-token-index={globalIndex}
-										onclick={() => handleSelect(token)}
-										class="w-full rounded px-3 py-2 text-left hover:bg-surface-700 {selectedIndex === globalIndex
-											? 'bg-primary-500/20 ring-1 ring-primary-500'
-											: ''}"
-										role="option"
-										aria-selected={selectedIndex === globalIndex}
-									>
-										<div class="flex items-start justify-between gap-2">
-											<div class="flex-1">
-												<div class="flex items-center gap-2">
-													<span class="font-medium text-primary-400">{token.name}</span>
-													<span class="text-xs text-surface-500 font-mono">
-														{{token.token}}
-													</span>
-												</div>
-												{#if token.description}
-													<p class="mt-1 text-xs text-surface-400">{token.description}</p>
-												{/if}
-												{#if token.example}
-													<p class="mt-1 text-xs text-surface-500 italic">
-														Example: {token.example}
-													</p>
-												{/if}
-											</div>
+		<div class="scrollbar-thin scrollbar-thumb-surface-600 scrollbar-track-surface-800 flex-1 overflow-y-auto p-2">
+			{#each Object.entries(filteredGroups) as [category, tokens]}
+				<div class="mb-2 last:mb-0">
+					<button
+						onclick={() => toggleCategory(category)}
+						class="flex w-full items-center justify-between rounded p-2 text-xs font-bold uppercase tracking-wider text-surface-400 transition-colors hover:bg-surface-700"
+					>
+						<div class="flex items-center gap-2">
+							<iconify-icon icon={icons[category] || 'mdi:circle-small'} width="18"></iconify-icon>
+							<span class="text-tertiary-500 dark:text-primary-500">{category}</span>
+							<span class="variant-filled-tertiary badge-icon text-xs dark:variant-filled-primary">{tokens.length}</span>
+						</div>
+						<iconify-icon
+							icon="mdi:chevron-down"
+							width="16"
+							class="transition-transform duration-200 {openCategories[category] || search ? 'rotate-180' : ''}"
+						></iconify-icon>
+					</button>
+					{#if openCategories[category] || search}
+						<div transition:slide={{ duration: 200 }} class="mt-1 space-y-1 pl-1">
+							{#each tokens as t}
+								<button
+									onclick={() => insert(t.token)}
+									class="group w-full rounded border border-transparent p-2 text-left transition-all hover:border-primary-500/50 hover:bg-primary-500/20"
+									title={t.description}
+								>
+									<div class="mb-1 flex items-center justify-between">
+										<span class="text-sm font-semibold">{t.name}</span>
+										<code class="variant-filled-secondary badge rounded-full">
+											{t.token}
+										</code>
+									</div>
+									{#if t.description}
+										<div class="text-xs text-tertiary-500 group-hover:text-surface-300 dark:text-primary-500">
+											{t.description}
 										</div>
-									</button>
-								{/each}
-							</div>
-						{/if}
+									{/if}
+								</button>
+							{/each}
+						</div>
 					{/if}
-				{/each}
+				</div>
+			{/each}
+			{#if Object.keys(filteredGroups).length === 0}
+				<div class="flex h-32 flex-col items-center justify-center text-sm text-surface-500">
+					<iconify-icon icon="mdi:text-search" width="32" class="mb-2 opacity-50"></iconify-icon>
+					<span>No tokens found</span>
+				</div>
 			{/if}
 		</div>
 
 		<!-- Footer -->
-		<div class="border-t border-surface-600 p-3 text-xs text-surface-400">
-			<div class="flex items-center justify-between">
-				<span>Use ↑↓ to navigate, Enter to select, Esc to close</span>
-				<span>{filteredTokens.length} token{filteredTokens.length !== 1 ? 's' : ''} available</span>
-			</div>
-		</div>
 	</div>
 {/if}
-

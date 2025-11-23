@@ -32,7 +32,7 @@ import { logger } from '@utils/logger.server';
 
 // Media storage
 import { cacheService } from '@src/databases/CacheService';
-import { saveAvatarImage } from '@utils/media/mediaStorage';
+import { saveAvatarImage, moveMediaToTrash } from '@utils/media/mediaStorage.server';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
@@ -93,7 +93,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const currentUser = await auth.getUserById(targetUserId);
 		if (currentUser && currentUser.avatar) {
 			try {
-				const { moveMediaToTrash } = await import('@utils/media/mediaStorage');
 				// moveMediaToTrash handles all URL normalization internally
 				// Just pass the avatar URL as-is (can be /files/..., http://..., or relative path)
 				await moveMediaToTrash(currentUser.avatar);

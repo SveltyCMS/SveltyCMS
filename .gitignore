@@ -14,6 +14,7 @@ vite.config.ts.timestamp-*
 .env
 .env.*
 /config/private.ts
+/config/private.test.ts
 /data.json
 .bundle-history.json
 
@@ -25,6 +26,7 @@ vite.config.ts.timestamp-*
 trash/*
 media/*
 mediaFiles/
+mediaFolder/
 compiledCollections/*
 logs/*
 Docs/*
@@ -55,30 +57,6 @@ yarn-error.log*
 
 #paraglide.js
 src/paraglide/**/*.js
-mediaFolder/.trash/avatars/0f66d39f0b984e8797199fe96998f3ef.jpg
-mediaFolder/global/lg/e9a62a07a18d499faa67d1f0e9bade11-067e601aafb8689258ef.jpg
-mediaFolder/global/lg/IMG_20250726_093251-39181cf0d84f704976ae.jpg
-mediaFolder/global/lg/IMG_20250726_140518-582ae05e794196060bf9.jpg
-mediaFolder/global/lg/IMG_20250726_140840-c905a08d6b669e085d64.jpg
-mediaFolder/global/lg/IMG_20250728_074557-5823b42f54e4e7f9230b.jpg
-mediaFolder/global/md/e9a62a07a18d499faa67d1f0e9bade11-067e601aafb8689258ef.jpg
-mediaFolder/global/md/IMG_20250726_093251-39181cf0d84f704976ae.jpg
-mediaFolder/global/md/IMG_20250726_140518-582ae05e794196060bf9.jpg
-mediaFolder/global/md/IMG_20250726_140840-c905a08d6b669e085d64.jpg
-mediaFolder/global/md/IMG_20250728_074557-5823b42f54e4e7f9230b.jpg
-mediaFolder/global/original/e9a62a07a18d499faa67d1f0e9bade11-067e601aafb8689258ef.jpg
-mediaFolder/global/original/IMG_20250726_093251-39181cf0d84f704976ae.jpg
-mediaFolder/global/original/IMG_20250726_140518-582ae05e794196060bf9.jpg
-mediaFolder/global/original/IMG_20250726_140840-c905a08d6b669e085d64.jpg
-mediaFolder/global/original/IMG_20250728_074557-5823b42f54e4e7f9230b.jpg
-mediaFolder/global/sm/e9a62a07a18d499faa67d1f0e9bade11-067e601aafb8689258ef.jpg
-mediaFolder/global/sm/IMG_20250726_093251-39181cf0d84f704976ae.jpg
-mediaFolder/global/sm/IMG_20250726_140518-582ae05e794196060bf9.jpg
-mediaFolder/global/sm/IMG_20250726_140840-c905a08d6b669e085d64.jpg
-mediaFolder/global/sm/IMG_20250728_074557-5823b42f54e4e7f9230b.jpg
-mediaFolder/global/thumbnail/e9a62a07a18d499faa67d1f0e9bade11-067e601aafb8689258ef.jpg
-mediaFolder/global/thumbnail/IMG_20250726_093251-39181cf0d84f704976ae.jpg
-mediaFolder/global/thumbnail/IMG_20250726_140518-582ae05e794196060bf9.jpg
-mediaFolder/global/thumbnail/IMG_20250726_140840-c905a08d6b669e085d64.jpg
-mediaFolder/global/thumbnail/IMG_20250728_074557-5823b42f54e4e7f9230b.jpg
-mediaFolder/avatars/95cd1d5a2a494227ab2a9566729b8691.jpg
+
+
+

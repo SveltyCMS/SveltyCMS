@@ -27,7 +27,7 @@ Renders: "1,234,567.89" (US) or "1.234.567,89" (German) based on system language
 <script lang="ts">
 	import { systemLanguage } from '@src/stores/store.svelte';
 
-	let { value }: { value: number | null | undefined } = $props();
+	const { value }: { value: number | null | undefined } = $props();
 
 	// Get the user's current UI language.
 	const lang = $derived($systemLanguage);

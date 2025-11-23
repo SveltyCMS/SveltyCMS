@@ -55,14 +55,18 @@ function transitionServiceState(
 		metrics.consecutiveFailures = 0;
 	}
 
-	// Track failures
-	if (newStatus === 'unhealthy' && service.status !== 'unhealthy') {
-		metrics.failureCount++;
+	// Track failures - increment on every unhealthy status
+	if (newStatus === 'unhealthy') {
 		metrics.consecutiveFailures++;
-		metrics.lastFailureAt = now;
-		logger.warn(`Service ${serviceName} became unhealthy (failure #${metrics.failureCount}, consecutive: ${metrics.consecutiveFailures})`, {
-			error
-		});
+		metrics.failureCount++;
+
+		// Log only on transition to unhealthy
+		if (service.status !== 'unhealthy') {
+			metrics.lastFailureAt = now;
+			logger.warn(`Service ${serviceName} became unhealthy (failure #${metrics.failureCount}, consecutive: ${metrics.consecutiveFailures})`, {
+				error
+			});
+		}
 	}
 
 	// Track recovery
@@ -91,7 +95,19 @@ function transitionServiceState(
 	};
 
 	// Derive the new overall system state from the updated service statuses
-	updatedState.overallState = deriveOverallState(updatedState.services);
+	const derivedState = deriveOverallState(updatedState.services);
+	updatedState.overallState = derivedState;
+
+	// Track successful initialization if state auto-derived to READY from INITIALIZING
+	if (derivedState === 'READY' && state.overallState === 'INITIALIZING' && state.performanceMetrics.totalInitializations > 0) {
+		const duration = state.initializationStartedAt ? now - state.initializationStartedAt : 0;
+		updatedState.performanceMetrics = {
+			...state.performanceMetrics,
+			successfulInitializations: state.performanceMetrics.successfulInitializations + 1,
+			lastInitDuration: duration
+		};
+		logger.info(`✓ System auto-transitioned to READY (initialization completed in ${duration}ms)`);
+	}
 
 	return updatedState;
 }
@@ -180,8 +196,8 @@ export function setSystemState(state: SystemState, reason?: string): void {
 			performanceMetrics.totalInitializations++;
 		}
 
-		if (state === 'READY' && current.overallState === 'INITIALIZING' && current.initializationStartedAt) {
-			const duration = now - current.initializationStartedAt;
+		if (state === 'READY' && current.overallState !== 'READY' && performanceMetrics.totalInitializations > 0) {
+			const duration = current.initializationStartedAt ? now - current.initializationStartedAt : 0;
 			performanceMetrics.successfulInitializations++;
 			performanceMetrics.lastInitDuration = duration;
 

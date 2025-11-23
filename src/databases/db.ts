@@ -24,15 +24,28 @@ async function loadPrivateConfig(forceReload = false) {
 	if (privateEnv && !forceReload) return privateEnv;
 
 	try {
-		logger.debug('Loading /config/private.ts configuration...');
-		const module = await import('@root/config/private');
-		privateEnv = module.privateEnv;
-		logger.debug('Private config loaded successfully', {
-			hasConfig: !!privateEnv,
-			dbType: privateEnv?.DB_TYPE,
-			dbHost: privateEnv?.DB_HOST ? '***' : 'missing'
-		});
-		return privateEnv;
+		try {
+			logger.debug('Loading @config/private configuration...');
+			let module;
+			if (process.env.TEST_MODE) {
+				module = await import('@config/private.test');
+			} else {
+				module = await import('@config/private');
+			}
+			privateEnv = module.privateEnv;
+			logger.debug('Private config loaded successfully', {
+				hasConfig: !!privateEnv,
+				dbType: privateEnv?.DB_TYPE,
+				dbHost: privateEnv?.DB_HOST ? '***' : 'missing'
+			});
+			return privateEnv;
+		} catch (error) {
+			// Private config doesn't exist during setup - this is expected
+			logger.trace('Private config not found during setup - this is expected during initial setup', {
+				error: error instanceof Error ? error.message : String(error)
+			});
+			return null;
+		}
 	} catch (error) {
 		// Private config doesn't exist during setup - this is expected
 		logger.trace('Private config not found during setup - this is expected during initial setup', {
@@ -68,7 +81,7 @@ import type { DatabaseAdapter } from './dbInterface';
 
 // Settings loader
 import { privateConfigSchema, publicConfigSchema } from '@src/databases/schemas';
-import { invalidateSettingsCache, setSettingsCache } from '@src/services/settingsService';
+import { invalidateSettingsCache, setSettingsCache, getPublicSetting } from '@src/services/settingsService';
 import { safeParse, type InferOutput } from 'valibot';
 
 // Type definition for private config schema
@@ -81,6 +94,9 @@ import { logger } from '@utils/logger';
 
 // System State Management
 import { setSystemState, updateServiceHealth, waitForServiceHealthy } from '@src/stores/system';
+
+// Widget Store - Dynamic import to avoid circular dependency
+// import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 // State Variables
 export let dbAdapter: DatabaseAdapter | null = null; // Database adapter
@@ -190,10 +206,23 @@ export async function loadSettingsFromDB() {
 			logger.debug('Using in-memory private config (bypassing filesystem)');
 			privateConfig = privateEnv;
 		} else {
-			// Fall back to filesystem import (normal startup)
-			logger.debug('Loading private config from filesystem');
-			const imported = await import('@root/config/private');
-			privateConfig = imported.privateEnv;
+			try {
+				// Fall back to filesystem import (normal startup)
+				logger.debug('Loading private config from filesystem');
+				let imported;
+				if (process.env.TEST_MODE) {
+					imported = await import('@config/private.test');
+				} else {
+					imported = await import('@config/private');
+				}
+				privateConfig = imported.privateEnv;
+			} catch (error) {
+				// Private config doesn't exist during setup - this is expected
+				logger.trace('Private config not found during setup - this is expected during initial setup', {
+					error: error instanceof Error ? error.message : String(error)
+				});
+				return;
+			}
 		}
 
 		// Merge private config file settings with database private settings
@@ -350,7 +379,6 @@ async function initializeThemeManager(): Promise<void> {
 // Initialize the media folder
 async function initializeMediaFolder(): Promise<void> {
 	// During setup, MEDIA_FOLDER might not be loaded yet, so use fallback
-	const { getPublicSetting } = await import('@src/services/settingsService');
 	const mediaFolderPath = (await getPublicSetting('MEDIA_FOLDER')) || './mediaFolder';
 	if (building) return;
 	const fs = await import('node:fs/promises');
@@ -405,7 +433,6 @@ async function initializeVirtualFolders(): Promise<void> {
 
 		if (systemVirtualFolders.length === 0) {
 			// Create default virtual folder
-			const { getPublicSetting } = await import('@src/services/settingsService');
 			const defaultMediaFolder = (await getPublicSetting('MEDIA_FOLDER')) || 'mediaFolder';
 			const creationResult = await dbAdapter.systemVirtualFolder.create({
 				name: defaultMediaFolder,
@@ -575,13 +602,15 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			})(),
 			(async () => {
 				const t = performance.now();
-				await initializeDefaultTheme().then(() => initializeThemeManager());
+				await initializeDefaultTheme();
+				await initializeThemeManager();
 				updateServiceHealth('themeManager', 'healthy', 'Theme manager initialized');
 				themesTime = performance.now() - t;
 			})(),
 			(async () => {
 				const t = performance.now();
 				updateServiceHealth('widgets', 'initializing', 'Initializing widget store...');
+				// Dynamic import to avoid circular dependency with client bundle
 				const { widgetStoreActions } = await import('@stores/widgetStore.svelte');
 				await widgetStoreActions.initializeWidgets(undefined, dbAdapter);
 				updateServiceHealth('widgets', 'healthy', 'Widget store initialized');

@@ -14,7 +14,7 @@
 
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/factory';
+import { createWidget } from '@src/widgets/widgetFactory';
 import { object, optional, pipe, string, custom, type InferInput } from 'valibot';
 import type { RichTextProps } from './types';
 

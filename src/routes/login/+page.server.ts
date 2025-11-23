@@ -23,10 +23,9 @@ import { RateLimiter } from 'sveltekit-rate-limiter/server';
 // Cache invalidation
 import { invalidateUserCountCache } from '@src/hooks/handleAuthorization';
 
-// Superforms
+// valibot schemas
 import { forgotFormSchema, loginFormSchema, resetFormSchema, signUpFormSchema } from '@utils/formSchemas';
-import { valibot } from 'sveltekit-superforms/adapters';
-import { message, superValidate } from 'sveltekit-superforms/server';
+import { flatten, safeParse } from 'valibot';
 
 // Auth
 import { generateGoogleAuthUrl, googleAuth } from '@src/databases/auth/googleAuth';
@@ -218,10 +217,7 @@ async function shouldShowOAuth(hasInviteToken: boolean): Promise<boolean> {
 }
 
 // Define wrapped schemas for caching
-const wrappedLoginSchema = valibot(loginFormSchema);
-const wrappedForgotSchema = valibot(forgotFormSchema);
-const wrappedResetSchema = valibot(resetFormSchema);
-const wrappedSignUpSchema = valibot(signUpFormSchema);
+// Schemas are imported directly
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
 	// --- START: Language Validation Logic ---
@@ -248,10 +244,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				firstUserExists: true,
 				showOAuth: false,
 				hasExistingOAuthUsers: false,
-				loginForm: await superValidate(wrappedLoginSchema),
-				forgotForm: await superValidate(wrappedForgotSchema),
-				resetForm: await superValidate(wrappedResetSchema),
-				signUpForm: await superValidate(wrappedSignUpSchema),
+				loginForm: {},
+				forgotForm: {},
+				resetForm: {},
+				signUpForm: {},
 				showDatabaseError: true,
 				errorReason: lastFailure?.reason || 'System initialization failed. Please check the database connection and configuration.',
 				canReset: true,
@@ -271,10 +267,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				firstUserExists: true,
 				showOAuth: false,
 				hasExistingOAuthUsers: false,
-				loginForm: await superValidate(wrappedLoginSchema),
-				forgotForm: await superValidate(wrappedForgotSchema),
-				resetForm: await superValidate(wrappedResetSchema),
-				signUpForm: await superValidate(wrappedSignUpSchema),
+				loginForm: {},
+				forgotForm: {},
+				resetForm: {},
+				signUpForm: {},
 				showDatabaseError: true,
 				errorReason: dbHealth.reason,
 				canReset: true,
@@ -298,10 +294,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					firstUserExists: true,
 					showOAuth: false,
 					hasExistingOAuthUsers: false,
-					loginForm: await superValidate(wrappedLoginSchema),
-					forgotForm: await superValidate(wrappedForgotSchema),
-					resetForm: await superValidate(wrappedResetSchema),
-					signUpForm: await superValidate(wrappedSignUpSchema),
+					loginForm: {},
+					forgotForm: {},
+					resetForm: {},
+					signUpForm: {},
 					authNotReady: true,
 					authNotReadyMessage: 'Database is empty. Please restore your database from backup or delete config/private.ts to run setup again.'
 				};
@@ -312,10 +308,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				firstUserExists: true,
 				showOAuth: false, // Don't show OAuth if auth system isn't ready
 				hasExistingOAuthUsers: false,
-				loginForm: await superValidate(wrappedLoginSchema),
-				forgotForm: await superValidate(wrappedForgotSchema),
-				resetForm: await superValidate(wrappedResetSchema),
-				signUpForm: await superValidate(wrappedSignUpSchema),
+				loginForm: {},
+				forgotForm: {},
+				resetForm: {},
+				signUpForm: {},
 				authNotReady: true,
 				authNotReadyMessage: 'System is still initializing. Please wait a moment and try again.'
 			};
@@ -377,10 +373,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					token: inviteToken,
 					invitedEmail: tokenData.details.email,
 					roleId: tokenData.details.role, // Pass the roleId from the token
-					loginForm: await superValidate(wrappedLoginSchema),
-					forgotForm: await superValidate(wrappedForgotSchema),
-					resetForm: await superValidate(wrappedResetSchema),
-					signUpForm: await superValidate(wrappedSignUpSchema)
+					loginForm: {},
+					forgotForm: {},
+					resetForm: {},
+					signUpForm: {}
 				};
 			} else {
 				// Token is invalid, expired, or already used.
@@ -395,8 +391,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				const showOAuth = await shouldShowOAuth(true);
 
 				// Pre-fill the form with the invalid token and show a warning
-				const signUpForm = await superValidate(wrappedSignUpSchema);
-				signUpForm.data.token = inviteToken; // Pre-fill with the invalid token
+				const signUpForm = { token: inviteToken }; // Pre-fill with the invalid token
 
 				return {
 					firstUserExists,
@@ -405,9 +400,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					hasExistingOAuthUsers: false,
 					inviteError:
 						'This invitation token appears to be invalid, expired, or already used. Please check with your administrator or enter a different token.',
-					loginForm: await superValidate(wrappedLoginSchema),
-					forgotForm: await superValidate(wrappedForgotSchema),
-					resetForm: await superValidate(wrappedResetSchema),
+					loginForm: {},
+					forgotForm: {},
+					resetForm: {},
 					signUpForm
 				};
 			}
@@ -555,10 +550,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					firstUserExists,
 					showOAuth,
 					hasExistingOAuthUsers: false, // Not relevant for error case
-					loginForm: await superValidate(wrappedLoginSchema),
-					forgotForm: await superValidate(wrappedForgotSchema),
-					resetForm: await superValidate(wrappedResetSchema),
-					signUpForm: await superValidate(wrappedSignUpSchema),
+					loginForm: {},
+					forgotForm: {},
+					resetForm: {},
+					signUpForm: {},
 					oauthError: 'OAuth processing failed. Please try signing in with email or contact support.'
 				};
 			} catch (oauthError) {
@@ -576,20 +571,20 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					firstUserExists,
 					showOAuth,
 					hasExistingOAuthUsers: false, // Not relevant for error case
-					loginForm: await superValidate(wrappedLoginSchema),
-					forgotForm: await superValidate(wrappedForgotSchema),
-					resetForm: await superValidate(wrappedResetSchema),
-					signUpForm: await superValidate(wrappedSignUpSchema),
+					loginForm: {},
+					forgotForm: {},
+					resetForm: {},
+					signUpForm: {},
 					oauthError: `OAuth failed: ${err.message}. Please try again or use email login.`
 				};
 			}
 		}
 
 		// This is a normal login flow (no invite token) - return standard forms
-		const loginForm = await superValidate(wrappedLoginSchema);
-		const forgotForm = await superValidate(wrappedForgotSchema);
-		const resetForm = await superValidate(wrappedResetSchema);
-		const signUpForm = await superValidate(wrappedSignUpSchema);
+		const loginForm = {};
+		const forgotForm = {};
+		const resetForm = {};
+		const signUpForm = {};
 
 		// Check if OAuth should be shown
 		const showOAuth = await shouldShowOAuth(false);
@@ -627,10 +622,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			showOAuth: false, // Don't show OAuth in error case
 			hasExistingOAuthUsers: false,
 			firstCollection: null, // No collection info in error case
-			loginForm: await superValidate(wrappedLoginSchema),
-			forgotForm: await superValidate(wrappedForgotSchema),
-			resetForm: await superValidate(wrappedResetSchema),
-			signUpForm: await superValidate(wrappedSignUpSchema),
+			loginForm: {},
+			forgotForm: {},
+			resetForm: {},
+			signUpForm: {},
 			error: 'The login system encountered an unexpected error. Please try again later.',
 			pkgVersion: publicEnv.PKG_VERSION || '0.0.0'
 		};
@@ -672,23 +667,30 @@ export const actions: Actions = {
 
 		logger.debug('Auth service is ready for signUp action');
 
-		const signUpForm = await superValidate(event, wrappedSignUpSchema);
-		if (!signUpForm.valid) {
-			logger.warn('SignUp form invalid:', { errors: signUpForm.errors });
-			return fail(400, { form: signUpForm });
+		const formData = await event.request.formData();
+		const form = Object.fromEntries(formData);
+		const result = safeParse(signUpFormSchema, form);
+
+		if (!result.success) {
+			logger.warn('SignUp form invalid:', { errors: result.issues });
+			return fail(400, { form, errors: flatten(result.issues).nested });
 		}
 
-		const { email, username, password, token } = signUpForm.data;
+		const { email, username, password, token } = result.output;
 
 		// Security: This action ONLY works for invited users with valid tokens.
 		// First-user registration must go through /setup (enforced by hooks and load function).
 		if (!token) {
-			return message(signUpForm, 'A valid invitation is required to create an account.', { status: 403 });
+			if (!token) {
+				return fail(403, { message: 'A valid invitation is required to create an account.', form });
+			}
 		}
 
 		const tokenData = await auth.validateRegistrationToken(token);
 		if (!tokenData.isValid || !tokenData.details) {
-			return message(signUpForm, 'This invitation is invalid, expired, or has already been used.', { status: 403 });
+			if (!tokenData.isValid || !tokenData.details) {
+				return fail(403, { message: 'This invitation is invalid, expired, or has already been used.', form });
+			}
 		}
 
 		// Debug: Log the token details to see what we're getting
@@ -700,7 +702,9 @@ export const actions: Actions = {
 
 		// Security: Check that the email in the form matches the one in the token record
 		if (email.toLowerCase() !== tokenData.details.email.toLowerCase()) {
-			return message(signUpForm, 'The provided email does not match the invitation.', { status: 403 });
+			if (email.toLowerCase() !== tokenData.details.email.toLowerCase()) {
+				return fail(403, { message: 'The provided email does not match the invitation.', form });
+			}
 		}
 
 		try {
@@ -801,7 +805,7 @@ export const actions: Actions = {
 		} catch (error) {
 			const err = error as Error;
 			logger.error('Error during invited user signup', { email, message: err.message, stack: err.stack });
-			return message(signUpForm, 'Failed to create account. Please try again later.', { status: 500 });
+			return fail(500, { message: 'Failed to create account. Please try again later.', form });
 		}
 	},
 
@@ -850,12 +854,20 @@ export const actions: Actions = {
 		logger.debug('Auth service is ready for signIn action');
 
 		// Validate form
-		const signInForm = await superValidate(event, wrappedLoginSchema);
-		if (!signInForm.valid) return fail(400, { form: signInForm });
+		const formData = await event.request.formData();
+		const emailRaw = formData.get('email')?.toString() ?? '';
+		const passwordRaw = formData.get('password')?.toString() ?? '';
+		const isTokenRaw = formData.get('isToken');
+		const isToken = isTokenRaw === 'true' || isTokenRaw === 'on';
 
-		const email = signInForm.data.email.toLowerCase();
-		const password = signInForm.data.password;
-		const isToken = signInForm.data.isToken;
+		const form = { email: emailRaw, password: passwordRaw, isToken };
+		const result = safeParse(loginFormSchema, form);
+
+		if (!result.success) return fail(400, { form, errors: flatten(result.issues).nested });
+
+		const { email, password } = result.output;
+		// isToken is already boolean from our manual parsing, but let's use result.output if schema didn't transform it weirdly
+		// actually result.output.isToken should be boolean because schema says boolean() and we passed a boolean
 
 		let resp;
 		let redirectPath;
@@ -875,7 +887,7 @@ export const actions: Actions = {
 					message: 'Please enter your 2FA code to continue.'
 				});
 			} else if (resp && resp.status) {
-				message(signInForm, 'Sign-in successful!');
+				// message(signInForm, 'Sign-in successful!'); // No need to send message on success redirect
 
 				// Check if collections exist in the database (runtime-created collections)
 				const finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
@@ -900,12 +912,14 @@ export const actions: Actions = {
 			} else {
 				const errorMessage = resp?.message || 'Invalid credentials or an error occurred.';
 				logger.warn(`Sign-in failed`, { email, errorMessage });
-				return message(signInForm, errorMessage, { status: 401 });
+				const errorMsg = resp?.message || 'Invalid credentials or an error occurred.';
+				logger.warn(`Sign-in failed`, { email, errorMsg });
+				return fail(401, { message: errorMessage, form });
 			}
 		} catch (e) {
 			const err = e as Error;
 			logger.error(`Unexpected error in signIn action`, { email, message: err.message, stack: err.stack });
-			return message(signInForm, 'An unexpected server error occurred.', { status: 500 });
+			return fail(500, { message: 'An unexpected server error occurred.', form });
 		}
 
 		// Handle redirect outside try-catch
@@ -1037,10 +1051,13 @@ export const actions: Actions = {
 
 		logger.debug('Auth service is ready for forgotPW action');
 
-		const pwforgottenForm = await superValidate(event, wrappedForgotSchema);
-		if (!pwforgottenForm.valid) return fail(400, { form: pwforgottenForm });
+		const formData = await event.request.formData();
+		const form = Object.fromEntries(formData);
+		const result = safeParse(forgotFormSchema, form);
 
-		const email = pwforgottenForm.data.email.toLowerCase().trim();
+		if (!result.success) return fail(400, { form, errors: flatten(result.issues).nested });
+
+		const email = result.output.email.toLowerCase().trim();
 		let checkMail: ForgotPWCheckResult;
 
 		try {
@@ -1092,7 +1109,7 @@ export const actions: Actions = {
 		} catch (e) {
 			const err = e as Error;
 			logger.error(`Error in forgotPW action`, { email, message: err.message, stack: err.stack });
-			return message(pwforgottenForm, 'An error occurred. Please try again.', { status: 500 });
+			return fail(500, { message: 'An error occurred. Please try again.', form });
 		}
 	},
 
@@ -1124,12 +1141,13 @@ export const actions: Actions = {
 
 		logger.debug('Auth service is ready for resetPW action');
 
-		const pwresetForm = await superValidate(event, wrappedResetSchema);
-		if (!pwresetForm.valid) return fail(400, { form: pwresetForm });
+		const formData = await event.request.formData();
+		const form = Object.fromEntries(formData);
+		const result = safeParse(resetFormSchema, form);
 
-		const password = pwresetForm.data.password;
-		const token = pwresetForm.data.token;
-		const email = pwresetForm.data.email.toLowerCase().trim();
+		if (!result.success) return fail(400, { form, errors: flatten(result.issues).nested });
+
+		const { password, token, email } = result.output;
 
 		try {
 			const resp = await resetPWCheck(password, token, email);
@@ -1167,11 +1185,11 @@ export const actions: Actions = {
 					logger.error(`Error fetching /api/sendMail for password updated confirmation`, { email, error: emailError });
 				}
 
-				message(pwresetForm, 'Password reset successfully. You can now log in.');
+				// message(pwresetForm, 'Password reset successfully. You can now log in.');
 				throw redirect(303, '/login?reset=success');
 			} else {
 				logger.warn(`Password reset failed`, { email, message: resp.message });
-				return message(pwresetForm, resp.message || 'Password reset failed. The link may be invalid or expired.', { status: 400 });
+				return fail(400, { message: resp.message || 'Password reset failed. The link may be invalid or expired.', form });
 			}
 		} catch (e) {
 			// Check if this is a redirect (which is expected and successful)
@@ -1182,7 +1200,7 @@ export const actions: Actions = {
 
 			const err = e as Error;
 			logger.error(`Error in resetPW action`, { email, message: err.message, stack: err.stack });
-			return message(pwresetForm, 'An unexpected error occurred during password reset.', { status: 500 });
+			return fail(500, { message: 'An unexpected error occurred during password reset.', form });
 		}
 	},
 

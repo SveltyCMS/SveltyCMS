@@ -317,19 +317,10 @@ Features:
 	{/if}
 
 	<!-- SignIn and SignUp Forms -->
-	<SignIn
-		bind:active
-		FormSchemaLogin={data.loginForm}
-		FormSchemaForgot={data.forgotForm}
-		FormSchemaReset={data.resetForm}
-		onClick={handleSignInClick}
-		onPointerEnter={handleSignInPointerEnter}
-		onBack={resetToInitialState}
-	/>
+	<SignIn bind:active onClick={handleSignInClick} onPointerEnter={handleSignInPointerEnter} onBack={resetToInitialState} />
 
 	<SignUp
 		bind:active
-		FormSchemaSignUp={data.signUpForm}
 		isInviteFlow={data.isInviteFlow || false}
 		token={data.token || ''}
 		invitedEmail={data.invitedEmail || ''}

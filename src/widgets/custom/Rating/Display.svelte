@@ -28,7 +28,7 @@ Renders: ★★★★☆ (4 filled stars, 1 empty star)
 <script lang="ts">
 	import type { FieldType } from './';
 
-	let { field, value }: { field: FieldType; value: number | null | undefined } = $props();
+	const { field, value }: { field: FieldType; value: number | null | undefined } = $props();
 
 	// Create an array to easily loop for displaying stars.
 	const stars = $derived.by(() => Array(field.max || 5).fill(0));
