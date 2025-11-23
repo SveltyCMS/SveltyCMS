@@ -1,54 +1,121 @@
-/*
+/**
  * @file src/services/token/types.ts
- * @description Core type definitions for the Token System
+ * @description Type definitions for the Token System
  *
- * @param {Schema, FieldInstance} - The schema and field instance types.
- * @param {User} - The user type.
- *
- * Features:
- * - Resolves tokens in JSON API responses.
- * - Only processes JSON API responses for collection endpoints.
- * - Clones response body to avoid modifying the original response.
- * - Processes the response body with tokens.
- * - Returns the processed response.
+ * This file defines the core types for the token system, including:
+ * - TokenDefinition: Describes available tokens
+ * - ModifierDefinition: Describes available modifiers
+ * - TokenContext: Data available for token replacement
  */
 
-import type { Schema } from '@src/content/types';
+import type { FieldInstance, Schema } from '@src/content/types';
 import type { User } from '@src/databases/auth/types';
 
+/**
+ * Token categories for grouping in the UI
+ */
 export type TokenCategory = 'entry' | 'collection' | 'site' | 'user' | 'system' | 'recentlyUsed';
 
+/**
+ * Token definition - describes an available token
+ * Supports both path-based resolution (legacy) and function-based resolution (optimized)
+ */
+export interface TokenDefinition {
+	/** The token string (e.g., "entry.title", "collection.name") */
+	token: string;
+	/** Display name for the token */
+	name: string;
+	/** Description of what the token represents */
+	description: string;
+	/** Category for grouping in UI */
+	category: TokenCategory;
+	/** Example value (for preview) */
+	example?: string;
+	/** Whether this token requires specific permissions */
+	requiresPermission?: string;
+	/** The actual path to access the value (e.g., ["entry", "title"]) - used for path-based resolution */
+	path?: string[];
+	/** Optimized O(1) resolver function - takes precedence over path if both are provided */
+	resolve?: (context: TokenContext) => any;
+}
+
+/**
+ * Modifier definition - describes an available modifier function
+ */
+export interface ModifierDefinition {
+	/** The modifier name (e.g., "upper", "slugify") */
+	name: string;
+	/** Display name */
+	displayName: string;
+	/** Description of what the modifier does */
+	description: string;
+	/** Category for grouping */
+	category: 'text' | 'date' | 'logical' | 'image' | 'relational' | 'math' | 'path';
+	/** Function signature description */
+	signature: string;
+	/** Example usage */
+	example: string;
+	/** Whether this modifier accepts parameters */
+	acceptsParams: boolean;
+	/** Parameter description (if acceptsParams is true) */
+	paramDescription?: string;
+}
+
+/**
+ * Context data available for token replacement
+ */
 export interface TokenContext {
-	/** The content entry currently being processed */
-	entry?: Record<string, any>;
-	/** The schema definition for the current collection */
+	/** Current entry data (if editing an entry) */
+	entry?: Record<string, unknown>;
+	/** Collection schema */
 	collection?: Schema;
-	/** The authenticated user (used for permission checks and user tokens) */
+	/** Current user */
 	user?: User;
-	/** Global site configuration (publicEnv) */
-	site?: Record<string, any>;
-	/** System globals (time, version) */
+	/** Site configuration (public settings) */
+	site?: Record<string, unknown>;
+	/** System globals (e.g., now, timestamp, date, time, year, month, day, hour, minute, second) */
 	system?: {
 		now: Date;
-		[key: string]: any;
+		timestamp?: number;
+		date?: string;
+		time?: string;
+		year?: number;
+		month?: number;
+		day?: number;
+		hour?: number;
+		minute?: number;
+		second?: number;
+		[key: string]: unknown;
 	};
-	/** Allow arbitrary context for custom extensions */
-	[key: string]: any;
+	/** Additional custom context */
+	[key: string]: unknown;
 }
 
-export interface TokenDefinition {
-	token: string; // e.g. "entry.title"
-	name: string; // e.g. "Post Title"
-	description: string; // Human readable description
-	category: TokenCategory;
-	example?: string;
-	requiresPermission?: string;
-	/** Optimized O(1) resolver function */
-	resolve: (context: TokenContext) => any;
+/**
+ * Token replacement result
+ */
+export interface TokenReplacementResult {
+	/** The processed template with tokens replaced */
+	result: string;
+	/** Tokens that were successfully replaced */
+	replaced: string[];
+	/** Tokens that failed to resolve */
+	failed: string[];
+	/** Warnings (e.g., deprecated tokens) */
+	warnings: string[];
 }
 
-export type ModifierFunction = (value: unknown, params?: string[]) => string | Promise<string>;
+/**
+ * Modifier function type
+ */
+export type ModifierFunction = (
+	value: unknown,
+	params?: string[]
+) => string | Promise<string>;
 
+/**
+ * Token replacement options
+ */
 export interface TokenReplaceOptions {
 	/** Max recursion depth to prevent infinite loops (default: 10) */
 	maxDepth?: number;
@@ -58,11 +125,22 @@ export interface TokenReplaceOptions {
 	throwOnMissing?: boolean;
 }
 
+/**
+ * Token registry configuration
+ */
 export interface TokenRegistryConfig {
+	/** Whether to include entry tokens */
 	includeEntry?: boolean;
+	/** Whether to include collection tokens */
 	includeCollection?: boolean;
+	/** Whether to include site tokens */
 	includeSite?: boolean;
+	/** Whether to include user tokens */
 	includeUser?: boolean;
+	/** Whether to include system tokens */
 	includeSystem?: boolean;
+	/** Custom token definitions */
 	customTokens?: TokenDefinition[];
+	/** Custom modifier definitions */
+	customModifiers?: ModifierDefinition[];
 }
