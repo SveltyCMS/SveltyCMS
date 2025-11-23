@@ -42,7 +42,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { CodeBlock, Tab, TabGroup, clipboard } from '@skeletonlabs/skeleton';
+	import { CodeBlock, Tab, TabGroup, clipboard } from '@utils/skeletonCompat';
 	import { showConfirm } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 

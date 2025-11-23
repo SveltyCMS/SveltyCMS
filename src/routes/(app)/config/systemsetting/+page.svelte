@@ -15,8 +15,8 @@ All dynamic CMS settings organized into logical groups
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
 	import PageTitle from '@components/PageTitle.svelte';
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@utils/skeletonCompat';
+	import type { ModalSettings } from '@utils/skeletonCompat';
 	import { logger } from '@utils/logger';
 
 	// Import settings structure
@@ -150,7 +150,7 @@ All dynamic CMS settings organized into logical groups
 
 <PageTitle name="Dynamic System Settings" icon="mdi:cog" showBackButton={true} backUrl="/config" />
 
-<p class="text-surface-600-300-token mb-6 px-2">
+<p class="text-surface-600 dark:text-surface-300 mb-6 px-2">
 	These are critical system settings loaded dynamically from the database. Most changes take effect immediately, though settings marked with "Restart
 	Required" need a server restart. Settings are organized into <span class="font-bold text-primary-500">{availableGroups.length}</span>
 	logical groups for easy management.
@@ -275,8 +275,9 @@ All dynamic CMS settings organized into logical groups
 </div>
 
 <style lang="postcss">
+	@import "tailwindcss";
 	.alert {
-		@apply rounded-container-token;
+		@apply rounded-lg;
 	}
 	.alert-message p {
 		@apply text-sm opacity-90;
@@ -287,16 +288,17 @@ All dynamic CMS settings organized into logical groups
 		@apply cursor-pointer transition-all;
 	}
 	.group-nav-item:not(.active):hover {
-		@apply bg-surface-200;
+		background-color: var(--color-surface-200);
 	}
 	:global(.dark) .group-nav-item:not(.active):hover {
-		@apply bg-surface-700;
+		background-color: var(--color-surface-700);
 	}
 	.group-nav-item.active {
-		@apply bg-primary-500 font-semibold text-white;
+		background-color: var(--color-primary-500);
+		@apply font-semibold text-white;
 	}
 	.group-nav-item.active:hover {
-		@apply bg-primary-600;
+		background-color: var(--color-primary-600);
 	}
 
 	/* Settings panel */

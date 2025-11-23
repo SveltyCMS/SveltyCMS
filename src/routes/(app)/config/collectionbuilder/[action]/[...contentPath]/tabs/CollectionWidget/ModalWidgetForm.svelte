@@ -19,7 +19,7 @@ It handles widget configuration, permissions, and specific options.
 	// Stores
 	import { collectionValue, setCollectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
 
-	import { getModalStore, Tab, TabGroup } from '@skeletonlabs/skeleton';
+	import { getModalStore, Tab, TabGroup } from '@utils/skeletonCompat';
 	const modalStore = getModalStore();
 
 	let localTabSet: number = $state(0);
@@ -75,7 +75,7 @@ It handles widget configuration, permissions, and specific options.
 	// Base Classes
 	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-lg';
 </script>
 
 {#if modalData}

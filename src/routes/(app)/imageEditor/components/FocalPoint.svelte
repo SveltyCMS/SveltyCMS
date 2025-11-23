@@ -106,13 +106,27 @@ Emits `apply` with normalized coordinates { x: number, y: number } in [0,1].
 </div>
 
 <style lang="postcss">
+	@import "tailwindcss";
 	.btn {
 		@apply rounded-md px-3 py-2 text-sm;
 	}
 	.variant-ghost {
-		@apply border border-surface-300 bg-transparent text-surface-800 dark:border-surface-700 dark:text-surface-200;
+		@apply border bg-transparent;
+		border-color: var(--color-surface-300);
+		color: var(--color-surface-800);
 	}
+
+	:global(.dark) .variant-ghost {
+		border-color: var(--color-surface-700);
+		color: var(--color-surface-200);
+	}
+
 	.variant-filled-primary {
-		@apply bg-primary-600 text-white hover:bg-primary-700;
+		@apply text-white;
+		background-color: var(--color-primary-600);
+	}
+
+	.variant-filled-primary:hover {
+		background-color: var(--color-primary-700);
 	}
 </style>

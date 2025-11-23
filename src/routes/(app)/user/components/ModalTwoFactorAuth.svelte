@@ -27,8 +27,8 @@ This component provides a user interface for managing 2FA settings:
 	import { invalidateAll } from '$app/navigation';
 	import type { User } from '@src/databases/auth/types';
 	// Skeleton & Stores
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import type { ModalComponent, ModalSettings } from '@utils/skeletonCompat';
+	import { getModalStore } from '@utils/skeletonCompat';
 	import TwoFactorVerifyModal from './TwoFactorVerifyModal.svelte';
 
 	// ParaglideJS
@@ -225,7 +225,7 @@ This component provides a user interface for managing 2FA settings:
 	// Base Classes for modal
 	const cBase = 'card p-4 w-modal shadow-xl bg-white dark:bg-surface-800 max-h-[90vh] flex flex-col';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token overflow-y-auto flex-1';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-lg overflow-y-auto flex-1';
 </script>
 
 <!-- Main Modal Component -->

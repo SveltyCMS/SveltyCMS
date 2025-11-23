@@ -14,7 +14,7 @@ Features:
 	import { onMount } from 'svelte';
 	import { logger } from '@utils/logger';
 	import WidgetCard from './WidgetCard.svelte';
-	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { popup, type PopupSettings } from '@utils/skeletonCompat';
 	import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 	// Props

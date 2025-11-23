@@ -12,11 +12,6 @@
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 
-	// Initializing Skeleton stores
-	import { initializeStores, storePopup } from '@skeletonlabs/skeleton';
-	// Import from Floating UI
-	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
-
 	// Paraglide locale bridge
 	import { locales as availableLocales, getLocale, setLocale } from '@src/paraglide/runtime';
 	import { systemLanguage } from '@stores/store.svelte';
@@ -24,9 +19,9 @@
 	// Centralized theme management
 	import { themeStore, initializeThemeStore, initializeDarkMode } from '@stores/themeStore.svelte';
 
-	// Toast support
+	// Toast support (Skeleton v4)
+	import { Toast, createToaster } from '@utils/skeletonCompat';
 	import { setGlobalToastStore } from '@utils/toast';
-	import { getToastStore, Toast } from '@skeletonlabs/skeleton';
 
 	// Initialize theme and other client-side logic on mount
 	onMount(() => {
@@ -56,9 +51,9 @@
 		};
 	});
 
-	initializeStores();
-	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
-	setGlobalToastStore(getToastStore());
+	// Initialize toast store for Skeleton v4
+	const toaster = createToaster({ placement: 'top-end' });
+	setGlobalToastStore(toaster);
 
 	// Props
 	interface Props {
@@ -79,5 +74,5 @@
 	{#key currentLocale}
 		{@render children?.()}
 	{/key}
-	<Toast />
+	<Toast.Group toaster={toaster} />
 </div>

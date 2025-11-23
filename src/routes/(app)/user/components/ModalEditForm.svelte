@@ -18,8 +18,8 @@ Efficiently manages user data updates with validation, role selection, and delet
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	// Skeleton & Stores
-	import type { ModalComponent } from '@skeletonlabs/skeleton';
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import type { ModalComponent } from '@utils/skeletonCompat';
+	import { getModalStore } from '@utils/skeletonCompat';
 	import { showToast } from '@utils/toast';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -185,7 +185,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-lg';
 </script>
 
 {#if $modalStore[0]}
