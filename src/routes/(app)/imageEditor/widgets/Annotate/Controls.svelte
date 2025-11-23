@@ -126,43 +126,83 @@
 		@apply flex w-full items-center gap-3 px-2;
 	}
 	.label {
-		@apply flex items-center gap-1 text-nowrap text-sm font-medium ; color: var(--color-surface-200);
+		@apply flex items-center gap-1 text-nowrap text-sm font-medium;
+		color: var(--color-surface-700);
+	}
+	:global(.dark) .label {
+		color: var(--color-surface-200);
 	}
 	.divider {
-		@apply h-6 w-px ; background-color: var(--color-surface-600);
+		@apply h-6 w-px;
+		background-color: var(--color-surface-300);
+	}
+	:global(.dark) .divider {
+		background-color: var(--color-surface-600);
 	}
 	.divider-grow {
 		@apply flex-grow;
 	}
 	.btn-tool {
 		@apply flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-sm font-medium transition-colors;
-		bg-surface-200 text-surface-700; background-color: var(--color-surface-700); color: var(--color-surface-200);
+		background-color: var(--color-surface-200);
+		color: var(--color-surface-700);
 		min-width: 36px;
 	}
+	:global(.dark) .btn-tool {
+		background-color: var(--color-surface-700);
+		color: var(--color-surface-200);
+	}
 	.btn-tool:hover {
-		 background-color: var(--color-surface-600);
+		background-color: var(--color-surface-300);
+	}
+	:global(.dark) .btn-tool:hover {
+		background-color: var(--color-surface-600);
 	}
 	.btn-apply {
 		@apply flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium text-white;
-		 background-color: var(--color-success-600);
+		background-color: var(--color-success-500);
+	}
+	.btn-apply:hover {
+		background-color: var(--color-success-600);
 	}
 	.segment-group {
-		@apply flex items-center rounded-lg  p-0.5; background-color: var(--color-surface-700);
+		@apply flex items-center rounded-lg p-0.5;
+		background-color: var(--color-surface-200);
+	}
+	:global(.dark) .segment-group {
+		background-color: var(--color-surface-700);
 	}
 	.segment-btn {
 		@apply rounded-md px-2 py-1 transition-colors;
-		 color: var(--color-surface-400);
+		color: var(--color-surface-500);
+	}
+	:global(.dark) .segment-btn {
+		color: var(--color-surface-400);
 	}
 	.segment-btn:hover:not(.active) {
-		 color: var(--color-surface-200);
+		color: var(--color-surface-700);
+	}
+	:global(.dark) .segment-btn:hover:not(.active) {
+		color: var(--color-surface-200);
 	}
 	.segment-btn.active {
-		@apply bg-white  shadow-sm; background-color: var(--color-surface-900); color: var(--color-primary-600);
+		@apply bg-white shadow-sm;
+		color: var(--color-primary-600);
+	}
+	:global(.dark) .segment-btn.active {
+		background-color: var(--color-surface-900);
+		color: var(--color-primary-600);
 	}
 	.color-input {
 		@apply h-6 w-6 cursor-pointer rounded border-none bg-transparent p-0;
 	}
 	.num-input {
-		w-14 rounded-md border border-surface-300 bg-white p-1 text-center text-sm; border-color: var(--color-surface-600); background-color: var(--color-surface-800);
+		@apply w-14 rounded-md border p-1 text-center text-sm;
+		border-color: var(--color-surface-300);
+		background-color: var(--color-surface-50);
+	}
+	:global(.dark) .num-input {
+		border-color: var(--color-surface-600);
+		background-color: var(--color-surface-800);
 	}
 </style>

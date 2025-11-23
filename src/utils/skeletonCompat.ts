@@ -10,10 +10,18 @@ import { writable, derived } from 'svelte/store';
 export { Toast, createToaster } from '@skeletonlabs/skeleton-svelte';
 export { Avatar } from '@skeletonlabs/skeleton-svelte';
 export { Dialog } from '@skeletonlabs/skeleton-svelte';
-export { Tabs as TabGroup, Tab } from '@skeletonlabs/skeleton-svelte';
+export { Tabs } from '@skeletonlabs/skeleton-svelte';
 export { Progress as ProgressBar } from '@skeletonlabs/skeleton-svelte';
 export { Slider as RangeSlider } from '@skeletonlabs/skeleton-svelte';
 export { Popover } from '@skeletonlabs/skeleton-svelte';
+export { RatingGroup as Ratings } from '@skeletonlabs/skeleton-svelte';
+export { Listbox as ListBox } from '@skeletonlabs/skeleton-svelte';
+export { FileUpload as FileDropzone } from '@skeletonlabs/skeleton-svelte';
+
+// Compatibility aliases for v2 patterns
+export const TabGroup = Tabs;
+export const Tab = Tabs;
+export const ListBoxItem = Listbox;
 
 // Modal Store interfaces and implementation
 export interface ModalSettings {
