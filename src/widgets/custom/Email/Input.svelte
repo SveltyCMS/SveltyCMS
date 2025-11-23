@@ -30,9 +30,12 @@
 	import { validationStore } from '@stores/store.svelte';
 	import { contentLanguage } from '@stores/store.svelte';
 
+	// Utils
+	import { getFieldName } from '@utils/utils';
+	import { tokenTarget } from '@src/actions/tokenTarget';
+
 	// Valibot validation
 	import { string, email as emailValidator, pipe, parse, type ValiError, minLength, optional } from 'valibot';
-	import { getFieldName } from '@root/src/utils/utils';
 
 	interface Props {
 		field: FieldType;
@@ -137,48 +140,67 @@
 </script>
 
 <div class="input-container relative mb-4">
-	<!-- Email Input -->
-	<input
-		type="email"
-		bind:this={inputElement}
-		aria-label={field?.label || field?.db_fieldName}
-		value={safeValue}
-		oninput={handleInput}
-		onblur={handleBlur}
-		name={field.db_fieldName}
-		id={field.db_fieldName}
-		placeholder={(field.placeholder || field.db_fieldName) as string | undefined}
-		required={field?.required as boolean | undefined}
-		readonly={field?.readonly as boolean | undefined}
-		disabled={field?.disabled as boolean | undefined}
-		class="input w-full text-black dark:text-primary-500"
-		class:error={!!validationError}
-		class:validating={isValidating}
-		aria-invalid={!!validationError}
-		aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
-		aria-required={field?.required}
-		data-testid="email-input"
-		autocomplete="email"
-	/>
+	<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
+		{#if field?.prefix}
+			<button class="!px-2" type="button" aria-label={`${field.prefix} prefix`}>
+				{field?.prefix}
+			</button>
+		{/if}
 
-	<!-- Validation indicator -->
-	{#if isValidating}
-		<div class="absolute right-2 top-1/2 -translate-y-1/2" aria-label="Validating">
-			<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+		<div class="relative w-full flex-1">
+			<input
+				type="email"
+				value={safeValue || ''}
+				oninput={handleInput}
+				onblur={handleBlur}
+				use:tokenTarget={{
+					name: field.db_fieldName,
+					label: field.label,
+					collection: (field as any).collection
+				}}
+				name={field?.db_fieldName}
+				id={field?.db_fieldName}
+				placeholder={typeof field?.placeholder === 'string' && field.placeholder !== '' ? field.placeholder : String(field?.db_fieldName ?? '')}
+				required={field?.required as boolean | undefined}
+				readonly={field?.readonly as boolean | undefined}
+				disabled={field?.disabled as boolean | undefined}
+				class="input w-full rounded-none text-black dark:text-primary-500"
+				class:error={!!validationError}
+				class:validating={isValidating}
+				aria-invalid={!!validationError}
+				aria-describedby={validationError ? `${fieldName}-error` : undefined}
+				aria-required={field?.required}
+				data-testid="email-input"
+			/>
+			<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-surface-400" width="16"
+			></iconify-icon>
 		</div>
-	{/if}
 
-	<!-- Error Message -->
-	{#if validationError && isTouched}
-		<p
-			id={`${field.db_fieldName}-error`}
-			class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500"
-			role="alert"
-			aria-live="polite"
-		>
-			{validationError}
-		</p>
-	{/if}
+		{#if field?.suffix}
+			<button class="!px-2" type="button" aria-label={`${field.suffix} suffix`}>
+				{field?.suffix}
+			</button>
+		{/if}
+
+		<!-- Validation indicator -->
+		{#if isValidating}
+			<div class="absolute right-2 top-1/2 -translate-y-1/2" aria-label="Validating">
+				<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+			</div>
+		{/if}
+
+		<!-- Error Message -->
+		{#if validationError && isTouched}
+			<p
+				id={`${field.db_fieldName}-error`}
+				class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500"
+				role="alert"
+				aria-live="polite"
+			>
+				{validationError}
+			</p>
+		{/if}
+	</div>
 </div>
 
 <style lang="postcss">

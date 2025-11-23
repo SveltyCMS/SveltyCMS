@@ -35,6 +35,8 @@
 	import { validationStore } from '@root/src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { contentLanguage } from '@src/stores/store.svelte';
+	import { tokenTarget } from '@src/actions/tokenTarget';
+	import { collection } from '@src/stores/collectionStore.svelte';
 
 	// Props
 	interface Props {
@@ -228,6 +230,11 @@
 		{/if}
 
 		<input
+			use:tokenTarget={{
+				name: field.db_fieldName,
+				label: field.label,
+				collection: collection.value?.name
+			}}
 			type="text"
 			value={safeValue}
 			oninput={(e) => {

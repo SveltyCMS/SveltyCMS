@@ -31,6 +31,10 @@ import type { GraphQLFieldResolver } from 'graphql';
 import { modifyRequest } from '@api/collections/modifyRequest';
 import { contentManager } from '@src/content/ContentManager';
 
+// Token Engine
+import { replaceTokens } from '@src/services/token/engine';
+import type { TokenContext } from '@src/services/token/types';
+
 // System Logger
 import { logger } from '@utils/logger.server';
 
@@ -373,16 +377,39 @@ export async function collectionsResolvers(dbAdapter: DatabaseAdapter, cacheClie
 					}
 				}
 
-				resultArray.forEach((doc: DocumentBase) => {
+				// Token Replacement
+				const processedResults = await Promise.all(
+					resultArray.map(async (doc) => {
+						const tokenContext: TokenContext = {
+							entry: doc,
+							user: ctx.user
+						};
+
+						const processedDoc = { ...doc };
+						for (const key in processedDoc) {
+							const value = processedDoc[key];
+							if (typeof value === 'string' && value.includes('{{')) {
+								try {
+									processedDoc[key] = await replaceTokens(value, tokenContext);
+								} catch (err) {
+									logger.warn(`Token replacement failed for field ${key} in collection ${collection._id}`, err);
+								}
+							}
+						}
+						return processedDoc;
+					})
+				);
+
+				processedResults.forEach((doc: DocumentBase) => {
 					doc.createdAt = doc.createdAt ? new Date(doc.createdAt).toISOString() : new Date().toISOString();
 					doc.updatedAt = doc.updatedAt ? new Date(doc.updatedAt).toISOString() : doc.createdAt;
 				});
 
 				if (getPrivateSettingSync('USE_REDIS') && cacheClient) {
-					await cacheClient.set(cacheKey, JSON.stringify(resultArray), 'EX', 60 * 60, ctx.tenantId);
+					await cacheClient.set(cacheKey, JSON.stringify(processedResults), 'EX', 60 * 60, ctx.tenantId);
 				}
 
-				return resultArray;
+				return processedResults;
 			} catch (error) {
 				const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 				logger.error(`Error fetching data for ${collection._id}: ${errorMessage}`);

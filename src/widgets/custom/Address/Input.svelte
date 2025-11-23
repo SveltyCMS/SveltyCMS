@@ -34,6 +34,7 @@ Interactive form with map, country selector, and address validation
 	import type { FieldType } from './';
 	import countries from './countries.json';
 	import type { AddressData } from './types';
+	import { tokenTarget } from '@src/actions/tokenTarget';
 
 	let { field, value, error }: { field: FieldType; value: AddressData | null | undefined; error?: string | null } = $props();
 
@@ -76,9 +77,20 @@ Interactive form with map, country selector, and address validation
 	{/if}
 
 	<div class="form-grid">
-		<div class="field">
+		<div class="field relative">
 			<label for="{field.db_fieldName}-street">Street</label>
-			<input type="text" id="{field.db_fieldName}-street" bind:value={address.street} class="input" />
+			<input
+				type="text"
+				id="{field.db_fieldName}-street"
+				bind:value={address.street}
+				class="input"
+				use:tokenTarget={{
+					name: field.db_fieldName,
+					label: field.label,
+					collection: (field as any).collection
+				}}
+			/>
+			<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-2 top-8 text-surface-400" width="16"></iconify-icon>
 		</div>
 		<div class="field">
 			<label for="{field.db_fieldName}-country">Country</label>

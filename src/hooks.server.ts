@@ -43,6 +43,7 @@ import { handleAuthorization } from './hooks/handleAuthorization';
 import { handleLocale } from './hooks/handleLocale';
 import { handleTheme } from './hooks/handleTheme';
 import { addSecurityHeaders } from './hooks/addSecurityHeaders';
+import { handleTokenResolution } from './hooks/tokenResolution';
 import { handleStaticAssetCaching } from './hooks/handleStaticAssetCaching';
 import { handleRateLimit } from './hooks/handleRateLimit';
 import { handleFirewall } from './hooks/handleFirewall';
@@ -98,7 +99,10 @@ const middleware: Handle[] = [
 	// 10. API request handling (role-based access control & caching)
 	handleApiRequests,
 
-	// 11. Essential security headers (defense in depth)
+	// 11. Token resolution for API responses
+	handleTokenResolution,
+
+	// 12. Essential security headers (defense in depth)
 	addSecurityHeaders
 ];
 

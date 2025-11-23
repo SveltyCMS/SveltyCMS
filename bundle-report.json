@@ -1,27 +1,27 @@
 {
-  "summary": {
-    "totalSize": 11043001,
-    "totalGzipSize": 2178515,
-    "totalBrotliSize": 1517710,
-    "chunkCount": 36,
-    "largestChunkSize": 9750573
-  },
-  "recommendations": [
-    {
-      "level": "error",
-      "message": "1 chunk(s) exceed 500 KB limit",
-      "action": "Consider code splitting or lazy loading"
-    },
-    {
-      "level": "warning",
-      "message": "12 chunk(s) have poor Brotli compression (<60%)",
-      "action": "Check for large uncompressible assets (images, fonts)"
-    },
-    {
-      "level": "error",
-      "message": "Total bundle size exceeds 3 MB budget",
-      "action": "Review vendor dependencies and implement tree-shaking"
-    }
-  ],
-  "hasErrors": true
+	"summary": {
+		"totalSize": 11043001,
+		"totalGzipSize": 2178515,
+		"totalBrotliSize": 1517710,
+		"chunkCount": 36,
+		"largestChunkSize": 9750573
+	},
+	"recommendations": [
+		{
+			"level": "error",
+			"message": "1 chunk(s) exceed 500 KB limit",
+			"action": "Consider code splitting or lazy loading"
+		},
+		{
+			"level": "warning",
+			"message": "12 chunk(s) have poor Brotli compression (<60%)",
+			"action": "Check for large uncompressible assets (images, fonts)"
+		},
+		{
+			"level": "error",
+			"message": "Total bundle size exceeds 3 MB budget",
+			"action": "Review vendor dependencies and implement tree-shaking"
+		}
+	],
+	"hasErrors": true
 }

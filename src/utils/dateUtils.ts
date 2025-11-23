@@ -112,6 +112,42 @@ export function isoDateStringToDate(isoDate: ISODateString): Date {
 }
 
 /**
+ * Format a date using a pattern string (e.g. "yyyy-MM-dd")
+ * @param dateInput - Date, timestamp or ISO string
+ * @param pattern - Format pattern
+ * @param fallback - Fallback string if date is invalid
+ */
+export function formatDateString(dateInput: Date | number | string, pattern: string = 'yyyy-MM-dd', fallback: string = ''): string {
+	try {
+		let date: Date;
+
+		if (typeof dateInput === 'number') {
+			date = new Date(dateInput > 1e12 ? dateInput : dateInput * 1000);
+		} else if (typeof dateInput === 'string') {
+			date = new Date(dateInput);
+		} else {
+			date = dateInput;
+		}
+
+		if (isNaN(date.getTime())) {
+			return fallback;
+		}
+
+		const yyyy = date.getFullYear().toString();
+		const MM = (date.getMonth() + 1).toString().padStart(2, '0');
+		const dd = date.getDate().toString().padStart(2, '0');
+		const HH = date.getHours().toString().padStart(2, '0');
+		const mm = date.getMinutes().toString().padStart(2, '0');
+		const ss = date.getSeconds().toString().padStart(2, '0');
+
+		return pattern.replace('yyyy', yyyy).replace('MM', MM).replace('dd', dd).replace('HH', HH).replace('mm', mm).replace('ss', ss);
+	} catch (error) {
+		logger.error('Error formatting date string:', error);
+		return fallback;
+	}
+}
+
+/**
  * Format date for display with proper locale and timezone handling
  * @param dateInput - Date, timestamp or ISO string
  * @param locale - Locale to format for (default: system language)

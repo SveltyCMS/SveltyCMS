@@ -26,7 +26,12 @@ async function loadPrivateConfig(forceReload = false) {
 	try {
 		try {
 			logger.debug('Loading @config/private configuration...');
-			const module = await import('@config/private');
+			let module;
+			if (process.env.TEST_MODE) {
+				module = await import('@config/private.test');
+			} else {
+				module = await import('@config/private');
+			}
 			privateEnv = module.privateEnv;
 			logger.debug('Private config loaded successfully', {
 				hasConfig: !!privateEnv,
@@ -204,7 +209,12 @@ export async function loadSettingsFromDB() {
 			try {
 				// Fall back to filesystem import (normal startup)
 				logger.debug('Loading private config from filesystem');
-				const imported = await import('@config/private');
+				let imported;
+				if (process.env.TEST_MODE) {
+					imported = await import('@config/private.test');
+				} else {
+					imported = await import('@config/private');
+				}
 				privateConfig = imported.privateEnv;
 			} catch (error) {
 				// Private config doesn't exist during setup - this is expected

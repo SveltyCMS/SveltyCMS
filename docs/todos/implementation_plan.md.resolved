@@ -1,0 +1,242 @@
+# Enterprise-Grade Token System for SveltyCMS
+
+## Overview
+
+This implementation adds a comprehensive token system to SveltyCMS that enables dynamic content generation using `{{placeholder}}` syntax. The system follows the "Save Raw, Render Dynamic" principle, allowing users to insert dynamic tokens into text fields that are resolved at runtime.
+
+### Key Features
+- **Secure token resolution** with whitelisted user fields
+- **Rich modifier library** for text transformation, math, dates, logic, and security
+- **Floating UI picker** for easy token insertion
+- **Server-side token processing** for API responses
+- **Recursion protection** to prevent infinite loops
+- **Real-time preview** via API endpoint
+
+## User Review Required
+
+> [!IMPORTANT]
+> **New Directory Structure**
+> This implementation creates a new `src/services/token/` directory and a new `src/actions/` directory. These are standard patterns in SvelteKit applications.
+
+> [!IMPORTANT]
+> **Security Model**
+> The token system implements a strict whitelist for user data access. Only these user fields are exposed: `_id`, `email`, `username`, `role`, `avatar`, `language`, `name`. The `password` field and other sensitive data are explicitly blocked.
+
+> [!WARNING]
+> **Breaking Change for Existing Widgets**
+> The [Input](file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/utils/dateUtils.ts#76-99) widget will be modified to include the `tokenTarget` action. This is backward compatible but adds a visual indicator icon to all text inputs.
+
+> [!IMPORTANT]
+> **Date Formatting Dependency**
+> The modifier library assumes a `formatDateString` utility exists in `@utils/dateUtils`. If this function doesn't exist, the [date](file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/databases/auth/types.ts#226-228) modifier will need adjustment.
+
+## Proposed Changes
+
+### Core Services Layer
+
+#### [NEW] [types.ts](file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/services/token/types.ts)
+
+Defines the type system for the token engine:
+- `TokenContext`: Available data sources (entry, collection, user, site, system)
+- `TokenDefinition`: Structure for registered tokens
+- `ModifierFunction`: Type for transformation functions
+- `TokenReplaceOptions`: Configuration for token resolution
+- `TokenRegistryConfig`: Options for token discovery
+
+#### [NEW] [modifiers.ts](file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/services/token/modifiers.ts)
+
+Comprehensive modifier library with 30+ transformations:
+- **Text**: `upper`, `lower`, `capitalize`, `trim`, `slug`, `kebabcase`, `snakecase`, `camelcase`, `truncate`, `strip`, `urlencode`, `replace`, `append`, `prepend`
+- **Logic**: `if`, `eq`, [ne](file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/databases/auth/types.ts#220-222), `gt`, [lt](file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/content/types.ts#343-351), `default`
+- **Date**: [date](file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/databases/auth/types.ts#226-228) (with format string support)
+- **Math**: `add`, `subtract`, `multiply`, `divide`
+- **Security**: `escape` (XSS protection)
+- **CMS-specific**: `image_style` (media URL generation)
+
+All modifiers are registered in a case-insensitive `Map` for O(1) lookup.
+
+#### [NEW] [engine.ts](file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/services/token/engine.ts)
+
+The core token processing engine with two main components:
+
+**TokenRegistryService** (Discovery):
+- `resolve(tokenKey, context)`: O(1) token resolution with security filtering
+- `getTokens(schema, user, config)`: Generates available tokens grouped by category
+- Implements user field whitelist security
+- Dynamically generates tokens from schema fields and site settings
+
+**replaceTokens(template, context, options)** (Replacement):
+- Regex-based token matching with escape support (`\{{token}}`)
+- Parallel async token resolution for performance
+- Modifier pipeline processing with parameter support
+- Recursion protection (configurable max depth, default 10)
+- Configurable error handling (preserve unresolved, throw on missing)
+
+---
+
+### Frontend Integration Layer
+
+#### [NEW] [activeInputStore.svelte.ts](file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/stores/activeInputStore.svelte.ts)
+
+Svelte 5 rune-based store tracking the currently focused input:
+- Stores reference to DOM element and field metadata
+- Used by TokenPicker to know where to insert tokens
+- Reactive using `$state` rune
+
+#### [NEW] [tokenTarget.ts](file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/actions/tokenTarget.ts)
+
+Svelte action that registers inputs with the token system:
+- Attaches to `<input>` or `<textarea>` elements
+- Updates `activeInputStore` on focus
+- Cleans up on destroy
+- Accepts field metadata (name, label, collection)
+
+#### [NEW] [TokenPicker.svelte](file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/components/TokenPicker.svelte)
+
+Floating, draggable token picker UI:
+- **Visibility**: Shows when any input with `use:tokenTarget` is focused
+- **Search**: Real-time filtering across all tokens
+- **Categories**: Collapsible groups (entry, user, site, system, recently used)
+- **Insertion**: Click to insert `{{token}}` at cursor position
+- **Draggable**: Custom action for window repositioning
+- **Styling**: Dark theme with glassmorphism, icons from Iconify
+- **Animations**: Svelte transitions (fade, slide)
+
+---
+
+### Server-Side Processing Layer
+
+#### [NEW] [tokenHelper.ts](file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/utils/tokenHelper.ts)
+
+Recursive token processor for API responses:
+- `processObjectWithTokens<T>(data, context)`: Deep traversal of objects/arrays
+- Resolves tokens in all string values
+- Preserves non-string types (numbers, dates, booleans)
+- Async/await for performance
+
+#### [MODIFY] [hooks.server.ts](file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/hooks.server.ts)
+
+Add token resolution middleware to the existing sequence:
+- New `handleTokenResolution` middleware
+- Intercepts `/api/collection/*` routes
+- Processes JSON responses through `processObjectWithTokens`
+- Constructs context from `publicEnv`, `event.locals.user`, and system data
+- Positioned after `handleApiRequests` in the middleware sequence
+
+---
+
+### Widget Integration
+
+#### [MODIFY] [Fields.svelte](file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/components/collectionDisplay/Fields.svelte)
+
+Add TokenPicker component:
+- Import and render `<TokenPicker />` at the top level
+- No other changes needed (picker visibility is controlled by store)
+
+#### [MODIFY] [Input.svelte](file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/widgets/core/Input/Input.svelte)
+
+Integrate token system into text inputs:
+- Import `tokenTarget` action
+- Apply `use:tokenTarget` directive to `<input>` element
+- Add visual indicator icon (code braces) with tooltip
+- Pass field metadata (name, label, collection) to action
+
+---
+
+### API Endpoint
+
+#### [NEW] [resolve/+server.ts](file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/routes/api/tokens/resolve/+server.ts)
+
+Real-time token preview endpoint:
+- `POST /api/tokens/resolve`
+- Accepts `{ template, entryData }` in request body
+- Constructs temporary context with unsaved form data
+- Returns `{ resolved }` with processed template
+- Used for live preview as users type
+
+## Verification Plan
+
+### Automated Tests
+
+#### Unit Tests
+**File**: `tests/bun/services/token-system.test.ts`
+
+Run with:
+```bash
+bun test tests/bun/services/token-system.test.ts
+```
+
+Test coverage:
+1. **Simple token replacement**: `{{entry.title}}` → `"Hello World"`
+2. **Modifier application**: `{{entry.title | slug}}` → `"hello-world"`
+3. **Conditional logic**: `{{entry.price | gt:100 | if:"High":"Low"}}` → `"High"`
+4. **Security blocking**: `{{user.password}}` → `""` (empty string)
+5. **Recursion safety**: Circular references don't hang (max depth protection)
+6. **Escape sequences**: `\{{entry.title}}` → `"{{entry.title}}"` (literal)
+
+#### Integration Tests
+**Existing test suite**: Run full integration tests to ensure no regressions
+
+```bash
+bun run test:integration
+```
+
+Focus areas:
+- Verify Fields component still renders correctly
+- Ensure Input widget validation still works
+- Check that API responses are not corrupted by token processing
+
+### Manual Verification
+
+#### 1. Token Picker UI Test
+**Steps**:
+1. Start dev server: `bun run dev`
+2. Navigate to any collection entry edit page
+3. Click into a text input field
+4. **Expected**: Token Picker window appears in top-right corner
+5. Type "title" in search box
+6. **Expected**: Only tokens containing "title" are shown
+7. Click on a token (e.g., `entry.title`)
+8. **Expected**: `{{entry.title}}` is inserted at cursor position
+9. Click outside the input
+10. **Expected**: Token Picker disappears
+
+#### 2. Token Resolution Test
+**Steps**:
+1. Create a new entry in any collection
+2. In a text field, type: `Hello {{entry.title | upper}}`
+3. Save the entry
+4. View the entry via API: `/api/collection/{collectionId}/{entryId}`
+5. **Expected**: The field value in the response shows the resolved token (e.g., `"Hello HELLO WORLD"`)
+
+#### 3. Security Test
+**Steps**:
+1. In a text field, type: `User password: {{user.password}}`
+2. Save and view via API
+3. **Expected**: The field shows `"User password: "` (empty, password blocked)
+4. Type: `User email: {{user.email}}`
+5. **Expected**: The field shows `"User email: admin@test.com"` (email allowed)
+
+#### 4. Modifier Chain Test
+**Steps**:
+1. Create an entry with a price field set to `150`
+2. In a text field, type: `Price status: {{entry.price | gt:100 | if:"Expensive":"Cheap"}}`
+3. **Expected**: Resolves to `"Price status: Expensive"`
+4. Change price to `50`, save
+5. **Expected**: Resolves to `"Price status: Cheap"`
+
+### Browser Testing Checklist
+- [ ] Token Picker appears on input focus
+- [ ] Token Picker is draggable
+- [ ] Search filters tokens correctly
+- [ ] Categories expand/collapse
+- [ ] Token insertion works at cursor position
+- [ ] Picker closes when clicking outside
+- [ ] Visual indicator (braces icon) appears on inputs
+- [ ] No console errors
+
+### Performance Verification
+- [ ] Token resolution doesn't slow down API responses significantly
+- [ ] Parallel token resolution works for large templates
+- [ ] Recursion protection prevents infinite loops
+- [ ] No memory leaks from TokenPicker mounting/unmounting

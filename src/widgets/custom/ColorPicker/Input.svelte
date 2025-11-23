@@ -24,6 +24,7 @@ Renders a color input with label, helper, and validation
 <script lang="ts">
 	import type { FieldType } from './';
 	import * as m from '@src/paraglide/messages';
+	import { tokenTarget } from '@src/actions/tokenTarget';
 
 	let { field, value, error }: { field: FieldType; value: string | null | undefined; error?: string | null } = $props();
 
@@ -37,7 +38,22 @@ Renders a color input with label, helper, and validation
 	<div class="wrapper">
 		<input type="color" id={field.db_fieldName} name={field.db_fieldName} bind:value class="swatch" aria-label="Color Picker Swatch" />
 
-		<input type="text" bind:value placeholder={m.colorPicker_hex()} class="hex-input" aria-label="Hex Color Value" />
+		<div class="relative flex-grow">
+			<input
+				type="text"
+				bind:value
+				placeholder={m.colorPicker_hex()}
+				class="hex-input w-full"
+				aria-label="Hex Color Value"
+				use:tokenTarget={{
+					name: field.db_fieldName,
+					label: field.label,
+					collection: (field as any).collection
+				}}
+			/>
+			<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-surface-400" width="16"
+			></iconify-icon>
+		</div>
 	</div>
 	{#if error}
 		<p class="error-message" role="alert">{error}</p>

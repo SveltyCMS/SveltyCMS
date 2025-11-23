@@ -40,6 +40,7 @@
 	import { contentLanguage } from '@stores/store.svelte';
 
 	import { getFieldName } from '@utils/utils';
+	import { tokenTarget } from '@src/actions/tokenTarget';
 
 	// Valibot validation
 	import { number as numberSchema, pipe, parse, minValue, maxValue, optional, type ValiError } from 'valibot';
@@ -191,28 +192,37 @@
 			</button>
 		{/if}
 
-		<input
-			type="number"
-			value={safeValue !== null && safeValue !== undefined ? safeValue : ''}
-			oninput={handleInput}
-			onblur={handleBlur}
-			name={field?.db_fieldName}
-			id={field?.db_fieldName}
-			placeholder={typeof field?.placeholder === 'string' && field.placeholder !== '' ? field.placeholder : String(field?.db_fieldName ?? '')}
-			required={field?.required as boolean | undefined}
-			readonly={field?.readonly as boolean | undefined}
-			disabled={field?.disabled as boolean | undefined}
-			min={field?.min as number | undefined}
-			max={field?.max as number | undefined}
-			step={(field?.step as number) || 1}
-			class="input w-full flex-1 rounded-none text-black dark:text-primary-500"
-			class:error={!!validationError}
-			class:validating={isValidating}
-			aria-invalid={!!validationError}
-			aria-describedby={validationError ? `${fieldName}-error` : undefined}
-			aria-required={field?.required}
-			data-testid="number-input"
-		/>
+		<div class="relative w-full flex-1">
+			<input
+				type="number"
+				value={safeValue !== null && safeValue !== undefined ? safeValue : ''}
+				oninput={handleInput}
+				onblur={handleBlur}
+				use:tokenTarget={{
+					name: field.db_fieldName,
+					label: field.label,
+					collection: (field as any).collection
+				}}
+				name={field?.db_fieldName}
+				id={field?.db_fieldName}
+				placeholder={typeof field?.placeholder === 'string' && field.placeholder !== '' ? field.placeholder : String(field?.db_fieldName ?? '')}
+				required={field?.required as boolean | undefined}
+				readonly={field?.readonly as boolean | undefined}
+				disabled={field?.disabled as boolean | undefined}
+				min={field?.min as number | undefined}
+				max={field?.max as number | undefined}
+				step={(field?.step as number) || 1}
+				class="input w-full rounded-none text-black dark:text-primary-500"
+				class:error={!!validationError}
+				class:validating={isValidating}
+				aria-invalid={!!validationError}
+				aria-describedby={validationError ? `${fieldName}-error` : undefined}
+				aria-required={field?.required}
+				data-testid="number-input"
+			/>
+			<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-surface-400" width="16"
+			></iconify-icon>
+		</div>
 
 		{#if field?.suffix}
 			<button class="!px-2" type="button" aria-label={`${field.suffix} suffix`}>

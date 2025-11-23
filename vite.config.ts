@@ -38,31 +38,39 @@ function openUrl(url: string) {
 }
 
 /**
- * Vite plugin that provides a fallback for @config/private when the file doesn't exist
+ * Vite plugin that provides a fallback for @config/private and @config/private.test when the file doesn't exist
  * This allows builds to succeed in fresh clones without committing sensitive credentials
  */
 function privateConfigFallbackPlugin(): Plugin {
 	const virtualModuleId = '@config/private';
+	const virtualTestModuleId = '@config/private.test';
 	const resolvedVirtualModuleId = '\0' + virtualModuleId;
+	const resolvedVirtualTestModuleId = '\0' + virtualTestModuleId;
 
 	return {
 		name: 'private-config-fallback',
 		resolveId(id) {
 			if (id === virtualModuleId) {
 				// Check if actual file exists
-				const testPath = path.resolve(CWD, 'config/private.test.ts');
 				const prodPath = path.resolve(CWD, 'config/private.ts');
-
-				if (existsSync(testPath) || existsSync(prodPath)) {
+				if (existsSync(prodPath)) {
 					return null; // Let Vite handle it normally
 				}
-
 				// File doesn't exist, use virtual module
 				return resolvedVirtualModuleId;
 			}
+			if (id === virtualTestModuleId) {
+				// Check if actual file exists
+				const testPath = path.resolve(CWD, 'config/private.test.ts');
+				if (existsSync(testPath)) {
+					return null; // Let Vite handle it normally
+				}
+				// File doesn't exist, use virtual module
+				return resolvedVirtualTestModuleId;
+			}
 		},
 		load(id) {
-			if (id === resolvedVirtualModuleId) {
+			if (id === resolvedVirtualModuleId || id === resolvedVirtualTestModuleId) {
 				// Provide fallback that reads from environment variables
 				return `
 export const privateEnv = {
@@ -328,7 +336,8 @@ export default defineConfig((): UserConfig => {
 				showWarnings: true,
 				extensions: ['.svelte', '.ts', '.js']
 			}),
-			sveltekit(),
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			sveltekit() as any,
 			!setupComplete ? setupWizardPlugin() : cmsWatcherPlugin(),
 			paraglideVitePlugin({
 				project: './project.inlang',
@@ -355,14 +364,11 @@ export default defineConfig((): UserConfig => {
 				'@src': path.resolve(CWD, './src'),
 				'@components': path.resolve(CWD, './src/components'),
 				'@content': path.resolve(CWD, './src/content'),
+				'@databases': path.resolve(CWD, './src/databases'),
+				'@config': path.resolve(__dirname, 'config'),
 				'@utils': path.resolve(CWD, './src/utils'),
 				'@stores': path.resolve(CWD, './src/stores'),
-				'@widgets': path.resolve(CWD, './src/widgets'),
-				'@config/private': (() => {
-					const p = process.env.TEST_MODE ? path.resolve(CWD, 'config/private.test.ts') : path.resolve(CWD, 'config/private.ts');
-					console.log('Resolving @config/private to:', p, 'TEST_MODE:', process.env.TEST_MODE);
-					return p;
-				})()
+				'@widgets': path.resolve(CWD, './src/widgets')
 			}
 		},
 		define: {

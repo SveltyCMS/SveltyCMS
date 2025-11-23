@@ -61,12 +61,16 @@ const createUIStores = () => {
 			};
 		}
 
+		// Determine if we should show the collection header (HeaderEdit)
+		// Show in view, edit, create, modify, media modes
+		const isCollectionMode = ['view', 'edit', 'create', 'modify', 'media'].includes(mode.value);
+
 		// Mobile behavior (<768px) - Always hide sidebars; keep page header/footer hidden by default
 		if (size === ScreenSize.XS || size === ScreenSize.SM) {
 			return {
 				leftSidebar: 'hidden', // ALWAYS hidden on mobile regardless of mode
 				rightSidebar: 'hidden',
-				pageheader: 'hidden',
+				pageheader: isCollectionMode ? 'full' : 'hidden',
 				pagefooter: 'hidden',
 				header: 'hidden',
 				footer: 'hidden'
@@ -78,7 +82,7 @@ const createUIStores = () => {
 			return {
 				leftSidebar: isViewMode ? 'collapsed' : 'hidden',
 				rightSidebar: 'hidden',
-				pageheader: 'hidden',
+				pageheader: isCollectionMode ? 'full' : 'hidden',
 				pagefooter: 'hidden',
 				header: 'hidden',
 				footer: 'hidden'
@@ -89,7 +93,7 @@ const createUIStores = () => {
 		return {
 			leftSidebar: isViewMode ? 'full' : 'collapsed',
 			rightSidebar: isViewMode ? 'hidden' : 'full',
-			pageheader: 'hidden',
+			pageheader: isCollectionMode ? 'full' : 'hidden',
 			pagefooter: 'hidden',
 			header: 'hidden',
 			footer: 'hidden'

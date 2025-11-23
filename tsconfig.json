@@ -23,21 +23,9 @@
 		"resolveJsonModule": true, // Allow importing JSON files as modules
 		"allowImportingTsExtensions": true, // Allow importing TypeScript files with extensions
 		// --- Bun Runtime Types ---
-		"types": [
-			"@types/bun"
-		] // Include Bun's built-in module types (bun:test, bun:sqlite, etc.)
+		"types": ["@types/bun"] // Include Bun's built-in module types (bun:test, bun:sqlite, etc.)
 	},
 	// Tell TypeScript which files to include in the compilation.
-	"include": [
-		"src/**/*.js",
-		"src/**/*.ts",
-		"src/**/*.svelte",
-		"config/**/*.ts",
-		"types/**/*.ts"
-	],
-	"exclude": [
-		"node_modules",
-		".svelte-kit",
-		"tests"
-	]
+	"include": ["src/**/*.js", "src/**/*.ts", "src/**/*.svelte", "config/**/*.ts", "types/**/*.ts"],
+	"exclude": ["node_modules", ".svelte-kit", "tests"]
 }
