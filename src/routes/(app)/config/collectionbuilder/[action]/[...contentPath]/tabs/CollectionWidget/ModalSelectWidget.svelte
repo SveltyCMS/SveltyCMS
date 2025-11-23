@@ -14,7 +14,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton Stores
-	import { getModalStore, popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { getModalStore, popup, type PopupSettings } from '@utils/skeletonCompat';
 	const modalStore = getModalStore();
 
 	// Props
@@ -61,7 +61,7 @@
 	// Base Classes
 	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4';
 	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-lg';
 
 	// Call tooltip
 	function getIconTooltip(item: string): PopupSettings {

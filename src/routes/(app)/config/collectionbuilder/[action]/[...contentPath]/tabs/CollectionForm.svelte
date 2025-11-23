@@ -27,8 +27,8 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { popup } from '@skeletonlabs/skeleton';
-	import type { PopupSettings } from '@skeletonlabs/skeleton';
+	import { popup } from '@utils/skeletonCompat';
+	import type { PopupSettings } from '@utils/skeletonCompat';
 	// Collection Manager
 
 	const props = $props<{ data: any; handlePageTitleUpdate: (title: string) => void }>();
@@ -237,7 +237,7 @@
 		<!-- Separator (Optional) -->
 		<hr class="my-2 border-gray-300 dark:border-gray-600" />
 
-		<p class="text-token mb-0 text-center font-bold">{m.collectionname_optional()}:</p>
+		<p class="text-inherit mb-0 text-center font-bold">{m.collectionname_optional()}:</p>
 
 		<!-- Icon -->
 		<div class="flex flex-col">

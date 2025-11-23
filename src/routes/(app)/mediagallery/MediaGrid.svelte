@@ -26,7 +26,7 @@ Key features:
 	import type { MediaImage } from '@utils/media/mediaModels';
 
 	// Skeleton
-	import { popup } from '@skeletonlabs/skeleton';
+	import { popup } from '@utils/skeletonCompat';
 
 	// Svelte transitions
 	import { scale } from 'svelte/transition';
@@ -245,7 +245,7 @@ Key features:
 								{/each}
 							</tbody>
 						</table>
-						<div class="bg-surface-100-800-token arrow"></div>
+						<div class="bg-surface-100 dark:bg-surface-800 arrow"></div>
 					</div>
 
 					<a href="/imageEditor?mediaId={file._id?.toString()}" aria-label="Edit" class="btn-icon" data-sveltekit-preload-data="hover">

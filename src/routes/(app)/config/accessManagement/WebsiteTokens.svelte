@@ -18,7 +18,7 @@
 	import { showToast } from '@utils/toast';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
-	import { clipboard } from '@skeletonlabs/skeleton';
+	import { clipboard } from '@utils/skeletonCompat';
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 	import type { WebsiteToken } from '@src/databases/schemas';

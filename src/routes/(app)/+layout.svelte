@@ -76,7 +76,7 @@
 		setModeUserPrefers,
 		Toast,
 		storePopup
-	} from '@skeletonlabs/skeleton';
+	} from '@utils/skeletonCompat';
 
 	// Floating UI for Popups
 	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
