@@ -17,8 +17,8 @@ import { existsSync } from 'fs';
 import { resolve } from 'path';
 
 // Configuration
-const SERVER_URL = 'http://localhost:5173';
-const CONFIG_PATH = resolve(process.cwd(), 'config/private.ts');
+const SERVER_URL = 'http://localhost:4173';
+const CONFIG_PATH = resolve(process.cwd(), 'config/private.test.ts');
 
 async function checkServer() {
 	try {
@@ -80,7 +80,7 @@ async function main() {
 
 	const testProcess = spawn('bun', ['x', 'playwright', ...testArgs], {
 		stdio: 'inherit',
-		env: { ...process.env, CI: 'true' } // Ensure CI mode for consistent results
+		env: { ...process.env, CI: 'true', TEST_MODE: 'true' } // Ensure CI mode and TEST_MODE for consistent results
 	});
 
 	testProcess.on('close', (code) => {

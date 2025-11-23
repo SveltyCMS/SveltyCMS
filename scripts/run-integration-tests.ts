@@ -15,7 +15,7 @@ import { writeFileSync } from 'fs';
 import { join } from 'path';
 
 const rootDir = join(import.meta.dir, '..');
-const configPath = join(rootDir, 'config', 'private.ts');
+const configPath = join(rootDir, 'config', 'private.test.ts');
 
 let mongoServer: MongoMemoryServer | null = null;
 let testProcess: ReturnType<typeof spawn> | null = null;
@@ -38,6 +38,17 @@ async function cleanup(exitCode: number = 0) {
 	if (mongoServer) {
 		console.log('Stopping MongoDB Memory Server...');
 		await mongoServer.stop();
+	}
+
+	// Remove test config
+	try {
+		const { unlinkSync, existsSync } = await import('fs');
+		if (existsSync(configPath)) {
+			unlinkSync(configPath);
+			console.log('🗑️  Removed config/private.test.ts');
+		}
+	} catch (e) {
+		console.error('Failed to remove test config:', e);
 	}
 
 	console.log('✅ Cleanup complete');
@@ -71,8 +82,8 @@ async function main() {
 		console.log(`   URI: ${uri}`);
 		console.log(`   Port: ${port}\n`);
 
-		// Generate config/private.ts
-		console.log('📝 Generating config/private.ts...');
+		// Generate config/private.test.ts
+		console.log('📝 Generating config/private.test.ts...');
 		const configContent = `export const privateEnv = {
 	DB_TYPE: 'mongodb',
 	DB_HOST: 'localhost',
@@ -83,7 +94,8 @@ async function main() {
 	JWT_SECRET_KEY: 'test-secret-key-minimum-32-chars-long!!',
 	ENCRYPTION_KEY: 'test-encryption-key-minimum-32-chars!!',
 	GOOGLE_CLIENT_ID: '',
-	GOOGLE_CLIENT_SECRET: ''
+	GOOGLE_CLIENT_SECRET: '',
+	MULTI_TENANT: false
 } as const;
 `;
 
@@ -93,7 +105,12 @@ async function main() {
 		// Build the app
 		console.log('🔧 Building the app...');
 		await new Promise<void>((resolve, reject) => {
-			const build = spawn('bun', ['run', 'build'], { cwd: rootDir, stdio: 'inherit', shell: true });
+			const build = spawn('bun', ['run', 'build'], {
+				cwd: rootDir,
+				stdio: 'inherit',
+				shell: true,
+				env: { ...process.env, TEST_MODE: 'true' }
+			});
 			build.on('close', (code) => {
 				if (code === 0) resolve();
 				else reject(new Error('Build failed'));
@@ -102,7 +119,12 @@ async function main() {
 
 		// Start preview server on port 4173
 		console.log('🚀 Starting preview server on port 4173...');
-		previewProcess = spawn('bun', ['run', 'preview', '--port', '4173'], { cwd: rootDir, stdio: 'inherit', shell: true });
+		previewProcess = spawn('bun', ['run', 'preview', '--port', '4173'], {
+			cwd: rootDir,
+			stdio: 'inherit',
+			shell: true,
+			env: { ...process.env, TEST_MODE: 'true' }
+		});
 
 		// Wait for preview server to be ready
 		await waitForServer();
@@ -112,7 +134,18 @@ async function main() {
 		// Seed database using existing seed script
 		console.log('🧪 Seeding test database...');
 		await new Promise<void>((resolve, reject) => {
-			const seed = spawn('bun', ['run', 'scripts/seed-test-db.ts'], { cwd: rootDir, stdio: 'inherit', shell: true });
+			const seed = spawn('bun', ['run', 'scripts/seed-test-db.ts'], {
+				cwd: rootDir,
+				stdio: 'inherit',
+				shell: true,
+				env: {
+					...process.env,
+					TEST_MODE: 'true',
+					DB_PORT: port.toString(),
+					DB_NAME: 'sveltycms_test',
+					API_BASE_URL: 'http://localhost:4173'
+				}
+			});
 			seed.on('close', (code) => {
 				if (code === 0) resolve();
 				else reject(new Error('Seed script failed'));
@@ -121,7 +154,12 @@ async function main() {
 
 		// Run integration tests
 		console.log('🧪 Starting integration tests...\n');
-		testProcess = spawn('bun', ['run', 'test:integration:run'], { cwd: rootDir, stdio: 'inherit', shell: true });
+		testProcess = spawn('bun', ['run', 'test:integration:run'], {
+			cwd: rootDir,
+			stdio: 'inherit',
+			shell: true,
+			env: { ...process.env, TEST_MODE: 'true', API_BASE_URL: 'http://localhost:4173' }
+		});
 
 		testProcess.on('close', (code) => {
 			cleanup(code || 0);

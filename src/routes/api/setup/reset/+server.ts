@@ -43,7 +43,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 		}
 
 		// Delete config file
-		const configPath = path.join(process.cwd(), 'config', 'private.ts');
+		const configPath = path.join(process.cwd(), 'config', process.env.TEST_MODE ? 'private.test.ts' : 'private.ts');
 
 		try {
 			await fs.unlink(configPath);

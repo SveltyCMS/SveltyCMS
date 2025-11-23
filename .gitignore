@@ -14,6 +14,7 @@ vite.config.ts.timestamp-*
 .env
 .env.*
 /config/private.ts
+/config/private.test.ts
 /data.json
 .bundle-history.json
 

@@ -100,7 +100,7 @@ export async function loadSettingsCache(): Promise<typeof cache> {
 		} else {
 			try {
 				// Fall back to filesystem import (normal startup or first load)
-				const { privateEnv } = await import(/* @vite-ignore */ '../../config/private');
+				const { privateEnv } = await import('@config/private');
 				privateConfig = privateEnv;
 			} catch (error) {
 				// Private config doesn't exist during setup - this is expected

@@ -72,6 +72,14 @@ jobs:
         env:
           MONGO_INITDB_ROOT_USERNAME: admin
           MONGO_INITDB_ROOT_PASSWORD: admin
+    env:
+      DB_TYPE: mongodb
+      DB_HOST: localhost
+      DB_PORT: 27017
+      DB_NAME: sveltycms_test
+      DB_USER: admin
+      DB_PASSWORD: admin
+      TEST_MODE: 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -91,11 +99,11 @@ jobs:
           rm -f config/private.ts
           echo "✅ Cleaned config directory"
 
-      # Create placeholder config/private.ts to ensure runtime config works
-      - name: Create placeholder config/private.ts
+      # Create placeholder config/private.test.ts to ensure runtime config works
+      - name: Create placeholder config/private.test.ts
         run: |
-          echo "📝 Creating placeholder config/private.ts..."
-          cat > config/private.ts <<EOF
+          echo "📝 Creating placeholder config/private.test.ts..."
+          cat > config/private.test.ts <<EOF
           export const privateEnv = {
             DB_TYPE: '${{ env.DB_TYPE }}',
             DB_HOST: '${{ env.DB_HOST }}',
@@ -108,7 +116,7 @@ jobs:
             MULTI_TENANT: false
           } as const;
           EOF
-          echo "✅ Created config/private.ts"
+          echo "✅ Created config/private.test.ts"
 
       # Build production version for faster, optimized testing
       - name: Build Production
@@ -122,23 +130,9 @@ jobs:
           echo "⏳ Waiting for server to be ready..."
           bun x wait-on http://localhost:4173 -t 60000
           echo "✅ Preview server is ready!"
-        env:
-          DB_TYPE: mongodb
-          DB_HOST: localhost
-          DB_PORT: 27017
-          DB_NAME: sveltycms_test
-          DB_USER: admin
-          DB_PASSWORD: admin
 
       - name: Run Integration Tests
         run: bun run test:integration
-        env:
-          DB_TYPE: mongodb
-          DB_HOST: localhost
-          DB_PORT: 27017
-          DB_NAME: sveltycms_test
-          DB_USER: admin
-          DB_PASSWORD: admin
 
   # ------------------------------------------------------------------
   # 3. E2E Tests (Requires Server + MongoDB + Browser)
@@ -154,6 +148,14 @@ jobs:
         env:
           MONGO_INITDB_ROOT_USERNAME: admin
           MONGO_INITDB_ROOT_PASSWORD: admin
+    env:
+      DB_TYPE: mongodb
+      DB_HOST: localhost
+      DB_PORT: 27017
+      DB_NAME: sveltycms_test
+      DB_USER: admin
+      DB_PASSWORD: admin
+      TEST_MODE: 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -176,11 +178,11 @@ jobs:
           rm -f config/private.ts
           echo "✅ Cleaned config directory"
 
-      # Create placeholder config/private.ts to ensure runtime config works
-      - name: Create placeholder config/private.ts
+      # Create placeholder config/private.test.ts to ensure runtime config works
+      - name: Create placeholder config/private.test.ts
         run: |
-          echo "📝 Creating placeholder config/private.ts..."
-          cat > config/private.ts <<EOF
+          echo "📝 Creating placeholder config/private.test.ts..."
+          cat > config/private.test.ts <<EOF
           export const privateEnv = {
             DB_TYPE: '${{ env.DB_TYPE }}',
             DB_HOST: '${{ env.DB_HOST }}',
@@ -193,7 +195,7 @@ jobs:
             MULTI_TENANT: false
           } as const;
           EOF
-          echo "✅ Created config/private.ts"
+          echo "✅ Created config/private.test.ts"
 
       # Build production version for faster, optimized testing
       - name: Build Production
@@ -207,13 +209,6 @@ jobs:
           echo "⏳ Waiting for server to be ready..."
           bun x wait-on http://localhost:4173 -t 60000
           echo "✅ Preview server is ready!"
-        env:
-          DB_TYPE: mongodb
-          DB_HOST: localhost
-          DB_PORT: 27017
-          DB_NAME: sveltycms_test
-          DB_USER: admin
-          DB_PASSWORD: admin
 
       # STEP A: Run the Setup Wizard first to initialize the DB/User
       - name: 🧙‍♂️ Run Setup Wizard Test
@@ -222,13 +217,6 @@ jobs:
           # Runs ONLY the setup wizard spec
           bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list
         env:
-          # Ensure the app runs against the CI mongo instance
-          DB_TYPE: mongodb
-          DB_HOST: localhost
-          DB_PORT: 27017
-          DB_NAME: sveltycms_test
-          DB_USER: admin
-          DB_PASSWORD: admin
           # Setup Wizard specific envs (if your app uses them to seed)
           ADMIN_EMAIL: admin@example.com
           ADMIN_PASS: Admin123!
@@ -240,13 +228,6 @@ jobs:
           echo "=== Running main E2E suite ==="
           # --grep-invert skips the setup wizard since we just ran it
           bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard"
-        env:
-          DB_TYPE: mongodb
-          DB_HOST: localhost
-          DB_PORT: 27017
-          DB_NAME: sveltycms_test
-          DB_USER: admin
-          DB_PASSWORD: admin
 
       - uses: actions/upload-artifact@v4
         if: always()

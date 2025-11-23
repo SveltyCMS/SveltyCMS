@@ -1,25 +1,198 @@
-# Testing and Quality Assurance
+# Testing Strategy for SveltyCMS
 
-This document outlines the testing strategies and tools used in this project to maintain code quality.
+This document outlines the comprehensive testing strategy for SveltyCMS, including current implementation status and known issues.
+
+## Overview
+
+SveltyCMS uses a multi-layered testing approach to ensure code quality, reliability, and safety:
+
+1. **Unit Tests** - Testing individual functions and utilities
+2. **Integration Tests** - Testing API endpoints and database operations
+3. **E2E Tests** - Testing complete user workflows with Playwright
+
+## Test Isolation Strategy
+
+### Configuration Isolation
+
+To prevent accidental data loss or corruption of production databases, we implement strict configuration isolation:
+
+- **Production Config**: `config/private.ts` - Never touched by tests
+- **Test Config**: `config/private.test.ts` - Dynamically generated for each test run
+- **Vite Alias**: `@config/private` resolves to the correct file based on `TEST_MODE` environment variable
+
+### Environment Variables
+
+- `TEST_MODE=true` - Enables test mode throughout the application
+- `API_BASE_URL` - Configures the server URL for test scripts (default: `http://localhost:4173`)
+- `DB_PORT`, `DB_NAME` - Override database connection for tests
+
+## Test Types
+
+### Unit Tests
+
+```bash
+bun run test:unit
+```
+
+Tests individual services, utilities, stores, and widgets in isolation.
+
+**Location**: `tests/bun/services`, `tests/bun/utils`, `tests/bun/stores`, `tests/bun/widgets`
+
+### Integration Tests
+
+```bash
+bun run test:integration
+```
+
+Tests API endpoints and database operations using an in-memory MongoDB instance.
+
+**How it works**:
+
+1. Starts MongoDB Memory Server on a random port
+2. Generates `config/private.test.ts` with test database credentials
+3. Builds the application with `TEST_MODE=true`
+4. Starts preview server on port 4173
+5. Seeds the test database
+6. Runs integration tests
+7. Cleans up (removes `config/private.test.ts`)
+
+**Location**: `tests/bun/api`, `tests/bun/databases`, `tests/bun/hooks`
+
+### E2E Tests
+
+```bash
+bun run test:e2e
+```
+
+Tests complete user workflows using Playwright browser automation.
+
+**Location**: `tests/playwright`
+
+## Current Issues
+
+### 🔴 Critical: TypeScript Configuration Errors
+
+**Status**: Blocking all tests
+
+**Issue**: 1821 TypeScript errors related to missing module declarations and path aliases:
+
+- `@src/widgets/proxy` - Module not found
+- `@root/src/content/types` - Module not found
+- Path alias resolution issues in collection configuration files
+
+**Impact**:
+
+- Prevents proper type checking
+- Causes compilation errors
+- Blocks integration test execution
+
+**Next Steps**: Fix TypeScript path aliases in `tsconfig.json` and ensure all module declarations are properly configured.
+
+### 🟡 Integration Tests: State Machine Blocking
+
+**Status**: In Progress
+
+**Issue**: The system's smart state machine enters `FAILED` state when MongoDB disconnects during tests, blocking all subsequent requests.
+
+**Root Cause**:
+
+- MongoDB Memory Server connection becomes unstable mid-test
+- System detects database failure and transitions to `FAILED` state
+- `handleSystemState` middleware blocks all requests with 503 errors
+
+**Attempted Fix**: Added `TEST_MODE` awareness to bypass blocking during tests, but environment variable propagation to built server needs verification.
+
+**Current Test Results**: 134 failures (255 pass, 40 skip)
+
+### 🟡 Port Configuration Inconsistencies
+
+**Status**: Fixed
+
+**Issue**: Multiple test scripts were using port 5173 (dev) instead of 4173 (preview).
+
+**Fixed Files**:
+
+- ✅ `package.json` - Updated `test:integration:run` and `test:e2e:run`
+- ✅ `scripts/seed-test-db.ts` - Now accepts `API_BASE_URL` env var
+- ✅ `scripts/run-integration-tests.ts` - Passes `API_BASE_URL=http://localhost:4173`
+- ✅ `scripts/test-smart.ts` - Updated to use port 4173
+
+## Test Scripts
+
+### `scripts/run-integration-tests.ts`
+
+Orchestrates the complete integration test lifecycle:
+
+- Manages MongoDB Memory Server
+- Generates test configuration
+- Builds and starts preview server
+- Seeds database
+- Runs tests
+- Cleanup
+
+### `scripts/seed-test-db.ts`
+
+Seeds the test database with:
+
+- System configuration
+- Default roles and permissions
+- Admin user
+- Test collections
+
+**Safety**: Includes checks to prevent accidental seeding of production databases.
+
+### `scripts/test-smart.ts`
+
+Intelligent test runner for local development that:
+
+- Detects if server is already running
+- Determines if system is configured
+- Runs appropriate test subset based on state
 
 ## Bundle Size Analysis
 
-To monitor the application's bundle size and ensure it stays within reasonable limits, we use a custom script that analyzes the build output. This is particularly useful for preventing performance regressions and can be integrated into CI/CD pipelines.
-
-### How to Run
-
-To run the bundle size analysis, use the following command after building the project:
+Monitor application bundle size to prevent performance regressions:
 
 ```bash
 bun run build:stats
 ```
 
-This command will:
-1.  Build the application if it hasn't been built already.
-2.  Analyze all JavaScript chunks in the final build output.
-3.  Print a detailed report to the console, including:
-    -   Size of each chunk (raw, gzipped, and brotli).
-    -   Comparison with the previous build's size.
-    -   Warnings or errors if any chunk exceeds the defined budget.
-4.  Generate a `bundle-report.json` file in the root directory with a summary of the analysis for CI consumption.
-5.  Exit with a non-zero exit code if a size budget is exceeded, which can be used to fail a CI pipeline.
+Generates detailed reports including:
+
+- Size of each chunk (raw, gzipped, brotli)
+- Comparison with previous build
+- Warnings if budgets are exceeded
+- `bundle-report.json` for CI consumption
+
+## Future Enhancements
+
+### Multi-Database Support
+
+Planned support for parallel testing with multiple databases:
+
+- MongoDB (current)
+- PostgreSQL (via Drizzle ORM)
+- MariaDB (via Drizzle ORM)
+- MySQL (via Drizzle ORM)
+
+GitHub Actions will run tests in parallel matrix for each database type.
+
+## Troubleshooting
+
+### Tests Fail with "System is in a FAILED state"
+
+**Cause**: State machine is blocking requests due to database connection issues.
+
+**Solution**: Ensure `TEST_MODE=true` is set and the application is rebuilt with the latest code.
+
+### Tests Can't Connect to Server
+
+**Cause**: Server not running on expected port.
+
+**Solution**: Verify server is running on port 4173 (preview) not 5173 (dev).
+
+### TypeScript Errors During Build
+
+**Cause**: Missing module declarations or path alias issues.
+
+**Solution**: Run `bun run check` to identify specific errors and fix path aliases in `tsconfig.json`.

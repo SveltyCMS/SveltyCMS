@@ -19,16 +19,27 @@ import '../tests/bun/setup'; // Mock SvelteKit environment
 // Import types and schemas from the application source of truth
 import { databaseConfigSchema, type DatabaseConfig } from '../src/databases/schemas';
 
-const API_BASE_URL = 'http://localhost:5173';
+const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:4173';
 const MAX_RETRIES = 30;
 const RETRY_DELAY = 1000;
 
 // Test Configuration - Typed against the application schema
+// Safety check: Ensure we are running in a test environment
+const isTestMode = process.env.TEST_MODE === 'true' || process.env.NODE_ENV === 'test';
+const dbName = process.env.DB_NAME || 'sveltycms_test';
+
+if (!isTestMode && !dbName.includes('test')) {
+	console.error('❌ SAFETY ERROR: Attempting to seed a non-test database without TEST_MODE enabled.');
+	console.error('   Current DB_NAME:', dbName);
+	console.error('   Please set TEST_MODE=true or use a database name containing "test".');
+	process.exit(1);
+}
+
 const testDbConfig: DatabaseConfig = {
 	type: (process.env.DB_TYPE as 'mongodb' | 'mongodb+srv') || 'mongodb',
 	host: process.env.DB_HOST || 'localhost',
 	port: parseInt(process.env.DB_PORT || '27017'),
-	name: process.env.DB_NAME || 'sveltycms_test',
+	name: dbName,
 	user: process.env.DB_USER || '',
 	password: process.env.DB_PASSWORD || ''
 };
