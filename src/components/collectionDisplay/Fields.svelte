@@ -359,10 +359,13 @@
 												title="Insert Token"
 												onclick={() => {
 													const fieldName = getFieldName(field, false);
-													const input = document.getElementById(fieldName);
+													const input = document.getElementById(fieldName) as HTMLInputElement | HTMLTextAreaElement | null;
 													if (input) {
+														// Focus the input first
+														input.focus();
+														// Set the active input store to open/update the token picker
 														activeInputStore.set({
-															element: input as HTMLInputElement,
+															element: input,
 															field: {
 																name: field.db_fieldName,
 																label: field.label,

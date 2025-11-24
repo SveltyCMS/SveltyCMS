@@ -37,6 +37,7 @@ A specialized input for URL-friendly slugs that can be generated from token patt
 	import { collection } from '@src/stores/collectionStore.svelte';
 	import { collectionValue } from '@src/stores/collectionStore.svelte';
 	import { page } from '$app/state';
+	import { tokenTarget } from '@src/actions/tokenTarget';
 
 	interface Props {
 		field: FieldType;
@@ -304,6 +305,11 @@ A specialized input for URL-friendly slugs that can be generated from token patt
 			bind:this={inputRef}
 			type="text"
 			value={safeValue}
+			use:tokenTarget={{
+				name: field.db_fieldName,
+				label: field.label,
+				collection: collection.value?.name
+			}}
 			oninput={(e) => {
 				updateValue(e.currentTarget.value);
 				handleInput();

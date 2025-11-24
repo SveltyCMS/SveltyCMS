@@ -38,6 +38,7 @@
 
 	import { collection } from '@src/stores/collectionStore.svelte';
 	import { activeInputStore } from '@src/stores/activeInputStore.svelte';
+	import { tokenTarget } from '@src/actions/tokenTarget';
 
 	// Props
 	interface Props {
@@ -244,6 +245,11 @@
 		<input
 			type="text"
 			value={safeValue}
+			use:tokenTarget={{
+				name: field.db_fieldName,
+				label: field.label,
+				collection: collection.value?.name
+			}}
 			oninput={(e) => {
 				updateValue(e.currentTarget.value);
 				handleInput();

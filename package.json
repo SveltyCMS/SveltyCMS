@@ -8,7 +8,7 @@
 	},
 	"scripts": {
 		"-- DEVELOP -------------------------------------------": "",
-		"dev": "vite dev",
+		"dev": "vite dev --host",
 		"devv": "LAUNCH_EDITOR='code' vite --open",
 		"-- BUILD ---------------------------------------------": "",
 		"build": "NODE_OPTIONS=\"--no-warnings --no-deprecation\" bun run vite build",

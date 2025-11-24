@@ -55,11 +55,28 @@
 			return;
 		}
 
+		// Get current value - handle both string and object cases
+		let currentValue = '';
+		if (typeof input.value === 'string') {
+			currentValue = input.value;
+		} else if (input.value && typeof input.value === 'object') {
+			// If value is an object, try to get string representation
+			currentValue = String(input.value);
+		}
+
 		const start = input.selectionStart ?? 0;
 		const end = input.selectionEnd ?? start;
-		input.value = input.value.slice(0, start) + val + input.value.slice(end);
+		const newValue = currentValue.slice(0, start) + val + currentValue.slice(end);
+		
+		// Set the new value
+		input.value = newValue;
+		
+		// Focus and set cursor position
 		input.focus();
-		input.setSelectionRange(start + val.length, start + val.length);
+		const newCursorPos = start + val.length;
+		input.setSelectionRange(newCursorPos, newCursorPos);
+		
+		// Dispatch input event to trigger widget's updateValue handler
 		input.dispatchEvent(new Event('input', { bubbles: true }));
 	}
 

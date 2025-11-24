@@ -377,26 +377,17 @@ export async function collectionsResolvers(dbAdapter: DatabaseAdapter, cacheClie
 					}
 				}
 
-				// Token Replacement
+				// Token Replacement - use processTokensInResponse for recursive handling
+				const { processTokensInResponse } = await import('@src/utils/tokenHelper');
 				const processedResults = await Promise.all(
 					resultArray.map(async (doc) => {
-						const tokenContext: TokenContext = {
-							entry: doc,
-							user: ctx.user
-						};
-
-						const processedDoc = { ...doc };
-						for (const key in processedDoc) {
-							const value = processedDoc[key];
-							if (typeof value === 'string' && value.includes('{{')) {
-								try {
-									processedDoc[key] = await replaceTokens(value, tokenContext);
-								} catch (err) {
-									logger.warn(`Token replacement failed for field ${key} in collection ${collection._id}`, err);
-								}
-							}
+						const locale = (ctx as any).locale || 'en';
+						try {
+							return await processTokensInResponse(doc, ctx.user, locale);
+						} catch (err) {
+							logger.warn(`Token replacement failed for entry in collection ${collection._id}`, err);
+							return doc; // Return original on error
 						}
-						return processedDoc;
 					})
 				);
 

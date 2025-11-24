@@ -32,6 +32,7 @@
 	import { contentLanguage } from '@stores/store.svelte';
 	import { collection } from '@src/stores/collectionStore.svelte';
 	import { activeInputStore } from '@src/stores/activeInputStore.svelte';
+	import { tokenTarget } from '@src/actions/tokenTarget';
 
 	// Utils
 	import { getFieldName } from '@utils/utils';
@@ -169,6 +170,11 @@
 			<input
 				type="email"
 				value={safeValue || ''}
+				use:tokenTarget={{
+					name: field.db_fieldName,
+					label: field.label,
+					collection: collection.value?.name
+				}}
 				oninput={handleInput}
 				onblur={handleBlur}
 				onfocus={handleFocus}
