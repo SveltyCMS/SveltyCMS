@@ -36,7 +36,7 @@ const AddressValidationSchema = object({
 const AddressWidget = createWidget<AddressProps>({
 	Name: 'Address',
 	Icon: 'mdi:home-map-marker',
-	Description: m.widget_address_description(),
+	Description: m.widget_address_description?.() || "Widget description",
 	inputComponentPath: '/src/widgets/custom/address/Input.svelte',
 	displayComponentPath: '/src/widgets/custom/address/Display.svelte',
 	validationSchema: AddressValidationSchema,

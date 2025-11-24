@@ -6,7 +6,7 @@
  */
 
 import { writable, type Writable, get } from 'svelte/store';
-import { createToaster } from '@zag-js/toast';
+import { browser } from '$app/environment';
 
 // Toast Store Compatibility
 export interface ToastSettings {
@@ -27,12 +27,24 @@ export interface ToastStore extends Writable<any[]> {
 	clear: () => void;
 }
 
-// Create a global toaster instance
-const toaster = createToaster({
-	placement: 'top-end',
-	removeDelay: 250,
-	max: 5
-});
+// Create a global toaster instance (lazy, browser-only)
+let toaster: any = null;
+
+function getToaster() {
+	if (!toaster && browser) {
+		// Dynamic import to avoid SSR issues
+		import('@zag-js/toast').then((module) => {
+			if (!toaster) {
+				toaster = module.createToaster({
+					placement: 'top-end',
+					removeDelay: 250,
+					max: 5
+				});
+			}
+		});
+	}
+	return toaster;
+}
 
 let toastStoreInstance: ToastStore | null = null;
 
@@ -40,34 +52,50 @@ export function getToastStore(): ToastStore {
 	if (!toastStoreInstance) {
 		const internalStore = writable<any[]>([]);
 		
-		// Subscribe to toaster changes and update our store
-		toaster.subscribe((state) => {
-			internalStore.set(state.toasts);
-		});
-		
 		toastStoreInstance = {
 			...internalStore,
 			trigger: (settings: ToastSettings) => {
-				toaster.create({
-					title: settings.message,
-					type: 'info',
-					duration: settings.autohide === false ? Infinity : (settings.timeout || 3000),
-					...(settings.action && {
-						action: {
-							label: settings.action.label,
-							onClick: settings.action.response
-						}
-					})
-				});
+				if (!browser) return;
+				
+				const t = getToaster();
+				if (t) {
+					t.create({
+						title: settings.message,
+						type: 'info',
+						duration: settings.autohide === false ? Infinity : (settings.timeout || 3000),
+						...(settings.action && {
+							action: {
+								label: settings.action.label,
+								onClick: settings.action.response
+							}
+						})
+					});
+				}
 			},
 			close: (id: string) => {
-				toaster.remove(id);
+				if (!browser) return;
+				const t = getToaster();
+				if (t) t.remove(id);
 			},
 			clear: () => {
-				const state = get(toaster);
-				state.toasts.forEach((toast: any) => toaster.remove(toast.id));
+				if (!browser) return;
+				const t = getToaster();
+				if (t) {
+					const state = get(t);
+					state.toasts.forEach((toast: any) => t.remove(toast.id));
+				}
 			}
 		};
+		
+		// Subscribe to toaster changes only in browser
+		if (browser) {
+			const t = getToaster();
+			if (t) {
+				t.subscribe((state: any) => {
+					internalStore.set(state.toasts);
+				});
+			}
+		}
 	}
 	return toastStoreInstance;
 }
@@ -187,7 +215,7 @@ export interface PopupSettings {
 }
 
 // Toast component export
-export { Toast } from '@skeletonlabs/skeleton-svelte';
+export { default as Toast } from './skeleton-compat-components/Toast.svelte';
 
 // Modal component placeholder
 export const Modal = {

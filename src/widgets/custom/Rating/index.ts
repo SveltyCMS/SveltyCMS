@@ -41,7 +41,7 @@ const validationSchema = (field: FieldInstance) => {
 const RatingWidget = createWidget<RatingProps>({
 	Name: 'Rating',
 	Icon: 'material-symbols:star-outline',
-	Description: m.widget_rating_description(),
+	Description: m.widget_rating_description?.() || "Widget description",
 	inputComponentPath: '/src/widgets/custom/rating/Input.svelte',
 	displayComponentPath: '/src/widgets/custom/rating/Display.svelte',
 	validationSchema,

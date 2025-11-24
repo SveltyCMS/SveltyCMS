@@ -61,7 +61,7 @@ const validationSchema = (field: FieldInstance) => {
 const EmailWidget = createWidget<EmailProps>({
 	Name: 'Email',
 	Icon: 'ic:outline-email',
-	Description: m.widget_email_description(),
+	Description: m.widget_email_description?.() || "Widget description",
 	inputComponentPath: '/src/widgets/custom/Email/Input.svelte',
 	displayComponentPath: '/src/widgets/custom/Email/Display.svelte',
 	validationSchema,

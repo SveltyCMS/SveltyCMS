@@ -46,7 +46,7 @@ const DateValidationSchema = pipe(
 const DateWidget = createWidget<DateProps>({
 	Name: 'Date',
 	Icon: 'mdi:calendar',
-	Description: m.widget_date_description(),
+	Description: m.widget_date_description?.() || "Widget description",
 
 	// Define paths to the dedicated Svelte components.
 	inputComponentPath: '/src/widgets/core/date/Input.svelte',

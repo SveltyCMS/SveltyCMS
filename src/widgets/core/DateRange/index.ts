@@ -44,7 +44,7 @@ const DateRangeValidationSchema = pipe(
 const DateRangeWidget = createWidget<DateRangeProps>({
 	Name: 'DateRange',
 	Icon: 'mdi:calendar-range',
-	Description: m.widget_dateRange_description(),
+	Description: m.widget_dateRange_description?.() || "Widget description",
 
 	// Define paths to the dedicated Svelte components.
 	inputComponentPath: '/src/widgets/core/daterange/Input.svelte',

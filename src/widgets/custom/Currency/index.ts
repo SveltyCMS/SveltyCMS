@@ -79,7 +79,7 @@ const validationSchema = (field: FieldInstance) => {
 const CurrencyWidget = createWidget<CurrencyProps>({
 	Name: 'Currency',
 	Icon: 'mdi:currency-usd',
-	Description: m.widget_currency_description(),
+	Description: m.widget_currency_description?.() || "Widget description",
 	inputComponentPath: '/src/widgets/custom/currency/Input.svelte',
 	displayComponentPath: '/src/widgets/custom/currency/Display.svelte',
 	validationSchema,

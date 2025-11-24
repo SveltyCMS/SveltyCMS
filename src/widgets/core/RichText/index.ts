@@ -70,7 +70,7 @@ const validationSchema = (field: FieldInstance) => {
 const RichTextWidget = createWidget<RichTextProps>({
 	Name: 'RichText',
 	Icon: 'mdi:format-pilcrow-arrow-right',
-	Description: m.widget_richText_description(),
+	Description: m.widget_richText_description?.() || "Widget description",
 
 	// Define paths to the dedicated Svelte components.
 	inputComponentPath: '/src/widgets/core/RichText/Input.svelte',

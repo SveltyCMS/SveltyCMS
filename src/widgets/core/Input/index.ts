@@ -68,7 +68,7 @@ export const createValidationSchema = (field: ReturnType<typeof InputWidget>): B
 const InputWidget = createWidget<InputProps>({
 	Name: 'Input',
 	Icon: 'mdi:form-textbox',
-	Description: m.widget_text_description(),
+	Description: m.widget_text_description?.() || "Widget description",
 	inputComponentPath: '/src/widgets/core/Input/Input.svelte',
 	displayComponentPath: '/src/widgets/core/Input/Display.svelte',
 
