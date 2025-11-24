@@ -717,6 +717,8 @@ and unified tool experiences (crop includes rotation, scale, flip).
 </div>
 
 <style lang="postcss">
+	@reference "../../../app.postcss";
+	
 	.image-editor {
 		@apply flex h-full w-full flex-col overflow-hidden;
 	}

@@ -106,6 +106,8 @@ Emits `apply` with normalized coordinates { x: number, y: number } in [0,1].
 </div>
 
 <style lang="postcss">
+	@reference "../../../../app.postcss";
+	
 	.btn {
 		@apply rounded-md px-3 py-2 text-sm;
 	}

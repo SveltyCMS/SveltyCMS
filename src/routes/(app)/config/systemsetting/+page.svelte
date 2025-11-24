@@ -275,8 +275,10 @@ All dynamic CMS settings organized into logical groups
 </div>
 
 <style lang="postcss">
+	@reference "../../../../app.postcss";
+	
 	.alert {
-		@apply rounded-container-token;
+		border-radius: var(--radius-container, 0.375rem);
 	}
 	.alert-message p {
 		@apply text-sm opacity-90;

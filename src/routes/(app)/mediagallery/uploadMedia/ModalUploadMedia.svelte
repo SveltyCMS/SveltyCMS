@@ -232,7 +232,7 @@
 	// Base Classes
 	const cBase = 'border bg-surface-100-800-token w-full md:w-3/4 rounded p-4 flex flex-col justify-center items-center';
 	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
-	const cForm = 'w-full mt-3 border border-surface-500 p-2 space-y-4 rounded-container-token flex flex-col'; // Added w-full, flex, flex-col
+	const cForm = 'w-full mt-3 border border-surface-500 p-2 space-y-4 rounded-container flex flex-col'; // Added w-full, flex, flex-col
 </script>
 
 {#if $modalStore[0]}

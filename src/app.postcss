@@ -1,18 +1,13 @@
 @import "tailwindcss";
 @import "@tailwindcss/forms";
 @import "@tailwindcss/typography";
-@import './themes/SveltyCMS/SveltyCMSTheme.css';
 
 @theme {
-  /* Custom breakpoints */
+  /* Custom breakpoints - extend standard sm, md, lg, xl, 2xl */
   --breakpoint-xs: 360px;
-  --breakpoint-max-xs: 359px;
-  --breakpoint-max-sm: 639px;
-  --breakpoint-max-md: 767px;
-  --breakpoint-max-lg: 1023px;
-  --breakpoint-max-xl: 1279px;
-  --breakpoint-max-2xl: 1535px;
 }
+
+@import './themes/SveltyCMS/SveltyCMSTheme.css';
 
 /*Write your global styles here, in PostCSS syntax */
 /*place global styles here */

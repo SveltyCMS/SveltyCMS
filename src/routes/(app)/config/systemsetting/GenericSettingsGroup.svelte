@@ -1176,6 +1176,8 @@ Handles all field types and validation automatically
 </div>
 
 <style lang="postcss">
+	@reference "../../../../app.postcss";
+	
 	.generic-settings-group {
 		@apply space-y-4;
 		/* Prevent horizontal overflow */
@@ -1188,7 +1190,8 @@ Handles all field types and validation automatically
 	}
 
 	.alert {
-		@apply p-3 rounded-container-token md:p-4;
+		@apply p-3 md:p-4;
+		border-radius: var(--radius-container, 0.375rem);
 	}
 
 	.alert-message strong {

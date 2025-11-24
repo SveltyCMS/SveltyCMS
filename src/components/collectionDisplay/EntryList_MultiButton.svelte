@@ -398,7 +398,7 @@
 
 <!-- Multi-button group -->
 <div class="relative z-20 mt-1 flex items-center font-medium text-white" bind:this={dropdownRef}>
-	<div class="variant-filled-token btn-group flex overflow-hidden rounded-l-full rounded-r-md rtl:rounded rtl:rounded-r-full">
+	<div class="variant-filled-primary btn-group flex overflow-hidden rounded-l-full rounded-r-md rtl:rounded rtl:rounded-r-full">
 		<!-- Main action button -->
 		<button
 			type="button"

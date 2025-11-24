@@ -126,6 +126,8 @@
 </div>
 
 <style lang="postcss">
+	@reference "../app.postcss";
+	
 	/* Base loader styles */
 	.loader {
 		position: absolute;
