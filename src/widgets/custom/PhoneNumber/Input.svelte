@@ -42,7 +42,7 @@
 	import { contentLanguage } from '@stores/store.svelte';
 
 	import { getFieldName } from '@utils/utils';
-	import { tokenTarget } from '@src/actions/tokenTarget';
+	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	// Valibot validation
 	import { string, regex, pipe, parse, type ValiError, minLength, optional } from 'valibot';

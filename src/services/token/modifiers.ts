@@ -1,111 +1,98 @@
-/*
+/**
  * @file src/services/token/modifiers.ts
- * @description Comprehensive library of token modifiers.
- *
- * @param {ModifierFunction} modifierRegistry - The modifier registry.
- * @returns {ModifierFunction[]} The modifier registry.
- *
- * Features:
- * - Resolves tokens in JSON API responses.
- * - Only processes JSON API responses for collection endpoints.
- * - Clones response body to avoid modifying the original response.
- * - Processes the response body with tokens.
- * - Returns the processed response.
+ * @description Modifiers with UI Metadata for the Token Builder.
  */
-
-import type { ModifierFunction } from './types';
-import { formatDateString } from '@utils/dateUtils'; // Assumes utility exists
+import type { ModifierFunction, ModifierMetadata } from './types';
+import { formatDateString } from '@utils/dateUtils';
 
 export const modifierRegistry = new Map<string, ModifierFunction>();
 
-const modifiers: Record<string, ModifierFunction> = {
-	// --- Text Manipulation ---
+// 1. Execution Logic
+const functions: Record<string, ModifierFunction> = {
+	// Text
 	upper: (v) => String(v ?? '').toUpperCase(),
 	lower: (v) => String(v ?? '').toLowerCase(),
 	capitalize: (v) => String(v ?? '').replace(/\b\w/g, (c) => c.toUpperCase()),
-	trim: (v) => String(v ?? '').trim(),
 	slug: (v) =>
 		String(v ?? '')
 			.toLowerCase()
 			.trim()
 			.replace(/[^\w\s-]/g, '')
-			.replace(/[\s_-]+/g, '-')
-			.replace(/^-+|-+$/g, ''),
-	kebabcase: (v) =>
-		String(v ?? '')
-			.replace(/([a-z])([A-Z])/g, '$1-$2')
-			.replace(/[\s_]+/g, '-')
-			.toLowerCase(),
-	snakecase: (v) =>
-		String(v ?? '')
-			.replace(/([a-z])([A-Z])/g, '$1_$2')
-			.replace(/[\s-]+/g, '_')
-			.toLowerCase(),
-	camelcase: (v) =>
-		String(v ?? '')
-			.toLowerCase()
-			.replace(/[^a-zA-Z0-9]+(.)/g, (_, c) => c.toUpperCase()),
+			.replace(/[\s_-]+/g, '-'),
 	truncate: (v, args) => {
-		const str = String(v ?? '');
 		const len = parseInt(args?.[0] || '50');
-		const suffix = args?.[1] ?? '...';
-		return str.length > len ? str.substring(0, len) + suffix : str;
+		const s = String(v ?? '');
+		return s.length > len ? s.substring(0, len) + (args?.[1] ?? '...') : s;
 	},
-	strip: (v) => String(v ?? '').replace(/<[^>]*>/g, ''), // Strip HTML
-	urlencode: (v) => encodeURIComponent(String(v ?? '')),
-	replace: (v, args) => {
-		const pattern = args?.[0] ?? '';
-		const replacement = args?.[1] ?? '';
-		return String(v ?? '').replace(new RegExp(pattern, 'g'), replacement);
-	},
-	append: (v, args) => String(v ?? '') + (args?.[0] ?? ''),
-	prepend: (v, args) => (args?.[0] ?? '') + String(v ?? ''),
 
-	// --- Logic & Comparison ---
-	// Syntax: {{ value | if:'TrueVal':'FalseVal' }}
-	if: (v, args) => {
-		const isTruthy = v && v !== 'false' && v !== '';
-		return isTruthy ? (args?.[0] ?? '') : (args?.[1] ?? '');
-	},
-	eq: (v, args) => (String(v) === String(args?.[0] ?? '') ? 'true' : ''),
-	ne: (v, args) => (String(v) !== String(args?.[0] ?? '') ? 'true' : ''),
-	gt: (v, args) => (parseFloat(String(v)) > parseFloat(args?.[0] ?? '0') ? 'true' : ''),
-	lt: (v, args) => (parseFloat(String(v)) < parseFloat(args?.[0] ?? '0') ? 'true' : ''),
-	default: (v, args) => (!v || v === '' ? (args?.[0] ?? '') : String(v)),
-
-	// --- Date ---
+	// Date
 	date: (v, args) => {
 		if (!v) return '';
 		return formatDateString(v as string | Date, args?.[0] || 'yyyy-MM-dd', '');
 	},
 
-	// --- Math ---
+	// Math
 	add: (v, args) => String(parseFloat(String(v)) + parseFloat(args?.[0] || '0')),
 	subtract: (v, args) => String(parseFloat(String(v)) - parseFloat(args?.[0] || '0')),
 	multiply: (v, args) => String(parseFloat(String(v)) * parseFloat(args?.[0] || '1')),
-	divide: (v, args) => {
-		const div = parseFloat(args?.[0] || '1');
-		return div === 0 ? 'NaN' : String(parseFloat(String(v)) / div);
-	},
 
-	// --- Security ---
-	escape: (v) =>
-		String(v ?? '')
-			.replace(/&/g, '&amp;')
-			.replace(/</g, '&lt;')
-			.replace(/>/g, '&gt;')
-			.replace(/"/g, '&quot;')
-			.replace(/'/g, '&#039;'),
-
-	// --- CMS Specific ---
-	image_style: (v, args) => {
-		if (!v) return '';
-		const style = args?.[0] || 'original';
-		return `/api/media/${v}?style=${style}`;
-	}
+	// Logic
+	default: (v, args) => (!v || v === '' ? (args?.[0] ?? '') : String(v)),
+	if: (v, args) => (v && v !== 'false' ? (args?.[0] ?? '') : (args?.[1] ?? '')),
+	eq: (v, args) => (String(v) === String(args?.[0]) ? 'true' : 'false'),
+	ne: (v, args) => (String(v) !== String(args?.[0]) ? 'true' : 'false'),
+	gt: (v, args) => (parseFloat(String(v)) > parseFloat(args?.[0] || '0') ? 'true' : 'false'),
+	lt: (v, args) => (parseFloat(String(v)) < parseFloat(args?.[0] || '0') ? 'true' : 'false')
 };
 
-// Register all modifiers (case-insensitive keys)
-Object.entries(modifiers).forEach(([k, v]) => {
-	modifierRegistry.set(k.toLowerCase(), v);
-});
+// Register Execution Logic
+Object.entries(functions).forEach(([k, v]) => modifierRegistry.set(k, v));
+
+// 2. UI Metadata (The Brains for the Picker)
+export const modifierMetadata: ModifierMetadata[] = [
+	{
+		name: 'date',
+		label: 'Format Date',
+		description: 'Change how the date looks',
+		accepts: ['date', 'string'],
+		args: [
+			{
+				name: 'Format',
+				type: 'select',
+				options: ['yyyy-MM-dd', 'MM/dd/yyyy', 'dd.MM.yyyy', 'MMM do, yyyy', 'yyyy'],
+				default: 'yyyy-MM-dd'
+			}
+		]
+	},
+	{
+		name: 'upper',
+		label: 'Uppercase',
+		description: 'CONVERT TO UPPERCASE',
+		accepts: ['string'],
+		args: []
+	},
+	{
+		name: 'truncate',
+		label: 'Truncate Text',
+		description: 'Shorten text if it gets too long',
+		accepts: ['string'],
+		args: [
+			{ name: 'Length', type: 'number', default: 50 },
+			{ name: 'Suffix', type: 'text', default: '...' }
+		]
+	},
+	{
+		name: 'add',
+		label: 'Add Number',
+		description: 'Add a value to this number',
+		accepts: ['number'],
+		args: [{ name: 'Value', type: 'number', default: 1 }]
+	},
+	{
+		name: 'default',
+		label: 'Default Value',
+		description: 'Show this if the field is empty',
+		accepts: ['any', 'string', 'number', 'date'],
+		args: [{ name: 'Fallback', type: 'text', default: 'N/A' }]
+	}
+];

@@ -313,10 +313,11 @@
 				return false;
 			}
 
-			// Set status to draft for auto-save
+			// Use collection's default status or current entry status
+			// Don't override with 'draft' - respect the collection schema
 			const draftData = {
 				...entryData,
-				status: 'draft',
+				status: entryData.status || collection.value?.status || 'unpublish',
 				updatedAt: new Date().toISOString()
 			};
 

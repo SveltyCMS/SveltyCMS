@@ -24,7 +24,7 @@ Renders a color input with label, helper, and validation
 <script lang="ts">
 	import type { FieldType } from './';
 	import * as m from '@src/paraglide/messages';
-	import { tokenTarget } from '@src/actions/tokenTarget';
+	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	let { field, value, error }: { field: FieldType; value: string | null | undefined; error?: string | null } = $props();
 

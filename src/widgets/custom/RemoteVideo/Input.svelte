@@ -33,7 +33,7 @@ Part of the Three Pillars Architecture for widget system.
 	import type { RemoteVideoData } from './types';
 
 	import { debounce } from '@utils/utils';
-	import { tokenTarget } from '@src/actions/tokenTarget';
+	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	let { field, value, error }: { field: FieldType; value: RemoteVideoData | null | undefined; error?: string | null } = $props();
 

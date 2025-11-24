@@ -34,7 +34,7 @@ Interactive form with map, country selector, and address validation
 	import type { FieldType } from './';
 	import countries from './countries.json';
 	import type { AddressData } from './types';
-	import { tokenTarget } from '@src/actions/tokenTarget';
+	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	let { field, value, error }: { field: FieldType; value: AddressData | null | undefined; error?: string | null } = $props();
 

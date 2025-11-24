@@ -29,7 +29,7 @@ Part of the Three Pillars Architecture for widget system.
 	import { getFieldName } from '@src/utils/utils';
 	import { validationStore } from '@stores/store.svelte';
 	import type { FieldType } from './';
-	import { tokenTarget } from '@src/actions/tokenTarget';
+	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	interface Props {
 		field: FieldType;

@@ -14,14 +14,17 @@
  * - Returns the processed response.
  */
 
-import { processTokensInResponse } from '@src/utils/tokenHelper';
+import { processTokensInResponse } from '@src/services/token/helper';
 import type { Handle } from '@sveltejs/kit';
 
 export const handleTokenResolution: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
 
-	// Only process JSON API responses for collection endpoints
-	if (event.url.pathname.startsWith('/api/collection') && response.headers.get('content-type')?.includes('application/json')) {
+	// Process JSON API responses for Collection REST API and GraphQL
+	const isCollectionApi = event.url.pathname.startsWith('/api/collection');
+	const isGraphQL = event.url.pathname.startsWith('/api/graphql');
+
+	if ((isCollectionApi || isGraphQL) && response.headers.get('content-type')?.includes('application/json')) {
 		// Clone response body
 		try {
 			const body = await response.json();
