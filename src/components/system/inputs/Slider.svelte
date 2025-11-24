@@ -14,7 +14,7 @@
 -->
 
 <script lang="ts">
-	import { RangeSlider } from '@skeletonlabs/skeleton';
+	import { RangeSlider } from '@src/skeleton-compat';
 
 	let {
 		value = $bindable({

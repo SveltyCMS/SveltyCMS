@@ -47,7 +47,7 @@ This component provides a streamlined interface for managing collection entries 
 	import { handleUILayoutToggle, uiStateManager } from '@stores/UIStore.svelte';
 
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@src/skeleton-compat';
 
 	// Components
 	import Toggles from './system/inputs/Toggles.svelte';

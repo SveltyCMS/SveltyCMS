@@ -15,8 +15,8 @@ All dynamic CMS settings organized into logical groups
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
 	import PageTitle from '@components/PageTitle.svelte';
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@src/skeleton-compat';
+	import type { ModalSettings } from '@src/skeleton-compat';
 	import { logger } from '@utils/logger';
 
 	// Import settings structure
@@ -275,8 +275,10 @@ All dynamic CMS settings organized into logical groups
 </div>
 
 <style lang="postcss">
+	@reference "../../../../app.postcss";
+	
 	.alert {
-		@apply rounded-container-token;
+		border-radius: var(--radius-container, 0.375rem);
 	}
 	.alert-message p {
 		@apply text-sm opacity-90;

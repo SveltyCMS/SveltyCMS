@@ -19,7 +19,7 @@ Features:
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@src/skeleton-compat';
 
 	// Props
 	interface Props {
@@ -84,7 +84,7 @@ Features:
 	// --- Base Classes ---
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white dark:bg-surface-800';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container';
 </script>
 
 {#if $modalStore[0]}

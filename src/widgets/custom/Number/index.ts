@@ -49,7 +49,7 @@ const validationSchema = (field: FieldInstance) => {
 const NumberWidget = createWidget<NumberProps>({
 	Name: 'Number',
 	Icon: 'mdi:numeric',
-	Description: m.widget_number_description(),
+	Description: m.widget_number_description?.() || "Widget description",
 	inputComponentPath: '/src/widgets/custom/number/Input.svelte',
 	displayComponentPath: '/src/widgets/custom/number/Display.svelte',
 	validationSchema,

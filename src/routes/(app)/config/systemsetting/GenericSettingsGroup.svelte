@@ -16,8 +16,8 @@ Handles all field types and validation automatically
 	import type { Writable } from 'svelte/store';
 	import type { SettingGroup, SettingField } from './settingsGroups';
 	import { showToast } from '@utils/toast';
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@src/skeleton-compat';
+	import type { ModalSettings } from '@src/skeleton-compat';
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { logger } from '@utils/logger';
@@ -1176,6 +1176,8 @@ Handles all field types and validation automatically
 </div>
 
 <style lang="postcss">
+	@reference "../../../../app.postcss";
+	
 	.generic-settings-group {
 		@apply space-y-4;
 		/* Prevent horizontal overflow */
@@ -1188,7 +1190,8 @@ Handles all field types and validation automatically
 	}
 
 	.alert {
-		@apply p-3 rounded-container-token md:p-4;
+		@apply p-3 md:p-4;
+		border-radius: var(--radius-container, 0.375rem);
 	}
 
 	.alert-message strong {

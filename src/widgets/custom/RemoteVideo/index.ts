@@ -61,7 +61,7 @@ const validationSchema = RemoteVideoDataSchema;
 const RemoteVideoWidget = createWidget({
 	Name: 'RemoteVideo',
 	Icon: 'mdi:video-vintage',
-	Description: m.widget_remoteVideo_description(),
+	Description: m.widget_remoteVideo_description?.() || "Widget description",
 	inputComponentPath: '/src/widgets/custom/RemoteVideo/Input.svelte',
 	displayComponentPath: '/src/widgets/custom/RemoteVideo/Display.svelte',
 	validationSchema,

@@ -75,6 +75,8 @@
 </div>
 
 <style lang="postcss">
+	@reference "../../../../../app.postcss";
+	
 	.finetune-controls {
 		@apply flex w-full items-center gap-3 px-2;
 	}

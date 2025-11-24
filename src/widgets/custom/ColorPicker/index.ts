@@ -40,7 +40,7 @@ const validationSchema = (field: FieldInstance) => {
 const ColorPickerWidget = createWidget<ColorPickerProps>({
 	Name: 'ColorPicker',
 	Icon: 'ic:outline-colorize',
-	Description: m.widget_colorPicker_description(),
+	Description: m.widget_colorPicker_description?.() || "Widget description",
 	inputComponentPath: '/src/widgets/custom/ColorPicker/Input.svelte',
 	displayComponentPath: '/src/widgets/custom/ColorPicker/Display.svelte',
 	validationSchema,

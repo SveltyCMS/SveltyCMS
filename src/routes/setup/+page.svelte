@@ -29,9 +29,9 @@ calls store methods and wires store state to child components.
 	import ReviewConfig from './ReviewConfig.svelte';
 
 	// Skeleton
-	import { getModalStore, type ModalSettings, Modal } from '@skeletonlabs/skeleton';
-	import type { ModalComponent } from '@skeletonlabs/skeleton';
-	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
+	import { getModalStore, type ModalSettings, Modal } from '@src/skeleton-compat';
+	import type { ModalComponent } from '@src/skeleton-compat';
+	import { Toast, getToastStore } from '@src/skeleton-compat';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

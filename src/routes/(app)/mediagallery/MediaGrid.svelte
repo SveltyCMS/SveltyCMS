@@ -26,7 +26,7 @@ Key features:
 	import type { MediaImage } from '@utils/media/mediaModels';
 
 	// Skeleton
-	import { popup } from '@skeletonlabs/skeleton';
+	import { popup } from '@src/skeleton-compat';
 
 	// Svelte transitions
 	import { scale } from 'svelte/transition';

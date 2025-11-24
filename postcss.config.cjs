@@ -1,18 +1,15 @@
 /**
  * @file postcss.config.cjs
- * @description This configuration file sets up PostCSS for the project. It specifies the
- * plugins to be used during the CSS processing pipeline, including Tailwind CSS and
- * Autoprefixer.
+ * @description This configuration file sets up PostCSS for the project with TailwindCSS v4.
+ * Note: TailwindCSS v4 includes autoprefixer built-in, so it's no longer needed as a separate plugin.
  *
  * @exports
  * - plugins: An object defining the PostCSS plugins to be used.
- *   - tailwindcss: Integrates Tailwind CSS for utility-first styling.
- *   - autoprefixer: Automatically adds vendor prefixes to CSS rules for cross-browser compatibility.
+ *   - @tailwindcss/postcss: TailwindCSS v4 PostCSS plugin
  */
 
 module.exports = {
 	plugins: {
-		tailwindcss: {},
-		autoprefixer: {}
+		'@tailwindcss/postcss': {}
 	}
 };

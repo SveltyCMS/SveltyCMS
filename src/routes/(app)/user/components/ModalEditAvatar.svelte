@@ -22,11 +22,11 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@src/skeleton-compat';
 	import { showToast } from '@utils/toast';
-	import { Avatar } from '@skeletonlabs/skeleton';
-	import { FileDropzone } from '@skeletonlabs/skeleton';
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+	import { Avatar } from '@src/skeleton-compat';
+	import { FileDropzone } from '@src/skeleton-compat';
+	import type { ModalComponent, ModalSettings } from '@src/skeleton-compat';
 
 	const modalStore = getModalStore();
 
@@ -357,7 +357,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container';
 </script>
 
 {#if $modalStore[0]}

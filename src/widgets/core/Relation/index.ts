@@ -40,7 +40,7 @@ const validationSchema = (field: FieldInstance) => {
 const RelationWidget = createWidget<RelationProps>({
 	Name: 'Relation',
 	Icon: 'mdi:relation-one-to-one',
-	Description: m.widget_relation_description(),
+	Description: m.widget_relation_description?.() || "Widget description",
 	inputComponentPath: '/src/widgets/core/relation/Input.svelte',
 	displayComponentPath: '/src/widgets/core/relation/Display.svelte',
 	validationSchema,

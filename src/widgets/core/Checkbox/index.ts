@@ -32,7 +32,7 @@ const CheckboxValidationSchema = boolean('Must be a boolean.');
 const CheckboxWidget = createWidget<CheckboxProps>({
 	Name: 'Checkbox',
 	Icon: 'tabler:checkbox',
-	Description: m.widget_checkbox_description(),
+	Description: m.widget_checkbox_description?.() || 'Checkbox widget for boolean values',
 
 	// Define paths to the dedicated Svelte components.
 	inputComponentPath: '/src/widgets/core/checkbox/Input.svelte',

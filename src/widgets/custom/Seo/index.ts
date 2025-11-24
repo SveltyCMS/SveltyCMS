@@ -3,7 +3,7 @@
 const SeoWidget = createWidget({
 	Name: 'SEO',
 	Icon: 'tabler:seo',
-	Description: m.widget_seo_description(),
+	Description: m.widget_seo_description?.() || "Widget description",
 	inputComponentPath: '/src/widgets/custom/seo/Input.svelte',
 	displayComponentPath: '/src/widgets/custom/seo/Display.svelte',
 	validationSchema: SeoValidationSchema,
@@ -74,7 +74,7 @@ const SeoValidationSchema = object({
 const SeoWidget = createWidget({
 	Name: 'SEO',
 	Icon: 'tabler:seo',
-	Description: m.widget_seo_description(),
+	Description: m.widget_seo_description?.() || "Widget description",
 	inputComponentPath: '/src/widgets/custom/seo/Input.svelte',
 	displayComponentPath: '/src/widgets/custom/seo/Display.svelte',
 	validationSchema: SeoValidationSchema,

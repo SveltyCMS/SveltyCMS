@@ -41,7 +41,7 @@ export const createValidationSchema = (field: ReturnType<typeof MediaWidget>): B
 const MediaWidget = createWidget<MediaProps>({
 	Name: 'Media',
 	Icon: 'mdi:image-multiple',
-	Description: m.widget_media_description(),
+	Description: m.widget_media_description?.() || "Widget description",
 	inputComponentPath: '/src/widgets/core/media/Input.svelte',
 	displayComponentPath: '/src/widgets/core/media/Display.svelte',
 	validationSchema: createValidationSchema,
