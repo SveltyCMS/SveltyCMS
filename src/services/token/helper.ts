@@ -1,7 +1,8 @@
-import { replaceTokens } from '@src/services/token/engine';
-import type { TokenContext } from '@src/services/token/types';
+import { replaceTokens } from './engine';
+import type { TokenContext } from './types';
 import type { User } from '@src/databases/auth/types';
 import { logger } from '@utils/logger';
+import { nowISODateString } from '@utils/dateUtils';
 
 /**
  * Process tokens in a JSON response body.
@@ -13,7 +14,8 @@ export async function processTokensInResponse(data: any, user: User | undefined,
 	// Create context
 	const context: TokenContext = {
 		user,
-		locale
+		locale,
+		system: { now: nowISODateString() }
 		// We can add more context here if needed, like site settings
 		// site: ... (handled by engine via publicEnv)
 	};

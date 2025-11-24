@@ -1,4 +1,9 @@
-import { processTokensInResponse } from '@src/utils/tokenHelper';
+/**
+ * @file src/routes/api/tokenBuilder/resolve/+server.ts
+ * @description Resolve tokens in a given string.
+ */
+
+import { processTokensInResponse } from '@src/services/token/helper';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 

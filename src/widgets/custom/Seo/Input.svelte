@@ -35,7 +35,7 @@ Part of the Three Pillars Architecture for wSidget system.
 	import type { FieldType } from './';
 	import { SeoAnalyzer } from './seoAnalyzer';
 	import type { SeoData, SeoFeature } from './types';
-	import { tokenTarget } from '@src/actions/tokenTarget';
+	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	// Components
 	// Child component

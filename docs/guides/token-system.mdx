@@ -1,149 +1,252 @@
----
 path: 'docs/guides/token-system.mdx'
 title: 'Enterprise Token System'
-description: 'A complete guide to using and extending the SveltyCMS Token System.'
+description: 'Comprehensive guide to the SveltyCMS dynamic token engine, builder UI, modifier system, and automation use cases.'
 order: 10
 icon: 'mdi:code-braces'
 author: 'admin'
 created: '2025-11-23'
-updated: '2025-11-23'
+updated: '2025-11-24'
 tags:
-  - 'tokens'
-  - 'system'
-  - 'guide'
-  - 'templating'
----
 
-# Enterprise Token System
+'tokens'
 
-The Enterprise Token System in SveltyCMS provides a powerful way to inject dynamic content into your entries, fields, and configurations. It supports a wide range of system, user, and content-specific tokens, along with a robust modifier system for data transformation.
+'templating'
 
----
+'dynamic-content'
 
-## 1. Token Syntax
+'personalization'
 
-Tokens are enclosed in double curly braces: `{{token}}`.
+'automation'
 
-### Basic Usage
+Enterprise Token System
 
-```text
-Hello {{user.name}}, welcome to {{site.SITE_NAME}}!
-```
+The SveltyCMS Token System acts as a dynamic bridge between your raw content and your published output. It allows you to define content logic (e.g., "This title should always be the entry name + site name") rather than static text.
 
-### Using Modifiers
+This document serves as both an Architecture Reference for developers and an Automation Guide for content editors.
 
-You can chain modifiers using the pipe `|` character. Modifiers can also accept arguments.
+1. System Architecture
 
-```text
-{{user.name|upper}}                 -> JOHN DOE
-{{entry.title|slug}}                -> my-entry-title
-{{system.now|date(YYYY-MM-DD)}}     -> 2025-11-23
-```
+The system follows a "Save Raw, Render Dynamic" philosophy. This decoupling ensures your content is future-proof; changing a global setting updates every piece of content instantly without database migrations.
 
----
+Data Flow Diagram
 
-## 2. Available Tokens
+graph TD
+subgraph Editor["Content Editor (SvelteKit)"]
+Input[Input Field] -->|Focus| Picker[Token Picker UI]
+Picker -->|Select| Token["{{entry.title}}"]
+Token -->|Insert| Input
+Input -->|Save| DB[(Database)]
+end
 
-The system comes with several built-in token categories.
+    subgraph Engine["Token Engine (Server)"]
+        Request[API Request] -->|Fetch| DB
+        DB -->|Raw Data| Resolution[Resolution Service]
+        Resolution -->|Lookup| Registry{Token Registry}
+        Registry -->|Entry Data| Context
+        Registry -->|Site Config| Context
+        Registry -->|User Info| Context
+        Resolution -->|Apply| Modifiers[Modifiers (upper, slug)]
+    end
 
-### System Tokens (`system.`)
+    subgraph Output["Final Response"]
+        Resolution -->|Rendered String| JSON[API Response]
+        JSON --> Frontend[Headless Frontend]
+    end
 
-Global system values.
+    style Editor fill:#f9f,stroke:#333,stroke-width:2px
+    style Engine fill:#bbf,stroke:#333,stroke-width:2px
 
-- `{{system.now}}`: Current timestamp (ISO format).
-- `{{system.year}}`: Current year.
+Core Components
 
-### User Tokens (`user.`)
+Registry (src/services/token/engine.ts): The brain that discovers available data points. It uses O(1) Map lookups for performance and scans Schema, Config, and User sessions.
 
-Information about the currently authenticated user.
+UI (src/components/TokenPicker.svelte): A floating, draggable interface that appears when editing token-aware fields.
 
-- `{{user.email}}`: User's email address.
-- `{{user.username}}`: User's username.
-- `{{user.role}}`: User's role (e.g., admin, editor).
-- `{{user.id}}`: User's unique ID.
+Interceptors (src/hooks.server.ts): Middleware that automatically resolves tokens in API responses before they reach the client.
 
-### Site Tokens (`site.`)
+2. Collection Automation Use Cases
 
-Global configuration values from `publicEnv`.
+Tokens are most powerful when used to automate repetitive content tasks. Here are standard patterns for Collection configuration.
 
-- `{{site.SITE_NAME}}`: The name of the CMS instance.
-- `{{site.HOST_PROD}}`: The production hostname.
-- `{{site.PKG_VERSION}}`: Current CMS version.
+Use Case A: Automated SEO Meta Titles
 
-### Entry Tokens (`entry.`)
+Instead of manually writing SEO titles for every blog post, use tokens to enforce a standard format.
 
-Values from the current content entry. These are dynamic and depend on the collection schema.
+Field: meta_title
 
-- `{{entry.title}}`: The title of the current entry.
-- `{{entry.status}}`: The publication status.
-- `{{entry.your_field_name}}`: Value of a specific field.
+Token Pattern: {{entry.title}} | {{site.SITE_NAME}}
 
----
+Result: If your post is "Hello World" and site is "Svelty", the API returns: Hello World | Svelty.
 
-## 3. Modifiers
+Benefit: If you rebrand to "SuperCMS", all SEO titles update instantly.
 
-Modifiers transform the output of a token.
+Use Case B: URL Slug Generation
 
-| Modifier           | Description                  | Example |
-| :----------------- | :--------------------------- | :------ | ------------------- |
-| `upper`            | Converts to uppercase        | `{{val  | upper}}`            |
-| `lower`            | Converts to lowercase        | `{{val  | lower}}`            |
-| `capitalize`       | Capitalizes the first letter | `{{val  | capitalize}}`       |
-| `trim`             | Removes whitespace           | `{{val  | trim}}`             |
-| `slug`             | URL-friendly slug            | `{{val  | slug}}`             |
-| `date(format)`     | Formats a date               | `{{val  | date(YYYY-MM-DD)}}` |
-| `truncate(length)` | Truncates text               | `{{val  | truncate(10)}}`     |
+Ensure URLs are always valid, lowercase, and URL-friendly.
 
----
+Field: slug
 
-## 4. Using the Token Picker
+Token Pattern: {{entry.title | slug}}
 
-The **Token Picker** is a UI tool that helps you find and insert tokens without memorizing them.
+Result: Input "My Cool Post!" becomes my-cool-post.
 
-### How to Use
+Benefit: Eliminates human error in URL creation.
 
-1.  Look for the **Token Trigger** button (`{}`) next to any supported input field label.
-2.  Click the button to open the Token Picker window.
-3.  Browse tokens by category (Entry, User, Site, System).
-4.  Use the search bar to find specific tokens.
-5.  Click on a token to insert it into the active field.
+Use Case C: Dynamic Email Templates
 
-> **Note:** The Token Picker stays open and follows your focus. You can click different inputs to change the target field.
+Personalize automated emails sent by the system (e.g., welcome emails or order confirmations).
 
----
+Field: email_body
 
-## 5. Developer Guide
+Token Pattern:
 
-### Architecture
+Hello {{user.name | default:'Valued Customer'}},
 
-The system consists of three main parts:
+Thank you for your order!
+Date: {{system.now | date('YYYY-MM-DD')}}
 
-1.  **Token Registry (`src/services/token/engine.ts`)**: Manages available tokens and their resolution logic.
-2.  **Modifier Registry (`src/services/token/modifiers.ts`)**: Manages data transformation functions.
-3.  **Token Picker (`src/components/TokenPicker.svelte`)**: The frontend UI for selecting tokens.
+Result: "Hello Alice, Thank you for your order! Date: 2025-11-24"
 
-### Adding Custom Tokens
+3. User Guide: The Token Builder
 
-You can extend the registry by adding custom tokens in `src/services/token/engine.ts`.
+The system features a visual Token Builder UI that allows you to find, configure, and format data without writing code.
 
-```typescript
-// Example: Adding a custom token
-TokenRegistry.add({
-	token: 'custom.hello',
-	name: 'Hello World',
-	category: 'custom',
-	description: 'Returns a greeting',
-	resolve: () => 'Hello World!'
+Step 1: Activation
+
+Click the token icon { } inside any supported input field. The Token Window will appear.
+
+Step 2: Selection
+
+Browse tokens by category (User, Site, Entry, System) or use the search bar.
+
+Step 3: Configuration (Builder Mode)
+
+Once you select a token, the UI enters Builder Mode. Here you can add Modifiers to transform the data.
+
+Add Modifiers: Click buttons like + UPPERCASE or + DATE.
+
+Configure Arguments: Set options like date formats (YYYY-MM-DD) or truncation length.
+
+Live Preview: See the exact code (e.g., {{system.now | date('YYYY')}}) before inserting.
+
+4. Modifier Reference
+
+Modifiers transform data using the pipe | syntax.
+
+Text & Formatting
+
+Modifier
+
+Description
+
+Example Input
+
+Result
+
+upper
+
+Uppercase
+
+hello
+
+HELLO
+
+capitalize
+
+Capitalize first letter
+
+hello world
+
+Hello world
+
+slug
+
+URL-friendly slug
+
+Hello World!
+
+hello-world
+
+truncate(len, suffix)
+
+Shorten text
+
+Long text...
+
+Long...
+
+Logic & Control
+
+Modifier
+
+Description
+
+Syntax
+
+default(val)
+
+Fallback if empty
+
+`{{title
+
+if(trueVal, falseVal)
+
+Conditional logic
+
+`{{price
+
+eq(val) / ne(val)
+
+Equals / Not Equals
+
+`{{role
+
+gt(val) / lt(val)
+
+Greater/Less than
+
+`{{views
+
+Date & Math
+
+Modifier
+
+Description
+
+Example
+
+date(format)
+
+Formats ISO dates
+
+`{{now
+
+add(n) / subtract(n)
+
+Math operations
+
+`{{price
+
+5. Developer Guide
+
+Security Features
+
+Allow-listing: The engine explicitly blocks access to sensitive User fields (like password, hash, salt). Only safe fields (email, name, role) are exposed.
+
+Recursion Protection: The engine detects infinite loops (e.g., Token A -> Token B -> Token A) and halts execution after a configurable depth (default: 10).
+
+Escaping: Users can type \{{token}} to display the literal code without triggering replacement.
+
+Adding Custom Tokens
+
+Inject custom tokens (e.g., from an external API) via the registry configuration in src/services/token/engine.ts.
+
+TokenRegistry.getTokens(schema, user, {
+customTokens: [{
+token: 'weather.current',
+name: 'Current Temp',
+category: 'system',
+type: 'number',
+resolve: async () => await fetchWeather() // Async supported!
+}]
 });
-```
-
-### Adding Custom Modifiers
-
-Add new modifiers in `src/services/token/modifiers.ts`.
-
-```typescript
-// Example: Adding a reverse modifier
-modifierRegistry.set('reverse', (value) => {
-	return String(value).split('').reverse().join('');
-});
-```
