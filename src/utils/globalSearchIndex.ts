@@ -21,7 +21,7 @@
  */
 
 import { writable } from 'svelte/store';
-import { getModalStore } from '@skeletonlabs/skeleton';
+import { getModalStore } from '@skeletonlabs/skeleton-svelte';
 
 // System Logs
 import { logger } from '@utils/logger';

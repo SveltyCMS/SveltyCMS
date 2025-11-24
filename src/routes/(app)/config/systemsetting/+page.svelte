@@ -15,8 +15,8 @@ All dynamic CMS settings organized into logical groups
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
 	import PageTitle from '@components/PageTitle.svelte';
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@skeletonlabs/skeleton-svelte';
+	import type { ModalSettings } from '@skeletonlabs/skeleton-svelte';
 	import { logger } from '@utils/logger';
 
 	// Import settings structure

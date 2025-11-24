@@ -14,7 +14,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton Stores
-	import { getModalStore, popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { getModalStore, popup, type PopupSettings } from '@skeletonlabs/skeleton-svelte';
 	const modalStore = getModalStore();
 
 	// Props

@@ -13,7 +13,7 @@
 	import { onMount } from 'svelte';
 
 	// Initializing Skeleton stores
-	import { initializeStores, storePopup } from '@skeletonlabs/skeleton';
+	import { initializeStores, storePopup } from '@skeletonlabs/skeleton-svelte';
 	// Import from Floating UI
 	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
 
@@ -26,7 +26,7 @@
 
 	// Toast support
 	import { setGlobalToastStore } from '@utils/toast';
-	import { getToastStore, Toast } from '@skeletonlabs/skeleton';
+	import { getToastStore, Toast } from '@skeletonlabs/skeleton-svelte';
 
 	// Initialize theme and other client-side logic on mount
 	onMount(() => {

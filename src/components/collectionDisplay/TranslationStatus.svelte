@@ -20,7 +20,7 @@
 	import { page } from '$app/state';
 
 	// Skeleton
-	import { ProgressBar } from '@skeletonlabs/skeleton';
+	import { ProgressBar } from '@skeletonlabs/skeleton-svelte';
 
 	// Store
 	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';

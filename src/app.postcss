@@ -1,13 +1,19 @@
 @import "tailwindcss";
-@import "@tailwindcss/forms";
-@import "@tailwindcss/typography";
+@import './themes/SveltyCMS/SveltyCMSTheme.css';
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/typography";
 
 @theme {
-  /* Custom breakpoints - extend standard sm, md, lg, xl, 2xl */
+  /* Standard TailwindCSS breakpoints - required for TailwindCSS v4 */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+  
+  /* Custom breakpoints */
   --breakpoint-xs: 360px;
 }
-
-@import './themes/SveltyCMS/SveltyCMSTheme.css';
 
 /*Write your global styles here, in PostCSS syntax */
 /*place global styles here */

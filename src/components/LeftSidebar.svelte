@@ -45,7 +45,7 @@
 	import ThemeToggle from '@components/ThemeToggle.svelte';
 
 	// Skeleton components
-	import { Avatar, popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { Avatar, popup, type PopupSettings } from '@skeletonlabs/skeleton-svelte';
 
 	// Language and messaging
 	import * as m from '@src/paraglide/messages';

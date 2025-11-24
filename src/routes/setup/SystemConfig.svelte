@@ -7,7 +7,7 @@
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { locales as systemLocales } from '@src/paraglide/runtime';
-	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { popup, type PopupSettings } from '@skeletonlabs/skeleton-svelte';
 	// ✅ FIX: Import types from the store
 	import type { SystemSettings, ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';

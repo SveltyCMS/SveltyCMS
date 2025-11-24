@@ -20,8 +20,8 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton-svelte';
+	import { getModalStore } from '@skeletonlabs/skeleton-svelte';
 
 	interface Props {
 		'on:save'?: () => void;

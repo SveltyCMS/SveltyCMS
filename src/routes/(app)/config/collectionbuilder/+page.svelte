@@ -42,7 +42,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton';
+	import { type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton-svelte';
 	import { showToast } from '@utils/toast';
 	import { showModal } from '@utils/modalUtils';
 	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
