@@ -27,8 +27,8 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { popup } from '@skeletonlabs/skeleton-svelte';
-	import type { PopupSettings } from '@skeletonlabs/skeleton-svelte';
+	import { popup } from '@src/skeleton-compat';
+	import type { PopupSettings } from '@src/skeleton-compat';
 	// Collection Manager
 
 	const props = $props<{ data: any; handlePageTitleUpdate: (title: string) => void }>();

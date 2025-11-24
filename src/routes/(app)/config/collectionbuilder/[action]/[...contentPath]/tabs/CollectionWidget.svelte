@@ -20,8 +20,8 @@ component
 
 	// Skeleton
 	import type { FieldInstance as Field } from '@root/src/content/types';
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton-svelte';
-	import { getModalStore } from '@skeletonlabs/skeleton-svelte';
+	import type { ModalComponent, ModalSettings } from '@src/skeleton-compat';
+	import { getModalStore } from '@src/skeleton-compat';
 	import ModalSelectWidget from './CollectionWidget/ModalSelectWidget.svelte';
 	import ModalWidgetForm from './CollectionWidget/ModalWidgetForm.svelte';
 

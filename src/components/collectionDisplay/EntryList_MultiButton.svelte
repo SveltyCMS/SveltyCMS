@@ -49,7 +49,7 @@
 	import { storeListboxValue } from '@stores/store.svelte';
 
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton-svelte';
+	import { getModalStore } from '@src/skeleton-compat';
 
 	// Components
 	import ScheduleModal from './ScheduleModal.svelte';

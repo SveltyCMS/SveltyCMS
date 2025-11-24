@@ -19,7 +19,7 @@ It handles widget configuration, permissions, and specific options.
 	// Stores
 	import { collectionValue, setCollectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
 
-	import { getModalStore, Tab, TabGroup } from '@skeletonlabs/skeleton-svelte';
+	import { getModalStore, Tab, TabGroup } from '@src/skeleton-compat';
 	const modalStore = getModalStore();
 
 	let localTabSet: number = $state(0);

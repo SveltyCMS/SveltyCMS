@@ -35,7 +35,7 @@ Interactive menu builder with add/edit/reorder capabilities
 -->
 
 <script lang="ts">
-	import { getModalStore } from '@skeletonlabs/skeleton-svelte';
+	import { getModalStore } from '@src/skeleton-compat';
 	import type { FieldType } from './';
 	import type { MenuItem, MenuEditContext } from './types';
 	import { contentLanguage } from '@src/stores/store.svelte';

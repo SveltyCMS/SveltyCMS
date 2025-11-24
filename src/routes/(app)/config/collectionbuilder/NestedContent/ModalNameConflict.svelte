@@ -8,7 +8,7 @@ Features:
 - Provides suggestions for resolving conflicts
 -->
 <script lang="ts">
-	import { getModalStore } from '@skeletonlabs/skeleton-svelte';
+	import { getModalStore } from '@src/skeleton-compat';
 	const modalStore = getModalStore();
 
 	interface Props {

@@ -21,7 +21,7 @@
 <script lang="ts">
 	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
-	import { modeCurrent } from '@skeletonlabs/skeleton-svelte';
+	import { modeCurrent } from '@src/skeleton-compat';
 	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
 	import { systemPreferences } from '@stores/systemPreferences.svelte';
 	import { logger } from '@utils/logger';

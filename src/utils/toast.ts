@@ -3,7 +3,7 @@
  * Centralized toast utility for consistent notifications across modals/components.
  */
 
-import { getToastStore, type ToastStore } from '@skeletonlabs/skeleton-svelte';
+import { getToastStore, type ToastStore } from '@src/skeleton-compat';
 import { logger } from '@utils/logger';
 
 let toastStoreRef: ToastStore | null = null;

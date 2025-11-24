@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getModalStore } from '@skeletonlabs/skeleton-svelte';
+	import { getModalStore } from '@src/skeleton-compat';
 	import SiteName from '@components/SiteName.svelte';
 	import * as m from '@src/paraglide/messages';
 

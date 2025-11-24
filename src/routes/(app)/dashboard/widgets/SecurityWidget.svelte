@@ -40,7 +40,7 @@ and automated response visualization for enterprise security operations.
 	import { onMount, onDestroy } from 'svelte';
 	import { logger } from '@utils/logger';
 	import BaseWidget from '../BaseWidget.svelte';
-	import { getToastStore } from '@skeletonlabs/skeleton-svelte';
+	import { getToastStore } from '@src/skeleton-compat';
 
 	const toastStore = getToastStore();
 

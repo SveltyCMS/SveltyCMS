@@ -38,7 +38,7 @@ functionality for image editing and basic file information display.
 	// Components
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import FileInput from '@components/system/inputs/FileInput.svelte';
-	import { getModalStore, type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton-svelte';
+	import { getModalStore, type ModalSettings, type ModalComponent } from '@src/skeleton-compat';
 	import ModalImageEditor from './ModalImageEditor.svelte';
 
 	// Define reactive state
