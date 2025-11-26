@@ -1,0 +1,14 @@
+{
+    "name": "@sveltycms/shared-config",
+    "version": "0.0.5",
+    "type": "module",
+    "main": "./index.ts",
+    "types": "./index.ts",
+    "exports": {
+        ".": "./index.ts",
+        "./schemas": "./schemas.ts",
+        "./writePrivateConfig": "./writePrivateConfig.ts",
+        "./dbInterface": "./dbInterface.ts",
+        "./types": "./types.ts"
+    }
+}

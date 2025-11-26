@@ -1,0 +1,11 @@
+{
+	"name": "@sveltycms/tests",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"description": "Test suite for SveltyCMS",
+	"scripts": {
+		"test:bun": "bun test bun",
+		"test:playwright": "bun x playwright test playwright"
+	}
+}

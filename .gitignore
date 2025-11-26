@@ -10,6 +10,15 @@ node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
+# NX apps build outputs
+/apps/*/build
+/apps/*/.svelte-kit
+/apps/*/package
+
+# App-specific logs (each app has its own logs folder)
+/apps/*/logs/*.log
+/apps/*/logs/*.gz
+
 # secrets
 .env
 .env.*
@@ -26,9 +35,7 @@ vite.config.ts.timestamp-*
 trash/*
 media/*
 mediaFiles/
-mediaFolder/
-compiledCollections/*
-logs/*
+/compiledCollections/*
 Docs/*
 .node-version
 
@@ -60,3 +67,40 @@ src/paraglide/**/*.js
 
 
 
+.nx/cache
+.nx/workspace-data
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md
+
+# Internal work tracking (private)
+.work-tracking.md
+.current-status.md
+.client-update-*.md
+
+# Internal documentation (work tracking, not for client repo)
+.work-tracking.md
+.client-update-day1.md
+.current-status.md
+START_HERE.md
+CIRCULAR_DEPENDENCY_REPORT.md
+REFACTOR_PLAN.md
+REFACTOR_PROGRESS.md
+REFACTOR_COMPLETE_SUMMARY.md
+COMMIT_STRATEGY.md
+COMMIT_SUMMARY.md
+.gitignore-docs
+
+# Internal analysis and planning docs (already committed but should not be updated)
+ANALYSIS_NEXT_VS_NX2.md
+ANALYSIS_NX2_STRUCTURE.md
+MIGRATION_STRATEGY.md
+MIGRATION_TASKS.md
+PHASE1_COMPLETE_SUMMARY.md
+CMS_SETUP_SPLIT_REALITY_CHECK.md
+NX_MONOREPO_ARCHITECTURE_FIXED.md
+
+# Helper scripts (local only)
+create-admin.js
+create-first-admin.ts
+PR_UPDATE_SUMMARY.md
+START_HERE.md

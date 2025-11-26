@@ -1,0 +1,145 @@
+/**
+ * @file src/routes/api/token/+server.ts
+ * @description API endpoint for listing all tokens.
+ *
+ * This module is responsible for:
+ * - Retrieving all tokens for the current tenant
+ * - Requires admin authentication (handled by hooks)
+ *
+ * @usage
+ * GET /api/token
+ * @returns {
+ *   "success": true,
+ *   "data": {
+ *     "tokens": [...],
+ *     "count": 10
+ *   }
+ * }
+ *
+ * @note Token creation has been moved to /api/token/createToken
+ * @note Token editing has been consolidated to /api/token/[tokenID]
+ */
+import { getPrivateSettingSync } from '@src/services/settingsService';
+
+import { error, json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+
+// Auth (Database Agnostic)
+import { auth } from '@src/databases/db';
+
+// Cache invalidation
+import { cacheService } from '@src/databases/CacheService';
+
+// Validation
+import { minLength, number, object, parse, string } from 'valibot';
+
+// System logger
+import { logger } from '@utils/logger.server';
+
+export const GET: RequestHandler = async ({ locals }) => {
+	const { tenantId } = locals; // User and permissions are guaranteed by hooks
+
+	try {
+		// No permission checks needed - hooks already verified:
+		// 1. User is authenticated
+		// 2. User has correct role for 'api:token' endpoint
+		// 3. User belongs to correct tenant (if multi-tenant)
+
+		const body = await request.json();
+
+		let tokenData;
+		try {
+			tokenData = parse(createTokenSchema, body);
+		} catch (err) {
+			if (err.name === 'ValiError') {
+				const validationErrors = err.issues?.map((issue) => `${issue.path?.join('.')}: ${issue.message}`) || ['Invalid data'];
+				logger.warn(`Token creation validation failed`, {
+					userId: locals.user?._id,
+					validationErrors,
+					providedFields: Object.keys(body || {})
+				});
+				throw error(400, 'Validation Error: ' + validationErrors.join(', '));
+			}
+			throw err;
+		}
+
+		if (!auth) {
+			logger.error('Database authentication adapter not initialized');
+			throw error(500, 'Database authentication not available');
+		}
+
+		// --- MULTI-TENANCY SECURITY CHECK ---
+		if (getPrivateSettingSync('MULTI_TENANT')) {
+			if (!tenantId) {
+				throw error(500, 'Tenant could not be identified for this operation.');
+			}
+			// Verify the target user belongs to the same tenant as the admin creating the token.
+			const targetUser = await auth.getUserById(tokenData.user_id);
+			if (!targetUser || targetUser.tenantId !== tenantId) {
+				logger.warn('Attempt to create a token for a user in another tenant.', {
+					adminId: locals.user?._id,
+					adminTenantId: tenantId,
+					targetUserId: tokenData.user_id,
+					targetTenantId: targetUser?.tenantId
+				});
+				throw error(403, 'Forbidden: You can only create tokens for users within your own tenant.');
+			}
+		}
+
+		const expiresAt = new Date(Date.now() + tokenData.expiresIn * 60 * 60 * 1000);
+
+		logger.debug(`Creating token for user`, {
+			targetUserId: tokenData.user_id,
+			targetEmail: tokenData.email,
+			role: tokenData.role,
+			expiresIn: tokenData.expiresIn,
+			createdBy: locals.user?._id,
+			tenantId
+		});
+
+		const token = await auth.createToken({
+			user_id: tokenData.user_id,
+			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }), // Conditionally add tenantId
+			email: tokenData.email.toLowerCase(), // Normalize email to lowercase
+			expires: expiresAt.toISOString(),
+			type: 'registration' // Or another appropriate type
+		});
+		// Invalidate the tokens cache so the new token appears immediately in admin area
+		cacheService.delete('tokens', tenantId).catch((err) => {
+			logger.warn(`Failed to invalidate tokens cache: ${err.message}`);
+		});
+
+		const responseData = {
+			success: true,
+			token: { value: token, expires: expiresAt.toISOString() }
+		};
+
+		logger.info(`Token created successfully`, {
+			tokenId: token,
+			targetUserId: tokenData.user_id,
+			targetEmail: tokenData.email,
+			role: tokenData.role,
+			expiresAt: expiresAt.toISOString(),
+			createdBy: locals.user?._id,
+			tenantId
+		});
+	} catch (err: unknown) {
+		const httpError = err as { status?: number; body?: { message?: string } };
+		const status = httpError.status || 500;
+		const message = httpError.body?.message || 'An unexpected error occurred.';
+
+		return json(responseData, { status: 201 });
+	} catch (err: any) {
+		if (err.status) {
+			// Re-throw SvelteKit errors (they're already logged)
+			throw err;
+		}
+
+		logger.error(`Unexpected error in token creation endpoint`, {
+			userId: locals.user?._id,
+			status
+		});
+
+		return json({ success: false, message: status === 500 ? 'Internal Server Error' : message }, { status });
+	}
+};

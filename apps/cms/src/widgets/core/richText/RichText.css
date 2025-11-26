@@ -1,0 +1,15 @@
+* :global(h1) {
+	font-size: 24px;
+}
+* :global(h2) {
+	font-size: 18px;
+}
+* :global(a) {
+	color: #00d3d0;
+	text-decoration: underline;
+	cursor: pointer;
+}
+* :global(img) {
+	cursor: pointer;
+	display: inline-block;
+}

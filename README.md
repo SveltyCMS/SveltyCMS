@@ -94,114 +94,209 @@ Prefer a full walkthrough? See: ./docs/getting-started.mdx
 - Typed widgets and schema-driven collection builder
 - Fast feedback loop with hot reloads and strong typing
 
-## :rocket: Setup
+## :rocket: Fresh Installation Guide
 
-### Clone the repository
+### Prerequisites
 
-To clone our [repository](https://github.com/SveltyCMS/SveltyCMS.git) you need to be able to use [Git](https://git-scm.com/downloads).
+Before you begin, ensure you have the following installed:
+
+- **Node.js** (v20 or higher) - [Download](https://nodejs.org/en)
+- **Bun** (recommended) - [Install](https://bun.sh)
+- **MongoDB** (v6 or higher) - [Download](https://www.mongodb.com/try/download/community)
+- **Git** - [Download](https://git-scm.com/downloads)
+
+### Step 1: Clone the Repository
 
 ```bash
 git clone https://github.com/SveltyCMS/SveltyCMS.git
 cd SveltyCMS
 ```
 
-### Install all dependencies
+### Step 2: Install Dependencies
 
-Install STABLE [Node.js](https://nodejs.org/en) to get started. Then choose your preferred package manager:
-
-<details open>
-<summary><b>npm</b></summary>
+We recommend using **Bun** for the best performance:
 
 ```bash
-# Install all dependencies
-npm install
-
-# Development (CLI installer launches automatically if needed)
-npm run dev
-
-# Manual CLI Installer (optional)
-npm run installer
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-```
-
-</details>
-
-<details>
-<summary><b>pnpm</b></summary>
-
-```bash
-# Install pnpm if you haven't already
-npm install -g pnpm
-
-# Install all dependencies
-pnpm install
-
-# Development (CLI installer launches automatically if needed)
-pnpm run dev
-
-# Manual CLI Installer (optional)
-pnpm run installer
-
-# Build for production
-pnpm run build
-
-# Preview production build
-pnpm run preview
-```
-
-</details>
-
-<details>
-<summary><b>bun</b></summary>
-
-```bash
-# Install bun if you haven't already
+# Install Bun if you haven't already
 curl -fsSL https://bun.sh/install | bash
 
 # Install all dependencies
 bun install
+```
 
-# Development (CLI installer launches automatically if needed)
-bun run dev
+<details>
+<summary>Alternative: Using npm or pnpm</summary>
 
-# Manual CLI Installer (optional)
-bun run installer
+```bash
+# Using npm
+npm install
 
-# Build for production
-bun run build
-
-# Preview production build
-bun run preview
+# Using pnpm
+npm install -g pnpm
+pnpm install
 ```
 
 </details>
 
-### Setup Wizard (auto)
+### Step 3: Start MongoDB
 
-When starting the dev server without configuration, the guided installer launches automatically:
-
-- Smart detection via `vite.config.ts`
-- Database configuration: MongoDB (SQL/Postgres planned via Drizzle ORM)
-- Admin account setup, secrets/keys generation
-- Optional SMTP and Google OAuth configuration
-
-Start with:
+Ensure MongoDB is running on your system:
 
 ```bash
-bun run dev  # or npm run dev / pnpm run dev
+# On Linux/macOS
+sudo systemctl start mongod
+
+# On macOS with Homebrew
+brew services start mongodb-community
+
+# On Windows
+net start MongoDB
 ```
 
-### Development and Production
+Verify MongoDB is running:
 
-See our `package.json` for more information about development, build, preview, format, lint & testing commands.
+```bash
+mongosh --eval "db.version()"
+```
 
-Development server runs on `localhost:5173`
-Preview server runs on `localhost:4173`
+### Step 4: Run SveltyCMS
+
+SveltyCMS uses a smart launcher that automatically detects if setup is needed:
+
+```bash
+# Smart launcher - automatically runs setup wizard or CMS
+bun dev
+```
+
+**First Time Setup:**
+
+- The launcher detects no configuration exists
+- Automatically opens setup wizard at `http://localhost:5174`
+- Guide you through:
+  - Database configuration
+  - Admin account creation
+  - Email settings (optional)
+  - Security configuration
+
+**After Setup:**
+
+- Run `bun dev` again
+- Launcher detects valid configuration
+- Automatically starts CMS at `http://localhost:5173`
+
+**Manual Control:**
+
+```bash
+# Force setup wizard (useful for testing)
+bun dev:setup
+
+# Force CMS (skip validation)
+bun dev:cms
+```
+
+### Quick Start Commands
+
+```bash
+# Smart launcher (auto-detects setup need)
+bun dev
+
+# Force setup wizard
+bun dev:setup
+
+# Force CMS
+bun dev:cms
+
+# Build for production
+bun build
+
+# Build all apps
+bun build:all
+
+# Run documentation site
+bun nx run docs:dev
+
+# Run all tests
+bun nx run-many --target=test --all
+
+# Lint all projects
+bun nx run-many --target=lint --all
+```
+
+### Monorepo Structure
+
+SveltyCMS uses NX monorepo with the following apps:
+
+```
+apps/
+├── cms/              # Main CMS application
+├── setup-wizard/     # Initial setup wizard
+├── docs/             # Documentation site
+├── shared-config/    # Shared configuration
+├── shared-utils/     # Shared utilities
+└── shared-theme/     # Shared theme
+```
+
+### Common Issues & Solutions
+
+**Issue: MongoDB connection failed**
+
+```bash
+# Solution: Check if MongoDB is running
+sudo systemctl status mongod
+
+# Or start MongoDB
+sudo systemctl start mongod
+```
+
+**Issue: Port already in use**
+
+```bash
+# Solution: Kill the process using the port
+# For port 5173 (CMS)
+lsof -ti:5173 | xargs kill -9
+
+# For port 5174 (Setup Wizard)
+lsof -ti:5174 | xargs kill -9
+```
+
+**Issue: Dependency scan errors**
+
+```bash
+# Solution: Clear caches and reinstall
+rm -rf node_modules/.vite
+rm -rf apps/cms/.svelte-kit
+rm -rf apps/setup-wizard/.svelte-kit
+bun install
+```
+
+**Issue: Build fails**
+
+```bash
+# Solution: Clear NX cache and rebuild
+bun nx reset
+bun install
+bun nx run cms:build
+```
+
+### Environment Configuration
+
+After running the setup wizard, your configuration will be saved in:
+
+- `config/private.ts` - Database and security settings
+- `config/roles.ts` - User roles and permissions
+
+You can manually edit these files if needed.
+
+### Next Steps
+
+After installation:
+
+1. Log in to the CMS at `http://localhost:5173`
+2. Create your first collection
+3. Add content
+4. Access via REST API or GraphQL at `/api/graphql`
+
+For detailed documentation, see our [Documentation](docs/) folder.
 
 ## :lock: Authentication & Security
 
