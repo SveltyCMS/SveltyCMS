@@ -49,6 +49,7 @@
 	import { widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte';
 	import TokenPicker from '@components/TokenPicker.svelte';
 	import { activeInputStore } from '@src/stores/activeInputStore.svelte';
+	import { validateTokenSyntax, containsTokens } from '@src/services/token/tokenUtils';
 
 	// Eager load all widget components for immediate use in Fields
 	const modules: Record<string, { default: any }> = import.meta.glob('/src/widgets/**/*.svelte', {
@@ -328,6 +329,7 @@
 						{#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
 							{#if rawField.widget}
 								{@const field = ensureFieldProperties(rawField)}
+								{@const fieldValue = currentCollectionValue[getFieldName(field, false)]}
 								<div
 									class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
 									style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
@@ -349,6 +351,18 @@
 													<iconify-icon icon="bi:translate" width="16"></iconify-icon>
 													<span class="font-medium text-tertiary-500 dark:text-primary-500">{currentContentLanguage.toUpperCase()}</span>
 													<span class="font-medium {textColor}">({percentage}%)</span>
+												</div>
+											{/if}
+
+											<!-- Token Status & Validation -->
+											{#if typeof fieldValue === 'string' && containsTokens(fieldValue)}
+												{@const validation = validateTokenSyntax(fieldValue)}
+												<div class="flex items-center gap-1" title={validation.valid ? 'Contains Tokens' : validation.errors.join('\n')}>
+													{#if validation.valid}
+														<iconify-icon icon="mdi:code-braces" width="14" class="text-primary-500"></iconify-icon>
+													{:else}
+														<iconify-icon icon="mdi:alert-circle" width="14" class="text-error-500"></iconify-icon>
+													{/if}
 												</div>
 											{/if}
 

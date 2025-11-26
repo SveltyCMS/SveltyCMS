@@ -113,13 +113,6 @@
 		return browser && window.innerWidth < MOBILE_BREAKPOINT;
 	}
 
-	function truncate(str: string, maxLength = 12): string {
-		if (str.length <= maxLength) {
-			return str;
-		}
-		return `${str.substring(0, maxLength)}...`;
-	}
-
 	async function navigateTo(path: string): Promise<void> {
 		if (currentPath === path) return;
 
@@ -321,18 +314,23 @@
 
 		<div class="grid items-center justify-center {isSidebarFull ? 'grid-cols-3 grid-rows-3' : 'grid-cols-2 grid-rows-2'}">
 			<!-- Avatar -->
-			<div class={isSidebarFull ? 'order-1 row-span-2' : 'order-1'}>
+			<div class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex justify-center">
 				<button
 					use:popup={tooltips.user}
 					onclick={handleUserClick}
 					onkeypress={(e) => handleKeyPress(e, handleUserClick)}
 					aria-label="User Profile"
-					class="btn-icon relative flex-col items-center justify-center text-center !no-underline md:row-span-2"
+					class="{isSidebarFull
+						? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-surface-500 hover:text-white'
+						: 'btn-icon flex-col items-center justify-center'} relative text-center !no-underline md:row-span-2"
 				>
 					<Avatar src={avatarUrl} alt="User Avatar" initials="AV" class="mx-auto {isSidebarFull ? 'w-[40px]' : 'w-[35px]'}" />
 					{#if isSidebarFull && user?.username}
-						<div class="-ml-1.5 -mt-1 text-center text-[10px] text-black dark:text-white" title={user.username}>
-							{truncate(user.username)}
+						<div
+							class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-[11px] font-medium leading-tight text-black dark:text-white"
+							title={user.username}
+						>
+							{user.username}
 						</div>
 					{/if}
 				</button>

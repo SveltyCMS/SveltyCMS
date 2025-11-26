@@ -100,6 +100,8 @@ const middleware: Handle[] = [
 	handleApiRequests,
 
 	// 11. Token resolution for API responses
+	// CRITICAL: Must be AFTER handleAuthorization (needs locals.user, locals.roles)
+	//           and BEFORE addSecurityHeaders (modifies response body)
 	handleTokenResolution,
 
 	// 12. Essential security headers (defense in depth)

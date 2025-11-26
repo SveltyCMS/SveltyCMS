@@ -11,6 +11,7 @@
 	import { modifierMetadata } from '@src/services/token/modifiers';
 	import { page } from '$app/state';
 	import { collection, collectionValue } from '@src/stores/collectionStore.svelte';
+	import { uiStateManager } from '@src/stores/UIStore.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { fade, slide } from 'svelte/transition';
 	import { nowISODateString } from '@utils/dateUtils';
@@ -33,6 +34,9 @@
 	let isLoadingPreview = $state(false);
 	let debounceTimer: any;
 
+	// Track which tokens have their info expanded in the list
+	let showInfo = $state<Record<string, boolean>>({});
+
 	let openCategories = $state<Record<string, boolean>>({ entry: true, user: false, site: false, system: false });
 
 	$effect(() => {
@@ -43,6 +47,7 @@
 			search = '';
 			resolvedPreview = '';
 			isLoadingPreview = false;
+			showInfo = {};
 			return;
 		}
 
@@ -153,6 +158,7 @@
 
 	// Full input preview with token syntax (editable)
 	let editablePreview = $state('');
+	let previousTokenResult = '';
 
 	// Initialize editable preview when token or input changes
 	$effect(() => {
@@ -160,17 +166,38 @@
 		const currentToken = tokenResult;
 		const currentInput = activeInputStore.value;
 
-		if (!currentToken) {
-			editablePreview = '';
-			return;
+		// If this is the first load (previous is empty), or if we switched tokens completely
+		if (!previousTokenResult) {
+			if (currentInput?.element) {
+				const input = currentInput.element;
+				const start = input.selectionStart ?? input.value.length;
+				// If the input already has this token, we might want to respect that,
+				// but for now let's just insert at cursor or use the token if input is empty
+				if (!editablePreview) {
+					editablePreview = input.value.slice(0, start) + currentToken + input.value.slice(input.selectionEnd || start);
+				}
+			} else if (!editablePreview) {
+				editablePreview = currentToken;
+			}
+		} else if (currentToken !== previousTokenResult) {
+			// Smart update: If the previous token string exists in the preview, replace it with the new one
+			// This preserves surrounding text that the user might have typed
+			if (editablePreview.includes(previousTokenResult)) {
+				editablePreview = editablePreview.replace(previousTokenResult, currentToken);
+			} else {
+				// Fallback: If the user deleted the token from the preview, we append the new one?
+				// Or we just don't update? Let's assume if they deleted it, they might want it back if they are changing modifiers.
+				// But appending might be annoying. Let's try to be safe:
+				// If the preview is empty, set it.
+				if (!editablePreview) {
+					editablePreview = currentToken;
+				}
+				// If it's not empty and doesn't contain the old token, we do nothing to avoid messing up their custom text.
+				// They can manually clear or re-insert if needed.
+			}
 		}
-		const input = currentInput?.element;
-		if (input) {
-			const start = input.selectionStart ?? input.value.length;
-			editablePreview = input.value.slice(0, start) + currentToken + input.value.slice(input.selectionEnd || start);
-		} else {
-			editablePreview = currentToken;
-		}
+
+		previousTokenResult = currentToken;
 	});
 
 	// --- Actions ---
@@ -179,6 +206,9 @@
 		selectedToken = t;
 		selectedModifiers = [];
 		mode = 'configure';
+		// Reset previous token result so the effect treats it as a fresh start
+		previousTokenResult = '';
+		editablePreview = ''; // Clear preview to force regeneration
 	}
 
 	function addModifier(m: ModifierMetadata) {
@@ -200,7 +230,10 @@
 
 		input.focus();
 		input.setSelectionRange(editablePreview.length, editablePreview.length);
+
+		// Dispatch both input and change events to ensure frameworks (like Svelte's bind:value) catch the update
 		input.dispatchEvent(new Event('input', { bubbles: true }));
+		input.dispatchEvent(new Event('change', { bubbles: true }));
 
 		// Reset
 		activeInputStore.set(null);
@@ -213,11 +246,13 @@
 		mode = 'list';
 		selectedToken = null;
 		selectedModifiers = [];
+		previousTokenResult = ''; // Reset tracking
 	}
 
 	function back() {
 		mode = 'list';
 		selectedToken = null;
+		previousTokenResult = '';
 	}
 
 	function deleteToken() {
@@ -227,9 +262,15 @@
 		// Clear the input value
 		input.value = '';
 		input.dispatchEvent(new Event('input', { bubbles: true }));
+		input.dispatchEvent(new Event('change', { bubbles: true }));
 
 		// Close the picker
 		activeInputStore.set(null);
+	}
+
+	function toggleInfo(tokenToken: string, e: Event) {
+		e.stopPropagation();
+		showInfo[tokenToken] = !showInfo[tokenToken];
 	}
 
 	// Draggable Logic
@@ -255,12 +296,15 @@
 			window.addEventListener('mouseup', stop);
 		});
 	}
+
+	// Calculate right position based on sidebar visibility
+	let rightPosition = $derived(uiStateManager.uiState.value.rightSidebar !== 'hidden' ? '340px' : '2rem');
 </script>
 
 {#if activeInputStore.value}
 	<div
 		class="token-window card bg-surface-100-800-token border-surface-200-700-token fixed z-[9999] flex max-h-[80vh] w-full max-w-md flex-col rounded border p-4 shadow-xl"
-		style="top: 20%; right: 5%;"
+		style="bottom: 2rem; right: {rightPosition};"
 		transition:fade={{ duration: 150 }}
 	>
 		<!-- Header -->
@@ -273,14 +317,12 @@
 				{/if}
 				<h3 class="text-lg font-bold text-tertiary-500 dark:text-primary-500">
 					{#if mode === 'configure'}
-						Configure Token for <span class="variant-filled-secondary badge text-lg"
-							>{activeInputStore.value?.field.label || activeInputStore.value?.field.name || 'Field'}</span
-						>
+						Configure Token
 					{:else}
-						Select Token for <span class="variant-filled-secondary badge text-lg"
-							>{activeInputStore.value?.field.label || activeInputStore.value?.field.name || 'Field'}</span
-						>
+						Select Token
 					{/if}
+					<span class="text-sm font-normal opacity-70">for</span>
+					<span class="variant-soft-secondary badge">{activeInputStore.value?.field.label || activeInputStore.value?.field.name || 'Field'}</span>
 				</h3>
 			</div>
 			<button onclick={() => activeInputStore.set(null)} class="variant-ghost-surface btn-icon btn-icon-sm" aria-label="Close">
@@ -290,12 +332,13 @@
 
 		<!-- MODE: LIST -->
 		{#if mode === 'list'}
-			<div class="mb-4">
-				<input bind:value={search} class="input" type="search" placeholder="Search tokens..." />
+			<div class="relative mb-4">
+				<iconify-icon icon="mdi:magnify" class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"></iconify-icon>
+				<input bind:value={search} class="input pl-10" type="search" placeholder="Search tokens..." />
 			</div>
-			<div class="scrollbar-thin flex-1 space-y-1 overflow-y-auto pr-1">
+			<div class="scrollbar-thin flex-1 space-y-2 overflow-y-auto pr-1">
 				{#each Object.entries(filteredGroups) as [cat, tokens]}
-					<div class="card variant-soft p-1">
+					<div class="card variant-soft p-2">
 						<button
 							onclick={() => (openCategories[cat] = !openCategories[cat])}
 							class="flex w-full items-center justify-between text-sm font-bold uppercase opacity-70 hover:opacity-100"
@@ -306,16 +349,34 @@
 						{#if openCategories[cat] || search}
 							<div transition:slide={{ duration: 200 }} class="mt-2 space-y-1">
 								{#each tokens as t}
-									<button
-										onclick={() => selectToken(t)}
-										class="variant-ghost-surface btn w-full justify-between text-left hover:variant-filled-tertiary dark:hover:variant-filled-primary"
-									>
-										<div class="flex flex-col items-start overflow-hidden">
-											<span class="w-full truncate font-medium">{t.name}</span>
-											<span class="w-full truncate text-[10px] opacity-70">{t.description}</span>
+									<div class="card variant-filled-surface cursor-pointer p-2 transition-colors hover:variant-soft-primary">
+										<div class="flex items-start justify-between gap-2">
+											<button onclick={() => selectToken(t)} class="flex-1 text-left">
+												<div class="text-sm font-medium">{t.name}</div>
+												<code class="code text-[10px] opacity-70">{t.token}</code>
+											</button>
+
+											<div class="flex items-center gap-1">
+												<span class="variant-soft-secondary badge text-[10px] uppercase">{t.type}</span>
+												<button
+													onclick={(e) => toggleInfo(t.token, e)}
+													class="variant-ghost-surface btn-icon btn-icon-sm hover:variant-filled-surface"
+													title="Info"
+												>
+													<iconify-icon icon="mdi:information-outline"></iconify-icon>
+												</button>
+											</div>
 										</div>
-										<span class="variant-filled-secondary badge ml-2 shrink-0">{t.type}</span>
-									</button>
+
+										{#if showInfo[t.token]}
+											<div transition:slide={{ duration: 150 }} class="mt-2 border-t border-surface-500/20 pt-2 text-xs">
+												<p class="mb-2 opacity-80">{t.description}</p>
+												<div class="code block w-full overflow-x-auto p-2">
+													{t.example || `{{${t.token}}}`}
+												</div>
+											</div>
+										{/if}
+									</div>
 								{/each}
 							</div>
 						{/if}
@@ -328,22 +389,30 @@
 		{#if mode === 'configure' && selectedToken}
 			<div class="flex-1 space-y-4 overflow-y-auto pr-2">
 				<!-- Token Info -->
-				<div class="border-variant-soft card flex items-center justify-between gap-2 border p-3">
-					<div class="text-lg font-bold text-primary-500">{selectedToken.name}</div>
-					<code class="code">{selectedToken.token}</code>
+				<div class="card variant-soft-primary border border-primary-500/30 p-4">
+					<div class="mb-2 flex items-center justify-between">
+						<div class="text-lg font-bold text-primary-700 dark:text-primary-400">{selectedToken.name}</div>
+						<span class="variant-filled-primary badge">{selectedToken.type}</span>
+					</div>
+					<code class="code mb-2 block w-full">{selectedToken.token}</code>
+					<p class="text-sm opacity-80">{selectedToken.description}</p>
 				</div>
 
 				<!-- Applied Modifiers -->
 				{#if selectedModifiers.length > 0}
 					<div class="space-y-2">
-						<div class="text-xs font-bold uppercase opacity-50">Modifiers</div>
+						<div class="text-xs font-bold uppercase opacity-50">Applied Modifiers</div>
 						{#each selectedModifiers as mod, i}
-							<div class="group card variant-ringed-surface relative p-2">
+							<div class="group card variant-ringed-surface relative p-3">
 								<div class="mb-2 flex items-center justify-between">
 									<span class="font-bold text-secondary-500">{mod.def.label}</span>
-									<button onclick={() => removeModifier(i)} class="variant-ghost-error btn-icon btn-icon-sm" aria-label="Remove Modifier"
-										><iconify-icon icon="mdi:trash-can"></iconify-icon></button
+									<button
+										onclick={() => removeModifier(i)}
+										class="variant-ghost-error btn-icon btn-icon-sm text-error-500"
+										aria-label="Remove Modifier"
 									>
+										<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
+									</button>
 								</div>
 
 								<!-- Modifier Arguments -->
@@ -351,7 +420,7 @@
 									<div class="space-y-2">
 										{#each mod.def.args as arg, argIndex}
 											<label class="label">
-												<span class="text-xs">{arg.name}</span>
+												<span class="text-xs opacity-70">{arg.name}</span>
 												{#if arg.type === 'select'}
 													<select bind:value={mod.args[argIndex]} class="select-sm select">
 														{#each arg.options || [] as opt}
@@ -377,8 +446,9 @@
 					<div class="mb-2 text-xs font-bold uppercase opacity-50">Add Modifier</div>
 					<div class="flex flex-wrap gap-2">
 						{#each availableModifiers as m}
-							<button onclick={() => addModifier(m)} class="variant-filled-surface chip hover:variant-filled-secondary">
-								<iconify-icon icon="mdi:plus"></iconify-icon><span>{m.label}</span>
+							<button onclick={() => addModifier(m)} class="variant-filled-surface chip transition-colors hover:variant-filled-secondary">
+								<iconify-icon icon="mdi:plus"></iconify-icon>
+								<span>{m.label}</span>
 							</button>
 						{/each}
 						{#if availableModifiers.length === 0}
@@ -389,35 +459,40 @@
 			</div>
 
 			<!-- Footer Preview -->
-			<div class="mt-4 border-t border-surface-500/30 pt-4">
-				<div class="mb-1 text-[10px] uppercase opacity-50">Preview (Editable)</div>
-				<textarea
-					bind:value={editablePreview}
-					class="textarea mb-3 bg-tertiary-500/10 font-mono text-sm dark:bg-primary-500/10"
-					rows="3"
-					placeholder="Edit the full input with token..."
-				></textarea>
+			<div class="mt-4 space-y-3 border-t border-surface-500/30 pt-4">
+				<div>
+					<div class="mb-1 text-[10px] uppercase opacity-50">Token Editor</div>
+					<textarea
+						bind:value={editablePreview}
+						class="textarea rounded bg-surface-900 p-3 font-mono text-sm text-secondary-400"
+						rows="2"
+						placeholder="Token code..."
+					></textarea>
+				</div>
 
-				<div class="mb-1 text-[10px] uppercase opacity-50">Result</div>
-				{#if isLoadingPreview}
-					<div class="card variant-ringed-surface mb-3 select-none p-2 text-sm text-surface-900 dark:text-surface-50">Loading...</div>
-				{:else}
-					<div class="card variant-ringed-surface mb-3 select-none p-2 text-sm font-bold text-surface-900 dark:text-surface-50">
-						{resolvedPreview || '(Empty)'}
-					</div>
-				{/if}
+				<div>
+					<div class="mb-1 text-[10px] uppercase opacity-50">Result (Live)</div>
+					{#if isLoadingPreview}
+						<div class="card variant-soft animate-pulse p-3 text-sm">Loading...</div>
+					{:else}
+						<div class="card variant-soft-secondary p-3 text-sm font-bold text-secondary-700 dark:text-secondary-300">
+							{resolvedPreview || '(Empty)'}
+						</div>
+					{/if}
+				</div>
 
-				<div class="flex gap-2">
-					<button onclick={deleteToken} class="variant-ghost-error btn" title="Delete all tokens">
-						<iconify-icon icon="mdi:delete"></iconify-icon>
+				<div class="flex gap-2 pt-2">
+					<button onclick={deleteToken} class="variant-soft-error btn" title="Delete all tokens">
+						<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
 					</button>
-					<button onclick={addAnotherToken} class="variant-ghost-secondary btn flex-1 font-bold">
+					<button onclick={addAnotherToken} class="variant-soft-surface btn flex-1 font-bold">
 						<iconify-icon icon="mdi:plus"></iconify-icon>
-						<span>Add Another Token</span>
+						<span>Add Another</span>
 					</button>
-					<button onclick={insert} class="variant-filled-tertiary btn flex-1 font-bold dark:variant-filled-primary">Insert</button>
+					<button onclick={insert} class="variant-filled-primary btn flex-1 font-bold"> Insert Token </button>
 				</div>
 			</div>
 		{/if}
 	</div>
 {/if}
+```

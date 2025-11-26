@@ -1,6 +1,20 @@
 <!--
 @file: /src/components/Dropdown.svelte
-@description: An improved dropdown component that displays the currently selected item and properly handles icons
+@component
+**An improved dropdown component that displays the currently selected item and properly handles icons**
+
+### Props
+- `items`: Array of selectable items
+- `label`: Optional label for the dropdown
+- `icon`: Optional icon for the dropdown button
+- `class`: Custom class for the dropdown container
+- `show`: Whether to show the dropdown
+- `active`: Currently active dropdown ID
+
+### Features
+- Click to edit
+- Enter to save
+- Escape to cancel
 -->
 
 <script lang="ts">

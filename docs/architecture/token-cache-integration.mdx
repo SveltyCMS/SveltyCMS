@@ -1,0 +1,67 @@
+---
+title: Token System Cache Integration
+description: Technical details on how the Token System integrates with the SveltyCMS dual-layer cache.
+---
+
+# Token System Cache Integration
+
+This document details how the Token System leverages the [Cache System](./cache-system.mdx) to ensure high performance while maintaining security and data freshness.
+
+## Strategy Overview
+
+The Token System uses a hybrid approach:
+
+1.  **Token Definitions (Registry)**: Cached aggressively (L1/L2) as they rarely change.
+2.  **Token Resolution (Values)**: **Never cached** to ensure real-time accuracy and security.
+
+## 1. Token Registry Caching
+
+The `TokenRegistry` generates a list of available tokens based on the schema and user role. This process involves:
+
+- Scanning all collections.
+- Checking permissions (RBAC).
+- Generating relation paths.
+
+Since schemas and permissions change infrequently, this result is cached.
+
+- **Cache Category**: `computed`
+- **TTL**: 6 hours (default)
+- **Key Format**: `token_registry:{role}:{collection}:{locale}`
+- **Storage**:
+  - **L1 (Redis)**: Fast access for frequent requests.
+  - **L2 (MongoDB)**: Persistence across restarts.
+
+### In-Memory Optimization (WeakRef)
+
+For extreme performance during a single request lifecycle or short bursts, the `TokenRegistry` service maintains an internal `Map` with a short TTL (5 minutes) to avoid hitting Redis for every field in a list.
+
+## 2. Token Resolution (No-Cache)
+
+When `handleTokenResolution` middleware processes a response, it replaces tokens with actual values.
+
+**Why No Cache?**
+
+- **User Context**: `{{ user.name }}` depends on the _viewer_, not the content. Caching this would leak data between users.
+- **Time Sensitivity**: `{{ system.now }}` must be current.
+- **Security**: RBAC checks for relations must happen at request time to reflect immediate permission changes.
+
+## 3. Middleware Pipeline
+
+The `handleTokenResolution` middleware is placed **after** `handleAuthorization` and **before** `addSecurityHeaders`.
+
+```typescript
+// src/hooks.server.ts
+export const handle = sequence(
+	// ...
+	handleAuthorization, // Sets event.locals.user & permissions
+	handleApiRequests, // (Optional) API caching
+	handleTokenResolution, // Resolves tokens using fresh context
+	addSecurityHeaders // CSP & Security
+);
+```
+
+## 4. Performance Considerations
+
+- **Streaming**: The middleware clones the response to read the body. For very large responses, this doubles memory usage for that request.
+- **Recursion Limit**: Token resolution has a depth limit (default 10) to prevent infinite loops.
+- **Lazy Loading**: The relation engine uses dynamic imports to avoid increasing the initial bundle size.

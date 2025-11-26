@@ -1,6 +1,12 @@
 /**
 @file src/widgets/core/RichText/extensions/TextStyle.ts
 @description - RichText TipTap widget text style extension with fixed font size handling
+
+Features:
+- Font Size
+- Font Color
+- Font Weight
+- Text Alignment
 */
 
 // TipTap v3 exports TextStyle as a named export (no default)

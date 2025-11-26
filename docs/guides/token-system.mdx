@@ -1,252 +1,80 @@
-path: 'docs/guides/token-system.mdx'
-title: 'Enterprise Token System'
-description: 'Comprehensive guide to the SveltyCMS dynamic token engine, builder UI, modifier system, and automation use cases.'
-order: 10
-icon: 'mdi:code-braces'
-author: 'admin'
-created: '2025-11-23'
-updated: '2025-11-24'
-tags:
+---
+title: Token System
+description: Comprehensive guide to using the SveltyCMS Token System for dynamic content.
+---
 
-'tokens'
+# Token System
 
-'templating'
+The SveltyCMS Token System allows you to inject dynamic content into your entries, supporting fields from the current entry, related collections, user data, site configuration, and system values.
 
-'dynamic-content'
+## Syntax
 
-'personalization'
+Tokens are enclosed in double curly braces: `{{ token_path }}`.
 
-'automation'
+Example: `{{ entry.title }}` resolves to the title of the current entry.
 
-Enterprise Token System
+### Modifiers
 
-The SveltyCMS Token System acts as a dynamic bridge between your raw content and your published output. It allows you to define content logic (e.g., "This title should always be the entry name + site name") rather than static text.
+You can transform token values using pipe modifiers: `{{ token | modifier(args) }}`.
 
-This document serves as both an Architecture Reference for developers and an Automation Guide for content editors.
+Example: `{{ system.now | date("MMM do, yyyy") }}` formats the current date.
 
-1. System Architecture
+## Token Categories
 
-The system follows a "Save Raw, Render Dynamic" philosophy. This decoupling ensures your content is future-proof; changing a global setting updates every piece of content instantly without database migrations.
+### Entry Tokens (`entry.*`)
 
-Data Flow Diagram
+Access fields from the current entry.
 
-graph TD
-subgraph Editor["Content Editor (SvelteKit)"]
-Input[Input Field] -->|Focus| Picker[Token Picker UI]
-Picker -->|Select| Token["{{entry.title}}"]
-Token -->|Insert| Input
-Input -->|Save| DB[(Database)]
-end
+- `{{ entry.title }}`: The title field.
+- `{{ entry.slug }}`: The slug field.
+- **Relations**: Access fields from related collections.
+  - `{{ entry.author.name }}`: The name of the related author.
+  - `{{ entry.tags.count }}`: The number of related tags.
 
-    subgraph Engine["Token Engine (Server)"]
-        Request[API Request] -->|Fetch| DB
-        DB -->|Raw Data| Resolution[Resolution Service]
-        Resolution -->|Lookup| Registry{Token Registry}
-        Registry -->|Entry Data| Context
-        Registry -->|Site Config| Context
-        Registry -->|User Info| Context
-        Resolution -->|Apply| Modifiers[Modifiers (upper, slug)]
-    end
+### User Tokens (`user.*`)
 
-    subgraph Output["Final Response"]
-        Resolution -->|Rendered String| JSON[API Response]
-        JSON --> Frontend[Headless Frontend]
-    end
+Access information about the current authenticated user.
 
-    style Editor fill:#f9f,stroke:#333,stroke-width:2px
-    style Engine fill:#bbf,stroke:#333,stroke-width:2px
+- `{{ user.name }}`: User's full name.
+- `{{ user.email }}`: User's email address.
+- `{{ user.role }}`: User's role (e.g., admin, editor).
 
-Core Components
+### Site Tokens (`site.*`)
 
-Registry (src/services/token/engine.ts): The brain that discovers available data points. It uses O(1) Map lookups for performance and scans Schema, Config, and User sessions.
+Access global site configuration values.
 
-UI (src/components/TokenPicker.svelte): A floating, draggable interface that appears when editing token-aware fields.
+- `{{ site.SITE_NAME }}`: The name of your website.
+- `{{ site.HOST_PROD }}`: Production URL.
 
-Interceptors (src/hooks.server.ts): Middleware that automatically resolves tokens in API responses before they reach the client.
+### System Tokens (`system.*`)
 
-2. Collection Automation Use Cases
+Access dynamic system values.
 
-Tokens are most powerful when used to automate repetitive content tasks. Here are standard patterns for Collection configuration.
+- `{{ system.now }}`: Current ISO timestamp.
+- `{{ system.year }}`: Current year (useful for copyright).
 
-Use Case A: Automated SEO Meta Titles
+## Visual Indicators & Validation
 
-Instead of manually writing SEO titles for every blog post, use tokens to enforce a standard format.
+Fields that contain tokens are marked with a **code icon** <iconify-icon icon="mdi:code-braces" class="inline text-primary-500"></iconify-icon>.
 
-Field: meta_title
+- **Valid**: The icon is blue/primary color.
+- **Invalid**: The icon is red/error color (e.g., unmatched braces). Hover over the icon to see the error message.
 
-Token Pattern: {{entry.title}} | {{site.SITE_NAME}}
+## Security (RBAC)
 
-Result: If your post is "Hello World" and site is "Svelty", the API returns: Hello World | Svelty.
+The Token System respects Role-Based Access Control (RBAC).
 
-Benefit: If you rebrand to "SuperCMS", all SEO titles update instantly.
+- **Relations**: You can only access related content if you have `read` permission for that collection.
+- **User Data**: Sensitive user fields (password, hash, salt) are blocked.
 
-Use Case B: URL Slug Generation
+## Developer Notes
 
-Ensure URLs are always valid, lowercase, and URL-friendly.
+### API Resolution
 
-Field: slug
+Tokens are automatically resolved in JSON API responses (`/api/*`).
+To prevent resolution (e.g., for editing), use the escape syntax: `\{{ token }}`.
 
-Token Pattern: {{entry.title | slug}}
+### Caching
 
-Result: Input "My Cool Post!" becomes my-cool-post.
-
-Benefit: Eliminates human error in URL creation.
-
-Use Case C: Dynamic Email Templates
-
-Personalize automated emails sent by the system (e.g., welcome emails or order confirmations).
-
-Field: email_body
-
-Token Pattern:
-
-Hello {{user.name | default:'Valued Customer'}},
-
-Thank you for your order!
-Date: {{system.now | date('YYYY-MM-DD')}}
-
-Result: "Hello Alice, Thank you for your order! Date: 2025-11-24"
-
-3. User Guide: The Token Builder
-
-The system features a visual Token Builder UI that allows you to find, configure, and format data without writing code.
-
-Step 1: Activation
-
-Click the token icon { } inside any supported input field. The Token Window will appear.
-
-Step 2: Selection
-
-Browse tokens by category (User, Site, Entry, System) or use the search bar.
-
-Step 3: Configuration (Builder Mode)
-
-Once you select a token, the UI enters Builder Mode. Here you can add Modifiers to transform the data.
-
-Add Modifiers: Click buttons like + UPPERCASE or + DATE.
-
-Configure Arguments: Set options like date formats (YYYY-MM-DD) or truncation length.
-
-Live Preview: See the exact code (e.g., {{system.now | date('YYYY')}}) before inserting.
-
-4. Modifier Reference
-
-Modifiers transform data using the pipe | syntax.
-
-Text & Formatting
-
-Modifier
-
-Description
-
-Example Input
-
-Result
-
-upper
-
-Uppercase
-
-hello
-
-HELLO
-
-capitalize
-
-Capitalize first letter
-
-hello world
-
-Hello world
-
-slug
-
-URL-friendly slug
-
-Hello World!
-
-hello-world
-
-truncate(len, suffix)
-
-Shorten text
-
-Long text...
-
-Long...
-
-Logic & Control
-
-Modifier
-
-Description
-
-Syntax
-
-default(val)
-
-Fallback if empty
-
-`{{title
-
-if(trueVal, falseVal)
-
-Conditional logic
-
-`{{price
-
-eq(val) / ne(val)
-
-Equals / Not Equals
-
-`{{role
-
-gt(val) / lt(val)
-
-Greater/Less than
-
-`{{views
-
-Date & Math
-
-Modifier
-
-Description
-
-Example
-
-date(format)
-
-Formats ISO dates
-
-`{{now
-
-add(n) / subtract(n)
-
-Math operations
-
-`{{price
-
-5. Developer Guide
-
-Security Features
-
-Allow-listing: The engine explicitly blocks access to sensitive User fields (like password, hash, salt). Only safe fields (email, name, role) are exposed.
-
-Recursion Protection: The engine detects infinite loops (e.g., Token A -> Token B -> Token A) and halts execution after a configurable depth (default: 10).
-
-Escaping: Users can type \{{token}} to display the literal code without triggering replacement.
-
-Adding Custom Tokens
-
-Inject custom tokens (e.g., from an external API) via the registry configuration in src/services/token/engine.ts.
-
-TokenRegistry.getTokens(schema, user, {
-customTokens: [{
-token: 'weather.current',
-name: 'Current Temp',
-category: 'system',
-type: 'number',
-resolve: async () => await fetchWeather() // Async supported!
-}]
-});
+Token definitions are cached for performance (6 hours).
+Token _values_ are resolved in real-time and are NOT cached to ensure accuracy (especially for user/time-based tokens).

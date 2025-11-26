@@ -1,15 +1,16 @@
 /**
  * @file src/services/token/engine.ts
- * @description Engine now infers types for smarter UI suggestions.
+ * @description Enhanced token engine with comprehensive descriptions and cross-collection support
  *
  * Features:
- * - Typed tokens
- * - Token modifiers
- * - Token categories
- * - Token description
- * - Token type
- * - Token resolve function
- * - Token registry
+ * - Token Registry
+ * - Token Resolution
+ * - Token Caching
+ * - Token Modifiers
+ * - Token Permissions
+ * - Token Validation
+ * - Token Escaping
+ * - Token Replacement
  */
 import type { TokenContext, TokenDefinition, TokenRegistryConfig, TokenReplaceOptions, TokenCategory } from './types';
 import type { Schema } from '@src/content/types';
@@ -17,25 +18,38 @@ import type { User } from '@src/databases/auth/types';
 import { modifierRegistry } from './modifiers';
 import { logger } from '@utils/logger';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
+import { browser } from '$app/environment';
+import { resolveRelationToken } from './relationResolver';
 
 const ALLOWED_USER_FIELDS = ['_id', 'email', 'username', 'role', 'avatar', 'language', 'name'];
 
 class TokenRegistryService {
 	private resolvers = new Map<string, (ctx: TokenContext) => any>();
+	private cache = new Map<string, { timestamp: number; data: Record<TokenCategory, TokenDefinition[]> }>();
+	private CACHE_TTL = 1000 * 60 * 5; // 5 minutes
 
-	resolve(tokenKey: string, ctx: TokenContext): any {
+	async resolve(tokenKey: string, ctx: TokenContext): Promise<any> {
 		const resolver = this.resolvers.get(tokenKey);
 		if (resolver) return resolver(ctx);
-		// Basic security for user fields fallback
+
+		// Security check for user fields
 		if (tokenKey.startsWith('user.')) {
 			const field = tokenKey.split('.')[1];
 			if (!ALLOWED_USER_FIELDS.includes(field)) return '';
 		}
+
+		// Try relation resolver for deep entry tokens
+		if (tokenKey.startsWith('entry.') && tokenKey.split('.').length > 2) {
+			try {
+				const val = await resolveRelationToken(tokenKey, ctx, ctx.user, ctx.tenantId);
+				if (val !== null) return val;
+			} catch (e) {
+				logger.error(`Failed to resolve relation token ${tokenKey}:`, e);
+			}
+		}
+
 		return tokenKey.split('.').reduce((curr: any, key) => curr?.[key], ctx);
 	}
-
-	private cache = new Map<string, { timestamp: number; data: Record<TokenCategory, TokenDefinition[]> }>();
-	private CACHE_TTL = 1000 * 60 * 5; // 5 minutes
 
 	clearCache() {
 		this.resolvers.clear();
@@ -43,20 +57,13 @@ class TokenRegistryService {
 	}
 
 	getTokens(schema?: Schema, user?: User, config: TokenRegistryConfig = {}): Record<TokenCategory, TokenDefinition[]> {
-		// Generate Cache Key
 		const role = user?.role || 'public';
 		const collection = schema?.name || 'global';
-		const locale = config.locale || 'en'; // Add locale to config if needed, or just use what we have
+		const locale = config.locale || 'en';
 		const key = `${role}:${collection}:${locale}`;
 
-		// Check Cache
 		const cached = this.cache.get(key);
 		if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-			// Re-register resolvers from cache (since they might be cleared if we clear resolvers but keep cache, though here we clear both)
-			// Actually, resolvers need to be always available.
-			// If we return cached tokens, we assume their resolvers are still in this.resolvers.
-			// But if the app restarted, this.resolvers is empty.
-			// Since this is in-memory, if app restarts, cache is empty too. So it's fine.
 			return cached.data;
 		}
 
@@ -66,77 +73,138 @@ class TokenRegistryService {
 			this.resolvers.set(t.token, t.resolve);
 		};
 
-		// 1. System (Typed)
+		// 1. ENHANCED SYSTEM TOKENS
 		if (config.includeSystem !== false) {
 			add({
 				token: 'system.now',
-				name: 'Current Date',
+				name: 'Current Date & Time',
 				category: 'system',
 				type: 'date',
-				description: 'ISO Date',
+				description: 'Full ISO 8601 timestamp (e.g., 2025-11-24T14:30:00Z). Use with |date() modifier to format.',
+				example: '{{system.now | date("MMM do, yyyy")}}',
 				resolve: () => new Date().toISOString()
 			});
+
 			add({
 				token: 'system.year',
 				name: 'Current Year',
 				category: 'system',
 				type: 'number',
-				description: '4-digit Year',
+				description: 'Four-digit year (e.g., 2025). Perfect for copyright notices.',
+				example: '© {{system.year}} Company Name',
 				resolve: () => new Date().getFullYear()
+			});
+
+			add({
+				token: 'system.timestamp',
+				name: 'Unix Timestamp',
+				category: 'system',
+				type: 'number',
+				description: 'Milliseconds since epoch. Useful for unique IDs or sorting.',
+				example: '{{system.timestamp}}',
+				resolve: () => Date.now()
+			});
+
+			add({
+				token: 'system.date',
+				name: 'Current Date',
+				category: 'system',
+				type: 'string',
+				description: "Today's date in YYYY-MM-DD format.",
+				example: '{{system.date}}',
+				resolve: () => new Date().toISOString().split('T')[0]
+			});
+
+			add({
+				token: 'system.time',
+				name: 'Current Time',
+				category: 'system',
+				type: 'string',
+				description: 'Current time in HH:MM:SS format (24-hour).',
+				example: '{{system.time}}',
+				resolve: () => new Date().toTimeString().split(' ')[0]
+			});
+
+			// Individual date components
+			['month', 'day', 'hour', 'minute', 'second'].forEach((unit) => {
+				add({
+					token: `system.${unit}`,
+					name: `Current ${unit.charAt(0).toUpperCase() + unit.slice(1)}`,
+					category: 'system',
+					type: 'number',
+					description: `Current ${unit} value.`,
+					resolve: () => (new Date() as any)[`get${unit === 'day' ? 'Date' : unit.charAt(0).toUpperCase() + unit.slice(1)}`]()
+				});
 			});
 		}
 
-		// 2. User
+		// 2. ENHANCED USER TOKENS
 		if (user && config.includeUser !== false) {
+			const userFieldDescriptions: Record<string, string> = {
+				_id: 'Unique user identifier (UUID format)',
+				email: "User's email address",
+				username: "User's display name or handle",
+				role: "User's permission level (admin, editor, viewer, etc.)",
+				avatar: "URL to user's profile picture",
+				language: "User's preferred language code (e.g., en, de, fr)",
+				name: "User's full name"
+			};
+
 			ALLOWED_USER_FIELDS.forEach((field) => {
 				if (field in user) {
 					add({
 						token: `user.${field}`,
 						name: `User ${field.charAt(0).toUpperCase() + field.slice(1)}`,
 						category: 'user',
-						type: 'string',
-						description: `User profile field: ${field}`,
+						type: field === '_id' || field === 'email' ? 'string' : 'string',
+						description: userFieldDescriptions[field] || `User's ${field} field`,
+						example: field === 'name' ? `Welcome back, {{user.name}}!` : `{{user.${field}}}`,
 						resolve: (c) => c.user?.[field as keyof User]
 					});
 				}
 			});
 		}
 
-		// 3. Site
+		// 3. ENHANCED SITE TOKENS
 		if (config.includeSite !== false && publicEnv) {
-			const siteMap: Record<string, { name: string; type: any }> = {
-				SITE_NAME: { name: 'Site Name', type: 'string' },
-				HOST_PROD: { name: 'Site URL', type: 'string' },
-				DEFAULT_CONTENT_LANGUAGE: { name: 'Default Language', type: 'string' },
-				PKG_VERSION: { name: 'System Version', type: 'string' },
-				MEDIA_FOLDER: { name: 'Media Folder', type: 'string' }
+			const siteDescriptions: Record<string, string> = {
+				SITE_NAME: "Your website's name (appears in titles and branding)",
+				HOST_PROD: 'Production URL (e.g., https://example.com)',
+				DEFAULT_CONTENT_LANGUAGE: 'Default language for content',
+				PKG_VERSION: 'Current CMS version number',
+				MEDIA_FOLDER: 'Path to uploaded media files'
 			};
 
 			Object.entries(publicEnv).forEach(([key, val]) => {
-				if (key in siteMap) {
+				if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
 					add({
 						token: `site.${key}`,
-						name: siteMap[key].name,
-						category: 'site',
-						type: siteMap[key].type,
-						description: `Site setting: ${key}`,
-						resolve: () => publicEnv[key as keyof typeof publicEnv]
-					});
-				} else if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
-					add({
-						token: `site.${key}`,
-						name: key.replace(/_/g, ' '),
+						name: key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
 						category: 'site',
 						type: typeof val as any,
-						description: `Site setting: ${key}`,
+						description: siteDescriptions[key] || `Site configuration: ${key}`,
+						example: key === 'SITE_NAME' ? `{{entry.title}} | {{site.SITE_NAME}}` : `{{site.${key}}}`,
 						resolve: () => publicEnv[key as keyof typeof publicEnv]
 					});
 				}
 			});
 		}
 
-		// 4. Entry (Schema Typed)
+		// 4. ENHANCED ENTRY TOKENS (including Relations)
 		if (schema?.fields && config.includeEntry !== false) {
+			// Import relation token generator
+			// Note: We use dynamic import to avoid circular dependencies if any
+			// AND to avoid importing server-side code on the client
+			if (!browser) {
+				import('./relationEngine').then(({ getRelationTokens }) => {
+					getRelationTokens(schema, user, config.tenantId, config.roles as any[])
+						.then((relationTokens) => {
+							relationTokens.forEach((t) => add(t));
+						})
+						.catch((err) => logger.error('Failed to load relation tokens', err));
+				});
+			}
+
 			const WIDGET_TYPE_MAP: Record<string, any> = {
 				// Core
 				Checkbox: 'boolean',
@@ -169,12 +237,32 @@ class TokenRegistryService {
 				const widgetName = field.widget?.Name;
 				const type = WIDGET_TYPE_MAP[widgetName] || 'string';
 
+				// Generate smart descriptions based on widget type
+				let description = field.helper || field.description || `Field: ${name}`;
+				let example = `{{entry.${name}}}`;
+
+				// Widget-specific examples
+				if (widgetName === 'RichText') {
+					example = `{{entry.${name} | truncate(150)}}`;
+					description += ' (HTML content - use truncate for previews)';
+				} else if (widgetName === 'Date') {
+					example = `{{entry.${name} | date("MMM do, yyyy")}}`;
+					description += ' (use date() modifier to format)';
+				} else if (widgetName === 'MediaUpload') {
+					example = `{{entry.${name}.url}}`;
+					description += ' (access .url, .alt, .title properties)';
+				} else if (widgetName === 'Number' || widgetName === 'Currency') {
+					example = `{{entry.${name} | add(10)}}`;
+					description += ' (supports math: add, subtract, multiply)';
+				}
+
 				add({
 					token: `entry.${name}`,
 					name: field.label || name,
 					category: 'entry',
 					type,
-					description: `${widgetName || 'Field'}: ${field.helper || name}`,
+					description,
+					example,
 					resolve: (c) => {
 						const fieldData = c.entry?.[name];
 						// If it's a widget object with a value property, extract it
@@ -188,7 +276,13 @@ class TokenRegistryService {
 		}
 
 		// Grouping
-		const grouped: Record<string, TokenDefinition[]> = { entry: [], user: [], site: [], system: [], recentlyUsed: [] };
+		const grouped: Record<string, TokenDefinition[]> = {
+			entry: [],
+			user: [],
+			site: [],
+			system: [],
+			recentlyUsed: []
+		};
 		tokens.forEach((t) => {
 			if (!grouped[t.category]) grouped[t.category] = [];
 			grouped[t.category].push(t);
@@ -204,11 +298,11 @@ class TokenRegistryService {
 export const TokenRegistry = new TokenRegistryService();
 
 // Regex and replaceTokens function remain the same...
-// Regex and replaceTokens function remain the same...
 const TOKEN_REGEX = /(?<!\\)\{\{([^}]+)\}\}/g;
 
 export async function replaceTokens(template: string, context: TokenContext, options: TokenReplaceOptions = {}): Promise<string> {
 	if (!template || !template.includes('{{')) return template.replace(/\\\{\{/g, '{{');
+
 	const { maxDepth = 10 } = options;
 	let result = template;
 	let depth = 0;
@@ -238,17 +332,6 @@ export async function replaceTokens(template: string, context: TokenContext, opt
 							const args = m[2] ? m[2].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, '')) : [];
 							const fn = modifierRegistry.get(name);
 							if (fn) value = await fn(value as any, args);
-						} else if (modStr.includes(':')) {
-							// Try colons: name:arg1:arg2
-							const parts = modStr.split(':');
-							const name = parts.shift()!.toLowerCase();
-							const args = parts.map((s) => s.trim().replace(/^['"]|['"]$/g, ''));
-							const fn = modifierRegistry.get(name);
-							if (fn) value = await fn(value as any, args);
-						} else {
-							// Simple modifier: name
-							const fn = modifierRegistry.get(modStr.toLowerCase());
-							if (fn) value = await fn(value as any, []);
 						}
 					}
 				} catch (e) {

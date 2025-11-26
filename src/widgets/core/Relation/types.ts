@@ -7,18 +7,12 @@
  * - **Modular**: Separates props for single and multiple relation types.
  */
 
-/**
- * Defines the properties unique to the Relation & RelationList widgets.
- */
+// Defines the properties unique to the Relation & RelationList widgets.
 export interface RelationProps {
-	/**
-	 * The `_id` of the collection to relate to.
-	 */
+	// The `_id` of the collection to relate to.
 	collection: string;
 
-	/**
-	 * The field from the related collection to display in the selector.
-	 */
+	// The field from the related collection to display in the selector.
 	displayField: string;
 
 	// Index signature to satisfy WidgetProps constraint

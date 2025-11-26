@@ -1,6 +1,16 @@
 /**
  * @file src/services/token/types.ts
  * @description Core type definitions for the Token System
+ *
+ * Features:
+ * - Token Registry
+ * - Token Resolution
+ * - Token Caching
+ * - Token Modifiers
+ * - Token Permissions
+ * - Token Validation
+ * - Token Escaping
+ * - Token Replacement
  */
 import type { Schema, ISODateString } from '@src/content/types';
 import type { User } from '@src/databases/auth/types';
@@ -15,6 +25,8 @@ export interface TokenContext {
 	site?: Record<string, any>;
 	system?: { now: ISODateString; [key: string]: any };
 	locale?: string;
+	tenantId?: string;
+	roles?: any[];
 	[key: string]: any;
 }
 
@@ -26,7 +38,7 @@ export interface TokenDefinition {
 	type: TokenType; // New: Helps UI suggest relevant modifiers
 	example?: string;
 	requiresPermission?: string;
-	resolve: (context: TokenContext) => any;
+	resolve: (context: TokenContext) => any | Promise<any>;
 }
 
 // --- Modifier Metadata for UI ---
@@ -56,6 +68,8 @@ export interface TokenRegistryConfig {
 	includeSystem?: boolean;
 	customTokens?: TokenDefinition[];
 	locale?: string;
+	tenantId?: string;
+	roles?: any[];
 }
 
 export interface TokenReplaceOptions {

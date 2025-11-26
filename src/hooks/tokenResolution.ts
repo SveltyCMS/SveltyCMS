@@ -1,45 +1,63 @@
 /**
  * @file src/hooks/tokenResolution.ts
- * @description Middleware that resolves tokens in JSON API responses.
- *
- * @param event - The SvelteKit event object.
- * @param resolve - The SvelteKit resolve function.
- * @returns The resolved response.
+ * @description Middleware hook for RBAC-aware token resolution in API responses
  *
  * Features:
- * - Resolves tokens in JSON API responses.
- * - Only processes JSON API responses for collection endpoints.
- * - Clones response body to avoid modifying the original response.
- * - Processes the response body with tokens.
- * - Returns the processed response.
+ * - Token Resolution
+ * - Token Caching
+ * - Token Modifiers
+ * - Token Permissions
+ * - Token Validation
+ * - Token Escaping
+ * - Token Replacement
  */
-
-import { processTokensInResponse } from '@src/services/token/helper';
 import type { Handle } from '@sveltejs/kit';
+import { processTokensInResponse } from '@src/services/token/helper';
+import { logger } from '@utils/logger';
 
 export const handleTokenResolution: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
 
-	// Process JSON API responses for Collection REST API and GraphQL
-	const isCollectionApi = event.url.pathname.startsWith('/api/collection');
-	const isGraphQL = event.url.pathname.startsWith('/api/graphql');
+	// Only process JSON API responses
+	const contentType = response.headers.get('content-type');
+	const isJson = contentType?.includes('application/json');
+	const isApi = event.url.pathname.startsWith('/api/');
 
-	if ((isCollectionApi || isGraphQL) && response.headers.get('content-type')?.includes('application/json')) {
-		// Clone response body
-		try {
-			const body = await response.json();
-			const locale = (event.locals as any).locale || 'en'; // Assuming locale is set in locals, fallback to 'en'
-			const processed = await processTokensInResponse(body, event.locals.user ?? undefined, locale);
-
-			return new Response(JSON.stringify(processed), {
-				status: response.status,
-				headers: response.headers
-			});
-		} catch (e) {
-			// If JSON parsing fails or other errors, return original response
-			return response;
-		}
+	if (!isJson || !isApi) {
+		return response;
 	}
 
-	return response;
+	// Skip internal endpoints that shouldn't have token replacement
+	if (event.url.pathname.startsWith('/api/system') || event.url.pathname.startsWith('/api/auth')) {
+		return response;
+	}
+
+	try {
+		// Clone response to read body (streaming-safe)
+		const clonedResponse = response.clone();
+		const body = await clonedResponse.json();
+
+		// Process tokens with RBAC context
+		// We use event.locals which are populated by handleAuthentication and handleAuthorization
+		const processed = await processTokensInResponse(body, event.locals.user || undefined, (event.locals as any).contentLanguage || 'en', {
+			tenantId: (event.locals as any).tenantId,
+			roles: (event.locals as any).roles
+			// Add collection context if available in locals (optional optimization)
+			// collection: event.locals.collection
+		});
+
+		// Return new response with processed body
+		return new Response(JSON.stringify(processed), {
+			status: response.status,
+			statusText: response.statusText,
+			headers: response.headers
+		});
+	} catch (error) {
+		logger.error('Token resolution middleware failed', {
+			error,
+			path: event.url.pathname
+		});
+		// Return original response on error to prevent breakage
+		return response;
+	}
 };

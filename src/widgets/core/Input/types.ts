@@ -20,14 +20,10 @@ export interface InputProps {
 	count?: number;
 
 	// Text constraints
-	/**
-	 * The minimum allowed length for text content.
-	 */
+	// The minimum allowed length for text content.
 	minLength?: number;
 
-	/**
-	 * The maximum allowed length for text content.
-	 */
+	// The maximum allowed length for text content.
 	maxLength?: number;
 
 	// Index signature for WidgetProps constraint

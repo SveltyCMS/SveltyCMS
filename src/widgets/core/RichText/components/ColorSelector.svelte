@@ -1,6 +1,19 @@
 <!--
 @file: /src/components/ColorSelector.svelte
-@description: Tiptp ColorSelector
+@component
+**Tiptp ColorSelector**
+
+### Props
+- `color`: string
+- `show`: boolean
+- `key`: string
+- `active`: string
+- `onChange`: (color: string) => void
+
+### Features
+- Click to edit
+- Enter to save
+- Escape to cancel
 -->
 
 <script lang="ts">

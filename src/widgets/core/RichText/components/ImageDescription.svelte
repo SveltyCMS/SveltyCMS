@@ -1,6 +1,19 @@
 <!--
 @file src/widgets/richText/components/ImageDescription.svelte
-@description - Image Description
+@component
+**Image Description**
+
+### Props
+- `show`: boolean
+- `value`: string
+- `key`: string
+- `active`: string
+- `onSubmit`: (value: string) => void
+
+### Features
+- Click to edit
+- Enter to save
+- Escape to cancel
 -->
 
 <script lang="ts">

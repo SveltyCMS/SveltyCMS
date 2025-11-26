@@ -12,6 +12,7 @@ This component provides a streamlined interface for managing collection entries 
 @example
 <RightSidebar />	
 
+
 #### Props
 - `collection` {object} - Collection object containing schema and permissions
 - Relies on global stores for validation state and form data

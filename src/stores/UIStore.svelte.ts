@@ -62,8 +62,8 @@ const createUIStores = () => {
 		}
 
 		// Determine if we should show the collection header (HeaderEdit)
-		// Show in view, edit, create, modify, media modes
-		const isCollectionMode = ['view', 'edit', 'create', 'modify', 'media'].includes(mode.value);
+		// Show in edit, create, modify, media modes (exclude view as EntryList has its own header)
+		const isCollectionMode = ['edit', 'create', 'modify', 'media'].includes(mode.value);
 
 		// Mobile behavior (<768px) - Always hide sidebars; keep page header/footer hidden by default
 		if (size === ScreenSize.XS || size === ScreenSize.SM) {

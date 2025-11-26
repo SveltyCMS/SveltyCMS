@@ -3,9 +3,15 @@
 @component
 **VideoDialog for richText editor**
 
-@props show - boolean
-@props editor - Editor
+### Props
+- `show`: boolean
+- `editor`: Editor
 
+### Features
+- YouTube Video Insertion
+- URL Validation
+- Escape Key Support
+- Fade Transitions
 -->
 
 <script lang="ts">
