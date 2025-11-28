@@ -312,6 +312,7 @@ export interface CollectionExport {
 	fields: unknown[];
 	permissions?: string[];
 	settings?: Record<string, unknown>;
+	documents?: Record<string, unknown>[];
 }
 
 export interface ValidationResult {

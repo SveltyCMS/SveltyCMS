@@ -36,12 +36,13 @@ const createUIStores = () => {
 	let screenSizeUnsubscribe: (() => void) | null = null;
 	const initialSize = screenSize.value;
 
-	let routeContext = $state({ isImageEditor: false });
+	let routeContext = $state({ isImageEditor: false, isCollectionBuilder: false });
 
-	function setRouteContext(context: { isImageEditor: boolean }) {
-		if (routeContext.isImageEditor !== context.isImageEditor) {
-			routeContext = context;
-			logger.debug('UIStore: Route context updated', context);
+	function setRouteContext(context: { isImageEditor?: boolean; isCollectionBuilder?: boolean }) {
+		const newContext = { ...routeContext, ...context };
+		if (JSON.stringify(routeContext) !== JSON.stringify(newContext)) {
+			routeContext = newContext;
+			logger.debug('UIStore: Route context updated', newContext);
 			updateLayout();
 		}
 	}
@@ -52,10 +53,22 @@ const createUIStores = () => {
 		// Tailored default state for the image editor route
 		if (routeContext.isImageEditor) {
 			return {
-				leftSidebar: 'hidden',
+				leftSidebar: 'collapsed',
 				rightSidebar: 'hidden',
 				pageheader: 'full',
 				pagefooter: 'full',
+				header: 'hidden',
+				footer: 'hidden'
+			};
+		}
+
+		// Tailored default state for the collection builder route
+		if (routeContext.isCollectionBuilder) {
+			return {
+				leftSidebar: 'collapsed',
+				rightSidebar: 'hidden',
+				pageheader: 'full',
+				pagefooter: 'hidden',
 				header: 'hidden',
 				footer: 'hidden'
 			};

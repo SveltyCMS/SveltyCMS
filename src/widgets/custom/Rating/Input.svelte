@@ -34,7 +34,7 @@ Interactive star rating with hover states and click selection
 	let { field, value = $bindable(), error }: { field: FieldType; value?: number | null | undefined; error?: string | null } = $props();
 
 	// Local value to handle null conversion
-	let localValue = $state<number | undefined>(value ?? undefined);
+	let localValue = $state(value ?? undefined);
 
 	// Sync local value with prop
 	$effect(() => {

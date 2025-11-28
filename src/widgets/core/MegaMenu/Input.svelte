@@ -49,8 +49,8 @@ Interactive menu builder with add/edit/reorder capabilities
 	}
 
 	// State for drag and drop
-	let draggedItem = $state<MenuItem | null>(null);
-	let dragOverIndex = $state<number | null>(null);
+	let draggedItem = $state(null);
+	let dragOverIndex = $state(null);
 
 	// Function to add a new top-level menu item.
 	function addItem() {
@@ -118,7 +118,7 @@ Interactive menu builder with add/edit/reorder capabilities
 			fields: (field as any).fields?.[level] || [],
 			isNew: false,
 			parent: undefined,
-			onSave: (data: Record<string, unknown>) => {
+			onSave: (data: Record) => {
 				item._fields = data;
 				value = [...(value || [])]; // Trigger reactivity
 			},

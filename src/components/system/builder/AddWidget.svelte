@@ -11,19 +11,21 @@
 	import type { WidgetFunction } from '@src/widgets/types';
 	import InputSwitch from './InputSwitch.svelte';
 
+	import type { AddWidgetProps } from './types';
+
 	let {
 		fields = $bindable([]),
 		addField = $bindable(false),
 		editField = $bindable(false),
-		selected_widget = $bindable<string | null>(null),
+		selected_widget = $bindable(null),
 		field = $bindable({
 			label: '',
-			widget: { key: null as string | null, GuiFields: {} as Record<string, unknown> }
+			widget: { key: null as string | null, GuiFields: {} as Record }
 		})
-	} = $props();
+	}: AddWidgetProps = $props();
 
 	const widget_keys = Object.keys($widgetFunctions);
-	let guiSchema = $state<WidgetFunction['GuiSchema'] | undefined>(undefined);
+	let guiSchema = $state(undefined);
 
 	$effect(() => {
 		if (selected_widget) {

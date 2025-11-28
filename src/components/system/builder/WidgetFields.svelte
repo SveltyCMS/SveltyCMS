@@ -1,6 +1,25 @@
 <!-- 
 @file src/components/system/builder/WidgetFields.svelte
-@description Component for displaying and managing widget fields 
+@component
+**Component for displaying and managing widget fields**
+
+### Features
+- Drag and drop fields
+- Edit fields
+- Delete fields
+
+### Props
+- fields: Array of widget fields
+- onFieldsUpdate: Function to update fields
+
+### Events
+- onFieldsUpdate: Function to update fields
+
+### Stores
+- uiStateManager: Store for UI state
+
+### Components
+- AddWidget: Component for adding widgets
 -->
 
 <script lang="ts">
@@ -15,19 +34,16 @@
 	import type { FieldInstance } from '@content/types';
 
 	// Props
-	const { fields = [], onFieldsUpdate = () => {} } = $props<{
-		fields: FieldInstance[];
-		onFieldsUpdate: (newFields: FieldInstance[]) => void;
-	}>();
+	const { fields = [], onFieldsUpdate = () => {} } = $props();
 
 	// State
-	let container = $state<HTMLDivElement | null>(null);
-	let currentFieldKey = $state<string | null>(null);
-	let currentField = $state<FieldInstance | null>(null);
+	let container = $state(null);
+	let currentFieldKey = $state(null);
+	let currentField = $state(null);
 
 	function initDragAndDrop(node: HTMLElement) {
 		function drag(e: PointerEvent) {
-			let timeOut: ReturnType<typeof setTimeout> | undefined;
+			let timeOut: ReturnType | undefined;
 			const pointerID = e.pointerId;
 
 			let targets = $state(

@@ -25,16 +25,10 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Props
-	let {
-		value = $bindable<File | MediaImage | undefined>(),
-		multiple = $bindable(false),
-		show = $bindable(true),
-		className = '',
-		onChange
-	} = $props();
+	let { value = $bindable(), multiple = $bindable(false), show = $bindable(true), className = '', onChange } = $props();
 
 	// Declare reactive state with $state
-	let input = $state<HTMLInputElement | null>(null);
+	let input = $state(null);
 	let showMedia = $state(false);
 
 	// Handle media selection

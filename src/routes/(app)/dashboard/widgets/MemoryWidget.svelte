@@ -49,19 +49,11 @@ Features:
 		size = { w: 1, h: 2 },
 		onSizeChange = () => {},
 		onRemove = () => {}
-	} = $props<{
-		label?: string;
-		theme?: 'light' | 'dark';
-		icon?: string;
-		widgetId?: string;
-		size?: { w: number; h: number };
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onRemove?: () => void;
-	}>();
+	} = $props();
 
-	let currentData = $state<any>(undefined);
-	let chart = $state<Chart<'pie', number[], string> | undefined>(undefined);
-	let chartCanvas = $state<HTMLCanvasElement | undefined>(undefined);
+	let currentData = $state(undefined);
+	let chart = $state(undefined);
+	let chartCanvas = $state(undefined);
 
 	function updateChartAction(_canvas: HTMLCanvasElement, data: any) {
 		currentData = data;
@@ -93,7 +85,7 @@ Features:
 				existingChart.destroy();
 			}
 
-			const memoryTextCenterPlugin: Plugin<'pie'> = {
+			const memoryTextCenterPlugin: Plugin = {
 				id: 'memoryTextCenterPlugin',
 				beforeDraw(chart) {
 					const ctx = chart.ctx;
@@ -117,7 +109,7 @@ Features:
 				}
 			};
 
-			const config: ChartConfiguration<'pie', number[], string> = {
+			const config: ChartConfiguration = {
 				type: 'pie',
 				data: {
 					labels: ['Used', 'Free'],

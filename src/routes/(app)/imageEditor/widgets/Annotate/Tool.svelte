@@ -40,7 +40,7 @@ Orchestrates the annotation lifecycle:
 	let _toolBound = $state(false);
 
 	// Svelte 5: use callback props via $props
-	const props = $props<{ onAnnotateApplied?: () => void; onAnnotateReset?: () => void }>();
+	const props = $props();
 
 	// --- Lifecycle $effect ---
 	$effect(() => {
@@ -133,7 +133,7 @@ Orchestrates the annotation lifecycle:
 	}
 
 	// --- Drawing Handlers ---
-	function onMouseDown(e: Konva.KonvaEventObject<MouseEvent>) {
+	function onMouseDown(e: Konva.KonvaEventObject) {
 		// Don't draw if clicking on existing node
 		if (e.target !== e.target.getStage()) return;
 
@@ -205,7 +205,7 @@ Orchestrates the annotation lifecycle:
 		imageEditorStore.state.layer?.batchDraw();
 	}
 
-	function onStageClick(e: Konva.KonvaEventObject<MouseEvent>) {
+	function onStageClick(e: Konva.KonvaEventObject) {
 		if (isDrawing || currentTool) return;
 		// Deselect if clicking on stage background
 		if (e.target === e.target.getStage()) {
@@ -213,7 +213,7 @@ Orchestrates the annotation lifecycle:
 		}
 	}
 
-	function onDblClick(e: Konva.KonvaEventObject<MouseEvent>) {
+	function onDblClick(e: Konva.KonvaEventObject) {
 		const node = e.target;
 		if (node instanceof Konva.Text) {
 			const item = annotations.find((a) => a.node === node);
@@ -312,7 +312,7 @@ Orchestrates the annotation lifecycle:
 
 		// 3. Load the baked image
 		const newImage = new Image();
-		await new Promise<void>((res) => {
+		await new Promise((res) => {
 			newImage.onload = () => res();
 			newImage.src = dataURL;
 		});

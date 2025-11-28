@@ -30,7 +30,7 @@ Features:
 	import * as m from '@src/paraglide/messages';
 
 	// Props
-	const { data } = $props<{ data: PageData }>();
+	const { data } = $props();
 
 	// State Management
 	const firstUserExists = $state(data.firstUserExists);
@@ -39,7 +39,7 @@ Features:
 	let hasResetParams = $state(false);
 
 	// Set Initial active state based on conditions
-	let active = $state<undefined | 0 | 1>(
+	let active = $state(
 		publicEnv?.DEMO || publicEnv?.SEASONS
 			? undefined // If DEMO or SEASONS is enabled, show logo
 			: firstUserExists
@@ -65,7 +65,7 @@ Features:
 	});
 
 	// Set initial background based on conditions (will be updated reactively)
-	let background = $state<'white' | '#242728'>(
+	let background = $state(
 		publicEnv?.DEMO
 			? '#242728' // Dark background for DEMO mode
 			: publicEnv?.SEASONS
@@ -85,9 +85,9 @@ Features:
 	let timeRemaining = $state({ minutes: 0, seconds: 0 });
 	let searchQuery = $state('');
 	let isDropdownOpen = $state(false);
-	let searchInput = $state<HTMLInputElement | null>(null);
+	let searchInput = $state(null);
 	let isTransitioning = $state(false);
-	let debounceTimeout = $state<ReturnType<typeof setTimeout>>();
+	let debounceTimeout = $state();
 
 	// Derived state using $derived rune
 	const availableLanguages = $derived([...availableLocales].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))));
@@ -153,7 +153,7 @@ Features:
 
 	// Set up the interval to update the countdown every second
 	$effect(() => {
-		let interval: ReturnType<typeof setInterval> | undefined;
+		let interval: ReturnType | undefined;
 		if (getPublicSetting('DEMO')) {
 			updateTimeRemaining();
 			interval = setInterval(updateTimeRemaining, 1000);

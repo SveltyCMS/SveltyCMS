@@ -36,7 +36,7 @@ already uses schema-based validation. This component provides defense-in-depth.
 	const { html, profile = 'default', class: className }: Props = $props();
 
 	// Sanitization profiles
-	const PROFILES: Record<SanitizeProfile, { allowedTags: string[]; allowedAttrs: string[] }> = {
+	const PROFILES: Record = {
 		default: {
 			allowedTags: [
 				'p',

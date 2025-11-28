@@ -57,17 +57,13 @@
 	}
 
 	// Props - Using API for scalability
-	const {
-		currentUser = null,
-		isMultiTenant = false,
-		roles = []
-	} = $props<{ currentUser?: { _id: string; [key: string]: unknown } | null; isMultiTenant?: boolean; roles?: Role[] }>();
+	const { currentUser = null, isMultiTenant = false, roles = [] } = $props();
 
 	const waitFilter = debounce(300);
 	const flipDurationMs = 300;
 
 	// State for API-fetched data (replaces adminData usage for scalability)
-	let tableData = $state<(User | Token)[]>([]);
+	let tableData = $state([]);
 	let totalItems = $state(0);
 
 	async function fetchData() {
@@ -111,7 +107,7 @@
 	}
 
 	// Custom event handler for token updates from Multibutton
-	function handleTokenUpdate(event: CustomEvent<{ tokenIds: string[]; action: string }>) {
+	function handleTokenUpdate(event: CustomEvent) {
 		const { tokenIds, action } = event.detail;
 
 		// Update the tableData instead of adminData for scalability
@@ -184,7 +180,7 @@
 	let filterShow = $state(false);
 	let columnShow = $state(false);
 	let selectAll = $state(false);
-	let selectedMap = $state<Record<number, boolean>>({});
+	let selectedMap = $state({});
 
 	// Derived rows to display and selection will be defined below
 	let density = $state(
@@ -197,11 +193,11 @@
 	// pagesCount becomes derived below
 	let currentPage = $state(1);
 	let rowsPerPage = $state(10);
-	let filters = $state<{ [key: string]: string }>({});
-	let sorting = $state<SortingState>({ sortedBy: '', isSorted: 0 });
+	let filters = $state({});
+	let sorting = $state({ sortedBy: '', isSorted: 0 });
 
 	// Initialize displayTableHeaders with a safe default
-	let displayTableHeaders = $state<TableHeader[]>([]);
+	let displayTableHeaders = $state([]);
 
 	$effect(() => {
 		// Update displayTableHeaders when view changes
@@ -495,11 +491,11 @@
 		}
 	}
 
-	function handleDndConsider(event: CustomEvent<{ items: TableHeader[] }>) {
+	function handleDndConsider(event: CustomEvent) {
 		displayTableHeaders = event.detail.items;
 	}
 
-	function handleDndFinalize(event: CustomEvent<{ items: TableHeader[] }>) {
+	function handleDndFinalize(event: CustomEvent) {
 		displayTableHeaders = event.detail.items;
 		localStorage.setItem('userPaginationSettings', JSON.stringify({ density, displayTableHeaders }));
 	}
@@ -519,10 +515,10 @@
 	// tableData is now the current page from API, not all data
 	// totalItems is the total count from API
 
-	const pagesCount = $derived.by<number>(() => Math.ceil(totalItems / rowsPerPage) || 1);
+	const pagesCount = $derived.by(() => Math.ceil(totalItems / rowsPerPage) || 1);
 
 	// Derive selected rows from selectedMap; ensure type compatibility by mapping to UserData | TokenData
-	let selectedRows: Array<User | Token> = $derived.by(() =>
+	let selectedRows: Array = $derived.by(() =>
 		Object.entries(selectedMap)
 			.filter(([, isSelected]) => isSelected)
 			.map(([index]) => tableData[parseInt(index)])

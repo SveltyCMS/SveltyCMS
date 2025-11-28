@@ -50,31 +50,24 @@ Displays a collection of media files (images, documents, audio, video) with:
 	const modalStore = getModalStore();
 
 	// Props using runes
-	const { data = { user: undefined, media: [], systemVirtualFolders: [], currentFolder: null } } = $props<{
-		data?: {
-			user: { _id: string; email: string; role: string } | undefined;
-			media: MediaBase[];
-			systemVirtualFolders: SystemVirtualFolder[];
-			currentFolder: SystemVirtualFolder | null;
-		};
-	}>();
+	const { data = { user: undefined, media: [], systemVirtualFolders: [], currentFolder: null } } = $props();
 
 	// State using runes
-	let files = $state<MediaImage[]>([]);
-	let allSystemVirtualFolders = $state<SystemVirtualFolder[]>([]);
-	let currentSystemVirtualFolder = $state<SystemVirtualFolder | null>(null);
-	let breadcrumb = $state<string[]>([]);
+	let files = $state([]);
+	let allSystemVirtualFolders = $state([]);
+	let currentSystemVirtualFolder = $state(null);
+	let breadcrumb = $state([]);
 
 	let globalSearchValue = $state('');
-	let selectedMediaType = $state<'All' | MediaTypeEnum>('All');
-	let view = $state<'grid' | 'table'>('grid');
-	let gridSize = $state<'tiny' | 'small' | 'medium' | 'large'>('small');
-	let tableSize = $state<'tiny' | 'small' | 'medium' | 'large'>('small');
+	let selectedMediaType = $state('All');
+	let view = $state('grid');
+	let gridSize = $state('small');
+	let tableSize = $state('small');
 	let isLoading = $state(false);
 
 	// Enterprise features state
 	let showAdvancedSearch = $state(false);
-	let advancedSearchCriteria = $state<SearchCriteria | null>(null);
+	let advancedSearchCriteria = $state(null);
 
 	// Performance optimization: Use virtual scrolling for large collections
 	const USE_VIRTUAL_THRESHOLD = 100;
@@ -170,7 +163,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	}
 
 	// Computed safe table size (MediaTable doesn't support 'tiny')
-	const safeTableSize = $derived<'small' | 'medium' | 'large'>(tableSize === 'tiny' ? 'small' : tableSize);
+	const safeTableSize = $derived(tableSize === 'tiny' ? 'small' : tableSize);
 
 	// Initialize component with runes
 	// Run once on mount to set up initial data
@@ -333,7 +326,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	}
 
 	// Memoized fetch for media files
-	let lastSystemFolderId = $state<string | null>(null);
+	let lastSystemFolderId = $state(null);
 	async function fetchMediaFiles(forceRefresh = false) {
 		const folderId = currentSystemVirtualFolder ? currentSystemVirtualFolder._id : 'root';
 
@@ -503,7 +496,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 					logger.info('Bulk delete request:', { count: filesToDelete.length });
 
 					// Track successfully deleted files
-					const successfullyDeletedIds = new Set<string>();
+					const successfullyDeletedIds = new Set();
 					let successCount = 0;
 					let failCount = 0;
 

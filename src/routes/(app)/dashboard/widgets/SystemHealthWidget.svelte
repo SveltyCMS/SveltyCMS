@@ -45,7 +45,7 @@
 		overallStatus: SystemState;
 		timestamp: number;
 		uptime: number;
-		components: Record<string, ServiceStatus>;
+		components: Record;
 	}
 
 	const {
@@ -56,15 +56,7 @@
 		size = { w: 2, h: 2 },
 		onSizeChange = () => {},
 		onRemove = () => {}
-	} = $props<{
-		label?: string;
-		theme?: 'light' | 'dark';
-		icon?: string;
-		widgetId?: string;
-		size?: { w: number; h: number };
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onRemove?: () => void;
-	}>();
+	} = $props();
 
 	async function reinitializeSystem() {
 		try {

@@ -26,7 +26,7 @@ Orchestrates the watermark lifecycle:
 	let _toolBound = $state(false);
 
 	// Svelte 5: use callback props via $props
-	const props = $props<{ onWatermarkApplied?: () => void }>();
+	const props = $props();
 
 	// --- Lifecycle $effect ---
 	// Binds/unbounds the tool and registers the toolbar
@@ -86,7 +86,7 @@ Orchestrates the watermark lifecycle:
 	}
 
 	// --- Event Handlers ---
-	function onStageClick(e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) {
+	function onStageClick(e: Konva.KonvaEventObject) {
 		// Deselect if clicking on stage background
 		if (e.target === e.target.getStage()) {
 			deselect();
@@ -179,7 +179,7 @@ Orchestrates the watermark lifecycle:
 
 		// 3. Load the baked image
 		const newImage = new Image();
-		await new Promise<void>((res) => {
+		await new Promise((res) => {
 			newImage.onload = () => res();
 			newImage.src = dataURL;
 		});

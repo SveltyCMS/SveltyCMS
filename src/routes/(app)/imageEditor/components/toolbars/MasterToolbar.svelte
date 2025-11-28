@@ -16,9 +16,7 @@ Tools provide their control components which get rendered here.
 <script lang="ts">
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
-	const { embedded = false } = $props<{
-		embedded?: boolean;
-	}>();
+	const { embedded = false } = $props();
 
 	// Get active tool controls from store
 	const toolbarControls = $derived(imageEditorStore.state.toolbarControls);

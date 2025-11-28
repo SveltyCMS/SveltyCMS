@@ -15,16 +15,13 @@
 
 	// --- PROPS ---
 	// ✅ FIX: Added $bindable() to systemSettings
-	let { systemSettings = $bindable(), validationErrors } = $props<{
-		systemSettings: SystemSettings;
-		validationErrors: ValidationErrors; // Now uses imported type
-	}>();
+	let { systemSettings = $bindable(), validationErrors } = $props(); // Now uses imported type
 
 	const availableLanguages: string[] = [...systemLocales];
 
 	// Real-time validation state
-	let localValidationErrors = $state<ValidationErrors>({});
-	let touchedFields = $state<Set<string>>(new Set());
+	let localValidationErrors = $state({});
+	let touchedFields = $state(new Set());
 
 	const validationResult = $derived(
 		safeParse(systemSettingsSchema, {
@@ -154,8 +151,8 @@
 	}
 
 	// Derived available suggestions
-	let systemAvailable = $state<string[]>([]);
-	let contentAvailable = $state<{ code: string; name: string; native: string }[]>([]);
+	let systemAvailable = $state([]);
+	let contentAvailable = $state([]);
 	$effect(() => {
 		systemAvailable = availableLanguages.filter(
 			(l: string) => !systemSettings.systemLanguages.includes(l) && l.toLowerCase().includes(systemPickerSearch.toLowerCase())

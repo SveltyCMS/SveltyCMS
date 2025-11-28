@@ -17,19 +17,15 @@
 -->
 
 <script lang="ts">
-	interface Props {
-		options?: string[];
-		placeholder?: string;
-		'on:select'?: (selectedOption: string) => void;
-	}
+	import type { AutocompleteProps } from './types';
 
-	const { options = [], placeholder = 'Select an option', 'on:select': onSelect = () => {} }: Props = $props();
+	const { options = [], placeholder = 'Select an option', 'on:select': onSelect = () => {} }: AutocompleteProps = $props();
 
 	// --- State ---
 	let keyword = $state('');
 	let showDropdown = $state(false);
 	let selectedIndex = $state(-1);
-	let listElement = $state<HTMLUListElement | null>(null); // Ref for scrolling
+	let listElement = $state(null); // Ref for scrolling
 
 	// --- Derived State (Optimized) ---
 	const filteredOptions = $derived(() => {

@@ -29,17 +29,17 @@ All dynamic CMS settings organized into logical groups
 	const modalStore = getModalStore();
 
 	// Get user admin status from page data (set by +page.server.ts)
-	const { data } = $props<{ data: { isAdmin: boolean } }>();
+	const { data } = $props();
 	const isAdmin = data.isAdmin;
 
 	//  Use $state for all component state
-	let selectedGroupId = $state<string | null>(null);
+	let selectedGroupId = $state(null);
 	let currentGroupHasUnsavedChanges = $state(false);
-	let availableGroups = $state<SettingGroup[]>([]);
+	let availableGroups = $state([]);
 	let searchTerm = $state('');
 
 	// Track which groups need configuration
-	const groupsNeedingConfig = writable<Set<string>>(new Set());
+	const groupsNeedingConfig = writable(new Set());
 	let unconfiguredCount = $state(0);
 
 	// Subscribe to changes in groups needing config
@@ -105,7 +105,7 @@ All dynamic CMS settings organized into logical groups
 
 	// Check all groups for empty fields on page load
 	async function checkAllGroupsForEmptyFields() {
-		const groupsWithEmptyFields = new Set<string>();
+		const groupsWithEmptyFields = new Set();
 
 		// Check each available group
 		for (const group of availableGroups) {

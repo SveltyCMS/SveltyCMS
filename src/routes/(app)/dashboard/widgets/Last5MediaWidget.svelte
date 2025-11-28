@@ -49,15 +49,7 @@
 		size = { w: 1, h: 1 },
 		onSizeChange = () => {},
 		onRemove = () => {}
-	} = $props<{
-		label?: string;
-		theme?: 'light' | 'dark';
-		icon?: string;
-		widgetId?: string;
-		size?: { w: number; h: number };
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onRemove?: () => void;
-	}>();
+	} = $props();
 
 	function formatFileSize(bytes: number): string {
 		if (bytes === 0) return '0 B';

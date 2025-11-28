@@ -72,7 +72,7 @@
 
 	// Define number validation schema with range validations
 	const validationSchemaFunc = $derived.by(() => {
-		const rules: Array<unknown> = [];
+		const rules: Array = [];
 
 		if (typeof field.min === 'number') {
 			rules.push(minValue(field.min, `Value must be at least ${field.min}`));
@@ -158,8 +158,8 @@
 				parse(validationSchemaFunc, currentValue);
 				validationStore.clearError(fieldName);
 			} catch (error) {
-				if ((error as ValiError<typeof validationSchemaFunc>).issues) {
-					const valiError = error as ValiError<typeof validationSchemaFunc>;
+				if ((error as ValiError).issues) {
+					const valiError = error as ValiError;
 					const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 					validationStore.setError(fieldName, errorMessage);
 				}

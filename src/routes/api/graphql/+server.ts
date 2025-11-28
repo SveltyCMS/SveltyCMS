@@ -199,6 +199,7 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
 				return {
 					user: contextData?.user,
 					tenantId: contextData?.tenantId,
+					locale: request.headers.get('accept-language')?.split(',')[0]?.trim().slice(0, 2) || 'en', // Simple locale extraction
 					pubSub
 				};
 			}

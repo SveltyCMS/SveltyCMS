@@ -21,12 +21,12 @@ Features:
 	const { data }: { data: any } = $props();
 
 	// State
-	let widgets = $state<any[]>([]);
+	let widgets = $state([]);
 	let isLoading = $state(true);
 	let searchQuery = $state('');
-	let activeFilter = $state<'all' | 'core' | 'custom' | 'active' | 'inactive'>('all');
-	let activeTab = $state<'installed' | 'marketplace'>('installed');
-	let error = $state<string | null>(null);
+	let activeFilter = $state('all');
+	let activeTab = $state('installed');
+	let error = $state(null);
 
 	// Get tenant info from page data or user session
 	const tenantId = $derived(data?.user?.tenantId || data?.tenantId || 'default-tenant');
@@ -112,7 +112,7 @@ Features:
 			// Ctrl/Cmd + F: Focus search
 			if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
 				e.preventDefault();
-				document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
+				document.querySelector('input[type="text"]')?.focus();
 			}
 			// Escape: Clear search
 			if (e.key === 'Escape' && searchQuery) {

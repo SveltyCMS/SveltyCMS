@@ -44,6 +44,27 @@ import { logger } from '@utils/logger.server';
 import type { User } from '@src/databases/auth/types';
 import type { Schema, FieldInstance } from '@src/content/types';
 
+// Helper to extract localized value
+function getLocalizedValue(value: unknown, locale: string = 'en'): unknown {
+	if (value && typeof value === 'object' && !Array.isArray(value)) {
+		// Check if it looks like a localized object (keys are language codes)
+		// For simplicity, we assume if it has the requested locale key, it's localized
+		const valObj = value as Record<string, unknown>;
+		if (locale in valObj) {
+			return valObj[locale];
+		}
+		// Fallback to 'en' or first key
+		if ('en' in valObj) {
+			return valObj['en'];
+		}
+		const keys = Object.keys(valObj);
+		if (keys.length > 0) {
+			return valObj[keys[0]];
+		}
+	}
+	return value;
+}
+
 /**
  * Creates a clean GraphQL type name from collection info
  * Uses collection name + short UUID suffix for uniqueness and readability
@@ -249,18 +270,35 @@ export async function registerCollections(tenantId?: string) {
 							typeIDs.add(nestedSchema.typeID);
 						}
 						collectionSchema += `                ${getFieldName(_field)}: ${nestedSchema.typeID}\n`;
-						deepmerge(resolvers[cleanTypeName], {
-							[getFieldName(_field)]: (parent: DocumentWithFields) => parent[getFieldName(_field)]
-						});
+
+						// Only apply localization if the nested field is translated
+						const nestedResolverFn = (_field as FieldInstance).translated
+							? (parent: DocumentWithFields, _args: unknown, ctx: { locale?: string }) => getLocalizedValue(parent[getFieldName(_field)], ctx.locale)
+							: undefined;
+
+						if (nestedResolverFn) {
+							deepmerge(resolvers[cleanTypeName], {
+								[getFieldName(_field)]: nestedResolverFn
+							});
+						}
 					} else {
 						logger.warn(`Nested schema not found for field: ${getFieldName(_field)}`);
 					}
 				}
 			} else {
 				collectionSchema += `                ${getFieldName(field)}: ${schema.typeID}\n`;
-				deepmerge(resolvers[cleanTypeName], {
-					[getFieldName(field)]: (parent: DocumentWithFields) => parent[getFieldName(field)]
-				});
+
+				// Only apply localization if the field is actually translated
+				// This prevents type mismatches where non-translated objects (like JSON) are incorrectly processed
+				const resolverFn = (field as FieldInstance).translated
+					? (parent: DocumentWithFields, _args: unknown, ctx: { locale?: string }) => getLocalizedValue(parent[getFieldName(field)], ctx.locale)
+					: undefined;
+
+				if (resolverFn) {
+					deepmerge(resolvers[cleanTypeName], {
+						[getFieldName(field)]: resolverFn
+					});
+				}
 			}
 		}
 
@@ -313,7 +351,7 @@ export async function collectionsResolvers(dbAdapter: DatabaseAdapter, cacheClie
 			context: unknown
 		): Promise<DocumentBase[]> {
 			// Type guard for context
-			const ctx = context as { user?: User; tenantId?: string };
+			const ctx = context as { user?: User; tenantId?: string; locale?: string };
 			if (!ctx.user) {
 				throw new Error('Authentication required');
 			}
@@ -328,9 +366,11 @@ export async function collectionsResolvers(dbAdapter: DatabaseAdapter, cacheClie
 			}
 
 			const { page = 1, limit = 50 } = args.pagination || {};
+			const locale = ctx.locale || 'en';
 
 			try {
-				const cacheKey = `collections:${collection._id}:${page}:${limit}`;
+				// Cache key now includes locale to ensure correct localized content is cached
+				const cacheKey = `collections:${collection._id}:${page}:${limit}:${locale}`;
 				if (getPrivateSettingSync('USE_REDIS') && cacheClient) {
 					const cachedResult = await cacheClient.get(cacheKey, ctx.tenantId);
 					if (cachedResult) {

@@ -48,7 +48,7 @@
 	let folders: SystemVirtualFolder[] = $state([]);
 	let newFolderName = '';
 	let isLoading = $state(false);
-	let error = $state<string | null>(null);
+	let error = $state(null);
 
 	// Determine if a folder is the root folder
 	export function isRootFolder(folder: { name: string; parent?: string | null }): boolean {
@@ -56,7 +56,7 @@
 	}
 
 	// Fetch virtual folders from the API
-	export async function fetchVirtualFolders(): Promise<void> {
+	export async function fetchVirtualFolders(): Promise {
 		isLoading = true;
 		error = null;
 		try {
@@ -85,7 +85,7 @@
 	}
 
 	// Create a new folder
-	export async function createFolder(): Promise<void> {
+	export async function createFolder(): Promise {
 		if (!newFolderName.trim()) return;
 		isLoading = true;
 
@@ -121,7 +121,7 @@
 	}
 
 	// Update an existing folder
-	export async function updateFolder(folderId: string, newName: string): Promise<void> {
+	export async function updateFolder(folderId: string, newName: string): Promise {
 		try {
 			const response = await fetch('/api/systemVirtualFolder', {
 				method: 'PATCH',
@@ -143,7 +143,7 @@
 	}
 
 	// Delete a folder
-	export async function deleteFolder(folderId: string): Promise<void> {
+	export async function deleteFolder(folderId: string): Promise {
 		try {
 			const response = await fetch('/api/systemVirtualFolder', {
 				method: 'DELETE',

@@ -38,7 +38,7 @@ It handles widget configuration, permissions, and specific options.
 	// Widget key is the folder name (lowercase), not the widget Name
 	const widgetKey = $derived(modalData?.value?.widget?.key || (modalData?.value?.widget?.Name?.toLowerCase() as string));
 	const availableWidgets = $derived($widgetFunctions || {});
-	const guiSchema = $derived((availableWidgets[widgetKey]?.GuiSchema || {}) as Record<string, { widget?: any; [key: string]: unknown }>);
+	const guiSchema = $derived((availableWidgets[widgetKey]?.GuiSchema || {}) as Record);
 
 	// Derive options from guiSchema
 	const options = $derived(guiSchema ? Object.keys(guiSchema) : []);
@@ -49,7 +49,7 @@ It handles widget configuration, permissions, and specific options.
 	);
 
 	// We've created a custom submit function to pass the response and close the modal.
-	async function onFormSubmit(): Promise<void> {
+	async function onFormSubmit(): Promise {
 		if (modalData?.response) {
 			modalData.response(targetWidget);
 		}

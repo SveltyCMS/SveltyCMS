@@ -18,8 +18,8 @@
 
 	// Convert ISO date string to formatted date
 	const dates = $derived({
-		created: (collectionValue as Record<string, unknown>)?.createdAt
-			? new Date((collectionValue as Record<string, unknown>).createdAt as string | number | Date).toLocaleDateString('en-US', {
+		created: (collectionValue as Record)?.createdAt
+			? new Date((collectionValue as Record).createdAt as string | number | Date).toLocaleDateString('en-US', {
 					year: 'numeric',
 					month: '2-digit',
 					day: '2-digit',
@@ -27,8 +27,8 @@
 					minute: '2-digit'
 				})
 			: '-',
-		updated: (collectionValue as Record<string, unknown>)?.updatedAt
-			? new Date((collectionValue as Record<string, unknown>).updatedAt as string | number | Date).toLocaleDateString('en-US', {
+		updated: (collectionValue as Record)?.updatedAt
+			? new Date((collectionValue as Record).updatedAt as string | number | Date).toLocaleDateString('en-US', {
 					year: 'numeric',
 					month: '2-digit',
 					day: '2-digit',

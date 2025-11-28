@@ -29,20 +29,14 @@ rather than bundling all widgets upfront.
 	import { onMount } from 'svelte';
 	import { logger } from '@utils/logger';
 
-	interface Props {
-		loader: () => Promise<{ default: any }>;
-		field: FieldInstance;
-		WidgetData?: Record<string, any>;
-		value?: any;
-		tenantId?: string;
-	}
+	import type { WidgetLoaderProps } from './types';
 
-	let { loader, field, WidgetData = {}, value = $bindable(), tenantId }: Props = $props();
+	let { loader, field, WidgetData = {}, value = $bindable(), tenantId }: WidgetLoaderProps = $props();
 
 	// Component state
 	let Component: any = $state(null);
 	let loading = $state(true);
-	let error = $state<Error | null>(null);
+	let error = $state(null);
 
 	// Load the widget component asynchronously
 	async function loadComponent() {

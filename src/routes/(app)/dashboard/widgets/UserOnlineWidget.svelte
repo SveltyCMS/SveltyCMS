@@ -49,15 +49,7 @@ Features:
 		size = { w: 1, h: 1 },
 		onSizeChange = () => {},
 		onRemove = () => {}
-	} = $props<{
-		label?: string;
-		theme?: 'light' | 'dark';
-		icon?: string;
-		widgetId?: string;
-		size?: '1/4' | '1/2' | '3/4' | 'full';
-		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
-		onRemove?: () => void;
-	}>();
+	} = $props();
 
 	function getPlaceholderAvatar(name: string) {
 		const initials = name

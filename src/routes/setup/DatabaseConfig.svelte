@@ -29,17 +29,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		testDatabaseConnection,
 		dbConfigChangedSinceTest,
 		clearDbTestError
-	} = $props<{
-		dbConfig: DbConfig;
-		validationErrors: ValidationErrors;
-		isLoading: boolean;
-		showDbPassword: boolean;
-		toggleDbPassword: () => void;
-		testDatabaseConnection: () => Promise<boolean>;
-		dbConfigChangedSinceTest: boolean;
-		clearDbTestError: () => void;
-		installDatabaseDriver?: (dbType: string) => Promise<void>;
-	}>();
+	} = $props();
 
 	let unsupportedDbSelected = $state(false);
 	const isAtlas = $derived(dbConfig.type === 'mongodb+srv');
@@ -50,10 +40,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	let showAtlasHelper = $state(true); // Collapsible Atlas helper
 
 	// Track which fields have been touched (blurred)
-	let touchedFields = $state<Set<string>>(new Set());
+	let touchedFields = $state(new Set());
 
 	// Real-time validation state (always computed, but only shown for touched fields)
-	let localValidationErrors = $state<ValidationErrors>({});
+	let localValidationErrors = $state({});
 
 	// Validate form data in real-time
 	const validationResult = $derived(

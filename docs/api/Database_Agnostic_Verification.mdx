@@ -105,7 +105,7 @@ await dbAdapter.crud.delete(collectionName, id);
 
 #### 4. Export/Import API
 
-**File:** `src/routes/api/export/full/+server.ts`, `src/routes/api/importData/+server.ts`
+**File:** `src/routes/api/export/full/+server.ts`, `src/routes/api/import/full/+server.ts`
 
 **Database Operations:**
 
@@ -395,7 +395,7 @@ This architecture ensures:
 | Collection Update | `collections/[name]/+server.ts` | ✅ PASSED | Uses `dbAdapter.crud`           |
 | Collection Delete | `collections/[name]/+server.ts` | ✅ PASSED | Uses `dbAdapter.crud`           |
 | Export Full       | `export/full/+server.ts`        | ✅ PASSED | Uses `getAllSettings()`         |
-| Import Data       | `importData/+server.ts`         | ✅ PASSED | Uses `dbAdapter.crud`           |
+| Import Data       | `import/full/+server.ts`        | ✅ PASSED | Uses `dbAdapter.crud`           |
 | Media List        | `media/+server.ts`              | ✅ PASSED | Uses `dbAdapter.media.files`    |
 | Media Upload      | `mediaUpload/+server.ts`        | ✅ PASSED | Uses `dbAdapter.media.files`    |
 | Settings Get      | `settings/[group]/+server.ts`   | ✅ PASSED | Uses `db.settings`              |

@@ -52,11 +52,11 @@
 	import { validateTokenSyntax, containsTokens } from '@src/services/token/tokenUtils';
 
 	// Eager load all widget components for immediate use in Fields
-	const modules: Record<string, { default: any }> = import.meta.glob('/src/widgets/**/*.svelte', {
+	const modules: Record = import.meta.glob('/src/widgets/**/*.svelte', {
 		eager: true
 	});
 
-	let widgetFunctions = $state<Record<string, any>>({});
+	let widgetFunctions = $state({});
 	$effect(() => {
 		const unsubscribe = widgetFunctionsStore.subscribe((value) => {
 			widgetFunctions = value;
@@ -65,31 +65,29 @@
 	});
 
 	// --- 1. RECEIVE DATA AS PROPS ---
+	import type { FieldsProps } from './types';
+
 	const {
 		fields,
 		revisions = []
 		// contentLanguage prop received but not directly used - widgets access contentLanguage store
-	} = $props<{
-		fields?: NonNullable<(typeof collection)['value']>['fields'];
-		revisions?: any[];
-		contentLanguage?: string; // Passed for documentation, widgets use store directly
-	}>();
+	}: FieldsProps = $props(); // Passed for documentation, widgets use store directly
 
 	// --- 2. SIMPLIFIED STATE ---
 	let localTabSet = $state(0);
 	let apiUrl = $state('');
 
 	// This is form state, not fetched data, so it remains.
-	let currentCollectionValue = $state<Record<string, any>>({});
+	let currentCollectionValue = $state({});
 
 	// Revisions State (now simpler)
 	let selectedRevisionId = $state('');
 
 	// Track the last entry ID to detect when switching entries
-	let lastEntryId = $state<string | undefined>(undefined);
+	let lastEntryId = $state(undefined);
 
 	// Track current content language for reactivity
-	let currentContentLanguage = $state<Locale>(contentLanguage.value as Locale);
+	let currentContentLanguage = $state(contentLanguage.value as Locale);
 
 	// React to contentLanguage store changes and update local state
 	// This ensures widgets remount with the correct language
@@ -122,7 +120,7 @@
 	});
 
 	// Get available languages
-	const availableLanguages = $derived.by<Locale[]>(() => {
+	const availableLanguages = $derived.by(() => {
 		// Wait for publicEnv to be initialized
 		const languages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES;
 		if (!languages || !Array.isArray(languages)) {
@@ -186,7 +184,7 @@
 	// When collectionValue changes (new entry loaded), update local state
 	// When local state changes (user editing), update global state
 	$effect(() => {
-		const global = collectionValue.value as Record<string, unknown> | undefined;
+		const global = collectionValue.value as Record | undefined;
 		const globalId = (global as any)?._id;
 
 		// When a new entry is loaded (different ID), pull from global -> local
@@ -195,7 +193,7 @@
 			currentCollectionValue = { ...global } as any;
 			lastEntryId = globalId;
 			// Set initial snapshot for change tracking
-			dataChangeStore.setInitialSnapshot(global as Record<string, any>);
+			dataChangeStore.setInitialSnapshot(global as Record);
 			return;
 		}
 
@@ -204,13 +202,13 @@
 			logger.debug('Initializing new entry');
 			currentCollectionValue = { ...global } as any;
 			// Set initial snapshot for change tracking
-			dataChangeStore.setInitialSnapshot(global as Record<string, any>);
+			dataChangeStore.setInitialSnapshot(global as Record);
 			return;
 		}
 
 		// Otherwise, push local changes to global (user is editing)
 		// Use untrack to read currentCollectionValue without creating a dependency loop
-		const local = untrack(() => currentCollectionValue) as Record<string, unknown> | undefined;
+		const local = untrack(() => currentCollectionValue) as Record | undefined;
 		if (local && Object.keys(local).length > 0) {
 			const currentDataStr = JSON.stringify(local);
 			const globalDataStr = JSON.stringify(global ?? {});
@@ -218,14 +216,14 @@
 				logger.debug('Pushing local changes to global store');
 				untrack(() => setCollectionValue({ ...local }));
 				// Track changes for save button state
-				dataChangeStore.compareWithCurrent(local as Record<string, any>);
+				dataChangeStore.compareWithCurrent(local as Record);
 			}
 		}
 	});
 
 	// Separate effect to detect changes in currentCollectionValue and sync to store
 	// This is needed because the widget bind:value updates currentCollectionValue
-	let lastLocalValueStr = $state<string>('');
+	let lastLocalValueStr = $state('');
 	$effect(() => {
 		// React to currentCollectionValue changes (from widget inputs)
 		const localStr = JSON.stringify(currentCollectionValue);
@@ -247,7 +245,7 @@
 			if (localStr !== globalStr) {
 				untrack(() => setCollectionValue({ ...currentCollectionValue }));
 				// Track changes for save button state
-				dataChangeStore.compareWithCurrent(currentCollectionValue as Record<string, any>);
+				dataChangeStore.compareWithCurrent(currentCollectionValue as Record);
 			}
 		}
 	});

@@ -29,9 +29,7 @@
 	// Dynamically generate LanguageCode type from Paraglide's available locales.
 	type LanguageCode = (typeof availableLocales)[number];
 
-	const { children } = $props<{
-		children?: Snippet;
-	}>();
+	const { children } = $props();
 
 	let locale = $derived(getLocale());
 

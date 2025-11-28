@@ -31,7 +31,7 @@
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	// Collection Manager
 
-	const props = $props<{ data: any; handlePageTitleUpdate: (title: string) => void }>();
+	const props = $props();
 
 	// Popup Tooltips
 	const NameTooltip: PopupSettings = {

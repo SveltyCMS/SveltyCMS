@@ -12,12 +12,12 @@ handles drawing, applies/bakes effects, and registers toolbar.
 
 	// reactive tool state (Svelte 5 runes)
 	let blurStrength = $state(20);
-	let pattern = $state<BlurPattern>('blur');
-	let shape = $state<BlurShape>('rectangle');
-	let regions = $state<BlurRegion[]>([]);
+	let pattern = $state('blur');
+	let shape = $state('rectangle');
+	let regions = $state([]);
 	let drawing = $state(false);
-	let startPoint = $state<{ x: number; y: number } | null>(null);
-	let activeId = $state<string | null>(null);
+	let startPoint = $state(null);
+	let activeId = $state(null);
 
 	// guard to avoid duplicate event bindings
 	let _toolBound = $state(false);
@@ -26,7 +26,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 	let strengthDebounceTimer: number | null = null;
 
 	// Svelte 5: prefer callback props via $props instead of event dispatcher
-	const props = $props<{ onBlurReset?: () => void; onBlurApplied?: () => void }>();
+	const props = $props();
 
 	// bind/unbind the tool when active state changes
 	$effect(() => {
@@ -97,7 +97,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 	}
 
 	// deselect all regions when clicking outside overlays
-	function handleStageClick(e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) {
+	function handleStageClick(e: Konva.KonvaEventObject) {
 		const { stage, imageNode, imageGroup } = imageEditorStore.state;
 		const t = e.target;
 		if (!stage) return;
@@ -108,7 +108,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 	}
 
 	// begin drawing a new region when pointer is on stage or base image
-	function handleMouseDown(e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) {
+	function handleMouseDown(e: Konva.KonvaEventObject) {
 		const { stage, imageNode, imageGroup } = imageEditorStore.state;
 		const t = e.target;
 		if (!stage) return;
@@ -151,7 +151,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 	}
 
 	// create a new region and wire lifecycle hooks
-	function createRegion(init?: Partial<RegionInit>) {
+	function createRegion(init?: Partial) {
 		const { stage, layer, imageNode, imageGroup } = imageEditorStore.state;
 		if (!stage || !layer || !imageNode || !imageGroup) return;
 
@@ -251,7 +251,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 
 		// load baked image and swap into main imageNode
 		const newImage = new Image();
-		await new Promise<void>((res) => {
+		await new Promise((res) => {
 			newImage.onload = () => res();
 			newImage.src = dataURL;
 		});

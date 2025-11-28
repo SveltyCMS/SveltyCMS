@@ -40,9 +40,9 @@ Part of the Three Pillars Architecture for widget system.
 	// Local state for the URL input.
 	let urlInput = $state(value?.url ?? '');
 	// Local state to temporarily hold fetched metadata before it's set to `value`.
-	let fetchedMetadata = $state<RemoteVideoData | null>(null);
+	let fetchedMetadata = $state(null);
 	let isLoading = $state(false);
-	let fetchError = $state<string | null>(null);
+	let fetchError = $state(null);
 
 	// Effect to update local `urlInput` when parent `value` changes externally.
 	$effect(() => {
@@ -56,7 +56,7 @@ Part of the Three Pillars Architecture for widget system.
 	});
 
 	// SECURITY: URL validation patterns to prevent SSRF attacks
-	const ALLOWED_PLATFORMS: Record<string, RegExp> = {
+	const ALLOWED_PLATFORMS: Record = {
 		youtube: /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
 		vimeo: /^https?:\/\/(www\.)?vimeo\.com\/\d+$/,
 		twitch: /^https?:\/\/(www\.)?twitch\.tv\/videos\/\d+$/,

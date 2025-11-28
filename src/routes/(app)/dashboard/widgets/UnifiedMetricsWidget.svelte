@@ -53,18 +53,7 @@ for comprehensive system monitoring and performance analysis.
 		refreshInterval = 3000,
 		onSizeChange = () => {},
 		onRemove = () => {}
-	} = $props<{
-		label?: string;
-		theme?: 'light' | 'dark';
-		icon?: string;
-		widgetId?: string;
-		size?: { w: number; h: number };
-		showDetails?: boolean;
-		autoRefresh?: boolean;
-		refreshInterval?: number;
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onRemove?: () => void;
-	}>();
+	} = $props();
 
 	// Unified metrics interface (matches MetricsService output)
 	interface UnifiedMetrics {
@@ -104,7 +93,7 @@ for comprehensive system monitoring and performance analysis.
 	}
 
 	// Reactive state
-	let metrics = $state<UnifiedMetrics>({
+	let metrics = $state({
 		timestamp: 0,
 		uptime: 0,
 		requests: { total: 0, errors: 0, errorRate: 0, avgResponseTime: 0 },
@@ -115,8 +104,8 @@ for comprehensive system monitoring and performance analysis.
 	});
 
 	let isLoading = $state(true);
-	let error = $state<string | null>(null);
-	let refreshTimer: ReturnType<typeof setInterval> | null = null;
+	let error = $state(null);
+	let refreshTimer: ReturnType | null = null;
 	let lastUpdate = $state(0);
 
 	// Computed performance indicators - using $derived correctly
@@ -231,7 +220,7 @@ for comprehensive system monitoring and performance analysis.
 	}
 
 	// Data fetching
-	async function fetchMetrics(): Promise<void> {
+	async function fetchMetrics(): Promise {
 		try {
 			isLoading = true;
 			error = null;

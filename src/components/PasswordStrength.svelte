@@ -56,7 +56,7 @@
 	});
 
 	// Enhanced password score with complexity
-	function calculateScore(pwd: string, checks: Record<string, boolean>): number {
+	function calculateScore(pwd: string, checks: Record): number {
 		let score = 0;
 
 		// Score based on password length
@@ -72,7 +72,7 @@
 	}
 
 	// Feedback messages
-	const FEEDBACK_MESSAGES: Record<number, string> = {
+	const FEEDBACK_MESSAGES: Record = {
 		0: 'Too Short',
 		1: 'Weak',
 		2: 'Fair',

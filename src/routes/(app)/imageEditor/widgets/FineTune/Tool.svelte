@@ -20,7 +20,7 @@ Orchestrates the filter modules:
 
 	// --- Svelte 5 State ---
 	let adjustments = $state({ ...DEFAULT_ADJUSTMENTS });
-	let activeAdjustment = $state<keyof Adjustments>('brightness');
+	let activeAdjustment = $state('brightness');
 
 	// guard to avoid duplicate event bindings
 	let _toolBound = $state(false);
@@ -29,7 +29,7 @@ Orchestrates the filter modules:
 	let filterDebounceTimer: number | null = null;
 
 	// Svelte 5: callback props instead of event dispatcher
-	const props = $props<{ onFineTuneApplied?: () => void; onFineTuneReset?: () => void }>();
+	const props = $props();
 
 	// --- Lifecycle $effect ---
 	// Binds/unbounds the tool and registers the toolbar
@@ -167,7 +167,7 @@ Orchestrates the filter modules:
 
 		// 3. Load the baked image
 		const newImage = new Image();
-		await new Promise<void>((res) => {
+		await new Promise((res) => {
 			newImage.onload = () => res();
 			newImage.src = dataURL;
 		});

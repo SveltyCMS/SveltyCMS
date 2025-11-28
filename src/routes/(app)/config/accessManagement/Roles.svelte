@@ -36,18 +36,18 @@ It provides the following functionality:
 	const { roleData, setRoleData, updateModifiedCount } = $props();
 
 	// Reactive state
-	let roles = $state<Role[]>([]);
-	let selectedPermissions = $state<string[]>([]);
-	let selectedRoles = $state<Set<string>>(new Set());
-	const error = $state<string | null>(null);
-	const modifiedRoles = $state(new Set<string>());
+	let roles = $state([]);
+	let selectedPermissions = $state([]);
+	let selectedRoles = $state(new Set());
+	const error = $state(null);
+	const modifiedRoles = $state(new Set());
 	// Define DndItem type for dndzone compatibility
 	type DndItem = Role & { id: string };
-	let items = $state<DndItem[]>([]);
+	let items = $state([]);
 
 	// Modal state
 	let isEditMode = $state(false);
-	let currentRoleId = $state<string | null>(null);
+	let currentRoleId = $state(null);
 	let currentGroupName = $state('');
 
 	// Initialize data when component mounts (run once)
@@ -166,7 +166,7 @@ It provides the following functionality:
 
 	// DndItem type already defined above
 
-	function handleSort(e: CustomEvent<{ items: DndItem[]; info: { id: string } }>) {
+	function handleSort(e: CustomEvent) {
 		items = [...e.detail.items];
 		roles = items;
 		// Find the item that was moved by id
@@ -185,7 +185,7 @@ It provides the following functionality:
 		}
 	}
 
-	function handleFinalize(e: CustomEvent<{ items: DndItem[]; info: { id: string } }>) {
+	function handleFinalize(e: CustomEvent) {
 		items = [...e.detail.items];
 		roles = items;
 		// Find the item that was moved by id

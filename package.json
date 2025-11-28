@@ -15,7 +15,7 @@
 		"build:verbose": "NODE_OPTIONS=\"--no-warnings --no-deprecation\" bun run vite build",
 		"build:high-memory": "NODE_OPTIONS=\"--max-old-space-size=16384\" bun run vite build",
 		"build:low-memory": "NODE_OPTIONS=\"--max-old-space-size=4096\" bun run vite build",
-		"build:analyze": "NODE_OPTIONS=\"--max-old-space-size=8192\" bunx vite-bundle-visualizer && bun run build:verbose",
+		"build:analyze": "NODE_OPTIONS=\"--max-old-space-size=8192\" bun x vite-bundle-visualizer && bun run build:verbose",
 		"build:report": "bun run build:verbose && du -h .svelte-kit/output/client/_app/immutable/chunks/*.js | sort -rh | head -20",
 		"build:stats": "bun run build:verbose && node scripts/bundle-stats.js",
 		"-- CHECK & TEST ---------------------------------------": "",
@@ -107,13 +107,12 @@
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.13.0",
 		"globals": "^16.5.0",
-		"mongodb-memory-server": "^10.3.0",
 		"postcss": "^8.5.6",
-		"prettier": "^3.6.2",
+		"prettier": "^3.7.1",
 		"prettier-plugin-svelte": "^3.4.0",
 		"prettier-plugin-tailwindcss": "^0.7.1",
 		"semantic-release": "^25.0.2",
-		"svelte": "^5.44.1",
+		"svelte": "^5.45.2",
 		"svelte-awesome-color-picker": "^4.1.0",
 		"svelte-check": "^4.3.4",
 		"svelte-confetti": "^2.3.2",
@@ -126,6 +125,7 @@
 		"typescript-eslint": "^8.48.0",
 		"valibot": "^1.2.0",
 		"vite": "^7.2.4",
+		"vite-bundle-visualizer": "^1.2.1",
 		"wait-on": "^9.0.3"
 	},
 	"dependencies": {
@@ -193,7 +193,7 @@
 	},
 	"optionalDependencies": {
 		"mariadb": "^3.4.5",
-		"mongoose": "^8.20.1",
+		"mongoose": "^9.0.0",
 		"mysql2": "^3.15.3",
 		"postgres": "^3.4.7"
 	}

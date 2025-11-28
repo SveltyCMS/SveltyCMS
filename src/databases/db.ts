@@ -28,7 +28,8 @@ async function loadPrivateConfig(forceReload = false) {
 			logger.debug('Loading @config/private configuration...');
 			let module;
 			if (process.env.TEST_MODE) {
-				module = await import('@config/private.test');
+				const path = '@config/private.test';
+				module = await import(path);
 			} else {
 				module = await import('@config/private');
 			}
@@ -211,7 +212,8 @@ export async function loadSettingsFromDB() {
 				logger.debug('Loading private config from filesystem');
 				let imported;
 				if (process.env.TEST_MODE) {
-					imported = await import('@config/private.test');
+					const path = '@config/private.test';
+					imported = await import(path);
 				} else {
 					imported = await import('@config/private');
 				}

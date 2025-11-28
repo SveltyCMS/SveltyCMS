@@ -25,20 +25,11 @@
 		toggleAdminPassword,
 		toggleConfirmPassword,
 		checkPasswordRequirements // This is still called by oninput
-	} = $props<{
-		adminUser: AdminUser;
-		validationErrors: ValidationErrors; // Now uses imported type
-		passwordRequirements: PasswordRequirements;
-		showAdminPassword: boolean;
-		showConfirmPassword: boolean;
-		toggleAdminPassword: () => void;
-		toggleConfirmPassword: () => void;
-		checkPasswordRequirements: () => void;
-	}>();
+	} = $props(); // Now uses imported type
 
 	// Local real-time validation state
-	let touchedFields = $state<Set<string>>(new Set());
-	let localValidationErrors = $state<ValidationErrors>({});
+	let touchedFields = $state(new Set());
+	let localValidationErrors = $state({});
 
 	const validationResult = $derived(
 		safeParse(setupAdminSchema, {

@@ -20,7 +20,6 @@
 import { dbAdapter } from '@src/databases/db';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { hasPermissionByAction } from '@src/databases/auth/permissions';
 import { logger } from '@utils/logger.server';
 import * as v from 'valibot';
 
@@ -40,10 +39,9 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	if (!hasPermissionByAction(locals.user, 'read', 'system_preferences', undefined, locals.roles)) {
-		logger.warn(`User ${locals.user._id} lacks permission to read preferences`);
-		return json({ error: 'Forbidden: Insufficient permissions' }, { status: 403 });
-	}
+	// Allow any authenticated user to read their own preferences
+	// The endpoint is scoped to the current user (userId = locals.user._id)
+	// so they cannot read other users' preferences or system-wide settings here.
 
 	const userId = locals.user._id;
 	const singleKey = url.searchParams.get('key');
@@ -95,10 +93,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	if (!hasPermissionByAction(locals.user, 'manage', 'system_preferences', undefined, locals.roles)) {
-		logger.warn(`User ${locals.user._id} lacks permission to manage preferences`);
-		return json({ error: 'Forbidden: Insufficient permissions' }, { status: 403 });
-	}
+	// Allow any authenticated user to manage their own preferences
+	// The endpoint is scoped to the current user (userId = locals.user._id)
+	// so they cannot modify other users' preferences or system-wide settings here.
 
 	const data = await request.json();
 	const userId = locals.user._id;
@@ -147,10 +144,9 @@ export const DELETE: RequestHandler = async ({ locals, url }) => {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	if (!hasPermissionByAction(locals.user, 'manage', 'system_preferences', undefined, locals.roles)) {
-		logger.warn(`User ${locals.user._id} lacks permission to delete preferences`);
-		return json({ error: 'Forbidden: Insufficient permissions' }, { status: 403 });
-	}
+	// Allow any authenticated user to delete their own preferences
+	// The endpoint is scoped to the current user (userId = locals.user._id)
+	// so they cannot delete other users' preferences or system-wide settings here.
 
 	const key = url.searchParams.get('key');
 	if (!key) {

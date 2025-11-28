@@ -29,12 +29,12 @@ It provides functionality to:
 	const { roleData, setRoleData } = $props();
 
 	// Reactive state
-	const error = $state<string | null>(null);
-	let currentAdminRole = $state<string | null>(null);
-	let currentAdminName = $state<string | null>(null);
-	let selectedAdminRole = $state<string | null>(null);
+	const error = $state(null);
+	let currentAdminRole = $state(null);
+	let currentAdminName = $state(null);
+	let selectedAdminRole = $state(null);
 	let isSaving = $state(false);
-	let notification = $state<string | null>(null);
+	let notification = $state(null);
 
 	// Derived state for computed values
 	const availableRoles = $derived(roleData.filter((role: Role) => role._id !== currentAdminRole));

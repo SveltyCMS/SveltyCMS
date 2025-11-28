@@ -21,8 +21,8 @@
  * providing a clean, type-safe interface for all data operations.
  */
 
-import { type FilterQuery, type Model, type PipelineStage, type UpdateQuery, mongo } from 'mongoose';
-import type { BaseEntity, DatabaseId } from '../../dbInterface';
+import { type Model, type PipelineStage, type UpdateQuery, mongo } from 'mongoose';
+import type { BaseEntity, DatabaseId, QueryFilter } from '../../dbInterface';
 import { createDatabaseError, generateId, processDates } from './mongoDBUtils';
 import { nowISODateString } from '@utils/dateUtils';
 
@@ -42,7 +42,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		this.model = model;
 	}
 
-	async findOne(query: FilterQuery<T>, options: { fields?: (keyof T)[] } = {}): Promise<T | null> {
+	async findOne(query: QueryFilter<T>, options: { fields?: (keyof T)[] } = {}): Promise<T | null> {
 		try {
 			const result = await this.model.findOne(query, options.fields?.join(' ')).lean().exec();
 			if (!result) return null;
@@ -65,7 +65,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 	async findByIds(ids: DatabaseId[]): Promise<T[]> {
 		try {
 			const results = await this.model
-				.find({ _id: { $in: ids } } as FilterQuery<T>)
+				.find({ _id: { $in: ids } } as QueryFilter<T>)
 				.lean()
 				.exec();
 			return processDates(results) as T[];
@@ -75,7 +75,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 	}
 
 	async findMany(
-		query: FilterQuery<T>,
+		query: QueryFilter<T>,
 		options: { limit?: number; skip?: number; sort?: { [key: string]: 'asc' | 'desc' | 1 | -1 }; fields?: (keyof T)[] } = {}
 	): Promise<T[]> {
 		try {
@@ -100,8 +100,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
 				createdAt: nowISODateString(),
 				updatedAt: nowISODateString()
 			} as unknown as T;
-			const result = await this.model.create(doc);
-			return result.toObject();
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			return ((await this.model.create(doc as any)) as any).toObject() as T;
 		} catch (error) {
 			if (error instanceof mongo.MongoServerError && error.code === 11000) {
 				throw createDatabaseError(error, 'DUPLICATE_KEY_ERROR', 'A document with the same unique key already exists.');
@@ -141,7 +141,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async upsert(query: FilterQuery<T>, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<T> {
+	async upsert(query: QueryFilter<T>, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<T> {
 		try {
 			const result = await this.model
 				.findOneAndUpdate(
@@ -162,14 +162,14 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
 	async delete(id: DatabaseId): Promise<boolean> {
 		try {
-			const result = await this.model.deleteOne({ _id: id } as FilterQuery<T>);
+			const result = await this.model.deleteOne({ _id: id } as QueryFilter<T>);
 			return result.deletedCount > 0;
 		} catch (error) {
 			throw createDatabaseError(error, 'DELETE_ERROR', `Failed to delete document ${id} from ${this.model.modelName}`);
 		}
 	}
 
-	async updateMany(query: FilterQuery<T>, data: UpdateQuery<T>): Promise<{ modifiedCount: number; matchedCount: number }> {
+	async updateMany(query: QueryFilter<T>, data: UpdateQuery<T>): Promise<{ modifiedCount: number; matchedCount: number }> {
 		try {
 			const updateData = {
 				...(data as object),
@@ -185,7 +185,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async deleteMany(query: FilterQuery<T>): Promise<{ deletedCount: number }> {
+	async deleteMany(query: QueryFilter<T>): Promise<{ deletedCount: number }> {
 		try {
 			const result = await this.model.deleteMany(query);
 			return { deletedCount: result.deletedCount };
@@ -195,7 +195,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 	}
 
 	async upsertMany(
-		items: Array<{ query: FilterQuery<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>
+		items: Array<{ query: QueryFilter<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>
 	): Promise<{ upsertedCount: number; modifiedCount: number }> {
 		try {
 			if (items.length === 0) return { upsertedCount: 0, modifiedCount: 0 };
@@ -203,7 +203,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 			const now = nowISODateString();
 			const operations = items.map((item) => ({
 				updateOne: {
-					filter: item.query,
+					filter: item.query as any,
 					update: {
 						$set: { ...item.data, updatedAt: now },
 						$setOnInsert: { _id: generateId(), createdAt: now }
@@ -222,7 +222,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async count(query: FilterQuery<T> = {}): Promise<number> {
+	async count(query: QueryFilter<T> = {}): Promise<number> {
 		try {
 			return await this.model.countDocuments(query);
 		} catch (error) {
@@ -235,7 +235,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 	 * Uses findOne with _id projection instead of exists() for faster execution.
 	 * MongoDB stops scanning as soon as it finds the first match, and projection reduces network overhead.
 	 */
-	async exists(query: FilterQuery<T>): Promise<boolean> {
+	async exists(query: QueryFilter<T>): Promise<boolean> {
 		try {
 			// Use findOne with projection for optimal performance
 			// Only fetches _id field, minimizing data transfer

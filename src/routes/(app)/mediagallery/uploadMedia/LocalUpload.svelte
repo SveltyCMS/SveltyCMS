@@ -28,7 +28,7 @@
 	import ModalUploadMedia from './ModalUploadMedia.svelte';
 	import { goto } from '$app/navigation';
 
-	let files = $state<File[]>([]);
+	let files = $state([]);
 	let input: HTMLInputElement | null = $state(null);
 	let dropZone: HTMLDivElement | null = $state(null);
 	let uploadProgress = $state(0);
@@ -204,7 +204,7 @@
 			});
 
 			// Handle completion
-			const uploadPromise = new Promise<{ success: boolean; error?: string }>((resolve, reject) => {
+			const uploadPromise = new Promise((resolve, reject) => {
 				xhr.onload = () => {
 					if (xhr.status >= 200 && xhr.status < 300) {
 						try {
