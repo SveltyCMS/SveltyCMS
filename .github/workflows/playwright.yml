@@ -241,6 +241,8 @@ jobs:
           echo "=== Running main E2E suite ==="
           # --grep-invert skips the setup wizard since we just ran it
           bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard"
+        env:
+          PLAYWRIGHT_TEST_BASE_URL: http://localhost:4173
 
       - uses: actions/upload-artifact@v4
         if: always()
