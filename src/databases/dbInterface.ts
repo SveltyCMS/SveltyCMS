@@ -138,6 +138,7 @@ export interface Theme extends BaseEntity {
 	isDefault: boolean;
 	config: ThemeConfig;
 	previewImage?: string;
+	customCss?: string;
 }
 
 /** Widget Management **/
@@ -165,7 +166,7 @@ export interface MediaItem extends BaseEntity {
 	path: string; // Virtual path based on SystemVirtualFolder organization
 	size: number;
 	mimeType: string;
-	folderId?: DatabaseId; // Reference to SystemVirtualFolder for organization
+	folderId?: DatabaseId | null; // Reference to SystemVirtualFolder for organization
 	thumbnails: Record<string, { url: string; width: number; height: number } | undefined>;
 	metadata: MediaMetadata;
 	createdBy: DatabaseId;
@@ -214,7 +215,7 @@ export interface BatchOperation<T> {
 	operation: 'insert' | 'update' | 'delete' | 'upsert';
 	collection: string;
 	data?: Partial<T>;
-	query?: Partial<T>;
+	query?: QueryFilter<T>;
 	id?: DatabaseId;
 }
 
@@ -224,6 +225,32 @@ export interface BatchResult<T> {
 	totalProcessed: number;
 	errors: DatabaseError[];
 }
+
+/** Database Query Types **/
+export type QueryOperator<T> =
+	| T
+	| {
+			$ne?: T;
+			$exists?: boolean;
+			$eq?: T;
+			$gt?: T;
+			$gte?: T;
+			$lt?: T;
+			$lte?: T;
+			$in?: T[];
+			$nin?: T[];
+			$regex?: string;
+			$options?: string;
+	  };
+
+export type QueryFilter<T> = {
+	[K in keyof T]?: QueryOperator<T[K]>;
+} & {
+	$or?: QueryFilter<T>[];
+	$and?: QueryFilter<T>[];
+	$not?: QueryFilter<T>;
+	$nor?: QueryFilter<T>[];
+};
 
 export type DatabaseResult<T> =
 	| { success: true; data: T; meta?: QueryMeta }
@@ -539,10 +566,10 @@ export interface IDBAdapter {
 	//  CRUD Operations
 	crud: {
 		// Single operations
-		findOne<T extends BaseEntity>(collection: string, query: Partial<T>, options?: { fields?: (keyof T)[] }): Promise<DatabaseResult<T | null>>;
+		findOne<T extends BaseEntity>(collection: string, query: QueryFilter<T>, options?: { fields?: (keyof T)[] }): Promise<DatabaseResult<T | null>>;
 		findMany<T extends BaseEntity>(
 			collection: string,
-			query: Partial<T>,
+			query: QueryFilter<T>,
 			options?: { limit?: number; offset?: number; fields?: (keyof T)[] }
 		): Promise<DatabaseResult<T[]>>;
 		insert<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<T>>;
@@ -554,21 +581,25 @@ export interface IDBAdapter {
 		insertMany<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<T[]>>;
 		updateMany<T extends BaseEntity>(
 			collection: string,
-			query: Partial<T>,
+			query: QueryFilter<T>,
 			data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>
 		): Promise<DatabaseResult<{ modifiedCount: number }>>;
-		deleteMany(collection: string, query: Partial<BaseEntity>): Promise<DatabaseResult<{ deletedCount: number }>>;
+		deleteMany(collection: string, query: QueryFilter<BaseEntity>): Promise<DatabaseResult<{ deletedCount: number }>>;
 
 		// Upsert operations
-		upsert<T extends BaseEntity>(collection: string, query: Partial<T>, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<T>>;
+		upsert<T extends BaseEntity>(
+			collection: string,
+			query: QueryFilter<T>,
+			data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>
+		): Promise<DatabaseResult<T>>;
 		upsertMany<T extends BaseEntity>(
 			collection: string,
-			items: Array<{ query: Partial<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>
+			items: Array<{ query: QueryFilter<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>
 		): Promise<DatabaseResult<T[]>>;
 
 		// Aggregation and analysis
-		count(collection: string, query?: Partial<BaseEntity>): Promise<DatabaseResult<number>>;
-		exists(collection: string, query: Partial<BaseEntity>): Promise<DatabaseResult<boolean>>;
+		count(collection: string, query?: QueryFilter<BaseEntity>): Promise<DatabaseResult<number>>;
+		exists(collection: string, query: QueryFilter<BaseEntity>): Promise<DatabaseResult<boolean>>;
 		aggregate<R>(collection: string, pipeline: unknown[]): Promise<DatabaseResult<R[]>>;
 	};
 
@@ -661,20 +692,4 @@ export interface FolderResponse {
 	name: string;
 	path: string;
 	ariaLabel: string;
-}
-
-export class SystemVirtualFolderError extends Error {
-	constructor(
-		message: string,
-		public status: number,
-		public code: string
-	) {
-		super(message);
-		this.name = 'SystemVirtualFolderError';
-	}
-}
-
-/** Utility Type Guards **/
-export function isDatabaseError(error: unknown): error is DatabaseError {
-	return typeof error === 'object' && error !== null && 'code' in error && 'message' in error;
 }

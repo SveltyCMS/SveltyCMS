@@ -36,15 +36,42 @@ const createUIStores = () => {
 	let screenSizeUnsubscribe: (() => void) | null = null;
 	const initialSize = screenSize.value;
 
+	let routeContext = $state({ isImageEditor: false });
+
+	function setRouteContext(context: { isImageEditor: boolean }) {
+		if (routeContext.isImageEditor !== context.isImageEditor) {
+			routeContext = context;
+			logger.debug('UIStore: Route context updated', context);
+			updateLayout();
+		}
+	}
+
 	// Tailored default state based on screen size and mode
+	// Note: Feature routes (e.g., Image Editor) explicitly override header/footer states locally.
 	const getDefaultState = (size: ScreenSize, isViewMode: boolean): UIState => {
-		// Mobile behavior (<768px) - Always hide sidebar on mobile to show FloatingNav
+		// Tailored default state for the image editor route
+		if (routeContext.isImageEditor) {
+			return {
+				leftSidebar: 'hidden',
+				rightSidebar: 'hidden',
+				pageheader: 'full',
+				pagefooter: 'full',
+				header: 'hidden',
+				footer: 'hidden'
+			};
+		}
+
+		// Determine if we should show the collection header (HeaderEdit)
+		// Show in view, edit, create, modify, media modes
+		const isCollectionMode = ['view', 'edit', 'create', 'modify', 'media'].includes(mode.value);
+
+		// Mobile behavior (<768px) - Always hide sidebars; keep page header/footer hidden by default
 		if (size === ScreenSize.XS || size === ScreenSize.SM) {
 			return {
 				leftSidebar: 'hidden', // ALWAYS hidden on mobile regardless of mode
 				rightSidebar: 'hidden',
-				pageheader: isViewMode ? 'hidden' : 'full',
-				pagefooter: isViewMode ? 'hidden' : 'full', // Show pagefooter on mobile when editing (Fields.svelte needs it)
+				pageheader: isCollectionMode ? 'full' : 'hidden',
+				pagefooter: 'hidden',
 				header: 'hidden',
 				footer: 'hidden'
 			};
@@ -55,8 +82,8 @@ const createUIStores = () => {
 			return {
 				leftSidebar: isViewMode ? 'collapsed' : 'hidden',
 				rightSidebar: 'hidden',
-				pageheader: isViewMode ? 'hidden' : 'full',
-				pagefooter: isViewMode ? 'hidden' : 'full', // Show pagefooter on tablet when editing too
+				pageheader: isCollectionMode ? 'full' : 'hidden',
+				pagefooter: 'hidden',
 				header: 'hidden',
 				footer: 'hidden'
 			};
@@ -66,8 +93,8 @@ const createUIStores = () => {
 		return {
 			leftSidebar: isViewMode ? 'full' : 'collapsed',
 			rightSidebar: isViewMode ? 'hidden' : 'full',
-			pageheader: isViewMode ? 'hidden' : 'full',
-			pagefooter: isViewMode ? 'hidden' : 'hidden', // Hide on desktop edit mode since RightSidebar shows detailed info
+			pageheader: isCollectionMode ? 'full' : 'hidden',
+			pagefooter: 'hidden',
 			header: 'hidden',
 			footer: 'hidden'
 		};
@@ -293,7 +320,8 @@ const createUIStores = () => {
 		toggleUIElement,
 		updateLayout,
 		initialize,
-		destroy
+		destroy,
+		setRouteContext
 	};
 };
 
@@ -333,6 +361,7 @@ export const userPreferredState = {
 // Export functions
 export const toggleUIElement = uiStateManager.toggleUIElement;
 export const handleUILayoutToggle = uiStateManager.updateLayout;
+export const setRouteContext = uiStateManager.setRouteContext;
 
 // Auto-initialize (client-side only)
 if (typeof window !== 'undefined') {

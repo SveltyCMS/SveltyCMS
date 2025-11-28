@@ -1,0 +1,289 @@
+---
+path: 'docs/architecture/database-resilience.mdx'
+title: 'Database Resilience'
+description: 'Unified guide to resilience features, integration, metrics, and planned enhancements for SveltyCMS.'
+order: 12
+icon: 'mdi:shield-refresh'
+author: 'admin'
+created: '2025-11-11'
+updated: '2025-11-11'
+tags:
+  - 'architecture'
+  - 'database'
+  - 'resilience'
+---
+
+# Database Resilience
+
+This is the single, canonical document for SveltyCMS database resilience. It consolidates the previous "Features", "Integration", and "Quick Reference" docs into one place.
+
+---
+
+## Overview
+
+The `DatabaseResilience` system provides:
+
+- Automatic retries with exponential backoff and jitter
+- Self-healing reconnection lifecycle for MongoDB
+- Centralized health checks and metrics
+- Connection pool diagnostics (API + dashboard widget)
+- Optional admin email notifications after persistent failure
+
+It is integrated in:
+
+- `src/databases/db.ts` (initialization, adapter loading, system status)
+- `src/databases/CacheService.ts` (Redis connection)
+- `src/databases/mongodb/mongoDBAdapter.ts` (reconnection handlers)
+
+### Implemented Features Summary
+
+| Feature | Status | Key Artifacts |
+|---------|--------|---------------|
+| Automatic retry with exponential backoff & jitter | ✅ Implemented | `DatabaseResilience.executeWithRetry()`; used in `db.ts`, `CacheService.ts` |
+| Admin email notification on persistent failure | ✅ Implemented | `databaseFailure.svelte`; notification logic in `DatabaseResilience.ts` |
+| Connection pool diagnostics | ✅ Implemented | API: `/api/database/pool-diagnostics`; Widget: `DatabasePoolDiagnostics.svelte` |
+| Self-healing MongoDB reconnection | ✅ Implemented | Mongoose event handlers + `attemptReconnection()` |
+| Detailed error logs download | ✅ Implemented | API: `/api/logs/download` (admin-only) |
+
+All features above are production-ready. The "Planned Features" section later in this document only lists not-yet-implemented roadmap items (circuit breaker, adaptive backoff, distributed coordination, advanced metrics).
+
+---
+
+## Quick Start
+
+```ts
+import { getDatabaseResilience } from '@src/databases/DatabaseResilience';
+
+const resilience = getDatabaseResilience();
+
+await resilience.executeWithRetry(async () => {
+	// e.g. connect to MongoDB or Redis
+}, 'Connection step');
+```
+
+Recommended defaults (in the singleton):
+
+```ts
+{
+  maxAttempts: 5,
+  initialDelayMs: 1000,
+  maxDelayMs: 32000,
+  backoffMultiplier: 2,
+  jitterMs: 500
+}
+```
+
+---
+
+## Integration Highlights
+
+- Virtual folders initialization and database adapter loading are wrapped in `executeWithRetry()` with descriptive operation names for structured logging.
+- Redis connection initialization uses a tuned config (custom attempts, jitter, max delay) via the same singleton.
+- `getSystemStatus()` is async and exposes health and resilience metrics in a uniform shape for dashboards and alerts.
+
+---
+
+## Health, Metrics, and Diagnostics
+
+Exposed metrics include:
+
+- totalRetries, successfulRetries, failedRetries
+- totalReconnections, successfulReconnections
+- connectionUptime, averageRecoveryTime
+- health.latency, health.healthy, health.message
+
+Pool diagnostics are available via `GET /api/database/pool-diagnostics` and surfaced in `DatabasePoolDiagnostics.svelte`.
+
+---
+
+## Configuration
+
+You can override defaults when needed:
+
+```ts
+const resilience = getDatabaseResilience({
+	maxAttempts: 3,
+	initialDelayMs: 500,
+	maxDelayMs: 5000,
+	jitterMs: 200
+});
+```
+
+Use custom configs for time-sensitive operations only; otherwise prefer the defaults for consistency and simpler operations.
+
+---
+
+## Best Practices
+
+- Use `executeWithRetry()` around idempotent steps that may fail transiently.
+- Provide meaningful operation names for logs.
+- Don’t nest retries; wrap the outermost operation.
+- Keep `maxAttempts` reasonable (<= 10).
+
+---
+
+## Planned Features
+
+- Circuit breaker pattern for known-down states
+- Adaptive backoff based on historical success rate
+- Distributed coordination of health status across instances
+- Advanced metrics (percentile latency, error categorization, trends)
+
+---
+
+## Related
+
+- Database methods: `docs/architecture/database-methods.mdx`
+- Cache system: `docs/architecture/cache-system.mdx`
+- State management: `docs/architecture/state-management.mdx`
+- Dashboard system: `docs/architecture/dashboard-system.mdx`
+
+---
+
+## Detailed Features and Integration
+
+### Automatic Retry with Exponential Backoff
+
+Use `executeWithRetry()` to handle transient failures consistently across the codebase with exponential backoff and jitter.
+
+```ts
+const resilience = getDatabaseResilience({
+	maxAttempts: 5,
+	initialDelayMs: 1000,
+	backoffMultiplier: 2,
+	maxDelayMs: 32000,
+	jitterMs: 500
+});
+
+await resilience.executeWithRetry(async () => {
+	await mongoose.connect(connectionString, options);
+}, 'MongoDB connection');
+```
+
+Applied in:
+
+- Virtual folders initialization (`src/databases/db.ts`)
+- Database adapter loading (`src/databases/db.ts`)
+- Redis connection (`src/databases/CacheService.ts`)
+
+### Self-Healing Database Reconnection
+
+The MongoDB adapter registers reconnection handlers and uses `attemptReconnection()`.
+
+```ts
+mongoose.connection.on('disconnected', async () => {
+	await resilience.attemptReconnection(async () => mongoose.connect(uri, opts));
+});
+
+mongoose.connection.on('error', (err) => {
+	logger.error('MongoDB connection error', { err });
+});
+
+mongoose.connection.on('reconnected', () => {
+	logger.info('MongoDB reconnected');
+});
+```
+
+Flow: detect → mark FAILED → backoff retries → success marks READY and tracks uptime; failure can notify admins.
+
+### Connection Pool Diagnostics (API + Widget)
+
+- API: `GET /api/database/pool-diagnostics` (admin-only)
+- Widget: `DatabasePoolDiagnostics.svelte`
+
+Metrics: total/active/idle, waiting, utilization %, avg connection time; health levels (healthy/degraded/critical) with smart recommendations.
+
+### Admin Email Notifications (Optional)
+
+On persistent failure after all attempts, admins get a detailed email (if SMTP configured).
+
+- Template: `src/components/emails/databaseFailure.svelte`
+
+### Detailed Error Logs Download
+
+- API: `GET /api/logs/download` (admin-only)
+- Params: `type` (`latest|all|archive`), `format` (`text|gzip`), `since`, `level`
+
+---
+
+## Monitoring Example
+
+```ts
+const status = await getSystemStatus();
+
+if (!status.health.healthy) {
+	logger.error('Database unhealthy', { message: status.health.message });
+}
+
+if (status.health.latency > 1000) {
+	logger.warn('High DB latency', { latency: status.health.latency });
+}
+
+const successRate = status.metrics.totalRetries ? (status.metrics.successfulRetries / status.metrics.totalRetries) * 100 : 100;
+```
+
+---
+
+## Environment Variables
+
+```bash
+# SMTP (optional)
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=noreply@example.com
+SMTP_PASS=your-password
+
+# MongoDB
+MONGODB_URI=mongodb://localhost:27017/sveltycms
+```
+
+---
+
+## Performance Impact
+
+- Error detection via state: <100ms (vs ~30s timeouts)
+- Max recovery time with retries: ~31s (1+2+4+8+16s) vs 150s+
+- Reduced redundant queries via centralized health/state checks
+
+Overhead: small singleton footprint and lightweight metrics store.
+
+---
+
+## State Management Integration
+
+Integrates with `@src/stores/system` for fast-path checks and precise reasons on UX surfaces.
+
+```ts
+const { getSystemState, isServiceHealthy } = await import('@src/stores/system');
+const systemState = getSystemState();
+
+if (!isServiceHealthy('database') || systemState.overallState === 'FAILED') {
+	// Avoid slow queries; surface failure reason from state
+}
+```
+
+All reconnection events update centralized state and metrics (uptime %, failure counts, transitions).
+
+---
+
+## Testing
+
+1. Database outage during init (expect backoff retries and structured logs)
+
+```bash
+sudo systemctl stop mongod
+bun run dev
+```
+
+2. Redis connection retries (expect jittered attempts with clear errors)
+
+```bash
+sudo systemctl stop redis
+bun run dev
+```
+
+3. System status endpoint
+
+```bash
+curl http://localhost:5173/api/system/status
+```

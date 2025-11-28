@@ -32,13 +32,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 
 		// Log successful session validation
-		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
+		logger.trace(`User authenticated successfully for user: ${user._id}`);
 
 		// Check user permission for theme management
 		const hasThemeManagementPermission = hasPermissionWithRoles(user, 'config:themeManagement', locals.roles || []);
 
 		if (!hasThemeManagementPermission) {
-			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access theme management`;
+			const message = `User ${user._id} does not have permission to access theme management`;
 			logger.warn(message);
 			throw error(403, 'Insufficient permissions');
 		}

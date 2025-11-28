@@ -109,14 +109,14 @@ const getCachedOrFresh = async <T>(type: string, fetchFunction: () => Promise<T>
 			}
 		}
 	}
-	return cache[type].data;
+	return cache[type].data as T;
 };
 
 // Fetches detailed CPU usage information and tracks it over time
 const fetchCPUInfo = async () => {
 	const cpuUsageResult = await osUtils.cpu.usage();
-	// node-os-utils v2.x returns { success, data, timestamp, cached, platform }
-	const cpuUsage = typeof cpuUsageResult === 'object' && cpuUsageResult.data !== undefined ? cpuUsageResult.data : cpuUsageResult;
+	// node-os-utils v2.x returns MonitorResult<number>
+	const cpuUsage = cpuUsageResult.success ? cpuUsageResult.data : 0;
 	const cpuCount = os.cpus().length;
 	const timeStamp = new Date().toISOString();
 
@@ -191,7 +191,15 @@ const fetchDiskInfo = async () => {
 	}
 
 	// Try to get all mount points on Linux/Unix systems
-	let allMounts = [];
+	let allMounts: Array<{
+		filesystem: string;
+		mountpoint: string;
+		totalGb: number;
+		usedGb: number;
+		freeGb: number;
+		usedPercentage: number;
+		freePercentage: number;
+	}> = [];
 	try {
 		if (os.platform() !== 'win32') {
 			const { stdout } = await execAsync('df -kP | grep -v Filesystem');

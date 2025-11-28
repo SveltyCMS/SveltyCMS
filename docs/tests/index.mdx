@@ -1,63 +1,309 @@
 ---
 path: 'docs/tests/index.mdx'
 title: 'Testing Documentation'
-description: 'Complete testing guide for SveltyCMS including test status, API test coverage, and automated testing workflows.'
+description: 'Complete testing guide for SveltyCMS including Bun unit tests, Playwright E2E tests, GitHub Actions automation, and local testing workflows.'
 order: 1
 icon: 'mdi:test-tube'
 author: 'admin'
 created: '2025-11-08'
-updated: '2025-11-08'
+updated: '2025-11-21'
 tags:
   - 'testing'
   - 'documentation'
   - 'quality-assurance'
   - 'ci-cd'
+  - 'bun'
+  - 'playwright'
 ---
 
 # SveltyCMS Testing Documentation
 
-Comprehensive testing documentation for SveltyCMS covering unit tests, integration tests, E2E tests, and CI/CD workflows.
+**Last Updated:** November 21, 2025
+**Total Tests:** ~615
+**Pass Rate:** ~65% (403 passing, 172 failing, 40 skipped)
 
-## Overview
+## Why Multiple Test Documentation Files?
 
-SveltyCMS uses a multi-layered testing strategy to ensure code quality and reliability:
+This testing documentation is organized into 12 specialized files for easy navigation and maintenance:
 
-- **🧪 Bun Tests** - Fast unit and integration tests
-- **🎭 Playwright Tests** - Comprehensive E2E browser testing
-- **🔄 CI/CD Automation** - Automated testing on every commit
-- **📊 Test Coverage** - Tracking and reporting
+- **By Test Type**: Unit, Integration, E2E
+- **By Coverage Area**: APIs, Hooks, Stores, Widgets, Utilities
+- **By Purpose**: Status reports, workflow guides, coverage reports
+
+This structure allows developers to quickly find relevant testing information without wading through a single massive document.
 
 ---
 
-## Why Bun for Testing SvelteCMS?
+## Test Frameworks Overview
 
-SvelteCMS is a **database-agnostic, headless CMS** built with SvelteKit. We chose Bun as our primary testing framework for several strategic reasons:
+SveltyCMS uses two complementary test frameworks to ensure comprehensive quality coverage:
+
+### 🧪 Bun Test - Unit & Integration Tests
+
+- **Purpose**: Fast, lightweight testing for business logic, services, and API endpoints
+- **Location**: `tests/bun/`
+- **Test Count**: ~575 tests
+- **Execution Time**: ~2-15 seconds
+
+**What It Tests**:
+
+- ✅ Services (auth, security, caching)
+- ✅ Utilities (validation, formatting, crypto)
+- ✅ Stores (system state, UI state, loading)
+- ✅ Widgets (validation, rendering, security)
+- ✅ Middleware Hooks (all 11 hooks)
+- ✅ API Endpoints (integration tests)
+- ✅ Database Operations (MongoDB currently)
+
+**Why Bun?**
+
+- 100x faster than Jest/Mocha
+- Native TypeScript support (no transpilation)
+- Built-in mocking
+- Perfect for headless CMS architecture
+
+### 🎭 Playwright - End-to-End Tests
+
+- **Purpose**: Browser automation for critical user journeys
+- **Location**: `tests/playwright/`
+- **Test Count**: ~40 tests
+- **Execution Time**: ~30-60 seconds
+
+**What It Tests**:
+
+- ✅ Setup Wizard flow
+- ✅ Login/Authentication
+- ✅ Content CRUD operations
+- ✅ Admin dashboard
+- ✅ User management
+
+**Why Playwright?**
+
+- Cross-browser testing (Chromium, Firefox, WebKit)
+- Reliable auto-waiting
+- Screenshot/video recording on failure
+- Parallel execution
+
+---
+
+## GitHub Actions Automation
+
+All tests run automatically in CI/CD via GitHub Actions:
+
+**Workflow**: `.github/workflows/playwright.yml`
+
+```yaml
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - Run Bun unit tests (~350 tests)
+      - Execution time: ~2 seconds
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      mongodb: # MongoDB service container
+    steps:
+      - Clean config directory
+      - Start dev server
+      - Seed test database
+      - Run Bun integration tests (~225 tests)
+      - Execution time: ~15 seconds
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+    steps:
+      - Clean config directory
+      - Install Playwright browsers
+      - Start dev server
+      - Seed test database
+      - Run Playwright E2E tests (~40 tests)
+      - Execution time: ~60 seconds
+```
+
+**When Tests Run**:
+
+- **On Pull Request**: All tests must pass before merge
+- **On Push to main/next**: Full test suite + release checks
+- **Manual Trigger**: Via `workflow_dispatch`
+
+### Future: Multi-Database Matrix Testing
+
+> [!NOTE]
+> **Coming Soon**: Parallel testing against multiple databases
+>
+> ```yaml
+> strategy:
+>   matrix:
+>     database: [mongodb, postgresql, mariadb, mysql]
+> ```
+>
+> This will ensure SveltyCMS works correctly with all supported databases via Drizzle ORM.
+
+---
+
+## Local Testing (Before Committing)
+
+### Quick Start
+
+```bash
+# Run ALL tests (unit + integration + E2E)
+bun run test:all
+
+# Run specific test types
+bun run test:unit          # Fast (~2s) - No server needed
+bun run test:integration   # Medium (~15s) - Requires server
+bun run test:e2e           # Slow (~60s) - Requires server + browser
+```
+
+### Unit Tests Only (Fastest)
+
+```bash
+# All unit tests
+bun run test:unit
+
+# Specific test files
+bun test tests/bun/services/SecurityResponseService.test.ts
+bun test tests/bun/stores/system.test.ts
+bun test tests/bun/widgets/richText.test.ts
+
+# Watch mode (re-run on file changes)
+bun test --watch tests/bun/services/
+```
+
+### Integration Tests (Requires Server)
+
+```bash
+# Terminal 1: Start dev server
+bun run dev
+
+# Terminal 2: Run integration tests
+bun test tests/bun/api/
+bun test tests/bun/hooks/
+bun test tests/bun/databases/
+```
+
+Or use the automated script:
+
+```bash
+# Automatically starts server, waits for ready, runs tests
+bun run test:integration
+```
+
+### E2E Tests (Requires Server + Browser)
+
+```bash
+# Automated (recommended)
+bun run test:e2e  # Starts server, seeds DB, runs Playwright
+
+# Manual
+# Terminal 1: Start server
+bun run dev
+
+# Terminal 2: Seed database
+bun run scripts/seed-test-db.ts
+
+# Terminal 3: Run Playwright
+bun x playwright test tests/playwright/
+```
+
+### Smart Testing (Local Development)
+
+```bash
+# Intelligent test runner
+bun run scripts/test-smart.ts
+```
+
+This script:
+
+1. Checks if server is running (starts if needed)
+2. Detects if system is configured
+3. Runs appropriate tests (setup tests OR full suite)
+4. Cleans up after itself
+
+---
+
+## Test Status & Coverage
+
+**Current Status (November 21, 2025)**
+
+| Category          | Passing | Failing | Skipped | Total   |
+| ----------------- | ------- | ------- | ------- | ------- |
+| Unit Tests        | 350     | 0       | 0       | 350     |
+| Integration Tests | 53      | 172     | 40      | 265     |
+| E2E Tests         | TBD     | TBD     | TBD     | ~40     |
+| **TOTAL**         | **403** | **172** | **40**  | **615** |
+
+**Recently Fixed ✅**
+
+- `tests/bun/hooks/authorization.test.ts` (22 tests) - Fixed mock database adapter
+- `tests/bun/hooks/theme.test.ts` (40 tests) - Fixed mockResolve signature
+- `tests/bun/hooks/firewall.test.ts` (27 tests) - Fixed logger import
+
+**Known Issues ⚠️**
+
+- **172 failing tests** in API integration and Setup middleware
+- **Root cause**: Server connection timeouts in test environment
+- **Fix in progress**: Improving test environment setup
+
+[See Test Status Report](/docs/tests/test-status) for detailed breakdown.
+
+---
+
+## Documentation Index
+
+### Core Testing Guides
+
+- [Test Status Report](/docs/tests/test-status) - Current pass/fail rates, known issues
+- [E2E Testing Guide](/docs/tests/e2e) - Playwright setup and best practices
+- [Git Workflow & CI/CD](/docs/tests/git-workflow) - GitHub Actions automation
+
+### Coverage Reports
+
+- [API Test Coverage](/docs/tests/api-coverage) - REST API endpoint testing (460+ tests)
+- [Hook Test Coverage](/docs/tests/hook-coverage) - Middleware hooks (11 hooks, 485+ tests)
+- [Store Test Coverage](/docs/tests/store-coverage) - Svelte stores (system, UI, loading)
+- [Widget Test Coverage](/docs/tests/widget-coverage) - Widget validation and security
+- [Utility Test Coverage](/docs/tests/utility-coverage) - Helper functions and utilities
+
+### Specific Test Documentation
+
+- [API Test Summary](/docs/tests/api-summary) - Quick API test overview
+- [User API Tests](/docs/tests/user-api-tests) - User management endpoint tests
+- [Database Tests](/docs/tests/database-tests) - Database adapter testing
+
+---
+
+## Why Bun for Testing SveltyCMS?
+
+SveltyCMS is an agnostic headless SvelteKit CMS - it works with multiple databases and focuses on API-first architecture. Bun is the perfect testing framework for this use case:
 
 ### 🚀 Speed & Performance
 
 **Lightning-Fast Execution**
 
-- **Up to 100x faster** than traditional Node.js test runners (Jest, Mocha)
-- Tests run in milliseconds, not seconds
-- Our 76-test utility suite completes in **~1.5 seconds**
-- Full API test suite (460+ tests) completes in **~15-20 seconds**
-- Instant feedback during development with watch mode
+- Up to 100x faster than Jest/Mocha
+- Our 76-test utility suite completes in ~1.5 seconds
+- Full API test suite (460+ tests) completes in ~15-20 seconds
+- Instant feedback during development
 
 **Why Speed Matters for a Headless CMS:**
 
-- Rapid iteration on API endpoints and business logic
-- Quick validation of database operations across multiple adapters
-- Immediate feedback when testing widget validation and security
+- Rapid iteration on API endpoints
+- Quick validation of database operations
+- Immediate feedback on widget validation and security
 - Faster CI/CD pipelines = faster releases
 
-### 🎯 Perfect Match for SvelteCMS Architecture
+### 🎯 Perfect Match for Headless CMS Architecture
 
 **Database Agnostic Testing**
 
-- SvelteCMS supports MongoDB, PostgreSQL, MySQL, and more
-- Bun's speed allows us to run tests against **multiple database adapters** without painful wait times
-- Quick switching between database backends during development
-- Comprehensive contract testing for database interface
+- SveltyCMS supports MongoDB, PostgreSQL, MySQL, MariaDB
+- Bun's speed allows testing against multiple database adapters without painful wait times
+- Future: Matrix testing across all databases in parallel
 
 **Headless CMS Requirements**
 
@@ -68,560 +314,105 @@ SvelteCMS is a **database-agnostic, headless CMS** built with SvelteKit. We chos
 - Cache layer verification (Redis operations)
 - Authentication & authorization flows
 
-**Native TypeScript Support**
+### Native TypeScript Support
 
-- Zero configuration needed - Bun runs `.ts` files directly
+- Zero configuration - Bun runs `.ts` files directly
 - No transpilation overhead
 - Perfect for SvelteKit's TypeScript-first approach
 - Type-safe test code matches production code
 
 ### ⚡ Built-in Features
 
-**No Configuration Needed**
-
 ```typescript
 // Just import and go - no jest.config.js, no babel setup
-import { describe, it, expect } from 'bun:test';
-```
+import { describe, it, expect, mock } from 'bun:test';
 
-**Modern JavaScript/TypeScript**
+// Native mocking
+const mockFn = mock(() => 'mocked value');
 
-- Native ES modules support
-- Top-level await
-- Import maps and path aliases work out of the box
-- Matches SvelteKit's modern JavaScript approach
-
-**Built-in Mocking**
-
-- Simple, powerful mocking without additional libraries
-- Mock fetch, modules, timers
-- Perfect for testing API endpoints and external services
-
-### 🔧 Agnostic Architecture Benefits
-
-**Testing Multiple Implementations**
-
-```typescript
-// Same test suite runs against all database adapters
-describe('Database Interface', () => {
-	testDatabaseContract(mongoAdapter);
-	testDatabaseContract(postgresAdapter);
-	testDatabaseContract(mysqlAdapter);
+// Async/await support
+it('should handle async operations', async () => {
+	const result = await fetchData();
+	expect(result).toBeDefined();
 });
 ```
 
-**API-First Testing**
-
-- Test REST endpoints independently of frontend
-- Validate GraphQL schema and resolvers
-- Ensure consistent behavior across all API versions
-- Test webhook integrations and SSE streams
-
-**Widget System Validation**
-
-- Security testing (XSS prevention, HTML sanitization)
-- Schema validation (Valibot/Zod integration)
-- Dependency checking
-- Rendering logic verification
-
-### 📊 Real Performance Comparison
-
-| Test Runner | 76 Utility Tests | 460+ API Tests | Full Suite |
-| ----------- | ---------------- | -------------- | ---------- |
-| **Bun**     | ~1.5s ✅         | ~20s ✅        | <5min ✅   |
-| Jest        | ~15s ❌          | ~3min ❌       | ~20min ❌  |
-| Vitest      | ~8s ⚠️           | ~90s ⚠️        | ~12min ⚠️  |
-
-### 🛡️ Security & Cryptography
-
-**Argon2id Password Hashing**
-
-- Bun's native crypto module fully supports Argon2id
-- Test quantum-resistant password hashing (125ms per hash)
-- Verify timing attack resistance
-- Ensure proper salt generation
-
-**AES-256-GCM Encryption**
-
-- Native crypto support for encryption testing
-- SHA-256 checksum verification
-- Secure token generation validation
-
-### 🌐 Multi-Tenant Testing
-
-**Isolation Verification**
-
-- Quickly test tenant data separation
-- Validate cache key prefixing
-- Ensure database query filtering
-- Test tenant-specific configurations
-
-**Performance at Scale**
-
-- Simulate multiple tenants
-- Test concurrent operations
-- Verify resource limits
-- Benchmark query performance
-
-### 💡 Developer Experience
-
-**Watch Mode**
-
-```bash
-bun test --watch tests/bun/api/
-# Instant re-runs on file changes
-```
-
-**Beautiful Output**
-
-- Clear, colorful test results
-- Failed test diffs are easy to read
-- Stack traces point to exact issues
-- Coverage reports are clean and actionable
-
-**No Package Bloat**
-
-- Single binary includes test runner
-- No need for separate test dependencies
-- Reduced `node_modules` size
-- Faster CI/CD installs
-
-### 🔄 Headless CMS Specific Use Cases
-
-**Content Type Testing**
-
-```typescript
-// Test dynamic content type creation
-it('should create custom content type', async () => {
-	const schema = { title: 'string', body: 'richtext' };
-	const contentType = await createContentType(schema);
-	expect(contentType.id).toBeDefined();
-});
-```
-
-**API Endpoint Coverage**
-
-```typescript
-// Test all CRUD operations
-describe('Content API', () => {
-	it('should create entry', async () => {
-		/* ... */
-	});
-	it('should read entry', async () => {
-		/* ... */
-	});
-	it('should update entry', async () => {
-		/* ... */
-	});
-	it('should delete entry', async () => {
-		/* ... */
-	});
-	it('should list entries with pagination', async () => {
-		/* ... */
-	});
-});
-```
-
-**Widget Validation**
-
-```typescript
-// Test widget security and validation
-it('should prevent XSS in RichText widget', async () => {
-	const malicious = '<script>alert("xss")</script>';
-	const sanitized = await validateRichText(malicious);
-	expect(sanitized).not.toContain('<script>');
-});
-```
-
-### 📈 Continuous Integration Benefits
-
-**Faster Pipelines**
-
-- GitHub Actions workflows complete in minutes, not hours
-- Parallel test execution across multiple database adapters
-- Matrix testing (MongoDB, PostgreSQL, MySQL) runs simultaneously
-- Quick feedback on pull requests
-
-**Cost Efficiency**
-
-- Less CI/CD compute time = lower costs
-- Faster builds = more frequent deployments
-- Developer productivity increases
-
-### 🎯 The Bottom Line
-
-For SvelteCMS, a **database-agnostic, headless CMS**, Bun provides:
-
-✅ **Speed** - Test 460+ API endpoints in seconds  
-✅ **Simplicity** - Zero configuration TypeScript testing  
-✅ **Compatibility** - Native crypto, fetch, and modern APIs  
-✅ **Scalability** - Test multiple database adapters efficiently  
-✅ **Reliability** - Comprehensive test coverage without slowdown  
-✅ **Developer Joy** - Instant feedback, beautiful output, watch mode
-
-**Result:** We can maintain **86% API coverage (460+ tests)** and **100% utility coverage (76 tests)** while keeping our test suite fast enough to run on every commit.
-
 ---
 
-## Quick Start
+## Test Organization
 
-### Running Tests
-
-```bash
-# Run all unit tests (fast)
-bun test tests/bun
-
-# Run E2E tests
-bun x playwright test
-
-# Run all tests
-bun run test:all
-```
-
-### Test Status
-
-Current test coverage: **77%+ pass rate** with **97+ passing tests**
-
-See [Test Status Report](./test-status.mdx) for detailed breakdown.
-
----
-
-## Documentation Index
-
-### 1. [Test Status Report](./test-status.mdx)
-
-**Purpose:** Current status of all test suites  
-**Updated:** November 8, 2025
-
-**Contains:**
-
-- Test pass/fail statistics
-- Category-wise coverage
-- Known issues and fixes
-- Action items and priorities
-- Recent improvements
-
-**Quick Stats:**
-
-- ✅ 97+ passing tests
-- 📁 17 test files
-- ⚡ ~25s execution time
-- 🎯 150+ assertions
-
----
-
-### 2. [User API Tests](./user-api-tests.mdx)
-
-**Purpose:** Complete documentation for user API integration tests  
-**Updated:** November 8, 2025
-
-**Contains:**
-
-- Full endpoint coverage (8/8 endpoints)
-- 47 comprehensive tests
-- Test suite descriptions
-- Helper function documentation
-- Security testing details
-- Troubleshooting guide
-
-**Test Coverage:**
-
-- ✅ User creation & authentication
-- ✅ Profile updates & permissions
-- ✅ Avatar management (upload/delete)
-- ✅ User invitations (email tokens)
-- ✅ Error handling & edge cases
-- ✅ Session management
-- ✅ API availability checks
-
----
-
-### 3. [Database & Authentication Testing](./database-tests.mdx)
-
-**Purpose:** Comprehensive guide for database layer and authentication system testing  
-**Updated:** November 8, 2025
-
-**Contains:**
-
-- Database interface contract tests (50+ tests)
-- MongoDB adapter implementation tests (40+ tests)
-- Authentication system tests (50+ tests)
-- Test infrastructure setup guide
-- Multi-tenant testing strategies
-- Security testing best practices
-
-**Test Coverage:**
-
-- ✅ Database interface contract validation
-- ✅ MongoDB-specific features
-- ✅ Quantum-resistant password hashing (Argon2id)
-- ✅ Session management & rotation
-- ✅ Token generation & validation
-- ✅ Role-based permissions
-- ✅ Two-factor authentication (2FA)
-- ✅ Multi-tenant isolation
-
-**Status:** 📝 Scaffolded (140+ test cases awaiting database setup)
-
----
-
-### 4. [Git Workflow & Testing](./git-workflow.mdx)
-
-**Purpose:** Git branching strategy and automated testing workflows  
-**Updated:** November 8, 2025
-
-**Contains:**
-
-- Branching strategy (main/next)
-- Commit message conventions
-- GitHub Actions workflows
-- Automated testing process
-- Release process
-- Development workflow
-- Best practices
-
-**Key Topics:**
-
-- 🌿 Branch protection rules
-- 📝 Conventional commits
-- 🤖 CI/CD automation
-- 🚀 Semantic versioning
-- ✅ Test gating for releases
-
----
-
-## Testing Architecture
-
-### Test Layers
-
-```
-┌─────────────────────────────────────────┐
-│         E2E Tests (Playwright)          │
-│  User flows, UI interactions, browser   │
-│         testing across devices          │
-├─────────────────────────────────────────┤
-│    Integration Tests (Bun + Server)     │
-│   API endpoints, database operations,   │
-│        service integration tests        │
-├─────────────────────────────────────────┤
-│       Unit Tests (Bun - Fast!)          │
-│  Business logic, utilities, services,   │
-│     widgets, security, validation       │
-└─────────────────────────────────────────┘
-```
-
-### Test Frameworks
-
-**Bun Test v1.3.1**
-
-- Lightning-fast JavaScript test runner
-- Built-in TypeScript support
-- Watch mode for development
-- Coverage reporting
-
-**Playwright**
-
-- Cross-browser testing (Chromium, Firefox, WebKit)
-- Visual regression testing
-- Network interception
-- Device emulation
-
----
-
-## Test Categories
-
-### ✅ Fully Tested (100% Coverage)
-
-1. **Security Response Service** (8 tests)
-   - XSS detection and prevention
-   - HTML sanitization
-   - Script tag filtering
-   - Malformed input handling
-
-2. **Widget Validation** (8 tests)
-   - RichText widget security
-   - Form validation
-   - Required field checking
-   - Empty content detection
-
-3. **Cache System** (17 tests)
-   - Redis operations
-   - Pattern matching
-   - Multi-tenant isolation
-   - Performance testing
-
-4. **UI Components** (5 tests)
-   - Store management
-   - State handling
-   - Screen responsiveness
-
-5. **Content Utilities** (6 tests)
-   - ID normalization
-   - Object handling
-   - Type conversion
-
-6. **User API** (47 tests)
-   - Complete endpoint coverage
-   - Authentication flows
-   - Avatar management
-   - Error handling
-
-### ⚠️ Partially Tested
-
-7. **Collection Builder** (4/7 tests - 60%)
-   - Widget filtering ✅
-   - Widget search ✅
-   - Schema access ✅
-   - Widget activation ✅
-   - Field instances ❌
-   - Complete workflows ❌
-   - Configuration validation ❌
-
-### ❌ Needs Implementation
-
-8. **Other API Endpoints** (0/4 tests)
-   - System API
-   - Media API
-   - Token API
-   - Collections API
-
----
-
-## Test Infrastructure
-
-### File Structure
+### Directory Structure
 
 ```
 tests/
-├── bun/                          # Unit & integration tests
-│   ├── api/                      # API endpoint tests
-│   │   ├── user.test.ts         # User API (47 tests) ✅
-│   │   ├── system.test.ts       # System API ❌
-│   │   ├── media.test.ts        # Media API ❌
-│   │   ├── token.test.ts        # Token API ❌
-│   │   └── collections.test.ts  # Collections API ❌
-│   │
-│   ├── services/                 # Service layer tests
-│   │   └── SecurityResponseService.test.ts ✅
-│   │
-│   ├── widgets/                  # Widget tests
-│   │   ├── richText.test.ts     # RichText widget ✅
-│   │   └── ...
-│   │
-│   ├── helpers/                  # Test utilities
-│   │   ├── testSetup.ts         # Fixtures & cleanup
-│   │   └── server.ts            # Server wait helper
-│   │
-│   └── mocks/                    # Environment mocks
-│       └── setup.ts             # Comprehensive mocks
+├── bun/                    # Bun unit & integration tests
+│   ├── setup.ts           # Global test setup
+│   ├── mocks/             # Mock implementations
+│   ├── api/               # API integration tests
+│   ├── databases/         # Database adapter tests
+│   ├── hooks/             # Middleware hook tests
+│   ├── services/          # Service layer tests
+│   ├── stores/            # Svelte store tests
+│   ├── utils/             # Utility function tests
+│   └── widgets/           # Widget validation tests
 │
-└── playwright/                   # E2E tests
-    ├── auth/                     # Authentication flows
-    ├── collections/              # Collection management
-    └── ...
+├── playwright/            # Playwright E2E tests
+│   ├── setup-wizard.spec.ts
+│   ├── login.spec.ts
+│   └── helpers/           # Test helpers
+│
+└── scripts/               # Test automation scripts
+    ├── seed-test-db.ts    # Database seeding for tests
+    └── test-smart.ts      # Intelligent test runner
 ```
 
-### Helper Utilities
+### Test File Naming Convention
 
-**`tests/bun/helpers/testSetup.ts`**
-
-- Test fixtures with role resolution
-- Database cleanup utilities
-- Environment initialization
-- First-user detection
-
-**`tests/bun/helpers/server.ts`**
-
-- Server availability checking
-- Timeout prevention
-- API base URL configuration
-
-**`tests/bun/mocks/setup.ts`**
-
-- Svelte 5 rune mocking
-- Widget factory mocking
-- i18n translation mocking
-- Setup wizard state mocking
-
----
-
-## CI/CD Integration
-
-### GitHub Actions Workflows
-
-**On every push to `next`:**
-
-- ✅ Run all Bun tests
-- ✅ Run Playwright E2E tests
-- ✅ Matrix testing (3 browsers × 2 modes)
-- ❌ No release created
-
-**On merge to `main`:**
-
-- ✅ Run complete test suite
-- ✅ Only release if tests pass
-- ✅ Semantic versioning
-- ✅ Changelog generation
-
-### Test Gating
-
-Releases are **blocked** if:
-
-- Any test fails
-- Coverage drops below threshold
-- Security vulnerabilities detected
-- Lint errors present
+- **Unit Tests**: `*.test.ts` (e.g., `SecurityResponseService.test.ts`)
+- **Integration Tests**: `*.test.ts` in `api/`, `hooks/`, `databases/`
+- **E2E Tests**: `*.spec.ts` (e.g., `login.spec.ts`)
 
 ---
 
 ## Best Practices
 
-### Writing Tests
+### For Developers
 
-**✅ Good Test Structure:**
+1. **Run tests locally before committing**
+   ```bash
+   bun run test:unit  # Quick sanity check
+   ```
+2. **Write tests for new features**
+   - Unit tests for business logic
+   - Integration tests for API endpoints
+   - E2E tests for critical user flows (if needed)
+3. **Use watch mode during development**
+   ```bash
+   bun test --watch tests/bun/services/MyNewService.test.ts
+   ```
+4. **Check CI before merging**
+   - All tests must pass in GitHub Actions
+   - Review test failures in PR checks
 
-```typescript
-describe('Feature Name', () => {
-	beforeEach(async () => {
-		await cleanupTestDatabase();
-	});
+### For Test Writers
 
-	it('should handle expected behavior', async () => {
-		// Arrange
-		const input = {
-			/* test data */
-		};
-
-		// Act
-		const result = await functionUnderTest(input);
-
-		// Assert
-		expect(result).toBeDefined();
-		expect(result.success).toBe(true);
-	});
-
-	it('should reject invalid input', async () => {
-		const result = await functionUnderTest(null);
-		expect(result.success).toBe(false);
-	});
-});
-```
-
-**Key Principles:**
-
-- Test one thing per test
-- Use descriptive test names
-- Clean up after tests
-- Mock external dependencies
-- Test both success and failure cases
-
-### Test Coverage Goals
-
-- **Critical paths:** 100% coverage
-- **Business logic:** 90%+ coverage
-- **API endpoints:** 100% endpoint coverage
-- **Security features:** 100% coverage
-- **Utilities:** 80%+ coverage
+1. **Follow existing patterns**
+   - See [Hook Test Coverage](/docs/tests/hook-coverage) for examples
+2. **Use descriptive test names**
+   ```typescript
+   it('should return 401 for unauthenticated API requests', async () => {
+   	// Test implementation
+   });
+   ```
+3. **Mock external dependencies**
+   ```typescript
+   import { mock } from 'bun:test';
+   const mockDb = mock(() => ({ users: [] }));
+   ```
+4. **Test edge cases**
+   - Empty inputs
+   - Invalid data
+   - Error conditions
 
 ---
 
@@ -629,111 +420,51 @@ describe('Feature Name', () => {
 
 ### Common Issues
 
-**1. Test Timeouts**
+**"Server did not start in time"**
 
-```bash
-# Symptom: beforeEach/afterEach hook timed out
+- Check if port 5173 is already in use
+- Run `bun run dev` manually to see errors
+- Increase timeout in `scripts/seed-test-db.ts`
 
-# Solutions:
-- Ensure server is running (bun run dev)
-- Check database connection
-- Verify port availability
-- Use waitForServer() helper
-```
+**"Cannot find module '@src/...'"**
 
-**2. Database Connection Errors**
+- Ensure `bunfig.toml` has correct path aliases
+- Run `bun install` to refresh dependencies
 
-```bash
-# Symptom: Authentication system not available
+**"Test timeout"**
 
-# Solutions:
-- Start MongoDB service
-- Check .env configuration
-- Verify database credentials
-- Check multi-tenant settings
-```
+- Integration tests need running server
+- Use `bun run test:integration` (auto-starts server)
+- Or start server manually in separate terminal
 
-**3. Module Not Found**
+**"Database connection failed"**
 
-```bash
-# Symptom: Cannot find module
-
-# Solutions:
-- Run: bun install
-- Check import paths
-- Verify file exists
-- Check bunfig.toml preload
-```
-
----
-
-## Performance Benchmarks
-
-### Test Execution Times
-
-| Category  | Tests   | Time     | Per Test   |
-| --------- | ------- | -------- | ---------- |
-| Security  | 8       | <100ms   | ~12ms      |
-| Widgets   | 8       | <500ms   | ~60ms      |
-| Cache     | 17      | <2s      | ~115ms     |
-| User API  | 47      | ~5s      | ~106ms     |
-| **Total** | **97+** | **~25s** | **~257ms** |
-
-### Performance Targets
-
-- ✅ Unit tests: <1s per file
-- ✅ Integration tests: <5s per file
-- ✅ E2E tests: <60s per spec
-- ✅ Full suite: <5min
+- Ensure MongoDB is running (for integration/E2E tests)
+- Check `DB_HOST`, `DB_PORT`, `DB_NAME` env vars
+- Run `bun run scripts/seed-test-db.ts` manually to debug
 
 ---
 
 ## Contributing
 
-### Adding New Tests
+**When adding new tests:**
 
-1. **Choose the right location:**
-   - Unit tests → `tests/bun/`
-   - E2E tests → `tests/playwright/`
-
-2. **Follow naming conventions:**
-   - Test files: `*.test.ts`
-   - Spec files: `*.spec.ts`
-
-3. **Use existing helpers:**
-   - Import from `tests/bun/helpers/`
-   - Reuse test fixtures
-   - Follow established patterns
-
-4. **Update documentation:**
-   - Add test description
-   - Update test status
-   - Document any new helpers
-
-### Pull Request Checklist
-
-- [ ] Tests added for new features
-- [ ] All tests pass locally
-- [ ] No linting errors
-- [ ] Documentation updated
-- [ ] Test coverage maintained or improved
+1. **Choose the right test type**:
+   - Unit test: Pure functions, no external dependencies
+   - Integration test: API endpoints, database operations
+   - E2E test: Critical user journeys only
+2. **Update documentation**:
+   - Add test count to relevant coverage report
+   - Update this index if adding new test category
+3. **Verify in CI**:
+   - Push to PR and check GitHub Actions
+   - All tests must pass before merge
 
 ---
 
-## Resources
+## Related Documentation
 
-### Related Documentation
-
-- [API Documentation](/docs/api/index.mdx)
-- [Contributing Guide](/docs/contributing/contributing-docs.mdx)
-- [Architecture Overview](/docs/architecture/index.mdx)
-- [Troubleshooting](/docs/troubleshooting.mdx)
-
-### External Resources
-
-- [Bun Test Documentation](https://bun.sh/docs/cli/test)
-- [Playwright Documentation](https://playwright.dev/)
-- [Conventional Commits](https://www.conventionalcommits.org/)
-- [Semantic Versioning](https://semver.org/)
-
----
+- [Architecture Overview](/docs/architecture)
+- [API Documentation](/docs/api)
+- [Contributing Guide](/docs/contributing)
+- [Development Setup](/docs/development)

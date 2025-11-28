@@ -22,7 +22,7 @@ import mongoose, { Schema } from 'mongoose';
 import { nowISODateString, toISOString } from '@utils/dateUtils';
 
 // System Logger
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 // Theme schema
 export const themeSchema = new Schema<Theme>(
@@ -110,11 +110,9 @@ themeSchema.statics = {
 			// Performance: 10 themes = 1 DB call instead of 20 (10 findOne + 10 updateOne/create)
 			const result = await this.bulkWrite(operations, { ordered: false });
 
-			logger.info(
-				`Stored \x1b[34m${themes.length}\x1b[0m themes via bulk operation ` + `(${result.upsertedCount} inserted, ${result.modifiedCount} updated)`
-			);
+			logger.info(`Stored ${themes.length} themes via bulk operation ` + `(${result.upsertedCount} inserted, ${result.modifiedCount} updated)`);
 		} catch (error) {
-			logger.error(`Error storing themes: \x1b[31m${error instanceof Error ? error.message : String(error)}\x1b[0m`);
+			logger.error(`Error storing themes: ${error instanceof Error ? error.message : String(error)}`);
 			throw error;
 		}
 	},

@@ -1,0 +1,545 @@
+---
+path: 'docs/architecture/image-editor-widgets.mdx'
+title: 'Image Editor Widgets Reference'
+description: 'Complete reference for all built-in Image Editor widgets including Crop, Blur, FineTune, Annotate, and Watermark tools'
+order: 11
+icon: 'mdi:widgets'
+author: 'admin'
+created: '2025-11-16'
+updated: '2025-11-16'
+tags:
+  - 'image-editor'
+  - 'widgets'
+  - 'reference'
+  - 'tools'
+  - 'api'
+---
+
+# Image Editor Widgets Reference
+
+This document provides a complete reference for all built-in Image Editor widgets with their modularized architecture.
+
+## 📦 Module Structure
+
+All widgets follow a consistent modular file structure for better maintainability:
+
+```
+widgets/[WidgetName]/
+├── index.ts          # Widget registration
+├── Tool.svelte       # Main canvas logic controller
+├── Controls.svelte   # Toolbar UI controls
+└── [utility files]   # Modular helper files
+```
+
+### Common Utility Modules
+
+- **regions.ts** - Region/entity class for managing canvas objects (Blur, Crop, Annotate, Watermark)
+- **adjustments.ts** - Adjustment definitions and defaults (FineTune)
+- **baseFilters.ts** - Konva built-in filters (FineTune)
+- **customFilters.ts** - Custom pixel-level filters (FineTune)
+- **draw.ts** - Drawing factory functions (Annotate)
+- **editText.ts** - Text editing utilities (Annotate)
+- **events.ts** - Event namespacing (Annotate)
+- **transformer.ts** - Transformer creation utilities (Annotate)
+- **aspect.ts** - Aspect ratio parsing (Crop)
+- **cropMath.ts** - Coordinate transformation math (Crop)
+- **highlight.ts** - Overlay cutout synchronization (Crop)
+- **overlay.ts** - Overlay group creation (Crop)
+
+## 📋 Widget Overview
+
+| Widget    | Key         | Description                                   | Icon          |
+| --------- | ----------- | --------------------------------------------- | ------------- |
+| Crop      | `crop`      | Crop, rotate, flip, and scale images          | `mdi:crop`    |
+| Blur      | `blur`      | Apply selective or full blur effects          | `mdi:blur`    |
+| FineTune  | `finetune`  | Adjust brightness, contrast, saturation, etc. | `mdi:tune`    |
+| Annotate  | `annotate`  | Add text, shapes, and drawings                | `mdi:draw`    |
+| Watermark | `watermark` | Add image overlays and watermarks             | `mdi:sticker` |
+
+## 🌾 Crop Widget
+
+### Location
+
+`src/routes/(app)/imageEditor/widgets/Crop/`
+
+### Features
+
+- Rectangle, square, and circular crop shapes
+- Rotation (90° increments + free rotation)
+- Horizontal/vertical flip
+- Aspect ratio constraints (free, 1:1, 4:3, 16:9, 3:2, 9:16)
+- Visual crop overlay with transformer handles
+- Rule of thirds grid (planned)
+
+### Props (Tool.svelte)
+
+```typescript
+interface CropToolProps {
+	stage: Konva.Stage; // Konva stage instance
+	layer: Konva.Layer; // Konva layer for rendering
+	imageNode: Konva.Image; // Image node to crop
+	container: Konva.Group; // Container group for transforms
+	cropShape?: 'rectangle' | 'square' | 'circular'; // Default: 'rectangle'
+	rotationAngle?: number; // Default: 0
+	scaleValue?: number; // Default: 100
+	onApply?: (data: CropData) => void;
+	onCancel?: () => void;
+}
+
+interface CropData {
+	x: number; // Crop X position
+	y: number; // Crop Y position
+	width: number; // Crop width
+	height: number; // Crop height
+	shape: string; // 'rectangle' | 'square' | 'circular'
+}
+```
+
+### Controls (Controls.svelte)
+
+```typescript
+interface CropControlsProps {
+	onRotateLeft: () => void;
+	onFlipHorizontal: () => void;
+	cropShape: 'rectangle' | 'square' | 'circular';
+	onCropShapeChange: (shape: string) => void;
+	onAspectRatio: (ratio: string) => void;
+	onApply: () => void;
+}
+```
+
+### Exported Methods
+
+```typescript
+export function rotateLeft(): void;
+export function flipHorizontal(): void;
+export function flipVertical(): void;
+export function setCropShape(shape: 'rectangle' | 'square' | 'circular'): void;
+export function setAspectRatio(ratio: string): void;
+export function apply(): void;
+export function cancel(): void;
+export function cleanup(): void;
+```
+
+### Usage Example
+
+```svelte
+<Crop
+	{stage}
+	{layer}
+	{imageNode}
+	container={imageGroup}
+	bind:cropShape
+	bind:rotationAngle
+	bind:scaleValue
+	onApply={(data) => handleCropApply(data)}
+	onCancel={() => handleCropCancel()}
+/>
+```
+
+## 🌫️ Blur Widget
+
+### Location
+
+`src/routes/(app)/imageEditor/widgets/Blur/`
+
+### Features
+
+- Selective region blur
+- Adjustable blur strength (0-100)
+- Rectangle region selection
+- Gaussian blur filter
+- Mosaic/pixelation effect (planned)
+
+### Props (Tool.svelte)
+
+```typescript
+interface BlurToolProps {
+	blurStrength?: number; // Default: 10 (0-100)
+	onBlurReset?: () => void;
+	onBlurApplied?: () => void;
+}
+```
+
+### Controls (Controls.svelte)
+
+```typescript
+interface BlurControlsProps {
+	blurStrength: number;
+	onBlurStrengthChange: (value: number) => void;
+	onReset: () => void;
+	onApply: () => void;
+}
+```
+
+### Exported Methods
+
+```typescript
+export function updateBlurStrength(value: number): void;
+export function reset(): void;
+export function apply(): void;
+```
+
+### Implementation Details
+
+- Uses Konva.Filters.Blur for blur effect
+- Selectable blur region via draggable rectangle
+- Real-time preview of blur strength
+- Region transformer for resize/move
+
+## 🎨 FineTune Widget
+
+### Location
+
+`src/routes/(app)/imageEditor/widgets/FineTune/`
+
+### Features
+
+- Brightness adjustment (-100 to +100)
+- Contrast adjustment (-100 to +100)
+- Saturation adjustment (-100 to +100)
+- Temperature adjustment (-100 to +100)
+- Exposure adjustment (-100 to +100)
+- Highlights adjustment (-100 to +100)
+- Shadows adjustment (-100 to +100)
+- Clarity adjustment (-100 to +100)
+- Vibrance adjustment (-100 to +100)
+- Before/after comparison (hold button)
+
+### Props (Tool.svelte)
+
+```typescript
+interface FineTuneToolProps {
+	activeAdjustment?: keyof Adjustments; // Default: 'brightness'
+	onActiveAdjustmentChange?: (adjustment: string) => void;
+	onFineTuneApplied?: () => void;
+	onFineTuneReset?: () => void;
+}
+
+interface Adjustments {
+	brightness: number;
+	contrast: number;
+	saturation: number;
+	temperature: number;
+	exposure: number;
+	highlights: number;
+	shadows: number;
+	clarity: number;
+	vibrance: number;
+}
+```
+
+### Controls (Controls.svelte)
+
+```typescript
+interface FineTuneControlsProps {
+	activeAdjustment: string;
+	value: number;
+	onChange: (value: number) => void;
+	onAdjustmentChange: (adjustment: string) => void;
+	onComparisonStart: () => void;
+	onComparisonEnd: () => void;
+	onReset: () => void;
+	onApply: () => void;
+}
+```
+
+### Exported Methods
+
+```typescript
+export function handleAdjustmentChange(adjustment: keyof Adjustments, value: number): void;
+export function startComparison(): void;
+export function endComparison(): void;
+export function resetAdjustments(): void;
+export function applyFineTunePermanently(): void;
+export function exitFineTune(): void;
+```
+
+### Filter Implementation
+
+Uses Konva built-in filters + custom filters:
+
+- **Brightness/Contrast/Saturation**: `Konva.Filters.Brighten`, `Konva.Filters.Contrast`, `Konva.Filters.HSL`
+- **Temperature**: Hue shift via `Konva.Filters.HSL`
+- **Exposure/Highlights/Shadows/Clarity**: Custom pixel manipulation filter
+
+## ✏️ Annotate Widget
+
+### Location
+
+`src/routes/(app)/imageEditor/widgets/Annotate/`
+
+### Features
+
+- Text annotations (double-click to edit)
+- Rectangle shapes
+- Circle shapes
+- Arrow annotations
+- Line drawings
+- Customizable stroke color
+- Customizable fill color
+- Adjustable stroke width
+- Adjustable font size
+- Draggable and transformable annotations
+
+### Props (Tool.svelte)
+
+```typescript
+interface AnnotateToolProps {
+	stage: Konva.Stage;
+	layer: Konva.Layer;
+	imageNode: Konva.Image;
+	onAnnotationChange?: () => void;
+	strokeColor?: string; // Default: '#ff0000'
+	fillColor?: string; // Default: 'transparent'
+	strokeWidth?: number; // Default: 2
+	fontSize?: number; // Default: 20
+}
+
+type AnnotationShape = Konva.Rect | Konva.Circle | Konva.Arrow | Konva.Line | Konva.Text;
+```
+
+### Controls (Controls.svelte)
+
+```typescript
+interface AnnotateControlsProps {
+	currentTool: 'text' | 'rectangle' | 'circle' | 'arrow' | 'line' | null;
+	strokeColor: string;
+	fillColor: string;
+	strokeWidth: number;
+	fontSize: number;
+	onSetTool: (tool: ToolType) => void;
+	onStrokeColorChange: (color: string) => void;
+	onFillColorChange: (color: string) => void;
+	onStrokeWidthChange: (width: number) => void;
+	onFontSizeChange: (size: number) => void;
+	onDelete: () => void;
+	onDeleteAll: () => void;
+	onDone: () => void;
+}
+```
+
+### Exported Methods
+
+```typescript
+export function setTool(tool: 'text' | 'rectangle' | 'circle' | 'arrow' | 'line' | null): void;
+export function selectAnnotation(node: AnnotationShape): void;
+export function deleteSelected(): void;
+export function deleteAll(): void;
+export function apply(): Konva.Shape[];
+export function reset(): void;
+export function getAnnotations(): AnnotationShape[];
+```
+
+### Drawing Flow
+
+1. User selects tool (text, rectangle, etc.)
+2. Click on canvas to start drawing
+3. Drag to size (for shapes) or click to place (for text)
+4. Click shape to select and transform
+5. Delete or finalize annotations
+
+## 🏷️ Watermark Widget
+
+### Location
+
+`src/routes/(app)/imageEditor/widgets/Watermark/`
+
+### Features
+
+- Upload custom watermark images
+- Multiple watermarks on same image
+- Draggable positioning
+- Resizable with maintained aspect ratio
+- Rotation
+- Layer ordering (bring to front/send to back)
+- Multiple watermarks management
+
+### Props (Tool.svelte)
+
+```typescript
+interface WatermarkToolProps {
+	stage: Konva.Stage;
+	layer: Konva.Layer;
+	imageNode: Konva.Image;
+	onStickerChange?: () => void;
+}
+
+interface StickerData {
+	id: string;
+	imageNode: Konva.Image;
+	transformer: Konva.Transformer;
+	file: File;
+	previewUrl: string;
+}
+```
+
+### Controls (Controls.svelte)
+
+```typescript
+interface WatermarkControlsProps {
+	stickerCount: number;
+	hasSelection: boolean;
+	onAddSticker: () => void;
+	onDeleteSelected: () => void;
+	onDeleteAll: () => void;
+	onApply: () => void;
+}
+```
+
+### Exported Methods
+
+```typescript
+export function openFileDialog(): void;
+export function selectSticker(sticker: StickerData): void;
+export function deleteSelectedSticker(): void;
+export function deleteAllStickers(): void;
+export function bringToFront(): void;
+export function sendToBack(): void;
+export function getStickers(): StickerData[];
+export function getSelectedSticker(): StickerData | null;
+```
+
+### Watermark Lifecycle
+
+1. User clicks "Add Watermark" button
+2. File input dialog opens
+3. Image file selected
+4. Watermark loaded and placed at center
+5. User positions/resizes via transformer
+6. Multiple watermarks can be added
+7. Apply finalizes all watermarks
+
+## 🎯 Widget Registration
+
+All widgets self-register via their `index.ts`:
+
+```typescript
+// widgets/Crop/index.ts
+import type { Component } from 'svelte';
+import Tool from './Tool.svelte';
+import Controls from './Controls.svelte';
+
+export default {
+	key: 'crop',
+	title: 'Crop',
+	icon: 'mdi:crop',
+	tool: Tool as unknown as Component<Record<string, unknown>>,
+	controls: Controls as unknown as Component<Record<string, unknown>>
+};
+```
+
+The registry automatically discovers and loads all widgets:
+
+```typescript
+// widgets/registry.ts
+const modules = import.meta.glob('./[A-Z]*/index.ts', { eager: true });
+export const editorWidgets: EditorWidget[] = Object.values(modules)
+	.map((m) => m.default ?? m.editorWidget)
+	.filter((w): w is EditorWidget => !!w);
+```
+
+## 🔄 Control Injection Pattern
+
+All widgets use the same pattern to inject controls:
+
+```typescript
+$effect(() => {
+	const activeState = imageEditorStore.state.activeState;
+	if (activeState === 'mytool') {
+		imageEditorStore.setToolbarControls({
+			component: MyToolControls,
+			props: {
+				// ... control props
+			}
+		});
+	} else {
+		imageEditorStore.setToolbarControls(null);
+	}
+});
+```
+
+## 🛠️ Common Patterns
+
+### Konva Node Cleanup
+
+```typescript
+$effect(() => {
+	// Setup
+	if (active) {
+		initializeTool();
+	}
+
+	// Cleanup on deactivation or unmount
+	return () => {
+		if (toolNode) toolNode.destroy();
+		if (transformer) transformer.destroy();
+		layer?.batchDraw();
+	};
+});
+```
+
+### Snapshot for Undo/Redo
+
+```typescript
+function applyChanges() {
+	// Take snapshot before mutation
+	imageEditorStore.takeSnapshot();
+
+	// Apply changes
+	imageNode.filters([
+		/* ... */
+	]);
+	imageNode.cache();
+	layer.batchDraw();
+}
+```
+
+### Transformer Setup
+
+```typescript
+const transformer = new Konva.Transformer({
+	nodes: [targetNode],
+	keepRatio: true,
+	enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+	rotateEnabled: true,
+	borderStroke: '#0066ff',
+	borderStrokeWidth: 2,
+	anchorFill: '#0066ff',
+	anchorSize: 10
+});
+
+layer.add(transformer);
+transformer.moveToTop();
+```
+
+## 📊 Widget Comparison
+
+| Feature            | Crop | Blur | FineTune | Annotate | Watermark |
+| ------------------ | ---- | ---- | -------- | -------- | --------- |
+| Konva Filters      | ❌   | ✅   | ✅       | ❌       | ❌        |
+| Transformers       | ✅   | ✅   | ❌       | ✅       | ✅        |
+| Drawing Mode       | ❌   | ✅   | ❌       | ✅       | ❌        |
+| File Upload        | ❌   | ❌   | ❌       | ❌       | ✅        |
+| Before/After       | ❌   | ❌   | ✅       | ❌       | ❌        |
+| Multiple Instances | ❌   | ❌   | ❌       | ✅       | ✅        |
+
+## 🚀 Creating Custom Widgets
+
+To create a new editor widget:
+
+1. Create folder: `widgets/MyTool/`
+2. Create `Tool.svelte` (canvas logic)
+3. Create `Controls.svelte` (toolbar UI)
+4. Create `index.ts` (metadata export)
+5. Widget auto-discovered by registry!
+
+See [Image Editor Architecture](/docs/architecture/image-editor-architecture) for detailed guide.
+
+## 📚 Related Documentation
+
+- [Image Editor Architecture](/docs/architecture/image-editor-architecture)
+- [Widget System Overview](/docs/widgets/widget-system-overview)
+- [Konva Documentation](https://konvajs.org/docs/)
+
+---

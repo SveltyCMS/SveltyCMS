@@ -31,6 +31,10 @@ import type { GraphQLFieldResolver } from 'graphql';
 import { modifyRequest } from '@api/collections/modifyRequest';
 import { contentManager } from '@src/content/ContentManager';
 
+// Token Engine
+import { replaceTokens } from '@src/services/token/engine';
+import type { TokenContext } from '@src/services/token/types';
+
 // System Logger
 import { logger } from '@utils/logger.server';
 
@@ -39,7 +43,6 @@ import { logger } from '@utils/logger.server';
 // Types
 import type { User } from '@src/databases/auth/types';
 import type { Schema, FieldInstance } from '@src/content/types';
-import type { createPubSub } from 'graphql-yoga';
 
 /**
  * Creates a clean GraphQL type name from collection info
@@ -290,12 +293,7 @@ export async function registerCollections(tenantId?: string) {
 }
 
 // Builds resolvers for querying collection data.
-export async function collectionsResolvers(
-	dbAdapter: DatabaseAdapter,
-	cacheClient: CacheClient | null,
-	pubSub: ReturnType<typeof createPubSub>,
-	tenantId?: string
-) {
+export async function collectionsResolvers(dbAdapter: DatabaseAdapter, cacheClient: CacheClient | null, tenantId?: string) {
 	if (!dbAdapter) {
 		throw new Error('Database adapter is not initialized');
 	}
@@ -379,47 +377,44 @@ export async function collectionsResolvers(
 					}
 				}
 
-				resultArray.forEach((doc: DocumentBase) => {
+				// Token Replacement
+				const processedResults = await Promise.all(
+					resultArray.map(async (doc) => {
+						const tokenContext: TokenContext = {
+							entry: doc,
+							user: ctx.user
+						};
+
+						const processedDoc = { ...doc };
+						for (const key in processedDoc) {
+							const value = processedDoc[key];
+							if (typeof value === 'string' && value.includes('{{')) {
+								try {
+									processedDoc[key] = await replaceTokens(value, tokenContext);
+								} catch (err) {
+									logger.warn(`Token replacement failed for field ${key} in collection ${collection._id}`, err);
+								}
+							}
+						}
+						return processedDoc;
+					})
+				);
+
+				processedResults.forEach((doc: DocumentBase) => {
 					doc.createdAt = doc.createdAt ? new Date(doc.createdAt).toISOString() : new Date().toISOString();
 					doc.updatedAt = doc.updatedAt ? new Date(doc.updatedAt).toISOString() : doc.createdAt;
 				});
 
 				if (getPrivateSettingSync('USE_REDIS') && cacheClient) {
-					await cacheClient.set(cacheKey, JSON.stringify(resultArray), 'EX', 60 * 60, ctx.tenantId);
+					await cacheClient.set(cacheKey, JSON.stringify(processedResults), 'EX', 60 * 60, ctx.tenantId);
 				}
 
-				return resultArray;
+				return processedResults;
 			} catch (error) {
 				const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 				logger.error(`Error fetching data for ${collection._id}: ${errorMessage}`);
 				throw new Error(`Failed to fetch data for ${collection._id}: ${errorMessage}`);
 			}
-		};
-
-		// Add mutation resolvers
-		resolvers.Query[`create${cleanTypeName}`] = async function resolver(
-			_parent: unknown,
-			args: { input: Record<string, unknown> },
-			context: unknown
-		): Promise<DocumentBase> {
-			const ctx = context as { user?: User; tenantId?: string };
-			if (!ctx.user) {
-				throw new Error('Authentication required');
-			}
-
-			const collectionName = `collection_${collection._id}`;
-			const result = await dbAdapter.crud.insert(collectionName, args.input);
-
-			if (!result.success) {
-				throw new Error(`Database query failed: ${result.error?.message || 'Unknown error'}`);
-			}
-
-			const newPost = result.data as unknown as DocumentBase;
-
-			// Publish the new post to the subscription
-			pubSub.publish('postAdded', newPost);
-
-			return newPost;
 		};
 	}
 

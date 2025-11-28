@@ -14,7 +14,7 @@
  */
 
 // System Logger
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 import type { IDBAdapter, ISODateString } from '@src/databases/dbInterface';
 import {
 	generateBackupCodes,

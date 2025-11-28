@@ -1,45 +1,44 @@
 /**
  * @file tests/bun/helpers/server.ts
- * @description Helper utilities for waiting on the SvelteKit dev server to be ready.
- * This is useful for API integration tests that need the server running.
+ * @description Core server connectivity utilities. Zero dependencies.
  */
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5173';
 
+export function getApiBaseUrl(): string {
+	return API_BASE_URL;
+}
+
 /**
- * Waits for the SvelteKit server to become ready by polling the base URL.
- * Throws an error if the server doesn't respond within the timeout period.
- *
- * @param timeoutMs - Maximum time to wait for server (default: 60 seconds)
- * @param intervalMs - Time between polling attempts (default: 1 second)
- * @throws {Error} If server doesn't become ready within timeout
+ * Robustly waits for the API to be available.
+ * PERFORMANCE OPTIMIZED: Shorter intervals for faster detection.
  */
-export async function waitForServer(timeoutMs = 60000, intervalMs = 1000): Promise<void> {
+export async function waitForServer(timeoutMs = 30000, intervalMs = 500): Promise<void> {
 	const start = Date.now();
 	let lastError: unknown;
 
+	process.stdout.write(`Waiting for server at ${API_BASE_URL}... `);
+
 	while (Date.now() - start < timeoutMs) {
 		try {
-			const res = await fetch(API_BASE_URL, { method: 'GET' });
+			const res = await fetch(API_BASE_URL, { method: 'HEAD' }); // HEAD is lighter than GET
 			if (res.ok || res.status === 404) {
-				// 200 OK or 404 means the server is responding (404 is fine for base URL)
-				console.log(`✓ Server is ready at ${API_BASE_URL}`);
+				console.log('✓ Ready');
+
+				// CRITICAL: Wait for Vite module runner to register collection models
+				// This prevents "transport disconnected" errors during tests
+				console.log('⏳ Waiting for models to register...');
+				await new Promise((r) => setTimeout(r, 2000)); // 2s delay
+				console.log('✅ Models registered, server fully ready');
+
 				return;
 			}
-			lastError = new Error(`Server responded with ${res.status}`);
+			lastError = new Error(`Status ${res.status}`);
 		} catch (e) {
 			lastError = e;
 		}
 		await new Promise((r) => setTimeout(r, intervalMs));
 	}
 
-	throw new Error(`CMS server did not become ready at ${API_BASE_URL} within ${timeoutMs}ms. ` + `Last error: ${String(lastError)}`);
-}
-
-/**
- * Gets the configured API base URL for tests.
- * @returns The API base URL
- */
-export function getApiBaseUrl(): string {
-	return API_BASE_URL;
+	throw new Error(`\nServer timeout! Ensure 'bun run dev' is running. Last error: ${lastError}`);
 }

@@ -52,5 +52,50 @@
       "chunkCount": 22,
       "largestChunk": 678031
     }
+  },
+  {
+    "timestamp": "2025-11-21T18:17:40.598Z",
+    "stats": {
+      "totalSize": 11288265,
+      "totalGzipSize": 2246897,
+      "chunkCount": 21,
+      "largestChunk": 9933982
+    }
+  },
+  {
+    "timestamp": "2025-11-21T18:47:04.196Z",
+    "stats": {
+      "totalSize": 11288265,
+      "totalGzipSize": 2246901,
+      "chunkCount": 21,
+      "largestChunk": 9933982
+    }
+  },
+  {
+    "timestamp": "2025-11-21T19:06:39.641Z",
+    "stats": {
+      "totalSize": 11288265,
+      "totalGzipSize": 2246876,
+      "chunkCount": 21,
+      "largestChunk": 9933982
+    }
+  },
+  {
+    "timestamp": "2025-11-21T19:26:25.588Z",
+    "stats": {
+      "totalSize": 11288267,
+      "totalGzipSize": 2246883,
+      "chunkCount": 21,
+      "largestChunk": 9933984
+    }
+  },
+  {
+    "timestamp": "2025-11-21T19:32:51.483Z",
+    "stats": {
+      "totalSize": 11043001,
+      "totalGzipSize": 2178515,
+      "chunkCount": 36,
+      "largestChunk": 9750573
+    }
   }
 ]

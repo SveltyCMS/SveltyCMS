@@ -1,0 +1,90 @@
+---
+path: 'docs/tests/e2e-testing-guide.mdx'
+title: 'E2E Testing Guide'
+description: 'Guide for writing and running Playwright E2E tests with auth helper'
+order: 12
+icon: 'mdi:test-tube'
+author: 'admin'
+created: '2025-01-20'
+updated: '2025-01-20'
+tags:
+  - 'testing'
+  - 'e2e'
+  - 'playwright'
+  - 'automation'
+---
+
+# E2E Testing Guide
+
+## Overview
+
+SveltyCMS uses **Playwright** for End-to-End (E2E) testing. Our strategy is optimized for speed and reliability:
+
+1.  **API-Based Seeding:** We do NOT run the Setup Wizard via UI in tests. We seed the database via API.
+2.  **Auth Helper:** We use a helper to log in programmatically, bypassing the login UI for most tests.
+3.  **Critical Flows Only:** E2E tests focus on critical user journeys (Login, Content Creation, Settings). Logic is tested in Unit/Integration layers.
+
+## Running Tests
+
+The `test:e2e` command handles everything: starts the server, seeds the DB, and runs Playwright.
+
+```bash
+# Run E2E tests (Auto-starts server & seeds DB)
+bun run test:e2e
+
+# Run specific test file
+bun run test:e2e -- tests/playwright/login.spec.ts
+```
+
+### 🧠 Smart Testing
+
+We also provide a smart runner that adapts to your environment:
+
+```bash
+bun run scripts/test-smart.ts
+```
+
+- **Fresh Environment:** Runs only Setup Wizard tests.
+- **Configured Environment:** Runs full test suite (skipping setup tests).
+- **Auto-Server:** Starts `bun run dev` if not running.
+
+## Writing Tests
+
+### 1. Use the Auth Helper
+
+Avoid logging in via UI in every test. Use `loginAsAdmin` from `helpers/auth.ts`.
+
+```typescript
+import { test, expect } from '@playwright/test';
+import { loginAsAdmin } from './helpers/auth';
+
+test('Admin can access dashboard', async ({ page }) => {
+    // Logs in and waits for navigation to dashboard
+    await loginAsAdmin(page);
+
+    // Your test logic
+    await expect(page.getByText('Dashboard')).toBeVisible();
+});
+```
+
+### 2. Database State
+
+The database is **reset and seeded** before the test suite runs.
+- **Admin User:** `admin@example.com` / `Admin123!`
+- **Database:** `sveltycms_test`
+
+### 3. CI/CD
+
+In GitHub Actions, E2E tests run in parallel with Unit and Integration tests.
+- **Job:** `e2e-tests`
+- **Artifacts:** Screenshots and traces are uploaded on failure.
+
+## Troubleshooting
+
+**"Server did not start in time"**
+- Check if port 5173 is in use.
+- Run `bun run dev` manually to see errors.
+
+**"Login failed"**
+- Ensure `scripts/seed-test-db.ts` ran successfully.
+- Check `config/private.ts` exists.

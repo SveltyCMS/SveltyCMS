@@ -18,7 +18,7 @@ import { invalidateUserCountCache } from '@src/hooks/handleAuthorization';
 
 // Utils
 import { contentManager } from '@root/src/content/ContentManager';
-import { saveAvatarImage } from '@utils/media/mediaStorage';
+import { saveAvatarImage } from '@utils/media/mediaStorage.server';
 
 // Stores
 import { getPrivateSettingSync } from '@src/services/settingsService';
@@ -161,7 +161,7 @@ async function handleGoogleUser(
 	logger.debug('OAuth user lookup for email', { email: email });
 	logger.debug(`User found: ${user ? 'YES' : 'NO'}`);
 	if (user) {
-		logger.debug(`Existing user ID: \x1b[34m${user._id}\x1b[0m, username: ${user.username}`);
+		logger.debug(`Existing user ID: ${user._id}, username: ${user.username}`);
 	}
 
 	if (!user) {
@@ -263,7 +263,7 @@ async function handleGoogleUser(
 		logger.debug('Updating user attributes:', updateData);
 		if (!auth) throw new Error('Auth system not initialized');
 		await auth.updateUserAttributes(user._id.toString(), updateData);
-		logger.debug(`Updated user attributes for: \x1b[34m${user._id}\x1b[0m`);
+		logger.debug(`Updated user attributes for: ${user._id}`);
 	}
 
 	if (!user?._id) throw new Error('User ID is missing after creation or retrieval');
@@ -284,7 +284,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 		logger.debug('OAuth Callback called:');
 		const firstUserExists = (await auth.getUserCount()) !== 0;
-		logger.debug(`First user exists: \x1b[34m${firstUserExists}\x1b[0m`);
+		logger.debug(`First user exists: ${firstUserExists}`);
 
 		const code = url.searchParams.get('code');
 		const state = url.searchParams.get('state');
@@ -292,9 +292,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		const error_subtype = url.searchParams.get('error_subtype');
 		const token = state ? decodeURIComponent(state) : null;
 
-		logger.debug(`Authorization code from URL: \x1b[34m${code}\x1b[0m`);
-		logger.debug(`Registration token from state: \x1b[34m${token}\x1b[0m`);
-		logger.debug(`Is First User: \x1b[34m${!firstUserExists}\x1b[0m`);
+		logger.debug(`Authorization code from URL: ${code}`);
+		logger.debug(`Registration token from state: ${token}`);
+		logger.debug(`Is First User: ${!firstUserExists}`);
 
 		// Handle OAuth errors first
 		if (error_param) {
@@ -360,7 +360,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			const userLanguage = url.searchParams.get('lang') || defaultLanguage;
 			const redirectUrl = await contentManager.getFirstCollectionRedirectUrl(userLanguage);
 
-			logger.debug(`Redirecting to: \x1b[34m${redirectUrl || '/'}\x1b[0m`);
+			logger.debug(`Redirecting to: ${redirectUrl || '/'}`);
 			throw redirect(302, redirectUrl || '/');
 		} catch (err) {
 			if (err && typeof err === 'object' && 'status' in err && (err.status === 302 || err.status === 303)) {

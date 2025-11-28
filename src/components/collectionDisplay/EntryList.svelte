@@ -73,7 +73,7 @@ Features:
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
 	// =================================================================
-	let {
+	const {
 		entries: serverEntries = [],
 		pagination: serverPagination = { currentPage: 1, pageSize: 10, totalItems: 0, pagesCount: 1 },
 		contentLanguage: propContentLanguage
@@ -91,9 +91,9 @@ Features:
 	// =================================================================
 	// 2. USE SERVER DATA (Simple $derived - No Client-Side State)
 	// =================================================================
-	let tableData = $derived(serverEntries);
-	let pagesCount = $derived(serverPagination.pagesCount);
-	let totalItems = $derived(serverPagination.totalItems);
+	const tableData = $derived(serverEntries);
+	const pagesCount = $derived(serverPagination.pagesCount);
+	const totalItems = $derived(serverPagination.totalItems);
 
 	// =================================================================
 	// 3. URL-BASED NAVIGATION (Replaces All Client-Side Fetching)
@@ -122,7 +122,7 @@ Features:
 	}
 
 	function onSortChange(fieldName: string) {
-		let newSorted = { ...entryListPaginationSettings.sorting };
+		const newSorted = { ...entryListPaginationSettings.sorting };
 		if (newSorted.sortedBy === fieldName) {
 			newSorted.isSorted = newSorted.isSorted === 1 ? -1 : ((newSorted.isSorted === -1 ? 0 : 1) as SortOrder);
 			if (newSorted.isSorted === 0) newSorted.sortedBy = '';
@@ -188,7 +188,7 @@ Features:
 
 	// Phase 2: Predictive preloading - track hover patterns
 	const hoverPatterns = new Map<string, number>(); // entryId -> hover count
-	let predictivePreloadQueue: string[] = [];
+	const predictivePreloadQueue: string[] = [];
 
 	// Detect connection speed
 	$effect(() => {
@@ -452,7 +452,7 @@ Features:
 		}
 	});
 
-	let visibleTableHeaders = $derived(displayTableHeaders.filter((header) => header.visible));
+	const visibleTableHeaders = $derived(displayTableHeaders.filter((header) => header.visible));
 
 	let selectAllColumns = $state(true);
 	$effect(() => {
@@ -499,7 +499,7 @@ Features:
 		process_selectAllRows(SelectAll);
 	});
 
-	let hasSelections = $derived.by(() => {
+	const hasSelections = $derived.by(() => {
 		return Object.values(selectedMap).some((isSelected) => isSelected);
 	});
 
@@ -519,8 +519,8 @@ Features:
 		});
 	});
 
-	let pathSegments = $derived(page.url.pathname.split('/').filter(Boolean));
-	let categoryName = $derived.by(() => {
+	const pathSegments = $derived(page.url.pathname.split('/').filter(Boolean));
+	const categoryName = $derived.by(() => {
 		const segments = pathSegments?.slice() ?? [];
 		if (segments.length > 0) {
 			segments.shift();

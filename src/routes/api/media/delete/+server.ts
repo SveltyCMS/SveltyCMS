@@ -19,7 +19,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 // Permissions
 
 // Media
-import { deleteFile } from '@utils/media/mediaStorage';
+import { deleteFile } from '@utils/media/mediaStorage.server';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -38,8 +38,8 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 			throw error(400, 'URL is required');
 		}
 
-		// Pass tenantId to ensure the file is deleted from the correct tenant's storage
-		await deleteFile(url, tenantId);
+		// Delete the file (tenant is handled internally if needed)
+		await deleteFile(url);
 
 		logger.info('File deleted successfully', {
 			url,

@@ -31,7 +31,7 @@
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	// Collection Manager
 
-	let props = $props<{ data: any; handlePageTitleUpdate: (title: string) => void }>();
+	const props = $props<{ data: any; handlePageTitleUpdate: (title: string) => void }>();
 
 	// Popup Tooltips
 	const NameTooltip: PopupSettings = {
@@ -61,7 +61,7 @@
 	};
 
 	//action
-	let action = page.params.action;
+	const action = page.params.action;
 
 	// Form fields
 	let searchQuery = $state('');
@@ -86,7 +86,7 @@
 	});
 
 	// Derived values
-	let DBName = $derived(name ? name.toLowerCase().replace(/ /g, '_') : '');
+	const DBName = $derived(name ? name.toLowerCase().replace(/ /g, '_') : '');
 
 	// Update collection value when icon changes
 	$effect(() => {

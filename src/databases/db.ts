@@ -17,22 +17,35 @@
 import { building } from '$app/environment';
 
 // Handle private config that might not exist during setup
-let privateEnv: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
+let privateEnv: InferOutput<typeof privateConfigSchema> | null = null;
 
 // Function to load private config when needed
 async function loadPrivateConfig(forceReload = false) {
 	if (privateEnv && !forceReload) return privateEnv;
 
 	try {
-		logger.debug('Loading \x1b[34m/config/private.ts\x1b[0m configuration...');
-		const module = await import('@root/config/private');
-		privateEnv = module.privateEnv;
-		logger.debug('Private config loaded successfully', {
-			hasConfig: !!privateEnv,
-			dbType: privateEnv?.DB_TYPE,
-			dbHost: privateEnv?.DB_HOST ? '***' : 'missing'
-		});
-		return privateEnv;
+		try {
+			logger.debug('Loading @config/private configuration...');
+			let module;
+			if (process.env.TEST_MODE) {
+				module = await import('@config/private.test');
+			} else {
+				module = await import('@config/private');
+			}
+			privateEnv = module.privateEnv;
+			logger.debug('Private config loaded successfully', {
+				hasConfig: !!privateEnv,
+				dbType: privateEnv?.DB_TYPE,
+				dbHost: privateEnv?.DB_HOST ? '***' : 'missing'
+			});
+			return privateEnv;
+		} catch (error) {
+			// Private config doesn't exist during setup - this is expected
+			logger.trace('Private config not found during setup - this is expected during initial setup', {
+				error: error instanceof Error ? error.message : String(error)
+			});
+			return null;
+		}
 	} catch (error) {
 		// Private config doesn't exist during setup - this is expected
 		logger.trace('Private config not found during setup - this is expected during initial setup', {
@@ -68,17 +81,22 @@ import type { DatabaseAdapter } from './dbInterface';
 
 // Settings loader
 import { privateConfigSchema, publicConfigSchema } from '@src/databases/schemas';
-import { invalidateSettingsCache, setSettingsCache } from '@src/services/settingsService';
-import { safeParse } from 'valibot';
+import { invalidateSettingsCache, setSettingsCache, getPublicSetting } from '@src/services/settingsService';
+import { safeParse, type InferOutput } from 'valibot';
+
+// Type definition for private config schema
 
 // Theme
 import { DEFAULT_THEME, ThemeManager } from '@src/databases/themeManager';
 
 // System Logger
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 // System State Management
 import { setSystemState, updateServiceHealth, waitForServiceHealthy } from '@src/stores/system';
+
+// Widget Store - Dynamic import to avoid circular dependency
+// import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 // State Variables
 export let dbAdapter: DatabaseAdapter | null = null; // Database adapter
@@ -87,6 +105,15 @@ export let auth: Auth | null = null; // Authentication instance
 export let isConnected = false; // Database connection state (primarily for external checks if needed)
 let isInitialized = false; // Initialization state
 let initializationPromise: Promise<void> | null = null; // Initialization promise
+
+/**
+ * Get the in-memory private config if available.
+ * Returns null if config hasn't been loaded yet (e.g., during setup).
+ * Used by settingsService to avoid filesystem imports when config is already in memory.
+ */
+export function getPrivateEnv(): InferOutput<typeof privateConfigSchema> | null {
+	return privateEnv;
+}
 
 // Create a proper Promise for lazy initialization
 let _dbInitPromise: Promise<void> | null = null;
@@ -137,7 +164,7 @@ export async function loadSettingsFromDB() {
 			return;
 		}
 
-		// 🚀 OPTIMIZATION: Load both public and private settings in parallel (not sequential)
+		// Load both public and private settings in parallel (not sequential)
 		const [settingsResult, privateDynResult] = await Promise.all([
 			dbAdapter.systemPreferences.getMany(KNOWN_PUBLIC_KEYS, 'system'),
 			dbAdapter.systemPreferences.getMany(KNOWN_PRIVATE_KEYS, 'system')
@@ -170,14 +197,39 @@ export async function loadSettingsFromDB() {
 		const publicSettings: Record<string, unknown> = settings;
 		const databasePrivateSettings: Record<string, unknown> = {};
 
-		// Import private config file settings (infrastructure settings)
-		const { privateEnv } = await import('@root/config/private');
+		// Get private config settings (infrastructure settings)
+		// Prefer in-memory config (set by initializeWithConfig) over filesystem import
+		// This eliminates unnecessary file I/O and Vite cache dependency
+		let privateConfig: InferOutput<typeof privateConfigSchema>;
+		if (privateEnv) {
+			// Use in-memory config when available (post-setup, zero-restart mode)
+			logger.debug('Using in-memory private config (bypassing filesystem)');
+			privateConfig = privateEnv;
+		} else {
+			try {
+				// Fall back to filesystem import (normal startup)
+				logger.debug('Loading private config from filesystem');
+				let imported;
+				if (process.env.TEST_MODE) {
+					imported = await import('@config/private.test');
+				} else {
+					imported = await import('@config/private');
+				}
+				privateConfig = imported.privateEnv;
+			} catch (error) {
+				// Private config doesn't exist during setup - this is expected
+				logger.trace('Private config not found during setup - this is expected during initial setup', {
+					error: error instanceof Error ? error.message : String(error)
+				});
+				return;
+			}
+		}
 
 		// Merge private config file settings with database private settings
 		// Private config contains infrastructure settings (DB_*, JWT_*, ENCRYPTION_*)
 		// Database contains application private settings (SMTP_*, GOOGLE_*, etc.)
 		const privateSettings = {
-			...privateEnv, // Infrastructure settings from config file
+			...privateConfig, // Infrastructure settings from config (in-memory or file)
 			...databasePrivateSettings // Application settings from database
 		};
 
@@ -213,7 +265,7 @@ export async function loadSettingsFromDB() {
 		}
 
 		// Populate the cache with validated settings, merging dynamic private flags into unified cache
-		const mergedPrivate = { ...(parsedPrivate.output as Record<string, unknown>), ...privateDynamic } as any;
+		const mergedPrivate = { ...(parsedPrivate.output as Record<string, unknown>), ...privateDynamic } as InferOutput<typeof privateConfigSchema>;
 		await setSettingsCache(mergedPrivate, parsedPublic.output);
 
 		logger.info('✅ System settings loaded and cached from database.');
@@ -225,7 +277,7 @@ export async function loadSettingsFromDB() {
 	}
 }
 
-// Load database and authentication adapters
+// Load database and authentication adapters with resilience
 async function loadAdapters() {
 	if (adaptersLoaded && dbAdapter) {
 		logger.debug('Adapters already loaded, skipping');
@@ -246,27 +298,40 @@ async function loadAdapters() {
 		return;
 	}
 
-	logger.debug(`🔌 Loading \x1b[34m${config.DB_TYPE}\x1b[0m adapters...`);
+	logger.debug(`🔌 Loading ${config.DB_TYPE} adapters...`);
+
+	// Use DatabaseResilience for adapter loading (handles transient import failures)
+	const { getDatabaseResilience } = await import('@src/databases/DatabaseResilience');
+	const resilience = getDatabaseResilience({
+		maxAttempts: 3, // Retry adapter loading up to 3 times
+		initialDelayMs: 500,
+		backoffMultiplier: 2,
+		maxDelayMs: 5000,
+		jitterMs: 200
+	});
 
 	try {
-		switch (config.DB_TYPE) {
-			case 'mongodb':
-			case 'mongodb+srv': {
-				logger.debug('Importing MongoDB adapter...');
-				const mongoAdapterModule = await import('./mongodb/mongoDBAdapter');
-				if (!mongoAdapterModule || !mongoAdapterModule.MongoDBAdapter) {
-					throw new Error('MongoDBAdapter is not exported correctly from mongoDBAdapter.ts');
-				}
-				const { MongoDBAdapter } = mongoAdapterModule;
-				dbAdapter = new MongoDBAdapter() as unknown as DatabaseAdapter;
+		await resilience.executeWithRetry(async () => {
+			switch (config.DB_TYPE) {
+				case 'mongodb':
+				case 'mongodb+srv': {
+					logger.debug('Importing MongoDB adapter...');
+					const mongoAdapterModule = await import('./mongodb/mongoDBAdapter');
+					if (!mongoAdapterModule || !mongoAdapterModule.MongoDBAdapter) {
+						throw new Error('MongoDBAdapter is not exported correctly from mongoDBAdapter.ts');
+					}
+					const { MongoDBAdapter } = mongoAdapterModule;
+					dbAdapter = new MongoDBAdapter() as unknown as DatabaseAdapter;
 
-				logger.debug('MongoDB adapter created');
-				break;
+					logger.debug('MongoDB adapter created');
+					break;
+				}
+				default:
+					logger.error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Only MongoDB is supported.`);
+					throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Only MongoDB is currently supported.`);
 			}
-			default:
-				logger.error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Only MongoDB is supported.`);
-				throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Only MongoDB is currently supported.`);
-		}
+		}, 'Database Adapter Loading');
+
 		adaptersLoaded = true;
 		logger.debug('All adapters loaded successfully');
 	} catch (err) {
@@ -282,7 +347,7 @@ async function loadAdapters() {
 async function initializeDefaultTheme(): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize themes: dbAdapter is not available.');
 	try {
-		// 🚀 OPTIMIZATION: Check if theme exists before writing (avoid unnecessary DB operation)
+		// Check if theme exists before writing (avoid unnecessary DB operation)
 		const existingThemes = await dbAdapter.themes.getAllThemes();
 		const themeExists = existingThemes.some((t) => t.name === DEFAULT_THEME.name && t.isDefault);
 
@@ -301,7 +366,7 @@ async function initializeDefaultTheme(): Promise<void> {
 async function initializeThemeManager(): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize ThemeManager: dbAdapter is not available.');
 	try {
-		logger.debug('Initializing \x1b[34mThemeManager\x1b[0m...');
+		logger.debug('Initializing ThemeManager...');
 		const themeManager = ThemeManager.getInstance();
 		await themeManager.initialize(dbAdapter);
 	} catch (err) {
@@ -314,104 +379,81 @@ async function initializeThemeManager(): Promise<void> {
 // Initialize the media folder
 async function initializeMediaFolder(): Promise<void> {
 	// During setup, MEDIA_FOLDER might not be loaded yet, so use fallback
-	const { getPublicSetting } = await import('@src/services/settingsService');
 	const mediaFolderPath = (await getPublicSetting('MEDIA_FOLDER')) || './mediaFolder';
 	if (building) return;
 	const fs = await import('node:fs/promises');
 	try {
-		// 🚀 OPTIMIZATION: Fast stat() check, skip debug logging overhead
+		// Fast stat() check, skip debug logging overhead
 		await fs.stat(mediaFolderPath);
 		// Folder exists, skip logging for speed
 	} catch {
 		// If the folder does not exist, create it
-		logger.info(`Creating media folder: \x1b[34m${mediaFolderPath}\x1b[0m`);
+		logger.info(`Creating media folder: ${mediaFolderPath}`);
 		await fs.mkdir(mediaFolderPath, { recursive: true });
 	}
 }
 
-// Initialize virtual folders with retry logic
-async function initializeVirtualFolders(maxRetries = 3, retryDelay = 1000): Promise<void> {
+// Initialize virtual folders using DatabaseResilience
+async function initializeVirtualFolders(): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize virtual folders: dbAdapter is not available.');
 	if (!dbAdapter.systemVirtualFolder) {
 		logger.warn('systemVirtualFolder adapter not available, skipping initialization.');
 		return;
 	}
 
-	let lastError: unknown;
-	for (let attempt = 1; attempt <= maxRetries; attempt++) {
-		try {
-			// Only log attempts if there are retries (attempt > 1)
-			if (attempt > 1) {
-				logger.debug(`Initializing virtual folders (attempt ${attempt}/${maxRetries})...`);
+	// Use DatabaseResilience for automatic retry with exponential backoff
+	const { getDatabaseResilience } = await import('@src/databases/DatabaseResilience');
+	const resilience = getDatabaseResilience();
+
+	await resilience.executeWithRetry(async () => {
+		if (!dbAdapter) throw new Error('dbAdapter is null');
+		// Verify the connection is still active before querying
+		if (dbAdapter.isConnected && !dbAdapter.isConnected()) {
+			throw new Error('Database connection lost - reconnection required');
+		}
+
+		const systemVirtualFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
+
+		if (!systemVirtualFoldersResult.success) {
+			const error = systemVirtualFoldersResult.error;
+			let errorMessage = 'Unknown error';
+
+			if (error instanceof Error) {
+				errorMessage = error.message;
+			} else if (error && typeof error === 'object' && 'message' in error) {
+				errorMessage = String((error as { message: unknown }).message);
+			} else if (error) {
+				errorMessage = String(error);
 			}
 
-			// Verify the connection is still active before querying
-			if (dbAdapter.isConnected && !dbAdapter.isConnected()) {
-				throw new Error('Database connection lost - reconnection required');
-			}
+			throw new Error(`Failed to get virtual folders: ${errorMessage}`);
+		}
 
-			const systemVirtualFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
+		const systemVirtualFolders = systemVirtualFoldersResult.data;
 
-			if (!systemVirtualFoldersResult.success) {
-				const error = systemVirtualFoldersResult.error;
-				let errorMessage = 'Unknown error';
+		if (systemVirtualFolders.length === 0) {
+			// Create default virtual folder
+			const defaultMediaFolder = (await getPublicSetting('MEDIA_FOLDER')) || 'mediaFolder';
+			const creationResult = await dbAdapter.systemVirtualFolder.create({
+				name: defaultMediaFolder,
+				path: defaultMediaFolder,
+				order: 0,
+				type: 'folder' as const
+			});
 
-				if (error instanceof Error) {
-					errorMessage = error.message;
-				} else if (error && typeof error === 'object' && 'message' in error) {
-					errorMessage = String((error as { message: unknown }).message);
-				} else if (error) {
-					errorMessage = String(error);
-				}
-
-				throw new Error(`Failed to get virtual folders: ${errorMessage}`);
-			}
-
-			const systemVirtualFolders = systemVirtualFoldersResult.data;
-
-			if (systemVirtualFolders.length === 0) {
-				// 🚀 OPTIMIZATION: Streamlined folder creation, minimal logging
-				const { getPublicSetting } = await import('@src/services/settingsService');
-				const defaultMediaFolder = (await getPublicSetting('MEDIA_FOLDER')) || 'mediaFolder';
-				const creationResult = await dbAdapter.systemVirtualFolder.create({
-					name: defaultMediaFolder,
-					path: defaultMediaFolder,
-					order: 0,
-					type: 'folder' as const
-				});
-
-				if (!creationResult.success) {
-					const error = creationResult.error;
-					const errorMessage = error instanceof Error ? error.message : String(error);
-					throw new Error(`Failed to create root virtual folder: ${errorMessage}`);
-				}
-			}
-			// Success - exit fast (no success logging needed, timing will be shown in parallel summary)
-			return;
-		} catch (err) {
-			lastError = err;
-			const errorMsg = err instanceof Error ? err.message : String(err);
-
-			if (attempt < maxRetries) {
-				// Only log retry attempts, not the first failure
-				logger.debug(`Virtual folder initialization failed (attempt ${attempt}/${maxRetries}), retrying: ${errorMsg}`);
-				await new Promise((resolve) => setTimeout(resolve, retryDelay));
-				// Exponential backoff
-				retryDelay *= 2;
-			} else {
-				logger.error(`Virtual folder initialization failed after \x1b[34m${maxRetries}\x1b[0m attempts: ${errorMsg}`);
+			if (!creationResult.success) {
+				const error = creationResult.error;
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				throw new Error(`Failed to create root virtual folder: ${errorMessage}`);
 			}
 		}
-	} // All retries exhausted
-	const message = `Error initializing virtual folders after ${maxRetries} attempts: ${lastError instanceof Error ? lastError.message : String(lastError)}`;
-	logger.error(message);
-	throw new Error(message);
+	}, 'Virtual Folders Initialization');
 }
 
 // Initialize adapters (instant validation only)
 async function initializeRevisions(): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize revisions: dbAdapter is not available.');
-	// 🚀 OPTIMIZATION: Instant no-op validation (revisions are lazy-loaded on first use)
+	// Instant no-op validation (revisions are lazy-loaded on first use)
 }
 
 // Core Initialization Logic
@@ -430,7 +472,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 
 	try {
 		// Step 1: Check for setup mode (skip if called from initializeWithConfig)
-		let privateConfig;
+		let privateConfig: InferOutput<typeof privateConfigSchema> | null;
 		if (skipSetupCheck) {
 			// When called from initializeWithConfig, privateEnv is already set - don't reload
 			logger.debug('Skipping private config load - using pre-set configuration');
@@ -438,11 +480,13 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		} else {
 			// Normal initialization flow - load from Vite
 			privateConfig = await loadPrivateConfig(forceReload);
-			if (!privateConfig || !privateConfig.DB_TYPE) {
-				logger.info('Private config not available – running in setup mode (skipping full initialization).');
-				setSystemState('IDLE', 'Running in setup mode');
-				return;
-			}
+		}
+
+		// Ensure we have valid config before proceeding
+		if (!privateConfig || !privateConfig.DB_TYPE) {
+			logger.info('Private config not available – running in setup mode (skipping full initialization).');
+			setSystemState('IDLE', 'Running in setup mode');
+			return;
 		}
 
 		// Step 2: Load Adapters & Connect to DB
@@ -469,7 +513,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			connectionString = '';
 		}
 
-		// Run connection + model setup in parallel (overlapping I/O)
+		//  Run connection + model setup in parallel (overlapping I/O)
 		const step2And3StartTime = performance.now();
 		const [connectionResult] = await Promise.all([
 			dbAdapter.connect(connectionString),
@@ -495,13 +539,13 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		updateServiceHealth('database', 'healthy', 'Database connected successfully');
 
 		const step2And3Time = performance.now() - step2And3StartTime;
-		logger.info(`\x1b[32mSteps 1-2:\x1b[0m DB connected & adapters loaded in \x1b[32m${step2And3Time.toFixed(2)}ms\x1b[0m`);
-		logger.info(`\x1b[32mStep 3:\x1b[0m Database models setup in \x1b[32m${step2And3Time.toFixed(2)}ms\x1b[0m (⚡ parallelized with connection)`);
+		logger.info(`Steps 1-2: DB connected & adapters loaded in ${step2And3Time.toFixed(2)}ms`);
+		logger.info(`Step 3: Database models setup in ${step2And3Time.toFixed(2)}ms (⚡ parallelized with connection)`);
 
 		// Step 4: Lazy-initialize Server-Side Services (will initialize on first use)
 		// WidgetRegistryService and ContentManager are now lazy-loaded for faster startup
 		updateServiceHealth('contentManager', 'healthy', 'Will lazy-initialize on first use');
-		logger.info('\x1b[32mStep 4:\x1b[0m Server services (Widgets & Content) will lazy-initialize on first use');
+		logger.info('Step 4: Server services (Widgets & Content) will lazy-initialize on first use');
 
 		// Eagerly initialize ContentManager to prevent race conditions on first load
 		const { contentManager } = await import('@src/content/ContentManager');
@@ -537,7 +581,8 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		let mediaTime = 0,
 			revisionsTime = 0,
 			virtualFoldersTime = 0,
-			themesTime = 0;
+			themesTime = 0,
+			widgetsTime = 0;
 
 		await Promise.all([
 			(async () => {
@@ -557,9 +602,19 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			})(),
 			(async () => {
 				const t = performance.now();
-				await initializeDefaultTheme().then(() => initializeThemeManager());
+				await initializeDefaultTheme();
+				await initializeThemeManager();
 				updateServiceHealth('themeManager', 'healthy', 'Theme manager initialized');
 				themesTime = performance.now() - t;
+			})(),
+			(async () => {
+				const t = performance.now();
+				updateServiceHealth('widgets', 'initializing', 'Initializing widget store...');
+				// Dynamic import to avoid circular dependency with client bundle
+				const { widgetStoreActions } = await import('@stores/widgetStore.svelte');
+				await widgetStoreActions.initializeWidgets(undefined, dbAdapter);
+				updateServiceHealth('widgets', 'healthy', 'Widget store initialized');
+				widgetsTime = performance.now() - t;
 			})()
 		]);
 
@@ -567,18 +622,18 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 
 		const parallelTime = performance.now() - parallelStartTime;
 		logger.info(
-			`ThemeManager initialized successfully. Parallel I/O completed in \x1b[32m${parallelTime.toFixed(2)}ms\x1b[0m (Media: ${mediaTime.toFixed(2)}ms, Revisions: \x1b[32m${revisionsTime.toFixed(2)}ms\x1b[0m, Virtual Folders: \x1b[32m${virtualFoldersTime.toFixed(2)}ms\x1b[0m, Themes: \x1b[32m${themesTime.toFixed(2)}ms\x1b[0m)`
+			`Parallel I/O completed in ${parallelTime.toFixed(2)}ms (Media: ${mediaTime.toFixed(2)}ms, Revisions: ${revisionsTime.toFixed(2)}ms, Virtual Folders: ${virtualFoldersTime.toFixed(2)}ms, Themes: ${themesTime.toFixed(2)}ms, Widgets: ${widgetsTime.toFixed(2)}ms)`
 		);
 
 		const step5Time = performance.now() - step5StartTime;
 		logger.info(
-			`\x1b[32mStep 5:\x1b[0m Critical components initialized in \x1b[32m${step5Time.toFixed(2)}ms\x1b[0m (Auth: \x1b[32m${authTime.toFixed(2)}ms\x1b[0, Settings: \x1b[32m${settingsTime.toFixed(2)}ms\x1b[0)`
+			`Step 5: Critical components initialized in ${step5Time.toFixed(2)}ms (Auth: ${authTime.toFixed(2)}ms, Settings: ${settingsTime.toFixed(2)}ms)`
 		);
 		isInitialized = true;
 
 		// System is now READY - state will be derived automatically from service health
 		const totalTime = performance.now() - systemStartTime;
-		logger.info(`🚀 System initialization completed successfully in \x1b[32m${totalTime.toFixed(2)}ms\x1b[0m!`);
+		logger.info(`🚀 System initialization completed successfully in ${totalTime.toFixed(2)}ms!`);
 	} catch (err) {
 		const message = `CRITICAL: System initialization failed: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, err);
@@ -681,13 +736,66 @@ export function initializeOnRequest(forceInit = false): Promise<void> {
 	return initializationPromise;
 }
 
-export function getSystemStatus() {
-	return {
+export async function getSystemStatus() {
+	const basicStatus = {
 		initialized: isInitialized,
 		connected: isConnected,
 		authReady: !!auth,
 		initializing: !!initializationPromise && !isInitialized
 	};
+
+	// If not connected, return basic status without health check
+	if (!isConnected || !dbAdapter) {
+		return basicStatus;
+	}
+
+	try {
+		// Get database health metrics using DatabaseResilience
+		const { getDatabaseResilience } = await import('@src/databases/DatabaseResilience');
+		const resilience = getDatabaseResilience();
+
+		// Perform health check with database ping
+		const healthResult = await resilience.healthCheck(async () => {
+			if (!dbAdapter) throw new Error('dbAdapter is null');
+			const start = Date.now();
+			// Ping the database by running a lightweight query
+			if (dbAdapter.isConnected && dbAdapter.isConnected()) {
+				return Date.now() - start;
+			}
+			throw new Error('Database not connected');
+		});
+
+		// Get resilience metrics for additional insights
+		const metrics = resilience.getMetrics();
+
+		return {
+			...basicStatus,
+			health: {
+				healthy: healthResult.healthy,
+				latency: healthResult.latency,
+				message: healthResult.message
+			},
+			metrics: {
+				totalRetries: metrics.totalRetries,
+				successfulRetries: metrics.successfulRetries,
+				failedRetries: metrics.failedRetries,
+				totalReconnections: metrics.totalReconnections,
+				successfulReconnections: metrics.successfulReconnections,
+				connectionUptime: metrics.connectionUptime,
+				averageRecoveryTime: Math.round(metrics.averageRecoveryTime)
+			}
+		};
+	} catch (error) {
+		// If health check fails, return basic status with error
+		return {
+			...basicStatus,
+			health: {
+				healthy: false,
+				latency: -1,
+				message: error instanceof Error ? error.message : 'Health check failed'
+			}
+		};
+	}
 }
 
 export function getAuth() {
@@ -742,7 +850,60 @@ export async function reinitializeSystem(force = false, waitForAuth = true): Pro
 }
 
 /**
+ * Initialize system with provided configuration (in-memory) - MOST EFFICIENT
+ * This is the recommended method for zero-restart setup completion.
+ * Bypasses filesystem completely by accepting configuration in memory.
+ *
+ * Use this during setup completion to avoid:
+ * - Vite module cache issues
+ * - Filesystem read operations
+ * - Double initialization
+ *
+ * @param config - Complete private environment configuration
+ * @returns Promise with initialization status
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function initializeWithConfig(config: any): Promise<{ status: string; error?: string }> {
+	try {
+		logger.info('🚀 Initializing system with provided configuration (bypassing Vite cache & filesystem)...');
+
+		// CRITICAL: Set config in memory BEFORE initialization
+		privateEnv = config;
+
+		// Clear any existing initialization state
+		initializationPromise = null;
+		isInitialized = false;
+		isConnected = false;
+		auth = null;
+		setSystemState('IDLE', 'Preparing for initialization with in-memory config');
+
+		logger.debug('In-memory config set successfully', {
+			DB_TYPE: config.DB_TYPE,
+			DB_HOST: config.DB_HOST ? '***' : 'missing',
+			hasJWT: !!config.JWT_SECRET_KEY,
+			hasEncryption: !!config.ENCRYPTION_KEY
+		});
+
+		// Initialize system with in-memory config
+		// skipSetupCheck = true tells initializeSystem to use privateEnv instead of importing
+		initializationPromise = initializeSystem(false, true);
+		await initializationPromise;
+
+		logger.info('✅ System initialized successfully with in-memory config (zero-restart)');
+		return { status: 'success' };
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Failed to initialize with in-memory config:', errorMessage);
+		initializationPromise = null;
+		privateEnv = null; // Clear failed config
+		setSystemState('FAILED', `Initialization failed: ${errorMessage}`);
+		return { status: 'failed', error: errorMessage };
+	}
+}
+
+/**
  * Initialize system by loading private.ts from filesystem (bypasses Vite cache).
+ * LEGACY METHOD - Use initializeWithConfig() for better performance when config is already in memory.
  *
  * Use this during setup when private.ts was just created on filesystem but hasn't been
  * loaded by Vite yet due to module caching.

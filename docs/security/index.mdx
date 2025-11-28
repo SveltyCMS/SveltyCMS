@@ -1,0 +1,432 @@
+---
+path: 'docs/security/index.mdx'
+title: 'Security Documentation'
+description: 'Comprehensive security documentation for SveltyCMS covering authentication, cryptography, widget security, and best practices'
+order: 1
+icon: 'mdi:shield-lock'
+author: 'admin'
+created: '2025-11-14'
+updated: '2025-11-14'
+tags:
+  - 'security'
+  - 'documentation'
+  - 'authentication'
+  - 'encryption'
+  - 'best-practices'
+---
+
+# Security Documentation
+
+SveltyCMS implements enterprise-grade security measures across all system components to protect data, prevent vulnerabilities, and ensure compliance with security standards.
+
+## 🛡️ Security Overview
+
+SveltyCMS security architecture includes:
+
+- **🔐 Authentication & Authorization** - Multi-factor authentication, session management, RBAC
+- **🔒 Cryptography** - Quantum-resistant password hashing, AES-256 encryption
+- **🛡️ Widget Security** - XSS prevention, injection protection, file validation
+- **🔍 Security Monitoring** - Audit logging, threat detection, security dashboards
+- **🚀 Secure Development** - Build-time security checks, vulnerability scanning
+
+---
+
+## 📚 Security Documentation
+
+### Authentication & Access Control
+
+- **[Authentication System](/docs/architecture/authentication-system.mdx)** - Enterprise-grade authentication with 3-layer caching, automatic session rotation, and multi-tenancy support
+  - Session management
+  - Token-based authentication
+  - Password policies
+  - Account lockout
+- **[Two-Factor Authentication API](/docs/api/Authentication_2FA_API.mdx)** - 2FA setup, verification, recovery codes, and backup options
+
+- **[User Management API](/docs/api/User_Management_API.mdx)** - User authentication, registration, profile management, and permissions
+
+- **[User Token Management API](/docs/api/User_Token_Management_API.mdx)** - API token generation, management, and revocation
+
+### Cryptography & Encryption
+
+- **[Cryptography Module](/docs/architecture/cryptography-module.mdx)** - Enterprise-grade cryptography for password hashing and data encryption
+  - Argon2id password hashing (quantum-resistant)
+  - AES-256-GCM encryption
+  - Secure token generation
+  - Timing attack prevention
+
+- **[Quantum Security](/docs/architecture/quantum-security.mdx)** - Future-proof security measures against quantum computing threats
+
+### Widget & Content Security
+
+- **[Widget Security](/docs/security/widget-security.mdx)** ⭐ - Comprehensive security measures across all widgets
+  - XSS prevention
+  - Injection attack protection
+  - File upload validation
+  - SSRF prevention
+  - IDOR protection
+  - Input sanitization
+
+### Application Security
+
+- **[Security Plugin](/docs/architecture/security-plugin.mdx)** - Build-time plugin preventing accidental exposure of private settings
+  - Environment variable protection
+  - Secret detection
+  - Build-time validation
+
+- **[Login Error Handling](/docs/architecture/login-error-handling.mdx)** - Secure error handling for authentication flows
+  - Rate limiting
+  - Timing attack prevention
+  - Information disclosure prevention
+
+### Infrastructure Security
+
+- **[Cloud Storage Implementation](/docs/architecture/cloud-storage-implementation.mdx)** - Secure cloud storage integration patterns
+  - Signed URLs
+  - Access control
+  - Encryption at rest
+
+- **[Database Resilience](/docs/architecture/database-resilience.mdx)** - Database security and reliability
+  - Connection pooling
+  - Query timeout protection
+  - Injection prevention
+
+---
+
+## 🔒 Security Features by Category
+
+### 1. Authentication Security
+
+**Features:**
+
+- ✅ Argon2id password hashing (125ms+ computational cost)
+- ✅ Automatic session rotation every 24 hours
+- ✅ 3-layer session caching (memory, Redis, database)
+- ✅ Two-factor authentication (TOTP)
+- ✅ Account lockout after failed attempts
+- ✅ Secure password reset with time-limited tokens
+- ✅ API token generation with granular permissions
+
+**Implementation:**
+
+- Password validation with entropy requirements
+- Session fixation prevention
+- CSRF token validation
+- Secure cookie attributes (httpOnly, secure, sameSite)
+
+### 2. Data Protection
+
+**Features:**
+
+- ✅ AES-256-GCM encryption for sensitive data
+- ✅ Field-level encryption support
+- ✅ SHA-256 checksums for data integrity
+- ✅ Encrypted database backups
+- ✅ Secure cloud storage with signed URLs
+
+**Implementation:**
+
+- Encryption at rest and in transit
+- Key rotation support
+- Secure key storage
+- HTTPS enforcement
+
+### 3. Input Validation & Sanitization
+
+**Features:**
+
+- ✅ Schema-based validation (Valibot)
+- ✅ HTML sanitization (DOMPurify)
+- ✅ File upload validation (type, size, extension)
+- ✅ Path traversal prevention
+- ✅ SQL injection prevention (parameterized queries)
+- ✅ ReDoS prevention (input length limits)
+
+**Implementation:**
+
+- Whitelist-based validation
+- Multi-layer validation (client + server)
+- Content Security Policy
+- X-Content-Type-Options header
+
+### 4. Widget-Specific Security
+
+**Features:**
+
+- ✅ XSS prevention in RichText and MegaMenu widgets
+- ✅ SSRF prevention in RemoteVideo widget
+- ✅ IDOR prevention in Relation widget
+- ✅ CSS injection prevention in ColorPicker widget
+- ✅ Meta tag injection prevention in SEO widget
+- ✅ File validation in MediaUpload widget
+- ✅ Format validation in Email, PhoneNumber, Currency widgets
+
+**Implementation Details**: See [Widget Security Documentation](/docs/security/widget-security.mdx)
+
+### 5. Access Control
+
+**Features:**
+
+- ✅ Role-based access control (RBAC)
+- ✅ Permission-based authorization
+- ✅ Multi-tenant isolation
+- ✅ Resource-level permissions
+- ✅ Admin privilege separation
+
+**Implementation:**
+
+- Permission checks at API layer
+- Database query filtering by tenant
+- Cache key prefixing for isolation
+- Audit logging for privileged actions
+
+### 6. Monitoring & Auditing
+
+**Features:**
+
+- ✅ Comprehensive audit logging
+- ✅ Security event tracking
+- ✅ Failed login monitoring
+- ✅ Permission violation logging
+- ✅ Real-time security dashboards
+
+**Implementation:**
+
+- Structured logging with correlation IDs
+- Security event aggregation
+- Anomaly detection
+- Alert thresholds
+
+---
+
+## 🧪 Security Testing
+
+### Test Coverage
+
+SveltyCMS includes comprehensive security testing:
+
+```bash
+# Run security-specific tests
+bun test tests/bun/security/
+
+# Widget security tests
+bun test tests/bun/widgets/widget-security.test.ts
+
+# Authentication tests
+bun test tests/bun/auth/
+```
+
+**Security Test Categories:**
+
+- ✅ Authentication flows (50+ tests)
+- ✅ Authorization checks (40+ tests)
+- ✅ Input validation (80+ tests)
+- ✅ XSS prevention (30+ tests)
+- ✅ Injection prevention (40+ tests)
+- ✅ File upload security (20+ tests)
+
+### Penetration Testing
+
+Recommended security testing tools:
+
+- **OWASP ZAP** - Web application security scanner
+- **Burp Suite** - Security testing platform
+- **SQLMap** - SQL injection testing
+- **XSStrike** - XSS vulnerability scanner
+
+---
+
+## 📋 Security Checklist
+
+### Application Deployment
+
+- [ ] HTTPS enabled with valid SSL certificate
+- [ ] Environment variables secured (no secrets in code)
+- [ ] Database credentials rotated
+- [ ] API tokens with minimal required permissions
+- [ ] Content Security Policy configured
+- [ ] Security headers enabled (HSTS, X-Frame-Options, etc.)
+- [ ] Rate limiting configured
+- [ ] CORS policies defined
+
+### User Management
+
+- [ ] Default admin account password changed
+- [ ] User roles and permissions reviewed
+- [ ] 2FA enabled for admin accounts
+- [ ] Password complexity requirements enforced
+- [ ] Account lockout policy configured
+- [ ] Session timeout configured
+- [ ] API access logs monitored
+
+### Data Protection
+
+- [ ] Sensitive data encrypted at rest
+- [ ] Backup encryption enabled
+- [ ] Key rotation schedule defined
+- [ ] Data retention policies configured
+- [ ] PII handling compliant with regulations
+- [ ] Audit logging enabled
+
+### Widget Security
+
+- [ ] All widgets reviewed for security
+- [ ] Custom widgets follow security guidelines
+- [ ] File upload restrictions configured
+- [ ] Input validation enabled
+- [ ] Output encoding verified
+- [ ] Widget permissions configured
+
+---
+
+## 🚨 Security Incident Response
+
+### Incident Detection
+
+Monitor for:
+
+- Multiple failed login attempts
+- Unusual API access patterns
+- Permission violation attempts
+- File upload anomalies
+- SQL injection attempts
+- XSS payload detection
+
+### Response Procedure
+
+1. **Identify** - Detect and confirm security incident
+2. **Contain** - Isolate affected systems
+3. **Investigate** - Analyze logs and determine scope
+4. **Remediate** - Fix vulnerabilities
+5. **Recover** - Restore normal operations
+6. **Document** - Record incident details and lessons learned
+
+### Reporting
+
+Security issues should be reported to:
+
+- **Email**: security@sveltycms.org
+- **GitHub**: Private security advisory
+- **Severity Levels**: Critical, High, Medium, Low
+
+---
+
+## 🔐 Security Best Practices
+
+### Development
+
+1. **Never commit secrets** - Use environment variables
+2. **Validate all input** - Client and server side
+3. **Sanitize all output** - Prevent XSS
+4. **Use parameterized queries** - Prevent SQL injection
+5. **Implement least privilege** - Minimal permissions
+6. **Log security events** - Enable audit trail
+7. **Keep dependencies updated** - Regular security patches
+
+### Deployment
+
+1. **Use HTTPS everywhere** - Encrypt all traffic
+2. **Enable security headers** - CSP, HSTS, etc.
+3. **Configure CORS properly** - Restrict origins
+4. **Implement rate limiting** - Prevent abuse
+5. **Monitor security logs** - Real-time alerts
+6. **Regular security audits** - Quarterly reviews
+7. **Backup encryption** - Protect data at rest
+
+### Operations
+
+1. **Rotate credentials regularly** - Passwords, tokens, keys
+2. **Review permissions** - Audit user access
+3. **Monitor failed logins** - Detect brute force
+4. **Update security policies** - Keep current with threats
+5. **Train users** - Security awareness
+6. **Test disaster recovery** - Backup restoration
+7. **Maintain audit logs** - Compliance requirements
+
+---
+
+## 📊 Compliance
+
+SveltyCMS security features support compliance with:
+
+### GDPR (General Data Protection Regulation)
+
+- ✅ Data encryption
+- ✅ User consent management
+- ✅ Right to erasure
+- ✅ Data portability
+- ✅ Audit logging
+- ✅ Data breach notification
+
+### SOC 2 (Service Organization Control)
+
+- ✅ Access controls
+- ✅ Audit logging
+- ✅ Change management
+- ✅ Risk assessment
+- ✅ Incident response
+- ✅ Monitoring and alerting
+
+### OWASP Top 10
+
+- ✅ Injection prevention
+- ✅ Broken authentication protection
+- ✅ Sensitive data exposure prevention
+- ✅ XML external entities (XXE) prevention
+- ✅ Broken access control prevention
+- ✅ Security misconfiguration prevention
+- ✅ XSS prevention
+- ✅ Insecure deserialization prevention
+- ✅ Using components with known vulnerabilities (dependency scanning)
+- ✅ Insufficient logging and monitoring (comprehensive audit logs)
+
+---
+
+## 🔗 Related Documentation
+
+### Architecture
+
+- [Authentication System](/docs/architecture/authentication-system.mdx)
+- [Cryptography Module](/docs/architecture/cryptography-module.mdx)
+- [Security Plugin](/docs/architecture/security-plugin.mdx)
+- [Database Resilience](/docs/architecture/database-resilience.mdx)
+
+### API Security
+
+- [Authentication 2FA API](/docs/api/Authentication_2FA_API.mdx)
+- [User Management API](/docs/api/User_Management_API.mdx)
+- [User Token Management API](/docs/api/User_Token_Management_API.mdx)
+
+### Widget Security
+
+- [Widget Security](/docs/security/widget-security.mdx)
+- [Widget Development Guide](/docs/widgets/widget-development-guide.mdx)
+- [Widget Architecture](/docs/widgets/widget-architecture.mdx)
+
+### Testing
+
+- [Database & Authentication Testing](/docs/tests/database-tests.mdx)
+- [API Test Coverage](/docs/tests/api-test-coverage.mdx)
+- [Widget Test Coverage](/docs/tests/widget-test-coverage.mdx)
+
+---
+
+## 📞 Security Contact
+
+For security-related questions or to report vulnerabilities:
+
+- **Security Email**: security@sveltycms.org
+- **GitHub Security Advisories**: [Private Reporting](https://github.com/SveltyCMS/SveltyCMS/security/advisories)
+- **Bug Bounty**: Coming soon
+
+**Response Time**:
+
+- Critical vulnerabilities: 24 hours
+- High severity: 48 hours
+- Medium severity: 1 week
+- Low severity: 2 weeks
+
+---
+
+**Last Updated**: November 14, 2025  
+**Security Review Status**: ✅ All Critical Components Reviewed  
+**Next Review**: Quarterly (February 2026)

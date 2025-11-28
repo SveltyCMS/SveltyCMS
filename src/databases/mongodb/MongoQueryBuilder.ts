@@ -18,7 +18,7 @@ import type { Model } from 'mongoose';
 import type { BaseEntity, DatabaseError, DatabaseResult, PaginationOptions, QueryBuilder, QueryMeta, QueryOptimizationHints } from '../dbInterface';
 
 // System Logger
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
 	private model: Model<T>;

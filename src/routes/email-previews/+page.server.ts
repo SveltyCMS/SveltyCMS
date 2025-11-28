@@ -23,14 +23,19 @@ import { error } from '@sveltejs/kit';
 // Create a global variable to store the fetch function for actions
 let eventFetch: typeof globalThis.fetch;
 
-// Define the return type for the load function
+// Define the return type for the load function.
+// `emailList` from `better-svelte-email/preview` exposes:
+// - `path: string`
+// - `files: string[] | null`
+// - `emails`, `components`, etc. as helper metadata.
+// We mirror that shape here so `PageData` and `EmailPreview` agree.
 interface PreviewData {
 	user?: User | null;
-	files?: { name: string; path: string; [key: string]: unknown }[];
-	path?: string;
-	emails?: { name: string; path: string; [key: string]: unknown }[];
+	path?: string | null;
+	files: string[] | null;
+	emails?: { name: string; path: string }[];
 	components?: Record<string, unknown>;
-	[key: string]: unknown; // Allow other properties from emailList
+	[key: string]: unknown;
 }
 
 export async function load({ locals, fetch }: { locals: App.Locals; fetch: typeof globalThis.fetch }): Promise<PreviewData> {

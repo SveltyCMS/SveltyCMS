@@ -6,7 +6,7 @@ order: 10
 icon: 'mdi:layers-triple'
 author: 'admin'
 created: '2025-10-05'
-updated: '2025-11-01'
+updated: '2025-11-14'
 tags:
   - 'architecture'
   - 'design'
@@ -44,26 +44,39 @@ For new developers, we recommend reading these documents in order to build a str
 
 - **[Database Core Infrastructure](/docs/database/Core_Infrastructure.mdx)**: The foundation of the database-agnostic architecture.
 - **[MongoDB Implementation](/docs/database/MongoDB_Implementation.mdx)**: A deep dive into the MongoDB-specific optimizations.
+  - **[Performance Architecture](/docs/database/Performance_Architecture.mdx)**: Complete performance implementation overview with caching, indexing, and field selection.
+  - **[Database Resilience](./database-resilience.mdx)**: Unified guide covering features, integration points, metrics, diagnostics, and planned enhancements.
+  - **[Database Methods](./database-methods.mdx)**: Database operation patterns and best practices.
 - **[System Settings Architecture](./system-settings-architecture.mdx)**: How dynamic settings are managed, cached, and synchronized.
+  - **[Configuration Management](./configuration-management.mdx)**: Configuration lifecycle and deployment strategies.
 - **[Cache System](./cache-system.mdx)**: The dual-layer caching strategy for high performance.
+  - **[Cache System (Database)](/docs/database/Cache_System.mdx)**: Complete cache architecture with Redis + MongoDB dual-layer, 8 TTL categories, and performance monitoring.
 - **[Collection Store Dataflow](./collection-store-dataflow.mdx)**: The SSR architecture for collection/entry data management with server-side caching.
+- **[Content Type System](./content-type-system.mdx)**: Dynamic content type definition and validation.
 - **[Multilingual Data Loading](./multilingual-data-loading.mdx)**: Two-tier SSR strategy for multilingual content with language-specific caching and translation progress tracking.
+  - **[Language Architecture](./language-architecture.mdx)**: Complete multilingual system implementation.
 - **[URL Pattern for Collection Editing](./url-pattern.mdx)**: Clean, semantic URL structure with flow diagrams and implementation details.
 - **[Hover Preloading](./hover-preloading.mdx)**: Intelligent speculative loading with connection awareness and predictive features.
+- **[Global Loading Store](./global-loading-store.mdx)**: Enterprise-grade loading state management with SSR safety.
 
 ---
 
 ## 🔐 Security
 
 - **[Authentication System](./authentication-system.mdx)**: Enterprise-grade authentication with 3-layer caching, automatic session rotation, and multi-tenancy support.
+  - **[Login Error Handling](./login-error-handling.mdx)**: Comprehensive error handling for authentication flows.
 - **[Security Plugin](./security-plugin.mdx)**: The build-time plugin that prevents accidental exposure of private settings.
 - **[Cryptography Module](./cryptography-module.mdx)**: The enterprise-grade cryptography used for password hashing and data encryption.
+- **[Cloud Storage Implementation](./cloud-storage-implementation.mdx)**: Secure cloud storage integration patterns.
 
 ---
 
 ## 🧩 Features & Modules
 
 - **[Widget System Overview](/docs/widgets/widget-system-overview.mdx)**: An introduction to the 3-Pillar widget architecture.
+  - **[Runtime Widget Discovery](./runtime-widget-discovery.mdx)**: Zero-downtime widget installation with dynamic loading.
+  - **[Validation Instant Feedback](./validation-instant-feedback.mdx)**: Smart validation with instant save button disabling.
 - **[Dashboard System](./dashboard-system.mdx)**: The architecture of the customizable admin dashboard.
 - **[User Management Overview](./user-management-overview.mdx)**: A guide to the user management UI and features.
+  - **[Admin User Management](./admin-user-management.mdx)**: Comprehensive admin user management interface.
 - **[Logger Levels](./logger-levels.mdx)**: The performance-optimized logging system.

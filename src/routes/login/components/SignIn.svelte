@@ -17,15 +17,15 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { goto } from '$app/navigation';
+	import { enhance } from '$app/forms';
 
 	// Stores
 	import { page } from '$app/state';
 	import type { PageData } from '../$types';
 
-	// Superforms
-	import { superForm } from 'sveltekit-superforms/client';
-	import type { SuperValidated } from 'sveltekit-superforms';
-	import type { LoginFormSchema, ForgotFormSchema, ResetFormSchema } from '@utils/formSchemas';
+	import { Form } from '@utils/Form.svelte';
+	import { loginFormSchema, forgotFormSchema, resetFormSchema } from '@utils/formSchemas';
 
 	// Components
 	import SiteName from '@components/SiteName.svelte';
@@ -51,17 +51,11 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	// Props
 	const {
 		active = $bindable(undefined),
-		FormSchemaLogin,
-		FormSchemaForgot,
-		FormSchemaReset,
 		onClick = () => {},
 		onPointerEnter = () => {},
 		onBack = () => {}
 	} = $props<{
 		active?: undefined | 0 | 1;
-		FormSchemaLogin: SuperValidated<LoginFormSchema>;
-		FormSchemaForgot: SuperValidated<ForgotFormSchema>;
-		FormSchemaReset: SuperValidated<ResetFormSchema>;
 		onClick?: () => void;
 		onPointerEnter?: () => void;
 		onBack?: () => void;
@@ -70,9 +64,9 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	// State management
 	let PWforgot = $state(false);
 	let PWreset = $state(false);
-	let showPassword = $state(false);
+	const showPassword = $state(false);
 	let formElement = $state<HTMLFormElement | null>(null);
-	let tabIndex = $state(1);
+	const tabIndex = $state(1);
 
 	// Pre-calculate tab indices
 	const emailTabIndex = 1;
@@ -96,26 +90,17 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	let isVerifying2FA = $state(false);
 
 	// Login form setup
-	const { form, constraints, allErrors, errors, enhance } = superForm(FormSchemaLogin, {
-		id: 'login',
-		// Clear form on success.
-		resetForm: true,
-		// Prevent page invalidation, which would clear the other form when the load function executes again.
-		invalidateAll: false,
-		// other options
-		applyAction: true,
-		taintedMessage: '',
-		multipleSubmits: 'prevent',
-
+	// Login form setup
+	const loginForm = new Form({ email: '', password: '', isToken: false }, loginFormSchema);
+	const loginSubmit = loginForm.enhance({
 		onSubmit: ({ cancel }) => {
-			if (typeof $form.email === 'string') {
-				$form.email = $form.email.toLowerCase(); // Submit email as lowercase only
+			if (loginForm.data.email) {
+				loginForm.data.email = loginForm.data.email.toLowerCase();
 			}
 
 			// handle login form submission
-			if ($allErrors.length > 0) {
+			if (Object.keys(loginForm.errors).length > 0) {
 				cancel();
-
 				formElement?.classList.add('wiggle');
 				setTimeout(() => formElement?.classList.remove('wiggle'), 300);
 				return;
@@ -127,7 +112,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 			globalLoadingStore.startLoading(loadingOperations.authentication);
 		},
 
-		onResult: ({ result, cancel }) => {
+		onResult: async ({ result, update }) => {
 			// Reset submitting state
 			isSubmitting = false;
 
@@ -138,11 +123,20 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				// Trigger the toast
 				showToast(m.signin_signinsuccess(), 'success');
 
-				// Clear authenticating state immediately for faster navigation
-				setTimeout(() => {
-					isAuthenticating = false;
-					globalLoadingStore.stopLoading(loadingOperations.authentication);
-				}, 100);
+				// Cancel default redirect behavior so we can use client-side navigation
+				// cancel(); // Form class doesn't support cancelling redirect in onResult easily without preventing update?
+				// Actually, if we don't call update(), the redirect doesn't happen automatically?
+				// SvelteKit default applyAction handles redirect.
+				// We want to use goto.
+
+				// Use client-side navigation for instant redirect
+				if (result.location) {
+					goto(result.location);
+				}
+
+				// Clear authenticating state immediately
+				isAuthenticating = false;
+				globalLoadingStore.stopLoading(loadingOperations.authentication);
 
 				return;
 			}
@@ -156,168 +150,131 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 				// Show 2FA required message
 				showToast(m.twofa_verify_title(), 'warning');
-
-				cancel();
 				return;
 			}
 
 			// Reset all states on error
 			isAuthenticating = false;
 			globalLoadingStore.stopLoading(loadingOperations.authentication);
-			cancel();
 
-			// Trigger the toast
-			showToast(m.signin_wrong_user_or_password(), 'error');
+			if (result.type === 'failure' || result.type === 'error') {
+				// Trigger the toast
+				showToast(m.signin_wrong_user_or_password(), 'error');
 
-			// add wiggle animation to form element
-			formElement?.classList.add('wiggle');
-			setTimeout(() => {
-				formElement?.classList.remove('wiggle');
-			}, 300);
+				// add wiggle animation to form element
+				formElement?.classList.add('wiggle');
+				setTimeout(() => {
+					formElement?.classList.remove('wiggle');
+				}, 300);
+			}
+
+			await update();
 		}
 	});
 
 	// Forgot Form setup
-	const {
-		form: forgotForm,
-		constraints: forgotConstraints,
-		allErrors: forgotAllErrors,
-		errors: forgotErrors,
-		enhance: forgotEnhance
-	} = superForm(FormSchemaForgot, {
-		id: 'forgot',
-		resetForm: true,
-		invalidateAll: false,
-		applyAction: true,
-		taintedMessage: '',
-		multipleSubmits: 'prevent',
-
+	// Forgot Form setup
+	const forgotForm = new Form({ email: '' }, forgotFormSchema);
+	const forgotSubmit = forgotForm.enhance({
 		onSubmit: ({ cancel }) => {
-			if (typeof $forgotForm.email === 'string') {
-				$forgotForm.email = $forgotForm.email.toLowerCase();
+			if (forgotForm.data.email) {
+				forgotForm.data.email = forgotForm.data.email.toLowerCase();
 			}
 
-			// handle login form submission
-			if ($forgotAllErrors.length > 0) {
+			if (Object.keys(forgotForm.errors).length > 0) {
 				cancel();
-
 				formElement?.classList.add('wiggle');
 				setTimeout(() => formElement?.classList.remove('wiggle'), 300);
 				return;
 			}
 
-			// Set submitting state
 			isSubmitting = true;
 		},
 
-		onResult: ({ result, cancel }) => {
-			// Reset submitting state
+		onResult: async ({ result, update }) => {
 			isSubmitting = false;
 
-			// handle forgot form result
 			if (result.type === 'error') {
 				// Transform the array of error messages into a single string
-				let errorMessages = '';
-				forgotAllErrors.subscribe((errors) => {
-					errorMessages = errors.map((error) => error.messages.join(', ')).join('; ');
-				});
+				// Form class puts errors in forgotForm.errors
+				// But result.type 'error' is usually 500 or network error
+				// If it's 400 with errors, it's 'failure'
 
-				// Trigger the toast
-				showToast(errorMessages, 'info');
-
+				// For now, just show generic error or message from result
+				showToast(result.error?.message || 'An error occurred', 'info');
 				return;
 			}
 
-			if (result.type === 'success') {
+			if (result.type === 'success' || result.type === 'failure') {
+				// Failure can also contain data
 				// Check if user exists
 				if (result.data && result.data.userExists === false) {
-					// User doesn't exist - show error toast and don't navigate to reset form
 					PWreset = false;
 					showToast('No account found with this email address.', 'error');
-
-					// Add wiggle animation to form element
 					formElement?.classList.add('wiggle');
-					setTimeout(() => {
-						formElement?.classList.remove('wiggle');
-					}, 300);
+					setTimeout(() => formElement?.classList.remove('wiggle'), 300);
 					return;
 				} else if (result.data && result.data.userExists === true) {
-					// User exists and email should have been sent
 					PWreset = true;
 					showToast(m.signin_forgottontoast(), 'success');
 					return;
 				} else {
-					// Legacy fallback or other success scenarios
-					if (result.data !== undefined && result.data.status === false) {
+					// Fallback
+					if (result.data?.status === false) {
 						PWreset = false;
 						formElement?.classList.add('wiggle');
-						setTimeout(() => {
-							formElement?.classList.remove('wiggle');
-						}, 300);
-						return;
+						setTimeout(() => formElement?.classList.remove('wiggle'), 300);
 					} else {
 						PWreset = true;
 						showToast(m.signin_forgottontoast(), 'success');
-						return;
 					}
 				}
 			}
 
-			cancel();
+			await update();
 
-			// add wiggle animation to form element
-			formElement?.classList.add('wiggle');
-			setTimeout(() => {
-				formElement?.classList.remove('wiggle');
-			}, 300);
+			if (result.type === 'failure') {
+				formElement?.classList.add('wiggle');
+				setTimeout(() => {
+					formElement?.classList.remove('wiggle');
+				}, 300);
+			}
 		}
 	});
 
 	// Reset Form setup
-	const {
-		form: resetForm,
-		constraints: resetConstraints,
-		allErrors: resetAllErrors,
-		errors: resetErrors,
-		enhance: resetEnhance
-	} = superForm(FormSchemaReset, {
-		id: 'reset',
-		resetForm: true,
-		invalidateAll: false,
-		applyAction: true,
-		taintedMessage: '',
-		multipleSubmits: 'prevent',
-
+	// Reset Form setup
+	const resetForm = new Form({ password: '', confirm_password: '', token: '', email: '' }, resetFormSchema);
+	const resetSubmit = resetForm.enhance({
 		onSubmit: ({ cancel }) => {
-			if ($resetAllErrors.length > 0) {
+			if (Object.keys(resetForm.errors).length > 0) {
 				cancel();
 				return;
 			}
-
-			// Set submitting state
 			isSubmitting = true;
 		},
 
-		onResult: ({ result, cancel }) => {
-			// Reset submitting state
+		onResult: async ({ result, update }) => {
 			isSubmitting = false;
-
-			// update variables to display login page
 			PWreset = false;
 			PWforgot = false;
 
 			if (result.type === 'success' || result.type === 'redirect') {
-				// Trigger the Reset toast
 				showToast(m.signin_restpasswordtoast(), 'success');
-
-				if (result.type === 'redirect') return;
+				if (result.type === 'redirect') {
+					if (result.location) goto(result.location);
+					return;
+				}
 			}
 
-			cancel();
-			formElement?.classList.add('wiggle');
-			setTimeout(() => {
-				formElement?.classList.remove('wiggle');
-			}, 300);
+			await update();
+
+			if (result.type === 'failure') {
+				formElement?.classList.add('wiggle');
+				setTimeout(() => {
+					formElement?.classList.remove('wiggle');
+				}, 300);
+			}
 		}
 	});
 
@@ -404,8 +361,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 			const emailParam = urlObj.searchParams.get('email') || '';
 			if (tokenParam && emailParam) {
 				// Directly update the reset form with token and email values
-				$resetForm.token = tokenParam;
-				$resetForm.email = emailParam;
+				resetForm.data.token = tokenParam;
+				resetForm.data.email = emailParam;
 
 				// Set flags for reset flow
 				PWforgot = true;
@@ -516,7 +473,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 						id="signin-form"
 						method="POST"
 						action="?/signIn"
-						use:enhance
+						use:enhance={loginSubmit}
 						bind:this={formElement}
 						class="flex w-full flex-col gap-3"
 						class:hide={active !== 0}
@@ -532,14 +489,14 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							autocomplete="username"
 							autocapitalize="none"
 							spellcheck={false}
-							bind:value={$form.email}
+							bind:value={loginForm.data.email}
 							label={m.email()}
-							{...$constraints.email}
+							required
 							icon="mdi:email"
 							iconColor="black"
 							textColor="black"
 						/>
-						{#if $errors.email}<span class="invalid text-xs text-error-500">{$errors.email}</span>{/if}
+						{#if loginForm.errors.email}<span class="invalid text-xs text-error-500">{loginForm.errors.email[0]}</span>{/if}
 
 						<!-- Password field -->
 						<FloatingInput
@@ -549,15 +506,15 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							data-testid="signin-password"
 							autocomplete="current-password"
 							tabindex={passwordTabIndex}
-							bind:value={$form.password}
-							{...$constraints.password}
+							bind:value={loginForm.data.password}
+							required
 							{showPassword}
 							label={m.form_password()}
 							icon="mdi:lock"
 							iconColor="black"
 							textColor="black"
 						/>
-						{#if $errors.password}<span class="invalid text-xs text-error-500">{$errors.password}</span>{/if}
+						{#if loginForm.errors.password}<span class="invalid text-xs text-error-500">{loginForm.errors.password[0]}</span>{/if}
 					</form>
 
 					<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
@@ -630,14 +587,19 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 							<!-- Toggle Code Type -->
 							<div class="text-center">
-								<button type="button" onclick={toggle2FACodeType} class="text-sm text-primary-500 underline hover:text-primary-600">
+								<button
+									type="button"
+									onclick={toggle2FACodeType}
+									class="text-sm text-primary-500 underline hover:text-primary-600"
+									aria-label={useBackupCode ? m.twofa_use_authenticator() : m.twofa_use_backup_code()}
+								>
 									{useBackupCode ? m.twofa_use_authenticator() : m.twofa_use_backup_code()}
 								</button>
 							</div>
 
 							<!-- Action Buttons -->
 							<div class="flex gap-3">
-								<button type="button" onclick={back2FAToLogin} class="variant-soft-surface btn flex-1">
+								<button type="button" onclick={back2FAToLogin} class="variant-soft-surface btn flex-1" aria-label={m.button_back()}>
 									<iconify-icon icon="mdi:arrow-left" width="20" class="mr-2"></iconify-icon>
 									{m.button_back()}
 								</button>
@@ -650,6 +612,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 										(!useBackupCode && twoFACode.length !== 6) ||
 										(useBackupCode && twoFACode.length < 8)}
 									class="variant-filled-primary btn flex-1"
+									aria-label={m.twofa_verify_button()}
 								>
 									{#if isVerifying2FA}
 										<img src="/Spinner.svg" alt="Loading.." class="mr-2 h-5 invert filter" />
@@ -680,7 +643,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 					<form
 						method="POST"
 						action="?/forgotPW"
-						use:forgotEnhance
+						use:enhance={forgotSubmit}
 						bind:this={formElement}
 						class="flex w-full flex-col gap-3"
 						class:hide={active !== 0}
@@ -696,22 +659,22 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							autocomplete="email"
 							autocapitalize="none"
 							spellcheck={false}
-							bind:value={$forgotForm.email}
+							bind:value={forgotForm.data.email}
 							label={m.email()}
-							{...$forgotConstraints.email}
+							required
 							icon="mdi:email"
 							iconColor="black"
 							textColor="black"
 						/>
-						{#if $forgotErrors.email}
+						{#if forgotForm.errors.email}
 							<span class="invalid text-xs text-error-500">
-								{$forgotErrors.email}
+								{forgotForm.errors.email[0]}
 							</span>
 						{/if}
 
-						{#if $forgotAllErrors && !$forgotErrors.email}
+						{#if Object.keys(forgotForm.errors).length > 0 && !forgotForm.errors.email}
 							<span class="invalid text-xs text-error-500">
-								{$forgotAllErrors}
+								{Object.values(forgotForm.errors).flat().join(', ')}
 							</span>
 						{/if}
 
@@ -745,15 +708,15 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 					<form
 						method="POST"
 						action="?/resetPW"
-						use:resetEnhance
+						use:enhance={resetSubmit}
 						bind:this={formElement}
 						class="flex w-full flex-col gap-3"
 						class:hide={active !== 0}
 						inert={active !== 0}
 					>
 						<!-- Hidden fields -->
-						<input type="hidden" name="email" bind:value={$resetForm.email} />
-						<input type="hidden" name="token" bind:value={$resetForm.token} />
+						<input type="hidden" name="email" bind:value={resetForm.data.email} />
+						<input type="hidden" name="token" bind:value={resetForm.data.token} />
 
 						<!-- Password field -->
 						<FloatingInput
@@ -762,8 +725,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							type="password"
 							data-testid="reset-password"
 							tabindex={passwordTabIndex}
-							bind:value={$resetForm.password}
-							{...$resetConstraints.password}
+							bind:value={resetForm.data.password}
+							required
 							{showPassword}
 							autocomplete="new-password"
 							label={m.form_password()}
@@ -771,9 +734,9 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							iconColor="black"
 							textColor="black"
 						/>
-						{#if $resetErrors.password}
+						{#if resetForm.errors.password}
 							<span class="invalid text-xs text-error-500">
-								{$resetErrors.password}
+								{resetForm.errors.password[0]}
 							</span>
 						{/if}
 
@@ -784,7 +747,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							type="password"
 							data-testid="reset-confirm-password"
 							tabindex={confirmPasswordTabIndex}
-							bind:value={$resetForm.confirm_password}
+							bind:value={resetForm.data.confirm_password}
 							{showPassword}
 							autocomplete="new-password"
 							label={m.confirm_password?.() || m.form_confirmpassword?.()}
@@ -794,13 +757,13 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 						/>
 
 						<!-- Password Strength Indicator -->
-						<PasswordStrength password={$resetForm.password} confirmPassword={$resetForm.confirm_password} />
+						<PasswordStrength password={resetForm.data.password} confirmPassword={resetForm.data.confirm_password} />
 						<!-- Registration Token -->
 						<FloatingInput
 							id="tokenresetPW"
 							name="token"
 							type="password"
-							bind:value={$resetForm.token}
+							bind:value={resetForm.data.token}
 							{showPassword}
 							label={m.registration_token?.() || m.signin_registrationtoken?.()}
 							icon="mdi:lock"
@@ -809,19 +772,19 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							required
 						/>
 
-						{#if $resetErrors.token}
+						{#if resetForm.errors.token}
 							<span class="invalid text-xs text-error-500">
-								{$resetErrors.token}
+								{resetForm.errors.token[0]}
 							</span>
 						{/if}
 
-						{#if $resetAllErrors && !$resetErrors}
+						{#if Object.keys(resetForm.errors).length > 0 && !resetForm.errors.token}
 							<span class="invalid text-xs text-error-500">
-								{$resetAllErrors}
+								{Object.values(resetForm.errors).flat().join(', ')}
 							</span>
 						{/if}
 
-						<input type="email" name="email" bind:value={$resetForm.email} hidden />
+						<input type="email" name="email" bind:value={resetForm.data.email} hidden />
 
 						<div class="mt-4 flex items-center justify-between">
 							<button type="submit" aria-label={m.signin_savenewpassword()} class="variant-filled-surface btn ml-2 mt-6">

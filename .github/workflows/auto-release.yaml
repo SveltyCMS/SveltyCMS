@@ -1,5 +1,8 @@
 # .github/workflows/auto-release.yaml
 # This workflow uses semantic-release to automatically publish new versions of your package to GitHub based on commit messages.
+#
+# CURRENT: Tests run against MongoDB only before release
+# FUTURE: Will test against multiple databases (MongoDB, PostgreSQL, MariaDB, MySQL) before allowing release
 name: Semantic Release
 
 # Triggers the workflow ONLY when a push happens to the main or next branch.
@@ -17,6 +20,21 @@ jobs:
   test:
     name: Run Playwright Tests
     runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:latest
+        ports: [27017:27017]
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: admin
+    env:
+      DB_TYPE: mongodb
+      DB_HOST: localhost
+      DB_PORT: 27017
+      DB_NAME: sveltycms_test
+      DB_USER: admin
+      DB_PASSWORD: admin
+      TEST_MODE: 'true'
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -34,6 +52,25 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      # Create placeholder config/private.test.ts to ensure runtime config works
+      - name: Create placeholder config/private.test.ts
+        run: |
+          echo "📝 Creating placeholder config/private.test.ts..."
+          cat > config/private.test.ts <<EOF
+          export const privateEnv = {
+            DB_TYPE: '${{ env.DB_TYPE }}',
+            DB_HOST: '${{ env.DB_HOST }}',
+            DB_PORT: ${{ env.DB_PORT }},
+            DB_NAME: '${{ env.DB_NAME }}',
+            DB_USER: '${{ env.DB_USER }}',
+            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
+            JWT_SECRET_KEY: 'test_jwt_secret',
+            ENCRYPTION_KEY: 'test_encryption_key',
+            MULTI_TENANT: false
+          } as const;
+          EOF
+          echo "✅ Created config/private.test.ts"
 
       - name: Run Playwright tests
         run: bunx playwright test

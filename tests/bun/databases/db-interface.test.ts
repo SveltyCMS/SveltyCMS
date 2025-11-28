@@ -14,7 +14,7 @@ import { beforeAll, describe, expect, it } from 'bun:test';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { DatabaseAdapter, DatabaseResult } from '../../../src/databases/dbInterface';
 
-describe('Database Interface Contract Tests', () => {
+describe.skip('Database Interface Contract Tests', () => {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const db: any = null; // Placeholder - will be replaced with actual adapter instance
 

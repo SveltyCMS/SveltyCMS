@@ -17,15 +17,18 @@ tags:
 
 # SveltyCMS Test Suite Status
 
-**Last Updated:** January 20, 2025  
-**Branch:** next  
-**Test Frameworks:** Bun Test v1.3.1 + Playwright
+> **Last Updated:** November 21, 2025
+> **Total Tests:** ~615
+> **Overall Pass Rate:** ~65% (403 passing, 172 failing)
 
 ## Executive Summary
 
-✅ **460+ passing tests** across 30+ test files  
-� **~85% API endpoint coverage** (85 of 99 endpoints tested)  
-�📝 **140+ placeholder tests** (database/auth tests awaiting setup)  
+The testing suite has been optimized for **parallel execution** and **enterprise-grade reliability**.
+- **Unit Tests:** ~350 tests (Passing)
+- **Integration Tests:** ~265 tests (Mixed results)
+- **E2E Tests:** Critical flows only (Optimized)
+📝 **40 skipped tests** (placeholders or incomplete)
+⚠️ **172 failing tests** (mostly API integration and Setup middleware)  
 ⚠️ **Integration tests require dev server running on port 5173**
 
 ### Test Coverage by Category
@@ -33,10 +36,10 @@ tags:
 | Category                | Status        | Pass Rate | Tests |
 | ----------------------- | ------------- | --------- | ----- |
 | **Server Hooks**        | ✅ Excellent  | 100%      | 53/53 |
-| **API - User**          | ✅ Complete   | 100%      | 47/47 |
+| **API - User**          | ⚠️ Failing    | ~60%      | 28/47 |
 | **API - GraphQL**       | ✅ Complete   | 100%      | 21/21 |
 | **API - Token**         | ✅ Complete   | 100%      | 12/12 |
-| **API - Setup**         | ✅ Complete   | 100%      | 45/45 |
+| **API - Setup**         | ❌ Failing    | 0%        | 0/45  |
 | **API - Collections**   | ✅ Complete   | 100%      | 19/19 |
 | **API - Dashboard**     | ✅ Created    | Pending   | 48/48 |
 | **API - 2FA**           | ✅ Created    | Pending   | 28/28 |

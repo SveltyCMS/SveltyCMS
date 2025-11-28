@@ -26,10 +26,10 @@ It provides functionality to:
 	// Components
 	import { showToast } from '@utils/toast';
 
-	let { roleData, setRoleData } = $props();
+	const { roleData, setRoleData } = $props();
 
 	// Reactive state
-	let error = $state<string | null>(null);
+	const error = $state<string | null>(null);
 	let currentAdminRole = $state<string | null>(null);
 	let currentAdminName = $state<string | null>(null);
 	let selectedAdminRole = $state<string | null>(null);
@@ -37,8 +37,8 @@ It provides functionality to:
 	let notification = $state<string | null>(null);
 
 	// Derived state for computed values
-	let availableRoles = $derived(roleData.filter((role: Role) => role._id !== currentAdminRole));
-	let hasChanges = $derived(selectedAdminRole !== currentAdminRole);
+	const availableRoles = $derived(roleData.filter((role: Role) => role._id !== currentAdminRole));
+	const hasChanges = $derived(selectedAdminRole !== currentAdminRole);
 
 	// Initialize component data (run once)
 	$effect(() => {

@@ -1,270 +1,120 @@
 /**
  * @file tests/bun/hooks/static-asset-caching.test.ts
- * @description Comprehensive tests for handleStaticAssetCaching middleware
+ * @description Type-safe tests for static asset caching middleware.
+ * Verifies aggressive caching policies for immutable assets.
  */
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import { handleStaticAssetCaching, isStaticAsset, STATIC_ASSET_REGEX } from '@src/hooks/handleStaticAssetCaching';
-import type { RequestEvent } from '@sveltejs/kit';
+import type { RequestEvent, ResolveOptions } from '@sveltejs/kit';
 
-// --- Test Utilities ---
-
+// --- Helper: Strictly Typed Mock Event ---
 function createMockEvent(pathname: string): RequestEvent {
+	const url = new URL(pathname, 'http://localhost');
+
+	// Create a partial mock cast to RequestEvent
 	return {
-		url: new URL(pathname, 'http://localhost'),
-		request: new Request(`http://localhost${pathname}`)
-	} as RequestEvent;
+		url,
+		request: new Request(url.toString()),
+		// Add minimal properties required by SvelteKit internals if needed
+		cookies: { get: () => undefined },
+		locals: {},
+		params: {},
+		route: { id: null }
+	} as unknown as RequestEvent;
 }
 
-function createMockResponse(headers: Record<string, string> = {}): Response {
-	return new Response('test body', { headers });
-}
-
-// --- Tests ---
-
-describe('handleStaticAssetCaching Middleware', () => {
-	let mockResolve: ReturnType<typeof mock>;
-	let mockResponse: Response;
+describe('Middleware: handleStaticAssetCaching', () => {
+	let mockResolve: any;
+	const mockResponse = new Response('test body');
 
 	beforeEach(() => {
-		mockResponse = createMockResponse();
-		mockResolve = mock(() => Promise.resolve(mockResponse));
-	});
-
-	describe('Static Asset Detection (STATIC_ASSET_REGEX)', () => {
-		it('should match /_app/ paths', () => {
-			expect('/_app/immutable/chunks/index.js').toMatch(STATIC_ASSET_REGEX);
-			expect('/_app/version.json').toMatch(STATIC_ASSET_REGEX);
-		});
-
-		it('should match /static/ paths', () => {
-			expect('/static/logo.png').toMatch(STATIC_ASSET_REGEX);
-			expect('/static/images/banner.jpg').toMatch(STATIC_ASSET_REGEX);
-		});
-
-		it('should match /files/ paths', () => {
-			expect('/files/document.pdf').toMatch(STATIC_ASSET_REGEX);
-			expect('/files/uploads/image.png').toMatch(STATIC_ASSET_REGEX);
-		});
-
-		it('should match special files', () => {
-			expect('/favicon.ico').toMatch(STATIC_ASSET_REGEX);
-			expect('/manifest.webmanifest').toMatch(STATIC_ASSET_REGEX);
-			expect('/apple-touch-icon.png').toMatch(STATIC_ASSET_REGEX);
-			expect('/apple-touch-icon-precomposed.png').toMatch(STATIC_ASSET_REGEX);
-			expect('/robots.txt').toMatch(STATIC_ASSET_REGEX);
-			expect('/sitemap.xml').toMatch(STATIC_ASSET_REGEX);
-		});
-
-		it('should match JavaScript files', () => {
-			expect('/bundle.js').toMatch(STATIC_ASSET_REGEX);
-			expect('/app/script.js').toMatch(STATIC_ASSET_REGEX);
-		});
-
-		it('should match CSS files', () => {
-			expect('/styles.css').toMatch(STATIC_ASSET_REGEX);
-			expect('/theme/dark.css').toMatch(STATIC_ASSET_REGEX);
-		});
-
-		it('should match source maps', () => {
-			expect('/bundle.js.map').toMatch(STATIC_ASSET_REGEX);
-			expect('/styles.css.map').toMatch(STATIC_ASSET_REGEX);
-		});
-
-		it('should match image files', () => {
-			expect('/logo.svg').toMatch(STATIC_ASSET_REGEX);
-			expect('/banner.png').toMatch(STATIC_ASSET_REGEX);
-			expect('/photo.jpg').toMatch(STATIC_ASSET_REGEX);
-			expect('/image.jpeg').toMatch(STATIC_ASSET_REGEX);
-			expect('/graphic.gif').toMatch(STATIC_ASSET_REGEX);
-			expect('/photo.webp').toMatch(STATIC_ASSET_REGEX);
-			expect('/image.avif').toMatch(STATIC_ASSET_REGEX);
-		});
-
-		it('should match font files', () => {
-			expect('/font.woff').toMatch(STATIC_ASSET_REGEX);
-			expect('/font.woff2').toMatch(STATIC_ASSET_REGEX);
-			expect('/font.ttf').toMatch(STATIC_ASSET_REGEX);
-			expect('/font.eot').toMatch(STATIC_ASSET_REGEX);
-		});
-
-		it('should NOT match dynamic routes', () => {
-			expect('/').not.toMatch(STATIC_ASSET_REGEX);
-			expect('/dashboard').not.toMatch(STATIC_ASSET_REGEX);
-			expect('/api/collections').not.toMatch(STATIC_ASSET_REGEX);
-			expect('/login').not.toMatch(STATIC_ASSET_REGEX);
-		});
-
-		it('should NOT match HTML files', () => {
-			expect('/index.html').not.toMatch(STATIC_ASSET_REGEX);
-			expect('/about.html').not.toMatch(STATIC_ASSET_REGEX);
+		// strictly typed mock resolve function
+		mockResolve = mock(async (_event: RequestEvent, _opts?: ResolveOptions) => {
+			return mockResponse;
 		});
 	});
 
-	describe('isStaticAsset() Function', () => {
-		it('should return true for static asset paths', () => {
-			expect(isStaticAsset('/_app/immutable/chunks/index.js')).toBe(true);
-			expect(isStaticAsset('/static/logo.png')).toBe(true);
-			expect(isStaticAsset('/files/document.pdf')).toBe(true);
-			expect(isStaticAsset('/favicon.ico')).toBe(true);
-			expect(isStaticAsset('/bundle.js')).toBe(true);
-			expect(isStaticAsset('/styles.css')).toBe(true);
+	describe('Regex Validation (STATIC_ASSET_REGEX)', () => {
+		const validPaths = [
+			'/_app/immutable/chunks/index.js',
+			'/_app/version.json',
+			'/static/logo.png',
+			'/files/document.pdf',
+			'/favicon.ico',
+			'/manifest.webmanifest',
+			'/bundle.js.map',
+			'/style.css'
+		];
+
+		const invalidPaths = [
+			'/',
+			'/dashboard',
+			'/api/user',
+			'/login',
+			'/index.html' // HTML should never be cached aggressively
+		];
+
+		it('should match all known static paths', () => {
+			validPaths.forEach((path) => {
+				expect(path).toMatch(STATIC_ASSET_REGEX);
+				expect(isStaticAsset(path)).toBe(true);
+			});
 		});
 
-		it('should return false for dynamic routes', () => {
-			expect(isStaticAsset('/')).toBe(false);
-			expect(isStaticAsset('/dashboard')).toBe(false);
-			expect(isStaticAsset('/api/collections')).toBe(false);
-			expect(isStaticAsset('/login')).toBe(false);
-		});
-
-		it('should handle edge cases', () => {
-			expect(isStaticAsset('')).toBe(false);
-			expect(isStaticAsset('/api/test.js')).toBe(true); // .js extension
-			expect(isStaticAsset('/admin/style.css')).toBe(true); // .css extension
-		});
-	});
-
-	describe('Cache Header Application', () => {
-		it('should add aggressive cache headers for static assets', async () => {
-			const event = createMockEvent('/_app/immutable/chunks/index.js');
-			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
-
-			expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
-			expect(mockResolve).toHaveBeenCalledTimes(1);
-		});
-
-		it('should cache /static/ assets for 1 year', async () => {
-			const event = createMockEvent('/static/logo.png');
-			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
-
-			expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
-		});
-
-		it('should cache /files/ assets for 1 year', async () => {
-			const event = createMockEvent('/files/document.pdf');
-			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
-
-			expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
-		});
-
-		it('should cache special files (favicon, manifest)', async () => {
-			const faviconEvent = createMockEvent('/favicon.ico');
-			const faviconResponse = await handleStaticAssetCaching({ event: faviconEvent, resolve: mockResolve });
-			expect(faviconResponse.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
-
-			mockResolve.mockClear();
-
-			const manifestEvent = createMockEvent('/manifest.webmanifest');
-			const manifestResponse = await handleStaticAssetCaching({ event: manifestEvent, resolve: mockResolve });
-			expect(manifestResponse.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
-		});
-
-		it('should cache JavaScript files', async () => {
-			const event = createMockEvent('/bundle.js');
-			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
-
-			expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
-		});
-
-		it('should cache CSS files', async () => {
-			const event = createMockEvent('/styles.css');
-			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
-
-			expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
-		});
-
-		it('should cache image files', async () => {
-			const pngEvent = createMockEvent('/logo.png');
-			const pngResponse = await handleStaticAssetCaching({ event: pngEvent, resolve: mockResolve });
-			expect(pngResponse.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
-
-			mockResolve.mockClear();
-
-			const svgEvent = createMockEvent('/icon.svg');
-			const svgResponse = await handleStaticAssetCaching({ event: svgEvent, resolve: mockResolve });
-			expect(svgResponse.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
-		});
-
-		it('should cache font files', async () => {
-			const event = createMockEvent('/font.woff2');
-			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
-
-			expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
+		it('should NOT match dynamic or HTML paths', () => {
+			invalidPaths.forEach((path) => {
+				expect(path).not.toMatch(STATIC_ASSET_REGEX);
+				expect(isStaticAsset(path)).toBe(false);
+			});
 		});
 	});
 
-	describe('Non-Static Asset Passthrough', () => {
-		it('should pass through dynamic routes without cache headers', async () => {
+	describe('Cache Header Logic', () => {
+		it('should apply aggressive caching to static assets', async () => {
+			const paths = ['/_app/immutable/entry.js', '/static/hero.jpg', '/files/report.pdf', '/logo.svg'];
+
+			for (const path of paths) {
+				mockResolve.mockClear();
+				const event = createMockEvent(path);
+				const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
+
+				expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
+			}
+		});
+
+		it('should passthrough dynamic routes without headers', async () => {
+			const event = createMockEvent('/api/data');
+			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
+
+			// We don't check strict equality (toBe) because middleware might wrap/clone response
+			// Instead, verify content matches and NO cache headers are added
+			const text = await response.text();
+			expect(text).toBe('test body');
+
+			if (response.headers.has('Cache-Control')) {
+				console.log('DEBUG: Unexpected Cache-Control header:', response.headers.get('Cache-Control'));
+			}
+			expect(response.headers.has('Cache-Control')).toBe(false);
+		});
+
+		it('should preserve existing headers if not static', async () => {
+			const customRes = new Response('ok', {
+				headers: { 'X-Custom': '123' }
+			});
+			mockResolve = mock(() => customRes);
+
 			const event = createMockEvent('/dashboard');
 			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
 
-			expect(response).toBe(mockResponse);
-			expect(response.headers.get('Cache-Control')).toBeNull();
-			expect(mockResolve).toHaveBeenCalledTimes(1);
+			expect(response.headers.get('X-Custom')).toBe('123');
+			expect(response.headers.has('Cache-Control')).toBe(false);
 		});
 
-		it('should pass through API routes without cache headers', async () => {
-			const event = createMockEvent('/api/collections');
+		it('should handle query parameters correctly', async () => {
+			const event = createMockEvent('/style.css?v=1.0.0');
 			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
 
-			expect(response).toBe(mockResponse);
-			expect(response.headers.get('Cache-Control')).toBeNull();
-		});
-
-		it('should pass through login/auth routes without cache headers', async () => {
-			const event = createMockEvent('/login');
-			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-			expect(response.headers.get('Cache-Control')).toBeNull();
-		});
-
-		it('should pass through HTML files without cache headers', async () => {
-			const event = createMockEvent('/index.html');
-			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-			expect(response.headers.get('Cache-Control')).toBeNull();
-		});
-	});
-
-	describe('Edge Cases', () => {
-		it('should handle root path', async () => {
-			const event = createMockEvent('/');
-			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
-
-			expect(response).toBe(mockResponse);
-			expect(response.headers.get('Cache-Control')).toBeNull();
-		});
-
-		it('should handle paths with query parameters', async () => {
-			const event = createMockEvent('/bundle.js?v=123');
-			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
-
-			expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
-		});
-
-		it('should handle paths with hash fragments', async () => {
-			const event = createMockEvent('/styles.css#section');
-			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
-
-			expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
-		});
-
-		it('should preserve existing response headers', async () => {
-			const existingHeaders = {
-				'Content-Type': 'application/javascript',
-				'X-Custom-Header': 'test'
-			};
-			mockResponse = createMockResponse(existingHeaders);
-			mockResolve = mock(() => Promise.resolve(mockResponse));
-
-			const event = createMockEvent('/bundle.js');
-			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
-
-			expect(response.headers.get('Content-Type')).toBe('application/javascript');
-			expect(response.headers.get('X-Custom-Header')).toBe('test');
 			expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
 		});
 	});

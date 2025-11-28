@@ -26,10 +26,30 @@ tags:
 The Media API provides a robust and type-safe system for managing media files (images, videos, documents) in SveltyCMS. All operations are handled by the `MediaService`, which uses a database-agnostic adapter and supports multi-tenancy.
 
 **Storage Support:**
+
 - **Local Storage**: Files stored on the server filesystem.
 - **Cloud Storage**: S3, Cloudflare R2, or Cloudinary.
 
 **Base Path:** `/api/media`
+
+## Quick Reference
+
+| Method | Endpoint                     | Description         |
+| ------ | ---------------------------- | ------------------- |
+| POST   | `/api/media/process`         | Upload files        |
+| GET    | `/api/media`                 | List media files    |
+| GET    | `/api/media/[id]`            | Get media details   |
+| PATCH  | `/api/media/[id]`            | Update metadata     |
+| DELETE | `/api/media/[id]`            | Delete media        |
+| POST   | `/api/media/search`          | Advanced search     |
+| GET    | `/api/media/search`          | Search suggestions  |
+| POST   | `/api/media/bulk-download`   | Download as archive |
+| POST   | `/api/media/trash`           | Soft delete         |
+| POST   | `/api/media/manipulate/[id]` | Transform media     |
+| GET    | `/api/media/exists`          | Check existence     |
+| POST   | `/api/media/remote`          | Upload from URL     |
+
+---
 
 ## MediaItem Data Structure
 
@@ -37,30 +57,32 @@ When a file is uploaded, it is stored as a `MediaItem` document in the database.
 
 ```typescript
 interface MediaItem {
-  _id: string;          // Unique database ID
-  filename: string;       // Original filename
-  hash: string;           // SHA-256 hash of the file content
-  path: string;           // Relative storage path (e.g., "global/original/image-hash.jpg")
-  url: string;            // Publicly accessible URL
-  mimeType: string;       // File MIME type
-  size: number;           // File size in bytes
-  createdBy: string;      // ID of the user who uploaded the file
-  createdAt: string;      // ISODateString of creation time
-  updatedAt: string;      // ISODateString of last update time
-  thumbnails: {           // Auto-generated for images (except SVG)
-    [key: string]: {
-      url: string;
-      width: number;
-      height: number;
-    };
-  };
-  metadata: {             // Additional metadata
-    originalFilename: string;
-    uploadedBy: string;
-    uploadTimestamp: string;
-    [key: string]: any;
-  };
-  access: MediaAccess[];  // Access control rules
+	_id: string; // Unique database ID
+	filename: string; // Original filename
+	hash: string; // SHA-256 hash of the file content
+	path: string; // Relative storage path (e.g., "global/original/image-hash.jpg")
+	url: string; // Publicly accessible URL
+	mimeType: string; // File MIME type
+	size: number; // File size in bytes
+	createdBy: string; // ID of the user who uploaded the file
+	createdAt: string; // ISODateString of creation time
+	updatedAt: string; // ISODateString of last update time
+	thumbnails: {
+		// Auto-generated for images (except SVG)
+		[key: string]: {
+			url: string;
+			width: number;
+			height: number;
+		};
+	};
+	metadata: {
+		// Additional metadata
+		originalFilename: string;
+		uploadedBy: string;
+		uploadTimestamp: string;
+		[key: string]: any;
+	};
+	access: MediaAccess[]; // Access control rules
 }
 ```
 
@@ -139,11 +161,13 @@ POST /api/media/process
 ```
 
 **Headers:**
+
 ```http
 Content-Type: multipart/form-data
 ```
 
 **Body (multipart/form-data):**
+
 - `files` (File): One or more files to upload.
 - `folder` (string, optional): A virtual folder path to associate the media with.
 - `alt` (string, optional): Alt text for images.
@@ -156,31 +180,31 @@ A `MediaItem` object for each successfully uploaded file.
 
 ```json
 {
-  "success": true,
-  "files": [
-    {
-      "_id": "db_id_string",
-      "filename": "photo.jpg",
-      "hash": "a1b2c3d4e5f6",
-      "path": "global/original/photo-a1b2c3d4e5f6.jpg",
-      "url": "https://cdn.example.com/global/original/photo-a1b2c3d4e5f6.jpg",
-      "mimeType": "image/jpeg",
-      "size": 123456,
-      "createdBy": "user_id_string",
-      "createdAt": "2025-11-06T10:00:00.000Z",
-      "updatedAt": "2025-11-06T10:00:00.000Z",
-      "thumbnails": {
-        "small": { "url": "...", "width": 400, "height": 300 },
-        "medium": { "url": "...", "width": 800, "height": 600 }
-      },
-      "metadata": {
-        "originalFilename": "photo.jpg",
-        "uploadedBy": "user_id_string",
-        "uploadTimestamp": "2025-11-06T10:00:00.000Z"
-      }
-    }
-  ],
-  "message": "Files uploaded successfully"
+	"success": true,
+	"files": [
+		{
+			"_id": "db_id_string",
+			"filename": "photo.jpg",
+			"hash": "a1b2c3d4e5f6",
+			"path": "global/original/photo-a1b2c3d4e5f6.jpg",
+			"url": "https://cdn.example.com/global/original/photo-a1b2c3d4e5f6.jpg",
+			"mimeType": "image/jpeg",
+			"size": 123456,
+			"createdBy": "user_id_string",
+			"createdAt": "2025-11-06T10:00:00.000Z",
+			"updatedAt": "2025-11-06T10:00:00.000Z",
+			"thumbnails": {
+				"small": { "url": "...", "width": 400, "height": 300 },
+				"medium": { "url": "...", "width": 800, "height": 600 }
+			},
+			"metadata": {
+				"originalFilename": "photo.jpg",
+				"uploadedBy": "user_id_string",
+				"uploadTimestamp": "2025-11-06T10:00:00.000Z"
+			}
+		}
+	],
+	"message": "Files uploaded successfully"
 }
 ```
 
@@ -197,6 +221,7 @@ GET /api/media
 ```
 
 **Query Parameters:**
+
 - `limit` (number, optional): Max files per page (default: 20).
 - `page` (number, optional): Page number to retrieve (default: 1).
 - `folder` (string, optional): Filter by virtual folder path.
@@ -208,11 +233,11 @@ GET /api/media
 
 ```json
 {
-  "success": true,
-  "media": [
-    // Array of MediaItem objects
-  ],
-  "total": 42
+	"success": true,
+	"media": [
+		// Array of MediaItem objects
+	],
+	"total": 42
 }
 ```
 
@@ -236,10 +261,10 @@ A single `MediaItem` object.
 
 ```json
 {
-  "success": true,
-  "data": {
-    // A MediaItem object
-  }
+	"success": true,
+	"data": {
+		// A MediaItem object
+	}
 }
 ```
 
@@ -256,13 +281,14 @@ PATCH /api/media/[id]
 ```
 
 **Body (JSON):**
+
 ```json
 {
-  "filename": "A Better Name.jpg",
-  "metadata": {
-    "alt": "A descriptive alt text.",
-    "tags": ["nature", "mountain"]
-  }
+	"filename": "A Better Name.jpg",
+	"metadata": {
+		"alt": "A descriptive alt text.",
+		"tags": ["nature", "mountain"]
+	}
 }
 ```
 
@@ -272,8 +298,8 @@ PATCH /api/media/[id]
 
 ```json
 {
-  "success": true,
-  "message": "Media file updated successfully"
+	"success": true,
+	"message": "Media file updated successfully"
 }
 ```
 
@@ -295,7 +321,473 @@ DELETE /api/media/[id]
 
 ```json
 {
-  "success": true,
-  "message": "Media deleted successfully"
+	"success": true,
+	"message": "Media deleted successfully"
 }
 ```
+
+---
+
+### 6. Advanced Media Search
+
+Search media files using multiple criteria including dimensions, dates, EXIF data, file properties, and more.
+
+#### Request
+
+```http
+POST /api/media/search
+Content-Type: application/json
+```
+
+**Body (JSON):**
+
+```json
+{
+	"criteria": {
+		"filename": "photo",
+		"tags": ["nature", "landscape"],
+		"minWidth": 1920,
+		"maxWidth": 3840,
+		"minHeight": 1080,
+		"aspectRatio": "landscape",
+		"minSize": 1048576,
+		"maxSize": 10485760,
+		"fileTypes": ["image/jpeg", "image/png"],
+		"uploadedAfter": "2024-01-01T00:00:00.000Z",
+		"uploadedBefore": "2024-12-31T23:59:59.999Z",
+		"hasEXIF": true,
+		"camera": "Canon",
+		"location": "New York",
+		"dominantColor": "#FF5733",
+		"showDuplicatesOnly": false,
+		"hashMatch": "a1b2c3d4e5f6"
+	}
+}
+```
+
+**Search Criteria Options:**
+
+| Field                | Type                                  | Description                               |
+| -------------------- | ------------------------------------- | ----------------------------------------- |
+| `filename`           | string                                | Partial filename match (case-insensitive) |
+| `tags`               | string[]                              | Array of tags (all must match)            |
+| `minWidth`           | number                                | Minimum image width in pixels             |
+| `maxWidth`           | number                                | Maximum image width in pixels             |
+| `minHeight`          | number                                | Minimum image height in pixels            |
+| `maxHeight`          | number                                | Maximum image height in pixels            |
+| `aspectRatio`        | 'landscape' \| 'portrait' \| 'square' | Image aspect ratio                        |
+| `minSize`            | number                                | Minimum file size in bytes                |
+| `maxSize`            | number                                | Maximum file size in bytes                |
+| `fileTypes`          | string[]                              | Array of MIME types                       |
+| `uploadedAfter`      | Date                                  | Files uploaded after this date            |
+| `uploadedBefore`     | Date                                  | Files uploaded before this date           |
+| `hasEXIF`            | boolean                               | Filter by EXIF data presence              |
+| `camera`             | string                                | Camera make/model (partial match)         |
+| `location`           | string                                | Location from EXIF data                   |
+| `dominantColor`      | string                                | Dominant color (hex format)               |
+| `showDuplicatesOnly` | boolean                               | Show only duplicate files                 |
+| `hashMatch`          | string                                | Exact hash match                          |
+
+**Permissions Required:** `media:read` or authenticated user.
+
+#### Response (Success 200)
+
+```json
+{
+	"success": true,
+	"files": [
+		{
+			"_id": "file_id_1",
+			"filename": "photo-nature.jpg",
+			"hash": "a1b2c3d4e5f6",
+			"width": 1920,
+			"height": 1080,
+			"size": 2458624,
+			"mimeType": "image/jpeg",
+			"tags": ["nature", "landscape"]
+		}
+	],
+	"totalCount": 42,
+	"matchedCriteria": ["filename: \"photo\"", "tags: nature, landscape", "minWidth: 1920px", "aspectRatio: landscape"]
+}
+```
+
+---
+
+### 7. Get Search Suggestions
+
+Retrieve search suggestions based on existing media files (tags, cameras, common dimensions).
+
+#### Request
+
+```http
+GET /api/media/search
+```
+
+**Permissions Required:** `media:read` or authenticated user.
+
+#### Response (Success 200)
+
+```json
+{
+	"success": true,
+	"suggestions": {
+		"tags": ["nature", "landscape", "portrait", "urban"],
+		"cameras": ["Canon EOS 5D", "Nikon D850", "Sony A7III"],
+		"dimensions": [
+			{ "width": 1920, "height": 1080 },
+			{ "width": 3840, "height": 2160 }
+		],
+		"sizesRanges": [
+			{ "min": 0, "max": 102400, "label": "< 100 KB" },
+			{ "min": 102400, "max": 1048576, "label": "100 KB - 1 MB" },
+			{ "min": 1048576, "max": 5242880, "label": "1 MB - 5 MB" },
+			{ "min": 5242880, "max": 10485760, "label": "5 MB - 10 MB" },
+			{ "min": 10485760, "max": null, "label": "> 10 MB" }
+		]
+	}
+}
+```
+
+---
+
+### 8. Bulk Download Files
+
+Download multiple media files as a single TAR.GZ archive.
+
+#### Request
+
+```http
+POST /api/media/bulk-download
+Content-Type: application/json
+```
+
+**Body (JSON):**
+
+```json
+{
+	"fileIds": ["file_id_1", "file_id_2", "file_id_3"]
+}
+```
+
+**Permissions Required:** `media:read` or authenticated user.
+
+#### Response (Success 200)
+
+Binary TAR.GZ stream with headers:
+
+```http
+Content-Type: application/gzip
+Content-Disposition: attachment; filename="media_files_2024-11-15_143025.tar.gz"
+Content-Length: 12582912
+```
+
+**Implementation Details:**
+
+- Uses pure Node.js TAR format (no external dependencies)
+- Gzip compression level 6
+- Automatic cleanup after download (5 seconds)
+- Memory-efficient streaming
+- Files organized by folder structure in archive
+
+**Example Usage (Client-side):**
+
+```javascript
+const response = await fetch('/api/media/bulk-download', {
+	method: 'POST',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({ fileIds: ['id1', 'id2'] })
+});
+
+const blob = await response.blob();
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'media_files.tar.gz';
+a.click();
+URL.revokeObjectURL(url);
+```
+
+---
+
+### 9. Soft Delete (Move to Trash)
+
+Move a media file to trash without permanent deletion.
+
+#### Request
+
+```http
+POST /api/media/trash
+Content-Type: application/json
+```
+
+**Body (JSON):**
+
+```json
+{
+	"fileId": "file_id_to_trash"
+}
+```
+
+**Permissions Required:** `media:delete` or file owner.
+
+#### Response (Success 200)
+
+```json
+{
+	"success": true,
+	"message": "File moved to trash",
+	"trashPath": ".trash/global/original/image-hash.jpg"
+}
+```
+
+**Note:** Files in trash can be manually restored from the filesystem. Trash cleanup is handled by system maintenance tasks.
+
+---
+
+### 10. Image Manipulation
+
+Transform or edit an existing image (resize, crop, rotate, apply filters).
+
+#### Request
+
+```http
+POST /api/media/manipulate/[id]
+Content-Type: application/json
+```
+
+**Body (JSON):**
+
+```json
+{
+	"operations": [
+		{
+			"type": "resize",
+			"width": 800,
+			"height": 600,
+			"fit": "cover"
+		},
+		{
+			"type": "rotate",
+			"angle": 90
+		},
+		{
+			"type": "blur",
+			"sigma": 5
+		}
+	],
+	"outputFormat": "webp",
+	"quality": 85
+}
+```
+
+**Supported Operations:**
+
+- `resize` - Change dimensions
+- `crop` - Crop to specific area
+- `rotate` - Rotate by angle
+- `flip` - Flip horizontal/vertical
+- `blur` - Apply Gaussian blur
+- `sharpen` - Sharpen image
+- `grayscale` - Convert to grayscale
+- `tint` - Apply color tint
+
+**Permissions Required:** `media:update` or file owner.
+
+#### Response (Success 200)
+
+```json
+{
+	"success": true,
+	"message": "Image manipulated successfully",
+	"newFile": {
+		"_id": "new_file_id",
+		"url": "https://cdn.example.com/manipulated-image.webp"
+	}
+}
+```
+
+---
+
+### 11. Check File Existence
+
+Check if a file exists by hash or filename without fetching full metadata.
+
+#### Request
+
+```http
+GET /api/media/exists?hash=a1b2c3d4e5f6
+```
+
+**Or by filename:**
+
+```http
+GET /api/media/exists?filename=photo.jpg
+```
+
+**Permissions Required:** `media:read` or authenticated user.
+
+#### Response (Success 200)
+
+```json
+{
+	"success": true,
+	"exists": true,
+	"fileId": "existing_file_id",
+	"filename": "photo.jpg"
+}
+```
+
+**Use Cases:**
+
+- Duplicate prevention during upload
+- File verification before operations
+- Client-side validation
+
+---
+
+### 12. Upload from Remote URL
+
+Upload a file from a remote URL (saves a reference for remote videos, downloads and saves for other files).
+
+#### Request
+
+```http
+POST /api/media/remote
+Content-Type: application/json
+```
+
+**Body (JSON):**
+
+```json
+{
+	"url": "https://example.com/image.jpg",
+	"access": "public"
+}
+```
+
+**Permissions Required:** `media:write` or authenticated user.
+
+#### Response (Success 200)
+
+```json
+{
+	"success": true,
+	"file": {
+		"_id": "new_file_id",
+		"filename": "image.jpg",
+		"url": "https://cdn.example.com/global/original/image-hash.jpg",
+		"mimeType": "image/jpeg",
+		"size": 245862
+	}
+}
+```
+
+**Supported URLs:**
+
+- Direct image/video/document URLs
+- YouTube videos (reference only)
+- Vimeo videos (reference only)
+- Any publicly accessible HTTP/HTTPS URL
+
+---
+
+## Error Responses
+
+All endpoints may return standard error responses:
+
+### 400 Bad Request
+
+```json
+{
+	"success": false,
+	"error": "Invalid request parameters",
+	"details": "File size exceeds 50MB limit"
+}
+```
+
+### 401 Unauthorized
+
+```json
+{
+	"success": false,
+	"error": "Authentication required"
+}
+```
+
+### 403 Forbidden
+
+```json
+{
+	"success": false,
+	"error": "Insufficient permissions",
+	"required": "media:write"
+}
+```
+
+### 404 Not Found
+
+```json
+{
+	"success": false,
+	"error": "Media file not found",
+	"fileId": "requested_file_id"
+}
+```
+
+### 500 Internal Server Error
+
+```json
+{
+	"success": false,
+	"error": "Server error occurred",
+	"message": "Failed to process image"
+}
+```
+
+---
+
+## Rate Limiting
+
+API endpoints are rate-limited per user:
+
+- **Upload endpoints**: 10 requests/minute
+- **Read endpoints**: 100 requests/minute
+- **Delete endpoints**: 20 requests/minute
+- **Bulk operations**: 5 requests/minute
+
+**Rate Limit Headers:**
+
+```http
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 1638360000
+```
+
+---
+
+## Related Documentation
+
+For more information about the media system, see:
+
+- [Media Gallery Guide](/docs/guides/media-gallery-guide) - User interface and features
+- [Media Gallery Structure](/docs/guides/media-gallery-structure) - Architecture and components
+- [Media Gallery Implementation](/docs/guides/media-gallery-implementation) - Implementation details
+- [Media Handling](/docs/guides/media-handling) - Storage configuration and MediaService
+
+**Complete API Endpoints Summary:**
+
+All 12 media API endpoints documented in this reference:
+
+1. ✅ `POST /api/media/process` - Upload files
+2. ✅ `GET /api/media` - List media files
+3. ✅ `GET /api/media/[id]` - Get media details
+4. ✅ `PATCH /api/media/[id]` - Update metadata
+5. ✅ `DELETE /api/media/[id]` - Delete media
+6. ✅ `POST /api/media/search` - Advanced search with 18+ criteria
+7. ✅ `GET /api/media/search` - Search suggestions (tags, cameras, dimensions)
+8. ✅ `POST /api/media/bulk-download` - Bulk download as TAR.GZ archive
+9. ✅ `POST /api/media/trash` - Soft delete to trash
+10. ✅ `POST /api/media/manipulate/[id]` - Image manipulation (resize, crop, rotate, filters)
+11. ✅ `GET /api/media/exists` - Check file existence by hash or filename
+12. ✅ `POST /api/media/remote` - Upload from remote URL

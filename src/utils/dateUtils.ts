@@ -112,6 +112,42 @@ export function isoDateStringToDate(isoDate: ISODateString): Date {
 }
 
 /**
+ * Format a date using a pattern string (e.g. "yyyy-MM-dd")
+ * @param dateInput - Date, timestamp or ISO string
+ * @param pattern - Format pattern
+ * @param fallback - Fallback string if date is invalid
+ */
+export function formatDateString(dateInput: Date | number | string, pattern: string = 'yyyy-MM-dd', fallback: string = ''): string {
+	try {
+		let date: Date;
+
+		if (typeof dateInput === 'number') {
+			date = new Date(dateInput > 1e12 ? dateInput : dateInput * 1000);
+		} else if (typeof dateInput === 'string') {
+			date = new Date(dateInput);
+		} else {
+			date = dateInput;
+		}
+
+		if (isNaN(date.getTime())) {
+			return fallback;
+		}
+
+		const yyyy = date.getFullYear().toString();
+		const MM = (date.getMonth() + 1).toString().padStart(2, '0');
+		const dd = date.getDate().toString().padStart(2, '0');
+		const HH = date.getHours().toString().padStart(2, '0');
+		const mm = date.getMinutes().toString().padStart(2, '0');
+		const ss = date.getSeconds().toString().padStart(2, '0');
+
+		return pattern.replace('yyyy', yyyy).replace('MM', MM).replace('dd', dd).replace('HH', HH).replace('mm', mm).replace('ss', ss);
+	} catch (error) {
+		logger.error('Error formatting date string:', error);
+		return fallback;
+	}
+}
+
+/**
  * Format date for display with proper locale and timezone handling
  * @param dateInput - Date, timestamp or ISO string
  * @param locale - Locale to format for (default: system language)
@@ -187,4 +223,28 @@ export function formatRelativeDate(dateInput: Date | number | string, locale: st
 		logger.error('Error formatting relative date:', error);
 		return 'Invalid Date';
 	}
+}
+
+/**
+ * Utility to parse ISO 8601 duration (e.g., "PT3M20S") into a human-readable format (e.g., "3:20").
+ * This function can be used in the Display component if the duration is stored in ISO format.
+ */
+export function formatIsoDuration(isoDuration: string | undefined): string | undefined {
+	if (!isoDuration) return undefined;
+
+	const regex = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/;
+	const matches = isoDuration.match(regex);
+
+	if (!matches) return undefined;
+
+	const hours = parseInt(matches[1] || '0', 10);
+	const minutes = parseInt(matches[2] || '0', 10);
+	const seconds = parseInt(matches[3] || '0', 10);
+
+	const parts = [];
+	if (hours > 0) parts.push(String(hours).padStart(2, '0'));
+	parts.push(String(minutes).padStart(2, '0'));
+	parts.push(String(seconds).padStart(2, '0'));
+
+	return parts.join(':');
 }

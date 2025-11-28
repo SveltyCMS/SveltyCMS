@@ -23,7 +23,7 @@ Usage:
 		mediaItems?: MediaType[];
 	}
 
-	let { mediaItems = [] }: Props = $props();
+	const { mediaItems = [] }: Props = $props();
 
 	// Local state
 	let selectedMedia: MediaType | null = $state(null);

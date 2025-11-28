@@ -6,7 +6,12 @@ import { betterSvelteEmailPreprocessor } from 'better-svelte-email';
 const config = {
 	// Consult https://kit.svelte.dev/docs/integrations#preprocessors
 	// for more information about preprocessors
-	preprocess: [vitePreprocess(), betterSvelteEmailPreprocessor()],
+	preprocess: [
+		vitePreprocess(),
+		betterSvelteEmailPreprocessor({
+			pathToEmailFolder: './src/components/emails'
+		})
+	],
 
 	// ✅ **ACTION REQUIRED**: Uncomment this to enable Svelte 5 runes mode!
 	// This is essential for using the latest Svelte 5 features.
@@ -49,7 +54,8 @@ const config = {
 			mode: 'nonce', // Use nonce for inline scripts (not hash)
 			directives: {
 				'default-src': ['self'],
-				'script-src': ['self', 'unsafe-eval', 'blob:'], // unsafe-eval for dev HMR, blob: for workers
+				// Allow SvelteKit's nonced inline scripts plus dev HMR
+				'script-src': ['self', 'unsafe-inline', 'unsafe-eval', 'blob:'],
 				'worker-src': ['self', 'blob:'], // Allow workers from same origin and blob URLs
 				'style-src': ['self', 'unsafe-inline'], // unsafe-inline for faster builds
 				'img-src': [

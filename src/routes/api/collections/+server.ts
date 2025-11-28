@@ -18,6 +18,10 @@ import { error, json, type RequestHandler } from '@sveltejs/kit';
 // Auth
 import { contentManager } from '@src/content/ContentManager';
 
+// Token Engine
+import { replaceTokens } from '@src/services/token/engine';
+import type { TokenContext } from '@src/services/token/types';
+
 // System Logger
 import { logger } from '@utils/logger.server';
 
@@ -44,7 +48,17 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		// Iterate over the array of collections
 		for (const collection of allCollections) {
-			const collectionInfo = {
+			const collectionInfo: {
+				id: string | undefined;
+				name: string | undefined;
+				label: string | undefined;
+				description: string | undefined;
+				icon: string | undefined;
+				path: string | undefined;
+				permissions: { read: boolean; write: boolean };
+				fields?: unknown[];
+				stats?: { totalEntries: number; publishedEntries: number; draftEntries: number };
+			} = {
 				id: collection._id,
 				name: collection.name,
 				label: collection.label || collection.name,
@@ -71,17 +85,27 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 						draftEntries: 0
 					};
 				} catch (statsError) {
-					logger.warn(`Failed to get stats for collection \x1b[33m${collection._id}\x1b[0m: ${getErrorMessage(statsError)}`);
+					logger.warn(`Failed to get stats for collection ${collection._id}: ${getErrorMessage(statsError)}`);
 				}
+			}
+
+			// Token Replacement for Collection Metadata
+			const tokenContext: TokenContext = {
+				user: locals.user || undefined
+			};
+
+			if (collectionInfo.description && collectionInfo.description.includes('{{')) {
+				collectionInfo.description = await replaceTokens(collectionInfo.description, tokenContext);
+			}
+			if (collectionInfo.label && collectionInfo.label.includes('{{')) {
+				collectionInfo.label = await replaceTokens(collectionInfo.label, tokenContext);
 			}
 
 			accessibleCollections.push(collectionInfo);
 		}
 
 		const duration = performance.now() - start;
-		logger.info(
-			`${accessibleCollections.length} collections retrieved in \x1b[32m${duration.toFixed(2)}ms\x1b[0m for tenant ${tenantId || 'default'}`
-		);
+		logger.info(`${accessibleCollections.length} collections retrieved in ${duration.toFixed(2)}ms for tenant ${tenantId || 'default'}`);
 
 		return json({
 			success: true,
@@ -93,7 +117,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		});
 	} catch (e) {
 		const duration = performance.now() - start;
-		logger.error(`Failed to get collections: ${getErrorMessage(e)} in \x1b[32m${duration.toFixed(2)}ms\x1b[0m`);
+		logger.error(`Failed to get collections: ${getErrorMessage(e)} in ${duration.toFixed(2)}ms`);
 		throw error(500, 'Internal Server Error');
 	}
 };

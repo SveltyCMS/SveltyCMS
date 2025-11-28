@@ -67,7 +67,7 @@
 	let showResultsModal = $state(false);
 
 	// Export state
-	let exportOptions = $state<ExportOptions>({
+	const exportOptions = $state<ExportOptions>({
 		format: 'json',
 		collections: [],
 		includeMetadata: true,
@@ -78,7 +78,7 @@
 	let exportLimitString = $state('');
 
 	// Import state
-	let importOptions = $state<ImportOptions>({
+	const importOptions = $state<ImportOptions>({
 		format: 'json',
 		overwrite: false,
 		validate: true,

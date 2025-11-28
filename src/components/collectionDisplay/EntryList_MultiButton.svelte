@@ -107,8 +107,8 @@
 	let manualActionSet = $state(false); // Track if user manually selected an action
 
 	// Derived values
-	let isAdmin = $derived(page.data?.isAdmin === true);
-	let currentAction = $derived(storeListboxValue.value as ActionType);
+	const isAdmin = $derived(page.data?.isAdmin === true);
+	const currentAction = $derived(storeListboxValue.value as ActionType);
 
 	// Action configurations
 	const BASE_ACTIONS: Record<string, ActionConfig> = {
@@ -151,7 +151,7 @@
 	};
 
 	// Dynamic button map based on config and user role
-	let buttonMap = $derived.by<Record<string, ActionConfig>>(() => {
+	const buttonMap = $derived.by<Record<string, ActionConfig>>(() => {
 		const actions = { ...BASE_ACTIONS };
 
 		// Handle delete/archive based on configuration
@@ -193,11 +193,11 @@
 	});
 
 	// Current button state
-	let currentConfig = $derived(buttonMap[String(currentAction)] || buttonMap.create);
-	let isMainButtonDisabled = $derived(currentAction !== 'create' && !hasSelections);
+	const currentConfig = $derived(buttonMap[String(currentAction)] || buttonMap.create);
+	const isMainButtonDisabled = $derived(currentAction !== 'create' && !hasSelections);
 
 	// Get available actions for dropdown (exclude current action)
-	let availableActions = $derived(Object.entries(buttonMap).filter(([type]) => type !== currentAction));
+	const availableActions = $derived(Object.entries(buttonMap).filter(([type]) => type !== currentAction));
 
 	// Helper functions
 	function isActionDisabled(actionType: ActionType): boolean {

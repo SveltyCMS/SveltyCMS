@@ -17,7 +17,7 @@
  */
 
 // System Logger
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 // Auth
 import type { User, ISODateString } from '@databases/dbInterface';
