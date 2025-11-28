@@ -223,6 +223,28 @@ jobs:
           bun run scripts/seed-test-db.ts
           echo "✅ Database seeded with admin user"
 
+      # Verify server is responding with actual content
+      - name: 🔍 Verify Login Page Content
+        run: |
+          echo "🔍 Checking if login page returns content..."
+          RESPONSE=$(curl -s http://localhost:4173/login)
+          CONTENT_LENGTH=${#RESPONSE}
+          echo "📏 Response length: $CONTENT_LENGTH characters"
+
+          # Check if response contains actual Svelte content (not just bootstrap)
+          if echo "$RESPONSE" | grep -q "data-testid=\"signin-email\""; then
+            echo "✅ Login page contains signin form - SSR working correctly"
+          elif echo "$RESPONSE" | grep -q "SIGN IN"; then
+            echo "✅ Login page contains SIGN IN button - SSR working correctly"
+          else
+            echo "❌ WARNING: Login page may not be rendering correctly"
+            echo "First 1000 chars of response:"
+            echo "$RESPONSE" | head -c 1000
+            echo ""
+            echo "Last 500 chars of response:"
+            echo "$RESPONSE" | tail -c 500
+          fi
+
       # STEP A: Run the Setup Wizard first to initialize the DB/User
       - name: 🧙‍♂️ Run Setup Wizard Test
         run: |
@@ -243,6 +265,16 @@ jobs:
           bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard"
         env:
           PLAYWRIGHT_TEST_BASE_URL: http://localhost:4173
+
+      # Upload debug screenshots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: debug-screenshots
+          path: |
+            debug-*.png
+            playwright-report/
+          retention-days: 7
 
       - uses: actions/upload-artifact@v4
         if: always()
