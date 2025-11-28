@@ -117,6 +117,9 @@ jobs:
           } as const;
           EOF
           echo "✅ Created config/private.test.ts"
+          # Also create config/private.ts for build-time imports
+          cp config/private.test.ts config/private.ts
+          echo "✅ Created config/private.ts"
 
       # Build production version for faster, optimized testing
       - name: Build Production
@@ -196,6 +199,9 @@ jobs:
           } as const;
           EOF
           echo "✅ Created config/private.test.ts"
+          # Also create config/private.ts for build-time imports
+          cp config/private.test.ts config/private.ts
+          echo "✅ Created config/private.ts"
 
       # Build production version for faster, optimized testing
       - name: Build Production
