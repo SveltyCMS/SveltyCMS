@@ -4,6 +4,8 @@
 **Dynamic SveltyCMS_LogoFull component**
 -->
 
+<svelte:options runes={true} />
+
 <script lang="ts">
 	// Components
 	import SiteName from '@components/SiteName.svelte';
