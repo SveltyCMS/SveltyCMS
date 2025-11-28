@@ -63,8 +63,6 @@
 	import RightSidebar from '@components/RightSidebar.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
-	import ImageEditorHeader from './imageEditor/components/layout/ImageEditorHeader.svelte';
-	import ImageEditorFooter from './imageEditor/components/layout/ImageEditorFooter.svelte';
 
 	// Skeleton
 	import {
@@ -113,14 +111,14 @@
 	// PROPS & STATE
 	// ============================================================================
 
-	const { children, data }: Props = $props();
+	let { children, data }: Props = $props();
 
 	// Initialize global stores
 	setGlobalModalStore(getModalStore());
 	setGlobalToastStore(getToastStore());
 
 	// Component State
-	const loadError = $state<Error | null>(null);
+	let loadError = $state<Error | null>(null);
 	let mediaQuery: MediaQueryList | undefined;
 
 	// ============================================================================
@@ -130,8 +128,6 @@
 	// SEO meta content
 	const siteName = publicEnv?.SITE_NAME || 'SveltyCMS';
 	const seoDescription = `${siteName} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
-	// Hide CMS layout footer when using Image Editor route (it has its own footer toolbar)
-	const isImageEditorRoute = $derived(page.url?.pathname?.includes('/imageEditor'));
 
 	// ============================================================================
 	// REACTIVE EFFECTS
@@ -198,7 +194,9 @@
 		}
 	}
 
-	// Global keyboard shortcuts handler
+	/**
+	 * Global keyboard shortcuts handler
+	 */
 	function handleKeyDown(event: KeyboardEvent): void {
 		// Alt+S: Toggle search
 		if (event.altKey && event.key === 's') {
@@ -207,7 +205,9 @@
 		}
 	}
 
-	// Initialize avatar from user data
+	/**
+	 * Initialize avatar from user data
+	 */
 	function initializeUserAvatar(user: User | null): void {
 		if (!user) {
 			avatarSrc.value = '/Default_User.svg';
@@ -356,11 +356,7 @@
 					<!-- Page Header -->
 					{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
 						<header class="sticky top-0 z-20 w-full">
-							{#if isImageEditorRoute}
-								<ImageEditorHeader />
-							{:else}
-								<HeaderEdit />
-							{/if}
+							<HeaderEdit />
 						</header>
 					{/if}
 
@@ -377,11 +373,7 @@
 					<!-- Page Footer / Mobile Nav -->
 					{#if uiStateManager.uiState.value.pagefooter !== 'hidden'}
 						<footer class="mt-auto w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
-							{#if isImageEditorRoute}
-								<ImageEditorFooter />
-							{:else}
-								<PageFooter />
-							{/if}
+							<PageFooter />
 						</footer>
 					{/if}
 				</main>
