@@ -216,6 +216,13 @@ jobs:
           bun x wait-on http://localhost:4173 -t 60000
           echo "✅ Preview server is ready!"
 
+      # Seed the test database with admin user and default data
+      - name: 🌱 Seed Test Database
+        run: |
+          echo "🌱 Seeding test database..."
+          bun run scripts/seed-test-db.ts
+          echo "✅ Database seeded with admin user"
+
       # STEP A: Run the Setup Wizard first to initialize the DB/User
       - name: 🧙‍♂️ Run Setup Wizard Test
         run: |
