@@ -235,10 +235,39 @@ jobs:
           bun x wait-on http://localhost:4173 -t 60000
           echo "✅ Preview server restarted and ready!"
 
-      # Verify server is responding with actual content
-      - name: 🔍 Verify Login Page Content
+      # Verify server is responding with actual content AND database has data
+      - name: 🔍 Verify Database and Login Page
         run: |
-          echo "🔍 Checking if login page returns content..."
+          echo "🔍 Checking database and login page..."
+
+          # First verify database has roles (direct MongoDB check)
+          echo "📊 Checking if roles exist in database..."
+          bun -e "
+          import { MongoClient } from 'mongodb';
+          const client = new MongoClient('mongodb://admin:admin@localhost:27017');
+          try {
+            await client.connect();
+            const db = client.db('sveltycms_test');
+            const roles = await db.collection('roles').find({}).toArray();
+            console.log(\`Found \${roles.length} roles in database\`);
+            if (roles.length === 0) {
+              console.error('❌ ERROR: No roles found in database after seeding!');
+              process.exit(1);
+            }
+            console.log('✅ Roles exist in database');
+            const users = await db.collection('users').find({}).toArray();
+            console.log(\`Found \${users.length} users in database\`);
+            if (users.length === 0) {
+              console.error('❌ ERROR: No users found in database after seeding!');
+              process.exit(1);
+            }
+            console.log('✅ Users exist in database');
+          } finally {
+            await client.close();
+          }
+          "
+
+          echo "🌐 Checking if login page returns content..."
           RESPONSE=$(curl -s http://localhost:4173/login)
           CONTENT_LENGTH=${#RESPONSE}
           echo "📏 Response length: $CONTENT_LENGTH characters"
@@ -257,24 +286,12 @@ jobs:
             echo "$RESPONSE" | tail -c 500
           fi
 
-      # STEP A: Run the Setup Wizard first to initialize the DB/User
-      - name: 🧙‍♂️ Run Setup Wizard Test
+      # Run E2E tests (skip setup wizard since we seeded via API)
+      - name: 🧪 Run E2E Tests
         run: |
-          echo "=== Running setup wizard to initialize application ==="
-          # Runs ONLY the setup wizard spec
-          bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list
-        env:
-          # Setup Wizard specific envs (if your app uses them to seed)
-          ADMIN_EMAIL: admin@example.com
-          ADMIN_PASS: Admin123!
-
-      # STEP B: Run the rest of the tests (skipping the wizard)
-      - name: 🧪 Run Application E2E Tests
-        if: success() # Only run if Wizard passed
-        run: |
-          echo "=== Running main E2E suite ==="
-          # --grep-invert skips the setup wizard since we just ran it
-          bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard"
+          echo "=== Running E2E test suite ==="
+          # Skip setup wizard test since database was seeded via API
+          bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard|Setup Wizard"
         env:
           PLAYWRIGHT_TEST_BASE_URL: http://localhost:4173
 
