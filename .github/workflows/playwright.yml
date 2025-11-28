@@ -207,21 +207,33 @@ jobs:
       - name: Build Production
         run: bun run build
 
-      # --- START PREVIEW SERVER (PORT 4173) ---
-      - name: Start Preview Server
+      # --- START PREVIEW SERVER FOR SEEDING (PORT 4173) ---
+      - name: Start Preview Server (for seeding)
         run: |
-          echo "🚀 Starting preview server on port 4173..."
+          echo "🚀 Starting preview server on port 4173 for seeding..."
           bun run preview &
           echo "⏳ Waiting for server to be ready..."
           bun x wait-on http://localhost:4173 -t 60000
-          echo "✅ Preview server is ready!"
+          echo "✅ Preview server is ready for seeding!"
 
-      # Seed the test database with admin user and default data
+      # Seed the test database BEFORE running tests
       - name: 🌱 Seed Test Database
         run: |
           echo "🌱 Seeding test database..."
           bun run scripts/seed-test-db.ts
           echo "✅ Database seeded with admin user"
+
+      # Restart preview server to clear any cached "database empty" state
+      - name: 🔄 Restart Preview Server
+        run: |
+          echo "🔄 Restarting preview server to clear cache..."
+          pkill -f "vite preview" || true
+          sleep 2
+          echo "🚀 Starting fresh preview server..."
+          bun run preview &
+          echo "⏳ Waiting for server to be ready..."
+          bun x wait-on http://localhost:4173 -t 60000
+          echo "✅ Preview server restarted and ready!"
 
       # Verify server is responding with actual content
       - name: 🔍 Verify Login Page Content
