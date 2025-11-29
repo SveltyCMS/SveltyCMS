@@ -18,23 +18,27 @@ Features:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
-
-	// Props
+	// Props - now using Skeleton v4 dialog pattern
 	interface Props {
-		parent: any;
+		parent: {
+			regionFooter?: string;
+			buttonNeutral?: string;
+			buttonPositive?: string;
+			onClose: () => void;
+		};
+		meta?: {
+			initialAction?: 'publish' | 'unpublish' | 'delete';
+		};
+		onResponse?: (result: { date: Date; action: string } | boolean) => void;
 	}
-	const { parent }: Props = $props();
+	const { parent, meta, onResponse }: Props = $props();
 
 	// --- Component State ---
-	const modalStore = getModalStore();
-
 	type ActionType = 'publish' | 'unpublish' | 'delete';
 
 	let scheduleDateOnly = $state('');
 	let scheduleTimeOnly = $state('');
-	let action: ActionType = $state(($modalStore[0]?.meta?.initialAction as ActionType) || 'publish');
+	let action: ActionType = $state((meta?.initialAction as ActionType) || 'publish');
 	let errorMessage = $state('');
 
 	const scheduleDate = $derived(`${scheduleDateOnly}T${scheduleTimeOnly}`);
@@ -69,16 +73,21 @@ Features:
 	function handleSubmission(): void {
 		if (!validateForm()) return;
 
-		// The component that opened the modal is responsible for handling this response.
-		if ($modalStore[0]?.response) {
-			$modalStore[0].response({
+		// Call the response callback with the scheduled data
+		if (onResponse) {
+			onResponse({
 				date: new Date(scheduleDate),
 				action: action
 			});
 		}
 
 		// Close the modal
-		modalStore.close();
+		parent.onClose();
+	}
+
+	function handleCancel(): void {
+		onResponse?.(false);
+		parent.onClose();
 	}
 
 	// --- Base Classes ---
@@ -87,51 +96,49 @@ Features:
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
 
-{#if $modalStore[0]}
-	<div class="modal-schedule {cBase}" role="dialog" aria-labelledby="schedule-modal-title">
-		<header id="schedule-modal-title" class={`text-center text-primary-500 ${cHeader}`}>Schedule Entry</header>
-		<article class="text-center text-sm">Set a date and time to publish this entry.</article>
+<div class="modal-schedule {cBase}" role="dialog" aria-labelledby="schedule-modal-title">
+	<header id="schedule-modal-title" class={`text-center text-primary-500 ${cHeader}`}>Schedule Entry</header>
+	<article class="text-center text-sm">Set a date and time to publish this entry.</article>
 
-		<form
-			class="modal-form {cForm}"
-			onsubmit={(e) => {
-				e.preventDefault();
-				handleSubmission();
-			}}
-		>
-			<!-- Date and Time Inputs -->
-			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-				<label class="label">
-					<span>Date</span>
-					<input class="input" type="date" bind:value={scheduleDateOnly} required aria-label="Date" />
-				</label>
-				<label class="label">
-					<span>Time</span>
-					<input class="input" type="time" bind:value={scheduleTimeOnly} required aria-label="Time" />
-				</label>
-			</div>
-
-			<!-- Action Select -->
+	<form
+		class="modal-form {cForm}"
+		onsubmit={(e) => {
+			e.preventDefault();
+			handleSubmission();
+		}}
+	>
+		<!-- Date and Time Inputs -->
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 			<label class="label">
-				<span>Action</span>
-				<select class="select" bind:value={action} aria-label="Action">
-					{#each actionOptions as opt}
-						<option value={opt.value}>{opt.label}</option>
-					{/each}
-				</select>
+				<span>Date</span>
+				<input class="input" type="date" bind:value={scheduleDateOnly} required aria-label="Date" />
 			</label>
+			<label class="label">
+				<span>Time</span>
+				<input class="input" type="time" bind:value={scheduleTimeOnly} required aria-label="Time" />
+			</label>
+		</div>
 
-			<!-- Error Message -->
-			{#if errorMessage}
-				<div class="text-sm text-error-500" role="alert">{errorMessage}</div>
-			{/if}
-		</form>
+		<!-- Action Select -->
+		<label class="label">
+			<span>Action</span>
+			<select class="select" bind:value={action} aria-label="Action">
+				{#each actionOptions as opt}
+					<option value={opt.value}>{opt.label}</option>
+				{/each}
+			</select>
+		</label>
 
-		<footer class="modal-footer flex items-center justify-end space-x-4 {parent.regionFooter}">
-			<button class="btn {parent.buttonNeutral}" onclick={() => parent.onClose()}>{m.button_cancel()}</button>
-			<button class="btn {parent.buttonPositive}" onclick={() => handleSubmission()} disabled={!isFormValid}
-				>{m.entrylist_multibutton_schedule()}</button
-			>
-		</footer>
-	</div>
-{/if}
+		<!-- Error Message -->
+		{#if errorMessage}
+			<div class="text-sm text-error-500" role="alert">{errorMessage}</div>
+		{/if}
+	</form>
+
+	<footer class="modal-footer flex items-center justify-end space-x-4 {parent.regionFooter || ''}">
+		<button class="btn {parent.buttonNeutral || 'variant-ghost-surface'}" onclick={handleCancel}>{m.button_cancel()}</button>
+		<button class="btn {parent.buttonPositive || 'variant-filled-primary'}" onclick={() => handleSubmission()} disabled={!isFormValid}
+			>{m.entrylist_multibutton_schedule()}</button
+		>
+	</footer>
+</div>

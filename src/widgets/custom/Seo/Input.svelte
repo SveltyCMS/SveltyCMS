@@ -28,7 +28,8 @@ Part of the Three Pillars Architecture for wSidget system.
 -->
 
 <script lang="ts">
-	import { Tab, TabGroup } from '@skeletonlabs/skeleton';
+	import TabGroup from '@components/system/TabGroup.svelte';
+	import Tab from '@components/system/Tab.svelte';
 	import { logger } from '@utils/logger';
 	import { contentLanguage } from '@stores/store.svelte';
 	import { debounce } from '@utils/utils';

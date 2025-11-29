@@ -28,8 +28,9 @@
 	import LocalUpload from './LocalUpload.svelte';
 	import RemoteUpload from './RemoteUpload.svelte';
 
-	// Skeleton
-	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
+	// Skeleton v4 compatibility components
+	import TabGroup from '@components/system/TabGroup.svelte';
+	import Tab from '@components/system/Tab.svelte';
 
 	let tabSet: number = $state(0);
 </script>

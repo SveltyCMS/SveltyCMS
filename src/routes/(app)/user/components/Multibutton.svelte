@@ -25,9 +25,9 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import { storeListboxValue } from '@stores/store.svelte';
 
 	// Skeleton
-	import type { ModalComponent, ModalSettings, PopupSettings } from '@skeletonlabs/skeleton';
-	import { ListBox, ListBoxItem, popup } from '@skeletonlabs/skeleton';
-	import { showModal } from '@utils/modalUtils';
+	import { Listbox } from '@skeletonlabs/skeleton-svelte';
+	import { popup, type PopupSettings } from '@utils/popup';
+	import { showModal, type ModalComponent, type ModalSettings } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 	import ModalEditForm from './ModalEditForm.svelte';
 	import ModalEditToken from './ModalEditToken.svelte';
@@ -548,23 +548,17 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 <!-- Dropdown/Listbox -->
 <div class="overflow-hiddens card z-10 w-48 rounded-sm bg-surface-500 text-white" data-popup="Combobox" role="menu" aria-label="Available actions">
-	<ListBox rounded="rounded-sm" active="variant-filled-primary" hover="hover:bg-surface-700" class="divide-y">
+	<Listbox.Root value={listboxValue} onValueChange={(value) => { if (value) listboxValue = value as ActionType; }} class="divide-y rounded-sm">
 		{#each filteredActions as action (action)}
 			{@const actionKey = action as ActionType}
 			{@const config = actionConfig[actionKey]}
-			<ListBoxItem
-				bind:group={listboxValue}
-				name="medium"
+			<Listbox.Item 
 				value={action}
-				active="variant-filled-primary"
-				hover="hover:bg-surface-700"
-				role="menuitem"
+				class="listbox-item flex items-center gap-2 px-4 py-2 hover:bg-surface-700 {listboxValue === action ? 'bg-primary-500' : ''}"
 			>
-				{#snippet lead()}
-					<iconify-icon icon={config.iconValue} width="20" class="mr-1" role="presentation" aria-hidden="true"></iconify-icon>
-				{/snippet}
+				<iconify-icon icon={config.iconValue} width="20" class="mr-1" role="presentation" aria-hidden="true"></iconify-icon>
 				{action}
-			</ListBoxItem>
+			</Listbox.Item>
 		{/each}
-	</ListBox>
+	</Listbox.Root>
 </div>

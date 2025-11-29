@@ -14,7 +14,7 @@
 -->
 
 <script lang="ts">
-	import { RangeSlider } from '@skeletonlabs/skeleton';
+	import RangeSlider from '@components/system/SliderCompat.svelte';
 
 	let {
 		value = $bindable({
@@ -42,9 +42,8 @@
 	<span>Rating</span>
 	<RangeSlider
 		name="range-slider"
-		id="range-slider"
 		value={value.current}
-		on:change={handleChange}
+		onchange={handleChange}
 		max={value.max}
 		step={0.5}
 		ticked

@@ -26,9 +26,9 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Skeleton
-	import { popup } from '@skeletonlabs/skeleton';
-	import type { PopupSettings } from '@skeletonlabs/skeleton';
+	// Popup utility
+	import { popup } from '@utils/popup';
+	import type { PopupSettings } from '@utils/popup';
 	// Collection Manager
 
 	const props = $props<{ data: any; handlePageTitleUpdate: (title: string) => void }>();

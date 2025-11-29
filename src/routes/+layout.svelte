@@ -5,17 +5,15 @@
  -->
 
 <script lang="ts">
-	import '../app.postcss';
+	import '../app.css';
 	// Register Iconify custom element globally
 	import 'iconify-icon';
 
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 
-	// Initializing Skeleton stores
-	import { initializeStores, storePopup } from '@skeletonlabs/skeleton';
-	// Import from Floating UI
-	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
+	// Skeleton v4 - Toast component
+	import { Toast } from '@skeletonlabs/skeleton-svelte';
 
 	// Paraglide locale bridge
 	import { locales as availableLocales, getLocale, setLocale } from '@src/paraglide/runtime';
@@ -24,9 +22,8 @@
 	// Centralized theme management
 	import { themeStore, initializeThemeStore, initializeDarkMode } from '@stores/themeStore.svelte';
 
-	// Toast support
-	import { setGlobalToastStore } from '@utils/toast';
-	import { getToastStore, Toast } from '@skeletonlabs/skeleton';
+	// Toast support - updated for Skeleton v4
+	import { toastState } from '@utils/toast';
 
 	// Initialize theme and other client-side logic on mount
 	onMount(() => {
@@ -56,10 +53,6 @@
 		};
 	});
 
-	initializeStores();
-	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
-	setGlobalToastStore(getToastStore());
-
 	// Props
 	interface Props {
 		children?: import('svelte').Snippet;
@@ -79,5 +72,10 @@
 	{#key currentLocale}
 		{@render children?.()}
 	{/key}
-	<Toast />
+	<!-- Skeleton v4 Toast.Group -->
+	<Toast.Group toasts={toastState.toasts} let:toast>
+		<Toast.Item {toast}>
+			{toast.message}
+		</Toast.Item>
+	</Toast.Group>
 </div>

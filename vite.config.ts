@@ -12,6 +12,7 @@
 
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { sveltekit } from '@sveltejs/kit/vite';
+import tailwindcss from '@tailwindcss/vite';
 import { existsSync, promises as fs } from 'fs';
 import { builtinModules } from 'module';
 import path from 'path';
@@ -328,6 +329,8 @@ export default defineConfig((): UserConfig => {
 
 	return {
 		plugins: [
+			// Tailwind CSS v4 Vite plugin - MUST be before sveltekit
+			tailwindcss(),
 			// Private config fallback - provides virtual module when file doesn't exist
 			privateConfigFallbackPlugin(),
 			// Security check plugin runs first to detect private setting imports
@@ -419,7 +422,7 @@ export default defineConfig((): UserConfig => {
 		},
 		optimizeDeps: {
 			exclude: [...builtinModules, ...builtinModules.map((m) => `node:${m}`), 'redis', '@src/databases/CacheService'],
-			include: ['@skeletonlabs/skeleton'],
+			include: ['@skeletonlabs/skeleton-svelte'],
 			entries: ['!tests/**/*', '!**/*.server.ts', '!**/*.server.js']
 		}
 	};

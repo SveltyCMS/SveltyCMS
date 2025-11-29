@@ -31,10 +31,10 @@
 	import Multibutton from './Multibutton.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	// Skeleton
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
-	import { Avatar, clipboard } from '@skeletonlabs/skeleton';
-	import { showConfirm, showModal } from '@utils/modalUtils';
+	// Skeleton v4 compatible utilities
+	import { clipboard } from '@utils/clipboard';
+	import { showConfirm, showModal, type ModalSettings } from '@utils/modalUtils';
+	import Avatar from '@components/system/AvatarCompat.svelte';
 	import { showToast } from '@utils/toast';
 	// Svelte-dnd-action
 	import { PermissionAction, PermissionType } from '@src/databases/auth/types';

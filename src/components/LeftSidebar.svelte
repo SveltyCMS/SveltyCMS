@@ -44,8 +44,9 @@
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
 
-	// Skeleton components
-	import { Avatar, popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	// Skeleton v4 compatibility components
+	import Avatar from '@components/system/AvatarCompat.svelte';
+	import { popup, type PopupSettings } from '@utils/popup';
 
 	// Language and messaging
 	import * as m from '@src/paraglide/messages';

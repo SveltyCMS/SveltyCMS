@@ -27,7 +27,7 @@
 
 <script lang="ts">
 	// Selected theme:
-	import '../../app.postcss';
+	import '../../app.css';
 
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
@@ -54,7 +54,7 @@
 	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
-	import { initializeDarkMode } from '@stores/themeStore.svelte';
+	import { initializeDarkMode, setThemePreference, themeStore } from '@stores/themeStore.svelte';
 
 	// Components
 	import HeaderEdit from '@components/HeaderEdit.svelte';
@@ -65,29 +65,16 @@
 	import FloatingNav from '@components/system/FloatingNav.svelte';
 	import ImageEditorHeader from './imageEditor/components/layout/ImageEditorHeader.svelte';
 	import ImageEditorFooter from './imageEditor/components/layout/ImageEditorFooter.svelte';
+	import DialogManager from '@components/system/DialogManager.svelte';
 
-	// Skeleton
-	import {
-		getModalStore,
-		getToastStore,
-		Modal,
-		setInitialClassState,
-		setModeCurrent,
-		setModeUserPrefers,
-		Toast,
-		storePopup
-	} from '@skeletonlabs/skeleton';
-
-	// Floating UI for Popups
-	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
+	// Skeleton v4 components
+	import { Toast } from '@skeletonlabs/skeleton-svelte';
+	import { toastState } from '@utils/toast';
 
 	// Modal Components Registry
 	import ScheduleModal from '@components/collectionDisplay/ScheduleModal.svelte';
 
-	// Configure popup positioning
-	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
-
-	// Modal component registry for Skeleton UI
+	// Modal component registry for Dialog system
 	const modalComponentRegistry: Record<string, any> = {
 		scheduleModal: ScheduleModal
 	};
@@ -115,9 +102,9 @@
 
 	const { children, data }: Props = $props();
 
-	// Initialize global stores
-	setGlobalModalStore(getModalStore());
-	setGlobalToastStore(getToastStore());
+	// Initialize global stores (legacy compatibility)
+	setGlobalModalStore();
+	setGlobalToastStore();
 
 	// Component State
 	const loadError = $state<Error | null>(null);
@@ -181,20 +168,12 @@
 	 * Only applies if user hasn't set an explicit preference
 	 */
 	function handleSystemThemeChange(event: MediaQueryListEvent): void {
-		// Only update if user hasn't set an explicit preference
-		const userHasPreference = document.cookie.includes('theme=');
-
-		if (!userHasPreference) {
+		// Only update if user is using system preference
+		if (themeStore.themePreference === 'system') {
 			const prefersDarkMode = event.matches;
-			setModeUserPrefers(prefersDarkMode);
-			setModeCurrent(prefersDarkMode);
-
-			// Immediately apply theme to DOM
-			if (prefersDarkMode) {
-				document.documentElement.classList.add('dark');
-			} else {
-				document.documentElement.classList.remove('dark');
-			}
+			// The themeStore will handle this automatically via its system listener
+			// This is just for logging/debugging
+			console.debug('[Layout] System theme changed to:', prefersDarkMode ? 'dark' : 'light');
 		}
 	}
 
@@ -274,9 +253,7 @@
 <!-- HEAD: SEO & THEME INITIALIZATION -->
 
 <svelte:head>
-	<!-- Dark Mode Initialization (CSP-compliant with nonce) -->
-	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-	{@html '<script nonce="' + (data?.nonce || '') + '">(' + setInitialClassState.toString() + ')();</script>'}
+	<!-- Dark Mode is initialized in themeStore.svelte.ts via initializeDarkMode() -->
 
 	<!-- Basic SEO -->
 	<meta name="description" content={seoDescription} />
@@ -317,8 +294,21 @@
 			<FloatingNav />
 		{/if}
 
-		<Toast />
-		<Modal components={modalComponentRegistry} />
+		<!-- Skeleton v4 Toast Group -->
+		<Toast.Group toaster={toastState.toaster} let:toasts>
+			{#each toasts as toast (toast.id)}
+				<Toast.Root {toast} class="preset-filled-{toast.type === 'error' ? 'error' : toast.type === 'warning' ? 'warning' : toast.type === 'success' ? 'success' : 'surface'}-500">
+					<Toast.Title>{toast.title}</Toast.Title>
+					{#if toast.description}
+						<Toast.Description>{toast.description}</Toast.Description>
+					{/if}
+					<Toast.CloseTrigger class="btn-icon preset-tonal">✕</Toast.CloseTrigger>
+				</Toast.Root>
+			{/each}
+		</Toast.Group>
+
+		<!-- Dialog Manager for confirm/alert modals -->
+		<DialogManager />
 
 		{#if $isSearchVisible}
 			<SearchComponent />

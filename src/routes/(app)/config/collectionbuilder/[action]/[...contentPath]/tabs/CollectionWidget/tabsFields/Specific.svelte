@@ -15,8 +15,8 @@ Features:
 	import { widgetFunctions } from '@stores/widgetStore.svelte';
 	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 
-	// Skeleton Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	// Modal utilities
+	import { getModalStore } from '@utils/modalUtils';
 	import { targetWidget } from '@src/stores/collectionStore.svelte';
 
 	const modalStore = getModalStore();

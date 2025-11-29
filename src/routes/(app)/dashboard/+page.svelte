@@ -21,7 +21,7 @@
 <script lang="ts">
 	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
-	import { modeCurrent } from '@skeletonlabs/skeleton';
+	import { themeStore } from '@stores/themeStore.svelte';
 	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
 	import { systemPreferences } from '@stores/systemPreferences.svelte';
 	import { logger } from '@utils/logger';
@@ -30,6 +30,9 @@
 	import type { PageData } from './$types';
 
 	const { data }: { data: PageData } = $props();
+
+	// Replace modeCurrent with themeStore.isDarkMode
+	const isDarkMode = $derived(themeStore.isDarkMode);
 
 	const MAX_COLUMNS = 4;
 	const MAX_ROWS = 4;
@@ -130,7 +133,7 @@
 			: []
 	);
 	const filteredWidgets = $derived(availableWidgets.filter((name) => name.toLowerCase().includes(searchQuery.toLowerCase())));
-	const currentTheme: 'dark' | 'light' = $derived($modeCurrent ? 'dark' : 'light');
+	const currentTheme: 'dark' | 'light' = $derived(isDarkMode ? 'dark' : 'light');
 
 	// Helper function to find insertion position based on coordinates
 	function findInsertionPosition(x: number, y: number): number {

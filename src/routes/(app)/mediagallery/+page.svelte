@@ -39,8 +39,8 @@ Displays a collection of media files (images, documents, audio, video) with:
 	import MediaTable from './MediaTable.svelte';
 	import VirtualMediaGrid from './VirtualMediaGrid.svelte';
 	import AdvancedSearchModal from './AdvancedSearchModal.svelte';
-	// Skeleton
-	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	// Modal Utils
+	import { getModalStore, type ModalSettings } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/dbInterface';

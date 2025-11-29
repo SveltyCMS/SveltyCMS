@@ -41,8 +41,10 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Skeleton
-	import { CodeBlock, Tab, TabGroup, clipboard } from '@skeletonlabs/skeleton';
+	// Skeleton v4 components via compatibility wrappers
+	import CodeBlock from '@components/system/CodeBlock.svelte';
+	import { TabGroup, Tab } from '@components/system/TabGroup.svelte';
+	import { clipboard } from '@utils/clipboard';
 	import { showConfirm } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 

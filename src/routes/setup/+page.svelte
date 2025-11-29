@@ -28,10 +28,11 @@ calls store methods and wires store state to child components.
 	import EmailConfig from './EmailConfig.svelte';
 	import ReviewConfig from './ReviewConfig.svelte';
 
-	// Skeleton
-	import { getModalStore, type ModalSettings, Modal } from '@skeletonlabs/skeleton';
-	import type { ModalComponent } from '@skeletonlabs/skeleton';
-	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
+	// Skeleton v4 / Compat
+	import { getModalStore, type ModalSettings, type ModalComponent } from '@utils/modalUtils';
+	import { Toast } from '@skeletonlabs/skeleton-svelte';
+	import { toastState, getToastStore, setGlobalToastStore } from '@utils/toast';
+	import DialogManager from '@components/system/DialogManager.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -39,7 +40,6 @@ calls store methods and wires store state to child components.
 
 	// Utils
 	import { getLanguageName } from '@utils/languageUtils';
-	import { setGlobalToastStore } from '@utils/toast';
 	import { locales as availableLocales } from '@src/paraglide/runtime';
 
 	// --- 1. STATE MANAGEMENT (Wired to Store) ---
@@ -62,13 +62,14 @@ calls store methods and wires store state to child components.
 	let currentLanguageTag = $state(getLocale());
 
 	// --- 4. LIFECYCLE HOOKS ---
-	const modalComponentRegistry: Record<string, ModalComponent> = {
-		welcomeModal: { ref: WelcomeModal }
+	// Modal component registry (for DialogManager component modals)
+	const modalComponentRegistry: Record<string, any> = {
+		welcomeModal: WelcomeModal
 	};
 	const modalStore = getModalStore();
 
 	onMount(() => {
-		setGlobalToastStore(getToastStore());
+		setGlobalToastStore();
 		loadStore();
 		initialDataSnapshot = JSON.stringify(wizard);
 		document.addEventListener('click', outsideLang);
@@ -104,8 +105,19 @@ calls store methods and wires store state to child components.
 	});
 
 	function showWelcomeModal() {
-		const modal: ModalSettings = { type: 'component', component: 'welcomeModal' };
-		modalStore.trigger(modal);
+		// Show welcome modal using the new dialog system
+		import('@utils/dialogState.svelte').then(({ showComponentDialog }) => {
+			showComponentDialog({
+				component: WelcomeModal,
+				title: 'Welcome to SveltyCMS',
+				onClose: (result) => {
+					if (result) {
+						// User clicked "Get Started"
+						console.log('Setup wizard started');
+					}
+				}
+			});
+		});
 	}
 
 	// --- 5. DERIVED STATE (Page-Specific) ---
@@ -221,8 +233,22 @@ calls store methods and wires store state to child components.
 </svelte:head>
 
 <div class="bg-surface-50-900 min-h-screen w-full transition-colors">
-	<Modal components={modalComponentRegistry} />
-	<Toast />
+	<!-- Skeleton v4 Toast Group -->
+	<Toast.Group toaster={toastState.toaster} let:toasts>
+		{#each toasts as toast (toast.id)}
+			<Toast.Root {toast} class="preset-filled-{toast.type === 'error' ? 'error' : toast.type === 'warning' ? 'warning' : toast.type === 'success' ? 'success' : 'surface'}-500">
+				<Toast.Title>{toast.title}</Toast.Title>
+				{#if toast.description}
+					<Toast.Description>{toast.description}</Toast.Description>
+				{/if}
+				<Toast.CloseTrigger class="btn-icon preset-tonal">✕</Toast.CloseTrigger>
+			</Toast.Root>
+		{/each}
+	</Toast.Group>
+
+	<!-- Dialog Manager for modals -->
+	<DialogManager />
+
 	<div class="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
 		<!-- ✅ NEW: Component for Header -->
 		<SetupHeader

@@ -22,11 +22,10 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore, type ModalComponent, type ModalSettings } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
-	import { Avatar } from '@skeletonlabs/skeleton';
-	import { FileDropzone } from '@skeletonlabs/skeleton';
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+	import Avatar from '@components/system/AvatarCompat.svelte';
+	import { FileUpload } from '@skeletonlabs/skeleton-svelte';
 
 	const modalStore = getModalStore();
 
@@ -401,33 +400,37 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 						</div>
 					{/if}
 				</div>
-				<!-- FileDropzone Area-->
-				<FileDropzone
-					onchange={onChange}
-					required
-					name="Avatar Upload"
+				<!-- FileUpload Area (Skeleton v4) -->
+				<FileUpload.Root
+					onFileChange={(details) => {
+						if (details.acceptedFiles.length > 0) {
+							files = details.acceptedFiles as unknown as FileList;
+							const lastFile = details.acceptedFiles[details.acceptedFiles.length - 1];
+							createOptimizedPreview(lastFile);
+						}
+					}}
 					accept={acceptMime}
-					aria-label="Upload avatar"
-					slotLead="flex flex-col justify-center items-center"
 					disabled={isUploading}
+					name="Avatar Upload"
+					class="w-full"
 				>
-					{#snippet lead()}
-						<!-- icon -->
-						<svg xmlns="http://www.w3.org/2000/svg" width="3.5em" height="3.5em" viewBox="0 0 24 24"
-							><g fill="none" fill-rule="evenodd"
-								><path
-									d="M24 0v24H0V0h24ZM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035c-.01-.004-.019-.001-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427c-.002-.01-.009-.017-.017-.018Zm.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093c.012.004.023 0 .029-.008l.004-.014l-.034-.614c-.003-.012-.01-.02-.02-.022Zm-.715.002a.023.023 0 0 0-.027.006l-.006.014l-.034.614c0 .012.007.02.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01l-.184-.092Z"
-								/><path
-									fill="currentColor"
-									d="M12 2v6.5a1.5 1.5 0 0 0 1.356 1.493L13.5 10H20v10a2 2 0 0 1-1.85 1.995L18 22H6a2 2 0 0 1-1.995-1.85L4 20V4a2 2 0 0 1 1.85-1.995L6 2h6Zm-.707 9.173l-2.121 2.121a1 1 0 1 0 1.414 1.414l.414-.414V17a1 1 0 1 0 2 0v-2.706l.414.414a1 1 0 1 0 1.414-1.414l-2.12-2.121a1 1 0 0 0-1.415 0ZM14 2.043a2 2 0 0 1 .877.43l.123.113L19.414 7a2 2 0 0 1 .502.84l.04.16H14V2.043Z"
-								/></g
-							></svg
-						>
-					{/snippet}
-					{#snippet meta()}
-						{m.modaledit_avatarfilesallowed()}
-					{/snippet}
-				</FileDropzone>
+					<FileUpload.Dropzone class="flex flex-col items-center justify-center border-2 border-dashed border-surface-400 rounded-lg p-6 hover:border-primary-500 transition-colors">
+						<FileUpload.Trigger class="flex flex-col items-center gap-2 cursor-pointer">
+							<!-- icon -->
+							<svg xmlns="http://www.w3.org/2000/svg" width="3.5em" height="3.5em" viewBox="0 0 24 24"
+								><g fill="none" fill-rule="evenodd"
+									><path
+										d="M24 0v24H0V0h24ZM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035c-.01-.004-.019-.001-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427c-.002-.01-.009-.017-.017-.018Zm.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093c.012.004.023 0 .029-.008l.004-.014l-.034-.614c-.003-.012-.01-.02-.02-.022Zm-.715.002a.023.023 0 0 0-.027.006l-.006.014l-.034.614c0 .012.007.02.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01l-.184-.092Z"
+									/><path
+										fill="currentColor"
+										d="M12 2v6.5a1.5 1.5 0 0 0 1.356 1.493L13.5 10H20v10a2 2 0 0 1-1.85 1.995L18 22H6a2 2 0 0 1-1.995-1.85L4 20V4a2 2 0 0 1 1.85-1.995L6 2h6Zm-.707 9.173l-2.121 2.121a1 1 0 1 0 1.414 1.414l.414-.414V17a1 1 0 1 0 2 0v-2.706l.414.414a1 1 0 1 0 1.414-1.414l-2.12-2.121a1 1 0 0 0-1.415 0ZM14 2.043a2 2 0 0 1 .877.43l.123.113L19.414 7a2 2 0 0 1 .502.84l.04.16H14V2.043Z"
+									/></g
+								></svg
+							>
+							<span class="text-sm text-surface-600 dark:text-surface-300">{m.modaledit_avatarfilesallowed()}</span>
+						</FileUpload.Trigger>
+					</FileUpload.Dropzone>
+				</FileUpload.Root>
 			</div>
 			{#if !files && !isUploading}
 				<small class="block text-center text-tertiary-500 opacity-75 dark:text-primary-500">{m.modaledit_avatarfilesize()}</small>

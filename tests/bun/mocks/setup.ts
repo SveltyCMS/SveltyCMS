@@ -238,7 +238,7 @@ mock.module('@skeletonlabs/skeleton', () => ({
 	getToastStore: () => ({
 		trigger: (_settings: any) => {}
 	}),
-	Modal: null,
+	Dialog: null,
 	Toast: null
 }));
 

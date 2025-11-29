@@ -12,8 +12,8 @@ Features:
 	// Components
 	import PermissionsSetting from '@components/PermissionsSetting.svelte';
 	import type { PermissionAction } from '@src/databases/auth/types';
-	// Skeleton Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	// Modal utilities
+	import { getModalStore } from '@utils/modalUtils';
 	import { targetWidget } from '@src/stores/collectionStore.svelte';
 
 	const modalStore = getModalStore();

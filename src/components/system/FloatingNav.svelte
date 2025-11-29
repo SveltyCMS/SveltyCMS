@@ -31,7 +31,8 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	import { toggleUIElement } from '@stores/UIStore.svelte';
 
 	// Skeleton UI
-	import { getModalStore, popup } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@utils/modalUtils';
+	import { popup } from '@utils/popup';
 
 	const modalStore = getModalStore();
 

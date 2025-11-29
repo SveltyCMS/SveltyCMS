@@ -19,7 +19,8 @@
 	import { page } from '$app/state';
 	import { showToast } from '@utils/toast';
 	import { logger } from '@utils/logger';
-	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
+	import TabGroup from '@components/system/TabGroup.svelte';
+	import Tab from '@components/system/Tab.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Components

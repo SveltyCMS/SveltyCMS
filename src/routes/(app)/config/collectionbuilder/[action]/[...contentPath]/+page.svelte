@@ -38,9 +38,10 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import CollectionForm from './tabs/CollectionForm.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
 
-	// Skeleton
-	import { Tab, TabGroup } from '@skeletonlabs/skeleton';
-	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	// Skeleton v4 compatibility components
+	import TabGroup from '@components/system/TabGroup.svelte';
+	import Tab from '@components/system/Tab.svelte';
+	import { getModalStore, type ModalSettings } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 
 	import { widgetStoreActions } from '@stores/widgetStore.svelte';

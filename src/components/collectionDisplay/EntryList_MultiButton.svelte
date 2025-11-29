@@ -48,8 +48,8 @@
 	import { page } from '$app/state';
 	import { storeListboxValue } from '@stores/store.svelte';
 
-	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	// Modal Utils
+	import { getModalStore } from '@utils/modalUtils';
 
 	// Components
 	import ScheduleModal from './ScheduleModal.svelte';

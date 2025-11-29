@@ -20,8 +20,8 @@
 -->
 
 <script lang="ts">
-	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	// Modal Utils
+	import { getModalStore } from '@utils/modalUtils';
 	import { logger } from '@utils/logger';
 	import { untrack } from 'svelte';
 	const modalStore = getModalStore();

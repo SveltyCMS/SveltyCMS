@@ -32,9 +32,9 @@
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import AdminArea from './components/AdminArea.svelte';
-	// Skeleton
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { Avatar } from '@skeletonlabs/skeleton';
+	// Modal Utils & Avatar
+	import type { ModalComponent, ModalSettings } from '@utils/modalUtils';
+	import Avatar from '@components/system/AvatarCompat.svelte';
 	import { setCollection } from '@src/stores/collectionStore.svelte';
 	import { showConfirm, showModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';

@@ -25,8 +25,8 @@ Key features:
 	import { logger } from '@utils/logger';
 	import type { MediaImage } from '@utils/media/mediaModels';
 
-	// Skeleton
-	import { popup } from '@skeletonlabs/skeleton';
+	// Popup
+	import { popup } from '@utils/popup';
 
 	// Svelte transitions
 	import { scale } from 'svelte/transition';

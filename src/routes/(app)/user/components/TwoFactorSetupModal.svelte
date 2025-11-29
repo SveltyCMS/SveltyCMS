@@ -27,9 +27,9 @@ This modal displays the QR code for setting up 2FA and handles verification.
 	import { logger } from '@utils/logger';
 	import { showToast } from '@utils/toast';
 
-	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalComponent } from '@skeletonlabs/skeleton';
+	// Modal Utils
+	import { getModalStore } from '@utils/modalUtils';
+	import type { ModalComponent } from '@utils/modalUtils';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
