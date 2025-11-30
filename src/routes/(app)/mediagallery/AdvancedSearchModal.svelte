@@ -180,7 +180,7 @@ Structure optimized for LLM integration and AI-powered search.
 		aria-labelledby="advanced-search-title"
 		tabindex="0"
 	>
-		<h2 id="advanced-search-title" class="mb-6 text-center text-2xl font-bold text-tertiary-500 underline dark:text-primary-500">Advanced Search</h2>
+		<h2 id="advanced-search-title" class="mb-6 text-center text-2xl font-bold text-tertiary-500 underline dark:text-tertiary-500">Advanced Search</h2>
 
 		<form
 			onsubmit={(e) => {
@@ -191,7 +191,7 @@ Structure optimized for LLM integration and AI-powered search.
 		>
 			<!-- Basic Search -->
 			<section>
-				<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Basic Criteria</h3>
+				<h3 class="mb-3 text-lg font-semibold text-primary-500 dark:text-tertiary-500">Basic Criteria</h3>
 				<div class="grid gap-4 md:grid-cols-2">
 					<label class="label">
 						<span>Filename</span>
@@ -212,7 +212,7 @@ Structure optimized for LLM integration and AI-powered search.
 
 			<!-- Dimensions -->
 			<section>
-				<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Dimensions</h3>
+				<h3 class="mb-3 text-lg font-semibold text-primary-500 dark:text-tertiary-500">Dimensions</h3>
 				<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 					<label class="label">
 						<span>Min Width (px)</span>
@@ -256,7 +256,7 @@ Structure optimized for LLM integration and AI-powered search.
 
 			<!-- File Properties -->
 			<section>
-				<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">File Properties</h3>
+				<h3 class="mb-3 text-lg font-semibold text-primary-500 dark:text-tertiary-500">File Properties</h3>
 				<div class="grid gap-4 md:grid-cols-3">
 					<label class="label">
 						<span>Min Size (MB)</span>
@@ -277,7 +277,7 @@ Structure optimized for LLM integration and AI-powered search.
 
 			<!-- Dates -->
 			<section>
-				<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Upload Dates</h3>
+				<h3 class="mb-3 text-lg font-semibold text-primary-500 dark:text-tertiary-500">Upload Dates</h3>
 				<div class="grid gap-4 md:grid-cols-2">
 					<label class="label">
 						<span>Uploaded After</span>
@@ -293,7 +293,7 @@ Structure optimized for LLM integration and AI-powered search.
 
 			<!-- EXIF & Metadata -->
 			<section>
-				<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Metadata & EXIF</h3>
+				<h3 class="mb-3 text-lg font-semibold text-primary-500 dark:text-tertiary-500">Metadata & EXIF</h3>
 				<div class="grid gap-4 md:grid-cols-3">
 					<label class="label">
 						<span>Has EXIF Data</span>
@@ -323,7 +323,7 @@ Structure optimized for LLM integration and AI-powered search.
 
 			<!-- Advanced -->
 			<section>
-				<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Advanced</h3>
+				<h3 class="mb-3 text-lg font-semibold text-primary-500 dark:text-tertiary-500">Advanced</h3>
 				<div class="grid gap-4 md:grid-cols-2">
 					<label class="label">
 						<span>Dominant Color (hex)</span>
@@ -354,7 +354,7 @@ Structure optimized for LLM integration and AI-powered search.
 		</form>
 
 		<div class="text-md mt-4">
-			<strong class="text-tertiary-500 dark:text-primary-500">Tip:</strong> Press
+			<strong class="text-primary-500 dark:text-tertiary-500">Tip:</strong> Press
 			<kbd class="variant-filled-tertiary badge dark:variant-filled-primary">Ctrl+Enter</kbd>
 			to search, <kbd class="variant-filled-tertiary badge dark:variant-filled-primary">Esc</kbd> to close
 		</div>

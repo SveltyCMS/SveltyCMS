@@ -28,19 +28,19 @@
 
 	<header id="welcome-heading" class="card-header flex flex-col items-center justify-center space-y-4 text-center">
 		<img src="/SveltyCMS_Logo.svg" alt="SveltyCMS Logo" class="h-20 w-auto" />
-		<h3 class="h3">Welcome to <SiteName siteName="SveltyCMS" highlight="CMS" />!</h3>
+		<h3 class="h3 text-white">Welcome to <SiteName siteName="SveltyCMS" highlight="CMS" />!</h3>
 	</header>
 
 	<section id="welcome-body" class="space-y-4 p-4 text-center">
-		<p>{m.welcome_modal_body()}</p>
-		<p class="text-sm text-surface-500 dark:text-surface-400">
+		<p class="text-white">{m.welcome_modal_body()}</p>
+		<p class="text-sm text-surface-400">
 			<span class="mr-1 inline-block">⏱️</span>
 			{m.welcome_modal_eta()}
 		</p>
 	</section>
 
 	<footer class="card-footer flex justify-center">
-		<button class="btn preset-filled-primary-500" onclick={handleGetStarted}>
+		<button class="btn bg-tertiary-500 text-white hover:bg-tertiary-400" onclick={handleGetStarted}>
 			{m.welcome_modal_cta()}
 			<svg class="ml-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />

@@ -231,7 +231,7 @@
 
 	// Base Classes
 	const cBase = 'border bg-surface-100-800-token w-full md:w-3/4 rounded p-4 flex flex-col justify-center items-center';
-	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
+	const cHeader = 'text-2xl font-bold text-center text-primary-500 dark:text-tertiary-500 ';
 	const cForm = 'w-full mt-3 border border-surface-500 p-2 space-y-4 rounded-container-token flex flex-col'; // Added w-full, flex, flex-col
 </script>
 
@@ -281,7 +281,7 @@
 
 							<!-- Media Filename -->
 							<div
-								class="label mt-1 overflow-hidden overflow-ellipsis whitespace-normal bg-gray-100 p-2 text-center text-tertiary-500 dark:bg-surface-600 dark:text-primary-500"
+								class="label mt-1 overflow-hidden overflow-ellipsis whitespace-normal bg-gray-100 p-2 text-center text-tertiary-500 dark:bg-surface-600 dark:text-tertiary-500"
 							>
 								{file.name}
 							</div>
@@ -291,11 +291,11 @@
 								<div class="variant-ghost-tertiary badge flex items-center gap-1">
 									<!-- Media Icon & type  -->
 									<iconify-icon icon={iconName} width="16" height="16"></iconify-icon>
-									<span class="text-tertiary-500 dark:text-primary-500">{formatMimeType(file.type)}</span>
+									<span class="text-primary-500 dark:text-tertiary-500">{formatMimeType(file.type)}</span>
 								</div>
 								<!-- File Size in KB -->
 								<p class="variant-ghost-tertiary badge flex items-center gap-1">
-									<span class="text-tertiary-500 dark:text-primary-500">{(file.size / 1024).toFixed(2)}</span>
+									<span class="text-primary-500 dark:text-tertiary-500">{(file.size / 1024).toFixed(2)}</span>
 									KB
 								</p>
 							</div>
@@ -306,7 +306,7 @@
 				<!-- File input for adding more files -->
 				<div class="flex w-full items-center justify-between border-t border-surface-400">
 					<div class="mb-4 mt-2 flex w-full items-center gap-2">
-						<label for="file-input" class="text-nowrap text-tertiary-500 dark:text-primary-500">Add more files:</label>
+						<label for="file-input" class="text-nowrap text-primary-500 dark:text-tertiary-500">Add more files:</label>
 						<input id="file-input" type="file" class="input" onchange={handleFileInputChange} />
 					</div>
 					{#if duplicateWarning}

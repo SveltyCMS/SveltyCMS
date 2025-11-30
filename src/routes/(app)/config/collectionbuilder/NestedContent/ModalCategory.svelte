@@ -171,7 +171,7 @@
 
 	// Base Classes for Skeleton modal
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4';
-	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500';
+	const cHeader = 'text-2xl font-bold text-center text-primary-500 dark:text-tertiary-500';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
 

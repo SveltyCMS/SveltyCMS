@@ -259,17 +259,17 @@ All dynamic CMS settings organized into logical groups
 <!-- System Status -->
 <div class="mx-auto mt-8 flex max-w-4xl items-center justify-center">
 	<div class="badge-glass flex items-center gap-3 rounded-full px-6 py-3 text-sm">
-		<span class="text-2xl text-tertiary-500 dark:text-primary-500">●</span>
-		<span class="font-semibold text-tertiary-500 dark:text-primary-500">System Operational</span>
+		<span class="text-2xl text-primary-500 dark:text-tertiary-500">●</span>
+		<span class="font-semibold text-primary-500 dark:text-tertiary-500">System Operational</span>
 		<span class="text-dark dark:text-white">|</span>
 		<span class="text-surface-600 dark:text-surface-300">Settings:</span>
-		<span class="font-semibold text-tertiary-500 dark:text-primary-500">Loaded</span>
+		<span class="font-semibold text-primary-500 dark:text-tertiary-500">Loaded</span>
 		<span class="text-dark dark:text-white">|</span>
 		<span class="text-surface-600 dark:text-surface-300">Groups:</span>
-		<span class="font-semibold text-tertiary-500 dark:text-primary-500">{availableGroups.length}</span>
+		<span class="font-semibold text-primary-500 dark:text-tertiary-500">{availableGroups.length}</span>
 		<span class="text-dark dark:text-white">|</span>
 		<span class="text-surface-600 dark:text-surface-300">Environment:</span>
-		<span class="font-semibold text-tertiary-500 dark:text-primary-500">Dynamic</span>
+		<span class="font-semibold text-primary-500 dark:text-tertiary-500">Dynamic</span>
 	</div>
 </div>
 

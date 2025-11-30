@@ -435,7 +435,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				</FileUpload.Root>
 			</div>
 			{#if !files && !isUploading}
-				<small class="block text-center text-tertiary-500 opacity-75 dark:text-primary-500">{m.modaledit_avatarfilesize()}</small>
+				<small class="block text-center text-tertiary-500 opacity-75 dark:text-tertiary-500">{m.modaledit_avatarfilesize()}</small>
 			{/if}
 			<!-- Progress Bar -->
 			{#if isUploading}

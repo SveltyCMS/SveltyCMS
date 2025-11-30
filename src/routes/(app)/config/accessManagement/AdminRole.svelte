@@ -108,7 +108,7 @@ It provides functionality to:
 	<div class="wrapper my-4">
 		<!-- Display current admin role-->
 		<p class="my-4 text-center lg:text-left">
-			Current Admin Role: <span class="ml-2 text-tertiary-500 dark:text-primary-500">{currentAdminName}</span>
+			Current Admin Role: <span class="ml-2 text-primary-500 dark:text-tertiary-500">{currentAdminName}</span>
 		</p>
 
 		<!-- Dropdown to select admin role -->
@@ -123,7 +123,7 @@ It provides functionality to:
 		{#if hasChanges}
 			<!-- Display new admin role-->
 			<p class="mt-4 text-center lg:text-left">
-				Selected Admin Role ID: <span class="ml-2 text-tertiary-500 dark:text-primary-500">{selectedAdminRole}</span>
+				Selected Admin Role ID: <span class="ml-2 text-primary-500 dark:text-tertiary-500">{selectedAdminRole}</span>
 			</p>
 			<div class="mt-4 flex justify-between">
 				<!-- cancel -->

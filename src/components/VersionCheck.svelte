@@ -59,7 +59,7 @@ The `children` snippet is passed an object with the following properties:
 	// Use the pkg version passed from the server load function
 	const pkg = $derived(page.data?.settings?.PKG_VERSION || '0.0.0');
 	let githubVersion = $state('');
-	let pkgBgColor = $state('variant-soft-surface'); // Default neutral color
+	let pkgBgColor = $state('bg-tertiary-500 text-white'); // Default green color
 	let versionStatusMessage = $state('Checking for updates...');
 	let statusIcon = $state('mdi:loading');
 	let isLoading = $state(true);
@@ -74,22 +74,22 @@ The `children` snippet is passed an object with the following properties:
 				const [localMajor, localMinor, localPatch] = pkg.split('.').map(Number);
 				const [githubMajor, githubMinor, githubPatch] = githubVersion.split('.').map(Number);
 				if (githubMajor > localMajor) {
-					pkgBgColor = 'variant-filled-error';
+					pkgBgColor = 'bg-error-500 text-white';
 					versionStatusMessage = `Major update to v${githubVersion} available!`;
 					statusIcon = 'mdi:alert-circle';
 				} else if (githubMinor > localMinor || (githubMinor === localMinor && githubPatch > localPatch)) {
-					pkgBgColor = 'variant-filled-warning';
+					pkgBgColor = 'bg-warning-500 text-white';
 					versionStatusMessage = `Update to v${githubVersion} recommended`;
 					statusIcon = 'mdi:information';
 				} else {
-					pkgBgColor = 'variant-filled-success';
+					pkgBgColor = 'bg-tertiary-500 text-white';
 					versionStatusMessage = 'You are up to date';
 					statusIcon = 'mdi:check-circle';
 				}
 			})
 			.catch(() => {
 				githubVersion = pkg;
-				pkgBgColor = 'variant-soft-surface';
+				pkgBgColor = 'bg-tertiary-500 text-white';
 				versionStatusMessage = '';
 				statusIcon = 'mdi:loading';
 			})
@@ -101,8 +101,8 @@ The `children` snippet is passed an object with the following properties:
 			});
 	});
 
-	// Transparent mode always uses neutral black/white styling
-	const transparentColorClass = 'bg-surface-900/10 text-white';
+	// Transparent mode always uses green styling with green background
+	const transparentColorClass = 'bg-tertiary-500 text-white';
 </script>
 
 {#if children}
@@ -116,15 +116,15 @@ The `children` snippet is passed an object with the following properties:
 		class:animate-pulse={isLoading}
 		class:rounded-full={!transparent}
 		class={transparent
-			? `absolute bottom-5 left-1/2 flex -translate-x-1/2 transform items-center justify-center gap-2 rounded-full bg-gradient-to-r ${transparentColorClass} px-3 py-1 text-sm font-medium transition-opacity duration-300`
+			? `absolute bottom-5 left-1/2 flex -translate-x-1/2 transform items-center justify-center gap-2 rounded-full ${transparentColorClass} px-3 py-1 text-sm font-medium transition-opacity duration-300`
 			: compact
 				? `text-xs font-medium transition-colors hover:opacity-80 ${pkgBgColor} px-2 py-0.5`
 				: `text-xs font-medium transition-colors hover:opacity-80 ${pkgBgColor}`}
 	>
 		{#if transparent}
 			<!-- <iconify-icon icon={statusIcon} width="16" class="opacity-80"></iconify-icon> -->
-			<span class="text-black">Ver.</span>
-			<span class="font-semibold">{pkg}</span>
+			<span class="text-white">Ver.</span>
+			<span class="font-semibold text-white">{pkg}</span>
 		{:else}
 			<!-- {#if !compact}
 				<iconify-icon icon={statusIcon} class=""></iconify-icon>

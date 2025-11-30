@@ -20,7 +20,7 @@
 
 <div class="m-1 flex max-w-full items-center justify-between gap-2">
 	<label for="field-select" class="w-32 flex-none">Display Field</label>
-	<select id="field-select" class="input grow text-black dark:text-primary-500" bind:value disabled={!collection}>
+	<select id="field-select" class="input grow text-black dark:text-tertiary-500" bind:value disabled={!collection}>
 		<option value="">Select a field</option>
 		{#each fieldNames as name}
 			<option value={name}>{name}</option>

@@ -18,7 +18,7 @@
 
 <div class="m-1 flex max-w-full items-center justify-between gap-2">
 	<label for="collection-select" class="w-32 flex-none">Collection</label>
-	<select id="collection-select" class="input grow text-black dark:text-primary-500" bind:value>
+	<select id="collection-select" class="input grow text-black dark:text-tertiary-500" bind:value>
 		<option value="">Select a collection</option>
 		{#each collectionNames as name}
 			<option value={name}>{name}</option>

@@ -129,14 +129,14 @@
 </div>
 
 <div class="mb-6 text-center sm:text-left">
-	<p class="text-center text-tertiary-500 dark:text-primary-500">
+	<p class="text-center text-primary-500 dark:text-tertiary-500">
 		Here you can create and manage user roles and permissions. Each role defines a set of permissions that determine what actions users with that role
 		can perform in the system.
 	</p>
 </div>
 
 <div class="flex flex-col">
-	<Tabs value={currentTab} onValueChange={(details) => currentTab = details.value} class="flex-grow justify-around text-tertiary-500 dark:text-primary-500">
+	<Tabs value={currentTab} onValueChange={(details) => currentTab = details.value} class="flex-grow justify-around text-primary-500 dark:text-tertiary-500">
 		<Tabs.List>
 			<Tabs.Trigger value="permissions">
 				<div class="flex items-center gap-1">

@@ -203,7 +203,7 @@ It provides the following functionality:
 	</div>
 
 	{#if filteredPermissions.length === 0}
-		<p class="text-tertiary-500 dark:text-primary-500">
+		<p class="text-primary-500 dark:text-tertiary-500">
 			{searchTerm ? 'No permissions match your search.' : 'No permissions defined yet.'}
 		</p>
 	{:else}
@@ -211,7 +211,7 @@ It provides the following functionality:
 		{#if adminRole}
 			<p class="mb-2 w-full overflow-auto text-nowrap text-center">
 				*
-				<span class="text-tertiary-500 dark:text-primary-500">{adminRole.name}</span>
+				<span class="text-primary-500 dark:text-tertiary-500">{adminRole.name}</span>
 				Role has all permissions
 			</p>
 		{/if}
@@ -219,7 +219,7 @@ It provides the following functionality:
 			<table class="compact w-full table-auto border">
 				<!-- Header -->
 				<thead class="sticky top-0 border bg-surface-800">
-					<tr class="divide-x text-tertiary-500 dark:text-primary-500">
+					<tr class="divide-x text-primary-500 dark:text-tertiary-500">
 						<th
 							class="cursor-pointer select-none py-2 {sortBy === 'name' ? 'font-semibold text-primary-500 dark:text-secondary-400' : ''}"
 							onclick={() => handleSort('name')}
@@ -269,7 +269,7 @@ It provides the following functionality:
 							<tr>
 								<td
 									colspan={nonAdminRolesCount + 2}
-									class="border-b bg-surface-500 px-1 py-2 font-semibold text-tertiary-500 dark:text-primary-500 lg:text-left"
+									class="border-b bg-surface-500 px-1 py-2 font-semibold text-primary-500 dark:text-tertiary-500 lg:text-left"
 								>
 									{group}:
 								</td>

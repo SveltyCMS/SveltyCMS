@@ -103,7 +103,7 @@
 		name?: string;
 		required?: boolean;
 		passwordIconColor?: string; // Renamed for clarity. CSS color string.
-		textColor?: string; // CSS color classes, e.g., 'text-tertiary-500 dark:text-primary-500'
+		textColor?: string; // CSS color classes, e.g., 'text-primary-500 dark:text-tertiary-500'
 		type?: InputType;
 		tabindex?: number;
 		id?: string;

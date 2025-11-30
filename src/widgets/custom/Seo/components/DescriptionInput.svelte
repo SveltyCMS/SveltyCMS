@@ -78,7 +78,7 @@
 	cols="50"
 	bind:value={description}
 	oninput={handleDescriptionChange}
-	class="input text-black dark:text-primary-500"
+	class="input text-black dark:text-tertiary-500"
 	aria-describedby="description-status"
 ></textarea>
 

@@ -625,7 +625,7 @@
 
 	{#if showUserList || showUsertoken}
 		<div class="my-4 flex flex-wrap items-center justify-between gap-1">
-			<h2 class="order-1 text-xl font-bold text-tertiary-500 dark:text-primary-500">
+			<h2 class="order-1 text-xl font-bold text-primary-500 dark:text-tertiary-500">
 				{#if showUserList}{m.adminarea_userlist()}{:else if showUsertoken}{m.adminarea_listtoken()}{/if}
 			</h2>
 
@@ -641,7 +641,7 @@
 		{#if tableData && tableData.length > 0}
 			{#if columnShow}
 				<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
-					<div class="text-white dark:text-primary-500">{m.entrylist_dnd()}</div>
+					<div class="text-white dark:text-tertiary-500">{m.entrylist_dnd()}</div>
 					<div class="my-2 flex w-full items-center justify-center gap-1">
 						<label class="mr-2">
 							<input type="checkbox" bind:checked={selectAllColumns} onclick={handleCheckboxChange} />
@@ -678,7 +678,7 @@
 				<table
 					class="table table-interactive table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}"
 				>
-					<thead class="text-tertiary-500 dark:text-primary-500">
+					<thead class="text-primary-500 dark:text-tertiary-500">
 						{#if filterShow}
 							<tr class="divide-x divide-surface-400">
 								<th>

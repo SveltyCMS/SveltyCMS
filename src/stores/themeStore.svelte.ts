@@ -155,13 +155,18 @@ export function initializeDarkMode() {
 function _applyThemeToDOM(isDark: boolean) {
 	if (!browser) return;
 
+	console.log('[Theme] Applying to DOM, isDark:', isDark);
+
 	if (isDark) {
 		document.documentElement.classList.add('dark');
-		logger.debug('[Theme] Applied dark class to DOM');
+		console.log('[Theme] Added dark class to <html>');
 	} else {
 		document.documentElement.classList.remove('dark');
-		logger.debug('[Theme] Removed dark class from DOM');
+		console.log('[Theme] Removed dark class from <html>');
 	}
+
+	// Verify the class was applied
+	console.log('[Theme] Current classes on <html>:', document.documentElement.className);
 }
 
 /**
@@ -214,11 +219,13 @@ export function setThemePreference(preference: ThemePreference) {
 		preference = 'system';
 	}
 
-	logger.debug('[Theme] Setting preference to:', preference);
+	console.log('[Theme] Setting preference to:', preference);
 
 	// Update state
 	state.themePreference = preference;
 	state.resolvedDarkMode = resolveDarkMode(preference);
+
+	console.log('[Theme] Resolved dark mode:', state.resolvedDarkMode);
 
 	// Apply to DOM
 	_applyThemeToDOM(state.resolvedDarkMode);

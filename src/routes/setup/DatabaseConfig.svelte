@@ -236,7 +236,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 
 <div class="fade-in">
 	<div class="mb-6 sm:mb-8">
-		<p class="text-center text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">
+		<p class="text-center text-sm text-primary-500 dark:text-tertiary-500 sm:text-base">
 			{m.setup_database_intro()}
 		</p>
 	</div>
@@ -265,15 +265,15 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					</p>
 					<ul class="mt-2 space-y-1 text-sm">
 						<li class="flex items-start gap-2">
-							<span class="text-tertiary-500 dark:text-primary-500">1.</span>
+							<span class="text-primary-500 dark:text-tertiary-500">1.</span>
 							<span>In MongoDB Atlas, click <strong>"Connect"</strong> → <strong>"Compass"</strong> or <strong>"VS Code"</strong></span>
 						</li>
 						<li class="flex items-start gap-2">
-							<span class="text-tertiary-500 dark:text-primary-500">2.</span>
+							<span class="text-primary-500 dark:text-tertiary-500">2.</span>
 							<span>Copy the connection string: <code class="text-xs">mongodb+srv://username:password@cluster0.abcde.mongodb.net/</code></span>
 						</li>
 						<li class="flex items-start gap-2">
-							<span class="text-tertiary-500 dark:text-primary-500">3.</span>
+							<span class="text-primary-500 dark:text-tertiary-500">3.</span>
 							<span>Paste into Host field - we extract the credentials automatically!</span>
 						</li>
 					</ul>
@@ -306,7 +306,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		<div class="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
 			<div>
 				<label for="db-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:database" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="mdi:database" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.setup_label_database_type()}</span>
 					<button
 						type="button"
@@ -361,7 +361,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 
 			<div>
 				<label for="db-host" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="mdi:server-network" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
 					<span>{isAtlas ? 'Atlas Cluster Host' : m.setup_database_host()}</span>
 					<button type="button" tabindex="-1" use:popup={popupDbHost} aria-label="Help: Host" class="ml-1 text-slate-400 hover:text-primary-500"
 						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
@@ -418,7 +418,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			{#if !isAtlas}
 				<div>
 					<label for="db-port" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:ethernet" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="mdi:ethernet" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
 						<span>{m.setup_database_port()}</span>
 						<button type="button" tabindex="-1" use:popup={popupDbPort} aria-label="Help: Port" class="ml-1 text-slate-400 hover:text-primary-500"
 							><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
@@ -447,7 +447,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			{/if}
 			<div>
 				<label for="db-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:database-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="mdi:database-outline" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.setup_database_name()}</span>
 					<button
 						type="button"
@@ -486,7 +486,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			</div>
 			<div>
 				<label for="db-user" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:account-key" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="mdi:account-key" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.setup_database_user()}</span>
 					<button
 						type="button"
@@ -527,7 +527,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			</div>
 			<div>
 				<label for="db-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="mdi:key-variant" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.setup_database_password()}</span>
 					<button
 						type="button"
@@ -586,7 +586,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				type="submit"
 				disabled={isLoading}
 				aria-label={isLoading ? 'Testing database connection, please wait' : 'Test database connection'}
-				class="variant-filled-tertiary btn w-full dark:variant-filled-primary"
+				class="variant-filled-tertiary btn w-full text-white dark:variant-filled-primary"
 			>
 				{#if isLoading}
 					<div

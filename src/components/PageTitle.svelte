@@ -24,7 +24,7 @@
 
 #### Props - Optional 
 - `highlight` {string} - Part of `name` to highlight
-- `iconColor` {string} - Icon color (default: `text-tertiary-500 dark:text-primary-500`)
+- `iconColor` {string} - Icon color (default: `text-primary-500 dark:text-tertiary-500`)
 - `iconSize` {string} - Icon size (default: `32`)
 - `showBackButton` {boolean} - Show back button (default: `false`)
 - `backUrl` {string} - Navigation URL for back button
@@ -67,7 +67,7 @@
 		name,
 		highlight = '',
 		icon,
-		iconColor = 'text-tertiary-500 dark:text-primary-500',
+		iconColor = 'text-primary-500 dark:text-tertiary-500',
 		iconSize = '32',
 		showBackButton = false,
 		backUrl = '',
@@ -129,7 +129,7 @@
 
 			<span class:block={truncate} class:overflow-hidden={truncate} class:text-ellipsis={truncate} class:whitespace-nowrap={truncate}>
 				{#each titleParts() as part, i (i)}
-					<span class={i % 2 === 1 ? 'font-semibold text-tertiary-500 dark:text-primary-500' : ''}>
+					<span class={i % 2 === 1 ? 'font-semibold text-primary-500 dark:text-tertiary-500' : ''}>
 						{part}
 					</span>
 				{/each}

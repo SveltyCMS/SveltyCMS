@@ -131,11 +131,11 @@ Features:
 			<div class="flex items-center gap-2">
 				<iconify-icon icon="mdi:drag" width="18" class="cursor-grab opacity-50" role="button" aria-label="Drag to reorder"></iconify-icon>
 				<iconify-icon {icon} width="18" class="text-error-500" aria-hidden="true"></iconify-icon>
-				<span class="font-bold text-tertiary-500 dark:text-primary-500">{name}</span>
+				<span class="font-bold text-primary-500 dark:text-tertiary-500">{name}</span>
 			</div>
 
 			<button onclick={handleCategoryEdit} aria-label={`Edit category ${name}`} disabled={isUpdating}>
-				<iconify-icon icon="mdi:pen" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				<iconify-icon icon="mdi:pen" width="18" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
 			</button>
 		</div>
 	{:else}

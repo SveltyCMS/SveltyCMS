@@ -181,7 +181,7 @@
 
 <div class="fade-in">
 	<div class="mb-8">
-		<p class="text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">
+		<p class="text-sm text-primary-500 dark:text-tertiary-500 sm:text-base">
 			{m.setup_system_intro()}
 		</p>
 	</div>
@@ -193,7 +193,7 @@
 				<!-- Site Name & Production URL Group -->
 				<div class="space-y-3">
 					<label for="site-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:web" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="mdi:web" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
 						<span>{m.setup_system_site_name?.() || 'CMS Name'}</span>
 						<button
 							type="button"
@@ -227,7 +227,7 @@
 					{/if}
 
 					<label for="host-prod" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:earth" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="mdi:earth" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
 						<span>Production URL</span>
 						<button
 							type="button"
@@ -264,7 +264,7 @@
 				<!-- Media Storage Configuration Group -->
 				<div class="space-y-3">
 					<label for="media-storage-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:cloud-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="mdi:cloud-outline" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
 						<span>Media Storage Type</span>
 						<button
 							type="button"
@@ -292,7 +292,7 @@
 					</select>
 
 					<label for="media-folder" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:folder" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="mdi:folder" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
 						<span>{systemSettings.mediaStorageType === 'local' ? 'Media Folder Path' : 'Bucket/Cloud Name'}</span>
 						<button
 							type="button"
@@ -336,7 +336,7 @@
 			<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 				<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
 					<label for="default-system-lang" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:translate" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="mdi:translate" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
 						<span>{m.setup_label_default_system_language?.() || 'Default System Language'}</span>
 						<button
 							tabindex="-1"
@@ -362,7 +362,7 @@
 					</select>
 					<div>
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-							<iconify-icon icon="mdi:translate-variant" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+							<iconify-icon icon="mdi:translate-variant" width="14" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
 							<span>{m.setup_label_system_languages?.() || 'System Languages'}</span>
 							<button
 								tabindex="-1"
@@ -452,7 +452,7 @@
 				</div>
 				<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
 					<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
+						<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"
 						></iconify-icon>
 						<span>{m.setup_label_default_content_language?.() || 'Default Content Language'}</span>
 						<button
@@ -488,7 +488,7 @@
 					{/if}
 					<div>
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-							<iconify-icon icon="mdi:book-multiple" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+							<iconify-icon icon="mdi:book-multiple" width="14" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
 							<span>{m.setup_label_content_languages?.() || 'Content Languages'}</span>
 							<button
 								tabindex="-1"

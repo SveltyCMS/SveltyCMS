@@ -381,7 +381,7 @@
 				<div>
 					<h3 class="font-semibold text-gray-900 dark:text-white">Collections</h3>
 					<p class="text-sm text-gray-600 dark:text-gray-400">
-						<span class="font-semibold text-tertiary-500 dark:text-primary-500">{collections.length}</span> collections available
+						<span class="font-semibold text-primary-500 dark:text-tertiary-500">{collections.length}</span> collections available
 					</p>
 				</div>
 			</div>
@@ -389,7 +389,7 @@
 			<div class="space-y-2">
 				{#each collections.slice(0, 3) as collection (collection.id)}
 					<div class="flex items-center justify-between text-sm">
-						<span class="text-tertiary-500 dark:text-primary-500">{collection.label}</span>
+						<span class="text-primary-500 dark:text-tertiary-500">{collection.label}</span>
 						<iconify-icon icon="mdi:chevron-right" width="24" class=""></iconify-icon>
 					</div>
 				{/each}

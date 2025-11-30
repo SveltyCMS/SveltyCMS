@@ -443,7 +443,7 @@
 					meter={getProgressColor(overallPercentage)}
 					aria-label={m.translationsstatus_overall_progress({ percentage: overallPercentage })}
 				/>
-				<div class="mt-1 text-center text-xs text-tertiary-500 dark:text-primary-500">
+				<div class="mt-1 text-center text-xs text-primary-500 dark:text-tertiary-500">
 					{overallPercentage}% {m.translationsstatus_completed()}
 				</div>
 			</div>
@@ -508,7 +508,7 @@
 			<!-- Overall completion summary -->
 			{#if showProgress}
 				<div class="px-4 py-2" role="none" in:fade={{ duration: 200, delay: 100 }}>
-					<div class="mb-1 text-center text-xs font-medium text-tertiary-500 dark:text-primary-500">
+					<div class="mb-1 text-center text-xs font-medium text-primary-500 dark:text-tertiary-500">
 						{m.translationsstatus_completed()}
 					</div>
 					<div class="flex items-center justify-between gap-3">

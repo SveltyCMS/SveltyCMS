@@ -227,7 +227,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 <!-- The HTML markup for the form does not need to change -->
 {#if $modalStore[0]}
 	<div class="modal-example-form {cBase}">
-		<header class={`text-center dark:text-primary-500 ${cHeader}`}>
+		<header class={`text-center dark:text-tertiary-500 ${cHeader}`}>
 			{$modalStore[0]?.title ?? '(title missing)'}
 		</header>
 		<article class="text-center text-sm text-black dark:text-white">

@@ -49,6 +49,6 @@
 
 	<!-- Data -->
 	{#each Object.values(dates) as value, index (index)}
-		<div class="text-tertiary-500 dark:text-primary-500">{value}</div>
+		<div class="text-primary-500 dark:text-tertiary-500">{value}</div>
 	{/each}
 </div>

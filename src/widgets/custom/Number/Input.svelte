@@ -10,7 +10,7 @@
 				min={field?.min as number | undefined}
 				max={field?.max as number | undefined}
 				step={(field?.step as number) || 1}
-				class="input w-full flex-1 rounded-none text-black dark:text-primary-500"00 }} />
+				class="input w-full flex-1 rounded-none text-black dark:text-tertiary-500"00 }} />
 
 ### Props
 - `field`: FieldType
@@ -212,7 +212,7 @@
 				min={field?.min as number | undefined}
 				max={field?.max as number | undefined}
 				step={(field?.step as number) || 1}
-				class="input w-full rounded-none text-black dark:text-primary-500"
+				class="input w-full rounded-none text-black dark:text-tertiary-500"
 				class:error={!!validationError}
 				class:validating={isValidating}
 				aria-invalid={!!validationError}

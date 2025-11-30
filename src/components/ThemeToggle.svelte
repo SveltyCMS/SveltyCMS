@@ -32,7 +32,8 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 	// Cycle through system -> light -> dark -> system
 	function cycleTheme() {
 		const current = themeStore.themePreference;
-		if (current === 'system') {
+		console.log('[ThemeToggle] Current preference:', current);
+		if (current === 'system' || current === 'unknown') {
 			setThemePreference('light');
 		} else if (current === 'light') {
 			setThemePreference('dark');
@@ -42,17 +43,17 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 	}
 
 	// Get tooltip text based on current preference
-	const getTooltipText = $derived(() => {
+	const tooltipText = $derived.by(() => {
 		const current = themeStore.themePreference;
-		if (current === 'system') return 'System theme (click for Light)';
+		if (current === 'system' || current === 'unknown') return 'System theme (click for Light)';
 		if (current === 'light') return 'Light theme (click for Dark)';
 		return 'Dark theme (click for System)';
 	});
 
 	// Get icon based on current preference
-	const getCurrentIcon = $derived(() => {
+	const currentIcon = $derived.by(() => {
 		const current = themeStore.themePreference;
-		if (current === 'system') return 'bi:circle-half';
+		if (current === 'system' || current === 'unknown') return 'bi:circle-half';
 		if (current === 'light') return 'bi:sun';
 		return 'bi:moon-fill';
 	});
@@ -60,17 +61,17 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 
 {#if showTooltip}
 	<button use:popup={themeToggleTooltip} onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>
-		<iconify-icon icon={getCurrentIcon()} width={iconSize}></iconify-icon>
+		<iconify-icon icon={currentIcon} width={iconSize}></iconify-icon>
 	</button>
 
 	<div class="card variant-filled z-50 max-w-sm p-2" data-popup="ThemeToggleTooltip">
 		<span class="text-sm">
-			{getTooltipText()}
+			{tooltipText}
 		</span>
 		<div class="variant-filled arrow"></div>
 	</div>
 {:else}
 	<button onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>
-		<iconify-icon icon={getCurrentIcon()} width={iconSize}></iconify-icon>
+		<iconify-icon icon={currentIcon} width={iconSize}></iconify-icon>
 	</button>
 {/if}

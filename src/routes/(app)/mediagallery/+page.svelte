@@ -416,7 +416,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 		const modal: ModalSettings = {
 			type: 'prompt',
 			title: 'Add Folder',
-			body: `Creating subfolder in: <span class="text-tertiary-500 dark:text-primary-500">${currentFolderPath}</span>`,
+			body: `Creating subfolder in: <span class="text-primary-500 dark:text-tertiary-500">${currentFolderPath}</span>`,
 			response: (r: string) => {
 				if (r) createSystemVirtualFolder(r);
 			}
@@ -881,12 +881,12 @@ Displays a collection of media files (images, documents, audio, video) with:
 					<button onclick={() => handleViewChange('grid')} class="px-2" aria-label="Grid">
 						<iconify-icon icon="material-symbols:grid-view-rounded" height="40" style={`color: ${view === 'grid' ? 'black dark:white' : 'grey'}`}
 						></iconify-icon>
-						<br /> <span class="text-tertiary-500 dark:text-primary-500">Grid</span>
+						<br /> <span class="text-primary-500 dark:text-tertiary-500">Grid</span>
 					</button>
 					<button onclick={() => handleViewChange('table')} class="px-2" aria-label="Table">
 						<iconify-icon icon="material-symbols:list-alt-outline" height="40" style={`color: ${view === 'table' ? 'black dark:white' : 'grey'}`}
 						></iconify-icon>
-						<br /><span class="text-tertiary-500 dark:text-primary-500">Table</span>
+						<br /><span class="text-primary-500 dark:text-tertiary-500">Table</span>
 					</button>
 				</div>
 			</div>
@@ -926,7 +926,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 							aria-label="Tiny"
 						>
 							<iconify-icon icon="material-symbols:apps" height="40"></iconify-icon>
-							<br /><span class="text-tertiary-500 dark:text-primary-500">Tiny</span>
+							<br /><span class="text-primary-500 dark:text-tertiary-500">Tiny</span>
 						</button>
 					{:else if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
 						<button
@@ -960,7 +960,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 							aria-label="Small"
 						>
 							<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40"></iconify-icon>
-							<br /><span class="text-tertiary-500 dark:text-primary-500">Small</span>
+							<br /><span class="text-primary-500 dark:text-tertiary-500">Small</span>
 						</button>
 					{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
 						<button
@@ -994,7 +994,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 							aria-label="Medium"
 						>
 							<iconify-icon icon="material-symbols:grid-on-sharp" height="40"></iconify-icon>
-							<br /><span class="text-tertiary-500 dark:text-primary-500">Medium</span>
+							<br /><span class="text-primary-500 dark:text-tertiary-500">Medium</span>
 						</button>
 					{:else}
 						<button
@@ -1028,7 +1028,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 							aria-label="Large"
 						>
 							<iconify-icon icon="material-symbols:grid-view" height="40"></iconify-icon>
-							<br /><span class="text-tertiary-500 dark:text-primary-500">Large</span>
+							<br /><span class="text-primary-500 dark:text-tertiary-500">Large</span>
 						</button>
 					{/if}
 				</div>

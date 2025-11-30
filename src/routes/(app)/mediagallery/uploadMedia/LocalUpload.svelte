@@ -315,7 +315,7 @@
 
 		<div class="col-span-5 space-y-4 text-center">
 			<p class="font-bold">
-				<span class="text-tertiary-500 dark:text-primary-500">Media Upload</span>
+				<span class="text-primary-500 dark:text-tertiary-500">Media Upload</span>
 				Drag files here to upload
 			</p>
 
@@ -331,7 +331,7 @@
 			</button>
 
 			<!-- File Size Limit -->
-			<p class="mt-2 text-sm text-tertiary-500 dark:text-primary-500">Max File Size: 50 MB</p>
+			<p class="mt-2 text-sm text-primary-500 dark:text-tertiary-500">Max File Size: 50 MB</p>
 		</div>
 	</div>
 

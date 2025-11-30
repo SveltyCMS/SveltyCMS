@@ -299,7 +299,7 @@
 
 <div class="max-h-[calc(100vh-65px)] overflow-auto">
 	<div class="wrapper mb-2">
-		<p class="mb-4 text-center dark:text-primary-500">
+		<p class="mb-4 text-center dark:text-tertiary-500">
 			{m.collection_description()}
 		</p>
 

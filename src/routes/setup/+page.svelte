@@ -108,7 +108,7 @@ calls store methods and wires store state to child components.
 		import('@utils/dialogState.svelte').then(({ showComponentDialog }) => {
 			showComponentDialog({
 				component: WelcomeModal,
-				title: 'Welcome to SveltyCMS',
+				title: '',
 				onClose: (result) => {
 					if (result) {
 						// User clicked "Get Started"
@@ -352,36 +352,36 @@ calls store methods and wires store state to child components.
 									<div class="grid grid-cols-2 gap-x-4 gap-y-2 p-3 sm:grid-cols-6">
 										<div class="sm:col-span-1">
 											<span class="font-semibold">{m.setup_db_test_latency()}:</span>
-											<span class="text-terrary-500 dark:text-primary-500">{wizard.lastDbTestResult.latencyMs ?? '—'} ms</span>
+											<span class="text-terrary-500 dark:text-tertiary-500">{wizard.lastDbTestResult.latencyMs ?? '—'} ms</span>
 										</div>
 										<div class="sm:col-span-1">
 											<span class="font-semibold">{m.setup_db_test_engine()}:</span>
-											<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.type}</span>
+											<span class="text-terrary-500 dark:text-tertiary-500">{wizard.dbConfig.type}</span>
 										</div>
 										<div class="sm:col-span-1">
 											<span class="font-semibold">{m.label_host()}:</span>
-											<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.host}</span>
+											<span class="text-terrary-500 dark:text-tertiary-500">{wizard.dbConfig.host}</span>
 										</div>
 										{#if !isFullUri}
 											<div class="sm:col-span-1">
 												<span class="font-semibold">{m.label_port()}:</span>
-												<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.port}</span>
+												<span class="text-terrary-500 dark:text-tertiary-500">{wizard.dbConfig.port}</span>
 											</div>
 										{/if}
 										<div class="sm:col-span-1">
 											<span class="font-semibold">{m.label_database()}:</span>
-											<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.name}</span>
+											<span class="text-terrary-500 dark:text-tertiary-500">{wizard.dbConfig.name}</span>
 										</div>
 										{#if wizard.dbConfig.user}
 											<div class="sm:col-span-1">
 												<span class="font-semibold">{m.label_user?.() || m.setup_db_test_user()}:</span>
-												<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.user}</span>
+												<span class="text-terrary-500 dark:text-tertiary-500">{wizard.dbConfig.user}</span>
 											</div>
 										{/if}
 										{#if wizard.lastDbTestResult.classification}
 											<div class="sm:col-span-2">
 												<span class="font-semibold">Code:</span>
-												<span class="text-terrary-500 dark:text-primary-500">{wizard.lastDbTestResult.classification}</span>
+												<span class="text-terrary-500 dark:text-tertiary-500">{wizard.lastDbTestResult.classification}</span>
 											</div>
 										{/if}
 									</div>

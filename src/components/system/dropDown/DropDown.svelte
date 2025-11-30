@@ -75,7 +75,7 @@
 <!-- Dropdown content -->
 {#if expanded}
 	<!-- Dropdown header -->
-	<div class="mb-3 border-b text-center text-tertiary-500 dark:text-primary-500">Choose your Widget</div>
+	<div class="mb-3 border-b text-center text-primary-500 dark:text-tertiary-500">Choose your Widget</div>
 
 	<!-- Dropdown items -->
 	<div class="flex flex-wrap items-center justify-center gap-2">

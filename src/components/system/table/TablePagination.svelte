@@ -99,16 +99,16 @@
 <div class="mb-1 flex items-center justify-between text-xs md:mb-0 md:text-sm" role="status" aria-live="polite">
 	<div>
 		<span>{m.entrylist_page()}</span>
-		<span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
+		<span class="text-primary-500 dark:text-tertiary-500">{currentPage}</span>
 		<span>{m.entrylist_of()}</span>
-		<span class="text-tertiary-500 dark:text-primary-500">{computedPagesCount}</span>
+		<span class="text-primary-500 dark:text-tertiary-500">{computedPagesCount}</span>
 		<span class="ml-4" aria-label="Current items shown">
 			{#if totalItems > 0}
-				Showing <span class="text-tertiary-500 dark:text-primary-500">{startItem}</span>–<span class="text-tertiary-500 dark:text-primary-500"
+				Showing <span class="text-primary-500 dark:text-tertiary-500">{startItem}</span>–<span class="text-primary-500 dark:text-tertiary-500"
 					>{endItem}</span
 				>
 				of
-				<span class="text-tertiary-500 dark:text-primary-500">{totalItems}</span> items
+				<span class="text-primary-500 dark:text-tertiary-500">{totalItems}</span> items
 			{:else}
 				Showing 0 of 0 items
 			{/if}
@@ -149,7 +149,7 @@
 		bind:value={rowsPerPage}
 		onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
 		aria-label="Select number of rows per page"
-		class="appearance-none border-r border-surface-400 bg-transparent p-0 px-2 text-center text-sm text-tertiary-500 dark:border-surface-600 dark:text-primary-500 sm:px-4"
+		class="appearance-none border-r border-surface-400 bg-transparent p-0 px-2 text-center text-sm text-tertiary-500 dark:border-surface-600 dark:text-tertiary-500 sm:px-4"
 		title="Rows per page"
 	>
 		{#each rowsPerPageOptions as pageSize}
