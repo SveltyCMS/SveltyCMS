@@ -19,8 +19,7 @@
 	import { page } from '$app/state';
 	import { showToast } from '@utils/toast';
 	import { logger } from '@utils/logger';
-	import TabGroup from '@components/system/TabGroup.svelte';
-	import Tab from '@components/system/Tab.svelte';
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Components
@@ -36,7 +35,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Use $state for local component state
-	let currentTab = $state(0); // Initial tab set to 0 (Permissions)
+	let currentTab = $state('permissions'); // Initial tab set to 'permissions'
 
 	// Use $state for page data that needs to be mutable
 	let rolesData = $state(page.data.roles); // Renamed from `roles` to `rolesData` for clarity with internal `roles` in sub-components
@@ -137,45 +136,48 @@
 </div>
 
 <div class="flex flex-col">
-	<TabGroup justify="justify-around text-tertiary-500 dark:text-primary-500" class="flex-grow">
-		<Tab bind:group={currentTab} name="permissions" value={0}>
-			<div class="flex items-center gap-1">
-				<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white"></iconify-icon>
-				<span class={currentTab === 0 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_permission()}</span>
-			</div>
-		</Tab>
+	<Tabs value={currentTab} onValueChange={(details) => currentTab = details.value} class="flex-grow justify-around text-tertiary-500 dark:text-primary-500">
+		<Tabs.List>
+			<Tabs.Trigger value="permissions">
+				<div class="flex items-center gap-1">
+					<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white"></iconify-icon>
+					<span class={currentTab === 'permissions' ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_permission()}</span>
+				</div>
+			</Tabs.Trigger>
 
-		<Tab bind:group={currentTab} name="roles" value={1}>
-			<div class="flex items-center gap-1">
-				<iconify-icon icon="mdi:account-group" width="28" class="text-black dark:text-white"></iconify-icon>
-				<span class={currentTab === 1 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_roles()}</span>
-			</div>
-		</Tab>
+			<Tabs.Trigger value="roles">
+				<div class="flex items-center gap-1">
+					<iconify-icon icon="mdi:account-group" width="28" class="text-black dark:text-white"></iconify-icon>
+					<span class={currentTab === 'roles' ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_roles()}</span>
+				</div>
+			</Tabs.Trigger>
 
-		<Tab bind:group={currentTab} name="admin" value={2}>
-			<div class="flex items-center gap-1">
-				<iconify-icon icon="mdi:account-cog" width="28" class="text-black dark:text-white"></iconify-icon>
-				<span class={currentTab === 2 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Admin</span>
-			</div>
-		</Tab>
+			<Tabs.Trigger value="admin">
+				<div class="flex items-center gap-1">
+					<iconify-icon icon="mdi:account-cog" width="28" class="text-black dark:text-white"></iconify-icon>
+					<span class={currentTab === 'admin' ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Admin</span>
+				</div>
+			</Tabs.Trigger>
 
-		<Tab bind:group={currentTab} name="websites" value={3}>
-			<div class="flex items-center gap-1">
-				<iconify-icon icon="mdi:web" width="28" class="text-black dark:text-white"></iconify-icon>
-				<span class={currentTab === 3 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Website Tokens</span>
-			</div>
-		</Tab>
+			<Tabs.Trigger value="websites">
+				<div class="flex items-center gap-1">
+					<iconify-icon icon="mdi:web" width="28" class="text-black dark:text-white"></iconify-icon>
+					<span class={currentTab === 'websites' ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Website Tokens</span>
+				</div>
+			</Tabs.Trigger>
+		</Tabs.List>
 
-		<svelte:fragment slot="panel">
-			{#if currentTab === 0}
-				<Permissions roleData={rolesData} {setRoleData} {updateModifiedCount} />
-			{:else if currentTab === 1}
-				<Roles roleData={rolesData} {setRoleData} {updateModifiedCount} />
-			{:else if currentTab === 2}
-				<AdminRole roleData={rolesData} {setRoleData} />
-			{:else}
-				<WebsiteTokens />
-			{/if}
-		</svelte:fragment>
-	</TabGroup>
+		<Tabs.Content value="permissions">
+			<Permissions roleData={rolesData} {setRoleData} {updateModifiedCount} />
+		</Tabs.Content>
+		<Tabs.Content value="roles">
+			<Roles roleData={rolesData} {setRoleData} {updateModifiedCount} />
+		</Tabs.Content>
+		<Tabs.Content value="admin">
+			<AdminRole roleData={rolesData} {setRoleData} />
+		</Tabs.Content>
+		<Tabs.Content value="websites">
+			<WebsiteTokens />
+		</Tabs.Content>
+	</Tabs>
 </div>

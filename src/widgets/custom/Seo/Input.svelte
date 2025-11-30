@@ -28,8 +28,7 @@ Part of the Three Pillars Architecture for wSidget system.
 -->
 
 <script lang="ts">
-	import TabGroup from '@components/system/TabGroup.svelte';
-	import Tab from '@components/system/Tab.svelte';
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { logger } from '@utils/logger';
 	import { contentLanguage } from '@stores/store.svelte';
 	import { debounce } from '@utils/utils';
@@ -71,7 +70,7 @@ Part of the Three Pillars Architecture for wSidget system.
 	});
 
 	// UI State
-	let activeTab = $state(0);
+	let activeTab = $state('basic');
 	let analysisResult = $state<any>(null); // Replace 'any' with your SeoAnalysisResult type
 
 	// Debounced analysis function.
@@ -132,55 +131,60 @@ Part of the Three Pillars Architecture for wSidget system.
 		{/if}
 	</header>
 
-	<TabGroup>
-		<Tab bind:group={activeTab} name="basic" value={0}>Basic</Tab>
+	<Tabs value={activeTab} onValueChange={(details) => activeTab = details.value}>
+		<Tabs.List>
+			<Tabs.Trigger value="basic">Basic</Tabs.Trigger>
+			{#if hasFeature('social')}
+				<Tabs.Trigger value="social">Social</Tabs.Trigger>
+			{/if}
+			{#if hasFeature('advanced')}
+				<Tabs.Trigger value="advanced">Advanced</Tabs.Trigger>
+			{/if}
+		</Tabs.List>
+
+		<Tabs.Content value="basic">
+			<div class="panel">
+				{#if value && value[lang]}
+					<label for="seo-title">Title</label>
+					<div class="relative">
+						<input
+							id="seo-title"
+							type="text"
+							class="input"
+							bind:value={value[lang].title}
+							use:tokenTarget={{
+								name: field.db_fieldName,
+								label: field.label,
+								collection: (field as any).collection
+							}}
+						/>
+						<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-surface-400" width="16"
+						></iconify-icon>
+					</div>
+
+					<label for="seo-description">Description</label>
+					<div class="relative">
+						<textarea
+							id="seo-description"
+							class="textarea"
+							bind:value={value[lang].description}
+							use:tokenTarget={{
+								name: field.db_fieldName,
+								label: field.label,
+								collection: (field as any).collection
+							}}
+						></textarea>
+						<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-2 top-4 text-surface-400" width="16"></iconify-icon>
+					</div>
+
+					<label for="seo-keyword">Focus Keyword</label>
+					<input id="seo-keyword" type="text" class="input" bind:value={value[lang].focusKeyword} />
+				{/if}
+			</div>
+		</Tabs.Content>
+
 		{#if hasFeature('social')}
-			<Tab bind:group={activeTab} name="social" value={1}>Social</Tab>
-		{/if}
-		{#if hasFeature('advanced')}
-			<Tab bind:group={activeTab} name="advanced" value={2}>Advanced</Tab>
-		{/if}
-		<svelte:fragment slot="panel">
-			{#if activeTab === 0}
-				<div class="panel">
-					{#if value && value[lang]}
-						<label for="seo-title">Title</label>
-						<div class="relative">
-							<input
-								id="seo-title"
-								type="text"
-								class="input"
-								bind:value={value[lang].title}
-								use:tokenTarget={{
-									name: field.db_fieldName,
-									label: field.label,
-									collection: (field as any).collection
-								}}
-							/>
-							<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-surface-400" width="16"
-							></iconify-icon>
-						</div>
-
-						<label for="seo-description">Description</label>
-						<div class="relative">
-							<textarea
-								id="seo-description"
-								class="textarea"
-								bind:value={value[lang].description}
-								use:tokenTarget={{
-									name: field.db_fieldName,
-									label: field.label,
-									collection: (field as any).collection
-								}}
-							></textarea>
-							<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-2 top-4 text-surface-400" width="16"></iconify-icon>
-						</div>
-
-						<label for="seo-keyword">Focus Keyword</label>
-						<input id="seo-keyword" type="text" class="input" bind:value={value[lang].focusKeyword} />
-					{/if}
-				</div>
-			{:else if activeTab === 1 && hasFeature('social')}
+			<Tabs.Content value="social">
 				<div class="panel">
 					<h3>Open Graph (Facebook)</h3>
 					{#if value && value[lang]}
@@ -188,9 +192,9 @@ Part of the Three Pillars Architecture for wSidget system.
 						<input id="seo-og-title" type="text" class="input" bind:value={value[lang].ogTitle} />
 					{/if}
 				</div>
-			{/if}
-		</svelte:fragment>
-	</TabGroup>
+			</Tabs.Content>
+		{/if}
+	</Tabs>
 
 	{#if error}
 		<p class="error-message" role="alert">{error}</p>

@@ -38,25 +38,24 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import CollectionForm from './tabs/CollectionForm.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
 
-	// Skeleton v4 compatibility components
-	import TabGroup from '@components/system/TabGroup.svelte';
-	import Tab from '@components/system/Tab.svelte';
+	// Skeleton v4 components
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { getModalStore, type ModalSettings } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 
 	import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
-	// Create local tabSet variable for binding
-	let localTabSet = $state(tabSet.value);
+	// Create local tab variable for binding
+	let activeTab = $state('default');
 
 	// Sync with store when local value changes
 	$effect(() => {
-		tabSet.set(localTabSet);
+		tabSet.set(activeTab === 'default' ? 0 : 1);
 	});
 
 	// Sync local value when store changes
 	$effect(() => {
-		localTabSet = tabSet.value;
+		activeTab = tabSet.value === 0 ? 'default' : 'widget';
 	});
 
 	import type { User } from '@src/databases/auth/types';
@@ -258,35 +257,38 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	</p>
 	<!-- Required Text  -->
 	<div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
-	<TabGroup bind:group={localTabSet}>
-		<!-- User Permissions -->
-		{#if page.data.isAdmin}
-			<!-- Edit -->
-			<Tab bind:group={localTabSet} name="default" value={0}>
-				<div class="flex items-center gap-1">
-					<iconify-icon icon="ic:baseline-edit" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					<span class:active={tabSet.value === 0} class:text-tertiary-500={tabSet.value === 0} class:text-primary-500={tabSet.value === 0}
-						>{m.button_edit()}</span
-					>
-				</div>
-			</Tab>
+	<Tabs value={activeTab} onValueChange={(details) => activeTab = details.value}>
+		<Tabs.List>
+			<!-- User Permissions -->
+			{#if page.data.isAdmin}
+				<!-- Edit -->
+				<Tabs.Trigger value="default">
+					<div class="flex items-center gap-1">
+						<iconify-icon icon="ic:baseline-edit" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<span class:active={activeTab === 'default'} class:text-tertiary-500={activeTab === 'default'} class:text-primary-500={activeTab === 'default'}
+							>{m.button_edit()}</span
+						>
+					</div>
+				</Tabs.Trigger>
 
-			<!-- Widget Fields -->
-			<Tab bind:group={localTabSet} name="widget" value={1}>
-				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:widgets-outline" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					<span class:active={tabSet.value === 1} class:text-tertiary-500={tabSet.value === 2} class:text-primary-500={tabSet.value === 2}
-						>{m.collection_widgetfields()}</span
-					>
-				</div>
-			</Tab>
-		{/if}
+				<!-- Widget Fields -->
+				<Tabs.Trigger value="widget">
+					<div class="flex items-center gap-1">
+						<iconify-icon icon="mdi:widgets-outline" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<span class:active={activeTab === 'widget'} class:text-tertiary-500={activeTab === 'widget'} class:text-primary-500={activeTab === 'widget'}
+							>{m.collection_widgetfields()}</span
+						>
+					</div>
+				</Tabs.Trigger>
+			{/if}
+		</Tabs.List>
 
 		<!-- Tab Panels -->
-		{#if tabSet.value === 0}
+		<Tabs.Content value="default">
 			<CollectionForm data={collectionValue} {handlePageTitleUpdate} />
-		{:else if tabSet.value === 1}
+		</Tabs.Content>
+		<Tabs.Content value="widget">
 			<CollectionWidget fields={collectionValue?.fields as FieldInstance[] | undefined} {handleCollectionSave} />
-		{/if}
-	</TabGroup>
+		</Tabs.Content>
+	</Tabs>
 </div>

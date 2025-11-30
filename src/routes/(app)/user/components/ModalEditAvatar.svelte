@@ -24,8 +24,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	// Skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
-	import Avatar from '@components/system/AvatarCompat.svelte';
-	import { FileUpload } from '@skeletonlabs/skeleton-svelte';
+	import { Avatar, FileUpload } from '@skeletonlabs/skeleton-svelte';
 
 	const modalStore = getModalStore();
 
@@ -387,7 +386,10 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 						}
 					}}
 				>
-					<Avatar src={displayAvatar} alt="User avatar" loading="lazy" rounded="rounded-full" width="w-32" />
+					<Avatar class="size-32">
+						<Avatar.Image src={displayAvatar} alt="User avatar" loading="lazy" />
+						<Avatar.Fallback>AV</Avatar.Fallback>
+					</Avatar>
 					<!-- Hover/Focus overlay cue when not uploading -->
 					{#if !isUploading}
 						<div class="absolute inset-0 hidden items-center justify-center rounded-full bg-black/30 text-white focus-within:flex hover:flex">

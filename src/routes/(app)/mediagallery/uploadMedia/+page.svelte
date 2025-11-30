@@ -28,11 +28,10 @@
 	import LocalUpload from './LocalUpload.svelte';
 	import RemoteUpload from './RemoteUpload.svelte';
 
-	// Skeleton v4 compatibility components
-	import TabGroup from '@components/system/TabGroup.svelte';
-	import Tab from '@components/system/Tab.svelte';
+	// Skeleton v4 components
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 
-	let tabSet: number = $state(0);
+	let activeTab = $state('local');
 </script>
 
 <!-- PageTitle -->
@@ -46,26 +45,29 @@
 </div>
 
 <div class="wrapper">
-	<TabGroup>
-		<Tab bind:group={tabSet} name="local" value={0}>
-			<div class="flex items-center justify-between gap-2">
-				<iconify-icon icon="material-symbols:database" width="28"></iconify-icon>
-				<p class="text-tertiary-500 dark:text-primary-500">Local Upload</p>
-			</div>
-		</Tab>
+	<Tabs value={activeTab} onValueChange={(details) => activeTab = details.value}>
+		<Tabs.List>
+			<Tabs.Trigger value="local">
+				<div class="flex items-center justify-between gap-2">
+					<iconify-icon icon="material-symbols:database" width="28"></iconify-icon>
+					<p class="text-tertiary-500 dark:text-primary-500">Local Upload</p>
+				</div>
+			</Tabs.Trigger>
 
-		<Tab bind:group={tabSet} name="remote" value={1}>
-			<div class="flex items-center justify-between gap-2">
-				<iconify-icon icon="arcticons:tautulli-remote" width="28"></iconify-icon>
-				<p class="text-tertiary-500 dark:text-primary-500">Remote Upload</p>
-			</div>
-		</Tab>
-	</TabGroup>
+			<Tabs.Trigger value="remote">
+				<div class="flex items-center justify-between gap-2">
+					<iconify-icon icon="arcticons:tautulli-remote" width="28"></iconify-icon>
+					<p class="text-tertiary-500 dark:text-primary-500">Remote Upload</p>
+				</div>
+			</Tabs.Trigger>
+		</Tabs.List>
 
-	<!-- Tab Panels --->
-	{#if tabSet === 0}
-		<LocalUpload />
-	{:else if tabSet === 1}
-		<RemoteUpload />
-	{/if}
+		<Tabs.Content value="local">
+			<LocalUpload />
+		</Tabs.Content>
+
+		<Tabs.Content value="remote">
+			<RemoteUpload />
+		</Tabs.Content>
+	</Tabs>
 </div>

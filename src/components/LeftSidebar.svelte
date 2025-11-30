@@ -44,8 +44,8 @@
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
 
-	// Skeleton v4 compatibility components
-	import Avatar from '@components/system/AvatarCompat.svelte';
+	// Skeleton v4 components
+	import { Avatar } from '@skeletonlabs/skeleton-svelte';
 	import { popup, type PopupSettings } from '@utils/popup';
 
 	// Language and messaging
@@ -325,7 +325,10 @@
 						? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-surface-500 hover:text-white'
 						: 'btn-icon flex-col items-center justify-center'} relative text-center !no-underline md:row-span-2"
 				>
-					<Avatar src={avatarUrl} alt="User Avatar" initials="AV" class="mx-auto {isSidebarFull ? 'w-[40px]' : 'w-[35px]'}" />
+					<Avatar class="mx-auto {isSidebarFull ? 'size-10' : 'size-9'}">
+						<Avatar.Image src={avatarUrl} alt="User Avatar" />
+						<Avatar.Fallback>AV</Avatar.Fallback>
+					</Avatar>
 					{#if isSidebarFull && user?.username}
 						<div
 							class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-[11px] font-medium leading-tight text-black dark:text-white"

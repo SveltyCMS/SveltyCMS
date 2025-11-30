@@ -20,10 +20,10 @@ It handles widget configuration, permissions, and specific options.
 	import { collectionValue, setCollectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
 
 	import { getModalStore } from '@utils/modalUtils';
-	import { TabGroup, Tab } from '@components/system/TabGroup.svelte';
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	const modalStore = getModalStore();
 
-	let localTabSet: number = $state(0);
+	let activeTab = $state('default');
 
 	// Props
 
@@ -90,42 +90,48 @@ It handles widget configuration, permissions, and specific options.
 
 		<!-- Tabs Headers -->
 		<form class={cForm}>
-			<TabGroup justify="justify-between lg:justify-start">
-				<!-- Default Tab -->
-				<Tab bind:group={localTabSet} name="tab1" value={0}>
-					<div class="flex items-center gap-1">
-						<iconify-icon icon="mdi:required" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<span>Default</span>
-					</div>
-				</Tab>
-
-				<!-- Permissions Tab -->
-				<Tab bind:group={localTabSet} name="tab2" value={1}>
-					<div class="flex items-center gap-1">
-						<iconify-icon icon="mdi:security-lock" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<span>{m.system_permission()}</span>
-					</div>
-				</Tab>
-
-				<!-- Specific Tab (only shown if there are specific options) -->
-				{#if specificOptions.length > 0}
-					<Tab bind:group={localTabSet} name="tab3" value={2}>
+			<Tabs value={activeTab} onValueChange={(details) => activeTab = details.value} class="justify-between lg:justify-start">
+				<Tabs.List>
+					<!-- Default Tab -->
+					<Tabs.Trigger value="default">
 						<div class="flex items-center gap-1">
-							<iconify-icon icon="ph:star-fill" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-							<span>Specific</span>
+							<iconify-icon icon="mdi:required" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<span>Default</span>
 						</div>
-					</Tab>
-				{/if}
-			</TabGroup>
+					</Tabs.Trigger>
 
-			<!-- Tab Panels -->
-			{#if localTabSet === 0}
-				<Default {guiSchema} />
-			{:else if localTabSet === 1}
-				<Permission />
-			{:else if localTabSet === 2}
-				<Specific />
-			{/if}
+					<!-- Permissions Tab -->
+					<Tabs.Trigger value="permissions">
+						<div class="flex items-center gap-1">
+							<iconify-icon icon="mdi:security-lock" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<span>{m.system_permission()}</span>
+						</div>
+					</Tabs.Trigger>
+
+					<!-- Specific Tab (only shown if there are specific options) -->
+					{#if specificOptions.length > 0}
+						<Tabs.Trigger value="specific">
+							<div class="flex items-center gap-1">
+								<iconify-icon icon="ph:star-fill" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+								<span>Specific</span>
+							</div>
+						</Tabs.Trigger>
+					{/if}
+				</Tabs.List>
+
+				<!-- Tab Panels -->
+				<Tabs.Content value="default">
+					<Default {guiSchema} />
+				</Tabs.Content>
+				<Tabs.Content value="permissions">
+					<Permission />
+				</Tabs.Content>
+				{#if specificOptions.length > 0}
+					<Tabs.Content value="specific">
+						<Specific />
+					</Tabs.Content>
+				{/if}
+			</Tabs>
 		</form>
 
 		<footer class="{parent.regionFooter} justify-between">

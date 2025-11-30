@@ -28,7 +28,7 @@ Interactive star rating with hover states and click selection
 -->
 
 <script lang="ts">
-	import Ratings from '@components/system/RatingGroup.svelte';
+	import { RatingGroup } from '@skeletonlabs/skeleton-svelte';
 	import type { FieldType } from './';
 
 	let { field, value = $bindable(), error }: { field: FieldType; value?: number | null | undefined; error?: string | null } = $props();
@@ -45,24 +45,32 @@ Interactive star rating with hover states and click selection
 	$effect(() => {
 		value = localValue;
 	});
+
+	// Handle value change from RatingGroup
+	function handleValueChange(details: { value: number }) {
+		localValue = details.value;
+	}
 </script>
 
 <div class="rating-container" class:invalid={error}>
-	<Ratings
-		max={Number(field.max) || 5}
-		step={1}
-		interactive
-		bind:value={localValue}
-		aria-label={field.label}
-		aria-describedby={error ? `${field.db_fieldName}-error` : undefined}
+	<RatingGroup
+		count={Number(field.max) || 5}
+		value={localValue}
+		onValueChange={handleValueChange}
 	>
-		{#snippet empty()}
-			<iconify-icon icon={field.iconEmpty || 'material-symbols:star-outline'} width="24" class="text-gray-400"></iconify-icon>
-		{/snippet}
-		{#snippet full()}
-			<iconify-icon icon={field.iconFull || 'material-symbols:star'} width="24" class="text-warning-500"></iconify-icon>
-		{/snippet}
-	</Ratings>
+		<RatingGroup.Control class="flex gap-1">
+			{#each { length: Number(field.max) || 5 } as _, i}
+				<RatingGroup.Item index={i + 1}>
+					{#snippet empty()}
+						<iconify-icon icon={field.iconEmpty || 'material-symbols:star-outline'} width="24" class="text-gray-400"></iconify-icon>
+					{/snippet}
+					{#snippet full()}
+						<iconify-icon icon={field.iconFull || 'material-symbols:star'} width="24" class="text-warning-500"></iconify-icon>
+					{/snippet}
+				</RatingGroup.Item>
+			{/each}
+		</RatingGroup.Control>
+	</RatingGroup>
 
 	{#if error}
 		<p class="error-message" role="alert">{error}</p>

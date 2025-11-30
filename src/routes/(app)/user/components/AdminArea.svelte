@@ -34,7 +34,7 @@
 	// Skeleton v4 compatible utilities
 	import { clipboard } from '@utils/clipboard';
 	import { showConfirm, showModal, type ModalSettings } from '@utils/modalUtils';
-	import Avatar from '@components/system/AvatarCompat.svelte';
+	import { Avatar } from '@skeletonlabs/skeleton-svelte';
 	import { showToast } from '@utils/toast';
 	// Svelte-dnd-action
 	import { PermissionAction, PermissionType } from '@src/databases/auth/types';
@@ -793,14 +793,16 @@
 											{/if}
 										{:else if showUserList && header.key === 'avatar'}
 											<!-- Use reactive avatarSrc for current user, otherwise use row data -->
-											<Avatar
-												src={currentUser && isUser(row) && row._id === currentUser._id
-													? avatarSrc.value
-													: isUser(row) && header.key === 'avatar'
-														? normalizeMediaUrl(row.avatar)
-														: ''}
-												width="w-8"
-											/>
+											<Avatar class="size-8">
+												<Avatar.Image
+													src={currentUser && isUser(row) && row._id === currentUser._id
+														? avatarSrc.value
+														: isUser(row) && header.key === 'avatar'
+															? normalizeMediaUrl(row.avatar)
+															: ''}
+												/>
+												<Avatar.Fallback>U</Avatar.Fallback>
+											</Avatar>
 										{:else if header.key === 'role'}
 											<Role
 												value={isUser(row) && header.key === 'role' ? row.role : isToken(row) && header.key === 'role' ? (row.role ?? '') : ''}
