@@ -629,6 +629,18 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		logger.info(
 			`Step 5: Critical components initialized in ${step5Time.toFixed(2)}ms (Auth: ${authTime.toFixed(2)}ms, Settings: ${settingsTime.toFixed(2)}ms)`
 		);
+
+		// --- Demo Mode Cleanup Service ---
+		if (privateConfig?.DEMO) {
+			import('@src/utils/demoCleanup').then(({ cleanupExpiredDemoTenants }) => {
+				logger.info('🧹 Demo Cleanup Service initialized (Interval: 5m, TTL: 60m)');
+				// Run immediately on startup
+				cleanupExpiredDemoTenants();
+				// Run every 5 minutes
+				setInterval(cleanupExpiredDemoTenants, 5 * 60 * 1000);
+			});
+		}
+
 		isInitialized = true;
 
 		// System is now READY - state will be derived automatically from service health

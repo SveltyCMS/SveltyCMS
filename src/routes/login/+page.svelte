@@ -40,7 +40,7 @@ Features:
 
 	// Set Initial active state based on conditions
 	let active = $state<undefined | 0 | 1>(
-		publicEnv?.DEMO || publicEnv?.SEASONS
+		data.demoMode || publicEnv?.SEASONS
 			? undefined // If DEMO or SEASONS is enabled, show logo
 			: firstUserExists
 				? undefined // Show SignIn if the first user exists
@@ -66,7 +66,7 @@ Features:
 
 	// Set initial background based on conditions (will be updated reactively)
 	let background = $state<'white' | '#242728'>(
-		publicEnv?.DEMO
+		data.demoMode
 			? '#242728' // Dark background for DEMO mode
 			: publicEnv?.SEASONS
 				? 'white' // Light background for SEASONS mode
@@ -154,7 +154,7 @@ Features:
 	// Set up the interval to update the countdown every second
 	$effect(() => {
 		let interval: ReturnType<typeof setInterval> | undefined;
-		if (getPublicSetting('DEMO')) {
+		if (data.demoMode) {
 			updateTimeRemaining();
 			interval = setInterval(updateTimeRemaining, 1000);
 			return () => {
@@ -168,7 +168,7 @@ Features:
 		if (isTransitioning) return;
 		isTransitioning = true;
 		active = undefined;
-		background = getPublicSetting('DEMO') ? '#242728' : getPublicSetting('SEASONS') ? '#242728' : firstUserExists ? 'white' : '#242728';
+		background = data.demoMode ? '#242728' : getPublicSetting('SEASONS') ? '#242728' : firstUserExists ? 'white' : '#242728';
 		setTimeout(() => {
 			isTransitioning = false;
 		}, 300);
@@ -214,13 +214,13 @@ Features:
 
 	// Handle pointer enter events
 	function handleSignInPointerEnter() {
-		if (active === undefined && !getPublicSetting('DEMO') && !getPublicSetting('SEASONS')) {
+		if (active === undefined && !data.demoMode && !getPublicSetting('SEASONS')) {
 			background = 'white';
 		}
 	}
 
 	function handleSignUpPointerEnter() {
-		if (active === undefined && !getPublicSetting('DEMO') && !getPublicSetting('SEASONS')) {
+		if (active === undefined && !data.demoMode && !getPublicSetting('SEASONS')) {
 			background = '#242728';
 		}
 	}
@@ -331,7 +331,7 @@ Features:
 	/>
 
 	{#if active == undefined}
-		{#if getPublicSetting('DEMO')}
+		{#if data.demoMode}
 			<!-- DEMO MODE -->
 			<div
 				class="absolute bottom-2 left-1/2 flex min-w-[350px] -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl bg-error-500 p-3 text-center text-white transition-opacity duration-300 sm:bottom-12"

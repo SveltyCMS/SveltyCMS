@@ -25,6 +25,9 @@ const DESCRIPTION_STYLE =
 const ImageResize = ImageExtension.extend({
 	addOptions() {
 		return {
+			inline: false,
+			HTMLAttributes: {},
+			resize: false,
 			...this.parent?.(),
 			id: null,
 			media_image: null,

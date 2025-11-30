@@ -1,0 +1,65 @@
+---
+path: 'docs/architecture/multi-tenancy.mdx'
+title: 'Multi-Tenancy Architecture'
+description: 'Architecture and implementation details of SveltyCMS Multi-Tenancy system.'
+order: 6
+icon: 'mdi:domain'
+author: 'admin'
+created: '2025-11-30'
+updated: '2025-11-30'
+tags:
+  - 'architecture'
+  - 'multi-tenancy'
+  - 'database'
+  - 'security'
+---
+
+# Multi-Tenancy Architecture
+
+SveltyCMS supports a robust multi-tenancy architecture allowing a single instance to serve multiple isolated tenants.
+
+## Core Concepts
+
+### Tenant Identification
+
+Tenants are identified via:
+
+1.  **Hostname**: In standard production environments, the subdomain or domain determines the tenant (e.g., `tenant1.example.com`).
+2.  **Session Cookie**: In Demo Mode, a `demo_tenant_id` cookie identifies the ephemeral tenant.
+
+### Data Isolation
+
+Data isolation is enforced at the Database Adapter level.
+
+- **MongoDB**: All queries include a `tenantId` filter.
+- **Redis**: Cache keys are namespaced with `tenantId`.
+- **Storage**: Media files are stored in tenant-specific folders (e.g., `uploads/{tenantId}/...`).
+
+## Implementation Details
+
+### Authentication Hook
+
+The `handleAuthentication` hook (`src/hooks/handleAuthentication.ts`) is the entry point for tenant resolution.
+
+1.  It checks the `MULTI_TENANT` setting.
+2.  It resolves the `tenantId` from the request (hostname or cookie).
+3.  It sets `event.locals.tenantId`.
+4.  It validates that the authenticated user belongs to the resolved tenant.
+
+### Database Adapter
+
+The `DatabaseAdapter` interface requires `tenantId` for most operations.
+
+```typescript
+interface DatabaseAdapter {
+	collection: {
+		getData(collection: string, filter: any, tenantId: string): Promise<any>;
+		// ...
+	};
+	// ...
+}
+```
+
+### Configuration
+
+Multi-tenancy is enabled via the `MULTI_TENANT` private setting in `config/private.ts`.

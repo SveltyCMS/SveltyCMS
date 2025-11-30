@@ -220,6 +220,7 @@ async function shouldShowOAuth(hasInviteToken: boolean): Promise<boolean> {
 // Schemas are imported directly
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
+	const demoMode = getPrivateSettingSync('DEMO');
 	// --- START: Language Validation Logic ---
 	const langFromStore = get(systemLanguage) as Locale | null;
 	// Use PUBLIC_ENV.LOCALES for validation, fallback to BASE_LOCALE
@@ -252,7 +253,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				errorReason: lastFailure?.reason || 'System initialization failed. Please check the database connection and configuration.',
 				canReset: true,
 				authNotReady: true,
-				authNotReadyMessage: lastFailure?.reason || 'System initialization failed. Please check the database connection and configuration.'
+				authNotReadyMessage: lastFailure?.reason || 'System initialization failed. Please check the database connection and configuration.',
+				demoMode
 			};
 		}
 
@@ -299,7 +301,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					resetForm: {},
 					signUpForm: {},
 					authNotReady: true,
-					authNotReadyMessage: 'Database is empty. Please restore your database from backup or delete config/private.ts to run setup again.'
+					authNotReadyMessage: 'Database is empty. Please restore your database from backup or delete config/private.ts to run setup again.',
+					demoMode
 				};
 			}
 
@@ -313,7 +316,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				resetForm: {},
 				signUpForm: {},
 				authNotReady: true,
-				authNotReadyMessage: 'System is still initializing. Please wait a moment and try again.'
+				authNotReadyMessage: 'System is still initializing. Please wait a moment and try again.',
+				demoMode
 			};
 		}
 
@@ -376,7 +380,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					loginForm: {},
 					forgotForm: {},
 					resetForm: {},
-					signUpForm: {}
+					signUpForm: {},
+					demoMode
 				};
 			} else {
 				// Token is invalid, expired, or already used.
@@ -403,7 +408,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					loginForm: {},
 					forgotForm: {},
 					resetForm: {},
-					signUpForm
+					signUpForm,
+					demoMode
 				};
 			}
 		}
@@ -554,7 +560,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					forgotForm: {},
 					resetForm: {},
 					signUpForm: {},
-					oauthError: 'OAuth processing failed. Please try signing in with email or contact support.'
+					oauthError: 'OAuth processing failed. Please try signing in with email or contact support.',
+					demoMode
 				};
 			} catch (oauthError) {
 				// Check if this is a SvelteKit redirect (which is expected)
@@ -575,7 +582,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					forgotForm: {},
 					resetForm: {},
 					signUpForm: {},
-					oauthError: `OAuth failed: ${err.message}. Please try again or use email login.`
+					oauthError: `OAuth failed: ${err.message}. Please try again or use email login.`,
+					demoMode
 				};
 			}
 		}
@@ -609,7 +617,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			forgotForm,
 			resetForm,
 			signUpForm,
-			pkgVersion: publicEnv.PKG_VERSION || '0.0.0'
+			pkgVersion: publicEnv.PKG_VERSION || '0.0.0',
+			demoMode
 		};
 	} catch (initialError) {
 		const err = initialError as Error;
@@ -627,7 +636,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			resetForm: {},
 			signUpForm: {},
 			error: 'The login system encountered an unexpected error. Please try again later.',
-			pkgVersion: publicEnv.PKG_VERSION || '0.0.0'
+			pkgVersion: publicEnv.PKG_VERSION || '0.0.0',
+			demoMode
 		};
 	}
 };

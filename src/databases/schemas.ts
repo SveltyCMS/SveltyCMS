@@ -51,6 +51,7 @@ export const privateConfigSchema = object({
 
 	// --- Multi-tenancy (Essential for startup) ---
 	MULTI_TENANT: optional(boolean()), // Enable multi-tenant database support
+	DEMO: optional(boolean()), // Enable demo mode with auto-cleanup
 
 	// --- Optional service toggles (populated dynamically post-startup) ---
 	USE_REDIS: optional(boolean()),
@@ -172,7 +173,6 @@ export const publicConfigSchema = object({
 	LOG_ROTATION_SIZE: optional(pipe(number(), minValue(1))), // Maximum size of a log file in bytes before rotation
 	// --- Demo Mode ---
 
-	DEMO: optional(boolean()), // Set to `true` to enable demo mode, which may restrict certain features
 	USE_GOOGLE_OAUTH: optional(boolean()) // Enable Google OAuth login on the public-facing login page
 });
 

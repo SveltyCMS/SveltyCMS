@@ -29,6 +29,7 @@ import type { User } from '@src/databases/auth/types';
 import type { ISODateString } from '@databases/dbInterface';
 import { auth, dbAdapter } from '@src/databases/db';
 import { getSystemState } from '@src/stores/system';
+import { seedDemoTenant } from '@src/routes/api/setup/seed';
 import { cacheService, SESSION_CACHE_TTL_MS } from '@src/databases/CacheService';
 import { logger } from '@utils/logger.server';
 import { metricsService } from '@src/services/MetricsService';
@@ -398,8 +399,43 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
 	// Step 1: Multi-tenancy (synchronous check)
 	const multiTenant = getPrivateSettingSync('MULTI_TENANT');
+	const isDemoMode = getPrivateSettingSync('DEMO');
+
 	if (multiTenant) {
-		const tenantId = getTenantIdFromHostname(url.hostname);
+		let tenantId: string | null = null;
+
+		if (isDemoMode) {
+			// For demo mode, try to get tenantId from cookie first
+			tenantId = cookies.get('demo_tenant_id') || null;
+
+			if (!tenantId) {
+				// If no demo_tenant_id cookie, generate a new one
+				tenantId = crypto.randomUUID();
+				// Set the cookie for future requests in this session
+				cookies.set('demo_tenant_id', tenantId, {
+					path: '/',
+					httpOnly: true,
+					secure: !url.hostname.includes('localhost'),
+					sameSite: 'lax',
+					maxAge: 60 * 20 // 20 minutes for a demo session
+				});
+				logger.info(`New demo tenant generated: ${tenantId}`);
+
+				// --- Trigger Tenant Seeding Here ---
+				try {
+					await seedDemoTenant(dbAdapter, tenantId);
+					logger.info(`✅ New demo tenant ${tenantId} seeded successfully.`);
+				} catch (e) {
+					logger.error(`Failed to seed demo tenant ${tenantId}:`, e);
+				}
+			} else {
+				logger.trace(`Existing demo tenant from cookie: ${tenantId}`);
+			}
+		} else {
+			// Standard multi-tenancy: resolve tenantId from hostname
+			tenantId = getTenantIdFromHostname(url.hostname);
+		}
+
 		if (!tenantId) {
 			logger.error(`Tenant not found for hostname: ${url.hostname}`);
 			throw error(404, `Tenant not found for hostname: ${url.hostname}`);
