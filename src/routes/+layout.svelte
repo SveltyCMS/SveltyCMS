@@ -73,9 +73,17 @@
 		{@render children?.()}
 	{/key}
 	<!-- Skeleton v4 Toast.Group -->
-	<Toast.Group toasts={toastState.toasts} let:toast>
-		<Toast.Item {toast}>
-			{toast.message}
-		</Toast.Item>
+	<Toast.Group toaster={toastState.toaster}>
+		{#snippet children(toast)}
+			<Toast {toast}>
+				<Toast.Message>
+					<Toast.Title>{toast.title}</Toast.Title>
+					{#if toast.description}
+						<Toast.Description>{toast.description}</Toast.Description>
+					{/if}
+				</Toast.Message>
+				<Toast.CloseTrigger />
+			</Toast>
+		{/snippet}
 	</Toast.Group>
 </div>

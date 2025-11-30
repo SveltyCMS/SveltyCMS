@@ -16,7 +16,6 @@ Usage in +layout.svelte:
 -->
 
 <script lang="ts">
-	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { dialogState, type DialogConfig } from '@utils/dialogState.svelte';
 
 	// Handle clicking the backdrop
@@ -39,30 +38,36 @@ Usage in +layout.svelte:
 </script>
 
 {#each dialogState.dialogs as dialog (dialog.id)}
-	<Dialog
-		open={dialog.open}
-		onOpenChange={(details) => {
-			if (!details.open) handleEscapeKey(dialog);
-		}}
-	>
-		<Portal>
-			<Dialog.Backdrop
-				class="fixed inset-0 z-50 bg-surface-900/50 backdrop-blur-sm"
+	{#if dialog.open}
+		<!-- Custom dialog implementation without Skeleton Dialog (which requires trigger-based interaction) -->
+		<div class="fixed inset-0 z-50">
+			<!-- Backdrop -->
+			<button
+				type="button"
+				class="fixed inset-0 bg-surface-900/50 backdrop-blur-sm"
 				onclick={() => handleBackdropClick(dialog)}
-			/>
+				onkeydown={(e) => e.key === 'Escape' && handleEscapeKey(dialog)}
+				aria-label="Close dialog"
+			></button>
 
-			<Dialog.Positioner class="fixed inset-0 z-50 flex items-center justify-center p-4">
-				<Dialog.Content class="w-full max-w-md rounded-container bg-surface-100 p-6 shadow-xl dark:bg-surface-800">
+			<!-- Dialog Content -->
+			<div class="fixed inset-0 flex items-center justify-center p-4">
+				<div 
+					class="w-full max-w-md rounded-container bg-surface-100 p-6 shadow-xl dark:bg-surface-800"
+					role="dialog"
+					aria-modal="true"
+					aria-labelledby="dialog-title-{dialog.id}"
+				>
 					{#if dialog.title}
-						<Dialog.Title class="mb-2 text-xl font-bold text-surface-900 dark:text-surface-50">
+						<h2 id="dialog-title-{dialog.id}" class="mb-2 text-xl font-bold text-surface-900 dark:text-surface-50">
 							{@html dialog.title}
-						</Dialog.Title>
+						</h2>
 					{/if}
 
 					{#if dialog.description}
-						<Dialog.Description class="mb-6 text-surface-700 dark:text-surface-300">
+						<p class="mb-6 text-surface-700 dark:text-surface-300">
 							{@html dialog.description}
-						</Dialog.Description>
+						</p>
 					{/if}
 
 					{#if dialog.type === 'component' && dialog.component}
@@ -104,16 +109,17 @@ Usage in +layout.svelte:
 								{dialog.confirmText || 'OK'}
 							</button>
 						{:else}
-							<Dialog.CloseTrigger
+							<button
+								type="button"
 								class="btn preset-filled-surface-500"
 								onclick={() => dialogState.close(dialog.id)}
 							>
 								Close
-							</Dialog.CloseTrigger>
+							</button>
 						{/if}
 					</div>
-				</Dialog.Content>
-			</Dialog.Positioner>
-		</Portal>
-	</Dialog>
+				</div>
+			</div>
+		</div>
+	{/if}
 {/each}

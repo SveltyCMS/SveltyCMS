@@ -30,7 +30,6 @@ calls store methods and wires store state to child components.
 
 	// Skeleton v4 / Compat
 	import { getModalStore, type ModalSettings, type ModalComponent } from '@utils/modalUtils';
-	import { Toast } from '@skeletonlabs/skeleton-svelte';
 	import { toastState, getToastStore, setGlobalToastStore } from '@utils/toast';
 	import DialogManager from '@components/system/DialogManager.svelte';
 
@@ -233,18 +232,7 @@ calls store methods and wires store state to child components.
 </svelte:head>
 
 <div class="bg-surface-50-900 min-h-screen w-full transition-colors">
-	<!-- Skeleton v4 Toast Group -->
-	<Toast.Group toaster={toastState.toaster} let:toasts>
-		{#each toasts as toast (toast.id)}
-			<Toast.Root {toast} class="preset-filled-{toast.type === 'error' ? 'error' : toast.type === 'warning' ? 'warning' : toast.type === 'success' ? 'success' : 'surface'}-500">
-				<Toast.Title>{toast.title}</Toast.Title>
-				{#if toast.description}
-					<Toast.Description>{toast.description}</Toast.Description>
-				{/if}
-				<Toast.CloseTrigger class="btn-icon preset-tonal">✕</Toast.CloseTrigger>
-			</Toast.Root>
-		{/each}
-	</Toast.Group>
+	<!-- Toast is handled by the root layout -->
 
 	<!-- Dialog Manager for modals -->
 	<DialogManager />

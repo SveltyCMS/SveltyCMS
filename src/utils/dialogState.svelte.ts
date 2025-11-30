@@ -18,7 +18,7 @@
  * ```
  */
 
-import { SvelteComponent } from 'svelte';
+import type { Component } from 'svelte';
 
 // Types for dialog configuration
 export interface DialogConfig {
@@ -37,7 +37,7 @@ export interface DialogConfig {
 	onCancel?: () => void;
 	onClose?: () => void;
 	// For component dialogs
-	component?: typeof SvelteComponent<any>;
+	component?: Component<any>;
 	componentProps?: Record<string, any>;
 	// Additional metadata
 	meta?: Record<string, any>;
@@ -55,7 +55,7 @@ export interface ConfirmDialogOptions {
 }
 
 export interface ComponentDialogOptions {
-	component: typeof SvelteComponent<any>;
+	component: Component<any>;
 	componentProps?: Record<string, any>;
 	title?: string;
 	description?: string;
