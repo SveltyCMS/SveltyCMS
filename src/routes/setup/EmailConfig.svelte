@@ -212,7 +212,7 @@
 			return { valid: true, errors: {} };
 		} else {
 			// Extract validation errors
-			const errors: Record = {};
+			const errors: Record<string, any> = {};
 			if (result.issues) {
 				for (const issue of result.issues) {
 					const path = issue.path?.[0]?.key as string;
@@ -229,8 +229,7 @@
 
 	// Only display errors for fields that have been touched (blurred)
 	const displayErrors = $derived.by(() => {
-		const errors: Record = {};
-
+					const errors: Record<string, any> = {};
 		// Show validation errors only for touched fields
 		for (const field of touchedFields) {
 			if (localValidationErrors()[field]) {

@@ -28,7 +28,7 @@
 	import { storeListboxValue } from '@stores/store.svelte';
 
 	// Props
-	let { checked = false, iconStatus, onCheck = () => {}, cellClass = '' } = $props(); // optional classes applied to the root <td>
+	let { checked = false, iconStatus = undefined, onCheck = () => {}, cellClass = '' } = $props(); // optional classes applied to the root <td>
 
 	// Function to handle icon click and emit custom events
 	function handleIconClick(event: Event) {

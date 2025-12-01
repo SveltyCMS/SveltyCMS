@@ -45,7 +45,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	type ActionType = 'edit' | 'delete' | 'block' | 'unblock';
 
 	// Popup Combobox
-	let listboxValue = $state('edit');
+	let listboxValue: ActionType = $state('edit');
 	const { selectedRows, type = 'user', totalUsers = 0, currentUser = null } = $props();
 
 	// Sync local listboxValue with global store for TableIcons
@@ -54,7 +54,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	});
 
 	// Normalize selection to a safe array
-	const safeSelectedRows = $derived(Array.isArray(selectedRows) ? (selectedRows.filter(Boolean) as Array) : []);
+	const safeSelectedRows = $derived(Array.isArray(selectedRows) ? (selectedRows.filter(Boolean) as Array<User | Token>) : []);
 
 	// Derived values
 	const isDisabled = $derived(safeSelectedRows.length === 0);
@@ -67,8 +67,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		if (type === 'user') {
 			const users = safeSelectedRows.filter(isUser);
 			if (users.length === 0) return null;
-			const blockedCount = users.filter((user) => user.blocked).length;
-			const unblockedCount = users.filter((user) => !user.blocked).length;
+			const blockedCount = users.filter((user: User) => user.blocked).length;
+			const unblockedCount = users.filter((user: User) => !user.blocked).length;
 
 			if (blockedCount === users.length) return 'all-blocked';
 			if (unblockedCount === users.length) return 'all-unblocked';
@@ -76,8 +76,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		} else {
 			const tokens = safeSelectedRows.filter(isToken);
 			if (tokens.length === 0) return null;
-			const blockedCount = tokens.filter((token) => token.blocked).length;
-			const unblockedCount = tokens.filter((token) => !token.blocked).length;
+			const blockedCount = tokens.filter((token: Token) => token.blocked).length;
+			const unblockedCount = tokens.filter((token: Token) => !token.blocked).length;
 
 			if (blockedCount === tokens.length) return 'all-blocked';
 			if (unblockedCount === tokens.length) return 'all-unblocked';
@@ -422,13 +422,13 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 						// Handle batch operations (delete, block, unblock)
 						if (type === 'user') {
 							body = JSON.stringify({
-								userIds: safeSelectedRows.filter(isUser).map((row) => row._id),
+								userIds: safeSelectedRows.filter(isUser).map((row: User) => row._id),
 								action: action
 							});
 						} else {
 							// Token batch operations
 							body = JSON.stringify({
-								tokenIds: safeSelectedRows.filter(isToken).map((row) => row.token),
+								tokenIds: safeSelectedRows.filter(isToken).map((row: Token) => row.token),
 								action: action
 							});
 						}
@@ -484,7 +484,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 					// Dispatch token update event for parent component to handle local state updates
 					if (type === 'token' && (action === 'block' || action === 'unblock' || action === 'delete')) {
 						dispatch('tokenUpdate', {
-							tokenIds: safeSelectedRows.filter(isToken).map((row) => row.token),
+							tokenIds: safeSelectedRows.filter(isToken).map((row: Token) => row.token),
 							action: action
 						});
 					}

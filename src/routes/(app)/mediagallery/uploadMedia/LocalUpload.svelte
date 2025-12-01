@@ -28,7 +28,7 @@
 	import ModalUploadMedia from './ModalUploadMedia.svelte';
 	import { goto } from '$app/navigation';
 
-	let files = $state([]);
+	let files: File[] = $state([]);
 	let input: HTMLInputElement | null = $state(null);
 	let dropZone: HTMLDivElement | null = $state(null);
 	let uploadProgress = $state(0);
@@ -267,9 +267,9 @@
 			let success = false;
 			if (Array.isArray(result)) {
 				// SvelteKit sometimes returns [data, boolean] format
-				success = result[0]?.success === true || result[0]?.success === 1;
+				success = (result[0] as any)?.success === true || (result[0] as any)?.success === 1;
 			} else {
-				success = result.success === true;
+				success = (result as any).success === true;
 			}
 
 			if (success) {
@@ -279,7 +279,7 @@
 				goto('/mediagallery', { invalidateAll: true }); // Invalidate data on navigation
 			} else {
 				logger.error('Result does not have success=true:', result);
-				throw new Error((Array.isArray(result) ? result[0]?.error : result.error) || 'Upload failed');
+				throw new Error((Array.isArray(result) ? result[0]?.error : (result as any).error) || 'Upload failed');
 			}
 		} catch (error) {
 			logger.error('Error uploading files:', error);

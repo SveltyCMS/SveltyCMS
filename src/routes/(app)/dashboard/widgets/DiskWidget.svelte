@@ -35,7 +35,7 @@ This widget fetches and displays real-time disk usage data, including:
 	import { BarController, BarElement, CategoryScale, Chart, LinearScale } from 'chart.js';
 	import { onDestroy } from 'svelte';
 	// Components
-	import BaseWidget from '../BaseWidget.svelte';
+	import BaseWidget, { type WidgetSize } from '../BaseWidget.svelte';
 
 	// Register Chart.js components
 	Chart.register(BarController, BarElement, CategoryScale, LinearScale);
@@ -62,14 +62,22 @@ This widget fetches and displays real-time disk usage data, including:
 		theme = 'light',
 		icon = 'mdi:harddisk',
 		widgetId = undefined,
-		size = '1/4',
-		onSizeChange = () => {},
+		size = { w: 1, h: 2 },
+		onSizeChange = (newSize: WidgetSize) => {},
 		onRemove = () => {}
+	}: {
+		label?: string;
+		theme?: 'light' | 'dark';
+		icon?: string;
+		widgetId?: string;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
+		onRemove?: () => void;
 	} = $props();
 
-	let currentData = $state(undefined);
-	let chartCanvas = $state(undefined);
-	let chart = $state(undefined);
+	let currentData: FetchedData | undefined = $state(undefined);
+	let chartCanvas: HTMLCanvasElement | undefined = $state(undefined);
+	let chart: Chart | undefined = $state(undefined);
 
 	function updateChartAction(_canvas: HTMLCanvasElement, data: any) {
 		currentData = data;

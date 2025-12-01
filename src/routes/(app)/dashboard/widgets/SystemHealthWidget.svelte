@@ -45,7 +45,7 @@
 		overallStatus: SystemState;
 		timestamp: number;
 		uptime: number;
-		components: Record;
+		components: Record<string, ServiceStatus>;
 	}
 
 	const {

@@ -30,7 +30,6 @@ calls store methods and wires store state to child components.
 
 	// Skeleton
 	import { getModalStore, type ModalSettings, Modal } from '@skeletonlabs/skeleton';
-	import type { ModalComponent } from '@skeletonlabs/skeleton';
 	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
 
 	// ParaglideJS
@@ -46,13 +45,7 @@ calls store methods and wires store state to child components.
 	const wizard = setupStore.wizard; // Get direct rune access
 	const { load: loadStore, clear: clearStore, setupPersistence: setupPersistenceFn, validateStep, seedDatabase, completeSetup } = setupStore;
 
-	// --- 2. TYPE DEFINITIONS ---
-	interface StepDef {
-		label: string;
-		shortDesc: string;
-	}
-
-	// --- 3. LOCAL UI STATE (Page-specific UI) ---
+	// --- 1. COMPONENT IMPORTS ---
 	let showDbPassword = $state(false);
 	let showAdminPassword = $state(false);
 	let showConfirmPassword = $state(false);
@@ -62,8 +55,7 @@ calls store methods and wires store state to child components.
 	let currentLanguageTag = $state(getLocale());
 
 	// --- 4. LIFECYCLE HOOKS ---
-	const modalComponentRegistry: Record = {
-		welcomeModal: { ref: WelcomeModal }
+			const modalComponentRegistry: Record<string, any> = {		welcomeModal: { ref: WelcomeModal }
 	};
 	const modalStore = getModalStore();
 

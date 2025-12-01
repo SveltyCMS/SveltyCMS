@@ -182,7 +182,7 @@
 	let filterShow = $state(false);
 	let columnShow = $state(false);
 	let selectAll = $state(false);
-	let selectedMap = $state({});
+	let selectedMap: Record<number, boolean> = $state({});
 
 	// Derived rows to display and selection will be defined below
 	let density = $state(
@@ -707,7 +707,7 @@
 							<TableIcons
 								cellClass="w-10 text-center"
 								checked={selectAll}
-								onCheck={(checked) => {
+								onCheck={(checked: boolean) => {
 									selectAll = checked;
 									for (let i = 0; i < tableData.length; i++) {
 										selectedMap[i] = checked;
@@ -744,9 +744,8 @@
 							{@const expiresVal: string | Date | null = isToken(row) ? row.expires : null}
 							{@const isExpired =
 								showUsertoken &&
-								expiresVal !== null &&
-								expiresVal !== undefined &&
-								(expiresVal instanceof Date ? expiresVal : new Date(String(expiresVal))) < new Date()}
+								expiresVal &&
+								(new Date(expiresVal) < new Date())}
 							<tr
 								class="divide-x divide-surface-400 {isExpired ? 'bg-error-50 opacity-60 dark:bg-error-900/20' : ''} {showUsertoken
 									? 'cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-800'
@@ -760,7 +759,7 @@
 							>
 								<TableIcons
 									checked={selectedMap[index] ?? false}
-									onCheck={(checked) => {
+									onCheck={(checked: boolean) => {
 										selectedMap[index] = checked;
 									}}
 								/>

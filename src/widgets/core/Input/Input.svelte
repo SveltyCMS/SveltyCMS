@@ -42,7 +42,7 @@
 	// Props
 	interface Props {
 		field: FieldType;
-		value?: Record | null | undefined;
+		value?: Record<string, any> | null | undefined;
 		validateOnMount?: boolean;
 		validateOnChange?: boolean;
 		validateOnBlur?: boolean;
@@ -99,10 +99,10 @@
 
 	// ✅ SSOT: Use validation schema from index.ts
 	// Pass the field config (which is the widget instance) to createValidationSchema
-	const validationSchema = $derived(createValidationSchema(field as unknown as ReturnType));
+	const validationSchema = $derived(createValidationSchema(field as unknown as ReturnType<any>));
 
 	// Enhanced validation function
-	async function validateInput(immediate = false): Promise {
+	async function validateInput(immediate = false): Promise<string | null> {
 		const currentValue = safeValue;
 
 		// Clear existing timeout
@@ -126,8 +126,8 @@
 					validationStore.clearError(fieldName);
 					return null;
 				} catch (error) {
-					if ((error as ValiError).issues) {
-						const valiError = error as ValiError;
+					if ((error as ValiError<any>).issues) {
+						const valiError = error as ValiError<any>;
 						const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 						if (process.env.NODE_ENV !== 'production') {
 							logger.debug(`[Input Widget] Validation failed for ${fieldName}:`, errorMessage);

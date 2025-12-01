@@ -42,6 +42,11 @@ for comprehensive system monitoring and performance analysis.
 	import BaseWidget from '../BaseWidget.svelte';
 
 	// Props
+	interface WidgetSize {
+		w: number;
+		h: number;
+	}
+
 	const {
 		label = 'System Metrics',
 		theme = 'light',
@@ -51,8 +56,19 @@ for comprehensive system monitoring and performance analysis.
 		showDetails = true,
 		autoRefresh = true,
 		refreshInterval = 3000,
-		onSizeChange = () => {},
+		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {}
+	}: {
+		label?: string;
+		theme?: 'light' | 'dark';
+		icon?: string;
+		widgetId?: string;
+		size?: WidgetSize;
+		showDetails?: boolean;
+		autoRefresh?: boolean;
+		refreshInterval?: number;
+		onSizeChange?: (newSize: WidgetSize) => void;
+		onRemove?: () => void;
 	} = $props();
 
 	// Unified metrics interface (matches MetricsService output)
@@ -104,8 +120,8 @@ for comprehensive system monitoring and performance analysis.
 	});
 
 	let isLoading = $state(true);
-	let error = $state(null);
-	let refreshTimer: ReturnType | null = null;
+	let error: string | null = $state(null);
+	let refreshTimer: ReturnType<typeof setInterval> | null = null;
 	let lastUpdate = $state(0);
 
 	// Computed performance indicators - using $derived correctly
@@ -220,7 +236,7 @@ for comprehensive system monitoring and performance analysis.
 	}
 
 	// Data fetching
-	async function fetchMetrics(): Promise {
+	async function fetchMetrics(): Promise<void> {
 		try {
 			isLoading = true;
 			error = null;

@@ -30,12 +30,12 @@ Implements custom virtual scrolling without external dependencies.
 	import { onMount } from 'svelte';
 
 	interface Props {
-		filteredFiles?: MediaImage[];
+		filteredFiles?: (MediaBase | MediaImage)[];
 		gridSize?: 'tiny' | 'small' | 'medium' | 'large';
-		ondeleteImage?: (file: MediaImage) => void;
-		onBulkDelete?: (files: MediaImage[]) => void;
-		onBulkDownload?: (files: MediaImage[]) => void;
-		onBulkEdit?: (files: MediaImage[], action: string, value: any) => void;
+		ondeleteImage?: (file: MediaBase | MediaImage) => void;
+		onBulkDelete?: (files: (MediaBase | MediaImage)[]) => void;
+		onBulkDownload?: (files: (MediaBase | MediaImage)[]) => void;
+		onBulkEdit?: (files: (MediaBase | MediaImage)[], action: string, value: any) => void;
 	}
 
 	const {
@@ -262,7 +262,9 @@ Implements custom virtual scrolling without external dependencies.
 								<div class="card variant-filled z-50 min-w-[250px] p-2" data-popup="FileInfo-{fileId}">
 									<table class="table-hover w-full table-auto text-xs">
 										<tbody>
-											<tr><td class="font-semibold">Dimensions:</td><td>{file.width || 'N/A'}x{file.height || 'N/A'}</td></tr>
+											{#if 'width' in file && file.width && 'height' in file && file.height}
+												<tr><td class="font-semibold">Dimensions:</td><td>{file.width}x{file.height}</td></tr>
+											{/if}
 											<tr><td class="font-semibold">Size:</td><td>{formatBytes(file.size || 0)}</td></tr>
 											<tr><td class="font-semibold">Type:</td><td>{file.mimeType || 'N/A'}</td></tr>
 											<tr><td class="font-semibold">Hash:</td><td class="truncate" title={file.hash}>{file.hash?.substring(0, 8) || 'N/A'}</td></tr>

@@ -44,7 +44,11 @@ and automated response visualization for enterprise security operations.
 
 	const toastStore = getToastStore();
 
-	// Props
+	interface WidgetSize {
+		w: number;
+		h: number;
+	}
+
 	const {
 		label = 'Security Monitor',
 		theme = 'light',
@@ -53,8 +57,18 @@ and automated response visualization for enterprise security operations.
 		size = { w: 3, h: 3 },
 		autoRefresh = true,
 		refreshInterval = 5000,
-		onSizeChange = () => {},
+		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {}
+	}: {
+		label?: string;
+		theme?: 'light' | 'dark';
+		icon?: string;
+		widgetId?: string;
+		size?: WidgetSize;
+		autoRefresh?: boolean;
+		refreshInterval?: number;
+		onSizeChange?: (newSize: WidgetSize) => void;
+		onRemove?: () => void;
 	} = $props();
 
 	// Security data interfaces
@@ -82,7 +96,7 @@ and automated response visualization for enterprise security operations.
 		severity: 'low' | 'medium' | 'high' | 'critical';
 		message: string;
 		ip?: string;
-		details?: Record;
+		details?: Record<string, any>;
 	}
 
 	interface SecurityIncident {
@@ -107,10 +121,10 @@ and automated response visualization for enterprise security operations.
 		rateLimitHits: 0
 	});
 
-	let incidents = $state([]);
+	let incidents: SecurityIncident[] = $state([]);
 	let isLoading = $state(true);
-	let error = $state(null);
-	let refreshTimer: ReturnType | null = null;
+	let error: string | null = $state(null);
+	let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
 	// Security status calculation - using $derived correctly
 	const overallThreatLevel = $derived(calculateOverallThreatLevel(securityStats));
@@ -162,7 +176,7 @@ and automated response visualization for enterprise security operations.
 	}
 
 	// Data fetching
-	async function fetchSecurityData(): Promise {
+	async function fetchSecurityData(): Promise<void> {
 		try {
 			isLoading = true;
 			error = null;
@@ -192,7 +206,7 @@ and automated response visualization for enterprise security operations.
 	}
 
 	// Incident management
-	async function resolveIncident(incidentId: string): Promise {
+	async function resolveIncident(incidentId: string): Promise<void> {
 		try {
 			const response = await fetch(`/api/security/incidents/${incidentId}/resolve`, {
 				method: 'POST',
@@ -216,7 +230,7 @@ and automated response visualization for enterprise security operations.
 		}
 	}
 
-	async function unblockIP(ip: string): Promise {
+	async function unblockIP(ip: string): Promise<void> {
 		try {
 			const response = await fetch('/api/security/unblock', {
 				method: 'POST',

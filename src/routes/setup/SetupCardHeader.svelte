@@ -6,14 +6,9 @@ Displays the current step title and icon, and a reset button.
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 
-	type StepDef = {
-		label: string;
-		shortDesc: string;
-	};
+	const { currentStep, steps } = $props();
 
 	const dispatch = createEventDispatcher();
-
-	const { currentStep, steps } = $props();
 
 	const icons = $derived(['mdi:database', 'mdi:account', 'mdi:cog', 'mdi:email', 'mdi:check-circle']);
 </script>

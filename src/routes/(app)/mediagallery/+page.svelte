@@ -50,24 +50,24 @@ Displays a collection of media files (images, documents, audio, video) with:
 	const modalStore = getModalStore();
 
 	// Props using runes
-	const { data = { user: undefined, media: [], systemVirtualFolders: [], currentFolder: null } } = $props();
+	const { data = { user: { role: '', _id: '', avatar: '' }, media: [], systemVirtualFolders: [], currentFolder: null } } = $props();
 
 	// State using runes
-	let files = $state([]);
-	let allSystemVirtualFolders = $state([]);
-	let currentSystemVirtualFolder = $state(null);
-	let breadcrumb = $state([]);
+	let files: (MediaBase | MediaImage)[] = $state([]);
+	let allSystemVirtualFolders: any[] = $state([]);
+	let currentSystemVirtualFolder: SystemVirtualFolder | null = $state(null);
+	let breadcrumb: string[] = $state([]);
 
 	let globalSearchValue = $state('');
-	let selectedMediaType = $state('All');
-	let view = $state('grid');
-	let gridSize = $state('small');
-	let tableSize = $state('small');
+	let selectedMediaType: 'All' | MediaTypeEnum = $state('All');
+	let view: 'grid' | 'table' = $state('grid');
+	let gridSize: 'tiny' | 'small' | 'medium' | 'large' = $state('small');
+	let tableSize: 'tiny' | 'small' | 'medium' | 'large' = $state('small');
 	let isLoading = $state(false);
 
 	// Enterprise features state
 	let showAdvancedSearch = $state(false);
-	let advancedSearchCriteria = $state(null);
+	let advancedSearchCriteria: SearchCriteria | null = $state(null);
 
 	// Performance optimization: Use virtual scrolling for large collections
 	const USE_VIRTUAL_THRESHOLD = 100;

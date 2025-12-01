@@ -37,10 +37,10 @@ Key features:
 	const dispatch = createEventDispatcher();
 
 	interface Props {
-		filteredFiles?: MediaImage[];
+		filteredFiles?: (MediaBase | MediaImage)[];
 		gridSize?: 'tiny' | 'small' | 'medium' | 'large';
-		ondeleteImage?: (file: MediaImage) => void;
-		onBulkDelete?: (files: MediaImage[]) => void;
+		ondeleteImage?: (file: MediaBase | MediaImage) => void;
+		onBulkDelete?: (files: (MediaBase | MediaImage)[]) => void;
 	}
 
 	const { filteredFiles = [], gridSize, ondeleteImage = () => {}, onBulkDelete = () => {} }: Props = $props();
@@ -50,11 +50,11 @@ Key features:
 	let selectedFiles = $state<Set<string>>(new Set());
 	let isSelectionMode = $state(false);
 
-	function handleDelete(file: MediaImage) {
+	function handleDelete(file: MediaBase | MediaImage) {
 		ondeleteImage(file);
 	}
 
-	function toggleSelection(file: MediaImage) {
+	function toggleSelection(file: MediaBase | MediaImage) {
 		const fileId = file._id?.toString() || file.filename;
 		if (selectedFiles.has(fileId)) {
 			selectedFiles.delete(fileId);
@@ -201,9 +201,10 @@ Key features:
 									<th class="">Size</th>
 								</tr>
 							</thead>
-							<tbody>
-								{#each Object.keys(file.thumbnails || {}) as size (size)}
-									{#if file.thumbnails?.[size as keyof typeof file.thumbnails]}
+																		{#if 'width' in file && file.width && 'height' in file && file.height}
+																			<tr><td class="font-semibold">Dimensions:</td><td>{file.width}x{file.height}</td></tr>
+																		{/if}
+																		{#each Object.keys(file.thumbnails || {}) as size (size)}									{#if file.thumbnails?.[size as keyof typeof file.thumbnails]}
 										<tr
 											class="divide-x divide-surface-400 border-b border-surface-400 last:border-b-0 {size === gridSize
 												? 'bg-primary-50 dark:bg-primary-900/20'

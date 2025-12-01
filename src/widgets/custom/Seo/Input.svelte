@@ -34,14 +34,12 @@ Part of the Three Pillars Architecture for wSidget system.
 	import { debounce } from '@utils/utils';
 	import type { FieldType } from './';
 	import { SeoAnalyzer } from './seoAnalyzer';
-	import type { SeoData, SeoFeature } from './types';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	// Components
 	// Child component
 
-	let { field, value, error }: { field: FieldType; value: Record | null | undefined; error?: string | null } = $props();
-
+			let { field, value, error }: { field: FieldType; value: Record<string, any> | null | undefined; error?: string | null } = $props();
 	// Determine the current language.
 	const lang = $derived(field.translated ? contentLanguage.value : 'default');
 

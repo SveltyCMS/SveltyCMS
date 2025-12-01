@@ -15,7 +15,6 @@ Features:
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import { getPublicSetting, publicEnv } from '@src/stores/globalSettings.svelte';
-	import type { PageData } from './$types';
 	// Components
 	import Seasons from '@components/system/icons/Seasons.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
@@ -39,7 +38,7 @@ Features:
 	let hasResetParams = $state(false);
 
 	// Set Initial active state based on conditions
-	let active = $state(
+	let active: undefined | 0 | 1 = $state(
 		publicEnv?.DEMO || publicEnv?.SEASONS
 			? undefined // If DEMO or SEASONS is enabled, show logo
 			: firstUserExists
@@ -85,9 +84,9 @@ Features:
 	let timeRemaining = $state({ minutes: 0, seconds: 0 });
 	let searchQuery = $state('');
 	let isDropdownOpen = $state(false);
-	let searchInput = $state(null);
+	let searchInput: HTMLInputElement | null = $state(null);
 	let isTransitioning = $state(false);
-	let debounceTimeout = $state();
+	let debounceTimeout: number | undefined = $state();
 
 	// Derived state using $derived rune
 	const availableLanguages = $derived([...availableLocales].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))));

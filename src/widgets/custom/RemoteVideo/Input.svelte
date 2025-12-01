@@ -56,8 +56,7 @@ Part of the Three Pillars Architecture for widget system.
 	});
 
 	// SECURITY: URL validation patterns to prevent SSRF attacks
-	const ALLOWED_PLATFORMS: Record = {
-		youtube: /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+			const ALLOWED_PLATFORMS: Record<string, RegExp> = {		youtube: /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
 		vimeo: /^https?:\/\/(www\.)?vimeo\.com\/\d+$/,
 		twitch: /^https?:\/\/(www\.)?twitch\.tv\/videos\/\d+$/,
 		tiktok: /^https?:\/\/(www\.)?tiktok\.com\/@[\w.-]+\/video\/\d+$/

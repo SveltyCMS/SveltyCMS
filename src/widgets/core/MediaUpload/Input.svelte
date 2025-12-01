@@ -89,13 +89,13 @@
 
 	// Validation state management
 	let validateOnMount = field.required ?? false;
-	let localError = $state(null);
+	let localError: string | null = $state(null);
 
 	// A local, reactive array of the full, resolved media file objects for display.
-	let selectedFiles = $state([]);
+	let selectedFiles: MediaFile[] = $state([]);
 
 	// Helper function to fetch full media data from an array of IDs.
-	async function fetchMediaData(ids: string[]): Promise {
+	async function fetchMediaData(ids: string[]): Promise<MediaFile[]> {
 		// In a real app, this would be an API call: GET /api/media?ids=id1,id2,...
 		// For this example, we'll simulate it with a timeout.
 		logger.debug('Fetching data for IDs:', ids);

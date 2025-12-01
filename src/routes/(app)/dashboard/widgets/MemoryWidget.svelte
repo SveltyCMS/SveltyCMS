@@ -36,9 +36,19 @@ Features:
 	import type { ChartConfiguration, Plugin } from 'chart.js';
 	import { ArcElement, Chart, PieController, Tooltip } from 'chart.js';
 	import { onDestroy } from 'svelte';
-	import BaseWidget from '../BaseWidget.svelte';
+	import BaseWidget, { type WidgetSize } from '../BaseWidget.svelte';
 
 	Chart.register(PieController, ArcElement, Tooltip);
+
+	interface MemoryData {
+		memoryInfo: {
+			total: {
+				usedMemMb: number;
+				freeMemMb: number;
+				usedMemPercentage: number;
+			};
+		};
+	}
 
 	// Props passed from +page.svelte, then to BaseWidget
 	const {
@@ -47,13 +57,21 @@ Features:
 		icon = 'mdi:memory',
 		widgetId = undefined,
 		size = { w: 1, h: 2 },
-		onSizeChange = () => {},
+		onSizeChange = (newSize: WidgetSize) => {},
 		onRemove = () => {}
+	}: {
+		label?: string;
+		theme?: 'light' | 'dark';
+		icon?: string;
+		widgetId?: string;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
+		onRemove?: () => void;
 	} = $props();
 
-	let currentData = $state(undefined);
-	let chart = $state(undefined);
-	let chartCanvas = $state(undefined);
+	let currentData: MemoryData | undefined = $state(undefined);
+	let chart: Chart | undefined = $state(undefined);
+	let chartCanvas: HTMLCanvasElement | undefined = $state(undefined);
 
 	function updateChartAction(_canvas: HTMLCanvasElement, data: any) {
 		currentData = data;

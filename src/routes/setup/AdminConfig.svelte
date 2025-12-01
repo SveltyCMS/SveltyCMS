@@ -5,7 +5,7 @@
 <script lang="ts">
 	import * as m from '@src/paraglide/messages';
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
-	import type { AdminUser, ValidationErrors, PasswordRequirements } from '@stores/setupStore.svelte';
+	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { setupAdminSchema } from '@utils/formSchemas';
 

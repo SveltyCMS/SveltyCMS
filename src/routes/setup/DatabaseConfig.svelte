@@ -7,7 +7,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 	import * as m from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
-	import type { DbConfig, ValidationErrors } from '@stores/setupStore.svelte';
+	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { dbConfigSchema } from '@utils/formSchemas';
 

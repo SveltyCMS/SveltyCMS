@@ -118,8 +118,7 @@ Interactive menu builder with add/edit/reorder capabilities
 			fields: (field as any).fields?.[level] || [],
 			isNew: false,
 			parent: undefined,
-			onSave: (data: Record) => {
-				item._fields = data;
+									onSave: (data: Record<string, any>) => {				item._fields = data;
 				value = [...(value || [])]; // Trigger reactivity
 			},
 			onCancel: () => {

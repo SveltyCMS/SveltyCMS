@@ -53,7 +53,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	const {
 		active = $bindable(undefined),
 		onClick = () => {},
-		onPointerEnter: onPointerEnterProp = (event: PointerEvent) => {},
+		onPointerEnter: onPointerEnterProp = (_event: PointerEvent) => {},
 		onBack = () => {}
 	} = $props();
 

@@ -24,7 +24,7 @@
 
 <script lang="ts">
 	import TablePagination from '@src/components/system/table/TablePagination.svelte';
-	import BaseWidget from '../BaseWidget.svelte';
+	import BaseWidget, { type WidgetSize } from '../BaseWidget.svelte';
 
 	interface LogEntryDisplay {
 		timestamp: string;
@@ -47,10 +47,19 @@
 		icon = 'mdi:file-document-outline',
 		widgetId = undefined,
 		size = { w: 2, h: 2 },
-		onSizeChange = () => {},
+		onSizeChange = (newSize: WidgetSize) => {},
 		onRemove = () => {},
 		endpoint = '/api/dashboard/logs',
 		pollInterval = 15000
+	}: {
+		label?: string;
+		icon?: string;
+		widgetId?: string;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
+		onRemove?: () => void;
+		endpoint?: string;
+		pollInterval?: number;
 	} = $props();
 
 	// Internal state for logs data

@@ -28,7 +28,7 @@
 	import { CategoryScale, Chart, Filler, LinearScale, LineController, LineElement, PointElement, Tooltip } from 'chart.js';
 	import 'chartjs-adapter-date-fns';
 	import { onDestroy, onMount } from 'svelte';
-	import BaseWidget from '../BaseWidget.svelte';
+	import BaseWidget, { type WidgetSize } from '../BaseWidget.svelte';
 
 	// Register Chart.js components
 	Chart.register(LineController, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
@@ -39,13 +39,21 @@
 		icon = 'mdi:cpu-64-bit',
 		widgetId = undefined,
 		size = { w: 1, h: 1 },
-		onSizeChange = () => {},
+		onSizeChange = (newSize: WidgetSize) => {},
 		onRemove = () => {}
+	}: {
+		label?: string;
+		theme?: 'light' | 'dark';
+		icon?: string;
+		widgetId?: string;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
+		onRemove?: () => void;
 	} = $props();
 
-	let currentData = $state(undefined);
-	let chartInstance = $state(undefined);
-	let chartCanvasElement = $state(undefined);
+	let currentData: any = $state(undefined);
+	let chartInstance: Chart | undefined = $state(undefined);
+	let chartCanvasElement: HTMLCanvasElement | undefined = $state(undefined);
 
 	function updateChart(fetchedData: any) {
 		if (!chartCanvasElement) return;

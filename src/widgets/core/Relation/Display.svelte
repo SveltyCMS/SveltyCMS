@@ -33,7 +33,7 @@ Renders: "Article Title" (fetched from related entry's display field)
 	let displayText = $state('Loading...');
 
 	// Stub function for fetching entry display - implement with your API
-	async function fetchEntryDisplay(_id: string): Promise {
+	async function fetchEntryDisplay(_id: string): Promise<string | null> {
 		// TODO: Implement API call to fetch entry display field
 		return null;
 	}

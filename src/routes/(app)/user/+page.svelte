@@ -17,9 +17,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import type { PageData } from './$types';
 	// Auth
-	import type { User } from '@src/databases/auth/types';
 	import ModalTwoFactorAuth from './components/ModalTwoFactorAuth.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -53,6 +51,7 @@
 		role: serverUser?.role ?? '',
 		avatar: serverUser?.avatar ?? '/Default_User.svg',
 		tenantId: serverUser?.tenantId ?? '', // Add tenantId
+		is2FAEnabled: serverUser?.is2FAEnabled ?? false,
 		permissions: []
 	});
 

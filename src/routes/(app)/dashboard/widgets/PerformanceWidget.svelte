@@ -14,7 +14,7 @@ Displays real-time system metrics integrated with the dashboard grid system
 </script>
 
 <script lang="ts">
-	import BaseWidget from '../BaseWidget.svelte';
+	import BaseWidget, { type WidgetSize } from '../BaseWidget.svelte';
 
 	interface HealthMetrics {
 		requests: { total: number; errors: number };
@@ -35,8 +35,16 @@ Displays real-time system metrics integrated with the dashboard grid system
 		icon = 'mdi:chart-line',
 		widgetId = undefined,
 		size = { w: 1, h: 1 },
-		onSizeChange = () => {},
+		onSizeChange = (newSize: WidgetSize) => {},
 		onRemove = () => {}
+	}: {
+		label?: string;
+		theme?: 'light' | 'dark';
+		icon?: string;
+		widgetId?: string;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
+		onRemove?: () => void;
 	} = $props();
 
 	// Performance indicator color based on metrics

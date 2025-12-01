@@ -9,7 +9,7 @@
 	import { locales as systemLocales } from '@src/paraglide/runtime';
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 	// ✅ FIX: Import types from the store
-	import type { SystemSettings, ValidationErrors } from '@stores/setupStore.svelte';
+	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { systemSettingsSchema } from '@utils/formSchemas';
 

@@ -32,12 +32,12 @@
 	} = $props();
 
 	let expanded = $state(false);
-	let dropdownRef = $state();
-	let buttonRef = $state();
+	let dropdownRef: HTMLDivElement | undefined = $state();
+	let buttonRef: HTMLButtonElement | undefined = $state();
 	const dropdownId = $state(`dropdown-${Math.random().toString(36).substring(2, 9)}`);
 	const listboxId = $derived(`${dropdownId}-menu`);
 	let focusedIndex = $state(-1); // roving focus index when expanded
-	const itemRefs: Array = [];
+	const itemRefs: Array<HTMLButtonElement | null> = [];
 	let _refresh = $state(0); // force re-render when selection changes
 
 	// Action to capture each item's button element reference

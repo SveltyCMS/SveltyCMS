@@ -5,7 +5,6 @@ Focal point selection tool. Displays a rule-of-thirds overlay and a crosshair.
 Emits `apply` with normalized coordinates { x: number, y: number } in [0,1].
 -->
 <script lang="ts">
-	import type Konva from 'konva';
 	import { onMount } from 'svelte';
 	import { createEventDispatcher } from 'svelte';
 

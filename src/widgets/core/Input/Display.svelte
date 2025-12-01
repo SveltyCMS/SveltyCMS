@@ -29,8 +29,7 @@ Renders current language text with truncation for long content
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import type { FieldType } from './';
 
-	const { field, value }: { field: FieldType; value: Record | null | undefined } = $props();
-
+			const { field, value }: { field: FieldType; value: Record<string, any> | null | undefined } = $props();
 	// Determine the current language (uses store API from contentLanguage)
 	const lang = $derived(
 		field?.translated ? contentLanguage.value.toLowerCase() : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase()

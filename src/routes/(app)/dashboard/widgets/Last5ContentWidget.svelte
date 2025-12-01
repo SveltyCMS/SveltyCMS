@@ -32,6 +32,11 @@ This widget fetches and displays the latest content items, including:
 
 	import { formatDistanceToNow } from 'date-fns';
 
+	interface WidgetSize {
+		w: number;
+		h: number;
+	}
+
 	interface ContentItem {
 		id: string;
 		title: string;
@@ -49,8 +54,16 @@ This widget fetches and displays the latest content items, including:
 		icon = 'mdi:file-document-multiple-outline',
 		widgetId = undefined,
 		size = { w: 1, h: 1 },
-		onSizeChange = () => {},
+		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {}
+	}: {
+		label?: string;
+		theme?: 'light' | 'dark';
+		icon?: string;
+		widgetId?: string;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
+		onRemove?: () => void;
 	} = $props();
 
 	function getStatusColor(status: string) {
