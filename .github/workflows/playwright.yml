@@ -201,13 +201,7 @@ jobs:
           echo "✅ Created config/private.test.ts"
           # Also create config/private.ts for build-time imports
           cp config/private.test.ts config/private.ts
-          echo "✅ Created config/private.ts"
-
-      # Also create config/private.ts temporarily for build
-      - name: Copy config for build
-        run: |
-          cp config/private.test.ts config/private.ts
-          echo "✅ Copied config/private.ts for build"
+          echo "✅ Created config/private.ts for build"
 
       # Build production version for faster, optimized testing
       - name: Build Production
