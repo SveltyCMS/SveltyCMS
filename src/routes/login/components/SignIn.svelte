@@ -35,10 +35,11 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import PasswordStrength from '@components/PasswordStrength.svelte';
 	// Lazy-load FloatingPaths on desktop for performance
-	let FloatingPathsComponent = $state(null);
+	let FloatingPathsComponent: typeof SvelteComponent | null = $state(null);
 
 	// Skeleton
 	import { showToast } from '@utils/toast';
+	import type { SvelteComponent } from 'svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -49,13 +50,18 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Props
-	const { active = $bindable(undefined), onClick = () => {}, onPointerEnter = () => {}, onBack = () => {} } = $props();
+	const {
+		active = $bindable(undefined),
+		onClick = () => {},
+		onPointerEnter: onPointerEnterProp = (event: PointerEvent) => {},
+		onBack = () => {}
+	} = $props();
 
 	// State management
 	let PWforgot = $state(false);
 	let PWreset = $state(false);
 	const showPassword = $state(false);
-	let formElement = $state(null);
+	let formElement: HTMLFormElement | null = $state(null);
 	const tabIndex = $state(1);
 
 	// Pre-calculate tab indices
@@ -399,7 +405,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 		const isActiveLogin = active === 0;
 		if (browser && desktop && isActiveLogin) {
 			import('@root/src/components/system/FloatingPaths.svelte').then((m) => {
-				FloatingPathsComponent = m.default;
+				FloatingPathsComponent = m.default as typeof SvelteComponent;
 			});
 		} else {
 			FloatingPathsComponent = null;
@@ -410,7 +416,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 <section
 	onclick={handleFormClick}
 	onkeydown={(e) => e.key === 'Enter' && onClick?.()}
-	onpointerenter={onPointerEnter}
+	onpointerenter={onPointerEnterProp}
 	role="button"
 	tabindex={tabIndex}
 	class={baseClasses}

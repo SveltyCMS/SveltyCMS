@@ -196,32 +196,11 @@ export const publicConfigSchema = object({
 	), // Defines the logging levels to be active. Default: ['error'] for production efficiency
 	LOG_RETENTION_DAYS: optional(pipe(number(), minValue(1))), // Number of days to keep log files
 	LOG_ROTATION_SIZE: optional(pipe(number(), minValue(1))), // Maximum size of a log file in bytes before rotation
-	// --- Demo Mode ---
-
-<<<<<<< HEAD
 	DEMO: optional(boolean()), // Set to `true` to enable demo mode, which may restrict certain features
 	USE_GOOGLE_OAUTH: optional(boolean()), // Enable Google OAuth login on the public-facing login page
 
 	// --- Extensibility ---
 	CUSTOM_SETTINGS: optional(record(string(), unknown())) // Flexible object for plugin/custom settings
-});
-
-export const websiteTokenSchema = object({
-	_id: pipe(
-		string(),
-		transform((input) => input as DatabaseId)
-	) as BaseSchema<string, DatabaseId, BaseIssue<string>>,
-	name: pipe(string(), minLength(1, 'Token name is required.')),
-	token: pipe(string(), minLength(32)),
-	createdAt: pipe(
-		string(),
-		transform((input) => input as ISODateString)
-	) as BaseSchema<string, ISODateString, BaseIssue<string>>,
-	updatedAt: pipe(
-		string(),
-		transform((input) => input as ISODateString)
-	) as BaseSchema<string, ISODateString, BaseIssue<string>>,
-	createdBy: string()
 });
 
 /**

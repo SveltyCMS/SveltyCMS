@@ -39,10 +39,8 @@ Features:
 	let hasResetParams = $state(false);
 
 	// Set Initial active state based on conditions
-<<<<<<< HEAD
 	let active = $state(
 		publicEnv?.DEMO || publicEnv?.SEASONS
->>>>>>> origin/serurity
 			? undefined // If DEMO or SEASONS is enabled, show logo
 			: firstUserExists
 				? undefined // Show SignIn if the first user exists
@@ -67,10 +65,8 @@ Features:
 	});
 
 	// Set initial background based on conditions (will be updated reactively)
-<<<<<<< HEAD
 	let background = $state(
 		publicEnv?.DEMO
->>>>>>> origin/serurity
 			? '#242728' // Dark background for DEMO mode
 			: publicEnv?.SEASONS
 				? 'white' // Light background for SEASONS mode
@@ -157,10 +153,8 @@ Features:
 
 	// Set up the interval to update the countdown every second
 	$effect(() => {
-<<<<<<< HEAD
 		let interval: ReturnType<typeof setInterval> | undefined;
 		if (getPublicSetting('DEMO')) {
->>>>>>> origin/serurity
 			updateTimeRemaining();
 			interval = setInterval(updateTimeRemaining, 1000);
 			return () => {
