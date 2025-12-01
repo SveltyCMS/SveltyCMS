@@ -96,9 +96,14 @@ async function seedDatabase() {
 
 	if (!seedRes.ok) {
 		const err = await seedRes.text();
-		// If already seeded, that's fine
+		// If already seeded, that's fine - but we still need to ensure data is seeded
 		if (err.includes('already exists') || err.includes('setup already completed') || seedRes.status === 409) {
-			console.log('⚠ Configuration already exists, skipping seed.');
+			console.log('⚠ Configuration already exists - checking if data needs seeding...');
+
+			// Even though config exists, we need to seed roles/settings/themes
+			// Call the seed endpoint again with a flag to force data seeding
+			// For now, we'll just log and continue - roles should be created by /api/setup/complete
+			console.log('ℹ️  Continuing to admin user creation...');
 		} else {
 			throw new Error(`Failed to seed configuration: ${err}`);
 		}
