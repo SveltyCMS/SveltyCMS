@@ -252,13 +252,19 @@ export async function initSystemFromSetup(adapter: DatabaseAdapter): Promise<{ f
 	}
 
 	// Seed the database with default settings using database-agnostic interface
+	logger.info('📝 Step 1: Seeding settings...');
 	await seedSettings(adapter);
+	logger.info('✅ Settings seeded');
 
 	// Seed the default theme
+	logger.info('🎨 Step 2: Seeding default theme...');
 	await seedDefaultTheme(adapter);
+	logger.info('✅ Theme seeded');
 
 	// Seed default roles into database (from shared defaultRoles module)
+	logger.info('🔐 Step 3: Seeding roles...');
 	await seedRoles(adapter);
+	logger.info('✅ Roles seeded');
 
 	// Seed collections from filesystem
 	// This creates collection models in MongoDB so ContentManager can access them quickly
