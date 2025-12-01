@@ -248,6 +248,11 @@ export function composeMongoAuthAdapter(): AuthInterface {
 				await RoleModel.collection.createIndex({ tenantId: 1 });
 				await RoleModel.collection.createIndex({ tenantId: 1, _id: 1 });
 
+				// Log database connection details
+				const dbName = RoleModel.db.name;
+				const collectionName = RoleModel.collection.name;
+				logger.info(`Creating role "${role.name}" in database: "${dbName}", collection: "${collectionName}"`);
+
 				// Use insertOne directly with timestamps to ensure write is acknowledged
 				const roleWithTimestamps = {
 					...role,
@@ -268,6 +273,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
 				if (!insertedRole) {
 					throw new Error(`Role "${role.name}" was inserted but cannot be retrieved from database`);
 				}
+				logger.info(`Role "${role.name}" verified in database after insertion`);
 
 				return {
 					success: true,
