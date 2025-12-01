@@ -39,14 +39,22 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Run the full seeding process and WAIT for it to complete
 		// This is critical for CI/testing where we need roles to exist before tests run
+		logger.info('📥 Importing seeding modules...');
 		const { initSystemFromSetup } = await import('../seed');
 		const { getSetupDatabaseAdapter } = await import('../utils');
+		logger.info('✅ Modules imported');
 
 		logger.info('📦 Getting setup database adapter for seeding...');
 		const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
-		logger.info('🌱 Starting seeding of default data (settings, themes, roles, collections)...');
-		await initSystemFromSetup(dbAdapter);
-		logger.info('✅ Seeding completed successfully');
+		logger.info('✅ Database adapter obtained');
+
+		logger.info('🌱 Calling initSystemFromSetup...');
+		const result = await initSystemFromSetup(dbAdapter);
+		logger.info('✅ initSystemFromSetup completed', { result });
+
+		logger.info('========================================');
+		logger.info('✅ ALL SEEDING COMPLETED SUCCESSFULLY');
+		logger.info('========================================');
 
 		// Success message removed - "System initialization completed" already logged in seed.ts
 		// Hook will log the final completion with timing
