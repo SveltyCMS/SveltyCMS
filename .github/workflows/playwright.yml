@@ -220,12 +220,21 @@ jobs:
       - name: 🌱 Seed Test Database
         run: |
           echo "🌱 Seeding test database..."
-          bun run scripts/seed-test-db.ts
-          echo "✅ Database seeded with admin user"
+          echo "Running: bun run scripts/seed-test-db.ts"
+
+          # Run with explicit output capture
+          if bun run scripts/seed-test-db.ts 2>&1; then
+            echo "✅ Seed script completed successfully"
+          else
+            EXIT_CODE=$?
+            echo "❌ Seed script failed with exit code: $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
 
           # Give database time to flush writes and make data visible
           echo "⏳ Waiting for database to commit writes..."
           sleep 2
+          echo "✅ Database should be ready"
 
       # Restart preview server to clear any cached "database empty" state
       - name: 🔄 Restart Preview Server
