@@ -113,6 +113,26 @@ async function seedDatabase() {
 		// Wait for server restart if needed (in dev mode, Vite might restart)
 		await wait(2000);
 		await waitForServer();
+
+		// Verify roles were created by directly checking MongoDB
+		console.log('🔍 Verifying roles were created in database...');
+		try {
+			const { MongoClient } = await import('mongodb');
+			const mongoUri = `mongodb://${testDbConfig.user}:${testDbConfig.password}@${testDbConfig.host}:${testDbConfig.port}`;
+			const client = new MongoClient(mongoUri);
+			await client.connect();
+			const db = client.db(testDbConfig.name);
+			const roles = await db.collection('roles').find({}).toArray();
+			console.log(`✓ Found ${roles.length} roles in database after seeding`);
+			if (roles.length === 0) {
+				console.error('❌ WARNING: Seeding reported success but no roles found!');
+			} else {
+				console.log(`✓ Role names: ${roles.map((r: any) => r.name).join(', ')}`);
+			}
+			await client.close();
+		} catch (error) {
+			console.error('❌ Failed to verify roles:', error);
+		}
 	}
 
 	// 2. Complete Setup (Create Admin)
