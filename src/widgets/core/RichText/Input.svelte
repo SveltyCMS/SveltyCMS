@@ -36,7 +36,7 @@ Interactive Tiptap editor with toolbar and title input
 	import { contentLanguage } from '@src/stores/store.svelte';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
 
-	let { field, value, error }: { field: FieldType; value: Record<string, RichTextData> | null | undefined; error?: string | null } = $props();
+	let { field, value, error }: { field: FieldType; value: Record | null | undefined; error?: string | null } = $props();
 
 	// Determine the current language.
 	const lang = $derived(field.translated ? $contentLanguage : 'default');

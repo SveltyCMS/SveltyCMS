@@ -42,11 +42,11 @@
 	import ModalEditForm from './components/ModalEditForm.svelte';
 
 	// Props
-	const { data } = $props<{ data: PageData }>();
+	const { data } = $props();
 	const { user: serverUser, isFirstUser, isMultiTenant, is2FAEnabledGlobal } = $derived(data);
 
 	// Make user data reactive
-	const user = $derived<User>({
+	const user = $derived({
 		_id: serverUser?._id ?? '',
 		email: serverUser?.email ?? '',
 		username: serverUser?.username ?? '',

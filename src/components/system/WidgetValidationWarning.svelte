@@ -29,19 +29,7 @@ Provides clear information about the issue and actionable steps to resolve it.
 	import { logger } from '@utils/logger';
 	import Icon from '@iconify/svelte';
 
-	const {
-		collectionName = '',
-		fieldsWithIssues = [],
-		missingWidgets = [],
-		onActivateWidgets = () => {},
-		onDismiss = undefined
-	} = $props<{
-		collectionName: string;
-		fieldsWithIssues: Array<{ fieldName: string; widget: string; issue: string }>;
-		missingWidgets: string[];
-		onActivateWidgets?: () => void;
-		onDismiss?: () => void;
-	}>();
+	const { collectionName = '', fieldsWithIssues = [], missingWidgets = [], onActivateWidgets = () => {}, onDismiss = undefined } = $props();
 
 	let dismissed = $state(false);
 

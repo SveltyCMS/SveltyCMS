@@ -40,7 +40,7 @@ Features:
 	const scheduleDate = $derived(`${scheduleDateOnly}T${scheduleTimeOnly}`);
 	const isFormValid = $derived(scheduleDateOnly !== '' && scheduleTimeOnly !== '');
 
-	const actionOptions: Array<{ value: ActionType; label: string }> = [
+	const actionOptions: Array = [
 		{ value: 'publish', label: m.entrylist_multibutton_publish() },
 		{ value: 'unpublish', label: m.entrylist_multibutton_unpublish() },
 		{ value: 'delete', label: m.button_delete() }

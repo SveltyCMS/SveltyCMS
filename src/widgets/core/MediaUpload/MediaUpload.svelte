@@ -43,8 +43,8 @@ functionality for image editing and basic file information display.
 
 	// Define reactive state
 	let isFlipped = $state(false);
-	let _data = $state<File | MediaImage | undefined>(undefined); // Initialize with `undefined`
-	let validationError = $state<string | null>(null);
+	let _data = $state(undefined); // Initialize with `undefined`
+	let validationError = $state(null);
 	let debounceTimeout: number | undefined;
 	const modalStore = getModalStore();
 
@@ -68,10 +68,7 @@ functionality for image editing and basic file information display.
 	}
 
 	// Define props
-	const { field, value = (collectionValue as any)[getFieldName(field)] } = $props<{
-		field: FieldType & { path: string };
-		value?: File | MediaImage;
-	}>();
+	const { field, value = (collectionValue as any)[getFieldName(field)] } = $props();
 
 	// Define validation schema
 	import { object, string, number, union, instance, check, pipe, record, parse, type ValiError } from 'valibot';
@@ -109,8 +106,8 @@ functionality for image editing and basic file information display.
 			validationStore.clearError(getFieldName(field));
 			return null;
 		} catch (error) {
-			if ((error as ValiError<typeof widgetSchema>).issues) {
-				const valiError = error as ValiError<typeof widgetSchema>;
+			if ((error as ValiError).issues) {
+				const valiError = error as ValiError;
 				const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 				validationStore.setError(getFieldName(field), errorMessage);
 				return errorMessage;

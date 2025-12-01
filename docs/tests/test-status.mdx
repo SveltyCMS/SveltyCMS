@@ -24,12 +24,13 @@ tags:
 ## Executive Summary
 
 The testing suite has been optimized for **parallel execution** and **enterprise-grade reliability**.
+
 - **Unit Tests:** ~350 tests (Passing)
 - **Integration Tests:** ~265 tests (Mixed results)
 - **E2E Tests:** Critical flows only (Optimized)
-📝 **40 skipped tests** (placeholders or incomplete)
-⚠️ **172 failing tests** (mostly API integration and Setup middleware)  
-⚠️ **Integration tests require dev server running on port 5173**
+  📝 **40 skipped tests** (placeholders or incomplete)
+  ⚠️ **172 failing tests** (mostly API integration and Setup middleware)  
+  ⚠️ **Integration tests require dev server running on port 5173**
 
 ### Test Coverage by Category
 
@@ -498,7 +499,7 @@ bun test tests/bun/api/dashboard.test.ts -t "systemInfo"
 
 **Test Breakdown by Endpoint:**
 
-**1. POST /api/exportData (7 tests):**
+**1. POST /api/export/full (7 tests):**
 
 - ✅ Export collection data
 - ✅ Require collection name
@@ -508,7 +509,7 @@ bun test tests/bun/api/dashboard.test.ts -t "systemInfo"
 - ✅ Require authentication
 - ✅ Handle non-existent collections
 
-**2. POST /api/importData (7 tests):**
+**2. POST /api/import/full (7 tests):**
 
 - ✅ Import collection data
 - ✅ Validate import structure
@@ -1094,7 +1095,7 @@ bun test tests/bun/api/setup-utils.test.ts
 - ✅ GET /api/collections succeeds with admin token
 - ✅ GET /api/content-structure requires authentication
 - ✅ GET /api/content-structure succeeds with admin token
-- ✅ GET /api/exportData requires authentication
+- ✅ GET /api/export/full requires authentication
 - ✅ GET /api/exportData succeeds with admin token
 
 **Search Functionality (3 tests):**

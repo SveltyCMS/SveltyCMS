@@ -40,7 +40,7 @@ Part of the Three Pillars Architecture for wSidget system.
 	// Components
 	// Child component
 
-	let { field, value, error }: { field: FieldType; value: Record<string, SeoData> | null | undefined; error?: string | null } = $props();
+	let { field, value, error }: { field: FieldType; value: Record | null | undefined; error?: string | null } = $props();
 
 	// Determine the current language.
 	const lang = $derived(field.translated ? contentLanguage.value : 'default');
@@ -71,7 +71,7 @@ Part of the Three Pillars Architecture for wSidget system.
 
 	// UI State
 	let activeTab = $state(0);
-	let analysisResult = $state<any>(null); // Replace 'any' with your SeoAnalysisResult type
+	let analysisResult = $state(null); // Replace 'any' with your SeoAnalysisResult type
 
 	// Debounced analysis function.
 	const runAnalysis = debounce.create(async () => {

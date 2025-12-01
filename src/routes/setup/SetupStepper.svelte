@@ -18,17 +18,9 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 		content: string;
 	};
 
-	const dispatch = createEventDispatcher<{
-		selectStep: number;
-	}>();
+	const dispatch = createEventDispatcher();
 
-	const { steps, currentStep, stepCompleted, stepClickable, legendItems } = $props<{
-		steps: StepDef[];
-		currentStep: number;
-		stepCompleted: boolean[];
-		stepClickable: boolean[];
-		legendItems: LegendItem[];
-	}>();
+	const { steps, currentStep, stepCompleted, stepClickable, legendItems } = $props();
 
 	function handleStepClick(stepIndex: number) {
 		if (stepClickable[stepIndex] || stepIndex === currentStep) {

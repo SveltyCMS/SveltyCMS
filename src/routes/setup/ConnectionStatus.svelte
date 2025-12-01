@@ -30,11 +30,7 @@ Features:
 		};
 	};
 
-	const { state, result, onRetry } = $props<{
-		state: ConnectionState;
-		result: TestResult | null;
-		onRetry?: () => void;
-	}>();
+	const { state, result, onRetry } = $props();
 
 	function getStatusIcon(state: ConnectionState): string {
 		if (state === 'testing') return '⏳';

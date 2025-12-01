@@ -34,11 +34,11 @@ Interactive selector with "Select" button and clear functionality
 	let { field, value, error }: { field: FieldType; value: string | string[] | null | undefined; error?: string | null } = $props();
 
 	// A local, reactive copy of the full, resolved entry object for display.
-	let selectedEntry = $state<Record<string, any> | null>(null);
+	let selectedEntry = $state(null);
 	const lang = $derived($contentLanguage);
 
 	// Stub function for fetching entry data - implement with your API
-	async function fetchEntryData(_id: string): Promise<Record<string, any> | null> {
+	async function fetchEntryData(_id: string): Promise {
 		// TODO: Implement API call to fetch entry by ID
 		return null;
 	}
@@ -49,7 +49,7 @@ Interactive selector with "Select" button and clear functionality
 		if (id) {
 			// API Call: GET /api/entries/{field.collection}/{id}
 			// This fetches the data needed to display the summary.
-			fetchEntryData(id).then((entry: Record<string, any> | null) => (selectedEntry = entry));
+			fetchEntryData(id).then((entry: Record | null) => (selectedEntry = entry));
 		} else {
 			selectedEntry = null;
 		}

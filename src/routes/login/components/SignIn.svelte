@@ -35,7 +35,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import PasswordStrength from '@components/PasswordStrength.svelte';
 	// Lazy-load FloatingPaths on desktop for performance
-	let FloatingPathsComponent = $state<any>(null);
+	let FloatingPathsComponent = $state(null);
 
 	// Skeleton
 	import { showToast } from '@utils/toast';
@@ -49,23 +49,13 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Props
-	const {
-		active = $bindable(undefined),
-		onClick = () => {},
-		onPointerEnter = () => {},
-		onBack = () => {}
-	} = $props<{
-		active?: undefined | 0 | 1;
-		onClick?: () => void;
-		onPointerEnter?: () => void;
-		onBack?: () => void;
-	}>();
+	const { active = $bindable(undefined), onClick = () => {}, onPointerEnter = () => {}, onBack = () => {} } = $props();
 
 	// State management
 	let PWforgot = $state(false);
 	let PWreset = $state(false);
 	const showPassword = $state(false);
-	let formElement = $state<HTMLFormElement | null>(null);
+	let formElement = $state(null);
 	const tabIndex = $state(1);
 
 	// Pre-calculate tab indices

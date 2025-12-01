@@ -29,15 +29,7 @@ This modal			class="input text-center font-mono tracking-wider"
 	import * as m from '@src/paraglide/messages';
 
 	// Props
-	const {
-		parent,
-		title = '',
-		description = ''
-	} = $props<{
-		parent: any;
-		title?: string;
-		description?: string;
-	}>();
+	const { parent, title = '', description = '' } = $props();
 
 	const modalStore = getModalStore();
 

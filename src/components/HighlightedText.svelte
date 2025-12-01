@@ -53,7 +53,7 @@
 		const regex = highlightingRegex();
 		if (!regex) return [{ text: currentText, isHighlighted: false }];
 
-		const segments: Array<{ text: string; isHighlighted: boolean }> = [];
+		const segments: Array = [];
 		let lastIndex = 0;
 
 		currentText.replace(regex, (match, index) => {

@@ -65,19 +65,11 @@ This widget fetches and displays real-time disk usage data, including:
 		size = '1/4',
 		onSizeChange = () => {},
 		onRemove = () => {}
-	} = $props<{
-		label?: string;
-		theme?: 'light' | 'dark';
-		icon?: string;
-		widgetId?: string;
-		size?: '1/4' | '1/2' | '3/4' | 'full';
-		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
-		onRemove?: () => void;
-	}>();
+	} = $props();
 
-	let currentData = $state<any>(undefined);
-	let chartCanvas = $state<HTMLCanvasElement | undefined>(undefined);
-	let chart = $state<Chart<'bar', number[], string> | undefined>(undefined);
+	let currentData = $state(undefined);
+	let chartCanvas = $state(undefined);
+	let chart = $state(undefined);
 
 	function updateChartAction(_canvas: HTMLCanvasElement, data: any) {
 		currentData = data;

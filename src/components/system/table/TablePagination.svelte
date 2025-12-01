@@ -40,7 +40,7 @@
 		};
 		currentPage: number;
 		rowsPerPage: number;
-		filters: Record<string, string>;
+		filters: Record;
 		displayTableHeaders: TableHeader[];
 		pagesCount?: number;
 		totalItems?: number;
@@ -58,15 +58,13 @@
 		totalItems = 0,
 		onUpdatePage,
 		onUpdateRowsPerPage
-	} = $props<{
-		currentPage?: number; // Current page number
-		pagesCount?: number; // Total number of pages
-		rowsPerPage?: number; // Number of rows per page
-		rowsPerPageOptions?: number[]; // Options for rows per page
-		totalItems?: number; // Total number of items in the table
-		onUpdatePage?: (page: number) => void; // Event handler for updating the current page
-		onUpdateRowsPerPage?: (rows: number) => void; // Event handler for updating the number of rows per page
-	}>();
+	} = $props(); // Current page number
+	// Total number of pages
+	// Number of rows per page
+	// Options for rows per page
+	// Total number of items in the table
+	// Event handler for updating the current page
+	// Event handler for updating the number of rows per page
 
 	// Derived pagesCount if not provided
 	const computedPagesCount = $derived(pagesCount && pagesCount > 0 ? pagesCount : rowsPerPage > 0 ? Math.ceil(totalItems / rowsPerPage) : 1);

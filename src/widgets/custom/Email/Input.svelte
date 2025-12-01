@@ -60,7 +60,7 @@
 	const safeValue = $derived(value?.[_language] ?? '');
 	const validationError = $derived(validationStore.getError(fieldName));
 	let debounceTimeout: number | undefined;
-	let inputElement = $state<HTMLInputElement | null>(null);
+	let inputElement = $state(null);
 	let isTouched = $state(false);
 	let isValidating = $state(false);
 
@@ -93,8 +93,8 @@
 
 				validationStore.clearError(fieldName);
 			} catch (error) {
-				if ((error as ValiError<typeof emailSchema>).issues) {
-					const valiError = error as ValiError<typeof emailSchema>;
+				if ((error as ValiError).issues) {
+					const valiError = error as ValiError;
 					const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 					validationStore.setError(fieldName, errorMessage);
 				}

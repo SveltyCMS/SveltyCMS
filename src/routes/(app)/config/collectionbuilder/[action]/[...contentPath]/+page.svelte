@@ -29,6 +29,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import { page } from '$app/state';
 	import { tabSet } from '@stores/store.svelte';
 	import { collection, setCollection } from '@src/stores/collectionStore.svelte';
+	import { setRouteContext } from '@src/stores/UIStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -222,6 +223,11 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		// Set the initial tab
 		widgetStoreActions.initializeWidgets();
 		tabSet.set(0);
+	});
+
+	$effect(() => {
+		setRouteContext({ isCollectionBuilder: true });
+		return () => setRouteContext({ isCollectionBuilder: false });
 	});
 </script>
 

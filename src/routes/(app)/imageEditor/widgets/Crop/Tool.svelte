@@ -13,17 +13,17 @@ imageNode's 'crop' properties.
 	import CropRegion, { type CropShape } from './regions';
 	import { stageRectToImageRect } from './cropMath';
 
-	let cropShape = $state<CropShape>('rectangle');
+	let cropShape = $state('rectangle');
 	let aspectRatio = $state('free');
 
 	// This is the *only* region. We don't use an array for crop.
-	let region = $state<CropRegion | null>(null);
+	let region = $state(null);
 
 	// guard to avoid duplicate event bindings
 	let _toolBound = $state(false);
 
 	// Svelte 5: prefer callback props
-	const props = $props<{ onCropApplied?: () => void }>();
+	const props = $props();
 
 	// bind/unbind the tool when active state changes
 	$effect(() => {

@@ -16,14 +16,12 @@
 
 import type { DashboardWidgetConfig, Layout, SystemPreferencesDocument } from '@src/content/types';
 import type { DatabaseResult } from '@src/databases/dbInterface';
-import type { FilterQuery, Model } from 'mongoose';
+import type { Model } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
 import { nowISODateString } from '@utils/dateUtils';
 
 // System Logger
 import { logger } from '@utils/logger';
-
-// Define interface for the model with custom static methods
 interface SystemPreferencesModelType extends Model<SystemPreferencesDocument> {
 	getPreferenceByLayout(userId: string, layoutId: string): Promise<DatabaseResult<Layout | null>>;
 	setPreference(
@@ -93,7 +91,7 @@ SystemPreferencesSchema.statics = {
 	// Get preference by layoutId and userId
 	async getPreferenceByLayout(userId: string, layoutId: string): Promise<DatabaseResult<Layout | null>> {
 		try {
-			const query: FilterQuery<SystemPreferencesDocument> = { userId, layoutId, scope: 'user' };
+			const query: any = { userId, layoutId, scope: 'user' };
 			const doc = await this.findOne(query).lean().exec();
 			if (!doc) {
 				logger.debug(`No preference found for userId: ${userId}, layoutId: ${layoutId}`);
@@ -137,7 +135,7 @@ SystemPreferencesSchema.statics = {
 				warnings.push(...validatedResult.warnings);
 			}
 
-			const query: FilterQuery<SystemPreferencesDocument> = { userId, layoutId, scope: 'user' };
+			const query: any = { userId, layoutId, scope: 'user' };
 			// The _id for the document should be a combination of userId and layoutId for uniqueness
 			const documentId = `${userId}_${layoutId}`;
 			await this.updateOne(query, { $set: { layout: finalLayout, _id: documentId } }, { upsert: true }).exec();

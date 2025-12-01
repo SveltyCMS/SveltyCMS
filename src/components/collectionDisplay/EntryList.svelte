@@ -73,20 +73,16 @@ Features:
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
 	// =================================================================
+	import type { EntryListProps } from './types';
+
+	// =================================================================
+	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
+	// =================================================================
 	const {
 		entries: serverEntries = [],
 		pagination: serverPagination = { currentPage: 1, pageSize: 10, totalItems: 0, pagesCount: 1 },
 		contentLanguage: propContentLanguage
-	} = $props<{
-		entries?: any[];
-		pagination?: {
-			currentPage: number;
-			pageSize: number;
-			totalItems: number;
-			pagesCount: number;
-		};
-		contentLanguage?: string;
-	}>();
+	}: EntryListProps = $props();
 
 	// =================================================================
 	// 2. USE SERVER DATA (Simple $derived - No Client-Side State)
@@ -98,7 +94,7 @@ Features:
 	// =================================================================
 	// 3. URL-BASED NAVIGATION (Replaces All Client-Side Fetching)
 	// =================================================================
-	function updateURL(updates: Record<string, string | number | null>) {
+	function updateURL(updates: Record) {
 		const newUrl = new URL(page.url);
 		Object.entries(updates).forEach(([key, value]) => {
 			if (value === null || value === '') {
@@ -150,7 +146,7 @@ Features:
 			entryListPaginationSettings.filters = newFilters;
 
 			// Build filter URL params
-			const filterUpdates: Record<string, string | null> = {};
+			const filterUpdates: Record = {};
 			Object.entries(newFilters).forEach(([key, val]) => {
 				filterUpdates[`filter_${key}`] = val || null;
 			});
@@ -172,13 +168,13 @@ Features:
 	// =================================================================
 
 	let SelectAll = $state(false);
-	const selectedMap: Record<string, boolean> = $state({});
+	const selectedMap: Record = $state({});
 
 	// =================================================================
 	// 5. HOVER PRELOADING FOR EDIT MODE (Enterprise UX Optimization)
 	// =================================================================
-	let hoverPreloadTimeout: ReturnType<typeof setTimeout> | null = null;
-	const preloadedEntries = new Map<string, { data: any; timestamp: number; hoverCount: number }>();
+	let hoverPreloadTimeout: ReturnType | null = null;
+	const preloadedEntries = new Map();
 
 	const PRELOAD_CACHE_TTL = 30000; // ms - keep preloaded data for 30 seconds
 
@@ -187,7 +183,7 @@ Features:
 	let isPreloadEnabled = $state(true);
 
 	// Phase 2: Predictive preloading - track hover patterns
-	const hoverPatterns = new Map<string, number>(); // entryId -> hover count
+	const hoverPatterns = new Map(); // entryId -> hover count
 	const predictivePreloadQueue: string[] = [];
 
 	// Detect connection speed
@@ -303,10 +299,10 @@ Features:
 		return () => clearInterval(cleanupInterval);
 	});
 
-	function handleDndConsider(event: CustomEvent<{ items: TableHeader[] }>) {
+	function handleDndConsider(event: CustomEvent) {
 		displayTableHeaders = event.detail.items;
 	}
-	function handleDndFinalize(event: CustomEvent<{ items: TableHeader[] }>) {
+	function handleDndFinalize(event: CustomEvent) {
 		displayTableHeaders = event.detail.items;
 	}
 
@@ -320,7 +316,7 @@ Features:
 		filters: {}, // Will be populated by an effect based on tableHeaders
 		displayTableHeaders: []
 	});
-	let entryListPaginationSettings = $state<PaginationSettings>(defaultPaginationSettings(collection.value?._id ?? null));
+	let entryListPaginationSettings = $state(defaultPaginationSettings(collection.value?._id ?? null));
 
 	// Simplified stable state management
 	let showDeleted = $state(false); // Controls whether to view active or archived entries
@@ -395,7 +391,7 @@ Features:
 	// Effect to initialize/update the filters object in paginationSettings when tableHeaders change
 	$effect(() => {
 		if (tableHeaders.length > 0) {
-			const newFilters: Record<string, string> = { ...entryListPaginationSettings.filters };
+			const newFilters: Record = { ...entryListPaginationSettings.filters };
 			let filtersChanged = false;
 			for (const th of tableHeaders) {
 				if (!(th.name in newFilters)) {
@@ -414,7 +410,7 @@ Features:
 	});
 
 	// displayTableHeaders are the actual headers shown, considering user's order/visibility preferences from localStorage
-	let displayTableHeaders = $state<TableHeader[]>([]);
+	let displayTableHeaders = $state([]);
 
 	$effect(() => {
 		// Sync displayTableHeaders with settings or defaults from tableHeaders
@@ -425,7 +421,7 @@ Features:
 			if (settings.collectionId === currentCollId && Array.isArray(settings.displayTableHeaders) && settings.displayTableHeaders.length > 0) {
 				const schemaHeaderMap = new Map(tableHeaders.map((th) => [th.name, th]));
 				const reconciledHeaders: TableHeader[] = [];
-				const addedNames = new Set<string>();
+				const addedNames = new Set();
 
 				for (const savedHeader of settings.displayTableHeaders) {
 					const schemaHeader = schemaHeaderMap.get(savedHeader.name);
@@ -503,7 +499,7 @@ Features:
 		return Object.values(selectedMap).some((isSelected) => isSelected);
 	});
 
-	setModifyEntry(async (status?: keyof typeof statusMap): Promise<void> => {
+	setModifyEntry(async (status?: keyof typeof statusMap): Promise => {
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) {
 			showToast('No entries selected', 'warning');
@@ -540,7 +536,7 @@ Features:
 			.filter(Boolean);
 
 	const onCreate = async () => {
-		const newEntry: Record<string, any> = {};
+		const newEntry: Record = {};
 		if (currentCollection?.fields) {
 			for (const field of currentCollection.fields) {
 				if (typeof field === 'object' && field !== null && 'label' in field && 'type' in field) {
@@ -809,7 +805,7 @@ Features:
 								{#if Object.values(entryListPaginationSettings.filters).some((f) => f !== '')}
 									<button
 										onclick={() => {
-											const clearedFilters: Record<string, string> = {};
+											const clearedFilters: Record = {};
 											Object.keys(entryListPaginationSettings.filters).forEach((key) => (clearedFilters[key] = ''));
 											entryListPaginationSettings.filters = clearedFilters;
 										}}

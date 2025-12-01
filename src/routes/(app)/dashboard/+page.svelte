@@ -39,11 +39,11 @@
 	let dropdownOpen = $state(false);
 	let searchQuery = $state('');
 	let registryLoaded = $state(false);
-	let widgetRegistry = $state<Record<string, { component: any; name: string; description: string; icon: string; widgetMeta?: WidgetMeta }>>({});
+	let widgetRegistry = $state({});
 
 	// Lazy loading state for widgets
-	let loadedWidgets = $state<Map<string, any>>(new Map());
-	const widgetObservers = new Map<string, IntersectionObserver>();
+	let loadedWidgets = $state(new Map());
+	const widgetObservers = new Map();
 
 	let showImportExport = $state(false);
 

@@ -45,18 +45,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	type ActionType = 'edit' | 'delete' | 'block' | 'unblock';
 
 	// Popup Combobox
-	let listboxValue = $state<ActionType>('edit');
-	const {
-		selectedRows,
-		type = 'user',
-		totalUsers = 0,
-		currentUser = null
-	} = $props<{
-		selectedRows: (User | Token)[];
-		type: 'user' | 'token';
-		totalUsers?: number;
-		currentUser?: { _id: string; [key: string]: unknown } | null;
-	}>();
+	let listboxValue = $state('edit');
+	const { selectedRows, type = 'user', totalUsers = 0, currentUser = null } = $props();
 
 	// Sync local listboxValue with global store for TableIcons
 	$effect(() => {
@@ -64,7 +54,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	});
 
 	// Normalize selection to a safe array
-	const safeSelectedRows = $derived<Array<User | Token>>(Array.isArray(selectedRows) ? (selectedRows.filter(Boolean) as Array<User | Token>) : []);
+	const safeSelectedRows = $derived(Array.isArray(selectedRows) ? (selectedRows.filter(Boolean) as Array) : []);
 
 	// Derived values
 	const isDisabled = $derived(safeSelectedRows.length === 0);

@@ -20,7 +20,24 @@
 
 import type { BaseIssue, BaseSchema, InferOutput } from 'valibot';
 import type { DatabaseId, ISODateString } from './dbInterface';
-import { array, boolean, literal, maxValue, minLength, minValue, number, object, optional, pipe, safeParse, string, transform, union } from 'valibot';
+import {
+	array,
+	boolean,
+	literal,
+	maxValue,
+	minLength,
+	minValue,
+	number,
+	object,
+	optional,
+	pipe,
+	safeParse,
+	string,
+	transform,
+	union,
+	record,
+	unknown
+} from 'valibot';
 import { logger } from '@utils/logger';
 
 // ----------------- CONFIGURATION SCHEMAS -----------------
@@ -102,7 +119,15 @@ export const privateConfigSchema = object({
 
 	TWITCH_CLIENT_ID: optional(pipe(string(), minLength(1))),
 	TWITCH_TOKEN: optional(pipe(string(), minLength(1))),
-	TIKTOK_TOKEN: optional(pipe(string(), minLength(1)))
+	TIKTOK_TOKEN: optional(pipe(string(), minLength(1))),
+
+	// --- Security Configuration ---
+	FIREWALL_ENABLED: optional(boolean()),
+	FIREWALL_ALLOWED_BOTS: optional(array(string())), // Additional legitimate bot patterns
+	FIREWALL_BLOCKED_BOTS: optional(array(string())), // Additional blocked bot patterns
+
+	// --- Extensibility ---
+	CUSTOM_SETTINGS: optional(record(string(), unknown())) // Flexible object for plugin/custom settings
 });
 
 /**
@@ -173,7 +198,12 @@ export const publicConfigSchema = object({
 	LOG_ROTATION_SIZE: optional(pipe(number(), minValue(1))), // Maximum size of a log file in bytes before rotation
 	// --- Demo Mode ---
 
-	USE_GOOGLE_OAUTH: optional(boolean()) // Enable Google OAuth login on the public-facing login page
+<<<<<<< HEAD
+	DEMO: optional(boolean()), // Set to `true` to enable demo mode, which may restrict certain features
+	USE_GOOGLE_OAUTH: optional(boolean()), // Enable Google OAuth login on the public-facing login page
+
+	// --- Extensibility ---
+	CUSTOM_SETTINGS: optional(record(string(), unknown())) // Flexible object for plugin/custom settings
 });
 
 export const websiteTokenSchema = object({

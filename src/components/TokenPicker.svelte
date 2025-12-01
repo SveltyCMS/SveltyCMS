@@ -18,7 +18,7 @@
 	import type { TokenDefinition, ModifierMetadata } from '@src/services/token/types';
 
 	// Icons
-	const icons: Record<string, string> = {
+	const icons: Record = {
 		entry: 'mdi:file-document-outline',
 		user: 'mdi:account-circle-outline',
 		site: 'mdi:web',
@@ -26,18 +26,18 @@
 	};
 
 	// --- State ---
-	let mode = $state<'list' | 'configure'>('list');
+	let mode = $state('list');
 	let search = $state('');
-	let selectedToken = $state<TokenDefinition | null>(null);
-	let selectedModifiers = $state<{ def: ModifierMetadata; args: any[] }[]>([]);
+	let selectedToken = $state(null);
+	let selectedModifiers = $state([]);
 	let resolvedPreview = $state('');
 	let isLoadingPreview = $state(false);
 	let debounceTimer: any;
 
 	// Track which tokens have their info expanded in the list
-	let showInfo = $state<Record<string, boolean>>({});
+	let showInfo = $state({});
 
-	let openCategories = $state<Record<string, boolean>>({ entry: true, user: false, site: false, system: false });
+	let openCategories = $state({ entry: true, user: false, site: false, system: false });
 
 	$effect(() => {
 		if (!activeInputStore.value) {
@@ -127,7 +127,7 @@
 	// Filter Logic
 	let filteredGroups = $derived.by(() => {
 		const q = search.toLowerCase();
-		const result: Record<string, any[]> = {};
+		const result: Record = {};
 		for (const [cat, tokens] of Object.entries(groupedTokens)) {
 			const filtered = tokens.filter((t) => t.name.toLowerCase().includes(q) || t.token.toLowerCase().includes(q));
 			if (filtered.length > 0) result[cat] = filtered;

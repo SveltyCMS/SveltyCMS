@@ -19,10 +19,10 @@
 		unmetRequirements: { name: string; type: string; requirement: string }[];
 	};
 
-	let status = $state<ConfigStatus | null>(null);
+	let status = $state(null);
 	let isLoading = $state(true);
 	let isProcessing = $state(false);
-	let activeTab = $state<'sync' | 'import' | 'export' | 'debug'>('sync');
+	let activeTab = $state('sync');
 
 	// prettier counts
 	const changeSummary = $derived(() => ({
@@ -47,7 +47,7 @@
 		}
 	}
 
-	let fileToImport = $state<File | null>(null);
+	let fileToImport = $state(null);
 
 	function handleFileSelect(e: Event) {
 		const target = e.target as HTMLInputElement;

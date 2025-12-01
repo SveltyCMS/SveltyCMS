@@ -10,17 +10,9 @@ Emits `apply` with normalized coordinates { x: number, y: number } in [0,1].
 	import { createEventDispatcher } from 'svelte';
 
 	// Props
-	const {
-		stage,
-		imageNode,
-		disabled = false
-	} = $props<{
-		stage?: Konva.Stage;
-		imageNode?: Konva.Image;
-		disabled?: boolean;
-	}>();
+	const { stage, imageNode, disabled = false } = $props();
 
-	const dispatch = createEventDispatcher<{ apply: { x: number; y: number } }>();
+	const dispatch = createEventDispatcher();
 
 	// Local state
 	let containerEl: HTMLDivElement | null = null;

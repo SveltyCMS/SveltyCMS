@@ -11,14 +11,9 @@ Displays the current step title and icon, and a reset button.
 		shortDesc: string;
 	};
 
-	const dispatch = createEventDispatcher<{
-		reset: void;
-	}>();
+	const dispatch = createEventDispatcher();
 
-	const { currentStep, steps } = $props<{
-		currentStep: number;
-		steps: StepDef[];
-	}>();
+	const { currentStep, steps } = $props();
 
 	const icons = $derived(['mdi:database', 'mdi:account', 'mdi:cog', 'mdi:email', 'mdi:check-circle']);
 </script>

@@ -41,19 +41,11 @@
 		size = { w: 1, h: 1 },
 		onSizeChange = () => {},
 		onRemove = () => {}
-	} = $props<{
-		label?: string;
-		theme?: 'light' | 'dark';
-		icon?: string;
-		widgetId?: string;
-		size?: { w: number; h: number };
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onRemove?: () => void;
-	}>();
+	} = $props();
 
-	let currentData = $state<any>(undefined);
-	let chartInstance = $state<Chart | undefined>(undefined);
-	let chartCanvasElement = $state<HTMLCanvasElement | undefined>(undefined);
+	let currentData = $state(undefined);
+	let chartInstance = $state(undefined);
+	let chartCanvasElement = $state(undefined);
 
 	function updateChart(fetchedData: any) {
 		if (!chartCanvasElement) return;

@@ -224,7 +224,7 @@
 <div class="flex h-full w-full flex-col justify-between">
 	<!-- Corporate Identity -->
 	{#if isSidebarFull}
-		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 !no-underline">
+		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 !no-underline" data-sveltekit-preload-data="hover">
 			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
 			<span class="text-token relative text-2xl font-bold">
 				<SiteName highlight="CMS" />

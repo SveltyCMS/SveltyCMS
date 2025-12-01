@@ -55,17 +55,7 @@ and automated response visualization for enterprise security operations.
 		refreshInterval = 5000,
 		onSizeChange = () => {},
 		onRemove = () => {}
-	} = $props<{
-		label?: string;
-		theme?: 'light' | 'dark';
-		icon?: string;
-		widgetId?: string;
-		size?: { w: number; h: number };
-		autoRefresh?: boolean;
-		refreshInterval?: number;
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onRemove?: () => void;
-	}>();
+	} = $props();
 
 	// Security data interfaces
 	interface SecurityStats {
@@ -92,7 +82,7 @@ and automated response visualization for enterprise security operations.
 		severity: 'low' | 'medium' | 'high' | 'critical';
 		message: string;
 		ip?: string;
-		details?: Record<string, unknown>;
+		details?: Record;
 	}
 
 	interface SecurityIncident {
@@ -106,7 +96,7 @@ and automated response visualization for enterprise security operations.
 	}
 
 	// Reactive state
-	let securityStats = $state<SecurityStats>({
+	let securityStats = $state({
 		activeIncidents: 0,
 		blockedIPs: 0,
 		throttledIPs: 0,
@@ -117,10 +107,10 @@ and automated response visualization for enterprise security operations.
 		rateLimitHits: 0
 	});
 
-	let incidents = $state<SecurityIncident[]>([]);
+	let incidents = $state([]);
 	let isLoading = $state(true);
-	let error = $state<string | null>(null);
-	let refreshTimer: ReturnType<typeof setInterval> | null = null;
+	let error = $state(null);
+	let refreshTimer: ReturnType | null = null;
 
 	// Security status calculation - using $derived correctly
 	const overallThreatLevel = $derived(calculateOverallThreatLevel(securityStats));
@@ -172,7 +162,7 @@ and automated response visualization for enterprise security operations.
 	}
 
 	// Data fetching
-	async function fetchSecurityData(): Promise<void> {
+	async function fetchSecurityData(): Promise {
 		try {
 			isLoading = true;
 			error = null;
@@ -202,7 +192,7 @@ and automated response visualization for enterprise security operations.
 	}
 
 	// Incident management
-	async function resolveIncident(incidentId: string): Promise<void> {
+	async function resolveIncident(incidentId: string): Promise {
 		try {
 			const response = await fetch(`/api/security/incidents/${incidentId}/resolve`, {
 				method: 'POST',
@@ -226,7 +216,7 @@ and automated response visualization for enterprise security operations.
 		}
 	}
 
-	async function unblockIP(ip: string): Promise<void> {
+	async function unblockIP(ip: string): Promise {
 		try {
 			const response = await fetch('/api/security/unblock', {
 				method: 'POST',

@@ -29,7 +29,7 @@ Features:
 	import { targetWidget } from '@src/stores/collectionStore.svelte';
 
 	// GuiSchema is a record of field properties with their widget configs
-	type GuiSchema = Record<string, { widget?: any; [key: string]: unknown }>;
+	type GuiSchema = Record;
 
 	interface Props {
 		guiSchema: GuiSchema;

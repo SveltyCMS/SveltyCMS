@@ -305,7 +305,7 @@ updateContent();
 ```javascript
 // zapier-integration.js
 export async function syncToSveltyCMS(data) {
-	const response = await fetch('https://your-cms.com/api/importData', {
+	const response = await fetch('https://your-cms.com/api/import/full', {
 		method: 'POST',
 		headers: {
 			Authorization: `Bearer ${process.env.CMS_TOKEN}`,

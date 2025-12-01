@@ -24,6 +24,8 @@
 <script lang="ts">
 	import { logger } from '@utils/logger';
 
+	import type { TogglesProps } from './types';
+
 	let {
 		value = $bindable(false),
 		label = '',
@@ -34,7 +36,7 @@
 		disabled = false,
 		title = '',
 		onChange = undefined
-	} = $props();
+	}: TogglesProps = $props();
 
 	// Generate a unique ID for a11y
 	const id = `toggle-${Math.random().toString(36).substring(2, 9)}`;

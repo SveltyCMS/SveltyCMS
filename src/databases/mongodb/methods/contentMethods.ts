@@ -17,13 +17,13 @@
 
 import type { ContentNode, DatabaseId } from '@src/content/types';
 import { logger } from '@utils/logger';
-import type { FilterQuery } from 'mongoose';
 import type {
 	BaseEntity,
 	ContentDraft as DBContentDraft,
 	ContentRevision as DBContentRevision,
 	PaginatedResult,
-	PaginationOptions
+	PaginationOptions,
+	QueryFilter
 } from '../../dbInterface';
 import { MongoCrudMethods } from './crudMethods';
 import { createDatabaseError, generateId } from './mongoDBUtils';
@@ -111,7 +111,7 @@ export class MongoContentMethods {
 	 * Retrieves the content structure as a flat list or a hierarchical tree.
 	 * Cached with 180s TTL since structure is frequently accessed for navigation/menus
 	 */
-	async getStructure(mode: 'flat' | 'nested' = 'flat', filter: FilterQuery<ContentNode> = {}, bypassCache = false): Promise<ContentNode[]> {
+	async getStructure(mode: 'flat' | 'nested' = 'flat', filter: Partial<ContentNode> = {}, bypassCache = false): Promise<ContentNode[]> {
 		// Create cache key based on mode and filter
 		const filterKey = JSON.stringify(filter);
 		const cacheKey = `content:structure:${mode}:${filterKey}`;
@@ -316,7 +316,7 @@ export class MongoContentMethods {
 			return this.revisionsRepo.deleteMany({
 				contentId,
 				_id: { $nin: keepIds }
-			} as FilterQuery<ContentRevision>);
+			} as QueryFilter<ContentRevision>);
 		} catch (error) {
 			throw createDatabaseError(error, 'REVISION_CLEANUP_ERROR', 'Failed to cleanup old revisions.');
 		}

@@ -25,8 +25,8 @@
 	import type { User } from '@src/databases/auth/types';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
-	let tokens = $state<WebsiteToken[]>([]);
-	let users = $state<User[]>([]);
+	let tokens = $state([]);
+	let users = $state([]);
 	const userMap = $derived(new Map(users.map((u) => [u._id, u.username || u.email])));
 	let newTokenName = $state('');
 
@@ -36,7 +36,7 @@
 	let filterShow = $state(false);
 	let columnShow = $state(false);
 	let density = $state('normal');
-	let filters = $state<{ [key: string]: string }>({});
+	let filters = $state({});
 
 	// Sorting and Pagination
 	let sorting = $state({ sortedBy: 'createdAt', isSorted: -1 }); // Sort by createdAt desc by default
@@ -56,11 +56,11 @@
 	let displayTableHeaders = $state(tableHeaders.map((h) => ({ ...h, visible: true, id: `header-${h.key}` })));
 	let selectAllColumns = $state(true);
 
-	function handleDndConsider(event: CustomEvent<{ items: any[] }>) {
+	function handleDndConsider(event: CustomEvent) {
 		displayTableHeaders = event.detail.items;
 	}
 
-	function handleDndFinalize(event: CustomEvent<{ items: any[] }>) {
+	function handleDndFinalize(event: CustomEvent) {
 		displayTableHeaders = event.detail.items;
 	}
 

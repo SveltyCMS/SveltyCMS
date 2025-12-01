@@ -25,7 +25,7 @@ component
 	import ModalSelectWidget from './CollectionWidget/ModalSelectWidget.svelte';
 	import ModalWidgetForm from './CollectionWidget/ModalWidgetForm.svelte';
 
-	const props = $props<{ fields?: Field[]; handleCollectionSave: () => Promise<void> }>();
+	const props = $props();
 
 	const modalStore = getModalStore();
 
@@ -72,11 +72,11 @@ component
 	// svelte-dnd-action
 	const flipDurationMs = 300;
 
-	const handleDndConsider = (e: CustomEvent<{ items: any[] }>) => {
+	const handleDndConsider = (e: CustomEvent) => {
 		fields = e.detail.items;
 	};
 
-	const handleDndFinalize = (e: CustomEvent<{ items: any[] }>) => {
+	const handleDndFinalize = (e: CustomEvent) => {
 		fields = e.detail.items;
 	};
 

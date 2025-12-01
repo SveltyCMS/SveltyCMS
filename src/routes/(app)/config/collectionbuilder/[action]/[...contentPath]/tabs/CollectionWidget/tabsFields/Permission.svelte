@@ -19,7 +19,7 @@ Features:
 	const modalStore = getModalStore();
 
 	// Function to handle permission updates
-	function handlePermissionUpdate(updatedPermissions: Record<string, Record<PermissionAction, boolean>>) {
+	function handlePermissionUpdate(updatedPermissions: Record) {
 		const w = targetWidget.value;
 		if (!w) return;
 		w.permissions = updatedPermissions;

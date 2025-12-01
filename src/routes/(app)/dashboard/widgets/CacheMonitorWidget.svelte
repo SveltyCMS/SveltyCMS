@@ -41,12 +41,7 @@
 				hitRate: number;
 			};
 		};
-		recentMisses?: Array<{
-			key: string;
-			category: string;
-			tenantId?: string;
-			timestamp: string;
-		}>;
+		recentMisses?: Array;
 		timestamp: number;
 	}
 
@@ -58,15 +53,7 @@
 		size = { w: 2, h: 3 },
 		onSizeChange = () => {},
 		onRemove = () => {}
-	} = $props<{
-		label?: string;
-		theme?: 'light' | 'dark';
-		icon?: string;
-		widgetId?: string;
-		size?: { w: number; h: number };
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onRemove?: () => void;
-	}>();
+	} = $props();
 
 	// Apply defaults for monitoring category
 	const defaults = getWidgetDefaults('monitoring', widgetId);
@@ -84,7 +71,7 @@
 	}
 
 	function getCategoryIcon(category: string): string {
-		const icons: Record<string, string> = {
+		const icons: Record = {
 			SCHEMA: 'mdi:database-outline',
 			WIDGET: 'mdi:widgets-outline',
 			THEME: 'mdi:palette-outline',

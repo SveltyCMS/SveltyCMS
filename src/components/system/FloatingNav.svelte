@@ -141,10 +141,10 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	});
 
 	// Refs
-	let firstLine = $state<SVGLineElement | undefined>(undefined);
-	let firstCircle = $state<HTMLElement | undefined>(undefined);
-	let svg = $state<SVGElement | undefined>(undefined);
-	const circles = $state<(HTMLElement | undefined)[]>([]);
+	let firstLine = $state(undefined);
+	let firstCircle = $state(undefined);
+	let svg = $state(undefined);
+	const circles = $state([]);
 
 	// Popup ID
 	const NAV_POPUP_ID = 'floatingNavTooltip';
@@ -219,7 +219,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		}
 	}
 
-	async function handleResize(): Promise<void> {
+	async function handleResize(): Promise {
 		if (!browser) return;
 
 		const MIN_X = BUTTON_RADIUS + EDGE_MARGIN;
@@ -246,7 +246,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		setTimeout(() => firstCircle?.focus?.(), 0);
 	}
 
-	async function toggleMenuOpen(): Promise<void> {
+	async function toggleMenuOpen(): Promise {
 		if (!showRoutes) {
 			center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 			await tick();
@@ -331,7 +331,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			const DISTANCES = [buttonInfo.x, window.innerWidth - buttonInfo.x, buttonInfo.y, window.innerHeight - buttonInfo.y];
 
 			const NEAREST_EDGE_INDEX = DISTANCES.indexOf(Math.min(...DISTANCES));
-			let promise: Promise<void> = Promise.resolve();
+			let promise: Promise = Promise.resolve();
 
 			switch (NEAREST_EDGE_INDEX) {
 				case 0: // Left edge

@@ -51,24 +51,14 @@
 		onRemove = () => {},
 		endpoint = '/api/dashboard/logs',
 		pollInterval = 15000
-	} = $props<{
-		label?: string;
-		theme?: 'light' | 'dark';
-		icon?: string;
-		widgetId?: string;
-		size?: { w: number; h: number };
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onRemove?: () => void;
-		endpoint?: string;
-		pollInterval?: number;
-	}>();
+	} = $props();
 
 	// Internal state for logs data
 	let currentPage = $state(1);
 	let logsPerPage = $state(20); // Default logs per page
 
 	// Filter states
-	let filterLevel = $state<'all' | 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace'>('all');
+	let filterLevel = $state('all');
 	let searchText = $state('');
 	let startDate: string = $state(''); // YYYY-MM-DD
 	let endDate: string = $state(''); // YYYY-MM-DD

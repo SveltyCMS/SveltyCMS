@@ -32,6 +32,7 @@
 
 	// Stores
 	import { setCollectionValue, setMode, setContentStructure, contentStructure } from '@src/stores/collectionStore.svelte';
+	import { setRouteContext } from '@src/stores/UIStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -71,17 +72,17 @@
 	// It's initialized from `data.contentStructure` and updated by DnD operations.
 	let currentConfig: ContentNode[] = $state(data.contentStructure);
 	// `nodesToSave` stores operations (create, update, move, rename) that need to be persisted to the backend.
-	let nodesToSave = $state<Record<string, ContentNodeOperation>>({});
+	let nodesToSave = $state({});
 
 	// State for UI feedback
 	let isLoading = $state(false);
-	let apiError = $state<string | null>(null);
+	let apiError = $state(null);
 
 	/**
 	 * Opens the modal for adding or editing a category.
 	 * @param existingCategory Optional Partial<DndItem> if editing an existing category.
 	 */
-	function modalAddCategory(existingCategory?: Partial<DndItem>): void {
+	function modalAddCategory(existingCategory?: Partial): void {
 		const modalComponent: ModalComponent = {
 			ref: ModalCategory,
 			props: {
@@ -238,7 +239,6 @@
 		}
 	}
 
-	// Navigates to the new collection creation page.
 	function handleAddCollectionClick(): void {
 		setMode('create');
 		setCollectionValue({
@@ -251,6 +251,11 @@
 		});
 		goto('/config/collectionbuilder/new');
 	}
+
+	$effect(() => {
+		setRouteContext({ isCollectionBuilder: true });
+		return () => setRouteContext({ isCollectionBuilder: false });
+	});
 </script>
 
 <PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config" />
