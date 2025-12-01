@@ -108,7 +108,12 @@ async function seedDatabase() {
 			throw new Error(`Failed to seed configuration: ${err}`);
 		}
 	} else {
+		const responseData = await seedRes.json();
 		console.log('✓ Configuration seeded');
+		console.log(`  API Response: ${JSON.stringify(responseData)}`);
+		if (responseData.rolesCreated !== undefined) {
+			console.log(`  ✓ API reports ${responseData.rolesCreated} roles created`);
+		}
 
 		// Wait for server restart if needed (in dev mode, Vite might restart)
 		await wait(2000);

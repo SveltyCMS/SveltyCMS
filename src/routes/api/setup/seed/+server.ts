@@ -56,13 +56,24 @@ export const POST: RequestHandler = async ({ request }) => {
 		logger.info('✅ ALL SEEDING COMPLETED SUCCESSFULLY');
 		logger.info('========================================');
 
+		// Verify roles were created by checking database
+		let rolesCreated = 0;
+		try {
+			const roles = await dbAdapter.auth.getAllRoles();
+			rolesCreated = roles ? roles.length : 0;
+			logger.info(`✅ Verified ${rolesCreated} roles exist in database after seeding`);
+		} catch (error) {
+			logger.error('Failed to verify roles after seeding:', error);
+		}
+
 		// Success message removed - "System initialization completed" already logged in seed.ts
 		// Hook will log the final completion with timing
 
 		return json({
 			success: true,
-			message: 'Database initialized successfully! ✨',
-			firstCollection // Return first collection info for faster redirect
+			message: `Database initialized successfully! ✨ (${rolesCreated} roles created)`,
+			firstCollection, // Return first collection info for faster redirect
+			rolesCreated // Add this for debugging
 		});
 	} catch (error) {
 		const errorDetails = {
