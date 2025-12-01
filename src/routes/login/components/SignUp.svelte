@@ -35,6 +35,7 @@ Features:
 
 	// Screen size store
 	import { isDesktop } from '@stores/screenSizeStore.svelte';
+	import type { SvelteComponent } from 'svelte';
 
 	// Props
 	const {
@@ -56,11 +57,11 @@ Features:
 	// State management
 	const tabIndex = $state(1);
 	let response = $state(undefined);
-	let formElement = $state(null);
+	let formElement: HTMLFormElement | null = $state(null);
 	let showPassword = $state(false);
 	let isSubmitting = $state(false);
 	let isRedirecting = $state(false);
-	let FloatingPathsComponent = $state(null);
+	let FloatingPathsComponent: typeof SvelteComponent | null = $state(null);
 
 	// Pre-calculate tab indices
 	const usernameTabIndex = 1;
@@ -196,7 +197,7 @@ Features:
 		const isActiveSignUp = active === 1;
 		if (browser && desktop && isActiveSignUp) {
 			import('@root/src/components/system/FloatingPaths.svelte').then((m) => {
-				FloatingPathsComponent = m.default;
+				FloatingPathsComponent = m.default as typeof SvelteComponent;
 			});
 		} else {
 			FloatingPathsComponent = null;
