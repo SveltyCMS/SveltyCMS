@@ -203,9 +203,21 @@ jobs:
           cp config/private.test.ts config/private.ts
           echo "✅ Created config/private.ts"
 
+      # Also create config/private.ts temporarily for build
+      - name: Copy config for build
+        run: |
+          cp config/private.test.ts config/private.ts
+          echo "✅ Copied config/private.ts for build"
+
       # Build production version for faster, optimized testing
       - name: Build Production
         run: bun run build
+
+      # Delete config/private.ts so seed script will recreate it and trigger full seeding
+      - name: Remove config to trigger seeding
+        run: |
+          rm -f config/private.ts
+          echo "✅ Removed config/private.ts to trigger fresh seeding"
 
       # --- START PREVIEW SERVER FOR SEEDING (PORT 4173) ---
       - name: Start Preview Server (for seeding)
