@@ -37,24 +37,16 @@ export const POST: RequestHandler = async ({ request }) => {
 		const firstCollection = collections.length > 0 ? { name: collections[0].name, path: collections[0].path, _id: collections[0]._id } : null;
 		logger.info(`Found ${collections.length} collections. First collection for redirect: ${firstCollection?.name} (ID: ${firstCollection?._id})`);
 
-		// Run the full seeding process in the background
+		// Run the full seeding process and WAIT for it to complete
+		// This is critical for CI/testing where we need roles to exist before tests run
 		const { initSystemFromSetup } = await import('../seed');
 		const { getSetupDatabaseAdapter } = await import('../utils');
 
-		const seedProcess = async () => {
-			try {
-				logger.info('📦 Getting setup database adapter for background seeding...');
-				const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
-				logger.info('🌱 Starting background seeding of default data (settings, themes, collections)...');
-				await initSystemFromSetup(dbAdapter);
-			} catch (seedError) {
-				logger.error('❌ Background seeding process failed:', seedError);
-			}
-		};
-		seedProcess(); // Fire-and-forget
-
-		// Return response immediately
-		logger.info('✅ Immediately returning response while seeding continues in background.');
+		logger.info('📦 Getting setup database adapter for seeding...');
+		const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
+		logger.info('🌱 Starting seeding of default data (settings, themes, roles, collections)...');
+		await initSystemFromSetup(dbAdapter);
+		logger.info('✅ Seeding completed successfully');
 
 		// Success message removed - "System initialization completed" already logged in seed.ts
 		// Hook will log the final completion with timing
