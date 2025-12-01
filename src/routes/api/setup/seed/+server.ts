@@ -45,8 +45,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		logger.info('✅ Modules imported');
 
 		logger.info('📦 Getting setup database adapter for seeding...');
-		const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
+		logger.info(`   Config: ${dbConfig.type}://${dbConfig.host}:${dbConfig.port}/${dbConfig.name}`);
+		const { dbAdapter, connectionString } = await getSetupDatabaseAdapter(dbConfig);
 		logger.info('✅ Database adapter obtained');
+		logger.info(`   Connection: ${connectionString.replace(/:[^:@]+@/, ':***@')}`);
 
 		logger.info('🌱 Calling initSystemFromSetup...');
 		const result = await initSystemFromSetup(dbAdapter);
@@ -58,10 +60,25 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Verify roles were created by checking database
 		let rolesCreated = 0;
+		let roleNames: string[] = [];
 		try {
 			const roles = await dbAdapter.auth.getAllRoles();
 			rolesCreated = roles ? roles.length : 0;
+			roleNames = roles ? roles.map((r: any) => r.name || r._id) : [];
 			logger.info(`✅ Verified ${rolesCreated} roles exist in database after seeding`);
+			logger.info(`   Role names: ${roleNames.join(', ')}`);
+
+			// Also verify directly via MongoDB to compare
+			const { MongoClient } = await import('mongodb');
+			const directClient = new MongoClient(connectionString);
+			await directClient.connect();
+			const db = directClient.db(dbConfig.name);
+			const directRoles = await db.collection('roles').find({}).toArray();
+			logger.info(`   Direct MongoDB check: ${directRoles.length} roles in '${dbConfig.name}' database`);
+			if (directRoles.length !== rolesCreated) {
+				logger.error(`   ❌ MISMATCH! Adapter sees ${rolesCreated} roles, MongoDB sees ${directRoles.length} roles`);
+			}
+			await directClient.close();
 		} catch (error) {
 			logger.error('Failed to verify roles after seeding:', error);
 		}
