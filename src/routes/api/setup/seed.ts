@@ -120,7 +120,11 @@ export async function seedRoles(dbAdapter: DatabaseAdapter): Promise<void> {
 				};
 
 				logger.info(`Creating role: ${role.name} (${role._id}) with ${roleToCreate.permissions.length} permissions`);
-				await dbAdapter.auth.createRole(roleToCreate);
+				const result = await dbAdapter.auth.createRole(roleToCreate);
+				if (!result.success) {
+					logger.error(`❌ Failed to create role "${role.name}":`, result);
+					throw new Error(`Role creation returned success=false: ${result.message ||'Unknown error'}`);
+				}
 				seededCount++;
 				logger.info(`✅ Role "${role.name}" seeded successfully`);
 			} catch (error) {
