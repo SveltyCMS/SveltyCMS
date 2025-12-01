@@ -16,30 +16,25 @@
 	 * Shows metrics from DatabaseResilience system.
 	 */
 	import BaseWidget from '../BaseWidget.svelte';
-	import { getWidgetDefaults } from './widgetDefaults';
-
-	interface Props {
-		label?: string;
-		theme?: 'light' | 'dark';
-		icon?: string;
-		widgetId?: string;
-		size?: { w: number; h: number };
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onRemove?: () => void;
-	}
+	import type { WidgetSize } from '@src/content/types';
 
 	const {
 		label = 'Connection Pool',
 		theme = 'light',
 		icon = 'mdi:database-cog',
 		widgetId = undefined,
-		size = { w: 2, h: 3 },
-		onSizeChange = () => {},
+		size = { w: 2, h: 3 } as WidgetSize,
+		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {}
-	}: Props = $props();
-
-	// Apply defaults for monitoring category
-	const defaults = getWidgetDefaults('monitoring', widgetId);
+	}: {
+		label?: string;
+		theme?: 'light' | 'dark';
+		icon?: string;
+		widgetId?: string;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
+		onRemove?: () => void;
+	} = $props();
 
 	/**
 	 * Get status color based on health
@@ -95,7 +90,6 @@
 	pollInterval={30000}
 	{widgetId}
 	onCloseRequest={onRemove}
-	{...defaults}
 >
 	{#snippet children({ data: diagnostics, isLoading, error })}
 		{#if isLoading && !diagnostics}

@@ -22,49 +22,19 @@
 -->
 
 <script lang="ts">
-	export interface TableHeader {
-		label: string;
-		name: string;
-		id: string;
-		visible: boolean;
-		width?: number;
-		sortable?: boolean;
-	}
-
-	export interface PaginationSettings {
-		collectionId: string | null;
-		density: 'compact' | 'normal' | 'comfortable';
-		sorting: {
-			sortedBy: string;
-			isSorted: 0 | 1 | -1;
-		};
-		currentPage: number;
-		rowsPerPage: number;
-		filters: Record;
-		displayTableHeaders: TableHeader[];
-		pagesCount?: number;
-		totalItems?: number;
-	}
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Props with default values
 	let {
-		currentPage = $bindable(1),
+		currentPage = $bindable(),
 		pagesCount = 1,
-		rowsPerPage = $bindable(10),
+		rowsPerPage = $bindable(),
 		rowsPerPageOptions = [5, 10, 25, 50, 100, 500],
 		totalItems = 0,
 		onUpdatePage,
 		onUpdateRowsPerPage
-	} = $props(); // Current page number
-	// Total number of pages
-	// Number of rows per page
-	// Options for rows per page
-	// Total number of items in the table
-	// Event handler for updating the current page
-	// Event handler for updating the number of rows per page
+	} = $props();
 
 	// Derived pagesCount if not provided
 	const computedPagesCount = $derived(pagesCount && pagesCount > 0 ? pagesCount : rowsPerPage > 0 ? Math.ceil(totalItems / rowsPerPage) : 1);

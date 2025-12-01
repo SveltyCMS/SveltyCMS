@@ -351,6 +351,7 @@
 								: 'px-1.5 py-0'}"
 							onclick={toggleLanguageDropdown}
 							aria-label="Select language"
+							data-testid="language-selector"
 							aria-expanded={isDropdownOpen}
 						>
 							<span>{languageTag}</span>

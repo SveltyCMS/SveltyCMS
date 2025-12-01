@@ -20,8 +20,8 @@
 	const availableLanguages: string[] = [...systemLocales];
 
 	// Real-time validation state
-	let localValidationErrors = $state({});
-	let touchedFields = $state(new Set());
+	let localValidationErrors = $state<Record<string, string>>({});
+	let touchedFields = $state(new Set<string>());
 
 	const validationResult = $derived(
 		safeParse(systemSettingsSchema, {
@@ -151,8 +151,8 @@
 	}
 
 	// Derived available suggestions
-	let systemAvailable = $state([]);
-	let contentAvailable = $state([]);
+	let systemAvailable = $state<string[]>([]);
+	let contentAvailable = $state<{ code: string; name: string; native: string }[]>([]);
 	$effect(() => {
 		systemAvailable = availableLanguages.filter(
 			(l: string) => !systemSettings.systemLanguages.includes(l) && l.toLowerCase().includes(systemPickerSearch.toLowerCase())

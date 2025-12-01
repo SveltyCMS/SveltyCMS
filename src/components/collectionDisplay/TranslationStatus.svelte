@@ -32,7 +32,7 @@
 	import { quintOut } from 'svelte/easing';
 
 	// Portal container for dropdown
-	let portalTarget = $state(null);
+	let portalTarget = $state<HTMLElement | null>(null);
 
 	onMount(() => {
 		// Create portal container at body level for dropdown
@@ -52,12 +52,6 @@
 			portalTarget.parentNode.removeChild(portalTarget);
 		}
 	});
-
-	// Types
-	interface CompletionTotals {
-		total: number;
-		translated: number;
-	}
 
 	// State
 	let isOpen = $state(false);
@@ -87,7 +81,7 @@
 
 	// Calculate language-specific progress
 	const languageProgress = $derived.by(() => {
-		const progress: Record = {};
+		const progress: Record<string, number> = {};
 		const currentProgress = translationProgress.value;
 
 		for (const lang of availableLanguages) {
@@ -125,7 +119,7 @@
 		let hasTranslatableFields = false;
 
 		for (const lang of availableLanguages) {
-			const newTotalSet = new Set(); // <-- 1. Create a fresh, empty Set for 'total'
+			const newTotalSet = new Set<string>(); // <-- 1. Create a fresh, empty Set for 'total'
 
 			for (const field of currentCollection.fields as { translated?: boolean; label: string }[]) {
 				if (field.translated) {
@@ -139,7 +133,7 @@
 			//    and a new, empty 'translated' set.
 			newProgress[lang] = {
 				total: newTotalSet,
-				translated: new Set() // <-- 4. MUST create a new, empty 'translated' set
+				translated: new Set<string>() // <-- 4. MUST create a new, empty 'translated' set
 			};
 		}
 
@@ -148,7 +142,10 @@
 	}
 
 	// Update translation progress from field values
-	function updateTranslationProgressFromFields(currentCollection: { fields: unknown[]; name?: unknown }, currentCollectionValue: Record): void {
+	function updateTranslationProgressFromFields(
+		currentCollection: { fields: unknown[]; name?: unknown },
+		currentCollectionValue: Record<string, any>
+	): void {
 		const newProgress = { ...translationProgress.value }; // 1. Shallow copy the top-level store
 		let hasUpdates = false;
 
@@ -166,7 +163,7 @@
 					const dbFieldName = getFieldName(field, false);
 
 					// Check if the field has a value for this language
-					const fieldValue = currentCollectionValue[dbFieldName] as Record | undefined;
+					const fieldValue = currentCollectionValue[dbFieldName] as Record<string, any> | undefined;
 					const langValue = fieldValue?.[lang];
 
 					const isTranslated = isFieldTranslated(langValue);
@@ -314,8 +311,8 @@
 
 	// Effects
 	// This tracks the ENTRY ID, not the collection ID
-	let lastEntryId = $state(undefined);
-	let lastCollectionId = $state(undefined);
+	let lastEntryId = $state<string | undefined>(undefined);
+	let lastCollectionId = $state<string | undefined>(undefined);
 
 	$effect(() => {
 		const currentCollection = collection.value;
@@ -369,7 +366,7 @@
 	let lastCollectionValueStr = $state('');
 	$effect(() => {
 		const currentCollection = collection.value;
-		const currentCollectionValue = collectionValue.value as Record;
+		const currentCollectionValue = collectionValue.value as Record<string, any>;
 
 		if (currentCollection?.fields && currentCollectionValue && Object.keys(currentCollectionValue).length > 0 && isInitialized) {
 			// Only update if data actually changed

@@ -1,6 +1,10 @@
-// @file: src/routes/(app)/imageEditor/widgets/FineTune/filters/customFilters.ts
-// One-line: Custom pixel-level filter logic for exposure, shadows, clarity.
-
+/**
+ * @file src/routes/(app)/imageEditor/widgets/FineTune/filters/customFilters.ts
+ * @description Custom pixel-level filter logic for exposure, shadows, clarity.
+ *
+ * Features:
+ * - Custom pixel-level filter logic for exposure, shadows, clarity.
+ */
 import type { Adjustments } from './adjustments';
 
 /**

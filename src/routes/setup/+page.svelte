@@ -55,8 +55,7 @@ calls store methods and wires store state to child components.
 	let currentLanguageTag = $state(getLocale());
 
 	// --- 4. LIFECYCLE HOOKS ---
-			const modalComponentRegistry: Record<string, any> = {		welcomeModal: { ref: WelcomeModal }
-	};
+	const modalComponentRegistry: Record<string, any> = { welcomeModal: { ref: WelcomeModal } };
 	const modalStore = getModalStore();
 
 	onMount(() => {

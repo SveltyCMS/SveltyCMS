@@ -140,7 +140,7 @@ Key features:
 							<TableIcons
 								cellClass="w-10 text-center"
 								checked={selectedFiles.has(file.filename)}
-								onCheck={(checked) => handleSelection(file, checked)}
+								onCheck={(checked: boolean) => handleSelection(file, checked)}
 							/>
 							<td>
 								{#if file?.filename && file?.path && file?.hash}
@@ -203,10 +203,10 @@ Key features:
 					{pagesCount}
 					totalItems={filteredFiles.length}
 					rowsPerPageOptions={[5, 10, 25, 50, 100]}
-					onUpdatePage={(page) => {
+					onUpdatePage={(page: number) => {
 						currentPage = page;
 					}}
-					onUpdateRowsPerPage={(rows) => {
+					onUpdateRowsPerPage={(rows: number) => {
 						rowsPerPage = rows;
 						currentPage = 1;
 					}}

@@ -14,11 +14,11 @@
 	// Component
 	import PageTitle from '@components/PageTitle.svelte';
 
-	let selectedTheme = $state(null);
-	let livePreviewTheme = $state(null);
+	let selectedTheme = $state<any | null>(null);
+	let livePreviewTheme = $state<any | null>(null);
 
 	// This will hold the custom themes
-	let customThemes = $state([]);
+	let customThemes = $state<Theme[]>([]);
 
 	// Load custom themes dynamically
 	loadCustomThemes();

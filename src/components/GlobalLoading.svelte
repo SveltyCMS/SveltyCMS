@@ -35,7 +35,7 @@
 	function getLoadingText(): LoadingText {
 		const reason = globalLoadingStore.loadingReason;
 
-		const loadingTextMap: Record = {
+		const loadingTextMap: Record<string, LoadingText> = {
 			[loadingOperations.navigation]: {
 				top: m.loading_navigation_top(),
 				bottom: m.loading_navigation_bottom()

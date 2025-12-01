@@ -1,4 +1,15 @@
-// src/routes/(app)/imageEditor/widgets/Annotate/draw.ts
+/**
+ * @file src/routes/(app)/imageEditor/widgets/Annotate/draw.ts
+ * @description Draw tools for Konva
+ *
+ * Features:
+ * - Text
+ * - Rectangle
+ * - Circle
+ * - Line
+ * - Arrow
+ */
+
 import Konva from 'konva';
 
 /** Create a Text node ready for editing */

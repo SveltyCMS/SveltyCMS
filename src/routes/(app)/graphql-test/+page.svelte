@@ -15,7 +15,7 @@
 	import { createClient } from 'graphql-ws';
 
 	let posts: any[] = $state([]);
-	let error = $state(null);
+	let error: any = $state(null);
 
 	onMount(() => {
 		const client = createClient({

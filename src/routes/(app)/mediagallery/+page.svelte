@@ -49,8 +49,10 @@ Displays a collection of media files (images, documents, audio, video) with:
 	// Initialize modal store
 	const modalStore = getModalStore();
 
+	import type { PageData } from './$types';
+
 	// Props using runes
-	const { data = { user: { role: '', _id: '', avatar: '' }, media: [], systemVirtualFolders: [], currentFolder: null } } = $props();
+	let { data }: { data: PageData } = $props();
 
 	// State using runes
 	let files: (MediaBase | MediaImage)[] = $state([]);
@@ -163,7 +165,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	}
 
 	// Computed safe table size (MediaTable doesn't support 'tiny')
-	const safeTableSize = $derived(tableSize === 'tiny' ? 'small' : tableSize);
+	const safeTableSize = $derived(tableSize);
 
 	// Initialize component with runes
 	// Run once on mount to set up initial data
@@ -181,7 +183,10 @@ Displays a collection of media files (images, documents, audio, video) with:
 		}
 
 		if (data && data.media) {
-			files = data.media;
+			files = data.media.map((m: any) => ({
+				...m,
+				user: typeof m.user === 'object' && m.user ? m.user._id : m.user
+			})) as (MediaBase | MediaImage)[];
 		}
 
 		// Load user preferences
@@ -326,7 +331,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	}
 
 	// Memoized fetch for media files
-	let lastSystemFolderId = $state(null);
+	let lastSystemFolderId = $state<string | null>(null);
 	async function fetchMediaFiles(forceRefresh = false) {
 		const folderId = currentSystemVirtualFolder ? currentSystemVirtualFolder._id : 'root';
 

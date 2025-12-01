@@ -33,13 +33,13 @@ All dynamic CMS settings organized into logical groups
 	const isAdmin = data.isAdmin;
 
 	//  Use $state for all component state
-	let selectedGroupId = $state(null);
+	let selectedGroupId: string | null = $state(null);
 	let currentGroupHasUnsavedChanges = $state(false);
-	let availableGroups = $state([]);
+	let availableGroups: SettingGroup[] = $state([]);
 	let searchTerm = $state('');
 
 	// Track which groups need configuration
-	const groupsNeedingConfig = writable(new Set());
+	const groupsNeedingConfig = writable<Set<string>>(new Set());
 	let unconfiguredCount = $state(0);
 
 	// Subscribe to changes in groups needing config
@@ -105,7 +105,7 @@ All dynamic CMS settings organized into logical groups
 
 	// Check all groups for empty fields on page load
 	async function checkAllGroupsForEmptyFields() {
-		const groupsWithEmptyFields = new Set();
+		const groupsWithEmptyFields = new Set<string>();
 
 		// Check each available group
 		for (const group of availableGroups) {

@@ -8,14 +8,16 @@ Emits `apply` with normalized coordinates { x: number, y: number } in [0,1].
 	import { onMount } from 'svelte';
 	import { createEventDispatcher } from 'svelte';
 
+	import Konva from 'konva';
+
 	// Props
-	const { stage, imageNode, disabled = false } = $props();
+	const { stage, imageNode, disabled = false }: { stage?: Konva.Stage; imageNode?: Konva.Image; disabled?: boolean } = $props();
 
 	const dispatch = createEventDispatcher();
 
 	// Local state
-	let containerEl: HTMLDivElement | null = null;
-	const crosshair = $state({ x: 0.5, y: 0.5 });
+	let containerEl = $state<HTMLDivElement | null>(null);
+	const crosshair = $state<{ x: number; y: number }>({ x: 0.5, y: 0.5 });
 	let hasPoint = $state(false);
 
 	function setFromClientPosition(clientX: number, clientY: number) {

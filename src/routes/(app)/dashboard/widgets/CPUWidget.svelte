@@ -28,7 +28,8 @@
 	import { CategoryScale, Chart, Filler, LinearScale, LineController, LineElement, PointElement, Tooltip } from 'chart.js';
 	import 'chartjs-adapter-date-fns';
 	import { onDestroy, onMount } from 'svelte';
-	import BaseWidget, { type WidgetSize } from '../BaseWidget.svelte';
+	import BaseWidget from '../BaseWidget.svelte';
+	import type { WidgetSize } from '@src/content/types';
 
 	// Register Chart.js components
 	Chart.register(LineController, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
@@ -38,8 +39,8 @@
 		theme = 'light',
 		icon = 'mdi:cpu-64-bit',
 		widgetId = undefined,
-		size = { w: 1, h: 1 },
-		onSizeChange = (newSize: WidgetSize) => {},
+		size = { w: 1, h: 1 } as WidgetSize,
+		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {}
 	}: {
 		label?: string;

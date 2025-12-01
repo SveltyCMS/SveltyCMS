@@ -41,20 +41,16 @@ and automated response visualization for enterprise security operations.
 	import { logger } from '@utils/logger';
 	import BaseWidget from '../BaseWidget.svelte';
 	import { getToastStore } from '@skeletonlabs/skeleton';
+	import type { WidgetSize } from '@src/content/types';
 
 	const toastStore = getToastStore();
-
-	interface WidgetSize {
-		w: number;
-		h: number;
-	}
 
 	const {
 		label = 'Security Monitor',
 		theme = 'light',
 		icon = 'mdi:shield-alert',
 		widgetId = undefined,
-		size = { w: 3, h: 3 },
+		size = { w: 3, h: 3 } as WidgetSize,
 		autoRefresh = true,
 		refreshInterval = 5000,
 		onSizeChange = (_newSize: WidgetSize) => {},

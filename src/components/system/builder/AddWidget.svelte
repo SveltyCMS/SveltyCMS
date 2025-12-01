@@ -20,12 +20,15 @@
 		selected_widget = $bindable(null),
 		field = $bindable({
 			label: '',
-			widget: { key: null as string | null, GuiFields: {} as Record }
+			db_fieldName: '',
+			translated: false,
+			required: false,
+			widget: { key: null as string | null, GuiFields: {} as Record<string, any> }
 		})
 	}: AddWidgetProps = $props();
 
 	const widget_keys = Object.keys($widgetFunctions);
-	let guiSchema = $state(undefined);
+	let guiSchema = $state<WidgetFunction['GuiSchema'] | undefined>(undefined);
 
 	$effect(() => {
 		if (selected_widget) {
@@ -38,7 +41,8 @@
 		if (!selected_widget) return;
 		field.widget = { key: selected_widget, GuiFields: field.widget.GuiFields };
 		field.label = field.widget.GuiFields.label;
-		fields = [...fields, field];
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		fields = [...fields, field as any];
 		addField = false;
 	}
 

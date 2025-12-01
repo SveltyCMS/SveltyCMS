@@ -51,12 +51,14 @@
 	import { activeInputStore } from '@src/stores/activeInputStore.svelte';
 	import { validateTokenSyntax, containsTokens } from '@src/services/token/tokenUtils';
 
+	import type { WidgetFunction } from '@widgets/types';
+
 	// Eager load all widget components for immediate use in Fields
-	const modules: Record = import.meta.glob('/src/widgets/**/*.svelte', {
+	const modules: Record<string, any> = import.meta.glob('/src/widgets/**/*.svelte', {
 		eager: true
 	});
 
-	let widgetFunctions = $state({});
+	let widgetFunctions: Record<string, WidgetFunction> = $state({});
 	$effect(() => {
 		const unsubscribe = widgetFunctionsStore.subscribe((value) => {
 			widgetFunctions = value;
@@ -70,15 +72,15 @@
 	const {
 		fields,
 		revisions = []
-		// contentLanguage prop received but not directly used - widgets access contentLanguage store
-	}: FieldsProps = $props(); // Passed for documentation, widgets use store directly
+		// contentLanguage: propContentLanguage // Rename to avoid conflict with store
+	}: FieldsProps = $props();
 
 	// --- 2. SIMPLIFIED STATE ---
 	let localTabSet = $state(0);
 	let apiUrl = $state('');
 
 	// This is form state, not fetched data, so it remains.
-	let currentCollectionValue = $state({});
+	let currentCollectionValue: Record<string, any> = $state({});
 
 	// Revisions State (now simpler)
 	let selectedRevisionId = $state('');
@@ -184,7 +186,7 @@
 	// When collectionValue changes (new entry loaded), update local state
 	// When local state changes (user editing), update global state
 	$effect(() => {
-		const global = collectionValue.value as Record | undefined;
+		const global = collectionValue.value as Record<string, any> | undefined;
 		const globalId = (global as any)?._id;
 
 		// When a new entry is loaded (different ID), pull from global -> local
@@ -193,7 +195,7 @@
 			currentCollectionValue = { ...global } as any;
 			lastEntryId = globalId;
 			// Set initial snapshot for change tracking
-			dataChangeStore.setInitialSnapshot(global as Record);
+			dataChangeStore.setInitialSnapshot(global as Record<string, any>);
 			return;
 		}
 
@@ -202,13 +204,13 @@
 			logger.debug('Initializing new entry');
 			currentCollectionValue = { ...global } as any;
 			// Set initial snapshot for change tracking
-			dataChangeStore.setInitialSnapshot(global as Record);
+			dataChangeStore.setInitialSnapshot(global as Record<string, any>);
 			return;
 		}
 
 		// Otherwise, push local changes to global (user is editing)
 		// Use untrack to read currentCollectionValue without creating a dependency loop
-		const local = untrack(() => currentCollectionValue) as Record | undefined;
+		const local = untrack(() => currentCollectionValue) as Record<string, any> | undefined;
 		if (local && Object.keys(local).length > 0) {
 			const currentDataStr = JSON.stringify(local);
 			const globalDataStr = JSON.stringify(global ?? {});
@@ -216,7 +218,7 @@
 				logger.debug('Pushing local changes to global store');
 				untrack(() => setCollectionValue({ ...local }));
 				// Track changes for save button state
-				dataChangeStore.compareWithCurrent(local as Record);
+				dataChangeStore.compareWithCurrent(local as Record<string, any>);
 			}
 		}
 	});
@@ -245,7 +247,7 @@
 			if (localStr !== globalStr) {
 				untrack(() => setCollectionValue({ ...currentCollectionValue }));
 				// Track changes for save button state
-				dataChangeStore.compareWithCurrent(currentCollectionValue as Record);
+				dataChangeStore.compareWithCurrent(currentCollectionValue as Record<string, any>);
 			}
 		}
 	});

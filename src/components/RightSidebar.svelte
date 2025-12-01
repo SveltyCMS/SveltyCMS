@@ -54,7 +54,7 @@ This component provides a streamlined interface for managing collection entries 
 	import Toggles from './system/inputs/Toggles.svelte';
 
 	// Define a clearer type for the entry data
-	type EntryData = Record;
+	type EntryData = Record<string, any>;
 
 	const modalStore = getModalStore();
 
@@ -166,7 +166,7 @@ This component provides a streamlined interface for managing collection entries 
 	// --- Effects ---
 
 	// Subscribe to saveLayerStore for potential 'next' actions
-	let nextAction = $state(null);
+	let nextAction = $state<(() => void) | null>(null);
 	$effect(() => {
 		const unsubscribe = saveLayerStore.subscribe((value) => {
 			nextAction = value; // Store the function directly
@@ -180,7 +180,7 @@ This component provides a streamlined interface for managing collection entries 
 	const handleCloneEntry = () => cloneCurrentEntry();
 	const handleDeleteEntry = () => deleteCurrentEntry(modalStore, isAdmin);
 
-	async function handleStatusToggle(newValue: boolean): Promise {
+	async function handleStatusToggle(newValue: boolean): Promise<boolean> {
 		if (newValue === isPublished || isLoading) {
 			return false; // No change or already processing
 		}

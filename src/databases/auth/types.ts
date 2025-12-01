@@ -59,6 +59,8 @@ export interface User {
 	permissions: string[]; // Set of permissions associated with the user
 	googleRefreshToken?: string | null; // Stores the refresh token from Google OAuth for token revocation on logout.
 	isAdmin?: boolean; // Indicates if the user has admin privileges
+	activeSessions?: number; // Number of active sessions
+	lastAccess?: ISODateString; // Last access timestamp
 }
 
 // Role Interface

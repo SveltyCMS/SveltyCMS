@@ -12,12 +12,12 @@ handles drawing, applies/bakes effects, and registers toolbar.
 
 	// reactive tool state (Svelte 5 runes)
 	let blurStrength = $state(20);
-	let pattern = $state('blur');
-	let shape = $state('rectangle');
-	let regions = $state([]);
+	let pattern = $state<BlurPattern>('blur');
+	let shape = $state<BlurShape>('rectangle');
+	let regions = $state<BlurRegion[]>([]);
 	let drawing = $state(false);
-	let startPoint = $state(null);
-	let activeId = $state(null);
+	let startPoint = $state<any | null>(null);
+	let activeId = $state<string | null>(null);
 
 	// guard to avoid duplicate event bindings
 	let _toolBound = $state(false);
@@ -97,7 +97,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 	}
 
 	// deselect all regions when clicking outside overlays
-	function handleStageClick(e: Konva.KonvaEventObject) {
+	function handleStageClick(e: Konva.KonvaEventObject<MouseEvent>) {
 		const { stage, imageNode, imageGroup } = imageEditorStore.state;
 		const t = e.target;
 		if (!stage) return;
@@ -108,7 +108,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 	}
 
 	// begin drawing a new region when pointer is on stage or base image
-	function handleMouseDown(e: Konva.KonvaEventObject) {
+	function handleMouseDown(e: Konva.KonvaEventObject<MouseEvent>) {
 		const { stage, imageNode, imageGroup } = imageEditorStore.state;
 		const t = e.target;
 		if (!stage) return;
@@ -151,7 +151,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 	}
 
 	// create a new region and wire lifecycle hooks
-	function createRegion(init?: Partial) {
+	function createRegion(init?: Partial<RegionInit>) {
 		const { stage, layer, imageNode, imageGroup } = imageEditorStore.state;
 		if (!stage || !layer || !imageNode || !imageGroup) return;
 
@@ -251,7 +251,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 
 		// load baked image and swap into main imageNode
 		const newImage = new Image();
-		await new Promise((res) => {
+		await new Promise<void>((res) => {
 			newImage.onload = () => res();
 			newImage.src = dataURL;
 		});

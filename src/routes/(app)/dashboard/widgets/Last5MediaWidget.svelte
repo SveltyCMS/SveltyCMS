@@ -28,11 +28,7 @@
 <script lang="ts">
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import BaseWidget from '../BaseWidget.svelte';
-
-	interface WidgetSize {
-		w: number;
-		h: number;
-	}
+	import type { WidgetSize } from '@src/content/types';
 
 	interface MediaFile {
 		id: string;
@@ -51,7 +47,7 @@
 		theme = 'light',
 		icon = 'mdi:image-multiple-outline',
 		widgetId = undefined,
-		size = { w: 1, h: 1 },
+		size = { w: 1, h: 1 } as WidgetSize,
 		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {}
 	}: {

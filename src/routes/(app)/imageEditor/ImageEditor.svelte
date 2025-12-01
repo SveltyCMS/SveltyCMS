@@ -54,7 +54,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 
 	// Local state
 	let selectedImage: string = '';
-	let containerRef: HTMLDivElement | undefined = $state();
+	let containerRef = $state<HTMLDivElement | undefined>(undefined);
 	let isMobile = $state(false);
 	let isTablet = $state(false);
 

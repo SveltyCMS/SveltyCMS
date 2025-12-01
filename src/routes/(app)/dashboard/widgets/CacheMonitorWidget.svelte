@@ -16,7 +16,8 @@
 
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
-	import { getWidgetDefaults } from './widgetDefaults';
+
+	import type { WidgetSize } from '@src/content/types';
 
 	interface CacheMetrics {
 		overall: {
@@ -41,22 +42,27 @@
 				hitRate: number;
 			};
 		};
-		recentMisses?: Array;
+		recentMisses?: Array<any>;
 		timestamp: number;
 	}
 
 	const {
 		label = 'Cache Monitor',
-		theme = 'light',
+		theme = 'light' as 'light' | 'dark',
 		icon = 'mdi:database-clock',
 		widgetId = undefined,
-		size = { w: 2, h: 3 },
-		onSizeChange = () => {},
+		size = { w: 2, h: 3 } as WidgetSize,
+		onSizeChange = (_newSize: any) => {},
 		onRemove = () => {}
+	}: {
+		label?: string;
+		theme?: 'light' | 'dark';
+		icon?: string;
+		widgetId?: string;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
+		onRemove?: () => void;
 	} = $props();
-
-	// Apply defaults for monitoring category
-	const defaults = getWidgetDefaults('monitoring', widgetId);
 
 	function getHitRateColor(hitRate: number): string {
 		if (hitRate >= 90) return 'text-success-500';
@@ -71,7 +77,7 @@
 	}
 
 	function getCategoryIcon(category: string): string {
-		const icons: Record = {
+		const icons: Record<string, string> = {
 			SCHEMA: 'mdi:database-outline',
 			WIDGET: 'mdi:widgets-outline',
 			THEME: 'mdi:palette-outline',
@@ -96,7 +102,6 @@
 	{size}
 	{onSizeChange}
 	onCloseRequest={onRemove}
-	{...defaults}
 >
 	{#snippet children({ data })}
 		{@const metrics = data as CacheMetrics | null}

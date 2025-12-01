@@ -29,13 +29,8 @@ This widget fetches and displays the latest content items, including:
 
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
-
 	import { formatDistanceToNow } from 'date-fns';
-
-	interface WidgetSize {
-		w: number;
-		h: number;
-	}
+	import type { WidgetSize } from '@src/content/types';
 
 	interface ContentItem {
 		id: string;
@@ -53,7 +48,7 @@ This widget fetches and displays the latest content items, including:
 		theme = 'light',
 		icon = 'mdi:file-document-multiple-outline',
 		widgetId = undefined,
-		size = { w: 1, h: 1 },
+		size = { w: 1, h: 1 } as WidgetSize,
 		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {}
 	}: {

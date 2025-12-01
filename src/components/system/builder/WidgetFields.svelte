@@ -37,13 +37,13 @@
 	const { fields = [], onFieldsUpdate = () => {} } = $props();
 
 	// State
-	let container = $state(null);
-	let currentFieldKey = $state(null);
-	let currentField = $state(null);
+	let container: HTMLDivElement | null = $state(null);
+	let currentFieldKey: string | null = $state(null);
+	let currentField: FieldInstance | null = $state(null);
 
 	function initDragAndDrop(node: HTMLElement) {
 		function drag(e: PointerEvent) {
-			let timeOut: ReturnType | undefined;
+			let timeOut: ReturnType<typeof setTimeout> | undefined;
 			const pointerID = e.pointerId;
 
 			let targets = $state(
@@ -199,7 +199,7 @@
 </div>
 
 {#if currentField}
-	<AddWidget {fields} field={currentField} addField={false} selected_widget={currentFieldKey} editField={true} />
+	<AddWidget {fields} field={currentField as any} addField={false} selected_widget={currentFieldKey} editField={true} />
 {/if}
 
 <!-- Edit individual selected widget  -->

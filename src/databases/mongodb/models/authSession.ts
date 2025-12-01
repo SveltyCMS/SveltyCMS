@@ -438,7 +438,7 @@ export class SessionAdapter {
 				// Stage 1: Find the session by its ID (UUID string)
 				{ $match: { _id: session_id } },
 				// Stage 2: Check for expiration
-				{ $match: { expires: { $gt: new Date().toISOString() } } },
+				{ $match: { expires: { $gt: new Date() } } },
 				// Stage 3: "Join" with the auth_users collection (both using UUID strings)
 				{
 					$lookup: {

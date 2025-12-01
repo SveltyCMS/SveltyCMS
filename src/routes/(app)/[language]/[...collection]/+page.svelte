@@ -63,7 +63,7 @@
 	let isSavingDraft = $state(false);
 
 	// Track when we last received server data to avoid overwriting client-side language changes
-	let lastServerLanguage = $state(undefined);
+	let lastServerLanguage: string | undefined = $state(undefined);
 
 	// Track if we've initialized validation for the current create session
 	let validationInitialized = $state(false);
@@ -145,8 +145,8 @@
 	// 2. Manual URL changes (user types in address bar)
 	// 3. Language changes in edit mode (URL language prefix changes but ?edit=id stays same)
 
-	let lastUrlString = $state('');
-	let lastEditParam = $state(null);
+	let lastUrlString: string = $state('');
+	let lastEditParam: string | null = $state(null);
 	let hasInitiallyLoaded = $state(false);
 
 	$effect(() => {
@@ -174,7 +174,7 @@
 			lastUrlString = currentUrl;
 
 			setMode('create');
-			const newEntry: Record = {};
+			const newEntry: Record<string, any | null> = {};
 			const fields = collection.value?.fields || [];
 
 			// Initialize empty entry
@@ -237,7 +237,7 @@
 			} else if (parsed.mode === 'create') {
 				// Create mode (URL change while already loaded)
 				setMode('create');
-				const newEntry: Record = {};
+				const newEntry: Record<string, any | null> = {};
 				const fields = collection.value?.fields || [];
 
 				// Initialize empty entry with null values
@@ -300,7 +300,7 @@
 	});
 
 	// Auto-save draft function
-	async function autoSaveDraft(): Promise {
+	async function autoSaveDraft(): Promise<boolean> {
 		if (isSavingDraft) return false;
 
 		isSavingDraft = true;

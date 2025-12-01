@@ -51,18 +51,18 @@
 		totalImported: number;
 		totalSkipped: number;
 		totalErrors: number;
-		results: Array;
+		results: Array<any>;
 	}
 
 	// --- State using Svelte 5 Runes ---
-	let collections = $state([]);
+	let collections = $state<Collection[]>([]);
 	let loading = $state(false);
 	let showExportModal = $state(false);
 	let showImportModal = $state(false);
 	let showResultsModal = $state(false);
 
 	// Export state
-	const exportOptions = $state({
+	const exportOptions = $state<ExportOptions>({
 		format: 'json',
 		collections: [],
 		includeMetadata: true,
@@ -73,16 +73,16 @@
 	let exportLimitString = $state('');
 
 	// Import state
-	const importOptions = $state({
+	const importOptions = $state<ImportOptions>({
 		format: 'json',
 		overwrite: false,
 		validate: true,
 		skipInvalid: true,
 		batchSize: 100
 	});
-	let importFiles = $state(null);
+	let importFiles = $state<FileList | null>(null);
 	let importProgress = $state(0);
-	let importResult = $state(null);
+	let importResult = $state<ImportResult | null>(null);
 	let importBatchSizeString = $state('100');
 
 	// Sync string and number values
@@ -181,7 +181,7 @@
 			}, 100);
 
 			// Export each collection individually
-			const exportData: Record = {};
+			const exportData: Record<string, any> = {};
 
 			for (let i = 0; i < exportOptions.collections.length; i++) {
 				const collectionId = exportOptions.collections[i];

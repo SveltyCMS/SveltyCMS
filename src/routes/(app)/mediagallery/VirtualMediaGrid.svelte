@@ -25,7 +25,7 @@ Implements custom virtual scrolling without external dependencies.
 <script lang="ts">
 	import { formatBytes } from '@utils/utils';
 
-	import type { MediaImage } from '@utils/media/mediaModels';
+	import type { MediaImage, MediaBase } from '@utils/media/mediaModels';
 	import { popup } from '@skeletonlabs/skeleton';
 	import { onMount } from 'svelte';
 
@@ -85,7 +85,7 @@ Implements custom virtual scrolling without external dependencies.
 	}
 
 	// Batch operations
-	function toggleSelection(file: MediaImage) {
+	function toggleSelection(file: MediaBase | MediaImage) {
 		const fileId = file._id?.toString() || file.filename;
 		if (selectedFiles.has(fileId)) {
 			selectedFiles.delete(fileId);
@@ -103,7 +103,7 @@ Implements custom virtual scrolling without external dependencies.
 		selectedFiles = new Set();
 	}
 
-	function handleDelete(file: MediaImage) {
+	function handleDelete(file: MediaBase | MediaImage) {
 		ondeleteImage(file);
 	}
 
@@ -286,7 +286,7 @@ Implements custom virtual scrolling without external dependencies.
 							<section class="flex items-center justify-center p-2">
 								{#if file?.filename && file?.url}
 									<img
-										src={file.thumbnails?.sm?.url ?? file.url ?? '/static/Default_User.svg'}
+										src={('thumbnails' in file ? file.thumbnails?.sm?.url : undefined) ?? file.url ?? '/static/Default_User.svg'}
 										alt={file.filename}
 										class={`rounded object-cover ${
 											gridSize === 'tiny' ? 'h-16 w-16' : gridSize === 'small' ? 'h-24 w-24' : gridSize === 'medium' ? 'h-48 w-48' : 'h-80 w-80'

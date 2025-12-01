@@ -28,8 +28,8 @@ async function loadPrivateConfig(forceReload = false) {
 			logger.debug('Loading @config/private configuration...');
 			let module;
 			if (process.env.TEST_MODE) {
-				const path = '@config/private.test';
-				module = await import(path);
+				const path = ' @config/private.test';
+				module = await import(/* @vite-ignore */ path);
 			} else {
 				module = await import('@config/private');
 			}
@@ -213,7 +213,7 @@ export async function loadSettingsFromDB() {
 				let imported;
 				if (process.env.TEST_MODE) {
 					const path = '@config/private.test';
-					imported = await import(path);
+					imported = await import(/* @vite-ignore */ path);
 				} else {
 					imported = await import('@config/private');
 				}

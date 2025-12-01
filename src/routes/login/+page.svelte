@@ -86,7 +86,7 @@ Features:
 	let isDropdownOpen = $state(false);
 	let searchInput: HTMLInputElement | null = $state(null);
 	let isTransitioning = $state(false);
-	let debounceTimeout: number | undefined = $state();
+	let debounceTimeout: ReturnType<typeof setTimeout> | undefined = $state();
 
 	// Derived state using $derived rune
 	const availableLanguages = $derived([...availableLocales].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))));

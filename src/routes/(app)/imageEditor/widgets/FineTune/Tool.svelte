@@ -45,11 +45,11 @@ Orchestrates the filter modules:
 						return activeAdjustment;
 					},
 					get value() {
-						return adjustments[activeAdjustment];
+						return adjustments[activeAdjustment as keyof Adjustments];
 					},
 					// ---
 					onChange: (value: number) => {
-						adjustments[activeAdjustment] = value;
+						adjustments[activeAdjustment as keyof Adjustments] = value;
 					},
 					onAdjustmentChange: (key: keyof Adjustments) => {
 						activeAdjustment = key;
@@ -167,7 +167,7 @@ Orchestrates the filter modules:
 
 		// 3. Load the baked image
 		const newImage = new Image();
-		await new Promise((res) => {
+		await new Promise<void>((res) => {
 			newImage.onload = () => res();
 			newImage.src = dataURL;
 		});

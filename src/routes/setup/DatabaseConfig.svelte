@@ -40,10 +40,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	let showAtlasHelper = $state(true); // Collapsible Atlas helper
 
 	// Track which fields have been touched (blurred)
-	let touchedFields = $state(new Set());
+	let touchedFields = $state(new Set<string>());
 
 	// Real-time validation state (always computed, but only shown for touched fields)
-	let localValidationErrors = $state({});
+	let localValidationErrors = $state<ValidationErrors>({});
 
 	// Validate form data in real-time
 	const validationResult = $derived(

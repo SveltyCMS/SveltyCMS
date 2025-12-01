@@ -30,11 +30,11 @@ It provides functionality to:
 
 	// Reactive state
 	const error = $state(null);
-	let currentAdminRole = $state(null);
-	let currentAdminName = $state(null);
-	let selectedAdminRole = $state(null);
+	let currentAdminRole: string | null = $state(null);
+	let currentAdminName: string | null = $state(null);
 	let isSaving = $state(false);
-	let notification = $state(null);
+	let notification: string | null = $state(null); // Explicitly type as string | null
+	let selectedAdminRole: string | null = $state(null);
 
 	// Derived state for computed values
 	const availableRoles = $derived(roleData.filter((role: Role) => role._id !== currentAdminRole));

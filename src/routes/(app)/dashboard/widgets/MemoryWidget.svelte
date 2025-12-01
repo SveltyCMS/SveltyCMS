@@ -36,7 +36,8 @@ Features:
 	import type { ChartConfiguration, Plugin } from 'chart.js';
 	import { ArcElement, Chart, PieController, Tooltip } from 'chart.js';
 	import { onDestroy } from 'svelte';
-	import BaseWidget, { type WidgetSize } from '../BaseWidget.svelte';
+	import BaseWidget from '../BaseWidget.svelte';
+	import type { WidgetSize } from '@src/content/types';
 
 	Chart.register(PieController, ArcElement, Tooltip);
 
@@ -56,8 +57,8 @@ Features:
 		theme = 'light',
 		icon = 'mdi:memory',
 		widgetId = undefined,
-		size = { w: 1, h: 2 },
-		onSizeChange = (newSize: WidgetSize) => {},
+		size = { w: 1, h: 2 } as WidgetSize,
+		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {}
 	}: {
 		label?: string;

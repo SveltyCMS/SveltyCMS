@@ -53,11 +53,6 @@
 		id: string;
 	}
 
-	interface SortingState {
-		sortedBy: string;
-		isSorted: number; // 1: asc, -1: desc, 0: none
-	}
-
 	// Props - Using API for scalability
 	const { currentUser = null, isMultiTenant = false, roles = [] } = $props();
 
@@ -555,11 +550,12 @@
 
 	function handleInputChange(value: string, headerKey: string) {
 		if (value) {
+			const newFilters: Record<string, string | undefined> = { ...filters, [headerKey]: value };
 			waitFilter(() => {
-				filters = { ...filters, [headerKey]: value };
+				filters = newFilters;
 			});
 		} else {
-			const newFilters = { ...filters };
+			const newFilters: Record<string, string | undefined> = { ...filters };
 			delete newFilters[headerKey];
 			filters = newFilters;
 		}
@@ -742,10 +738,7 @@
 					<tbody>
 						{#each tableData as row, index (isUser(row) ? row._id : isToken(row) ? row.token : index)}
 							{@const expiresVal: string | Date | null = isToken(row) ? row.expires : null}
-							{@const isExpired =
-								showUsertoken &&
-								expiresVal &&
-								(new Date(expiresVal) < new Date())}
+							{@const isExpired = showUsertoken && expiresVal && new Date(expiresVal) < new Date()}
 							<tr
 								class="divide-x divide-surface-400 {isExpired ? 'bg-error-50 opacity-60 dark:bg-error-900/20' : ''} {showUsertoken
 									? 'cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-800'
@@ -839,11 +832,7 @@
 											</div>
 										{:else if ['createdAt', 'updatedAt', 'lastAccess', 'expires'].includes(header.key)}
 											{@const dateKey = header.key as 'createdAt' | 'updatedAt' | 'lastAccess' | 'expires'}
-											{@const dateValue = isUser(row)
-												? row[dateKey as keyof User]
-												: isToken(row)
-													? row[dateKey as keyof Token]
-													: undefined}
+											{@const dateValue = isUser(row) ? row[dateKey as keyof User] : isToken(row) ? row[dateKey as keyof Token] : undefined}
 											{formatDate(dateValue)}
 										{:else if header.key === 'expires'}
 											{#if isToken(row) && header.key === 'expires' && row.expires}

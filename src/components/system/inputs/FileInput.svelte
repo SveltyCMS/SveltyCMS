@@ -28,7 +28,7 @@
 	let { value = $bindable(), multiple = $bindable(false), show = $bindable(true), className = '', onChange } = $props();
 
 	// Declare reactive state with $state
-	let input = $state(null);
+	let input: HTMLInputElement | null = $state(null);
 	let showMedia = $state(false);
 
 	// Handle media selection

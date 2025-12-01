@@ -25,7 +25,6 @@ rather than bundling all widgets upfront.
 -->
 
 <script lang="ts">
-	import type { FieldInstance } from '@src/content/types';
 	import { onMount } from 'svelte';
 	import { logger } from '@utils/logger';
 
@@ -34,9 +33,9 @@ rather than bundling all widgets upfront.
 	let { loader, field, WidgetData = {}, value = $bindable(), tenantId }: WidgetLoaderProps = $props();
 
 	// Component state
-	let Component: any = $state(null);
+	let Component = $state<any>(null);
 	let loading = $state(true);
-	let error = $state(null);
+	let error = $state<Error | null>(null);
 
 	// Load the widget component asynchronously
 	async function loadComponent() {

@@ -48,7 +48,7 @@
 		total: number;
 		limit: number;
 		start: number;
-		collections: Record;
+		collections: Record<string, IconLibrary>;
 		request: {
 			query: string;
 			limit: number;
@@ -66,15 +66,15 @@
 	let { iconselected = $bindable(), searchQuery = $bindable('') }: Props = $props();
 
 	// State
-	let icons = $state([]);
+	let icons = $state<string[]>([]);
 	let currentPage = $state(0);
 	let selectedLibrary = $state(DEFAULT_LIBRARY);
-	let iconLibraries = $state({});
+	let iconLibraries = $state<Record<string, IconLibrary>>({});
 	let showDropdown = $state(false);
 	let isLoading = $state(false);
 	let isLoadingLibraries = $state(false);
-	let searchError = $state(null);
-	let debounceTimer: ReturnType | null = null;
+	let searchError = $state<string | null>(null);
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 	// Derived values
 	const hasIcons = $derived(icons.length > 0);
@@ -107,7 +107,7 @@
 	}
 
 	// Fetch icons from Iconify API
-	async function searchIcons(query: string, library: string): Promise {
+	async function searchIcons(query: string, library: string): Promise<void> {
 		if (!query.trim()) {
 			icons = [];
 			isLoading = false;
@@ -151,7 +151,7 @@
 	}
 
 	// Fetch available icon libraries
-	async function fetchIconLibraries(): Promise {
+	async function fetchIconLibraries(): Promise<void> {
 		if (librariesLoaded || isLoadingLibraries) return;
 
 		isLoadingLibraries = true;
@@ -164,7 +164,7 @@
 				throw new Error(`Failed to fetch libraries: ${response.status}`);
 			}
 
-			const data: Record = await response.json();
+			const data: Record<string, IconLibrary> = await response.json();
 			iconLibraries = data;
 		} catch (error) {
 			logger.error('Error fetching icon libraries:', error);

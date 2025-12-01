@@ -363,3 +363,39 @@ export const SENSITIVE_PATTERNS = ['PASSWORD', 'SECRET', 'TOKEN', 'KEY', 'CLIENT
 // For now, use string to allow dynamic collection names
 
 export type ContentTypes = 'Names' | 'Relation' | 'WidgetTest' | 'Menu' | 'Posts';
+
+export type SortOrder = 0 | 1 | -1; // Strict type for sort order
+
+export interface TableHeader {
+	label: string;
+	name: string;
+	id: string;
+	visible: boolean;
+	width?: number;
+	sortable?: boolean;
+}
+
+export interface PaginationSettings {
+	collectionId: string | null;
+	density: 'compact' | 'normal' | 'comfortable';
+	sorting: {
+		sortedBy: string;
+		isSorted: SortOrder;
+	};
+	currentPage: number;
+	rowsPerPage: number;
+	filters: Record<string, string>;
+	displayTableHeaders: TableHeader[];
+	pagesCount?: number;
+	totalItems?: number;
+}
+
+export interface TablePaginationProps {
+	currentPage: number;
+	pagesCount?: number;
+	rowsPerPage: number;
+	rowsPerPageOptions?: number[];
+	totalItems?: number;
+	onUpdatePage?: (page: number) => void;
+	onUpdateRowsPerPage?: (rows: number) => void;
+}

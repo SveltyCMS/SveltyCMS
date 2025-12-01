@@ -22,10 +22,10 @@ Orchestrates the annotation lifecycle:
 	import { names } from './events';
 
 	// --- Svelte 5 State ---
-	let transformer: Konva.Transformer | null = $state(null);
-	let annotations: AnnotationItem[] = $state([]);
-	let selected: AnnotationItem | null = $state(null);
-	let currentTool: AnnotationKind | null = $state(null);
+	let transformer = $state<Konva.Transformer | null>(null);
+	let annotations = $state<AnnotationItem[]>([]);
+	let selected = $state<AnnotationItem | null>(null);
+	let currentTool = $state<AnnotationKind | null>(null);
 	let strokeColor = $state('#ff0000');
 	let fillColor = $state('transparent');
 	let strokeWidth = $state(2);
@@ -33,14 +33,14 @@ Orchestrates the annotation lifecycle:
 
 	// Drawing state machine
 	let isDrawing = $state(false);
-	let tempNode: Konva.Node | null = $state(null);
-	let startPos: { x: number; y: number } | null = $state(null);
+	let tempNode = $state<Konva.Node | null>(null);
+	let startPos = $state<{ x: number; y: number } | null>(null);
 
 	// guard to avoid duplicate event bindings
 	let _toolBound = $state(false);
 
 	// Svelte 5: use callback props via $props
-	const props = $props();
+	const props: { onAnnotateApplied?: () => void; onAnnotateReset?: () => void } = $props();
 
 	// --- Lifecycle $effect ---
 	$effect(() => {
@@ -133,7 +133,7 @@ Orchestrates the annotation lifecycle:
 	}
 
 	// --- Drawing Handlers ---
-	function onMouseDown(e: Konva.KonvaEventObject) {
+	function onMouseDown(e: Konva.KonvaEventObject<MouseEvent>) {
 		// Don't draw if clicking on existing node
 		if (e.target !== e.target.getStage()) return;
 
@@ -205,7 +205,7 @@ Orchestrates the annotation lifecycle:
 		imageEditorStore.state.layer?.batchDraw();
 	}
 
-	function onStageClick(e: Konva.KonvaEventObject) {
+	function onStageClick(e: Konva.KonvaEventObject<MouseEvent>) {
 		if (isDrawing || currentTool) return;
 		// Deselect if clicking on stage background
 		if (e.target === e.target.getStage()) {
@@ -213,7 +213,7 @@ Orchestrates the annotation lifecycle:
 		}
 	}
 
-	function onDblClick(e: Konva.KonvaEventObject) {
+	function onDblClick(e: Konva.KonvaEventObject<MouseEvent>) {
 		const node = e.target;
 		if (node instanceof Konva.Text) {
 			const item = annotations.find((a) => a.node === node);
@@ -312,7 +312,7 @@ Orchestrates the annotation lifecycle:
 
 		// 3. Load the baked image
 		const newImage = new Image();
-		await new Promise((res) => {
+		await new Promise<void>((res) => {
 			newImage.onload = () => res();
 			newImage.src = dataURL;
 		});

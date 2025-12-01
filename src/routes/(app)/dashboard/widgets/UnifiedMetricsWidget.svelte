@@ -40,19 +40,14 @@ for comprehensive system monitoring and performance analysis.
 	import { onMount, onDestroy } from 'svelte';
 	import { logger } from '@utils/logger';
 	import BaseWidget from '../BaseWidget.svelte';
-
-	// Props
-	interface WidgetSize {
-		w: number;
-		h: number;
-	}
+	import type { WidgetSize } from '@src/content/types';
 
 	const {
 		label = 'System Metrics',
 		theme = 'light',
 		icon = 'mdi:chart-donut',
 		widgetId = undefined,
-		size = { w: 2, h: 3 },
+		size = { w: 2, h: 3 } as WidgetSize,
 		showDetails = true,
 		autoRefresh = true,
 		refreshInterval = 3000,

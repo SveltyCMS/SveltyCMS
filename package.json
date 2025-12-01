@@ -41,7 +41,7 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio"
 	},
-	"license": "MIT",
+	"license": "BUSL-1.1",
 	"homepage": "https://SveltyCMS.com",
 	"repository": {
 		"type": "git",
@@ -110,7 +110,7 @@
 		"postcss": "^8.5.6",
 		"prettier": "3.6.2",
 		"prettier-plugin-svelte": "^3.4.0",
-		"prettier-plugin-tailwindcss": "^0.7.1",
+		"prettier-plugin-tailwindcss": "^0.7.2",
 		"semantic-release": "^25.0.2",
 		"svelte": "^5.45.2",
 		"svelte-awesome-color-picker": "^4.1.0",
@@ -124,7 +124,7 @@
 		"tslib": "^2.8.1",
 		"typescript-eslint": "^8.48.0",
 		"valibot": "^1.2.0",
-		"vite": "^7.2.4",
+		"vite": "^7.2.6",
 		"vite-bundle-visualizer": "^1.2.1",
 		"wait-on": "^9.0.3"
 	},

@@ -34,7 +34,7 @@ Interactive selector with "Select" button and clear functionality
 	let { field, value, error }: { field: FieldType; value: string | string[] | null | undefined; error?: string | null } = $props();
 
 	// A local, reactive copy of the full, resolved entry object for display.
-	let selectedEntry = $state(null);
+	let selectedEntry = $state<Record<string, any> | null>(null);
 	const lang = $derived($contentLanguage);
 
 	// Stub function for fetching entry data - implement with your API

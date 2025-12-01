@@ -10,19 +10,25 @@ Features:
 
 <script lang="ts">
 	// sanitizePermissions function moved to component - simplified implementation
-	function sanitizePermissions(permissions: Record) {
-		const res = Object.entries(permissions).reduce((acc, [role, actions]) => {
-			const nonEmptyActions = Object.entries(actions).reduce((actionAcc, [action, value]) => {
-				if (value !== false) {
-					actionAcc[action] = value;
+	function sanitizePermissions(permissions: Record<string, Record<string, boolean>>) {
+		const res = Object.entries(permissions).reduce(
+			(acc, [role, actions]) => {
+				const nonEmptyActions = Object.entries(actions).reduce(
+					(actionAcc, [action, value]) => {
+						if (value !== false) {
+							actionAcc[action] = value;
+						}
+						return actionAcc;
+					},
+					{} as Record<string, boolean>
+				);
+				if (Object.keys(nonEmptyActions).length > 0) {
+					acc[role] = nonEmptyActions;
 				}
-				return actionAcc;
-			}, {} as Record);
-			if (Object.keys(nonEmptyActions).length > 0) {
-				acc[role] = nonEmptyActions;
-			}
-			return acc;
-		}, {} as Record);
+				return acc;
+			},
+			{} as Record<string, Record<string, boolean>>
+		);
 		return Object.keys(res).length === 0 ? undefined : res;
 	}
 	import { createEventDispatcher } from 'svelte';

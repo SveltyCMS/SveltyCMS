@@ -24,7 +24,7 @@ functionality for image editing and basic file information display.
 
 <script lang="ts">
 	import type { ISODateString } from '@src/content/types';
-	import { convertTimestampToDateString, getFieldName, meta_data } from '@utils/utils';
+	import { convertTimestampToDateString, getFieldName } from '@utils/utils';
 	import { isoDateStringToDate } from '@utils/dateUtils';
 
 	// ParaglideJS
@@ -32,7 +32,7 @@ functionality for image editing and basic file information display.
 
 	// Stores
 	import { validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@stores/collectionStore.svelte';
+	import { collectionValue } from '@stores/collectionStore.svelte';
 
 	// Components
 	import type { MediaImage } from '@utils/media/mediaModels';
@@ -123,21 +123,15 @@ functionality for image editing and basic file information display.
 		}, 300);
 	}
 
-	// WidgetData function
-	export const WidgetData = async () => {
-		if (_data && _data instanceof File) {
-				(_data as any).path = field.path;
-			}
-		}
+	import { getWidgetData } from './widgetData';
 
-		if (value && !(value instanceof File) && _data && !(_data instanceof File) && _data?._id !== value?._id && value?._id && mode.value === 'edit') {
-			meta_data.add('media_images_remove', [value._id.toString()]);
-		}
-
-		validateInput();
-
-		return _data || mode.value === 'create' ? _data : { _id: (value as MediaImage)?._id };
-	};
+	// The `WidgetData` function needs to be explicitly defined or called when needed.
+	// Since it was exported, it means it was part of the component's public API.
+	// In Svelte 5, component functions usually are regular functions and can be exported as part of the component's module.
+	// Let's create a wrapper function that calls `getWidgetData`.
+	export async function WidgetDataExport() {
+		return getWidgetData(_data, field, value);
+	}
 
 	// Helper function to get timestamp
 	function getTimestamp(date: Date | number | ISODateString): number {

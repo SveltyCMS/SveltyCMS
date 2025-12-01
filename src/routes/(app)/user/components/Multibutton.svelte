@@ -45,7 +45,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	type ActionType = 'edit' | 'delete' | 'block' | 'unblock';
 
 	// Popup Combobox
-	let listboxValue: ActionType = $state('edit');
+	let listboxValue = $state<ActionType>('edit');
 	const { selectedRows, type = 'user', totalUsers = 0, currentUser = null } = $props();
 
 	// Sync local listboxValue with global store for TableIcons

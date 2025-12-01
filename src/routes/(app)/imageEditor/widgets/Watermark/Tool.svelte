@@ -86,7 +86,7 @@ Orchestrates the watermark lifecycle:
 	}
 
 	// --- Event Handlers ---
-	function onStageClick(e: Konva.KonvaEventObject) {
+	function onStageClick(e: Konva.KonvaEventObject<MouseEvent>) {
 		// Deselect if clicking on stage background
 		if (e.target === e.target.getStage()) {
 			deselect();
@@ -179,7 +179,7 @@ Orchestrates the watermark lifecycle:
 
 		// 3. Load the baked image
 		const newImage = new Image();
-		await new Promise((res) => {
+		await new Promise<void>((res) => {
 			newImage.onload = () => res();
 			newImage.src = dataURL;
 		});

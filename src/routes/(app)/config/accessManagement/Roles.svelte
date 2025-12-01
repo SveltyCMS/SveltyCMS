@@ -36,18 +36,18 @@ It provides the following functionality:
 	const { roleData, setRoleData, updateModifiedCount } = $props();
 
 	// Reactive state
-	let roles = $state([]);
-	let selectedPermissions = $state([]);
+	let roles: Role[] = $state([]);
+	let selectedPermissions: string[] = $state([]);
 	let selectedRoles = $state(new Set());
-	const error = $state(null);
+	const error = $state<string | null>(null);
 	const modifiedRoles = $state(new Set());
 	// Define DndItem type for dndzone compatibility
 	type DndItem = Role & { id: string };
-	let items = $state([]);
+	let items: DndItem[] = $state([]);
 
 	// Modal state
 	let isEditMode = $state(false);
-	let currentRoleId = $state(null);
+	let currentRoleId: string | null = $state(null);
 	let currentGroupName = $state('');
 
 	// Initialize data when component mounts (run once)
@@ -170,7 +170,7 @@ It provides the following functionality:
 		items = [...e.detail.items];
 		roles = items;
 		// Find the item that was moved by id
-		const movedItem = e.detail.items.find((item) => item.id === e.detail.info.id);
+		const movedItem = e.detail.items.find((item: DndItem) => item.id === e.detail.info.id);
 		if (movedItem) {
 			modifiedRoles.add(movedItem._id);
 		}
@@ -189,7 +189,7 @@ It provides the following functionality:
 		items = [...e.detail.items];
 		roles = items;
 		// Find the item that was moved by id
-		const movedItem = e.detail.items.find((item) => item.id === e.detail.info.id);
+		const movedItem = e.detail.items.find((item: DndItem) => item.id === e.detail.info.id);
 		if (movedItem) {
 			modifiedRoles.add(movedItem._id);
 		}

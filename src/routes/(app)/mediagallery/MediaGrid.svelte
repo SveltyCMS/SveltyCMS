@@ -23,7 +23,7 @@ Key features:
 	// Utils
 	import { formatBytes } from '@utils/utils';
 	import { logger } from '@utils/logger';
-	import type { MediaImage } from '@utils/media/mediaModels';
+	import type { MediaImage, MediaBase } from '@utils/media/mediaModels';
 
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
@@ -43,7 +43,7 @@ Key features:
 		onBulkDelete?: (files: (MediaBase | MediaImage)[]) => void;
 	}
 
-	const { filteredFiles = [], gridSize, ondeleteImage = () => {}, onBulkDelete = () => {} }: Props = $props();
+	const { filteredFiles = [], gridSize = 'medium', ondeleteImage = () => {}, onBulkDelete = () => {} }: Props = $props();
 
 	// Initialize the showInfo array with false values
 	let showInfo = $state(Array.from({ length: filteredFiles.length }, () => false));
@@ -106,6 +106,20 @@ Key features:
 		}
 
 		return nameWithoutExt.slice(0, availableLength) + '...' + extension;
+	}
+
+	function getThumbnails(file: MediaBase | MediaImage) {
+		return 'thumbnails' in file ? file.thumbnails || {} : {};
+	}
+
+	function getThumbnail(file: MediaBase | MediaImage, size: string) {
+		const thumbnails = getThumbnails(file);
+		return thumbnails ? thumbnails[size as keyof typeof thumbnails] : undefined;
+	}
+
+	function getImageUrl(file: MediaBase | MediaImage, size: string) {
+		const thumbnail = getThumbnail(file, size);
+		return thumbnail?.url || (file as any).url;
 	}
 </script>
 
@@ -201,10 +215,13 @@ Key features:
 									<th class="">Size</th>
 								</tr>
 							</thead>
-																		{#if 'width' in file && file.width && 'height' in file && file.height}
-																			<tr><td class="font-semibold">Dimensions:</td><td>{file.width}x{file.height}</td></tr>
-																		{/if}
-																		{#each Object.keys(file.thumbnails || {}) as size (size)}									{#if file.thumbnails?.[size as keyof typeof file.thumbnails]}
+							<tbody>
+								{#if 'width' in file && file.width && 'height' in file && file.height}
+									<tr><td class="font-semibold">Dimensions:</td><td>{file.width}x{file.height}</td></tr>
+								{/if}
+								{#each Object.keys(getThumbnails(file)) as size (size)}
+									{@const thumbnail = getThumbnail(file, size)}
+									{#if thumbnail}
 										<tr
 											class="divide-x divide-surface-400 border-b border-surface-400 last:border-b-0 {size === gridSize
 												? 'bg-primary-50 dark:bg-primary-900/20'
@@ -226,15 +243,15 @@ Key features:
 												{/if}
 											</td>
 											<td class="pr-1 text-right">
-												{#if file.thumbnails[size as keyof typeof file.thumbnails].width && file.thumbnails[size as keyof typeof file.thumbnails].height}
-													{file.thumbnails[size as keyof typeof file.thumbnails].width}x{file.thumbnails[size as keyof typeof file.thumbnails].height}
+												{#if thumbnail.width && thumbnail.height}
+													{thumbnail.width}x{thumbnail.height}
 												{:else}
 													N/A
 												{/if}
 											</td>
 											<td class="text-right">
-												{#if file.thumbnails[size as keyof typeof file.thumbnails].size}
-													{formatBytes(file.thumbnails[size as keyof typeof file.thumbnails].size)}
+												{#if thumbnail.size}
+													{formatBytes(thumbnail.size)}
 												{:else if size === 'original' && file.size}
 													{formatBytes(file.size)}
 												{:else}
@@ -260,7 +277,7 @@ Key features:
 				<section class="flex items-center justify-center p-2">
 					{#if file?.filename && file?.path && file?.hash}
 						<img
-							src={file.thumbnails?.sm?.url ?? file.url ?? '/static/Default_User.svg'}
+							src={getImageUrl(file, gridSize) ?? '/static/Default_User.svg'}
 							alt={`Thumbnail for ${file.filename}`}
 							class={`rounded object-cover ${
 								gridSize === 'tiny' ? 'h-16 w-16' : gridSize === 'small' ? 'h-24 w-24' : gridSize === 'medium' ? 'h-48 w-48' : 'h-80 w-80'

@@ -47,6 +47,22 @@
 	import { preloadData } from '$app/navigation';
 
 	// Destructure props with clearer names and defaults
+	// Props interface
+	interface TreeViewProps {
+		k?: any;
+		nodes: TreeNode[];
+		selectedId?: string | null;
+		ariaLabel?: string;
+		dir?: 'ltr' | 'rtl' | 'auto';
+		search?: string;
+		compact?: boolean;
+		iconColorClass?: string;
+		showBadges?: boolean;
+		allowDragDrop?: boolean;
+		onReorder?: ((draggedId: string, targetId: string, position: 'before' | 'after' | 'inside') => void) | null;
+	}
+
+	// Destructure props with clearer names and defaults
 	const {
 		k = undefined,
 		nodes: initialNodes,
@@ -59,18 +75,18 @@
 		showBadges = false,
 		allowDragDrop = false,
 		onReorder = null
-	} = $props();
+	}: TreeViewProps = $props();
 
 	// Focused item id
-	let focusedNodeId = $state(null);
+	let focusedNodeId = $state<string | null>(null);
 
 	// Use native Set for expansion state; SvelteSet isn't available in this environment.
 	let expandedNodeIds = $state(new Set());
 
 	// Drag & drop transient UI state
-	let draggedNode = $state(null);
-	let dragOverNode = $state(null);
-	let dropPosition = $state(null);
+	let draggedNode = $state<TreeNode | null>(null);
+	let dragOverNode = $state<TreeNode | null>(null);
+	let dropPosition = $state<'before' | 'after' | 'inside' | null>(null);
 
 	// Helper: check expansion
 	function isNodeExpanded(nodeId: string) {
@@ -142,7 +158,7 @@
 
 	// Keyboard handling
 	function handleKeyDown(event: KeyboardEvent, node: TreeNode) {
-		const actions: Record = {
+		const actions: Record<string, () => void> = {
 			Enter: () => toggleNode(node),
 			' ': () => toggleNode(node),
 			ArrowRight: () => handleArrowKey(node, 'right'),

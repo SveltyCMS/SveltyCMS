@@ -28,8 +28,8 @@
 	} = $props(); // Now uses imported type
 
 	// Local real-time validation state
-	let touchedFields = $state(new Set());
-	let localValidationErrors = $state({});
+	let touchedFields = $state(new Set<string>());
+	let localValidationErrors = $state<Record<string, string>>({});
 
 	const validationResult = $derived(
 		safeParse(setupAdminSchema, {

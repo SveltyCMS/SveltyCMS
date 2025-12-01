@@ -91,7 +91,7 @@
 
 	// State
 	let dropdownOpen = $state(false);
-	let dropdownRef = $state(null);
+	let dropdownRef = $state<HTMLElement | null>(null);
 	let manualActionSet = $state(false); // Track if user manually selected an action
 
 	// Derived values
@@ -99,7 +99,7 @@
 	const currentAction = $derived(storeListboxValue.value as ActionType);
 
 	// Action configurations
-	const BASE_ACTIONS: Record = {
+	const BASE_ACTIONS: Record<string, ActionConfig> = {
 		create: {
 			label: m.entrylist_multibutton_create(),
 			gradient: 'gradient-tertiary',

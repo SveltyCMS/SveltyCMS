@@ -35,15 +35,14 @@ It provides the following functionality:
 	const { roleData, setRoleData, updateModifiedCount }: Props = $props();
 
 	// Reactive state
-	let permissionsList = $state([]);
-	let roles = $state([]);
+	let permissionsList: Permission[] = $state([]);
+	let roles: Role[] = $state([]);
 	const error = $state(null);
 	let searchTerm = $state('');
 	const modifiedPermissions = $state(new Set());
 
 	// Sorting state
 	type SortKey = 'name' | 'action' | 'type';
-	type SortOrder = 0 | 1 | -1; // 0 = unsorted, 1 = ascending, -1 = descending
 	let sortBy = $state('name');
 	let sortOrder = $state(0);
 

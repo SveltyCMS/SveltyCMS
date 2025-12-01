@@ -104,10 +104,11 @@ export class UserAdapter {
 				email: userData.email?.toLowerCase()
 			};
 
-			// Log exactly what we received
+			// Log exactly what we received (redacted)
 			logger.debug('UserAdapter.createUser received data:', {
 				...normalizedUserData,
-				email: normalizedUserData.email,
+				email: '[REDACTED]',
+				password: '[REDACTED]',
 				avatar: `Avatar value: "${normalizedUserData.avatar}" (type: ${typeof normalizedUserData.avatar}, length: ${normalizedUserData.avatar?.length || 0})`
 			});
 
@@ -115,7 +116,7 @@ export class UserAdapter {
 			const userId = generateId();
 			const user = new this.UserModel({ ...normalizedUserData, _id: userId }); // Log what the model contains before saving
 			logger.debug('UserModel before save:', {
-				email: user.email,
+				email: '[REDACTED]',
 				avatar: `Model avatar: "${user.avatar}" (type: ${typeof user.avatar})`,
 				hasAvatar: !!user.avatar
 			});
@@ -125,7 +126,7 @@ export class UserAdapter {
 			// Log what was actually saved
 			logger.debug('User created and saved:', {
 				_id: user._id,
-				email: user.email,
+				email: '[REDACTED]',
 				avatar: `Saved avatar: "${user.avatar}" (type: ${typeof user.avatar})`,
 				allFields: Object.keys(user.toObject())
 			});
@@ -139,7 +140,7 @@ export class UserAdapter {
 		} catch (err) {
 			const message = `Error in UserAdapter.createUser: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, {
-				email: userData.email,
+				email: '[REDACTED]',
 				error: err,
 				userData: Object.keys(userData)
 			});
@@ -706,7 +707,7 @@ export class UserAdapter {
 					user.permissions = user.permissions.map((p) => String(p));
 				}
 				logger.debug(`User retrieved by email:`, {
-					email: normalizedEmail,
+					email: '[REDACTED]',
 					tenantId: criteria.tenantId || 'none (single-tenant mode)'
 				});
 				return {
@@ -722,7 +723,7 @@ export class UserAdapter {
 		} catch (err) {
 			const message = `Error in UserAdapter.getUserByEmail: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, {
-				email: criteria.email,
+				email: '[REDACTED]',
 				tenantId: criteria.tenantId || 'none (single-tenant mode)'
 			});
 			return {

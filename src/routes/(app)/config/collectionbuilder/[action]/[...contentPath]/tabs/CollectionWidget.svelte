@@ -19,7 +19,7 @@ component
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import type { FieldInstance as Field } from '@root/src/content/types';
+
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import ModalSelectWidget from './CollectionWidget/ModalSelectWidget.svelte';
@@ -213,7 +213,12 @@ component
 	</div>
 	<div>
 		<div class="mt-2 flex items-center justify-center gap-3">
-			<button onclick={() => modalSelectWidget(null)} class="variant-filled-tertiary btn" aria-label={m.collection_widgetfield_addFields()}>
+			<button
+				onclick={() => modalSelectWidget(null)}
+				class="variant-filled-tertiary btn"
+				aria-label={m.collection_widgetfield_addFields()}
+				data-testid="add-field-button"
+			>
 				{m.collection_widgetfield_addFields()}
 			</button>
 		</div>

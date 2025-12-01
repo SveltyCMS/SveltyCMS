@@ -59,7 +59,30 @@ const middleware: Handle[] = [
 export const handle: Handle = sequence(...middleware);
 ```
 
----
+## 📡 Telemetry & Usage Tracking
+
+SveltyCMS includes a minimal Heartbeat System (Telemetry) to help the core team understand usage patterns and enforce the BSL 1.1 license for enterprise users.
+
+### How it works
+
+1.  **Non-Blocking:** The telemetry runs asynchronously in the background. It never blocks a user request.
+2.  **Frequency:** It sends a heartbeat once every 24 hours per server instance.
+3.  **Data Collected:**
+    *   SveltyCMS Version (e.g., 1.0.0)
+    *   Hostname / Domain (e.g., cms.example.com)
+    *   Environment (Development vs Production)
+    *   Node.js Version
+
+### Privacy & Opt-Out
+
+We respect user privacy. Telemetry can be completely disabled by setting the following environment variable in your `.env` file:
+
+```bash
+# Disable SveltyCMS Telemetry
+SVELTY_TELEMETRY_DISABLED=true
+# OR use the universal standard
+DO_NOT_TRACK=1
+```
 
 ## 🚀 Server Startup & Initialization Flow
 

@@ -1,4 +1,10 @@
-// src/routes/(app)/imageEditor/widgets/Crop/cropMath.ts
+/**
+ * @file src/routes/(app)/imageEditor/widgets/Crop/cropMath.ts
+ * @description Crop math for Konva
+ *
+ * Features:
+ * - Convert a client rect in stage space into image-local pixel rect
+ */
 import Konva from 'konva';
 
 /** Convert a client rect in stage space into image-local pixel rect */

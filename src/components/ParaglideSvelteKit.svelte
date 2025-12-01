@@ -18,7 +18,6 @@
 
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import type { Snippet } from 'svelte';
 
 	// Stores
 	import { systemLanguage } from '@stores/store.svelte';

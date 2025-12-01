@@ -12,6 +12,7 @@ export interface EntryListProps {
 export interface FieldsProps {
 	fields: any[];
 	revisions?: any[];
+	contentLanguage?: string;
 }
 
 import type { FieldInstance } from '@src/content/types';

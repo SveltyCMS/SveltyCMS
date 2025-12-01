@@ -51,12 +51,12 @@ Allows administrators to monitor system status and restart services.
 	const REFRESH_INTERVAL_MS = 5000;
 
 	// Reactive state - subscribe to store
-	let currentState = $state('IDLE');
-	let services = $state({});
-	let initializationStartedAt = $state(null);
+	let currentState = $state<SystemState>('IDLE');
+	let services = $state<Record<string, ServiceData>>({});
+	let initializationStartedAt = $state<number | null>(null);
 	let lastChecked = $state(new Date().toISOString());
 	let autoRefresh = $state(true);
-	let refreshInterval: ReturnType | null = null;
+	let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
 	// Derived values
 	const uptime = $derived.by(() => {
@@ -90,7 +90,7 @@ Allows administrators to monitor system status and restart services.
 		};
 	});
 
-	async function fetchHealth(): Promise {
+	async function fetchHealth(): Promise<void> {
 		try {
 			await fetch('/api/system?action=health');
 		} catch (err) {
@@ -99,7 +99,7 @@ Allows administrators to monitor system status and restart services.
 		}
 	}
 
-	async function reinitializeSystem(): Promise {
+	async function reinitializeSystem(): Promise<void> {
 		try {
 			toastStore.trigger({ message: 'Reinitializing system...', background: 'variant-filled-warning' });
 

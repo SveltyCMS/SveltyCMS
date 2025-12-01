@@ -149,7 +149,7 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 				// Add progressive enhancement data here
 				// Example: virtualFolders: fetchVirtualFolders()
 			},
-			firstCollection // Pass first collection for immediate store hydration
+			firstCollection: firstCollection ? JSON.parse(JSON.stringify(firstCollection)) : null // Pass first collection for immediate store hydration
 		};
 	} catch (err) {
 		// Log full error for monitoring/debugging

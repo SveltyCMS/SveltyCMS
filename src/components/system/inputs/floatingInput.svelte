@@ -66,7 +66,7 @@
 		onPaste
 	}: FloatingInputProps = $props();
 
-	let inputElement = $state();
+	let inputElement = $state<HTMLInputElement | null>(null);
 	const currentId = $derived(id || (label ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId'));
 	const errorId = $derived(errorMessage ? `error-${currentId}` : undefined);
 	const effectiveType = $derived(showPassword && type === 'password' ? 'text' : type);

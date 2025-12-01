@@ -141,10 +141,10 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	});
 
 	// Refs
-	let firstLine = $state(undefined);
-	let firstCircle = $state(undefined);
-	let svg = $state(undefined);
-	const circles = $state([]);
+	let firstLine: SVGLineElement | undefined = $state(undefined);
+	let firstCircle: HTMLDivElement | undefined = $state(undefined);
+	let svg: SVGSVGElement | undefined = $state(undefined);
+	const circles: (HTMLAnchorElement | undefined)[] = $state([]);
 
 	// Popup ID
 	const NAV_POPUP_ID = 'floatingNavTooltip';
@@ -219,7 +219,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		}
 	}
 
-	async function handleResize(): Promise {
+	async function handleResize(): Promise<void> {
 		if (!browser) return;
 
 		const MIN_X = BUTTON_RADIUS + EDGE_MARGIN;
@@ -246,7 +246,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		setTimeout(() => firstCircle?.focus?.(), 0);
 	}
 
-	async function toggleMenuOpen(): Promise {
+	async function toggleMenuOpen(): Promise<void> {
 		if (!showRoutes) {
 			center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 			await tick();
@@ -331,7 +331,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			const DISTANCES = [buttonInfo.x, window.innerWidth - buttonInfo.x, buttonInfo.y, window.innerHeight - buttonInfo.y];
 
 			const NEAREST_EDGE_INDEX = DISTANCES.indexOf(Math.min(...DISTANCES));
-			let promise: Promise = Promise.resolve();
+			let promise: Promise<void> = Promise.resolve();
 
 			switch (NEAREST_EDGE_INDEX) {
 				case 0: // Left edge
@@ -369,9 +369,9 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		};
 	}
 
-	function setDash(node: SVGElement): void {
+	function setDash(node: SVGSVGElement): void {
 		let first = true;
-		for (const LINE_ELEMENT of node.children) {
+		for (const LINE_ELEMENT of node.children as HTMLCollectionOf<SVGLineElement>) {
 			const EL = LINE_ELEMENT as SVGLineElement;
 			const TOTAL_LENGTH = EL.getTotalLength().toString();
 			EL.style.strokeDasharray = TOTAL_LENGTH;
@@ -388,7 +388,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		if (!svg) return;
 
 		let first = true;
-		for (const LINE_ELEMENT of svg.children) {
+		for (const LINE_ELEMENT of svg.children as HTMLCollectionOf<SVGLineElement>) {
 			const EL = LINE_ELEMENT as SVGLineElement;
 			EL.style.transition = first ? 'stroke-dashoffset 0.2s 0.2s' : 'stroke-dashoffset 0.2s';
 			const TOTAL_LENGTH = EL.getTotalLength().toString();
@@ -397,7 +397,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			first = false;
 		}
 
-		for (const CIRCLE of circles) {
+		for (const CIRCLE of circles as HTMLAnchorElement[]) {
 			if (CIRCLE) CIRCLE.style.display = 'none';
 		}
 	}

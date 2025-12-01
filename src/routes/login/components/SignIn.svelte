@@ -35,11 +35,11 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import PasswordStrength from '@components/PasswordStrength.svelte';
 	// Lazy-load FloatingPaths on desktop for performance
-	let FloatingPathsComponent: typeof SvelteComponent | null = $state(null);
+	let FloatingPathsComponent: Component | null = $state(null);
 
 	// Skeleton
 	import { showToast } from '@utils/toast';
-	import type { SvelteComponent } from 'svelte';
+	import type { Component } from 'svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -53,8 +53,13 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	const {
 		active = $bindable(undefined),
 		onClick = () => {},
-		onPointerEnter: onPointerEnterProp = (_event: PointerEvent) => {},
+		onPointerEnter: onPointerEnterProp = () => {},
 		onBack = () => {}
+	}: {
+		active?: number;
+		onClick?: () => void;
+		onPointerEnter?: (e: PointerEvent) => void;
+		onBack?: () => void;
 	} = $props();
 
 	// State management
@@ -405,7 +410,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 		const isActiveLogin = active === 0;
 		if (browser && desktop && isActiveLogin) {
 			import('@root/src/components/system/FloatingPaths.svelte').then((m) => {
-				FloatingPathsComponent = m.default as typeof SvelteComponent;
+				FloatingPathsComponent = m.default as Component;
 			});
 		} else {
 			FloatingPathsComponent = null;
