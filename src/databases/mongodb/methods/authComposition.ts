@@ -248,11 +248,30 @@ export function composeMongoAuthAdapter(): AuthInterface {
 				await RoleModel.collection.createIndex({ tenantId: 1 });
 				await RoleModel.collection.createIndex({ tenantId: 1, _id: 1 });
 
-				const newRole = await RoleModel.create(role);
+				// Use insertOne directly with timestamps to ensure write is acknowledged
+				const roleWithTimestamps = {
+					...role,
+					createdAt: new Date(),
+					updatedAt: new Date()
+				};
+
+				const result = await RoleModel.collection.insertOne(roleWithTimestamps as any);
+
+				if (!result.acknowledged) {
+					throw new Error('Role insert not acknowledged by database');
+				}
+
+				logger.info(`Role "${role.name}" inserted, acknowledged: ${result.acknowledged}, insertedId: ${result.insertedId}`);
+
+				// Verify it was actually written by reading it back
+				const insertedRole = await RoleModel.findOne({ _id: role._id }).lean();
+				if (!insertedRole) {
+					throw new Error(`Role "${role.name}" was inserted but cannot be retrieved from database`);
+				}
 
 				return {
 					success: true,
-					data: newRole.toObject() as Role
+					data: insertedRole as Role
 				};
 			} catch (err) {
 				const message = `Error creating role: ${err instanceof Error ? err.message : String(err)}`;
