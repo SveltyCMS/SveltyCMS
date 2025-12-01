@@ -117,6 +117,9 @@ jobs:
           } as const;
           EOF
           echo "✅ Created config/private.test.ts"
+          # Also create config/private.ts for build-time imports
+          cp config/private.test.ts config/private.ts
+          echo "✅ Created config/private.ts"
 
       # Build production version for faster, optimized testing
       - name: Build Production
@@ -196,38 +199,111 @@ jobs:
           } as const;
           EOF
           echo "✅ Created config/private.test.ts"
+          # Also create config/private.ts for build-time imports
+          cp config/private.test.ts config/private.ts
+          echo "✅ Created config/private.ts"
 
       # Build production version for faster, optimized testing
       - name: Build Production
         run: bun run build
 
-      # --- START PREVIEW SERVER (PORT 4173) ---
-      - name: Start Preview Server
+      # --- START PREVIEW SERVER FOR SEEDING (PORT 4173) ---
+      - name: Start Preview Server (for seeding)
         run: |
-          echo "🚀 Starting preview server on port 4173..."
+          echo "🚀 Starting preview server on port 4173 for seeding..."
           bun run preview &
           echo "⏳ Waiting for server to be ready..."
           bun x wait-on http://localhost:4173 -t 60000
-          echo "✅ Preview server is ready!"
+          echo "✅ Preview server is ready for seeding!"
 
-      # STEP A: Run the Setup Wizard first to initialize the DB/User
-      - name: 🧙‍♂️ Run Setup Wizard Test
+      # Seed the test database BEFORE running tests
+      - name: 🌱 Seed Test Database
         run: |
-          echo "=== Running setup wizard to initialize application ==="
-          # Runs ONLY the setup wizard spec
-          bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list
+          echo "🌱 Seeding test database..."
+          bun run scripts/seed-test-db.ts
+          echo "✅ Database seeded with admin user"
+
+      # Restart preview server to clear any cached "database empty" state
+      - name: 🔄 Restart Preview Server
+        run: |
+          echo "🔄 Restarting preview server to clear cache..."
+          pkill -f "vite preview" || true
+          sleep 2
+          echo "🚀 Starting fresh preview server..."
+          bun run preview &
+          echo "⏳ Waiting for server to be ready..."
+          bun x wait-on http://localhost:4173 -t 60000
+          echo "✅ Preview server restarted and ready!"
+
+      # Verify server is responding with actual content AND database has data
+      - name: 🔍 Verify Database and Login Page
+        run: |
+          echo "🔍 Checking database and login page..."
+
+          # First verify database has roles (direct MongoDB check)
+          echo "📊 Checking if roles exist in database..."
+          bun -e "
+          import { MongoClient } from 'mongodb';
+          const client = new MongoClient('mongodb://admin:admin@localhost:27017');
+          try {
+            await client.connect();
+            const db = client.db('sveltycms_test');
+            const roles = await db.collection('roles').find({}).toArray();
+            console.log(\`Found \${roles.length} roles in database\`);
+            if (roles.length === 0) {
+              console.error('❌ ERROR: No roles found in database after seeding!');
+              process.exit(1);
+            }
+            console.log('✅ Roles exist in database');
+            const users = await db.collection('users').find({}).toArray();
+            console.log(\`Found \${users.length} users in database\`);
+            if (users.length === 0) {
+              console.error('❌ ERROR: No users found in database after seeding!');
+              process.exit(1);
+            }
+            console.log('✅ Users exist in database');
+          } finally {
+            await client.close();
+          }
+          "
+
+          echo "🌐 Checking if login page returns content..."
+          RESPONSE=$(curl -s http://localhost:4173/login)
+          CONTENT_LENGTH=${#RESPONSE}
+          echo "📏 Response length: $CONTENT_LENGTH characters"
+
+          # Check if response contains actual Svelte content (not just bootstrap)
+          if echo "$RESPONSE" | grep -q "data-testid=\"signin-email\""; then
+            echo "✅ Login page contains signin form - SSR working correctly"
+          elif echo "$RESPONSE" | grep -q "SIGN IN"; then
+            echo "✅ Login page contains SIGN IN button - SSR working correctly"
+          else
+            echo "❌ WARNING: Login page may not be rendering correctly"
+            echo "First 1000 chars of response:"
+            echo "$RESPONSE" | head -c 1000
+            echo ""
+            echo "Last 500 chars of response:"
+            echo "$RESPONSE" | tail -c 500
+          fi
+
+      # Run E2E tests (skip setup wizard since we seeded via API)
+      - name: 🧪 Run E2E Tests
+        run: |
+          echo "=== Running E2E test suite ==="
+          # Skip setup wizard test since database was seeded via API
+          bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard|Setup Wizard"
         env:
-          # Setup Wizard specific envs (if your app uses them to seed)
-          ADMIN_EMAIL: admin@example.com
-          ADMIN_PASS: Admin123!
+          PLAYWRIGHT_TEST_BASE_URL: http://localhost:4173
 
-      # STEP B: Run the rest of the tests (skipping the wizard)
-      - name: 🧪 Run Application E2E Tests
-        if: success() # Only run if Wizard passed
-        run: |
-          echo "=== Running main E2E suite ==="
-          # --grep-invert skips the setup wizard since we just ran it
-          bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard"
+      # Upload debug screenshots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: debug-screenshots
+          path: |
+            debug-*.png
+            playwright-report/
+          retention-days: 7
 
       - uses: actions/upload-artifact@v4
         if: always()

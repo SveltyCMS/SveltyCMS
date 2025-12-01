@@ -113,6 +113,7 @@
 		autofocus?: boolean;
 		invalid?: boolean; // New: For validation state
 		errorMessage?: string; // New: For accessibility
+		'data-testid'?: string; // For test automation
 		onClick?: (event: MouseEvent) => void;
 		onInput?: (value: string) => void;
 		onkeydown?: (event: KeyboardEvent) => void;
@@ -137,6 +138,7 @@
 		type = 'text',
 		tabindex = 0,
 		id = '',
+		'data-testid': dataTestId,
 		autocomplete,
 		autocapitalize = 'none',
 		spellcheck = false,
@@ -189,6 +191,7 @@
 			aria-required={required}
 			aria-invalid={invalid}
 			aria-describedby={errorId}
+			data-testid={dataTestId}
 			onclick={onClick}
 			oninput={(e) => onInput?.(e.currentTarget.value)}
 			onpaste={onPaste}

@@ -19,6 +19,8 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 - Fully configurable via `publicEnv.SEASONS` and `publicEnv.SEASON_REGION` settings.
 -->
 
+<svelte:options runes={true} />
+
 <script lang="ts">
 	import { Confetti } from 'svelte-confetti';
 

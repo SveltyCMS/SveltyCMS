@@ -651,7 +651,9 @@ async function loadActiveWidgetsFromDatabase(tenantId?: string, dbAdapter?: Data
 
 			if (response.ok) {
 				const data = await response.json();
-				const widgetNames = (data.widgets || []).map((w: { name: string }) => w.name);
+				const widgetNames = (data.widgets || [])
+					.map((w: any) => (typeof w === 'string' ? w : w?.name))
+					.filter((name): name is string => typeof name === 'string' && name.length > 0);
 
 				logger.debug('[widgetStore] Active widgets received from API', {
 					tenantId,

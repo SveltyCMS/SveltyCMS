@@ -19,6 +19,8 @@ Spring class for smooth, physics-based motion.
 - SVG path optimization
 -->
 
+<svelte:options runes={true} />
+
 <script lang="ts">
 	import { Motion } from 'svelte-motion';
 

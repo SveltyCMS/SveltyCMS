@@ -1,8 +1,10 @@
-<!-- 
+<!--
 @files src/components/system/icons/SveltyCMS_Logo.svelte
 @component
 **Dynamic SveltyCMS_Logo component**
 -->
+
+<svelte:options runes={true} />
 
 <script lang="ts">
 	// Props
