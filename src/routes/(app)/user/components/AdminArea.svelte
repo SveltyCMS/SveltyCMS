@@ -44,9 +44,11 @@
 	// Types
 	import type { User, Token } from '@src/databases/auth/types';
 
+	type TableDataType = User | Token;
+
 	interface TableHeader {
 		label: string;
-		key: string;
+		key: keyof User | keyof Token;
 		visible: boolean;
 		id: string;
 	}
@@ -63,7 +65,7 @@
 	const flipDurationMs = 300;
 
 	// State for API-fetched data (replaces adminData usage for scalability)
-	let tableData = $state([]);
+	let tableData: TableDataType[] = $state([]);
 	let totalItems = $state(0);
 
 	async function fetchData() {
@@ -197,7 +199,7 @@
 	let sorting = $state({ sortedBy: '', isSorted: 0 });
 
 	// Initialize displayTableHeaders with a safe default
-	let displayTableHeaders = $state([]);
+	let displayTableHeaders: TableHeader[] = $state([]);
 
 	$effect(() => {
 		// Update displayTableHeaders when view changes
@@ -518,7 +520,7 @@
 	const pagesCount = $derived.by(() => Math.ceil(totalItems / rowsPerPage) || 1);
 
 	// Derive selected rows from selectedMap; ensure type compatibility by mapping to UserData | TokenData
-	let selectedRows: Array = $derived.by(() =>
+	let selectedRows: TableDataType[] = $derived.by(() =>
 		Object.entries(selectedMap)
 			.filter(([, isSelected]) => isSelected)
 			.map(([index]) => tableData[parseInt(index)])
@@ -650,7 +652,7 @@
 							onfinalize={handleDndFinalize}
 							class="flex flex-wrap justify-center gap-1 rounded-md p-2"
 						>
-							{#each displayTableHeaders as header (header.id)}
+							{#each displayTableHeaders as header: TableHeader (header.id)}
 								<button
 									class="chip {header.visible ? 'variant-filled-secondary' : 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
 									animate:flip={{ duration: flipDurationMs }}
@@ -739,7 +741,7 @@
 
 					<tbody>
 						{#each tableData as row, index (isUser(row) ? row._id : isToken(row) ? row.token : index)}
-							{@const expiresVal = isToken(row) ? (row.expires as string | Date | null) : null}
+							{@const expiresVal: string | Date | null = isToken(row) ? row.expires : null}
 							{@const isExpired =
 								showUsertoken &&
 								expiresVal !== null &&
@@ -805,9 +807,9 @@
 										{:else if header.key === '_id'}
 											<!-- User ID with clipboard functionality -->
 											<div class="flex items-center justify-center gap-2">
-												<span class="font-mono text-sm">{row[header.key]}</span>
+												<span class="font-mono text-sm">{isUser(row) ? row._id : isToken(row) ? row._id : '-'}</span>
 												<button
-													use:clipboard={String(row[header.key] ?? '')}
+													use:clipboard={String(isUser(row) ? row._id : isToken(row) ? row._id : '')}
 													class="variant-ghost btn-icon btn-icon-sm hover:variant-filled-tertiary"
 													aria-label="Copy User ID"
 													title="Copy User ID to clipboard"
@@ -836,12 +838,14 @@
 													<iconify-icon icon="oui:copy-clipboard" class="" width="16"></iconify-icon>
 												</button>
 											</div>
-										{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(header.key)}
-											{isUser(row) && (header.key === 'createdAt' || header.key === 'updatedAt' || header.key === 'lastAccess')
-												? formatDate(row[header.key as keyof User])
-												: isToken(row) && (header.key === 'createdAt' || header.key === 'updatedAt' || header.key === 'expires')
-													? formatDate(row[header.key as keyof Token])
-													: '-'}
+										{:else if ['createdAt', 'updatedAt', 'lastAccess', 'expires'].includes(header.key)}
+											{@const dateKey = header.key as 'createdAt' | 'updatedAt' | 'lastAccess' | 'expires'}
+											{@const dateValue = isUser(row)
+												? row[dateKey as keyof User]
+												: isToken(row)
+													? row[dateKey as keyof Token]
+													: undefined}
+											{formatDate(dateValue)}
 										{:else if header.key === 'expires'}
 											{#if isToken(row) && header.key === 'expires' && row.expires}
 												{@const expiresVal = row.expires as string | Date | null}
@@ -860,12 +864,13 @@
 												-
 											{/if}
 										{:else}
-											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-											{@html isUser(row) && typeof row[header.key as keyof User] === 'string'
-												? row[header.key as keyof User]
-												: isToken(row) && typeof row[header.key as keyof Token] === 'string'
-													? row[header.key as keyof Token]
+											{@const displayValue = isUser(row)
+												? String(row[header.key as keyof User] ?? '-')
+												: isToken(row)
+													? String(row[header.key as keyof Token] ?? '-')
 													: '-'}
+											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+											{@html displayValue}
 										{/if}
 									</td>
 								{/each}
@@ -883,10 +888,10 @@
 					{pagesCount}
 					{totalItems}
 					rowsPerPageOptions={[2, 10, 25, 50, 100, 500]}
-					onUpdatePage={(page) => {
+					onUpdatePage={(page: number) => {
 						currentPage = page;
 					}}
-					onUpdateRowsPerPage={(rows) => {
+					onUpdateRowsPerPage={(rows: number) => {
 						rowsPerPage = rows;
 						currentPage = 1;
 					}}
