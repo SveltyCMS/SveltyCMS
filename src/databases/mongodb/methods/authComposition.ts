@@ -248,10 +248,22 @@ export function composeMongoAuthAdapter(): AuthInterface {
 				await RoleModel.collection.createIndex({ tenantId: 1 });
 				await RoleModel.collection.createIndex({ tenantId: 1, _id: 1 });
 
-				// Log database connection details
+				// Log and VERIFY database connection details
 				const dbName = RoleModel.db.name;
 				const collectionName = RoleModel.collection.name;
-				logger.info(`Creating role "${role.name}" in database: "${dbName}", collection: "${collectionName}"`);
+				const connectedDbName = mongoose.connection.db?.databaseName;
+				logger.info(`Creating role "${role.name}"`);
+				logger.info(`  Model database: "${dbName}"`);
+				logger.info(`  Collection: "${collectionName}"`);
+				logger.info(`  Mongoose connection database: "${connectedDbName}"`);
+
+				if (!connectedDbName) {
+					throw new Error('Mongoose connection has no active database');
+				}
+				if (dbName !== connectedDbName) {
+					logger.error(`❌ DATABASE MISMATCH! Model uses "${dbName}" but connection is to "${connectedDbName}"`);
+					throw new Error(`Database mismatch: model=${dbName}, connection=${connectedDbName}`);
+				}
 
 				// Use insertOne directly with timestamps to ensure write is acknowledged
 				const roleWithTimestamps = {
