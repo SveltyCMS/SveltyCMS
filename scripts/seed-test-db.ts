@@ -124,13 +124,37 @@ async function seedDatabase() {
 		try {
 			const { MongoClient } = await import('mongodb');
 			const mongoUri = `mongodb://${testDbConfig.user}:${testDbConfig.password}@${testDbConfig.host}:${testDbConfig.port}`;
+			console.log(`   Connecting to: ${mongoUri.replace(/:[^:@]+@/, ':***@')}`);
 			const client = new MongoClient(mongoUri);
 			await client.connect();
+
+			// List all databases to see where data might be
+			const adminDb = client.db().admin();
+			const dbList = await adminDb.listDatabases();
+			console.log(`   Available databases: ${dbList.databases.map((d: any) => d.name).join(', ')}`);
+
+			// Check our target database
 			const db = client.db(testDbConfig.name);
+			const collections = await db.listCollections().toArray();
+			console.log(`   Collections in '${testDbConfig.name}': ${collections.map((c: any) => c.name).join(', ')}`);
+
+			// Check for roles
 			const roles = await db.collection('roles').find({}).toArray();
-			console.log(`✓ Found ${roles.length} roles in database after seeding`);
+			console.log(`   Found ${roles.length} roles in '${testDbConfig.name}' database`);
 			if (roles.length === 0) {
 				console.error('❌ WARNING: Seeding reported success but no roles found!');
+
+				// Check if roles exist in a different database
+				for (const dbInfo of dbList.databases) {
+					if (dbInfo.name !== testDbConfig.name && !['admin', 'config', 'local'].includes(dbInfo.name)) {
+						const otherDb = client.db(dbInfo.name);
+						const otherRoles = await otherDb.collection('roles').find({}).toArray();
+						if (otherRoles.length > 0) {
+							console.error(`   ❌ FOUND ${otherRoles.length} roles in WRONG database: '${dbInfo.name}'`);
+							console.error(`   Role names: ${otherRoles.map((r: any) => r.name).join(', ')}`);
+						}
+					}
+				}
 			} else {
 				console.log(`✓ Role names: ${roles.map((r: any) => r.name).join(', ')}`);
 			}
