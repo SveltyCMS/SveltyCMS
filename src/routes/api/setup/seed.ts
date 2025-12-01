@@ -96,6 +96,7 @@ export async function seedDefaultTheme(dbAdapter: DatabaseAdapter): Promise<void
  */
 export async function seedRoles(dbAdapter: DatabaseAdapter): Promise<void> {
 	logger.info('🔐 Seeding default roles...');
+	logger.info(`📋 Number of roles to seed: ${defaultRoles.length}`);
 
 	if (!dbAdapter || !dbAdapter.auth) {
 		throw new Error('Database adapter or auth interface not available');
@@ -105,8 +106,11 @@ export async function seedRoles(dbAdapter: DatabaseAdapter): Promise<void> {
 		// Get all available permissions for admin role
 		const allPermissions = getAllPermissions();
 		const adminPermissions = allPermissions.map((p) => p._id);
+		logger.info(`🔑 Total permissions available: ${allPermissions.length}`);
 
 		// Seed each default role
+		let seededCount = 0;
+		let skippedCount = 0;
 		for (const role of defaultRoles) {
 			try {
 				// Admin role gets all permissions
@@ -115,23 +119,26 @@ export async function seedRoles(dbAdapter: DatabaseAdapter): Promise<void> {
 					permissions: role._id === 'admin' ? adminPermissions : role.permissions
 				};
 
+				logger.info(`Creating role: ${role.name} (${role._id}) with ${roleToCreate.permissions.length} permissions`);
 				await dbAdapter.auth.createRole(roleToCreate);
-				logger.debug(`✅ Role "${role.name}" seeded successfully`);
+				seededCount++;
+				logger.info(`✅ Role "${role.name}" seeded successfully`);
 			} catch (error) {
 				// Skip if role already exists (duplicate key error)
 				const errorMessage = error instanceof Error ? error.message : String(error);
 				if (errorMessage.includes('duplicate') || errorMessage.includes('E11000')) {
-					logger.debug(`ℹ️  Role "${role.name}" already exists, skipping`);
+					skippedCount++;
+					logger.info(`ℹ️  Role "${role.name}" already exists, skipping`);
 				} else {
-					logger.error(`Failed to seed role "${role.name}":`, error);
+					logger.error(`❌ Failed to seed role "${role.name}":`, error);
 					throw error;
 				}
 			}
 		}
 
-		logger.info('✅ Default roles seeded successfully');
+		logger.info(`✅ Role seeding complete: ${seededCount} created, ${skippedCount} skipped`);
 	} catch (error) {
-		logger.error('Failed to seed roles:', error);
+		logger.error('❌ Failed to seed roles:', error);
 		throw error;
 	}
 }

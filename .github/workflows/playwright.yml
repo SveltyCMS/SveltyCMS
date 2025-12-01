@@ -223,6 +223,10 @@ jobs:
           bun run scripts/seed-test-db.ts
           echo "✅ Database seeded with admin user"
 
+          # Give database time to flush writes and make data visible
+          echo "⏳ Waiting for database to commit writes..."
+          sleep 2
+
       # Restart preview server to clear any cached "database empty" state
       - name: 🔄 Restart Preview Server
         run: |
