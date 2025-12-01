@@ -115,12 +115,30 @@ async function seedDatabase() {
 			console.log(`  ✓ API reports ${responseData.rolesCreated} roles created`);
 		}
 
+		// Verify IMMEDIATELY after API returns (before any wait)
+		console.log('🔍 Checking roles IMMEDIATELY after API returns...');
+		try {
+			const { MongoClient } = await import('mongodb');
+			const mongoUri = `mongodb://${testDbConfig.user}:${testDbConfig.password}@${testDbConfig.host}:${testDbConfig.port}`;
+			const client = new MongoClient(mongoUri);
+			await client.connect();
+			const db = client.db(testDbConfig.name);
+			const rolesImmediate = await db.collection('roles').find({}).toArray();
+			console.log(`  Found ${rolesImmediate.length} roles IMMEDIATELY after API call`);
+			if (rolesImmediate.length > 0) {
+				console.log(`  Role names: ${rolesImmediate.map((r: any) => r.name).join(', ')}`);
+			}
+			await client.close();
+		} catch (error) {
+			console.error('  ❌ Failed immediate check:', error);
+		}
+
 		// Wait for server restart if needed (in dev mode, Vite might restart)
 		await wait(2000);
 		await waitForServer();
 
-		// Verify roles were created by directly checking MongoDB
-		console.log('🔍 Verifying roles were created in database...');
+		// Verify roles again AFTER waiting
+		console.log('🔍 Verifying roles after 2s wait...');
 		try {
 			const { MongoClient } = await import('mongodb');
 			const mongoUri = `mongodb://${testDbConfig.user}:${testDbConfig.password}@${testDbConfig.host}:${testDbConfig.port}`;
