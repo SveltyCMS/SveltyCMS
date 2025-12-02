@@ -110,8 +110,10 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 	// --- State: INITIALIZING or IDLE ---
 	// If the system is initializing, wait for it to complete (unless it's an allowed route)
 	if (systemState.overallState === 'INITIALIZING') {
-		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/api/setup', '/login', '/.well-known', '/_'];
-		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === '/';
+		// Only allow setup-related routes to proceed without waiting
+		// Homepage (/) should wait for initialization to complete so auth is available
+		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/api/setup', '/.well-known', '/_'];
+		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix));
 
 		if (isAllowedRoute) {
 			logger.trace(`Allowing request to ${pathname} during INITIALIZING state.`);
