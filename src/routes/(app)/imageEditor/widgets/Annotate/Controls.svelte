@@ -121,6 +121,7 @@
 </div>
 
 <style lang="postcss">
+	@reference "../../../../../app.css";
 	.annotate-controls {
 		@apply flex w-full items-center gap-3 px-2;
 	}
@@ -165,3 +166,5 @@
 		@apply w-14 rounded-md border border-surface-300 bg-white p-1 text-center text-sm dark:border-surface-600 dark:bg-surface-800;
 	}
 </style>
+
+

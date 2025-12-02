@@ -444,6 +444,8 @@ Features:
 </section>
 
 <style lang="postcss">
+	@reference "../../../app.css";
+
 	.hide {
 		transition: 0s;
 		opacity: 0;

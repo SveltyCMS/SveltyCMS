@@ -30,9 +30,9 @@
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import AdminArea from './components/AdminArea.svelte';
-	// Skeleton
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { Avatar } from '@skeletonlabs/skeleton';
+	// Modal Utils & Avatar
+	import type { ModalComponent, ModalSettings } from '@utils/modalUtils';
+	import { Avatar } from '@skeletonlabs/skeleton-svelte';
 	import { setCollection } from '@src/stores/collectionStore.svelte';
 	import { showConfirm, showModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
@@ -171,15 +171,13 @@
 		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
 			<!-- Avatar with user info -->
 			<div class="relative flex flex-col items-center justify-center gap-1">
-				<Avatar
-					src={avatarSrc.value && avatarSrc.value.startsWith('data:') ? avatarSrc.value : `${avatarSrc.value}?t=${Date.now()}`}
-					initials="AV"
-					rounded-none
-					class="w-32"
-				/>
+				<Avatar class="size-32">
+					<Avatar.Image src={avatarSrc.value && avatarSrc.value.startsWith('data:') ? avatarSrc.value : `${avatarSrc.value}?t=${Date.now()}`} />
+					<Avatar.Fallback>AV</Avatar.Fallback>
+				</Avatar>
 
 				<!-- Edit button -->
-				<button onclick={modalEditAvatar} class="gradient-primary w-30 badge absolute -top-44 text-white sm:top-4">{m.userpage_editavatar()}</button>
+				<button onclick={modalEditAvatar} class="gradient-tertiary w-30 badge absolute -top-44 text-white sm:top-4">{m.userpage_editavatar()}</button>
 				<!-- User ID -->
 				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
 					{m.userpage_user_id()}<span class="ml-2">{user?._id || 'N/A'}</span>
@@ -206,13 +204,13 @@
 				{/if}
 				<!-- Tenant ID -->
 				{#if isMultiTenant}
-					<div class="gradient-primary badge w-full max-w-xs text-white">
+					<div class="gradient-tertiary badge w-full max-w-xs text-white">
 						Tenant ID:<span class="ml-2">{user?.tenantId || 'N/A'}</span>
 					</div>
 				{/if}
 				<!-- Permissions List -->
 				{#each user.permissions as permission}
-					<div class="gradient-primary badge mt-1 w-full max-w-xs text-white">
+					<div class="gradient-tertiary badge mt-1 w-full max-w-xs text-white">
 						{permission}
 					</div>
 				{/each}

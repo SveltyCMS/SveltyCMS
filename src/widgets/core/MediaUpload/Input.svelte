@@ -22,7 +22,7 @@
 	import { logger } from '@utils/logger';
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@utils/modalUtils';
 	import { createValidationSchema, type FieldType } from './';
 	import type { MediaFile } from './types';
 	import { validationStore } from '@root/src/stores/store.svelte';

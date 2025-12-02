@@ -6,9 +6,17 @@
  * - Standardized confirmation modals (confirm, delete, status change, clone)
  * - Schedule modal configuration
  * - Global modal store management
+ *
+ * Updated for Skeleton v4 - uses dialogState internally
  */
 
-import { getModalStore, type ModalSettings, type ModalStore } from '@skeletonlabs/skeleton';
+import {
+	dialogState,
+	showConfirmDialog,
+	showDeleteDialog,
+	showComponentDialog,
+	type ConfirmDialogOptions
+} from './dialogState.svelte';
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
 import { logger } from './logger';
@@ -29,23 +37,94 @@ export interface ScheduleModalOptions {
 	onSchedule?: (date: Date, action: string) => void | Promise<void>;
 }
 
-// Global modal store reference, to be initialized from a Svelte component (e.g., root layout)
-let modalStoreRef: ModalStore | null = null;
-
-// Initialize the global modal store reference from within a component's initialization
-export function setGlobalModalStore(store?: ModalStore): void {
-	modalStoreRef = store ?? getModalStore();
+// Legacy modal settings type for backward compatibility
+export interface ModalSettings {
+	type: 'alert' | 'confirm' | 'prompt' | 'component';
+	title?: string;
+	body?: string;
+	buttonTextConfirm?: string;
+	buttonTextCancel?: string;
+	response?: (result: any) => void;
+	component?: string | ModalComponent;
+	meta?: Record<string, any>;
+	modalClasses?: string;
+	backdropClasses?: string;
 }
 
-// Triggers a modal using the initialized global modal store
+// Legacy modal store type for backward compatibility
+export interface ModalStore {
+	trigger: (settings: ModalSettings) => void;
+	close: () => void;
+	clear: () => void;
+}
+
+// Legacy ModalComponent type for backward compatibility
+export interface ModalComponent {
+	ref: any;
+	props?: Record<string, unknown>;
+	slot?: string;
+}
+
+/**
+ * Legacy getModalStore replacement
+ * @deprecated Use showConfirmDialog or dialogState directly
+ */
+export function getModalStore(): ModalStore {
+	if (!modalStoreRef) {
+		setGlobalModalStore();
+	}
+	return modalStoreRef!;
+}
+
+// Global modal store reference (legacy compatibility)
+let modalStoreRef: ModalStore | null = null;
+
+/**
+ * Initialize the global modal store reference
+ * @deprecated Use dialogState directly for new code
+ */
+export function setGlobalModalStore(store?: ModalStore): void {
+	// Create a legacy-compatible store wrapper
+	modalStoreRef = store ?? {
+		trigger: (settings: ModalSettings) => {
+			if (settings.type === 'confirm') {
+				showConfirmDialog({
+					title: settings.title || '',
+					description: settings.body || '',
+					confirmText: settings.buttonTextConfirm,
+					cancelText: settings.buttonTextCancel,
+					onConfirm: () => settings.response?.(true),
+					onCancel: () => settings.response?.(false)
+				});
+			} else if (settings.type === 'alert') {
+				dialogState.open({
+					type: 'alert',
+					title: settings.title,
+					description: settings.body,
+					confirmText: 'OK',
+					onClose: () => settings.response?.(true)
+				});
+			} else if (settings.type === 'component') {
+				logger.warn('[modalUtils] Component modals need migration to showComponentDialog()');
+				settings.response?.(false);
+			}
+		},
+		close: () => dialogState.closeTop(),
+		clear: () => dialogState.closeAll()
+	};
+}
+
+/**
+ * Triggers a modal using the initialized global modal store
+ * @deprecated Use showConfirmDialog or showComponentDialog directly
+ */
 export function showModal(settings: ModalSettings): void {
 	if (!modalStoreRef) {
-		// Avoid throwing hard errors in production; log a warning for debugging
-		logger.warn('[modalUtils] Modal store not initialized. Call setGlobalModalStore(getModalStore()) in a root component.');
-		return;
+		// Auto-initialize if not already done
+		setGlobalModalStore();
 	}
 
-	modalStoreRef.trigger(settings);
+	modalStoreRef!.trigger(settings);
 }
 
 // Creates a standardized confirmation modal configuration

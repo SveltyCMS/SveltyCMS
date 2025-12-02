@@ -31,10 +31,10 @@
 	import Multibutton from './Multibutton.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	// Skeleton
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
-	import { Avatar, clipboard } from '@skeletonlabs/skeleton';
-	import { showConfirm, showModal } from '@utils/modalUtils';
+	// Skeleton v4 compatible utilities
+	import { clipboard } from '@utils/clipboard';
+	import { showConfirm, showModal, type ModalSettings } from '@utils/modalUtils';
+	import { Avatar } from '@skeletonlabs/skeleton-svelte';
 	import { showToast } from '@utils/toast';
 	// Svelte-dnd-action
 	import { PermissionAction, PermissionType } from '@src/databases/auth/types';
@@ -566,7 +566,7 @@
 	<p class="h2 mb-2 text-center text-3xl font-bold dark:text-white">{m.adminarea_adminarea()}</p>
 
 	<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
-		<button onclick={modalTokenUser} aria-label={m.adminarea_emailtoken()} class="gradient-primary btn w-full text-white sm:max-w-xs">
+		<button onclick={modalTokenUser} aria-label={m.adminarea_emailtoken()} class="gradient-tertiary btn w-full text-white sm:max-w-xs">
 			<iconify-icon icon="material-symbols:mail" color="white" width="18" class="mr-1"></iconify-icon>
 			<span class="whitespace-normal break-words">{m.adminarea_emailtoken()}</span>
 		</button>
@@ -783,14 +783,16 @@
 											{/if}
 										{:else if showUserList && header.key === 'avatar'}
 											<!-- Use reactive avatarSrc for current user, otherwise use row data -->
-											<Avatar
-												src={currentUser && isUser(row) && row._id === currentUser._id
-													? avatarSrc.value
-													: isUser(row) && header.key === 'avatar'
-														? normalizeMediaUrl(row.avatar)
-														: ''}
-												width="w-8"
-											/>
+											<Avatar class="size-8">
+												<Avatar.Image
+													src={currentUser && isUser(row) && row._id === currentUser._id
+														? avatarSrc.value
+														: isUser(row) && header.key === 'avatar'
+															? normalizeMediaUrl(row.avatar)
+															: ''}
+												/>
+												<Avatar.Fallback>U</Avatar.Fallback>
+											</Avatar>
 										{:else if header.key === 'role'}
 											<Role
 												value={isUser(row) && header.key === 'role' ? row.role : isToken(row) && header.key === 'role' ? (row.role ?? '') : ''}

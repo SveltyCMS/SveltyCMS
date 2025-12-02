@@ -17,9 +17,9 @@ Efficiently manages user data updates with validation, role selection, and delet
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-	// Skeleton & Stores
-	import type { ModalComponent } from '@skeletonlabs/skeleton';
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	// Modal Utils
+	import type { ModalComponent } from '@utils/modalUtils';
+	import { getModalStore } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 	import { Form } from '@utils/Form.svelte';
 	import { editUserSchema } from '@utils/formSchemas';

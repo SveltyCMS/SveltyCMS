@@ -33,7 +33,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 				<div class="relative z-10 flex flex-1 flex-col items-center" role="listitem">
 					<button
 						type="button"
-						class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 sm:h-10 sm:w-10 sm:text-sm {stepCompleted[
+						class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-tertiary-500 sm:h-10 sm:w-10 sm:text-sm {stepCompleted[
 							i
 						]
 							? 'bg-primary-500 text-white'

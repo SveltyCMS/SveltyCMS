@@ -96,6 +96,7 @@
 </div>
 
 <style lang="postcss">
+	@reference "../../../../../app.css";
 	.crop-controls {
 		@apply flex w-full items-center gap-3 px-2;
 	}
@@ -137,3 +138,5 @@
 		@apply bg-white text-primary-600 shadow-sm dark:bg-surface-900;
 	}
 </style>
+
+

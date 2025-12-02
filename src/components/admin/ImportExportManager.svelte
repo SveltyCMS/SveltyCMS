@@ -14,9 +14,9 @@
 	// Components
 	import Input from '@components/system/inputs/Input.svelte';
 	import Toggles from '@components/system/inputs/Toggles.svelte';
-	import ProgressBar from '@components/system/ProgressBar.svelte';
+	import ProgressBar from '@components/system/Progress.svelte';
 	// Skeleton components
-	import { getToastStore } from '@skeletonlabs/skeleton';
+	import { getToastStore } from '@utils/toast';
 
 	// Utils
 	import { getCollections } from '@utils/apiClient';

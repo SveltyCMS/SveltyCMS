@@ -23,8 +23,8 @@
 <script lang="ts">
 	import type { SvelteComponent } from 'svelte';
 
-	// Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	// Modal Utils
+	import { getModalStore } from '@utils/modalUtils';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';

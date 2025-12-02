@@ -10,7 +10,7 @@
  * - Action-specific modal templates
  */
 
-import type { ModalSettings } from '@skeletonlabs/skeleton';
+import type { ModalSettings } from '@utils/modalUtils';
 import { showToast } from '@utils/toast';
 import { writable } from 'svelte/store';
 
@@ -175,7 +175,7 @@ export function createScheduleModal(itemType: string, itemName: string, onConfir
 			}
 		},
 		buttonTextCancel: m.button_cancel(),
-		modalClasses: '!bg-tertiary-500/10 !border-tertiary-500/20'
+		modalClasses: '!bg-tertiary-500/10 !border-tertiary-500/20 dark:!bg-primary-500/10 dark:!border-primary-500/20'
 	};
 }
 

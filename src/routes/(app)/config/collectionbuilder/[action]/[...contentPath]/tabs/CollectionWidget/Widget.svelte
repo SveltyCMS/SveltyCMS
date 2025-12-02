@@ -19,9 +19,9 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Skeleton
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	// Modal utilities
+	import { getModalStore } from '@utils/modalUtils';
+	import type { ModalComponent, ModalSettings } from '@utils/modalUtils';
 
 	interface Props {
 		'on:save'?: () => void;

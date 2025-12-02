@@ -20,9 +20,9 @@ It handles token creation, updates, and deletion with proper validation and erro
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 
-	// Skeleton & Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalComponent } from '@skeletonlabs/skeleton';
+	// Modal Utils
+	import { getModalStore } from '@utils/modalUtils';
+	import type { ModalComponent } from '@utils/modalUtils';
 	const modalStore = getModalStore();
 	import { showToast } from '@utils/toast';
 

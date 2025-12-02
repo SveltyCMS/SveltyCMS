@@ -49,9 +49,9 @@
 		{char}
 	</span>
 {:else if parts}
-	<!-- Site name with highlighted portion -->
+	<!-- Site name with highlighted portion - CMS is always green (tertiary) -->
 	<span class="text-left font-bold">
-		{parts.before}<span class="text-primary-500">{parts.highlight}</span>{parts.after}
+		{parts.before}<span class="text-tertiary-500">{parts.highlight}</span>{parts.after}
 	</span>
 {:else}
 	<!-- Full site name without highlighting -->

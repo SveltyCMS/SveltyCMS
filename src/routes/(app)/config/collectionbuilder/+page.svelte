@@ -41,7 +41,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton';
+	import { type ModalSettings, type ModalComponent } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 	import { showModal } from '@utils/modalUtils';
 	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
@@ -306,7 +306,7 @@
 
 <div class="max-h-[calc(100vh-65px)] overflow-auto">
 	<div class="wrapper mb-2">
-		<p class="mb-4 text-center dark:text-primary-500">
+		<p class="mb-4 text-center text-tertiary-500 dark:text-primary-500">
 			{m.collection_description()}
 		</p>
 

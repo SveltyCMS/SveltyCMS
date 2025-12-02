@@ -813,6 +813,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 </section>
 
 <style lang="postcss">
+	@reference "../../../app.css";
+
 	.hide {
 		transition: 0s;
 		opacity: 0;

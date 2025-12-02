@@ -50,17 +50,17 @@ body {
 	@apply focus:bg-gradient-to-br focus:from-error-600 focus:via-error-500 focus:to-error-300 dark:focus:bg-gradient-to-br dark:focus:from-error-700 dark:focus:via-error-500 dark:focus:to-error-300;
 }
 
-/* tertiary */
+/* tertiary - GREEN in light mode, BLUE in dark mode */
 .gradient-tertiary {
-	@apply bg-gradient-to-br from-tertiary-600 via-tertiary-500 to-tertiary-300 dark:bg-gradient-to-br dark:from-tertiary-800 dark:via-tertiary-600 dark:to-tertiary-400;
+	@apply bg-gradient-to-br from-tertiary-600 via-tertiary-500 to-tertiary-300 dark:bg-gradient-to-br dark:from-primary-700 dark:via-primary-600 dark:to-primary-400;
 }
 
 .gradient-tertiary-hover {
-	@apply hover:bg-gradient-to-br hover:from-tertiary-600 hover:via-tertiary-500 hover:to-tertiary-300 dark:hover:bg-gradient-to-br dark:hover:from-tertiary-800 dark:hover:via-tertiary-600 dark:hover:to-tertiary-400;
+	@apply hover:bg-gradient-to-br hover:from-tertiary-600 hover:via-tertiary-500 hover:to-tertiary-300 dark:hover:bg-gradient-to-br dark:hover:from-primary-700 dark:hover:via-primary-600 dark:hover:to-primary-400;
 }
 
 .gradient-tertiary-focus {
-	@apply focus:bg-gradient-to-br focus:from-tertiary-600 focus:via-tertiary-500 focus:to-tertiary-300 dark:focus:bg-gradient-to-br dark:focus:from-tertiary-800 dark:focus:via-tertiary-600 dark:focus:to-tertiary-400;
+	@apply focus:bg-gradient-to-br focus:from-tertiary-600 focus:via-tertiary-500 focus:to-tertiary-300 dark:focus:bg-gradient-to-br dark:focus:from-primary-700 dark:focus:via-primary-600 dark:focus:to-primary-400;
 }
 
 /* yellow */

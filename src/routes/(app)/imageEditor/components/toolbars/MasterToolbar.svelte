@@ -37,6 +37,7 @@ Tools provide their control components which get rendered here.
 </div>
 
 <style lang="postcss">
+	@reference "../../../../../app.css";
 	.master-toolbar {
 		@apply bottom-0 left-0 right-0 z-50 border-t backdrop-blur-md;
 		background-color: rgb(var(--color-surface-50) / 0.95);
@@ -71,3 +72,5 @@ Tools provide their control components which get rendered here.
 		}
 	}
 </style>
+
+
