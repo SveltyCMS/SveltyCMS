@@ -84,7 +84,42 @@ export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = /\/
 
 	// Submit form using data-testid
 	console.log('[Auth] Submitting login form...');
+
+	// Listen for network responses to debug login
+	const responsePromise = page.waitForResponse(
+		(response) => response.url().includes('/login') && response.request().method() === 'POST',
+		{ timeout: 20000 }
+	);
+
 	await page.getByTestId('signin-submit').click();
+
+	// Wait for the form submission response
+	try {
+		const response = await responsePromise;
+		console.log(`[Auth] Login response status: ${response.status()}`);
+		const responseBody = await response.text().catch(() => 'Could not read body');
+		console.log(`[Auth] Login response body (first 500 chars): ${responseBody.substring(0, 500)}`);
+	} catch (e) {
+		console.log(`[Auth] Could not capture login response: ${e}`);
+	}
+
+	// Take screenshot after submission
+	await page.waitForTimeout(2000);
+	await page.screenshot({ path: 'debug-after-login-submit.png', fullPage: true });
+	console.log('[Auth] Screenshot saved: debug-after-login-submit.png');
+	console.log(`[Auth] Current URL after submit: ${page.url()}`);
+
+	// Check for any error messages on page
+	const errorText = await page.locator('.error, [class*="error"], [role="alert"]').first().textContent().catch(() => null);
+	if (errorText) {
+		console.log(`[Auth] Error message found: ${errorText}`);
+	}
+
+	// Check for toast messages
+	const toastText = await page.locator('[class*="toast"], [class*="Toast"]').first().textContent().catch(() => null);
+	if (toastText) {
+		console.log(`[Auth] Toast message: ${toastText}`);
+	}
 
 	// Wait for redirect after successful login
 	console.log('[Auth] Waiting for redirect...');
