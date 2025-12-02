@@ -152,7 +152,7 @@
 						</div>
 						<div class="rounded-lg bg-primary-50 p-2 text-center dark:bg-primary-900/20">
 							<div class="0 text-lg font-bold">{formatNumber(metrics.overall.sets)}</div>
-							<div class="mt-0.5 text-primary-700 dark:text-tertiary-500">Sets</div>
+							<div class="mt-0.5 text-primary-700 dark:text-primary-500">Sets</div>
 						</div>
 						<div class="rounded-lg bg-warning-50 p-2 text-center dark:bg-warning-900/20">
 							<div class="text-lg font-bold">{formatNumber(metrics.overall.deletes)}</div>

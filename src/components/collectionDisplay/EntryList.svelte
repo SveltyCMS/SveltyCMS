@@ -754,7 +754,7 @@ Features:
 	{#if columnShow}
 		<!-- Column order -->
 		<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 p-2 text-center dark:bg-surface-700">
-			<div class="text-sm text-white dark:text-tertiary-500">
+			<div class="text-sm text-white dark:text-primary-500">
 				{m.entrylist_dnd()}
 			</div>
 			<!-- Select All Columns -->
@@ -801,7 +801,7 @@ Features:
 						: ''}"
 			>
 				<!-- Table Header -->
-				<thead class="text-primary-500 dark:text-tertiary-500">
+				<thead class="text-tertiary-500 dark:text-primary-500">
 					{#if filterShow && visibleTableHeaders.length > 0}
 						<tr class="divide-x divide-surface-400 dark:divide-surface-600">
 							<th>
@@ -852,7 +852,7 @@ Features:
 							<th
 								class="cursor-pointer px-2 py-1 text-center text-xs sm:text-sm {header.name === entryListPaginationSettings.sorting.sortedBy
 									? 'font-semibold text-primary-500 dark:text-secondary-400'
-									: 'text-primary-500 dark:text-tertiary-500'}"
+									: 'text-tertiary-500 dark:text-primary-500'}"
 								onclick={() => onSortChange(header.name)}
 							>
 								<div class="flex items-center justify-center">
@@ -1000,7 +1000,7 @@ Features:
 			/>
 		</div>
 	{:else}
-		<div class="py-10 text-center text-primary-500 dark:text-tertiary-500">
+		<div class="py-10 text-center text-tertiary-500 dark:text-primary-500">
 			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
 			<p class="text-lg">
 				{currentCollection?.name ? m.EntryList_no_collection({ name: currentCollection.name }) : 'No collection selected or collection is empty.'}

@@ -454,7 +454,7 @@ Features:
 			<!-- Marketplace Tab -->
 			<div class="rounded-lg border border-gray-200 bg-gray-50 p-12 text-center dark:border-gray-700 dark:bg-gray-800">
 				<div class="mx-auto max-w-md">
-					<iconify-icon icon="mdi:store" class="mx-auto text-6xl text-primary-500 dark:text-tertiary-500"></iconify-icon>
+					<iconify-icon icon="mdi:store" class="mx-auto text-6xl text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					<h3 class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">Marketplace Coming Soon</h3>
 					<p class="mt-2 text-gray-600 dark:text-gray-400">
 						The Widget Marketplace will allow you to discover, install, and manage premium and community widgets to extend your SveltyCMS
@@ -462,19 +462,19 @@ Features:
 					</p>
 					<div class="mt-6 space-y-2 text-left">
 						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-primary-500 dark:text-tertiary-500"></iconify-icon>
+							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							<span>Browse hundreds of widgets across multiple categories</span>
 						</div>
 						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-primary-500 dark:text-tertiary-500"></iconify-icon>
+							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							<span>One-click installation and automatic updates</span>
 						</div>
 						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-primary-500 dark:text-tertiary-500"></iconify-icon>
+							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							<span>Community ratings and reviews</span>
 						</div>
 						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-primary-500 dark:text-tertiary-500"></iconify-icon>
+							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							<span>Support for both free and premium widgets</span>
 						</div>
 					</div>

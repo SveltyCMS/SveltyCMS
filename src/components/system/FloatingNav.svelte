@@ -451,7 +451,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	aria-expanded={showRoutes}
 	tabindex="0"
 	use:drag
-	class="fixed z-[99999999] flex -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full bg-tertiary-500 active:scale-90 [&&>*]:pointer-events-none"
+	class="fixed z-[99999999] flex -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full bg-tertiary-500 dark:bg-primary-500 active:scale-90 [&&>*]:pointer-events-none"
 	style="top:{(Math.min(buttonInfo.y, browser ? window.innerHeight - BUTTON_RADIUS : 0) / (browser ? window.innerHeight : 1)) * 100}%;
 	       left:{(Math.min(isRightToLeft() ? BUTTON_RADIUS : buttonInfo.x, browser ? window.innerWidth - BUTTON_RADIUS : 0) /
 		(browser ? window.innerWidth : 1)) *
@@ -484,7 +484,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 		<div
 			transition:fade
-			class="absolute left-1/2 top-1/4 z-[9999998] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40"
+			class="absolute left-1/2 top-1/4 z-[9999998] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40 dark:bg-primary-500/40"
 			style="top:{center.y}px;
 			       left:{center.x}px;
 			       width:{MENU_RADIUS * 2}px;
@@ -502,7 +502,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			onmouseleave={() => (activeTooltipText = '')}
 			onclick={handleNavigateHome}
 			aria-label={endpoints[0]?.tooltip || 'Home'}
-			class="fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] cursor-pointer items-center justify-center rounded-full border-2 bg-tertiary-500"
+			class="fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] cursor-pointer items-center justify-center rounded-full border-2 bg-tertiary-500 dark:bg-primary-500"
 			style="top:{center.y}px;
 			       left:{center.x}px"
 		>
@@ -522,7 +522,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 				onclick={handleNavigateToEndpoint}
 				aria-label={endpoint.tooltip}
 				class="fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full {endpoint.color ||
-					'bg-tertiary-500'} animate-[showEndPoints_0.2s_0.4s_forwards] hover:scale-150 active:scale-100"
+					'bg-tertiary-500 dark:bg-primary-500'} animate-[showEndPoints_0.2s_0.4s_forwards] hover:scale-150 active:scale-100"
 				style="top:{endpoint.y}px;
 			       left:{endpoint.x}px"
 			>

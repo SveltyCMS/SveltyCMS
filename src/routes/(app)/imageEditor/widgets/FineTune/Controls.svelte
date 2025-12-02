@@ -75,6 +75,7 @@
 </div>
 
 <style lang="postcss">
+	@reference "../../../../../app.css";
 	.finetune-controls {
 		@apply flex w-full items-center gap-3 px-2;
 	}
@@ -111,3 +112,5 @@
 		@apply bg-success-500 hover:bg-success-600;
 	}
 </style>
+
+

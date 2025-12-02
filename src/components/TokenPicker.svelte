@@ -315,7 +315,7 @@
 						><iconify-icon icon="mdi:arrow-left"></iconify-icon></button
 					>
 				{/if}
-				<h3 class="text-lg font-bold text-primary-500 dark:text-tertiary-500">
+				<h3 class="text-lg font-bold text-tertiary-500 dark:text-primary-500">
 					{#if mode === 'configure'}
 						Configure Token
 					{:else}

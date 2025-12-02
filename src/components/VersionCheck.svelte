@@ -59,7 +59,7 @@ The `children` snippet is passed an object with the following properties:
 	// Use the pkg version passed from the server load function
 	const pkg = $derived(page.data?.settings?.PKG_VERSION || '0.0.0');
 	let githubVersion = $state('');
-	let pkgBgColor = $state('bg-tertiary-500 text-white'); // Default green color
+	let pkgBgColor = $state('bg-tertiary-500 dark:bg-primary-500 text-white'); // Green in light, blue in dark
 	let versionStatusMessage = $state('Checking for updates...');
 	let statusIcon = $state('mdi:loading');
 	let isLoading = $state(true);
@@ -82,14 +82,14 @@ The `children` snippet is passed an object with the following properties:
 					versionStatusMessage = `Update to v${githubVersion} recommended`;
 					statusIcon = 'mdi:information';
 				} else {
-					pkgBgColor = 'bg-tertiary-500 text-white';
+					pkgBgColor = 'bg-tertiary-500 dark:bg-primary-500 text-white';
 					versionStatusMessage = 'You are up to date';
 					statusIcon = 'mdi:check-circle';
 				}
 			})
 			.catch(() => {
 				githubVersion = pkg;
-				pkgBgColor = 'bg-tertiary-500 text-white';
+				pkgBgColor = 'bg-tertiary-500 dark:bg-primary-500 text-white';
 				versionStatusMessage = '';
 				statusIcon = 'mdi:loading';
 			})
@@ -101,8 +101,8 @@ The `children` snippet is passed an object with the following properties:
 			});
 	});
 
-	// Transparent mode always uses green styling with green background
-	const transparentColorClass = 'bg-tertiary-500 text-white';
+	// Transparent mode uses theme-aware styling (green in light, blue in dark)
+	const transparentColorClass = 'bg-tertiary-500 dark:bg-primary-500 text-white';
 </script>
 
 {#if children}

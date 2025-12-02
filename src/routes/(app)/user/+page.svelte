@@ -178,7 +178,7 @@
 				</Avatar>
 
 				<!-- Edit button -->
-				<button onclick={modalEditAvatar} class="gradient-primary w-30 badge absolute -top-44 text-white sm:top-4">{m.userpage_editavatar()}</button>
+				<button onclick={modalEditAvatar} class="gradient-tertiary w-30 badge absolute -top-44 text-white sm:top-4">{m.userpage_editavatar()}</button>
 				<!-- User ID -->
 				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
 					{m.userpage_user_id()}<span class="ml-2">{user?._id || 'N/A'}</span>
@@ -205,13 +205,13 @@
 				{/if}
 				<!-- Tenant ID -->
 				{#if isMultiTenant}
-					<div class="gradient-primary badge w-full max-w-xs text-white">
+					<div class="gradient-tertiary badge w-full max-w-xs text-white">
 						Tenant ID:<span class="ml-2">{user?.tenantId || 'N/A'}</span>
 					</div>
 				{/if}
 				<!-- Permissions List -->
 				{#each user.permissions as permission}
-					<div class="gradient-primary badge mt-1 w-full max-w-xs text-white">
+					<div class="gradient-tertiary badge mt-1 w-full max-w-xs text-white">
 						{permission}
 					</div>
 				{/each}

@@ -258,7 +258,7 @@
 			readonly={field?.readonly as boolean | undefined}
 			minlength={field?.minLength as number | undefined}
 			maxlength={field?.maxLength as number | undefined}
-			class="input w-full flex-1 rounded-none text-black dark:text-tertiary-500"
+			class="input w-full flex-1 rounded-none text-black dark:text-primary-500"
 			class:!border-error-500={!!validationError}
 			class:!ring-1={!!validationError || isValidating}
 			class:!ring-error-500={!!validationError}

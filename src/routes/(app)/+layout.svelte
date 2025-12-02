@@ -318,7 +318,7 @@
 		<div class="flex h-lvh flex-col overflow-hidden">
 			<!-- Header (Optional) -->
 			{#if uiStateManager.uiState.value.header !== 'hidden'}
-				<header class="sticky top-0 z-10 bg-tertiary-500">
+				<header class="sticky top-0 z-10 bg-tertiary-500 dark:bg-primary-500">
 					<!-- Header content goes here -->
 				</header>
 			{/if}

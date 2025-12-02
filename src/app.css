@@ -286,9 +286,13 @@ html.dark[data-theme='sveltycms'] body,
  * Gradient Utilities
  * Tailwind v4 syntax - no @apply, use direct CSS
  * Using :where(.dark) for dark mode to work with class on same element
+ * 
+ * COLOR SCHEME:
+ * - Light mode: Green gradients (tertiary colors)
+ * - Dark mode: Blue gradients (primary colors)
  */
 @layer components {
-	/* Primary Gradients */
+	/* Primary Gradients - Blue in light, stays blue (for specific use cases) */
 	.gradient-primary {
 		background-image: linear-gradient(to bottom right, var(--color-primary-700), var(--color-primary-600), var(--color-primary-500));
 	}
@@ -336,14 +340,14 @@ html.dark[data-theme='sveltycms'] body,
 		background-image: linear-gradient(to bottom right, var(--color-error-700), var(--color-error-500), var(--color-error-300));
 	}
 
-	/* Tertiary Gradients */
+	/* Tertiary Gradients - GREEN in light mode, BLUE in dark mode */
 	.gradient-tertiary {
 		background-image: linear-gradient(to bottom right, var(--color-tertiary-600), var(--color-tertiary-500), var(--color-tertiary-300));
 	}
 
 	:where(.dark) .gradient-tertiary,
 	.dark.gradient-tertiary {
-		background-image: linear-gradient(to bottom right, var(--color-tertiary-800), var(--color-tertiary-600), var(--color-tertiary-400));
+		background-image: linear-gradient(to bottom right, var(--color-primary-700), var(--color-primary-600), var(--color-primary-400));
 	}
 
 	/* Warning/Yellow Gradients */
@@ -435,35 +439,43 @@ h1 span .text-tertiary-500,
 	color: var(--color-tertiary-500) !important;
 }
 
-/* Keep legend checkmark always green */
+/* Dark mode: CMS name should be blue */
+.dark h1 .text-tertiary-500,
+.dark h1 span .text-tertiary-500 {
+	color: var(--color-primary-500) !important;
+}
+
+/* Keep legend checkmark green in light, blue in dark */
 .bg-tertiary-500 {
 	background-color: var(--color-tertiary-500) !important;
 }
 
-/* Dark mode: All text-tertiary-500 stays green */
-.dark .text-tertiary-500,
-html.dark .text-tertiary-500 {
-	color: var(--color-tertiary-500) !important;
+.dark .bg-tertiary-500 {
+	background-color: var(--color-primary-500) !important;
 }
 
-/* Light mode: Blue buttons */
+/* NOTE: Removed forced text-tertiary-500 override to allow dark:text-primary-500 to work properly
+   Dark mode text colors are now controlled by Tailwind utility classes:
+   - text-tertiary-500 dark:text-primary-500 = green in light, blue in dark */
+
+/* Light mode: GREEN buttons */
 html:not(.dark) .variant-filled-tertiary,
 :not(.dark) .variant-filled-tertiary {
-	background-color: var(--color-primary-500) !important;
+	background-color: var(--color-tertiary-500) !important;
 	color: white !important;
 }
 
 html:not(.dark) .variant-filled-tertiary:hover,
 :not(.dark) .variant-filled-tertiary:hover {
-	background-color: var(--color-primary-600) !important;
+	background-color: var(--color-tertiary-600) !important;
 }
 
-/* Dark mode: Green buttons with white text */
+/* Dark mode: BLUE buttons */
 .dark .variant-filled-primary,
 html.dark .variant-filled-primary,
 .dark .variant-filled-tertiary,
 html.dark .variant-filled-tertiary {
-	background-color: var(--color-tertiary-500) !important;
+	background-color: var(--color-primary-500) !important;
 	color: white !important;
 }
 
@@ -471,20 +483,20 @@ html.dark .variant-filled-tertiary {
 html.dark .variant-filled-primary:hover,
 .dark .variant-filled-tertiary:hover,
 html.dark .variant-filled-tertiary:hover {
-	background-color: var(--color-tertiary-400) !important;
+	background-color: var(--color-primary-400) !important;
 }
 
-/* Light mode: Blue border accents */
+/* Light mode: Green border accents */
 html:not(.dark) .border-tertiary-500,
 :not(.dark) .border-tertiary-500 {
-	border-color: var(--color-primary-500) !important;
+	border-color: var(--color-tertiary-500) !important;
 }
 
-/* Dark mode: Green border accents */
+/* Dark mode: Blue border accents */
 .dark .border-primary-500,
 html.dark .border-primary-500,
 .dark .border-tertiary-500,
 html.dark .border-tertiary-500 {
-	border-color: var(--color-tertiary-500) !important;
+	border-color: var(--color-primary-500) !important;
 }
 

@@ -100,7 +100,7 @@ Key features:
 
 <div class="flex flex-wrap items-center gap-4 overflow-auto">
 	{#if filteredFiles.length === 0}
-		<div class="mx-auto text-center text-primary-500 dark:text-tertiary-500">
+		<div class="mx-auto text-center text-tertiary-500 dark:text-primary-500">
 			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
 			<p class="text-lg">No media found</p>
 		</div>
@@ -117,7 +117,7 @@ Key features:
 
 		<div class="table-container max-h-[calc(100vh-120px)] overflow-auto">
 			<table class="table table-interactive table-hover">
-				<thead class="bg-surface-100-800-token sticky top-0 text-primary-500 dark:text-tertiary-500">
+				<thead class="bg-surface-100-800-token sticky top-0 text-tertiary-500 dark:text-primary-500">
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
 						<th class="w-10">Select</th>
 						<th>Thumbnail</th>

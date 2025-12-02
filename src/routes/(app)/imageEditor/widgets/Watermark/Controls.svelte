@@ -92,6 +92,7 @@
 </div>
 
 <style lang="postcss">
+	@reference "../../../../../app.css";
 	.watermark-controls {
 		@apply flex w-full items-center gap-3 px-2;
 	}
@@ -135,3 +136,5 @@
 		@apply text-surface-500 hover:bg-white hover:text-primary-600 dark:text-surface-400 dark:hover:bg-surface-900;
 	}
 </style>
+
+

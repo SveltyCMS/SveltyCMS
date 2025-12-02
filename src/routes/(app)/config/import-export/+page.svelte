@@ -34,24 +34,24 @@ is handled in reusable backend APIs.
 
 	<div class="mt-4 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
 		<div class="flex items-start space-x-3">
-			<iconify-icon icon="mdi:information" width="24" class="mt-1 text-primary-500 dark:text-tertiary-500"></iconify-icon>
+			<iconify-icon icon="mdi:information" width="24" class="mt-1 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			<div>
 				<p class="mb-2 font-semibold">Data Management Tools:</p>
 				<ul class="list-none space-y-1 text-sm">
 					<li class="flex">
-						<span class="w-24 font-semibold text-primary-500 dark:text-tertiary-500">Export:</span>
+						<span class="w-24 font-semibold text-tertiary-500 dark:text-primary-500">Export:</span>
 						<span>Create backups of your collections data in JSON or CSV format</span>
 					</li>
 					<li class="flex">
-						<span class="w-24 font-semibold text-primary-500 dark:text-tertiary-500">Import:</span>
+						<span class="w-24 font-semibold text-tertiary-500 dark:text-primary-500">Import:</span>
 						<span>Restore data from previous backups or migrate from other systems</span>
 					</li>
 					<li class="flex">
-						<span class="w-24 font-semibold text-primary-500 dark:text-tertiary-500">Security:</span>
+						<span class="w-24 font-semibold text-tertiary-500 dark:text-primary-500">Security:</span>
 						<span>All operations are performed server-side - your data never leaves your server</span>
 					</li>
 					<li class="flex">
-						<span class="w-24 font-semibold text-primary-500 dark:text-tertiary-500">Validation:</span>
+						<span class="w-24 font-semibold text-tertiary-500 dark:text-primary-500">Validation:</span>
 						<span>Import process includes data validation and error reporting</span>
 					</li>
 				</ul>

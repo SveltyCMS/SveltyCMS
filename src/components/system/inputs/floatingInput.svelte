@@ -103,7 +103,7 @@
 		name?: string;
 		required?: boolean;
 		passwordIconColor?: string; // Renamed for clarity. CSS color string.
-		textColor?: string; // CSS color classes, e.g., 'text-primary-500 dark:text-tertiary-500'
+		textColor?: string; // CSS color classes, e.g., 'text-tertiary-500 dark:text-primary-500'
 		type?: InputType;
 		tabindex?: number;
 		id?: string;
@@ -195,7 +195,7 @@
 			{onkeydown}
 			type={effectiveType}
 			style="color: {textColor};"
-			class="peer block w-full appearance-none border-0 border-b-2 border-surface-300 bg-transparent px-6 text-base focus:border-tertiary-600 focus:outline-none focus:ring-0 disabled:opacity-50 dark:border-surface-400 dark:focus:border-tertiary-500 {inputClass}"
+			class="peer block w-full appearance-none border-0 border-b-2 border-surface-400 bg-surface-100/50 px-6 py-3 text-base focus:border-tertiary-600 focus:bg-surface-100 focus:outline-none focus:ring-0 disabled:opacity-50 dark:border-surface-500 dark:bg-surface-700/50 dark:focus:border-tertiary-500 dark:focus:bg-surface-700 {inputClass}"
 			class:!border-error-500={invalid}
 			class:dark:!border-error-500={invalid}
 			class:pr-10={type === 'password'}
@@ -204,7 +204,7 @@
 		/>
 
 		{#if icon}
-			<iconify-icon {icon} width="1.125em" class="absolute left-0 top-3" style="color: {iconColor};" aria-hidden="true"></iconify-icon>
+			<iconify-icon {icon} width="1.125em" class="absolute left-0 top-4" style="color: {iconColor};" aria-hidden="true"></iconify-icon>
 		{/if}
 
 		{#if type === 'password'}
@@ -214,7 +214,7 @@
 				icon={showPassword ? 'bi:eye-fill' : 'bi:eye-slash-fill'}
 				aria-label={showPassword ? 'Hide password' : 'Show password'}
 				aria-pressed={showPassword}
-				class="absolute right-2 top-3 cursor-pointer hover:opacity-75 focus:outline-none"
+				class="absolute right-2 top-4 cursor-pointer hover:opacity-75 focus:outline-none"
 				width="24"
 				style="color: {passwordIconColor};"
 				onkeydown={handleIconKeyDown}
@@ -225,10 +225,10 @@
 		{#if label}
 			<label
 				for={currentId}
-				class="pointer-events-none absolute left-6 top-3 origin-[0] -translate-y-4 transform text-base text-surface-400 transition-all duration-200 ease-in-out peer-placeholder-shown:translate-y-0 peer-placeholder-shown:text-base peer-focus:-translate-y-4 peer-focus:text-xs peer-focus:text-tertiary-500 peer-disabled:text-surface-500 {invalid &&
+				class="pointer-events-none absolute left-6 top-4 origin-[0] -translate-y-5 transform text-base text-surface-500 transition-all duration-200 ease-in-out peer-placeholder-shown:translate-y-0 peer-placeholder-shown:text-base peer-focus:-translate-y-5 peer-focus:text-xs peer-focus:text-tertiary-500 peer-disabled:text-surface-500 dark:text-surface-400 {invalid &&
 				value
 					? '!text-error-500'
-					: ''} {value ? '-translate-y-4 text-xs' : ''} {labelClass}"
+					: ''} {value ? '-translate-y-5 text-xs' : ''} {labelClass}"
 			>
 				{label}
 				{#if required}

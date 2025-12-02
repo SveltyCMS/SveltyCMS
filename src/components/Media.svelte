@@ -147,7 +147,7 @@ Displays a grid of media files with search, thumbnails, and detailed info view.
 <div class="flex h-full flex-col gap-4">
 	<!-- Header with search -->
 	<div class="flex items-center gap-2">
-		<label for="media-search" class="font-bold text-primary-500 dark:text-tertiary-500"> Media </label>
+		<label for="media-search" class="font-bold text-tertiary-500 dark:text-primary-500"> Media </label>
 		<input
 			type="text"
 			bind:value={search}
@@ -166,8 +166,8 @@ Displays a grid of media files with search, thumbnails, and detailed info view.
 	{#if isLoading}
 		<div class="flex flex-1 items-center justify-center text-center">
 			<div class="flex flex-col items-center gap-2">
-				<iconify-icon icon="svg-spinners:ring-resize" height="44" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
-				<p class="text-lg text-primary-500 dark:text-tertiary-500">Loading media...</p>
+				<iconify-icon icon="svg-spinners:ring-resize" height="44" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				<p class="text-lg text-tertiary-500 dark:text-primary-500">Loading media...</p>
 			</div>
 		</div>
 	{:else if error}
@@ -183,8 +183,8 @@ Displays a grid of media files with search, thumbnails, and detailed info view.
 		<!-- Empty state -->
 		<div class="flex flex-1 items-center justify-center text-center">
 			<div class="flex flex-col items-center gap-2">
-				<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
-				<p class="text-lg text-primary-500 dark:text-tertiary-500">
+				<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				<p class="text-lg text-tertiary-500 dark:text-primary-500">
 					{search ? `No media found for "${search}"` : m.mediagallery_nomedia()}
 				</p>
 			</div>

@@ -123,7 +123,7 @@
 </div>
 
 {#if customThemes.length === 0}
-	<p class="my-2 text-center text-primary-500 dark:text-tertiary-500 sm:text-left">
+	<p class="my-2 text-center text-tertiary-500 dark:text-primary-500 sm:text-left">
 		There are currently no custom themes available. Visit the SveltyCMS marketplace to find new themes.
 	</p>
 

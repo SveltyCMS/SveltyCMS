@@ -129,40 +129,40 @@
 </div>
 
 <div class="mb-6 text-center sm:text-left">
-	<p class="text-center text-primary-500 dark:text-tertiary-500">
+	<p class="text-center text-tertiary-500 dark:text-primary-500">
 		Here you can create and manage user roles and permissions. Each role defines a set of permissions that determine what actions users with that role
 		can perform in the system.
 	</p>
 </div>
 
 <div class="flex flex-col">
-	<Tabs value={currentTab} onValueChange={(details) => currentTab = details.value} class="flex-grow justify-around text-primary-500 dark:text-tertiary-500">
+	<Tabs value={currentTab} onValueChange={(details) => currentTab = details.value} class="flex-grow justify-around text-tertiary-500 dark:text-primary-500">
 		<Tabs.List>
 			<Tabs.Trigger value="permissions">
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white"></iconify-icon>
-					<span class={currentTab === 'permissions' ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_permission()}</span>
+					<span class={currentTab === 'permissions' ? 'text-secondary-500 dark:text-primary-500' : ''}>{m.system_permission()}</span>
 				</div>
 			</Tabs.Trigger>
 
 			<Tabs.Trigger value="roles">
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:account-group" width="28" class="text-black dark:text-white"></iconify-icon>
-					<span class={currentTab === 'roles' ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_roles()}</span>
+					<span class={currentTab === 'roles' ? 'text-secondary-500 dark:text-primary-500' : ''}>{m.system_roles()}</span>
 				</div>
 			</Tabs.Trigger>
 
 			<Tabs.Trigger value="admin">
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:account-cog" width="28" class="text-black dark:text-white"></iconify-icon>
-					<span class={currentTab === 'admin' ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Admin</span>
+					<span class={currentTab === 'admin' ? 'text-secondary-500 dark:text-primary-500' : ''}>Admin</span>
 				</div>
 			</Tabs.Trigger>
 
 			<Tabs.Trigger value="websites">
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:web" width="28" class="text-black dark:text-white"></iconify-icon>
-					<span class={currentTab === 'websites' ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Website Tokens</span>
+					<span class={currentTab === 'websites' ? 'text-secondary-500 dark:text-primary-500' : ''}>Website Tokens</span>
 				</div>
 			</Tabs.Trigger>
 		</Tabs.List>

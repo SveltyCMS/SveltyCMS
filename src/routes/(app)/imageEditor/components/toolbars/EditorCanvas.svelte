@@ -83,6 +83,7 @@ for the image editor canvas with responsive behavior.
 </div>
 
 <style lang="postcss">
+	@reference "../../../../../app.css";
 	.editor-canvas-wrapper {
 		background-color: rgb(var(--color-surface-50) / 1);
 		border-color: rgb(var(--color-surface-200) / 1);
@@ -130,3 +131,5 @@ for the image editor canvas with responsive behavior.
 		}
 	}
 </style>
+
+

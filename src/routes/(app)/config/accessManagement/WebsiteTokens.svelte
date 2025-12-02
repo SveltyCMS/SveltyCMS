@@ -213,7 +213,7 @@
 
 	<div class="card mb-4">
 		<div class="p-4">
-			<h4 class="h4 mb-2 font-bold text-primary-500 dark:text-tertiary-500">Generate New Website Token</h4>
+			<h4 class="h4 mb-2 font-bold text-tertiary-500 dark:text-primary-500">Generate New Website Token</h4>
 			<div class="flex gap-2">
 				<input type="text" class="input" placeholder="Token Name" bind:value={newTokenName} />
 				<button class="variant-filled-primary btn" onclick={generateToken}>Generate</button>
@@ -224,7 +224,7 @@
 	<div class="card">
 		<div class="p-4">
 			<div class="my-4 flex flex-wrap items-center justify-between gap-1">
-				<h4 class="h4 font-bold text-primary-500 dark:text-tertiary-500">Existing Tokens</h4>
+				<h4 class="h4 font-bold text-tertiary-500 dark:text-primary-500">Existing Tokens</h4>
 				<div class="order-3 sm:order-2">
 					<TableFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
 				</div>
@@ -232,7 +232,7 @@
 
 			{#if columnShow}
 				<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
-					<div class="text-white dark:text-tertiary-500">Drag and drop to reorder columns</div>
+					<div class="text-white dark:text-primary-500">Drag and drop to reorder columns</div>
 					<div class="my-2 flex w-full items-center justify-center gap-1">
 						<label class="mr-2">
 							<input type="checkbox" bind:checked={selectAllColumns} onchange={handleCheckboxChange} />
@@ -293,7 +293,7 @@
 										};
 									}}
 								>
-									<div class="text-terriary-500 flex items-center justify-center text-center dark:text-tertiary-500">
+									<div class="text-terriary-500 flex items-center justify-center text-center dark:text-primary-500">
 										{header.label}
 										<iconify-icon
 											icon="material-symbols:arrow-upward-rounded"
@@ -305,7 +305,7 @@
 									</div>
 								</th>
 							{/each}
-							<th class="text-terriary-500 text-center dark:text-tertiary-500">Action</th>
+							<th class="text-terriary-500 text-center dark:text-primary-500">Action</th>
 						</tr>
 					</thead>
 					<tbody>

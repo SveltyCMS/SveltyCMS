@@ -9,11 +9,11 @@
 		readonly={field?.readonly as boolean | undefined}
 		disabled={field?.disabled as boolean | undefined}
 		pattern={field?.pattern as string | undefined}
-		class="input w-full flex-1 rounded-none text-black dark:text-tertiary-500"ired={field?.required as boolean | undefined}
+		class="input w-full flex-1 rounded-none text-black dark:text-primary-500"ired={field?.required as boolean | undefined}
 				readonly={field?.readonly as boolean | undefined}
 				disabled={field?.disabled as boolean | undefined}
 				pattern={field?.pattern as string | undefined}
-				class="input w-full flex-1 rounded-none text-black dark:text-tertiary-500"b_fieldName: "phone", required: true }} />
+				class="input w-full flex-1 rounded-none text-black dark:text-primary-500"b_fieldName: "phone", required: true }} />
 
 ### Props
 - `field`: FieldType
@@ -182,7 +182,7 @@
 				required={field?.required as boolean | undefined}
 				readonly={field?.readonly as boolean | undefined}
 				disabled={field?.disabled as boolean | undefined}
-				class="input w-full rounded-none text-black dark:text-tertiary-500"
+				class="input w-full rounded-none text-black dark:text-primary-500"
 				class:error={!!validationError}
 				class:validating={isValidating}
 				aria-invalid={!!validationError}

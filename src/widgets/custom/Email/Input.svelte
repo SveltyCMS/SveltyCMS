@@ -178,7 +178,7 @@
 				required={field?.required as boolean | undefined}
 				readonly={field?.readonly as boolean | undefined}
 				disabled={field?.disabled as boolean | undefined}
-				class="input w-full rounded-none text-black dark:text-tertiary-500"
+				class="input w-full rounded-none text-black dark:text-primary-500"
 				class:error={!!validationError}
 				class:validating={isValidating}
 				aria-invalid={!!validationError}

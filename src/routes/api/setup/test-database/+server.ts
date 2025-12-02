@@ -300,17 +300,12 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 				warnings.push('credentials_not_authenticated');
 				logger.warn('Authentication failed despite providing credentials');
 			} else {
+				// No credentials provided and no authenticated users - this is valid for local MongoDB without auth
+				// If we got here, the connection succeeded and ping worked (otherwise we'd have thrown earlier)
 				warnings.push('unauthenticated_connection');
-				const canListCollections = !warnings.includes('listCollections_failed');
-				if (canListCollections) {
-					success = true;
-					message = m.api_db_test_success_no_auth();
-				} else {
-					success = false;
-					message = m.api_db_test_conn_unauthorized();
-					classification = 'credentials_required';
-					userFriendly = 'Authentication required. Please provide your username and password.';
-				}
+				success = true;
+				message = m.api_db_test_success_no_auth();
+				logger.info('✅ Connection successful without authentication (local MongoDB)');
 			}
 		}
 

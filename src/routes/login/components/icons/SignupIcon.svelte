@@ -59,6 +59,8 @@
 </div>
 
 <style lang="postcss">
+	@reference "../../../../app.css";
+
 	.hide {
 		animation: _hide 0.3s forwards;
 	}

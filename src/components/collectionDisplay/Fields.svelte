@@ -159,7 +159,7 @@
 
 	// Helper to get text color based on translation status
 	function getTranslationTextColor(percentage: number): string {
-		if (percentage === 100) return 'text-primary-500 dark:text-tertiary-500';
+		if (percentage === 100) return 'text-tertiary-500 dark:text-primary-500';
 		return 'text-error-500';
 	}
 
@@ -282,7 +282,7 @@
 	<Tabs.List class={collection.value?.revision === true ? 'justify-between md:justify-around' : 'justify-center'}>
 		<Tabs.Trigger value="edit">
 			<div class="flex items-center gap-2">
-				<iconify-icon icon="mdi:pen" width="20" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
+				<iconify-icon icon="mdi:pen" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				{m.button_edit()}
 			</div>
 		</Tabs.Trigger>
@@ -290,7 +290,7 @@
 		{#if collection.value?.revision}
 			<Tabs.Trigger value="revisions">
 				<div class="flex items-center gap-2">
-					<iconify-icon icon="mdi:history" width="20" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
+					<iconify-icon icon="mdi:history" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					{m.applayout_version()} <span class="variant-filled-secondary badge">{revisions.length}</span>
 				</div>
 			</Tabs.Trigger>
@@ -299,7 +299,7 @@
 		{#if collection.value?.livePreview}
 			<Tabs.Trigger value="preview">
 				<div class="flex items-center gap-2">
-					<iconify-icon icon="mdi:eye-outline" width="20" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
+					<iconify-icon icon="mdi:eye-outline" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					{m.Fields_preview()}
 				</div>
 			</Tabs.Trigger>
@@ -308,7 +308,7 @@
 		{#if user?.isAdmin}
 			<Tabs.Trigger value="api">
 				<div class="flex items-center gap-2">
-					<iconify-icon icon="mdi:api" width="20" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
+					<iconify-icon icon="mdi:api" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					API
 				</div>
 			</Tabs.Trigger>
@@ -346,7 +346,7 @@
 											{@const textColor = getTranslationTextColor(percentage)}
 											<div class="flex items-center gap-1 text-xs">
 												<iconify-icon icon="bi:translate" width="16"></iconify-icon>
-												<span class="font-medium text-primary-500 dark:text-tertiary-500">{currentContentLanguage.toUpperCase()}</span>
+												<span class="font-medium text-tertiary-500 dark:text-primary-500">{currentContentLanguage.toUpperCase()}</span>
 												<span class="font-medium {textColor}">({percentage}%)</span>
 											</div>
 										{/if}
@@ -385,12 +385,12 @@
 												}
 											}}
 										>
-											<iconify-icon icon="mdi:code-braces" width="14" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
+											<iconify-icon icon="mdi:code-braces" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 										</button>
 
 										<!-- Icon for field type -->
 										{#if field.icon}
-											<iconify-icon icon={field.icon} width="20" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
+											<iconify-icon icon={field.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 										{/if}
 									</div>
 								</div>
@@ -490,7 +490,7 @@
 		<div class="flex h-[600px] flex-col p-4">
 			<div class="mb-4 flex items-center justify-between gap-4">
 				<div class="flex flex-1 items-center gap-2">
-					<iconify-icon icon="mdi:open-in-new" width="20" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
+					<iconify-icon icon="mdi:open-in-new" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					<input type="text" class="input flex-grow text-sm" readonly value={previewUrl} />
 					<button class="variant-ghost-surface btn btn-sm" use:clipboard={previewUrl} aria-label="Copy preview URL">
 						<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>

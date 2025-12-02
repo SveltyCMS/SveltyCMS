@@ -214,7 +214,7 @@ Implements custom virtual scrolling without external dependencies.
 	<!-- Virtual Scrolling Container -->
 	<div bind:this={container} onscroll={handleScroll} class="flex-1 overflow-y-auto" style="height: {containerHeight}px;">
 		{#if filteredFiles.length === 0}
-			<div class="flex h-full items-center justify-center text-center text-primary-500 dark:text-tertiary-500">
+			<div class="flex h-full items-center justify-center text-center text-tertiary-500 dark:text-primary-500">
 				<div>
 					<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
 					<p class="text-lg">No media found</p>
@@ -256,7 +256,7 @@ Implements custom virtual scrolling without external dependencies.
 									aria-label="File Info"
 									class="btn-icon"
 								>
-									<iconify-icon icon="raphael:info" width="20" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
+									<iconify-icon icon="raphael:info" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 								</button>
 
 								<div class="card variant-filled z-50 min-w-[250px] p-2" data-popup="FileInfo-{fileId}">
@@ -273,7 +273,7 @@ Implements custom virtual scrolling without external dependencies.
 
 								{#if !isSelectionMode}
 									<button aria-label="Edit" class="btn-icon">
-										<iconify-icon icon="mdi:pen" width="20" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
+										<iconify-icon icon="mdi:pen" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 									</button>
 									<button onclick={() => handleDelete(file)} aria-label="Delete" class="btn-icon">
 										<iconify-icon icon="mdi:delete" width="20" class="text-error-500"></iconify-icon>

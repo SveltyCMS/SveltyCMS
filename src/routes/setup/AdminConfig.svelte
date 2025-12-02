@@ -84,7 +84,7 @@
 
 <div class="fade-in">
 	<div class="mb-8">
-		<p class="text-sm text-primary-500 dark:text-tertiary-500 sm:text-base">
+		<p class="text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">
 			{m.setup_help_admin_username?.() || 'Create your administrator account with full access to manage content, users, and system settings.'}
 		</p>
 	</div>
@@ -94,7 +94,7 @@
 			<!-- Username -->
 			<div>
 				<label for="admin-username" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:account" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="mdi:account" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.form_username?.() || 'Username'}</span>
 					<button
 						type="button"
@@ -139,7 +139,7 @@
 			<!-- Email -->
 			<div>
 				<label for="admin-email" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:email" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="mdi:email" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.form_email?.() || 'Email'}</span>
 					<button type="button" tabindex="-1" use:popup={popupAdminEmail} aria-label="Help: Email" class="ml-1 text-slate-400 hover:text-primary-500">
 						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
@@ -178,7 +178,7 @@
 			<!-- Password -->
 			<div>
 				<label for="admin-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:key-variant" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.form_password()}</span>
 					<button
 						type="button"
@@ -229,7 +229,7 @@
 			<!-- Confirm Password -->
 			<div>
 				<label for="admin-confirm-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:key" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="mdi:key" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.form_confirmpassword?.() || 'Confirm Password'}</span>
 					<button
 						tabindex="-1"
@@ -279,14 +279,14 @@
 		</div>
 
 		<!-- Password Requirements Box -->
-		<div class="mt-4 rounded border-l-4 border-tertiary-500 bg-white p-4 shadow-xl dark:border-primary-500 dark:bg-surface-800">
-			<h4 class="mb-2 text-center text-sm font-bold tracking-tight text-primary-500 dark:text-tertiary-500" id="password-reqs-heading">
+		<div class="mt-4 rounded border-l-4 border-primary-500 bg-white p-4 shadow-xl dark:border-tertiary-500 dark:bg-surface-800">
+			<h4 class="mb-2 text-center text-sm font-bold tracking-tight text-tertiary-500 dark:text-primary-500" id="password-reqs-heading">
 				{m.setup_help_admin_password?.() || 'Password Requirements'}
 			</h4>
 			<ul class="space-y-2 text-sm" aria-labelledby="password-reqs-heading">
 				<li
 					class="flex items-center {passwordRequirements.length
-						? 'text-primary-500 dark:text-tertiary-500'
+						? 'text-tertiary-500 dark:text-primary-500'
 						: 'text-surface-500 dark:text-surface-400'}"
 				>
 					<span
@@ -303,7 +303,7 @@
 				</li>
 				<li
 					class="flex items-center {passwordRequirements.letter
-						? 'text-primary-500 dark:text-tertiary-500'
+						? 'text-tertiary-500 dark:text-primary-500'
 						: 'text-surface-500 dark:text-surface-400'}"
 				>
 					<span
@@ -320,7 +320,7 @@
 				</li>
 				<li
 					class="flex items-center {passwordRequirements.number
-						? 'text-primary-500 dark:text-tertiary-500'
+						? 'text-tertiary-500 dark:text-primary-500'
 						: 'text-surface-500 dark:text-surface-400'}"
 				>
 					<span
@@ -337,7 +337,7 @@
 				</li>
 				<li
 					class="flex items-center {passwordRequirements.special
-						? 'text-primary-500 dark:text-tertiary-500'
+						? 'text-tertiary-500 dark:text-primary-500'
 						: 'text-surface-500 dark:text-surface-400'}"
 				>
 					<span
@@ -354,7 +354,7 @@
 				</li>
 				<li
 					class="flex items-center {passwordRequirements.match
-						? 'text-primary-500 dark:text-tertiary-500'
+						? 'text-tertiary-500 dark:text-primary-500'
 						: 'text-surface-500 dark:text-surface-400'}"
 				>
 					<span
@@ -370,10 +370,10 @@
 					<span class="sr-only">, {passwordRequirements.match ? 'complete' : 'incomplete'}.</span>
 				</li>
 				<li
-					class="mt-2 flex items-center justify-center border-t border-slate-200 pt-2 font-bold text-tertiary-500 dark:border-slate-700 dark:text-tertiary-500"
+					class="mt-2 flex items-center justify-center border-t border-slate-200 pt-2 font-bold text-tertiary-500 dark:border-slate-700 dark:text-primary-500"
 				>
 					<span class="mr-2 inline-flex h-5 w-5 items-center justify-center">
-						<iconify-icon icon="mdi:shield-check" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="mdi:shield-check" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					</span>
 					{m.setup_help_admin_password_requirements_account_note?.() || 'This account will have full administrative privileges'}
 				</li>

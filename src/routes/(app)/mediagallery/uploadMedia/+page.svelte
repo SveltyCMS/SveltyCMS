@@ -36,7 +36,7 @@
 
 <!-- PageTitle -->
 <div class="mb-4 flex items-center justify-between">
-	<PageTitle name={m.uploadMedia_title()} icon="bi:images" iconColor="text-primary-500 dark:text-tertiary-500" />
+	<PageTitle name={m.uploadMedia_title()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
 
 	<!-- Back -->
 	<button onclick={() => history.back()} aria-label="Back" class="variant-outline-tertiary btn-icon dark:variant-outline-primary">
@@ -50,14 +50,14 @@
 			<Tabs.Trigger value="local">
 				<div class="flex items-center justify-between gap-2">
 					<iconify-icon icon="material-symbols:database" width="28"></iconify-icon>
-					<p class="text-primary-500 dark:text-tertiary-500">Local Upload</p>
+					<p class="text-tertiary-500 dark:text-primary-500">Local Upload</p>
 				</div>
 			</Tabs.Trigger>
 
 			<Tabs.Trigger value="remote">
 				<div class="flex items-center justify-between gap-2">
 					<iconify-icon icon="arcticons:tautulli-remote" width="28"></iconify-icon>
-					<p class="text-primary-500 dark:text-tertiary-500">Remote Upload</p>
+					<p class="text-tertiary-500 dark:text-primary-500">Remote Upload</p>
 				</div>
 			</Tabs.Trigger>
 		</Tabs.List>

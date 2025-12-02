@@ -299,11 +299,11 @@
 			aria-label="Switch to Media Gallery"
 		>
 			{#if isSidebarFull}
-				<iconify-icon icon="bi:images" width="20" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
+				<iconify-icon icon="bi:images" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				<span class="">{m.Collections_MediaGallery()}</span>
-				<iconify-icon icon="bi:arrow-right" width="18" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
+				<iconify-icon icon="bi:arrow-right" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			{:else}
-				<iconify-icon icon="bi:images" width="18" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
+				<iconify-icon icon="bi:images" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				<span class="text-sm">{m.collections_media()}</span>
 			{/if}
 		</button>

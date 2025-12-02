@@ -249,12 +249,12 @@
 				<iconify-icon
 					icon={iconselected}
 					width="30"
-					class="text-tertiary-500 transition-transform duration-200 hover:scale-110 dark:text-tertiary-500"
+					class="text-tertiary-500 transition-transform duration-200 hover:scale-110 dark:text-primary-500"
 					aria-hidden="true"
 				></iconify-icon>
 				<p class="text-sm">
 					<span class="text-surface-600 dark:text-surface-400">{m.iconpicker_name()}</span>
-					<span class="font-medium text-primary-500 dark:text-tertiary-500">{iconselected}</span>
+					<span class="font-medium text-tertiary-500 dark:text-primary-500">{iconselected}</span>
 				</p>
 			</div>
 			<button

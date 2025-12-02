@@ -81,6 +81,7 @@ and proper active state indication.
 </div>
 
 <style lang="postcss">
+	@reference "../../../../../app.css";
 	.editor-sidebar {
 		background-color: rgb(var(--color-surface-100) / 1);
 		border-color: rgb(var(--color-surface-200) / 1);
@@ -177,3 +178,5 @@ and proper active state indication.
 		}
 	}
 </style>
+
+

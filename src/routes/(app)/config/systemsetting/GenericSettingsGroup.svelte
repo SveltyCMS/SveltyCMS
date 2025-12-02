@@ -512,7 +512,7 @@ Handles all field types and validation automatically
 							{#if defaultLangField}
 								<div>
 									<label for={defaultLangField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
-										<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
+										<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 										<span>{defaultLangField.label}</span>
 										{#if defaultLangField.required}
 											<span class="text-error-500">*</span>
@@ -550,7 +550,7 @@ Handles all field types and validation automatically
 							{#if availableLangsField}
 								<div>
 									<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-										<iconify-icon icon="mdi:book-multiple" width="14" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
+										<iconify-icon icon="mdi:book-multiple" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 										<span>{availableLangsField.label}</span>
 										{#if availableLangsField.required}
 											<span class="text-error-500">*</span>
@@ -672,7 +672,7 @@ Handles all field types and validation automatically
 							{#if baseLocaleField}
 								<div>
 									<label for={baseLocaleField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
-										<iconify-icon icon="mdi:translate" width="18" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
+										<iconify-icon icon="mdi:translate" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 										<span>{baseLocaleField.label}</span>
 										{#if baseLocaleField.required}
 											<span class="text-error-500">*</span>
@@ -710,7 +710,7 @@ Handles all field types and validation automatically
 							{#if localesField}
 								<div>
 									<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-										<iconify-icon icon="mdi:translate-variant" width="14" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
+										<iconify-icon icon="mdi:translate-variant" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 										<span>{localesField.label}</span>
 										{#if localesField.required}
 											<span class="text-error-500">*</span>
@@ -847,8 +847,8 @@ Handles all field types and validation automatically
 						>
 							<label for={field.key} class="label">
 								<span class="flex items-center gap-2">
-									<iconify-icon icon={getFieldIcon(field)} width="18" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
-									<span class="text-sm font-semibold text-primary-500 dark:text-tertiary-500 md:text-base">{field.label}</span>
+									<iconify-icon icon={getFieldIcon(field)} width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+									<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500 md:text-base">{field.label}</span>
 									{#if field.required}
 										<span class="text-error-500">*</span>
 									{/if}

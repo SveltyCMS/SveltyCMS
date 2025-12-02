@@ -111,7 +111,7 @@ Key features:
 
 <div class="flex flex-wrap items-center gap-4 overflow-auto">
 	{#if filteredFiles.length === 0}
-		<div class="mx-auto text-center text-primary-500 dark:text-tertiary-500">
+		<div class="mx-auto text-center text-tertiary-500 dark:text-primary-500">
 			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
 			<p class="text-lg">No media found</p>
 		</div>
@@ -189,7 +189,7 @@ Key features:
 						aria-label="File Info"
 						class="btn-icon"
 					>
-						<iconify-icon icon="raphael:info" width="24" class="text-primary-500 dark:text-tertiary-500"></iconify-icon>
+						<iconify-icon icon="raphael:info" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					</button>
 
 					<div class="card variant-filled z-50 min-w-[250px] p-2" data-popup="FileInfo-{index}">
@@ -303,15 +303,15 @@ Key features:
 								width="16"
 								height="16"
 							></iconify-icon>
-							<span class="text-primary-500 dark:text-tertiary-500">{file.mimeType?.split('/').pop()?.toUpperCase() || 'UNKNOWN'}</span>
+							<span class="text-tertiary-500 dark:text-primary-500">{file.mimeType?.split('/').pop()?.toUpperCase() || 'UNKNOWN'}</span>
 						</div>
 
 						<!-- File Size Badge -->
 						<div class="variant-ghost-tertiary badge flex items-center gap-1">
 							{#if file.size}
-								<span class="text-primary-500 dark:text-tertiary-500">{formatBytes(file.size)}</span>
+								<span class="text-tertiary-500 dark:text-primary-500">{formatBytes(file.size)}</span>
 							{:else}
-								<span class="text-primary-500 dark:text-tertiary-500">Unknown</span>
+								<span class="text-tertiary-500 dark:text-primary-500">Unknown</span>
 							{/if}
 						</div>
 					</div>

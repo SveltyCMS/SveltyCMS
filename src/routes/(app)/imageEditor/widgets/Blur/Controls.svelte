@@ -123,6 +123,7 @@ Supports strength, shapes (rect, ellipse), and patterns (blur, pixelate).
 </div>
 
 <style lang="postcss">
+	@reference "../../../../../app.css";
 	.blur-controls {
 		@apply flex w-full items-center gap-3 px-2;
 	}
@@ -180,3 +181,5 @@ Supports strength, shapes (rect, ellipse), and patterns (blur, pixelate).
 		@apply bg-white text-primary-600 shadow-sm dark:bg-surface-900;
 	}
 </style>
+
+

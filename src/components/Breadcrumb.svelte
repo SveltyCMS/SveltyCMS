@@ -54,10 +54,10 @@ Usage
 					aria-current={index === breadcrumb.length - 1 ? 'page' : undefined}
 				>
 					{#if index === 0}
-						<iconify-icon icon="mdi:home" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="mdi:home" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="ml-1">{crumb}</span>
 					{:else}
-						<iconify-icon icon="mdi:folder" width="18" class="text-primary-500 dark:text-tertiary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="mdi:folder" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="ml-1">{crumb}</span>
 					{/if}
 				</button>

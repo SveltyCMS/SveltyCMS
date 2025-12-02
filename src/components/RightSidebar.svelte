@@ -369,7 +369,7 @@ This component provides a streamlined interface for managing collection entries 
 
 			<main class="mt-6 flex w-full flex-col gap-4 text-left">
 				<div class="border-b border-surface-300 pb-2 dark:border-surface-600">
-					<h3 class="text-center text-sm font-bold uppercase tracking-wide text-primary-500 dark:text-tertiary-500">
+					<h3 class="text-center text-sm font-bold uppercase tracking-wide text-tertiary-500 dark:text-primary-500">
 						{m.siedabar_publish_options()}
 					</h3>
 				</div>
@@ -384,7 +384,7 @@ This component provides a streamlined interface for managing collection entries 
 						class="hover:variant-filled-primary-hover variant-filled-surface btn w-full justify-start gap-2 text-left transition-colors duration-200"
 					>
 						<iconify-icon icon="bi:clock" width="16"></iconify-icon>
-						<span class="text-sm text-primary-500 dark:text-tertiary-500">
+						<span class="text-sm text-tertiary-500 dark:text-primary-500">
 							{scheduleTimestamp ? new Date(scheduleTimestamp).toLocaleString(getLocale()) : 'Schedule publication...'}
 						</span>
 					</button>
@@ -395,7 +395,7 @@ This component provides a streamlined interface for managing collection entries 
 					<div class="space-y-1">
 						<p class="text-sm font-medium">{m.sidebar_createdby()}</p>
 						<div class="variant-filled-surface rounded-lg p-3 text-center">
-							<span class="text-sm font-semibold text-primary-500 dark:text-tertiary-500">
+							<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
 								{getDisplayName(currentEntry?.createdBy as string, user)}
 							</span>
 						</div>
@@ -405,7 +405,7 @@ This component provides a streamlined interface for managing collection entries 
 						<div class="space-y-1">
 							<p class="text-sm font-medium text-surface-600 dark:text-surface-300">Last updated by</p>
 							<div class="variant-filled-surface rounded-lg p-3 text-center">
-								<span class="text-sm font-semibold text-primary-500 dark:text-tertiary-500">
+								<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
 									{getDisplayName(currentEntry?.updatedBy as string, user)}
 								</span>
 							</div>
@@ -418,17 +418,17 @@ This component provides a streamlined interface for managing collection entries 
 				<div class="space-y-2">
 					<div class="flex items-center justify-between text-xs">
 						<span class="font-medium capitalize">Created:</span>
-						<span class="font-bold text-primary-500 dark:text-tertiary-500">{dates.created}</span>
+						<span class="font-bold text-tertiary-500 dark:text-primary-500">{dates.created}</span>
 					</div>
 					<div class="flex items-center justify-between text-xs">
 						<span class="font-medium capitalize">Updated:</span>
-						<span class="font-bold text-primary-500 dark:text-tertiary-500">{dates.updated}</span>
+						<span class="font-bold text-tertiary-500 dark:text-primary-500">{dates.updated}</span>
 					</div>
 				</div>
 
 				{#if currentMode === 'create'}
 					<div class="mt-3 text-center">
-						<p class="text-xs text-primary-500 dark:text-tertiary-500">
+						<p class="text-xs text-tertiary-500 dark:text-primary-500">
 							{new Date().toLocaleString(getLocale(), {
 								year: 'numeric',
 								month: 'short',

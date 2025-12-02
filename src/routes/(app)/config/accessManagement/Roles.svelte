@@ -255,14 +255,14 @@ It provides the following functionality:
 									{/if}
 
 									<!-- Role Name with Tooltip -->
-									<span class="flex items-center text-xl font-semibold text-primary-500 dark:text-tertiary-500">
+									<span class="flex items-center text-xl font-semibold text-tertiary-500 dark:text-primary-500">
 										{role.name}
 
 										{#if role.description}
 											<iconify-icon
 												icon="material-symbols:info"
 												width="18"
-												class="ml-1 text-primary-500 dark:text-tertiary-500"
+												class="ml-1 text-tertiary-500 dark:text-primary-500"
 												use:popup={getPopupSettings(role._id)}
 											></iconify-icon>
 											<div class="card variant-filled-surface p-4" data-popup="role-{role._id}">

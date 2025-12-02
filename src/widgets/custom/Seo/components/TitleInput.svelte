@@ -73,7 +73,7 @@
 <input
 	id="title-input"
 	type="text"
-	class="input text-black dark:text-tertiary-500"
+	class="input text-black dark:text-primary-500"
 	placeholder={m.widget_seo_suggestionseotitle()}
 	required
 	bind:value={title}

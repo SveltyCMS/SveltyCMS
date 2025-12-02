@@ -146,7 +146,7 @@
 			[StatusTypes.archive]: 'bg-surface-500',
 			[StatusTypes.schedule]: 'bg-primary-500',
 			[StatusTypes.clone]: 'bg-secondary-500',
-			[StatusTypes.test]: 'bg-tertiary-500',
+			[StatusTypes.test]: 'bg-tertiary-500 dark:bg-primary-500',
 			[StatusTypes.delete]: 'bg-error-500',
 			[StatusTypes.unpublish]: 'bg-warning-400'
 		};

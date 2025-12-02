@@ -446,7 +446,7 @@
 					{mode.value}:
 				</div>
 				<div class="text-sm capitalize">
-					<span class="uppercase text-primary-500 dark:text-tertiary-500">{collection.value?.name}</span>
+					<span class="uppercase text-tertiary-500 dark:text-primary-500">{collection.value?.name}</span>
 				</div>
 			</div>
 		{/if}
