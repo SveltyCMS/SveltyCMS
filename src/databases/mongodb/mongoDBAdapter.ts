@@ -754,8 +754,10 @@ export class MongoDBAdapter implements IDBAdapter {
 				if (!repo) return this._repoNotFound(coll);
 				return this._wrapResult(() => repo.findByIds(ids) as Promise<T[]>);
 			},
-			insertMany: async () => {
-				throw new Error('insertMany not implemented in MongoCrudMethods');
+			insertMany: <T extends BaseEntity>(coll: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]) => {
+				const repo = this._getRepository(coll);
+				if (!repo) return this._repoNotFound(coll);
+				return this._wrapResult(() => repo.insertMany(data) as Promise<T[]>);
 			},
 			updateMany: <T extends BaseEntity>(coll: string, query: QueryFilter<T>, data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>) => {
 				const repo = this._getRepository(coll);
@@ -775,13 +777,7 @@ export class MongoDBAdapter implements IDBAdapter {
 			upsertMany: <T extends BaseEntity>(coll: string, items: Array<{ query: Partial<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(async () => {
-					const results: T[] = [];
-					for (const item of items) {
-						results.push((await repo.upsert(item.query as any, item.data as T)) as T);
-					}
-					return results;
-				});
+				return this._wrapResult(() => repo.upsertMany(items));
 			},
 			count: <T extends BaseEntity>(coll: string, query: QueryFilter<T>) => {
 				const repo = this._getRepository(coll);

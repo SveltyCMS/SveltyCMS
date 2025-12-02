@@ -32,11 +32,11 @@ SveltyCMS instances send the following JSON payload:
 
 ```json
 {
-  "current_version": "0.5.0",       // The version of SveltyCMS running
-  "node_version": "v20.10.0",       // Node.js runtime version
-  "environment": "production",      // 'development' or 'production'
-  "os": "linux",                    // Operating system platform
-  "license": "BSL-1.1"              // License type
+	"current_version": "0.5.0", // The version of SveltyCMS running
+	"node_version": "v20.10.0", // Node.js runtime version
+	"environment": "production", // 'development' or 'production'
+	"os": "linux", // Operating system platform
+	"license": "BSL-1.1" // License type
 }
 ```
 
@@ -48,9 +48,9 @@ The server must return a JSON response indicating the latest version and any sec
 
 ```json
 {
-  "latest_version": "0.6.0",        // The current latest stable release
-  "has_vulnerability": false,       // true if the *client's* version has known CVEs
-  "message": "Update available"     // Optional message to display in dashboard
+	"latest_version": "0.6.0", // The current latest stable release
+	"has_vulnerability": false, // true if the *client's* version has known CVEs
+	"message": "Update available" // Optional message to display in dashboard
 }
 ```
 
@@ -63,10 +63,10 @@ A robust telemetry server should perform the following steps:
 
 1.  **Validation**: Ensure the request body matches the expected schema.
 2.  **Data Ingestion**: Log the anonymous data (Version, Node, OS) to a time-series database (e.g., InfluxDB, ClickHouse) or a relational DB for analytics.
-    *   *Privacy Note:* Do not log IP addresses if possible, or hash them to respect privacy.
+    - _Privacy Note:_ Do not log IP addresses if possible, or hash them to respect privacy.
 3.  **Version Comparison**:
-    *   Compare `payload.current_version` against the latest known release (stored in DB or fetched from GitHub Releases).
-    *   Check if `payload.current_version` is in a list of known vulnerable versions.
+    - Compare `payload.current_version` against the latest known release (stored in DB or fetched from GitHub Releases).
+    - Check if `payload.current_version` is in a list of known vulnerable versions.
 4.  **Response Construction**: Return the comparison result.
 
 ## 3. Reference Implementation (Node.js / Hono)
@@ -84,32 +84,31 @@ const LATEST_VERSION = '0.6.0';
 const VULNERABLE_VERSIONS = ['0.4.0', '0.4.1'];
 
 app.post('/api/check-update', async (c) => {
-  try {
-    const body = await c.req.json();
-    const { current_version } = body;
+	try {
+		const body = await c.req.json();
+		const { current_version } = body;
 
-    // 1. Log Telemetry (Async - don't block response)
-    // await db.insert('telemetry_events', { ...body, timestamp: new Date() });
-    console.log(`Telemetry received from v${current_version}`);
+		// 1. Log Telemetry (Async - don't block response)
+		// await db.insert('telemetry_events', { ...body, timestamp: new Date() });
+		console.log(`Telemetry received from v${current_version}`);
 
-    // 2. Determine Status
-    const isVulnerable = VULNERABLE_VERSIONS.includes(current_version);
-    const updateAvailable = semver.gt(LATEST_VERSION, current_version);
+		// 2. Determine Status
+		const isVulnerable = VULNERABLE_VERSIONS.includes(current_version);
+		const updateAvailable = semver.gt(LATEST_VERSION, current_version);
 
-    let message = 'You are up to date.';
-    if (isVulnerable) message = 'CRITICAL: Security update required immediately.';
-    else if (updateAvailable) message = `Update to v${LATEST_VERSION} available.`;
+		let message = 'You are up to date.';
+		if (isVulnerable) message = 'CRITICAL: Security update required immediately.';
+		else if (updateAvailable) message = `Update to v${LATEST_VERSION} available.`;
 
-    // 3. Return Response
-    return c.json({
-      latest_version: LATEST_VERSION,
-      has_vulnerability: isVulnerable,
-      message: message
-    });
-
-  } catch (err) {
-    return c.json({ error: 'Invalid request' }, 400);
-  }
+		// 3. Return Response
+		return c.json({
+			latest_version: LATEST_VERSION,
+			has_vulnerability: isVulnerable,
+			message: message
+		});
+	} catch (err) {
+		return c.json({ error: 'Invalid request' }, 400);
+	}
 });
 
 export default app;

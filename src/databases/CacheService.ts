@@ -261,22 +261,52 @@ class CacheService {
 		for (const pattern of this.prefetchPatterns) {
 			if (pattern.pattern.test(key)) {
 				const keysToFetch = pattern.prefetchKeys(key);
-				// Prefetch in background without blocking
-				void this.prefetchKeys(keysToFetch, pattern.category, tenantId);
+				if (keysToFetch.length > 0 && pattern.fetcher) {
+					// Execute prefetch in background
+					void this.executePrefetch(keysToFetch, pattern.fetcher, pattern.category, tenantId);
+				}
 				break;
 			}
 		}
 	}
 
-	// Prefetch multiple keys in the background
+	private async executePrefetch(
+		keys: string[],
+		fetcher: (keys: string[]) => Promise<Record<string, unknown>>,
+		category?: CacheCategory,
+		tenantId?: string
+	): Promise<void> {
+		try {
+			// 1. Filter out keys that are already cached
+			const missingKeys: string[] = [];
+			for (const key of keys) {
+				// const cached = await this.get(key, tenantId); // This tracks access, might skew analytics?
+				// Actually, we should check existence without tracking access if possible, or just accept it.
+				// For now, let's just fetch everything to be safe and ensure freshness,
+				// or assume the fetcher is efficient.
+				// Optimization: Check cache existence first.
+				const fullKey = this.generateKey(key, tenantId);
+				const exists = await this.store.get(fullKey); // Direct store access to avoid recursion/tracking
+				if (!exists) {
+					missingKeys.push(key);
+				}
+			}
 
-	private async prefetchKeys(keys: string[], category?: CacheCategory, _tenantId?: string): Promise<void> {
-		// This is a placeholder - in a real implementation, you would:
-		// 1. Check which keys are not in cache
-		// 2. Fetch the data from the database
-		// 3. Store it in cache
-		// For now, we just log the intent
-		logger.debug(`Predictive prefetch triggered for ${keys.length} keys in category ${category || 'default'}`);
+			if (missingKeys.length === 0) return;
+
+			logger.debug(`Prefetching ${missingKeys.length} missing keys`);
+
+			// 2. Fetch data
+			const dataMap = await fetcher(missingKeys);
+
+			// 3. Cache data
+			const ttl = category ? getCategoryTTL(category) : REDIS_TTL_S;
+			for (const [key, value] of Object.entries(dataMap)) {
+				await this.set(key, value, ttl, tenantId, category);
+			}
+		} catch (error) {
+			logger.warn('Predictive prefetch failed:', error);
+		}
 	}
 
 	async get<T>(baseKey: string, tenantId?: string, _category?: CacheCategory): Promise<T | null> {
@@ -545,5 +575,6 @@ interface WarmCacheConfig {
 interface PrefetchPattern {
 	pattern: RegExp;
 	prefetchKeys: (matchedKey: string) => string[];
+	fetcher?: (keys: string[]) => Promise<Record<string, unknown>>; // Function to fetch data for keys
 	category?: CacheCategory;
 }

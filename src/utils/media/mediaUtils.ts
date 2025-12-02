@@ -157,14 +157,7 @@ export function constructMediaUrl(mediaItem: MediaBase, size?: string): string {
 }
 
 // Constructs a URL for a media item based on its path, type, and other parameters.
-export function constructUrl(
-	path: string,
-	hash: string,
-	fileName: string,
-	format: string,
-	contentTypes: string,
-	size?: string
-): string {
+export function constructUrl(path: string, hash: string, fileName: string, format: string, contentTypes: string, size?: string): string {
 	// Validate all required parameters with detailed checks
 	const missingParams = [];
 	if (!path || typeof path !== 'string') missingParams.push('path');

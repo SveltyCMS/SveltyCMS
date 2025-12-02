@@ -32,7 +32,7 @@ Features:
 	const { data } = $props();
 
 	// State Management
-	const firstUserExists = $state(data.firstUserExists);
+	const firstUserExists = $derived(data.firstUserExists);
 
 	// Check for reset password URL parameters (initially false, updated by effect)
 	let hasResetParams = $state(false);
@@ -316,7 +316,13 @@ Features:
 	{/if}
 
 	<!-- SignIn and SignUp Forms -->
-	<SignIn bind:active onClick={handleSignInClick} onPointerEnter={handleSignInPointerEnter} onBack={resetToInitialState} />
+	<SignIn
+		bind:active
+		onClick={handleSignInClick}
+		onPointerEnter={handleSignInPointerEnter}
+		onBack={resetToInitialState}
+		firstCollectionPath={data.firstCollectionPath || ''}
+	/>
 
 	<SignUp
 		bind:active
@@ -327,6 +333,7 @@ Features:
 		onClick={handleSignUpClick}
 		onPointerEnter={handleSignUpPointerEnter}
 		onBack={resetToInitialState}
+		firstCollectionPath={data.firstCollectionPath || ''}
 	/>
 
 	{#if active == undefined}

@@ -69,15 +69,22 @@ Efficiently manages user data updates with validation, role selection, and delet
 	// Form Data Initialization
 	const editForm = new Form(
 		{
-			user_id: isGivenData ? user_id : user?._id,
-			username: isGivenData ? (username ?? '') : (user?.username ?? ''),
-			email: isGivenData ? (email ?? '') : (user?.email ?? ''),
+			user_id: '',
+			username: '',
+			email: '',
 			password: '',
 			confirmPassword: '',
-			role: isGivenData ? (role ?? '') : (user?.role ?? '')
+			role: ''
 		},
 		editUserSchema
 	);
+
+	$effect(() => {
+		editForm.data.user_id = isGivenData ? user_id : user?._id;
+		editForm.data.username = isGivenData ? (username ?? '') : (user?.username ?? '');
+		editForm.data.email = isGivenData ? (email ?? '') : (user?.email ?? '');
+		editForm.data.role = isGivenData ? (role ?? '') : (user?.role ?? '');
+	});
 
 	let showPassword = $state(false);
 	const isOwnProfile = editForm.data.user_id === user?._id || !isGivenData;

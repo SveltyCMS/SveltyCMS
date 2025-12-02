@@ -30,7 +30,7 @@ All dynamic CMS settings organized into logical groups
 
 	// Get user admin status from page data (set by +page.server.ts)
 	const { data } = $props();
-	const isAdmin = data.isAdmin;
+	const isAdmin = $derived(data.isAdmin);
 
 	//  Use $state for all component state
 	let selectedGroupId: string | null = $state(null);

@@ -81,8 +81,13 @@ Features:
 	const {
 		entries: serverEntries = [],
 		pagination: serverPagination = { currentPage: 1, pageSize: 10, totalItems: 0, pagesCount: 1 },
-		contentLanguage: propContentLanguage
-	}: EntryListProps = $props();
+		contentLanguage: propContentLanguage,
+		breadcrumb = [],
+		collectionStats = null
+	}: EntryListProps & {
+		breadcrumb?: Array<{ name: string; path: string }>;
+		collectionStats?: { _id: string; name: string; count: number; lastModified: string } | null;
+	} = $props();
 
 	// =================================================================
 	// 2. USE SERVER DATA (Simple $derived - No Client-Side State)
@@ -252,11 +257,22 @@ Features:
 								const preloadUrl = new URL(page.url);
 								preloadUrl.searchParams.set('edit', entry._id);
 
-								await fetch(preloadUrl.toString(), {
+								// Use new warm-cache endpoint for batch preloading
+								await fetch('/api/collections/warm-cache', {
+									method: 'POST',
+									headers: { 'Content-Type': 'application/json' },
+									body: JSON.stringify({
+										collectionId: currentCollection?._id,
+										entryIds: [entry._id] // We could batch this further if we refactor the loop
+									})
+								});
+
+								// Keep existing preload for edit page data if needed, or rely on warm cache
+								/* await fetch(preloadUrl.toString(), {
 									method: 'GET',
 									credentials: 'include',
 									headers: { 'X-Preload': 'true', 'X-Batch-Preload': 'true' }
-								});
+								}); */
 
 								preloadedEntries.set(entry._id, {
 									data: null,
@@ -517,6 +533,9 @@ Features:
 
 	const pathSegments = $derived(page.url.pathname.split('/').filter(Boolean));
 	const categoryName = $derived.by(() => {
+		if (breadcrumb && breadcrumb.length > 0) {
+			return breadcrumb.map(b => b.name).join(' > ');
+		}
 		const segments = pathSegments?.slice() ?? [];
 		if (segments.length > 0) {
 			segments.shift();
@@ -693,6 +712,9 @@ Features:
 					{#if currentCollection?.name}
 						<div class="flex max-w-[85px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
 							{currentCollection.name}
+							{#if collectionStats}
+								<span class="ml-2 text-xs font-normal text-surface-500">({collectionStats.count})</span>
+							{/if}
 						</div>
 					{/if}
 				</div>
@@ -797,7 +819,7 @@ Features:
 						: ''}"
 			>
 				<!-- Table Header -->
-				<thead class="text-tertiary-500 dark:text-primary-500">
+				<thead class="sticky top-0 z-10 bg-surface-100 text-tertiary-500 dark:bg-surface-900 dark:text-primary-500">
 					{#if filterShow && visibleTableHeaders.length > 0}
 						<tr class="divide-x divide-surface-400 dark:divide-surface-600">
 							<th>

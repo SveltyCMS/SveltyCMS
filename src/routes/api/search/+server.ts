@@ -88,10 +88,10 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			throw error(500, 'Database not initialized');
 		}
 
-		// Search across all specified collections
-		for (const collectionId of collectionsToSearch) {
+		// Search across all specified collections in parallel
+		const searchPromises = collectionsToSearch.map(async (collectionId) => {
 			const collection = await contentManager.getCollectionById(collectionId, tenantId);
-			if (!collection) continue;
+			if (!collection) return [];
 
 			try {
 				// Build search filter
@@ -102,6 +102,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				const collectionName = `collection_${collection._id}`;
 
 				// Use findMany instead of queryBuilder for simpler type compatibility
+				if (!dbAdapter) throw new Error('Database adapter not initialized');
 				const result = await dbAdapter.crud.findMany(collectionName, searchFilter as Record<string, unknown>, {
 					limit: Math.min(limit, 100)
 				});
@@ -136,7 +137,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 						}
 					}
 					// Add collection context to results
-					const processedItems = items.map((item) => ({
+					return items.map((item) => ({
 						...(item as unknown as Record<string, unknown>),
 						_collection: {
 							id: collection._id,
@@ -144,14 +145,17 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 							label: collection.label
 						}
 					}));
-					searchResults.push(...processedItems);
-					totalResults += items.length;
 				}
+				return [];
 			} catch (collectionError) {
 				const errMsg = collectionError instanceof Error ? collectionError.message : String(collectionError);
 				logger.warn(`Search failed for collection ${collectionId}: ${errMsg}`);
+				return [];
 			}
-		}
+		});
+
+		const resultsArrays = await Promise.all(searchPromises);
+		searchResults.push(...resultsArrays.flat());
 		// Sort combined results
 		if (sortField && searchResults.length > 0) {
 			searchResults.sort((a, b) => {

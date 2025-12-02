@@ -595,7 +595,7 @@ export interface IDBAdapter {
 		upsertMany<T extends BaseEntity>(
 			collection: string,
 			items: Array<{ query: QueryFilter<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>
-		): Promise<DatabaseResult<T[]>>;
+		): Promise<DatabaseResult<T[] | { upsertedCount: number; modifiedCount: number }>>;
 
 		// Aggregation and analysis
 		count(collection: string, query?: QueryFilter<BaseEntity>): Promise<DatabaseResult<number>>;

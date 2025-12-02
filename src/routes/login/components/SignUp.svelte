@@ -15,6 +15,7 @@ Features:
 	import { logger } from '@utils/logger';
 	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
+	import { preloadData } from '$app/navigation';
 
 	import type { PageData } from '../$types';
 
@@ -46,7 +47,8 @@ Features:
 		inviteError = '',
 		onClick = () => {},
 		onPointerEnter = () => {},
-		onBack = () => {}
+		onBack = () => {},
+		firstCollectionPath = ''
 	} = $props();
 
 	const pageData = page.data as PageData;
@@ -201,6 +203,13 @@ Features:
 			});
 		} else {
 			FloatingPathsComponent = null;
+		}
+	});
+
+	// Prefetch first collection data when active
+	$effect(() => {
+		if (active === 1 && firstCollectionPath) {
+			preloadData(firstCollectionPath);
 		}
 	});
 </script>

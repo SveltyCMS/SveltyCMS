@@ -60,9 +60,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			case 'getStructure': {
 				// Return full structure with metadata
 				const contentNodes = await contentManager.getContentStructure();
+				const version = contentManager.getContentVersion();
 
 				response = {
-					contentStructure: contentNodes
+					contentStructure: contentNodes,
+					version
 				}; // Cache the response if Redis is enabled
 
 				if (!browser) {
@@ -76,10 +78,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			case 'getContentStructure': {
 				// Return content nodes from database
 				const contentStructure = await contentManager.getContentStructure();
+				const version = contentManager.getContentVersion();
 				logger.info('Returning content structure from database', { tenantId });
 				response = {
 					success: true,
-					contentNodes: contentStructure
+					contentNodes: contentStructure,
+					version
 				};
 				break; // Continue to caching and return
 			}

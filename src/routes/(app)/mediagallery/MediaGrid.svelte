@@ -46,7 +46,7 @@ Key features:
 	const { filteredFiles = [], gridSize = 'medium', ondeleteImage = () => {}, onBulkDelete = () => {} }: Props = $props();
 
 	// Initialize the showInfo array with false values
-	let showInfo = $state(Array.from({ length: filteredFiles.length }, () => false));
+	let showInfo = $state<boolean[]>([]);
 	let selectedFiles = $state<Set<string>>(new Set());
 	let isSelectionMode = $state(false);
 

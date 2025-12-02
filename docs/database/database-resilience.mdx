@@ -1,5 +1,5 @@
 ---
-path: 'docs/architecture/database-resilience.mdx'
+path: 'docs/database/database-resilience.mdx'
 title: 'Database Resilience'
 description: 'Unified guide to resilience features, integration, metrics, and planned enhancements for SveltyCMS.'
 order: 12
@@ -37,13 +37,13 @@ It is integrated in:
 
 ### Implemented Features Summary
 
-| Feature | Status | Key Artifacts |
-|---------|--------|---------------|
-| Automatic retry with exponential backoff & jitter | ✅ Implemented | `DatabaseResilience.executeWithRetry()`; used in `db.ts`, `CacheService.ts` |
-| Admin email notification on persistent failure | ✅ Implemented | `databaseFailure.svelte`; notification logic in `DatabaseResilience.ts` |
-| Connection pool diagnostics | ✅ Implemented | API: `/api/database/pool-diagnostics`; Widget: `DatabasePoolDiagnostics.svelte` |
-| Self-healing MongoDB reconnection | ✅ Implemented | Mongoose event handlers + `attemptReconnection()` |
-| Detailed error logs download | ✅ Implemented | API: `/api/logs/download` (admin-only) |
+| Feature                                           | Status         | Key Artifacts                                                                   |
+| ------------------------------------------------- | -------------- | ------------------------------------------------------------------------------- |
+| Automatic retry with exponential backoff & jitter | ✅ Implemented | `DatabaseResilience.executeWithRetry()`; used in `db.ts`, `CacheService.ts`     |
+| Admin email notification on persistent failure    | ✅ Implemented | `databaseFailure.svelte`; notification logic in `DatabaseResilience.ts`         |
+| Connection pool diagnostics                       | ✅ Implemented | API: `/api/database/pool-diagnostics`; Widget: `DatabasePoolDiagnostics.svelte` |
+| Self-healing MongoDB reconnection                 | ✅ Implemented | Mongoose event handlers + `attemptReconnection()`                               |
+| Detailed error logs download                      | ✅ Implemented | API: `/api/logs/download` (admin-only)                                          |
 
 All features above are production-ready. The "Planned Features" section later in this document only lists not-yet-implemented roadmap items (circuit breaker, adaptive backoff, distributed coordination, advanced metrics).
 

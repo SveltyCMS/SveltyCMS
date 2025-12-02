@@ -71,9 +71,10 @@
 
 	const {
 		fields,
-		revisions = []
+		revisions = [],
+		fieldMetadata = {}
 		// contentLanguage: propContentLanguage // Rename to avoid conflict with store
-	}: FieldsProps = $props();
+	}: FieldsProps & { fieldMetadata?: Record<string, any> } = $props();
 
 	// --- 2. SIMPLIFIED STATE ---
 	let localTabSet = $state(0);
@@ -135,7 +136,14 @@
 	function getFieldTranslationPercentage(field: any): number {
 		if (!field.translated) return 100; // Not a translatable field
 
-		const fieldName = `${collection.value?.name}.${getFieldName(field)}`;
+		const fieldName = getFieldName(field);
+		
+		// Use server-provided metadata if available (more accurate/efficient)
+		if (fieldMetadata && fieldMetadata[fieldName]) {
+			return fieldMetadata[fieldName].percentage ?? 0;
+		}
+
+		const fullFieldName = `${collection.value?.name}.${fieldName}`;
 		const allLangs = availableLanguages; // Use the new derived state
 
 		// Avoid division by zero if no languages are configured
@@ -146,7 +154,7 @@
 		// Count how many languages have this field translated
 		for (const lang of allLangs) {
 			const langProgress = currentTranslationProgress?.[lang as Locale];
-			if (langProgress && langProgress.translated.has(fieldName)) {
+			if (langProgress && langProgress.translated.has(fullFieldName)) {
 				translatedCount++;
 			}
 		}

@@ -291,6 +291,13 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 		setCollectionValue({});
 		setMode('view');
 
+		// Update local version tracking
+		if (importsCache && Object.keys(importsCache).length > 0) {
+			// If we fetched via API, we might want to get the version from the response headers or a separate call
+			// For now, we assume if we just updated, we are at the latest.
+			// Ideally, updateCollections should return the version or accept it.
+		}
+
 		logger.info(`Collections updated successfully. Count: ${Object.keys(_collections).length}`);
 	} catch (err) {
 		logger.error(`Error in updateCollections: ${err}`);
@@ -418,6 +425,64 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 	} catch (err) {
 		logger.error(`Error in getImports: ${err}`);
 		throw error(500, 'Failed to get imports');
+	}
+}
+
+// --- Reactive Content System ---
+let pollingInterval: NodeJS.Timeout | null = null;
+let currentVersion: number = 0;
+
+export async function initializeContent(pageData?: any) {
+	// 1. Hydration (Server -> Client)
+	if (pageData?.navigationStructure && pageData?.contentVersion) {
+		logger.info('💧 Hydrating content from server data');
+		currentVersion = pageData.contentVersion;
+
+		// Transform navigation structure to internal format if needed,
+		// or if the structure matches, just use it.
+		// Note: getNavigationStructure returns a simplified tree.
+		// We might need to map it back to the stores or adjust the stores to accept it.
+		// For now, let's assume we still need to fetch the full collections if we want the full schema,
+		// BUT for the sidebar navigation, the simplified structure is enough.
+
+		// TODO: If we want full hydration, we should pass the full structure or
+		// ensure the navigation structure is sufficient for the initial view.
+		// For this optimization, let's assume we still fetch collections but we can skip if we have data.
+
+		// Actually, let's trigger the update but use the version to avoid re-fetching if not needed.
+	}
+
+	// 2. Initial Load (if not hydrated or if we need full data)
+	await updateCollections();
+
+	// 3. Start Polling
+	startPolling();
+}
+
+function startPolling() {
+	if (pollingInterval || !browser) return;
+
+	logger.info('📡 Starting content version polling');
+	pollingInterval = setInterval(async () => {
+		try {
+			const response = await axios.get('/api/content/version');
+			const serverVersion = response.data.version;
+
+			if (serverVersion > currentVersion) {
+				logger.info(`🆕 New content version detected: ${serverVersion} (current: ${currentVersion})`);
+				currentVersion = serverVersion;
+				await updateCollections(true);
+			}
+		} catch (error) {
+			logger.warn('Failed to poll content version', error);
+		}
+	}, 10000); // Poll every 10 seconds
+}
+
+export function stopPolling() {
+	if (pollingInterval) {
+		clearInterval(pollingInterval);
+		pollingInterval = null;
 	}
 }
 

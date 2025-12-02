@@ -20,6 +20,7 @@ import { createSchema, createYoga, createPubSub } from 'graphql-yoga';
 import { collectionsResolvers, createCleanTypeName, registerCollections } from './resolvers/collections';
 import { mediaResolvers, mediaTypeDefs } from './resolvers/media';
 import { userResolvers, userTypeDefs } from './resolvers/users';
+import { systemResolvers, systemTypeDefs } from './resolvers/system';
 
 // GraphQL Subscriptions
 // @ts-expect-error - ws module types not available
@@ -112,6 +113,19 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 		${collectionsTypeDefs}
 		${userTypeDefs()}
 		${mediaTypeDefs()}
+		${systemTypeDefs}
+
+		type Subscription {
+			postAdded: Post
+			contentStructureUpdated: ContentUpdateEvent!
+		}
+
+		type ContentUpdateEvent {
+			version: Int!
+			timestamp: String!
+			affectedCollections: [String!]!
+			changeType: String!
+		}
 
 		type AccessManagementPermission {
 			contextId: String!
@@ -144,6 +158,7 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 			...collectionsResolversObj.Query,
 			...userResolvers(dbAdapter),
 			...mediaResolvers(dbAdapter),
+			...systemResolvers.Query,
 			accessManagementPermission: async (_: unknown, __: unknown, context: { user?: User; locals?: { roles?: Role[] } }) => {
 				const { user } = context;
 				if (!user) {
@@ -164,7 +179,15 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 					return acc;
 				},
 				{} as Record<string, Record<string, unknown>>
-			)
+			),
+		Subscription: {
+			contentStructureUpdated: {
+				subscribe: (_: unknown, __: unknown, context: { pubSub: any }) => {
+					return context.pubSub.subscribe('contentStructureUpdated');
+				},
+				resolve: (payload: any) => payload
+			}
+		}
 	};
 
 	// Return raw typeDefs/resolvers; Yoga and WS server will build schemas as needed

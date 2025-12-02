@@ -291,23 +291,6 @@ export interface DatabaseAdapter {
 	// Capabilities & Metadata
 	// ============================================
 	getCapabilities(): DatabaseCapabilities;
-	getDatabaseInfo(): DatabaseInfo;
-
-	// ============================================
-	// Generic CRUD Operations
-	// ============================================
-	create<T>(collection: string, data: T): Promise<DatabaseResult<T>>;
-
-	findOne<T>(collection: string, query: QueryCriteria): Promise<DatabaseResult<T | null>>;
-
-	findMany<T>(collection: string, options?: PaginationOptions): Promise<DatabaseResult<T[]>>;
-
-	update<T>(collection: string, id: string, data: Partial<T>): Promise<DatabaseResult<T>>;
-
-	delete(collection: string, id: string): Promise<DatabaseResult<boolean>>;
-
-	// ============================================
-	// Batch Operations
 	// ============================================
 	createMany<T>(collection: string, data: T[]): Promise<DatabaseResult<T[]>>;
 

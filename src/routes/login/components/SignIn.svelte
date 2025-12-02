@@ -17,7 +17,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { goto } from '$app/navigation';
+	import { goto, preloadData } from '$app/navigation';
 	import { enhance } from '$app/forms';
 
 	// Stores
@@ -54,12 +54,14 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 		active = $bindable(undefined),
 		onClick = () => {},
 		onPointerEnter: onPointerEnterProp = () => {},
-		onBack = () => {}
+		onBack = () => {},
+		firstCollectionPath = ''
 	}: {
 		active?: number;
 		onClick?: () => void;
 		onPointerEnter?: (e: PointerEvent) => void;
 		onBack?: () => void;
+		firstCollectionPath?: string;
 	} = $props();
 
 	// State management
@@ -414,6 +416,13 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 			});
 		} else {
 			FloatingPathsComponent = null;
+		}
+	});
+
+	// Prefetch first collection data when active
+	$effect(() => {
+		if (active === 0 && firstCollectionPath) {
+			preloadData(firstCollectionPath);
 		}
 	});
 </script>

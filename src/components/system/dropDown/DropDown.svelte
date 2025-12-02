@@ -33,6 +33,10 @@
 	let expanded = $state(false);
 	let currentSelected = $state(selected);
 
+	$effect(() => {
+		currentSelected = selected;
+	});
+
 	// Derived state for filtered items
 	const filteredItems = $derived(items.filter((item: any) => item !== currentSelected));
 

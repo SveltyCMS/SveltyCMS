@@ -152,6 +152,14 @@ export interface FieldInstance {
 	}) => Promise<string> | string;
 	callback?: (args: { data: Record<string, FieldValue> }) => void;
 	modifyRequest?: (args: Record<string, unknown>) => Promise<Record<string, unknown>>;
+	modifyRequestBatch?: (args: {
+		data: Record<string, unknown>[];
+		collection: unknown;
+		field: unknown;
+		user: unknown;
+		type: string;
+		tenantId?: string;
+	}) => Promise<Record<string, unknown>[]>;
 
 	/** Widget-specific properties, now strongly typed by the factory. */
 	[key: string]: unknown;

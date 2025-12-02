@@ -104,7 +104,7 @@ SveltyCMS features a sophisticated **dual-layer caching system** with Redis L1 (
 2. **8 Cache Categories**: Each with configurable TTL
 3. **Multi-Tenant Isolation**: Automatic tenant-aware keys
 4. **Dynamic TTL**: Configure TTLs via database settings
-5. **Predictive Prefetching**: Pattern-based prefetching
+5. **Predictive Prefetching**: Pattern-based prefetching with custom fetchers
 6. **Metrics Integration**: Tracks all cache operations
 
 ### 8 Cache Categories
@@ -310,6 +310,30 @@ class CacheService {
 		// Prefetch logic (fetch and cache related keys)
 		// Implementation depends on specific use case
 	}
+
+	// ============================================
+	// Predictive Prefetching
+	// ============================================
+	registerPrefetchPattern(pattern: PrefetchPattern): void {
+		this.prefetchPatterns.push(pattern);
+	}
+
+	// Example usage of predictive prefetching
+	// cacheService.registerPrefetchPattern({
+	//   pattern: /^user:(\d+)$/,
+	//   prefetchKeys: (key) => {
+	//     const userId = key.split(':')[1];
+	//     return [`user:${userId}:permissions`, `user:${userId}:profile`];
+	//   },
+	//   fetcher: async (keys) => {
+	//     // Fetch data for keys
+	//     return {
+	//       'user:123:permissions': { ... },
+	//       'user:123:profile': { ... }
+	//     };
+	//   },
+	//   category: CacheCategory.USER
+	// });
 
 	// ============================================
 	// Cache Warming

@@ -72,9 +72,15 @@
 
 	// `currentConfig` holds the live, mutable state of the content structure for the UI.
 	// It's initialized from `data.contentStructure` and updated by DnD operations.
-	let currentConfig: ContentNode[] = $state(data.contentStructure);
+	let currentConfig: ContentNode[] = $state([]);
 	// `nodesToSave` stores operations (create, update, move, rename) that need to be persisted to the backend.
 	let nodesToSave: Record<string, NodeOperation> = $state({});
+
+	$effect(() => {
+		if (data.contentStructure) {
+			currentConfig = data.contentStructure;
+		}
+	});
 
 	// State for UI feedback
 	let isLoading = $state(false);

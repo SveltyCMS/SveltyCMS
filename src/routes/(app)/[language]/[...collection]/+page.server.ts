@@ -369,6 +369,21 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			}
 		}
 
+		let fieldMetadata = {};
+		if (editEntryId) {
+			fieldMetadata = await contentManager.getFieldMetadataWithTranslations(
+				currentCollection._id as string,
+				[editEntryId],
+				tenantId
+			);
+		}
+
+		// =================================================================
+		// 6.5. GET BREADCRUMB AND STATS
+		// =================================================================
+		const breadcrumb = contentManager.getBreadcrumb(currentCollection.path || '');
+		const collectionStats = contentManager.getCollectionStats(currentCollection._id as string, tenantId);
+
 		// =================================================================
 		// 7. PREPARE FINAL DATA & SET CACHE
 		// =================================================================
@@ -400,7 +415,10 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 				currentPage: page,
 				pageSize: pageSize
 			},
-			revisions: revisionsMeta || []
+			revisions: revisionsMeta || [],
+			breadcrumb,
+			collectionStats,
+			fieldMetadata
 		};
 
 		// Cache with TTL (5 minutes for dynamic content)

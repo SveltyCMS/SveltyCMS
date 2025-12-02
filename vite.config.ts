@@ -241,8 +241,12 @@ function cmsWatcherPlugin(): Plugin {
 			compileTimeout = setTimeout(async () => {
 				log.info(`Collection change detected. Recompiling...`);
 				try {
-					await compile({ userCollections: paths.userCollections, compiledCollections: paths.compiledCollections });
-					log.success('Re-compilation successful!');
+					await compile({
+						userCollections: paths.userCollections,
+						compiledCollections: paths.compiledCollections,
+						targetFile: file // Pass the specific file that changed
+					});
+					log.success(`Re-compilation successful for ${path.basename(file)}!`);
 
 					// Register collection models in database after recompilation
 					try {

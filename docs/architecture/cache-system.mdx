@@ -91,16 +91,17 @@ This eliminates the need to invalidate multiple cache keys when user data change
 
 The system organizes cache entries into 8 categories, each with customizable TTL:
 
-| Category     | Default TTL | Description                 | Use Cases                                |
-| ------------ | ----------- | --------------------------- | ---------------------------------------- |
-| **Static**   | 7 days      | Content that rarely changes | Page templates, layouts, static assets   |
-| **Dynamic**  | 1 hour      | Frequently updated content  | Blog posts, news articles, product pages |
-| **API**      | 15 minutes  | External API responses      | Third-party data, integrations           |
-| **Query**    | 30 minutes  | Database query results      | Search results, filtered lists           |
-| **Session**  | 24 hours    | User session data           | Auth tokens, preferences, cart data      |
-| **Widget**   | 2 hours     | Dashboard widgets           | Analytics, stats, metrics                |
-| **Computed** | 6 hours     | Expensive calculations      | Reports, aggregations, summaries         |
-| **Media**    | 30 days     | Uploaded files & images     | User uploads, thumbnails, assets         |
+| Category       | Default TTL | Description                 | Use Cases                                |
+| -------------- | ----------- | --------------------------- | ---------------------------------------- |
+| **Static**     | 7 days      | Content that rarely changes | Page templates, layouts, static assets   |
+| **Dynamic**    | 1 hour      | Frequently updated content  | Blog posts, news articles, product pages |
+| **API**        | 15 minutes  | External API responses      | Third-party data, integrations           |
+| **Query**      | 30 minutes  | Database query results      | Search results, filtered lists           |
+| **Session**    | 24 hours    | User session data           | Auth tokens, preferences, cart data      |
+| **Widget**     | 2 hours     | Dashboard widgets           | Analytics, stats, metrics                |
+| **Computed**   | 6 hours     | Expensive calculations      | Reports, aggregations, summaries         |
+| **Media**      | 30 days     | Uploaded files & images     | User uploads, thumbnails, assets         |
+| **Predictive** | Dynamic     | Prefetched data patterns    | User navigation paths, related content   |
 
 ### Configuration Interface
 
@@ -251,6 +252,29 @@ async function updateUser(userId: string, data: any) {
 const keys = ['query:posts:published', 'query:posts:recent', 'widget:stats:posts'];
 
 await Promise.all(keys.map((key) => cacheStore.delete(key)));
+```
+
+### Predictive Prefetching
+
+SveltyCMS 2.0 introduces intelligent prefetching to load data _before_ it is requested:
+
+1.  **Pattern Registration**: Define regex patterns for keys that trigger prefetching.
+2.  **Background Execution**: Prefetching runs asynchronously without blocking the main request.
+3.  **Smart Deduplication**: Checks L1/L2 cache before fetching to avoid redundant DB calls.
+
+```typescript
+// Example: When fetching a user, automatically prefetch their permissions
+cacheService.registerPrefetchPattern({
+	pattern: /^user:([a-zA-Z0-9]+)$/,
+	prefetchKeys: (key) => {
+		const userId = key.split(':')[1];
+		return [`user:${userId}:permissions`, `user:${userId}:settings`];
+	},
+	fetcher: async (keys) => {
+		// Batch fetch data
+		return await db.fetchUserData(keys);
+	}
+});
 ```
 
 ### Cache Warming

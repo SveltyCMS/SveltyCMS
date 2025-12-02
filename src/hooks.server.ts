@@ -49,6 +49,7 @@ import { handleRateLimit } from './hooks/handleRateLimit';
 import { handleFirewall } from './hooks/handleFirewall';
 // API middleware for role-based access control and caching
 import { handleApiRequests } from './hooks/handleApiRequests';
+import { handleCompression } from './hooks/handleCompression';
 
 // --- Import Token Services for Dependency Injection ---
 import { TokenRegistry } from '@src/services/token/engine';
@@ -113,7 +114,10 @@ const middleware: Handle[] = [
 	handleTokenResolution,
 
 	// 12. Essential security headers (defense in depth)
-	addSecurityHeaders
+	addSecurityHeaders,
+
+	// 13. Compression (GZIP/Brotli)
+	handleCompression
 ];
 
 // --- Main Handle Export ---

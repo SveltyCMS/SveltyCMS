@@ -1,7 +1,7 @@
 /**
  * @file scripts\secure-update.ts
  * @description Secure update script for SveltyCMS
- * 
+ *
  * This script updates dependencies and verifies the integrity of the lockfile.
  * It is recommended to run this script before committing changes to the repository.
  */
@@ -44,9 +44,8 @@ async function main() {
 		console.log('\n✅ Dependencies updated and lockfile verified.');
 		console.log('\n⚠️  IMPORTANT: Now run the test suite to ensure no breaking changes:');
 		console.log('   bun run test:all');
-		
-		console.log('\n🔍 It is also recommended to review the diff of bun.lockb before committing.');
 
+		console.log('\n🔍 It is also recommended to review the diff of bun.lockb before committing.');
 	} catch (error) {
 		console.error('\n❌ Update failed:', error);
 		process.exit(1);

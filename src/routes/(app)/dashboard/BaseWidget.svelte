@@ -70,11 +70,17 @@ New Features:
 	}>();
 
 	let widgetState = $state<Record<string, any>>({});
-	let loading = $state(endpoint && !passedInitialData);
+	let loading = $state(false);
 	let error = $state<string | null>(null);
-	let internalData = $state(passedInitialData);
+	let internalData = $state(undefined);
 	let lastFetchTime = $state<number>(0);
 	let currentRetry = $state(0);
+
+	$effect(() => {
+		if (passedInitialData !== undefined) {
+			internalData = passedInitialData;
+		}
+	});
 
 	// Cache management (localStorage)
 	function getCachedData(): any | null {

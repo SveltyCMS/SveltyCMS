@@ -115,12 +115,21 @@ export async function registerCollections(tenantId?: string) {
 	await contentManager.initialize(tenantId);
 	const collections: Schema[] = await contentManager.getCollections(tenantId);
 
+	// Use lightweight metadata instead of full schemas where possible
+	const collectionStats = await Promise.all(
+		(await contentManager.getCollections(tenantId)).map(async (col) => ({
+			...col,
+			stats: contentManager.getCollectionStats(col._id!, tenantId)
+		}))
+	);
+
 	logger.debug(
 		`Collections loaded for GraphQL:`,
-		collections.map((c) => ({
+		collectionStats.map((c) => ({
 			name: typeof c.name === 'string' ? c.name : '',
 			id: c._id,
-			cleanTypeName: createCleanTypeName({ _id: c._id, name: typeof c.name === 'string' ? c.name : '' })
+			cleanTypeName: createCleanTypeName({ _id: c._id, name: typeof c.name === 'string' ? c.name : '' }),
+			fieldCount: c.stats?.fieldCount
 		}))
 	);
 
@@ -369,8 +378,15 @@ export async function collectionsResolvers(dbAdapter: DatabaseAdapter, cacheClie
 			const locale = ctx.locale || 'en';
 
 			try {
-				// Cache key now includes locale to ensure correct localized content is cached
-				const cacheKey = `collections:${collection._id}:${page}:${limit}:${locale}`;
+				// ✅ Use collection cache for metadata
+				const collectionStats = contentManager.getCollectionStats(collection._id!, ctx.tenantId);
+
+				if (!collectionStats) {
+					throw new Error(`Collection not found: ${collection._id}`);
+				}
+
+				// Cache key now includes locale and content version for auto-invalidation
+				const cacheKey = `collections:${collection._id}:${page}:${limit}:${locale}:${contentManager.getContentVersion()}`;
 				if (getPrivateSettingSync('USE_REDIS') && cacheClient) {
 					const cachedResult = await cacheClient.get(cacheKey, ctx.tenantId);
 					if (cachedResult) {

@@ -68,10 +68,10 @@ SveltyCMS includes a minimal Heartbeat System (Telemetry) to help the core team 
 1.  **Non-Blocking:** The telemetry runs asynchronously in the background. It never blocks a user request.
 2.  **Frequency:** It sends a heartbeat once every 24 hours per server instance.
 3.  **Data Collected:**
-    *   SveltyCMS Version (e.g., 1.0.0)
-    *   Hostname / Domain (e.g., cms.example.com)
-    *   Environment (Development vs Production)
-    *   Node.js Version
+    - SveltyCMS Version (e.g., 1.0.0)
+    - Hostname / Domain (e.g., cms.example.com)
+    - Environment (Development vs Production)
+    - Node.js Version
 
 ### Privacy & Opt-Out
 
@@ -1220,6 +1220,37 @@ bun test tests/bun/hooks/ tests/bun/api/ tests/bun/services/
 # Full test suite
 bun test
 ```
+
+---
+
+### 10. handleCompression - Response Compression
+
+**File**: `src/hooks/handleCompression.ts`
+**Purpose**: Compresses API responses using GZIP or Brotli for improved performance.
+
+```typescript
+export const handleCompression: Handle = async ({ event, resolve }) => {
+	const response = await resolve(event);
+
+	// Only compress API responses
+	if (!event.url.pathname.startsWith('/api/')) {
+		return response;
+	}
+
+	// Check Accept-Encoding header
+	const acceptEncoding = event.request.headers.get('accept-encoding') || '';
+
+	// ... compression logic ...
+
+	return response;
+};
+```
+
+**Key Features**:
+
+- **Algorithm Selection**: Prioritizes Brotli (`br`) over Gzip (`gzip`).
+- **Selective Compression**: Targets only API JSON responses (static assets are handled by adapter/CDN).
+- **Performance**: Reduces payload size by up to 80%, significantly improving mobile experience.
 
 ---
 

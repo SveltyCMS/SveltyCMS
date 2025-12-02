@@ -68,7 +68,7 @@ export const telemetryService = {
 			// Update lastCheckTime to prevent immediate retries on failure
 			// This ensures we don't spam the server or slow down the app if the endpoint is down
 			lastCheckTime = Date.now();
-			
+
 			// Fail safe: assume no connection but don't crash
 			return { status: 'error', latest: pkg.version, security_issue: false };
 		}

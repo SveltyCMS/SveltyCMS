@@ -72,10 +72,47 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 
 			// Resolve potential modifyRequest handler in a type-safe way
 			const modifyFn = (widget as unknown as { modifyRequest?: unknown })?.modifyRequest;
-			if (modifyFn !== undefined && modifyFn !== null && typeof modifyFn === 'function') {
+			const modifyBatchFn = (widget as unknown as { modifyRequestBatch?: unknown })?.modifyRequestBatch;
+
+			if (modifyBatchFn && typeof modifyBatchFn === 'function') {
+				// --- BATCH PROCESSING ---
+				logger.trace(`Processing batch for field: ${fieldName}, widget: ${field.widget.Name}`);
+				try {
+					const batchStart = performance.now();
+					// Extract data for this field
+					// const fieldData = data.map((entry) => entry[fieldName]);
+
+					// Call batch function
+					const batchResults = (await modifyBatchFn({
+						data: data as unknown as Record<string, unknown>[],
+						collection: collection as unknown as Record<string, unknown>,
+						field: field as unknown as Record<string, unknown>,
+						user: user as unknown as Record<string, unknown>,
+						type: type as unknown as string,
+						tenantId: tenantId as unknown as string | undefined
+					})) as Record<string, unknown>[];
+
+					// Update data with results
+					if (Array.isArray(batchResults) && batchResults.length === data.length) {
+						data = batchResults as EntryData[];
+					} else {
+						logger.warn(`Batch processing for ${fieldName} returned invalid results length. Expected ${data.length}, got ${batchResults?.length}`);
+					}
+
+					const batchDuration = performance.now() - batchStart;
+					logger.debug(`Batch processing for ${fieldName} completed in ${batchDuration.toFixed(2)}ms`);
+				} catch (batchError) {
+					const errorMessage = batchError instanceof Error ? batchError.message : 'Unknown batch error';
+					logger.error(`Batch widget error for field ${fieldName}: ${errorMessage}`);
+					// Fallback to individual processing could be implemented here if needed,
+					// but for now we let it fail or continue with unmodified data?
+					// Ideally we should probably re-throw or handle gracefully.
+				}
+			} else if (modifyFn !== undefined && modifyFn !== null && typeof modifyFn === 'function') {
+				// --- INDIVIDUAL PROCESSING (Legacy/Fallback) ---
 				data = await Promise.all(
 					data.map(async (entry: EntryData, index: number) => {
-						const entryStart = performance.now();
+						// const entryStart = performance.now();
 						try {
 							const entryCopy = { ...entry };
 							const dataAccessor: DataAccessor<unknown> = {
@@ -87,7 +124,7 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 								}
 							};
 
-							logger.trace(`Processing entry ${index + 1}/${data.length} for field: ${fieldName}`);
+							// logger.trace(`Processing entry ${index + 1}/${data.length} for field: ${fieldName}`);
 							try {
 								// Call widget.modifyRequest with structural casts to avoid `any` while remaining permissive
 								const modify = modifyFn as (args: Record<string, unknown>) => Promise<unknown> | unknown;
@@ -102,8 +139,8 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 									meta_data: entryCopy.meta_data
 								});
 
-								const entryDuration = performance.now() - entryStart;
-								logger.debug(`Entry ${index + 1} processed in ${entryDuration.toFixed(2)}ms`);
+								// const entryDuration = performance.now() - entryStart;
+								// logger.debug(`Entry ${index + 1} processed in ${entryDuration.toFixed(2)}ms`);
 							} catch (widgetError) {
 								const errorMessage = widgetError instanceof Error ? widgetError.message : 'Unknown widget error';
 								const errorStack = widgetError instanceof Error ? widgetError.stack : '';
@@ -125,7 +162,7 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 				const fieldDuration = performance.now() - fieldStart;
 				logger.trace(`Field ${fieldName} processed in ${fieldDuration.toFixed(2)}ms`);
 			} else {
-				logger.warn(`No modifyRequest handler for widget: ${field.widget.Name}`);
+				// logger.warn(`No modifyRequest handler for widget: ${field.widget.Name}`);
 			}
 		}
 

@@ -80,14 +80,22 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 	const tokenForm = new Form(
 		{
-			user_id, // Add user_id to state
-			email,
-			token,
-			role: role || 'user',
-			expiresIn: !expires || expires === '' ? '2 days' : convertLegacyFormat(expires) // Force '2 days' for empty/undefined expires
+			user_id: '',
+			email: '',
+			token: '',
+			role: 'user',
+			expiresIn: '2 days'
 		},
 		addUserTokenSchema
 	);
+
+	$effect(() => {
+		tokenForm.data.user_id = user_id;
+		tokenForm.data.email = email;
+		tokenForm.data.token = token;
+		tokenForm.data.role = role || 'user';
+		tokenForm.data.expiresIn = !expires || expires === '' ? '2 days' : convertLegacyFormat(expires);
+	});
 
 	async function onFormSubmit(event: SubmitEvent): Promise<void> {
 		event.preventDefault();

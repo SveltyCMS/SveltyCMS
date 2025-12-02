@@ -194,7 +194,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 	// 2. Localhost during development OR production
 	// Allow bypassing this check for testing purposes
 	const bypassLocalhost = event.request.headers.get('x-test-rate-limit-bypass-localhost') === 'true';
-	console.log(`[RateLimit] IP: ${clientIp}, Localhost: ${isLocalhost(clientIp)}, Bypass: ${bypassLocalhost}, Path: ${url.pathname}`);
+	// console.log(`[RateLimit] IP: ${clientIp}, Localhost: ${isLocalhost(clientIp)}, Bypass: ${bypassLocalhost}, Path: ${url.pathname}`);
 	if (isLocalhost(clientIp) && !bypassLocalhost) {
 		return resolve(event);
 	}

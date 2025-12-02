@@ -598,6 +598,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			logger.error('Error checking for existing OAuth users:', error);
 		}
 
+		// Calculate first collection path for client-side optimization (prefetching)
+		const firstCollectionPath = await getCachedFirstCollectionPath(userLanguage);
+
 		return {
 			isInviteFlow: false,
 			firstUserExists,
@@ -608,7 +611,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			resetForm,
 			signUpForm,
 			pkgVersion: publicEnv.PKG_VERSION || '0.0.0',
-			demoMode
+			demoMode,
+			firstCollectionPath
 		};
 	} catch (initialError) {
 		const err = initialError as Error;
