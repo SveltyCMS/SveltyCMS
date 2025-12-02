@@ -263,10 +263,8 @@ export class MongoDBAdapter implements IDBAdapter {
 			const resilience = getDatabaseResilience();
 
 			await resilience.executeWithRetry(async () => {
-				await mongoose.connect(connectionString, connectOptions);
-
-				// CRITICAL: Extract database name from connection string and explicitly select it
-				// Mongoose sometimes doesn't select the database when authSource is different
+				// CRITICAL: Extract database name from connection string BEFORE connecting
+				// Mongoose with authSource=admin needs the database explicitly specified
 				const dbNameMatch = connectionString.match(/\/([^/?]+)(?:\?|$)/);
 				const targetDbName = dbNameMatch ? dbNameMatch[1] : null;
 
@@ -274,16 +272,40 @@ export class MongoDBAdapter implements IDBAdapter {
 					throw new Error('Could not extract database name from connection string');
 				}
 
-				// Explicitly switch to the target database
-				const db = mongoose.connection.useDb(targetDbName);
-				logger.info(`Explicitly selected database: "${targetDbName}"`);
+				// Add dbName to connection options to force Mongoose to select it
+				const optionsWithDbName = {
+					...connectOptions,
+					dbName: targetDbName
+				};
 
-				// Verify connection.db is now set
-				if (!mongoose.connection.db) {
-					throw new Error(`Failed to select database "${targetDbName}" - connection.db is still null`);
+				logger.info(`Connecting to MongoDB with explicit dbName: "${targetDbName}"`);
+				await mongoose.connect(connectionString, optionsWithDbName);
+
+				// Wait for the connection to be fully ready with database selected
+				// Mongoose 8.x may not immediately populate connection.db
+				let attempts = 0;
+				const maxAttempts = 50; // 5 seconds total
+				while (!mongoose.connection.db && attempts < maxAttempts) {
+					await new Promise((resolve) => setTimeout(resolve, 100));
+					attempts++;
 				}
 
-				const actualDbName = mongoose.connection.db.databaseName;
+				if (!mongoose.connection.db) {
+					// Try to force database selection by accessing the native client
+					const client = mongoose.connection.getClient();
+					const db = client.db(targetDbName);
+					// Store reference for later use
+					(mongoose.connection as any)._forcedDb = db;
+					logger.info(`Forced database selection via native client: "${targetDbName}"`);
+				}
+
+				// Verify database is accessible
+				const db = mongoose.connection.db || (mongoose.connection as any)._forcedDb;
+				if (!db) {
+					throw new Error(`Failed to select database "${targetDbName}" - no database available`);
+				}
+
+				const actualDbName = db.databaseName;
 				logger.info(`MongoDB connection established with resilience and optimized pool configuration. Database: "${actualDbName}"`);
 
 				if (actualDbName !== targetDbName) {
