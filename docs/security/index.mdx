@@ -379,6 +379,20 @@ SveltyCMS security features support compliance with:
 - ✅ Using components with known vulnerabilities (dependency scanning)
 - ✅ Insufficient logging and monitoring (comprehensive audit logs)
 
+### 7. Supply Chain Security
+
+**Features:**
+
+- ✅ Pinned GitHub Actions to specific commit SHAs
+- ✅ Enforced frozen lockfiles in CI/CD
+- ✅ Automated dependency updates with verification
+
+**Implementation:**
+
+- All GitHub workflows use immutable action references (e.g., `actions/checkout@11bd7...`) to prevent tag hijacking.
+- `bun install --frozen-lockfile` is enforced in all CI jobs to prevent lockfile poisoning.
+- Secure update scripts ensure lockfile integrity during maintenance.
+
 ---
 
 ## 🔗 Related Documentation

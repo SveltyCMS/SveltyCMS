@@ -124,6 +124,9 @@ jobs:
       - Execution time: ~60 seconds
 ```
 
+> [!IMPORTANT]
+> **Security Note**: All GitHub workflows use **pinned commit SHAs** for actions and enforce **frozen lockfiles** (`bun install --frozen-lockfile`) to protect against supply chain attacks. Do not change these to version tags without verifying the commit SHA.
+
 **When Tests Run**:
 
 - **On Pull Request**: All tests must pass before merge

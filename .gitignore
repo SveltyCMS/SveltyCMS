@@ -29,7 +29,7 @@ mediaFiles/
 mediaFolder/
 compiledCollections/*
 logs/*
-Docs/*
+
 .node-version
 
 
