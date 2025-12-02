@@ -265,25 +265,31 @@ export class MongoDBAdapter implements IDBAdapter {
 			await resilience.executeWithRetry(async () => {
 				await mongoose.connect(connectionString, connectOptions);
 
-				// CRITICAL: Wait for connection to be fully ready with database selected
-				if (!mongoose.connection.db) {
-					// Force wait for connection ready state
-					await new Promise((resolve, reject) => {
-						const timeout = setTimeout(() => reject(new Error('Timeout waiting for Mongoose connection.db')), 5000);
-						const checkConnection = () => {
-							if (mongoose.connection.db) {
-								clearTimeout(timeout);
-								resolve(true);
-							} else {
-								setTimeout(checkConnection, 100);
-							}
-						};
-						checkConnection();
-					});
+				// CRITICAL: Extract database name from connection string and explicitly select it
+				// Mongoose sometimes doesn't select the database when authSource is different
+				const dbNameMatch = connectionString.match(/\/([^/?]+)(?:\?|$)/);
+				const targetDbName = dbNameMatch ? dbNameMatch[1] : null;
+
+				if (!targetDbName) {
+					throw new Error('Could not extract database name from connection string');
 				}
 
-				const dbName = mongoose.connection.db?.databaseName;
-				logger.info(`MongoDB connection established with resilience and optimized pool configuration. Database: "${dbName}"`);
+				// Explicitly switch to the target database
+				const db = mongoose.connection.useDb(targetDbName);
+				logger.info(`Explicitly selected database: "${targetDbName}"`);
+
+				// Verify connection.db is now set
+				if (!mongoose.connection.db) {
+					throw new Error(`Failed to select database "${targetDbName}" - connection.db is still null`);
+				}
+
+				const actualDbName = mongoose.connection.db.databaseName;
+				logger.info(`MongoDB connection established with resilience and optimized pool configuration. Database: "${actualDbName}"`);
+
+				if (actualDbName !== targetDbName) {
+					logger.error(`Database mismatch: expected "${targetDbName}", got "${actualDbName}"`);
+					throw new Error(`Database mismatch: expected "${targetDbName}", got "${actualDbName}"`);
+				}
 			}, 'MongoDB connection');
 
 			// Setup self-healing reconnection listeners
