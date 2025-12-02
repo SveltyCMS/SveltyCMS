@@ -103,27 +103,43 @@ export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = /\/
 		console.log(`[Auth] Could not capture login response: ${e}`);
 	}
 
-	// Take screenshot after submission
-	await page.waitForTimeout(2000);
-	await page.screenshot({ path: 'debug-after-login-submit.png', fullPage: true });
-	console.log('[Auth] Screenshot saved: debug-after-login-submit.png');
-	console.log(`[Auth] Current URL after submit: ${page.url()}`);
+	// Wait for client-side navigation to complete
+	// SvelteKit form actions return JSON with type:"redirect", client handles via goto()
+	console.log('[Auth] Waiting for client-side navigation...');
 
-	// Check for any error messages on page
-	const errorText = await page.locator('.error, [class*="error"], [role="alert"]').first().textContent().catch(() => null);
-	if (errorText) {
-		console.log(`[Auth] Error message found: ${errorText}`);
+	// Wait for URL to change from /login
+	try {
+		await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 10000 });
+		console.log(`[Auth] Navigation detected, now at: ${page.url()}`);
+	} catch (e) {
+		// If URL didn't change, log debug info
+		console.log(`[Auth] URL did not change from /login after 10s`);
+		console.log(`[Auth] Current URL: ${page.url()}`);
+
+		// Take screenshot
+		await page.screenshot({ path: 'debug-after-login-submit.png', fullPage: true });
+		console.log('[Auth] Screenshot saved: debug-after-login-submit.png');
+
+		// Check for any error messages on page
+		const errorText = await page.locator('.error, [class*="error"], [role="alert"]').first().textContent().catch(() => null);
+		if (errorText) {
+			console.log(`[Auth] Error message found: ${errorText}`);
+		}
+
+		// Check for toast messages
+		const toastText = await page.locator('[class*="toast"], [class*="Toast"]').first().textContent().catch(() => null);
+		if (toastText) {
+			console.log(`[Auth] Toast message: ${toastText}`);
+		}
+
+		// Check body text for any clues
+		const bodyText = await page.locator('body').innerText().catch(() => '');
+		console.log(`[Auth] Body text (first 500 chars): ${bodyText.substring(0, 500)}`);
 	}
 
-	// Check for toast messages
-	const toastText = await page.locator('[class*="toast"], [class*="Toast"]').first().textContent().catch(() => null);
-	if (toastText) {
-		console.log(`[Auth] Toast message: ${toastText}`);
-	}
-
-	// Wait for redirect after successful login
-	console.log('[Auth] Waiting for redirect...');
-	await page.waitForURL(waitForUrl, { timeout: 15000 });
+	// Final wait for the expected URL pattern
+	console.log('[Auth] Waiting for final URL match...');
+	await page.waitForURL(waitForUrl, { timeout: 10000 });
 	console.log(`[Auth] Login successful, redirected to: ${page.url()}`);
 }
 
