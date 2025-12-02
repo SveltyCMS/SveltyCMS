@@ -273,39 +273,73 @@ export class MongoDBAdapter implements IDBAdapter {
 				}
 
 				// Add dbName to connection options to force Mongoose to select it
-				const optionsWithDbName = {
+				const optionsWithDbName: mongoose.ConnectOptions = {
 					...connectOptions,
 					dbName: targetDbName
 				};
 
 				logger.info(`Connecting to MongoDB with explicit dbName: "${targetDbName}"`);
-				await mongoose.connect(connectionString, optionsWithDbName);
 
-				// Wait for the connection to be fully ready with database selected
-				// Mongoose 8.x may not immediately populate connection.db
-				let attempts = 0;
-				const maxAttempts = 50; // 5 seconds total
-				while (!mongoose.connection.db && attempts < maxAttempts) {
-					await new Promise((resolve) => setTimeout(resolve, 100));
-					attempts++;
+				// Use mongoose.createConnection for more control over database selection
+				// This ensures we get a dedicated connection to the specific database
+				const conn = await mongoose.createConnection(connectionString, optionsWithDbName).asPromise();
+
+				// Copy this connection to the default mongoose.connection
+				// This is a workaround because mongoose.connect() doesn't properly select DB with authSource
+				if (conn.db) {
+					// Use the connection we created
+					logger.info(`createConnection succeeded with db: "${conn.db.databaseName}"`);
+
+					// Disconnect any existing default connection
+					if (mongoose.connection.readyState !== 0) {
+						await mongoose.disconnect();
+					}
+
+					// Now connect using the working connection's client
+					await mongoose.connect(connectionString, {
+						...optionsWithDbName,
+						// Force use of the database from connection string
+						dbName: targetDbName
+					});
+
+					// Wait for connection.db to be available
+					let attempts = 0;
+					const maxAttempts = 100; // 10 seconds
+					while (!mongoose.connection.db && attempts < maxAttempts) {
+						await new Promise((resolve) => setTimeout(resolve, 100));
+						attempts++;
+						if (attempts % 10 === 0) {
+							logger.info(`Waiting for mongoose.connection.db... attempt ${attempts}`);
+						}
+					}
+
+					// If still no db, manually assign from our working connection
+					if (!mongoose.connection.db) {
+						logger.warn(`mongoose.connection.db is null after ${attempts} attempts, using client.db()`);
+						// Access the underlying client's db
+						const nativeClient = mongoose.connection.getClient();
+						const db = nativeClient.db(targetDbName);
+						// Force assignment (this is internal but necessary)
+						Object.defineProperty(mongoose.connection, 'db', {
+							value: db,
+							writable: true,
+							configurable: true
+						});
+						logger.info(`Manually assigned db to mongoose.connection: "${db.databaseName}"`);
+					}
+
+					// Close the temporary connection we used for testing
+					await conn.close();
+				} else {
+					throw new Error(`createConnection returned null db for "${targetDbName}"`);
 				}
 
+				// Final verification
 				if (!mongoose.connection.db) {
-					// Try to force database selection by accessing the native client
-					const client = mongoose.connection.getClient();
-					const db = client.db(targetDbName);
-					// Store reference for later use
-					(mongoose.connection as any)._forcedDb = db;
-					logger.info(`Forced database selection via native client: "${targetDbName}"`);
+					throw new Error(`Failed to select database "${targetDbName}" - mongoose.connection.db is still null`);
 				}
 
-				// Verify database is accessible
-				const db = mongoose.connection.db || (mongoose.connection as any)._forcedDb;
-				if (!db) {
-					throw new Error(`Failed to select database "${targetDbName}" - no database available`);
-				}
-
-				const actualDbName = db.databaseName;
+				const actualDbName = mongoose.connection.db.databaseName;
 				logger.info(`MongoDB connection established with resilience and optimized pool configuration. Database: "${actualDbName}"`);
 
 				if (actualDbName !== targetDbName) {
