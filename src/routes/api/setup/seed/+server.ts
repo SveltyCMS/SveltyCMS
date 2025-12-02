@@ -61,6 +61,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Verify roles were created by checking database
 		let rolesCreated = 0;
 		let roleNames: string[] = [];
+		let directRoleCount = 0;
+		let mongooseDbName = 'unknown';
 		try {
 			const roles = await dbAdapter.auth.getAllRoles();
 			rolesCreated = roles ? roles.length : 0;
@@ -68,15 +70,21 @@ export const POST: RequestHandler = async ({ request }) => {
 			logger.info(`✅ Verified ${rolesCreated} roles exist in database after seeding`);
 			logger.info(`   Role names: ${roleNames.join(', ')}`);
 
+			// Get Mongoose database name
+			const mongoose = await import('mongoose');
+			mongooseDbName = mongoose.connection.db?.databaseName || 'not connected';
+			logger.info(`   Mongoose connected to database: "${mongooseDbName}"`);
+
 			// Also verify directly via MongoDB to compare
 			const { MongoClient } = await import('mongodb');
 			const directClient = new MongoClient(connectionString);
 			await directClient.connect();
 			const db = directClient.db(dbConfig.name);
 			const directRoles = await db.collection('roles').find({}).toArray();
-			logger.info(`   Direct MongoDB check: ${directRoles.length} roles in '${dbConfig.name}' database`);
-			if (directRoles.length !== rolesCreated) {
-				logger.error(`   ❌ MISMATCH! Adapter sees ${rolesCreated} roles, MongoDB sees ${directRoles.length} roles`);
+			directRoleCount = directRoles.length;
+			logger.info(`   Direct MongoDB check: ${directRoleCount} roles in '${dbConfig.name}' database`);
+			if (directRoleCount !== rolesCreated) {
+				logger.error(`   ❌ MISMATCH! Adapter sees ${rolesCreated} roles, MongoDB sees ${directRoleCount} roles`);
 			}
 			await directClient.close();
 		} catch (error) {
@@ -90,7 +98,14 @@ export const POST: RequestHandler = async ({ request }) => {
 			success: true,
 			message: `Database initialized successfully! ✨ (${rolesCreated} roles created)`,
 			firstCollection, // Return first collection info for faster redirect
-			rolesCreated // Add this for debugging
+			rolesCreated, // Add this for debugging
+			debug: {
+				mongooseDbName,
+				targetDbName: dbConfig.name,
+				adapterRoleCount: rolesCreated,
+				directMongoRoleCount: directRoleCount,
+				mismatch: rolesCreated !== directRoleCount
+			}
 		});
 	} catch (error) {
 		const errorDetails = {
