@@ -73,9 +73,10 @@ export const POST: RequestHandler = async ({ request }) => {
 			logger.info(`   Role names: ${roleNames.join(', ')}`);
 
 			// Get Mongoose database name
-			const mongoose = await import('mongoose');
-			mongooseDbName = mongoose.connection.db?.databaseName || 'db is null';
-			mongooseReadyState = mongoose.connection.readyState;
+			const mongooseModule = await import('mongoose');
+			const mongoose = mongooseModule.default || mongooseModule;
+			mongooseDbName = mongoose.connection?.db?.databaseName || 'db is null';
+			mongooseReadyState = mongoose.connection?.readyState ?? -1;
 			logger.info(`   Mongoose connected to database: "${mongooseDbName}" (readyState: ${mongooseReadyState})`);
 
 			// Also verify directly via MongoDB to compare
