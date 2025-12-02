@@ -267,14 +267,14 @@ jobs:
           try {
             await client.connect();
             const db = client.db('sveltycms_test');
-            const roles = await db.collection('roles').find({}).toArray();
+            const roles = await db.collection('auth_roles').find({}).toArray();
             console.log(\`Found \${roles.length} roles in database\`);
             if (roles.length === 0) {
               console.error('❌ ERROR: No roles found in database after seeding!');
               process.exit(1);
             }
             console.log('✅ Roles exist in database');
-            const users = await db.collection('users').find({}).toArray();
+            const users = await db.collection('auth_users').find({}).toArray();
             console.log(\`Found \${users.length} users in database\`);
             if (users.length === 0) {
               console.error('❌ ERROR: No users found in database after seeding!');

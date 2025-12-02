@@ -123,7 +123,7 @@ async function seedDatabase() {
 			const client = new MongoClient(mongoUri);
 			await client.connect();
 			const db = client.db(testDbConfig.name);
-			const rolesImmediate = await db.collection('roles').find({}).toArray();
+			const rolesImmediate = await db.collection('auth_roles').find({}).toArray();
 			console.log(`  Found ${rolesImmediate.length} roles IMMEDIATELY after API call`);
 			if (rolesImmediate.length > 0) {
 				console.log(`  Role names: ${rolesImmediate.map((r: any) => r.name).join(', ')}`);
@@ -156,9 +156,9 @@ async function seedDatabase() {
 			const collections = await db.listCollections().toArray();
 			console.log(`   Collections in '${testDbConfig.name}': ${collections.map((c: any) => c.name).join(', ')}`);
 
-			// Check for roles
-			const roles = await db.collection('roles').find({}).toArray();
-			console.log(`   Found ${roles.length} roles in '${testDbConfig.name}' database`);
+			// Check for roles in auth_roles collection (what our models use)
+			const roles = await db.collection('auth_roles').find({}).toArray();
+			console.log(`   Found ${roles.length} roles in '${testDbConfig.name}.auth_roles' collection`);
 			if (roles.length === 0) {
 				console.error('❌ WARNING: Seeding reported success but no roles found!');
 
@@ -166,7 +166,7 @@ async function seedDatabase() {
 				for (const dbInfo of dbList.databases) {
 					if (dbInfo.name !== testDbConfig.name && !['admin', 'config', 'local'].includes(dbInfo.name)) {
 						const otherDb = client.db(dbInfo.name);
-						const otherRoles = await otherDb.collection('roles').find({}).toArray();
+						const otherRoles = await otherDb.collection('auth_roles').find({}).toArray();
 						if (otherRoles.length > 0) {
 							console.error(`   ❌ FOUND ${otherRoles.length} roles in WRONG database: '${dbInfo.name}'`);
 							console.error(`   Role names: ${otherRoles.map((r: any) => r.name).join(', ')}`);

@@ -63,6 +63,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		let roleNames: string[] = [];
 		let directRoleCount = 0;
 		let mongooseDbName = 'unknown';
+		let mongooseReadyState = -1;
+		let verifyError = '';
 		try {
 			const roles = await dbAdapter.auth.getAllRoles();
 			rolesCreated = roles ? roles.length : 0;
@@ -72,22 +74,25 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			// Get Mongoose database name
 			const mongoose = await import('mongoose');
-			mongooseDbName = mongoose.connection.db?.databaseName || 'not connected';
-			logger.info(`   Mongoose connected to database: "${mongooseDbName}"`);
+			mongooseDbName = mongoose.connection.db?.databaseName || 'db is null';
+			mongooseReadyState = mongoose.connection.readyState;
+			logger.info(`   Mongoose connected to database: "${mongooseDbName}" (readyState: ${mongooseReadyState})`);
 
 			// Also verify directly via MongoDB to compare
 			const { MongoClient } = await import('mongodb');
 			const directClient = new MongoClient(connectionString);
 			await directClient.connect();
 			const db = directClient.db(dbConfig.name);
-			const directRoles = await db.collection('roles').find({}).toArray();
+			// Use auth_roles collection (not 'roles') - that's what our models use
+			const directRoles = await db.collection('auth_roles').find({}).toArray();
 			directRoleCount = directRoles.length;
-			logger.info(`   Direct MongoDB check: ${directRoleCount} roles in '${dbConfig.name}' database`);
+			logger.info(`   Direct MongoDB check: ${directRoleCount} roles in '${dbConfig.name}.auth_roles' collection`);
 			if (directRoleCount !== rolesCreated) {
 				logger.error(`   ❌ MISMATCH! Adapter sees ${rolesCreated} roles, MongoDB sees ${directRoleCount} roles`);
 			}
 			await directClient.close();
 		} catch (error) {
+			verifyError = error instanceof Error ? error.message : String(error);
 			logger.error('Failed to verify roles after seeding:', error);
 		}
 
@@ -101,10 +106,12 @@ export const POST: RequestHandler = async ({ request }) => {
 			rolesCreated, // Add this for debugging
 			debug: {
 				mongooseDbName,
+				mongooseReadyState,
 				targetDbName: dbConfig.name,
 				adapterRoleCount: rolesCreated,
 				directMongoRoleCount: directRoleCount,
-				mismatch: rolesCreated !== directRoleCount
+				mismatch: rolesCreated !== directRoleCount,
+				verifyError: verifyError || null
 			}
 		});
 	} catch (error) {
