@@ -111,6 +111,8 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 			dbAdapter = new MongoDBAdapter() as unknown as IDBAdapter;
 
 			// Prepare connection options for MongoDB
+			// CRITICAL: Do NOT specify dbName here - it's already in the connection string
+			// Specifying it in options can cause Mongoose to not select the database
 			const connectionOptions = {
 				serverSelectionTimeoutMS: 15000,
 				socketTimeoutMS: 45000,
@@ -118,12 +120,10 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 				retryWrites: true,
 				...(config.user &&
 					config.password && {
-						user: config.user,
-						pass: config.password,
-						dbName: config.name,
-						// Always use 'admin' as authSource for both MongoDB and Atlas
+						// Use 'admin' as authSource for authentication
 						// MongoDB Atlas stores user accounts in the admin database by default
 						authSource: 'admin'
+						// Database is selected from connection string: mongodb://.../{dbname}
 					})
 			};
 
