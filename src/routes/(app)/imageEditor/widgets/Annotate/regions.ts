@@ -1,4 +1,16 @@
-// src/routes/(app)/imageEditor/widgets/Annotate/regions.ts
+/**
+ * @file src/routes/(app)/imageEditor/widgets/Annotate/regions.ts
+ * @description Regions for Annotate tool
+ *
+ * Features:
+ * - Text
+ * - Rectangle
+ * - Circle
+ * - Line
+ * - Arrow
+ * - Text editing
+ * - Namespacing events to avoid conflicts with other tools
+ */
 import Konva from 'konva';
 
 export type AnnotationKind = 'text' | 'rect' | 'circle' | 'arrow' | 'line';

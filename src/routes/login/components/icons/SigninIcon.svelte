@@ -8,15 +8,7 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	let {
-		show = $bindable(true),
-		disabled = false,
-		onClick = (_event: Event) => {}
-	} = $props<{
-		show?: boolean;
-		disabled?: boolean;
-		onClick?: (event: Event) => void;
-	}>();
+	let { show = $bindable(true), disabled = false, onClick = (_event: Event) => {} } = $props();
 
 	function handleClick(event: MouseEvent) {
 		if (disabled) return;

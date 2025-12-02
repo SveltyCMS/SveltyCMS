@@ -1,4 +1,11 @@
-// src/routes/(app)/imageEditor/widgets/Annotate/transformer.ts
+/**
+ * @file src/routes/(app)/imageEditor/widgets/Annotate/transformer.ts
+ * @description Transformer for Konva
+ *
+ * Features:
+ * - Safe transformer with conservative defaults
+ * - Attach transformer to node with robust error handling
+ */
 import Konva from 'konva';
 
 /** Create a safe transformer with conservative defaults */

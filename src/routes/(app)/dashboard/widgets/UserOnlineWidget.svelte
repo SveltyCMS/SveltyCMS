@@ -28,6 +28,7 @@ Features:
 
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
+	import type { WidgetSize } from '@src/content/types';
 
 	interface OnlineUser {
 		id: string;
@@ -43,21 +44,21 @@ Features:
 
 	const {
 		label = 'Online Users',
-		theme = 'light',
+		theme = 'light' as 'light' | 'dark',
 		icon = 'mdi:account-multiple-outline',
 		widgetId = undefined,
 		size = { w: 1, h: 1 },
-		onSizeChange = () => {},
+		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {}
-	} = $props<{
+	}: {
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-		size?: '1/4' | '1/2' | '3/4' | 'full';
-		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
 		onRemove?: () => void;
-	}>();
+	} = $props();
 
 	function getPlaceholderAvatar(name: string) {
 		const initials = name

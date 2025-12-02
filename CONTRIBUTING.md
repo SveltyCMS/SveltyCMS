@@ -514,7 +514,7 @@ We use [GitHub Flow](https://guides.github.com/introduction/flow/):
 
 ## 📜 License
 
-By contributing, you agree that your contributions will be licensed under the same license as the project (MIT License).
+By contributing, you agree that your contributions will be licensed under the same license as the project (Business Source License 1.1).
 
 ---
 

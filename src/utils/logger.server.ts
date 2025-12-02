@@ -117,6 +117,7 @@ const MESSAGE_PATTERNS: MessagePattern[] = [
 
 	// Helpful defaults
 	{ regex: /\/api\/[\S]+/g, color: 'cyan', priority: 80 },
+	{ regex: /(?<=collection:\s*)[a-f0-9]{32}\b/gi, color: 'yellow', priority: 75 }, // Specific collection ID pattern
 	{ regex: /\b[a-f0-9]{32}\b/gi, color: 'yellow', priority: 71 }, // 32-char hex UUIDs → yellow
 	{ regex: /\b[a-f0-9]{24}\b/g, color: 'yellow', priority: 70 }, // ObjectId → yellow
 	{ regex: /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, color: 'yellow', priority: 70 } // UUID → yellow

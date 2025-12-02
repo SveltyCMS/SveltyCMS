@@ -1,6 +1,10 @@
-// @file: src/routes/(app)/imageEditor/widgets/FineTune/controls/adjustments.ts
-// One-line: Central adjustment definitions used by FineTune tool.
-
+/**
+ * @file src/routes/(app)/imageEditor/widgets/FineTune/controls/adjustments.ts
+ * @description Central adjustment definitions used by FineTune tool.
+ *
+ * Features:
+ * - Central adjustment definitions used by FineTune tool.
+ */
 export interface Adjustments {
 	brightness: number;
 	contrast: number;

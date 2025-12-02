@@ -26,7 +26,7 @@
 	let showSuccessDetails = $state(true);
 	let showWhySmtp = $state(false);
 	const validationErrors = $state<Record<string, string>>({});
-	let touchedFields = $state<Set<string>>(new Set());
+	let touchedFields = $state(new Set<string>());
 	let localValidationErrors = $derived(() => validationResult().errors);
 
 	// SMTP Configuration
@@ -212,7 +212,7 @@
 			return { valid: true, errors: {} };
 		} else {
 			// Extract validation errors
-			const errors: Record<string, string> = {};
+			const errors: Record<string, any> = {};
 			if (result.issues) {
 				for (const issue of result.issues) {
 					const path = issue.path?.[0]?.key as string;
@@ -229,8 +229,7 @@
 
 	// Only display errors for fields that have been touched (blurred)
 	const displayErrors = $derived.by(() => {
-		const errors: Record<string, string> = {};
-
+		const errors: Record<string, any> = {};
 		// Show validation errors only for touched fields
 		for (const field of touchedFields) {
 			if (localValidationErrors()[field]) {

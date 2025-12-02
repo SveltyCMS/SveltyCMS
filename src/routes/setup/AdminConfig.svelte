@@ -4,8 +4,8 @@
 -->
 <script lang="ts">
 	import * as m from '@src/paraglide/messages';
-	import { popup, type PopupSettings } from '@utils/popup';
-	import type { AdminUser, ValidationErrors, PasswordRequirements } from '@stores/setupStore.svelte';
+	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { setupAdminSchema } from '@utils/formSchemas';
 
@@ -25,20 +25,11 @@
 		toggleAdminPassword,
 		toggleConfirmPassword,
 		checkPasswordRequirements // This is still called by oninput
-	} = $props<{
-		adminUser: AdminUser;
-		validationErrors: ValidationErrors; // Now uses imported type
-		passwordRequirements: PasswordRequirements;
-		showAdminPassword: boolean;
-		showConfirmPassword: boolean;
-		toggleAdminPassword: () => void;
-		toggleConfirmPassword: () => void;
-		checkPasswordRequirements: () => void;
-	}>();
+	} = $props(); // Now uses imported type
 
 	// Local real-time validation state
-	let touchedFields = $state<Set<string>>(new Set());
-	let localValidationErrors = $state<ValidationErrors>({});
+	let touchedFields = $state(new Set<string>());
+	let localValidationErrors = $state<Record<string, string>>({});
 
 	const validationResult = $derived(
 		safeParse(setupAdminSchema, {
@@ -279,7 +270,7 @@
 		</div>
 
 		<!-- Password Requirements Box -->
-		<div class="mt-4 rounded border-l-4 border-primary-500 bg-white p-4 shadow-xl dark:border-tertiary-500 dark:bg-surface-800">
+		<div class="mt-4 rounded border-l-4 border-tertiary-500 bg-white p-4 shadow-xl dark:border-primary-500 dark:bg-surface-800">
 			<h4 class="mb-2 text-center text-sm font-bold tracking-tight text-tertiary-500 dark:text-primary-500" id="password-reqs-heading">
 				{m.setup_help_admin_password?.() || 'Password Requirements'}
 			</h4>

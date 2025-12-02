@@ -48,7 +48,7 @@
 		total: number;
 		limit: number;
 		start: number;
-		collections: Record<string, { total: number }>;
+		collections: Record<string, IconLibrary>;
 		request: {
 			query: string;
 			limit: number;

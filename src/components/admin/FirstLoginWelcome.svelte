@@ -32,10 +32,7 @@
 	}
 
 	// Props
-	let { user, showWelcome = true } = $props<{
-		user: any;
-		showWelcome?: boolean;
-	}>();
+	let { user, showWelcome = true } = $props();
 
 	// State
 	let currentStep = $state(0);

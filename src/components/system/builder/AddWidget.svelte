@@ -11,16 +11,21 @@
 	import type { WidgetFunction } from '@src/widgets/types';
 	import InputSwitch from './InputSwitch.svelte';
 
+	import type { AddWidgetProps } from './types';
+
 	let {
 		fields = $bindable([]),
 		addField = $bindable(false),
 		editField = $bindable(false),
-		selected_widget = $bindable<string | null>(null),
+		selected_widget = $bindable(null),
 		field = $bindable({
 			label: '',
-			widget: { key: null as string | null, GuiFields: {} as Record<string, unknown> }
+			db_fieldName: '',
+			translated: false,
+			required: false,
+			widget: { key: null as string | null, GuiFields: {} as Record<string, any> }
 		})
-	} = $props();
+	}: AddWidgetProps = $props();
 
 	const widget_keys = Object.keys($widgetFunctions);
 	let guiSchema = $state<WidgetFunction['GuiSchema'] | undefined>(undefined);
@@ -36,7 +41,8 @@
 		if (!selected_widget) return;
 		field.widget = { key: selected_widget, GuiFields: field.widget.GuiFields };
 		field.label = field.widget.GuiFields.label;
-		fields = [...fields, field];
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		fields = [...fields, field as any];
 		addField = false;
 	}
 

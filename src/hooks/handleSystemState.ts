@@ -14,7 +14,7 @@ import { error } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
 import { getSystemState, isSystemReady } from '@src/stores/system'; // Import from your state machine
 import { logger } from '@utils/logger.server';
-import { dbInitPromise } from '@src/databases/db';
+import { dbInitPromise, dbAdapter } from '@src/databases/db';
 import { isSetupComplete } from '@utils/setupCheck';
 
 let initializationAttempted = false;
@@ -167,6 +167,17 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 			// metricsService.increment('degradedRequests'); // For measurement - TODO: implement this method
 			logger.warn(`Request to ${pathname} is proceeding in a DEGRADED state. Unhealthy services: ${degradedServices.join(', ')}`);
 		}
+	}
+
+	// --- Telemetry Heartbeat ---
+	// Fire-and-forget check (non-blocking)
+	// The service handles caching and intervals (12h) internally
+	if (dbAdapter) {
+		import('@src/services/TelemetryService').then(({ telemetryService }) => {
+			telemetryService.checkUpdateStatus().catch(() => {
+				// Silently fail - telemetry should never block the app
+			});
+		});
 	}
 
 	return resolve(event);

@@ -1,6 +1,10 @@
-// @file: src/routes/(app)/imageEditor/widgets/FineTune/filters/baseFilters.ts
-// One-line: Applies standard Konva provided filters.
-
+/**
+ * @file src/routes/(app)/imageEditor/widgets/FineTune/filters/baseFilters.ts
+ * @description Applies standard Konva provided filters.
+ *
+ * Features:
+ * - Applies standard Konva provided filters.
+ */
 import Konva from 'konva';
 import type { Adjustments } from './adjustments';
 

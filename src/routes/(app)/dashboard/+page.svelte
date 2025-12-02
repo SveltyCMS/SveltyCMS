@@ -21,7 +21,7 @@
 <script lang="ts">
 	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
-	import { themeStore } from '@stores/themeStore.svelte';
+	import { modeCurrent } from '@skeletonlabs/skeleton';
 	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
 	import { systemPreferences } from '@stores/systemPreferences.svelte';
 	import { logger } from '@utils/logger';
@@ -31,8 +31,15 @@
 
 	const { data }: { data: PageData } = $props();
 
-	// Replace modeCurrent with themeStore.isDarkMode
-	const isDarkMode = $derived(themeStore.isDarkMode);
+	// Define the types for the widget registry
+	interface WidgetRegistryEntry {
+		component: WidgetComponent;
+		name: string;
+		description: string;
+		icon: string;
+		widgetMeta: WidgetMeta;
+	}
+	type WidgetRegistry = Record<string, WidgetRegistryEntry>;
 
 	const MAX_COLUMNS = 4;
 	const MAX_ROWS = 4;
@@ -42,11 +49,11 @@
 	let dropdownOpen = $state(false);
 	let searchQuery = $state('');
 	let registryLoaded = $state(false);
-	let widgetRegistry = $state<Record<string, { component: any; name: string; description: string; icon: string; widgetMeta?: WidgetMeta }>>({});
+	let widgetRegistry: WidgetRegistry = $state({});
 
 	// Lazy loading state for widgets
-	let loadedWidgets = $state<Map<string, any>>(new Map());
-	const widgetObservers = new Map<string, IntersectionObserver>();
+	let loadedWidgets = $state(new Map());
+	const widgetObservers = new Map();
 
 	let showImportExport = $state(false);
 
@@ -133,7 +140,7 @@
 			: []
 	);
 	const filteredWidgets = $derived(availableWidgets.filter((name) => name.toLowerCase().includes(searchQuery.toLowerCase())));
-	const currentTheme: 'dark' | 'light' = $derived(isDarkMode ? 'dark' : 'light');
+	const currentTheme: 'dark' | 'light' = $derived($modeCurrent ? 'dark' : 'light');
 
 	// Helper function to find insertion position based on coordinates
 	function findInsertionPosition(x: number, y: number): number {

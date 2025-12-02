@@ -206,7 +206,7 @@ export class SessionAdapter {
 					expires: { $gt: now }, // Only delete active (non-expired) sessions
 					$or: [
 						{ rotated: { $ne: true } }, // Delete non-rotated sessions
-						{ rotated: true, expires: { $lte: new Date(now.getTime() + 60000) } } // Delete rotated sessions close to expiry
+						{ rotated: true, expires: { $lte: new Date(now.getTime() + 60000).toISOString() } } // Delete rotated sessions close to expiry
 					]
 				};
 
@@ -348,7 +348,7 @@ export class SessionAdapter {
 			logger.debug('Session expiry updated', { session_id });
 			return {
 				success: true,
-				data: this.formatSession(session)
+				data: this.formatSession(session as any)
 			};
 		} catch (err) {
 			const message = `Error in SessionAdapter.updateSessionExpiry: ${err instanceof Error ? err.message : String(err)}`;
@@ -393,7 +393,7 @@ export class SessionAdapter {
 			const now = new Date();
 
 			// Delete all expired sessions (including rotated ones past grace period)
-			const result = await this.SessionModel.deleteMany({ expires: { $lte: now } });
+			const result = await this.SessionModel.deleteMany({ expires: { $lte: now.toISOString() } });
 
 			logger.info('Expired sessions deleted', { deletedCount: result.deletedCount });
 			return {
@@ -513,10 +513,10 @@ export class SessionAdapter {
 			const now = new Date();
 			const filter: Record<string, unknown> = {
 				user_id,
-				expires: { $gt: now }, // Only delete active (non-expired) sessions
+				expires: { $gt: now.toISOString() }, // Only delete active (non-expired) sessions
 				$or: [
 					{ rotated: { $ne: true } }, // Delete non-rotated sessions
-					{ rotated: true, expires: { $lte: new Date(now.getTime() + 60000) } } // Delete rotated sessions close to expiry
+					{ rotated: true, expires: { $lte: new Date(now.getTime() + 60000).toISOString() } } // Delete rotated sessions close to expiry
 				]
 			};
 
@@ -545,7 +545,7 @@ export class SessionAdapter {
 		try {
 			const filter: Record<string, unknown> = {
 				user_id,
-				expires: { $gt: new Date() }
+				expires: { $gt: new Date().toISOString() }
 			};
 
 			if (tenantId) {
@@ -554,7 +554,7 @@ export class SessionAdapter {
 
 			const sessions = await this.SessionModel.find(filter).lean();
 			logger.debug('Active sessions retrieved for user', { user_id, count: sessions.length });
-			return { success: true, data: sessions.map((session) => this.formatSession(session)) };
+			return { success: true, data: sessions.map((session) => this.formatSession(session as any)) };
 		} catch (err) {
 			const message = `Error in SessionAdapter.getActiveSessions: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
@@ -570,7 +570,7 @@ export class SessionAdapter {
 	async getAllActiveSessions(tenantId?: string): Promise<DatabaseResult<Session[]>> {
 		try {
 			const query: Record<string, unknown> = {
-				expires: { $gt: new Date() }
+				expires: { $gt: new Date().toISOString() }
 			};
 
 			// If multi-tenant mode, filter by tenantId
@@ -580,7 +580,7 @@ export class SessionAdapter {
 
 			const sessions = await this.SessionModel.find(query).lean();
 			logger.debug('All active sessions retrieved', { count: sessions.length, tenantId });
-			return { success: true, data: sessions.map((session) => this.formatSession(session)) };
+			return { success: true, data: sessions.map((session) => this.formatSession(session as any)) };
 		} catch (err) {
 			const message = `Error in SessionAdapter.getAllActiveSessions: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
@@ -630,7 +630,7 @@ export class SessionAdapter {
 			const now = new Date();
 			const result = await this.SessionModel.deleteMany({
 				rotated: true,
-				expires: { $lte: now }
+				expires: { $lte: now.toISOString() }
 			});
 
 			if (result.deletedCount > 0) {

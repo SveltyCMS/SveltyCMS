@@ -66,31 +66,48 @@ The `children` snippet is passed an object with the following properties:
 
 	// --- Logic ---
 	$effect(() => {
-		// Fetch package.json DIRECTLY TO AVOID API RATE LIMITS
-		fetch('https://raw.githubusercontent.com/SveltyCMS/SveltyCMS/main/package.json')
+		// Fetch from internal API which handles caching and telemetry logic
+		fetch('/api/system/version')
 			.then((response) => response.json())
 			.then((data) => {
-				githubVersion = data.version;
-				const [localMajor, localMinor, localPatch] = pkg.split('.').map(Number);
-				const [githubMajor, githubMinor, githubPatch] = githubVersion.split('.').map(Number);
-				if (githubMajor > localMajor) {
-					pkgBgColor = 'bg-error-500 text-white';
-					versionStatusMessage = `Major update to v${githubVersion} available!`;
-					statusIcon = 'mdi:alert-circle';
-				} else if (githubMinor > localMinor || (githubMinor === localMinor && githubPatch > localPatch)) {
+				if (data.status === 'disabled') {
+					githubVersion = pkg;
+					pkgBgColor = 'bg-surface-500 text-white';
+					versionStatusMessage = 'Security Status: Unknown (Telemetry Disabled)';
+					statusIcon = 'mdi:shield-off';
+				} else if (data.status === 'error') {
+					githubVersion = pkg;
 					pkgBgColor = 'bg-warning-500 text-white';
-					versionStatusMessage = `Update to v${githubVersion} recommended`;
-					statusIcon = 'mdi:information';
+					versionStatusMessage = 'Could not check for updates';
+					statusIcon = 'mdi:wifi-off';
 				} else {
-					pkgBgColor = 'bg-tertiary-500 dark:bg-primary-500 text-white';
-					versionStatusMessage = 'You are up to date';
-					statusIcon = 'mdi:check-circle';
+					githubVersion = data.latest || pkg;
+					const [localMajor, localMinor, localPatch] = pkg.split('.').map(Number);
+					const [githubMajor, githubMinor, githubPatch] = githubVersion.split('.').map(Number);
+
+					if (data.security_issue) {
+						pkgBgColor = 'bg-error-500 text-white';
+						versionStatusMessage = data.message || `Critical security update to v${githubVersion} available!`;
+						statusIcon = 'mdi:shield-alert';
+					} else if (githubMajor > localMajor) {
+						pkgBgColor = 'bg-error-500 text-white';
+						versionStatusMessage = `Major update to v${githubVersion} available!`;
+						statusIcon = 'mdi:alert-circle';
+					} else if (githubMinor > localMinor || (githubMinor === localMinor && githubPatch > localPatch)) {
+						pkgBgColor = 'bg-warning-500 text-white';
+						versionStatusMessage = `Update to v${githubVersion} recommended`;
+						statusIcon = 'mdi:information';
+					} else {
+						pkgBgColor = 'bg-tertiary-500 dark:bg-primary-500 text-white';
+						versionStatusMessage = 'You are up to date';
+						statusIcon = 'mdi:check-circle';
+					}
 				}
 			})
 			.catch(() => {
 				githubVersion = pkg;
-				pkgBgColor = 'bg-tertiary-500 dark:bg-primary-500 text-white';
-				versionStatusMessage = '';
+				pkgBgColor = 'bg-surface-500 text-white';
+				versionStatusMessage = 'Update check failed';
 				statusIcon = 'mdi:loading';
 			})
 			.finally(() => {

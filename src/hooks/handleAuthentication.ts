@@ -23,6 +23,7 @@
 
 import type { Handle, RequestEvent } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
+import { dev } from '$app/environment';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import type { User } from '@src/databases/auth/types';
@@ -323,7 +324,7 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 			event.cookies.set(SESSION_COOKIE_NAME, newSessionId, {
 				path: '/',
 				httpOnly: true,
-				secure: !event.url.hostname.includes('localhost'),
+				secure: event.url.protocol === 'https:' || !dev,
 				sameSite: 'lax',
 				maxAge: 60 * 60 * 24 * 30 // 30 days
 			});
@@ -449,6 +450,13 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	if (sessionId) {
 		metricsService.incrementAuthValidations();
 
+		// Check if auth service is ready before attempting validation
+		if (!auth) {
+			logger.warn('Auth service not ready during session validation - skipping validation but preserving cookie');
+			// Do NOT delete cookie here - allow retry on next request
+			return resolve(event);
+		}
+
 		const user = await getUserFromSession(sessionId, locals.tenantId);
 		if (user) {
 			// Tenant isolation check
@@ -477,6 +485,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 				}
 			}
 		} else {
+			// Only delete cookie if auth was ready but session was invalid
+			// getUserFromSession returns null if session not found/expired OR if auth not ready
+			// But we checked !auth above, so here it means session is truly invalid
 			metricsService.incrementAuthFailures();
 			cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 			logger.trace(`Invalid session removed: ${sessionId.substring(0, 8)}...`);

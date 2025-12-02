@@ -163,7 +163,7 @@ export function constructUrl(
 	fileName: string,
 	format: string,
 	contentTypes: string,
-	size?: keyof typeof publicEnv.IMAGE_SIZES
+	size?: string
 ): string {
 	// Validate all required parameters with detailed checks
 	const missingParams = [];
@@ -196,7 +196,7 @@ export function constructUrl(
 	switch (path) {
 		case 'global':
 			urlPath = size
-				? `${sanitize(contentTypes)}/sizes/${size}/${sanitize(fileName)}-${hash}.${format}`
+				? `${sanitize(contentTypes)}/sizes/${sanitize(size)}/${sanitize(fileName)}-${hash}.${format}`
 				: `${sanitize(contentTypes)}/original/${sanitize(fileName)}-${hash}.${format}`;
 			// logger.debug('Constructed global path URL', { urlPath });
 			break;
@@ -209,9 +209,9 @@ export function constructUrl(
 			}
 			break;
 		default:
-			urlPath = size
-				? `${sanitize(path)}/${size}/${sanitize(fileName)}-${hash}.${format}`
-				: `${sanitize(path)}/${sanitize(fileName)}-${hash}.${format}`;
+			// Ensure path is not over-sanitized (don't remove slashes from the path variable if it contains them)
+			// But we should sanitize the other parts
+			urlPath = size ? `${path}/${sanitize(size)}/${sanitize(fileName)}-${hash}.${format}` : `${path}/${sanitize(fileName)}-${hash}.${format}`;
 			try {
 				logger.debug('Constructed custom path URL', { urlPath });
 			} catch (logError) {
@@ -240,7 +240,7 @@ export function constructUrl(
 }
 
 // Returns the URL for accessing a media item.
-export function getMediaUrl(mediaItem: MediaBase, contentTypes: string, size?: keyof typeof publicEnv.IMAGE_SIZES): string {
+export function getMediaUrl(mediaItem: MediaBase, contentTypes: string, size?: string): string {
 	if (!mediaItem?.path || !mediaItem?.hash || !mediaItem?.filename) {
 		throw new Error('Invalid media item: Missing required properties');
 	}
@@ -261,7 +261,7 @@ export function getMediaUrl(mediaItem: MediaBase, contentTypes: string, size?: k
 }
 
 // Safe version for use in reactive contexts
-export function getMediaUrlSafe(mediaItem: MediaBase, contentTypes: string, size?: keyof typeof publicEnv.IMAGE_SIZES): string {
+export function getMediaUrlSafe(mediaItem: MediaBase, contentTypes: string, size?: string): string {
 	try {
 		if (!mediaItem?.path || !mediaItem?.hash || !mediaItem?.filename) {
 			return ''; // Return empty string instead of throwing

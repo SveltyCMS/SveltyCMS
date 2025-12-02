@@ -13,7 +13,7 @@
  */
 
 import type { Model } from 'mongoose';
-import mongoose, { Schema } from 'mongoose';
+import mongoose, { Schema, type Document, type QueryFilter } from 'mongoose';
 
 import { v4 as uuidv4 } from 'uuid';
 
@@ -56,7 +56,9 @@ TokenSchema.index({ tenantId: 1, type: 1, expires: 1 }); // Multi-tenant token q
 TokenSchema.index({ tenantId: 1, user_id: 1, type: 1 }); // Tenant-specific user tokens
 TokenSchema.index({ type: 1, expires: 1, blocked: 1 }); // Active tokens by type (admin queries)
 
-interface TokenDocument extends Token, Document {}
+interface TokenDocument extends Omit<Document, '_id'>, Omit<Token, '_id'> {
+	_id: string;
+}
 
 /**
  * TokenAdapter class handles all token-related database operations.
@@ -118,7 +120,8 @@ export class TokenAdapter {
 		tenantId?: string
 	): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>> {
 		try {
-			const query: mongoose.FilterQuery<Token> = { token };
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const query: any = { token };
 			if (user_id) query.user_id = user_id;
 			if (type) query.type = type;
 			if (tenantId) query.tenantId = tenantId;
@@ -159,7 +162,7 @@ export class TokenAdapter {
 		tenantId?: string
 	): Promise<DatabaseResult<{ status: boolean; message: string }>> {
 		try {
-			const query: mongoose.FilterQuery<Token> = { token };
+			const query: QueryFilter<TokenDocument> = { token };
 			if (user_id) query.user_id = user_id;
 			if (type) query.type = type;
 			if (tenantId) query.tenantId = tenantId;
@@ -214,7 +217,7 @@ export class TokenAdapter {
 
 	async deleteExpiredTokens(): Promise<DatabaseResult<number>> {
 		try {
-			const result = await this.TokenModel.deleteMany({ expires: { $lte: new Date() } });
+			const result = await this.TokenModel.deleteMany({ expires: { $lte: new Date().toISOString() } });
 			logger.info('Expired tokens deleted', { deletedCount: result.deletedCount });
 			return { success: true, data: result.deletedCount };
 		} catch (err) {
@@ -292,12 +295,14 @@ export class TokenAdapter {
 
 	async updateToken(token_id: string, tokenData: Partial<Token>, tenantId?: string): Promise<DatabaseResult<Token>> {
 		try {
-			const filter: mongoose.FilterQuery<Token> = { token: token_id };
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const filter: any = { token: token_id };
 			if (tenantId) {
 				filter.tenantId = tenantId;
 			}
 
-			const result = await this.TokenModel.findOneAndUpdate(filter, { $set: tokenData }, { new: true, lean: true });
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const result = (await this.TokenModel.findOneAndUpdate(filter, { $set: tokenData }, { new: true, lean: true })) as any;
 
 			if (result) {
 				logger.debug('Token updated successfully', { token_id });

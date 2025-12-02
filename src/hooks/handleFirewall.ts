@@ -33,6 +33,7 @@ import { error } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
 import { metricsService } from '@src/services/MetricsService';
 import { logger } from '@utils/logger.server';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // --- THREAT DETECTION PATTERNS ---
 
@@ -93,7 +94,9 @@ const LEGITIMATE_BOT_PATTERNS = [
  * @returns True if the bot is legitimate (search engines, social media)
  */
 function isLegitimateBot(userAgent: string): boolean {
-	return LEGITIMATE_BOT_PATTERNS.some((pattern) => pattern.test(userAgent));
+	const allowedBots = getPrivateSettingSync('FIREWALL_ALLOWED_BOTS') || [];
+	const patterns = [...LEGITIMATE_BOT_PATTERNS, ...allowedBots.map((p) => new RegExp(p, 'i'))];
+	return patterns.some((pattern) => pattern.test(userAgent));
 }
 
 /**
@@ -102,7 +105,9 @@ function isLegitimateBot(userAgent: string): boolean {
  * @returns True if advanced bot patterns are detected
  */
 function isAdvancedBot(userAgent: string): boolean {
-	return ADVANCED_BOT_PATTERNS.some((pattern) => pattern.test(userAgent));
+	const blockedBots = getPrivateSettingSync('FIREWALL_BLOCKED_BOTS') || [];
+	const patterns = [...ADVANCED_BOT_PATTERNS, ...blockedBots.map((p) => new RegExp(p, 'i'))];
+	return patterns.some((pattern) => pattern.test(userAgent));
 }
 
 /**
@@ -148,6 +153,10 @@ export const handleFirewall: Handle = async ({ event, resolve }) => {
 	const userAgent = request.headers.get('user-agent') || '';
 	const pathname = url.pathname.toLowerCase();
 	const search = url.search.toLowerCase();
+
+	// Check if firewall is enabled (default to true if not set)
+	const firewallEnabled = getPrivateSettingSync('FIREWALL_ENABLED') ?? true;
+	if (!firewallEnabled) return resolve(event);
 
 	// --- 1. Advanced Bot Detection ---
 	// Block automation tools but allow legitimate search engine crawlers

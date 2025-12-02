@@ -10,25 +10,9 @@ Displays logo, site name, language selector, and theme toggle.
 	import * as m from '@src/paraglide/messages';
 	import { getLanguageName } from '@utils/languageUtils';
 
-	const dispatch = createEventDispatcher<{
-		selectLanguage: string;
-		toggleLang: void;
-		reset: void;
-	}>();
+	const dispatch = createEventDispatcher();
 
-	let {
-		siteName,
-		systemLanguages,
-		currentLanguageTag,
-		isLangOpen = $bindable(),
-		langSearch = $bindable()
-	} = $props<{
-		siteName: string;
-		systemLanguages: string[];
-		currentLanguageTag: string;
-		isLangOpen: boolean;
-		langSearch: string;
-	}>();
+	let { siteName, systemLanguages, currentLanguageTag, isLangOpen = $bindable(), langSearch = $bindable() } = $props();
 
 	function selectLanguage(lang: string) {
 		dispatch('selectLanguage', lang);

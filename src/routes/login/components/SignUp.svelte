@@ -35,6 +35,7 @@ Features:
 
 	// Screen size store
 	import { isDesktop } from '@stores/screenSizeStore.svelte';
+	import type { Component } from 'svelte';
 
 	// Props
 	const {
@@ -46,16 +47,7 @@ Features:
 		onClick = () => {},
 		onPointerEnter = () => {},
 		onBack = () => {}
-	} = $props<{
-		active?: undefined | 0 | 1;
-		isInviteFlow?: boolean;
-		token?: string;
-		invitedEmail?: string;
-		inviteError?: string;
-		onClick?: () => void;
-		onPointerEnter?: () => void;
-		onBack?: () => void;
-	}>();
+	} = $props();
 
 	const pageData = page.data as PageData;
 	const firstUserExists = pageData.firstUserExists;
@@ -64,12 +56,12 @@ Features:
 
 	// State management
 	const tabIndex = $state(1);
-	let response = $state<any>(undefined);
-	let formElement = $state<HTMLFormElement | null>(null);
+	let response = $state(undefined);
+	let formElement: HTMLFormElement | null = $state(null);
 	let showPassword = $state(false);
 	let isSubmitting = $state(false);
 	let isRedirecting = $state(false);
-	let FloatingPathsComponent = $state<any>(null);
+	let FloatingPathsComponent: Component | null = $state(null);
 
 	// Pre-calculate tab indices
 	const usernameTabIndex = 1;
@@ -205,7 +197,7 @@ Features:
 		const isActiveSignUp = active === 1;
 		if (browser && desktop && isActiveSignUp) {
 			import('@root/src/components/system/FloatingPaths.svelte').then((m) => {
-				FloatingPathsComponent = m.default;
+				FloatingPathsComponent = m.default as Component;
 			});
 		} else {
 			FloatingPathsComponent = null;

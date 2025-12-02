@@ -1,4 +1,16 @@
-// src/routes/(app)/imageEditor/widgets/Blur/regions.ts
+/**
+ * @files src/routes/(app)/imageEditor/widgets/Blur/regions.ts
+ * @description BlurRegion encapsulates Konva nodes, clip mapping, caching strategy,
+ * and lifecycle for one blur/pixelate region.
+ *
+ * Features:
+ * - Rectangle and ellipse shapes
+ * - Blur and pixelate patterns
+ * - Interactive resizing and dragging
+ * - Caching strategy for performance
+ * - Fast updates for interactive feel
+ */
+
 import Konva from 'konva';
 
 export type BlurShape = 'rectangle' | 'ellipse';

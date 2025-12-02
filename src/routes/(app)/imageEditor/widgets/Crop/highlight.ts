@@ -1,4 +1,10 @@
-// src/routes/(app)/imageEditor/widgets/Crop/highlight.ts
+/**
+ * @file src/routes/(app)/imageEditor/widgets/Crop/highlight.ts
+ * @description Highlight for Konva
+ *
+ * Features:
+ * - Syncs the overlay cutout with the visible crop tool; optionally re-cache
+ */
 import Konva from 'konva';
 
 /** Syncs the overlay cutout with the visible crop tool; optionally re-cache */

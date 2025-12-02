@@ -27,6 +27,7 @@
 
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
+	import type { WidgetSize } from '@src/content/types';
 
 	// Defines the structure for a single system message.
 	interface SystemMessage {
@@ -40,21 +41,21 @@
 
 	const {
 		label = 'System Messages',
-		theme = 'light',
+		theme = 'light' as 'light' | 'dark',
 		icon = 'mdi:message-alert-outline',
 		widgetId = undefined,
-		size = { w: 1, h: 2 },
-		onSizeChange = () => {},
+		size = { w: 1, h: 2 } as WidgetSize,
+		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {}
-	} = $props<{
+	}: {
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-		size?: { w: number; h: number };
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
 		onRemove?: () => void;
-	}>();
+	} = $props();
 </script>
 
 <BaseWidget

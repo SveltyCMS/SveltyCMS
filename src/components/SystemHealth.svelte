@@ -54,7 +54,7 @@ Allows administrators to monitor system status and restart services.
 	let currentState = $state<SystemState>('IDLE');
 	let services = $state<Record<string, ServiceData>>({});
 	let initializationStartedAt = $state<number | null>(null);
-	let lastChecked = $state<string>(new Date().toISOString());
+	let lastChecked = $state(new Date().toISOString());
 	let autoRefresh = $state(true);
 	let refreshInterval: ReturnType<typeof setInterval> | null = null;
 

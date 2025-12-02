@@ -23,8 +23,9 @@
 </script>
 
 <script lang="ts">
-	import TablePagination from '@src/components/system/table/TablePagination.svelte';
 	import BaseWidget from '../BaseWidget.svelte';
+	import type { TablePaginationProps, WidgetSize } from '@src/content/types';
+	import TablePagination from '@src/components/system/table/TablePagination.svelte';
 
 	interface LogEntryDisplay {
 		timestamp: string;
@@ -46,35 +47,34 @@
 		label = 'System Logs',
 		icon = 'mdi:file-document-outline',
 		widgetId = undefined,
-		size = { w: 2, h: 2 },
-		onSizeChange = () => {},
+		size = { w: 2, h: 2 } as WidgetSize,
+		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {},
 		endpoint = '/api/dashboard/logs',
 		pollInterval = 15000
-	} = $props<{
+	}: {
 		label?: string;
-		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-		size?: { w: number; h: number };
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
 		onRemove?: () => void;
 		endpoint?: string;
 		pollInterval?: number;
-	}>();
+	} = $props();
 
 	// Internal state for logs data
 	let currentPage = $state(1);
 	let logsPerPage = $state(20); // Default logs per page
 
 	// Filter states
-	let filterLevel = $state<'all' | 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace'>('all');
+	let filterLevel = $state('all');
 	let searchText = $state('');
 	let startDate: string = $state(''); // YYYY-MM-DD
 	let endDate: string = $state(''); // YYYY-MM-DD
 
 	// Debounce search/filter inputs
-	let searchTimeout: NodeJS.Timeout | null = null;
+	let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 	let triggerFetchFlag = $state(0); // Dummy state to explicitly trigger fetch via $effect
 
 	// Function to construct query parameters for the endpoint
@@ -217,13 +217,13 @@
 
 			<div class="mt-auto flex items-center justify-between pt-2">
 				<TablePagination
-					currentPage={fetchedData.page || 1}
-					rowsPerPage={logsPerPage}
-					rowsPerPageOptions={[10, 20, 50, 100]}
-					totalItems={fetchedData.total || 0}
-					pagesCount={fetchedData.hasMore ? (fetchedData.page || 1) + 1 : fetchedData.page || 1}
-					{onUpdatePage}
-					{onUpdateRowsPerPage}
+					currentPage={(fetchedData.page || 1) as TablePaginationProps['currentPage']}
+					rowsPerPage={logsPerPage as TablePaginationProps['rowsPerPage']}
+					rowsPerPageOptions={[10, 20, 50, 100] as TablePaginationProps['rowsPerPageOptions']}
+					totalItems={(fetchedData.total || 0) as TablePaginationProps['totalItems']}
+					pagesCount={(fetchedData.hasMore ? (fetchedData.page || 1) + 1 : fetchedData.page || 1) as TablePaginationProps['pagesCount']}
+					onUpdatePage={onUpdatePage as TablePaginationProps['onUpdatePage']}
+					onUpdateRowsPerPage={onUpdateRowsPerPage as TablePaginationProps['onUpdateRowsPerPage']}
 				/>
 			</div>
 		{:else}

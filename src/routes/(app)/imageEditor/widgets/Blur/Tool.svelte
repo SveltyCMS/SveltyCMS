@@ -16,7 +16,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 	let shape = $state<BlurShape>('rectangle');
 	let regions = $state<BlurRegion[]>([]);
 	let drawing = $state(false);
-	let startPoint = $state<{ x: number; y: number } | null>(null);
+	let startPoint = $state<any | null>(null);
 	let activeId = $state<string | null>(null);
 
 	// guard to avoid duplicate event bindings
@@ -26,7 +26,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 	let strengthDebounceTimer: number | null = null;
 
 	// Svelte 5: prefer callback props via $props instead of event dispatcher
-	const props = $props<{ onBlurReset?: () => void; onBlurApplied?: () => void }>();
+	const props = $props();
 
 	// bind/unbind the tool when active state changes
 	$effect(() => {
@@ -97,7 +97,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 	}
 
 	// deselect all regions when clicking outside overlays
-	function handleStageClick(e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) {
+	function handleStageClick(e: Konva.KonvaEventObject<MouseEvent>) {
 		const { stage, imageNode, imageGroup } = imageEditorStore.state;
 		const t = e.target;
 		if (!stage) return;
@@ -108,7 +108,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 	}
 
 	// begin drawing a new region when pointer is on stage or base image
-	function handleMouseDown(e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) {
+	function handleMouseDown(e: Konva.KonvaEventObject<MouseEvent>) {
 		const { stage, imageNode, imageGroup } = imageEditorStore.state;
 		const t = e.target;
 		if (!stage) return;

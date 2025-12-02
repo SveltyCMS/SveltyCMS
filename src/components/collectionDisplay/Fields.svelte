@@ -53,12 +53,14 @@
 	import { activeInputStore } from '@src/stores/activeInputStore.svelte';
 	import { validateTokenSyntax, containsTokens } from '@src/services/token/tokenUtils';
 
+	import type { WidgetFunction } from '@widgets/types';
+
 	// Eager load all widget components for immediate use in Fields
-	const modules: Record<string, { default: any }> = import.meta.glob('/src/widgets/**/*.svelte', {
+	const modules: Record<string, any> = import.meta.glob('/src/widgets/**/*.svelte', {
 		eager: true
 	});
 
-	let widgetFunctions = $state<Record<string, any>>({});
+	let widgetFunctions: Record<string, WidgetFunction> = $state({});
 	$effect(() => {
 		const unsubscribe = widgetFunctionsStore.subscribe((value) => {
 			widgetFunctions = value;
@@ -67,31 +69,29 @@
 	});
 
 	// --- 1. RECEIVE DATA AS PROPS ---
+	import type { FieldsProps } from './types';
+
 	const {
 		fields,
 		revisions = []
-		// contentLanguage prop received but not directly used - widgets access contentLanguage store
-	} = $props<{
-		fields?: NonNullable<(typeof collection)['value']>['fields'];
-		revisions?: any[];
-		contentLanguage?: string; // Passed for documentation, widgets use store directly
-	}>();
+		// contentLanguage: propContentLanguage // Rename to avoid conflict with store
+	}: FieldsProps = $props();
 
 	// --- 2. SIMPLIFIED STATE ---
 	let activeTab = $state('edit');
 	let apiUrl = $state('');
 
 	// This is form state, not fetched data, so it remains.
-	let currentCollectionValue = $state<Record<string, any>>({});
+	let currentCollectionValue: Record<string, any> = $state({});
 
 	// Revisions State (now simpler)
 	let selectedRevisionId = $state('');
 
 	// Track the last entry ID to detect when switching entries
-	let lastEntryId = $state<string | undefined>(undefined);
+	let lastEntryId = $state(undefined);
 
 	// Track current content language for reactivity
-	let currentContentLanguage = $state<Locale>(contentLanguage.value as Locale);
+	let currentContentLanguage = $state(contentLanguage.value as Locale);
 
 	// React to contentLanguage store changes and update local state
 	// This ensures widgets remount with the correct language
@@ -124,7 +124,7 @@
 	});
 
 	// Get available languages
-	const availableLanguages = $derived.by<Locale[]>(() => {
+	const availableLanguages = $derived.by(() => {
 		// Wait for publicEnv to be initialized
 		const languages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES;
 		if (!languages || !Array.isArray(languages)) {
@@ -188,7 +188,7 @@
 	// When collectionValue changes (new entry loaded), update local state
 	// When local state changes (user editing), update global state
 	$effect(() => {
-		const global = collectionValue.value as Record<string, unknown> | undefined;
+		const global = collectionValue.value as Record<string, any> | undefined;
 		const globalId = (global as any)?._id;
 
 		// When a new entry is loaded (different ID), pull from global -> local
@@ -212,7 +212,7 @@
 
 		// Otherwise, push local changes to global (user is editing)
 		// Use untrack to read currentCollectionValue without creating a dependency loop
-		const local = untrack(() => currentCollectionValue) as Record<string, unknown> | undefined;
+		const local = untrack(() => currentCollectionValue) as Record<string, any> | undefined;
 		if (local && Object.keys(local).length > 0) {
 			const currentDataStr = JSON.stringify(local);
 			const globalDataStr = JSON.stringify(global ?? {});
@@ -227,7 +227,7 @@
 
 	// Separate effect to detect changes in currentCollectionValue and sync to store
 	// This is needed because the widget bind:value updates currentCollectionValue
-	let lastLocalValueStr = $state<string>('');
+	let lastLocalValueStr = $state('');
 	$effect(() => {
 		// React to currentCollectionValue changes (from widget inputs)
 		const localStr = JSON.stringify(currentCollectionValue);

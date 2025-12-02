@@ -34,6 +34,7 @@
 		depth?: number; // Depth of the node in the tree
 		order?: number; // Order for sorting and reordering
 		nodeType?: string; // Type of node for filtering drag operations
+		path?: string; // Path to prefetch
 	}
 </script>
 
@@ -43,6 +44,23 @@
 	import TreeViewComponent from './TreeView.svelte';
 	const TreeView = TreeViewComponent;
 	import { fly } from 'svelte/transition';
+	import { preloadData } from '$app/navigation';
+
+	// Destructure props with clearer names and defaults
+	// Props interface
+	interface TreeViewProps {
+		k?: any;
+		nodes: TreeNode[];
+		selectedId?: string | null;
+		ariaLabel?: string;
+		dir?: 'ltr' | 'rtl' | 'auto';
+		search?: string;
+		compact?: boolean;
+		iconColorClass?: string;
+		showBadges?: boolean;
+		allowDragDrop?: boolean;
+		onReorder?: ((draggedId: string, targetId: string, position: 'before' | 'after' | 'inside') => void) | null;
+	}
 
 	// Destructure props with clearer names and defaults
 	const {
@@ -57,25 +75,13 @@
 		showBadges = false,
 		allowDragDrop = false,
 		onReorder = null
-	} = $props<{
-		k?: number;
-		nodes: TreeNode[];
-		selectedId?: string | null;
-		ariaLabel?: string;
-		dir?: 'ltr' | 'rtl';
-		search?: string;
-		compact?: boolean;
-		iconColorClass?: string;
-		showBadges?: boolean;
-		allowDragDrop?: boolean;
-		onReorder?: ((draggedId: string, targetId: string, position: 'before' | 'after' | 'inside') => void) | null;
-	}>();
+	}: TreeViewProps = $props();
 
 	// Focused item id
 	let focusedNodeId = $state<string | null>(null);
 
 	// Use native Set for expansion state; SvelteSet isn't available in this environment.
-	let expandedNodeIds = $state<Set<string>>(new Set());
+	let expandedNodeIds = $state(new Set());
 
 	// Drag & drop transient UI state
 	let draggedNode = $state<TreeNode | null>(null);
@@ -121,7 +127,7 @@
 	// nodeMap derived for lookups (depth + parentId)
 	const nodeMap = $derived(() => {
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const map = new Map<string, TreeNode & { depth: number; parentId?: string }>();
+		const map = new Map();
 		function collect(node: TreeNode, depth = 0, parentId?: string) {
 			map.set(node.id, { ...node, depth, parentId });
 			if (node.children) node.children.forEach((c) => collect(c, depth + 1, node.id));
@@ -152,7 +158,7 @@
 
 	// Keyboard handling
 	function handleKeyDown(event: KeyboardEvent, node: TreeNode) {
-		const actions: Record<string, (() => void) | undefined> = {
+		const actions: Record<string, () => void> = {
 			Enter: () => toggleNode(node),
 			' ': () => toggleNode(node),
 			ArrowRight: () => handleArrowKey(node, 'right'),
@@ -343,6 +349,7 @@
 				ondrop={(event) => handleDrop(event, node)}
 				ondragend={handleDragEnd}
 				aria-controls={node.children ? `node-${node.id}-children` : undefined}
+				onmouseenter={() => node.path && preloadData(node.path)}
 			>
 				<!-- Expand/Collapse icon with RTL support -->
 				{#if node.children}

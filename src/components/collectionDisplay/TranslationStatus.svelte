@@ -53,19 +53,13 @@
 		}
 	});
 
-	// Types
-	interface CompletionTotals {
-		total: number;
-		translated: number;
-	}
-
 	// State
 	let isOpen = $state(false);
 	let isInitialized = $state(false);
-	let completionTotals = $state<CompletionTotals>({ total: 0, translated: 0 });
+	let completionTotals = $state({ total: 0, translated: 0 });
 
 	// Derived values
-	const availableLanguages = $derived.by<Locale[]>(() => {
+	const availableLanguages = $derived.by(() => {
 		// Wait for publicEnv to be initialized
 		const languages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES;
 		if (!languages || !Array.isArray(languages)) {
@@ -150,7 +144,7 @@
 	// Update translation progress from field values
 	function updateTranslationProgressFromFields(
 		currentCollection: { fields: unknown[]; name?: unknown },
-		currentCollectionValue: Record<string, unknown>
+		currentCollectionValue: Record<string, any>
 	): void {
 		const newProgress = { ...translationProgress.value }; // 1. Shallow copy the top-level store
 		let hasUpdates = false;
@@ -169,7 +163,7 @@
 					const dbFieldName = getFieldName(field, false);
 
 					// Check if the field has a value for this language
-					const fieldValue = currentCollectionValue[dbFieldName] as Record<string, unknown> | undefined;
+					const fieldValue = currentCollectionValue[dbFieldName] as Record<string, any> | undefined;
 					const langValue = fieldValue?.[lang];
 
 					const isTranslated = isFieldTranslated(langValue);
@@ -369,10 +363,10 @@
 	});
 
 	// Track last collection value to prevent unnecessary updates
-	let lastCollectionValueStr = $state<string>('');
+	let lastCollectionValueStr = $state('');
 	$effect(() => {
 		const currentCollection = collection.value;
-		const currentCollectionValue = collectionValue.value as Record<string, unknown>;
+		const currentCollectionValue = collectionValue.value as Record<string, any>;
 
 		if (currentCollection?.fields && currentCollectionValue && Object.keys(currentCollectionValue).length > 0 && isInitialized) {
 			// Only update if data actually changed

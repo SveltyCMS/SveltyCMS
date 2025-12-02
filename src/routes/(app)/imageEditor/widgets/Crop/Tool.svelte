@@ -23,7 +23,7 @@ imageNode's 'crop' properties.
 	let _toolBound = $state(false);
 
 	// Svelte 5: prefer callback props
-	const props = $props<{ onCropApplied?: () => void }>();
+	const props: { onCropApplied?: () => void } = $props();
 
 	// bind/unbind the tool when active state changes
 	$effect(() => {
@@ -102,7 +102,7 @@ imageNode's 'crop' properties.
 			layer,
 			imageNode,
 			imageGroup,
-			init: { shape: cropShape, aspect: aspectRatio }
+			init: { shape: cropShape as CropShape, aspect: aspectRatio }
 		});
 
 		// Wire event to update cutout on drag/transform

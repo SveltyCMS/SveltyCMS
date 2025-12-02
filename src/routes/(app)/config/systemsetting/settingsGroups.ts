@@ -2,12 +2,6 @@
  * @file src/routes/(app)/config/systemsetting/settingsGroups.ts
  * @description Configuration groups for System Settings UI
  * Smart organization of all dynamic CMS settings with fine-grained permission control
- *
- * SECURITY: Each group can have individual permissions (e.g., 'config:settings:cache')
- * This enables enterprise-level security with 3-layer protection:
- * - Layer 1: hooks.server.ts (API endpoint protection)
- * - Layer 2: +page.server.ts (page-level authorization)
- * - Layer 3: PermissionGuard.svelte (UI element visibility)
  */
 
 export interface SettingField {
@@ -17,7 +11,7 @@ export interface SettingField {
 	type: 'text' | 'number' | 'boolean' | 'password' | 'select' | 'array' | 'language-multi' | 'language-select' | 'loglevel-multi' | 'textarea';
 	category: 'private' | 'public';
 	required?: boolean;
-	readonly?: boolean; // Field is display-only, cannot be edited
+	readonly?: boolean;
 	min?: number;
 	max?: number;
 	options?: Array<{ value: string | number; label: string }>;
@@ -36,14 +30,47 @@ export interface SettingGroup {
 	fields: SettingField[];
 	requiresRestart?: boolean;
 	adminOnly?: boolean;
-	permissionId?: string; // Fine-grained permission (e.g., 'config:settings:cache')
+	permissionId?: string;
 }
 
 /**
  * All system settings organized into logical groups
- * Each group can be individually permission-controlled
  */
 export const settingsGroups: SettingGroup[] = [
+	{
+		id: 'licensing',
+		name: 'Licensing & Compliance',
+		icon: '⚖️',
+		description: 'Manage commercial licensing (BSL 1.1) and usage data settings',
+		enabled: true,
+		requiresRestart: false, // Telemetry checks this live
+		adminOnly: true, // Only admins should see legal/license info
+		permissionId: 'config:settings:licensing',
+		fields: [
+			{
+				key: 'LICENSE_KEY',
+				label: 'Enterprise License Key',
+				description: 'Required if your organization revenue exceeds $1M USD (BSL 1.1). Leave empty for free usage.',
+				type: 'password', // Masked for security
+				category: 'private',
+				placeholder: 'SK-XXXX-XXXX-XXXX'
+			},
+			{
+				key: 'SVELTY_TELEMETRY_DISABLED',
+				label: 'Disable Telemetry',
+				description: 'Opt-out of anonymous usage statistics (Heartbeat).',
+				type: 'boolean',
+				category: 'private'
+			},
+			{
+				key: 'DO_NOT_TRACK',
+				label: 'Do Not Track (Strict)',
+				description: 'Enforces strict privacy mode. Disables all external calls/checks.',
+				type: 'boolean',
+				category: 'private'
+			}
+		]
+	},
 	{
 		id: 'cache',
 		name: 'Cache & Performance',

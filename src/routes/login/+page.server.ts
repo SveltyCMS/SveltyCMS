@@ -188,7 +188,9 @@ async function shouldShowOAuth(hasInviteToken: boolean): Promise<boolean> {
 		return true;
 	}
 
-	// Check if there are existing OAuth users - if so, show OAuth for sign-in
+	// Optimization: If OAuth is enabled, we generally want to show it.
+	// The previous check for existing users was redundant because it returned true regardless.
+	// We just verify auth service is available.
 	try {
 		await dbInitPromise;
 		if (!auth) {
@@ -196,23 +198,10 @@ async function shouldShowOAuth(hasInviteToken: boolean): Promise<boolean> {
 			return false;
 		}
 
-		// Check for users who have signed in via OAuth (lastAuthMethod: 'google')
-		const users = await auth.getAllUsers({});
-		const hasOAuthUsers = users && users.length > 0;
-
-		logger.debug(`OAuth users check: found ${users?.length || 0} users with lastAuthMethod 'google'`);
-
-		if (hasOAuthUsers) {
-			return true; // Show OAuth for existing OAuth users to sign in
-		}
-
-		// If no existing OAuth users, still show OAuth but it will require a token
-		// This allows users with invite tokens to enter them and use OAuth
 		return true;
 	} catch (error) {
-		logger.error('Error checking for OAuth users:', error);
-		// In case of error, be conservative but still allow OAuth with token requirement
-		return true;
+		logger.error('Error checking for OAuth availability:', error);
+		return true; // Fail open to allow login attempts
 	}
 }
 
@@ -601,8 +590,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		let hasExistingOAuthUsers = false;
 		try {
 			if (auth) {
-				const oauthUsers = await auth.getAllUsers({});
-				hasExistingOAuthUsers = oauthUsers && oauthUsers.length > 0;
+				// Optimization: Use count instead of fetching all users
+				const count = await auth.getUserCount();
+				hasExistingOAuthUsers = count > 0;
 			}
 		} catch (error) {
 			logger.error('Error checking for existing OAuth users:', error);

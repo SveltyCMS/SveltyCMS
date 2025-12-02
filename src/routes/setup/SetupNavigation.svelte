@@ -7,18 +7,9 @@ Handles Previous, Next, and Complete buttons and their states.
 	import { createEventDispatcher } from 'svelte';
 	import * as m from '@src/paraglide/messages';
 
-	const dispatch = createEventDispatcher<{
-		prev: void;
-		next: void;
-		complete: void;
-	}>();
+	const dispatch = createEventDispatcher();
 
-	const { currentStep, totalSteps, canProceed, isLoading } = $props<{
-		currentStep: number;
-		totalSteps: number;
-		canProceed: boolean;
-		isLoading: boolean;
-	}>();
+	const { currentStep, totalSteps, canProceed, isLoading } = $props();
 </script>
 
 <div class="flex flex-shrink-0 items-center justify-between border-t border-slate-200 px-4 pb-4 pt-4 sm:px-8 sm:pb-6 sm:pt-6">

@@ -307,7 +307,7 @@ export class MongoCollectionMethods {
 			for (const index of indexes) {
 				try {
 					await collection.createIndex(index.fields, index.options || {});
-					logger.debug(`Created index on ${Object.keys(index.fields).join(', ')} for ${collectionId}`);
+					logger.trace(`Created index on ${Object.keys(index.fields).join(', ')} for ${collectionId}`);
 				} catch (error) {
 					// Ignore duplicate index errors
 					if ((error as Error).message.includes('already exists')) {

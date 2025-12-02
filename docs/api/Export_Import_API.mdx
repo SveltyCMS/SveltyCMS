@@ -24,7 +24,7 @@ The Export/Import API provides endpoints for backing up, migrating, and restorin
 **Base Paths:**
 
 - `/api/systemsetting/*` - System settings export/import endpoints
-- `/api/importData` - Import endpoint
+- `/api/import/full` - Import endpoint
 
 ## Authentication
 
@@ -210,7 +210,7 @@ Imports data into collections from JSON.
 #### Request
 
 ```http
-POST /api/importData
+POST /api/import/full
 ```
 
 **Headers:**
@@ -585,11 +585,10 @@ curl -X POST https://new-cms.example.com/api/systemsetting/import \
 
 ```javascript
 // Export full system
-const exportResponse = await fetch('/api/systemsetting/export', {
+const exportResponse = await fetch('/api/export/full', {
 	method: 'POST',
-	credentials: 'include',
 	headers: { 'Content-Type': 'application/json' },
-	body: JSON.stringify({ format: 'json' })
+	body: JSON.stringify({ includeCollections: true })
 });
 const exportData = await exportResponse.json();
 

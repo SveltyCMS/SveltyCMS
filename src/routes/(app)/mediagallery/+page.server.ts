@@ -210,9 +210,16 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 						logger.warn('MEDIA_FOLDER not set; proceeding with defaults');
 					}
 
-					// Build thumbnail URL via helper (no hard-coded routes)
-					const effectivePath = mediaItem.path ?? '/global';
-					const thumbnailUrl = constructUrl(effectivePath, mediaItem.hash, filename, extension, 'thumbnail');
+					// Extract base path (e.g., 'global' from 'global/original/...')
+					const rawPath = mediaItem.path ?? 'global';
+					// Remove leading slashes and 'files/' prefix if present
+					let cleanPath = rawPath.replace(/^\/+/, '').replace(/^files\//, '');
+					// Get the first segment as the base path (e.g., 'global')
+					const basePath = cleanPath.split('/')[0] || 'global';
+
+					// Build thumbnail URL
+					// constructUrl(path, hash, fileName, format, contentTypes, size)
+					const thumbnailUrl = constructUrl(basePath, mediaItem.hash, filename, extension, basePath, 'thumbnail');
 
 					return {
 						...mediaItem,
@@ -220,7 +227,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 						path: mediaItem.path ?? 'global',
 						name: mediaItem.filename ?? 'unnamed-media',
 						// Use the item's path if available when constructing the original URL
-						url: constructUrl(mediaItem.path ?? '/global', mediaItem.hash, filename, extension, 'original'),
+						url: constructUrl(basePath, mediaItem.hash, filename, extension, basePath),
 						thumbnail: {
 							url: thumbnailUrl
 						}

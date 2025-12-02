@@ -10,7 +10,7 @@
  */
 
 import type { Schema } from '@src/content/types';
-import { SvelteMap } from 'svelte/reactivity';
+// import { SvelteMap } from 'svelte/reactivity';
 import type { ContentNode } from '../content/types';
 import { logger } from '@utils/logger';
 
@@ -33,7 +33,7 @@ export const statusMap = {
 
 // --- State using Svelte 5 Runes ---
 export const collections = $state<{ [uuid: string]: Schema }>({});
-export const collectionsById = new SvelteMap<string, Schema>();
+// export const collectionsById = new SvelteMap<string, Schema>(); // Unused
 export const currentCollectionId = $state<string | null>(null);
 export const collectionsLoading = $state<boolean>(false);
 export const collectionsError = $state<string | null>(null);

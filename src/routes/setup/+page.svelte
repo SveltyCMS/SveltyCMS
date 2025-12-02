@@ -28,10 +28,9 @@ calls store methods and wires store state to child components.
 	import EmailConfig from './EmailConfig.svelte';
 	import ReviewConfig from './ReviewConfig.svelte';
 
-	// Skeleton v4 / Compat
-	import { getModalStore, type ModalSettings, type ModalComponent } from '@utils/modalUtils';
-	import { toastState, getToastStore, setGlobalToastStore } from '@utils/toast';
-	import DialogManager from '@components/system/DialogManager.svelte';
+	// Skeleton
+	import { getModalStore, type ModalSettings, Modal } from '@skeletonlabs/skeleton';
+	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -39,36 +38,28 @@ calls store methods and wires store state to child components.
 
 	// Utils
 	import { getLanguageName } from '@utils/languageUtils';
+	import { setGlobalToastStore } from '@utils/toast';
 	import { locales as availableLocales } from '@src/paraglide/runtime';
 
 	// --- 1. STATE MANAGEMENT (Wired to Store) ---
 	const wizard = setupStore.wizard; // Get direct rune access
 	const { load: loadStore, clear: clearStore, setupPersistence: setupPersistenceFn, validateStep, seedDatabase, completeSetup } = setupStore;
 
-	// --- 2. TYPE DEFINITIONS ---
-	interface StepDef {
-		label: string;
-		shortDesc: string;
-	}
-
-	// --- 3. LOCAL UI STATE (Page-specific UI) ---
+	// --- 1. COMPONENT IMPORTS ---
 	let showDbPassword = $state(false);
 	let showAdminPassword = $state(false);
 	let showConfirmPassword = $state(false);
-	let initialDataSnapshot = $state<string>('');
+	let initialDataSnapshot = $state('');
 	let isLangOpen = $state(false);
 	let langSearch = $state('');
 	let currentLanguageTag = $state(getLocale());
 
 	// --- 4. LIFECYCLE HOOKS ---
-	// Modal component registry (for DialogManager component modals)
-	const modalComponentRegistry: Record<string, any> = {
-		welcomeModal: WelcomeModal
-	};
+	const modalComponentRegistry: Record<string, any> = { welcomeModal: { ref: WelcomeModal } };
 	const modalStore = getModalStore();
 
 	onMount(() => {
-		setGlobalToastStore();
+		setGlobalToastStore(getToastStore());
 		loadStore();
 		initialDataSnapshot = JSON.stringify(wizard);
 		document.addEventListener('click', outsideLang);
@@ -104,19 +95,8 @@ calls store methods and wires store state to child components.
 	});
 
 	function showWelcomeModal() {
-		// Show welcome modal using the new dialog system
-		import('@utils/dialogState.svelte').then(({ showComponentDialog }) => {
-			showComponentDialog({
-				component: WelcomeModal,
-				title: '',
-				onClose: (result) => {
-					if (result) {
-						// User clicked "Get Started"
-						console.log('Setup wizard started');
-					}
-				}
-			});
-		});
+		const modal: ModalSettings = { type: 'component', component: 'welcomeModal' };
+		modalStore.trigger(modal);
 	}
 
 	// --- 5. DERIVED STATE (Page-Specific) ---
@@ -124,7 +104,7 @@ calls store methods and wires store state to child components.
 		if (!initialDataSnapshot) return false;
 		return JSON.stringify(wizard) !== initialDataSnapshot;
 	});
-	const systemLanguages = $derived.by<string[]>(() => {
+	const systemLanguages = $derived.by(() => {
 		return [...availableLocales].sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
 	});
 	const isFullUri = $derived(() => {
@@ -132,7 +112,7 @@ calls store methods and wires store state to child components.
 	});
 
 	// STEPPER CONFIG
-	const steps = $derived<StepDef[]>([
+	const steps = $derived([
 		{ label: m.setup_step_database(), shortDesc: m.setup_step_database_desc() },
 		{ label: m.setup_step_admin(), shortDesc: m.setup_step_admin_desc() },
 		{ label: m.setup_step_system(), shortDesc: m.setup_step_system_desc() },
@@ -142,7 +122,7 @@ calls store methods and wires store state to child components.
 		},
 		{ label: m.setup_step_complete(), shortDesc: m.setup_step_complete_desc() }
 	]);
-	const totalSteps = $derived<number>(steps.length);
+	const totalSteps = $derived(steps.length);
 	const legendItems = [
 		{ key: 'completed', label: m.setup_legend_completed(), content: '✓' },
 		{ key: 'current', label: m.setup_legend_current(), content: '●' },
@@ -195,7 +175,7 @@ calls store methods and wires store state to child components.
 	}
 
 	// --- 7. UI HANDLERS ---
-	function selectLanguage(event: CustomEvent<string>) {
+	function selectLanguage(event: CustomEvent) {
 		const lang = event.detail;
 		systemLanguage.set(lang as typeof systemLanguage.value);
 		currentLanguageTag = lang as typeof currentLanguageTag;
@@ -232,11 +212,8 @@ calls store methods and wires store state to child components.
 </svelte:head>
 
 <div class="bg-surface-50-900 min-h-screen w-full transition-colors">
-	<!-- Toast is handled by the root layout -->
-
-	<!-- Dialog Manager for modals -->
-	<DialogManager />
-
+	<Modal components={modalComponentRegistry} />
+	<Toast />
 	<div class="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
 		<!-- ✅ NEW: Component for Header -->
 		<SetupHeader

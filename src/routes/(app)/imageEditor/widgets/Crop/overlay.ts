@@ -1,4 +1,10 @@
-// src/routes/(app)/imageEditor/widgets/Crop/overlay.ts
+/**
+ * @file src/routes/(app)/imageEditor/widgets/Crop/overlay.ts
+ * @description Overlay for Konva
+ *
+ * Features:
+ * - Create an overlay group (dark full-screen + cutout placeholder)
+ */
 import Konva from 'konva';
 
 /** Create an overlay group (dark full-screen + cutout placeholder) */

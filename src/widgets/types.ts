@@ -32,7 +32,7 @@ export interface WidgetFunction {
 	(config: Record<string, unknown>): Widget;
 	__widgetId?: string;
 	Name: string;
-	GuiSchema?: unknown;
+	GuiSchema?: typeof SvelteComponent;
 	GraphqlSchema?: unknown;
 	Icon?: string;
 	Description?: string;

@@ -37,8 +37,19 @@ Features:
 	import { ArcElement, Chart, PieController, Tooltip } from 'chart.js';
 	import { onDestroy } from 'svelte';
 	import BaseWidget from '../BaseWidget.svelte';
+	import type { WidgetSize } from '@src/content/types';
 
 	Chart.register(PieController, ArcElement, Tooltip);
+
+	interface MemoryData {
+		memoryInfo: {
+			total: {
+				usedMemMb: number;
+				freeMemMb: number;
+				usedMemPercentage: number;
+			};
+		};
+	}
 
 	// Props passed from +page.svelte, then to BaseWidget
 	const {
@@ -46,22 +57,22 @@ Features:
 		theme = 'light',
 		icon = 'mdi:memory',
 		widgetId = undefined,
-		size = { w: 1, h: 2 },
-		onSizeChange = () => {},
+		size = { w: 1, h: 2 } as WidgetSize,
+		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {}
-	} = $props<{
+	}: {
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-		size?: { w: number; h: number };
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
 		onRemove?: () => void;
-	}>();
+	} = $props();
 
-	let currentData = $state<any>(undefined);
-	let chart = $state<Chart<'pie', number[], string> | undefined>(undefined);
-	let chartCanvas = $state<HTMLCanvasElement | undefined>(undefined);
+	let currentData: MemoryData | undefined = $state(undefined);
+	let chart: Chart | undefined = $state(undefined);
+	let chartCanvas: HTMLCanvasElement | undefined = $state(undefined);
 
 	function updateChartAction(_canvas: HTMLCanvasElement, data: any) {
 		currentData = data;
@@ -93,7 +104,7 @@ Features:
 				existingChart.destroy();
 			}
 
-			const memoryTextCenterPlugin: Plugin<'pie'> = {
+			const memoryTextCenterPlugin: Plugin = {
 				id: 'memoryTextCenterPlugin',
 				beforeDraw(chart) {
 					const ctx = chart.ctx;
@@ -117,7 +128,7 @@ Features:
 				}
 			};
 
-			const config: ChartConfiguration<'pie', number[], string> = {
+			const config: ChartConfiguration = {
 				type: 'pie',
 				data: {
 					labels: ['Used', 'Free'],

@@ -29,6 +29,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import { page } from '$app/state';
 	import { tabSet } from '@stores/store.svelte';
 	import { collection, setCollection } from '@src/stores/collectionStore.svelte';
+	import { setRouteContext } from '@src/stores/UIStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -38,24 +39,24 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import CollectionForm from './tabs/CollectionForm.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
 
-	// Skeleton v4 components
-	import { Tabs } from '@skeletonlabs/skeleton-svelte';
-	import { getModalStore, type ModalSettings } from '@utils/modalUtils';
+	// Skeleton
+	import { Tab, TabGroup } from '@skeletonlabs/skeleton';
+	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	import { showToast } from '@utils/toast';
 
 	import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
-	// Create local tab variable for binding
-	let activeTab = $state('default');
+	// Create local tabSet variable for binding
+	let localTabSet = $state(tabSet.value);
 
 	// Sync with store when local value changes
 	$effect(() => {
-		tabSet.set(activeTab === 'default' ? 0 : 1);
+		tabSet.set(localTabSet);
 	});
 
 	// Sync local value when store changes
 	$effect(() => {
-		activeTab = tabSet.value === 0 ? 'default' : 'widget';
+		localTabSet = tabSet.value;
 	});
 
 	import type { User } from '@src/databases/auth/types';
@@ -223,6 +224,11 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		widgetStoreActions.initializeWidgets();
 		tabSet.set(0);
 	});
+
+	$effect(() => {
+		setRouteContext({ isCollectionBuilder: true });
+		return () => setRouteContext({ isCollectionBuilder: false });
+	});
 </script>
 
 <!-- Page Title -->
@@ -256,39 +262,36 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		{m.collection_helptext()}
 	</p>
 	<!-- Required Text  -->
-	<div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
-	<Tabs value={activeTab} onValueChange={(details) => activeTab = details.value}>
-		<Tabs.List>
-			<!-- User Permissions -->
-			{#if page.data.isAdmin}
-				<!-- Edit -->
-				<Tabs.Trigger value="default">
-					<div class="flex items-center gap-1">
-						<iconify-icon icon="ic:baseline-edit" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<span class:active={activeTab === 'default'} class:text-tertiary-500={activeTab === 'default'} class:text-primary-500={activeTab === 'default'}
-							>{m.button_edit()}</span
-						>
-					</div>
-				</Tabs.Trigger>
+	<div class="mb-2 text-center text-xs text-error-500" data-testid="required-indicator">* {m.collection_required()}</div>
+	<TabGroup bind:group={localTabSet}>
+		<!-- User Permissions -->
+		{#if page.data.isAdmin}
+			<!-- Edit -->
+			<Tab bind:group={localTabSet} name="default" value={0}>
+				<div class="flex items-center gap-1">
+					<iconify-icon icon="ic:baseline-edit" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<span class:active={tabSet.value === 0} class:text-tertiary-500={tabSet.value === 0} class:text-primary-500={tabSet.value === 0}
+						>{m.button_edit()}</span
+					>
+				</div>
+			</Tab>
 
-				<!-- Widget Fields -->
-				<Tabs.Trigger value="widget">
-					<div class="flex items-center gap-1">
-						<iconify-icon icon="mdi:widgets-outline" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<span class:active={activeTab === 'widget'} class:text-tertiary-500={activeTab === 'widget'} class:text-primary-500={activeTab === 'widget'}
-							>{m.collection_widgetfields()}</span
-						>
-					</div>
-				</Tabs.Trigger>
-			{/if}
-		</Tabs.List>
+			<!-- Widget Fields -->
+			<Tab bind:group={localTabSet} name="widget" value={1} data-testid="widget-fields-tab">
+				<div class="flex items-center gap-1">
+					<iconify-icon icon="mdi:widgets-outline" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<span class:active={tabSet.value === 1} class:text-tertiary-500={tabSet.value === 2} class:text-primary-500={tabSet.value === 2}
+						>{m.collection_widgetfields()}</span
+					>
+				</div>
+			</Tab>
+		{/if}
 
 		<!-- Tab Panels -->
-		<Tabs.Content value="default">
+		{#if tabSet.value === 0}
 			<CollectionForm data={collectionValue} {handlePageTitleUpdate} />
-		</Tabs.Content>
-		<Tabs.Content value="widget">
+		{:else if tabSet.value === 1}
 			<CollectionWidget fields={collectionValue?.fields as FieldInstance[] | undefined} {handleCollectionSave} />
-		</Tabs.Content>
-	</Tabs>
+		{/if}
+	</TabGroup>
 </div>

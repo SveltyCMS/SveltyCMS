@@ -23,10 +23,117 @@ import { modifyRequest } from '@api/collections/modifyRequest';
 // System Logger
 import { logger } from '@utils/logger.server';
 
-// ❌ REMOVED: GET handler - SSR data loading should use +page.server.ts load() function
-// This prevents redundant data fetching and improves SSR performance.
-// Use the load() function in +page.server.ts for initial page loads,
-// and client-side API calls only for dynamic updates (create/update/delete).
+// GET: Lists entries from a collection with pagination, filtering, and caching
+export const GET: RequestHandler = async ({ locals, params, url }) => {
+	const startTime = performance.now();
+	const endpoint = `GET /api/collections/${params.collectionId}`;
+	const { user, tenantId } = locals;
+
+	try {
+		if (!user) {
+			throw error(401, 'Unauthorized');
+		}
+
+		const page = parseInt(url.searchParams.get('page') || '1');
+		const limit = parseInt(url.searchParams.get('limit') || '10');
+		const locale = url.searchParams.get('locale') || 'en';
+
+		// Cache Key: collection:id:page:limit:locale
+		// This matches the GraphQL cache strategy for consistency
+		const cacheKey = `collections:${params.collectionId}:${page}:${limit}:${locale}`;
+		const cacheService = (await import('@src/databases/CacheService')).cacheService;
+
+		// Try to get from cache first
+		const cachedResult = await cacheService.get<any>(cacheKey, tenantId);
+		if (cachedResult) {
+			logger.debug(`${endpoint} - Cache hit`, { cacheKey });
+			return json(cachedResult);
+		}
+
+		const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
+		if (!schema) {
+			throw error(404, 'Collection not found');
+		}
+
+		const dbAdapter = locals.dbAdapter;
+		if (!dbAdapter) {
+			throw error(503, 'Service Unavailable: Database service is not properly initialized');
+		}
+
+		const collectionName = `collection_${schema._id}`;
+		const queryBuilder = dbAdapter.queryBuilder(collectionName).paginate({ page, pageSize: limit });
+
+		// Add tenant filter if multi-tenant
+		if (getPrivateSettingSync('MULTI_TENANT') && tenantId) {
+			queryBuilder.where({ tenantId } as any);
+		}
+
+		const result = await queryBuilder.execute();
+
+		if (!result.success) {
+			throw new Error(result.error?.message || 'Database query failed');
+		}
+
+		// Process results (Token replacement & Localization)
+		const { replaceTokens } = await import('@src/services/token/engine');
+		const processedData = await Promise.all(
+			(result.data as any[]).map(async (entry) => {
+				// 1. Token Replacement
+				const tokenContext = { entry, user };
+				let processedEntry = { ...entry };
+
+				for (const key in processedEntry) {
+					const value = processedEntry[key];
+					if (typeof value === 'string' && value.includes('{{')) {
+						try {
+							processedEntry[key] = await replaceTokens(value, tokenContext);
+						} catch (err) {
+							// Ignore token errors
+						}
+					}
+				}
+
+				// 2. Localization (Simple extraction matching GraphQL logic)
+				for (const key in processedEntry) {
+					const value = processedEntry[key];
+					if (value && typeof value === 'object' && !Array.isArray(value)) {
+						const valObj = value as Record<string, unknown>;
+						if (locale in valObj) {
+							processedEntry[key] = valObj[locale];
+						} else if ('en' in valObj) {
+							processedEntry[key] = valObj['en'];
+						} else {
+							const keys = Object.keys(valObj);
+							if (keys.length > 0) processedEntry[key] = valObj[keys[0]];
+						}
+					}
+				}
+				return processedEntry;
+			})
+		);
+
+		const responseData = {
+			success: true,
+			data: processedData,
+			pagination: {
+				page,
+				limit,
+				total: (result as any).total || 0, // QueryBuilder should return total
+				totalPages: Math.ceil(((result as any).total || 0) / limit)
+			},
+			performance: { duration: performance.now() - startTime }
+		};
+
+		// Cache the result (TTL 5 minutes)
+		await cacheService.set(cacheKey, responseData, 300, tenantId);
+
+		return json(responseData);
+	} catch (e) {
+		const duration = performance.now() - startTime;
+		logger.error(`${endpoint} - Error`, { error: e instanceof Error ? e.message : String(e), duration: `${duration.toFixed(2)}ms` });
+		throw error(500, 'Internal Server Error');
+	}
+};
 
 // POST: Creates a new entry in a collection
 export const POST: RequestHandler = async ({ locals, params, request }) => {

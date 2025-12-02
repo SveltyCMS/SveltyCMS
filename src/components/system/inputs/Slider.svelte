@@ -22,17 +22,13 @@
 			current: 0
 		}),
 		onChange
-	} = $props<{
-		value?: {
-			max: number; // Maximum value for the slider
-			current: number; // Current selected value
-		};
-		onChange?: (value: number) => void; // Callback when value changes
-	}>();
+	} = $props(); // Maximum value for the slider
+	// Current selected value
+	// Callback when value changes
 
 	// Function to handle value changes
 	function handleChange(event: Event) {
-		const customEvent = event as CustomEvent<number>;
+		const customEvent = event as CustomEvent;
 		value.current = customEvent.detail;
 		onChange?.(customEvent.detail);
 	}

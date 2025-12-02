@@ -39,7 +39,7 @@ Interactive form with map, country selector, and address validation
 	let { field, value, error }: { field: FieldType; value: AddressData | null | undefined; error?: string | null } = $props();
 
 	// Local reactive state for the form, initialized from the parent `value`.
-	const address = $state<AddressData>(
+	const address = $state(
 		value ?? {
 			street: '',
 			houseNumber: '',

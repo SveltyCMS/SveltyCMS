@@ -107,7 +107,7 @@
 	const currentLanguage = $derived(contentLanguage.value);
 	const selectedCollectionId = $derived(collection.value?._id);
 	const currentMode = $derived(mode.value);
-	const currentActiveWidgets = $derived($activeWidgets);
+	const currentActiveWidgets = $derived(activeWidgets.value);
 
 	/**
 	 * Count total collections in a category tree
@@ -206,7 +206,8 @@
 			badge,
 			depth,
 			order: node.order || 0,
-			lastModified: node.lastModified
+			lastModified: node.lastModified,
+			path: !isCategory ? `/${currentLanguage}/${nodeId}` : undefined
 		};
 	}
 

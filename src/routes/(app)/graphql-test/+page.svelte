@@ -14,8 +14,8 @@
 	import { onMount } from 'svelte';
 	import { createClient } from 'graphql-ws';
 
-	let posts = $state<any[]>([]);
-	let error = $state<any>(null);
+	let posts: any[] = $state([]);
+	let error: any = $state(null);
 
 	onMount(() => {
 		const client = createClient({

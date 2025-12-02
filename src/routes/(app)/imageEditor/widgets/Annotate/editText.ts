@@ -1,9 +1,18 @@
-// src/routes/(app)/imageEditor/widgets/Annotate/editText.ts
+/**
+ * @file src/routes/(app)/imageEditor/widgets/Annotate/editText.ts
+ * @description Text editor for Konva.Text nodes
+ *
+ * Features:
+ * - HTML textarea overlay
+ * - Accounts for stage position and page scroll
+ * - Maintains Konva.Text properties
+ * - Responsive to user input
+ * - Clean up on completion
+ */
+
 import type Konva from 'konva';
 
 /**
- * ** FIX: This version adds window.scrollY/scrollX **
- *
  * Create an HTML textarea over stage for editing Konva.Text.
  * This correctly accounts for stage position and page scroll.
  */

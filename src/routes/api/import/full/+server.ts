@@ -13,7 +13,8 @@
  */
 
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { getDb } from '@src/databases/db';
+
+import { getDb, dbAdapter } from '@src/databases/db';
 import { getAllSettings, invalidateSettingsCache } from '@src/services/settingsService';
 import { logger } from '@utils/logger.server';
 import { decryptData } from '@utils/crypto';
@@ -25,7 +26,8 @@ import type {
 	ValidationWarning,
 	Conflict,
 	ImportResult,
-	ExportMetadata
+	ExportMetadata,
+	DatabaseId
 } from '@content/types';
 
 /**
@@ -282,8 +284,50 @@ async function applyImport(importData: ExportData, options: ImportOptions, confl
 
 	// Apply collections
 	if (importData.collections) {
-		// TODO: Implement collection import
-		// This depends on your collection storage structure
+		for (const collection of importData.collections) {
+			// TODO: Import schema if needed (currently assuming schema exists or is handled separately)
+
+			if (collection.documents && collection.documents.length > 0) {
+				// Use the existing import logic logic but adapted for this structure
+				// For now, we'll do a simple insert/update loop similar to importData
+				if (!dbAdapter) {
+					logger.error('Database adapter not available for collection import');
+					continue;
+				}
+
+				let importedCount = 0;
+				let errorCount = 0;
+
+				for (const doc of collection.documents) {
+					try {
+						// Check if exists
+						const existing = await dbAdapter.crud.findOne(`collection_${collection.id}`, { _id: doc._id as DatabaseId });
+
+						if (existing.success && existing.data) {
+							if (options.strategy === 'overwrite') {
+								await dbAdapter.crud.update(`collection_${collection.id}`, doc._id as DatabaseId, doc);
+								importedCount++;
+							} else if (options.strategy === 'merge') {
+								// Simple merge for now
+								const merged = { ...existing.data, ...doc };
+								await dbAdapter.crud.update(`collection_${collection.id}`, doc._id as DatabaseId, merged);
+								importedCount++;
+							}
+							// If skip, do nothing
+						} else {
+							await dbAdapter.crud.insert(`collection_${collection.id}`, doc);
+							importedCount++;
+						}
+					} catch (e) {
+						errorCount++;
+						logger.error(`Failed to import document in ${collection.name}`, e);
+					}
+				}
+
+				logger.info(`Imported ${importedCount} documents for ${collection.name} with ${errorCount} errors`);
+				result.imported += importedCount;
+			}
+		}
 	}
 
 	// Invalidate cache and reload after successful import

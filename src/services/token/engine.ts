@@ -18,7 +18,7 @@ import type { User } from '@src/databases/auth/types';
 import { modifierRegistry } from './modifiers';
 import { logger } from '@utils/logger';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
-import { browser } from '$app/environment';
+
 import { resolveRelationToken } from './relationResolver';
 
 const ALLOWED_USER_FIELDS = ['_id', 'email', 'username', 'role', 'avatar', 'language', 'name'];
@@ -27,6 +27,14 @@ class TokenRegistryService {
 	private resolvers = new Map<string, (ctx: TokenContext) => any>();
 	private cache = new Map<string, { timestamp: number; data: Record<TokenCategory, TokenDefinition[]> }>();
 	private CACHE_TTL = 1000 * 60 * 5; // 5 minutes
+	private relationTokenGenerator: ((schema: Schema, user: User | undefined, tenantId?: string, roles?: any[]) => Promise<TokenDefinition[]>) | null =
+		null;
+
+	public setRelationTokenGenerator(
+		generator: (schema: Schema, user: User | undefined, tenantId?: string, roles?: any[]) => Promise<TokenDefinition[]>
+	) {
+		this.relationTokenGenerator = generator;
+	}
 
 	async resolve(tokenKey: string, ctx: TokenContext): Promise<any> {
 		const resolver = this.resolvers.get(tokenKey);
@@ -193,16 +201,13 @@ class TokenRegistryService {
 		// 4. ENHANCED ENTRY TOKENS (including Relations)
 		if (schema?.fields && config.includeEntry !== false) {
 			// Import relation token generator
-			// Note: We use dynamic import to avoid circular dependencies if any
-			// AND to avoid importing server-side code on the client
-			if (!browser) {
-				import('./relationEngine').then(({ getRelationTokens }) => {
-					getRelationTokens(schema, user, config.tenantId, config.roles as any[])
-						.then((relationTokens) => {
-							relationTokens.forEach((t) => add(t));
-						})
-						.catch((err) => logger.error('Failed to load relation tokens', err));
-				});
+			// Use injected relation token generator if available (Server-side only)
+			if (this.relationTokenGenerator) {
+				this.relationTokenGenerator(schema, user, config.tenantId, config.roles as any[])
+					.then((relationTokens: TokenDefinition[]) => {
+						relationTokens.forEach((t) => add(t));
+					})
+					.catch((err: unknown) => logger.error('Failed to load relation tokens', err));
 			}
 
 			const WIDGET_TYPE_MAP: Record<string, any> = {

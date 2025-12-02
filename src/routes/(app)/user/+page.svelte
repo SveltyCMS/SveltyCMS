@@ -17,9 +17,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import type { PageData } from './$types';
 	// Auth
-	import type { User } from '@src/databases/auth/types';
 	import ModalTwoFactorAuth from './components/ModalTwoFactorAuth.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -42,17 +40,18 @@
 	import ModalEditForm from './components/ModalEditForm.svelte';
 
 	// Props
-	const { data } = $props<{ data: PageData }>();
+	const { data } = $props();
 	const { user: serverUser, isFirstUser, isMultiTenant, is2FAEnabledGlobal } = $derived(data);
 
 	// Make user data reactive
-	const user = $derived<User>({
+	const user = $derived({
 		_id: serverUser?._id ?? '',
 		email: serverUser?.email ?? '',
 		username: serverUser?.username ?? '',
 		role: serverUser?.role ?? '',
 		avatar: serverUser?.avatar ?? '/Default_User.svg',
 		tenantId: serverUser?.tenantId ?? '', // Add tenantId
+		is2FAEnabled: serverUser?.is2FAEnabled ?? false,
 		permissions: []
 	});
 

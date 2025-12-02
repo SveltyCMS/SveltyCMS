@@ -58,12 +58,12 @@
 	const serverContentLanguage = $derived(data?.contentLanguage);
 
 	// Track initial collectionValue to detect changes
-	let initialCollectionValue = $state<string>('');
+	let initialCollectionValue = $state('');
 	let userClickedCancel = $state(false);
 	let isSavingDraft = $state(false);
 
 	// Track when we last received server data to avoid overwriting client-side language changes
-	let lastServerLanguage = $state<string | undefined>(undefined);
+	let lastServerLanguage: string | undefined = $state(undefined);
 
 	// Track if we've initialized validation for the current create session
 	let validationInitialized = $state(false);
@@ -145,8 +145,8 @@
 	// 2. Manual URL changes (user types in address bar)
 	// 3. Language changes in edit mode (URL language prefix changes but ?edit=id stays same)
 
-	let lastUrlString = $state('');
-	let lastEditParam = $state<string | null>(null);
+	let lastUrlString: string = $state('');
+	let lastEditParam: string | null = $state(null);
 	let hasInitiallyLoaded = $state(false);
 
 	$effect(() => {
@@ -174,7 +174,7 @@
 			lastUrlString = currentUrl;
 
 			setMode('create');
-			const newEntry: Record<string, any> = {};
+			const newEntry: Record<string, any | null> = {};
 			const fields = collection.value?.fields || [];
 
 			// Initialize empty entry
@@ -237,7 +237,7 @@
 			} else if (parsed.mode === 'create') {
 				// Create mode (URL change while already loaded)
 				setMode('create');
-				const newEntry: Record<string, any> = {};
+				const newEntry: Record<string, any | null> = {};
 				const fields = collection.value?.fields || [];
 
 				// Initialize empty entry with null values

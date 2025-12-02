@@ -23,9 +23,8 @@ functionality for image editing and basic file information display.
 -->
 
 <script lang="ts">
-	import type { FieldType } from '.';
 	import type { ISODateString } from '@src/content/types';
-	import { convertTimestampToDateString, getFieldName, meta_data } from '@utils/utils';
+	import { convertTimestampToDateString, getFieldName } from '@utils/utils';
 	import { isoDateStringToDate } from '@utils/dateUtils';
 
 	// ParaglideJS
@@ -33,7 +32,7 @@ functionality for image editing and basic file information display.
 
 	// Stores
 	import { validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@stores/collectionStore.svelte';
+	import { collectionValue } from '@stores/collectionStore.svelte';
 
 	// Components
 	import type { MediaImage } from '@utils/media/mediaModels';
@@ -43,8 +42,8 @@ functionality for image editing and basic file information display.
 
 	// Define reactive state
 	let isFlipped = $state(false);
-	let _data = $state<File | MediaImage | undefined>(undefined); // Initialize with `undefined`
-	let validationError = $state<string | null>(null);
+	let _data: File | MediaImage | undefined = $state(undefined); // Initialize with `undefined`
+	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 	const modalStore = getModalStore();
 
@@ -68,10 +67,7 @@ functionality for image editing and basic file information display.
 	}
 
 	// Define props
-	const { field, value = (collectionValue as any)[getFieldName(field)] } = $props<{
-		field: FieldType & { path: string };
-		value?: File | MediaImage;
-	}>();
+	const { field, value = (collectionValue as any)[getFieldName(field)] } = $props();
 
 	// Define validation schema
 	import { object, string, number, union, instance, check, pipe, record, parse, type ValiError } from 'valibot';
@@ -109,8 +105,8 @@ functionality for image editing and basic file information display.
 			validationStore.clearError(getFieldName(field));
 			return null;
 		} catch (error) {
-			if ((error as ValiError<typeof widgetSchema>).issues) {
-				const valiError = error as ValiError<typeof widgetSchema>;
+			if ((error as ValiError<any>).issues) {
+				const valiError = error as ValiError<any>;
 				const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 				validationStore.setError(getFieldName(field), errorMessage);
 				return errorMessage;
@@ -127,22 +123,15 @@ functionality for image editing and basic file information display.
 		}, 300);
 	}
 
-	// WidgetData function
-	export const WidgetData = async () => {
-		if (_data) {
-			if (_data instanceof File) {
-				_data.path = field.path;
-			}
-		}
+	import { getWidgetData } from './widgetData';
 
-		if (!(value instanceof File) && !(_data instanceof File) && _data?._id !== value?._id && value?._id && mode.value === 'edit') {
-			meta_data.add('media_images_remove', [value._id.toString()]);
-		}
-
-		validateInput();
-
-		return _data || mode.value === 'create' ? _data : { _id: (value as MediaImage)?._id };
-	};
+	// The `WidgetData` function needs to be explicitly defined or called when needed.
+	// Since it was exported, it means it was part of the component's public API.
+	// In Svelte 5, component functions usually are regular functions and can be exported as part of the component's module.
+	// Let's create a wrapper function that calls `getWidgetData`.
+	export async function WidgetDataExport() {
+		return getWidgetData(_data, field, value);
+	}
 
 	// Helper function to get timestamp
 	function getTimestamp(date: Date | number | ISODateString): number {
@@ -188,16 +177,16 @@ functionality for image editing and basic file information display.
 					{:else}
 						<div class="col-span-11 ml-2 grid grid-cols-2 gap-1 text-left">
 							<p class="">{m.widget_ImageUpload_Type()}</p>
-							<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.type}</p>
+							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(_data as any).type}</p>
 							<p class="">Path:</p>
-							<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.path}</p>
+							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(_data as any).path}</p>
 							<p class="">{m.widget_ImageUpload_Uploaded()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">
-								{convertTimestampToDateString(getTimestamp(_data instanceof File ? _data.lastModified : _data.createdAt))}
+								{convertTimestampToDateString(getTimestamp((_data as any) instanceof File ? (_data as any).lastModified : (_data as any).createdAt))}
 							</p>
 							<p class="">{m.widget_ImageUpload_LastModified()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">
-								{convertTimestampToDateString(getTimestamp(_data instanceof File ? _data.lastModified : _data.updatedAt))}
+								{convertTimestampToDateString(getTimestamp((_data as any) instanceof File ? (_data as any).lastModified : (_data as any).updatedAt))}
 							</p>
 						</div>
 					{/if}

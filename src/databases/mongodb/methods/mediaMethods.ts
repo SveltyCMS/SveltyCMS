@@ -128,8 +128,14 @@ export class MongoMediaMethods {
 					const sort: Record<string, 1 | -1> = { [sortField]: sortDirection === 'asc' ? 1 : -1 };
 
 					const [items, total] = await Promise.all([
-						this.mediaModel.find(query).sort(sort).skip(skip).limit(pageSize).lean().exec(),
-						this.mediaModel.countDocuments(query)
+						this.mediaModel
+							.find(query as any)
+							.sort(sort)
+							.skip(skip)
+							.limit(pageSize)
+							.lean()
+							.exec(),
+						this.mediaModel.countDocuments(query as any)
 					]);
 
 					return {

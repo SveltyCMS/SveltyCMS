@@ -29,8 +29,8 @@ This widget fetches and displays the latest content items, including:
 
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
-
 	import { formatDistanceToNow } from 'date-fns';
+	import type { WidgetSize } from '@src/content/types';
 
 	interface ContentItem {
 		id: string;
@@ -48,18 +48,18 @@ This widget fetches and displays the latest content items, including:
 		theme = 'light',
 		icon = 'mdi:file-document-multiple-outline',
 		widgetId = undefined,
-		size = { w: 1, h: 1 },
-		onSizeChange = () => {},
+		size = { w: 1, h: 1 } as WidgetSize,
+		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {}
-	} = $props<{
+	}: {
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-		size?: { w: number; h: number };
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
 		onRemove?: () => void;
-	}>();
+	} = $props();
 
 	function getStatusColor(status: string) {
 		switch (status.toLowerCase()) {

@@ -7,28 +7,9 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 	import { createEventDispatcher } from 'svelte';
 	import VersionCheck from '@components/VersionCheck.svelte';
 
-	type StepDef = {
-		label: string;
-		shortDesc: string;
-	};
+	const { steps, currentStep, stepCompleted, stepClickable, legendItems } = $props();
 
-	type LegendItem = {
-		key: string;
-		label: string;
-		content: string;
-	};
-
-	const dispatch = createEventDispatcher<{
-		selectStep: number;
-	}>();
-
-	const { steps, currentStep, stepCompleted, stepClickable, legendItems } = $props<{
-		steps: StepDef[];
-		currentStep: number;
-		stepCompleted: boolean[];
-		stepClickable: boolean[];
-		legendItems: LegendItem[];
-	}>();
+	const dispatch = createEventDispatcher();
 
 	function handleStepClick(stepIndex: number) {
 		if (stepClickable[stepIndex] || stepIndex === currentStep) {

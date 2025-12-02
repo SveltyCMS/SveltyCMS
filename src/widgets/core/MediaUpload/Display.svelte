@@ -22,7 +22,7 @@ Renders selected media files as thumbnails for display purposes.
 	const { value }: { value: string | string[] | null | undefined } = $props();
 
 	// Local state for the resolved file(s).
-	let files = $state<MediaFile[]>([]);
+	let files: MediaFile[] = $state([]);
 
 	// Fetch media data when the value prop changes.
 	$effect(() => {

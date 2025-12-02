@@ -1,6 +1,10 @@
-// src/routes/(app)/imageEditor/widgets/registry.ts
-// Dynamic widgets registry using import.meta.glob for discoverability
-
+/**
+ * @file src/routes/(app)/imageEditor/widgets/registry.ts
+ * @description Dynamic widgets registry using import.meta.glob for discoverability
+ *
+ * Features:
+ * - Dynamic widgets registry using import.meta.glob for discoverability
+ */
 import type { Component } from 'svelte';
 
 export interface EditorWidget {

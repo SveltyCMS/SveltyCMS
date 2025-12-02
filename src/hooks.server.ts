@@ -50,6 +50,10 @@ import { handleFirewall } from './hooks/handleFirewall';
 // API middleware for role-based access control and caching
 import { handleApiRequests } from './hooks/handleApiRequests';
 
+// --- Import Token Services for Dependency Injection ---
+import { TokenRegistry } from '@src/services/token/engine';
+import { getRelationTokens } from '@src/services/token/relationEngine';
+
 // --- Server Startup Logic ---
 if (!building) {
 	/**
@@ -64,6 +68,10 @@ if (!building) {
 	 */
 	// Static import ensures the module is loaded and initialization promise is created
 	import('@src/databases/db');
+
+	// Inject server-side relation engine into TokenRegistry
+	TokenRegistry.setRelationTokenGenerator(getRelationTokens);
+
 	logger.info('✅ DB module loaded. System will initialize on first request via handleSystemState.');
 }
 

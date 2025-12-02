@@ -27,13 +27,7 @@
 		label = '', // Optional label for the dropdown
 		modifier = (input: any) => input, // Function to modify how items are displayed
 		class: className = '' // Custom class for the dropdown container
-	} = $props<{
-		items: any[];
-		selected?: any;
-		label?: string;
-		modifier?: (input: any) => any;
-		class?: string;
-	}>();
+	} = $props();
 
 	// State for dropdown expansion and selected item
 	let expanded = $state(false);

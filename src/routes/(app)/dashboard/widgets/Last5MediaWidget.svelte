@@ -28,6 +28,7 @@
 <script lang="ts">
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import BaseWidget from '../BaseWidget.svelte';
+	import type { WidgetSize } from '@src/content/types';
 
 	interface MediaFile {
 		id: string;
@@ -46,18 +47,18 @@
 		theme = 'light',
 		icon = 'mdi:image-multiple-outline',
 		widgetId = undefined,
-		size = { w: 1, h: 1 },
-		onSizeChange = () => {},
+		size = { w: 1, h: 1 } as WidgetSize,
+		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {}
-	} = $props<{
+	}: {
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-		size?: { w: number; h: number };
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
 		onRemove?: () => void;
-	}>();
+	} = $props();
 
 	function formatFileSize(bytes: number): string {
 		if (bytes === 0) return '0 B';

@@ -72,19 +72,7 @@
 		textColor: string;
 	}
 
-	interface Props {
-		isCollectionEmpty?: boolean;
-		hasSelections?: boolean;
-		selectedCount?: number;
-		showDeleted?: boolean;
-		create: () => void;
-		publish: () => void;
-		unpublish: () => void;
-		schedule: (date: string, action: string) => void;
-		clone: () => void;
-		delete: (permanent: boolean) => void;
-		test: () => void;
-	}
+	import type { EntryListMultiButtonProps } from './types';
 
 	// Props
 	let {
@@ -99,7 +87,7 @@
 		clone,
 		delete: deleteAction,
 		test
-	}: Props = $props();
+	}: EntryListMultiButtonProps = $props();
 
 	// State
 	let dropdownOpen = $state(false);
@@ -151,7 +139,7 @@
 	};
 
 	// Dynamic button map based on config and user role
-	const buttonMap = $derived.by<Record<string, ActionConfig>>(() => {
+	const buttonMap = $derived.by(() => {
 		const actions = { ...BASE_ACTIONS };
 
 		// Handle delete/archive based on configuration

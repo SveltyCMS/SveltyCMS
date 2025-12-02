@@ -28,13 +28,13 @@ All dynamic CMS settings organized into logical groups
 	const modalStore = getModalStore();
 
 	// Get user admin status from page data (set by +page.server.ts)
-	const { data } = $props<{ data: { isAdmin: boolean } }>();
+	const { data } = $props();
 	const isAdmin = data.isAdmin;
 
 	//  Use $state for all component state
-	let selectedGroupId = $state<string | null>(null);
+	let selectedGroupId: string | null = $state(null);
 	let currentGroupHasUnsavedChanges = $state(false);
-	let availableGroups = $state<SettingGroup[]>([]);
+	let availableGroups: SettingGroup[] = $state([]);
 	let searchTerm = $state('');
 
 	// Track which groups need configuration

@@ -51,12 +51,7 @@
 		totalImported: number;
 		totalSkipped: number;
 		totalErrors: number;
-		results: Array<{
-			collection: string;
-			imported: number;
-			skipped: number;
-			errors: Array<{ index: number; error: string }>;
-		}>;
+		results: Array<any>;
 	}
 
 	// --- State using Svelte 5 Runes ---

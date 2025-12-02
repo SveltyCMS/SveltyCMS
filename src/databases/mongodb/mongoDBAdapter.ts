@@ -29,8 +29,17 @@
  */
 
 // Mongoose and core types
-import mongoose, { type FilterQuery } from 'mongoose';
-import type { BaseEntity, ConnectionPoolOptions, DatabaseId, DatabaseResult, IDBAdapter, DatabaseError, ISODateString } from '../dbInterface';
+import mongoose from 'mongoose';
+import type {
+	BaseEntity,
+	ConnectionPoolOptions,
+	DatabaseId,
+	DatabaseResult,
+	IDBAdapter,
+	DatabaseError,
+	ISODateString,
+	QueryFilter
+} from '../dbInterface';
 import type { ConnectionPoolDiagnostics } from '../DatabaseResilience';
 
 // All Mongoose Models
@@ -151,7 +160,7 @@ export class MongoDBAdapter implements IDBAdapter {
 	}
 
 	// --- Legacy Support ---
-	public findMany<T extends BaseEntity>(coll: string, query: FilterQuery<T>, options?: { limit?: number; offset?: number }) {
+	public findMany<T extends BaseEntity>(coll: string, query: QueryFilter<T>, options?: { limit?: number; offset?: number }) {
 		logger.warn('Direct call to dbAdapter.findMany() is deprecated. Use dbAdapter.crud.findMany() instead.');
 		return this.crud.findMany(coll, query, options);
 	}
@@ -574,7 +583,7 @@ export class MongoDBAdapter implements IDBAdapter {
 				move: (ids, targetId) => this._wrapResult(() => this._media.move(ids, targetId)),
 				duplicate: (id, newName) =>
 					this._wrapResult(async () => {
-						const file = await this._repositories.get('media')!.findOne({ _id: id } as FilterQuery<BaseEntity>);
+						const file = await this._repositories.get('media')!.findOne({ _id: id } as QueryFilter<BaseEntity>);
 						if (!file) throw new Error('File not found');
 						const newFile = await this._repositories.get('media')!.insert({
 							...file,
@@ -638,7 +647,7 @@ export class MongoDBAdapter implements IDBAdapter {
 				},
 				update: (path, changes) =>
 					this._wrapResult(async () => {
-						const node = await this._repositories.get('nodes')!.findOne({ path } as FilterQuery<BaseEntity>);
+						const node = await this._repositories.get('nodes')!.findOne({ path } as QueryFilter<BaseEntity>);
 						if (!node) throw new Error('Node not found');
 						return (await this._repositories.get('nodes')!.update(node._id, changes as Partial<BaseEntity>)) as ContentNode;
 					}),
@@ -646,22 +655,22 @@ export class MongoDBAdapter implements IDBAdapter {
 					this._wrapResult(async () => {
 						await this._content.bulkUpdateNodes(updates);
 						const paths = updates.map((u) => u.path);
-						return (await this._repositories.get('nodes')!.findMany({ path: { $in: paths } } as FilterQuery<BaseEntity>)) as ContentNode[];
+						return (await this._repositories.get('nodes')!.findMany({ path: { $in: paths } } as QueryFilter<BaseEntity>)) as ContentNode[];
 					}),
 				delete: (path) =>
 					this._wrapResult(async () => {
-						const node = await this._repositories.get('nodes')!.findOne({ path } as FilterQuery<BaseEntity>);
+						const node = await this._repositories.get('nodes')!.findOne({ path } as QueryFilter<BaseEntity>);
 						if (!node) throw new Error('Node not found');
 						await this._repositories.get('nodes')!.delete(node._id);
 					}),
 				deleteMany: (paths) =>
-					this._wrapResult(() => this._repositories.get('nodes')!.deleteMany({ path: { $in: paths } } as FilterQuery<BaseEntity>)),
+					this._wrapResult(() => this._repositories.get('nodes')!.deleteMany({ path: { $in: paths } } as QueryFilter<BaseEntity>)),
 				reorder: (nodeUpdates) =>
 					this._wrapResult(async () => {
 						const updates = nodeUpdates.map(({ path, newOrder }) => ({ path, changes: { order: newOrder } as Partial<BaseEntity> }));
 						await this._content.bulkUpdateNodes(updates);
 						const paths = nodeUpdates.map((u) => u.path);
-						return (await this._repositories.get('nodes')!.findMany({ path: { $in: paths } } as FilterQuery<BaseEntity>)) as ContentNode[];
+						return (await this._repositories.get('nodes')!.findMany({ path: { $in: paths } } as QueryFilter<BaseEntity>)) as ContentNode[];
 					})
 			},
 			drafts: {
@@ -687,7 +696,7 @@ export class MongoDBAdapter implements IDBAdapter {
 					if (!result.success) return result;
 					return { success: true, data: undefined };
 				},
-				deleteMany: (ids) => this._wrapResult(() => this._repositories.get('drafts')!.deleteMany({ _id: { $in: ids } } as FilterQuery<BaseEntity>))
+				deleteMany: (ids) => this._wrapResult(() => this._repositories.get('drafts')!.deleteMany({ _id: { $in: ids } } as QueryFilter<BaseEntity>))
 			},
 			revisions: {
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -703,19 +712,19 @@ export class MongoDBAdapter implements IDBAdapter {
 					return { success: true, data: undefined };
 				},
 				deleteMany: (ids) =>
-					this._wrapResult(() => this._repositories.get('revisions')!.deleteMany({ _id: { $in: ids } } as FilterQuery<BaseEntity>)),
+					this._wrapResult(() => this._repositories.get('revisions')!.deleteMany({ _id: { $in: ids } } as QueryFilter<BaseEntity>)),
 				cleanup: (contentId, keepLatest) => this._wrapResult(() => this._content.cleanupRevisions(contentId, keepLatest))
 			}
 		};
 
 		// CRUD - Generic CRUD operations
 		this.crud = {
-			findOne: <T extends BaseEntity>(coll: string, query: FilterQuery<T>, options?: { fields?: (keyof T)[] }) => {
+			findOne: <T extends BaseEntity>(coll: string, query: QueryFilter<T>, options?: { fields?: (keyof T)[] }) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.findOne(query, options as { fields?: (keyof BaseEntity)[] }) as Promise<T | null>);
+				return this._wrapResult(() => repo.findOne(query as any, options as { fields?: (keyof BaseEntity)[] }) as Promise<T | null>);
 			},
-			findMany: <T extends BaseEntity>(coll: string, query: FilterQuery<T>, options?: { limit?: number; offset?: number; fields?: (keyof T)[] }) => {
+			findMany: <T extends BaseEntity>(coll: string, query: QueryFilter<T>, options?: { limit?: number; offset?: number; fields?: (keyof T)[] }) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
 				return this._wrapResult(
@@ -748,20 +757,20 @@ export class MongoDBAdapter implements IDBAdapter {
 			insertMany: async () => {
 				throw new Error('insertMany not implemented in MongoCrudMethods');
 			},
-			updateMany: <T extends BaseEntity>(coll: string, query: FilterQuery<T>, data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>) => {
+			updateMany: <T extends BaseEntity>(coll: string, query: QueryFilter<T>, data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.updateMany(query, data as Partial<T>));
+				return this._wrapResult(() => repo.updateMany(query as any, data as Partial<T>));
 			},
-			deleteMany: <T extends BaseEntity>(coll: string, query: FilterQuery<T>) => {
+			deleteMany: <T extends BaseEntity>(coll: string, query: QueryFilter<T>) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.deleteMany(query));
+				return this._wrapResult(() => repo.deleteMany(query as any));
 			},
 			upsert: <T extends BaseEntity>(coll: string, query: Partial<T>, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.upsert(query as FilterQuery<T>, data as T) as Promise<T>);
+				return this._wrapResult(() => repo.upsert(query as any, data as T) as Promise<T>);
 			},
 			upsertMany: <T extends BaseEntity>(coll: string, items: Array<{ query: Partial<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>) => {
 				const repo = this._getRepository(coll);
@@ -769,20 +778,20 @@ export class MongoDBAdapter implements IDBAdapter {
 				return this._wrapResult(async () => {
 					const results: T[] = [];
 					for (const item of items) {
-						results.push((await repo.upsert(item.query as FilterQuery<T>, item.data as T)) as T);
+						results.push((await repo.upsert(item.query as any, item.data as T)) as T);
 					}
 					return results;
 				});
 			},
-			count: <T extends BaseEntity>(coll: string, query: FilterQuery<T>) => {
+			count: <T extends BaseEntity>(coll: string, query: QueryFilter<T>) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.count(query));
+				return this._wrapResult(() => repo.count(query as any));
 			},
-			exists: <T extends BaseEntity>(coll: string, query: FilterQuery<T>) => {
+			exists: <T extends BaseEntity>(coll: string, query: QueryFilter<T>) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(async () => (await repo.count(query)) > 0);
+				return this._wrapResult(async () => (await repo.count(query as any)) > 0);
 			},
 			aggregate: (coll: string, pipeline: mongoose.PipelineStage[]) => {
 				const repo = this._getRepository(coll);
@@ -964,7 +973,7 @@ export class MongoDBAdapter implements IDBAdapter {
 									case 'upsert':
 										return {
 											updateOne: {
-												filter: op.query as mongoose.FilterQuery<T>,
+												filter: op.query as any,
 												update: {
 													$set: { ...op.data, updatedAt: now },
 													$setOnInsert: { createdAt: now }
@@ -1082,7 +1091,7 @@ export class MongoDBAdapter implements IDBAdapter {
 		bulkDelete: async (collection: string, ids: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
 			const repo = this._getRepository(collection);
 			if (!repo) return this._repoNotFound(collection);
-			const result = await repo.deleteMany({ _id: { $in: ids } } as FilterQuery<BaseEntity>);
+			const result = await repo.deleteMany({ _id: { $in: ids } } as QueryFilter<BaseEntity>);
 			return { success: true, data: { deletedCount: result.deletedCount || 0 } };
 		},
 		bulkUpsert: async <T extends BaseEntity>(collection: string, items: Array<Partial<T> & { id?: DatabaseId }>): Promise<DatabaseResult<T[]>> => {
@@ -1090,7 +1099,7 @@ export class MongoDBAdapter implements IDBAdapter {
 			if (!repo) return this._repoNotFound(collection);
 			const bulkOps = items.map((item) => ({
 				updateOne: {
-					filter: { _id: item.id } as FilterQuery<T>,
+					filter: { _id: item.id } as QueryFilter<T>,
 					update: { $set: item },
 					upsert: true
 				}

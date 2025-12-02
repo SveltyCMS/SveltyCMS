@@ -20,7 +20,7 @@ Orchestrates the filter modules:
 
 	// --- Svelte 5 State ---
 	let adjustments = $state({ ...DEFAULT_ADJUSTMENTS });
-	let activeAdjustment = $state<keyof Adjustments>('brightness');
+	let activeAdjustment = $state('brightness');
 
 	// guard to avoid duplicate event bindings
 	let _toolBound = $state(false);
@@ -29,7 +29,7 @@ Orchestrates the filter modules:
 	let filterDebounceTimer: number | null = null;
 
 	// Svelte 5: callback props instead of event dispatcher
-	const props = $props<{ onFineTuneApplied?: () => void; onFineTuneReset?: () => void }>();
+	const props = $props();
 
 	// --- Lifecycle $effect ---
 	// Binds/unbounds the tool and registers the toolbar
@@ -45,11 +45,11 @@ Orchestrates the filter modules:
 						return activeAdjustment;
 					},
 					get value() {
-						return adjustments[activeAdjustment];
+						return adjustments[activeAdjustment as keyof Adjustments];
 					},
 					// ---
 					onChange: (value: number) => {
-						adjustments[activeAdjustment] = value;
+						adjustments[activeAdjustment as keyof Adjustments] = value;
 					},
 					onAdjustmentChange: (key: keyof Adjustments) => {
 						activeAdjustment = key;

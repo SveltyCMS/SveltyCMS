@@ -13,9 +13,10 @@ New Features:
 -->
 <script lang="ts">
 	import { logger } from '@utils/logger';
+	import type { WidgetSize } from '@src/content/types';
+	export type { WidgetSize };
 
 	type Snippet<T = any> = (args: T) => any;
-	type WidgetSize = { w: number; h: number };
 
 	type ChildSnippetProps = {
 		data: any;

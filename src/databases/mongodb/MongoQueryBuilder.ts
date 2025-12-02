@@ -359,13 +359,10 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 			const results = await mongoQuery.lean().exec();
 
 			// Simplified ISO date conversion: check for object and toISOString method only.
-			function toIsoStringIfDate(val: unknown): unknown {
-				return val instanceof Date ? val.toISOString() : val;
-			}
 			const processedResults = results.map((doc) => ({
 				...doc,
-				createdAt: toIsoStringIfDate(doc.createdAt),
-				updatedAt: toIsoStringIfDate(doc.updatedAt)
+				createdAt: (doc.createdAt as any) instanceof Date ? (doc.createdAt as any).toISOString() : doc.createdAt,
+				updatedAt: (doc.updatedAt as any) instanceof Date ? (doc.updatedAt as any).toISOString() : doc.updatedAt
 			})) as T[];
 
 			const meta = this.buildQueryMeta(startTime);
@@ -424,14 +421,8 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 
 							const processedDoc = {
 								...doc,
-								createdAt:
-									doc.createdAt && typeof (doc.createdAt as { toISOString?: () => string }).toISOString === 'function'
-										? (doc.createdAt as Date).toISOString()
-										: doc.createdAt,
-								updatedAt:
-									doc.updatedAt && typeof (doc.updatedAt as { toISOString?: () => string }).toISOString === 'function'
-										? (doc.updatedAt as Date).toISOString()
-										: doc.updatedAt
+								createdAt: (doc.createdAt as any) instanceof Date ? (doc.createdAt as any).toISOString() : doc.createdAt,
+								updatedAt: (doc.updatedAt as any) instanceof Date ? (doc.updatedAt as any).toISOString() : doc.updatedAt
 							} as T;
 							yield processedDoc;
 						}
@@ -503,14 +494,8 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 			// FIX: Check for the toISOString method instead of using `instanceof Date`.
 			const processedResult = {
 				...result,
-				createdAt:
-					result.createdAt && typeof (result.createdAt as Date).toISOString === 'function'
-						? (result.createdAt as Date).toISOString()
-						: result.createdAt,
-				updatedAt:
-					result.updatedAt && typeof (result.updatedAt as Date).toISOString === 'function'
-						? (result.updatedAt as Date).toISOString()
-						: result.updatedAt
+				createdAt: (result.createdAt as any) instanceof Date ? (result.createdAt as any).toISOString() : result.createdAt,
+				updatedAt: (result.updatedAt as any) instanceof Date ? (result.updatedAt as any).toISOString() : result.updatedAt
 			} as T;
 
 			const meta = this.buildQueryMeta(startTime);

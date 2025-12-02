@@ -18,15 +18,7 @@
 
 <script lang="ts">
 	let checked = $state(false);
-	const {
-		svg,
-		callback = () => {},
-		class: className = ''
-	} = $props<{
-		svg: any;
-		callback?: () => void;
-		class?: string;
-	}>();
+	const { svg, callback = () => {}, class: className = '' } = $props();
 
 	function toggleCheckbox() {
 		checked = !checked;

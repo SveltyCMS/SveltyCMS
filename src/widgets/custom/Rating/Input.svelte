@@ -28,49 +28,43 @@ Interactive star rating with hover states and click selection
 -->
 
 <script lang="ts">
-	import { RatingGroup } from '@skeletonlabs/skeleton-svelte';
+	import { Ratings } from '@skeletonlabs/skeleton';
 	import type { FieldType } from './';
 
 	let { field, value = $bindable(), error }: { field: FieldType; value?: number | null | undefined; error?: string | null } = $props();
 
 	// Local value to handle null conversion
-	let localValue = $state<number>(value ?? 0);
+	let localValue = $state(value ?? undefined);
 
 	// Sync local value with prop
 	$effect(() => {
-		localValue = value ?? 0;
+		localValue = value ?? undefined;
 	});
 
 	// Sync prop with local value
 	$effect(() => {
-		value = localValue;
+		if (localValue !== undefined) {
+			value = localValue;
+		}
 	});
-
-	// Handle value change from RatingGroup
-	function handleValueChange(details: { value: number }) {
-		localValue = details.value;
-	}
 </script>
 
 <div class="rating-container" class:invalid={error}>
-	<RatingGroup
-		count={Number(field.max) || 5}
-		value={localValue}
-		onValueChange={handleValueChange}
+	<Ratings
+		max={Number(field.max) || undefined}
+		step="1"
+		interactive
+		bind:value={localValue}
+		aria-label={field.label}
+		aria-describedby={error ? `${field.db_fieldName}-error` : undefined}
 	>
-		<RatingGroup.Control class="flex gap-1">
-			{#each { length: Number(field.max) || 5 } as _, i}
-				<RatingGroup.Item index={i + 1}>
-					{#snippet empty()}
-						<iconify-icon icon={field.iconEmpty || 'material-symbols:star-outline'} width="24" class="text-gray-400"></iconify-icon>
-					{/snippet}
-					{#snippet full()}
-						<iconify-icon icon={field.iconFull || 'material-symbols:star'} width="24" class="text-warning-500"></iconify-icon>
-					{/snippet}
-				</RatingGroup.Item>
-			{/each}
-		</RatingGroup.Control>
-	</RatingGroup>
+		{#snippet empty()}
+			<iconify-icon icon={field.iconEmpty || 'material-symbols:star-outline'} width="24" class="text-gray-400"></iconify-icon>
+		{/snippet}
+		{#snippet full()}
+			<iconify-icon icon={field.iconFull || 'material-symbols:star'} width="24" class="text-warning-500"></iconify-icon>
+		{/snippet}
+	</Ratings>
 
 	{#if error}
 		<p class="error-message" role="alert">{error}</p>

@@ -4,6 +4,8 @@ import { logger } from '@utils/logger.server';
 import { encryptData } from '@utils/crypto';
 import { nanoid } from 'nanoid';
 import type { ExportOptions, ExportData, ExportMetadata, CollectionExport } from '@content/types';
+import { dbAdapter } from '@src/databases/db';
+import { collections } from '@stores/collectionStore.svelte';
 
 // Sensitive field patterns
 const SENSITIVE_PATTERNS: string[] = [
@@ -64,19 +66,46 @@ async function exportSettings(options: ExportOptions): Promise<{ settings: Recor
 }
 
 /**
- * Export all collection schemas
+ * Export all collection schemas and data
  */
-async function exportCollections(): Promise<CollectionExport[]> {
-	logger.info('Exporting collections');
+async function exportCollections(options: ExportOptions): Promise<CollectionExport[]> {
+	logger.info('Exporting collections', { options });
 
-	// Get all collections (implementation depends on your schema)
-	// This is a placeholder - adjust based on your actual collection structure
-	const collections: CollectionExport[] = [];
+	const availableCollections = collections.value;
+	const exportedCollections: CollectionExport[] = [];
 
-	// TODO: Implement actual collection export
-	// For now, return empty array
-	logger.info(`Exported ${collections.length} collections`);
-	return collections;
+	// Filter collections if specified
+	const targetCollections = options.collections
+		? Object.values(availableCollections).filter((c) => options.collections?.includes(c.name))
+		: Object.values(availableCollections);
+
+	for (const collection of targetCollections) {
+		const collectionExport: CollectionExport = {
+			id: collection._id,
+			name: collection.name,
+			label: collection.label || collection.name,
+			fields: collection.fields,
+			schema: collection,
+			documents: []
+		};
+
+		// Fetch documents if dbAdapter is available
+		if (dbAdapter) {
+			try {
+				const result = await dbAdapter.crud.findMany(`collection_${collection._id}`, {});
+				if (result.success) {
+					collectionExport.documents = result.data as unknown as Record<string, unknown>[];
+				}
+			} catch (error) {
+				logger.error(`Failed to export documents for collection ${collection.name}`, error);
+			}
+		}
+
+		exportedCollections.push(collectionExport);
+	}
+
+	logger.info(`Exported ${exportedCollections.length} collections`);
+	return exportedCollections;
 }
 
 /**
@@ -122,7 +151,7 @@ async function createExport(userId: string, options: ExportOptions): Promise<Exp
 	}
 
 	if (options.includeCollections) {
-		exportData.collections = await exportCollections();
+		exportData.collections = await exportCollections(options);
 	}
 
 	logger.info('Export created successfully', {

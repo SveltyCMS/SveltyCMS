@@ -1,4 +1,10 @@
-// src/routes/(app)/imageEditor/widgets/Crop/region.ts
+/**
+ * @file src/routes/(app)/imageEditor/widgets/Crop/region.ts
+ * @description Regions for Crop tool
+ *
+ * Features:
+ * - CropRegion encapsulates a single crop UI: overlay (cutout), tool border, transformer.
+ */
 import Konva from 'konva';
 import { parseAspectRatio } from './aspect';
 import { syncHighlight } from './highlight';

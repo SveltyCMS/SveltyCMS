@@ -1,6 +1,10 @@
-// @file: src/routes/(app)/imageEditor/widgets/FineTune/index.ts
-// One-line: Registers the FineTune tool and its controls.
-
+/**
+ * @file src/routes/(app)/imageEditor/widgets/FineTune/index.ts
+ * @description Registers the FineTune tool and its controls.
+ *
+ * Features:
+ * - Registers the FineTune tool and its controls.
+ */
 import type { Component } from 'svelte';
 import Tool from './Tool.svelte';
 import Controls from './Controls.svelte';
