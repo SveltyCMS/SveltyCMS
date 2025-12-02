@@ -264,7 +264,26 @@ export class MongoDBAdapter implements IDBAdapter {
 
 			await resilience.executeWithRetry(async () => {
 				await mongoose.connect(connectionString, connectOptions);
-				logger.info('MongoDB connection established with resilience and optimized pool configuration.');
+
+				// CRITICAL: Wait for connection to be fully ready with database selected
+				if (!mongoose.connection.db) {
+					// Force wait for connection ready state
+					await new Promise((resolve, reject) => {
+						const timeout = setTimeout(() => reject(new Error('Timeout waiting for Mongoose connection.db')), 5000);
+						const checkConnection = () => {
+							if (mongoose.connection.db) {
+								clearTimeout(timeout);
+								resolve(true);
+							} else {
+								setTimeout(checkConnection, 100);
+							}
+						};
+						checkConnection();
+					});
+				}
+
+				const dbName = mongoose.connection.db?.databaseName;
+				logger.info(`MongoDB connection established with resilience and optimized pool configuration. Database: "${dbName}"`);
 			}, 'MongoDB connection');
 
 			// Setup self-healing reconnection listeners
