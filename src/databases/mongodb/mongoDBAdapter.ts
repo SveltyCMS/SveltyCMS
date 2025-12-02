@@ -201,13 +201,22 @@ export class MongoDBAdapter implements IDBAdapter {
 	connect(poolOptions?: ConnectionPoolOptions): Promise<DatabaseResult<void>>;
 	connect(connectionStringOrOptions?: string | ConnectionPoolOptions, options?: unknown): Promise<DatabaseResult<void>> {
 		return this._wrapResult(async () => {
+			// Log current connection state for debugging
+			logger.info('MongoDB connect() called', {
+				readyState: mongoose.connection.readyState,
+				hasDb: mongoose.connection.db !== null,
+				dbName: mongoose.connection.db?.databaseName || 'none',
+				isFullyInit: this._isFullyInitialized(),
+				isConnected: this.isConnected()
+			});
+
 			// Check if already fully initialized
 			if (this._isFullyInitialized()) {
 				logger.info('MongoDB adapter already fully initialized.');
 				return;
 			}
 
-			// If connected but not fully initialized, complete the initialization
+			// If connected (with db selected) but not fully initialized, complete the initialization
 			if (this.isConnected() && !this._isFullyInitialized()) {
 				logger.info('MongoDB connection exists but adapter not fully initialized. Completing initialization...');
 				await this._initializeModelsAndWrappers();
@@ -928,7 +937,10 @@ export class MongoDBAdapter implements IDBAdapter {
 	}
 
 	isConnected(): boolean {
-		return mongoose.connection.readyState === 1;
+		// Must be connected AND have a database selected
+		// mongoose.connection.db can be null even when readyState is 1 (connected)
+		// This happens when authSource=admin is used
+		return mongoose.connection.readyState === 1 && mongoose.connection.db !== null;
 	}
 
 	async transaction<T>(fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>): Promise<DatabaseResult<T>> {
