@@ -124,8 +124,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				isAuthenticating = false;
 				globalLoadingStore.stopLoading(loadingOperations.authentication);
 
-				// Call update() to apply the redirect via SvelteKit's applyAction
-				await update();
+				// Don't call update() here - Form.svelte.ts handles redirects automatically
 				return;
 			}
 
@@ -249,8 +248,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 			if (result.type === 'redirect') {
 				showToast(m.signin_restpasswordtoast(), 'success');
-				// Call update() to apply the redirect via SvelteKit's applyAction
-				await update();
+				// Don't call update() here - Form.svelte.ts handles redirects automatically
 				return;
 			}
 

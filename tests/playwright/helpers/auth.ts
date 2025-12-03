@@ -140,6 +140,8 @@ export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = /\/
 	// Final wait for the expected URL pattern
 	console.log('[Auth] Waiting for final URL match...');
 	await page.waitForURL(waitForUrl, { timeout: 10000 });
+	// Wait for page to be fully loaded after hard navigation
+	await page.waitForLoadState('domcontentloaded');
 	console.log(`[Auth] Login successful, redirected to: ${page.url()}`);
 }
 

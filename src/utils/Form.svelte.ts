@@ -101,10 +101,13 @@ export class Form<T extends Record<string, any>> {
 					await options.onResult(resultInput);
 				}
 
-				// For redirects, ALWAYS call update() after onResult to trigger navigation
+				// For redirects, ALWAYS navigate to trigger the redirect
 				// This matches superForm behavior where redirects are handled automatically
 				if (result.type === 'redirect') {
-					await update();
+					// Use window.location for reliable navigation
+					if (typeof window !== 'undefined') {
+						window.location.href = result.location;
+					}
 				} else if (!options?.onResult) {
 					// For non-redirect results without onResult, call update() as default
 					await update();
