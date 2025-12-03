@@ -22,7 +22,6 @@ import { custom, email, minLength, optional, pipe, string, type InferInput as Va
 import type { EmailProps } from './types';
 
 // SECURITY: Common disposable email domains to block
-// Prevents spam, abuse, and low-quality registrations
 const DISPOSABLE_DOMAINS = [
 	'tempmail.com',
 	'guerrillamail.com',
@@ -31,26 +30,23 @@ const DISPOSABLE_DOMAINS = [
 	'throwaway.email',
 	'yopmail.com',
 	'temp-mail.org',
-	'getnada.com',
-	'maildrop.cc',
-	'trashmail.com'
+	'getnada.com'
 ];
 
-const blockDisposableEmail = custom<string>((input) => {
-	if (!input || typeof input !== 'string') return true;
+const blockDisposableEmail = custom((input: unknown) => {
+	if (typeof input !== 'string') return false;
 	const domain = input.split('@')[1]?.toLowerCase();
-	if (!domain) return true;
 	return !DISPOSABLE_DOMAINS.includes(domain);
 }, 'Disposable email addresses are not allowed');
 
 // The validation schema is a function to create rules based on the field config.
 const validationSchema = (field: FieldInstance) => {
 	// Start with a base string schema that requires a valid email format.
-	const baseSchema = pipe(string(), email('Please enter a valid email address.'), blockDisposableEmail);
+	const baseSchema = pipe(string(), email('Please enter a valid email address.'), blockDisposableEmail as any);
 
 	// If the field is required, also ensure it's not empty.
 	const schema = field.required
-		? pipe(string(), minLength(1, 'This field is required.'), email('Please enter a valid email address.'), blockDisposableEmail)
+		? pipe(string(), minLength(1, 'This field is required.'), email('Please enter a valid email address.'), blockDisposableEmail as any)
 		: baseSchema;
 
 	// If not required, wrap the schema to allow it to be optional.

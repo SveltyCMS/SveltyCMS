@@ -1,7 +1,7 @@
 /**
  * @file src\routes\api\content\nodes\+server.ts
  * @description API endpoint for fetching node children.
- * 
+ *
  * Security: Protected by hooks, admin-only.
  */
 import { json } from '@sveltejs/kit';
@@ -18,14 +18,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 	try {
 		const children = contentManager.getNodeChildren(parentId, tenantId);
-		
+
 		// Map to NavigationNode format if needed, or just return ContentNode[]
 		// The client expects NavigationNode likely.
 		// Let's use the same strip logic or just return what getNodeChildren returns (ContentNode[])
 		// But ContentNode has heavy fields? No, getNodeChildren returns ContentNode which might have collectionDef.
 		// We should strip it down to NavigationNode to be lightweight.
-		
-		const navigationChildren = children.map(node => ({
+
+		const navigationChildren = children.map((node) => ({
 			_id: node._id,
 			name: node.name,
 			path: node.path,

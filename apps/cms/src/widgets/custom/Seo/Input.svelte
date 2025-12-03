@@ -121,6 +121,21 @@ Part of the Three Pillars Architecture for wSidget system.
 		const features = (field as any)?.features || [];
 		return Array.isArray(features) && features.includes(feature);
 	};
+
+	// ✨ SECURITY ENHANCEMENT: Prevent homograph attacks
+	function sanitizeInput(input: string): string {
+		// Remove zero-width characters that could be used for spoofing
+		const sanitized = input.replace(/[\u200B-\u200D\uFEFF]/g, '');
+
+		// Normalize Unicode to prevent homograph attacks
+		return sanitized.normalize('NFKC');
+	}
+
+	function updateField(key: string, newValue: string) {
+		if (value && value[lang]) {
+			value[lang][key] = sanitizeInput(newValue);
+		}
+	}
 </script>
 
 <div class="seo-container">
@@ -149,7 +164,8 @@ Part of the Three Pillars Architecture for wSidget system.
 								id="seo-title"
 								type="text"
 								class="input"
-								bind:value={value[lang].title}
+								value={value[lang].title}
+								oninput={(e) => updateField('title', e.currentTarget.value)}
 								use:tokenTarget={{
 									name: field.db_fieldName,
 									label: field.label,
@@ -165,7 +181,8 @@ Part of the Three Pillars Architecture for wSidget system.
 							<textarea
 								id="seo-description"
 								class="textarea"
-								bind:value={value[lang].description}
+								value={value[lang].description}
+								oninput={(e) => updateField('description', e.currentTarget.value)}
 								use:tokenTarget={{
 									name: field.db_fieldName,
 									label: field.label,
@@ -176,7 +193,13 @@ Part of the Three Pillars Architecture for wSidget system.
 						</div>
 
 						<label for="seo-keyword">Focus Keyword</label>
-						<input id="seo-keyword" type="text" class="input" bind:value={value[lang].focusKeyword} />
+						<input
+							id="seo-keyword"
+							type="text"
+							class="input"
+							value={value[lang].focusKeyword}
+							oninput={(e) => updateField('focusKeyword', e.currentTarget.value)}
+						/>
 					{/if}
 				</div>
 			{:else if activeTab === 1 && hasFeature('social')}
@@ -184,7 +207,13 @@ Part of the Three Pillars Architecture for wSidget system.
 					<h3>Open Graph (Facebook)</h3>
 					{#if value && value[lang]}
 						<label for="seo-og-title">OG Title</label>
-						<input id="seo-og-title" type="text" class="input" bind:value={value[lang].ogTitle} />
+						<input
+							id="seo-og-title"
+							type="text"
+							class="input"
+							value={value[lang].ogTitle}
+							oninput={(e) => updateField('ogTitle', e.currentTarget.value)}
+						/>
 					{/if}
 				</div>
 			{/if}

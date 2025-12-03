@@ -169,6 +169,7 @@ export interface MediaItem extends BaseEntity {
 	folderId?: DatabaseId; // Reference to SystemVirtualFolder for organization
 	thumbnails: Record<string, { url: string; width: number; height: number } | undefined>;
 	metadata: MediaMetadata;
+	access?: 'public' | 'private' | 'protected'; // Added access control
 	createdBy: DatabaseId;
 	updatedBy: DatabaseId;
 }

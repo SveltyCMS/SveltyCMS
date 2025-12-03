@@ -8,7 +8,7 @@ Part of the Three Pillars Architecture for widget system.
 
 @example
 <RichTextDisplay value={{ title: "Article", content: "<p>Rich <strong>text</strong> content</p>" }} />
-Renders: Title heading + sanitized HTML in prose container
+Renders: Title heading + XSS-protected HTML in prose container
 
 ### Props
 - `value: RichTextData | null | undefined` - Rich text object with title and HTML content
@@ -25,7 +25,7 @@ Renders: Title heading + sanitized HTML in prose container
 	import type { RichTextData } from './types';
 	import Sanitize from '@utils/Sanitize.svelte';
 
-	const { value }: { value: RichTextData | null | undefined } = $props();
+	let { value }: { value: RichTextData | null | undefined } = $props();
 </script>
 
 {#if value?.content}
@@ -36,3 +36,25 @@ Renders: Title heading + sanitized HTML in prose container
 {:else}
 	<span>–</span>
 {/if}
+
+<style>
+	/* Basic styles for a prose container */
+	.prose {
+		line-height: 1.6;
+	}
+	.prose :global(h1) {
+		font-weight: 600;
+		margin-bottom: 0.5em;
+	}
+	.prose :global(h2) {
+		font-weight: 600;
+		margin-bottom: 0.5em;
+	}
+	.prose :global(h3) {
+		font-weight: 600;
+		margin-bottom: 0.5em;
+	}
+	.prose :global(p) {
+		margin-bottom: 1em;
+	}
+</style>

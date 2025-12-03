@@ -47,18 +47,20 @@
 	import { showToast } from '@utils/toast';
 
 	import { widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte';
-	import TokenPicker from '@components/TokenPicker.svelte';
-	import { activeInputStore } from '@src/stores/activeInputStore.svelte';
-	import { validateTokenSyntax, containsTokens } from '@src/services/token/tokenUtils';
 
-	import type { WidgetFunction } from '@widgets/types';
+	// --- PERFORMANCE FIX: DYNAMIC WIDGET IMPORTS ---
+	// Lazy-load widgets for code-splitting (eager: false is default)
+	// Returns loader functions instead of eager-loaded components
+	const modules: Record<string, () => Promise<{ default: any }>> = import.meta.glob('/src/widgets/**/*.svelte') as Record<
+		string,
+		() => Promise<{ default: any }>
+	>;
 
-	// Eager load all widget components for immediate use in Fields
-	const modules: Record<string, any> = import.meta.glob('/src/widgets/**/*.svelte', {
-		eager: true
-	});
+	// Import async widget loader component
+	import WidgetLoader from './WidgetLoader.svelte';
+	// --- END PERFORMANCE FIX ---
 
-	let widgetFunctions: Record<string, WidgetFunction> = $state({});
+	let widgetFunctions = $state<Record<string, any>>({});
 	$effect(() => {
 		const unsubscribe = widgetFunctionsStore.subscribe((value) => {
 			widgetFunctions = value;
@@ -67,30 +69,31 @@
 	});
 
 	// --- 1. RECEIVE DATA AS PROPS ---
-	import type { FieldsProps } from './types';
-
-	const {
+	let {
 		fields,
-		revisions = [],
-		fieldMetadata = {}
-		// contentLanguage: propContentLanguage // Rename to avoid conflict with store
-	}: FieldsProps & { fieldMetadata?: Record<string, any> } = $props();
+		revisions = []
+		// contentLanguage prop received but not directly used - widgets access contentLanguage store
+	} = $props<{
+		fields?: NonNullable<(typeof collection)['value']>['fields'];
+		revisions?: any[];
+		contentLanguage?: string; // Passed for documentation, widgets use store directly
+	}>();
 
 	// --- 2. SIMPLIFIED STATE ---
 	let localTabSet = $state(0);
 	let apiUrl = $state('');
 
 	// This is form state, not fetched data, so it remains.
-	let currentCollectionValue: Record<string, any> = $state({});
+	let currentCollectionValue = $state<Record<string, any>>({});
 
 	// Revisions State (now simpler)
 	let selectedRevisionId = $state('');
 
 	// Track the last entry ID to detect when switching entries
-	let lastEntryId = $state(undefined);
+	let lastEntryId = $state<string | undefined>(undefined);
 
 	// Track current content language for reactivity
-	let currentContentLanguage = $state(contentLanguage.value as Locale);
+	let currentContentLanguage = $state<Locale>(contentLanguage.value as Locale);
 
 	// React to contentLanguage store changes and update local state
 	// This ensures widgets remount with the correct language
@@ -106,13 +109,13 @@
 	});
 
 	// --- 3. DERIVED STATE FROM PROPS ---
-	const selectedRevision = $derived(revisions.find((r: any) => r._id === selectedRevisionId) || null);
+	let selectedRevision = $derived(revisions.find((r: any) => r._id === selectedRevisionId) || null);
 
 	// --- 4. SIMPLIFIED LOGIC ---
-	const derivedFields = $derived(fields || []);
+	let derivedFields = $derived(fields || []);
 
 	// Get translation progress
-	const currentTranslationProgress = $derived(translationProgress.value);
+	let currentTranslationProgress = $derived(translationProgress.value);
 
 	// Track changes to translation progress for debugging
 	$effect(() => {
@@ -123,7 +126,7 @@
 	});
 
 	// Get available languages
-	const availableLanguages = $derived.by(() => {
+	let availableLanguages = $derived.by<Locale[]>(() => {
 		// Wait for publicEnv to be initialized
 		const languages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES;
 		if (!languages || !Array.isArray(languages)) {
@@ -136,14 +139,7 @@
 	function getFieldTranslationPercentage(field: any): number {
 		if (!field.translated) return 100; // Not a translatable field
 
-		const fieldName = getFieldName(field);
-
-		// Use server-provided metadata if available (more accurate/efficient)
-		if (fieldMetadata && fieldMetadata[fieldName]) {
-			return fieldMetadata[fieldName].percentage ?? 0;
-		}
-
-		const fullFieldName = `${collection.value?.name}.${fieldName}`;
+		const fieldName = `${collection.value?.name}.${getFieldName(field)}`;
 		const allLangs = availableLanguages; // Use the new derived state
 
 		// Avoid division by zero if no languages are configured
@@ -154,7 +150,7 @@
 		// Count how many languages have this field translated
 		for (const lang of allLangs) {
 			const langProgress = currentTranslationProgress?.[lang as Locale];
-			if (langProgress && langProgress.translated.has(fullFieldName)) {
+			if (langProgress && langProgress.translated.has(fieldName)) {
 				translatedCount++;
 			}
 		}
@@ -179,7 +175,7 @@
 		};
 	}
 
-	const filteredFields = $derived(
+	let filteredFields = $derived(
 		derivedFields
 			.map(ensureFieldProperties)
 			.filter(Boolean)
@@ -194,7 +190,7 @@
 	// When collectionValue changes (new entry loaded), update local state
 	// When local state changes (user editing), update global state
 	$effect(() => {
-		const global = collectionValue.value as Record<string, any> | undefined;
+		const global = collectionValue.value as Record<string, unknown> | undefined;
 		const globalId = (global as any)?._id;
 
 		// When a new entry is loaded (different ID), pull from global -> local
@@ -218,7 +214,7 @@
 
 		// Otherwise, push local changes to global (user is editing)
 		// Use untrack to read currentCollectionValue without creating a dependency loop
-		const local = untrack(() => currentCollectionValue) as Record<string, any> | undefined;
+		const local = untrack(() => currentCollectionValue) as Record<string, unknown> | undefined;
 		if (local && Object.keys(local).length > 0) {
 			const currentDataStr = JSON.stringify(local);
 			const globalDataStr = JSON.stringify(global ?? {});
@@ -233,7 +229,7 @@
 
 	// Separate effect to detect changes in currentCollectionValue and sync to store
 	// This is needed because the widget bind:value updates currentCollectionValue
-	let lastLocalValueStr = $state('');
+	let lastLocalValueStr = $state<string>('');
 	$effect(() => {
 		// React to currentCollectionValue changes (from widget inputs)
 		const localStr = JSON.stringify(currentCollectionValue);
@@ -327,108 +323,67 @@
 	{/if}
 
 	<svelte:fragment slot="panel">
-		<TokenPicker />
 		{#if localTabSet === 0}
-			<!-- Edit Tab -->
-			<div class="flex flex-col gap-4 p-4">
-				<div class="mb-2 text-center text-xs text-error-500">{m.form_required()}</div>
-				<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
-					<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
-						{#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
-							{#if rawField.widget}
-								{@const field = ensureFieldProperties(rawField)}
-								{@const fieldValue = currentCollectionValue[getFieldName(field, false)]}
-								<div
-									class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
-									style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
-								>
-									<div class="flex items-center justify-between gap-2 px-[5px] text-start">
-										<!-- Field label -->
-										<div class="flex items-center gap-2">
-											<p class="inline-block font-semibold capitalize">
-												{field.label || field.db_fieldName}
-												{#if field.required}<span class="text-error-500">*</span>{/if}
-											</p>
-										</div>
-										<div class="flex items-center gap-2">
-											<!-- Translation status -->
-											{#if field.translated}
-												{@const percentage = getFieldTranslationPercentage(field)}
-												{@const textColor = getTranslationTextColor(percentage)}
-												<div class="flex items-center gap-1 text-xs">
-													<iconify-icon icon="bi:translate" width="16"></iconify-icon>
-													<span class="font-medium text-tertiary-500 dark:text-primary-500">{currentContentLanguage.toUpperCase()}</span>
-													<span class="font-medium {textColor}">({percentage}%)</span>
-												</div>
-											{/if}
-
-											<!-- Token Status & Validation -->
-											{#if typeof fieldValue === 'string' && containsTokens(fieldValue)}
-												{@const validation = validateTokenSyntax(fieldValue)}
-												<div class="flex items-center gap-1" title={validation.valid ? 'Contains Tokens' : validation.errors.join('\n')}>
-													{#if validation.valid}
-														<iconify-icon icon="mdi:code-braces" width="14" class="text-primary-500"></iconify-icon>
-													{:else}
-														<iconify-icon icon="mdi:alert-circle" width="14" class="text-error-500"></iconify-icon>
-													{/if}
-												</div>
-											{/if}
-
-											<!-- Token Trigger -->
-											<button
-												type="button"
-												class="variant-ghost-surface btn-icon btn-icon-sm h-6 w-6"
-												title="Insert Token"
-												onclick={() => {
-													const fieldName = getFieldName(field, false);
-													const input = document.getElementById(fieldName);
-													if (input) {
-														activeInputStore.set({
-															element: input as HTMLInputElement,
-															field: {
-																name: field.db_fieldName,
-																label: field.label,
-																collection: collection.value?.name
-															}
-														});
-													} else {
-														showToast('Could not find input element for this field', 'warning');
-													}
-												}}
-											>
-												<iconify-icon icon="mdi:code-braces" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-											</button>
-
-											<!-- Icon for field type -->
-											{#if field.icon}
-												<iconify-icon icon={field.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-											{/if}
-										</div>
+			<div class="mb-2 text-center text-xs text-error-500">{m.form_required()}</div>
+			<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
+				<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
+					{#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
+						{#if rawField.widget}
+							{@const field = ensureFieldProperties(rawField)}
+							<div
+								class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
+								style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
+							>
+								<div class="flex items-center justify-between gap-2 px-[5px] text-start">
+									<!-- Field label -->
+									<div class="flex items-center gap-2">
+										<p class="inline-block font-semibold capitalize">
+											{field.label || field.db_fieldName}
+											{#if field.required}<span class="text-error-500">*</span>{/if}
+										</p>
 									</div>
-
-									{#if field.widget}
-										{@const widgetName = field.widget.Name}
-										{@const widgetPath =
-											widgetFunctions[widgetName]?.componentPath ||
-											widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)]?.componentPath ||
-											widgetFunctions[widgetName.toLowerCase()]?.componentPath}
-										{@const WidgetComponent = widgetPath && widgetPath in modules ? modules[widgetPath]?.default : null}
-
-										{#if WidgetComponent}
-											{@const fieldName = getFieldName(field, false)}
-											{#key currentContentLanguage}
-												<!-- Widget remounts when currentContentLanguage changes -->
-												<!-- Widgets read contentLanguage from store, not props -->
-												<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
-											{/key}
-										{:else}
-											<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>
+									<div class="flex items-center gap-2">
+										<!-- Translation status -->
+										{#if field.translated}
+											{@const percentage = getFieldTranslationPercentage(field)}
+											{@const textColor = getTranslationTextColor(percentage)}
+											<div class="flex items-center gap-1 text-xs">
+												<iconify-icon icon="bi:translate" width="16"></iconify-icon>
+												<span class="font-medium text-tertiary-500 dark:text-primary-500">{currentContentLanguage.toUpperCase()}</span>
+												<span class="font-medium {textColor}">({percentage}%)</span>
+											</div>
 										{/if}
-									{/if}
+										<!-- Icon for field type -->
+										{#if field.icon}
+											<iconify-icon icon={field.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										{/if}
+									</div>
 								</div>
-							{/if}
-						{/each}
-					</div>
+
+								{#if field.widget}
+									{@const widgetName = field.widget.Name}
+									{@const widgetPath =
+										widgetFunctions[widgetName]?.componentPath ||
+										widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)]?.componentPath ||
+										widgetFunctions[widgetName.toLowerCase()]?.componentPath}
+
+									<!-- --- PERFORMANCE FIX: USE WIDGETLOADER --- -->
+									{@const widgetLoader = widgetPath && widgetPath in modules ? modules[widgetPath] : null}
+
+									{#if widgetLoader}
+										{@const fieldName = getFieldName(field, false)}
+										{#key currentContentLanguage}
+											<!-- Widget remounts when currentContentLanguage changes -->
+											<WidgetLoader loader={widgetLoader} {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
+										{/key}
+									{:else}
+										<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>
+									{/if}
+									<!-- --- END PERFORMANCE FIX --- -->
+								{/if}
+							</div>
+						{/if}
+					{/each}
 				</div>
 			</div>
 		{:else if localTabSet === 1}

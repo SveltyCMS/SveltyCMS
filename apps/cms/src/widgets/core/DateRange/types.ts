@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/DateRange/types.ts
+ * @file src/widgets/core/Daterange/types.ts
  * @description Type definitions for the DateRange widget.
  */
 
@@ -13,6 +13,8 @@ export interface DateRangeProps {
 	 */
 	displayFormat?: 'short' | 'medium' | 'long' | 'full';
 
-	// Allow additional widget properties
+	/**
+	 * Allow additional widget properties
+	 */
 	[key: string]: unknown;
 }

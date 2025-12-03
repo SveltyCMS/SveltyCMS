@@ -1,86 +1,291 @@
 /**
  * @file src/widgets/proxy.ts
- * @description A proxy to access widget functions statically.
- * This is used by collection configuration files.
+ * @description Improved widget proxy aligned with factory pattern
+ *
+ * Key improvements:
+ * - Better type safety with WidgetFactory
+ * - Proper error handling and logging
+ * - Support for widget metadata
+ * - Graceful fallback for missing widgets
  */
-import type { Widget, WidgetModule } from '@widgets/types';
+
+import type { WidgetFactory, WidgetModule, WidgetType } from '@widgets/types';
 import { logger } from '@utils/logger';
 
-export type WidgetFunction = (config: Record<string, unknown>) => Widget;
+// ============================================================================
+// Widget Processing
+// ============================================================================
 
-const widgetFunctions: Record<string, WidgetFunction> = {};
-
-function processWidgetModule(
-	path: string,
-	module: WidgetModule
-): {
+interface ProcessedWidget {
 	name: string;
-	widgetFn: WidgetFunction;
-} | null {
+	factory: WidgetFactory;
+	type: WidgetType;
+	path: string;
+}
+
+/**
+ * Process a widget module and extract its factory function
+ */
+function processWidgetModule(path: string, module: WidgetModule, type: WidgetType): ProcessedWidget | null {
 	try {
-		const name = path.split('/').at(-2);
+		// Extract widget name from path (e.g., './core/input/index.ts' -> 'input')
+		const pathParts = path.split('/');
+		const name = pathParts.at(-2);
+
 		if (!name) {
-			logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
+			logger.warn(`[Widget Proxy] Unable to extract widget name from path: ${path}`);
+			return null;
+		}
+
+		// Validate module structure
+		if (!module.default) {
+			logger.warn(`[Widget Proxy] No default export in widget module: ${path}`);
 			return null;
 		}
 
 		if (typeof module.default !== 'function') {
-			logger.warn(`Skipping widget module: ${path} - No valid widget function found`);
+			logger.warn(`[Widget Proxy] Default export is not a function in: ${path}`);
 			return null;
 		}
 
-		const originalFn = module.default;
-		const widgetName = originalFn.Name || name;
+		const factory = module.default as WidgetFactory;
 
-		const widgetFn: WidgetFunction = Object.assign((config: Record<string, unknown>) => originalFn(config), {
-			Name: widgetName,
-			GuiSchema: originalFn.GuiSchema,
-			GraphqlSchema: originalFn.GraphqlSchema,
-			Icon: originalFn.Icon,
-			Description: originalFn.Description,
-			aggregations: originalFn.aggregations
-		});
+		// Validate required factory properties
+		if (!factory.Name) {
+			logger.warn(`[Widget Proxy] Widget factory missing Name property: ${path}`);
+			return null;
+		}
+
+		// Enhance factory with metadata
+		factory.__widgetType = type;
+
+		logger.debug(`[Widget Proxy] Successfully loaded widget: ${name} (${type})`);
 
 		return {
-			name: name,
-			widgetFn
+			name,
+			factory,
+			type,
+			path
 		};
 	} catch (error) {
-		logger.error(`Failed to process widget module ${path}:`, error);
+		logger.error(`[Widget Proxy] Failed to process widget module ${path}:`, error);
 		return null;
 	}
 }
 
+// ============================================================================
+// Widget Registry
+// ============================================================================
+
+class WidgetRegistryImpl {
+	private widgets = new Map<string, WidgetFactory>();
+	private metadata = new Map<string, { type: WidgetType; path: string }>();
+
+	register(name: string, factory: WidgetFactory, type: WidgetType, path: string): void {
+		this.widgets.set(name, factory);
+		this.metadata.set(name, { type, path });
+		logger.debug(`[Widget Registry] Registered widget: ${name}`);
+	}
+
+	get(name: string): WidgetFactory | undefined {
+		return this.widgets.get(name);
+	}
+
+	has(name: string): boolean {
+		return this.widgets.has(name);
+	}
+
+	list(): string[] {
+		return Array.from(this.widgets.keys());
+	}
+
+	getByType(type: WidgetType): string[] {
+		return Array.from(this.metadata.entries())
+			.filter(([_, meta]) => meta.type === type)
+			.map(([name]) => name);
+	}
+
+	getMetadata(name: string): { type: WidgetType; path: string } | undefined {
+		return this.metadata.get(name);
+	}
+}
+
+const registry = new WidgetRegistryImpl();
+
+// ============================================================================
+// Load Widgets
+// ============================================================================
+
+// Load core widgets (eager loading for performance)
 const coreModules = import.meta.glob<WidgetModule>('./core/*/index.ts', {
 	eager: true
 });
+
+// Load custom widgets (eager loading)
 const customModules = import.meta.glob<WidgetModule>('./custom/*/index.ts', {
 	eager: true
 });
 
+// Process core widgets
 for (const [path, module] of Object.entries(coreModules)) {
-	const processedWidget = processWidgetModule(path, module);
-	if (processedWidget) {
-		const { name, widgetFn } = processedWidget;
-		widgetFunctions[name] = widgetFn;
+	const processed = processWidgetModule(path, module, 'core');
+	if (processed) {
+		registry.register(processed.name, processed.factory, processed.type, processed.path);
 	}
 }
 
+// Process custom widgets
 for (const [path, module] of Object.entries(customModules)) {
-	const processedWidget = processWidgetModule(path, module);
-	if (processedWidget) {
-		const { name, widgetFn } = processedWidget;
-		widgetFunctions[name] = widgetFn;
+	const processed = processWidgetModule(path, module, 'custom');
+	if (processed) {
+		registry.register(processed.name, processed.factory, processed.type, processed.path);
 	}
 }
 
-export const widgetProxy = new Proxy(widgetFunctions, {
+// Log summary
+const coreCount = registry.getByType('core').length;
+const customCount = registry.getByType('custom').length;
+logger.info(`[Widget Proxy] Loaded ${coreCount} core widgets and ${customCount} custom widgets`);
+
+// ============================================================================
+// Widget Proxy
+// ============================================================================
+
+/**
+ * Create a fallback widget factory for missing widgets
+ */
+function createMissingWidgetFactory(name: string): WidgetFactory {
+	const factory = ((config: Record<string, unknown>) => {
+		logger.warn(`[Widget Proxy] Attempted to use missing widget: ${name}`);
+		return {
+			widget: {
+				widgetId: 'missing',
+				Name: 'MissingWidget',
+				Description: `Widget "${name}" is missing or disabled`,
+				validationSchema: () => true
+			},
+			label: (config.label as string) || 'Missing Widget',
+			db_fieldName: (config.db_fieldName as string) || 'missing_field',
+			required: false,
+			translated: false,
+			__isMissing: true,
+			__missingWidgetName: name
+		};
+	}) as unknown as WidgetFactory;
+
+	factory.Name = 'MissingWidget';
+	factory.Icon = 'mdi:alert-circle';
+	factory.Description = `Widget "${name}" is not available`;
+	factory.__widgetType = 'custom';
+	factory.toString = () => '';
+
+	return factory;
+}
+
+/**
+ * Proxy for accessing widgets with intelligent fallback
+ */
+export const widgetProxy = new Proxy(registry, {
 	get(target, prop) {
-		if (typeof prop === 'string' && prop in target) {
-			return target[prop];
+		if (typeof prop !== 'string') {
+			return undefined;
 		}
-		// Return a dummy function to avoid breaking the app
-		// This will be caught by svelte-check
-		return () => ({});
+
+		// Handle registry methods
+		if (prop in target && typeof (target as any)[prop] === 'function') {
+			return (target as any)[prop].bind(target);
+		}
+
+		// Handle widget access
+		const factory = target.get(prop);
+
+		if (factory) {
+			return factory;
+		}
+
+		// Widget not found - provide helpful feedback
+		logger.warn(`[Widget Proxy] Widget "${prop}" not found. Available widgets: ${target.list().join(', ')}`);
+
+		// Return fallback factory in production, undefined in development
+		if (process.env.NODE_ENV === 'production') {
+			return createMissingWidgetFactory(prop);
+		}
+
+		return undefined;
+	},
+
+	has(target, prop) {
+		if (typeof prop !== 'string') {
+			return false;
+		}
+		return target.has(prop);
+	},
+
+	ownKeys(target) {
+		return target.list();
+	},
+
+	getOwnPropertyDescriptor(target, prop) {
+		if (typeof prop !== 'string') {
+			return undefined;
+		}
+
+		if (target.has(prop)) {
+			return {
+				enumerable: true,
+				configurable: true
+			};
+		}
+
+		return undefined;
 	}
 });
+
+// ============================================================================
+// Type-safe exports
+// ============================================================================
+
+/**
+ * Type-safe widget accessor with autocomplete
+ */
+export type Widgets = {
+	[K: string]: WidgetFactory;
+};
+
+// Export with type information
+export const widgets = widgetProxy as unknown as Widgets;
+
+// Export registry for advanced use cases
+export { registry as widgetRegistry };
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+/**
+ * Check if a widget is available
+ */
+export function isWidgetAvailable(name: string): boolean {
+	return registry.has(name);
+}
+
+/**
+ * Get list of all available widgets
+ */
+export function getAvailableWidgets(): string[] {
+	return registry.list();
+}
+
+/**
+ * Get widgets by type
+ */
+export function getWidgetsByType(type: WidgetType): string[] {
+	return registry.getByType(type);
+}
+
+/**
+ * Get widget metadata
+ */
+export function getWidgetMetadata(name: string): { type: WidgetType; path: string } | undefined {
+	return registry.getMetadata(name);
+}

@@ -25,7 +25,6 @@ import type { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 // Auth
 import type { RolePermissions } from '@src/databases/auth/types';
 import type { WidgetPlaceholder } from '@src/widgets/placeholder';
-import type { BaseIssue, BaseSchema } from 'valibot';
 
 // Define core value and status types
 export type FieldValue = string | number | boolean | object | null;
@@ -106,19 +105,8 @@ export interface ContentNode {
 export type WidgetKeys = keyof typeof widgets;
 export type WidgetTypes = (typeof widgets)[WidgetKeys];
 
-// Widget Definition
-export interface WidgetDefinition {
-	widgetId: string;
-	Name: string;
-	Icon?: string;
-	Description?: string;
-	inputComponentPath: string;
-	displayComponentPath: string;
-	validationSchema: BaseSchema<unknown, unknown, BaseIssue<unknown>>;
-	defaults?: Partial<Record<string, unknown>>;
-	GuiFields: Record<string, unknown>;
-	aggregations?: unknown;
-}
+// Widget Definition is now imported from @widgets/types
+import type { WidgetDefinition } from '@widgets/types';
 
 // Field Instance - An actual field using a widget with specific configuration
 export interface FieldInstance {

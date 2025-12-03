@@ -1,27 +1,25 @@
-<!--
-@file src/utils/Sanitize.svelte
-@component 
-**Sanitize - Secure wrapper for rendering HTML content (@html) with XSS protection**
-
-**Security:**
-- Built-in HTML sanitization using regex-based tag/attribute filtering
-- Removes dangerous tags (script, iframe, embed, object)
-- Strips event handlers (onclick, onerror, etc.)
-- Validates URLs in href/src attributes
-- Configurable sanitization profiles
-- No external dependencies required
-
-**Usage:**
-<Sanitize html={userGeneratedContent} />
-<Sanitize html={richTextContent} profile="rich-text" />
-
-**Note:**
-For rich text content from Tiptap editor, sanitization is optional as Tiptap
-already uses schema-based validation. This component provides defense-in-depth.
-
--->
-
 <script lang="ts">
+	/**
+	 * Sanitize Component
+	 *
+	 * **Purpose:** Secure wrapper for rendering HTML content (@html) with XSS protection.
+	 *
+	 * **Security:**
+	 * - Uses DOMPurify to sanitize HTML before rendering
+	 * - Removes dangerous tags (script, iframe, embed, object)
+	 * - Strips event handlers (onclick, onerror, etc.)
+	 * - Validates URLs in href/src attributes
+	 * - Configurable sanitization profiles
+	 *
+	 * **Usage:**
+	 * <Sanitize html={userGeneratedContent} />
+	 * <Sanitize html={richTextContent} profile="rich-text" />
+	 *
+	 * @component
+	 */
+
+	import { onMount } from 'svelte';
+
 	type SanitizeProfile = 'default' | 'rich-text' | 'strict';
 
 	interface Props {
@@ -33,12 +31,15 @@ already uses schema-based validation. This component provides defense-in-depth.
 		class?: string;
 	}
 
-	const { html, profile = 'default', class: className }: Props = $props();
+	let { html, profile = 'default', class: className }: Props = $props();
+
+	let DOMPurify: any;
+	let sanitized = $state('');
 
 	// Sanitization profiles
-	const PROFILES: Record<string, any> = {
+	const PROFILES: Record<SanitizeProfile, any> = {
 		default: {
-			allowedTags: [
+			ALLOWED_TAGS: [
 				'p',
 				'br',
 				'strong',
@@ -62,10 +63,11 @@ already uses schema-based validation. This component provides defense-in-depth.
 				'span',
 				'div'
 			],
-			allowedAttrs: ['href', 'src', 'alt', 'title', 'class', 'id', 'target', 'rel']
+			ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'id', 'target', 'rel'],
+			ALLOW_DATA_ATTR: false
 		},
 		'rich-text': {
-			allowedTags: [
+			ALLOWED_TAGS: [
 				'p',
 				'br',
 				'strong',
@@ -104,92 +106,71 @@ already uses schema-based validation. This component provides defense-in-depth.
 				'del',
 				'ins'
 			],
-			allowedAttrs: [
-				'href',
-				'src',
-				'alt',
-				'title',
-				'class',
-				'id',
-				'target',
-				'rel',
-				'width',
-				'height',
-				'align',
-				'colspan',
-				'rowspan',
-				'data-youtube-video'
-			]
+			ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'id', 'target', 'rel', 'width', 'height', 'align', 'colspan', 'rowspan'],
+			ALLOW_DATA_ATTR: true
 		},
 		strict: {
-			allowedTags: ['p', 'br', 'strong', 'em', 'a'],
-			allowedAttrs: ['href', 'title', 'rel']
+			ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'a'],
+			ALLOWED_ATTR: ['href', 'title', 'rel'],
+			ALLOW_DATA_ATTR: false
 		}
 	};
 
-	/**
-	 * Built-in HTML sanitizer using regex-based filtering
-	 * Removes dangerous tags, scripts, and event handlers
-	 */
-	function sanitizeHtml(input: string): string {
-		if (!input) return '';
+	onMount(async () => {
+		// Dynamically import DOMPurify (client-side only)
+		const module = await import('isomorphic-dompurify');
+		DOMPurify = module.default;
+
+		// Sanitize HTML
+		sanitizeHtml();
+	});
+
+	function sanitizeHtml() {
+		if (!DOMPurify || !html) {
+			sanitized = '';
+			return;
+		}
 
 		const config = PROFILES[profile];
-		let cleaned = input;
 
-		// Remove script tags and content
-		cleaned = cleaned.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-
-		// Remove dangerous tags (iframe, object, embed, etc.)
-		cleaned = cleaned.replace(/<(iframe|object|embed|applet|meta|link|style)[^>]*>.*?<\/\1>/gi, '');
-		cleaned = cleaned.replace(/<(iframe|object|embed|applet|meta|link|style)[^>]*\/>/gi, '');
-
-		// Remove all event handlers (onclick, onerror, etc.)
-		cleaned = cleaned.replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '');
-		cleaned = cleaned.replace(/\s*on\w+\s*=\s*[^\s>]*/gi, '');
-
-		// Remove javascript: and data: protocols from hrefs/srcs
-		cleaned = cleaned.replace(/href\s*=\s*["']\s*javascript:[^"']*["']/gi, 'href="#"');
-		cleaned = cleaned.replace(/src\s*=\s*["']\s*javascript:[^"']*["']/gi, 'src=""');
-
-		// Validate URLs in href and src attributes
-		cleaned = cleaned.replace(/(href|src)\s*=\s*["']([^"']*)["']/gi, (match, attr, url) => {
-			// Allow http(s), mailto, relative URLs, and data URLs (for images)
-			if (attr === 'href' && !url.match(/^(https?:|mailto:|\/|#)/)) {
-				return `${attr}="#"`;
-			}
-			if (attr === 'src' && !url.match(/^(https?:|data:|\/)/)) {
-				return `${attr}=""`;
-			}
-			return match;
-		});
-
-		// Filter tags: only allow whitelisted tags
-		cleaned = cleaned.replace(/<\/?([a-z][a-z0-9]*)\b[^>]*>/gi, (match, tag) => {
-			const tagLower = tag.toLowerCase();
-			if (config.allowedTags.includes(tagLower)) {
-				// Tag is allowed, now filter attributes
-				return match.replace(/\s+([a-z-]+)\s*=\s*["']([^"']*)["']/gi, (_match, attrName, attrValue) => {
-					if (config.allowedAttrs.includes(attrName.toLowerCase())) {
-						// Add rel="noopener noreferrer" to external links
-						if (tagLower === 'a' && attrName === 'href' && attrValue.match(/^https?:/)) {
-							if (!match.includes('rel=')) {
-								return ` ${attrName}="${attrValue}" rel="noopener noreferrer"`;
-							}
-						}
-						return ` ${attrName}="${attrValue}"`;
+		// Add URL validation hook
+		DOMPurify.addHook('afterSanitizeAttributes', (node: any) => {
+			// Validate links
+			if (node.tagName === 'A' && node.hasAttribute('href')) {
+				const href = node.getAttribute('href');
+				// Only allow http(s), mailto, and relative URLs
+				if (href && !href.match(/^(https?:|mailto:|\/|#)/) && !href.startsWith('data:')) {
+					node.removeAttribute('href');
+				}
+				// Add rel="noopener noreferrer" to external links
+				if (href && href.match(/^https?:/)) {
+					node.setAttribute('rel', 'noopener noreferrer');
+					// Only allow target="_blank" for external links
+					if (node.getAttribute('target') !== '_blank') {
+						node.removeAttribute('target');
 					}
-					return ''; // Remove disallowed attribute
-				});
+				}
 			}
-			return ''; // Remove disallowed tag
+
+			// Validate images
+			if (node.tagName === 'IMG' && node.hasAttribute('src')) {
+				const src = node.getAttribute('src');
+				// Only allow http(s), data URLs, and relative URLs
+				if (src && !src.match(/^(https?:|data:|\/)/)) {
+					node.removeAttribute('src');
+				}
+			}
 		});
 
-		return cleaned;
+		sanitized = DOMPurify.sanitize(html, config);
 	}
 
-	// Reactive sanitization
-	const sanitized = $derived(sanitizeHtml(html));
+	// Re-sanitize when html or profile changes
+	$effect(() => {
+		if (DOMPurify) {
+			sanitizeHtml();
+		}
+	});
 </script>
 
 <!-- Render sanitized HTML -->
@@ -198,10 +179,48 @@ already uses schema-based validation. This component provides defense-in-depth.
 		{@html sanitized}
 	</div>
 {:else}
-	<div class={className} data-sanitize-empty>
-		<!-- Empty content -->
+	<!-- Loading state while DOMPurify loads -->
+	<div class={className} data-sanitize-loading>
+		<!-- You can customize this loading state -->
 	</div>
 {/if}
+
+<!--
+**Migration Guide:**
+
+Replace raw @html with Sanitize component:
+
+**Before:**
+```svelte
+{@html userContent}
+```
+
+**After:**
+```svelte
+<script>
+  import Sanitize from '@utils/Sanitize.svelte';
+</script>
+
+<Sanitize html={userContent} />
+```
+
+**Profile Examples:**
+- `default`: Basic HTML (paragraphs, lists, links, images)
+- `rich-text`: Full rich text editor output (tables, headings, formatting)
+- `strict`: Minimal formatting only (bold, italic, links)
+
+**Custom Styling:**
+```svelte
+<Sanitize html={content} class="prose dark:prose-invert" />
+```
+
+**Benefits:**
+- XSS attack prevention
+- URL validation for links and images
+- Automatic rel="noopener noreferrer" for external links
+- Configurable sanitization levels
+- SSR-safe (DOMPurify loaded only on client)
+-->
 
 <style>
 	/* Base styles for sanitized content */
@@ -217,8 +236,8 @@ already uses schema-based validation. This component provides defense-in-depth.
 		height: auto;
 	}
 
-	/* Empty state (invisible by default) */
-	[data-sanitize-empty] {
-		min-height: 0;
+	/* Loading state (invisible by default) */
+	[data-sanitize-loading] {
+		min-height: 1em;
 	}
 </style>

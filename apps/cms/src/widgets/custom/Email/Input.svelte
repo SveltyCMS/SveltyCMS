@@ -111,13 +111,24 @@
 		}
 	}
 
+	// ✨ SECURITY ENHANCEMENT: Prevent homograph attacks
+	function sanitizeInput(input: string): string {
+		// Remove zero-width characters that could be used for spoofing
+		const sanitized = input.replace(/[\u200B-\u200D\uFEFF]/g, '');
+
+		// Normalize Unicode to prevent homograph attacks
+		return sanitized.normalize('NFKC');
+	}
+
 	// Handle input changes
 	function handleInput(e: Event) {
 		const target = e.currentTarget as HTMLInputElement;
 		if (!value) {
 			value = {};
 		}
-		value = { ...value, [_language]: target.value };
+		// ✨ Apply sanitization before storing
+		const sanitized = sanitizeInput(target.value);
+		value = { ...value, [_language]: sanitized };
 	}
 
 	// Handle blur

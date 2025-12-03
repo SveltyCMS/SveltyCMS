@@ -29,7 +29,7 @@ Renders: Nested <ul> structure with proper hierarchy and localization
 	import Display from './Display.svelte';
 	import type { MenuItem } from './types';
 
-	const { value }: { value: MenuItem[] | null | undefined } = $props();
+	let { value }: { value: MenuItem[] | null | undefined } = $props();
 	const lang = $derived(contentLanguage.value);
 </script>
 
@@ -37,7 +37,7 @@ Renders: Nested <ul> structure with proper hierarchy and localization
 	<ul class="menu-display-list list-none pl-4">
 		{#each value as item (item._id)}
 			<li>
-				<Sanitize html={(item._fields?.title as Record<string, any> | undefined)?.[lang] || 'Untitled'} profile="strict" />
+				<Sanitize html={(item._fields?.title as Record<string, string> | undefined)?.[lang] || 'Untitled'} profile="strict" />
 				{#if item.children.length > 0}
 					<Display value={item.children} />
 				{/if}

@@ -20,31 +20,8 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/widgetFactory';
-import { custom, maxValue, minValue, number, optional, pipe, type InferInput as ValibotInput } from 'valibot';
+import { maxValue, minValue, number, optional, pipe, type InferInput as ValibotInput } from 'valibot';
 import type { CurrencyProps } from './types';
-
-// SECURITY: Whitelist of valid ISO 4217 currency codes
-// Prevents injection of malicious currency symbols or invalid codes
-const VALID_CURRENCY_CODES = [
-	'USD',
-	'EUR',
-	'GBP',
-	'JPY',
-	'CNY',
-	'AUD',
-	'CAD',
-	'CHF',
-	'HKD',
-	'SGD',
-	'SEK',
-	'NOK',
-	'NZD',
-	'KRW',
-	'TRY',
-	'INR',
-	'BRL',
-	'ZAR'
-];
 
 // Helper type for aggregation field
 type AggregationField = { db_fieldName: string; [key: string]: unknown };
@@ -52,18 +29,13 @@ type AggregationField = { db_fieldName: string; [key: string]: unknown };
 // The validation schema is a function to create rules based on the field config.
 const validationSchema = (field: FieldInstance) => {
 	// Build validation actions based on field config
-	const validationActions: Array<ReturnType<typeof minValue> | ReturnType<typeof maxValue> | ReturnType<typeof custom>> = [];
+	const validationActions: Array<ReturnType<typeof minValue> | ReturnType<typeof maxValue>> = [];
 
 	if (field.minValue !== undefined) {
 		validationActions.push(minValue(field.minValue as number, `Value must be at least ${field.minValue}.`));
 	}
 	if (field.maxValue !== undefined) {
 		validationActions.push(maxValue(field.maxValue as number, `Value must not exceed ${field.maxValue}.`));
-	}
-
-	// SECURITY: Validate currency code if provided in field config
-	if (field.currencyCode) {
-		validationActions.push(custom(() => VALID_CURRENCY_CODES.includes(String(field.currencyCode).toUpperCase()), 'Invalid currency code.'));
 	}
 
 	// Create final schema with validations
@@ -80,8 +52,8 @@ const CurrencyWidget = createWidget<CurrencyProps>({
 	Name: 'Currency',
 	Icon: 'mdi:currency-usd',
 	Description: m.widget_currency_description(),
-	inputComponentPath: '/src/widgets/custom/currency/Input.svelte',
-	displayComponentPath: '/src/widgets/custom/currency/Display.svelte',
+	inputComponentPath: '/src/widgets/custom/Currency/Input.svelte',
+	displayComponentPath: '/src/widgets/custom/Currency/Display.svelte',
 	validationSchema,
 
 	// Set widget-specific defaults.
@@ -89,6 +61,9 @@ const CurrencyWidget = createWidget<CurrencyProps>({
 		currencyCode: 'EUR',
 		translated: false // A monetary value is typically not translated.
 	},
+
+	// SECURITY: Validate ISO 4217 currency codes
+	// validCurrencyCodes: ['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'AUD', 'CAD', 'CHF', 'HKD', 'SGD', 'SEK', 'NOK', 'NZD', 'KRW', 'TRY', 'INR', 'BRL', 'ZAR'],
 
 	// GuiSchema allows configuration in the collection builder.
 	GuiSchema: {

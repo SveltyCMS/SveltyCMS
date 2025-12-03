@@ -17,8 +17,10 @@ import type { PageServerLoad } from './$types';
 
 // System Logges
 import { logger } from '@utils/logger.server';
+import { MediaService } from '@src/services/MediaService.server';
+import { dbAdapter } from '@src/databases/db';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	try {
 		const { user, isAdmin, roles: tenantRoles } = locals;
 
@@ -39,15 +41,41 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw error(403, 'Insufficient permissions to access image editor');
 		}
 
+		// Fetch media if mediaId is provided
+		const mediaId = url.searchParams.get('mediaId');
+		let mediaItem = null;
+
+		if (mediaId) {
+			try {
+				if (!dbAdapter) {
+					logger.error('Database adapter is not initialized');
+					throw error(500, 'Internal Server Error');
+				}
+				const mediaService = new MediaService(dbAdapter);
+				// Get user roles for permission check
+				const userRoleNames = tenantRoles.map((r) => r.name);
+				logger.debug(`Fetching media item ${mediaId} for user roles:`, userRoleNames);
+				mediaItem = await mediaService.getMedia(mediaId, user, tenantRoles);
+				logger.debug('Media item fetched:', mediaItem ? 'Found' : 'Not Found');
+			} catch (err) {
+				logger.warn(`Failed to fetch media item ${mediaId} for editor:`, err);
+				// We don't throw here to allow the editor to load empty if media is not found/accessible
+				// But maybe we should notify the user?
+			}
+		}
+
 		// Return user data
 		const { _id, ...rest } = user;
-		return {
+		const responseData = {
 			user: {
 				_id: _id.toString(),
 				...rest
 			},
-			isAdmin
+			isAdmin,
+			media: mediaItem ? JSON.parse(JSON.stringify(mediaItem)) : null // Serialize for client
 		};
+		logger.debug('Returning load data:', { hasMedia: !!responseData.media, mediaUrl: responseData.media?.url });
+		return responseData;
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {
 			// This is likely a redirect or an error we've already handled

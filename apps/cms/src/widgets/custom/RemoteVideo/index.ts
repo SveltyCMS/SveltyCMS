@@ -97,7 +97,7 @@ const RemoteVideoWidget = createWidget({
 	},
 
 	// Define the GraphQL schema for the RemoteVideoData object.
-	GraphqlSchema: ({ label }) => ({
+	GraphqlSchema: ({ label }: { label: string }) => ({
 		typeID: label, // Using the label as the GraphQL type name.
 		graphql: `
             type ${label} {

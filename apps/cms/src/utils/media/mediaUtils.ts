@@ -204,7 +204,24 @@ export function constructUrl(path: string, hash: string, fileName: string, forma
 		default:
 			// Ensure path is not over-sanitized (don't remove slashes from the path variable if it contains them)
 			// But we should sanitize the other parts
-			urlPath = size ? `${path}/${sanitize(size)}/${sanitize(fileName)}-${hash}.${format}` : `${path}/${sanitize(fileName)}-${hash}.${format}`;
+			const fileSuffix = `${sanitize(fileName)}-${hash}.${format}`;
+			if (path.endsWith(fileSuffix)) {
+				if (size) {
+					// Handle resizing logic for full path
+					// For global/original/..., we want global/sizes/size/...
+					if (path.includes('/original/')) {
+						urlPath = path.replace('/original/', `/sizes/${sanitize(size)}/`);
+					} else {
+						// Try to insert size before filename
+						const dir = path.substring(0, path.lastIndexOf('/'));
+						urlPath = `${dir}/${sanitize(size)}/${fileSuffix}`;
+					}
+				} else {
+					urlPath = path;
+				}
+			} else {
+				urlPath = size ? `${path}/${sanitize(size)}/${fileSuffix}` : `${path}/${fileSuffix}`;
+			}
 			try {
 				logger.debug('Constructed custom path URL', { urlPath });
 			} catch (logError) {

@@ -41,8 +41,8 @@ const RelationWidget = createWidget<RelationProps>({
 	Name: 'Relation',
 	Icon: 'mdi:relation-one-to-one',
 	Description: m.widget_relation_description(),
-	inputComponentPath: '/src/widgets/core/relation/Input.svelte',
-	displayComponentPath: '/src/widgets/core/relation/Display.svelte',
+	inputComponentPath: '/src/widgets/core/Relation/Input.svelte',
+	displayComponentPath: '/src/widgets/core/Relation/Display.svelte',
 	validationSchema,
 
 	// Define the UI for configuring this widget in the Collection Builder.
@@ -70,41 +70,22 @@ const RelationWidget = createWidget<RelationProps>({
 	defaults: {
 		translated: false
 	},
-
-	// Aggregation performs a lookup to search/sort by the related entry's displayField.
+	// Aggregation performs a lookup to search by the related entry's displayField.
 	// SECURITY: Includes tenant isolation to prevent IDOR attacks
 	aggregations: {
-		filters: async ({ field, filter, tenantId }: { field: AggregationField; filter: string; tenantId?: string }) => {
-			const pipeline: Record<string, unknown>[] = [
-				{
-					$lookup: {
-						from: field.collection,
-						localField: field.db_fieldName,
-						foreignField: '_id',
-						as: 'related_doc'
-					}
-				},
-				{ $unwind: { path: '$related_doc', preserveNullAndEmptyArrays: true } }
-			];
-
-			// Build match conditions
-			const matchConditions: Record<string, unknown> = {
-				[`related_doc.${field.displayField}`]: { $regex: filter, $options: 'i' }
-			};
-
-			// SECURITY: Add tenant isolation if tenantId provided
-			if (tenantId) {
-				matchConditions['related_doc.tenantId'] = tenantId;
+		filters: async ({ field, filter, tenantId }: { field: AggregationField; filter: string; tenantId?: string }) => [
+			{ $lookup: { from: field.collection, localField: field.db_fieldName, foreignField: '_id', as: 'related_doc' } },
+			{
+				$match: {
+					...(tenantId ? { 'related_doc.tenantId': tenantId } : {}),
+					[`related_doc.${field.displayField}`]: { $regex: filter, $options: 'i' }
+				}
 			}
-
-			pipeline.push({ $match: matchConditions });
-			return pipeline;
-		},
-
+		],
 		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => {
-			// Sort by the related document's display field
+			// SECURITY: Tenant-aware sorting
 			return {
-				[`related_doc.${field.displayField}`]: sortDirection
+				[`${field.db_fieldName}.${field.displayField}`]: sortDirection
 			};
 		}
 	},

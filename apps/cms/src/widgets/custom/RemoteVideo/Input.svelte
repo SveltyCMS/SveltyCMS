@@ -33,14 +33,13 @@ Part of the Three Pillars Architecture for widget system.
 	import type { RemoteVideoData } from './types';
 
 	import { debounce } from '@utils/utils';
-	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	let { field, value, error }: { field: FieldType; value: RemoteVideoData | null | undefined; error?: string | null } = $props();
 
 	// Local state for the URL input.
 	let urlInput = $state(value?.url ?? '');
 	// Local state to temporarily hold fetched metadata before it's set to `value`.
-	let fetchedMetadata = $state<any | null>(null);
+	let fetchedMetadata = $state<RemoteVideoData | null>(null);
 	let isLoading = $state(false);
 	let fetchError = $state<string | null>(null);
 
@@ -64,8 +63,14 @@ Part of the Three Pillars Architecture for widget system.
 	};
 
 	function validateVideoUrl(url: string): { valid: boolean; error?: string } {
-		const allowedPlatforms = (field.allowedPlatforms || ['youtube', 'vimeo', 'twitch', 'tiktok']) as string[];
-		const isValid = allowedPlatforms.some((platform: string) => ALLOWED_PLATFORMS[platform]?.test(url));
+		const rawPlatforms = field.allowedPlatforms || ['youtube', 'vimeo', 'twitch', 'tiktok'];
+		const allowedPlatforms: string[] = Array.isArray(rawPlatforms)
+			? rawPlatforms
+			: typeof rawPlatforms === 'string'
+				? rawPlatforms.split(',').map((p: string) => p.trim())
+				: [];
+
+		const isValid = allowedPlatforms.some((platform) => ALLOWED_PLATFORMS[platform]?.test(url));
 
 		if (!isValid) {
 			return {
@@ -136,50 +141,21 @@ Part of the Three Pillars Architecture for widget system.
 	}
 </script>
 
-<div class="input-container relative mb-4" class:invalid={error || fetchError}>
-	<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
-		{#if field?.prefix}
-			<button class="!px-2" type="button" aria-label={`${field.prefix} prefix`}>
-				{field?.prefix}
-			</button>
-		{/if}
-
-		<div class="relative w-full flex-1">
-			<input
-				type="url"
-				bind:value={urlInput}
-				oninput={handleUrlInput}
-				use:tokenTarget={{
-					name: field.db_fieldName,
-					label: field.label,
-					collection: (field as any).collection
-				}}
-				name={field?.db_fieldName}
-				id={field?.db_fieldName}
-				placeholder={typeof field?.placeholder === 'string' && field.placeholder !== '' ? field.placeholder : String(field?.db_fieldName ?? '')}
-				required={field?.required as boolean | undefined}
-				readonly={field?.readonly as boolean | undefined}
-				disabled={field?.disabled as boolean | undefined}
-				class="input w-full rounded-none text-black dark:text-primary-500"
-				class:error={!!error || !!fetchError}
-				class:validating={isLoading}
-				aria-invalid={!!error || !!fetchError}
-				aria-describedby={error || fetchError ? `${field.db_fieldName}-error` : undefined}
-				aria-required={field?.required}
-				data-testid="url-input"
-			/>
-			<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-surface-400" width="16"
-			></iconify-icon>
-		</div>
-
-		{#if field?.suffix}
-			<button class="!px-2" type="button" aria-label={`${field.suffix} suffix`}>
-				{field?.suffix}
-			</button>
-		{/if}
-
-		<!-- Validation indicator -->
-	</div>
+<div class="input-container" class:invalid={error || fetchError}>
+	<label for={field.db_fieldName} class="label">Video URL</label>
+	<input
+		type="url"
+		id={field.db_fieldName}
+		name={field.db_fieldName}
+		required={field.required}
+		placeholder={typeof field.placeholder === 'string' ? field.placeholder : 'e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ'}
+		bind:value={urlInput}
+		oninput={handleUrlInput}
+		class="input"
+		class:loading={isLoading}
+		aria-invalid={!!error || !!fetchError}
+		aria-describedby={error || fetchError ? `${field.db_fieldName}-error` : undefined}
+	/>
 
 	{#if error || fetchError}
 		<p id={`${field.db_fieldName}-error`} class="error-message" role="alert">
@@ -211,7 +187,14 @@ Part of the Three Pillars Architecture for widget system.
 		padding-bottom: 1.5rem;
 		width: 100%;
 	}
-
+	.input.loading {
+		/* Add a loading spinner or indicator to the input */
+		background-image: url('data:image/svg+xml;charset=utf8,<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8zM12 4V2c-5.523 0-10 4.477-10 10s4.477 10 10 10v-2c-4.411 0-8-3.589-8-8s3.589-8 8-8z" fill="%234A90E2"/></svg>'); /* Replace with actual spinner SVG */
+		background-repeat: no-repeat;
+		background-position: right 8px center;
+		background-size: 20px;
+		animation: spin 1s linear infinite;
+	}
 	@keyframes spin {
 		from {
 			transform: rotate(0deg);

@@ -74,7 +74,7 @@ The Currency widget is included in SveltyCMS by default as a custom widget. No a
 
 ```typescript
 // Already available in your collection definitions
-import Currency from '@src/widgets/custom/currency';
+import Currency from '@src/widgets/custom/Currency';
 ```
 
 ---
@@ -84,7 +84,7 @@ import Currency from '@src/widgets/custom/currency';
 ### Simple Product Price
 
 ```typescript
-import Currency from '@src/widgets/custom/currency';
+import Currency from '@src/widgets/custom/Currency';
 
 export const productsCollection = {
 	name: 'Products',
@@ -112,7 +112,7 @@ export const productsCollection = {
 ### Multi-Currency E-commerce
 
 ```typescript
-import Currency from '@src/widgets/custom/currency';
+import Currency from '@src/widgets/custom/Currency';
 import Select from '@src/widgets/core/select';
 
 export const productsCollection = {
@@ -154,7 +154,7 @@ export const productsCollection = {
 ### Subscription Pricing
 
 ```typescript
-import Currency from '@src/widgets/custom/currency';
+import Currency from '@src/widgets/custom/Currency';
 
 export const subscriptionPlansCollection = {
 	name: 'Subscription Plans',
@@ -265,7 +265,7 @@ Currency({
 ### Custom Validation
 
 ```typescript
-import Currency from '@src/widgets/custom/currency';
+import Currency from '@src/widgets/custom/Currency';
 import { pipe, custom } from 'valibot';
 
 // Add custom business logic validation
@@ -558,8 +558,8 @@ db.products.find({ price: { $gte: 100 } }).hint({ price: 1 });
 ### Dynamic Currency Conversion
 
 ```typescript
-import Currency from '@src/widgets/custom/currency';
-import Number from '@src/widgets/custom/number';
+import Currency from '@src/widgets/custom/Currency';
+import Number from '@src/widgets/custom/Number';
 
 export const productsCollection = {
 	name: 'Products',
@@ -603,8 +603,8 @@ async function beforeSave(data: any) {
 ### Tiered Pricing
 
 ```typescript
-import Currency from '@src/widgets/custom/currency';
-import Number from '@src/widgets/custom/number';
+import Currency from '@src/widgets/custom/Currency';
+import Number from '@src/widgets/custom/Number';
 
 export const productsCollection = {
 	name: 'Products',
@@ -672,8 +672,8 @@ export const productsCollection = {
 ### Tax Calculation
 
 ```typescript
-import Currency from '@src/widgets/custom/currency';
-import Number from '@src/widgets/custom/number';
+import Currency from '@src/widgets/custom/Currency';
+import Number from '@src/widgets/custom/Number';
 
 export const invoicesCollection = {
 	name: 'Invoices',
@@ -724,8 +724,8 @@ function calculateInvoice(subtotal: number, taxRate: number) {
 ### Discount System
 
 ```typescript
-import Currency from '@src/widgets/custom/currency';
-import Number from '@src/widgets/custom/number';
+import Currency from '@src/widgets/custom/Currency';
+import Number from '@src/widgets/custom/Number';
 import Select from '@src/widgets/core/select';
 
 export const productsCollection = {

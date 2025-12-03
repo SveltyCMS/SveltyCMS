@@ -534,7 +534,7 @@ Features:
 	const pathSegments = $derived(page.url.pathname.split('/').filter(Boolean));
 	const categoryName = $derived.by(() => {
 		if (breadcrumb && breadcrumb.length > 0) {
-			return breadcrumb.map(b => b.name).join(' > ');
+			return breadcrumb.map((b) => b.name).join(' > ');
 		}
 		const segments = pathSegments?.slice() ?? [];
 		if (segments.length > 0) {

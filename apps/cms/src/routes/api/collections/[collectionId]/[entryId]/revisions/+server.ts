@@ -23,11 +23,49 @@ import { logger } from '@utils/logger.server';
 // Database types
 import type { DatabaseId } from '@src/databases/dbInterface';
 
+// Shared logic for retrieving revisions
+export async function getRevisions({
+	collectionId,
+	entryId,
+	tenantId,
+	dbAdapter,
+	page = 1,
+	limit = 10
+}: {
+	collectionId: string;
+	entryId: string;
+	tenantId: string;
+	dbAdapter: any;
+	page?: number;
+	limit?: number;
+}) {
+	const schema = await contentManager.getCollectionById(collectionId, tenantId);
+	if (!schema) {
+		return { success: false, error: { message: 'Collection not found' } };
+	}
+
+	// --- MULTI-TENANCY SECURITY CHECK ---
+	if (getPrivateSettingSync('MULTI_TENANT')) {
+		const collectionName = `collection_${schema._id}`;
+		const entryResult = await dbAdapter.crud.findMany(collectionName, { _id: entryId, tenantId } as Record<string, unknown>);
+		if (!entryResult.success || !entryResult.data || entryResult.data.length === 0) {
+			return { success: false, error: { message: 'Entry not found' } };
+		}
+	}
+
+	const revisionResult = await dbAdapter.content.revisions.getHistory(entryId as unknown as DatabaseId, {
+		page,
+		pageSize: limit
+	});
+
+	return revisionResult;
+}
+
 // GET: Retrieves revision history for an entry
 export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const start = performance.now();
 	const endpoint = `GET /api/collections/${params.collectionId}/${params.entryId}/revisions`;
-	const { user, tenantId, dbAdapter } = locals; // Destructure user, tenantId and dbAdapter
+	const { user, tenantId, dbAdapter } = locals;
 
 	if (!user) {
 		throw error(401, 'Unauthorized');
@@ -37,48 +75,33 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		throw error(503, 'Service Unavailable: Database service is not properly initialized');
 	}
 
-	const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
-	if (!schema) {
-		throw error(404, 'Collection not found');
-	}
-
 	try {
-		// --- MULTI-TENANCY SECURITY CHECK ---
-		// Verify the entry itself belongs to the current tenant before fetching its revisions.
-		if (getPrivateSettingSync('MULTI_TENANT')) {
-			const collectionName = `collection_${schema._id}`;
-			const entryResult = await dbAdapter.crud.findMany(collectionName, { _id: params.entryId, tenantId } as Record<string, unknown>);
-			if (!entryResult.success || !entryResult.data || entryResult.data.length === 0) {
-				logger.warn(`Attempt to access revisions for an entry not in the current tenant.`, {
-					userId: user._id,
-					tenantId,
-					collectionId: params.collectionId,
-					entryId: params.entryId
-				});
-				throw error(404, 'Entry not found');
-			}
-		} // Get query parameters for pagination
-
 		const page = parseInt(url.searchParams.get('page') ?? '1', 10);
-		const limit = parseInt(url.searchParams.get('limit') ?? '10', 10); // Get revision history for the entry, scoped by tenant
+		const limit = parseInt(url.searchParams.get('limit') ?? '10', 10);
 
-		const revisionResult = await dbAdapter.content.revisions.getHistory(params.entryId as unknown as DatabaseId, {
+		const result = await getRevisions({
+			collectionId: params.collectionId,
+			entryId: params.entryId,
+			tenantId: tenantId || '',
+			dbAdapter,
 			page,
-			pageSize: limit
+			limit
 		});
 
-		if (!revisionResult.success) {
+		if (!result.success) {
 			logger.error(`${endpoint} - Failed to get revisions`, {
 				collectionId: params.collectionId,
 				entryId: params.entryId,
-				error: revisionResult.error?.message || 'Unknown error',
+				error: result.error?.message || 'Unknown error',
 				userId: user._id
 			});
+			if (result.error?.message === 'Collection not found' || result.error?.message === 'Entry not found') {
+				throw error(404, result.error.message);
+			}
 			throw error(500, 'Failed to get revisions');
 		}
 
-		const paginatedResult = revisionResult.data; // Already paginated by the database
-
+		const paginatedResult = result.data;
 		const duration = performance.now() - start;
 		logger.info(`Revisions for entry ${params.entryId} in tenant ${tenantId} retrieved in ${duration.toFixed(2)}ms`);
 
@@ -94,7 +117,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			performance: { duration }
 		});
 	} catch (e) {
-		if (typeof e === 'object' && e !== null && 'status' in e) throw e; // Re-throw SvelteKit errors
+		if (typeof e === 'object' && e !== null && 'status' in e) throw e;
 
 		const duration = performance.now() - start;
 		const errorMsg = e instanceof Error ? e.message : 'Unknown error';

@@ -4,7 +4,7 @@
  */
 
 import type { FieldInstance, Schema } from '@root/src/content/types';
-import { widgetProxy as widgets } from '@src/widgets/proxy';
+import { widgets } from '@src/widgets/proxy';
 
 export const schema: Schema = {
 	// Collection Name comming from filename, so not needed

@@ -18,8 +18,6 @@ import type { RequestHandler } from './$types';
 
 import { contentManager } from '@src/content/ContentManager';
 import { dbAdapter } from '@src/databases/db';
-import { nowISODateString } from '@utils/dateUtils';
-
 import type { BaseEntity, ISODateString, DatabaseId } from '@src/content/types';
 
 // System Logger
@@ -27,6 +25,7 @@ import { logger } from '@utils/logger.server';
 
 // Validation
 import * as v from 'valibot';
+import { nowISODateString } from '@utils/dateUtils';
 
 const QuerySchema = v.object({
 	limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(20)), 5)

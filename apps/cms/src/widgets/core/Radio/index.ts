@@ -41,8 +41,8 @@ const RadioWidget = createWidget<RadioProps>({
 	Description: m.widget_radio_description(),
 
 	// Define paths to the dedicated Svelte components.
-	inputComponentPath: '/src/widgets/core/radio/Input.svelte',
-	displayComponentPath: '/src/widgets/core/radio/Display.svelte',
+	inputComponentPath: '/src/widgets/core/Radio/Input.svelte',
+	displayComponentPath: '/src/widgets/core/Radio/Display.svelte',
 
 	// Assign the dynamic validation schema.
 	validationSchema,

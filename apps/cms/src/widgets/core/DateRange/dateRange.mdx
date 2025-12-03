@@ -1,5 +1,5 @@
 ---
-path: 'src/widgets/core/dateRange/dateRange.mdx'
+path: 'src/widgets/core/DateRange/dateRange.mdx'
 title: 'DateRange Widget'
 description: 'Guide for the DateRange widget (start/end), display and input components, and optimization notes.'
 order: 3
@@ -29,8 +29,8 @@ This page documents the widget's purpose, props, usage examples, implementation 
 
 ## Frontend components
 
-- Input component: `/src/widgets/core/dateRange/Input.svelte` — editor UI with two native date inputs and simple presets.
-- Display component: `/src/widgets/core/dateRange/Display.svelte` — renders a compact, localized date-range string plus duration/context.
+- Input component: `/src/widgets/core/DateRange/Input.svelte` — editor UI with two native date inputs and simple presets.
+- Display component: `/src/widgets/core/DateRange/Display.svelte` — renders a compact, localized date-range string plus duration/context.
 
 ## Props
 
@@ -40,7 +40,7 @@ This page documents the widget's purpose, props, usage examples, implementation 
 
 The widget uses a Valibot schema that validates the shape and ensures the start date is before or equal to the end date. The canonical schema (implementation) lives in:
 
-`/src/widgets/core/dateRange/index.ts`
+`/src/widgets/core/DateRange/index.ts`
 
 Example behavior:
 
@@ -85,6 +85,6 @@ If you add diagrams or screenshots, place them under `static/docs/widget-referen
 ## See also
 
 - `docs/widget-reference` — other widget docs
-- `/src/widgets/core/dateRange` — component source and validation schema
+- `/src/widgets/core/DateRange` — component source and validation schema
 
 ---

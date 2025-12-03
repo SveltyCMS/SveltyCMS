@@ -253,8 +253,8 @@ export class MongoContentMethods {
 						await this.nodesRepo.model.insertOne({
 							_id: expectedId,
 							...changes,
-							createdAt: existing.createdAt || new Date(),
-							updatedAt: new Date()
+							createdAt: existing.createdAt || (new Date() as any),
+							updatedAt: new Date() as any
 						});
 						fixedCount++;
 					}

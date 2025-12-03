@@ -33,7 +33,7 @@
 
 <h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend</strong></h3>
 
-This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 2 / Svelte 5](https://svelte.dev) framework. Being designed to be database agnostic, we currently launch with [MongoDB](https://www.mongodb.com); SQL/Postgres support via [Drizzle ORM](https://drizzle-orm.netlify.app) is planned.
+This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 2 / Svelte 5](https://svelte.dev) framework. Being designed to be database agnostic, we currently launch with [MongoDB 9](https://www.mongodb.com); SQL/Postgres support via [Drizzle ORM](https://drizzle-orm.netlify.app) is planned.
 
 You can define Content Collections in two ways: in code or via the GUI-based collection builder. Full TypeScript support and a rich widget library make it straightforward to build custom data structures.
 
@@ -41,7 +41,7 @@ All widget fields support localization, validation using [Valibot](https://valib
 
 System localization uses [Inlang Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs), a lightweight, type-safe i18n library. English is the default; additional languages are bundled and can be extended.
 
-We used [tailwindcss](https://tailwindcss.com) and a [skeleton UI toolkit](https://www.skeleton.dev), so the CMS can be quickly optimized to your personal needs.
+We use the latest [tailwindcss v4](https://tailwindcss.com) and a [skeleton UI toolkit v4](https://www.skeleton.dev), so the CMS can be quickly optimized to your personal needs.
 
 Backend data is available via REST API or [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server) for fast, flexible frontends.
 

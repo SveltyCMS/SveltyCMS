@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/DateRange/index.ts
+ * @file src/widgets/core/Daterange/index.ts
  * @description DateRange Widget Definition.
  *
  * Implements a robust date range widget using the Three Pillars Architecture.
@@ -47,8 +47,8 @@ const DateRangeWidget = createWidget<DateRangeProps>({
 	Description: m.widget_dateRange_description(),
 
 	// Define paths to the dedicated Svelte components.
-	inputComponentPath: '/src/widgets/core/daterange/Input.svelte',
-	displayComponentPath: '/src/widgets/core/daterange/Display.svelte',
+	inputComponentPath: '/src/widgets/core/Daterange/Input.svelte',
+	displayComponentPath: '/src/widgets/core/Daterange/Display.svelte',
 
 	// Assign the validation schema.
 	validationSchema: DateRangeValidationSchema,

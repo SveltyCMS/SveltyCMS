@@ -1,20 +1,8 @@
 /**
  * @file src/widgets/custom/Seo/index.ts
-const SeoWidget = createWidget({
-	Name: 'SEO',
-	Icon: 'tabler:seo',
-	Description: m.widget_seo_description(),
-	inputComponentPath: '/src/widgets/custom/seo/Input.svelte',
-	displayComponentPath: '/src/widgets/custom/seo/Display.svelte',
-	validationSchema: SeoValidationSchema,
-
-	// Set widget-specific defaults.
-	defaults: {
-		features: ['social', 'schema', 'advanced', 'ai'],
-		translated: true
-	},tion SEO Widget Definition.
+ * @description SEO Widget Definition.
  *
- * An SSEO analysis and optimization tool embedded as a widget.
+ * An SEO analysis and optimization tool embedded as a widget.
  *
  * @features
  * - **Comprehensive Validation**: Valibot schema validates the entire SEO data object, including length checks.
@@ -45,12 +33,12 @@ const SeoValidationSchema = object({
 	robotsMeta: pipe(string(), transform(escapeHtml)),
 	canonicalUrl: optional(pipe(string(), url('Must be a valid URL.'), regex(/^https?:\/\//, 'Must use HTTP or HTTPS protocol'))),
 	// Social
-	ogTitle: optional(pipe(string(), transform(escapeHtml))),
-	ogDescription: optional(pipe(string(), transform(escapeHtml))),
+	ogTitle: optional(string()),
+	ogDescription: optional(string()),
 	ogImage: optional(string()), // ID of a media file
 	twitterCard: union([literal('summary'), literal('summary_large_image')]),
-	twitterTitle: optional(pipe(string(), transform(escapeHtml))),
-	twitterDescription: optional(pipe(string(), transform(escapeHtml))),
+	twitterTitle: optional(string()),
+	twitterDescription: optional(string()),
 	twitterImage: optional(string()), // ID of a media file
 	// Schema - SECURITY: Validate JSON structure
 	schemaMarkup: optional(
@@ -75,8 +63,8 @@ const SeoWidget = createWidget({
 	Name: 'SEO',
 	Icon: 'tabler:seo',
 	Description: m.widget_seo_description(),
-	inputComponentPath: '/src/widgets/custom/seo/Input.svelte',
-	displayComponentPath: '/src/widgets/custom/seo/Display.svelte',
+	inputComponentPath: '/src/widgets/custom/Seo/Input.svelte',
+	displayComponentPath: '/src/widgets/custom/Seo/Display.svelte',
 	validationSchema: SeoValidationSchema,
 
 	// Set widget-specific defaults.

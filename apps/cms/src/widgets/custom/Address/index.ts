@@ -37,8 +37,8 @@ const AddressWidget = createWidget<AddressProps>({
 	Name: 'Address',
 	Icon: 'mdi:home-map-marker',
 	Description: m.widget_address_description(),
-	inputComponentPath: '/src/widgets/custom/address/Input.svelte',
-	displayComponentPath: '/src/widgets/custom/address/Display.svelte',
+	inputComponentPath: '/src/widgets/custom/Address/Input.svelte',
+	displayComponentPath: '/src/widgets/custom/Address/Display.svelte',
 	validationSchema: AddressValidationSchema,
 
 	// Define the UI for configuring this widget's properties in the Collection Builder.
