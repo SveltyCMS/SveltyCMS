@@ -117,27 +117,14 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 			isSubmitting = false;
 
 			if (result.type === 'redirect') {
-				// Keep authenticating state for redirect phase
-				isAuthenticating = true;
-
 				// Trigger the toast
 				showToast(m.signin_signinsuccess(), 'success');
 
-				// Cancel default redirect behavior so we can use client-side navigation
-				// cancel(); // Form class doesn't support cancelling redirect in onResult easily without preventing update?
-				// Actually, if we don't call update(), the redirect doesn't happen automatically?
-				// SvelteKit default applyAction handles redirect.
-				// We want to use goto.
-
-				// Use client-side navigation for instant redirect
-				if (result.location) {
-					goto(result.location);
-				}
-
-				// Clear authenticating state immediately
+				// Clear loading states - navigation will happen via applyAction in Form class
 				isAuthenticating = false;
 				globalLoadingStore.stopLoading(loadingOperations.authentication);
 
+				// Don't call update() - let Form class handle the redirect via applyAction
 				return;
 			}
 
@@ -259,12 +246,14 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 			PWreset = false;
 			PWforgot = false;
 
-			if (result.type === 'success' || result.type === 'redirect') {
+			if (result.type === 'redirect') {
 				showToast(m.signin_restpasswordtoast(), 'success');
-				if (result.type === 'redirect') {
-					if (result.location) goto(result.location);
-					return;
-				}
+				// Don't call update() - let Form class handle the redirect via applyAction
+				return;
+			}
+
+			if (result.type === 'success') {
+				showToast(m.signin_restpasswordtoast(), 'success');
 			}
 
 			await update();
