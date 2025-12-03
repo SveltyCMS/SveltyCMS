@@ -24,12 +24,12 @@
  * - **Cache Strategy**: Language change invalidates list cache, preserves entry cache
  *
  * ## Performance Characteristics
- * | Scenario                | Size  | Requests | Cache Hit Rate |
- * |-------------------------|-------|---|-----|
- * | List 100 entries (EN)   | ~50KB | 1 | 95% |
- * | Switch to DE            | ~50KB | 1 | 95% (new cache key) |
- * | Edit entry              | ~5KB  | 1 | 80% |
- * | Toggle language in edit | 0KB   | 0 | 100% (local only) |
+ * | Scenario | Data Size | Requests | Cache Hit Rate |
+ * |----------|-----------|----------|----------------|
+ * | List 100 entries (EN) | ~50KB | 1 | 95% |
+ * | Switch to DE | ~50KB | 1 | 95% (new cache key) |
+ * | Edit entry | ~5KB | 1 | 80% |
+ * | Toggle language in edit | 0KB | 0 | 100% (local only) |
  *
  * ## Cache Invalidation Rules
  * - Entry save/update → Invalidates `entry:ID` + all `collection:ID:*` keys
@@ -47,16 +47,10 @@ import { cacheService } from '@src/databases/CacheService';
 import { modifyRequest } from '@src/routes/api/collections/modifyRequest';
 import { getPublicSettingSync, getPrivateSettingSync } from '@src/services/settingsService';
 import { logger } from '@utils/logger.server';
-import { getDisplayFields } from '@utils/fieldSelection';
 import type { FieldDefinition } from '@src/content/types';
-import type { ContentRevision, DatabaseId, BaseEntity } from '@src/databases/dbInterface';
 import type { User } from '@src/databases/auth/types';
 
-interface TenantAwareBaseEntity extends BaseEntity {
-	tenantId?: string;
-}
-
-export const load: PageServerLoad = async ({ locals, params, url }) => {
+export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
 	const { user, tenantId, dbAdapter } = locals;
 	const typedUser = user as User; // Explicitly cast user to User type
 	const { language, collection } = params;
@@ -97,12 +91,12 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		let currentCollection;
 		if (isUUID) {
 			// Direct UUID lookup
-			logger.debug(`Loading collection by UUID: ${collection}`);
+			logger.debug(`Loading collection by UUID: \x1b[33m${collection}\x1b[0m`);
 			currentCollection = contentManager.getCollectionById(collection!, tenantId);
 		} else {
 			// Path-based lookup (backward compatibility)
 			const collectionPath = `/${collection}`;
-			logger.debug(`Loading collection by path: ${collectionPath}`);
+			logger.debug(`Loading collection by path: \x1b[34m${collectionPath}\x1b[0m`);
 			currentCollection = contentManager.getCollection(collectionPath, tenantId);
 		}
 
@@ -151,15 +145,15 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 		const cachedData = await cacheService.get(cacheKey);
 		if (cachedData) {
-			logger.debug(`Cache HIT for key: ${cacheKey}`);
+			logger.debug(`Cache HIT for key: \x1b[33m${cacheKey}\x1b[0m`);
 			return cachedData;
 		}
-		logger.debug(`Cache MISS for key: ${cacheKey}`);
+		logger.debug(`Cache MISS for key: \x1b[33m${cacheKey}\x1b[0m`);
 
 		// =================================================================
 		// 4. LOAD PAGINATED ENTRIES (DB QUERY)
 		// =================================================================
-		const collectionTableName = `collection_${currentCollection._id as DatabaseId}`;
+		const collectionTableName = `collection_${currentCollection._id}`;
 
 		const finalFilter: Record<string, unknown> = { ...filterParams };
 		if (getPrivateSettingSync('MULTI_TENANT')) {
@@ -168,7 +162,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 		// If editing a specific entry, load only that entry
 		if (editEntryId) {
-			finalFilter._id = editEntryId as DatabaseId;
+			finalFilter._id = editEntryId;
 		}
 
 		// Build the query with search support
@@ -207,26 +201,6 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			logger.debug(`[Global Search] Searching for "${globalSearch}" across fields: ${searchableFields.join(', ')}`);
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			query = query.search(globalSearch, searchableFields as any);
-		}
-
-		// =================================================================
-		// 4.5. ENTERPRISE OPTIMIZATION: FIELD SELECTION FOR LIST VIEWS
-		// =================================================================
-		// For list views (not editing), select only display-relevant fields
-		// to reduce payload size and improve performance
-		// Expected benefit: 50-80% payload reduction for collections with many fields
-		if (!editEntryId) {
-			const displayFields = getDisplayFields(
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				currentCollection as any,
-				'list',
-				{
-					maxListFields: 5
-				}
-			);
-			logger.debug(`[Field Selection] List view loading only: ${displayFields.join(', ')}`);
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			query = query.select(displayFields as any);
 		}
 
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -319,66 +293,30 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		}
 
 		// =================================================================
-		// 6. LOAD REVISIONS (for Fields.svelte) - Direct Database Call
+		// 6. LOAD REVISIONS (for Fields.svelte) - Direct Import
 		// =================================================================
-		let revisionsMeta: ContentRevision[] = [];
+		let revisionsMeta = [];
 		// Only load revisions if we're in edit mode and have an entry ID
 		if (editEntryId && currentCollection.revision) {
 			try {
-				// ✅ ARCHITECTURE: Direct database call instead of HTTP fetch for SSR purity
-				// Bypasses HTTP overhead while maintaining same security checks
+				// ✅ ARCHITECTURE: Direct import instead of API call for SSR purity
+				const { getRevisions } = await import('@api/collections/[collectionId]/[entryId]/revisions/+server.ts');
+				const revisionsResult = await getRevisions({
+					collectionId: currentCollection._id,
+					entryId: editEntryId,
+					tenantId,
+					dbAdapter,
+					limit: 100
+				});
 
-				// Multi-tenancy security check (same as API endpoint)
-				if (getPrivateSettingSync('MULTI_TENANT')) {
-					const collectionTableName = `collection_${currentCollection._id as DatabaseId}`;
-					const entryCheck = await dbAdapter.crud.findMany<TenantAwareBaseEntity>(collectionTableName, { _id: editEntryId as DatabaseId, tenantId });
-					if (!entryCheck.success || !entryCheck.data || entryCheck.data.length === 0) {
-						logger.warn(`Attempt to access revisions for an entry not in the current tenant.`, {
-							userId: typedUser._id,
-							tenantId,
-							collectionId: currentCollection._id,
-							entryId: editEntryId
-						});
-						// Skip revisions but don't fail the page
-						revisionsMeta = [];
-					} else {
-						// Fetch revisions directly from database
-						const revisionResult = await dbAdapter.content.revisions.getHistory(editEntryId as DatabaseId, {
-							page: 1,
-							pageSize: 100
-						});
-
-						if (revisionResult.success && revisionResult.data) {
-							revisionsMeta = revisionResult.data.items || [];
-						}
-					}
-				} else {
-					// Single-tenant: fetch revisions directly
-					const revisionResult = await dbAdapter.content.revisions.getHistory(editEntryId as DatabaseId, {
-						page: 1,
-						pageSize: 100
-					});
-
-					if (revisionResult.success && revisionResult.data) {
-						revisionsMeta = revisionResult.data.items || [];
-					}
+				if (revisionsResult.success && revisionsResult.data) {
+					revisionsMeta = revisionsResult.data || [];
 				}
 			} catch (err) {
 				logger.warn('Failed to load revisions', { error: err, editEntryId });
 				// Don't fail the whole page load if revisions fail
 			}
 		}
-
-		let fieldMetadata = {};
-		if (editEntryId) {
-			fieldMetadata = await contentManager.getFieldMetadataWithTranslations(currentCollection._id as string, [editEntryId], tenantId);
-		}
-
-		// =================================================================
-		// 6.5. GET BREADCRUMB AND STATS
-		// =================================================================
-		const breadcrumb = contentManager.getBreadcrumb(currentCollection.path || '');
-		const collectionStats = contentManager.getCollectionStats(currentCollection._id as string, tenantId);
 
 		// =================================================================
 		// 7. PREPARE FINAL DATA & SET CACHE
@@ -411,10 +349,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 				currentPage: page,
 				pageSize: pageSize
 			},
-			revisions: revisionsMeta || [],
-			breadcrumb,
-			collectionStats,
-			fieldMetadata
+			revisions: revisionsMeta || []
 		};
 
 		// Cache with TTL (5 minutes for dynamic content)

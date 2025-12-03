@@ -42,8 +42,8 @@ const RatingWidget = createWidget<RatingProps>({
 	Name: 'Rating',
 	Icon: 'material-symbols:star-outline',
 	Description: m.widget_rating_description(),
-	inputComponentPath: '/src/widgets/custom/rating/Input.svelte',
-	displayComponentPath: '/src/widgets/custom/rating/Display.svelte',
+	inputComponentPath: '/src/widgets/custom/Rating/Input.svelte',
+	displayComponentPath: '/src/widgets/custom/Rating/Display.svelte',
 	validationSchema,
 
 	// Set widget-specific defaults.

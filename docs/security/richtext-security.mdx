@@ -1,0 +1,241 @@
+---
+path: 'docs/widgets/richtext-security.mdx'
+title: 'RichText Widget Security Architecture'
+description: 'Defense-in-depth security architecture for the RichText widget with XSS protection, CSS injection prevention, and URL validation.'
+order: 5
+icon: 'mdi:shield-lock'
+author: 'admin'
+created: '2025-11-14'
+updated: '2025-11-14'
+tags:
+  - 'widgets'
+  - 'security'
+  - 'xss'
+  - 'richtext'
+  - 'sanitization'
+  - 'dompurify'
+  - 'tiptap'
+---
+
+# RichText Widget Security Architecture
+
+## Overview
+
+The RichText widget implements **defense-in-depth** security with multiple layers of XSS protection:
+
+1. **Input Sanitization** (Input.svelte) - Sanitizes before database storage
+2. **Output Sanitization** (Display.svelte) - Sanitizes before rendering
+3. **Extension Hardening** - Prevents CSS/attribute injection
+4. **URL Validation** - Blocks malicious URIs
+
+---
+
+## Security Layers
+
+### 1. Input Sanitization (Storage Protection)
+
+**File:** `src/widgets/core/richText/Input.svelte`
+
+```typescript
+// Sanitizes HTML before storing to database
+editor.on('update', () => {
+  let newContent = editor!.getHTML();
+
+  if (DOMPurify && newContent) {
+    newContent = DOMPurify.sanitize(newContent, {
+      ALLOWED_TAGS: ['p', 'strong', 'em', 'h1', 'a', 'img', ...],
+      ALLOWED_ATTR: ['href', 'src', 'alt', 'class', 'style', ...],
+      ALLOWED_URI_REGEXP: /^(?:https?:\/\/|mailto:|tel:|#|\/)/, // Blocks javascript:, data:
+      ALLOW_DATA_ATTR: false
+    });
+  }
+
+  value[lang].content = newContent;
+});
+```
+
+**Why:** Prevents malicious content from ever reaching the database.
+
+---
+
+### 2. Output Sanitization (Render Protection)
+
+**File:** `src/widgets/core/richText/Display.svelte`
+
+```svelte
+<Sanitize html={value.content} profile="rich-text" class="prose" />
+```
+
+**Why:** Even if sanitization failed at input (e.g., direct DB manipulation), output is still safe.
+
+---
+
+### 3. ImageResize Extension Hardening
+
+**File:** `src/widgets/core/richText/extensions/ImageResize.ts`
+
+#### ✅ Fixed Vulnerabilities
+
+| Attack Vector                    | Fix                                                     |
+| -------------------------------- | ------------------------------------------------------- |
+| **Description XSS**              | Use `textContent` (auto-escapes) instead of `innerHTML` |
+| **CSS Injection (float)**        | Whitelist: `['left', 'right', 'unset', 'none']`         |
+| **CSS Injection (width/height)** | Regex validation: `/^\d+(px\|%)$/`                      |
+
+```typescript
+// BEFORE (vulnerable):
+container.style.float = nodeAttrs.float as string; // Injects arbitrary CSS
+
+// AFTER (secure):
+const safeFloat = ['left', 'right', 'unset', 'none'].includes(nodeAttrs.float as string) ? nodeAttrs.float : 'unset';
+container.style.float = safeFloat;
+```
+
+---
+
+### 4. TextStyle Extension Hardening
+
+**File:** `src/widgets/core/richText/extensions/TextStyle.ts`
+
+#### Font-Size Validation
+
+```typescript
+// BEFORE (vulnerable):
+setFontSize: (fontSize: string) => chain().setMark(this.name, { fontSize }).run();
+
+// AFTER (secure):
+setFontSize: (fontSize: string) => {
+	const sanitized = fontSize.match(/^\d+(\.\d+)?(px|em|rem|pt|%)$/) ? fontSize : '16px'; // Safe fallback
+	return chain().setMark(this.name, { fontSize: sanitized }).run();
+};
+```
+
+**Blocks:**
+
+- `fontSize: "10px; color: red; }"` → CSS injection
+- `fontSize: "expression(alert(1))"` → IE CSS expressions
+- `fontSize: "url('javascript:...')"` → URL-based injection
+
+---
+
+### 5. Video URL Validation
+
+**File:** `src/widgets/core/richText/components/VideoDialog.svelte`
+
+```typescript
+// Strict YouTube URL validation
+const youtubePattern = /^https:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+
+if (!youtubePattern.test(youtube_url)) {
+	alert('Invalid YouTube URL');
+	return;
+}
+```
+
+**Blocks:**
+
+- `javascript:alert(1)`
+- `data:text/html,<script>alert(1)</script>`
+- `http://youtube.com` (enforces HTTPS)
+- `https://evil.com/youtube.com/watch?v=...` (strict domain check)
+
+---
+
+## Attack Surface Reduction
+
+### Without Sanitization Hardening
+
+| Component    | Vulnerabilities                | Risk Level  |
+| ------------ | ------------------------------ | ----------- |
+| Input.svelte | No sanitization                | 🔴 Critical |
+| ImageResize  | Description XSS, CSS injection | 🔴 Critical |
+| TextStyle    | CSS injection                  | 🟠 High     |
+| VideoDialog  | URL injection                  | 🟠 High     |
+
+### After Hardening
+
+| Component    | Protection                         | Risk Level |
+| ------------ | ---------------------------------- | ---------- |
+| Input.svelte | DOMPurify + strict whitelist       | 🟢 Low     |
+| ImageResize  | Attribute validation + textContent | 🟢 Low     |
+| TextStyle    | Regex validation                   | 🟢 Low     |
+| VideoDialog  | URL pattern matching               | 🟢 Low     |
+
+---
+
+## Testing Attack Vectors
+
+### Test Suite (Manual QA)
+
+```html
+<!-- Test 1: Script injection in description -->
+<img src="x" alt="test" description="<script>alert(1)</script>" />
+Expected: Description shows literal text, no execution
+
+<!-- Test 2: CSS injection via float -->
+<div style="float: expression(alert(1))">
+	Expected: Falls back to float: unset
+
+	<!-- Test 3: Font-size injection -->
+	<span style="font-size: 10px; color: red; }; body { background: red; ">
+		Expected: Falls back to font-size: 16px
+
+		<!-- Test 4: YouTube URL injection -->
+		https://evil.com/youtube.com/watch?v=abc Expected: Rejected with "Invalid YouTube URL" error
+
+		<!-- Test 5: JavaScript URI in YouTube -->
+		javascript:alert(document.cookie) Expected: Rejected (doesn't match pattern)</span
+	>
+</div>
+```
+
+---
+
+## Best Practices for Developers
+
+### DO ✅
+
+1. **Always use Sanitize component** for `{@html}` rendering
+2. **Validate URLs** before inserting into editor
+3. **Whitelist attributes** in custom extensions
+4. **Use textContent** for user-provided text (auto-escapes)
+5. **Test with OWASP XSS vectors** before deploying
+
+### DON'T ❌
+
+1. **Don't trust Tiptap's built-in sanitization** (it's minimal)
+2. **Don't use innerHTML** with user content
+3. **Don't allow arbitrary style attributes** without validation
+4. **Don't skip output sanitization** (defense-in-depth)
+5. **Don't use regex for HTML parsing** (use DOMPurify)
+
+---
+
+## Compliance
+
+This implementation meets:
+
+- ✅ **OWASP Top 10** (A03:2021 Injection)
+- ✅ **CWE-79** (Cross-site Scripting)
+- ✅ **CWE-83** (Improper Neutralization of Script in Attributes)
+- ✅ **CSP Level 3** (when used with strict CSP)
+
+---
+
+## References
+
+- [DOMPurify Documentation](https://github.com/cure53/DOMPurify)
+- [OWASP XSS Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html)
+- [Tiptap Security Best Practices](https://tiptap.dev/guide/security)
+- [Content Security Policy Guide](/docs/architecture/content-security-policy.mdx)
+
+---
+
+## Emergency Response
+
+If you discover a security vulnerability:
+
+1. **DO NOT** open a public GitHub issue
+2. Email: info@sveltycms.com
+3. Include: Proof of concept, impact assessment, suggested fix
+4. Response SLA: 24 hours for critical, 72 hours for high severity

@@ -17,12 +17,11 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/widgetFactory';
+import { createWidget } from '@src/widgets/factory';
 import { custom, email, minLength, optional, pipe, string, type InferInput as ValibotInput } from 'valibot';
 import type { EmailProps } from './types';
 
 // SECURITY: Common disposable email domains to block
-// Prevents spam, abuse, and low-quality registrations
 const DISPOSABLE_DOMAINS = [
 	'tempmail.com',
 	'guerrillamail.com',
@@ -31,15 +30,12 @@ const DISPOSABLE_DOMAINS = [
 	'throwaway.email',
 	'yopmail.com',
 	'temp-mail.org',
-	'getnada.com',
-	'maildrop.cc',
-	'trashmail.com'
+	'getnada.com'
 ];
 
-const blockDisposableEmail = custom<string>((input) => {
-	if (!input || typeof input !== 'string') return true;
-	const domain = input.split('@')[1]?.toLowerCase();
-	if (!domain) return true;
+const blockDisposableEmail = custom((input) => {
+	const email = input as string;
+	const domain = email.split('@')[1]?.toLowerCase();
 	return !DISPOSABLE_DOMAINS.includes(domain);
 }, 'Disposable email addresses are not allowed');
 

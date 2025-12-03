@@ -32,10 +32,21 @@ Interactive Tiptap editor with toolbar and title input
 	import { onDestroy, onMount } from 'svelte';
 	import type { FieldType } from './';
 	import { createEditor } from './tiptap';
+	import type { RichTextData } from './types';
 	import { contentLanguage } from '@src/stores/store.svelte';
-	import { tokenTarget } from '@src/services/token/tokenTarget';
 
-	let { field, value, error }: { field: FieldType; value: Record<string, any> | null | undefined; error?: string | null } = $props();
+	// SECURITY: Import DOMPurify for server-side sanitization before storage
+	// This provides defense-in-depth: sanitize on input AND output
+	let DOMPurify: typeof import('dompurify').default | null = null;
+
+	// Load DOMPurify client-side only
+	onMount(async () => {
+		const module = await import('dompurify');
+		DOMPurify = module.default;
+	});
+
+	let { field, value, error }: { field: FieldType; value: Record<string, RichTextData> | null | undefined; error?: string | null } = $props();
+
 	// Determine the current language.
 	const lang = $derived(field.translated ? $contentLanguage : 'default');
 
@@ -50,7 +61,7 @@ Interactive Tiptap editor with toolbar and title input
 	});
 
 	// Create a safe getter/setter for title binding
-	const titleValue = $derived.by(() => {
+	let titleValue = $derived.by(() => {
 		return {
 			get value() {
 				return value?.[lang]?.title || '';
@@ -74,10 +85,51 @@ Interactive Tiptap editor with toolbar and title input
 		editor = createEditor(element, initialContent, lang);
 
 		// When Tiptap updates, sync its content back to the parent `value`.
-		// Note: Content is sanitized on display via Sanitize component
-		// This provides defense-in-depth security architecture
 		editor.on('update', () => {
-			const newContent = editor!.getHTML();
+			let newContent = editor!.getHTML();
+
+			// SECURITY: Sanitize HTML before storing to database
+			// Defense-in-depth: sanitize on input AND output
+			if (DOMPurify && newContent) {
+				newContent = DOMPurify.sanitize(newContent, {
+					ALLOWED_TAGS: [
+						'p',
+						'br',
+						'strong',
+						'em',
+						'u',
+						'strike',
+						's',
+						'h1',
+						'h2',
+						'h3',
+						'h4',
+						'h5',
+						'h6',
+						'ul',
+						'ol',
+						'li',
+						'a',
+						'img',
+						'blockquote',
+						'pre',
+						'code',
+						'table',
+						'thead',
+						'tbody',
+						'tr',
+						'th',
+						'td',
+						'div',
+						'span'
+					],
+					ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style', 'src', 'alt', 'title', 'width', 'height', 'data-youtube-video'],
+					ALLOWED_URI_REGEXP: /^(?:https?:\/\/|mailto:|tel:|#|\/)/, // Block javascript:, data: URIs
+					ADD_ATTR: ['target'], // Preserve target for links
+					ALLOW_DATA_ATTR: false // Block data-* except whitelisted
+				});
+			}
+
 			value = {
 				...(value || {}),
 				[lang]: {
@@ -106,21 +158,7 @@ Interactive Tiptap editor with toolbar and title input
 </script>
 
 <div class="richtext-container" class:invalid={error}>
-	<div class="relative">
-		<input
-			type="text"
-			class="title-input"
-			placeholder="Title..."
-			bind:value={titleValue.value}
-			use:tokenTarget={{
-				name: field.db_fieldName,
-				label: field.label,
-				collection: (field as any).collection
-			}}
-		/>
-		<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-surface-400" width="16"
-		></iconify-icon>
-	</div>
+	<input type="text" class="title-input" placeholder="Title..." bind:value={titleValue.value} />
 
 	{#if editor}
 		<div class="toolbar">

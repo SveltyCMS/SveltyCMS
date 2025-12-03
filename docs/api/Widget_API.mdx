@@ -36,15 +36,8 @@ Cookie: session=your-session-id
 
 SveltyCMS uses a 3-pillar widget architecture:
 
-1. **Definition (index.ts)** - Widget metadata, validation schema, and configuration
-2. **Input (Input.svelte)** - Edit/creation interface component
-3. **Display (Display.svelte)** - Read-only display component
-
-**Widget Types:**
-
-- `core` - Built-in widgets in `/src/widgets/core/`
-- `custom` - User-created widgets in `/src/widgets/custom/`
-- `marketplace` - Runtime-installed widgets (planned feature)
+1. **Core Widgets** - Built-in, essential functionality
+2. **Widget Functions** - Registry of all widget capabilities
 
 ---
 
@@ -57,7 +50,7 @@ Retrieves comprehensive information about all available widgets.
 #### Request
 
 ```http
-GET /api/widgets/list
+
 ```
 
 **Query Parameters:**
@@ -85,7 +78,6 @@ Cookie: session=your-session-id
 		"widgetFunction": {
 			"name": "widgetFunction",
 			"version": "1.0.0",
-			"description": "Core widget function component",
 			"category": "core",
 			"status": "active",
 			"isCore": true,
@@ -103,7 +95,6 @@ Cookie: session=your-session-id
 			"category": "media",
 			"status": "active",
 			"isCore": true,
-			"dependencies": ["widgetFunction"],
 			"metadata": {
 				"author": "SveltyCMS",
 				"license": "MIT",
@@ -115,8 +106,7 @@ Cookie: session=your-session-id
 		"total": 25,
 		"active": 18,
 		"inactive": 5,
-		"core": 15,
-		"custom": 10
+		"core": 15
 	},
 	"tenantId": "default-tenant",
 	"processingTime": "45ms"
@@ -143,8 +133,6 @@ Cookie: session=your-session-id
 
 ### 2. Install Widget
 
-⚠️ **Status: Planned Feature** - Currently returns mock response. Full marketplace integration is under development.
-
 Installs a widget from the marketplace.
 
 #### Request
@@ -165,7 +153,11 @@ Content-Type: application/json
 ```json
 {
 	"widgetId": "custom-widget-123",
-	"tenantId": "tenant-xyz"
+	"tenantId": "tenant-xyz",
+	"version": "1.0.0",
+	"config": {
+		"option1": "value1"
+	}
 }
 ```
 
@@ -176,7 +168,6 @@ Content-Type: application/json
 **Success (200):**
 
 ```json
-{
 	"success": true,
 	"widgetId": "custom-widget-123",
 	"tenantId": "tenant-xyz",
@@ -185,29 +176,24 @@ Content-Type: application/json
 }
 ```
 
-**Note:** This endpoint currently provides a mock implementation. The actual installation logic is planned for future development.
-
 **Error Responses:**
 
 ```json
 // 400 Bad Request - Missing widget ID
 {
-  "error": "Widget ID is required"
+  "success": false,
 }
 
-// 401 Unauthorized
+// 409 Conflict - Already installed
 {
-  "error": "Unauthorized"
-}
-
-// 403 Forbidden
-{
-  "error": "Insufficient permissions"
+  "success": false,
+  "message": "Widget already installed"
 }
 
 // 500 Internal Server Error
 {
-  "error": "Failed to install widget: <error message>"
+  "success": false,
+  "message": "Failed to install widget: Installation error"
 }
 ```
 
@@ -234,7 +220,6 @@ Content-Type: application/json
 
 ```json
 {
-	"widgetName": "custom-widget",
 	"tenantId": "tenant-xyz",
 	"force": false
 }
@@ -253,7 +238,6 @@ Content-Type: application/json
 **Success (200):**
 
 ```json
-{
 	"success": true,
 	"widgetName": "custom-widget",
 	"tenantId": "tenant-xyz",
@@ -267,7 +251,6 @@ Content-Type: application/json
 ```json
 // 400 Bad Request - Missing widget name
 {
-  "success": false,
   "message": "Widget name is required"
 }
 
@@ -279,7 +262,6 @@ Content-Type: application/json
 }
 
 // 409 Conflict - Core widget
-{
   "success": false,
   "message": "Cannot uninstall core widget"
 }
@@ -307,7 +289,6 @@ Content-Type: application/json
 **Body:**
 
 ```json
-{
 	"widgetName": "custom-widget",
 	"tenantId": "tenant-xyz"
 }
@@ -338,20 +319,10 @@ Deactivates an active widget without uninstalling it.
 
 ```http
 POST /api/widgets/deactivate
-```
 
 **Headers:**
 
-```http
-Cookie: session=your-session-id
-Content-Type: application/json
-```
-
-**Body:**
-
-```json
 {
-	"widgetName": "custom-widget",
 	"tenantId": "tenant-xyz"
 }
 ```
@@ -373,7 +344,56 @@ Content-Type: application/json
 
 ---
 
-### 5. Validate Widget
+### 6. Get Widget Status
+
+Retrieves the current status of a specific widget.
+
+#### Request
+
+```http
+GET /api/widgets/status/[widgetName]
+```
+
+**Path Parameters:**
+
+- `widgetName` (string) - The widget name
+
+**Query Parameters:**
+
+- `tenantId` (string, optional) - Tenant ID
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `api:widgets`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"widget": {
+		"name": "mediaUpload",
+		"version": "1.2.0",
+		"status": "active",
+		"isCore": true,
+		"dependencies": ["widgetFunction"],
+		"dependents": ["imageGallery", "fileManager"],
+		"installedAt": "2025-01-01T00:00:00Z",
+		"activatedAt": "2025-01-01T00:00:00Z",
+		"lastUpdated": "2025-10-05T14:30:00Z"
+	}
+}
+```
+
+---
+
+### 7. Validate Widget
 
 Validates a widget's integrity and compatibility.
 
@@ -438,7 +458,7 @@ Content-Type: application/json
 
 ---
 
-### 6. Sync Widgets
+### 8. Sync Widgets
 
 Synchronizes widget registry with filesystem.
 
@@ -485,9 +505,9 @@ Content-Type: application/json
 
 ---
 
-### 7. Get Required Widgets
+### 9. Get Required Widgets
 
-Retrieves widgets currently used by collections (cannot be deactivated).
+Retrieves a list of required (core) widgets that cannot be disabled.
 
 #### Request
 
@@ -501,7 +521,7 @@ GET /api/widgets/required
 Cookie: session=your-session-id
 ```
 
-**Permissions Required:** Not required (uses locals)
+**Permissions Required:** `api:widgets`
 
 #### Response
 
@@ -509,17 +529,17 @@ Cookie: session=your-session-id
 
 ```json
 {
-	"requiredWidgets": ["String", "RichText", "Media", "Relation"],
-	"collectionsAnalyzed": 5,
-	"tenantId": "default-tenant"
+	"success": true,
+	"required": ["widgetFunction", "authentication", "userManagement", "systemSettings"],
+	"count": 4
 }
 ```
 
 ---
 
-### 8. Get Active Widgets
+### 10. Get Active Widgets
 
-Retrieves currently active widgets with 3-pillar architecture metadata.
+Retrieves only currently active widgets.
 
 #### Request
 
@@ -529,7 +549,7 @@ GET /api/widgets/active
 
 **Query Parameters:**
 
-- `refresh` (boolean, optional) - Force cache refresh (`?refresh=true`)
+- `tenantId` (string, optional) - Filter by tenant
 
 **Headers:**
 
@@ -537,7 +557,7 @@ GET /api/widgets/active
 Cookie: session=your-session-id
 ```
 
-**Permissions Required:** Not required (uses locals)
+**Permissions Required:** `api:widgets`
 
 #### Response
 
@@ -545,17 +565,9 @@ Cookie: session=your-session-id
 
 ```json
 {
-	"widgets": [
-		{
-			"name": "String",
-			"isCore": true,
-			"icon": "mdi:text",
-			"description": "Single-line text input widget",
-			"inputComponentPath": "/src/widgets/core/string/Input.svelte",
-			"displayComponentPath": "/src/widgets/core/string/Display.svelte",
-			"dependencies": []
-		}
-	],
+	"success": true,
+	"activeWidgets": ["widgetFunction", "mediaUpload", "userManagement", "collectionBuilder"],
+	"count": 4,
 	"tenantId": "default-tenant"
 }
 ```
@@ -673,45 +685,32 @@ Widgets are organized by category:
 
 ## Widget Development
 
-### Widget Structure (3-Pillar Architecture)
+### Widget Structure
 
 ```
 my-widget/
-├── index.ts          # Widget definition, validation schema, metadata
-├── Input.svelte      # Edit/creation interface
-├── Display.svelte    # Read-only display component
-└── types.ts          # TypeScript types (optional)
+├── index.ts          # Main entry point
+├── widget.json       # Metadata and configuration
+├── Component.svelte  # UI component
+├── api/              # API endpoints
+└── assets/           # Static assets
 ```
 
-### Widget Definition (index.ts)
+### Widget Metadata (widget.json)
 
-```typescript
-import { createWidget } from '@src/widgets/factory';
-import { object, string } from 'valibot';
-import * as m from '@src/paraglide/messages';
-
-const validationSchema = object({
-	value: string()
-});
-
-const MyWidget = createWidget({
-	Name: 'MyWidget',
-	Icon: 'mdi:puzzle',
-	Description: m.widget_mywidget_description(),
-	inputComponentPath: '/src/widgets/custom/mywidget/Input.svelte',
-	displayComponentPath: '/src/widgets/custom/mywidget/Display.svelte',
-	validationSchema,
-	defaults: { placeholder: 'Enter value' },
-	GuiSchema: {
-		/* ... */
-	},
-	aggregations: {
-		/* ... */
-	},
-	GraphqlSchema: () => ({ typeID: 'String', graphql: '' })
-});
-
-export default MyWidget;
+```json
+{
+	"name": "myWidget",
+	"version": "1.0.0",
+	"description": "My custom widget",
+	"author": "Developer Name",
+	"license": "MIT",
+	"category": "custom",
+	"dependencies": ["widgetFunction"],
+	"permissions": ["media:write", "content:read"],
+	"icon": "mdi:puzzle",
+	"homepage": "https://example.com"
+}
 ```
 
 ---

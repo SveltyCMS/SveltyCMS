@@ -25,15 +25,22 @@ rather than bundling all widgets upfront.
 -->
 
 <script lang="ts">
+	import type { FieldInstance } from '@src/content/types';
 	import { onMount } from 'svelte';
 	import { logger } from '@utils/logger';
 
-	import type { WidgetLoaderProps } from './types';
+	interface Props {
+		loader: () => Promise<{ default: any }>;
+		field: FieldInstance;
+		WidgetData?: Record<string, any>;
+		value?: any;
+		tenantId?: string;
+	}
 
-	let { loader, field, WidgetData = {}, value = $bindable(), tenantId }: WidgetLoaderProps = $props();
+	let { loader, field, WidgetData = {}, value = $bindable(), tenantId }: Props = $props();
 
 	// Component state
-	let Component = $state<any>(null);
+	let component: any = $state(null);
 	let loading = $state(true);
 	let error = $state<Error | null>(null);
 
@@ -44,7 +51,7 @@ rather than bundling all widgets upfront.
 			error = null;
 
 			const module = await loader();
-			Component = module.default;
+			component = module.default;
 
 			logger.debug('[WidgetLoader] Component loaded:', {
 				widget: field.widget?.Name || 'unknown',
@@ -90,9 +97,9 @@ rather than bundling all widgets upfront.
 			Retry
 		</button>
 	</div>
-{:else if Component}
+{:else if component}
 	<!-- Loaded component -->
-	<Component {field} bind:value {WidgetData} {tenantId} />
+	<svelte:component this={component} {field} bind:value {WidgetData} {tenantId} />
 {:else}
 	<!-- Unexpected state -->
 	<div class="widget-loader-empty rounded border border-warning-500 bg-warning-50 p-3 dark:bg-warning-900/20">

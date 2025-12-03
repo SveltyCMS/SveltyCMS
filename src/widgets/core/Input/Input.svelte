@@ -36,13 +36,10 @@
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { contentLanguage } from '@src/stores/store.svelte';
 
-	import { collection } from '@src/stores/collectionStore.svelte';
-	import { activeInputStore } from '@src/stores/activeInputStore.svelte';
-
 	// Props
 	interface Props {
 		field: FieldType;
-		value?: Record<string, any> | null | undefined;
+		value?: Record<string, string> | null | undefined;
 		validateOnMount?: boolean;
 		validateOnChange?: boolean;
 		validateOnBlur?: boolean;
@@ -67,13 +64,10 @@
 
 	// Initialize value if null/undefined
 	// Safe value access with fallback
-	const safeValue = $derived(value?.[_language] ?? '');
+	let safeValue = $derived(value?.[_language] ?? '');
 
-	// SECURITY: Enforce maximum length to prevent DoS
-	const safeTruncatedValue = $derived(safeValue.length > MAX_INPUT_LENGTH ? safeValue.substring(0, MAX_INPUT_LENGTH) : safeValue);
-
-	// Character count (use truncated value for safety)
-	const count = $derived(safeTruncatedValue?.length ?? 0);
+	// Character count
+	let count = $derived(safeValue?.length ?? 0);
 
 	// Validation state - now using the enhanced validation store
 	let debounceTimeout: number | undefined;
@@ -81,13 +75,13 @@
 
 	// Get validation state from store
 	// Define fieldName using getFieldName utility
-	const fieldName = getFieldName(field);
-	const validationError = $derived(validationStore.getError(fieldName));
+	let fieldName = getFieldName(field);
+	let validationError = $derived(validationStore.getError(fieldName));
 	let isValidating = $state(false);
 	let isTouched = $state(false);
 
 	// Memoized badge class calculation using $derived
-	const badgeClass = $derived(() => {
+	let badgeClass = $derived(() => {
 		const length = count;
 		if (field?.minLength && length < (field?.minLength as number)) return 'bg-red-600';
 		if (field?.maxLength && length > (field?.maxLength as number)) return 'bg-red-600';
@@ -98,8 +92,7 @@
 	});
 
 	// ✅ SSOT: Use validation schema from index.ts
-	// Pass the field config (which is the widget instance) to createValidationSchema
-	const validationSchema = $derived(createValidationSchema(field as unknown as ReturnType<any>));
+	let validationSchema = $derived(createValidationSchema(field));
 
 	// Enhanced validation function
 	async function validateInput(immediate = false): Promise<string | null> {
@@ -118,20 +111,13 @@
 			try {
 				// ✅ SSOT: Valibot schema validation using shared schema
 				try {
-					// For translated fields, validate the entire value object; for non-translated, validate current value
 					parse(validationSchema, field.translated ? value : currentValue);
-					if (process.env.NODE_ENV !== 'production') {
-						logger.debug(`[Input Widget] Validation passed for ${fieldName}`);
-					}
 					validationStore.clearError(fieldName);
 					return null;
 				} catch (error) {
-					if ((error as ValiError<any>).issues) {
-						const valiError = error as ValiError<any>;
+					if ((error as ValiError<typeof validationSchema>).issues) {
+						const valiError = error as ValiError<typeof validationSchema>;
 						const errorMessage = valiError.issues[0]?.message || 'Invalid input';
-						if (process.env.NODE_ENV !== 'production') {
-							logger.debug(`[Input Widget] Validation failed for ${fieldName}:`, errorMessage);
-						}
 						validationStore.setError(fieldName, errorMessage);
 						return errorMessage;
 					}
@@ -175,19 +161,8 @@
 	}
 
 	// Handle focus events
-	function handleFocus(e: FocusEvent) {
-		// If the token picker is already open (activeInputStore has a value),
-		// update it to point to this input.
-		if (activeInputStore.value) {
-			activeInputStore.set({
-				element: e.currentTarget as HTMLInputElement,
-				field: {
-					name: field.db_fieldName,
-					label: field.label,
-					collection: collection.value?.name
-				}
-			});
-		}
+	function handleFocus() {
+		// Could be used for custom focus behavior
 	}
 
 	// Safe value setter function

@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/MegaMenu/index.ts
+ * @file src/widgets/core/megamenu/index.ts
  * @description MegaMenu Widget Definition.
  *
  * A powerful builder widget for creating nested, hierarchical menu structures.
@@ -17,7 +17,7 @@
  */
 
 import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/widgetFactory';
+import { createWidget } from '@src/widgets/factory';
 import { array, maxLength, object, pipe, string } from 'valibot';
 import type { MegaMenuProps, MenuItem } from './types';
 

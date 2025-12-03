@@ -11,7 +11,7 @@
  * - Error handling and logging
  * - Cleanup of orphaned collection files
  * - Name conflict detection to prevent duplicate collection names
- * - HASH and _id Management for collections and widgets
+ * - HASH and UUID Management for collections and widgets
  */
 
 import fs from 'fs/promises';
@@ -26,7 +26,6 @@ interface CompileOptions {
 	systemCollections?: string;
 	userCollections?: string;
 	compiledCollections?: string;
-	targetFile?: string; // Optional: specific file to compile
 }
 
 interface ExistingFileData {
@@ -39,8 +38,7 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
 	// Define collection paths directly and use process.cwd()
 	const {
 		userCollections = path.posix.join(process.cwd(), 'config/collections'),
-		compiledCollections = path.posix.join(process.cwd(), 'compiledCollections'),
-		targetFile
+		compiledCollections = path.posix.join(process.cwd(), 'compiledCollections')
 	} = options;
 
 	try {
@@ -52,28 +50,9 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
 		const { existingFilesByPath, existingFilesByHash } = await scanCompiledFiles(compiledCollections);
 
 		// 2. Get source TypeScript and JavaScript files
-		let sourceFiles: string[] = [];
-		if (targetFile) {
-			// If targetFile is provided, only process that file
-			// Ensure it's relative to userCollections
-			const relativePath = path.posix.relative(userCollections, targetFile).split(path.sep).join(path.posix.sep);
-			sourceFiles = [relativePath];
-		} else {
-			sourceFiles = await getTypescriptAndJavascriptFiles(userCollections);
-		}
-
+		const sourceFiles = await getTypescriptAndJavascriptFiles(userCollections);
 		// Create a set of source file relative paths for quick lookup during clone detection
-		// If targetFile is set, we still might need the full set for clone detection,
-		// but for performance in partial build, we might skip complex clone detection or load all files if strictly necessary.
-		// For now, if targetFile is set, we'll just load the full list for clone detection context if needed,
-		// OR we can optimize by only loading the full list if we really need it.
-		// To be safe and keep it simple: let's load full source list for clone detection context ONLY if we are doing a full build?
-		// Actually, `sourceFileSet` is used in `compileFile` to check for clones.
-		// If we only compile one file, we might miss clone detection if we don't know about other files.
-		// However, reading all file names is fast.
-		const allSourceFiles = targetFile ? await getTypescriptAndJavascriptFiles(userCollections) : sourceFiles;
-		const sourceFileSet = new Set(allSourceFiles);
-
+		const sourceFileSet = new Set(sourceFiles);
 		// 3. Create output directories for source files
 		await createOutputDirectories(sourceFiles, compiledCollections);
 
@@ -87,13 +66,11 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
 		});
 		await Promise.all(compilePromises);
 
-		// 5. Cleanup orphaned files (ONLY if doing a full compile)
-		if (!targetFile) {
-			await cleanupOrphanedFiles(compiledCollections, existingFilesByPath, processedJsPaths);
-		}
+		// 5. Cleanup orphaned files
+		await cleanupOrphanedFiles(compiledCollections, existingFilesByPath, processedJsPaths);
 	} catch (error) {
 		if (error instanceof Error && error.message.includes('Collection name conflict')) {
-			console.error('Error:', error.message);
+			console.error('\x1b[31mError:\x1b[0m', error.message);
 			// Propagate the specific error
 			throw error;
 		}
@@ -122,7 +99,7 @@ async function scanCompiledFiles(compiledCollections: string): Promise<{
 					try {
 						const content = await fs.readFile(fullPath, 'utf8');
 						const hash = extractHashFromJs(content);
-						const uuid = extractIdFromJs(content);
+						const uuid = extractUUIDFromJs(content);
 						const fileData: ExistingFileData = { jsPath: relativePath, uuid, hash };
 
 						existingFilesByPath.set(relativePath, fileData);
@@ -201,7 +178,7 @@ export async function cleanupOrphanedFiles(
 		if (!processedJsPaths.has(relativePath)) {
 			const fullPath = path.posix.join(compiledCollections, relativePath);
 			// Keep essential log for removal action
-			console.log(`Removing orphaned collection file: ${relativePath}`);
+			console.log(`\x1b[31mRemoving orphaned collection file:\x1b[0m \x1b[34m${relativePath}\x1b[0m`);
 			// Add the unlink promise to the array
 			unlinkPromises.push(fs.unlink(fullPath).catch((err) => console.error(`Error removing orphaned file ${fullPath}:`, err)));
 		}
@@ -314,7 +291,7 @@ async function compileFile(
 			uuidReason = 'Reused from existing file path';
 		}
 
-		// Case 4: No existing _id found (or it's a clone) -> Generate new _id
+		// Case 4: No existing UUID found (or it's a clone) -> Generate new UUID
 		if (!uuid || isClone) {
 			uuid = uuidv4().replace(/-/g, '');
 			uuidReason = isClone ? 'Generated new (clone detected)' : 'Generated new';
@@ -328,10 +305,10 @@ async function compileFile(
 			: { outputText: sourceContent };
 
 		let finalCode = transformCodeWithAST(transpileResult.outputText, uuid);
-		finalCode = processHashAndId(finalCode, sourceContentHash, targetJsPathRelative);
+		finalCode = processHashAndUUID(finalCode, sourceContentHash, targetJsPathRelative);
 
 		await writeCompiledFile(targetJsPathAbsolute, finalCode);
-		console.log(`Compiled ${shortPath} (_id: ${uuid})`);
+		console.log(`Compiled \x1b[32m${shortPath}\x1b[0m (\x1b[36m${uuidReason}\x1b[0m: \x1b[33m${uuid}\x1b[0m)`);
 
 		return targetJsPathRelative;
 	} catch (error) {
@@ -341,7 +318,7 @@ async function compileFile(
 }
 
 // --- AST Transformation Functions ---
-const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed, removeComments: true });
+const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
 
 function transformCodeWithAST(code: string, uuid: string): string {
 	const sourceFile = ts.createSourceFile('tempFile.js', code, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS);
@@ -375,8 +352,8 @@ const widgetTransformer: ts.TransformerFactory<ts.SourceFile> = (context) => (so
 					// Check if it's one of the known widget sources
 					if (
 						moduleSpecifier.includes('@stores/widgetStore.svelte') ||
-						moduleSpecifier.includes('@src/widgets/proxy') ||
-						moduleSpecifier.includes('widgets/proxy') ||
+						moduleSpecifier.includes('@src/widgets/proxy') || // <-- THIS IS THE FIX
+						moduleSpecifier.includes('widgets/proxy') || // <-- Added for robustness
 						/widgets/.test(moduleSpecifier)
 					) {
 						removeImport = true;
@@ -403,7 +380,7 @@ const widgetTransformer: ts.TransformerFactory<ts.SourceFile> = (context) => (so
 			}
 		}
 
-		// 3. Inject UUID into widget calls
+		// 3. Inject UUID into widget calls (unchanged from your code)
 		if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
 			const isWidgetCall =
 				ts.isPropertyAccessExpression(node.expression.expression) &&
@@ -529,20 +506,10 @@ const schemaUuidTransformer =
 		return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
 	};
 
-function processHashAndId(code: string, hash: string, targetJsPathRelative: string): string {
+function processHashAndUUID(code: string, hash: string, targetJsPathRelative: string): string {
 	let processedCode = code;
 	processedCode = processedCode.replace(/(\s*\*\s*@file\s+)(.*)/, `$1compiledCollections/${targetJsPathRelative}`);
-	// Remove old HASH, UUID, and _id comments (supports migration)
-	processedCode = processedCode
-		.replace(/^\/\/\s*HASH:\s*[a-f0-9]+\s*$/gm, '')
-		.replace(/^\/\/\s*UUID:\s*[a-f0-9-]+\s*$/gm, '')
-		.replace(/^\/\/\s*_id:\s*[a-f0-9-]+\s*$/gm, '');
-
-	// Minification: Remove extra whitespace and empty lines
-	processedCode = processedCode
-		.replace(/^\s+|\s+$/gm, '') // Trim lines
-		.replace(/\n+/g, '\n'); // Collapse multiple newlines
-
+	processedCode = processedCode.replace(/^\/\/\s*HASH:\s*[a-f0-9]+\s*$/gm, '').replace(/^\/\/\s*UUID:\s*[a-f0-9-]+\s*$/gm, '');
 	processedCode = processedCode.trimStart();
 	const warningComment = `// WARNING: This file is automatically generated. Any changes made here will be lost.\n// Please edit the original source file in the 'config/collections' directory instead.`;
 	const hashComment = `// HASH: ${hash}`;
@@ -572,16 +539,9 @@ function extractHashFromJs(content: string): string | null {
 	return match ? match[1] : null;
 }
 
-// Helper function to extract _id from JS file content
-// Supports: schema object _id, old _id comment, and legacy UUID comment
-function extractIdFromJs(content: string): string | null {
-	// Primary: Extract from schema object (e.g., _id: '84fd46709a79462386e54fc96bf4c0a3')
-	const schemaIdMatch = content.match(/_id:\s*['"]([a-f0-9]{32})['"]/);
-	if (schemaIdMatch) return schemaIdMatch[1];
-	// Fallback: Old _id comment format
-	const idMatch = content.match(/^\/\/\s*_id:\s*([a-f0-9-]+)\s*$/m);
-	if (idMatch) return idMatch[1];
-	// Fallback: Legacy UUID comment format for migration
-	const uuidMatch = content.match(/^\/\/\s*UUID:\s*([a-f0-9-]+)\s*$/m);
-	return uuidMatch ? uuidMatch[1] : null;
+// Helper function to extract UUID from JS file content
+function extractUUIDFromJs(content: string): string | null {
+	// regex
+	const match = content.match(/^\/\/\s*UUID:\s*([a-f0-9-]+)\s*$/m);
+	return match ? match[1] : null;
 }

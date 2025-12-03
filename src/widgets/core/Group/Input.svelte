@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/Group/Input.svelte
+@file src/widgets/core/Group/Display.svelte
 @component
 **Group Widget Display Component**
 
@@ -33,7 +33,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 		children?: any;
 	}
 
-	const { field, value, children }: Props = $props();
+	let { field, value, children }: Props = $props();
 
 	const fieldName = getFieldName(field);
 

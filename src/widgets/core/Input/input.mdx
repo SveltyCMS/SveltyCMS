@@ -1,5 +1,5 @@
 ---
-path: 'src/widgets/core/input/input.mdx'
+path: 'src/widgets/core/Input/input.mdx'
 title: 'Input Widget'
 description: 'A versatile input widget supporting text, email, phone, and number types with multilingual validation and database aggregation.'
 order: 1
@@ -42,7 +42,7 @@ The widget supports several input types through the `inputType` property:
 | `phone`          | Phone number input  | E.164 format or custom pattern |
 | `number`         | Numeric input       | Min/max value constraints      |
 
-> **Note**: For specialized email, number, and phone inputs, you can use the dedicated custom widgets (`src/widgets/custom/email`, `src/widgets/custom/number`, `src/widgets/custom/phoneNumber`) which extend this core widget with enhanced features.
+> **Note**: For specialized email, number, and phone inputs, you can use the dedicated custom widgets (`src/widgets/custom/Email`, `src/widgets/custom/Number`, `src/widgets/custom/PhoneNumber`) which extend this core widget with enhanced features.
 
 ### Dynamic Validation
 
@@ -202,12 +202,12 @@ aggregations: {
 
 ### Input Component
 
-- **Path**: `/src/widgets/core/input/Input.svelte`
+- **Path**: `/src/widgets/core/Input/Input.svelte`
 - **Purpose**: Renders the form input with validation feedback
 
 ### Display Component
 
-- **Path**: `/src/widgets/core/input/Display.svelte`
+- **Path**: `/src/widgets/core/Input/Display.svelte`
 - **Purpose**: Displays the field value in read-only mode
 
 ## Type Exports
@@ -260,9 +260,9 @@ import InputWidget from '@widgets/core/input';
 
 ## Related Widgets
 
-- **Email Widget** (`/src/widgets/custom/email`): Extended email input with additional features
-- **Number Widget** (`/src/widgets/custom/number`): Enhanced numeric input with step control
-- **Phone Number Widget** (`/src/widgets/custom/phoneNumber`): Advanced phone validation with country codes
+- **Email Widget** (`/src/widgets/custom/Email`): Extended email input with additional features
+- **Number Widget** (`/src/widgets/custom/Number`): Enhanced numeric input with step control
+- **Phone Number Widget** (`/src/widgets/custom/PhoneNumber`): Advanced phone validation with country codes
 
 ## Best Practices
 

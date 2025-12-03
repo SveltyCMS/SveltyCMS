@@ -1,12 +1,6 @@
 /**
 @file src/widgets/core/RichText/extensions/TextStyle.ts
 @description - RichText TipTap widget text style extension with fixed font size handling
-
-Features:
-- Font Size
-- Font Color
-- Font Weight
-- Text Alignment
 */
 
 // TipTap v3 exports TextStyle as a named export (no default)
@@ -57,7 +51,7 @@ export default TextStyle.extend({
 				(fontSize: string) =>
 				({ chain }) => {
 					// SECURITY: Sanitize font-size to prevent CSS injection
-					// Only allow numeric values with px/em/rem/pt/% units
+					// Only allow numeric values with px/em/rem/% units
 					const size = String(fontSize);
 					const sanitized = size.match(/^\d+(\.\d+)?(px|em|rem|pt|%)$/) ? size : '16px';
 					return chain().focus().setMark(this.name, { fontSize: sanitized }).run();

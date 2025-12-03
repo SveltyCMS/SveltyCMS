@@ -379,13 +379,13 @@
 					{:else}
 						<div
 							aria-label={node.isExpanded ? 'Collapse' : 'Expand'}
-						class={`h-4 w-4 transform transition-transform duration-200
+							class={`h-4 w-4 transform transition-transform duration-200
                            ${node.isExpanded ? '' : dir === 'rtl' ? 'rotate-180' : 'rotate-90'}`}
-					>
-						<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class={dir === 'rtl' ? 'scale-x-[-1]' : ''} aria-hidden="true">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-						</svg>
-					</div>
+						>
+							<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class={dir === 'rtl' ? 'scale-x-[-1]' : ''} aria-hidden="true">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+							</svg>
+						</div>
 					{/if}
 
 					<!-- Badge overlay -->

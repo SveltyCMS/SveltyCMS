@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/PhoneNumber/index.ts
+ * @file src/widgets/custom/phonenumber/index.ts
  * @description PhoneNumber Widget Definition.
  *
  * Implements a robust phone number input that stores a simple string.
@@ -17,31 +17,20 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/widgetFactory';
+import { createWidget } from '@src/widgets/factory';
 import { minLength, optional, pipe, regex, string, type InferInput as ValibotInput } from 'valibot';
 import type { PhoneNumberProps } from './types';
 
-// The validation schema is a function to create rules based on the field config.
+// SECURITY: More robust phone validation
+// E.164 format: +[country code][subscriber number]
+// Country code: 1-3 digits, Subscriber: up to 15 total digits
 const validationSchema = (field: FieldInstance) => {
-	// SECURITY: More robust phone validation
-	// E.164 format: +[country code][subscriber number]
-	// Country code: 1-3 digits, Subscriber: up to 15 total digits
-	// Allows spaces and dashes for readability
+	// Improved regex for E.164 international format
 	const defaultPattern = /^\+[1-9]\d{1,3}[\d\s-]{4,14}$/;
 	const validationMessage = 'Please enter a valid international phone number (e.g., +49 123 456789)';
 
-	// SECURITY: Validate custom pattern if provided
 	// Use the custom pattern from the field config, or fall back to the default.
-	let validationPattern = defaultPattern;
-	if (field.pattern) {
-		try {
-			validationPattern = new RegExp(field.pattern as string);
-		} catch (e) {
-			// Invalid regex - fall back to default for security
-			console.warn('Invalid phone number pattern, using default:', e);
-			validationPattern = defaultPattern;
-		}
-	}
+	const validationPattern = field.pattern ? new RegExp(field.pattern as string) : defaultPattern;
 
 	// Start with a base string schema that includes the regex validation.
 	const baseSchema = pipe(string(), regex(validationPattern, validationMessage));
@@ -58,8 +47,8 @@ const PhoneNumberWidget = createWidget<PhoneNumberProps>({
 	Name: 'PhoneNumber',
 	Icon: 'ic:baseline-phone-in-talk',
 	Description: m.widget_phoneNumber_description(),
-	inputComponentPath: '/src/widgets/custom/PhoneNumber/Input.svelte',
-	displayComponentPath: '/src/widgets/custom/PhoneNumber/Display.svelte',
+	inputComponentPath: '/src/widgets/custom/phonenumber/Input.svelte',
+	displayComponentPath: '/src/widgets/custom/phonenumber/Display.svelte',
 	validationSchema,
 
 	// Set widget-specific defaults.

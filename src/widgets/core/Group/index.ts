@@ -36,8 +36,8 @@ const GroupWidget = createWidget<GroupProps>({
 	Description: 'Group related fields together',
 
 	// Define paths to the dedicated Svelte components.
-	inputComponentPath: '/src/widgets/core/group/Input.svelte',
-	displayComponentPath: '/src/widgets/core/group/Display.svelte',
+	inputComponentPath: '/src/widgets/core/Group/Input.svelte',
+	displayComponentPath: '/src/widgets/core/Group/Display.svelte',
 
 	// Assign the validation schema.
 	validationSchema: GroupValidationSchema,

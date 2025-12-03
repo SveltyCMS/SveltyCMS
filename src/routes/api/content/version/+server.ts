@@ -1,7 +1,7 @@
 /**
  * @file src\routes\api\content\version\+server.ts
  * @description API endpoint for fetching content version.
- * 
+ *
  * Security: Protected by hooks, admin-only.
  */
 

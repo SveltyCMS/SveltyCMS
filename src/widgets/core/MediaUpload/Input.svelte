@@ -23,76 +23,51 @@
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 	import { getModalStore } from '@skeletonlabs/skeleton';
-	import { createValidationSchema, type FieldType } from './';
+	import type { FieldType } from './';
 	import type { MediaFile } from './types';
-	import { validationStore } from '@root/src/stores/store.svelte';
-	import { getFieldName } from '@utils/utils';
-	import { parse, flatten } from 'valibot';
 
-	// ✅ Security: File validation constants to prevent malicious uploads
+	// SECURITY: File validation constants
 	const ALLOWED_MIME_TYPES = [
-		// Images
 		'image/jpeg',
-		'image/jpg',
 		'image/png',
 		'image/gif',
 		'image/webp',
 		'image/svg+xml',
-		'image/bmp',
-		// Videos
 		'video/mp4',
 		'video/webm',
 		'video/ogg',
-		'video/quicktime',
-		// Audio
-		'audio/mpeg',
-		'audio/mp3',
-		'audio/wav',
-		'audio/ogg',
-		// Documents
 		'application/pdf',
-		'application/msword',
-		'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-		'application/vnd.ms-excel',
-		'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+		'audio/mpeg',
+		'audio/wav'
 	];
+	const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+	const VALID_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp4', 'webm', 'ogg', 'pdf', 'mp3', 'wav'];
 
-	const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
-
-	const VALID_EXTENSIONS = [
-		'.jpg',
-		'.jpeg',
-		'.png',
-		'.gif',
-		'.webp',
-		'.svg',
-		'.bmp',
-		'.mp4',
-		'.webm',
-		'.ogv',
-		'.mov',
-		'.mp3',
-		'.wav',
-		'.ogg',
-		'.pdf',
-		'.doc',
-		'.docx',
-		'.xls',
-		'.xlsx'
-	];
+	function validateFile(file: File): { valid: boolean; error?: string } {
+		// Check MIME type
+		if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+			return { valid: false, error: `Invalid file type: ${file.type}` };
+		}
+		// Check file size
+		if (file.size > MAX_FILE_SIZE) {
+			return { valid: false, error: `File too large (max 10MB): ${(file.size / 1024 / 1024).toFixed(2)}MB` };
+		}
+		// Check file extension
+		const ext = file.name.split('.').pop()?.toLowerCase();
+		if (!ext || !VALID_EXTENSIONS.includes(ext)) {
+			return { valid: false, error: `Invalid file extension: ${ext}` };
+		}
+		// Basic filename sanitization check (prevent path traversal)
+		if (file.name.includes('..') || file.name.includes('/') || file.name.includes('\\')) {
+			return { valid: false, error: 'Invalid filename characters detected' };
+		}
+		return { valid: true };
+	}
 
 	let { field, value = $bindable(), error }: { field: FieldType; value: string | string[] | null | undefined; error?: string | null } = $props();
 
-	// ✅ SSOT: Import validation schema from index.ts
-	const validationSchema = createValidationSchema(field);
-	const fieldName = getFieldName(field);
-
-	// Validation state management
-	let validateOnMount = field.required ?? false;
-	let localError: string | null = $state(null);
-
 	// A local, reactive array of the full, resolved media file objects for display.
-	let selectedFiles: MediaFile[] = $state([]);
+	let selectedFiles = $state<MediaFile[]>([]);
 
 	// Helper function to fetch full media data from an array of IDs.
 	async function fetchMediaData(ids: string[]): Promise<MediaFile[]> {
@@ -136,25 +111,6 @@
 		}
 	});
 
-	// ✅ Effect 3: Validate on value changes
-	$effect(() => {
-		if (validateOnMount || value) {
-			try {
-				parse(validationSchema, value);
-				localError = null;
-				validationStore.setError(fieldName, null);
-			} catch (err: unknown) {
-				const flatErrors = flatten(err as any);
-				const errorMessage = flatErrors?.root?.[0] || 'Invalid media selection';
-				localError = errorMessage;
-				validationStore.setError(fieldName, errorMessage);
-				if (process.env.NODE_ENV !== 'production') {
-					logger.debug('[MediaUpload] Validation error:', errorMessage);
-				}
-			}
-		}
-	});
-
 	// Function to open the Media Library modal.
 	function openMediaLibrary() {
 		getModalStore().trigger({
@@ -162,8 +118,12 @@
 			component: 'mediaLibraryModal', // This would be your full media library component
 			// Pass a callback function to the modal so it can return the selected files.
 			response: (files: MediaFile[] | undefined) => {
-				if (files && files.length > 0) {
-					addValidatedFiles(files);
+				if (files) {
+					if (field.multiupload) {
+						selectedFiles = [...selectedFiles, ...files];
+					} else {
+						selectedFiles = [files[0]];
+					}
 				}
 			}
 		});
@@ -172,75 +132,6 @@
 	// Function to remove a selected file.
 	function removeFile(fileId: string) {
 		selectedFiles = selectedFiles.filter((file) => file._id !== fileId);
-		validateOnMount = true; // Enable validation after user interaction
-	}
-
-	// ✅ Security: Comprehensive file validation to prevent malicious uploads
-	function addValidatedFiles(files: MediaFile[]) {
-		const validFiles = files.filter((file) => {
-			// 1. Check MIME type against whitelist
-			if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-				if (process.env.NODE_ENV !== 'production') {
-					logger.warn(`[MediaUpload Security] File MIME type ${file.type} not in whitelist for ${file.name}`);
-				}
-				return false;
-			}
-
-			// 2. Check file size limit to prevent DoS
-			if (file.size > MAX_FILE_SIZE) {
-				if (process.env.NODE_ENV !== 'production') {
-					logger.warn(`[MediaUpload Security] File size ${file.size} exceeds limit ${MAX_FILE_SIZE} for ${file.name}`);
-				}
-				return false;
-			}
-
-			// 3. Validate file extension matches MIME type
-			const fileExtension = file.name.toLowerCase().match(/\.[^.]+$/)?.[0];
-			if (!fileExtension || !VALID_EXTENSIONS.includes(fileExtension)) {
-				if (process.env.NODE_ENV !== 'production') {
-					logger.warn(`[MediaUpload Security] File extension ${fileExtension} not in whitelist for ${file.name}`);
-				}
-				return false;
-			}
-
-			// 4. Check for path traversal attempts in filename
-			if (file.name.includes('../') || file.name.includes('..\\')) {
-				if (process.env.NODE_ENV !== 'production') {
-					logger.warn(`[MediaUpload Security] Path traversal attempt detected in filename: ${file.name}`);
-				}
-				return false;
-			}
-
-			// 5. Sanitize filename - remove dangerous characters
-			const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-			if (sanitizedName !== file.name) {
-				if (process.env.NODE_ENV !== 'production') {
-					logger.warn(`[MediaUpload Security] Filename sanitized from "${file.name}" to "${sanitizedName}"`);
-				}
-				// Update file name to sanitized version
-				file.name = sanitizedName;
-			}
-
-			// 6. Additional check: field-level allowed types (more restrictive than global whitelist)
-			const allowedTypes = field.allowedTypes as string[] | undefined;
-			if (allowedTypes && Array.isArray(allowedTypes) && allowedTypes.length > 0) {
-				if (!allowedTypes.includes(file.type)) {
-					if (process.env.NODE_ENV !== 'production') {
-						logger.warn(`[MediaUpload Security] File type ${file.type} not in field allowedTypes for ${file.name}`);
-					}
-					return false;
-				}
-			}
-
-			return true;
-		});
-
-		if (field.multiupload) {
-			selectedFiles = [...selectedFiles, ...validFiles];
-		} else {
-			selectedFiles = validFiles.length > 0 ? [validFiles[0]] : [];
-		}
-		validateOnMount = true; // Enable validation after user interaction
 	}
 </script>
 
@@ -277,7 +168,7 @@
 		</button>
 	{/if}
 
-	{#if error || localError}
-		<p class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">{error || localError}</p>
+	{#if error}
+		<p class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">{error}</p>
 	{/if}
 </div>
