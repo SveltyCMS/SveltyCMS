@@ -9,22 +9,19 @@
 	import { locales as systemLocales } from '@src/paraglide/runtime';
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 	// ✅ FIX: Import types from the store
-	import type { SystemSettings, ValidationErrors } from '@stores/setupStore.svelte';
+	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { systemSettingsSchema } from '@utils/formSchemas';
 
 	// --- PROPS ---
 	// ✅ FIX: Added $bindable() to systemSettings
-	let { systemSettings = $bindable(), validationErrors } = $props<{
-		systemSettings: SystemSettings;
-		validationErrors: ValidationErrors; // Now uses imported type
-	}>();
+	let { systemSettings = $bindable(), validationErrors } = $props(); // Now uses imported type
 
 	const availableLanguages: string[] = [...systemLocales];
 
 	// Real-time validation state
-	let localValidationErrors = $state<ValidationErrors>({});
-	let touchedFields = $state<Set<string>>(new Set());
+	let localValidationErrors = $state<Record<string, string>>({});
+	let touchedFields = $state(new Set<string>());
 
 	const validationResult = $derived(
 		safeParse(systemSettingsSchema, {

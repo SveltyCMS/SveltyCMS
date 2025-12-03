@@ -29,24 +29,8 @@
 	import { mode, setMode } from '@stores/collectionStore.svelte';
 
 	// Props
-	const props = $props<{
-		buttons?: Record<
-			string,
-			{
-				fn: () => void;
-				icon: string;
-				bg_color: string;
-				color: string;
-			}
-		>;
-		defaultButton?: string;
-		// Event handler props for decoupling
-		'on:create'?: () => void;
-		'on:delete'?: () => void;
-		'on:publish'?: () => void;
-		'on:unpublish'?: () => void;
-		'on:test'?: () => void;
-	}>();
+	const props = $props();
+	// Event handler props for decoupling
 
 	// The default functions now call the event handlers passed in as props.
 	const defaultButtons = {

@@ -20,8 +20,6 @@
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import type { ContentNodeOperation } from '@src/content/types';
-
 	// Simple ID generator (no need for crypto UUID)
 	function generateId(): string {
 		return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
@@ -32,6 +30,7 @@
 
 	// Stores
 	import { setCollectionValue, setMode, setContentStructure, contentStructure } from '@src/stores/collectionStore.svelte';
+	import { setRouteContext } from '@src/stores/UIStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -45,9 +44,19 @@
 	import { type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton';
 	import { showToast } from '@utils/toast';
 	import { showModal } from '@utils/modalUtils';
+<<<<<<< HEAD:apps/cms/src/routes/(app)/config/collectionbuilder/+page.svelte
 	import type { ContentNode, DatabaseId } from '@src/databases/dbInterface';
 	import type { ISODateString } from '@src/content/types';
 	import type { DndItem } from './NestedContent/types';
+=======
+	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
+	import type { ISODateString } from '@root/src/content/types';
+
+	interface NodeOperation {
+		type: 'create' | 'update' | 'move' | 'rename';
+		node: ContentNode;
+	}
+>>>>>>> upstream/next:src/routes/(app)/config/collectionbuilder/+page.svelte
 
 	interface CategoryModalResponse {
 		newCategoryName: string;
@@ -69,19 +78,25 @@
 
 	// `currentConfig` holds the live, mutable state of the content structure for the UI.
 	// It's initialized from `data.contentStructure` and updated by DnD operations.
-	let currentConfig: ContentNode[] = $state(data.contentStructure);
+	let currentConfig: ContentNode[] = $state([]);
 	// `nodesToSave` stores operations (create, update, move, rename) that need to be persisted to the backend.
-	let nodesToSave = $state<Record<string, ContentNodeOperation>>({});
+	let nodesToSave: Record<string, NodeOperation> = $state({});
+
+	$effect(() => {
+		if (data.contentStructure) {
+			currentConfig = data.contentStructure;
+		}
+	});
 
 	// State for UI feedback
 	let isLoading = $state(false);
-	let apiError = $state<string | null>(null);
+	let apiError: string | null = $state(null);
 
 	/**
 	 * Opens the modal for adding or editing a category.
 	 * @param existingCategory Optional Partial<DndItem> if editing an existing category.
 	 */
-	function modalAddCategory(existingCategory?: Partial<DndItem>): void {
+	function modalAddCategory(existingCategory?: Partial<ContentNode>): void {
 		const modalComponent: ModalComponent = {
 			ref: ModalCategory,
 			props: {
@@ -238,7 +253,6 @@
 		}
 	}
 
-	// Navigates to the new collection creation page.
 	function handleAddCollectionClick(): void {
 		setMode('create');
 		setCollectionValue({
@@ -251,6 +265,11 @@
 		});
 		goto('/config/collectionbuilder/new');
 	}
+
+	$effect(() => {
+		setRouteContext({ isCollectionBuilder: true });
+		return () => setRouteContext({ isCollectionBuilder: false });
+	});
 </script>
 
 <PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config" />

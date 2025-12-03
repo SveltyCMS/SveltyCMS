@@ -94,8 +94,8 @@
 
 				validationStore.clearError(fieldName);
 			} catch (error) {
-				if ((error as ValiError<typeof emailSchema>).issues) {
-					const valiError = error as ValiError<typeof emailSchema>;
+				if ((error as ValiError<any>).issues) {
+					const valiError = error as ValiError<any>;
 					const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 					validationStore.setError(fieldName, errorMessage);
 				}

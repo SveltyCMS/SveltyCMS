@@ -23,11 +23,11 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 	const { showTooltip = true, tooltipPlacement = 'bottom', buttonClass = 'variant-ghost btn-icon', iconSize = 22 }: Props = $props();
 
 	// Theme toggle tooltip settings
-	const themeToggleTooltip: PopupSettings = {
+	const themeToggleTooltip: PopupSettings = $derived({
 		event: 'hover',
 		target: 'ThemeToggleTooltip',
 		placement: tooltipPlacement
-	};
+	});
 
 	// Cycle through system -> light -> dark -> system
 	function cycleTheme() {

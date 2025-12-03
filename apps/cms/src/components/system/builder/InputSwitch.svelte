@@ -33,13 +33,7 @@ Features:
 	}
 	import { createEventDispatcher } from 'svelte';
 	// Define props using $props()
-	const props = $props<{
-		value: any;
-		widget: any;
-		key: string;
-		icon?: string | null;
-		permissions?: any;
-	}>();
+	const props = $props();
 
 	const dispatch = createEventDispatcher();
 

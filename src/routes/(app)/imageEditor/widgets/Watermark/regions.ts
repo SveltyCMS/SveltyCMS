@@ -1,10 +1,14 @@
-// @file: src/routes/(app)/imageEditor/widgets/Watermark/region.ts
-import Konva from 'konva';
-
 /**
- * WatermarkItem encapsulates a Konva.Image node, its transformer,
+ * @file src/routes/(app)/imageEditor/widgets/Watermark/region.ts
+ * @description Regions for Watermark tool
+ *
+ * Features:
+ * - WatermarkItem encapsulates a Konva.Image node, its transformer,
  * and the async logic to load an image from a File.
  */
+
+import Konva from 'konva';
+
 export class WatermarkItem {
 	id: string;
 	node: Konva.Image;

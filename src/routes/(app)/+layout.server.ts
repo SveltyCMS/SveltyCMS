@@ -131,7 +131,11 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 		await contentManager.initialize();
 
 		// Fetch critical data concurrently for optimal performance
-		const [contentStructure, freshUser] = await Promise.all([contentManager.getNavigationStructure(), refreshUser(sessionUser)]);
+		const [contentStructure, freshUser, firstCollection] = await Promise.all([
+			contentManager.getNavigationStructure(),
+			refreshUser(sessionUser),
+			contentManager.getFirstCollection()
+		]);
 
 		// Return type-safe, serializable data
 		return {
@@ -144,7 +148,8 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 			streamed: {
 				// Add progressive enhancement data here
 				// Example: virtualFolders: fetchVirtualFolders()
-			}
+			},
+			firstCollection: firstCollection ? JSON.parse(JSON.stringify(firstCollection)) : null // Pass first collection for immediate store hydration
 		};
 	} catch (err) {
 		// Log full error for monitoring/debugging

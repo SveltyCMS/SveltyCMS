@@ -122,7 +122,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			throw error(403, 'One or more entries do not belong to your tenant or do not exist');
 		}
 
-		const results: Array<{ entryId: string; success: boolean; error?: string }> = [];
+		const results: Array<{ entryId: string; success: boolean; error?: string; newId?: string }> = [];
 		let successCount = 0;
 
 		// Perform the batch operation
@@ -199,43 +199,51 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 
 			case 'clone': {
 				// Clone entries - create duplicates with modified titles
-				const cloneResults = [];
+				const entriesToClone: Array<Omit<BaseEntity, '_id' | 'createdAt' | 'updatedAt'>> = [];
+				const originalIds: string[] = [];
 
 				for (const entry of verificationResult.data as BaseEntity[]) {
-					try {
-						const entryData = entry as unknown as Record<string, unknown>;
-						const clonedEntry = {
-							...entryData,
-							_id: undefined, // Remove ID so a new one is generated
-							title: `${entryData.title || 'Untitled'} (Copy)`,
-							createdBy: user._id,
-							updatedBy: user._id,
-							createdAt: new Date().toISOString(),
-							updatedAt: new Date().toISOString()
-						} as unknown as Omit<BaseEntity, '_id' | 'createdAt' | 'updatedAt'>;
+					const entryData = entry as unknown as Record<string, unknown>;
+					const clonedEntry = {
+						...entryData,
+						_id: undefined, // Remove ID so a new one is generated
+						title: `${entryData.title || 'Untitled'} (Copy)`,
+						createdBy: user._id,
+						updatedBy: user._id,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString()
+					} as unknown as Omit<BaseEntity, '_id' | 'createdAt' | 'updatedAt'>;
 
-						const cloneResult = await dbAdapter.crud.insert(normalizedCollectionId, clonedEntry);
+					entriesToClone.push(clonedEntry);
+					originalIds.push(entry._id);
+				}
 
-						if (cloneResult.success) {
-							cloneResults.push({ entryId: entry._id, success: true, newId: cloneResult.data._id });
-							successCount++;
-						} else {
-							cloneResults.push({
-								entryId: entry._id,
-								success: false,
-								error: cloneResult.error.message
+				if (entriesToClone.length > 0) {
+					// Use optimized insertMany
+					const insertResult = await dbAdapter.crud.insertMany(normalizedCollectionId, entriesToClone);
+
+					if (insertResult.success) {
+						successCount = insertResult.data.length;
+						// Map new IDs back to results
+						insertResult.data.forEach((newEntry, index) => {
+							results.push({
+								entryId: originalIds[index],
+								success: true,
+								newId: newEntry._id
 							});
-						}
-					} catch (cloneError) {
-						const errorMsg = cloneError instanceof Error ? cloneError.message : 'Unknown clone error';
-						cloneResults.push({
-							entryId: entry._id,
-							success: false,
-							error: errorMsg
 						});
+					} else {
+						// Fallback to individual errors if batch fails completely (though insertMany usually throws or returns all/nothing depending on impl)
+						// Assuming all failed if success is false
+						results.push(
+							...originalIds.map((id) => ({
+								entryId: id,
+								success: false,
+								error: insertResult.error.message
+							}))
+						);
 					}
 				}
-				results.push(...cloneResults);
 
 				logger.info(`${endpoint} - Batch clone completed`, {
 					totalEntries: entryIds.length,

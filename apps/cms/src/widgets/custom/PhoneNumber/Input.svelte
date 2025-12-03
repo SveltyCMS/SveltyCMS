@@ -109,8 +109,8 @@
 
 				validationStore.clearError(fieldName);
 			} catch (error) {
-				if ((error as ValiError<typeof phoneSchema>).issues) {
-					const valiError = error as ValiError<typeof phoneSchema>;
+				if ((error as ValiError<any>).issues) {
+					const valiError = error as ValiError<any>;
 					const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 					validationStore.setError(fieldName, errorMessage);
 				}

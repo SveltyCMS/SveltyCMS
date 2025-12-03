@@ -21,8 +21,9 @@ try {
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import type { RedisClientType } from 'redis';
-// System Logger
-import { logger } from '@utils/logger.server';
+// System Logger - use universal logger for client/server compatibility
+import { logger } from '@utils/logger';
+import { CacheCategory } from './CacheCategory';
 
 // Cache config will be loaded lazily when cache is initialized
 let CACHE_CONFIG: {
@@ -260,22 +261,52 @@ class CacheService {
 		for (const pattern of this.prefetchPatterns) {
 			if (pattern.pattern.test(key)) {
 				const keysToFetch = pattern.prefetchKeys(key);
-				// Prefetch in background without blocking
-				void this.prefetchKeys(keysToFetch, pattern.category, tenantId);
+				if (keysToFetch.length > 0 && pattern.fetcher) {
+					// Execute prefetch in background
+					void this.executePrefetch(keysToFetch, pattern.fetcher, pattern.category, tenantId);
+				}
 				break;
 			}
 		}
 	}
 
-	// Prefetch multiple keys in the background
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	private async prefetchKeys(keys: string[], category?: CacheCategory, _tenantId?: string): Promise<void> {
-		// This is a placeholder - in a real implementation, you would:
-		// 1. Check which keys are not in cache
-		// 2. Fetch the data from the database
-		// 3. Store it in cache
-		// For now, we just log the intent
-		logger.debug(`Predictive prefetch triggered for \x1b[34m${keys.length}\x1b[0m keys in category \x1b[34m${category || 'default'}\x1b[0m`);
+	private async executePrefetch(
+		keys: string[],
+		fetcher: (keys: string[]) => Promise<Record<string, unknown>>,
+		category?: CacheCategory,
+		tenantId?: string
+	): Promise<void> {
+		try {
+			// 1. Filter out keys that are already cached
+			const missingKeys: string[] = [];
+			for (const key of keys) {
+				// const cached = await this.get(key, tenantId); // This tracks access, might skew analytics?
+				// Actually, we should check existence without tracking access if possible, or just accept it.
+				// For now, let's just fetch everything to be safe and ensure freshness,
+				// or assume the fetcher is efficient.
+				// Optimization: Check cache existence first.
+				const fullKey = this.generateKey(key, tenantId);
+				const exists = await this.store.get(fullKey); // Direct store access to avoid recursion/tracking
+				if (!exists) {
+					missingKeys.push(key);
+				}
+			}
+
+			if (missingKeys.length === 0) return;
+
+			logger.debug(`Prefetching ${missingKeys.length} missing keys`);
+
+			// 2. Fetch data
+			const dataMap = await fetcher(missingKeys);
+
+			// 3. Cache data
+			const ttl = category ? getCategoryTTL(category) : REDIS_TTL_S;
+			for (const [key, value] of Object.entries(dataMap)) {
+				await this.set(key, value, ttl, tenantId, category);
+			}
+		} catch (error) {
+			logger.warn('Predictive prefetch failed:', error);
+		}
 	}
 
 	async get<T>(baseKey: string, tenantId?: string, _category?: CacheCategory): Promise<T | null> {
@@ -327,7 +358,7 @@ class CacheService {
 	 */
 	async warmCache(config: WarmCacheConfig): Promise<void> {
 		await this.ensureInitialized();
-		logger.info(`Warming cache for \x1b[34m${config.keys.length}\x1b[0m keys in category \x1b[34m${config.category || 'default'}\x1b[0m`);
+		logger.info(`Warming cache for ${config.keys.length} keys in category ${config.category || 'default'}`);
 
 		try {
 			const data = await config.fetcher();
@@ -337,7 +368,7 @@ class CacheService {
 				await this.set(key, data, ttl, config.tenantId, config.category);
 			}
 
-			logger.info(`Cache warmed successfully for \x1b[34m${config.keys.length}\x1b[0m keys`);
+			logger.info(`Cache warmed successfully for ${config.keys.length} keys`);
 		} catch (error) {
 			logger.error('Cache warming failed:', error);
 		}
@@ -349,7 +380,7 @@ class CacheService {
 	 */
 	registerPrefetchPattern(pattern: PrefetchPattern): void {
 		this.prefetchPatterns.push(pattern);
-		logger.info(`Registered prefetch pattern: \x1b[34m${pattern.pattern.source}\x1b[0m`);
+		logger.info(`Registered prefetch pattern: ${pattern.pattern.source}`);
 	}
 
 	// Get cache access analytics
@@ -525,7 +556,7 @@ function getCategoryTTL(category: CacheCategory): number {
 		}
 	} catch (error) {
 		// If settings not loaded yet, fall through to defaults
-		logger.debug(`Failed to get TTL for \x1b[34m${category}\x1b[0m, using default:`, error);
+		logger.debug(`Failed to get TTL for ${category}, using default:`, error);
 	}
 
 	// Fall back to default TTL
@@ -544,5 +575,6 @@ interface WarmCacheConfig {
 interface PrefetchPattern {
 	pattern: RegExp;
 	prefetchKeys: (matchedKey: string) => string[];
+	fetcher?: (keys: string[]) => Promise<Record<string, unknown>>; // Function to fetch data for keys
 	category?: CacheCategory;
 }

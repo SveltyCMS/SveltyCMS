@@ -17,12 +17,12 @@
 			deleted?: { name: string; uuid: string; type: string }[];
 		};
 		unmetRequirements: { name: string; type: string; requirement: string }[];
-	};
+	} | null;
 
-	let status = $state<ConfigStatus | null>(null);
+	let status: ConfigStatus = $state(null);
 	let isLoading = $state(true);
 	let isProcessing = $state(false);
-	let activeTab = $state<'sync' | 'import' | 'export' | 'debug'>('sync');
+	let activeTab: 'sync' | 'import' | 'export' | 'debug' = $state('sync');
 
 	// prettier counts
 	const changeSummary = $derived(() => ({
@@ -47,7 +47,7 @@
 		}
 	}
 
-	let fileToImport = $state<File | null>(null);
+	let fileToImport: File | null = $state(null);
 
 	function handleFileSelect(e: Event) {
 		const target = e.target as HTMLInputElement;

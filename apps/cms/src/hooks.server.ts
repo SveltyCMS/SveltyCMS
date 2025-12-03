@@ -7,12 +7,17 @@
  * and performance with unified metrics collection and automated threat detection.
  *
  * Middleware Sequence:
- * 1. System state validation (gatekeeper)
- * 2. Language preferences (i18n cookie synchronization)
- * 3. Theme management (SSR dark mode support)
- * 4. Authentication & session management (identity)
- * 5. Authorization & access control (security)
- * 6. Security headers with nonce-based CSP (defense in depth)
+ * 1. Static asset caching (performance optimization, skip all processing)
+ * 2. System state validation (gatekeeper)
+ * 3. Rate limiting (abuse prevention)
+ * 4. Application firewall (threat detection)
+ * 5. Setup completion enforcement (installation gate)
+ * 6. Language preferences (i18n cookie synchronization)
+ * 7. Theme management (SSR dark mode support)
+ * 8. Authentication & session management (identity)
+ * 9. Authorization & access control (security)
+ * 10. API request handling (optional, commented out by default)
+ * 11. Security headers with nonce-based CSP (defense in depth)
  *
  * Core Services:
  * - MetricsService: Unified performance & security monitoring
@@ -32,6 +37,7 @@ import { metricsService } from '@src/services/MetricsService';
 
 // --- Import enterprise middleware hooks ---
 import { handleSystemState } from './hooks/handleSystemState';
+import { handleSetup } from './hooks/handleSetup';
 import { handleAuthentication } from './hooks/handleAuthentication';
 import { handleAuthorization } from './hooks/handleAuthorization';
 import { handleLocale } from './hooks/handleLocale';
@@ -43,6 +49,11 @@ import { handleRateLimit } from './hooks/handleRateLimit';
 import { handleFirewall } from './hooks/handleFirewall';
 // API middleware for role-based access control and caching
 import { handleApiRequests } from './hooks/handleApiRequests';
+import { handleCompression } from './hooks/handleCompression';
+
+// --- Import Token Services for Dependency Injection ---
+import { TokenRegistry } from '@src/services/token/engine';
+import { getRelationTokens } from '@src/services/token/relationEngine';
 
 // --- Server Startup Logic ---
 if (!building) {
@@ -58,6 +69,10 @@ if (!building) {
 	 */
 	// Static import ensures the module is loaded and initialization promise is created
 	import('@src/databases/db');
+
+	// Inject server-side relation engine into TokenRegistry
+	TokenRegistry.setRelationTokenGenerator(getRelationTokens);
+
 	logger.info('✅ DB module loaded. System will initialize on first request via handleSystemState.');
 }
 
@@ -69,20 +84,40 @@ const middleware: Handle[] = [
 	// 2. System state validation (enterprise gatekeeper with metrics)
 	handleSystemState,
 
-	// 2. Language preferences (i18n)
+	// 3. Rate limiting (early protection against abuse)
+	handleRateLimit,
+
+	// 4. Application firewall (detect threats Nginx/CDN can't catch)
+	handleFirewall,
+
+	// 5. Setup completion enforcement (installation gate with tracking)
+	handleSetup,
+
+	// 6. Language preferences (i18n cookie synchronization)
 	handleLocale,
 
-	// 3. Theme management
+	// 7. Theme management (SSR dark mode support)
 	handleTheme,
 
-	// 4. Authentication & session management (with security monitoring)
+	// 8. Authentication & session management (identity with security monitoring)
 	handleAuthentication,
 
-	// 5. Authorization & access control (with threat detection)
+	// 9. Authorization & access control (permissions with threat detection)
 	handleAuthorization,
 
-	// 6. Essential security headers (SvelteKit handles CSP automatically)
-	addSecurityHeaders
+	// 10. API request handling (role-based access control & caching)
+	handleApiRequests,
+
+	// 11. Token resolution for API responses
+	// CRITICAL: Must be AFTER handleAuthorization (needs locals.user, locals.roles)
+	//           and BEFORE addSecurityHeaders (modifies response body)
+	handleTokenResolution,
+
+	// 12. Essential security headers (defense in depth)
+	addSecurityHeaders,
+
+	// 13. Compression (GZIP/Brotli)
+	handleCompression
 ];
 
 // --- Main Handle Export ---

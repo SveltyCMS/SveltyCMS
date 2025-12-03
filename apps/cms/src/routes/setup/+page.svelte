@@ -30,7 +30,6 @@ calls store methods and wires store state to child components.
 
 	// Skeleton
 	import { getModalStore, type ModalSettings, Modal } from '@skeletonlabs/skeleton';
-	import type { ModalComponent } from '@skeletonlabs/skeleton';
 	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
 
 	// ParaglideJS
@@ -46,25 +45,17 @@ calls store methods and wires store state to child components.
 	const wizard = setupStore.wizard; // Get direct rune access
 	const { load: loadStore, clear: clearStore, setupPersistence: setupPersistenceFn, validateStep, seedDatabase, completeSetup } = setupStore;
 
-	// --- 2. TYPE DEFINITIONS ---
-	interface StepDef {
-		label: string;
-		shortDesc: string;
-	}
-
-	// --- 3. LOCAL UI STATE (Page-specific UI) ---
+	// --- 1. COMPONENT IMPORTS ---
 	let showDbPassword = $state(false);
 	let showAdminPassword = $state(false);
 	let showConfirmPassword = $state(false);
-	let initialDataSnapshot = $state<string>('');
+	let initialDataSnapshot = $state('');
 	let isLangOpen = $state(false);
 	let langSearch = $state('');
 	let currentLanguageTag = $state(getLocale());
 
 	// --- 4. LIFECYCLE HOOKS ---
-	const modalComponentRegistry: Record<string, ModalComponent> = {
-		welcomeModal: { ref: WelcomeModal }
-	};
+	const modalComponentRegistry: Record<string, any> = { welcomeModal: { ref: WelcomeModal } };
 	const modalStore = getModalStore();
 
 	onMount(() => {
@@ -113,7 +104,7 @@ calls store methods and wires store state to child components.
 		if (!initialDataSnapshot) return false;
 		return JSON.stringify(wizard) !== initialDataSnapshot;
 	});
-	const systemLanguages = $derived.by<string[]>(() => {
+	const systemLanguages = $derived.by(() => {
 		return [...availableLocales].sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
 	});
 	const isFullUri = $derived(() => {
@@ -121,7 +112,7 @@ calls store methods and wires store state to child components.
 	});
 
 	// STEPPER CONFIG
-	const steps = $derived<StepDef[]>([
+	const steps = $derived([
 		{ label: m.setup_step_database(), shortDesc: m.setup_step_database_desc() },
 		{ label: m.setup_step_admin(), shortDesc: m.setup_step_admin_desc() },
 		{ label: m.setup_step_system(), shortDesc: m.setup_step_system_desc() },
@@ -131,7 +122,7 @@ calls store methods and wires store state to child components.
 		},
 		{ label: m.setup_step_complete(), shortDesc: m.setup_step_complete_desc() }
 	]);
-	const totalSteps = $derived<number>(steps.length);
+	const totalSteps = $derived(steps.length);
 	const legendItems = [
 		{ key: 'completed', label: m.setup_legend_completed(), content: '✓' },
 		{ key: 'current', label: m.setup_legend_current(), content: '●' },
@@ -184,7 +175,7 @@ calls store methods and wires store state to child components.
 	}
 
 	// --- 7. UI HANDLERS ---
-	function selectLanguage(event: CustomEvent<string>) {
+	function selectLanguage(event: CustomEvent) {
 		const lang = event.detail;
 		systemLanguage.set(lang as typeof systemLanguage.value);
 		currentLanguageTag = lang as typeof currentLanguageTag;

@@ -16,7 +16,8 @@
 
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
-	import { getWidgetDefaults } from './widgetDefaults';
+
+	import type { WidgetSize } from '@src/content/types';
 
 	interface CacheMetrics {
 		overall: {
@@ -41,35 +42,27 @@
 				hitRate: number;
 			};
 		};
-		recentMisses?: Array<{
-			key: string;
-			category: string;
-			tenantId?: string;
-			timestamp: string;
-		}>;
+		recentMisses?: Array<any>;
 		timestamp: number;
 	}
 
 	const {
 		label = 'Cache Monitor',
-		theme = 'light',
+		theme = 'light' as 'light' | 'dark',
 		icon = 'mdi:database-clock',
 		widgetId = undefined,
-		size = { w: 2, h: 3 },
-		onSizeChange = () => {},
+		size = { w: 2, h: 3 } as WidgetSize,
+		onSizeChange = (_newSize: any) => {},
 		onRemove = () => {}
-	} = $props<{
+	}: {
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-		size?: { w: number; h: number };
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
 		onRemove?: () => void;
-	}>();
-
-	// Apply defaults for monitoring category
-	const defaults = getWidgetDefaults('monitoring', widgetId);
+	} = $props();
 
 	function getHitRateColor(hitRate: number): string {
 		if (hitRate >= 90) return 'text-success-500';
@@ -109,7 +102,6 @@
 	{size}
 	{onSizeChange}
 	onCloseRequest={onRemove}
-	{...defaults}
 >
 	{#snippet children({ data })}
 		{@const metrics = data as CacheMetrics | null}

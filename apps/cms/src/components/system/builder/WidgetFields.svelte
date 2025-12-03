@@ -1,6 +1,25 @@
 <!-- 
 @file src/components/system/builder/WidgetFields.svelte
-@description Component for displaying and managing widget fields 
+@component
+**Component for displaying and managing widget fields**
+
+### Features
+- Drag and drop fields
+- Edit fields
+- Delete fields
+
+### Props
+- fields: Array of widget fields
+- onFieldsUpdate: Function to update fields
+
+### Events
+- onFieldsUpdate: Function to update fields
+
+### Stores
+- uiStateManager: Store for UI state
+
+### Components
+- AddWidget: Component for adding widgets
 -->
 
 <script lang="ts">
@@ -15,15 +34,12 @@
 	import type { FieldInstance } from '@content/types';
 
 	// Props
-	const { fields = [], onFieldsUpdate = () => {} } = $props<{
-		fields: FieldInstance[];
-		onFieldsUpdate: (newFields: FieldInstance[]) => void;
-	}>();
+	const { fields = [], onFieldsUpdate = () => {} } = $props();
 
 	// State
-	let container = $state<HTMLDivElement | null>(null);
-	let currentFieldKey = $state<string | null>(null);
-	let currentField = $state<FieldInstance | null>(null);
+	let container: HTMLDivElement | null = $state(null);
+	let currentFieldKey: string | null = $state(null);
+	let currentField: FieldInstance | null = $state(null);
 
 	function initDragAndDrop(node: HTMLElement) {
 		function drag(e: PointerEvent) {
@@ -183,7 +199,7 @@
 </div>
 
 {#if currentField}
-	<AddWidget {fields} field={currentField} addField={false} selected_widget={currentFieldKey} editField={true} />
+	<AddWidget {fields} field={currentField as any} addField={false} selected_widget={currentFieldKey} editField={true} />
 {/if}
 
 <!-- Edit individual selected widget  -->

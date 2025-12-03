@@ -1,62 +1,41 @@
 /**
- * @file apps/cms/vite.config.ts
- * @description Vite configuration for the CMS application in NX monorepo.
- *
- * ARCHITECTURE DECISION: Standalone Setup Wizard ✅
- * ================================================
- *
- * The CMS now operates independently with **NO embedded setup wizard**.
- * Setup is handled by a separate app (`apps/setup-wizard/`) that runs first.
- *
- * Benefits:
- * - **Reduced bundle size**: ~500KB savings (setup wizard code removed)
- * - **Faster boot time**: No setup checks, no conditional plugin loading
- * - **Production ready**: No setup routes exposed in production builds
- * - **Cleaner code**: CMS focused on content management only
- *
- * Setup Flow:
- * 1. User runs `cd apps/setup && bun run dev` (first time)
- * 2. Setup wizard creates `apps/cms/config/private.ts`
- * 3. User stops setup, runs `cd apps/cms && bun run dev`
- * 4. CMS detects config → boots normally
- *
- * Configuration Check:
- * - If `config/private.ts` is missing → Error message with instructions
- * - No automatic redirect to setup wizard (different app)
- * - User must manually run setup wizard app
- *
- * Development Mode:
- * - Enables full CMS functionality with HMR for collections, roles, and widgets
- * - Watches for changes and recompiles collections automatically
- * - Database model registration after collection changes
- *
- * NX Monorepo Context:
- * - All paths are relative to CMS app root (apps/cms/)
- * - Config/collections: ./config (not ../../config)
- * - Compiled output: ./compiledCollections (not ../../compiledCollections)
- * - Logs: ./logs (not ../../logs)
- * - Setup wizard: ../setup-wizard (separate app, not embedded route)
+ * @file vite.config.ts
+ * @description This file contains the Vite configuration for the SvelteKit project, optimized for performance and developer experience.
+ * It employs a unified config structure with conditional plugins for the initial setup wizard vs. normal development mode.
  *
  * Key Features:
- * - Centralized path management for NX workspace structure
- * - Efficient Hot Module Replacement (HMR) for roles, collections, and widgets
- * - Dynamic compilation of user-defined collections with real-time feedback
- * - Database model registration after collection changes (prevents "model not found" errors)
- * - Seamless integration with Paraglide (i18n) and svelte-email-tailwind
+ * - Centralized path management and logging utilities.
+ * - Efficient, direct Hot Module Replacement (HMR) for content structure without fake HTTP requests.
+ * - Dynamic compilation of user-defined collections with real-time feedback.
+ * - Seamless integration with Paraglide for i18n and better-svelte-email for email templating.
  */
 
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { promises as fs } from 'fs';
+import { existsSync, promises as fs } from 'fs';
 import { builtinModules } from 'module';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import svelteEmailTailwind from 'svelte-email-tailwind/vite';
 import type { Plugin, UserConfig, ViteDevServer } from 'vite';
-import { defineConfig, createLogger } from 'vite';
-// import { compile } from '../shared-utils/compile';
-// import { isSetupConfigComplete } from './src/utils/setupCheck';
-// import { securityCheckPlugin } from './src/utils/vitePluginSecurityCheck';
+import { defineConfig } from 'vite';
+import { compile } from './src/utils/compilation/compile';
+import { isSetupComplete } from './src/utils/setupCheck';
+import { securityCheckPlugin } from './src/utils/vitePluginSecurityCheck';
+import { exec } from 'node:child_process';
+import { platform } from 'node:os';
+
+// Cross-platform open URL function (replaces 'open' package)
+function openUrl(url: string) {
+	const plat = platform();
+	let cmd;
+	if (plat === 'win32') {
+		cmd = `start "" "${url}"`;
+	} else if (plat === 'darwin') {
+		cmd = `open "${url}"`;
+	} else {
+		cmd = `xdg-open "${url}"`;
+	}
+	exec(cmd);
+}
 
 /**
  * Vite plugin that provides a fallback for @config/private and @config/private.test when the file doesn't exist
@@ -114,20 +93,13 @@ export const privateEnv = {
 }
 
 // --- Constants & Configuration ---
-
-// Get the directory of this file (apps/cms/)
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// Get workspace root (parent of apps/)
-const workspaceRoot = path.resolve(__dirname, '../..');
-
+const CWD = process.cwd();
 const paths = {
-	configDir: path.resolve(workspaceRoot, 'config'),
-	privateConfig: path.resolve(workspaceRoot, 'config/private.ts'),
-	userCollections: path.resolve(workspaceRoot, 'config/collections'),
-	compiledCollections: path.resolve(workspaceRoot, 'compiledCollections'),
-	roles: path.resolve(workspaceRoot, 'config/roles.ts'),
-	widgets: path.resolve(__dirname, 'src/widgets')
+	configDir: path.resolve(CWD, 'config'),
+	privateConfig: path.resolve(CWD, 'config/private.ts'),
+	userCollections: path.resolve(CWD, 'config/collections'),
+	compiledCollections: path.resolve(CWD, 'compiledCollections'),
+	widgets: path.resolve(CWD, 'src/widgets')
 };
 
 // --- Utilities ---
@@ -169,14 +141,9 @@ async function initializeCollectionsStructure() {
 	);
 
 	if (sourceFiles.length > 0) {
-		if (!hasLoggedCollectionInit) {
-			log.info(`Found \x1b[32m${sourceFiles.length}\x1b[0m collection(s), compiling...`);
-		}
-		// await compile({ userCollections: paths.userCollections, compiledCollections: paths.compiledCollections });
-		if (!hasLoggedCollectionInit) {
-			log.success('Initial collection compilation successful!');
-			hasLoggedCollectionInit = true;
-		}
+		log.info(`Found \x1b[32m${sourceFiles.length}\x1b[0m collection(s), compiling...`);
+		await compile({ userCollections: paths.userCollections, compiledCollections: paths.compiledCollections });
+		log.success('Initial collection compilation successful!');
 	} else {
 		log.info('No user collections found. Creating placeholder structure.');
 		const placeholderContent = '// This is a placeholder file generated by Vite.\nexport default {};';
@@ -199,6 +166,65 @@ process.on('SIGINT', () => {
 // --- Vite Plugins ---
 
 /**
+ * A lightweight plugin to handle the initial setup wizard.
+ * Checks if private.ts exists and opens the setup page if needed.
+ * The setup wizard will create private.ts with real credentials.
+ */
+function setupWizardPlugin(): Plugin {
+	let wasPrivateConfigMissing = false;
+
+	return {
+		name: 'svelty-cms-setup-wizard',
+		async buildStart() {
+			// 🔍 CHECK ONLY: Don't create blank template
+			// The setup wizard will create private.ts with real database credentials
+			wasPrivateConfigMissing = !existsSync(paths.privateConfig);
+
+			if (wasPrivateConfigMissing) {
+				// Ensure config directory exists (but don't create the file)
+				await fs.mkdir(paths.configDir, { recursive: true });
+				log.info('Setup mode: config/private.ts will be created during setup wizard');
+			} else {
+				log.info('Setup complete: config/private.ts exists');
+			}
+
+			// Ensure collections are ready even in setup mode
+			await initializeCollectionsStructure();
+		},
+		config: () => ({
+			define: { __FRESH_INSTALL__: JSON.stringify(wasPrivateConfigMissing) }
+		}),
+		configureServer(server) {
+			// Only open setup wizard if private.ts is missing
+			if (!wasPrivateConfigMissing) {
+				return; // Setup already completed, skip browser opening
+			}
+
+			const originalListen = server.listen;
+			server.listen = function (port?: number, isRestart?: boolean) {
+				const result = originalListen.apply(this, [port, isRestart]);
+				result.then(() => {
+					setTimeout(async () => {
+						const address = server.httpServer?.address();
+						const resolvedPort = typeof address === 'object' && address ? address.port : 5173;
+						const setupUrl = `http://localhost:${resolvedPort}/setup`;
+
+						try {
+							log.info(`Opening setup wizard in your browser...`);
+							openUrl(setupUrl);
+						} catch {
+							const coloredUrl = useColor ? `\x1b[34m${setupUrl}\x1b[0m` : setupUrl;
+							log.info(`Please open this URL to continue setup: ${coloredUrl}`);
+						}
+					}, 1000);
+				});
+				return result;
+			};
+		}
+	};
+}
+
+/**
  * Plugin to watch for changes in collections and widgets, triggering
  * recompilation and efficient HMR updates.
  */
@@ -215,8 +241,12 @@ function cmsWatcherPlugin(): Plugin {
 			compileTimeout = setTimeout(async () => {
 				log.info(`Collection change detected. Recompiling...`);
 				try {
-					// await compile({ userCollections: paths.userCollections, compiledCollections: paths.compiledCollections });
-					log.success('Re-compilation successful!');
+					await compile({
+						userCollections: paths.userCollections,
+						compiledCollections: paths.compiledCollections,
+						targetFile: file // Pass the specific file that changed
+					});
+					log.success(`Re-compilation successful for ${path.basename(file)}!`);
 
 					// Register collection models in database after recompilation
 					try {
@@ -287,24 +317,17 @@ function cmsWatcherPlugin(): Plugin {
 }
 
 // --- Main Vite Configuration ---
+const setupComplete = isSetupComplete();
 const isBuild = process.env.NODE_ENV === 'production' || process.argv.includes('build');
 
 export default defineConfig((): UserConfig => {
-	// Check if setup is complete (only log during dev mode)
+	// Only log during dev mode, not during builds
 	if (!isBuild) {
-		// const setupComplete = isSetupConfigComplete();
-		// if (setupComplete) {
-		// 	log.success('Configuration detected. Initializing CMS...');
-		// } else {
-		// 	log.warn('⚠️  No configuration found!');
-		// 	log.info('');
-		// 	log.info('  Please run the setup wizard first:');
-		// 	log.info('  $ cd apps/setup && bun run dev');
-		// 	log.info('');
-		// 	log.info('  After setup completes, return here and run:');
-		// 	log.info('  $ cd apps/cms && bun run dev');
-		// 	log.info('');
-		// }
+		if (setupComplete) {
+			log.success('Setup check passed. Initializing full dev environment...');
+		} else {
+			log.info('Starting in setup mode...');
+		}
 	}
 
 	return {
@@ -312,40 +335,27 @@ export default defineConfig((): UserConfig => {
 			// Private config fallback - provides virtual module when file doesn't exist
 			privateConfigFallbackPlugin(),
 			// Security check plugin runs first to detect private setting imports
-			// securityCheckPlugin({
-			// 	failOnError: true,
-			// 	showWarnings: true,
-			// 	extensions: ['.svelte', '.ts', '.js']
-			// }),
-			sveltekit(),
-			cmsWatcherPlugin(), // Always use watcher plugin (no setup mode)
+			securityCheckPlugin({
+				failOnError: true,
+				showWarnings: true,
+				extensions: ['.svelte', '.ts', '.js']
+			}),
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			sveltekit() as any,
+			!setupComplete ? setupWizardPlugin() : cmsWatcherPlugin(),
 			paraglideVitePlugin({
 				project: './project.inlang',
 				outdir: './src/paraglide'
 			})
 		],
 		server: {
-			fs: { allow: ['static', '.', '../..'] },
+			fs: {
+				allow: ['static', '.'],
+				deny: ['**/tests/**']
+			},
 			watch: {
 				// Prevent watcher from triggering on generated/sensitive files
-				ignored: [
-					'**/config/private.ts',
-					'**/config/private.backup.*.ts',
-					'**/compiledCollections/**',
-					'**/node_modules/**',
-					'**/.git/**',
-					'**/.svelte-kit/**',
-					'**/build/**',
-					'**/dist/**',
-					'**/.nx/**',
-					'**/logs/**',
-					'**/mediaFolder/**'
-				],
-				// Use polling as fallback if native watching fails (prevents ENOSPC)
-				usePolling: false,
-				// Reduce watcher load
-				interval: 1000,
-				binaryInterval: 3000
+				ignored: ['**/config/private.ts', '**/config/private.backup.*.ts', '**/compiledCollections/**', '**/tests/**']
 			}
 		},
 		ssr: {
@@ -354,25 +364,21 @@ export default defineConfig((): UserConfig => {
 		},
 		resolve: {
 			alias: {
-				'@root': path.resolve(__dirname, './'),
-				'@src': path.resolve(__dirname, './src'),
-				'@components': path.resolve(__dirname, './src/components'),
-				'@content': path.resolve(__dirname, './src/content'),
-				'@databases': path.resolve(__dirname, './src/databases'),
-				'@utils': path.resolve(__dirname, './src/utils'),
-				'@stores': path.resolve(__dirname, './src/stores'),
-				'@widgets': path.resolve(__dirname, './src/widgets')
+				'@root': path.resolve(CWD, './'),
+				'@src': path.resolve(CWD, './src'),
+				'@components': path.resolve(CWD, './src/components'),
+				'@content': path.resolve(CWD, './src/content'),
+				'@databases': path.resolve(CWD, './src/databases'),
+				'@config': path.resolve(__dirname, 'config'),
+				'@utils': path.resolve(CWD, './src/utils'),
+				'@stores': path.resolve(CWD, './src/stores'),
+				'@widgets': path.resolve(CWD, './src/widgets')
 			}
 		},
 		define: {
 			__FRESH_INSTALL__: false, // Default, may be overridden by setupWizardPlugin
-			// NOTE: PKG_VERSION is now provided by the server at runtime from package.json
-			// This ensures version always reflects installed package, not build-time snapshot
-			// SUPERFORMS_LEGACY: true, // Uncomment if using older versions of Superforms
-			// `global` polyfill for libraries that expect it (e.g., older crypto libs)
-			global: 'globalThis',
-			// Path to compiled collections (workspace root relative)
-			'import.meta.env.VITE_COLLECTIONS_FOLDER': JSON.stringify(paths.compiledCollections)
+			global: 'globalThis', // `global` polyfill for libraries that expect it (e.g., older crypto libs)
+			'import.meta.env.VITE_LOG_LEVELS': JSON.stringify(process.env.LOG_LEVELS || (isBuild ? 'info,warn,error' : 'info,warn,error,debug'))
 		},
 		build: {
 			target: 'esnext',

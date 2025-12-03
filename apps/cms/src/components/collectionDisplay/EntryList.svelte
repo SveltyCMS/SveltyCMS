@@ -41,7 +41,7 @@ Features:
 	// Config
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	// Types
-	import type { PaginationSettings, TableHeader } from '@components/system/table/TablePagination.svelte';
+	import type { PaginationSettings, TableHeader } from '@src/content/types';
 	import type { StatusType } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	// Stores
@@ -73,20 +73,21 @@ Features:
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
 	// =================================================================
+	import type { EntryListProps } from './types';
+
+	// =================================================================
+	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
+	// =================================================================
 	const {
 		entries: serverEntries = [],
 		pagination: serverPagination = { currentPage: 1, pageSize: 10, totalItems: 0, pagesCount: 1 },
-		contentLanguage: propContentLanguage
-	} = $props<{
-		entries?: any[];
-		pagination?: {
-			currentPage: number;
-			pageSize: number;
-			totalItems: number;
-			pagesCount: number;
-		};
-		contentLanguage?: string;
-	}>();
+		contentLanguage: propContentLanguage,
+		breadcrumb = [],
+		collectionStats = null
+	}: EntryListProps & {
+		breadcrumb?: Array<{ name: string; path: string }>;
+		collectionStats?: { _id: string; name: string; count: number; lastModified: string } | null;
+	} = $props();
 
 	// =================================================================
 	// 2. USE SERVER DATA (Simple $derived - No Client-Side State)
@@ -171,14 +172,14 @@ Features:
 	// 4. KEEP REMAINING UI STATE & LOGIC (Selection, Display, etc.)
 	// =================================================================
 
-	let SelectAll = $state(false);
+	let SelectAll: boolean = $state(false);
 	const selectedMap: Record<string, boolean> = $state({});
 
 	// =================================================================
 	// 5. HOVER PRELOADING FOR EDIT MODE (Enterprise UX Optimization)
 	// =================================================================
 	let hoverPreloadTimeout: ReturnType<typeof setTimeout> | null = null;
-	const preloadedEntries = new Map<string, { data: any; timestamp: number; hoverCount: number }>();
+	const preloadedEntries = new Map();
 
 	const PRELOAD_CACHE_TTL = 30000; // ms - keep preloaded data for 30 seconds
 
@@ -187,7 +188,7 @@ Features:
 	let isPreloadEnabled = $state(true);
 
 	// Phase 2: Predictive preloading - track hover patterns
-	const hoverPatterns = new Map<string, number>(); // entryId -> hover count
+	const hoverPatterns = new Map(); // entryId -> hover count
 	const predictivePreloadQueue: string[] = [];
 
 	// Detect connection speed
@@ -256,11 +257,22 @@ Features:
 								const preloadUrl = new URL(page.url);
 								preloadUrl.searchParams.set('edit', entry._id);
 
-								await fetch(preloadUrl.toString(), {
+								// Use new warm-cache endpoint for batch preloading
+								await fetch('/api/collections/warm-cache', {
+									method: 'POST',
+									headers: { 'Content-Type': 'application/json' },
+									body: JSON.stringify({
+										collectionId: currentCollection?._id,
+										entryIds: [entry._id] // We could batch this further if we refactor the loop
+									})
+								});
+
+								// Keep existing preload for edit page data if needed, or rely on warm cache
+								/* await fetch(preloadUrl.toString(), {
 									method: 'GET',
 									credentials: 'include',
 									headers: { 'X-Preload': 'true', 'X-Batch-Preload': 'true' }
-								});
+								}); */
 
 								preloadedEntries.set(entry._id, {
 									data: null,
@@ -303,10 +315,10 @@ Features:
 		return () => clearInterval(cleanupInterval);
 	});
 
-	function handleDndConsider(event: CustomEvent<{ items: TableHeader[] }>) {
+	function handleDndConsider(event: CustomEvent) {
 		displayTableHeaders = event.detail.items;
 	}
-	function handleDndFinalize(event: CustomEvent<{ items: TableHeader[] }>) {
+	function handleDndFinalize(event: CustomEvent) {
 		displayTableHeaders = event.detail.items;
 	}
 
@@ -320,7 +332,7 @@ Features:
 		filters: {}, // Will be populated by an effect based on tableHeaders
 		displayTableHeaders: []
 	});
-	let entryListPaginationSettings = $state<PaginationSettings>(defaultPaginationSettings(collection.value?._id ?? null));
+	let entryListPaginationSettings = $state(defaultPaginationSettings(collection.value?._id ?? null));
 
 	// Simplified stable state management
 	let showDeleted = $state(false); // Controls whether to view active or archived entries
@@ -414,7 +426,7 @@ Features:
 	});
 
 	// displayTableHeaders are the actual headers shown, considering user's order/visibility preferences from localStorage
-	let displayTableHeaders = $state<TableHeader[]>([]);
+	let displayTableHeaders: TableHeader[] = $state([]);
 
 	$effect(() => {
 		// Sync displayTableHeaders with settings or defaults from tableHeaders
@@ -425,7 +437,7 @@ Features:
 			if (settings.collectionId === currentCollId && Array.isArray(settings.displayTableHeaders) && settings.displayTableHeaders.length > 0) {
 				const schemaHeaderMap = new Map(tableHeaders.map((th) => [th.name, th]));
 				const reconciledHeaders: TableHeader[] = [];
-				const addedNames = new Set<string>();
+				const addedNames = new Set();
 
 				for (const savedHeader of settings.displayTableHeaders) {
 					const schemaHeader = schemaHeaderMap.get(savedHeader.name);
@@ -521,6 +533,9 @@ Features:
 
 	const pathSegments = $derived(page.url.pathname.split('/').filter(Boolean));
 	const categoryName = $derived.by(() => {
+		if (breadcrumb && breadcrumb.length > 0) {
+			return breadcrumb.map(b => b.name).join(' > ');
+		}
 		const segments = pathSegments?.slice() ?? [];
 		if (segments.length > 0) {
 			segments.shift();
@@ -697,6 +712,9 @@ Features:
 					{#if currentCollection?.name}
 						<div class="flex max-w-[85px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
 							{currentCollection.name}
+							{#if collectionStats}
+								<span class="ml-2 text-xs font-normal text-surface-500">({collectionStats.count})</span>
+							{/if}
 						</div>
 					{/if}
 				</div>
@@ -801,7 +819,7 @@ Features:
 						: ''}"
 			>
 				<!-- Table Header -->
-				<thead class="text-tertiary-500 dark:text-primary-500">
+				<thead class="sticky top-0 z-10 bg-surface-100 text-tertiary-500 dark:bg-surface-900 dark:text-primary-500">
 					{#if filterShow && visibleTableHeaders.length > 0}
 						<tr class="divide-x divide-surface-400 dark:divide-surface-600">
 							<th>
@@ -827,10 +845,10 @@ Features:
 										<FloatingInput
 											type="text"
 											icon="material-symbols:search-rounded"
-											label={`Filter ${header.label}`}
-											name={header.name}
-											value={entryListPaginationSettings.filters[header.name] || ''}
-											onInput={(value: string) => onFilterChange(header.name, value)}
+											label={`Filter ${(header as TableHeader).label}`}
+											name={(header as TableHeader).name}
+											value={entryListPaginationSettings.filters[(header as TableHeader).name] || ''}
+											onInput={(value: string) => onFilterChange((header as TableHeader).name, value)}
 											inputClass="text-xs"
 										/>
 									</div>
@@ -843,21 +861,22 @@ Features:
 						<TableIcons
 							cellClass={`w-10 ${hasSelections ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
 							checked={SelectAll}
-							onCheck={(checked) => {
+							onCheck={(checked: boolean) => {
 								SelectAll = checked;
 							}}
 						/>
 
 						{#each visibleTableHeaders as header (header.id)}
 							<th
-								class="cursor-pointer px-2 py-1 text-center text-xs sm:text-sm {header.name === entryListPaginationSettings.sorting.sortedBy
+								class="cursor-pointer px-2 py-1 text-center text-xs sm:text-sm {(header as TableHeader).name ===
+								entryListPaginationSettings.sorting.sortedBy
 									? 'font-semibold text-primary-500 dark:text-secondary-400'
 									: 'text-tertiary-500 dark:text-primary-500'}"
-								onclick={() => onSortChange(header.name)}
+								onclick={() => onSortChange((header as TableHeader).name)}
 							>
 								<div class="flex items-center justify-center">
-									{header.label}
-									{#if header.name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
+									{(header as TableHeader).label}
+									{#if (header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
 										<iconify-icon
 											icon={entryListPaginationSettings.sorting.isSorted === 1
 												? 'material-symbols:arrow-upward-rounded'
@@ -882,19 +901,19 @@ Features:
 								<TableIcons
 									cellClass={`w-10 text-center ${selectedMap[index] ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
 									checked={selectedMap[index]}
-									onCheck={(isChecked) => {
+									onCheck={(isChecked: boolean) => {
 										selectedMap[index] = isChecked;
 									}}
 								/>
 								{#if visibleTableHeaders}
 									{#each visibleTableHeaders as header (header.id)}
 										<td
-											class="p-0 text-center text-xs font-bold sm:text-sm {header.name !== 'status'
+											class="p-0 text-center text-xs font-bold sm:text-sm {(header as TableHeader).name !== 'status'
 												? 'cursor-pointer transition-colors duration-200 hover:bg-primary-500/10 dark:hover:bg-secondary-500/20'
 												: 'cursor-pointer transition-colors duration-200 hover:bg-warning-500/10 dark:hover:bg-warning-500/20'}"
-											title={header.name !== 'status' ? 'Click to edit this entry' : 'Click to change status'}
+											title={(header as TableHeader).name !== 'status' ? 'Click to edit this entry' : 'Click to change status'}
 											onclick={async () => {
-												if (header.name === 'status') {
+												if ((header as TableHeader).name === 'status') {
 													// Handle single entry status change with modal (same style as multibutton)
 													const currentStatus = entry.status || entry.raw_status || 'draft';
 													let nextStatus;
@@ -952,30 +971,30 @@ Features:
 												}
 											}}
 										>
-											{#if header.name === 'status'}
+											{#if (header as TableHeader).name === 'status'}
 												<div class="flex w-full items-center justify-center">
 													<Status value={entry.status || entry.raw_status || 'draft'} />
 												</div>
-											{:else if header.name === 'createdAt' || header.name === 'updatedAt'}
+											{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
 												<div class="flex flex-col text-xs">
 													<div class="font-semibold">
-														{formatDisplayDate(entry[header.name], 'en', { year: 'numeric', month: 'short', day: 'numeric' })}
+														{formatDisplayDate(entry[(header as TableHeader).name], 'en', { year: 'numeric', month: 'short', day: 'numeric' })}
 													</div>
 													<div class="text-surface-500 dark:text-surface-400">
-														{formatDisplayDate(entry[header.name], 'en', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+														{formatDisplayDate(entry[(header as TableHeader).name], 'en', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
 													</div>
 												</div>
-											{:else if typeof entry[header.name] === 'object' && entry[header.name] !== null}
-												{@const fieldData = entry[header.name]}
+											{:else if typeof entry[(header as TableHeader).name] === 'object' && entry[(header as TableHeader).name] !== null}
+												{@const fieldData = entry[(header as TableHeader).name]}
 												{@const translatedValue = fieldData[currentLanguage] || Object.values(fieldData)[0] || '-'}
-												{@const debugInfo = `Field: ${header.name}, Lang: ${currentLanguage}, Data: ${JSON.stringify(fieldData)}, Value: ${translatedValue}`}
-												{#if header.name === 'last_name'}
+												{@const debugInfo = `Field: ${(header as TableHeader).name}, Lang: ${currentLanguage}, Data: ${JSON.stringify(fieldData)}, Value: ${translatedValue}`}
+												{#if (header as TableHeader).name === 'last_name'}
 													<span title={debugInfo}>{@html translatedValue}</span>
 												{:else}
 													{@html translatedValue}
 												{/if}
 											{:else}
-												{@html entry[header.name] || '-'}
+												{@html entry[(header as TableHeader).name] || '-'}
 											{/if}
 										</td>
 									{/each}

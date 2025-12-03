@@ -1,0 +1,74 @@
+---
+path: 'docs/architecture/demo-mode.mdx'
+title: 'Demo Mode Architecture'
+description: 'Architecture and implementation details of SveltyCMS Demo Mode.'
+order: 5
+icon: 'mdi:presentation-play'
+author: 'admin'
+created: '2025-11-30'
+updated: '2025-11-30'
+tags:
+  - 'architecture'
+  - 'demo-mode'
+  - 'multi-tenancy'
+  - 'seeding'
+---
+
+# Demo Mode Architecture
+
+Demo Mode is a specialized configuration of the Multi-Tenancy system designed to provide instant, ephemeral, and isolated environments for users to evaluate SveltyCMS.
+
+## Features
+
+- **Instant Provisioning**: Users are assigned a unique tenant ID upon their first visit.
+- **Automatic Seeding**: The system automatically seeds the new tenant with default settings, themes, roles, and a demo admin user.
+- **Ephemeral Sessions**: Tenants and their data are automatically deleted after a configured expiration time (default: 60 minutes).
+- **Isolation**: Each demo user sees only their own data.
+
+## Implementation
+
+### Enabling Demo Mode
+
+Demo mode is controlled via the `DEMO` setting in your configuration.
+
+1.  **Production**: Edit `config/private.ts` (or `config/private.js` in build):
+    ```typescript
+    export const privateEnv = {
+    	// ...
+    	MULTI_TENANT: true,
+    	DEMO: true
+    };
+    ```
+2.  **Development**: You can also use the environment variable `SVELTYCMS_DEMO=true` or run `bun run dev:demo`.
+
+### Tenant Lifecycle
+
+1.  **Creation**:
+    - User visits the site.
+    - `handleAuthentication` hook detects missing `demo_tenant_id` cookie.
+    - Generates a UUID `tenantId`.
+    - Sets `demo_tenant_id` cookie.
+    - Calls `seedDemoTenant(tenantId)` to populate the database.
+
+2.  **Usage**:
+    - User interacts with the CMS as a normal tenant.
+    - `tenantId` is preserved in the cookie.
+
+3.  **Expiration & Cleanup**:
+    - A background job (initialized in `src/databases/db.ts`) checks for tenants created > 60 minutes ago.
+    - It deletes all associated data (collections, users, settings, media) using the `cleanupExpiredDemoTenants` service.
+
+### Seeding Strategy
+
+The `seedDemoTenant` function (`src/routes/api/setup/seed.ts`) performs:
+
+1.  **Settings**: Sets `DEMO=true`, `SEASONS=true`, `SEASON_REGION='Western_Europe'`.
+2.  **Theme**: Seeds the default SveltyCMS theme.
+3.  **Roles**: Seeds default roles.
+4.  **User**: Creates a `demo-{shortId}@sveltycms.com` admin user.
+
+## Security
+
+- Demo tenants are strictly isolated.
+- Rate limiting is applied to tenant creation to prevent abuse.
+- File upload limits are enforced.

@@ -518,6 +518,7 @@ export interface IDBAdapter {
 			createMany(nodes: Omit<ContentNode, 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<ContentNode[]>>;
 			update(path: string, changes: Partial<ContentNode>): Promise<DatabaseResult<ContentNode>>;
 			bulkUpdate(updates: { path: string; changes: Partial<ContentNode> }[]): Promise<DatabaseResult<ContentNode[]>>;
+			fixMismatchedNodeIds?(nodes: { path: string; expectedId: string; changes: Partial<ContentNode> }[]): Promise<{ fixed: number }>;
 			delete(path: string): Promise<DatabaseResult<void>>;
 			deleteMany(paths: string[]): Promise<DatabaseResult<{ deletedCount: number }>>;
 			reorder(nodeUpdates: Array<{ path: string; newOrder: number }>): Promise<DatabaseResult<ContentNode[]>>;
@@ -595,7 +596,7 @@ export interface IDBAdapter {
 		upsertMany<T extends BaseEntity>(
 			collection: string,
 			items: Array<{ query: QueryFilter<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>
-		): Promise<DatabaseResult<T[]>>;
+		): Promise<DatabaseResult<T[] | { upsertedCount: number; modifiedCount: number }>>;
 
 		// Aggregation and analysis
 		count(collection: string, query?: QueryFilter<BaseEntity>): Promise<DatabaseResult<number>>;

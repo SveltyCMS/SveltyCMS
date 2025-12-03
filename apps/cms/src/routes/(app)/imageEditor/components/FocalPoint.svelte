@@ -5,26 +5,19 @@ Focal point selection tool. Displays a rule-of-thirds overlay and a crosshair.
 Emits `apply` with normalized coordinates { x: number, y: number } in [0,1].
 -->
 <script lang="ts">
-	import type Konva from 'konva';
 	import { onMount } from 'svelte';
 	import { createEventDispatcher } from 'svelte';
 
-	// Props
-	const {
-		stage,
-		imageNode,
-		disabled = false
-	} = $props<{
-		stage?: Konva.Stage;
-		imageNode?: Konva.Image;
-		disabled?: boolean;
-	}>();
+	import Konva from 'konva';
 
-	const dispatch = createEventDispatcher<{ apply: { x: number; y: number } }>();
+	// Props
+	const { stage, imageNode, disabled = false }: { stage?: Konva.Stage; imageNode?: Konva.Image; disabled?: boolean } = $props();
+
+	const dispatch = createEventDispatcher();
 
 	// Local state
-	let containerEl: HTMLDivElement | null = null;
-	const crosshair = $state({ x: 0.5, y: 0.5 });
+	let containerEl = $state<HTMLDivElement | null>(null);
+	const crosshair = $state<{ x: number; y: number }>({ x: 0.5, y: 0.5 });
 	let hasPoint = $state(false);
 
 	function setFromClientPosition(clientX: number, clientY: number) {

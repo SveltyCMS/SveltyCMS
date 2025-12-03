@@ -25,9 +25,22 @@
 	import type { User } from '@src/databases/auth/types';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
+<<<<<<< HEAD:apps/cms/src/routes/(app)/config/accessManagement/WebsiteTokens.svelte
 	let tokens = $state<WebsiteToken[]>([]);
 	let users = $state<User[]>([]);
 	let userMap = $derived(new Map(users.map((u) => [u._id, u.username || u.email])));
+=======
+	interface TableHeader {
+		label: string;
+		key: string;
+		visible: boolean;
+		id: string;
+	}
+
+	let tokens: WebsiteToken[] = $state([]);
+	let users: User[] = $state([]);
+	const userMap = $derived(new Map(users.map((u) => [u._id, u.username || u.email])));
+>>>>>>> upstream/next:src/routes/(app)/config/accessManagement/WebsiteTokens.svelte
 	let newTokenName = $state('');
 
 	// Filter state
@@ -36,7 +49,7 @@
 	let filterShow = $state(false);
 	let columnShow = $state(false);
 	let density = $state('normal');
-	let filters = $state<{ [key: string]: string }>({});
+	let filters: Record<string, string | undefined> = $state({});
 
 	// Sorting and Pagination
 	let sorting = $state({ sortedBy: 'createdAt', isSorted: -1 }); // Sort by createdAt desc by default
@@ -56,11 +69,11 @@
 	let displayTableHeaders = $state(tableHeaders.map((h) => ({ ...h, visible: true, id: `header-${h.key}` })));
 	let selectAllColumns = $state(true);
 
-	function handleDndConsider(event: CustomEvent<{ items: any[] }>) {
+	function handleDndConsider(event: CustomEvent) {
 		displayTableHeaders = event.detail.items;
 	}
 
-	function handleDndFinalize(event: CustomEvent<{ items: any[] }>) {
+	function handleDndFinalize(event: CustomEvent) {
 		displayTableHeaders = event.detail.items;
 	}
 
@@ -88,36 +101,49 @@
 	});
 
 	async function fetchUsers() {
+		// Capture current state of 'users' into a local variable (or object reference if updated within async block)
+		const usersRef = { value: users };
 		try {
 			const response = await fetch('/api/admin/users');
 			if (response.ok) {
 				const result = await response.json();
-				users = result.data;
+				usersRef.value = result.data; // Update the referenced value
 			} else {
 				showToast('Failed to fetch users', 'error');
 			}
 		} catch (error) {
 			showToast('An error occurred while fetching users', 'error');
 		}
+		// Assign back to the $state variable after async operation
+		users = usersRef.value;
 	}
 
 	async function fetchTokens() {
+		// Capture current state values into local variables for the async block
+		const currentPageVal = currentPage;
+		const rowsPerPageVal = rowsPerPage;
+		const sortingVal = sorting;
+		const globalSearchValueVal = globalSearchValue;
+		const filtersVal = filters;
+		const tokensRef = { value: tokens }; // Use an object to hold the reference for tokens
+		const totalItemsRef = { value: totalItems }; // Use an object to hold the reference for totalItems
+
 		await globalLoadingStore.withLoading(
 			loadingOperations.tokenGeneration,
 			async () => {
 				const params = new URLSearchParams();
-				params.set('page', String(currentPage));
-				params.set('limit', String(rowsPerPage));
-				params.set('sort', sorting.sortedBy);
-				if (sorting.isSorted !== 0) {
-					params.set('order', sorting.isSorted === 1 ? 'asc' : 'desc');
+				params.set('page', String(currentPageVal));
+				params.set('limit', String(rowsPerPageVal));
+				params.set('sort', sortingVal.sortedBy);
+				if (sortingVal.isSorted !== 0) {
+					params.set('order', sortingVal.isSorted === 1 ? 'asc' : 'desc');
 				}
 
-				if (globalSearchValue) {
-					params.set('search', globalSearchValue);
+				if (globalSearchValueVal) {
+					params.set('search', globalSearchValueVal);
 				}
 
-				for (const [key, value] of Object.entries(filters)) {
+				for (const [key, value] of Object.entries(filtersVal)) {
 					if (value) {
 						params.set(key, value);
 					}
@@ -127,8 +153,8 @@
 					const response = await fetch(`/api/website-tokens?${params.toString()}`);
 					if (response.ok) {
 						const result = await response.json();
-						tokens = result.data;
-						totalItems = result.pagination.totalItems;
+						tokensRef.value = result.data; // Assign to the ref's value
+						totalItemsRef.value = result.pagination.totalItems; // Assign to the ref's value
 					} else {
 						showToast('Failed to fetch tokens', 'error');
 					}
@@ -138,10 +164,13 @@
 			},
 			'Fetching website tokens'
 		);
+		// Assign back to the $state variables after async operation
+		tokens = tokensRef.value;
+		totalItems = totalItemsRef.value;
 	}
-
 	async function generateToken() {
-		if (!newTokenName) {
+		const currentNewTokenName = newTokenName; // Capture current state
+		if (!currentNewTokenName) {
 			showToast('Please enter a name for the token.', 'error');
 			return;
 		}
@@ -150,13 +179,13 @@
 			const response = await fetch('/api/website-tokens', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: newTokenName })
+				body: JSON.stringify({ name: currentNewTokenName })
 			});
 
 			if (response.ok) {
 				await fetchTokens(); // Refetch to get the new token and update pagination
-				showToast(`Token generated for ${newTokenName}`, 'success');
-				newTokenName = '';
+				showToast(`Token generated for ${currentNewTokenName}`, 'success');
+				newTokenName = ''; // Clear input
 			} else {
 				if (response.status === 409) {
 					showToast('A token with this name already exists', 'error');
@@ -168,7 +197,6 @@
 			showToast('An error occurred while generating the token', 'error');
 		}
 	}
-
 	import { showConfirm } from '@utils/modalUtils';
 
 	async function deleteToken(id: string, name: string) {
@@ -226,7 +254,7 @@
 			<div class="my-4 flex flex-wrap items-center justify-between gap-1">
 				<h4 class="h4 font-bold text-tertiary-500 dark:text-primary-500">Existing Tokens</h4>
 				<div class="order-3 sm:order-2">
-					<TableFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
+					<TableFilter {globalSearchValue} {searchShow} {filterShow} {columnShow} {density} />
 				</div>
 			</div>
 
@@ -245,13 +273,13 @@
 							onfinalize={handleDndFinalize}
 							class="flex flex-wrap justify-center gap-1 rounded-md p-2"
 						>
-							{#each displayTableHeaders as header (header.id)}
+							{#each displayTableHeaders as header: TableHeader (header.id)}
 								<button
 									class="chip {header.visible ? 'variant-filled-secondary' : 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
 									animate:flip={{ duration: 300 }}
 									onclick={() => {
-										displayTableHeaders = displayTableHeaders.map((h) => (h.id === header.id ? { ...h, visible: !h.visible } : h));
-										selectAllColumns = displayTableHeaders.every((h) => h.visible);
+										displayTableHeaders = displayTableHeaders.map((h: TableHeader) => (h.id === header.id ? { ...h, visible: !h.visible } : h));
+										selectAllColumns = displayTableHeaders.every((h: TableHeader) => h.visible);
 									}}
 								>
 									{#if header.visible}
@@ -270,7 +298,7 @@
 						{#if filterShow}
 							<tr class="divide-x divide-surface-400">
 								<th></th>
-								{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
+								{#each displayTableHeaders.filter((header: TableHeader) => header.visible) as header (header.id)}
 									<th>
 										<input
 											type="text"
@@ -284,7 +312,7 @@
 							</tr>
 						{/if}
 						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-							{#each displayTableHeaders.filter((h) => h.visible) as header}
+							{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header: TableHeader}
 								<th
 									onclick={() => {
 										sorting = {
@@ -311,7 +339,7 @@
 					<tbody>
 						{#each tokens as token (token._id)}
 							<tr>
-								{#each displayTableHeaders.filter((h) => h.visible) as header}
+								{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header: TableHeader}
 									<td>
 										{#if header.key === 'token'}
 											<div class="flex items-center gap-2">
@@ -349,8 +377,8 @@
 						bind:rowsPerPage
 						{pagesCount}
 						{totalItems}
-						onUpdatePage={(page) => (currentPage = page)}
-						onUpdateRowsPerPage={(rows) => {
+						onUpdatePage={(page: number) => (currentPage = page)}
+						onUpdateRowsPerPage={(rows: number) => {
 							rowsPerPage = rows;
 							currentPage = 1;
 						}}

@@ -38,7 +38,7 @@ It handles widget configuration, permissions, and specific options.
 	// Widget key is the folder name (lowercase), not the widget Name
 	const widgetKey = $derived(modalData?.value?.widget?.key || (modalData?.value?.widget?.Name?.toLowerCase() as string));
 	const availableWidgets = $derived($widgetFunctions || {});
-	const guiSchema = $derived((availableWidgets[widgetKey]?.GuiSchema || {}) as Record<string, { widget?: any; [key: string]: unknown }>);
+	const guiSchema = $derived((availableWidgets[widgetKey]?.GuiSchema || {}) as Record<string, { widget: typeof SvelteComponent }>);
 
 	// Derive options from guiSchema
 	const options = $derived(guiSchema ? Object.keys(guiSchema) : []);

@@ -17,7 +17,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { goto } from '$app/navigation';
+	import { goto, preloadData } from '$app/navigation';
 	import { enhance } from '$app/forms';
 
 	// Stores
@@ -35,10 +35,11 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import PasswordStrength from '@components/PasswordStrength.svelte';
 	// Lazy-load FloatingPaths on desktop for performance
-	let FloatingPathsComponent = $state<any>(null);
+	let FloatingPathsComponent: Component | null = $state(null);
 
 	// Skeleton
 	import { showToast } from '@utils/toast';
+	import type { Component } from 'svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -52,20 +53,22 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	const {
 		active = $bindable(undefined),
 		onClick = () => {},
-		onPointerEnter = () => {},
-		onBack = () => {}
-	} = $props<{
-		active?: undefined | 0 | 1;
+		onPointerEnter: onPointerEnterProp = () => {},
+		onBack = () => {},
+		firstCollectionPath = ''
+	}: {
+		active?: number;
 		onClick?: () => void;
-		onPointerEnter?: () => void;
+		onPointerEnter?: (e: PointerEvent) => void;
 		onBack?: () => void;
-	}>();
+		firstCollectionPath?: string;
+	} = $props();
 
 	// State management
 	let PWforgot = $state(false);
 	let PWreset = $state(false);
 	const showPassword = $state(false);
-	let formElement = $state<HTMLFormElement | null>(null);
+	let formElement: HTMLFormElement | null = $state(null);
 	const tabIndex = $state(1);
 
 	// Pre-calculate tab indices
@@ -408,11 +411,18 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 		const desktop = isDesktop.value;
 		const isActiveLogin = active === 0;
 		if (browser && desktop && isActiveLogin) {
-			import('@components/system/FloatingPaths.svelte').then((m) => {
-				FloatingPathsComponent = m.default;
+			import('@root/src/components/system/FloatingPaths.svelte').then((m) => {
+				FloatingPathsComponent = m.default as Component;
 			});
 		} else {
 			FloatingPathsComponent = null;
+		}
+	});
+
+	// Prefetch first collection data when active
+	$effect(() => {
+		if (active === 0 && firstCollectionPath) {
+			preloadData(firstCollectionPath);
 		}
 	});
 </script>
@@ -420,7 +430,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 <section
 	onclick={handleFormClick}
 	onkeydown={(e) => e.key === 'Enter' && onClick?.()}
-	onpointerenter={onPointerEnter}
+	onpointerenter={onPointerEnterProp}
 	role="button"
 	tabindex={tabIndex}
 	class={baseClasses}

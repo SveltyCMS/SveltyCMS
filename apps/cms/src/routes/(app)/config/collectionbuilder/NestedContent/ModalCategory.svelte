@@ -37,12 +37,17 @@
 
 	// State variables for form and UI
 	const formData = $state<FormData>({
-		newCategoryName: existingCategory.name ?? '',
-		newCategoryIcon: existingCategory.icon ?? ''
+		newCategoryName: '',
+		newCategoryIcon: ''
 	});
 	let isSubmitting = $state(false);
 	let formError = $state<string | null>(null);
 	let validationErrors = $state<Record<string, string>>({});
+
+	$effect(() => {
+		formData.newCategoryName = existingCategory.name ?? '';
+		formData.newCategoryIcon = existingCategory.icon ?? '';
+	});
 
 	/**
 	 * Validates the form input fields.

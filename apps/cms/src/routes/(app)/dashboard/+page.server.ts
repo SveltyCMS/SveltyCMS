@@ -22,6 +22,11 @@ import { v4 as uuidv4 } from 'uuid';
 // System Logger
 import { logger } from '@utils/logger.server';
 
+// Cache for discovered widgets
+let cachedWidgets: WidgetInfo[] | null = null;
+const WIDGET_CACHE_TTL = 1000 * 60 * 5; // 5 minutes
+let lastCacheTime = 0;
+
 interface WidgetInfo {
 	componentName: string;
 	name: string;
@@ -57,6 +62,11 @@ async function getWidgetMetadata(componentName: string): Promise<WidgetInfo> {
 }
 
 async function discoverWidgets(): Promise<WidgetInfo[]> {
+	// Return cached widgets if valid
+	if (cachedWidgets && Date.now() - lastCacheTime < WIDGET_CACHE_TTL && process.env.NODE_ENV === 'production') {
+		return cachedWidgets;
+	}
+
 	try {
 		const widgetsPath = join(process.cwd(), 'src/routes/(app)/dashboard/widgets');
 		const files = readdirSync(widgetsPath, { withFileTypes: true });
@@ -72,6 +82,11 @@ async function discoverWidgets(): Promise<WidgetInfo[]> {
 		const sortedWidgets = widgets.sort((a, b) => a.name.localeCompare(b.name));
 
 		logger.trace(`Discovered ${sortedWidgets.length} dashboard widgets`);
+
+		// Update cache
+		cachedWidgets = sortedWidgets;
+		lastCacheTime = Date.now();
+
 		return sortedWidgets;
 	} catch (err) {
 		logger.error('Failed to discover widgets:', err);

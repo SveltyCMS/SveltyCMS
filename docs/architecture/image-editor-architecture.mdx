@@ -255,35 +255,37 @@ export const imageEditorStore = (() => {
 
    ```svelte
    <script lang="ts">
-     import Konva from 'konva';
-     import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-     import MyToolControls from './Controls.svelte';
-   
-     let { stage, layer, imageNode } = $props<{
-       stage: Konva.Stage;
-       layer: Konva.Layer;
-       imageNode: Konva.Image;
-     }>();
-   
-     // Tool-specific state
-     let toolState = $state({ ... });
-   
-     // Register controls when active
-     $effect(() => {
-       if (imageEditorStore.state.activeState === 'mytool') {
-         imageEditorStore.setToolbarControls({
-           component: MyToolControls,
-           props: {
-             onAction: () => handleAction(),
-             // ... other callbacks
-           }
-         });
-       } else {
-         imageEditorStore.setToolbarControls(null);
-       }
-     });
-   
-     // Tool logic...
+   	import Konva from 'konva';
+   	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
+   	import MyToolControls from './Controls.svelte';
+
+   	let { stage, layer, imageNode } = $props<{
+   		stage: Konva.Stage;
+   		layer: Konva.Layer;
+   		imageNode: Konva.Image;
+   	}>();
+
+   	// Tool-specific state
+   	let toolState = $state({
+   		/* tool specific state */
+   	});
+
+   	// Register controls when active
+   	$effect(() => {
+   		if (imageEditorStore.state.activeState === 'mytool') {
+   			imageEditorStore.setToolbarControls({
+   				component: MyToolControls,
+   				props: {
+   					onAction: () => handleAction()
+   					// ... other callbacks
+   				}
+   			});
+   		} else {
+   			imageEditorStore.setToolbarControls(null);
+   		}
+   	});
+
+   	// Tool logic...
    </script>
    ```
 

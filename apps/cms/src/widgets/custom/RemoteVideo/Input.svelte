@@ -40,7 +40,7 @@ Part of the Three Pillars Architecture for widget system.
 	// Local state for the URL input.
 	let urlInput = $state(value?.url ?? '');
 	// Local state to temporarily hold fetched metadata before it's set to `value`.
-	let fetchedMetadata = $state<RemoteVideoData | null>(null);
+	let fetchedMetadata = $state<any | null>(null);
 	let isLoading = $state(false);
 	let fetchError = $state<string | null>(null);
 

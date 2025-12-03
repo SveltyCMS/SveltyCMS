@@ -44,15 +44,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		density = $bindable('normal'),
 		densityOptions = $bindable(['compact', 'normal', 'comfortable']),
 		showDeleted = $bindable(false)
-	} = $props<{
-		globalSearchValue?: string;
-		searchShow?: boolean;
-		filterShow?: boolean;
-		columnShow?: boolean;
-		density?: string;
-		densityOptions?: string[];
-		showDeleted?: boolean;
-	}>();
+	} = $props();
 
 	// Storage key for user settings
 	const USER_SETTINGS_KEY = 'userTableSettings';

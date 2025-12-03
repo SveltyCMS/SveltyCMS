@@ -25,17 +25,17 @@ Implements custom virtual scrolling without external dependencies.
 <script lang="ts">
 	import { formatBytes } from '@utils/utils';
 
-	import type { MediaImage } from '@utils/media/mediaModels';
+	import type { MediaImage, MediaBase } from '@utils/media/mediaModels';
 	import { popup } from '@skeletonlabs/skeleton';
 	import { onMount } from 'svelte';
 
 	interface Props {
-		filteredFiles?: MediaImage[];
+		filteredFiles?: (MediaBase | MediaImage)[];
 		gridSize?: 'tiny' | 'small' | 'medium' | 'large';
-		ondeleteImage?: (file: MediaImage) => void;
-		onBulkDelete?: (files: MediaImage[]) => void;
-		onBulkDownload?: (files: MediaImage[]) => void;
-		onBulkEdit?: (files: MediaImage[], action: string, value: any) => void;
+		ondeleteImage?: (file: MediaBase | MediaImage) => void;
+		onBulkDelete?: (files: (MediaBase | MediaImage)[]) => void;
+		onBulkDownload?: (files: (MediaBase | MediaImage)[]) => void;
+		onBulkEdit?: (files: (MediaBase | MediaImage)[], action: string, value: any) => void;
 	}
 
 	let {
@@ -85,7 +85,7 @@ Implements custom virtual scrolling without external dependencies.
 	}
 
 	// Batch operations
-	function toggleSelection(file: MediaImage) {
+	function toggleSelection(file: MediaBase | MediaImage) {
 		const fileId = file._id?.toString() || file.filename;
 		if (selectedFiles.has(fileId)) {
 			selectedFiles.delete(fileId);
@@ -103,7 +103,7 @@ Implements custom virtual scrolling without external dependencies.
 		selectedFiles = new Set();
 	}
 
-	function handleDelete(file: MediaImage) {
+	function handleDelete(file: MediaBase | MediaImage) {
 		ondeleteImage(file);
 	}
 
@@ -262,7 +262,9 @@ Implements custom virtual scrolling without external dependencies.
 								<div class="card variant-filled z-50 min-w-[250px] p-2" data-popup="FileInfo-{fileId}">
 									<table class="table-hover w-full table-auto text-xs">
 										<tbody>
-											<tr><td class="font-semibold">Dimensions:</td><td>{file.width || 'N/A'}x{file.height || 'N/A'}</td></tr>
+											{#if 'width' in file && file.width && 'height' in file && file.height}
+												<tr><td class="font-semibold">Dimensions:</td><td>{file.width}x{file.height}</td></tr>
+											{/if}
 											<tr><td class="font-semibold">Size:</td><td>{formatBytes(file.size || 0)}</td></tr>
 											<tr><td class="font-semibold">Type:</td><td>{file.mimeType || 'N/A'}</td></tr>
 											<tr><td class="font-semibold">Hash:</td><td class="truncate" title={file.hash}>{file.hash?.substring(0, 8) || 'N/A'}</td></tr>
@@ -284,7 +286,7 @@ Implements custom virtual scrolling without external dependencies.
 							<section class="flex items-center justify-center p-2">
 								{#if file?.filename && file?.url}
 									<img
-										src={file.thumbnails?.sm?.url ?? file.url ?? '/static/Default_User.svg'}
+										src={('thumbnails' in file ? file.thumbnails?.sm?.url : undefined) ?? file.url ?? '/static/Default_User.svg'}
 										alt={file.filename}
 										class={`rounded object-cover ${
 											gridSize === 'tiny' ? 'h-16 w-16' : gridSize === 'small' ? 'h-24 w-24' : gridSize === 'medium' ? 'h-48 w-48' : 'h-80 w-80'

@@ -41,31 +41,31 @@ and automated response visualization for enterprise security operations.
 	import { logger } from '@utils/logger';
 	import BaseWidget from '../BaseWidget.svelte';
 	import { getToastStore } from '@skeletonlabs/skeleton';
+	import type { WidgetSize } from '@src/content/types';
 
 	const toastStore = getToastStore();
 
-	// Props
 	const {
 		label = 'Security Monitor',
 		theme = 'light',
 		icon = 'mdi:shield-alert',
 		widgetId = undefined,
-		size = { w: 3, h: 3 },
+		size = { w: 3, h: 3 } as WidgetSize,
 		autoRefresh = true,
 		refreshInterval = 5000,
-		onSizeChange = () => {},
+		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {}
-	} = $props<{
+	}: {
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-		size?: { w: number; h: number };
+		size?: WidgetSize;
 		autoRefresh?: boolean;
 		refreshInterval?: number;
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
+		onSizeChange?: (newSize: WidgetSize) => void;
 		onRemove?: () => void;
-	}>();
+	} = $props();
 
 	// Security data interfaces
 	interface SecurityStats {
@@ -92,7 +92,7 @@ and automated response visualization for enterprise security operations.
 		severity: 'low' | 'medium' | 'high' | 'critical';
 		message: string;
 		ip?: string;
-		details?: Record<string, unknown>;
+		details?: Record<string, any>;
 	}
 
 	interface SecurityIncident {
@@ -106,7 +106,7 @@ and automated response visualization for enterprise security operations.
 	}
 
 	// Reactive state
-	let securityStats = $state<SecurityStats>({
+	let securityStats = $state({
 		activeIncidents: 0,
 		blockedIPs: 0,
 		throttledIPs: 0,
@@ -117,9 +117,9 @@ and automated response visualization for enterprise security operations.
 		rateLimitHits: 0
 	});
 
-	let incidents = $state<SecurityIncident[]>([]);
+	let incidents: SecurityIncident[] = $state([]);
 	let isLoading = $state(true);
-	let error = $state<string | null>(null);
+	let error: string | null = $state(null);
 	let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
 	// Security status calculation - using $derived correctly

@@ -40,31 +40,31 @@ for comprehensive system monitoring and performance analysis.
 	import { onMount, onDestroy } from 'svelte';
 	import { logger } from '@utils/logger';
 	import BaseWidget from '../BaseWidget.svelte';
+	import type { WidgetSize } from '@src/content/types';
 
-	// Props
 	const {
 		label = 'System Metrics',
 		theme = 'light',
 		icon = 'mdi:chart-donut',
 		widgetId = undefined,
-		size = { w: 2, h: 3 },
+		size = { w: 2, h: 3 } as WidgetSize,
 		showDetails = true,
 		autoRefresh = true,
 		refreshInterval = 3000,
-		onSizeChange = () => {},
+		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {}
-	} = $props<{
+	}: {
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-		size?: { w: number; h: number };
+		size?: WidgetSize;
 		showDetails?: boolean;
 		autoRefresh?: boolean;
 		refreshInterval?: number;
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
+		onSizeChange?: (newSize: WidgetSize) => void;
 		onRemove?: () => void;
-	}>();
+	} = $props();
 
 	// Unified metrics interface (matches MetricsService output)
 	interface UnifiedMetrics {
@@ -104,7 +104,7 @@ for comprehensive system monitoring and performance analysis.
 	}
 
 	// Reactive state
-	let metrics = $state<UnifiedMetrics>({
+	let metrics = $state({
 		timestamp: 0,
 		uptime: 0,
 		requests: { total: 0, errors: 0, errorRate: 0, avgResponseTime: 0 },
@@ -115,7 +115,7 @@ for comprehensive system monitoring and performance analysis.
 	});
 
 	let isLoading = $state(true);
-	let error = $state<string | null>(null);
+	let error: string | null = $state(null);
 	let refreshTimer: ReturnType<typeof setInterval> | null = null;
 	let lastUpdate = $state(0);
 

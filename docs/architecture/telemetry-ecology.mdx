@@ -1,0 +1,69 @@
+---
+path: docs\architecture\telemetry-ecology.mdx
+title: 'Security Updates & Telemetry'
+description: 'How SveltyCMS ensures system security via the Update Check mechanism.'
+order: 5
+icon: 'mdi:shield-check'
+author: 'SveltyCMS Team'
+created: '2025-10-25'
+updated: '2025-12-01'
+tags:
+  - 'security'
+  - 'telemetry'
+  - 'updates'
+---
+
+# Security Updates & Ecosystem Health
+
+SveltyCMS prioritizes the security of your installation. To achieve this, we use an Active Update Check system inspired by Drupal and WordPress.
+
+## 1. The Security Check Mechanism
+
+SveltyCMS does not "track" you in the traditional sense. Instead, your server periodically asks our central registry: "I am running version X on Node Y. Are there any known security vulnerabilities?"
+
+### The Exchange
+
+This is a mutually beneficial exchange:
+
+- **You Get:** Immediate notification of security patches, vulnerability alerts, and feature updates directly in your Admin Dashboard.
+- **We Get:** Anonymous aggregate data (Version, DB Type, Node Version) to help us prioritize development resources.
+
+### Frequency & Reliability
+
+The system is designed to be **unobtrusive and robust**:
+
+- **Check Interval:** Once every **12 hours**.
+- **Failure Handling:** If the update server is unreachable, the system **caches the failure timestamp** and waits another 12 hours before retrying. This prevents your server from "spamming" connection attempts or slowing down page loads.
+- **Heartbeat:** A lightweight "heartbeat" signal is sent during system startup (`handleSystemState`) to register the instance's health status without blocking the boot process.
+
+### "Security Status: Unknown"
+
+If you disable this system, your Admin Dashboard will display a "Security Status: Unknown" warning.
+
+- We cannot alert you to critical vulnerabilities.
+- You are responsible for manually checking GitHub releases for security patches.
+
+## 2. Privacy & Opt-Out
+
+You retain full control. If you operate in a high-security air-gapped environment, you can disable these checks.
+
+### Environment Variable (Hard Disable)
+
+```bash
+SVELTY_TELEMETRY_DISABLED=true
+```
+
+### Admin Settings (Soft Disable)
+
+Navigate to **Settings → Licensing & Compliance** and toggle "Disable Telemetry".
+
+> **Note:** Disabling this service will turn off the automated security badge in your footer.
+
+## 3. Fair Source Licensing (BSL 1.1)
+
+This telemetry also helps us understand the "Economy" of our ecosystem to enforce our Fair Source license.
+
+- **Small Business (<$1M):** Free forever.
+- **Enterprise (>$1M):** Commercial license required.
+
+[View License Details on GitHub](https://github.com/SveltyCMS/SveltyCMS/blob/main/LICENSE.md)

@@ -30,7 +30,7 @@ Features:
 	const specificFields = $derived(currentGuiSchema ? Object.keys(currentGuiSchema).filter((key) => !defaultFields.includes(key)) : []);
 
 	/** Updates the target widget property */
-	function handleToggle(event: CustomEvent<boolean>, property: string) {
+	function handleToggle(event: CustomEvent, property: string) {
 		const currentWidget = targetWidget.value;
 		currentWidget[property] = event.detail;
 		targetWidget.value = currentWidget;

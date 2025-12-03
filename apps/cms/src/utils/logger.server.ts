@@ -1,35 +1,32 @@
 /**
  * @file src/utils/logger.server.ts
- * @description Server-Only Logger for SveltyCMS (Performance Optimized)
+ * @description Server-only logger for SveltyCMS with automatic formatting, batching, and file rotation.
  *
- * Log Levels:
- * - none: Maximum performance, zero overhead
- * - fatal: System failures
- * - error: Errors only (for production)
- * - warn: Warnings
- * - info: Default level for general information
- * - debug: Development debugging (request timing, performance metrics)
- * - trace: Very detailed trace information (content structure, widget state)
+ * Log levels: none | fatal | error | warn | info | debug | trace
  *
- * Features:
- * - Performance optimization with batch logging and optimized file I/O
- * - Support for structured logging
- * - Log rotation and compression
- * - Custom log formatters
- * - Conditional source file tracking
- * - Error tracking service integration
- * - Multiple log targets support
- * - Log filtering and aggregation
- * - Log retention policy to automatically delete old log files
- * - Circular reference and deep nesting protection
+ * What it does:
+ * - Automatic token highlighting (paths, IDs, methods, status codes, booleans)
+ * - Batched writes with rotation and optional compression
+ * - Sensitive data masking and optional source-file tracking
+ * - Pluggable log target and runtime filters
  *
- * **IMPORTANT:** This module uses Node.js-specific APIs (fs, path, zlib) and MUST
- * only be imported in `.server.ts` files. For logging in shared code (utils, stores,
- * components), use the universal logger at `src/utils/logger.ts` instead.
+ * Configuration:
+ * - Set `LOG_LEVELS` at build or runtime (comma-separated):
+ *   - Examples: `fatal,error,warn` | `none`
+ *   - Resolved from `import.meta.env.VITE_LOG_LEVELS` or `process.env.LOG_LEVELS`,
+ *     with runtime fallback to public settings.
+ *
+ * Usage:
+ *   logger.error(`Error processing ${id}`, { cause });
+ *
+ * Note: This module uses Node APIs and must be imported only in `.server.ts` files.
+ * For universal (client/server) logging, use `src/utils/logger.ts`.
  */
 
 import { browser, building } from '$app/environment';
 import { publicEnv } from '@stores/globalSettings.svelte';
+import type { ISODateString } from '@src/content/types';
+import { dateToISODateString, isoDateStringToDate } from '@src/utils/dateUtils';
 
 // This module should never run in browser - fail fast if it does
 if (browser) {
@@ -46,6 +43,14 @@ const getEnv = <T>(key: keyof typeof publicEnv, defaultValue: T): T => {
 	}
 };
 
+// Compile-time log level controls for better tree-shaking in server bundle
+const LOG_LEVELS_DEFINE =
+	(import.meta.env?.VITE_LOG_LEVELS as string | undefined) || (typeof process !== 'undefined' ? process.env.LOG_LEVELS : undefined);
+const STATIC_ENABLED_LEVELS: LogLevel[] | null = LOG_LEVELS_DEFINE
+	? (LOG_LEVELS_DEFINE.split(',').map((l) => l.trim().toLowerCase()) as LogLevel[])
+	: null;
+const IS_LOGGING_DISABLED: boolean = STATIC_ENABLED_LEVELS?.includes('none') ?? false;
+
 // Type Definitions
 type LogLevel = 'none' | 'info' | 'error' | 'warn' | 'fatal' | 'debug' | 'trace';
 
@@ -58,7 +63,7 @@ type LogEntry = {
 	level: LogLevel;
 	message: string;
 	args: LoggableValue[];
-	timestamp: Date;
+	timestamp: ISODateString;
 };
 
 // Masking configuration type
@@ -98,6 +103,51 @@ const LOG_LEVEL_MAP: Record<LogLevel, { priority: number; color: keyof typeof TE
 	info: { priority: 4, color: 'green' },
 	debug: { priority: 5, color: 'blue' },
 	trace: { priority: 6, color: 'cyan' }
+};
+
+// --- Message-level smart formatting (colors specific tokens in the message text) ---
+type MessagePattern = { regex: RegExp; color: keyof typeof TERMINAL_COLORS; priority: number };
+const MESSAGE_PATTERNS: MessagePattern[] = [
+	// Highest Priority - Time measurements
+	{ regex: /\b\d+(\.\d+)?(ms|s)\b/g, color: 'green', priority: 100 },
+
+	// Very High Priority - Context-aware token detection (values after colons, equals, etc.)
+	{ regex: /(?<=:\s)[a-f0-9]{32}(?=\s|$|,|\)|\]|\})/g, color: 'yellow', priority: 95 }, // ID after colon
+	{ regex: /(?<=:\s)[a-f0-9]{24}(?=\s|$|,|\)|\]|\})/g, color: 'yellow', priority: 95 }, // ObjectId after colon
+	{ regex: /(?<=:\s)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=\s|$|,|\)|\]|\})/gi, color: 'yellow', priority: 95 }, // UUID after colon
+	{ regex: /(?<==\s?)[a-f0-9]{32}(?=\s|$|,|\)|\]|\})/g, color: 'yellow', priority: 94 }, // ID after equals
+	{ regex: /(?<==\s?)[a-f0-9]{24}(?=\s|$|,|\)|\]|\})/g, color: 'yellow', priority: 94 }, // ObjectId after equals
+
+	// High Priority - Specific keywords
+	{ regex: /\bsession(s)?\b/gi, color: 'yellow', priority: 92 },
+	{ regex: /\btoken(s)?\b/gi, color: 'blue', priority: 92 },
+	{ regex: /\b(error|failed|failure|denied|invalid|unauthorized|forbidden)\b/gi, color: 'red', priority: 90 },
+
+	// Medium-High Priority - Paths and APIs
+	{ regex: /\/api\/[\S]+/g, color: 'cyan', priority: 85 },
+	{ regex: /\/[^\s]*\.(ts|js|svelte|json|css|html)/g, color: 'cyan', priority: 84 },
+
+	// Medium Priority - IDs and UUIDs (standalone)
+	{ regex: /\b[a-f0-9]{32}\b/g, color: 'yellow', priority: 75 }, // 32-char hex UUIDs
+	{ regex: /\b[a-f0-9]{24}\b/g, color: 'yellow', priority: 74 }, // ObjectId
+	{ regex: /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, color: 'yellow', priority: 73 }, // Standard UUID
+
+	// Lower Priority - Numbers and booleans
+	{ regex: /\btrue\b/g, color: 'green', priority: 65 },
+	{ regex: /\bfalse\b/g, color: 'red', priority: 65 },
+	{ regex: /\b-?\d+(?:\.\d+)?\b/g, color: 'blue', priority: 60 }, // plain numbers
+
+	// Lowest Priority - Quoted strings (catch remaining)
+	{ regex: /"([^"]+)"/g, color: 'cyan', priority: 50 },
+	{ regex: /'([^']+)'/g, color: 'cyan', priority: 50 }
+].sort((a, b) => b.priority - a.priority);
+
+const applyMessageFormatting = (message: string): string => {
+	let out = message;
+	for (const { regex, color } of MESSAGE_PATTERNS) {
+		out = out.replace(regex, (m) => `${TERMINAL_COLORS[color]}${m}${TERMINAL_COLORS.reset}`);
+	}
+	return out;
 };
 
 // Configuration object
@@ -149,8 +199,18 @@ function updateMaxEnabledPriority() {
 		maxEnabledPriority = 0;
 		return;
 	}
+	// Prefer compile-time levels if provided (enables tree-shaking)
+	if (STATIC_ENABLED_LEVELS) {
+		if (IS_LOGGING_DISABLED) {
+			maxEnabledPriority = LOG_LEVEL_MAP.none.priority;
+			return;
+		}
+		maxEnabledPriority = Math.max(0, ...STATIC_ENABLED_LEVELS.map((level) => LOG_LEVEL_MAP[level as LogLevel]?.priority ?? 0));
+		return;
+	}
 	const enabledLevels = getEnv('LOG_LEVELS', ['fatal', 'error', 'warn', 'info', 'debug', 'trace']);
-	if (!Array.isArray(enabledLevels) || enabledLevels.includes('none')) {
+	// Ensure enabledLevels is an array before calling .includes
+	if (!Array.isArray(enabledLevels) || (Array.isArray(enabledLevels) && enabledLevels.includes('none'))) {
 		maxEnabledPriority = LOG_LEVEL_MAP.none.priority;
 		return;
 	}
@@ -158,7 +218,11 @@ function updateMaxEnabledPriority() {
 }
 
 // Initialize the cache
-updateMaxEnabledPriority();
+if (IS_LOGGING_DISABLED) {
+	maxEnabledPriority = LOG_LEVEL_MAP.none.priority;
+} else {
+	updateMaxEnabledPriority();
+}
 
 // Safe execution wrapper
 function safeExecute(fn: () => Promise<void>) {
@@ -190,10 +254,20 @@ const formatters = {
 		});
 	},
 	formatObject: (obj: object): string => {
+		// Key-aware coloring: override default key color for common security/session tokens
+		const colorForKey = (key: string): keyof typeof TERMINAL_COLORS => {
+			const k = key.toLowerCase();
+			if (/^session(id)?s?$/.test(k) || k.includes('session')) return 'yellow';
+			if (/^token(s)?$/.test(k) || k.includes('token') || k.includes('access_token') || k.includes('refresh_token')) return 'blue';
+			return 'cyan';
+		};
 		const entries = Object.entries(obj);
 		if (entries.length === 0) return `${TERMINAL_COLORS.yellow}{}${TERMINAL_COLORS.reset}`;
 		const formatted = entries
-			.map(([k, v]) => `${TERMINAL_COLORS.cyan}${k}${TERMINAL_COLORS.reset}: ${formatValue(v as LoggableValue)}`)
+			.map(([k, v]) => {
+				const keyColor = TERMINAL_COLORS[colorForKey(k)];
+				return `${keyColor}${k}${TERMINAL_COLORS.reset}: ${formatValue(v as LoggableValue)}`;
+			})
 			.join(`${TERMINAL_COLORS.yellow},${TERMINAL_COLORS.reset} `);
 		return `${TERMINAL_COLORS.yellow}{${TERMINAL_COLORS.reset}${formatted}${TERMINAL_COLORS.yellow}}${TERMINAL_COLORS.reset}`;
 	},
@@ -402,7 +476,7 @@ const serverFileOps = {
 				this._logStream = null;
 			}
 
-			const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+			const timestamp = dateToISODateString(new Date()).replace(/[:.]/g, '-');
 			const rotatedFilePath = `${logFilePath}.${timestamp}`;
 			await fsPromises.rename(logFilePath, rotatedFilePath);
 			await fsPromises.writeFile(logFilePath, '');
@@ -447,7 +521,10 @@ const serverFileOps = {
 
 	async writeBatchToFile(batch: LogEntry[]): Promise<void> {
 		const logString = batch
-			.map((entry) => `${entry.timestamp.toISOString()} [${entry.level.toUpperCase()}] ${entry.message} ${JSON.stringify(entry.args)}\n`)
+			.map(
+				(entry) =>
+					`${isoDateStringToDate(entry.timestamp).toISOString()} [${entry.level.toUpperCase()}] ${entry.message} ${JSON.stringify(entry.args)}\n`
+			)
 			.join('');
 
 		if (!logString) return;
@@ -475,6 +552,7 @@ const serverFileOps = {
 				for (const entry of batch) {
 					const color = TERMINAL_COLORS[LOG_LEVEL_MAP[entry.level].color];
 					const formattedArgs = entry.args.map(formatValue).join(' ');
+					const prettyMessage = applyMessageFormatting(entry.message);
 
 					// Professional formatting with icons
 					const icons: Record<string, string> = {
@@ -487,9 +565,9 @@ const serverFileOps = {
 					};
 					const icon = icons[entry.level.toUpperCase()] || '●';
 					const formattedLevel = entry.level.toUpperCase().padEnd(5);
-					const timestamp = entry.timestamp.toISOString().slice(0, 19).replace('T', ' ');
+					const timestamp = entry.timestamp;
 
-					console.log(`\x1b[2m${timestamp}\x1b[0m ${color}${icon} [${formattedLevel}]\x1b[0m ${entry.message} ${formattedArgs}`);
+					console.log(`\x1b[2m${timestamp}\x1b[0m ${color}${icon} [${formattedLevel}]\x1b[0m ${prettyMessage} ${formattedArgs}`);
 				}
 			}
 		}
@@ -497,7 +575,7 @@ const serverFileOps = {
 };
 
 // Lifecycle management
-if (!building) {
+if (!building && !IS_LOGGING_DISABLED) {
 	const boundInitializeLogFile = serverFileOps.initializeLogFile.bind(serverFileOps);
 	const boundCheckAndRotateLogFile = serverFileOps.checkAndRotateLogFile.bind(serverFileOps);
 	const boundCleanOldLogFiles = serverFileOps.cleanOldLogFiles.bind(serverFileOps);
@@ -581,6 +659,7 @@ const log = (level: LogLevel, message: string, args: LoggableValue[]): void => {
 	const color = TERMINAL_COLORS[LOG_LEVEL_MAP[level].color];
 	const sourceInfo = sourceFile ? `${sourceFile} ` : '';
 	const formattedArgs = maskedArgs.map(formatValue).join(' ');
+	const prettyMessage = applyMessageFormatting(message);
 
 	// Professional formatting with icons
 	const icons: Record<string, string> = {
@@ -595,9 +674,9 @@ const log = (level: LogLevel, message: string, args: LoggableValue[]): void => {
 	const formattedLevel = level.toUpperCase().padEnd(5);
 	const cleanTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-	process.stdout.write(`\x1b[2m${cleanTimestamp}\x1b[0m ${color}${icon} [${formattedLevel}]\x1b[0m ${sourceInfo}${message} ${formattedArgs}\n`);
+	process.stdout.write(`\x1b[2m${cleanTimestamp}\x1b[0m ${color}${icon} [${formattedLevel}]\x1b[0m ${sourceInfo}${prettyMessage} ${formattedArgs}\n`);
 
-	state.queue.push({ level, message, args: maskedArgs, timestamp: new Date() });
+	state.queue.push({ level, message, args: maskedArgs, timestamp: dateToISODateString(new Date()) });
 	if (state.queue.length >= config.batchSize) {
 		safeExecute(processBatch);
 	} else {
@@ -605,8 +684,8 @@ const log = (level: LogLevel, message: string, args: LoggableValue[]): void => {
 	}
 };
 
-// Public Logger Interface
-export const logger = {
+// Public Logger Interface (active)
+const activeLogger = {
 	fatal: (message: string, ...args: LoggableValue[]) => {
 		if (LOG_LEVEL_MAP.fatal.priority <= maxEnabledPriority) log('fatal', message, args);
 	},
@@ -705,3 +784,69 @@ export const logger = {
 		config.sourceFileTracking = levels;
 	}
 };
+
+// Public Logger Interface (no-op when disabled at build time)
+const noop = () => {};
+const noopChannel = () => ({ fatal: noop, error: noop, warn: noop, info: noop, debug: noop, trace: noop });
+
+const noopLogger: typeof activeLogger = {
+	fatal: () => {},
+	error: () => {},
+	warn: () => {},
+	info: () => {},
+	debug: () => {},
+	trace: () => {},
+	channel: (name: string) => {
+		void name;
+		return noopChannel();
+	},
+	dump: (data: LoggableValue, label?: string) => {
+		void data;
+		void label;
+	},
+	refreshLogLevels: () => {},
+	setCustomLogTarget: (t: (level: LogLevel, message: string, args: LoggableValue[]) => void) => {
+		void t;
+	},
+	enableErrorTracking: (e: boolean) => {
+		void e;
+	},
+	setLogDirectory: (d: string) => {
+		void d;
+	},
+	setLogFileName: (f: string) => {
+		void f;
+	},
+	setBatchSize: (s: number) => {
+		void s;
+	},
+	setBatchTimeout: (t: number) => {
+		void t;
+	},
+	setCompressionEnabled: (e: boolean) => {
+		void e;
+	},
+	setLogRotationInterval: (ms: number) => {
+		void ms;
+	},
+	addLogFilter: (f: (entry: LogEntry) => boolean) => {
+		void f;
+	},
+	clearLogFilters: () => {},
+	addSensitiveKeys: (k: string[]) => {
+		void k;
+	},
+	addEmailKeys: (k: string[]) => {
+		void k;
+	},
+	addCustomMask: (k: string, m: (value: string) => string) => {
+		void k;
+		void m;
+	},
+	clearCustomMasks: () => {},
+	setSourceFileTracking: (l: LogLevel[]) => {
+		void l;
+	}
+};
+
+export const logger = IS_LOGGING_DISABLED ? noopLogger : activeLogger;

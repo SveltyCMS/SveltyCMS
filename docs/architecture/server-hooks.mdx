@@ -59,7 +59,30 @@ const middleware: Handle[] = [
 export const handle: Handle = sequence(...middleware);
 ```
 
----
+## 📡 Telemetry & Usage Tracking
+
+SveltyCMS includes a minimal Heartbeat System (Telemetry) to help the core team understand usage patterns and enforce the BSL 1.1 license for enterprise users.
+
+### How it works
+
+1.  **Non-Blocking:** The telemetry runs asynchronously in the background. It never blocks a user request.
+2.  **Frequency:** It sends a heartbeat once every 24 hours per server instance.
+3.  **Data Collected:**
+    - SveltyCMS Version (e.g., 1.0.0)
+    - Hostname / Domain (e.g., cms.example.com)
+    - Environment (Development vs Production)
+    - Node.js Version
+
+### Privacy & Opt-Out
+
+We respect user privacy. Telemetry can be completely disabled by setting the following environment variable in your `.env` file:
+
+```bash
+# Disable SveltyCMS Telemetry
+SVELTY_TELEMETRY_DISABLED=true
+# OR use the universal standard
+DO_NOT_TRACK=1
+```
 
 ## 🚀 Server Startup & Initialization Flow
 
@@ -652,63 +675,44 @@ export const handleTheme: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 8. handleAuthentication - Session Management
+### 8. Authentication & Multi-Tenancy (`handleAuthentication`)
 
-**File**: `src/hooks/handleAuthentication.ts`  
-**Purpose**: Validates sessions with WeakRef-based caching
+**File**: `src/hooks/handleAuthentication.ts`
+**Purpose**: Manages user identity, session security, and tenant isolation.
 
-````typescript
+**Key Responsibilities:**
+
+- **Multi-Tenancy**:
+  - **Standard Mode**: Resolves `tenantId` from the hostname (subdomain).
+  - **Demo Mode**: Checks for `SVELTYCMS_DEMO` environment variable. If active, it looks for a `demo_tenant_id` cookie.
+    - If missing, it generates a new UUID `tenantId`, sets the cookie (20 min TTL), and **automatically seeds** the new tenant with default data.
+- **Session Validation**: Verifies the `session_id` cookie against the database/cache.
+- **Tenant Isolation**: Ensures the authenticated user belongs to the resolved `tenantId`.
+- **Session Rotation**: Rotates session tokens every 15 minutes for security.
+- **WeakRef Caching**: Uses a memory-efficient cache to reduce database lookups for active sessions.
+
 ```typescript
-// WeakRef-based cache with automatic GC
-const sessionCache = new Map<string, WeakRef<SessionCacheEntry>>();
-const strongRefs = new Map<string, SessionCacheEntry>(); // LRU for hot sessions
-const sessionCacheRegistry = new FinalizationRegistry<string>((sessionId) => {
-	sessionCache.delete(sessionId);
-});
+// Simplified Logic
+const isDemoMode = getPrivateSettingSync('DEMO');
 
-export const handleAuthentication: Handle = async ({ event, resolve }) => {
-	const { locals, url, cookies } = event;
+if (multiTenant) {
+    let tenantId: string | null = null;
 
-	// Skip internal/public routes
-	if (url.pathname.startsWith('/.well-known/') || url.pathname.startsWith('/_')) {
-		return resolve(event);
-	}
-
-	const publicRoutes = ['/login', '/register', '/forgot-password'];
-	if (publicRoutes.some(r => url.pathname.startsWith(r))) {
-		return resolve(event);
-	}
-
-	locals.dbAdapter = dbAdapter;
-
-	// Multi-tenancy: hostname-based tenant identification
-	const multiTenant = getPrivateSettingSync('MULTI_TENANT');
-	if (multiTenant) {
-		const tenantId = getTenantIdFromHostname(url.hostname);
-		if (!tenantId) throw error(404, `Tenant not found`);
-		locals.tenantId = tenantId;
-	}
-
-	// 3-layer session validation: WeakRef in-memory → Redis → Database
-	const sessionId = cookies.get(SESSION_COOKIE_NAME);
-	if (sessionId) {
-		const user = await getUserFromSession(sessionId, locals.tenantId);
-		if (user) {
-			// Tenant isolation check
-			if (locals.tenantId && user.tenantId && user.tenantId !== locals.tenantId) {
-				cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-			} else {
-				locals.user = user;
-				locals.session_id = sessionId;
-			}
-		} else {
-			cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-		}
-	}
-
-	return resolve(event);
-};
-````
+    if (isDemoMode) {
+        // Demo Mode: Tenant ID from cookie
+        tenantId = cookies.get('demo_tenant_id');
+        if (!tenantId) {
+            tenantId = crypto.randomUUID();
+            cookies.set('demo_tenant_id', tenantId, ...);
+            await seedDemoTenant(dbAdapter, tenantId); // Auto-seed new tenant
+        }
+    } else {
+        // Standard Mode: Tenant ID from hostname
+        tenantId = getTenantIdFromHostname(url.hostname);
+    }
+    locals.tenantId = tenantId;
+}
+```
 
 **Key Features**:
 
@@ -1216,6 +1220,37 @@ bun test tests/bun/hooks/ tests/bun/api/ tests/bun/services/
 # Full test suite
 bun test
 ```
+
+---
+
+### 10. handleCompression - Response Compression
+
+**File**: `src/hooks/handleCompression.ts`
+**Purpose**: Compresses API responses using GZIP or Brotli for improved performance.
+
+```typescript
+export const handleCompression: Handle = async ({ event, resolve }) => {
+	const response = await resolve(event);
+
+	// Only compress API responses
+	if (!event.url.pathname.startsWith('/api/')) {
+		return response;
+	}
+
+	// Check Accept-Encoding header
+	const acceptEncoding = event.request.headers.get('accept-encoding') || '';
+
+	// ... compression logic ...
+
+	return response;
+};
+```
+
+**Key Features**:
+
+- **Algorithm Selection**: Prioritizes Brotli (`br`) over Gzip (`gzip`).
+- **Selective Compression**: Targets only API JSON responses (static assets are handled by adapter/CDN).
+- **Performance**: Reduces payload size by up to 80%, significantly improving mobile experience.
 
 ---
 

@@ -1,16 +1,88 @@
-# State Management Architecture
+---
+path: 'docs/architecture/state-management.mdx'
+title: 'System State & Health Architecture'
+description: 'Technical documentation of the SveltyCMS state machine, request gating middleware, and health monitoring system.'
+order: 30
+icon: 'mdi:state-machine'
+author: 'SveltyCMS Team'
+created: '2025-11-26'
+updated: '2025-11-26'
+tags:
+  - 'architecture'
+  - 'state-machine'
+  - 'middleware'
+  - 'health'
+---
 
-## Dynamic Import Warning Suppression
+# System State & Health Architecture
 
-In our Vite configuration (`vite.config.ts`), we intentionally suppress a specific type of warning: `"dynamic import will not move module"`. This occurs for certain files, notably `widgetStore.svelte.ts` and `richText/Input.svelte`.
+SveltyCMS employs a robust **State Machine** to manage the application's lifecycle, ensure data integrity, and handle system failures gracefully. This system acts as a gatekeeper for all incoming requests.
 
-### Why This Happens
+## 🧠 Core Concepts
 
-This warning appears when a module is imported both statically and dynamically within the same dependency graph. In our case, this is a deliberate architectural choice to achieve a balance between eager loading (for immediate availability) and lazy loading (for performance).
+The system state is managed by a central store (`@stores/system`) and enforced by the `handleSystemState` server hook.
 
-- **`widgetStore.svelte.ts`**: The widget store needs to be available early in the application lifecycle, but the widgets themselves are loaded dynamically to keep the initial bundle small.
-- **`richText/Input.svelte`**: The rich text editor component is loaded lazily to avoid including its large dependencies in the main bundle, but some of its utilities might be needed upfront.
+### System States
 
-### Why Suppression is Safe
+The application can be in one of the following states:
 
-Suppressing this warning is safe because we have manually verified that the build output is correct and that the dual import does not cause any functional issues. The warning is purely informational in this context. We have configured Vite to only ignore this warning for the specific files where we expect and intend for this behavior to occur.
+| State              | Description                                                       | Request Handling                                  |
+| :----------------- | :---------------------------------------------------------------- | :------------------------------------------------ |
+| **`IDLE`**         | Initial state. System is waiting for setup or initialization.     | **Blocked** (except Setup Wizard & Health Checks) |
+| **`INITIALIZING`** | Database connection and core services are starting up.            | **Blocked** (requests wait for completion)        |
+| **`READY`**        | Normal operational state. All systems go.                         | **Allowed**                                       |
+| **`DEGRADED`**     | System is operational but some non-critical services are failing. | **Allowed** (with warning logs)                   |
+| **`FAILED`**       | Critical failure (e.g., DB down). System cannot function.         | **Blocked** (503 Service Unavailable)             |
+
+---
+
+## 🛡️ Request Gating Middleware
+
+The `handleSystemState` hook (`src/hooks/handleSystemState.ts`) intercepts every request to ensure the system is ready to handle it.
+
+### Logic Flow
+
+1.  **Health Checks & Static Assets**: Always allowed, regardless of state.
+2.  **IDLE State (Setup Mode)**:
+    - Checks if `isSetupComplete()`.
+    - If **No**: Allows access to `/setup`, `/api/setup`, and `/login`. Blocks others.
+    - If **Yes**: Triggers initialization and transitions to `INITIALIZING`.
+3.  **INITIALIZING State**:
+    - Pauses incoming requests until initialization completes (or times out).
+    - If initialization succeeds -> Proceeds to `READY`.
+    - If initialization fails -> Transitions to `FAILED` and returns 503.
+4.  **FAILED State**:
+    - Blocks all traffic with a 503 error.
+    - _Exception_: In `TEST_MODE`, requests may be allowed with a warning to facilitate debugging.
+5.  **READY / DEGRADED State**:
+    - Allows request to proceed.
+    - If `DEGRADED`, injects `event.locals.degradedServices` for UI notifications.
+
+---
+
+## 🔮 Future Improvements: Smart State Machine
+
+We are planning to evolve the state machine into a more event-driven, granular system.
+
+### Proposed Features
+
+1.  **Granular Sub-States**:
+    - Instead of a global `INITIALIZING`, track `DB_CONNECTING`, `CACHE_WARMING`, `INDEX_BUILDING`.
+    - Allow partial traffic (e.g., read-only) during specific sub-states.
+
+2.  **Event-Driven Transitions**:
+    - Move from polling/check-based transitions to an event bus architecture.
+    - Example: `db:connected` event triggers transition to `CACHE_WARMING`.
+
+3.  **Automatic Recovery**:
+    - Self-healing mechanisms that attempt to reconnect services when in `FAILED` or `DEGRADED` states without requiring a full restart.
+
+4.  **Circuit Breakers**:
+    - Automatically disable specific widgets or API endpoints if their dependent services fail, keeping the rest of the site `READY`.
+
+---
+
+## 🔍 Related Documentation
+
+- **[Server Hooks](./server-hooks.mdx)** - Overview of the middleware pipeline.
+- **[Database Core](./database/Core_Infrastructure.mdx)** - Database connection management.

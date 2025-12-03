@@ -5,7 +5,7 @@
 <script lang="ts">
 	import * as m from '@src/paraglide/messages';
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
-	import type { AdminUser, ValidationErrors, PasswordRequirements } from '@stores/setupStore.svelte';
+	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { setupAdminSchema } from '@utils/formSchemas';
 
@@ -25,20 +25,11 @@
 		toggleAdminPassword,
 		toggleConfirmPassword,
 		checkPasswordRequirements // This is still called by oninput
-	} = $props<{
-		adminUser: AdminUser;
-		validationErrors: ValidationErrors; // Now uses imported type
-		passwordRequirements: PasswordRequirements;
-		showAdminPassword: boolean;
-		showConfirmPassword: boolean;
-		toggleAdminPassword: () => void;
-		toggleConfirmPassword: () => void;
-		checkPasswordRequirements: () => void;
-	}>();
+	} = $props(); // Now uses imported type
 
 	// Local real-time validation state
-	let touchedFields = $state<Set<string>>(new Set());
-	let localValidationErrors = $state<ValidationErrors>({});
+	let touchedFields = $state(new Set<string>());
+	let localValidationErrors = $state<Record<string, string>>({});
 
 	const validationResult = $derived(
 		safeParse(setupAdminSchema, {

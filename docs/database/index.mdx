@@ -38,6 +38,7 @@ These documents explain the core database infrastructure that works with **any**
    - `CacheMetrics.ts` - Performance monitoring
    - `CacheWarmingService.ts` - Predictive prefetching
    - 8 cache categories with dynamic TTL
+   - **NEW**: Pattern-based predictive prefetching with custom fetchers
 
 3. **[Authentication System](./Authentication_System.mdx)**
    - Complete auth infrastructure (12 files)
@@ -58,6 +59,7 @@ Implementation guides for specific database backends:
    - Streaming API (97% memory savings)
    - Query hints & optimization
    - 70-90% performance improvement
+   - **NEW**: Optimized `upsertMany` with `bulkWrite` for high-volume writes
 
 **Coming Soon:**
 
@@ -154,6 +156,7 @@ Implementation guides for specific database backends:
 - ✅ 29 optimized MongoDB indexes
 - ✅ Cursor pagination (O(1) time)
 - ✅ Streaming API (O(1) memory)
+- ✅ **Batch Widget API** (Solves N+1 problem for relations)
 
 ### Enterprise Security
 

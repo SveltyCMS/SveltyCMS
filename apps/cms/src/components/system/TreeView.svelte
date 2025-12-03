@@ -34,6 +34,8 @@
 		depth?: number; // Depth of the node in the tree
 		order?: number; // Order for sorting and reordering
 		nodeType?: string; // Type of node for filtering drag operations
+		path?: string; // Path to prefetch
+		isLoading?: boolean; // Optional flag indicating if the node is loading children
 	}
 </script>
 
@@ -43,6 +45,25 @@
 	import TreeViewComponent from './TreeView.svelte';
 	const TreeView = TreeViewComponent;
 	import { fly } from 'svelte/transition';
+	import { preloadData } from '$app/navigation';
+
+	// Destructure props with clearer names and defaults
+	// Props interface
+	interface TreeViewProps {
+		k?: any;
+		nodes: TreeNode[];
+		selectedId?: string | null;
+		ariaLabel?: string;
+		dir?: 'ltr' | 'rtl' | 'auto';
+		search?: string;
+		compact?: boolean;
+		iconColorClass?: string;
+		showBadges?: boolean;
+		allowDragDrop?: boolean;
+		onReorder?: ((draggedId: string, targetId: string, position: 'before' | 'after' | 'inside') => void) | null;
+		onExpand?: ((node: TreeNode) => void) | null;
+		onHover?: ((node: TreeNode) => void) | null;
+	}
 
 	// Destructure props with clearer names and defaults
 	const {
@@ -56,26 +77,16 @@
 		iconColorClass = 'text-error-500',
 		showBadges = false,
 		allowDragDrop = false,
-		onReorder = null
-	} = $props<{
-		k?: number;
-		nodes: TreeNode[];
-		selectedId?: string | null;
-		ariaLabel?: string;
-		dir?: 'ltr' | 'rtl';
-		search?: string;
-		compact?: boolean;
-		iconColorClass?: string;
-		showBadges?: boolean;
-		allowDragDrop?: boolean;
-		onReorder?: ((draggedId: string, targetId: string, position: 'before' | 'after' | 'inside') => void) | null;
-	}>();
+		onReorder = null,
+		onExpand = null,
+		onHover = null
+	}: TreeViewProps = $props();
 
 	// Focused item id
 	let focusedNodeId = $state<string | null>(null);
 
 	// Use native Set for expansion state; SvelteSet isn't available in this environment.
-	let expandedNodeIds = $state<Set<string>>(new Set());
+	let expandedNodeIds = $state(new Set());
 
 	// Drag & drop transient UI state
 	let draggedNode = $state<TreeNode | null>(null);
@@ -121,7 +132,7 @@
 	// nodeMap derived for lookups (depth + parentId)
 	const nodeMap = $derived(() => {
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const map = new Map<string, TreeNode & { depth: number; parentId?: string }>();
+		const map = new Map();
 		function collect(node: TreeNode, depth = 0, parentId?: string) {
 			map.set(node.id, { ...node, depth, parentId });
 			if (node.children) node.children.forEach((c) => collect(c, depth + 1, node.id));
@@ -138,8 +149,12 @@
 		if (node.children) {
 			// eslint-disable-next-line svelte/prefer-svelte-reactivity
 			const newSet = new Set(expandedNodeIds);
-			if (newSet.has(node.id)) newSet.delete(node.id);
-			else newSet.add(node.id);
+			if (newSet.has(node.id)) {
+				newSet.delete(node.id);
+			} else {
+				newSet.add(node.id);
+				if (onExpand) onExpand(node);
+			}
 			expandedNodeIds = newSet;
 		}
 
@@ -152,7 +167,7 @@
 
 	// Keyboard handling
 	function handleKeyDown(event: KeyboardEvent, node: TreeNode) {
-		const actions: Record<string, (() => void) | undefined> = {
+		const actions: Record<string, () => void> = {
 			Enter: () => toggleNode(node),
 			' ': () => toggleNode(node),
 			ArrowRight: () => handleArrowKey(node, 'right'),
@@ -343,11 +358,27 @@
 				ondrop={(event) => handleDrop(event, node)}
 				ondragend={handleDragEnd}
 				aria-controls={node.children ? `node-${node.id}-children` : undefined}
+				onmouseenter={() => {
+					if (node.path) preloadData(node.path);
+					if (onHover) onHover(node);
+				}}
 			>
 				<!-- Expand/Collapse icon with RTL support -->
 				{#if node.children}
-					<div
-						aria-label={node.isExpanded ? 'Collapse' : 'Expand'}
+					{#if node.isLoading}
+						<div class="flex h-4 w-4 items-center justify-center">
+							<svg class="h-3 w-3 animate-spin text-surface-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+								<path
+									class="opacity-75"
+									fill="currentColor"
+									d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+								></path>
+							</svg>
+						</div>
+					{:else}
+						<div
+							aria-label={node.isExpanded ? 'Collapse' : 'Expand'}
 						class={`h-4 w-4 transform transition-transform duration-200
                            ${node.isExpanded ? '' : dir === 'rtl' ? 'rotate-180' : 'rotate-90'}`}
 					>
@@ -355,6 +386,7 @@
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 						</svg>
 					</div>
+					{/if}
 
 					<!-- Badge overlay -->
 					{#if showBadges && !node.isExpanded && node.badge?.count && node.badge.count > 0}
@@ -414,6 +446,8 @@
 								{showBadges}
 								{allowDragDrop}
 								{onReorder}
+								{onExpand}
+								{onHover}
 							/>
 						</div>
 					{/if}

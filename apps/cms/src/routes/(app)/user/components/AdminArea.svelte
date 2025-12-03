@@ -44,30 +44,23 @@
 	// Types
 	import type { User, Token } from '@src/databases/auth/types';
 
+	type TableDataType = User | Token;
+
 	interface TableHeader {
 		label: string;
-		key: string;
+		key: keyof User | keyof Token;
 		visible: boolean;
 		id: string;
 	}
 
-	interface SortingState {
-		sortedBy: string;
-		isSorted: number; // 1: asc, -1: desc, 0: none
-	}
-
 	// Props - Using API for scalability
-	const {
-		currentUser = null,
-		isMultiTenant = false,
-		roles = []
-	} = $props<{ currentUser?: { _id: string; [key: string]: unknown } | null; isMultiTenant?: boolean; roles?: Role[] }>();
+	const { currentUser = null, isMultiTenant = false, roles = [] } = $props();
 
 	const waitFilter = debounce(300);
 	const flipDurationMs = 300;
 
 	// State for API-fetched data (replaces adminData usage for scalability)
-	let tableData = $state<(User | Token)[]>([]);
+	let tableData: TableDataType[] = $state([]);
 	let totalItems = $state(0);
 
 	async function fetchData() {
@@ -111,7 +104,7 @@
 	}
 
 	// Custom event handler for token updates from Multibutton
-	function handleTokenUpdate(event: CustomEvent<{ tokenIds: string[]; action: string }>) {
+	function handleTokenUpdate(event: CustomEvent) {
 		const { tokenIds, action } = event.detail;
 
 		// Update the tableData instead of adminData for scalability
@@ -184,7 +177,7 @@
 	let filterShow = $state(false);
 	let columnShow = $state(false);
 	let selectAll = $state(false);
-	let selectedMap = $state<Record<number, boolean>>({});
+	let selectedMap: Record<number, boolean> = $state({});
 
 	// Derived rows to display and selection will be defined below
 	let density = $state(
@@ -197,11 +190,11 @@
 	// pagesCount becomes derived below
 	let currentPage = $state(1);
 	let rowsPerPage = $state(10);
-	let filters = $state<{ [key: string]: string }>({});
-	let sorting = $state<SortingState>({ sortedBy: '', isSorted: 0 });
+	let filters = $state({});
+	let sorting = $state({ sortedBy: '', isSorted: 0 });
 
 	// Initialize displayTableHeaders with a safe default
-	let displayTableHeaders = $state<TableHeader[]>([]);
+	let displayTableHeaders: TableHeader[] = $state([]);
 
 	$effect(() => {
 		// Update displayTableHeaders when view changes
@@ -495,11 +488,11 @@
 		}
 	}
 
-	function handleDndConsider(event: CustomEvent<{ items: TableHeader[] }>) {
+	function handleDndConsider(event: CustomEvent) {
 		displayTableHeaders = event.detail.items;
 	}
 
-	function handleDndFinalize(event: CustomEvent<{ items: TableHeader[] }>) {
+	function handleDndFinalize(event: CustomEvent) {
 		displayTableHeaders = event.detail.items;
 		localStorage.setItem('userPaginationSettings', JSON.stringify({ density, displayTableHeaders }));
 	}
@@ -519,10 +512,10 @@
 	// tableData is now the current page from API, not all data
 	// totalItems is the total count from API
 
-	const pagesCount = $derived.by<number>(() => Math.ceil(totalItems / rowsPerPage) || 1);
+	const pagesCount = $derived.by(() => Math.ceil(totalItems / rowsPerPage) || 1);
 
 	// Derive selected rows from selectedMap; ensure type compatibility by mapping to UserData | TokenData
-	let selectedRows: Array<User | Token> = $derived.by(() =>
+	let selectedRows: TableDataType[] = $derived.by(() =>
 		Object.entries(selectedMap)
 			.filter(([, isSelected]) => isSelected)
 			.map(([index]) => tableData[parseInt(index)])
@@ -557,11 +550,12 @@
 
 	function handleInputChange(value: string, headerKey: string) {
 		if (value) {
+			const newFilters: Record<string, string | undefined> = { ...filters, [headerKey]: value };
 			waitFilter(() => {
-				filters = { ...filters, [headerKey]: value };
+				filters = newFilters;
 			});
 		} else {
-			const newFilters = { ...filters };
+			const newFilters: Record<string, string | undefined> = { ...filters };
 			delete newFilters[headerKey];
 			filters = newFilters;
 		}
@@ -654,7 +648,7 @@
 							onfinalize={handleDndFinalize}
 							class="flex flex-wrap justify-center gap-1 rounded-md p-2"
 						>
-							{#each displayTableHeaders as header (header.id)}
+							{#each displayTableHeaders as header: TableHeader (header.id)}
 								<button
 									class="chip {header.visible ? 'variant-filled-secondary' : 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
 									animate:flip={{ duration: flipDurationMs }}
@@ -709,7 +703,7 @@
 							<TableIcons
 								cellClass="w-10 text-center"
 								checked={selectAll}
-								onCheck={(checked) => {
+								onCheck={(checked: boolean) => {
 									selectAll = checked;
 									for (let i = 0; i < tableData.length; i++) {
 										selectedMap[i] = checked;
@@ -743,12 +737,8 @@
 
 					<tbody>
 						{#each tableData as row, index (isUser(row) ? row._id : isToken(row) ? row.token : index)}
-							{@const expiresVal = isToken(row) ? (row.expires as string | Date | null) : null}
-							{@const isExpired =
-								showUsertoken &&
-								expiresVal !== null &&
-								expiresVal !== undefined &&
-								(expiresVal instanceof Date ? expiresVal : new Date(String(expiresVal))) < new Date()}
+							{@const expiresVal: string | Date | null = isToken(row) ? row.expires : null}
+							{@const isExpired = showUsertoken && expiresVal && new Date(expiresVal) < new Date()}
 							<tr
 								class="divide-x divide-surface-400 {isExpired ? 'bg-error-50 opacity-60 dark:bg-error-900/20' : ''} {showUsertoken
 									? 'cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-800'
@@ -762,7 +752,7 @@
 							>
 								<TableIcons
 									checked={selectedMap[index] ?? false}
-									onCheck={(checked) => {
+									onCheck={(checked: boolean) => {
 										selectedMap[index] = checked;
 									}}
 								/>
@@ -809,9 +799,9 @@
 										{:else if header.key === '_id'}
 											<!-- User ID with clipboard functionality -->
 											<div class="flex items-center justify-center gap-2">
-												<span class="font-mono text-sm">{row[header.key]}</span>
+												<span class="font-mono text-sm">{isUser(row) ? row._id : isToken(row) ? row._id : '-'}</span>
 												<button
-													use:clipboard={String(row[header.key] ?? '')}
+													use:clipboard={String(isUser(row) ? row._id : isToken(row) ? row._id : '')}
 													class="variant-ghost btn-icon btn-icon-sm hover:variant-filled-tertiary"
 													aria-label="Copy User ID"
 													title="Copy User ID to clipboard"
@@ -840,12 +830,10 @@
 													<iconify-icon icon="oui:copy-clipboard" class="" width="16"></iconify-icon>
 												</button>
 											</div>
-										{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(header.key)}
-											{isUser(row) && (header.key === 'createdAt' || header.key === 'updatedAt' || header.key === 'lastAccess')
-												? formatDate(row[header.key as keyof User])
-												: isToken(row) && (header.key === 'createdAt' || header.key === 'updatedAt' || header.key === 'expires')
-													? formatDate(row[header.key as keyof Token])
-													: '-'}
+										{:else if ['createdAt', 'updatedAt', 'lastAccess', 'expires'].includes(header.key)}
+											{@const dateKey = header.key as 'createdAt' | 'updatedAt' | 'lastAccess' | 'expires'}
+											{@const dateValue = isUser(row) ? row[dateKey as keyof User] : isToken(row) ? row[dateKey as keyof Token] : undefined}
+											{formatDate(dateValue)}
 										{:else if header.key === 'expires'}
 											{#if isToken(row) && header.key === 'expires' && row.expires}
 												{@const expiresVal = row.expires as string | Date | null}
@@ -864,12 +852,13 @@
 												-
 											{/if}
 										{:else}
-											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-											{@html isUser(row) && typeof row[header.key as keyof User] === 'string'
-												? row[header.key as keyof User]
-												: isToken(row) && typeof row[header.key as keyof Token] === 'string'
-													? row[header.key as keyof Token]
+											{@const displayValue = isUser(row)
+												? String(row[header.key as keyof User] ?? '-')
+												: isToken(row)
+													? String(row[header.key as keyof Token] ?? '-')
 													: '-'}
+											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+											{@html displayValue}
 										{/if}
 									</td>
 								{/each}
@@ -887,10 +876,10 @@
 					{pagesCount}
 					{totalItems}
 					rowsPerPageOptions={[2, 10, 25, 50, 100, 500]}
-					onUpdatePage={(page) => {
+					onUpdatePage={(page: number) => {
 						currentPage = page;
 					}}
-					onUpdateRowsPerPage={(rows) => {
+					onUpdateRowsPerPage={(rows: number) => {
 						rowsPerPage = rows;
 						currentPage = 1;
 					}}

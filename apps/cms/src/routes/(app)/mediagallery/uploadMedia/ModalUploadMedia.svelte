@@ -46,10 +46,25 @@
 	let { parent, sectionName, files: initialFiles = [], onDelete, uploadFiles }: Props = $props();
 
 	// Use internal state to prevent $bindable loop
+<<<<<<< HEAD:apps/cms/src/routes/(app)/mediagallery/uploadMedia/ModalUploadMedia.svelte
 	let files = $state<File[]>([...initialFiles]);
 	let fileSet = $state(new Set<string>(initialFiles.map((f) => `${f.name}-${f.size}`))); // Initialize with initial files
+=======
+	let files = $state<File[]>([]);
+	let fileSet = $state(new Set<string>()); // Initialize with initial files
+>>>>>>> upstream/next:src/routes/(app)/mediagallery/uploadMedia/ModalUploadMedia.svelte
 	let duplicateWarning = $state('');
 	let objectUrls = $state<Map<string, string>>(new Map()); // Map fileKey to ObjectURL
+
+	$effect(() => {
+		// Sync with initialFiles if they change (e.g. parent updates)
+		// Note: This might overwrite user additions if initialFiles changes dynamically,
+		// but usually it's static for modal lifetime.
+		if (initialFiles.length > 0 && files.length === 0) {
+			files = [...initialFiles];
+			fileSet = new Set(initialFiles.map((f) => `${f.name}-${f.size}`));
+		}
+	});
 
 	// Effect to manage object URLs based on the files array
 	// This is FAST - ObjectURL creation takes <1ms per file

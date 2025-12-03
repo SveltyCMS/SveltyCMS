@@ -31,7 +31,7 @@
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	// Collection Manager
 
-	const props = $props<{ data: any; handlePageTitleUpdate: (title: string) => void }>();
+	const props = $props();
 
 	// Popup Tooltips
 	const NameTooltip: PopupSettings = {
@@ -213,6 +213,8 @@
 				type="text"
 				required
 				id="name"
+				name="name"
+				data-testid="collection-name-input"
 				bind:value={name}
 				oninput={handleNameInput}
 				placeholder={m.collection_name_placeholder()}

@@ -15,6 +15,7 @@ Features:
 	import { logger } from '@utils/logger';
 	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
+	import { preloadData } from '$app/navigation';
 
 	import type { PageData } from '../$types';
 
@@ -35,6 +36,7 @@ Features:
 
 	// Screen size store
 	import { isDesktop } from '@stores/screenSizeStore.svelte';
+	import type { Component } from 'svelte';
 
 	// Props
 	const {
@@ -45,17 +47,9 @@ Features:
 		inviteError = '',
 		onClick = () => {},
 		onPointerEnter = () => {},
-		onBack = () => {}
-	} = $props<{
-		active?: undefined | 0 | 1;
-		isInviteFlow?: boolean;
-		token?: string;
-		invitedEmail?: string;
-		inviteError?: string;
-		onClick?: () => void;
-		onPointerEnter?: () => void;
-		onBack?: () => void;
-	}>();
+		onBack = () => {},
+		firstCollectionPath = ''
+	} = $props();
 
 	const pageData = page.data as PageData;
 	const firstUserExists = pageData.firstUserExists;
@@ -64,12 +58,12 @@ Features:
 
 	// State management
 	const tabIndex = $state(1);
-	let response = $state<any>(undefined);
-	let formElement = $state<HTMLFormElement | null>(null);
+	let response = $state(undefined);
+	let formElement: HTMLFormElement | null = $state(null);
 	let showPassword = $state(false);
 	let isSubmitting = $state(false);
 	let isRedirecting = $state(false);
-	let FloatingPathsComponent = $state<any>(null);
+	let FloatingPathsComponent: Component | null = $state(null);
 
 	// Pre-calculate tab indices
 	const usernameTabIndex = 1;
@@ -204,11 +198,18 @@ Features:
 		const desktop = isDesktop.value;
 		const isActiveSignUp = active === 1;
 		if (browser && desktop && isActiveSignUp) {
-			import('@components/system/FloatingPaths.svelte').then((m) => {
-				FloatingPathsComponent = m.default;
+			import('@root/src/components/system/FloatingPaths.svelte').then((m) => {
+				FloatingPathsComponent = m.default as Component;
 			});
 		} else {
 			FloatingPathsComponent = null;
+		}
+	});
+
+	// Prefetch first collection data when active
+	$effect(() => {
+		if (active === 1 && firstCollectionPath) {
+			preloadData(firstCollectionPath);
 		}
 	});
 </script>

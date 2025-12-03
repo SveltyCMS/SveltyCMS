@@ -20,6 +20,16 @@ export const load: LayoutServerLoad = async ({ cookies, locals }) => {
 	const systemLanguage = (cookies.get('systemLanguage') as Locale) ?? baseLocale;
 	const contentLanguage = (cookies.get('contentLanguage') as Locale) ?? defaultContentLanguage;
 
+	// --- Content System Hydration ---
+	// Fetch navigation structure and version server-side to avoid initial client-side fetch
+	const { contentManager } = await import('@src/content/ContentManager');
+	// Optimization: Load only root level nodes initially
+	const navigationStructure = await contentManager.getNavigationStructureProgressive({
+		maxDepth: 1,
+		tenantId: locals.tenantId
+	});
+	const contentVersion = contentManager.getContentVersion();
+
 	return {
 		systemLanguage,
 		contentLanguage,
@@ -30,7 +40,10 @@ export const load: LayoutServerLoad = async ({ cookies, locals }) => {
 		// CSP nonce for secure inline scripts/styles
 		cspNonce: locals.cspNonce,
 		tenantId: locals.tenantId ?? null,
-		darkMode: locals.darkMode, // <-- THIS LINE IS REQUIRED
+		darkMode: locals.darkMode,
+		// Pass content structure for hydration
+		navigationStructure,
+		contentVersion,
 		settings: {
 			SITE_NAME: siteName,
 			BASE_LOCALE: baseLocale,

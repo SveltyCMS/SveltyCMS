@@ -59,32 +59,36 @@ import { test, expect } from '@playwright/test';
 import { loginAsAdmin } from './helpers/auth';
 
 test('Admin can access dashboard', async ({ page }) => {
-    // Logs in and waits for navigation to dashboard
-    await loginAsAdmin(page);
+	// Logs in and waits for navigation to dashboard
+	await loginAsAdmin(page);
 
-    // Your test logic
-    await expect(page.getByText('Dashboard')).toBeVisible();
+	// Your test logic
+	await expect(page.getByText('Dashboard')).toBeVisible();
 });
 ```
 
 ### 2. Database State
 
 The database is **reset and seeded** before the test suite runs.
+
 - **Admin User:** `admin@example.com` / `Admin123!`
 - **Database:** `sveltycms_test`
 
 ### 3. CI/CD
 
 In GitHub Actions, E2E tests run in parallel with Unit and Integration tests.
+
 - **Job:** `e2e-tests`
 - **Artifacts:** Screenshots and traces are uploaded on failure.
 
 ## Troubleshooting
 
 **"Server did not start in time"**
+
 - Check if port 5173 is in use.
 - Run `bun run dev` manually to see errors.
 
 **"Login failed"**
+
 - Ensure `scripts/seed-test-db.ts` ran successfully.
 - Check `config/private.ts` exists.

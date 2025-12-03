@@ -62,11 +62,18 @@ const distributedStore = {
 		}
 	},
 
+	async has(key: string): Promise<boolean> {
+		return (await this.get(key)) !== undefined;
+	},
+
 	/**
 	 * Adds/sets a value in the store (required by sveltekit-rate-limiter)
 	 */
 	async add(key: string, ttlSeconds: number): Promise<number> {
 		try {
+			if (await this.has(key)) {
+				return this.increment(key, ttlSeconds);
+			}
 			const expires = Date.now() + ttlSeconds * 1000;
 			await cacheService.set(`ratelimit:${key}`, { count: 1, expires }, ttlSeconds);
 			return 1;
@@ -86,6 +93,7 @@ const distributedStore = {
 			const expires = Date.now() + ttlSeconds * 1000;
 
 			await cacheService.set(`ratelimit:${key}`, { count: newCount, expires }, ttlSeconds);
+			console.log(`[RateLimit] INC ${key}: ${newCount}`);
 			return newCount;
 		} catch (err) {
 			logger.error(`Distributed rate limit store INCREMENT failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -120,6 +128,13 @@ const apiLimiter = new RateLimiter({
 	IP: [500, 'm'],
 	IPUA: [200, 'm'],
 	// Enable distributed store if Redis is available
+	store: cacheService ? distributedStore : undefined
+});
+
+/** Stricter limiter for Auth routes (brute force protection) */
+const authLimiter = new RateLimiter({
+	IP: [10, 'm'], // 10 requests per minute per IP
+	IPUA: [5, 'm'], // 5 requests per minute per IP+UA
 	store: cacheService ? distributedStore : undefined
 });
 
@@ -177,7 +192,10 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 	if (building) return resolve(event);
 
 	// 2. Localhost during development OR production
-	if (isLocalhost(clientIp)) {
+	// Allow bypassing this check for testing purposes
+	const bypassLocalhost = event.request.headers.get('x-test-rate-limit-bypass-localhost') === 'true';
+	// console.log(`[RateLimit] IP: ${clientIp}, Localhost: ${isLocalhost(clientIp)}, Bypass: ${bypassLocalhost}, Path: ${url.pathname}`);
+	if (isLocalhost(clientIp) && !bypassLocalhost) {
 		return resolve(event);
 	}
 
@@ -185,7 +203,13 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 	if (isStaticAsset(url.pathname)) return resolve(event);
 
 	// --- Apply Rate Limiting ---
-	const limiter = url.pathname.startsWith('/api/') ? apiLimiter : generalLimiter;
+	let limiter = generalLimiter;
+
+	if (url.pathname.startsWith('/api/auth')) {
+		limiter = authLimiter;
+	} else if (url.pathname.startsWith('/api/')) {
+		limiter = apiLimiter;
+	}
 
 	if (await limiter.isLimited(event)) {
 		metricsService.incrementRateLimitViolations();

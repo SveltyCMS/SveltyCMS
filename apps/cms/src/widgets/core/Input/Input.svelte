@@ -52,7 +52,7 @@
 	// Props
 	interface Props {
 		field: FieldType;
-		value?: Record<string, string> | null | undefined;
+		value?: Record<string, any> | null | undefined;
 		validateOnMount?: boolean;
 		validateOnChange?: boolean;
 		validateOnBlur?: boolean;
@@ -136,8 +136,8 @@
 					validationStore.clearError(fieldName);
 					return null;
 				} catch (error) {
-					if ((error as ValiError<typeof validationSchema>).issues) {
-						const valiError = error as ValiError<typeof validationSchema>;
+					if ((error as ValiError<any>).issues) {
+						const valiError = error as ValiError<any>;
 						const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 						if (process.env.NODE_ENV !== 'production') {
 							logger.debug(`[Input Widget] Validation failed for ${fieldName}:`, errorMessage);

@@ -57,7 +57,7 @@ const config = {
 			directives: {
 				'default-src': ['self'],
 				// Allow SvelteKit's nonced inline scripts plus dev HMR
-				'script-src': ['self', 'unsafe-inline', 'unsafe-eval', 'blob:'],
+				'script-src': process.env.NODE_ENV === 'production' ? ['self', 'blob:'] : ['self', 'unsafe-inline', 'unsafe-eval', 'blob:'],
 				'worker-src': ['self', 'blob:'], // Allow workers from same origin and blob URLs
 				'style-src': ['self', 'unsafe-inline'], // unsafe-inline for faster builds
 				'img-src': [

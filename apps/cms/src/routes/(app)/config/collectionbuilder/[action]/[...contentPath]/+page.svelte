@@ -29,6 +29,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import { page } from '$app/state';
 	import { tabSet } from '@stores/store.svelte';
 	import { collection, setCollection } from '@src/stores/collectionStore.svelte';
+	import { setRouteContext } from '@src/stores/UIStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -223,6 +224,11 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		widgetStoreActions.initializeWidgets();
 		tabSet.set(0);
 	});
+
+	$effect(() => {
+		setRouteContext({ isCollectionBuilder: true });
+		return () => setRouteContext({ isCollectionBuilder: false });
+	});
 </script>
 
 <!-- Page Title -->
@@ -256,7 +262,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		{m.collection_helptext()}
 	</p>
 	<!-- Required Text  -->
-	<div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
+	<div class="mb-2 text-center text-xs text-error-500" data-testid="required-indicator">* {m.collection_required()}</div>
 	<TabGroup bind:group={localTabSet}>
 		<!-- User Permissions -->
 		{#if page.data.isAdmin}
@@ -271,7 +277,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			</Tab>
 
 			<!-- Widget Fields -->
-			<Tab bind:group={localTabSet} name="widget" value={1}>
+			<Tab bind:group={localTabSet} name="widget" value={1} data-testid="widget-fields-tab">
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:widgets-outline" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					<span class:active={tabSet.value === 1} class:text-tertiary-500={tabSet.value === 2} class:text-primary-500={tabSet.value === 2}

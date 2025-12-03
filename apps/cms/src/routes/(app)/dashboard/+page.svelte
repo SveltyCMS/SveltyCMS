@@ -31,6 +31,16 @@
 
 	const { data }: { data: PageData } = $props();
 
+	// Define the types for the widget registry
+	interface WidgetRegistryEntry {
+		component: WidgetComponent;
+		name: string;
+		description: string;
+		icon: string;
+		widgetMeta: WidgetMeta;
+	}
+	type WidgetRegistry = Record<string, WidgetRegistryEntry>;
+
 	const MAX_COLUMNS = 4;
 	const MAX_ROWS = 4;
 	const HEADER_HEIGHT = 48; // Approx height of widget header
@@ -39,11 +49,11 @@
 	let dropdownOpen = $state(false);
 	let searchQuery = $state('');
 	let registryLoaded = $state(false);
-	let widgetRegistry = $state<Record<string, { component: any; name: string; description: string; icon: string; widgetMeta?: WidgetMeta }>>({});
+	let widgetRegistry: WidgetRegistry = $state({});
 
 	// Lazy loading state for widgets
-	let loadedWidgets = $state<Map<string, any>>(new Map());
-	const widgetObservers = new Map<string, IntersectionObserver>();
+	let loadedWidgets = $state(new Map());
+	const widgetObservers = new Map();
 
 	let showImportExport = $state(false);
 

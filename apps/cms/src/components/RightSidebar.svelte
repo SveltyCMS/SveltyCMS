@@ -54,7 +54,7 @@ This component provides a streamlined interface for managing collection entries 
 	import Toggles from './system/inputs/Toggles.svelte';
 
 	// Define a clearer type for the entry data
-	type EntryData = Record<string, unknown>;
+	type EntryData = Record<string, any>;
 
 	const modalStore = getModalStore();
 

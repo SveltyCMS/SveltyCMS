@@ -19,26 +19,24 @@ tags:
 
 This document is the single source of truth for all GUI, styling, and UX patterns within SveltyCMS. Adhering to this guide is mandatory for all contributions to ensure a cohesive, accessible, and performant user interface.
 
-🏗️ Foundation: Skeleton + Tailwind
-----------------------------------
+## 🏗️ Foundation: Skeleton + Tailwind
 
 Our UI is built on a robust and flexible foundation:
 
-*   **Skeleton.dev**: We use Skeleton for core UI components (Buttons, Inputs, Modals, Toasts, Tabs, etc.) and its theming system.
-*   **Tailwind CSS**: We use Tailwind for all utility-first styling and layout.
-*   **Custom Theme**: We use a custom `sveltycms` theme (defined in `sveltycms.css`) that provides all our semantic color palettes, including `primary`, `secondary`, `tertiary`, `surface`, `error`, `warning`, `success`, and pre-defined `gradient-` classes.
+- **Skeleton.dev**: We use Skeleton for core UI components (Buttons, Inputs, Modals, Toasts, Tabs, etc.) and its theming system.
+- **Tailwind CSS**: We use Tailwind for all utility-first styling and layout.
+- **Custom Theme**: We use a custom `sveltycms` theme (defined in `sveltycms.css`) that provides all our semantic color palettes, including `primary`, `secondary`, `tertiary`, `surface`, `error`, `warning`, `success`, and pre-defined `gradient-` classes.
 
 All development must use these provided semantic definitions. This allows for global theme changes and user-customization without refactoring component code.
 
-🎨 Core Principles
------------------
+## 🎨 Core Principles
 
 Our GUI is built on a few unbreakable principles.
 
 ### Use Semantic Theme Colors: This is the most important rule.
 
-*   **ALWAYS** use the semantic theme classes provided by Skeleton and our custom theme (e.g., `bg-primary-500`, `text-error-500`, `border-surface-300`).
-*   **NEVER** use hardcoded colors (e.g., `text-red-500`, `bg-blue-500`, `text-[#eee]`). If you find yourself needing a color that isn't in the theme, it's a sign we need to update the theme, not bypass it.
+- **ALWAYS** use the semantic theme classes provided by Skeleton and our custom theme (e.g., `bg-primary-500`, `text-error-500`, `border-surface-300`).
+- **NEVER** use hardcoded colors (e.g., `text-red-500`, `bg-blue-500`, `text-[#eee]`). If you find yourself needing a color that isn't in the theme, it's a sign we need to update the theme, not bypass it.
 
 ### 100% Utility-Driven: All styling must be achieved using Tailwind utility classes or pre-defined Skeleton components/variants. No custom `<style>` blocks are permitted in Svelte components. Component-level styles (like gradients) are defined in the central theme file.
 
@@ -52,28 +50,26 @@ Our GUI is built on a few unbreakable principles.
 
 ### Consistency: Re-use the patterns defined in this guide. Do not invent new styling patterns for components that already have a defined style.
 
-Layout & Spacing
-----------------
+## Layout & Spacing
 
 ### Widget Containers
 
 All form input widgets (Text, Relation, RichText, etc.) follow a standard layout.
 
-*   **Wrapper**: `relative mb-4 w-full`
-*   **Error Spacing**: Add `pb-6` to the wrapper if (and only if) you are using the Pattern 1 (Absolute) Error Message. This padding provides the necessary space for the error text to appear without shifting layout.
+- **Wrapper**: `relative mb-4 w-full`
+- **Error Spacing**: Add `pb-6` to the wrapper if (and only if) you are using the Pattern 1 (Absolute) Error Message. This padding provides the necessary space for the error text to appear without shifting layout.
 
 ```svelte
 <div class="relative mb-4 w-full pb-6">
-  {#if error}
-    <p class="absolute bottom-[-1rem] ...">
-      {error}
-    </p>
-  {/if}
+	{#if error}
+		<p class="absolute bottom-[-1rem] ...">
+			{error}
+		</p>
+	{/if}
 </div>
 ```
 
-⌨️ Form Inputs
--------------
+## ⌨️ Form Inputs
 
 We use two main styles for form inputs.
 
@@ -81,22 +77,20 @@ We use two main styles for form inputs.
 
 For simple inputs, we use a `btn-group` structure, often from Skeleton UI. This wraps the input and any related buttons (prefix, suffix, select) into a single, cohesive block.
 
-*   **Container**: `variant-filled-surface btn-group flex w-full items-center rounded`
-*   **Input Element**: `class="input w-full flex-1 rounded-none ..."`
+- **Container**: `variant-filled-surface btn-group flex w-full items-center rounded`
+- **Input Element**: `class="input w-full flex-1 rounded-none ..."`
 
 The `rounded-none` is critical to make it blend seamlessly with the group's rounded container.
 
 ```svelte
 <div class="variant-filled-surface btn-group flex w-full items-center rounded">
-  <span class="min-w-0 flex-1 truncate p-2 text-left">
-    {displayText}
-  </span>
-  
-  <div class="flex items-center">
-    <button type="button" class="btn variant-ghost-primary !rounded-none !px-3">
-      Select
-    </button>
-  </div>
+	<span class="min-w-0 flex-1 truncate p-2 text-left">
+		{displayText}
+	</span>
+
+	<div class="flex items-center">
+		<button type="button" class="btn variant-ghost-primary !rounded-none !px-3"> Select </button>
+	</div>
 </div>
 ```
 
@@ -104,22 +98,20 @@ The `rounded-none` is critical to make it blend seamlessly with the group's roun
 
 For complex inputs that are their own self-contained "app" (like an editor or a dropzone), we use a single bordered container built with theme-aware surface colors.
 
-*   **Container**: `relative w-full rounded-lg border border-surface-300 bg-surface-100 shadow-sm dark:border-surface-700 dark:bg-surface-800`
-*   **Internal Structure**: Use `border-b dark:border-surface-700` to separate internal parts like toolbars and title inputs.
+- **Container**: `relative w-full rounded-lg border border-surface-300 bg-surface-100 shadow-sm dark:border-surface-700 dark:bg-surface-800`
+- **Internal Structure**: Use `border-b dark:border-surface-700` to separate internal parts like toolbars and title inputs.
 
 ```svelte
 <div class="relative w-full rounded-lg border border-surface-300 dark:border-surface-700 ... pb-6 ...">
-  <input type="text" class="w-full border-b border-surface-300 dark:border-surface-700 ..."/>
-  
-  <div class="toolbar flex flex-wrap ... border-b border-surface-300 dark:border-surface-700 ...">
-    </div>
+	<input type="text" class="w-full border-b border-surface-300 dark:border-surface-700 ..." />
 
-  <div bind:this={element} class="editor-content prose ..."></div>
+	<div class="toolbar flex flex-wrap ... border-b border-surface-300 dark:border-surface-700 ..."></div>
+
+	<div bind:this={element} class="editor-content prose ..."></div>
 </div>
 ```
 
-Validation & Error Handling
----------------------------
+## Validation & Error Handling
 
 This is one of the most important aspects of our GUI. We use three distinct patterns for error messaging. Choose the correct one for your component's context.
 
@@ -127,23 +119,20 @@ This is one of the most important aspects of our GUI. We use three distinct patt
 
 This is the preferred method for most inputs. The error text appears below the input without affecting document flow.
 
-*   **When to Use**: Text, Relation, RichText, and any input that is a single, contained block.
-*   **Container Class**: The input wrapper must have `pb-6`.
-*   **Error Classes**: `absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500`
-*   **Input Error State**: `class:!border-error-500={!!error}` and/or `class:!ring-1={!!error} class:!ring-error-500={!!error}`. The `!` prefix is required to override Skeleton's specificity.
+- **When to Use**: Text, Relation, RichText, and any input that is a single, contained block.
+- **Container Class**: The input wrapper must have `pb-6`.
+- **Error Classes**: `absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500`
+- **Input Error State**: `class:!border-error-500={!!error}` and/or `class:!ring-1={!!error} class:!ring-error-500={!!error}`. The `!` prefix is required to override Skeleton's specificity.
 
 ```svelte
 <div class="relative ... pb-6">
-  <input class="input" class:!border-error-500={!!error} ... />
-  
-  {#if error}
-    <p 
-      class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" 
-      role="alert"
-    >
-      {error}
-    </p>
-  {/if}
+	<input class="input" class:!border-error-500={!!error} ... />
+
+	{#if error}
+		<p class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{error}
+		</p>
+	{/if}
 </div>
 ```
 
@@ -151,22 +140,20 @@ This is the preferred method for most inputs. The error text appears below the i
 
 This method is for components where an absolute position is awkward, such as radio groups or empty dropzones. The error text pushes content down.
 
-*   **When to Use**: Radio groups, Checkbox groups, empty mediaUpload inputs.
-*   **Container Class**: No `pb-6` needed.
-*   **Error Classes**: `mt-2 text-center text-xs text-error-500` (or `text-left`).
-*   **Input Error State**: Apply the error state to the most logical element (e.g., the `<legend>` or the container border).
+- **When to Use**: Radio groups, Checkbox groups, empty mediaUpload inputs.
+- **Container Class**: No `pb-6` needed.
+- **Error Classes**: `mt-2 text-center text-xs text-error-500` (or `text-left`).
+- **Input Error State**: Apply the error state to the most logical element (e.g., the `<legend>` or the container border).
 
 ```svelte
 <fieldset>
-  <legend class="... " class:!text-error-500={!!error}>
-    Select an Option
-  </legend>
-  </fieldset>
+	<legend class="..." class:!text-error-500={!!error}> Select an Option </legend>
+</fieldset>
 
 {#if error}
-  <p class="mt-2 text-center text-xs text-error-500" role="alert">
-    {error}
-  </p>
+	<p class="mt-2 text-center text-xs text-error-500" role="alert">
+		{error}
+	</p>
 {/if}
 ```
 
@@ -174,50 +161,44 @@ This method is for components where an absolute position is awkward, such as rad
 
 This method is for complex, multi-part components where a single line of text is insufficient or would look out of place.
 
-*   **When to Use**: megaMenu builder, GuiFields builder, complex list inputs.
-*   **Error Classes**: `flex items-center gap-2 rounded-lg border border-error-200 bg-error-50 p-3 text-error-700 dark:border-error-800 dark:bg-error-900/20 dark:text-error-300`
+- **When to Use**: megaMenu builder, GuiFields builder, complex list inputs.
+- **Error Classes**: `flex items-center gap-2 rounded-lg border border-error-200 bg-error-50 p-3 text-error-700 dark:border-error-800 dark:bg-error-900/20 dark:text-error-300`
 
 ```svelte
 {#if error}
-  <div 
-    class="flex items-center gap-2 rounded-lg border border-error-200 bg-error-50 p-3 text-error-700 dark:border-error-800 dark:bg-error-900/20 dark:text-error-300" 
-    role="alert"
-  >
-    <iconify-icon icon="mdi:alert-circle" width="16"></iconify-icon>
-    {error}
-  </div>
+	<div
+		class="flex items-center gap-2 rounded-lg border border-error-200 bg-error-50 p-3 text-error-700 dark:border-error-800 dark:bg-error-900/20 dark:text-error-300"
+		role="alert"
+	>
+		<iconify-icon icon="mdi:alert-circle" width="16"></iconify-icon>
+		{error}
+	</div>
 {/if}
 ```
 
-🔘 Buttons & Actions
---------------------
+## 🔘 Buttons & Actions
 
-*   **Primary Action**: `class="... btn variant-filled-primary"` (e.g., "Save").
-*   **Secondary Action**: `class="... btn variant-filled-secondary"` (e.g., "YouTube").
-*   **Tertiary/Brand Action**: `class="... btn variant-filled-tertiary"` (e.g., "Add New").
-*   **Ghost Action**: `class="... btn variant-ghost-surface"` (e.g., toolbar buttons).
-*   **Destructive Action**: `class="... btn variant-ghost-error"` or a hover effect `class="... hover:text-error-500 dark:hover:text-error-400"`.
-*   **Gradient Buttons**: For special CTAs, use the pre-defined gradient classes (e.g., `gradient-primary`, `gradient-tertiary`). These are defined in the main theme file and include hover/focus states.
+- **Primary Action**: `class="... btn variant-filled-primary"` (e.g., "Save").
+- **Secondary Action**: `class="... btn variant-filled-secondary"` (e.g., "YouTube").
+- **Tertiary/Brand Action**: `class="... btn variant-filled-tertiary"` (e.g., "Add New").
+- **Ghost Action**: `class="... btn variant-ghost-surface"` (e.g., toolbar buttons).
+- **Destructive Action**: `class="... btn variant-ghost-error"` or a hover effect `class="... hover:text-error-500 dark:hover:text-error-400"`.
+- **Gradient Buttons**: For special CTAs, use the pre-defined gradient classes (e.g., `gradient-primary`, `gradient-tertiary`). These are defined in the main theme file and include hover/focus states.
 
-🌫️ Overlays (Modals & Dropdowns)
---------------------------------
+## 🌫️ Overlays (Modals & Dropdowns)
 
 Overlays use a consistent "frosted glass" effect.
 
 ### Modals
 
-*   **Overlay**: A fixed backdrop with `bg-black/30 backdrop-blur-sm`.
-*   **Panel**: A fixed `z-50 ... rounded-lg bg-white dark:bg-surface-800 p-6 shadow-xl`.
+- **Overlay**: A fixed backdrop with `bg-black/30 backdrop-blur-sm`.
+- **Panel**: A fixed `z-50 ... rounded-lg bg-white dark:bg-surface-800 p-6 shadow-xl`.
 
 ```svelte
 {#if show}
-  <div 
-    class="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" 
-    onclick={close}
-  ></div>
+	<div class="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onclick={close}></div>
 
-  <div class="fixed left-1/2 top-1/2 z-50 ... rounded-lg bg-white p-6 shadow-xl dark:bg-surface-800">
-    </div>
+	<div class="fixed left-1/2 top-1/2 z-50 ... rounded-lg bg-white p-6 shadow-xl dark:bg-surface-800"></div>
 {/if}
 ```
 
@@ -225,23 +206,21 @@ Overlays use a consistent "frosted glass" effect.
 
 Dropdowns use a semi-transparent, blurred background to hint at the content underneath.
 
-*   **Container**: `relative`.
-*   **Panel**: `absolute z-20 mt-1 ... rounded-md border border-surface-400/30 bg-surface-50/95 shadow-lg backdrop-blur-sm focus:outline-none dark:border-surface-300/20 dark:bg-surface-800/90`
+- **Container**: `relative`.
+- **Panel**: `absolute z-20 mt-1 ... rounded-md border border-surface-400/30 bg-surface-50/95 shadow-lg backdrop-blur-sm focus:outline-none dark:border-surface-300/20 dark:bg-surface-800/90`
 
 The key classes are `bg-surface-50/95 dark:bg-surface-800/90` and `backdrop-blur-sm`.
 
-🌙 Dark Mode
-------------
+## 🌙 Dark Mode
 
 Dark mode is not optional. Every class that sets a color, background, or border must have a corresponding `dark:` variant, and these must use the theme's semantic colors.
 
-*   **Borders**: `border-surface-300 dark:border-surface-700`
-*   **Backgrounds**: `bg-surface-100 dark:bg-surface-800`
-*   **Text**: `text-surface-700 dark:text-surface-200`
-*   **Prose**: `prose dark:prose-invert`
+- **Borders**: `border-surface-300 dark:border-surface-700`
+- **Backgrounds**: `bg-surface-100 dark:bg-surface-800`
+- **Text**: `text-surface-700 dark:text-surface-200`
+- **Prose**: `prose dark:prose-invert`
 
-✅ Style Checklist
------------------
+## ✅ Style Checklist
 
 Before submitting a PR, check for:
 

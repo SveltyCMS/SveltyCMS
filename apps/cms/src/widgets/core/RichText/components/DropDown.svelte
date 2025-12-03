@@ -32,8 +32,8 @@
 	} = $props();
 
 	let expanded = $state(false);
-	let dropdownRef = $state<HTMLDivElement>();
-	let buttonRef = $state<HTMLButtonElement>();
+	let dropdownRef: HTMLDivElement | undefined = $state();
+	let buttonRef: HTMLButtonElement | undefined = $state();
 	const dropdownId = $state(`dropdown-${Math.random().toString(36).substring(2, 9)}`);
 	const listboxId = $derived(`${dropdownId}-menu`);
 	let focusedIndex = $state(-1); // roving focus index when expanded

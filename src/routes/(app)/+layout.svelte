@@ -39,7 +39,7 @@
 
 	// Type Imports
 	import type { User } from '@src/databases/auth/types';
-	import type { ContentNode } from '../../content/types';
+	import type { ContentNode, Schema } from '../../content/types';
 
 	// Utils
 	import { isSearchVisible } from '@utils/globalSearchIndex';
@@ -48,7 +48,7 @@
 	import { setGlobalToastStore } from '@utils/toast';
 
 	// Stores
-	import { setContentStructure } from '@stores/collectionStore.svelte';
+	import { setContentStructure, setCollection } from '@stores/collectionStore.svelte';
 	import { publicEnv } from '@stores/globalSettings.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
@@ -102,6 +102,7 @@
 		nonce: string;
 		publicSettings?: Record<string, any>;
 		theme?: string;
+		firstCollection?: Schema | null;
 	}
 
 	interface Props {
@@ -157,6 +158,11 @@
 
 		if (Array.isArray(data.contentStructure)) {
 			defer(() => setContentStructure(data.contentStructure));
+		}
+
+		// Hydrate first collection if available and no collection is currently set
+		if (data.firstCollection !== undefined) {
+			defer(() => setCollection(data.firstCollection ?? null));
 		}
 	});
 

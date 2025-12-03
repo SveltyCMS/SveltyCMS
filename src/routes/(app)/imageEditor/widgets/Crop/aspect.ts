@@ -1,5 +1,10 @@
-// src/routes/(app)/imageEditor/widgets/Crop/aspect.ts
-/** Parse aspect ratio string into numeric ratio or null */
+/**
+ * @file src/routes/(app)/imageEditor/widgets/Crop/aspect.ts
+ * @description Aspect ratio parser for Konva
+ *
+ * Features:
+ * - Parse aspect ratio string into numeric ratio or null
+ */
 export function parseAspectRatio(ratio: string | null): number | null {
 	if (!ratio || ratio === 'free') return null;
 	const parts = ratio.split(':').map((p) => Number(p));

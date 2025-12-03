@@ -110,7 +110,7 @@ Icon-only buttons automatically get an 'aria-label="Button"' fallback unless `ar
 	};
 
 	// — Element decision —
-	const element = href ? 'a' : 'button';
+	const element = $derived(href ? 'a' : 'button');
 
 	// — Derived classes —
 	const buttonClasses = $derived(

@@ -15,7 +15,6 @@ Features:
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import { getPublicSetting, publicEnv } from '@src/stores/globalSettings.svelte';
-	import type { PageData } from './$types';
 	// Components
 	import Seasons from '@components/system/icons/Seasons.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
@@ -30,22 +29,16 @@ Features:
 	import * as m from '@src/paraglide/messages';
 
 	// Props
-	const { data } = $props<{ data: PageData }>();
+	const { data } = $props();
 
-	// State Management
-	const firstUserExists = $state(data.firstUserExists);
+	// Derive firstUserExists to make it reactive (fixes state_referenced_locally warning)
+	const firstUserExists = $derived(data.firstUserExists);
 
 	// Check for reset password URL parameters (initially false, updated by effect)
 	let hasResetParams = $state(false);
 
-	// Set Initial active state based on conditions
-	let active = $state<undefined | 0 | 1>(
-		publicEnv?.DEMO || publicEnv?.SEASONS
-			? undefined // If DEMO or SEASONS is enabled, show logo
-			: firstUserExists
-				? undefined // Show SignIn if the first user exists
-				: undefined // Don't show SignUp - admin creation should happen through setup
-	);
+	// Set Initial active state - always starts undefined, will be set by user interaction
+	let active: undefined | 0 | 1 = $state(undefined);
 
 	// Update active state when URL parameters are detected
 	$effect(() => {
@@ -64,16 +57,24 @@ Features:
 		}
 	});
 
-	// Set initial background based on conditions (will be updated reactively)
-	let background = $state<'white' | '#242728'>(
-		publicEnv?.DEMO
-			? '#242728' // Dark background for DEMO mode
-			: publicEnv?.SEASONS
-				? 'white' // Light background for SEASONS mode
-				: firstUserExists
-					? 'white' // Light background for existing users
-					: '#242728' // Dark background for new users
-	);
+	// Background state - mutable for user interactions
+	let background = $state('#242728');
+
+	// Initialize background based on conditions
+	$effect(() => {
+		// Only set initial background, don't override user interactions
+		if (active === undefined && !hasResetParams) {
+			if (publicEnv?.DEMO) {
+				background = '#242728';
+			} else if (publicEnv?.SEASONS) {
+				background = 'white';
+			} else if (firstUserExists) {
+				background = 'white';
+			} else {
+				background = '#242728';
+			}
+		}
+	});
 
 	// Update background when hasResetParams changes
 	$effect(() => {
@@ -85,9 +86,9 @@ Features:
 	let timeRemaining = $state({ minutes: 0, seconds: 0 });
 	let searchQuery = $state('');
 	let isDropdownOpen = $state(false);
-	let searchInput = $state<HTMLInputElement | null>(null);
+	let searchInput: HTMLInputElement | null = $state(null);
 	let isTransitioning = $state(false);
-	let debounceTimeout = $state<ReturnType<typeof setTimeout>>();
+	let debounceTimeout: ReturnType<typeof setTimeout> | undefined = $state();
 
 	// Derived state using $derived rune
 	const availableLanguages = $derived([...availableLocales].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))));
@@ -168,7 +169,7 @@ Features:
 		if (isTransitioning) return;
 		isTransitioning = true;
 		active = undefined;
-		background = getPublicSetting('DEMO') ? '#242728' : getPublicSetting('SEASONS') ? '#242728' : firstUserExists ? 'white' : '#242728';
+		background = data.demoMode ? '#242728' : getPublicSetting('SEASONS') ? '#242728' : firstUserExists ? 'white' : '#242728';
 		setTimeout(() => {
 			isTransitioning = false;
 		}, 300);
@@ -214,13 +215,13 @@ Features:
 
 	// Handle pointer enter events
 	function handleSignInPointerEnter() {
-		if (active === undefined && !getPublicSetting('DEMO') && !getPublicSetting('SEASONS')) {
+		if (active === undefined && !data.demoMode && !getPublicSetting('SEASONS')) {
 			background = 'white';
 		}
 	}
 
 	function handleSignUpPointerEnter() {
-		if (active === undefined && !getPublicSetting('DEMO') && !getPublicSetting('SEASONS')) {
+		if (active === undefined && !data.demoMode && !getPublicSetting('SEASONS')) {
 			background = '#242728';
 		}
 	}
@@ -317,7 +318,13 @@ Features:
 	{/if}
 
 	<!-- SignIn and SignUp Forms -->
-	<SignIn bind:active onClick={handleSignInClick} onPointerEnter={handleSignInPointerEnter} onBack={resetToInitialState} />
+	<SignIn
+		bind:active
+		onClick={handleSignInClick}
+		onPointerEnter={handleSignInPointerEnter}
+		onBack={resetToInitialState}
+		firstCollectionPath={data.firstCollectionPath || ''}
+	/>
 
 	<SignUp
 		bind:active
@@ -328,10 +335,11 @@ Features:
 		onClick={handleSignUpClick}
 		onPointerEnter={handleSignUpPointerEnter}
 		onBack={resetToInitialState}
+		firstCollectionPath={data.firstCollectionPath || ''}
 	/>
 
 	{#if active == undefined}
-		{#if getPublicSetting('DEMO')}
+		{#if data.demoMode}
 			<!-- DEMO MODE -->
 			<div
 				class="absolute bottom-2 left-1/2 flex min-w-[350px] -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl bg-error-500 p-3 text-center text-white transition-opacity duration-300 sm:bottom-12"

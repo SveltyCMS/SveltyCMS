@@ -59,7 +59,7 @@
 	// --- REMOVED unused `loading` state ---
 
 	// Reactive states derived from page data and config
-	const permissions = $derived((page.data.permissions || {}) as Record<string, { hasPermission: boolean; isRateLimited: boolean }>);
+	const permissions = $derived((page.data.permissions || {}) as Record<string, any>);
 	const isAdmin = $derived((page.data.isAdmin || false) as boolean); // Default to false if undefined
 
 	// Derive specific permission data based on config contextId

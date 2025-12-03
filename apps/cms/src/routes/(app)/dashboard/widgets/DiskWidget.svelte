@@ -36,6 +36,7 @@ This widget fetches and displays real-time disk usage data, including:
 	import { onDestroy } from 'svelte';
 	// Components
 	import BaseWidget from '../BaseWidget.svelte';
+	import type { WidgetSize } from '@src/content/types';
 
 	// Register Chart.js components
 	Chart.register(BarController, BarElement, CategoryScale, LinearScale);
@@ -62,22 +63,22 @@ This widget fetches and displays real-time disk usage data, including:
 		theme = 'light',
 		icon = 'mdi:harddisk',
 		widgetId = undefined,
-		size = '1/4',
-		onSizeChange = () => {},
+		size = { w: 1, h: 2 } as WidgetSize,
+		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {}
-	} = $props<{
+	}: {
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-		size?: '1/4' | '1/2' | '3/4' | 'full';
-		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
 		onRemove?: () => void;
-	}>();
+	} = $props();
 
-	let currentData = $state<any>(undefined);
-	let chartCanvas = $state<HTMLCanvasElement | undefined>(undefined);
-	let chart = $state<Chart<'bar', number[], string> | undefined>(undefined);
+	let currentData: FetchedData | undefined = $state(undefined);
+	let chartCanvas: HTMLCanvasElement | undefined = $state(undefined);
+	let chart: Chart | undefined = $state(undefined);
 
 	function updateChartAction(_canvas: HTMLCanvasElement, data: any) {
 		currentData = data;
@@ -308,7 +309,7 @@ This widget fetches and displays real-time disk usage data, including:
 						</div>
 
 						<!-- Storage Statistics -->
-						<div class="grid {size === '1/4' ? 'grid-cols-2' : 'grid-cols-3'} flex-1 gap-2 text-xs">
+						<div class="grid {size.w === 1 ? 'grid-cols-2' : 'grid-cols-3'} flex-1 gap-2 text-xs">
 							<!-- Total disk space -->
 							<div class="flex flex-col space-y-1 text-center">
 								<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Total</span>
@@ -329,7 +330,7 @@ This widget fetches and displays real-time disk usage data, including:
 								</span>
 							</div>
 
-							{#if size !== '1/4'}
+							{#if size.w > 1}
 								<div class="flex flex-col space-y-1 text-center">
 									<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Free</span>
 									<span class="font-semibold {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">{freeGB.toFixed(1)} GB</span>
@@ -339,7 +340,7 @@ This widget fetches and displays real-time disk usage data, including:
 					</div>
 				</div>
 
-				{#if size === '1/2' || size === '3/4' || size === 'full'}
+				{#if size.w >= 2}
 					<div
 						class="flex justify-between text-xs {theme === 'dark'
 							? 'text-gray-400'

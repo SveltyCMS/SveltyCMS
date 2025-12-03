@@ -60,6 +60,7 @@ Features:
 		return initializedPermissions;
 	}
 
+	// svelte-ignore state_referenced_locally
 	let permissionsState: Record<string, Record<string, boolean>> = $state(initializePermissions(permissions, roles));
 
 	// Re-initialize when props change

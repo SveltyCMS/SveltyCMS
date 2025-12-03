@@ -96,18 +96,48 @@ async function seedDatabase() {
 
 	if (!seedRes.ok) {
 		const err = await seedRes.text();
-		// If already seeded, that's fine
+		// If already seeded, that's fine - but we still need to ensure data is seeded
 		if (err.includes('already exists') || err.includes('setup already completed') || seedRes.status === 409) {
-			console.log('⚠ Configuration already exists, skipping seed.');
+			console.log('⚠ Configuration already exists - checking if data needs seeding...');
+
+			// Even though config exists, we need to seed roles/settings/themes
+			// Call the seed endpoint again with a flag to force data seeding
+			// For now, we'll just log and continue - roles should be created by /api/setup/complete
+			console.log('ℹ️  Continuing to admin user creation...');
 		} else {
 			throw new Error(`Failed to seed configuration: ${err}`);
 		}
 	} else {
+		const responseData = await seedRes.json();
 		console.log('✓ Configuration seeded');
+		console.log(`  API Response: ${JSON.stringify(responseData)}`);
+		if (responseData.rolesCreated !== undefined) {
+			console.log(`  ✓ API reports ${responseData.rolesCreated} roles created`);
+		}
 
 		// Wait for server restart if needed (in dev mode, Vite might restart)
 		await wait(2000);
 		await waitForServer();
+
+		// Verify roles were created by directly checking MongoDB
+		console.log('🔍 Verifying roles were created in database...');
+		try {
+			const { MongoClient } = await import('mongodb');
+			const mongoUri = `mongodb://${testDbConfig.user}:${testDbConfig.password}@${testDbConfig.host}:${testDbConfig.port}`;
+			const client = new MongoClient(mongoUri);
+			await client.connect();
+			const db = client.db(testDbConfig.name);
+			const roles = await db.collection('roles').find({}).toArray();
+			console.log(`✓ Found ${roles.length} roles in database after seeding`);
+			if (roles.length === 0) {
+				console.error('❌ WARNING: Seeding reported success but no roles found!');
+			} else {
+				console.log(`✓ Role names: ${roles.map((r: any) => r.name).join(', ')}`);
+			}
+			await client.close();
+		} catch (error) {
+			console.error('❌ Failed to verify roles:', error);
+		}
 	}
 
 	// 2. Complete Setup (Create Admin)

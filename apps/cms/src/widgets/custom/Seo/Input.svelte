@@ -34,14 +34,14 @@ Part of the Three Pillars Architecture for wSidget system.
 	import { debounce } from '@utils/utils';
 	import type { FieldType } from './';
 	import { SeoAnalyzer } from './seoAnalyzer';
-	import type { SeoData, SeoFeature } from './types';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
+	import type { SeoAnalysisResult } from './seoTypes';
+	import type { SeoFeature } from './types';
 
 	// Components
 	// Child component
 
-	let { field, value, error }: { field: FieldType; value: Record<string, SeoData> | null | undefined; error?: string | null } = $props();
-
+	let { field, value, error }: { field: FieldType; value: Record<string, any> | null | undefined; error?: string | null } = $props();
 	// Determine the current language.
 	const lang = $derived(field.translated ? contentLanguage.value : 'default');
 
@@ -71,7 +71,7 @@ Part of the Three Pillars Architecture for wSidget system.
 
 	// UI State
 	let activeTab = $state(0);
-	let analysisResult = $state<any>(null); // Replace 'any' with your SeoAnalysisResult type
+	let analysisResult = $state<SeoAnalysisResult | null>(null); // Replace 'any' with your SeoAnalysisResult type
 
 	// Debounced analysis function.
 	const runAnalysis = debounce.create(async () => {

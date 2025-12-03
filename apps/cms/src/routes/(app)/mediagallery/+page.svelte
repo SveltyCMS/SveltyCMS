@@ -49,32 +49,27 @@ Displays a collection of media files (images, documents, audio, video) with:
 	// Initialize modal store
 	const modalStore = getModalStore();
 
+	import type { PageData } from './$types';
+
 	// Props using runes
-	const { data = { user: undefined, media: [], systemVirtualFolders: [], currentFolder: null } } = $props<{
-		data?: {
-			user: { _id: string; email: string; role: string } | undefined;
-			media: MediaBase[];
-			systemVirtualFolders: SystemVirtualFolder[];
-			currentFolder: SystemVirtualFolder | null;
-		};
-	}>();
+	let { data }: { data: PageData } = $props();
 
 	// State using runes
-	let files = $state<MediaImage[]>([]);
-	let allSystemVirtualFolders = $state<SystemVirtualFolder[]>([]);
-	let currentSystemVirtualFolder = $state<SystemVirtualFolder | null>(null);
-	let breadcrumb = $state<string[]>([]);
+	let files: (MediaBase | MediaImage)[] = $state([]);
+	let allSystemVirtualFolders: any[] = $state([]);
+	let currentSystemVirtualFolder: SystemVirtualFolder | null = $state(null);
+	let breadcrumb: string[] = $state([]);
 
 	let globalSearchValue = $state('');
-	let selectedMediaType = $state<'All' | MediaTypeEnum>('All');
-	let view = $state<'grid' | 'table'>('grid');
-	let gridSize = $state<'tiny' | 'small' | 'medium' | 'large'>('small');
-	let tableSize = $state<'tiny' | 'small' | 'medium' | 'large'>('small');
+	let selectedMediaType: 'All' | MediaTypeEnum = $state('All');
+	let view: 'grid' | 'table' = $state('grid');
+	let gridSize: 'tiny' | 'small' | 'medium' | 'large' = $state('small');
+	let tableSize: 'tiny' | 'small' | 'medium' | 'large' = $state('small');
 	let isLoading = $state(false);
 
 	// Enterprise features state
 	let showAdvancedSearch = $state(false);
-	let advancedSearchCriteria = $state<SearchCriteria | null>(null);
+	let advancedSearchCriteria: SearchCriteria | null = $state(null);
 
 	// Performance optimization: Use virtual scrolling for large collections
 	const USE_VIRTUAL_THRESHOLD = 100;
@@ -170,7 +165,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	}
 
 	// Computed safe table size (MediaTable doesn't support 'tiny')
-	const safeTableSize = $derived<'small' | 'medium' | 'large'>(tableSize === 'tiny' ? 'small' : tableSize);
+	const safeTableSize = $derived(tableSize);
 
 	// Initialize component with runes
 	// Run once on mount to set up initial data
@@ -188,7 +183,10 @@ Displays a collection of media files (images, documents, audio, video) with:
 		}
 
 		if (data && data.media) {
-			files = data.media;
+			files = data.media.map((m: any) => ({
+				...m,
+				user: typeof m.user === 'object' && m.user ? m.user._id : m.user
+			})) as (MediaBase | MediaImage)[];
 		}
 
 		// Load user preferences
@@ -503,7 +501,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 					logger.info('Bulk delete request:', { count: filesToDelete.length });
 
 					// Track successfully deleted files
-					const successfullyDeletedIds = new Set<string>();
+					const successfullyDeletedIds = new Set();
 					let successCount = 0;
 					let failCount = 0;
 

@@ -28,6 +28,7 @@
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
 	import { getToastStore } from '@skeletonlabs/skeleton';
+	import type { WidgetSize } from '@src/content/types';
 
 	const toastStore = getToastStore();
 
@@ -50,21 +51,21 @@
 
 	const {
 		label = 'System Health',
-		theme = 'light',
+		theme = 'light' as 'light' | 'dark',
 		icon = 'mdi:heart-pulse',
 		widgetId = undefined,
-		size = { w: 2, h: 2 },
-		onSizeChange = () => {},
+		size = { w: 2, h: 2 } as WidgetSize,
+		onSizeChange = (_newSize: any) => {},
 		onRemove = () => {}
-	} = $props<{
+	}: {
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-		size?: { w: number; h: number };
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
 		onRemove?: () => void;
-	}>();
+	} = $props();
 
 	async function reinitializeSystem() {
 		try {

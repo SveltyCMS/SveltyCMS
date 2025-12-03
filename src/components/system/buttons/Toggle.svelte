@@ -23,21 +23,7 @@
 <script lang="ts">
 	import { twMerge } from 'tailwind-merge';
 
-	let {
-		trackClass = '',
-		thumbClass = '',
-		value = $bindable(false),
-		label = '',
-		labelClass = '',
-		class: className = ''
-	} = $props<{
-		trackClass?: string;
-		thumbClass?: string;
-		value?: boolean;
-		label?: string;
-		labelClass?: string;
-		class?: string;
-	}>();
+	let { trackClass = '', thumbClass = '', value = $bindable(false), label = '', labelClass = '', class: className = '' } = $props();
 </script>
 
 <label class={twMerge('flex w-full cursor-pointer items-center justify-between', className)}>

@@ -1,23 +1,20 @@
 #!/usr/bin/env bun
 /**
  * @file run-integration-tests.ts
- * @description Orchestrates integration tests with an in-memory MongoDB instance
+ * @description Orchestrates integration tests using a local test configuration
  * This script:
- * 1. Starts a MongoMemoryServer instance
- * 2. Generates config/private.ts with the dynamic connection details
- * 3. Runs the dev server and integration tests concurrently
- * 4. Cleans up resources when tests complete
+ * 1. Checks for config/private.test.ts
+ * 2. Runs the dev server and integration tests concurrently
+ * 3. Cleans up resources when tests complete
  */
 
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import { spawn } from 'child_process';
-import { writeFileSync } from 'fs';
 import { join } from 'path';
+import { existsSync } from 'fs';
 
 const rootDir = join(import.meta.dir, '..');
 const configPath = join(rootDir, 'config', 'private.test.ts');
 
-let mongoServer: MongoMemoryServer | null = null;
 let testProcess: ReturnType<typeof spawn> | null = null;
 let previewProcess: ReturnType<typeof spawn> | null = null;
 
@@ -34,23 +31,6 @@ async function cleanup(exitCode: number = 0) {
 		previewProcess.kill('SIGTERM');
 	}
 
-	// Stop MongoDB
-	if (mongoServer) {
-		console.log('Stopping MongoDB Memory Server...');
-		await mongoServer.stop();
-	}
-
-	// Remove test config
-	try {
-		const { unlinkSync, existsSync } = await import('fs');
-		if (existsSync(configPath)) {
-			unlinkSync(configPath);
-			console.log('🗑️  Removed config/private.test.ts');
-		}
-	} catch (e) {
-		console.error('Failed to remove test config:', e);
-	}
-
 	console.log('✅ Cleanup complete');
 	process.exit(exitCode);
 }
@@ -65,42 +45,16 @@ process.on('uncaughtException', (error) => {
 
 async function main() {
 	try {
-		console.log('🚀 Starting in-memory MongoDB for integration tests...\n');
+		console.log('🚀 Starting integration tests...\n');
 
-		// Start MongoDB Memory Server
-		mongoServer = await MongoMemoryServer.create({
-			instance: {
-				dbName: 'sveltycms_test',
-				port: undefined // Auto-assign port
-			}
-		});
-
-		const uri = mongoServer.getUri();
-		const port = mongoServer.instanceInfo?.port || 27017;
-
-		console.log(`✅ MongoDB Memory Server started`);
-		console.log(`   URI: ${uri}`);
-		console.log(`   Port: ${port}\n`);
-
-		// Generate config/private.test.ts
-		console.log('📝 Generating config/private.test.ts...');
-		const configContent = `export const privateEnv = {
-	DB_TYPE: 'mongodb',
-	DB_HOST: 'localhost',
-	DB_PORT: ${port},
-	DB_NAME: 'sveltycms_test',
-	DB_USER: '',
-	DB_PASSWORD: '',
-	JWT_SECRET_KEY: 'test-secret-key-minimum-32-chars-long!!',
-	ENCRYPTION_KEY: 'test-encryption-key-minimum-32-chars!!',
-	GOOGLE_CLIENT_ID: '',
-	GOOGLE_CLIENT_SECRET: '',
-	MULTI_TENANT: false
-} as const;
-`;
-
-		writeFileSync(configPath, configContent, 'utf-8');
-		console.log(`✅ Generated ${configPath}\n`);
+		// Check for config/private.test.ts
+		if (!existsSync(configPath)) {
+			console.warn('⚠️  Warning: config/private.test.ts not found.');
+			console.warn('   Integration tests require a test database configuration.');
+			console.warn('   Please ensure you have configured a test database or that the app can initialize one.');
+		} else {
+			console.log('✅ Found config/private.test.ts');
+		}
 
 		// Build the app
 		console.log('🔧 Building the app...');
@@ -132,6 +86,8 @@ async function main() {
 		await new Promise((r) => setTimeout(r, 500));
 
 		// Seed database using existing seed script
+		// Note: We don't pass DB env vars here anymore, assuming config/private.test.ts handles connection
+		// or that the user has set them in their environment if needed.
 		console.log('🧪 Seeding test database...');
 		await new Promise<void>((resolve, reject) => {
 			const seed = spawn('bun', ['run', 'scripts/seed-test-db.ts'], {
@@ -141,8 +97,6 @@ async function main() {
 				env: {
 					...process.env,
 					TEST_MODE: 'true',
-					DB_PORT: port.toString(),
-					DB_NAME: 'sveltycms_test',
 					API_BASE_URL: 'http://localhost:4173'
 				}
 			});

@@ -95,6 +95,7 @@ bun run dev  # CLI installer launches automatically
 - **📱 Responsive**: Works seamlessly on all devices
 - **🌍 i18n Ready**: Multi-language support built-in
 - **⚡ Performance**: Optimized for speed and efficiency
+- **🔄 Reactive Content**: Real-time updates with versioning
 - **🧩 Extensible**: Custom widgets, themes, and plugins
 
 ## 📖 Essential Documentation
@@ -104,28 +105,70 @@ bun run dev  # CLI installer launches automatically
 - [🚀 Getting Started](/docs/getting-started) - Get started safely
 - [👥 User Registration](/docs/guides/user-registration) - Secure account creation
 - [🛡️ Admin Management](/docs/guides/admin-user-management) - Secure administration
-- [🏗️ Collection Builder](/docs/guides/collection-builder) - Build content structures
 
-### Developer Documentation (How It Works)
+## 📚 Documentation Portal
 
-- [⚙️ Installation & Setup](/docs/installation) - Automated installer explained
-- [🔐 Authentication System](/docs/architecture/authentication) - Security implementation
-- [⚡ Cache System](/docs/architecture/cache-system) - Dual-layer caching (Redis + MongoDB)
-- [⚙️ System Settings](/docs/guides/system-settings) - Configuration management
-- [📡 API Reference](/docs/api) - Complete API documentation
-- [🧩 Widget Architecture](/docs/widgets/widget-architecture) - Modern widget system
+### 🚀 Getting Started
 
-## 🛡️ Security Promise
+- **[Quick Start Guide](./getting-started.mdx)** - Installation and first steps
+- **[Setup Wizard](./guides/configuration/setup-wizard.mdx)** - Initial configuration
+- **[System Settings](./guides/configuration/system-settings.mdx)** - Global configuration
 
-SveltyCMS is designed with security as a core principle:
+### 📖 User Guides
 
-- **🔒 Data Protection**: All data encrypted at rest and in transit
-- **🛡️ Access Control**: Granular role-based permissions
-- **📝 Audit Logging**: Complete activity tracking
-- **🔍 Input Validation**: Automatic sanitization and validation
-- **🚨 Security Updates**: Regular security patches and updates
+- **[Content Management](./guides/content/media-gallery-guide.mdx)** - Managing media and content
+- **[Token System](./guides/content/token-system.mdx)** - Dynamic content tokens
+- **[User Management](./guides/configuration/user-registration.mdx)** - Users and permissions
 
-## 🆘 Getting Help
+### 💻 Developer Resources
+
+- **[API Reference](./api/index.mdx)** - REST and GraphQL API
+- **[Architecture](./architecture/index.mdx)** - System design and patterns
+- **[Database](./database/index.mdx)** - Database schema and adapters
+- **[Widget System](./widgets/index.mdx)** - Custom widget development
+- **[Testing](./tests/index.mdx)** - Test suites and workflows
+
+### 🛠️ DevOps & Deployment
+
+- **[Production Deployment](./guides/deployment/production-deployment.mdx)** - Server setup and optimization
+- **[Cloud Storage](./guides/deployment/cloud-storage.mdx)** - S3/R2 integration
+- **[Security](./security/index.mdx)** - Security best practices
+
+---
+
+## 🏗️ System Architecture
+
+SveltyCMS is built on a modern, headless architecture:
+
+- **Frontend**: SvelteKit (SSR + CSR)
+- **Backend**: Node.js / Bun
+- **Database**: MongoDB (with agnostic adapter layer)
+- **Cache**: Redis + In-Memory
+- **Content**: Reactive System (Versioning + Polling)
+- **API**: REST + GraphQL
+
+For a deep dive, see the **[Architecture Documentation](./architecture/index.mdx)**.
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our **[Contributing Guide](./contributing/contributing-docs.mdx)** for details on:
+
+- Code of Conduct
+- Development Workflow
+- Pull Request Process
+- Coding Standards
+
+---
+
+## 📄 License
+
+SveltyCMS is open-source software licensed under the **MIT License**.
+
+---
+
+**[SveltyCMS](https://sveltycms.com)** • **[GitHub](https://github.com/SveltyCMS/SveltyCMS)** • **[Discord](https://discord.gg/sveltycms)**
 
 - **[GitHub Issues](https://github.com/SveltyCMS/SveltyCMS/issues)** - Bug reports and feature requests
 - **[GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)** - Community support

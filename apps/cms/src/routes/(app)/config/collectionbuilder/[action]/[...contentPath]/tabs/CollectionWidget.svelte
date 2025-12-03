@@ -19,13 +19,17 @@ component
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
+<<<<<<< HEAD:apps/cms/src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/tabs/CollectionWidget.svelte
 	import type { FieldInstance as Field } from '@src/content/types';
+=======
+
+>>>>>>> upstream/next:src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/tabs/CollectionWidget.svelte
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import ModalSelectWidget from './CollectionWidget/ModalSelectWidget.svelte';
 	import ModalWidgetForm from './CollectionWidget/ModalWidgetForm.svelte';
 
-	const props = $props<{ fields?: Field[]; handleCollectionSave: () => Promise<void> }>();
+	const props = $props();
 
 	const modalStore = getModalStore();
 
@@ -72,11 +76,11 @@ component
 	// svelte-dnd-action
 	const flipDurationMs = 300;
 
-	const handleDndConsider = (e: CustomEvent<{ items: any[] }>) => {
+	const handleDndConsider = (e: CustomEvent) => {
 		fields = e.detail.items;
 	};
 
-	const handleDndFinalize = (e: CustomEvent<{ items: any[] }>) => {
+	const handleDndFinalize = (e: CustomEvent) => {
 		fields = e.detail.items;
 	};
 
@@ -213,7 +217,12 @@ component
 	</div>
 	<div>
 		<div class="mt-2 flex items-center justify-center gap-3">
-			<button onclick={() => modalSelectWidget(null)} class="variant-filled-tertiary btn" aria-label={m.collection_widgetfield_addFields()}>
+			<button
+				onclick={() => modalSelectWidget(null)}
+				class="variant-filled-tertiary btn"
+				aria-label={m.collection_widgetfield_addFields()}
+				data-testid="add-field-button"
+			>
 				{m.collection_widgetfield_addFields()}
 			</button>
 		</div>

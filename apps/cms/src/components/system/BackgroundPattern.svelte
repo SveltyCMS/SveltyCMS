@@ -57,6 +57,9 @@ and configurable quality settings for weaker devices.
 
 	// Performance-based configuration
 	let actualQuality = $state(quality);
+	$effect(() => {
+		actualQuality = quality;
+	});
 	let pathCount = $state(12); // Reduced from 72
 	let shouldReduceMotion = $state(false);
 

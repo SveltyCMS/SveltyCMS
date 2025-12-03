@@ -17,13 +17,9 @@
 -->
 
 <script lang="ts">
-	interface Props {
-		options?: string[];
-		placeholder?: string;
-		'on:select'?: (selectedOption: string) => void;
-	}
+	import type { AutocompleteProps } from './types';
 
-	const { options = [], placeholder = 'Select an option', 'on:select': onSelect = () => {} }: Props = $props();
+	const { options = [], placeholder = 'Select an option', 'on:select': onSelect = () => {} }: AutocompleteProps = $props();
 
 	// --- State ---
 	let keyword = $state('');

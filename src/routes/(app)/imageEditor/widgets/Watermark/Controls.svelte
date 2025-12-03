@@ -1,7 +1,17 @@
 <!--
 @file: src/routes/(app)/imageEditor/widgets/Watermark/Controls.svelte
 @component
-**Watermark tool controls for master toolbar**
+Watermark tool controls for master toolbar
+
+### Props:
+	- opacity: number
+	- onOpacityChange: (v: number) => void
+	- onAddWatermark: (f: File) => void
+	- onSnap: (pos: string) => void
+	- onDelete: () => void
+	- onDone: () => void
+
+	
 -->
 <script lang="ts">
 	const {

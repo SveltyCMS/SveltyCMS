@@ -337,19 +337,6 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
 ```typescript
 // File: src/utils/fieldSelection.ts
 
-export function getDisplayFields(collection: Collection, mode: 'list' | 'edit' | 'preview', config?: FieldSelectionConfig): string[] {
-	// Essential fields always included
-	const essentialFields = ['_id', 'status', 'createdAt', 'updatedAt'];
-
-	if (mode === 'edit') {
-		// Edit mode: Load all fields
-		return getAllFieldNames(collection);
-	}
-
-	// List/preview mode: Load only display fields
-	const displayFields = collection.fields
-		.filter((field) => field.showInList)
-		.map((field) => field.db_fieldName)
 		.slice(0, config?.maxDisplayFields || 5);
 
 	return [...essentialFields, ...displayFields];
