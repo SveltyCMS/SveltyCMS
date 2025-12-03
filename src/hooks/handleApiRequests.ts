@@ -71,6 +71,12 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 
+	// Allow public API endpoints without authentication
+	// - /api/system/version: Version check for login page
+	if (url.pathname === '/api/system/version') {
+		return resolve(event);
+	}
+
 	// Require authentication for all other API routes
 	if (!locals.user) {
 		logger.warn(`Unauthenticated API access attempt: ${url.pathname}`);

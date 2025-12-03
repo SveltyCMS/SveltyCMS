@@ -23,7 +23,7 @@
 -->
 <script lang="ts">
 	import { logger } from '@utils/logger';
-	import { beforeNavigate, invalidateAll } from '$app/navigation';
+	import { beforeNavigate, invalidateAll, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { collection, mode, setCollection, collectionValue, setMode, setCollectionValue } from '@src/stores/collectionStore.svelte';
@@ -56,6 +56,17 @@
 	const pagination = $derived(data?.pagination || { currentPage: 1, pageSize: 10, totalItems: 0, pagesCount: 1 });
 	const revisions = $derived(data?.revisions || []);
 	const serverContentLanguage = $derived(data?.contentLanguage);
+
+	// Debug: Monitor data prop changes
+	$effect(() => {
+		logger.debug('[+page.svelte] Data changed:', {
+			schemaId: data?.collectionSchema?._id,
+			schemaName: data?.collectionSchema?.name,
+			entriesCount: data?.entries?.length,
+			storeId: collection.value?._id,
+			storeName: collection.value?.name
+		});
+	});
 
 	// Track initial collectionValue to detect changes
 	let initialCollectionValue = $state('');
@@ -121,17 +132,36 @@
 		}
 	});
 
+	// Initial collection store sync - ensures store has correct schema on first load
+	// CRITICAL: Always sync when collectionSchema changes to keep store in sync with server data
+	$effect(() => {
+		if (collectionSchema) {
+			const currentStoreId = collection.value?._id;
+			const schemaId = collectionSchema._id;
+			// Only update if different to avoid unnecessary re-renders
+			if (currentStoreId !== schemaId) {
+				logger.debug('[+page.svelte] Syncing collection store:', currentStoreId, '→', schemaId, collectionSchema.name);
+				setCollection(collectionSchema);
+			}
+		}
+	});
+
 	$effect(() => {
 		if (typeof window !== 'undefined') {
 			const currentPath = page.url.pathname;
 			const collectionIdFromPath = currentPath.split('/').pop() || '';
 			const isUUID = /^[a-f0-9]{32}$/i.test(collectionIdFromPath);
 
-			if (isUUID && collectionSchema?.path) {
+			// Only replace URL if:
+			// 1. The URL contains a UUID
+			// 2. We have a collection schema with a path
+			// 3. The collection schema ID matches the UUID in the URL (ensures data is loaded for correct collection)
+			if (isUUID && collectionSchema?.path && collectionSchema._id === collectionIdFromPath) {
 				const newPath = `/${serverContentLanguage}${collectionSchema.path}${page.url.search}`;
 				if (newPath !== currentPath) {
 					logger.debug(`[URL Update] Replacing UUID path with pretty path: ${newPath}`);
-					history.replaceState(history.state, '', newPath);
+					// Use SvelteKit's replaceState to avoid interfering with navigation state
+					replaceState(newPath, {});
 				}
 			}
 		}
@@ -144,10 +174,41 @@
 	// 1. Initial page load with ?edit=id in URL
 	// 2. Manual URL changes (user types in address bar)
 	// 3. Language changes in edit mode (URL language prefix changes but ?edit=id stays same)
+	// 4. Collection changes (navigation between different collections)
 
 	let lastUrlString: string = $state('');
 	let lastEditParam: string | null = $state(null);
 	let hasInitiallyLoaded = $state(false);
+	let lastCollectionId: string | null = $state(null);
+
+	// Track collection changes - when navigating to a different collection, reset state
+	$effect(() => {
+		const currentCollectionId = collectionSchema?._id as string | undefined;
+		if (currentCollectionId && currentCollectionId !== lastCollectionId) {
+			logger.debug('[Collection Change] Detected collection switch:', lastCollectionId, '→', currentCollectionId);
+			logger.debug('[Collection Change] New entries count:', entries.length, 'pagination:', pagination);
+
+			// CRITICAL: Sync collection store with server data
+			// This ensures collection.value is updated when navigating between collections
+			if (collectionSchema) {
+				setCollection(collectionSchema);
+				logger.debug('[Collection Change] Store synced with server data:', collectionSchema.name);
+			}
+
+			// Reset state tracking for the new collection
+			hasInitiallyLoaded = false;
+			lastEditParam = null;
+			lastUrlString = '';
+			// Update tracking
+			lastCollectionId = currentCollectionId;
+			// Set mode to view for new collection (unless URL says otherwise)
+			const editParam = page.url.searchParams.get('edit');
+			const createParam = page.url.searchParams.get('create');
+			if (!editParam && !createParam) {
+				setMode('view');
+			}
+		}
+	});
 
 	$effect(() => {
 		const currentUrl = page.url.toString();
@@ -438,8 +499,10 @@
 			<p class="text-center text-error-600 dark:text-error-400">Unable to load collection schema. Please refresh the page.</p>
 		</div>
 	{:else if mode.value === 'view' || mode.value === 'modify'}
-		<!-- Pass the server-loaded data directly as props -->
-		<EntryList {entries} {pagination} contentLanguage={serverContentLanguage} />
+		<!-- Key block forces EntryList to remount when collection changes -->
+		{#key collectionSchema?._id}
+			<EntryList {entries} {pagination} contentLanguage={serverContentLanguage} />
+		{/key}
 	{:else if ['edit', 'create'].includes(mode.value)}
 		<div id="fields_container" class="fields max-h-[calc(100vh-100px)] overflow-y-auto overflow-x-visible max-md:max-h-[calc(100vh-120px)]">
 			<!-- Pass the server-loaded data directly as props -->

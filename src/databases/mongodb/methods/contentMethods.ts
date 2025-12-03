@@ -168,14 +168,19 @@ export class MongoContentMethods {
 	/**
 	 * Updates multiple nodes in a single, efficient bulk operation.
 	 * Uses upsert to create nodes if they don't exist.
+	 * IMPORTANT: For collections, the _id from compiled files is used as the document _id
+	 * to ensure navigation and caching work correctly.
 	 */
 	async bulkUpdateNodes(updates: Array<{ path: string; changes: Partial<ContentNode> }>): Promise<{ modifiedCount: number }> {
 		if (updates.length === 0) return { modifiedCount: 0 };
 		try {
 			logger.trace(`[bulkUpdateNodes] Processing ${updates.length} updates`);
 			const operations = updates.map(({ path, changes }) => {
+				// Extract _id for potential use in $setOnInsert
+				const { _id, createdAt, ...safeChanges } = changes;
+
 				// Normalize parentId to string using safe helper (handles ObjectId, string, null)
-				const normalizedChanges = { ...changes } as Partial<ContentNode>;
+				const normalizedChanges = { ...safeChanges } as Partial<ContentNode>;
 				if ('parentId' in normalizedChanges) {
 					const originalParentId = normalizedChanges.parentId;
 					const normalizedParentId = normalizeId(originalParentId);
@@ -191,12 +196,19 @@ export class MongoContentMethods {
 					}
 				}
 
+				// Build setOnInsert with _id if provided (for collections, use their UUID as document _id)
+				const setOnInsert: Record<string, unknown> = { createdAt: new Date() };
+				if (_id) {
+					// Use the provided _id (from compiled collection file) as the MongoDB document _id
+					setOnInsert._id = _id;
+				}
+
 				return {
 					updateOne: {
 						filter: { path },
 						update: {
 							$set: { ...normalizedChanges, updatedAt: new Date() },
-							$setOnInsert: { createdAt: new Date() }
+							$setOnInsert: setOnInsert
 						},
 						upsert: true // Create the document if it doesn't exist
 					}
@@ -214,6 +226,49 @@ export class MongoContentMethods {
 			return { modifiedCount: result.modifiedCount + result.upsertedCount };
 		} catch (error) {
 			throw createDatabaseError(error, 'NODE_BULK_UPDATE_ERROR', 'Failed to perform bulk update on nodes.');
+		}
+	}
+
+	/**
+	 * Fixes content nodes that have mismatched _id values.
+	 * This can happen when nodes were created before _id was properly set from compiled files.
+	 * For each node where the expected _id differs from the actual _id, delete and recreate.
+	 */
+	async fixMismatchedNodeIds(expectedNodes: Array<{ path: string; expectedId: string; changes: Partial<ContentNode> }>): Promise<{ fixed: number }> {
+		if (expectedNodes.length === 0) return { fixed: 0 };
+
+		try {
+			let fixedCount = 0;
+
+			for (const { path, expectedId, changes } of expectedNodes) {
+				// Find existing node by path
+				const existing = await this.nodesRepo.model.findOne({ path });
+
+				if (existing) {
+					const existingId = normalizeId(existing._id);
+					if (existingId !== expectedId) {
+						// ID mismatch - delete and recreate with correct ID
+						logger.info(`[fixMismatchedNodeIds] Fixing node at path="${path}": ${existingId} → ${expectedId}`);
+						await this.nodesRepo.model.deleteOne({ path });
+						await this.nodesRepo.model.insertOne({
+							_id: expectedId,
+							...changes,
+							createdAt: existing.createdAt || new Date(),
+							updatedAt: new Date()
+						});
+						fixedCount++;
+					}
+				}
+			}
+
+			if (fixedCount > 0) {
+				await invalidateCategoryCache(CacheCategory.CONTENT);
+				logger.info(`[fixMismatchedNodeIds] Fixed ${fixedCount} nodes with mismatched IDs`);
+			}
+
+			return { fixed: fixedCount };
+		} catch (error) {
+			throw createDatabaseError(error, 'NODE_FIX_IDS_ERROR', 'Failed to fix mismatched node IDs.');
 		}
 	}
 

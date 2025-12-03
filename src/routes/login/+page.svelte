@@ -31,20 +31,14 @@ Features:
 	// Props
 	const { data } = $props();
 
-	// State Management
+	// Derive firstUserExists to make it reactive (fixes state_referenced_locally warning)
 	const firstUserExists = $derived(data.firstUserExists);
 
 	// Check for reset password URL parameters (initially false, updated by effect)
 	let hasResetParams = $state(false);
 
-	// Set Initial active state based on conditions
-	let active: undefined | 0 | 1 = $state(
-		publicEnv?.DEMO || publicEnv?.SEASONS
-			? undefined // If DEMO or SEASONS is enabled, show logo
-			: firstUserExists
-				? undefined // Show SignIn if the first user exists
-				: undefined // Don't show SignUp - admin creation should happen through setup
-	);
+	// Set Initial active state - always starts undefined, will be set by user interaction
+	let active: undefined | 0 | 1 = $state(undefined);
 
 	// Update active state when URL parameters are detected
 	$effect(() => {
@@ -63,16 +57,24 @@ Features:
 		}
 	});
 
-	// Set initial background based on conditions (will be updated reactively)
-	let background = $state(
-		publicEnv?.DEMO
-			? '#242728' // Dark background for DEMO mode
-			: publicEnv?.SEASONS
-				? 'white' // Light background for SEASONS mode
-				: firstUserExists
-					? 'white' // Light background for existing users
-					: '#242728' // Dark background for new users
-	);
+	// Background state - mutable for user interactions
+	let background = $state('#242728');
+
+	// Initialize background based on conditions
+	$effect(() => {
+		// Only set initial background, don't override user interactions
+		if (active === undefined && !hasResetParams) {
+			if (publicEnv?.DEMO) {
+				background = '#242728';
+			} else if (publicEnv?.SEASONS) {
+				background = 'white';
+			} else if (firstUserExists) {
+				background = 'white';
+			} else {
+				background = '#242728';
+			}
+		}
+	});
 
 	// Update background when hasResetParams changes
 	$effect(() => {

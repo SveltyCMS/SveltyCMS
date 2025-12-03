@@ -184,7 +184,7 @@ class ContentManager {
 	public validateStructure() {
 		const errors: string[] = [];
 		const warnings: string[] = [];
-		
+
 		// Check for orphaned nodes
 		for (const [id, node] of this.contentNodeMap.entries()) {
 			if (node.parentId && !this.contentNodeMap.has(node.parentId)) {
@@ -514,7 +514,6 @@ class ContentManager {
 
 		// Strip out collection definitions, keep only metadata + translations for localization
 
-
 		const stripToNavigation = (nodes: ContentNode[]): NavigationNode[] => {
 			return nodes.map((node) => ({
 				_id: node._id,
@@ -532,8 +531,6 @@ class ContentManager {
 		const result = stripToNavigation(fullStructure);
 		return result;
 	}
-
-
 
 	/**
 	 * Preload adjacent collections in navigation tree
@@ -962,19 +959,19 @@ class ContentManager {
 		if (metadata.name) collection.name = metadata.name;
 		if (metadata.icon) collection.icon = metadata.icon;
 		// Description might not be in Schema type, check if needed
-		
+
 		// Persist changes (assuming dbAdapter has a method for this, or we update the file/db)
 		// Since collections are file-based or db-based depending on setup.
 		// If file-based, we can't easily update from here without writing to file.
 		// If db-based (e.g. for user-created collections), we update DB.
-		
+
 		// For now, let's assume we just invalidate cache to reflect external changes or if we had a DB update method.
 		// But the user asked to implement it.
 		// Let's assume we update the in-memory map and invalidate.
-		
+
 		this.collectionCache.delete(collectionId);
 		await this.invalidateWithDependents(collectionId);
-		
+
 		logger.info(`Updated metadata for collection ${collectionId}`);
 	}
 
@@ -1305,8 +1302,6 @@ class ContentManager {
 		};
 	}
 
-
-
 	/**
 	 * Handles bulk content structure operations (create, update, move, rename, delete).
 	 * Updates both the database and in-memory state, then returns the updated structure.
@@ -1444,7 +1439,13 @@ class ContentManager {
 	// Synchronizes schemas from files with the database and builds the in-memory maps
 	private async _reconcileAndBuildStructure(schemas: Schema[]): Promise<void> {
 		const dbAdapter = await getDbAdapter();
-		if (!dbAdapter) throw new Error('Database adapter is not available');
+
+		// In setup mode (no database), just build in-memory structure from files only
+		if (!dbAdapter) {
+			logger.info('[ContentManager] No database available (setup mode) - building structure from files only');
+			await this._buildInMemoryStructureFromSchemas(schemas);
+			return;
+		}
 
 		const fileCategoryNodes = generateCategoryNodesFromPaths(schemas);
 		const dbResult = await dbAdapter.content.nodes.getStructure('flat');
@@ -1564,6 +1565,36 @@ class ContentManager {
 		}));
 
 		await dbAdapter.content.nodes.bulkUpdate(upsertOps);
+
+		// Fix any existing nodes that have mismatched IDs (from before this fix)
+		const nodesToFix = operations
+			.filter((op) => op.nodeType === 'collection' && op._id)
+			.map((op) => ({
+				path: op.path as string,
+				expectedId: op._id as string,
+				changes: {
+					...op,
+					collectionDef: op.collectionDef
+						? ({
+								_id: op.collectionDef._id,
+								name: op.collectionDef.name,
+								icon: op.collectionDef.icon,
+								status: op.collectionDef.status,
+								path: op.collectionDef.path,
+								tenantId: op.collectionDef.tenantId,
+								fields: []
+							} as Schema)
+						: undefined
+				}
+			}));
+
+		if (nodesToFix.length > 0 && dbAdapter.content.nodes.fixMismatchedNodeIds) {
+			const fixResult = await dbAdapter.content.nodes.fixMismatchedNodeIds(nodesToFix);
+			if (fixResult.fixed > 0) {
+				logger.info(`[ContentManager] Fixed ${fixResult.fixed} nodes with mismatched IDs`);
+			}
+		}
+
 		await invalidateCategoryCache(CacheCategory.CONTENT);
 		logger.debug('[ContentManager] Single-pass bulk upsert completed');
 	}
@@ -1613,22 +1644,94 @@ class ContentManager {
 		logger.debug(`[ContentManager] Maps rebuilt: contentNodeMap=${this.contentNodeMap.size}, pathLookupMap=${this.pathLookupMap.size}`);
 	}
 
+	// Build in-memory structure from schemas only (used in setup mode when no database is available)
+	private async _buildInMemoryStructureFromSchemas(schemas: Schema[]): Promise<void> {
+		const now = dateToISODateString(new Date());
+		const fileCategoryNodes = generateCategoryNodesFromPaths(schemas);
+		const pathToIdMap = new Map<string, DatabaseId>();
+
+		// Helper to cast string to DatabaseId
+		const toDatabaseId = (id: string) => id as DatabaseId;
+
+		// Clear existing maps
+		this.contentNodeMap.clear();
+		this.pathLookupMap.clear();
+
+		// First: Add all category nodes
+		for (const [path, fileNode] of fileCategoryNodes.entries()) {
+			const nodeId = toDatabaseId(uuidv4().replace(/-/g, ''));
+			const parentPath = path.split('/').slice(0, -1).join('/') || undefined;
+			const parentId = parentPath ? pathToIdMap.get(parentPath) : undefined;
+
+			const node: ContentNode = {
+				_id: nodeId,
+				parentId,
+				path,
+				name: fileNode.name,
+				icon: 'bi:folder',
+				order: 999,
+				nodeType: 'category',
+				translations: [],
+				createdAt: now,
+				updatedAt: now
+			};
+
+			this.contentNodeMap.set(nodeId, node);
+			this.pathLookupMap.set(path, nodeId);
+			pathToIdMap.set(path, nodeId);
+		}
+
+		// Second: Add all collection nodes
+		for (const schema of schemas) {
+			if (!schema.path) continue;
+			const nodeId = toDatabaseId(schema._id as string);
+			const parentPath = schema.path.split('/').slice(0, -1).join('/') || undefined;
+			const parentId = parentPath ? pathToIdMap.get(parentPath) : undefined;
+
+			const node: ContentNode = {
+				_id: nodeId,
+				parentId,
+				path: schema.path,
+				name: typeof schema.name === 'string' ? schema.name : String(schema.name),
+				icon: schema.icon ?? 'bi:file',
+				order: 999,
+				nodeType: 'collection',
+				translations: schema.translations ?? [],
+				collectionDef: schema,
+				tenantId: schema.tenantId,
+				createdAt: now,
+				updatedAt: now
+			};
+
+			this.contentNodeMap.set(nodeId, node);
+			this.pathLookupMap.set(schema.path, nodeId);
+			pathToIdMap.set(schema.path, nodeId);
+		}
+
+		logger.info(`[ContentManager] Built in-memory structure: ${this.contentNodeMap.size} nodes (setup mode)`);
+	}
+
 	// Populates the distributed cache (e.g., Redis) with the current state
 	private async _populateCache(tenantId?: string): Promise<void> {
-		const state = {
-			nodes: Array.from(this.contentNodeMap.values()),
-			version: this.contentVersion,
-			timestamp: Date.now()
-		};
+		try {
+			const state = {
+				nodes: Array.from(this.contentNodeMap.values()),
+				version: this.contentVersion,
+				timestamp: Date.now()
+			};
 
-		const cacheService = await getCacheService();
-		const REDIS_TTL = await getRedisTTL();
+			const cacheService = await getCacheService();
+			const REDIS_TTL = await getRedisTTL();
 
-		// Store complete structure
-		await cacheService.set('cms:content_structure', state, REDIS_TTL, tenantId);
+			// Store complete structure
+			await cacheService.set('cms:content_structure', state, REDIS_TTL, tenantId);
 
-		// Pre-warm frequently accessed paths
-		await this._warmFrequentPaths(cacheService, REDIS_TTL, tenantId);
+			// Pre-warm frequently accessed paths
+			await this._warmFrequentPaths(cacheService, REDIS_TTL, tenantId);
+		} catch (error) {
+			// In setup mode, caching may not be available - that's OK
+			logger.debug('[ContentManager] Cache population skipped (likely setup mode):', error instanceof Error ? error.message : String(error));
+		}
 	}
 
 	private async _warmFrequentPaths(cacheService: any, ttl: number, tenantId?: string): Promise<void> {
@@ -1640,8 +1743,29 @@ class ContentManager {
 			logger.debug('[ContentManager] Warmed first collection cache');
 		}
 
-		// Cache navigation structure
-		const navStructure = await this.getNavigationStructure();
+		// Cache navigation structure - build directly without calling methods that check initState
+		// CRITICAL: Don't call getNavigationStructure() here as it checks initState and causes deadlock
+		const buildNavTree = (parentId?: string): NavigationNode[] => {
+			const children: NavigationNode[] = [];
+			for (const node of this.contentNodeMap.values()) {
+				if (node.parentId === parentId) {
+					children.push({
+						_id: node._id,
+						name: node.name,
+						path: node.path,
+						icon: node.icon,
+						nodeType: node.nodeType,
+						order: node.order,
+						parentId: node.parentId,
+						translations: node.translations,
+						children: buildNavTree(node._id)
+					});
+				}
+			}
+			return children.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+		};
+
+		const navStructure = buildNavTree(undefined);
 		await cacheService.set('cms:navigation_structure', navStructure, ttl, tenantId);
 		logger.debug('[ContentManager] Warmed navigation structure cache');
 	}
@@ -1674,8 +1798,6 @@ class ContentManager {
 		}
 	}
 
-
-
 	// --- Helper and Utility Methods ---
 	private async _recursivelyGetFiles(dir: string): Promise<string[]> {
 		const fs = await getFs();
@@ -1702,7 +1824,6 @@ class ContentManager {
 }
 
 // Now, define helper functions outside the class.
-
 
 // And finally, export the instance.
 export const contentManager = ContentManager.getInstance();

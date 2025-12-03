@@ -725,15 +725,21 @@ async function updateWidgetStatusInDatabase(widgetName: string, isActive: boolea
 	}
 }
 
-// Initialize widgets on module load
+// Initialize widgets on module load - only for authenticated routes
 if (typeof window !== 'undefined') {
-	// Only auto-initialize in browser environment
-	// Use setTimeout to avoid blocking initial render
-	setTimeout(() => {
-		widgetStoreActions.initializeWidgets().catch((error) => {
-			logger.error('Failed to initialize widgets on module load:', error);
-		});
-	}, 0);
+	// Only auto-initialize in browser environment AND on authenticated routes
+	// Skip for login, setup, and other public pages
+	const publicPaths = ['/login', '/setup', '/logout'];
+	const isPublicPage = publicPaths.some((path) => window.location.pathname.startsWith(path));
+
+	if (!isPublicPage) {
+		// Use setTimeout to avoid blocking initial render
+		setTimeout(() => {
+			widgetStoreActions.initializeWidgets().catch((error) => {
+				logger.error('Failed to initialize widgets on module load:', error);
+			});
+		}, 0);
+	}
 }
 
 // HMR setup

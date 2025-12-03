@@ -657,6 +657,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const paths = updates.map((u) => u.path);
 						return (await this._repositories.get('nodes')!.findMany({ path: { $in: paths } } as QueryFilter<BaseEntity>)) as ContentNode[];
 					}),
+				fixMismatchedNodeIds: (nodes) => this._content.fixMismatchedNodeIds(nodes),
 				delete: (path) =>
 					this._wrapResult(async () => {
 						const node = await this._repositories.get('nodes')!.findOne({ path } as QueryFilter<BaseEntity>);

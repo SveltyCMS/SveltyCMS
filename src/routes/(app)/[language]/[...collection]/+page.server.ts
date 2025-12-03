@@ -24,12 +24,12 @@
  * - **Cache Strategy**: Language change invalidates list cache, preserves entry cache
  *
  * ## Performance Characteristics
- * | Scenario | Data Size | Requests | Cache Hit Rate |
- * |----------|-----------|----------|----------------|
- * | List 100 entries (EN) | ~50KB | 1 | 95% |
- * | Switch to DE | ~50KB | 1 | 95% (new cache key) |
- * | Edit entry | ~5KB | 1 | 80% |
- * | Toggle language in edit | 0KB | 0 | 100% (local only) |
+ * | Scenario                | Size  | Requests | Cache Hit Rate |
+ * |-------------------------|-------|---|-----|
+ * | List 100 entries (EN)   | ~50KB | 1 | 95% |
+ * | Switch to DE            | ~50KB | 1 | 95% (new cache key) |
+ * | Edit entry              | ~5KB  | 1 | 80% |
+ * | Toggle language in edit | 0KB   | 0 | 100% (local only) |
  *
  * ## Cache Invalidation Rules
  * - Entry save/update → Invalidates `entry:ID` + all `collection:ID:*` keys
@@ -371,11 +371,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 		let fieldMetadata = {};
 		if (editEntryId) {
-			fieldMetadata = await contentManager.getFieldMetadataWithTranslations(
-				currentCollection._id as string,
-				[editEntryId],
-				tenantId
-			);
+			fieldMetadata = await contentManager.getFieldMetadataWithTranslations(currentCollection._id as string, [editEntryId], tenantId);
 		}
 
 		// =================================================================

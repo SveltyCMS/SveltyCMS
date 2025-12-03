@@ -550,31 +550,48 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		logger.info('Step 4: Server services (Widgets & Content) will lazy-initialize on first use');
 
 		// Eagerly initialize ContentManager to prevent race conditions on first load
-		const { contentManager } = await import('@src/content/ContentManager');
-		await contentManager.initialize();
-		logger.info('ContentManager eagerly initialized.');
+		try {
+			logger.debug('Importing ContentManager...');
+			const { contentManager } = await import('@src/content/ContentManager');
+			logger.debug('ContentManager imported, initializing...');
+			await contentManager.initialize();
+			logger.info('ContentManager eagerly initialized.');
+		} catch (cmError) {
+			logger.error('ContentManager initialization failed:', cmError);
+			throw cmError;
+		}
 
 		// Step 5: Initialize Critical Components (optimized for speed)
+		logger.debug('Starting Step 5: Critical components initialization...');
 		const step5StartTime = performance.now();
 
 		// Auth (fast, required immediately)
+		logger.debug('Initializing Auth service...');
 		updateServiceHealth('auth', 'initializing', 'Initializing authentication service...');
-		if (!dbAdapter) throw new Error('Database adapter not initialized');
+		if (!dbAdapter) {
+			logger.error('Cannot initialize Auth: dbAdapter is null');
+			throw new Error('Database adapter not initialized');
+		}
 		auth = new Auth(dbAdapter, getDefaultSessionStore());
 		if (!auth) {
+			logger.error('Auth constructor returned null/undefined');
 			updateServiceHealth('auth', 'unhealthy', 'Auth initialization failed');
 			throw new Error('Auth initialization failed');
 		}
+		logger.debug('Auth service initialized successfully');
 		updateServiceHealth('auth', 'healthy', 'Authentication service ready');
 
 		// Settings (required for app configuration)
+		logger.debug('Loading settings from database...');
 		const settingsStartTime = performance.now();
 		await loadSettingsFromDB();
 		const settingsTime = performance.now() - settingsStartTime;
+		logger.debug(`Settings loaded in ${settingsTime.toFixed(2)}ms`);
 
 		const authTime = performance.now() - step5StartTime;
 
 		// Run slow I/O operations in parallel
+		logger.debug('Starting parallel I/O operations...');
 		const parallelStartTime = performance.now();
 		updateServiceHealth('cache', 'initializing', 'Initializing media, revisions, and themes...');
 		updateServiceHealth('themeManager', 'initializing', 'Initializing theme manager...');
@@ -645,7 +662,9 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 
 		isInitialized = true;
 
-		// System is now READY - state will be derived automatically from service health
+		// Explicitly set system state to READY after all services are initialized
+		setSystemState('READY', 'All critical services initialized successfully');
+
 		const totalTime = performance.now() - systemStartTime;
 		logger.info(`🚀 System initialization completed successfully in ${totalTime.toFixed(2)}ms!`);
 	} catch (err) {

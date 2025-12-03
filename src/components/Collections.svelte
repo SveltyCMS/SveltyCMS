@@ -208,7 +208,8 @@
 			depth,
 			order: node.order || 0,
 			lastModified: node.lastModified,
-			path: !isCategory ? `/${currentLanguage}/${nodeId}` : undefined
+			// Use human-readable path for preloading, fall back to UUID if path not available
+			path: !isCategory ? `/${currentLanguage}${node.path || '/' + nodeId}` : undefined
 		};
 	}
 
@@ -272,8 +273,8 @@
 				})
 			);
 
-			// Navigate to collection using UUID
-			const targetPath = `/${currentLanguage}/${selectedCollection._id}`;
+			// Navigate to collection using human-readable path
+			const targetPath = `/${currentLanguage}${selectedCollection.path}`;
 			navigateTo(targetPath, { forceReload: isSameCollection });
 		} else if (selectedCollection.nodeType === 'category') {
 			toggleNodeExpansion(selectedCollection._id);
@@ -330,15 +331,15 @@
 		// Note: This requires a recursive search/update in the store which might be complex.
 		// Alternatively, we can just fetch and update the local derived state if possible,
 		// but modifying the store is better for persistence.
-		
+
 		try {
 			// Set loading state (this might need a store action to be reactive deep down)
 			// For now, let's assume we can fetch and update.
-			
+
 			const response = await axios.get(`/api/content/nodes?parentId=${node.id}`);
 			if (response.data && response.data.nodes) {
 				const newChildren = response.data.nodes;
-				
+
 				// Helper to recursively find and update node in structure
 				const updateNodeInStructure = (nodes: any[]): boolean => {
 					for (const n of nodes) {

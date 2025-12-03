@@ -108,19 +108,38 @@ const LOG_LEVEL_MAP: Record<LogLevel, { priority: number; color: keyof typeof TE
 // --- Message-level smart formatting (colors specific tokens in the message text) ---
 type MessagePattern = { regex: RegExp; color: keyof typeof TERMINAL_COLORS; priority: number };
 const MESSAGE_PATTERNS: MessagePattern[] = [
-	// Explicit requests
-	{ regex: /\b\d+(\.\d+)?(ms|s)\b/g, color: 'green', priority: 100 }, // time → green
-	{ regex: /\b-?\d+(?:\.\d+)?\b/g, color: 'blue', priority: 60 }, // plain numbers → blue
-	{ regex: /\bsession(s)?\b/gi, color: 'yellow', priority: 95 }, // session(s) → yellow
-	{ regex: /\btoken(s)?\b/gi, color: 'blue', priority: 95 }, // token(s) → blue
-	{ regex: /\b(error|failed|failure|denied|invalid|unauthorized|forbidden)\b/gi, color: 'red', priority: 90 }, // errors → red
+	// Highest Priority - Time measurements
+	{ regex: /\b\d+(\.\d+)?(ms|s)\b/g, color: 'green', priority: 100 },
 
-	// Helpful defaults
-	{ regex: /\/api\/[\S]+/g, color: 'cyan', priority: 80 },
-	{ regex: /(?<=collection:\s*)[a-f0-9]{32}\b/gi, color: 'yellow', priority: 75 }, // Specific collection ID pattern
-	{ regex: /\b[a-f0-9]{32}\b/gi, color: 'yellow', priority: 71 }, // 32-char hex UUIDs → yellow
-	{ regex: /\b[a-f0-9]{24}\b/g, color: 'yellow', priority: 70 }, // ObjectId → yellow
-	{ regex: /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, color: 'yellow', priority: 70 } // UUID → yellow
+	// Very High Priority - Context-aware token detection (values after colons, equals, etc.)
+	{ regex: /(?<=:\s)[a-f0-9]{32}(?=\s|$|,|\)|\]|\})/g, color: 'yellow', priority: 95 }, // ID after colon
+	{ regex: /(?<=:\s)[a-f0-9]{24}(?=\s|$|,|\)|\]|\})/g, color: 'yellow', priority: 95 }, // ObjectId after colon
+	{ regex: /(?<=:\s)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=\s|$|,|\)|\]|\})/gi, color: 'yellow', priority: 95 }, // UUID after colon
+	{ regex: /(?<==\s?)[a-f0-9]{32}(?=\s|$|,|\)|\]|\})/g, color: 'yellow', priority: 94 }, // ID after equals
+	{ regex: /(?<==\s?)[a-f0-9]{24}(?=\s|$|,|\)|\]|\})/g, color: 'yellow', priority: 94 }, // ObjectId after equals
+
+	// High Priority - Specific keywords
+	{ regex: /\bsession(s)?\b/gi, color: 'yellow', priority: 92 },
+	{ regex: /\btoken(s)?\b/gi, color: 'blue', priority: 92 },
+	{ regex: /\b(error|failed|failure|denied|invalid|unauthorized|forbidden)\b/gi, color: 'red', priority: 90 },
+
+	// Medium-High Priority - Paths and APIs
+	{ regex: /\/api\/[\S]+/g, color: 'cyan', priority: 85 },
+	{ regex: /\/[^\s]*\.(ts|js|svelte|json|css|html)/g, color: 'cyan', priority: 84 },
+
+	// Medium Priority - IDs and UUIDs (standalone)
+	{ regex: /\b[a-f0-9]{32}\b/g, color: 'yellow', priority: 75 }, // 32-char hex UUIDs
+	{ regex: /\b[a-f0-9]{24}\b/g, color: 'yellow', priority: 74 }, // ObjectId
+	{ regex: /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, color: 'yellow', priority: 73 }, // Standard UUID
+
+	// Lower Priority - Numbers and booleans
+	{ regex: /\btrue\b/g, color: 'green', priority: 65 },
+	{ regex: /\bfalse\b/g, color: 'red', priority: 65 },
+	{ regex: /\b-?\d+(?:\.\d+)?\b/g, color: 'blue', priority: 60 }, // plain numbers
+
+	// Lowest Priority - Quoted strings (catch remaining)
+	{ regex: /"([^"]+)"/g, color: 'cyan', priority: 50 },
+	{ regex: /'([^']+)'/g, color: 'cyan', priority: 50 }
 ].sort((a, b) => b.priority - a.priority);
 
 const applyMessageFormatting = (message: string): string => {

@@ -140,31 +140,48 @@ type FormatPattern = {
 const PATTERNS: FormatPattern[] = IS_LOGGING_DISABLED
 	? []
 	: [
-			// High Priority - Specific patterns (applied first)
-			{ regex: /\/api\/[^\s]+/g, ansi: '\x1b[33m', css: '#f59e0b', priority: 100 },
-			{ regex: /\/[^\s]*\.(ts|js|svelte|json|css|html)/g, ansi: '\x1b[33m', css: '#f59e0b', priority: 95 },
-			{ regex: /\b[a-f0-9]{24}\b/g, ansi: '\x1b[33m', css: '#f59e0b', priority: 90 },
-			{ regex: /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, ansi: '\x1b[33m', css: '#f59e0b', priority: 90 },
-			{ regex: /\b(api|cache|user|tenant):[^\s]+/g, ansi: '\x1b[36m', css: '#06b6d4', priority: 85 },
-			{ regex: /\bsession(s)?\b/gi, ansi: '\x1b[33m', css: '#f59e0b', priority: 84 },
-			{ regex: /\btoken(s)?\b/gi, ansi: '\x1b[34m', css: '#3b82f6', priority: 84 },
+			// Highest Priority - Time measurements
+			{ regex: /\b\d+(\.\d+)?(ms|s)\b/g, ansi: '\x1b[32m', css: '#22c55e', priority: 100 },
+
+			// Very High Priority - Context-aware token detection (values after colons, equals, etc.)
+			{ regex: /(?<=:\s)[a-f0-9]{32}(?=\s|$|,|\)|\]|\})/g, ansi: '\x1b[33m', css: '#f59e0b', priority: 95 }, // ID after colon
+			{ regex: /(?<=:\s)[a-f0-9]{24}(?=\s|$|,|\)|\]|\})/g, ansi: '\x1b[33m', css: '#f59e0b', priority: 95 }, // ObjectId after colon
+			{
+				regex: /(?<=:\s)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=\s|$|,|\)|\]|\})/gi,
+				ansi: '\x1b[33m',
+				css: '#f59e0b',
+				priority: 95
+			}, // UUID after colon
+			{ regex: /(?<==\s?)[a-f0-9]{32}(?=\s|$|,|\)|\]|\})/g, ansi: '\x1b[33m', css: '#f59e0b', priority: 94 }, // ID after equals
+			{ regex: /(?<==\s?)[a-f0-9]{24}(?=\s|$|,|\)|\]|\})/g, ansi: '\x1b[33m', css: '#f59e0b', priority: 94 }, // ObjectId after equals
+
+			// High Priority - Paths and APIs
+			{ regex: /\/api\/[^\s]+/g, ansi: '\x1b[36m', css: '#06b6d4', priority: 90 },
+			{ regex: /\/[^\s]*\.(ts|js|svelte|json|css|html)/g, ansi: '\x1b[36m', css: '#06b6d4', priority: 89 },
+
+			// Medium-High Priority - Specific keywords
+			{ regex: /\bsession(s)?\b/gi, ansi: '\x1b[33m', css: '#f59e0b', priority: 85 },
+			{ regex: /\btoken(s)?\b/gi, ansi: '\x1b[34m', css: '#3b82f6', priority: 85 },
+			{ regex: /\b(api|cache|user|tenant):[^\s]+/g, ansi: '\x1b[36m', css: '#06b6d4', priority: 84 },
 			{ regex: /\b(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\b/g, ansi: '\x1b[35m', css: '#a855f7', priority: 80 },
 			{ regex: /\b(200|201|204|301|302|304|400|401|403|404|500|502|503)\b/g, ansi: '\x1b[36m', css: '#06b6d4', priority: 75 },
 			{ regex: /\b(user|userId|tenant|tenantId):\s*([^\s,)]+)/g, ansi: '\x1b[34m', css: '#3b82f6', priority: 70 },
-			{ regex: /\b(role|permission):\s*(admin|user|editor|viewer|guest|superadmin)\b/gi, ansi: '\x1b[35m', css: '#a855f7', priority: 65 },
+			{ regex: /\b(role|permission):\s*(admin|user|editor|viewer|guest|superadmin)\b/gi, ansi: '\x1b[35m', css: '#a855f7', priority: 68 },
 
-			// Medium Priority - Keywords
-			{ regex: /\btrue\b/g, ansi: '\x1b[32m', css: '#22c55e', priority: 50 },
-			{ regex: /\bfalse\b/g, ansi: '\x1b[31m', css: '#ef4444', priority: 50 },
-			// Time/size tokens
-			{ regex: /\b\d+(\.\d+)?(ms|s)\b/g, ansi: '\x1b[32m', css: '#22c55e', priority: 55 },
-			// Plain numbers (values)
-			{ regex: /\b-?\d+(?:\.\d+)?\b/g, ansi: '\x1b[34m', css: '#3b82f6', priority: 46 },
-			{ regex: /\b\d+(\.\d+)?(MB|KB|GB|%)\b/g, ansi: '\x1b[36m', css: '#06b6d4', priority: 44 },
-			{ regex: /\b(error|failed|failure|denied|invalid|unauthorized|forbidden)\b/gi, ansi: '\x1b[31m', css: '#ef4444', priority: 40 },
-			{ regex: /\b(success|successful|granted|valid|authorized|completed)\b/gi, ansi: '\x1b[32m', css: '#22c55e', priority: 40 },
+			// Medium Priority - IDs and UUIDs (standalone)
+			{ regex: /\b[a-f0-9]{32}\b/g, ansi: '\x1b[33m', css: '#f59e0b', priority: 65 }, // 32-char hex UUIDs
+			{ regex: /\b[a-f0-9]{24}\b/g, ansi: '\x1b[33m', css: '#f59e0b', priority: 64 }, // ObjectId
+			{ regex: /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, ansi: '\x1b[33m', css: '#f59e0b', priority: 63 }, // Standard UUID
 
-			// Low Priority - Generic patterns
+			// Lower Priority - Booleans and numbers
+			{ regex: /\btrue\b/g, ansi: '\x1b[32m', css: '#22c55e', priority: 60 },
+			{ regex: /\bfalse\b/g, ansi: '\x1b[31m', css: '#ef4444', priority: 60 },
+			{ regex: /\b\d+(\.\d+)?(MB|KB|GB|%)\b/g, ansi: '\x1b[36m', css: '#06b6d4', priority: 55 },
+			{ regex: /\b-?\d+(?:\.\d+)?\b/g, ansi: '\x1b[34m', css: '#3b82f6', priority: 50 }, // plain numbers
+			{ regex: /\b(error|failed|failure|denied|invalid|unauthorized|forbidden)\b/gi, ansi: '\x1b[31m', css: '#ef4444', priority: 45 },
+			{ regex: /\b(success|successful|granted|valid|authorized|completed)\b/gi, ansi: '\x1b[32m', css: '#22c55e', priority: 45 },
+
+			// Lowest Priority - Quoted strings (catch remaining)
 			{ regex: /"([^"]+)"/g, ansi: '\x1b[33m', css: '#f59e0b', priority: 10 },
 			{ regex: /'([^']+)'/g, ansi: '\x1b[33m', css: '#f59e0b', priority: 10 }
 		].sort((a, b) => (b.priority || 0) - (a.priority || 0));

@@ -137,7 +137,7 @@
 		if (!field.translated) return 100; // Not a translatable field
 
 		const fieldName = getFieldName(field);
-		
+
 		// Use server-provided metadata if available (more accurate/efficient)
 		if (fieldMetadata && fieldMetadata[fieldName]) {
 			return fieldMetadata[fieldName].percentage ?? 0;

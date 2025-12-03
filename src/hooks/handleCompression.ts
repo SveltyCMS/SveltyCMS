@@ -26,6 +26,12 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
 		return response;
 	}
 
+	// Skip SvelteKit internal data endpoints - they handle their own compression
+	// Also skip if Content-Length is already set by SvelteKit
+	if (event.url.pathname.includes('/__data.json') || response.headers.has('content-length')) {
+		return response;
+	}
+
 	const contentType = response.headers.get('Content-Type');
 	if (!contentType || !COMPRESSIBLE_TYPES.some((t) => contentType.includes(t))) {
 		return response;
@@ -46,9 +52,13 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
 	try {
 		if (acceptEncoding.includes('br')) {
 			const compressed = await brotli(buffer);
+			const headers = Object.fromEntries(response.headers);
+			// Remove original Content-Length to prevent duplicate header error
+			delete headers['Content-Length'];
+			delete headers['content-length'];
 			return new Response(compressed, {
 				headers: {
-					...Object.fromEntries(response.headers),
+					...headers,
 					'Content-Encoding': 'br',
 					'Content-Length': compressed.byteLength.toString(),
 					Vary: 'Accept-Encoding'
@@ -58,9 +68,13 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
 			});
 		} else if (acceptEncoding.includes('gzip')) {
 			const compressed = await gzip(buffer);
+			const headers = Object.fromEntries(response.headers);
+			// Remove original Content-Length to prevent duplicate header error
+			delete headers['Content-Length'];
+			delete headers['content-length'];
 			return new Response(compressed, {
 				headers: {
-					...Object.fromEntries(response.headers),
+					...headers,
 					'Content-Encoding': 'gzip',
 					'Content-Length': compressed.byteLength.toString(),
 					Vary: 'Accept-Encoding'
