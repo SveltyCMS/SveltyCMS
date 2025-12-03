@@ -24,9 +24,8 @@ Key features:
 
 <script lang="ts">
 	// Utils
-	import type { MediaBase, MediaTypeEnum } from '@utils/media/mediaModels';
+	import type { MediaBase, MediaImage, MediaTypeEnum } from '@utils/media/mediaModels';
 	import { logger } from '@utils/logger';
-	import { getMediaUrlSafe } from '@utils/media/mediaUtils';
 	import { formatBytes } from '@utils/utils';
 	// Components
 	import TableFilter from '@components/system/table/TableFilter.svelte';
@@ -34,10 +33,10 @@ Key features:
 	import TablePagination from '@components/system/table/TablePagination.svelte';
 
 	interface Props {
-		filteredFiles?: MediaBase[];
-		tableSize?: 'small' | 'medium' | 'large';
-		ondeleteImage?: (file: MediaBase) => void;
-		onSelectionChange?: (selectedFiles: MediaBase[]) => void;
+		filteredFiles?: (MediaBase | MediaImage)[];
+		tableSize?: 'tiny' | 'small' | 'medium' | 'large';
+		ondeleteImage?: (file: MediaBase | MediaImage) => void;
+		onSelectionChange?: (selectedFiles: (MediaBase | MediaImage)[]) => void;
 	}
 
 	interface SortableMedia extends MediaBase {
@@ -46,7 +45,7 @@ Key features:
 		type: MediaTypeEnum;
 	}
 
-	let { filteredFiles = $bindable([]), tableSize, ondeleteImage = () => {}, onSelectionChange = () => {} }: Props = $props();
+	let { filteredFiles = $bindable([]), tableSize = 'medium', ondeleteImage = () => {}, onSelectionChange = () => {} }: Props = $props();
 
 	// Filter state
 	let globalSearchValue = $state('');
@@ -57,7 +56,7 @@ Key features:
 	// Selection state
 	const selectedFiles = $state<Set<string>>(new Set());
 
-	function handleSelection(file: MediaBase, checked: boolean) {
+	function handleSelection(file: MediaBase | MediaImage, checked: boolean) {
 		if (checked) {
 			selectedFiles.add(file.filename);
 		} else {
@@ -72,7 +71,7 @@ Key features:
 	const pagesCount = $derived(Math.ceil(filteredFiles.length / rowsPerPage));
 	const paginatedFiles = $derived(filteredFiles.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage));
 
-	function handleDelete(file: MediaBase) {
+	function handleDelete(file: MediaBase | MediaImage) {
 		ondeleteImage(file);
 	}
 
@@ -95,6 +94,20 @@ Key features:
 				return String(a[column as keyof SortableMedia]).localeCompare(String(b[column as keyof SortableMedia])) * sortOrder;
 			}
 		});
+	}
+
+	function getThumbnails(file: MediaBase | MediaImage) {
+		return 'thumbnails' in file ? file.thumbnails || {} : {};
+	}
+
+	function getThumbnail(file: MediaBase | MediaImage, size: string) {
+		const thumbnails = getThumbnails(file);
+		return thumbnails ? thumbnails[size as keyof typeof thumbnails] : undefined;
+	}
+
+	function getImageUrl(file: MediaBase | MediaImage, size: string) {
+		const thumbnail = getThumbnail(file, size);
+		return thumbnail?.url || (file as any).url;
 	}
 </script>
 
@@ -145,9 +158,9 @@ Key features:
 							<td>
 								{#if file?.filename && file?.path && file?.hash}
 									<img
-										src={getMediaUrlSafe(file, 'thumbnail')}
+										src={getImageUrl(file, tableSize) ?? '/static/Default_User.svg'}
 										alt={`Thumbnail for ${file.filename}`}
-										class={`relative -top-4 left-0 ${tableSize === 'small' ? 'h-32 w-auto' : tableSize === 'medium' ? 'h-48 w-44' : 'h-80 w-80'}`}
+										class={`object-cover ${tableSize === 'tiny' ? 'h-10 w-10' : tableSize === 'small' ? 'h-16 w-16' : tableSize === 'medium' ? 'h-24 w-24' : 'h-32 w-32'}`}
 										onerror={(e: Event) => {
 											const target = e.target as HTMLImageElement;
 											if (target) {

@@ -87,13 +87,16 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	let initialImageLoaded = $state(false);
 
 	$effect(() => {
+		logger.debug('ImageEditor Effect Triggered', { containerRef: !!containerRef, initialImageLoaded, initialImageSrc, imageFile: !!imageFile });
 		if (containerRef && !initialImageLoaded && (initialImageSrc || imageFile)) {
 			// Load initial image if provided
 			if (initialImageSrc) {
+				logger.debug('Loading initial image from src:', initialImageSrc);
 				selectedImage = initialImageSrc;
 				loadImageAndSetupKonva(selectedImage);
 				initialImageLoaded = true;
 			} else if (imageFile) {
+				logger.debug('Loading initial image from file');
 				selectedImage = URL.createObjectURL(imageFile);
 				loadImageAndSetupKonva(selectedImage, imageFile);
 				initialImageLoaded = true;

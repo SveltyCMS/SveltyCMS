@@ -1,19 +1,8 @@
 /**
- * @file src/widgets/custom/Seo/index.tconst SeoWidget = createWidget({
-	Name: 'SEO',
-	Icon: 'tabler:seo',
-	Description: m.widget_seo_description(),
-	inputComponentPath: '/src/widgets/custom/Seo/Input.svelte',
-	displayComponentPath: '/src/widgets/custom/Seo/Display.svelte',
-	validationSchema: SeoValidationSchema,
-
-	// Set widget-specific defaults.
-	defaults: {
-		features: ['social', 'schema', 'advanced', 'ai'],
-		translated: true
-	},tion SEO Widget Definition.
+ * @file src/widgets/custom/Seo/index.ts
+ * @description SEO Widget Definition.
  *
- * An SSEO analysis and optimization tool embedded as a widget.
+ * An SEO analysis and optimization tool embedded as a widget.
  *
  * @features
  * - **Comprehensive Validation**: Valibot schema validates the entire SEO data object, including length checks.
@@ -23,7 +12,7 @@
  */
 
 import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/factory';
+import { createWidget } from '@src/widgets/widgetFactory';
 import { custom, literal, maxLength, object, optional, pipe, regex, string, transform, union, url, type InferInput as ValibotInput } from 'valibot';
 
 // Import components needed for the GuiSchema

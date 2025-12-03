@@ -11,27 +11,20 @@
  * - System state integration: Reports widget health to main system monitor
  */
 import { writable, derived, get } from 'svelte/store';
-import type { Widget, WidgetModule, WidgetFunction } from '@widgets/types';
+import type { Widget, WidgetModule, WidgetFunction, WidgetFactory } from '@widgets/types';
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
-import type { Schema } from '@src/content/types';
+import type { FieldInstance } from '@src/content/types';
 import { logger } from '@utils/logger';
-
-// ✅ ENTERPRISE ENHANCEMENT: Runtime widget discovery
-import fs from 'fs/promises';
-import path from 'path';
 
 // ✅ ENTERPRISE ENHANCEMENT: Cache integration
 import { cacheService } from '@src/databases/CacheService';
-
-// ✅ ENTERPRISE ENHANCEMENT: System state integration
-import { updateServiceHealth } from '@src/stores/system';
 
 export type WidgetStatus = 'active' | 'inactive';
 export type WidgetType = 'core' | 'custom' | 'marketplace'; // ✅ Added marketplace type
 
 interface WidgetStoreState {
-	widgets: Record<string, Widget>;
-	widgetFunctions: Record<string, WidgetFunction>;
+	widgets: Record<string, Widget | FieldInstance>;
+	widgetFunctions: Record<string, WidgetFunction | WidgetFactory>;
 	activeWidgets: string[]; // Widget names that are currently active
 	coreWidgets: string[]; // Widget names that are core (always enabled)
 	customWidgets: string[]; // Widget names that are custom (optional)
@@ -77,11 +70,11 @@ export const widgetHealthStatus = derived(widgetStore, ($store) => $store.health
 // Use `get(widgetStore)` for immediate, non-reactive checks.
 // This avoids the overhead of `subscribe/unsubscribe` for simple logic.
 
-export function getWidget(name: string): Widget | undefined {
+export function getWidget(name: string): Widget | FieldInstance | undefined {
 	return get(widgetStore).widgets[name];
 }
 
-export function getWidgetFunction(name: string): WidgetFunction | undefined {
+export function getWidgetFunction(name: string): WidgetFunction | WidgetFactory | undefined {
 	return get(widgetStore).widgetFunctions[name];
 }
 
@@ -131,6 +124,17 @@ export const widgetStoreActions = {
 	// Allows server-side initialization without API calls when dbAdapter is provided
 	// Prevents the "Widgets Not Ready" race condition
 	async initializeWidgets(tenantId?: string, dbAdapter?: DatabaseAdapter | null): Promise<void> {
+		// Prevent redundant initialization
+		const currentState = get(widgetStore);
+		if (currentState.isLoading) {
+			logger.debug('[widgetStore] Initialization already in progress, skipping.');
+			return;
+		}
+		if (currentState.isLoaded && !dbAdapter) {
+			logger.debug('[widgetStore] Widgets already loaded, skipping initialization.');
+			return;
+		}
+
 		widgetStore.update((state) => ({ ...state, isLoading: true, tenantId }));
 
 		try {
@@ -144,7 +148,7 @@ export const widgetStoreActions = {
 				eager: true
 			});
 
-			const newWidgetFunctions: Record<string, WidgetFunction> = {};
+			const newWidgetFunctions: Record<string, WidgetFunction | WidgetFactory> = {};
 			const newCoreWidgets: string[] = [];
 			const newCustomWidgets: string[] = [];
 			const newDependencyMap: Record<string, string[]> = {};
@@ -177,48 +181,7 @@ export const widgetStoreActions = {
 
 			// ✅ ENTERPRISE ENHANCEMENT: Load marketplace widgets (runtime discovery)
 			const newMarketplaceWidgets: string[] = [];
-			if (typeof window === 'undefined') {
-				// Server-side only: Use Node.js fs API to discover runtime-installed widgets
-				const marketplaceDir = path.resolve(process.cwd(), 'src/widgets/marketplace');
-				try {
-					const widgetFolders = await fs.readdir(marketplaceDir, { withFileTypes: true });
-					logger.debug(`[widgetStore] Scanning marketplace directory: ${marketplaceDir}`);
-
-					for (const folder of widgetFolders) {
-						if (folder.isDirectory()) {
-							const indexPath = path.join(marketplaceDir, folder.name, 'index.ts');
-							try {
-								// Dynamically import the runtime-discovered widget
-								// @vite-ignore tells Vite to skip this dynamic import at build time
-								const module = (await import(/* @vite-ignore */ indexPath)) as WidgetModule;
-								const processedWidget = this.processWidgetModule(indexPath, module, 'marketplace');
-
-								if (processedWidget) {
-									const { name, widgetFn, dependencies } = processedWidget;
-									newWidgetFunctions[name] = widgetFn;
-									newMarketplaceWidgets.push(name);
-									if (dependencies.length > 0) {
-										newDependencyMap[name] = dependencies;
-									}
-									logger.info(`✅ Loaded marketplace widget: ${name}`);
-								}
-							} catch (err) {
-								logger.warn(`Failed to load marketplace widget ${folder.name}:`, err);
-							}
-						}
-					}
-
-					if (newMarketplaceWidgets.length > 0) {
-						logger.info(`📦 Discovered ${newMarketplaceWidgets.length} marketplace widgets: ${newMarketplaceWidgets.join(', ')}`);
-					}
-				} catch (e) {
-					if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
-						logger.debug('[widgetStore] Marketplace directory does not exist yet (this is normal)');
-					} else {
-						logger.warn('[widgetStore] Error scanning marketplace directory:', e);
-					}
-				}
-			}
+			// Client-side marketplace loading would go here if needed, but typically handled by API
 
 			// Load active widgets from database (tenant-aware)
 			const activeWidgetNames = await loadActiveWidgetsFromDatabase(tenantId, dbAdapter);
@@ -266,25 +229,15 @@ export const widgetStoreActions = {
 			}
 
 			// Create widget instances
-			const newWidgets: Record<string, Widget> = {};
+			const newWidgets: Record<string, Widget | FieldInstance> = {};
 			for (const [name, widgetFn] of Object.entries(newWidgetFunctions)) {
-				newWidgets[name] = widgetFn({});
+				newWidgets[name] = widgetFn({} as any);
 			}
 
 			// ✅ ENTERPRISE ENHANCEMENT: Validate widget health
-			const { validateCollections } = await import('./collectionWidgetAnalyzer.svelte');
-			let allSchemas: Schema[] = [];
-			try {
-				const contentManager = await import('@root/src/content/ContentManager').then((m) => m.contentManager);
-				const schemasObj = contentManager.getCollections();
-				allSchemas = Object.values(schemasObj) as Schema[];
-			} catch (e) {
-				logger.warn('[widgetStore] Unable to load collection schemas for validation (non-critical):', e);
-			}
-			const validation = validateCollections(allSchemas, uniqueActiveWidgets);
+			// Client-side validation via API is handled separately
 
-			const healthStatus: 'healthy' | 'unhealthy' | 'initializing' =
-				validation.invalid.length > 0 ? 'unhealthy' : validation.valid.length > 0 ? 'healthy' : 'initializing';
+			const healthStatus: 'healthy' | 'unhealthy' | 'initializing' = 'healthy'; // Default to healthy on client, server handles actual check
 
 			widgetStore.update((state) => ({
 				...state,
@@ -303,17 +256,7 @@ export const widgetStoreActions = {
 			}));
 
 			// ✅ ENTERPRISE ENHANCEMENT: Report widget health to system state
-			if (typeof window === 'undefined') {
-				// Server-side only
-				if (healthStatus === 'unhealthy') {
-					const missingWidgets = validation.invalid.map((v) => v.collectionName).join(', ');
-					updateServiceHealth('widgets', 'unhealthy', `Missing required widgets for collections: ${missingWidgets}`);
-					logger.warn(`⚠️ Widget health check FAILED: ${validation.invalid.length} collections have missing widgets`);
-				} else {
-					updateServiceHealth('widgets', 'healthy', 'All required widgets available');
-					logger.info('✅ Widget health check passed');
-				}
-			}
+			// Server-side only logic removed from client store
 
 			logger.info(`\x1b[34m${Object.keys(newWidgetFunctions).length}\x1b[0m widgets initialized successfully`, {
 				tenantId,
@@ -337,7 +280,7 @@ export const widgetStoreActions = {
 		type: WidgetType
 	): {
 		name: string;
-		widgetFn: WidgetFunction;
+		widgetFn: WidgetFunction | WidgetFactory;
 		dependencies: string[];
 	} | null {
 		try {
@@ -365,7 +308,7 @@ export const widgetStoreActions = {
 			const inputComponentPath = originalFn.__inputComponentPath || '';
 			const displayComponentPath = originalFn.__displayComponentPath || '';
 
-			const widgetFn: WidgetFunction = Object.assign((config: Record<string, unknown>) => originalFn(config), {
+			const widgetFn: WidgetFactory = Object.assign((config: Record<string, unknown>) => originalFn(config as any), {
 				Name: widgetName,
 				GuiSchema: originalFn.GuiSchema,
 				GraphqlSchema: originalFn.GraphqlSchema,
@@ -377,7 +320,7 @@ export const widgetStoreActions = {
 				__inputComponentPath: inputComponentPath,
 				__displayComponentPath: displayComponentPath,
 				componentPath: inputComponentPath // Add this for Fields.svelte compatibility
-			});
+			}) as unknown as WidgetFactory;
 
 			return {
 				name: name, // Use folder name as-is (e.g., 'seo', not 'Seo')
@@ -449,41 +392,7 @@ export const widgetStoreActions = {
 			}
 
 			// ✅ ENTERPRISE ENHANCEMENT: Re-validate widget health
-			if (typeof window === 'undefined') {
-				// Server-side: Re-check health and update system state
-				try {
-					const { validateCollections } = await import('./collectionWidgetAnalyzer.svelte');
-					const currentActive = get(widgetStore).activeWidgets;
-					let allSchemas: Schema[] = [];
-					try {
-						const contentManager = await import('@root/src/content/ContentManager').then((m) => m.contentManager);
-						const schemasObj = contentManager.getCollections();
-						allSchemas = Object.values(schemasObj) as Schema[];
-					} catch (e) {
-						logger.warn('[WidgetState] Unable to load collection schemas for health re-validation (non-critical):', e);
-					}
-					const validation = validateCollections(allSchemas, currentActive);
-
-					const newHealthStatus = validation.invalid.length > 0 ? 'unhealthy' : 'healthy';
-
-					widgetStore.update((state) => ({
-						...state,
-						lastHealthCheck: Date.now(),
-						healthStatus: newHealthStatus
-					}));
-
-					if (newHealthStatus === 'unhealthy') {
-						const missingWidgets = validation.invalid.map((v) => v.collectionName).join(', ');
-						updateServiceHealth('widgets', 'unhealthy', `Missing required widgets for collections: ${missingWidgets}`);
-						logger.warn(`⚠️ Widget health degraded after status change: ${validation.invalid.length} collections affected`);
-					} else {
-						updateServiceHealth('widgets', 'healthy', 'All required widgets available');
-						logger.info('✅ Widget health restored after status change');
-					}
-				} catch (healthError) {
-					logger.warn('[WidgetState] Health check failed (non-critical):', healthError);
-				}
-			}
+			// Server-side logic removed
 
 			logger.info(`Widget ${widgetName} ${status} status updated successfully`, { tenantId });
 		} catch (error) {
@@ -497,10 +406,10 @@ export const widgetStoreActions = {
 		const currentWidgetFn = getWidgetFunction(widgetName);
 		if (!currentWidgetFn) return;
 
-		const updatedWidget: WidgetFunction = Object.assign(
+		const updatedWidget: WidgetFunction | WidgetFactory = Object.assign(
 			(cfg: Record<string, unknown>) => {
 				const newConfig = { ...config, ...cfg };
-				return currentWidgetFn(newConfig);
+				return currentWidgetFn(newConfig as any);
 			},
 			{
 				Name: currentWidgetFn.Name,
@@ -510,9 +419,11 @@ export const widgetStoreActions = {
 				Description: currentWidgetFn.Description,
 				aggregations: currentWidgetFn.aggregations,
 				__widgetType: currentWidgetFn.__widgetType,
-				__dependencies: currentWidgetFn.__dependencies
+				__inputComponentPath: currentWidgetFn.__inputComponentPath,
+				__displayComponentPath: currentWidgetFn.__displayComponentPath,
+				componentPath: (currentWidgetFn as any).componentPath
 			}
-		);
+		) as unknown as WidgetFunction | WidgetFactory;
 
 		widgetStore.update((state) => ({
 			...state,
@@ -522,7 +433,7 @@ export const widgetStoreActions = {
 			},
 			widgets: {
 				...state.widgets,
-				[widgetName]: updatedWidget({})
+				[widgetName]: updatedWidget({} as any)
 			}
 		}));
 	},
@@ -755,16 +666,7 @@ async function updateWidgetStatusInDatabase(widgetName: string, isActive: boolea
 	}
 }
 
-// Initialize widgets on module load
-if (typeof window !== 'undefined') {
-	// Only auto-initialize in browser environment
-	// Use setTimeout to avoid blocking initial render
-	setTimeout(() => {
-		widgetStoreActions.initializeWidgets().catch((error) => {
-			logger.error('Failed to initialize widgets on module load:', error);
-		});
-	}, 0);
-}
+// Auto-initialization removed to prevent side effects
 
 // HMR setup
 if (import.meta.hot) {

@@ -72,7 +72,7 @@ graph TB
 The widget factory provides type-safe widget creation with the `createWidget()` function:
 
 ```typescript
-// src/widgets/factory.ts
+// src/widgets/widgetFactory.ts
 export function createWidget<TProps extends WidgetProps = WidgetProps>(config: WidgetConfig<TProps>) {
 	// 1. Create immutable widget definition
 	const widgetDefinition: WidgetDefinition = {
@@ -1341,7 +1341,7 @@ const widgetFactory = createWidget({
 2. **Define the widget factory** (`index.ts`):
 
    ```typescript
-   import { createWidget, createDefaultDisplay } from '@src/widgets/factory';
+   import { createWidget, createDefaultDisplay } from '@src/widgets/widgetFactory';
    import { GuiSchema, GraphqlSchema, type Params } from './types';
 
    const WIDGET_NAME = 'MyWidget' as const;
@@ -1406,7 +1406,7 @@ const widgetFactory = createWidget({
 
 ```typescript
 import { test, expect } from 'bun:test';
-import { createWidget } from '@src/widgets/factory';
+import { createWidget } from '@src/widgets/widgetFactory';
 
 test('should create widget with proper configuration', () => {
 	const widget = createWidget({
@@ -1433,7 +1433,7 @@ Test widgets within the collection builder context using Playwright tests.
 The system includes utilities to detect and migrate legacy widgets:
 
 ```typescript
-import { isModernField, ensureModernField } from '@src/widgets/factory';
+import { isModernField, ensureModernField } from '@src/widgets/widgetFactory';
 
 // Check if field uses modern architecture
 if (isModernField(field)) {

@@ -51,7 +51,10 @@
 	// --- PERFORMANCE FIX: DYNAMIC WIDGET IMPORTS ---
 	// Lazy-load widgets for code-splitting (eager: false is default)
 	// Returns loader functions instead of eager-loaded components
-	const modules: Record<string, () => Promise<{ default: any }>> = import.meta.glob('/src/widgets/**/*.svelte');
+	const modules: Record<string, () => Promise<{ default: any }>> = import.meta.glob('/src/widgets/**/*.svelte') as Record<
+		string,
+		() => Promise<{ default: any }>
+	>;
 
 	// Import async widget loader component
 	import WidgetLoader from './WidgetLoader.svelte';

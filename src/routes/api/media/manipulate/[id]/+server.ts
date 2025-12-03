@@ -49,7 +49,7 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 		await mediaService.updateMedia(id, manipulations);
 
 		// Fetch the updated media to return
-		const updatedMedia = await mediaService.getMedia(id, []);
+		const updatedMedia = await mediaService.getMedia(id, locals.user, locals.roles);
 
 		return json({
 			success: true,

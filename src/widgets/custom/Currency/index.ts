@@ -19,8 +19,8 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/factory';
-import { custom, maxValue, minValue, number, optional, pipe, string, type InferInput as ValibotInput } from 'valibot';
+import { createWidget } from '@src/widgets/widgetFactory';
+import { maxValue, minValue, number, optional, pipe, type InferInput as ValibotInput } from 'valibot';
 import type { CurrencyProps } from './types';
 
 // Helper type for aggregation field
@@ -63,7 +63,7 @@ const CurrencyWidget = createWidget<CurrencyProps>({
 	},
 
 	// SECURITY: Validate ISO 4217 currency codes
-	validCurrencyCodes: ['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'AUD', 'CAD', 'CHF', 'HKD', 'SGD', 'SEK', 'NOK', 'NZD', 'KRW', 'TRY', 'INR', 'BRL', 'ZAR'],
+	// validCurrencyCodes: ['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'AUD', 'CAD', 'CHF', 'HKD', 'SGD', 'SEK', 'NOK', 'NZD', 'KRW', 'TRY', 'INR', 'BRL', 'ZAR'],
 
 	// GuiSchema allows configuration in the collection builder.
 	GuiSchema: {

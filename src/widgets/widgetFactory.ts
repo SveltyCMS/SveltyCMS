@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/factory.ts
+ * @file src/widgets/widgetFactory.ts
  * @description The definitive, type-safe Widget Factory for SveltyCMS.
  *
  * @features
@@ -10,7 +10,8 @@
  */
 
 import type { BaseIssue, BaseSchema } from 'valibot';
-import type { FieldInstance, WidgetDefinition } from '@src/content/types';
+import type { FieldInstance } from '@src/content/types';
+import type { WidgetDefinition, FieldConfig, WidgetFactory } from '@widgets/types';
 
 // A base constraint for widget-specific properties.
 type WidgetProps = Record<string, unknown>;
@@ -51,28 +52,11 @@ export interface WidgetConfig<TProps extends WidgetProps = WidgetProps> {
 }
 
 /**
- * The configuration for CREATING an INSTANCE of a field in a collection.
- * It combines base field properties with the widget's strongly-typed custom props.
- */
-export type FieldConfig<TProps extends WidgetProps = WidgetProps> = {
-	// Default
-	label: string;
-	db_fieldName?: string;
-	required?: boolean;
-	translated?: boolean;
-	width?: number;
-	helper?: string;
-	// Permissions
-	permissions?: Record<string, Record<string, boolean>>;
-	// ... other common field properties
-} & Partial<TProps>; // <-- Adds custom widget'sprops from types.ts
-
-/**
  * Creates a new SveltyCMS widget factory.
  * @param config The static definition of the widget (its blueprint).
  * @returns A function that can be called to create type-safe field instances.
  */
-export function createWidget<TProps extends WidgetProps = WidgetProps>(config: WidgetConfig<TProps>) {
+export function createWidget<TProps extends WidgetProps = WidgetProps>(config: WidgetConfig<TProps>): WidgetFactory<TProps> {
 	// 1. Create the immutable widget definition once.
 	// This now includes all the "Three Pillars" information.
 	const widgetDefinition: WidgetDefinition = {
@@ -86,7 +70,7 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(config: W
 		validationSchema: config.validationSchema as unknown as BaseSchema<unknown, unknown, BaseIssue<unknown>>,
 		defaults: config.defaults,
 		GuiFields: config.GuiSchema || ({} as Record<string, unknown>),
-		aggregations: config.aggregations
+		aggregations: config.aggregations as WidgetDefinition['aggregations']
 		// ... other definition properties like GraphqlSchema
 	};
 
@@ -146,11 +130,11 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(config: W
 	widgetFactoryFunction.Description = config.Description;
 	widgetFactoryFunction.GuiSchema = config.GuiSchema;
 	widgetFactoryFunction.GraphqlSchema = config.GraphqlSchema;
-	widgetFactoryFunction.aggregations = config.aggregations;
+	widgetFactoryFunction.aggregations = config.aggregations as WidgetDefinition['aggregations'];
 	widgetFactoryFunction.__inputComponentPath = config.inputComponentPath || '';
 	widgetFactoryFunction.__displayComponentPath = config.displayComponentPath || '';
 	widgetFactoryFunction.toString = () => '';
 
 	// 4. Return the clean factory.
-	return widgetFactoryFunction;
+	return widgetFactoryFunction as WidgetFactory<TProps>;
 }

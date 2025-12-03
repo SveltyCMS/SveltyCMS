@@ -108,7 +108,7 @@
 	const currentLanguage = $derived(contentLanguage.value);
 	const selectedCollectionId = $derived(collection.value?._id);
 	const currentMode = $derived(mode.value);
-	const currentActiveWidgets = $derived(activeWidgets.value);
+	const currentActiveWidgets = $derived($activeWidgets);
 
 	/**
 	 * Count total collections in a category tree

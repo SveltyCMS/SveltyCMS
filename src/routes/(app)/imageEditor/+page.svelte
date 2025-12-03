@@ -13,8 +13,15 @@ This page serves as a demo and testing environment for the image editor.
 	import { setRouteContext } from '@stores/UIStore.svelte';
 	import ImageEditor from './ImageEditor.svelte';
 
-	// Get initial image from URL params if provided
-	const initialImageSrc = $derived(page.params?.image || '');
+	let { data } = $props();
+
+	// Get initial image from server data or URL params
+	const initialImageSrc = $derived(data.media?.url || page.params?.image || '');
+	const mediaId = $derived(page.url.searchParams.get('mediaId'));
+
+	$effect(() => {
+		logger.debug('ImageEditor Page Data:', { hasMedia: !!data.media, initialImageSrc, mediaId });
+	});
 
 	// Update route context to trigger UIStore layout changes (hides sidebars, shows full header/footer)
 	onMount(() => {
@@ -43,6 +50,6 @@ This page serves as a demo and testing environment for the image editor.
 
 <div class="flex h-full w-full flex-col overflow-hidden">
 	<div class="flex flex-1 flex-col overflow-hidden">
-		<ImageEditor {initialImageSrc} onSave={handleSave} onCancel={handleCancel} />
+		<ImageEditor {initialImageSrc} {mediaId} onSave={handleSave} onCancel={handleCancel} />
 	</div>
 </div>

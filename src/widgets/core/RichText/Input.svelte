@@ -60,6 +60,15 @@ Interactive Tiptap editor with toolbar and title input
 		}
 	});
 
+	// ✨ SECURITY ENHANCEMENT: Prevent homograph attacks
+	function sanitizeInput(input: string): string {
+		// Remove zero-width characters that could be used for spoofing
+		const sanitized = input.replace(/[\u200B-\u200D\uFEFF]/g, '');
+
+		// Normalize Unicode to prevent homograph attacks
+		return sanitized.normalize('NFKC');
+	}
+
 	// Create a safe getter/setter for title binding
 	let titleValue = $derived.by(() => {
 		return {
@@ -68,7 +77,7 @@ Interactive Tiptap editor with toolbar and title input
 			},
 			set value(newTitle: string) {
 				if (value && value[lang]) {
-					value[lang].title = newTitle;
+					value[lang].title = sanitizeInput(newTitle);
 				}
 			}
 		};

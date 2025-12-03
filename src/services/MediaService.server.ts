@@ -9,6 +9,7 @@ import Path from 'path';
 
 // Database Interface
 import type { DatabaseId, IDBAdapter, MediaItem } from '@src/databases/dbInterface';
+import type { User, Role } from '@src/databases/auth/types'; // Added User, Role
 
 // Media
 import type { MediaAccess, MediaBase, MediaType, ResizedImage } from '@src/utils/media/mediaModels'; // Added ResizedImage
@@ -20,7 +21,7 @@ import { saveFileToDisk, saveResizedImages } from '@src/utils/media/mediaStorage
 import { validateMediaFileServer } from '@src/utils/media/mediaUtils';
 
 // Permission Management
-import { validateUserPermission as checkMediaAccess } from '@src/databases/auth/permissions';
+// import { validateUserPermission as checkMediaAccess } from '@src/databases/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -268,6 +269,7 @@ export class MediaService {
 			mimeType: object.mimeType,
 			thumbnails: object.thumbnails || {},
 			metadata: object.metadata || {},
+			access: object.access, // Mapped access
 			createdBy: object.user as DatabaseId,
 			updatedBy: object.user as DatabaseId
 		};
@@ -345,7 +347,7 @@ export class MediaService {
 	}
 
 	// Retrieves a media item by its ID, enforcing access control
-	public async getMedia(id: string, userRoles: string[]): Promise<MediaType> {
+	public async getMedia(id: string, user: User, roles: Role[]): Promise<MediaType> {
 		this.ensureInitialized();
 		if (!id || typeof id !== 'string' || id.trim().length === 0) {
 			throw Error('Invalid id: Must be a non-empty string');
@@ -354,8 +356,14 @@ export class MediaService {
 			// Check cache first
 			const cachedMedia = await cacheService.get<MediaType>(`media:${id}`);
 			if (cachedMedia) {
-				logger.info('Media retrieved from cache', { id });
-				return cachedMedia;
+				// Basic access check for cached items
+				const isAdmin = roles.some((r) => r.isAdmin);
+				if (isAdmin || cachedMedia.user === user._id || cachedMedia.access === 'public') {
+					logger.info('Media retrieved from cache', { id });
+					// Ensure cached media has URL (in case it was cached without it)
+					return this.enrichMediaWithUrl(cachedMedia as unknown as MediaItem);
+				}
+				// If cached but no access, fall through to DB fetch for fresh check (or just deny)
 			}
 
 			const result = await this.db.crud.findOne<MediaItem>('MediaItem', { _id: id as DatabaseId });
@@ -369,16 +377,21 @@ export class MediaService {
 				throw error(404, 'Media not found');
 			}
 
-			const hasAccess = checkMediaAccess(userRoles, 'some_permission'); // TODO: Fix permission check logic
+			// Access Control Logic
+			const isAdmin = roles.some((r) => r.isAdmin);
+			const isOwner = media.createdBy === user._id || media.user === user._id;
+			const isPublic = media.access === 'public';
 
-			if (!hasAccess) {
+			if (!isAdmin && !isOwner && !isPublic) {
+				// TODO: Add fine-grained permission check (e.g. 'media.read') if needed
+				logger.warn('Access denied to media item', { mediaId: id, userId: user._id, roles: roles.map((r) => r.name) });
 				throw error(403, 'Access denied');
 			}
 
 			// Cache the media for future requests
 			await cacheService.set(`media:${id}`, media, 3600);
 
-			return media as unknown as MediaType;
+			return this.enrichMediaWithUrl(media);
 		} catch (err) {
 			const message = `Error getting media: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { error: err });
@@ -388,6 +401,23 @@ export class MediaService {
 			}
 			throw error(500, message);
 		}
+	}
+
+	// Helper to add URL to media object
+	private enrichMediaWithUrl(media: MediaItem): MediaType {
+		let url = media.path;
+		// If path is already a URL, use it
+		if (url.startsWith('http://') || url.startsWith('https://')) {
+			// do nothing
+		} else if (!url.startsWith('/')) {
+			// Assume local file path, prepend /files/
+			url = `/files/${url}`;
+		}
+
+		return {
+			...media,
+			url
+		} as unknown as MediaType;
 	}
 
 	// Bulk delete media items

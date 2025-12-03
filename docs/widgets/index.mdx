@@ -175,19 +175,19 @@ graph LR
 
 ### By Task
 
-| I want to...                   | Read this                                                            | Section                |
-| ------------------------------ | -------------------------------------------------------------------- | ---------------------- |
-| Understand widget concepts     | [System Overview](/docs/widgets/widget-system-overview.mdx)          | Core Concepts          |
-| Use widgets in collections     | [System Overview](/docs/widgets/widget-system-overview.mdx)          | Quick Start            |
-| Create a custom widget         | [Development Guide](/docs/widgets/widget-development-guide.mdx)      | Step-by-Step Tutorial  |
-| Understand the factory pattern | [Architecture](/docs/widgets/widget-architecture.mdx)                | Factory System         |
-| Debug widget issues            | [Architecture](/docs/widgets/widget-architecture.mdx)                | Runtime Implementation |
-| Configure widget validation    | [Development Guide](/docs/widgets/widget-development-guide.mdx)      | Advanced Features      |
-| Enable/disable widgets         | [System Overview](/docs/widgets/widget-system-overview.mdx)          | Widget Management      |
-| Optimize widget performance    | [Architecture](/docs/widgets/widget-architecture.mdx)                | Performance            |
-| Implement widget security      | [Widget Security](/docs/security/widget-security.mdx)                | Security Fixes         |
-| Add translation support        | [Multilingual Guide](/docs/widgets/widget-multilingual-guide.mdx)    | Translation Patterns   |
-| Install widgets at runtime     | [Runtime Discovery](/docs/architecture/runtime-widget-discovery.mdx) | Dynamic Loading        |
+| I want to...                   | Read this                                                         | Section                |
+| ------------------------------ | ----------------------------------------------------------------- | ---------------------- |
+| Understand widget concepts     | [System Overview](/docs/widgets/widget-system-overview.mdx)       | Core Concepts          |
+| Use widgets in collections     | [System Overview](/docs/widgets/widget-system-overview.mdx)       | Quick Start            |
+| Create a custom widget         | [Development Guide](/docs/widgets/widget-development-guide.mdx)   | Step-by-Step Tutorial  |
+| Understand the factory pattern | [Architecture](/docs/widgets/widget-architecture.mdx)             | Factory System         |
+| Debug widget issues            | [Architecture](/docs/widgets/widget-architecture.mdx)             | Runtime Implementation |
+| Configure widget validation    | [Development Guide](/docs/widgets/widget-development-guide.mdx)   | Advanced Features      |
+| Enable/disable widgets         | [System Overview](/docs/widgets/widget-system-overview.mdx)       | Widget Management      |
+| Optimize widget performance    | [Architecture](/docs/widgets/widget-architecture.mdx)             | Performance            |
+| Implement widget security      | [Widget Security](/docs/security/widget-security.mdx)             | Security Fixes         |
+| Add translation support        | [Multilingual Guide](/docs/widgets/widget-multilingual-guide.mdx) | Translation Patterns   |
+| Install widgets at runtime     | [Runtime Discovery](/docs/widgets/runtime-widget-discovery.mdx)   | Dynamic Loading        |
 
 ## 🚀 Quick Start Examples
 
@@ -220,7 +220,7 @@ export default {
 
 ```typescript
 // src/widgets/custom/rating/index.ts
-import { createWidget } from '@src/widgets/factory';
+import { createWidget } from '@src/widgets/widgetFactory';
 
 const RatingWidget = createWidget({
 	Name: 'Rating',
@@ -336,7 +336,7 @@ SveltyCMS widgets support multilingual content through the `translated` field pr
 
 ### Architecture Guides
 
-- **[Runtime Widget Discovery](/docs/architecture/runtime-widget-discovery.mdx)** - Zero-downtime widget installation
+- **[Runtime Widget Discovery](/docs/widgets/runtime-widget-discovery.mdx)** - Zero-downtime widget installation
 - **[Validation Instant Feedback](/docs/architecture/validation-instant-feedback.mdx)** - Smart validation system
 - **[Collection Store Dataflow](/docs/architecture/collection-store-dataflow.mdx)** - Data flow patterns
 - **[Database Methods](/docs/architecture/database-methods.mdx)** - Database operations
@@ -480,7 +480,7 @@ export default {
 
 ```typescript
 // src/widgets/custom/myWidget/index.ts
-import { createWidget } from '@widgets/factory';
+import { createWidget } from '@widgets/widgetFactory';
 import * as v from 'valibot';
 
 export default createWidget({

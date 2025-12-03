@@ -54,6 +54,7 @@
 	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
+	import { widgetStoreActions } from '@stores/widgetStore.svelte';
 	import { initializeDarkMode } from '@stores/themeStore.svelte';
 
 	// Components
@@ -234,6 +235,9 @@
 	onMount(() => {
 		// Start initialization loading
 		globalLoadingStore.startLoading(loadingOperations.initialization);
+
+		// Initialize widgets
+		widgetStoreActions.initializeWidgets();
 
 		// Initialize theme from cookie/system preference
 		initializeDarkMode();

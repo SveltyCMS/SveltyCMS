@@ -50,7 +50,7 @@ import { logger } from '@utils/logger.server';
 import type { FieldDefinition } from '@src/content/types';
 import type { User } from '@src/databases/auth/types';
 
-export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
+export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const { user, tenantId, dbAdapter } = locals;
 	const typedUser = user as User; // Explicitly cast user to User type
 	const { language, collection } = params;
@@ -302,9 +302,9 @@ export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
 				// ✅ ARCHITECTURE: Direct import instead of API call for SSR purity
 				const { getRevisions } = await import('@api/collections/[collectionId]/[entryId]/revisions/+server.ts');
 				const revisionsResult = await getRevisions({
-					collectionId: currentCollection._id,
-					entryId: editEntryId,
-					tenantId,
+					collectionId: currentCollection._id as string,
+					entryId: editEntryId as string,
+					tenantId: tenantId || '',
 					dbAdapter,
 					limit: 100
 				});

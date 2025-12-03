@@ -161,7 +161,11 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			const errorBody =
 				'body' in e && typeof e.body === 'object' && e.body !== null && 'message' in e.body ? (e.body as { message?: string }).message : undefined;
 			const errorMsg = e instanceof Error ? e.message : 'Unknown error';
-			logger.error(`Status update error (${(e as any).status}): ${errorBody || errorMsg}`);
+			logger.error(`Status update error (${(e as any).status})`, {
+				error: (e as any).message,
+				stack: (e as any).stack,
+				body: errorBody || errorMsg
+			});
 			throw e; // Re-throw SvelteKit errors
 		}
 

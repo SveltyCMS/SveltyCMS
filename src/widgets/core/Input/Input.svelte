@@ -59,6 +59,11 @@
 	// SECURITY: Maximum input length to prevent ReDoS attacks
 	const MAX_INPUT_LENGTH = 100000; // 100KB
 
+	// Apply truncation before processing
+	if (value && typeof value === 'string' && (value as string).length > MAX_INPUT_LENGTH) {
+		value = (value as string).substring(0, MAX_INPUT_LENGTH) as any;
+	}
+
 	// Use current content language for translated fields, default for non-translated
 	const _language = $derived(field.translated ? contentLanguage.value : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
@@ -80,13 +85,22 @@
 	let isValidating = $state(false);
 	let isTouched = $state(false);
 
+	// ✨ SECURITY ENHANCEMENT: Prevent homograph attacks
+	function sanitizeInput(input: string): string {
+		// Remove zero-width characters that could be used for spoofing
+		const sanitized = input.replace(/[\u200B-\u200D\uFEFF]/g, '');
+
+		// Normalize Unicode to prevent homograph attacks
+		return sanitized.normalize('NFKC');
+	}
+
 	// Memoized badge class calculation using $derived
 	let badgeClass = $derived(() => {
 		const length = count;
-		if (field?.minLength && length < (field?.minLength as number)) return 'bg-red-600';
-		if (field?.maxLength && length > (field?.maxLength as number)) return 'bg-red-600';
-		if (field?.count && length === (field?.count as number)) return 'bg-green-600';
-		if (field?.count && length > (field?.count as number)) return 'bg-orange-600';
+		if (field?.minLength && length < (field?.minLength as number)) return 'bg-error-500'; // Semantic error color
+		if (field?.maxLength && length > (field?.maxLength as number)) return 'bg-error-500';
+		if (field?.count && length === (field?.count as number)) return 'bg-success-500'; // Semantic success color
+		if (field?.count && length > (field?.count as number)) return 'bg-warning-500'; // Semantic warning color
 		if (field?.minLength) return '!variant-filled-surface';
 		return '!variant-ghost-surface';
 	});
@@ -170,8 +184,10 @@
 		if (!value) {
 			value = {};
 		}
+		// ✨ Apply sanitization before storing
+		const sanitized = sanitizeInput(newValue);
 		// Ensure value is treated as a new object for reactivity
-		value = { ...(value || {}), [_language]: newValue };
+		value = { ...(value || {}), [_language]: sanitized };
 	}
 
 	// Cleanup function

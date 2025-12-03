@@ -17,7 +17,7 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/factory';
+import { createWidget } from '@src/widgets/widgetFactory';
 import { minLength, optional, pipe, regex, string, type InferInput as ValibotInput } from 'valibot';
 import type { PhoneNumberProps } from './types';
 
@@ -36,7 +36,9 @@ const validationSchema = (field: FieldInstance) => {
 	const baseSchema = pipe(string(), regex(validationPattern, validationMessage));
 
 	// If the field is required, also ensure it's not empty.
-	const schema = field.required ? pipe(string(), minLength(1, 'This field is required.'), regex(validationPattern, validationMessage)) : baseSchema;
+	const schema = field.required
+		? pipe(string(), minLength(1, 'This field is required.'), regex(validationPattern, validationMessage) as any)
+		: baseSchema;
 
 	// If not required, wrap the schema to allow it to be optional.
 	return field.required ? schema : optional(schema, '');

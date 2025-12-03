@@ -22,7 +22,7 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/factory';
+import { createWidget } from '@src/widgets/widgetFactory';
 
 // Type for aggregation field parameter
 type AggregationField = { db_fieldName: string; collection: string; displayField: string; [key: string]: unknown };
@@ -82,7 +82,7 @@ const RelationWidget = createWidget<RelationProps>({
 				}
 			}
 		],
-		sorts: async ({ field, sortDirection, tenantId }: { field: AggregationField; sortDirection: number; tenantId?: string }) => {
+		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => {
 			// SECURITY: Tenant-aware sorting
 			return {
 				[`${field.db_fieldName}.${field.displayField}`]: sortDirection

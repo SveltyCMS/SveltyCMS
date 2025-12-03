@@ -19,7 +19,7 @@ import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/factory';
+import { createWidget } from '@src/widgets/widgetFactory';
 import { custom, literal, minLength, number, object, optional, pipe, string, union, url, type InferInput as ValibotInput } from 'valibot';
 
 // Helper type for aggregation field parameter
@@ -97,7 +97,7 @@ const RemoteVideoWidget = createWidget({
 	},
 
 	// Define the GraphQL schema for the RemoteVideoData object.
-	GraphqlSchema: ({ label }) => ({
+	GraphqlSchema: ({ label }: { label: string }) => ({
 		typeID: label, // Using the label as the GraphQL type name.
 		graphql: `
             type ${label} {

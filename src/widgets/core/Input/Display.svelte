@@ -35,15 +35,18 @@ Renders current language text with truncation for long content
 		field?.translated ? contentLanguage.value.toLowerCase() : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase()
 	);
 
-	// Compute display text for the current language with safe fallbacks and truncation
-	const displayText = $derived(() => {
-		const text = value?.[lang] ?? value?.[Object.keys(value || {})[0]] ?? '–';
-		if (typeof text !== 'string') return String(text);
-		return text.length > 50 ? `${text.substring(0, 50)}...` : text;
-	});
-
-	// Get full text for tooltip
-	const fullText = $derived(value?.[lang] ?? '');
+	// ✨ IMPROVED: Separate truncation logic from display logic for better performance
+	const fullText = $derived(value?.[lang] ?? value?.[Object.keys(value || {})[0]] ?? '–');
+	const shouldTruncate = $derived(typeof fullText === 'string' && fullText.length > 50);
+	const displayText = $derived(shouldTruncate ? `${fullText.substring(0, 50)}...` : fullText);
 </script>
 
-<span title={fullText}>{displayText}</span>
+<!-- ✨ IMPROVED: Better accessibility and visual truncation -->
+<span
+	class="truncate"
+	class:cursor-help={shouldTruncate}
+	title={shouldTruncate ? fullText : undefined}
+	aria-label={shouldTruncate ? `${displayText} (truncated, full text: ${fullText})` : undefined}
+>
+	{displayText}
+</span>

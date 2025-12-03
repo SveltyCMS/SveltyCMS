@@ -142,9 +142,10 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		if (typeof e === 'object' && e !== null && 'status' in e) {
 			throw e;
 		}
-		const errorMsg = e instanceof Error ? e.message : 'Unknown error';
-		const stack = e instanceof Error ? e.stack : undefined;
-		logger.error(`${endpoint} - Unexpected error`, { error: errorMsg, stack });
+		logger.error(`${endpoint} - Unexpected error`, {
+			error: (e as any).message,
+			stack: (e as any).stack
+		});
 		throw error(500, 'Internal Server Error');
 	}
 };
@@ -217,9 +218,10 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 		if (typeof e === 'object' && e !== null && 'status' in e) {
 			throw e;
 		}
-		const errorMsg = e instanceof Error ? e.message : 'Unknown error';
-		const stack = e instanceof Error ? e.stack : undefined;
-		logger.error(`${endpoint} - Unexpected error`, { error: errorMsg, stack });
+		logger.error(`${endpoint} - Unexpected error`, {
+			error: (e as any).message,
+			stack: (e as any).stack
+		});
 		throw error(500, 'Internal Server Error');
 	}
 };

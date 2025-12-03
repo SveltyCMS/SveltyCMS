@@ -112,7 +112,7 @@
 		"prettier-plugin-svelte": "^3.4.0",
 		"prettier-plugin-tailwindcss": "^0.7.2",
 		"semantic-release": "^25.0.2",
-		"svelte": "^5.45.3",
+		"svelte": "^5.45.4",
 		"svelte-awesome-color-picker": "^4.1.0",
 		"svelte-check": "^4.3.4",
 		"svelte-confetti": "^2.3.2",

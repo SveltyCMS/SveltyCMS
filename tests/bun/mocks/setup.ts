@@ -246,7 +246,7 @@ mock.module('@skeletonlabs/skeleton', () => ({
 // 8. WIDGET FACTORY MOCK
 // =============================================================================
 
-mock.module('@src/widgets/factory', () => ({
+mock.module('@src/widgets/widgetFactory', () => ({
 	createWidget: (config: any) => {
 		// Return a factory function that creates field instances
 		const factory = (fieldConfig: any) => ({

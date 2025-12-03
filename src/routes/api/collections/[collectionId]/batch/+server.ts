@@ -282,11 +282,9 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		}
 
 		const duration = performance.now() - start;
-		const errorMsg = e instanceof Error ? e.message : 'Unknown error';
-		const stack = e instanceof Error ? e.stack : undefined;
 		logger.error(`${endpoint} - Unexpected error`, {
-			error: errorMsg,
-			stack,
+			error: (e as any).message,
+			stack: (e as any).stack,
 			duration: `${duration.toFixed(2)}ms`
 		});
 		throw error(500, 'Internal Server Error');

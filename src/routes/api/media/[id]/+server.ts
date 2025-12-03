@@ -1,6 +1,15 @@
 /**
  * @file src/routes/api/media/[id]/+server.ts
  * @description API endpoint to retrieve a single media item by its ID.
+ *
+ * @param {string} id - The ID of the media item to retrieve.
+ * @returns {Promise<Response>} - The media item as a JSON response.
+ *
+ * Features:
+ * - Retrieves a single media item by its ID.
+ * - Searches for the media item in multiple collections.
+ * - Returns the media item as a JSON response.
+ * - Logs errors and returns appropriate error responses.
  */
 
 import { dbAdapter } from '@src/databases/db';

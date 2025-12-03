@@ -15,13 +15,12 @@ import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Databases
-import type { BaseEntity } from '@src/databases/dbInterface';
-
 // Auth
 import { contentManager } from '@src/content/ContentManager';
 import { modifyRequest } from '@api/collections/modifyRequest';
-import { getDefaultRoles } from '@src/databases/auth/defaultRoles';
 
+// Types
+import type { FieldInstance } from '@src/content/types';
 // System Logger
 import { logger } from '@utils/logger.server';
 
@@ -47,7 +46,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		if (!schema) {
 			logger.warn(`${endpoint} - Collection not found`, {
 				collectionId: params.collectionId,
-				userId: user._id,
+				userId: user?._id,
 				tenantId
 			});
 			throw error(404, 'Collection not found');
@@ -75,6 +74,16 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			fields: Object.keys(sourceData)
 		});
 
+		if (!user) throw error(401, 'Unauthorized');
+
+		// Initialize database adapter
+		const dbAdapter = locals.dbAdapter;
+		if (!dbAdapter) throw error(503, 'Service Unavailable: Database service is not properly initialized');
+
+		if (!schema._id) throw error(500, 'Collection ID is missing');
+		const collectionModel = await dbAdapter.collection.getModel(schema._id);
+
+		// Prepare entry data with user ID
 		const entryData = {
 			...sourceData, // Use extracted source data directly
 			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }), // Add tenantId
@@ -84,38 +93,40 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		};
 
 		// Apply modifyRequest for pre-processing
-
 		const dataArray = [entryData];
+
 		try {
 			await modifyRequest({
 				data: dataArray,
-				fields: schema.fields,
-				collection: schema,
+				fields: schema.fields as FieldInstance[],
+				collection: collectionModel,
 				user,
-				type: 'POST'
+				type: 'POST',
+				tenantId
 			});
 		} catch (modifyError) {
 			logger.warn(`${endpoint} - ModifyRequest pre-processing failed`, {
 				collection: schema._id,
-				error: modifyError.message,
+				error: (modifyError as Error).message,
 				userId: user._id
 			});
-		} // Use the generic CRUD insert operation
+		}
 
-		const dbAdapter = locals.dbAdapter;
+		if (!schema._id) throw error(500, 'Collection ID is missing');
 		const collectionName = `collection_${schema._id}`;
+		if (!dbAdapter) throw error(503, 'Database adapter not initialized');
 		const result = await dbAdapter.crud.insert(collectionName, dataArray[0]);
 
 		if (!result.success) {
 			throw new Error(result.error.message);
 		}
 
+		if (!result.data) {
+			throw error(500, 'Failed to insert entry');
+		}
+
 		const duration = performance.now() - startTime;
-		const responseData = {
-			success: true,
-			data: result.data,
-			performance: { duration }
-		};
+		const responseData = { success: true, data: result.data, performance: { duration } };
 
 		// Invalidate server-side page cache for this collection
 		const cacheService = (await import('@src/databases/CacheService')).cacheService;
@@ -125,11 +136,11 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		});
 
 		logger.info(`${endpoint} - Entry created successfully`, {
+			duration: `${duration.toFixed(2)}ms`,
 			collection: schema._id,
-			userId: user._id,
+			userId: user?._id,
 			tenantId,
-			entryId: result.data._id,
-			duration: `${duration.toFixed(2)}ms`
+			entryId: result.data._id
 		});
 
 		return json(responseData, { status: 201 });
@@ -137,10 +148,10 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		const duration = performance.now() - startTime;
 		const userId = locals.user?._id;
 
-		if (e.status) {
+		if ((e as any).status) {
 			logger.warn(`${endpoint} - Request failed`, {
-				status: e.status,
-				message: e.body?.message,
+				status: (e as any).status,
+				message: (e as any).body?.message,
 				duration: `${duration.toFixed(2)}ms`,
 				userId,
 				collection: params.collectionId
@@ -149,8 +160,8 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		}
 
 		logger.error(`${endpoint} - Unexpected error`, {
-			error: e.message,
-			stack: e.stack,
+			error: (e as any).message,
+			stack: (e as any).stack,
 			duration: `${duration.toFixed(2)}ms`,
 			userId,
 			collection: params.collectionId

@@ -119,10 +119,28 @@
 			// Pass a callback function to the modal so it can return the selected files.
 			response: (files: MediaFile[] | undefined) => {
 				if (files) {
+					// SECURITY: Validate files before adding them
+					const validFiles = files.filter((file) => {
+						// Mock File object for validation since we only have MediaFile metadata here
+						// In a real upload scenario, we would validate the actual File object
+						const mockFile = {
+							name: file.name,
+							type: file.type,
+							size: file.size
+						} as File;
+
+						const validation = validateFile(mockFile);
+						if (!validation.valid) {
+							logger.warn(`[MediaUpload Security] Rejected file ${file.name}: ${validation.error}`);
+							return false;
+						}
+						return true;
+					});
+
 					if (field.multiupload) {
-						selectedFiles = [...selectedFiles, ...files];
-					} else {
-						selectedFiles = [files[0]];
+						selectedFiles = [...selectedFiles, ...validFiles];
+					} else if (validFiles.length > 0) {
+						selectedFiles = [validFiles[0]];
 					}
 				}
 			}
