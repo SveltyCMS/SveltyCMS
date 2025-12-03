@@ -1,0 +1,732 @@
+---
+path: '/widgets/custom/seo'
+title: 'SEO Widget'
+description: 'SEO management widget with real-time analysis, social media optimization, and structured data for SveltyCMS'
+order: 306
+icon: 'tabler:seo'
+author: 'admin'
+created: '2025-01-15'
+updated: '2025-01-15'
+tags:
+  - widget
+  - custom
+  - seo
+  - meta
+  - social
+  - schema
+  - open-graph
+  - twitter
+  - optimization
+---
+
+# SEO Widget
+
+<blockquote>
+	**SEO management widget** with real-time content analysis, social media meta tags, structured data, and AI-powered optimization suggestions.
+</blockquote>
+
+## Overview
+
+The **SEO widget** is a comprehensive solution for managing all aspects of search engine optimization within your content. It combines basic SEO (title, description, focus keyword), social media optimization (Open Graph, Twitter Cards), advanced features (canonical URLs, robots meta), and optional AI-powered analysis into a single, intuitive tabbed interface.
+
+### Key Features
+
+- ✅ **Real-Time Analysis**: SeoAnalyzer integration with performance scoring
+- ✅ **Tabbed Interface**: Organized UI with Basic/Social/Advanced tabs
+- ✅ **Social Media Meta**: Open Graph and Twitter Card optimization
+- ✅ **Structured Data**: Schema.org JSON-LD support
+- ✅ **Character Counting**: Live title (60) and description (160) character limits
+- ✅ **Focus Keyword**: Keyword density and prominence analysis
+- ✅ **Robots Meta**: Control search engine indexing
+- ✅ **Canonical URLs**: Prevent duplicate content issues
+- ✅ **Multilingual Support**: Full translation support per language
+- ✅ **Modular Features**: Enable/disable features via configuration
+- ✅ **AI Suggestions**: Optional AI-powered optimization hints
+
+---
+
+## When to Use SEO Widget
+
+### ✅ Use SEO When:
+
+- **Blog Posts**: Article SEO optimization
+- **Product Pages**: E-commerce product SEO
+- **Landing Pages**: Campaign page optimization
+- **News Articles**: News content optimization
+- **Category Pages**: Collection/category SEO
+- **Author Pages**: Personal/professional profiles
+- **Documentation**: Technical content optimization
+- **Multilingual Sites**: SEO per language
+
+### ❌ Don't Use SEO When:
+
+- **Admin Pages**: Internal tools don't need public SEO
+- **Private Content**: Members-only or gated content
+- **API Endpoints**: Programmatic interfaces
+- **Raw Data**: Pure data collections without public pages
+
+---
+
+## Installation
+
+The SEO widget is included in SveltyCMS by default. For AI-powered features, configure your AI provider:
+
+```typescript
+// config/private.ts
+export const privateEnv = {
+	OPENAI_API_KEY: 'sk-...', // For AI suggestions
+	ENABLE_AI_SEO: true
+};
+```
+
+---
+
+## Basic Usage
+
+### Simple Blog Post SEO
+
+```typescript
+import SEO from '@src/widgets/custom/Seo';
+import Textarea from '@src/widgets/core/textarea';
+
+export const postsCollection = {
+	name: 'Blog Posts',
+	fields: [
+		Input({
+			label: 'Post Title',
+			db_fieldName: 'title',
+			required: true
+		}),
+
+		Textarea({
+			label: 'Content',
+			db_fieldName: 'content',
+			required: true,
+			minLength: 300
+		}),
+
+		SEO({
+			label: 'SEO Settings',
+			db_fieldName: 'seo',
+			required: false,
+			features: ['social', 'advanced'],
+			translated: true
+		})
+	]
+};
+```
+
+### Product SEO with Social Sharing
+
+```typescript
+import SEO from '@src/widgets/custom/Seo';
+import Image from '@src/widgets/media/image';
+
+export const productsCollection = {
+	name: 'Products',
+	fields: [
+		SEO({
+			label: 'SEO & Social',
+			db_fieldName: 'seo',
+			required: true,
+			features: ['social', 'schema'],
+			translated: true,
+			helper: 'Optimize product page for search and social sharing'
+		}),
+
+		Image({
+			label: 'Primary Image',
+			db_fieldName: 'primaryImage',
+			required: true,
+			helper: 'Used as Open Graph image if not specified in SEO'
+		})
+	]
+};
+```
+
+### Full-Featured SEO
+
+```typescript
+import SEO from '@src/widgets/custom/Seo';
+
+export const landingPagesCollection = {
+	name: 'Landing Pages',
+	fields: [
+		SEO({
+			label: 'SEO Configuration',
+			db_fieldName: 'seo',
+			required: true,
+			features: ['social', 'schema', 'advanced', 'ai'],
+			translated: true
+		})
+	]
+};
+```
+
+---
+
+## Configuration Properties
+
+| Property       | Type       | Required | Default                                  | Description                           |
+| -------------- | ---------- | -------- | ---------------------------------------- | ------------------------------------- |
+| `label`        | `string`   | ✅ Yes   | -                                        | Display label for the field           |
+| `db_fieldName` | `string`   | ✅ Yes   | -                                        | Database field name                   |
+| `required`     | `boolean`  | ❌ No    | `false`                                  | Whether SEO is mandatory              |
+| `features`     | `string[]` | ❌ No    | `['social', 'schema', 'advanced', 'ai']` | Enabled feature tabs                  |
+| `translated`   | `boolean`  | ❌ No    | `true`                                   | Enable per-language SEO (recommended) |
+| `helper`       | `string`   | ❌ No    | `undefined`                              | Helper text                           |
+
+### Available Features
+
+```typescript
+type SeoFeature = 'basic' | 'social' | 'schema' | 'advanced' | 'ai';
+
+// Examples:
+features: ['social']; // Basic + Social only
+features: ['social', 'advanced']; // Basic + Social + Advanced
+features: ['social', 'schema', 'advanced', 'ai']; // All features
+```
+
+---
+
+## Data Structure
+
+### Storage Format
+
+SEO data is stored as a **structured object per language** (if translated):
+
+```typescript
+// MongoDB Document (translated)
+{
+  "_id": "post_123",
+  "title": "How to Use SveltyCMS",
+  "seo": {
+    "en": {
+      // Basic SEO
+      "title": "How to Use SveltyCMS - Complete Guide 2025",
+      "description": "Learn SveltyCMS with our comprehensive guide. Covers installation, widgets, collections, and advanced features.",
+      "focusKeyword": "sveltycms tutorial",
+
+      // Advanced
+      "robotsMeta": "index, follow",
+      "canonicalUrl": "https://sveltycms.dev/guides/complete-guide",
+
+      // Social - Open Graph
+      "ogTitle": "SveltyCMS Complete Guide",
+      "ogDescription": "Master SveltyCMS in 2025 with this complete guide",
+      "ogImage": "media_id_789",
+
+      // Social - Twitter
+      "twitterCard": "summary_large_image",
+      "twitterTitle": "SveltyCMS Guide 2025",
+      "twitterDescription": "Complete tutorial for SveltyCMS",
+      "twitterImage": "media_id_790",
+
+      // Schema
+      "schemaMarkup": "{\"@context\":\"https://schema.org\",\"@type\":\"Article\",...}"
+    },
+    "de": {
+      "title": "SveltyCMS verwenden - Vollständiger Leitfaden 2025",
+      "description": "Lernen Sie SveltyCMS mit unserem umfassenden Leitfaden...",
+      // ... German translations
+    }
+  },
+  "createdAt": ISODate("2025-01-15T10:00:00Z")
+}
+```
+
+### SeoData Interface
+
+```typescript
+interface SeoData {
+	// Basic SEO
+	title: string; // Max 60 characters
+	description: string; // Max 160 characters
+	focusKeyword: string; // Primary keyword to optimize for
+
+	// Advanced
+	robotsMeta: string; // e.g., "index, follow"
+	canonicalUrl?: string; // Canonical URL for duplicate content
+
+	// Open Graph (Facebook, LinkedIn, etc.)
+	ogTitle?: string; // OG title (can differ from title)
+	ogDescription?: string; // OG description
+	ogImage?: string; // Media ID for OG image
+
+	// Twitter Cards
+	twitterCard: 'summary' | 'summary_large_image';
+	twitterTitle?: string; // Twitter-specific title
+	twitterDescription?: string; // Twitter-specific description
+	twitterImage?: string; // Media ID for Twitter image
+
+	// Structured Data
+	schemaMarkup?: string; // JSON-LD schema.org markup
+}
+```
+
+---
+
+## SEO Features
+
+### Basic SEO Tab
+
+The default tab includes essential SEO fields:
+
+```typescript
+// Title (60 character limit)
+title: 'How to Use SveltyCMS - Complete Guide 2025';
+// Character counter: 44/60 (green)
+
+// Description (160 character limit)
+description: 'Learn SveltyCMS with our comprehensive guide...';
+// Character counter: 156/160 (green)
+
+// Focus Keyword
+focusKeyword: 'sveltycms tutorial';
+// Analysis shows keyword density, prominence
+```
+
+**Best Practices**:
+
+- **Title**: 50-60 characters, include focus keyword near start
+- **Description**: 150-160 characters, compelling call-to-action
+- **Focus Keyword**: Specific, relevant, appears in title and description
+
+### Social Media Tab
+
+Optimize how content appears when shared on social platforms:
+
+#### Open Graph (Facebook, LinkedIn, WhatsApp)
+
+```typescript
+ogTitle: 'SveltyCMS Complete Guide'; // 65 char limit
+ogDescription: 'Master SveltyCMS in 2025'; // 200 char limit
+ogImage: 'media_id_789'; // 1200x630px recommended
+```
+
+**Generated meta tags**:
+
+```html
+<meta property="og:title" content="SveltyCMS Complete Guide" />
+<meta property="og:description" content="Master SveltyCMS in 2025" />
+<meta property="og:image" content="https://cdn.example.com/image.jpg" />
+<meta property="og:url" content="https://example.com/post" />
+<meta property="og:type" content="article" />
+```
+
+#### Twitter Cards
+
+```typescript
+twitterCard: 'summary_large_image'; // Or "summary"
+twitterTitle: 'SveltyCMS Guide 2025';
+twitterDescription: 'Complete tutorial';
+twitterImage: 'media_id_790'; // 1200x600px for large card
+```
+
+**Generated meta tags**:
+
+```html
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="SveltyCMS Guide 2025" />
+<meta name="twitter:description" content="Complete tutorial" />
+<meta name="twitter:image" content="https://cdn.example.com/image.jpg" />
+```
+
+### Advanced Tab
+
+Advanced SEO controls:
+
+#### Robots Meta
+
+```typescript
+// Control search engine crawling
+robotsMeta: 'index, follow'; // Default: index and follow links
+robotsMeta: 'noindex, follow'; // Don't index, but follow links
+robotsMeta: 'index, nofollow'; // Index, but don't follow links
+robotsMeta: 'noindex, nofollow'; // Don't index or follow
+```
+
+**Generated meta tag**:
+
+```html
+<meta name="robots" content="index, follow" />
+```
+
+#### Canonical URL
+
+```typescript
+// Prevent duplicate content issues
+canonicalUrl: 'https://example.com/original-post';
+```
+
+**Generated link tag**:
+
+```html
+<link rel="canonical" href="https://example.com/original-post" />
+```
+
+**Use cases**:
+
+- Multiple URLs for same content (filters, sorting, pagination)
+- Cross-posting content to multiple sites
+- HTTP vs HTTPS versions
+- WWW vs non-WWW versions
+
+### Schema Tab
+
+Add structured data for rich search results:
+
+```typescript
+schemaMarkup: `{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "How to Use SveltyCMS",
+  "author": {
+    "@type": "Person",
+    "name": "John Doe"
+  },
+  "datePublished": "2025-01-15",
+  "image": "https://example.com/image.jpg"
+}`;
+```
+
+**Common schema types**:
+
+- **Article**: Blog posts, news articles
+- **Product**: E-commerce products
+- **Review**: Product reviews
+- **Recipe**: Cooking recipes
+- **Event**: Events, webinars
+- **Organization**: Company info
+- **Person**: Author profiles
+
+---
+
+## Real-Time Analysis
+
+The SEO widget includes built-in analysis:
+
+### Score Calculation
+
+```typescript
+// Overall SEO score (0-100)
+score = {
+	overall: 85, // Weighted average of all checks
+	basic: 90, // Title, description, keyword checks
+	technical: 80, // Robots, canonical, markup
+	social: 85 // OG and Twitter tags
+};
+```
+
+### Analysis Checks
+
+```typescript
+// Title analysis
+- Length: 44 chars (optimal 50-60) ✅
+- Focus keyword present: Yes ✅
+- Focus keyword position: 0-10 chars ✅
+- Contains numbers/year: Yes ✅
+
+// Description analysis
+- Length: 156 chars (optimal 150-160) ✅
+- Focus keyword present: Yes ✅
+- Compelling call-to-action: Yes ✅
+
+// Content analysis
+- Keyword density: 2.5% (optimal 1-3%) ✅
+- Heading structure: H1, H2, H3 present ✅
+- Internal links: 5 found ✅
+- External links: 3 found ✅
+- Image alt texts: All images have alt ✅
+
+// Technical
+- Canonical URL: Set ✅
+- Robots meta: index, follow ✅
+- Structured data: Valid JSON-LD ✅
+```
+
+---
+
+## Advanced Examples
+
+### Article with Full Schema
+
+```typescript
+import SEO from '@src/widgets/custom/Seo';
+
+const articleSchema = {
+	'@context': 'https://schema.org',
+	'@type': 'Article',
+	headline: 'How to Use SveltyCMS',
+	alternativeHeadline: 'SveltyCMS Complete Guide',
+	image: 'https://example.com/image.jpg',
+	author: {
+		'@type': 'Person',
+		name: 'John Doe',
+		url: 'https://example.com/authors/john-doe'
+	},
+	publisher: {
+		'@type': 'Organization',
+		name: 'SveltyCMS',
+		logo: {
+			'@type': 'ImageObject',
+			url: 'https://example.com/logo.jpg'
+		}
+	},
+	datePublished: '2025-01-15T10:00:00Z',
+	dateModified: '2025-01-15T14:30:00Z',
+	mainEntityOfPage: {
+		'@type': 'WebPage',
+		'@id': 'https://example.com/guide'
+	}
+};
+
+SEO({
+	label: 'SEO',
+	db_fieldName: 'seo',
+	features: ['social', 'schema', 'advanced']
+});
+```
+
+### Product with Rich Snippets
+
+```typescript
+const productSchema = {
+	'@context': 'https://schema.org',
+	'@type': 'Product',
+	name: 'SveltyCMS Pro',
+	image: 'https://example.com/product.jpg',
+	description: 'Professional CMS built with SvelteKit',
+	brand: {
+		'@type': 'Brand',
+		name: 'SveltyCMS'
+	},
+	offers: {
+		'@type': 'Offer',
+		price: '99.00',
+		priceCurrency: 'USD',
+		availability: 'https://schema.org/InStock',
+		url: 'https://example.com/pro'
+	},
+	aggregateRating: {
+		'@type': 'AggregateRating',
+		ratingValue: '4.8',
+		reviewCount: '247'
+	}
+};
+```
+
+---
+
+## Rendering SEO Meta Tags
+
+### Server-Side Rendering
+
+```typescript
+// +page.server.ts
+import type { PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async ({ params }) => {
+	const post = await db.posts.findOne({ slug: params.slug });
+
+	return {
+		post,
+		seo: post.seo.en // Get SEO for current language
+	};
+};
+```
+
+```svelte
+<!-- +page.svelte -->
+<script lang="ts">
+	export let data;
+	const { post, seo } = data;
+</script>
+
+<svelte:head>
+	<!-- Basic SEO -->
+	<title>{seo.title}</title>
+	<meta name="description" content={seo.description} />
+	<meta name="robots" content={seo.robotsMeta} />
+	{#if seo.canonicalUrl}
+		<link rel="canonical" href={seo.canonicalUrl} />
+	{/if}
+
+	<!-- Open Graph -->
+	<meta property="og:title" content={seo.ogTitle || seo.title} />
+	<meta property="og:description" content={seo.ogDescription || seo.description} />
+	{#if seo.ogImage}
+		<meta property="og:image" content={getImageUrl(seo.ogImage)} />
+	{/if}
+
+	<!-- Twitter -->
+	<meta name="twitter:card" content={seo.twitterCard} />
+	<meta name="twitter:title" content={seo.twitterTitle || seo.title} />
+	<meta name="twitter:description" content={seo.twitterDescription || seo.description} />
+	{#if seo.twitterImage}
+		<meta name="twitter:image" content={getImageUrl(seo.twitterImage)} />
+	{/if}
+
+	<!-- Structured Data -->
+	{#if seo.schemaMarkup}
+		{@html `<script type="application/ld+json">${seo.schemaMarkup}</script>`}
+	{/if}
+</svelte:head>
+```
+
+---
+
+## Best Practices
+
+### ✅ Do's
+
+1. **Optimize Title Length**
+
+   ```typescript
+   title: 'How to Use SveltyCMS - Complete Guide'; // 44 chars ✅
+   ```
+
+2. **Include Focus Keyword Early**
+
+   ```typescript
+   title: 'SveltyCMS Tutorial: Complete Guide'; // Keyword first ✅
+   ```
+
+3. **Write Compelling Descriptions**
+
+   ```typescript
+   description: 'Learn SveltyCMS with step-by-step tutorials. Master widgets, collections, and deployment in 2025.';
+   ```
+
+4. **Use Language-Specific SEO**
+
+   ```typescript
+   SEO({ translated: true }); // Different SEO per language ✅
+   ```
+
+5. **Add Structured Data**
+   ```typescript
+   // Helps search engines understand your content
+   schemaMarkup: JSON.stringify(articleSchema);
+   ```
+
+### ❌ Don'ts
+
+1. **Don't Keyword Stuff**
+
+   ```typescript
+   // ❌ Too many keywords
+   title: 'SveltyCMS SveltyCMS Tutorial SveltyCMS Guide SveltyCMS';
+   ```
+
+2. **Don't Ignore Character Limits**
+
+   ```typescript
+   // ❌ Too long (gets truncated)
+   title: 'How to Use SveltyCMS - The Most Comprehensive and Detailed Complete Guide for Beginners and Advanced Users in 2025';
+   ```
+
+3. **Don't Use Same Title/Description**
+
+   ```typescript
+   // ❌ Title and description are identical
+   title: 'Learn SveltyCMS';
+   description: 'Learn SveltyCMS';
+   ```
+
+4. **Don't Forget Social Images**
+
+   ```typescript
+   // ❌ No OG image = poor social sharing
+   ogImage: null;
+
+   // ✅ Always include
+   ogImage: 'media_id_123';
+   ```
+
+---
+
+## Accessibility
+
+### Screen Reader Support
+
+SEO widget includes accessible form fields:
+
+```html
+<label for="seo-title">Meta Title</label>
+<input id="seo-title" type="text" aria-describedby="title-counter title-hint" aria-invalid="false" />
+<span id="title-counter" class="counter">44/60</span>
+<span id="title-hint" class="hint">50-60 characters recommended</span>
+```
+
+---
+
+## API Reference
+
+```typescript
+function SEO(props: SeoProps): FieldInstance;
+
+interface SeoProps {
+	label: string;
+	db_fieldName: string;
+	required?: boolean;
+	features?: SeoFeature[];
+	translated?: boolean;
+	helper?: string;
+}
+
+type SeoFeature = 'basic' | 'social' | 'schema' | 'advanced' | 'ai';
+
+interface SeoData {
+	title: string;
+	description: string;
+	focusKeyword: string;
+	robotsMeta: string;
+	canonicalUrl?: string;
+	ogTitle?: string;
+	ogDescription?: string;
+	ogImage?: string;
+	twitterCard: 'summary' | 'summary_large_image';
+	twitterTitle?: string;
+	twitterDescription?: string;
+	twitterImage?: string;
+	schemaMarkup?: string;
+}
+```
+
+---
+
+## Related Widgets
+
+- **[Input Widget](/widgets/core/input)** - For simple text meta tags
+- **[Textarea Widget](/widgets/core/textarea)** - For longer descriptions
+- **[Image Widget](/widgets/media/image)** - For OG and Twitter images
+
+---
+
+## Resources
+
+- [Google Search Central](https://developers.google.com/search)
+- [Open Graph Protocol](https://ogp.me/)
+- [Twitter Cards Documentation](https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/abouts-cards)
+- [Schema.org](https://schema.org/)
+- [Structured Data Testing Tool](https://search.google.com/test/rich-results)
+
+---
+
+## Changelog
+
+### Version 1.0.0 (2025-01-15)
+
+- ✅ Initial release with tabbed interface
+- ✅ Real-time SEO analysis
+- ✅ Social media optimization (OG + Twitter)
+- ✅ Structured data support
+- ✅ Multilingual SEO
+- ✅ AI-powered suggestions (optional)
+
+---
+
+## License
+
+The SEO widget is part of SveltyCMS and is licensed under the MIT License.

@@ -1,0 +1,638 @@
+---
+path: 'src/widgets/custom/PhoneNumber/phonenumber.mdx'
+title: 'PhoneNumber Widget'
+description: 'Phone number input widget with E.164 validation and semantic mobile keyboards.'
+order: 3
+icon: 'ic:baseline-phone-in-talk'
+author: 'admin'
+created: '2025-10-01'
+updated: '2025-10-01'
+tags:
+  - 'widget'
+  - 'phone'
+  - 'telephone'
+  - 'form'
+  - 'validation'
+  - 'custom'
+---
+
+# PhoneNumber Widget
+
+The **PhoneNumber Widget** is a specialized input component designed exclusively for telephone number entry. It provides E.164 international format validation, semantic mobile keyboards with tel keypads, and proper data handling for phone numbers.
+
+## Overview
+
+The PhoneNumber widget is part of the SveltyCMS specialized widget collection and provides features specifically tailored for phone number input. Unlike the generic Input widget, it correctly treats phone numbers as non-translatable strings (not numbers!) and provides phone-specific validation and display.
+
+### Key Features
+
+- ✅ **E.164 Validation**: International phone number format by default (+1234567890)
+- ✅ **Custom Patterns**: Support for custom regex patterns for specific formats
+- ✅ **Non-Translatable**: Correctly treats phone numbers as universal data
+- ✅ **Semantic HTML**: Uses `type="tel"` for proper mobile keyboards
+- ✅ **Mobile Optimized**: Telephone keypad layout on mobile devices
+- ✅ **Clickable Links**: Display component renders as `tel:` links
+- ✅ **Enhanced Validation**: Integration with validation store
+- ✅ **Touch State Management**: Proper error display based on user interaction
+- ✅ **Debounced Validation**: Performance-optimized validation
+- ✅ **Accessibility**: Full ARIA support and semantic HTML
+- ✅ **Auto-Complete**: Supports browser telephone auto-complete
+
+## When to Use
+
+**Use the PhoneNumber widget for:**
+
+- Contact phone numbers
+- Customer support hotlines
+- Emergency contact numbers
+- Business phone lines
+- Mobile phone numbers
+- Any field that stores telephone numbers
+
+**Don't use for:**
+
+- Numeric IDs (use Number widget instead)
+- Extension numbers only (use Input widget)
+- Fax numbers formatted as text (use Input widget)
+
+## Why Phone Numbers Are Strings
+
+Phone numbers should **never** be stored as number type because:
+
+1. **Leading Zeros**: Many countries use leading zeros (e.g., 0123456789)
+2. **Too Large**: International numbers exceed JavaScript's `Number.MAX_SAFE_INTEGER`
+3. **Special Characters**: Include +, -, (, ), and spaces for formatting
+4. **Not Mathematical**: You don't add, subtract, or average phone numbers
+5. **Display Format**: Need to preserve exact format including country code
+
+```typescript
+// ❌ WRONG - loses leading zero and country code
+const phone = 0049123456789;  // Becomes 49123456789
+
+// ✅ CORRECT - preserves format
+const phone = "+49 123 456 789";
+```
+
+## Configuration
+
+### Basic Setup (E.164 Format)
+
+```typescript
+import widgets from '@widgets';
+
+widgets.PhoneNumber({
+	label: 'Phone Number',
+	db_fieldName: 'phone',
+	required: true
+});
+```
+
+### With Custom Pattern
+
+```typescript
+widgets.PhoneNumber({
+	label: 'US Phone',
+	db_fieldName: 'us_phone',
+	pattern: '^\\+1[2-9]\\d{9}$', // US format: +1 followed by 10 digits
+	placeholder: '+1 (555) 123-4567',
+	required: true
+});
+```
+
+### With Icon and Helper
+
+```typescript
+widgets.PhoneNumber({
+	label: 'Contact Number',
+	db_fieldName: 'contact_phone',
+	icon: 'ph:phone',
+	helper: 'Include country code (e.g., +1 for US)',
+	placeholder: '+1234567890',
+	required: false
+});
+```
+
+## Properties
+
+### Required Properties
+
+| Property | Type     | Description                 |
+| -------- | -------- | --------------------------- |
+| `label`  | `string` | Display label for the field |
+
+### Optional Properties
+
+| Property       | Type      | Default        | Description                         |
+| -------------- | --------- | -------------- | ----------------------------------- |
+| `db_fieldName` | `string`  | auto-generated | Database field name                 |
+| `required`     | `boolean` | `false`        | Whether the field is required       |
+| `pattern`      | `string`  | E.164 regex    | Custom regex pattern for validation |
+| `placeholder`  | `string`  | `+1234567890`  | Placeholder text                    |
+| `readonly`     | `boolean` | `false`        | Make field read-only                |
+| `disabled`     | `boolean` | `false`        | Disable the field                   |
+| `icon`         | `string`  | -              | Iconify icon name                   |
+| `width`        | `number`  | -              | Column width (1-12)                 |
+| `helper`       | `string`  | -              | Helper text displayed below         |
+
+### Fixed Properties
+
+These properties are set automatically and cannot be changed:
+
+| Property     | Value   | Reason                                  |
+| ------------ | ------- | --------------------------------------- |
+| `translated` | `false` | Phone numbers are not language-specific |
+| `inputType`  | `tel`   | HTML5 telephone input type              |
+
+## Validation
+
+The PhoneNumber widget provides comprehensive phone validation:
+
+### Default Validation (E.164)
+
+The E.164 international format:
+
+- Starts with `+` (optional)
+- Country code: 1-3 digits
+- Subscriber number: up to 14 digits total
+- No spaces, dashes, or parentheses
+
+```typescript
+// Valid E.164 examples
++14155552671 + // US
+	442071838750 + // UK
+	861234567890 + // China
+	49301234567; // Germany
+```
+
+### Custom Patterns
+
+You can override with custom regex patterns:
+
+```typescript
+// US format: +1 (XXX) XXX-XXXX
+pattern: '^\\+1\\s\\(\\d{3}\\)\\s\\d{3}-\\d{4}$';
+
+// UK format: +44 XXXX XXXXXX
+pattern: '^\\+44\\s\\d{4}\\s\\d{6}$';
+
+// Simple digits only (10-15 digits)
+pattern: '^\\d{10,15}$';
+```
+
+### Validation Messages
+
+```typescript
+// Required field error
+'This field is required';
+
+// Invalid format (E.164)
+'Invalid phone number format. Please use international format (e.g., +1234567890)';
+
+// Invalid format (custom pattern)
+'Invalid phone number format. Please use international format (e.g., +1234567890)';
+```
+
+### Validation Behavior
+
+- **On Input**: Validation is debounced (300ms) to prevent excessive checks
+- **On Blur**: Immediate validation when field loses focus
+- **Touch State**: Errors only show after user has interacted with the field
+- **Visual Feedback**: Blue border with spinner during validation, red border on error
+
+## Data Structure
+
+### Storage Format
+
+Phone numbers are stored as strings in the default language:
+
+```typescript
+{
+	en: '+14155552671'; // Stored as string in default language
+}
+```
+
+### Format Recommendations
+
+1. **E.164 Format**: Store in E.164 for consistency
+2. **Strip Formatting**: Remove spaces, dashes, parentheses before storage
+3. **Keep Country Code**: Always include country code (+1, +44, etc.)
+4. **String Type**: Never convert to number
+
+```typescript
+// ✅ Good storage format
+'+14155552671';
+
+// ❌ Bad storage formats
+'(415) 555-2671'; // Local format
+'415-555-2671'; // Missing country code
+4155552671; // Number type (loses leading zeros)
+```
+
+## E.164 International Format
+
+### What is E.164?
+
+E.164 is the international telephone numbering plan standard:
+
+- **+**: Plus sign prefix
+- **Country Code**: 1-3 digits (e.g., 1 for US, 44 for UK, 49 for Germany)
+- **National Number**: Remaining digits (up to 14 total)
+
+### Benefits
+
+1. **Universal**: Works worldwide
+2. **Unambiguous**: No confusion about country
+3. **Parseable**: Easy to extract country code
+4. **Standard**: Recognized by telecom systems
+5. **Links**: Can be used in `tel:` links directly
+
+### Common Country Codes
+
+| Country    | Code | Example       |
+| ---------- | ---- | ------------- |
+| USA/Canada | +1   | +14155552671  |
+| UK         | +44  | +442071838750 |
+| Germany    | +49  | +49301234567  |
+| France     | +33  | +33142345678  |
+| China      | +86  | +861234567890 |
+| Japan      | +81  | +81312345678  |
+| Australia  | +61  | +61212345678  |
+
+## Examples
+
+### International Contact
+
+```typescript
+widgets.PhoneNumber({
+	label: 'Phone Number',
+	db_fieldName: 'phone',
+	required: true,
+	placeholder: '+1234567890',
+	icon: 'mdi:phone-in-talk',
+	helper: 'International format with country code'
+});
+```
+
+### US Phone Number
+
+```typescript
+widgets.PhoneNumber({
+	label: 'US Phone',
+	db_fieldName: 'us_phone',
+	pattern: '^\\+1[2-9]\\d{9}$',
+	placeholder: '+1 555 123 4567',
+	icon: 'flag:us-4x3',
+	helper: 'US numbers only (+1 followed by 10 digits)',
+	required: true
+});
+```
+
+### Emergency Contact
+
+```typescript
+widgets.PhoneNumber({
+	label: 'Emergency Contact',
+	db_fieldName: 'emergency_phone',
+	required: false,
+	placeholder: '+1234567890',
+	icon: 'mdi:phone-alert',
+	helper: 'Person to contact in case of emergency'
+});
+```
+
+### Business Hotline
+
+```typescript
+widgets.PhoneNumber({
+	label: 'Support Hotline',
+	db_fieldName: 'support_phone',
+	required: true,
+	placeholder: '+1-800-555-1234',
+	icon: 'mdi:headset',
+	helper: 'Customer support phone number'
+});
+```
+
+### Mobile Number (Read-Only)
+
+```typescript
+widgets.PhoneNumber({
+	label: 'Mobile Number',
+	db_fieldName: 'mobile',
+	readonly: true,
+	icon: 'mdi:cellphone',
+	helper: 'Contact admin to update your mobile number'
+});
+```
+
+## Mobile Experience
+
+### Telephone Keyboard
+
+The widget automatically triggers the telephone keypad on mobile devices:
+
+- **Number keys**: 0-9
+- **Plus key**: For country code
+- **Star/hash keys**: \* and #
+- **Call button**: Quick dial option
+- **No letters**: Numeric-only layout
+
+### Browser Support
+
+- iOS: Tel keypad with call button
+- Android: Telephone keypad layout
+- Desktop: Standard keyboard with auto-complete
+
+### Tel Links
+
+In display mode, phone numbers become clickable `tel:` links:
+
+```html
+<a href="tel:+14155552671">+1 415 555 2671</a>
+```
+
+This allows users to:
+
+- Click to call on mobile devices
+- Add to contacts
+- Copy to clipboard
+- Use with VoIP apps
+
+## Best Practices
+
+### Format Guidelines
+
+1. **Use E.164**: Most universal and parseable format
+2. **Include country code**: Always store with + and country code
+3. **Strip formatting**: Remove spaces, dashes, parentheses for storage
+4. **Display formatting**: Format for display, store in E.164
+
+### Validation
+
+1. **Default to E.164**: Use built-in validation unless you have specific needs
+2. **Custom patterns**: Only use for specific country formats
+3. **Clear errors**: Provide example format in error messages
+4. **Test internationally**: Verify validation works for target countries
+
+### User Experience
+
+1. **Clear placeholders**: Show example in correct format
+2. **Helper text**: Explain expected format (especially country code)
+3. **Format on blur**: Consider auto-formatting user input
+4. **Flexible input**: Accept various formats, normalize on save
+
+### Accessibility
+
+1. **Use semantic HTML**: The widget uses `type="tel"` automatically
+2. **Provide labels**: Always include a clear label
+3. **Error association**: Errors are automatically linked via ARIA
+4. **Keyboard navigation**: Fully keyboard accessible
+5. **Auto-complete**: Enable browser auto-complete for convenience
+
+### Privacy
+
+1. **Secure storage**: Encrypt sensitive phone numbers
+2. **Access control**: Limit who can view phone numbers
+3. **Data retention**: Have clear retention policies
+4. **GDPR compliance**: Get consent to store phone numbers
+
+## Technical Details
+
+### HTML5 Tel Input
+
+The widget uses native HTML5 tel input:
+
+```html
+<input type="tel" autocomplete="tel" />
+```
+
+This provides:
+
+- Appropriate mobile keyboard
+- Browser auto-complete support
+- Semantic HTML
+- Accessibility improvements
+
+### Valibot Schema
+
+The validation schema uses regex for phone format:
+
+```typescript
+// Required with E.164
+pipe(string(), minLength(1, 'This field is required'), regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format...'));
+
+// Optional with E.164
+optional(pipe(string(), regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format...')), '');
+
+// Custom pattern
+pipe(string(), regex(customPattern, 'Invalid phone number format...'));
+```
+
+### State Management
+
+Uses Svelte 5 runes for reactive state:
+
+```typescript
+$state: isTouched, isValidating, inputElement
+$derived: safeValue, validationError, validationPattern, phoneSchema
+$effect: value initialization, focus management, cleanup
+```
+
+### Pattern Construction
+
+The widget builds validation pattern dynamically:
+
+```typescript
+// Default E.164 pattern
+const defaultPattern = /^\+?[1-9]\d{1,14}$/;
+
+// Use custom pattern if provided
+const pattern = field.pattern ? new RegExp(field.pattern) : defaultPattern;
+```
+
+## Display Component
+
+The PhoneNumber widget includes a display component that renders phone numbers as clickable `tel:` links:
+
+```svelte
+<!-- Display.svelte -->
+<a href="tel:{phoneNumber}" class="phone-link">
+	{formatPhoneNumber(phoneNumber)}
+</a>
+```
+
+### Benefits
+
+1. **Click to call**: Users can call directly
+2. **Mobile integration**: Works with phone apps
+3. **Accessibility**: Screen readers announce as telephone
+4. **Semantic HTML**: Proper use of `tel:` protocol
+
+## Comparison with Input Widget
+
+| Feature             | PhoneNumber Widget  | Input Widget      |
+| ------------------- | ------------------- | ----------------- |
+| **Data Type**       | string              | string            |
+| **Translatable**    | ❌ false (fixed)    | ✅ true (default) |
+| **HTML Type**       | tel                 | text              |
+| **Validation**      | Phone pattern       | Length only       |
+| **Mobile Keyboard** | Telephone keypad    | Standard          |
+| **Display**         | Clickable tel: link | Plain text        |
+| **Auto-complete**   | tel                 | off               |
+| **Use Case**        | Phone numbers       | General text      |
+
+## Why Not Number Widget?
+
+Phone numbers should **never** use the Number widget because:
+
+| Issue               | Phone Number       | Number Widget        |
+| ------------------- | ------------------ | -------------------- |
+| **Leading zeros**   | +01234 preserved   | 1234 (loses zero)    |
+| **Size limit**      | Unlimited digits   | MAX_SAFE_INTEGER     |
+| **Special chars**   | +, -, (, ) allowed | Only digits          |
+| **Math operations** | Not applicable     | Sum, average, etc.   |
+| **Display format**  | Custom formatting  | Locale number format |
+
+## Migration Guide
+
+If you were using the Input widget with `inputType: 'phone'`, migrate to the PhoneNumber widget:
+
+### Before (Deprecated)
+
+```typescript
+// ❌ Old approach
+widgets.Input({
+	inputType: 'phone',
+	label: 'Phone',
+	db_fieldName: 'phone',
+	pattern: '^\\+[1-9]\\d{1,14}$',
+	translated: false // Had to remember this!
+});
+```
+
+### After (Recommended)
+
+```typescript
+// ✅ New approach
+widgets.PhoneNumber({
+	label: 'Phone',
+	db_fieldName: 'phone'
+	// E.164 validation and translated: false are automatic
+	// pattern is optional for custom formats
+});
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Phone number shows as translated**
+
+- This should not happen - PhoneNumber widget forces `translated: false`
+- Check you're using `widgets.PhoneNumber()` not `widgets.Input()`
+
+**Validation failing for valid numbers**
+
+- Check the pattern matches E.164 format (+1234567890)
+- Verify custom pattern regex is correct
+- Test pattern at regex101.com
+- Check for typos in phone number (O vs 0, l vs 1)
+
+**Mobile keyboard not showing**
+
+- Verify you're using the PhoneNumber widget
+- Check browser supports `type="tel"`
+- Test on actual device (simulators may differ)
+
+**Tel links not working**
+
+- Ensure Display component is being used
+- Check phone number format is valid
+- Verify device has calling capability
+- Test with different phone apps
+
+**Auto-complete not working**
+
+- Ensure `autocomplete="tel"` is set (automatic)
+- Check browser settings allow auto-complete
+- Verify browser has saved phone numbers
+
+## International Considerations
+
+### Country-Specific Formats
+
+Different countries have different phone formats:
+
+```typescript
+// US: +1 (XXX) XXX-XXXX
+pattern: '^\\+1\\s\\(\\d{3}\\)\\s\\d{3}-\\d{4}$';
+
+// UK: +44 XXXX XXXXXX
+pattern: '^\\+44\\s\\d{4}\\s\\d{6}$';
+
+// Germany: +49 XXX XXXXXXX
+pattern: '^\\+49\\s\\d{3}\\s\\d{7}$';
+
+// France: +33 X XX XX XX XX
+pattern: '^\\+33\\s\\d\\s\\d{2}\\s\\d{2}\\s\\d{2}\\s\\d{2}$';
+```
+
+### Recommendations
+
+1. **Start with E.164**: Most universal format
+2. **Add formatting**: Format for display, not storage
+3. **Country selector**: Consider adding country code selector
+4. **Multiple fields**: Separate country code, area code, number
+5. **Libraries**: Consider using `libphonenumber-js` for complex validation
+
+## Related Widgets
+
+- [Input Widget](/src/widgets/core/Input/input.mdx) - For general text input
+- [Email Widget](/src/widgets/custom/Email/email.mdx) - For email addresses
+- [Number Widget](/src/widgets/custom/Number/number.mdx) - For numeric values (NOT for phone numbers!)
+
+## API Reference
+
+### Widget Configuration
+
+```typescript
+type PhoneNumberProps = {
+	// Required
+	label: string;
+
+	// Optional
+	db_fieldName?: string;
+	required?: boolean;
+	pattern?: string; // Custom regex pattern
+	placeholder?: string;
+	icon?: string;
+	width?: number;
+	helper?: string;
+	readonly?: boolean;
+	disabled?: boolean;
+
+	// Fixed (cannot be changed)
+	translated: false; // Always false for phone numbers
+};
+```
+
+### Component Props
+
+```typescript
+interface PhoneNumberInputProps {
+	field: FieldType;
+	value?: any; // Bindable
+}
+```
+
+## Support
+
+For questions, bug reports, or feature requests:
+
+- [GitHub Issues](https://github.com/Svelte-CMS/SveltyCMS/issues)
+- [Documentation](https://docs.sveltycms.dev)
+- [Discord Community](https://discord.gg/sveltycms)
+
+## Contributing
+
+Contributions are welcome! Please read our [Contributing Guide](https://github.com/Svelte-CMS/SveltyCMS/blob/main/CONTRIBUTING.md) before submitting PRs.

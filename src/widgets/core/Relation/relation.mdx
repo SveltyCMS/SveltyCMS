@@ -1,0 +1,611 @@
+---
+path: '/widgets/core/relation'
+title: 'Relation Widget'
+description: 'One-to-one relationship selector for linking entries between collections with modal-based UX'
+order: 103
+icon: 'mdi:relation-one-to-one'
+author: 'admin'
+created: '2025-01-15'
+updated: '2025-01-15'
+tags:
+  - widget
+  - core
+  - relation
+  - reference
+  - foreign-key
+  - linking
+  - database
+---
+
+# Relation Widget
+
+<blockquote>
+	**One-to-one relationship widget** that stores foreign key references to link entries between different collections with an intuitive modal-based
+	selection UI.
+</blockquote>
+
+## Overview
+
+The **Relation widget** enables you to create relationships between different collections by storing a reference (ID) to another entry. This is equivalent to a foreign key in relational databases, allowing you to build normalized data structures without duplication.
+
+### Key Features
+
+- ✅ **Foreign Key Storage**: Stores only the ID, keeping documents lightweight
+- ✅ **Cross-Collection**: Link to any collection in your CMS
+- ✅ **Modal Selection**: User-friendly picker with search and preview
+- ✅ **Display Field**: Configure which field shows in the UI
+- ✅ **Advanced Aggregation**: MongoDB $lookup for filtering and sorting
+- ✅ **Non-Translatable**: References are universal across languages
+- ✅ **Validation**: Ensures selected entry exists
+- ✅ **Lazy Loading**: Efficient data fetching
+
+---
+
+## When to Use Relation Widget
+
+### ✅ Use Relation When:
+
+- **Author References**: Link posts to author profiles
+- **Category Assignment**: Assign products to categories
+- **Parent Relations**: Link child items to parent items
+- **User References**: Connect content to user accounts
+- **Organization Links**: Associate records with companies/departments
+- **Location References**: Link events to venues
+- **Product Variants**: Connect variant to main product
+- **Cross-References**: Link related articles, similar products
+
+### ❌ Don't Use Relation When:
+
+- **Multiple Relations**: Use `Relations` (plural) widget for one-to-many
+- **Many-to-Many**: Use junction collection with two Relation fields
+- **Simple Options**: Use `Select` or `Radio` for predefined choices
+- **Embedded Data**: Use `Group` widget for nested object data
+- **File References**: Use `Media` widget for images/documents
+
+---
+
+## Basic Usage
+
+### Post Author Relationship
+
+```typescript
+import Relation from '@src/widgets/core/Relation';
+
+export const postsCollection = {
+	name: 'Posts',
+	fields: [
+		Relation({
+			label: 'Author',
+			db_fieldName: 'authorId',
+			collection: 'users',
+			displayField: 'name',
+			required: true,
+			helper: 'Select the post author'
+		})
+	]
+};
+```
+
+### Product Category
+
+```typescript
+import Relation from '@src/widgets/core/Relation';
+
+export const productsCollection = {
+	name: 'Products',
+	fields: [
+		Relation({
+			label: 'Category',
+			db_fieldName: 'categoryId',
+			collection: 'categories',
+			displayField: 'name',
+			required: true
+		})
+	]
+};
+```
+
+### Event Venue
+
+```typescript
+import Relation from '@src/widgets/core/Relation';
+
+export const eventsCollection = {
+	name: 'Events',
+	fields: [
+		Relation({
+			label: 'Venue',
+			db_fieldName: 'venueId',
+			collection: 'venues',
+			displayField: 'name',
+			required: false,
+			helper: 'Optional venue for in-person events'
+		})
+	]
+};
+```
+
+---
+
+## Configuration Properties
+
+| Property       | Type      | Required  | Default     | Description                                    |
+| -------------- | --------- | --------- | ----------- | ---------------------------------------------- |
+| `label`        | `string`  | ✅ Yes    | -           | Display label for the field                    |
+| `db_fieldName` | `string`  | ✅ Yes    | -           | Database field name (stores ID)                |
+| `collection`   | `string`  | ✅ Yes    | -           | Name of target collection                      |
+| `displayField` | `string`  | ✅ Yes    | -           | Field to display in UI (e.g., 'name', 'title') |
+| `required`     | `boolean` | ❌ No     | `false`     | Whether relation is mandatory                  |
+| `helper`       | `string`  | ❌ No     | `undefined` | Helper text                                    |
+| `icon`         | `string`  | ❌ No     | `undefined` | Iconify icon name                              |
+| `permissions`  | `object`  | ❌ No     | `undefined` | Role-based permissions                         |
+| `translated`   | `boolean` | 🔒 Locked | `false`     | Always false (IDs are universal)               |
+
+---
+
+## Data Structure
+
+### Storage Format
+
+Relation stores only the ID as a string:
+
+```typescript
+// MongoDB Document
+{
+  "_id": "post_123",
+  "title": "My Blog Post",
+  "authorId": "user_456",        // ✅ String ID reference
+  "categoryId": "cat_789",       // ✅ String ID reference
+  "content": "Post content...",
+  "createdAt": ISODate("2025-01-15T10:00:00Z")
+}
+
+// Author document (in 'users' collection)
+{
+  "_id": "user_456",
+  "name": "John Doe",
+  "email": "john@example.com"
+}
+
+// Category document (in 'categories' collection)
+{
+  "_id": "cat_789",
+  "name": "Technology",
+  "slug": "technology"
+}
+```
+
+### Why Store IDs?
+
+**✅ Benefits of Foreign Key Pattern**:
+
+- **Data Normalization**: No duplication of author/category data
+- **Updates Propagate**: Change author name once, reflects everywhere
+- **Smaller Documents**: Post documents stay lightweight
+- **Flexible Queries**: Can filter/sort by related data
+- **Referential Integrity**: Validate relationships exist
+- **Memory Efficient**: Load related data only when needed
+
+**❌ Problems with Embedded Data**:
+
+```typescript
+// ❌ Bad: Embedding full author object
+{
+  "title": "Post",
+  "author": {
+    "_id": "user_456",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "bio": "Long bio...",
+    "avatar": "..."
+  }
+}
+// Issues:
+// - Duplication (same author in many posts)
+// - Stale data (if author updates name)
+// - Large documents
+// - Redundant data transfer
+```
+
+---
+
+## Database Operations
+
+### Populating Relations
+
+```typescript
+// Fetch post with populated author
+const post = await db.posts.findOne({ _id: 'post_123' });
+const author = await db.users.findOne({ _id: post.authorId });
+
+console.log(`${post.title} by ${author.name}`);
+```
+
+### MongoDB $lookup (Join)
+
+```typescript
+// Aggregate with $lookup to join collections
+db.posts.aggregate([
+	{
+		$lookup: {
+			from: 'users',
+			localField: 'authorId',
+			foreignField: '_id',
+			as: 'author'
+		}
+	},
+	{
+		$unwind: '$author' // Convert array to object
+	},
+	{
+		$project: {
+			title: 1,
+			authorName: '$author.name',
+			authorEmail: '$author.email'
+		}
+	}
+]);
+
+// Result:
+// [
+//   {
+//     "_id": "post_123",
+//     "title": "My Post",
+//     "authorName": "John Doe",
+//     "authorEmail": "john@example.com"
+//   }
+// ]
+```
+
+### Filtering by Related Data
+
+```typescript
+// Find all posts by specific author
+db.posts.find({ authorId: 'user_456' });
+
+// Find posts in specific category
+db.posts.find({ categoryId: 'cat_789' });
+
+// Find posts where author name contains "John"
+db.posts.aggregate([
+	{
+		$lookup: {
+			from: 'users',
+			localField: 'authorId',
+			foreignField: '_id',
+			as: 'author'
+		}
+	},
+	{
+		$match: {
+			'author.name': { $regex: 'John', $options: 'i' }
+		}
+	}
+]);
+```
+
+---
+
+## Advanced Examples
+
+### Multiple Relations
+
+```typescript
+import Relation from '@src/widgets/core/Relation';
+
+export const productsCollection = {
+	name: 'Products',
+	fields: [
+		Relation({
+			label: 'Category',
+			db_fieldName: 'categoryId',
+			collection: 'categories',
+			displayField: 'name',
+			required: true
+		}),
+
+		Relation({
+			label: 'Brand',
+			db_fieldName: 'brandId',
+			collection: 'brands',
+			displayField: 'name',
+			required: true
+		}),
+
+		Relation({
+			label: 'Supplier',
+			db_fieldName: 'supplierId',
+			collection: 'suppliers',
+			displayField: 'companyName',
+			required: false
+		})
+	]
+};
+```
+
+### Hierarchical Relations (Parent/Child)
+
+```typescript
+import Relation from '@src/widgets/core/Relation';
+
+export const categoriesCollection = {
+	name: 'Categories',
+	fields: [
+		Input({
+			label: 'Name',
+			db_fieldName: 'name',
+			required: true
+		}),
+
+		Relation({
+			label: 'Parent Category',
+			db_fieldName: 'parentId',
+			collection: 'categories', // Self-reference!
+			displayField: 'name',
+			required: false,
+			helper: 'Leave empty for top-level category'
+		})
+	]
+};
+
+// Example data:
+// { _id: "cat_1", name: "Electronics", parentId: null }
+// { _id: "cat_2", name: "Computers", parentId: "cat_1" }
+// { _id: "cat_3", name: "Laptops", parentId: "cat_2" }
+```
+
+### Conditional Relations
+
+```typescript
+import Relation from '@src/widgets/core/Relation';
+import Select from '@src/widgets/core/select';
+
+export const eventsCollection = {
+	name: 'Events',
+	fields: [
+		Select({
+			label: 'Event Type',
+			db_fieldName: 'eventType',
+			options: [
+				{ label: 'In-Person', value: 'in-person' },
+				{ label: 'Virtual', value: 'virtual' },
+				{ label: 'Hybrid', value: 'hybrid' }
+			],
+			required: true
+		}),
+
+		Relation({
+			label: 'Venue',
+			db_fieldName: 'venueId',
+			collection: 'venues',
+			displayField: 'name',
+			required: false,
+			showIf: (data) => data.eventType === 'in-person' || data.eventType === 'hybrid'
+		}),
+
+		Relation({
+			label: 'Virtual Platform',
+			db_fieldName: 'platformId',
+			collection: 'platforms',
+			displayField: 'name',
+			required: false,
+			showIf: (data) => data.eventType === 'virtual' || data.eventType === 'hybrid'
+		})
+	]
+};
+```
+
+---
+
+## Relationship Patterns
+
+### One-to-One
+
+```typescript
+// User has one profile
+export const usersCollection = {
+	fields: [
+		Relation({
+			label: 'Profile',
+			db_fieldName: 'profileId',
+			collection: 'profiles',
+			displayField: 'displayName'
+		})
+	]
+};
+```
+
+### One-to-Many
+
+Use Relations (plural) widget or query from the "many" side:
+
+```typescript
+// One author has many posts
+// Store authorId in posts collection
+export const postsCollection = {
+	fields: [
+		Relation({
+			label: 'Author',
+			db_fieldName: 'authorId',
+			collection: 'users',
+			displayField: 'name'
+		})
+	]
+};
+
+// Query all posts by an author
+db.posts.find({ authorId: 'user_123' });
+```
+
+### Many-to-Many
+
+Use a junction collection:
+
+```typescript
+// Products have many tags, tags have many products
+export const productTagsCollection = {
+	name: 'ProductTags',
+	fields: [
+		Relation({
+			label: 'Product',
+			db_fieldName: 'productId',
+			collection: 'products',
+			displayField: 'name'
+		}),
+		Relation({
+			label: 'Tag',
+			db_fieldName: 'tagId',
+			collection: 'tags',
+			displayField: 'name'
+		})
+	]
+};
+
+// Find all tags for a product
+db.productTags.find({ productId: 'prod_123' });
+
+// Find all products with a tag
+db.productTags.find({ tagId: 'tag_456' });
+```
+
+---
+
+## Performance Considerations
+
+### Indexing
+
+```typescript
+// Create index on foreign key field
+db.posts.createIndex({ authorId: 1 });
+db.posts.createIndex({ categoryId: 1 });
+
+// Compound index for common queries
+db.posts.createIndex({ authorId: 1, status: 1 });
+```
+
+### Populate vs Join
+
+```typescript
+// ❌ Slow: Multiple queries (N+1 problem)
+const posts = await db.posts.find();
+for (const post of posts) {
+	post.author = await db.users.findOne({ _id: post.authorId });
+}
+
+// ✅ Fast: Single aggregation with $lookup
+const posts = await db.posts.aggregate([
+	{
+		$lookup: {
+			from: 'users',
+			localField: 'authorId',
+			foreignField: '_id',
+			as: 'author'
+		}
+	},
+	{ $unwind: '$author' }
+]);
+```
+
+---
+
+## Validation
+
+```typescript
+// Relation widget validates:
+// 1. Value is a non-empty string (if required)
+// 2. Referenced document exists (optional server-side check)
+
+Relation({
+	label: 'Author',
+	db_fieldName: 'authorId',
+	collection: 'users',
+	displayField: 'name',
+	required: true
+});
+
+// Error messages:
+// - Empty required: "An entry must be selected"
+// - Invalid ID format: "Invalid reference ID"
+// - Referenced entry not found: "Referenced entry does not exist"
+```
+
+---
+
+## Best Practices
+
+### ✅ Do's
+
+1. **Use Descriptive Field Names**
+
+   ```typescript
+   db_fieldName: 'authorId'; // ✅ Clear intent
+   db_fieldName: 'categoryId'; // ✅ Clear intent
+   ```
+
+2. **Index Foreign Keys**
+
+   ```typescript
+   db.posts.createIndex({ authorId: 1 });
+   ```
+
+3. **Choose Appropriate Display Field**
+   ```typescript
+   displayField: 'name'; // For users, categories
+   displayField: 'title'; // For posts, pages
+   displayField: 'email'; // For user references
+   ```
+
+### ❌ Don'ts
+
+1. **Don't Embed Large Objects**
+
+   ```typescript
+   // ❌ Wrong: Storing full object
+   author: { _id: "...", name: "...", email: "...", ...}
+
+   // ✅ Correct: Storing ID
+   authorId: "user_123"
+   ```
+
+2. **Don't Create Circular References**
+   ```typescript
+   // ❌ Problematic: A → B → A
+   // Can cause infinite loops in queries
+   ```
+
+---
+
+## API Reference
+
+```typescript
+function Relation(props: RelationProps): FieldInstance;
+
+interface RelationProps {
+	label: string;
+	db_fieldName: string;
+	collection: string;
+	displayField: string;
+	required?: boolean;
+	helper?: string;
+	icon?: string;
+	permissions?: object;
+}
+
+type RelationValue = string | null | undefined;
+// Valid: "user_123", "cat_456"
+// Invalid: null (if required), undefined (if required)
+```
+
+---
+
+## Related Widgets
+
+- **[Relations Widget](/widgets/core/relations)** - For one-to-many relationships
+- **[Select Widget](/widgets/core/select)** - For predefined option lists
+- **[Media Widget](/widgets/core/media)** - For file/image references
+
+---
+
+## License
+
+The Relation widget is part of SveltyCMS and is licensed under the MIT License.
