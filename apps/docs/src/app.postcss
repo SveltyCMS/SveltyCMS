@@ -1,0 +1,39 @@
+/* Tailwind directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@tailwind variants;
+
+html,
+body {
+	@apply h-full overflow-hidden;
+}
+
+/* Prose styles for documentation */
+.prose {
+	@apply max-w-none;
+}
+
+.prose h1 {
+	@apply mb-4 mt-8 text-4xl font-bold;
+}
+
+.prose h2 {
+	@apply mb-3 mt-6 text-3xl font-bold;
+}
+
+.prose h3 {
+	@apply mb-2 mt-5 text-2xl font-bold;
+}
+
+.prose code {
+	@apply rounded bg-surface-700 px-1.5 py-0.5 text-sm;
+}
+
+.prose pre {
+	@apply overflow-x-auto rounded-lg bg-surface-800 p-4;
+}
+
+.prose a {
+	@apply text-primary-500 underline hover:text-primary-400;
+}

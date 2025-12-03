@@ -1,0 +1,78 @@
+{
+	"name": "cms",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "apps/cms/src",
+	"projectType": "application",
+	"targets": {
+		"dev": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "vite dev",
+				"cwd": "apps/cms"
+			}
+		},
+		"build": {
+			"executor": "nx:run-commands",
+			"outputs": [
+				"{projectRoot}/build"
+			],
+			"options": {
+				"command": "vite build",
+				"cwd": "apps/cms"
+			}
+		},
+		"preview": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "vite preview",
+				"cwd": "apps/cms"
+			}
+		},
+		"check": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+				"cwd": "apps/cms"
+			}
+		},
+		"check:watch": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+				"cwd": "apps/cms"
+			}
+		},
+		"lint": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "eslint .",
+				"cwd": "apps/cms"
+			}
+		},
+		"format": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "prettier --write .",
+				"cwd": "apps/cms"
+			}
+		},
+		"paraglide": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "paraglide-js compile --project ./project.inlang",
+				"cwd": "apps/cms"
+			}
+		},
+		"translate": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "bun x @inlang/cli machine translate --project ./project.inlang",
+				"cwd": "apps/cms"
+			}
+		}
+	},
+	"tags": [
+		"type:app",
+		"scope:cms"
+	]
+}

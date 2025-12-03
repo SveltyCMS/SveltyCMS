@@ -1,0 +1,10 @@
+{
+	"name": "@sveltycms/scripts",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"description": "Utility scripts for SveltyCMS development",
+	"scripts": {
+		"bundle-stats": "node bundle-stats.js"
+	}
+}

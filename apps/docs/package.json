@@ -1,0 +1,43 @@
+{
+	"name": "@sveltycms/docs",
+	"version": "1.0.0",
+	"private": true,
+	"type": "module",
+	"description": "SveltyCMS Documentation",
+	"scripts": {
+		"dev": "NODE_NO_WARNINGS=1 vite dev --port 5174",
+		"build": "vite build",
+		"preview": "vite preview",
+		"lint": "bunx markdownlint-cli2 '**/*.{md,mdx}' --ignore 'node_modules/**'",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+	},
+	"dependencies": {
+		"@inlang/paraglide-sveltekit": "^0.11.0",
+		"@skeletonlabs/skeleton": "^2.10.2",
+		"@skeletonlabs/tw-plugin": "^0.4.0",
+		"@tailwindcss/forms": "^0.5.7",
+		"@tailwindcss/typography": "^0.5.13",
+		"highlight.js": "^11.9.0",
+		"iconify-icon": "^2.1.0",
+		"markdown-it": "^14.1.0",
+		"gray-matter": "^4.0.3",
+		"mdsvex": "^0.11.2"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-node": "^5.2.9",
+		"@sveltejs/kit": "^2.9.2",
+		"@sveltejs/vite-plugin-svelte": "^5.0.2",
+		"@types/markdown-it": "^14.1.1",
+		"autoprefixer": "^10.4.19",
+		"markdownlint-cli2": "^0.13.0",
+		"postcss": "^8.4.38",
+		"svelte": "^5.2.9",
+		"svelte-check": "^4.0.9",
+		"tailwindcss": "^3.4.4",
+		"tslib": "^2.6.3",
+		"typescript": "^5.6.3",
+		"vite": "^6.0.5",
+		"vite-plugin-tailwind-purgecss": "^0.3.3"
+	}
+}

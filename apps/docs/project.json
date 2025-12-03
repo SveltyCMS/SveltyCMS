@@ -1,0 +1,59 @@
+{
+	"name": "docs",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "apps/docs/src",
+	"projectType": "application",
+	"targets": {
+		"dev": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "vite dev --port 5174",
+				"cwd": "apps/docs",
+				"color": true
+			}
+		},
+		"build": {
+			"executor": "nx:run-commands",
+			"outputs": ["{projectRoot}/build"],
+			"options": {
+				"command": "vite build",
+				"cwd": "apps/docs",
+				"color": true
+			}
+		},
+		"preview": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "vite preview",
+				"cwd": "apps/docs",
+				"color": true
+			},
+			"dependsOn": ["build"]
+		},
+		"check": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+				"cwd": "apps/docs",
+				"color": true
+			}
+		},
+		"check:watch": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+				"cwd": "apps/docs",
+				"color": true
+			}
+		},
+		"lint": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "bunx markdownlint-cli2 '**/*.{md,mdx}' --ignore 'node_modules/**'",
+				"cwd": "apps/docs",
+				"color": true
+			}
+		}
+	},
+	"tags": ["type:documentation", "framework:sveltekit"]
+}

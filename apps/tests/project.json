@@ -1,0 +1,31 @@
+{
+	"name": "tests",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "apps/tests",
+	"projectType": "library",
+	"targets": {
+		"test:bun": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "bun test apps/tests/bun",
+				"color": true
+			}
+		},
+		"test:playwright": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "bun x playwright test apps/tests/playwright",
+				"color": true
+			}
+		},
+		"test:all": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["bun test apps/tests/bun", "bun x playwright test apps/tests/playwright"],
+				"parallel": false,
+				"color": true
+			}
+		}
+	},
+	"tags": ["type:testing", "scope:dev"]
+}

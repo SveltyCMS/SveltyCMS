@@ -1,0 +1,19 @@
+{
+    "name": "shared-config",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "apps/shared-config",
+    "projectType": "library",
+    "targets": {
+        "lint": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "eslint .",
+                "cwd": "apps/shared-config"
+            }
+        }
+    },
+    "tags": [
+        "type:lib",
+        "scope:shared"
+    ]
+}

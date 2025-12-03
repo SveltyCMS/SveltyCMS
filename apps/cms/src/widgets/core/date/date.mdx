@@ -1,0 +1,67 @@
+---
+path: "docs/user-guide/fields/date.mdx"
+title: "Date Field"
+description: "A field for selecting a date, or an exact date and time, from a calendar picker."
+order: 2
+icon: "mdi:calendar"
+author: "admin"
+created: "2025-09-29"
+updated: "2025-09-29"
+tags:
+ * "field"
+ * "date"
+ * "time"
+ * "datetime"
+ * "calendar"
+---
+
+Overview
+The Date field provides a user-friendly calendar interface for selecting a specific date. It can also be configured to include a time picker for situations where the exact time of day is important, such as for an event or a publication schedule.
+All dates are stored in a standardized UTC format to ensure there is no confusion between timezones.
+Usage (for Content Editors)
+When editing content, you will see a field that looks like a standard text input but shows a calendar icon. Clicking on the field or the icon will open your browser's native date picker interface.
+
+- Date-Only Field: A calendar will appear, allowing you to select a year, month, and day.
+- Date & Time Field: After selecting a date, an additional interface will appear allowing you to select the hour and minute.
+  Configuration (for Developers)
+  The DateWidget is highly versatile. Its primary configuration option is the timePicker property, which toggles between a date-only and a date-time input.
+  Example Configuration
+  Here is how you would set up a "Publication Date" (date only) and an "Event Start" (date and time).
+  import { DateWidget } from '@src/widgets';
+
+const EventSchema = {
+// ... other fields
+publish_date: DateWidget({
+label: 'Publication Date',
+required: true,
+helper: 'The date this article will go live.'
+}),
+event_start: DateWidget({
+label: 'Event Start Time',
+timePicker: true, // This enables the time input
+required: true,
+helper: 'The exact date and time the event begins.'
+})
+};
+
+All Configuration Properties
+| Property | Type | Default | Purpose |
+|---|---|---|---|
+| label | string | - | Required. The display name for the field in the CMS. |
+| required | boolean | false | If true, the field cannot be empty. |
+| timePicker | boolean | false | If true, adds a time selection input to the date picker. |
+| helper | string | - | Help text displayed below the field to guide the user. |
+| minDate | string | - | The earliest date that can be selected. Use YYYY-MM-DD format (e.g., '2025-01-01'). |
+| maxDate | string | - | The latest date that can be selected. Use YYYY-MM-DD format. |
+| displayFormat | 'short', 'medium', 'long', 'full' | 'medium' | Controls how the date is formatted in list views. |
+Data Structure
+All dates and times are saved as a standardized UTC ISO 8601 string. This ensures that the data is unambiguous and can be easily parsed and formatted on any front end.
+If timePicker: false: The date is stored at midnight UTC.
+{
+"publish_date": "2025-10-26T00:00:00.000Z"
+}
+
+If timePicker: true: The date and selected time are stored in UTC.
+{
+"event_start": "2025-11-15T18:30:00.000Z"
+}

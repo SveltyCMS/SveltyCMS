@@ -1,0 +1,421 @@
+/**
+ * @file apps/setup-wizard/src/sveltycms.css
+ * @description SveltyCMS Enterprise Theme (Tailwind v4 + Skeleton v4)
+ * 
+ * Strategy: Blue primary (enterprise trust) + Green brand accent
+ * Colors: OKLCH format (modern, perceptually uniform)
+ * Optimized for: Dark mode, long admin sessions, professional UI
+ * Usage: Add data-theme="sveltycms" to <html> tag
+ */
+
+[data-theme='sveltycms'] {
+	/* =~= Theme Properties =~= */
+	--text-scaling: 1;
+
+	/* Base Typography */
+	--base-font-color: var(--color-surface-950);
+	--base-font-color-dark: var(--color-surface-50);
+	--base-font-family: system-ui, sans-serif;
+	--base-font-size: inherit;
+	--base-line-height: inherit;
+	--base-font-weight: normal;
+	--base-font-style: normal;
+	--base-letter-spacing: 0em;
+
+	/* Headings */
+	--heading-font-color: inherit;
+	--heading-font-color-dark: inherit;
+	--heading-font-family: inherit;
+	--heading-font-weight: bold;
+	--heading-font-style: normal;
+	--heading-letter-spacing: inherit;
+
+	/* Anchors/Links */
+	--anchor-font-color: var(--color-primary-500);
+	--anchor-font-color-dark: var(--color-primary-500);
+	--anchor-font-family: inherit;
+	--anchor-font-size: inherit;
+	--anchor-line-height: inherit;
+	--anchor-font-weight: inherit;
+	--anchor-font-style: inherit;
+	--anchor-letter-spacing: inherit;
+	--anchor-text-decoration: none;
+	--anchor-text-decoration-hover: underline;
+	--anchor-text-decoration-active: none;
+	--anchor-text-decoration-focus: none;
+
+	/* Container & Spacing */
+	--spacing: 0.22rem;
+	--radius-base: 0.2rem;
+	--radius-container: 0.2rem;
+	--default-border-width: 1px;
+	--default-divide-width: 1px;
+	--default-ring-width: 1px;
+	--body-background-color: 255 255 255;
+	--body-background-color-dark: 0 0 0;
+
+	/* =~= Theme Colors (OKLCH) =~= */
+
+	/* Primary | #0078f0 (Enterprise Blue - Trust & Professionalism) */
+	--color-primary-50: oklch(92.74% 0.06 216.34deg);
+	--color-primary-100: oklch(85.39% 0.08 232.5deg);
+	--color-primary-200: oklch(78.19% 0.11 241.06deg);
+	--color-primary-300: oklch(71.05% 0.14 247.2deg);
+	--color-primary-400: oklch(64.57% 0.17 251.64deg);
+	--color-primary-500: oklch(58.74% 0.2 256.12deg);
+	--color-primary-600: oklch(52.83% 0.19 257.61deg);
+	--color-primary-700: oklch(46.79% 0.18 259.2deg);
+	--color-primary-800: oklch(40.53% 0.18 261.13deg);
+	--color-primary-900: oklch(34.3% 0.17 262.64deg);
+	--color-primary-950: oklch(28.06% 0.16 263.8deg);
+	--color-primary-contrast-dark: var(--color-primary-950);
+	--color-primary-contrast-light: var(--color-primary-50);
+	--color-primary-contrast-50: var(--color-primary-contrast-dark);
+	--color-primary-contrast-100: var(--color-primary-contrast-dark);
+	--color-primary-contrast-200: var(--color-primary-contrast-dark);
+	--color-primary-contrast-300: var(--color-primary-contrast-dark);
+	--color-primary-contrast-400: var(--color-primary-contrast-dark);
+	--color-primary-contrast-500: var(--color-primary-contrast-dark);
+	--color-primary-contrast-600: var(--color-primary-contrast-dark);
+	--color-primary-contrast-700: var(--color-primary-contrast-dark);
+	--color-primary-contrast-800: var(--color-primary-contrast-light);
+	--color-primary-contrast-900: var(--color-primary-contrast-light);
+	--color-primary-contrast-950: var(--color-primary-contrast-light);
+
+	/* Secondary | #757575 (Neutral Gray) */
+	--color-secondary-50: oklch(94.91% 0 none);
+	--color-secondary-100: oklch(87.61% 0 none);
+	--color-secondary-200: oklch(80.15% 0 none);
+	--color-secondary-300: oklch(72.19% 0 none);
+	--color-secondary-400: oklch(64.34% 0 none);
+	--color-secondary-500: oklch(56.24% 0 none);
+	--color-secondary-600: oklch(49.26% 0 none);
+	--color-secondary-700: oklch(41.65% 0 none);
+	--color-secondary-800: oklch(34.07% 0 none);
+	--color-secondary-900: oklch(25.62% 0 none);
+	--color-secondary-950: oklch(16.84% 0 none);
+	--color-secondary-contrast-dark: var(--color-secondary-950);
+	--color-secondary-contrast-light: var(--color-secondary-50);
+	--color-secondary-contrast-50: var(--color-secondary-contrast-dark);
+	--color-secondary-contrast-100: var(--color-secondary-contrast-dark);
+	--color-secondary-contrast-200: var(--color-secondary-contrast-dark);
+	--color-secondary-contrast-300: var(--color-secondary-contrast-dark);
+	--color-secondary-contrast-400: var(--color-secondary-contrast-dark);
+	--color-secondary-contrast-500: var(--color-secondary-contrast-light);
+	--color-secondary-contrast-600: var(--color-secondary-contrast-light);
+	--color-secondary-contrast-700: var(--color-secondary-contrast-light);
+	--color-secondary-contrast-800: var(--color-secondary-contrast-light);
+	--color-secondary-contrast-900: var(--color-secondary-contrast-light);
+	--color-secondary-contrast-950: var(--color-secondary-contrast-light);
+
+	/* Tertiary | #5fd317 (SveltyCMS Brand Green - Accent & CTA) */
+	--color-tertiary-50: oklch(92.93% 0.21 123.01deg);
+	--color-tertiary-100: oklch(91.21% 0.18 126.57deg);
+	--color-tertiary-200: oklch(87.85% 0.17 129.95deg);
+	--color-tertiary-300: oklch(84.14% 0.2 132.96deg);
+	--color-tertiary-400: oklch(80.36% 0.22 135.49deg);
+	--color-tertiary-500: oklch(76.87% 0.23 137.58deg);
+	--color-tertiary-600: oklch(69.97% 0.21 138.5deg);
+	--color-tertiary-700: oklch(62.66% 0.19 139.5deg);
+	--color-tertiary-800: oklch(55.46% 0.18 140.59deg);
+	--color-tertiary-900: oklch(47.8% 0.16 141.65deg);
+	--color-tertiary-950: oklch(40.2% 0.14 142.5deg);
+	--color-tertiary-contrast-dark: var(--color-tertiary-950);
+	--color-tertiary-contrast-light: var(--color-tertiary-50);
+	--color-tertiary-contrast-50: var(--color-tertiary-contrast-dark);
+	--color-tertiary-contrast-100: var(--color-tertiary-contrast-dark);
+	--color-tertiary-contrast-200: var(--color-tertiary-contrast-dark);
+	--color-tertiary-contrast-300: var(--color-tertiary-contrast-dark);
+	--color-tertiary-contrast-400: var(--color-tertiary-contrast-dark);
+	--color-tertiary-contrast-500: var(--color-tertiary-contrast-light);
+	--color-tertiary-contrast-600: var(--color-tertiary-contrast-light);
+	--color-tertiary-contrast-700: var(--color-tertiary-contrast-light);
+	--color-tertiary-contrast-800: var(--color-tertiary-contrast-light);
+	--color-tertiary-contrast-900: var(--color-tertiary-contrast-light);
+	--color-tertiary-contrast-950: var(--color-tertiary-contrast-light);
+
+	/* Success | #10b981 (Modern Green - Emerald) */
+	--color-success-50: oklch(94.71% 0.09 165.26deg);
+	--color-success-100: oklch(90.29% 0.12 165.72deg);
+	--color-success-200: oklch(84.07% 0.14 162.48deg);
+	--color-success-300: oklch(76.22% 0.15 159.62deg);
+	--color-success-400: oklch(67.38% 0.14 161.34deg);
+	--color-success-500: oklch(59.85% 0.12 164.15deg);
+	--color-success-600: oklch(52.06% 0.11 166.22deg);
+	--color-success-700: oklch(45.09% 0.09 167.09deg);
+	--color-success-800: oklch(38.54% 0.07 168.16deg);
+	--color-success-900: oklch(32.93% 0.06 168.88deg);
+	--color-success-950: oklch(26.01% 0.04 169.18deg);
+	--color-success-contrast-dark: var(--color-success-950);
+	--color-success-contrast-light: var(--color-success-50);
+	--color-success-contrast-50: var(--color-success-contrast-dark);
+	--color-success-contrast-100: var(--color-success-contrast-dark);
+	--color-success-contrast-200: var(--color-success-contrast-dark);
+	--color-success-contrast-300: var(--color-success-contrast-dark);
+	--color-success-contrast-400: var(--color-success-contrast-dark);
+	--color-success-contrast-500: var(--color-success-contrast-light);
+	--color-success-contrast-600: var(--color-success-contrast-light);
+	--color-success-contrast-700: var(--color-success-contrast-light);
+	--color-success-contrast-800: var(--color-success-contrast-light);
+	--color-success-contrast-900: var(--color-success-contrast-light);
+	--color-success-contrast-950: var(--color-success-contrast-light);
+
+	/* Warning | #f59e0b (Amber - Modern, Less Harsh) */
+	--color-warning-50: oklch(97.13% 0.07 89.25deg);
+	--color-warning-100: oklch(94.51% 0.1 89.67deg);
+	--color-warning-200: oklch(89.82% 0.13 87.54deg);
+	--color-warning-300: oklch(84.79% 0.15 82.79deg);
+	--color-warning-400: oklch(79.33% 0.15 72.68deg);
+	--color-warning-500: oklch(74.87% 0.14 60.19deg);
+	--color-warning-600: oklch(66.86% 0.13 51.4deg);
+	--color-warning-700: oklch(57.18% 0.12 44.67deg);
+	--color-warning-800: oklch(49.45% 0.1 41.71deg);
+	--color-warning-900: oklch(43.26% 0.09 40.07deg);
+	--color-warning-950: oklch(33.93% 0.06 38.04deg);
+	--color-warning-contrast-dark: var(--color-warning-950);
+	--color-warning-contrast-light: var(--color-warning-50);
+	--color-warning-contrast-50: var(--color-warning-contrast-dark);
+	--color-warning-contrast-100: var(--color-warning-contrast-dark);
+	--color-warning-contrast-200: var(--color-warning-contrast-dark);
+	--color-warning-contrast-300: var(--color-warning-contrast-dark);
+	--color-warning-contrast-400: var(--color-warning-contrast-dark);
+	--color-warning-contrast-500: var(--color-warning-contrast-dark);
+	--color-warning-contrast-600: var(--color-warning-contrast-dark);
+	--color-warning-contrast-700: var(--color-warning-contrast-light);
+	--color-warning-contrast-800: var(--color-warning-contrast-light);
+	--color-warning-contrast-900: var(--color-warning-contrast-light);
+	--color-warning-contrast-950: var(--color-warning-contrast-light);
+
+	/* Error | #eb0000 (Red) */
+	--color-error-50: oklch(80.71% 0.12 49.3deg);
+	--color-error-100: oklch(74.25% 0.15 38.64deg);
+	--color-error-200: oklch(68.68% 0.19 33.06deg);
+	--color-error-300: oklch(64.04% 0.22 30.12deg);
+	--color-error-400: oklch(60.86% 0.23 29.23deg);
+	--color-error-500: oklch(59.04% 0.24 29.23deg);
+	--color-error-600: oklch(53.66% 0.22 29.23deg);
+	--color-error-700: oklch(48.15% 0.2 29.23deg);
+	--color-error-800: oklch(42.68% 0.18 29.23deg);
+	--color-error-900: oklch(36.82% 0.15 29.23deg);
+	--color-error-950: oklch(30.71% 0.13 29.23deg);
+	--color-error-contrast-dark: var(--color-error-950);
+	--color-error-contrast-light: var(--color-error-50);
+	--color-error-contrast-50: var(--color-error-contrast-dark);
+	--color-error-contrast-100: var(--color-error-contrast-dark);
+	--color-error-contrast-200: var(--color-error-contrast-dark);
+	--color-error-contrast-300: var(--color-error-contrast-dark);
+	--color-error-contrast-400: var(--color-error-contrast-light);
+	--color-error-contrast-500: var(--color-error-contrast-light);
+	--color-error-contrast-600: var(--color-error-contrast-light);
+	--color-error-contrast-700: var(--color-error-contrast-light);
+	--color-error-contrast-800: var(--color-error-contrast-light);
+	--color-error-contrast-900: var(--color-error-contrast-light);
+	--color-error-contrast-950: var(--color-error-contrast-light);
+
+	/* Surface | #242728 (Dark Background) */
+	--color-surface-50: oklch(65.78% 0 219.34deg);
+	--color-surface-100: oklch(58.75% 0 219.37deg);
+	--color-surface-200: oklch(51.15% 0 219.41deg);
+	--color-surface-300: oklch(43.62% 0 219.45deg);
+	--color-surface-400: oklch(35.37% 0 219.5deg);
+	--color-surface-500: oklch(27.01% 0 219.57deg);
+	--color-surface-600: oklch(25.35% 0 219.59deg);
+	--color-surface-700: oklch(23.72% 0 196.81deg);
+	--color-surface-800: oklch(21.71% 0 247.92deg);
+	--color-surface-900: oklch(20.02% 0 none);
+	--color-surface-950: oklch(18.22% 0 none);
+	--color-surface-contrast-dark: var(--color-surface-950);
+	--color-surface-contrast-light: var(--color-surface-50);
+	--color-surface-contrast-50: var(--color-surface-contrast-dark);
+	--color-surface-contrast-100: var(--color-surface-contrast-dark);
+	--color-surface-contrast-200: var(--color-surface-contrast-dark);
+	--color-surface-contrast-300: var(--color-surface-contrast-light);
+	--color-surface-contrast-400: var(--color-surface-contrast-light);
+	--color-surface-contrast-500: var(--color-surface-contrast-light);
+	--color-surface-contrast-600: var(--color-surface-contrast-light);
+	--color-surface-contrast-700: var(--color-surface-contrast-light);
+	--color-surface-contrast-800: var(--color-surface-contrast-light);
+	--color-surface-contrast-900: var(--color-surface-contrast-light);
+	--color-surface-contrast-950: var(--color-surface-contrast-light);
+}
+
+/**
+ * Theme-specific body styles
+ * Optimized for dark mode (default for enterprise/developers)
+ */
+[data-theme='sveltycms'] body {
+	height: 100%;
+	overflow: hidden;
+	background-color: white;
+}
+
+.dark [data-theme='sveltycms'] body {
+	background-color: #0a0a0a;
+}
+
+/**
+ * Enhanced dark mode backgrounds for enterprise feel
+ */
+[data-theme='sveltycms'] {
+	/* Dark mode surface colors - slightly warmer than pure black */
+	--body-background-color-dark: 10 10 10; /* #0a0a0a */
+	--surface-dark-100: 20 20 22; /* #141416 */
+	--surface-dark-200: 30 30 33; /* #1e1e21 */
+	--surface-dark-300: 40 40 44; /* #28282c */
+}
+
+/**
+ * Gradient Utilities
+ * Tailwind v4 syntax - no @apply, use direct CSS
+ */
+@layer components {
+	/* Primary Gradients */
+	.gradient-primary {
+		background-image: linear-gradient(to bottom right, var(--color-primary-700), var(--color-primary-600), var(--color-primary-500));
+	}
+
+	.dark .gradient-primary {
+		background-image: linear-gradient(to bottom right, var(--color-primary-800), var(--color-primary-600), var(--color-primary-400));
+	}
+
+	.gradient-primary-hover:hover {
+		background-image: linear-gradient(to bottom right, var(--color-primary-700), var(--color-primary-600), var(--color-primary-500));
+	}
+
+	.dark .gradient-primary-hover:hover {
+		background-image: linear-gradient(to bottom right, var(--color-primary-800), var(--color-primary-600), var(--color-primary-400));
+	}
+
+	.gradient-primary-focus:focus {
+		background-image: linear-gradient(to bottom right, var(--color-primary-800), var(--color-primary-600), var(--color-primary-500));
+	}
+
+	.dark .gradient-primary-focus:focus {
+		background-image: linear-gradient(to bottom right, var(--color-primary-700), var(--color-primary-600), var(--color-primary-400));
+	}
+
+	/* Secondary Gradients */
+	.gradient-secondary {
+		background-image: linear-gradient(to bottom right, var(--color-surface-500), var(--color-surface-400), var(--color-surface-300));
+	}
+
+	.dark .gradient-secondary {
+		background-image: linear-gradient(to bottom right, var(--color-surface-600), var(--color-surface-500), var(--color-surface-400));
+	}
+
+	.gradient-secondary-hover:hover {
+		background-image: linear-gradient(to bottom right, var(--color-surface-400), var(--color-surface-400), var(--color-surface-500));
+	}
+
+	.dark .gradient-secondary-hover:hover {
+		background-image: linear-gradient(to bottom right, var(--color-surface-600), var(--color-surface-500), var(--color-surface-400));
+	}
+
+	.gradient-secondary-focus:focus {
+		background-image: linear-gradient(to bottom right, var(--color-surface-500), var(--color-surface-400), var(--color-surface-300));
+	}
+
+	.dark .gradient-secondary-focus:focus {
+		background-image: linear-gradient(to bottom right, var(--color-surface-600), var(--color-surface-500), var(--color-surface-400));
+	}
+
+	/* Error Gradients */
+	.gradient-error {
+		background-image: linear-gradient(to bottom right, var(--color-error-600), var(--color-error-500), var(--color-error-300));
+	}
+
+	.dark .gradient-error {
+		background-image: linear-gradient(to bottom right, var(--color-error-700), var(--color-error-500), var(--color-error-300));
+	}
+
+	.gradient-error-hover:hover {
+		background-image: linear-gradient(to bottom right, var(--color-error-600), var(--color-error-500), var(--color-error-300));
+	}
+
+	.dark .gradient-error-hover:hover {
+		background-image: linear-gradient(to bottom right, var(--color-error-700), var(--color-error-500), var(--color-error-300));
+	}
+
+	.gradient-error-focus:focus {
+		background-image: linear-gradient(to bottom right, var(--color-error-600), var(--color-error-500), var(--color-error-300));
+	}
+
+	.dark .gradient-error-focus:focus {
+		background-image: linear-gradient(to bottom right, var(--color-error-700), var(--color-error-500), var(--color-error-300));
+	}
+
+	/* Tertiary Gradients */
+	.gradient-tertiary {
+		background-image: linear-gradient(to bottom right, var(--color-tertiary-600), var(--color-tertiary-500), var(--color-tertiary-300));
+	}
+
+	.dark .gradient-tertiary {
+		background-image: linear-gradient(to bottom right, var(--color-tertiary-800), var(--color-tertiary-600), var(--color-tertiary-400));
+	}
+
+	.gradient-tertiary-hover:hover {
+		background-image: linear-gradient(to bottom right, var(--color-tertiary-600), var(--color-tertiary-500), var(--color-tertiary-300));
+	}
+
+	.dark .gradient-tertiary-hover:hover {
+		background-image: linear-gradient(to bottom right, var(--color-tertiary-800), var(--color-tertiary-600), var(--color-tertiary-400));
+	}
+
+	.gradient-tertiary-focus:focus {
+		background-image: linear-gradient(to bottom right, var(--color-tertiary-600), var(--color-tertiary-500), var(--color-tertiary-300));
+	}
+
+	.dark .gradient-tertiary-focus:focus {
+		background-image: linear-gradient(to bottom right, var(--color-tertiary-800), var(--color-tertiary-600), var(--color-tertiary-400));
+	}
+
+	/* Yellow Gradients */
+	.gradient-yellow {
+		background-image: linear-gradient(to bottom right, var(--color-warning-600), var(--color-warning-500), var(--color-warning-300));
+	}
+
+	.dark .gradient-yellow {
+		background-image: linear-gradient(to bottom right, var(--color-warning-700), var(--color-warning-600), var(--color-warning-300));
+	}
+
+	.gradient-yellow-hover:hover {
+		background-image: linear-gradient(to bottom right, var(--color-warning-600), var(--color-warning-500), var(--color-warning-300));
+	}
+
+	.dark .gradient-yellow-hover:hover {
+		background-image: linear-gradient(to bottom right, var(--color-warning-700), var(--color-warning-500), var(--color-warning-200));
+	}
+
+	.gradient-yellow-focus:focus {
+		background-image: linear-gradient(to bottom right, var(--color-warning-600), var(--color-warning-500), var(--color-warning-300));
+	}
+
+	.dark .gradient-yellow-focus:focus {
+		background-image: linear-gradient(to bottom right, var(--color-warning-700), var(--color-warning-600), var(--color-warning-300));
+	}
+
+	/* Pink Gradients */
+	.gradient-pink {
+		background-image: linear-gradient(to bottom right, oklch(48.15% 0.2 29.23deg), oklch(42.68% 0.18 29.23deg), oklch(60.86% 0.23 29.23deg));
+	}
+
+	.dark .gradient-pink {
+		background-image: linear-gradient(to bottom right, oklch(48.15% 0.2 29.23deg), oklch(42.68% 0.18 29.23deg), oklch(64.04% 0.22 30.12deg));
+	}
+
+	.gradient-pink-hover:hover {
+		background-image: linear-gradient(to bottom right, oklch(48.15% 0.2 29.23deg), oklch(42.68% 0.18 29.23deg), oklch(60.86% 0.23 29.23deg));
+	}
+
+	.dark .gradient-pink-hover:hover {
+		background-image: linear-gradient(to bottom right, oklch(48.15% 0.2 29.23deg), oklch(42.68% 0.18 29.23deg), oklch(64.04% 0.22 30.12deg));
+	}
+
+	.gradient-pink-focus:focus {
+		background-image: linear-gradient(to bottom right, oklch(48.15% 0.2 29.23deg), oklch(42.68% 0.18 29.23deg), oklch(60.86% 0.23 29.23deg));
+	}
+
+	.dark .gradient-pink-focus:focus {
+		background-image: linear-gradient(to bottom right, oklch(48.15% 0.2 29.23deg), oklch(42.68% 0.18 29.23deg), oklch(64.04% 0.22 30.12deg));
+	}
+}

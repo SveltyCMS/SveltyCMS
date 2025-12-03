@@ -1,0 +1,16 @@
+{
+    "name": "shared-theme",
+    "version": "0.0.1",
+    "private": true,
+    "type": "module",
+    "description": "Shared Tailwind v4 + Skeleton v4 theme for all SveltyCMS applications",
+    "exports": {
+        "./app.css": "./app.css",
+        "./sveltycms.css": "./sveltycms.css"
+    },
+    "dependencies": {
+        "tailwindcss": "^4.1.13",
+        "@skeletonlabs/skeleton": "^4.1.3",
+        "@skeletonlabs/skeleton-svelte": "^4.1.3"
+    }
+}

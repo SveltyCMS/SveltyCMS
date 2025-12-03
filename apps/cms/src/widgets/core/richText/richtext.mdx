@@ -1,0 +1,662 @@
+---
+path: '/widgets/core/richtext'
+title: 'RichText Widget'
+description: 'Tiptap-based WYSIWYG editor with configurable toolbar and secure HTML storage for SveltyCMS'
+order: 101
+icon: 'mdi:format-pilcrow-arrow-right'
+author: 'admin'
+created: '2025-01-15'
+updated: '2025-01-15'
+tags:
+  - widget
+  - core
+  - richtext
+  - editor
+  - wysiwyg
+  - tiptap
+  - html
+  - content
+---
+
+# RichText Widget
+
+<blockquote>
+	**WYSIWYG editor** powered by Tiptap with configurable toolbar, multilingual support, and secure HTML storage for rich content editing.
+</blockquote>
+
+## Overview
+
+The **RichText widget** provides a powerful, user-friendly WYSIWYG (What You See Is What You Get) editor built on Tiptap, a modern headless editor framework. It enables content creators to write formatted text with headings, lists, links, images, and more without needing to know HTML.
+
+### Key Features
+
+- ✅ **Tiptap-Powered**: Built on Tiptap 2.x for extensibility and performance
+- ✅ **Configurable Toolbar**: Choose which editing features to enable (bold, italic, headings, lists, links, images, etc.)
+- ✅ **Structured Storage**: Stores title and HTML content separately
+- ✅ **Content Validation**: Intelligent empty content detection (strips HTML tags to check)
+- ✅ **Translatable**: Full multilingual content support
+- ✅ **Security-Aware**: Designed to work with sanitization in Display component
+- ✅ **Accessibility**: Full keyboard navigation and screen reader support
+- ✅ **Collaborative-Ready**: Supports real-time collaboration extensions
+- ✅ **Markdown Support**: Optional markdown shortcuts for power users
+- ✅ **Image Upload**: Integrated media handling with drag-and-drop
+
+---
+
+## When to Use RichText Widget
+
+### ✅ Use RichText When:
+
+- **Blog Posts**: Article content with formatting, headings, images
+- **Product Descriptions**: Rich descriptions with bullet points, links
+- **News Articles**: Editorial content with multiple paragraphs and media
+- **Documentation**: Help pages, tutorials, guides with structured content
+- **Landing Pages**: Marketing copy with formatted text and CTAs
+- **Email Templates**: HTML email content with rich formatting
+- **Terms & Conditions**: Legal documents with headings and lists
+- **About Pages**: Company information with formatted text
+
+### ❌ Don't Use RichText When:
+
+- **Single Line Text**: Use `Input` widget for short text (names, titles)
+- **Plain Text**: Use `Textarea` widget for unformatted multi-line text
+- **Code Editing**: Use `Code` widget for syntax-highlighted code
+- **Structured Data**: Use specific widgets (Number, Date, etc.) for typed data
+- **Large Documents**: Consider dedicated document editor for book-length content
+
+---
+
+## Installation
+
+The RichText widget is included in SveltyCMS by default as a core widget. No additional installation required.
+
+```typescript
+// Already available in your collection definitions
+import RichText from '@src/widgets/core/richText';
+```
+
+---
+
+## Basic Usage
+
+### Blog Post Content
+
+```typescript
+import RichText from '@src/widgets/core/richText';
+import Input from '@src/widgets/core/input';
+
+export const postsCollection = {
+	name: 'Blog Posts',
+	fields: [
+		Input({
+			label: 'Post Title',
+			db_fieldName: 'title',
+			required: true,
+			maxLength: 100
+		}),
+
+		RichText({
+			label: 'Content',
+			db_fieldName: 'content',
+			required: true,
+			toolbar: ['bold', 'italic', 'headings', 'lists', 'link', 'image'],
+			translated: true
+		})
+	]
+};
+```
+
+### Product Description
+
+```typescript
+import RichText from '@src/widgets/core/richText';
+
+export const productsCollection = {
+	name: 'Products',
+	fields: [
+		RichText({
+			label: 'Description',
+			db_fieldName: 'description',
+			required: true,
+			toolbar: ['bold', 'italic', 'lists', 'link'],
+			helper: 'Detailed product description with formatting'
+		}),
+
+		RichText({
+			label: 'Specifications',
+			db_fieldName: 'specifications',
+			required: false,
+			toolbar: ['headings', 'lists', 'table'],
+			helper: 'Technical specifications'
+		})
+	]
+};
+```
+
+### News Article with Full Toolbar
+
+```typescript
+import RichText from '@src/widgets/core/richText';
+
+export const newsCollection = {
+	name: 'News Articles',
+	fields: [
+		RichText({
+			label: 'Article Body',
+			db_fieldName: 'body',
+			required: true,
+			toolbar: ['bold', 'italic', 'underline', 'strike', 'headings', 'lists', 'link', 'image', 'video', 'quote', 'code', 'align', 'table', 'clear'],
+			translated: true
+		})
+	]
+};
+```
+
+---
+
+## Configuration Properties
+
+| Property       | Type       | Required | Default      | Description                                 |
+| -------------- | ---------- | -------- | ------------ | ------------------------------------------- |
+| `label`        | `string`   | ✅ Yes   | -            | Display label for the field                 |
+| `db_fieldName` | `string`   | ✅ Yes   | -            | Database field name                         |
+| `required`     | `boolean`  | ❌ No    | `false`      | Whether content is mandatory                |
+| `toolbar`      | `string[]` | ❌ No    | Full toolbar | Array of toolbar button names               |
+| `translated`   | `boolean`  | ❌ No    | `true`       | Whether content supports multiple languages |
+| `helper`       | `string`   | ❌ No    | `undefined`  | Helper text below field                     |
+| `width`        | `number`   | ❌ No    | `undefined`  | Field width in collection builder           |
+| `minLength`    | `number`   | ❌ No    | `undefined`  | Minimum content length (characters)         |
+| `maxLength`    | `number`   | ❌ No    | `undefined`  | Maximum content length (characters)         |
+
+### Available Toolbar Options
+
+| Button      | Description           | Output                          |
+| ----------- | --------------------- | ------------------------------- |
+| `bold`      | Bold text             | `<strong>text</strong>`         |
+| `italic`    | Italic text           | `<em>text</em>`                 |
+| `underline` | Underline text        | `<u>text</u>`                   |
+| `strike`    | Strikethrough         | `<s>text</s>`                   |
+| `headings`  | H1-H6 headings        | `<h1>` to `<h6>`                |
+| `lists`     | Bullet/numbered lists | `<ul>`, `<ol>`, `<li>`          |
+| `link`      | Hyperlinks            | `<a href="">text</a>`           |
+| `image`     | Images                | `<img src="" alt="">`           |
+| `video`     | Video embeds          | `<video>` or `<iframe>`         |
+| `quote`     | Blockquotes           | `<blockquote>`                  |
+| `code`      | Inline/block code     | `<code>`, `<pre>`               |
+| `align`     | Text alignment        | `text-align: left/center/right` |
+| `table`     | Tables                | `<table>`, `<tr>`, `<td>`       |
+| `hr`        | Horizontal rule       | `<hr>`                          |
+| `clear`     | Clear formatting      | Removes all formatting          |
+
+---
+
+## Data Structure
+
+### Storage Format
+
+RichText stores a structured object with title and HTML content:
+
+```typescript
+// MongoDB Document
+{
+  "_id": "post_123",
+  "title": "My Blog Post",
+  "content": {
+    "en": {
+      "title": "My Blog Post",
+      "content": "<h2>Introduction</h2><p>This is <strong>bold</strong> text...</p>"
+    },
+    "de": {
+      "title": "Mein Blogbeitrag",
+      "content": "<h2>Einleitung</h2><p>Dies ist <strong>fett</strong> gedruckter Text...</p>"
+    }
+  },
+  "createdAt": ISODate("2025-01-15T10:00:00Z")
+}
+```
+
+### Object Structure
+
+```typescript
+interface RichTextData {
+	title: string; // Optional title field
+	content: string; // HTML string with formatted content
+}
+```
+
+### Why HTML Storage?
+
+**✅ HTML Storage Benefits**:
+
+- **Universal Format**: Works everywhere (web, email, PDF generation)
+- **SEO-Friendly**: Search engines can index HTML content
+- **Copy-Paste**: Users can paste formatted text from Word, Google Docs
+- **Preservation**: Formatting preserved exactly as created
+- **Display-Ready**: Can render directly without conversion
+- **Portable**: Easy to export/import between systems
+
+**Security Considerations**:
+
+```typescript
+// ⚠️ IMPORTANT: Always sanitize HTML before display
+import DOMPurify from 'dompurify';
+
+// In Display component:
+const safeHTML = DOMPurify.sanitize(richTextContent, {
+	ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'h1', 'h2', 'h3', 'ul', 'ol', 'li', 'a', 'img'],
+	ALLOWED_ATTR: ['href', 'src', 'alt', 'title']
+});
+```
+
+---
+
+## Validation
+
+The RichText widget uses intelligent validation:
+
+### Empty Content Detection
+
+```typescript
+// Widget automatically strips HTML tags to check if content is truly empty
+const isContentEmpty = (html: string) => {
+	if (!html) return true;
+	const stripped = html.replace(/<[^>]+>/g, '').trim();
+	return stripped.length === 0;
+};
+
+// Example:
+isContentEmpty('<p></p>'); // true (empty)
+isContentEmpty('<p>   </p>'); // true (only whitespace)
+isContentEmpty('<p>Hello</p>'); // false (has content)
+isContentEmpty('<h1>Title</h1>'); // false (has content)
+```
+
+### Validation Rules
+
+```typescript
+RichText({
+	label: 'Content',
+	db_fieldName: 'content',
+	required: true, // Must have non-empty content
+	minLength: 100, // Minimum 100 characters (excluding HTML tags)
+	maxLength: 10000 // Maximum 10,000 characters
+});
+
+// Validation messages:
+// - Required field empty: "Content is required"
+// - Below minimum: "Content must be at least 100 characters"
+// - Above maximum: "Content cannot exceed 10,000 characters"
+```
+
+---
+
+## Advanced Examples
+
+### Multi-Language Content
+
+```typescript
+import RichText from '@src/widgets/core/richText';
+
+export const pagesCollection = {
+	name: 'Pages',
+	fields: [
+		RichText({
+			label: 'Page Content',
+			db_fieldName: 'content',
+			required: true,
+			translated: true, // Enable multilingual support
+			toolbar: ['bold', 'italic', 'headings', 'lists', 'link', 'image']
+		})
+	]
+};
+
+// Storage structure:
+// {
+//   content: {
+//     en: { title: "", content: "<p>English content...</p>" },
+//     de: { title: "", content: "<p>Deutscher Inhalt...</p>" },
+//     fr: { title: "", content: "<p>Contenu français...</p>" }
+//   }
+// }
+```
+
+### Custom Toolbar Configurations
+
+```typescript
+// Minimal toolbar for simple formatting
+RichText({
+	label: 'Short Description',
+	db_fieldName: 'shortDesc',
+	toolbar: ['bold', 'italic', 'link'],
+	maxLength: 500
+});
+
+// Writing-focused toolbar
+RichText({
+	label: 'Article',
+	db_fieldName: 'article',
+	toolbar: ['bold', 'italic', 'headings', 'lists', 'quote', 'link']
+});
+
+// Technical documentation toolbar
+RichText({
+	label: 'Documentation',
+	db_fieldName: 'docs',
+	toolbar: ['headings', 'lists', 'code', 'link', 'image', 'table']
+});
+
+// Marketing content toolbar
+RichText({
+	label: 'Marketing Copy',
+	db_fieldName: 'copy',
+	toolbar: ['bold', 'italic', 'underline', 'headings', 'link', 'align', 'clear']
+});
+```
+
+### Content with Character Limits
+
+```typescript
+import RichText from '@src/widgets/core/richText';
+
+export const reviewsCollection = {
+	name: 'Reviews',
+	fields: [
+		RichText({
+			label: 'Review',
+			db_fieldName: 'review',
+			required: true,
+			minLength: 50, // Minimum 50 characters
+			maxLength: 1000, // Maximum 1000 characters
+			toolbar: ['bold', 'italic', 'lists'],
+			helper: 'Write a detailed review (50-1000 characters)'
+		})
+	]
+};
+```
+
+---
+
+## Tiptap Extensions
+
+The RichText widget can be extended with Tiptap extensions:
+
+### Common Extensions
+
+```typescript
+// Text formatting
+import { Bold, Italic, Underline, Strike } from '@tiptap/extension-text-style';
+
+// Headings
+import { Heading } from '@tiptap/extension-heading';
+
+// Lists
+import { BulletList, OrderedList, ListItem } from '@tiptap/extension-list';
+
+// Links
+import { Link } from '@tiptap/extension-link';
+
+// Images
+import { Image } from '@tiptap/extension-image';
+
+// Tables
+import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
+
+// Collaboration
+import { Collaboration } from '@tiptap/extension-collaboration';
+import { CollaborationCursor } from '@tiptap/extension-collaboration-cursor';
+
+// Placeholder
+import { Placeholder } from '@tiptap/extension-placeholder';
+
+// Character count
+import { CharacterCount } from '@tiptap/extension-character-count';
+```
+
+---
+
+## Keyboard Shortcuts
+
+The RichText editor supports standard keyboard shortcuts:
+
+| Shortcut               | Action        |
+| ---------------------- | ------------- |
+| `Ctrl/Cmd + B`         | Bold          |
+| `Ctrl/Cmd + I`         | Italic        |
+| `Ctrl/Cmd + U`         | Underline     |
+| `Ctrl/Cmd + Shift + X` | Strikethrough |
+| `Ctrl/Cmd + Alt + 1-6` | Heading 1-6   |
+| `Ctrl/Cmd + Shift + 7` | Ordered list  |
+| `Ctrl/Cmd + Shift + 8` | Bullet list   |
+| `Ctrl/Cmd + K`         | Insert link   |
+| `Ctrl/Cmd + Shift + C` | Code block    |
+| `Ctrl/Cmd + Shift + >` | Blockquote    |
+| `Ctrl/Cmd + Z`         | Undo          |
+| `Ctrl/Cmd + Shift + Z` | Redo          |
+| `Ctrl/Cmd + A`         | Select all    |
+
+---
+
+## Markdown Support
+
+Enable markdown shortcuts for power users:
+
+````typescript
+// Markdown shortcuts automatically create formatting:
+// - # Heading 1
+// - ## Heading 2
+// - **bold**
+// - *italic*
+// - - Bullet list
+// - 1. Numbered list
+// - > Blockquote
+// - ``` Code block
+````
+
+---
+
+## Security Best Practices
+
+### ✅ Do's
+
+1. **Always Sanitize Output**
+
+   ```typescript
+   import DOMPurify from 'dompurify';
+
+   const safeHTML = DOMPurify.sanitize(content, {
+   	ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'h1', 'h2', 'h3', 'ul', 'ol', 'li', 'a', 'img'],
+   	ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class']
+   });
+   ```
+
+2. **Validate Links**
+
+   ```typescript
+   // Only allow safe protocols
+   ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i;
+   ```
+
+3. **Limit Toolbar Features**
+   ```typescript
+   // Restrict dangerous features
+   toolbar: ['bold', 'italic', 'link', 'lists']; // No video, iframe, script
+   ```
+
+### ❌ Don'ts
+
+1. **Never Render Raw HTML**
+
+   ```typescript
+   // ❌ DANGEROUS: XSS vulnerability
+   {@html content}
+
+   // ✅ SAFE: Sanitized HTML
+   {@html DOMPurify.sanitize(content)}
+   ```
+
+2. **Don't Allow All HTML Tags**
+
+   ```typescript
+   // ❌ Dangerous: Allows <script>, <iframe>, <object>
+   DOMPurify.sanitize(content);  // Too permissive
+
+   // ✅ Safe: Whitelist specific tags
+   DOMPurify.sanitize(content, { ALLOWED_TAGS: [...] });
+   ```
+
+---
+
+## Accessibility
+
+The RichText editor is fully accessible:
+
+### ARIA Support
+
+```html
+<div role="textbox" aria-label="Rich text editor" aria-multiline="true" aria-required="true" contenteditable="true">
+	<!-- Editor content -->
+</div>
+```
+
+### Keyboard Navigation
+
+- **Tab**: Move between toolbar buttons
+- **Enter**: Activate button
+- **Arrow keys**: Navigate content
+- **Esc**: Close toolbar popups
+
+### Screen Reader Support
+
+- Announces toolbar button states
+- Reads formatting changes
+- Provides context for links and images
+
+---
+
+## Best Practices
+
+### ✅ Do's
+
+1. **Configure Appropriate Toolbar**
+
+   ```typescript
+   // Match toolbar to content type
+   RichText({
+   	label: 'Bio',
+   	toolbar: ['bold', 'italic', 'link'] // Simple bio
+   });
+   ```
+
+2. **Set Content Limits**
+
+   ```typescript
+   RichText({
+   	label: 'Description',
+   	minLength: 100,
+   	maxLength: 5000,
+   	helper: 'Write 100-5000 characters'
+   });
+   ```
+
+3. **Use Translations**
+   ```typescript
+   RichText({
+   	label: 'Content',
+   	translated: true // Support multiple languages
+   });
+   ```
+
+### ❌ Don'ts
+
+1. **Don't Use for Short Text**
+
+   ```typescript
+   // ❌ Wrong: RichText for single line
+   RichText({ label: 'Name' });
+
+   // ✅ Correct: Input for short text
+   Input({ label: 'Name', maxLength: 100 });
+   ```
+
+2. **Don't Forget Sanitization**
+   ```typescript
+   // Always sanitize HTML in Display component
+   ```
+
+---
+
+## API Reference
+
+```typescript
+function RichText(props: RichTextProps): FieldInstance;
+
+interface RichTextProps {
+	label: string;
+	db_fieldName: string;
+	required?: boolean;
+	toolbar?: ToolbarOption[];
+	translated?: boolean;
+	helper?: string;
+	width?: number;
+	minLength?: number;
+	maxLength?: number;
+}
+
+type ToolbarOption =
+	| 'bold'
+	| 'italic'
+	| 'underline'
+	| 'strike'
+	| 'headings'
+	| 'lists'
+	| 'link'
+	| 'image'
+	| 'video'
+	| 'quote'
+	| 'code'
+	| 'align'
+	| 'table'
+	| 'hr'
+	| 'clear';
+
+interface RichTextData {
+	title: string;
+	content: string; // HTML string
+}
+```
+
+---
+
+## Related Widgets
+
+- **[Input Widget](/widgets/core/input)** - For single-line text
+- **[Textarea Widget](/widgets/core/textarea)** - For plain multi-line text
+- **[Code Widget](/widgets/core/code)** - For syntax-highlighted code
+- **[Markdown Widget](/widgets/custom/markdown)** - For Markdown editing
+
+---
+
+## Resources
+
+- [Tiptap Documentation](https://tiptap.dev/)
+- [DOMPurify](https://github.com/cure53/DOMPurify)
+- [Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
+
+---
+
+## Changelog
+
+### Version 1.0.0 (2025-01-15)
+
+- ✅ Tiptap 2.x integration
+- ✅ Configurable toolbar
+- ✅ Intelligent empty content validation
+- ✅ Multilingual support
+- ✅ Security-aware design
+- ✅ Full accessibility
+
+---
+
+## License
+
+The RichText widget is part of SveltyCMS and is licensed under the MIT License.

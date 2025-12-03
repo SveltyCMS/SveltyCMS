@@ -1,0 +1,81 @@
+---
+path: 'src/widgets/core/group/group.mdx'
+title: 'Group Field'
+description: 'Organize and group multiple related fields into a single, structured block.'
+order: 10
+icon: 'mdi:folder-outline'
+author: 'admin'
+created: '2025-09-29'
+updated: '2025-09-29'
+tags:
+  - 'field'
+  - 'group'
+  - 'structure'
+  - 'organization'
+  - 'builder'
+---
+
+Overview
+The Group field is a powerful "container" that allows you to organize multiple, related fields into a single block. This is essential for creating clean, logical, and easy-to-navigate content forms. Instead of having a long, flat list of fields, you can group them into sections like "SEO Settings," "Author Information," or "Product Dimensions."
+A group can be made collapsible to hide complex fields by default, reducing clutter for content editors.
+Usage (for Content Editors)
+In the content editor, a Group field appears as a distinct section, often with a title and a border.
+
+- Organization: All the fields related to that section (e.g., "Meta Title," "Meta Description") will be neatly nested inside it.
+- Collapsing: If the group is configured to be collapsible, you can click on its title to hide or show its contents. This is useful for tucking away advanced or less frequently used settings.
+  Configuration (for Developers)
+  The true power of the Group widget is in its configuration. It acts like a mini-schema inside your main schema. The most important property is fields, where you define an array of all the other widgets that will live inside the group.
+  Example: SEO Settings Group
+  This is a classic use case. Instead of having meta_title and meta_description as top-level fields, we can group them together.
+  import { GroupWidget, InputWidget, TextareaWidget } from '@src/widgets';
+
+const PageSchema = {
+// ... other fields like 'title', 'content', etc.
+seo_settings: GroupWidget({
+label: 'SEO Settings',
+db_fieldName: 'seo',
+collapsible: true, // Make the group collapsible
+collapsed: true, // Start with it collapsed
+border: true,
+helper: 'Settings for search engine optimization.',
+
+    	// Define the fields that go inside this group
+    	fields: [
+    		InputWidget({
+    			label: 'Meta Title',
+    			db_fieldName: 'meta_title',
+    			maxLength: 60,
+    			helper: 'Optimal title length is 50-60 characters.'
+    		}),
+    		TextareaWidget({
+    			label: 'Meta Description',
+    			db_fieldName: 'meta_description',
+    			maxLength: 160,
+    			helper: 'Optimal description length is 150-160 characters.'
+    		})
+    	]
+    })
+
+};
+
+All Configuration Properties
+| Property | Type | Default | Purpose |
+|---|---|---|---|
+| label | string | - | Required. The display name for the group's header in the CMS. |
+| fields | FieldInstance[] | [] | Required. An array of widget instances that define the fields inside the group. |
+| db_fieldName | string | - | The key used to store the group's nested object in the database. |
+| collapsible | boolean | false | If true, the group's content can be hidden/shown by clicking the header. |
+| collapsed | boolean | false | If true, the group will be collapsed by default when the page loads. |
+| border | boolean | true | If true, a visual border is drawn around the group's content, visually separating it from other fields. |
+| helper | string | - | Help text displayed with the group's header to guide the user. |
+Data Structure
+The Group widget saves its data as a single, nested JSON object. The keys of this object correspond to the db_fieldName of each child widget within the group. This creates a clean, hierarchical data structure.
+Using the "SEO Settings" example from above, the saved data would look like this:
+{
+"title": "My Awesome Page",
+"content": "...",
+"seo": {
+"meta_title": "The Most Awesome Page Ever",
+"meta_description": "You have to see this awesome page to believe it. Click here!"
+}
+}

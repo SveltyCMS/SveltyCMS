@@ -1,0 +1,23 @@
+{
+	"name": "scripts",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "apps/scripts",
+	"projectType": "library",
+	"targets": {
+		"bundle-stats": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node apps/scripts/bundle-stats.js",
+				"color": true
+			}
+		},
+		"check-mongodb": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node apps/scripts/check-mongodb.js",
+				"color": true
+			}
+		}
+	},
+	"tags": ["type:utility", "scope:dev"]
+}

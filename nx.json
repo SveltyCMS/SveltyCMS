@@ -1,0 +1,43 @@
+{
+	"$schema": "./node_modules/nx/schemas/nx-schema.json",
+	"nxCloudId": "68f69ecda3c6e57b06631fcd",
+	"extends": "nx/presets/npm.json",
+	"namedInputs": {
+		"default": ["{projectRoot}/**/*", "sharedGlobals"],
+		"production": [
+			"default",
+			"!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
+			"!{projectRoot}/tsconfig.spec.json",
+			"!{projectRoot}/.eslintrc.json"
+		],
+		"sharedGlobals": []
+	},
+	"pluginsConfig": {
+		"@nx/js": {
+			"analyzeSourceFiles": false
+		}
+	},
+	"targetDefaults": {
+		"build": {
+			"dependsOn": ["^build"],
+			"inputs": ["production", "^production"],
+			"cache": true
+		},
+		"lint": {
+			"inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
+			"cache": true
+		},
+		"test": {
+			"inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"],
+			"cache": true
+		},
+		"dev": {
+			"cache": false
+		}
+	},
+	"generators": {
+		"@nx/js:library": {
+			"bundler": "vite"
+		}
+	}
+}

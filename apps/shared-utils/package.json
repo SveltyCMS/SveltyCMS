@@ -1,0 +1,10 @@
+{
+	"name": "@sveltycms/shared-utils",
+	"version": "1.0.0",
+	"type": "module",
+	"private": true,
+	"exports": {
+		"./setupCheck": "./setupCheck.ts",
+		"./logger": "./logger.svelte.ts"
+	}
+}
