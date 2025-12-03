@@ -63,7 +63,13 @@ Part of the Three Pillars Architecture for widget system.
 	};
 
 	function validateVideoUrl(url: string): { valid: boolean; error?: string } {
-		const allowedPlatforms = field.allowedPlatforms || ['youtube', 'vimeo', 'twitch', 'tiktok'];
+		const rawPlatforms = field.allowedPlatforms || ['youtube', 'vimeo', 'twitch', 'tiktok'];
+		const allowedPlatforms: string[] = Array.isArray(rawPlatforms)
+			? rawPlatforms
+			: typeof rawPlatforms === 'string'
+				? rawPlatforms.split(',').map((p: string) => p.trim())
+				: [];
+
 		const isValid = allowedPlatforms.some((platform) => ALLOWED_PLATFORMS[platform]?.test(url));
 
 		if (!isValid) {
