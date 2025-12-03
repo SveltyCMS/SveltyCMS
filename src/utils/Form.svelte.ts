@@ -96,9 +96,17 @@ export class Form<T extends Record<string, any>> {
 					}
 				}
 
+				// Call onResult callback if provided
 				if (options?.onResult) {
 					await options.onResult(resultInput);
-				} else {
+				}
+
+				// For redirects, ALWAYS call update() after onResult to trigger navigation
+				// This matches superForm behavior where redirects are handled automatically
+				if (result.type === 'redirect') {
+					await update();
+				} else if (!options?.onResult) {
+					// For non-redirect results without onResult, call update() as default
 					await update();
 				}
 			};
