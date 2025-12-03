@@ -7,7 +7,6 @@
  */
 
 import type { ActionResult, SubmitFunction } from '@sveltejs/kit';
-import { applyAction } from '$app/forms';
 import { safeParse, type BaseSchema, flatten } from 'valibot';
 
 type EnhanceOptions = {
@@ -98,22 +97,7 @@ export class Form<T extends Record<string, any>> {
 				}
 
 				if (options?.onResult) {
-					try {
-						await options.onResult(resultInput);
-					} catch (e) {
-						console.error('[Form] Error in onResult callback:', e);
-					}
-					// If there's a redirect and onResult was provided, apply the redirect action
-					// This ensures client-side navigation happens even when onResult doesn't call update()
-					if (result.type === 'redirect') {
-						console.log('[Form] Applying redirect action to:', result.location);
-						try {
-							await applyAction(result);
-							console.log('[Form] applyAction completed');
-						} catch (e) {
-							console.error('[Form] Error in applyAction:', e);
-						}
-					}
+					await options.onResult(resultInput);
 				} else {
 					await update();
 				}

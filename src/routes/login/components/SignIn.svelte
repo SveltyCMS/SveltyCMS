@@ -120,11 +120,12 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				// Trigger the toast
 				showToast(m.signin_signinsuccess(), 'success');
 
-				// Clear loading states - navigation will happen via applyAction in Form class
+				// Clear loading states
 				isAuthenticating = false;
 				globalLoadingStore.stopLoading(loadingOperations.authentication);
 
-				// Don't call update() - let Form class handle the redirect via applyAction
+				// Call update() to apply the redirect via SvelteKit's applyAction
+				await update();
 				return;
 			}
 
@@ -248,7 +249,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 			if (result.type === 'redirect') {
 				showToast(m.signin_restpasswordtoast(), 'success');
-				// Don't call update() - let Form class handle the redirect via applyAction
+				// Call update() to apply the redirect via SvelteKit's applyAction
+				await update();
 				return;
 			}
 
