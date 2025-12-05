@@ -1,14 +1,45 @@
 // tests/playwright/collection-builder.spec.ts
-import { expect, test as base } from '@playwright/test';
+import { expect, test as base, type BrowserContext, type Page } from '@playwright/test';
 import { loginAsAdmin } from './helpers/auth';
 
+/**
+ * Helper to create a new browser context with stored session cookies
+ * This is necessary because native form submission breaks the page object in headless mode
+ */
+async function createAuthenticatedContext(
+	originalContext: BrowserContext,
+	baseUrl: string
+): Promise<{ context: BrowserContext; page: Page }> {
+	// Get cookies from the original context
+	const cookies = await originalContext.cookies();
+	console.log('[Auth] Got cookies:', cookies.map((c) => c.name).join(', '));
+
+	// Create a new context with the same cookies
+	const browser = originalContext.browser();
+	if (!browser) {
+		throw new Error('No browser available');
+	}
+
+	const newContext = await browser.newContext();
+	await newContext.addCookies(cookies);
+
+	// Create a new page in the fresh context
+	const page = await newContext.newPage();
+
+	return { context: newContext, page };
+}
+
 // Extend the base test with custom fixture that handles login properly
-const test = base.extend<{ authenticatedPage: ReturnType<typeof base.extend>['prototype']['page'] }>({
-	authenticatedPage: async ({ page }, use) => {
+// After native form redirect, we create a completely new browser context
+const test = base.extend<{ authenticatedPage: Page }>({
+	authenticatedPage: async ({ context, page, browser }, use) => {
+		const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:4173';
+
 		// Login with the standard page fixture
 		await loginAsAdmin(page);
+		console.log('[Fixture] Login complete, URL:', page.url());
 
-		// Sync widgets with database
+		// Sync widgets with database using the login page's request context
 		try {
 			const syncResponse = await page.request.post('/api/widgets/sync', { timeout: 10000 });
 			if (!syncResponse.ok()) {
@@ -20,8 +51,34 @@ const test = base.extend<{ authenticatedPage: ReturnType<typeof base.extend>['pr
 			console.warn(`Widget sync error: ${e}, continuing anyway...`);
 		}
 
-		// Use the page for the test
-		await use(page);
+		// Get cookies from the context (these were set during login)
+		const cookies = await context.cookies();
+		console.log('[Fixture] Got', cookies.length, 'cookies from login context');
+
+		// Create a completely new context with the same cookies
+		// This avoids any corruption from the original page's state
+		console.log('[Fixture] Creating new browser context...');
+		const newContext = await browser.newContext();
+		await newContext.addCookies(cookies);
+
+		// Create a page in the new context
+		const freshPage = await newContext.newPage();
+
+		// Navigate to the collection builder
+		console.log('[Fixture] Navigating fresh page to /config/collectionbuilder...');
+		await freshPage.goto(`${baseUrl}/config/collectionbuilder`, { waitUntil: 'load', timeout: 30000 });
+		console.log('[Fixture] Fresh page URL:', freshPage.url());
+
+		// If redirected to login, authentication failed
+		if (freshPage.url().includes('/login')) {
+			throw new Error(`Authentication failed - redirected to login.`);
+		}
+
+		// Use the fresh page for the test
+		await use(freshPage);
+
+		// Cleanup: close the new context after test
+		await newContext.close();
 	}
 });
 
@@ -29,13 +86,7 @@ test.describe('Collection Builder with Modern Widgets', () => {
 	test('should navigate to collection builder', async ({ authenticatedPage }) => {
 		const page = authenticatedPage;
 		const currentUrl = page.url();
-		console.log(`[Test] Current URL before navigation: ${currentUrl}`);
-
-		// Navigate directly to collection builder using page.goto()
-		// This is reliable after native form login
-		console.log('[Test] Navigating to collection builder...');
-		await page.goto('/config/collectionbuilder', { waitUntil: 'domcontentloaded', timeout: 30000 });
-		console.log(`[Test] Navigation completed, now at: ${page.url()}`);
+		console.log(`[Test] Current URL: ${currentUrl}`);
 
 		// Check if the page loads correctly
 		await expect(page.locator('h1')).toContainText('Collection Builder', { timeout: 10000 });

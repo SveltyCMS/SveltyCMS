@@ -127,10 +127,15 @@ export async function loginAndGetFreshPage(
 	// Get cookies from context to verify we have session
 	const cookies = await context.cookies();
 	console.log(`[Auth] Context has ${cookies.length} cookies`);
+	// Log cookie details for debugging
+	for (const cookie of cookies) {
+		console.log(`[Auth] Cookie: ${cookie.name} = ${cookie.value.substring(0, 20)}... (domain: ${cookie.domain}, path: ${cookie.path})`);
+	}
 
-	// After window.location.href redirect, the page object becomes stale for Playwright
-	// We need to create a fresh page and navigate to the same URL
-	// IMPORTANT: Don't close the old page yet - it keeps the context alive
+	// Close the login page - this is important for CI stability
+	// The cookies are stored in the context, not the page
+	console.log('[Auth] Closing login page...');
+	await loginPage.close();
 
 	// Create a completely new page from the context
 	// This new page will inherit cookies from the context (session is preserved)
@@ -142,13 +147,10 @@ export async function loginAndGetFreshPage(
 	await freshPage.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
 	// Wait for page to be visually ready (skip networkidle as it may never settle due to WebSockets/polling)
-	await freshPage.waitForTimeout(1000);
+	await freshPage.waitForLoadState('domcontentloaded');
+	await freshPage.waitForTimeout(500);
 
 	console.log(`[Auth] Fresh page ready at: ${freshPage.url()}`);
-
-	// DON'T close the old page - it seems to break the context somehow
-	// The page will be closed automatically when the test ends
-	console.log('[Auth] Keeping original login page open (will be closed automatically)');
 
 	return freshPage;
 }
