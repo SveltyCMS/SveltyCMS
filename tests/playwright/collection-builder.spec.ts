@@ -1,25 +1,60 @@
 // tests/playwright/collection-builder.spec.ts
-import { expect, test } from '@playwright/test';
+import { expect, test as base } from '@playwright/test';
 import { loginAsAdmin } from './helpers/auth';
 
-test.describe('Collection Builder with Modern Widgets', () => {
-	test.beforeEach(async ({ page }) => {
-		// Login as admin first
+// Extend the base test with custom fixture that handles login properly
+const test = base.extend<{ authenticatedPage: ReturnType<typeof base.extend>['prototype']['page'] }>({
+	authenticatedPage: async ({ page }, use) => {
+		// Login with the standard page fixture
 		await loginAsAdmin(page);
 
-		// Sync widgets with database (required for tests - this initializes all core widgets)
-		// This ensures widgets are available for collection builder tests
-		const syncResponse = await page.request.post('/api/widgets/sync');
-		if (!syncResponse.ok()) {
-			console.warn(`Widget sync returned ${syncResponse.status()}, continuing anyway...`);
-		} else {
-			console.log('✓ Widgets synced to database');
+		// Sync widgets with database
+		try {
+			const syncResponse = await page.request.post('/api/widgets/sync', { timeout: 10000 });
+			if (!syncResponse.ok()) {
+				console.warn(`Widget sync returned ${syncResponse.status()}, continuing anyway...`);
+			} else {
+				console.log('✓ Widgets synced to database');
+			}
+		} catch (e) {
+			console.warn(`Widget sync error: ${e}, continuing anyway...`);
 		}
-	});
 
-	test('should navigate to collection builder', async ({ page }) => {
-		// Navigate to collection builder
-		await page.goto('/config/collectionbuilder');
+		// Use the page for the test
+		await use(page);
+	}
+});
+
+test.describe('Collection Builder with Modern Widgets', () => {
+	test('should navigate to collection builder', async ({ authenticatedPage }) => {
+		const page = authenticatedPage;
+		const currentUrl = page.url();
+		console.log(`[Test] Current URL before navigation: ${currentUrl}`);
+
+		// Test if page is usable
+		console.log(`[Test] Testing page usability...`);
+		const title = await page.title();
+		console.log(`[Test] Page title: ${title}`);
+
+		// Use a simpler click-based navigation instead of goto
+		console.log('[Test] Clicking on sidebar navigation...');
+
+		// Look for collection builder link in sidebar
+		const collectionBuilderLink = page.locator('a[href*="collectionbuilder"], a:has-text("Collection Builder")').first();
+		const linkVisible = await collectionBuilderLink.isVisible({ timeout: 5000 }).catch(() => false);
+
+		if (linkVisible) {
+			await collectionBuilderLink.click();
+			await page.waitForURL(/collectionbuilder/, { timeout: 10000 });
+		} else {
+			// Navigate using evaluate as a fallback
+			console.log('[Test] No link found, using evaluate for navigation...');
+			await page.evaluate(() => {
+				window.location.href = '/config/collectionbuilder';
+			});
+			await page.waitForURL(/collectionbuilder/, { timeout: 30000 });
+		}
+		console.log(`[Test] Navigation completed, now at: ${page.url()}`);
 
 		// Check if the page loads correctly
 		await expect(page.locator('h1')).toContainText('Collection Builder');
@@ -30,7 +65,8 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		console.log('✓ Add Collection button is visible');
 	});
 
-	test('should display widget management page', async ({ page }) => {
+	test('should display widget management page', async ({ authenticatedPage }) => {
+		const page = authenticatedPage;
 		// Navigate to widget management
 		await page.goto('/config/widgetManagement');
 
@@ -52,7 +88,8 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		console.log(`✓ ${count} widgets found`);
 	});
 
-	test('should create a collection with modern widgets', async ({ page }) => {
+	test('should create a collection with modern widgets', async ({ authenticatedPage }) => {
+		const page = authenticatedPage;
 		test.setTimeout(120000); // 2 minutes for this complex test
 
 		// 1. Navigate to collection builder
@@ -116,7 +153,8 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		console.log('✓ Collection created with widget field');
 	});
 
-	test('should filter widgets by search', async ({ page }) => {
+	test('should filter widgets by search', async ({ authenticatedPage }) => {
+		const page = authenticatedPage;
 		// Navigate to widget management page (where search functionality is)
 		await page.goto('/config/widgetManagement');
 
@@ -154,7 +192,8 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		console.log('✓ Widget search filter working correctly');
 	});
 
-	test('should add a basic field to collection', async ({ page }) => {
+	test('should add a basic field to collection', async ({ authenticatedPage }) => {
+		const page = authenticatedPage;
 		// Navigate to collection builder
 		await page.goto('/config/collectionbuilder');
 
@@ -195,7 +234,8 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		console.log('✓ Basic field added successfully');
 	});
 
-	test('should configure required field property', async ({ page }) => {
+	test('should configure required field property', async ({ authenticatedPage }) => {
+		const page = authenticatedPage;
 		// Navigate and start adding a field
 		await page.goto('/config/collectionbuilder');
 		await page.getByRole('button', { name: /add new collection/i }).click();
@@ -234,9 +274,12 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		await expect(page.getByTestId('add-field-button')).toBeVisible({ timeout: 10000 });
 	});
 
-	test('should configure widget-specific properties', async ({ page }) => {
+	test('should configure widget-specific properties', async ({ authenticatedPage }) => {
+		const page = authenticatedPage;
 		// Navigate and start adding a field
+		console.log('[Test] Starting navigation to collection builder...');
 		await page.goto('/config/collectionbuilder');
+		console.log('[Test] Navigation completed');
 		await page.getByRole('button', { name: /add new collection/i }).click();
 		await expect(page).toHaveURL(/\/config\/collectionbuilder\/(create|new)/);
 
@@ -286,7 +329,8 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		await expect(page.getByTestId('add-field-button')).toBeVisible({ timeout: 10000 });
 	});
 
-	test('should handle widget dependencies', async ({ page }) => {
+	test('should handle widget dependencies', async ({ authenticatedPage }) => {
+		const page = authenticatedPage;
 		// Navigate to widget management
 		await page.goto('/config/widgetManagement');
 
@@ -310,7 +354,8 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		console.log('✓ Widget dependencies handling verified');
 	});
 
-	test('should enable/disable widgets', async ({ page }) => {
+	test('should enable/disable widgets', async ({ authenticatedPage }) => {
+		const page = authenticatedPage;
 		// Navigate to widget management
 		await page.goto('/config/widgetManagement');
 
@@ -347,7 +392,8 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		console.log('✓ Widget enable/disable functionality verified');
 	});
 
-	test('should validate collection creation workflow', async ({ page }) => {
+	test('should validate collection creation workflow', async ({ authenticatedPage }) => {
+		const page = authenticatedPage;
 		test.setTimeout(120000); // 2 minutes
 
 		// 1. Navigate to collection builder
@@ -412,7 +458,8 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		console.log('✓ Collection creation validation workflow complete');
 	});
 
-	test('should support field reordering', async ({ page }) => {
+	test('should support field reordering', async ({ authenticatedPage }) => {
+		const page = authenticatedPage;
 		test.setTimeout(120000); // 2 minutes
 
 		// 1. Navigate to collection builder

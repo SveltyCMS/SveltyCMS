@@ -462,11 +462,32 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 						id="signin-form"
 						method="POST"
 						action="?/signIn"
-						use:enhance={loginSubmit}
 						bind:this={formElement}
 						class="flex w-full flex-col gap-3"
 						class:hide={active !== 0}
 						inert={active !== 0}
+						onsubmit={(e) => {
+							// Client-side validation before submit
+							if (loginForm.data.email) {
+								loginForm.data.email = loginForm.data.email.toLowerCase();
+							}
+
+							// Validate using schema
+							const isValid = loginForm.validate();
+							if (!isValid) {
+								e.preventDefault();
+								formElement?.classList.add('wiggle');
+								setTimeout(() => formElement?.classList.remove('wiggle'), 300);
+								return;
+							}
+
+							// Set loading states
+							isSubmitting = true;
+							isAuthenticating = true;
+							globalLoadingStore.startLoading(loadingOperations.authentication);
+
+							// Let the form submit naturally - browser will handle the redirect
+						}}
 					>
 						<!-- Email field -->
 						<FloatingInput

@@ -101,14 +101,17 @@ export class Form<T extends Record<string, any>> {
 					await options.onResult(resultInput);
 				}
 
-				// For redirects, ALWAYS navigate to trigger the redirect
-				// This matches superForm behavior where redirects are handled automatically
+				// For redirects, use window.location.href for reliable navigation
+				// SvelteKit's goto(), applyAction(), and update() all hang when called from enhance callbacks
+				// This is a known issue with SvelteKit - window.location.href is the only reliable method
 				if (result.type === 'redirect') {
-					// Use window.location for reliable navigation
 					if (typeof window !== 'undefined') {
 						window.location.href = result.location;
 					}
-				} else if (!options?.onResult) {
+					return;
+				}
+
+				if (!options?.onResult) {
 					// For non-redirect results without onResult, call update() as default
 					await update();
 				}

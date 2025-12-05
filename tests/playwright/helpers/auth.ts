@@ -4,7 +4,7 @@
  * Uses the same credentials as setup-wizard to ensure consistency
  */
 
-import { type Page } from '@playwright/test';
+import { type Page, type BrowserContext, type APIRequestContext } from '@playwright/test';
 
 /**
  * Login credentials that match the setup wizard defaults
@@ -15,31 +15,24 @@ export const ADMIN_CREDENTIALS = {
 };
 
 /**
- * Login as admin user
+ * Login as admin user using UI-based form submission.
+ * The form submission with native form behavior works with Playwright.
+ *
  * @param page - Playwright page object
  * @param waitForUrl - URL pattern to wait for after login (default: Collections/Names page)
  */
 export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = /\/(config|user|en|de|Collections|admin|dashboard)/) {
+	// Get the base URL
+	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:4173';
+	console.log(`[Auth] Using base URL: ${baseURL}`);
+
 	// First, try to logout if already logged in
 	await logout(page);
 
 	// Navigate to login page
 	console.log('[Auth] Navigating to /login...');
-	await page.goto('/login', { waitUntil: 'networkidle', timeout: 30000 });
+	await page.goto(`${baseURL}/login`, { waitUntil: 'networkidle', timeout: 30000 });
 	console.log(`[Auth] Current URL after navigation: ${page.url()}`);
-
-	// Take screenshot for debugging
-	await page.screenshot({ path: 'debug-login-page.png', fullPage: true });
-	console.log('[Auth] Screenshot saved: debug-login-page.png');
-
-	// Log page content for debugging
-	const pageContent = await page.content();
-	console.log(`[Auth] Page content length: ${pageContent.length} chars`);
-	console.log(`[Auth] Page title: ${await page.title()}`);
-
-	// Check if page contains actual content or just bootstrap
-	const bodyText = await page.locator('body').innerText();
-	console.log(`[Auth] Body text preview (first 500 chars): ${bodyText.substring(0, 500)}`);
 
 	// Check if we got redirected to setup (config incomplete)
 	if (page.url().includes('/setup')) {
@@ -60,9 +53,8 @@ export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = /\/
 
 	// Wait for login form to be visible - use data-testid
 	console.log('[Auth] Waiting for signin-email field...');
-	const emailField = await page.waitForSelector('[data-testid="signin-email"]', { timeout: 15000, state: 'visible' }).catch(async (e) => {
+	await page.waitForSelector('[data-testid="signin-email"]', { timeout: 15000, state: 'visible' }).catch(async (e) => {
 		console.error('[Auth] ERROR: signin-email field not found!');
-		console.error(`[Auth] Available inputs: ${await page.locator('input').count()}`);
 		const inputs = await page.locator('input').all();
 		for (let i = 0; i < inputs.length; i++) {
 			const input = inputs[i];
@@ -85,64 +77,80 @@ export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = /\/
 	// Submit form using data-testid
 	console.log('[Auth] Submitting login form...');
 
-	// Listen for network responses to debug login
-	const responsePromise = page.waitForResponse(
-		(response) => response.url().includes('/login') && response.request().method() === 'POST',
-		{ timeout: 20000 }
-	);
+	// The form uses native submission (no use:enhance), so browser handles the redirect
+	await Promise.all([
+		// Wait for the navigation to complete - the server returns a 303 redirect
+		page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 30000 }),
+		// Click the submit button
+		page.getByTestId('signin-submit').click()
+	]);
 
-	await page.getByTestId('signin-submit').click();
-
-	// Wait for the form submission response
-	try {
-		const response = await responsePromise;
-		console.log(`[Auth] Login response status: ${response.status()}`);
-		const responseBody = await response.text().catch(() => 'Could not read body');
-		console.log(`[Auth] Login response body (first 500 chars): ${responseBody.substring(0, 500)}`);
-	} catch (e) {
-		console.log(`[Auth] Could not capture login response: ${e}`);
-	}
-
-	// Wait for client-side navigation to complete
-	// SvelteKit form actions return JSON with type:"redirect", client handles via goto()
-	console.log('[Auth] Waiting for client-side navigation...');
-
-	// Wait for URL to change from /login
-	try {
-		await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 10000 });
-		console.log(`[Auth] Navigation detected, now at: ${page.url()}`);
-	} catch (e) {
-		// If URL didn't change, log debug info
-		console.log(`[Auth] URL did not change from /login after 10s`);
-		console.log(`[Auth] Current URL: ${page.url()}`);
-
-		// Take screenshot
-		await page.screenshot({ path: 'debug-after-login-submit.png', fullPage: true });
-		console.log('[Auth] Screenshot saved: debug-after-login-submit.png');
-
-		// Check for any error messages on page
-		const errorText = await page.locator('.error, [class*="error"], [role="alert"]').first().textContent().catch(() => null);
-		if (errorText) {
-			console.log(`[Auth] Error message found: ${errorText}`);
-		}
-
-		// Check for toast messages
-		const toastText = await page.locator('[class*="toast"], [class*="Toast"]').first().textContent().catch(() => null);
-		if (toastText) {
-			console.log(`[Auth] Toast message: ${toastText}`);
-		}
-
-		// Check body text for any clues
-		const bodyText = await page.locator('body').innerText().catch(() => '');
-		console.log(`[Auth] Body text (first 500 chars): ${bodyText.substring(0, 500)}`);
-	}
-
-	// Final wait for the expected URL pattern
-	console.log('[Auth] Waiting for final URL match...');
-	await page.waitForURL(waitForUrl, { timeout: 10000 });
-	// Wait for page to be fully loaded after hard navigation
-	await page.waitForLoadState('domcontentloaded');
 	console.log(`[Auth] Login successful, redirected to: ${page.url()}`);
+
+	// Wait for page to be fully loaded
+	await page.waitForLoadState('domcontentloaded');
+	await page.waitForTimeout(500);
+
+	// Final URL check
+	const finalUrl = page.url();
+	const waitForUrlRegex = waitForUrl instanceof RegExp ? waitForUrl : new RegExp(waitForUrl);
+
+	if (!waitForUrlRegex.test(finalUrl)) {
+		throw new Error(`Expected URL to match ${waitForUrl}, but got ${finalUrl}`);
+	}
+
+	console.log(`[Auth] URL matched: ${page.url()}`);
+}
+
+/**
+ * Login and return a fresh page from context
+ * After window.location.href redirect, the original page object becomes unusable for further navigation.
+ * This function creates a brand new page that shares cookies with the login session.
+ * @param context - Playwright browser context
+ * @param waitForUrl - URL pattern to wait for after login
+ * @returns Fresh page object that can navigate properly
+ */
+export async function loginAndGetFreshPage(
+	context: BrowserContext,
+	waitForUrl: string | RegExp = /\/(config|user|en|de|Collections|admin|dashboard)/
+): Promise<Page> {
+	// Create initial page for login
+	const loginPage = await context.newPage();
+
+	// Perform login
+	await loginAsAdmin(loginPage, waitForUrl);
+
+	// Get the current URL after login
+	const currentUrl = loginPage.url();
+	console.log(`[Auth] Login page URL: ${currentUrl}`);
+
+	// Get cookies from context to verify we have session
+	const cookies = await context.cookies();
+	console.log(`[Auth] Context has ${cookies.length} cookies`);
+
+	// After window.location.href redirect, the page object becomes stale for Playwright
+	// We need to create a fresh page and navigate to the same URL
+	// IMPORTANT: Don't close the old page yet - it keeps the context alive
+
+	// Create a completely new page from the context
+	// This new page will inherit cookies from the context (session is preserved)
+	console.log('[Auth] Creating brand new page from context...');
+	const freshPage = await context.newPage();
+
+	// Navigate to the URL where we should be after login
+	console.log(`[Auth] Navigating fresh page to: ${currentUrl}`);
+	await freshPage.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+	// Wait for page to be visually ready (skip networkidle as it may never settle due to WebSockets/polling)
+	await freshPage.waitForTimeout(1000);
+
+	console.log(`[Auth] Fresh page ready at: ${freshPage.url()}`);
+
+	// DON'T close the old page - it seems to break the context somehow
+	// The page will be closed automatically when the test ends
+	console.log('[Auth] Keeping original login page open (will be closed automatically)');
+
+	return freshPage;
 }
 
 /**
