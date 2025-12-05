@@ -99,7 +99,9 @@ rather than bundling all widgets upfront.
 	</div>
 {:else if component}
 	<!-- Loaded component -->
-	<svelte:component this={component} {field} bind:value {WidgetData} {tenantId} />
+	<!-- Loaded component -->
+	{@const Component = component}
+	<Component {field} bind:value {WidgetData} {tenantId} />
 {:else}
 	<!-- Unexpected state -->
 	<div class="widget-loader-empty rounded border border-warning-500 bg-warning-50 p-3 dark:bg-warning-900/20">

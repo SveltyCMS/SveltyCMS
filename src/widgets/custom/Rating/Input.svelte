@@ -33,61 +33,48 @@ Interactive star rating with hover states and click selection
 
 	let { field, value = $bindable(), error }: { field: FieldType; value?: number | null | undefined; error?: string | null } = $props();
 
-	// Local value to handle null conversion
-	let localValue = $state(value ?? undefined);
+	// Handle undefined/null value by defaulting to 0 for the component, but strictly binding back
+	// However, if we want to allow "no selection", we might need to handle undefined.
+	// Skeleton Ratings usually binds to a number.
+	let ratingValue = $state(value ?? 0);
 
-	// Sync local value with prop
 	$effect(() => {
-		localValue = value ?? undefined;
+		if (value !== undefined && value !== null) {
+			ratingValue = value;
+		}
 	});
 
-	// Sync prop with local value
+	// Sync ratingValue back to prop value
 	$effect(() => {
-		if (localValue !== undefined) {
-			value = localValue;
-		}
+		value = ratingValue;
 	});
 </script>
 
-<div class="rating-container" class:invalid={error}>
-	<Ratings
-		max={Number(field.max) || undefined}
-		step="1"
-		interactive
-		bind:value={localValue}
-		aria-label={field.label}
-		aria-describedby={error ? `${field.db_fieldName}-error` : undefined}
-	>
-		{#snippet empty()}
-			<iconify-icon icon={field.iconEmpty || 'material-symbols:star-outline'} width="24" class="text-gray-400"></iconify-icon>
-		{/snippet}
-		{#snippet full()}
-			<iconify-icon icon={field.iconFull || 'material-symbols:star'} width="24" class="text-warning-500"></iconify-icon>
-		{/snippet}
-	</Ratings>
+<div
+	class="relative inline-block w-full rounded border p-2 border-surface-400 dark:border-surface-400"
+	class:!border-error-500={!!error}
+	class:invalid={!!error}
+>
+	<div class={error ? ' text-error-500' : ''}>
+		<Ratings
+			max={Number(field.max) || 5}
+			step={1}
+			interactive
+			bind:value={ratingValue}
+			aria-label={field.label}
+			aria-describedby={error ? `${field.db_fieldName}-error` : undefined}
+		>
+			{#snippet empty()}
+				<iconify-icon icon={field.iconEmpty || 'material-symbols:star-outline'} width="24" class="text-surface-400"></iconify-icon>
+			{/snippet}
+			{#snippet full()}
+				<iconify-icon icon={field.iconFull || 'material-symbols:star'} width="24" class={error ? 'text-error-500' : 'text-warning-500'}
+				></iconify-icon>
+			{/snippet}
+		</Ratings>
+	</div>
 
 	{#if error}
-		<p class="error-message" role="alert">{error}</p>
+		<p class="absolute bottom-0 left-0 w-full text-center text-xs text-error-500" role="alert">{error}</p>
 	{/if}
 </div>
-
-<style lang="postcss">
-	.rating-container {
-		position: relative;
-		display: inline-block;
-		padding-bottom: 1.5rem;
-	}
-	.rating-container.invalid :global(iconify-icon) {
-		/* Example: make stars red on error */
-		color: #ef4444;
-	}
-	.error-message {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		width: 100%;
-		text-align: center;
-		font-size: 0.75rem;
-		color: #ef4444;
-	}
-</style>

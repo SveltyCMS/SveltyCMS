@@ -15,7 +15,17 @@ Usage
 
 <script lang="ts">
 	// Define types for better TypeScript support
-	import type { BreadcrumbProps } from './types';
+	type Folder = {
+		_id: string;
+		name: string;
+		path: string[];
+	};
+
+	interface BreadcrumbProps {
+		breadcrumb: string[];
+		openFolder: (folderId: string | null) => void;
+		folders: Folder[];
+	}
 
 	const { breadcrumb, openFolder, folders }: BreadcrumbProps = $props();
 

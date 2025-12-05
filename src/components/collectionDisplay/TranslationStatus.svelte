@@ -3,13 +3,13 @@
 @component
 **Translation status component for displaying translation progress per language.**
 
+FIXES:
+1. Multi-field support - tracks all translatable fields in a collection
+2. Widget-aware - properly handles widgets with multiple inputs (like SEO)
+3. Field-level granularity - individual field progress tracking
+
 @example
 <TranslationStatus />
-
-### Features
-- Displays available content languages
-- Shows translation progress per language
-- Dropdown menu for selecting content language	
 -->
 
 <script lang="ts">
@@ -18,11 +18,7 @@
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-
-	// Skeleton
 	import { ProgressBar } from '@skeletonlabs/skeleton';
-
-	// Store
 	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
@@ -35,19 +31,17 @@
 	let portalTarget = $state<HTMLElement | null>(null);
 
 	onMount(() => {
-		// Create portal container at body level for dropdown
 		if (typeof document !== 'undefined') {
 			portalTarget = document.createElement('div');
 			portalTarget.id = 'translation-dropdown-portal';
 			portalTarget.style.position = 'fixed';
 			portalTarget.style.zIndex = '99999';
-			portalTarget.style.pointerEvents = 'none'; // Allow clicks to pass through container
+			portalTarget.style.pointerEvents = 'none';
 			document.body.appendChild(portalTarget);
 		}
 	});
 
 	onDestroy(() => {
-		// Clean up portal container
 		if (portalTarget && portalTarget.parentNode) {
 			portalTarget.parentNode.removeChild(portalTarget);
 		}
@@ -60,7 +54,6 @@
 
 	// Derived values
 	const availableLanguages = $derived.by(() => {
-		// Wait for publicEnv to be initialized
 		const languages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES;
 		if (!languages || !Array.isArray(languages)) {
 			return ['en'] as Locale[];
@@ -107,91 +100,176 @@
 		return getProgressColor(value).replace('bg-', 'text-');
 	}
 
+	/**
+	 * FIXED: Multi-field translation detection
+	 * Handles complex widgets like SEO with nested language objects
+	 */
 	function isFieldTranslated(value: unknown): boolean {
 		if (value === null || value === undefined) return false;
+
+		// Handle string values (simple fields)
 		if (typeof value === 'string') return value.trim() !== '';
+
+		// Handle object values (complex widgets like SEO)
+		// For complex widgets, value might be an object with language keys
+		if (typeof value === 'object' && !Array.isArray(value)) {
+			const obj = value as Record<string, any>;
+
+			// Check if this is a language-keyed object (SEO widget pattern)
+			// Look for language codes as keys (en, de, fr, etc.)
+			const hasLanguageKeys = availableLanguages.some((lang) => lang in obj);
+
+			if (hasLanguageKeys) {
+				// For language-keyed objects, check if the current language has content
+				const langData = obj[currentLanguage as string];
+				if (!langData) return false;
+
+				// Check if any required field in the language data has content
+				// For SEO: check title and description
+				if ('title' in langData && typeof langData.title === 'string') {
+					return langData.title.trim() !== '';
+				}
+				if ('description' in langData && typeof langData.description === 'string') {
+					return langData.description.trim() !== '';
+				}
+			}
+
+			// For other objects, check if they have any meaningful content
+			return Object.values(obj).some((v) => {
+				if (typeof v === 'string') return v.trim() !== '';
+				if (typeof v === 'number') return true;
+				if (Array.isArray(v)) return v.length > 0;
+				return false;
+			});
+		}
+
+		// Handle arrays and other types
+		if (Array.isArray(value)) return value.length > 0;
 		return Boolean(value);
+	}
+
+	/**
+	 * FIXED: Widget-aware field name generation
+	 * Handles both simple and complex (multi-input) widgets
+	 */
+	// Updated to handle both generic widgets with simple values and multi-field widgets
+	function getTranslatableFieldPath(collectionName: string, field: any): string[] {
+		const baseName = `${collectionName}.${getFieldName(field)}`;
+		// Check if widget has a custom path definition (Generic Architecture)
+		if (field.widget?.getTranslatablePaths) {
+			return field.widget.getTranslatablePaths(baseName);
+		}
+
+		// Fallback for simple widgets
+		return [baseName];
 	}
 
 	// Initialize translation progress
 	function initializeTranslationProgress(currentCollection: { fields: unknown[]; name?: unknown; _id?: string }): void {
-		const newProgress: typeof translationProgress.value = { ...translationProgress.value };
-		let hasTranslatableFields = false;
+		const newProgress: typeof translationProgress.value = { show: false };
 
 		for (const lang of availableLanguages) {
-			const newTotalSet = new Set<string>(); // <-- 1. Create a fresh, empty Set for 'total'
+			newProgress[lang] = {
+				total: new Set<string>(),
+				translated: new Set<string>()
+			};
+		}
 
-			for (const field of currentCollection.fields as { translated?: boolean; label: string }[]) {
-				if (field.translated) {
-					const fieldName = `${currentCollection.name}.${getFieldName(field)}`;
-					newTotalSet.add(fieldName); // <-- 2. Add fields to the new set
-					hasTranslatableFields = true;
+		let hasTranslatableFields = false;
+
+		// Iterate through all fields
+		for (const field of currentCollection.fields as { translated?: boolean; label: string; widget?: any }[]) {
+			if (field.translated) {
+				hasTranslatableFields = true;
+
+				// Get all trackable paths for this field
+				const fieldPaths = getTranslatableFieldPath(currentCollection.name as string, field);
+
+				// Add each path to all languages
+				for (const lang of availableLanguages) {
+					fieldPaths.forEach((path) => {
+						newProgress[lang]?.total.add(path);
+					});
 				}
 			}
-
-			// 3. Create a new language object with the new 'total' set
-			//    and a new, empty 'translated' set.
-			newProgress[lang] = {
-				total: newTotalSet,
-				translated: new Set<string>() // <-- 4. MUST create a new, empty 'translated' set
-			};
 		}
 
 		newProgress.show = hasTranslatableFields;
 		translationProgress.value = newProgress;
 	}
 
-	// Update translation progress from field values
+	/**
+	 * FIXED: Multi-field progress tracking
+	 * Properly handles complex widgets with nested language data
+	 */
 	function updateTranslationProgressFromFields(
 		currentCollection: { fields: unknown[]; name?: unknown },
 		currentCollectionValue: Record<string, any>
 	): void {
-		const newProgress = { ...translationProgress.value }; // 1. Shallow copy the top-level store
+		const newProgress = { ...translationProgress.value };
 		let hasUpdates = false;
 
 		for (const lang of availableLanguages) {
 			const originalLangProgress = newProgress[lang];
 			if (!originalLangProgress) continue;
 
-			// 2. Create a NEW Set for 'translated' based on the old one
 			const newTranslatedSet = new Set(originalLangProgress.translated);
 			let langHasUpdates = false;
 
-			for (const field of currentCollection.fields as { translated?: boolean; label: string }[]) {
+			for (const field of currentCollection.fields as { translated?: boolean; label: string; widget?: any }[]) {
 				if (field.translated) {
-					const fieldName = `${currentCollection.name}.${getFieldName(field)}`;
 					const dbFieldName = getFieldName(field, false);
+					const fieldValue = currentCollectionValue[dbFieldName];
 
-					// Check if the field has a value for this language
-					const fieldValue = currentCollectionValue[dbFieldName] as Record<string, any> | undefined;
-					const langValue = fieldValue?.[lang];
+					// Get all trackable paths for this field
+					const fieldPaths = getTranslatableFieldPath(currentCollection.name as string, field);
 
-					const isTranslated = isFieldTranslated(langValue);
-					// 3. Check against the *original* set (important!)
-					const wasTranslated = originalLangProgress.translated.has(fieldName);
+					// Check translation status for each path
+					fieldPaths.forEach((fullPath) => {
+						// Extract sub-field name if present (e.g., "title" from "seo.title")
+						const pathParts = fullPath.split('.');
+						const subFieldName = pathParts.length > 2 ? pathParts[pathParts.length - 1] : null;
 
-					if (isTranslated && !wasTranslated) {
-						newTranslatedSet.add(fieldName); // 4. Modify the NEW set
-						langHasUpdates = true;
-					} else if (!isTranslated && wasTranslated) {
-						newTranslatedSet.delete(fieldName); // 4. Modify the NEW set
-						langHasUpdates = true;
-					}
+						let valueToCheck: unknown;
+
+						if (subFieldName && fieldValue && typeof fieldValue === 'object') {
+							// For complex widgets, check the language-specific sub-field
+							const langData = (fieldValue as Record<string, any>)[lang];
+							valueToCheck = langData?.[subFieldName];
+						} else {
+							// For simple widgets, check the language-specific value
+							if (fieldValue && typeof fieldValue === 'object' && !Array.isArray(fieldValue)) {
+								valueToCheck = (fieldValue as Record<string, any>)[lang];
+							} else {
+								valueToCheck = fieldValue;
+							}
+						}
+
+						const isTranslated = isFieldTranslated(valueToCheck);
+						const wasTranslated = originalLangProgress.translated.has(fullPath);
+
+						if (isTranslated && !wasTranslated) {
+							newTranslatedSet.add(fullPath);
+							langHasUpdates = true;
+						} else if (!isTranslated && wasTranslated) {
+							newTranslatedSet.delete(fullPath);
+							langHasUpdates = true;
+						}
+					});
 				}
 			}
 
 			if (langHasUpdates) {
-				// 5. Create a new lang object, replacing the 'translated' set
 				newProgress[lang] = {
-					...originalLangProgress, // carries over the 'total' set
-					translated: newTranslatedSet // assigns the NEW 'translated' set
+					...originalLangProgress,
+					translated: newTranslatedSet
 				};
 				hasUpdates = true;
 			}
 		}
 
 		if (hasUpdates) {
-			translationProgress.value = newProgress; // 6. Assign the new top-level object to the store
+			translationProgress.value = newProgress;
 			calculateCompletionTotals();
 		}
 	}
@@ -215,13 +293,12 @@
 	// Dropdown position state
 	let dropdownPosition = $state({ top: 0, right: 0 });
 
-	// Calculate dropdown position based on button location
 	function updateDropdownPosition(): void {
 		const button = document.querySelector('.translation-status-container button');
 		if (button) {
 			const rect = button.getBoundingClientRect();
 			dropdownPosition = {
-				top: rect.bottom + 8, // Increased from 4px to 8px for more spacing
+				top: rect.bottom + 8,
 				right: window.innerWidth - rect.right
 			};
 		}
@@ -232,30 +309,22 @@
 		isOpen = !isOpen;
 	}
 
-	// EDIT/CREATE MODE: Toggle language locally WITHOUT navigation
-	// Data is already loaded (single entry), just switch which language fields to show
 	function handleLanguageChange(selectedLanguage: Locale): void {
 		logger.debug('[TranslationStatus] Language change:', contentLanguage.value, '→', selectedLanguage);
 		contentLanguage.set(selectedLanguage);
 		isOpen = false;
 
-		// Update URL to reflect language (passive, no reload)
-		// This allows bookmarking/sharing the correct language URL
 		if (typeof window !== 'undefined') {
 			const currentPath = window.location.pathname;
 			const pathParts = currentPath.split('/').filter(Boolean);
 
 			if (pathParts.length > 0) {
-				// Replace first segment (language) with new language
 				pathParts[0] = selectedLanguage;
 				const newPath = '/' + pathParts.join('/') + window.location.search;
-
-				// Use replaceState to update URL without navigation/reload
 				window.history.replaceState({}, '', newPath);
 				logger.debug('[TranslationStatus] Updated URL to:', newPath);
 			}
 
-			// Dispatch custom event for local reactivity
 			const customEvent = new CustomEvent('languageChanged', {
 				detail: { language: selectedLanguage },
 				bubbles: true
@@ -265,25 +334,19 @@
 		}
 	}
 
-	// VIEW MODE: Navigate to new language (triggers SSR reload with fresh data)
-	// Used when browsing list - need to fetch entries in the new language
 	async function handleViewModeLanguageChange(event: Event) {
 		const target = event.target as HTMLSelectElement;
 		const selectedLanguage = target.value as Locale;
 
-		// Update the content language store
 		contentLanguage.set(selectedLanguage);
 
-		// ENTERPRISE: Always use collection UUID for language changes
 		const currentCollectionId = collection.value?._id;
 		const currentSearch = page.url.search;
 
 		if (currentCollectionId) {
-			// Navigate using UUID
 			const newPath = `/${selectedLanguage}/${currentCollectionId}${currentSearch}`;
 			await goto(newPath, { replaceState: false, invalidateAll: true });
 		} else {
-			// Fallback: preserve path structure
 			const currentPath = page.url.pathname;
 			const pathParts = currentPath.split('/').filter(Boolean);
 			if (pathParts.length > 0) {
@@ -293,7 +356,6 @@
 			}
 		}
 
-		// Dispatch a custom event to notify parent components
 		const customEvent = new CustomEvent('languageChanged', {
 			detail: { language: selectedLanguage },
 			bubbles: true
@@ -301,7 +363,6 @@
 		target.dispatchEvent(customEvent);
 	}
 
-	// Close dropdown when clicking outside
 	function handleClickOutside(event: MouseEvent): void {
 		const target = event.target as HTMLElement;
 		if (!target.closest('.translation-status-container')) {
@@ -310,21 +371,15 @@
 	}
 
 	// Effects
-	// This tracks the ENTRY ID, not the collection ID
 	let lastEntryId = $state<string | undefined>(undefined);
 	let lastCollectionId = $state<string | undefined>(undefined);
 
 	$effect(() => {
 		const currentCollection = collection.value;
-
-		// Get the current ENTRY's ID from the collectionValue store
 		const currentEntry = collectionValue.value as { _id?: string } | undefined;
 		const entryId = currentEntry?._id;
 		const collectionId = currentCollection?._id;
 
-		// This effect now runs if:
-		// 1. Collection changed (switching collections)
-		// 2. Entry ID changed (switching entries or entering create mode)
 		const collectionChanged = collectionId !== lastCollectionId;
 		const entryChanged = entryId !== lastEntryId;
 
@@ -339,22 +394,14 @@
 
 			untrack(() => {
 				isInitialized = false;
-
-				// 1. Reset the progress stats (clears all 'translated' sets)
 				initializeTranslationProgress(currentCollection);
 
-				// 2. Check if we are in EDIT mode (we have an entryId and data)
 				if (entryId && currentEntry && Object.keys(currentEntry).length > 0) {
-					// We are in "edit" mode.
-					// Immediately calculate the progress for the entry we just loaded.
 					updateTranslationProgressFromFields(currentCollection, currentEntry);
 				} else {
-					// We are in "create" mode (no entryId).
-					// Just calculate totals (which will be 0 / Total)
 					calculateCompletionTotals();
 				}
 
-				// 3. Mark as initialized and store the new entry/collection ID
 				isInitialized = true;
 				lastEntryId = entryId;
 				lastCollectionId = collectionId;
@@ -362,18 +409,15 @@
 		}
 	});
 
-	// Track last collection value to prevent unnecessary updates
-	let lastCollectionValueStr = $state('');
+	let lastCollectionValueStr = $state<string>('');
 	$effect(() => {
 		const currentCollection = collection.value;
 		const currentCollectionValue = collectionValue.value as Record<string, any>;
 
 		if (currentCollection?.fields && currentCollectionValue && Object.keys(currentCollectionValue).length > 0 && isInitialized) {
-			// Only update if data actually changed
 			const currentStr = JSON.stringify(currentCollectionValue);
 			if (currentStr !== lastCollectionValueStr) {
 				logger.debug('[TranslationStatus] Collection value changed, updating progress');
-				// Update translation progress from the new data
 				updateTranslationProgressFromFields(currentCollection, currentCollectionValue);
 				lastCollectionValueStr = currentStr;
 			}
@@ -390,7 +434,6 @@
 </script>
 
 {#if isViewMode}
-	<!-- View mode: Simple language selector -->
 	<select
 		class="select w-full max-w-[70px] transition-all duration-200 hover:scale-105 focus:scale-105 focus:shadow-lg"
 		value={currentLanguage}
@@ -407,10 +450,8 @@
 		{/if}
 	</select>
 {:else}
-	<!-- Edit mode: Language selector with translation progress -->
 	<div class="translation-status-container relative mt-1 inline-block text-left">
 		<div>
-			<!-- Language button -->
 			<button
 				type="button"
 				onclick={toggleDropdown}
@@ -429,7 +470,6 @@
 				></iconify-icon>
 			</button>
 
-			<!-- Overall progress bar -->
 			<div class="mt-0.5 transition-all duration-300">
 				<ProgressBar
 					class="variant-outline-secondary transition-all duration-300 hover:shadow-sm"
@@ -445,9 +485,8 @@
 	</div>
 {/if}
 
-<!-- Dropdown menu portal - rendered at body level -->
 {#if isOpen && portalTarget}
-	<div style="position: fixed; z-index: 99999; top: 1; left: 0; pointer-events: none; width: 100%; height: 100%;">
+	<div style="position: fixed; z-index: 99999; top: 0; left: 0; pointer-events: none; width: 100%; height: 100%;">
 		<div
 			id="translation-menu"
 			class="origin-top-right divide-y divide-surface-200 rounded-lg border-2 border-surface-400 bg-white py-1 shadow-2xl backdrop-blur-sm focus:outline-none dark:divide-surface-600 dark:border-surface-500 dark:bg-surface-800 {showProgress
@@ -459,7 +498,6 @@
 			aria-labelledby="language-menu-button"
 			transition:scale={{ duration: 200, easing: quintOut, start: 0.95 }}
 		>
-			<!-- Language list -->
 			<div role="none" class="divide-y divide-surface-200 dark:divide-surface-400">
 				{#each availableLanguages as lang, index (lang)}
 					{@const percentage = languageProgress[lang] || 0}
@@ -475,7 +513,6 @@
 						in:fade={{ duration: 200, delay: index * 30 }}
 					>
 						<div class="flex w-full items-center justify-between gap-2">
-							<!-- Language name -->
 							<span class="font-medium transition-colors duration-200">
 								{lang.toUpperCase()}
 								{#if isActive}
@@ -483,7 +520,6 @@
 								{/if}
 							</span>
 
-							<!-- Progress indicator -->
 							{#if showProgress && translationProgress.value?.[lang as Locale]}
 								<div class="ml-2 flex flex-1 items-center gap-2">
 									<div class="flex-1">
@@ -499,7 +535,6 @@
 				{/each}
 			</div>
 
-			<!-- Overall completion summary -->
 			{#if showProgress}
 				<div class="px-4 py-2" role="none" in:fade={{ duration: 200, delay: 100 }}>
 					<div class="mb-1 text-center text-xs font-medium text-tertiary-500 dark:text-primary-500">

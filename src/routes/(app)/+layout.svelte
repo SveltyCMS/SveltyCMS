@@ -233,8 +233,17 @@
 	// =============================================
 
 	onMount(() => {
-		// Start initialization loading
-		globalLoadingStore.startLoading(loadingOperations.initialization);
+		console.log('[AppLayout] Mounting...');
+		console.log('[AppLayout] Content Structure:', data.contentStructure);
+
+		// Start initialization loading ONLY if content structure is missing
+		// This prevents a race condition where onMount (running after effect) restarts loading
+		if (!Array.isArray(data.contentStructure)) {
+			console.warn('[AppLayout] Content structure missing, starting loader...');
+			globalLoadingStore.startLoading(loadingOperations.initialization);
+		} else {
+			console.log('[AppLayout] Content structure present, skipping loader.');
+		}
 
 		// Initialize widgets
 		widgetStoreActions.initializeWidgets();

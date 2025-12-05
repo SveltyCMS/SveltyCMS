@@ -1,6 +1,29 @@
 /**
  * @file src/services/MediaService.server.ts
  * @description Provides a service class for media operations.
+ *
+ * ### Features
+ * - File Upload
+ * - File Storage
+ * - File Resizing
+ * - File Access Control
+ *
+ * ### Security
+ * - MIME Type Validation
+ * - File Size Limiting
+ * - File Type Filtering
+ * - File Deduplication
+ *
+ * ### Performance
+ * - File Caching
+ * - File Deduplication
+ * - File Resizing
+ *
+ * ### Storage
+ * - File Storage
+ * - File Deduplication
+ * - File Resizing
+ *
  */
 
 import { error } from '@sveltejs/kit';
@@ -128,6 +151,10 @@ export class MediaService {
 			throw new Error(message);
 		}
 	}
+
+	/**
+	 * Saves a file to storage and creates a database record.
+	 */
 
 	// Saves a media file and its associated data
 	public async saveMedia(file: File, userId: string, access: MediaAccess, basePath: string = 'global'): Promise<MediaType> {
@@ -378,8 +405,9 @@ export class MediaService {
 			}
 
 			// Access Control Logic
+			// Access Control Logic
 			const isAdmin = roles.some((r) => r.isAdmin);
-			const isOwner = media.createdBy === user._id || media.user === user._id;
+			const isOwner = media.createdBy === user._id;
 			const isPublic = media.access === 'public';
 
 			if (!isAdmin && !isOwner && !isPublic) {

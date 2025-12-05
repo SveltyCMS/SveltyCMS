@@ -36,25 +36,3 @@ Renders: Title heading + XSS-protected HTML in prose container
 {:else}
 	<span>–</span>
 {/if}
-
-<style>
-	/* Basic styles for a prose container */
-	.prose {
-		line-height: 1.6;
-	}
-	.prose :global(h1) {
-		font-weight: 600;
-		margin-bottom: 0.5em;
-	}
-	.prose :global(h2) {
-		font-weight: 600;
-		margin-bottom: 0.5em;
-	}
-	.prose :global(h3) {
-		font-weight: 600;
-		margin-bottom: 0.5em;
-	}
-	.prose :global(p) {
-		margin-bottom: 1em;
-	}
-</style>

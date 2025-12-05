@@ -126,7 +126,8 @@ export const load: PageServerLoad = async (event) => {
 			adminData,
 			permissions: {
 				'config/adminArea': { hasPermission: isAdmin || hasManageUsersPermission }
-			}
+			},
+			isAdmin // Pass isAdmin to client for PermissionGuard
 		};
 	} catch (err) {
 		// Log error with an error code and more details
@@ -146,6 +147,7 @@ export const load: PageServerLoad = async (event) => {
 			permissions: {
 				'config/adminArea': { hasPermission: false }
 			},
+			isAdmin: false,
 			error: 'Internal Server Error. Please try again later.'
 		};
 	}

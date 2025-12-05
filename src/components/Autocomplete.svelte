@@ -17,7 +17,11 @@
 -->
 
 <script lang="ts">
-	import type { AutocompleteProps } from './types';
+	interface AutocompleteProps {
+		options?: string[];
+		placeholder?: string;
+		'on:select'?: (selectedOption: string) => void;
+	}
 
 	const { options = [], placeholder = 'Select an option', 'on:select': onSelect = () => {} }: AutocompleteProps = $props();
 

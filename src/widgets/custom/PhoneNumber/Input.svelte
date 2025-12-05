@@ -54,7 +54,7 @@
 
 	let { field, value = $bindable() }: Props = $props();
 
-	const fieldName = getFieldName(field);
+	const fieldName = $derived(getFieldName(field));
 	// Use current content language for translated fields, default for non-translated
 	const _language = $derived(field.translated ? contentLanguage.value : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
@@ -183,15 +183,16 @@
 				readonly={field?.readonly as boolean | undefined}
 				disabled={field?.disabled as boolean | undefined}
 				class="input w-full rounded-none text-black dark:text-primary-500"
-				class:error={!!validationError}
-				class:validating={isValidating}
+				class:!border-error-500={!!validationError}
+				class:!ring-1={!!validationError || isValidating}
+				class:!ring-error-500={!!validationError}
+				class:!border-primary-500={isValidating && !validationError}
+				class:!ring-primary-500={isValidating && !validationError}
 				aria-invalid={!!validationError}
 				aria-describedby={validationError ? `${fieldName}-error` : undefined}
 				aria-required={field?.required}
 				data-testid="phone-input"
 			/>
-			<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-surface-400" width="16"
-			></iconify-icon>
 		</div>
 
 		{#if field?.suffix}
@@ -226,23 +227,13 @@
 		min-height: 2.5rem;
 	}
 
-	.error {
-		border-color: rgb(239 68 68);
-		box-shadow: 0 0 0 1px rgb(239 68 68);
-	}
-
-	.validating {
-		border-color: rgb(59 130 246);
-		box-shadow: 0 0 0 1px rgb(59 130 246);
+	.animate-spin {
+		animation: spin 1s linear infinite;
 	}
 
 	@keyframes spin {
 		to {
 			transform: rotate(360deg);
 		}
-	}
-
-	.animate-spin {
-		animation: spin 1s linear infinite;
 	}
 </style>

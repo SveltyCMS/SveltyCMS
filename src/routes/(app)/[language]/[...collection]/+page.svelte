@@ -20,12 +20,13 @@
 - Passes server-loaded data as props to the `EntryList` or `Fields` components.
 - URL-to-mode translation for manual URL edits (browser address bar changes).
 - Auto-saves unsaved changes as draft when navigating away to prevent data loss.
+
 -->
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import { beforeNavigate, invalidateAll, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
-	import { untrack } from 'svelte';
+	import { untrack, onMount } from 'svelte';
 	import { collection, mode, setCollection, collectionValue, setMode, setCollectionValue } from '@src/stores/collectionStore.svelte';
 	import { contentLanguage, validationStore } from '@stores/store.svelte';
 	import { parseURLToMode } from '@utils/navigationUtils';
@@ -146,8 +147,14 @@
 		}
 	});
 
+	let isMounted = $state(false);
+
+	onMount(() => {
+		isMounted = true;
+	});
+
 	$effect(() => {
-		if (typeof window !== 'undefined') {
+		if (isMounted && typeof window !== 'undefined') {
 			const currentPath = page.url.pathname;
 			const collectionIdFromPath = currentPath.split('/').pop() || '';
 			const isUUID = /^[a-f0-9]{32}$/i.test(collectionIdFromPath);
@@ -161,7 +168,9 @@
 				if (newPath !== currentPath) {
 					logger.debug(`[URL Update] Replacing UUID path with pretty path: ${newPath}`);
 					// Use SvelteKit's replaceState to avoid interfering with navigation state
-					replaceState(newPath, {});
+					setTimeout(() => {
+						replaceState(newPath, {});
+					}, 0);
 				}
 			}
 		}

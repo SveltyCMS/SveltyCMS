@@ -14,6 +14,7 @@ export interface ActiveTokenInput {
 		label?: string;
 		collection?: string;
 	};
+	onInsert?: (token: string) => void;
 }
 
 let activeInput = $state<ActiveTokenInput | null>(null);

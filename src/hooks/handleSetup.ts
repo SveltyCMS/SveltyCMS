@@ -82,7 +82,7 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 			logger.trace(`Setup complete. Blocking access to ${pathname}, redirecting to /login`);
 			event.locals.__setupLoginRedirectLogged = true;
 		}
-		throw redirect(302, '/login');
+		throw redirect(302, '/');
 	}
 
 	// Proceed normally

@@ -112,14 +112,14 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 				readonly={field?.readonly as boolean | undefined}
 				disabled={field?.disabled as boolean | undefined}
 				class="input w-full rounded-none text-black dark:text-primary-500"
-				class:error={!!error}
+				class:!border-error-500={!!error}
+				class:!ring-1={!!error}
+				class:!ring-error-500={!!error}
 				aria-invalid={!!error}
 				aria-describedby={error ? `${field.db_fieldName}-error` : undefined}
 				aria-required={field?.required}
 				data-testid="currency-input"
 			/>
-			<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-surface-400" width="16"
-			></iconify-icon>
 		</div>
 
 		{#if field?.suffix}
@@ -127,10 +127,12 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 				{field?.suffix}
 			</button>
 		{/if}
-
-		<!-- Validation indicator -->
-		{#if error}
-			<p class="error-message" role="alert">{error}</p>
-		{/if}
 	</div>
+
+	<!-- Validation indicator -->
+	{#if error}
+		<p id={`${field.db_fieldName}-error`} class="absolute bottom-0 left-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
+			{error}
+		</p>
+	{/if}
 </div>

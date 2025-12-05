@@ -23,9 +23,9 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
 
 	// Debug: Log TEST_MODE value
-	if (!pathname.startsWith('/static') && !pathname.startsWith('/assets')) {
-		logger.debug(`[handleSystemState] TEST_MODE=${process.env.TEST_MODE}, pathname=${pathname}`);
-	}
+	// if (!pathname.startsWith('/static') && !pathname.startsWith('/assets')) {
+	// 	logger.debug(`[handleSystemState] TEST_MODE=${process.env.TEST_MODE}, pathname=${pathname}`);
+	// }
 
 	let systemState = getSystemState();
 

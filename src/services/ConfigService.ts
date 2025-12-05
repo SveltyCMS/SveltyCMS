@@ -101,9 +101,46 @@ class ConfigService {
 			const status = await this.getStatus();
 			changes = status.changes;
 		}
-		// Placeholder for real import logic
-		// You could read from compiledCollections + update dbAdapter.collections/roles/etc.
-		logger.debug('Import changes:', changes);
+
+		if (!dbAdapter) throw new Error('Database adapter not available.');
+
+		// 1. Handle New & Updated Entities
+		const toUpsert = [...changes.new, ...changes.updated];
+		for (const item of toUpsert) {
+			if (item.type === 'collection') {
+				// Use the collection manager API if available, or direct DB manipulation
+				// For collections, we typically update the schema definition in the DB
+				try {
+					// Assuming 'collections' is the system collection for schemas
+					// We use the raw crud adapter to ensure we're hitting the DB directly
+					// Cast to any to bypass strict type checking for generic 'upsert' which expects BaseEntity
+					await dbAdapter.crud.upsert(
+						'collections',
+						{ name: item.name } as any, // Query by name
+						item.entity as any
+					);
+					logger.info(`Imported collection: ${item.name}`);
+				} catch (err) {
+					logger.error(`Failed to import collection ${item.name}:`, err);
+				}
+			}
+			// Add handlers for other types (widgets, themes) here as needed
+		}
+
+		// 2. Handle Deleted Entities
+		for (const item of changes.deleted) {
+			if (item.type === 'collection') {
+				try {
+					// Cast string uuid to DatabaseId
+					await dbAdapter.crud.delete('collections', item.uuid as any);
+					logger.info(`Deleted collection: ${item.name}`);
+				} catch (err) {
+					logger.error(`Failed to delete collection ${item.name}:`, err);
+				}
+			}
+		}
+
+		logger.info('Configuration import completed.');
 	}
 
 	private async getSourceState(): Promise<Map<string, ConfigEntity>> {
@@ -135,15 +172,27 @@ class ConfigService {
 		if (!dbAdapter) throw new Error('Database adapter not available.');
 		const state = new Map<string, ConfigEntity>();
 
-		// Note: Roles are managed in auth_roles collection, not systemPreferences
-		// They are edited via /api/permission/update and /config/accessManagement
-		// This config sync is for collections, widgets, themes, etc. only
+		try {
+			// 1. Fetch Collections from DB
+			// We assume there is a system collection named 'collections' that stores schemas
+			const collectionsResult = await dbAdapter.crud.findMany('collections', {});
 
-		// TODO: Implement fetching for Collections
-		// The current dbAdapter interface does not provide a clear method to get all collection schemas.
-		// We would need something like `dbAdapter.collections.getAllSchemas()`.
-
-		// TODO: Add logic to fetch widgets, themes, etc. from the database.
+			if (collectionsResult.success && Array.isArray(collectionsResult.data)) {
+				for (const collection of collectionsResult.data as any[]) {
+					if (!collection._id || !collection.name) continue;
+					const hash = createChecksum(collection);
+					state.set(collection._id, {
+						uuid: collection._id,
+						type: 'collection',
+						name: collection.name,
+						hash,
+						entity: collection
+					});
+				}
+			}
+		} catch (err) {
+			logger.error('Failed to fetch active state from DB:', err);
+		}
 
 		return state;
 	}

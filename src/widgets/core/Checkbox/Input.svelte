@@ -24,30 +24,29 @@ Renders a checkbox with label, color, size, and helper text from field props
 - **Screen Reader Support**: Proper ARIA attributes and semantic markup
 -->
 <script lang="ts">
+	import type { FieldType } from '.';
+	import { validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@src/utils/utils';
-	import { validationStore } from '@stores/store.svelte';
-	import type { FieldType } from './';
-
 	let {
 		field,
-		value
+		value = $bindable()
 	}: {
 		field: FieldType;
-		value: boolean | null | undefined;
+		value: boolean | string | null | undefined;
 	} = $props();
 
-	const fieldName = getFieldName(field);
-
-	// Initialize with proper boolean value
-	let checked = $state(value ?? false);
-
-	// Sync with parent value changes
+	// Initialize with proper boolean value if undefined
 	$effect(() => {
-		checked = value ?? false;
+		if (value === undefined || value === null) {
+			value = false;
+		}
 	});
 
+	const fieldName = $derived(getFieldName(field));
+
 	// Update parent value and clear any validation errors
-	function handleChange() {
+	function handleChange(e: Event) {
+		const checked = (e.currentTarget as HTMLInputElement).checked;
 		value = checked;
 		validationStore.clearError(fieldName);
 	}
@@ -55,6 +54,7 @@ Renders a checkbox with label, color, size, and helper text from field props
 
 <div class="mb-4">
 	<fieldset
+		id={field.db_fieldName}
 		class="rounded border border-surface-500 p-2 dark:border-surface-400"
 		aria-describedby={field.helper ? `${field.db_fieldName}-helper` : undefined}
 	>
@@ -71,10 +71,9 @@ Renders a checkbox with label, color, size, and helper text from field props
 			<label class="flex cursor-pointer items-center gap-2 text-base text-surface-800 dark:text-surface-200">
 				<input
 					type="checkbox"
-					id={field.db_fieldName}
 					name={field.db_fieldName}
 					required={field.required}
-					bind:checked
+					checked={!!value}
 					onchange={handleChange}
 					class={`h-5 w-5 cursor-pointer rounded border-gray-300 transition-colors duration-200 focus:ring-2 focus:ring-offset-2 ${field.color ? `accent-${field.color}` : ''} ${field.size === 'sm' ? 'h-4 w-4' : field.size === 'lg' ? 'h-6 w-6' : ''}`}
 					aria-label={field.label}

@@ -326,9 +326,21 @@ export class SeoAnalyzer {
 		contentStructure: ContentStructure,
 		technical: TechnicalSeo
 	): SeoScore {
+		// Return 0 if insufficient data
+		if (readability.wordCount === 0 && technical.titleLength === 0 && technical.descriptionLength === 0) {
+			return {
+				overall: 0,
+				content: 0,
+				technical: 0,
+				readability: 0,
+				keywords: 0,
+				social: 0
+			};
+		}
+
 		// Content score (0-100)
 		let contentScore = 50;
-		if (contentStructure.hasH1) contentScore += 10;
+		if (technical.titleLength > 0) contentScore += 10;
 		if (!contentStructure.multipleH1) contentScore += 5;
 		if (contentStructure.headingHierarchy) contentScore += 10;
 		if (readability.wordCount >= 300) contentScore += 15;
@@ -423,20 +435,6 @@ export class SeoAnalyzer {
 		}
 
 		// Content structure suggestions
-		if (!contentStructure.hasH1) {
-			suggestions.push({
-				id: 'missing-h1',
-				type: 'error',
-				category: 'content',
-				title: 'Missing H1 heading',
-				description: 'Your content is missing an H1 heading, which is important for SEO.',
-				impact: 'high',
-				effort: 'easy',
-				priority: 85,
-				actionable: true,
-				fix: 'Add an H1 heading that includes your focus keyword.'
-			});
-		}
 
 		if (contentStructure.multipleH1) {
 			suggestions.push({
@@ -695,4 +693,34 @@ export class SeoAnalyzer {
 
 		return segments.map((segment) => segment.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()));
 	}
+}
+
+export async function analyzeSeo(data: any, content: string): Promise<SeoAnalysisResult> {
+	const config: SeoAnalysisConfig = {
+		focusKeyword: data.focusKeyword || '',
+		locale: 'en',
+		contentLanguage: 'en',
+		targetAudience: 'general',
+		contentType: 'article',
+		enableRealTimeAnalysis: false,
+		analysisDepth: 'basic',
+		enabledFeatures: {
+			basic: true,
+			advanced: true,
+			social: true,
+			schema: true,
+			ai: false,
+			readability: true,
+			keywords: true,
+			preview: true
+		}
+	};
+
+	const analyzer = new SeoAnalyzer(config);
+	return await analyzer.analyze(
+		data.title || '',
+		data.description || '',
+		content,
+		data.canonicalUrl || '' // Use canonical or slug
+	);
 }

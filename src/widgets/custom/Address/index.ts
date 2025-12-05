@@ -75,6 +75,10 @@ const AddressWidget = createWidget<AddressProps>({
 		defaultCountry: 'DE',
 		hiddenFields: [],
 		translated: false
+	},
+
+	getTranslatablePaths: (basePath: string) => {
+		return [`${basePath}.street`, `${basePath}.postalCode`, `${basePath}.city`, `${basePath}.country`];
 	}
 });
 

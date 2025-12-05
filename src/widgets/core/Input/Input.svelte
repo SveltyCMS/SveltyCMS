@@ -26,7 +26,6 @@
 	import type { FieldType } from '.';
 	import { createValidationSchema } from '.'; // ✅ SSOT: Import validation schema from index.ts
 
-	// Utils
 	import { getFieldName } from '@src/utils/utils';
 	import { untrack } from 'svelte';
 
@@ -35,11 +34,16 @@
 	import { validationStore } from '@root/src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { contentLanguage } from '@src/stores/store.svelte';
+	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	// Props
 	interface Props {
 		field: FieldType;
 		value?: Record<string, string> | null | undefined;
+		// ... (omitting lines for brevity in prompt, but in tool call I must be precise or use separate chunks if valid)
+		// Wait, I cannot use comments "..." in replacement content if I'm replacing a block.
+		// I should use multi_replace for safety or just target the script and input separately.
+		// Separate chunks is better.
 		validateOnMount?: boolean;
 		validateOnChange?: boolean;
 		validateOnBlur?: boolean;
@@ -47,14 +51,10 @@
 	}
 
 	// ✅ ENHANCEMENT: Auto-enable validateOnMount for required fields to instantly disable save button
-	let {
-		field,
-		value = $bindable(),
-		validateOnMount = field.required ?? false,
-		validateOnChange = true,
-		validateOnBlur = true,
-		debounceMs = 300
-	}: Props = $props();
+	let { field, value = $bindable(), validateOnMount, validateOnChange = true, validateOnBlur = true, debounceMs = 300 }: Props = $props();
+
+	// Default validateOnMount to field.required if not provided
+	let shouldValidateOnMount = $derived(validateOnMount ?? field.required ?? false);
 
 	// SECURITY: Maximum input length to prevent ReDoS attacks
 	const MAX_INPUT_LENGTH = 100000; // 100KB
@@ -69,6 +69,7 @@
 
 	// Initialize value if null/undefined
 	// Safe value access with fallback
+
 	let safeValue = $derived(value?.[_language] ?? '');
 
 	// Character count
@@ -80,7 +81,7 @@
 
 	// Get validation state from store
 	// Define fieldName using getFieldName utility
-	let fieldName = getFieldName(field);
+	let fieldName = $derived(getFieldName(field));
 	let validationError = $derived(validationStore.getError(fieldName));
 	let isValidating = $state(false);
 	let isTouched = $state(false);
@@ -125,7 +126,7 @@
 			try {
 				// ✅ SSOT: Valibot schema validation using shared schema
 				try {
-					parse(validationSchema, field.translated ? value : currentValue);
+					parse(validationSchema, field.translated ? (value ?? undefined) : currentValue);
 					validationStore.clearError(fieldName);
 					return null;
 				} catch (error) {
@@ -202,7 +203,7 @@
 
 	// Initialize validation on mount if requested - only run once
 	$effect(() => {
-		if (validateOnMount && !hasValidatedOnMount) {
+		if (shouldValidateOnMount && !hasValidatedOnMount) {
 			hasValidatedOnMount = true;
 			// Validation happens silently - logs only in dev mode for debugging
 			// Use untrack to prevent circular dependencies and run validation immediately
@@ -234,6 +235,11 @@
 
 		<input
 			type="text"
+			use:tokenTarget={{
+				name: field.db_fieldName,
+				label: field.label,
+				collection: (field as any).collection
+			}}
 			value={safeValue}
 			oninput={(e) => {
 				updateValue(e.currentTarget.value);

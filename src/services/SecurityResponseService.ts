@@ -26,7 +26,13 @@ import { building } from '$app/environment';
 // --- TYPES ---
 
 export type ThreatLevel = 'none' | 'low' | 'medium' | 'high' | 'critical';
-export type ResponseAction = 'monitor' | 'warn' | 'throttle' | 'block' | 'blacklist';
+export type ResponseAction = 'monitor' | 'warn' | 'throttle' | 'block' | 'blacklist' | 'challenge' | 'allow';
+
+export interface SecurityStatus {
+	level: ThreatLevel;
+	action: ResponseAction;
+	reason?: string;
+}
 
 export interface ThreatIndicator {
 	type: 'rate_limit' | 'auth_failure' | 'csp_violation' | 'sql_injection' | 'xss_attempt' | 'brute_force' | 'suspicious_ua' | 'ip_reputation';
@@ -99,31 +105,7 @@ const DEFAULT_POLICIES: SecurityPolicy[] = [
 ];
 
 // --- THREAT PATTERNS ---
-
-const THREAT_PATTERNS = {
-	SQL_INJECTION: [
-		/(\bUNION\b.*\bSELECT\b)/i,
-		/(\bOR\b.*\b1\s*=\s*1\b)/i,
-		/(\bDROP\b.*\bTABLE\b)/i,
-		/(\bINSERT\b.*\bINTO\b)/i,
-		/(\/\*.*\*\/)/,
-		/(\b(AND|OR)\b.*\b\d+\s*=\s*\d+\b)/i
-	],
-	// Enhanced XSS detection patterns to catch malformed/obfuscated variants
-	XSS_PATTERNS: [
-		/<script\b[^>]*>.*?<\/script[\s\S]*?>/i, // Script tags with any whitespace/attributes in closing tag
-		/<script\b[^>]*>/i, // Standalone script opening tags
-		/javascript:/i,
-		/on\w+\s*=/i,
-		/<iframe[^>]*>/i,
-		/eval\s*\(/i,
-		/document\.cookie/i,
-		/data:text\/html/i, // Data URIs that can contain HTML/JS
-		/<embed[^>]*>/i,
-		/<object[^>]*>/i
-	],
-	SUSPICIOUS_USER_AGENTS: [/sqlmap/i, /nikto/i, /burpsuite/i, /nmap/i, /masscan/i, /bot/i]
-};
+// Moved inside class or used via this.patterns
 
 // --- SECURITY RESPONSE SERVICE ---
 
@@ -133,6 +115,27 @@ class SecurityResponseService {
 	private throttledIPs = new Map<string, { until: number; factor: number }>();
 	private policies: SecurityPolicy[] = [];
 	private cleanupInterval: NodeJS.Timeout | null = null;
+
+	// Pre-compiled regex patterns for performance and ReDoS prevention
+	private patterns = {
+		sqli: [
+			/(\%27)|(\')|(\-\-)|(\%23)|(#)/i,
+			/((\%3D)|(=))[^\n]*((\%27)|(\')|(\-\-)|(\%3B)|(;))/i,
+			/\w*((\%27)|(\'))((\%6F)|o|(\%4F))((\%72)|r|(\%52))/i,
+			/((\%27)|(\'))union/i,
+			/exec(\s|\+)+(s|x)p\w+/i
+		],
+		xss: [
+			/((\%3C)|<)((\%2F)|\/)*[a-z0-9\%]+((\%3E)|>)/i,
+			/((\%3C)|<)((\%69)|i|(\%49))((\%6D)|m|(\%4D))((\%67)|g|(\%47))[^\n]+((\%3E)|>)/i,
+			/((\%3C)|<)[^\n]+((\%3E)|>)/i
+		],
+		pathTraversal: [
+			/(\.\.(\/|\\))/i, // Basic ../
+			/(\%2e\%2e(\%2f|\%5c))/i // Encoded ../
+		],
+		suspicious_ua: [/sqlmap/i, /nikto/i, /burpsuite/i, /nmap/i, /masscan/i, /bot/i]
+	};
 
 	constructor() {
 		this.policies = [...DEFAULT_POLICIES];
@@ -151,58 +154,97 @@ class SecurityResponseService {
 	// --- THREAT DETECTION ---
 
 	/**
-	 * Analyze a request for potential threats.
-	 * Returns threat indicators found in the request.
+	 * Analyzes a request for potential security threats.
 	 */
-	analyzeRequest(_ip: string, userAgent: string | null, url: string, _headers: Record<string, string>, body?: string): ThreatIndicator[] {
-		const indicators: ThreatIndicator[] = [];
-		const now = Date.now();
+	public async analyzeRequest(request: Request, clientIp: string): Promise<SecurityStatus> {
+		// 1. Check Blocklist (Fastest check)
+		if (this.isBlocked(clientIp)) {
+			return {
+				level: 'critical',
+				action: 'block',
+				reason: 'IP is in blocklist'
+			};
+		}
+
+		// 2. Rate Limiting (Fast check)
+		const rateLimitResult = await this.checkRateLimit(clientIp);
+		if (!rateLimitResult.allowed) {
+			return {
+				level: 'high',
+				action: 'throttle',
+				reason: 'Rate limit exceeded'
+			};
+		}
+
+		// 3. Payload Analysis (Slower, CPU intensive)
+		// Only proceed if not already blocked/throttled
+		const threatLevel = await this.analyzePayload(request);
+
+		if (threatLevel === 'critical') {
+			await this.blockIp(clientIp, 'Critical threat detected in payload');
+			return { level: 'critical', action: 'block', reason: 'Malicious payload detected' };
+		} else if (threatLevel === 'high') {
+			return { level: 'high', action: 'challenge', reason: 'Suspicious payload detected' };
+		}
+
+		return { level: 'none', action: 'allow' };
+	}
+
+	/**
+	 * Analyzes the request payload (URL, body, headers) for threats.
+	 */
+	private async analyzePayload(request: Request): Promise<ThreatLevel> {
+		const url = new URL(request.url);
+		const queryString = url.search;
+		const body = request.method !== 'GET' ? await request.clone().text() : '';
+		const allContent = `${url.pathname} ${queryString} ${body}`;
+		const userAgent = request.headers.get('user-agent') || '';
 
 		// Check for SQL injection patterns
-		const queryString = new URL(`http://example.com${url}`).search;
-		const allContent = `${url} ${queryString} ${body || ''}`;
-
-		for (const pattern of THREAT_PATTERNS.SQL_INJECTION) {
-			if (pattern.test(allContent)) {
-				indicators.push({
-					type: 'sql_injection',
-					severity: 9,
-					evidence: `SQL injection pattern detected: ${pattern.source}`,
-					timestamp: now,
-					metadata: { url, pattern: pattern.source }
-				});
-			}
+		for (const pattern of this.patterns.sqli) {
+			if (pattern.test(allContent)) return 'critical';
 		}
 
 		// Check for XSS patterns
-		for (const pattern of THREAT_PATTERNS.XSS_PATTERNS) {
-			if (pattern.test(allContent)) {
-				indicators.push({
-					type: 'xss_attempt',
-					severity: 8,
-					evidence: `XSS pattern detected: ${pattern.source}`,
-					timestamp: now,
-					metadata: { url, pattern: pattern.source }
-				});
-			}
+		for (const pattern of this.patterns.xss) {
+			if (pattern.test(allContent)) return 'high';
+		}
+
+		// Check for Path Traversal
+		for (const pattern of this.patterns.pathTraversal) {
+			if (pattern.test(allContent)) return 'high';
 		}
 
 		// Check for suspicious user agents
-		if (userAgent) {
-			for (const pattern of THREAT_PATTERNS.SUSPICIOUS_USER_AGENTS) {
-				if (pattern.test(userAgent)) {
-					indicators.push({
-						type: 'suspicious_ua',
-						severity: 6,
-						evidence: `Suspicious user agent: ${userAgent}`,
-						timestamp: now,
-						metadata: { userAgent }
-					});
-				}
-			}
+		for (const pattern of this.patterns.suspicious_ua) {
+			if (pattern.test(userAgent)) return 'medium';
 		}
 
-		return indicators;
+		return 'none';
+	}
+
+	/**
+	 * Checks if the IP has exceeded rate limits.
+	 * (Placeholder for actual rate limit logic, possibly using Redis)
+	 */
+	private async checkRateLimit(ip: string): Promise<{ allowed: boolean }> {
+		// TODO: Implement actual rate limiting
+		// For now, check if IP is in throttled list
+		const throttle = this.throttledIPs.get(ip);
+		if (throttle && Date.now() < throttle.until) {
+			return { allowed: false };
+		}
+		return { allowed: true };
+	}
+
+	/**
+	 * Blocks an IP address.
+	 */
+	public async blockIp(ip: string, reason: string): Promise<void> {
+		this.blockedIPs.add(ip);
+		logger.warn(`IP blocked: ${ip}. Reason: ${reason}`);
+		// Create incident
+		this.reportSecurityEvent(ip, 'ip_reputation', 10, reason);
 	}
 
 	// Report a security event (rate limit hit, auth failure, etc.)

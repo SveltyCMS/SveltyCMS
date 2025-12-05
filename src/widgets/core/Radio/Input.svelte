@@ -36,11 +36,15 @@ Renders radio group with options from field.options array
 		error
 	}: { field: FieldType & RadioProps; value?: string | number | null | undefined; error?: string | null } = $props();
 
-	const fieldId = field.db_fieldName;
+	const fieldId = $derived(field.db_fieldName);
 </script>
 
 <div class="mb-4">
-	<fieldset class="rounded border border-surface-500 p-2 dark:border-surface-400" aria-describedby={error ? `${fieldId}-error` : undefined}>
+	<fieldset
+		id={fieldId}
+		class="rounded border border-surface-500 px-2 py-1 dark:border-surface-400"
+		aria-describedby={error ? `${fieldId}-error` : undefined}
+	>
 		<!-- Legend -->
 		<legend
 			class="mx-auto block w-fit px-2 text-center text-sm font-normal text-surface-700 dark:text-surface-300"

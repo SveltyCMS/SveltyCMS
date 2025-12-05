@@ -128,8 +128,19 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		// Clear widget active cache for current tenant ID
 		// The cache key is 'widget:active:all' and gets prefixed with tenant during storage
-		logger.debug('[/api/widgets/status] Clearing widget active cache', { tenantId });
+		logger.debug('[/api/widgets/status] Clearing widget active cache and related collections', { tenantId });
 		await cacheService.delete('widget:active:all', tenantId);
+
+		// Enhanced cache invalidation (moved from widgetStore)
+		// Widget state changed, so ALL collection-related caches are now invalid
+		try {
+			await cacheService.clearByPattern('query:collections:*');
+			await cacheService.clearByPattern('static:page:*'); // Page layouts depend on collections
+			await cacheService.clearByPattern('api:widgets:*'); // Active/required widgets API cache
+			await cacheService.clearByPattern('api:*:/api/admin/users*'); // Admin UI may show widget data
+		} catch (cacheError) {
+			logger.warn('[/api/widgets/status] Enhanced cache clearing failed (non-critical):', cacheError);
+		}
 
 		logger.info(`Widget ${widgetName} ${isActive ? 'activated' : 'deactivated'}`, {
 			tenantId,

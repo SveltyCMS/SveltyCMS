@@ -13,7 +13,6 @@ import type { SvelteComponent } from 'svelte';
 import type { FieldInstance, Schema } from '../content/types';
 import type { User } from '@src/databases/auth/types';
 import type { GuiFieldConfig } from '@utils/utils';
-import type { BaseIssue, BaseSchema } from 'valibot';
 
 // ============================================================================
 // Widget Type Classification
@@ -49,13 +48,20 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
 	displayComponentPath?: string;
 
 	// Validation (can be static schema or function)
-	validationSchema: BaseSchema<unknown, unknown, BaseIssue<unknown>> | ((field: FieldInstance) => BaseSchema<unknown, unknown, BaseIssue<unknown>>);
+	validationSchema: unknown | ((field: FieldInstance) => unknown);
+
+	/** Optional function to return widget-specific translatable paths. */
+	getTranslatablePaths?: (basePath: string) => string[];
 
 	// Default values for widget-specific props
 	defaults?: Partial<TProps>;
 
 	// Configuration UI in Collection Builder
 	GuiFields?: Record<string, unknown>;
+
+	// Generic translation support
+	// getTranslatablePaths is already defined above in WidgetDefinition interface
+	// Removing duplicate definition
 
 	// Optional advanced features
 	GraphqlSchema?: (params: { field: unknown; label: string; collection: unknown; collectionNameMapping?: Map<string, string> }) => {

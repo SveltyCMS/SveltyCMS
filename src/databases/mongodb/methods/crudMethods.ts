@@ -212,7 +212,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 				}
 			}));
 
-			const result = await this.model.bulkWrite(operations);
+			const result = await this.model.bulkWrite(operations as any);
 			return {
 				upsertedCount: result.upsertedCount,
 				modifiedCount: result.modifiedCount

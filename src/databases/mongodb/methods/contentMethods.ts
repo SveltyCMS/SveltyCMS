@@ -215,7 +215,7 @@ export class MongoContentMethods {
 				};
 			});
 			logger.trace(`[bulkUpdateNodes] Executing bulkWrite with ${operations.length} operations`);
-			const result = await this.nodesRepo.model.bulkWrite(operations);
+			const result = await this.nodesRepo.model.bulkWrite(operations as any);
 			logger.info(
 				`[bulkUpdateNodes] Result: modified=${result.modifiedCount}, upserted=${result.upsertedCount}, total=${result.modifiedCount + result.upsertedCount}`
 			);

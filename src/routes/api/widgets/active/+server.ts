@@ -59,7 +59,22 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			}
 		}
 
-		logger.debug('[/api/widgets/active] Extracted widget names', {
+		// Ensure core widgets are always included
+		// Use WidgetRegistryService (server-side) instead of widgetStore (client-side) to avoid build issues
+		const { widgetRegistryService } = await import('@src/services/WidgetRegistryService');
+		const allWidgets = widgetRegistryService.getAllWidgets();
+
+		const uniqueNames = new Set(widgetNames);
+
+		for (const [name, factory] of allWidgets.entries()) {
+			if (factory.__widgetType === 'core') {
+				uniqueNames.add(name);
+			}
+		}
+
+		widgetNames = Array.from(uniqueNames);
+
+		logger.debug('[/api/widgets/active] Extracted widget names (including core)', {
 			tenantId,
 			count: widgetNames.length,
 			widgets: widgetNames

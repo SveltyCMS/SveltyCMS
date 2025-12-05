@@ -36,28 +36,25 @@ Interactive form with map, country selector, and address validation
 	import type { AddressData } from './types';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
 
-	let { field, value, error }: { field: FieldType; value: AddressData | null | undefined; error?: string | null } = $props();
+	let { field, value = $bindable(), error }: { field: FieldType; value: AddressData | null | undefined; error?: string | null } = $props();
 
-	// Local reactive state for the form, initialized from the parent `value`.
-	const address = $state(
-		value ?? {
-			street: '',
-			houseNumber: '',
-			postalCode: '',
-			city: '',
-			country: (field.defaultCountry as string) || 'DE',
-			latitude: (field.mapCenter as { lat: number; lng: number })?.lat || 0,
-			longitude: (field.mapCenter as { lat: number; lng: number })?.lng || 0
+	// Initialize value if missing
+	$effect(() => {
+		if (!value) {
+			value = {
+				street: '',
+				houseNumber: '',
+				postalCode: '',
+				city: '',
+				country: (field.defaultCountry as string) || 'DE',
+				latitude: (field.mapCenter as { lat: number; lng: number })?.lat || 0,
+				longitude: (field.mapCenter as { lat: number; lng: number })?.lng || 0
+			};
 		}
-	);
+	});
 
 	// Get the current system language for the UI.
 	const lang = $derived($systemLanguage);
-
-	// Sync local `address` state back to the parent `value` when it changes.
-	$effect(() => {
-		value = address;
-	});
 
 	// Note: Map functionality is placeholder for future Mapbox integration
 	const map: any = null; // Placeholder for future Mapbox integration
@@ -76,31 +73,44 @@ Interactive form with map, country selector, and address validation
 		</div>
 	{/if}
 
-	<div class="form-grid">
-		<div class="field relative">
-			<label for="{field.db_fieldName}-street">Street</label>
-			<input
-				type="text"
-				id="{field.db_fieldName}-street"
-				bind:value={address.street}
-				class="input"
-				use:tokenTarget={{
-					name: field.db_fieldName,
-					label: field.label,
-					collection: (field as any).collection
-				}}
-			/>
-			<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-2 top-8 text-surface-400" width="16"></iconify-icon>
+	{#if value}
+		<div class="form-grid">
+			<div class="field relative">
+				<label for="{field.db_fieldName}-street">Street</label>
+				<input
+					type="text"
+					id="{field.db_fieldName}-street"
+					bind:value={value.street}
+					class="input"
+					use:tokenTarget={{
+						name: field.db_fieldName,
+						label: field.label,
+						collection: (field as any).collection
+					}}
+				/>
+			</div>
+			<div class="field">
+				<label for="{field.db_fieldName}-houseNumber">House Number</label>
+				<input type="text" id="{field.db_fieldName}-houseNumber" bind:value={value.houseNumber} class="input" />
+			</div>
+			<div class="field">
+				<label for="{field.db_fieldName}-postalCode">Postal Code</label>
+				<input type="text" id="{field.db_fieldName}-postalCode" bind:value={value.postalCode} class="input" />
+			</div>
+			<div class="field">
+				<label for="{field.db_fieldName}-city">City</label>
+				<input type="text" id="{field.db_fieldName}-city" bind:value={value.city} class="input" />
+			</div>
+			<div class="field">
+				<label for="{field.db_fieldName}-country">Country</label>
+				<select id="{field.db_fieldName}-country" bind:value={value.country} class="input">
+					{#each countries as country}
+						<option value={country.alpha2}>{country[lang] || country.en}</option>
+					{/each}
+				</select>
+			</div>
 		</div>
-		<div class="field">
-			<label for="{field.db_fieldName}-country">Country</label>
-			<select id="{field.db_fieldName}-country" bind:value={address.country} class="input">
-				{#each countries as country}
-					<option value={country.alpha2}>{country[lang] || country.en}</option>
-				{/each}
-			</select>
-		</div>
-	</div>
+	{/if}
 
 	{#if error}
 		<p class="error-message" role="alert">{error}</p>

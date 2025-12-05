@@ -30,12 +30,17 @@ export interface RichTextProps {
 	 */
 	toolbar?: RichTextToolbarOption[];
 
+	/**
+	 * Whether AI features are enabled for this field.
+	 */
+	aiEnabled?: boolean;
+
 	// Index signature to satisfy WidgetProps constraint
 	[key: string]: unknown;
 }
 
 // Defines the data structure for the RichText widget's value.
 export interface RichTextData {
-	title: string;
+	title?: string;
 	content: string; // The sanitized HTML content from the editor.
 }

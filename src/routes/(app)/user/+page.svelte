@@ -261,7 +261,7 @@
 	<PermissionGuard
 		config={{
 			name: 'Admin Area Access',
-			contextId: 'system:admin',
+			contextId: 'config/adminArea',
 			action: 'manage',
 			contextType: 'system',
 			description: 'Allows access to admin area for user management'

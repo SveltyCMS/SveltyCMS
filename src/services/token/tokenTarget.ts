@@ -8,17 +8,19 @@ interface TokenTargetOptions {
 	name: string;
 	label?: string;
 	collection?: string;
+	onInsert?: (token: string) => void;
 }
 
-export function tokenTarget(node: HTMLInputElement | HTMLTextAreaElement, options: TokenTargetOptions) {
+export function tokenTarget(node: HTMLElement, options: TokenTargetOptions) {
 	function onFocus() {
 		activeInputStore.set({
-			element: node,
+			element: node as HTMLElement | null as any, // Cast for store compatibility (it expects input/textarea but works with custom if onInsert provided)
 			field: {
 				name: options.name,
 				label: options.label || options.name,
 				collection: options.collection
-			}
+			},
+			onInsert: options.onInsert
 		});
 	}
 

@@ -16,9 +16,6 @@ import type { DatabaseAdapter } from '@src/databases/dbInterface';
 import type { FieldInstance } from '@src/content/types';
 import { logger } from '@utils/logger';
 
-// ✅ ENTERPRISE ENHANCEMENT: Cache integration
-import { cacheService } from '@src/databases/CacheService';
-
 export type WidgetStatus = 'active' | 'inactive';
 export type WidgetType = 'core' | 'custom' | 'marketplace'; // ✅ Added marketplace type
 
@@ -157,11 +154,17 @@ export const widgetStoreActions = {
 			for (const [path, module] of Object.entries(coreModules)) {
 				const processedWidget = this.processWidgetModule(path, module, 'core');
 				if (processedWidget) {
-					const { name, widgetFn, dependencies } = processedWidget;
+					const { name, widgetFn, dependencies, folderName } = processedWidget;
 					newWidgetFunctions[name] = widgetFn;
 					newCoreWidgets.push(name);
 					if (dependencies.length > 0) {
 						newDependencyMap[name] = dependencies;
+					}
+
+					// Register alias if folder name differs from widget name
+					if (folderName && folderName !== name) {
+						logger.debug(`[widgetStore] Alias: ${folderName} -> ${name}`);
+						newWidgetFunctions[folderName] = widgetFn;
 					}
 				}
 			}
@@ -170,11 +173,17 @@ export const widgetStoreActions = {
 			for (const [path, module] of Object.entries(customModules)) {
 				const processedWidget = this.processWidgetModule(path, module, 'custom');
 				if (processedWidget) {
-					const { name, widgetFn, dependencies } = processedWidget;
+					const { name, widgetFn, dependencies, folderName } = processedWidget;
 					newWidgetFunctions[name] = widgetFn;
 					newCustomWidgets.push(name);
 					if (dependencies.length > 0) {
 						newDependencyMap[name] = dependencies;
+					}
+
+					// Register alias if folder name differs from widget name
+					if (folderName && folderName !== name) {
+						logger.debug(`[widgetStore] Alias: ${folderName} -> ${name}`);
+						newWidgetFunctions[folderName] = widgetFn;
 					}
 				}
 			}
@@ -208,20 +217,28 @@ export const widgetStoreActions = {
 				return name;
 			});
 
-			// Use database as source of truth for active widgets
-			// If database query failed or returned empty (server-side), don't default to core-only
+			// Use database as source of truth for active widgets, but ALWAYS ensure core widgets are active
 			let uniqueActiveWidgets: string[];
+
 			if (normalizedActiveWidgets.length === 0 && typeof window === 'undefined') {
-				// Server-side and no database result: use empty array (will be populated client-side)
-				logger.debug('[widgetStore] Server-side initialization - no active widgets loaded yet');
-				uniqueActiveWidgets = [];
+				// Server-side and no database result: default to core widgets
+				logger.debug('[widgetStore] Server-side initialization - no active widgets loaded from DB, defaulting to core');
+				uniqueActiveWidgets = [...newCoreWidgets];
 			} else {
 				// Client-side or database returned results: use database as source of truth
 				// Remove duplicates and filter out widgets that don't exist in file system
 				uniqueActiveWidgets = normalizedActiveWidgets
 					.filter((name, index, self) => self.indexOf(name) === index) // Remove duplicates
 					.filter((name) => newWidgetFunctions[name]); // Only include widgets that exist
-				logger.debug('[widgetStore] Active widgets from database (normalized)', {
+
+				// Ensure core widgets are always active
+				for (const coreWidget of newCoreWidgets) {
+					if (!uniqueActiveWidgets.includes(coreWidget)) {
+						uniqueActiveWidgets.push(coreWidget);
+					}
+				}
+
+				logger.debug('[widgetStore] Active widgets from database (normalized + core)', {
 					count: uniqueActiveWidgets.length,
 					widgets: uniqueActiveWidgets,
 					original: activeWidgetNames
@@ -282,6 +299,7 @@ export const widgetStoreActions = {
 		name: string;
 		widgetFn: WidgetFunction | WidgetFactory;
 		dependencies: string[];
+		folderName: string;
 	} | null {
 		try {
 			const name = path.split('/').at(-2);
@@ -323,9 +341,10 @@ export const widgetStoreActions = {
 			}) as unknown as WidgetFactory;
 
 			return {
-				name: name, // Use folder name as-is (e.g., 'seo', not 'Seo')
+				name: widgetFn.Name, // Use defined Name (e.g. 'SEO')
 				widgetFn,
-				dependencies
+				dependencies,
+				folderName: name // Pass back folder name for aliasing
 			};
 		} catch (error) {
 			logger.error(`Failed to process widget module ${path}:`, error);
@@ -377,19 +396,8 @@ export const widgetStoreActions = {
 			});
 
 			// ✅ ENTERPRISE ENHANCEMENT: Cache invalidation
-			// Widget state changed, so ALL collection-related caches are now invalid
-			logger.info(`[WidgetState] Widget '${widgetName}' status changed to '${status}', clearing collection caches.`);
-
-			try {
-				// Clear collection-related caches
-				await cacheService.clearByPattern('query:collections:*');
-				await cacheService.clearByPattern('static:page:*'); // Page layouts depend on collections
-				await cacheService.clearByPattern('api:widgets:*'); // Active/required widgets API cache
-				await cacheService.clearByPattern('api:*:/api/admin/users*'); // Admin UI may show widget data
-				logger.debug('[WidgetState] Cache invalidation complete');
-			} catch (cacheError) {
-				logger.warn('[WidgetState] Cache clearing failed (non-critical):', cacheError);
-			}
+			// Handled by API endpoint /api/widgets/status
+			logger.info(`[WidgetState] Widget '${widgetName}' status changed to '${status}', cache invalidation handled by API.`);
 
 			// ✅ ENTERPRISE ENHANCEMENT: Re-validate widget health
 			// Server-side logic removed

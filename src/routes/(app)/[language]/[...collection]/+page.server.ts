@@ -299,8 +299,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		// Only load revisions if we're in edit mode and have an entry ID
 		if (editEntryId && currentCollection.revision) {
 			try {
-				// ✅ ARCHITECTURE: Direct import instead of API call for SSR purity
-				const { getRevisions } = await import('@api/collections/[collectionId]/[entryId]/revisions/+server.ts');
+				// ✅ ARCHITECTURE: Direct import from service instead of API endpoint
+				const { getRevisions } = await import('@src/services/RevisionService');
 				const revisionsResult = await getRevisions({
 					collectionId: currentCollection._id as string,
 					entryId: editEntryId as string,

@@ -222,7 +222,19 @@
 	}
 
 	function insert() {
-		const input = activeInputStore.value?.element;
+		const activeInput = activeInputStore.value;
+		if (!activeInput) return;
+
+		// Custom insertion handler (e.g. RichText, Rating)
+		if (activeInput.onInsert) {
+			activeInput.onInsert(editablePreview);
+			activeInputStore.set(null);
+			mode = 'list';
+			return;
+		}
+
+		// Standard Input/Textarea insertion
+		const input = activeInput.element;
 		if (!input) return;
 
 		// Replace the entire input value with the edited preview

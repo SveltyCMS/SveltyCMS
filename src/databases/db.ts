@@ -28,7 +28,7 @@ async function loadPrivateConfig(forceReload = false) {
 			logger.debug('Loading @config/private configuration...');
 			let module;
 			if (process.env.TEST_MODE) {
-				const path = ' @config/private.test';
+				const path = '@config/private.test';
 				module = await import(/* @vite-ignore */ path);
 			} else {
 				module = await import('@config/private');
@@ -551,7 +551,6 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 
 		// Eagerly initialize ContentManager to prevent race conditions on first load
 		try {
-			logger.debug('Importing ContentManager...');
 			const { contentManager } = await import('@src/content/ContentManager');
 			logger.debug('ContentManager imported, initializing...');
 			await contentManager.initialize();

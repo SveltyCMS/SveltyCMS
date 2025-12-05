@@ -58,6 +58,24 @@
 
 	// Import async widget loader component
 	import WidgetLoader from './WidgetLoader.svelte';
+
+	// Token Picker
+	// Token Picker
+
+	function openTokenPicker(field: any, e: MouseEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+
+		// Fallback: Try to find the input by ID (using db_fieldName as ID)
+		const id = field.db_fieldName;
+		const el = document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement;
+		if (el) {
+			el.focus();
+			// activeInputStore.set({ element: el, field }); // Reliance on widget's internal focus handler (tokenTarget or custom)
+		} else {
+			console.warn('Could not find input for field', field);
+		}
+	}
 	// --- END PERFORMANCE FIX ---
 
 	let widgetFunctions = $state<Record<string, any>>({});
@@ -334,7 +352,7 @@
 								class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
 								style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
 							>
-								<div class="flex items-center justify-between gap-2 px-[5px] text-start">
+								<div class="flex items-center justify-between gap-2 px-[5px] text-start field-label">
 									<!-- Field label -->
 									<div class="flex items-center gap-2">
 										<p class="inline-block font-semibold capitalize">
@@ -343,6 +361,15 @@
 										</p>
 									</div>
 									<div class="flex items-center gap-2">
+										<button
+											type="button"
+											onclick={(e) => openTokenPicker(field, e)}
+											class=""
+											title="Insert Token"
+											aria-label="Insert token into {field.label}"
+										>
+											<iconify-icon icon="mdi:code-braces" width="16" class="font-bold text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										</button>
 										<!-- Translation status -->
 										{#if field.translated}
 											{@const percentage = getFieldTranslationPercentage(field)}

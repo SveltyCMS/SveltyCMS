@@ -118,7 +118,7 @@ export const schema: Schema = {
 			label: 'Phone Number',
 			db_fieldName: 'phonenumber',
 			icon: 'ph:phone',
-			placeholder: 'Enter Phone no',
+			placeholder: 'Enter Phone Number',
 			required: true
 		}),
 
@@ -171,7 +171,7 @@ export const schema: Schema = {
 			required: true
 		}),
 
-		widgets.Seo({
+		widgets.SEO({
 			label: 'Seo',
 			db_fieldName: 'seo',
 			icon: 'tabler:seo',

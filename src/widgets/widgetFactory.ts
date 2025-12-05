@@ -49,6 +49,9 @@ export interface WidgetConfig<TProps extends WidgetProps = WidgetProps> {
 		resolver?: Record<string, unknown>;
 	};
 	aggregations?: unknown;
+
+	/** Optional function to return widget-specific translatable paths. */
+	getTranslatablePaths?: (basePath: string) => string[];
 }
 
 /**
@@ -70,7 +73,8 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(config: W
 		validationSchema: config.validationSchema as unknown as BaseSchema<unknown, unknown, BaseIssue<unknown>>,
 		defaults: config.defaults,
 		GuiFields: config.GuiSchema || ({} as Record<string, unknown>),
-		aggregations: config.aggregations as WidgetDefinition['aggregations']
+		aggregations: config.aggregations as WidgetDefinition['aggregations'],
+		getTranslatablePaths: config.getTranslatablePaths
 		// ... other definition properties like GraphqlSchema
 	};
 

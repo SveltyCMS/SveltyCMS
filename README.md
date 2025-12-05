@@ -11,6 +11,7 @@
 [![License: BSL 1.1](https://img.shields.io/badge/License-BSL%201.1%20Fair%20Source-blue.svg)](LICENSE.md)
 <img alt="Latest SemVer" src="https://img.shields.io/github/v/tag/SveltyCMS/SveltyCMS">
 <img alt="GitHub issues" src="https://img.shields.io/github/issues/SveltyCMS/SveltyCMS">
+![Secure](https://img.shields.io/badge/Security-Fortress-blue)
 <img alt="Bundle Size" src="https://img.shields.io/badge/Bundle-508%20KB%20Brotli-success?style=flat">
 
 </div>

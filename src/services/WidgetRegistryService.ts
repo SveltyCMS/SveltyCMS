@@ -39,7 +39,14 @@ class WidgetRegistryService {
 			for (const [path, module] of Object.entries(allModules)) {
 				const pathParts = path.split('/');
 				const folderName = pathParts.at(-2);
-				const type = pathParts.at(-4) as WidgetType;
+
+				// Robust type detection based on path segments
+				let type: WidgetType = 'custom';
+				if (path.includes('/core/')) {
+					type = 'core';
+				} else if (path.includes('/custom/')) {
+					type = 'custom';
+				}
 
 				if (!folderName || typeof module.default !== 'function') {
 					logger.warn(`Skipping invalid widget module at: ${path}`);

@@ -1,3 +1,11 @@
+/*
+ * @files api/telemetry/stats/+server.ts
+ * @description Telemetry Statistics
+ *
+ * ### Features
+ * - Aggregations
+ * - Admin/Guest Access
+ */
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
 

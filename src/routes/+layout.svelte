@@ -30,6 +30,7 @@
 
 	// Initialize theme and other client-side logic on mount
 	onMount(() => {
+		console.log('[RootLayout] Mounting...');
 		initializeDarkMode();
 	});
 
@@ -61,6 +62,8 @@
 	setGlobalToastStore(getToastStore());
 
 	// Props
+	import TokenPicker from '@components/TokenPicker.svelte';
+
 	interface Props {
 		children?: import('svelte').Snippet;
 	}
@@ -79,5 +82,6 @@
 	{#key currentLocale}
 		{@render children?.()}
 	{/key}
+	<TokenPicker />
 	<Toast />
 </div>

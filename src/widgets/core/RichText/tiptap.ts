@@ -38,13 +38,19 @@ import { getTextDirection } from '@utils/utils';
  * @param element The HTML element to bind the editor to.
  * @param content The initial HTML content for the editor.
  * @param language The current language code (e.g., 'en', 'ar') for text direction.
+ * @param options Additional options for the editor.
  */
-export function createEditor(element: HTMLElement, content: string, language: string) {
+export function createEditor(element: HTMLElement, content: string, language: string, _options: { aiEnabled?: boolean } = {}) {
 	// All extensions from your original component are now configured here.
 	return new Editor({
 		element,
 		extensions: [
-			StarterKit,
+			StarterKit.configure({
+				// @ts-ignore - Disable potentially conflicting extensions
+				link: false,
+				// @ts-ignore
+				underline: false
+			}),
 			TextStyle, // Custom extension for font-size
 			FontFamily,
 			Color,

@@ -984,7 +984,7 @@ export class MongoDBAdapter implements IDBAdapter {
 							});
 
 							// Execute bulkWrite with ordered: false for better performance
-							const result = await repo.model.bulkWrite(bulkOps as mongoose.AnyBulkWriteOperation<T>[], {
+							const result = await repo.model.bulkWrite(bulkOps as mongoose.AnyBulkWriteOperation<any>[], {
 								ordered: false // Don't stop on first error, process all operations
 							});
 
@@ -1081,7 +1081,7 @@ export class MongoDBAdapter implements IDBAdapter {
 				}
 			}));
 			return this._wrapResult(async () => {
-				const result = await repo.model.bulkWrite(bulkOps as mongoose.AnyBulkWriteOperation<T>[]);
+				const result = await repo.model.bulkWrite(bulkOps as mongoose.AnyBulkWriteOperation<any>[]);
 				return { modifiedCount: result.modifiedCount };
 			});
 		},
@@ -1102,7 +1102,7 @@ export class MongoDBAdapter implements IDBAdapter {
 				}
 			}));
 			return this._wrapResult(async () => {
-				await repo.model.bulkWrite(bulkOps as mongoose.AnyBulkWriteOperation<T>[]);
+				await repo.model.bulkWrite(bulkOps as mongoose.AnyBulkWriteOperation<any>[]);
 				// Note: This won't return the upserted documents in a single operation.
 				// A find query would be needed to retrieve them, which is complex.
 				// Returning empty array for now.

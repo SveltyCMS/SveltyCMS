@@ -62,7 +62,7 @@ function processWidgetModule(path: string, module: WidgetModule, type: WidgetTyp
 		logger.debug(`[Widget Proxy] Successfully loaded widget: ${name} (${type})`);
 
 		return {
-			name,
+			name: factory.Name,
 			factory,
 			type,
 			path
@@ -131,6 +131,13 @@ for (const [path, module] of Object.entries(coreModules)) {
 	const processed = processWidgetModule(path, module, 'core');
 	if (processed) {
 		registry.register(processed.name, processed.factory, processed.type, processed.path);
+
+		// Register aliases (folder name if different)
+		const folderName = path.split('/').at(-2);
+		if (folderName && folderName !== processed.name) {
+			logger.debug(`[Widget Proxy] Alias: ${folderName} -> ${processed.name}`);
+			registry.register(folderName, processed.factory, processed.type, processed.path);
+		}
 	}
 }
 
@@ -139,6 +146,13 @@ for (const [path, module] of Object.entries(customModules)) {
 	const processed = processWidgetModule(path, module, 'custom');
 	if (processed) {
 		registry.register(processed.name, processed.factory, processed.type, processed.path);
+
+		// Register aliases (folder name if different)
+		const folderName = path.split('/').at(-2);
+		if (folderName && folderName !== processed.name) {
+			logger.debug(`[Widget Proxy] Alias: ${folderName} -> ${processed.name}`);
+			registry.register(folderName, processed.factory, processed.type, processed.path);
+		}
 	}
 }
 

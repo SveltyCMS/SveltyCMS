@@ -35,14 +35,14 @@ const isContentEmpty = (html: string) => {
 const validationSchema = (field: FieldInstance) => {
 	// The base schema for the rich text data object.
 	const schema = object({
-		title: string(), // Title can be optional.
+		title: optional(string()), // Title can be optional.
 		content: string() // HTML content.
 	});
 
 	// If the field is required, validate that content is not empty
 	if (field.required) {
 		return object({
-			title: string(),
+			title: optional(string()),
 			content: pipe(
 				string(),
 				custom((input) => !isContentEmpty(input as string), 'Content is required.')

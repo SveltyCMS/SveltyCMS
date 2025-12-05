@@ -39,7 +39,7 @@ Part of the Three Pillars Architecture for widget system.
 
 	let { field, value = $bindable(), error }: Props = $props();
 
-	const fieldName = getFieldName(field);
+	const fieldName = $derived(getFieldName(field));
 
 	// Convert ISO string to YYYY-MM-DD format for native input
 
@@ -150,8 +150,6 @@ Part of the Three Pillars Architecture for widget system.
 			aria-required={field.required}
 			data-testid="date-input"
 		/>
-		<iconify-icon icon="mdi:code-braces" class="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 text-surface-400" width="16"
-		></iconify-icon>
 	</div>
 
 	<!-- Helper Text -->

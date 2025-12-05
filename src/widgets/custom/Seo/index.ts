@@ -73,6 +73,22 @@ const SeoWidget = createWidget({
 		translated: true
 	},
 
+	// Validation - defines which fields are translatable
+	getTranslatablePaths: (basePath: string) => {
+		// Return only fields that contribute to the global translation status
+		// Exclude technical fields like robotsMeta, canonicalUrl which have defaults
+		return [
+			`${basePath}.title`,
+			`${basePath}.description`,
+			`${basePath}.focusKeyword`,
+			`${basePath}.ogTitle`,
+			`${basePath}.ogDescription`,
+			`${basePath}.twitterTitle`,
+			`${basePath}.twitterDescription`,
+			`${basePath}.schemaMarkup`
+		];
+	},
+
 	// GuiSchema allows configuration in the collection builder.
 	GuiSchema: {
 		label: { widget: Input, required: true },
