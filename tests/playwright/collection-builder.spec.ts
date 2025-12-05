@@ -31,33 +31,14 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		const currentUrl = page.url();
 		console.log(`[Test] Current URL before navigation: ${currentUrl}`);
 
-		// Test if page is usable
-		console.log(`[Test] Testing page usability...`);
-		const title = await page.title();
-		console.log(`[Test] Page title: ${title}`);
-
-		// Use a simpler click-based navigation instead of goto
-		console.log('[Test] Clicking on sidebar navigation...');
-
-		// Look for collection builder link in sidebar
-		const collectionBuilderLink = page.locator('a[href*="collectionbuilder"], a:has-text("Collection Builder")').first();
-		const linkVisible = await collectionBuilderLink.isVisible({ timeout: 5000 }).catch(() => false);
-
-		if (linkVisible) {
-			await collectionBuilderLink.click();
-			await page.waitForURL(/collectionbuilder/, { timeout: 10000 });
-		} else {
-			// Navigate using evaluate as a fallback
-			console.log('[Test] No link found, using evaluate for navigation...');
-			await page.evaluate(() => {
-				window.location.href = '/config/collectionbuilder';
-			});
-			await page.waitForURL(/collectionbuilder/, { timeout: 30000 });
-		}
+		// Navigate directly to collection builder using page.goto()
+		// This is reliable after native form login
+		console.log('[Test] Navigating to collection builder...');
+		await page.goto('/config/collectionbuilder', { waitUntil: 'domcontentloaded', timeout: 30000 });
 		console.log(`[Test] Navigation completed, now at: ${page.url()}`);
 
 		// Check if the page loads correctly
-		await expect(page.locator('h1')).toContainText('Collection Builder');
+		await expect(page.locator('h1')).toContainText('Collection Builder', { timeout: 10000 });
 
 		// Check if "Add Collection" button is visible
 		const addCollectionButton = page.locator('button[aria-label="Add New Collection"]');
