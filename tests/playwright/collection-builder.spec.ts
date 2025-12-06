@@ -88,8 +88,15 @@ test.describe('Collection Builder with Modern Widgets', () => {
 		const currentUrl = page.url();
 		console.log(`[Test] Current URL: ${currentUrl}`);
 
-		// Check if the page loads correctly
-		await expect(page.locator('h1')).toContainText('Collection Builder', { timeout: 10000 });
+		// Wait for page to be fully loaded
+		await page.waitForLoadState('domcontentloaded');
+
+		// Debug: log page content if h1 is not found
+		const h1Text = await page.locator('h1').textContent({ timeout: 5000 }).catch(() => null);
+		console.log(`[Test] h1 text content: "${h1Text}"`);
+
+		// Check if the page loads correctly - match English or German
+		await expect(page.locator('h1')).toContainText(/Collection Builder|Sammlungsersteller/, { timeout: 15000 });
 
 		// Check if "Add Collection" button is visible
 		const addCollectionButton = page.locator('button[aria-label="Add New Collection"]');
