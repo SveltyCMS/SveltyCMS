@@ -4,22 +4,27 @@
 Displays logo, site name, language selector, and theme toggle.
 -->
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import SiteName from '@components/SiteName.svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
 	import * as m from '@src/paraglide/messages';
 	import { getLanguageName } from '@utils/languageUtils';
 
-	const dispatch = createEventDispatcher();
-
-	let { siteName, systemLanguages, currentLanguageTag, isLangOpen = $bindable(), langSearch = $bindable() } = $props();
+	let {
+		siteName,
+		systemLanguages,
+		currentLanguageTag,
+		isLangOpen = $bindable(),
+		langSearch = $bindable(),
+		onselectLanguage = () => {},
+		ontoggleLang = () => {}
+	} = $props();
 
 	function selectLanguage(lang: string) {
-		dispatch('selectLanguage', lang);
+		onselectLanguage(lang);
 	}
 
 	function toggleLang() {
-		dispatch('toggleLang');
+		ontoggleLang();
 	}
 </script>
 

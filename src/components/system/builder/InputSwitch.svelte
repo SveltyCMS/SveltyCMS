@@ -31,11 +31,8 @@ Features:
 		);
 		return Object.keys(res).length === 0 ? undefined : res;
 	}
-	import { createEventDispatcher } from 'svelte';
 	// Define props using $props()
 	const props = $props();
-
-	const dispatch = createEventDispatcher();
 
 	// Create state variables for mutable props
 	let value = $state(props.value ?? null);
@@ -67,7 +64,9 @@ Features:
 
 	// Function to update the parent component
 	function updateParent() {
-		dispatch('update', { value });
+		if (props.onupdate) {
+			props.onupdate({ value });
+		}
 	}
 </script>
 

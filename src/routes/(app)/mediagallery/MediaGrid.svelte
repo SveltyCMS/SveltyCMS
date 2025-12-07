@@ -33,16 +33,13 @@ Key features:
 	import { scale } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
 
-	// Events
-	import { createEventDispatcher } from 'svelte';
-	const dispatch = createEventDispatcher();
-
 	interface Props {
 		filteredFiles?: (MediaBase | MediaImage)[];
 		gridSize?: 'tiny' | 'small' | 'medium' | 'large';
 		ondeleteImage?: (file: MediaBase | MediaImage) => void;
 		onBulkDelete?: (files: (MediaBase | MediaImage)[]) => void;
 		onEditImage?: (file: MediaImage) => void;
+		onsizechange?: (detail: { size: string; type: string }) => void;
 	}
 
 	const {
@@ -50,7 +47,8 @@ Key features:
 		gridSize = 'medium',
 		ondeleteImage = () => {},
 		onBulkDelete = () => {},
-		onEditImage = () => {}
+		onEditImage = () => {},
+		onsizechange = () => {}
 	}: Props = $props();
 
 	let showInfo = $state<boolean[]>([]);
@@ -136,7 +134,7 @@ Key features:
 		const mediaId = file._id;
 		if (!mediaId || !file.metadata?.aiTags) return;
 
-		const updatedAITags = file.metadata.aiTags.filter(tag => tag !== tagToRemove);
+		const updatedAITags = file.metadata.aiTags.filter((tag) => tag !== tagToRemove);
 
 		try {
 			const response = await fetch(`/api/media/${mediaId}`, {
@@ -167,7 +165,7 @@ Key features:
 		const mediaId = file._id;
 		if (!mediaId || !file.metadata?.aiTags || !newTag.trim()) return;
 
-		const updatedAITags = file.metadata.aiTags.map(tag => tag === oldTag ? newTag.trim() : tag);
+		const updatedAITags = file.metadata.aiTags.map((tag) => (tag === oldTag ? newTag.trim() : tag));
 
 		try {
 			const response = await fetch(`/api/media/${mediaId}`, {
@@ -233,7 +231,7 @@ Key features:
 		const mediaId = file._id;
 		if (!mediaId || !file.metadata?.tags || !newTag.trim()) return;
 
-		const updatedTags = file.metadata.tags.map(tag => tag === oldTag ? newTag.trim() : tag);
+		const updatedTags = file.metadata.tags.map((tag) => (tag === oldTag ? newTag.trim() : tag));
 
 		console.log('Editing user tag:', { mediaId, oldTag, newTag, updatedTags });
 
@@ -270,7 +268,7 @@ Key features:
 		const mediaId = file._id;
 		if (!mediaId || !file.metadata?.tags) return;
 
-		const updatedTags = file.metadata.tags.filter(tag => tag !== tagToRemove);
+		const updatedTags = file.metadata.tags.filter((tag) => tag !== tagToRemove);
 
 		try {
 			const response = await fetch(`/api/media/${mediaId}`, {
@@ -353,6 +351,11 @@ Key features:
 		}
 
 		return nameWithoutExt.slice(0, availableLength) + '...' + extension;
+	}
+
+	// Autofocus action
+	function autofocus(node: HTMLElement) {
+		node.focus();
 	}
 
 	function getThumbnails(file: MediaBase | MediaImage) {
@@ -476,7 +479,7 @@ Key features:
 											onclick={(e) => {
 												e.preventDefault();
 												if (size === 'tiny' || size === 'small' || size === 'medium' || size === 'large') {
-													dispatch('sizechange', {
+													onsizechange({
 														size: size === 'tiny' ? 'small' : size === 'small' ? 'medium' : size === 'medium' ? 'large' : 'tiny',
 														type: 'grid'
 													});
@@ -523,12 +526,9 @@ Key features:
 							}}
 							aria-label="Toggle Tags"
 							class="btn-icon"
-							title={`View/Edit Tags`}
+							title="View/Edit Tags"
 						>
-							<iconify-icon 
-								icon="mdi:tag-multiple" 
-								width="22" 
-								class="{showTags[file._id?.toString() || ''] ? 'text-primary-500' : 'text-surface-500'}"
+							<iconify-icon icon="mdi:tag-multiple" width="22" class={showTags[file._id?.toString() || ''] ? 'text-primary-500' : 'text-surface-500'}
 							></iconify-icon>
 						</button>
 						<button
@@ -580,214 +580,223 @@ Key features:
 				</section>
 
 				<footer class="flex flex-col gap-2 p-2">
-				<!-- Tags Overlay (absolute positioned, doesn't affect layout) -->
-				{#if showTags[file._id?.toString() || ''] && 'metadata' in file && (file.metadata?.aiTags?.length || file.metadata?.tags?.length)}
-					<div 
-						class="absolute inset-0 z-10 flex items-center justify-center bg-black/80 p-4" 
-						onclick={(e) => {
-							// Close if clicking on the background (not the content)
-							if (e.target === e.currentTarget) {
-								const id = file._id?.toString();
-								if (id) showTags[id] = false;
-							}
-						}}
-						onkeydown={(e) => {
-							if (e.key === 'Escape') {
-								const id = file._id?.toString();
-								if (id) showTags[id] = false;
-							}
-						}}
-						role="dialog"
-						aria-label="Tag editor"
-						tabindex="-1"
-					>
-						<div class="max-h-full w-full overflow-auto rounded-lg bg-surface-50 p-3 dark:bg-surface-800">
-							<!-- AI Tags Section -->
-							{#if file.metadata?.aiTags && file.metadata.aiTags.length > 0}
-								<div class="mb-3 rounded border border-primary-400 bg-primary-50 p-2 dark:bg-primary-900/20">
-									<div class="mb-1 flex items-center gap-1 text-xs font-medium text-primary-600 dark:text-primary-400">
-										<iconify-icon icon="mdi:robot-happy" width="14"></iconify-icon>
-										AI Suggested Tags:
-									</div>
-									<div class="flex flex-wrap gap-1">
-										{#each file.metadata.aiTags as tag, tagIndex}
-											{@const fileId = file._id?.toString() || ''}
-											{@const isEditing = editingTag?.fileId === fileId && editingTag?.tagIndex === tagIndex}
-											
-											{#if isEditing}
-												<input
-													type="text"
-													value={editingTag?.value ?? ''}
-													oninput={(e) => {
-														if (editingTag) {
-															editingTag.value = (e.currentTarget as HTMLInputElement).value;
-														}
-													}}
-													onkeydown={(e) => {
-														if (e.key === 'Enter') {
-															e.preventDefault();
-															editAITag(file as MediaImage, tag, editingTag?.value || '');
-														} else if (e.key === 'Escape') {
-															editingTag = null;
-														}
-													}}
-													onblur={(e) => {
-														e.stopPropagation(); // Prevent parent click event
-														if (editingTag?.value && editingTag.value !== tag) {
-															editAITag(file as MediaImage, tag, editingTag.value);
-														} else {
-															editingTag = null;
-														}
-													}}
-													class="input input-sm w-24 px-1 py-0 text-xs"
-													autofocus
-												/>
-											{:else}
-												<span 
-													class="badge variant-filled-primary flex items-center gap-1 text-xs cursor-pointer hover:ring-2 hover:ring-primary-300"
-													onclick={(e) => {
-														e.stopPropagation();
-														editingTag = { fileId, tagIndex, value: tag };
-													}}
-													onkeydown={(e) => {
-														if (e.key === 'Enter' || e.key === ' ') {
-															e.preventDefault();
-															e.stopPropagation();
-															editingTag = { fileId, tagIndex, value: tag };
-														}
-													}}
-													role="button"
-													tabindex="0"
-													title="Click to edit"
-												>
-													{tag}
-													<button
+					<!-- Tags Overlay (absolute positioned, doesn't affect layout) -->
+					{#if showTags[file._id?.toString() || ''] && 'metadata' in file && (file.metadata?.aiTags?.length || file.metadata?.tags?.length)}
+						<div
+							class="absolute inset-0 z-10 flex items-center justify-center bg-black/80 p-4"
+							onclick={(e) => {
+								// Close if clicking on the background (not the content)
+								if (e.target === e.currentTarget) {
+									const id = file._id?.toString();
+									if (id) showTags[id] = false;
+								}
+							}}
+							onkeydown={(e) => {
+								if (e.key === 'Escape') {
+									const id = file._id?.toString();
+									if (id) showTags[id] = false;
+								}
+							}}
+							role="dialog"
+							aria-label="Tag editor"
+							tabindex="-1"
+						>
+							<div class="max-h-full w-full overflow-auto rounded-lg bg-surface-50 p-3 dark:bg-surface-800">
+								<!-- AI Tags Section -->
+								{#if file.metadata?.aiTags && file.metadata.aiTags.length > 0}
+									<div class="mb-3 rounded border border-primary-400 bg-primary-50 p-2 dark:bg-primary-900/20">
+										<div class="mb-1 flex items-center gap-1 text-xs font-medium text-primary-600 dark:text-primary-400">
+											<iconify-icon icon="mdi:robot-happy" width="14"></iconify-icon>
+											AI Suggested Tags:
+										</div>
+										<div class="flex flex-wrap gap-1">
+											{#each file.metadata.aiTags as tag, tagIndex}
+												{@const fileId = file._id?.toString() || ''}
+												{@const isEditing = editingTag?.fileId === fileId && editingTag?.tagIndex === tagIndex}
+
+												{#if isEditing}
+													<input
+														type="text"
+														value={editingTag?.value ?? ''}
+														oninput={(e) => {
+															if (editingTag) {
+																editingTag.value = (e.currentTarget as HTMLInputElement).value;
+															}
+														}}
+														onkeydown={(e) => {
+															if (e.key === 'Enter') {
+																e.preventDefault();
+																editAITag(file as MediaImage, tag, editingTag?.value || '');
+															} else if (e.key === 'Escape') {
+																editingTag = null;
+															}
+														}}
+														onblur={(e) => {
+															e.stopPropagation(); // Prevent parent click event
+															if (editingTag?.value && editingTag.value !== tag) {
+																editAITag(file as MediaImage, tag, editingTag.value);
+															} else {
+																editingTag = null;
+															}
+														}}
+														class="input input-sm w-24 px-1 py-0 text-xs"
+														use:autofocus
+													/>
+												{:else}
+													<span
+														class="badge variant-filled-primary flex items-center gap-1 text-xs cursor-pointer hover:ring-2 hover:ring-primary-300"
 														onclick={(e) => {
 															e.stopPropagation();
-															removeAITag(file as MediaImage, tag);
+															editingTag = { fileId, tagIndex, value: tag };
 														}}
-														class="hover:text-error-500"
-														aria-label="Remove tag"
-														>×</button>
-												</span>
-											{/if}
-										{/each}
-									</div>
-									
-									<!-- Add Manual Tag -->
-									<div class="mt-2 flex gap-1">
-										<input
-											type="text"
-											value={newTagInput[file._id?.toString() || ''] || ''}
-											oninput={(e) => {
-												const id = file._id?.toString();
-												if (id) {
-													newTagInput[id] = (e.currentTarget as HTMLInputElement).value;
-												}
-											}}
-											onkeydown={(e) => {
-												if (e.key === 'Enter') {
-													e.preventDefault();
+														onkeydown={(e) => {
+															if (e.key === 'Enter' || e.key === ' ') {
+																e.preventDefault();
+																e.stopPropagation();
+																editingTag = { fileId, tagIndex, value: tag };
+															}
+														}}
+														role="button"
+														tabindex="0"
+														title="Click to edit"
+													>
+														{tag}
+														<button
+															onclick={(e) => {
+																e.stopPropagation();
+																removeAITag(file as MediaImage, tag);
+															}}
+															class="hover:text-error-500"
+															aria-label="Remove tag">×</button
+														>
+													</span>
+												{/if}
+											{/each}
+										</div>
+
+										<!-- Add Manual Tag -->
+										<div class="mt-2 flex gap-1">
+											<input
+												type="text"
+												value={newTagInput[file._id?.toString() || ''] || ''}
+												oninput={(e) => {
+													const id = file._id?.toString();
+													if (id) {
+														newTagInput[id] = (e.currentTarget as HTMLInputElement).value;
+													}
+												}}
+												onkeydown={(e) => {
+													if (e.key === 'Enter') {
+														e.preventDefault();
+														addManualTag(file as MediaImage);
+													}
+												}}
+												placeholder="Add tag..."
+												class="input input-sm flex-1 px-2 py-1 text-xs"
+											/>
+											<button
+												onclick={(e) => {
+													e.stopPropagation();
 													addManualTag(file as MediaImage);
-												}
-											}}
-											placeholder="Add tag..."
-											class="input input-sm flex-1 px-2 py-1 text-xs"
-										/>
+												}}
+												class="btn btn-sm variant-ghost-primary"
+												title="Add tag"
+											>
+												<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
+											</button>
+										</div>
+
 										<button
 											onclick={(e) => {
 												e.stopPropagation();
-												addManualTag(file as MediaImage);
+												saveAITags(file as MediaImage);
 											}}
-											class="btn btn-sm variant-ghost-primary"
-											title="Add tag"
+											class="btn btn-sm variant-filled-success mt-2 w-full"
 										>
-											<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
+											<iconify-icon icon="mdi:check" width="16"></iconify-icon>
+											Save Tags
 										</button>
 									</div>
+								{/if}
 
-									<button
-										onclick={(e) => {
-											e.stopPropagation();
-											saveAITags(file as MediaImage);
-										}}
-										class="btn btn-sm variant-filled-success mt-2 w-full"
-									>
-										<iconify-icon icon="mdi:check" width="16"></iconify-icon>
-										Save Tags
-									</button>
-								</div>
-							{/if}
+								<!-- User Tags Section -->
+								{#if file.metadata?.tags && file.metadata.tags.length > 0}
+									<div class="rounded bg-surface-100 p-2 dark:bg-surface-700">
+										<div class="mb-1 text-xs font-medium text-surface-600 dark:text-surface-400">Saved Tags:</div>
+										<div class="flex flex-wrap gap-1">
+											{#each file.metadata.tags as tag, tagIndex}
+												{@const fileId = file._id?.toString() || ''}
+												{@const isEditing = editingTag?.fileId === `saved-${fileId}` && editingTag?.tagIndex === tagIndex}
 
-							<!-- User Tags Section -->
-							{#if file.metadata?.tags && file.metadata.tags.length > 0}
-								<div class="rounded bg-surface-100 p-2 dark:bg-surface-700">
-									<div class="mb-1 text-xs font-medium text-surface-600 dark:text-surface-400">Saved Tags:</div>
-									<div class="flex flex-wrap gap-1">
-										{#each file.metadata.tags as tag, tagIndex}
-											{@const fileId = file._id?.toString() || ''}
-											{@const isEditing = editingTag?.fileId === `saved-${fileId}` && editingTag?.tagIndex === tagIndex}
-											
-											{#if isEditing}
-												<input
-													type="text"
-													value={editingTag?.value ?? ''}
-													oninput={(e) => {
-														if (editingTag) {
-															editingTag.value = (e.currentTarget as HTMLInputElement).value;
-														}
-													}}
-													onkeydown={(e) => {
-														if (e.key === 'Enter') {
-															e.preventDefault();
-															editUserTag(file as MediaImage, tag, editingTag?.value || '');
-														} else if (e.key === 'Escape') {
-															editingTag = null;
-														}
-													}}
-													onblur={(e) => {
-														e.stopPropagation();
-														if (editingTag?.value && editingTag.value !== tag) {
-															editUserTag(file as MediaImage, tag, editingTag.value);
-														} else {
-															editingTag = null;
-														}
-													}}
-													class="input input-sm w-24 px-1 py-0 text-xs"
-													autofocus
-												/>
-											{:else}
-												<span 
-													class="badge variant-filled-success flex items-center gap-1 text-xs cursor-pointer hover:ring-2 hover:ring-success-300"
-													onclick={(e) => {
-														e.stopPropagation();
-														editingTag = { fileId: `saved-${fileId}`, tagIndex, value: tag };
-													}}
-													title="Click to edit"
-												>
-													{tag}
-													<button
-														onclick={(e) => {
-															e.preventDefault();
-															e.stopPropagation();
-															removeUserTag(file as MediaImage, tag);
+												{#if isEditing}
+													<input
+														type="text"
+														value={editingTag?.value ?? ''}
+														oninput={(e) => {
+															if (editingTag) {
+																editingTag.value = (e.currentTarget as HTMLInputElement).value;
+															}
 														}}
-														class="ml-1 hover:text-error-500"
-														aria-label="Remove tag"
-														type="button"
-														>×</button>
-												</span>
-											{/if}
-										{/each}
+														onkeydown={(e) => {
+															if (e.key === 'Enter') {
+																e.preventDefault();
+																editUserTag(file as MediaImage, tag, editingTag?.value || '');
+															} else if (e.key === 'Escape') {
+																editingTag = null;
+															}
+														}}
+														onblur={(e) => {
+															e.stopPropagation();
+															if (editingTag?.value && editingTag.value !== tag) {
+																editUserTag(file as MediaImage, tag, editingTag.value);
+															} else {
+																editingTag = null;
+															}
+														}}
+														class="input input-sm w-24 px-1 py-0 text-xs"
+														use:autofocus
+													/>
+												{:else}
+													<span
+														class="badge variant-filled-success flex items-center gap-1 text-xs cursor-pointer hover:ring-2 hover:ring-success-300"
+														onclick={(e) => {
+															e.stopPropagation();
+															editingTag = { fileId: `saved-${fileId}`, tagIndex, value: tag };
+														}}
+														onkeydown={(e) => {
+															if (e.key === 'Enter' || e.key === ' ') {
+																e.preventDefault();
+																e.stopPropagation();
+																editingTag = { fileId: `saved-${fileId}`, tagIndex, value: tag };
+															}
+														}}
+														role="button"
+														tabindex="0"
+														title="Click to edit"
+													>
+														{tag}
+														<button
+															onclick={(e) => {
+																e.preventDefault();
+																e.stopPropagation();
+																removeUserTag(file as MediaImage, tag);
+															}}
+															class="ml-1 hover:text-error-500"
+															aria-label="Remove tag"
+															type="button">×</button
+														>
+													</span>
+												{/if}
+											{/each}
+										</div>
 									</div>
-								</div>
-							{/if}
+								{/if}
+							</div>
 						</div>
-					</div>
-				{/if}
+					{/if}
 
-				<!-- Filename -->
-				<p class="truncate text-center font-medium" title={file.filename}>{truncateFilename(file.filename)}</p>
+					<!-- Filename -->
+					<p class="truncate text-center font-medium" title={file.filename}>{truncateFilename(file.filename)}</p>
 
 					<!-- Type & Size badges -->
 					<div class="flex items-center justify-between gap-1">

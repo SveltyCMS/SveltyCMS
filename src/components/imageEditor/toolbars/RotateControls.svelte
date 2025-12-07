@@ -40,7 +40,7 @@ Controls for the Rotate tool
 
 <div class="flex w-full items-center gap-4">
 	<span class="text-sm font-medium">Rotate & Flip Image</span>
-	
+
 	<div class="h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
 
 	<!-- Rotate Controls -->
@@ -59,15 +59,7 @@ Controls for the Rotate tool
 	<!-- Fine-tune Angle -->
 	<label class="flex items-center gap-2 text-sm">
 		<span>Angle:</span>
-		<input
-			type="range"
-			min="-180"
-			max="180"
-			step="1"
-			value={rotationAngle}
-			oninput={handleAngleInput}
-			class="range range-primary w-32"
-		/>
+		<input type="range" min="-180" max="180" step="1" value={rotationAngle} oninput={handleAngleInput} class="range range-primary w-32" />
 		<span class="w-12 text-right">{displayAngle()}°</span>
 	</label>
 
@@ -91,7 +83,7 @@ Controls for the Rotate tool
 		<iconify-icon icon="mdi:restore"></iconify-icon>
 		<span>Reset</span>
 	</button>
-	
+
 	<button class="btn variant-filled-success" onclick={onApply}>
 		<iconify-icon icon="mdi:check"></iconify-icon>
 		<span>Apply</span>

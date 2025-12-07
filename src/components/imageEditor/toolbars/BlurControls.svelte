@@ -34,7 +34,7 @@ Controls for the Blur tool, including strength slider and pattern/shape selector
 
 <div class="flex w-full items-center gap-4">
 	<span class="text-sm font-medium">Click image to add blur region</span>
-	
+
 	<div class="h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
 
 	<span class="text-sm">Shape:</span>
@@ -81,7 +81,7 @@ Controls for the Blur tool, including strength slider and pattern/shape selector
 		<iconify-icon icon="mdi:restore"></iconify-icon>
 		<span>Reset All</span>
 	</button>
-	
+
 	<button class="btn variant-filled-success" onclick={onApply}>
 		<iconify-icon icon="mdi:check"></iconify-icon>
 		<span>Apply Blur</span>

@@ -4,11 +4,7 @@
 Displays the current step title and icon, and a reset button.
 -->
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-
-	const { currentStep, steps } = $props();
-
-	const dispatch = createEventDispatcher();
+	const { currentStep, steps, onreset = () => {} } = $props();
 
 	const icons = $derived(['mdi:database', 'mdi:account', 'mdi:cog', 'mdi:email', 'mdi:check-circle']);
 </script>
@@ -20,7 +16,7 @@ Displays the current step title and icon, and a reset button.
 		{/if}
 		{steps[currentStep]?.label || 'Loading...'}
 	</h2>
-	<button onclick={() => dispatch('reset')} type="button" class="variant-ghost btn btn-sm rounded text-xs" aria-label="Reset data" title="Reset data">
+	<button onclick={() => onreset()} type="button" class="variant-ghost btn btn-sm rounded text-xs" aria-label="Reset data" title="Reset data">
 		<iconify-icon icon="mdi:backup-restore" class="mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
 		<span class="hidden sm:inline">Reset Data</span>
 	</button>

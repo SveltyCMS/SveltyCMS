@@ -3,13 +3,14 @@
  * @description FocalPoint widget registration
  */
 
-import type { WidgetDefinition } from '../registry';
+import type { EditorWidget } from '../registry';
+import Tool from './Tool.svelte';
 
-export const FocalPointWidget: WidgetDefinition = {
-	key: 'focalpoint',
+export const editorWidget: EditorWidget = {
+	key: 'focalPoint',
 	title: 'Focal Point',
-	icon: 'mdi:focus-field',
-	description: 'Set focal point with rule of thirds',
-	tool: () => import('./Tool.svelte'),
-	controls: null
+	icon: 'mdi:target',
+
+	tool: Tool as unknown as import('svelte').Component<Record<string, unknown>>,
+	controls: null as unknown as import('svelte').Component<Record<string, unknown>>
 };

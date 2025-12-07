@@ -61,7 +61,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 	// State for collapsible functionality
 	let isCollapsed = $state(false);
 	$effect(() => {
-		isCollapsed = field.collapsed || false;
+		isCollapsed = (field.collapsed as boolean) || false;
 	});
 
 	/**

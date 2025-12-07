@@ -83,7 +83,12 @@
 			{#if guiSchema}
 				{#each Object.entries(guiSchema) as [property, value] (property)}
 					<!-- eslint-disable-next-line @typescript-eslint/no-explicit-any -->
-					<InputSwitch value={field.widget.GuiFields[property]} widget={(value as any).widget} key={property} />
+					<InputSwitch
+						value={field.widget.GuiFields[property]}
+						widget={(value as any).widget}
+						key={property}
+						onupdate={(e: { value: any }) => (field.widget.GuiFields[property] = e.value)}
+					/>
 				{/each}
 			{/if}
 		</div>

@@ -222,12 +222,8 @@ calls store methods and wires store state to child components.
 			{currentLanguageTag}
 			bind:isLangOpen
 			bind:langSearch
-			on:selectLanguage={selectLanguage}
-			on:toggleLang={() => (isLangOpen = !isLangOpen)}
-			on:reset={() => {
-				if (typeof window !== 'undefined' && !confirm('Clear all setup data?')) return;
-				clearStore();
-			}}
+			onselectLanguage={selectLanguage}
+			ontoggleLang={() => (isLangOpen = !isLangOpen)}
 		/>
 
 		<!-- Main Content with Left Side Steps -->
@@ -239,7 +235,7 @@ calls store methods and wires store state to child components.
 				stepCompleted={setupStore.stepCompleted}
 				stepClickable={setupStore.stepClickable}
 				{legendItems}
-				on:selectStep={(e) => (wizard.currentStep = e.detail)}
+				onselectStep={(e: number) => (wizard.currentStep = e)}
 			/>
 
 			<!-- Main Card (Right Side) -->
@@ -248,7 +244,7 @@ calls store methods and wires store state to child components.
 				<SetupCardHeader
 					currentStep={wizard.currentStep}
 					{steps}
-					on:reset={() => {
+					onreset={() => {
 						if (typeof window !== 'undefined' && !confirm('Clear all setup data?')) return;
 						clearStore();
 					}}
@@ -383,9 +379,9 @@ calls store methods and wires store state to child components.
 					{totalSteps}
 					canProceed={setupStore.canProceed}
 					isLoading={wizard.isLoading || wizard.isSubmitting}
-					on:prev={prevStep}
-					on:next={nextStep}
-					on:complete={handleCompleteSetup}
+					onprev={prevStep}
+					onnext={nextStep}
+					oncomplete={handleCompleteSetup}
 				/>
 			</div>
 		</div>

@@ -112,7 +112,7 @@ functionality for image editing and basic file information display.
 		}, 300);
 	}
 
-	async function handleEditorSave({ detail }: CustomEvent<{ dataURL: string; file: File }>) {
+	async function handleEditorSave(detail: { dataURL: string; file: File }) {
 		const { file: editedFile } = detail;
 		// Create form data for the API request
 		const formData = new FormData();
@@ -327,5 +327,5 @@ functionality for image editing and basic file information display.
 	{/if}
 
 	<!-- Editor Modal -->
-	<ImageEditorModal bind:show={showEditor} image={value instanceof File ? null : value} on:save={handleEditorSave} />
+	<ImageEditorModal bind:show={showEditor} image={value instanceof File ? null : value} onsave={handleEditorSave} />
 </div>

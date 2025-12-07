@@ -4,20 +4,19 @@
 A reusable modal that wraps the main Image Editor.
 -->
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import type { MediaImage } from '@src/utils/media/mediaModels';
 	import Editor from './Editor.svelte';
 	import EditorToolbar from './EditorToolbar.svelte';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
-	const dispatch = createEventDispatcher();
-
 	let {
 		show = $bindable(),
-		image = null
+		image = null,
+		onsave = () => {}
 	}: {
 		show: boolean;
 		image: MediaImage | null;
+		onsave?: (detail: any) => void;
 	} = $props();
 
 	let editorComponent: Editor | undefined = $state();
@@ -67,7 +66,7 @@ A reusable modal that wraps the main Image Editor.
 		<div class="relative flex h-[90vh] w-[90vw] max-w-7xl flex-col rounded-lg bg-surface-100 shadow-xl dark:bg-surface-800">
 			<header class="flex items-center justify-between border-b border-surface-300 p-4 dark:border-surface-700">
 				<h2 id="image-editor-title" class="text-lg font-semibold">Image Editor</h2>
-				
+
 				<!-- Global Actions -->
 				<div class="flex items-center gap-2">
 					<button
@@ -109,11 +108,11 @@ A reusable modal that wraps the main Image Editor.
 					initialImageSrc={image.url}
 					mediaId={image._id}
 					focalPoint={image?.metadata?.focalPoint as { x: number; y: number } | undefined}
-					on:save={(e) => dispatch('save', e.detail)}
-					on:cancel={handleClose}
+					onsave={(detail) => onsave(detail)}
+					oncancel={handleClose}
 				/>
 			</main>
-			<EditorToolbar {editorComponent} />
+			<EditorToolbar />
 		</div>
 	</div>
 {/if}

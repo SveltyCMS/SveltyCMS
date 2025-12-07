@@ -30,9 +30,9 @@ Features:
 	const specificFields = $derived(currentGuiSchema ? Object.keys(currentGuiSchema).filter((key) => !defaultFields.includes(key)) : []);
 
 	/** Updates the target widget property */
-	function handleToggle(event: CustomEvent, property: string) {
+	function handleUpdate(detail: { value: any }, property: string) {
 		const currentWidget = targetWidget.value;
-		currentWidget[property] = event.detail;
+		currentWidget[property] = detail.value;
 		targetWidget.value = currentWidget;
 	}
 </script>
@@ -41,7 +41,7 @@ Features:
 	{#each specificFields as property}
 		<InputSwitch
 			value={targetWidget.value[property]}
-			on:toggle={(e) => handleToggle(e, property)}
+			onupdate={(e: { value: any }) => handleUpdate(e, property)}
 			widget={asAny((currentGuiSchema as any)[property]?.widget)}
 			key={property}
 		/>

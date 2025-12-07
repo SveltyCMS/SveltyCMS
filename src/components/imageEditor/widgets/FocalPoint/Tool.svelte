@@ -180,7 +180,7 @@ Allows users to set the focal point of an image with rule of thirds grid overlay
 	}
 
 	// --- Event Handlers ---
-	function onStageClick(e: Konva.KonvaEventObject<MouseEvent>) {
+	function onStageClick() {
 		const { stage, imageNode, imageGroup } = imageEditorStore.state;
 		if (!stage || !imageNode || !imageGroup) return;
 
@@ -193,12 +193,7 @@ Allows users to set the focal point of an image with rule of thirds grid overlay
 		const imageY = imageGroup.y();
 
 		// Check if click is within image bounds
-		if (
-			pos.x < imageX ||
-			pos.x > imageX + imageWidth ||
-			pos.y < imageY ||
-			pos.y > imageY + imageHeight
-		) {
+		if (pos.x < imageX || pos.x > imageX + imageWidth || pos.y < imageY || pos.y > imageY + imageHeight) {
 			return;
 		}
 

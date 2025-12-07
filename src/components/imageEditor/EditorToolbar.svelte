@@ -6,9 +6,6 @@ It dynamically renders controls based on the active tool.
 -->
 <script lang="ts">
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-	import type Editor from './Editor.svelte';
-
-	let { editorComponent }: { editorComponent: Editor | undefined } = $props();
 
 	const toolbarControls = $derived(imageEditorStore.state.toolbarControls);
 </script>

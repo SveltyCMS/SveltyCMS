@@ -396,9 +396,17 @@ Displays a collection of media files (images, documents, audio, video) with:
 		}
 	}
 
-	// Handle view change
 	function handleViewChange(newView: 'grid' | 'table') {
 		view = newView;
+		storeUserPreference(view, gridSize, tableSize);
+	}
+	function handleSizeChange(detail: { type: string; size: string }) {
+		view = detail.type as 'grid' | 'table'; // Update the view based on the type in detail
+		if (detail.type === 'grid') {
+			gridSize = detail.size as 'tiny' | 'small' | 'medium' | 'large';
+		} else {
+			tableSize = detail.size as 'tiny' | 'small' | 'medium' | 'large';
+		}
 		storeUserPreference(view, gridSize, tableSize);
 	}
 
@@ -601,8 +609,8 @@ Displays a collection of media files (images, documents, audio, video) with:
 		showEditor = true;
 	}
 
-	async function handleEditorSave(event: CustomEvent<{ dataURL: string; file: File }>) {
-		const { file } = event.detail;
+	async function handleEditorSave(detail: { dataURL: string; file: File }) {
+		const { file } = detail;
 		showEditor = false;
 
 		const formData = new FormData();
@@ -1083,12 +1091,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 				{gridSize}
 				ondeleteImage={handleDeleteImage}
 				onBulkDelete={handleBulkDelete}
-				on:sizechange={({ detail }) => {
-					if (detail.type === 'grid') {
-						gridSize = detail.size;
-						storeUserPreference(view, gridSize, tableSize);
-					}
-				}}
+				onsizechange={handleSizeChange}
 				onEditImage={handleEditImage}
 			/>
 		{/if}
@@ -1098,7 +1101,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 </div>
 
 <!-- Editor Modal -->
-<ImageEditorModal bind:show={showEditor} image={imageToEdit} on:save={handleEditorSave} />
+<ImageEditorModal bind:show={showEditor} image={imageToEdit} onsave={handleEditorSave} />
 
 <!-- Modals -->
 {#if showAdvancedSearch}

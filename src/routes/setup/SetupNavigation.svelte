@@ -4,19 +4,16 @@
 Handles Previous, Next, and Complete buttons and their states.
 -->
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import * as m from '@src/paraglide/messages';
 
-	const dispatch = createEventDispatcher();
-
-	const { currentStep, totalSteps, canProceed, isLoading } = $props();
+	const { currentStep, totalSteps, canProceed, isLoading, onprev = () => {}, onnext = () => {}, oncomplete = () => {} } = $props();
 </script>
 
 <div class="flex flex-shrink-0 items-center justify-between border-t border-slate-200 px-4 pb-4 pt-4 sm:px-8 sm:pb-6 sm:pt-6">
 	<!-- Previous Button -->
 	<div class="flex-1">
 		{#if currentStep > 0}
-			<button onclick={() => dispatch('prev')} class="variant-filled-tertiary btn dark:variant-filled-primary">
+			<button onclick={() => onprev()} class="variant-filled-tertiary btn dark:variant-filled-primary">
 				<iconify-icon icon="mdi:arrow-left-bold" class="mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
 				{m.button_previous()}
 			</button>
@@ -32,7 +29,7 @@ Handles Previous, Next, and Complete buttons and their states.
 	<div class="flex flex-1 justify-end">
 		{#if currentStep < totalSteps - 1}
 			<button
-				onclick={() => dispatch('next')}
+				onclick={() => onnext()}
 				disabled={!canProceed || isLoading}
 				aria-disabled={!canProceed || isLoading}
 				class="variant-filled-tertiary btn transition-all dark:variant-filled-primary {canProceed ? '' : 'cursor-not-allowed opacity-60'}"
@@ -47,7 +44,7 @@ Handles Previous, Next, and Complete buttons and their states.
 			</button>
 		{:else if currentStep === totalSteps - 1}
 			<button
-				onclick={() => dispatch('complete')}
+				onclick={() => oncomplete()}
 				disabled={isLoading}
 				aria-disabled={isLoading}
 				class="variant-filled-tertiary btn transition-all dark:variant-filled-primary {isLoading ? 'cursor-not-allowed opacity-60' : ''}"

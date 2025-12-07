@@ -1,8 +1,3 @@
-/**
- * @file src/components/imageEditor/widgets/Rotate/Tool.svelte
- * @component
- * Rotate tool for rotating and flipping images
- */
 <script lang="ts">
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 	import RotateControls from '@src/components/imageEditor/toolbars/RotateControls.svelte';
@@ -116,4 +111,5 @@
 	}
 </script>
 
+/** * @file src/components/imageEditor/widgets/Rotate/Tool.svelte * @component * Rotate tool for rotating and flipping images */
 <!-- No UI needed, all controls in toolbar -->

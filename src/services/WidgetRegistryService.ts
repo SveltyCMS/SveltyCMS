@@ -10,6 +10,7 @@ class WidgetRegistryService {
 	private static instance: WidgetRegistryService;
 	private widgets: Map<string, WidgetFactory> = new Map();
 	private isInitialized = false;
+	private initializationPromise: Promise<void> | null = null;
 
 	private constructor() {
 		logger.debug('WidgetRegistryService instance created.');
@@ -24,110 +25,107 @@ class WidgetRegistryService {
 
 	public async initialize(): Promise<void> {
 		if (this.isInitialized) {
-			// Already initialized - silently return (called multiple times during collection processing)
 			return;
 		}
 
-		const startTime = performance.now();
-		logger.info('Initializing WidgetRegistryService, scanning for widgets...');
+		if (this.initializationPromise) {
+			return this.initializationPromise;
+		}
 
-		try {
-			const coreModules = import.meta.glob<WidgetModule>('../widgets/core/*/index.ts', { eager: true });
-			const customModules = import.meta.glob<WidgetModule>('../widgets/custom/*/index.ts', { eager: true });
-			const allModules = { ...coreModules, ...customModules };
+		this.initializationPromise = (async () => {
+			const startTime = performance.now();
+			logger.info('Initializing WidgetRegistryService, scanning for widgets...');
 
-			for (const [path, module] of Object.entries(allModules)) {
-				const pathParts = path.split('/');
+			try {
+				const coreModules = import.meta.glob<WidgetModule>('../widgets/core/*/index.ts', { eager: true });
+				const customModules = import.meta.glob<WidgetModule>('../widgets/custom/*/index.ts', { eager: true });
+				const allModules = { ...coreModules, ...customModules };
 
-				// Robust type detection based on path segments
-				let type: WidgetType = 'custom';
-				if (path.includes('/core/')) {
-					type = 'core';
-				} else if (path.includes('/custom/')) {
-					type = 'custom';
-				}
+				for (const [path, module] of Object.entries(allModules)) {
+					// Robust type detection based on path segments
+					let type: WidgetType = 'custom';
+					if (path.includes('/core/')) {
+						type = 'core';
+					} else if (path.includes('/custom/')) {
+						type = 'custom';
+					}
 
-				const processed = this._processWidgetModule(path, module, type); // Call the private method
-				if (processed) {
-					const { name, widgetFn } = processed;
-					this.widgets.set(name, widgetFn);
-					logger.debug(`[WidgetRegistryService] Registered: ${name} (from ${path})`);
-
-					// The alias logic (PascalCase to all-caps) should be handled within the _processWidgetModule itself
-					// if that is desired. Here, we just store by the resolved name.
-				}
-			}
-
-			// Process custom widgets
-			for (const [path, module] of Object.entries(customModules)) {
-				const processed = this._processWidgetModule(path, module, 'custom'); // Use this.processWidgetModule here
-				if (processed) {
-					const { name, widgetFn, folderName } = processed;
-					this.widgets.set(name, widgetFn);
-					logger.debug(`[WidgetRegistryService] Registered: ${name} (from ${path})`);
-
-					// Register aliases (folder name if different)
-					if (folderName && folderName !== name) {
-						logger.debug(`[WidgetRegistryService] Alias: ${folderName} -> ${name}`);
-						this.widgets.set(folderName, widgetFn);
+					const processed = this._processWidgetModule(path, module, type); // Call the private method
+					if (processed) {
+						const { name, widgetFn } = processed;
+						this.widgets.set(name, widgetFn);
+						logger.trace(`[WidgetRegistryService] Registered: ${name} (from ${path})`);
 					}
 				}
-			}
-			logger.debug('[WidgetRegistryService] All registered widget names:', Array.from(this.widgets.keys()));
 
-			// Scan marketplace widgets (runtime discovery)
-			// ... (rest of the initialize method)
+				// Process custom widgets specifically if needed, or just rely on allModules loop above.
+				// The previous code looped over allModules AND customModules again?
+				// Looking at the original file:
+				// Line 39 looped allModules. Line 60 looped customModules.
+				// This seems redundant if allModules contains customModules.
+				// I will stick to looping allModules only to avoid duplicates, assuming customModules are in allModules.
+				// Wait, the original code had:
+				// const allModules = { ...coreModules, ...customModules };
+				// Loop allModules...
+				// Then Loop customModules...
+				// This DEFINITELY caused double registration for custom widgets.
+				// I will REMOVE the second redundant loop.
 
-			// Scan marketplace widgets (runtime discovery)
-			try {
-				const fs = await import('fs/promises');
-				const path = await import('path');
-				const marketplaceDir = path.resolve(process.cwd(), 'src/widgets/marketplace');
+				logger.debug('[WidgetRegistryService] All registered widget names:', Array.from(this.widgets.keys()));
 
+				// Scan marketplace widgets (runtime discovery)
 				try {
-					const widgetFolders = await fs.readdir(marketplaceDir, { withFileTypes: true });
-					logger.debug(`[WidgetRegistry] Scanning marketplace directory: ${marketplaceDir}`);
+					const fs = await import('fs/promises');
+					const path = await import('path');
+					const marketplaceDir = path.resolve(process.cwd(), 'src/widgets/marketplace');
 
-					for (const folder of widgetFolders) {
-						if (folder.isDirectory()) {
-							const indexPath = path.join(marketplaceDir, folder.name, 'index.ts');
-							try {
-								// Dynamically import the runtime-discovered widget
-								// @vite-ignore tells Vite to skip this dynamic import at build time
-								const module = (await import(/* @vite-ignore */ indexPath)) as WidgetModule;
+					try {
+						const widgetFolders = await fs.readdir(marketplaceDir, { withFileTypes: true });
+						logger.debug(`[WidgetRegistry] Scanning marketplace directory: ${marketplaceDir}`);
 
-								if (module.default && typeof module.default === 'function') {
-									const widgetFn = module.default as WidgetFactory;
-									const widgetName = widgetFn.Name || folder.name;
-									widgetFn.Name = widgetName;
-									widgetFn.__widgetType = 'marketplace'; // Assuming 'marketplace' is a valid WidgetType or cast it
+						for (const folder of widgetFolders) {
+							if (folder.isDirectory()) {
+								const indexPath = path.join(marketplaceDir, folder.name, 'index.ts');
+								try {
+									// Dynamically import the runtime-discovered widget
+									// @vite-ignore tells Vite to skip this dynamic import at build time
+									const module = (await import(/* @vite-ignore */ indexPath)) as WidgetModule;
 
-									this.widgets.set(widgetName, widgetFn);
-									logger.info(`✅ Loaded marketplace widget: ${widgetName}`);
+									if (module.default && typeof module.default === 'function') {
+										const widgetFn = module.default as WidgetFactory;
+										const widgetName = widgetFn.Name || folder.name;
+										widgetFn.Name = widgetName;
+										widgetFn.__widgetType = 'marketplace';
+
+										this.widgets.set(widgetName, widgetFn);
+										logger.info(`✅ Loaded marketplace widget: ${widgetName}`);
+									}
+								} catch (err) {
+									logger.warn(`Failed to load marketplace widget ${folder.name}:`, err);
 								}
-							} catch (err) {
-								logger.warn(`Failed to load marketplace widget ${folder.name}:`, err);
 							}
 						}
+					} catch (e) {
+						if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+							logger.debug('[WidgetRegistry] Marketplace directory does not exist yet (this is normal)');
+						} else {
+							logger.warn('[WidgetRegistry] Error scanning marketplace directory:', e);
+						}
 					}
-				} catch (e) {
-					if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
-						logger.debug('[WidgetRegistry] Marketplace directory does not exist yet (this is normal)');
-					} else {
-						logger.warn('[WidgetRegistry] Error scanning marketplace directory:', e);
-					}
+				} catch (err) {
+					logger.warn('[WidgetRegistry] Failed to import fs/path for marketplace scanning (likely client-side environment)', err);
 				}
-			} catch (err) {
-				logger.warn('[WidgetRegistry] Failed to import fs/path for marketplace scanning (likely client-side environment)', err);
-			}
 
-			this.isInitialized = true;
-			const duration = (performance.now() - startTime).toFixed(2);
-			logger.info(` 705 WidgetRegistryService initialized with ${this.widgets.size} widgets in ${duration}ms.`);
-		} catch (error) {
-			logger.error('Failed to initialize WidgetRegistryService', error);
-			throw error;
-		}
+				this.isInitialized = true;
+				const duration = (performance.now() - startTime).toFixed(2);
+				logger.info(` 705 WidgetRegistryService initialized with ${this.widgets.size} widgets in ${duration}ms.`);
+			} catch (error) {
+				logger.error('Failed to initialize WidgetRegistryService', error);
+				throw error;
+			}
+		})();
+
+		return this.initializationPromise;
 	}
 
 	public getWidget(name: string): WidgetFactory | undefined {

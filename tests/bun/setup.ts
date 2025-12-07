@@ -149,7 +149,7 @@ mock.module('@sveltejs/kit', () => ({
 
 // --- Svelte 5 Runes Mocks ---
 // Mock Svelte 5 Runes for testing Svelte stores directly
-globalThis.$state = (initial: any) => {
+(globalThis as any).$state = (initial: any) => {
 	let value = initial;
 	return {
 		get value() {
@@ -160,21 +160,21 @@ globalThis.$state = (initial: any) => {
 		}
 	};
 };
-globalThis.$derived = (fn: any) => {
-	let value = fn();
+(globalThis as any).$derived = (fn: any) => {
+	let value = typeof fn === 'function' ? fn() : fn;
 	return {
 		get value() {
 			return value;
 		}
 	};
 };
-globalThis.$effect = (fn: any) => {
+(globalThis as any).$effect = (fn: any) => {
 	fn();
 };
-globalThis.$effect.root = (fn: any) => {
+(globalThis as any).$effect.root = (fn: any) => {
 	fn();
 };
-globalThis.$props = () => ({});
+(globalThis as any).$props = () => ({});
 
 // Mock loadingStore.svelte.ts to prevent $state error
 mock.module('@src/stores/loadingStore.svelte', () => {

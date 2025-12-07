@@ -12,7 +12,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 -->
 
 <script lang="ts">
-	import { onMount, createEventDispatcher } from 'svelte';
+	import { onMount } from 'svelte';
 	import { logger } from '@utils/logger';
 
 	// Store
@@ -68,19 +68,21 @@ and unified tool experiences (crop includes rotation, scale, flip).
 		loadTool();
 	});
 
-	const dispatch = createEventDispatcher();
-
 	// Props
 	const {
 		imageFile = null,
 		initialImageSrc = '',
 		mediaId = null,
-		focalPoint = { x: 50, y: 50 }
+		focalPoint = { x: 50, y: 50 },
+		onsave = () => {},
+		oncancel = () => {}
 	}: {
 		imageFile?: File | null;
 		initialImageSrc?: string;
 		mediaId?: string | null;
 		focalPoint?: { x: number; y: number };
+		onsave?: (detail: { dataURL: string; file: File }) => void;
+		oncancel?: () => void;
 	} = $props();
 
 	// Local state
@@ -92,7 +94,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 
 	// Derive specific values for better reactivity tracking
 	const activeState = $derived(imageEditorStore.state.activeState);
-
 
 	// Effect to track selectedImage and clean up object URLs
 	$effect(() => {
@@ -453,7 +454,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			const newFileName = `edited-${timestamp}.${fileExtension}`;
 			const editedFile = new File([blob], newFileName, { type: mimeType });
 
-			dispatch('save', { dataURL, file: editedFile });
+			onsave({ dataURL, file: editedFile });
 		} catch (error) {
 			logger.error('Error saving image:', error);
 			// Optionally dispatch an error event
@@ -461,7 +462,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	}
 
 	export function handleCancel() {
-		dispatch('cancel');
+		oncancel();
 	}
 
 	function toggleTool(tool: string) {
@@ -530,7 +531,13 @@ and unified tool experiences (crop includes rotation, scale, flip).
 					<!-- Render tool components here so they can be controlled -->
 					{#if storeState.stage && storeState.layer && storeState.imageNode && storeState.imageGroup}
 						{#if activeState === 'focalpoint'}
-							<FocalPoint stage={storeState.stage} imageNode={storeState.imageNode} x={focalPoint?.x} y={focalPoint?.y} on:apply={(e) => handleApplyFocalPoint(e.detail)} />
+							<FocalPoint
+								stage={storeState.stage}
+								imageNode={storeState.imageNode}
+								x={focalPoint?.x}
+								y={focalPoint?.y}
+								onapply={(detail) => handleApplyFocalPoint(detail)}
+							/>
 						{/if}
 						{#if activeToolComponent}
 							{@const Component = activeToolComponent}

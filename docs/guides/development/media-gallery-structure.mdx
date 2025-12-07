@@ -915,29 +915,30 @@ interface Props {
 
 ```svelte
 <script lang="ts">
-import MediaTable from './MediaTable.svelte';
+	import MediaTable from './MediaTable.svelte';
 
-let selectedFiles = $state<MediaBase[]>([]);
+	let selectedFiles = $state<MediaBase[]>([]);
 
-function handleSelectionChange(files: MediaBase[]) {
-  selectedFiles = files;
-  console.log(`${files.length} files selected`);
-}
+	function handleSelectionChange(files: MediaBase[]) {
+		selectedFiles = files;
+		console.log(`${files.length} files selected`);
+	}
 
-async function handleBulkDelete() {
-  if (selectedFiles.length === 0) return;
-  
-  // Delete selected files
-  await Promise.all(
-    selectedFiles.map(f => fetch(`/api/media/delete`, {
-      method: 'DELETE',
-      body: JSON.stringify({ id: f._id })
-    }))
-  );
+	async function handleBulkDelete() {
+		if (selectedFiles.length === 0) return;
 
-  
-  selectedFiles = [];
-}
+		// Delete selected files
+		await Promise.all(
+			selectedFiles.map((f) =>
+				fetch(`/api/media/delete`, {
+					method: 'DELETE',
+					body: JSON.stringify({ id: f._id })
+				})
+			)
+		);
+
+		selectedFiles = [];
+	}
 </script>
 
 <MediaTable filteredFiles={files} tableSize="medium" ondeleteImage={handleDeleteSingle} onSelectionChange={handleSelectionChange} />

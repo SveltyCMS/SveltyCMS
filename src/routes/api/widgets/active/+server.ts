@@ -17,7 +17,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const forceRefresh = url.searchParams.get('refresh') === 'true';
 
 		if (forceRefresh) {
-			logger.debug('[/api/widgets/active] Force refresh requested, clearing cache', { tenantId });
+			logger.trace('[/api/widgets/active] Force refresh requested, clearing cache', { tenantId });
 			await cacheService.delete('widget:active:all', tenantId);
 		}
 
@@ -32,7 +32,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		}
 
 		const result = await dbAdapter.widgets.getActiveWidgets();
-		logger.debug('[/api/widgets/active] Raw result from getActiveWidgets()', {
+		logger.trace('[/api/widgets/active] Raw result from getActiveWidgets()', {
 			tenantId,
 			resultType: Array.isArray(result) ? 'array' : typeof result,
 			resultLength: Array.isArray(result) ? result.length : undefined
@@ -74,7 +74,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		widgetNames = Array.from(uniqueNames);
 
-		logger.debug('[/api/widgets/active] Extracted widget names (including core)', {
+		logger.trace('[/api/widgets/active] Extracted widget names (including core)', {
 			tenantId,
 			count: widgetNames.length,
 			widgets: widgetNames

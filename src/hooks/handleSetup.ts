@@ -9,7 +9,7 @@
  */
 
 import { redirect, type Handle } from '@sveltejs/kit';
-import { isSetupComplete } from '@utils/setupCheck';
+import { isSetupCompleteAsync } from '@utils/setupCheck';
 import { logger } from '@utils/logger.server';
 
 // --- CONSTANTS ---
@@ -48,9 +48,9 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 
 	// --- Step 1: Check Setup Status ---
 	// We use the cached/memoized check from utils.
-	// This utility ALREADY checks if the config exists AND if it has valid (non-empty) values.
+	// This utility checks if the config exists AND if the database has admin users.
 	if (event.locals.__setupConfigExists === undefined) {
-		event.locals.__setupConfigExists = isSetupComplete();
+		event.locals.__setupConfigExists = await isSetupCompleteAsync();
 	}
 	const isComplete = event.locals.__setupConfigExists;
 

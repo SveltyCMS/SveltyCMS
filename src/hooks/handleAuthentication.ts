@@ -452,7 +452,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
 		// Check if auth service is ready before attempting validation
 		if (!auth) {
-			logger.warn('Auth service not ready during session validation - skipping validation but preserving cookie');
+			logger.debug('Auth service not ready during session validation - skipping validation but preserving cookie');
 			// Do NOT delete cookie here - allow retry on next request
 			return resolve(event);
 		}

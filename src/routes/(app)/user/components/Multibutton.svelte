@@ -16,7 +16,6 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { logger } from '@utils/logger';
-	import { createEventDispatcher } from 'svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -46,7 +45,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	// Popup Combobox
 	let listboxValue = $state<ActionType>('edit');
-	const { selectedRows, type = 'user', totalUsers = 0, currentUser = null } = $props();
+	const { selectedRows, type = 'user', totalUsers = 0, currentUser = null, onTokenUpdate = () => {} } = $props();
 
 	// Sync local listboxValue with global store for TableIcons
 	$effect(() => {
@@ -136,7 +135,6 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	);
 
 	// Use showToast for notifications
-	const dispatch = createEventDispatcher();
 
 	// Helper function to convert Date to expires format expected by ModalEditToken
 	function convertDateToExpiresFormat(expiresDate: Date | string | null): string {
@@ -483,7 +481,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 					// Dispatch token update event for parent component to handle local state updates
 					if (type === 'token' && (action === 'block' || action === 'unblock' || action === 'delete')) {
-						dispatch('tokenUpdate', {
+						onTokenUpdate({
 							tokenIds: safeSelectedRows.filter(isToken).map((row: Token) => row.token),
 							action: action
 						});

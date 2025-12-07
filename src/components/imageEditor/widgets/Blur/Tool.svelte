@@ -47,25 +47,25 @@ handles drawing, applies/bakes effects, and registers toolbar.
 						regions.forEach((r) => r.setPattern(p));
 					},
 					onShapeChange: (s: BlurShape) => {
-					shape = s;
-					// If there's an active region, change its shape
-					if (activeId) {
-						const r = regions.find((x) => x.id === activeId);
-						if (r) {
-							// Remove old region and create new one with same position but new shape
-							const oldShape = r.shapeNode;
-							const bounds = oldShape.getClientRect();
-							deleteRegion(r.id);
-							createRegion({
-								x: bounds.x,
-								y: bounds.y,
-								width: bounds.width,
-								height: bounds.height,
-								shape: s
-							});
+						shape = s;
+						// If there's an active region, change its shape
+						if (activeId) {
+							const r = regions.find((x) => x.id === activeId);
+							if (r) {
+								// Remove old region and create new one with same position but new shape
+								const oldShape = r.shapeNode;
+								const bounds = oldShape.getClientRect();
+								deleteRegion(r.id);
+								createRegion({
+									x: bounds.x,
+									y: bounds.y,
+									width: bounds.width,
+									height: bounds.height,
+									shape: s
+								});
+							}
 						}
-					}
-				},
+					},
 					onReset: () => reset(),
 					onApply: apply
 				}
@@ -107,12 +107,12 @@ handles drawing, applies/bakes effects, and registers toolbar.
 			const pos = stage.getPointerPosition();
 			if (pos) {
 				// Create a new region at click position with default size
-				createRegion({ 
-					x: pos.x - 100, 
-					y: pos.y - 75, 
-					width: 200, 
-					height: 150, 
-					shape 
+				createRegion({
+					x: pos.x - 100,
+					y: pos.y - 75,
+					width: 200,
+					height: 150,
+					shape
 				});
 			}
 		}
@@ -144,7 +144,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 		newR.setPattern(pattern);
 		newR.setStrength(blurStrength);
 		newR.finalize();
-		
+
 		// Make the new region active to show handles
 		selectRegion(newR.id);
 	}
@@ -183,10 +183,10 @@ handles drawing, applies/bakes effects, and registers toolbar.
 	export function apply() {
 		// Hide UI elements before baking
 		cleanupBlurElements(false);
-		
+
 		// Take snapshot with blur regions visible
 		imageEditorStore.takeSnapshot();
-		
+
 		// Clean up and exit
 		imageEditorStore.setActiveState('');
 	}
@@ -208,7 +208,6 @@ handles drawing, applies/bakes effects, and registers toolbar.
 	export function beforeExit() {
 		cleanup();
 	}
-
 </script>
 
 <!-- Controls registered to master toolbar; no DOM toolbar here -->

@@ -166,41 +166,41 @@ imageNode's 'crop' properties.
 		import('./cropMath').then(({ stageRectToImageRect }) => {
 			// Get the crop region's bounding box in stage coordinates
 			const cropRect = region!.shape.getClientRect();
-			
+
 			// Convert to image-local coordinates
 			const imageCrop = stageRectToImageRect(cropRect, imageNode, imageGroup);
-			
+
 			// Apply crop to the image node
 			imageNode.cropX(imageCrop.x);
 			imageNode.cropY(imageCrop.y);
 			imageNode.cropWidth(imageCrop.width);
 			imageNode.cropHeight(imageCrop.height);
-			
+
 			// Update image dimensions to match crop
 			imageNode.width(imageCrop.width);
 			imageNode.height(imageCrop.height);
-			
+
 			// Reset image position to center within the group
 			imageNode.x(-imageCrop.width / 2);
 			imageNode.y(-imageCrop.height / 2);
-			
+
 			// Recalculate scale to fit the cropped image in the viewport
 			const containerWidth = stage.width();
 			const containerHeight = stage.height();
 			const scaleX = (containerWidth * 0.8) / imageCrop.width;
 			const scaleY = (containerHeight * 0.8) / imageCrop.height;
 			const newScale = Math.min(scaleX, scaleY);
-			
+
 			// Reset imageGroup transform
 			imageGroup.scaleX(newScale);
 			imageGroup.scaleY(newScale);
 			imageGroup.rotation(0); // Reset rotation
 			imageGroup.x(containerWidth / 2);
 			imageGroup.y(containerHeight / 2);
-			
+
 			// Hide the crop UI
 			region!.hideUI();
-			
+
 			// Redraw and take snapshot
 			layer.batchDraw();
 			imageEditorStore.takeSnapshot();

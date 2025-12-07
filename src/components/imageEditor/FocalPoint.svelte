@@ -5,21 +5,21 @@ A component that renders a draggable focal point crosshair on a Konva stage.
 -->
 <script lang="ts">
 	import Konva from 'konva';
-	import { onMount, createEventDispatcher } from 'svelte';
+	import { onMount } from 'svelte';
 
-	const {
+	let {
 		stage,
 		imageNode,
 		x,
-		y
+		y,
+		onapply = () => {}
 	}: {
 		stage: Konva.Stage;
 		imageNode: Konva.Image;
 		x?: number;
 		y?: number;
+		onapply?: (detail: { x: number; y: number }) => void;
 	} = $props();
-
-	const dispatch = createEventDispatcher();
 
 	let crosshair: Konva.Group;
 
@@ -61,7 +61,7 @@ A component that renders a draggable focal point crosshair on a Konva stage.
 			const x = ((pos.x - imageRect.x) / imageRect.width) * 100;
 			const y = ((pos.y - imageRect.y) / imageRect.height) * 100;
 
-			dispatch('apply', { x: Math.round(x), y: Math.round(y) });
+			onapply({ x: Math.round(x), y: Math.round(y) });
 		});
 
 		return () => {

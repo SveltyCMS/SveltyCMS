@@ -56,10 +56,10 @@ Features:
 		} else return (targetWidget.value.widget as any)?.Name;
 	}
 
-	function handleUpdate(event: CustomEvent, property: string) {
+	function handleUpdate(detail: { value: any }, property: string) {
 		// Update the targetWidget store
 		const currentWidget = targetWidget.value;
-		currentWidget[property] = event.detail.value;
+		currentWidget[property] = detail.value;
 		targetWidget.value = currentWidget;
 	}
 </script>
@@ -81,7 +81,7 @@ Features:
 					icon={targetWidget.value[property] as string}
 					widget={asAny(guiSchema[property]?.widget)}
 					key={property}
-					on:update={(e) => handleUpdate(e, property)}
+					onupdate={(e: { value: any }) => handleUpdate(e, property)}
 				/>
 			{/if}
 		{/each}

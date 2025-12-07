@@ -69,7 +69,7 @@ export async function PATCH({ params, request, locals }) {
 	const { id } = params;
 	if (!id) throw error(400, 'Media ID is required');
 
-	const { user } = locals;
+	const { user, roles } = locals;
 	if (!user) throw error(401, 'Unauthorized');
 
 	const body = await request.json();
@@ -86,8 +86,8 @@ export async function PATCH({ params, request, locals }) {
 
 	try {
 		// 1. Get existing media to check access and merge metadata
-		const existing = await mediaService.getMedia(id, user, user.roles || []);
-		
+		const existing = await mediaService.getMedia(id, user, roles || []);
+
 		// 2. Merge metadata
 		const newMetadata = {
 			...(existing.metadata || {}),
@@ -98,7 +98,6 @@ export async function PATCH({ params, request, locals }) {
 		await mediaService.updateMedia(id, { metadata: newMetadata });
 
 		return json({ success: true, data: { ...existing, metadata: newMetadata } });
-
 	} catch (err) {
 		logger.error(`Error updating media ${id}:`, err);
 		if (err && typeof err === 'object' && 'status' in err) {

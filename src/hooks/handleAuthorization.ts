@@ -85,13 +85,13 @@ async function getCachedRoles(tenantId?: string): Promise<Role[]> {
 
 	try {
 		if (!auth) {
-			logger.warn('Database adapter not initialized - roles unavailable');
+			logger.debug('Database adapter not initialized - roles unavailable');
 			return [];
 		}
 
 		const data = await auth.getAllRoles(tenantId);
 		if (!data || data.length === 0) {
-			logger.warn('No roles found in database', { tenantId });
+			logger.debug('No roles found in database', { tenantId });
 			return [];
 		}
 

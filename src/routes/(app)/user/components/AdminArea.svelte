@@ -2,6 +2,13 @@
 @file src/routes/(app)/user/components/AdminArea.svelte
 @component 
 **Admin area for managing users and tokens with efficient filtering and pagination.**
+
+### Features
+- Efficient filtering and pagination
+- Sorting by any column
+- Bulk actions for tokens
+- Copy to clipboard
+- 
 -->
 
 <script lang="ts">
@@ -628,7 +635,7 @@
 			</div>
 
 			<div class="order-2 flex items-center justify-center sm:order-3">
-				<Multibutton {selectedRows} type={showUserList ? 'user' : 'token'} totalUsers={totalItems} {currentUser} on:tokenUpdate={handleTokenUpdate} />
+				<Multibutton {selectedRows} type={showUserList ? 'user' : 'token'} totalUsers={totalItems} {currentUser} onTokenUpdate={handleTokenUpdate} />
 			</div>
 		</div>
 
