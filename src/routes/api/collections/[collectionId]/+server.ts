@@ -18,6 +18,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 // Auth
 import { contentManager } from '@src/content/ContentManager';
 import { modifyRequest } from '@api/collections/modifyRequest';
+import { cacheService } from '@src/databases/CacheService';
 
 // Types
 import type { FieldInstance } from '@src/content/types';
@@ -118,7 +119,14 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		const result = await dbAdapter.crud.insert(collectionName, dataArray[0]);
 
 		if (!result.success) {
-			throw new Error(result.error.message);
+			const errorMessage = result.error.message || '';
+			// Handle validation errors specifically
+			if (errorMessage.includes('validation failed') || result.error.code === 'INSERT_ERROR') {
+				// Log warning but return 400 to client so it can display the error
+				logger.warn(`${endpoint} - Validation failed`, { error: errorMessage });
+				throw error(400, errorMessage);
+			}
+			throw new Error(errorMessage);
 		}
 
 		if (!result.data) {
@@ -129,11 +137,17 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		const responseData = { success: true, data: result.data, performance: { duration } };
 
 		// Invalidate server-side page cache for this collection
-		const cacheService = (await import('@src/databases/CacheService')).cacheService;
+		// Use the statically imported cacheService
 		const cachePattern = `collection:${schema._id}:*`;
-		await cacheService.clearByPattern(cachePattern).catch((err) => {
+
+		logger.debug(`${endpoint} - Invalidating cache pattern: ${cachePattern}`);
+
+		await cacheService.clearByPattern(cachePattern, tenantId).catch((err) => {
 			logger.warn('Failed to invalidate page cache after POST', { pattern: cachePattern, error: err });
 		});
+
+		// Also invalidate specific caches in ContentManager to ensure schema updates are reflected
+		await contentManager.invalidateSpecificCaches([schema.path || '', schema._id as string].filter(Boolean));
 
 		logger.info(`${endpoint} - Entry created successfully`, {
 			duration: `${duration.toFixed(2)}ms`,

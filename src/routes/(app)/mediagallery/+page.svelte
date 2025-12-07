@@ -39,6 +39,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	import MediaTable from './MediaTable.svelte';
 	import VirtualMediaGrid from './VirtualMediaGrid.svelte';
 	import AdvancedSearchModal from './AdvancedSearchModal.svelte';
+	import ImageEditorModal from '@src/components/imageEditor/ImageEditorModal.svelte';
 	// Skeleton
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	import { showToast } from '@utils/toast';
@@ -70,6 +71,8 @@ Displays a collection of media files (images, documents, audio, video) with:
 	// Enterprise features state
 	let showAdvancedSearch = $state(false);
 	let advancedSearchCriteria: SearchCriteria | null = $state(null);
+	let showEditor = $state(false);
+	let imageToEdit = $state<MediaImage | null>(null);
 
 	// Performance optimization: Use virtual scrolling for large collections
 	const USE_VIRTUAL_THRESHOLD = 100;
@@ -592,6 +595,35 @@ Displays a collection of media files (images, documents, audio, video) with:
 		advancedSearchCriteria = null;
 		fetchMediaFiles(); // Reload all files
 	}
+
+	function handleEditImage(image: MediaImage) {
+		imageToEdit = image;
+		showEditor = true;
+	}
+
+	async function handleEditorSave(event: CustomEvent<{ dataURL: string; file: File }>) {
+		const { file } = event.detail;
+		showEditor = false;
+
+		const formData = new FormData();
+		formData.append('files', file);
+
+		try {
+			const response = await fetch('/mediagallery?/upload', {
+				method: 'POST',
+				body: formData
+			});
+			if (response.ok) {
+				showToast('Image saved successfully!', 'success');
+				fetchMediaFiles(true); // Force refresh
+			} else {
+				throw new Error('Failed to save edited image');
+			}
+		} catch (err) {
+			showToast('Error saving image', 'error');
+			logger.error('Error saving edited image', err);
+		}
+	}
 </script>
 
 <!-- Page Title and Actions -->
@@ -1037,7 +1069,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	{#if view === 'grid'}
 		{#if useVirtualScrolling}
 			<!-- Enterprise Virtual Scrolling for Large Collections (100+ files) -->
-			<VirtualMediaGrid {filteredFiles} {gridSize} ondeleteImage={handleDeleteImage} onBulkDelete={handleBulkDelete} />
+			<VirtualMediaGrid {filteredFiles} {gridSize} ondeleteImage={handleDeleteImage} onBulkDelete={handleBulkDelete} onEditImage={handleEditImage} />
 			<div class="alert variant-ghost-surface mt-4">
 				<iconify-icon icon="mdi:lightning-bolt" width="20"></iconify-icon>
 				<span class="text-sm">
@@ -1057,12 +1089,16 @@ Displays a collection of media files (images, documents, audio, video) with:
 						storeUserPreference(view, gridSize, tableSize);
 					}
 				}}
+				onEditImage={handleEditImage}
 			/>
 		{/if}
 	{:else}
 		<MediaTable {filteredFiles} tableSize={safeTableSize} ondeleteImage={handleDeleteImage} />
 	{/if}
 </div>
+
+<!-- Editor Modal -->
+<ImageEditorModal bind:show={showEditor} image={imageToEdit} on:save={handleEditorSave} />
 
 <!-- Modals -->
 {#if showAdvancedSearch}

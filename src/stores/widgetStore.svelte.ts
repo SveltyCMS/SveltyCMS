@@ -152,39 +152,51 @@ export const widgetStoreActions = {
 
 			// Process core widgets (always enabled by default)
 			for (const [path, module] of Object.entries(coreModules)) {
-				const processedWidget = this.processWidgetModule(path, module, 'core');
-				if (processedWidget) {
-					const { name, widgetFn, dependencies, folderName } = processedWidget;
-					newWidgetFunctions[name] = widgetFn;
-					newCoreWidgets.push(name);
-					if (dependencies.length > 0) {
-						newDependencyMap[name] = dependencies;
-					}
+				const name = path.split('/').at(-2);
+				if (!name || typeof module.default !== 'function') {
+					logger.warn(`Skipping invalid core widget module at: ${path}`);
+					continue;
+				}
+				const widgetFn = module.default as WidgetFactory;
+				const widgetName = widgetFn.Name || name;
+				widgetFn.Name = widgetName;
+				widgetFn.__widgetType = 'core';
 
-					// Register alias if folder name differs from widget name
-					if (folderName && folderName !== name) {
-						logger.debug(`[widgetStore] Alias: ${folderName} -> ${name}`);
-						newWidgetFunctions[folderName] = widgetFn;
-					}
+				newWidgetFunctions[widgetName] = widgetFn;
+				newCoreWidgets.push(widgetName);
+				if (widgetFn.__dependencies && widgetFn.__dependencies.length > 0) {
+					newDependencyMap[widgetName] = widgetFn.__dependencies;
+				}
+
+				// Register alias if folder name differs from widget name
+				if (name && name !== widgetName) {
+					logger.debug(`[widgetStore] Alias: ${name} -> ${widgetName}`);
+					newWidgetFunctions[name] = widgetFn;
 				}
 			}
 
 			// Process custom widgets (optional)
 			for (const [path, module] of Object.entries(customModules)) {
-				const processedWidget = this.processWidgetModule(path, module, 'custom');
-				if (processedWidget) {
-					const { name, widgetFn, dependencies, folderName } = processedWidget;
-					newWidgetFunctions[name] = widgetFn;
-					newCustomWidgets.push(name);
-					if (dependencies.length > 0) {
-						newDependencyMap[name] = dependencies;
-					}
+				const name = path.split('/').at(-2);
+				if (!name || typeof module.default !== 'function') {
+					logger.warn(`Skipping invalid custom widget module at: ${path}`);
+					continue;
+				}
+				const widgetFn = module.default as WidgetFactory;
+				const widgetName = widgetFn.Name || name;
+				widgetFn.Name = widgetName;
+				widgetFn.__widgetType = 'custom';
 
-					// Register alias if folder name differs from widget name
-					if (folderName && folderName !== name) {
-						logger.debug(`[widgetStore] Alias: ${folderName} -> ${name}`);
-						newWidgetFunctions[folderName] = widgetFn;
-					}
+				newWidgetFunctions[widgetName] = widgetFn;
+				newCustomWidgets.push(widgetName);
+				if (widgetFn.__dependencies && widgetFn.__dependencies.length > 0) {
+					newDependencyMap[widgetName] = widgetFn.__dependencies;
+				}
+
+				// Register alias if folder name differs from widget name
+				if (name && name !== widgetName) {
+					logger.debug(`[widgetStore] Alias: ${name} -> ${widgetName}`);
+					newWidgetFunctions[name] = widgetFn;
 				}
 			}
 
@@ -287,68 +299,6 @@ export const widgetStoreActions = {
 			logger.error('Failed to initialize widgets:', error);
 			widgetStore.update((state) => ({ ...state, isLoading: false }));
 			throw error;
-		}
-	},
-
-	// Helper method to process widget modules
-	processWidgetModule(
-		path: string,
-		module: WidgetModule,
-		type: WidgetType
-	): {
-		name: string;
-		widgetFn: WidgetFunction | WidgetFactory;
-		dependencies: string[];
-		folderName: string;
-	} | null {
-		try {
-			const name = path.split('/').at(-2);
-			if (!name) {
-				logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
-				return null;
-			}
-
-			if (typeof module.default !== 'function') {
-				logger.warn(`Skipping widget module: ${path} - No valid widget function found`);
-				return null;
-			}
-
-			const originalFn = module.default;
-			const widgetName = originalFn.Name || name;
-			// IMPORTANT: Use folder name as-is for widget identifier (e.g., 'seo', 'richText', 'mediaUpload')
-			// This ensures consistency between filesystem, database, and runtime
-			// Display name (widgetName) is for UI purposes only
-
-			// Extract dependencies from widget metadata
-			const dependencies = originalFn.__dependencies || [];
-
-			// Extract component paths for 3-pillar architecture
-			const inputComponentPath = originalFn.__inputComponentPath || '';
-			const displayComponentPath = originalFn.__displayComponentPath || '';
-
-			const widgetFn: WidgetFactory = Object.assign((config: Record<string, unknown>) => originalFn(config as any), {
-				Name: widgetName,
-				GuiSchema: originalFn.GuiSchema,
-				GraphqlSchema: originalFn.GraphqlSchema,
-				Icon: originalFn.Icon,
-				Description: originalFn.Description,
-				aggregations: originalFn.aggregations,
-				__widgetType: type,
-				__dependencies: dependencies,
-				__inputComponentPath: inputComponentPath,
-				__displayComponentPath: displayComponentPath,
-				componentPath: inputComponentPath // Add this for Fields.svelte compatibility
-			}) as unknown as WidgetFactory;
-
-			return {
-				name: widgetFn.Name, // Use defined Name (e.g. 'SEO')
-				widgetFn,
-				dependencies,
-				folderName: name // Pass back folder name for aliasing
-			};
-		} catch (error) {
-			logger.error(`Failed to process widget module ${path}:`, error);
-			return null;
 		}
 	},
 

@@ -62,7 +62,7 @@ function createImageEditorStore() {
 		layer: null,
 		imageNode: null,
 		imageGroup: null,
-		activeState: '',
+		activeState: 'rotate',
 		stateHistory: [],
 		toolbarControls: null,
 		actions: {}

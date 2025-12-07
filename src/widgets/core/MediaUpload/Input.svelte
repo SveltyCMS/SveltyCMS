@@ -22,9 +22,11 @@
 	import { logger } from '@utils/logger';
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore, type ModalStore } from '@skeletonlabs/skeleton'; // Import ModalStore type
 	import type { FieldType } from './';
 	import type { MediaFile } from './types';
+
+	const modalStore: ModalStore = getModalStore(); // Moved to initialization phase
 
 	// SECURITY: File validation constants
 	const ALLOWED_MIME_TYPES = [
@@ -113,9 +115,10 @@
 
 	// Function to open the Media Library modal.
 	function openMediaLibrary() {
-		getModalStore().trigger({
+		modalStore.trigger({
 			type: 'component',
-			component: 'mediaLibraryModal', // This would be your full media library component
+			component: 'mediaLibraryModal',
+			meta: { multiSelect: field.multiupload || false },
 			// Pass a callback function to the modal so it can return the selected files.
 			response: (files: MediaFile[] | undefined) => {
 				if (files) {

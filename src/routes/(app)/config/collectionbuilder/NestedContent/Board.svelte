@@ -149,14 +149,13 @@
 	 * after a drag operation is completed.
 	 * @param e CustomEvent from `dndzone` containing drag details.
 	 */
-	function handleDndFinalize(e: CustomEvent<DndEvent<DndItem>>) {
+	function handleDndFinalize(_e: CustomEvent<DndEvent<DndItem>>) {
 		isDragging = false;
 		try {
-			// `e.detail.items` contains the items in their *final* new order/location within this zone.
-			const newOrderedItems = e.detail.items;
-
-			// Flatten the entire potentially nested structure to update parentId and order for ALL affected nodes.
-			const newFlatContentNodes = flattenNodes(newOrderedItems);
+			// The `consider` events and bindable props have already updated the `structureState`.
+			// We use THIS state as the source of truth, not `e.detail.items`, which might
+			// only represent a subset of the items if dropping from one zone to another.
+			const newFlatContentNodes = flattenNodes(structureState);
 
 			// Propagate the complete updated flat list of nodes back to the parent component (`+page.svelte`).
 			onNodeUpdate(newFlatContentNodes);

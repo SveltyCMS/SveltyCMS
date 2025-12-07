@@ -38,8 +38,17 @@ import { logger } from '@utils/logger';
  * @returns The language name in native form or specified display locale
  */
 export function getLanguageName(tag: string, displayLocale?: string): string {
+	// Early exit for invalid tags to prevent RangeError from Intl.DisplayNames
+	if (!tag || tag.trim() === '') {
+		return tag;
+	}
+
 	try {
 		const locale = displayLocale || tag;
+		// Also validate locale to prevent RangeError
+		if (!locale || locale.trim() === '') {
+			return tag;
+		}
 		const languageNames = new Intl.DisplayNames([locale], { type: 'language' });
 		return languageNames.of(tag) || tag;
 	} catch (error) {

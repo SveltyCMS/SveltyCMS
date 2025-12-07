@@ -64,8 +64,6 @@
 	import RightSidebar from '@components/RightSidebar.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
-	import ImageEditorHeader from './imageEditor/components/layout/ImageEditorHeader.svelte';
-	import ImageEditorFooter from './imageEditor/components/layout/ImageEditorFooter.svelte';
 
 	// Skeleton
 	import {
@@ -84,13 +82,15 @@
 
 	// Modal Components Registry
 	import ScheduleModal from '@components/collectionDisplay/ScheduleModal.svelte';
+	import MediaLibraryModal from '@components/MediaLibraryModal.svelte';
 
 	// Configure popup positioning
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 
 	// Modal component registry for Skeleton UI
 	const modalComponentRegistry: Record<string, any> = {
-		scheduleModal: ScheduleModal
+		scheduleModal: ScheduleModal,
+		mediaLibraryModal: MediaLibraryModal
 	};
 
 	// =============================================
@@ -132,8 +132,6 @@
 	// SEO meta content
 	const siteName = publicEnv?.SITE_NAME || 'SveltyCMS';
 	const seoDescription = `${siteName} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
-	// Hide CMS layout footer when using Image Editor route (it has its own footer toolbar)
-	const isImageEditorRoute = $derived(page.url?.pathname?.includes('/imageEditor'));
 
 	// =============================================
 	// REACTIVE EFFECTS
@@ -233,16 +231,10 @@
 	// =============================================
 
 	onMount(() => {
-		console.log('[AppLayout] Mounting...');
-		console.log('[AppLayout] Content Structure:', data.contentStructure);
-
 		// Start initialization loading ONLY if content structure is missing
 		// This prevents a race condition where onMount (running after effect) restarts loading
 		if (!Array.isArray(data.contentStructure)) {
-			console.warn('[AppLayout] Content structure missing, starting loader...');
 			globalLoadingStore.startLoading(loadingOperations.initialization);
-		} else {
-			console.log('[AppLayout] Content structure present, skipping loader.');
 		}
 
 		// Initialize widgets
@@ -371,11 +363,7 @@
 					<!-- Page Header -->
 					{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
 						<header class="sticky top-0 z-20 w-full">
-							{#if isImageEditorRoute}
-								<ImageEditorHeader />
-							{:else}
-								<HeaderEdit />
-							{/if}
+							<HeaderEdit />
 						</header>
 					{/if}
 
@@ -392,11 +380,7 @@
 					<!-- Page Footer / Mobile Nav -->
 					{#if uiStateManager.uiState.value.pagefooter !== 'hidden'}
 						<footer class="mt-auto w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
-							{#if isImageEditorRoute}
-								<ImageEditorFooter />
-							{:else}
-								<PageFooter />
-							{/if}
+							<PageFooter />
 						</footer>
 					{/if}
 				</main>

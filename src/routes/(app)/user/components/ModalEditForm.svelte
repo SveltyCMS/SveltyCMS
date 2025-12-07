@@ -87,12 +87,12 @@ Efficiently manages user data updates with validation, role selection, and delet
 	});
 
 	let showPassword = $state(false);
-	const isOwnProfile = editForm.data.user_id === user?._id || !isGivenData;
-	const canChangePassword = isOwnProfile || user?.isAdmin;
+	const isOwnProfile = $derived(editForm.data.user_id === user?._id || !isGivenData);
+	const canChangePassword = $derived(isOwnProfile || user?.isAdmin);
 
 	// Check if user has delete permission for layout purposes
 	const hasDeletePermission = user?.isAdmin || user?.role === 'admin';
-	const showDeleteButton = hasDeletePermission && !isOwnProfile && !isFirstUser;
+	const showDeleteButton = $derived(hasDeletePermission && !isOwnProfile && !isFirstUser);
 
 	async function onFormSubmit(event: SubmitEvent): Promise<void> {
 		event.preventDefault();

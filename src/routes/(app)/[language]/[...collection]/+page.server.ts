@@ -160,6 +160,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			finalFilter.tenantId = tenantId;
 		}
 
+		logger.debug(`[EntryList] Querying table: ${collectionTableName}`, { finalFilter, tenantId });
+
 		// If editing a specific entry, load only that entry
 		if (editEntryId) {
 			finalFilter._id = editEntryId;

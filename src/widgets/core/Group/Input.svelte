@@ -35,7 +35,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 
 	let { field, value, children }: Props = $props();
 
-	const fieldName = getFieldName(field);
+	const fieldName = $derived(getFieldName(field));
 
 	// Variant classes
 	const variantClasses = {
@@ -59,7 +59,10 @@ Renders grouped content in a read-only display format with collapsible functiona
 	const variant = $derived(variantClasses[field.variant as keyof typeof variantClasses] || variantClasses.default);
 
 	// State for collapsible functionality
-	let isCollapsed = $state(field.collapsed || false);
+	let isCollapsed = $state(false);
+	$effect(() => {
+		isCollapsed = (field.collapsed as boolean) || false;
+	});
 
 	/**
 	 * Toggle collapse state

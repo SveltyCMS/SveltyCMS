@@ -23,7 +23,7 @@ import { dbAdapter } from '@src/databases/db';
 // Media Processing
 import { extractMetadata } from '@utils/media/mediaProcessing.server';
 import { MediaService } from '@src/services/MediaService.server';
-import type { MediaType, MediaAccess } from '@utils/media/mediaModels';
+import type { MediaType, MediaAccess, WatermarkOptions } from '@utils/media/mediaModels';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -110,6 +110,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				}
 
 				const access: MediaAccess = 'private';
+				const watermarkOptionsString = formData.get('watermarkOptions') as string | null;
+				let watermarkOptions: WatermarkOptions | undefined;
+				if (watermarkOptionsString) {
+					try {
+						watermarkOptions = JSON.parse(watermarkOptionsString);
+					} catch (e) {
+						logger.warn('Could not parse watermark options', { options: watermarkOptionsString });
+					}
+				}
 
 				const results: FileProcessResult[] = [];
 				for (const file of files) {
@@ -119,8 +128,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 							continue;
 						}
 						try {
-							// Pass tenantId to the media service
-							const saveResult = await mediaService.saveMedia(file, user._id.toString(), access, tenantId);
+							// Pass tenantId and watermarkOptions to the media service
+							const saveResult = await mediaService.saveMedia(file, user._id.toString(), access, tenantId, watermarkOptions);
 							results.push({ fileName: file.name, success: true, data: saveResult });
 							logger.info(`Successfully saved file: ${file.name}`, { userId: user._id, fileSize: file.size, tenantId });
 						} catch (err) {

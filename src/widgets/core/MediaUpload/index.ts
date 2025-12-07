@@ -14,6 +14,8 @@
 
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/widgetFactory';
+import Checkbox from '@src/widgets/core/Checkbox/index';
+import Input from '@src/widgets/core/Input/index';
 
 // Type for aggregation field parameter
 type AggregationField = { db_fieldName: string; [key: string]: unknown };
@@ -39,17 +41,31 @@ export const createValidationSchema = (field: ReturnType<typeof MediaWidget>): B
 
 // Create the widget definition using the factory.
 const MediaWidget = createWidget<MediaProps>({
-	Name: 'Media',
+	Name: 'MediaUpload',
 	Icon: 'mdi:image-multiple',
 	Description: m.widget_media_description(),
-	inputComponentPath: '/src/widgets/core/media/Input.svelte',
-	displayComponentPath: '/src/widgets/core/media/Display.svelte',
+	inputComponentPath: '/src/widgets/core/MediaUpload/Input.svelte',
+	displayComponentPath: '/src/widgets/core/MediaUpload/Display.svelte',
 	validationSchema: createValidationSchema,
 
 	// Set widget-specific defaults.
 	defaults: {
 		multiupload: false,
 		allowedTypes: []
+	},
+
+	GuiSchema: {
+		multiupload: { widget: Checkbox, label: 'Allow Multiple Files' },
+		watermark: {
+			widget: 'group',
+			label: 'Watermark Options',
+			fields: {
+				text: { widget: Input, label: 'Watermark Text' },
+				position: { widget: Input, label: 'Position (e.g., center, top-right)' },
+				opacity: { widget: Input, label: 'Opacity (0-1)' },
+				scale: { widget: Input, label: 'Scale (e.g., 0.5 for 50%)' }
+			}
+		}
 	},
 
 	// Aggregation performs a lookup to search by the actual media file name.

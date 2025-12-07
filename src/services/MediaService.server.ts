@@ -34,8 +34,8 @@ import Path from 'path';
 import type { DatabaseId, IDBAdapter, MediaItem } from '@src/databases/dbInterface';
 import type { User, Role } from '@src/databases/auth/types'; // Added User, Role
 
-// Media
-import type { MediaAccess, MediaBase, MediaType, ResizedImage } from '@src/utils/media/mediaModels'; // Added ResizedImage
+import sharp from 'sharp';
+import type { MediaType, MediaAccess, ResizedImage, WatermarkOptions, MediaBase } from '@utils/media/mediaModels';
 import { MediaTypeEnum } from '@src/utils/media/mediaModels';
 import { getSanitizedFileName } from '@src/utils/media/mediaProcessing';
 import { hashFileContent } from '@src/utils/media/mediaProcessing.server';
@@ -58,6 +58,8 @@ import type { BaseEntity, ISODateString } from '@src/content/types';
 // Extended MediaBase interface to include thumbnails
 interface MediaBaseWithThumbnails extends MediaBase {
 	thumbnails?: Record<string, ResizedImage | undefined>;
+	originalId?: DatabaseId | null;
+	user: string;
 }
 
 export class MediaService {
@@ -97,14 +99,44 @@ export class MediaService {
 		fileName: string,
 		mimeType: string,
 		userId: string,
-		basePath: string
+		basePath: string,
+		watermarkOptions?: WatermarkOptions
 	): Promise<{ url: string; path: string; hash: string; resized: Record<string, ResizedImage> }> {
 		const startTime = performance.now();
 
 		try {
 			logger.debug('Starting file upload', { fileName, fileSize: buffer.length, userId });
 
-			const hash = await hashFileContent(buffer);
+			let imageBuffer = buffer;
+
+			// Apply watermark if options are provided and it's an image
+			if (watermarkOptions && mimeType.startsWith('image/')) {
+				try {
+					const watermarkImagePath = Path.join(process.cwd(), 'static', watermarkOptions.url);
+					const watermarkBuffer = await sharp(watermarkImagePath)
+						.resize({
+							width: Math.floor((await sharp(imageBuffer).metadata()).width! * (watermarkOptions.scale / 100))
+						})
+						.png()
+						.toBuffer();
+
+					imageBuffer = await sharp(imageBuffer)
+						.composite([
+							{
+								input: watermarkBuffer,
+								gravity: watermarkOptions.position,
+								blend: 'over'
+							}
+						])
+						.toBuffer();
+					logger.info('Watermark applied successfully', { fileName });
+				} catch (wmError) {
+					logger.error('Could not apply watermark', { fileName, error: wmError });
+					// Fail gracefully, proceed with original image
+				}
+			}
+
+			const hash = await hashFileContent(imageBuffer);
 			const { fileNameWithoutExt, ext } = getSanitizedFileName(fileName);
 			const sanitizedFileName = fileNameWithoutExt;
 
@@ -117,7 +149,7 @@ export class MediaService {
 			logger.debug('Saving original file', { relativePath, basePath, subfolder: originalSubfolder });
 
 			// saveFileToDisk handles both local and cloud saving
-			const publicUrl = await saveFileToDisk(buffer, relativePath);
+			const publicUrl = await saveFileToDisk(imageBuffer, relativePath);
 
 			// Process image if it's an image type
 			const isImage = mimeType.startsWith('image/');
@@ -126,14 +158,14 @@ export class MediaService {
 			if (isImage && ext !== 'svg') {
 				// Don't resize SVGs
 				logger.debug('Processing image variants', { fileName, mimeType });
-				resizedImages = await saveResizedImages(buffer, hash, sanitizedFileName, mimeType, ext, basePath);
+				resizedImages = await saveResizedImages(imageBuffer, hash, sanitizedFileName, mimeType, ext, basePath);
 			}
 
 			logger.info('File upload completed', {
 				fileName,
 				url: publicUrl,
 				relativePath,
-				fileSize: buffer.length,
+				fileSize: imageBuffer.length,
 				isImage,
 				resizedVariants: Object.keys(resizedImages),
 				totalProcessingTime: performance.now() - startTime
@@ -157,7 +189,14 @@ export class MediaService {
 	 */
 
 	// Saves a media file and its associated data
-	public async saveMedia(file: File, userId: string, access: MediaAccess, basePath: string = 'global'): Promise<MediaType> {
+	public async saveMedia(
+		file: File,
+		userId: string,
+		access: MediaAccess,
+		basePath: string = 'global',
+		watermarkOptions?: WatermarkOptions,
+		originalId?: DatabaseId | null
+	): Promise<MediaType> {
 		const startTime = performance.now();
 		this.ensureInitialized();
 		logger.trace('Starting media upload process', {
@@ -189,7 +228,23 @@ export class MediaService {
 
 		try {
 			// First upload the file and get basic file info
-			const { url, path, hash, resized } = await this.uploadFile(buffer, file.name, mimeType, userId, basePath);
+			const { url, path, hash, resized } = await this.uploadFile(buffer, file.name, mimeType, userId, basePath, watermarkOptions);
+
+			// Extract advanced metadata
+			const sharpMeta = await sharp(buffer).metadata();
+			const advancedMetadata = {
+				format: sharpMeta.format,
+				width: sharpMeta.width,
+				height: sharpMeta.height,
+				space: sharpMeta.space,
+				channels: sharpMeta.channels,
+				density: sharpMeta.density,
+				hasProfile: sharpMeta.hasProfile,
+				hasAlpha: sharpMeta.hasAlpha,
+				exif: sharpMeta.exif?.toString('base64'), // Store as base64 to avoid binary issues
+				iptc: sharpMeta.iptc?.toString('base64'), // Store as base64
+				icc: sharpMeta.icc?.toString('base64')
+			};
 
 			// Create media object with required properties
 			const mediaType = this.getMediaType(mimeType);
@@ -214,8 +269,10 @@ export class MediaService {
 					originalFilename: file.name,
 					uploadedBy: userId,
 					uploadTimestamp: new Date().toISOString(),
-					processingTimeMs: performance.now() - startTime
+					processingTimeMs: performance.now() - startTime,
+					advancedMetadata: advancedMetadata
 				},
+				originalId: originalId,
 				versions: [
 					{
 						version: 1,
@@ -298,7 +355,8 @@ export class MediaService {
 			metadata: object.metadata || {},
 			access: object.access, // Mapped access
 			createdBy: object.user as DatabaseId,
-			updatedBy: object.user as DatabaseId
+			updatedBy: object.user as DatabaseId,
+			originalId: object.originalId
 		};
 	}
 

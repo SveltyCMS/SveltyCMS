@@ -59,22 +59,6 @@
 			}
 		},
 		{
-			id: 'imageeditor',
-			href: '/imageEditor',
-			label: m.config_imageeditor(),
-			icon: 'bi:image',
-			classes: 'variant-outline-tertiary dark:variant-outline-secondary border-2 border-tertiary-500/50 dark:border-secondary-500/50',
-			iconColor: 'text-primary-600',
-			permission: {
-				contextId: 'content:images',
-				name: 'Image Editor',
-				description: 'Edit and manage images',
-				requiredRole: 'editor',
-				action: 'manage',
-				contextType: 'system'
-			}
-		},
-		{
 			id: 'emailPreviews',
 			href: '/email-previews',
 			label: m.config_emailPreviews(),

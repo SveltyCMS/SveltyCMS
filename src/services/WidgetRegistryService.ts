@@ -32,13 +32,12 @@ class WidgetRegistryService {
 		logger.info('Initializing WidgetRegistryService, scanning for widgets...');
 
 		try {
-			const coreModules = import.meta.glob<WidgetModule>('/src/widgets/core/*/index.ts', { eager: true });
-			const customModules = import.meta.glob<WidgetModule>('/src/widgets/custom/*/index.ts', { eager: true });
+			const coreModules = import.meta.glob<WidgetModule>('../widgets/core/*/index.ts', { eager: true });
+			const customModules = import.meta.glob<WidgetModule>('../widgets/custom/*/index.ts', { eager: true });
 			const allModules = { ...coreModules, ...customModules };
 
 			for (const [path, module] of Object.entries(allModules)) {
 				const pathParts = path.split('/');
-				const folderName = pathParts.at(-2);
 
 				// Robust type detection based on path segments
 				let type: WidgetType = 'custom';
@@ -48,29 +47,36 @@ class WidgetRegistryService {
 					type = 'custom';
 				}
 
-				if (!folderName || typeof module.default !== 'function') {
-					logger.warn(`Skipping invalid widget module at: ${path}`);
-					continue;
-				}
+				const processed = this._processWidgetModule(path, module, type); // Call the private method
+				if (processed) {
+					const { name, widgetFn } = processed;
+					this.widgets.set(name, widgetFn);
+					logger.debug(`[WidgetRegistryService] Registered: ${name} (from ${path})`);
 
-				const widgetFn = module.default as WidgetFactory;
-				// Use the widget's Name property if available, otherwise use folder name
-				const widgetName = widgetFn.Name || folderName;
-				widgetFn.Name = widgetName;
-				widgetFn.__widgetType = type;
-
-				// Store by the widget's Name (should be PascalCase like "Input", "Text", etc.)
-				this.widgets.set(widgetName, widgetFn);
-
-				// Also store with a PascalCase normalized version if the name is all-caps (e.g., "SEO" -> "Seo")
-				const normalizedName = widgetName.charAt(0).toUpperCase() + widgetName.slice(1).toLowerCase();
-				if (normalizedName !== widgetName && widgetName === widgetName.toUpperCase()) {
-					this.widgets.set(normalizedName, widgetFn);
-					logger.trace(`Registered widget: ${widgetName} with alias ${normalizedName} (from ${path})`);
-				} else {
-					logger.trace(`Registered widget: ${widgetName} (from ${path})`);
+					// The alias logic (PascalCase to all-caps) should be handled within the _processWidgetModule itself
+					// if that is desired. Here, we just store by the resolved name.
 				}
 			}
+
+			// Process custom widgets
+			for (const [path, module] of Object.entries(customModules)) {
+				const processed = this._processWidgetModule(path, module, 'custom'); // Use this.processWidgetModule here
+				if (processed) {
+					const { name, widgetFn, folderName } = processed;
+					this.widgets.set(name, widgetFn);
+					logger.debug(`[WidgetRegistryService] Registered: ${name} (from ${path})`);
+
+					// Register aliases (folder name if different)
+					if (folderName && folderName !== name) {
+						logger.debug(`[WidgetRegistryService] Alias: ${folderName} -> ${name}`);
+						this.widgets.set(folderName, widgetFn);
+					}
+				}
+			}
+			logger.debug('[WidgetRegistryService] All registered widget names:', Array.from(this.widgets.keys()));
+
+			// Scan marketplace widgets (runtime discovery)
+			// ... (rest of the initialize method)
 
 			// Scan marketplace widgets (runtime discovery)
 			try {
@@ -133,6 +139,61 @@ class WidgetRegistryService {
 			logger.warn(' 6a0  getAllWidgets() called before initialization! Returning empty map.');
 		}
 		return this.widgets;
+	}
+	private _processWidgetModule(
+		path: string,
+		module: WidgetModule,
+		type: WidgetType
+	): {
+		name: string;
+		widgetFn: WidgetFactory;
+		dependencies: string[];
+		folderName: string;
+	} | null {
+		try {
+			const name = path.split('/').at(-2);
+			if (!name) {
+				logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
+				return null;
+			}
+
+			if (typeof module.default !== 'function') {
+				logger.warn(`Skipping widget module: ${path} - No valid widget function found`);
+				return null;
+			}
+
+			const originalFn = module.default;
+			const widgetName = originalFn.Name || name;
+
+			const dependencies = originalFn.__dependencies || [];
+
+			const inputComponentPath = originalFn.__inputComponentPath || '';
+			const displayComponentPath = originalFn.__displayComponentPath || '';
+
+			const widgetFn: WidgetFactory = Object.assign((config: Record<string, unknown>) => originalFn(config as any), {
+				Name: widgetName,
+				GuiSchema: originalFn.GuiSchema,
+				GraphqlSchema: originalFn.GraphqlSchema,
+				Icon: originalFn.Icon,
+				Description: originalFn.Description,
+				aggregations: originalFn.aggregations,
+				__widgetType: type,
+				__dependencies: dependencies,
+				__inputComponentPath: inputComponentPath,
+				__displayComponentPath: displayComponentPath,
+				componentPath: inputComponentPath
+			}) as unknown as WidgetFactory;
+
+			return {
+				name: widgetFn.Name,
+				widgetFn,
+				dependencies,
+				folderName: name
+			};
+		} catch (error) {
+			logger.error(`Failed to process widget module ${path}:`, error);
+			return null;
+		}
 	}
 }
 

@@ -83,11 +83,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			icon: 'fluent-mdl2:build-definition',
 			color: 'bg-green-500'
 		},
-		{
-			tooltip: 'Image Editor',
-			url: { external: false, path: '/imageEditor' },
-			icon: 'tdesign:image-edit'
-		},
+
 		{
 			tooltip: 'GraphQL Explorer',
 			url: { external: true, path: '/api/graphql' },
@@ -264,6 +260,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	}
 
 	function handleNavigateToEndpoint(): void {
+		setMode('view');
 		showRoutes = false;
 		// Navigation is handled by <a> tag href attribute
 	}

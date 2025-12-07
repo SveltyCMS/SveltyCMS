@@ -19,7 +19,8 @@ import type { ContentNode, Schema, ContentNodeOperation, DatabaseId } from '@src
 import { logger } from '@src/utils/logger.server'; // Server-only file
 import { dateToISODateString } from '@utils/dateUtils';
 import { v4 as uuidv4 } from 'uuid';
-import { generateCategoryNodesFromPaths, processModule } from './utils';
+// Removed static import to prevent circular dependency with WidgetRegistryService
+// import { generateCategoryNodesFromPaths, processModule } from './utils';
 import { CacheCategory } from '@src/databases/CacheCategory'; // ✅ Safe for client - no Redis imports
 
 // ✅ Server-only imports - lazy loaded to prevent client-side bundling
@@ -85,7 +86,7 @@ class ContentManager {
 	} | null = null;
 	private readonly FIRST_COLLECTION_CACHE_TTL = 60 * 1000; // 60 seconds
 	private collectionCache = new Map<string, { schema: Schema | null; timestamp: number }>();
-	private readonly COLLECTION_CACHE_TTL = 5000; // 5 seconds
+	private readonly COLLECTION_CACHE_TTL = 20 * 1000; // 20 seconds
 
 	private metrics = {
 		initializationTime: 0,
@@ -1415,6 +1416,7 @@ class ContentManager {
 		try {
 			const fs = await getFs();
 			const content = await fs.readFile(filePath, 'utf-8');
+			const { processModule } = await import('./utils');
 			const moduleData = await processModule(content);
 
 			if (!moduleData?.schema) return null;
@@ -1447,6 +1449,7 @@ class ContentManager {
 			return;
 		}
 
+		const { generateCategoryNodesFromPaths } = await import('./utils');
 		const fileCategoryNodes = generateCategoryNodesFromPaths(schemas);
 		const dbResult = await dbAdapter.content.nodes.getStructure('flat');
 
@@ -1458,6 +1461,18 @@ class ContentManager {
 
 		// Build operations with parentId resolution in a single pass
 		const operations = this._buildReconciliationOperations(schemas, fileCategoryNodes, dbNodeMap);
+
+		// Ensure all Mongoose models are created/registered
+		// This is critical for CRUD operations to work!
+		for (const schema of schemas) {
+			try {
+				if ('fields' in schema) {
+					await dbAdapter.collection.createModel(schema);
+				}
+			} catch (error) {
+				logger.error(`Failed to register model for collection ${schema.name}:`, error);
+			}
+		}
 
 		// Single bulk upsert with all data including parentIds
 		if (operations.length > 0) {
@@ -1647,6 +1662,7 @@ class ContentManager {
 	// Build in-memory structure from schemas only (used in setup mode when no database is available)
 	private async _buildInMemoryStructureFromSchemas(schemas: Schema[]): Promise<void> {
 		const now = dateToISODateString(new Date());
+		const { generateCategoryNodesFromPaths } = await import('./utils');
 		const fileCategoryNodes = generateCategoryNodesFromPaths(schemas);
 		const pathToIdMap = new Map<string, DatabaseId>();
 
@@ -1824,6 +1840,9 @@ class ContentManager {
 }
 
 // Now, define helper functions outside the class.
+
+// Export the class so db.ts can access static methods like getInstance()
+export { ContentManager };
 
 // And finally, export the instance.
 export const contentManager = ContentManager.getInstance();

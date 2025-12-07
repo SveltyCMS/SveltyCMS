@@ -9,6 +9,63 @@ import { SvelteSet } from 'svelte/reactivity';
 
 // --- Helper Functions & Interfaces ---
 
+// Helper function for avatar URL normalization
+function normalizeAvatarUrl(url: string | null | undefined): string {
+	const DEFAULT_AVATAR = '/Default_User.svg';
+
+	// Guard: empty or null
+	if (!url) return DEFAULT_AVATAR;
+
+	// Pass-through: data URIs and absolute URLs
+	if (url.startsWith('data:') || /^https?:\/\//i.test(url)) {
+		return url;
+	}
+
+	// Pass-through: default avatar
+	if (/^\/?Default_User\.svg$/i.test(url)) {
+		return DEFAULT_AVATAR;
+	}
+
+	// Normalize: remove leading origin and slashes
+	let normalized = url.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '/');
+
+	// Guard: bare /files or /files/
+	if (normalized === '/files' || normalized === '/files/') {
+		return DEFAULT_AVATAR;
+	}
+
+	// Pass-through: already /files/
+	if (normalized.startsWith('/files/')) {
+		return normalized;
+	}
+
+	const trimmed = normalized.startsWith('/') ? normalized.slice(1) : normalized;
+
+	// Guard: bare "files"
+	if (trimmed === 'files') return DEFAULT_AVATAR;
+
+	// Pass-through: static paths
+	if (trimmed.startsWith('static/')) {
+		return `/${trimmed}`;
+	}
+
+	const MEDIA_FOLDER = publicEnv.MEDIA_FOLDER;
+
+	// Transform: mediaFiles/... → /files/...
+	if (trimmed.startsWith(`${MEDIA_FOLDER}/`)) {
+		const rest = trimmed.slice(MEDIA_FOLDER.length + 1);
+		return `/files/${rest}`;
+	}
+
+	// Transform: avatars/... → /files/avatars/...
+	if (trimmed.startsWith('avatars/')) {
+		return `/files/${trimmed}`;
+	}
+
+	// Fallback: .svg → root, else → /files/
+	return trimmed ? (trimmed.endsWith('.svg') ? `/${trimmed}` : `/files/${trimmed}`) : DEFAULT_AVATAR;
+}
+
 interface ValidationErrors {
 	[fieldName: string]: string | null;
 }
@@ -147,78 +204,10 @@ export const avatarSrc = {
 	set value(newValue: string) {
 		// Normalize avatar URL so it consistently uses the /files route in prod builds
 		try {
-			if (!newValue) {
-				_avatarSrc = '/Default_User.svg';
-				return;
-			}
-
-			// data URI or absolute http(s) URLs are used as-is
-			if (newValue.startsWith('data:') || /^https?:\/\//i.test(newValue)) {
-				_avatarSrc = newValue;
-				return;
-			}
-
-			// Default static avatar should never go through /files
-			if (/^\/?Default_User\.svg$/i.test(newValue)) {
-				_avatarSrc = '/Default_User.svg';
-				return;
-			}
-
-			const MEDIA_FOLDER = publicEnv.MEDIA_FOLDER;
-
-			// Strip any leading origin or duplicate slashes (defensive)
-			let url = newValue.replace(/^https?:\/\/[^/]+/i, '');
-
-			// Ensure no leading double slashes
-			url = url.replace(/^\/+/, '/');
-
-			// Guard against invalid bare /files URL which would 400 the files endpoint
-			if (url === '/files' || url === '/files/') {
-				_avatarSrc = '/Default_User.svg';
-				return;
-			}
-
-			// If already using /files, leave as-is
-			if (url.startsWith('/files/')) {
-				_avatarSrc = url;
-				return;
-			}
-
-			// Remove leading slash for uniform checks below
-			const trimmed = url.startsWith('/') ? url.slice(1) : url;
-
-			// Additional guard for "files" without a path
-			if (trimmed === 'files') {
-				_avatarSrc = '/Default_User.svg';
-				return;
-			}
-
-			// Respect explicit static/ paths (leave as root path)
-			if (trimmed.startsWith('static/')) {
-				_avatarSrc = `/${trimmed}`;
-				return;
-			}
-
-			// Cases:
-			// - mediaFiles/avatars/...
-			// - avatars/...
-			// - mediaFiles/mediaFiles/avatars/... (defensive)
-			if (trimmed.startsWith(`${MEDIA_FOLDER}/`)) {
-				const rest = trimmed.slice(MEDIA_FOLDER.length + 1); // after media folder/
-				_avatarSrc = `/files/${rest}`;
-				return;
-			}
-
-			if (trimmed.startsWith('avatars/')) {
-				_avatarSrc = `/files/${trimmed}`;
-				return;
-			}
-
-			// Fallback: if it looks like a relative media path, prefix /files/
-			// Otherwise, keep as-is
-			_avatarSrc = trimmed ? (trimmed.endsWith('.svg') ? `/${trimmed}` : `/files/${trimmed}`) : '/Default_User.svg';
-		} catch {
-			_avatarSrc = newValue || '/Default_User.svg';
+			_avatarSrc = normalizeAvatarUrl(newValue);
+		} catch (error) {
+			console.error('[Store] Avatar normalization failed:', error);
+			_avatarSrc = '/Default_User.svg';
 		}
 	}
 };
@@ -629,13 +618,16 @@ export const tableHeaders = ['id', 'email', 'username', 'role', 'createdAt'] as 
 export const indexer = undefined;
 
 // Creates a reactive validation store
+const isDev = process.env.NODE_ENV !== 'production';
+const validationLogger = isDev ? (msg: string, ...args: any[]) => console.log(msg, ...args) : () => {}; // no-op in production
+
 function createValidationStore() {
 	let errors = $state<ValidationErrors>({});
-	const isValid = $derived(() => Object.values(errors).every((error) => !error));
+	const isValid = $derived(Object.values(errors).every((error) => !error));
 	const subscribers = new SvelteSet<(value: { errors: ValidationErrors; isValid: boolean }) => void>();
 
 	const notify = () => {
-		const current = { errors: { ...errors }, isValid: isValid() }; // Call the derived function
+		const current = { errors: { ...errors }, isValid: isValid };
 		for (const fn of subscribers) {
 			try {
 				fn(current);
@@ -651,17 +643,14 @@ function createValidationStore() {
 			return errors;
 		},
 		get isValid() {
-			const valid = isValid(); // Call the derived function to get the boolean value
 			// Validation tracking is silent for performance
-			return valid;
+			return isValid;
 		},
 		setError: (fieldName: string, errorMessage: string | null) => {
 			// Silent validation error setting
 			errors[fieldName] = errorMessage;
 			// 🔍 DEBUG: Log error setting
-			if (process.env.NODE_ENV !== 'production') {
-				console.log('[ValidationStore] setError:', fieldName, errorMessage, 'isValid:', isValid());
-			}
+			validationLogger('[ValidationStore] setError:', fieldName, errorMessage, 'isValid:', isValid);
 			notify();
 		},
 		clearError: (fieldName: string) => {
@@ -669,9 +658,7 @@ function createValidationStore() {
 			if (fieldName in errors) {
 				delete errors[fieldName];
 				// 🔍 DEBUG: Log error clearing
-				if (process.env.NODE_ENV !== 'production') {
-					console.log('[ValidationStore] clearError:', fieldName, 'isValid:', isValid());
-				}
+				validationLogger('[ValidationStore] clearError:', fieldName, 'isValid:', isValid);
 				notify();
 			}
 		},
@@ -689,7 +676,7 @@ function createValidationStore() {
 		subscribe: (run: (value: { errors: ValidationErrors; isValid: boolean }) => void) => {
 			subscribers.add(run);
 			try {
-				run({ errors: { ...errors }, isValid: isValid() }); // Call the derived function
+				run({ errors: { ...errors }, isValid: isValid }); // Call the derived function
 			} catch {
 				// noop on initial call
 			}

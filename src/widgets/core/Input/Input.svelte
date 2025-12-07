@@ -34,7 +34,6 @@
 	import { validationStore } from '@root/src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { contentLanguage } from '@src/stores/store.svelte';
-	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	// Props
 	interface Props {
@@ -51,10 +50,10 @@
 	}
 
 	// ✅ ENHANCEMENT: Auto-enable validateOnMount for required fields to instantly disable save button
-	let { field, value = $bindable(), validateOnMount, validateOnChange = true, validateOnBlur = true, debounceMs = 300 }: Props = $props();
+	let { field, value = $bindable(), validateOnChange = true, validateOnBlur = true, debounceMs = 300 }: Props = $props();
 
-	// Default validateOnMount to field.required if not provided
-	let shouldValidateOnMount = $derived(validateOnMount ?? field.required ?? false);
+	// New derived state for validateOnMount
+	const validateOnMount = $derived(field.required ?? false);
 
 	// SECURITY: Maximum input length to prevent ReDoS attacks
 	const MAX_INPUT_LENGTH = 100000; // 100KB
@@ -203,7 +202,7 @@
 
 	// Initialize validation on mount if requested - only run once
 	$effect(() => {
-		if (shouldValidateOnMount && !hasValidatedOnMount) {
+		if (validateOnMount && !hasValidatedOnMount) {
 			hasValidatedOnMount = true;
 			// Validation happens silently - logs only in dev mode for debugging
 			// Use untrack to prevent circular dependencies and run validation immediately
@@ -235,11 +234,6 @@
 
 		<input
 			type="text"
-			use:tokenTarget={{
-				name: field.db_fieldName,
-				label: field.label,
-				collection: (field as any).collection
-			}}
 			value={safeValue}
 			oninput={(e) => {
 				updateValue(e.currentTarget.value);
@@ -262,7 +256,7 @@
 			class:!border-primary-500={isValidating && !validationError}
 			class:!ring-primary-500={isValidating && !validationError}
 			aria-invalid={!!validationError}
-			aria-describedby={validationError ? `${fieldName}-error` : undefined}
+			aria-describedby={validationError ? `${fieldName}-error` : field.helper ? `${fieldName}-helper` : undefined}
 			aria-required={field?.required}
 			data-testid="text-input"
 		/>
@@ -302,6 +296,13 @@
 			</div>
 		{/if}
 	</div>
+
+	<!-- Helper Text -->
+	{#if field.helper}
+		<p id={`${fieldName}-helper`} class="absolute bottom-0 left-0 w-full text-center text-xs text-surface-500 dark:text-surface-400">
+			{field.helper}
+		</p>
+	{/if}
 
 	<!-- Error Message -->
 	{#if validationError}

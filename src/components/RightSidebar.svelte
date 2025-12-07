@@ -27,8 +27,8 @@ This component provides a streamlined interface for managing collection entries 
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	// SvelteKit imports
-	import { goto } from '$app/navigation';
 	import { page } from '$app/state'; // Svelte 5 uses $app/state
+	import { navigationManager } from '@utils/navigationManager';
 	import { getLocale } from '@src/paraglide/runtime';
 
 	// Actions and Utils
@@ -38,12 +38,11 @@ This component provides a streamlined interface for managing collection entries 
 	import * as m from '@src/paraglide/messages';
 
 	// Types
-	import type { StatusType } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 
 	// Stores
 	import { screenSize } from '@stores/screenSizeStore.svelte';
-	import { collection, collectionValue, mode, setCollectionValue, setMode } from '@stores/collectionStore.svelte';
+	import { collection, collectionValue, mode, setCollectionValue } from '@stores/collectionStore.svelte';
 	import { saveLayerStore, shouldShowNextButton, validationStore, dataChangeStore } from '@stores/store.svelte';
 	import { handleUILayoutToggle, uiStateManager } from '@stores/UIStore.svelte';
 
@@ -52,6 +51,7 @@ This component provides a streamlined interface for managing collection entries 
 
 	// Components
 	import Toggles from './system/inputs/Toggles.svelte';
+	import { statusStore } from '@stores/statusStore.svelte';
 
 	// Define a clearer type for the entry data
 	type EntryData = Record<string, any>;
@@ -63,7 +63,7 @@ This component provides a streamlined interface for managing collection entries 
 	const isAdmin = $derived((page.data.isAdmin || false) as boolean);
 
 	// --- Local State ---
-	let isLoading = $state(false);
+	// isLoading removed, using statusStore.isLoading
 
 	// Track data changes using the centralized store
 	const hasDataChanged = $derived(dataChangeStore.hasChanges);
@@ -128,15 +128,13 @@ This component provides a streamlined interface for managing collection entries 
 	const canDelete = $derived(currentCollection?.permissions?.[user?.role]?.delete !== false);
 
 	// Determine current status (local state or collection default)
-	const currentStatus = $derived(currentEntry?.status ?? currentCollection?.status ?? StatusTypes.unpublish);
-	const isPublished = $derived(currentStatus === StatusTypes.publish);
-	// Removed unused isScheduled
+	// (isPublished removed, using statusStore.isPublish directly)
 
 	// Disable status toggle logic
 	const shouldDisableStatusToggle = $derived(
 		(currentMode === 'create' && !isRightSidebarVisible) ||
 			(currentMode === 'edit' && !isRightSidebarVisible && currentScreenSize !== 'LG') ||
-			isLoading
+			statusStore.isLoading
 	);
 
 	// Formatted dates
@@ -181,41 +179,7 @@ This component provides a streamlined interface for managing collection entries 
 	const handleDeleteEntry = () => deleteCurrentEntry(modalStore, isAdmin);
 
 	async function handleStatusToggle(newValue: boolean): Promise<boolean> {
-		if (newValue === isPublished || isLoading) {
-			return false; // No change or already processing
-		}
-
-		isLoading = true;
-		const newStatus: StatusType = newValue ? StatusTypes.publish : StatusTypes.unpublish;
-
-		try {
-			// If entry exists (has _id), update via API
-			if (currentEntry?._id && currentCollection?._id) {
-				const { updateEntryStatus } = await import('@src/utils/apiClient'); // Dynamic import
-				const result = await updateEntryStatus(String(currentCollection._id), String(currentEntry._id), newStatus);
-
-				if (result.success) {
-					// Update store, clear schedule info if publishing/unpublishing manually
-					setCollectionValue({ ...currentEntry, status: newStatus, _scheduled: null });
-					showToast(newValue ? 'Entry published.' : 'Entry unpublished.', 'success');
-					return true;
-				} else {
-					showToast(result.error || `Failed to ${newStatus} entry`, 'error');
-					return false;
-				}
-			} else {
-				// New entry: just update local store state
-				setCollectionValue({ ...currentEntry, status: newStatus, _scheduled: null });
-				return true;
-			}
-		} catch (e) {
-			const error = e as Error;
-			showToast(`Error ${newStatus} entry: ${error.message}`, 'error');
-			logger.error('[RightSidebar] Toggle error:', e);
-			return false;
-		} finally {
-			isLoading = false;
-		}
+		return await statusStore.toggleStatus(newValue, 'RightSidebar');
 	}
 
 	function openScheduleModal(): void {
@@ -241,32 +205,26 @@ This component provides a streamlined interface for managing collection entries 
 		}
 
 		// Check if there are any changes using the centralized store
-		if (!hasDataChanged) {
+		// Only check for changes in edit mode. In create mode, always attempt to save (even with defaults).
+		if (currentMode === 'edit' && !hasDataChanged) {
 			// No changes - but still need to reload full list view
 			logger.debug('[RightSidebar] No changes detected, returning to list view without save');
 			handleUILayoutToggle();
-			dataChangeStore.reset();
 
-			// ✅ Navigate back to list view with full data reload
-			// Remove ?edit= and ?create= parameters to trigger SSR reload of full entry list
-			const currentPath = page.url.pathname; // pathname excludes query parameters
-			logger.debug('[RightSidebar] No changes - Navigating to:', currentPath, 'from:', page.url.href);
-			await goto(currentPath, { invalidateAll: true });
-
-			// Update mode after navigation
-			setMode('view');
+			// Delegate navigation to manager
+			await navigationManager.navigateToList();
 			return;
 		}
 
 		// Get a fresh snapshot of collectionValue to ensure we have the latest widget data
 		const dataToSave: EntryData = { ...(currentEntry as EntryData) };
 
-		// Status rules: Schedule takes precedence, otherwise use current toggle state
+		// ✅ FIXED: Proper if/else for schedule logic
 		if (scheduleTimestamp) {
 			dataToSave.status = StatusTypes.schedule;
 			dataToSave._scheduled = scheduleTimestamp;
 		} else {
-			dataToSave.status = currentStatus;
+			dataToSave.status = statusStore.getStatusForSave();
 			delete dataToSave._scheduled;
 		}
 
@@ -282,21 +240,18 @@ This component provides a streamlined interface for managing collection entries 
 		}
 
 		// ✅ FIX 2: Save entry and let it handle navigation
-		await saveEntry(dataToSave);
+		const success = await saveEntry(dataToSave);
+
+		if (!success) {
+			logger.warn('[RightSidebar] Save failed');
+			return;
+		}
 
 		// Close sidebars
 		handleUILayoutToggle();
 
-		// Reset change tracking
-		dataChangeStore.reset();
-
-		// ✅ FIX 3: Navigate to list view (saveEntry already called invalidateAll)
-		// This ensures the entry list refreshes with the new data
-		const currentPath = page.url.pathname;
-		logger.debug('[RightSidebar] Save complete - Navigating to:', currentPath);
-		await goto(currentPath, { invalidateAll: true, replaceState: false });
-
-		logger.debug('[Save] Navigated back to list view with refreshed data');
+		// Delegate navigation and state cleanup to manager
+		await navigationManager.navigateToList();
 	}
 	function saveData() {
 		prepareAndSaveEntry();
@@ -329,14 +284,18 @@ This component provides a streamlined interface for managing collection entries 
 
 				<div class="gradient-secondary btn w-full gap-2 shadow-md">
 					<Toggles
-						value={isPublished}
-						label={isPublished ? m.status_publish() : m.status_unpublish()}
-						labelColor={isPublished ? 'text-primary-500' : 'text-error-500'}
+						value={statusStore.isPublish}
+						label={statusStore.isPublish ? m.status_publish() : m.status_unpublish()}
+						labelColor={statusStore.isPublish ? 'text-primary-500' : 'text-error-500'}
 						iconOn="ic:baseline-check-circle"
 						iconOff="material-symbols:close"
-						disabled={shouldDisableStatusToggle || isLoading}
+						disabled={shouldDisableStatusToggle || statusStore.isLoading}
 						onChange={handleStatusToggle}
-						title={shouldDisableStatusToggle ? 'Status managed by header in mobile view' : isPublished ? m.status_publish() : m.status_unpublish()}
+						title={shouldDisableStatusToggle
+							? 'Status managed by header in mobile view'
+							: statusStore.isPublish
+								? m.status_publish()
+								: m.status_unpublish()}
 					/>
 				</div>
 

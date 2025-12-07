@@ -73,7 +73,7 @@ Features:
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
 	// =================================================================
-	import type { EntryListProps } from './types';
+	import type { EntryListProps } from '@src/content/types';
 
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
@@ -534,7 +534,7 @@ Features:
 	const pathSegments = $derived(page.url.pathname.split('/').filter(Boolean));
 	const categoryName = $derived.by(() => {
 		if (breadcrumb && breadcrumb.length > 0) {
-			return breadcrumb.map((b) => b.name).join(' > ');
+			return breadcrumb.map((b: { name: string; path: string }) => b.name).join(' > ');
 		}
 		const segments = pathSegments?.slice() ?? [];
 		if (segments.length > 0) {

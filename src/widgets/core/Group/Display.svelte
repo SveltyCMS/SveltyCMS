@@ -35,7 +35,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 
 	const { field, value, children }: Props = $props();
 
-	const fieldName = getFieldName(field);
+	const fieldName = $derived(getFieldName(field));
 
 	// Variant classes
 	const variantClasses = {
@@ -45,7 +45,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 			content: 'bg-transparent pt-3'
 		},
 		card: {
-			container: 'rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800',
+			container: 'rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-700',
 			header: 'rounded-t-lg border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700',
 			content: 'p-4'
 		},
@@ -59,7 +59,10 @@ Renders grouped content in a read-only display format with collapsible functiona
 	const variant = $derived(variantClasses[field.variant as keyof typeof variantClasses] || variantClasses.default);
 
 	// State for collapsible functionality
-	let isCollapsed = $state(field.collapsed || false);
+	let isCollapsed = $state(false);
+	$effect(() => {
+		isCollapsed = field.collapsed || false;
+	});
 
 	/**
 	 * Toggle collapse state

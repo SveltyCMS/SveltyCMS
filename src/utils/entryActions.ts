@@ -3,7 +3,6 @@
  * @description Centralized functions for performing actions on collection entries.
  */
 
-import { invalidateAll } from '$app/navigation';
 import type { ModalSettings, ModalStore } from '@skeletonlabs/skeleton';
 import type { StatusType } from '@src/content/types';
 import { StatusTypes } from '@src/content/types';
@@ -134,11 +133,11 @@ export async function cloneEntries(rawEntries: Record<string, unknown>[], onSucc
 }
 
 // Saves a new or existing entry
-export async function saveEntry(entryData: Record<string, unknown>, publish: boolean = false) {
+export async function saveEntry(entryData: Record<string, unknown>, publish: boolean = false): Promise<boolean> {
 	const collId = collection.value?._id;
 	if (!collId) {
 		showToast('Collection not found', 'warning');
-		return;
+		return false;
 	}
 
 	const entryId = entryData._id as string | undefined;
@@ -160,11 +159,11 @@ export async function saveEntry(entryData: Record<string, unknown>, publish: boo
 		if (result.data) {
 			setCollectionValue(result.data as Record<string, unknown>);
 		}
-		setMode('view');
+		// setMode('view'); // Handled by caller to ensure proper navigation flow
 		invalidateCollectionCache(collId);
 
-		// Trigger SvelteKit SSR reload
-		await invalidateAll();
+		// Trigger SvelteKit SSR reload - Handled by caller via goto(..., { invalidateAll: true })
+		// await invalidateAll();
 
 		// Clear client-side cache in EntryList component
 		if (typeof document !== 'undefined') {
@@ -174,8 +173,10 @@ export async function saveEntry(entryData: Record<string, unknown>, publish: boo
 				})
 			);
 		}
+		return true;
 	} else {
 		showToast(result.error || 'Failed to save entry', 'error');
+		return false;
 	}
 }
 

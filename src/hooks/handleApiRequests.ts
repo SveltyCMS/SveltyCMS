@@ -200,7 +200,10 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 		// --- 3. Handle Mutations (POST, PUT, DELETE, PATCH) ---
 		const response = await resolve(event);
 
-		if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method) && response.ok) {
+		// Exclude specific endpoints from invalidation
+		const isWarmCache = url.pathname.endsWith('/warm-cache');
+
+		if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method) && response.ok && !isWarmCache) {
 			try {
 				const patternToInvalidate = `api:${locals.user._id}:/api/${apiEndpoint}`;
 				await cacheService.clearByPattern(`${patternToInvalidate}*`, locals.tenantId);

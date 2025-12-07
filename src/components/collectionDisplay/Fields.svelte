@@ -34,7 +34,7 @@
 
 	// Stores
 	import { collection, collectionValue, setCollectionValue } from '@src/stores/collectionStore.svelte';
-	import { translationProgress, contentLanguage, dataChangeStore } from '@stores/store.svelte';
+	import { translationProgress, contentLanguage, dataChangeStore, validationStore } from '@stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import type { Locale } from '@src/paraglide/runtime';
 
@@ -58,6 +58,7 @@
 
 	// Import async widget loader component
 	import WidgetLoader from './WidgetLoader.svelte';
+	import { activeInputStore } from '@stores/activeInputStore.svelte';
 
 	// Token Picker
 	// Token Picker
@@ -71,7 +72,7 @@
 		const el = document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement;
 		if (el) {
 			el.focus();
-			// activeInputStore.set({ element: el, field }); // Reliance on widget's internal focus handler (tokenTarget or custom)
+			activeInputStore.set({ element: el, field }); // Explicitly open picker on button click
 		} else {
 			console.warn('Could not find input for field', field);
 		}
@@ -291,6 +292,36 @@
 		});
 	}
 
+	// --- 6. VALIDATION LOGIC ---
+	// Reactively validate fields whenever values change
+	$effect(() => {
+		const values = currentCollectionValue; // React to value changes
+
+		// Iterate over fields to validate them
+		filteredFields.forEach((field: any) => {
+			if (field.required) {
+				const fieldName = getFieldName(field, false);
+				const value = values[fieldName];
+
+				// Check for empty values
+				// Handle various types: string, array, null, undefined
+				const isEmpty =
+					value === null || value === undefined || (typeof value === 'string' && value.trim() === '') || (Array.isArray(value) && value.length === 0);
+
+				if (isEmpty) {
+					// Only set error if it's not already set to avoid loop (though store handles this)
+					if (!validationStore.hasError(fieldName)) {
+						validationStore.setError(fieldName, `${field.label || fieldName} is required`);
+					}
+				} else {
+					if (validationStore.hasError(fieldName)) {
+						validationStore.clearError(fieldName);
+					}
+				}
+			}
+		});
+	});
+
 	$effect(() => {
 		if ((collectionValue as any).value?._id) {
 			apiUrl = `${location.origin}/api/collection/${collection.value?._id}/${(collectionValue as any).value._id}`;
@@ -389,19 +420,47 @@
 
 								{#if field.widget}
 									{@const widgetName = field.widget.Name}
-									{@const widgetPath =
-										widgetFunctions[widgetName]?.componentPath ||
-										widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)]?.componentPath ||
-										widgetFunctions[widgetName.toLowerCase()]?.componentPath}
 
-									<!-- --- PERFORMANCE FIX: USE WIDGETLOADER --- -->
-									{@const widgetLoader = widgetPath && widgetPath in modules ? modules[widgetPath] : null}
+									<!-- --- PERFORMANCE FIX: ROBUST WIDGET FINDER --- -->
+									{@const loadedWidget = (() => {
+										// 1. Try exact path from widget store (fastest)
+										const storePath = widgetFunctions[widgetName]?.componentPath;
+										if (storePath && storePath in modules) return modules[storePath];
 
-									{#if widgetLoader}
+										// 2. Try casing variations from store
+										const camelPath = widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)]?.componentPath;
+										if (camelPath && camelPath in modules) return modules[camelPath];
+
+										const lowerPath = widgetFunctions[widgetName.toLowerCase()]?.componentPath;
+										if (lowerPath && lowerPath in modules) return modules[lowerPath];
+
+										// 3. Robust Search in modules (fallback)
+										const normalized = widgetName.toLowerCase();
+										for (const path in modules) {
+											const lowerPath = path.toLowerCase();
+											const parts = lowerPath.split('/');
+											const fileName = parts.pop();
+											const folderName = parts.pop();
+
+											// A. Match 3-Pillar Structure: /WidgetName/Input.svelte
+											// IMPORTANT: Enforce folder name matches widget name to avoid matching other widgets' Input.svelte
+											if (folderName === normalized && fileName === 'input.svelte') return modules[path];
+
+											// B. Match 3-Pillar Index: /WidgetName/index.svelte
+											if (folderName === normalized && fileName === 'index.svelte') return modules[path];
+
+											// C. Match Single File: /WidgetName.svelte
+											// EXCEPTION: Do not loosely match "Input.svelte" as it causes collisions with standard 3-pillar components
+											if (fileName === `${normalized}.svelte` && normalized !== 'input') return modules[path];
+										}
+										return null;
+									})()}
+
+									{#if loadedWidget}
 										{@const fieldName = getFieldName(field, false)}
 										{#key currentContentLanguage}
 											<!-- Widget remounts when currentContentLanguage changes -->
-											<WidgetLoader loader={widgetLoader} {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
+											<WidgetLoader loader={loadedWidget} {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
 										{/key}
 									{:else}
 										<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>

@@ -108,6 +108,45 @@ export type WidgetTypes = (typeof widgets)[WidgetKeys];
 // Widget Definition is now imported from @widgets/types
 import type { WidgetDefinition } from '@widgets/types';
 
+export interface EntryListProps {
+	entries?: any[];
+	pagination?: {
+		currentPage: number;
+		pageSize: number;
+		totalItems: number;
+		pagesCount: number;
+	};
+	contentLanguage?: string;
+}
+
+export interface FieldsProps {
+	fields: any[];
+	revisions?: any[];
+	contentLanguage?: string;
+}
+
+export interface WidgetLoaderProps {
+	loader: () => Promise<{ default: any }>;
+	field: FieldInstance;
+	WidgetData?: Record<string, any>;
+	value?: any;
+	tenantId?: string;
+}
+
+export interface EntryListMultiButtonProps {
+	isCollectionEmpty?: boolean;
+	hasSelections?: boolean;
+	selectedCount?: number;
+	showDeleted?: boolean;
+	create: () => void;
+	publish: () => void;
+	unpublish: () => void;
+	schedule: (date: string, action: string) => void;
+	clone: () => void;
+	delete: (permanent: boolean) => void;
+	test: () => void;
+}
+
 // Field Instance - An actual field using a widget with specific configuration
 export interface FieldInstance {
 	/** A reference to the widget's immutable definition. */
@@ -394,4 +433,4 @@ export interface TablePaginationProps {
 	onUpdateRowsPerPage?: (rows: number) => void;
 }
 
-export type ContentTypes = 'Names' | 'Relation' | 'Menu' | 'Posts' | 'WidgetTest';
+export type ContentTypes = 'Posts' | 'Names' | 'Relation' | 'WidgetTest' | 'Menu';

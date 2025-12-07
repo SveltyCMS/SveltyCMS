@@ -48,8 +48,12 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 		// Use updateMedia instead of manipulateMedia
 		await mediaService.updateMedia(id, manipulations);
 
+		if (!locals.user) {
+			return json({ success: false, error: 'Unauthorized' }, { status: 401 });
+		}
+
 		// Fetch the updated media to return
-		const updatedMedia = await mediaService.getMedia(id, user, locals.roles);
+		const updatedMedia = await mediaService.getMedia(id, locals.user, locals.roles);
 
 		return json({
 			success: true,

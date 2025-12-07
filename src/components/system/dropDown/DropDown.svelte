@@ -1,6 +1,6 @@
 <!--
 @file: /src/components/Dropdown.svelte
-@component: 
+@component:
 **Dropdown component that allows selection from a list of items. It supports custom styling, item modification, and an optional icon.**
 
 ### Props
@@ -23,7 +23,7 @@
 	// Define props using $props
 	const {
 		items, // Array of selectable items
-		selected = items[0], // Currently selected item, default to first item
+		selected, // Currently selected item (no default here, handled dynamically)
 		label = '', // Optional label for the dropdown
 		modifier = (input: any) => input, // Function to modify how items are displayed
 		class: className = '' // Custom class for the dropdown container
@@ -33,8 +33,15 @@
 	let expanded = $state(false);
 	let currentSelected = $state(selected);
 
+	// Effect to update currentSelected when the selected prop changes or to set initial default
 	$effect(() => {
-		currentSelected = selected;
+		if (selected !== undefined) {
+			currentSelected = selected;
+		} else if (items && items.length > 0) {
+			currentSelected = items[0];
+		} else {
+			currentSelected = undefined; // No selected item or items available
+		}
 	});
 
 	// Derived state for filtered items

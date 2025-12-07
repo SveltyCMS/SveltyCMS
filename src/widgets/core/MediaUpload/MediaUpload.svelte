@@ -21,11 +21,11 @@ functionality for image editing and basic file information display.
 - **Reactivity**: Uses Svelte 5 runes (`$state`, `$props`, `$effect`) for efficient state management.
 - **Styling**: Adheres to the project's style guide using Tailwind CSS utility classes and semantic colors.
 -->
-
 <script lang="ts">
 	import type { ISODateString } from '@src/content/types';
 	import { convertTimestampToDateString, getFieldName } from '@utils/utils';
 	import { isoDateStringToDate } from '@utils/dateUtils';
+	import { logger } from '@utils/logger';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -37,37 +37,26 @@ functionality for image editing and basic file information display.
 	// Components
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import FileInput from '@components/system/inputs/FileInput.svelte';
-	import { getModalStore, type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton';
-	import ModalImageEditor from './ModalImageEditor.svelte';
+	import ImageEditorModal from '@src/components/imageEditor/ImageEditorModal.svelte';
+	import { updateMediaMetadata } from '@utils/media/api';
 
 	// Define reactive state
 	let isFlipped = $state(false);
-	let _data: File | MediaImage | undefined = $state(undefined); // Initialize with `undefined`
+
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
-	const modalStore = getModalStore();
-
-	function openImageEditor() {
-		const modalComponent: ModalComponent = {
-			ref: ModalImageEditor,
-			props: {
-				_data: _data,
-				onClose: modalStore.close,
-				mediaOnSelect: (file: File | MediaImage) => {
-					_data = file;
-					validateInput();
-				}
-			}
-		};
-		const modal: ModalSettings = {
-			type: 'component',
-			component: modalComponent
-		};
-		modalStore.trigger(modal);
-	}
+	let showEditor = $state(false);
 
 	// Define props
-	const { field, value = (collectionValue as any)[getFieldName(field)] } = $props();
+	let { field, value = $bindable<File | MediaImage | undefined>() } = $props(); // 'value' is the bindable prop
+
+	// Effect to initialize 'value' if it's undefined and a default is available
+	// This runs after the component has initialized and 'value' would have received its initial binding
+	$effect(() => {
+		if (value === undefined && (collectionValue.value as any)[getFieldName(field)] !== undefined) {
+			value = (collectionValue.value as any)[getFieldName(field)];
+		}
+	});
 
 	// Define validation schema
 	import { object, string, number, union, instance, check, pipe, record, parse, type ValiError } from 'valibot';
@@ -119,18 +108,117 @@ functionality for image editing and basic file information display.
 	function validateInput() {
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 		debounceTimeout = window.setTimeout(() => {
-			validationError = validateSchema(_data);
+			validationError = validateSchema(value);
 		}, 300);
+	}
+
+	async function handleEditorSave({ detail }: CustomEvent<{ dataURL: string; file: File }>) {
+		const { file: editedFile } = detail;
+		// Create form data for the API request
+		const formData = new FormData();
+		formData.append('processType', 'save');
+		formData.append('files', editedFile);
+
+		// TODO: Pass watermark and other options from the field config
+		// const watermark = field.watermark;
+		// if(watermark) formData.append('watermarkOptions', JSON.stringify(watermark));
+
+		try {
+			// Send to media API
+			const saveResponse = await fetch('/api/media/process', {
+				method: 'POST',
+				body: formData
+			});
+
+			if (!saveResponse.ok) {
+				const errorData = await saveResponse.json();
+				throw new Error(errorData.error || 'Failed to save edited image');
+			}
+
+			const result = await saveResponse.json();
+			if (!result.success || !result.data.data[0]?.success) {
+				throw new Error(result.data.data[0]?.error || 'Failed to process edited image');
+			}
+
+			// Update the widget data with the new persisted image data
+			value = result.data.data[0].data; // Assign directly to the bindable prop
+			showEditor = false;
+		} catch (error) {
+			logger.error('Error saving edited image:', error);
+		}
+	}
+
+	let focalPoint = $state({ x: 50, y: 50 });
+	let isDraggingFocalPoint = $state(false);
+	let containerRef: HTMLDivElement | undefined = $state(undefined); // Changed to $state
+
+	// Global event handlers
+	function handleGlobalMouseMove(event: MouseEvent) {
+		if (isDraggingFocalPoint && containerRef) {
+			handleFocalPointDrag(event, containerRef);
+		}
+	}
+
+	function handleGlobalMouseUp() {
+		if (isDraggingFocalPoint) {
+			saveFocalPoint();
+		}
+	}
+
+	$effect(() => {
+		if (value && !(value instanceof File) && value.metadata?.focalPoint) {
+			focalPoint = value.metadata.focalPoint;
+		} else {
+			focalPoint = { x: 50, y: 50 };
+		}
+	});
+
+	// Effect to attach/detach global listeners
+	$effect(() => {
+		if (isDraggingFocalPoint) {
+			window.addEventListener('mousemove', handleGlobalMouseMove);
+			window.addEventListener('mouseup', handleGlobalMouseUp);
+		} else {
+			window.removeEventListener('mousemove', handleGlobalMouseMove);
+			window.removeEventListener('mouseup', handleGlobalMouseUp);
+		}
+
+		// Cleanup on component destroy
+		return () => {
+			window.removeEventListener('mousemove', handleGlobalMouseMove);
+			window.removeEventListener('mouseup', handleGlobalMouseUp);
+		};
+	});
+
+	function handleFocalPointDrag(event: MouseEvent, container: HTMLDivElement) {
+		if (!isDraggingFocalPoint) return;
+		const rect = container.getBoundingClientRect();
+		let x = ((event.clientX - rect.left) / rect.width) * 100;
+		let y = ((event.clientY - rect.top) / rect.height) * 100;
+
+		// Clamp values between 0 and 100
+		focalPoint.x = Math.max(0, Math.min(100, x));
+		focalPoint.y = Math.max(0, Math.min(100, y));
+	}
+
+	async function saveFocalPoint() {
+		isDraggingFocalPoint = false;
+		if (value && !(value instanceof File) && value._id) {
+			try {
+				await updateMediaMetadata(value._id, { focalPoint });
+				// Optionally show a success toast
+			} catch (e) {
+				logger.error('Failed to save focal point', e);
+				// Optionally show an error toast
+			}
+		}
 	}
 
 	import { getWidgetData } from './widgetData';
 
 	// The `WidgetData` function needs to be explicitly defined or called when needed.
-	// Since it was exported, it means it was part of the component's public API.
-	// In Svelte 5, component functions usually are regular functions and can be exported as part of the component's module.
-	// Let's create a wrapper function that calls `getWidgetData`.
 	export async function WidgetDataExport() {
-		return getWidgetData(_data, field, value);
+		return getWidgetData(value, field, value);
 	}
 
 	// Helper function to get timestamp
@@ -142,10 +230,10 @@ functionality for image editing and basic file information display.
 </script>
 
 <div class="relative mb-4 min-h-1">
-	{#if !_data}
+	{#if !value}
 		<!-- File Input -->
 		<div class="rounded-lg border-2 border-dashed border-transparent" class:!border-error-500={!!validationError}>
-			<FileInput bind:value={_data} bind:multiple={field.multiupload} onChange={validateInput} />
+			<FileInput bind:value bind:multiple={field.multiupload} onChange={validateInput} />
 		</div>
 	{:else}
 		<div
@@ -158,35 +246,49 @@ functionality for image editing and basic file information display.
 				<div class="flex items-center justify-between gap-2">
 					<p class="text-left">
 						{m.widget_ImageUpload_Name()}
-						<span class="text-tertiary-500 dark:text-primary-500">{_data instanceof File ? _data.name : (_data as MediaImage).path}</span>
+						<span class="text-tertiary-500 dark:text-primary-500">{value instanceof File ? value.name : (value as MediaImage).path}</span>
 					</p>
 
 					<p class="text-left">
 						{m.widget_ImageUpload_Size()}
-						<span class="text-tertiary-500 dark:text-primary-500">{((_data.size ?? 0) / 1024).toFixed(2)} KB</span>
+						<span class="text-tertiary-500 dark:text-primary-500">{((value.size ?? 0) / 1024).toFixed(2)} KB</span>
 					</p>
 				</div>
-				<!-- Image -->
+				<!-- Image and Actions Container -->
 				<div class="flex items-center justify-between">
 					{#if !isFlipped}
-						<img
-							src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnails?.sm?.url || _data.url}
-							alt=""
-							class="col-span-11 m-auto max-h-[200px] max-w-[500px] rounded"
-						/>
+						<div class="relative col-span-11 m-auto" bind:this={containerRef}>
+							<img
+								src={value instanceof File ? URL.createObjectURL(value) : value.thumbnails?.sm?.url || value.url}
+								alt="Preview"
+								class="max-h-[200px] max-w-[500px] rounded"
+							/>
+							{#if value && !(value instanceof File)}
+								<div
+									class="absolute cursor-move"
+									style={`left: ${focalPoint.x}%; top: ${focalPoint.y}%; transform: translate(-50%, -50%);`}
+									onmousedown={() => (isDraggingFocalPoint = true)}
+									role="button"
+									tabindex="0"
+									aria-label="Set focal point"
+								>
+									<iconify-icon icon="mdi:plus-circle-outline" width="24" class="text-primary-500 drop-shadow-lg"></iconify-icon>
+								</div>
+							{/if}
+						</div>
 					{:else}
 						<div class="col-span-11 ml-2 grid grid-cols-2 gap-1 text-left">
 							<p class="">{m.widget_ImageUpload_Type()}</p>
-							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(_data as any).type}</p>
+							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as any).type}</p>
 							<p class="">Path:</p>
-							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(_data as any).path}</p>
+							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as any).path}</p>
 							<p class="">{m.widget_ImageUpload_Uploaded()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">
-								{convertTimestampToDateString(getTimestamp((_data as any) instanceof File ? (_data as any).lastModified : (_data as any).createdAt))}
+								{convertTimestampToDateString(getTimestamp((value as any) instanceof File ? (value as any).lastModified : (value as any).createdAt))}
 							</p>
 							<p class="">{m.widget_ImageUpload_LastModified()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">
-								{convertTimestampToDateString(getTimestamp((_data as any) instanceof File ? (_data as any).lastModified : (_data as any).updatedAt))}
+								{convertTimestampToDateString(getTimestamp((value as any) instanceof File ? (value as any).lastModified : (value as any).updatedAt))}
 							</p>
 						</div>
 					{/if}
@@ -194,7 +296,7 @@ functionality for image editing and basic file information display.
 					<!-- Buttons -->
 					<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
 						<!-- Edit -->
-						<button onclick={openImageEditor} aria-label="Edit image" class="variant-ghost btn-icon" title="Edit image">
+						<button onclick={() => (showEditor = true)} aria-label="Edit image" class="variant-ghost btn-icon" title="Edit image">
 							<iconify-icon icon="material-symbols:edit" width="24" class="text-primary-500"></iconify-icon>
 						</button>
 
@@ -208,7 +310,7 @@ functionality for image editing and basic file information display.
 						</button>
 
 						<!-- Delete -->
-						<button onclick={() => (_data = undefined)} aria-label="Delete" class="variant-ghost btn-icon" title="Delete image">
+						<button onclick={() => (value = undefined)} aria-label="Delete" class="variant-ghost btn-icon" title="Delete image">
 							<iconify-icon icon="material-symbols:delete-outline" width="30" class="text-error-500"></iconify-icon>
 						</button>
 					</div>
@@ -223,4 +325,7 @@ functionality for image editing and basic file information display.
 			{validationError}
 		</p>
 	{/if}
+
+	<!-- Editor Modal -->
+	<ImageEditorModal bind:show={showEditor} image={value instanceof File ? null : value} on:save={handleEditorSave} />
 </div>

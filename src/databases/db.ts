@@ -55,7 +55,6 @@ async function loadPrivateConfig(forceReload = false) {
 		return null;
 	}
 }
-
 // Function to clear private config cache (used after setup completion)
 export function clearPrivateConfigCache(keepPrivateEnv = false) {
 	logger.debug('Clearing private config cache and initialization promises', {
@@ -294,9 +293,12 @@ async function loadAdapters() {
 
 	const config = privateEnv || (await loadPrivateConfig(false));
 
-	// If private config doesn't exist yet (during setup), we can't load adapters
-	if (!config || !config.DB_TYPE) {
-		logger.debug('Private config not available yet - skipping adapter loading during setup');
+	// If no DB_TYPE is provided in the config (even if it's the temporary setup config),
+	// log a warning and return, but don't prematurely exit if DB_TYPE *is* defined.
+	if (!config?.DB_TYPE) {
+		logger.debug('No DB_TYPE in config; cannot load adapters. Skipping adapter loading during setup.', { config });
+		// Set health to unhealthy and return without throwing to allow setup flow
+		updateServiceHealth('database', 'unhealthy', 'No DB_TYPE in config', 'Missing database configuration');
 		return;
 	}
 
@@ -551,9 +553,10 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 
 		// Eagerly initialize ContentManager to prevent race conditions on first load
 		try {
-			const { contentManager } = await import('@src/content/ContentManager');
+			const { ContentManager } = await import('@src/content/ContentManager');
+			const contentManagerInstance = ContentManager.getInstance();
 			logger.debug('ContentManager imported, initializing...');
-			await contentManager.initialize();
+			await contentManagerInstance.initialize();
 			logger.info('ContentManager eagerly initialized.');
 		} catch (cmError) {
 			logger.error('ContentManager initialization failed:', cmError);

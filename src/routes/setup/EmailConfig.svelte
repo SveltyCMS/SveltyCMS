@@ -301,7 +301,7 @@
 	function applyPreset(presetName: string) {
 		const preset = presets.find((p) => p.name === presetName);
 		if (preset) {
-			selectedPreset = presetName;
+			selectedPreset = presetName as any;
 			smtpHost = preset.host;
 			smtpPort = preset.port;
 			useCustomPort = false;

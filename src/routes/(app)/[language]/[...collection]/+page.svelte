@@ -257,6 +257,9 @@
 			// ✅ Validation is now handled by $effect.pre() above
 			// No need to duplicate validation logic here
 
+			// Initialize change tracking
+			initialCollectionValue = JSON.stringify(newEntry);
+
 			logger.debug('[Initial Load] Create mode detected, entry initialized');
 			return; // Exit early to avoid triggering URL change logic
 		}
@@ -320,6 +323,9 @@
 				// 🔧 FIX: Perform initial validation for required fields
 				validationStore.clearAllErrors();
 
+				// Initialize change tracking
+				initialCollectionValue = JSON.stringify(newEntry);
+
 				for (const field of fields) {
 					const fieldDef = field as any;
 					if (fieldDef.required) {
@@ -359,7 +365,7 @@
 	// This runs AFTER collectionValue is set, but doesn't trigger when collectionValue changes
 	$effect(() => {
 		const currentMode = mode.value;
-		if (currentMode === 'edit') {
+		if (currentMode === 'edit' || currentMode === 'create') {
 			// Use untrack to read collectionValue without creating a dependency
 			const currentValue = untrack(() => collectionValue.value);
 			if (currentValue) {
@@ -384,10 +390,10 @@
 			}
 
 			// Use collection's default status or current entry status
-			// Don't override with 'draft' - respect the collection schema
+			// FORCE 'draft' status for auto-saves to bypass validation for required fields
 			const draftData = {
 				...entryData,
-				status: entryData.status || collection.value?.status || 'unpublish',
+				status: 'draft',
 				updatedAt: new Date().toISOString()
 			};
 
@@ -430,16 +436,27 @@
 		}
 	}
 
-	// Listen for cancel button clicks
+	// Listen for cancel and save events
 	$effect(() => {
 		const handleCancelClick = () => {
 			userClickedCancel = true;
 			logger.debug('[Auto-save] Cancel clicked - no draft will be saved');
 		};
 
+		const handleEntrySaved = () => {
+			// Update baseline to match current value, preventing unsaved changes detection
+			if (collectionValue.value) {
+				initialCollectionValue = JSON.stringify(collectionValue.value);
+				logger.debug('[Auto-save] Entry saved manually - baseline updated');
+			}
+		};
+
 		document.addEventListener('cancelEdit' as any, handleCancelClick as EventListener);
+		document.addEventListener('entrySaved' as any, handleEntrySaved as EventListener);
+
 		return () => {
 			document.removeEventListener('cancelEdit' as any, handleCancelClick as EventListener);
+			document.removeEventListener('entrySaved' as any, handleEntrySaved as EventListener);
 		};
 	});
 

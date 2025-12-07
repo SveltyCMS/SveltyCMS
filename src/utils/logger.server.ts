@@ -306,9 +306,8 @@ const maskEmail = (email: string): string => {
 	const [localPart, domain] = email.split('@');
 	if (!domain) return '*'.repeat(email.length);
 	const maskedLocalPart = localPart.length > 2 ? localPart.slice(0, 2) + '*'.repeat(localPart.length - 2) : '**';
-	const [domainName, tld] = domain.split('.');
-	const maskedDomain = '*'.repeat(domainName.length);
-	return `${maskedLocalPart}@${maskedDomain}.${tld || ''}`;
+	const maskedDomain = '*'.repeat(domain.length);
+	return `${maskedLocalPart}@${maskedDomain}`;
 };
 
 /**

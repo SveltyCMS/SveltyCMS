@@ -44,6 +44,8 @@ export interface MediaMetadata {
 	title?: string;
 	description?: string;
 	keywords?: string[];
+	tags?: string[]; // User-confirmed tags
+	aiTags?: string[]; // AI-generated tags pending review
 	copyright?: string;
 	author?: string;
 	dimensions?: {
@@ -78,6 +80,16 @@ export interface ResizedImage {
 	height: number;
 	size: number;
 	mimeType: string;
+}
+
+export interface WatermarkOptions {
+	url: string;
+	position: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'center';
+	opacity: number;
+	scale: number;
+	offsetX: number;
+	offsetY: number;
+	rotation: number;
 }
 
 // Base interface for all media types

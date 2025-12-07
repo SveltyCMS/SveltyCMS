@@ -66,7 +66,7 @@ export async function loadSettingsCache(): Promise<typeof cache> {
 	}
 
 	try {
-		const { dbAdapter } = await import('@src/databases/db');
+		const { dbAdapter, getPrivateEnv } = await import('@src/databases/db');
 		if (!dbAdapter?.systemPreferences) {
 			throw new Error('Database adapter for systemPreferences is not available.');
 		}
@@ -90,7 +90,6 @@ export async function loadSettingsCache(): Promise<typeof cache> {
 		// Get private config settings (infrastructure settings)
 		// Prefer in-memory config (set by initializeWithConfig) over filesystem import
 		// This eliminates unnecessary file I/O and Vite cache dependency
-		const { getPrivateEnv } = await import('@src/databases/db');
 		const inMemoryConfig = getPrivateEnv();
 
 		let privateConfig: PrivateEnv;

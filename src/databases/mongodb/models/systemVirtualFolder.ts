@@ -29,7 +29,7 @@ import { nowISODateString } from '@utils/dateUtils';
 import { getErrorMessage } from '@utils/errorHandling';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.server';
 
 // System virtual folder schema
 export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(

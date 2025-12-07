@@ -1,177 +1,184 @@
 /**
  * @file src/stores/statusStore.svelte.ts
- * @description Centralized status management store for collection entries
- *
- * Features:
- * - Default status is 'unpublish'
- * - Collection-defined status overrides default for new entries
- * - User can toggle status anytime (saves user's last defined state)
- * - Shared between HeaderEdit and RightSidebar
- * - Centralized status toggle actions
+ * @description Centralized status logic for collection entries.
+ * simplifies status management by deriving state directly from collectionValue.
  */
 
-import type { ToastStore } from '@skeletonlabs/skeleton';
-import { collection, collectionValue, mode, setCollectionValue } from '@src/stores/collectionStore.svelte';
+import { collection, collectionValue, setCollectionValue } from '@src/stores/collectionStore.svelte';
 import { updateEntryStatus } from '@src/utils/apiClient';
 import { showToast } from '@utils/toast';
 import type { StatusType } from '@src/content/types';
-
+import { StatusTypes } from '@src/content/types';
 import { logger } from '@utils/logger';
 
-// Status state management
-const statusState = $state<{
-	isPublish: boolean;
-	hasUserToggled: boolean;
-	isLoading: boolean;
-}>({
-	isPublish: false,
-	hasUserToggled: false,
-	isLoading: false
+// Only track transient UI state
+const statusState = $state({
+	isLoading: false,
+	lastToggleTime: 0
 });
 
-// Get the initial status based on mode and collection/entry data
-function getInitialStatus(): boolean {
+/**
+ * Helper to determine if entry is published
+ * Single source of truth: collectionValue.status
+ */
+function getIsPublish(): boolean {
 	const cv = collectionValue.value;
-	const collectionStatus = collection.value?.status;
 
-	// For create mode: use collection default, fallback to unpublish
-	if (mode.value === 'create') {
-		const defaultStatus = collectionStatus || 'unpublish';
-		return defaultStatus === 'publish';
-	} else {
-		// For edit mode: use entry status, fallback to collection status, then unpublish
-		const entryStatus = cv?.status || collectionStatus || 'unpublish';
-		return entryStatus === 'publish';
+	// 1. If we have an entry with explicit status, use it
+	if (cv?.status) {
+		return cv.status === StatusTypes.publish;
 	}
+
+	// 2. Fall back to collection default status
+	const collectionStatus = collection.value?.status;
+	const defaultStatus = collectionStatus || StatusTypes.unpublish;
+	return defaultStatus === StatusTypes.publish;
 }
 
-// Derived status that updates when collection/entry data changes
-const derivedStatus = $derived(getInitialStatus());
+// Reactively derive the publish state
+const isPublish = $derived.by(getIsPublish);
 
-// Centralized status store
+/**
+ * Get current status as StatusType enum
+ */
+function getCurrentStatus(): StatusType {
+	const cv = collectionValue.value;
+
+	if (cv?.status) {
+		return cv.status as StatusType;
+	}
+
+	const collectionStatus = collection.value?.status;
+	return (collectionStatus || StatusTypes.unpublish) as StatusType;
+}
+
 export const statusStore = {
-	// Getters
+	/**
+	 * Check if current entry is published
+	 */
 	get isPublish() {
-		return statusState.isPublish;
+		return isPublish;
 	},
-	get hasUserToggled() {
-		return statusState.hasUserToggled;
-	},
+
+	/**
+	 * Check if status operation is in progress
+	 */
 	get isLoading() {
 		return statusState.isLoading;
 	},
-	get derivedStatus() {
-		return derivedStatus;
+
+	/**
+	 * Get current status value
+	 */
+	get currentStatus(): StatusType {
+		return getCurrentStatus();
 	},
 
-	// Actions
-	// Initialize or reset status based on collection/entry data
-	initializeStatus() {
-		const initialStatus = getInitialStatus();
-		logger.trace('[StatusStore] Initializing status:', {
-			initialStatus,
-			mode: mode.value,
-			collectionStatus: collection.value?.status,
-			entryStatus: collectionValue.value?.status
-		});
-
-		statusState.isPublish = initialStatus;
-		statusState.hasUserToggled = false;
-		statusState.isLoading = false;
-	},
-
-	// Sync status with derived status (only if user hasn't manually toggled)
-	syncWithDerived() {
-		const currentDerived = derivedStatus;
-		if (!statusState.hasUserToggled && statusState.isPublish !== currentDerived) {
-			statusState.isPublish = currentDerived;
-			logger.trace('[StatusStore] Syncing with derived status:', {
-				newStatus: statusState.isPublish,
-				mode: mode.value,
-				collectionStatus: collection.value?.status,
-				entryStatus: collectionValue.value?.status
-			});
+	/**
+	 * Toggle entry status between publish/unpublish
+	 *
+	 * @param newValue - true for publish, false for unpublish
+	 * @param componentName - Name of calling component (for logging)
+	 * @returns Promise<boolean> - true if successful
+	 */
+	async toggleStatus(newValue: boolean, componentName: string = 'Component'): Promise<boolean> {
+		// Prevent redundant toggles
+		if (newValue === isPublish) {
+			logger.debug(`[StatusStore] Status already ${newValue ? 'published' : 'unpublished'}`);
+			return true;
 		}
-	},
 
-	// Handle user status toggle
-	async toggleStatus(newValue: boolean, _toastStore: ToastStore, componentName: string): Promise<boolean> {
-		if (newValue === statusState.isPublish || statusState.isLoading) {
-			logger.trace(`[StatusStore] Toggle skipped from ${componentName}`, {
-				newValue,
-				currentValue: statusState.isPublish,
-				isLoading: statusState.isLoading
-			});
+		// Prevent concurrent toggles
+		if (statusState.isLoading) {
+			logger.warn('[StatusStore] Status toggle already in progress');
+			return false;
+		}
+
+		// Throttle rapid toggles (prevent double-click issues)
+		const now = Date.now();
+		if (now - statusState.lastToggleTime < 500) {
+			logger.debug('[StatusStore] Throttling rapid status toggle');
 			return false;
 		}
 
 		statusState.isLoading = true;
-		statusState.hasUserToggled = true;
-		const previousValue = statusState.isPublish;
-		statusState.isPublish = newValue;
+		statusState.lastToggleTime = now;
 
-		const newStatus = newValue ? 'publish' : 'unpublish';
-		logger.debug(`[StatusStore] Status toggle from ${componentName} - updating to:`, newStatus);
+		const newStatus = newValue ? StatusTypes.publish : StatusTypes.unpublish;
+		logger.debug(`[StatusStore] Toggling status to ${newStatus} (from ${componentName})`);
 
 		try {
-			// If entry exists, update via API
+			// Case 1: Entry exists - update via API
 			if (collectionValue.value?._id && collection.value?._id) {
 				const result = await updateEntryStatus(String(collection.value._id), String(collectionValue.value._id), newStatus);
 
 				if (result.success) {
-					// Update the collection value store
-					setCollectionValue({ ...collectionValue.value, status: newStatus });
+					// Update local state
+					setCollectionValue({
+						...collectionValue.value,
+						status: newStatus,
+						// Clear schedule when manually toggling
+						_scheduled: undefined
+					});
 
-					showToast(newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.', 'success');
-
-					logger.debug(`[StatusStore] API update successful from ${componentName}`);
+					showToast(newValue ? 'Entry published successfully' : 'Entry unpublished successfully', 'success');
 					return true;
 				} else {
-					// Revert on API failure
-					statusState.isPublish = previousValue;
-					statusState.hasUserToggled = false;
-
-					showToast(result.error || `Failed to ${newValue ? 'publish' : 'unpublish'} entry`, 'error');
-
-					logger.error(`[StatusStore] API update failed from ${componentName}:`, result.error);
+					showToast(result.error || `Failed to ${newStatus} entry`, 'error');
 					return false;
 				}
-			} else {
-				// New entry - just update local state
-				setCollectionValue({ ...collectionValue.value, status: newStatus });
-				logger.debug(`[StatusStore] Local update for new entry from ${componentName}`);
+			}
+			// Case 2: New entry (no ID yet) - update local state only
+			else {
+				setCollectionValue({
+					...collectionValue.value,
+					status: newStatus
+				});
+
+				logger.debug(`[StatusStore] Status set to ${newStatus} (unsaved entry)`);
 				return true;
 			}
 		} catch (e) {
-			// Revert on error
-			statusState.isPublish = previousValue;
-			statusState.hasUserToggled = false;
-
-			const errorMessage = `Error ${newValue ? 'publishing' : 'unpublishing'} entry: ${(e as Error).message}`;
-			showToast(errorMessage, 'error');
-
-			logger.error(`[StatusStore] Toggle error from ${componentName}:`, e);
+			const error = e as Error;
+			showToast(`Error updating status: ${error.message}`, 'error');
+			logger.error(`[StatusStore] Error in ${componentName}:`, error);
 			return false;
 		} finally {
 			statusState.isLoading = false;
 		}
 	},
 
-	// Get current status for saving
+	/**
+	 * Get status value for save operations
+	 * Useful when preparing data to send to API
+	 */
 	getStatusForSave(): StatusType {
-		return statusState.isPublish ? 'publish' : 'unpublish';
+		return getCurrentStatus();
 	},
 
-	// Reset user toggle flag (used when switching entries/modes)
-	resetUserToggled() {
-		statusState.hasUserToggled = false;
-		logger.trace('[StatusStore] Reset user toggled flag');
+	/**
+	 * Set status directly (without API call)
+	 * Use for initialization or when status is set as part of larger save
+	 */
+	setStatusLocal(status: StatusType): void {
+		logger.debug(`[StatusStore] Setting status locally to ${status}`);
+		setCollectionValue({
+			...collectionValue.value,
+			status
+		});
 	},
 
-	// Force set status (for external updates like scheduling)
-	setStatus(isPublish: boolean, hasUserToggled = true) {
-		statusState.isPublish = isPublish;
-		statusState.hasUserToggled = hasUserToggled;
-		logger.debug('[StatusStore] Status forced to:', isPublish, 'userToggled:', hasUserToggled);
+	/**
+	 * Check if entry is in a specific status
+	 */
+	hasStatus(status: StatusType): boolean {
+		return getCurrentStatus() === status;
+	},
+
+	/**
+	 * Check if entry is scheduled
+	 */
+	get isScheduled(): boolean {
+		return getCurrentStatus() === StatusTypes.schedule && !!collectionValue.value?._scheduled;
 	}
 };

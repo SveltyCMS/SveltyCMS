@@ -27,6 +27,7 @@ Key features:
 
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
 
 	// Svelte transitions
 	import { scale } from 'svelte/transition';
@@ -41,14 +42,260 @@ Key features:
 		gridSize?: 'tiny' | 'small' | 'medium' | 'large';
 		ondeleteImage?: (file: MediaBase | MediaImage) => void;
 		onBulkDelete?: (files: (MediaBase | MediaImage)[]) => void;
+		onEditImage?: (file: MediaImage) => void;
 	}
 
-	const { filteredFiles = [], gridSize = 'medium', ondeleteImage = () => {}, onBulkDelete = () => {} }: Props = $props();
+	const {
+		filteredFiles = $bindable([]),
+		gridSize = 'medium',
+		ondeleteImage = () => {},
+		onBulkDelete = () => {},
+		onEditImage = () => {}
+	}: Props = $props();
 
-	// Initialize the showInfo array with false values
 	let showInfo = $state<boolean[]>([]);
 	let selectedFiles = $state<Set<string>>(new Set());
 	let isSelectionMode = $state(false);
+	let isTagging = $state<Record<string, boolean>>({});
+	let editingTag = $state<{ fileId: string; tagIndex: number; value: string } | null>(null);
+	let newTagInput = $state<Record<string, string>>({});
+	let showTags = $state<Record<string, boolean>>({});
+
+	async function handleAITagging(file: MediaImage) {
+		const mediaId = file._id;
+		if (!mediaId) return;
+
+		isTagging[mediaId] = true;
+		showToast('Generating AI tags...', 'info', 2000);
+
+		try {
+			const response = await fetch('/api/media/ai-tag', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ mediaId })
+			});
+
+			const result = await response.json();
+
+			if (!response.ok || !result.success) {
+				throw new Error(result.error || 'Failed to get AI tags.');
+			}
+
+			// Update the file in the local state to be reactive
+			const index = filteredFiles.findIndex((f) => f._id === mediaId);
+			if (index !== -1) {
+				filteredFiles[index] = result.data;
+			}
+
+			showToast(result.message || 'AI tags generated!', 'success');
+		} catch (err) {
+			logger.error('Failed to generate AI tags', err);
+			showToast(err instanceof Error ? err.message : 'An error occurred.', 'error');
+		} finally {
+			isTagging[mediaId] = false;
+		}
+	}
+
+	async function saveAITags(file: MediaImage) {
+		const mediaId = file._id;
+		if (!mediaId || !file.metadata?.aiTags) return;
+
+		try {
+			const response = await fetch(`/api/media/${mediaId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					metadata: {
+						...file.metadata,
+						tags: [...(file.metadata.tags || []), ...file.metadata.aiTags],
+						aiTags: [] // Clear AI tags after saving
+					}
+				})
+			});
+
+			const result = await response.json();
+
+			if (!response.ok || !result.success) {
+				throw new Error(result.error || 'Failed to save tags.');
+			}
+
+			// Update local state
+			const index = filteredFiles.findIndex((f) => f._id === mediaId);
+			if (index !== -1) {
+				filteredFiles[index] = result.data;
+			}
+
+			showToast('Tags saved successfully!', 'success');
+		} catch (err) {
+			logger.error('Failed to save tags', err);
+			showToast(err instanceof Error ? err.message : 'An error occurred.', 'error');
+		}
+	}
+
+	async function removeAITag(file: MediaImage, tagToRemove: string) {
+		const mediaId = file._id;
+		if (!mediaId || !file.metadata?.aiTags) return;
+
+		const updatedAITags = file.metadata.aiTags.filter(tag => tag !== tagToRemove);
+
+		try {
+			const response = await fetch(`/api/media/${mediaId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					metadata: {
+						...file.metadata,
+						aiTags: updatedAITags
+					}
+				})
+			});
+
+			const result = await response.json();
+
+			if (!response.ok || !result.success) {
+				throw new Error(result.error || 'Failed to remove tag.');
+			}
+
+			// Data updated on server - parent component will refresh
+		} catch (err) {
+			logger.error('Failed to remove tag', err);
+			showToast(err instanceof Error ? err.message : 'An error occurred.', 'error');
+		}
+	}
+
+	async function editAITag(file: MediaImage, oldTag: string, newTag: string) {
+		const mediaId = file._id;
+		if (!mediaId || !file.metadata?.aiTags || !newTag.trim()) return;
+
+		const updatedAITags = file.metadata.aiTags.map(tag => tag === oldTag ? newTag.trim() : tag);
+
+		try {
+			const response = await fetch(`/api/media/${mediaId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					metadata: {
+						...file.metadata,
+						aiTags: updatedAITags
+					}
+				})
+			});
+
+			const result = await response.json();
+
+			if (!response.ok || !result.success) {
+				throw new Error(result.error || 'Failed to edit tag.');
+			}
+
+			// Data updated on server - parent component will refresh
+			editingTag = null;
+		} catch (err) {
+			logger.error('Failed to edit tag', err);
+			showToast(err instanceof Error ? err.message : 'An error occurred.', 'error');
+		}
+	}
+
+	async function addManualTag(file: MediaImage) {
+		const mediaId = file._id;
+		if (!mediaId) return;
+
+		const newTag = newTagInput[mediaId]?.trim();
+		if (!newTag) return;
+
+		try {
+			const response = await fetch(`/api/media/${mediaId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					metadata: {
+						...file.metadata,
+						aiTags: [...(file.metadata?.aiTags || []), newTag]
+					}
+				})
+			});
+
+			const result = await response.json();
+
+			if (!response.ok || !result.success) {
+				throw new Error(result.error || 'Failed to add tag.');
+			}
+
+			// Data updated on server - parent component will refresh
+			newTagInput[mediaId] = '';
+			showToast('Tag added!', 'success');
+		} catch (err) {
+			logger.error('Failed to add tag', err);
+			showToast(err instanceof Error ? err.message : 'An error occurred.', 'error');
+		}
+	}
+
+	async function editUserTag(file: MediaImage, oldTag: string, newTag: string) {
+		const mediaId = file._id;
+		if (!mediaId || !file.metadata?.tags || !newTag.trim()) return;
+
+		const updatedTags = file.metadata.tags.map(tag => tag === oldTag ? newTag.trim() : tag);
+
+		console.log('Editing user tag:', { mediaId, oldTag, newTag, updatedTags });
+
+		try {
+			const response = await fetch(`/api/media/${mediaId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					metadata: {
+						...file.metadata,
+						tags: updatedTags
+					}
+				})
+			});
+
+			console.log('Edit response status:', response.status);
+			const result = await response.json();
+			console.log('Edit response:', result);
+
+			if (!response.ok || !result.success) {
+				throw new Error(result.error || 'Failed to edit tag.');
+			}
+
+			// Data updated on server - parent component will refresh
+			editingTag = null;
+		} catch (err) {
+			console.error('Edit tag error:', err);
+			logger.error('Failed to edit tag', err);
+			showToast(err instanceof Error ? err.message : 'An error occurred.', 'error');
+		}
+	}
+
+	async function removeUserTag(file: MediaImage, tagToRemove: string) {
+		const mediaId = file._id;
+		if (!mediaId || !file.metadata?.tags) return;
+
+		const updatedTags = file.metadata.tags.filter(tag => tag !== tagToRemove);
+
+		try {
+			const response = await fetch(`/api/media/${mediaId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					metadata: {
+						...file.metadata,
+						tags: updatedTags
+					}
+				})
+			});
+
+			const result = await response.json();
+
+			if (!response.ok || !result.success) {
+				throw new Error(result.error || 'Failed to remove tag.');
+			}
+
+			// Data updated on server - parent component will refresh
+		} catch (err) {
+			logger.error('Failed to remove tag', err);
+			showToast(err instanceof Error ? err.message : 'An error occurred.', 'error');
+		}
+	}
 
 	function handleDelete(file: MediaBase | MediaImage) {
 		ondeleteImage(file);
@@ -266,10 +513,42 @@ Key features:
 						<div class="bg-surface-100-800-token arrow"></div>
 					</div>
 
-					<a href="/imageEditor?mediaId={file._id?.toString()}" aria-label="Edit" class="btn-icon" data-sveltekit-preload-data="hover">
-						<iconify-icon icon="mdi:pen" width="24" class="data:text-primary-500 text-tertiary-500"></iconify-icon>
-					</a>
-					<button onclick={() => handleDelete(file)} aria-label="Delete" class="btn-icon">
+					{#if file.type === 'image'}
+						<button
+							onclick={() => {
+								const id = file._id?.toString();
+								if (id) {
+									showTags[id] = !showTags[id];
+								}
+							}}
+							aria-label="Toggle Tags"
+							class="btn-icon"
+							title={`View/Edit Tags`}
+						>
+							<iconify-icon 
+								icon="mdi:tag-multiple" 
+								width="22" 
+								class="{showTags[file._id?.toString() || ''] ? 'text-primary-500' : 'text-surface-500'}"
+							></iconify-icon>
+						</button>
+						<button
+							onclick={() => handleAITagging(file as MediaImage)}
+							aria-label="Generate AI Tags"
+							class="btn-icon"
+							disabled={file._id ? isTagging[file._id] : false}
+							title="Generate AI Tags"
+						>
+							{#if file._id && isTagging[file._id]}
+								<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+							{:else}
+								<iconify-icon icon="mdi:robot-happy-outline" width="22" class="text-secondary-500"></iconify-icon>
+							{/if}
+						</button>
+						<button onclick={() => onEditImage(file as MediaImage)} aria-label="Edit" class="btn-icon" title="Edit Image">
+							<iconify-icon icon="mdi:pen" width="24" class="text-primary-500"></iconify-icon>
+						</button>
+					{/if}
+					<button onclick={() => handleDelete(file)} aria-label="Delete" class="btn-icon" title="Delete Image">
 						<iconify-icon icon="icomoon-free:bin" width="24" class="text-error-500"> </iconify-icon>
 					</button>
 				</header>
@@ -301,8 +580,214 @@ Key features:
 				</section>
 
 				<footer class="flex flex-col gap-2 p-2">
-					<!-- Filename -->
-					<p class="truncate text-center font-medium" title={file.filename}>{truncateFilename(file.filename)}</p>
+				<!-- Tags Overlay (absolute positioned, doesn't affect layout) -->
+				{#if showTags[file._id?.toString() || ''] && 'metadata' in file && (file.metadata?.aiTags?.length || file.metadata?.tags?.length)}
+					<div 
+						class="absolute inset-0 z-10 flex items-center justify-center bg-black/80 p-4" 
+						onclick={(e) => {
+							// Close if clicking on the background (not the content)
+							if (e.target === e.currentTarget) {
+								const id = file._id?.toString();
+								if (id) showTags[id] = false;
+							}
+						}}
+						onkeydown={(e) => {
+							if (e.key === 'Escape') {
+								const id = file._id?.toString();
+								if (id) showTags[id] = false;
+							}
+						}}
+						role="dialog"
+						aria-label="Tag editor"
+						tabindex="-1"
+					>
+						<div class="max-h-full w-full overflow-auto rounded-lg bg-surface-50 p-3 dark:bg-surface-800">
+							<!-- AI Tags Section -->
+							{#if file.metadata?.aiTags && file.metadata.aiTags.length > 0}
+								<div class="mb-3 rounded border border-primary-400 bg-primary-50 p-2 dark:bg-primary-900/20">
+									<div class="mb-1 flex items-center gap-1 text-xs font-medium text-primary-600 dark:text-primary-400">
+										<iconify-icon icon="mdi:robot-happy" width="14"></iconify-icon>
+										AI Suggested Tags:
+									</div>
+									<div class="flex flex-wrap gap-1">
+										{#each file.metadata.aiTags as tag, tagIndex}
+											{@const fileId = file._id?.toString() || ''}
+											{@const isEditing = editingTag?.fileId === fileId && editingTag?.tagIndex === tagIndex}
+											
+											{#if isEditing}
+												<input
+													type="text"
+													value={editingTag?.value ?? ''}
+													oninput={(e) => {
+														if (editingTag) {
+															editingTag.value = (e.currentTarget as HTMLInputElement).value;
+														}
+													}}
+													onkeydown={(e) => {
+														if (e.key === 'Enter') {
+															e.preventDefault();
+															editAITag(file as MediaImage, tag, editingTag?.value || '');
+														} else if (e.key === 'Escape') {
+															editingTag = null;
+														}
+													}}
+													onblur={(e) => {
+														e.stopPropagation(); // Prevent parent click event
+														if (editingTag?.value && editingTag.value !== tag) {
+															editAITag(file as MediaImage, tag, editingTag.value);
+														} else {
+															editingTag = null;
+														}
+													}}
+													class="input input-sm w-24 px-1 py-0 text-xs"
+													autofocus
+												/>
+											{:else}
+												<span 
+													class="badge variant-filled-primary flex items-center gap-1 text-xs cursor-pointer hover:ring-2 hover:ring-primary-300"
+													onclick={(e) => {
+														e.stopPropagation();
+														editingTag = { fileId, tagIndex, value: tag };
+													}}
+													onkeydown={(e) => {
+														if (e.key === 'Enter' || e.key === ' ') {
+															e.preventDefault();
+															e.stopPropagation();
+															editingTag = { fileId, tagIndex, value: tag };
+														}
+													}}
+													role="button"
+													tabindex="0"
+													title="Click to edit"
+												>
+													{tag}
+													<button
+														onclick={(e) => {
+															e.stopPropagation();
+															removeAITag(file as MediaImage, tag);
+														}}
+														class="hover:text-error-500"
+														aria-label="Remove tag"
+														>×</button>
+												</span>
+											{/if}
+										{/each}
+									</div>
+									
+									<!-- Add Manual Tag -->
+									<div class="mt-2 flex gap-1">
+										<input
+											type="text"
+											value={newTagInput[file._id?.toString() || ''] || ''}
+											oninput={(e) => {
+												const id = file._id?.toString();
+												if (id) {
+													newTagInput[id] = (e.currentTarget as HTMLInputElement).value;
+												}
+											}}
+											onkeydown={(e) => {
+												if (e.key === 'Enter') {
+													e.preventDefault();
+													addManualTag(file as MediaImage);
+												}
+											}}
+											placeholder="Add tag..."
+											class="input input-sm flex-1 px-2 py-1 text-xs"
+										/>
+										<button
+											onclick={(e) => {
+												e.stopPropagation();
+												addManualTag(file as MediaImage);
+											}}
+											class="btn btn-sm variant-ghost-primary"
+											title="Add tag"
+										>
+											<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
+										</button>
+									</div>
+
+									<button
+										onclick={(e) => {
+											e.stopPropagation();
+											saveAITags(file as MediaImage);
+										}}
+										class="btn btn-sm variant-filled-success mt-2 w-full"
+									>
+										<iconify-icon icon="mdi:check" width="16"></iconify-icon>
+										Save Tags
+									</button>
+								</div>
+							{/if}
+
+							<!-- User Tags Section -->
+							{#if file.metadata?.tags && file.metadata.tags.length > 0}
+								<div class="rounded bg-surface-100 p-2 dark:bg-surface-700">
+									<div class="mb-1 text-xs font-medium text-surface-600 dark:text-surface-400">Saved Tags:</div>
+									<div class="flex flex-wrap gap-1">
+										{#each file.metadata.tags as tag, tagIndex}
+											{@const fileId = file._id?.toString() || ''}
+											{@const isEditing = editingTag?.fileId === `saved-${fileId}` && editingTag?.tagIndex === tagIndex}
+											
+											{#if isEditing}
+												<input
+													type="text"
+													value={editingTag?.value ?? ''}
+													oninput={(e) => {
+														if (editingTag) {
+															editingTag.value = (e.currentTarget as HTMLInputElement).value;
+														}
+													}}
+													onkeydown={(e) => {
+														if (e.key === 'Enter') {
+															e.preventDefault();
+															editUserTag(file as MediaImage, tag, editingTag?.value || '');
+														} else if (e.key === 'Escape') {
+															editingTag = null;
+														}
+													}}
+													onblur={(e) => {
+														e.stopPropagation();
+														if (editingTag?.value && editingTag.value !== tag) {
+															editUserTag(file as MediaImage, tag, editingTag.value);
+														} else {
+															editingTag = null;
+														}
+													}}
+													class="input input-sm w-24 px-1 py-0 text-xs"
+													autofocus
+												/>
+											{:else}
+												<span 
+													class="badge variant-filled-success flex items-center gap-1 text-xs cursor-pointer hover:ring-2 hover:ring-success-300"
+													onclick={(e) => {
+														e.stopPropagation();
+														editingTag = { fileId: `saved-${fileId}`, tagIndex, value: tag };
+													}}
+													title="Click to edit"
+												>
+													{tag}
+													<button
+														onclick={(e) => {
+															e.preventDefault();
+															e.stopPropagation();
+															removeUserTag(file as MediaImage, tag);
+														}}
+														class="ml-1 hover:text-error-500"
+														aria-label="Remove tag"
+														type="button"
+														>×</button>
+												</span>
+											{/if}
+										{/each}
+									</div>
+								</div>
+							{/if}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Filename -->
+				<p class="truncate text-center font-medium" title={file.filename}>{truncateFilename(file.filename)}</p>
 
 					<!-- Type & Size badges -->
 					<div class="flex items-center justify-between gap-1">

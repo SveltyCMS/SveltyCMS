@@ -25,14 +25,15 @@
 		onSubmit?: (value: string) => void;
 	}
 
-	let { show = false, value = '', key = '', active = $bindable(''), onSubmit }: Props = $props();
+	let { show = false, value: propValue = '', key = '', active = $bindable(''), onSubmit }: Props = $props();
 
-	let _value = $state(value);
-	let show_input = $state(false);
+	let _value = $state(''); // Initialize with a default value
 
 	$effect(() => {
-		_value = value;
+		// This effect runs when propValue changes, including initial render
+		_value = propValue;
 	});
+	let show_input = $state(false);
 
 	$effect(() => {
 		if (key !== active) {

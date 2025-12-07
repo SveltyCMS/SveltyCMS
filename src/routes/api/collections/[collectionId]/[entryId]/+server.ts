@@ -131,9 +131,12 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		// Invalidate server-side page cache for this collection
 		const cacheService = (await import('@src/databases/CacheService')).cacheService;
 		const cachePattern = `collection:${schema._id}:*`;
-		await cacheService.clearByPattern(cachePattern).catch((err) => {
+		await cacheService.clearByPattern(cachePattern, tenantId).catch((err) => {
 			logger.warn('Failed to invalidate page cache after PATCH', { pattern: cachePattern, error: err });
 		});
+
+		// Also invalidate specific caches in ContentManager
+		await contentManager.invalidateSpecificCaches([schema.path || '', schema._id as string].filter(Boolean));
 
 		logger.info(`${endpoint} - Entry updated successfully`, { duration: `${duration.toFixed(2)}ms` });
 
@@ -206,9 +209,12 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 		// Invalidate server-side page cache for this collection
 		const cacheService = (await import('@src/databases/CacheService')).cacheService;
 		const cachePattern = `collection:${schema._id}:*`;
-		await cacheService.clearByPattern(cachePattern).catch((err) => {
+		await cacheService.clearByPattern(cachePattern, tenantId).catch((err) => {
 			logger.warn('Failed to invalidate page cache after DELETE', { pattern: cachePattern, error: err });
 		});
+
+		// Also invalidate specific caches in ContentManager
+		await contentManager.invalidateSpecificCaches([schema.path || '', schema._id as string].filter(Boolean));
 
 		const duration = performance.now() - startTime;
 		logger.info(`${endpoint} - Entry deleted successfully`, { duration: `${duration.toFixed(2)}ms` });

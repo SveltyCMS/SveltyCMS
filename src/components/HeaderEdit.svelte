@@ -35,7 +35,7 @@
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import type { User } from '@src/databases/auth/types';
 	import { StatusTypes, type StatusType } from '@src/content/types';
-	import { createEntry, invalidateCollectionCache, updateEntryStatus } from '@src/utils/apiClient';
+	import { createEntry, invalidateCollectionCache } from '@src/utils/apiClient';
 	import { showCloneModal, showScheduleModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 	import TranslationStatus from './collectionDisplay/TranslationStatus.svelte';
@@ -45,8 +45,8 @@
 
 	// Modal types import
 	// Stores
-	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { navigationManager } from '@utils/navigationManager';
 	import { collection, collectionValue, mode, setCollectionValue, setMode } from '@src/stores/collectionStore.svelte';
 	import { isDesktop, screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
@@ -95,55 +95,14 @@
 	);
 	let showMore = $state<boolean>(false);
 
-	function getIsPublish(): boolean {
-		const status: StatusType =
-			((collectionValue.value as CollectionData)?.status as StatusType) || (collection.value?.status as StatusType) || StatusTypes.unpublish;
-		return status === StatusTypes.publish;
-	}
-	const isPublish = $derived.by(getIsPublish);
+	import { statusStore } from '@stores/statusStore.svelte';
 
-	// Create a bindable state for the toggle component
-	let publishToggleState = $derived(isPublish);
-	let isLoading = $state(false);
+	// Create a bindable state for the toggle component (derived from store)
+	let publishToggleState = $derived(statusStore.isPublish);
 
-	// Handle toggle changes - update collection status directly
+	// Handle toggle changes - delegate to store
 	async function handleStatusToggle(newValue: boolean) {
-		if (newValue === isPublish || isLoading) {
-			return false;
-		}
-		const newStatus: StatusType = newValue ? StatusTypes.publish : StatusTypes.unpublish;
-		isLoading = true;
-
-		try {
-			// If entry exists, update via API
-			if ((collectionValue.value as CollectionData)?._id && collection.value?._id) {
-				const result = await updateEntryStatus(String(collection.value._id), String((collectionValue.value as CollectionData)._id), newStatus);
-
-				if (result.success) {
-					// Update the collection value store
-					setCollectionValue({ ...collectionValue.value, status: newStatus });
-
-					showToast(newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.', 'success');
-
-					return true;
-				} else {
-					showToast(result.error || `Failed to ${newValue ? 'publish' : 'unpublish'} entry`, 'error');
-
-					return false;
-				}
-			} else {
-				// New entry - just update local state
-				setCollectionValue({ ...collectionValue.value, status: newStatus });
-				return true;
-			}
-		} catch (e) {
-			const errorMessage = `Error ${newValue ? 'publishing' : 'unpublishing'} entry: ${(e as Error).message}`;
-			showToast(errorMessage, 'error');
-
-			return false;
-		} finally {
-			isLoading = false;
-		}
+		await statusStore.toggleStatus(newValue, 'HeaderEdit');
 	}
 
 	// Disable toggle when RightSidebar is active (desktop) or in edit mode if not primary
@@ -154,21 +113,7 @@
 		const isCreateMode: boolean = mode.value === 'create';
 		const isEditMode: boolean = mode.value === 'edit';
 
-		return (isCreateMode && isRightSidebarVisible) || (isEditMode && isRightSidebarVisible && isDesktopActive) || isLoading;
-	});
-
-	// Debug logging - only log when needed, wrapped to prevent infinite loops
-	let lastLoggedStatus = $state<string | undefined>(undefined);
-	$effect(() => {
-		// Only log when HeaderEdit is actually active (not disabled by RightSidebar)
-		if (!shouldDisableStatusToggle) {
-			const currentStatus = (collectionValue.value as CollectionData)?.status;
-			if (currentStatus !== lastLoggedStatus) {
-				untrack(() => {
-					lastLoggedStatus = currentStatus;
-				});
-			}
-		}
+		return (isCreateMode && isRightSidebarVisible) || (isEditMode && isRightSidebarVisible && isDesktopActive) || statusStore.isLoading;
 	});
 
 	function openScheduleModal(): void {
@@ -208,76 +153,55 @@
 		}
 	}); // Status Store Effects removed: statusStore is not used, use local status logic only
 
-	// Shared save logic for HeaderEdit and RightSidebar
+	// Shared save logic for HeaderEdit	// Simplified save logic
 	async function prepareAndSaveEntry() {
-		// ✅ FIX 1: Strict validation check before save
 		if (!isFormValid) {
 			logger.warn('[HeaderEdit] Save blocked due to validation errors.');
 			showToast(m.validation_fix_before_save(), 'error');
 			return;
 		}
 
-		// Check if there are any changes using the centralized store
-		if (!dataChangeStore.hasChanges) {
-			// No changes - but still need to reload full list view
-			logger.debug('[HeaderEdit] No changes detected, returning to list view without save');
+		// Only check for changes in edit mode. In create mode, always attempt to save (even with defaults).
+		if (mode.value === 'edit' && !dataChangeStore.hasChanges) {
+			logger.debug('[HeaderEdit] No changes detected');
 			toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed');
-			dataChangeStore.reset();
 
-			// ✅ Navigate back to list view with full data reload
-			// Remove ?edit= and ?create= parameters to trigger SSR reload of full entry list
-			const currentPath = page.url.pathname; // pathname excludes query parameters
-			logger.debug('[HeaderEdit] No changes - Navigating to:', currentPath, 'from:', page.url.href);
-			await goto(currentPath, { invalidateAll: true });
-
-			// Update mode after navigation
-			setMode('view');
+			// Delegate to NavigationManager
+			await navigationManager.navigateToList();
 			return;
 		}
 
-		// Get a fresh snapshot of collectionValue to ensure we have the latest widget data
+		// Prepare data
 		const dataToSave: Record<string, unknown> = { ...collectionValue.value };
 
-		// Status rules: Schedule takes precedence, otherwise use current collection status
+		// Handle status/schedule
 		if (schedule && schedule.trim() !== '') {
 			dataToSave.status = StatusTypes.schedule;
 			dataToSave._scheduled = new Date(schedule).getTime();
 		} else {
-			dataToSave.status = (collectionValue.value as CollectionData)?.status || collection.value?.status || StatusTypes.unpublish;
+			dataToSave.status = statusStore.getStatusForSave();
 			delete dataToSave._scheduled;
 		}
 
-		// Set metadata for all saves
+		// Set metadata
 		if (mode.value === 'create') {
-			dataToSave.createdBy = getDisplayName(user?.username, user);
+			dataToSave.createdBy = getDisplayName(user?.username);
 		}
-		dataToSave.updatedBy = getDisplayName(user?.username, user);
+		dataToSave.updatedBy = getDisplayName(user?.username);
 
-		if (process.env.NODE_ENV !== 'production') {
-			logger.debug(
-				'[HeaderEdit] Saving with status:',
-				dataToSave.status,
-				'collectionValue.status:',
-				(collectionValue.value as CollectionData)?.status
-			);
+		// Save entry
+		const success = await saveEntry(dataToSave);
+
+		if (!success) {
+			logger.warn('[HeaderEdit] Save failed');
+			return;
 		}
-
-		// ✅ FIX 2: Save entry and let it handle navigation
-		await saveEntry(dataToSave);
 
 		// Close sidebars
 		toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed');
 
-		// Reset change tracking
-		dataChangeStore.reset();
-
-		// ✅ FIX 3: Navigate to list view (saveEntry already called invalidateAll)
-		// This ensures the entry list refreshes with the new data
-		const currentPath = page.url.pathname;
-		logger.debug('[HeaderEdit] Save complete - Navigating to:', currentPath);
-		await goto(currentPath, { invalidateAll: true, replaceState: false });
-
-		logger.debug('[Save] Navigated back to list view with refreshed data');
+		// Delegate navigation and state cleanup to manager
+		await navigationManager.navigateToList();
 	} // Save form data with validation
 	async function saveData() {
 		await prepareAndSaveEntry();
@@ -341,25 +265,14 @@
 			setCollectionValue({});
 		}
 
-		// Reset change tracking
-		dataChangeStore.reset();
-
 		// Hide right sidebar
 		toggleUIElement('rightSidebar', 'hidden');
 
 		// Restore left sidebar to appropriate state
 		toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed');
 
-		// ✅ Navigate back to list view with full data reload
-		// Remove ?edit= and ?create= parameters to trigger SSR reload of full entry list
-		const currentPath = page.url.pathname; // pathname excludes query parameters
-		logger.debug('[HeaderEdit] Cancel - Navigating to:', currentPath, 'from:', page.url.href);
-		await goto(currentPath, { invalidateAll: true });
-
-		// Update mode after navigation
-		setMode('view');
-
-		logger.debug('[Cancel] Navigated back to list view with full data');
+		// Navigate back to list view
+		await navigationManager.navigateToList();
 	}
 
 	// Delete confirmation modal - use centralized function
@@ -524,12 +437,16 @@
 			<div class="flex flex-col items-center justify-center">
 				<Toggles
 					bind:value={publishToggleState}
-					disabled={shouldDisableStatusToggle || isLoading}
+					disabled={shouldDisableStatusToggle || statusStore.isLoading}
 					onChange={handleStatusToggle}
-					title={shouldDisableStatusToggle ? 'Status managed by sidebar in create mode' : isPublish ? m.status_publish() : m.status_unpublish()}
+					title={shouldDisableStatusToggle
+						? 'Status managed by sidebar in create mode'
+						: statusStore.isPublish
+							? m.status_publish()
+							: m.status_unpublish()}
 				/>
-				<span class="mt-1 text-xs {isPublish ? 'text-primary-500' : 'text-error-500'}">
-					{isPublish ? m.status_publish() : m.status_unpublish()}
+				<span class="mt-1 text-xs {statusStore.isPublish ? 'text-primary-500' : 'text-error-500'}">
+					{statusStore.isPublish ? m.status_publish() : m.status_unpublish()}
 				</span>
 			</div>
 

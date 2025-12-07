@@ -924,7 +924,7 @@ function handleSelectionChange(files: MediaBase[]) {
   console.log(`${files.length} files selected`);
 }
 
-function handleBulkDelete() {
+async function handleBulkDelete() {
   if (selectedFiles.length === 0) return;
   
   // Delete selected files

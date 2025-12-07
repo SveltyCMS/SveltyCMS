@@ -36,6 +36,7 @@ Implements custom virtual scrolling without external dependencies.
 		onBulkDelete?: (files: (MediaBase | MediaImage)[]) => void;
 		onBulkDownload?: (files: (MediaBase | MediaImage)[]) => void;
 		onBulkEdit?: (files: (MediaBase | MediaImage)[], action: string, value: any) => void;
+		onEditImage?: (file: MediaImage) => void;
 	}
 
 	const {
@@ -44,7 +45,8 @@ Implements custom virtual scrolling without external dependencies.
 		ondeleteImage = () => {},
 		onBulkDelete = () => {},
 		onBulkDownload = () => {},
-		onBulkEdit = () => {}
+		onBulkEdit = () => {},
+		onEditImage = () => {}
 	}: Props = $props();
 
 	// Virtual scrolling state
@@ -274,9 +276,11 @@ Implements custom virtual scrolling without external dependencies.
 								</div>
 
 								{#if !isSelectionMode}
-									<button aria-label="Edit" class="btn-icon">
-										<iconify-icon icon="mdi:pen" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-									</button>
+									{#if file.type === 'image'}
+										<button onclick={() => onEditImage(file as MediaImage)} aria-label="Edit" class="btn-icon">
+											<iconify-icon icon="mdi:pen" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										</button>
+									{/if}
 									<button onclick={() => handleDelete(file)} aria-label="Delete" class="btn-icon">
 										<iconify-icon icon="mdi:delete" width="20" class="text-error-500"></iconify-icon>
 									</button>

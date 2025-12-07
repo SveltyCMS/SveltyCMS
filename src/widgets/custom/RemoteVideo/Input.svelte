@@ -37,7 +37,7 @@ Part of the Three Pillars Architecture for widget system.
 	let { field, value, error }: { field: FieldType; value: RemoteVideoData | null | undefined; error?: string | null } = $props();
 
 	// Local state for the URL input.
-	let urlInput = $state(value?.url ?? '');
+	let urlInput = $state('');
 	// Local state to temporarily hold fetched metadata before it's set to `value`.
 	let fetchedMetadata = $state<RemoteVideoData | null>(null);
 	let isLoading = $state(false);

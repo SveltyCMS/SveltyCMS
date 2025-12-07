@@ -10,7 +10,7 @@
 
 import { spawn } from 'child_process';
 import { join } from 'path';
-import { existsSync } from 'fs';
+import { existsSync } from 'fs'; // Removed writeFileSync, unlinkSync
 
 const rootDir = join(import.meta.dir, '..');
 const configPath = join(rootDir, 'config', 'private.test.ts');

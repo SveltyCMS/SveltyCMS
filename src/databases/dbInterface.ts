@@ -156,6 +156,7 @@ export interface MediaMetadata {
 	duration?: number;
 	codec?: string;
 	format?: string;
+	advancedMetadata?: Record<string, any>; // For EXIF, IPTC, etc.
 	[key: string]: unknown;
 }
 
@@ -167,6 +168,7 @@ export interface MediaItem extends BaseEntity {
 	size: number;
 	mimeType: string;
 	folderId?: DatabaseId | null; // Reference to SystemVirtualFolder for organization
+	originalId?: DatabaseId | null; // For linking edited variants to the original
 	thumbnails: Record<string, { url: string; width: number; height: number } | undefined>;
 	metadata: MediaMetadata;
 	access?: 'public' | 'private' | 'protected'; // Added access control

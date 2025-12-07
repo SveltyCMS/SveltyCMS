@@ -72,7 +72,7 @@
 		textColor: string;
 	}
 
-	import type { EntryListMultiButtonProps } from './types';
+	import type { EntryListMultiButtonProps } from '@src/content/types';
 
 	// Props
 	let {
