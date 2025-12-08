@@ -20,7 +20,11 @@ async function login(email: string, password: string): Promise<string> {
 
 	const response = await fetch(`${BASE_URL}/api/user/login`, {
 		method: 'POST',
-		body: formData
+		body: formData,
+		headers: {
+			// Required to bypass SvelteKit's CSRF protection in non-browser environments
+			Origin: BASE_URL
+		}
 	});
 
 	if (!response.ok) {
@@ -58,7 +62,10 @@ export async function createTestUsers(): Promise<void> {
 		formData.append('role', user.role);
 		if (user.username) formData.append('username', user.username);
 
-		const headers: Record<string, string> = {};
+		const headers: Record<string, string> = {
+			// Required to bypass SvelteKit's CSRF protection in non-browser environments
+			Origin: BASE_URL
+		};
 		// The first user (Admin) is created publicly. Subsequent users need Admin auth.
 		if (i > 0 && adminCookie) {
 			headers['Cookie'] = adminCookie;
