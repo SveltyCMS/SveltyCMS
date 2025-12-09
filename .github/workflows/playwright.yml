@@ -134,8 +134,21 @@ jobs:
           bun x wait-on http://localhost:4173 -t 60000
           echo "✅ Preview server is ready!"
 
+      # Seed the database for integration tests
+      - name: 🌱 Seed Test Database
+        run: |
+          echo "🌱 Seeding test database..."
+          bun run scripts/seed-test-db.ts
+          echo "✅ Seed script completed"
+          sleep 2
+        env:
+          API_BASE_URL: http://localhost:4173
+
       - name: Run Integration Tests
-        run: bun run test:integration
+        # Use test:integration:run directly since server is already running
+        run: bun run test:integration:run
+        env:
+          API_BASE_URL: http://localhost:4173
 
   # ------------------------------------------------------------------
   # 3. E2E Tests (Requires Server + MongoDB + Browser)
