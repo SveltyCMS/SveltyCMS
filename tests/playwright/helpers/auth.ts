@@ -103,56 +103,64 @@ export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = /\/
 }
 
 /**
- * Login and return a fresh page from context
- * After window.location.href redirect, the original page object becomes unusable for further navigation.
- * This function creates a brand new page that shares cookies with the login session.
- * @param context - Playwright browser context
+ * Login and return a fresh page from a NEW browser context.
+ *
+ * IMPORTANT: After native form submission with window.location.href redirect,
+ * the original page AND the entire browser context can become unresponsive in headless mode.
+ * This function creates a completely new browser context with the session cookies
+ * to avoid this issue.
+ *
+ * @param page - Playwright page object used for login (will become unusable after)
  * @param waitForUrl - URL pattern to wait for after login
- * @returns Fresh page object that can navigate properly
+ * @returns Object containing fresh page and new context (MUST close context after test)
  */
 export async function loginAndGetFreshPage(
-	context: BrowserContext,
+	page: Page,
 	waitForUrl: string | RegExp = /\/(config|user|en|de|Collections|admin|dashboard)/
-): Promise<Page> {
-	// Create initial page for login
-	const loginPage = await context.newPage();
+): Promise<{ page: Page; context: BrowserContext }> {
+	// Get the browser from the page's context
+	const browser = page.context().browser();
+	if (!browser) {
+		throw new Error('No browser available from page context');
+	}
 
-	// Perform login
-	await loginAsAdmin(loginPage, waitForUrl);
+	// Perform login using the provided page
+	await loginAsAdmin(page, waitForUrl);
 
 	// Get the current URL after login
-	const currentUrl = loginPage.url();
+	const currentUrl = page.url();
 	console.log(`[Auth] Login page URL: ${currentUrl}`);
 
-	// Get cookies from context to verify we have session
-	const cookies = await context.cookies();
+	// Get cookies from the login context
+	const cookies = await page.context().cookies();
 	console.log(`[Auth] Context has ${cookies.length} cookies`);
 	// Log cookie details for debugging
 	for (const cookie of cookies) {
 		console.log(`[Auth] Cookie: ${cookie.name} = ${cookie.value.substring(0, 20)}... (domain: ${cookie.domain}, path: ${cookie.path})`);
 	}
 
-	// Close the login page - this is important for CI stability
-	// The cookies are stored in the context, not the page
-	console.log('[Auth] Closing login page...');
-	await loginPage.close();
+	// Create a COMPLETELY NEW browser context with the same cookies
+	// This avoids any corruption from the original context
+	console.log('[Auth] Creating new browser context...');
+	const newContext = await browser.newContext();
+	await newContext.addCookies(cookies);
 
-	// Create a completely new page from the context
-	// This new page will inherit cookies from the context (session is preserved)
-	console.log('[Auth] Creating brand new page from context...');
-	const freshPage = await context.newPage();
+	// Create a fresh page in the new context
+	console.log('[Auth] Creating fresh page in new context...');
+	const freshPage = await newContext.newPage();
 
 	// Navigate to the URL where we should be after login
 	console.log(`[Auth] Navigating fresh page to: ${currentUrl}`);
 	await freshPage.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-	// Wait for page to be visually ready (skip networkidle as it may never settle due to WebSockets/polling)
+	// Wait for page to be visually ready
 	await freshPage.waitForLoadState('domcontentloaded');
 	await freshPage.waitForTimeout(500);
 
 	console.log(`[Auth] Fresh page ready at: ${freshPage.url()}`);
 
-	return freshPage;
+	// Return both the page and context so the test can clean up
+	return { page: freshPage, context: newContext };
 }
 
 /**

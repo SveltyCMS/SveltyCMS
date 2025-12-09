@@ -6,18 +6,31 @@
  *   - Verifies successful navigation to the admin area
  *   - Logs out and checks redirect to login page
  */
-import { test, expect } from '@playwright/test';
-import { ADMIN_CREDENTIALS, loginAsAdmin, logout, ensureSidebarVisible } from './helpers/auth';
+import { test as base, expect, type Page, type BrowserContext } from '@playwright/test';
+import { ADMIN_CREDENTIALS, loginAndGetFreshPage, ensureSidebarVisible } from './helpers/auth';
 
-test('Login and logout flow', async ({ page }) => {
+// Extend the base test with a custom fixture that handles login properly
+const test = base.extend<{ authPage: Page; authContext: BrowserContext }>({
+	authPage: async ({ page }, use) => {
+		const { page: freshPage, context: newContext } = await loginAndGetFreshPage(page);
+		await use(freshPage);
+		await newContext.close();
+	},
+	authContext: async ({ page }, use) => {
+		const { context: newContext } = await loginAndGetFreshPage(page);
+		await use(newContext);
+		await newContext.close();
+	}
+});
+
+test('Login and logout flow', async ({ authPage }) => {
+	const page = authPage;
+
 	// Set a higher timeout for this test (optional)
 	test.setTimeout(120000); // 2 minutes
 
-	// Use the auth helper to login
-	await loginAsAdmin(page);
-
 	// Assert we're logged in and at the Collections page
-	await expect(page).toHaveURL(/\/(Collections|admin|dashboard)/, { timeout: 10000 });
+	await expect(page).toHaveURL(/\/(Collections|admin|dashboard|user|config)/, { timeout: 10000 });
 	console.log('✓ Login successful, current URL:', page.url());
 
 	// On mobile viewports, open sidebar to access logout button

@@ -6,23 +6,48 @@
  *   - Edit user details
  *   - Manage registration tokens and user lists
  */
-import { test, expect } from '@playwright/test';
-import { loginAsAdmin } from './helpers/auth';
+import { test as base, expect, type Page, type BrowserContext } from '@playwright/test';
+import { loginAndGetFreshPage } from './helpers/auth';
 
 const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
 
-test('Login User', async ({ page }) => {
-	await loginAsAdmin(page);
+// Extend the base test with a custom fixture that handles login properly
+// After native form redirect, we need a completely new browser context
+const test = base.extend<{ authPage: Page; authContext: BrowserContext }>({
+	authPage: async ({ page }, use) => {
+		// Login and get a fresh page with new context
+		const { page: freshPage, context: newContext } = await loginAndGetFreshPage(page);
+
+		// Use the fresh page for the test
+		await use(freshPage);
+
+		// Cleanup: close the new context after test
+		await newContext.close();
+	},
+	authContext: async ({ page }, use) => {
+		// Login and get a fresh page with new context
+		const { context: newContext } = await loginAndGetFreshPage(page);
+
+		// Use the context
+		await use(newContext);
+
+		// Cleanup: close the new context after test
+		await newContext.close();
+	}
+});
+
+test('Login User', async ({ authPage }) => {
+	const page = authPage;
 	console.log('✓ Login User test');
-	// The loginAsAdmin already verified we're at the correct URL, so this test is essentially complete
+	// The loginAndGetFreshPage already verified we're at the correct URL
 	// Just verify we're not still on /login
 	const currentUrl = page.url();
 	console.log(`[Test] Current URL after login: ${currentUrl}`);
 	expect(currentUrl).not.toContain('/login');
 });
 
-test('Edit Avatar', async ({ page }) => {
-	await loginAsAdmin(page);
+test('Edit Avatar', async ({ authPage }) => {
+	const page = authPage;
 
 	// Navigate to user profile
 	await page.goto(`${baseURL}/user`);
@@ -56,8 +81,8 @@ test('Edit Avatar', async ({ page }) => {
 	console.log('✓ Edit Avatar test');
 });
 
-test('Delete Avatar', async ({ page }) => {
-	await loginAsAdmin(page);
+test('Delete Avatar', async ({ authPage }) => {
+	const page = authPage;
 
 	// First, ensure there's an avatar to delete by uploading one
 	await page.goto(`${baseURL}/user`);
@@ -107,8 +132,8 @@ test('Delete Avatar', async ({ page }) => {
 	console.log('✓ Delete Avatar test');
 });
 
-test('Edit User Details', async ({ page }) => {
-	await loginAsAdmin(page);
+test('Edit User Details', async ({ authPage }) => {
+	const page = authPage;
 
 	// Navigate to user profile
 	await page.goto(`${baseURL}/user`);
@@ -131,8 +156,8 @@ test('Edit User Details', async ({ page }) => {
 	console.log('✓ Edit User Details test');
 });
 
-test('Registration Token', async ({ page }) => {
-	await loginAsAdmin(page);
+test('Registration Token', async ({ authPage }) => {
+	const page = authPage;
 
 	// Navigate to user profile
 	await page.goto(`${baseURL}/user`);
@@ -163,8 +188,8 @@ test('Registration Token', async ({ page }) => {
 	console.log('✓ Registration Token test');
 });
 
-test('Show or Hide User Token', async ({ page }) => {
-	await loginAsAdmin(page);
+test('Show or Hide User Token', async ({ authPage }) => {
+	const page = authPage;
 
 	// Navigate to user profile
 	await page.goto(`${baseURL}/user`);
@@ -196,8 +221,8 @@ test('Show or Hide User Token', async ({ page }) => {
 	}
 });
 
-test('Show or Hide User List', async ({ page }) => {
-	await loginAsAdmin(page);
+test('Show or Hide User List', async ({ authPage }) => {
+	const page = authPage;
 
 	// Navigate to user profile
 	await page.goto(`${baseURL}/user`);

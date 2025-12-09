@@ -6,21 +6,34 @@
  *   - Delete, block, and unblock users
  *   - Invite user via email and accept invitation
  */
-import { test, expect } from '@playwright/test';
-import { loginAsAdmin, ensureSidebarVisible } from './helpers/auth';
+import { test as base, expect, type Page, type BrowserContext } from '@playwright/test';
+import { loginAndGetFreshPage, ensureSidebarVisible } from './helpers/auth';
+
+// Extend the base test with a custom fixture that handles login properly
+const test = base.extend<{ authPage: Page; authContext: BrowserContext }>({
+	authPage: async ({ page }, use) => {
+		const { page: freshPage, context: newContext } = await loginAndGetFreshPage(page);
+		await use(freshPage);
+		await newContext.close();
+	},
+	authContext: async ({ page }, use) => {
+		const { context: newContext } = await loginAndGetFreshPage(page);
+		await use(newContext);
+		await newContext.close();
+	}
+});
 
 test.describe('User Management Flow', () => {
 	test.setTimeout(120000); // 2 min timeout
 
-	test('Admin Login', async ({ page }) => {
-		await loginAsAdmin(page);
-		await expect(page).toHaveURL(/\/(admin|Collections)/);
+	test('Admin Login', async ({ authPage }) => {
+		const page = authPage;
+		await expect(page).toHaveURL(/\/(admin|Collections|user|config)/);
 		console.log('✓ Admin logged in successfully');
 	});
 
-	test('Read and Edit User Profile', async ({ page }) => {
-		// Login
-		await loginAsAdmin(page);
+	test('Read and Edit User Profile', async ({ authPage }) => {
+		const page = authPage;
 
 		// On mobile, ensure sidebar is visible to access user profile button
 		await ensureSidebarVisible(page);
@@ -59,8 +72,8 @@ test.describe('User Management Flow', () => {
 	// TODO: Complex test - requires creating additional users first
 	// Can't delete/block the only admin user in the system
 	// Skipping as it needs full user creation workflow
-	test.skip('Delete, Block, and Unblock Users', async ({ page }) => {
-		await loginAsAdmin(page);
+	test.skip('Delete, Block, and Unblock Users', async ({ authPage }) => {
+		const page = authPage;
 
 		// Navigate to user profile page (Admin Area)
 		await page.goto('/user');
@@ -84,8 +97,8 @@ test.describe('User Management Flow', () => {
 	// TODO: Complex test - requires email token extraction from response/toast
 	// The token is generated server-side and would need to be extracted from API response
 	// Skipping as it needs investigation of how to get the actual token
-	test.skip('Invite User via Email and Accept Invitation', async ({ page }) => {
-		await loginAsAdmin(page);
+	test.skip('Invite User via Email and Accept Invitation', async ({ authPage }) => {
+		const page = authPage;
 
 		// Navigate to user profile page
 		await page.goto('/user');

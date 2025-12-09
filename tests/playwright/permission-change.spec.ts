@@ -6,26 +6,39 @@
  *   - Checks 2–3 permission checkboxes and saves
  *   - Asserts success via URL and confirmation message
  */
-import { test, expect } from '@playwright/test';
-import { loginAsAdmin } from './helpers/auth';
+import { test as base, expect, type Page, type BrowserContext } from '@playwright/test';
+import { loginAndGetFreshPage } from './helpers/auth';
+
+// Extend the base test with a custom fixture that handles login properly
+const test = base.extend<{ authPage: Page; authContext: BrowserContext }>({
+	authPage: async ({ page }, use) => {
+		const { page: freshPage, context: newContext } = await loginAndGetFreshPage(page, /\/admin|\/en\/Collections\/Names/);
+		await use(freshPage);
+		await newContext.close();
+	},
+	authContext: async ({ page }, use) => {
+		const { context: newContext } = await loginAndGetFreshPage(page, /\/admin|\/en\/Collections\/Names/);
+		await use(newContext);
+		await newContext.close();
+	}
+});
 
 test.describe('Permission Management Flow', () => {
 	test.setTimeout(60000); // 1 min
 
-	test('Login and change permissions in Access Management', async ({ page }) => {
-		// 1. Login
-		await loginAsAdmin(page, /\/admin|\/en\/Collections\/Names/);
+	test('Login and change permissions in Access Management', async ({ authPage }) => {
+		const page = authPage;
 
-		// 2. Navigate to Access Management directly (it's a config page)
+		// Navigate to Access Management directly (it's a config page)
 		await page.goto('/config/accessManagement');
 
-		// 3. Wait for page to load - we should be on Permissions tab by default (tab 0)
+		// Wait for page to load - we should be on Permissions tab by default (tab 0)
 		await expect(page.locator('h1:has-text("Access Management")')).toBeVisible({ timeout: 10000 });
 
-		// 4. Wait for permissions table to load
+		// Wait for permissions table to load
 		await page.waitForTimeout(1000);
 
-		// 5. Toggle 2-3 permission checkboxes
+		// Toggle 2-3 permission checkboxes
 		// The checkboxes are in the permissions table
 		const checkboxes = page.locator('table input[type="checkbox"].form-checkbox');
 		const count = await checkboxes.count();
@@ -42,15 +55,15 @@ test.describe('Permission Management Flow', () => {
 			}
 		}
 
-		// 6. Save button should now be enabled (has modifiedChanges)
+		// Save button should now be enabled (has modifiedChanges)
 		// Wait for Save button to be enabled
 		const saveButton = page.getByRole('button', { name: /save all changes/i });
 		await expect(saveButton).toBeEnabled({ timeout: 5000 });
 
-		// 7. Click Save
+		// Click Save
 		await saveButton.click();
 
-		// 8. Wait for success toast message
+		// Wait for success toast message
 		await expect(page.getByText(/configuration updated successfully/i)).toBeVisible({ timeout: 10000 });
 
 		console.log('✓ Permissions updated successfully');
