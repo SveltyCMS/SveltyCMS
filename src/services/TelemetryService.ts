@@ -31,6 +31,11 @@ let activeCheckPromise: Promise<any> | null = null; // Deduping promise
 
 export const telemetryService = {
 	async checkUpdateStatus() {
+		// Disable telemetry in test mode (CI/CD)
+		if (process.env.TEST_MODE === 'true') {
+			return { status: 'test_mode', latest: null, security_issue: false };
+		}
+
 		// Check opt-out settings
 		// Default to TRUE (enabled) if not set or if set to true. Only fully disable if explicitly set to false.
 		const isTelemetryEnabled = (await getPrivateSetting('SVELTYCMS_TELEMETRY')) !== false;
