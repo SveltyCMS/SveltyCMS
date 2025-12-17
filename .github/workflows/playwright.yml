@@ -153,6 +153,12 @@ jobs:
       - name: Build Production
         run: bun run build
 
+      # Kill any process using port 4173 to prevent conflicts
+      - name: Clean up port 4173
+        run: |
+          echo "🧹 Cleaning up port 4173..."
+          lsof -ti:4173 | xargs kill -9 2>/dev/null || echo "Port 4173 is free"
+
       # --- START PREVIEW SERVER (PORT 4173) ---
       - name: Start Preview Server
         run: |
