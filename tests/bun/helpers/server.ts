@@ -23,11 +23,11 @@ export async function waitForServer(timeoutMs = 30000, intervalMs = 500): Promis
 	const start = Date.now();
 	let lastError: unknown;
 
-	process.stdout.write(`Waiting for server at ${API_BASE_URL}... `);
+	process.stdout.write(`Waiting for server at ${BASE_URL}... `);
 
 	while (Date.now() - start < timeoutMs) {
 		try {
-			const res = await fetch(API_BASE_URL, { method: 'HEAD' }); // HEAD is lighter than GET
+			const res = await fetch(BASE_URL, { method: 'HEAD' }); // HEAD is lighter than GET
 			if (res.ok || res.status === 404) {
 				console.log('✓ Ready');
 
