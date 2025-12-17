@@ -29,9 +29,11 @@
 		class: className = '' // Custom class for the dropdown container
 	} = $props();
 
+	// --- STATE ---
 	// State for dropdown expansion and selected item
 	let expanded = $state(false);
-	let currentSelected = $state(selected);
+	// Use $derived to reactively track selected prop changes
+	let currentSelected = $derived(selected);
 
 	// Effect to update currentSelected when the selected prop changes or to set initial default
 	$effect(() => {
