@@ -207,17 +207,8 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # --- RUN PLAYWRIGHT BROWSER INSTALLER ---
       - name: Install Playwright Browsers
-        run: bun x playwright install --with-deps chromium
-
-      # Ensure fresh state - remove any existing config
-      - name: Clean config for fresh CI run
-        run: |
-          echo "🧹 Ensuring fresh state for CI..."
-          rm -rf config/collections
-          rm -f config/private.ts
-          echo "✅ Cleaned config directory"
-
       # Create placeholder config/private.test.ts to ensure runtime config works
       - name: Create placeholder config/private.test.ts
         run: |
