@@ -169,9 +169,10 @@ jobs:
           echo "✅ Preview server is ready!"
 
       - name: Run Integration Tests
-        run: bun run test:integration
+        run: bun run test:integration:run
         env:
           TEST_MODE: 'true' # Ensures server loads config/private.test.ts instead of config/private.ts
+          API_BASE_URL: 'http://localhost:4173'
 
   # ------------------------------------------------------------------
   # 3. E2E Tests (Requires Server + MongoDB + Browser)
