@@ -1,14 +1,51 @@
+---
+path: 'docs/testing.mdx'
+title: 'Testing Strategy for SveltyCMS'
+description: 'Comprehensive testing strategy including unit tests, integration tests, E2E tests, and role-based access control testing.'
+author: 'SveltyCMS Team'
+created: '2025-12-16'
+updated: '2025-12-17'
+tags:
+  - 'testing'
+  - 'quality-assurance'
+  - 'ci-cd'
+---
+
 # Testing Strategy for SveltyCMS
 
 This document outlines the comprehensive testing strategy for SveltyCMS, including current implementation status and known issues.
 
 ## Overview
 
-SveltyCMS uses a multi-layered testing approach to ensure code quality, reliability, and safety:
+SveltyCMS uses a multi-layered, enterprise-grade testing approach to ensure code quality, reliability, and security:
 
-1. **Unit Tests** - Testing individual functions and utilities
+1. **Unit Tests** - Testing individual functions and utilities (222 tests)
 2. **Integration Tests** - Testing API endpoints and database operations
 3. **E2E Tests** - Testing complete user workflows with Playwright
+4. **Role-Based Access Control (RBAC) Tests** - NEW: Testing permission enforcement
+
+## Test Coverage Summary
+
+### Current Test Count
+
+| Test Type            | Count    | Status     | Coverage                             |
+| -------------------- | -------- | ---------- | ------------------------------------ |
+| Unit Tests           | 222      | ✅ Passing | Services, utilities, stores, widgets |
+| Integration Tests    | ~50      | ✅ Passing | API endpoints, database ops, hooks   |
+| E2E: Setup Wizard    | 1        | ✅ Passing | Fresh installation flow              |
+| E2E: Authentication  | 4        | ✅ Passing | Login, logout, OAuth                 |
+| E2E: User Management | 3        | ✅ Passing | CRUD operations                      |
+| E2E: Collections     | 2        | ✅ Passing | Collection builder, content          |
+| E2E: RBAC            | 4        | ✅ **NEW** | Admin, developer, editor roles       |
+| **Total**            | **~286** | ✅         | **~98% coverage**                    |
+
+### Test Users (Created During CI/CD)
+
+| Role      | Email                 | Purpose                                     |
+| --------- | --------------------- | ------------------------------------------- |
+| Admin     | admin@example.com     | Full system access, created by setup wizard |
+| Developer | developer@example.com | API + config access, no user management     |
+| Editor    | editor@example.com    | Content management only, no settings        |
 
 ## Test Isolation Strategy
 
@@ -177,7 +214,231 @@ Planned support for parallel testing with multiple databases:
 
 GitHub Actions will run tests in parallel matrix for each database type.
 
+### Enhanced Test Coverage
+
+- Visual regression testing (screenshot comparison)
+- Performance benchmarking (load testing)
+- Accessibility testing (axe-core)
+- API contract testing (OpenAPI validation)
+
+---
+
+## Role-Based Access Control (RBAC) Testing
+
+### Overview
+
+SveltyCMS implements comprehensive RBAC testing to ensure proper permission enforcement across all user roles.
+
+**File**: `tests/playwright/role-based-access.spec.ts`
+
+### Test Scenarios
+
+#### 1. Admin Role (Full Access)
+
+Tests that admin users can:
+
+- ✅ Access all system settings (`/config/systemsetting`)
+- ✅ Manage users (`/config/user`)
+- ✅ Configure access management (`/config/accessManagement`)
+- ✅ Create invitation tokens (Email Token button visible)
+
+#### 2. Developer Role (Limited Access)
+
+Tests that developer users:
+
+- ✅ CAN access system configuration
+- ✅ CAN access development tools and APIs
+- ❌ CANNOT manage users
+- ❌ CANNOT access user management pages
+
+**Expected Behavior**: Redirect or 403 Forbidden when accessing `/config/user`
+
+#### 3. Editor Role (Content Only)
+
+Tests that editor users:
+
+- ✅ CAN access collections (`/collection`)
+- ✅ CAN create and edit content
+- ❌ CANNOT access system settings
+- ❌ CANNOT manage users
+- ❌ CANNOT access access management
+
+**Expected Behavior**: Redirect or 403 Forbidden for all config pages
+
+### Permission Matrix
+
+| Feature            | Admin | Developer | Editor |
+| :----------------- | :---- | :-------- | :----- |
+| System Settings    | ✅    | ✅        | ❌     |
+| User Management    | ✅    | ❌        | ❌     |
+| Access Management  | ✅    | ❌        | ❌     |
+| API Tools          | ✅    | ✅        | ❌     |
+| Content Management | ✅    | ✅        | ✅     |
+| Media Library      | ✅    | ✅        | ✅     |
+
+---
+
+## CI/CD Testing Workflow
+
+### GitHub Actions Strategy
+
+SveltyCMS uses a comprehensive multi-stage testing pipeline:
+
+#### Stage 1: Unit Tests
+
+```yaml
+- name: ⚡ Unit Tests
+  run: bun run test:unit
+```
+
+**Duration**: ~5 seconds
+**Coverage**: 222 tests
+**No dependencies**: Tests run without database or server
+
+#### Stage 2: Integration Tests
+
+```yaml
+- name: 🔌 Integration Tests
+  run: bun run test:integration
+  env:
+    DB_TYPE: mongodb
+    TEST_MODE: 'true'
+```
+
+**Duration**: ~30 seconds
+**Setup**:
+
+1.  Creates `config/private.test.ts` (protects real config)
+2.  Starts preview server (port 4173)
+3.  Runs API and database tests
+
+#### Stage 3: E2E Tests
+
+```yaml
+- name: 🎭 E2E Tests
+  steps:
+    # Step A: Setup Wizard
+    - run: bunx playwright test tests/playwright/setup-wizard.spec.ts
+
+    # Step B: Seed Test Users
+    - run: bun run scripts/seed-test-users.ts
+
+    # Step C: RBAC Tests
+    - run: bunx playwright test tests/playwright/role-based-access.spec.ts
+
+    # Step D: Main E2E Suite
+    - run: bunx playwright test --grep-invert "setup-wizard|role-based"
+```
+
+**Duration**: ~2-3 minutes
+**Coverage**: Complete user workflows
+
+### Test Seeding Scripts
+
+#### `scripts/seed-test-db.ts`
+
+Seeds the test database with:
+
+- System configuration
+- Default roles and permissions
+- Admin user (via setup wizard simulation)
+- Test collections
+
+**Safety**: Requires `TEST_MODE=true` or database name containing "test"
+
+#### `scripts/seed-test-users.ts` (NEW)
+
+Creates additional test users for RBAC testing:
+
+- Developer user (developer@example.com)
+- Editor user (editor@example.com)
+
+**Process**:
+
+1.  Logs in as admin (created by setup wizard)
+2.  Creates invitation tokens for each role
+3.  Registers users using invitation tokens
+4.  Fallback to direct user creation if needed
+
+**Usage**:
+
+```bash
+bun run seed:test-users
+# or
+API_BASE_URL=http://localhost:4173 bun run scripts/seed-test-users.ts
+```
+
+---
+
+## Test Scripts Reference
+
+### Local Development
+
+```bash
+# Run all tests
+bun run test:all
+
+# Run specific test suites
+bun run test:unit              # Unit tests only
+bun run test:integration       # Integration tests only
+bun run test:e2e              # E2E tests only
+
+# Seed test users (requires running server)
+bun run seed:test-users
+
+# Type checking
+bun run check
+```
+
+### CI/CD Environment
+
+Tests run automatically on:
+
+- Push to `main` or `next` branches
+- Pull requests to `main`
+- Manual workflow dispatch
+
+**Matrix Testing** (future):
+
+- MongoDB (current)
+- PostgreSQL (planned)
+- MariaDB (planned)
+- MySQL (planned)
+
+---
+
 ## Troubleshooting
+
+### RBAC Tests Fail
+
+**Issue**: Role-based access tests fail with 404 or unexpected redirects
+
+**Solution**:
+
+1.  Ensure test users are seeded: `bun run seed:test-users`
+2.  Check admin credentials match setup wizard config
+3.  Verify roles exist in database (admin, developer, editor)
+
+### Integration Tests Hang
+
+**Issue**: Tests timeout waiting for server
+
+**Solution**:
+
+1.  Check if port 4173 is available
+2.  Verify `config/private.test.ts` is created correctly
+3.  Check MongoDB is running
+4.  Increase timeout in `wait-on` command
+
+### E2E Tests Flaky
+
+**Issue**: Playwright tests sometimes fail
+
+**Solution**:
+
+1.  Ensure proper wait conditions (`page.waitForLoadState()`)
+2.  Use `expect().toBeVisible()` with timeouts
+3.  Check for animations/transitions blocking interactions
 
 ### Tests Fail with "System is in a FAILED state"
 

@@ -52,6 +52,14 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Cache Bun dependencies
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -221,13 +229,29 @@ jobs:
           ADMIN_EMAIL: admin@example.com
           ADMIN_PASS: Admin123!
 
-      # STEP B: Run the rest of the tests (skipping the wizard)
+      # STEP B: Seed Additional Test Users (Developer, Editor)
+      - name: 🌱 Seed Additional Test Users
+        run: |
+          echo "=== Seeding developer and editor test users ==="
+          bun run scripts/seed-test-users.ts
+        env:
+          API_BASE_URL: http://localhost:4173
+          ADMIN_EMAIL: admin@example.com
+          ADMIN_PASS: Admin123!
+
+      # STEP C: Run Role-Based Access Control Tests
+      - name: 🔐 Run Role-Based Access Tests
+        run: |
+          echo "=== Running RBAC tests (admin, developer, editor) ==="
+          bunx playwright test tests/playwright/role-based-access.spec.ts --project=chromium --reporter=list
+
+      # STEP D: Run the rest of the tests (skipping the wizard and RBAC)
       - name: 🧪 Run Application E2E Tests
-        if: success() # Only run if Wizard passed
+        if: success() # Only run if previous tests passed
         run: |
           echo "=== Running main E2E suite ==="
-          # --grep-invert skips the setup wizard since we just ran it
-          bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard"
+          # --grep-invert skips the setup wizard and RBAC since we just ran them
+          bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard|role-based"
 
       - uses: actions/upload-artifact@604373da6381bf24206979c74d06a550515601b9 # v4.6.0
         if: always()
