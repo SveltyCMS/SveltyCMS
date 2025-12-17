@@ -599,6 +599,28 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			});
 		}
 
+		// 10.5 Trigger telemetry now that setup is complete
+		try {
+			const { telemetryService } = await import('@src/services/TelemetryService');
+			logger.info('📡 Triggering post-setup telemetry check...', { correlationId });
+
+			// Fire and forget - don't block the response
+			telemetryService.checkUpdateStatus().catch((telemetryError) => {
+				logger.warn('Post-setup telemetry check failed (non-fatal)', {
+					correlationId,
+					error: telemetryError instanceof Error ? telemetryError.message : String(telemetryError)
+				});
+			});
+
+			logger.info('✅ Post-setup telemetry check initiated', { correlationId });
+		} catch (telemetryError) {
+			// Non-fatal: Log but continue
+			logger.warn('Failed to trigger post-setup telemetry (non-fatal)', {
+				correlationId,
+				error: telemetryError instanceof Error ? telemetryError.message : String(telemetryError)
+			});
+		}
+
 		// 11. Return success - NO RESTART REQUIRED! ✨
 		return json({
 			success: true,
