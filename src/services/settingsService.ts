@@ -43,8 +43,10 @@ const KNOWN_PRIVATE_KEYS = Object.keys(privateConfigSchema.entries).filter((key)
 // Internal server-side cache (not reactive, plain objects)
 const cache = {
 	loaded: false,
+	loadedAt: 0, // Timestamp for TTL
 	private: {} as PrivateEnv,
-	public: {} as PublicEnv
+	public: {} as PublicEnv,
+	TTL: 5 * 60 * 1000 // 5 minutes TTL
 };
 
 // Memoized version loader
@@ -58,9 +60,18 @@ async function loadPkgVersion(): Promise<string> {
 
 /**
  * Loads settings from the database into the server-side cache if not already loaded.
+ * Cache automatically invalidates after TTL (5 minutes) to prevent stale data.
  * This is the single source of truth on the server.
  */
 export async function loadSettingsCache(): Promise<typeof cache> {
+	const now = Date.now();
+
+	// Invalidate cache after TTL
+	if (cache.loaded && now - cache.loadedAt > cache.TTL) {
+		cache.loaded = false;
+		logger.debug('Settings cache invalidated (TTL expired)');
+	}
+
 	if (cache.loaded) {
 		return cache;
 	}
@@ -122,6 +133,7 @@ export async function loadSettingsCache(): Promise<typeof cache> {
 		cache.public = publicSettings as PublicEnv;
 		cache.public.PKG_VERSION = await loadPkgVersion();
 		cache.loaded = true;
+		cache.loadedAt = Date.now(); // Track when cache was loaded
 
 		return cache;
 	} catch (error) {
@@ -143,8 +155,10 @@ export async function loadSettingsCache(): Promise<typeof cache> {
 export async function invalidateSettingsCache(): Promise<void> {
 	const pkgVersion = await loadPkgVersion();
 	cache.loaded = false;
+	cache.loadedAt = 0; // Reset timestamp
 	cache.private = {} as PrivateEnv;
 	cache.public = { PKG_VERSION: pkgVersion } as PublicEnv;
+	logger.debug('Settings cache manually invalidated');
 }
 
 /**

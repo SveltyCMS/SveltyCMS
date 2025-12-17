@@ -38,7 +38,7 @@
 
 		// SECURITY: Validate YouTube URL to prevent XSS
 		// Only allow youtube.com and youtu.be URLs (HTTPS only)
-		const youtubePattern = /^https:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+		const youtubePattern = /^https:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})$/;
 
 		if (youtube_url && editor) {
 			if (youtubePattern.test(youtube_url)) {

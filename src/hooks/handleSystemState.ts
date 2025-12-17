@@ -14,7 +14,7 @@ import { error } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
 import { getSystemState, isSystemReady } from '@src/stores/system'; // Import from your state machine
 import { logger } from '@utils/logger.server';
-import { dbInitPromise, dbAdapter } from '@src/databases/db';
+import { dbInitPromise } from '@src/databases/db';
 import { isSetupComplete } from '@utils/setupCheck';
 
 let initializationAttempted = false;

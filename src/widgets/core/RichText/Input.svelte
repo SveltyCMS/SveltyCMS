@@ -636,17 +636,27 @@
 
 	<!-- Slash Menu Modal -->
 	{#if showSlashMenu}
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			transition:slide={{ duration: 200, easing: quintOut }}
+			role="button"
+			tabindex="0"
 			class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-			onclick={() => (showSlashMenu = false)}
+			onclick={(e) => {
+				if (e.target === e.currentTarget) showSlashMenu = false;
+			}}
+			onkeydown={(e) => {
+				if (e.key === 'Escape') {
+					showSlashMenu = false;
+				}
+				if (e.key === 'Enter' || e.key === ' ') {
+					if (e.target === e.currentTarget) {
+						e.preventDefault();
+						showSlashMenu = false;
+					}
+				}
+			}}
 		>
-			<div
-				class="w-full max-w-lg rounded-2xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 p-6 shadow-2xl"
-				onclick={(e) => e.stopPropagation()}
-			>
+			<div class="w-full max-w-lg rounded-2xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 p-6 shadow-2xl">
 				<h3 class="mb-5 text-xl font-semibold text-surface-900 dark:text-white">Command Menu</h3>
 				<div class="space-y-2">
 					<button

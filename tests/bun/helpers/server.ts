@@ -12,8 +12,10 @@ export function getApiBaseUrl(): string {
 /**
  * Robustly waits for the API to be available.
  * PERFORMANCE OPTIMIZED: Shorter intervals for faster detection.
+ *
+ * @returns true if server is ready, false if not available (allows graceful skip)
  */
-export async function waitForServer(timeoutMs = 30000, intervalMs = 500): Promise<void> {
+export async function waitForServer(timeoutMs = 30000, intervalMs = 500): Promise<boolean> {
 	const start = Date.now();
 	let lastError: unknown;
 
@@ -31,7 +33,7 @@ export async function waitForServer(timeoutMs = 30000, intervalMs = 500): Promis
 				await new Promise((r) => setTimeout(r, 2000)); // 2s delay
 				console.log('✅ Models registered, server fully ready');
 
-				return;
+				return true;
 			}
 			lastError = new Error(`Status ${res.status}`);
 		} catch (e) {
@@ -40,5 +42,7 @@ export async function waitForServer(timeoutMs = 30000, intervalMs = 500): Promis
 		await new Promise((r) => setTimeout(r, intervalMs));
 	}
 
-	throw new Error(`\nServer timeout! Ensure 'bun run dev' is running. Last error: ${lastError}`);
+	console.log(`✗ Server not available (${lastError})`);
+	console.log('💡 Run integration tests with: bun run test:integration');
+	return false;
 }

@@ -13,9 +13,9 @@ import type { ModeType } from '@stores/collectionStore.svelte';
 // ============================================================================
 
 const preloadTimers = new Map<string, number>();
-const PRELOAD_DELAY = 500; // Increased to prevent aggressive prefetching on scroll
+export const PRELOAD_DELAY = 200; // Configurable delay to prevent aggressive prefetching
 
-export function preloadEntry(entryId: string, currentPath: string): void {
+export function preloadEntry(entryId: string, currentPath: string, delay: number = PRELOAD_DELAY): void {
 	const existingTimer = preloadTimers.get(entryId);
 	if (existingTimer) clearTimeout(existingTimer);
 
@@ -30,7 +30,7 @@ export function preloadEntry(entryId: string, currentPath: string): void {
 		} finally {
 			preloadTimers.delete(entryId);
 		}
-	}, PRELOAD_DELAY);
+	}, delay);
 
 	preloadTimers.set(entryId, timer as unknown as number);
 }

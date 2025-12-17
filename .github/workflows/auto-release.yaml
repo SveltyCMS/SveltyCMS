@@ -39,12 +39,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Setup Node.js
-        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
-        with:
-          node-version: '24'
-          check-latest: true
-
       - name: Setup Bun
         uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.1
         with:
@@ -52,6 +46,9 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Install Playwright Browsers
+        run: bun x playwright install --with-deps chromium
 
       # Create placeholder config/private.test.ts to ensure runtime config works
       - name: Create placeholder config/private.test.ts
@@ -72,6 +69,19 @@ jobs:
           EOF
           echo "✅ Created config/private.test.ts"
 
+      # Build production version for faster, optimized testing
+      - name: Build Production
+        run: bun run build
+
+      # Start preview server for tests
+      - name: Start Preview Server
+        run: |
+          echo "🚀 Starting preview server on port 4173..."
+          bun run preview &
+          echo "⏳ Waiting for server to be ready..."
+          bun x wait-on http://localhost:4173 -t 60000
+          echo "✅ Preview server is ready!"
+
       - name: Run Playwright tests
         run: bunx playwright test
 
@@ -87,13 +97,6 @@ jobs:
         with:
           # fetch-depth: 0 is required for semantic-release to analyze the full commit history.
           fetch-depth: 0
-
-      # Setup Node.js for semantic-release
-      - name: Setup Node.js
-        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
-        with:
-          node-version: '24'
-          check-latest: true
 
       # Setup Bun environment
       - name: Setup Bun

@@ -60,7 +60,7 @@ export const telemetryService = {
 		const widgets = getWidgetsByType('custom');
 
 		// Features detection (Disabled for now as per requirement)
-		const features: string[] = [];
+		// const features: string[] = [];
 
 		const dbType = await getPrivateSetting('DB_TYPE');
 
@@ -73,7 +73,6 @@ export const telemetryService = {
 			});
 			if (geoRes.ok) {
 				const geoData = await geoRes.json();
-				country = geoData.country;
 				country = geoData.country;
 				logger.info(`[Telemetry] Resolved Client-Side Location: ${country}`);
 			}
