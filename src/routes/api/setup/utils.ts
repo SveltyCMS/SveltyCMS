@@ -31,8 +31,7 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 			const protocol = isSrv ? 'mongodb+srv' : 'mongodb';
 			const port = isSrv || !config.port ? '' : `:${config.port}`;
 
-			// Check if this is localhost without auth
-			const isLocalhost = config.host === 'localhost' || config.host === '127.0.0.1';
+			// Check if credentials are provided
 			const hasCredentials = config.user && config.password;
 
 			const user = hasCredentials ? `${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@` : '';
@@ -49,9 +48,9 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 
 			const connectionString = `${protocol}://${user}${config.host}${port}/${config.name}${queryParams}`;
 
-		// Logging happens in getSetupDatabaseAdapter with correlationId
-		return connectionString;
-	}	}
+			// Logging happens in getSetupDatabaseAdapter with correlationId
+			return connectionString;
+		}
 		default: {
 			// TypeScript ensures exhaustive checking - this should never be reached
 			// but provides a helpful message if the schema is extended without updating this function

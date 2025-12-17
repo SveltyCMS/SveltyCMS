@@ -69,20 +69,42 @@ export const telemetryService = {
 
 		const dbType = await getPrivateSetting('DB_TYPE');
 
-		// Attempt to resolve location client-side securely via HTTPS
-		// distinct from server-side lookup, ensuring location is accurate for the machine running the code
-		let country = undefined;
+		// Collect detailed geolocation data for clustering detection and BSL enforcement
+		let location = {
+			country: undefined as string | undefined,
+			country_code: undefined as string | undefined,
+			region: undefined as string | undefined,
+			city: undefined as string | undefined,
+			latitude: undefined as number | undefined,
+			longitude: undefined as number | undefined,
+			isp: undefined as string | undefined,
+			org: undefined as string | undefined
+		};
+
 		try {
-			const geoRes = await fetch('https://api.country.is', {
-				headers: { 'User-Agent': `SveltyCMS/${pkg.version}` }
+			const geoRes = await fetch('http://ip-api.com/json/?fields=status,country,countryCode,region,regionName,city,lat,lon,isp,org', {
+				headers: { 'User-Agent': `SveltyCMS/${pkg.version}` },
+				signal: AbortSignal.timeout(3000) // 3 second timeout
 			});
+
 			if (geoRes.ok) {
 				const geoData = await geoRes.json();
-				country = geoData.country;
-				logger.info(`[Telemetry] Resolved Client-Side Location: ${country}`);
+				if (geoData.status === 'success') {
+					location = {
+						country: geoData.country,
+						country_code: geoData.countryCode,
+						region: geoData.regionName || geoData.region,
+						city: geoData.city,
+						latitude: geoData.lat,
+						longitude: geoData.lon,
+						isp: geoData.isp,
+						org: geoData.org
+					};
+					logger.info(`[Telemetry] Location resolved: ${location.city}, ${location.region}, ${location.country}`);
+				}
 			}
 		} catch (e) {
-			logger.warn('[Telemetry] Could not resolve client-side location:', e);
+			logger.debug('[Telemetry] Could not resolve detailed location:', e);
 		}
 
 		// Usage Metrics (BSL 1.1 Enforcement Support)
@@ -131,8 +153,8 @@ export const telemetryService = {
 			node_version: process.version,
 			environment: process.env.NODE_ENV || 'production',
 			installation_id: installationId,
-			db_type: dbType, // Added as requested
-			country, // Explicitly send country if resolved
+			db_type: dbType,
+			location, // Detailed geolocation data
 			// Usage Metrics
 			metrics: {
 				users: userCount,

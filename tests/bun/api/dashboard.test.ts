@@ -98,7 +98,7 @@ describe('Dashboard API - Health Endpoint', () => {
 		if (components.length > 0) {
 			const component = components[0] as Record<string, unknown>;
 			expect(component).toHaveProperty('status');
-			expect(['healthy', 'unhealthy', 'initializing']).toContain(component.status);
+			expect(['healthy', 'unhealthy', 'initializing']).toContain(component.status as string);
 		}
 	});
 });

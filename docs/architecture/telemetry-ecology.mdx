@@ -41,14 +41,15 @@ Instead, your CMS generates a unique **Installation ID** by hashing your private
 
 ### Data Collected
 
-| Field           | Description            | Purpose                                         |
-| :-------------- | :--------------------- | :---------------------------------------------- |
-| **Version**     | `0.5.0`                | Alerting for outdated/vulnerable versions.      |
-| **Node.js**     | `v24.12.0`             | Determining minimal supported runtimes.         |
-| **Environment** | `production`           | Separating test data from real usage.           |
-| **Widgets**     | `['seo']`              | Understanding which widgets are most popular.   |
-| **Metrics**     | `{ users: 15, ... }`   | Understanding scale (SaaS vs Enterprise usage). |
-| **System**      | `{ cpus: 8, ram: 32 }` | Hardware profiling for BSL 1.1 enforcement.     |
+| Field           | Description               | Purpose                                              |
+| :-------------- | :------------------------ | :--------------------------------------------------- |
+| **Version**     | `0.5.0`                   | Alerting for outdated/vulnerable versions.           |
+| **Node.js**     | `v24.12.0`                | Determining minimal supported runtimes.              |
+| **Environment** | `production`              | Separating test data from real usage.                |
+| **Widgets**     | `['weather', 'chart']`    | Understanding which widgets are most popular.        |
+| **Location**    | `{ city: "Berlin", ... }` | Datacenter clustering detection for BSL enforcement. |
+| **Metrics**     | `{ users: 15, ... }`      | Understanding scale (SaaS vs Enterprise usage).      |
+| **System**      | `{ cpus: 8, ram: 32 }`    | Hardware profiling for BSL 1.1 enforcement.          |
 
 ## 1.5 Security Measures (Anti-Abuse)
 
@@ -84,7 +85,16 @@ SVELTYCMS_TELEMETRY=false
 	"environment": "production",
 	"installation_id": "sha256_hash_of_secret",
 	"db_type": "mongodb",
-	"country": "DE",
+	"location": {
+		"country": "Germany",
+		"country_code": "DE",
+		"region": "North Rhine-Westphalia",
+		"city": "Cologne",
+		"latitude": 50.9375,
+		"longitude": 6.9603,
+		"isp": "Hetzner Online GmbH",
+		"org": "Hetzner Cloud"
+	},
 	"metrics": {
 		"users": 150,
 		"collections": 12,
