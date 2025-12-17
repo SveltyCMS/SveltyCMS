@@ -49,7 +49,7 @@ beforeAll(async () => {
 });
 
 describe('Dashboard API - Health Endpoint', () => {
-	it('should return system health status', async () => {
+	test('should return system health status', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/health`, {
 			headers: { Cookie: authCookie }
 		});
@@ -70,7 +70,7 @@ describe('Dashboard API - Health Endpoint', () => {
 		expect(data.uptime).toBeGreaterThanOrEqual(0);
 	});
 
-	it('should return 200 for READY or DEGRADED states', async () => {
+	test('should return 200 for READY or DEGRADED states', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/health`, {
 			headers: { Cookie: authCookie }
 		});
@@ -84,7 +84,7 @@ describe('Dashboard API - Health Endpoint', () => {
 		}
 	});
 
-	it('should include component health details', async () => {
+	test('should include component health details', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/health`, {
 			headers: { Cookie: authCookie }
 		});
@@ -104,7 +104,7 @@ describe('Dashboard API - Health Endpoint', () => {
 });
 
 describe('Dashboard API - Metrics Endpoint', () => {
-	it('should return basic metrics', async () => {
+	test('should return basic metrics', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/metrics`, {
 			headers: { Cookie: authCookie }
 		});
@@ -118,7 +118,7 @@ describe('Dashboard API - Metrics Endpoint', () => {
 		expect(data).toHaveProperty('sessions');
 	});
 
-	it('should return detailed metrics when requested', async () => {
+	test('should return detailed metrics when requested', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/metrics?detailed=true`, {
 			headers: { Cookie: authCookie }
 		});
@@ -136,7 +136,7 @@ describe('Dashboard API - Metrics Endpoint', () => {
 		expect(typeof data.system.uptime).toBe('number');
 	});
 
-	it('should have valid metric structure', async () => {
+	test('should have valid metric structure', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/metrics`, {
 			headers: { Cookie: authCookie }
 		});
@@ -151,7 +151,7 @@ describe('Dashboard API - Metrics Endpoint', () => {
 });
 
 describe('Dashboard API - System Info Endpoint', () => {
-	it('should return all system info by default', async () => {
+	test('should return all system info by default', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/systemInfo`, {
 			headers: { Cookie: authCookie }
 		});
@@ -165,7 +165,7 @@ describe('Dashboard API - System Info Endpoint', () => {
 		expect(data).toHaveProperty('osInfo');
 	});
 
-	it('should return only CPU info when type=cpu', async () => {
+	test('should return only CPU info when type=cpu', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/systemInfo?type=cpu`, {
 			headers: { Cookie: authCookie }
 		});
@@ -178,7 +178,7 @@ describe('Dashboard API - System Info Endpoint', () => {
 		expect(data).not.toHaveProperty('memoryInfo');
 	});
 
-	it('should return only memory info when type=memory', async () => {
+	test('should return only memory info when type=memory', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/systemInfo?type=memory`, {
 			headers: { Cookie: authCookie }
 		});
@@ -191,7 +191,7 @@ describe('Dashboard API - System Info Endpoint', () => {
 		expect(data.memoryInfo).toHaveProperty('total');
 	});
 
-	it('should return only disk info when type=disk', async () => {
+	test('should return only disk info when type=disk', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/systemInfo?type=disk`, {
 			headers: { Cookie: authCookie }
 		});
@@ -205,7 +205,7 @@ describe('Dashboard API - System Info Endpoint', () => {
 		expect(data.diskInfo.root).toHaveProperty('usedGb');
 	});
 
-	it('should have valid CPU info structure', async () => {
+	test('should have valid CPU info structure', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/systemInfo?type=cpu`, {
 			headers: { Cookie: authCookie }
 		});
@@ -218,14 +218,14 @@ describe('Dashboard API - System Info Endpoint', () => {
 		expect(typeof data.cpuInfo.cores.count).toBe('number');
 	});
 
-	it('should require authentication', async () => {
+	test('should require authentication', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/systemInfo`);
 		expect(response.status).toBe(401);
 	});
 });
 
 describe('Dashboard API - Logs Endpoint', () => {
-	it('should return paginated logs', async () => {
+	test('should return paginated logs', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/logs?limit=10&page=1`, {
 			headers: { Cookie: authCookie }
 		});
@@ -241,7 +241,7 @@ describe('Dashboard API - Logs Endpoint', () => {
 		expect(data.page).toBe(1);
 	});
 
-	it('should filter logs by level', async () => {
+	test('should filter logs by level', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/logs?level=error&limit=10`, {
 			headers: { Cookie: authCookie }
 		});
@@ -256,7 +256,7 @@ describe('Dashboard API - Logs Endpoint', () => {
 		});
 	});
 
-	it('should support search parameter', async () => {
+	test('should support search parameter', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/logs?search=database&limit=10`, {
 			headers: { Cookie: authCookie }
 		});
@@ -273,7 +273,7 @@ describe('Dashboard API - Logs Endpoint', () => {
 		}
 	});
 
-	it('should have ANSI color support in log messages', async () => {
+	test('should have ANSI color support in log messages', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/logs?limit=5`, {
 			headers: { Cookie: authCookie }
 		});
@@ -288,7 +288,7 @@ describe('Dashboard API - Logs Endpoint', () => {
 		});
 	});
 
-	it('should validate limit parameter', async () => {
+	test('should validate limit parameter', async () => {
 		// Limit > 100 should be rejected
 		const response = await fetch(`${BASE_URL}/api/dashboard/logs?limit=200`, {
 			headers: { Cookie: authCookie }
@@ -299,7 +299,7 @@ describe('Dashboard API - Logs Endpoint', () => {
 });
 
 describe('Dashboard API - Last 5 Content Endpoint', () => {
-	it('should return recent content items', async () => {
+	test('should return recent content items', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/last5Content`, {
 			headers: { Cookie: authCookie }
 		});
@@ -311,7 +311,7 @@ describe('Dashboard API - Last 5 Content Endpoint', () => {
 		expect(data.length).toBeLessThanOrEqual(5);
 	});
 
-	it('should have valid content item structure', async () => {
+	test('should have valid content item structure', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/last5Content`, {
 			headers: { Cookie: authCookie }
 		});
@@ -329,7 +329,7 @@ describe('Dashboard API - Last 5 Content Endpoint', () => {
 		}
 	});
 
-	it('should respect custom limit parameter', async () => {
+	test('should respect custom limit parameter', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/last5Content?limit=3`, {
 			headers: { Cookie: authCookie }
 		});
@@ -341,14 +341,14 @@ describe('Dashboard API - Last 5 Content Endpoint', () => {
 		expect(data.length).toBeLessThanOrEqual(3);
 	});
 
-	it('should require authentication', async () => {
+	test('should require authentication', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/last5Content`);
 		expect(response.status).toBe(401);
 	});
 });
 
 describe('Dashboard API - Last 5 Media Endpoint', () => {
-	it('should return recent media files', async () => {
+	test('should return recent media files', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/last5media`, {
 			headers: { Cookie: authCookie }
 		});
@@ -359,7 +359,7 @@ describe('Dashboard API - Last 5 Media Endpoint', () => {
 		expect(Array.isArray(data)).toBe(true);
 	});
 
-	it('should have valid media item structure', async () => {
+	test('should have valid media item structure', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/last5media`, {
 			headers: { Cookie: authCookie }
 		});
@@ -377,7 +377,7 @@ describe('Dashboard API - Last 5 Media Endpoint', () => {
 		}
 	});
 
-	it('should return empty array when no media exists', async () => {
+	test('should return empty array when no media exists', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/last5media`, {
 			headers: { Cookie: authCookie }
 		});
@@ -388,7 +388,7 @@ describe('Dashboard API - Last 5 Media Endpoint', () => {
 });
 
 describe('Dashboard API - Online Users Endpoint', () => {
-	it('should return online users list', async () => {
+	test('should return online users list', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/online_user`, {
 			headers: { Cookie: authCookie }
 		});
@@ -400,7 +400,7 @@ describe('Dashboard API - Online Users Endpoint', () => {
 		expect(Array.isArray(data.onlineUsers)).toBe(true);
 	});
 
-	it('should have valid online user structure', async () => {
+	test('should have valid online user structure', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/online_user`, {
 			headers: { Cookie: authCookie }
 		});
@@ -417,7 +417,7 @@ describe('Dashboard API - Online Users Endpoint', () => {
 		}
 	});
 
-	it('should include current user in online list', async () => {
+	test('should include current user in online list', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/online_user`, {
 			headers: { Cookie: authCookie }
 		});
@@ -428,7 +428,7 @@ describe('Dashboard API - Online Users Endpoint', () => {
 		expect(data.onlineUsers.length).toBeGreaterThanOrEqual(1);
 	});
 
-	it('should sort users by online time (longest first)', async () => {
+	test('should sort users by online time (longest first)', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/online_user`, {
 			headers: { Cookie: authCookie }
 		});
@@ -444,7 +444,7 @@ describe('Dashboard API - Online Users Endpoint', () => {
 });
 
 describe('Dashboard API - System Messages Endpoint', () => {
-	it('should return system messages', async () => {
+	test('should return system messages', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/systemMessages`, {
 			headers: { Cookie: authCookie }
 		});
@@ -455,7 +455,7 @@ describe('Dashboard API - System Messages Endpoint', () => {
 		expect(Array.isArray(data)).toBe(true);
 	});
 
-	it('should have valid message structure', async () => {
+	test('should have valid message structure', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/systemMessages`, {
 			headers: { Cookie: authCookie }
 		});
@@ -474,7 +474,7 @@ describe('Dashboard API - System Messages Endpoint', () => {
 		}
 	});
 
-	it('should respect limit parameter', async () => {
+	test('should respect limit parameter', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/systemMessages?limit=3`, {
 			headers: { Cookie: authCookie }
 		});
@@ -484,7 +484,7 @@ describe('Dashboard API - System Messages Endpoint', () => {
 		expect(data.length).toBeLessThanOrEqual(3);
 	});
 
-	it('should return default message when no logs exist', async () => {
+	test('should return default message when no logs exist', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/systemMessages?limit=100`, {
 			headers: { Cookie: authCookie }
 		});
@@ -497,7 +497,7 @@ describe('Dashboard API - System Messages Endpoint', () => {
 });
 
 describe('Dashboard API - Cache Metrics Endpoint', () => {
-	it('should return cache metrics', async () => {
+	test('should return cache metrics', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/cache-metrics`, {
 			headers: { Cookie: authCookie }
 		});
@@ -511,7 +511,7 @@ describe('Dashboard API - Cache Metrics Endpoint', () => {
 		expect(data).toHaveProperty('timestamp');
 	});
 
-	it('should have valid overall metrics structure', async () => {
+	test('should have valid overall metrics structure', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/cache-metrics`, {
 			headers: { Cookie: authCookie }
 		});
@@ -528,7 +528,7 @@ describe('Dashboard API - Cache Metrics Endpoint', () => {
 		expect(typeof data.overall.hitRate).toBe('number');
 	});
 
-	it('should include category breakdown', async () => {
+	test('should include category breakdown', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/cache-metrics`, {
 			headers: { Cookie: authCookie }
 		});
@@ -546,7 +546,7 @@ describe('Dashboard API - Cache Metrics Endpoint', () => {
 		});
 	});
 
-	it('should include recent misses', async () => {
+	test('should include recent misses', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/cache-metrics`, {
 			headers: { Cookie: authCookie }
 		});
@@ -557,7 +557,7 @@ describe('Dashboard API - Cache Metrics Endpoint', () => {
 		expect(data.recentMisses.length).toBeLessThanOrEqual(10);
 	});
 
-	it('should calculate hit rate correctly', async () => {
+	test('should calculate hit rate correctly', async () => {
 		const response = await fetch(`${BASE_URL}/api/dashboard/cache-metrics`, {
 			headers: { Cookie: authCookie }
 		});
