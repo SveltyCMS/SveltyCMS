@@ -62,8 +62,8 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 					host: config.host,
 					port: config.port || '27017',
 					database: config.name,
-					hasCredentials,
-					isLocalhost
+					hasCredentials: Boolean(config.password), // Security: Don't log actual password
+					isLocalhost: isLocalhost
 				});
 			}
 
