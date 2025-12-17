@@ -207,8 +207,31 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # --- RUN PLAYWRIGHT BROWSER INSTALLER ---
       - name: Install Playwright Browsers
+        run: bunx playwright install --with-deps
+
+      # Create temporary config/private.ts for build (will be removed before E2E tests)
+      - name: Create Temporary Config for Build
+        run: |
+          echo "📝 Creating temporary config/private.ts for build..."
+          cat > config/private.ts << 'EOF'
+          export default {
+            database: { type: 'mongodb', uri: 'mongodb://localhost:27017/temp' },
+            general: { siteURL: 'http://localhost:4173' }
+          };
+          EOF
+          echo "✅ Created temporary config/private.ts"
+
+      # Build production version for E2E testing
+      - name: Build Production
+        run: bun run build
+
+      # Remove temporary config before E2E tests (tests use fresh setup)
+      - name: Remove Temporary Config
+        run: |
+          echo "🧹 Removing temporary config/private.ts..."
+          rm -f config/private.ts
+          echo "✅ Removed temporary config, ready for E2E tests"
       # Create placeholder config/private.test.ts to ensure runtime config works
       - name: Create placeholder config/private.test.ts
         run: |
