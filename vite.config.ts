@@ -360,7 +360,9 @@ export default defineConfig((): UserConfig => {
 		},
 		ssr: {
 			noExternal: [],
-			external: ['bun:test', 'redis']
+			// Skip build-time analysis of config/private - it's loaded dynamically at runtime
+			// Setup detection happens via filesystem check in handleSetup middleware
+			external: ['bun:test', 'redis', '@config/private', '@config/private.test']
 		},
 		resolve: {
 			alias: {
