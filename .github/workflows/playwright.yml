@@ -160,6 +160,8 @@ jobs:
 
       - name: Run Integration Tests
         run: bun run test:integration
+        env:
+          TEST_MODE: 'true' # Ensures server loads config/private.test.ts instead of config/private.ts
 
   # ------------------------------------------------------------------
   # 3. E2E Tests (Requires Server + MongoDB + Browser)
