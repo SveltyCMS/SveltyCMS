@@ -78,8 +78,15 @@ export async function loadSettingsCache(): Promise<typeof cache> {
 
 	try {
 		const { dbAdapter, getPrivateEnv } = await import('@src/databases/db');
+
+		// Check if database adapter is available (might not be during setup)
 		if (!dbAdapter?.systemPreferences) {
-			throw new Error('Database adapter for systemPreferences is not available.');
+			logger.warn('Database adapter not yet initialized, using empty settings cache');
+			// Return an empty cache but mark it as loaded to prevent repeated warnings
+			cache.loaded = true;
+			cache.loadedAt = Date.now();
+			cache.public.PKG_VERSION = await loadPkgVersion();
+			return cache;
 		}
 
 		// Load both public and private settings in parallel
