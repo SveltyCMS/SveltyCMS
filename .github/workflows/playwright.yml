@@ -126,6 +126,25 @@ jobs:
           EOF
           echo "✅ Created config/private.test.ts"
 
+      # Create temporary config/private.ts for build (will be removed before E2E tests)
+      - name: Create temporary config for build
+        run: |
+          echo "📝 Creating temporary config/private.ts for build..."
+          cat > config/private.ts <<EOF
+          export const privateEnv = {
+            DB_TYPE: '${{ env.DB_TYPE }}',
+            DB_HOST: '${{ env.DB_HOST }}',
+            DB_PORT: ${{ env.DB_PORT }},
+            DB_NAME: '${{ env.DB_NAME }}',
+            DB_USER: '${{ env.DB_USER }}',
+            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
+            JWT_SECRET_KEY: 'test_jwt_secret',
+            ENCRYPTION_KEY: 'test_encryption_key',
+            MULTI_TENANT: false
+          } as const;
+          EOF
+          echo "✅ Created temporary config/private.ts"
+
       # Build production version for faster, optimized testing
       - name: Build Production
         run: bun run build
@@ -217,6 +236,17 @@ jobs:
           echo "⏳ Waiting for server to be ready..."
           bun x wait-on http://localhost:4173 -t 60000
           echo "✅ Preview server is ready!"
+
+      # =================================================================
+      # E2E TESTS: Setup → Seed Users → RBAC → Main Suite
+      # =================================================================
+
+      # Remove temporary config for fresh setup wizard test
+      - name: Clean config for fresh setup test
+        run: |
+          echo "🧹 Removing temporary config/private.ts..."
+          rm -f config/private.ts
+          echo "✅ Cleaned - setup wizard will create real config"
 
       # STEP A: Run the Setup Wizard first to initialize the DB/User
       - name: 🧙‍♂️ Run Setup Wizard Test
