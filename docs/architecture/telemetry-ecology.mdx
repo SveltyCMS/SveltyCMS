@@ -1,7 +1,7 @@
 ---
 path: docs\architecture\telemetry-ecology.mdx
 title: 'Security Updates & Telemetry'
-description: 'How SveltyCMS ensures system security via the Update Check mechanism.'
+description: 'How SveltyCMS ensures system security via the Update Check mechanism, including Rate Limiting and Validation.'
 order: 5
 icon: 'mdi:shield-check'
 author: 'SveltyCMS Team'
@@ -19,29 +19,44 @@ SveltyCMS prioritizes the security of your installation. To achieve this, we use
 
 ## 1. The Security Check Mechanism
 
-SveltyCMS does not "track" you in the traditional sense. Instead, your server periodically asks our central registry: "I am running version X on Node Y. Are there any known security vulnerabilities?"
+SveltyCMS does not "track" you in the traditional sense. Instead, your server periodically asks our central registry via a **Secure, Hashed ID**: "Attributes of this installation (Version X, Node Y). Are there any known vulnerabilities?"
 
 ### The Exchange
 
 This is a mutually beneficial exchange:
 
 - **You Get:** Immediate notification of security patches, vulnerability alerts, and feature updates directly in your Admin Dashboard.
-- **We Get:** Anonymous aggregate data (Version, DB Type, Node Version) to help us prioritize development resources.
+- **We Get:** Anonymous aggregate data (Version, DB Type, Components Used) to help us prioritize development.
 
-### Frequency & Reliability
+### How Identification Works (Privacy First)
 
-The system is designed to be **unobtrusive and robust**:
+We do **NOT** track your IP address as an identifier.
+We do **NOT** read your content.
 
-- **Check Interval:** Once every **12 hours**.
-- **Failure Handling:** If the update server is unreachable, the system **caches the failure timestamp** and waits another 12 hours before retrying. This prevents your server from "spamming" connection attempts or slowing down page loads.
-- **Heartbeat:** A lightweight "heartbeat" signal is sent during system startup (`handleSystemState`) to register the instance's health status without blocking the boot process.
+Instead, your CMS generates a unique **Installation ID** by hashing your private `JWT_SECRET_KEY`.
 
-### "Security Status: Unknown"
+- **We see:** `a3f0..., 7b29...` (One-way hash).
+- **We NEVER see:** Your actual specific key or domain ownership details unless publicly inferable.
+- This ensures that if you move your site to a new server/IP, your history remains consistent, but unauthorized users cannot spoof your ID without your secret key.
 
-If you disable this system, your Admin Dashboard will display a "Security Status: Unknown" warning.
+### Data Collected
 
-- We cannot alert you to critical vulnerabilities.
-- You are responsible for manually checking GitHub releases for security patches.
+| Field           | Description            | Purpose                                         |
+| :-------------- | :--------------------- | :---------------------------------------------- |
+| **Version**     | `0.5.0`                | Alerting for outdated/vulnerable versions.      |
+| **Node.js**     | `v24.12.0`             | Determining minimal supported runtimes.         |
+| **Environment** | `production`           | Separating test data from real usage.           |
+| **Widgets**     | `['seo']`              | Understanding which widgets are most popular.   |
+| **Metrics**     | `{ users: 15, ... }`   | Understanding scale (SaaS vs Enterprise usage). |
+| **System**      | `{ cpus: 8, ram: 32 }` | Hardware profiling for BSL 1.1 enforcement.     |
+
+## 1.5 Security Measures (Anti-Abuse)
+
+To protect the integrity of the data and availability of the service:
+
+- **Rate Limiting**: Each IP address is limited to **1 check per 12 hours** (enforced by client and server).
+- **Payload Validation**: Strict checking of data types and lengths. Malformed JSON or over-sized payloads are rejected (400 Bad Request).
+- **IP Anonymization**: IP addresses are hashed immediately and never stored in plain text.
 
 ## 2. Privacy & Opt-Out
 
@@ -50,16 +65,43 @@ You retain full control. If you operate in a high-security air-gapped environmen
 ### Environment Variable (Hard Disable)
 
 ```bash
-SVELTY_TELEMETRY_DISABLED=true
+SVELTYCMS_TELEMETRY=false
 ```
 
-### Admin Settings (Soft Disable)
+## 3. Server Implementation (Tech Spec)
 
-Navigate to **Settings → Licensing & Compliance** and toggle "Disable Telemetry".
+### Endpoint
 
-> **Note:** Disabling this service will turn off the automated security badge in your footer.
+- **URL:** `https://telemetry.sveltycms.com/api/check-update`
+- **Method:** `POST`
 
-## 3. Fair Source Licensing (BSL 1.1)
+### Latest Payload Structure
+
+```json
+{
+	"current_version": "0.6.0",
+	"node_version": "v20.10.0",
+	"environment": "production",
+	"installation_id": "sha256_hash_of_secret",
+	"db_type": "mongodb",
+	"country": "DE",
+	"metrics": {
+		"users": 150,
+		"collections": 12,
+		"roles": 5
+	},
+	"system": {
+		"cpu_count": 8,
+		"cpu_model": "Intel(R) Core(TM) i7...",
+		"total_memory_gb": 32,
+		"os_type": "Linux",
+		"os_arch": "x64"
+	},
+	"widgets": "[\"Seo\"]"
+}
+```
+
+## 4. Fair Source Licensing (BSL 1.1)
 
 This telemetry also helps us understand the "Economy" of our ecosystem to enforce our Fair Source license.
 

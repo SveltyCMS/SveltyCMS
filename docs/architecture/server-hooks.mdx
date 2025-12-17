@@ -40,20 +40,28 @@ The middleware architecture is built on **core enterprise principles**:
 
 ## Current Middleware Sequence
 
-```typescript
-// src/hooks.server.ts
+// src/hooks.server.ts (simplified)
+if (!building) {
+// Background Service: Telemetry
+// Runs independently of requests (Singleton pattern, 12h interval)
+import('@src/services/TelemetryService').then(({ telemetryService }) => {
+// ... startup initialization ...
+});
+}
+
 const middleware: Handle[] = [
-	handleStaticAssetCaching, // 1. Static assets FIRST (skip all processing)
-	handleSystemState, // 2. System readiness & state validation
-	handleRateLimit, // 3. Rate limiting (abuse prevention)
-	handleFirewall, // 4. Application firewall (threat detection)
-	handleSetup, // 5. Setup completion enforcement
-	handleLocale, // 6. Language preferences (i18n)
-	handleTheme, // 7. Theme management (SSR)
-	handleAuthentication, // 8. Session validation & multi-tenancy
-	handleAuthorization, // 9. Role-based access control
-	// handleApiRequests, // 10. Optional: API caching (commented out)
-	addSecurityHeaders // 11. Security headers (defense in depth)
+handleStaticAssetCaching, // 1. Static assets FIRST (skip all processing)
+handleSystemState, // 2. System readiness & state validation
+handleRateLimit, // 3. Rate limiting (abuse prevention)
+handleFirewall, // 4. Application firewall (threat detection)
+handleSetup, // 5. Setup completion enforcement
+handleLocale, // 6. Language preferences (i18n)
+handleTheme, // 7. Theme management (SSR)
+handleAuthentication, // 8. Session validation & multi-tenancy
+handleAuthorization, // 9. Role-based access control
+// handleApiRequests, // 10. Optional: API caching (commented out)
+handleTokenResolution, // 11. Token resolution
+addSecurityHeaders // 12. Security headers (defense in depth)
 ];
 
 export const handle: Handle = sequence(...middleware);
@@ -65,9 +73,10 @@ SveltyCMS includes a minimal Heartbeat System (Telemetry) to help the core team 
 
 ### How it works
 
-1.  **Non-Blocking:** The telemetry runs asynchronously in the background. It never blocks a user request.
-2.  **Frequency:** It sends a heartbeat once every 24 hours per server instance.
-3.  **Data Collected:**
+1.  **Non-Blocking:** The telemetry runs as a background process initialized in `hooks.server.ts` (outside the request pipeline).
+2.  **Frequency:** It sends a heartbeat once every 12 hours per server instance.
+3.  **Efficiency:** Uses Singleton patterns to preventing caching issues during Hot Module Replacement (HMR).
+4.  **Data Collected:**
     - SveltyCMS Version (e.g., 1.0.0)
     - Hostname / Domain (e.g., cms.example.com)
     - Environment (Development vs Production)

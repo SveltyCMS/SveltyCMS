@@ -1,3 +1,0 @@
-Loading svelte-check in workspace: d:\SveltyCMS
-Getting Svelte diagnostics...
-

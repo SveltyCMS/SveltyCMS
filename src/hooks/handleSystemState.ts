@@ -21,6 +21,7 @@ let initializationAttempted = false;
 
 export const handleSystemState: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
+	const setupComplete = isSetupComplete();
 
 	// Debug: Log TEST_MODE value
 	// if (!pathname.startsWith('/static') && !pathname.startsWith('/assets')) {
@@ -37,20 +38,28 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 		logger.debug(`[handleSystemState] Request to ${pathname}, system state: ${systemState.overallState}`);
 	}
 
-	//  Setup Mode Detection - Prevents retry loops and eliminates 15+ second delay
+	// Setup Mode Detection - Prevents retry loops and eliminates 15+ second delay
 	// If the system is IDLE, check if setup is complete before attempting initialization
-	if (systemState.overallState === 'IDLE' && !initializationAttempted) {
-		if (isSetupComplete()) {
-			// Setup is complete - trigger normal initialization
-			initializationAttempted = true;
-			logger.info('System is IDLE and setup is complete. Awaiting initialization...');
-			await dbInitPromise;
-			systemState = getSystemState(); // Re-fetch state after initialization
-			logger.info(`Initialization complete. System state is now: ${systemState.overallState}`);
+	if (systemState.overallState === 'IDLE') {
+		if (!initializationAttempted) {
+			if (setupComplete) {
+				// Setup is complete - trigger normal initialization
+				initializationAttempted = true;
+				logger.info('System is IDLE and setup is complete. Awaiting initialization...');
+				await dbInitPromise;
+				systemState = getSystemState(); // Re-fetch state after initialization
+				logger.info(`Initialization complete. System state is now: ${systemState.overallState}`);
+			} else {
+				// Setup is NOT complete - skip initialization to prevent retry loops
+				logger.info('System is IDLE and setup is not complete. Skipping DB initialization.');
+				initializationAttempted = true;
+			}
 		} else {
-			// Setup is NOT complete - skip initialization to prevent retry loops
-			logger.info('System is IDLE and setup is not complete. Skipping DB initialization.');
-			initializationAttempted = true;
+			// Race condition handling: Initialization was triggered by another request but state hasn't updated yet
+			// or we are waiting for it to complete.
+			logger.debug(`[handleSystemState] Request to ${pathname} hit IDLE state with initialization in progress. Waiting...`);
+			await dbInitPromise;
+			systemState = getSystemState();
 		}
 	}
 
@@ -75,43 +84,12 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	const isReady = isSystemReady(); // This should be true for 'READY' or 'DEGRADED' states
-
-	// --- State: FAILED ---
-	// If a critical service has failed, block all requests except health checks
-	// EXCEPTION: In TEST_MODE, allow requests to proceed for testing purposes
-	if (systemState.overallState === 'FAILED') {
-		// In TEST_MODE, log the failure but allow requests to proceed
-		if (process.env.TEST_MODE === 'true') {
-			const lastFailedTransition = systemState.performanceMetrics.stateTransitions
-				.slice()
-				.reverse()
-				.find((t) => t.to === 'FAILED');
-			logger.warn(`[TEST_MODE] System is in FAILED state, but allowing request to ${pathname}. Reason: ${lastFailedTransition?.reason || 'Unknown'}`);
-			return resolve(event);
-		}
-
-		// Allow health checks and browser/tool requests even when system is FAILED
-		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/.well-known', '/_'];
-		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix));
-		if (isAllowedRoute) {
-			logger.trace(`Allowing health check/tool request to ${pathname} despite FAILED state.`);
-			return resolve(event);
-		}
-
-		const lastFailedTransition = systemState.performanceMetrics.stateTransitions
-			.slice()
-			.reverse()
-			.find((t) => t.to === 'FAILED');
-		logger.fatal(`Request blocked: System is in a FAILED state. Reason: ${lastFailedTransition?.reason || 'Unknown'}`);
-		throw error(503, 'Service Unavailable: A critical system component has failed. Please contact an administrator.');
-	}
-
-	// --- State: INITIALIZING or IDLE ---
+	// --- State: INITIALIZING ---
 	// If the system is initializing, wait for it to complete (unless it's an allowed route)
 	if (systemState.overallState === 'INITIALIZING') {
 		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/api/setup', '/login', '/.well-known', '/_'];
-		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === '/';
+		// Allow / only if we are in setup mode (no config). If config exists, wait for init.
+		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix)) || (!setupComplete && pathname === '/');
 
 		if (isAllowedRoute) {
 			logger.trace(`Allowing request to ${pathname} during INITIALIZING state.`);
@@ -133,9 +111,11 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 		// System is now ready, continue processing
 	}
 
-	// --- State: IDLE (Setup Mode) ---
+	// --- State: IDLE (Setup Mode) / Final Check ---
 	// If the system is not yet ready and not initializing, only allow essential requests to pass.
-	if (!isReady) {
+	// Checks against the LATEST systemState (which may have been updated above)
+	const isNowReady = systemState.overallState === 'READY' || systemState.overallState === 'DEGRADED';
+	if (!isNowReady) {
 		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/api/setup'];
 		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix));
 
@@ -167,17 +147,6 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 			// metricsService.increment('degradedRequests'); // For measurement - TODO: implement this method
 			logger.warn(`Request to ${pathname} is proceeding in a DEGRADED state. Unhealthy services: ${degradedServices.join(', ')}`);
 		}
-	}
-
-	// --- Telemetry Heartbeat ---
-	// Fire-and-forget check (non-blocking)
-	// The service handles caching and intervals (12h) internally
-	if (dbAdapter) {
-		import('@src/services/TelemetryService').then(({ telemetryService }) => {
-			telemetryService.checkUpdateStatus().catch(() => {
-				// Silently fail - telemetry should never block the app
-			});
-		});
 	}
 
 	return resolve(event);

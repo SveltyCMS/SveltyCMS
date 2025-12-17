@@ -36,7 +36,10 @@ SveltyCMS instances send the following JSON payload:
 	"node_version": "v20.10.0", // Node.js runtime version
 	"environment": "production", // 'development' or 'production'
 	"os": "linux", // Operating system platform
-	"license": "BSL-1.1" // License type
+	"installation_id": "8f9d...", // SHA-256 Hash of JWT Secret
+	"db_type": "mongodb", // Database type
+	"country": "DE", // Country code (resolved client-side)
+	"widgets": "[\"weather-widget\"]" // Custom widgets only
 }
 ```
 
@@ -56,6 +59,9 @@ The server must return a JSON response indicating the latest version and any sec
 
 **Error (500/503):**
 If the server fails, the client will cache the failure and retry after 12 hours.
+
+**Rate Limit (429):**
+If the server returns 429, the client will interpret this as a "soft backoff" and sleep for 12 hours, logging only a warning.
 
 ## 2. Implementation Logic
 

@@ -346,6 +346,9 @@ export const defaultPrivateSettings: Array<{ key: string; value: unknown; descri
 	{ key: 'USE_2FA', value: false, description: 'Enable Two-Factor Authentication globally' },
 	{ key: 'TWO_FACTOR_AUTH_BACKUP_CODES_COUNT', value: 10, description: 'Backup codes count for 2FA (1-50)' },
 
+	// Telemetry (Privacy)
+	{ key: 'SVELTYCMS_TELEMETRY', value: true, description: 'Enable SveltyCMS telemetry tracking' },
+
 	// SMTP config
 	{ key: 'SMTP_HOST', value: '', description: 'SMTP server host for sending emails' },
 	{ key: 'SMTP_PORT', value: 587, description: 'SMTP server port' },

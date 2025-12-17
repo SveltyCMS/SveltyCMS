@@ -9,73 +9,197 @@
  *
  * ### Security
  * - Fail silently - telemetry should never break the app
+ * - Uses Hashed Secret for Unique ID (Never sends raw secret)
  */
 import { getPrivateSetting } from '@src/services/settingsService';
 import pkg from '../../package.json';
+import { createHash } from 'node:crypto';
+import os from 'node:os'; // Added for server metrics
+import { getWidgetsByType } from '@src/widgets/proxy';
+import { logger } from '@utils/logger';
 
-// In-memory cache for update checks
-// let cachedUpdateInfo: any = null;
-// let lastCheckTime = 0;
-// const CHECK_INTERVAL = 1000 * 60 * 60 * 12; // 12 hours
+// In-memory cache for update checks, backed by globalThis to survive HMR in dev
+const globalWithCache = globalThis as typeof globalThis & {
+	__SVELTY_TELEMETRY_CACHE__?: any;
+	__SVELTY_TELEMETRY_LAST_CHECK__?: number;
+};
+
+let cachedUpdateInfo: any = globalWithCache.__SVELTY_TELEMETRY_CACHE__ || null;
+let lastCheckTime = globalWithCache.__SVELTY_TELEMETRY_LAST_CHECK__ || 0;
+const CHECK_INTERVAL = 1000 * 60 * 60 * 12; // 12 hours
+let activeCheckPromise: Promise<any> | null = null; // Deduping promise
 
 export const telemetryService = {
 	async checkUpdateStatus() {
 		// Check opt-out settings
-		const telemetryDisabled = await getPrivateSetting('SVELTY_TELEMETRY_DISABLED');
-		const doNotTrack = await getPrivateSetting('DO_NOT_TRACK');
+		// Default to TRUE (enabled) if not set or if set to true. Only fully disable if explicitly set to false.
+		const isTelemetryEnabled = (await getPrivateSetting('SVELTYCMS_TELEMETRY')) !== false;
 
-		if (telemetryDisabled || doNotTrack) {
+		if (!isTelemetryEnabled) {
 			return { status: 'disabled', latest: null, security_issue: false };
 		}
 
-		// ✅ Keep disabled until endpoint is ready
-		return {
-			status: 'disabled',
-			latest: pkg.version,
-			security_issue: false,
-			message: 'Telemetry endpoint not yet available'
-		};
-
-		/* Uncomment when telemetry.sveltycms.com is live:
-		
 		const now = Date.now();
 		if (cachedUpdateInfo && now - lastCheckTime < CHECK_INTERVAL) {
 			return cachedUpdateInfo;
 		}
 
+		// Return existing promise if a check is already running (deduplication)
+		if (activeCheckPromise) {
+			logger.debug('[Telemetry] Reusing active check promise');
+			return activeCheckPromise;
+		}
+
+		logger.debug('[Telemetry] checkUpdateStatus called (Not Cached)');
+
+		// Calculate Unique ID securely
+		const jwtSecret = (await getPrivateSetting('JWT_SECRET_KEY')) || 'fallback_secret';
+		const installationId = createHash('sha256').update(jwtSecret).digest('hex');
+
+		// Real widget detection (Custom Only)
+		const widgets = getWidgetsByType('custom');
+
+		// Features detection (Disabled for now as per requirement)
+		const features: string[] = [];
+
+		const dbType = await getPrivateSetting('DB_TYPE');
+
+		// Attempt to resolve location client-side securely via HTTPS
+		// distinct from server-side lookup, ensuring location is accurate for the machine running the code
+		let country = undefined;
+		try {
+			const geoRes = await fetch('https://api.country.is', {
+				headers: { 'User-Agent': `SveltyCMS/${pkg.version}` }
+			});
+			if (geoRes.ok) {
+				const geoData = await geoRes.json();
+				country = geoData.country;
+				country = geoData.country;
+				logger.info(`[Telemetry] Resolved Client-Side Location: ${country}`);
+			}
+		} catch (e) {
+			logger.warn('[Telemetry] Could not resolve client-side location:', e);
+		}
+
+		// Usage Metrics (BSL 1.1 Enforcement Support)
+		let userCount = 0;
+		let collectionCount = 0;
+		let roleCount = 0;
+
+		try {
+			// Lazy load DB adapter and ContentManager to avoid circular deps
+			const { dbAdapter } = await import('@src/databases/db');
+
+			if (dbAdapter && dbAdapter.auth) {
+				// Get User Count
+				const userCountResult = await dbAdapter.auth.getUserCount();
+				if (userCountResult.success) {
+					userCount = userCountResult.data;
+				}
+
+				// Get Role Count (proxy for complexity)
+				roleCount = (await dbAdapter.auth.getAllRoles()).length;
+			}
+
+			// Get Collection Count from ContentManager
+			const { ContentManager } = await import('@src/content/ContentManager');
+			const collections = await ContentManager.getInstance().getCollections();
+			collectionCount = collections.length;
+		} catch (err) {
+			logger.debug('[Telemetry] Failed to collect detailed metrics:', err);
+			// Fail silently for metrics, don't crash the telemetry check
+		}
+
+		// Gather hardware metrics securely
+		const cpus = os.cpus();
+		const systemInfo = {
+			cpu_count: cpus.length,
+			cpu_model: cpus.length > 0 ? cpus[0].model : 'unknown',
+			total_memory_gb: Math.round(os.totalmem() / 1024 / 1024 / 1024),
+			free_memory_gb: Math.round(os.freemem() / 1024 / 1024 / 1024),
+			os_type: os.type(),
+			os_release: os.release(),
+			os_arch: os.arch()
+		};
+
 		const payload = {
 			current_version: pkg.version,
 			node_version: process.version,
-			environment: dev ? 'development' : 'production',
-			os: process.platform,
-			license: 'BSL-1.1'
+			environment: process.env.NODE_ENV || 'production',
+			installation_id: installationId,
+			db_type: dbType, // Added as requested
+			country, // Explicitly send country if resolved
+			// Usage Metrics
+			metrics: {
+				users: userCount,
+				collections: collectionCount,
+				roles: roleCount
+			},
+			// Hardware Metrics
+			system: systemInfo,
+			widgets: JSON.stringify(widgets)
+			// features: JSON.stringify(features) // TODO: Add features
 		};
 
-		try {
-			const response = await fetch('https://telemetry.sveltycms.com/api/check-update', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			});
+		// Start the check and assign to promise variable
+		activeCheckPromise = (async () => {
+			try {
+				logger.debug(`[Telemetry] Sending heartbeat sveltycms.com`);
+				logger.debug(`[Telemetry] Payload:`, payload);
 
-			if (!response.ok) throw new Error('Update server unreachable');
+				const response = await fetch('https://telemetry.sveltycms.com/api/check-update', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(payload)
+				});
 
-			const data = await response.json();
+				if (response.status === 429) {
+					logger.warn('[Telemetry] Rate limit exceeded (429). Skipping check for 12 hours.');
+					cachedUpdateInfo = { status: 'rate_limited', latest: pkg.version, security_issue: false };
+					lastCheckTime = now;
+					// Update global for HMR persistence
+					globalWithCache.__SVELTY_TELEMETRY_CACHE__ = cachedUpdateInfo;
+					globalWithCache.__SVELTY_TELEMETRY_LAST_CHECK__ = lastCheckTime;
+					return cachedUpdateInfo;
+				}
 
-			cachedUpdateInfo = {
-				status: 'active',
-				latest: data.latest_version,
-				security_issue: data.has_vulnerability,
-				message: data.message
-			};
-			lastCheckTime = now;
+				if (!response.ok) throw new Error(`Update server unreachable: ${response.status}`);
 
-			return cachedUpdateInfo;
-		} catch (err) {
-			console.error('[Telemetry] Security check failed:', err);
-			lastCheckTime = Date.now();
-			return { status: 'error', latest: pkg.version, security_issue: false };
-		}
-		*/
+				const data = await response.json();
+				logger.debug(`[Telemetry] Response:`, data);
+
+				cachedUpdateInfo = {
+					status: 'active',
+					latest: data.latest_version,
+					security_issue: data.has_vulnerability,
+					message: data.message,
+					telemetry_id: data.telemetry_id
+				};
+				lastCheckTime = now;
+
+				// Update global for HMR persistence
+				globalWithCache.__SVELTY_TELEMETRY_CACHE__ = cachedUpdateInfo;
+				globalWithCache.__SVELTY_TELEMETRY_LAST_CHECK__ = lastCheckTime;
+
+				return cachedUpdateInfo;
+			} catch (err) {
+				logger.error('[Telemetry] Security check failed:', err);
+
+				// Cache the error state to prevent retrying immediately (respect 12h interval even on error)
+				lastCheckTime = Date.now();
+				cachedUpdateInfo = { status: 'error', latest: pkg.version, security_issue: false };
+
+				// Update global for HMR persistence
+				globalWithCache.__SVELTY_TELEMETRY_CACHE__ = cachedUpdateInfo;
+				globalWithCache.__SVELTY_TELEMETRY_LAST_CHECK__ = lastCheckTime;
+
+				return cachedUpdateInfo;
+			} finally {
+				// Clear the promise so next scheduled check can run
+				activeCheckPromise = null;
+			}
+		})();
+
+		return activeCheckPromise;
 	}
 };

@@ -93,6 +93,13 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			// Direct UUID lookup
 			logger.debug(`Loading collection by UUID: \x1b[33m${collection}\x1b[0m`);
 			currentCollection = contentManager.getCollectionById(collection!, tenantId);
+
+			// Redirect to pretty path if available (Prevents UUID -> Path flicker on client)
+			if (currentCollection && currentCollection.path) {
+				const newPath = `/${language}${currentCollection.path}${url.search}`;
+				logger.debug(`Redirecting UUID to canonical path: ${newPath}`);
+				throw redirect(302, newPath);
+			}
 		} else {
 			// Path-based lookup (backward compatibility)
 			const collectionPath = `/${collection}`;
@@ -364,6 +371,12 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 		return returnData;
 	} catch (err) {
+		// If it's a redirect (SvelteKit standard behavior), just rethrow it without logging an error
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		if ((err as any)?.status >= 300 && (err as any)?.status < 400 && (err as any)?.location) {
+			throw err;
+		}
+
 		logger.error('Error loading collection page', {
 			error: err,
 			collection,

@@ -73,6 +73,35 @@ if (!building) {
 	// Inject server-side relation engine into TokenRegistry
 	TokenRegistry.setRelationTokenGenerator(getRelationTokens);
 
+	// Start telemetry heartbeat in background (Singleton pattern to survive HMR)
+	import('@src/services/TelemetryService').then(({ telemetryService }) => {
+		// Define global type for TypeScript
+		const globalWithTelemetry = globalThis as typeof globalThis & {
+			__SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
+		};
+
+		// Prevent duplicate intervals during Hot Module Replacement (HMR)
+		if (globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__) {
+			logger.debug('Reusing existing telemetry interval (HMR detected)');
+			return;
+		}
+
+		logger.info('📡 Initializing Telemetry Service...');
+
+		// Run initial check after a short delay
+		setTimeout(() => {
+			telemetryService.checkUpdateStatus().catch((err) => logger.error('Initial telemetry check failed', err));
+		}, 10000);
+
+		// Schedule periodic checks (12 hours) and store ID in global
+		globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = setInterval(
+			() => {
+				telemetryService.checkUpdateStatus().catch((err) => logger.error('Periodic telemetry check failed', err));
+			},
+			1000 * 60 * 60 * 12
+		);
+	});
+
 	logger.info('✅ DB module loaded. System will initialize on first request via handleSystemState.');
 }
 

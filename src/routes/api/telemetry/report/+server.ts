@@ -1,6 +1,6 @@
 /*
  * @files api/telemetry/report/+server.ts
- * @description Telemetry Report
+ * @description Telemetry Report Proxy
  *
  * ### Features
  * - Admin/Guest Access
@@ -23,14 +23,17 @@ export async function POST({ request }: RequestEvent) {
 	try {
 		const data = await request.json();
 
-		// Forward to telemetry.sveltycms.com when it exists
-		const response = await fetch('https://telemetry.sveltycms.com/api/collect', {
+		// Forward to telemetry.sveltycms.com
+		// Note: Endpoint is now /api/check-update
+		const response = await fetch('https://telemetry.sveltycms.com/api/check-update', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(data)
 		});
 
 		if (!response.ok) {
+			// Log but don't crash
+			console.warn('Telemetry upstream failed:', response.status);
 			throw new Error('Telemetry server unreachable');
 		}
 
