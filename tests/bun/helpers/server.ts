@@ -1,12 +1,16 @@
 /**
  * @file tests/bun/helpers/server.ts
- * @description Core server connectivity utilities. Zero dependencies.
+ * @description Helper utility for integration tests to check server readiness
+ *
+ * Provides a common BASE_URL configuration and server wait function
  */
 
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5173';
+// Use preview server port (4173) by default for CI/CD
+// Environment variable API_BASE_URL or TEST_BASE_URL can override
+export const BASE_URL = process.env.API_BASE_URL || process.env.TEST_BASE_URL || 'http://localhost:4173';
 
 export function getApiBaseUrl(): string {
-	return API_BASE_URL;
+	return BASE_URL;
 }
 
 /**

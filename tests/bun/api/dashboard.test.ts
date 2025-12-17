@@ -32,10 +32,9 @@
  * - GET /api/dashboard/cache-metrics - Cache performance metrics
  */
 
-import { describe, it, expect, beforeAll } from 'bun:test';
+import { describe, test, expect, beforeAll } from 'bun:test';
 import { prepareAuthenticatedContext } from '../helpers/testSetup';
-
-const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:5173';
+import { BASE_URL } from '../helpers/server';
 
 let authCookie: string;
 
