@@ -210,28 +210,14 @@ jobs:
       - name: Install Playwright Browsers
         run: bunx playwright install --with-deps
 
-      # Create temporary config/private.ts for build (will be removed before E2E tests)
-      - name: Create Temporary Config for Build
+      # Ensure fresh state - remove any existing config
+      - name: Clean config for fresh CI run
         run: |
-          echo "📝 Creating temporary config/private.ts for build..."
-          cat > config/private.ts << 'EOF'
-          export default {
-            database: { type: 'mongodb', uri: 'mongodb://localhost:27017/temp' },
-            general: { siteURL: 'http://localhost:4173' }
-          };
-          EOF
-          echo "✅ Created temporary config/private.ts"
-
-      # Build production version for E2E testing
-      - name: Build Production
-        run: bun run build
-
-      # Remove temporary config before E2E tests (tests use fresh setup)
-      - name: Remove Temporary Config
-        run: |
-          echo "🧹 Removing temporary config/private.ts..."
+          echo "🧹 Ensuring fresh state for CI..."
+          rm -rf config/collections
           rm -f config/private.ts
-          echo "✅ Removed temporary config, ready for E2E tests"
+          echo "✅ Cleaned config directory"
+
       # Create placeholder config/private.test.ts to ensure runtime config works
       - name: Create placeholder config/private.test.ts
         run: |
@@ -251,9 +237,34 @@ jobs:
           EOF
           echo "✅ Created config/private.test.ts"
 
-      # Build production version for faster, optimized testing
+      # Create temporary config/private.ts for build (will be removed before E2E tests)
+      - name: Create temporary config for build
+        run: |
+          echo "📝 Creating temporary config/private.ts for build..."
+          cat > config/private.ts <<EOF
+          export const privateEnv = {
+            DB_TYPE: '${{ env.DB_TYPE }}',
+            DB_HOST: '${{ env.DB_HOST }}',
+            DB_PORT: ${{ env.DB_PORT }},
+            DB_NAME: '${{ env.DB_NAME }}',
+            DB_USER: '${{ env.DB_USER }}',
+            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
+            JWT_SECRET_KEY: 'test_jwt_secret',
+            ENCRYPTION_KEY: 'test_encryption_key',
+            MULTI_TENANT: false
+          } as const;
+          EOF
+          echo "✅ Created temporary config/private.ts"
+
+      # Build production version for E2E testing
       - name: Build Production
         run: bun run build
+
+      # Kill any process using port 4173 to prevent conflicts
+      - name: Clean up port 4173
+        run: |
+          echo "🧹 Cleaning up port 4173..."
+          lsof -ti:4173 | xargs kill -9 2>/dev/null || echo "Port 4173 is free"
 
       # --- START PREVIEW SERVER (PORT 4173) ---
       - name: Start Preview Server
