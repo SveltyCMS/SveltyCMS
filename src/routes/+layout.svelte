@@ -2,6 +2,10 @@
  @file src/routes/+layout.svelte
  @component
  **This Svelte component serves as the layout for the entire application**
+
+ ### Features
+ - Paraglide i18n integration
+ - Theme management
  -->
 
 <script lang="ts">
@@ -10,65 +14,117 @@
 	import 'iconify-icon';
 
 	import { page } from '$app/state';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
+	import { browser } from '$app/environment';
 
-	// Initializing Skeleton stores
+	// Skeleton UI
 	import { initializeStores, storePopup } from '@skeletonlabs/skeleton';
-	// Import from Floating UI
 	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
+	import { setGlobalToastStore } from '@utils/toast';
+	import { getToastStore, Toast } from '@skeletonlabs/skeleton';
 
 	// Paraglide locale bridge
 	import { locales as availableLocales, getLocale, setLocale } from '@src/paraglide/runtime';
 	import { systemLanguage } from '@stores/store.svelte';
 
-	// Centralized theme management
+	// Theme management
 	import { themeStore, initializeThemeStore, initializeDarkMode } from '@stores/themeStore.svelte';
 
-	// Toast support
-	import { setGlobalToastStore } from '@utils/toast';
-	import { getToastStore, Toast } from '@skeletonlabs/skeleton';
+	// Components
+	import TokenPicker from '@components/TokenPicker.svelte';
 
-	// Initialize theme and other client-side logic on mount
-	onMount(() => {
-		console.log('[RootLayout] Mounting...');
-		initializeDarkMode();
-	});
+	// Props
+	interface Props {
+		children?: import('svelte').Snippet;
+	}
+	const { children }: Props = $props();
+
+	// ============================================================================
+	// State Management
+	// ============================================================================
 
 	let currentLocale = $state(getLocale());
+	let isMounted = $state(false);
+	let isHydrated = $state(false);
+
+	// ============================================================================
+	// Initialization
+	// ============================================================================
+
+	// Initialize Skeleton stores (safe to call multiple times)
+	initializeStores();
+	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
+	setGlobalToastStore(getToastStore());
+
+	// ============================================================================
+	// Mount Lifecycle
+	// ============================================================================
+
+	onMount(() => {
+		console.log('[RootLayout] Mounting in', browser ? 'browser' : 'server');
+
+		// Wait for hydration to complete before syncing
+		requestAnimationFrame(() => {
+			isHydrated = true;
+			console.log('[RootLayout] Hydration complete');
+		});
+
+		// URL is the source of truth on initial load
+		const urlLocale = getLocale();
+		if (urlLocale && availableLocales.includes(urlLocale as any)) {
+			if (systemLanguage.value !== urlLocale) {
+				console.log(`[RootLayout] Aligning store (${systemLanguage.value}) to URL (${urlLocale})`);
+				systemLanguage.value = urlLocale;
+				currentLocale = urlLocale;
+			}
+		}
+
+		// Initialize dark mode
+		initializeDarkMode();
+
+		isMounted = true;
+		console.log('[RootLayout] Mount complete');
+	});
+
+	// ============================================================================
+	// Reactive Locale Syncing
+	// ============================================================================
+
 	$effect(() => {
+		// Guard: Only sync after hydration is complete
+		if (!isMounted || !isHydrated) return;
+
 		const desired = systemLanguage.value;
-		if (desired && availableLocales.includes(desired as any) && currentLocale !== desired) {
+		const current = untrack(() => currentLocale);
+
+		// Only update if there's an actual change
+		if (desired && availableLocales.includes(desired as any) && current !== desired) {
+			console.log('[RootLayout] Store changed, updating locale:', desired);
+
+			// Update Paraglide locale (handles routing internally)
 			setLocale(desired as any, { reload: false });
 			currentLocale = desired;
 		}
 	});
 
-	// Auto-refresh logic for theme
+	// ============================================================================
+	// Theme Auto-Refresh
+	// ============================================================================
+
 	$effect(() => {
-		if (!themeStore.autoRefreshEnabled) return;
+		if (!themeStore.autoRefreshEnabled || !browser) return;
 
 		const interval = 30 * 60 * 1000; // 30 minutes
 		const intervalId = setInterval(() => {
 			initializeThemeStore().catch(console.error);
 		}, interval);
 
-		return () => {
-			clearInterval(intervalId);
-		};
+		return () => clearInterval(intervalId);
 	});
 
-	initializeStores();
-	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
-	setGlobalToastStore(getToastStore());
-
-	// Props
-	import TokenPicker from '@components/TokenPicker.svelte';
-
-	interface Props {
-		children?: import('svelte').Snippet;
-	}
-
-	const { children }: Props = $props();
+	// ============================================================================
+	// Derived State
+	// ============================================================================
 
 	// Get the site name from data loaded in layout.server.ts
 	const siteName = $derived(page.data.settings?.SITE_NAME || 'SveltyCMS');

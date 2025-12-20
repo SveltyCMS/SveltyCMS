@@ -43,6 +43,7 @@ It is integrated in:
 | Admin email notification on persistent failure    | ✅ Implemented | `databaseFailure.svelte`; notification logic in `DatabaseResilience.ts`         |
 | Connection pool diagnostics                       | ✅ Implemented | API: `/api/database/pool-diagnostics`; Widget: `DatabasePoolDiagnostics.svelte` |
 | Self-healing MongoDB reconnection                 | ✅ Implemented | Mongoose event handlers + `attemptReconnection()`                               |
+| Automatic Driver Installation & Fallback          | ✅ Implemented | `install-driver/+server.ts`; manual command on failure                          |
 | Detailed error logs download                      | ✅ Implemented | API: `/api/logs/download` (admin-only)                                          |
 
 All features above are production-ready. The "Planned Features" section later in this document only lists not-yet-implemented roadmap items (circuit breaker, adaptive backoff, distributed coordination, advanced metrics).
@@ -203,6 +204,17 @@ On persistent failure after all attempts, admins get a detailed email (if SMTP c
 
 - API: `GET /api/logs/download` (admin-only)
 - Params: `type` (`latest|all|archive`), `format` (`text|gzip`), `since`, `level`
+
+### Automatic Driver Installation & Fallback
+
+When a user selects a database that requires a specific driver (e.g., PostgreSQL or MariaDB), SveltyCMS attempts to automatically install the required package using the detected package manager (Bun, npm, pnpm, or Yarn).
+
+If installation fails (e.g., due to permission errors in production), the system provides a **Manual Installation Fallback**:
+
+1. The API detects the failure (e.g., `EACCES`).
+2. It generates the exact installation command based on the environment.
+3. The Setup Wizard displays this command with a "Copy to Clipboard" button.
+4. Users can manually run the command on the server and then retry the connection test.
 
 ---
 

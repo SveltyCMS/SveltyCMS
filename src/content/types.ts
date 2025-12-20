@@ -51,6 +51,8 @@ export interface BaseEntity {
 	createdAt: ISODateString;
 	updatedAt: ISODateString;
 	isDeleted?: boolean; // Soft delete flag
+	deletedAt?: ISODateString; // Timestamp of deletion
+	deletedBy?: string; // User who performed deletion
 }
 
 // Collection Entry - A data record in a collection with common metadata
@@ -99,6 +101,8 @@ export interface ContentNode {
 	createdAt: ISODateString;
 	updatedAt: ISODateString;
 	tenantId?: string; // For multi-tenant support
+	deletedAt?: ISODateString; // Timestamp of deletion
+	deletedBy?: string; // User who performed deletion
 }
 
 // Widget field type definition
@@ -433,4 +437,6 @@ export interface TablePaginationProps {
 	onUpdateRowsPerPage?: (rows: number) => void;
 }
 
+/* AUTOGEN_START: ContentTypes */
 export type ContentTypes = 'Posts' | 'Names' | 'Relation' | 'WidgetTest' | 'Menu';
+/* AUTOGEN_END: ContentTypes */

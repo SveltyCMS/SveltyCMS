@@ -166,7 +166,11 @@ function createSetupStore() {
 		lastTestFingerprint: null as string | null,
 		errorMessage: '',
 		successMessage: '',
-		showDbDetails: false
+		showDbDetails: false,
+		// Seeding status
+		isSeeding: false,
+		seedingProgress: 0,
+		seedingError: null as string | null
 	});
 
 	// --- Validation Logic (Moved from Page) ---
@@ -282,6 +286,7 @@ function createSetupStore() {
 		if (wizard.currentStep === 0) return wizard.dbTestPassed;
 		if (wizard.currentStep === 1 || wizard.currentStep === 2) return validateStep(wizard.currentStep, false);
 		if (wizard.currentStep === 3) return true; // Email step is optional, always can proceed
+		if (wizard.currentStep === 4) return !wizard.isSeeding; // Block completion if still seeding
 		return false;
 	});
 
@@ -417,12 +422,15 @@ function createSetupStore() {
 			const data: SeedDatabaseResponse = await response.json();
 
 			if (data.success) {
-				logger.debug('✅ Database initialized successfully');
-				showToast('Database initialized successfully! ✨', 'success', 3000);
+				logger.debug('✅ Database initialization started');
 
 				if (data.firstCollection) {
 					wizard.firstCollection = data.firstCollection;
 				}
+
+				// Start polling for seeding status
+				startPollingSeedingStatus();
+
 				return true;
 			} else {
 				logger.warn('⚠️  Database initialization had issues:', data.error);
@@ -434,6 +442,46 @@ function createSetupStore() {
 			return false;
 		} finally {
 			wizard.isLoading = false;
+		}
+	}
+
+	let pollingInterval: ReturnType<typeof setInterval> | null = null;
+
+	function startPollingSeedingStatus() {
+		if (pollingInterval) clearInterval(pollingInterval);
+
+		wizard.isSeeding = true;
+
+		checkSeedingStatus(); // Initial check
+
+		pollingInterval = setInterval(async () => {
+			const active = await checkSeedingStatus();
+			if (!active && pollingInterval) {
+				clearInterval(pollingInterval);
+				pollingInterval = null;
+			}
+		}, 2000);
+	}
+
+	async function checkSeedingStatus(): Promise<boolean> {
+		try {
+			const response = await fetch('/api/setup/status');
+			if (!response.ok) return true;
+
+			const data = await response.json();
+			wizard.isSeeding = data.isSeeding;
+			wizard.seedingProgress = data.progress;
+			wizard.seedingError = data.error;
+
+			if (data.error) {
+				showToast(`Seeding Error: ${data.error}`, 'error');
+				return false;
+			}
+
+			return data.isSeeding;
+		} catch (error) {
+			logger.error('Failed to check seeding status:', error);
+			return true; // Keep polling
 		}
 	}
 

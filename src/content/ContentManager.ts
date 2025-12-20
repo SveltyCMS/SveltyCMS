@@ -239,6 +239,17 @@ class ContentManager {
 
 	// Core initialization logic
 	private async _doInitialize(tenantId?: string): Promise<void> {
+		const { isSetupComplete } = await import('@utils/setupCheck');
+
+		// Guard: If setup is not complete, skip heavy content loading.
+		// The Setup Wizard does not need CMS content.
+		if (!isSetupComplete()) {
+			logger.info('Setup not complete. ContentManager skipping initialization (SETUP MODE).');
+			this.initState = 'initialized'; // Mark as initialized to prevent blocking
+			this.metrics.initializationTime = 0;
+			return;
+		}
+
 		this.initState = 'initializing';
 		const startTime = performance.now();
 		const maxRetries = 3;
@@ -1408,7 +1419,6 @@ class ContentManager {
 			logger.trace(`Processed batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(jsFiles.length / BATCH_SIZE)}`);
 		}
 
-		logger.trace(`Processed ${schemas.length} collection schemas from filesystem`);
 		return schemas;
 	}
 
@@ -1626,8 +1636,6 @@ class ContentManager {
 		}
 
 		const finalNodes = finalStructureResult.data;
-		logger.debug(`[ContentManager] Final structure: ${finalNodes.length} nodes retrieved`);
-
 		// Clear and rebuild local maps with the complete database structure
 		this.contentNodeMap.clear();
 		this.pathLookupMap.clear();

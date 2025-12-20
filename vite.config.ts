@@ -49,44 +49,26 @@ function privateConfigFallbackPlugin(): Plugin {
 
 	return {
 		name: 'private-config-fallback',
+		enforce: 'pre',
 		resolveId(id) {
-			if (id === virtualModuleId) {
+			// Check for both the virtual ID and the resolved absolute path (because aliases run first)
+			if (id === virtualModuleId || id === path.resolve(CWD, 'config/private') || id === path.resolve(CWD, 'config/private.ts')) {
 				// Check if actual file exists
 				const prodPath = path.resolve(CWD, 'config/private.ts');
 				if (existsSync(prodPath)) {
 					return null; // Let Vite handle it normally
 				}
-				// File doesn't exist, use virtual module
-				return resolvedVirtualModuleId;
+				// File doesn't exist, mark as external to handle at runtime
+				return { id: virtualModuleId, external: true };
 			}
-			if (id === virtualTestModuleId) {
+			if (id === virtualTestModuleId || id === path.resolve(CWD, 'config/private.test') || id === path.resolve(CWD, 'config/private.test.ts')) {
 				// Check if actual file exists
 				const testPath = path.resolve(CWD, 'config/private.test.ts');
 				if (existsSync(testPath)) {
 					return null; // Let Vite handle it normally
 				}
-				// File doesn't exist, use virtual module
-				return resolvedVirtualTestModuleId;
-			}
-		},
-		load(id) {
-			if (id === resolvedVirtualModuleId || id === resolvedVirtualTestModuleId) {
-				// Provide fallback that reads from environment variables
-				return `
-export const privateEnv = {
-	DB_TYPE: process.env.DB_TYPE || 'mongodb',
-	DB_HOST: process.env.DB_HOST || 'localhost',
-	DB_PORT: parseInt(process.env.DB_PORT || '27017'),
-	DB_NAME: process.env.DB_NAME || 'sveltycms',
-	DB_USER: process.env.DB_USER || '',
-	DB_PASSWORD: process.env.DB_PASSWORD || '',
-	JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || '',
-	ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || '',
-	GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
-	GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
-	MULTI_TENANT: process.env.MULTI_TENANT === 'true'
-} as const;
-`;
+				// File doesn't exist, mark as external
+				return { id: virtualTestModuleId, external: true };
 			}
 		}
 	};
@@ -188,13 +170,20 @@ function setupWizardPlugin(): Plugin {
 				log.info('Setup complete: config/private.ts exists');
 			}
 
-			// Ensure collections are ready even in setup mode
-			await initializeCollectionsStructure();
+			// Ensure collections are ready ONLY if setup is complete
+			if (!wasPrivateConfigMissing) {
+				await initializeCollectionsStructure();
+			}
 		},
 		config: () => ({
 			define: { __FRESH_INSTALL__: JSON.stringify(wasPrivateConfigMissing) }
 		}),
 		configureServer(server) {
+			// Internal guard: strictly check status at runtime
+			if (isSetupComplete()) {
+				return;
+			}
+
 			// Only open setup wizard if private.ts is missing
 			if (!wasPrivateConfigMissing) {
 				return; // Setup already completed, skip browser opening
@@ -304,10 +293,15 @@ function cmsWatcherPlugin(): Plugin {
 		name: 'svelty-cms-watcher',
 		enforce: 'post',
 		async buildStart() {
+			// Internal guard: Do not run CMS logic if setup is not complete
+			if (!isSetupComplete()) return;
 			await initializeCollectionsStructure();
 		},
 		configureServer(server) {
 			server.watcher.on('all', (event, file) => {
+				// Internal guard: Do not run CMS logic if setup is not complete
+				if (!isSetupComplete()) return;
+
 				if (event === 'add' || event === 'change' || event === 'unlink') {
 					handleHmr(server, file);
 				}
@@ -342,7 +336,8 @@ export default defineConfig((): UserConfig => {
 			}),
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			sveltekit() as any,
-			!setupComplete ? setupWizardPlugin() : cmsWatcherPlugin(),
+			setupWizardPlugin(),
+			cmsWatcherPlugin(),
 			paraglideVitePlugin({
 				project: './project.inlang',
 				outdir: './src/paraglide'
@@ -395,8 +390,9 @@ export default defineConfig((): UserConfig => {
 				},
 				onwarn(warning, warn) {
 					// Suppress circular dependency warnings from third-party libraries
-					if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.message.includes('node_modules')) {
-						return;
+					if (warning.code === 'CIRCULAR_DEPENDENCY') {
+						if (warning.ids?.some((id) => id.includes('node_modules'))) return;
+						if (warning.message.includes('node_modules')) return;
 					}
 					// Suppress unused external import warnings
 					if (warning.code === 'UNUSED_EXTERNAL_IMPORT') {
@@ -416,6 +412,10 @@ export default defineConfig((): UserConfig => {
 						if (isWidgetStore || isRichTextInput || isSettingsService || isDb) {
 							return;
 						}
+					}
+					// Suppress unresolved import warnings for private config (handled at runtime)
+					if (warning.code === 'UNRESOLVED_IMPORT' && warning.message.includes('@config/private')) {
+						return;
 					}
 					// Show all other warnings
 					warn(warning);

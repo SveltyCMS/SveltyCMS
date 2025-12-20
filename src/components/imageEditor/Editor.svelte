@@ -28,44 +28,27 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	// Konva
 	import Konva from 'konva';
 
+	// Widgets Registry
+	import { editorWidgets } from './widgets/registry';
+
 	let activeToolComponent = $state<any>(null);
 
 	$effect(() => {
-		const loadTool = async () => {
-			const state = imageEditorStore.state.activeState;
-			if (state) {
-				try {
-					switch (state) {
-						case 'crop':
-							activeToolComponent = (await import('./widgets/Crop/Tool.svelte')).default;
-							break;
-						case 'blur':
-							activeToolComponent = (await import('./widgets/Blur/Tool.svelte')).default;
-							break;
-						case 'rotate':
-							activeToolComponent = (await import('./widgets/Rotate/Tool.svelte')).default;
-							break;
-						case 'finetune':
-							activeToolComponent = (await import('./widgets/FineTune/Tool.svelte')).default;
-							break;
-						case 'watermark':
-							activeToolComponent = (await import('./widgets/Watermark/Tool.svelte')).default;
-							break;
-						case 'annotate':
-							activeToolComponent = (await import('./widgets/Annotate/Tool.svelte')).default;
-							break;
-						default:
-							activeToolComponent = null;
-					}
-				} catch (e) {
-					logger.error(`Failed to load tool ${state}`, e);
-					activeToolComponent = null;
-				}
+		const state = imageEditorStore.state.activeState;
+		if (state) {
+			const widget = editorWidgets.find((w) => w.key === state);
+			if (widget && widget.tool) {
+				activeToolComponent = widget.tool;
+			} else if (state === 'focalpoint') {
+				// Focalpoint is handled explicitly in template, but we need to clear activeToolComponent
+				activeToolComponent = null;
 			} else {
+				logger.warn(`Tool not found for state: ${state}`);
 				activeToolComponent = null;
 			}
-		};
-		loadTool();
+		} else {
+			activeToolComponent = null;
+		}
 	});
 
 	// Props

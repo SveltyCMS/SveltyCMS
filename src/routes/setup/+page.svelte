@@ -78,8 +78,6 @@ calls store methods and wires store state to child components.
 		const handleBeforeUnload = (e: BeforeUnloadEvent) => {
 			if (hasUnsavedChanges() && !wizard.isSubmitting) {
 				e.preventDefault();
-				e.returnValue = '';
-				return '';
 			}
 		};
 		window.addEventListener('beforeunload', handleBeforeUnload);
@@ -379,6 +377,8 @@ calls store methods and wires store state to child components.
 					{totalSteps}
 					canProceed={setupStore.canProceed}
 					isLoading={wizard.isLoading || wizard.isSubmitting}
+					isSeeding={wizard.isSeeding}
+					seedingProgress={wizard.seedingProgress}
 					onprev={prevStep}
 					onnext={nextStep}
 					oncomplete={handleCompleteSetup}

@@ -59,6 +59,40 @@ Error: Cannot find module 'mariadb'
    npm install
    ```
 
+### Issue: Database driver installation fails (EACCES)
+
+**Symptoms:**
+
+- The CLI installer or Setup Wizard fails during the "Installing Drivers" step.
+- Error message mentions `EACCES` or `permission denied`.
+- Automatic installation hangs or fails repeatedly.
+
+**Solutions:**
+
+1. **Use the Manual Command:**
+   - The Setup Wizard will display a **Manual Installation Required** block.
+   - Click the "Copy" icon next to the command (e.g., `npm install mongoose`).
+   - Run this command manually in your terminal/server console at the project root.
+   - Once completed, click **Test Connection** again in the Setup Wizard.
+
+2. **Fix Permissions:**
+   Ensure the user running SveltyCMS has write access to `node_modules`:
+
+   ```bash
+   sudo chown -R $USER:$USER node_modules package.json bun.lockb  # or package-lock.json
+   ```
+
+3. **Manual Dependency Addition:**
+   Force add the dependency to your `package.json` manually and then run install:
+   ```bash
+   # Add to package.json
+   "dependencies": {
+     "mongoose": "latest"
+   }
+   # Then install
+   npm install
+   ```
+
 ---
 
 ### Issue: Port 5173 already in use

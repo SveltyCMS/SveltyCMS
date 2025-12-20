@@ -40,15 +40,21 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Run the full seeding process in the background
 		const { initSystemFromSetup } = await import('../seed');
 		const { getSetupDatabaseAdapter } = await import('../utils');
+		const { setupManager } = await import('../setupManager');
 
 		const seedProcess = async () => {
 			try {
+				setupManager.isSeeding = true;
 				logger.info('📦 Getting setup database adapter for background seeding...');
 				const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
 				logger.info('🌱 Starting background seeding of default data (settings, themes, collections)...');
 				await initSystemFromSetup(dbAdapter);
+				logger.info('✅ Background seeding completed successfully');
 			} catch (seedError) {
 				logger.error('❌ Background seeding process failed:', seedError);
+				setupManager.seedingError = seedError instanceof Error ? seedError.message : String(seedError);
+			} finally {
+				setupManager.isSeeding = false;
 			}
 		};
 		seedProcess(); // Fire-and-forget

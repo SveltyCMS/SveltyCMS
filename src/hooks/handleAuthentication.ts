@@ -376,13 +376,17 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	const { locals, url, cookies } = event;
 
 	// Skip internal or special requests
-	if (url.pathname.startsWith('/.well-known/') || url.pathname.startsWith('/_')) {
+	const ASSET_REGEX =
+		/^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|favicon\.ico|\.svelte-kit\/generated\/client\/nodes|.*\.(svg|png|jpg|jpeg|gif|css|js|woff|woff2|ttf|eot|map|json))/;
+	if (url.pathname.startsWith('/.well-known/') || url.pathname.startsWith('/_') || ASSET_REGEX.test(url.pathname)) {
 		return resolve(event);
 	}
 
 	// Skip public routes
 	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/setup'];
-	if (publicRoutes.some((r) => url.pathname.startsWith(r))) {
+	const isLocalizedPublic = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register|forgot-password)/.test(url.pathname);
+
+	if (publicRoutes.some((r) => url.pathname.startsWith(r)) || isLocalizedPublic) {
 		return resolve(event);
 	}
 

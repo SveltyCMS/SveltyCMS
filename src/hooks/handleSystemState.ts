@@ -4,29 +4,29 @@
  *
  * ### Features
  * - Integrates with the central state machine (`@stores/system`).
- * - Blocks all requests with a 503 error if the system is in a FAILED state.
- * - Allows only essential routes (setup, health checks) to pass during INITIALIZING or IDLE states.
- * - Returns a 503 error for all other requests if the system is not yet ready.
- * - Allows requests to proceed when the system is READY or DEGRADED.
+ * - Robust initialization with timeout protection
+ * - Proper state machine with error recovery
+ * - Prevents setup routes from returning before initialization
  */
 
 import { error } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
-import { getSystemState, isSystemReady } from '@src/stores/system'; // Import from your state machine
+import { getSystemState, isSystemReady } from '@src/stores/system';
 import { logger } from '@utils/logger.server';
 import { dbInitPromise } from '@src/databases/db';
 import { isSetupComplete } from '@utils/setupCheck';
 
-let initializationAttempted = false;
+// Track initialization state more robustly
+let initializationState: 'pending' | 'in-progress' | 'complete' | 'failed' = 'pending';
+let initError: Error | null = null;
+let initStartTime: number = 0;
+
+// Timeout protection (30 seconds max for initialization)
+const INIT_TIMEOUT_MS = 30000;
 
 export const handleSystemState: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
 	const setupComplete = isSetupComplete();
-
-	// Debug: Log TEST_MODE value
-	// if (!pathname.startsWith('/static') && !pathname.startsWith('/assets')) {
-	// 	logger.debug(`[handleSystemState] TEST_MODE=${process.env.TEST_MODE}, pathname=${pathname}`);
-	// }
 
 	let systemState = getSystemState();
 
@@ -35,49 +35,96 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 	const isStaticAsset = pathname.startsWith('/static') || pathname.startsWith('/assets') || pathname.startsWith('/_');
 
 	if (!isHealthCheck && !isStaticAsset) {
-		logger.debug(`[handleSystemState] Request to ${pathname}, system state: ${systemState.overallState}`);
+		logger.debug(
+			`[handleSystemState] ${event.request.method} ${pathname}${event.url.search} (Data: ${event.isDataRequest}), state: ${systemState.overallState}, initState: ${initializationState}`
+		);
 	}
 
-	// Setup Mode Detection - Prevents retry loops and eliminates 15+ second delay
-	// If the system is IDLE, check if setup is complete before attempting initialization
+	// ============================================================================
+	// CRITICAL: Initialization MUST happen FIRST, before allowing any routes
+	// ============================================================================
+
+	// --- Phase 1: Attempt Initialization (if needed) ---
 	if (systemState.overallState === 'IDLE') {
-		if (!initializationAttempted) {
+		if (initializationState === 'pending') {
 			if (setupComplete) {
-				// Setup is complete - trigger normal initialization
-				initializationAttempted = true;
-				logger.info('System is IDLE and setup is complete. Awaiting initialization...');
-				await dbInitPromise;
-				systemState = getSystemState(); // Re-fetch state after initialization
-				logger.info(`Initialization complete. System state is now: ${systemState.overallState}`);
+				// Start initialization
+				initializationState = 'in-progress';
+				initStartTime = Date.now();
+				logger.info('System is IDLE and setup is complete. Starting initialization...');
+
+				try {
+					// Add timeout wrapper
+					await Promise.race([
+						dbInitPromise,
+						new Promise((_, reject) => setTimeout(() => reject(new Error('Initialization timeout')), INIT_TIMEOUT_MS))
+					]);
+
+					systemState = getSystemState(); // Re-fetch state after init
+					initializationState = 'complete';
+					const duration = Date.now() - initStartTime;
+					logger.info(`Initialization complete in ${duration}ms. System state: ${systemState.overallState}`);
+				} catch (err) {
+					initializationState = 'failed';
+					initError = err instanceof Error ? err : new Error(String(err));
+					logger.error('Initialization failed:', initError);
+					throw error(503, 'Service initialization failed. Please check server logs.');
+				}
 			} else {
-				// Setup is NOT complete - skip initialization to prevent retry loops
+				// Setup not complete - skip initialization to prevent retry loops
 				logger.info('System is IDLE and setup is not complete. Skipping DB initialization.');
-				initializationAttempted = true;
+				initializationState = 'complete';
 			}
-		} else {
-			// Race condition handling: Initialization was triggered by another request but state hasn't updated yet
-			// or we are waiting for it to complete.
-			logger.debug(`[handleSystemState] Request to ${pathname} hit IDLE state with initialization in progress. Waiting...`);
-			await dbInitPromise;
-			systemState = getSystemState();
+		} else if (initializationState === 'in-progress') {
+			// Another request is already initializing, wait for it
+			const elapsed = Date.now() - initStartTime;
+
+			// Check if initialization is taking too long
+			if (elapsed > INIT_TIMEOUT_MS) {
+				initializationState = 'failed';
+				initError = new Error(`Initialization exceeded timeout (${INIT_TIMEOUT_MS}ms)`);
+				logger.error('Initialization timeout:', initError);
+				throw error(503, 'Service initialization timed out. Please check server logs.');
+			}
+
+			logger.debug(`[handleSystemState] Request to ${pathname} waiting for ongoing initialization (${elapsed}ms elapsed)...`);
+			try {
+				await Promise.race([
+					dbInitPromise,
+					new Promise((_, reject) => setTimeout(() => reject(new Error('Initialization wait timeout')), INIT_TIMEOUT_MS - elapsed))
+				]);
+				systemState = getSystemState(); // Re-fetch state after wait
+			} catch (err) {
+				logger.error('Initialization wait failed:', err);
+				throw error(503, 'Service initialization is taking longer than expected.');
+			}
+		} else if (initializationState === 'failed') {
+			// Previous initialization failed, return error immediately
+			logger.error('System initialization previously failed:', initError);
+			throw error(503, `Service unavailable: ${initError?.message || 'Unknown initialization error'}`);
 		}
+		// If 'complete', continue to route checks below
 	}
 
-	// Allow setup wizard and static assets during first-time setup (IDLE state)
+	// --- Phase 2: Allow Setup Routes (AFTER initialization attempt) ---
 	if (systemState.overallState === 'IDLE') {
 		const allowedPaths = [
 			'/setup',
 			'/api/setup',
 			'/api/system/health',
 			'/api/dashboard/health',
-			'/login', // Allow login page (will redirect to setup if needed)
+			'/login',
 			'/static',
 			'/assets',
 			'/favicon.ico',
 			'/.well-known',
-			'/_'
+			'/_',
+			'/api/system/version',
+			'/api/debug' // Allow debug endpoints
 		];
-		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === '/';
+		const isLocalizedSetup = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register)/.test(pathname);
+		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === '/' || isLocalizedSetup;
+
 		if (isAllowedRoute) {
 			logger.trace(`Allowing request to ${pathname} during IDLE (setup mode) state.`);
 			return resolve(event);
@@ -85,38 +132,48 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 	}
 
 	// --- State: INITIALIZING ---
-	// If the system is initializing, wait for it to complete (unless it's an allowed route)
 	if (systemState.overallState === 'INITIALIZING') {
-		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/api/setup', '/login', '/.well-known', '/_'];
-		// Allow / only if we are in setup mode (no config). If config exists, wait for init.
-		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix)) || (!setupComplete && pathname === '/');
+		const allowedPaths = [
+			'/api/system/health',
+			'/api/dashboard/health',
+			'/setup',
+			'/api/setup',
+			'/login',
+			'/.well-known',
+			'/_',
+			'/api/system/version',
+			'/api/debug'
+		];
+		const isLocalizedSetup = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register)/.test(pathname);
+		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix)) || (!setupComplete && pathname === '/') || isLocalizedSetup;
 
 		if (isAllowedRoute) {
 			logger.trace(`Allowing request to ${pathname} during INITIALIZING state.`);
 			return resolve(event);
 		}
 
-		// Wait for initialization to complete
+		// Wait for initialization to complete with timeout
 		logger.debug(`Request to ${pathname} waiting for initialization to complete...`);
-		await dbInitPromise;
-		systemState = getSystemState(); // Re-fetch state after initialization
-		logger.debug(`Initialization complete. System state is now: ${systemState.overallState}`);
+		try {
+			await Promise.race([dbInitPromise, new Promise((_, reject) => setTimeout(() => reject(new Error('Init wait timeout')), INIT_TIMEOUT_MS))]);
+			systemState = getSystemState();
+			logger.debug(`Initialization complete. System state is now: ${systemState.overallState}`);
+		} catch (err) {
+			logger.error('Initialization wait error:', err);
+			throw error(503, 'Service Unavailable: System initialization failed.');
+		}
 
 		// If still not ready after initialization, block the request
 		if (!isSystemReady()) {
 			logger.warn(`Request to ${pathname} blocked: System failed to initialize properly.`);
 			throw error(503, 'Service Unavailable: The system failed to initialize. Please contact an administrator.');
 		}
-
-		// System is now ready, continue processing
 	}
 
-	// --- State: IDLE (Setup Mode) / Final Check ---
-	// If the system is not yet ready and not initializing, only allow essential requests to pass.
-	// Checks against the LATEST systemState (which may have been updated above)
+	// --- State: Final Ready Check ---
 	const isNowReady = systemState.overallState === 'READY' || systemState.overallState === 'DEGRADED';
 	if (!isNowReady) {
-		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/api/setup'];
+		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/api/setup', '/api/system/version', '/api/debug'];
 		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix));
 
 		if (isAllowedRoute) {
@@ -134,9 +191,6 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 	}
 
 	// --- State: READY or DEGRADED ---
-	// If the system is operational, let the request proceed to the next hook.
-
-	// If the system is in a DEGRADED state, attach info about which services are down.
 	if (systemState.overallState === 'DEGRADED') {
 		const degradedServices = Object.entries(systemState.services)
 			.filter(([, s]) => s.status === 'unhealthy')
@@ -144,7 +198,6 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
 		if (degradedServices.length > 0) {
 			event.locals.degradedServices = degradedServices;
-			// metricsService.increment('degradedRequests'); // For measurement - TODO: implement this method
 			logger.warn(`Request to ${pathname} is proceeding in a DEGRADED state. Unhealthy services: ${degradedServices.join(', ')}`);
 		}
 	}

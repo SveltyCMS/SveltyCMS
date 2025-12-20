@@ -62,15 +62,27 @@ export async function generateContentTypes(server: ViteDevServer): Promise<Recor
 		// Read existing types file
 		let types = await fs.readFile('src/content/types.ts', 'utf-8');
 
-		// Remove old ContentTypes definition (more precise regex)
-		types = types.replace(/\n*export\s+type\s+ContentTypes\s*=\s*[^;]+;/gms, '');
-
 		// Generate new ContentTypes union
 		const collectionNames = Object.keys(contentTypes)
 			.map((name) => `'${name}'`)
 			.join(' | ');
 
-		types += `\nexport type ContentTypes = ${collectionNames || 'never'};\n`;
+		const newTypeDefinition = `/* AUTOGEN_START: ContentTypes */\nexport type ContentTypes = ${collectionNames || 'never'};\n/* AUTOGEN_END: ContentTypes */`;
+
+		// Replace the block between markers
+		const markerStart = '/* AUTOGEN_START: ContentTypes */';
+		const markerEnd = '/* AUTOGEN_END: ContentTypes */';
+
+		const startIndex = types.indexOf(markerStart);
+		const endIndex = types.indexOf(markerEnd);
+
+		if (startIndex !== -1 && endIndex !== -1) {
+			types = types.substring(0, startIndex) + newTypeDefinition + types.substring(endIndex + markerEnd.length);
+		} else {
+			// Fallback: append if markers are missing (though they should have been added by now)
+			logger.warn('AUTOGEN markers not found in types.ts, appending to end of file');
+			types += `\n${newTypeDefinition}\n`;
+		}
 
 		// Write updated types
 		await fs.writeFile('src/content/types.ts', types);

@@ -116,7 +116,9 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	const isPublic = isPublicRoute(pathname);
 
 	// --- Skip static or internal routes early ---
-	if (pathname.startsWith('/.well-known/') || pathname.startsWith('/_')) {
+	const ASSET_REGEX =
+		/^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|favicon\.ico|\.svelte-kit\/generated\/client\/nodes|.*\.(svg|png|jpg|jpeg|gif|css|js|woff|woff2|ttf|eot|map|json))/;
+	if (pathname.startsWith('/.well-known/') || pathname.startsWith('/_') || ASSET_REGEX.test(pathname)) {
 		return resolve(event);
 	}
 
@@ -137,7 +139,8 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	locals.roles = rolesData;
 
 	// --- Redirect to setup if database not initialized (no roles found) ---
-	if (rolesData.length === 0 && !pathname.startsWith('/setup') && !pathname.startsWith('/api/setup')) {
+	const isLocalizedSetup = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
+	if (rolesData.length === 0 && !pathname.startsWith('/setup') && !pathname.startsWith('/api/setup') && !isLocalizedSetup) {
 		logger.warn('No roles found in database - redirecting to setup', { pathname, tenantId: locals.tenantId });
 		if (isApi) {
 			throw error(503, 'Service Unavailable: System not initialized. Please run setup.');

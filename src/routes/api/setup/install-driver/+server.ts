@@ -103,9 +103,17 @@ async function installDriver(packageName: string): Promise<{ success: boolean; e
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		logger.error(`Driver installation failed: ${packageName}`, { error: errorMessage });
 
+		const packageManager = detectPackageManager();
+		const installCommand = getInstallCommand(packageName, packageManager);
+
+		// Check for permission errors (EACCES) or similar
+		const isPermissionError = errorMessage.includes('EACCES') || errorMessage.includes('permission denied');
+
 		return {
 			success: false,
 			error: errorMessage,
+			isPermissionError,
+			manualCommand: installCommand,
 			output:
 				error instanceof Error && 'stdout' in error
 					? (error.stdout as string) + ('stderr' in error && typeof error.stderr === 'string' ? error.stderr : '')
@@ -180,6 +188,8 @@ export const POST: RequestHandler = async ({ request }) => {
 					error: m.api_install_driver_failed({ driver: packageName, error: installResult.error || 'Unknown error' }),
 					package: packageName,
 					details: installResult.error,
+					manualCommand: installResult.manualCommand,
+					isPermissionError: installResult.isPermissionError,
 					output: installResult.output
 				},
 				{ status: 500 }

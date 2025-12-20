@@ -25,6 +25,7 @@ import { defaultRoles as importedDefaultRoles } from '@src/databases/auth/defaul
 
 // Import inlang settings directly (TypeScript/SvelteKit handles JSON imports)
 import inlangSettings from '@root/project.inlang/settings.json';
+import { setupManager } from './setupManager';
 
 // ============================================================================
 // EXPORTED DEFAULTS - Loaded from project.inlang/settings.json
@@ -178,11 +179,14 @@ export async function seedCollectionsForSetup(
 
 		let successCount = 0;
 		let skipCount = 0;
+		const totalCollections = collections.length;
 		const modelCreationStart = performance.now();
 
 		// ✅ FIX: Register each collection SEQUENTIALLY with delay to prevent race condition
 		// Mongoose's model() registry is NOT thread-safe during rapid parallel calls
-		for (const schema of collections) {
+		for (let i = 0; i < totalCollections; i++) {
+			const schema = collections[i];
+			setupManager.updateProgress(i, totalCollections);
 			try {
 				const createStart = performance.now();
 				// Try to create the collection model in database
@@ -219,6 +223,7 @@ export async function seedCollectionsForSetup(
 				}
 			}
 		}
+		setupManager.updateProgress(totalCollections, totalCollections);
 
 		const modelCreationTime = performance.now() - modelCreationStart;
 		const overallTime = performance.now() - overallStart;

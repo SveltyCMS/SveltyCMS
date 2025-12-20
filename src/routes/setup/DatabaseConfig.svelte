@@ -10,6 +10,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { dbConfigSchema } from '@utils/formSchemas';
+	import { showToast } from '@utils/toast';
 
 	// Popup settings (click to toggle)
 	const popupDbType: PopupSettings = { event: 'click', target: 'popupDbType', placement: 'top' };
@@ -156,6 +157,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		}
 	}
 
+	let manualCommand = $state('');
+	let isPermissionError = $state(false);
+
 	// Expose installDatabaseDriver to parent
 	export async function installDatabaseDriver(dbType: string) {
 		if (!dbType || dbType === 'mongodb' || dbType === 'mongodb+srv') {
@@ -166,6 +170,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		isInstallingDriver = true;
 		installError = '';
 		installSuccess = '';
+		manualCommand = '';
+		isPermissionError = false;
 
 		try {
 			const response = await fetch('/api/setup/install-driver', {
@@ -183,6 +189,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				}
 			} else {
 				installError = data.error || `Failed to install driver for ${dbType}`;
+				manualCommand = data.manualCommand || '';
+				isPermissionError = data.isPermissionError || false;
 			}
 		} catch (error) {
 			installError = `Network error while installing driver: ${error instanceof Error ? error.message : String(error)}`;
@@ -342,9 +350,33 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							<span class="font-medium">Driver Installation Failed</span>
 						</div>
 						<p class="mt-1">{installError}</p>
-						<p class="mt-2 text-xs">
-							You can install the driver manually or continue with the setup (connection test will show installation instructions).
-						</p>
+						{#if manualCommand}
+							<div class="mt-4">
+								<p class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+									{isPermissionError ? 'Insufficient Permissions' : 'Manual Installation Required'}
+								</p>
+								<div class="flex items-center justify-between rounded bg-white/50 p-2 font-mono text-xs dark:bg-surface-800/50">
+									<code class="break-all">{manualCommand}</code>
+									<button
+										type="button"
+										onclick={() => {
+											navigator.clipboard.writeText(manualCommand);
+											showToast('Command copied to clipboard', 'info');
+										}}
+										class="ml-2 flex-shrink-0 text-slate-400 hover:text-primary-500"
+										title="Copy command"
+									>
+										<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>
+									</button>
+								</div>
+								<p class="mt-2 text-[10px] italic opacity-70">Run this command in your project root, then try the connection test again.</p>
+							</div>
+						{/if}
+						{#if !manualCommand}
+							<p class="mt-2 text-xs">
+								You can install the driver manually or continue with the setup (connection test will show installation instructions).
+							</p>
+						{/if}
 					</div>
 				{/if}
 			</div>

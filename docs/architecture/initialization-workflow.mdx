@@ -732,8 +732,9 @@ stateDiagram-v2
     note right of SeedData
         POST /api/setup/seed
         - Writes private.ts
-        - Seeds settings/themes
-        - Creates collections
+        - Seeds settings/themes (background)
+        - Creates collections (background)
+        - Polling: /api/setup/status
     end note
 
     note right of Complete
@@ -780,7 +781,12 @@ sequenceDiagram
     alt Driver Missing
         API->>PM: Detect package manager (bun/npm/pnpm/yarn)
         API->>PM: Install mongoose
-        PM-->>API: Installation complete
+        alt Permission Error
+            PM-->>API: EACCES ✗
+            API-->>Client: {success: false, manualCommand: "..."}
+        else Success
+            PM-->>API: Installation complete ✓
+        end
     end
 
     Note over API: Build Connection
@@ -842,7 +848,7 @@ Body: {
 
 **Endpoint: `/api/setup/seed/+server.ts`**
 
-Called when user clicks "Next" after successful DB test.
+Called when user clicks "Next" after successful DB test. This process now runs in the **background** to prevent UI timeouts and allow real-time progress tracking.
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -869,9 +875,10 @@ Called when user clicks "Next" after successful DB test.
 │    B. seedDefaultTheme(adapter)                    │
 │       - Creates system_themes collection           │
 │       - Seeds SveltyCMSTheme                       │
-│    C. seedCollectionsForSetup(adapter) ⚠️          │
+│    C. seedCollectionsForSetup(adapter)             │
 │       - Scans compiledCollections folder           │
 │       - Creates collection models in MongoDB       │
+│       - Reports progress via setupManager          │
 │       - Returns firstCollection info               │
 └─────────────────────────────────────────────────────┘
 ```
@@ -906,8 +913,6 @@ system_content_structure ← Navigation/hierarchy (empty for now)
 collection_<uuid_1>      ← First collection (e.g., Posts)
 collection_<uuid_2>      ← Second collection (e.g., Names)
 ```
-
-⚠️ **KNOWN ISSUE:** Only one `collection_<uuid>` table gets created instead of one per collection. This may be due to async race conditions in the `createModel()` method.
 
 ---
 
