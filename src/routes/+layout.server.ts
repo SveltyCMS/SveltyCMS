@@ -18,6 +18,7 @@ import { version } from '../../package.json';
 import { loadSettingsCache, getPrivateSettingSync } from '@src/services/settingsService';
 import type { LayoutServerLoad } from './$types';
 import type { Locale } from '@src/paraglide/runtime';
+import type { NavigationNode } from '@src/content/ContentManager';
 
 export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
 	// Use cached setup status from hooks instead of re-checking
@@ -81,12 +82,11 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
 	const contentLanguage = (cookies.get('contentLanguage') as Locale) ?? defaultContentLanguage;
 
 	// Content System Hydration with error handling for preview mode
-	let navigationStructure = [];
+	const { contentManager } = await import('@src/content/ContentManager');
+	let navigationStructure: NavigationNode[] = [];
 	let contentVersion = 0;
 
 	try {
-		const { contentManager } = await import('@src/content/ContentManager');
-
 		// Check if ContentManager is initialized before using it
 		if (contentManager.getHealthStatus().state === 'initialized') {
 			navigationStructure = await contentManager.getNavigationStructureProgressive({

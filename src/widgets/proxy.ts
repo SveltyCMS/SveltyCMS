@@ -9,6 +9,7 @@
  * - Graceful fallback for missing widgets
  */
 
+import { coreModules, customModules } from '@src/widgets/scanner';
 import type { WidgetFactory, WidgetModule, WidgetType } from '@widgets/types';
 import { logger } from '@utils/logger';
 
@@ -59,7 +60,7 @@ function processWidgetModule(path: string, module: WidgetModule, type: WidgetTyp
 		// Enhance factory with metadata
 		factory.__widgetType = type;
 
-		logger.debug(`[Widget Proxy] Successfully loaded widget: ${name} (${type})`);
+		logger.trace(`[Widget Proxy] Successfully loaded widget: ${name} (${type})`);
 
 		return {
 			name: factory.Name,
@@ -84,7 +85,7 @@ class WidgetRegistryImpl {
 	register(name: string, factory: WidgetFactory, type: WidgetType, path: string): void {
 		this.widgets.set(name, factory);
 		this.metadata.set(name, { type, path });
-		logger.debug(`[Widget Registry] Registered widget: ${name}`);
+		logger.trace(`[Widget Registry] Registered widget: ${name}`);
 	}
 
 	get(name: string): WidgetFactory | undefined {
@@ -116,16 +117,6 @@ const registry = new WidgetRegistryImpl();
 // Load Widgets
 // ============================================================================
 
-// Load core widgets (eager loading for performance)
-const coreModules = import.meta.glob<WidgetModule>('./core/*/index.ts', {
-	eager: true
-});
-
-// Load custom widgets (eager loading)
-const customModules = import.meta.glob<WidgetModule>('./custom/*/index.ts', {
-	eager: true
-});
-
 // Process core widgets
 for (const [path, module] of Object.entries(coreModules)) {
 	const processed = processWidgetModule(path, module, 'core');
@@ -135,7 +126,7 @@ for (const [path, module] of Object.entries(coreModules)) {
 		// Register aliases (folder name if different)
 		const folderName = path.split('/').at(-2);
 		if (folderName && folderName !== processed.name) {
-			logger.debug(`[Widget Proxy] Alias: ${folderName} -> ${processed.name}`);
+			logger.trace(`[Widget Proxy] Alias: ${folderName} -> ${processed.name}`);
 			registry.register(folderName, processed.factory, processed.type, processed.path);
 		}
 	}

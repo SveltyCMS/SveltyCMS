@@ -79,10 +79,12 @@ The Token System respects Role-Based Access Control (RBAC).
 
 ### API Resolution
 
-Tokens are automatically resolved in JSON API responses (`/api/*`).
-To prevent resolution (e.g., for editing), use the escape syntax: `\{{ token }}`.
+Tokens are automatically resolved in JSON API responses (`/api/*`) via a dedicated middleware hook.
+
+> [!NOTE]
+> For Server-Side Rendered (SSR) pages using the `ContentManager` directly, tokens may remain unresolved unless explicitly processed in the `load` function.
 
 ### Caching
 
-Token definitions are cached for performance (6 hours).
+Token definitions (the registry of what tokens exist for a collection) are cached for performance (**5 minutes**).
 Token _values_ are resolved in real-time and are NOT cached to ensure accuracy (especially for user/time-based tokens).

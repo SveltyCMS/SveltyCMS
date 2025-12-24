@@ -10,8 +10,9 @@
  * - Cache integration: Auto-invalidates collection caches when widget status changes
  * - System state integration: Reports widget health to main system monitor
  */
+import { coreModules, customModules } from '@src/widgets/scanner';
 import { writable, derived, get } from 'svelte/store';
-import type { Widget, WidgetModule, WidgetFunction, WidgetFactory } from '@widgets/types';
+import type { Widget, WidgetFunction, WidgetFactory } from '@widgets/types';
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
 import type { FieldInstance } from '@src/content/types';
 import { logger } from '@utils/logger';
@@ -135,15 +136,7 @@ export const widgetStoreActions = {
 		widgetStore.update((state) => ({ ...state, isLoading: true, tenantId }));
 
 		try {
-			logger.trace('Initializing widgets from file system...', { tenantId, serverSide: !!dbAdapter });
-
-			// Load widget modules from both core and custom directories
-			const coreModules = import.meta.glob<WidgetModule>('../widgets/core/*/index.ts', {
-				eager: true
-			});
-			const customModules = import.meta.glob<WidgetModule>('../widgets/custom/*/index.ts', {
-				eager: true
-			});
+			logger.trace('Initializing widgets from pre-scanned modules...', { tenantId, serverSide: !!dbAdapter });
 
 			const newWidgetFunctions: Record<string, WidgetFunction | WidgetFactory> = {};
 			const newCoreWidgets: string[] = [];

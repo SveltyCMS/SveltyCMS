@@ -111,6 +111,9 @@ if (!building) {
 
 // --- Middleware Sequence ---
 const middleware: Handle[] = [
+	// 0. Compression (GZIP/Brotli) - Outer layer to compress final processed responses
+	handleCompression,
+
 	// 1. Static assets FIRST (skip all other processing for maximum performance)
 	handleStaticAssetCaching,
 
@@ -147,10 +150,7 @@ const middleware: Handle[] = [
 	handleTokenResolution,
 
 	// 12. Essential security headers (defense in depth)
-	addSecurityHeaders,
-
-	// 13. Compression (GZIP/Brotli)
-	handleCompression
+	addSecurityHeaders
 ];
 
 // --- Main Handle Export ---

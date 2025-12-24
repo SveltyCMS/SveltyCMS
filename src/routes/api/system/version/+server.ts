@@ -25,7 +25,8 @@ export const GET: RequestHandler = async () => {
 
 	try {
 		const response = await fetch('https://api.github.com/repos/SveltyCMS/SveltyCMS/releases/latest', {
-			headers: { 'User-Agent': 'SveltyCMS-Instance' }
+			headers: { 'User-Agent': 'SveltyCMS-Instance' },
+			signal: AbortSignal.timeout(5000) // 5 second timeout
 		});
 
 		if (!response.ok) {

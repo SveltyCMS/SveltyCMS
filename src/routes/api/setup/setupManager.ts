@@ -8,8 +8,6 @@ class SetupManager {
 	private _isSeeding = false;
 	private _seedingError: string | null = null;
 	private _seedingProgress = 0;
-	private _totalItems = 0;
-	private _completedItems = 0;
 
 	private constructor() {}
 
@@ -29,7 +27,6 @@ class SetupManager {
 		if (value) {
 			this._seedingError = null;
 			this._seedingProgress = 0;
-			this._completedItems = 0;
 		}
 	}
 
@@ -47,8 +44,6 @@ class SetupManager {
 	}
 
 	public updateProgress(completed: number, total: number) {
-		this._completedItems = completed;
-		this._totalItems = total;
 		this._seedingProgress = total > 0 ? Math.round((completed / total) * 100) : 0;
 	}
 }

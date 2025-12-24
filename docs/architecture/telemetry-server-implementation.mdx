@@ -17,11 +17,20 @@ tags:
 
 This document outlines the technical specifications for the **SveltyCMS Telemetry Receiver**. This server is responsible for receiving health checks from SveltyCMS instances, aggregating anonymous usage data, and returning security status updates.
 
-## 1. API Specification
+## 1. HMAC Authentication
 
-The telemetry service communicates via a single REST endpoint.
+To reduce fake data and ensure authenticity, all telemetry requests must be signed using HMAC-SHA256 with a shared salt.
 
-### Endpoint Definition
+### Salt Configuration
+
+The `TELEMETRY_SALT` must be identical on both the SveltyCMS package and the telemetry server.
+Default value: `sveltycms-telemetry`
+
+### Replay Protection
+
+Requests must include a `timestamp` (Unix milliseconds). The server should reject any request where the timestamp is older than 5 minutes or more than 1 minute in the future.
+
+## 2. API Specification
 
 - **URL:** `https://telemetry.sveltycms.com/api/check-update`
 - **Method:** `POST`
@@ -29,108 +38,78 @@ The telemetry service communicates via a single REST endpoint.
 
 ### Request Payload
 
-SveltyCMS instances send the following JSON payload:
+```typescript
+interface TelemetryPayload {
+	// Required fields
+	current_version: string; // "0.9.0"
+	node_version: string; // "v20.10.0"
+	environment: string; // "production"
+	os: string; // "linux"
+	installation_id: string; // SHA256 hash of JWT_SECRET_KEY
 
-```json
-{
-	"current_version": "0.5.0", // The version of SveltyCMS running
-	"node_version": "v20.10.0", // Node.js runtime version
-	"environment": "production", // 'development' or 'production'
-	"os": "linux", // Operating system platform
-	"installation_id": "8f9d...", // SHA-256 Hash of JWT Secret
-	"db_type": "mongodb", // Database type
-	"country": "DE", // Country code (resolved client-side)
-	"widgets": "[\"weather-widget\"]" // Custom widgets only
+	// Authentication fields (REQUIRED)
+	timestamp: number; // Unix timestamp in milliseconds
+	signature: string; // HMAC-SHA256 signature (hex)
+
+	// Optional fields
+	stable_id?: string;
+	db_type?: string;
+	location?: { ... };
+	usage_metrics?: { ... };
+	system_info?: { ... };
+	widgets?: string[];
 }
 ```
 
-### Response Schema
+### Signature Generation
 
-The server must return a JSON response indicating the latest version and any security alerts.
+The signature is computed over the string: `installation_id:current_version:timestamp`
 
-**Success (200 OK):**
-
-```json
-{
-	"latest_version": "0.6.0", // The current latest stable release
-	"has_vulnerability": false, // true if the *client's* version has known CVEs
-	"message": "Update available" // Optional message to display in dashboard
-}
+```typescript
+const data = `${payload.installation_id}:${payload.current_version}:${payload.timestamp}`;
+const signature = crypto.createHmac('sha256', TELEMETRY_SALT).update(data).digest('hex');
 ```
 
-**Error (500/503):**
-If the server fails, the client will cache the failure and retry after 12 hours.
-
-**Rate Limit (429):**
-If the server returns 429, the client will interpret this as a "soft backoff" and sleep for 12 hours, logging only a warning.
-
-## 2. Implementation Logic
+## 3. Implementation Logic
 
 A robust telemetry server should perform the following steps:
 
-1.  **Validation**: Ensure the request body matches the expected schema.
-2.  **Data Ingestion**: Log the anonymous data (Version, Node, OS) to a time-series database (e.g., InfluxDB, ClickHouse) or a relational DB for analytics.
-    - _Privacy Note:_ Do not log IP addresses if possible, or hash them to respect privacy.
-3.  **Version Comparison**:
-    - Compare `payload.current_version` against the latest known release (stored in DB or fetched from GitHub Releases).
-    - Check if `payload.current_version` is in a list of known vulnerable versions.
-4.  **Response Construction**: Return the comparison result.
+1.  **Validate Timestamp**: Ensure the request is not a replay (5-minute window).
+2.  **Validate Signature**: Recompute the HMAC and use `crypto.timingSafeEqual` for comparison.
+3.  **Data Ingestion**: Log the anonymous data to your analytics database.
+4.  **Version Check**: Compare `current_version` against the latest release and known vulnerabilities.
 
-## 3. Reference Implementation (Node.js / Hono)
-
-Here is a minimal example using [Hono](https://hono.dev/) (a lightweight web framework) that could be deployed to Cloudflare Workers, Vercel, or a VPS.
+### Signature Validation Code (Example)
 
 ```typescript
-import { Hono } from 'hono';
-import { semver } from 'bun'; // or 'semver' package
+function validateSignature(payload: TelemetryPayload, salt: string): boolean {
+	const { installation_id, current_version, timestamp, signature } = payload;
 
-const app = new Hono();
-
-// Mock Data Source (Replace with DB/GitHub API)
-const LATEST_VERSION = '0.6.0';
-const VULNERABLE_VERSIONS = ['0.4.0', '0.4.1'];
-
-app.post('/api/check-update', async (c) => {
-	try {
-		const body = await c.req.json();
-		const { current_version } = body;
-
-		// 1. Log Telemetry (Async - don't block response)
-		// await db.insert('telemetry_events', { ...body, timestamp: new Date() });
-		console.log(`Telemetry received from v${current_version}`);
-
-		// 2. Determine Status
-		const isVulnerable = VULNERABLE_VERSIONS.includes(current_version);
-		const updateAvailable = semver.gt(LATEST_VERSION, current_version);
-
-		let message = 'You are up to date.';
-		if (isVulnerable) message = 'CRITICAL: Security update required immediately.';
-		else if (updateAvailable) message = `Update to v${LATEST_VERSION} available.`;
-
-		// 3. Return Response
-		return c.json({
-			latest_version: LATEST_VERSION,
-			has_vulnerability: isVulnerable,
-			message: message
-		});
-	} catch (err) {
-		return c.json({ error: 'Invalid request' }, 400);
+	// 1. Check timestamp (5-minute window)
+	const age = Date.now() - timestamp;
+	if (age > 5 * 60 * 1000 || age < -60 * 1000) {
+		return false;
 	}
-});
 
-export default app;
+	// 2. Recompute expected signature
+	const data = `${installation_id}:${current_version}:${timestamp}`;
+	const expected = crypto.createHmac('sha256', salt).update(data).digest('hex');
+
+	// 3. Constant-time comparison
+	return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expected, 'hex'));
+}
 ```
 
-## 4. Security Considerations
+## 4. Response Codes
 
-- **Rate Limiting**: Implement rate limiting (e.g., by IP) to prevent abuse, although the client is polite (12h interval).
-- **Payload Validation**: Strictly validate input types to prevent injection attacks if storing in a SQL database.
-- **CORS**: Configure CORS to allow requests from any origin (since CMS instances can be hosted anywhere), or restrict if intended for specific enterprise clients.
+| Status | Meaning                                                        |
+| :----- | :------------------------------------------------------------- |
+| `200`  | Telemetry accepted, signature valid                            |
+| `400`  | Invalid payload format                                         |
+| `403`  | Authentication failed (invalid signature or expired timestamp) |
+| `429`  | Rate limited                                                   |
+| `500`  | Internal server error                                          |
 
 ## 5. Deployment
 
-The telemetry receiver is stateless and ideal for serverless deployment:
-
-- **Cloudflare Workers**: Low latency, global edge network.
-- **Vercel / Netlify Functions**: Easy integration.
-- **Docker / Kubernetes**: For self-hosted control.
+The telemetry receiver is stateless and ideal for serverless deployment on Cloudflare Workers, Vercel, or Fly.io.

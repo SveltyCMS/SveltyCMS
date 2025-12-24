@@ -38,26 +38,31 @@ Instead, your CMS generates a unique **Installation ID** by hashing your private
 - **We see:** `a3f0..., 7b29...` (One-way hash).
 - **We NEVER see:** Your actual specific key or domain ownership details unless publicly inferable.
 - This ensures that if you move your site to a new server/IP, your history remains consistent, but unauthorized users cannot spoof your ID without your secret key.
+- **Stable Machine ID:** We generate a secondary "Stable ID" based on hardware traits (OS type, Arch, Core count). This is **100% Anonymized**—the raw hardware data is never transmitted. Instead, it is combined and hashed into a one-way fingerprint on your server, allowing us to recognize when multiple "Installation IDs" (from fresh installs) belong to the same development machine without knowing anything about the machine itself.
 
 ### Data Collected
 
-| Field           | Description               | Purpose                                              |
-| :-------------- | :------------------------ | :--------------------------------------------------- |
-| **Version**     | `0.5.0`                   | Alerting for outdated/vulnerable versions.           |
-| **Node.js**     | `v24.12.0`                | Determining minimal supported runtimes.              |
-| **Environment** | `production`              | Separating test data from real usage.                |
-| **Widgets**     | `['weather', 'chart']`    | Understanding which widgets are most popular.        |
-| **Location**    | `{ city: "Berlin", ... }` | Datacenter clustering detection for BSL enforcement. |
-| **Metrics**     | `{ users: 15, ... }`      | Understanding scale (SaaS vs Enterprise usage).      |
-| **System**      | `{ cpus: 8, ram: 32 }`    | Hardware profiling for BSL 1.1 enforcement.          |
+| Field           | Description               | Purpose                                                                 |
+| :-------------- | :------------------------ | :---------------------------------------------------------------------- |
+| **Version**     | `0.5.0`                   | Alerting for outdated/vulnerable versions.                              |
+| **Node.js**     | `v24.12.0`                | Determining minimal supported runtimes.                                 |
+| **Environment** | `production`              | Separating test data from real usage.                                   |
+| **Widgets**     | `['Seo', 'Cloudinary']`   | Understanding which widgets/extensions are utilized.                    |
+| **Location**    | `{ city: "Berlin", ... }` | Datacenter clustering detection for BSL enforcement.                    |
+| **Metrics**     | `{ users: 15, ... }`      | Understanding scale (SaaS vs Enterprise usage).                         |
+| **System**      | `{ cpus: 8, ram: 32 }`    | Hardware profiling for BSL 1.1 enforcement.                             |
+| **Stable ID**   | `sha256_hash`             | **100% Anonymized** machine fingerprint for dev instance deduplication. |
+| **Ephemeral**   | `boolean`                 | Flag to mark temporary development installations.                       |
 
-## 1.5 Security Measures (Anti-Abuse)
+## 1.5 Safety & Robustness (Ghost Mode)
 
-To protect the integrity of the data and availability of the service:
+To ensure the telemetry service never interferes with user experience or system stability, we implement several safety layers:
 
+- **Strict Timeouts**: All external calls have mandatory timeouts (5s for Geolocation, 10s for the Heartbeat). If the server is slow, the check is skipped.
+- **Fail-Safe Backgrounding**: Telemetry runs strictly in the background using "fire-and-forget" async patterns. It is never awaited by the main request cycle.
+- **Non-Fatal Failures**: Hardware metric collection and network errors are wrapped in `try-catch` blocks. The system fails silently and logs issues as warnings rather than errors.
 - **Rate Limiting**: Each IP address is limited to **1 check per 12 hours** (enforced by client and server).
-- **Payload Validation**: Strict checking of data types and lengths. Malformed JSON or over-sized payloads are rejected (400 Bad Request).
-- **IP Anonymization**: IP addresses are hashed immediately and never stored in plain text.
+- **Environment Isolation**: Telemetry is automatically disabled during build processes (`building` flag) or in CI/CD environments.
 
 ## 2. Privacy & Opt-Out
 
@@ -83,7 +88,9 @@ SVELTYCMS_TELEMETRY=false
 	"current_version": "0.6.0",
 	"node_version": "v20.10.0",
 	"environment": "production",
+	"is_ephemeral": false,
 	"installation_id": "sha256_hash_of_secret",
+	"stable_id": "sha256_hash_of_hardware_traits",
 	"db_type": "mongodb",
 	"location": {
 		"country": "Germany",
@@ -111,7 +118,36 @@ SVELTYCMS_TELEMETRY=false
 }
 ```
 
-## 4. Fair Source Licensing (BSL 1.1)
+## SveltyCMS Telemetry vs Other CMS
+
+| Feature                    | Drupal    | WordPress         | Strapi    | SveltyCMS                 |
+| :------------------------- | :-------- | :---------------- | :-------- | :------------------------ |
+| **Authentication**         | UUID only | N/A (centralized) | UUID only | ✅ HMAC + Repo + Cache    |
+| **Replay Protection**      | ❌ None   | N/A               | ❌ None   | ✅ 5-min timestamp window |
+| **Spoofing Difficulty**    | Easy      | N/A               | Easy      | Hard (multi-layer)        |
+| **Rate Limiting**          | Basic     | N/A               | Basic     | ✅ Per-IP + flood alerts  |
+| **Version Validation**     | ❌ None   | ❌ None           | ❌ None   | ✅ GitHub cache           |
+| **Open Source Compatible** | ✅        | ✅                | ✅        | ✅                        |
+
+### Your Advantages Summary
+
+- **Multi-Layer Authentication**: HMAC signature (stops automated spoofing), Repository URL whitelist (only github.com/SveltyCMS/SveltyCMS), and Cached version verification.
+- **Zero-Latency Design**: All blocking checks are in-memory; GitHub API calls run async in background; Version cache persists for 1 hour.
+- **Scalability**: Ready for thousands of heartbeats; Rate limiting prevents abuse; Upsert logic prevents duplicate records.
+- **Open Source Ready**: Works even though code is public; Makes spoofing require significant effort.
+
+## 4. HMAC Authentication
+
+To prevent data spoofing and reduce fake telemetry, SveltyCMS uses HMAC-SHA256 signatures for authentication.
+
+### How It Works
+
+1.  **Payload Generation**: SveltyCMS generates a payload with telemetry data.
+2.  **HMAC Signature**: Before sending, it computes an HMAC-SHA256 signature using a shared salt.
+3.  **Validation**: The telemetry server validates the signature and ensures the timestamp is within a 5-minute window.
+4.  **Rejection**: Invalid signatures or expired timestamps results in a `403 Forbidden` response.
+
+## 5. Fair Source Licensing (BSL 1.1)
 
 This telemetry also helps us understand the "Economy" of our ecosystem to enforce our Fair Source license.
 

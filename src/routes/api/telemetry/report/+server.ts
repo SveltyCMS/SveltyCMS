@@ -19,19 +19,52 @@
  */
 import { json, error } from '@sveltejs/kit';
 import { getPrivateSetting } from '@src/services/settingsService';
-import { object, string, optional, safeParse, maxLength, pipe } from 'valibot';
+import { object, string, optional, safeParse, maxLength, pipe, boolean, number, union, array, any } from 'valibot';
+import { createHash, createHmac } from 'node:crypto';
 import type { RequestEvent } from './$types';
 
 // Telemetry payload validation schema
 const telemetrySchema = object({
-	current_version: pipe(string(), maxLength(20)),
+	current_version: pipe(string(), maxLength(20)), // ✅ Required
 	node_version: optional(pipe(string(), maxLength(20))),
+	os: optional(pipe(string(), maxLength(20))),
 	environment: optional(pipe(string(), maxLength(20))),
-	installation_id: pipe(string(), maxLength(64)),
+	is_ephemeral: optional(pipe(boolean())),
+	installation_id: optional(pipe(string(), maxLength(64))),
+	stable_id: optional(pipe(string(), maxLength(64))),
 	db_type: optional(pipe(string(), maxLength(20))),
-	country: optional(pipe(string(), maxLength(2))),
-	metrics: optional(object({})), // Allow metrics object
-	system: optional(object({})) // Allow system info object
+	location: optional(
+		object({
+			country: optional(pipe(string(), maxLength(128))),
+			country_code: optional(pipe(string(), maxLength(2))),
+			region: optional(pipe(string(), maxLength(128))),
+			city: optional(pipe(string(), maxLength(128))),
+			latitude: optional(pipe(number())),
+			longitude: optional(pipe(number())),
+			isp: optional(pipe(string(), maxLength(128))),
+			org: optional(pipe(string(), maxLength(128)))
+		})
+	),
+	usage_metrics: optional(
+		object({
+			users: optional(number()),
+			collections: optional(number()),
+			roles: optional(number())
+		})
+	),
+	system_info: optional(
+		object({
+			cpu_count: optional(number()),
+			cpu_model: optional(string()),
+			total_memory_gb: optional(number()),
+			os_type: optional(string()),
+			os_release: optional(string()),
+			os_arch: optional(string())
+		})
+	),
+	widgets: optional(union([pipe(string(), maxLength(5000)), array(string())])),
+	timestamp: optional(number()),
+	signature: optional(string())
 });
 
 // Response cache with TTL (aligned with cache-system.mdx)
@@ -45,7 +78,7 @@ const REQUEST_TIMEOUT = 5000; // 5 seconds
 // NOTE: Rate limiting handled by handleRateLimit middleware (server-hooks.mdx)
 // API routes get 500 req/min per IP, 200 req/min per IP+UA
 
-export async function POST({ request, getClientAddress }: RequestEvent) {
+export async function POST({ request }: RequestEvent) {
 	// 1. Check telemetry setting
 	const telemetryEnabled = await getPrivateSetting('SVELTYCMS_TELEMETRY');
 
@@ -71,9 +104,10 @@ export async function POST({ request, getClientAddress }: RequestEvent) {
 		}
 
 		const data = validation.output;
+		const currentVersion = data.current_version;
 
 		// 4. Check cache first (based on version)
-		const cacheKey = `v${data.current_version}`;
+		const cacheKey = `v${currentVersion}`;
 		const cached = responseCache.get(cacheKey);
 
 		if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -82,24 +116,35 @@ export async function POST({ request, getClientAddress }: RequestEvent) {
 			});
 		}
 
-		// 5. Add server-side metadata (don't trust client)
-		const enrichedData = {
+		// 5. Build forwarding payload with HMAC signature
+		const jwtSecret = (await getPrivateSetting('JWT_SECRET_KEY')) || 'fallback_secret';
+		const installationId = data.installation_id || createHash('sha256').update(jwtSecret).digest('hex');
+		const timestamp = data.timestamp || Date.now();
+		const current_version = data.current_version;
+
+		// Recompute signature to ensure authenticity
+		const TELEMETRY_SALT = 'sveltycms-telemetry';
+		const signature = createHmac('sha256', TELEMETRY_SALT).update(`${installationId}:${current_version}:${timestamp}`).digest('hex');
+
+		const forwardData = {
 			...data,
-			server_timestamp: new Date().toISOString(),
-			client_ip: getClientAddress() // For geo-location on server
+			installation_id: installationId,
+			timestamp,
+			signature
 		};
 
 		// 6. Timeout protection (prevent hanging)
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
-		const response = await fetch('https://telemetry.sveltycms.com/api/check-update', {
+		const telemetryEndpoint = process.env.TELEMETRY_ENDPOINT || 'https://telemetry.sveltycms.com/api/check-update';
+		const response = await fetch(telemetryEndpoint, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
 				'User-Agent': 'SveltyCMS-Telemetry/1.0'
 			},
-			body: JSON.stringify(enrichedData),
+			body: JSON.stringify(forwardData),
 			signal: controller.signal
 		});
 

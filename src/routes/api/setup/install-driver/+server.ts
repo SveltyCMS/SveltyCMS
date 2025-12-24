@@ -79,7 +79,9 @@ function getDriverPackage(dbType: string): { package: string; valid: boolean } {
 /**
  * Installs a database driver package using the detected package manager.
  */
-async function installDriver(packageName: string): Promise<{ success: boolean; error?: string; output?: string }> {
+async function installDriver(
+	packageName: string
+): Promise<{ success: boolean; error?: string; output?: string; isPermissionError?: boolean; manualCommand?: string }> {
 	try {
 		logger.info(`Installing database driver: ${packageName}`);
 

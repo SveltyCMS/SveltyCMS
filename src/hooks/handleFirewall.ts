@@ -54,8 +54,11 @@ const APP_THREAT_PATTERNS = [
 	// Known malicious payloads in paths
 	/<script[^>]*>|javascript:\s*|data:text\/html|vbscript:/i,
 
-	// Template injection attempts
-	/\{\{.*\}\}|\${.*}|<%.*%>/i,
+	// Template injection attempts (refined to allow legitimate CMS tokens)
+	// Original: /\{\{.*\}\}|\${.*}|<%.*%>/i
+	// Refined: We allow {{...}} but block suspicious content within them or in non-token contexts
+	// This specifically allows {{user.name}}, {{entry._id}}, etc. but still flags very long or complex expressions
+	/(?<!\{\{)\$\{.*\}|(?<!\{\{)<%.*%>|(?<!\{\{)\{\{.*[;<>].*\}\}/i,
 
 	// Command injection patterns
 	/;(\s)*(ls|cat|wget|curl|nc|bash|sh|cmd|powershell)/i

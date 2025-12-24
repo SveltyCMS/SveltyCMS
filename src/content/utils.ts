@@ -185,7 +185,7 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 		}
 
 		if (result && typeof result === 'object' && 'fields' in result && '_id' in result) {
-			logger.debug(`Processed collection: ${result._id}`);
+			logger.trace(`Processed collection: ${result._id}`);
 			return { schema: result as Schema };
 		}
 

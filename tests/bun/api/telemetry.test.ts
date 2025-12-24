@@ -83,6 +83,7 @@ describeOrSkip('Telemetry API Endpoints', () => {
 					Cookie: authCookie
 				},
 				body: JSON.stringify({
+					version: '0.5.0',
 					current_version: '0.5.0',
 					installation_id: 'test-id'
 				})
@@ -149,6 +150,7 @@ describeOrSkip('Telemetry API Endpoints', () => {
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
+					version: '0.5.0',
 					current_version: '0.5.0',
 					installation_id: 'test'
 				})

@@ -324,7 +324,7 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 			event.cookies.set(SESSION_COOKIE_NAME, newSessionId, {
 				path: '/',
 				httpOnly: true,
-				secure: event.url.protocol === 'https:' || !dev,
+				secure: event.url.protocol === 'https:' || (event.url.hostname !== 'localhost' && !dev),
 				sameSite: 'lax',
 				maxAge: 60 * 60 * 24 * 30 // 30 days
 			});
@@ -420,7 +420,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 				cookies.set('demo_tenant_id', tenantId, {
 					path: '/',
 					httpOnly: true,
-					secure: !url.hostname.includes('localhost'),
+					secure: url.protocol === 'https:' || (url.hostname !== 'localhost' && !dev),
 					sameSite: 'lax',
 					maxAge: 60 * 20 // 20 minutes for a demo session
 				});
