@@ -8,10 +8,9 @@
 	import type { DndEvent, Item } from 'svelte-dnd-action';
 	// Stores
 	import { page } from '$app/state';
-	import { collectionValue, setCollectionValue, setTargetWidget } from '@src/stores/collectionStore.svelte';
-	import { tabSet } from '@stores/store.svelte';
-	import { widgetFunctions } from '@stores/widgetStore.svelte';
-	import { get } from 'svelte/store';
+	import { collections } from '@src/stores/collectionStore.svelte';
+	import { app } from '@stores/store.svelte';
+	import { widgets } from '@stores/widgetStore.svelte';
 	// Components
 	import VerticalList from '@components/VerticalList.svelte';
 	import ModalSelectWidget from './ModalSelectWidget.svelte';
@@ -51,7 +50,7 @@
 
 	// Fields state with proper typing
 	let fields = $state<Field[]>(
-		((collectionValue.value.fields as any[]) || []).map((field, index) => {
+		((collections.activeValue.fields as any[]) || []).map((field, index) => {
 			const baseField = {
 				id: index + 1,
 				label: field.label || '',
@@ -64,7 +63,7 @@
 
 	// Effect to update fields when collection value changes
 	$effect.root(() => {
-		fields = ((collectionValue.value.fields as any[]) || []).map((field, index) => {
+		fields = ((collections.activeValue.fields as any[]) || []).map((field, index) => {
 			const baseField = {
 				id: index + 1,
 				label: field.label || '',
@@ -94,7 +93,7 @@
 		if (selectedWidget.permissions === undefined) {
 			selectedWidget.permissions = {};
 		}
-		setTargetWidget(selectedWidget);
+		collections.setTargetWidget(selectedWidget);
 		const c: ModalComponent = { ref: ModalWidgetForm };
 		const modal: ModalSettings = {
 			type: 'component',
@@ -111,16 +110,16 @@
 					// If the existing widget is found, update its properties
 					const updatedField = { ...fields[existingIndex], ...r };
 					fields = [...fields.slice(0, existingIndex), updatedField, ...fields.slice(existingIndex + 1)];
-					setCollectionValue({
-						...collectionValue,
+					collections.setCollectionValue({
+						...collections.activeValue,
 						fields
 					});
 				} else {
 					// If the existing widget is not found, add it as a new widget
 					const newField = { ...r, id: fields.length + 1 };
 					fields = [...fields, newField];
-					setCollectionValue({
-						...collectionValue,
+					collections.setCollectionValue({
+						...collections.activeValue,
 						fields
 					});
 				}
@@ -142,7 +141,7 @@
 				if (!r) return;
 				const { selectedWidget } = r;
 				const widget = { widget: { key: selectedWidget, Name: selectedWidget }, permissions: {} };
-				setTargetWidget(widget as any);
+				collections.setTargetWidget(widget as any);
 				modalWidgetForm(widget as Field);
 			}
 		};
@@ -152,8 +151,8 @@
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
 		fields = fields.map((field) => {
-			const widgetInstance = get(widgetFunctions)[field.widget.Name];
-			const guiSchema = widgetInstance?.GuiSchema;
+			const widgetInstance = widgets.widgetFunctions[field.widget.Name];
+			const guiSchema = (widgetInstance as any)?.GuiSchema;
 			if (!guiSchema) return field;
 
 			const GuiFields = getGuiFields({ key: field.widget.Name }, guiSchema as any);
@@ -167,8 +166,8 @@
 		});
 
 		// Update the collection fields
-		setCollectionValue({
-			...collectionValue.value,
+		collections.setCollectionValue({
+			...collections.activeValue,
 			fields
 		});
 
@@ -211,7 +210,7 @@
 			<button onclick={() => modalSelectWidget()} class="variant-filled-tertiary btn">{m.collection_widgetfield_addFields()} </button>
 		</div>
 		<div class=" flex items-center justify-between">
-			<button type="button" onclick={() => tabSet.set(1)} class="variant-filled-secondary btn mt-2 justify-end">{m.button_previous()}</button>
+			<button type="button" onclick={() => (app.tabSetState = 1)} class="variant-filled-secondary btn mt-2 justify-end">{m.button_previous()}</button>
 			<button
 				type="button"
 				onclick={handleCollectionSave}

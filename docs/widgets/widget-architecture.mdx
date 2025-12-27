@@ -205,20 +205,22 @@ export async function discoverWidgets(): Promise<WidgetDiscoveryResult> {
 
 ### Store State Management
 
+### Store State Management
+
 ```mermaid
 graph LR
-    subgraph "Store State"
-        WF[widgetFunctions<br/>Active Widget Functions]
-        AW[activeWidgets<br/>Enabled Widget List]
+    subgraph "Store State (Svelte 5 Singleton)"
+        WF[widgetFunctions<br/>Active Widget Registry]
+        AW[active<br/>Enabled Widget List]
         CW[coreWidgets<br/>Core Widget Names]
-        WM[widgetMetadata<br/>Widget Information]
+        WM[widgets<br/>Widget Instance Map]
     end
 
     subgraph "Store Actions"
-        INIT[initializeWidgets<br/>Bootstrap System]
+        INIT[initialize<br/>Bootstrap System]
         TOGGLE[toggleWidget<br/>Enable/Disable]
-        DEPS[validateDependencies<br/>Check Conflicts]
-        RELOAD[reloadWidgets<br/>Refresh State]
+        DEPS[dependencyMap<br/>Reactive Dependency Graph]
+        RELOAD[reload<br/>Refresh State]
     end
 
     INIT --> WF
@@ -226,7 +228,6 @@ graph LR
     INIT --> CW
     TOGGLE --> WF
     TOGGLE --> AW
-    DEPS --> WF
     RELOAD --> WF
 
     style WF fill:#e3f2fd
@@ -357,7 +358,7 @@ All text-based widgets follow this standard pattern for multilingual support:
 	let { field, value = $bindable() }: Props = $props();
 
 	// 1. Determine which language to use based on field.translated
-	const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
+	const _language = $derived(field.translated ? app.contentLanguage : DEFAULT_CONTENT_LANGUAGE);
 
 	// 2. Extract language-specific value
 	const safeValue = $derived(
@@ -490,7 +491,7 @@ Widgets use Svelte 5 runes for reactive language handling:
 	const displayValue = value.en; // Not reactive, only shows English
 
 	// ❌ WRONG: Missing field.translated check
-	const displayValue = value[contentLanguage.value]; // Fails for untranslated fields
+	const displayValue = value[app.contentLanguage]; // Fails for untranslated fields
 </script>
 
 <!-- Automatically updates when contentLanguage changes -->
@@ -506,7 +507,7 @@ Widgets use Svelte 5 runes for reactive language handling:
 	import { contentLanguage } from '@stores/store.svelte';
 
 	// SEO data structure: { en: {...}, de: {...}, fr: {...} }
-	const lang = $derived(field.translated ? contentLanguage.value : 'default');
+	const lang = $derived(field.translated ? app.contentLanguage : 'default');
 
 	// Each language has complete SEO metadata
 	$effect(() => {
@@ -528,7 +529,7 @@ Widgets use Svelte 5 runes for reactive language handling:
 
 ```svelte
 <script lang="ts">
-	const lang = $derived(field.translated ? contentLanguage.value : 'default');
+	const lang = $derived(field.translated ? app.contentLanguage : 'default');
 
 	// Separate TipTap editor instance per language
 	let editors = new Map<string, Editor>();
@@ -553,7 +554,7 @@ Widgets use Svelte 5 runes for reactive language handling:
 
 ```svelte
 <script lang="ts">
-	const lang = $derived(contentLanguage.value);
+	const lang = $derived(app.contentLanguage);
 
 	// Show related entry's title in current language
 	function getDisplayName(relatedEntry: any): string {
@@ -621,7 +622,7 @@ Display widgets show read-only values and must handle multilingual data:
 
 	let { field, value }: Props = $props();
 
-	const lang = $derived(field.translated ? contentLanguage.value : 'en');
+	const lang = $derived(field.translated ? app.contentLanguage : 'en');
 
 	const displayValue = $derived(field.translated && typeof value === 'object' && value !== null ? value[lang] || '-' : value || '-');
 </script>
@@ -636,7 +637,7 @@ Display widgets show read-only values and must handle multilingual data:
 1. **Always check `field.translated` before accessing language keys:**
 
    ```typescript
-   const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
+   const _language = $derived(field.translated ? app.contentLanguage : DEFAULT_CONTENT_LANGUAGE);
    ```
 
 2. **Use reactive derivations (`$derived`) for language-dependent values:**
@@ -654,7 +655,7 @@ Display widgets show read-only values and must handle multilingual data:
 4. **Provide fallbacks for missing translations:**
 
    ```typescript
-   const text = value[contentLanguage.value] || value.en || value[DEFAULT_CONTENT_LANGUAGE] || '';
+   const text = value[app.contentLanguage] || value.en || value[DEFAULT_CONTENT_LANGUAGE] || '';
    ```
 
 5. **Import from the store, not from props:**
@@ -674,7 +675,7 @@ Display widgets show read-only values and must handle multilingual data:
 2. **Don't assume all fields are translated:**
 
    ```typescript
-   const value = data[contentLanguage.value]; // ❌ Breaks for untranslated fields
+   const value = data[app.contentLanguage]; // ❌ Breaks for untranslated fields
    ```
 
 3. **Don't mix UI language with content language:**
@@ -935,7 +936,7 @@ sequenceDiagram
 
 	// ❌ DON'T DO THIS: Client-side widget initialization
 	onMount(async () => {
-		await widgetStoreActions.initializeWidgets(tenantId);
+		await widgets.initialize(tenantId);
 		widgetsReady = true;
 	});
 </script>
@@ -959,7 +960,7 @@ sequenceDiagram
 	const { field, value } = $props();
 
 	// Direct access to widget functions
-	$: widgetFn = $widgetFunctions[field.widget];
+	const widgetFn = $derived(widgets.widgetFunctions[field.widget]);
 </script>
 
 <!-- Widgets are always ready - render immediately -->

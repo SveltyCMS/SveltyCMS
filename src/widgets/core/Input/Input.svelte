@@ -31,9 +31,8 @@
 
 	// Valibot validation
 	import { parse, type ValiError } from 'valibot';
-	import { validationStore } from '@root/src/stores/store.svelte';
+	import { app, validationStore } from '@src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import { contentLanguage } from '@src/stores/store.svelte';
 
 	// Props
 	interface Props {
@@ -53,7 +52,8 @@
 	let { field, value = $bindable(), validateOnChange = true, validateOnBlur = true, debounceMs = 300 }: Props = $props();
 
 	// New derived state for validateOnMount
-	const validateOnMount = $derived(field.required ?? false);
+	// Disable immediate validation for required fields to prevent error spam on new entries
+	const validateOnMount = $derived(false);
 
 	// SECURITY: Maximum input length to prevent ReDoS attacks
 	const MAX_INPUT_LENGTH = 100000; // 100KB
@@ -64,7 +64,7 @@
 	}
 
 	// Use current content language for translated fields, default for non-translated
-	const _language = $derived(field.translated ? contentLanguage.value : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Initialize value if null/undefined
 	// Safe value access with fallback

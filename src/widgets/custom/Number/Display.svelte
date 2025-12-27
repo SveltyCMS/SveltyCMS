@@ -25,12 +25,12 @@ Renders: "1,234,567.89" (US) or "1.234.567,89" (German) based on system language
 -->
 
 <script lang="ts">
-	import { systemLanguage } from '@src/stores/store.svelte';
+	import { app } from '@src/stores/store.svelte';
 
 	const { value }: { value: number | null | undefined } = $props();
 
 	// Get the user's current UI language.
-	const lang = $derived($systemLanguage);
+	const lang = $derived(app.systemLanguage);
 
 	// Format the number as a localized string.
 	const formattedNumber = $derived.by(() => {

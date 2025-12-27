@@ -13,16 +13,16 @@ Features:
 	import PermissionsSetting from '@components/PermissionsSetting.svelte';
 	// Skeleton Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
-	import { targetWidget } from '@src/stores/collectionStore.svelte';
+	import { collections } from '@src/stores/collectionStore.svelte';
 
 	const modalStore = getModalStore();
 
 	// Function to handle permission updates
 	function handlePermissionUpdate(updatedPermissions: Record<string, Record<string, boolean>>) {
-		const w = targetWidget.value;
+		const w = collections.targetWidget;
 		if (!w) return;
 		w.permissions = updatedPermissions;
-		targetWidget.value = w;
+		collections.setTargetWidget(w);
 	}
 
 	// Get roles from the modal store
@@ -31,6 +31,6 @@ Features:
 
 {#if $modalStore[0]}
 	<div class="mb-4">
-		<PermissionsSetting {roles} permissions={targetWidget.value.permissions || {}} onUpdate={handlePermissionUpdate} />
+		<PermissionsSetting {roles} permissions={collections.targetWidget.permissions || {}} onUpdate={handlePermissionUpdate} />
 	</div>
 {/if}

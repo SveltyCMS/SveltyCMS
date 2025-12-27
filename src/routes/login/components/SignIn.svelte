@@ -18,7 +18,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { goto, preloadData } from '$app/navigation';
-	import { enhance } from '$app/forms';
+	import { enhance, deserialize } from '$app/forms';
 
 	// Stores
 	import { page } from '$app/state';
@@ -46,7 +46,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import OauthLogin from './OauthLogin.svelte';
 
 	// Screen size store
-	import { isDesktop } from '@stores/screenSizeStore.svelte';
+	import { screen } from '@stores/screenSizeStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Props
@@ -63,6 +63,32 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 		onBack?: () => void;
 		firstCollectionPath?: string;
 	} = $props();
+
+	let prefetched = $state(false);
+
+	async function prefetchFirstCollection() {
+		if (prefetched) return;
+		prefetched = true;
+
+		try {
+			const data = new FormData();
+			const response = await fetch('?/prefetch', {
+				method: 'POST',
+				body: data
+			});
+
+			const result = deserialize(await response.text());
+
+			if (result.type === 'success') {
+				const collection = (result.data as any)?.collection;
+				if (collection?.path) {
+					await preloadData(collection.path);
+				}
+			}
+		} catch (error) {
+			console.error('Prefetch failed:', error);
+		}
+	}
 
 	// State management
 	let PWforgot = $state(false);
@@ -408,7 +434,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	// Lazy-load FloatingPaths only when needed (desktop + active 0)
 	$effect(() => {
 		// track dependencies
-		const desktop = isDesktop.value;
+		const desktop = screen.isDesktop;
 		const isActiveLogin = active === 0;
 		if (browser && desktop && isActiveLogin) {
 			import('@root/src/components/system/FloatingPaths.svelte').then((m) => {
@@ -441,7 +467,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	{#if active === 0}
 		<!-- Background pattern  -->
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
-			{#if isDesktop.value && FloatingPathsComponent}
+			{#if screen.isDesktop && FloatingPathsComponent}
 				<div class="absolute inset-0 z-0">
 					<FloatingPathsComponent position={-1} background="white" />
 					<FloatingPathsComponent position={1} background="white" />
@@ -528,7 +554,13 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 					<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
 						<!-- Row 1 -->
 						<div class="flex w-full justify-between gap-2 sm:w-auto">
-							<button type="submit" form="signin-form" class="variant-filled-surface btn w-full sm:w-auto" aria-label={m.form_signin()}>
+							<button
+								type="submit"
+								form="signin-form"
+								class="variant-filled-surface btn w-full sm:w-auto"
+								aria-label={m.form_signin()}
+								onmouseenter={prefetchFirstCollection}
+							>
 								{m.form_signin()}
 								<!-- Optimized loading indicators -->
 								{#if isSubmitting || isAuthenticating}

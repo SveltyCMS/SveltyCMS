@@ -21,7 +21,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import { storeListboxValue } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 
 	// Skeleton
 	import type { ModalComponent, ModalSettings, PopupSettings } from '@skeletonlabs/skeleton';
@@ -49,7 +49,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	// Sync local listboxValue with global store for TableIcons
 	$effect(() => {
-		storeListboxValue.set(listboxValue);
+		app.listboxValueState = listboxValue;
 	});
 
 	// Normalize selection to a safe array

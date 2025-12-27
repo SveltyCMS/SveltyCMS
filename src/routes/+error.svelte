@@ -19,7 +19,7 @@
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	// ParaglideJS
-	import { contentLanguage } from '@root/src/stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 	import * as m from '@src/paraglide/messages';
 
 	const speed = 100;
@@ -45,7 +45,7 @@
 
 {#if page}
 	<main
-		lang={$contentLanguage}
+		lang={app.contentLanguage}
 		class="bg-linear-to-t flex h-screen w-full flex-col items-center justify-center from-surface-900 via-surface-700 to-surface-900 text-white"
 	>
 		<div class="relative">

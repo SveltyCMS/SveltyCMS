@@ -45,7 +45,7 @@ and proper active state indication.
 	<div class="sidebar-tools flex flex-1 flex-col gap-1 p-1.5 lg:p-2 max-lg:gap-0.5 max-lg:p-1">
 		{#each tools as tool}
 			<button
-				class="btn variant-filled-primary flex flex-col items-center justify-center gap-1 py-2"
+				class="btn variant-filled-primary group relative flex flex-col items-center justify-center gap-1 py-2"
 				class:active={isToolActive(tool)}
 				class:disabled={!hasImage}
 				class:bg-primary-500={isToolActive(tool)}
@@ -56,7 +56,6 @@ and proper active state indication.
 				class:opacity-50={!hasImage}
 				class:bg-transparent={!hasImage}
 				onclick={() => handleToolClick(tool)}
-				title="{tool.name}{tool.description ? `: ${tool.description}` : ''}"
 				aria-label={tool.name}
 				disabled={!hasImage}
 			>
@@ -64,6 +63,18 @@ and proper active state indication.
 					<iconify-icon icon={tool.icon} width="24"></iconify-icon>
 				</div>
 				<span class="tool-label text-[10px] font-medium leading-none lg:text-xs">{tool.name}</span>
+
+				<!-- Tooltip -->
+				<div
+					class="tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded bg-surface-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100 dark:bg-surface-700 shadow-lg"
+				>
+					<div class="font-medium">{tool.name}</div>
+					{#if tool.description}
+						<div class="text-[10px] text-surface-300">{tool.description}</div>
+					{/if}
+					<!-- Arrow -->
+					<div class="absolute -left-1 top-1/2 -mt-1 h-2 w-2 -rotate-45 bg-surface-900 dark:bg-surface-700"></div>
+				</div>
 
 				<!-- coming soon badge removed; driven by registry now -->
 			</button>

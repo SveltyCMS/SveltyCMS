@@ -29,8 +29,8 @@
 	import { logger } from '@utils/logger';
 
 	// Stores
-	import { setCollectionValue, setMode, setContentStructure, contentStructure } from '@src/stores/collectionStore.svelte';
-	import { setRouteContext } from '@src/stores/UIStore.svelte';
+	import { collections } from '@src/stores/collectionStore.svelte';
+	import { ui } from '@src/stores/UIStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -229,13 +229,13 @@
 				// Re-sync `currentConfig` with the *actual* structure returned by the server
 				// This is crucial for consistency, especially after complex reorders.
 				if (result.contentStructure) {
-					setContentStructure(result.contentStructure);
+					collections.setContentStructure(result.contentStructure);
 					currentConfig = result.contentStructure;
 				}
 				console.debug('API save successful. New contentStructure:', result.contentStructure);
 			} else {
 				// Revert currentConfig to the last known good state if save fails
-				currentConfig = contentStructure.value; // Revert to the state from the store
+				currentConfig = collections.contentStructure; // Revert to the state from the store
 				throw new Error(result.error || 'Failed to update categories');
 			}
 		} catch (error) {
@@ -248,8 +248,8 @@
 	}
 
 	function handleAddCollectionClick(): void {
-		setMode('create');
-		setCollectionValue({
+		collections.setMode('create');
+		collections.setCollectionValue({
 			name: 'new',
 			icon: '',
 			description: '',
@@ -261,8 +261,8 @@
 	}
 
 	$effect(() => {
-		setRouteContext({ isCollectionBuilder: true });
-		return () => setRouteContext({ isCollectionBuilder: false });
+		ui.setRouteContext({ isCollectionBuilder: true });
+		return () => ui.setRouteContext({ isCollectionBuilder: false });
 	});
 </script>
 

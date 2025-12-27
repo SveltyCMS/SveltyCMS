@@ -24,7 +24,7 @@
  */
 
 import type { Handle } from '@sveltejs/kit';
-import { contentLanguage, systemLanguage } from '@stores/store.svelte';
+import { app } from '@stores/store.svelte';
 import type { Locale } from '@src/paraglide/runtime';
 import { locales } from '@src/paraglide/runtime';
 import { logger } from '@utils/logger.server';
@@ -74,14 +74,14 @@ export const handleLocale: Handle = async ({ event, resolve }) => {
 	const { cookies } = event;
 
 	// Safety check: Ensure stores are available (server-side initialization)
-	if (!systemLanguage || !contentLanguage) {
+	if (!app) {
 		logger.warn('Language stores not available on server, skipping handleLocale');
 		return resolve(event);
 	}
 
 	// Sync system language store from cookie
 	const systemLangCookie = cookies.get('systemLanguage');
-	const systemLangSet = safelySetLanguage('systemLanguage', systemLangCookie, (value) => systemLanguage.set(value));
+	const systemLangSet = safelySetLanguage('systemLanguage', systemLangCookie, (value) => (app.systemLanguage = value));
 
 	// Clean up invalid system language cookie
 	if (systemLangCookie && !systemLangSet) {
@@ -91,7 +91,7 @@ export const handleLocale: Handle = async ({ event, resolve }) => {
 
 	// Sync content language store from cookie
 	const contentLangCookie = cookies.get('contentLanguage');
-	const contentLangSet = safelySetLanguage('contentLanguage', contentLangCookie, (value) => contentLanguage.set(value));
+	const contentLangSet = safelySetLanguage('contentLanguage', contentLangCookie, (value) => (app.contentLanguage = value));
 
 	// Clean up invalid content language cookie
 	if (contentLangCookie && !contentLangSet) {

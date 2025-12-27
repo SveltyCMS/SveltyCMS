@@ -632,8 +632,8 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 				const t = performance.now();
 				updateServiceHealth('widgets', 'initializing', 'Initializing widget store...');
 				// Dynamic import to avoid circular dependency with client bundle
-				const { widgetStoreActions } = await import('@stores/widgetStore.svelte');
-				await widgetStoreActions.initializeWidgets(undefined, dbAdapter);
+				const { widgets } = await import('@stores/widgetStore.svelte');
+				await widgets.initialize(undefined, dbAdapter);
 				updateServiceHealth('widgets', 'healthy', 'Widget store initialized');
 				widgetsTime = performance.now() - t;
 			})()

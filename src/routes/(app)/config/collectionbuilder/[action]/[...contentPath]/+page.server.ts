@@ -24,7 +24,7 @@ import { contentManager } from '@src/content/ContentManager';
 import { compile } from '@src/utils/compilation/compile';
 
 // Widgets
-import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
+import { widgets } from '@stores/widgetStore.svelte';
 
 // Auth
 // Use hasPermissionWithRoles and roles from locals, like the example pattern
@@ -207,7 +207,7 @@ export const actions: Actions = {
 				fs.renameSync(`${collectionPath}/${originalName}.ts`, `${process.env.COLLECTIONS_FOLDER_TS}/${contentName}.ts`);
 			}
 			fs.writeFileSync(`${collectionPath}/${contentName}.ts`, content);
-			await compile();
+			await compile({ logger });
 			//await contentManager.generateContentTypes();
 			//await contentManager.generateCollectionFieldTypes();
 			await contentManager.refresh();
@@ -265,7 +265,7 @@ export const actions: Actions = {
 			const formData = await request.formData();
 			const contentTypes = JSON.parse(formData.get('contentTypes') as string);
 			fs.unlinkSync(`${process.env.COLLECTIONS_FOLDER_TS}/${contentTypes}.ts`);
-			await compile();
+			await compile({ logger });
 			await contentManager.refresh();
 			return { status: 200 };
 		} catch (err) {
@@ -298,8 +298,7 @@ async function goThrough(object: FieldsData, fields: string): Promise<string> {
 
 			// Get widget definition
 			const widgetName = fieldWithWidget.widget.Name;
-			const widgetStore = widgets as unknown as Record<string, WidgetDefinition>;
-			const widget = widgetStore[widgetName];
+			const widget = widgets.widgetFunctions[widgetName] as unknown as WidgetDefinition;
 			if (!widget || !widget.GuiSchema) continue;
 
 			// Process widget imports

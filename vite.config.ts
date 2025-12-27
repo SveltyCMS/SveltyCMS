@@ -124,7 +124,7 @@ async function initializeCollectionsStructure() {
 
 	if (sourceFiles.length > 0) {
 		log.info(`Found \x1b[32m${sourceFiles.length}\x1b[0m collection(s), compiling...`);
-		await compile({ userCollections: paths.userCollections, compiledCollections: paths.compiledCollections });
+		await compile({ userCollections: paths.userCollections, compiledCollections: paths.compiledCollections, logger: log });
 		log.success('Initial collection compilation successful!');
 	} else {
 		log.info('No user collections found. Creating placeholder structure.');
@@ -233,7 +233,8 @@ function cmsWatcherPlugin(): Plugin {
 					await compile({
 						userCollections: paths.userCollections,
 						compiledCollections: paths.compiledCollections,
-						targetFile: file // Pass the specific file that changed
+						targetFile: file, // Pass the specific file that changed
+						logger: log
 					});
 					log.success(`Re-compilation successful for ${path.basename(file)}!`);
 
@@ -276,12 +277,16 @@ function cmsWatcherPlugin(): Plugin {
 				log.info(`Widget file change detected. Reloading widget store...`);
 				try {
 					// Invalidate and reload the widget store module to get the latest code
-					const { widgetStoreActions } = await server.ssrLoadModule('./src/stores/widgetStore.svelte.ts?t=' + Date.now());
+					const { widgets } = await server.ssrLoadModule('./src/stores/widgetStore.svelte.ts?t=' + Date.now());
 					// Call the reload action, which re-scans the filesystem
-					await widgetStoreActions.reloadWidgets();
-					// Trigger a full reload on the client to reflect the changes
-					server.ws.send({ type: 'full-reload', path: '*' });
-					log.success('Widgets reloaded and client updated.');
+					if (widgets && typeof widgets.reload === 'function') {
+						await widgets.reload();
+						// Trigger a full reload on the client to reflect the changes
+						server.ws.send({ type: 'full-reload', path: '*' });
+						log.success('Widgets reloaded and client updated.');
+					} else {
+						log.warn('Could not find widgets.reload function in reloaded module');
+					}
 				} catch (err) {
 					log.error('Error reloading widgets:', err);
 				}
@@ -343,7 +348,15 @@ export default defineConfig((): UserConfig => {
 				outdir: './src/paraglide'
 			})
 		],
+
 		server: {
+			proxy: {
+				'/api/graphql-ws': {
+					target: 'ws://localhost:3001',
+					ws: true,
+					rewrite: (path) => path.replace(/^\/api\/graphql-ws/, '/api/graphql')
+				}
+			},
 			fs: {
 				allow: ['static', '.'],
 				deny: ['**/tests/**']

@@ -33,8 +33,8 @@
 	const tenantId = $derived(page.data?.tenantId);
 
 	// Stores
-	import { collection, collectionValue, setCollectionValue } from '@src/stores/collectionStore.svelte';
-	import { translationProgress, contentLanguage, dataChangeStore, validationStore } from '@stores/store.svelte';
+	import { collections } from '@src/stores/collectionStore.svelte';
+	import { app, validationStore, dataChangeStore } from '@stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import type { Locale } from '@src/paraglide/runtime';
 
@@ -46,7 +46,7 @@
 	import { showConfirm } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 
-	import { widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte';
+	import { widgets } from '@stores/widgetStore.svelte';
 
 	// --- PERFORMANCE FIX: DYNAMIC WIDGET IMPORTS ---
 	// Lazy-load widgets for code-splitting (eager: false is default)
@@ -58,7 +58,7 @@
 
 	// Import async widget loader component
 	import WidgetLoader from './WidgetLoader.svelte';
-	import { activeInputStore } from '@stores/activeInputStore.svelte';
+	import { activeInput } from '@stores/activeInputStore.svelte';
 
 	// Token Picker
 	// Token Picker
@@ -72,20 +72,15 @@
 		const el = document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement;
 		if (el) {
 			el.focus();
-			activeInputStore.set({ element: el, field }); // Explicitly open picker on button click
+			activeInput.set({ element: el, field }); // Explicitly open picker on button click
 		} else {
 			console.warn('Could not find input for field', field);
 		}
 	}
 	// --- END PERFORMANCE FIX ---
 
-	let widgetFunctions = $state<Record<string, any>>({});
-	$effect(() => {
-		const unsubscribe = widgetFunctionsStore.subscribe((value) => {
-			widgetFunctions = value;
-		});
-		return unsubscribe;
-	});
+	// Widget functions from the singleton
+	const widgetFunctions = $derived(widgets.widgetFunctions);
 
 	// --- 1. RECEIVE DATA AS PROPS ---
 	let {
@@ -93,7 +88,7 @@
 		revisions = []
 		// contentLanguage prop received but not directly used - widgets access contentLanguage store
 	} = $props<{
-		fields?: NonNullable<(typeof collection)['value']>['fields'];
+		fields?: NonNullable<typeof collections.active>['fields'];
 		revisions?: any[];
 		contentLanguage?: string; // Passed for documentation, widgets use store directly
 	}>();
@@ -112,12 +107,12 @@
 	let lastEntryId = $state<string | undefined>(undefined);
 
 	// Track current content language for reactivity
-	let currentContentLanguage = $state<Locale>(contentLanguage.value as Locale);
+	let currentContentLanguage = $state<Locale>(app.contentLanguage as Locale);
 
 	// React to contentLanguage store changes and update local state
 	// This ensures widgets remount with the correct language
 	$effect(() => {
-		const newLang = contentLanguage.value as Locale;
+		const newLang = app.contentLanguage as Locale;
 		if (currentContentLanguage !== newLang) {
 			logger.debug('Language changed:', currentContentLanguage, '→', newLang);
 			logger.debug('Current collectionValue keys:', Object.keys(currentCollectionValue));
@@ -128,20 +123,96 @@
 	});
 
 	// --- 3. DERIVED STATE FROM PROPS ---
-	let selectedRevision = $derived(revisions.find((r: any) => r._id === selectedRevisionId) || null);
+	let selectedRevision = $derived(Array.isArray(revisions) ? revisions.find((r: any) => r._id === selectedRevisionId) : null);
 
 	// --- 4. SIMPLIFIED LOGIC ---
 	let derivedFields = $derived(fields || []);
 
 	// Get translation progress
-	let currentTranslationProgress = $derived(translationProgress.value);
+	let currentTranslationProgress = $derived(app.translationProgress);
 
 	// Track changes to translation progress for debugging
 	$effect(() => {
 		logger.debug('Translation progress updated:', {
-			showProgress: translationProgress.value?.show,
-			languages: Object.keys(translationProgress.value || {}).filter((k) => k !== 'show')
+			showProgress: app.translationProgress?.show,
+			languages: Object.keys(app.translationProgress || {}).filter((k) => k !== 'show')
 		});
+	});
+
+	// --- REAL-TIME COLLABORATION (GraphQL Subscription) ---
+	import { createClient } from 'graphql-ws';
+
+	$effect(() => {
+		const currentEntryId = (collections.activeValue as any)?._id;
+		const currentCollectionName = collections.active?.name;
+
+		if (!currentEntryId || !currentCollectionName || typeof window === 'undefined') return;
+
+		// Use the proxy path defined in vite.config.ts
+		// This works in Dev (proxied to 3001) and Prod (configured via Nginx/Adapter)
+		const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+		const host = window.location.host; // includes port
+		const wsUrl = `${protocol}//${host}/api/graphql-ws`;
+
+		const client = createClient({
+			url: wsUrl
+			// Optional: Authenticate if needed, e.g. params: { token: ... }
+			// But our server implementation extracts user from session/cookie which WS handles automatically usually,
+			// or we might need connectionParams: { authorization: ... } if using tokens.
+			// For now assuming cookie/session works.
+		});
+
+		const unsubscribe = client.subscribe(
+			{
+				query: `subscription {
+					entryUpdated {
+						collection
+						id
+						action
+						data
+						user {
+							_id
+							username
+						}
+					}
+				}`
+			},
+			{
+				next: (response: any) => {
+					const event = response?.data?.entryUpdated;
+					if (!event) return;
+
+					// Filter only for current entry
+					if (event.collection !== currentCollectionName && event.collection !== collections.active?.slug) return;
+					if (event.id !== currentEntryId) return;
+
+					// Ignore self-updates
+					if (event.user?._id === user?._id) return;
+
+					// Notify user
+					showToast(`Entry ${event.action}d by ${event.user?.username || 'another user'}.`, 'info');
+
+					// If it's an update, we might want to refresh the data or prompt the user.
+					// For now, let's prompt or just show toast.
+					// Ideally: collections.setCollectionValue(event.data);
+					// But that might overwrite local changes.
+					// Safer: Show a banner "New version available. Refresh?"
+
+					// Note: User can use Revisions tab to see history.
+				},
+				error: (err) => {
+					console.error('GraphQL Subscription Error:', err);
+				},
+				complete: () => {
+					// Subscription complete
+				}
+			}
+		);
+
+		return () => {
+			unsubscribe();
+			client.dispose();
+		};
 	});
 
 	// Get available languages
@@ -158,7 +229,7 @@
 	function getFieldTranslationPercentage(field: any): number {
 		if (!field.translated) return 100; // Not a translatable field
 
-		const fieldName = `${collection.value?.name}.${getFieldName(field)}`;
+		const fieldName = `${collections.active?.name}.${getFieldName(field)}`;
 		const allLangs = availableLanguages; // Use the new derived state
 
 		// Avoid division by zero if no languages are configured
@@ -209,7 +280,7 @@
 	// When collectionValue changes (new entry loaded), update local state
 	// When local state changes (user editing), update global state
 	$effect(() => {
-		const global = collectionValue.value as Record<string, unknown> | undefined;
+		const global = collections.activeValue as Record<string, unknown> | undefined;
 		const globalId = (global as any)?._id;
 
 		// When a new entry is loaded (different ID), pull from global -> local
@@ -239,7 +310,7 @@
 			const globalDataStr = JSON.stringify(global ?? {});
 			if (currentDataStr !== globalDataStr) {
 				logger.debug('Pushing local changes to global store');
-				untrack(() => setCollectionValue({ ...local }));
+				untrack(() => collections.setCollectionValue({ ...local }));
 				// Track changes for save button state
 				dataChangeStore.compareWithCurrent(local as Record<string, any>);
 			}
@@ -264,11 +335,11 @@
 			lastLocalValueStr = localStr;
 
 			// Update the global store (using untrack to avoid creating dependency)
-			const global = untrack(() => collectionValue.value);
+			const global = untrack(() => collections.activeValue);
 			const globalStr = JSON.stringify(global ?? {});
 
 			if (localStr !== globalStr) {
-				untrack(() => setCollectionValue({ ...currentCollectionValue }));
+				untrack(() => collections.setCollectionValue({ ...currentCollectionValue }));
 				// Track changes for save button state
 				dataChangeStore.compareWithCurrent(currentCollectionValue as Record<string, any>);
 			}
@@ -283,8 +354,8 @@
 			body: 'Are you sure you want to revert to this version? Any unsaved changes will be lost.',
 			confirmText: 'Revert',
 			onConfirm: () => {
-				const revertData = { ...selectedRevision.data, _id: (collectionValue as any).value?._id };
-				setCollectionValue(revertData);
+				const revertData = { ...selectedRevision.data, _id: (collections.activeValue as any)._id };
+				collections.setCollectionValue(revertData);
 				currentCollectionValue = revertData; // also update local state
 				showToast('Content reverted. Please save your changes.', 'info');
 				localTabSet = 0;
@@ -323,14 +394,14 @@
 	});
 
 	$effect(() => {
-		if ((collectionValue as any).value?._id) {
-			apiUrl = `${location.origin}/api/collection/${collection.value?._id}/${(collectionValue as any).value._id}`;
+		if ((collections.activeValue as any)?._id) {
+			apiUrl = `${location.origin}/api/collection/${collections.active?._id}/${(collections.activeValue as any)._id}`;
 		}
 	});
 </script>
 
 <TabGroup
-	justify={collection.value?.revision === true ? 'justify-between md:justify-around' : 'justify-center '}
+	justify={collections.active?.revision === true ? 'justify-between md:justify-around' : 'justify-center '}
 	rounded="rounded-tl-container-token rounded-tr-container-token"
 	flex="flex-1 items-center"
 	active="border-b border-tertiary-500 dark:border-primary-500 variant-soft-secondary"
@@ -344,16 +415,16 @@
 		</div>
 	</Tab>
 
-	{#if collection.value?.revision}
+	{#if collections.active?.revision}
 		<Tab bind:group={localTabSet} name="revisions" value={1}>
 			<div class="flex items-center gap-2">
 				<iconify-icon icon="mdi:history" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				{m.applayout_version()} <span class="variant-filled-secondary badge">{revisions.length}</span>
+				{m.applayout_version()} <span class="variant-filled-secondary badge">{(revisions || []).length}</span>
 			</div>
 		</Tab>
 	{/if}
 
-	{#if collection.value?.livePreview}
+	{#if collections.active?.livePreview}
 		<Tab bind:group={localTabSet} name="preview" value={2}>
 			<div class="flex items-center gap-2">
 				<iconify-icon icon="mdi:eye-outline" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -424,14 +495,14 @@
 									<!-- --- PERFORMANCE FIX: ROBUST WIDGET FINDER --- -->
 									{@const loadedWidget = (() => {
 										// 1. Try exact path from widget store (fastest)
-										const storePath = widgetFunctions[widgetName]?.componentPath;
+										const storePath = (widgetFunctions[widgetName] as any)?.componentPath;
 										if (storePath && storePath in modules) return modules[storePath];
 
 										// 2. Try casing variations from store
-										const camelPath = widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)]?.componentPath;
+										const camelPath = (widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)] as any)?.componentPath;
 										if (camelPath && camelPath in modules) return modules[camelPath];
 
-										const lowerPath = widgetFunctions[widgetName.toLowerCase()]?.componentPath;
+										const lowerPath = (widgetFunctions[widgetName.toLowerCase()] as any)?.componentPath;
 										if (lowerPath && lowerPath in modules) return modules[lowerPath];
 
 										// 3. Robust Search in modules (fallback)
@@ -521,19 +592,19 @@
 									{/each}
 								</div>
 							{:else if selectedRevisionId}
-								<p class="text-center text-surface-500">No differences found.</p>
+								<p class="text-center text-tertiary-500 dark:text-primary-500">No differences found.</p>
 							{:else}
-								<p class="text-center text-surface-500">Select a revision to see what's changed.</p>
+								<p class="text-center text-tertiary-500 dark:text-primary-500">Select a revision to see what's changed.</p>
 							{/if}
 						{:else}
-							<p class="text-center text-surface-500">Select a revision to see what's changed.</p>
+							<p class="text-center text-tertiary-500 dark:text-primary-500">Select a revision to see what's changed.</p>
 						{/if}
 					</div>
 				{/if}
 			</div>
 		{:else if localTabSet === 2}
 			{@const hostProd = publicEnv?.HOST_PROD || 'https://localhost:5173'}
-			{@const entryId = (collectionValue as any).value?._id || 'draft'}
+			{@const entryId = (collections.activeValue as any)?._id || 'draft'}
 			{@const previewUrl = `${hostProd}?preview=${entryId}`}
 			<div class="flex h-[600px] flex-col p-4">
 				<div class="mb-4 flex items-center justify-between gap-4">
@@ -565,7 +636,7 @@
 					<input type="text" class="input flex-grow" readonly value={apiUrl} />
 					<button class="variant-ghost-surface btn" use:clipboard={apiUrl}>Copy</button>
 				</div>
-				<CodeBlock language="json" code={JSON.stringify((collectionValue as any).value, null, 2)} />
+				<CodeBlock language="json" code={JSON.stringify(collections.activeValue, null, 2)} />
 			</div>
 		{/if}
 	</svelte:fragment>

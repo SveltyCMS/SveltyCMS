@@ -15,7 +15,7 @@ Features:
 	import { logger } from '@utils/logger';
 	import WidgetCard from './WidgetCard.svelte';
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
-	import { widgetStoreActions } from '@stores/widgetStore.svelte';
+	import { widgets } from '@stores/widgetStore.svelte';
 
 	// Props
 	const { data }: { data: any } = $props();
@@ -30,13 +30,15 @@ Features:
 		dependencies: string[];
 		canDisable: boolean;
 		pillar?: {
-			input?: { exists: boolean };
-			display?: { exists: boolean };
+			definition: { name: string; description: string; icon: string; guiSchema: number; aggregations: boolean };
+			input: { componentPath: string; exists: boolean };
+			display: { componentPath: string; exists: boolean };
 		};
+		hasValidation?: boolean;
 	}
 
 	// State
-	let widgets: Widget[] = $state([]);
+	let widgetList: Widget[] = $state([]);
 	let isLoading = $state(true);
 	let searchQuery = $state('');
 	let activeFilter = $state('all');
@@ -55,13 +57,13 @@ Features:
 
 	// Computed stats
 	const stats = $derived({
-		total: widgets.length,
-		core: widgets.filter((w) => w.isCore).length,
-		custom: widgets.filter((w) => !w.isCore).length,
-		active: widgets.filter((w) => w.isActive).length,
-		inactive: widgets.filter((w) => !w.isActive).length,
-		withInput: widgets.filter((w) => w.pillar?.input?.exists).length,
-		withDisplay: widgets.filter((w) => w.pillar?.display?.exists).length
+		total: widgetList.length,
+		core: widgetList.filter((w) => w.isCore).length,
+		custom: widgetList.filter((w) => !w.isCore).length,
+		active: widgetList.filter((w) => w.isActive).length,
+		inactive: widgetList.filter((w) => !w.isActive).length,
+		withInput: widgetList.filter((w) => w.pillar?.input?.exists).length,
+		withDisplay: widgetList.filter((w) => w.pillar?.display?.exists).length
 	});
 
 	// Tooltip settings for metric cards
@@ -88,7 +90,7 @@ Features:
 
 	// Filtered widgets
 	const filteredWidgets = $derived(
-		widgets.filter((widget) => {
+		widgetList.filter((widget) => {
 			// Search filter
 			const matchesSearch =
 				searchQuery === '' ||
@@ -148,18 +150,28 @@ Features:
 
 		try {
 			const response = await fetch(`/api/widgets/list?tenantId=${tenantId}`);
+			// Parse JSON even for error responses to get the message
+			const result = await response.json();
 
-			if (!response.ok) {
-				throw new Error(`Failed to load widgets: ${response.statusText}`);
+			if (!result.success || !response.ok) {
+				throw new Error(result.error || result.message || `Failed to load widgets: ${response.statusText}`);
 			}
 
-			const result = await response.json();
-			widgets = result.widgets || [];
+			if (result.data && Array.isArray(result.data.widgets)) {
+				widgetList = result.data.widgets;
+			} else if (result.data && Array.isArray(result.data)) {
+				// Fallback for older API format if cached?
+				widgetList = result.data;
+			} else {
+				// Fallback generic
+				widgetList = [];
+				logger.warn('Unexpected API response structure', result);
+			}
 
 			console.info('Loaded widgets:', {
-				total: widgets.length,
-				core: widgets.filter((w) => w.isCore).length,
-				custom: widgets.filter((w) => !w.isCore).length
+				total: widgetList.length,
+				core: widgetList.filter((w) => w.isCore).length,
+				custom: widgetList.filter((w) => !w.isCore).length
 			});
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load widgets';
@@ -176,7 +188,7 @@ Features:
 		}
 
 		try {
-			const widget = widgets.find((w) => w.name === widgetName);
+			const widget = widgetList.find((w) => w.name === widgetName);
 			if (!widget) return;
 
 			const newStatus = !widget.isActive;
@@ -193,13 +205,15 @@ Features:
 				})
 			});
 
-			if (!response.ok) {
-				throw new Error(`Failed to update widget status: ${response.statusText}`);
+			const result = await response.json();
+
+			if (!result.success || !response.ok) {
+				throw new Error(result.error || result.message || `Failed to update widget status: ${response.statusText}`);
 			}
 
 			// Force refresh: Clear cache and reload widget store + widget list
 			// This ensures the UI is perfectly in sync with database
-			await widgetStoreActions.initializeWidgets(tenantId);
+			await widgets.initialize(tenantId);
 			await loadWidgets();
 
 			console.info(`Widget ${widgetName} ${newStatus ? 'activated' : 'deactivated'} - Store and UI refreshed`);
@@ -230,8 +244,10 @@ Features:
 				body: JSON.stringify({ widgetName })
 			});
 
-			if (!response.ok) {
-				throw new Error(`Failed to uninstall widget: ${response.statusText}`);
+			const result = await response.json();
+
+			if (!result.success || !response.ok) {
+				throw new Error(result.error || result.message || `Failed to uninstall widget: ${response.statusText}`);
 			}
 
 			// Reload widgets after uninstallation

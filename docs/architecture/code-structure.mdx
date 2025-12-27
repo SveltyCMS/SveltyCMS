@@ -50,6 +50,8 @@ SveltyCMS/
 │   ├── widgets/            # CMS widget implementations
 │   ├── stores/             # Svelte stores (state management)
 │   ├── utils/              # Utility functions
+│   │   ├── compilation/    # Build & AST transformers
+│   │   └── ...
 │   ├── hooks/              # SvelteKit server hooks
 │   └── content/            # Content management system
 │
@@ -326,13 +328,13 @@ export const privateConfig = {
 **Global Settings Store:**
 
 ```typescript
-// src/stores/globalSettings.ts
-import { writable } from 'svelte/store';
-
-export const globalSettings = writable({
+// src/stores/globalSettings.svelte.ts
+export class GlobalSettings {
 	// Settings loaded from database at startup
 	// Provides reactive, type-safe access throughout app
-});
+}
+
+export const globalSettings = new GlobalSettings();
 ```
 
 ---
@@ -399,7 +401,7 @@ Widgets automatically handle translated content by reading the current language 
 ```svelte
 <!-- src/widgets/core/input/Input.svelte -->
 <script lang="ts">
-	import { contentLanguage } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 	import { DEFAULT_CONTENT_LANGUAGE } from '@src/utils/constants';
 
 	interface Props {
@@ -409,8 +411,8 @@ Widgets automatically handle translated content by reading the current language 
 
 	let { field, value = $bindable() }: Props = $props();
 
-	// Reactive language selection - uses contentLanguage for translated fields
-	const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
+	// Reactive language selection - uses app.contentLanguage for translated fields
+	const _language = $derived(field.translated ? app.contentLanguage : DEFAULT_CONTENT_LANGUAGE);
 
 	// Reactive value access for current language
 	const safeValue = $derived(
@@ -641,51 +643,44 @@ SveltyCMS maintains two separate language contexts:
 
 ```typescript
 // src/stores/store.svelte.ts
-import { getCookie, setCookie } from '$lib/utils/cookies';
 
-// Initialize from cookies or environment defaults
-let initialContentLanguage = getCookie('contentLanguage') ?? publicEnv.DEFAULT_CONTENT_LANGUAGE ?? 'en';
+// app Singleton with Svelte 5 runes
+export class AppStore {
+	_systemLanguage = $state<Locale>('en' as Locale);
+	_contentLanguage = $state<Locale>('en' as Locale);
 
-// Reactive state with Svelte 5 runes
-let _contentLanguage = $state<Locale>(initialContentLanguage);
-
-// Store with cookie persistence
-export const contentLanguage = {
-	get value() {
-		return _contentLanguage;
-	},
-	set(newValue: Locale) {
-		_contentLanguage = newValue;
-		setCookie('contentLanguage', newValue);
-		notifyContentLanguageSubscribers();
-	},
-	subscribe(fn: (value: Locale) => void) {
-		contentLanguageSubscribers.add(fn);
-		fn(_contentLanguage);
-		return () => contentLanguageSubscribers.delete(fn);
+	// Multi-level accessors with persistence
+	get contentLanguage() {
+		return this._contentLanguage;
 	}
-};
+	set contentLanguage(v: Locale) {
+		this._contentLanguage = v;
+		setCookie('contentLanguage', v);
+	}
+}
+
+export const app = new AppStore();
 ```
 
 **Language Synchronization Flow:**
 
 1. **Initial Load**: Cookie → Environment Default → `'en'`
-2. **URL Navigation**: Server returns `contentLanguage` → Syncs to store
-3. **User Toggle**: TranslationStatus dropdown → Updates store → Navigates with `invalidateAll: true`
-4. **Widget Display**: Widgets read `contentLanguage.value` reactively
+2. **URL Navigation**: Server returns `contentLanguage` → Syncs to app singleton
+3. **User Toggle**: TranslationStatus dropdown → Updates app singleton → Navigates with `invalidateAll: true`
+4. **Widget Display**: Widgets read `app.contentLanguage` reactively
 
 ```svelte
-<!-- +page.svelte - Syncs server data to client store -->
+<!-- +page.svelte - Syncs server data to app singleton -->
 <script lang="ts">
-	import { contentLanguage } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 
 	let { data } = $props();
 	let serverContentLanguage = $derived(data?.contentLanguage);
 
-	// Sync store with server-loaded language
+	// Sync singleton with server-loaded language
 	$effect(() => {
-		if (serverContentLanguage && contentLanguage.value !== serverContentLanguage) {
-			contentLanguage.set(serverContentLanguage);
+		if (serverContentLanguage && app.contentLanguage !== serverContentLanguage) {
+			app.contentLanguage = serverContentLanguage;
 		}
 	});
 </script>
@@ -766,8 +761,8 @@ SveltyCMS provides comprehensive multilingual support with separation between UI
 
 **Two-Language System:**
 
-1. **System Language** (`systemLanguage`) - Admin interface language (menus, buttons, labels)
-2. **Content Language** (`contentLanguage`) - Language for viewing/editing content data
+1. **System Language** (`app.systemLanguage`) - Admin interface language (menus, buttons, labels)
+2. **Content Language** (`app.contentLanguage`) - Language for viewing/editing content data
 
 **Configuration:**
 
@@ -783,9 +778,9 @@ export const publicConfig = {
 ### Content Language Flow
 
 ```
-User Action → Store Update → Server Request → Cache Lookup → Widget Render
+User Action → Singleton Update → Server Request → Cache Lookup → Widget Render
                     ↓              ↓               ↓              ↓
-             contentLanguage   /:lang/:path   :lang:cache   value[lang]
+             app.contentLanguage   /:lang/:path   :lang:cache   value[lang]
 ```
 
 **1. User Toggles Language:**
@@ -794,10 +789,10 @@ User Action → Store Update → Server Request → Cache Lookup → Widget Rend
 <!-- TranslationStatus.svelte -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { contentLanguage } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 
 	async function switchLanguage(newLang: string) {
-		contentLanguage.set(newLang);
+		app.contentLanguage = newLang;
 
 		// Navigate with server data refresh
 		await goto(

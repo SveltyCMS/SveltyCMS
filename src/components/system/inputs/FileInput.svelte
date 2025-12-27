@@ -32,11 +32,15 @@
 	let showMedia = $state(false);
 
 	// Handle media selection
-	function handleMediaSelect(data: MediaImage) {
+	function handleMediaSelect(data: MediaImage | MediaImage[]) {
 		show = false;
 		showMedia = false;
-		value = data;
-		onChange?.(data);
+		// If multiple support is added later, this logic will need update
+		const selected = Array.isArray(data) ? data[0] : data;
+		if (selected) {
+			value = selected;
+			onChange?.(selected);
+		}
 	}
 
 	// Handle file change

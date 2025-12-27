@@ -62,10 +62,14 @@ src/widgets/custom/myWidget/
 ├── Input.svelte       # Input pillar
 ├── Display.svelte     # Display pillar
 ├── types.ts           # TypeScript definitions
+├── widget.json        # Marketplace Manifest (Required for publishing)
 └── myWidget.mdx       # Documentation
 ```
 
 **⚠️ Critical**: The folder name must match the widget identifier exactly (case-sensitive).
+
+> [!TIP]
+> Planning to publish your widget? Check out the [Marketplace Readiness Guide](/docs/widgets/Marketplace_Readiness_Guide.mdx) for packaging requirements.
 
 ## 📝 Step-by-Step Tutorial
 
@@ -160,7 +164,7 @@ Create `src/widgets/custom/myWidget/Input.svelte`:
 
 <script lang="ts">
 	import type { FieldInstance } from '@src/content/types';
-	import { contentLanguage } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 
 	// Props
 	interface Props {
@@ -182,7 +186,7 @@ Create `src/widgets/custom/myWidget/Input.svelte`:
 
 	$effect(() => {
 		if (field.translated && value && typeof value === 'object') {
-			currentValue = (value as Record<string, string>)[$contentLanguage] || '';
+			currentValue = (value as Record<string, string>)[app.contentLanguage] || '';
 		} else if (typeof value === 'string') {
 			currentValue = value;
 		}
@@ -194,7 +198,7 @@ Create `src/widgets/custom/myWidget/Input.svelte`:
 
 		if (field.translated) {
 			const translatedValue = (value as Record<string, string>) || {};
-			translatedValue[$contentLanguage] = inputValue;
+			translatedValue[app.contentLanguage] = inputValue;
 			value = translatedValue;
 		} else {
 			value = inputValue;
@@ -261,7 +265,7 @@ Create `src/widgets/custom/myWidget/Display.svelte`:
 
 <script lang="ts">
   import type { FieldInstance } from '@src/content/types';
-  import { contentLanguage } from '@stores/store.svelte';
+  import { app } from '@stores/store.svelte';
 
   // Props
   interface Props {
@@ -277,7 +281,7 @@ Create `src/widgets/custom/myWidget/Display.svelte`:
     if (!value) return '';
 
     if (field.translated && typeof value === 'object') {
-      return (value as Record<string, string>)[$contentLanguage] || '';
+      return (value as Record<string, string>)[app.contentLanguage] || '';
     }
 
     return String(value);
@@ -430,18 +434,18 @@ SveltyCMS supports multilingual content through the `translated` field property.
 
 ### Implementing Multilingual Support
 
-**Step 1: Import the contentLanguage store**
+**Step 1: Import the app singleton**
 
 ```typescript
-import { contentLanguage } from '@stores/store.svelte';
+import { app } from '@stores/store.svelte';
 import { DEFAULT_CONTENT_LANGUAGE } from '@src/utils/constants';
 ```
 
 **Step 2: Derive the current language**
 
 ```typescript
-// Use contentLanguage for translated fields, default language otherwise
-const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
+// Use app.contentLanguage for translated fields, default language otherwise
+const _language = $derived(field.translated ? app.contentLanguage : DEFAULT_CONTENT_LANGUAGE);
 ```
 
 **Step 3: Extract language-specific value**
@@ -470,7 +474,7 @@ function updateValue(newValue: string) {
 
 ```svelte
 <script lang="ts">
-	import { contentLanguage } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 	import { DEFAULT_CONTENT_LANGUAGE } from '@src/utils/constants';
 	import type { FieldInstance } from '@src/content/types';
 
@@ -483,7 +487,7 @@ function updateValue(newValue: string) {
 	let { field, value = $bindable(), error }: Props = $props();
 
 	// Reactive language selection
-	const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
+	const _language = $derived(field.translated ? app.contentLanguage : DEFAULT_CONTENT_LANGUAGE);
 
 	// Safe value extraction with fallback
 	const safeValue = $derived(
@@ -548,7 +552,7 @@ function updateValue(newValue: string) {
 
 ```svelte
 <script lang="ts">
-	import { contentLanguage } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 	import { DEFAULT_CONTENT_LANGUAGE } from '@src/utils/constants';
 	import type { FieldInstance } from '@src/content/types';
 
@@ -560,7 +564,7 @@ function updateValue(newValue: string) {
 	let { field, value }: Props = $props();
 
 	// Derive current language
-	const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
+	const _language = $derived(field.translated ? app.contentLanguage : DEFAULT_CONTENT_LANGUAGE);
 
 	// Extract display value with fallbacks
 	const displayValue = $derived(
@@ -684,35 +688,35 @@ const value = data.en;
 
 ```typescript
 // Good - responds to language changes
-const value = data[contentLanguage.value];
+const value = data[app.contentLanguage];
 ```
 
 **❌ WRONG: Not checking field.translated**
 
 ```typescript
 // Bad - crashes on untranslated fields
-const value = data[contentLanguage.value];
+const value = data[app.contentLanguage];
 ```
 
 **✅ CORRECT: Conditional access**
 
 ```typescript
 // Good - handles both translated and untranslated
-const value = field.translated ? data[contentLanguage.value] : data;
+const value = field.translated ? data[app.contentLanguage] : data;
 ```
 
 **❌ WRONG: Replacing entire object**
 
 ```typescript
 // Bad - deletes other translations
-value = { [contentLanguage.value]: newValue };
+value = { [app.contentLanguage]: newValue };
 ```
 
 **✅ CORRECT: Preserving translations**
 
 ```typescript
 // Good - keeps all translations
-value = { ...value, [contentLanguage.value]: newValue };
+value = { ...value, [app.contentLanguage]: newValue };
 ```
 
 **❌ WRONG: Using systemLanguage for content**
@@ -720,15 +724,15 @@ value = { ...value, [contentLanguage.value]: newValue };
 ```typescript
 // Bad - mixes UI language with content language
 import { systemLanguage } from '@stores/store.svelte';
-const value = data[systemLanguage.value]; // Wrong store!
+const value = data[app.systemLanguage]; // Wrong store!
 ```
 
 **✅ CORRECT: Using contentLanguage for content**
 
 ```typescript
 // Good - correct store for content data
-import { contentLanguage } from '@stores/store.svelte';
-const value = data[contentLanguage.value];
+import { app } from '@stores/store.svelte';
+const value = data[app.contentLanguage];
 ```
 
 ### Testing Multilingual Widgets
@@ -834,7 +838,7 @@ When adding multilingual support to an existing widget:
 
 - [ ] Import `contentLanguage` from `@stores/store.svelte`
 - [ ] Import `DEFAULT_CONTENT_LANGUAGE` from `@src/utils/constants`
-- [ ] Add `const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE)`
+- [ ] Add `const _language = $derived(field.translated ? app.contentLanguage : DEFAULT_CONTENT_LANGUAGE)`
 - [ ] Update value access to check `field.translated`
 - [ ] Update value mutations to preserve existing translations
 - [ ] Update type definitions to support `Record<string, string> | string`

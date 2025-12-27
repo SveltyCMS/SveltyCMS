@@ -122,7 +122,20 @@ graph TD
 
 **Read this when:** You need to understand or implement widget security measures.
 
-### 5. [Multilingual Widget Guide](/docs/widgets/widget-multilingual-guide.mdx)
+### 5. [Marketplace Readiness](/docs/widgets/Marketplace_Readiness_Guide.mdx) 🚀
+
+**Essential checklist** for publishing widgets.
+
+**Covers:**
+
+- ✅ Manifest requirements
+- 📦 Packaging instructions
+- 🔒 Security standards
+- 📝 Documentation rules
+
+**Read this when:** You are ready to package and share your widget.
+
+### 6. [Multilingual Widget Guide](/docs/widgets/widget-multilingual-guide.mdx)
 
 **Complete guide** to building multilingual widgets.
 
@@ -528,21 +541,22 @@ Access widget management at `/config/widgetManagement`:
 
 ## 🔧 Widget Store API
 
-### Key Functions
+### Key Properties & Methods
 
 ```typescript
-import { widgetStoreActions, isWidgetActive, canDisableWidget, getWidgetDependencies } from '@stores/widgetStore.svelte';
+import { widgets } from '@stores/widgetStore.svelte';
 
-// Initialize widgets
-await widgetStoreActions.initializeWidgets('tenant-id');
+// Initialize widgets (tenant-aware)
+await widgets.initialize('tenant-id');
 
-// Check status
-const isActive = isWidgetActive('SEO');
-const canDisable = canDisableWidget('SEO');
-const deps = getWidgetDependencies('SEO');
+// Check status & metadata
+const isActive = widgets.active.includes('SEO');
+const canDisable = widgets.canDisable('SEO');
+const deps = widgets.getDependencies('SEO');
+const isLoaded = widgets.isLoaded;
 
 // Update status
-await widgetStoreActions.updateWidgetStatus('SEO', 'active', 'tenant-id');
+await widgets.updateStatus('SEO', 'active', 'tenant-id');
 ```
 
 ## 📦 File Structure

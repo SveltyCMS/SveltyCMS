@@ -38,7 +38,7 @@ Interactive menu builder with add/edit/reorder capabilities
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import type { FieldType } from './';
 	import type { MenuItem, MenuEditContext } from './types';
-	import { contentLanguage } from '@src/stores/store.svelte';
+	import { app } from '@src/stores/store.svelte';
 	import MegaMenuInput from './Input.svelte';
 
 	let { field, value = $bindable(), error }: { field: FieldType; value: MenuItem[] | null | undefined; error?: string | null } = $props();
@@ -162,7 +162,7 @@ Interactive menu builder with add/edit/reorder capabilities
 		value = [...(value || [])]; // Trigger reactivity
 	}
 
-	const lang = $derived(contentLanguage.value);
+	const lang = $derived(app.contentLanguage);
 </script>
 
 <div class="space-y-4">

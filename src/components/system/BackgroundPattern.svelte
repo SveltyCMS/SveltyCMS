@@ -32,7 +32,7 @@ and configurable quality settings for weaker devices.
 -->
 
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, untrack } from 'svelte';
 	import { browser } from '$app/environment';
 	import { Tween } from 'svelte/motion';
 	import { cubicOut } from 'svelte/easing';
@@ -56,7 +56,7 @@ and configurable quality settings for weaker devices.
 	}>();
 
 	// Performance-based configuration
-	let actualQuality = $state(quality);
+	let actualQuality = $state(untrack(() => quality));
 	$effect(() => {
 		// Sync local state when prop changes, but only if not overriding via auto-detection
 		if (!autoDetectPerformance) {

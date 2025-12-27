@@ -24,6 +24,11 @@ A reusable modal that wraps the main Image Editor.
 	const activeState = $derived(imageEditorStore.state.activeState);
 
 	function handleClose() {
+		if (imageEditorStore.canUndoState) {
+			if (!confirm('You have unsaved changes. Are you sure you want to close?')) {
+				return;
+			}
+		}
 		show = false; // Directly mutate the bindable prop
 	}
 
@@ -33,7 +38,12 @@ A reusable modal that wraps the main Image Editor.
 			imageEditorStore.cleanupToolSpecific(activeState);
 			imageEditorStore.setActiveState('');
 		} else {
-			// No tool active, close the editor
+			// No tool active, ask for confirmation if dirty
+			if (imageEditorStore.canUndoState) {
+				if (!confirm('You have unsaved changes. Are you sure you want to discard them?')) {
+					return;
+				}
+			}
 			handleClose();
 		}
 	}

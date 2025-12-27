@@ -25,10 +25,13 @@
 
 	// Paraglide locale bridge
 	import { locales as availableLocales, getLocale, setLocale } from '@src/paraglide/runtime';
-	import { systemLanguage } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 
 	// Theme management
 	import { themeStore, initializeThemeStore, initializeDarkMode } from '@stores/themeStore.svelte';
+
+	// Global Settings
+	import { initPublicEnv } from '@stores/globalSettings.svelte';
 
 	// Components
 	import TokenPicker from '@components/TokenPicker.svelte';
@@ -56,6 +59,13 @@
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 	setGlobalToastStore(getToastStore());
 
+	// Initialize public environment settings from server data
+	$effect(() => {
+		if (page.data?.settings) {
+			initPublicEnv(page.data.settings);
+		}
+	});
+
 	// ============================================================================
 	// Mount Lifecycle
 	// ============================================================================
@@ -72,9 +82,9 @@
 		// URL is the source of truth on initial load
 		const urlLocale = getLocale();
 		if (urlLocale && availableLocales.includes(urlLocale as any)) {
-			if (systemLanguage.value !== urlLocale) {
-				console.log(`[RootLayout] Aligning store (${systemLanguage.value}) to URL (${urlLocale})`);
-				systemLanguage.value = urlLocale;
+			if (app.systemLanguage !== urlLocale) {
+				console.log(`[RootLayout] Aligning store (${app.systemLanguage}) to URL (${urlLocale})`);
+				app.systemLanguage = urlLocale as any;
 				currentLocale = urlLocale;
 			}
 		}
@@ -94,7 +104,7 @@
 		// Guard: Only sync after hydration is complete
 		if (!isMounted || !isHydrated) return;
 
-		const desired = systemLanguage.value;
+		const desired = app.systemLanguage;
 		const current = untrack(() => currentLocale);
 
 		// Only update if there's an actual change

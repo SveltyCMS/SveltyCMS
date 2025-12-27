@@ -28,7 +28,7 @@ export const handleTokenResolution: Handle = async ({ event, resolve }) => {
 	}
 
 	// Skip internal endpoints that shouldn't have token replacement
-	if (event.url.pathname.startsWith('/api/system') || event.url.pathname.startsWith('/api/auth')) {
+	if (event.url.pathname.startsWith('/api/system') || event.url.pathname.startsWith('/api/auth') || event.url.pathname.startsWith('/api/graphql')) {
 		return response;
 	}
 

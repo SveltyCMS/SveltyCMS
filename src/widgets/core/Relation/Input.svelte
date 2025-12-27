@@ -29,13 +29,13 @@ Interactive selector with "Select" button and clear functionality
 <script lang="ts">
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import type { FieldType } from './';
-	import { contentLanguage } from '@src/stores/store.svelte';
+	import { app } from '@src/stores/store.svelte';
 
 	let { field, value, error }: { field: FieldType; value: string | string[] | null | undefined; error?: string | null } = $props();
 
 	// A local, reactive copy of the full, resolved entry object for display.
 	let selectedEntry = $state<Record<string, any> | null>(null);
-	const lang = $derived($contentLanguage);
+	const lang = $derived(app.contentLanguage);
 
 	// Stub function for fetching entry data - implement with your API
 	async function fetchEntryData(_id: string): Promise<Record<string, any> | null> {

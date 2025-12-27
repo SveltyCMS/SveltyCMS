@@ -2,7 +2,7 @@
  * @file src/services/token/tokenTarget.ts
  * @description Svelte Action to register inputs with the Token System.
  */
-import { activeInputStore } from '@src/stores/activeInputStore.svelte';
+import { activeInput } from '@src/stores/activeInputStore.svelte';
 
 interface TokenTargetOptions {
 	name: string;
@@ -13,8 +13,8 @@ interface TokenTargetOptions {
 
 export function tokenTarget(node: HTMLElement, options: TokenTargetOptions) {
 	function onFocus() {
-		activeInputStore.set({
-			element: node as HTMLElement | null as any, // Cast for store compatibility (it expects input/textarea but works with custom if onInsert provided)
+		activeInput.set({
+			element: node as HTMLElement | null as any,
 			field: {
 				name: options.name,
 				label: options.label || options.name,
@@ -32,8 +32,8 @@ export function tokenTarget(node: HTMLElement, options: TokenTargetOptions) {
 		},
 		destroy() {
 			node.removeEventListener('focus', onFocus);
-			if (activeInputStore.value?.element === node) {
-				activeInputStore.set(null);
+			if (activeInput.current?.element === node) {
+				activeInput.clear();
 			}
 		}
 	};

@@ -8,18 +8,18 @@
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import * as m from '@src/paraglide/messages';
-	import { setCollection } from '@src/stores/collectionStore.svelte';
-	import { toggleUIElement } from '@src/stores/UIStore.svelte';
+	import { collections } from '@src/stores/collectionStore.svelte';
+	import { ui } from '@src/stores/UIStore.svelte';
 	import { onMount } from 'svelte';
 
 	onMount(() => {
-		setCollection(null);
+		collections.setCollection(null);
 	});
 
 	function handleMobileSidebarClose() {
 		// Hide sidebar on mobile before navigation
 		if (typeof window !== 'undefined' && window.innerWidth < 768) {
-			toggleUIElement('leftSidebar', 'hidden');
+			ui.toggle('leftSidebar', 'hidden');
 		}
 	}
 

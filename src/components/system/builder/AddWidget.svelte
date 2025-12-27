@@ -7,8 +7,8 @@
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import DropDown from '@components/system/dropDown/DropDown.svelte';
-	import { widgetFunctions } from '@stores/widgetStore.svelte';
-	import type { WidgetFunction } from '@src/widgets/types';
+	import { widgets } from '@stores/widgetStore.svelte';
+	import type { WidgetFactory } from '@src/widgets/types';
 	import InputSwitch from './InputSwitch.svelte';
 
 	import type { AddWidgetProps } from './types';
@@ -27,13 +27,13 @@
 		})
 	}: AddWidgetProps = $props();
 
-	const widget_keys = Object.keys($widgetFunctions);
-	let guiSchema = $state<WidgetFunction['GuiSchema'] | undefined>(undefined);
+	const widget_keys = $derived(Object.keys(widgets.widgetFunctions));
+	let guiSchema = $state<WidgetFactory['GuiSchema'] | undefined>(undefined);
 
 	$effect(() => {
 		if (selected_widget) {
-			const widgetFn = $widgetFunctions[selected_widget];
-			guiSchema = widgetFn?.GuiSchema as WidgetFunction['GuiSchema'];
+			const widgetFn = widgets.widgetFunctions[selected_widget];
+			guiSchema = (widgetFn as WidgetFactory)?.GuiSchema;
 		}
 	});
 

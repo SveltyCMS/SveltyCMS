@@ -6,9 +6,8 @@
 
 <script lang="ts">
 	// Modern widget system
-	import { activeWidgets, widgetFunctions, widgetStoreActions } from '@stores/widgetStore.svelte';
+	import { widgets } from '@stores/widgetStore.svelte';
 	import { logger } from '@utils/logger';
-	import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 	import { onMount } from 'svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -30,8 +29,8 @@
 	let searchTerm: string = $state('');
 
 	// Get available widgets from the modern store
-	const availableWidgets = $derived($widgetFunctions || {});
-	const activeWidgetList = $derived($activeWidgets || []);
+	const availableWidgets = $derived(widgets.widgetFunctions || {});
+	const activeWidgetList = $derived(widgets.activeWidgets || []);
 
 	// Get only active widgets for the collection builder
 	const widget_keys = $derived(Object.keys(availableWidgets).filter((key) => activeWidgetList.includes(key)));
@@ -41,7 +40,7 @@
 
 	// Initialize widgets on mount
 	onMount(async () => {
-		await widgetStoreActions.initializeWidgets();
+		await widgets.initialize();
 	});
 
 	// We've created a custom submit function to pass the response and close the modal.
@@ -86,7 +85,7 @@
 
 			<div class="grid grid-cols-1 items-center justify-center gap-2 sm:grid-cols-2 md:grid-cols-3 md:gap-3">
 				{#each widget_keys.filter((item) => item !== null) as item}
-					{#if item && $widgets[item]?.GuiSchema}
+					{#if item && (availableWidgets[item] as any)?.GuiSchema}
 						{#if item.toLowerCase().includes(searchTerm.toLowerCase())}
 							<button
 								onclick={() => {
@@ -98,7 +97,7 @@
 									? 'bg-primary-500'
 									: ' variant-outline-warning hover:variant-ghost-warning'}"
 							>
-								<iconify-icon icon={$widgets[item]?.Icon} width="22" class="mr-1 text-tertiary-500"></iconify-icon>
+								<iconify-icon icon={availableWidgets[item]?.Icon} width="22" class="mr-1 text-tertiary-500"></iconify-icon>
 								<span class="text-surface-700 dark:text-white">{item}</span>
 
 								<!-- helpericon -->
@@ -111,7 +110,7 @@
 							</button>
 							<!-- IconTooltip -->
 							<div class="card variant-filled-secondary z-50 max-w-sm p-4" data-popup={item}>
-								<p>{$widgets[item]?.Description}</p>
+								<p>{availableWidgets[item]?.Description}</p>
 								<div class="variant-filled-secondary arrow"></div>
 							</div>
 						{/if}

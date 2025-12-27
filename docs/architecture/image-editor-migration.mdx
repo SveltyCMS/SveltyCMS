@@ -1,3 +1,18 @@
+---
+path: 'docs/architecture/image-editor-migration.mdx'
+title: 'Image Editor Migration Summary'
+description: 'Summary of the image editor branch merge, resolved issues, and architectural changes'
+order: 99
+icon: 'mdi:image-edit'
+author: 'admin'
+created: '2025-12-27'
+updated: '2025-12-27'
+tags:
+  - 'migration'
+  - 'image-editor'
+  - 'architecture'
+---
+
 # Image Editor Branch Migration Summary
 
 This document summarizes the merge of the `imageeditor` branch into `next`, detailing the changes, resolved issues, and remaining challenges.
@@ -71,9 +86,6 @@ The migration involved integrating the refactored image editor and its associate
     - **Problem:** During system initialization, `contentManager.initialize()` was called, but `contentManager` was `undefined` due to a potential circular dependency or timing issue with dynamic imports, causing the system to fail initialization.
     - **Resolution:** Modified `src/databases/db.ts` to import the `ContentManager` _class_ dynamically, then explicitly obtain its singleton instance via `ContentManager.getInstance()` before calling `initialize()`, ensuring the `contentManager` object is always available.
 18. **Collection Model Not Found During Setup (`POST /api/collections/[collectionId]`):**
-    - **Problem:** During setup, API requests to create collection entries failed with "Collection model with id ... not found" because the `mongoDBAdapter`'s `MongoCollectionMethods` did not have models registered for the collection schemas. This was due to `loadAdapters()` prematurely returning and `ContentManager` not explicitly registering models with the adapter during setup mode, and `ContentManager` not accessing the `dbAdapter` via the `getDb()` getter.
-    - **Resolution:** Modified `src/databases/db.ts` `loadAdapters()` function to remove the premature return when `privateEnv` is `null` but `DB_TYPE` is present in the configuration, ensuring `dbAdapter` is properly initialized with a temporary config during setup. Additionally, ensured that `ContentManager`'s `_reconcileAndBuildStructure` explicitly calls `setupDbAdapter.collection.createModel(schema)` for each schema in setup mode. Finally, updated `src/content/ContentManager.ts` to consistently access the `dbAdapter` via the `getDb()` getter function, ensuring it always retrieves the current, initialized instance.
-19. **Collection Model Not Found During Setup (`POST /api/collections/[collectionId]`):**
     - **Problem:** During setup, API requests to create collection entries failed with "Collection model with id ... not found" because the `mongoDBAdapter`'s `MongoCollectionMethods` did not have models registered for the collection schemas. This was due to `loadAdapters()` prematurely returning and `ContentManager` not explicitly registering models with the adapter during setup mode, and `ContentManager` not accessing the `dbAdapter` via the `getDb()` getter.
     - **Resolution:** Modified `src/databases/db.ts` `loadAdapters()` function to remove the premature return when `privateEnv` is `null` but `DB_TYPE` is present in the configuration, ensuring `dbAdapter` is properly initialized with a temporary config during setup. Additionally, ensured that `ContentManager`'s `_reconcileAndBuildStructure` explicitly calls `setupDbAdapter.collection.createModel(schema)` for each schema in setup mode. Finally, updated `src/content/ContentManager.ts` to consistently access the `dbAdapter` via the `getDb()` getter function, ensuring it always retrieves the current, initialized instance.
 

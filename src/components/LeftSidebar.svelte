@@ -1,21 +1,14 @@
 <!--
 @file src/components/LeftSidebar.svelte
+@component LeftSidebar – Main navigation sidebar with collections, media folders, user controls
 
-@component
-**LeftSidebar component displaying collection fields, publish options and translation status.**
-
-@example
-<LeftSidebar />
-
-#### Props
-- `mode` {object} - The current mode object from the mode store
-- `collection` {object} - The current collection object from the collection store
-
-#### Features
-- Displays collection fields
-- Displays publish options
-- Displays translation status
-- Optimized event handlers
+@features
+- Responsive full/collapsed/hidden states
+- Collections vs Media Gallery toggle
+- Language selector (dropdown or select)
+- User avatar/profile, theme toggle, sign out, config
+- Version check & GitHub link
+- Mobile-friendly (auto-hide on navigation)
 -->
 
 <script lang="ts">
@@ -24,16 +17,14 @@
 	import { browser } from '$app/environment';
 	import { logger } from '@utils/logger';
 
-	// Import necessary utilities and types
 	import { page } from '$app/state';
-	import type { Schema } from '@src/content/types'; // Import Schema type (collection definition)
 	import { getLanguageName } from '@utils/languageUtils';
 	import { locales as availableLocales } from '@src/paraglide/runtime';
 
 	// Stores
 	import { setMode } from '@stores/collectionStore.svelte';
-	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
-	import { toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
+	import { app } from '@stores/store.svelte';
+	import { ui } from '@stores/UIStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Import components
@@ -45,70 +36,63 @@
 	import ThemeToggle from '@components/ThemeToggle.svelte';
 
 	// Skeleton components
-	import { Avatar, popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { Avatar } from '@skeletonlabs/skeleton'; // KEEP IMPORT FOR TYPE CHECKING BUT DO NOT USE IN MARKUP
 
-	// Language and messaging
+	// Paraglide components
 	import * as m from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
 
 	// Constants
 	const MOBILE_BREAKPOINT = 768;
-	const LANGUAGE_DROPDOWN_THRESHOLD = 5;
 	const AVATAR_CACHE_BUSTER = Date.now();
 
-	// Types
-	type AvailableLanguage = string;
-	type SidebarState = 'full' | 'collapsed' | 'hidden';
+	// Derived from page & stores
+	let user = $derived(page.data.user);
 
-	// Reactive user data
-	const user = $derived(page.data.user);
-	const currentPath = $derived(page.url.pathname);
-	const collections: Schema[] = $derived(page.data.collections);
-	// Check if we're in media mode
-	const isMediaMode = $derived(currentPath.includes('/mediagallery'));
+	let collections = $derived(page.data.collections as any[]);
+	let currentPath = $derived(page.url.pathname);
+	let isMediaMode = $derived(currentPath.includes('/mediagallery'));
 
-	// Language state
-	let languageTag = $state(getLocale() as AvailableLanguage);
+	let isSidebarFull = $derived(ui.state.leftSidebar === 'full');
+	let isSidebarCollapsed = $derived(ui.state.leftSidebar === 'collapsed');
+
+	let firstCollectionPath = $derived(collections?.[0] ? `/Collections/${collections[0].name}` : '/Collections');
+
+	// Language handling
+	let availableLanguages = $derived([...availableLocales].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))));
+
+	let languageTag = $state(getLocale());
 	let searchQuery = $state('');
 	let isDropdownOpen = $state(false);
 	let dropdownRef = $state<HTMLElement | null>(null);
 
-	// Derived values
-	const isSidebarFull = $derived(uiStateManager.uiState.value.leftSidebar === 'full');
-	const isSidebarCollapsed = $derived(uiStateManager.uiState.value.leftSidebar === 'collapsed');
-
-	const firstCollectionPath = $derived(collections?.[0] ? `/Collections/${collections[0].name}` : '/Collections');
-
-	const availableLanguages = $derived([...availableLocales].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))));
-
-	const showLanguageDropdown = $derived(availableLanguages.length > LANGUAGE_DROPDOWN_THRESHOLD);
-
-	const filteredLanguages = $derived(
-		availableLanguages.filter((lang: string) => {
-			const searchLower = searchQuery.toLowerCase();
-			const systemLangName = getLanguageName(lang, systemLanguage.value).toLowerCase();
-			const enLangName = getLanguageName(lang, 'en').toLowerCase();
-			return systemLangName.includes(searchLower) || enLangName.includes(searchLower);
-		}) as AvailableLanguage[]
+	let filteredLanguages = $derived(
+		availableLanguages.filter(
+			(lang) =>
+				getLanguageName(lang, app.systemLanguage).toLowerCase().includes(searchQuery.toLowerCase()) ||
+				getLanguageName(lang, 'en').toLowerCase().includes(searchQuery.toLowerCase())
+		)
 	);
 
-	const avatarUrl = $derived.by(() => {
-		const src = avatarSrc.value;
+	// Avatar
+	let avatarUrl = $derived.by(() => {
+		const src = app.avatarSrc;
 		if (!src) return '/Default_User.svg';
 		if (src.startsWith('data:')) return src;
 		return `${src}?t=${AVATAR_CACHE_BUSTER}`;
 	});
 
-	// Tooltip configurations
-	const tooltips = {
-		user: { event: 'hover', target: 'User', placement: 'right' } as PopupSettings,
-		github: { event: 'hover', target: 'Github', placement: 'right' } as PopupSettings,
-		signOut: { event: 'hover', target: 'SignOutButton', placement: 'right' } as PopupSettings,
-		config: { event: 'hover', target: 'Config', placement: 'right' } as PopupSettings,
-		systemLanguage: { event: 'hover', target: 'SystemLanguage', placement: 'right' } as PopupSettings
+	// Tooltips
+	let tooltips: Record<string, PopupSettings> = {
+		user: { event: 'hover', target: 'User', placement: 'right' },
+		github: { event: 'hover', target: 'Github', placement: 'right' },
+		signOut: { event: 'hover', target: 'SignOutButton', placement: 'right' },
+		config: { event: 'hover', target: 'Config', placement: 'right' },
+		systemLanguage: { event: 'hover', target: 'SystemLanguage', placement: 'right' }
 	};
 
-	// Helper functions
+	// Helpers
 	function isMobile(): boolean {
 		return browser && window.innerWidth < MOBILE_BREAKPOINT;
 	}
@@ -116,10 +100,7 @@
 	async function navigateTo(path: string): Promise<void> {
 		if (currentPath === path) return;
 
-		if (isMobile()) {
-			toggleUIElement('leftSidebar', 'hidden');
-		}
-
+		if (isMobile()) ui.toggle('leftSidebar', 'hidden');
 		setMode('view');
 
 		// Start loading state for navigation
@@ -128,95 +109,73 @@
 		try {
 			// Special handling: mediagallery doesn't use language prefix
 			if (path === '/mediagallery' || path.startsWith('/mediagallery')) {
-				await goto(path, { replaceState: false });
+				await goto(path);
 				return;
 			}
 
-			// Ensure path includes language prefix for collection routes
-			const currentLocale = getLocale();
-			const pathWithLanguage = path.startsWith(`/${currentLocale}`) ? path : `/${currentLocale}${path}`;
-
-			await goto(pathWithLanguage, { replaceState: false });
+			const locale = getLocale();
+			const fullPath = path.startsWith(`/${locale}`) ? path : `/${locale}${path}`;
+			await goto(fullPath);
 		} finally {
-			// Stop loading after navigation completes
-			// Note: SvelteKit will handle the actual page load, this just shows initial navigation
-			setTimeout(() => {
-				globalLoadingStore.stopLoading(loadingOperations.navigation);
-			}, 100);
+			setTimeout(() => globalLoadingStore.stopLoading(loadingOperations.navigation), 100);
 		}
 	}
 
-	// Click outside handler
+	// Click outside to close dropdown
 	$effect(() => {
 		if (!browser) return;
-
-		const handleClick = (event: MouseEvent) => {
-			if (dropdownRef && !dropdownRef.contains(event.target as Node)) {
+		const handler = (e: MouseEvent) => {
+			if (dropdownRef && !dropdownRef.contains(e.target as Node)) {
 				isDropdownOpen = false;
 				searchQuery = '';
 			}
 		};
-
-		document.addEventListener('click', handleClick);
-		return () => document.removeEventListener('click', handleClick);
+		document.addEventListener('click', handler);
+		return () => document.removeEventListener('click', handler);
 	});
 
-	// Event handlers
-	function handleLanguageSelection(lang: AvailableLanguage): void {
-		systemLanguage.set(lang as any);
-		languageTag = lang;
+	// Actions
+	function selectLanguage(lang: string): void {
+		app.systemLanguage = lang as any;
+		languageTag = lang as any;
 		isDropdownOpen = false;
 		searchQuery = '';
 	}
 
-	function handleLanguageSelectChange(event: Event): void {
-		const target = event.target as HTMLSelectElement;
-		if (target?.value) {
-			handleLanguageSelection(target.value as AvailableLanguage);
-		}
-	}
-
-	function toggleLanguageDropdown(event: Event): void {
-		event.stopPropagation();
+	function toggleDropdown(e: MouseEvent): void {
+		e.stopPropagation();
 		isDropdownOpen = !isDropdownOpen;
 	}
 
 	function toggleSidebar(): void {
-		const current = uiStateManager.uiState.value.leftSidebar;
-		const newState: SidebarState = current === 'full' ? 'collapsed' : 'full';
-		toggleUIElement('leftSidebar', newState);
-		userPreferredState.set(newState);
+		const next = isSidebarFull ? 'collapsed' : 'full';
+		ui.toggle('leftSidebar', next);
 	}
 
-	async function handleUserClick(event?: Event): Promise<void> {
-		event?.stopPropagation();
+	async function goToUser(): Promise<void> {
 		await navigateTo('/user');
 	}
 
-	async function handleConfigClick(event?: Event): Promise<void> {
-		event?.stopPropagation();
+	async function goToConfig(): Promise<void> {
 		await navigateTo('/config');
 	}
 
 	async function signOut(): Promise<void> {
 		try {
 			await axios.post('/api/user/logout', {}, { withCredentials: true });
-		} catch (error) {
-			logger.error('Error during sign-out:', error instanceof Error ? error.message : 'Unknown error');
+		} catch (err) {
+			logger.error('Logout error:', err);
 		} finally {
 			// Always redirect to login, even if logout fails
-			if (browser) {
-				window.location.href = '/login';
-			}
+			if (browser) window.location.href = '/login';
 		}
 	}
 
-	// Keyboard handlers
-	function handleKeyPress(event: KeyboardEvent, callback: () => void | Promise<void>): void {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			event.stopPropagation();
-			callback();
+	// Key handling
+	function handleKey(e: KeyboardEvent, cb: () => void | Promise<void>): void {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			cb();
 		}
 	}
 </script>
@@ -231,66 +190,56 @@
 			</span>
 		</a>
 	{:else}
-		<div class="flex justify-start gap-2">
-			<button
-				type="button"
-				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
-				aria-label="Close Sidebar"
-				class="variant-ghost-surface btn-icon mt-1"
-			>
+		<div class="flex items-center justify-between pt-2">
+			<button type="button" onclick={() => ui.toggle('leftSidebar', 'hidden')} aria-label="Close sidebar" class="btn-icon variant-ghost-surface">
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
-
-			<a href="/" aria-label="SveltyCMS Logo" class="flex justify-center pt-2 !no-underline">
-				<SveltyCMSLogo fill="red" className="h-9 -ml-2 ltr:mr-2 rtl:ml-2 rtl:-mr-2" />
+			<a href="/" class="flex !no-underline">
+				<SveltyCMSLogo fill="red" className="h-9" />
 			</a>
 		</div>
 	{/if}
 
-	<!-- Expand/Collapse Button -->
+	<!-- Collapse/Expand Toggle -->
 	<button
 		type="button"
 		onclick={toggleSidebar}
-		aria-label={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
-		aria-expanded={isSidebarFull}
-		class="absolute top-2 z-20 flex h-10 w-10 items-center justify-center !rounded-full border border-black p-0 dark:border-black ltr:-right-4 rtl:-left-4"
+		aria-label={isSidebarFull ? 'Collapse' : 'Expand'}
+		class="absolute -right-4 top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-black dark:border-black"
 	>
 		<iconify-icon
 			icon="bi:arrow-left-circle-fill"
 			width="34"
-			class="rounded-full bg-surface-500 text-white transition-transform hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 {isSidebarFull
-				? 'rotate-0 rtl:rotate-180'
+			class="rounded-full bg-surface-500 text-white transition-transform dark:bg-white dark:text-surface-600 {isSidebarFull
+				? 'rtl:rotate-180'
 				: 'rotate-180 rtl:rotate-0'}"
 		></iconify-icon>
 	</button>
 
-	<!-- Navigation: Collections or Media Folders -->
+	<!-- Main Content: Collections or MediaFolders -->
 	{#if isMediaMode}
 		<MediaFolders />
-
-		<!-- Toggle to Collections Button -->
+		<!-- Toggle to Collections button -->
 		<button
-			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-4 transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
+			class="btn mt-2 flex w-full items-center justify-center gap-2 border border-surface-500 py-4 hover:bg-surface-200 dark:hover:bg-surface-400"
 			onclick={() => {
 				setMode('view');
 				navigateTo(firstCollectionPath);
 			}}
-			aria-label="Switch to Collections"
 		>
 			<iconify-icon icon="bi:arrow-left" width="18" class="text-error-500"></iconify-icon>
 			{#if isSidebarFull}
 				<iconify-icon icon="bi:collection" width="20" class="text-error-500"></iconify-icon>
-				<span class="">{m.button_Collections()} </span>
+				{m.button_Collections()}
 			{:else}
 				<iconify-icon icon="bi:collection" width="18" class="text-error-500"></iconify-icon>
 			{/if}
 		</button>
 	{:else}
 		<Collections />
-
 		<!-- Toggle to Media Gallery Button -->
 		<button
-			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-4 transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
+			class="btn mt-2 flex w-full items-center justify-center gap-2 border border-surface-500 py-4 hover:bg-surface-200 dark:hover:bg-surface-400"
 			onclick={() => {
 				setMode('media');
 				navigateTo('/mediagallery');
@@ -299,7 +248,7 @@
 		>
 			{#if isSidebarFull}
 				<iconify-icon icon="bi:images" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				<span class="">{m.Collections_MediaGallery()}</span>
+				{m.Collections_MediaGallery()}
 				<iconify-icon icon="bi:arrow-right" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			{:else}
 				<iconify-icon icon="bi:images" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -308,151 +257,117 @@
 		</button>
 	{/if}
 
-	<!-- Footer -->
+	<!-- Footer Controls -->
 	<div class="mb-2 mt-auto">
-		<div class="mx-1 mb-1 border-0 border-t border-surface-400"></div>
+		<hr class="mx-1 border-t border-surface-400" />
 
-		<div class="grid items-center justify-center {isSidebarFull ? 'grid-cols-3 grid-rows-3' : 'grid-cols-2 grid-rows-2'}">
-			<!-- Avatar -->
+		<div class="grid {isSidebarFull ? 'grid-cols-3 grid-rows-3' : 'grid-cols-2 grid-rows-2'} items-center justify-center">
+			<!-- Avatar / User -->
 			<div class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex justify-center">
 				<button
 					use:popup={tooltips.user}
-					onclick={handleUserClick}
-					onkeypress={(e) => handleKeyPress(e, handleUserClick)}
-					aria-label="User Profile"
-					class="{isSidebarFull
-						? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-surface-500 hover:text-white'
-						: 'btn-icon flex-col items-center justify-center'} relative text-center !no-underline md:row-span-2"
+					onclick={goToUser}
+					onkeypress={(e) => handleKey(e, goToUser)}
+					aria-label="User profile"
+					class="flex flex-col items-center rounded-lg p-2 hover:bg-surface-500 hover:text-white {isSidebarFull ? 'w-full' : 'btn-icon'}"
 				>
-					<Avatar src={avatarUrl} alt="User Avatar" initials="AV" class="mx-auto {isSidebarFull ? 'w-[40px]' : 'w-[35px]'}" />
+					<Avatar src={avatarUrl} initials="AV" class="mx-auto {isSidebarFull ? 'w-9' : 'w-8'}" />
 					{#if isSidebarFull && user?.username}
-						<div
-							class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-[11px] font-medium leading-tight text-black dark:text-white"
-							title={user.username}
-						>
+						<span class="mt-1 w-full truncate text-center text-xs font-medium" title={user.username}>
 							{user.username}
-						</div>
+						</span>
+					{/if}
+				</button>
+				<div class="card variant-filled p-2" data-popup="User">{m.applayout_userprofile()}</div>
+			</div>
+
+			<!-- Language Selector Dropdown -->
+			<div
+				class="{isSidebarFull ? 'order-3 row-span-2 pb-4' : 'order-2'} mx-auto relative"
+				use:popup={tooltips.systemLanguage}
+				bind:this={dropdownRef}
+			>
+				<button
+					class="variant-filled-surface btn-icon uppercase {isSidebarFull ? 'w-full p-1 rounded-full justify-between' : 'h-9 w-9 rounded-full'}"
+					onclick={toggleDropdown}
+					aria-label="Select language"
+					data-testid="language-selector"
+					aria-expanded={isDropdownOpen}
+				>
+					<span class="text-xs font-bold leading-none">{languageTag}</span>
+					{#if isSidebarFull}
+						<svg
+							class="h-3 w-3 transition-transform {isDropdownOpen ? 'rotate-180' : ''}"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							aria-hidden="true"
+						>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+						</svg>
 					{/if}
 				</button>
 
-				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="User">
-					{m.applayout_userprofile()}
-					<div class="variant-filled arrow"></div>
-				</div>
-			</div>
-
-			<!-- Language Selector -->
-			<div class={isSidebarFull ? 'order-3 row-span-2 mx-auto pb-4' : 'order-2 mx-auto'} use:popup={tooltips.systemLanguage}>
-				<div class="language-selector relative" bind:this={dropdownRef}>
-					{#if showLanguageDropdown}
-						<button
-							class="variant-filled-surface btn-icon flex items-center justify-between uppercase text-white {isSidebarFull
-								? 'px-2.5 py-2'
-								: 'px-1.5 py-0'}"
-							onclick={toggleLanguageDropdown}
-							aria-label="Select language"
-							data-testid="language-selector"
-							aria-expanded={isDropdownOpen}
-						>
-							<span>{languageTag}</span>
-							<svg
-								class="h-4 w-4 transition-transform {isDropdownOpen ? 'rotate-180' : ''}"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-								aria-hidden="true"
-							>
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-							</svg>
-						</button>
-
-						{#if isDropdownOpen}
-							<div class="absolute -top-40 left-20 z-50 mt-1 w-48 rounded-lg border bg-surface-700 shadow-lg">
-								<div class="border-b border-surface-600 p-2">
-									<input
-										type="text"
-										bind:value={searchQuery}
-										placeholder="Search language..."
-										class="w-full rounded-md bg-surface-800 px-3 py-2 text-white placeholder:text-surface-400 focus:outline-none focus:ring-2"
-										aria-label="Search languages"
-									/>
-								</div>
-
-								<div class="max-h-48 divide-y divide-surface-600 overflow-y-auto py-1">
-									{#each filteredLanguages as lang (lang)}
-										<button
-											class="flex w-full items-center justify-between px-4 py-2 text-left text-white hover:bg-surface-600 {languageTag === lang
-												? 'bg-surface-600'
-												: ''}"
-											onclick={() => handleLanguageSelection(lang)}
-										>
-											<span>{getLanguageName(lang)} ({lang.toUpperCase()})</span>
-										</button>
-									{/each}
-								</div>
+				{#if isDropdownOpen}
+					<div
+						class="absolute bottom-full left-1/2 z-[999] mb-2 -translate-x-1/2 rounded border border-surface-500 bg-surface-700 shadow-xl overflow-hidden"
+						style="width: {isSidebarFull ? '100%' : '12rem'}; min-width: 8rem;"
+					>
+						{#if availableLanguages.length > 5}
+							<div class="border-b border-surface-600 p-2">
+								<input
+									type="text"
+									bind:value={searchQuery}
+									placeholder="Search..."
+									class="w-full rounded bg-surface-800 px-2 py-1 text-xs text-white placeholder:text-surface-400 focus:outline-none focus:ring-1 focus:ring-tertiary-500"
+									onclick={(e) => e.stopPropagation()}
+									aria-label="Search languages"
+								/>
 							</div>
 						{/if}
-					{:else}
-						<select
-							bind:value={languageTag}
-							onchange={handleLanguageSelectChange}
-							aria-label="Select language"
-							class="variant-filled-surface !appearance-none rounded-full uppercase text-white {isSidebarFull
-								? 'btn-icon px-2.5 py-2'
-								: 'btn-icon-sm px-1.5 py-0'}"
-						>
-							{#each availableLanguages as lang (lang)}
-								<option value={lang}>{lang.toUpperCase()}</option>
+						<div class="max-h-48 overflow-y-auto py-1">
+							{#each filteredLanguages as lang (lang)}
+								<button
+									onclick={(e) => {
+										e.stopPropagation();
+										selectLanguage(lang);
+									}}
+									class="w-full px-3 py-2 text-left text-sm text-white hover:bg-surface-600 {languageTag === lang ? 'bg-surface-600 font-bold' : ''}"
+								>
+									{getLanguageName(lang)}
+								</button>
 							{/each}
-						</select>
-					{/if}
-				</div>
-
-				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SystemLanguage">
-					{m.applayout_systemlanguage()}
-					<div class="variant-filled arrow"></div>
-				</div>
+						</div>
+					</div>
+				{/if}
+				<div class="card variant-filled p-2" data-popup="SystemLanguage" class:hidden={isDropdownOpen}>{m.applayout_systemlanguage()}</div>
 			</div>
 
-			<!-- Theme Toggle -->
+			<!-- Theme -->
 			<div class={isSidebarFull ? 'order-2' : 'order-3'}>
-				<ThemeToggle showTooltip={true} tooltipPlacement="right" buttonClass="btn-icon hover:bg-surface-500 hover:text-white" iconSize={22} />
+				<ThemeToggle showTooltip={true} tooltipPlacement="right" buttonClass="btn-icon hover:bg-surface-500" iconSize={22} />
 			</div>
 
 			<!-- Sign Out -->
 			<div class="order-4">
-				<button
-					use:popup={tooltips.signOut}
-					onclick={signOut}
-					type="button"
-					aria-label="Sign Out"
-					class="btn-icon hover:bg-surface-500 hover:text-white"
-				>
+				<button use:popup={tooltips.signOut} onclick={signOut} aria-label="Sign out" class="btn-icon hover:bg-surface-500">
 					<iconify-icon icon="uil:signout" width="26"></iconify-icon>
 				</button>
-
-				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SignOutButton">
-					{m.applayout_signout()}
-					<div class="variant-filled arrow"></div>
-				</div>
+				<div class="card variant-filled p-2" data-popup="SignOutButton">{m.applayout_signout()}</div>
 			</div>
 
 			<!-- Config -->
 			<div class={isSidebarFull ? 'order-5' : 'order-6'}>
 				<button
 					use:popup={tooltips.config}
-					onclick={handleConfigClick}
-					onkeypress={(e) => handleKeyPress(e, handleConfigClick)}
-					aria-label="System Configuration"
-					class="btn-icon hover:bg-surface-500 hover:text-white"
+					onclick={goToConfig}
+					onkeypress={(e) => handleKey(e, goToConfig)}
+					aria-label="Configuration"
+					class="btn-icon hover:bg-surface-500"
 				>
 					<iconify-icon icon="material-symbols:build-circle" width="34"></iconify-icon>
 				</button>
-
-				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Config">
-					{m.applayout_systemconfiguration()}
-					<div class="variant-filled arrow"></div>
-				</div>
+				<div class="card variant-filled p-2" data-popup="Config">{m.applayout_systemconfiguration()}</div>
 			</div>
 
 			<!-- Version -->
@@ -460,18 +375,14 @@
 				<VersionCheck compact={isSidebarCollapsed} />
 			</div>
 
-			<!-- GitHub (only when expanded) -->
+			<!-- GitHub (full only) -->
 			{#if isSidebarFull}
 				<div class="order-7">
-					<a href="https://github.com/SveltyCMS/SveltyCMS/discussions" target="_blank" rel="noopener noreferrer">
-						<button use:popup={tooltips.github} aria-label="GitHub Discussions" class="btn-icon hover:bg-surface-500 hover:text-white">
+					<a href="https://github.com/SveltyCMS/SveltyCMS/discussions" target="_blank" rel="noopener">
+						<button use:popup={tooltips.github} aria-label="GitHub" class="btn-icon hover:bg-surface-500">
 							<iconify-icon icon="grommet-icons:github" width="30"></iconify-icon>
 						</button>
-
-						<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Github">
-							{m.applayout_githubdiscussion()}
-							<div class="variant-filled arrow"></div>
-						</div>
+						<div class="card variant-filled p-2" data-popup="Github">{m.applayout_githubdiscussion()}</div>
 					</a>
 				</div>
 			{/if}
@@ -485,15 +396,9 @@
 		scrollbar-width: thin;
 		scrollbar-color: rgb(var(--color-surface-500)) transparent;
 	}
-
 	.overflow-y-auto::-webkit-scrollbar {
 		width: 6px;
 	}
-
-	.overflow-y-auto::-webkit-scrollbar-track {
-		background: transparent;
-	}
-
 	.overflow-y-auto::-webkit-scrollbar-thumb {
 		background-color: rgb(var(--color-surface-500));
 		border-radius: 3px;

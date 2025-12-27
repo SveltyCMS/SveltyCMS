@@ -28,8 +28,7 @@ import type { RequestHandler } from './$types';
 // Collection utilities
 import type { Locale } from '@src/paraglide/runtime';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
-import { systemLanguage } from '@stores/store.svelte';
-import { get } from 'svelte/store';
+import { app } from '@stores/store.svelte';
 
 interface AdminConfig {
 	username: string;
@@ -418,7 +417,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		if (!skipWelcomeEmail) {
 			try {
 				const hostLink = url.origin; // Get the full origin (protocol + host)
-				const langFromStore = get(systemLanguage);
+				const langFromStore = app.systemLanguage;
 				const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
 				const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 
@@ -496,7 +495,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		// 7. Determine redirect path - PREFER PATH over UUID for clean URLs
 		let redirectPath: string;
 		try {
-			const langFromStore = get(systemLanguage);
+			const langFromStore = app.systemLanguage;
 			const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
 			const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 

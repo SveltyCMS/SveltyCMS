@@ -1,43 +1,33 @@
 /**
  * @file src/utils/media/mediaProcessing.ts
- * @description Client-safe media processing operations.
- * * ✅ CLIENT-SIDE SAFE
- * This file can be imported into .svelte components.
+ * @description Client-safe media utilities (filename sanitization)
+ *
+ * Features:
+ * - Safe filename extraction & sanitization
+ * - Extension normalization
+ * - Client-side compatible (no server deps)
  */
 
 import { sanitize } from '@utils/utils';
 import { logger } from '@utils/logger';
 
-/**
- * Sanitizes a filename by removing unsafe characters and normalizing the extension.
- * Useful for preparing filenames before upload.
- */
-export function getSanitizedFileName(fileName: string): {
-	fileNameWithoutExt: string;
-	ext: string;
-} {
-	if (!fileName || typeof fileName !== 'string') {
-		const message = 'Invalid filename provided';
-		logger.error(message, { fileName });
-		throw new Error(message);
+/** Sanitize filename for safe upload/storage */
+export function sanitizedFilename(original: string): { name: string; ext: string } {
+	if (!original || typeof original !== 'string') {
+		throw new Error('Invalid filename');
 	}
 
-	const lastDotIndex = fileName.lastIndexOf('.');
-	// Handle cases with no extension or dot at the start (hidden files)
-	const name = lastDotIndex > 0 ? fileName.slice(0, lastDotIndex) : fileName;
-	const ext = lastDotIndex > 0 ? fileName.slice(lastDotIndex + 1) : '';
+	const dot = original.lastIndexOf('.');
+	const name = dot > 0 ? original.slice(0, dot) : original;
+	const ext = dot > 0 ? original.slice(dot + 1).toLowerCase() : '';
 
-	// Detailed trace for debugging upload issues
-	logger.trace('Sanitizing filename', {
-		original: fileName,
-		nameWithoutExt: name,
-		extension: ext
-	});
+	logger.trace('Filename sanitized', { original, name, ext });
 
-	const sanitized = {
-		fileNameWithoutExt: sanitize(name),
-		ext: ext.toLowerCase() // Normalize extension to lowercase for consistency
-	};
+	return { name: sanitize(name), ext };
+}
 
-	return sanitized;
+/** Alias for backward compatibility */
+export function getSanitizedFileName(filename: string): { fileNameWithoutExt: string; ext: string } {
+	const { name, ext } = sanitizedFilename(filename);
+	return { fileNameWithoutExt: name, ext };
 }

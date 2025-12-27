@@ -51,10 +51,10 @@
 	import { setContentStructure, setCollection } from '@stores/collectionStore.svelte';
 	import { publicEnv } from '@stores/globalSettings.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
-	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
-	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
-	import { uiStateManager } from '@stores/UIStore.svelte';
-	import { widgetStoreActions } from '@stores/widgetStore.svelte';
+	import { screen } from '@stores/screenSizeStore.svelte';
+	import { app } from '@stores/store.svelte';
+	import { ui } from '@stores/UIStore.svelte';
+	import { widgets } from '@stores/widgetStore.svelte';
 	import { initializeDarkMode } from '@stores/themeStore.svelte';
 
 	// Components
@@ -167,7 +167,7 @@
 
 	// Effect: Handle system language changes
 	$effect(() => {
-		const lang = systemLanguage.value;
+		const lang = app.systemLanguage;
 		if (!lang) return;
 
 		const dir = getTextDirection(lang);
@@ -215,14 +215,14 @@
 	// Initialize avatar from user data
 	function initializeUserAvatar(user: User | null): void {
 		if (!user) {
-			avatarSrc.value = '/Default_User.svg';
+			app.avatarSrc = '/Default_User.svg';
 			return;
 		}
 
 		if (user.avatar && user.avatar !== '/Default_User.svg') {
-			avatarSrc.value = user.avatar;
+			app.avatarSrc = user.avatar;
 		} else {
-			avatarSrc.value = '/Default_User.svg';
+			app.avatarSrc = '/Default_User.svg';
 		}
 	}
 
@@ -238,7 +238,7 @@
 		}
 
 		// Initialize widgets
-		widgetStoreActions.initializeWidgets();
+		widgets.initialize();
 
 		// Initialize theme from cookie/system preference
 		initializeDarkMode();
@@ -324,7 +324,7 @@
 	<!-- Application Container -->
 	<div class="relative h-lvh w-full">
 		<!-- Overlays: Mobile Nav, Toasts, Modals, Search -->
-		{#if screenSize.value === 'XS' || screenSize.value === 'SM'}
+		{#if screen.isMobile}
 			<FloatingNav />
 		{/if}
 
@@ -338,7 +338,7 @@
 		<!-- Main Layout Structure -->
 		<div class="flex h-lvh flex-col overflow-hidden">
 			<!-- Header (Optional) -->
-			{#if uiStateManager.uiState.value.header !== 'hidden'}
+			{#if ui.state.header !== 'hidden'}
 				<header class="sticky top-0 z-10 bg-tertiary-500">
 					<!-- Header content goes here -->
 				</header>
@@ -347,9 +347,9 @@
 			<!-- Body: Sidebars + Main Content -->
 			<div class="flex flex-1 overflow-hidden">
 				<!-- Left Sidebar -->
-				{#if uiStateManager.uiState.value.leftSidebar !== 'hidden'}
+				{#if ui.state.leftSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh {uiStateManager.uiState.value.leftSidebar === 'full'
+						class="max-h-dvh {ui.state.leftSidebar === 'full'
 							? 'w-[220px]'
 							: 'w-fit'} relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
 						aria-label="Left sidebar navigation"
@@ -361,24 +361,20 @@
 				<!-- Main Content Area -->
 				<main class="relative z-0 flex w-full min-w-0 flex-1 flex-col">
 					<!-- Page Header -->
-					{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
+					{#if ui.state.pageheader !== 'hidden'}
 						<header class="sticky top-0 z-20 w-full">
 							<HeaderEdit />
 						</header>
 					{/if}
 
 					<!-- Router Slot -->
-					<div
-						class="relative flex-1 overflow-visible {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {isDesktop.value
-							? 'mb-2'
-							: 'mb-16'}"
-					>
+					<div class="relative flex-1 overflow-visible {ui.state.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {screen.isDesktop ? 'mb-2' : 'mb-16'}">
 						<!-- Page Content Slot -->
 						{@render children?.()}
 					</div>
 
 					<!-- Page Footer / Mobile Nav -->
-					{#if uiStateManager.uiState.value.pagefooter !== 'hidden'}
+					{#if ui.state.pagefooter !== 'hidden'}
 						<footer class="mt-auto w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
 							<PageFooter />
 						</footer>
@@ -386,7 +382,7 @@
 				</main>
 
 				<!-- Right Sidebar -->
-				{#if uiStateManager.uiState.value.rightSidebar !== 'hidden'}
+				{#if ui.state.rightSidebar !== 'hidden'}
 					<aside
 						class="max-h-dvh w-[220px] border-l bg-white bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 						aria-label="Right sidebar"
@@ -397,7 +393,7 @@
 			</div>
 
 			<!-- Footer (Optional) -->
-			{#if uiStateManager.uiState.value.footer !== 'hidden'}
+			{#if ui.state.footer !== 'hidden'}
 				<footer class="bg-blue-500">
 					<!-- Footer content goes here -->
 				</footer>

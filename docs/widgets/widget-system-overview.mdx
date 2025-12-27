@@ -125,7 +125,7 @@ flowchart TD
 - **🔒 Security**: Permission-based access control
 - **📚 Self-Documenting**: MDX documentation per widget
 - **✅ Validation**: Valibot schemas for type safety
-- **🌍 Multilingual**: Built-in support for translated content with contentLanguage integration
+- **🌍 Multilingual**: Built-in support for translated content with app.contentLanguage integration
 
 ### Multilingual Support
 
@@ -162,7 +162,7 @@ All text-based widgets support multilingual content through the `translated` fie
 
 **Widget Behavior:**
 
-- Widgets automatically read from `contentLanguage` store
+- Widgets automatically read from `app.contentLanguage` singleton
 - Display and edit values for current language only
 - Preserve translations when updating
 - Support validation per language

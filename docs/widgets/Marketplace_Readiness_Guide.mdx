@@ -1,0 +1,146 @@
+---
+path: 'docs/widgets/Marketplace_Readiness_Guide.mdx'
+title: 'Marketplace Readiness Guide'
+description: 'Essential guide for preparing widgets for the SveltyCMS Marketplace, covering requirements, security, and packaging.'
+order: 4
+icon: 'mdi:store-check'
+author: 'SveltyCMS Team'
+created: '2025-10-27'
+updated: '2025-10-27'
+tags:
+  - 'marketplace'
+  - 'publishing'
+  - 'widgets'
+  - 'security'
+---
+
+# 🚀 Marketplace Readiness Guide
+
+This guide details the requirements and best practices for preparing your SveltyCMS widget for publication on the Marketplace.
+
+## ✅ Checklist Overview
+
+Before submitting your widget, ensure you meet all the following criteria:
+
+- [ ] **Manifest**: `widget.json` is complete and valid.
+- [ ] **Versioning**: Follows strict Semantic Versioning (SemVer 2.0.0).
+- [ ] **Security**: No dangerous patterns (eval, unsanitized HTML).
+- [ ] **Documentation**: Includes a clear `README.md` and basic documentation.
+- [ ] **Pillars**: Implements all 3 pillars (Definition, Input, Display).
+- [ ] **Icon**: Valid Material Design Icon identifier.
+- [ ] **License**: Clearly stated license (e.g., MIT, Commercial).
+
+---
+
+## 📄 1. The Manifest (widget.json)
+
+Your `widget.json` is the source of truth for the Marketplace. It MUST be valid JSON.
+
+### Required Fields
+
+```json
+{
+	"name": "MyCoolWidget", // Unique PascalCase identifier
+	"version": "1.0.0", // SemVer version
+	"description": "Short description for listing",
+	"author": "Your Name <you@example.com>",
+	"license": "MIT",
+	"icon": "mdi:rocket", // Iconify ID
+	"category": "custom", // Core category
+	"tags": ["cool", "feature"], // Search tags
+	"compatibility": {
+		"sveltycms": "^2.0.0" // Supported CMS versions
+	}
+}
+```
+
+### Permission Declarations
+
+You must declare all permissions your widget requires. **Undocumented permissions will cause rejection.**
+
+```json
+  "permissions": [
+    "collection:read",
+    "media:upload"
+  ]
+```
+
+---
+
+## 🔒 2. Security Standards
+
+The Marketplace enforces strict security rules. Your code will be scanned upon submission.
+
+### 🚫 Forbidden Patterns
+
+- **`eval()` / `new Function()`**: Remote code execution risk.
+- **`innerHTML` without sanitization**: XSS risk. Use the system `Sanitize` component.
+- **Hardcoded Secrets**: API keys or credentials committed to code.
+- **External scripts**: Loading scripts from CDNs without integrity hashes.
+
+### ✅ Allowed Practices
+
+- Use SveltyCMS internal APIs for database access.
+- Use `fetch` for external API calls, but document the endpoints.
+- Sanitize all user inputs using standard libraries.
+
+---
+
+## 📦 3. Packaging & Structure
+
+Your widget must be bundled as a standard ZIP file or published to an accessible Git repository.
+
+### Directory Structure
+
+Ensure your file structure is clean:
+
+```
+MyCoolWidget/
+├── index.ts           // Definition Pillar
+├── Input.svelte       // Input Pillar
+├── Display.svelte     // Display Pillar
+├── widget.json        // Manifest
+├── README.md          // Documentation
+├── LICENSE            // License text
+└── assets/            // Images/Icons
+```
+
+**Do NOT include:**
+
+- `node_modules/`
+- `.git/` folder
+- `.env` files
+- Build artifacts (`dist/`, `.svelte-kit/`)
+
+---
+
+## 📝 4. Documentation
+
+A `README.md` is mandatory. It should include:
+
+1.  **Installation**: Simple steps (if manual).
+2.  **Configuration**: Explanation of options in `widget.json`.
+3.  **Usage**: Screenshots or code snippets showing the widget in action.
+4.  **Support**: Where to report bugs or get help.
+
+---
+
+## 🚀 5. Submission Process
+
+1.  **Validate**: Run `npm run check` and ensure no type errors.
+2.  **Test**: Verified in a fresh SveltyCMS installation.
+3.  **Pack**: `zip -r MyCoolWidget.zip MyCoolWidget/ -x "*.git*" "node_modules/*"`
+4.  **Upload**: Submit via the Developer Portal (coming soon).
+
+---
+
+## ❓ Frequently Asked Questions
+
+**Q: Can I update my widget after publishing?**
+A: Yes, increment the version in `widget.json` and resubmit.
+
+**Q: Are paid widgets allowed?**
+A: Yes, the marketplace supports commercial licensing.
+
+**Q: Can I use 3rd party npm packages?**
+A: Yes, but keep dependencies minimal. Peer dependencies on SveltyCMS core are preferred.

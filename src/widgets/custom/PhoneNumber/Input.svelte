@@ -38,8 +38,7 @@
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Stores
-	import { validationStore } from '@stores/store.svelte';
-	import { contentLanguage } from '@stores/store.svelte';
+	import { app, validationStore } from '@stores/store.svelte';
 
 	import { getFieldName } from '@utils/utils';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
@@ -56,7 +55,7 @@
 
 	const fieldName = $derived(getFieldName(field));
 	// Use current content language for translated fields, default for non-translated
-	const _language = $derived(field.translated ? contentLanguage.value : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Initialize value
 	$effect(() => {

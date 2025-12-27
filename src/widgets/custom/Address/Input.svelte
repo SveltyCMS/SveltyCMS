@@ -28,7 +28,7 @@ Interactive form with map, country selector, and address validation
 -->
 
 <script lang="ts">
-	import { systemLanguage } from '@src/stores/store.svelte';
+	import { app } from '@src/stores/store.svelte';
 
 	import { onDestroy } from 'svelte';
 	import type { FieldType } from './';
@@ -54,7 +54,7 @@ Interactive form with map, country selector, and address validation
 	});
 
 	// Get the current system language for the UI.
-	const lang = $derived($systemLanguage);
+	const lang = $derived(app.systemLanguage);
 
 	// Note: Map functionality is placeholder for future Mapbox integration
 	const map: any = null; // Placeholder for future Mapbox integration

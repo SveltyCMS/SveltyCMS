@@ -23,7 +23,7 @@ import { dbAdapter } from '@src/databases/db';
 // Media Processing
 import { extractMetadata } from '@utils/media/mediaProcessing.server';
 import { MediaService } from '@src/services/MediaService.server';
-import type { MediaType, MediaAccess, WatermarkOptions } from '@utils/media/mediaModels';
+import type { MediaAccess, WatermarkOptions, MediaItem } from '@utils/media/mediaModels';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -31,14 +31,14 @@ import { logger } from '@utils/logger.server';
 // Response types
 interface ProcessResult {
 	success: boolean;
-	data?: MediaType | MediaType[] | FileProcessResult[] | Record<string, unknown>;
+	data?: MediaItem | MediaItem[] | FileProcessResult[] | Record<string, unknown>;
 	error?: string;
 }
 
 interface FileProcessResult {
 	fileName: string;
 	success: boolean;
-	data?: MediaType;
+	data?: MediaItem;
 	error?: string;
 }
 
@@ -130,8 +130,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 						try {
 							// Pass tenantId and watermarkOptions to the media service
 							const saveResult = await mediaService.saveMedia(file, user._id.toString(), access, tenantId, watermarkOptions);
-							results.push({ fileName: file.name, success: true, data: saveResult });
-							logger.info(`Successfully saved file: ${file.name}`, { userId: user._id, fileSize: file.size, tenantId });
+							const savedItem = saveResult as MediaItem;
+
+							results.push({
+								fileName: file.name,
+								success: true,
+								data: savedItem
+							});
+
+							logger.info(`Successfully saved file: ${file.name}`, {
+								userId: user._id,
+								fileSize: file.size,
+								tenantId,
+								thumbnails: Object.keys(savedItem.thumbnails ?? {})
+							});
 						} catch (err) {
 							const errorMsg = err instanceof Error ? err.message : String(err);
 							logger.error(`Error saving file ${file.name}:`, { error: errorMsg, tenantId });

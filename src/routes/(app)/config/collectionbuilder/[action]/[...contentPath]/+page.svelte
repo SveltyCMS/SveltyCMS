@@ -27,9 +27,9 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Stores
 	import { page } from '$app/state';
-	import { tabSet } from '@stores/store.svelte';
-	import { collection, setCollection } from '@src/stores/collectionStore.svelte';
-	import { setRouteContext } from '@src/stores/UIStore.svelte';
+	import { app } from '@stores/store.svelte';
+	import { collections } from '@src/stores/collectionStore.svelte';
+	import { ui } from '@src/stores/UIStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -44,19 +44,19 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	import { showToast } from '@utils/toast';
 
-	import { widgetStoreActions } from '@stores/widgetStore.svelte';
+	import { widgets } from '@stores/widgetStore.svelte';
 
 	// Create local tabSet variable for binding
-	let localTabSet = $state(tabSet.value);
+	let localTabSet = $state(app.tabSetState);
 
 	// Sync with store when local value changes
 	$effect(() => {
-		tabSet.set(localTabSet);
+		app.tabSetState = localTabSet;
 	});
 
 	// Sync local value when store changes
 	$effect(() => {
-		localTabSet = tabSet.value;
+		localTabSet = app.tabSetState;
 	});
 
 	import type { User } from '@src/databases/auth/types';
@@ -83,14 +83,14 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		if (action === 'edit') {
 			loadCollection();
 		} else {
-			setCollection(null);
+			collections.setCollection(null);
 			originalName = '';
 		}
 	});
 
 	function loadCollection() {
 		if (data.collection) {
-			setCollection(data.collection);
+			collections.setCollection(data.collection);
 			originalName = String(data.collection.name || '');
 		} else {
 			logger.error('Collection data not found for editing.');
@@ -100,7 +100,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Default widget data (tab1)
 	// Unwrap the `collection` store value for TS and template usage
-	const collectionValue = $derived(collection.value);
+	const collectionActive = $derived(collections.active);
 
 	// Page title
 	let pageTitle = $state('');
@@ -141,7 +141,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
-		const currentCollection = collection.value;
+		const currentCollection = collections.active;
 		const currentName = String(currentCollection?.name || '');
 
 		// Check validation errors before submission
@@ -190,7 +190,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	}
 
 	function handleCollectionDelete() {
-		const currentCollection = collection.value;
+		const currentCollection = collections.active;
 		// Define the confirmation modal
 		const confirmModal: ModalSettings = {
 			type: 'confirm',
@@ -221,13 +221,13 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	onMount(() => {
 		// Set the initial tab
-		widgetStoreActions.initializeWidgets();
-		tabSet.set(0);
+		widgets.initialize();
+		app.tabSetState = 0;
 	});
 
 	$effect(() => {
-		setRouteContext({ isCollectionBuilder: true });
-		return () => setRouteContext({ isCollectionBuilder: false });
+		ui.setRouteContext({ isCollectionBuilder: true });
+		return () => ui.setRouteContext({ isCollectionBuilder: false });
 	});
 </script>
 
@@ -270,7 +270,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			<Tab bind:group={localTabSet} name="default" value={0}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="ic:baseline-edit" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					<span class:active={tabSet.value === 0} class:text-tertiary-500={tabSet.value === 0} class:text-primary-500={tabSet.value === 0}
+					<span class:active={app.tabSetState === 0} class:text-tertiary-500={app.tabSetState === 0} class:text-primary-500={app.tabSetState === 0}
 						>{m.button_edit()}</span
 					>
 				</div>
@@ -280,7 +280,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			<Tab bind:group={localTabSet} name="widget" value={1} data-testid="widget-fields-tab">
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:widgets-outline" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					<span class:active={tabSet.value === 1} class:text-tertiary-500={tabSet.value === 2} class:text-primary-500={tabSet.value === 2}
+					<span class:active={app.tabSetState === 1} class:text-tertiary-500={app.tabSetState === 2} class:text-primary-500={app.tabSetState === 2}
 						>{m.collection_widgetfields()}</span
 					>
 				</div>
@@ -288,10 +288,10 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		{/if}
 
 		<!-- Tab Panels -->
-		{#if tabSet.value === 0}
-			<CollectionForm data={collectionValue} {handlePageTitleUpdate} />
-		{:else if tabSet.value === 1}
-			<CollectionWidget fields={collectionValue?.fields as FieldInstance[] | undefined} {handleCollectionSave} />
+		{#if app.tabSetState === 0}
+			<CollectionForm data={collectionActive} {handlePageTitleUpdate} />
+		{:else if app.tabSetState === 1}
+			<CollectionWidget fields={collectionActive?.fields as FieldInstance[] | undefined} {handleCollectionSave} />
 		{/if}
 	</TabGroup>
 </div>

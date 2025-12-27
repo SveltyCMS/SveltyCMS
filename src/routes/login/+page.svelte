@@ -22,7 +22,7 @@ Features:
 	import SignUp from './components/SignUp.svelte';
 	import VersionCheck from '@components/VersionCheck.svelte';
 	// Stores
-	import { systemLanguage } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { locales as availableLocales } from '@src/paraglide/runtime';
 	// ParaglideJS
@@ -96,20 +96,20 @@ Features:
 	const filteredLanguages = $derived(
 		availableLanguages.filter(
 			(lang: string) =>
-				getLanguageName(lang, systemLanguage.value).toLowerCase().includes(searchQuery.toLowerCase()) ||
+				getLanguageName(lang, app.systemLanguage).toLowerCase().includes(searchQuery.toLowerCase()) ||
 				getLanguageName(lang, 'en').toLowerCase().includes(searchQuery.toLowerCase())
 		)
 	);
 
 	// Ensure a valid language is always used
-	const currentLanguage = $derived(systemLanguage.value && availableLocales.includes(systemLanguage.value) ? systemLanguage.value : 'en');
+	const currentLanguage = $derived(app.systemLanguage && availableLocales.includes(app.systemLanguage) ? app.systemLanguage : 'en');
 
 	// Language selection
 	function handleLanguageSelection(lang: string) {
 		clearTimeout(debounceTimeout);
 		debounceTimeout = setTimeout(() => {
 			// Set cookie via store (bridge to ParaglideJS)
-			systemLanguage.set(lang as (typeof systemLanguage)['value']);
+			app.systemLanguage = lang as any;
 			isDropdownOpen = false;
 			searchQuery = '';
 		}, 100); // Reduced delay for faster feedback
@@ -241,7 +241,7 @@ Features:
 					'Content-Type': 'application/x-www-form-urlencoded'
 				},
 				body: new URLSearchParams({
-					lang: systemLanguage.value || 'en'
+					lang: app.systemLanguage || 'en'
 				})
 			})
 				.then((response) => {
@@ -424,21 +424,31 @@ Features:
 				</div>
 			{:else}
 				<!-- Simple dropdown for 5 or fewer languages -->
-				<select
-					bind:value={systemLanguage.value}
-					class="rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 focus:ring-2"
-					onchange={(e: Event) => {
-						const target = e.target as HTMLSelectElement;
-						if (target) {
-							const lang = target.value;
-							handleLanguageSelection(lang);
-						}
-					}}
-				>
-					{#each availableLanguages as lang}
-						<option value={lang}>{getLanguageName(lang)} ({lang.toUpperCase()})</option>
-					{/each}
-				</select>
+				<div class="relative">
+					<select
+						bind:value={app.systemLanguage}
+						class="appearance-none rounded-full border-2 bg-[#242728] pl-4 pr-10 py-2 text-white transition-colors duration-300 focus:ring-2 cursor-pointer"
+						onchange={(e: Event) => {
+							const target = e.target as HTMLSelectElement;
+							if (target) {
+								const lang = target.value;
+								handleLanguageSelection(lang);
+							}
+						}}
+					>
+						{#each availableLanguages as lang}
+							<option value={lang}>{getLanguageName(lang)} ({lang.toUpperCase()})</option>
+						{/each}
+					</select>
+					<svg
+						class="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-white"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+					</svg>
+				</div>
 			{/if}
 		</div>
 		<!-- CMS Version -->

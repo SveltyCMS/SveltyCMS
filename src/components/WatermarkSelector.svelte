@@ -14,24 +14,24 @@ Usage:
 -->
 
 <script lang="ts">
-	import type { MediaType } from '@utils/media/mediaModels';
+	import type { MediaItem } from '@utils/media/mediaModels';
 
 	interface Props {
 		// Component props
-		mediaItems?: MediaType[];
-		selectedMedia?: MediaType | null;
-		onSelect: (media: MediaType) => void;
+		mediaItems?: MediaItem[];
+		selectedMedia?: MediaItem | null;
+		onSelect: (media: MediaItem) => void;
 	}
 
 	const { mediaItems = [], selectedMedia = null, onSelect }: Props = $props();
 
 	// Handle selection of a media item
-	function handleSelect(media: MediaType) {
+	function handleSelect(media: MediaItem) {
 		onSelect(media);
 	}
 
 	// Handle keyboard navigation
-	function handleKeydown(event: KeyboardEvent, media: MediaType) {
+	function handleKeydown(event: KeyboardEvent, media: MediaItem) {
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
 			handleSelect(media);

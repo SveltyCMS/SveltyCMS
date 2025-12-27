@@ -3,7 +3,7 @@
 	import { slide } from 'svelte/transition';
 
 	// Stores & Props
-	import { contentLanguage } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 	import { publicEnv } from '@stores/globalSettings.svelte';
 
 	// Parsers & Services
@@ -36,7 +36,7 @@
 	// Multi-language handling
 	let availableLanguages = $state<string[]>([]);
 	// Use contentLanguage store value
-	const currentLang = $derived(contentLanguage.value);
+	const currentLang = $derived(app.contentLanguage);
 	// Fallback to 'en' if no language selected
 	let lang = $derived(currentLang || 'en');
 

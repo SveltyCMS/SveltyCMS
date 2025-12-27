@@ -19,6 +19,16 @@ tags:
 
 This document describes the **canonical data flow** for loading, editing, and saving collection/entry data in SveltyCMS. It is essential for all developers working on content management, widgets, or UI components that interact with collections and entries.
 
+## 🏗️ Store Architecture (Consolidated)
+
+As of late 2025, the content state management has been consolidated into a single **`CollectionStore`** (`src/stores/collectionStore.svelte.ts`). This unified store manages:
+
+1.  **Content State**: The current collection schema, entry data, and content structure.
+2.  **Status Logic**: Entry publication status (`publish`, `unpublish`, `schedule`, etc.) and toggling logic.
+3.  **View Mode**: The current UI mode (`view`, `edit`, `create`, `media`) and valid transitions.
+
+This consolidation replaces the previous fragmented approach (`statusStore`, `modeStateMachine`) to provide a single source of truth and reduce circular dependencies. All consumers should import directly from `@stores/collectionStore.svelte`.
+
 ## 🎯 Architecture: The "SvelteKit Way"
 
 **SveltyCMS now follows a pure SSR (Server-Side Rendering) architecture.** This means:
@@ -271,7 +281,8 @@ This ensures that the next SSR load will always fetch fresh data after any data 
 **Client-Side:**
 
 - `src/routes/(app)/[language]/[...collection]/+page.svelte` - Props router
-- `src/stores/collectionStore.svelte.ts` - Form state store
+- `src/stores/collectionStore.svelte.ts` - Unified store for Content, Status, and View Mode state
+- `src/stores/UIStore.svelte.ts` - UI visibility and layout state
 - `src/components/collectionDisplay/Fields.svelte` - Dumb component (props)
 - `src/components/collectionDisplay/EntryList.svelte` - Dumb component (props)
 

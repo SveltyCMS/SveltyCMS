@@ -1,32 +1,35 @@
 /*
  * @files api/telemetry/stats/+server.ts
- * @description Telemetry Statistics
+ * @description Telemetry Statistics (Mock Receiver Implementation)
+ *
+ * NOTE: This endpoint demonstrates how a Telemetry Receiver would aggregate data.
+ * It uses mock data for demonstration purposes.
  *
  * ### Features
  * - Aggregations
- * - Admin/Guest Access
+ * - Admin Access Secured
  */
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
 
 // Mock Database for demonstration
-// In reality, you would replace this with: await db.collection('telemetry').find(...)
+// In a real Receiver implementation, this would query the telemetry database.
 const MOCK_DB_DATA = Array.from({ length: 50 }, (_, i) => ({
 	id: crypto.randomUUID(),
-	domain: i % 5 === 0 ? 'internal.corporate.com' : `blog-${i}.example.com`, // Some corporate domains
+	domain: i % 5 === 0 ? 'internal.corporate.com' : `blog-${i}.example.com`,
 	version: i % 3 === 0 ? '0.5.0' : '0.4.9',
 	node_version: i % 2 === 0 ? 'v20.10.0' : 'v18.17.0',
 	db_type: i % 4 === 0 ? 'postgres' : 'mongodb',
 	country: ['US', 'DE', 'FR', 'GB', 'JP'][i % 5],
 	last_seen: new Date().toISOString(),
 	environment: i % 10 === 0 ? 'development' : 'production',
-	revenue_est: i % 5 === 0 ? '> $10M' : '< $1M' // Enriched data
+	revenue_est: i % 5 === 0 ? '> $10M' : '< $1M'
 }));
 
 export async function GET({ locals }: RequestEvent) {
-	const isAdmin = locals.user?.isAdmin || false; // Check Auth
+	const isAdmin = locals.user?.isAdmin || false;
 
-	// 1. Calculate Aggregations (For Everyone)
+	// 1. Calculate Aggregations
 	const stats = {
 		total_installs: MOCK_DB_DATA.length,
 		versions: aggregate(MOCK_DB_DATA, 'version'),
@@ -35,22 +38,13 @@ export async function GET({ locals }: RequestEvent) {
 		countries: aggregate(MOCK_DB_DATA, 'country')
 	};
 
-	// 2. Prepare Response
-	if (isAdmin) {
-		// ADMIN: Gets everything + Raw Data
-		return json({
-			role: 'admin',
-			aggregates: stats,
-			raw_data: MOCK_DB_DATA // <--- The Sensitive List
-		});
-	} else {
-		// GUEST: Gets only Aggregates
-		return json({
-			role: 'guest',
-			aggregates: stats,
-			raw_data: [] // <--- Empty for privacy
-		});
-	}
+	const responseData = isAdmin ? { role: 'admin', aggregates: stats, raw_data: MOCK_DB_DATA } : { role: 'guest', aggregates: stats, raw_data: [] };
+
+	return json({
+		success: true,
+		data: responseData,
+		message: 'Telemetry statistics retrieved (Mock)'
+	});
 }
 
 // Helper to group and count

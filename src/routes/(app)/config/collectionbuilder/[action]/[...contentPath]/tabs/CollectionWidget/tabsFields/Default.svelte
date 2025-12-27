@@ -27,7 +27,7 @@ Features:
 	const modalStore = getModalStore();
 
 	// Stores
-	import { targetWidget } from '@src/stores/collectionStore.svelte';
+	import { collections } from '@src/stores/collectionStore.svelte';
 
 	// GuiSchema is a record of field properties with their widget configs
 	type GuiSchema = Record<string, { widget: typeof SvelteComponent }>;
@@ -53,14 +53,14 @@ Features:
 	function defaultValue(property: string) {
 		if (property === 'required' || property === 'translated') {
 			return false;
-		} else return (targetWidget.value.widget as any)?.Name;
+		} else return (collections.targetWidget.widget as any)?.Name;
 	}
 
 	function handleUpdate(detail: { value: any }, property: string) {
 		// Update the targetWidget store
-		const currentWidget = targetWidget.value;
+		const currentWidget = collections.targetWidget;
 		currentWidget[property] = detail.value;
-		targetWidget.value = currentWidget;
+		collections.setTargetWidget(currentWidget);
 	}
 </script>
 
@@ -77,8 +77,8 @@ Features:
 		{#each displayProperties as property}
 			{#if guiSchema[property]}
 				<InputSwitch
-					value={targetWidget.value[property] ?? defaultValue(property)}
-					icon={targetWidget.value[property] as string}
+					value={collections.targetWidget[property] ?? defaultValue(property)}
+					icon={collections.targetWidget[property] as string}
 					widget={asAny(guiSchema[property]?.widget)}
 					key={property}
 					onupdate={(e: { value: any }) => handleUpdate(e, property)}

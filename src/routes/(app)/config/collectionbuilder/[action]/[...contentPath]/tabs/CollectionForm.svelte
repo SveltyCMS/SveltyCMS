@@ -17,8 +17,8 @@
 	import { untrack } from 'svelte';
 	// Stores
 	import { page } from '$app/state';
-	import { tabSet } from '@stores/store.svelte';
-	import { collection, setCollection } from '@root/src/stores/collectionStore.svelte';
+	import { app } from '@stores/store.svelte';
+	import { collections } from '@src/stores/collectionStore.svelte';
 
 	// Components
 	import IconifyPicker from '@components/IconifyPicker.svelte';
@@ -94,9 +94,9 @@
 		const currentIcon = selectedIcon;
 
 		untrack(() => {
-			if (collection.value && currentIcon !== collection.value.icon) {
-				setCollection({
-					...collection.value,
+			if (collections.active && currentIcon !== collections.active.icon) {
+				collections.setCollection({
+					...collections.active,
 					icon: currentIcon
 				});
 			}
@@ -112,22 +112,22 @@
 		const currentStatus = status;
 		const currentIcon = selectedIcon;
 
-		// Use untrack to prevent reading collection.value from triggering this effect again
+		// Use untrack to prevent reading collections.active from triggering this effect again
 		untrack(() => {
-			if (collection.value?._id) {
+			if (collections.active?._id) {
 				// Check if values have actually changed to avoid unnecessary updates
 				if (
-					collection.value.name === currentName &&
-					collection.value.slug === currentSlug &&
-					collection.value.description === currentDescription &&
-					collection.value.status === currentStatus &&
-					collection.value.icon === currentIcon
+					collections.active.name === currentName &&
+					collections.active.slug === currentSlug &&
+					collections.active.description === currentDescription &&
+					collections.active.status === currentStatus &&
+					collections.active.icon === currentIcon
 				) {
 					return;
 				}
 
-				setCollection({
-					...collection.value, // Spread existing values (including _id)
+				collections.setCollection({
+					...collections.active, // Spread existing values (including _id)
 					name: currentName,
 					slug: currentSlug,
 					description: currentDescription,
@@ -190,7 +190,7 @@
 	const statuses = Object.values(StatusTypes);
 
 	function handleNextClick() {
-		tabSet.set(1);
+		app.tabSetState = 1;
 	}
 </script>
 

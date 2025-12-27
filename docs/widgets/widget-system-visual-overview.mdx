@@ -150,7 +150,7 @@ graph TD
 sequenceDiagram
     participant User
     participant Input as Input Component
-    participant Store as contentLanguage Store
+    participant Store as app Singleton
     participant Widget as Widget Logic
     participant DB as Database (Agnostic)
 
@@ -158,7 +158,7 @@ sequenceDiagram
     Store->>Input: Language change notification
 
     Note over Input: field.translated = true
-    Input->>Store: Read contentLanguage.value
+    Input->>Store: Read app.contentLanguage
     Store-->>Input: "de"
 
     Input->>Widget: Access value[_language]
@@ -208,7 +208,7 @@ sequenceDiagram
     User->>CB: Select & configure widget
     CB->>DB: Save collection schema
 
-    Form->>Store: Load widget for field
+    Form->>Store: Load widget from widgets singleton
     Store-->>Form: Return widget function
     Form->>Form: Create field instance
     Form->>User: Render input component

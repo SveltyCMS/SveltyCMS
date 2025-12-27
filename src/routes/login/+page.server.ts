@@ -40,8 +40,7 @@ import type { ISODateString } from '@src/content/types';
 import type { Locale } from '@src/paraglide/runtime';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
-import { systemLanguage } from '@stores/store.svelte';
-import { get } from 'svelte/store';
+import { app } from '@stores/store.svelte';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -211,10 +210,10 @@ async function shouldShowOAuth(hasInviteToken: boolean): Promise<boolean> {
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
 	const demoMode = getPrivateSettingSync('DEMO');
 	// --- START: Language Validation Logic ---
-	const langFromStore = get(systemLanguage) as Locale | null;
+	const langFromStore = app.systemLanguage as Locale | null;
 	// Use PUBLIC_ENV.LOCALES for validation, fallback to BASE_LOCALE
 	const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-	const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+	const userLanguage = (langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale)) || 'en';
 	// --- END: Language Validation Logic ---
 
 	try {
@@ -495,7 +494,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 								subject: `Welcome to ${emailProps.sitename}`,
 								templateName: 'welcomeUser',
 								props: emailProps,
-								languageTag: userLanguage
+								languageTag: app.systemLanguage
 							})
 						});
 						if (!mailResponse.ok) {
@@ -640,7 +639,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 export const actions: Actions = {
 	signUp: async (event) => {
 		// --- START: Language Validation Logic ---
-		const langFromStore = get(systemLanguage) as Locale | null;
+		const langFromStore = app.systemLanguage as Locale | null;
 		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
 		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 		logger.debug(`Validated user language for sign-up: ${userLanguage}`);
@@ -825,7 +824,7 @@ export const actions: Actions = {
 
 	signIn: async (event) => {
 		// --- START: Language Validation Logic ---
-		const langFromStore = get(systemLanguage) as Locale | null;
+		const langFromStore = app.systemLanguage as Locale | null;
 		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
 		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 		logger.debug(`Validated user language for sign-in: ${userLanguage}`);
@@ -934,7 +933,7 @@ export const actions: Actions = {
 
 	verify2FA: async (event) => {
 		// --- START: Language Validation Logic ---
-		const langFromStore = get(systemLanguage) as Locale | null;
+		const langFromStore = app.systemLanguage as Locale | null;
 		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
 		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
 		// --- END: Language Validation Logic ---
@@ -1029,7 +1028,7 @@ export const actions: Actions = {
 
 	forgotPW: async (event) => {
 		// --- START: Language Validation Logic ---
-		const langFromStore = get(systemLanguage) as Locale | null;
+		const langFromStore = app.systemLanguage as Locale | null;
 		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
 		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 		// --- END: Language Validation Logic ---
@@ -1119,7 +1118,7 @@ export const actions: Actions = {
 
 	resetPW: async (event) => {
 		// --- START: Language Validation Logic ---
-		const langFromStore = get(systemLanguage) as Locale | null;
+		const langFromStore = app.systemLanguage as Locale | null;
 		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
 		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 		// --- END: Language Validation Logic ---
@@ -1210,15 +1209,15 @@ export const actions: Actions = {
 
 	prefetch: async () => {
 		// --- START: Language Validation Logic ---
-		const langFromStore = get(systemLanguage) as Locale | null;
+		const langFromStore = app.systemLanguage as Locale | null;
 		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		const userLanguage = (langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale)) || 'en';
 		// --- END: Language Validation Logic ---
 
 		// This action is called when user switches to SignIn/SignUp components
 		// to get collection info for later data fetching after authentication
 		try {
-			logger.info(`Collection lookup triggered for language: ${userLanguage}}`);
+			logger.info(`Collection lookup triggered for language: ${userLanguage}`);
 
 			// Get first collection from ContentManager (cached lookup)
 			const firstCollectionSchema = await contentManager.getFirstCollection();

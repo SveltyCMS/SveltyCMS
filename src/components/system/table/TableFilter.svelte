@@ -30,7 +30,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	import { browser } from '$app/environment';
 
 	// Stores
-	import { setTranslationStatusOpen } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 
 	// Logger
 	import { logger } from '@utils/logger';
@@ -88,7 +88,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		if (except !== 'column') {
 			columnShow = false;
 		}
-		setTranslationStatusOpen(false);
+		app.setTranslationStatusOpen(false);
 	}
 
 	// Function to cycle density

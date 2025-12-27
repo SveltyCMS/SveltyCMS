@@ -11,15 +11,20 @@ for the image editor canvas with responsive behavior.
 -->
 
 <script lang="ts">
+	import { fade } from 'svelte/transition';
 	import type { Snippet } from 'svelte';
 
 	// Props
 	let {
 		hasImage = false,
+		isLoading = false,
+		loadingMessage = 'Loading...',
 		containerRef = $bindable(),
 		children
 	}: {
 		hasImage?: boolean;
+		isLoading?: boolean;
+		loadingMessage?: string;
 		containerRef?: HTMLDivElement;
 		children?: Snippet;
 	} = $props();
@@ -70,14 +75,15 @@ for the image editor canvas with responsive behavior.
 	{@render children?.()}
 
 	<!-- Loading overlay -->
-	{#if hasImage && !mounted}
+	{#if (hasImage && !mounted) || isLoading}
 		<div
-			class="loading-overlay absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-50/80 backdrop-blur-sm dark:bg-surface-900/80"
+			class="loading-overlay absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-50/80 backdrop-blur-sm dark:bg-surface-900/80 z-20"
+			transition:fade={{ duration: 200 }}
 		>
 			<div class="loading-spinner flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg dark:bg-surface-800">
 				<iconify-icon icon="mdi:loading" width="32" class="animate-spin text-primary-500"></iconify-icon>
 			</div>
-			<span class="text-sm text-surface-600 dark:text-surface-300">Loading image...</span>
+			<span class="text-sm text-surface-600 dark:text-surface-300">{loadingMessage}</span>
 		</div>
 	{/if}
 </div>

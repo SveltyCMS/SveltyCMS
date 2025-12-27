@@ -14,7 +14,7 @@ Features:
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import { browser } from '$app/environment';
-	import { enhance } from '$app/forms';
+	import { enhance, deserialize } from '$app/forms';
 	import { preloadData } from '$app/navigation';
 
 	import type { PageData } from '../$types';
@@ -35,7 +35,7 @@ Features:
 	import * as m from '@src/paraglide/messages';
 
 	// Screen size store
-	import { isDesktop } from '@stores/screenSizeStore.svelte';
+	import { screen } from '@stores/screenSizeStore.svelte';
 	import type { Component } from 'svelte';
 
 	// Props
@@ -50,6 +50,32 @@ Features:
 		onBack = () => {},
 		firstCollectionPath = ''
 	} = $props();
+
+	let prefetched = $state(false);
+
+	async function prefetchFirstCollection() {
+		if (prefetched) return;
+		prefetched = true;
+
+		try {
+			const data = new FormData();
+			const response = await fetch('?/prefetch', {
+				method: 'POST',
+				body: data
+			});
+
+			const result = deserialize(await response.text());
+
+			if (result.type === 'success') {
+				const collection = (result.data as any)?.collection;
+				if (collection?.path) {
+					await preloadData(collection.path);
+				}
+			}
+		} catch (error) {
+			console.error('Prefetch failed:', error);
+		}
+	}
 
 	const pageData = page.data as PageData;
 	const firstUserExists = pageData.firstUserExists;
@@ -195,7 +221,7 @@ Features:
 
 	// Lazy-load FloatingPaths only on desktop when SignUp is active
 	$effect(() => {
-		const desktop = isDesktop.value;
+		const desktop = screen.isDesktop;
 		const isActiveSignUp = active === 1;
 		if (browser && desktop && isActiveSignUp) {
 			import('@root/src/components/system/FloatingPaths.svelte').then((m) => {
@@ -227,7 +253,7 @@ Features:
 >
 	{#if active === 1}
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
-			{#if isDesktop.value && FloatingPathsComponent}
+			{#if screen.isDesktop && FloatingPathsComponent}
 				<div class="absolute inset-0">
 					<FloatingPathsComponent position={1} background="dark" mirrorAnimation />
 					<FloatingPathsComponent position={-1} background="dark" mirrorAnimation />
@@ -410,7 +436,12 @@ Features:
 
 					{#if !showOAuth}
 						<!-- Email SignIn only -->
-						<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}>
+						<button
+							type="submit"
+							class="variant-filled btn mt-4 uppercase"
+							aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}
+							onmouseenter={prefetchFirstCollection}
+						>
 							{isInviteFlow ? 'Accept Invitation & Create Account' : m.form_signup()}
 							{#if isSubmitting || isRedirecting}<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6" />{/if}
 						</button>
@@ -422,6 +453,7 @@ Features:
 								type="submit"
 								class="btn w-3/4 rounded-none bg-surface-200 text-black hover:text-white"
 								aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}
+								onmouseenter={prefetchFirstCollection}
 							>
 								<span class="w-full text-black hover:text-white">
 									{isInviteFlow ? 'Accept Invitation' : m.form_signup()}

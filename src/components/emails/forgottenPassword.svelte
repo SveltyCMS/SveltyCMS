@@ -10,7 +10,7 @@
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { systemLanguage } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 	// better-svelte-email
 	import { Body, Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
 	// Readable ExpireIn time sec to year
@@ -24,7 +24,8 @@
 		languageTag?: string;
 	}
 
-	const { email = '', token, resetLink, expiresIn, languageTag = systemLanguage.value }: Props = $props();
+	const lang = $derived(app.systemLanguage);
+	const { email = '', token, resetLink, expiresIn, languageTag = lang }: Props = $props();
 
 	// Use production host logo if available, otherwise fall back to GitHub
 	const logoSrc = publicEnv?.HOST_PROD

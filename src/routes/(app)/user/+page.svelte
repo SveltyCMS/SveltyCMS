@@ -23,8 +23,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import '@stores/store.svelte';
-	import { avatarSrc } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 	import { triggerActionStore } from '@utils/globalSearchIndex';
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -33,7 +32,7 @@
 	// Skeleton
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import { Avatar } from '@skeletonlabs/skeleton';
-	import { setCollection } from '@src/stores/collectionStore.svelte';
+	import { collections } from '@src/stores/collectionStore.svelte';
 	import { showConfirm, showModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
@@ -97,7 +96,7 @@
 		if ($triggerActionStore.length > 0) {
 			executeActions();
 		}
-		setCollection(null);
+		collections.setCollection(null);
 
 		// Note: Avatar initialization is handled by the layout component
 		// to ensure consistent avatar state across the application
@@ -123,7 +122,7 @@
 	function modalEditAvatar(): void {
 		const modalComponent: ModalComponent = {
 			ref: ModalEditAvatar,
-			props: { avatarSrc },
+			props: { avatarSrc: app.avatarSrc },
 			slot: '<p>Edit Form</p>'
 		};
 		const d: ModalSettings = {
@@ -172,7 +171,7 @@
 			<!-- Avatar with user info -->
 			<div class="relative flex flex-col items-center justify-center gap-1">
 				<Avatar
-					src={avatarSrc.value && avatarSrc.value.startsWith('data:') ? avatarSrc.value : `${avatarSrc.value}?t=${Date.now()}`}
+					src={app.avatarSrc && app.avatarSrc.startsWith('data:') ? app.avatarSrc : `${app.avatarSrc}?t=${Date.now()}`}
 					initials="AV"
 					rounded-none
 					class="w-32"

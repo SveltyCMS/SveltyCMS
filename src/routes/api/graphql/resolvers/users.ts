@@ -1,30 +1,11 @@
 /**
  * @file src/routes/api/graphql/resolvers/users.ts
  * @description GraphQL type definitions and resolvers for user-related queries.
- *
- * This module provides:
- * - Dynamic generation of GraphQL type definitions based on User type
- * - Resolver function to fetch user data from the database, scoped to the current tenant
- *
- * Features:
- * - Automatic mapping of TypeScript types to GraphQL types
- * - Dynamic generation of User type definition
- * - Integration with database adapter for user data retrieval
- * - Error handling and logging
- *
- * Usage:
- * - Used in the main GraphQL setup to include user-related schema and resolver
- * - Allows querying of user data through the GraphQL API
  */
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import type { ISODateString, BaseEntity } from '@src/databases/dbInterface';
-// System Logger
 import { logger } from '@utils/logger.server';
-
-// Permissions
-
-// Types
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
 import type { User } from '@src/databases/auth/types';
 
@@ -67,7 +48,7 @@ function generateGraphQLTypeDefsFromType<T extends Record<string, GraphQLValue>>
 const userTypeSample: Partial<User> = {
 	_id: '',
 	email: '',
-	tenantId: '', // Add tenantId for multi-tenancy
+	tenantId: '',
 	password: '',
 	role: '',
 	username: '',
@@ -90,59 +71,53 @@ export function userTypeDefs() {
 	return generateGraphQLTypeDefsFromType(userTypeSample as Record<string, GraphQLValue>, 'User');
 }
 
-// GraphQL context type
 interface GraphQLContext {
 	user?: User;
 	tenantId?: string;
 }
 
-// User entity type with tenantId support for query building
 interface UserEntity extends BaseEntity {
 	email?: string;
 	tenantId?: string;
 }
 
-// Resolvers with pagination support
+// Resolvers with pagination support and validation
 export function userResolvers(dbAdapter: DatabaseAdapter) {
 	if (!dbAdapter) {
-		logger.error('Database adapter is not initialized');
 		throw new Error('Database adapter is not initialized');
 	}
+
 	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }, context: GraphQLContext) => {
-		// Authentication is handled by hooks.server.ts
-		if (!context.user) {
-			throw new Error('Authentication required');
-		}
+		if (!context.user) throw new Error('Authentication required');
 
 		if (getPrivateSettingSync('MULTI_TENANT') && !context.tenantId) {
-			logger.error('GraphQL: Tenant ID is missing from context in a multi-tenant setup.');
 			throw new Error('Internal Server Error: Tenant context is missing.');
 		}
 
 		const { page = 1, limit = 10 } = pagination || {};
 
 		try {
-			// --- MULTI-TENANCY: Scope the query by tenantId ---
+			// Tenant query
 			const query: Partial<UserEntity> = {};
 			if (getPrivateSettingSync('MULTI_TENANT')) {
 				query.tenantId = context.tenantId;
 			}
 
-			// Use query builder pattern consistent with REST API
-			const queryBuilder = dbAdapter
+			const result = await dbAdapter
 				.queryBuilder<UserEntity>(contentTypes)
 				.where(query)
 				.sort('updatedAt', 'desc')
-				.paginate({ page, pageSize: limit });
-			const result = await queryBuilder.execute();
-			if (!result.success) {
-				throw new Error(`Database query failed: ${result.error?.message || 'Unknown error'}`);
-			}
+				.paginate({ page, pageSize: limit })
+				.execute();
 
-			logger.info(`Fetched ${contentTypes}`, { count: result.data.length, tenantId: context.tenantId });
+			if (!result.success) throw new Error(result.error?.message || 'Query failed');
+
 			return result.data;
 		} catch (error) {
-			logger.error(`Error fetching data for ${contentTypes}:`, { error, tenantId: context.tenantId });
+			logger.error(`Error fetching data for ${contentTypes}:`, {
+				error: error instanceof Error ? error.message : String(error),
+				tenantId: context.tenantId
+			});
 			throw Error(`Failed to fetch data for ${contentTypes}`);
 		}
 	};
@@ -151,9 +126,7 @@ export function userResolvers(dbAdapter: DatabaseAdapter) {
 		users: async (_: unknown, args: { pagination: { page: number; limit: number } }, context: GraphQLContext) =>
 			await fetchWithPagination('auth_users', args.pagination, context),
 		me: async (_: unknown, __: unknown, context: GraphQLContext) => {
-			if (!context.user) {
-				throw new Error('Authentication required');
-			}
+			if (!context.user) throw new Error('Authentication required');
 			return context.user;
 		}
 	};

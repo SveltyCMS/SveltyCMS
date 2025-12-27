@@ -46,8 +46,8 @@
 -->
 <script lang="ts">
 	// Stores
-	import { toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
-	import { isDesktop } from '@stores/screenSizeStore.svelte';
+	import { ui } from '@stores/UIStore.svelte';
+	import { screen } from '@stores/screenSizeStore.svelte';
 
 	type DefaultBehaviorFn = () => void;
 
@@ -106,10 +106,10 @@
 
 <div class="my-1 flex w-full min-w-0 items-center justify-between gap-4">
 	<div class="flex min-w-0 items-center">
-		{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
+		{#if ui.state.leftSidebar === 'hidden'}
 			<button
 				type="button"
-				onclick={() => toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed')}
+				onclick={() => ui.toggle('leftSidebar', screen.isDesktop ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
 				class="variant-ghost-surface btn-icon"
 			>

@@ -23,7 +23,7 @@
 	import PageTitle from '@components/PageTitle.svelte';
 	import { modeCurrent } from '@skeletonlabs/skeleton';
 	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
-	import { systemPreferences } from '@stores/systemPreferences.svelte';
+	import { preferences } from '@stores/systemPreferences.svelte';
 	import { logger } from '@utils/logger';
 	import { onMount } from 'svelte';
 	import { flip } from 'svelte/animate';
@@ -133,7 +133,7 @@
 	}
 
 	const widgetComponentRegistry = $derived(widgetRegistry);
-	const currentPreferences = $derived($systemPreferences?.preferences || []);
+	const currentPreferences = $derived(preferences.preferences || []);
 	const availableWidgets = $derived(
 		registryLoaded && currentPreferences
 			? Object.keys(widgetComponentRegistry).filter((name) => !currentPreferences.some((item) => item.component === name))
@@ -222,7 +222,7 @@
 
 		// Update widgets if needed using batch update
 		if (needsUpdate) {
-			systemPreferences.updateWidgets(widgets);
+			preferences.updateWidgets(widgets);
 		}
 	}
 
@@ -244,13 +244,13 @@
 			settings: componentInfo.widgetMeta?.settings || {},
 			order: currentPreferences.length // Use order instead of gridPosition
 		};
-		systemPreferences.updateWidget(newItem);
+		preferences.updateWidget(newItem);
 		dropdownOpen = false;
 		searchQuery = '';
 	}
 
 	function removeWidget(id: string) {
-		systemPreferences.removeWidget(id);
+		preferences.removeWidget(id);
 		// Clean up loaded widget and observer
 		loadedWidgets.delete(id);
 		const observer = widgetObservers.get(id);
@@ -261,7 +261,7 @@
 	}
 
 	function resetAllWidgets() {
-		systemPreferences.setPreferences([]);
+		preferences.set([]);
 		// Clean up all loaded widgets and observers
 		loadedWidgets.clear();
 		widgetObservers.forEach((observer) => observer.disconnect());
@@ -275,7 +275,7 @@
 				w: Math.max(1, Math.min(MAX_COLUMNS, newSize.w)),
 				h: Math.max(1, Math.min(MAX_ROWS, newSize.h))
 			};
-			systemPreferences.updateWidget({ ...item, size: updatedSize });
+			preferences.updateWidget({ ...item, size: updatedSize });
 		}
 	}
 
@@ -297,7 +297,7 @@
 			order: index
 		}));
 
-		systemPreferences.updateWidgets(updatedWidgets);
+		preferences.updateWidgets(updatedWidgets);
 	}
 	function handleDragStart(event: MouseEvent | TouchEvent | PointerEvent, item: DashboardWidgetConfig, element: HTMLElement) {
 		// Ignore clicks on interactive elements and resize handles
@@ -383,7 +383,7 @@
 
 	onMount(() => {
 		loadWidgetRegistry();
-		systemPreferences.loadPreferences();
+		preferences.load();
 		// Ensure proper widget ordering after preferences load
 		setTimeout(ensureWidgetOrder, 100);
 

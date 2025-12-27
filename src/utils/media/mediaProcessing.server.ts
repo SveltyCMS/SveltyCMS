@@ -1,108 +1,55 @@
 /**
- * @file utils/media/mediaProcessing.server.ts
- * @description Server-side media processing operations using Sharp and Node.js crypto.
+ * @file src/utils/media/mediaProcessing.server.ts
+ * @description Server-side media processing (hashing & metadata extraction)
  *
  * Features:
- * - File content hashing using SHA-256
- * - Image metadata extraction using Sharp
+ * - SHA-256 content hashing (first 20 chars)
+ * - Sharp-based image metadata
+ * - Safe buffer handling
  */
 
 import { error } from '@sveltejs/kit';
-
-import { Buffer } from 'buffer';
-
+import { logger } from '@utils/logger.server';
 import { sha256 } from '@utils/utils';
 
-import type { Metadata } from 'sharp';
-
-// System Logger
-
-import { logger } from '@utils/logger.server';
-
-// Hashes the content of a file using SHA-256
-
+/** Hash file content (SHA-256, 20-char hex) */
 export async function hashFileContent(buffer: ArrayBuffer | Buffer): Promise<string> {
 	if (!buffer || buffer.byteLength === 0) {
-		const message = 'Cannot hash empty buffer';
-
-		logger.error(message);
-
-		throw error(400, message);
+		throw error(400, 'Cannot hash empty buffer');
 	}
 
 	try {
-		logger.trace('Starting file content hashing', {
-			fileSize: buffer.byteLength,
+		const arr = (buffer instanceof Buffer ? buffer : new Uint8Array(buffer)) as any;
+		const hash = await sha256(arr);
+		const short = hash.slice(0, 20);
 
-			algorithm: 'SHA-256'
-		});
+		logger.debug('File hashed', { size: buffer.byteLength, hash: short });
 
-		// Convert Buffer to ArrayBuffer if needed
-
-		// sha256 expects ArrayBuffer, so we need to extract the underlying ArrayBuffer
-
-		const arrayBuffer = buffer instanceof Buffer ? buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) : buffer;
-
-		// Ensure we have an ArrayBuffer, not SharedArrayBuffer
-
-		let finalBuffer: ArrayBuffer;
-
-		if (arrayBuffer instanceof ArrayBuffer) {
-			finalBuffer = arrayBuffer as ArrayBuffer;
-		} else if (arrayBuffer instanceof SharedArrayBuffer) {
-			// Convert SharedArrayBuffer to ArrayBuffer
-
-			finalBuffer = new ArrayBuffer(arrayBuffer.byteLength);
-
-			new Uint8Array(finalBuffer).set(new Uint8Array(arrayBuffer));
-		} else {
-			// Fallback for other ArrayLike types
-
-			finalBuffer = new Uint8Array(arrayBuffer as ArrayLike<number>).buffer;
-		}
-
-		const hash = (await sha256(finalBuffer)).slice(0, 20);
-
-		logger.debug('File content hashed successfully', {
-			hash,
-
-			hashLength: hash.length,
-
-			bufferSize: buffer.byteLength
-		});
-
-		return hash;
+		return short;
 	} catch (err) {
-		const message = `Error hashing file content: ${err instanceof Error ? err.message : String(err)}`;
-
-		logger.error(message, {
-			bufferSize: buffer?.byteLength,
-
-			error: err
-		});
-
-		throw error(500, message);
+		const msg = err instanceof Error ? err.message : String(err);
+		logger.error('Hashing failed', { size: buffer.byteLength, error: msg });
+		throw error(500, `Hashing error: ${msg}`);
 	}
 }
 
-export async function extractMetadata(buffer: Buffer): Promise<Metadata> {
+/** Extract image metadata with Sharp */
+export async function extractMetadata(buffer: Buffer): Promise<import('sharp').Metadata> {
 	try {
-		const { default: Sharp } = await import('sharp');
+		const sharp = (await import('sharp')).default;
+		const meta = await sharp(buffer).metadata();
 
-		const sharpInstance = Sharp(buffer);
-
-		const metadata = await sharpInstance.metadata();
-
-		return metadata;
-	} catch (err) {
-		const message = `Error extracting metadata: ${err instanceof Error ? err.message : String(err)}`;
-
-		logger.error(message, {
-			bufferSize: buffer?.length,
-
-			error: err
+		logger.debug('Metadata extracted', {
+			format: meta.format,
+			size: meta.size,
+			width: meta.width,
+			height: meta.height
 		});
 
-		throw error(500, message);
+		return meta;
+	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err);
+		logger.error('Metadata extraction failed', { size: buffer.length, error: msg });
+		throw error(500, `Metadata error: ${msg}`);
 	}
 }

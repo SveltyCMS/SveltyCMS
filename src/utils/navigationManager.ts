@@ -1,180 +1,145 @@
 /**
  * @file src/utils/navigationManager.ts
- * @description Centralized navigation manager to handle complex state transitions
+ * @description Centralized navigation manager for consistent state transitions
  *
  * Features:
- * - Standardized navigation to list, edit, and create views
- * - URL/State consistency
- * - Global modal store management
+ * - Prevents concurrent navigation
+ * - Coordinated mode transitions
+ * - Loading state management
+ * - Clean URL handling
+ * - Event dispatch for save coordination
  */
+
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
+
+// Stores
+import { modeStateMachine } from '@src/stores/modeStateMachine.svelte';
 import { setCollectionValue } from '@src/stores/collectionStore.svelte';
 import { dataChangeStore } from '@stores/store.svelte';
 import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
-import { modeStateMachine } from '@src/stores/modeStateMachine.svelte';
+
+// Utils
 import { logger } from '@utils/logger';
 
-/**
- * Centralized navigation manager to handle complex state transitions
- * and ensure URL/State consistency.
- */
 export class NavigationManager {
-	private navigationLock = false;
+	private navigating = false;
+
+	get isNavigating(): boolean {
+		return this.navigating;
+	}
 
 	/**
-	 * Navigate to the list view of the current collection.
-	 * Cleans up state, clears URL parameters, and ensures full reload.
-	 *
-	 * @param options - Navigation options
+	 * Generic wrapper to handle navigation locking, logging, and error handling
 	 */
-	async navigateToList(options?: { invalidate?: boolean }) {
-		if (this.navigationLock) {
-			logger.warn('[NavigationManager] Navigation already in progress');
+	private async executeNavigation(action: string, task: () => Promise<void>): Promise<void> {
+		if (this.navigating) {
+			logger.warn(`[NavigationManager] ${action} blocked - navigation in progress`);
 			return;
 		}
 
-		this.navigationLock = true;
-		globalLoadingStore.startLoading(loadingOperations.navigation, 'navigateToList');
+		this.navigating = true;
+		globalLoadingStore.startLoading(loadingOperations.navigation, action);
 
 		try {
-			// 1. Dispatch save event BEFORE any state changes
-			// This ensures +page.svelte updates its baseline and won't trigger auto-save
+			await task();
+		} catch (err) {
+			logger.error(`[NavigationManager] ${action} failed`, err);
+			// We choose not to re-throw here to prevent unhandled promise rejections in UI handlers,
+			// unless the caller specificially awaits and needs to know.
+			// But for consistency with previous implementation, we re-throw.
+			throw err;
+		} finally {
+			globalLoadingStore.stopLoading(loadingOperations.navigation);
+			this.navigating = false;
+		}
+	}
+
+	// Navigate to list view (clean state)
+	async toList(options?: { invalidate?: boolean }): Promise<void> {
+		await this.executeNavigation('toList', async () => {
+			// Signal save completion (prevents auto-draft/save triggers)
 			if (typeof document !== 'undefined') {
-				const saveEvent = new CustomEvent('entrySaved', {
-					bubbles: true,
-					detail: { timestamp: Date.now() }
-				});
-				document.dispatchEvent(saveEvent);
+				document.dispatchEvent(
+					new CustomEvent('entrySaved', {
+						bubbles: true,
+						detail: { timestamp: Date.now() }
+					})
+				);
 			}
 
-			// 2. Reset change tracking (discard changes)
+			// Reset changes & clear entry
 			dataChangeStore.reset();
-
-			// 3. Clear collection value to prevent stale data on next load
-			// IMPORTANT: Do this BEFORE mode transition to ensure clean state
 			setCollectionValue({});
 
-			// 4. Transition mode via state machine (enforces valid transition)
-			const transitionSuccess = await modeStateMachine.transitionTo('view');
-
-			if (!transitionSuccess) {
-				logger.error('[NavigationManager] Mode transition failed, aborting navigation');
+			// Transition mode
+			const ok = await modeStateMachine.transitionTo('view');
+			if (!ok) {
+				logger.error('[NavigationManager] Failed to transition to view mode');
 				return;
 			}
 
-			// 5. Get clean URL (removes ?create=true or ?edit=id)
 			const cleanUrl = page.url.pathname;
-
-			logger.debug('[NavigationManager] Navigating to:', cleanUrl);
-
-			// 6. Navigate with optional invalidation
 			await goto(cleanUrl, {
 				invalidateAll: options?.invalidate ?? true,
-				replaceState: false // Allow back button
+				replaceState: false
 			});
-
-			logger.debug('[NavigationManager] Successfully navigated to list view');
-		} catch (error) {
-			logger.error('[NavigationManager] Navigation failed:', error);
-			// Re-throw to allow caller to handle
-			throw error;
-		} finally {
-			globalLoadingStore.stopLoading(loadingOperations.navigation);
-			this.navigationLock = false;
-		}
+			logger.debug('[NavigationManager] Navigated to list view');
+		});
 	}
 
-	/**
-	 * Navigate to the edit view for a specific entry.
-	 * @param entryId - The ID of the entry to edit
-	 */
-	async navigateToEdit(entryId: string) {
-		if (this.navigationLock) {
-			logger.warn('[NavigationManager] Navigation blocked by lock');
+	// Alias for backward compatibility
+	async navigateToList(options?: { invalidate?: boolean }): Promise<void> {
+		return this.toList(options);
+	}
+
+	// Navigate to edit entry
+	async toEdit(entryId: string): Promise<void> {
+		if (!entryId?.trim()) {
+			logger.warn('[NavigationManager] Edit navigation aborted: Invalid ID');
 			return;
 		}
 
-		this.navigationLock = true;
-		globalLoadingStore.startLoading(loadingOperations.navigation, 'navigateToEdit');
-
-		try {
-			// Validate entry ID
-			if (!entryId || entryId.trim() === '') {
-				logger.error('[NavigationManager] Invalid entry ID');
+		await this.executeNavigation(`toEdit(${entryId})`, async () => {
+			const ok = await modeStateMachine.transitionTo('edit');
+			if (!ok) {
+				logger.error('[NavigationManager] Failed to transition to edit mode');
 				return;
 			}
 
-			// Transition mode first
-			const transitionSuccess = await modeStateMachine.transitionTo('edit');
-
-			if (!transitionSuccess) {
-				logger.error('[NavigationManager] Mode transition to edit failed');
-				return;
-			}
-
-			// Navigate to edit URL
-			const url = `${page.url.pathname}?edit=${entryId}`;
-			await goto(url);
-
-			logger.debug(`[NavigationManager] Navigated to edit view for entry ${entryId}`);
-		} catch (error) {
-			logger.error('[NavigationManager] Edit navigation failed:', error);
-			throw error;
-		} finally {
-			globalLoadingStore.stopLoading(loadingOperations.navigation);
-			this.navigationLock = false;
-		}
+			await goto(`${page.url.pathname}?edit=${entryId}`);
+			logger.debug(`[NavigationManager] Navigated to edit: ${entryId}`);
+		});
 	}
 
-	/**
-	 * Navigate to the create view.
-	 */
-	async navigateToCreate() {
-		if (this.navigationLock) {
-			logger.warn('[NavigationManager] Navigation blocked by lock');
-			return;
-		}
+	// Alias for backward compatibility
+	async navigateToEdit(entryId: string): Promise<void> {
+		return this.toEdit(entryId);
+	}
 
-		this.navigationLock = true;
-		globalLoadingStore.startLoading(loadingOperations.navigation, 'navigateToCreate');
-
-		try {
-			// Transition mode first
-			const transitionSuccess = await modeStateMachine.transitionTo('create');
-
-			if (!transitionSuccess) {
-				logger.error('[NavigationManager] Mode transition to create failed');
+	// Navigate to create view
+	async toCreate(): Promise<void> {
+		await this.executeNavigation('toCreate', async () => {
+			const ok = await modeStateMachine.transitionTo('create');
+			if (!ok) {
+				logger.error('[NavigationManager] Failed to transition to create mode');
 				return;
 			}
 
-			// Navigate to create URL
-			const url = `${page.url.pathname}?create=true`;
-			await goto(url);
-
+			await goto(`${page.url.pathname}?create=true`);
 			logger.debug('[NavigationManager] Navigated to create view');
-		} catch (error) {
-			logger.error('[NavigationManager] Create navigation failed:', error);
-			throw error;
-		} finally {
-			globalLoadingStore.stopLoading(loadingOperations.navigation);
-			this.navigationLock = false;
-		}
+		});
 	}
 
-	/**
-	 * Check if navigation is currently in progress
-	 */
-	get isNavigating(): boolean {
-		return this.navigationLock;
+	// Alias for backward compatibility
+	async navigateToCreate(): Promise<void> {
+		return this.toCreate();
 	}
 
-	/**
-	 * Force unlock navigation (use with caution, mainly for error recovery)
-	 */
+	// Force unlock (error recovery)
 	forceUnlock(): void {
-		logger.warn('[NavigationManager] Force unlocking navigation');
-		this.navigationLock = false;
+		logger.warn('[NavigationManager] Force unlock triggered');
+		this.navigating = false;
 		globalLoadingStore.stopLoading(loadingOperations.navigation);
 	}
 }

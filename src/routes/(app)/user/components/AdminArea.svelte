@@ -23,7 +23,7 @@
 	import { untrack } from 'svelte';
 	import { logger } from '@utils/logger';
 	// Stores
-	import { avatarSrc } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Components
@@ -792,7 +792,7 @@
 											<!-- Use reactive avatarSrc for current user, otherwise use row data -->
 											<Avatar
 												src={currentUser && isUser(row) && row._id === currentUser._id
-													? avatarSrc.value
+													? app.avatarSrc
 													: isUser(row) && header.key === 'avatar'
 														? normalizeMediaUrl(row.avatar)
 														: ''}

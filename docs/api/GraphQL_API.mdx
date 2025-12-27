@@ -234,6 +234,98 @@ query FilteredPosts {
 
 ---
 
+## System Queries
+
+Advanced queries for CMS metadata, navigation, and diagnostics.
+
+### Collection Statistics
+
+```graphql
+query CollectionStats {
+	collectionStats(collectionId: "posts_123") {
+		_id
+		name
+		fieldCount
+		hasRevisions
+	}
+}
+```
+
+### Navigation Structure
+
+```graphql
+query Navigation($options: NavigationOptions) {
+	navigationStructure(options: { maxDepth: 2 }) {
+		_id
+		name
+		children {
+			_id
+			name
+		}
+	}
+}
+```
+
+### Breadcrumbs
+
+```graphql
+query Breadcrumb {
+	breadcrumb(path: "/blog/hello-world") {
+		name
+		path
+	}
+}
+```
+
+### Diagnostics (Admin Only)
+
+```graphql
+query Diagnostics {
+	contentManagerHealth {
+		state
+		nodeCount
+		cacheAge
+	}
+}
+```
+
+---
+
+## real-time Subscriptions
+
+Subscribe to real-time events via WebSocket.
+
+**Endpoint:** `ws://your-domain.com/api/graphql` (or port 3001 in dev)
+
+### Content Structure Updates
+
+Triggered when schemas or collections change.
+
+```graphql
+subscription OnStructureUpdate {
+	contentStructureUpdated {
+		version
+		timestamp
+		affectedCollections
+		changeType
+	}
+}
+```
+
+### Post Added (Example)
+
+```graphql
+subscription OnPostAdded {
+	postAdded {
+		_id
+		title
+		createdAt
+	}
+}
+```
+
+---
+
 ## User Queries
 
 ### Get Current User

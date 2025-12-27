@@ -28,7 +28,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 	// Stores
 	import { setMode } from '@stores/collectionStore.svelte';
-	import { toggleUIElement } from '@stores/UIStore.svelte';
+	import { ui } from '@stores/UIStore.svelte';
 
 	// Skeleton UI
 	import { getModalStore, popup } from '@skeletonlabs/skeleton';
@@ -268,7 +268,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	function handleNavigateHome(): void {
 		setMode('view');
 		modalStore.clear();
-		toggleUIElement('leftSidebar', 'hidden');
+		ui.toggle('leftSidebar', 'hidden');
 		showRoutes = false;
 		// Navigation will be handled by <a> tag
 	}

@@ -77,7 +77,7 @@ Layer 3: MARKETPLACE WIDGETS (Runtime)
 ```
 Admin disables "Email" widget in UI
   ↓
-widgetStore.activeWidgets updated
+No longer in widgets.active
   ↓
 cacheService still serves stale data
   ↓
@@ -99,18 +99,19 @@ App crashes: Widget not found ❌
 **File:** `src/stores/widgetStore.svelte.ts`
 
 ```typescript
-async updateWidgetStatus(widgetName: string, status: WidgetStatus, tenantId?: string): Promise<void> {
+async updateStatus(widgetName: string, status: WidgetStatus, tenantId?: string): Promise<void> {
   // ... validation logic ...
 
   try {
     // 1. Update database
     await updateWidgetStatusInDatabase(widgetName, status === 'active', tenantId);
 
-    // 2. Update in-memory store
-    widgetStore.update((state) => ({
-      ...state,
-      activeWidgets: newActiveWidgets
-    }));
+    // 2. Update in-memory state
+    if (status === 'active') {
+       this.#activeWidgets.add(widgetName);
+    } else {
+       this.#activeWidgets.delete(widgetName);
+    }
 
     // ✅ 3. CACHE INTEGRATION: Auto-invalidate related caches
     logger.info(`[WidgetState] Widget '${widgetName}' status changed, clearing caches.`);
@@ -177,7 +178,7 @@ Must restart entire server ❌
 **File:** `src/stores/widgetStore.svelte.ts`
 
 ```typescript
-async initializeWidgets(tenantId?: string, dbAdapter?: DatabaseAdapter | null): Promise<void> {
+async initialize(tenantId?: string, dbAdapter?: DatabaseAdapter | null): Promise<void> {
   // ... existing logic ...
 
   // LAYER 1: Core widgets (build-time)
@@ -274,7 +275,7 @@ export const SERVICE_NAMES = [
 ```typescript
 // src/stores/widgetStore.svelte.ts
 
-async initializeWidgets(...) {
+async initialize(...) {
   // ... load all widgets ...
 
   // ✅ Validate collections against active widgets
@@ -286,7 +287,7 @@ async initializeWidgets(...) {
     validation.valid.length > 0 ? 'healthy' :
     'initializing';
 
-  // ✅ Report to system state monitor
+  // Report to system state monitor
   if (healthStatus === 'unhealthy') {
     const missingWidgets = validation.invalid.map(v => v.collection).join(', ');
     updateServiceHealth(
@@ -298,12 +299,9 @@ async initializeWidgets(...) {
     updateServiceHealth('widgets', 'healthy', 'All required widgets available');
   }
 
-  // Store health status in widgetStore
-  widgetStore.update(state => ({
-    ...state,
-    healthStatus,
-    lastHealthCheck: Date.now()
-  }));
+  // Store health status internally
+  this.#healthStatus = healthStatus;
+  this.#lastHealthCheck = Date.now();
 }
 ```
 
@@ -398,10 +396,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		await extractWidget(packageData, path.join(marketplaceDir, widgetId));
 
 		// 3. ✅ Reload widgets (triggers runtime discovery)
-		await widgetStoreActions.reloadWidgets();
+		await widgets.initialize();
 
 		// 4. Activate widget
-		await widgetStoreActions.updateWidgetStatus(widgetId, 'active');
+		await widgets.updateStatus(widgetId, 'active');
 
 		return json({
 			success: true,
@@ -517,17 +515,16 @@ describe('Runtime Widget Discovery', () => {
 	});
 
 	it('should discover marketplace widget at runtime', async () => {
-		await widgetStoreActions.initializeWidgets();
+		await widgets.initialize();
 
-		const { marketplaceWidgets } = get(widgetStore);
-		expect(marketplaceWidgets).toContain('testWidget');
+		expect(widgets.active).toContain('testWidget');
 	});
 
 	it('should load widget without server restart', async () => {
 		// Widget already exists from previous test
-		await widgetStoreActions.reloadWidgets();
+		await widgets.initialize();
 
-		const widget = getWidget('testWidget');
+		const widget = widgets.getWidget('testWidget');
 		expect(widget).toBeDefined();
 		expect(widget.Name).toBe('TestWidget');
 	});
@@ -552,7 +549,7 @@ describe('Widget Cache Integration', () => {
 		expect(cached).toBeDefined();
 
 		// Disable a widget used by this collection
-		await widgetStoreActions.updateWidgetStatus('input', 'inactive');
+		await widgets.updateStatus('input', 'inactive');
 
 		// Cache should be cleared
 		cached = await cacheService.get('query:collections:posts');
@@ -561,18 +558,16 @@ describe('Widget Cache Integration', () => {
 
 	it('should re-validate widget health after status change', async () => {
 		// Disable required widget
-		await widgetStoreActions.updateWidgetStatus('richText', 'inactive');
+		await widgets.updateStatus('richText', 'inactive');
 
 		// System should detect unhealthy state
-		const { healthStatus } = get(widgetStore);
-		expect(healthStatus).toBe('unhealthy');
+		expect(widgets.healthStatus).toBe('unhealthy');
 
 		// Re-enable widget
-		await widgetStoreActions.updateWidgetStatus('richText', 'active');
+		await widgets.updateStatus('richText', 'active');
 
 		// System should recover
-		const { healthStatus: newStatus } = get(widgetStore);
-		expect(newStatus).toBe('healthy');
+		expect(widgets.healthStatus).toBe('healthy');
 	});
 });
 ```

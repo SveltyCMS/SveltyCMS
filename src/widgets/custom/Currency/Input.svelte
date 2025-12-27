@@ -28,14 +28,14 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 -->
 
 <script lang="ts">
-	import { systemLanguage } from '@src/stores/store.svelte';
+	import { app } from '@src/stores/store.svelte';
 	import type { FieldType } from './';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	let { field, value, error }: { field: FieldType; value: number | null | undefined; error?: string | null } = $props();
 
 	// Get the user's current UI language.
-	const lang = $derived($systemLanguage);
+	const lang = $derived(app.systemLanguage);
 
 	// Create a memoized number formatter for the specified currency.
 	const formatter = $derived(

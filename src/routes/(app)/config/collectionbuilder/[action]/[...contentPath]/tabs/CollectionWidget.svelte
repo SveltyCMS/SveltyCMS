@@ -8,13 +8,12 @@ component
 	// Stores
 	import { page } from '$app/state';
 	import { logger } from '@utils/logger';
-	import { collection, setTargetWidget } from '@src/stores/collectionStore.svelte';
-	import { tabSet } from '@stores/store.svelte';
+	import { collections } from '@src/stores/collectionStore.svelte';
+	import { app } from '@stores/store.svelte';
 	import { asAny, getGuiFields } from '@utils/utils';
 	// Components
 	import VerticalList from '@components/VerticalList.svelte';
-	import { widgetFunctions } from '@stores/widgetStore.svelte';
-	import { get } from 'svelte/store';
+	import { widgets } from '@stores/widgetStore.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -41,7 +40,7 @@ component
 				field.widget?.Name || // For existing widgets
 				field.__type || // For schema-defined widgets
 				field.type || // Backup type field
-				Object.keys(get(widgetFunctions)).find((key) => field[key]) || // Check if field has widget property
+				Object.keys(widgets.widgetFunctions).find((key) => field[key]) || // Check if field has widget property
 				'Unknown Widget'; // Fallback
 
 			return {
@@ -92,12 +91,12 @@ component
 			response: (r: { selectedWidget: string } | undefined) => {
 				if (!r) return;
 				const { selectedWidget } = r;
-				const widgetInstance = get(widgetFunctions)[selectedWidget];
+				const widgetInstance = widgets.widgetFunctions[selectedWidget];
 				if (selectedWidget && widgetInstance) {
 					// Create a new widget object with the selected widget data
 					const newWidget = {
 						widget: { key: selectedWidget, Name: selectedWidget },
-						GuiFields: getGuiFields({ key: selectedWidget }, asAny(widgetInstance.GuiSchema)),
+						GuiFields: getGuiFields({ key: selectedWidget }, asAny((widgetInstance as any).GuiSchema)),
 						permissions: {} // Initialize empty permissions object
 					};
 					// Call modalWidgetForm with the new widget object
@@ -115,7 +114,7 @@ component
 		if (!selectedWidget.permissions) {
 			selectedWidget.permissions = {};
 		}
-		setTargetWidget(selectedWidget);
+		collections.setTargetWidget(selectedWidget);
 		const modal: ModalSettings = {
 			type: 'component',
 			component: c,
@@ -143,9 +142,9 @@ component
 					};
 					fields = [...fields, newField];
 				}
-				// Update the collectionValue store
-				if (collection?.value) {
-					collection.value.fields = fields;
+				// Update the collections.active properties
+				if (collections.active) {
+					collections.active.fields = fields;
 				}
 			}
 		};
@@ -156,9 +155,9 @@ component
 	async function handleSave() {
 		try {
 			const updatedFields = fields.map((field) => {
-				const widgetInstance = field.widget?.Name ? get(widgetFunctions)[field.widget.Name] : undefined;
+				const widgetInstance = field.widget?.Name ? widgets.widgetFunctions[field.widget.Name] : undefined;
 				if (field.widget?.Name && widgetInstance) {
-					const GuiFields = getGuiFields({ key: field.widget.Name }, asAny(widgetInstance.GuiSchema));
+					const GuiFields = getGuiFields({ key: field.widget.Name }, asAny((widgetInstance as any).GuiSchema));
 					for (const [property, value] of Object.entries(field)) {
 						if (typeof value !== 'object' && property !== 'id') {
 							GuiFields[property] = field[property];
@@ -170,8 +169,8 @@ component
 			});
 
 			// Update the collection fields
-			if (collection?.value) {
-				collection.value.fields = updatedFields;
+			if (collections.active) {
+				collections.active.fields = updatedFields;
 			}
 
 			await props.handleCollectionSave();
@@ -223,7 +222,12 @@ component
 			</button>
 		</div>
 		<div class=" flex items-center justify-between">
-			<button onclick={() => tabSet.set(0)} type="button" aria-label={m.button_previous()} class="variant-filled-secondary btn mt-2 justify-end">
+			<button
+				onclick={() => (app.tabSetState = 0)}
+				type="button"
+				aria-label={m.button_previous()}
+				class="variant-filled-secondary btn mt-2 justify-end"
+			>
 				{m.button_previous()}
 			</button>
 			<button

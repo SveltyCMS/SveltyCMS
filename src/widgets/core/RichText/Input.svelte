@@ -11,7 +11,7 @@
 	import type { Editor } from '@tiptap/core';
 	import type { FieldType } from './';
 	import type { RichTextData } from './types';
-	import { contentLanguage } from '@src/stores/store.svelte';
+	import { app } from '@src/stores/store.svelte';
 
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import type { MediaFile } from '../MediaUpload/types';
@@ -27,7 +27,7 @@
 		error?: string | null;
 	} = $props();
 
-	const lang = $derived(field.translated ? $contentLanguage : 'default');
+	const lang = $derived(field.translated ? app.contentLanguage : 'default');
 	const modalStore = getModalStore();
 
 	$effect(() => {

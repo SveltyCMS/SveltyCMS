@@ -67,7 +67,14 @@
 	}: FloatingInputProps = $props();
 
 	let inputElement = $state<HTMLInputElement | null>(null);
-	const currentId = $derived(id || (label ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId'));
+	// Use $derived.by for safer reactive logic
+	const currentId = $derived.by(() => {
+		if (id) return id;
+		if (typeof label === 'string' && label.length > 0) {
+			return label.toLowerCase().replace(/\s+/g, '-');
+		}
+		return 'defaultInputId';
+	});
 	const errorId = $derived(errorMessage ? `error-${currentId}` : undefined);
 	const effectiveType = $derived(showPassword && type === 'password' ? 'text' : type);
 

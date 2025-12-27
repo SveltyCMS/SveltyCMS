@@ -32,10 +32,9 @@
 	import { onMount } from 'svelte';
 	// Stores
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import { toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
+	import { ui } from '@stores/UIStore.svelte';
+	import { screen } from '@stores/screenSizeStore.svelte';
 	import { setMode } from '@stores/collectionStore.svelte';
-	import { screenSize } from '@stores/screenSizeStore.svelte';
-	import { get } from 'svelte/store';
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 
@@ -166,8 +165,8 @@
 
 	// Handle mobile sidebar close on navigation
 	function handleMobileSidebarClose() {
-		if (get(screenSize) === 'SM') {
-			toggleUIElement('leftSidebar', 'hidden');
+		if (screen.isMobile) {
+			ui.toggle('leftSidebar', 'hidden');
 		}
 	}
 
@@ -185,7 +184,7 @@
 
 <div class="mt-2 overflow-y-auto">
 	<!-- Return to Collections Button -->
-	{#if uiStateManager.uiState.value.leftSidebar === 'full'}
+	{#if ui.state.leftSidebar === 'full'}
 		<!-- Sidebar Expanded -->
 		<a
 			href="/"
@@ -224,7 +223,7 @@
 	{:else if folders.length > 0}
 		<div class="relative flex flex-wrap">
 			{#each folders.filter((f) => !currentFolder || f.parentId === currentFolder?._id) as folder (folder._id)}
-				{#if uiStateManager.uiState.value.leftSidebar === 'full'}
+				{#if ui.state.leftSidebar === 'full'}
 					<!-- Sidebar Expanded -->
 					<div class="nowrap variant-outline-surface flex w-full">
 						<a

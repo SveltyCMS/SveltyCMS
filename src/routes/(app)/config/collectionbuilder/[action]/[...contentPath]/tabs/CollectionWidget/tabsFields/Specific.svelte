@@ -12,12 +12,12 @@ Features:
 	import { asAny } from '@utils/utils';
 
 	// Components
-	import { widgetFunctions } from '@stores/widgetStore.svelte';
+	import { widgets } from '@stores/widgetStore.svelte';
 	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 
 	// Skeleton Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
-	import { targetWidget } from '@src/stores/collectionStore.svelte';
+	import { collections } from '@src/stores/collectionStore.svelte';
 
 	const modalStore = getModalStore();
 
@@ -26,21 +26,21 @@ Features:
 
 	// Reactive statements to derive widget-related data
 	const currentWidgetName = $derived($modalStore[0]?.value?.widget?.Name);
-	const currentGuiSchema = $derived(currentWidgetName ? $widgetFunctions[currentWidgetName]?.GuiSchema || null : null);
+	const currentGuiSchema = $derived(currentWidgetName ? (widgets.widgetFunctions[currentWidgetName] as any)?.GuiSchema || null : null);
 	const specificFields = $derived(currentGuiSchema ? Object.keys(currentGuiSchema).filter((key) => !defaultFields.includes(key)) : []);
 
 	/** Updates the target widget property */
 	function handleUpdate(detail: { value: any }, property: string) {
-		const currentWidget = targetWidget.value;
+		const currentWidget = collections.targetWidget;
 		currentWidget[property] = detail.value;
-		targetWidget.value = currentWidget;
+		collections.setTargetWidget(currentWidget);
 	}
 </script>
 
 {#if $modalStore[0] && currentGuiSchema && specificFields.length > 0}
 	{#each specificFields as property}
 		<InputSwitch
-			value={targetWidget.value[property]}
+			value={collections.targetWidget[property]}
 			onupdate={(e: { value: any }) => handleUpdate(e, property)}
 			widget={asAny((currentGuiSchema as any)[property]?.widget)}
 			key={property}

@@ -25,7 +25,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	import { goto } from '$app/navigation';
 	import axios from 'axios';
 	// Stores
-	import { toggleUIElement } from '@src/stores/UIStore.svelte';
+	import { ui } from '@src/stores/UIStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	// Logger
 	import { logger } from '@utils/logger';
@@ -162,7 +162,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	// Mobile navigation helper - hides sidebar on mobile before navigation
 	function handleMobileNavigation(path: string) {
 		if (typeof window !== 'undefined' && window.innerWidth < 768) {
-			toggleUIElement('leftSidebar', 'hidden');
+			ui.toggle('leftSidebar', 'hidden');
 		}
 		goto(path);
 	}

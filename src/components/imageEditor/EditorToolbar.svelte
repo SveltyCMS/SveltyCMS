@@ -5,6 +5,7 @@ The new single, intelligent bottom toolbar for the image editor.
 It dynamically renders controls based on the active tool.
 -->
 <script lang="ts">
+	import { fade } from 'svelte/transition';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	const toolbarControls = $derived(imageEditorStore.state.toolbarControls);
@@ -22,4 +23,21 @@ It dynamically renders controls based on the active tool.
 			{/if}
 		</div>
 	</div>
+
+	<!-- Validation Error Banner -->
+	{#if imageEditorStore.state.error}
+		<div
+			class="absolute bottom-full left-0 right-0 flex items-center justify-center bg-error-500 py-1 text-xs font-medium text-white"
+			transition:fade={{ duration: 200 }}
+		>
+			<iconify-icon icon="mdi:alert-circle" width="14" class="mr-1"></iconify-icon>
+			{imageEditorStore.state.error}
+		</div>
+	{/if}
 </div>
+
+<style lang="postcss">
+	:global(.dark) .border-t {
+		border-color: rgb(var(--color-surface-700) / 1);
+	}
+</style>

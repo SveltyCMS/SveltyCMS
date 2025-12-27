@@ -48,6 +48,7 @@ export interface ImageEditorState {
 		save?: () => void;
 		cancel?: () => void;
 	};
+	error?: string | null;
 }
 
 // Create image editor store
@@ -65,7 +66,8 @@ function createImageEditorStore() {
 		activeState: 'rotate',
 		stateHistory: [],
 		toolbarControls: null,
-		actions: {}
+		actions: {},
+		error: null
 	});
 
 	// Derived values using $derived rune
@@ -110,6 +112,10 @@ function createImageEditorStore() {
 
 	function setActions(actions: Partial<NonNullable<ImageEditorState['actions']>>) {
 		state.actions = { ...state.actions, ...actions };
+	}
+
+	function setError(error: string | null) {
+		state.error = error;
 	}
 
 	function cleanupTempNodes() {
@@ -394,6 +400,7 @@ function createImageEditorStore() {
 		setActiveState,
 		setToolbarControls,
 		setActions,
+		setError,
 		addEditAction,
 		saveStateHistory,
 		takeSnapshot,

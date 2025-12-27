@@ -23,7 +23,7 @@ import type { SystemVirtualFolder, QueryFilter, MediaItem } from '@root/src/data
 import type { DatabaseId } from '@root/src/content/types';
 import type { MediaAccess } from '@root/src/utils/media/mediaModels';
 import { MediaService } from '@src/services/MediaService.server';
-import { constructUrl } from '@utils/media/mediaUtils';
+import { buildUrl } from '@utils/media/mediaUtils';
 import { moveMediaToTrash } from '@utils/media/mediaStorage.server';
 import mime from 'mime-types';
 
@@ -218,8 +218,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 					const basePath = cleanPath.split('/')[0] || 'global';
 
 					// Build thumbnail URL
-					// constructUrl(path, hash, fileName, format, contentTypes, size)
-					const thumbnailUrl = constructUrl(basePath, mediaItem.hash, filename, extension, basePath, 'thumbnail');
+					// buildUrl(path, hash, fileName, format, contentTypes, size) -> Actual signature: path, hash, filename, ext, category, size
+					const thumbnailUrl = buildUrl(basePath, mediaItem.hash, filename, extension, basePath, 'thumbnail');
 
 					return {
 						...mediaItem,
@@ -227,7 +227,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 						path: mediaItem.path ?? 'global',
 						name: mediaItem.filename ?? 'unnamed-media',
 						// Use the item's path if available when constructing the original URL
-						url: constructUrl(basePath, mediaItem.hash, filename, extension, basePath),
+						url: buildUrl(basePath, mediaItem.hash, filename, extension, basePath),
 						thumbnail: {
 							url: thumbnailUrl
 						}

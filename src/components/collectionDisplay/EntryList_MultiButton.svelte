@@ -46,7 +46,7 @@
 
 	// Stores
 	import { page } from '$app/state';
-	import { storeListboxValue } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 
 	// Skeleton
 	import { getModalStore } from '@skeletonlabs/skeleton';
@@ -96,7 +96,7 @@
 
 	// Derived values
 	const isAdmin = $derived(page.data?.isAdmin === true);
-	const currentAction = $derived(storeListboxValue.value as ActionType);
+	const currentAction = $derived(app.listboxValueState as ActionType);
 
 	// Action configurations
 	const BASE_ACTIONS: Record<string, ActionConfig> = {
@@ -320,7 +320,7 @@
 			return;
 		}
 
-		storeListboxValue.set(actionType);
+		app.listboxValueState = actionType;
 		manualActionSet = true; // Mark as manually set
 		closeDropdown();
 	}
@@ -344,7 +344,7 @@
 	$effect(() => {
 		// If collection is empty, always show Create
 		if (isCollectionEmpty) {
-			storeListboxValue.set('create');
+			app.listboxValueState = 'create';
 			manualActionSet = false;
 			return;
 		}
@@ -357,14 +357,14 @@
 		// If no selections, default to Create
 		if (!hasSelections) {
 			if (currentAction !== 'create') {
-				storeListboxValue.set('create');
+				app.listboxValueState = 'create';
 			}
 			return;
 		}
 
 		// If has selections but current action is 'create', switch to 'publish'
 		if (hasSelections && currentAction === 'create') {
-			storeListboxValue.set('publish');
+			app.listboxValueState = 'publish';
 		}
 	});
 

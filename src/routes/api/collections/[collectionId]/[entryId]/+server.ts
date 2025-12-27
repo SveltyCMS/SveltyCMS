@@ -138,6 +138,25 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		// Also invalidate specific caches in ContentManager
 		await contentManager.invalidateSpecificCaches([schema.path || '', schema._id as string].filter(Boolean));
 
+		// Publish entryUpdated event
+		try {
+			const { pubSub } = await import('@src/services/pubSub');
+			pubSub.publish('entryUpdated', {
+				collection: schema.name || params.collectionId,
+				id: params.entryId,
+				action: 'update',
+				data: result.data,
+				timestamp: new Date().toISOString(),
+				user: {
+					_id: user._id,
+					username: user.username,
+					email: user.email
+				}
+			});
+		} catch (pubSubError) {
+			logger.warn('Failed to publish entryUpdated event', { error: pubSubError });
+		}
+
 		logger.info(`${endpoint} - Entry updated successfully`, { duration: `${duration.toFixed(2)}ms` });
 
 		return json(responseData);
@@ -215,6 +234,25 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 
 		// Also invalidate specific caches in ContentManager
 		await contentManager.invalidateSpecificCaches([schema.path || '', schema._id as string].filter(Boolean));
+
+		// Publish entryUpdated event
+		try {
+			const { pubSub } = await import('@src/services/pubSub');
+			pubSub.publish('entryUpdated', {
+				collection: schema.name || params.collectionId,
+				id: params.entryId,
+				action: 'delete',
+				data: { _id: params.entryId }, // Minimal data for delete
+				timestamp: new Date().toISOString(),
+				user: {
+					_id: user._id,
+					username: user.username,
+					email: user.email
+				}
+			});
+		} catch (pubSubError) {
+			logger.warn('Failed to publish entryUpdated event', { error: pubSubError });
+		}
 
 		const duration = performance.now() - startTime;
 		logger.info(`${endpoint} - Entry deleted successfully`, { duration: `${duration.toFixed(2)}ms` });

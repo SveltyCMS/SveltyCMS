@@ -3,41 +3,54 @@
  * @description API endpoint for managing installed widgets per tenant with 3-pillar architecture support
  */
 
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { logger } from '@utils/logger.server';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 
-import { widgetStoreActions, customWidgets, getWidgetFunction } from '@stores/widgetStore.svelte';
+import { widgets, getWidgetFunction } from '@stores/widgetStore.svelte';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
+	const start = performance.now();
+	const tenantId = url.searchParams.get('tenantId') || locals.tenantId || 'default-tenant';
+
 	try {
 		const { user } = locals;
 
 		if (!user) {
-			throw error(401, 'Unauthorized');
+			return json(
+				{
+					success: false,
+					message: 'Unauthorized',
+					error: 'Authentication credentials missing'
+				},
+				{ status: 401 }
+			);
 		}
 
 		// Check permission
 		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', locals.roles);
 		if (!hasWidgetPermission) {
 			logger.warn(`User ${user._id} denied access to widget API due to insufficient permissions`);
-			throw error(403, 'Insufficient permissions');
+			return json(
+				{
+					success: false,
+					message: 'Insufficient permissions',
+					error: 'User lacks api:widgets permission'
+				},
+				{ status: 403 }
+			);
 		}
-		const tenantId = url.searchParams.get('tenantId') || locals.tenantId || 'default-tenant';
 
 		// Initialize widgets to get custom widgets list
-		await widgetStoreActions.initializeWidgets(tenantId);
+		await widgets.initialize(tenantId);
 
 		// Get all custom widgets from the file system (these are "installed" in the codebase)
-		let installedWidgetNames: string[] = [];
-		customWidgets.subscribe(($customWidgets) => {
-			installedWidgetNames = $customWidgets;
-		})();
+		const installedWidgetNames = widgets.customWidgets;
 
 		// Enrich with metadata from widget functions
 		const installedWidgets = installedWidgetNames.map((name) => {
-			const widgetFn = getWidgetFunction(name);
+			const widgetFn = getWidgetFunction(name) as any;
 			return {
 				name,
 				icon: widgetFn?.Icon || 'mdi:puzzle-plus',
@@ -50,12 +63,36 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			};
 		});
 
-		logger.trace(`Retrieved ${installedWidgets.length} installed widgets for tenant: ${tenantId}`);
+		const duration = performance.now() - start;
 
-		return json(installedWidgets);
+		logger.trace(`Retrieved ${installedWidgets.length} installed widgets for tenant: ${tenantId}`, {
+			tenantId,
+			count: installedWidgets.length
+		});
+
+		return json({
+			success: true,
+			data: {
+				widgets: installedWidgets,
+				total: installedWidgets.length,
+				tenantId,
+				performance: { duration: `${duration.toFixed(2)}ms` }
+			},
+			message: 'Installed widgets retrieved successfully'
+		});
 	} catch (err) {
+		const duration = performance.now() - start;
 		const message = `Failed to get installed widgets: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw error(500, message);
+		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
+
+		// Standardized error response
+		return json(
+			{
+				success: false,
+				message: 'Internal Server Error',
+				error: message
+			},
+			{ status: 500 }
+		);
 	}
 };

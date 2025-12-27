@@ -25,7 +25,7 @@
 	import { StatusTypes } from '@src/content/types';
 
 	// Stores
-	import { storeListboxValue } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 
 	// Props
 	let { checked = false, iconStatus = undefined, onCheck = () => {}, cellClass = '' } = $props(); // optional classes applied to the root <td>
@@ -61,7 +61,7 @@
 			{!iconStatus ? 'dark:border-surface-400' : ''}"
 	>
 		<!-- Icons rendered based on checked and storeListboxValue -->
-		{#if checked && storeListboxValue.value === 'delete'}
+		{#if checked && app.listboxValueState === 'delete'}
 			<!--Red Cross icon 3d-->
 			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 224 224">
 				<mask id="a" width="224" height="224" x="0" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha">
@@ -127,7 +127,7 @@
 					</linearGradient>
 				</defs>
 			</svg>
-		{:else if checked && storeListboxValue.value === 'test'}
+		{:else if checked && app.listboxValueState === 'test'}
 			<!-- Yellow Exclamation  icon 3d -->
 			<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
 				<!-- Yellow triangle -->
@@ -138,7 +138,7 @@
 				<!-- Shadow for 3D effect -->
 				<polygon points="27,7 47,42 7,42" style="fill:rgba(0,0,0,0.1)" />
 			</svg>
-		{:else if checked && storeListboxValue.value !== 'delete' && storeListboxValue.value !== 'test'}
+		{:else if checked && app.listboxValueState !== 'delete' && app.listboxValueState !== 'test'}
 			<!--Green Check icon 3d-->
 			<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 				<defs>

@@ -1,110 +1,103 @@
 /**
  * @file src/utils/media/storageAnalytics.ts
- * @description Storage usage analytics and insights for media files
+ * @description Storage analytics & insights for media files
  *
  * Features:
- * - **Storage Breakdown**: Analyze storage usage by file type, folder, user, and time.
- * - **Insights & Recommendations**: Generate actionable insights to optimize storage.
- * - **Trends Over Time**: Track storage growth and upload trends monthly.
- * - **Top Consumers**: Identify top files, folders, and users consuming storage.
- * - **Future Predictions**: Forecast future storage needs based on historical data.
- * - **Quota Management**: Monitor storage quota usage and provide alerts.
+ * - Breakdown by type/folder/user/month
+ * - Actionable insights
+ * - Growth trends
+ * - Top consumers
+ * - Quota monitoring
+ * - Simple prediction
  */
 
+import path from 'path';
 import type { DatabaseId } from '@src/databases/dbInterface';
 import type { MediaBase } from './mediaModels';
 
-export interface StorageBreakdown {
-	byType: Map<string, { count: number; size: number; percentage: number }>;
-	byFolder: Map<string, { count: number; size: number; percentage: number }>;
-	byUser: Map<DatabaseId, { count: number; size: number; percentage: number }>;
-	byMonth: Map<string, { count: number; size: number }>; // YYYY-MM
+/** Storage breakdown */
+export interface Breakdown {
+	byType: Record<string, { count: number; size: number; pct: number }>;
+	byFolder: Record<string, { count: number; size: number; pct: number }>;
+	byUser: Record<DatabaseId, { count: number; size: number; pct: number }>;
+	byMonth: Record<string, { count: number; size: number }>; // YYYY-MM
 	total: {
 		files: number;
 		size: number;
-		averageFileSize: number;
+		avgSize: number;
 	};
 }
 
-export interface StorageInsight {
-	type: 'warning' | 'info' | 'success';
+/** Insight card */
+export interface Insight {
+	type: 'success' | 'info' | 'warning';
 	title: string;
-	description: string;
-	actionable: boolean;
-	action?: {
-		label: string;
-		data: unknown;
-	};
+	desc: string;
+	actionable?: boolean;
+	action?: { label: string; data: unknown };
 }
 
-export interface StorageTrend {
-	period: string; // YYYY-MM
+/** Monthly trend */
+export interface Trend {
+	month: string;
 	uploads: number;
-	size: number;
-	cumulativeSize: number;
-	growthRate: number; // percentage
+	addedSize: number;
+	totalSize: number;
+	growthPct: number;
 }
 
-/**
- * Analyze storage breakdown
- */
-export function analyzeStorage(files: MediaBase[]): StorageBreakdown {
-	const byType = new Map<string, { count: number; size: number; percentage: number }>();
-	const byFolder = new Map<string, { count: number; size: number; percentage: number }>();
-	const byUser = new Map<DatabaseId, { count: number; size: number; percentage: number }>();
-	const byMonth = new Map<string, { count: number; size: number }>();
+/** Analyze current storage */
+export function analyze(files: MediaBase[]): Breakdown {
+	const byType: Record<string, any> = {};
+	const byFolder: Record<string, any> = {};
+	const byUser: Record<DatabaseId, any> = {};
+	const byMonth: Record<string, any> = {};
 
 	let totalSize = 0;
+	let totalFiles = 0;
 
-	for (const file of files) {
-		const size = file.size || 0;
+	for (const f of files) {
+		const size = f.size ?? 0;
 		totalSize += size;
+		totalFiles++;
 
-		// By type
-		const type = file.type || 'unknown';
-		const typeStats = byType.get(type) || { count: 0, size: 0, percentage: 0 };
-		typeStats.count++;
-		typeStats.size += size;
-		byType.set(type, typeStats);
+		// Type
+		const type = f.type ?? 'unknown';
+		byType[type] ??= { count: 0, size: 0 };
+		byType[type].count++;
+		byType[type].size += size;
 
-		// By folder
-		const folder = file.path?.split('/').slice(0, -1).join('/') || 'root';
-		const folderStats = byFolder.get(folder) || { count: 0, size: 0, percentage: 0 };
-		folderStats.count++;
-		folderStats.size += size;
-		byFolder.set(folder, folderStats);
+		// Folder
+		const folder = f.path ? path.dirname(f.path) : 'root';
+		byFolder[folder] ??= { count: 0, size: 0 };
+		byFolder[folder].count++;
+		byFolder[folder].size += size;
 
-		// By user
-		if (file.user) {
-			const userStats = byUser.get(file.user as DatabaseId) || { count: 0, size: 0, percentage: 0 };
-			userStats.count++;
-			userStats.size += size;
-			byUser.set(file.user as DatabaseId, userStats);
+		// User
+		if (f.user) {
+			byUser[f.user] ??= { count: 0, size: 0 };
+			byUser[f.user].count++;
+			byUser[f.user].size += size;
 		}
 
-		// By month
-		if (file.createdAt) {
-			const month = file.createdAt.substring(0, 7); // YYYY-MM
-			const monthStats = byMonth.get(month) || { count: 0, size: 0 };
-			monthStats.count++;
-			monthStats.size += size;
-			byMonth.set(month, monthStats);
+		// Month
+		if (f.createdAt) {
+			const month = f.createdAt.slice(0, 7);
+			byMonth[month] ??= { count: 0, size: 0 };
+			byMonth[month].count++;
+			byMonth[month].size += size;
 		}
 	}
 
-	// Calculate percentages
-	for (const [type, stats] of byType.entries()) {
-		stats.percentage = totalSize > 0 ? (stats.size / totalSize) * 100 : 0;
-		byType.set(type, stats);
-	}
-	for (const [folder, stats] of byFolder.entries()) {
-		stats.percentage = totalSize > 0 ? (stats.size / totalSize) * 100 : 0;
-		byFolder.set(folder, stats);
-	}
-	for (const [user, stats] of byUser.entries()) {
-		stats.percentage = totalSize > 0 ? (stats.size / totalSize) * 100 : 0;
-		byUser.set(user, stats);
-	}
+	// Percentages
+	const addPct = (obj: Record<string, any>) => {
+		for (const k in obj) {
+			obj[k].pct = totalSize ? (obj[k].size / totalSize) * 100 : 0;
+		}
+	};
+	addPct(byType);
+	addPct(byFolder);
+	addPct(byUser);
 
 	return {
 		byType,
@@ -112,264 +105,125 @@ export function analyzeStorage(files: MediaBase[]): StorageBreakdown {
 		byUser,
 		byMonth,
 		total: {
-			files: files.length,
+			files: totalFiles,
 			size: totalSize,
-			averageFileSize: files.length > 0 ? totalSize / files.length : 0
+			avgSize: totalFiles ? totalSize / totalFiles : 0
 		}
 	};
 }
 
-/**
- * Generate storage insights and recommendations
- */
-export function generateInsights(files: MediaBase[], breakdown: StorageBreakdown): StorageInsight[] {
-	const insights: StorageInsight[] = [];
+/** Generate insights */
+export function insights(files: MediaBase[], breakdown: Breakdown): Insight[] {
+	const list: Insight[] = [];
 
-	// Check for large files
-	const largeFiles = files.filter((f) => (f.size || 0) > 10 * 1024 * 1024); // > 10MB
-	if (largeFiles.length > 0) {
-		const totalLargeSize = largeFiles.reduce((sum, f) => sum + (f.size || 0), 0);
-		insights.push({
+	// Large files (>10MB)
+	const large = files.filter((f) => (f.size ?? 0) > 10 * 1024 * 1024);
+	if (large.length) {
+		const size = large.reduce((s, f) => s + (f.size ?? 0), 0);
+		list.push({
 			type: 'info',
-			title: 'Large Files Detected',
-			description: `${largeFiles.length} files are larger than 10MB (${formatBytes(totalLargeSize)} total). Consider compressing or archiving them.`,
+			title: 'Large Files',
+			desc: `${large.length} files >10MB (${formatBytes(size)})`,
 			actionable: true,
-			action: {
-				label: 'View Large Files',
-				data: largeFiles.map((f) => f._id)
-			}
+			action: { label: 'View', data: large.map((f) => f._id) }
 		});
 	}
 
-	// Check for old files
-	const oneYearAgo = new Date();
-	oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-	const oldFiles = files.filter((f) => {
-		if (!f.createdAt) return false;
-		return new Date(f.createdAt) < oneYearAgo;
-	});
-	if (oldFiles.length > 0) {
-		const totalOldSize = oldFiles.reduce((sum, f) => sum + (f.size || 0), 0);
-		insights.push({
+	// Old files (>1 year)
+	const yearAgo = new Date();
+	yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+	const old = files.filter((f) => f.createdAt && new Date(f.createdAt) < yearAgo);
+	if (old.length) {
+		const size = old.reduce((s, f) => s + (f.size ?? 0), 0);
+		list.push({
 			type: 'info',
-			title: 'Old Files Found',
-			description: `${oldFiles.length} files are older than 1 year (${formatBytes(totalOldSize)}). Archive or delete unused files.`,
+			title: 'Old Files',
+			desc: `${old.length} files >1 year old (${formatBytes(size)})`,
 			actionable: true,
-			action: {
-				label: 'View Old Files',
-				data: oldFiles.map((f) => f._id)
-			}
+			action: { label: 'View', data: old.map((f) => f._id) }
 		});
 	}
 
-	// Check for type imbalance
-	const topType = Array.from(breakdown.byType.entries()).sort((a, b) => b[1].size - a[1].size)[0];
-	if (topType && topType[1].percentage > 70) {
-		insights.push({
+	// Dominant type
+	const topType = Object.entries(breakdown.byType).sort((a, b) => b[1].size - a[1].size)[0];
+	if (topType && topType[1].pct > 70) {
+		list.push({
 			type: 'info',
-			title: 'Storage Dominated by One Type',
-			description: `${topType[0]} files account for ${topType[1].percentage.toFixed(1)}% of storage. Consider organizing or optimizing these files.`,
-			actionable: false
+			title: 'Dominant File Type',
+			desc: `${topType[0]} files use ${topType[1].pct.toFixed(1)}% of storage`
 		});
 	}
 
-	// Check for growth rate
-	const months = Array.from(breakdown.byMonth.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-	if (months.length >= 3) {
-		const recent = months.slice(-3);
-		const avgRecentGrowth = recent.reduce((sum, [, stats]) => sum + stats.size, 0) / 3;
-		const earlier = months.slice(0, Math.max(1, months.length - 3));
-		const avgEarlierGrowth = earlier.reduce((sum, [, stats]) => sum + stats.size, 0) / earlier.length;
-
-		if (avgRecentGrowth > avgEarlierGrowth * 1.5) {
-			insights.push({
-				type: 'warning',
-				title: 'Storage Growth Accelerating',
-				description: 'Recent upload activity is 50% higher than average. Monitor storage quotas.',
-				actionable: false
-			});
-		}
-	}
-
-	// Check for unused files (no metadata updates)
-	const unusedFiles = files.filter((f) => {
-		if (!f.createdAt) return false;
-		const uploadDate = new Date(f.createdAt);
-		const threeMonthsAgo = new Date();
-		threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-		return uploadDate < threeMonthsAgo && !f.updatedAt;
-	});
-	if (unusedFiles.length > 10) {
-		const totalUnusedSize = unusedFiles.reduce((sum, f) => sum + (f.size || 0), 0);
-		insights.push({
-			type: 'info',
-			title: 'Potentially Unused Files',
-			description: `${unusedFiles.length} files haven't been updated in 3+ months (${formatBytes(totalUnusedSize)}). Review for cleanup.`,
-			actionable: true,
-			action: {
-				label: 'View Unused Files',
-				data: unusedFiles.map((f) => f._id)
-			}
-		});
-	}
-
-	// Storage efficiency
-	const efficiency = (breakdown.total.size / (files.length * 1024 * 1024)) * 100;
-	if (efficiency < 50) {
-		insights.push({
-			type: 'success',
-			title: 'Good Storage Efficiency',
-			description: 'Most files are reasonably sized. Storage usage is efficient.',
-			actionable: false
-		});
-	}
-
-	return insights;
+	return list;
 }
 
-/**
- * Calculate storage trends over time
- */
-export function calculateTrends(files: MediaBase[]): StorageTrend[] {
-	const byMonth = new Map<string, { count: number; size: number }>();
+/** Monthly trends */
+export function trends(files: MediaBase[]): Trend[] {
+	const monthly: Record<string, { count: number; size: number }> = {};
 
-	for (const file of files) {
-		if (!file.createdAt) continue;
-		const month = file.createdAt.substring(0, 7); // YYYY-MM
-		const stats = byMonth.get(month) || { count: 0, size: 0 };
-		stats.count++;
-		stats.size += file.size || 0;
-		byMonth.set(month, stats);
+	for (const f of files) {
+		if (!f.createdAt) continue;
+		const m = f.createdAt.slice(0, 7);
+		monthly[m] ??= { count: 0, size: 0 };
+		monthly[m].count++;
+		monthly[m].size += f.size ?? 0;
 	}
 
-	const sorted = Array.from(byMonth.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-	const trends: StorageTrend[] = [];
-	let cumulativeSize = 0;
+	const sorted = Object.keys(monthly).sort();
+	const result: Trend[] = [];
+	let total = 0;
 
 	for (let i = 0; i < sorted.length; i++) {
-		const [period, stats] = sorted[i];
-		cumulativeSize += stats.size;
+		const m = sorted[i];
+		const stats = monthly[m];
+		total += stats.size;
 
-		const growthRate = i > 0 ? ((stats.size - sorted[i - 1][1].size) / sorted[i - 1][1].size) * 100 : 0;
+		const prev = i > 0 ? monthly[sorted[i - 1]].size : 0;
+		const growth = prev ? ((stats.size - prev) / prev) * 100 : 0;
 
-		trends.push({
-			period,
+		result.push({
+			month: m,
 			uploads: stats.count,
-			size: stats.size,
-			cumulativeSize,
-			growthRate
+			addedSize: stats.size,
+			totalSize: total,
+			growthPct: growth
 		});
 	}
 
-	return trends;
+	return result;
 }
 
-/**
- * Get top consumers (files, folders, or users)
- */
-export function getTopConsumers<T extends string | DatabaseId>(
-	breakdown: Map<T, { count: number; size: number; percentage: number }>,
-	limit = 10
-): Array<{ key: T; count: number; size: number; percentage: number }> {
-	return Array.from(breakdown.entries())
-		.map(([key, stats]) => ({ key, ...stats }))
+/** Top N consumers */
+export function top<T extends string | DatabaseId>(
+	map: Record<T, { count: number; size: number }>,
+	n = 10
+): Array<{ key: T; count: number; size: number }> {
+	return Object.entries(map)
+		.map(([k, v]) => ({ key: k as T, ...(v as any) }))
 		.sort((a, b) => b.size - a.size)
-		.slice(0, limit);
+		.slice(0, n);
 }
 
-/**
- * Predict future storage needs
- */
-export function predictStorage(
-	trends: StorageTrend[],
-	monthsAhead = 6
-): {
-	predictedSize: number;
-	predictedFiles: number;
-	confidence: 'low' | 'medium' | 'high';
-} {
-	if (trends.length < 3) {
-		return { predictedSize: 0, predictedFiles: 0, confidence: 'low' };
-	}
-
-	// Simple linear regression on last 6 months
-	const recentTrends = trends.slice(-6);
-	const avgMonthlyGrowth =
-		recentTrends.reduce((sum, t, i) => {
-			if (i === 0) return 0;
-			return sum + (t.cumulativeSize - recentTrends[i - 1].cumulativeSize);
-		}, 0) /
-		(recentTrends.length - 1);
-
-	const avgMonthlyFiles = recentTrends.reduce((sum, t) => sum + t.uploads, 0) / recentTrends.length;
-
-	const lastTrend = trends[trends.length - 1];
-	const predictedSize = lastTrend.cumulativeSize + avgMonthlyGrowth * monthsAhead;
-	const predictedFiles = Math.round(avgMonthlyFiles * monthsAhead);
-
-	// Confidence based on trend consistency
-	const growthRates = recentTrends.slice(1).map((t) => t.growthRate);
-	const avgGrowthRate = growthRates.reduce((sum, r) => sum + r, 0) / growthRates.length;
-	const variance = growthRates.reduce((sum, r) => sum + Math.pow(r - avgGrowthRate, 2), 0) / growthRates.length;
-	const standardDeviation = Math.sqrt(variance);
-
-	let confidence: 'low' | 'medium' | 'high';
-	if (standardDeviation < 10) {
-		confidence = 'high';
-	} else if (standardDeviation < 30) {
-		confidence = 'medium';
-	} else {
-		confidence = 'low';
-	}
-
-	return { predictedSize, predictedFiles, confidence };
-}
-
-/**
- * Format bytes to human-readable string
- */
-export function formatBytes(bytes: number, decimals = 2): string {
-	if (bytes === 0) return '0 Bytes';
-
-	const k = 1024;
-	const dm = decimals < 0 ? 0 : decimals;
-	const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-
-	const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-	return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-}
-
-/**
- * Calculate storage quota usage
- */
-export function calculateQuotaUsage(
-	currentSize: number,
-	quotaSize: number
-): {
-	used: number;
-	available: number;
-	percentage: number;
-	status: 'healthy' | 'warning' | 'critical';
-	daysRemaining?: number; // Based on current growth rate
-} {
-	const used = currentSize;
-	const available = quotaSize - currentSize;
-	const percentage = (currentSize / quotaSize) * 100;
-
-	let status: 'healthy' | 'warning' | 'critical';
-	if (percentage < 70) {
-		status = 'healthy';
-	} else if (percentage < 90) {
-		status = 'warning';
-	} else {
-		status = 'critical';
-	}
+/** Simple quota usage */
+export function quota(current: number, limit: number) {
+	const pct = limit ? (current / limit) * 100 : 0;
+	let status: 'healthy' | 'warning' | 'critical' = 'healthy';
+	if (pct > 90) status = 'critical';
+	else if (pct > 70) status = 'warning';
 
 	return {
-		used,
-		available,
-		percentage,
+		used: current,
+		available: limit - current,
+		percentage: pct,
 		status
 	};
+}
+
+/** Human-readable bytes */
+export function formatBytes(bytes: number, decimals = 1): string {
+	if (bytes === 0) return '0 B';
+	const k = 1024;
+	const i = Math.floor(Math.log(bytes) / Math.log(k));
+	const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+	return `${(bytes / Math.pow(k, i)).toFixed(decimals)} ${units[i]}`;
 }

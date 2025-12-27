@@ -16,7 +16,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	import axios from 'axios';
 
 	// Stores
-	import { avatarSrc } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -40,7 +40,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	const displayAvatar = $derived.by(() => {
 		if (previewUrl) return previewUrl;
 		if (imageLoadError) return '/Default_User.svg';
-		const avatarUrl = avatarSrc.value || '/Default_User.svg';
+		const avatarUrl = app.avatarSrc || '/Default_User.svg';
 		// Add timestamp for cache busting, unless it's a data URI or default avatar
 		if (avatarUrl !== '/Default_User.svg' && !avatarUrl.startsWith('data:')) {
 			return `${avatarUrl}?t=${Date.now()}`;
@@ -163,7 +163,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			parse(avatarSchema, { file });
 
 			// Show confirmation if replacing existing avatar
-			if (avatarSrc.value && avatarSrc.value !== '/Default_User.svg') {
+			if (app.avatarSrc && app.avatarSrc !== '/Default_User.svg') {
 				const confirmModal = {
 					type: 'confirm' as const,
 					title: 'Replace Avatar',
@@ -262,7 +262,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 			// Update the avatar store with the new URL from API
 			if (result.avatarUrl) {
-				avatarSrc.value = result.avatarUrl;
+				app.avatarSrc = result.avatarUrl;
 				logger.info('Avatar store updated', { avatarUrl: result.avatarUrl });
 			}
 
@@ -314,7 +314,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 		// User confirmed - proceed with deletion
 		try {
-			const currentAvatar = avatarSrc.value;
+			const currentAvatar = app.avatarSrc;
 			logger.info('Attempting to delete avatar:', currentAvatar);
 
 			const response = await fetch('/api/user/deleteAvatar', {
@@ -329,7 +329,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 			if (response.ok && result.success) {
 				// Update the avatar store
-				avatarSrc.value = '/Default_User.svg';
+				app.avatarSrc = '/Default_User.svg';
 				previewUrl = null;
 
 				// Show success message
@@ -370,7 +370,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		</article>
 
 		<form class="modal-form {cForm}">
-			<div class="grid grid-cols-1 grid-rows-{avatarSrc.value ? '1' : '2'} items-center justify-center">
+			<div class="grid grid-cols-1 grid-rows-{app.avatarSrc ? '1' : '2'} items-center justify-center">
 				<!-- Hidden file input for avatar click-to-upload -->
 				<input bind:this={fileInput} type="file" class="hidden" accept={acceptMime} onchange={onChange} aria-hidden="true" />
 
@@ -447,7 +447,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 		<footer class="modal-footer {parent.regionFooter} justify-between">
 			<!-- Delete Avatar -->
-			{#if avatarSrc.value && avatarSrc.value !== '/Default_User.svg'}
+			{#if app.avatarSrc && app.avatarSrc !== '/Default_User.svg'}
 				<button type="button" onclick={deleteAvatar} class="variant-filled-error btn">
 					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
 					<span class="hidden sm:block">{m.button_delete()}</span>

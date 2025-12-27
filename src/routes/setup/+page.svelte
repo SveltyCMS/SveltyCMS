@@ -12,7 +12,7 @@ calls store methods and wires store state to child components.
 
 	// Stores
 	import { setupStore } from '@stores/setupStore.svelte';
-	import { systemLanguage } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 
 	// Child Layout Components
 	import SetupHeader from './SetupHeader.svelte';
@@ -175,7 +175,7 @@ calls store methods and wires store state to child components.
 	// --- 7. UI HANDLERS ---
 	function selectLanguage(event: CustomEvent) {
 		const lang = event.detail;
-		systemLanguage.set(lang as typeof systemLanguage.value);
+		app.systemLanguage = lang as any;
 		currentLanguageTag = lang as typeof currentLanguageTag;
 		isLangOpen = false;
 		langSearch = '';

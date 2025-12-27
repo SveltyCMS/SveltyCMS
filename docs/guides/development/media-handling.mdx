@@ -1,513 +1,136 @@
 ---
-path: 'docs/guides/media-handling.mdx'
-title: 'Media Gallery and Handling'
-description: 'A comprehensive guide to the SveltyCMS Media Gallery, cloud-native storage, and media handling system.'
-order: 5
-icon: 'mdi:image-multiple'
-author: 'ai-agent'
-created: '2025-10-12'
-updated: '2025-11-07'
-tags:
-  - 'media'
-  - 'gallery'
-  - 'upload'
-  - 'api'
-  - 'guide'
-  - 'cloud'
-  - 's3'
-  - 'r2'
+title: Media Handling
+description: Comprehensive guide to the SveltyCMS media system, including upload processing, cloud storage abstraction, image optimization, secure sharing, and analytics.
 ---
 
-# Media Gallery and Handling
+# Media Handling System
 
-SveltyCMS provides a powerful and flexible system for managing media files. This guide covers the Media Gallery UI, file uploading, media processing, the storage architecture, and the API.
+SveltyCMS provides an enterprise-grade media management system designed for scalability, performance, and flexibility. It features a storage-agnostic architecture, on-the-fly image optimization, secure file sharing, and deep storage analytics.
 
----
+## 🏗️ Core Architecture
 
-## Media Gallery UI
+The system is built on a modular "Storage Abstraction Layer" that decouples your application logic from the underlying storage provider.
 
-The Media Gallery is the central hub for managing all your media files. It provides a user-friendly interface with the following features:
+### Components (`src/utils/media/`)
 
-- **Virtual Folders:** Organize your media files into a hierarchical folder structure (e.g., `global/`, `avatars/`).
-- **Grid and Table Views:** Choose between a visual grid view or a detailed table view to display your files.
-- **Filtering and Sorting:** Filter files by type (image, document, etc.) and sort them by name, size, or date.
-- **Search:** Quickly find files using the global search bar.
-- **Breadcrumb Navigation:** Easily navigate through your folder hierarchy.
-- **File Actions:** Upload, delete, and manage your media files directly from the UI.
+| File                            | Responsibility                                                                                                                                          |
+| :------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`mediaModels.ts`**            | **Single Source of Truth** for types (`MediaBase`, `MediaImage`, `StorageType`). Defines strict interfaces for metadata, versions, and access control.  |
+| **`mediaStorage.server.ts`**    | **The Engine**. Handles file saving/deletion. Automatically routes to Local FS, S3, R2, or Cloudinary based on config. Integrates `sharp` for resizing. |
+| **`cloudStorage.ts`**           | **The Driver**. Low-level implementation of S3/R2/Cloudinary protocols. Handles multipart uploads and signed URLs.                                      |
+| **`mediaProcessing.server.ts`** | **The Processor**. Server-side logic for SHA-256 hashing (deduplication) and metadata extraction (EXIF, dimensions).                                    |
+| **`advancedSearch.ts`**         | **The Brain**. Advanced client-side search engine. Filters by metadata, camera model, aspect ratio, dominant color, and more.                           |
+| **`sharing.ts`**                | **The Gatekeeper**. Generates secure, expiring share links with password protection and download limits.                                                |
+| **`storageAnalytics.ts`**       | **The Analyst**. Calculates breakdown by user/type/folder, identifies growth trends, and highlights storage hogs.                                       |
 
 ---
 
-## File Uploading
+## 🚀 Key Features
 
-SveltyCMS supports two primary methods for uploading files:
+### 1. Unified Storage Abstraction API
 
-### Direct Upload
-
-You can upload files directly from your local machine using the "Add Media" button in the Media Gallery. This will open a modal where you can drag and drop files or browse your computer to select them.
-
-### Remote Upload
-
-The remote upload feature allows you to "upload" a file from an existing URL (e.g., YouTube, Vimeo). SveltyCMS saves a reference to this remote media, allowing you to manage its metadata just like a locally hosted file.
-
----
-
-## Media Processing
-
-When a file is uploaded, SveltyCMS performs several processing steps to ensure consistency and efficiency:
-
-- **Hashing:** The file content is hashed to generate a unique identifier. This prevents duplicate file storage.
-- **Sanitization:** Filenames are sanitized to remove special characters and ensure they are URL-safe.
-- **Image Resizing (Server-Side):** Using a high-performance image processing library (sharp), SveltyCMS automatically creates multiple resized versions (e.g., `thumbnail`, `sm`, `md`, `lg`) to optimize delivery. These sizes are configurable in the system settings.
-- **Format Conversion (Optional):** You can configure SveltyCMS to automatically convert all uploaded images to a modern, efficient format like WebP or AVIF.
-
----
-
-## Storage Architecture
-
-SveltyCMS is storage-agnostic. It uses a flexible adapter-based system to store files, allowing you to switch between local storage and cloud providers seamlessly.
-
-### Supported Storage Adapters
-
-You can configure your storage provider in the system settings:
-
-- **`local`:** Stores files on the server's local filesystem. Ideal for development and small projects.
-- **`s3`:** Stores files in any S3-compatible service (e.g., AWS S3, MinIO, DigitalOcean Spaces).
-- **`r2`:** A specific adapter optimized for Cloudflare R2.
-- **`cloudinary`:** Stores files directly in your Cloudinary media library.
-
-### Configuration
-
-| Setting                  | Example (Local) | Example (S3)              | Description                                                                     |
-| ------------------------ | --------------- | ------------------------- | ------------------------------------------------------------------------------- |
-| `MEDIA_STORAGE_TYPE`     | `local`         | `s3`                      | Selects the storage adapter to use.                                             |
-| `MEDIA_FOLDER`           | `./mediaFiles`  | `cms-media`               | Local: The filesystem path. Cloud: The path prefix (folder) inside your bucket. |
-| `MEDIA_BUCKET_NAME`      | (Not used)      | `my-cms-bucket`           | (Cloud Only) The name of your S3/R2 bucket.                                     |
-| `MEDIA_CLOUD_PUBLIC_URL` | (Not used)      | `https://cdn.my-site.com` | (Cloud Only) The public URL for accessing your files.                           |
-
-### File Path Structure
-
-The `MediaService` saves files to a logical path, which is then handled by the storage adapter.
-
-- **Original Files:** `[basePath]/original/[sanitized-name]-[hash].[ext]`
-  - Example: `global/original/my-image-abc123.jpg`
-- **Resized Images:** `[basePath]/[size]/[sanitized-name]-[hash].[ext]`
-  - Example: `global/thumbnail/my-image-abc123.webp`
-- **Avatars:**
-  - Example: `avatars/original/avatar-user-hash.png`
-
-### Trash / Deletion
-
-- **Local Storage:** When a file is deleted, it is moved to a `.trash` directory within your `MEDIA_FOLDER`. This allows for recovery.
-- **Cloud Storage:** When a file is deleted, it is permanently removed from the cloud bucket (or follows your bucket's versioning/lifecycle rules).
-
----
-
-## MediaService Architecture
-
-The `MediaService` class is the core business logic layer for all media operations. It provides a database-agnostic, storage-agnostic API that works with any storage provider and database adapter.
-
-### Class Structure
-
-**Location:** `src/services/MediaService.ts`
-
-**Responsibilities:**
-
-- Upload processing (hash calculation, validation, duplicate prevention)
-- File storage orchestration (local/cloud)
-- Image resizing and thumbnail generation
-- Metadata extraction (EXIF, dimensions, MIME type)
-- Database CRUD operations
-- Cache management
-- Version history tracking
-- Share link generation
-
-### Initialization
-
-The MediaService is typically initialized in API endpoints or server-side code:
-
-````typescript
-```typescript
-// import { MediaService } from '$services/MediaService';
-import type { dbAdapter } from '$databases/dbInterface';
-````
-
-import type { CacheService } from '$services/CacheService';
-import type { SettingsService } from '$services/SettingsService';
-
-// Example: In an API endpoint (+server.ts)
-export async function POST({ request, locals }) {
-const { user, dbAdapter } = locals;
-
-    // Initialize MediaService with dependencies
-    const mediaService = new MediaService(
-    	dbAdapter, // Database adapter (MongoDB, PostgreSQL, etc.)
-    	locals.cacheService, // Cache service instance
-    	locals.settingsService // Settings service instance
-    );
-
-    // Use the service
-    const file = await request.formData().get('file');
-    const result = await mediaService.saveMedia(file, user._id, 'public', 'global');
-
-    return json(result);
-
-}
-
-````
-
-### Constructor Parameters
+Switch between Local, S3, R2, and Cloudinary with **zero code changes** in your application.
 
 ```typescript
-class MediaService {
-	constructor(
-		private db: dbAdapter, // Database interface
-		private cache: CacheService, // Cache service
-		private settings: SettingsService // Settings service
-	) {
-		// Initialize storage adapter based on settings
-		this.storageAdapter = this.initializeStorageAdapter();
-	}
-}
-````
+import { saveFile, deleteFile } from '@utils/media/mediaStorage.server';
 
-### Storage Adapter Initialization
+// Saves to configured provider (S3/Local/etc)
+const url = await saveFile(buffer, 'avatars/user-123.jpg');
 
-The MediaService automatically selects and configures the correct storage adapter based on system settings:
-
-```typescript
-private initializeStorageAdapter(): StorageAdapter {
-  const storageType = this.settings.get('MEDIA_STORAGE_TYPE'); // 'local' | 's3' | 'r2' | 'cloudinary'
-
-  switch (storageType) {
-    case 's3':
-      return new S3StorageAdapter({
-        bucket: this.settings.get('MEDIA_BUCKET_NAME'),
-        region: this.settings.get('AWS_REGION'),
-        accessKeyId: this.settings.get('AWS_ACCESS_KEY_ID'),
-        secretAccessKey: this.settings.get('AWS_SECRET_ACCESS_KEY'),
-        publicUrl: this.settings.get('MEDIA_CLOUD_PUBLIC_URL')
-      });
-
-    case 'r2':
-      return new R2StorageAdapter({
-        accountId: this.settings.get('CLOUDFLARE_ACCOUNT_ID'),
-        bucket: this.settings.get('MEDIA_BUCKET_NAME'),
-        accessKeyId: this.settings.get('R2_ACCESS_KEY_ID'),
-        secretAccessKey: this.settings.get('R2_SECRET_ACCESS_KEY'),
-        publicUrl: this.settings.get('MEDIA_CLOUD_PUBLIC_URL')
-      });
-
-    case 'cloudinary':
-      return new CloudinaryAdapter({
-        cloudName: this.settings.get('CLOUDINARY_CLOUD_NAME'),
-        apiKey: this.settings.get('CLOUDINARY_API_KEY'),
-        apiSecret: this.settings.get('CLOUDINARY_API_SECRET')
-      });
-
-    case 'local':
-    default:
-      return new LocalStorageAdapter({
-        basePath: this.settings.get('MEDIA_FOLDER') || './mediaFolder'
-      });
-  }
-}
+// Deletes from configured provider
+await deleteFile(url);
 ```
 
-### Core Methods
+**Configuration (`config/public.ts` via Settings):**
 
-#### Save Media
+- `MEDIA_STORAGE_TYPE`: `'local'` | `'s3'` | `'r2'` | `'cloudinary'`
+- `MEDIA_BUCKET_NAME`: Name of your S3/R2 bucket.
+- `MEDIA_FOLDER`: Root folder prefix (e.g., `cms-media`).
 
-Upload and process a new file:
+### 2. Intelligent Image Processing
 
-```typescript
-async saveMedia(
-	file: File,
-	userId: string,
-	accessLevel: 'public' | 'private',
-	virtualFolder: string = 'global'
-): Promise<MediaImage> {
-	// 1. Validate file (type, size)
-	this.validateFile(file);
+All image uploads are automatically processed using `sharp`.
 
-	// 2. Calculate hash (SHA-256)
-	const buffer = await file.arrayBuffer();
-	const hash = await hashFileContent(Buffer.from(buffer));
+- **Auto-Resizing**: Generates thumbnails (`sm`, `md`, `lg`) based on `IMAGE_SIZES` config.
+- **Format Conversion**: Can auto-convert uploads to modern web formats (`avif`, `webp`) via `MEDIA_OUTPUT_FORMAT_QUALITY`.
+- **Metadata Extraction**: Automatically extracts Width, Height, EXIF data, and Dominant Colors.
 
-	// 3. Check for duplicates
-	const existing = await this.db.crud.findOne('MediaItem', { hash });
-	if (existing.success && existing.data) {
-		throw new Error(`File already exists: ${existing.data.filename}`);
-	}
+### 3. Advanced Search & Filtering
 
-	// 4. Sanitize filename
-	const sanitizedName = sanitizeFilename(file.name);
-
-	// 5. Save to storage (original + thumbnails)
-	const paths = await this.storageAdapter.save(buffer, sanitizedName, hash, virtualFolder);
-
-	// 6. Extract metadata (EXIF, dimensions)
-	const metadata = await extractMetadata(buffer, file.type);
-
-	// 7. Save to database
-	const mediaItem = await this.db.crud.create('MediaItem', {
-		filename: sanitizedName,
-		hash,
-		size: file.size,
-		type: file.type,
-		uploadedBy: userId,
-		uploadDate: new Date(),
-		virtualFolder,
-		accessLevel,
-		...metadata,
-		...paths
-	});
-
-	// 8. Invalidate cache
-	await this.cache.delete(`media:list:${userId}`);
-
-	return mediaItem.data;
-}
-```
-
-#### List Media
-
-Retrieve paginated media list:
+The `advancedSearch` utility allows for granular file discovery:
 
 ```typescript
-async listMedia(
-	userId: string,
-	page = 1,
-	limit = 50,
-	virtualFolder?: string
-): Promise<{ files: MediaImage[]; total: number }> {
-	// Check cache first
-	const cacheKey = `media:list:${userId}:${page}:${limit}:${virtualFolder || 'all'}`;
-	const cached = await this.cache.get(cacheKey);
-	if (cached) return cached;
+import { advancedSearch } from '@utils/media/advancedSearch';
 
-	// Query database
-	const query = { uploadedBy: userId };
-	if (virtualFolder) query.virtualFolder = virtualFolder;
-
-	const result = await this.db.crud.findMany('MediaItem', query, {
-		skip: (page - 1) * limit,
-		limit,
-		sort: { uploadDate: -1 }
-	});
-
-	// Cache result (5 minutes)
-	await this.cache.set(cacheKey, result, 300);
-
-	return result;
-}
-```
-
-#### Delete Media
-
-Soft delete or permanent removal:
-
-```typescript
-async deleteMedia(mediaId: string, permanent = false): Promise<void> {
-	const media = await this.db.crud.findOne('MediaItem', { _id: mediaId });
-	if (!media.success) throw new Error('Media not found');
-
-	if (permanent) {
-		// Permanent deletion
-		await this.storageAdapter.delete(media.data.path);
-		await this.db.crud.delete('MediaItem', mediaId);
-	} else {
-		// Soft delete (move to trash)
-		await this.storageAdapter.moveToTrash(media.data.path);
-		await this.db.crud.update('MediaItem', mediaId, {
-			deletedAt: new Date(),
-			status: 'trashed'
-		});
-	}
-
-	// Invalidate cache
-	await this.cache.delete(`media:${mediaId}`);
-	await this.cache.deletePattern(`media:list:*`);
-}
-```
-
-### Usage in API Endpoints
-
-**Example: Upload Endpoint**
-
-```typescript
-// src/routes/api/media/process/+server.ts
-// import { MediaService } from '$services/MediaService';
-
-export async function POST({ request, locals }) {
-	const { user, dbAdapter, cacheService, settingsService } = locals;
-
-	// Initialize service
-	// const mediaService = new MediaService(dbAdapter, cacheService, settingsService);
-
-	// Parse form data
-	const formData = await request.formData();
-	const files = formData.getAll('files') as File[];
-
-	// Upload all files
-	// const results = await Promise.all(files.map((file) => mediaService.saveMedia(file, user._id, 'public', 'global')));
-
-	return json({ success: true, files: [] });
-}
-```
-
-**Example: List Endpoint**
-
-```typescript
-// src/routes/api/media/+server.ts
-export async function GET({ url, locals }) {
-	const { user, dbAdapter, cacheService, settingsService } = locals;
-
-	// const mediaService = new MediaService(dbAdapter, cacheService, settingsService);
-
-	const page = parseInt(url.searchParams.get('page') || '1');
-	const limit = parseInt(url.searchParams.get('limit') || '50');
-	const folder = url.searchParams.get('folder') || undefined;
-
-	// const result = await mediaService.listMedia(user._id, page, limit, folder);
-
-	return json({});
-}
-```
-
-### Dependency Injection Pattern
-
-The MediaService follows dependency injection principles for better testability and flexibility:
-
-```typescript
-// Test example
-// import { MediaService } from '$services/MediaService';
-import { MockDbAdapter } from '$tests/mocks/db';
-import { MockCacheService } from '$tests/mocks/cache';
-import { MockSettingsService } from '$tests/mocks/settings';
-
-describe('MediaService', () => {
-	// let service: MediaService;
-	let mockDb: MockDbAdapter;
-
-	beforeEach(() => {
-		mockDb = new MockDbAdapter();
-		const mockCache = new MockCacheService();
-		const mockSettings = new MockSettingsService({
-			MEDIA_STORAGE_TYPE: 'local',
-			MEDIA_FOLDER: './test-media'
-		});
-
-		// service = new MediaService(mockDb, mockCache, mockSettings);
-	});
-
-	test('should prevent duplicate uploads', async () => {
-		// First upload
-		// await service.saveMedia(testFile, 'user1', 'public', 'global');
-		// Second upload (same file)
-		// await expect(service.saveMedia(testFile, 'user1', 'public', 'global')).rejects.toThrow('File already exists');
-	});
+const results = advancedSearch(allFiles, {
+	tags: ['nature', 'vacation'],
+	minWidth: 1920,
+	aspectRatio: 'landscape',
+	camera: 'Canon', // Fuzzy match EXIF make/model
+	uploadedAfter: new Date('2024-01-01')
 });
 ```
 
----
+### 4. Secure File Sharing
 
-## Using Media in Collections (Headless CMS)
+Create temporary, secure links for external access without exposing your main storage bucket.
 
-SveltyCMS is a headless CMS, which means you manage media independently from where you use it. You link media to your content using a "Media Picker" widget.
+```typescript
+import { createLink } from '@utils/media/sharing';
 
-1. **Add a Field:** In your collection schema (e.g., for a "Blog Post"), you add a "Media" field.
-2. **Pick a File:** In the editor, this field becomes a "Media Picker" button. Clicking it opens the Media Gallery.
-3. **Store a Reference:** When you select an image, SveltyCMS does not copy the image. It simply stores a reference to that media item (e.g., its `_id`) in your "Blog Post" document.
+const link = createLink(fileId, userId, {
+	hours: 48, // Expire in 2 days
+	maxDownloads: 5, // Max 5 downloads
+	passwordHash: '...', // Optional password protection
+	requireEmail: true // Audit log who downloaded
+});
+```
 
-**This is the key concept:**
+### 5. Storage Analytics
 
-- **User Avatars** are not a special type of media. They are simply a "Media" field added to the User collection.
-- **Blog Post Hero Images** are a "Media" field added to the Post collection.
-- Both fields pick from the same central Media Gallery.
+Gain insights into your storage usage pattern:
 
----
+```typescript
+import { analyze, insights } from '@utils/media/storageAnalytics';
 
-## Media API
+const stats = analyze(allFiles);
+// -> Breakdown by type, user, folder, month
 
-SveltyCMS provides a clean, RESTful API for managing media, based on the `MediaService`.
-
-**Base Path:** `/api/media`
-
-**Complete API Documentation:** See [Media API Reference](/docs/api/Media_API) for all 12 endpoints:
-
-1. ✅ `POST /api/media/process` - Upload and process files
-2. ✅ `GET /api/media` - List media with pagination
-3. ✅ `GET /api/media/[id]` - Get single file details
-4. ✅ `PATCH /api/media/[id]` - Update metadata
-5. ✅ `DELETE /api/media/[id]` - Delete file
-6. ✅ `POST /api/media/search` - Advanced search (18+ criteria)
-7. ✅ `GET /api/media/search` - Search suggestions
-8. ✅ `POST /api/media/bulk-download` - Bulk download as TAR.GZ
-9. ✅ `POST /api/media/trash` - Soft delete to trash
-10. ✅ `POST /api/media/manipulate/[id]` - Image manipulation
-11. ✅ `GET /api/media/exists` - Check file existence
-12. ✅ `POST /api/media/remote` - Upload from remote URL
-
-### Quick Examples
-
-#### `GET /api/media`
-
-Lists all media files. Supports pagination and searching.
-
-**Query Params:**
-
-- `?page=1&limit=20`
-- `?search=my-image`
-
-**Maps to:** `MediaService.listMedia()` and `MediaService.searchMedia()`
-
-#### `POST /api/media/process`
-
-Uploads a new media file.
-
-**Body:** `multipart/form-data` with a `File` object.
-
-**Maps to:** `MediaService.saveMedia()`
-
-### `POST /api/media/remote`
-
-Saves a reference to a remote media file (e.g., YouTube URL).
-
-**Body:** `{ "url": "https://...", "access": "public" }`
-
-**Maps to:** `MediaService.saveRemoteMedia()`
-
-### `GET /api/media/[id]`
-
-Retrieves the database metadata for a single media file.
-
-**Maps to:** `MediaService.getMedia()`
-
-### `PATCH /api/media/[id]`
-
-Updates the metadata for a media file (e.g., alt text, title).
-
-**Body:** `{ "metadata": { "title": "New Title" } }`
-
-**Maps to:** `MediaService.updateMedia()`
-
-### `DELETE /api/media/[id]`
-
-Deletes a media file. This moves the local file to `.trash` or deletes it from the cloud.
-
-**Maps to:** `MediaService.deleteMedia()`
-
-For a detailed reference of all API endpoints, see the [Media API Documentation](/docs/api/Media_API.mdx).
+const smartInsights = insights(allFiles, stats);
+// -> ["5 files > 50MB", "Old files > 1 year using 2GB"]
+```
 
 ---
 
-## Media Service
+## 🛠️ Implementation Guide
 
-The `MediaService` class (`src/services/MediaService.ts`) is the core of the media handling system. It encapsulates all business logic and is the single source of truth for all media operations, including:
+### Upload Flow
 
-- Uploading files to the correct storage adapter (via `mediaStorage.ts`).
-- Creating and updating media records in the database.
-- Deleting media files from storage and the database.
-- Managing media permissions and access control.
+1.  **Client**: Selects file → Validates size/type (`mediaUtils.ts`).
+2.  **Server**: Receives `FormData`.
+3.  **Hash**: Server calculates SHA-256 hash (`mediaProcessing.server.ts`) to detect duplicates.
+4.  **Process**: Server extracts metadata & resizes (`mediaStorage.server.ts`).
+5.  **Storage**: Files uploaded to S3/Local/Cloudinary.
+6.  **Database**: Entry created with `MediaImage` | `MediaDocument` type.
 
-The service uses a database-agnostic adapter (`dbInterface`) to interact with the database, making it compatible with different database backends.
+### Bulk Download
+
+Users can download multiple files as a single archive (`.tar.gz`). This is handled via a stream to keep memory usage low.
+
+```typescript
+import { createBulkArchive, streamArchive } from '@utils/media/bulkDownload';
+
+// Creates streaming archive
+const { path } = await createBulkArchive(files, tempDir);
+```
+
+### Thumbnail Generation
+
+You can request specific sizes of an image using the `mediaUrl` helper:
+
+```typescript
+import { mediaUrl } from '@utils/media/mediaUtils';
+
+const thumbSrc = mediaUrl(imageItem, 'thumbnail'); // 200px
+const largeSrc = mediaUrl(imageItem, 'lg'); // 1200px
+```

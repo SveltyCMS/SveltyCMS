@@ -8,12 +8,7 @@ import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 
-import {
-	widgetStoreActions,
-	widgetFunctions as widgetFunctionsStore,
-	coreWidgets as coreWidgetsStore,
-	customWidgets as customWidgetsStore
-} from '@stores/widgetStore.svelte';
+import { widgets } from '@stores/widgetStore.svelte';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	const start = performance.now();
@@ -23,7 +18,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		// Check authentication
 		if (!user) {
-			throw error(401, 'Unauthorized');
+			return json(
+				{
+					success: false,
+					message: 'Unauthorized',
+					error: 'Authentication credentials missing'
+				},
+				{ status: 401 }
+			);
 		}
 
 		// Check permission - only admins can sync widgets
@@ -32,29 +34,25 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		if (!hasWidgetPermission || !isAdmin) {
 			logger.warn(`User ${user._id} denied access to widget sync due to insufficient permissions`);
-			throw error(403, 'Insufficient permissions - admin access required');
+			return json(
+				{
+					success: false,
+					message: 'Insufficient permissions',
+					error: 'User lacks api:widgets permission or admin role'
+				},
+				{ status: 403 }
+			);
 		}
 
-		const tenantId = request.headers.get('X-Tenant-ID') || locals.tenantId;
+		const tenantId = request.headers.get('X-Tenant-ID') || locals.tenantId || 'default-tenant';
 
 		// Initialize widgets to get all from file system
-		await widgetStoreActions.initializeWidgets(tenantId);
+		await widgets.initialize(tenantId);
 
-		// Get all widget functions from file system
-		let allWidgetFunctions: Record<string, unknown> = {};
-		let coreWidgetNames: string[] = [];
-		let customWidgetNames: string[] = [];
-		widgetFunctionsStore.subscribe(($widgetFunctions) => {
-			allWidgetFunctions = $widgetFunctions;
-		})();
-
-		coreWidgetsStore.subscribe(($coreWidgets) => {
-			coreWidgetNames = $coreWidgets;
-		})();
-
-		customWidgetsStore.subscribe(($customWidgets) => {
-			customWidgetNames = $customWidgets;
-		})();
+		// Get all widget data from file system
+		const allWidgetFunctions = widgets.widgetFunctions;
+		const coreWidgetNames = widgets.coreWidgets;
+		const customWidgetNames = widgets.customWidgets;
 
 		if (!locals.dbAdapter?.widgets) {
 			logger.error('Widget database adapter not available');
@@ -65,7 +63,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const dbResult = await locals.dbAdapter.widgets.findAll();
 		const dbWidgets: Array<Record<string, unknown>> = dbResult.success ? (dbResult.data as unknown as Array<Record<string, unknown>>) || [] : [];
 		const dbWidgetNames = dbWidgets.map((w) => w.name as string);
+
 		logger.info('Starting widget sync...', {
+			tenantId,
 			fileSystem: Object.keys(allWidgetFunctions).length,
 			database: dbWidgets.length,
 			core: coreWidgetNames.length,
@@ -86,7 +86,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			try {
 				const isCore = coreWidgetNames.includes(name);
 				const exists = dbWidgetNames.includes(name);
-				const widget = widgetFn as Record<string, unknown>;
+				const widget = widgetFn as unknown as Record<string, unknown>;
 
 				if (exists) {
 					// Widget exists in DB - ensure it's active if it's core
@@ -126,15 +126,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const duration = performance.now() - start;
 
 		logger.info('Widget sync completed', {
-			...results,
-			duration: `${duration.toFixed(2)}ms`,
-			tenantId
-		});
-
-		return json({
-			success: true,
-			message: 'Widget sync completed',
-			results: {
+			stats: {
 				total: Object.keys(allWidgetFunctions).length,
 				created: results.created.length,
 				updated: results.updated.length,
@@ -142,19 +134,40 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				skipped: results.skipped.length,
 				errors: results.errors.length
 			},
-			details: results,
 			duration: `${duration.toFixed(2)}ms`,
 			tenantId
+		});
+
+		return json({
+			success: true,
+			data: {
+				results: {
+					total: Object.keys(allWidgetFunctions).length,
+					created: results.created.length,
+					updated: results.updated.length,
+					activated: results.activated.length,
+					skipped: results.skipped.length,
+					errors: results.errors.length
+				},
+				details: results,
+				tenantId,
+				performance: { duration: `${duration.toFixed(2)}ms` }
+			},
+			message: 'Widget sync completed successfully'
 		});
 	} catch (err) {
 		const duration = performance.now() - start;
 		const message = `Failed to sync widgets: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message, { duration: `${duration.toFixed(2)}ms` });
+		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
 
-		if (err instanceof Response) {
-			throw err;
-		}
-
-		throw error(500, message);
+		// Standardized error response
+		return json(
+			{
+				success: false,
+				message: 'Internal Server Error',
+				error: message
+			},
+			{ status: 500 }
+		);
 	}
 };

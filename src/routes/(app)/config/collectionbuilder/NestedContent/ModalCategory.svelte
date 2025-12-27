@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
 	// Stores
-	import { contentStructure } from '@src/stores/collectionStore.svelte';
+	import { collections } from '@src/stores/collectionStore.svelte';
 	import { logger } from '@utils/logger';
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 
@@ -111,7 +111,7 @@
 		// This check is a simplification; a more robust solution would determine if `existingCategory.children`
 		// holds any values based on your `ContentNode` definition or fetch it live.
 		// For now, assuming `existingCategory.children` refers to a property that exists if children are present.
-		if (existingCategory.nodeType === 'category' && contentStructure.value.some((node) => node.parentId === existingCategory._id)) {
+		if (existingCategory.nodeType === 'category' && collections.contentStructure.some((node) => node.parentId === existingCategory._id)) {
 			formError = 'Cannot delete category with nested items (collections or subcategories). Please move or delete them first.';
 			return;
 		}
@@ -160,7 +160,7 @@
 					}
 
 					// Update the global content structure store after successful deletion
-					contentStructure.value = newStructure;
+					collections.contentStructure = newStructure;
 					modalStore.close(); // Close modal after successful deletion
 				} catch (error) {
 					logger.error('Error deleting category:', error);

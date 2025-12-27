@@ -1,29 +1,30 @@
 <!-- 
 @file src/components/GlobalLoading.svelte
 @component
-**Global loading overlay with contextual messages and animations**
+**Enhanced Global Loading Overlay - Svelte 5 Optimized**
+
+Full-screen loading overlay with contextual messages, progress indication, and animations.
 
 @example
 <GlobalLoading />
 
-#### Features
-- Automatically updates loading text based on current operation
-- Animated loading circles with smooth performance
-- Contextual loading messages
-- Full-screen overlay with backdrop blur
-- Accessible with ARIA labels
-- Uses ParaglideJS for localization
+### Features
+- Contextual loading messages based on operation type
+- Animated loading circles with GPU acceleration
+- Optional progress bar for determinate operations
+- Cancellation support for long operations
+- Reduced motion support
+- Full ARIA accessibility
+- Performance optimized animations
+- Localized messages via ParaglideJS
 -->
 
 <script lang="ts">
-	// Components
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
-
-	// i18n
 	import * as m from '@src/paraglide/messages';
-
-	// Stores
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+	import { onMount } from 'svelte';
+	import { fade, scale } from 'svelte/transition';
 
 	// Loading text configuration
 	interface LoadingText {
@@ -31,7 +32,19 @@
 		bottom: string;
 	}
 
-	// Get contextual loading text based on current operation
+	// State
+	let prefersReducedMotion = $state(false);
+	let startTime = $state(Date.now());
+	let elapsedTime = $state(0);
+	let intervalId: ReturnType<typeof setInterval> | null = null;
+
+	// Derived values
+	const isVisible = $derived(globalLoadingStore.isLoading);
+	const progress = $derived(globalLoadingStore.progress);
+	const hasProgress = $derived(progress !== null && progress !== undefined);
+	const canCancel = $derived(globalLoadingStore.canCancel);
+
+	// Get contextual loading text
 	function getLoadingText(): LoadingText {
 		const reason = globalLoadingStore.loadingReason;
 
@@ -94,36 +107,149 @@
 		);
 	}
 
-	// Derived loading text
 	const loadingText = $derived(getLoadingText());
+
+	// Format elapsed time
+	function formatElapsedTime(ms: number): string {
+		const seconds = Math.floor(ms / 1000);
+		if (seconds < 60) return `${seconds}s`;
+		const minutes = Math.floor(seconds / 60);
+		const remainingSeconds = seconds % 60;
+		return `${minutes}m ${remainingSeconds}s`;
+	}
+
+	// Handle cancel
+	function handleCancel() {
+		if (canCancel && globalLoadingStore.onCancel) {
+			globalLoadingStore.onCancel();
+		}
+	}
+
+	// Track elapsed time
+	$effect(() => {
+		if (isVisible) {
+			startTime = Date.now();
+			elapsedTime = 0;
+
+			intervalId = setInterval(() => {
+				elapsedTime = Date.now() - startTime;
+			}, 100);
+
+			return () => {
+				if (intervalId) {
+					clearInterval(intervalId);
+					intervalId = null;
+				}
+			};
+		}
+	});
+
+	// Lifecycle
+	onMount(() => {
+		const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		prefersReducedMotion = mediaQuery.matches;
+
+		const handleChange = (e: MediaQueryListEvent) => {
+			prefersReducedMotion = e.matches;
+		};
+
+		mediaQuery.addEventListener('change', handleChange);
+		return () => mediaQuery.removeEventListener('change', handleChange);
+	});
 </script>
 
-<div
-	class="fixed inset-0 z-[99999999] flex items-center justify-center bg-gray-950/50 backdrop-blur-sm"
-	role="status"
-	aria-live="polite"
-	aria-busy="true"
-	aria-label="{loadingText.top} - {loadingText.bottom}"
->
-	<!-- Animated loading circles -->
-	<div class="loader loader-1" aria-hidden="true"></div>
-	<div class="loader loader-2" aria-hidden="true"></div>
-	<div class="loader loader-3" aria-hidden="true"></div>
-	<div class="loader loader-4" aria-hidden="true"></div>
+{#if isVisible}
+	<div
+		class="fixed inset-0 z-[99999999] flex items-center justify-center bg-gray-950/50 backdrop-blur-sm"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="loading-title"
+		aria-describedby="loading-description"
+		aria-busy="true"
+		transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
+	>
+		<!-- Animated loading circles (only if motion allowed) -->
+		{#if !prefersReducedMotion}
+			<div class="loader loader-1" aria-hidden="true"></div>
+			<div class="loader loader-2" aria-hidden="true"></div>
+			<div class="loader loader-3" aria-hidden="true"></div>
+			<div class="loader loader-4" aria-hidden="true"></div>
+		{/if}
 
-	<!-- Loading content -->
-	<div class="absolute flex flex-col items-center justify-center space-y-2 rounded-full bg-transparent p-6 text-center">
-		<p class="text-sm font-medium uppercase tracking-wide text-black dark:text-white">
-			{loadingText.top}
-		</p>
-		<div class="flex items-center justify-center">
-			<SveltyCMSLogo className="w-14 p-1" fill="red" />
+		<!-- Loading content -->
+		<div
+			class="absolute flex flex-col items-center justify-center space-y-3 rounded-2xl bg-white/90 p-8 shadow-2xl backdrop-blur-md dark:bg-gray-900/90"
+			transition:scale={{ duration: prefersReducedMotion ? 0 : 300, start: 0.9 }}
+		>
+			<!-- Top text -->
+			<p id="loading-title" class="text-sm font-medium uppercase tracking-wide text-gray-900 dark:text-white">
+				{loadingText.top}
+			</p>
+
+			<!-- Logo with animation -->
+			<div class="flex items-center justify-center {prefersReducedMotion ? '' : 'animate-pulse'}" aria-hidden="true">
+				<SveltyCMSLogo className="w-16 p-1" fill="red" />
+			</div>
+
+			<!-- Bottom text -->
+			<p id="loading-description" class="text-xs uppercase text-gray-700 dark:text-gray-300">
+				{loadingText.bottom}
+			</p>
+
+			<!-- Progress bar (if available) -->
+			{#if hasProgress}
+				<div class="w-full" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
+					<div class="mb-1 flex items-center justify-between text-xs">
+						<span class="text-gray-600 dark:text-gray-400">Progress</span>
+						<span class="font-medium text-primary-500">{Math.round(progress!)}%</span>
+					</div>
+					<div
+						class="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"
+						role="progressbar"
+						aria-valuenow={Math.round(progress!)}
+						aria-valuemin={0}
+						aria-valuemax={100}
+					>
+						<div
+							class="h-full rounded-full bg-gradient-to-r from-primary-500 to-tertiary-500 transition-all duration-300"
+							style="width: {progress}%"
+						></div>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Elapsed time (after 3 seconds) -->
+			{#if elapsedTime > 3000}
+				<div class="text-xs text-gray-500 dark:text-gray-400" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
+					Elapsed: {formatElapsedTime(elapsedTime)}
+				</div>
+			{/if}
+
+			<!-- Cancel button (if cancellable) -->
+			{#if canCancel}
+				<button
+					onclick={handleCancel}
+					class="variant-ghost-error btn btn-sm mt-2"
+					type="button"
+					transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
+				>
+					Cancel
+				</button>
+			{/if}
 		</div>
-		<p class="text-xs uppercase text-black opacity-80 dark:text-white">
-			{loadingText.bottom}
-		</p>
+
+		<!-- Screen reader announcement -->
+		<div class="sr-only" role="status" aria-live="polite" aria-atomic="true">
+			{loadingText.top}. {loadingText.bottom}.
+			{#if hasProgress}
+				Progress: {Math.round(progress!)} percent.
+			{/if}
+			{#if elapsedTime > 3000}
+				Elapsed time: {formatElapsedTime(elapsedTime)}.
+			{/if}
+		</div>
 	</div>
-</div>
+{/if}
 
 <style lang="postcss">
 	/* Base loader styles */
@@ -133,6 +259,8 @@
 		border-style: solid;
 		border-left-color: transparent;
 		border-right-color: transparent;
+		will-change: transform;
+		transform: translateZ(0); /* GPU acceleration */
 	}
 
 	/* Individual loader animations */
@@ -159,19 +287,26 @@
 	/* Rotation animations */
 	@keyframes rotate {
 		from {
-			transform: rotateZ(-360deg);
+			transform: translateZ(0) rotateZ(-360deg);
 		}
 		to {
-			transform: rotateZ(0deg);
+			transform: translateZ(0) rotateZ(0deg);
 		}
 	}
 
 	@keyframes rotate-reverse {
 		from {
-			transform: rotateZ(360deg);
+			transform: translateZ(0) rotateZ(360deg);
 		}
 		to {
-			transform: rotateZ(0deg);
+			transform: translateZ(0) rotateZ(0deg);
+		}
+	}
+
+	/* Respect reduced motion */
+	@media (prefers-reduced-motion: reduce) {
+		.loader {
+			animation: none !important;
 		}
 	}
 </style>

@@ -4,7 +4,7 @@
  * simplifies status management by deriving state directly from collectionValue.
  */
 
-import { collection, collectionValue, setCollectionValue } from '@src/stores/collectionStore.svelte';
+import { collections } from '@src/stores/collectionStore.svelte';
 import { updateEntryStatus } from '@src/utils/apiClient';
 import { showToast } from '@utils/toast';
 import type { StatusType } from '@src/content/types';
@@ -22,7 +22,7 @@ const statusState = $state({
  * Single source of truth: collectionValue.status
  */
 function getIsPublish(): boolean {
-	const cv = collectionValue.value;
+	const cv = collections.activeValue;
 
 	// 1. If we have an entry with explicit status, use it
 	if (cv?.status) {
@@ -30,7 +30,7 @@ function getIsPublish(): boolean {
 	}
 
 	// 2. Fall back to collection default status
-	const collectionStatus = collection.value?.status;
+	const collectionStatus = collections.active?.status;
 	const defaultStatus = collectionStatus || StatusTypes.unpublish;
 	return defaultStatus === StatusTypes.publish;
 }
@@ -42,13 +42,13 @@ const isPublish = $derived.by(getIsPublish);
  * Get current status as StatusType enum
  */
 function getCurrentStatus(): StatusType {
-	const cv = collectionValue.value;
+	const cv = collections.activeValue;
 
 	if (cv?.status) {
 		return cv.status as StatusType;
 	}
 
-	const collectionStatus = collection.value?.status;
+	const collectionStatus = collections.active?.status;
 	return (collectionStatus || StatusTypes.unpublish) as StatusType;
 }
 
@@ -109,13 +109,13 @@ export const statusStore = {
 
 		try {
 			// Case 1: Entry exists - update via API
-			if (collectionValue.value?._id && collection.value?._id) {
-				const result = await updateEntryStatus(String(collection.value._id), String(collectionValue.value._id), newStatus);
+			if (collections.activeValue?._id && collections.active?._id) {
+				const result = await updateEntryStatus(String(collections.active._id), String(collections.activeValue._id), newStatus);
 
 				if (result.success) {
 					// Update local state
-					setCollectionValue({
-						...collectionValue.value,
+					collections.setCollectionValue({
+						...collections.activeValue,
 						status: newStatus,
 						// Clear schedule when manually toggling
 						_scheduled: undefined
@@ -130,8 +130,8 @@ export const statusStore = {
 			}
 			// Case 2: New entry (no ID yet) - update local state only
 			else {
-				setCollectionValue({
-					...collectionValue.value,
+				collections.setCollectionValue({
+					...collections.activeValue,
 					status: newStatus
 				});
 
@@ -162,8 +162,8 @@ export const statusStore = {
 	 */
 	setStatusLocal(status: StatusType): void {
 		logger.debug(`[StatusStore] Setting status locally to ${status}`);
-		setCollectionValue({
-			...collectionValue.value,
+		collections.setCollectionValue({
+			...collections.activeValue,
 			status
 		});
 	},
@@ -179,6 +179,6 @@ export const statusStore = {
 	 * Check if entry is scheduled
 	 */
 	get isScheduled(): boolean {
-		return getCurrentStatus() === StatusTypes.schedule && !!collectionValue.value?._scheduled;
+		return getCurrentStatus() === StatusTypes.schedule && !!collections.activeValue?._scheduled;
 	}
 };

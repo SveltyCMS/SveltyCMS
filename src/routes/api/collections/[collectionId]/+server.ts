@@ -149,6 +149,26 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		// Also invalidate specific caches in ContentManager to ensure schema updates are reflected
 		await contentManager.invalidateSpecificCaches([schema.path || '', schema._id as string].filter(Boolean));
 
+		// Publish entryUpdated event
+		try {
+			// Dynamic import to avoid circular dependencies or initialization issues if any
+			const { pubSub } = await import('@src/services/pubSub');
+			pubSub.publish('entryUpdated', {
+				collection: schema.name || params.collectionId,
+				id: result.data._id,
+				action: 'create',
+				data: result.data,
+				timestamp: new Date().toISOString(),
+				user: {
+					_id: user._id,
+					username: user.username,
+					email: user.email
+				}
+			});
+		} catch (pubSubError) {
+			logger.warn('Failed to publish entryUpdated event', { error: pubSubError });
+		}
+
 		logger.info(`${endpoint} - Entry created successfully`, {
 			duration: `${duration.toFixed(2)}ms`,
 			collection: schema._id,

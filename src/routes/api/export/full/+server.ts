@@ -3,7 +3,7 @@ import { getAllSettings } from '@src/services/settingsService';
 import { logger } from '@utils/logger.server';
 import { encryptData } from '@utils/crypto';
 import { nanoid } from 'nanoid';
-import type { ExportOptions, ExportData, ExportMetadata, CollectionExport } from '@content/types';
+import type { ExportOptions, ExportData, ExportMetadata, CollectionExport, Schema } from '@content/types';
 import { dbAdapter } from '@src/databases/db';
 import { collections } from '@stores/collectionStore.svelte';
 
@@ -71,19 +71,19 @@ async function exportSettings(options: ExportOptions): Promise<{ settings: Recor
 async function exportCollections(options: ExportOptions): Promise<CollectionExport[]> {
 	logger.info('Exporting collections', { options });
 
-	const availableCollections = collections.value;
+	const availableCollections = (collections as any).all as Record<string, Schema>;
 	const exportedCollections: CollectionExport[] = [];
 
 	// Filter collections if specified
 	const targetCollections = options.collections
-		? Object.values(availableCollections).filter((c) => options.collections?.includes(c.name))
+		? Object.values(availableCollections).filter((c) => c.name && options.collections?.includes(c.name))
 		: Object.values(availableCollections);
 
 	for (const collection of targetCollections) {
 		const collectionExport: CollectionExport = {
-			id: collection._id,
-			name: collection.name,
-			label: collection.label || collection.name,
+			id: collection._id || '',
+			name: collection.name || '',
+			label: collection.label || collection.name || '',
 			fields: collection.fields,
 			schema: collection,
 			documents: []

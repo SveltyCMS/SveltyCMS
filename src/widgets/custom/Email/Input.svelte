@@ -28,10 +28,9 @@
 
 	// Stores
 	// Stores
-	import { validationStore } from '@stores/store.svelte';
-	import { contentLanguage } from '@stores/store.svelte';
+	import { app, validationStore } from '@stores/store.svelte';
 	import { collection } from '@src/stores/collectionStore.svelte';
-	import { activeInputStore } from '@src/stores/activeInputStore.svelte';
+	import { activeInput } from '@src/stores/activeInputStore.svelte';
 
 	// Utils
 	import { getFieldName } from '@utils/utils';
@@ -47,8 +46,9 @@
 	let { field, value = $bindable() }: Props = $props();
 
 	// Use current content language for translated fields, default for non-translated
+	// Use current content language for translated fields, default for non-translated
 	const fieldName = $derived(getFieldName(field));
-	const _language = $derived(field.translated ? contentLanguage.value : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Initialize value
 	$effect(() => {
@@ -138,10 +138,10 @@
 
 	// Handle focus events
 	function handleFocus(e: FocusEvent) {
-		// If the token picker is already open (activeInputStore has a value),
+		// If the token picker is already open (activeInput.current has a value),
 		// update it to point to this input.
-		if (activeInputStore.value) {
-			activeInputStore.set({
+		if (activeInput.current) {
+			activeInput.set({
 				element: e.currentTarget as HTMLInputElement,
 				field: {
 					name: field.db_fieldName,

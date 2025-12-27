@@ -1,28 +1,38 @@
 /**
  * @file src/routes/api/widgets/validate/+server.ts
- * @description API endpoint for validating collections against current widget state
+ * @description API endpoint for validating collections and widget integrity
  */
 import { contentManager } from '@src/content/ContentManager';
-import { error, json } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
+// Helper to calculate file processing hash (Placeholder for future implementation)
+// async function calculateWidgetHash(widgetName: string): Promise<string | null> { ... }
 
 export const GET: RequestHandler = async ({ locals, request, url }) => {
-	try {
-		const tenantId = request.headers.get('X-Tenant-ID') || locals.tenantId;
+	const start = performance.now();
+	const tenantId = request.headers.get('X-Tenant-ID') || locals.tenantId || 'default';
 
+	try {
 		// Get active widgets from query params (sent by client)
 		const activeWidgetsParam = url.searchParams.get('activeWidgets');
 		const activeWidgets = activeWidgetsParam ? activeWidgetsParam.split(',') : [];
+
+		logger.info('[API] Validation request started', { tenantId, activeWidgetsCount: activeWidgets.length });
 
 		// Get all collections from ContentManager, scoped by tenantId
 		const allCollections = contentManager.getCollections();
 
 		if (!allCollections || Object.keys(allCollections).length === 0) {
-			return json({ valid: 0, invalid: 0, warnings: [], tenantId });
+			return json({
+				success: true,
+				data: { valid: 0, invalid: 0, warnings: [], tenantId, integrityIssues: [] },
+				message: 'No collections found to validate'
+			});
 		}
 
 		const warnings: string[] = [];
+		const integrityIssues: string[] = [];
 		let validCollections = 0;
 		let invalidCollections = 0;
 
@@ -68,29 +78,54 @@ export const GET: RequestHandler = async ({ locals, request, url }) => {
 			}
 		}
 
-		logger.debug('Validated collections against widgets', {
+		// Security: Integrity Check (Placeholder for now)
+		// We would loop through active widgets and verify their signatures
+		if (activeWidgets.length > 0) {
+			// Example integrity check logic
+			// for (const widget of activeWidgets) {
+			// 	const hash = await calculateWidgetHash(widget);
+			// 	if (!hash) integrityIssues.push(`Integrity check failed for ${widget}`);
+			// }
+		}
+
+		const duration = performance.now() - start;
+		logger.info('[API] Validation completed', {
 			tenantId,
-			total: Object.keys(allCollections).length,
-			valid: validCollections,
-			invalid: invalidCollections,
-			warnings: warnings.length
+			stats: {
+				total: Object.keys(allCollections).length,
+				valid: validCollections,
+				invalid: invalidCollections,
+				warnings: warnings.length,
+				integrityIssues: integrityIssues.length
+			},
+			duration: `${duration.toFixed(2)}ms`
 		});
 
 		return json({
-			valid: validCollections,
-			invalid: invalidCollections,
-			warnings,
-			total: Object.keys(allCollections).length,
-			tenantId
+			success: true,
+			data: {
+				valid: validCollections,
+				invalid: invalidCollections,
+				warnings,
+				integrityIssues,
+				total: Object.keys(allCollections).length,
+				tenantId
+			},
+			message: 'Validation completed successfully'
 		});
 	} catch (err) {
-		const message = `Failed to validate collections against widgets: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
+		const duration = performance.now() - start;
+		const message = `Failed to validate collections: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
 
-		if (err instanceof Response) {
-			throw err;
-		}
-
-		throw error(500, message);
+		// Use standardized error response even for 500
+		return json(
+			{
+				success: false,
+				message: 'Internal Server Error',
+				error: message
+			},
+			{ status: 500 }
+		);
 	}
 };

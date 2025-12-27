@@ -19,7 +19,7 @@
  * - Describe the data contract for API endpoints related to content.
  */
 
-import type { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
+import type { WidgetRegistry as widgets } from '@stores/widgetStore.svelte';
 // Note: collectionSchemas may be used in the future for runtime validation
 
 // Auth
@@ -106,8 +106,8 @@ export interface ContentNode {
 }
 
 // Widget field type definition
-export type WidgetKeys = keyof typeof widgets;
-export type WidgetTypes = (typeof widgets)[WidgetKeys];
+export type WidgetKeys = keyof widgets;
+export type WidgetTypes = widgets[WidgetKeys];
 
 // Widget Definition is now imported from @widgets/types
 import type { WidgetDefinition } from '@widgets/types';

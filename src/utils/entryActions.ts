@@ -181,7 +181,7 @@ export async function saveEntry(entryData: Record<string, unknown>, publish: boo
 }
 
 // Deletes the currently active entry after confirmation
-export async function deleteCurrentEntry(_modalStore: ModalStore, isAdmin: boolean = false) {
+export async function deleteCurrentEntry(isAdmin: boolean = false) {
 	const entry = collectionValue.value;
 	const coll = collection.value;
 	if (!entry?._id || !coll?._id) {
@@ -334,7 +334,7 @@ export async function setEntryStatus(newStatus: StatusType) {
 }
 
 // Schedule entry for future publication with improved date picker integration
-export async function scheduleCurrentEntry(_modalStore: ModalStore, scheduledDate?: Date) {
+export async function scheduleCurrentEntry(scheduledDate?: Date) {
 	const entry = collectionValue.value;
 	const coll = collection.value;
 

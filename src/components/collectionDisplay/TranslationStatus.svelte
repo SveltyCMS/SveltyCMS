@@ -19,8 +19,8 @@ FIXES:
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { ProgressBar } from '@skeletonlabs/skeleton';
-	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
-	import { contentLanguage, translationProgress } from '@stores/store.svelte';
+	import { collections } from '@src/stores/collectionStore.svelte';
+	import { app } from '@stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
 	import * as m from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
@@ -61,8 +61,8 @@ FIXES:
 		return languages as Locale[];
 	});
 
-	const currentLanguage = $derived(contentLanguage.value);
-	const currentMode = $derived(mode.value);
+	const currentLanguage = $derived(app.contentLanguage);
+	const currentMode = $derived(collections.mode);
 	const isViewMode = $derived(currentMode === 'view');
 
 	const overallPercentage = $derived.by(() => {
@@ -70,12 +70,12 @@ FIXES:
 		return total > 0 ? Math.round((translated / total) * 100) : 0;
 	});
 
-	const showProgress = $derived(translationProgress.value?.show || completionTotals.total > 0);
+	const showProgress = $derived(app.translationProgress.show || completionTotals.total > 0);
 
 	// Calculate language-specific progress
 	const languageProgress = $derived.by(() => {
 		const progress: Record<string, number> = {};
-		const currentProgress = translationProgress.value;
+		const currentProgress = app.translationProgress;
 
 		for (const lang of availableLanguages) {
 			const langProgress = currentProgress?.[lang as Locale];
@@ -164,14 +164,16 @@ FIXES:
 		return [baseName];
 	}
 
+	import { SvelteSet } from 'svelte/reactivity';
+
 	// Initialize translation progress
 	function initializeTranslationProgress(currentCollection: { fields: unknown[]; name?: unknown; _id?: string }): void {
-		const newProgress: typeof translationProgress.value = { show: false };
+		const newProgress: typeof app.translationProgress = { show: false };
 
 		for (const lang of availableLanguages) {
 			newProgress[lang] = {
-				total: new Set<string>(),
-				translated: new Set<string>()
+				total: new SvelteSet<string>(),
+				translated: new SvelteSet<string>()
 			};
 		}
 
@@ -195,7 +197,7 @@ FIXES:
 		}
 
 		newProgress.show = hasTranslatableFields;
-		translationProgress.value = newProgress;
+		app.translationProgress = newProgress;
 	}
 
 	/**
@@ -206,14 +208,14 @@ FIXES:
 		currentCollection: { fields: unknown[]; name?: unknown },
 		currentCollectionValue: Record<string, any>
 	): void {
-		const newProgress = { ...translationProgress.value };
+		const newProgress = { ...app.translationProgress };
 		let hasUpdates = false;
 
 		for (const lang of availableLanguages) {
 			const originalLangProgress = newProgress[lang];
 			if (!originalLangProgress) continue;
 
-			const newTranslatedSet = new Set(originalLangProgress.translated);
+			const newTranslatedSet = new SvelteSet(originalLangProgress.translated);
 			let langHasUpdates = false;
 
 			for (const field of currentCollection.fields as { translated?: boolean; label: string; widget?: any }[]) {
@@ -269,14 +271,14 @@ FIXES:
 		}
 
 		if (hasUpdates) {
-			translationProgress.value = newProgress;
+			app.translationProgress = newProgress;
 			calculateCompletionTotals();
 		}
 	}
 
 	// Calculate overall completion totals
 	function calculateCompletionTotals(): void {
-		const progress = translationProgress.value;
+		const progress = app.translationProgress;
 		let total = 0;
 		let translated = 0;
 
@@ -310,8 +312,8 @@ FIXES:
 	}
 
 	function handleLanguageChange(selectedLanguage: Locale): void {
-		logger.debug('[TranslationStatus] Language change:', contentLanguage.value, '→', selectedLanguage);
-		contentLanguage.set(selectedLanguage);
+		logger.debug('[TranslationStatus] Language change:', app.contentLanguage, '→', selectedLanguage);
+		app.contentLanguage = selectedLanguage;
 		isOpen = false;
 
 		if (typeof window !== 'undefined') {
@@ -338,9 +340,9 @@ FIXES:
 		const target = event.target as HTMLSelectElement;
 		const selectedLanguage = target.value as Locale;
 
-		contentLanguage.set(selectedLanguage);
+		app.contentLanguage = selectedLanguage;
 
-		const currentCollectionId = collection.value?._id;
+		const currentCollectionId = collections.active?._id;
 		const currentSearch = page.url.search;
 
 		if (currentCollectionId) {
@@ -375,8 +377,8 @@ FIXES:
 	let lastCollectionId = $state<string | undefined>(undefined);
 
 	$effect(() => {
-		const currentCollection = collection.value;
-		const currentEntry = collectionValue.value as { _id?: string } | undefined;
+		const currentCollection = collections.active;
+		const currentEntry = collections.activeValue as { _id?: string } | undefined;
 		const entryId = currentEntry?._id;
 		const collectionId = currentCollection?._id;
 
@@ -411,8 +413,8 @@ FIXES:
 
 	let lastCollectionValueStr = $state<string>('');
 	$effect(() => {
-		const currentCollection = collection.value;
-		const currentCollectionValue = collectionValue.value as Record<string, any>;
+		const currentCollection = collections.active;
+		const currentCollectionValue = collections.activeValue as Record<string, any>;
 
 		if (currentCollection?.fields && currentCollectionValue && Object.keys(currentCollectionValue).length > 0 && isInitialized) {
 			const currentStr = JSON.stringify(currentCollectionValue);
@@ -450,38 +452,28 @@ FIXES:
 		{/if}
 	</select>
 {:else}
-	<div class="translation-status-container relative mt-1 inline-block text-left">
-		<div>
-			<button
-				type="button"
-				onclick={toggleDropdown}
-				class="variant-outline-surface btn flex w-full items-center gap-1 p-1.5 transition-all duration-200 hover:scale-105"
-				aria-haspopup="true"
-				aria-expanded={isOpen}
-				aria-controls="translation-menu"
-				aria-label="Toggle language menu"
-			>
-				<span class="font-medium">{currentLanguage.toUpperCase()}</span>
-				<iconify-icon
-					icon="mdi:chevron-down"
-					class="h-5 w-5 transition-transform duration-200"
-					style="transform: rotate({isOpen ? 180 : 0}deg);"
-					aria-hidden="true"
-				></iconify-icon>
-			</button>
-
-			<div class="mt-0.5 transition-all duration-300">
-				<ProgressBar
-					class="variant-outline-secondary transition-all duration-300 hover:shadow-sm"
-					value={overallPercentage}
-					meter={getProgressColor(overallPercentage)}
-					aria-label={m.translationsstatus_overall_progress({ percentage: overallPercentage })}
-				/>
-				<div class="mt-1 text-center text-xs text-tertiary-500 dark:text-primary-500">
-					{overallPercentage}% {m.translationsstatus_completed()}
-				</div>
-			</div>
-		</div>
+	<!-- Edit/Create mode: Show button with dropdown -->
+	<div class="translation-status-container relative inline-block text-left">
+		<button
+			type="button"
+			onclick={(e) => {
+				e.stopPropagation();
+				toggleDropdown();
+			}}
+			class="variant-outline-surface btn flex items-center gap-1 p-1.5 transition-all duration-200 hover:scale-105"
+			aria-haspopup="true"
+			aria-expanded={isOpen}
+			aria-controls="translation-menu"
+			aria-label="Toggle language menu"
+		>
+			<span class="font-medium">{currentLanguage.toUpperCase()}</span>
+			<iconify-icon
+				icon="mdi:chevron-down"
+				class="h-5 w-5 transition-transform duration-200"
+				style="transform: rotate({isOpen ? 180 : 0}deg);"
+				aria-hidden="true"
+			></iconify-icon>
+		</button>
 	</div>
 {/if}
 
@@ -520,7 +512,7 @@ FIXES:
 								{/if}
 							</span>
 
-							{#if showProgress && translationProgress.value?.[lang as Locale]}
+							{#if showProgress && app.translationProgress?.[lang as Locale]}
 								<div class="ml-2 flex flex-1 items-center gap-2">
 									<div class="flex-1">
 										<ProgressBar class="transition-all duration-300" value={percentage} meter={getProgressColor(percentage)} aria-hidden="true" />
@@ -541,7 +533,7 @@ FIXES:
 						{m.translationsstatus_completed()}
 					</div>
 					<div class="flex items-center justify-between gap-3">
-						{#if overallPercentage}
+						{#if overallPercentage !== undefined}
 							<div class="flex-1">
 								<ProgressBar
 									class="transition-all duration-300"

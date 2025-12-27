@@ -47,9 +47,9 @@ Features:
 	// Stores
 	import { collection, collectionValue, mode, setCollectionValue, setMode, setModifyEntry, statusMap } from '@stores/collectionStore.svelte';
 	// DELETED: globalLoadingStore imports - not needed with SSR
-	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
-	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
-	import { handleUILayoutToggle, toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
+	import { screen } from '@stores/screenSizeStore.svelte';
+	import { app } from '@stores/store.svelte';
+	import { ui } from '@stores/UIStore.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -341,11 +341,11 @@ Features:
 	let filterShow = $state(false);
 	let columnShow = $state(false);
 	const currentStates = $derived.by(() => ({
-		language: contentLanguage.value,
-		systemLanguage: systemLanguage.value,
+		language: app.contentLanguage,
+		systemLanguage: app.systemLanguage,
 		mode: mode.value,
 		collection: collection.value,
-		screenSize: screenSize.value
+		screenSize: screen.size
 	}));
 
 	// Initialize globalSearchValue from URL parameter on mount/navigation
@@ -578,7 +578,7 @@ Features:
 
 		// 3. Toggle UI
 		await Promise.resolve();
-		handleUILayoutToggle();
+		ui.forceUpdate();
 
 		logger.debug('[Create] INSTANT - New entry mode');
 	};
@@ -684,11 +684,11 @@ Features:
 		<!-- Row 1 for Mobile -->
 		<div class="flex items-center justify-between">
 			<!-- Hamburger -->
-			{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
+			{#if ui.state.leftSidebar === 'hidden'}
 				<button
 					type="button"
 					onkeydown={() => {}}
-					onclick={() => toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed')}
+					onclick={() => ui.toggle('leftSidebar', screen.isDesktop ? 'full' : 'collapsed')}
 					aria-label="Open Sidebar"
 					class="variant-ghost-surface btn-icon mt-1"
 				>
@@ -697,7 +697,7 @@ Features:
 			{/if}
 
 			<!-- Collection type with icon -->
-			<div class="mr-1 flex flex-col {!uiStateManager.uiState.value.leftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
+			<div class="mr-1 flex flex-col {!ui.state.leftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
 				{#if categoryName}
 					<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
 						{categoryName}
@@ -732,12 +732,12 @@ Features:
 				<iconify-icon icon="material-symbols:filter-list-rounded" width="30"> </iconify-icon>
 			</button>
 
-			<!-- Translation Content Language -->
+			<!-- Translation Content Language - Mobile -->
 			<div class="mt-1 sm:hidden">
 				<TranslationStatus />
 			</div>
 
-			<!-- Table Filter with Translation Content Language -->
+			<!-- Table Filter with Translation Content Language - Desktop -->
 			<div class="relative mt-1 hidden items-center justify-center gap-2 sm:flex">
 				<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density={entryListPaginationSettings.density} />
 				<TranslationStatus />

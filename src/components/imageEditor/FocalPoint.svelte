@@ -27,7 +27,13 @@ A component that renders a draggable focal point crosshair on a Konva stage.
 		const group = new Konva.Group({
 			draggable: true,
 			x: x !== undefined ? imageNode.getClientRect().x + (imageNode.getClientRect().width * x) / 100 : stage.width() / 2,
-			y: y !== undefined ? imageNode.getClientRect().y + (imageNode.getClientRect().height * y) / 100 : stage.height() / 2
+			y: y !== undefined ? imageNode.getClientRect().y + (imageNode.getClientRect().height * y) / 100 : stage.height() / 2,
+			dragBoundFunc: (pos) => {
+				const imageRect = imageNode.getClientRect();
+				const x = Math.max(imageRect.x, Math.min(imageRect.x + imageRect.width, pos.x));
+				const y = Math.max(imageRect.y, Math.min(imageRect.y + imageRect.height, pos.y));
+				return { x, y };
+			}
 		});
 
 		const circle = new Konva.Circle({
@@ -58,8 +64,12 @@ A component that renders a draggable focal point crosshair on a Konva stage.
 			const imageRect = imageNode.getClientRect();
 
 			// Calculate position relative to the image, as a percentage
-			const x = ((pos.x - imageRect.x) / imageRect.width) * 100;
-			const y = ((pos.y - imageRect.y) / imageRect.height) * 100;
+			let x = ((pos.x - imageRect.x) / imageRect.width) * 100;
+			let y = ((pos.y - imageRect.y) / imageRect.height) * 100;
+
+			// Clamp values
+			x = Math.max(0, Math.min(100, x));
+			y = Math.max(0, Math.min(100, y));
 
 			onapply({ x: Math.round(x), y: Math.round(y) });
 		});

@@ -30,13 +30,13 @@ graph TB
     subgraph "System Language (UI)"
         ParaglideJS[ParaglideJS]
         UIMessages[messages.js]
-        SystemLang[systemLanguage Store]
+        SystemLang[app.systemLanguage]
         AdminInterface[Admin Interface]
     end
 
     subgraph "Content Language (Data)"
         DynamicSettings[System Settings]
-        ContentLang[contentLanguage Store]
+        ContentLang[app.contentLanguage]
         WidgetSystem[Widget System]
         Database[(Database)]
     end
@@ -166,7 +166,7 @@ src/
 ```svelte
 <script lang="ts">
 	import * as m from '@src/paraglide/messages';
-	import { systemLanguage } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 
 	let userName = 'Alice';
 </script>
@@ -237,7 +237,7 @@ src/
 
 4. **Update language switcher UI:**
    ```svelte
-   <select bind:value={systemLanguage.value}>
+   <select bind:value={app.systemLanguage}>
    	<option value="en">English</option>
    	<option value="de">Deutsch</option>
    	<option value="fr">Français</option>
@@ -299,11 +299,11 @@ let _contentLanguage = $state<Locale>(initialContentLanguage);
 ```svelte
 <!-- TranslationStatus.svelte - Recommended: Anchor tag dropdown -->
 <script lang="ts">
-	import { contentLanguage } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 
 	function handleLanguageChange(newLang: string) {
-		// Update store (syncs with server on navigation)
-		contentLanguage.set(newLang);
+		// Update singleton (syncs with server on navigation)
+		app.contentLanguage = newLang;
 	}
 </script>
 
@@ -314,7 +314,7 @@ let _contentLanguage = $state<Locale>(initialContentLanguage);
 		data-sveltekit-preload-data="hover"
 		data-sveltekit-reload
 		onclick={() => handleLanguageChange(lang)}
-		class:active={lang === contentLanguage.value}>
+		class:active={lang === app.contentLanguage}>
 		{lang.toUpperCase()}
 	</a>
 {/each}
@@ -322,9 +322,10 @@ let _contentLanguage = $state<Locale>(initialContentLanguage);
 <!-- Alternative: Programmatic navigation for complex dropdowns -->
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
+	import { app } from '@stores/store.svelte';
 
 	async function switchLanguage(newLang: string) {
-		contentLanguage.set(newLang);
+		app.contentLanguage = newLang;
 
 		// Use goto() when you need special navigation options
 		await goto(`/${newLang}/${collectionPath}`, { invalidateAll: true });
@@ -333,7 +334,7 @@ let _contentLanguage = $state<Locale>(initialContentLanguage);
 
 <select onchange={(e) => switchLanguage(e.currentTarget.value)}>
 	{#each AVAILABLE_CONTENT_LANGUAGES as lang}
-		<option value={lang} selected={lang === contentLanguage.value}>
+		<option value={lang} selected={lang === app.contentLanguage}>
 			{lang.toUpperCase()}
 		</option>
 	{/each}
@@ -376,8 +377,8 @@ export async function load({ params }) {
 
 	// Keep client store in sync with URL/server
 	$effect(() => {
-		if (serverContentLanguage !== contentLanguage.value) {
-			contentLanguage.set(serverContentLanguage);
+		if (serverContentLanguage !== app.contentLanguage) {
+			app.contentLanguage = serverContentLanguage;
 		}
 	});
 </script>
@@ -581,7 +582,7 @@ Widgets always work with the normalized format, regardless of database:
 ```svelte
 <!-- src/widgets/core/input/Input.svelte -->
 <script lang="ts">
-	import { contentLanguage } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 	import { DEFAULT_CONTENT_LANGUAGE } from '@src/utils/constants';
 
 	interface Props {
@@ -592,7 +593,7 @@ Widgets always work with the normalized format, regardless of database:
 	let { field, value = $bindable() }: Props = $props();
 
 	// Determine which language to display
-	const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
+	const _language = $derived(field.translated ? app.contentLanguage : DEFAULT_CONTENT_LANGUAGE);
 
 	// Extract language-specific value
 	const safeValue = $derived(
@@ -647,7 +648,7 @@ Widgets always work with the normalized format, regardless of database:
 1. User clicks language dropdown
 2. Selects "DE" (German)
 3. URL changes to `/de/blog-posts`
-4. `contentLanguage.set('de')`
+4. `app.contentLanguage = 'de'`
 5. Server reloads with `contentLanguage: 'de'`
 6. Same entry shows EMPTY fields (no German yet)
 7. User enters German text:
@@ -706,7 +707,7 @@ Same process:
 The `TranslationStatus` component shows completion percentage:
 
 ```svelte
-<TranslationStatus entry={currentEntry} availableLanguages={['en', 'de', 'fr', 'es']} currentLanguage={contentLanguage.value} />
+<TranslationStatus entry={currentEntry} availableLanguages={['en', 'de', 'fr', 'es']} currentLanguage={app.contentLanguage} />
 
 <!-- Displays:
   EN: 100% ✅ (3/3 translated fields filled)
@@ -773,7 +774,7 @@ if (!AVAILABLE_CONTENT_LANGUAGES.includes(params.language)) {
 **5. Use Derived Values in Widgets:**
 
 ```typescript
-const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
+const _language = $derived(field.translated ? app.contentLanguage : DEFAULT_CONTENT_LANGUAGE);
 ```
 
 ### ❌ DON'T:
@@ -782,14 +783,14 @@ const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CO
 
 ```typescript
 const title = value.en; // ❌ Hardcoded language
-const title = value[contentLanguage.value]; // ✅ Dynamic
+const title = value[app.contentLanguage]; // ✅ Dynamic
 ```
 
 **2. Don't Mix UI and Content Languages:**
 
 ```typescript
 // ❌ WRONG: Using contentLanguage for UI text
-<button>{contentLanguage.value === 'en' ? 'Save' : 'Speichern'}</button>
+<button>{app.contentLanguage === 'en' ? 'Save' : 'Speichern'}</button>
 
 // ✅ CORRECT: Use ParaglideJS messages
 <button>{m.save_button()}</button>
