@@ -65,7 +65,6 @@ latest version available on GitHub with comprehensive status reporting.
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 	let lastChecked = $state<number | null>(null);
-	// Removed unused retryCount
 	let checkInterval: ReturnType<typeof setInterval> | null = null;
 
 	// Derived state for full status object
