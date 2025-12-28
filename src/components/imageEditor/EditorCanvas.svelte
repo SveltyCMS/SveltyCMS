@@ -29,7 +29,7 @@ for the image editor canvas with responsive behavior.
 		children?: Snippet;
 	} = $props();
 
-	let mounted = $derived(false);
+	let mounted = $state(false);
 
 	$effect(() => {
 		mounted = true;
