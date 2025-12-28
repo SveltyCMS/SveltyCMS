@@ -47,7 +47,6 @@ Advanced permission management interface with bulk actions and presets.
 	// State
 	let error = $state<string | null>(null);
 	let searchQuery = $state('');
-	// Removed unused selectedPreset
 	let showBulkActions = $state(false);
 	let prefersReducedMotion = $state(false);
 	let historyIndex = $state(-1);
