@@ -18,15 +18,38 @@ import { createWidget } from '@src/widgets/widgetFactory';
 import { object, optional, pipe, string, custom, type InferInput } from 'valibot';
 import type { RichTextProps } from './types';
 
+// Helper to strip HTML-like tags and angle brackets from a string.
+// This is intentionally aggressive and is only used for "is empty" checks,
+// not for producing HTML to render.
+const stripHtmlTags = (html: string): string => {
+	if (!html) return '';
+
+	let previous: string;
+	let current = html;
+
+	// Repeatedly remove tags like <tag ...> until no more matches remain.
+	// This avoids issues where a single multi-character replacement
+	// can cause previously hidden patterns to reappear.
+	do {
+		previous = current;
+		current = current.replace(/<[^>]*>/g, '');
+	} while (current !== previous);
+
+	// Remove any remaining angle brackets to avoid partial tag fragments
+	// such as "<script" surviving the stripping process.
+	current = current.replace(/[<>]/g, '');
+
+	return current;
+};
+
 // Helper to check if HTML content is effectively empty.
 // NOTE: Input.svelte already sanitizes with DOMPurify before storage,
 // so we don't need to remove scripts here (defense-in-depth handled upstream)
 const isContentEmpty = (html: string) => {
 	if (!html) return true;
 
-	// Strip all HTML tags to check for actual text content
-	// Single pass is safe since Input.svelte sanitizes on storage
-	const stripped = html.replace(/<[^>]+>/g, '').trim();
+	// Strip all HTML tags and angle brackets to check for actual text content.
+	const stripped = stripHtmlTags(html).trim();
 
 	return stripped.length === 0;
 };
