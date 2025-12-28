@@ -124,10 +124,11 @@ class UIStore {
 		}
 
 		if (this.routeContext.isCollectionBuilder) {
+			// Collection builder should be like VIEW mode: no HeaderEdit, full sidebar
 			this.state = {
-				leftSidebar: 'collapsed',
+				leftSidebar: 'full',
 				rightSidebar: 'hidden',
-				pageheader: 'full',
+				pageheader: 'hidden', // No HeaderEdit in collection builder
 				pagefooter: 'hidden',
 				header: 'hidden',
 				footer: 'hidden'
@@ -196,8 +197,17 @@ class UIStore {
 	 * Set route context for special layouts
 	 */
 	setRouteContext(ctx: { isImageEditor?: boolean; isCollectionBuilder?: boolean }): void {
-		Object.assign(this.routeContext, ctx);
-		this.forceUpdate();
+		let changed = false;
+		for (const key in ctx) {
+			const k = key as keyof typeof ctx;
+			if (this.routeContext[k] !== ctx[k]) {
+				this.routeContext[k] = ctx[k] ?? false; // Fallback to false if undefined
+				changed = true;
+			}
+		}
+		if (changed) {
+			this.forceUpdate();
+		}
 	}
 
 	/**

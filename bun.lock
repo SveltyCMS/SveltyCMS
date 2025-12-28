@@ -8,6 +8,7 @@
         "@aws-sdk/client-s3": "^3.958.0",
         "@floating-ui/dom": "^1.7.4",
         "@inlang/paraglide-js": "^2.7.1",
+        "@keenmate/svelte-treeview": "^4.5.0-rc01",
         "@mapbox/mapbox-gl-geocoder": "^5.1.2",
         "@mapbox/mapbox-gl-language": "^1.0.1",
         "@tailwindcss/forms": "^0.5.11",
@@ -48,13 +49,14 @@
         "deepmerge": "^4.3.1",
         "drizzle-orm": "^0.45.1",
         "file-type": "^21.2.0",
+        "flexsearch": "^0.8.212",
         "google-auth-library": "^10.5.0",
         "googleapis": "^169.0.0",
         "graphql": "^16.12.0",
         "graphql-ws": "^6.0.6",
         "graphql-yoga": "^5.18.0",
         "iconify-icon": "^3.0.2",
-        "isomorphic-dompurify": "^2.34.0",
+        "isomorphic-dompurify": "^2.35.0",
         "konva": "^10.0.12",
         "mapbox-gl": "^3.17.0",
         "mime-types": "^3.0.2",
@@ -460,6 +462,8 @@
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
+
+    "@keenmate/svelte-treeview": ["@keenmate/svelte-treeview@4.5.0-rc01", "", { "optionalDependencies": { "flexsearch": "^0.8.212" }, "peerDependencies": { "svelte": "^5.0.0" } }, "sha512-6lBdBS2RtcVxDSfYPv4FiMr++b+fUc3ibF8eMzxOw4KVjGs9O0J5xnVBDE8n3LkZ2UfUIjuFx9DD+lpsbZY+7Q=="],
 
     "@kurkle/color": ["@kurkle/color@0.3.4", "", {}, "sha512-M5UknZPHRu3DEDWoipU6sE8PdkZ6Z/S+v4dD+Ke8IaNlpdSQah50lz1KtcFBa2vsdOnwbbnxJwVM4wty6udA5w=="],
 
@@ -1382,6 +1386,8 @@
     "flat-cache": ["flat-cache@4.0.1", "", { "dependencies": { "flatted": "^3.2.9", "keyv": "^4.5.4" } }, "sha512-f7ccFPK3SXFHpx15UIGyRJ/FJQctuKZ0zVuN3frBo4HnK3cay9VEW0R6yPYFHC0AgqhukPzKjq22t5DmAyqGyw=="],
 
     "flatted": ["flatted@3.3.3", "", {}, "sha512-GX+ysw4PBCz0PzosHDepZGANEuFCMLrnRTiEy9McGjmkCQYwRq4A/X786G/fjM/+OjsWSU1ZrY5qyARZmO/uwg=="],
+
+    "flexsearch": ["flexsearch@0.8.212", "", {}, "sha512-wSyJr1GUWoOOIISRu+X2IXiOcVfg9qqBRyCPRUdLMIGJqPzMo+jMRlvE83t14v1j0dRMEaBbER/adQjp6Du2pw=="],
 
     "follow-redirects": ["follow-redirects@1.15.11", "", {}, "sha512-deG2P0JfjrTxl50XGCDyfI97ZGVCxIpfKYmfyrQ54n5FO/0gfIES8C/Psl6kWVDolizcaaxZJnTS0QSMxvnsBQ=="],
 

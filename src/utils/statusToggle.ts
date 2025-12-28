@@ -1,6 +1,9 @@
 /**
  * @file src/utils/statusToggle.ts
  * @description Utility functions for status toggle operations
+ *
+ * This module provides functions for toggling entry status between publish and unpublish.
+ * It includes functions for getting initial publish status and toggling entry status.
  */
 
 import type { StatusType } from '@src/content/types';

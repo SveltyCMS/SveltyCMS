@@ -80,15 +80,27 @@ It handles widget configuration, permissions, and specific options.
 
 {#if modalData}
 	<div class={cBase}>
-		<header class={cHeader}>
-			{modalData?.title ?? '(title missing)'}
+		<header class="flex items-center justify-between border-b border-surface-500/30 pb-4">
+			<div>
+				<h2 class={cHeader}>
+					{m.widget_configuration_title()}
+				</h2>
+				<p class="text-sm opacity-70">
+					Configuring <span class="font-bold text-primary-500">{modalData?.value?.label || 'New Field'}</span>
+					({modalData?.value?.widget?.Name || 'Unknown Widget'})
+				</p>
+			</div>
+			
+			<div class="flex gap-2">
+				<button type="button" aria-label={m.button_cancel()} class="btn-icon variant-ghost" onclick={parent.onClose}>
+					<iconify-icon icon="mdi:close" width="24"></iconify-icon>
+				</button>
+			</div>
 		</header>
-		<article class="text-center">
-			{modalData?.body ?? '(body missing)'}
-		</article>
-
-		<!-- Tabs Headers -->
-		<form class={cForm}>
+		
+		<!-- Scrollable Content -->
+		<div class="flex-1 overflow-y-auto pr-2">
+			<form class="{cForm} border-none !p-0 shadow-none">
 			<TabGroup justify="justify-between lg:justify-start">
 				<!-- Default Tab -->
 				<Tab bind:group={localTabSet} name="tab1" value={0}>

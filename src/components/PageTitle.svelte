@@ -51,6 +51,7 @@
 
 	type DefaultBehaviorFn = () => void;
 
+	// Props
 	interface Props {
 		name: string;
 		highlight?: string;
@@ -61,6 +62,7 @@
 		backUrl?: string;
 		truncate?: boolean;
 		onBackClick?: (defaultBehavior: DefaultBehaviorFn) => void;
+		children?: import('svelte').Snippet; // For action buttons
 	}
 
 	const {
@@ -72,7 +74,8 @@
 		showBackButton = false,
 		backUrl = '',
 		truncate = true,
-		onBackClick
+		onBackClick,
+		children
 	}: Props = $props();
 
 	const titleParts = $derived(() => {
@@ -140,30 +143,38 @@
 			</span>
 		</h1>
 	</div>
-	{#if showBackButton}
-		{#if backUrl}
-			<a
-				href={backUrl}
-				aria-label="Go back"
-				class="variant-outline-tertiary btn-icon shrink-0 dark:variant-outline-primary"
-				style="min-width: 48px; min-height: 48px;"
-				data-cms-action="back"
-				data-sveltekit-preload-data="hover"
-				onclick={(e) => handleBackClick(e)}
-			>
-				<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
-			</a>
-		{:else}
-			<button
-				onclick={(e) => handleBackClick(e)}
-				aria-label="Go back"
-				tabindex="0"
-				class="variant-outline-tertiary btn-icon shrink-0 dark:variant-outline-primary"
-				style="min-width: 48px; min-height: 48px;"
-				data-cms-action="back"
-			>
-				<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
-			</button>
+
+	<div class="flex items-center gap-2">
+		<!-- Action Buttons -->
+		{#if children}
+			{@render children()}
 		{/if}
-	{/if}
+
+		{#if showBackButton}
+			{#if backUrl}
+				<a
+					href={backUrl}
+					aria-label="Go back"
+					class="variant-outline-tertiary btn-icon shrink-0 dark:variant-outline-primary"
+					style="min-width: 48px; min-height: 48px;"
+					data-cms-action="back"
+					data-sveltekit-preload-data="hover"
+					onclick={(e) => handleBackClick(e)}
+				>
+					<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
+				</a>
+			{:else}
+				<button
+					onclick={(e) => handleBackClick(e)}
+					aria-label="Go back"
+					tabindex="0"
+					class="variant-outline-tertiary btn-icon shrink-0 dark:variant-outline-primary"
+					style="min-width: 48px; min-height: 48px;"
+					data-cms-action="back"
+				>
+					<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
+				</button>
+			{/if}
+		{/if}
+	</div>
 </div>

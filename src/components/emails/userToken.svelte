@@ -26,8 +26,7 @@
 		languageTag?: string;
 	}
 
-	const lang = $derived(app.systemLanguage);
-	const { email = '', role = '', token = '', tokenLink = '', expiresInLabel = '', languageTag = lang }: Props = $props();
+	const { email = '', role = '', token = '', tokenLink = '', expiresInLabel = '', languageTag = app.systemLanguage }: Props = $props();
 
 	// Use production host logo if available, otherwise fall back to GitHub
 	const logoSrc = publicEnv?.HOST_PROD

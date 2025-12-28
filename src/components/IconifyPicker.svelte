@@ -102,12 +102,59 @@ Advanced icon picker with search, pagination, and favorites.
 		return Object.entries(iconLibraries).sort(([, a], [, b]) => a.name.localeCompare(b.name));
 	});
 
+	let visibleLimit = $state(50);
+
 	// Display icons based on active tab
 	const displayIcons = $derived.by(() => {
 		if (activeTab === 'favorites') return favorites;
 		if (activeTab === 'recent') return recentSelections;
-		return icons;
+
+		// If searching (API results), 'icons' is usually just the current page
+		// BUT if browsing (all icons), we slice.
+		// Since we now use infinite scroll for everything:
+		return icons.slice(0, visibleLimit);
 	});
+
+	// Intersection Observer Action for Infinite Scroll
+	function intersectionObserverAction(node: HTMLElement) {
+		const observer = new IntersectionObserver((entries) => {
+			if (entries[0].isIntersecting) {
+				loadMore();
+			}
+		});
+
+		observer.observe(node);
+
+		return {
+			destroy() {
+				observer.disconnect();
+			}
+		};
+	}
+
+	function loadMore() {
+		// If browsing (all icons loaded), just increase visible limit
+		if (icons.length > visibleLimit) {
+			visibleLimit += 50;
+		}
+		// If searching (API pagination), fetch more
+		else if (hasSearchQuery || selectedLibrary === '') {
+			// Logic to fetch next page from API and append (requires searchIcons to append)
+			// For simplicity, we can ignore this for now if searchTokens returns 50 at a time
+			// But since we removed Page Next/Prev buttons, we SHOULD implement API pagination here.
+			// Let's assume searchIcons handles appending if we pass a flag?
+			// Actually, let's keep it simple: Browse is infinite scroll local, Search is infinite scroll remote?
+			// Refactoring searchIcons to append:
+			if (!isLoading) {
+				currentPage++;
+				searchIcons(searchQuery, selectedLibrary, true); // true = append
+			}
+		}
+	}
+
+	function handleScroll(e: Event) {
+		// keeping this if needed for manual scroll handling, but IntersectionObserver is better
+	}
 
 	// Debounced search
 	function debouncedSearch(query: string, library: string): void {
@@ -128,10 +175,12 @@ Advanced icon picker with search, pagination, and favorites.
 	}
 
 	// Fetch icons from Iconify API
-	async function searchIcons(query: string, library: string): Promise<void> {
+	async function searchIcons(query: string, library: string, append: boolean = false): Promise<void> {
+		// If no query, load the library's icons instead of clearing
 		if (!query.trim()) {
-			icons = [];
-			isLoading = false;
+			if (library && !append) {
+				await fetchCollectionIcons(library);
+			}
 			return;
 		}
 
@@ -141,7 +190,10 @@ Advanced icon picker with search, pagination, and favorites.
 		try {
 			const url = new URL(`${ICONIFY_API_BASE}/search`);
 			url.searchParams.set('query', query);
-			url.searchParams.set('prefix', library || DEFAULT_LIBRARY);
+			// Only set prefix if a specific library is selected
+			if (library) {
+				url.searchParams.set('prefix', library);
+			}
 			url.searchParams.set('start', startIndex.toString());
 			url.searchParams.set('limit', ICONS_PER_PAGE.toString());
 
@@ -161,15 +213,27 @@ Advanced icon picker with search, pagination, and favorites.
 			const data: IconSearchResponse = await response.json();
 
 			if (data?.icons && Array.isArray(data.icons)) {
-				icons = data.icons;
+				const newIcons = data.icons;
+
+				if (append) {
+					icons = [...icons, ...newIcons];
+					visibleLimit += newIcons.length; // Ensure they are visible
+				} else {
+					icons = newIcons;
+					visibleLimit = 50;
+					currentPage = 0;
+				}
 
 				// Preload icons for better UX
-				const iconIds = icons.map((icon) => `${data.prefix || library}:${icon}`);
+				const iconIds = newIcons.map((icon) => {
+					// If global search, icon already includes prefix
+					return library ? `${library}:${icon}` : icon;
+				});
 				await loadIcons(iconIds);
 
 				activeTab = 'search';
 			} else {
-				icons = [];
+				if (!append) icons = [];
 			}
 		} catch (error) {
 			if (error instanceof Error && error.name === 'AbortError') {
@@ -179,6 +243,47 @@ Advanced icon picker with search, pagination, and favorites.
 				searchError = 'Failed to fetch icons';
 			}
 			icons = [];
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	// Fetch all icons for a specific collection (browsing mode)
+	async function fetchCollectionIcons(library: string): Promise<void> {
+		isLoading = true;
+		searchError = null;
+		icons = [];
+
+		try {
+			const response = await fetch(`${ICONIFY_API_BASE}/collection?prefix=${library}`);
+			if (!response.ok) throw new Error(`Failed to load collection: ${response.status}`);
+
+			const data = await response.json();
+
+			// Flatten the collection data into a simple list of icon names
+			let allIcons: string[] = [];
+
+			// Add uncategorized
+			if (data.uncategorized) {
+				allIcons.push(...data.uncategorized);
+			}
+
+			// Add categorized
+			if (data.categories) {
+				Object.values(data.categories).forEach((categoryIcons: any) => {
+					allIcons.push(...categoryIcons);
+				});
+			}
+
+			// Add hidden/aliases if needed, but usually main icons are enough
+
+			icons = allIcons;
+			visibleLimit = 50; // Reset for new collection
+			// Reset to page 0 for new collection
+			// currentPage = 0; // Don't reset here, handled by caller if needed
+		} catch (error) {
+			logger.error('Error fetching collection icons:', error);
+			searchError = 'Failed to load library icons';
 		} finally {
 			isLoading = false;
 		}
@@ -286,6 +391,14 @@ Advanced icon picker with search, pagination, and favorites.
 	function handleFocus(): void {
 		showDropdown = true;
 		fetchIconLibraries();
+		// If we have no icons yet, try to load something
+		if (icons.length === 0) {
+			if (searchQuery) {
+				searchIcons(searchQuery, selectedLibrary);
+			} else if (selectedLibrary) {
+				fetchCollectionIcons(selectedLibrary);
+			}
+		}
 	}
 
 	// Close dropdown
@@ -384,7 +497,7 @@ Advanced icon picker with search, pagination, and favorites.
 	<!-- Selected icon display -->
 	{#if iconselected}
 		<div
-			class="-mt-3 mb-2 flex items-center justify-between gap-2"
+			class="mb-2 flex items-center justify-between gap-2"
 			in:scale={{ duration: prefersReducedMotion ? 0 : 200, easing: quintOut, start: 0.9 }}
 			out:scale={{ duration: prefersReducedMotion ? 0 : 150, easing: quintOut, start: 0.9 }}
 		>
@@ -437,21 +550,36 @@ Advanced icon picker with search, pagination, and favorites.
 		</div>
 	{/if}
 
-	<!-- Search input -->
-	<input
-		type="text"
-		role="combobox"
-		bind:value={searchQuery}
-		placeholder={iconselected ? `Replace: ${iconselected}` : m.iconpicker_placeholder()}
-		class="input w-full transition-all duration-200 focus:scale-[1.01] focus:shadow-lg"
-		oninput={() => debouncedSearch(searchQuery, selectedLibrary)}
-		onfocus={handleFocus}
-		aria-label="Search icons"
-		aria-controls="icon-dropdown"
-		aria-haspopup="listbox"
-		aria-expanded={showDropdown}
-		aria-describedby={searchError ? 'search-error' : undefined}
-	/>
+	<!-- Search input container -->
+	<div class="relative">
+		<input
+			type="text"
+			role="combobox"
+			bind:value={searchQuery}
+			placeholder={iconselected ? `Replace: ${iconselected}` : m.iconpicker_placeholder()}
+			class="input w-full pr-10 transition-all duration-200 focus:scale-[1.01] focus:shadow-lg"
+			oninput={() => debouncedSearch(searchQuery, selectedLibrary)}
+			onfocus={handleFocus}
+			aria-label="Search icons"
+			aria-controls="icon-dropdown"
+			aria-haspopup="listbox"
+			aria-expanded={showDropdown}
+			aria-describedby={searchError ? 'search-error' : undefined}
+		/>
+		{#if searchQuery}
+			<button
+				type="button"
+				class="absolute right-2 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200"
+				onclick={() => {
+					searchQuery = '';
+					debouncedSearch('', selectedLibrary);
+				}}
+				aria-label="Clear search"
+			>
+				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
+			</button>
+		{/if}
+	</div>
 
 	<!-- Error message -->
 	{#if searchError}
@@ -520,32 +648,35 @@ Advanced icon picker with search, pagination, and favorites.
 			{#if activeTab === 'search'}
 				<div class="border-b border-surface-200 p-4 dark:border-surface-700" transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}>
 					<label for="library-select" class="mb-2 block text-sm font-medium"> Icon Library </label>
-					<select
-						id="library-select"
-						bind:value={selectedLibrary}
-						onchange={handleLibraryChange}
-						onclick={fetchIconLibraries}
-						class="input w-full"
-						disabled={isLoadingLibraries}
-						aria-label="Select icon library"
-					>
-						{#if !librariesLoaded}
-							<option value={DEFAULT_LIBRARY}>Loading libraries...</option>
-						{:else}
-							{#each sortedLibraries as [prefix, library] (prefix)}
-								<option value={prefix}>
-									{library.name} ({prefix}) — {library.total.toLocaleString()} icons
-								</option>
-							{/each}
-						{/if}
-					</select>
+					<div class="relative">
+						<select
+							id="library-select"
+							bind:value={selectedLibrary}
+							onchange={handleLibraryChange}
+							onclick={fetchIconLibraries}
+							class="input w-full"
+							disabled={isLoadingLibraries}
+							aria-label="Select icon library"
+						>
+							<option value="">All Libraries (Global Search)</option>
+							{#if !librariesLoaded}
+								<option value={DEFAULT_LIBRARY}>Loading libraries...</option>
+							{:else}
+								{#each sortedLibraries as [prefix, library] (prefix)}
+									<option value={prefix}>
+										{library.name} ({prefix}) — {library.total.toLocaleString()} icons
+									</option>
+								{/each}
+							{/if}
+						</select>
+					</div>
 				</div>
 			{/if}
 
 			<!-- Content -->
-			<div class="p-4">
-				{#if isLoading}
-					<!-- Loading state -->
+			<div class="h-80 overflow-y-auto p-4" onscroll={handleScroll}>
+				{#if isLoading && icons.length === 0}
+					<!-- Loading state (initial) -->
 					<div class="flex justify-center py-12" in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 						<div class="flex flex-col items-center gap-3">
 							<div class="h-10 w-10 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
@@ -592,37 +723,19 @@ Advanced icon picker with search, pagination, and favorites.
 								{/if}
 							</div>
 						{/each}
-					</div>
 
-					<!-- Pagination (only for search) -->
-					{#if activeTab === 'search'}
-						<div
-							class="mt-6 flex items-center justify-between border-t border-surface-200 pt-4 dark:border-surface-700"
-							transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}
-						>
-							<button
-								onclick={previousPage}
-								disabled={!canGoPrevious}
-								class="variant-filled-primary btn btn-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-0"
-								aria-label="Previous page"
-							>
-								{m.button_previous()}
-							</button>
-
-							<div class="text-sm font-medium" role="status" aria-live="polite">
-								Showing <span class="font-bold text-primary-500">{displayIcons.length}</span> icons
+						<!-- Infinite Scroll Loading Indicator -->
+						{#if isLoading}
+							<div class="col-span-full py-4 text-center">
+								<iconify-icon icon="eos-icons:loading" class="animate-spin text-surface-400" width="24"></iconify-icon>
 							</div>
+						{/if}
 
-							<button
-								onclick={nextPage}
-								disabled={!canGoNext}
-								class="variant-filled-primary btn btn-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-0"
-								aria-label="Next page"
-							>
-								{m.button_next()}
-							</button>
-						</div>
-					{/if}
+						<!-- Sentinel for IntersectionObserver (infinite scroll) -->
+						{#if activeTab === 'search' && !isLoading}
+							<div class="col-span-full h-4" use:intersectionObserverAction></div>
+						{/if}
+					</div>
 				{:else if hasSearchQuery && activeTab === 'search'}
 					<!-- No results -->
 					<div class="flex flex-col items-center gap-3 py-12 text-center" in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>

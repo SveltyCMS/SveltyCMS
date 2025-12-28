@@ -118,11 +118,18 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 		// 6. Handle 'edit' action (default)
 		await contentManager.refresh(); // Force a refresh to bypass any stale cache
-		const collection = params.contentPath;
-		const currentCollection = await contentManager.getCollection(`/${collection}`);
+		const collectionIdentifier = params.contentPath;
+
+		// Try resolving exactly as passed (UUID or relative path)
+		let currentCollection = await contentManager.getCollection(collectionIdentifier);
+
+		// Fallback: Try identifying as an absolute path if not found
+		if (!currentCollection && !collectionIdentifier.startsWith('/')) {
+			currentCollection = await contentManager.getCollection(`/${collectionIdentifier}`);
+		}
 
 		if (!currentCollection) {
-			logger.warn(`Collection not found at path: /${collection}`, { path: `/${collection}` });
+			logger.warn(`Collection not found at path: ${collectionIdentifier}`, { identifier: collectionIdentifier });
 			throw error(404, 'Collection not found');
 		}
 

@@ -18,6 +18,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { createHash } from 'crypto';
 import type { CompileOptions, CompilationResult, ExistingFileData, Logger } from './types';
 import { widgetTransformer, addJsExtensionTransformer, commonjsToEsModuleTransformer, schemaUuidTransformer } from './transformers';
+// Schema comparison (collectionSchemaWarnings.ts) runs at runtime in GUI/API when schemas are loaded
+// schemaWarnings in CompilationResult is populated by the collection save flow, not compilation
 
 // Default logger implementation
 const defaultLogger: Logger = {
@@ -48,7 +50,9 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 		processed: 0,
 		skipped: 0,
 		errors: [],
-		duration: 0
+		duration: 0,
+		orphanedFiles: [],
+		schemaWarnings: []
 	};
 
 	try {
@@ -90,6 +94,9 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 				}
 
 				try {
+					// Calculate the expected JS path for this source file
+					const expectedJsPath = file.replace(/\.(ts|js)$/, '.js');
+
 					const jsFilePath = await compileFile(
 						file,
 						userCollections,
@@ -101,10 +108,12 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 					);
 
 					if (jsFilePath) {
-						processedJsPaths.add(jsFilePath);
 						if (jsFilePath === 'SKIPPED') {
+							// For skipped files, add the actual expected path (not 'SKIPPED')
+							processedJsPaths.add(expectedJsPath);
 							result.skipped++;
 						} else {
+							processedJsPaths.add(jsFilePath);
 							result.processed++;
 						}
 					}
@@ -126,7 +135,7 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 
 		// 5. Cleanup (only if doing a full compile, i.e., no targetFile)
 		if (!options.targetFile) {
-			await cleanupOrphanedFiles(existingFilesByPath, processedJsPaths, logger);
+			result.orphanedFiles = await cleanupOrphanedFiles(existingFilesByPath, processedJsPaths, compiledCollections, logger);
 		}
 	} catch (error) {
 		logger.error('Fatal compilation error', error);
@@ -302,24 +311,39 @@ function extractUUIDFromJs(content: string) {
 	return content.match(/^\/\/\s*UUID:\s*([a-f0-9-]+)\s*$/m)?.[1] || null;
 }
 
-async function cleanupOrphanedFiles(existing: Map<string, ExistingFileData>, kept: Set<string>, logger: Logger) {
-	const toRemove = Array.from(existing.keys()).filter((f) => !kept.has(f) && f !== 'SKIPPED');
+async function cleanupOrphanedFiles(
+	existing: Map<string, ExistingFileData>,
+	kept: Set<string>,
+	compiledCollections: string,
+	logger: Logger
+): Promise<string[]> {
+	const orphanedFiles = Array.from(existing.keys()).filter((f) => !kept.has(f) && f !== 'SKIPPED');
 
-	if (toRemove.length > 0) {
-		logger.warn(`[Cleanup] Found ${toRemove.length} orphaned files to remove: ${toRemove.join(', ')}`);
-		logger.warn(`[Cleanup] Kept files (${kept.size}): ${Array.from(kept).join(', ')}`);
-	} else {
-		logger.info(`[Cleanup] No orphaned files found.`);
+	if (orphanedFiles.length > 0) {
+		// Terminal-friendly formatted message with actionable guidance
+		const divider = '─'.repeat(60);
+		logger.warn(`\n┌${divider}┐`);
+		logger.warn(`│  ⚠️  Orphaned Compiled Collections Detected${' '.repeat(15)}│`);
+		logger.warn(`├${divider}┤`);
+		logger.warn(`│${' '.repeat(61)}│`);
+		logger.warn(`│  The following compiled files have no matching source:${' '.repeat(4)}│`);
+
+		for (const file of orphanedFiles) {
+			const padding = 57 - file.length;
+			logger.warn(`│    • ${file}${' '.repeat(Math.max(0, padding))}│`);
+		}
+
+		logger.warn(`│${' '.repeat(61)}│`);
+		logger.warn(`│  This usually means:${' '.repeat(39)}│`);
+		logger.warn(`│    1. You renamed/moved a source collection file${' '.repeat(10)}│`);
+		logger.warn(`│    2. You deleted a collection that's no longer needed${' '.repeat(4)}│`);
+		logger.warn(`│${' '.repeat(61)}│`);
+		logger.warn(`│  To clean up manually, delete from:${' '.repeat(23)}│`);
+		logger.warn(`│    ${compiledCollections.slice(-50)}${' '.repeat(Math.max(0, 55 - compiledCollections.slice(-50).length))}│`);
+		logger.warn(`│${' '.repeat(61)}│`);
+		logger.warn(`└${divider}┘\n`);
 	}
 
-	/*
-	await Promise.all(
-		toRemove.map(async (f) => {
-			const p = path.posix.join(dir, f);
-			logger.info(`Removing orphaned: ${f}`);
-			await fs.unlink(p).catch((e) => logger.warn(`Failed to remove ${f}: ${e}`));
-		})
-	);
-	await removeEmptyDirs(dir);
-	*/
+	// Return the list so GUI can display it appropriately
+	return orphanedFiles;
 }

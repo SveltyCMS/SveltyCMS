@@ -22,6 +22,7 @@
 
 	// Components
 	import IconifyPicker from '@components/IconifyPicker.svelte';
+	import { goto } from '$app/navigation';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -195,144 +196,158 @@
 </script>
 
 <!-- Single Column Layout Container -->
-<div class="flex w-full flex-col">
-	<!-- Form Fields Section -->
-	<div class="flex flex-col gap-2 rounded border p-4">
-		<!-- Collection Name -->
-		<div class="flex flex-col">
-			<label for="name" class="mb-1 flex items-center font-medium">
-				{m.collection_name()} <span class="mx-1 text-error-500">*</span>
-				<iconify-icon
-					icon="material-symbols:info"
-					use:popup={NameTooltip}
-					width="18"
-					class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
-				></iconify-icon>
-			</label>
-			<input
-				type="text"
-				required
-				id="name"
-				name="name"
-				data-testid="collection-name-input"
-				bind:value={name}
-				oninput={handleNameInput}
-				placeholder={m.collection_name_placeholder()}
-				aria-label={m.collection_name()}
-				class="input w-full text-black dark:text-primary-500"
-			/>
-			{#if name}
-				<!-- Show DBName if name is entered -->
-				<p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-					{m.collection_DBname()}
-					<span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
-				</p>
-			{/if}
-			<!-- Name Tooltip -->
-			<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Name">
-				<p>{m.collection_name_tooltip1()}</p>
-				<p>{m.collection_name_tooltip2()}</p>
-				<div class="variant-filled arrow"></div>
+<div class="flex w-full flex-col pb-10">
+	<!-- Form Fields Grid -->
+	<div class="grid grid-cols-1 gap-6 rounded border p-4 lg:grid-cols-2">
+		<!-- Left Column: Text Fields -->
+		<div class="flex flex-col gap-4">
+			<!-- Collection Name -->
+			<div class="flex flex-col">
+				<label for="name" class="mb-1 flex items-center font-medium">
+					{m.collection_name()} <span class="mx-1 text-error-500">*</span>
+					<iconify-icon
+						icon="material-symbols:info"
+						use:popup={NameTooltip}
+						width="18"
+						class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
+				</label>
+				<input
+					type="text"
+					required
+					id="name"
+					name="name"
+					data-testid="collection-name-input"
+					bind:value={name}
+					oninput={handleNameInput}
+					placeholder={m.collection_name_placeholder()}
+					aria-label={m.collection_name()}
+					class="input w-full text-black dark:text-primary-500"
+				/>
+				{#if name}
+					<!-- Show DBName if name is entered -->
+					<p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+						{m.collection_DBname()}
+						<span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
+					</p>
+				{/if}
+				<!-- Name Tooltip -->
+				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Name">
+					<p>{m.collection_name_tooltip1()}</p>
+					<p>{m.collection_name_tooltip2()}</p>
+					<div class="variant-filled arrow"></div>
+				</div>
+			</div>
+
+			<!-- Slug -->
+			<div class="flex flex-col">
+				<label for="slug" class="mb-1 flex items-center font-medium">
+					{m.collection_slug()}
+					<iconify-icon
+						icon="material-symbols:info"
+						use:popup={SlugTooltip}
+						width="18"
+						class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
+				</label>
+				<input
+					type="text"
+					id="slug"
+					bind:value={slug}
+					placeholder={m.collection_slug_input()}
+					class="input w-full text-black dark:text-primary-500"
+				/>
+				<!-- Slug Tooltip -->
+				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Slug">
+					<p>{m.collection_slug_tooltip()}</p>
+					<div class="variant-filled arrow"></div>
+				</div>
+			</div>
+
+			<!-- Status -->
+			<div class="flex flex-col">
+				<label for="status" class="mb-1 flex items-center font-medium">
+					{m.collection_status()}
+					<iconify-icon
+						icon="material-symbols:info"
+						use:popup={StatusTooltip}
+						width="18"
+						class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
+				</label>
+				<select id="status" bind:value={status} class="select w-full text-black dark:text-primary-500">
+					{#each statuses as statusOption}
+						<option value={statusOption}>{statusOption}</option>
+					{/each}
+				</select>
+				<!-- Status Tooltip -->
+				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Status">
+					<p>{m.collection_status_tooltip()}</p>
+					<div class="variant-filled arrow"></div>
+				</div>
+			</div>
+
+			<!-- Description -->
+			<div class="flex flex-col">
+				<label for="description" class="mb-1 flex items-center font-medium">
+					{m.collectionname_description()}
+					<iconify-icon
+						icon="material-symbols:info"
+						use:popup={DescriptionTooltip}
+						width="18"
+						class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
+				</label>
+				<textarea
+					id="description"
+					rows="4"
+					bind:value={description}
+					placeholder={m.collection_description_placeholder()}
+					class="input w-full text-black dark:text-primary-500"
+				></textarea>
+				<!-- Description Tooltip -->
+				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Description">
+					<p>{m.collection_description()}</p>
+					<div class="variant-filled arrow"></div>
+				</div>
 			</div>
 		</div>
 
-		<!-- Separator (Optional) -->
-		<hr class="my-2 border-gray-300 dark:border-gray-600" />
-
-		<p class="text-token mb-0 text-center font-bold">{m.collectionname_optional()}:</p>
-
-		<!-- Icon -->
-		<div class="flex flex-col">
-			<label for="icon" class="mb-1 flex items-center font-medium">
-				{m.collectionname_labelicon()}
-				<iconify-icon
-					icon="material-symbols:info"
-					use:popup={IconTooltip}
-					width="18"
-					class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
-				></iconify-icon>
-			</label>
-			<IconifyPicker bind:iconselected={selectedIcon} bind:searchQuery />
-			<!-- Icon Tooltip -->
-			<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Icon">
-				<p>{m.collection_icon_tooltip()}</p>
-				<div class="variant-filled arrow"></div>
-			</div>
-		</div>
-
-		<!-- Slug -->
-		<div class="flex flex-col">
-			<label for="slug" class="mb-1 flex items-center font-medium">
-				{m.collection_slug()}
-				<iconify-icon
-					icon="material-symbols:info"
-					use:popup={SlugTooltip}
-					width="18"
-					class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
-				></iconify-icon>
-			</label>
-			<input type="text" id="slug" bind:value={slug} placeholder={m.collection_slug_input()} class="input w-full text-black dark:text-primary-500" />
-			<!-- Slug Tooltip -->
-			<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Slug">
-				<p>{m.collection_slug_tooltip()}</p>
-				<div class="variant-filled arrow"></div>
-			</div>
-		</div>
-
-		<!-- Description -->
-		<div class="flex flex-col">
-			<label for="description" class="mb-1 flex items-center font-medium">
-				{m.collectionname_description()}
-				<iconify-icon
-					icon="material-symbols:info"
-					use:popup={DescriptionTooltip}
-					width="18"
-					class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
-				></iconify-icon>
-			</label>
-			<textarea
-				id="description"
-				rows="2"
-				bind:value={description}
-				placeholder={m.collection_description_placeholder()}
-				class="input w-full text-black dark:text-primary-500"
-			></textarea>
-			<!-- Description Tooltip -->
-			<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Description">
-				<p>{m.collection_description()}</p>
-				<div class="variant-filled arrow"></div>
-			</div>
-		</div>
-
-		<!-- Status -->
-		<div class="flex flex-col">
-			<label for="status" class="mb-1 flex items-center font-medium">
-				{m.collection_status()}
-				<iconify-icon
-					icon="material-symbols:info"
-					use:popup={StatusTooltip}
-					width="18"
-					class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
-				></iconify-icon>
-			</label>
-			<select id="status" bind:value={status} class="select w-full text-black dark:text-primary-500">
-				{#each statuses as statusOption}
-					<option value={statusOption}>{statusOption}</option>
-				{/each}
-			</select>
-			<!-- Status Tooltip -->
-			<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Status">
-				<p>{m.collection_status_tooltip()}</p>
-				<div class="variant-filled arrow"></div>
+		<!-- Right Column: Icon Picker & Optional -->
+		<div class="flex flex-col gap-4 border-l pl-0 lg:pl-6 dark:border-surface-700">
+			<!-- Icon -->
+			<div class="flex flex-col">
+				<label for="icon" class="mb-1 flex items-center font-medium">
+					{m.collectionname_labelicon()}
+					<iconify-icon
+						icon="material-symbols:info"
+						use:popup={IconTooltip}
+						width="18"
+						class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
+				</label>
+				<div class="rounded-container-token border border-surface-200 bg-surface-50/50 p-4 dark:border-surface-700 dark:bg-surface-900/50">
+					<IconifyPicker bind:iconselected={selectedIcon} bind:searchQuery />
+				</div>
+				<!-- Icon Tooltip -->
+				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Icon">
+					<p>{m.collection_icon_tooltip()}</p>
+					<div class="variant-filled arrow"></div>
+				</div>
 			</div>
 		</div>
 	</div>
 
 	<!-- Buttons Section -->
-	<div class="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-between">
-		<a href="/config/collectionbuilder" class="variant-outline-secondary btn sm:w-auto">{m.button_cancel()}</a>
-		<button type="button" onclick={handleNextClick} class="variant-filled-tertiary btn dark:variant-filled-primary sm:w-auto"
-			>{m.button_next()}</button
-		>
+	<!-- Buttons Section -->
+	<div class="mt-6 flex justify-between">
+		<button type="button" onclick={() => goto('/config/collectionbuilder')} class="variant-ringed-error btn sm:w-auto font-bold">
+			{m.button_cancel()}
+		</button>
+
+		<button type="button" onclick={handleNextClick} class="variant-filled-secondary btn sm:w-auto">
+			{m.button_next()}
+			<iconify-icon icon="mdi:arrow-right" class="ml-2"></iconify-icon>
+		</button>
 	</div>
 </div>

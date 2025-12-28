@@ -23,7 +23,57 @@ tags:
 
 The Collection Builder is a visual tool for creating and managing content collections in SveltyCMS. It provides an intuitive interface for defining content structures, organizing collections into categories, and configuring fields using the modern widget system.
 
+```mermaid
+flowchart TB
+    subgraph "Collection Builder Architecture"
+        GUI["Visual Builder<br/>(GUI)"]
+        CODE["TypeScript Schema<br/>(Code)"]
+    end
+
+    subgraph "Schema Processing"
+        DIFF["Schema Comparison<br/>(collectionSchemaWarnings.ts)"]
+        WARN{"Breaking<br/>Changes?"}
+    end
+
+    subgraph "User Protection"
+        MODAL["Data Loss Modal<br/>(ModalSchemaWarning.svelte)"]
+        CONFIRM["User Confirmation"]
+    end
+
+    subgraph "Persistence"
+        API["API: /content-structure"]
+        DB["Database"]
+    end
+
+    GUI --> DIFF
+    CODE --> DIFF
+    DIFF --> WARN
+    WARN -->|Yes| MODAL
+    WARN -->|No| API
+    MODAL --> CONFIRM
+    CONFIRM -->|Approved| API
+    CONFIRM -->|Cancelled| GUI
+    API --> DB
+
+    style GUI fill:#4CAF50,color:#fff
+    style CODE fill:#2196F3,color:#fff
+    style MODAL fill:#FF5722,color:#fff
+    style WARN fill:#FFC107,color:#000
+```
+
 > **Note**: The Collection Builder is currently in **beta** and under active development. Some features may not be fully functional yet. Report issues on [GitHub](https://github.com/SveltyCMS/SveltyCMS/issues).
+
+### Roadmap
+
+**⏸️ Deferred:**
+
+- LeftSidebar DND ordering - Enable drag-and-drop reordering directly in sidebar (TreeView has built-in support)
+
+**🔧 Not Yet Integrated:**
+
+- Data loss modal integration - Wire `ModalSchemaWarning` into collection save flow
+- Widget Factory - Visual widget creation tool
+- Marketplace integration - Download widgets from `marketplace.sveltycms.com`
 
 ## Getting Started
 
@@ -609,16 +659,133 @@ interface FieldInstance {
 }
 ```
 
+## Data Loss Warnings
+
+SveltyCMS protects your data with built-in breaking change detection:
+
+### How It Works
+
+When you modify a collection schema (via GUI or code), the system compares the new schema against the existing one and warns about:
+
+| Change Type      | Risk Level   | Description                                               |
+| ---------------- | ------------ | --------------------------------------------------------- |
+| `field_removed`  | 🔴 Data Loss | Field deleted - existing data will be lost                |
+| `type_changed`   | 🟡 Warning   | Widget type changed - data format may become incompatible |
+| `required_added` | 🟡 Warning   | New required field - existing entries become invalid      |
+| `unique_added`   | 🟡 Warning   | New unique constraint - may cause duplicate conflicts     |
+
+### GUI Protection
+
+When saving a collection with breaking changes, a **confirmation modal** displays:
+
+- List of detected breaking changes
+- Data loss risk indicators
+- Required checkbox confirmation for data loss changes
+
+### Code-Level Warnings
+
+The schema comparison engine (`collectionSchemaWarnings.ts`) can be used programmatically:
+
+```typescript
+import { analyzeSchemaChanges } from '@utils/collectionSchemaWarnings';
+
+const result = analyzeSchemaChanges(oldSchema, newSchema);
+if (result.hasDataLoss) {
+	console.warn('⚠️ Data loss detected:', result.summary);
+}
+```
+
+---
+
+## CMS Comparison
+
+### Why Choose SveltyCMS?
+
+**Enterprise-Ready Features:**
+
+- 🔒 **Data Protection** - Built-in schema change warnings prevent accidental data loss
+- 🏗️ **Dual Workflow** - Visual builder for marketers, TypeScript schemas for developers
+- ⚡ **Performance** - SvelteKit's SSR and hydration outperforms React/Vue alternatives
+- 🔧 **Type Safety** - End-to-end TypeScript from schema to API to frontend
+- 🏢 **Multi-Tenant** - Built-in support for multiple sites/clients from one instance
+- 🔄 **Hot Reload** - Collections compile instantly via Vite watcher
+
+**Extensible Widget Ecosystem:**
+
+SveltyCMS uses a 3-pillar widget architecture:
+
+1. **Core Widgets** - Essential fields (Text, Number, Date, etc.) included by default
+2. **Custom Widgets** - Organization-specific widgets you create
+3. **Marketplace Widgets** - Community widgets from [marketplace.sveltycms.com](https://marketplace.sveltycms.com)
+
+> **Coming Soon**: The Widget Factory will allow creating custom widgets visually, and the marketplace will enable sharing and monetizing widgets.
+
+### How SveltyCMS Compares
+
+| Feature                | SveltyCMS | WordPress    | Drupal | Directus  | Strapi | PayloadCMS | Sanity |
+| ---------------------- | --------- | ------------ | ------ | --------- | ------ | ---------- | ------ |
+| **Architecture**       | Both      | Visual       | Both   | Visual    | Both   | Code-first | Both   |
+| **TypeScript Native**  | ✅        | ❌           | ❌     | ✅        | ✅     | ✅         | ✅     |
+| **Headless**           | ✅        | Plugin       | Plugin | ✅        | ✅     | ✅         | ✅     |
+| **Visual Builder**     | ✅        | ✅           | ✅     | ✅        | ✅     | ❌         | ✅     |
+| **Data Loss Warnings** | ✅        | ❌           | ❌     | ✅        | ⚠️     | ⚠️         | ⚠️     |
+| **Widget System**      | 3-Pillar  | Plugin-based | Module | Interface | Plugin | Field      | Schema |
+| **Self-Hosted**        | ✅        | ✅           | ✅     | ✅        | ✅     | ✅         | Cloud  |
+| **Multi-Tenant**       | ✅        | ❌           | ⚠️     | ✅        | ⚠️     | ✅         | ✅     |
+| **Modern Framework**   | SvelteKit | PHP          | PHP    | Vue       | React  | React      | React  |
+
+### Key Differentiators
+
+**vs WordPress/Drupal** (Traditional CMS):
+
+- Modern JavaScript stack vs PHP
+- True headless architecture
+- Type-safe content modeling
+
+**vs Directus** (Visual-first):
+
+- Similar visual approach
+- SvelteKit performance benefits
+- 3-pillar widget architecture
+
+**vs PayloadCMS** (Code-first):
+
+- SveltyCMS supports BOTH visual and code workflows
+- PayloadCMS is code-only (no GUI builder)
+- Similar TypeScript-first approach
+
+**vs Strapi** (Popular headless):
+
+- Modern SvelteKit vs older React
+- Built-in data loss warnings
+- More flexible widget system
+
+**vs Sanity** (Cloud-native):
+
+- Self-hosted by default (no cloud lock-in)
+- Similar schema flexibility
+- More traditional CMS workflow
+
+---
+
 ## Related Documentation
+
+### Architecture
+
+- [Compilation Pipeline](/docs/architecture/compilation-pipeline) - How collections are compiled (compile.ts + vite.config.ts)
+- [Initialization Workflow](/docs/architecture/initialization-workflow) - System startup and collection loading
+
+### Widgets
 
 - [Widget Architecture](/docs/widgets/widget-architecture) - Modern widget system design
 - [Widget Management](/docs/widgets/widget-management-system) - Managing widgets
+
+### Guides
+
 - [Content Management](/docs/guides/content-management) - Working with collections
 - [Permission System](/docs/guides/access-management) - Roles and permissions
 - [Multi-Tenant Setup](/docs/architecture/multi-tenant) - Tenant configuration
 
 ---
 
-**Status**: Beta - Under Active Development
-**Last Updated**: October 5, 2025
 **Feedback**: Report issues on [GitHub](https://github.com/SveltyCMS/SveltyCMS/issues)

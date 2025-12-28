@@ -36,6 +36,18 @@ export interface CompilationResult {
 	skipped: number;
 	errors: Array<{ file: string; error: Error }>;
 	duration: number;
+	/** List of orphaned compiled files that no longer have a source file */
+	orphanedFiles: string[];
+	/** Schema warnings detected during compilation (breaking changes) */
+	schemaWarnings: Array<{
+		file: string;
+		changes: Array<{
+			type: string;
+			fieldName: string;
+			message: string;
+			dataLoss: boolean;
+		}>;
+	}>;
 }
 
 export class CompilationError extends Error {

@@ -13,7 +13,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton Stores
-	import { getModalStore, popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
 	// Props
@@ -32,8 +32,8 @@
 	const availableWidgets = $derived(widgets.widgetFunctions || {});
 	const activeWidgetList = $derived(widgets.activeWidgets || []);
 
-	// Get only active widgets for the collection builder
-	const widget_keys = $derived(Object.keys(availableWidgets).filter((key) => activeWidgetList.includes(key)));
+	// Get only active widgets for the collection builder (NOT USED ANYMORE)
+	// const widget_keys = $derived(Object.keys(availableWidgets).filter((key) => activeWidgetList.includes(key)));
 
 	// Define the selected widget variable
 	const selected: string | null = $state(null);
@@ -58,72 +58,90 @@
 	}
 
 	// Base Classes
-	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4';
-	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cBase = 'card p-6 w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl bg-white dark:bg-surface-800';
+	const cHeader = 'text-3xl font-bold text-center mb-6 text-surface-900 dark:text-white';
 
-	// Call tooltip
-	function getIconTooltip(item: string): PopupSettings {
-		return {
-			event: 'hover',
-			target: item,
-			placement: 'top'
-		};
-	}
+	// Tooltip not needed with new card design showing description
 </script>
 
 {#if $modalStore[0]}
-	<div class=" {cBase}">
-		<header class={`${cHeader}`}>
-			{$modalStore[0]?.title ?? '(title missing)'}
+	<div class={cBase}>
+		<header class="flex items-center justify-between border-b border-surface-200 pb-4 dark:border-surface-700">
+			<h2 class={cHeader}>
+				{$modalStore[0]?.title || 'Select Widget'}
+			</h2>
+			<button class="btn-icon variant-ghost-surface" onclick={parent.onClose}>
+				<iconify-icon icon="mdi:close" width="24"></iconify-icon>
+			</button>
 		</header>
-		<article class="hidden text-center sm:block">{$modalStore[0].body ?? '(body missing)'}</article>
-		<!-- Enable for debugging: -->
-		<form class={cForm}>
-			<div class="mb-3 border-b text-center text-primary-500">Choose your Widget</div>
-			<input type="text" placeholder="Search ..." class="input mb-3 w-full" bind:value={searchTerm} />
 
-			<div class="grid grid-cols-1 items-center justify-center gap-2 sm:grid-cols-2 md:grid-cols-3 md:gap-3">
-				{#each widget_keys.filter((item) => item !== null) as item}
-					{#if item && (availableWidgets[item] as any)?.GuiSchema}
-						{#if item.toLowerCase().includes(searchTerm.toLowerCase())}
-							<button
-								onclick={() => {
-									onFormSubmit(item);
-								}}
-								aria-label={item}
-								data-testid="widget-select-{item}"
-								class="variant-outline-warning btn relative flex items-center justify-start gap-1 {selected === item
-									? 'bg-primary-500'
-									: ' variant-outline-warning hover:variant-ghost-warning'}"
-							>
-								<iconify-icon icon={availableWidgets[item]?.Icon} width="22" class="mr-1 text-tertiary-500"></iconify-icon>
-								<span class="text-surface-700 dark:text-white">{item}</span>
+		<!-- Search -->
+		<div class="relative my-4">
+			<iconify-icon icon="mdi:magnify" width="24" class="absolute left-4 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
+			<input type="text" placeholder="Search widgets..." class="input h-12 w-full pl-12 text-lg" bind:value={searchTerm} autofocus />
+		</div>
 
-								<!-- helpericon -->
-								<iconify-icon
-									icon="material-symbols:info"
-									width="20"
-									use:popup={getIconTooltip(item)}
-									class="absolute -right-1.5 -top-1.5 text-primary-500"
-								></iconify-icon>
-							</button>
-							<!-- IconTooltip -->
-							<div class="card variant-filled-secondary z-50 max-w-sm p-4" data-popup={item}>
-								<p>{availableWidgets[item]?.Description}</p>
-								<div class="variant-filled-secondary arrow"></div>
-							</div>
-						{/if}
-					{/if}
-				{/each}
-			</div>
-		</form>
+		<!-- Grid -->
+		<div class="flex-1 overflow-y-auto p-6">
+			{#each ['Core', 'Custom', 'Marketplace'] as category}
+				{@const categoryKeys =
+					category === 'Core'
+						? widgets.coreWidgets
+						: category === 'Custom'
+							? widgets.customWidgets
+							: category === 'Marketplace'
+								? widgets.marketplaceWidgets
+								: []}
 
-		<footer class="flex {existingCategory.name ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
-			<div class="flex gap-2">
-				<button class="variant-outline-secondary btn" onclick={parent.onClose}>{m.button_cancel()}</button>
-				<!-- <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button> -->
-			</div>
-		</footer>
+				{@const filteredKeys = categoryKeys.filter((key) => !searchTerm || key.toLowerCase().includes(searchTerm.toLowerCase()))}
+
+				{#if filteredKeys.length > 0}
+					<div class="mb-8 last:mb-0">
+						<h3 class="mb-4 text-xl font-bold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+							{category} Widgets
+						</h3>
+						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+							{#each filteredKeys as item}
+								{#if item && (availableWidgets[item] as any)?.GuiSchema}
+									<button
+										onclick={() => onFormSubmit(item)}
+										class="group relative flex flex-col gap-3 rounded-xl border border-surface-200 bg-surface-50 p-5 text-left transition-all hover:-translate-y-1 hover:border-primary-500 hover:shadow-lg dark:border-surface-700 dark:bg-surface-800 dark:hover:border-primary-500"
+										aria-label={item}
+									>
+										<div class="flex items-start justify-between w-full">
+											<div
+												class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-200 text-surface-600 transition-colors group-hover:bg-primary-500 group-hover:text-white dark:bg-surface-700 dark:text-surface-300"
+											>
+												<iconify-icon icon={availableWidgets[item]?.Icon} width="28"></iconify-icon>
+											</div>
+											<!-- Optional: Add specific badges here if metadata existed -->
+										</div>
+
+										<div>
+											<h3 class="text-lg font-bold text-surface-900 group-hover:text-primary-500 dark:text-white dark:group-hover:text-primary-400">
+												{item}
+											</h3>
+											<p class="mt-1 line-clamp-2 text-xs text-surface-500 dark:text-surface-400">
+												{availableWidgets[item]?.Description || 'No description available'}
+											</p>
+										</div>
+									</button>
+								{/if}
+							{/each}
+						</div>
+					</div>
+				{/if}
+			{/each}
+
+			<!-- Empty State -->
+			{#if [...widgets.coreWidgets, ...widgets.customWidgets, ...widgets.marketplaceWidgets].filter((key) => key
+					.toLowerCase()
+					.includes(searchTerm.toLowerCase())).length === 0}
+				<div class="flex flex-col items-center justify-center py-20 opacity-50">
+					<iconify-icon icon="mdi:package-variant-closed" width="64" class="mb-4"></iconify-icon>
+					<p class="text-xl">No widgets found for "{searchTerm}"</p>
+				</div>
+			{/if}
+		</div>
 	</div>
 {/if}

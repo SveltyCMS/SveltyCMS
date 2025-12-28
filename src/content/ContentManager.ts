@@ -1382,6 +1382,44 @@ class ContentManager {
 		return await this.getContentStructureFromDatabase('flat');
 	}
 
+	/**
+	 * Optimized method for reordering content nodes using transactional logic.
+	 * This replaces the generic upsertContentNodes for drag-and-drop operations.
+	 */
+	public async reorderContentNodes(operations: ContentNodeOperation[]): Promise<ContentNode[]> {
+		if (this.initState !== 'initialized') {
+			throw new Error('ContentManager is not initialized.');
+		}
+		const dbAdapter = await getDbAdapter();
+		if (!dbAdapter) {
+			throw new Error('Database adapter is not available');
+		}
+
+		// Transform operations to reorder items
+		const reorderItems = operations.map((op) => {
+			const { node } = op;
+			return {
+				id: node._id,
+				parentId: typeof node.parentId === 'string' ? node.parentId : (node.parentId as any)?.toString() || null,
+				order: node.order || 0,
+				path: node.path || '' // Path should be recalculated and correct before reaching here
+			};
+		});
+
+		// Call the transactional reorder method
+		await dbAdapter.content.nodes.reorderStructure(reorderItems);
+
+		// Update in-memory state
+		for (const op of operations) {
+			const { node } = op;
+			this.contentNodeMap.set(node._id, node);
+			if (node.path) this.pathLookupMap.set(node.path, node._id);
+		}
+
+		logger.info('[ContentManager] Reordered nodes:', reorderItems.length);
+		return await this.getContentStructureFromDatabase('flat');
+	}
+
 	// ===================================================================================
 	// PRIVATE METHODS (Core Logic)
 	// ===================================================================================
@@ -1538,6 +1576,8 @@ class ContentManager {
 				path: schema.path,
 				name: typeof schema.name === 'string' ? schema.name : String(schema.name),
 				icon: schema.icon ?? dbNode?.icon ?? 'bi:file',
+				slug: schema.slug ?? dbNode?.slug,
+				description: schema.description ?? dbNode?.description,
 				order: dbNode?.order ?? 999,
 				nodeType: 'collection',
 				translations: schema.translations ?? dbNode?.translations ?? [],

@@ -230,6 +230,23 @@ export class MongoContentMethods {
 	}
 
 	/**
+	 * Persists a full or partial content structure reorder using the efficient Model method.
+	 */
+	async reorderStructure(items: Array<{ id: string; parentId: string | null; order: number; path: string }>): Promise<void> {
+		try {
+			// Cast model to any to access the static method we added
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const result = await (this.nodesRepo.model as any).reorderStructure(items);
+			if (!result.success) {
+				throw result.error || new Error(result.message);
+			}
+			await invalidateCategoryCache(CacheCategory.CONTENT);
+		} catch (error) {
+			throw createDatabaseError(error, 'NODE_REORDER_ERROR', 'Failed to reorder content structure.');
+		}
+	}
+
+	/**
 	 * Fixes content nodes that have mismatched _id values.
 	 * This can happen when nodes were created before _id was properly set from compiled files.
 	 * For each node where the expected _id differs from the actual _id, delete and recreate.

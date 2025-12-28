@@ -34,7 +34,7 @@
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	import Board from './NestedContent/Board.svelte';
+	import Board from './NestedContent/TreeViewBoard.svelte';
 	import ModalCategory from './NestedContent/ModalCategory.svelte';
 
 	// ParaglideJS
@@ -45,7 +45,7 @@
 	import { showToast } from '@utils/toast';
 	import { showModal } from '@utils/modalUtils';
 	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
-	import type { ISODateString } from '@root/src/content/types';
+	import type { ISODateString, ContentNodeOperation } from '@root/src/content/types';
 
 	interface NodeOperation {
 		type: 'create' | 'update' | 'move' | 'rename';
@@ -183,68 +183,113 @@
 	 * This updates the `currentConfig` and stages nodes for saving.
 	 * @param updatedNodes The complete, flattened list of ContentNodes after a DnD operation, with updated `parentId` and `order`.
 	 */
-	function handleNodeUpdate(updatedNodes: ContentNode[]) {
-		console.debug('Page: handleNodeUpdate received', updatedNodes);
-		// Update the local `currentConfig` to reflect the UI state
-		currentConfig = updatedNodes;
-
-		// Mark all updated nodes as 'move' operations for saving.
-		// The `contentManager` should handle 'move' operations by updating `parentId` and `order`.
-		updatedNodes.forEach((node) => {
-			nodesToSave[node._id] = {
-				type: 'move',
-				node: node
-			};
-		});
-		console.debug('Nodes to save (after move):', nodesToSave);
-	}
-
 	// Handles saving all pending changes (`nodesToSave`) to the backend.
 	async function handleSave() {
-		const items = Object.values(nodesToSave);
-		if (items.length === 0) {
+		const allItems = Object.values(nodesToSave);
+		if (allItems.length === 0) {
 			showToast('No changes to save.', 'info');
 			return;
 		}
 
 		try {
 			isLoading = true;
-			const response = await fetch('/api/content-structure', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					action: 'updateContentStructure',
-					items
-				})
+
+			// Split operations into 'reorder' (move) and 'content updates' (create, update, rename, delete)
+			// 'moves' are handled by the reorderContentStructure endpoint which uses transactions.
+			// 'others' are handled by updateContentStructure.
+			const moves: ContentNodeOperation[] = [];
+			const others: ContentNodeOperation[] = [];
+
+			allItems.forEach((item) => {
+				if (item.type === 'move') {
+					moves.push(item);
+				} else {
+					others.push(item);
+				}
 			});
 
-			const result: ApiResponse = await response.json();
+			let finalStructure: ContentNode[] | null = null;
 
-			if (response.ok && result.success) {
-				showToast('Categories and Collections updated successfully', 'success');
-				// Clear pending saves after successful API call
-				nodesToSave = {};
-				// Re-sync `currentConfig` with the *actual* structure returned by the server
-				// This is crucial for consistency, especially after complex reorders.
-				if (result.contentStructure) {
-					collections.setContentStructure(result.contentStructure);
-					currentConfig = result.contentStructure;
-				}
-				console.debug('API save successful. New contentStructure:', result.contentStructure);
-			} else {
-				// Revert currentConfig to the last known good state if save fails
-				currentConfig = collections.contentStructure; // Revert to the state from the store
-				throw new Error(result.error || 'Failed to update categories');
+			// 1. Process content updates first (Creates must happen before reorders can reference them)
+			if (others.length > 0) {
+				const response = await fetch('/api/content-structure', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						action: 'updateContentStructure',
+						items: others
+					})
+				});
+				const result: ApiResponse = await response.json();
+				if (!response.ok || !result.success) throw new Error(result.error || 'Failed to update content');
+				if (result.contentStructure) finalStructure = result.contentStructure;
 			}
+
+			// 2. Process reorders
+			if (moves.length > 0) {
+				const response = await fetch('/api/content-structure', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						action: 'reorderContentStructure',
+						items: moves
+					})
+				});
+				const result: ApiResponse = await response.json();
+				if (!response.ok || !result.success) throw new Error(result.error || 'Failed to reorder content');
+				if (result.contentStructure) finalStructure = result.contentStructure;
+			}
+
+			showToast('Categories and Collections updated successfully', 'success');
+			// Clear pending saves after successful API call
+			nodesToSave = {};
+
+			// Update local state with the final structure from server
+			if (finalStructure) {
+				collections.setContentStructure(finalStructure);
+				currentConfig = finalStructure;
+			}
+			console.debug('API save successful.');
 		} catch (error) {
 			logger.error('Error saving categories:', error);
 			showToast(error instanceof Error ? error.message : 'Failed to save categories', 'error');
 			apiError = error instanceof Error ? error.message : 'Unknown error occurred';
+			// Revert currentConfig to the last known good state if save fails
+			currentConfig = collections.contentStructure;
 		} finally {
 			isLoading = false;
 		}
+	}
+
+	/**
+	 * Callback from Board.svelte when nodes are reordered or moved between parents.
+	 * This updates the `currentConfig` and stages nodes for saving.
+	 * @param updatedNodes The complete, flattened list of ContentNodes after a DnD operation, with updated `parentId` and `order`.
+	 */
+	function handleNodeUpdate(updatedNodes: ContentNode[]) {
+		console.debug('Page: handleNodeUpdate received', updatedNodes);
+		// Update the local `currentConfig` to reflect the UI state
+		currentConfig = updatedNodes;
+
+		// Mark updated nodes for saving.
+		// Preserve existing operation types (e.g. 'create') if they exist, updating only the node data.
+		updatedNodes.forEach((node) => {
+			const existingOp = nodesToSave[node._id];
+			if (existingOp && existingOp.type !== 'move') {
+				// Update the node data in the existing operation (e.g. keep 'create' but update order/parent)
+				nodesToSave[node._id] = {
+					...existingOp,
+					node: node
+				};
+			} else {
+				// Otherwise mark as move
+				nodesToSave[node._id] = {
+					type: 'move',
+					node: node
+				};
+			}
+		});
+		console.debug('Nodes to save (after update):', nodesToSave);
 	}
 
 	function handleAddCollectionClick(): void {
@@ -260,49 +305,60 @@
 		goto('/config/collectionbuilder/new');
 	}
 
-	$effect(() => {
+	import { onMount, onDestroy } from 'svelte';
+
+	onMount(() => {
 		ui.setRouteContext({ isCollectionBuilder: true });
-		return () => ui.setRouteContext({ isCollectionBuilder: false });
+	});
+
+	onDestroy(() => {
+		ui.setRouteContext({ isCollectionBuilder: false });
 	});
 </script>
 
-<PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config" />
+<PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config">
+	<div class="flex items-center gap-2">
+		<!-- Add Category Button -->
+		<button
+			onclick={() => modalAddCategory()}
+			type="button"
+			aria-label="Add New Category"
+			class="variant-filled-tertiary btn flex items-center gap-1 md:variant-filled-tertiary md:btn"
+			disabled={isLoading}
+		>
+			<iconify-icon icon="bi:collection" width="18" class="text-white"></iconify-icon>
+			<span class="hidden md:inline">{m.collection_addcategory()}</span>
+		</button>
 
-<div class="my-2 flex w-full justify-around gap-2">
-	<!-- Add Category Button -->
-	<button
-		onclick={() => modalAddCategory()}
-		type="button"
-		aria-label="Add New Category"
-		class="variant-filled-tertiary btn flex items-center gap-1 md:variant-filled-tertiary md:btn"
-		disabled={isLoading}
-	>
-		<iconify-icon icon="bi:collection" width="18" class="text-white"></iconify-icon>
-		<span class="hidden md:inline">{m.collection_addcategory()}</span>
-	</button>
+		<!-- Add Collection Button -->
+		<button
+			onclick={handleAddCollectionClick}
+			type="button"
+			aria-label="Add New Collection"
+			class="variant-filled-surface btn flex items-center justify-between gap-1 rounded font-bold"
+			disabled={isLoading}
+		>
+			<iconify-icon icon="material-symbols:category" width="18"></iconify-icon>
+			{m.collection_add()}
+		</button>
 
-	<!-- Add Collection Button -->
-	<button
-		onclick={handleAddCollectionClick}
-		type="button"
-		aria-label="Add New Collection"
-		class="variant-filled-surface btn flex items-center justify-between gap-1 rounded font-bold"
-		disabled={isLoading}
-	>
-		<iconify-icon icon="material-symbols:category" width="18"></iconify-icon>
-		{m.collection_add()}
-	</button>
-
-	<!-- Save Button -->
-	<button type="button" onclick={handleSave} aria-label="Save" class="variant-filled-primary btn flex items-center gap-1 md:btn" disabled={isLoading}>
-		{#if isLoading}
-			<iconify-icon icon="eos-icons:loading" width="24" class="animate-spin text-white"></iconify-icon>
-		{:else}
-			<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
-		{/if}
-		<span class="hidden md:inline">{m.button_save()}</span>
-	</button>
-</div>
+		<!-- Save Button -->
+		<button
+			type="button"
+			onclick={handleSave}
+			aria-label="Save"
+			class="variant-filled-primary btn flex items-center gap-1 md:btn"
+			disabled={isLoading}
+		>
+			{#if isLoading}
+				<iconify-icon icon="eos-icons:loading" width="24" class="animate-spin text-white"></iconify-icon>
+			{:else}
+				<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
+			{/if}
+			<span class="hidden md:inline">{m.button_save()}</span>
+		</button>
+	</div>
+</PageTitle>
 
 {#if apiError}
 	<div class="mb-4 rounded bg-error-500/10 p-4 text-error-500" role="alert">
@@ -310,10 +366,15 @@
 	</div>
 {/if}
 
-<div class="max-h-[calc(100vh-65px)] overflow-auto">
+<div class="h-[calc(100vh-140px)] overflow-y-auto">
 	<div class="wrapper mb-2">
 		<p class="mb-4 text-center dark:text-primary-500">
 			{m.collection_description()}
+			<br />
+			<span class="text-sm opacity-70">
+				Organize your content structure by creating categories and collections. Drag and drop items to reorder them. Use categories to group related
+				collections.
+			</span>
 		</p>
 
 		<Board contentNodes={currentConfig ?? []} onNodeUpdate={handleNodeUpdate} onEditCategory={modalAddCategory} />

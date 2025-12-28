@@ -219,15 +219,23 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		// Close the modal
 	}
 
+	/*
+	$effect(() => {
+		ui.setRouteContext({ isCollectionBuilder: true });
+		return () => ui.setRouteContext({ isCollectionBuilder: false });
+	});
+	*/
+
 	onMount(() => {
 		// Set the initial tab
 		widgets.initialize();
 		app.tabSetState = 0;
+		ui.setRouteContext({ isCollectionBuilder: true });
 	});
 
-	$effect(() => {
-		ui.setRouteContext({ isCollectionBuilder: true });
-		return () => ui.setRouteContext({ isCollectionBuilder: false });
+	import { onDestroy } from 'svelte';
+	onDestroy(() => {
+		ui.setRouteContext({ isCollectionBuilder: false });
 	});
 </script>
 
@@ -235,63 +243,70 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 <div class="my-2 flex items-center justify-between gap-2">
 	<PageTitle name={pageTitle} highlight={highlightedPart} icon="ic:baseline-build" />
 
-	<!-- Back -->
-	<button onclick={() => history.back()} type="button" aria-label="Back" class="variant-outline-primary btn-icon">
-		<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
-	</button>
-</div>
-
-<div class="wrapper">
-	{#if action == 'edit'}
-		<div class="flex justify-center gap-3">
+	<!-- Actions -->
+	<div class="flex items-center gap-2">
+		{#if action == 'edit'}
 			<button
 				type="button"
 				onclick={handleCollectionDelete}
-				class=" variant-filled-error btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-error dark:text-black"
-				>{m.button_delete()}
+				class="variant-filled-error btn-icon"
+				aria-label={m.button_delete()}
+				title={m.button_delete()}
+			>
+				<iconify-icon icon="lucide:trash-2" width="20"></iconify-icon>
 			</button>
 			<button
 				type="button"
 				onclick={handleCollectionSave}
-				class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-tertiary dark:text-black">{m.button_save()}</button
+				class="variant-filled-primary btn-icon"
+				aria-label={m.button_save()}
+				title={m.button_save()}
 			>
-		</div>
-	{/if}
+				<iconify-icon icon="lucide:save" width="20"></iconify-icon>
+			</button>
+		{/if}
 
+		<!-- Back -->
+		<button onclick={() => history.back()} type="button" aria-label="Back" class="variant-outline-primary btn-icon">
+			<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
+		</button>
+	</div>
+</div>
+
+<div class="wrapper pb-24">
 	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">
 		{m.collection_helptext()}
 	</p>
 	<!-- Required Text  -->
 	<div class="mb-2 text-center text-xs text-error-500" data-testid="required-indicator">* {m.collection_required()}</div>
-	<TabGroup bind:group={localTabSet}>
+
+	<TabGroup bind:group={localTabSet} class="mb-4">
 		<!-- User Permissions -->
 		{#if page.data.isAdmin}
 			<!-- Edit -->
 			<Tab bind:group={localTabSet} name="default" value={0}>
-				<div class="flex items-center gap-1">
-					<iconify-icon icon="ic:baseline-edit" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					<span class:active={app.tabSetState === 0} class:text-tertiary-500={app.tabSetState === 0} class:text-primary-500={app.tabSetState === 0}
-						>{m.button_edit()}</span
-					>
+				<div class="flex items-center gap-2">
+					<iconify-icon icon="ic:baseline-edit" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<span class:text-tertiary-500={app.tabSetState === 0} class:text-primary-500={app.tabSetState === 0}>{m.button_edit()}</span>
 				</div>
 			</Tab>
 
 			<!-- Widget Fields -->
 			<Tab bind:group={localTabSet} name="widget" value={1} data-testid="widget-fields-tab">
-				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:widgets-outline" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					<span class:active={app.tabSetState === 1} class:text-tertiary-500={app.tabSetState === 2} class:text-primary-500={app.tabSetState === 2}
-						>{m.collection_widgetfields()}</span
-					>
+				<div class="flex items-center gap-2">
+					<iconify-icon icon="mdi:widgets-outline" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<span class:text-tertiary-500={app.tabSetState === 1} class:text-primary-500={app.tabSetState === 1}>{m.collection_widgetfields()}</span>
 				</div>
 			</Tab>
 		{/if}
 
 		<!-- Tab Panels -->
-		{#if app.tabSetState === 0}
-			<CollectionForm data={collectionActive} {handlePageTitleUpdate} />
-		{:else if app.tabSetState === 1}
-			<CollectionWidget fields={collectionActive?.fields as FieldInstance[] | undefined} {handleCollectionSave} />
-		{/if}
+		<svelte:fragment slot="panel">
+			{#if app.tabSetState === 0}
+				<CollectionForm data={collectionActive} {handlePageTitleUpdate} />
+			{:else if app.tabSetState === 1}
+				<CollectionWidget fields={collectionActive?.fields as FieldInstance[] | undefined} {handleCollectionSave} />
+			{/if}
+		</svelte:fragment>
 	</TabGroup>
 </div>

@@ -134,6 +134,7 @@
 		"@aws-sdk/client-s3": "^3.958.0",
 		"@floating-ui/dom": "^1.7.4",
 		"@inlang/paraglide-js": "^2.7.1",
+		"@keenmate/svelte-treeview": "^4.5.0-rc01",
 		"@mapbox/mapbox-gl-geocoder": "^5.1.2",
 		"@mapbox/mapbox-gl-language": "^1.0.1",
 		"@tailwindcss/forms": "^0.5.11",
@@ -165,6 +166,7 @@
 		"@types/serialize-javascript": "^5.0.4",
 		"argon2": "^0.44.0",
 		"axios": "^1.13.2",
+		"better-svelte-email": "^0.3.6",
 		"buffer": "^6.0.3",
 		"chart.js": "^4.5.1",
 		"chartjs-adapter-date-fns": "^3.0.0",
@@ -173,6 +175,7 @@
 		"deepmerge": "^4.3.1",
 		"drizzle-orm": "^0.45.1",
 		"file-type": "^21.2.0",
+		"flexsearch": "^0.8.212",
 		"google-auth-library": "^10.5.0",
 		"googleapis": "^169.0.0",
 		"graphql": "^16.12.0",
@@ -194,8 +197,7 @@
 		"tailwind-merge": "^3.4.0",
 		"typescript": "^5.9.3",
 		"uuid": "^13.0.0",
-		"ws": "^8.18.3",
-		"better-svelte-email": "^0.3.6"
+		"ws": "^8.18.3"
 	},
 	"optionalDependencies": {
 		"mariadb": "^3.4.5",

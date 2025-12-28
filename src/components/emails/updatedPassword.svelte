@@ -20,8 +20,7 @@
 		languageTag?: string;
 	}
 
-	const lang = $derived(app.systemLanguage);
-	const { username = '', languageTag = lang }: Props = $props();
+	const { username = '', languageTag = app.systemLanguage }: Props = $props();
 
 	// Use production host logo if available, otherwise fall back to GitHub
 	const logoSrc = publicEnv?.HOST_PROD
