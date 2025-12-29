@@ -1,31 +1,76 @@
 {
-	// This is the most important line. It inherits all the SvelteKit-specific
-	// type settings, including generated route types in `./$types`.
 	"extends": "./.svelte-kit/tsconfig.json",
 	"compilerOptions": {
-		// --- Core Module & Syntax Settings (Optimized for Modern JS) ---
-		"target": "ESNext", // Compile to the latest JavaScript features
-		"module": "ESNext", // Use modern ES modules
-		"moduleResolution": "bundler", // The recommended setting for Vite/SvelteKit
-		"verbatimModuleSyntax": true, // Enforces consistent `import type` usage, great for performance
-		"isolatedModules": true, // Ensures each file can be transpiled separately
-		// --- Strictness & Code Quality (Essential for a robust CMS) ---
-		"strict": true, // Enable all strict type-checking options
-		"forceConsistentCasingInFileNames": true, // Prevents case-related bugs
-		"noUnusedLocals": true, // Catches dead code
-		"noUnusedParameters": true, // Helps identify unused function arguments
-		// --- Svelte & JS Interoperability ---
-		"allowJs": true, // Allow JavaScript files to be included
-		"checkJs": true, // Type-check JavaScript files with JSDoc comments
-		"esModuleInterop": true, // Improves compatibility between CommonJS and ES Modules
-		"skipLibCheck": true, // Speeds up compilation by not checking library (.d.ts) files
-		"allowArbitraryExtensions": true, // Important for Vite plugins that might use non-standard extensions
-		"resolveJsonModule": true, // Allow importing JSON files as modules
-		"allowImportingTsExtensions": true, // Allow importing TypeScript files with extensions
-		// --- Bun Runtime Types ---
-		"types": ["@types/bun"] // Include Bun's built-in module types (bun:test, bun:sqlite, etc.)
+		"baseUrl": ".",
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"verbatimModuleSyntax": true,
+		"isolatedModules": true,
+		"strict": true,
+		"forceConsistentCasingInFileNames": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"allowJs": true,
+		"checkJs": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"allowArbitraryExtensions": true,
+		"resolveJsonModule": true,
+		"allowImportingTsExtensions": true,
+		"types": [
+			"@types/bun"
+		],
+		"paths": {
+			"$app/*": [
+				"./.svelte-kit/runtime/app/*"
+			],
+			"$app/environment": [
+				"./tests/bun/mocks/app-environment.ts"
+			],
+			"@src/*": [
+				"src/*"
+			],
+			"@utils/*": [
+				"src/utils/*"
+			],
+			"@stores/*": [
+				"src/stores/*"
+			],
+			"@components/*": [
+				"src/components/*"
+			],
+			"@widgets/*": [
+				"src/widgets/*"
+			],
+			"@databases/*": [
+				"src/databases/*"
+			],
+			"@services/*": [
+				"src/services/*"
+			],
+			"@hooks/*": [
+				"src/hooks/*"
+			],
+			"@messages/*": [
+				"src/messages/*"
+			],
+			"@paraglide/*": [
+				"src/paraglide/*"
+			]
+		}
 	},
-	// Tell TypeScript which files to include in the compilation.
-	"include": ["src/**/*.js", "src/**/*.ts", "src/**/*.svelte", "config/**/*.ts", "types/**/*.ts"],
-	"exclude": ["node_modules", ".svelte-kit", "tests"]
+	"include": [
+		"src/**/*.js",
+		"src/**/*.ts",
+		"src/**/*.svelte",
+		"config/**/*.ts",
+		"types/**/*.ts",
+		"scripts/**/*.ts",
+		"tests/**/*.ts"
+	],
+	"exclude": [
+		"node_modules",
+		".svelte-kit"
+	]
 }

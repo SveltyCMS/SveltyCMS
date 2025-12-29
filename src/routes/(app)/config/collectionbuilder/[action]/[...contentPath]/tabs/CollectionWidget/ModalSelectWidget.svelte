@@ -70,7 +70,7 @@
 			<h2 class={cHeader}>
 				{$modalStore[0]?.title || 'Select Widget'}
 			</h2>
-			<button class="btn-icon variant-ghost-surface" onclick={parent.onClose}>
+			<button class="btn-icon variant-ghost-surface" onclick={parent.onClose} aria-label="Close modal">
 				<iconify-icon icon="mdi:close" width="24"></iconify-icon>
 			</button>
 		</header>
@@ -78,7 +78,7 @@
 		<!-- Search -->
 		<div class="relative my-4">
 			<iconify-icon icon="mdi:magnify" width="24" class="absolute left-4 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
-			<input type="text" placeholder="Search widgets..." class="input h-12 w-full pl-12 text-lg" bind:value={searchTerm} autofocus />
+			<input type="text" placeholder="Search widgets..." class="input h-12 w-full pl-12 text-lg" bind:value={searchTerm} />
 		</div>
 
 		<!-- Grid -->

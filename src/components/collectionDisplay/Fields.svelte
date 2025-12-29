@@ -61,7 +61,6 @@
 	import { activeInput } from '@stores/activeInputStore.svelte';
 
 	// Token Picker
-	// Token Picker
 
 	function openTokenPicker(field: any, e: MouseEvent) {
 		e.preventDefault();
@@ -454,7 +453,7 @@
 								class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
 								style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
 							>
-								<div class="flex items-center justify-between gap-2 px-[5px] text-start field-label">
+								<div class="flex items-center justify-between gap-2 px-[5px] text-start">
 									<!-- Field label -->
 									<div class="flex items-center gap-2">
 										<p class="inline-block font-semibold capitalize">

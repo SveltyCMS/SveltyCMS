@@ -576,6 +576,8 @@
 	"widget_megaMenu_description": "This MegaMenu widget allows multilevel menus for navigation.",
 	"widget_megamenu_title": "Mega Menu",
 	"widget_management": "Widget Management",
+	"widget_configuration_title": "Widget Configuration",
+	"widget_delete_confirm": "Are you sure you want to delete this widget?",
 	"widget_number_description": "This Number widget enables the collection of user number data for purposes such as appointments, reminders, and events.",
 	"widget_phoneNumber_description": "This PhoneNumber widget enables the collection of user phone numbers for purposes such as phone calls, SMS, and WhatsApp.",
 	"widget_radio_description": "This Radio widget enables the collection of user radio data for purposes such as appointments, reminders, and events.",

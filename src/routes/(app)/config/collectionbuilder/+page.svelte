@@ -44,8 +44,8 @@
 	import { type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton';
 	import { showToast } from '@utils/toast';
 	import { showModal } from '@utils/modalUtils';
-	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
-	import type { ISODateString, ContentNodeOperation } from '@root/src/content/types';
+	import type { ContentNode, DatabaseId } from '@databases/dbInterface';
+	import type { ISODateString, ContentNodeOperation } from '@src/content/types';
 
 	interface NodeOperation {
 		type: 'create' | 'update' | 'move' | 'rename';
@@ -75,6 +75,13 @@
 	let currentConfig: ContentNode[] = $state([]);
 	// `nodesToSave` stores operations (create, update, move, rename) that need to be persisted to the backend.
 	let nodesToSave: Record<string, NodeOperation> = $state({});
+
+	// Undo/Redo history for DnD operations
+	const MAX_HISTORY = 50;
+	let undoStack: ContentNode[][] = $state([]);
+	let redoStack: ContentNode[][] = $state([]);
+	let canUndo = $derived(undoStack.length > 0);
+	let canRedo = $derived(redoStack.length > 0);
 
 	$effect(() => {
 		if (data.contentStructure) {
@@ -268,6 +275,10 @@
 	 */
 	function handleNodeUpdate(updatedNodes: ContentNode[]) {
 		console.debug('Page: handleNodeUpdate received', updatedNodes);
+
+		// Push current state to undo stack before updating
+		pushToUndoStack();
+
 		// Update the local `currentConfig` to reflect the UI state
 		currentConfig = updatedNodes;
 
@@ -292,6 +303,146 @@
 		console.debug('Nodes to save (after update):', nodesToSave);
 	}
 
+	/**
+	 * Pushes current state to undo stack.
+	 */
+	function pushToUndoStack(): void {
+		// Deep clone current config
+		const snapshot = JSON.parse(JSON.stringify(currentConfig)) as ContentNode[];
+		undoStack = [...undoStack.slice(-MAX_HISTORY + 1), snapshot];
+		// Clear redo stack when new action is performed
+		redoStack = [];
+	}
+
+	/**
+	 * Undo the last DnD operation.
+	 */
+	function handleUndo(): void {
+		if (undoStack.length === 0) return;
+
+		// Push current state to redo stack
+		const currentSnapshot = JSON.parse(JSON.stringify(currentConfig)) as ContentNode[];
+		redoStack = [...redoStack, currentSnapshot];
+
+		// Pop from undo stack and restore
+		const previousState = undoStack[undoStack.length - 1];
+		undoStack = undoStack.slice(0, -1);
+		currentConfig = previousState;
+
+		// Mark all nodes as moved (to trigger save)
+		previousState.forEach((node) => {
+			nodesToSave[node._id] = { type: 'move', node };
+		});
+
+		showToast('Undo successful', 'success');
+	}
+
+	/**
+	 * Redo the last undone DnD operation.
+	 */
+	function handleRedo(): void {
+		if (redoStack.length === 0) return;
+
+		// Push current state to undo stack
+		const currentSnapshot = JSON.parse(JSON.stringify(currentConfig)) as ContentNode[];
+		undoStack = [...undoStack, currentSnapshot];
+
+		// Pop from redo stack and restore
+		const nextState = redoStack[redoStack.length - 1];
+		redoStack = redoStack.slice(0, -1);
+		currentConfig = nextState;
+
+		// Mark all nodes as moved (to trigger save)
+		nextState.forEach((node) => {
+			nodesToSave[node._id] = { type: 'move', node };
+		});
+
+		showToast('Redo successful', 'success');
+	}
+
+	/**
+	 * Handle node deletion with confirmation
+	 */
+	function handleDeleteNode(node: Partial<ContentNode>): void {
+		if (!node._id) return;
+
+		const modalSettings: ModalSettings = {
+			type: 'confirm',
+			title: 'Delete ' + (node.nodeType === 'category' ? 'Category' : 'Collection'),
+			body: `Are you sure you want to delete "${node.name}"? ${node.nodeType === 'category' ? 'All items inside will be moved to root level.' : 'This action cannot be undone.'} `,
+			response: (confirmed: boolean) => {
+				if (!confirmed) return;
+
+				// Push to undo stack
+				pushToUndoStack();
+
+				// Remove from currentConfig
+				if (node.nodeType === 'category') {
+					// Move children to root before deleting category
+					currentConfig = currentConfig
+						.map((n) => {
+							if (n.parentId === node._id) {
+								return { ...n, parentId: undefined };
+							}
+							return n;
+						})
+						.filter((n) => n._id !== node._id);
+				} else {
+					currentConfig = currentConfig.filter((n) => n._id !== node._id);
+				}
+
+				// Mark for deletion - uses the proper 'delete' operation type
+				// ContentManager.upsertContentNodes handles 'delete' operations
+				nodesToSave[node._id as string] = {
+					type: 'delete' as const,
+					node: node as ContentNode
+				};
+
+				showToast(`"${node.name}" deleted`, 'success');
+			}
+		};
+
+		showModal(modalSettings);
+	}
+
+	/**
+	 * Handle node duplication
+	 */
+	function handleDuplicateNode(node: Partial<ContentNode>): void {
+		if (!node._id) return;
+
+		// Push to undo stack
+		pushToUndoStack();
+
+		// Create duplicate with new ID
+		const newId = generateId() as DatabaseId;
+		const duplicate: ContentNode = {
+			...node,
+			_id: newId,
+			name: `${node.name} (Copy)`,
+			slug: node.slug ? `${node.slug}-copy` : undefined,
+			order: (node.order ?? 0) + 1,
+			createdAt: new Date().toISOString() as ISODateString,
+			updatedAt: new Date().toISOString() as ISODateString
+		} as ContentNode;
+
+		// Insert after original
+		const originalIndex = currentConfig.findIndex((n) => n._id === node._id);
+		if (originalIndex !== -1) {
+			currentConfig = [...currentConfig.slice(0, originalIndex + 1), duplicate, ...currentConfig.slice(originalIndex + 1)];
+		} else {
+			currentConfig = [...currentConfig, duplicate];
+		}
+
+		// Mark for creation
+		nodesToSave[newId] = {
+			type: 'create',
+			node: duplicate
+		};
+
+		showToast(`"${node.name}" duplicated`, 'success');
+	}
+
 	function handleAddCollectionClick(): void {
 		collections.setMode('create');
 		collections.setCollectionValue({
@@ -309,6 +460,20 @@
 
 	onMount(() => {
 		ui.setRouteContext({ isCollectionBuilder: true });
+
+		// Keyboard shortcuts for undo/redo
+		const handleKeydown = (e: KeyboardEvent) => {
+			if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+				e.preventDefault();
+				handleUndo();
+			} else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+				e.preventDefault();
+				handleRedo();
+			}
+		};
+		window.addEventListener('keydown', handleKeydown);
+
+		return () => window.removeEventListener('keydown', handleKeydown);
 	});
 
 	onDestroy(() => {
@@ -318,6 +483,28 @@
 
 <PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config">
 	<div class="flex items-center gap-2">
+		<!-- Undo/Redo Buttons -->
+		<button
+			type="button"
+			onclick={handleUndo}
+			aria-label="Undo (Ctrl+Z)"
+			title="Undo (Ctrl+Z)"
+			class="btn-icon variant-soft-surface"
+			disabled={!canUndo || isLoading}
+		>
+			<iconify-icon icon="mdi:undo" width="20"></iconify-icon>
+		</button>
+		<button
+			type="button"
+			onclick={handleRedo}
+			aria-label="Redo (Ctrl+Y)"
+			title="Redo (Ctrl+Y)"
+			class="btn-icon variant-soft-surface"
+			disabled={!canRedo || isLoading}
+		>
+			<iconify-icon icon="mdi:redo" width="20"></iconify-icon>
+		</button>
+
 		<!-- Add Category Button -->
 		<button
 			onclick={() => modalAddCategory()}
@@ -377,6 +564,12 @@
 			</span>
 		</p>
 
-		<Board contentNodes={currentConfig ?? []} onNodeUpdate={handleNodeUpdate} onEditCategory={modalAddCategory} />
+		<Board
+			contentNodes={currentConfig ?? []}
+			onNodeUpdate={handleNodeUpdate}
+			onEditCategory={modalAddCategory}
+			onDeleteNode={handleDeleteNode}
+			onDuplicateNode={handleDuplicateNode}
+		/>
 	</div>
 </div>

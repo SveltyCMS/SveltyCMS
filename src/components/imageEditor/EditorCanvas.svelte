@@ -1,5 +1,5 @@
 <!--
-@file: /src/routes/(app)/imageEditor/EditorCanvas.svelte
+@file: src/components/imageEditor/EditorCanvas.svelte
 @component
 **Responsive canvas wrapper for the Konva stage**
 Handles canvas sizing, empty states, and provides proper container

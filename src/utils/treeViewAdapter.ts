@@ -6,7 +6,7 @@
  * and vice versa. It is used for hierarchical organization of content in the CMS.
  */
 
-import type { ContentNode } from '@root/src/databases/dbInterface';
+import type { ContentNode } from '@databases/dbInterface';
 
 export interface TreeViewItem extends Record<string, any> {
 	id: string;
@@ -19,6 +19,9 @@ export interface TreeViewItem extends Record<string, any> {
 	path: string;
 	order?: number;
 	_id?: any; // Preserve original ID reference
+	// Drag-and-drop control
+	isDraggable?: boolean;
+	isDropAllowed?: boolean;
 }
 
 /**
@@ -47,7 +50,10 @@ export function toTreeViewData(nodes: ContentNode[], parentPath: string = ''): T
 			nodeType: n.type || n.nodeType || 'collection',
 			icon: n.icon,
 			path: path,
-			parent: parentPath ? parentPath.split('.').pop() || null : null
+			parent: parentPath ? parentPath.split('.').pop() || null : null,
+			// Enable drag-and-drop for all items
+			isDraggable: true,
+			isDropAllowed: true
 		};
 
 		result.push(item);
@@ -118,25 +124,123 @@ export function fromTreeViewData(flatItems: TreeViewItem[]): ContentNode[] {
 
 /**
  * Converts flat TreeView items directly to flat ContentNodes for the backend.
- * Handles parentId mapping, order, and path regeneration.
+ * Handles parentId mapping and recalculates order based on sibling position.
  */
 export function toFlatContentNodes(flatItems: TreeViewItem[]): ContentNode[] {
+	// Group items by parent to calculate order within siblings
+	const siblingGroups = new Map<string, TreeViewItem[]>();
+
+	for (const item of flatItems) {
+		const parentKey = item.parent || '__root__';
+		if (!siblingGroups.has(parentKey)) {
+			siblingGroups.set(parentKey, []);
+		}
+		siblingGroups.get(parentKey)!.push(item);
+	}
+
+	// Sort each sibling group by their path order (lexicographic within same level)
+	for (const [, siblings] of siblingGroups) {
+		siblings.sort((a, b) => {
+			// Sort by path to maintain visual order
+			const aSegments = a.path.split('.');
+			const bSegments = b.path.split('.');
+			// Compare the last segment (their position at this level)
+			return aSegments[aSegments.length - 1].localeCompare(bSegments[bSegments.length - 1]);
+		});
+	}
+
+	// Create order lookup
+	const orderLookup = new Map<string, number>();
+	for (const [, siblings] of siblingGroups) {
+		siblings.forEach((item, index) => {
+			orderLookup.set(item.id, index);
+		});
+	}
+
 	return flatItems.map((item) => {
-		const parentId = item.parent || undefined;
+		// Extract parentId from path (second-to-last segment)
+		let parentId: string | undefined;
+		if (item.path && item.path.includes('.')) {
+			const segments = item.path.split('.');
+			segments.pop(); // Remove self
+			parentId = segments.pop(); // Get parent id
+		}
+
 		return {
 			...item,
 			_id: item._id || item.id,
-			id: undefined, // ContentNode uses _id usually
+			id: undefined, // ContentNode uses _id
 			parentId: parentId,
 			name: item.name,
 			icon: item.icon,
 			nodeType: item.nodeType,
 			path: item.path,
-			order: typeof item.order === 'number' ? item.order : 0,
+			order: orderLookup.get(item.id) ?? 0,
 
 			// Clean up internal props
 			parent: undefined,
 			text: undefined
 		} as unknown as ContentNode;
 	});
+}
+
+/**
+ * Recalculates paths for TreeView items after a drag-and-drop operation.
+ * This is essential because svelte-treeview may not automatically maintain
+ * consistent paths after complex moves.
+ *
+ * @param items Flat array of TreeView items with potentially stale paths
+ * @returns Items with recalculated paths based on parent relationships
+ */
+export function recalculatePaths(items: TreeViewItem[]): TreeViewItem[] {
+	// Build a map of id -> item for quick lookup
+	const itemMap = new Map<string, TreeViewItem>();
+	for (const item of items) {
+		itemMap.set(item.id, { ...item });
+	}
+
+	// Group by parent to determine order
+	const childrenByParent = new Map<string, TreeViewItem[]>();
+	for (const item of items) {
+		const parentKey = item.parent || '__root__';
+		if (!childrenByParent.has(parentKey)) {
+			childrenByParent.set(parentKey, []);
+		}
+		childrenByParent.get(parentKey)!.push(itemMap.get(item.id)!);
+	}
+
+	// Sort children within each parent group by their current order/path
+	for (const [, children] of childrenByParent) {
+		children.sort((a, b) => {
+			// Prefer order if set, otherwise use path
+			if (typeof a.order === 'number' && typeof b.order === 'number') {
+				return a.order - b.order;
+			}
+			return (a.path || '').localeCompare(b.path || '');
+		});
+	}
+
+	// Recursively assign new paths starting from roots
+	function assignPaths(parentId: string | null, parentPath: string): void {
+		const key = parentId || '__root__';
+		const children = childrenByParent.get(key);
+		if (!children) return;
+
+		children.forEach((child, index) => {
+			const newPath = parentPath ? `${parentPath}.${child.id}` : child.id;
+			const item = itemMap.get(child.id);
+			if (item) {
+				item.path = newPath;
+				item.order = index;
+				item.parent = parentId;
+			}
+			// Recurse into children
+			assignPaths(child.id, newPath);
+		});
+	}
+
+	// Start from roots
+	assignPaths(null, '');
+
+	return Array.from(itemMap.values());
 }

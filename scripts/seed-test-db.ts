@@ -12,9 +12,11 @@
  * The DB_TYPE environment variable will determine which database to seed.
  * GitHub Actions will run tests in parallel matrix for each database type.
  */
-import { spawn } from 'child_process';
 import { safeParse } from 'valibot';
-import '../tests/bun/setup'; // Mock SvelteKit environment
+// import '../tests/bun/setup'; // Mock SvelteKit environment - REMOVED: Incompatible with bun run, handled via tsconfig paths
+
+// Import types and schemas from the application source of truth
+import { privateEnv } from '../config/private.test'; // Import dedicated test config
 
 // Import types and schemas from the application source of truth
 import { databaseConfigSchema, type DatabaseConfig } from '../src/databases/schemas';
@@ -26,7 +28,8 @@ const RETRY_DELAY = 1000;
 // Test Configuration - Typed against the application schema
 // Safety check: Ensure we are running in a test environment
 const isTestMode = process.env.TEST_MODE === 'true' || process.env.NODE_ENV === 'test';
-const dbName = process.env.DB_NAME || 'sveltycms_test';
+// Prefer DB_NAME from privateEnv if available
+const dbName = privateEnv?.DB_NAME || process.env.DB_NAME || 'sveltycms_test';
 
 if (!isTestMode && !dbName.includes('test')) {
 	console.error('❌ SAFETY ERROR: Attempting to seed a non-test database without TEST_MODE enabled.');
@@ -36,12 +39,12 @@ if (!isTestMode && !dbName.includes('test')) {
 }
 
 const testDbConfig: DatabaseConfig = {
-	type: (process.env.DB_TYPE as 'mongodb' | 'mongodb+srv') || 'mongodb',
-	host: process.env.DB_HOST || 'localhost',
-	port: parseInt(process.env.DB_PORT || '27017'),
+	type: (privateEnv?.DB_TYPE as 'mongodb' | 'mongodb+srv') || (process.env.DB_TYPE as 'mongodb' | 'mongodb+srv') || 'mongodb',
+	host: privateEnv?.DB_HOST || process.env.DB_HOST || 'localhost',
+	port: privateEnv?.DB_PORT || parseInt(process.env.DB_PORT || '27017'),
 	name: dbName,
-	user: process.env.DB_USER || '',
-	password: process.env.DB_PASSWORD || ''
+	user: privateEnv?.DB_USER || process.env.DB_USER || '',
+	password: privateEnv?.DB_PASSWORD || process.env.DB_PASSWORD || ''
 };
 
 // Validate config against the schema before even trying to send it

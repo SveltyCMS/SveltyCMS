@@ -187,7 +187,12 @@ console.log('━'.repeat(80));
 
 if (invalidFiles > 0 || mdFiles.length > 0) {
 	if (invalidFiles > 0) {
-		console.error(`\n⚠️  ${invalidFiles} file(s) with invalid frontmatter. Please fix the errors above.`);
+		console.error(`\n⚠️  ${invalidFiles} file(s) with invalid frontmatter:`);
+		errors.forEach((e) => {
+			const relativePath = path.relative(PROJECT_ROOT, e.file);
+			console.error(`   ❌ ${relativePath}`);
+		});
+		console.error('\nPlease fix the errors above.');
 	}
 	if (mdFiles.length > 0) {
 		console.error(`⚠️  ${mdFiles.length} .md file(s) need to be converted to .mdx format.`);

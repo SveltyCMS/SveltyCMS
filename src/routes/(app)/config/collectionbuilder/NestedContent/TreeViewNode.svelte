@@ -6,7 +6,7 @@ It is purely presentational, as drag-and-drop is handled by the parent TreeView.
 
 Features:	
 - Node Name & Icon
-- Action Buttons (Edit, etc.)
+- Action Buttons (Edit, Delete, Duplicate)
 - Visual styling based on node type
 -->
 
@@ -22,9 +22,11 @@ Features:
 		toggle?: () => void;
 
 		onEditCategory: (item: any) => void;
+		onDelete?: (item: any) => void;
+		onDuplicate?: (item: any) => void;
 	}
 
-	let { item, isOpen, toggle, onEditCategory }: Props = $props();
+	let { item, isOpen, toggle, onEditCategory, onDelete, onDuplicate }: Props = $props();
 
 	// Computed properties
 	const name = $derived(item.name || 'Untitled');
@@ -32,7 +34,6 @@ Features:
 	const isCategory = $derived(item.nodeType === 'category');
 
 	// Styling classes
-	// Categories get a different look than Collections
 	const containerClass = $derived(
 		isCategory
 			? 'group card p-2 variant-soft-secondary flex items-center gap-2 mb-1 cursor-pointer hover:variant-filled-secondary'
@@ -40,11 +41,7 @@ Features:
 	);
 
 	function handleClick(e: MouseEvent) {
-		// Prevent navigation if clicking on interactive elements
 		if ((e.target as HTMLElement).closest('button')) return;
-
-		// Default behavior: toggle if expandable (for both categories and collections if they have children)
-		// Edit is now handled exclusively by the button
 		toggle?.();
 	}
 </script>
@@ -70,14 +67,12 @@ Features:
 			<iconify-icon icon={isOpen ? 'bi:chevron-down' : 'bi:chevron-right'}></iconify-icon>
 		</button>
 	{:else}
-		<!-- Spacer for alignment -->
 		<div class="w-8"></div>
 	{/if}
 
-	<!-- User requested category icons to be primary as well -->
 	<iconify-icon {icon} width="20" class="text-error-500"></iconify-icon>
 
-	<!-- Name & Info (Left) -->
+	<!-- Name & Info -->
 	<div class="flex flex-col gap-0.5 min-w-[200px]">
 		<div class="flex items-center gap-2">
 			<span class="font-bold">{name}</span>
@@ -89,7 +84,7 @@ Features:
 		</div>
 	</div>
 
-	<!-- Description (Center) -->
+	<!-- Description -->
 	<div class="flex-1 px-4 min-w-0 flex justify-start">
 		{#if item.description}
 			<span class="italic text-sm opacity-60 truncate w-full max-w-[400px] text-left" title={item.description}>
@@ -98,48 +93,58 @@ Features:
 		{/if}
 	</div>
 
-	<!-- Slug (Right) -->
+	<!-- Slug -->
 	{#if item.slug}
 		<span class="badge bg-white text-black px-1.5 py-0.5 opacity-90 mr-2">/{item.slug}</span>
 	{/if}
 
 	<!-- Actions -->
-	<div class="flex gap-1">
+	<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+		<!-- Edit Button -->
 		<button
 			type="button"
-			class="btn-icon btn-icon-sm"
+			class="btn-icon btn-icon-sm variant-soft hover:variant-filled-primary"
 			onclick={(e) => {
 				e.stopPropagation();
 				if (isCategory) {
 					onEditCategory(item);
 				} else {
-					// Use 'edit' action and the collection ID (UUID)
-					// The route expects /config/collectionbuilder/[action]/[...contentPath]
-					// So: /config/collectionbuilder/edit/[UUID]
 					goto(`/config/collectionbuilder/edit/${item.id}`);
 				}
 			}}
 			title="Edit"
 		>
-			<iconify-icon icon="mdi:pencil-outline" width="20"></iconify-icon>
+			<iconify-icon icon="mdi:pencil-outline" width="18"></iconify-icon>
 		</button>
 
+		<!-- Duplicate Button -->
 		<button
 			type="button"
-			class="btn-icon btn-icon-sm"
+			class="btn-icon btn-icon-sm variant-soft hover:variant-filled-tertiary"
 			onclick={(e) => {
 				e.stopPropagation();
-				// TODO: Implement delete callback
-				console.log('Delete clicked', item);
-				alert('Delete not implemented yet');
+				onDuplicate?.(item);
+			}}
+			title="Duplicate"
+		>
+			<iconify-icon icon="mdi:content-copy" width="18"></iconify-icon>
+		</button>
+
+		<!-- Delete Button -->
+		<button
+			type="button"
+			class="btn-icon btn-icon-sm variant-soft hover:variant-filled-error"
+			onclick={(e) => {
+				e.stopPropagation();
+				onDelete?.(item);
 			}}
 			title="Delete"
 		>
-			<iconify-icon icon="lucide:trash-2" width="20" class="text-error-500"></iconify-icon>
+			<iconify-icon icon="lucide:trash-2" width="18"></iconify-icon>
 		</button>
-		<!-- Icon -->
-		<!-- Drag Handle (Visual Only) -->
-		<div class="cursor-grab opacity-30 hover:opacity-100 flex items-center justify-center mr-1" aria-hidden="true">
+
+		<!-- Drag Handle -->
+		<div class="cursor-grab opacity-30 hover:opacity-100 flex items-center justify-center ml-1" aria-hidden="true">
 			<iconify-icon icon="mdi-drag" width="20"></iconify-icon>
 		</div>
 	</div>
