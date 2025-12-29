@@ -69,6 +69,7 @@
 	import {
 		getModalStore,
 		getToastStore,
+		initializeStores,
 		Modal,
 		setInitialClassState,
 		setModeCurrent,
@@ -84,7 +85,11 @@
 	import ScheduleModal from '@components/collectionDisplay/ScheduleModal.svelte';
 	import MediaLibraryModal from '@components/MediaLibraryModal.svelte';
 
-	// Configure popup positioning
+	// Ensure Skeleton stores are initialized at module load (safe to call multiple times)
+	// This MUST be called before storePopup.set() to avoid null reference errors
+	initializeStores();
+
+	// Configure popup positioning (must be after initializeStores)
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 
 	// Modal component registry for Skeleton UI
@@ -124,6 +129,7 @@
 	// Component State
 	const loadError = $state<Error | null>(null);
 	let mediaQuery: MediaQueryList | undefined;
+	let uiMounted = $state(false);
 
 	// =============================================
 	// DERIVED STATE
@@ -231,6 +237,7 @@
 	// =============================================
 
 	onMount(() => {
+		uiMounted = true;
 		// Start initialization loading ONLY if content structure is missing
 		// This prevents a race condition where onMount (running after effect) restarts loading
 		if (!Array.isArray(data.contentStructure)) {
@@ -328,8 +335,10 @@
 			<FloatingNav />
 		{/if}
 
-		<Toast />
-		<Modal components={modalComponentRegistry} />
+		{#if uiMounted}
+			<Toast />
+			<Modal components={modalComponentRegistry} />
+		{/if}
 
 		{#if $isSearchVisible}
 			<SearchComponent />
