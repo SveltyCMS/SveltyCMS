@@ -37,7 +37,6 @@
 
 	// Skeleton components
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
-	import { Avatar } from '@skeletonlabs/skeleton'; // KEEP IMPORT FOR TYPE CHECKING BUT DO NOT USE IN MARKUP
 
 	// Paraglide components
 	import * as m from '@src/paraglide/messages';
@@ -271,7 +270,17 @@
 					aria-label="User profile"
 					class="flex flex-col items-center rounded-lg p-2 hover:bg-surface-500 hover:text-white {isSidebarFull ? 'w-full' : 'btn-icon'}"
 				>
-					<Avatar src={avatarUrl} initials="AV" class="mx-auto {isSidebarFull ? 'w-9' : 'w-8'}" />
+					<img
+						src={avatarUrl}
+						alt="User avatar"
+						class="mx-auto rounded-full object-cover {isSidebarFull ? 'h-9 w-9' : 'h-8 w-8'}"
+						onerror={(e) => {
+							const target = e.currentTarget as HTMLImageElement;
+							if (target.src !== '/Default_User.svg') {
+								target.src = '/Default_User.svg';
+							}
+						}}
+					/>
 					{#if isSidebarFull && user?.username}
 						<span class="mt-1 w-full truncate text-center text-xs font-medium" title={user.username}>
 							{user.username}
