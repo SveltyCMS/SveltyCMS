@@ -49,12 +49,13 @@
 	let currentLocale = $state(getLocale());
 	let isMounted = $state(false);
 	let isHydrated = $state(false);
+	let toastReady = $state(false);
 
 	// ============================================================================
 	// Initialization
 	// ============================================================================
 
-	// Initialize Skeleton stores (safe to call multiple times)
+	// Initialize Skeleton stores early (idempotent)
 	initializeStores();
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 	setGlobalToastStore(getToastStore());
@@ -72,6 +73,9 @@
 
 	onMount(() => {
 		console.log('[RootLayout] Mounting in', browser ? 'browser' : 'server');
+
+		// Stores are already initialized above; mark toast as ready for client render
+		toastReady = true;
 
 		// Wait for hydration to complete before syncing
 		requestAnimationFrame(() => {
@@ -149,5 +153,7 @@
 		{@render children?.()}
 	{/key}
 	<TokenPicker />
-	<Toast />
+	{#if isMounted && toastReady}
+		<Toast />
+	{/if}
 </div>
