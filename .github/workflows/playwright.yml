@@ -168,7 +168,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Install Playwright Browsers
-        run: bun x playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium
 
       # Ensure fresh state - remove any existing config
       - name: Clean config for fresh CI run
@@ -207,7 +207,7 @@ jobs:
           echo "🚀 Starting preview server on port 4173..."
           bun run preview &
           echo "⏳ Waiting for server to be ready..."
-          bun x wait-on http://localhost:4173 -t 60000
+          bun x wait-on http://localhost:4173 -t 120000
           echo "✅ Preview server is ready!"
 
       # STEP A: Run the Setup Wizard first to initialize the DB/User
