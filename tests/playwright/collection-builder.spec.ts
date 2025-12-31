@@ -25,8 +25,9 @@ const test = base.extend<{ authenticatedPage: Page }>({
 		}
 
 		// Navigate to the collection builder
+		// NOTE: Use 'domcontentloaded' - SSE connection prevents 'load' from resolving
 		console.log('[Fixture] Navigating to /config/collectionbuilder...');
-		await freshPage.goto(`${baseUrl}/config/collectionbuilder`, { waitUntil: 'load', timeout: 30000 });
+		await freshPage.goto(`${baseUrl}/config/collectionbuilder`, { waitUntil: 'domcontentloaded', timeout: 30000 });
 		console.log('[Fixture] Current URL:', freshPage.url());
 
 		// If redirected to login, authentication failed
