@@ -42,6 +42,29 @@ export async function userExists(email: string): Promise<boolean> {
 }
 
 /**
+ * Gets a specific user by email.
+ */
+export async function getUser(email: string): Promise<any> {
+	try {
+		const cookie = await loginAsAdmin();
+		const response = await fetch(`${BASE_URL}/api/user/batch`, {
+			method: 'POST',
+			headers: {
+				Cookie: cookie,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ operation: 'list', limit: 100 })
+		});
+
+		const result = await response.json();
+		const users = result.data || [];
+		return users.find((u: any) => u.email === email);
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Gets the total user count via API
  */
 export async function getUserCount(): Promise<number> {
@@ -65,13 +88,19 @@ export async function getUserCount(): Promise<number> {
 
 /**
  * Drops the database.
- * NOTE: This requires a specific endpoints to be enabled in your CMS
- * or for the 'seed-test-db.ts' script to be run via shell.
- * * Since we can't drop the DB via a standard API call for security,
- * this function logs a warning to ensure the developer knows to clean the DB externally.
  */
 export async function dropDatabase(): Promise<void> {
-	// In CI, the container is fresh.
-	// In Local, we rely on scripts/seed-test-db.ts
 	console.log("ℹ️ Database cleanup should be handled by 'bun run scripts/seed-test-db.ts' before tests.");
+}
+
+/**
+ * Polling helper that waits for a condition to be met.
+ */
+export async function waitFor(callback: () => Promise<boolean>, timeout: number = 5000): Promise<boolean> {
+	const start = Date.now();
+	while (Date.now() - start < timeout) {
+		if (await callback()) return true;
+		await new Promise((resolve) => setTimeout(resolve, 200));
+	}
+	return false;
 }

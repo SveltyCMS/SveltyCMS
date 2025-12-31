@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'bun:test';
 import { TokenRegistry, replaceTokens } from '@src/services/token/engine';
-import { processTokensInResponse } from '@src/utils/tokenHelper';
+import { processTokensInResponse } from '@src/services/token/helper';
 import { modifierRegistry } from '@src/services/token/modifiers';
 
 describe('Token System', () => {
@@ -11,13 +11,17 @@ describe('Token System', () => {
 				{
 					token: 'test.hello',
 					name: 'Hello',
+					description: 'Test hello token',
 					category: 'system',
+					type: 'string',
 					resolve: () => 'Hello World'
 				},
 				{
 					token: 'test.user',
 					name: 'User',
+					description: 'Test user token',
 					category: 'user',
+					type: 'string',
 					resolve: (ctx) => ctx?.user?.username || 'Guest'
 				}
 			]
@@ -28,7 +32,7 @@ describe('Token System', () => {
 	});
 
 	it('should replace simple tokens', async () => {
-		const result = await replaceTokens('Say {{test.hello}}!');
+		const result = await replaceTokens('Say {{test.hello}}!', {} as any);
 		expect(result).toBe('Say Hello World!');
 	});
 
@@ -39,12 +43,12 @@ describe('Token System', () => {
 	});
 
 	it('should apply modifiers', async () => {
-		const result = await replaceTokens('{{test.hello|reverse}}');
+		const result = await replaceTokens('{{test.hello|reverse}}', {} as any);
 		expect(result).toBe('dlroW olleH');
 	});
 
 	it('should apply multiple modifiers', async () => {
-		const result = await replaceTokens('{{test.hello|reverse|upper}}');
+		const result = await replaceTokens('{{test.hello|reverse|upper}}', {} as any);
 		expect(result).toBe('DLROW OLLEH');
 	});
 
@@ -66,7 +70,7 @@ describe('Token System', () => {
 	});
 
 	it('should handle unknown tokens gracefully', async () => {
-		const result = await replaceTokens('Unknown: {{test.unknown}}');
+		const result = await replaceTokens('Unknown: {{test.unknown}}', {} as any);
 		expect(result).toBe('Unknown: {{test.unknown}}');
 	});
 });

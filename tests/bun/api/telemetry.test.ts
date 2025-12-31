@@ -6,7 +6,7 @@
  * and ensures proper handling of the SVELTYCMS_TELEMETRY setting.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it, test } from 'bun:test';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'bun:test';
 import { prepareAuthenticatedContext, cleanupTestDatabase } from '../helpers/testSetup';
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
 
@@ -19,6 +19,7 @@ const describeOrSkip = serverReady ? describe : describe.skip;
 
 describeOrSkip('Telemetry API Endpoints', () => {
 	let authCookie: string;
+	// adminUserId removed
 
 	beforeAll(async () => {
 		// Server already checked, this is just for completeness

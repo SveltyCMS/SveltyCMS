@@ -26,10 +26,7 @@ and proper active state indication.
 	// Drive tools from the widgets registry, with a focalpoint fallback
 	import { editorWidgets, type EditorWidget } from './widgets/registry';
 
-	const tools = [
-		...editorWidgets.map((w: EditorWidget) => ({ id: w.key, name: w.title, icon: w.icon ?? 'mdi:cog', description: '' })),
-		{ id: 'focalpoint', name: 'Focal', icon: 'mdi:focus-field', description: 'Set focal point with rule of thirds' }
-	];
+	const tools = [...editorWidgets.map((w: EditorWidget) => ({ id: w.key, name: w.title, icon: w.icon ?? 'mdi:cog', description: '' }))];
 
 	function handleToolClick(tool: any) {
 		if (!hasImage) return;

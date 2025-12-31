@@ -6,6 +6,7 @@
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import type { RequestEvent, ResolveOptions } from '@sveltejs/kit';
+import type { Theme } from '@src/databases/dbInterface';
 
 // --- Mock ThemeManager ---
 // We need to mock the ThemeManager singleton to avoid DB calls during tests
@@ -27,7 +28,7 @@ declare global {
 	namespace App {
 		interface Locals {
 			darkMode: boolean;
-			theme: string | null;
+			theme: Theme | null;
 			[key: string]: unknown;
 		}
 	}
@@ -85,7 +86,7 @@ describe('Middleware: handleTheme', () => {
 
 			if (transformPageChunk) {
 				// Simulate SvelteKit applying the transform during rendering
-				const transformedHtml = transformPageChunk({ html: BASE_HTML, done: true });
+				const transformedHtml = await transformPageChunk({ html: BASE_HTML, done: true });
 				return new Response(transformedHtml, {
 					headers: { 'Content-Type': 'text/html' }
 				});
@@ -105,7 +106,7 @@ describe('Middleware: handleTheme', () => {
 			{ cookie: 'system', expectedMode: false, desc: 'System Mode' },
 			{ cookie: undefined, expectedMode: false, desc: 'No Cookie' },
 			{ cookie: 'invalid-value', expectedMode: false, desc: 'Invalid Cookie' },
-			{ cookie: '', expectedMode: false, desc: 'Empty Cookie' }
+			{ cookie: 'empty-value', expectedMode: false, desc: 'Empty Cookie' }
 		];
 
 		for (const { cookie, expectedMode, desc } of testCases) {

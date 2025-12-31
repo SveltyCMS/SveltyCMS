@@ -7,7 +7,13 @@ import { replaceTokens } from '@src/services/token/engine';
 
 describe('Token System', () => {
 	const context = {
-		user: { email: 'test@test.com', password: '123' },
+		user: {
+			_id: '1',
+			email: 'test@test.com',
+			password: '123',
+			role: 'admin',
+			permissions: {}
+		} as any,
 		entry: { title: 'Hello', price: 50 }
 	};
 

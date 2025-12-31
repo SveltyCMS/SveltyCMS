@@ -9,7 +9,6 @@
  * - Error handling and edge cases
  */
 
-// @ts-expect-error - bun:test is a runtime module
 import { describe, it, expect } from 'bun:test';
 import { buildDatabaseConnectionString } from '@src/routes/api/setup/utils';
 import { classifyDatabaseError } from '@src/routes/api/setup/errorClassifier';

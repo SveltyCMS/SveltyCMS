@@ -14,9 +14,7 @@
  * NOTE: TypeScript errors are expected - bun:test is runtime-only, db-helper needs creation
  */
 
-// @ts-expect-error - bun:test is a runtime module provided by Bun
 import { beforeEach, describe, expect, it } from 'bun:test';
-// @ts-expect-error - db-helper will be created when database infrastructure is ready
 import { dropDatabase, getUser, getUserCount, userExists, waitFor } from '../../helpers/db-helper';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5173';

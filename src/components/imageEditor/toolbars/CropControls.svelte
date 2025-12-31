@@ -11,6 +11,7 @@ Modern controls for the Crop tool. Injected into the master toolbar.
 		onCropShapeChange,
 		onAspectRatio,
 		onApply,
+		onCancel,
 		cropShape
 	}: {
 		onRotateLeft: () => void;
@@ -19,6 +20,7 @@ Modern controls for the Crop tool. Injected into the master toolbar.
 		onCropShapeChange: (shape: 'rectangle' | 'circular') => void;
 		onAspectRatio: (ratio: number | null) => void;
 		onApply: () => void;
+		onCancel: () => void;
 		cropShape: 'rectangle' | 'circular';
 	} = $props();
 </script>
@@ -58,6 +60,12 @@ Modern controls for the Crop tool. Injected into the master toolbar.
 	</button>
 
 	<div class="flex-grow"></div>
+
+	<!-- Cancel -->
+	<button class="btn variant-ghost-error" onclick={onCancel}>
+		<iconify-icon icon="mdi:close"></iconify-icon>
+		<span>Cancel</span>
+	</button>
 
 	<!-- Apply -->
 	<button class="btn variant-filled-success" onclick={onApply}>

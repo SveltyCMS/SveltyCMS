@@ -8,11 +8,9 @@
  * NOTE: TypeScript errors for 'bun:test' module are expected - it's a runtime module.
  */
 
-// @ts-expect-error - bun:test is a runtime module provided by Bun
 import { beforeAll, describe, expect, it } from 'bun:test';
-// DatabaseAdapter type will be used when tests are implemented
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { DatabaseAdapter, DatabaseResult } from '../../../src/databases/dbInterface';
+import type { DatabaseResult } from '../../../src/databases/dbInterface';
+// import { MongoDBConnector } from '../../../src/databases/mongodb-connector';
 
 describe.skip('Database Interface Contract Tests', () => {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -54,7 +54,7 @@ describe('Widget System - Factory Pattern', () => {
 		test('should support function-based validation schema', () => {
 			const widget = createWidget({
 				Name: 'DynamicWidget',
-				validationSchema: (field) => {
+				validationSchema: (field: any) => {
 					return field.required ? minLength(1, 'Required') : string();
 				}
 			});
@@ -89,7 +89,7 @@ describe('Widget System - Factory Pattern', () => {
 			});
 
 			expect(widget.GuiSchema).toBeDefined();
-			expect(widget.GuiSchema.label).toBeDefined();
+			expect(widget.GuiSchema?.label).toBeDefined();
 		});
 
 		test('should attach GraphqlSchema to widget', () => {
@@ -116,8 +116,8 @@ describe('Widget System - Factory Pattern', () => {
 			});
 
 			expect(widget.aggregations).toBeDefined();
-			expect(widget.aggregations.filters).toBeFunction();
-			expect(widget.aggregations.sorts).toBeFunction();
+			expect(widget.aggregations?.filters).toBeFunction();
+			expect(widget.aggregations?.sorts).toBeFunction();
 		});
 	});
 
@@ -197,6 +197,7 @@ describe('Widget System - Factory Pattern', () => {
 				maxLength: number;
 				placeholder: string;
 				pattern?: RegExp;
+				[key: string]: any;
 			}
 
 			const widget = createWidget<CustomProps>({
@@ -266,8 +267,9 @@ describe('Widget System - Factory Pattern', () => {
 
 		test('should support generic widget props', () => {
 			interface MyWidgetProps {
-				customProp: string;
+				some_extra_prop: string;
 				numericProp: number;
+				[key: string]: any;
 			}
 
 			const widget = createWidget<MyWidgetProps>({
@@ -338,7 +340,7 @@ describe('Widget System - Validation Schemas', () => {
 		test('should create schema based on field config', () => {
 			const widget = createWidget({
 				Name: 'DynamicWidget',
-				validationSchema: (field) => {
+				validationSchema: (field: any) => {
 					if (field.required) {
 						return minLength(1, 'This field is required');
 					}
@@ -357,7 +359,7 @@ describe('Widget System - Validation Schemas', () => {
 		test('should access field properties in schema function', () => {
 			const widget = createWidget({
 				Name: 'CaptureWidget',
-				validationSchema: (field) => {
+				validationSchema: (field: any) => {
 					// Field instance is passed to schema function
 					return field.required ? minLength(1) : string();
 				}
@@ -498,8 +500,8 @@ describe('Widget System - Defaults and Inheritance', () => {
 			const field = widget({ label: 'Test' });
 
 			expect(field.config).toBeDefined();
-			expect(field.config.theme).toBe('dark');
-			expect(field.config.layout).toBe('grid');
+			expect((field.config as any).theme).toBe('dark');
+			expect((field.config as any).layout).toBe('grid');
 		});
 
 		test('should merge user config with defaults', () => {
@@ -629,10 +631,10 @@ describe('Widget System - Advanced Features', () => {
 					delete: { admin: true, editor: false, viewer: false }
 				}
 			});
-
-			expect(field.permissions.read.admin).toBe(true);
-			expect(field.permissions.write.viewer).toBe(false);
-			expect(field.permissions.delete.editor).toBe(false);
+			expect(field.permissions).toBeDefined();
+			expect(field.permissions?.read.admin).toBe(true);
+			expect(field.permissions?.write.viewer).toBe(false);
+			expect(field.permissions?.delete.editor).toBe(false);
 		});
 	});
 

@@ -14,6 +14,7 @@ Controls for the Blur tool, including strength slider and pattern/shape selector
 		onShapeChange,
 		onPatternChange,
 		onReset,
+		onCancel,
 		onApply
 	}: {
 		blurStrength: number;
@@ -23,6 +24,7 @@ Controls for the Blur tool, including strength slider and pattern/shape selector
 		onShapeChange: (value: BlurShape) => void;
 		onPatternChange: (value: BlurPattern) => void;
 		onReset: () => void;
+		onCancel: () => void;
 		onApply: () => void;
 	} = $props();
 
@@ -33,7 +35,7 @@ Controls for the Blur tool, including strength slider and pattern/shape selector
 </script>
 
 <div class="flex w-full items-center gap-4">
-	<span class="text-sm font-medium">Click image to add blur region</span>
+	<!-- Redundant Add button removed as per user request -->
 
 	<div class="h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
 
@@ -80,6 +82,11 @@ Controls for the Blur tool, including strength slider and pattern/shape selector
 	<button onclick={onReset} class="btn variant-ghost-surface">
 		<iconify-icon icon="mdi:restore"></iconify-icon>
 		<span>Reset All</span>
+	</button>
+
+	<button onclick={onCancel} class="btn variant-ghost-error">
+		<iconify-icon icon="mdi:close"></iconify-icon>
+		<span>Cancel</span>
 	</button>
 
 	<button class="btn variant-filled-success" onclick={onApply}>

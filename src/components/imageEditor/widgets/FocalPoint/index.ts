@@ -7,8 +7,8 @@ import type { EditorWidget } from '../registry';
 import Tool from './Tool.svelte';
 
 export const editorWidget: EditorWidget = {
-	key: 'focalPoint',
-	title: 'Focal Point',
+	key: 'focalpoint',
+	title: 'Focal',
 	icon: 'mdi:target',
 
 	tool: Tool as unknown as import('svelte').Component<Record<string, unknown>>,

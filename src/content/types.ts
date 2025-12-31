@@ -90,6 +90,8 @@ export interface Translation {
 export interface ContentNode {
 	_id: DatabaseId;
 	name: string;
+	slug?: string;
+	description?: string;
 	nodeType: 'category' | 'collection';
 	icon?: string;
 	order: number;

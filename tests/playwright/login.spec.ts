@@ -7,7 +7,7 @@
  *   - Logs out and checks redirect to login page
  */
 import { test, expect } from '@playwright/test';
-import { ADMIN_CREDENTIALS, loginAsAdmin, logout, ensureSidebarVisible } from './helpers/auth';
+import { loginAsAdmin, ensureSidebarVisible } from './helpers/auth';
 
 test('Login and logout flow', async ({ page }) => {
 	// Set a higher timeout for this test (optional)

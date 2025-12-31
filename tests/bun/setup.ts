@@ -198,7 +198,7 @@ mock.module('@src/stores/loadingStore.svelte', () => {
 		loadingReason: string | null = null;
 		loadingStack = new Set<string>();
 
-		startLoading(reason: string, context?: string) {
+		startLoading(reason: string) {
 			this.loadingStack.add(reason);
 			this.isLoading = true;
 			this.loadingReason = reason;
@@ -220,8 +220,8 @@ mock.module('@src/stores/loadingStore.svelte', () => {
 		isLoadingReason(reason: string) {
 			return this.loadingStack.has(reason);
 		}
-		async withLoading<T>(reason: string, operation: () => Promise<T>, context?: string): Promise<T> {
-			this.startLoading(reason, context);
+		async withLoading<T>(reason: string, operation: () => Promise<T>): Promise<T> {
+			this.startLoading(reason);
 			try {
 				const result = await operation();
 				return result;

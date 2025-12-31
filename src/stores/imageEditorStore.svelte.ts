@@ -39,9 +39,10 @@ export interface ImageEditorState {
 	layer: Konva.Layer | null;
 	imageNode: Konva.Image | null;
 	imageGroup: Konva.Group | null;
-	activeState: string | null;
+	activeState: string;
 	stateHistory: string[];
-	toolbarControls: ToolbarControls | null;
+	toolbarControls: { component: any; props: any } | null;
+	preToolSnapshot: string | null;
 	actions?: {
 		undo?: () => void;
 		redo?: () => void;
@@ -63,9 +64,10 @@ function createImageEditorStore() {
 		layer: null,
 		imageNode: null,
 		imageGroup: null,
-		activeState: 'rotate',
+		activeState: '',
 		stateHistory: [],
 		toolbarControls: null,
+		preToolSnapshot: null,
 		actions: {},
 		error: null
 	});
@@ -102,8 +104,32 @@ function createImageEditorStore() {
 		state.imageGroup = imageGroup;
 	}
 
-	function setActiveState(activeState: string | null) {
-		state.activeState = activeState;
+	function setActiveState(newState: string) {
+		const currentState = state.activeState;
+		if (newState !== '' && newState !== currentState) {
+			// Capture revert point
+			state.preToolSnapshot = undoState(true);
+		} else if (newState === '') {
+			state.preToolSnapshot = null;
+		}
+		state.activeState = newState;
+	}
+
+	function cancelActiveTool() {
+		const currentState = state.activeState;
+		if (!currentState) return;
+
+		if (state.preToolSnapshot) {
+			// Restore the pre-tool snapshot
+			// Note: We don't use undo() because that changes history.
+			// We manually restore the state data.
+			// This logic is currently partially in Editor.svelte (restoreFromStateData).
+			// We'll need to trigger a 'restore' event or similar.
+		}
+
+		cleanupToolSpecific(currentState);
+		setActiveState('');
+		setToolbarControls(null);
 	}
 
 	function setToolbarControls(controls: ToolbarControls | null) {
@@ -293,6 +319,34 @@ function createImageEditorStore() {
 		}
 	}
 
+	/**
+	 * Proactively hides all UI elements (handles, toolbars, grids)
+	 * before a high-resolution export or save.
+	 */
+	function hideAllUI() {
+		if (!state.stage) return;
+
+		const uiItems = state.stage.find((node: any) => {
+			const className = node.className;
+			const name = node.name() || '';
+			return (
+				className === 'Transformer' ||
+				name.includes('toolbar') ||
+				name.includes('Overlay') ||
+				name.includes('Grid') ||
+				name.includes('cropTool') || // Specific for crop
+				name.includes('cropCut')
+			);
+		});
+
+		uiItems.forEach((item) => {
+			item.visible(false);
+		});
+
+		if (state.layer) state.layer.batchDraw();
+		state.stage.batchDraw();
+	}
+
 	function takeSnapshot() {
 		if (!state.stage) return;
 
@@ -302,8 +356,14 @@ function createImageEditorStore() {
 		}
 
 		// Save current canvas state to history
-		const stateData = state.stage.toJSON();
-		saveStateHistory(stateData);
+		// We use a custom object to store extra data if needed
+		const snapshot = {
+			stage: state.stage.toJSON(),
+			activeState: state.activeState,
+			timestamp: Date.now()
+		};
+
+		saveStateHistory(JSON.stringify(snapshot));
 	}
 
 	function addEditAction(action: EditAction) {
@@ -339,10 +399,27 @@ function createImageEditorStore() {
 		}
 	}
 
-	function undoState(): string | null {
-		if (!canUndoState) return null;
-		state.currentHistoryIndex--;
-		const stateData = state.stateHistory[state.currentHistoryIndex];
+	function undoState(peek = false): string | null {
+		// If not peeking, we need to ensure there's a previous state to go back to.
+		// If peeking, we just need to ensure there's a current state to read.
+		if (!peek && !canUndoState) {
+			return null;
+		}
+		if (peek && state.currentHistoryIndex < 0) {
+			return null;
+		}
+
+		let targetIndex = state.currentHistoryIndex;
+		if (!peek) {
+			targetIndex--;
+			state.currentHistoryIndex = targetIndex; // Update the actual history index
+		}
+
+		if (targetIndex < 0 || targetIndex >= state.stateHistory.length) {
+			return null; // Should not happen if checks above are correct, but as a safeguard
+		}
+
+		const stateData = state.stateHistory[targetIndex];
 		return stateData;
 	}
 
@@ -391,28 +468,29 @@ function createImageEditorStore() {
 		get canRedoState() {
 			return canRedoState;
 		},
-		setFile,
-		setSaveEditedImage,
+		reset,
 		setStage,
 		setLayer,
 		setImageNode,
 		setImageGroup,
+		setFile,
 		setActiveState,
 		setToolbarControls,
-		setActions,
 		setError,
-		addEditAction,
-		saveStateHistory,
+		setActions,
+		cleanupTempNodes,
+		hideAllUI,
 		takeSnapshot,
-		undo,
-		redo,
-		undoState,
+		addEditAction,
+		saveToolState,
+		cleanupToolSpecific,
+		cancelActiveTool,
+		undoState: (peek?: boolean) => undoState(peek),
 		redoState,
 		clearHistory,
-		cleanupTempNodes,
-		cleanupToolSpecific,
-		saveToolState,
-		reset
+		setSaveEditedImage,
+		handleUndo: () => undo(),
+		handleRedo: () => redo()
 	};
 }
 

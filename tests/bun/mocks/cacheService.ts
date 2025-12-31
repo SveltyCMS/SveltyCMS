@@ -3,7 +3,7 @@
 
 export class MockCacheService {
 	private cache = new Map<string, { value: unknown; expiresAt: number }>();
-	private isInitialized = false;
+	public isInitialized = false;
 
 	async initialize(): Promise<void> {
 		this.isInitialized = true;
@@ -164,4 +164,5 @@ cache_hit_rate ${overall.hitRate}`;
 
 // Export singleton instances for tests
 export const mockCacheService = new MockCacheService();
+// import { describe, it, expect } from 'bun:test';
 export const mockCacheMetrics = new MockCacheMetrics();

@@ -1,7 +1,6 @@
 {
 	"extends": "./.svelte-kit/tsconfig.json",
 	"compilerOptions": {
-		"baseUrl": ".",
 		"target": "ESNext",
 		"module": "ESNext",
 		"moduleResolution": "bundler",
@@ -20,45 +19,7 @@
 		"allowImportingTsExtensions": true,
 		"types": [
 			"@types/bun"
-		],
-		"paths": {
-			"$app/*": [
-				"./.svelte-kit/runtime/app/*"
-			],
-			"$app/environment": [
-				"./tests/bun/mocks/app-environment.ts"
-			],
-			"@src/*": [
-				"src/*"
-			],
-			"@utils/*": [
-				"src/utils/*"
-			],
-			"@stores/*": [
-				"src/stores/*"
-			],
-			"@components/*": [
-				"src/components/*"
-			],
-			"@widgets/*": [
-				"src/widgets/*"
-			],
-			"@databases/*": [
-				"src/databases/*"
-			],
-			"@services/*": [
-				"src/services/*"
-			],
-			"@hooks/*": [
-				"src/hooks/*"
-			],
-			"@messages/*": [
-				"src/messages/*"
-			],
-			"@paraglide/*": [
-				"src/paraglide/*"
-			]
-		}
+		]
 	},
 	"include": [
 		"src/**/*.js",

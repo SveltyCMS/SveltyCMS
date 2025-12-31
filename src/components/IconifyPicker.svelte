@@ -71,15 +71,15 @@ Advanced icon picker with search, pagination, and favorites.
 	let currentPage = $state(0);
 	let selectedLibrary = $state(DEFAULT_LIBRARY);
 	let iconLibraries = $state<Record<string, IconLibrary>>({});
-	let showDropdown = $state(false);
-	let isLoading = $state(false);
 	let isLoadingLibraries = $state(false);
 	let searchError = $state<string | null>(null);
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 	let favorites = $state<string[]>([]);
 	let recentSelections = $state<string[]>([]);
-	let selectedIndex = $state(-1);
+	let isLoading = $state(false);
 	let activeTab = $state<'search' | 'favorites' | 'recent'>('search');
+	let showDropdown = $state(false);
+	let selectedIndex = $state(-1);
 	let prefersReducedMotion = $state(false);
 	let previewSize = $state(24);
 
@@ -89,8 +89,6 @@ Advanced icon picker with search, pagination, and favorites.
 
 	// Derived values
 	// Removed unused 'hasIcons'
-	const canGoPrevious = $derived(currentPage > 0);
-	const canGoNext = $derived(icons.length >= ICONS_PER_PAGE);
 	const startIndex = $derived(currentPage * ICONS_PER_PAGE);
 	const librariesLoaded = $derived(Object.keys(iconLibraries).length > 0);
 	const hasSearchQuery = $derived(searchQuery.trim().length > 0);
@@ -152,7 +150,7 @@ Advanced icon picker with search, pagination, and favorites.
 		}
 	}
 
-	function handleScroll(e: Event) {
+	function handleScroll() {
 		// keeping this if needed for manual scroll handling, but IntersectionObserver is better
 	}
 
@@ -321,17 +319,6 @@ Advanced icon picker with search, pagination, and favorites.
 	}
 
 	// Navigation handlers
-	function nextPage(): void {
-		if (!canGoNext) return;
-		currentPage += 1;
-		searchIcons(searchQuery, selectedLibrary);
-	}
-
-	function previousPage(): void {
-		if (!canGoPrevious) return;
-		currentPage -= 1;
-		searchIcons(searchQuery, selectedLibrary);
-	}
 
 	// Icon selection
 	function selectIcon(icon: string): void {
@@ -493,6 +480,7 @@ Advanced icon picker with search, pagination, and favorites.
 	});
 </script>
 
+```
 <div class="icon-picker-container flex w-full flex-col" bind:this={dropdownRef}>
 	<!-- Selected icon display -->
 	{#if iconselected}

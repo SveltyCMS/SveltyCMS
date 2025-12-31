@@ -3,8 +3,6 @@
 @description A reusable Stepper component (Responsive: Horizontal Mobile / Vertical Desktop).
 -->
 <script lang="ts">
-	import { run } from 'svelte/legacy';
-
 	interface Step {
 		label: string;
 		shortDesc?: string;

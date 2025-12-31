@@ -4,15 +4,12 @@
  * @description Simple test for first user signup and OAuth testing
  */
 
-import { cleanupTestDatabase, cleanupTestEnvironment, initializeTestEnvironment } from './helpers/testSetup';
+import { cleanupTestEnvironment, initializeTestEnvironment } from './helpers/testSetup';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5173';
 
 async function testFirstUserSignup() {
 	console.log('🧪 Testing first user signup via email...');
-
-	// Drop database to ensure clean state
-	await cleanupTestDatabase();
 
 	// Test first user signup
 	const response = await fetch(`${API_BASE_URL}/api/user/createUser`, {
@@ -46,9 +43,6 @@ async function testFirstUserSignup() {
 async function testOAuthSignup() {
 	console.log('\n🧪 Testing OAuth signup after dropping database...');
 
-	// Drop database again
-	await cleanupTestDatabase();
-
 	// Test OAuth signup (simulated)
 	const response = await fetch(`${API_BASE_URL}/api/user/createUser`, {
 		method: 'POST',
@@ -80,9 +74,6 @@ async function testOAuthSignup() {
 
 async function testSubsequentUserRequiresToken() {
 	console.log('\n🧪 Testing subsequent user requires invitation token...');
-
-	// Drop database and create first user
-	await cleanupTestDatabase();
 
 	// Create first user
 	await fetch(`${API_BASE_URL}/api/user/createUser`, {
@@ -138,7 +129,7 @@ async function checkServerStatus() {
 
 		console.log(`❌ Server returned unexpected status: ${response.status}`);
 		return false;
-	} catch (error) {
+	} catch (error: any) {
 		console.log(`❌ Server is not running: ${error.message}`);
 		return false;
 	}

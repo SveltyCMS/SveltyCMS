@@ -12,6 +12,7 @@
  */
 
 import Konva from 'konva';
+import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 export type BlurShape = 'rectangle' | 'ellipse';
 export type BlurPattern = 'blur' | 'pixelate';
@@ -35,6 +36,7 @@ export class BlurRegion {
 
 	private _onSelect: (() => void) | null = null;
 	private _onDestroy: (() => void) | null = null;
+	private _onClone: (() => void) | null = null;
 
 	// cache debounce timer per-region
 	private _cacheTimer: number | null = null;
@@ -48,68 +50,82 @@ export class BlurRegion {
 		this.currentPattern = init.pattern || 'blur';
 		this.currentStrength = init.strength || 20;
 
-		const w = init.width ?? 200;
-		const h = init.height ?? 150;
-		const stage = this.layer.getStage();
-		const x = init.x ?? (stage ? stage.width() / 2 - w / 2 : 0);
-		const y = init.y ?? (stage ? stage.height() / 2 - h / 2 : 0);
+		const w = init.width ?? 160;
+		const h = init.height ?? 120;
+
+		// Positing relative to imageGroup center (0,0 is group center usually)
+		// But imageNode is at (-w/2, -h/2).
+		// Let's place it at 0,0 (center of image)
+		const x = init.x ?? 0;
+		const y = init.y ?? 0;
 
 		// create visible wireframe shape
 		if (init.shape === 'ellipse') {
 			this.shapeNode = new Konva.Ellipse({
-				x: x + w / 2,
-				y: y + h / 2,
+				x,
+				y,
 				radiusX: w / 2,
 				radiusY: h / 2,
 				stroke: 'white',
-				strokeWidth: 2,
-				dash: [5, 5],
+				strokeWidth: 1.5,
 				draggable: true,
 				name: 'blurShape'
 			});
 		} else {
 			this.shapeNode = new Konva.Rect({
-				x,
-				y,
+				x: x - w / 2,
+				y: y - h / 2,
 				width: w,
 				height: h,
 				stroke: 'white',
-				strokeWidth: 2,
-				dash: [5, 5],
+				strokeWidth: 1.5,
+				fill: 'rgba(59, 130, 246, 0.2)', // Pintura-style blue selection
 				draggable: true,
 				name: 'blurShape'
 			});
 		}
 		this.shapeNode.id(this.id);
-		this.layer.add(this.shapeNode);
+		// ADD SHAPE TO GROUP
+		this.imageGroup.add(this.shapeNode);
 
-		// create overlay image (unfiltered first)
+		// create overlay image (ideally a clone of current state)
 		this.overlay = new Konva.Image({
 			image: this.imageNode.image(),
 			listening: false,
-			name: 'blurOverlay'
+			name: 'blurOverlay',
+			// Copy all visual attributes from the main image node
+			x: this.imageNode.x(),
+			y: this.imageNode.y(),
+			width: this.imageNode.width(),
+			height: this.imageNode.height(),
+			scaleX: this.imageNode.scaleX(),
+			scaleY: this.imageNode.scaleY(),
+			rotation: this.imageNode.rotation(),
+			cornerRadius: this.imageNode.cornerRadius()
 		});
-		// copy positional transforms: apply group then node attrs so overlay aligns
-		(this.overlay as any).setAttrs(this.imageGroup.getAttrs());
-		(this.overlay as any).setAttrs(this.imageNode.getAttrs());
 
 		// ensure no filters initially
 		this.overlay.filters([]);
-		// install clipFunc mapping shape absolute transform to overlay space
+		// install clipFunc (local space since both are in same group)
 		(this.overlay as any).clipFunc(this.makeClipFunc());
-		this.layer.add(this.overlay);
+		this.imageGroup.add(this.overlay);
 
-		// set predictable zIndex ordering
-		this.imageGroup.zIndex(0);
+		// set predictable zIndex ordering within group
+		this.imageNode.zIndex(0);
 		this.overlay.zIndex(1);
-		this.shapeNode.zIndex(2);
+		this.shapeNode.zIndex(2); // Shape node is now in imageGroup
 		this.layer.batchDraw();
 
 		// bind events (fast updates only)
 		this.shapeNode.on('dragmove transform', () => {
 			this.updateToolbarPosition();
+			this.updateOverlayClip();
 			this.layer.batchDraw();
 		});
+
+		// Trigger initial pattern/strength for immediate feedback
+		this.setPattern(this.currentPattern);
+		this.setStrength(this.currentStrength);
 		this.shapeNode.on('click tap', (e) => {
 			e.cancelBubble = true;
 			this._onSelect?.();
@@ -119,18 +135,54 @@ export class BlurRegion {
 	// Update toolbar position to stay above the region
 	private updateToolbarPosition() {
 		if (!this.toolbar) return;
-		const bounds = this.shapeNode.getClientRect();
+		// Get absolute center Top of the shape, then move up
+		const bounds = this.shapeNode.getClientRect({ skipTransform: false });
 		this.toolbar.position({
 			x: bounds.x + bounds.width / 2,
-			y: bounds.y - 40
+			y: bounds.y - 45
 		});
+	}
+
+	// Update overlay clip and cache during interactive movement
+	private updateOverlayClip() {
+		// Use relativeTo overlay to get pixel-perfect coordinates even if imageNode is scaled/rotated
+		const bounds = this.shapeNode.getClientRect({ relativeTo: this.overlay });
+
+		// Buffer for the blur radius
+		const padding = this.currentStrength * 2;
+
+		const cacheRect = {
+			x: bounds.x - padding,
+			y: bounds.y - padding,
+			width: bounds.width + padding * 2,
+			height: bounds.height + padding * 2
+		};
+
+		if (this._cacheTimer) window.clearTimeout(this._cacheTimer);
+		this._cacheTimer = window.setTimeout(() => {
+			try {
+				this.overlay.clearCache();
+				this.overlay.cache(cacheRect);
+				this.layer.batchDraw();
+			} catch (e) {
+				/* ignore cache errors */
+			}
+			this._cacheTimer = null;
+		}, 0);
+
+		this.layer.batchDraw();
 	}
 
 	// create a clipFunc that maps the shape absolute transform to overlay space
 	private makeClipFunc(): (ctx: CanvasRenderingContext2D) => void {
 		const shape = this.shapeNode;
+		const overlay = this.overlay;
 		return (ctx: CanvasRenderingContext2D) => {
-			const tr = shape.getAbsoluteTransform();
+			// Get relative transform from shape back to overlay space
+			const tr = shape.getAbsoluteTransform().copy();
+			const overlayTr = overlay.getAbsoluteTransform().copy().invert();
+			tr.multiply(overlayTr);
+
 			const m = tr.m;
 			ctx.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
 			if (shape instanceof Konva.Ellipse) {
@@ -177,11 +229,21 @@ export class BlurRegion {
 			this.overlay.pixelSize(Math.max(1, Math.round(strength / 2)));
 			this.overlay.blurRadius(0);
 		}
-		// schedule a cache in case user stops moving the slider quickly
+		// schedule a localized cache
+		const bounds = this.shapeNode.getClientRect({ relativeTo: this.overlay });
+		const padding = this.currentStrength * 2;
+		const cacheRect = {
+			x: bounds.x - padding,
+			y: bounds.y - padding,
+			width: bounds.width + padding * 2,
+			height: bounds.height + padding * 2
+		};
+
 		if (this._cacheTimer) window.clearTimeout(this._cacheTimer);
 		this._cacheTimer = window.setTimeout(() => {
 			try {
-				this.overlay.cache();
+				this.overlay.clearCache();
+				this.overlay.cache(cacheRect);
 			} catch (e) {
 				/* ignore cache errors */
 			}
@@ -213,42 +275,48 @@ export class BlurRegion {
 
 	// finalize region and attach a transformer (fast)
 	finalize() {
-		if (this.transformer) this.transformer.destroy();
 		this.transformer = new Konva.Transformer({
 			nodes: [this.shapeNode],
-			rotateEnabled: true,
-			rotationSnaps: [0, 90, 180, 270],
-			// Blue circular handles with white border
-			anchorFill: '#3b82f6', // Blue
-			anchorStroke: 'white',
+			// Explicitly force blue circular handles
+			anchorFill: '#3b82f6',
+			anchorStroke: '#ffffff',
 			anchorStrokeWidth: 2,
 			anchorSize: 12,
-			anchorCornerRadius: 6, // Makes them circular
-			// White dashed border
-			borderDash: [5, 5],
-			borderStroke: 'white',
-			borderStrokeWidth: 2,
-			// Rotation handle at bottom
+			anchorCornerRadius: 6,
+			borderStroke: '#ffffff',
+			borderStrokeWidth: 1.5,
+			rotateEnabled: true,
+			rotationSnaps: [0, 45, 90, 135, 180, 225, 270, 315],
 			rotateAnchorOffset: 40,
 			enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+			keepRatio: false,
+			ignoreStroke: true,
 			boundBoxFunc: (oldBox, newBox) => {
-				return newBox.width < 20 || newBox.height < 20 ? oldBox : newBox;
+				return newBox.width < 10 || newBox.height < 10 ? oldBox : newBox;
 			}
 		});
+		this.transformer.on('dragend transformend', () => {
+			imageEditorStore.takeSnapshot();
+		});
+
 		this.layer.add(this.transformer);
-		this.transformer.zIndex(3);
 		this.transformer.moveToTop();
+
+		// Add dragend/transformend to take snapshot
+		this.shapeNode.on('dragend transformend', () => {
+			imageEditorStore.takeSnapshot();
+		});
 
 		// Create toolbar above the region
 		this.createToolbar();
 	}
 
-	// Create toolbar with copy/delete icons
+	// Create toolbar with clone/delete icons
 	private createToolbar() {
 		if (this.toolbar) this.toolbar.destroy();
 
 		const bounds = this.shapeNode.getClientRect();
-		const toolbarY = bounds.y - 40;
+		const toolbarY = bounds.y - 45;
 		const toolbarX = bounds.x + bounds.width / 2;
 
 		this.toolbar = new Konva.Group({
@@ -259,44 +327,68 @@ export class BlurRegion {
 
 		// Background
 		const bg = new Konva.Rect({
-			x: -40,
+			x: -45,
 			y: 0,
-			width: 80,
-			height: 32,
+			width: 90,
+			height: 36,
 			fill: '#1f2937',
-			cornerRadius: 6,
+			cornerRadius: 8,
 			shadowColor: 'black',
 			shadowBlur: 10,
-			shadowOpacity: 0.3
+			shadowOpacity: 0.4
 		});
 		this.toolbar.add(bg);
 
-		// Copy icon (left)
-		const copyIcon = new Konva.Circle({
-			x: -20,
-			y: 16,
-			radius: 10,
-			fill: 'white',
-			opacity: 0.9
+		// Add icon (Plus)
+		const addGroup = new Konva.Group({ x: -22, y: 18, cursor: 'pointer' });
+		addGroup.add(
+			new Konva.Path({
+				data: 'M12 4v16m8-8H4',
+				stroke: 'white',
+				strokeWidth: 2,
+				lineCap: 'round',
+				scale: { x: 0.8, y: 0.8 },
+				offset: { x: 12, y: 12 }
+			})
+		);
+		addGroup.on('click tap', (e) => {
+			e.cancelBubble = true;
+			this._onClone?.();
 		});
-		copyIcon.on('click tap', () => {
-			// TODO: Implement copy functionality
-			console.log('Copy blur region');
+		addGroup.on('mouseenter', () => {
+			const stage = this.layer.getStage();
+			if (stage) stage.container().style.cursor = 'pointer';
 		});
-		this.toolbar.add(copyIcon);
+		addGroup.on('mouseleave', () => {
+			const stage = this.layer.getStage();
+			if (stage) stage.container().style.cursor = 'crosshair';
+		});
+		this.toolbar.add(addGroup);
 
-		// Delete icon (right)
-		const deleteIcon = new Konva.Circle({
-			x: 20,
-			y: 16,
-			radius: 10,
-			fill: 'white',
-			opacity: 0.9
-		});
-		deleteIcon.on('click tap', () => {
+		// Delete icon (Trash)
+		const deleteGroup = new Konva.Group({ x: 22, y: 18, cursor: 'pointer' });
+		deleteGroup.add(
+			new Konva.Path({
+				data: 'M3 6h18M9 6v12M15 6v12M5 6v14a2 2 0 002 2h10a2 2 0 002-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2',
+				stroke: 'white',
+				strokeWidth: 2,
+				scale: { x: 0.7, y: 0.7 },
+				offset: { x: 12, y: 12 }
+			})
+		);
+		deleteGroup.on('click tap', (e) => {
+			e.cancelBubble = true;
 			this.destroy();
 		});
-		this.toolbar.add(deleteIcon);
+		deleteGroup.on('mouseenter', () => {
+			const stage = this.layer.getStage();
+			if (stage) stage.container().style.cursor = 'pointer';
+		});
+		deleteGroup.on('mouseleave', () => {
+			const stage = this.layer.getStage();
+			if (stage) stage.container().style.cursor = 'crosshair';
+		});
+		this.toolbar.add(deleteGroup);
 
 		this.layer.add(this.toolbar);
 		this.toolbar.zIndex(4);
@@ -354,5 +446,8 @@ export class BlurRegion {
 	}
 	onDestroy(cb: () => void) {
 		this._onDestroy = cb;
+	}
+	onClone(cb: () => void) {
+		this._onClone = cb;
 	}
 }

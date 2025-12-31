@@ -7,7 +7,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import { toTreeViewData, toFlatContentNodes, fromTreeViewData, recalculatePaths, type TreeViewItem } from '../../../src/utils/treeViewAdapter';
-import type { ContentNode } from '../../../src/databases/dbInterface';
+import type { ContentNode } from '../../../src/content/types';
 
 // Mock ContentNode data for testing
 // Uses Record type to avoid branded type issues in test code
@@ -110,10 +110,10 @@ describe('TreeView Adapter', () => {
 			const result = toFlatContentNodes(treeItems);
 
 			expect(result).toHaveLength(2);
-			expect(result[0]._id).toBe('cat1');
+			expect(result[0]._id).toBe('cat1' as any);
 			expect(result[0].parentId).toBeUndefined();
-			expect(result[1]._id).toBe('col1');
-			expect(result[1].parentId).toBe('cat1');
+			expect(result[1]._id).toBe('col1' as any);
+			expect(result[1].parentId).toBe('cat1' as any);
 		});
 
 		test('should calculate order based on sibling position', () => {
@@ -140,8 +140,8 @@ describe('TreeView Adapter', () => {
 			const result = toFlatContentNodes(treeItems);
 
 			expect(result[0].parentId).toBeUndefined();
-			expect(result[1].parentId).toBe('a');
-			expect(result[2].parentId).toBe('b');
+			expect(result[1].parentId).toBe('a' as any);
+			expect(result[2].parentId).toBe('b' as any);
 		});
 	});
 
@@ -154,8 +154,9 @@ describe('TreeView Adapter', () => {
 
 			const result = recalculatePaths(items);
 
-			expect(result.find((i) => i.id === 'a')?.path).toBe('a');
-			expect(result.find((i) => i.id === 'b')?.path).toBe('b');
+			expect(result.find((i: any) => i.id === 'a')?.path).toBe('a');
+			expect(toFlatContentNodes(result).find((i: any) => i._id === 'b')?.parentId).toBe('a' as any);
+			expect(result.find((i: any) => i.id === 'b')?.path).toBe('b');
 		});
 
 		test('should recalculate paths for nested items', () => {
@@ -167,9 +168,9 @@ describe('TreeView Adapter', () => {
 
 			const result = recalculatePaths(items);
 
-			expect(result.find((i) => i.id === 'parent')?.path).toBe('parent');
-			expect(result.find((i) => i.id === 'child1')?.path).toBe('parent.child1');
-			expect(result.find((i) => i.id === 'child2')?.path).toBe('parent.child2');
+			expect(result.find((i: any) => i.id === 'parent')?.path).toBe('parent');
+			expect(result.find((i: any) => i.id === 'child1')?.path).toBe('parent.child1');
+			expect(result.find((i: any) => i.id === 'child2')?.path).toBe('parent.child2');
 		});
 
 		test('should update order based on sibling position', () => {
@@ -182,9 +183,9 @@ describe('TreeView Adapter', () => {
 			const result = recalculatePaths(items);
 
 			// Should be sorted by order: c(1), b(3), a(5) -> new orders 0, 1, 2
-			expect(result.find((i) => i.id === 'c')?.order).toBe(0);
-			expect(result.find((i) => i.id === 'b')?.order).toBe(1);
-			expect(result.find((i) => i.id === 'a')?.order).toBe(2);
+			expect(result.find((i: any) => i.id === 'c')?.order).toBe(0);
+			expect(result.find((i: any) => i.id === 'b')?.order).toBe(1);
+			expect(result.find((i: any) => i.id === 'a')?.order).toBe(2);
 		});
 
 		test('should handle moving item to new parent', () => {
@@ -198,8 +199,9 @@ describe('TreeView Adapter', () => {
 			const result = recalculatePaths(items);
 
 			// Child should now have path under parent2
-			expect(result.find((i) => i.id === 'child')?.path).toBe('parent2.child');
-			expect(result.find((i) => i.id === 'child')?.parent).toBe('parent2');
+			expect(result.find((i: any) => i.id === 'child')?.path).toBe('parent2.child');
+			expect(result.find((i: any) => i.id === 'child')?.parent).toBe('parent2');
+			expect(toFlatContentNodes(result).find((i: any) => i._id === 'a')?.parentId).toBe('parent' as any);
 		});
 
 		test('should handle moving item to root level', () => {
@@ -210,8 +212,8 @@ describe('TreeView Adapter', () => {
 
 			const result = recalculatePaths(items);
 
-			expect(result.find((i) => i.id === 'child')?.path).toBe('child');
-			expect(result.find((i) => i.id === 'child')?.parent).toBeNull();
+			expect(result.find((i: any) => i.id === 'child')?.path).toBe('child');
+			expect(result.find((i: any) => i.id === 'child')?.parent).toBeNull();
 		});
 	});
 
@@ -225,9 +227,9 @@ describe('TreeView Adapter', () => {
 			const result = fromTreeViewData(flatItems);
 
 			expect(result).toHaveLength(1);
-			expect(result[0]._id).toBe('cat1');
+			expect(result[0]._id).toBe('cat1' as any);
 			expect(result[0].children).toHaveLength(1);
-			expect(result[0].children![0]._id).toBe('col1');
+			expect(result[0].children![0]._id).toBe('col1' as any);
 		});
 
 		test('should handle orphaned nodes by placing at root', () => {
@@ -236,7 +238,7 @@ describe('TreeView Adapter', () => {
 			const result = fromTreeViewData(flatItems);
 
 			expect(result).toHaveLength(1);
-			expect(result[0]._id).toBe('orphan');
+			expect(result[0]._id).toBe('orphan' as any);
 		});
 	});
 
@@ -258,9 +260,9 @@ describe('TreeView Adapter', () => {
 			const flatNodes = toFlatContentNodes(treeViewData);
 
 			expect(flatNodes).toHaveLength(3);
-			expect(flatNodes.find((n) => n._id === 'root')?.parentId).toBeUndefined();
-			expect(flatNodes.find((n) => n._id === 'child1')?.parentId).toBe('root');
-			expect(flatNodes.find((n) => n._id === 'child2')?.parentId).toBe('root');
+			expect(flatNodes.find((n: any) => n._id === ('root' as any))?.parentId).toBeUndefined();
+			expect(flatNodes.find((n: any) => n._id === ('child1' as any))?.parentId).toBe('root' as any);
+			expect(flatNodes.find((n: any) => n._id === ('child2' as any))?.parentId).toBe('root' as any);
 		});
 	});
 });

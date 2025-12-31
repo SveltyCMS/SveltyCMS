@@ -238,7 +238,7 @@
 		<Collections />
 		<!-- Toggle to Media Gallery Button -->
 		<button
-			class="btn mt-2 flex w-full items-center justify-center gap-2 border border-surface-500 py-4 hover:bg-surface-200 dark:hover:bg-surface-400"
+			class="btn mt-2 flex w-full bg-surface-500 items-center justify-center gap-2 border rounded-lg border-surface-500 py-4 hover:bg-surface-200 dark:hover:bg-surface-400"
 			onclick={() => {
 				setMode('media');
 				navigateTo('/mediagallery');
@@ -273,7 +273,7 @@
 					<img
 						src={avatarUrl}
 						alt="User avatar"
-						onerror={(e) => (e.currentTarget.src = '/Default_User.svg')}
+						onerror={(e) => ((e.currentTarget as HTMLImageElement).src = '/Default_User.svg')}
 						class="rounded-full {isSidebarFull ? 'w-9 h-9' : 'w-8 h-8'} mx-auto object-cover"
 					/>
 					{#if isSidebarFull && user?.username}

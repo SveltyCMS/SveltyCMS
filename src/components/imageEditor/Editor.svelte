@@ -36,11 +36,9 @@ Comprehensive image editing interface with Konva.js integration.
 	import { onMount, onDestroy } from 'svelte';
 	import { logger } from '@utils/logger';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-	import { updateMediaMetadata } from '@utils/media/api';
 
 	import EditorSidebar from './EditorSidebar.svelte';
 	import EditorCanvas from './EditorCanvas.svelte';
-	import FocalPoint from './FocalPoint.svelte';
 
 	import Konva from 'konva';
 	import { editorWidgets } from './widgets/registry';
@@ -48,20 +46,12 @@ Comprehensive image editing interface with Konva.js integration.
 	interface Props {
 		imageFile?: File | null;
 		initialImageSrc?: string;
-		mediaId?: string | null;
 		focalPoint?: { x: number; y: number };
 		onsave?: (detail: { dataURL: string; file: File }) => void;
 		oncancel?: () => void;
 	}
 
-	const {
-		imageFile = null,
-		initialImageSrc = '',
-		mediaId = null,
-		focalPoint = { x: 50, y: 50 },
-		onsave = () => {},
-		oncancel = () => {}
-	}: Props = $props();
+	const { imageFile = null, initialImageSrc = '', onsave = () => {}, oncancel = () => {} }: Props = $props();
 
 	// State
 	let selectedImage = $state('');
@@ -69,6 +59,7 @@ Comprehensive image editing interface with Konva.js integration.
 	let initialImageLoaded = $state(false);
 	let isProcessing = $state(false);
 	let error = $state<string | null>(null);
+	let preToolSnapshot = $state<string | null>(null);
 
 	// Derived values
 	const storeState = imageEditorStore.state;
@@ -308,56 +299,79 @@ Comprehensive image editing interface with Konva.js integration.
 		if (!stage || !layer || !imageNode || !imageGroup) return;
 
 		try {
+			// Deep cleanup before restoration
 			imageEditorStore.cleanupTempNodes();
-			const stateJSON = JSON.parse(stateData);
 
-			// Clear filters
+			const rawData = JSON.parse(stateData);
+			// Support both legacy (pure stage JSON) and new format (snapshot object)
+			const isNewFormat = rawData.stage && rawData.activeState !== undefined;
+			const stateJSON = isNewFormat ? JSON.parse(rawData.stage) : rawData;
+
+			if (isNewFormat) {
+				imageEditorStore.setActiveState(rawData.activeState);
+			}
+
+			// Clear filters to ensure a clean slate
 			imageNode.filters([]);
 			imageNode.clearCache();
 
-			// Restore image group
-			if (stateJSON.children?.[0]?.children?.[0]) {
-				const imageGroupState = stateJSON.children[0].children[0];
-				if (imageGroupState.attrs) {
-					imageGroup.x(imageGroupState.attrs.x ?? stage.width() / 2);
-					imageGroup.y(imageGroupState.attrs.y ?? stage.height() / 2);
-					imageGroup.scaleX(imageGroupState.attrs.scaleX ?? 1);
-					imageGroup.scaleY(imageGroupState.attrs.scaleY ?? 1);
-					imageGroup.rotation(imageGroupState.attrs.rotation ?? 0);
-				}
-			}
-
-			// Restore image node
-			if (stateJSON.children?.[0]?.children?.[0]?.children?.[0]) {
-				const imageNodeState = stateJSON.children[0].children[0].children[0];
-				if (imageNodeState.attrs) {
-					// Crop
-					if (imageNodeState.attrs.cropX !== undefined) imageNode.cropX(imageNodeState.attrs.cropX);
-					if (imageNodeState.attrs.cropY !== undefined) imageNode.cropY(imageNodeState.attrs.cropY);
-					if (imageNodeState.attrs.cropWidth !== undefined) imageNode.cropWidth(imageNodeState.attrs.cropWidth);
-					if (imageNodeState.attrs.cropHeight !== undefined) imageNode.cropHeight(imageNodeState.attrs.cropHeight);
-
-					// Dimensions
-					if (imageNodeState.attrs.width !== undefined) imageNode.width(imageNodeState.attrs.width);
-					if (imageNodeState.attrs.height !== undefined) imageNode.height(imageNodeState.attrs.height);
-					if (imageNodeState.attrs.x !== undefined) imageNode.x(imageNodeState.attrs.x);
-					if (imageNodeState.attrs.y !== undefined) imageNode.y(imageNodeState.attrs.y);
-
-					// Filters
-					if (imageNodeState.attrs.filters?.length > 0) {
-						imageNode.filters(imageNodeState.attrs.filters);
-						if (imageNodeState.attrs.brightness !== undefined) imageNode.brightness(imageNodeState.attrs.brightness);
-						if (imageNodeState.attrs.contrast !== undefined) imageNode.contrast(imageNodeState.attrs.contrast);
-						if (imageNodeState.attrs.saturation !== undefined) imageNode.saturation(imageNodeState.attrs.saturation);
-						if (imageNodeState.attrs.hue !== undefined) imageNode.hue(imageNodeState.attrs.hue);
-						if (imageNodeState.attrs.luminance !== undefined) imageNode.luminance(imageNodeState.attrs.luminance);
+			// The JSON structure is typically Stage -> Layer -> [Children]
+			// We look for our expected hierarchy: imageGroup -> imageNode
+			const findImageGroupState = (nodes: any[]): any => {
+				for (const node of nodes) {
+					if (node.className === 'Group' && node.children?.some((c: any) => c.className === 'Image')) {
+						return node;
+					}
+					if (node.children) {
+						const found = findImageGroupState(node.children);
+						if (found) return found;
 					}
 				}
-			}
+				return null;
+			};
 
-			// Cache if filters
-			if (imageNode.filters()?.length > 0) {
-				imageNode.cache();
+			const imageGroupState = findImageGroupState(stateJSON.children || []);
+
+			if (imageGroupState && imageGroupState.attrs) {
+				// Restore image group transforms
+				imageGroup.setAttrs({
+					x: imageGroupState.attrs.x ?? stage.width() / 2,
+					y: imageGroupState.attrs.y ?? stage.height() / 2,
+					scaleX: imageGroupState.attrs.scaleX ?? 1,
+					scaleY: imageGroupState.attrs.scaleY ?? 1,
+					rotation: imageGroupState.attrs.rotation ?? 0
+				});
+
+				const imageNodeState = imageGroupState.children.find((c: any) => c.className === 'Image');
+				if (imageNodeState && imageNodeState.attrs) {
+					// Restore image node properties
+					imageNode.setAttrs({
+						cropX: imageNodeState.attrs.cropX,
+						cropY: imageNodeState.attrs.cropY,
+						cropWidth: imageNodeState.attrs.cropWidth,
+						cropHeight: imageNodeState.attrs.cropHeight,
+						width: imageNodeState.attrs.width,
+						height: imageNodeState.attrs.height,
+						x: imageNodeState.attrs.x,
+						y: imageNodeState.attrs.y,
+						cornerRadius: imageNodeState.attrs.cornerRadius ?? 0
+					} as any);
+
+					// Restore Filters
+					if (imageNodeState.attrs.filters?.length > 0) {
+						// Convert filter names to actual Konva filter functions if needed
+						// but usually Konva restores them if registered.
+						// To be safe, we re-apply based on attrs
+						const activeFilters = [];
+						if (imageNodeState.attrs.brightness !== undefined) activeFilters.push(Konva.Filters.Brighten);
+						if (imageNodeState.attrs.contrast !== undefined) activeFilters.push(Konva.Filters.Contrast);
+						if (imageNodeState.attrs.saturation !== undefined || imageNodeState.attrs.luminance !== undefined) activeFilters.push(Konva.Filters.HSL);
+
+						imageNode.filters(activeFilters);
+						imageNode.setAttrs(imageNodeState.attrs);
+						imageNode.cache();
+					}
+				}
 			}
 
 			layer.batchDraw();
@@ -380,6 +394,10 @@ Comprehensive image editing interface with Konva.js integration.
 		error = null;
 
 		try {
+			// CRITICAL: Hide all UI elements before taking the snapshot
+			// to avoid baking handles/toolbars into the image.
+			imageEditorStore.hideAllUI();
+
 			let dataURL: string;
 			let mimeType: string;
 			let fileExtension: string;
@@ -454,26 +472,34 @@ Comprehensive image editing interface with Konva.js integration.
 		}
 
 		const newState = currentState === tool ? '' : tool;
+
+		// Capture snapshot before entering a new tool for 'Cancel' functionality
+		if (newState !== '' && newState !== currentState) {
+			preToolSnapshot = imageEditorStore.undoState(true); // Get current state without undoing
+		}
+
 		imageEditorStore.setActiveState(newState);
 
 		if (newState === '') {
 			imageEditorStore.setToolbarControls(null);
+			preToolSnapshot = null;
 		}
 	}
 
-	// Focal point
-	async function handleApplyFocalPoint(detail: { x: number; y: number }) {
-		try {
-			if (!mediaId) {
-				logger.warn('No mediaId for focal point');
-				return;
-			}
-			await updateMediaMetadata(mediaId, { focalPoint: detail });
-			logger.debug('Focal point saved', detail);
-		} catch (err) {
-			logger.error('Failed to save focal point', err);
-			error = 'Failed to save focal point';
+	// Cancel tool (Discard changes)
+	export function handleCancelTool() {
+		const currentState = imageEditorStore.state.activeState;
+		if (!currentState) return;
+
+		if (preToolSnapshot) {
+			restoreFromStateData(preToolSnapshot);
+			// Also clear history forward if needed? No, undoState(true) just returns top.
 		}
+
+		imageEditorStore.cleanupToolSpecific(currentState);
+		imageEditorStore.setActiveState('');
+		imageEditorStore.setToolbarControls(null);
+		preToolSnapshot = null;
 	}
 
 	// Lifecycle
@@ -517,19 +543,9 @@ Comprehensive image editing interface with Konva.js integration.
 			<div class="canvas-wrapper relative flex flex-1 flex-col">
 				<EditorCanvas bind:containerRef {hasImage}>
 					{#if storeState.stage && storeState.layer && storeState.imageNode && storeState.imageGroup}
-						{#if activeState === 'focalpoint'}
-							<FocalPoint
-								stage={storeState.stage}
-								imageNode={storeState.imageNode}
-								x={focalPoint?.x}
-								y={focalPoint?.y}
-								onapply={handleApplyFocalPoint}
-							/>
-						{/if}
-
 						{#if activeToolComponent}
 							{@const Component = activeToolComponent}
-							<Component />
+							<Component onCancel={handleCancelTool} />
 						{/if}
 					{/if}
 				</EditorCanvas>

@@ -19,7 +19,6 @@
  * without needing a database connection or running server.
  */
 
-// @ts-expect-error - Bun types are not available in TypeScript
 import { beforeEach, describe, expect, test } from 'bun:test';
 import {
 	hasPermissionWithRoles,
@@ -27,9 +26,9 @@ import {
 	isAdminRoleWithRoles,
 	getAllPermissions,
 	registerPermission
-} from '../../../src/databases/auth/permissions';
-import { PermissionAction } from '../../../src/databases/auth/types';
-import type { Role, User } from '../../../src/databases/auth/types';
+} from '../../src/databases/auth/permissions';
+import { PermissionAction, PermissionType } from '../../src/databases/auth/types';
+import type { Role, User } from '../../src/databases/auth/types';
 
 // Mock roles that would be in database
 const mockRoles: Role[] = [
@@ -63,19 +62,19 @@ describe('Role and Permission Access Management', () => {
 			_id: 'content:create',
 			name: 'Create Content',
 			action: PermissionAction.CREATE,
-			type: 'content'
+			type: PermissionType.COLLECTION
 		});
 		registerPermission({
 			_id: 'content:read',
 			name: 'Read Content',
 			action: PermissionAction.READ,
-			type: 'content'
+			type: PermissionType.COLLECTION
 		});
 		registerPermission({
 			_id: 'content:delete',
 			name: 'Delete Content',
 			action: PermissionAction.DELETE,
-			type: 'content'
+			type: PermissionType.COLLECTION
 		});
 	});
 
@@ -84,8 +83,7 @@ describe('Role and Permission Access Management', () => {
 			_id: 'user1',
 			email: 'editor@example.com',
 			role: 'editor',
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString()
+			permissions: []
 		};
 
 		// Editor can create and read content
@@ -105,8 +103,7 @@ describe('Role and Permission Access Management', () => {
 			_id: 'admin1',
 			email: 'admin@example.com',
 			role: 'admin',
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString()
+			permissions: []
 		};
 
 		// Admin should have all permissions regardless of what's in permissions array
@@ -125,14 +122,13 @@ describe('Role and Permission Access Management', () => {
 			_id: 'user1',
 			email: 'editor@example.com',
 			role: 'editor',
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString()
+			permissions: []
 		};
 
-		const canCreate = hasPermissionByAction(editorUser, PermissionAction.CREATE, 'content', undefined, mockRoles);
+		const canCreate = hasPermissionByAction(editorUser, PermissionAction.CREATE, PermissionType.COLLECTION, undefined, mockRoles);
 		expect(canCreate).toBe(true);
 
-		const canDelete = hasPermissionByAction(editorUser, PermissionAction.DELETE, 'content', undefined, mockRoles);
+		const canDelete = hasPermissionByAction(editorUser, PermissionAction.DELETE, PermissionType.COLLECTION, undefined, mockRoles);
 		expect(canDelete).toBe(false);
 	});
 
@@ -141,20 +137,18 @@ describe('Role and Permission Access Management', () => {
 			_id: 'admin1',
 			email: 'admin@example.com',
 			role: 'admin',
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString()
+			permissions: []
 		};
 
 		const editorUser: User = {
 			_id: 'user1',
 			email: 'editor@example.com',
 			role: 'editor',
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString()
+			permissions: []
 		};
 
-		expect(isAdminRoleWithRoles(adminUser, mockRoles)).toBe(true);
-		expect(isAdminRoleWithRoles(editorUser, mockRoles)).toBe(false);
+		expect(isAdminRoleWithRoles(adminUser.role, mockRoles)).toBe(true);
+		expect(isAdminRoleWithRoles(editorUser.role, mockRoles)).toBe(false);
 	});
 
 	test('Viewer has limited permissions', () => {
@@ -162,8 +156,7 @@ describe('Role and Permission Access Management', () => {
 			_id: 'user2',
 			email: 'viewer@example.com',
 			role: 'viewer',
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString()
+			permissions: []
 		};
 
 		// Viewer can read

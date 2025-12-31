@@ -32,6 +32,7 @@ const config = {
 
 		alias: {
 			$paraglide: './src/paraglide',
+			'@paraglide': './src/paraglide',
 			'@api': './src/routes/api',
 			'@auth': './src/databases/auth',
 			'@collections': './config/collections',
@@ -39,6 +40,7 @@ const config = {
 			'@content': './src/content',
 			'@databases': './src/databases',
 			'@hooks': './src/hooks',
+			'@messages': './src/messages',
 			'@root': '.',
 			'@services': './src/services',
 			'@src': './src',

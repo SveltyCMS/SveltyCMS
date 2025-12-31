@@ -64,6 +64,13 @@ export function createCustomFilter(adj: Adjustments) {
 				b = mid + (b - mid) * clarityFactor;
 			}
 
+			// 5. Temperature (Warm/Cool)
+			if (adj.temperature !== 0) {
+				const shift = (adj.temperature / 100) * 20; // Max 20 unit shift
+				r += shift;
+				b -= shift;
+			}
+
 			// Clamp values
 			data[i] = Math.min(255, Math.max(0, r));
 			data[i + 1] = Math.min(255, Math.max(0, g));

@@ -8,11 +8,8 @@
  * - Token generation and validation
  * - Role-based permissions
  * - Two-factor authentication (2FA)
- *
- * NOTE: TypeScript errors for 'bun:test' module are expected - it's a runtime module.
  */
 
-// @ts-expect-error - bun:test is a runtime module provided by Bun
 import { describe, expect, it } from 'bun:test';
 
 describe('Authentication System Tests', () => {

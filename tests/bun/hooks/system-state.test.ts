@@ -7,15 +7,13 @@
  * - INITIALIZING: Blocks most routes, allows setup/health
  * - READY: All routes allowed
  * - DEGRADED: All routes allowed with warnings
- * - FAILED: Only health checks allowed
+ * - FAILED: Blocks all routes, allows health check only
  */
-
-// @ts-expect-error - Bun test is available at runtime
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { mock, describe, it, beforeEach, expect } from 'bun:test';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // Mock dependencies before importing the hook
-const mockGetSystemState = mock(() => ({ overallState: 'READY', services: {}, performanceMetrics: { stateTransitions: [] } }));
+const mockGetSystemState = mock(() => ({ overallState: 'READY', services: {}, performanceMetrics: { stateTransitions: [] as any[] } }));
 const mockIsSystemReady = mock(() => true);
 const mockDbInitPromise = Promise.resolve();
 

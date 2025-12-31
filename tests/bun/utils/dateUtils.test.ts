@@ -3,7 +3,6 @@
  * @description Tests for date utility functions
  */
 
-// @ts-expect-error - Bun test is available at runtime
 import { describe, it, expect } from 'bun:test';
 import {
 	isISODateString,
@@ -30,14 +29,14 @@ describe('Date Utils - Type Guards', () => {
 		const date = new Date('2025-01-20T12:00:00.000Z');
 		const result = dateToISODateString(date);
 
-		expect(result).toBe('2025-01-20T12:00:00.000Z');
+		expect(result).toBe('2025-01-20T12:00:00.000Z' as any);
 		expect(isISODateString(result)).toBe(true);
 	});
 
 	it('should convert string to ISO date string', () => {
 		const result = stringToISODateString('2025-01-20T12:00:00.000Z');
 
-		expect(result).toBe('2025-01-20T12:00:00.000Z');
+		expect(result).toBe('2025-01-20T12:00:00.000Z' as any);
 		expect(isISODateString(result)).toBe(true);
 	});
 
@@ -51,21 +50,21 @@ describe('Date Utils - Conversions', () => {
 		const date = new Date('2025-01-20T12:00:00.000Z');
 
 		// Date object
-		expect(toISOString(date)).toBe('2025-01-20T12:00:00.000Z');
+		expect(toISOString(date)).toBe('2025-01-20T12:00:00.000Z' as any);
 
 		// ISO string
-		expect(toISOString('2025-01-20T12:00:00.000Z')).toBe('2025-01-20T12:00:00.000Z');
+		expect(toISOString('2025-01-20T12:00:00.000Z' as any)).toBe('2025-01-20T12:00:00.000Z' as any);
 
 		// Timestamp
-		expect(toISOString(date.getTime())).toBe('2025-01-20T12:00:00.000Z');
+		expect(toISOString(date.getTime())).toBe('2025-01-20T12:00:00.000Z' as any);
 	});
 
 	it('should normalize date inputs', () => {
 		const date = new Date('2025-01-20T12:00:00.000Z');
 
-		expect(normalizeDateInput(date)).toBe('2025-01-20T12:00:00.000Z');
-		expect(normalizeDateInput('2025-01-20T12:00:00.000Z')).toBe('2025-01-20T12:00:00.000Z');
-		expect(normalizeDateInput(date.getTime())).toBe('2025-01-20T12:00:00.000Z');
+		expect(normalizeDateInput(date)).toBe('2025-01-20T12:00:00.000Z' as any);
+		expect(normalizeDateInput('2025-01-20T12:00:00.000Z' as any)).toBe('2025-01-20T12:00:00.000Z' as any);
+		expect(normalizeDateInput(date.getTime())).toBe('2025-01-20T12:00:00.000Z' as any);
 	});
 
 	it('should get current time as ISO string', () => {
@@ -76,7 +75,7 @@ describe('Date Utils - Conversions', () => {
 	});
 
 	it('should convert ISO string back to Date', () => {
-		const isoString = '2025-01-20T12:00:00.000Z';
+		const isoString = '2025-01-20T12:00:00.000Z' as any;
 		const date = isoDateStringToDate(isoString);
 
 		expect(date instanceof Date).toBe(true);
@@ -148,7 +147,7 @@ describe('Date Utils - Edge Cases', () => {
 		const leapDate = new Date('2024-02-29T00:00:00.000Z');
 		const isoString = dateToISODateString(leapDate);
 
-		expect(isoString).toBe('2024-02-29T00:00:00.000Z');
+		expect(isoString).toBe('2024-02-29T00:00:00.000Z' as any);
 	});
 
 	it('should handle timezone-aware conversions', () => {
@@ -163,13 +162,13 @@ describe('Date Utils - Edge Cases', () => {
 		const epoch = new Date(0);
 		const isoString = dateToISODateString(epoch);
 
-		expect(isoString).toBe('1970-01-01T00:00:00.000Z');
+		expect(isoString).toBe('1970-01-01T00:00:00.000Z' as any);
 	});
 
 	it('should handle far future dates', () => {
 		const futureDate = new Date('2099-12-31T23:59:59.999Z');
 		const isoString = dateToISODateString(futureDate);
 
-		expect(isoString).toBe('2099-12-31T23:59:59.999Z');
+		expect(isoString).toBe('2099-12-31T23:59:59.999Z' as any);
 	});
 });

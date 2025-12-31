@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll } from 'bun:test';
+import { describe, test, expect } from 'bun:test';
 
 // Mock data
 const MOCK_ENTRIES = Array.from({ length: 100 }, (_, i) => ({

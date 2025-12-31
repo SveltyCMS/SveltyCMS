@@ -16,10 +16,13 @@ export function syncHighlight(overlayGroup: Konva.Group, cropTool: Konva.Shape, 
 		cut.radius((cropTool as Konva.Circle).radius());
 		cut.rotation(cropTool.rotation());
 	} else if (cropTool instanceof Konva.Rect && cut instanceof Konva.Rect) {
-		cut.position(cropTool.position());
-		cut.width((cropTool as Konva.Rect).width());
-		cut.height((cropTool as Konva.Rect).height());
-		cut.rotation(cropTool.rotation());
+		cut.setAttrs({
+			x: cropTool.x(),
+			y: cropTool.y(),
+			width: cropTool.width() * cropTool.scaleX(),
+			height: cropTool.height() * cropTool.scaleY(),
+			rotation: cropTool.rotation()
+		});
 	}
 	if (shouldCache) {
 		const s = overlayGroup.getStage();

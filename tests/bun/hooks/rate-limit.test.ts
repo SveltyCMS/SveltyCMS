@@ -133,7 +133,7 @@ describe('handleRateLimit Middleware', () => {
 			const event = createMockEvent('/api/collections', 'GET', { 'x-forwarded-for': '1.2.3.4' });
 			// Build detection happens via event.isDataRequest or similar in real implementation
 			// For now, we just verify normal flow works
-			const _response = await handleRateLimit({ event, resolve: mockResolve });
+			await handleRateLimit({ event, resolve: mockResolve });
 
 			// This will depend on implementation details
 			expect(mockResolve).toHaveBeenCalled();

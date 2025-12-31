@@ -3,7 +3,6 @@
  * @description Tests for language utility functions
  */
 
-// @ts-expect-error - Bun test is available at runtime
 import { describe, it, expect } from 'bun:test';
 import { getLanguageName } from '@utils/languageUtils';
 

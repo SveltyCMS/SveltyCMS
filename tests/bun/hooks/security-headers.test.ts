@@ -28,7 +28,7 @@ describe('addSecurityHeaders Middleware', () => {
 	let mockResolve: ReturnType<typeof mock>;
 	let mockResponse: Response;
 
-	beforeEach(() => {
+	beforeEach(async () => {
 		mockResponse = createMockResponse();
 		mockResolve = mock(() => Promise.resolve(mockResponse));
 	});
@@ -46,8 +46,8 @@ describe('addSecurityHeaders Middleware', () => {
 			const response = await addSecurityHeaders({ event, resolve: mockResolve });
 
 			const xFrameOptions = response.headers.get('X-Frame-Options');
-			expect(xFrameOptions).toBe('SAMEORIGIN');
-			expect(['DENY', 'SAMEORIGIN']).toContain(xFrameOptions);
+			expect(xFrameOptions as any).toBe('SAMEORIGIN');
+			expect(['DENY', 'SAMEORIGIN']).toContain(xFrameOptions as any);
 		});
 	});
 

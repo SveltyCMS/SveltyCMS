@@ -3,7 +3,6 @@
  * @description Tests for setup wizard store
  */
 
-// @ts-expect-error - Bun test is available at runtime
 import { describe, it, expect } from 'bun:test';
 
 describe('Setup Store - Type Definitions', () => {

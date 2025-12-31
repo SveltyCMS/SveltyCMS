@@ -6,7 +6,7 @@ It handles widget configuration, permissions, and specific options.
 -->
 
 <script lang="ts">
-	import { type SvelteComponent } from 'svelte';
+	import type { Component } from 'svelte';
 
 	// Components
 	import { widgets } from '@stores/widgetStore.svelte';
@@ -28,7 +28,7 @@ It handles widget configuration, permissions, and specific options.
 
 	interface Props {
 		/** Exposes parent props to this component. */
-		parent: SvelteComponent;
+		parent: any;
 	}
 
 	const { parent }: Props = $props();
@@ -36,9 +36,11 @@ It handles widget configuration, permissions, and specific options.
 	// Local variables
 	const modalData = $derived($modalStore[0]);
 	// Widget key is the folder name (lowercase), not the widget Name
-	const widgetKey = $derived(modalData?.value?.widget?.key || (modalData?.value?.widget?.Name?.toLowerCase() as string));
-	const availableWidgets = $derived(widgets.widgetFunctions || {});
-	const guiSchema = $derived(((availableWidgets[widgetKey] as any)?.GuiSchema || {}) as Record<string, { widget: typeof SvelteComponent }>);
+	// const widgetKey = $derived(modalData?.value?.widget?.key || (modalData?.value?.widget?.Name?.toLowerCase() as string));
+	// const availableWidgets = $derived(widgets.widgetFunctions || {});
+	// GuiSchema is a record of field properties with their widget configs
+	type GuiSchema = Record<string, { widget: Component<any> }>;
+	const guiSchema: GuiSchema = $derived((widgets.widgetFunctions[(collections.targetWidget.widget as any)?.Name] as any)?.GuiSchema || {});
 
 	// Derive options from guiSchema
 	const options = $derived(guiSchema ? Object.keys(guiSchema) : []);
@@ -90,54 +92,55 @@ It handles widget configuration, permissions, and specific options.
 					({modalData?.value?.widget?.Name || 'Unknown Widget'})
 				</p>
 			</div>
-			
+
 			<div class="flex gap-2">
 				<button type="button" aria-label={m.button_cancel()} class="btn-icon variant-ghost" onclick={parent.onClose}>
 					<iconify-icon icon="mdi:close" width="24"></iconify-icon>
 				</button>
 			</div>
 		</header>
-		
+
 		<!-- Scrollable Content -->
 		<div class="flex-1 overflow-y-auto pr-2">
 			<form class="{cForm} border-none !p-0 shadow-none">
-			<TabGroup justify="justify-between lg:justify-start">
-				<!-- Default Tab -->
-				<Tab bind:group={localTabSet} name="tab1" value={0}>
-					<div class="flex items-center gap-1">
-						<iconify-icon icon="mdi:required" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<span>Default</span>
-					</div>
-				</Tab>
-
-				<!-- Permissions Tab -->
-				<Tab bind:group={localTabSet} name="tab2" value={1}>
-					<div class="flex items-center gap-1">
-						<iconify-icon icon="mdi:security-lock" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<span>{m.system_permission()}</span>
-					</div>
-				</Tab>
-
-				<!-- Specific Tab (only shown if there are specific options) -->
-				{#if specificOptions.length > 0}
-					<Tab bind:group={localTabSet} name="tab3" value={2}>
+				<TabGroup justify="justify-between lg:justify-start">
+					<!-- Default Tab -->
+					<Tab bind:group={localTabSet} name="tab1" value={0}>
 						<div class="flex items-center gap-1">
-							<iconify-icon icon="ph:star-fill" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-							<span>Specific</span>
+							<iconify-icon icon="mdi:required" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<span>Default</span>
 						</div>
 					</Tab>
-				{/if}
-			</TabGroup>
 
-			<!-- Tab Panels -->
-			{#if localTabSet === 0}
-				<Default {guiSchema} />
-			{:else if localTabSet === 1}
-				<Permission />
-			{:else if localTabSet === 2}
-				<Specific />
-			{/if}
-		</form>
+					<!-- Permissions Tab -->
+					<Tab bind:group={localTabSet} name="tab2" value={1}>
+						<div class="flex items-center gap-1">
+							<iconify-icon icon="mdi:security-lock" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<span>{m.system_permission()}</span>
+						</div>
+					</Tab>
+
+					<!-- Specific Tab (only shown if there are specific options) -->
+					{#if specificOptions.length > 0}
+						<Tab bind:group={localTabSet} name="tab3" value={2}>
+							<div class="flex items-center gap-1">
+								<iconify-icon icon="ph:star-fill" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+								<span>Specific</span>
+							</div>
+						</Tab>
+					{/if}
+				</TabGroup>
+
+				<!-- Tab Panels -->
+				{#if localTabSet === 0}
+					<Default {guiSchema} />
+				{:else if localTabSet === 1}
+					<Permission />
+				{:else if localTabSet === 2}
+					<Specific />
+				{/if}
+			</form>
+		</div>
 
 		<footer class="{parent.regionFooter} justify-between">
 			<!-- Delete Button -->

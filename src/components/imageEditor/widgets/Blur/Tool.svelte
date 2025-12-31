@@ -20,6 +20,8 @@ handles drawing, applies/bakes effects, and registers toolbar.
 	// guard to avoid duplicate event bindings
 	let _toolBound = $state(false);
 
+	let { onCancel }: { onCancel: () => void } = $props();
+
 	// debounce timer for strength slider updates
 	let strengthDebounceTimer: number | null = null;
 
@@ -38,9 +40,14 @@ handles drawing, applies/bakes effects, and registers toolbar.
 						blurStrength = v;
 						if (strengthDebounceTimer) clearTimeout(strengthDebounceTimer);
 						strengthDebounceTimer = window.setTimeout(() => {
-							regions.forEach((r) => r.setStrength(v));
+							// ALWAYS update activeId if exists, or all regions
+							if (activeId) {
+								regions.find((r) => r.id === activeId)?.setStrength(v);
+							} else {
+								regions.forEach((r) => r.setStrength(v));
+							}
 							imageEditorStore.state.layer?.batchDraw();
-						}, 60);
+						}, 30); // Fast feedback
 					},
 					onPatternChange: (p: BlurPattern) => {
 						pattern = p;
@@ -67,6 +74,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 						}
 					},
 					onReset: () => reset(),
+					onCancel: () => onCancel(),
 					onApply: apply
 				}
 			});
@@ -76,6 +84,13 @@ handles drawing, applies/bakes effects, and registers toolbar.
 			if (imageEditorStore.state.toolbarControls?.component === Controls) {
 				imageEditorStore.setToolbarControls(null);
 			}
+		}
+	});
+
+	// Auto-initialize first region if empty
+	$effect(() => {
+		if (_toolBound && regions.length === 0) {
+			createRegion();
 		}
 	});
 
@@ -135,6 +150,18 @@ handles drawing, applies/bakes effects, and registers toolbar.
 		activeId = newR.id;
 
 		newR.onSelect(() => selectRegion(newR.id));
+		newR.onClone(() => {
+			const bounds = newR.shapeNode.getClientRect();
+			createRegion({
+				x: bounds.x + 20,
+				y: bounds.y + 20,
+				width: bounds.width,
+				height: bounds.height,
+				shape: newR.shapeNode instanceof Konva.Ellipse ? 'ellipse' : 'rectangle',
+				pattern: pattern,
+				strength: blurStrength
+			});
+		});
 		newR.onDestroy(() => {
 			regions = regions.filter((x) => x.id !== newR.id);
 			if (activeId === newR.id) activeId = null;

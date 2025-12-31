@@ -19,7 +19,6 @@
  * - POST /api/setup/complete (4 tests)
  */
 
-// @ts-expect-error - bun:test is a runtime module
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { getApiBaseUrl } from '../helpers/server';
 import { cleanupTestDatabase } from '../helpers/testSetup';

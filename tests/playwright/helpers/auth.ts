@@ -60,7 +60,7 @@ export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = /\/
 
 	// Wait for login form to be visible - use data-testid
 	console.log('[Auth] Waiting for signin-email field...');
-	const emailField = await page.waitForSelector('[data-testid="signin-email"]', { timeout: 15000, state: 'visible' }).catch(async (e) => {
+	await page.waitForSelector('[data-testid="signin-email"]', { timeout: 15000, state: 'visible' }).catch(async (e) => {
 		console.error('[Auth] ERROR: signin-email field not found!');
 		console.error(`[Auth] Available inputs: ${await page.locator('input').count()}`);
 		const inputs = await page.locator('input').all();

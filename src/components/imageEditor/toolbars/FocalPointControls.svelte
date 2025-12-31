@@ -10,9 +10,10 @@ Toolbar controls for the FocalPoint widget
 		focalY?: number;
 		onReset?: () => void;
 		onApply?: () => void;
+		onCancel?: () => void;
 	}
 
-	const { focalX = 50, focalY = 50, onReset = () => {}, onApply = () => {} }: Props = $props();
+	const { focalX = 50, focalY = 50, onReset = () => {}, onApply = () => {}, onCancel = () => {} }: Props = $props();
 </script>
 
 <div class="flex items-center gap-4 flex-wrap">
@@ -36,6 +37,11 @@ Toolbar controls for the FocalPoint widget
 		<button onclick={onReset} class="btn variant-ghost-surface btn-sm" title="Reset to center">
 			<iconify-icon icon="mdi:restore" width="18"></iconify-icon>
 			<span>Reset</span>
+		</button>
+
+		<button onclick={onCancel} class="btn variant-ghost-error btn-sm" title="Discard changes">
+			<iconify-icon icon="mdi:close" width="18"></iconify-icon>
+			<span>Cancel</span>
 		</button>
 
 		<button onclick={onApply} class="btn variant-filled-primary btn-sm" title="Apply focal point">

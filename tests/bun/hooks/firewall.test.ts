@@ -12,8 +12,7 @@
  * - Bulk operation abuse
  */
 
-// @ts-expect-error - Bun test is available at runtime
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { describe, expect, test, beforeEach, mock, it } from 'bun:test';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // Mock dependencies
@@ -74,7 +73,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 	});
 
 	describe('Suspicious Parameter Detection (Application Threats)', () => {
-		it('should block password in URL parameters', async () => {
+		test('should block password in URL parameters', async () => {
 			const event = createMockEvent('http://localhost/login?username=admin&password=secret123');
 
 			try {
@@ -87,7 +86,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 			}
 		});
 
-		it('should block token in URL parameters', async () => {
+		test('should block token in URL parameters', async () => {
 			const event = createMockEvent('http://localhost/api/data?token=abc123xyz');
 
 			try {
@@ -99,7 +98,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 			}
 		});
 
-		it('should block api_key in URL parameters', async () => {
+		test('should block api_key in URL parameters', async () => {
 			const event = createMockEvent('http://localhost/api/service?api_key=secret');
 
 			try {
@@ -111,7 +110,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 			}
 		});
 
-		it('should block secret in URL parameters', async () => {
+		test('should block secret in URL parameters', async () => {
 			const event = createMockEvent('http://localhost/config?secret=mysecretvalue');
 
 			try {
@@ -129,7 +128,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 		// not URL query strings which get auto-encoded. These patterns catch request body attacks.
 		// URL encoding in tests makes these patterns hard to test, but they work in production.
 
-		it('should detect script injection patterns (limited by URL encoding in tests)', async () => {
+		test('should detect script injection patterns (limited by URL encoding in tests)', async () => {
 			// This test verifies the pattern exists and is checked, even though
 			// URL encoding prevents matching in this specific test scenario
 			const event = createMockEvent('http://localhost/api/safe-endpoint');
@@ -137,7 +136,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 			expect(response.status).toBe(200);
 		});
 
-		it('should block javascript: protocol attempts', async () => {
+		test('should block javascript: protocol attempts', async () => {
 			const event = createMockEvent('http://localhost/redirect?url=javascript:alert(1)');
 
 			try {
@@ -149,7 +148,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 			}
 		});
 
-		it('should block data:text/html injections', async () => {
+		test('should block data:text/html injections', async () => {
 			const event = createMockEvent('http://localhost/api/content?html=data:text/html,<script>alert(1)</script>');
 
 			try {
@@ -161,7 +160,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 			}
 		});
 
-		it('should block vbscript: protocol attempts', async () => {
+		test('should block vbscript: protocol attempts', async () => {
 			const event = createMockEvent('http://localhost/api/link?url=vbscript:msgbox');
 
 			try {
@@ -178,20 +177,20 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 		// Note: URL encoding in test environment prevents direct testing of injection patterns
 		// In production, these patterns match unencoded POST body data and path segments
 
-		it('should have template injection detection patterns', async () => {
+		test('should have template injection detection patterns', async () => {
 			const event = createMockEvent('http://localhost/api/render?safe=true');
 			const response = await handleFirewall({ event, resolve: mockResolve });
 			expect(response.status).toBe(200);
 		});
 
-		it('should have command injection detection patterns', async () => {
+		test('should have command injection detection patterns', async () => {
 			const event = createMockEvent('http://localhost/api/file?path=safe/path');
 			const response = await handleFirewall({ event, resolve: mockResolve });
 			expect(response.status).toBe(200);
 		});
 	});
 	describe('Bulk Operation Abuse Detection', () => {
-		it('should block bulk-delete operations', async () => {
+		test('should block bulk-delete operations', async () => {
 			const event = createMockEvent('http://localhost/api/users/bulk-delete');
 
 			try {
@@ -203,7 +202,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 			}
 		});
 
-		it('should block bulk-update on collections', async () => {
+		test('should block bulk-update on collections', async () => {
 			const event = createMockEvent('http://localhost/api/collections/bulk-update');
 
 			try {
@@ -215,7 +214,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 			}
 		});
 
-		it('should block bulk-create on content', async () => {
+		test('should block bulk-create on content', async () => {
 			const event = createMockEvent('http://localhost/api/content/bulk-create');
 
 			try {
@@ -229,7 +228,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 	});
 
 	describe('Administrative Endpoint Enumeration', () => {
-		it('should block admin delete endpoints', async () => {
+		test('should block admin delete endpoints', async () => {
 			const event = createMockEvent('http://localhost/admin/users/delete');
 
 			try {
@@ -241,7 +240,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 			}
 		});
 
-		it('should block control-panel remove endpoints', async () => {
+		test('should block control-panel remove endpoints', async () => {
 			const event = createMockEvent('http://localhost/control-panel/settings/remove');
 
 			try {
@@ -253,7 +252,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 			}
 		});
 
-		it('should block dashboard destroy endpoints', async () => {
+		test('should block dashboard destroy endpoints', async () => {
 			const event = createMockEvent('http://localhost/dashboard/config/destroy');
 
 			try {
@@ -267,7 +266,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 	});
 
 	describe('Advanced Bot Detection', () => {
-		it('should block HeadlessChrome user agents', async () => {
+		test('should block HeadlessChrome user agents', async () => {
 			const event = createMockEvent(
 				'http://localhost/api/data',
 				'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/91.0.4472.124 Safari/537.36'
@@ -282,7 +281,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 			}
 		});
 
-		it('should block Selenium user agents', async () => {
+		test('should block Selenium user agents', async () => {
 			const event = createMockEvent('http://localhost/login', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Selenium/4.0');
 
 			try {
@@ -294,7 +293,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 			}
 		});
 
-		it('should block Puppeteer user agents', async () => {
+		test('should block Puppeteer user agents', async () => {
 			const event = createMockEvent('http://localhost/api/scrape', 'Mozilla/5.0 (compatible; Puppeteer/10.0.0)');
 
 			try {
@@ -306,7 +305,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 			}
 		});
 
-		it('should block Playwright user agents', async () => {
+		test('should block Playwright user agents', async () => {
 			const event = createMockEvent('http://localhost/dashboard', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Playwright/1.20');
 
 			try {
@@ -318,7 +317,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 			}
 		});
 
-		it('should allow Googlebot', async () => {
+		test('should allow Googlebot', async () => {
 			const event = createMockEvent('http://localhost/blog/article', 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)');
 
 			const response = await handleFirewall({ event, resolve: mockResolve });
@@ -326,14 +325,14 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 			expect(mockResolve).toHaveBeenCalled();
 		});
 
-		it('should allow facebookexternalhit', async () => {
+		test('should allow facebookexternalhit', async () => {
 			const event = createMockEvent('http://localhost/share', 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)');
 
 			const response = await handleFirewall({ event, resolve: mockResolve });
 			expect(response.status).toBe(200);
 		});
 
-		it('should allow Twitterbot', async () => {
+		test('should allow Twitterbot', async () => {
 			const event = createMockEvent('http://localhost/post/123', 'Twitterbot/1.0');
 
 			const response = await handleFirewall({ event, resolve: mockResolve });
@@ -342,7 +341,7 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 	});
 
 	describe('Legitimate Traffic', () => {
-		it('should allow normal API requests', async () => {
+		test('should allow normal API requests', async () => {
 			const event = createMockEvent('http://localhost/api/collections/get?id=123');
 
 			const response = await handleFirewall({ event, resolve: mockResolve });
@@ -350,14 +349,14 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 			expect(mockResolve).toHaveBeenCalled();
 		});
 
-		it('should allow search queries with normal text', async () => {
+		test('should allow search queries with normal text', async () => {
 			const event = createMockEvent('http://localhost/search?q=svelte+tutorial');
 
 			const response = await handleFirewall({ event, resolve: mockResolve });
 			expect(response.status).toBe(200);
 		});
 
-		it('should allow legitimate user agents', async () => {
+		test('should allow legitimate user agents', async () => {
 			const event = createMockEvent(
 				'http://localhost/dashboard',
 				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'

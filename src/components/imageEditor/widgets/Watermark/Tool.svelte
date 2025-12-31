@@ -15,6 +15,7 @@ Orchestrates the watermark lifecycle:
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 	import WatermarkControls from '@src/components/imageEditor/toolbars/WatermarkControls.svelte';
 	import { WatermarkItem } from './regions';
+	import { createStyledTransformer, attachStyledTransformer } from '../transformerConfig';
 
 	// --- Svelte 5 State ---
 	let watermarks: WatermarkItem[] = $state([]);
@@ -57,7 +58,7 @@ Orchestrates the watermark lifecycle:
 		_toolBound = true;
 
 		if (!transformer) {
-			transformer = createTransformer(layer);
+			transformer = createStyledTransformer(layer);
 		}
 		stage.on('click.watermark tap.watermark', onStageClick);
 		stage.container().style.cursor = 'default';
@@ -109,7 +110,7 @@ Orchestrates the watermark lifecycle:
 				stageHeight: stage.height()
 			});
 			// Attach transformer *after* image is loaded and sized
-			attachTransformer(transformer!, item.node);
+			attachStyledTransformer(transformer!, item.node);
 			layer.batchDraw();
 		} catch (err) {
 			console.error('Failed to load watermark image', err);
@@ -120,7 +121,7 @@ Orchestrates the watermark lifecycle:
 	function select(item: WatermarkItem) {
 		selected = item;
 		if (!transformer) return;
-		attachTransformer(transformer, item.node);
+		attachStyledTransformer(transformer, item.node);
 		// Update controls to match selected item's opacity
 		opacity = item.node.opacity();
 	}
@@ -128,7 +129,7 @@ Orchestrates the watermark lifecycle:
 	function deselect() {
 		selected = null;
 		if (!transformer) return;
-		attachTransformer(transformer, null);
+		attachStyledTransformer(transformer, null);
 	}
 
 	function deleteSelected() {
@@ -153,47 +154,6 @@ Orchestrates the watermark lifecycle:
 	function apply() {
 		imageEditorStore.takeSnapshot();
 		imageEditorStore.setActiveState('');
-	}
-
-	/**
-	 * Creates a shared transformer for watermarks.
-	 */
-	function createTransformer(layer: Konva.Layer) {
-		const tr = new Konva.Transformer({
-			keepRatio: true,
-			rotateEnabled: true,
-			anchorSize: 10,
-			borderStroke: '#0066ff',
-			borderStrokeWidth: 2,
-			anchorFill: '#0066ff',
-			anchorStroke: '#ffffff',
-			boundBoxFunc: (oldBox, newBox) => {
-				return newBox.width < 10 || newBox.height < 10 ? oldBox : newBox;
-			}
-		});
-		layer.add(tr);
-		tr.hide();
-		tr.moveToTop();
-		return tr;
-	}
-
-	/**
-	 * Attaches the shared transformer to a node.
-	 */
-	function attachTransformer(tr: Konva.Transformer, node?: Konva.Node | null) {
-		try {
-			if (!node) {
-				tr.nodes([]);
-				tr.hide();
-				return;
-			}
-			tr.nodes([node]);
-			tr.show();
-			tr.forceUpdate();
-			tr.moveToTop();
-		} catch (e) {
-			/* ignore */
-		}
 	}
 
 	function handleFileChange(e: Event) {

@@ -1,7 +1,6 @@
 // tests/bun/mocks/setup.ts
 // Test setup file for Bun tests - Mocks for SveltyCMS environment
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// @ts-expect-error - Bun types are not available in TypeScript
 import { mock } from 'bun:test';
 
 // =============================================================================

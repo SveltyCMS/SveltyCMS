@@ -22,6 +22,7 @@ Allows users to set the focal point of an image with rule of thirds grid overlay
 
 	// guard to avoid duplicate event bindings
 	let _toolBound = $state(false);
+	let { onCancel }: { onCancel: () => void } = $props();
 
 	// --- Lifecycle $effect ---
 	$effect(() => {
@@ -34,6 +35,7 @@ Allows users to set the focal point of an image with rule of thirds grid overlay
 					focalX: Math.round(focalPoint.x * 100),
 					focalY: Math.round(focalPoint.y * 100),
 					onReset: () => resetFocalPoint(),
+					onCancel: () => onCancel(),
 					onApply: () => apply()
 				}
 			});
@@ -95,6 +97,10 @@ Allows users to set the focal point of an image with rule of thirds grid overlay
 		const imageX = imageGroup.x();
 		const imageY = imageGroup.y();
 
+		// Calculate actual top-left of image (accounting for centering in group)
+		const originX = imageX - imageWidth / 2;
+		const originY = imageY - imageHeight / 2;
+
 		// Draw rule of thirds grid
 		const lineColor = '#00ff00';
 		const lineWidth = 1;
@@ -102,9 +108,9 @@ Allows users to set the focal point of an image with rule of thirds grid overlay
 
 		// Vertical lines
 		for (let i = 1; i <= 2; i++) {
-			const x = imageX + (imageWidth / 3) * i;
+			const x = originX + (imageWidth / 3) * i;
 			const line = new Konva.Line({
-				points: [x, imageY, x, imageY + imageHeight],
+				points: [x, originY, x, originY + imageHeight],
 				stroke: lineColor,
 				strokeWidth: lineWidth,
 				opacity: opacity,
@@ -115,9 +121,9 @@ Allows users to set the focal point of an image with rule of thirds grid overlay
 
 		// Horizontal lines
 		for (let i = 1; i <= 2; i++) {
-			const y = imageY + (imageHeight / 3) * i;
+			const y = originY + (imageHeight / 3) * i;
 			const line = new Konva.Line({
-				points: [imageX, y, imageX + imageWidth, y],
+				points: [originX, y, originX + imageWidth, y],
 				stroke: lineColor,
 				strokeWidth: lineWidth,
 				opacity: opacity,
@@ -138,9 +144,13 @@ Allows users to set the focal point of an image with rule of thirds grid overlay
 		const imageX = imageGroup.x();
 		const imageY = imageGroup.y();
 
+		// Calculate actual top-left of image (accounting for centering in group)
+		const originX = imageX - imageWidth / 2;
+		const originY = imageY - imageHeight / 2;
+
 		// Calculate crosshair position
-		const x = imageX + imageWidth * focalPoint.x;
-		const y = imageY + imageHeight * focalPoint.y;
+		const x = originX + imageWidth * focalPoint.x;
+		const y = originY + imageHeight * focalPoint.y;
 
 		// Create crosshair group
 		crosshair = new Konva.Group({
@@ -189,18 +199,18 @@ Allows users to set the focal point of an image with rule of thirds grid overlay
 
 		const imageWidth = imageNode.width() * imageNode.scaleX();
 		const imageHeight = imageNode.height() * imageNode.scaleY();
-		const imageX = imageGroup.x();
-		const imageY = imageGroup.y();
+		const originX = imageGroup.x() - imageWidth / 2;
+		const originY = imageGroup.y() - imageHeight / 2;
 
 		// Check if click is within image bounds
-		if (pos.x < imageX || pos.x > imageX + imageWidth || pos.y < imageY || pos.y > imageY + imageHeight) {
+		if (pos.x < originX || pos.x > originX + imageWidth || pos.y < originY || pos.y > originY + imageHeight) {
 			return;
 		}
 
 		// Calculate normalized focal point (0-1)
 		focalPoint = {
-			x: (pos.x - imageX) / imageWidth,
-			y: (pos.y - imageY) / imageHeight
+			x: (pos.x - originX) / imageWidth,
+			y: (pos.y - originY) / imageHeight
 		};
 
 		// Update crosshair position
@@ -224,11 +234,11 @@ Allows users to set the focal point of an image with rule of thirds grid overlay
 
 		const imageWidth = imageNode.width() * imageNode.scaleX();
 		const imageHeight = imageNode.height() * imageNode.scaleY();
-		const imageX = imageGroup.x();
-		const imageY = imageGroup.y();
+		const originX = imageGroup.x() - imageWidth / 2;
+		const originY = imageGroup.y() - imageHeight / 2;
 
-		const x = imageX + imageWidth * focalPoint.x;
-		const y = imageY + imageHeight * focalPoint.y;
+		const x = originX + imageWidth * focalPoint.x;
+		const y = originY + imageHeight * focalPoint.y;
 
 		crosshair.position({ x, y });
 		gridLayer?.batchDraw();

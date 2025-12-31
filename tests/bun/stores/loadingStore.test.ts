@@ -3,7 +3,6 @@
  * @description Tests for global loading state management
  */
 
-// @ts-expect-error - Bun test is available at runtime
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { LoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 

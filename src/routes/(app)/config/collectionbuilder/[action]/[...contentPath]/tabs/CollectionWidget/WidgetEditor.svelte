@@ -6,8 +6,7 @@ Replaces the ModalWidgetForm, providing a full-screen or focused editor experien
 -->
 
 <script lang="ts">
-	import { type SvelteComponent } from 'svelte';
-
+	import type { Component } from 'svelte';
 	// Components
 	import { widgets } from '@stores/widgetStore.svelte';
 	import Stepper from '@components/system/Stepper.svelte';
@@ -40,10 +39,10 @@ Replaces the ModalWidgetForm, providing a full-screen or focused editor experien
 
 	// Widget Info
 	// Use safe navigation and fallback for display
-	const target = $derived(collections.targetWidget);
+	const target = $derived(collections.targetWidget as any);
 	const widgetKey = $derived(target?.widget?.key || (target?.widget?.Name?.toLowerCase() as string));
 	const availableWidgets = $derived(widgets.widgetFunctions || {});
-	const guiSchema = $derived(((availableWidgets[widgetKey] as any)?.GuiSchema || {}) as Record<string, { widget: typeof SvelteComponent }>);
+	const guiSchema = $derived(((availableWidgets[widgetKey] as any)?.GuiSchema || {}) as Record<string, { widget: Component<any> }>);
 
 	const options = $derived(guiSchema ? Object.keys(guiSchema) : []);
 	const specificOptions = $derived(
@@ -98,7 +97,7 @@ Replaces the ModalWidgetForm, providing a full-screen or focused editor experien
 
 <div class="flex h-full w-full gap-6">
 	<!-- Reusable Stepper -->
-	<Stepper {steps} bind:currentStep>
+	<Stepper {steps} bind:currentStep {stepCompleted} {stepClickable}>
 		{#snippet header()}
 			<h3 class="text-lg font-bold">Steps</h3>
 		{/snippet}
@@ -111,8 +110,8 @@ Replaces the ModalWidgetForm, providing a full-screen or focused editor experien
 			<!-- Fallback for title key -->
 			<h2 class="text-2xl font-bold">{(m as any).widget_configuration_title || 'Widget Configuration'}</h2>
 			<p class="text-surface-500 dark:text-surface-400">
-				Configuring <span class="font-bold text-primary-500">{collections.targetWidget.label || 'New Field'}</span>
-				<span class="text-xs opacity-70">({collections.targetWidget.widget?.Name || 'Unknown'})</span>
+				Configuring <span class="font-bold text-primary-500">{target?.label || 'New Field'}</span>
+				<span class="text-xs opacity-70">({target?.widget?.Name || 'Unknown'})</span>
 			</p>
 		</div>
 

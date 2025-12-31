@@ -394,7 +394,7 @@
 				// Mark for deletion - uses the proper 'delete' operation type
 				// ContentManager.upsertContentNodes handles 'delete' operations
 				nodesToSave[node._id as string] = {
-					type: 'delete' as const,
+					type: 'delete' as any,
 					node: node as ContentNode
 				};
 

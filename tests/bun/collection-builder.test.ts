@@ -1,5 +1,4 @@
 // tests/bun/collection-builder.test.ts
-// @ts-expect-error - Bun types are not available in TypeScript
 import type { WidgetConfig } from '../../src/widgets/widgetFactory';
 import { createWidget } from '../../src/widgets/widgetFactory';
 import { beforeEach, describe, expect, test } from 'bun:test';

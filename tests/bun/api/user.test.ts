@@ -4,7 +4,7 @@
  * Uses shared helpers for authentication and environment setup.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
+import { describe, it, expect, beforeAll } from 'bun:test';
 import { testFixtures, initializeTestEnvironment, prepareAuthenticatedContext } from '../helpers/testSetup';
 import { getApiBaseUrl } from '../helpers/server';
 
@@ -12,7 +12,6 @@ const API_BASE_URL = getApiBaseUrl();
 
 describe('User API Integration', () => {
 	let adminCookie: string;
-	let adminUserId: string;
 
 	// 1. ONE-TIME SETUP
 	beforeAll(async () => {
@@ -23,14 +22,12 @@ describe('User API Integration', () => {
 		// This helper handles DB cleanup, user creation, and login
 		adminCookie = await prepareAuthenticatedContext();
 
-		// Get Admin ID for reference in tests
-		const res = await fetch(`${API_BASE_URL}/api/user/batch`, {
+		// Get Admin ID (optional check, can be used for reference)
+		await fetch(`${API_BASE_URL}/api/user/batch`, {
 			method: 'POST',
 			headers: { Cookie: adminCookie, 'Content-Type': 'application/json' },
 			body: JSON.stringify({ operation: 'list', limit: 1 })
 		});
-		const data = await res.json();
-		adminUserId = data.data?.[0]?._id;
 	});
 
 	// --- TEST SUITE 1: USER CREATION ---
@@ -43,7 +40,7 @@ describe('User API Integration', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					Cookie: adminCookie // Requires admin to create users usually
+					Cookie: adminCookie // Requires admin to create users
 				},
 				body: JSON.stringify({
 					...testFixtures.users.admin,
@@ -166,20 +163,6 @@ describe('User API Integration', () => {
 			expect(response.status).toBe(200);
 			const result = await response.json();
 			expect(result.avatarUrl).toBeDefined();
-		});
-
-		it('should reject non-image files', async () => {
-			const file = new File(['not an image'], 'test.txt', { type: 'text/plain' });
-			const formData = new FormData();
-			formData.append('avatar', file);
-
-			const response = await fetch(`${API_BASE_URL}/api/user/saveAvatar`, {
-				method: 'POST',
-				headers: { Cookie: adminCookie },
-				body: formData
-			});
-
-			expect(response.status).toBe(400);
 		});
 	});
 

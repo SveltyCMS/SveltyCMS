@@ -6,23 +6,13 @@
  * - auth.validateSession(), auth.createSession(), auth.destroySession()
  * - cacheService (Redis)
  * - metricsService
- * - WeakRef-based session cache
  */
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import { handleAuthentication } from '@src/hooks/handleAuthentication';
 import type { RequestEvent } from '@sveltejs/kit';
-import type { User } from '@src/databases/auth/types';
 
 // --- Test Utilities ---
-
-const _mockUser: User = {
-	_id: 'user123',
-	email: 'test@example.com',
-	role: 'admin',
-	tenantId: 'default',
-	permissions: []
-};
 
 function createMockEvent(pathname: string, sessionCookie?: string, hostname: string = 'localhost'): RequestEvent {
 	const url = new URL(pathname, `http://${hostname}`);

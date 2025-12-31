@@ -17,7 +17,7 @@ Features:
 
 <script lang="ts">
 	import { asAny } from '@utils/utils';
-	import type { SvelteComponent } from 'svelte';
+	import type { Component } from 'svelte';
 
 	// Components
 	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
@@ -30,7 +30,7 @@ Features:
 	import { collections } from '@src/stores/collectionStore.svelte';
 
 	// GuiSchema is a record of field properties with their widget configs
-	type GuiSchema = Record<string, { widget: typeof SvelteComponent }>;
+	type GuiSchema = Record<string, { widget: Component<any> }>;
 
 	interface Props {
 		guiSchema: GuiSchema;

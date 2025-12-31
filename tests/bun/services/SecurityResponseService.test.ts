@@ -1,7 +1,5 @@
-// tests/bun/services/SecurityResponseService.test.ts
-// @ts-expect-error - Bun types are not available in TypeScript
-import { securityResponseService, type SecurityStatus } from '../../../src/services/SecurityResponseService';
-// Removed: import { Request } from '@sveltejs/kit';
+import { describe, expect, test } from 'bun:test';
+import { securityResponseService } from '../../../src/services/SecurityResponseService';
 
 describe('SecurityResponseService', () => {
 	// Helper to create a mock Request object that looks like a web Request

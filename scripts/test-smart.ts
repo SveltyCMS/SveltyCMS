@@ -22,7 +22,7 @@ const CONFIG_PATH = resolve(process.cwd(), 'config/private.test.ts');
 
 async function checkServer() {
 	try {
-		const response = await fetch(SERVER_URL);
+		await fetch(SERVER_URL);
 		return true;
 	} catch (e) {
 		return false;
@@ -32,7 +32,7 @@ async function checkServer() {
 async function main() {
 	console.log('🔍 Checking environment...');
 	const isServerRunning = await checkServer();
-	let serverProcess;
+	let serverProcess: any;
 
 	if (!isServerRunning) {
 		console.log('🚀 Starting server for tests...');
@@ -52,7 +52,7 @@ async function main() {
 		}
 		if (retries === 0) {
 			console.error('❌ Server failed to start');
-			if (serverProcess) process.kill(-serverProcess.pid);
+			if (serverProcess && serverProcess.pid) process.kill(-serverProcess.pid);
 			process.exit(1);
 		}
 		console.log('✅ Server is up!');

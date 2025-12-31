@@ -408,7 +408,7 @@ export default defineConfig((): UserConfig => {
 						if (warning.message.includes('node_modules')) return;
 					}
 					// Suppress unused external import warnings
-					if (warning.code === 'UNUSED_EXTERNAL_IMPORT') {
+					if (warning.code === 'UNUSED_EXTERNAL_IMPORT' || (warning.code === 'UNUSED_EXTERNAL_IMPORT' && warning.message.includes('flexsearch'))) {
 						return;
 					}
 					// Suppress eval warnings from Vite (common in dev dependencies)

@@ -3,7 +3,6 @@
  * @description Tests for cryptographic utility functions
  */
 
-// @ts-expect-error - Bun test is available at runtime
 import { describe, it, expect } from 'bun:test';
 import { hashPassword, verifyPassword, generateRandomToken, createChecksum } from '@utils/crypto';
 

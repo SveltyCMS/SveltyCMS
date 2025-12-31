@@ -12,7 +12,7 @@ export interface EditorWidget {
 	title: string;
 	icon?: string;
 	tool: Component<Record<string, unknown>>;
-	controls: Component<Record<string, unknown>>;
+	controls?: Component<Record<string, unknown>>; // Optional: widgets register controls dynamically via imageEditorStore
 }
 
 // Load all widgets declared under ./<Widget>/index.ts (PascalCase folders only)

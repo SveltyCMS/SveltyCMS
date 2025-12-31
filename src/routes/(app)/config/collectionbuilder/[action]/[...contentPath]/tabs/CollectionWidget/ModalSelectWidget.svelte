@@ -9,8 +9,6 @@
 	import { widgets } from '@stores/widgetStore.svelte';
 	import { logger } from '@utils/logger';
 	import { onMount } from 'svelte';
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
 
 	// Skeleton Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
@@ -20,23 +18,14 @@
 	interface Props {
 		/** Exposes parent props to this component. */
 		parent: any;
-		existingCategory?: any;
 	}
-
-	const { parent, existingCategory = { name: '', icon: '' } }: Props = $props();
+	const { parent }: Props = $props();
 
 	// Define the search term variable
 	let searchTerm: string = $state('');
 
 	// Get available widgets from the modern store
 	const availableWidgets = $derived(widgets.widgetFunctions || {});
-	const activeWidgetList = $derived(widgets.activeWidgets || []);
-
-	// Get only active widgets for the collection builder (NOT USED ANYMORE)
-	// const widget_keys = $derived(Object.keys(availableWidgets).filter((key) => activeWidgetList.includes(key)));
-
-	// Define the selected widget variable
-	const selected: string | null = $state(null);
 
 	// Initialize widgets on mount
 	onMount(async () => {

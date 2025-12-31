@@ -2,7 +2,7 @@
  * @file tests/bun/hooks/token-resolution.test.ts
  * @description Integration tests for token resolution middleware
  */
-import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test';
+import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import { handleTokenResolution } from '@src/hooks/tokenResolution';
 import { TokenRegistry } from '@src/services/token/engine';
 
@@ -85,13 +85,6 @@ describe('Token Resolution Middleware', () => {
 
 	it('should handle relation tokens (mocked)', async () => {
 		// Mock relation token resolution
-		// Since we can't easily mock the dynamic import in integration test without complex setup,
-		// we'll rely on the fact that engine.ts handles the import.
-		// However, for this unit test, we might want to mock the TokenRegistry.resolve method
-		// or just test the middleware flow.
-
-		// Let's test that it calls processTokensInResponse which calls TokenRegistry.resolve
-
 		const originalResolve = TokenRegistry.resolve;
 		TokenRegistry.resolve = mock((key) => {
 			if (key === 'entry.relation.title') return 'Resolved Relation';
@@ -119,10 +112,6 @@ describe('Token Resolution Middleware', () => {
 	});
 
 	it('should handle errors gracefully', async () => {
-		// Mock a circular structure that would fail JSON.stringify if not handled,
-		// but here we are testing the middleware error handling.
-		// Actually, processTokensInResponse handles recursion limit.
-
 		// Let's mock resolve to throw
 		mockResolve = mock(async () => {
 			throw new Error('Network error');

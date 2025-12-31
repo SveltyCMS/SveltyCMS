@@ -1,0 +1,264 @@
+---
+path: 'docs/architecture/image-editor.mdx'
+title: 'Image Editor Architecture'
+description: 'Complete technical reference for the SveltyCMS Image Editor covering dynamic widget system, toolbar controls, and Konva.js integration'
+order: 10
+icon: 'mdi:image-edit'
+author: 'admin'
+created: '2025-11-16'
+updated: '2025-12-30'
+tags:
+  - 'image-editor'
+  - 'architecture'
+  - 'widgets'
+  - 'konva'
+---
+
+# Image Editor Architecture
+
+This document provides a complete technical reference for the SveltyCMS Image Editor system, including the widget architecture, toolbar controls, and Konva.js canvas integration.
+
+## 🏗️ System Overview
+
+The Image Editor is built on a dynamic widget-based architecture where each editing tool (Crop, Blur, FineTune, etc.) is a self-contained widget.
+
+```mermaid
+graph TB
+    subgraph "Image Editor Core"
+        IE[Editor.svelte<br/>Main Orchestrator]
+        IES[imageEditorStore.svelte<br/>Global State]
+        MT[EditorToolbar<br/>Unified Controls]
+        SB[EditorSidebar<br/>Tool Selection]
+        CV[EditorCanvas<br/>Konva Stage]
+    end
+
+    subgraph "Widget Registry"
+        REG[widgets/registry.ts<br/>Dynamic Discovery]
+    end
+
+    subgraph "Editor Widgets"
+        CROP[Crop/]
+        BLUR[Blur/]
+        FT[FineTune/]
+        ANN[Annotate/]
+        WM[Watermark/]
+    end
+
+    IE --> IES
+    IE --> SB
+    IE --> MT
+    IE --> CV
+    SB --> REG
+    REG --> CROP
+    REG --> BLUR
+    REG --> FT
+    REG --> ANN
+    REG --> WM
+
+    style IE fill:#e1f5fe
+    style REG fill:#f3e5f5
+    style IES fill:#fff8e1
+```
+
+---
+
+## 📦 Widget System
+
+### Widget Structure
+
+Each widget follows a consistent folder structure:
+
+```
+widgets/[WidgetName]/
+├── index.ts          # Widget metadata & registration
+├── Tool.svelte       # Konva canvas logic & tool behavior
+├── regions.ts        # Region/entity class (if applicable)
+└── [utilities]       # Helper functions
+```
+
+### Widget Registration
+
+Widgets self-register via their `index.ts`:
+
+```typescript
+// widgets/Crop/index.ts
+import type { Component } from 'svelte';
+import Tool from './Tool.svelte';
+
+export default {
+	key: 'crop',
+	title: 'Crop',
+	icon: 'mdi:crop',
+	tool: Tool as unknown as Component<Record<string, unknown>>
+};
+```
+
+The registry automatically discovers and loads all widgets:
+
+```typescript
+// widgets/registry.ts
+const modules = import.meta.glob('./[A-Z]*/index.ts', { eager: true });
+export const editorWidgets: EditorWidget[] = Object.values(modules)
+	.map((m) => m.default ?? m.editorWidget)
+	.filter((w): w is EditorWidget => !!w);
+```
+
+### Dynamic Toolbar Controls
+
+Tools inject their controls dynamically via the store:
+
+```typescript
+$effect(() => {
+	if (imageEditorStore.state.activeState === 'crop') {
+		imageEditorStore.setToolbarControls({
+			component: CropControls,
+			props: {
+				onRotateLeft: () => rotateLeft(),
+				onApply: () => apply()
+				// ... other callbacks
+			}
+		});
+	} else {
+		imageEditorStore.setToolbarControls(null);
+	}
+});
+```
+
+---
+
+## 🎨 Widget Reference
+
+### Crop
+
+**Location**: `widgets/Crop/`
+
+**Features**: Rectangle/square/circular crop, 90° rotation, horizontal flip, aspect ratio constraints
+
+**Key Files**:
+
+- `regions.ts` - CropRegion class with overlay and transformer
+- `aspect.ts` - Aspect ratio parsing
+- `cropMath.ts` - Coordinate transformations
+
+### Blur
+
+**Location**: `widgets/Blur/`
+
+**Features**: Selective region blur, adjustable strength (0-100), rectangle/ellipse shapes, blur/pixelate patterns
+
+**Key Files**:
+
+- `regions.ts` - BlurRegion class with filter overlay and caching strategy
+
+### FineTune
+
+**Location**: `widgets/FineTune/`
+
+**Features**: Brightness, contrast, saturation, temperature, exposure, highlights, shadows, clarity, vibrance
+
+**Key Files**:
+
+- `adjustments.ts` - Adjustment type definitions
+- `baseFilters.ts` - Konva built-in filters
+- `customFilters.ts` - Custom pixel-level filters
+
+### Annotate
+
+**Location**: `widgets/Annotate/`
+
+**Features**: Text, rectangle, circle, arrow, line annotations with customizable colors and stroke
+
+**Key Files**:
+
+- `regions.ts` - AnnotationItem class
+- `draw.ts` - Factory functions for Konva nodes
+- `editText.ts` - Text editing overlay
+- `transformer.ts` - Shared transformer utilities
+
+### Watermark
+
+**Location**: `widgets/Watermark/`
+
+**Features**: Upload watermark images, draggable positioning, opacity control, snap positions
+
+**Key Files**:
+
+- `regions.ts` - WatermarkItem class with async image loading
+
+---
+
+## 🔧 Shared Components
+
+### Transformer Config
+
+All widgets use unified transformer styling from `transformerConfig.ts`:
+
+```typescript
+export const TRANSFORMER_STYLE = {
+	anchorFill: '#3b82f6', // Blue-500
+	anchorStroke: '#ffffff',
+	anchorSize: 12,
+	anchorCornerRadius: 6, // Circular handles
+	borderStroke: '#3b82f6',
+	borderStrokeWidth: 2
+};
+```
+
+### Tool Lifecycle
+
+Each tool follows a consistent lifecycle:
+
+1. **Activation**: User clicks tool in sidebar
+2. **Initialization**: Tool sets up Konva nodes
+3. **Control Registration**: Tool injects controls into toolbar
+4. **Interaction**: User interacts via controls and canvas
+5. **Apply/Cancel**: Tool finalizes changes or discards
+6. **Cleanup**: Tool removes Konva nodes and deregisters controls
+
+---
+
+## 📱 Responsive Design
+
+```svelte
+{#if !isMobile}
+	<div class="editor-layout">
+		<EditorSidebar />
+		<div class="editor-main">
+			<EditorCanvas />
+			<EditorToolbar />
+		</div>
+	</div>
+{:else}
+	<div class="editor-mobile">
+		<EditorCanvas />
+		<EditorToolbar isMobile />
+	</div>
+{/if}
+```
+
+---
+
+## 🎯 Best Practices
+
+### Tool Implementation
+
+1. Use `$effect` for lifecycle management
+2. Null-check Konva nodes before accessing
+3. Register controls only when tool is active
+4. Clean up thoroughly on deactivation
+5. Take snapshots before mutations: `imageEditorStore.takeSnapshot()`
+
+### Performance
+
+1. Use `layer.batchDraw()` instead of `layer.draw()`
+2. Cache filtered images: `imageNode.cache()`
+3. Debounce rapid changes (sliders)
+4. Lazy-load tools (only when activated)
+
+---
+
+## 📚 Related Documentation
+
+- [Image Editor Guide](/docs/guides/development/image-editor-guide) - User/developer guide
+- [Widget System Overview](/docs/widgets/widget-system-overview) - Widget development patterns
+- [Konva Documentation](https://konvajs.org/docs/) - Canvas library reference

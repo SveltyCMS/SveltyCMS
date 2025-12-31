@@ -3,7 +3,6 @@
  * @description Tests for error handling utilities
  */
 
-// @ts-expect-error - Bun test is available at runtime
 import { describe, it, expect } from 'bun:test';
 import { AppError, isAppError, isHttpError, getErrorMessage, wrapError } from '@utils/errorHandling';
 

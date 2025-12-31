@@ -12,8 +12,7 @@
  * NOTE: TypeScript errors for 'bun:test' module are expected - it's a runtime module.
  */
 
-// @ts-expect-error - bun:test is a runtime module provided by Bun
-import { describe, expect, it } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 
 describe('MongoDB Adapter Tests', () => {
 	describe('Model Registration', () => {
@@ -37,8 +36,8 @@ describe('MongoDB Adapter Tests', () => {
 
 	describe('Connection Management', () => {
 		it('should connect to MongoDB with valid connection string', async () => {
-			// This will be implemented when MongoDB test container is available
-			expect(true).toBe(true); // Placeholder
+			// Placeholder for connection test
+			expect(true).toBe(true);
 		});
 
 		it('should handle connection failures gracefully', async () => {
