@@ -173,8 +173,9 @@ test.describe('OAuth First User Signup', () => {
 		const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
 		const testUrl = `${baseURL}/login/oauth?code=mock_auth_code_ci_test&scope=email+profile+openid`;
 
+		// NOTE: Use 'domcontentloaded' - SSE connection prevents networkidle from resolving
 		await page.goto(testUrl, {
-			waitUntil: 'networkidle'
+			waitUntil: 'domcontentloaded'
 		});
 
 		// Wait for either redirect to collection page or error handling
@@ -237,7 +238,8 @@ test.describe('OAuth First User Signup', () => {
 		await page.goto(testUrl);
 
 		// Wait for the response
-		await page.waitForLoadState('networkidle');
+		// NOTE: Use 'domcontentloaded' - SSE connection prevents networkidle from resolving
+		await page.waitForLoadState('domcontentloaded');
 
 		// Check if we get the invalid_grant error
 		const invalidGrantError = page.locator('text="invalid_grant"');
@@ -323,8 +325,9 @@ test.describe('OAuth First User Signup', () => {
 		const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
 		const testUrl = `${baseURL}/login/oauth?code=mock_auth_code_avatar_test&scope=email+profile+openid`;
 
+		// NOTE: Use 'domcontentloaded' - SSE connection prevents networkidle from resolving
 		await page.goto(testUrl, {
-			waitUntil: 'networkidle'
+			waitUntil: 'domcontentloaded'
 		});
 
 		// Wait for processing

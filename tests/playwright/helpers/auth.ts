@@ -30,8 +30,12 @@ export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = /\/
 	await logout(page);
 
 	// Navigate to login page
+	// NOTE: Use 'domcontentloaded' instead of 'networkidle' because the app has an SSE
+	// connection (/api/settings/public/stream) that keeps the network active indefinitely.
+	// Using 'networkidle' would cause the test to hang forever.
 	console.log('[Auth] Navigating to /login...');
-	await page.goto(`${baseURL}/login`, { waitUntil: 'networkidle', timeout: 30000 });
+	await page.goto(`${baseURL}/login`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+	await page.waitForTimeout(500); // Give time for hydration
 	console.log(`[Auth] Current URL after navigation: ${page.url()}`);
 
 	// Check if we got redirected to setup (config incomplete)

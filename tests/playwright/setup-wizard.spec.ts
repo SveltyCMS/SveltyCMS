@@ -44,7 +44,8 @@ async function configureDatabaseConnection(page: Page) {
 	// First check if we're actually on the setup page
 	if (!page.url().includes('/setup')) {
 		console.log('Not on setup page, navigating directly...');
-		await page.goto('/setup', { waitUntil: 'networkidle', timeout: 30000 });
+		// NOTE: Use 'domcontentloaded' - SSE connection prevents networkidle from resolving
+		await page.goto('/setup', { waitUntil: 'domcontentloaded', timeout: 30000 });
 	}
 
 	await expect(page.getByRole('heading', { name: /database/i }).first()).toBeVisible({ timeout: 30000 });
@@ -133,7 +134,8 @@ async function verifySetupComplete(page: Page) {
 // Main test: Complete the setup wizard
 test('should complete the setup wizard and create an admin user', async ({ page }) => {
 	// Navigate to application - in preview mode, initial load might be slower
-	await page.goto('/', { waitUntil: 'networkidle', timeout: 60000 });
+	// NOTE: Use 'domcontentloaded' - SSE connection prevents networkidle from resolving
+	await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 60000 });
 
 	// Check if we were redirected to /setup or /login
 	// If setup is already complete, we'll be on /login instead
