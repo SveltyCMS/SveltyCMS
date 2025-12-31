@@ -55,6 +55,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Generate SvelteKit types
+        run: bunx svelte-kit sync
+
       - name: Run Unit Tests
         run: bun run test:unit
 
