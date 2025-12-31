@@ -208,7 +208,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Install Playwright Browsers
-        run: bunx playwright install --with-deps
+        run: npx playwright install --with-deps
 
       # Create temporary config/private.ts for build (will be removed before E2E tests)
       - name: Create Temporary Config for Build
@@ -261,7 +261,7 @@ jobs:
           echo "🚀 Starting preview server on port 4173..."
           bun run preview &
           echo "⏳ Waiting for server to be ready..."
-          bun x wait-on http://localhost:4173 -t 60000
+          bun x wait-on http://localhost:4173 -t 120000
           echo "✅ Preview server is ready!"
 
       # =================================================================
