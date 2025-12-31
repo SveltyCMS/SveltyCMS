@@ -69,6 +69,8 @@ jobs:
 
       - name: Run Unit Tests
         run: bun run test:unit
+        env:
+          CI: true
 
   # ------------------------------------------------------------------
   # 2. Integration Tests (Requires Server + MongoDB)
@@ -173,6 +175,12 @@ jobs:
         env:
           TEST_MODE: 'true' # Ensures server loads config/private.test.ts instead of config/private.ts
           API_BASE_URL: 'http://localhost:4173'
+      
+      - name: Stop Preview Server
+        if: always()
+        run: |
+          echo: "Stopping preview server..."
+          kill $(lsof -t -i:4173) || echo "Server already stopped"
 
   # ------------------------------------------------------------------
   # 3. E2E Tests (Requires Server + MongoDB + Browser)
@@ -310,6 +318,12 @@ jobs:
           # --grep-invert skips the setup wizard and RBAC since we just ran them
           bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard|role-based"
 
+      - name: Stop Preview Server
+        if: always()
+        run: |
+          echo "Stopping preview server..."
+          kill $(lsof -t -i:4173) || echo "Server already stopped"
+      
       - uses: actions/upload-artifact@604373da6381bf24206979c74d06a550515601b9 # v4.6.0
         if: always()
         with:
