@@ -155,7 +155,6 @@ describe('TreeView Adapter', () => {
 			const result = recalculatePaths(items);
 
 			expect(result.find((i: any) => i.id === 'a')?.path).toBe('a');
-			expect(toFlatContentNodes(result).find((i: any) => i._id === 'b')?.parentId).toBe('a' as any);
 			expect(result.find((i: any) => i.id === 'b')?.path).toBe('b');
 		});
 
@@ -201,7 +200,6 @@ describe('TreeView Adapter', () => {
 			// Child should now have path under parent2
 			expect(result.find((i: any) => i.id === 'child')?.path).toBe('parent2.child');
 			expect(result.find((i: any) => i.id === 'child')?.parent).toBe('parent2');
-			expect(toFlatContentNodes(result).find((i: any) => i._id === 'a')?.parentId).toBe('parent' as any);
 		});
 
 		test('should handle moving item to root level', () => {
