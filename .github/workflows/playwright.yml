@@ -25,7 +25,7 @@ name: Playwright and Bun Tests
 
 on:
   push:
-    branches: [main, next]
+    branches: [**]
   pull_request:
     branches: [main, next]
   workflow_dispatch: {}
