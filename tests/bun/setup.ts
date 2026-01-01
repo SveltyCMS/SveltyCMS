@@ -16,6 +16,36 @@
  */
 import { mock } from 'bun:test';
 
+// =============================================================================
+// 1. ENVIRONMENT CONFIGURATION MOCKS
+// =============================================================================
+
+(globalThis as any).publicEnv = {
+	DEFAULT_CONTENT_LANGUAGE: 'en',
+	AVAILABLE_CONTENT_LANGUAGES: ['en', 'de', 'fr'],
+	HOST_DEV: 'localhost:5173',
+	HOST_PROD: 'example.com',
+	SITE_NAME: 'SveltyCMS',
+	PASSWORD_LENGTH: 8,
+	BASE_LOCALE: 'en',
+	LOCALES: ['en', 'de', 'fr']
+};
+
+(globalThis as any).privateEnv = {
+	DB_TYPE: 'mongodb',
+	DB_HOST: 'localhost',
+	DB_PORT: 27017,
+	DB_NAME: 'sveltycms_test',
+	DB_USER: 'test',
+	DB_PASSWORD: 'test',
+	JWT_SECRET_KEY: 'test-secret-key-for-testing-only',
+	ENCRYPTION_KEY: 'test-encryption-key-32-bytes!!'
+};
+
+// =============================================================================
+// 2. SVELTEKIT ENVIRONMENT MOCKS
+// =============================================================================
+
 // Mock $app/environment
 mock.module('$app/environment', () => ({
 	browser: true,
@@ -41,6 +71,27 @@ mock.module('@src/utils/logger.server', () => ({
 			debug: () => {},
 			trace: () => {}
 		})
+	}
+}));
+
+// Mock universal logger.ts
+mock.module('@src/utils/logger', () => ({
+	logger: {
+		fatal: () => {},
+		error: () => {},
+		warn: () => {},
+		info: () => {},
+		debug: () => {},
+		trace: () => {},
+		channel: () => ({
+			fatal: () => {},
+			error: () => {},
+			warn: () => {},
+			info: () => {},
+			debug: () => {},
+			trace: () => {}
+		}),
+		dump: () => {}
 	}
 }));
 
@@ -266,3 +317,223 @@ mock.module('@src/stores/screenSizeStore.svelte', () => {
 		getScreenSizeName
 	};
 });
+
+// =============================================================================
+// 7. STORE & SETTINGS MOCKS
+// =============================================================================
+
+mock.module('@src/stores/globalSettings', () => ({
+	publicEnv: (globalThis as any).publicEnv,
+	privateEnv: (globalThis as any).privateEnv
+}));
+
+mock.module('@src/stores/globalSettings.svelte.ts', () => ({
+	publicEnv: (globalThis as any).publicEnv,
+	privateEnv: (globalThis as any).privateEnv,
+	initPublicEnv: () => {},
+	initPrivateEnv: () => {}
+}));
+
+mock.module('@src/stores/store.svelte', () => {
+	const mockApp = {
+		systemLanguage: 'en',
+		contentLanguage: 'en',
+		setAvatarSrc: () => {}
+	};
+
+	const mockDataChangeStore = {
+		hasChanges: false,
+		initialDataSnapshot: '',
+		setHasChanges: (v: boolean) => {
+			mockDataChangeStore.hasChanges = v;
+		},
+		setInitialSnapshot: (data: any) => {
+			mockDataChangeStore.initialDataSnapshot = JSON.stringify(data);
+			mockDataChangeStore.hasChanges = false;
+		},
+		compareWithCurrent: () => false,
+		reset: () => {
+			mockDataChangeStore.hasChanges = false;
+			mockDataChangeStore.initialDataSnapshot = '';
+		}
+	};
+
+	return {
+		app: mockApp,
+		dataChangeStore: mockDataChangeStore,
+		systemLanguage: {
+			value: 'en',
+			set: (_lang: string) => {}
+		}
+	};
+});
+
+// =============================================================================
+// 8. PARAGLIDE i18n MOCKS
+// =============================================================================
+
+mock.module('@src/paraglide/messages', () => ({
+	widgets_nodata: () => 'No Data',
+	widget_richText_description: () => 'Rich text widget description',
+	setup_step_database: () => 'Database Configuration',
+	setup_step_database_desc: () => 'Configure your database connection',
+	setup_step_admin: () => 'Admin Account',
+	setup_step_admin_desc: () => 'Create your admin user',
+	setup_step_system: () => 'System Settings',
+	setup_step_system_desc: () => 'Configure system preferences',
+	setup_step_email: () => 'Email Settings',
+	setup_step_email_desc: () => 'Configure SMTP (optional)',
+	setup_step_complete: () => 'Review & Complete',
+	setup_step_complete_desc: () => 'Review and finalize setup',
+	setup_heading_badge: () => 'Setup Wizard',
+	setup_heading_subtitle: (params: any) => `Welcome to ${params.siteName} Setup`,
+	setup_search_placeholder: () => 'Search languages...',
+	setup_legend_completed: () => 'Completed',
+	setup_legend_current: () => 'Current',
+	setup_legend_pending: () => 'Pending',
+	setup_db_test_details_hide: () => 'Hide Details',
+	setup_db_test_details_show: () => 'Show Details',
+	setup_db_test_latency: () => 'Latency',
+	setup_db_test_engine: () => 'Engine',
+	setup_db_test_user: () => 'User',
+	label_host: () => 'Host',
+	label_port: () => 'Port',
+	label_database: () => 'Database',
+	label_user: () => 'User',
+	button_previous: () => 'Previous',
+	button_next: () => 'Next',
+	button_complete: () => 'Complete Setup',
+	setup_progress_step_of: (params: any) => `Step ${params.current} of ${params.total}`
+}));
+
+mock.module('@src/paraglide/runtime', () => ({
+	getLocale: () => 'en',
+	setLocale: (_locale: string) => {},
+	locales: ['en', 'de', 'fr', 'es', 'it', 'pt']
+}));
+
+// =============================================================================
+// 9. OTHER UTILITY MOCKS
+// =============================================================================
+
+mock.module('@src/paraglide/runtime', () => ({
+	getLocale: () => 'en',
+	setLocale: (_locale: string) => {},
+	locales: ['en', 'de', 'fr', 'es', 'it', 'pt']
+}));
+
+mock.module('@utils/languageUtils', () => ({
+	getLanguageName: (code: string, _displayLang?: string) => {
+		const names: Record<string, string> = {
+			en: 'English',
+			de: 'German',
+			fr: 'French',
+			es: 'Spanish',
+			it: 'Italian',
+			pt: 'Portuguese'
+		};
+		return names[code] || code.toUpperCase();
+	}
+}));
+
+mock.module('@utils/toast', () => ({
+	setGlobalToastStore: (_store: any) => {},
+	showToast: (message: string, type?: string, _duration?: number) => {
+		console.log(`[TOAST ${type || 'info'}]`, message);
+	}
+}));
+
+// =============================================================================
+// 10. WIDGET FACTORY & DATABASE MOCKS
+// =============================================================================
+
+mock.module('@src/widgets/widgetFactory', () => ({
+	createWidget: (config: any) => {
+		const widgetDefinition = {
+			widgetId: config.Name,
+			Name: config.Name,
+			Icon: config.Icon,
+			Description: config.Description,
+			inputComponentPath: config.inputComponentPath || '',
+			displayComponentPath: config.displayComponentPath || '',
+			validationSchema: config.validationSchema,
+			defaults: config.defaults,
+			GuiFields: config.GuiSchema || {}
+		};
+
+		const factory = (fieldConfig: any) => {
+			const fieldInstance = {
+				widget: widgetDefinition,
+				label: fieldConfig.label,
+				db_fieldName: '',
+				required: false,
+				translated: false,
+				width: undefined,
+				helper: undefined,
+				permissions: undefined
+			};
+
+			// Apply defaults
+			if (config.defaults) {
+				for (const key in config.defaults) {
+					(fieldInstance as any)[key] = config.defaults[key];
+				}
+			}
+
+			// Apply fieldConfig
+			for (const key in fieldConfig) {
+				if (fieldConfig[key] !== undefined) {
+					(fieldInstance as any)[key] = fieldConfig[key];
+				}
+			}
+
+			// Handle db_fieldName
+			if (!fieldInstance.db_fieldName && fieldInstance.label) {
+				fieldInstance.db_fieldName = fieldInstance.label
+					.toLowerCase()
+					.replace(/\s+/g, '_')
+					.replace(/[^a-z0-9_]/g, '');
+			} else if (!fieldInstance.db_fieldName) {
+				fieldInstance.db_fieldName = 'unnamed_field';
+			}
+
+			return fieldInstance;
+		};
+
+		factory.Name = config.Name;
+		factory.Icon = config.Icon;
+		factory.Description = config.Description;
+		factory.GuiSchema = config.GuiSchema;
+		factory.GraphqlSchema = config.GraphqlSchema;
+		factory.aggregations = config.aggregations;
+		factory.__inputComponentPath = config.inputComponentPath || '';
+		factory.__displayComponentPath = config.displayComponentPath || '';
+		factory.toString = () => '';
+
+		return factory;
+	}
+}));
+
+mock.module('@src/databases/db', () => ({
+	auth: {
+		getUserCount: () => Promise.resolve(1),
+		getAllRoles: () =>
+			Promise.resolve([
+				{ _id: 'admin', name: 'Administrator', isAdmin: true, permissions: [] },
+				{ _id: 'editor', name: 'Editor', isAdmin: false, permissions: [] }
+			]),
+		getUserById: () => Promise.resolve(null)
+	},
+	dbAdapter: {
+		auth: {
+			getUserCount: () => Promise.resolve(1),
+			getAllRoles: () =>
+				Promise.resolve([
+					{ _id: 'admin', name: 'Administrator', isAdmin: true, permissions: [] },
+					{ _id: 'editor', name: 'Editor', isAdmin: false, permissions: [] }
+				])
+		}
+	}
+}));
+
+console.log('✅ Global test environment setup complete');

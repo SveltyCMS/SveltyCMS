@@ -18,10 +18,19 @@
 	import { browser } from '$app/environment';
 
 	// Skeleton UI
-	import { initializeStores, storePopup } from '@skeletonlabs/skeleton';
+	import { initializeStores, storePopup, Toast, Modal, getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
 	import { setGlobalToastStore } from '@utils/toast';
-	import { getToastStore, Toast } from '@skeletonlabs/skeleton';
+	import { setGlobalModalStore } from '@utils/modalUtils';
+
+	// Modal Components Registry
+	import ScheduleModal from '@components/collectionDisplay/ScheduleModal.svelte';
+	import MediaLibraryModal from '@components/MediaLibraryModal.svelte';
+
+	const modalComponentRegistry: Record<string, any> = {
+		scheduleModal: ScheduleModal,
+		mediaLibraryModal: MediaLibraryModal
+	};
 
 	// Paraglide locale bridge
 	import { locales as availableLocales, getLocale, setLocale } from '@src/paraglide/runtime';
@@ -59,6 +68,7 @@
 	initializeStores();
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 	setGlobalToastStore(getToastStore());
+	setGlobalModalStore(getModalStore());
 
 	// Initialize public environment settings from server data
 	$effect(() => {
@@ -153,7 +163,8 @@
 		{@render children?.()}
 	{/key}
 	<TokenPicker />
-	{#if isMounted && toastReady}
+	{#if isMounted}
 		<Toast />
+		<Modal components={modalComponentRegistry} />
 	{/if}
 </div>

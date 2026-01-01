@@ -11,10 +11,9 @@
  * - Graceful degradation & cleanup
  */
 
-import { browser } from '$app/environment';
 import { publicEnv } from '@stores/globalSettings.svelte';
 
-if (browser) {
+if (typeof window !== 'undefined') {
 	throw new Error('logger.server.ts cannot be imported in browser code');
 }
 

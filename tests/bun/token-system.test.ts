@@ -26,7 +26,7 @@ describe('Token System', () => {
 	});
 
 	it('supports logic', async () => {
-		expect(await replaceTokens('{{entry.price | gt:10 | if:"Big":"Small"}}', context)).toBe('Big');
+		expect(await replaceTokens('{{entry.price | gt(10) | if("Big", "Small")}}', context)).toBe('Big');
 	});
 
 	it('BLOCKS restricted user fields', async () => {

@@ -32,10 +32,10 @@ and rule-of-thirds grid overlay.
 
 	let { media, show = $bindable(), onClose, onSave }: Props = $props();
 
-	// Initialize focal point from media metadata or default to center
+	// Initialize focal point with defaults
 	let focalPoint = $state({
-		x: media.metadata?.focalPoint?.x ?? 50,
-		y: media.metadata?.focalPoint?.y ?? 50
+		x: 50,
+		y: 50
 	});
 
 	let containerRef: HTMLDivElement | undefined = $state();
@@ -122,6 +122,7 @@ and rule-of-thirds grid overlay.
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
 		transition:fade={{ duration: 150 }}
 		role="dialog"
+		tabindex="-1"
 		aria-modal="true"
 		aria-labelledby="focal-modal-title"
 		onkeydown={handleKeyDown}

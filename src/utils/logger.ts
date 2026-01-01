@@ -12,9 +12,7 @@
  *
  * Configure via VITE_LOG_LEVELS (build) or LOG_LEVELS (runtime)
  */
-import { browser } from '$app/environment';
-
-const IS_BROWSER = browser;
+const IS_BROWSER = typeof window !== 'undefined';
 
 export type LoggableValue = string | number | boolean | null | undefined | object | Date | Error;
 

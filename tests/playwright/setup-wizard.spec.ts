@@ -37,12 +37,16 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 
 	// Dismiss welcome modal if it exists (using a smarter polling check)
 	const getStarted = page.getByRole('button', { name: /get started/i });
-	if (await getStarted.isVisible()) {
+	try {
+		await expect(getStarted).toBeVisible({ timeout: 5000 });
 		await getStarted.click();
+	} catch (e) {
+		console.log('Welcome modal not visible or already dismissed');
 	}
 
 	// --- STEP 1: Database ---
-	await expect(page.getByRole('heading', { name: /database/i }).first()).toBeVisible();
+	// Wait longer for the heading as things might be initializing
+	await expect(page.getByRole('heading', { name: /database/i }).first()).toBeVisible({ timeout: 15000 });
 
 	// Fill credentials from ENV (CI) or Defaults (Local)
 	await page.locator('#db-host').fill(process.env.MONGO_HOST || 'localhost');

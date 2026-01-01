@@ -3,7 +3,7 @@
  * @description  GUI-first navigation via uuids/mode for SveltyCMS using SvelteKit's built-in systems
  */
 
-import { browser } from '$app/environment';
+const browser = typeof window !== 'undefined';
 import { preloadData } from '$app/navigation';
 import { logger } from './logger';
 import type { ModeType } from '@stores/collectionStore.svelte';
