@@ -21,7 +21,9 @@
  */
 
 import { writable } from 'svelte/store';
-import { getModalStore } from '@skeletonlabs/skeleton';
+import { modalState } from '@utils/modalState.svelte';
+import ModalEditAvatar from '@src/routes/(app)/user/components/ModalEditAvatar.svelte';
+import ModalEditForm from '@src/routes/(app)/user/components/ModalEditForm.svelte';
 
 // System Logs
 import { logger } from '@utils/logger';
@@ -72,10 +74,7 @@ export const globalSearchIndex = writable<SearchData[]>([
 				path: '/user',
 				action: [
 					() => {
-						const modalStore = getModalStore();
-						modalStore.trigger({
-							type: 'component',
-							component: 'ModalEditAvatar',
+						modalState.trigger(ModalEditAvatar, {
 							title: 'Edit Avatar',
 							body: 'Upload or change your avatar image'
 						});
@@ -86,10 +85,7 @@ export const globalSearchIndex = writable<SearchData[]>([
 				path: '/user',
 				action: [
 					() => {
-						const modalStore = getModalStore();
-						modalStore.trigger({
-							type: 'component',
-							component: 'modalUserForm',
+						modalState.trigger(ModalEditForm, {
 							title: 'Edit Profile',
 							body: 'Modify your data and then press Save.'
 						});

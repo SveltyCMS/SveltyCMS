@@ -26,7 +26,7 @@ Implements custom virtual scrolling without external dependencies.
 	import { formatBytes } from '@utils/utils';
 
 	import type { MediaImage, MediaBase } from '@utils/media/mediaModels';
-	import { popup } from '@skeletonlabs/skeleton';
+	// import { popup } from '@skeletonlabs/skeleton-svelte';
 	import { onMount } from 'svelte';
 
 	interface Props {
@@ -65,6 +65,7 @@ Implements custom virtual scrolling without external dependencies.
 	// Selection and operations state
 	let selectedFiles = $state<Set<string>>(new Set());
 	let isSelectionMode = $state(false);
+	let activePopup = $state<string | null>(null);
 	let showBulkEditModal = $state(false);
 	let bulkEditAction = $state<'rename' | 'move' | 'tag'>('tag');
 	let bulkEditValue = $state('');
@@ -162,7 +163,7 @@ Implements custom virtual scrolling without external dependencies.
 					isSelectionMode = !isSelectionMode;
 					selectedFiles = new Set();
 				}}
-				class="variant-ghost-surface btn btn-sm"
+				class="preset-ghost-surface-500 btn btn-sm"
 				aria-label="Toggle selection mode"
 			>
 				<iconify-icon icon={isSelectionMode ? 'mdi:close' : 'mdi:checkbox-multiple-marked'} width="20"></iconify-icon>
@@ -170,11 +171,11 @@ Implements custom virtual scrolling without external dependencies.
 			</button>
 
 			{#if isSelectionMode}
-				<button onclick={selectAll} class="variant-ghost-surface btn btn-sm">
+				<button onclick={selectAll} class="preset-ghost-surface-500 btn btn-sm">
 					<iconify-icon icon="mdi:select-all" width="20"></iconify-icon>
 					All
 				</button>
-				<button onclick={deselectAll} class="variant-ghost-surface btn btn-sm">
+				<button onclick={deselectAll} class="preset-ghost-surface-500 btn btn-sm">
 					<iconify-icon icon="mdi:select-off" width="20"></iconify-icon>
 					None
 				</button>
@@ -185,27 +186,27 @@ Implements custom virtual scrolling without external dependencies.
 			<div class="flex flex-wrap items-center gap-2">
 				<span class="text-sm font-semibold">{selectedFiles.size} selected</span>
 
-				<button onclick={handleBulkDownload} class="variant-filled-primary btn btn-sm">
+				<button onclick={handleBulkDownload} class="preset-filled-primary-500 btn btn-sm">
 					<iconify-icon icon="mdi:download" width="18"></iconify-icon>
 					Download
 				</button>
 
-				<button onclick={() => openBulkEditModal('tag')} class="variant-filled-secondary btn btn-sm">
+				<button onclick={() => openBulkEditModal('tag')} class="preset-filled-secondary-500 btn btn-sm">
 					<iconify-icon icon="mdi:tag-multiple" width="18"></iconify-icon>
 					Tag
 				</button>
 
-				<button onclick={() => openBulkEditModal('move')} class="variant-filled-secondary btn btn-sm">
+				<button onclick={() => openBulkEditModal('move')} class="preset-filled-secondary-500 btn btn-sm">
 					<iconify-icon icon="mdi:folder-move" width="18"></iconify-icon>
 					Move
 				</button>
 
-				<button onclick={() => openBulkEditModal('rename')} class="variant-filled-secondary btn btn-sm">
+				<button onclick={() => openBulkEditModal('rename')} class="preset-filled-secondary-500 btn btn-sm">
 					<iconify-icon icon="mdi:rename-box" width="18"></iconify-icon>
 					Rename
 				</button>
 
-				<button onclick={handleBulkDelete} class="variant-filled-error btn btn-sm">
+				<button onclick={handleBulkDelete} class="preset-filled-error-500 btn btn-sm">
 					<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
 					Delete
 				</button>
@@ -248,12 +249,11 @@ Implements custom virtual scrolling without external dependencies.
 								</div>
 							{/if}
 
-							<header class="m-2 flex w-auto items-center justify-between">
+							<header class="m-2 flex w-auto items-center justify-between relative">
 								<button
-									use:popup={{
-										event: 'click',
-										target: `FileInfo-${fileId}`,
-										placement: 'right'
+									onclick={(e) => {
+										e.stopPropagation();
+										activePopup = activePopup === fileId ? null : fileId;
 									}}
 									aria-label="File Info"
 									class="btn-icon"
@@ -261,19 +261,32 @@ Implements custom virtual scrolling without external dependencies.
 									<iconify-icon icon="raphael:info" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 								</button>
 
-								<div class="card variant-filled z-50 min-w-[250px] p-2" data-popup="FileInfo-{fileId}">
-									<table class="table-hover w-full table-auto text-xs">
-										<tbody>
-											{#if 'width' in file && file.width && 'height' in file && file.height}
-												<tr><td class="font-semibold">Dimensions:</td><td>{file.width}x{file.height}</td></tr>
-											{/if}
-											<tr><td class="font-semibold">Size:</td><td>{formatBytes(file.size || 0)}</td></tr>
-											<tr><td class="font-semibold">Type:</td><td>{file.mimeType || 'N/A'}</td></tr>
-											<tr><td class="font-semibold">Hash:</td><td class="truncate" title={file.hash}>{file.hash?.substring(0, 8) || 'N/A'}</td></tr>
-										</tbody>
-									</table>
-									<div class="bg-surface-100-800-token arrow"></div>
-								</div>
+								{#if activePopup === fileId}
+									<div
+										class="card preset-filled z-50 min-w-[250px] p-2 absolute left-8 top-0 shadow-xl"
+										onclick={(e) => e.stopPropagation()}
+										onkeydown={(e) => e.stopPropagation()}
+										role="dialog"
+										tabindex="-1"
+									>
+										<table class=" w-full table-auto text-xs">
+											<tbody>
+												{#if 'width' in file && file.width && 'height' in file && file.height}
+													<tr><td class="font-semibold">Dimensions:</td><td>{file.width}x{file.height}</td></tr>
+												{/if}
+												<tr><td class="font-semibold">Size:</td><td>{formatBytes(file.size || 0)}</td></tr>
+												<tr><td class="font-semibold">Type:</td><td>{file.mimeType || 'N/A'}</td></tr>
+												<tr><td class="font-semibold">Hash:</td><td class="truncate" title={file.hash}>{file.hash?.substring(0, 8) || 'N/A'}</td></tr>
+											</tbody>
+										</table>
+										<!-- Close button for mobile/convenience -->
+										<div class="flex justify-end mt-2">
+											<button class="btn-icon btn-icon-sm preset-filled-surface-500" aria-label="Close" onclick={() => (activePopup = null)}>
+												<iconify-icon icon="mdi:close" width="16"></iconify-icon>
+											</button>
+										</div>
+									</div>
+								{/if}
 
 								{#if !isSelectionMode}
 									{#if file.type === 'image'}
@@ -380,8 +393,8 @@ Implements custom virtual scrolling without external dependencies.
 			</div>
 
 			<div class="flex justify-end gap-2">
-				<button onclick={() => (showBulkEditModal = false)} class="variant-ghost-surface btn">Cancel</button>
-				<button onclick={applyBulkEdit} class="variant-filled-primary btn" disabled={!bulkEditValue.trim()}>Apply</button>
+				<button onclick={() => (showBulkEditModal = false)} class="preset-ghost-surface-500 btn">Cancel</button>
+				<button onclick={applyBulkEdit} class="preset-filled-primary-500 btn" disabled={!bulkEditValue.trim()}>Apply</button>
 			</div>
 		</div>
 	</div>

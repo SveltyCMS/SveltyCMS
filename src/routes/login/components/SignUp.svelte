@@ -3,7 +3,18 @@
 @component
 **SignUP with optional OAuth support**
 
-Features:
+### Props
+- `active`: boolean
+- `isInviteFlow`: boolean
+- `token`: string
+- `invitedEmail`: string
+- `inviteError`: string
+- `onClick`: () => void
+- `onPointerEnter`: () => void
+- `onBack`: () => void
+- `firstCollectionPath`: string
+
+### Features:
  - Dynamic language selection with a debounced input field or dropdown for multiple languages
  - Demo mode support with auto-reset timer 
  - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `firstUserExists`)
@@ -14,7 +25,7 @@ Features:
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import { browser } from '$app/environment';
-	import { enhance, deserialize } from '$app/forms';
+	import { enhance } from '$app/forms';
 	import { preloadData } from '$app/navigation';
 
 	import type { PageData } from '../$types';
@@ -35,7 +46,7 @@ Features:
 	import * as m from '@src/paraglide/messages';
 
 	// Screen size store
-	import { screen } from '@stores/screenSizeStore.svelte';
+	import { isDesktop } from '@stores/screenSizeStore.svelte';
 	import type { Component } from 'svelte';
 
 	// Props
@@ -50,32 +61,6 @@ Features:
 		onBack = () => {},
 		firstCollectionPath = ''
 	} = $props();
-
-	let prefetched = $state(false);
-
-	async function prefetchFirstCollection() {
-		if (prefetched) return;
-		prefetched = true;
-
-		try {
-			const data = new FormData();
-			const response = await fetch('?/prefetch', {
-				method: 'POST',
-				body: data
-			});
-
-			const result = deserialize(await response.text());
-
-			if (result.type === 'success') {
-				const collection = (result.data as any)?.collection;
-				if (collection?.path) {
-					await preloadData(collection.path);
-				}
-			}
-		} catch (error) {
-			console.error('Prefetch failed:', error);
-		}
-	}
 
 	const pageData = page.data as PageData;
 	const firstUserExists = pageData.firstUserExists;
@@ -221,7 +206,7 @@ Features:
 
 	// Lazy-load FloatingPaths only on desktop when SignUp is active
 	$effect(() => {
-		const desktop = screen.isDesktop;
+		const desktop = isDesktop.value;
 		const isActiveSignUp = active === 1;
 		if (browser && desktop && isActiveSignUp) {
 			import('@root/src/components/system/FloatingPaths.svelte').then((m) => {
@@ -253,7 +238,7 @@ Features:
 >
 	{#if active === 1}
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
-			{#if screen.isDesktop && FloatingPathsComponent}
+			{#if isDesktop.value && FloatingPathsComponent}
 				<div class="absolute inset-0">
 					<FloatingPathsComponent position={1} background="dark" mirrorAnimation />
 					<FloatingPathsComponent position={-1} background="dark" mirrorAnimation />
@@ -268,8 +253,8 @@ Features:
 					<SveltyCMSLogo className="w-14" fill="red" />
 
 					<h1 class="text-3xl font-bold text-white lg:text-4xl">
-						<div class="text-xs text-surface-300"><SiteName highlight="CMS" /></div>
-						<div class="break-words lg:-mt-1">
+						<div class="text-xs text-surface-200"><SiteName highlight="CMS" /></div>
+						<div class="wrap-break-word lg:-mt-1">
 							{#if isInviteFlow}
 								{m.form_signup()}
 								<span class="text-2xl text-primary-500 sm:text-3xl">: Complete Invitation</span>
@@ -285,7 +270,7 @@ Features:
 				<div class="-mt-2 flex items-center justify-end gap-2 text-right text-xs text-error-500">
 					{m.form_required()}
 
-					<button onclick={handleBack} aria-label="Back" class="variant-outline-secondary btn-icon">
+					<button onclick={handleBack} aria-label="Back" class="btn-icon rounded-full preset-outlined-secondary-500">
 						<iconify-icon icon="ri:arrow-left-line" width="20" class="text-white"></iconify-icon>
 					</button>
 				</div>
@@ -436,12 +421,7 @@ Features:
 
 					{#if !showOAuth}
 						<!-- Email SignIn only -->
-						<button
-							type="submit"
-							class="variant-filled btn mt-4 uppercase"
-							aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}
-							onmouseenter={prefetchFirstCollection}
-						>
+						<button type="submit" class="btn bg-white text-black mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}>
 							{isInviteFlow ? 'Accept Invitation & Create Account' : m.form_signup()}
 							{#if isSubmitting || isRedirecting}<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6" />{/if}
 						</button>
@@ -453,7 +433,6 @@ Features:
 								type="submit"
 								class="btn w-3/4 rounded-none bg-surface-200 text-black hover:text-white"
 								aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}
-								onmouseenter={prefetchFirstCollection}
 							>
 								<span class="w-full text-black hover:text-white">
 									{isInviteFlow ? 'Accept Invitation' : m.form_signup()}
@@ -484,7 +463,7 @@ Features:
 	<SignupIcon show={active === 0 || active === undefined} onClick={handleFormClick} />
 </section>
 
-<style lang="postcss">
+<style>
 	.hide {
 		transition: 0s;
 		opacity: 0;

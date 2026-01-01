@@ -3,7 +3,11 @@
 @component
 **This component handles both SignIn and SignUp functionality for the SveltyCMS**
 
-Features:
+### Props:
+ - `data`: { firstUserExists: boolean, demoMode: boolean, showDatabaseError: boolean }
+ - `dev`: boolean
+ 
+### Features:
  - Dual SignIn and SignUp functionality with dynamic form switching
  - Dynamic language selection with a debounced input field or dropdown for multiple languages
  - Demo mode support with auto-reset timer displayed when active
@@ -22,7 +26,7 @@ Features:
 	import SignUp from './components/SignUp.svelte';
 	import VersionCheck from '@components/VersionCheck.svelte';
 	// Stores
-	import { app } from '@stores/store.svelte';
+	import { systemLanguage } from '@stores/store.svelte';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { locales as availableLocales } from '@src/paraglide/runtime';
 	// ParaglideJS
@@ -96,20 +100,20 @@ Features:
 	const filteredLanguages = $derived(
 		availableLanguages.filter(
 			(lang: string) =>
-				getLanguageName(lang, app.systemLanguage).toLowerCase().includes(searchQuery.toLowerCase()) ||
+				getLanguageName(lang, systemLanguage.value).toLowerCase().includes(searchQuery.toLowerCase()) ||
 				getLanguageName(lang, 'en').toLowerCase().includes(searchQuery.toLowerCase())
 		)
 	);
 
 	// Ensure a valid language is always used
-	const currentLanguage = $derived(app.systemLanguage && availableLocales.includes(app.systemLanguage) ? app.systemLanguage : 'en');
+	const currentLanguage = $derived(systemLanguage.value && availableLocales.includes(systemLanguage.value) ? systemLanguage.value : 'en');
 
 	// Language selection
 	function handleLanguageSelection(lang: string) {
 		clearTimeout(debounceTimeout);
 		debounceTimeout = setTimeout(() => {
 			// Set cookie via store (bridge to ParaglideJS)
-			app.systemLanguage = lang as any;
+			systemLanguage.set(lang as (typeof systemLanguage)['value']);
 			isDropdownOpen = false;
 			searchQuery = '';
 		}, 100); // Reduced delay for faster feedback
@@ -241,7 +245,7 @@ Features:
 					'Content-Type': 'application/x-www-form-urlencoded'
 				},
 				body: new URLSearchParams({
-					lang: app.systemLanguage || 'en'
+					lang: systemLanguage.value || 'en'
 				})
 			})
 				.then((response) => {
@@ -271,23 +275,23 @@ Features:
 							d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
 						/>
 					</svg>
-					<h2 class="text-2xl font-bold text-error-500">Database Issue Detected</h2>
+					<h2 class="text-2xl font-bold text-error-500">{m.db_error_title()}</h2>
 				</div>
 
-				<p class="mb-4 text-lg">The system configuration exists, but the database is empty or unavailable.</p>
+				<p class="mb-4 text-lg">{m.db_error_description()}</p>
 
 				<div class="mb-4 rounded-lg bg-surface-200 p-4">
-					<p class="font-semibold">Reason:</p>
+					<p class="font-semibold">{m.db_error_reason_label()}</p>
 					<p class="text-sm">{data.errorReason}</p>
 				</div>
 
 				<div class="mb-6">
-					<h3 class="mb-2 font-semibold">Possible Solutions:</h3>
+					<h3 class="mb-2 font-semibold">{m.db_error_solutions_title()}</h3>
 					<ul class="list-inside list-disc space-y-1 text-sm">
-						<li>If MongoDB is not running, start it and refresh this page</li>
-						<li>If the database was manually dropped, you need to reset the setup</li>
-						<li>Check your database connection settings in config/private.ts</li>
-						<li>Restore your database from a backup if available</li>
+						<li>{m.db_error_solution_1()}</li>
+						<li>{m.db_error_solution_2()}</li>
+						<li>{m.db_error_solution_3()}</li>
+						<li>{m.db_error_solution_4()}</li>
 					</ul>
 				</div>
 
@@ -296,7 +300,7 @@ Features:
 						<button
 							type="button"
 							onclick={async () => {
-								if (confirm('This will delete your configuration and restart the setup process. Are you sure?')) {
+								if (confirm(m.db_error_reset_confirm())) {
 									const response = await fetch('/api/setup/reset', { method: 'POST' });
 									const result = await response.json();
 									if (result.success) {
@@ -306,11 +310,11 @@ Features:
 									}
 								}
 							}}
-							class="variant-filled-warning btn"
+							class="preset-filled-warning-500 btn"
 						>
-							Reset Setup
+							{m.db_error_reset_setup()}
 						</button>
-						<button type="button" onclick={() => window.location.reload()} class="variant-filled-secondary btn"> Refresh Page </button>
+						<button type="button" onclick={() => window.location.reload()} class="preset-filled-secondary-500 btn"> {m.db_error_refresh_page()} </button>
 					</div>
 				{/if}
 			</div>
@@ -377,7 +381,7 @@ Features:
 				<div class="relative">
 					<!-- Current Language Display -->
 					<button
-						class="flex items-center justify-between gap-2 rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 hover:bg-[#363a3b] focus:ring-2"
+						class="flex w-64 items-center justify-between gap-2 rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 hover:bg-[#363a3b] focus:ring-2"
 						onclick={handleDropdownToggle}
 					>
 						<span>{getLanguageName(currentLanguage)} ({currentLanguage.toUpperCase()})</span>
@@ -393,7 +397,7 @@ Features:
 
 					<!-- Dropdown -->
 					{#if isDropdownOpen}
-						<div class="absolute -left-6 -top-3 z-10 mt-2 w-48 rounded-lg border bg-[#242728] shadow-lg transition-opacity duration-300">
+						<div class="absolute -left-6 -top-3 z-10 mt-2 w-64 rounded-lg border bg-[#242728] shadow-lg transition-opacity duration-300">
 							<!-- Search Input -->
 							<div class="border-b border-gray-700 p-2">
 								<input
@@ -424,31 +428,21 @@ Features:
 				</div>
 			{:else}
 				<!-- Simple dropdown for 5 or fewer languages -->
-				<div class="relative">
-					<select
-						bind:value={app.systemLanguage}
-						class="appearance-none rounded-full border-2 bg-[#242728] pl-4 pr-10 py-2 text-white transition-colors duration-300 focus:ring-2 cursor-pointer"
-						onchange={(e: Event) => {
-							const target = e.target as HTMLSelectElement;
-							if (target) {
-								const lang = target.value;
-								handleLanguageSelection(lang);
-							}
-						}}
-					>
-						{#each availableLanguages as lang}
-							<option value={lang}>{getLanguageName(lang)} ({lang.toUpperCase()})</option>
-						{/each}
-					</select>
-					<svg
-						class="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-white"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-					>
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-					</svg>
-				</div>
+				<select
+					bind:value={systemLanguage.value}
+					class="rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 focus:ring-2"
+					onchange={(e: Event) => {
+						const target = e.target as HTMLSelectElement;
+						if (target) {
+							const lang = target.value;
+							handleLanguageSelection(lang);
+						}
+					}}
+				>
+					{#each availableLanguages as lang}
+						<option value={lang}>{getLanguageName(lang)} ({lang.toUpperCase()})</option>
+					{/each}
+				</select>
 			{/if}
 		</div>
 		<!-- CMS Version -->
@@ -458,7 +452,7 @@ Features:
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	/* Scrollbar styling */
 	.overflow-y-auto {
 		scrollbar-width: thin;

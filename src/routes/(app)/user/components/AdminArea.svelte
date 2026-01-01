@@ -23,7 +23,7 @@
 	import { untrack } from 'svelte';
 	import { logger } from '@utils/logger';
 	// Stores
-	import { app } from '@stores/store.svelte';
+	import { avatarSrc } from '@stores/store.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Components
@@ -39,10 +39,9 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	// Skeleton
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
-	import { Avatar, clipboard } from '@skeletonlabs/skeleton';
-	import { showConfirm, showModal } from '@utils/modalUtils';
-	import { showToast } from '@utils/toast';
+	import { Avatar } from '@skeletonlabs/skeleton-svelte';
+	import { modalState, showConfirm } from '@utils/modalState.svelte';
+	import { toaster } from '@stores/store.svelte';
 	// Svelte-dnd-action
 	import { PermissionAction, PermissionType } from '@src/databases/auth/types';
 	import { dndzone } from 'svelte-dnd-action';
@@ -101,7 +100,7 @@
 				} catch (err) {
 					const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 					logger.error('AdminArea fetch error:', errorMessage);
-					showToast(`Error fetching data: ${errorMessage}`, 'error');
+					toaster.error({ description: `Error fetching data: ${errorMessage}` });
 					tableData = [];
 					totalItems = 0;
 				}
@@ -231,70 +230,26 @@
 		});
 	});
 
-	// Modal for token editing
-	function modalTokenUser() {
-		const modalSettings: ModalSettings = {
-			type: 'component',
-			title: m.adminarea_title(),
-			body: m.adminarea_body(),
-			component: {
-				ref: ModalEditToken,
-				slot: `
-					<div class="mb-4">
-						<h3 class="text-lg font-bold">Existing Tokens</h3>
-						<p class="text-gray-500">Token list will refresh after creation</p>
-					</div>
-				`,
-				props: {
-					token: '',
-					email: '',
-					role: 'user',
-					expires: ''
-				}
-			},
-			response: (result) => {
-				// On success, refresh data without changing view state
-				if (result && result.success) {
-					// Don't change the view state, just refresh the data
-					fetchData(); // Refetch data
-					return;
-				}
-				if (result?.success === false) {
-					showToast(result.error || 'Failed to send email', 'error');
-				}
-			}
-		};
-		showModal(modalSettings);
-	}
-
 	// Function to edit a specific token
-	function editToken(tokenData: Token) {
-		const modalSettings: ModalSettings = {
-			type: 'component',
+	function editToken(tokenId: Token) {
+		const tokenData = tokenId;
+		if (!tokenData) return;
+
+		modalState.trigger(ModalEditToken as any, {
+			token: tokenData.token,
+			email: tokenData.email,
+			role: tokenData.role,
+			expires: convertDateToExpiresFormat(tokenData.expires),
 			title: m.multibuttontoken_modaltitle(),
 			body: m.multibuttontoken_modalbody(),
-			component: {
-				ref: ModalEditToken,
-				props: {
-					token: tokenData.token,
-					email: tokenData.email,
-					role: tokenData.role,
-					expires: convertDateToExpiresFormat(tokenData.expires)
-				}
-			},
-			response: (result) => {
-				// On success, refresh the data without changing view state
+			response: (result: any) => {
 				if (result && result.success) {
-					// Don't change the view state, just refresh the data
-					fetchData(); // Refetch data
-					return;
-				}
-				if (result?.success === false) {
-					showToast(result.error || 'Failed to update token', 'error');
+					fetchData();
+				} else if (result?.success === false) {
+					toaster.error({ description: result.error || 'Failed to update token' });
 				}
 			}
-		};
-		showModal(modalSettings);
+		});
 	}
 
 	// Helper function to convert Date to expires format expected by ModalEditToken
@@ -379,7 +334,7 @@
 
 		// Prevent admins from blocking themselves
 		if (currentUser && user._id === currentUser._id) {
-			showToast('You cannot block your own account', 'warning');
+			toaster.warning({ description: 'You cannot block your own account' });
 			return;
 		}
 
@@ -398,8 +353,6 @@
 		showConfirm({
 			title: modalTitle,
 			body: modalBody,
-			confirmText: actionWord,
-			confirmClasses: user.blocked ? 'variant-filled-warning' : 'bg-pink-500 hover:bg-pink-600 text-white',
 			onConfirm: async () => {
 				await performBlockAction(user, action, actionPastTense);
 			}
@@ -427,13 +380,13 @@
 					'_id' in item && (item as User)._id === user._id ? { ...item, blocked: !item.blocked } : item
 				);
 				tableData = updatedData;
-				showToast(`User ${actionPastTense} successfully`, 'success');
+				toaster.success({ description: `User ${actionPastTense} successfully` });
 			} else {
 				throw new Error(result.message || `Failed to ${action} user`);
 			}
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-			showToast(`Failed to ${action} user: ${errorMessage}`, 'error');
+			toaster.error({ description: `Failed to ${action} user: ${errorMessage}` });
 		}
 	}
 
@@ -456,8 +409,6 @@
 		showConfirm({
 			title: modalTitle,
 			body: modalBody,
-			confirmText: actionWord,
-			confirmClasses: token.blocked ? 'variant-filled-warning' : 'bg-pink-500 hover:bg-pink-600 text-white',
 			onConfirm: async () => {
 				await performTokenBlockAction(token, action, actionPastTense);
 			}
@@ -485,13 +436,13 @@
 					'token' in item && (item as Token).token === token.token ? { ...item, blocked: !item.blocked } : item
 				);
 				tableData = updatedData;
-				showToast(`Token ${actionPastTense} successfully`, 'success');
+				toaster.success({ description: `Token ${actionPastTense} successfully` });
 			} else {
 				throw new Error(result.message || `Failed to ${action} token`);
 			}
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-			showToast(`Failed to ${action} token: ${errorMessage}`, 'error');
+			toaster.error({ description: `Failed to ${action} token: ${errorMessage}` });
 		}
 	}
 
@@ -502,6 +453,11 @@
 	function handleDndFinalize(event: CustomEvent) {
 		displayTableHeaders = event.detail.items;
 		localStorage.setItem('userPaginationSettings', JSON.stringify({ density, displayTableHeaders }));
+	}
+
+	function modalTokenUser() {
+		// TODO: Implement modalTokenUser logic or locate missing import
+		toaster.warning({ description: 'Feature not implemented yet' });
 	}
 
 	// Toggle views
@@ -575,7 +531,7 @@
 	<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
 		<button onclick={modalTokenUser} aria-label={m.adminarea_emailtoken()} class="gradient-primary btn w-full text-white sm:max-w-xs">
 			<iconify-icon icon="material-symbols:mail" color="white" width="18" class="mr-1"></iconify-icon>
-			<span class="whitespace-normal break-words">{m.adminarea_emailtoken()}</span>
+			<span class="whitespace-normal wrap-break-word">{m.adminarea_emailtoken()}</span>
 		</button>
 
 		<PermissionGuard
@@ -657,7 +613,9 @@
 						>
 							{#each displayTableHeaders as header: TableHeader (header.id)}
 								<button
-									class="chip {header.visible ? 'variant-filled-secondary' : 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
+									class="chip {header.visible
+										? 'preset-filled-secondary-500'
+										: 'preset-ghost-secondary-500'} w-100 mr-2 flex items-center justify-center"
 									animate:flip={{ duration: flipDurationMs }}
 									onclick={() => {
 										displayTableHeaders = displayTableHeaders.map((h) => (h.id === header.id ? { ...h, visible: !h.visible } : h));
@@ -676,15 +634,13 @@
 			{/if}
 
 			<div class="table-container max-h-[calc(100vh-120px)] overflow-auto">
-				<table
-					class="table table-interactive table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}"
-				>
+				<table class="table table-interactive {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 					<thead class="text-tertiary-500 dark:text-primary-500">
 						{#if filterShow}
-							<tr class="divide-x divide-surface-400">
+							<tr class="divide-x divide-preset-400">
 								<th>
 									{#if Object.keys(filters).length > 0}
-										<button onclick={() => (filters = {})} aria-label="Clear All Filters" class="variant-outline btn-icon">
+										<button onclick={() => (filters = {})} aria-label="Clear All Filters" class="preset-outline btn-icon">
 											<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 										</button>
 									{/if}
@@ -706,7 +662,7 @@
 							</tr>
 						{/if}
 
-						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
+						<tr class="divide-x divide-preset-400 border-b border-black dark:border-white">
 							<TableIcons
 								cellClass="w-10 text-center"
 								checked={selectAll}
@@ -747,7 +703,7 @@
 							{@const expiresVal: string | Date | null = isToken(row) ? row.expires : null}
 							{@const isExpired = showUsertoken && expiresVal && new Date(expiresVal) < new Date()}
 							<tr
-								class="divide-x divide-surface-400 {isExpired ? 'bg-error-50 opacity-60 dark:bg-error-900/20' : ''} {showUsertoken
+								class="divide-x divide-preset-400 {isExpired ? 'bg-error-50 opacity-60 dark:bg-error-900/20' : ''} {showUsertoken
 									? 'cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-800'
 									: ''}"
 								onclick={(event) => {
@@ -789,15 +745,17 @@
 												</button>
 											{/if}
 										{:else if showUserList && header.key === 'avatar'}
-											<!-- Use reactive avatarSrc for current user, otherwise use row data -->
-											<Avatar
-												src={currentUser && isUser(row) && row._id === currentUser._id
-													? app.avatarSrc
-													: isUser(row) && header.key === 'avatar'
-														? normalizeMediaUrl(row.avatar)
-														: ''}
-												width="w-8"
-											/>
+											<Avatar class="overflow-hidden w-10">
+												<Avatar.Image
+													src={currentUser && isUser(row) && row._id === currentUser._id
+														? avatarSrc.value
+														: isUser(row) && header.key === 'avatar'
+															? normalizeMediaUrl(row.avatar)
+															: '/Default_User.svg'}
+													class="object-cover"
+												/>
+												<Avatar.Fallback>User</Avatar.Fallback>
+											</Avatar>
 										{:else if header.key === 'role'}
 											<Role
 												value={isUser(row) && header.key === 'role' ? row.role : isToken(row) && header.key === 'role' ? (row.role ?? '') : ''}
@@ -808,13 +766,20 @@
 											<div class="flex items-center justify-center gap-2">
 												<span class="font-mono text-sm">{isUser(row) ? row._id : isToken(row) ? row._id : '-'}</span>
 												<button
-													use:clipboard={String(isUser(row) ? row._id : isToken(row) ? row._id : '')}
-													class="variant-ghost btn-icon btn-icon-sm hover:variant-filled-tertiary"
+													class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500"
 													aria-label="Copy User ID"
 													title="Copy User ID to clipboard"
 													onclick={(event) => {
 														event.stopPropagation();
-														showToast('User ID copied to clipboard', 'success');
+														const val = String(isUser(row) ? row._id : isToken(row) ? row._id : '');
+														navigator.clipboard
+															.writeText(val)
+															.then(() => {
+																toaster.success({ description: 'User ID copied to clipboard' });
+															})
+															.catch(() => {
+																toaster.error({ description: 'Failed to copy' });
+															});
 													}}
 												>
 													<iconify-icon icon="oui:copy-clipboard" class="" width="16"></iconify-icon>
@@ -825,13 +790,20 @@
 											<div class="flex items-center justify-center gap-2">
 												<span class="max-w-[200px] truncate font-mono text-sm">{isToken(row) && header.key === 'token' ? row.token : '-'}</span>
 												<button
-													use:clipboard={isToken(row) && header.key === 'token' ? row.token : ''}
-													class="variant-ghost btn-icon btn-icon-sm hover:variant-filled-tertiary"
+													class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500"
 													aria-label="Copy Token"
 													title="Copy Token to clipboard"
 													onclick={(event) => {
 														event.stopPropagation();
-														showToast('Token copied to clipboard', 'success');
+														const val = isToken(row) && header.key === 'token' ? row.token : '';
+														navigator.clipboard
+															.writeText(val)
+															.then(() => {
+																toaster.success({ description: 'Token copied to clipboard' });
+															})
+															.catch(() => {
+																toaster.error({ description: 'Failed to copy' });
+															});
 													}}
 												>
 													<iconify-icon icon="oui:copy-clipboard" class="" width="16"></iconify-icon>
@@ -893,7 +865,7 @@
 				/>
 			</div>
 		{:else}
-			<div class="variant-ghost-error btn text-center font-bold">
+			<div class="preset-ghost-error-500 btn text-center font-bold">
 				{#if showUserList}{m.adminarea_nouser()}{:else if showUsertoken}{m.adminarea_notoken()}{/if}
 			</div>
 		{/if}

@@ -67,14 +67,7 @@
 	}: FloatingInputProps = $props();
 
 	let inputElement = $state<HTMLInputElement | null>(null);
-	// Use $derived.by for safer reactive logic
-	const currentId = $derived.by(() => {
-		if (id) return id;
-		if (typeof label === 'string' && label.length > 0) {
-			return label.toLowerCase().replace(/\s+/g, '-');
-		}
-		return 'defaultInputId';
-	});
+	const currentId = $derived(id || (label ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId'));
 	const errorId = $derived(errorMessage ? `error-${currentId}` : undefined);
 	const effectiveType = $derived(showPassword && type === 'password' ? 'text' : type);
 
@@ -118,8 +111,8 @@
 			onpaste={onPaste}
 			{onkeydown}
 			type={effectiveType}
-			style="color: {textColor};"
-			class="peer block w-full appearance-none border-0 border-b-2 border-surface-300 bg-transparent px-6 text-base focus:border-tertiary-600 focus:outline-none focus:ring-0 disabled:opacity-50 dark:border-surface-400 dark:focus:border-tertiary-500 {inputClass}"
+			style={textColor ? `color: ${textColor};` : ''}
+			class="peer block h-12 w-full appearance-none border-0 border-b-2 border-surface-300 bg-transparent pl-8 pr-6 pb-1 pt-5 text-base focus:border-tertiary-600 focus:outline-none focus:ring-0 disabled:opacity-50 dark:border-surface-400 dark:focus:border-tertiary-500 {inputClass}"
 			class:!border-error-500={invalid}
 			class:dark:!border-error-500={invalid}
 			class:pr-10={type === 'password'}
@@ -128,7 +121,15 @@
 		/>
 
 		{#if icon}
-			<iconify-icon {icon} width="1.125em" class="absolute left-0 top-3" style="color: {iconColor};" aria-hidden="true"></iconify-icon>
+			<iconify-icon
+				{icon}
+				width="1.125em"
+				class="absolute left-0 top-3"
+				style={iconColor !== 'gray' ? `color: ${iconColor};` : ''}
+				class:text-surface-500={iconColor === 'gray'}
+				class:dark:text-surface-400={iconColor === 'gray'}
+				aria-hidden="true"
+			></iconify-icon>
 		{/if}
 
 		{#if type === 'password'}
@@ -138,9 +139,9 @@
 				icon={showPassword ? 'bi:eye-fill' : 'bi:eye-slash-fill'}
 				aria-label={showPassword ? 'Hide password' : 'Show password'}
 				aria-pressed={showPassword}
-				class="absolute right-2 top-3 cursor-pointer hover:opacity-75 focus:outline-none"
+				class="absolute right-2 top-3 cursor-pointer hover:opacity-75 focus:outline-none text-surface-500 dark:text-surface-400"
 				width="24"
-				style="color: {passwordIconColor};"
+				style={passwordIconColor !== 'gray' ? `color: ${passwordIconColor};` : ''}
 				onkeydown={handleIconKeyDown}
 				onclick={togglePasswordVisibility}
 			></iconify-icon>
@@ -149,10 +150,10 @@
 		{#if label}
 			<label
 				for={currentId}
-				class="pointer-events-none absolute left-6 top-3 origin-[0] -translate-y-4 transform text-base text-surface-400 transition-all duration-200 ease-in-out peer-placeholder-shown:translate-y-0 peer-placeholder-shown:text-base peer-focus:-translate-y-4 peer-focus:text-xs peer-focus:text-tertiary-500 peer-disabled:text-surface-500 {invalid &&
-				value
-					? '!text-error-500'
-					: ''} {value ? '-translate-y-4 text-xs' : ''} {labelClass}"
+				style={textColor ? `color: ${textColor};` : ''}
+				class="pointer-events-none absolute left-8 top-1.5 origin-left -translate-y-3 scale-75 transform text-base text-surface-500 transition-all duration-200 ease-in-out peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:text-base peer-focus:-translate-y-3 peer-focus:scale-75 peer-focus:text-tertiary-500! peer-disabled:text-surface-500 {value
+					? `-translate-y-3 scale-75 ${invalid ? 'text-error-500!' : 'text-tertiary-500!'}`
+					: ''} {labelClass}"
 			>
 				{label}
 				{#if required}

@@ -4,7 +4,10 @@
 **System Settings page with tabbed interface**
 All dynamic CMS settings organized into logical groups
 
-###Features:
+### Props
+- data: { isAdmin: boolean }
+
+### Features:
 - Tabbed interface for easy navigation between setting groups
 - Search bar to quickly find specific settings or groups
 - Warning indicators for groups needing configuration
@@ -15,9 +18,8 @@ All dynamic CMS settings organized into logical groups
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
 	import PageTitle from '@components/PageTitle.svelte';
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
 	import { logger } from '@utils/logger';
+	import { showConfirm } from '@utils/modalState.svelte';
 
 	// Import settings structure
 	import { getSettingGroupsByRole } from './settingsGroups';
@@ -25,8 +27,6 @@ All dynamic CMS settings organized into logical groups
 
 	// Import setting component
 	import GenericSettingsGroup from './GenericSettingsGroup.svelte';
-
-	const modalStore = getModalStore();
 
 	// Get user admin status from page data (set by +page.server.ts)
 	const { data } = $props();
@@ -84,20 +84,15 @@ All dynamic CMS settings organized into logical groups
 	function handleTabSwitch(newGroupId: string) {
 		if (currentGroupHasUnsavedChanges) {
 			// Show confirmation modal
-			const modal: ModalSettings = {
-				type: 'confirm',
+			showConfirm({
 				title: 'Unsaved Changes',
 				body: '<p>You have unsaved changes. Do you want to discard them?</p>',
-				response: (confirmed: boolean) => {
-					if (confirmed) {
-						// User confirmed, switch tabs
-						currentGroupHasUnsavedChanges = false;
-						selectedGroupId = newGroupId;
-					}
-					// If not confirmed, do nothing (stay on current tab)
+				onConfirm: () => {
+					// User confirmed, switch tabs
+					currentGroupHasUnsavedChanges = false;
+					selectedGroupId = newGroupId;
 				}
-			};
-			modalStore.trigger(modal);
+			});
 		} else {
 			selectedGroupId = newGroupId;
 		}
@@ -150,15 +145,15 @@ All dynamic CMS settings organized into logical groups
 
 <PageTitle name="Dynamic System Settings" icon="mdi:cog" showBackButton={true} backUrl="/config" />
 
-<p class="text-surface-600-300-token mb-6 px-2">
+<p class="mb-6 px-2 text-surface-600 dark:text-surface-300">
 	These are critical system settings loaded dynamically from the database. Most changes take effect immediately, though settings marked with "Restart
 	Required" need a server restart. Settings are organized into <span class="font-bold text-primary-500">{availableGroups.length}</span>
 	logical groups for easy management.
 </p>
 
 {#if unconfiguredCount > 0}
-	<div class="alert variant-filled-error mb-6">
-		<div class="alert-message">
+	<div class="rounded-xl preset-filled-error-500 mb-6">
+		<div class="text-sm opacity-90">
 			<strong
 				>⚠️ Action Required: {unconfiguredCount}
 				{unconfiguredCount === 1 ? 'group needs' : 'groups need'} configuration before production use.</strong
@@ -184,11 +179,12 @@ All dynamic CMS settings organized into logical groups
 		<div class="mb-3">
 			<input type="search" bind:value={searchTerm} placeholder="🔎 Search settings..." class="input w-full" />
 		</div>
-		<nav class="divide-y divide-surface-300 dark:divide-surface-400">
+		<nav class="divide-y divide-preset-300 dark:divide-preset-400">
 			{#each filteredGroups as group (group.id)}
 				<button
-					class="group-nav-item w-full p-3 text-left transition-all"
-					class:active={selectedGroupId === group.id}
+					class="w-full cursor-pointer p-3 text-left transition-all {selectedGroupId === group.id
+						? 'bg-primary-500 font-semibold text-white hover:bg-primary-600'
+						: 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
 					onclick={() => handleTabSwitch(group.id)}
 				>
 					<div class="flex items-center justify-between">
@@ -201,7 +197,7 @@ All dynamic CMS settings organized into logical groups
 								<span class="text-lg text-warning-500" title="Needs configuration">⚠️</span>
 							{/if}
 							{#if group.requiresRestart}
-								<span class="variant-soft-warning badge text-xs">Restart</span>
+								<span class="preset-soft-warning-500 badge text-xs">Restart</span>
 							{/if}
 						</div>
 					</div>
@@ -214,7 +210,7 @@ All dynamic CMS settings organized into logical groups
 	</div>
 
 	<!-- Settings Panel -->
-	<div class="settings-panel-container card">
+	<div class="card overflow-hidden min-h-[500px] max-h-[calc(100vh-400px)]">
 		<div class="border-b p-4 lg:hidden">
 			<div class="space-y-4">
 				<div>
@@ -239,7 +235,7 @@ All dynamic CMS settings organized into logical groups
 			{#key selectedGroupId}
 				{@const group = availableGroups.find((g) => g.id === selectedGroupId)}
 				{#if group}
-					<div class="settings-panel p-6">
+					<div class="h-full overflow-y-auto p-6">
 						<!-- Use generic component for all groups -->
 						<GenericSettingsGroup {group} {groupsNeedingConfig} onUnsavedChanges={handleUnsavedChanges} />
 					</div>
@@ -273,40 +269,4 @@ All dynamic CMS settings organized into logical groups
 		<span class="font-semibold text-tertiary-500 dark:text-primary-500">Dynamic</span>
 	</div>
 </div>
-
-<style lang="postcss">
-	.alert {
-		@apply rounded-container-token;
-	}
-	.alert-message p {
-		@apply text-sm opacity-90;
-	}
-
-	/* Sidebar navigation styles */
-	.group-nav-item {
-		@apply cursor-pointer transition-all;
-	}
-	.group-nav-item:not(.active):hover {
-		@apply bg-surface-200;
-	}
-	:global(.dark) .group-nav-item:not(.active):hover {
-		@apply bg-surface-700;
-	}
-	.group-nav-item.active {
-		@apply bg-primary-500 font-semibold text-white;
-	}
-	.group-nav-item.active:hover {
-		@apply bg-primary-600;
-	}
-
-	/* Settings panel */
-	.settings-panel-container {
-		@apply overflow-hidden;
-		max-height: calc(100vh - 400px);
-		min-height: 500px;
-	}
-	.settings-panel {
-		@apply overflow-y-auto;
-		height: 100%;
-	}
-</style>
+```

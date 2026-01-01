@@ -14,8 +14,7 @@ Features:
 	import { onMount } from 'svelte';
 	import { logger } from '@utils/logger';
 	import WidgetCard from './WidgetCard.svelte';
-	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
-	import { widgets } from '@stores/widgetStore.svelte';
+	import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 	// Props
 	const { data }: { data: any } = $props();
@@ -30,15 +29,13 @@ Features:
 		dependencies: string[];
 		canDisable: boolean;
 		pillar?: {
-			definition: { name: string; description: string; icon: string; guiSchema: number; aggregations: boolean };
-			input: { componentPath: string; exists: boolean };
-			display: { componentPath: string; exists: boolean };
+			input?: { exists: boolean };
+			display?: { exists: boolean };
 		};
-		hasValidation?: boolean;
 	}
 
 	// State
-	let widgetList: Widget[] = $state([]);
+	let widgets: Widget[] = $state([]);
 	let isLoading = $state(true);
 	let searchQuery = $state('');
 	let activeFilter = $state('all');
@@ -57,40 +54,18 @@ Features:
 
 	// Computed stats
 	const stats = $derived({
-		total: widgetList.length,
-		core: widgetList.filter((w) => w.isCore).length,
-		custom: widgetList.filter((w) => !w.isCore).length,
-		active: widgetList.filter((w) => w.isActive).length,
-		inactive: widgetList.filter((w) => !w.isActive).length,
-		withInput: widgetList.filter((w) => w.pillar?.input?.exists).length,
-		withDisplay: widgetList.filter((w) => w.pillar?.display?.exists).length
+		total: widgets.length,
+		core: widgets.filter((w) => w.isCore).length,
+		custom: widgets.filter((w) => !w.isCore).length,
+		active: widgets.filter((w) => w.isActive).length,
+		inactive: widgets.filter((w) => !w.isActive).length,
+		withInput: widgets.filter((w) => w.pillar?.input?.exists).length,
+		withDisplay: widgets.filter((w) => w.pillar?.display?.exists).length
 	});
-
-	// Tooltip settings for metric cards
-	const totalTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'totalTooltip',
-		placement: 'top'
-	};
-	const activeTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'activeTooltip',
-		placement: 'top'
-	};
-	const coreTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'coreTooltip',
-		placement: 'top'
-	};
-	const customTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'customTooltip',
-		placement: 'top'
-	};
 
 	// Filtered widgets
 	const filteredWidgets = $derived(
-		widgetList.filter((widget) => {
+		widgets.filter((widget) => {
 			// Search filter
 			const matchesSearch =
 				searchQuery === '' ||
@@ -150,28 +125,18 @@ Features:
 
 		try {
 			const response = await fetch(`/api/widgets/list?tenantId=${tenantId}`);
-			// Parse JSON even for error responses to get the message
+
+			if (!response.ok) {
+				throw new Error(`Failed to load widgets: ${response.statusText}`);
+			}
+
 			const result = await response.json();
-
-			if (!result.success || !response.ok) {
-				throw new Error(result.error || result.message || `Failed to load widgets: ${response.statusText}`);
-			}
-
-			if (result.data && Array.isArray(result.data.widgets)) {
-				widgetList = result.data.widgets;
-			} else if (result.data && Array.isArray(result.data)) {
-				// Fallback for older API format if cached?
-				widgetList = result.data;
-			} else {
-				// Fallback generic
-				widgetList = [];
-				logger.warn('Unexpected API response structure', result);
-			}
+			widgets = result.widgets || [];
 
 			console.info('Loaded widgets:', {
-				total: widgetList.length,
-				core: widgetList.filter((w) => w.isCore).length,
-				custom: widgetList.filter((w) => !w.isCore).length
+				total: widgets.length,
+				core: widgets.filter((w) => w.isCore).length,
+				custom: widgets.filter((w) => !w.isCore).length
 			});
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load widgets';
@@ -188,7 +153,7 @@ Features:
 		}
 
 		try {
-			const widget = widgetList.find((w) => w.name === widgetName);
+			const widget = widgets.find((w) => w.name === widgetName);
 			if (!widget) return;
 
 			const newStatus = !widget.isActive;
@@ -205,15 +170,13 @@ Features:
 				})
 			});
 
-			const result = await response.json();
-
-			if (!result.success || !response.ok) {
-				throw new Error(result.error || result.message || `Failed to update widget status: ${response.statusText}`);
+			if (!response.ok) {
+				throw new Error(`Failed to update widget status: ${response.statusText}`);
 			}
 
 			// Force refresh: Clear cache and reload widget store + widget list
 			// This ensures the UI is perfectly in sync with database
-			await widgets.initialize(tenantId);
+			await widgetStoreActions.initializeWidgets(tenantId);
 			await loadWidgets();
 
 			console.info(`Widget ${widgetName} ${newStatus ? 'activated' : 'deactivated'} - Store and UI refreshed`);
@@ -244,10 +207,8 @@ Features:
 				body: JSON.stringify({ widgetName })
 			});
 
-			const result = await response.json();
-
-			if (!result.success || !response.ok) {
-				throw new Error(result.error || result.message || `Failed to uninstall widget: ${response.statusText}`);
+			if (!response.ok) {
+				throw new Error(`Failed to uninstall widget: ${response.statusText}`);
 			}
 
 			// Reload widgets after uninstallation
@@ -330,8 +291,8 @@ Features:
 				<div class="relative rounded-lg bg-blue-50 p-4 shadow-sm transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30">
 					<button
 						class="btn-icon btn-icon-sm absolute right-2 top-2 text-blue-600 dark:text-blue-400"
-						use:popup={totalTooltip}
 						aria-label="Information about total widgets"
+						title="All registered widgets in the system (core + custom)"
 					>
 						<iconify-icon icon="mdi:information-outline" class="text-lg"></iconify-icon>
 					</button>
@@ -348,8 +309,8 @@ Features:
 				<div class="relative rounded-lg bg-green-50 p-4 shadow-sm transition-all hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30">
 					<button
 						class="btn-icon btn-icon-sm absolute right-2 top-2 text-primary-500"
-						use:popup={activeTooltip}
 						aria-label="Information about active widgets"
+						title="Widgets currently enabled and available for use in collections"
 					>
 						<iconify-icon icon="mdi:information-outline" class="text-lg"></iconify-icon>
 					</button>
@@ -366,8 +327,8 @@ Features:
 				<div class="relative rounded-lg bg-blue-50 p-4 shadow-sm transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30">
 					<button
 						class="btn-icon btn-icon-sm absolute right-2 top-2 text-blue-600 dark:text-blue-400"
-						use:popup={coreTooltip}
 						aria-label="Information about core widgets"
+						title="Essential system widgets that are always active and cannot be disabled"
 					>
 						<iconify-icon icon="mdi:information-outline" class="text-lg"></iconify-icon>
 					</button>
@@ -386,8 +347,8 @@ Features:
 				>
 					<button
 						class="btn-icon btn-icon-sm absolute right-2 top-2 text-yellow-600 dark:text-yellow-400"
-						use:popup={customTooltip}
 						aria-label="Information about custom widgets"
+						title="Optional widgets that can be toggled on/off as needed"
 					>
 						<iconify-icon icon="mdi:information-outline" class="text-lg"></iconify-icon>
 					</button>
@@ -402,7 +363,7 @@ Features:
 			</div>
 
 			<!-- Filters and Search -->
-			<div class="card variant-filled-surface mt-6 space-y-4 p-4">
+			<div class="card preset-filled-surface-500 mt-6 space-y-4 p-4">
 				<!-- Search and Sync Button Row -->
 				<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
 					<!-- Search -->
@@ -427,7 +388,7 @@ Features:
 					{#each [{ value: 'all' as const, label: 'All', count: stats.total, icon: 'mdi:widgets' }, { value: 'active' as const, label: 'Active', count: stats.active, icon: 'mdi:check-circle' }, { value: 'inactive' as const, label: 'Inactive', count: stats.inactive, icon: 'mdi:pause-circle' }, { value: 'core' as const, label: 'Core', count: stats.core, icon: 'mdi:puzzle' }, { value: 'custom' as const, label: 'Custom', count: stats.custom, icon: 'mdi:puzzle-plus' }] as filter}
 						<button
 							onclick={() => (activeFilter = filter.value)}
-							class="btn {activeFilter === filter.value ? 'variant-filled-tertiary text-white' : 'variant-ghost-secondary '}"
+							class="btn {activeFilter === filter.value ? 'preset-filled-tertiary-500 text-white' : 'preset-ghost-secondary-500 '}"
 							aria-label="{filter.label} widgets ({filter.count})"
 						>
 							<iconify-icon icon={filter.icon} class="text-lg"></iconify-icon>
@@ -449,7 +410,7 @@ Features:
 					<div
 						class="col-span-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center dark:border-gray-600 dark:bg-gray-800"
 					>
-						<iconify-icon icon="mdi:package-variant-closed" class="mx-auto text-6xl text-gray-400"></iconify-icon>
+						<iconify-icon icon="mdi:package-preset-closed" class="mx-auto text-6xl text-gray-400"></iconify-icon>
 						<h3 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">No Widgets Found</h3>
 						<p class="mt-2 text-gray-600 dark:text-gray-400">
 							{#if searchQuery}
@@ -521,22 +482,22 @@ Features:
 </div>
 
 <!-- Tooltip Popups for Metric Cards - Uniform Dark/Light Theme -->
-<div class="card variant-filled z-50 max-w-xs p-3 shadow-xl" data-popup="totalTooltip">
+<div class="card preset-filled z-50 max-w-xs p-3 shadow-xl" data-popup="totalTooltip">
 	<p class="text-sm">All registered widgets in the system (core + custom)</p>
-	<div class="variant-filled arrow"></div>
+	<div class="preset-filled arrow"></div>
 </div>
 
-<div class="card variant-filled z-50 max-w-xs p-3 shadow-xl" data-popup="activeTooltip">
+<div class="card preset-filled z-50 max-w-xs p-3 shadow-xl" data-popup="activeTooltip">
 	<p class="text-sm">Widgets currently enabled and available for use in collections</p>
-	<div class="variant-filled arrow"></div>
+	<div class="preset-filled arrow"></div>
 </div>
 
-<div class="card variant-filled z-50 max-w-xs p-3 shadow-xl" data-popup="coreTooltip">
+<div class="card preset-filled z-50 max-w-xs p-3 shadow-xl" data-popup="coreTooltip">
 	<p class="text-sm">Essential system widgets that are always active and cannot be disabled</p>
-	<div class="variant-filled arrow"></div>
+	<div class="preset-filled arrow"></div>
 </div>
 
-<div class="card variant-filled z-50 max-w-xs p-3 shadow-xl" data-popup="customTooltip">
+<div class="card preset-filled z-50 max-w-xs p-3 shadow-xl" data-popup="customTooltip">
 	<p class="text-sm">Optional widgets that can be toggled on/off as needed</p>
-	<div class="variant-filled arrow"></div>
+	<div class="preset-filled arrow"></div>
 </div>

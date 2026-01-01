@@ -10,9 +10,8 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 -->
 <script lang="ts">
 	import { themeStore, setThemePreference, useSystemPreference } from '@stores/themeStore.svelte';
-	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { Portal, Tooltip } from '@skeletonlabs/skeleton-svelte';
 
-	// Props
 	interface Props {
 		showTooltip?: boolean;
 		tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
@@ -20,14 +19,7 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 		iconSize?: number;
 	}
 
-	const { showTooltip = true, tooltipPlacement = 'bottom', buttonClass = 'variant-ghost btn-icon', iconSize = 22 }: Props = $props();
-
-	// Theme toggle tooltip settings
-	const themeToggleTooltip: PopupSettings = $derived({
-		event: 'hover',
-		target: 'ThemeToggleTooltip',
-		placement: tooltipPlacement
-	});
+	const { showTooltip = true, tooltipPlacement = 'bottom', buttonClass = 'preset-ghost btn-icon', iconSize = 22 }: Props = $props();
 
 	// Cycle through system -> light -> dark -> system
 	function cycleTheme() {
@@ -59,16 +51,23 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 </script>
 
 {#if showTooltip}
-	<button use:popup={themeToggleTooltip} onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>
-		<iconify-icon icon={getCurrentIcon()} width={iconSize}></iconify-icon>
-	</button>
-
-	<div class="card variant-filled z-50 max-w-sm p-2" data-popup="ThemeToggleTooltip">
-		<span class="text-sm">
-			{getTooltipText()}
-		</span>
-		<div class="variant-filled arrow"></div>
-	</div>
+	<Tooltip positioning={{ placement: tooltipPlacement }}>
+		<Tooltip.Trigger>
+			<button onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>
+				<iconify-icon icon={getCurrentIcon()} width={iconSize}></iconify-icon>
+			</button>
+		</Tooltip.Trigger>
+		<Portal>
+			<Tooltip.Positioner>
+				<Tooltip.Content class="card preset-filled-surface-500-950-50 z-50 rounded-md p-2 text-sm shadow-xl">
+					{getTooltipText()}
+					<Tooltip.Arrow class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-950-50)]">
+						<Tooltip.ArrowTip />
+					</Tooltip.Arrow>
+				</Tooltip.Content>
+			</Tooltip.Positioner>
+		</Portal>
+	</Tooltip>
 {:else}
 	<button onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>
 		<iconify-icon icon={getCurrentIcon()} width={iconSize}></iconify-icon>

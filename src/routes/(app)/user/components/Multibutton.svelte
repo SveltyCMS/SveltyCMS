@@ -21,13 +21,14 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import { app } from '@stores/store.svelte';
+	import { storeListboxValue } from '@stores/store.svelte';
 
 	// Skeleton
-	import type { ModalComponent, ModalSettings, PopupSettings } from '@skeletonlabs/skeleton';
-	import { ListBox, ListBoxItem, popup } from '@skeletonlabs/skeleton';
-	import { showModal } from '@utils/modalUtils';
-	import { showToast } from '@utils/toast';
+	import { Menu } from '@skeletonlabs/skeleton-svelte';
+	import { toaster } from '@stores/store.svelte';
+	// Use modalState directly
+	import { modalState, showConfirm } from '@utils/modalState.svelte';
+
 	import ModalEditForm from './ModalEditForm.svelte';
 	import ModalEditToken from './ModalEditToken.svelte';
 	import type { User, Token } from '@src/databases/auth/types';
@@ -44,12 +45,13 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	type ActionType = 'edit' | 'delete' | 'block' | 'unblock';
 
 	// Popup Combobox
+	// Listbox value is single string in logic, wrapped in array for component
 	let listboxValue = $state<ActionType>('edit');
 	const { selectedRows, type = 'user', totalUsers = 0, currentUser = null, onTokenUpdate = () => {} } = $props();
 
 	// Sync local listboxValue with global store for TableIcons
 	$effect(() => {
-		app.listboxValueState = listboxValue;
+		storeListboxValue.set(listboxValue);
 	});
 
 	// Normalize selection to a safe array
@@ -156,13 +158,6 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		return '90d'; // Max available option
 	}
 
-	const Combobox: PopupSettings = {
-		event: 'click',
-		target: 'Combobox',
-		placement: 'bottom-end',
-		closeQuery: '.listbox-item'
-	};
-
 	// Unified batch endpoints for consistent API design
 	const actionConfig = $derived({
 		edit: {
@@ -222,7 +217,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
 			toastMessage: () => `${type === 'user' ? 'Users' : 'Tokens'} Deleted`,
-			toastBackground: 'variant-filled-success'
+			toastBackground: 'preset-filled-success-500'
 		},
 		block: {
 			buttonClass: 'gradient-pink',
@@ -261,7 +256,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
 			toastMessage: () => `${type === 'user' ? 'Users' : 'Tokens'} Blocked`,
-			toastBackground: 'variant-filled-success'
+			toastBackground: 'preset-filled-success-500'
 		},
 		unblock: {
 			buttonClass: 'gradient-yellow',
@@ -300,33 +295,84 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
 			toastMessage: () => `${type === 'user' ? 'Users' : 'Tokens'} Unblocked`,
-			toastBackground: 'variant-filled-success'
+			toastBackground: 'preset-filled-success-500'
 		}
 	});
 
-	interface ModalResponse {
-		username?: string;
-		email?: string;
-		role?: string;
-		token?: string;
-		user_id?: string;
-		_changes?: string[];
+	async function executeBatchAction(action: ActionType, config: any) {
+		try {
+			let body: string;
+			// Handle batch operations (delete, block, unblock)
+			if (type === 'user') {
+				body = JSON.stringify({
+					userIds: safeSelectedRows.filter(isUser).map((row: User) => row._id),
+					action: action
+				});
+			} else {
+				// Token batch operations
+				body = JSON.stringify({
+					tokenIds: safeSelectedRows.filter(isToken).map((row: Token) => row.token),
+					action: action
+				});
+			}
+
+			const endpoint = config.endpoint();
+			const res = await fetch(endpoint, {
+				method: config.method(),
+				headers: { 'Content-Type': 'application/json' },
+				body
+			});
+
+			if (!res.ok) {
+				// Try to parse error response
+				let errorMessage = `Failed to ${action} ${type}`;
+				try {
+					const errorData = await res.json();
+					errorMessage = errorData.message || errorMessage;
+				} catch {
+					// If JSON parsing fails, use status text
+					errorMessage = res.statusText || errorMessage;
+				}
+				throw new Error(errorMessage);
+			}
+
+			const data = await res.json();
+
+			// Generate smart toast message based on what actually changed
+			let toastMessage = data.message || config.toastMessage();
+
+			toaster.success({ description: toastMessage });
+
+			// Dispatch token update event for parent component to handle local state updates
+			if (type === 'token' && (action === 'block' || action === 'unblock' || action === 'delete')) {
+				onTokenUpdate({
+					tokenIds: safeSelectedRows.filter(isToken).map((row: Token) => row.token),
+					action: action
+				});
+			}
+
+			await invalidateAll();
+		} catch (error) {
+			logger.error(`Error during action '${action}' for type '${type}':`, error);
+			const errorMessage = error instanceof Error ? error.message : `An unknown error occurred.`;
+			toaster.error({ description: errorMessage });
+		}
 	}
 
 	async function handleAction(action: ActionType) {
 		if (isDisabled) {
-			showToast(`Please select ${type}(s) to ${action}`, 'error');
+			toaster.error({ description: `Please select ${type}(s) to ${action}` });
 			return;
 		}
 
 		// Check if delete is disabled for users
 		if (action === 'delete' && isDeleteDisabled) {
-			showToast('Cannot delete the last user in the system', 'error');
+			toaster.error({ description: 'Cannot delete the last user in the system' });
 			return;
 		}
 
 		if (action === 'edit' && isMultipleSelected) {
-			showToast(`Please select only one ${type} to edit`, 'error');
+			toaster.error({ description: `Please select only one ${type} to edit` });
 			return;
 		}
 
@@ -334,10 +380,10 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		if (!availableActions.includes(action)) {
 			const currentBlockState = blockState;
 			if (currentBlockState() === 'all-blocked' && action === 'block') {
-				showToast('All selected items are already blocked', 'warning');
+				toaster.warning({ description: 'All selected items are already blocked' });
 				return;
 			} else if (currentBlockState() === 'all-unblocked' && action === 'unblock') {
-				showToast('All selected items are already unblocked', 'warning');
+				toaster.warning({ description: 'All selected items are already unblocked' });
 				return;
 			}
 		}
@@ -346,7 +392,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		if (action === 'edit' && type === 'token') {
 			const tokenData = isToken(safeSelectedRows[0]) ? safeSelectedRows[0] : undefined;
 			if (!tokenData?.token) {
-				showToast('Invalid token data selected', 'error');
+				toaster.error({ description: 'Invalid token data selected' });
 				return;
 			}
 		}
@@ -354,149 +400,45 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		const config = actionConfig[action];
 		const isEdit = action === 'edit';
 
-		const modalComponent = isEdit
-			? ({
-					ref: type === 'user' ? ModalEditForm : ModalEditToken,
-					props:
-						type === 'user'
-							? {
-									isGivenData: true,
-									username: isUser(safeSelectedRows[0]) ? ((safeSelectedRows[0] as User).username ?? null) : null,
-									email: safeSelectedRows[0].email,
-									role: safeSelectedRows[0].role,
-									user_id: (safeSelectedRows[0] as User)._id
-								}
-							: {
-									token: (safeSelectedRows[0] as Token).token,
-									email: safeSelectedRows[0].email,
-									role: safeSelectedRows[0].role,
-									user_id: (safeSelectedRows[0] as Token).user_id,
-									expires: convertDateToExpiresFormat((safeSelectedRows[0] as Token).expires)
-								},
-					slot: '<p>Edit Form</p>'
-				} as ModalComponent)
-			: undefined;
-
-		const modalSettings: ModalSettings = {
-			type: isEdit ? 'component' : 'confirm',
-			title: config.modalTitle(),
-			body: config.modalBody(),
-			buttonTextConfirm: isEdit ? 'Save' : action.toUpperCase(),
-			buttonTextCancel: 'Cancel',
-			// Custom button styling based on action
-			...(action === 'delete' && {
-				buttonTextConfirm: 'Delete',
-				meta: { buttonConfirmClasses: 'bg-error-500 hover:bg-error-600 text-white' }
-			}),
-			...(action === 'block' && {
-				buttonTextConfirm: 'Block',
-				meta: { buttonConfirmClasses: 'bg-pink-500 hover:bg-pink-600 text-white' }
-			}),
-			...(action === 'unblock' && {
-				buttonTextConfirm: 'Unblock',
-				meta: { buttonConfirmClasses: 'variant-filled-warning' }
-			}),
-			...(isEdit && { component: modalComponent }),
-			response: async (r: ModalResponse | boolean) => {
-				if (!r) return;
-
-				try {
-					let body: string;
-
-					if (isEdit) {
-						// Handle edit operations (single item only)
-						if (type === 'user') {
-							body = JSON.stringify({
-								user_id: (safeSelectedRows[0] as User)._id,
-								newUserData: r as ModalResponse
-							});
-						} else {
-							// Token edit - use individual endpoint
-							body = JSON.stringify({
-								newTokenData: r as ModalResponse
-							});
-						}
-					} else {
-						// Handle batch operations (delete, block, unblock)
-						if (type === 'user') {
-							body = JSON.stringify({
-								userIds: safeSelectedRows.filter(isUser).map((row: User) => row._id),
-								action: action
-							});
-						} else {
-							// Token batch operations
-							body = JSON.stringify({
-								tokenIds: safeSelectedRows.filter(isToken).map((row: Token) => row.token),
-								action: action
-							});
+		if (isEdit) {
+			// Component Dialog
+			if (type === 'user') {
+				modalState.trigger(ModalEditForm as any, {
+					isGivenData: true,
+					username: isUser(safeSelectedRows[0]) ? ((safeSelectedRows[0] as User).username ?? null) : null,
+					email: safeSelectedRows[0].email,
+					role: safeSelectedRows[0].role,
+					user_id: (safeSelectedRows[0] as User)._id,
+					title: config.modalTitle(),
+					body: config.modalBody() // Pass body if ModalEditForm supports it
+				});
+			} else {
+				modalState.trigger(ModalEditToken as any, {
+					token: (safeSelectedRows[0] as Token).token,
+					email: safeSelectedRows[0].email,
+					role: safeSelectedRows[0].role,
+					user_id: (safeSelectedRows[0] as Token).user_id,
+					expires: convertDateToExpiresFormat((safeSelectedRows[0] as Token).expires),
+					title: config.modalTitle(),
+					body: config.modalBody(),
+					onClose: (res: any) => {
+						if (res && res.success) {
+							onTokenUpdate();
 						}
 					}
-
-					const endpoint = config.endpoint();
-					const res = await fetch(endpoint, {
-						method: config.method(),
-						headers: { 'Content-Type': 'application/json' },
-						body
-					});
-
-					if (!res.ok) {
-						// Try to parse error response
-						let errorMessage = `Failed to ${action} ${type}`;
-						try {
-							const errorData = await res.json();
-							errorMessage = errorData.message || errorMessage;
-						} catch {
-							// If JSON parsing fails, use status text
-							errorMessage = res.statusText || errorMessage;
-						}
-						throw new Error(errorMessage);
-					}
-
-					const data = await res.json();
-
-					// Generate smart toast message based on what actually changed
-					let toastMessage = data.message || config.toastMessage();
-
-					if (isEdit && type === 'user' && r && typeof r === 'object' && '_changes' in r) {
-						const changes = (r as ModalResponse)._changes;
-						if (changes && changes.length > 0) {
-							const changeDescriptions = changes.map((change) => {
-								if (change === 'username') return 'username updated';
-								if (change === 'password') return 'password updated';
-								if (change.startsWith('role (')) return change.replace('role (', 'role changed from ').replace(')', '');
-								return change;
-							});
-
-							if (changeDescriptions.length === 1) {
-								toastMessage = `User ${changeDescriptions[0]}.`;
-							} else if (changeDescriptions.length === 2) {
-								toastMessage = `User ${changeDescriptions[0]} and ${changeDescriptions[1]}.`;
-							} else {
-								toastMessage = `User updated: ${changeDescriptions.join(', ')}.`;
-							}
-						}
-					}
-
-					showToast(toastMessage, 'success');
-
-					// Dispatch token update event for parent component to handle local state updates
-					if (type === 'token' && (action === 'block' || action === 'unblock' || action === 'delete')) {
-						onTokenUpdate({
-							tokenIds: safeSelectedRows.filter(isToken).map((row: Token) => row.token),
-							action: action
-						});
-					}
-
-					await invalidateAll();
-				} catch (error) {
-					logger.error(`Error during action '${action}' for type '${type}':`, error);
-					const errorMessage = error instanceof Error ? error.message : `An unknown error occurred.`;
-					showToast(errorMessage, 'error');
-				}
+				});
 			}
-		};
-
-		showModal(modalSettings);
+		} else {
+			// Confirm Dialog
+			showConfirm({
+				title: config.modalTitle(),
+				body: config.modalBody(),
+				onConfirm: async () => {
+					await executeBatchAction(action, config);
+					modalState.close();
+				}
+			});
+		}
 	}
 
 	const buttonConfig = $derived({
@@ -506,7 +448,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 </script>
 
 <!-- Multibutton group-->
-<div class="btn-group relative rounded-md text-white" role="group" aria-label="{type} management actions">
+<div class=" relative rounded-md text-white" role="group" aria-label="{type} management actions">
 	<!-- Action button  -->
 	<button
 		type="button"
@@ -523,36 +465,25 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	<span class="border border-white" aria-hidden="true"></span>
 
 	<!-- Dropdown button -->
-	<button
-		use:popup={Combobox}
-		aria-label="Open actions menu"
-		aria-haspopup="true"
-		aria-expanded="false"
-		class="divide-x-2 rounded-r-sm bg-surface-500 hover:!bg-surface-800"
-	>
-		<iconify-icon icon="mdi:chevron-down" width="20" class="text-white" role="presentation" aria-hidden="true"></iconify-icon>
-	</button>
-</div>
-
-<!-- Dropdown/Listbox -->
-<div class="overflow-hiddens card z-10 w-48 rounded-sm bg-surface-500 text-white" data-popup="Combobox" role="menu" aria-label="Available actions">
-	<ListBox rounded="rounded-sm" active="variant-filled-primary" hover="hover:bg-surface-700" class="divide-y">
-		{#each filteredActions as action (action)}
-			{@const actionKey = action as ActionType}
-			{@const config = actionConfig[actionKey]}
-			<ListBoxItem
-				bind:group={listboxValue}
-				name="medium"
-				value={action}
-				active="variant-filled-primary"
-				hover="hover:bg-surface-700"
-				role="menuitem"
-			>
-				{#snippet lead()}
+	<Menu>
+		<Menu.Trigger>
+			<button aria-label="Open actions menu" class="divide-x-2 rounded-r-sm bg-surface-500 hover:bg-surface-800!">
+				<iconify-icon icon="mdi:chevron-down" width="20" class="text-white" role="presentation" aria-hidden="true"></iconify-icon>
+			</button>
+		</Menu.Trigger>
+		<Menu.Content class="z-10 w-48 rounded-sm bg-surface-500 text-black divide-y">
+			{#each filteredActions as action (action)}
+				{@const actionKey = action as ActionType}
+				{@const config = actionConfig[actionKey]}
+				<Menu.Item
+					value={action}
+					class="w-full text-left px-4 py-2 hover:bg-surface-700 hover:text-white flex items-center cursor-pointer"
+					onclick={() => handleAction(action as ActionType)}
+				>
 					<iconify-icon icon={config.iconValue} width="20" class="mr-1" role="presentation" aria-hidden="true"></iconify-icon>
-				{/snippet}
-				{action}
-			</ListBoxItem>
-		{/each}
-	</ListBox>
+					{action}
+				</Menu.Item>
+			{/each}
+		</Menu.Content>
+	</Menu>
 </div>

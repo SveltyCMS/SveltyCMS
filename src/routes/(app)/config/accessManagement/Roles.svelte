@@ -24,14 +24,13 @@ It provides the following functionality:
 	// Components
 	import RoleModal from './RoleModal.svelte';
 	// Skeleton
-	import { getModalStore, popup, type ModalSettings, type PopupSettings } from '@skeletonlabs/skeleton';
-	import { showToast } from '@utils/toast';
+	import { modalState } from '@utils/modalState.svelte';
+	import { toaster } from '@stores/store.svelte';
 	// Svelte DND-actions
 	import { dndzone } from 'svelte-dnd-action';
 	import { v4 as uuidv4 } from 'uuid';
 
 	const flipDurationMs = 100;
-	const modalStore = getModalStore();
 
 	const { roleData, setRoleData, updateModifiedCount } = $props();
 
@@ -66,29 +65,20 @@ It provides the following functionality:
 		currentGroupName = groupName || '';
 		selectedPermissions = role?.permissions || [];
 
-		const modal: ModalSettings = {
-			type: 'component',
-			component: {
-				ref: RoleModal,
-				props: {
-					isEditMode,
-					currentRoleId,
-					roleName: role?.name || '',
-					roleDescription: role?.description || '',
-					currentGroupName,
-					selectedPermissions
-				}
-			},
-			title: isEditMode ? 'Edit Role' : 'Create Role',
-			buttonTextCancel: 'Cancel',
-			buttonTextConfirm: isEditMode ? 'Update' : 'Create',
+		modalState.trigger(RoleModal as any, {
+			isEditMode,
+			currentRoleId,
+			roleName: role?.name || '',
+			roleDescription: role?.description || '',
+			currentGroupName,
+			selectedPermissions,
 			response: (formData: any) => {
 				if (formData) {
 					saveRole(formData);
 				}
-			}
-		};
-		modalStore.trigger(modal);
+			},
+			title: isEditMode ? 'Edit Role' : 'Create Role'
+		});
 	};
 
 	const saveRole = async (role: {
@@ -114,13 +104,13 @@ It provides the following functionality:
 		if (!isEditMode) {
 			items = [...items, newRole];
 			modifiedRoles.add(roleId);
-			showToast('Role added. Click "Save" at the top to apply changes.', 'info');
+			toaster.info({ description: 'Role added. Click "Save" at the top to apply changes.' });
 		} else if (currentRoleId) {
 			const index = items.findIndex((cur: { _id: string }) => cur._id === currentRoleId);
 			items[index] = newRole;
 			items = [...items];
 			modifiedRoles.add(currentRoleId);
-			showToast('Role updated. Click "Save" at the top to apply changes.', 'info');
+			toaster.info({ description: 'Role updated. Click "Save" at the top to apply changes.' });
 		}
 
 		roles = items;
@@ -142,7 +132,7 @@ It provides the following functionality:
 		items = [...items];
 		roles = items;
 		selectedRoles = new Set();
-		showToast('Roles deleted. Click "Save" at the top to apply changes.', 'info');
+		toaster.info({ description: 'Roles deleted. Click "Save" at the top to apply changes.' });
 
 		// Remove id property when sending data to parent
 		const cleanedItems = items.map(({ id, ...item }: { id: string; [key: string]: any }) => item);
@@ -203,14 +193,6 @@ It provides the following functionality:
 			updateModifiedCount(modifiedRoles.size);
 		}
 	}
-
-	function getPopupSettings(roleId: string): PopupSettings {
-		return {
-			event: 'hover',
-			target: `role-${roleId}`,
-			placement: 'right'
-		};
-	}
 </script>
 
 {#if error}
@@ -225,9 +207,9 @@ It provides the following functionality:
 	<div class="wrapper my-4">
 		<div class="mb-4 flex items-center justify-between">
 			<!-- Create -->
-			<button onclick={() => openModal(null, '')} class="variant-filled-primary btn">Create Role</button>
+			<button onclick={() => openModal(null, '')} class="preset-filled-primary-500 btn">Create Role</button>
 			<!-- Delete -->
-			<button onclick={deleteSelectedRoles} class="variant-filled-error btn" disabled={selectedRoles.size === 0}>
+			<button onclick={deleteSelectedRoles} class="preset-filled-error-500 btn" disabled={selectedRoles.size === 0}>
 				Delete Roles ({selectedRoles.size})
 			</button>
 		</div>
@@ -262,12 +244,8 @@ It provides the following functionality:
 												icon="material-symbols:info"
 												width="18"
 												class="ml-1 text-tertiary-500 dark:text-primary-500"
-												use:popup={getPopupSettings(role._id)}
+												title={role.description}
 											></iconify-icon>
-											<div class="card variant-filled-surface p-4" data-popup="role-{role._id}">
-												{role.description}
-												<div class="arrow"></div>
-											</div>
 										{/if}
 									</span>
 								</div>
@@ -278,7 +256,7 @@ It provides the following functionality:
 								</p>
 
 								<!-- Edit Button: changes layout depending on screen size -->
-								<button onclick={() => openModal(role)} aria-label="Edit role" class="variant-filled-secondary btn">
+								<button onclick={() => openModal(role)} aria-label="Edit role" class="preset-filled-secondary-500 btn">
 									<iconify-icon icon="mdi:pencil" class="text-white" width="18"></iconify-icon>
 									<span class="hidden md:block">Edit</span>
 								</button>
@@ -291,7 +269,7 @@ It provides the following functionality:
 	</div>
 {/if}
 
-<style lang="postcss">
+<style>
 	.role {
 		height: calc(100vh - 350px);
 	}

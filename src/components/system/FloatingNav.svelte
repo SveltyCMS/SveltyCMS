@@ -28,12 +28,10 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 	// Stores
 	import { setMode } from '@stores/collectionStore.svelte';
-	import { ui } from '@stores/UIStore.svelte';
+	import { toggleUIElement } from '@stores/UIStore.svelte';
 
 	// Skeleton UI
-	import { getModalStore, popup } from '@skeletonlabs/skeleton';
-
-	const modalStore = getModalStore();
+	import { modalState } from '@utils/modalState.svelte';
 
 	// Constants
 	const BUTTON_RADIUS = 25;
@@ -121,7 +119,6 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 	// State
 	let showRoutes = $state(false);
-	let activeTooltipText = $state('');
 	let prefersReducedMotion = $state(false);
 	let motionMs = $state(MOTION_MS_DEFAULT);
 
@@ -141,9 +138,6 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	let firstCircle: HTMLDivElement | undefined = $state(undefined);
 	let svg: SVGSVGElement | undefined = $state(undefined);
 	const circles: (HTMLAnchorElement | undefined)[] = $state([]);
-
-	// Popup ID
-	const NAV_POPUP_ID = 'floatingNavTooltip';
 
 	// Calculate endpoint positions
 	const endpointsWithPos = $derived(
@@ -267,8 +261,8 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 	function handleNavigateHome(): void {
 		setMode('view');
-		modalStore.clear();
-		ui.toggle('leftSidebar', 'hidden');
+		modalState.clear();
+		toggleUIElement('leftSidebar', 'hidden');
 		showRoutes = false;
 		// Navigation will be handled by <a> tag
 	}
@@ -430,31 +424,23 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	});
 </script>
 
-<!-- Tooltip -->
-<div class="card variant-filled-surface z-[99999999] p-2" data-popup={NAV_POPUP_ID}>
-	{activeTooltipText}
-	<div class="variant-filled-surface arrow"></div>
-</div>
-
 <!-- Main navigation button -->
 <div
 	bind:this={firstCircle}
-	use:popup={{ event: 'hover', target: NAV_POPUP_ID, placement: 'top' }}
-	onmouseenter={() => (activeTooltipText = 'Open Navigation Menu')}
-	onmouseleave={() => (activeTooltipText = '')}
+	title="Open Navigation Menu"
 	aria-label="Open Navigation Menu"
 	role="button"
 	aria-expanded={showRoutes}
 	tabindex="0"
 	use:drag
-	class="fixed z-[99999999] flex -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full bg-tertiary-500 active:scale-90 [&&>*]:pointer-events-none"
+	class="fixed z-99999999 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full bg-tertiary-500 active:scale-90 [&&>*]:pointer-events-none"
 	style="top:{(Math.min(buttonInfo.y, browser ? window.innerHeight - BUTTON_RADIUS : 0) / (browser ? window.innerHeight : 1)) * 100}%;
 	       left:{(Math.min(isRightToLeft() ? BUTTON_RADIUS : buttonInfo.x, browser ? window.innerWidth - BUTTON_RADIUS : 0) /
 		(browser ? window.innerWidth : 1)) *
 		100}%;
 	       width:{BUTTON_RADIUS * 2}px;
 	       height:{BUTTON_RADIUS * 2}px"
-	onkeydown={(event) => {
+	onkeydown={(event: KeyboardEvent) => {
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
 			toggleMenuOpen();
@@ -465,7 +451,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 </div>
 
 {#if showRoutes}
-	<button out:keepAlive|local onclick={closeMenu} class="fixed left-0 top-0 z-[9999999]" aria-label="Close navigation overlay">
+	<button out:keepAlive|local onclick={closeMenu} class="fixed left-0 top-0 z-99999999" aria-label="Close navigation overlay">
 		<svg
 			bind:this={svg}
 			xmlns="http://www.w3.org/2000/svg"
@@ -480,7 +466,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 		<div
 			transition:fade
-			class="absolute left-1/2 top-1/4 z-[9999998] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40"
+			class="absolute left-1/2 top-1/4 z-99999998 -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40"
 			style="top:{center.y}px;
 			       left:{center.x}px;
 			       width:{MENU_RADIUS * 2}px;
@@ -493,12 +479,10 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			target={endpoints[0]?.url?.external ? '_blank' : undefined}
 			rel={endpoints[0]?.url?.external ? 'noopener noreferrer' : undefined}
 			data-sveltekit-preload-data={endpoints[0]?.url?.external ? undefined : 'hover'}
-			use:popup={{ event: 'hover', target: NAV_POPUP_ID, placement: 'top' }}
-			onmouseenter={() => (activeTooltipText = endpoints[0]?.tooltip || '')}
-			onmouseleave={() => (activeTooltipText = '')}
+			title={endpoints[0]?.tooltip || 'Home'}
 			onclick={handleNavigateHome}
 			aria-label={endpoints[0]?.tooltip || 'Home'}
-			class="fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] cursor-pointer items-center justify-center rounded-full border-2 bg-tertiary-500"
+			class="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] cursor-pointer items-center justify-center rounded-full border-2 bg-tertiary-500"
 			style="top:{center.y}px;
 			       left:{center.x}px"
 		>
@@ -512,12 +496,10 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 				target={endpoint.url.external ? '_blank' : undefined}
 				rel={endpoint.url.external ? 'noopener noreferrer' : undefined}
 				data-sveltekit-preload-data={endpoint.url.external ? undefined : 'hover'}
-				use:popup={{ event: 'hover', target: NAV_POPUP_ID, placement: 'top' }}
-				onmouseenter={() => (activeTooltipText = endpoint.tooltip)}
-				onmouseleave={() => (activeTooltipText = '')}
+				title={endpoint.tooltip}
 				onclick={handleNavigateToEndpoint}
 				aria-label={endpoint.tooltip}
-				class="fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full {endpoint.color ||
+				class="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full {endpoint.color ||
 					'bg-tertiary-500'} animate-[showEndPoints_0.2s_0.4s_forwards] hover:scale-150 active:scale-100"
 				style="top:{endpoint.y}px;
 			       left:{endpoint.x}px"
@@ -528,7 +510,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	</button>
 {/if}
 
-<style lang="postcss">
+<style>
 	@keyframes showEndPoints {
 		from {
 			opacity: 0;

@@ -23,18 +23,18 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import { app } from '@stores/store.svelte';
+	import '@stores/store.svelte';
+	import { avatarSrc } from '@stores/store.svelte';
 	import { triggerActionStore } from '@utils/globalSearchIndex';
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import AdminArea from './components/AdminArea.svelte';
 	// Skeleton
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { Avatar } from '@skeletonlabs/skeleton';
-	import { collections } from '@src/stores/collectionStore.svelte';
-	import { showConfirm, showModal } from '@utils/modalUtils';
-	import { showToast } from '@utils/toast';
+	import { Avatar } from '@skeletonlabs/skeleton-svelte';
+	import { setCollection } from '@src/stores/collectionStore.svelte';
+	import { modalState, showConfirm } from '@utils/modalState.svelte';
+	import { toaster } from '@stores/store.svelte';
 	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
 	import ModalEditForm from './components/ModalEditForm.svelte';
 
@@ -59,23 +59,12 @@
 
 	// Function to open 2FA modal
 	function open2FAModal(): void {
-		const modalComponent: ModalComponent = {
-			ref: ModalTwoFactorAuth,
-			props: { user }
-		};
-		const d: ModalSettings = {
-			type: 'component',
-			title: 'Two-Factor Authentication',
-			body: 'Add an extra layer of security to your account by requiring a verification code from your mobile device.',
-			component: modalComponent,
-			response: async (r: any) => {
-				if (r) {
-					// Refresh user data after 2FA changes
-					await invalidateAll();
-				}
+		modalState.trigger(ModalTwoFactorAuth, { user }, async (r: any) => {
+			if (r) {
+				// Refresh user data after 2FA changes
+				await invalidateAll();
 			}
-		};
-		showModal(d);
+		});
 	}
 
 	// Function to execute actions
@@ -96,7 +85,7 @@
 		if ($triggerActionStore.length > 0) {
 			executeActions();
 		}
-		collections.setCollection(null);
+		setCollection(null);
 
 		// Note: Avatar initialization is handled by the layout component
 		// to ensure consistent avatar state across the application
@@ -104,42 +93,27 @@
 
 	// Modal Trigger - User Form
 	function modalUserForm(): void {
-		const modalComponent: ModalComponent = {
-			ref: ModalEditForm,
+		modalState.trigger(ModalEditForm, {
 			slot: '<p>Edit Form</p>'
-		};
-
-		const d: ModalSettings = {
-			type: 'component',
-			title: m.usermodaluser_edittitle(),
-			body: m.usermodaluser_editbody(),
-			component: modalComponent
-		};
-		showModal(d);
+		});
 	}
 
 	// Modal Trigger - Edit Avatar
 	function modalEditAvatar(): void {
-		const modalComponent: ModalComponent = {
-			ref: ModalEditAvatar,
-			props: { avatarSrc: app.avatarSrc },
-			slot: '<p>Edit Form</p>'
-		};
-		const d: ModalSettings = {
-			type: 'component',
-			title: m.usermodaluser_settingtitle(),
-			body: m.usermodaluser_settingbody(),
-			component: modalComponent,
-			response: async (r: any) => {
-				// Avatar is already updated by the ModalEditAvatar component
-				// No need to set avatarSrc here since the modal handles it
+		modalState.trigger(
+			ModalEditAvatar,
+			{
+				title: m.usermodaluser_settingtitle(),
+				body: m.usermodaluser_settingbody()
+			},
+			async (r: any) => {
 				if (r) {
-					showToast('<iconify-icon icon="radix-icons:avatar" color="white" width="26" class="mr-1"></iconify-icon> Avatar Updated', 'success');
-					// invalidateAll is already called by the ModalEditAvatar component
+					toaster.success({
+						description: '<iconify-icon icon="radix-icons:avatar" color="white" width="26" class="mr-1"></iconify-icon> Avatar Updated'
+					});
 				}
 			}
-		};
-		showModal(d);
+		);
 	}
 
 	// Modal Confirm
@@ -147,7 +121,7 @@
 		showConfirm({
 			title: m.usermodalconfirmtitle(),
 			body: m.usermodalconfirmbody(),
-			confirmText: m.usermodalconfirmdeleteuser(),
+			// confirmText: m.usermodalconfirmdeleteuser(),
 			onConfirm: async () => {
 				const res = await fetch(`/api/user/deleteUsers`, {
 					method: 'POST',
@@ -170,12 +144,13 @@
 		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
 			<!-- Avatar with user info -->
 			<div class="relative flex flex-col items-center justify-center gap-1">
-				<Avatar
-					src={app.avatarSrc && app.avatarSrc.startsWith('data:') ? app.avatarSrc : `${app.avatarSrc}?t=${Date.now()}`}
-					initials="AV"
-					rounded-none
-					class="w-32"
-				/>
+				<Avatar class="w-32 rounded-none">
+					<Avatar.Image
+						src={avatarSrc.value && avatarSrc.value.startsWith('data:') ? avatarSrc.value : `${avatarSrc.value}?t=${Date.now()}`}
+						class="object-cover"
+					/>
+					<Avatar.Fallback>AV</Avatar.Fallback>
+				</Avatar>
 
 				<!-- Edit button -->
 				<button onclick={modalEditAvatar} class="gradient-primary w-30 badge absolute -top-44 text-white sm:top-4">{m.userpage_editavatar()}</button>
@@ -189,7 +164,7 @@
 				</div>
 				<!-- Two-Factor Authentication Status -->
 				{#if is2FAEnabledGlobal}
-					<button onclick={open2FAModal} class="variant-ghost-surface btn-sm w-full max-w-xs">
+					<button onclick={open2FAModal} class="preset-ghost-surface-500 btn-sm w-full max-w-xs">
 						<div class="flex w-full items-center justify-between">
 							<span>Two-Factor Auth</span>
 							<div class="flex items-center gap-1">

@@ -22,11 +22,11 @@
 
 <script lang="ts">
 	import { logger } from '@utils/logger';
-	import { showModal } from '@utils/modalUtils';
-	import { showToast } from '@utils/toast';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
+	import { toaster } from '@stores/store.svelte';
+
 	import ModalUploadMedia from './ModalUploadMedia.svelte';
 	import { goto } from '$app/navigation';
+	import { modalState } from '@utils/modalState.svelte';
 
 	let files: File[] = $state([]);
 	let input: HTMLInputElement | null = $state(null);
@@ -55,21 +55,18 @@
 	// Validate file before adding
 	function modalAddMedia(): void {
 		// Prevent opening modal multiple times
+		if (isModalOpen) return;
 		isModalOpen = true;
 
 		// Create a snapshot of files to pass to modal (prevent reactivity issues)
 		const filesSnapshot = [...files];
 
-		const modalComponent: ModalComponent = {
-			ref: ModalUploadMedia,
-			slot: '<p>Add Media</p>',
-			props: { mediaType: 'image', sectionName: 'Gallery', files: filesSnapshot, onDelete, uploadFiles }
-		};
-		const d: ModalSettings = {
-			type: 'component',
-			title: 'Uploaded Media',
-			body: 'Check your uploaded Media and press Save.',
-			component: modalComponent,
+		modalState.trigger(ModalUploadMedia as any, {
+			mediaType: 'image',
+			sectionName: 'Gallery',
+			files: filesSnapshot,
+			onDelete: handleDeleteFile,
+			uploadFiles: uploadLocalFiles,
 			response: (r: any) => {
 				// Reset modal state when closed
 				isModalOpen = false;
@@ -79,9 +76,7 @@
 					// which receives uploadFiles as a prop
 				}
 			}
-		};
-
-		showModal(d);
+		});
 	}
 
 	function handleFileDrop(event: DragEvent) {
@@ -103,7 +98,7 @@
 		});
 
 		if (errors.length > 0) {
-			showToast(errors.join('\n'), 'error');
+			toaster.error({ description: errors.join('\n') });
 		}
 
 		if (validFiles.length > 0) {
@@ -146,7 +141,7 @@
 		});
 
 		if (errors.length > 0) {
-			showToast(errors.join('\n'), 'error');
+			toaster.error({ description: errors.join('\n') });
 		}
 
 		if (validFiles.length > 0) {
@@ -164,15 +159,14 @@
 		// Reset input value to allow selecting the same file again
 		if (input) input.value = '';
 	}
-	function onDelete(file: File) {
+	function handleDeleteFile(file: File) {
 		files = files.filter((f) => f !== file);
 	}
 
-	// Function passed to the modal (though not used there anymore)
 	// This is the main upload logic triggered after modal confirmation
-	async function uploadFiles() {
+	async function uploadLocalFiles() {
 		if (files.length === 0) {
-			showToast('No files selected for upload', 'warning');
+			toaster.warning({ description: 'No files selected for upload' });
 			return;
 		}
 
@@ -273,7 +267,7 @@
 			}
 
 			if (success) {
-				showToast('Files uploaded successfully', 'success');
+				toaster.success({ description: 'Files uploaded successfully' });
 				files = []; // Clear the files array after successful upload
 				// Navigate back to media gallery after successful upload
 				goto('/mediagallery', { invalidateAll: true }); // Invalidate data on navigation
@@ -283,7 +277,7 @@
 			}
 		} catch (error) {
 			logger.error('Error uploading files:', error);
-			showToast('Error uploading files: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
+			toaster.error({ description: 'Error uploading files: ' + (error instanceof Error ? error.message : 'Unknown error') });
 		} finally {
 			isUploading = false;
 			uploadProgress = 0;
@@ -324,7 +318,7 @@
 			<button
 				type="button"
 				onclick={() => input?.click()}
-				class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"
+				class="preset-filled-tertiary-500 btn mt-3 dark:preset-filled-primary-500"
 				disabled={isUploading}
 			>
 				Browse Files

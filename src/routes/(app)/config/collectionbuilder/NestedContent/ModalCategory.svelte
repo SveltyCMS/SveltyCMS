@@ -5,9 +5,8 @@
 -->
 <script lang="ts">
 	// Stores
-	import { collections } from '@src/stores/collectionStore.svelte';
+	import { contentStructure } from '@src/stores/collectionStore.svelte';
 	import { logger } from '@utils/logger';
-	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 
 	// Components
 	import IconifyPicker from '@components/IconifyPicker.svelte';
@@ -17,23 +16,24 @@
 	import type { ContentNode } from '@root/src/databases/dbInterface';
 
 	interface Props {
-		parent: {
-			onClose: () => void;
+		parent?: {
+			onClose?: () => void;
 			regionFooter?: string;
 			buttonPositive?: string;
 		};
-		existingCategory?: Partial<ContentNode>; // Use ContentNode for consistency
+		existingCategory?: Partial<ContentNode>;
+		title?: string;
+		body?: string;
+		close?: (result?: any) => void;
 	}
 
 	interface FormData {
 		newCategoryName: string;
 		newCategoryIcon: string;
-		id?: string; // Optional ID for existing categories
+		id?: string;
 	}
 
-	const { parent, existingCategory = { name: '', icon: '' } }: Props = $props();
-
-	const modalStore = getModalStore();
+	const { parent = { regionFooter: '', buttonPositive: '' }, existingCategory = { name: '', icon: '' }, title, body, close }: Props = $props();
 
 	// State variables for form and UI
 	const formData = $state<FormData>({
@@ -85,15 +85,14 @@
 		formError = null;
 
 		try {
-			if ($modalStore[0]?.response) {
+			if (close) {
 				// If adding a new category, generate a UUID
 				if (!existingCategory._id) {
-					$modalStore[0].response(formData); // `+page.svelte` will assign ID
+					close(formData); // `+page.svelte` will assign ID
 				} else {
-					$modalStore[0].response(formData); // For editing, pass existing ID implied
+					close(formData); // For editing, pass existing ID implied
 				}
 			}
-			modalStore.close(); // Close modal on success
 		} catch (error) {
 			logger.error('Error submitting category form:', error);
 			formError = error instanceof Error ? error.message : 'Error submitting form';
@@ -111,141 +110,132 @@
 		// This check is a simplification; a more robust solution would determine if `existingCategory.children`
 		// holds any values based on your `ContentNode` definition or fetch it live.
 		// For now, assuming `existingCategory.children` refers to a property that exists if children are present.
-		if (existingCategory.nodeType === 'category' && collections.contentStructure.some((node) => node.parentId === existingCategory._id)) {
+		if (existingCategory.nodeType === 'category' && contentStructure.value.some((node) => node.parentId === existingCategory._id)) {
 			formError = 'Cannot delete category with nested items (collections or subcategories). Please move or delete them first.';
 			return;
 		}
 
-		const confirmModal: ModalSettings = {
-			type: 'confirm',
-			title: 'Please Confirm Deletion',
-			body: `Are you sure you wish to delete the category "${existingCategory.name}"? This action cannot be undone.`,
-			response: async ({ confirmed }: { confirmed: boolean }) => {
-				if (!confirmed) return; // User cancelled confirmation
+		// Using a simple confirm dialog for now, as the modalStore is being removed.
+		// In a real application, you'd likely replace this with a custom confirmation modal component.
+		const confirmed = confirm(`Are you sure you wish to delete the category "${existingCategory.name}"? This action cannot be undone.`);
 
-				isSubmitting = true;
-				formError = null;
+		if (!confirmed) return; // User cancelled confirmation
 
-				try {
-					// Persist to backend
-					const response = await fetch('/api/content-structure', {
-						method: 'POST', // Use POST for actions that modify data
-						headers: {
-							'Content-Type': 'application/json'
-						},
-						body: JSON.stringify({
-							action: 'updateContentStructure', // Re-use updateContentStructure for deletion
-							items: [
-								{
-									type: 'delete', // Define a 'delete' operation type
-									node: existingCategory // Pass the node to be deleted
-								}
-							]
-						})
-					});
+		isSubmitting = true;
+		formError = null;
 
-					if (!response.ok) {
-						const errorResult = await response.json();
-						throw new Error(errorResult.error || 'Failed to delete category');
-					}
-					const {
-						success,
-						contentStructure: newStructure // API should return updated full structure
-					}: {
-						success: boolean;
-						contentStructure: ContentNode[];
-					} = await response.json();
-					if (!success) {
-						throw new Error('API reported failure to delete category.');
-					}
+		try {
+			// Persist to backend
+			const response = await fetch('/api/content-structure', {
+				method: 'POST', // Use POST for actions that modify data
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					action: 'updateContentStructure', // Re-use updateContentStructure for deletion
+					items: [
+						{
+							type: 'delete', // Define a 'delete' operation type
+							node: existingCategory // Pass the node to be deleted
+						}
+					]
+				})
+			});
 
-					// Update the global content structure store after successful deletion
-					collections.contentStructure = newStructure;
-					modalStore.close(); // Close modal after successful deletion
-				} catch (error) {
-					logger.error('Error deleting category:', error);
-					formError = error instanceof Error ? error.message : 'Failed to delete category';
-				} finally {
-					isSubmitting = false;
-				}
+			if (!response.ok) {
+				const errorResult = await response.json();
+				throw new Error(errorResult.error || 'Failed to delete category');
 			}
-		};
+			const {
+				success,
+				contentStructure: newStructure // API should return updated full structure
+			}: {
+				success: boolean;
+				contentStructure: ContentNode[];
+			} = await response.json();
+			if (!success) {
+				throw new Error('API reported failure to delete category.');
+			}
 
-		modalStore.trigger(confirmModal);
+			contentStructure.value = newStructure;
+			close?.(null); // Close modal after successful deletion, passing null as no data is returned
+		} catch (error) {
+			logger.error('Error deleting category:', error);
+			formError = error instanceof Error ? error.message : 'Failed to delete category';
+		} finally {
+			isSubmitting = false;
+		}
 	}
 
 	// Base Classes for Skeleton modal
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4';
 	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-xl';
 </script>
 
-{#if $modalStore[0]}
-	<div class={cBase} role="dialog" aria-labelledby="modal-title" aria-describedby="modal-description">
-		<header class={cHeader}>
-			<h2 id="modal-title">{$modalStore[0]?.title ?? '(title missing)'}</h2>
-		</header>
+<div class="modal-example-form space-y-4">
+	<header class={cHeader}>
+		<h2 id="modal-title">{title ?? '(title missing)'}</h2>
+	</header>
 
-		<article id="modal-description" class="hidden text-center sm:block">
-			{$modalStore[0].body ?? '(body missing)'}
-		</article>
+	<article class="text-center text-sm">
+		{body ?? '(body missing)'}
+	</article>
 
-		{#if formError}
-			<div class="rounded bg-error-500/10 p-2 text-error-500" role="alert">
-				{formError}
-			</div>
-		{/if}
+	{#if formError}
+		<div class="rounded bg-error-500/10 p-2 text-error-500" role="alert">
+			{formError}
+		</div>
+	{/if}
 
-		<form class="modal-form {cForm}" onsubmit={onFormSubmit}>
-			<label class="label" for="category_name">
-				<span>{m.modalcategory_categoryname()}</span>
-				<input
-					class="input"
-					type="text"
-					id="category_name"
-					bind:value={formData.newCategoryName}
-					placeholder={m.modalcategory_placeholder()}
-					aria-invalid={!!validationErrors.name}
-					aria-describedby={validationErrors.name ? 'name-error' : undefined}
+	<form class="modal-form {cForm}" onsubmit={onFormSubmit}>
+		<label class="label" for="category_name">
+			<span>{m.modalcategory_categoryname()}</span>
+			<input
+				class="input"
+				type="text"
+				id="category_name"
+				bind:value={formData.newCategoryName}
+				placeholder={m.modalcategory_placeholder()}
+				aria-invalid={!!validationErrors.name}
+				aria-describedby={validationErrors.name ? 'name-error' : undefined}
+				disabled={isSubmitting}
+			/>
+			{#if validationErrors.name}
+				<span id="name-error" class="text-sm text-error-500">{validationErrors.name}</span>
+			{/if}
+		</label>
+
+		<label class="label" for="icon-picker">
+			{m.modalcategory_icon()}
+			<IconifyPicker bind:iconselected={formData.newCategoryIcon} searchQuery={formData.newCategoryIcon} />
+			{#if validationErrors.icon}
+				<span id="icon-error" class="text-sm text-error-500">{validationErrors.icon}</span>
+			{/if}
+		</label>
+		<footer class="modal-footer flex {existingCategory.name ? 'justify-between' : 'justify-end'} pt-4 border-t border-surface-500/20">
+			{#if existingCategory.name}
+				<button type="button" onclick={deleteCategory} class="preset-filled-error-500 btn" aria-label="Delete category" disabled={isSubmitting}>
+					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
+					<span class="hidden md:inline">{m.button_delete()}</span>
+				</button>
+			{/if}
+
+			<div class="flex gap-2">
+				<button type="button" class="preset-outlined-secondary-500 btn" onclick={() => close?.(null)} disabled={isSubmitting}>
+					{m.button_cancel()}
+				</button>
+				<button
+					type="submit"
+					class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500"
+					aria-label={m.button_save()}
 					disabled={isSubmitting}
-				/>
-				{#if validationErrors.name}
-					<span id="name-error" class="text-sm text-error-500">{validationErrors.name}</span>
-				{/if}
-			</label>
-
-			<label class="label" for="icon-picker">
-				{m.modalcategory_icon()}
-				<IconifyPicker bind:iconselected={formData.newCategoryIcon} searchQuery={formData.newCategoryIcon} />
-				{#if validationErrors.icon}
-					<span id="icon-error" class="text-sm text-error-500">{validationErrors.icon}</span>
-				{/if}
-			</label>
-			<footer class="modal-footer flex {existingCategory.name ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
-				{#if existingCategory.name}
-					<button type="button" onclick={deleteCategory} class="variant-filled-error btn" aria-label="Delete category" disabled={isSubmitting}>
-						<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
-						<span class="hidden md:inline">{m.button_delete()}</span>
-					</button>
-				{/if}
-
-				<div class="flex gap-2">
-					<button type="button" onclick={parent.onClose} class="variant-outline-secondary btn" aria-label={m.button_cancel()} disabled={isSubmitting}>
-						{m.button_cancel()}
-					</button>
-					<button
-						type="submit"
-						class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}"
-						aria-label={m.button_save()}
-						disabled={isSubmitting}
-					>
-						{#if isSubmitting}
-							<iconify-icon icon="eos-icons:loading" class="animate-spin" width="24"></iconify-icon>
-						{/if}
-						{m.button_save()}
-					</button>
-				</div>
-			</footer>
-		</form>
-	</div>
-{/if}
+				>
+					{#if isSubmitting}
+						<iconify-icon icon="eos-icons:loading" class="animate-spin" width="24"></iconify-icon>
+					{/if}
+					{m.button_save()}
+				</button>
+			</div>
+		</footer>
+	</form>
+</div>

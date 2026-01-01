@@ -3,7 +3,6 @@
  * @description Centralized functions for performing actions on collection entries.
  */
 
-import type { ModalSettings, ModalStore } from '@skeletonlabs/skeleton';
 import type { StatusType } from '@src/content/types';
 import { StatusTypes } from '@src/content/types';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
@@ -11,7 +10,7 @@ import { publicEnv } from '@src/stores/globalSettings.svelte';
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
 import { collection, collectionValue, setCollectionValue, setMode } from '@stores/collectionStore.svelte';
-import { showToast } from '@utils/toast';
+import { toaster } from '@stores/store.svelte';
 import { logger } from './logger';
 import {
 	batchDeleteEntries,
@@ -24,8 +23,7 @@ import {
 	updateEntryStatus
 } from './apiClient';
 import { entryMessages } from './entryActionsMessages';
-import { showCloneModal, showConfirm, showScheduleModal } from './modalUtils';
-
+import { showConfirm, showScheduleModal, showCloneModal } from './modalState.svelte';
 // Helper function to update entry status
 async function updateStatus(collectionId: string, entryId: string, status: string) {
 	const result = await updateEntryStatus(collectionId, entryId, status);
@@ -64,10 +62,10 @@ export async function setEntriesStatus(entryIds: string[], status: StatusType, o
 				message = entryMessages.entriesUpdated(count, status);
 		}
 
-		showToast(message, 'success');
+		toaster.success({ description: message });
 		onSuccess();
 	} else {
-		showToast(result.error || entryMessages.updateFailed('update'), 'error');
+		toaster.error({ description: result.error || entryMessages.updateFailed('update') });
 	}
 } // Deletes or archives one or more entries with improved batch delete
 export async function deleteEntries(entryIds: string[], isPermanentDelete: boolean, onSuccess: () => void) {
@@ -82,17 +80,17 @@ export async function deleteEntries(entryIds: string[], isPermanentDelete: boole
 			// Archive entries by updating their status to 'archive'
 			const result = await batchUpdateEntries(collId, { ids: entryIds, status: StatusTypes.archive });
 			if (result.success) {
-				showToast(entryMessages.entriesArchived(entryIds.length), 'success');
+				toaster.success({ description: entryMessages.entriesArchived(entryIds.length) });
 				onSuccess();
 			} else {
-				showToast(result.error || entryMessages.updateFailed(StatusTypes.archive), 'error');
+				toaster.error({ description: result.error || entryMessages.updateFailed(StatusTypes.archive) });
 			}
 		} else {
 			// Use batch delete API if available, fallback to individual deletes
 			try {
 				const result = await batchDeleteEntries(collId, entryIds);
 				if (result.success) {
-					showToast(entryMessages.entriesDeleted(entryIds.length), 'success');
+					toaster.success({ description: entryMessages.entriesDeleted(entryIds.length) });
 					onSuccess();
 				} else {
 					// Fallback to individual deletes if batch delete fails
@@ -102,12 +100,12 @@ export async function deleteEntries(entryIds: string[], isPermanentDelete: boole
 				// Fallback: delete entries one by one
 				logger.warn('Batch delete failed, using individual deletes:', batchError);
 				await Promise.all(entryIds.map((entryId) => deleteEntry(collId, entryId)));
-				showToast(entryMessages.entriesDeleted(entryIds.length), 'success');
+				toaster.success({ description: entryMessages.entriesDeleted(entryIds.length) });
 				onSuccess();
 			}
 		}
 	} catch (e) {
-		showToast(entryMessages.deleteFailed(isArchiving ? StatusTypes.archive : StatusTypes.delete) + `: ${(e as Error).message}`, 'error');
+		toaster.error({ description: entryMessages.deleteFailed(isArchiving ? StatusTypes.archive : StatusTypes.delete) + `: ${(e as Error).message}` });
 	}
 }
 
@@ -125,10 +123,10 @@ export async function cloneEntries(rawEntries: Record<string, unknown>[], onSucc
 
 	const result = await createClones(collId, entriesToClone);
 	if (result.success) {
-		showToast('Entries cloned', 'success');
+		toaster.success({ description: 'Entries cloned' });
 		onSuccess();
 	} else {
-		showToast(result.error || 'Failed to clone entries', 'error');
+		toaster.error({ description: result.error || 'Failed to clone entries' });
 	}
 }
 
@@ -136,7 +134,7 @@ export async function cloneEntries(rawEntries: Record<string, unknown>[], onSucc
 export async function saveEntry(entryData: Record<string, unknown>, publish: boolean = false): Promise<boolean> {
 	const collId = collection.value?._id;
 	if (!collId) {
-		showToast('Collection not found', 'warning');
+		toaster.warning({ description: 'Collection not found' });
 		return false;
 	}
 
@@ -155,7 +153,7 @@ export async function saveEntry(entryData: Record<string, unknown>, publish: boo
 	const result = entryId ? await updateEntry(collId, entryId, payload) : await createEntry(collId, payload);
 
 	if (result.success) {
-		showToast('Entry saved', 'success');
+		toaster.success({ description: 'Entry saved' });
 		if (result.data) {
 			setCollectionValue(result.data as Record<string, unknown>);
 		}
@@ -175,7 +173,7 @@ export async function saveEntry(entryData: Record<string, unknown>, publish: boo
 		}
 		return true;
 	} else {
-		showToast(result.error || 'Failed to save entry', 'error');
+		toaster.error({ description: result.error || 'Failed to save entry' });
 		return false;
 	}
 }
@@ -185,7 +183,7 @@ export async function deleteCurrentEntry(isAdmin: boolean = false) {
 	const entry = collectionValue.value;
 	const coll = collection.value;
 	if (!entry?._id || !coll?._id) {
-		showToast(m.delete_entry_no_selection_error(), 'warning');
+		toaster.warning({ description: m.delete_entry_no_selection_error() });
 		return;
 	}
 
@@ -206,7 +204,7 @@ export async function deleteCurrentEntry(isAdmin: boolean = false) {
 		if (isAdmin) {
 			showDeleteConfirmationModal(collectionId, entryId, StatusTypes.delete);
 		} else {
-			showToast('Only administrators can delete archived entries.', 'warning');
+			toaster.warning({ description: 'Only administrators can delete archived entries.' });
 		}
 	} else {
 		// Active entry (draft, clone, publish, unpublish, test)
@@ -233,7 +231,6 @@ function showAdminChoiceModal(collectionId: string, entryId: string) {
 		`,
 		confirmText: 'Archive',
 		cancelText: 'Show Delete Option',
-		confirmClasses: 'bg-warning-500 hover:bg-warning-600 text-white',
 		onConfirm: () => showDeleteConfirmationModal(collectionId, entryId, StatusTypes.archive),
 		onCancel: () =>
 			showConfirm({
@@ -245,7 +242,6 @@ function showAdminChoiceModal(collectionId: string, entryId: string) {
 					</div>
 				`,
 				confirmText: 'Delete Permanently',
-				confirmClasses: 'bg-error-500 hover:bg-error-600 text-white',
 				onConfirm: () => showDeleteConfirmationModal(collectionId, entryId, StatusTypes.delete)
 			})
 	});
@@ -261,22 +257,21 @@ function showDeleteConfirmationModal(collectionId: string, entryId: string, acti
 			: `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> this entry? This action will remove the entry from the system.`,
 		confirmText: isArchive ? 'Archive' : 'Delete',
 		cancelText: m.button_cancel(),
-		confirmClasses: isArchive ? 'bg-warning-500 hover:bg-warning-600 text-white' : 'bg-error-500 hover:bg-error-600 text-white',
 		onConfirm: async () => {
 			try {
 				if (isArchive) {
 					await updateStatus(collectionId, entryId, StatusTypes.archive);
 					setCollectionValue({ ...collectionValue.value, status: StatusTypes.archive });
-					showToast('Entry archived successfully.', 'success');
+					toaster.success({ description: 'Entry archived successfully.' });
 				} else {
 					await deleteEntry(collectionId, entryId);
-					showToast(m.entry_deleted_success(), 'success');
+					toaster.success({ description: m.entry_deleted_success() });
 				}
 				setMode('view');
 				setCollectionValue({});
 				invalidateCollectionCache(collectionId);
 			} catch (e) {
-				showToast(m.delete_entry_error({ error: (e as Error).message }), 'error');
+				toaster.error({ description: m.delete_entry_error({ error: (e as Error).message }) });
 			}
 		}
 	});
@@ -285,7 +280,7 @@ function showDeleteConfirmationModal(collectionId: string, entryId: string, acti
 export async function permanentlyDeleteEntry(entryId: string) {
 	const coll = collection.value;
 	if (!coll?._id) {
-		showToast(m.clone_entry_no_selection_error(), 'warning');
+		toaster.warning({ description: m.clone_entry_no_selection_error() });
 		return;
 	}
 
@@ -295,15 +290,14 @@ export async function permanentlyDeleteEntry(entryId: string) {
 		title: 'Confirm Permanent Deletion',
 		body: 'This will permanently delete the archived entry from the database. This action cannot be undone.',
 		confirmText: 'Permanently Delete',
-		confirmClasses: 'bg-error-500 hover:bg-error-600 text-white',
 		onConfirm: async () => {
 			try {
 				await deleteEntry(collectionId, entryId);
-				showToast('Entry permanently deleted.', 'success');
+				toaster.success({ description: 'Entry permanently deleted.' });
 				invalidateCollectionCache(collectionId);
 				setMode('view');
 			} catch (e) {
-				showToast(`Error permanently deleting entry: ${(e as Error).message}`, 'error');
+				toaster.error({ description: `Error permanently deleting entry: ${(e as Error).message}` });
 			}
 		}
 	});
@@ -313,7 +307,7 @@ export async function setEntryStatus(newStatus: StatusType) {
 	const entry = collectionValue.value;
 	const coll = collection.value;
 	if (!entry?._id || !coll?._id) {
-		showToast(m.set_status_no_selection_error(), 'warning');
+		toaster.warning({ description: m.set_status_no_selection_error() });
 		return;
 	}
 
@@ -321,15 +315,15 @@ export async function setEntryStatus(newStatus: StatusType) {
 	const entryId = entry._id as string;
 
 	if (newStatus === 'draft' || newStatus === StatusTypes.archive) {
-		showToast(`${newStatus} status is reserved for system operations.`, 'error');
+		toaster.error({ description: `${newStatus} status is reserved for system operations.` });
 		return;
 	}
 	try {
 		await updateStatus(collectionId, entryId, newStatus);
 		setCollectionValue({ ...collectionValue.value, status: newStatus });
-		showToast(m.entry_status_updated({ status: newStatus }), 'success');
+		toaster.success({ description: m.entry_status_updated({ status: newStatus }) });
 	} catch (e) {
-		showToast(m.set_status_error({ error: (e as Error).message }), 'error');
+		toaster.error({ description: m.set_status_error({ error: (e as Error).message }) });
 	}
 }
 
@@ -339,7 +333,7 @@ export async function scheduleCurrentEntry(scheduledDate?: Date) {
 	const coll = collection.value;
 
 	if (!entry?._id || !coll?._id) {
-		showToast(entryMessages.noEntryForScheduling(), 'warning');
+		toaster.warning({ description: entryMessages.noEntryForScheduling() });
 		return;
 	}
 
@@ -356,9 +350,9 @@ export async function scheduleCurrentEntry(scheduledDate?: Date) {
 				status: StatusTypes.publish,
 				scheduledDate: scheduledDate.toISOString()
 			});
-			showToast(entryMessages.entryScheduled(scheduledDate.toLocaleDateString()), 'success');
+			toaster.success({ description: entryMessages.entryScheduled(scheduledDate.toLocaleDateString()) });
 		} catch (e) {
-			showToast(entryMessages.errorScheduling((e as Error).message), 'error');
+			toaster.error({ description: entryMessages.errorScheduling((e as Error).message) });
 		}
 	} else {
 		// Show the schedule modal via helper
@@ -373,9 +367,9 @@ export async function scheduleCurrentEntry(scheduledDate?: Date) {
 						scheduledDate: date.toISOString(),
 						scheduledAction: action
 					});
-					showToast(entryMessages.entryScheduled(date.toLocaleDateString()), 'success');
+					toaster.success({ description: entryMessages.entryScheduled(date.toLocaleDateString()) });
 				} catch (e) {
-					showToast(entryMessages.errorScheduling((e as Error).message), 'error');
+					toaster.error({ description: entryMessages.errorScheduling((e as Error).message) });
 				}
 			}
 		});
@@ -387,7 +381,7 @@ export async function cloneCurrentEntry() {
 	const entry = collectionValue.value;
 	const coll = collection.value;
 	if (!entry || !coll?._id) {
-		showToast(m.clone_entry_no_selection_error(), 'warning');
+		toaster.warning({ description: m.clone_entry_no_selection_error() });
 		return;
 	}
 
@@ -413,14 +407,14 @@ export async function cloneCurrentEntry() {
 
 				const result = await createEntry(collectionId, clonedPayload);
 				if (result.success) {
-					showToast(entryMessages.entryCloned(), 'success');
+					toaster.success({ description: entryMessages.entryCloned() });
 					invalidateCollectionCache(collectionId);
 					setMode('view');
 				} else {
 					throw new Error(result.error || 'Failed to create clone');
 				}
 			} catch (e) {
-				showToast(m.clone_entry_error({ error: (e as Error).message }), 'error');
+				toaster.error({ description: m.clone_entry_error({ error: (e as Error).message }) });
 			}
 		}
 	});
@@ -445,7 +439,7 @@ export function getHasUnsavedChanges(): boolean {
 }
 
 // Save current data as draft when user tries to leave
-export async function saveDraftAndLeave(modalStore: ModalStore): Promise<boolean> {
+export async function saveDraftAndLeave(): Promise<boolean> {
 	const entry = collectionValue.value;
 	const coll = collection.value;
 
@@ -456,55 +450,48 @@ export async function saveDraftAndLeave(modalStore: ModalStore): Promise<boolean
 	const collectionId = coll._id as string;
 
 	return new Promise((resolve) => {
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
+		showConfirm({
 			title: 'Unsaved Changes',
 			body: 'You have unsaved changes. Do you want to save them as a draft before leaving?',
-			buttonTextCancel: 'Stay and Continue Editing',
-			buttonTextConfirm: 'Save as Draft and Leave',
-			meta: {
-				buttonConfirmClasses: 'bg-warning-500 hover:bg-warning-600 text-white',
-				buttonCancelClasses: 'bg-primary-500 hover:bg-primary-600 text-white'
-			},
-			response: async (confirmed: boolean) => {
-				if (confirmed) {
-					// Save as draft and allow navigation
-					try {
-						const draftData = { ...entry };
+			confirmText: 'Save as Draft and Leave',
+			cancelText: 'Stay and Continue Editing',
+			onConfirm: async () => {
+				// Save as draft and allow navigation
+				try {
+					const draftData = { ...entry };
 
-						if (entry._id) {
-							// Update existing entry with draft status
-							const entryId = entry._id as string;
-							const result = await updateEntry(collectionId, entryId, draftData);
-							if (!result.success) {
-								throw new Error(result.error || 'Failed to update entry');
-							}
-							await updateStatus(collectionId, entryId, StatusTypes.draft);
-						} else {
-							// Create new entry with draft status
-							draftData.status = StatusTypes.draft;
-							const result = await createEntry(collectionId, draftData);
-							if (!result.success) {
-								throw new Error(result.error || 'Failed to create entry');
-							}
+					if (entry._id) {
+						// Update existing entry with draft status
+						const entryId = entry._id as string;
+						const result = await updateEntry(collectionId, entryId, draftData);
+						if (!result.success) {
+							throw new Error(result.error || 'Failed to update entry');
 						}
-
-						showToast('Changes saved as draft.', 'warning');
-
-						invalidateCollectionCache(collectionId);
-						hasUnsavedChanges = false;
-						resolve(true); // Allow navigation
-					} catch (e) {
-						showToast(`Error saving draft: ${(e as Error).message}`, 'error');
-						resolve(false); // Prevent navigation due to error
+						await updateStatus(collectionId, entryId, StatusTypes.draft);
+					} else {
+						// Create new entry with draft status
+						draftData.status = StatusTypes.draft;
+						const result = await createEntry(collectionId, draftData);
+						if (!result.success) {
+							throw new Error(result.error || 'Failed to create entry');
+						}
 					}
-				} else {
-					// User chose to stay and continue editing
-					resolve(false); // Prevent navigation
+
+					toaster.warning({ description: 'Changes saved as draft.' });
+
+					invalidateCollectionCache(collectionId);
+					hasUnsavedChanges = false;
+					resolve(true); // Allow navigation
+				} catch (e) {
+					toaster.error({ description: `Error saving draft: ${(e as Error).message}` });
+					resolve(false); // Prevent navigation due to error
 				}
+			},
+			onCancel: () => {
+				// User chose to stay and continue editing
+				resolve(false); // Prevent navigation
 			}
-		};
-		modalStore.trigger(modalSettings);
+		});
 	});
 }
 

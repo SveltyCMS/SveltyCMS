@@ -8,9 +8,10 @@
 	import type { DndEvent, Item } from 'svelte-dnd-action';
 	// Stores
 	import { page } from '$app/state';
-	import { collections } from '@src/stores/collectionStore.svelte';
-	import { app } from '@stores/store.svelte';
-	import { widgets } from '@stores/widgetStore.svelte';
+	import { collectionValue, setCollectionValue, setTargetWidget } from '@src/stores/collectionStore.svelte';
+	import { tabSet } from '@stores/store.svelte';
+	import { widgetFunctions } from '@stores/widgetStore.svelte';
+	import { get } from 'svelte/store';
 	// Components
 	import VerticalList from '@components/VerticalList.svelte';
 	import ModalSelectWidget from './ModalSelectWidget.svelte';
@@ -19,8 +20,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { modalState } from '@utils/modalState.svelte';
 
 	interface Props {
 		'on:save'?: () => void;
@@ -43,14 +43,12 @@
 
 	const { 'on:save': onSave = () => {} }: Props = $props() as Props;
 
-	const modalStore = getModalStore();
-
 	// Extract the collection name from the URL
 	const contentTypes = page.params.contentTypes;
 
 	// Fields state with proper typing
 	let fields = $state<Field[]>(
-		((collections.activeValue.fields as any[]) || []).map((field, index) => {
+		((collectionValue.value.fields as any[]) || []).map((field, index) => {
 			const baseField = {
 				id: index + 1,
 				label: field.label || '',
@@ -63,7 +61,7 @@
 
 	// Effect to update fields when collection value changes
 	$effect.root(() => {
-		fields = ((collections.activeValue.fields as any[]) || []).map((field, index) => {
+		fields = ((collectionValue.value.fields as any[]) || []).map((field, index) => {
 			const baseField = {
 				id: index + 1,
 				label: field.label || '',
@@ -93,15 +91,15 @@
 		if (selectedWidget.permissions === undefined) {
 			selectedWidget.permissions = {};
 		}
-		collections.setTargetWidget(selectedWidget);
-		const c: ModalComponent = { ref: ModalWidgetForm };
-		const modal: ModalSettings = {
-			type: 'component',
-			component: c,
-			title: 'Define your Widget',
-			body: 'Setup your widget and then press Save.',
-			value: selectedWidget,
-			response: (r: Field | null) => {
+		setTargetWidget(selectedWidget);
+		modalState.trigger(
+			ModalWidgetForm as any,
+			{
+				title: 'Define your Widget',
+				body: 'Setup your widget and then press Save.',
+				value: selectedWidget
+			},
+			(r: Field | null) => {
 				if (!r) return;
 				// Find the index of the existing widget based on its ID
 				const existingIndex = fields.findIndex((widget) => widget.id === r.id);
@@ -110,49 +108,47 @@
 					// If the existing widget is found, update its properties
 					const updatedField = { ...fields[existingIndex], ...r };
 					fields = [...fields.slice(0, existingIndex), updatedField, ...fields.slice(existingIndex + 1)];
-					collections.setCollectionValue({
-						...collections.activeValue,
+					setCollectionValue({
+						...collectionValue,
 						fields
 					});
 				} else {
 					// If the existing widget is not found, add it as a new widget
 					const newField = { ...r, id: fields.length + 1 };
 					fields = [...fields, newField];
-					collections.setCollectionValue({
-						...collections.activeValue,
+					setCollectionValue({
+						...collectionValue,
 						fields
 					});
 				}
 			}
-		};
-		modalStore.trigger(modal);
+		);
 	}
 
 	// Modal 1 to choose a widget
 	function modalSelectWidget(selected?: Field): void {
-		const c: ModalComponent = { ref: ModalSelectWidget };
-		const modal: ModalSettings = {
-			type: 'component',
-			component: c,
-			title: 'Select a Widget',
-			body: 'Select your widget and then press submit.',
-			value: selected,
-			response: (r: { selectedWidget: string } | null) => {
+		modalState.trigger(
+			ModalSelectWidget as any,
+			{
+				title: 'Select a Widget',
+				body: 'Select your widget and then press submit.',
+				value: selected
+			},
+			(r: { selectedWidget: string } | null) => {
 				if (!r) return;
 				const { selectedWidget } = r;
 				const widget = { widget: { key: selectedWidget, Name: selectedWidget }, permissions: {} };
-				collections.setTargetWidget(widget as any);
+				setTargetWidget(widget as any);
 				modalWidgetForm(widget as Field);
 			}
-		};
-		modalStore.trigger(modal);
+		);
 	}
 
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
 		fields = fields.map((field) => {
-			const widgetInstance = widgets.widgetFunctions[field.widget.Name];
-			const guiSchema = (widgetInstance as any)?.GuiSchema;
+			const widgetInstance = get(widgetFunctions)[field.widget.Name];
+			const guiSchema = widgetInstance?.GuiSchema;
 			if (!guiSchema) return field;
 
 			const GuiFields = getGuiFields({ key: field.widget.Name }, guiSchema as any);
@@ -166,8 +162,8 @@
 		});
 
 		// Update the collection fields
-		collections.setCollectionValue({
-			...collections.activeValue,
+		setCollectionValue({
+			...collectionValue.value,
 			fields
 		});
 
@@ -176,7 +172,7 @@
 </script>
 
 <div class="flex flex-col">
-	<div class="variant-outline-tertiary rounded-t-md p-2 text-center dark:variant-outline-primary">
+	<div class="preset-outlined-tertiary-500 rounded-t-md p-2 text-center dark:preset-outlined-primary-500">
 		<p>
 			{m.collection_widgetfield_addrequired()}
 			<span class="text-tertiary-500 dark:text-primary-500">{contentTypes}</span> Collection inputs.
@@ -187,9 +183,9 @@
 		<VerticalList items={fields} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
 			{#each fields as field (field.id)}
 				<div
-					class="border-blue variant-outline-surface my-2 grid w-full grid-cols-6 items-center rounded-md border p-1 text-left hover:variant-filled-surface dark:text-white"
+					class="border-blue preset-outlined-surface-500 my-2 grid w-full grid-cols-6 items-center rounded-md border p-1 text-left hover:preset-filled-surface-500 dark:text-white"
 				>
-					<div class="variant-ghost-tertiary badge h-10 w-10 rounded-full dark:variant-ghost-primary">
+					<div class="preset-ghost-tertiary-500 badge h-10 w-10 rounded-full dark:preset-ghost-primary-500">
 						{field.id}
 					</div>
 
@@ -198,7 +194,7 @@
 					<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
 					<div class=" ">{field.widget?.key}</div>
 
-					<button type="button" onclick={() => modalWidgetForm(field)} aria-label={m.button_edit()} class="variant-ghost-primary btn-icon ml-auto">
+					<button type="button" onclick={() => modalWidgetForm(field)} aria-label={m.button_edit()} class="preset-ghost-primary-500 btn-icon ml-auto">
 						<iconify-icon icon="ic:baseline-edit" width="24" class="dark:text-white"></iconify-icon>
 					</button>
 				</div>
@@ -207,14 +203,14 @@
 	</div>
 	<div>
 		<div class="mt-2 flex items-center justify-center gap-3">
-			<button onclick={() => modalSelectWidget()} class="variant-filled-tertiary btn">{m.collection_widgetfield_addFields()} </button>
+			<button onclick={() => modalSelectWidget()} class="preset-filled-tertiary-500 btn">{m.collection_widgetfield_addFields()} </button>
 		</div>
 		<div class=" flex items-center justify-between">
-			<button type="button" onclick={() => (app.tabSetState = 1)} class="variant-filled-secondary btn mt-2 justify-end">{m.button_previous()}</button>
+			<button type="button" onclick={() => tabSet.set(1)} class="preset-filled-secondary-500 btn mt-2 justify-end">{m.button_previous()}</button>
 			<button
 				type="button"
 				onclick={handleCollectionSave}
-				class="variant-filled-tertiary btn mt-2 justify-end dark:variant-filled-primary dark:text-black">{m.button_save()}</button
+				class="preset-filled-tertiary-500 btn mt-2 justify-end dark:preset-filled-primary-500 dark:text-black">{m.button_save()}</button
 			>
 		</div>
 	</div>

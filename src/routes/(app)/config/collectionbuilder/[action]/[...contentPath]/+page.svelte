@@ -27,42 +27,41 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Stores
 	import { page } from '$app/state';
-	import { app } from '@stores/store.svelte';
-	import { collections } from '@src/stores/collectionStore.svelte';
-	import { ui } from '@src/stores/UIStore.svelte';
+	import { tabSet } from '@stores/store.svelte';
+	import { collection, setCollection } from '@src/stores/collectionStore.svelte';
+	import { setRouteContext } from '@src/stores/UIStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Components
-	import CollectionWidget from './tabs/CollectionWidget.svelte';
 	import CollectionForm from './tabs/CollectionForm.svelte';
+	import CollectionWidget from './tabs/CollectionWidget.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
 
 	// Skeleton
-	import { Tab, TabGroup } from '@skeletonlabs/skeleton';
-	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
-	import { showToast } from '@utils/toast';
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	// import { Tab, TabGroup } from '@skeletonlabs/skeleton-svelte';
+	import { toaster } from '@stores/store.svelte';
+	import { showConfirm } from '@utils/modalState.svelte';
 
-	import { widgets } from '@stores/widgetStore.svelte';
+	import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 	// Create local tabSet variable for binding
-	let localTabSet = $state(app.tabSetState);
+	let localTabSet = $state(String(tabSet.value));
 
 	// Sync with store when local value changes
 	$effect(() => {
-		app.tabSetState = localTabSet;
+		tabSet.set(Number(localTabSet));
 	});
 
 	// Sync local value when store changes
 	$effect(() => {
-		localTabSet = app.tabSetState;
+		localTabSet = String(tabSet.value);
 	});
 
 	import type { User } from '@src/databases/auth/types';
 	import type { FieldInstance, Schema } from '@src/content/types';
-
-	const modalStore = getModalStore();
 
 	// Extract the collection name from the URL
 	let collectionPath = $state(page.params.contentPath);
@@ -83,14 +82,14 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		if (action === 'edit') {
 			loadCollection();
 		} else {
-			collections.setCollection(null);
+			setCollection(null);
 			originalName = '';
 		}
 	});
 
 	function loadCollection() {
 		if (data.collection) {
-			collections.setCollection(data.collection);
+			setCollection(data.collection);
 			originalName = String(data.collection.name || '');
 		} else {
 			logger.error('Collection data not found for editing.');
@@ -100,7 +99,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Default widget data (tab1)
 	// Unwrap the `collection` store value for TS and template usage
-	const collectionActive = $derived(collections.active);
+	const collectionValue = $derived(collection.value);
 
 	// Page title
 	let pageTitle = $state('');
@@ -141,12 +140,12 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
-		const currentCollection = collections.active;
+		const currentCollection = collection.value;
 		const currentName = String(currentCollection?.name || '');
 
 		// Check validation errors before submission
 		if (validationStore.errors && Object.keys(validationStore.errors).length > 0) {
-			showToast('Please fix validation errors before saving', 'error');
+			toaster.error({ description: 'Please fix validation errors before saving' });
 			return;
 		}
 
@@ -181,7 +180,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		});
 
 		if (resp.data.status === 200) {
-			showToast("Collection Saved. You're all set to build your content.", 'success');
+			toaster.success({ description: "Collection Saved. You're all set to build your content." });
 			if (originalName && originalName !== currentName && currentName) {
 				const newPath = page.url.pathname.replace(originalName, currentName);
 				goto(newPath);
@@ -190,52 +189,39 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	}
 
 	function handleCollectionDelete() {
-		const currentCollection = collections.active;
-		// Define the confirmation modal
-		const confirmModal: ModalSettings = {
-			type: 'confirm',
+		const currentCollection = collection.value;
+
+		showConfirm({
 			title: 'Please Confirm',
 			body: 'Are you sure you wish to delete this collection?',
-			response: (r: boolean) => {
-				if (r) {
-					// Send the form data to the server
-					axios.post(`?/deleteCollections`, obj2formData({ contentTypes: String(currentCollection?.name || '') }), {
-						headers: {
-							'Content-Type': 'multipart/form-data'
-						}
-					});
+			onConfirm: async () => {
+				// Send the form data to the server
+				await axios.post(`?/deleteCollections`, obj2formData({ contentTypes: String(currentCollection?.name || '') }), {
+					headers: {
+						'Content-Type': 'multipart/form-data'
+					}
+				});
 
-					// Notify via global toast helper
-					showToast('Collection Deleted.', 'error');
-					goto(`/collection`);
-				} else {
-					// User cancelled, do not delete
-					logger.debug('User cancelled deletion.');
-				}
+				// Notify via global toast helper
+				toaster.error({ description: 'Collection Deleted.' });
+				goto(`/collection`);
+			},
+			onCancel: () => {
+				// User cancelled, do not delete
+				logger.debug('User cancelled deletion.');
 			}
-		};
-		// Trigger the confirmation modal
-		modalStore.trigger(confirmModal);
-		// Close the modal
+		});
 	}
-
-	/*
-	$effect(() => {
-		ui.setRouteContext({ isCollectionBuilder: true });
-		return () => ui.setRouteContext({ isCollectionBuilder: false });
-	});
-	*/
 
 	onMount(() => {
 		// Set the initial tab
-		widgets.initialize();
-		app.tabSetState = 0;
-		ui.setRouteContext({ isCollectionBuilder: true });
+		widgetStoreActions.initializeWidgets();
+		tabSet.set(0);
 	});
 
-	import { onDestroy } from 'svelte';
-	onDestroy(() => {
-		ui.setRouteContext({ isCollectionBuilder: false });
+	$effect(() => {
+		setRouteContext({ isCollectionBuilder: true });
+		return () => setRouteContext({ isCollectionBuilder: false });
 	});
 </script>
 
@@ -243,70 +229,66 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 <div class="my-2 flex items-center justify-between gap-2">
 	<PageTitle name={pageTitle} highlight={highlightedPart} icon="ic:baseline-build" />
 
-	<!-- Actions -->
-	<div class="flex items-center gap-2">
-		{#if action == 'edit'}
+	<!-- Back -->
+	<button onclick={() => history.back()} type="button" aria-label="Back" class="preset-outlined-primary-500 btn-icon">
+		<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
+	</button>
+</div>
+
+<div class="wrapper">
+	{#if action == 'edit'}
+		<div class="flex justify-center gap-3">
 			<button
 				type="button"
 				onclick={handleCollectionDelete}
-				class="variant-filled-error btn-icon"
-				aria-label={m.button_delete()}
-				title={m.button_delete()}
-			>
-				<iconify-icon icon="lucide:trash-2" width="20"></iconify-icon>
+				class=" preset-filled-error-500 btn mb-3 mr-1 mt-1 justify-end dark:preset-filled-error-500 dark:text-black"
+				>{m.button_delete()}
 			</button>
 			<button
 				type="button"
 				onclick={handleCollectionSave}
-				class="variant-filled-primary btn-icon"
-				aria-label={m.button_save()}
-				title={m.button_save()}
+				class="preset-filled-tertiary-500 btn mb-3 mr-1 mt-1 justify-end dark:preset-filled-tertiary-500 dark:text-black">{m.button_save()}</button
 			>
-				<iconify-icon icon="lucide:save" width="20"></iconify-icon>
-			</button>
-		{/if}
+		</div>
+	{/if}
 
-		<!-- Back -->
-		<button onclick={() => history.back()} type="button" aria-label="Back" class="variant-outline-primary btn-icon">
-			<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
-		</button>
-	</div>
-</div>
-
-<div class="wrapper pb-24">
 	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">
 		{m.collection_helptext()}
 	</p>
 	<!-- Required Text  -->
 	<div class="mb-2 text-center text-xs text-error-500" data-testid="required-indicator">* {m.collection_required()}</div>
+	<Tabs value={localTabSet} onValueChange={(e) => (localTabSet = e.value)}>
+		<Tabs.List class="flex border-b border-surface-200-800 mb-4">
+			<!-- User Permissions -->
+			{#if page.data.isAdmin}
+				<!-- Edit -->
+				<Tabs.Trigger value="0">
+					<div class="flex items-center gap-1 py-2 px-4">
+						<iconify-icon icon="ic:baseline-edit" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<span class:active={tabSet.value === 0} class:text-tertiary-500={tabSet.value === 0} class:text-primary-500={tabSet.value === 0}
+							>{m.button_edit()}</span
+						>
+					</div>
+				</Tabs.Trigger>
 
-	<TabGroup bind:group={localTabSet} class="mb-4">
-		<!-- User Permissions -->
-		{#if page.data.isAdmin}
-			<!-- Edit -->
-			<Tab bind:group={localTabSet} name="default" value={0}>
-				<div class="flex items-center gap-2">
-					<iconify-icon icon="ic:baseline-edit" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					<span class:text-tertiary-500={app.tabSetState === 0} class:text-primary-500={app.tabSetState === 0}>{m.button_edit()}</span>
-				</div>
-			</Tab>
-
-			<!-- Widget Fields -->
-			<Tab bind:group={localTabSet} name="widget" value={1} data-testid="widget-fields-tab">
-				<div class="flex items-center gap-2">
-					<iconify-icon icon="mdi:widgets-outline" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					<span class:text-tertiary-500={app.tabSetState === 1} class:text-primary-500={app.tabSetState === 1}>{m.collection_widgetfields()}</span>
-				</div>
-			</Tab>
-		{/if}
+				<!-- Widget Fields -->
+				<Tabs.Trigger value="1" data-testid="widget-fields-tab">
+					<div class="flex items-center gap-1 py-2 px-4">
+						<iconify-icon icon="mdi:widgets-outline" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<span class:active={tabSet.value === 1} class:text-tertiary-500={tabSet.value === 2} class:text-primary-500={tabSet.value === 2}
+							>{m.collection_widgetfields()}</span
+						>
+					</div>
+				</Tabs.Trigger>
+			{/if}
+		</Tabs.List>
 
 		<!-- Tab Panels -->
-		<svelte:fragment slot="panel">
-			{#if app.tabSetState === 0}
-				<CollectionForm data={collectionActive} {handlePageTitleUpdate} />
-			{:else if app.tabSetState === 1}
-				<CollectionWidget fields={collectionActive?.fields as FieldInstance[] | undefined} {handleCollectionSave} />
-			{/if}
-		</svelte:fragment>
-	</TabGroup>
+		<Tabs.Content value="0">
+			<CollectionForm data={collectionValue} {handlePageTitleUpdate} />
+		</Tabs.Content>
+		<Tabs.Content value="1">
+			<CollectionWidget fields={collectionValue?.fields as FieldInstance[] | undefined} {handleCollectionSave} />
+		</Tabs.Content>
+	</Tabs>
 </div>

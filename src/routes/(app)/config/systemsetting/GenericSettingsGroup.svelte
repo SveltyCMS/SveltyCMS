@@ -15,14 +15,12 @@ Handles all field types and validation automatically
 	import { onMount } from 'svelte';
 	import type { Writable } from 'svelte/store';
 	import type { SettingGroup, SettingField } from './settingsGroups';
-	import { showToast } from '@utils/toast';
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
+	import { toaster } from '@stores/store.svelte';
+	// getModalStore deprecated - use modalState from @utils/modalState.svelte;
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { logger } from '@utils/logger';
-
-	const modalStore = getModalStore();
+	import { showConfirm } from '@utils/modalState.svelte';
 
 	// Log levels from logger.svelte.ts
 	const LOG_LEVELS = ['none', 'fatal', 'error', 'warn', 'info', 'debug', 'trace'] as const;
@@ -323,7 +321,7 @@ Handles all field types and validation automatically
 				if (group.requiresRestart) {
 					message += ' Server restart required for changes to take effect.';
 				}
-				showToast(message, 'success');
+				toaster.success({ description: message });
 				await loadSettings(true); // Bypass cache after save - this also resets originalValues
 				checkForEmptyFields(); // Update the warning status after save
 			} else {
@@ -338,13 +336,10 @@ Handles all field types and validation automatically
 
 	// Reset to defaults (with confirmation)
 	async function resetToDefaults() {
-		const modal: ModalSettings = {
-			type: 'confirm',
+		showConfirm({
 			title: 'Reset Settings',
 			body: `Are you sure you want to reset all <strong>${group.name}</strong> settings to their default values? This action cannot be undone.`,
-			response: async (confirmed: boolean) => {
-				if (!confirmed) return;
-
+			onConfirm: async () => {
 				saving = true;
 				error = null;
 
@@ -356,23 +351,21 @@ Handles all field types and validation automatically
 					const data = await response.json();
 
 					if (data.success) {
-						showToast(`${group.name} settings reset to defaults!`, 'success');
+						toaster.success({ description: `${group.name} settings reset to defaults!` });
 						await loadSettings(true); // Bypass cache after reset
 						checkForEmptyFields(); // Re-check after reset
 					} else {
 						error = data.error || 'Failed to reset settings';
-						showToast(error || 'Failed to reset settings', 'error');
+						toaster.error({ description: error || 'Failed to reset settings' });
 					}
 				} catch (err) {
 					error = err instanceof Error ? err.message : 'Failed to reset settings';
-					showToast(error || 'Failed to reset settings', 'error');
+					toaster.error({ description: error || 'Failed to reset settings' });
 				} finally {
 					saving = false;
 				}
 			}
-		};
-
-		modalStore.trigger(modal);
+		});
 	}
 
 	// Format duration for display
@@ -444,32 +437,32 @@ Handles all field types and validation automatically
 	});
 </script>
 
-<div class="generic-settings-group">
+<div class="space-y-4 max-w-full overflow-x-hidden">
 	<!-- Header -->
-	<div class="header mb-6">
-		<h2 class="h3 mb-2 text-2xl font-bold">
+	<div class="mb-6">
+		<h2 class="mb-2 text-xl font-bold md:text-2xl">
 			<span class=" mr-2">{group.icon}</span>
 			{group.name}
 		</h2>
-		<p class="text-surface-600-300-token">{group.description}</p>
+		<p class="text-sm text-surface-600 dark:text-surface-300">{group.description}</p>
 	</div>
 
 	<!-- Restart Warning -->
 	{#if group.requiresRestart}
-		<div class="alert variant-filled-warning mb-4">
+		<div class="alert preset-filled-warning-500 mb-4 rounded-xl p-3 md:p-4">
 			<div class="alert-message">
-				<strong>⚠️ Restart Required</strong>
-				<p>Changes to these settings require a server restart to take effect.</p>
+				<strong class="mb-1 block text-sm md:text-base">⚠️ Restart Required</strong>
+				<p class="text-xs md:text-sm">Changes to these settings require a server restart to take effect.</p>
 			</div>
 		</div>
 	{/if}
 
 	<!-- Default Values Notice -->
 	{#if hasEmptyRequiredFields}
-		<div class="bordered alert variant-filled-error mb-4">
+		<div class="bordered alert preset-filled-error-500 mb-4 rounded-xl p-3 md:p-4">
 			<div class="alert-message">
-				<strong>ℹ️ Default Values Detected</strong>
-				<p>
+				<strong class="mb-1 block text-sm md:text-base">ℹ️ Default Values Detected</strong>
+				<p class="text-xs md:text-sm">
 					Some settings are using placeholder values from the system defaults. Please review and update these values to match your infrastructure and
 					requirements before using in production.
 				</p>
@@ -479,16 +472,16 @@ Handles all field types and validation automatically
 
 	<!-- Loading State -->
 	{#if loading}
-		<div class="card variant-soft-surface p-6 text-center">
+		<div class="card preset-soft-surface-500 rounded-xl p-6 text-center">
 			<p>Loading settings...</p>
 		</div>
 	{:else}
 		<!-- Error Message -->
 		{#if error}
-			<div class="alert variant-filled-error mb-4">
+			<div class="alert preset-filled-error-500 mb-4 rounded-xl p-3 md:p-4">
 				<div class="alert-message">
-					<strong>Error</strong>
-					<p>{error}</p>
+					<strong class="mb-1 block text-sm md:text-base">Error</strong>
+					<p class="text-xs md:text-sm">{error}</p>
 				</div>
 			</div>
 		{/if}
@@ -567,13 +560,15 @@ Handles all field types and validation automatically
 									</div>
 									<div class="relative">
 										<div
-											class="flex min-h-[2.5rem] flex-wrap gap-2 rounded border p-2 pr-16 {errors[availableLangsField.key]
+											class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pr-16 {errors[availableLangsField.key]
 												? 'border-error-500 bg-error-50 dark:bg-error-900/20'
 												: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 										>
 											{#if (values[availableLangsField.key] as string[])?.length > 0}
 												{#each values[availableLangsField.key] as string[] as langCode}
-													<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
+													<span
+														class="group preset-ghost-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-ghost-primary-500"
+													>
 														{displayLanguage(langCode)} ({langCode})
 														{#if !availableLangsField.readonly}
 															<button
@@ -582,19 +577,19 @@ Handles all field types and validation automatically
 																onclick={() => removeLanguage(availableLangsField.key, langCode)}
 																aria-label="Remove {langCode}"
 															>
-																&times;
+																×
 															</button>
 														{/if}
 													</span>
 												{/each}
 											{:else if availableLangsField.placeholder}
-												<span class="text-surface-500-400-token text-xs">{availableLangsField.placeholder}</span>
+												<span class="text-surface-500 dark:text-surface-400 text-xs">{availableLangsField.placeholder}</span>
 											{/if}
 
 											{#if !availableLangsField.readonly}
 												<button
 													type="button"
-													class="variant-filled-surface badge absolute right-2 top-2 rounded-full"
+													class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
 													onclick={() => {
 														showLanguagePicker[availableLangsField.key] = true;
 														languageSearch[availableLangsField.key] = '';
@@ -727,13 +722,15 @@ Handles all field types and validation automatically
 									</div>
 									<div class="relative">
 										<div
-											class="flex min-h-[2.5rem] flex-wrap gap-2 rounded border p-2 pr-16 {errors[localesField.key]
+											class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pr-16 {errors[localesField.key]
 												? 'border-error-500 bg-error-50 dark:bg-error-900/20'
 												: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 										>
 											{#if (values[localesField.key] as string[])?.length > 0}
 												{#each values[localesField.key] as string[] as langCode}
-													<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
+													<span
+														class="group preset-ghost-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-ghost-primary-500"
+													>
 														{displayLanguage(langCode)} ({langCode})
 														{#if !localesField.readonly}
 															<button
@@ -750,19 +747,19 @@ Handles all field types and validation automatically
 																}}
 																aria-label="Remove {langCode}"
 															>
-																&times;
+																×
 															</button>
 														{/if}
 													</span>
 												{/each}
 											{:else if localesField.placeholder}
-												<span class="text-surface-500-400-token text-xs">{localesField.placeholder}</span>
+												<span class="text-surface-500 dark:text-surface-400 text-xs">{localesField.placeholder}</span>
 											{/if}
 
 											{#if !localesField.readonly}
 												<button
 													type="button"
-													class="variant-filled-surface badge absolute right-2 top-2 rounded-full"
+													class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
 													onclick={() => {
 														showLanguagePicker[localesField.key] = true;
 														languageSearch[localesField.key] = '';
@@ -838,15 +835,14 @@ Handles all field types and validation automatically
 				<div class="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
 					{#each group.fields as field}
 						<div
-							class="form-field overflow-visible"
-							class:lg:col-span-2={(field.type === 'array' ||
-								field.type === 'password' ||
-								field.type === 'language-multi' ||
-								field.type === 'loglevel-multi') &&
-								field.key !== 'SMTP_USER' &&
-								field.key !== 'SMTP_PASS'}
+							class="space-y-2 overflow-visible max-w-full {field.type === 'array' ||
+							field.type === 'password' ||
+							field.type === 'language-multi' ||
+							field.type === 'loglevel-multi'
+								? 'lg:col-span-2'
+								: ''}"
 						>
-							<label for={field.key} class="label">
+							<label for={field.key} class="mb-2 block">
 								<span class="flex items-center gap-2">
 									<iconify-icon icon={getFieldIcon(field)} width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 									<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500 md:text-base">{field.label}</span>
@@ -854,14 +850,21 @@ Handles all field types and validation automatically
 										<span class="text-error-500">*</span>
 									{/if}
 									<!-- Info icon with tooltip -->
-									<button
-										type="button"
-										class="tooltip-trigger text-surface-500-400-token hover:text-surface-900 dark:hover:text-surface-50"
-										data-tooltip={field.description}
-										aria-label="Field information"
-									>
-										<iconify-icon icon="material-symbols:info-outline" width="16"></iconify-icon>
-									</button>
+									<div class="group relative inline-block">
+										<button
+											type="button"
+											class="text-surface-500 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-50 cursor-help"
+											aria-label="Field information"
+										>
+											<iconify-icon icon="material-symbols:info-outline" width="16"></iconify-icon>
+										</button>
+										<!-- Tooltip Content -->
+										<div
+											class="pointer-events-none absolute bottom-full left-1/2 z-1000 mb-2 w-max max-w-[200px] -translate-x-1/2 rounded-md bg-black/90 px-3 py-2 text-xs leading-tight text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100 md:max-w-[250px]"
+										>
+											{field.description}
+										</div>
+									</div>
 								</span>
 							</label>
 
@@ -872,7 +875,7 @@ Handles all field types and validation automatically
 									type={field.key.toLowerCase().includes('email') || field.key === 'SMTP_USER' || field.label.toLowerCase().includes('email')
 										? 'email'
 										: 'text'}
-									class="input"
+									class="input w-full max-w-full min-h-[44px]"
 									bind:value={values[field.key]}
 									placeholder={field.placeholder}
 									required={field.required}
@@ -881,11 +884,11 @@ Handles all field types and validation automatically
 								/>
 								<!-- Number Input -->
 							{:else if field.type === 'number'}
-								<div class="input-group input-group-divider grid-cols-[1fr_auto]">
+								<div class="input-group input-group-divider grid-cols-[1fr_auto] flex flex-col sm:flex-row max-w-full text-center sm:text-left">
 									<input
 										id={field.key}
 										type="number"
-										class="input"
+										class="input w-full max-w-full min-h-[44px]"
 										bind:value={values[field.key]}
 										placeholder={field.placeholder}
 										required={field.required}
@@ -897,7 +900,7 @@ Handles all field types and validation automatically
 										<div class="input-group-shim text-sm">
 											{field.unit}
 											{#if typeof values[field.key] === 'number' && field.unit === 'seconds'}
-												<span class="text-surface-500-400-token ml-2">
+												<span class="ml-2 text-surface-500 dark:text-surface-400">
 													({formatDuration(values[field.key] as number)})
 												</span>
 											{/if}
@@ -911,7 +914,7 @@ Handles all field types and validation automatically
 									<input
 										id={field.key}
 										type={showPassword[field.key] ? 'text' : 'password'}
-										class="input pr-10"
+										class="input w-full max-w-full min-h-[44px] pr-10"
 										bind:value={values[field.key]}
 										placeholder={field.placeholder}
 										required={field.required}
@@ -922,7 +925,7 @@ Handles all field types and validation automatically
 									{#if !field.readonly}
 										<button
 											type="button"
-											class="text-surface-600-300-token absolute right-2 top-1/2 -translate-y-1/2 hover:text-surface-900 dark:hover:text-surface-50"
+											class="absolute right-2 top-1/2 -translate-y-1/2 text-surface-600 hover:text-surface-900 dark:text-surface-300 dark:hover:text-surface-50"
 											onclick={() => (showPassword[field.key] = !showPassword[field.key])}
 											aria-label={showPassword[field.key] ? 'Hide password' : 'Show password'}
 										>
@@ -937,7 +940,7 @@ Handles all field types and validation automatically
 									<input
 										id={field.key}
 										type="checkbox"
-										class="checkbox"
+										class="checkbox w-auto min-w-[20px] min-h-[20px]"
 										checked={!!values[field.key]}
 										onchange={(e) => {
 											values[field.key] = (e.target as HTMLInputElement).checked;
@@ -950,7 +953,7 @@ Handles all field types and validation automatically
 							{:else if field.type === 'select' && field.options}
 								<select
 									id={field.key}
-									class="select"
+									class="select w-full max-w-full min-h-[44px]"
 									bind:value={values[field.key]}
 									required={field.required}
 									onchange={() => (errors[field.key] = '')}
@@ -966,7 +969,7 @@ Handles all field types and validation automatically
 								<input
 									id={field.key}
 									type="text"
-									class="input"
+									class="input w-full max-w-full min-h-[44px]"
 									value={getArrayValue(field.key)}
 									placeholder={field.placeholder}
 									required={field.required}
@@ -975,20 +978,20 @@ Handles all field types and validation automatically
 										errors[field.key] = '';
 									}}
 								/>
-								<p class="text-surface-500-400-token mt-1 text-xs">Enter values separated by commas</p>
+								<p class="mt-1 text-xs text-surface-500 dark:text-surface-400">Enter values separated by commas</p>
 
 								<!-- Language Multi-Select -->
 							{:else if field.type === 'language-multi'}
 								<!-- Language Multi-Select (Styled like SystemConfig.svelte) -->
 								<div class="relative">
 									<div
-										class="flex min-h-[2.5rem] flex-wrap gap-2 rounded border p-2 pr-16 {errors[field.key]
+										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pr-16 {errors[field.key]
 											? 'border-error-500 bg-error-50 dark:bg-error-900/20'
 											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[field.key] as string[])?.length > 0}
 											{#each values[field.key] as string[] as langCode}
-												<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
+												<span class="group preset-ghost-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-ghost-primary-500">
 													{displayLanguage(langCode)} ({langCode})
 													{#if !field.readonly}
 														<button
@@ -997,19 +1000,19 @@ Handles all field types and validation automatically
 															onclick={() => removeLanguage(field.key, langCode)}
 															aria-label="Remove {langCode}"
 														>
-															&times;
+															×
 														</button>
 													{/if}
 												</span>
 											{/each}
 										{:else if field.placeholder}
-											<span class="text-surface-500-400-token text-xs">{field.placeholder}</span>
+											<span class="text-surface-500 dark:text-surface-400 text-xs">{field.placeholder}</span>
 										{/if}
 
 										{#if !field.readonly}
 											<button
 												type="button"
-												class="variant-filled-surface badge absolute right-2 top-2 rounded-full"
+												class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
 												onclick={() => {
 													showLanguagePicker[field.key] = true;
 													languageSearch[field.key] = '';
@@ -1065,20 +1068,20 @@ Handles all field types and validation automatically
 									{/if}
 								</div>
 								{#if field.placeholder && (values[field.key] as string[])?.length > 0}
-									<p class="text-surface-500-400-token mt-1 text-[10px]">Example: {field.placeholder}</p>
+									<p class="text-surface-500 dark:text-surface-400 mt-1 text-[10px]">Example: {field.placeholder}</p>
 								{/if}
 
 								<!-- Log Level Multi-Select -->
 							{:else if field.type === 'loglevel-multi'}
 								<div class="relative">
 									<div
-										class="flex min-h-[2.5rem] flex-wrap gap-2 rounded border p-2 pr-16 {errors[field.key]
+										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pr-16 {errors[field.key]
 											? 'border-error-500 bg-error-50 dark:bg-error-900/20'
 											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[field.key] as LogLevel[])?.length > 0}
 											{#each values[field.key] as LogLevel[] as level}
-												<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
+												<span class="group preset-ghost-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-ghost-primary-500">
 													{level}
 													{#if !field.readonly}
 														<button
@@ -1087,19 +1090,19 @@ Handles all field types and validation automatically
 															onclick={() => removeLogLevel(field.key, level)}
 															aria-label="Remove {level}"
 														>
-															&times;
+															×
 														</button>
 													{/if}
 												</span>
 											{/each}
 										{:else if field.placeholder}
-											<span class="text-surface-500-400-token text-xs">{field.placeholder}</span>
+											<span class="text-surface-500 dark:text-surface-400 text-xs">{field.placeholder}</span>
 										{/if}
 
 										{#if !field.readonly}
 											<button
 												type="button"
-												class="variant-filled-surface badge absolute right-2 top-2 rounded-full"
+												class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
 												onclick={() => (showLogLevelPicker[field.key] = true)}
 												aria-haspopup="dialog"
 												aria-expanded={showLogLevelPicker[field.key]}
@@ -1142,7 +1145,7 @@ Handles all field types and validation automatically
 									{/if}
 								</div>
 								{#if field.placeholder && (values[field.key] as LogLevel[])?.length > 0}
-									<p class="text-surface-500-400-token mt-1 text-[10px]">Example: {field.placeholder}</p>
+									<p class="text-surface-500 dark:text-surface-400 mt-1 text-[10px]">Example: {field.placeholder}</p>
 								{/if}
 							{/if}
 
@@ -1156,13 +1159,18 @@ Handles all field types and validation automatically
 			{/if}
 
 			<!-- Actions -->
-			<div class="actions-container flex flex-col justify-between gap-2 pt-4 sm:flex-row">
-				<button type="button" class="variant-filled-surface btn w-full sm:w-auto" onclick={resetToDefaults} disabled={saving}>
+			<div class="flex flex-col justify-between gap-2 pt-4 sm:flex-row max-w-full overflow-visible">
+				<button
+					type="button"
+					class="preset-filled-surface-500 btn w-full sm:w-auto min-w-fit px-4 sm:min-h-[48px]"
+					onclick={resetToDefaults}
+					disabled={saving}
+				>
 					<span>🔄</span>
 					<span>Reset to Defaults</span>
 				</button>
 
-				<button type="submit" class="variant-filled-primary btn w-full sm:w-auto" disabled={saving}>
+				<button type="submit" class="preset-filled-primary-500 btn w-full sm:w-auto min-w-fit px-4 sm:min-h-[48px]" disabled={saving}>
 					{#if saving}
 						<span>Saving...</span>
 					{:else}
@@ -1174,129 +1182,3 @@ Handles all field types and validation automatically
 		</form>
 	{/if}
 </div>
-
-<style lang="postcss">
-	.generic-settings-group {
-		@apply space-y-4;
-		/* Prevent horizontal overflow */
-		max-width: 100%;
-		overflow-x: hidden;
-	}
-
-	.header h2 {
-		@apply text-xl md:text-2xl;
-	}
-
-	.alert {
-		@apply p-3 rounded-container-token md:p-4;
-	}
-
-	.alert-message strong {
-		@apply mb-1 block text-sm md:text-base;
-	}
-
-	.alert-message p {
-		@apply text-xs md:text-sm;
-	}
-
-	.form-field {
-		@apply space-y-2;
-		/* Prevent input overflow */
-		max-width: 100%;
-	}
-
-	.label {
-		@apply mb-2 block;
-	}
-
-	/* Tooltip styling */
-	.tooltip-trigger {
-		position: relative;
-		cursor: help;
-	}
-
-	.tooltip-trigger::after {
-		content: attr(data-tooltip);
-		position: absolute;
-		left: 50%;
-		bottom: 100%;
-		transform: translateX(-50%) translateY(-8px);
-		padding: 8px 12px;
-		background: rgba(0, 0, 0, 0.9);
-		color: white;
-		font-size: 12px;
-		line-height: 1.4;
-		border-radius: 6px;
-		white-space: normal;
-		max-width: 250px;
-		width: max-content;
-		z-index: 1000;
-		opacity: 0;
-		pointer-events: none;
-		transition: opacity 0.2s ease-in-out;
-	}
-
-	.tooltip-trigger:hover::after,
-	.tooltip-trigger:focus::after {
-		opacity: 1;
-	}
-
-	/* Mobile: show tooltip above on tap */
-	@media (max-width: 768px) {
-		.tooltip-trigger::after {
-			max-width: 200px;
-			font-size: 11px;
-		}
-	}
-
-	.input,
-	.select {
-		@apply w-full;
-		/* Better touch targets on mobile */
-		min-height: 44px;
-		/* Prevent overflow */
-		max-width: 100%;
-	}
-
-	.checkbox {
-		@apply w-auto;
-		/* Better touch target */
-		min-width: 20px;
-		min-height: 20px;
-	}
-
-	/* Actions container styling */
-	.actions-container {
-		/* Prevent overflow */
-		max-width: 100%;
-		overflow: visible;
-	}
-
-	.actions-container button {
-		/* Ensure buttons don't shrink too much */
-		@apply min-w-fit px-4;
-	}
-
-	/* Touch-friendly spacing for mobile */
-	@media (max-width: 640px) {
-		.form-field {
-			@apply space-y-3;
-		}
-
-		.actions-container button {
-			/* Full width on mobile for easier tapping */
-			@apply min-h-[48px];
-		}
-	}
-
-	/* Input group responsiveness */
-	.input-group {
-		@apply flex-col sm:flex-row;
-		/* Prevent overflow */
-		max-width: 100%;
-	}
-
-	.input-group-shim {
-		@apply text-center sm:text-left;
-	}
-</style>

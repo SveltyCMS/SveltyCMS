@@ -21,9 +21,9 @@
 <script lang="ts">
 	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
-	import { modeCurrent } from '@skeletonlabs/skeleton';
 	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
-	import { preferences } from '@stores/systemPreferences.svelte';
+	import { themeStore } from '@stores/themeStore.svelte';
+	import { systemPreferences } from '@stores/systemPreferences.svelte';
 	import { logger } from '@utils/logger';
 	import { onMount } from 'svelte';
 	import { flip } from 'svelte/animate';
@@ -133,14 +133,15 @@
 	}
 
 	const widgetComponentRegistry = $derived(widgetRegistry);
-	const currentPreferences = $derived(preferences.preferences || []);
+	const currentPreferences = $derived($systemPreferences?.preferences || []);
 	const availableWidgets = $derived(
 		registryLoaded && currentPreferences
 			? Object.keys(widgetComponentRegistry).filter((name) => !currentPreferences.some((item) => item.component === name))
 			: []
 	);
 	const filteredWidgets = $derived(availableWidgets.filter((name) => name.toLowerCase().includes(searchQuery.toLowerCase())));
-	const currentTheme: 'dark' | 'light' = $derived($modeCurrent ? 'dark' : 'light');
+
+	const currentTheme: 'dark' | 'light' = $derived(themeStore.isDarkMode ? 'dark' : 'light');
 
 	// Helper function to find insertion position based on coordinates
 	function findInsertionPosition(x: number, y: number): number {
@@ -222,7 +223,7 @@
 
 		// Update widgets if needed using batch update
 		if (needsUpdate) {
-			preferences.updateWidgets(widgets);
+			systemPreferences.updateWidgets(widgets);
 		}
 	}
 
@@ -244,13 +245,13 @@
 			settings: componentInfo.widgetMeta?.settings || {},
 			order: currentPreferences.length // Use order instead of gridPosition
 		};
-		preferences.updateWidget(newItem);
+		systemPreferences.updateWidget(newItem);
 		dropdownOpen = false;
 		searchQuery = '';
 	}
 
 	function removeWidget(id: string) {
-		preferences.removeWidget(id);
+		systemPreferences.removeWidget(id);
 		// Clean up loaded widget and observer
 		loadedWidgets.delete(id);
 		const observer = widgetObservers.get(id);
@@ -261,7 +262,7 @@
 	}
 
 	function resetAllWidgets() {
-		preferences.set([]);
+		systemPreferences.setPreferences([]);
 		// Clean up all loaded widgets and observers
 		loadedWidgets.clear();
 		widgetObservers.forEach((observer) => observer.disconnect());
@@ -275,7 +276,7 @@
 				w: Math.max(1, Math.min(MAX_COLUMNS, newSize.w)),
 				h: Math.max(1, Math.min(MAX_ROWS, newSize.h))
 			};
-			preferences.updateWidget({ ...item, size: updatedSize });
+			systemPreferences.updateWidget({ ...item, size: updatedSize });
 		}
 	}
 
@@ -297,7 +298,7 @@
 			order: index
 		}));
 
-		preferences.updateWidgets(updatedWidgets);
+		systemPreferences.updateWidgets(updatedWidgets);
 	}
 	function handleDragStart(event: MouseEvent | TouchEvent | PointerEvent, item: DashboardWidgetConfig, element: HTMLElement) {
 		// Ignore clicks on interactive elements and resize handles
@@ -383,7 +384,7 @@
 
 	onMount(() => {
 		loadWidgetRegistry();
-		preferences.load();
+		systemPreferences.loadPreferences();
 		// Ensure proper widget ordering after preferences load
 		setTimeout(ensureWidgetOrder, 100);
 
@@ -401,7 +402,7 @@
 		<div class="flex items-center gap-2">
 			<!-- Reset All Button - Small and subtle -->
 			{#if currentPreferences.length > 0}
-				<button class="variant-outline-surface btn-icon" onclick={resetAllWidgets} aria-label="Reset all widgets" title="Reset all widgets">
+				<button class="preset-outlined-surface-500 btn-icon" onclick={resetAllWidgets} aria-label="Reset all widgets" title="Reset all widgets">
 					<iconify-icon icon="mdi:refresh"></iconify-icon>
 				</button>
 			{/if}
@@ -409,7 +410,7 @@
 			<div class="relative">
 				{#if availableWidgets.length > 0}
 					<button
-						class="variant-filled-tertiary btn dark:variant-filled-primary"
+						class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500"
 						onclick={() => (dropdownOpen = !dropdownOpen)}
 						aria-haspopup="true"
 						aria-expanded={dropdownOpen}
@@ -493,11 +494,11 @@
 								</div>
 							{:else if WidgetComponent === null}
 								<!-- Error state -->
-								<div class="card variant-ghost-error flex h-full flex-col items-center justify-center p-4">
+								<div class="card preset-ghost-error-500 flex h-full flex-col items-center justify-center p-4">
 									<iconify-icon icon="mdi:alert-circle-outline" width="48" class="mb-2 text-error-500"></iconify-icon>
 									<h3 class="h4 mb-2">Widget Load Error</h3>
 									<p class="text-sm">Failed to load: {item.component}</p>
-									<button class="variant-filled-error btn btn-sm mt-4" onclick={() => removeWidget(item.id)}> Remove Widget </button>
+									<button class="preset-filled-error-500 btn btn-sm mt-4" onclick={() => removeWidget(item.id)}> Remove Widget </button>
 								</div>
 							{:else}
 								<!-- Render the actual widget - Svelte 5 dynamic components -->
@@ -547,7 +548,7 @@
 		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>
-				<button onclick={() => (showImportExport = false)} class="variant-ghost btn btn-sm" aria-label="Close import/export modal">
+				<button onclick={() => (showImportExport = false)} class="preset-ghost btn btn-sm" aria-label="Close import/export modal">
 					<iconify-icon icon="mdi:close" class="h-5 w-5"></iconify-icon>
 				</button>
 			</div>
@@ -562,14 +563,14 @@
 					Your data is securely managed and never leaves your server
 				</div>
 				<div class="flex space-x-2">
-					<button onclick={() => (showImportExport = false)} class="variant-filled-primary btn"> Done </button>
+					<button onclick={() => (showImportExport = false)} class="preset-filled-primary-500 btn"> Done </button>
 				</div>
 			</div>
 		</div>
 	</div>
 {/if}
 
-<style lang="postcss">
+<style>
 	.responsive-dashboard-grid {
 		display: grid;
 		gap: 1rem;

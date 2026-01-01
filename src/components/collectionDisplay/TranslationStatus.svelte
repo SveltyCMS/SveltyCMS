@@ -18,9 +18,9 @@ FIXES:
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { ProgressBar } from '@skeletonlabs/skeleton';
-	import { collections } from '@src/stores/collectionStore.svelte';
-	import { app } from '@stores/store.svelte';
+	import { Progress } from '@skeletonlabs/skeleton-svelte';
+	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
+	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
 	import * as m from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
@@ -61,8 +61,8 @@ FIXES:
 		return languages as Locale[];
 	});
 
-	const currentLanguage = $derived(app.contentLanguage);
-	const currentMode = $derived(collections.mode);
+	const currentLanguage = $derived(contentLanguage.value);
+	const currentMode = $derived(mode.value);
 	const isViewMode = $derived(currentMode === 'view');
 
 	const overallPercentage = $derived.by(() => {
@@ -70,12 +70,12 @@ FIXES:
 		return total > 0 ? Math.round((translated / total) * 100) : 0;
 	});
 
-	const showProgress = $derived(app.translationProgress.show || completionTotals.total > 0);
+	const showProgress = $derived(translationProgress.value?.show || completionTotals.total > 0);
 
 	// Calculate language-specific progress
 	const languageProgress = $derived.by(() => {
 		const progress: Record<string, number> = {};
-		const currentProgress = app.translationProgress;
+		const currentProgress = translationProgress.value;
 
 		for (const lang of availableLanguages) {
 			const langProgress = currentProgress?.[lang as Locale];
@@ -164,16 +164,14 @@ FIXES:
 		return [baseName];
 	}
 
-	import { SvelteSet } from 'svelte/reactivity';
-
 	// Initialize translation progress
 	function initializeTranslationProgress(currentCollection: { fields: unknown[]; name?: unknown; _id?: string }): void {
-		const newProgress: typeof app.translationProgress = { show: false };
+		const newProgress: typeof translationProgress.value = { show: false };
 
 		for (const lang of availableLanguages) {
 			newProgress[lang] = {
-				total: new SvelteSet<string>(),
-				translated: new SvelteSet<string>()
+				total: new Set<string>(),
+				translated: new Set<string>()
 			};
 		}
 
@@ -197,7 +195,7 @@ FIXES:
 		}
 
 		newProgress.show = hasTranslatableFields;
-		app.translationProgress = newProgress;
+		translationProgress.value = newProgress;
 	}
 
 	/**
@@ -208,14 +206,14 @@ FIXES:
 		currentCollection: { fields: unknown[]; name?: unknown },
 		currentCollectionValue: Record<string, any>
 	): void {
-		const newProgress = { ...app.translationProgress };
+		const newProgress = { ...translationProgress.value };
 		let hasUpdates = false;
 
 		for (const lang of availableLanguages) {
 			const originalLangProgress = newProgress[lang];
 			if (!originalLangProgress) continue;
 
-			const newTranslatedSet = new SvelteSet(originalLangProgress.translated);
+			const newTranslatedSet = new Set(originalLangProgress.translated);
 			let langHasUpdates = false;
 
 			for (const field of currentCollection.fields as { translated?: boolean; label: string; widget?: any }[]) {
@@ -271,14 +269,14 @@ FIXES:
 		}
 
 		if (hasUpdates) {
-			app.translationProgress = newProgress;
+			translationProgress.value = newProgress;
 			calculateCompletionTotals();
 		}
 	}
 
 	// Calculate overall completion totals
 	function calculateCompletionTotals(): void {
-		const progress = app.translationProgress;
+		const progress = translationProgress.value;
 		let total = 0;
 		let translated = 0;
 
@@ -312,8 +310,8 @@ FIXES:
 	}
 
 	function handleLanguageChange(selectedLanguage: Locale): void {
-		logger.debug('[TranslationStatus] Language change:', app.contentLanguage, '→', selectedLanguage);
-		app.contentLanguage = selectedLanguage;
+		logger.debug('[TranslationStatus] Language change:', contentLanguage.value, '→', selectedLanguage);
+		contentLanguage.set(selectedLanguage);
 		isOpen = false;
 
 		if (typeof window !== 'undefined') {
@@ -340,9 +338,9 @@ FIXES:
 		const target = event.target as HTMLSelectElement;
 		const selectedLanguage = target.value as Locale;
 
-		app.contentLanguage = selectedLanguage;
+		contentLanguage.set(selectedLanguage);
 
-		const currentCollectionId = collections.active?._id;
+		const currentCollectionId = collection.value?._id;
 		const currentSearch = page.url.search;
 
 		if (currentCollectionId) {
@@ -377,8 +375,8 @@ FIXES:
 	let lastCollectionId = $state<string | undefined>(undefined);
 
 	$effect(() => {
-		const currentCollection = collections.active;
-		const currentEntry = collections.activeValue as { _id?: string } | undefined;
+		const currentCollection = collection.value;
+		const currentEntry = collectionValue.value as { _id?: string } | undefined;
 		const entryId = currentEntry?._id;
 		const collectionId = currentCollection?._id;
 
@@ -413,8 +411,8 @@ FIXES:
 
 	let lastCollectionValueStr = $state<string>('');
 	$effect(() => {
-		const currentCollection = collections.active;
-		const currentCollectionValue = collections.activeValue as Record<string, any>;
+		const currentCollection = collection.value;
+		const currentCollectionValue = collectionValue.value as Record<string, any>;
 
 		if (currentCollection?.fields && currentCollectionValue && Object.keys(currentCollectionValue).length > 0 && isInitialized) {
 			const currentStr = JSON.stringify(currentCollectionValue);
@@ -452,28 +450,37 @@ FIXES:
 		{/if}
 	</select>
 {:else}
-	<!-- Edit/Create mode: Show button with dropdown -->
-	<div class="translation-status-container relative inline-block text-left">
-		<button
-			type="button"
-			onclick={(e) => {
-				e.stopPropagation();
-				toggleDropdown();
-			}}
-			class="variant-outline-surface btn flex items-center gap-1 p-1.5 transition-all duration-200 hover:scale-105"
-			aria-haspopup="true"
-			aria-expanded={isOpen}
-			aria-controls="translation-menu"
-			aria-label="Toggle language menu"
-		>
-			<span class="font-medium">{currentLanguage.toUpperCase()}</span>
-			<iconify-icon
-				icon="mdi:chevron-down"
-				class="h-5 w-5 transition-transform duration-200"
-				style="transform: rotate({isOpen ? 180 : 0}deg);"
-				aria-hidden="true"
-			></iconify-icon>
-		</button>
+	<div class="translation-status-container relative mt-1 inline-block text-left">
+		<div>
+			<button
+				type="button"
+				onclick={toggleDropdown}
+				class="preset-outlined-surface-500 btn flex w-full items-center gap-1 p-1.5 transition-all duration-200 hover:scale-105"
+				aria-haspopup="true"
+				aria-expanded={isOpen}
+				aria-controls="translation-menu"
+				aria-label="Toggle language menu"
+			>
+				<span class="font-medium">{currentLanguage.toUpperCase()}</span>
+				<iconify-icon
+					icon="mdi:chevron-down"
+					class="h-5 w-5 transition-transform duration-200"
+					style="transform: rotate({isOpen ? 180 : 0}deg);"
+					aria-hidden="true"
+				></iconify-icon>
+			</button>
+
+			<div class="mt-0.5 transition-all duration-300">
+				<Progress
+					class="preset-outlined-secondary-500 transition-all duration-300 hover:shadow-sm"
+					value={overallPercentage}
+					aria-label={m.translationsstatus_overall_progress({ percentage: overallPercentage })}
+				/>
+				<div class="mt-1 text-center text-xs text-tertiary-500 dark:text-primary-500">
+					{overallPercentage}% {m.translationsstatus_completed()}
+				</div>
+			</div>
+		</div>
 	</div>
 {/if}
 
@@ -481,7 +488,7 @@ FIXES:
 	<div style="position: fixed; z-index: 99999; top: 0; left: 0; pointer-events: none; width: 100%; height: 100%;">
 		<div
 			id="translation-menu"
-			class="origin-top-right divide-y divide-surface-200 rounded-lg border-2 border-surface-400 bg-white py-1 shadow-2xl backdrop-blur-sm focus:outline-none dark:divide-surface-600 dark:border-surface-500 dark:bg-surface-800 {showProgress
+			class="origin-top-right divide-y divide-preset-200 rounded-lg border-2 border-surface-400 bg-white py-1 shadow-2xl backdrop-blur-sm focus:outline-none dark:divide-preset-600 dark:border-surface-500 dark:bg-surface-800 {showProgress
 				? 'w-64'
 				: 'w-48'}"
 			style="position: fixed; top: {dropdownPosition.top}px; right: {dropdownPosition.right}px; pointer-events: auto;"
@@ -490,7 +497,7 @@ FIXES:
 			aria-labelledby="language-menu-button"
 			transition:scale={{ duration: 200, easing: quintOut, start: 0.95 }}
 		>
-			<div role="none" class="divide-y divide-surface-200 dark:divide-surface-400">
+			<div role="none" class="divide-y divide-preset-200 dark:divide-preset-400">
 				{#each availableLanguages as lang, index (lang)}
 					{@const percentage = languageProgress[lang] || 0}
 					{@const isActive = currentLanguage === lang}
@@ -512,12 +519,12 @@ FIXES:
 								{/if}
 							</span>
 
-							{#if showProgress && app.translationProgress?.[lang as Locale]}
+							{#if showProgress && translationProgress.value?.[lang as Locale]}
 								<div class="ml-2 flex flex-1 items-center gap-2">
 									<div class="flex-1">
-										<ProgressBar class="transition-all duration-300" value={percentage} meter={getProgressColor(percentage)} aria-hidden="true" />
+										<Progress class="transition-all duration-300" value={percentage} aria-hidden="true" />
 									</div>
-									<span class="min-w-[2.5rem] text-right text-sm font-semibold">
+									<span class="min-w-10 text-right text-sm font-semibold">
 										{percentage}%
 									</span>
 								</div>
@@ -533,17 +540,12 @@ FIXES:
 						{m.translationsstatus_completed()}
 					</div>
 					<div class="flex items-center justify-between gap-3">
-						{#if overallPercentage !== undefined}
+						{#if overallPercentage}
 							<div class="flex-1">
-								<ProgressBar
-									class="transition-all duration-300"
-									value={overallPercentage}
-									meter={getProgressColor(overallPercentage)}
-									aria-hidden="true"
-								/>
+								<Progress class="transition-all duration-300" value={overallPercentage} aria-hidden="true" />
 							</div>
 						{/if}
-						<span class="min-w-[2.5rem] text-right text-sm font-bold {getTextColor(overallPercentage)}">
+						<span class="min-w-10 text-right text-sm font-bold {getTextColor(overallPercentage)}">
 							{overallPercentage}%
 						</span>
 					</div>

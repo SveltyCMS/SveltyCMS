@@ -28,7 +28,7 @@ Interactive star rating with hover states and click selection
 -->
 
 <script lang="ts">
-	import { Ratings } from '@skeletonlabs/skeleton';
+	import { RatingGroup } from '@skeletonlabs/skeleton-svelte';
 	import type { FieldType } from './';
 
 	let { field, value = $bindable(), error }: { field: FieldType; value?: number | null | undefined; error?: string | null } = $props();
@@ -56,22 +56,21 @@ Interactive star rating with hover states and click selection
 	class:invalid={!!error}
 >
 	<div class={error ? ' text-error-500' : ''}>
-		<Ratings
-			max={Number(field.max) || 5}
-			step={1}
-			interactive
-			bind:value={ratingValue}
-			aria-label={field.label}
-			aria-describedby={error ? `${field.db_fieldName}-error` : undefined}
-		>
-			{#snippet empty()}
-				<iconify-icon icon={field.iconEmpty || 'material-symbols:star-outline'} width="24" class="text-surface-400"></iconify-icon>
-			{/snippet}
-			{#snippet full()}
-				<iconify-icon icon={field.iconFull || 'material-symbols:star'} width="24" class={error ? 'text-error-500' : 'text-warning-500'}
-				></iconify-icon>
-			{/snippet}
-		</Ratings>
+		<RatingGroup value={ratingValue} onValueChange={(e) => (ratingValue = e.value)} aria-label={field.label}>
+			<RatingGroup.Control>
+				{#each { length: Number(field.max) || 5 } as _, i}
+					<RatingGroup.Item index={i + 1}>
+						{#snippet empty()}
+							<iconify-icon icon={field.iconEmpty || 'material-symbols:star-outline'} width="24" class="text-surface-400"></iconify-icon>
+						{/snippet}
+						{#snippet full()}
+							<iconify-icon icon={field.iconFull || 'material-symbols:star'} width="24" class={error ? 'text-error-500' : 'text-warning-500'}
+							></iconify-icon>
+						{/snippet}
+					</RatingGroup.Item>
+				{/each}
+			</RatingGroup.Control>
+		</RatingGroup>
 	</div>
 
 	{#if error}

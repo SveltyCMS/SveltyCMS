@@ -1,19 +1,30 @@
 <!--
 @file src/routes/setup/AdminConfig.svelte
-@description Administrator account setup step.
+@component
+**Administrator account setup step**
+
+### Props
+- `adminUser`
+- `validationErrors`
+- `passwordRequirements`
+- `showAdminPassword`
+- `showConfirmPassword`
+- `toggleAdminPassword`
+- `toggleConfirmPassword`
+- `checkPasswordRequirements`
+
+### Features
+- Real-time validation
+- Password strength meter
+- Password visibility toggle
+- Form submission handling
+
 -->
 <script lang="ts">
 	import * as m from '@src/paraglide/messages';
-	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { setupAdminSchema } from '@utils/formSchemas';
-
-	// Popup settings
-	const popupAdminUsername: PopupSettings = { event: 'click', target: 'popupAdminUsername', placement: 'top' };
-	const popupAdminEmail: PopupSettings = { event: 'click', target: 'popupAdminEmail', placement: 'top' };
-	const popupAdminPassword: PopupSettings = { event: 'click', target: 'popupAdminPassword', placement: 'top' };
-	const popupAdminConfirmPassword: PopupSettings = { event: 'click', target: 'popupAdminConfirmPassword', placement: 'top' };
 
 	// Props from parent
 	let {
@@ -87,13 +98,7 @@
 				<label for="admin-username" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:account" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.form_username?.() || 'Username'}</span>
-					<button
-						type="button"
-						tabindex="-1"
-						use:popup={popupAdminUsername}
-						aria-label="Help: Username"
-						class="ml-1 text-slate-400 hover:text-primary-500"
-					>
+					<button type="button" tabindex="-1" title="Help available" aria-label="Help: Username" class="ml-1 text-slate-400 hover:text-primary-500">
 						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 					</button>
 				</label>
@@ -132,7 +137,7 @@
 				<label for="admin-email" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:email" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.form_email?.() || 'Email'}</span>
-					<button type="button" tabindex="-1" use:popup={popupAdminEmail} aria-label="Help: Email" class="ml-1 text-slate-400 hover:text-primary-500">
+					<button type="button" tabindex="-1" title="Help available" aria-label="Help: Email" class="ml-1 text-slate-400 hover:text-primary-500">
 						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 					</button>
 				</label>
@@ -171,13 +176,7 @@
 				<label for="admin-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.form_password()}</span>
-					<button
-						type="button"
-						tabindex="-1"
-						use:popup={popupAdminPassword}
-						aria-label="Help: Password"
-						class="ml-1 text-slate-400 hover:text-primary-500"
-					>
+					<button type="button" tabindex="-1" title="Help available" aria-label="Help: Password" class="ml-1 text-slate-400 hover:text-primary-500">
 						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 					</button>
 				</label>
@@ -225,7 +224,7 @@
 					<button
 						tabindex="-1"
 						type="button"
-						use:popup={popupAdminConfirmPassword}
+						title="Help available"
 						aria-label="Help: Confirm Password"
 						class="ml-1 text-slate-400 hover:text-primary-500"
 					>
@@ -281,7 +280,7 @@
 						: 'text-surface-500 dark:text-surface-400'}"
 				>
 					<span
-						class="mr-2 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border {passwordRequirements.length
+						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.length
 							? 'border-primary-300 bg-primary-100 text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
@@ -298,7 +297,7 @@
 						: 'text-surface-500 dark:text-surface-400'}"
 				>
 					<span
-						class="mr-2 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border {passwordRequirements.letter
+						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.letter
 							? 'border-primary-300 bg-primary-100 text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
@@ -315,7 +314,7 @@
 						: 'text-surface-500 dark:text-surface-400'}"
 				>
 					<span
-						class="mr-2 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border {passwordRequirements.number
+						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.number
 							? 'border-primary-300 bg-primary-100 text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
@@ -332,7 +331,7 @@
 						: 'text-surface-500 dark:text-surface-400'}"
 				>
 					<span
-						class="mr-2 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border {passwordRequirements.special
+						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.special
 							? 'border-primary-300 bg-primary-100 text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
@@ -349,7 +348,7 @@
 						: 'text-surface-500 dark:text-surface-400'}"
 				>
 					<span
-						class="mr-2 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border {passwordRequirements.match
+						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.match
 							? 'border-primary-300 bg-primary-100 text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>

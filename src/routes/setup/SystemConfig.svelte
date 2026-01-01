@@ -7,7 +7,6 @@
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { locales as systemLocales } from '@src/paraglide/runtime';
-	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 	// ✅ FIX: Import types from the store
 	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
@@ -164,16 +163,6 @@
 				(lang.code.toLowerCase().includes(search) || lang.name.toLowerCase().includes(search) || lang.native.toLowerCase().includes(search))
 		);
 	});
-
-	// Popups
-	const popupSiteName: PopupSettings = { event: 'click', target: 'popupSiteName', placement: 'top' };
-	const popupHostProd: PopupSettings = { event: 'click', target: 'popupHostProd', placement: 'top' };
-	const popupDefaultSystem: PopupSettings = { event: 'click', target: 'popupDefaultSystem', placement: 'top' };
-	const popupSystemLanguages: PopupSettings = { event: 'click', target: 'popupSystemLanguages', placement: 'top' };
-	const popupContentLanguages: PopupSettings = { event: 'click', target: 'popupContentLanguages', placement: 'top' };
-	const popupDefaultContent: PopupSettings = { event: 'click', target: 'popupDefaultContent', placement: 'top' };
-	const popupMediaPath: PopupSettings = { event: 'click', target: 'popupMediaPath', placement: 'top' };
-	const popupMediaFolder: PopupSettings = { event: 'click', target: 'popupMediaFolder', placement: 'top' };
 </script>
 
 <div class="fade-in">
@@ -195,7 +184,7 @@
 						<button
 							type="button"
 							tabindex="-1"
-							use:popup={popupSiteName}
+							title="Help available"
 							aria-label="Help: Site Name"
 							class="ml-1 text-slate-400 hover:text-primary-500"
 						>
@@ -229,7 +218,7 @@
 						<button
 							type="button"
 							tabindex="-1"
-							use:popup={popupHostProd}
+							title="Help available"
 							aria-label="Help: Production URL"
 							class="ml-1 text-slate-400 hover:text-primary-500"
 						>
@@ -266,7 +255,7 @@
 						<button
 							type="button"
 							tabindex="-1"
-							use:popup={popupMediaPath}
+							title="Help available"
 							aria-label="Help: Media Storage Type"
 							class="ml-1 text-slate-400 hover:text-primary-500"
 						>
@@ -294,7 +283,7 @@
 						<button
 							type="button"
 							tabindex="-1"
-							use:popup={popupMediaFolder}
+							title="Help available"
 							aria-label="Help: Media Folder"
 							class="ml-1 text-slate-400 hover:text-primary-500"
 						>
@@ -338,7 +327,7 @@
 						<button
 							tabindex="-1"
 							type="button"
-							use:popup={popupDefaultSystem}
+							title="Help available"
 							aria-label="Help: Default System Language"
 							class="ml-1 text-slate-400 hover:text-primary-500"
 						>
@@ -364,7 +353,7 @@
 							<button
 								tabindex="-1"
 								type="button"
-								use:popup={popupSystemLanguages}
+								title="Help available"
 								aria-label="Help: System Languages"
 								class="ml-1 text-slate-400 hover:text-primary-500"
 							>
@@ -382,7 +371,7 @@
 							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border border-slate-300/50 bg-surface-50 p-2 pr-16 dark:border-slate-600 dark:bg-surface-700/40"
 						>
 							{#each systemSettings.systemLanguages as lang (lang)}
-								<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
+								<span class="group preset-ghost-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-ghost-primary-500">
 									{displayLang(lang)}
 									{#if systemSettings.systemLanguages.length > 1}
 										<button
@@ -391,7 +380,7 @@
 											onclick={() => removeSystemLang(lang)}
 											aria-label={`Remove ${displayLang(lang)}`}
 										>
-											&times;
+											×
 										</button>
 									{/if}
 								</span>
@@ -399,7 +388,7 @@
 							{#if systemAvailable.length}
 								<button
 									type="button"
-									class="variant-filled-surface badge absolute right-2 top-1/2 -translate-y-1/2 rounded-full"
+									class="preset-filled-surface-500 badge absolute right-2 top-1/2 -translate-y-1/2 rounded-full"
 									onclick={openSystemPicker}
 									aria-haspopup="dialog"
 									aria-expanded={showSystemPicker}
@@ -455,7 +444,7 @@
 						<button
 							tabindex="-1"
 							type="button"
-							use:popup={popupDefaultContent}
+							title="Help available"
 							aria-label="Help: Default Content Language"
 							class="ml-1 text-slate-400 hover:text-primary-500"
 						>
@@ -490,7 +479,7 @@
 							<button
 								tabindex="-1"
 								type="button"
-								use:popup={popupContentLanguages}
+								title="Help available"
 								aria-label="Help: Content Languages"
 								class="ml-1 text-slate-400 hover:text-primary-500"
 							>
@@ -510,7 +499,7 @@
 								: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 						>
 							{#each systemSettings.contentLanguages as lang (lang)}
-								<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
+								<span class="group preset-ghost-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-ghost-primary-500">
 									{displayLang(lang)}
 									{#if lang !== systemSettings.defaultContentLanguage || systemSettings.contentLanguages.length > 1}
 										<button
@@ -519,14 +508,14 @@
 											onclick={() => removeContentLang(lang)}
 											aria-label={`Remove ${displayLang(lang)}`}
 										>
-											&times;
+											×
 										</button>
 									{/if}
 								</span>
 							{/each}
 							<button
 								type="button"
-								class="variant-filled-surface badge absolute right-2 top-1/2 -translate-y-1/2 rounded-full"
+								class="preset-filled-surface-500 badge absolute right-2 top-1/2 -translate-y-1/2 rounded-full"
 								onclick={openContentPicker}
 								aria-haspopup="dialog"
 								aria-expanded={showContentPicker}

@@ -22,11 +22,10 @@
 	import { logger } from '@utils/logger';
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
-	import { getModalStore, type ModalStore } from '@skeletonlabs/skeleton'; // Import ModalStore type
 	import type { FieldType } from './';
 	import type { MediaFile } from './types';
-
-	const modalStore: ModalStore = getModalStore(); // Moved to initialization phase
+	import { modalState } from '@utils/modalState.svelte';
+	import MediaLibraryModal from '@components/MediaLibraryModal.svelte';
 
 	// SECURITY: File validation constants
 	const ALLOWED_MIME_TYPES = [
@@ -115,36 +114,30 @@
 
 	// Function to open the Media Library modal.
 	function openMediaLibrary() {
-		modalStore.trigger({
-			type: 'component',
-			component: 'mediaLibraryModal',
-			meta: { multiSelect: field.multiupload || false },
-			// Pass a callback function to the modal so it can return the selected files.
-			response: (files: MediaFile[] | undefined) => {
-				if (files) {
-					// SECURITY: Validate files before adding them
-					const validFiles = files.filter((file) => {
-						// Mock File object for validation since we only have MediaFile metadata here
-						// In a real upload scenario, we would validate the actual File object
-						const mockFile = {
-							name: file.name,
-							type: file.type,
-							size: file.size
-						} as File;
+		modalState.trigger(MediaLibraryModal as any, { multiSelect: field.multiupload || false }, (files: any) => {
+			if (files) {
+				// SECURITY: Validate files before adding them
+				const validFiles = files.filter((file: MediaFile) => {
+					// Mock File object for validation since we only have MediaFile metadata here
+					// In a real upload scenario, we would validate the actual File object
+					const mockFile = {
+						name: file.name,
+						type: file.type,
+						size: file.size
+					} as File;
 
-						const validation = validateFile(mockFile);
-						if (!validation.valid) {
-							logger.warn(`[MediaUpload Security] Rejected file ${file.name}: ${validation.error}`);
-							return false;
-						}
-						return true;
-					});
-
-					if (field.multiupload) {
-						selectedFiles = [...selectedFiles, ...validFiles];
-					} else if (validFiles.length > 0) {
-						selectedFiles = [validFiles[0]];
+					const validation = validateFile(mockFile);
+					if (!validation.valid) {
+						logger.warn(`[MediaUpload Security] Rejected file ${file.name}: ${validation.error}`);
+						return false;
 					}
+					return true;
+				});
+
+				if (field.multiupload) {
+					selectedFiles = [...selectedFiles, ...validFiles];
+				} else if (validFiles.length > 0) {
+					selectedFiles = [validFiles[0]];
 				}
 			}
 		});
@@ -159,7 +152,7 @@
 <div class="min-h-[120px] rounded-lg border-2 border-dashed border-surface-300 p-4 dark:border-surface-600" class:!border-error-500={error}>
 	{#if selectedFiles.length > 0}
 		<div
-			class="mb-4 grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(100px,1fr))]"
+			class="mb-4 grid gap-4 [grid-cols-[repeat(auto-fill,minmax(100px,1fr))]"
 			use:dndzone={{ items: selectedFiles }}
 			onconsider={(e) => (selectedFiles = e.detail.items)}
 		>
@@ -172,7 +165,7 @@
 						class="absolute right-1 top-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
 						aria-label="Remove"
 					>
-						&times;
+						×
 					</button>
 				</div>
 			{/each}
@@ -190,6 +183,6 @@
 	{/if}
 
 	{#if error}
-		<p class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">{error}</p>
+		<p class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert">{error}</p>
 	{/if}
 </div>
