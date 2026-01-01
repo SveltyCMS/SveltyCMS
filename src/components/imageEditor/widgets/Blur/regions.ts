@@ -79,7 +79,7 @@ export class BlurRegion {
 				height: h,
 				stroke: 'white',
 				strokeWidth: 1.5,
-				fill: 'rgba(59, 130, 246, 0.2)', // Pintura-style blue selection
+				fill: 'rgba(59, 130, 246, 0.2)', // style blue selection
 				draggable: true,
 				name: 'blurShape'
 			});
@@ -132,28 +132,54 @@ export class BlurRegion {
 		});
 	}
 
-	// Update toolbar position to stay above the region
+	// Update toolbar position (local space within imageGroup)
 	private updateToolbarPosition() {
 		if (!this.toolbar) return;
-		// Get absolute center Top of the shape, then move up
-		const bounds = this.shapeNode.getClientRect({ skipTransform: false });
+		const n = this.shapeNode;
+		let x = 0,
+			y = 0,
+			w = 0;
+		if (n instanceof Konva.Rect) {
+			x = n.x();
+			y = n.y();
+			w = n.width();
+		} else {
+			const ell = n as Konva.Ellipse;
+			x = ell.x() - ell.radiusX();
+			y = ell.y() - ell.radiusY();
+			w = ell.radiusX() * 2;
+		}
+
+		// Adjust for shapeNode's own rotation if any (simplified: center top)
 		this.toolbar.position({
-			x: bounds.x + bounds.width / 2,
-			y: bounds.y - 45
+			x: x + w / 2,
+			y: y - 50
 		});
+
+		// Map rotation of toolbar to the shape's rotation so it stays "up" relative to shape
+		this.toolbar.rotation(n.rotation());
+
+		this.layer.batchDraw();
 	}
 
-	// Update overlay clip and cache during interactive movement
+	// Update overlay clip and cache (local group logic)
 	private updateOverlayClip() {
-		// Use relativeTo overlay to get pixel-perfect coordinates even if imageNode is scaled/rotated
-		const bounds = this.shapeNode.getClientRect({ relativeTo: this.overlay });
+		// Both shape and overlay are in imageGroup, at same root level
+		// They share the same coordinate system.
+		const bounds = this.shapeNode.getSelfRect();
 
 		// Buffer for the blur radius
 		const padding = this.currentStrength * 2;
 
+		// Since overlay and shape are siblings in imageGroup,
+		// and overlay is matched to imageNode position...
+		// We need the shape relative to overlay.
+		const x = this.shapeNode.x() - this.overlay.x();
+		const y = this.shapeNode.y() - this.overlay.y();
+
 		const cacheRect = {
-			x: bounds.x - padding,
-			y: bounds.y - padding,
+			x: x - padding,
+			y: y - padding,
 			width: bounds.width + padding * 2,
 			height: bounds.height + padding * 2
 		};
@@ -173,18 +199,19 @@ export class BlurRegion {
 		this.layer.batchDraw();
 	}
 
-	// create a clipFunc that maps the shape absolute transform to overlay space
+	// create a clipFunc (local sibling logic)
 	private makeClipFunc(): (ctx: CanvasRenderingContext2D) => void {
 		const shape = this.shapeNode;
 		const overlay = this.overlay;
 		return (ctx: CanvasRenderingContext2D) => {
-			// Get relative transform from shape back to overlay space
-			const tr = shape.getAbsoluteTransform().copy();
-			const overlayTr = overlay.getAbsoluteTransform().copy().invert();
-			tr.multiply(overlayTr);
+			// They are siblings in imageGroup.
+			// Offset shape's local transform by overlay's position.
+			const tr = shape.getTransform().copy();
+			tr.translate(-overlay.x(), -overlay.y());
 
 			const m = tr.m;
 			ctx.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
+
 			if (shape instanceof Konva.Ellipse) {
 				ctx.beginPath();
 				ctx.ellipse(0, 0, shape.radiusX(), shape.radiusY(), 0, 0, Math.PI * 2);
@@ -199,57 +226,26 @@ export class BlurRegion {
 
 	// set filter pattern and perform necessary re-cache (slow)
 	setPattern(pattern: BlurPattern) {
-		// Always (re)apply filters so first-time regions get filters too
 		this.currentPattern = pattern;
 		this.overlay.filters([]);
 		if (pattern === 'blur') {
 			this.overlay.filters([Konva.Filters.Blur]);
-			this.setStrength(this.currentStrength);
 		} else {
 			this.overlay.filters([Konva.Filters.Pixelate]);
-			this.setStrength(this.currentStrength);
 		}
-		// clear+cache because filter array changed
-		try {
-			this.overlay.clearCache();
-		} catch (e) {
-			/* ignore */
-		}
-		this.overlay.cache();
-		this.layer.batchDraw();
+		this.setStrength(this.currentStrength);
+		this.updateOverlayClip(); // Triggers re-cache
 	}
 
-	// apply strength (fast) without caching to keep interactive feel
+	// apply strength (fast)
 	setStrength(strength: number) {
 		this.currentStrength = strength;
 		if (this.currentPattern === 'blur') {
 			this.overlay.blurRadius(strength);
-			this.overlay.pixelSize(1);
 		} else {
 			this.overlay.pixelSize(Math.max(1, Math.round(strength / 2)));
-			this.overlay.blurRadius(0);
 		}
-		// schedule a localized cache
-		const bounds = this.shapeNode.getClientRect({ relativeTo: this.overlay });
-		const padding = this.currentStrength * 2;
-		const cacheRect = {
-			x: bounds.x - padding,
-			y: bounds.y - padding,
-			width: bounds.width + padding * 2,
-			height: bounds.height + padding * 2
-		};
-
-		if (this._cacheTimer) window.clearTimeout(this._cacheTimer);
-		this._cacheTimer = window.setTimeout(() => {
-			try {
-				this.overlay.clearCache();
-				this.overlay.cache(cacheRect);
-			} catch (e) {
-				/* ignore cache errors */
-			}
-			this._cacheTimer = null;
-			this.layer.batchDraw();
-		}, 140);
+		this.updateOverlayClip(); // Fast debounce cache
 	}
 
 	// fast resize during drawing (no cache)
@@ -277,17 +273,21 @@ export class BlurRegion {
 	finalize() {
 		this.transformer = new Konva.Transformer({
 			nodes: [this.shapeNode],
-			// Explicitly force blue circular handles
+			// EXPLICIT HANDLES - Blue Circles
 			anchorFill: '#3b82f6',
 			anchorStroke: '#ffffff',
 			anchorStrokeWidth: 2,
-			anchorSize: 12,
+			anchorSize: 12, // Standard size
 			anchorCornerRadius: 6,
+
+			// EXPLICIT BORDER - Solid White
 			borderStroke: '#ffffff',
 			borderStrokeWidth: 1.5,
+			borderDash: [],
+
 			rotateEnabled: true,
 			rotationSnaps: [0, 45, 90, 135, 180, 225, 270, 315],
-			rotateAnchorOffset: 40,
+			rotateAnchorOffset: 45,
 			enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
 			keepRatio: false,
 			ignoreStroke: true,
@@ -299,7 +299,7 @@ export class BlurRegion {
 			imageEditorStore.takeSnapshot();
 		});
 
-		this.layer.add(this.transformer);
+		this.imageGroup.add(this.transformer); // ADDED TO GROUP
 		this.transformer.moveToTop();
 
 		// Add dragend/transformend to take snapshot
@@ -390,8 +390,9 @@ export class BlurRegion {
 		});
 		this.toolbar.add(deleteGroup);
 
-		this.layer.add(this.toolbar);
-		this.toolbar.zIndex(4);
+		this.imageGroup.add(this.toolbar); // ADDED TO GROUP
+		this.toolbar.zIndex(10);
+		this.updateToolbarPosition();
 	}
 
 	// detect tiny regions
@@ -406,10 +407,11 @@ export class BlurRegion {
 		if (this.transformer) this.transformer.visible(isActive);
 		if (this.toolbar) this.toolbar.visible(isActive);
 		if (isActive) {
-			this.shapeNode.zIndex(2);
-			this.transformer?.zIndex(3);
-			this.toolbar?.zIndex(4);
+			this.transformer?.moveToTop();
+			this.toolbar?.moveToTop();
+			this.updateToolbarPosition();
 		}
+		this.layer.batchDraw();
 	}
 
 	// hide UI but keep overlay for baking

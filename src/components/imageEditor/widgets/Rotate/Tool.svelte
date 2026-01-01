@@ -111,5 +111,6 @@
 	}
 </script>
 
-/** * @file src/components/imageEditor/widgets/Rotate/Tool.svelte * @component * Rotate tool for rotating and flipping images */
+// imageEditor/widgets/Rotate/Tool.svelte /** * @file src/components/imageEditor/widgets/Rotate/Tool.svelte * @component * Rotate tool for rotating
+and flipping images */
 <!-- No UI needed, all controls in toolbar -->

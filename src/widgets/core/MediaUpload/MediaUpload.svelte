@@ -35,7 +35,7 @@ functionality for image editing and basic file information display.
 	import { collectionValue } from '@stores/collectionStore.svelte';
 
 	// Components
-	import type { MediaImage } from '@utils/media/mediaModels';
+	import type { MediaImage, WatermarkOptions } from '@utils/media/mediaModels';
 	import FileInput from '@components/system/inputs/FileInput.svelte';
 	import ImageEditorModal from '@src/components/imageEditor/ImageEditorModal.svelte';
 	import { updateMediaMetadata } from '@utils/media/api';
@@ -49,6 +49,9 @@ functionality for image editing and basic file information display.
 
 	// Define props
 	let { field, value = $bindable<File | MediaImage | undefined>() } = $props(); // 'value' is the bindable prop
+
+	// Extract watermark preset from field configuration
+	const watermarkPreset = $derived((field as any).watermark as WatermarkOptions | undefined);
 
 	// Effect to initialize 'value' if it's undefined and a default is available
 	// This runs after the component has initialized and 'value' would have received its initial binding
@@ -119,9 +122,10 @@ functionality for image editing and basic file information display.
 		formData.append('processType', 'save');
 		formData.append('files', editedFile);
 
-		// TODO: Pass watermark and other options from the field config
-		// const watermark = field.watermark;
-		// if(watermark) formData.append('watermarkOptions', JSON.stringify(watermark));
+		// Pass watermark options from field config if configured
+		if (watermarkPreset) {
+			formData.append('watermarkOptions', JSON.stringify(watermarkPreset));
+		}
 
 		try {
 			// Send to media API
@@ -327,5 +331,5 @@ functionality for image editing and basic file information display.
 	{/if}
 
 	<!-- Editor Modal -->
-	<ImageEditorModal bind:show={showEditor} image={value instanceof File ? null : value} onsave={handleEditorSave} />
+	<ImageEditorModal bind:show={showEditor} image={value instanceof File ? null : value} {watermarkPreset} onsave={handleEditorSave} />
 </div>

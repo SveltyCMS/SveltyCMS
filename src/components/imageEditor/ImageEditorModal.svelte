@@ -4,7 +4,8 @@
 A reusable modal that wraps the main Image Editor.
 -->
 <script lang="ts">
-	import type { MediaImage } from '@src/utils/media/mediaModels';
+	import type { MediaImage, WatermarkOptions } from '@src/utils/media/mediaModels';
+	import { setContext } from 'svelte';
 	import Editor from './Editor.svelte';
 	import EditorToolbar from './EditorToolbar.svelte';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
@@ -13,12 +14,18 @@ A reusable modal that wraps the main Image Editor.
 	let {
 		show = $bindable(),
 		image = null,
+		watermarkPreset = null,
 		onsave = () => {}
 	}: {
 		show: boolean;
 		image: MediaImage | null;
+		/** Optional watermark preset to auto-apply when editing */
+		watermarkPreset?: WatermarkOptions | null;
 		onsave?: (detail: any) => void;
 	} = $props();
+
+	// Provide watermark preset to child widgets via context
+	setContext('watermarkPreset', () => watermarkPreset);
 
 	let editorComponent: Editor | undefined = $state();
 

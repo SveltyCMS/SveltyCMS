@@ -6,12 +6,14 @@ order: 7
 icon: 'mdi:file-tree'
 author: 'admin'
 created: '2025-11-07'
-updated: '2025-12-30'
+updated: '2026-01-01'
 tags:
   - 'media'
   - 'architecture'
   - 'development'
   - 'api'
+  - 'transform'
+  - 'focal-point'
 ---
 
 # Media Gallery Architecture
@@ -211,7 +213,48 @@ Features: Media library modal, multi-select, drag-to-reorder, stores media IDs.
 
 ---
 
+## 🔄 On-the-Fly Transform API
+
+Transform images on request with Sharp.js:
+
+```http
+GET /api/media/transform/path/to/image.jpg?w=800&h=600&focal=60,30&format=webp
+```
+
+**Supported Parameters:**
+
+| Parameter | Description         | Example       |
+| --------- | ------------------- | ------------- |
+| `w`       | Target width        | `w=800`       |
+| `h`       | Target height       | `h=600`       |
+| `fit`     | Resize mode         | `fit=cover`   |
+| `focal`   | Focal point (x,y %) | `focal=60,30` |
+| `format`  | Output format       | `format=webp` |
+| `q`       | Quality (1-100)     | `q=85`        |
+
+---
+
+## 📊 Competitive Analysis
+
+SveltyCMS media handling compared to industry leaders:
+
+| Feature                 | SveltyCMS | Sanity | Contentful | WordPress | PayloadCMS |
+| ----------------------- | --------- | ------ | ---------- | --------- | ---------- |
+| Transform API           | ✅        | ✅     | ✅         | ❌ Plugin | ✅         |
+| Focal point in URL      | ✅        | ✅     | ❌         | ❌        | ❌         |
+| Full canvas editor      | ✅ Konva  | ❌     | ❌ Basic   | ❌ Basic  | ❌         |
+| Blur/Annotate/Watermark | ✅        | ❌     | ❌         | ❌        | ❌         |
+| Bulk download (TAR.GZ)  | ✅        | ❌     | ❌         | ❌        | ❌         |
+| Secure sharing links    | ✅        | ❌     | ❌         | ❌ Plugin | ❌         |
+| Advanced search (EXIF)  | ✅        | ⚠️     | ⚠️         | ❌        | ⚠️         |
+| Self-hosted option      | ✅        | ❌     | ❌         | ✅        | ✅         |
+
+**Unique to SveltyCMS:** Full canvas editor, bulk download, secure sharing, 18+ search criteria
+
+---
+
 ## 📚 Related Documentation
 
 - [Media Gallery Guide](/docs/guides/content/media-gallery-guide) - User guide with UX features
 - [Image Editor Architecture](/docs/architecture/image-editor) - Image editing integration
+- [Media API Reference](/docs/api/Media_API) - Complete 14-endpoint API documentation

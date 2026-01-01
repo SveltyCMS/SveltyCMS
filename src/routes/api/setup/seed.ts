@@ -182,8 +182,14 @@ export async function seedCollectionsForSetup(
 		const totalCollections = collections.length;
 		const modelCreationStart = performance.now();
 
-		// ✅ FIX: Register each collection SEQUENTIALLY with delay to prevent race condition
-		// Mongoose's model() registry is NOT thread-safe during rapid parallel calls
+		// Delay between collection registrations to prevent Mongoose race conditions
+		// Use shorter delay in CI/test mode for faster builds
+		const isTestMode = process.env.TEST_MODE === 'true';
+		const registrationDelay = isTestMode ? 10 : 50; // 10ms in CI, 50ms in production
+
+		logger.debug(`📦 Seeding ${totalCollections} collections (delay: ${registrationDelay}ms, testMode: ${isTestMode})`);
+
+		// Register each collection SEQUENTIALLY to prevent Mongoose registry race conditions
 		for (let i = 0; i < totalCollections; i++) {
 			const schema = collections[i];
 			setupManager.updateProgress(i, totalCollections);
@@ -192,11 +198,14 @@ export async function seedCollectionsForSetup(
 				// Try to create the collection model in database
 				await dbAdapter.collection.createModel(schema);
 
-				// Add small delay to ensure model registration completes before next one
-				await new Promise((resolve) => setTimeout(resolve, 100)); // 100ms delay
+				// Small delay to ensure model registration completes before next one
+				// Reduced from 100ms: 10ms in CI, 50ms in production
+				if (i < totalCollections - 1) {
+					await new Promise((resolve) => setTimeout(resolve, registrationDelay));
+				}
 
 				const createTime = performance.now() - createStart;
-				logger.info(`✅ Created collection model: ${schema.name || 'unknown'} (${createTime.toFixed(2)}ms)`);
+				logger.info(`✅ Created collection model: ${schema.name || 'unknown'} (${createTime.toFixed(0)}ms)`);
 				successCount++;
 
 				// Capture the first collection for redirect

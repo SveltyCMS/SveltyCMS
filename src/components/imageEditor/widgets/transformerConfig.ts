@@ -1,6 +1,6 @@
 /**
  * @file src/components/imageEditor/widgets/transformerConfig.ts
- * @description Shared transformer configuration for consistent Pintura-like styling
+ * @description Shared transformer configuration for consistent styling
  *
  * All image editor widgets (Crop, Blur, Annotate, Watermark) should use these
  * shared styles for uniform appearance of resize handles and borders.
@@ -8,7 +8,7 @@
 import Konva from 'konva';
 
 /**
- * Unified Pintura-style transformer configuration
+ * Unified transformer configuration
  * - Blue circular handles with white border
  * - Solid blue border around selection
  * - Consistent sizing across all widgets
@@ -28,7 +28,7 @@ export const TRANSFORMER_STYLE_DEFAULT: Partial<Konva.TransformerConfig> = {
 };
 
 /**
- * Specialized style for Crop tool (Pintura-like blue handles)
+ * Specialized style for Crop tool
  */
 export const TRANSFORMER_STYLE_CROP: Partial<Konva.TransformerConfig> = {
 	...TRANSFORMER_STYLE_DEFAULT,
@@ -82,7 +82,7 @@ export const TRANSFORMER_DEFAULTS: Partial<Konva.TransformerConfig> = {
 };
 
 /**
- * Creates a styled transformer with unified Pintura-like appearance.
+ * Creates a styled transformer with unified appearance.
  *
  * @param layer - Konva layer to add transformer to
  * @param options - Optional overrides for specific widget needs

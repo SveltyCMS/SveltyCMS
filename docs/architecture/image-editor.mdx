@@ -6,12 +6,14 @@ order: 10
 icon: 'mdi:image-edit'
 author: 'admin'
 created: '2025-11-16'
-updated: '2025-12-30'
+updated: '2026-01-01'
 tags:
   - 'image-editor'
   - 'architecture'
   - 'widgets'
   - 'konva'
+  - 'focal-point'
+  - 'watermark'
 ---
 
 # Image Editor Architecture
@@ -254,6 +256,115 @@ Each tool follows a consistent lifecycle:
 2. Cache filtered images: `imageNode.cache()`
 3. Debounce rapid changes (sliders)
 4. Lazy-load tools (only when activated)
+
+---
+
+## 🎯 Focal Point System
+
+The focal point system ensures important areas of images stay visible during responsive cropping.
+
+### Metadata Storage
+
+Focal points are stored in `MediaMetadata`:
+
+```typescript
+interface MediaMetadata {
+	focalPoint?: { x: number; y: number }; // 0-100 for x and y
+	watermarkApplied?: boolean;
+	// ... other fields
+}
+```
+
+### Quick Focal Modal
+
+The `FocalQuickModal.svelte` component provides lightweight focal point adjustment without the full editor:
+
+```svelte
+<FocalQuickModal media={selectedImage} bind:show={showModal} onSave={handleFocalSave} />
+```
+
+### API Endpoint
+
+Quick focal updates are handled via:
+
+```http
+PATCH /api/media/{id}/focal
+Content-Type: application/json
+
+{ "x": 60, "y": 30 }
+```
+
+### Transform API Integration
+
+The Transform API respects focal points for smart cropping:
+
+```http
+GET /api/media/transform/path/to/image.jpg?w=400&h=400&focal=60,30
+```
+
+The `focal` parameter uses percentages (0-100) for x,y position. Sharp.js applies this as the attention point during cover cropping.
+
+---
+
+## 🎨 Watermark Preset System
+
+Watermark presets allow collection-level watermark configuration that auto-loads in the editor.
+
+### Configuration
+
+Define watermark presets in collection schemas:
+
+```typescript
+widgets.MediaUpload({
+	label: 'Product Image',
+	watermark: {
+		url: '/static/watermarks/logo.png',
+		position: 'southeast', // bottom-right
+		scale: 20 // 20% of image width
+	}
+});
+```
+
+### Context Flow
+
+```mermaid
+graph LR
+    A[Collection Schema] --> B[MediaUpload widget]
+    B --> C[ImageEditorModal]
+    C --> D[Svelte Context]
+    D --> E[Watermark/Tool.svelte]
+    E --> F[Auto-load preset]
+```
+
+### Preset Loading
+
+The Watermark tool automatically loads presets when activated:
+
+```typescript
+// Watermark/Tool.svelte
+const getWatermarkPreset = getContext<() => WatermarkOptions | null>('watermarkPreset');
+
+$effect(() => {
+	if (activeState === 'watermark') {
+		const preset = getWatermarkPreset?.();
+		if (preset?.url && !_presetLoaded) {
+			_presetLoaded = true;
+			loadPresetWatermark(preset);
+		}
+	}
+});
+```
+
+### Baking Watermarks
+
+When saving, watermarks are baked into the image via Sharp.js in `MediaService.saveMedia()`:
+
+```typescript
+// MediaService.server.ts
+async saveMedia(file, userId, access, basePath, watermarkOptions?) {
+  // ... watermarkOptions passed to Sharp for compositing
+}
+```
 
 ---
 

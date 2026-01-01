@@ -12,10 +12,12 @@ Orchestrates the watermark lifecycle:
 
 <script lang="ts">
 	import Konva from 'konva';
+	import { getContext } from 'svelte';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 	import WatermarkControls from '@src/components/imageEditor/toolbars/WatermarkControls.svelte';
 	import { WatermarkItem } from './regions';
 	import { createStyledTransformer, attachStyledTransformer } from '../transformerConfig';
+	import type { WatermarkOptions } from '@src/utils/media/mediaModels';
 
 	// --- Svelte 5 State ---
 	let watermarks: WatermarkItem[] = $state([]);
@@ -26,6 +28,11 @@ Orchestrates the watermark lifecycle:
 
 	// guard to avoid duplicate event bindings
 	let _toolBound = $state(false);
+	// guard to prevent loading preset multiple times
+	let _presetLoaded = $state(false);
+
+	// Get watermark preset from parent context (set by ImageEditorModal)
+	const getWatermarkPreset = getContext<(() => WatermarkOptions | null) | undefined>('watermarkPreset');
 
 	// --- Lifecycle $effect ---
 	// Binds/unbounds the tool and registers the toolbar
@@ -33,6 +40,14 @@ Orchestrates the watermark lifecycle:
 		const activeState = imageEditorStore.state.activeState;
 		if (activeState === 'watermark') {
 			bindTool();
+
+			// Auto-load preset watermark if available and not already loaded
+			const preset = getWatermarkPreset?.();
+			if (preset?.url && watermarks.length === 0 && !_presetLoaded) {
+				_presetLoaded = true;
+				loadPresetWatermark(preset);
+			}
+
 			imageEditorStore.setToolbarControls({
 				component: WatermarkControls,
 				props: {
@@ -45,6 +60,7 @@ Orchestrates the watermark lifecycle:
 			});
 		} else {
 			unbindTool();
+			_presetLoaded = false; // Reset for next activation
 			if (imageEditorStore.state.toolbarControls?.component === WatermarkControls) {
 				imageEditorStore.setToolbarControls(null);
 			}
@@ -79,6 +95,59 @@ Orchestrates the watermark lifecycle:
 		// Deselect if clicking on stage background
 		if (e.target === e.target.getStage()) {
 			deselect();
+		}
+	}
+
+	// --- Preset Watermark Loading ---
+	async function loadPresetWatermark(preset: WatermarkOptions) {
+		const { stage, layer, imageNode, imageGroup } = imageEditorStore.state;
+		if (!stage || !layer || !imageNode || !imageGroup) return;
+
+		try {
+			// Fetch the watermark image from the preset URL
+			const response = await fetch(preset.url);
+			if (!response.ok) {
+				console.warn('Failed to fetch preset watermark:', preset.url);
+				return;
+			}
+
+			const blob = await response.blob();
+			const filename = preset.url.split('/').pop() || 'preset-watermark.png';
+			const file = new File([blob], filename, { type: blob.type || 'image/png' });
+
+			const item = new WatermarkItem({
+				id: crypto.randomUUID(),
+				layer,
+				imageGroup
+			});
+
+			item.onSelect(() => select(item));
+			item.onDestroy(() => {
+				watermarks = watermarks.filter((w) => w.id !== item.id);
+				if (selected?.id === item.id) deselect();
+			});
+
+			watermarks = [...watermarks, item];
+			select(item);
+
+			// Load with preset opacity (convert percentage scale to 0-1 if needed)
+			const presetOpacity = typeof preset.scale === 'number' && preset.scale > 1 ? preset.scale / 100 : (preset.scale ?? 0.8);
+
+			await item.loadImage(file, {
+				opacity: presetOpacity,
+				stageWidth: stage.width(),
+				stageHeight: stage.height()
+			});
+
+			// Apply preset position if specified
+			if (preset.position) {
+				item.snapTo(preset.position);
+			}
+
+			attachStyledTransformer(transformer!, item.node);
+			layer.batchDraw();
+		} catch (err) {
+			console.error('Failed to load preset watermark', err);
 		}
 	}
 

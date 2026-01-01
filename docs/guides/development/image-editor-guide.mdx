@@ -6,13 +6,15 @@ order: 15
 icon: 'mdi:image-edit'
 author: 'admin'
 created: '2025-12-03'
-updated: '2025-12-03'
+updated: '2026-01-01'
 tags:
   - 'guide'
   - 'development'
   - 'image-editor'
   - 'widgets'
   - 'konva'
+  - 'focal-point'
+  - 'watermark'
   - 'non-destructive'
 ---
 
@@ -108,12 +110,52 @@ All editing tools operate in a non-destructive manner. When you apply a blur or 
 
 ### Focal Point Selection
 
-To enable intelligent, art-directed cropping for responsive images, you can now set a focal point.
+The focal point system enables intelligent, art-directed cropping for responsive images. There are two ways to set a focal point:
 
-- **In the `MediaUpload` Widget:** When you upload an image, a **`+`** crosshair icon appears over the preview.
-- **Set the Point:** Drag this icon to the most important part of the image (e.g., a person's face, a product detail).
-- **Save:** The focal point coordinates (as percentages) are saved to the image's metadata.
-- **Usage:** Your frontend code can use these coordinates in conjunction with CSS (`object-position`) or an image transformation service to ensure the most important part of the image is always visible, no matter the aspect ratio.
+#### Quick Focal Point Modal (Media Gallery)
+
+1. In the **Media Gallery**, hover over any image.
+2. Click the **crosshair icon** (🎯) to open the Quick Focal Modal.
+3. Drag the crosshair to the most important part of the image.
+4. Click **Save** to persist the focal point to the image metadata.
+
+#### Inline Focal Point (MediaUpload Widget)
+
+1. When an image is loaded in the `MediaUpload` widget, a crosshair overlay appears.
+2. Drag the crosshair to set the focal point.
+3. The coordinates are saved when the form is submitted.
+
+#### Using Focal Points
+
+Focal points are stored as percentages (0-100) in `metadata.focalPoint`:
+
+```typescript
+{ focalPoint: { x: 60, y: 30 } } // 60% from left, 30% from top
+```
+
+Use the **Transform API** with the `focal` parameter:
+
+```
+/api/media/transform/image.jpg?w=400&h=400&focal=60,30
+```
+
+### Watermark Presets
+
+Collections can define watermark presets that auto-load in the Image Editor:
+
+```typescript
+// In collection schema
+widgets.MediaUpload({
+	label: 'Product Image',
+	watermark: {
+		url: '/static/watermarks/logo.png',
+		position: 'southeast', // bottom-right
+		scale: 20 // 20% of image width
+	}
+});
+```
+
+When the user opens the Watermark tool, the preset watermark is automatically loaded and positioned. Upon saving, the watermark is baked into the image via Sharp.js.
 
 ## 🔄 Integration Workflow
 

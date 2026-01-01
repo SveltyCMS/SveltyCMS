@@ -9,8 +9,11 @@
  * - prefers-reduced-motion accessibility support
  */
 
-// Re-export utilities from the pure utility file for backwards compatibility
-export { ScreenSize, BREAKPOINTS, getScreenSize } from '@utils/screenSize';
+// Import for internal use
+import { ScreenSize, BREAKPOINTS, getScreenSize } from '@utils/screenSize';
+
+// Re-export utilities for backwards compatibility
+export { ScreenSize, BREAKPOINTS, getScreenSize };
 
 /**
  * ScreenSizeStore - Reactive screen size management

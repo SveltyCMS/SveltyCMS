@@ -1,7 +1,7 @@
 /**
  * @file src/utils/screenSize.ts
  * @description Screen size utilities - breakpoints and size detection
- * 
+ *
  * This file contains pure functions and enums for screen size detection,
  * separated from the reactive Svelte store for better testability.
  */

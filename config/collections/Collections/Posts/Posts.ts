@@ -64,7 +64,13 @@ export const schema: Schema = {
 		widgets.MediaUpload({
 			label: 'Media',
 			required: false, // Temporarily optional for testing
-			icon: 'material-symbols:video-library'
+			icon: 'material-symbols:video-library',
+			// Watermark preset - auto-applied when editing images
+			watermark: {
+				url: '/static/watermarks/logo.png', // Place your watermark image here
+				position: 'southeast', // bottom-right corner
+				scale: 20 // 20% of image width
+			}
 		})
 
 		// widgets.MediaUpload({

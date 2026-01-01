@@ -154,6 +154,22 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 	try {
 		const driverCheck = await checkMongoDBDriver();
 		if (!driverCheck.available) {
+			// In CI/test mode, don't attempt to install drivers - they should be pre-installed
+			const isTestMode = process.env.TEST_MODE === 'true';
+			if (isTestMode) {
+				logger.error('MongoDB driver not available in CI mode. Drivers must be pre-installed.');
+				return json(
+					{
+						success: false,
+						error: 'MongoDB driver not installed',
+						userFriendly: 'MongoDB driver (mongoose) is not installed. In CI, install via package.json.',
+						classification: 'driver_not_installed',
+						details: 'Add mongoose to dependencies with: bun add mongoose'
+					},
+					{ status: 500 }
+				);
+			}
+
 			logger.warn('MongoDB driver not available. Attempting automatic installation...');
 			try {
 				const installResult = await installDriver('mongoose');

@@ -39,6 +39,8 @@ Key features:
 		ondeleteImage?: (file: MediaBase | MediaImage) => void;
 		onBulkDelete?: (files: (MediaBase | MediaImage)[]) => void;
 		onEditImage?: (file: MediaImage) => void;
+		/** Callback to open quick focal point modal for an image */
+		onQuickFocal?: (file: MediaImage) => void;
 		onsizechange?: (detail: { size: string; type: string }) => void;
 	}
 
@@ -48,6 +50,7 @@ Key features:
 		ondeleteImage = () => {},
 		onBulkDelete = () => {},
 		onEditImage = () => {},
+		onQuickFocal = () => {},
 		onsizechange = () => {}
 	}: Props = $props();
 
@@ -546,6 +549,9 @@ Key features:
 						</button>
 						<button onclick={() => onEditImage(file as MediaImage)} aria-label="Edit" class="btn-icon" title="Edit Image">
 							<iconify-icon icon="mdi:pen" width="24" class="text-primary-500"></iconify-icon>
+						</button>
+						<button onclick={() => onQuickFocal(file as MediaImage)} aria-label="Set Focal Point" class="btn-icon" title="Set Focal Point">
+							<iconify-icon icon="mdi:crosshairs-gps" width="22" class="text-secondary-500"></iconify-icon>
 						</button>
 					{/if}
 					<button onclick={() => handleDelete(file)} aria-label="Delete" class="btn-icon" title="Delete Image">

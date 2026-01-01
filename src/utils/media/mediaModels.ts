@@ -31,6 +31,10 @@ export interface MediaMetadata {
 	aiTags?: string[];
 	copyright?: string;
 	author?: string;
+	/** Focal point for smart cropping (0-100 for x and y) */
+	focalPoint?: { x: number; y: number };
+	/** Whether a watermark has been applied to this media */
+	watermarkApplied?: boolean;
 	location?: {
 		latitude?: number;
 		longitude?: number;

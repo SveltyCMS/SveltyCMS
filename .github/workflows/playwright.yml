@@ -27,7 +27,7 @@ on:
   push:
     branches: [main, next]
   pull_request:
-    branches: [main]
+    branches: [main, next]
   workflow_dispatch: {}
   workflow_call: {}
 
@@ -210,6 +210,12 @@ jobs:
       - name: Install Playwright Browsers
         run: bunx playwright install --with-deps
 
+      # Install tools needed for CI scripts
+      - name: Install CI Tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq jq
+
       # Create temporary config/private.ts for build (will be removed before E2E tests)
       - name: Create Temporary Config for Build
         run: |
@@ -251,9 +257,26 @@ jobs:
           EOF
           echo "✅ Created config/private.test.ts"
 
-      # Build production version for faster, optimized testing
-      - name: Build Production
-        run: bun run build
+      # Kill any process using port 4173 to prevent conflicts
+      - name: Clean up port 4173
+        run: |
+          echo "🧹 Cleaning up port 4173..."
+          lsof -ti:4173 | xargs kill -9 2>/dev/null || echo "Port 4173 is free"
+
+      # Wait for MongoDB to be ready
+      - name: Wait for MongoDB
+        run: |
+          echo "⏳ Waiting for MongoDB to be ready..."
+          for i in {1..30}; do
+            if nc -z localhost 27017 2>/dev/null; then
+              echo "✅ MongoDB port is open!"
+              # Give it a moment for full initialization
+              sleep 2
+              break
+            fi
+            echo "Waiting for MongoDB... ($i/30)"
+            sleep 1
+          done
 
       # --- START PREVIEW SERVER (PORT 4173) ---
       - name: Start Preview Server
@@ -285,6 +308,22 @@ jobs:
           # Setup Wizard specific envs (if your app uses them to seed)
           ADMIN_EMAIL: admin@example.com
           ADMIN_PASS: Admin123!
+
+      # Wait for background seeding to complete
+      - name: ⏳ Wait for Seeding Completion
+        run: |
+          echo "=== Waiting for database seeding to complete ==="
+          for i in {1..30}; do
+            STATUS=$(curl -s http://localhost:4173/api/setup/status || echo '{"isSeeding":true}')
+            IS_SEEDING=$(echo $STATUS | jq -r '.isSeeding // true')
+            PROGRESS=$(echo $STATUS | jq -r '.progress // 0')
+            if [ "$IS_SEEDING" = "false" ]; then
+              echo "✅ Seeding complete! Progress: $PROGRESS%"
+              break
+            fi
+            echo "⏳ Seeding in progress... ($PROGRESS%) - attempt $i/30"
+            sleep 2
+          done
 
       # STEP B: Seed Additional Test Users (Developer, Editor)
       - name: 🌱 Seed Additional Test Users

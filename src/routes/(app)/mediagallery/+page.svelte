@@ -40,6 +40,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	import VirtualMediaGrid from './VirtualMediaGrid.svelte';
 	import AdvancedSearchModal from './AdvancedSearchModal.svelte';
 	import ImageEditorModal from '@src/components/imageEditor/ImageEditorModal.svelte';
+	import FocalQuickModal from '@src/components/media/FocalQuickModal.svelte';
 	// Skeleton
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	import { showToast } from '@utils/toast';
@@ -73,6 +74,10 @@ Displays a collection of media files (images, documents, audio, video) with:
 	let advancedSearchCriteria: SearchCriteria | null = $state(null);
 	let showEditor = $state(false);
 	let imageToEdit = $state<MediaImage | null>(null);
+
+	// Quick Focal Modal state
+	let showQuickFocal = $state(false);
+	let quickFocalImage = $state<MediaImage | null>(null);
 
 	// Performance optimization: Use virtual scrolling for large collections
 	const USE_VIRTUAL_THRESHOLD = 100;
@@ -632,6 +637,47 @@ Displays a collection of media files (images, documents, audio, video) with:
 			logger.error('Error saving edited image', err);
 		}
 	}
+
+	// Quick Focal Point handlers
+	function handleQuickFocal(image: MediaImage) {
+		quickFocalImage = image;
+		showQuickFocal = true;
+	}
+
+	async function handleQuickFocalSave(focalPoint: { x: number; y: number }) {
+		if (!quickFocalImage?._id) return;
+
+		try {
+			const response = await fetch(`/api/media/${quickFocalImage._id}/focal`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(focalPoint)
+			});
+
+			if (!response.ok) {
+				throw new Error('Failed to save focal point');
+			}
+
+			// Update the file in local state
+			const index = files.findIndex((f) => f._id === quickFocalImage?._id);
+			if (index !== -1) {
+				const updatedFile = { ...files[index] } as MediaImage;
+				updatedFile.metadata = {
+					...updatedFile.metadata,
+					focalPoint
+				};
+				files[index] = updatedFile;
+				files = [...files]; // Trigger reactivity
+			}
+
+			showToast('Focal point saved!', 'success');
+			showQuickFocal = false;
+			quickFocalImage = null;
+		} catch (err) {
+			logger.error('Error saving focal point', err);
+			showToast('Failed to save focal point', 'error');
+		}
+	}
 </script>
 
 <!-- Page Title and Actions -->
@@ -1093,6 +1139,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 				onBulkDelete={handleBulkDelete}
 				onsizechange={handleSizeChange}
 				onEditImage={handleEditImage}
+				onQuickFocal={handleQuickFocal}
 			/>
 		{/if}
 	{:else}
@@ -1102,6 +1149,19 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 <!-- Editor Modal -->
 <ImageEditorModal bind:show={showEditor} image={imageToEdit} onsave={handleEditorSave} />
+
+<!-- Quick Focal Point Modal -->
+{#if showQuickFocal && quickFocalImage}
+	<FocalQuickModal
+		media={quickFocalImage}
+		bind:show={showQuickFocal}
+		onClose={() => {
+			showQuickFocal = false;
+			quickFocalImage = null;
+		}}
+		onSave={handleQuickFocalSave}
+	/>
+{/if}
 
 <!-- Modals -->
 {#if showAdvancedSearch}
