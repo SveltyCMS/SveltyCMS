@@ -156,7 +156,7 @@ describe('User API Integration', () => {
 
 			const response = await fetch(`${API_BASE_URL}/api/user/saveAvatar`, {
 				method: 'POST',
-				headers: { Cookie: adminCookie },
+				headers: { Cookie: adminCookie, Origin: API_BASE_URL },
 				body: formData
 			});
 

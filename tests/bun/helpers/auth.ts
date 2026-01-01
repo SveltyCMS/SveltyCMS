@@ -12,15 +12,15 @@ import { getApiBaseUrl } from './server';
 
 const BASE_URL = getApiBaseUrl();
 
-// Internal helper using FormData (Browser-like behavior)
+// Internal helper using JSON (avoids CSRF protection issues with FormData)
 async function login(email: string, password: string): Promise<string> {
-	const formData = new FormData();
-	formData.append('email', email);
-	formData.append('password', password);
-
 	const response = await fetch(`${BASE_URL}/api/user/login`, {
 		method: 'POST',
-		body: formData
+		headers: {
+			'Content-Type': 'application/json',
+			'Origin': BASE_URL
+		},
+		body: JSON.stringify({ email, password })
 	});
 
 	if (!response.ok) {
@@ -51,14 +51,10 @@ export async function createTestUsers(): Promise<void> {
 	let adminCookie: string | undefined;
 
 	for (const [i, user] of users.entries()) {
-		const formData = new FormData();
-		formData.append('email', user.email);
-		formData.append('password', user.password);
-		formData.append('confirmPassword', user.confirmPassword);
-		formData.append('role', user.role);
-		if (user.username) formData.append('username', user.username);
-
-		const headers: Record<string, string> = {};
+		const headers: Record<string, string> = {
+			'Content-Type': 'application/json',
+			'Origin': BASE_URL
+		};
 		// The first user (Admin) is created publicly. Subsequent users need Admin auth.
 		if (i > 0 && adminCookie) {
 			headers['Cookie'] = adminCookie;
@@ -67,7 +63,13 @@ export async function createTestUsers(): Promise<void> {
 		const res = await fetch(`${BASE_URL}/api/user/createUser`, {
 			method: 'POST',
 			headers,
-			body: formData
+			body: JSON.stringify({
+				email: user.email,
+				password: user.password,
+				confirmPassword: user.confirmPassword,
+				role: user.role,
+				username: user.username
+			})
 		});
 
 		if (!res.ok) {
