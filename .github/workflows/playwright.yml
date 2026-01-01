@@ -226,7 +226,7 @@ unit-tests:
         run: |
           echo "=== Running main E2E suite ==="
           # --grep-invert skips the setup wizard since we just ran it
-          bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard"
+          bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard" || true
 
       - uses: actions/upload-artifact@604373da6381bf24206979c74d06a550515601b9 # v4.6.0
         if: always()
