@@ -1,12 +1,24 @@
-unit-tests:
+name: Unit Tests
+
+on:
+  push:
+    branches: [ main, next ]
+  pull_request:
+    branches: [ main, next ]
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
     name: ⚡ Unit Tests
-    timeout-minutes: 10
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.1
+        uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
 
@@ -15,3 +27,4 @@ unit-tests:
 
       - name: Run Unit Tests
         run: bun run test:unit
+
