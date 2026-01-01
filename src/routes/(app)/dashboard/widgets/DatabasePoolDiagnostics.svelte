@@ -164,7 +164,7 @@
 						{#each diagnostics.recommendations as recommendation}
 							<li class="flex items-start gap-2 text-sm text-surface-600 dark:text-surface-400">
 								<svg
-									class="mt-0.5 h-4 w-4 flex-shrink-0 {getRecommendationIconColor(recommendation)}"
+									class="mt-0.5 h-4 w-4 shrink-0 {getRecommendationIconColor(recommendation)}"
 									fill="none"
 									stroke="currentColor"
 									viewBox="0 0 24 24"

@@ -46,7 +46,7 @@ Controls for the Watermark tool. Allows adding, deleting, and positioning waterm
 			{/each}
 		</div>
 
-		<div class="flex-grow"></div>
+		<div class="grow"></div>
 
 		<button onclick={onDeleteWatermark} class="btn variant-ghost-error">
 			<iconify-icon icon="mdi:delete-outline"></iconify-icon>

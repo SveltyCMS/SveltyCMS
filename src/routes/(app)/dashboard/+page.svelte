@@ -133,10 +133,10 @@
 	}
 
 	const widgetComponentRegistry = $derived(widgetRegistry);
-	const currentPreferences = $derived($systemPreferences?.preferences || []);
+	const currentPreferences = $derived(systemPreferences.preferences || []);
 	const availableWidgets = $derived(
 		registryLoaded && currentPreferences
-			? Object.keys(widgetComponentRegistry).filter((name) => !currentPreferences.some((item) => item.component === name))
+			? Object.keys(widgetComponentRegistry).filter((name) => !currentPreferences.some((item: DashboardWidgetConfig) => item.component === name))
 			: []
 	);
 	const filteredWidgets = $derived(availableWidgets.filter((name) => name.toLowerCase().includes(searchQuery.toLowerCase())));
@@ -270,7 +270,7 @@
 	}
 
 	function resizeWidget(widgetId: string, newSize: WidgetSize) {
-		const item = currentPreferences.find((i) => i.id === widgetId);
+		const item = currentPreferences.find((i: DashboardWidgetConfig) => i.id === widgetId);
 		if (item) {
 			const updatedSize = {
 				w: Math.max(1, Math.min(MAX_COLUMNS, newSize.w)),
@@ -341,7 +341,7 @@
 
 		// Show visual feedback for insertion position
 		if (dragState.item) {
-			const currentIndex = currentPreferences.findIndex((p) => p.id === dragState.item?.id);
+			const currentIndex = currentPreferences.findIndex((p: DashboardWidgetConfig) => p.id === dragState.item?.id);
 			if (currentIndex !== -1 && insertionIndex !== currentIndex && insertionIndex !== currentIndex + 1) {
 				dropIndicator = {
 					show: true,
@@ -467,7 +467,7 @@
 						></div>
 					{/if}
 
-					{#each currentPreferences.sort((a, b) => (a.order || 0) - (b.order || 0)) as item (item.id)}
+					{#each currentPreferences.sort((a: DashboardWidgetConfig, b: DashboardWidgetConfig) => (a.order || 0) - (b.order || 0)) as item (item.id)}
 						{@const WidgetComponent = loadedWidgets.get(item.id)}
 						<div
 							role="button"
@@ -511,7 +511,7 @@
 								/>
 							{/if}
 							{#if dropIndicator}
-								{@const currentIndex = currentPreferences.findIndex((p) => p.id === item.id)}
+								{@const currentIndex = currentPreferences.findIndex((p: DashboardWidgetConfig) => p.id === item.id)}
 								{@const isDropTarget = dropIndicator.targetIndex === currentIndex}
 								{#if isDropTarget}
 									<div class="pointer-events-none absolute inset-x-0 top-0 z-20 h-1 bg-primary-500" style:transform="translateY(-50%)"></div>

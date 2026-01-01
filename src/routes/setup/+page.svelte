@@ -1,10 +1,6 @@
 <!--
 @file src/routes/setup/+page.svelte
 @description Professional multi-step setup wizard for SveltyCMS.
-@refactor This component is now a "coordinator" that uses the "Service Store" pattern.
-All API logic and state (isLoading, errorMessage, etc.)
-are now handled by `setupStore.svelte.ts`. This component just
-calls store methods and wires store state to child components.
 -->
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
@@ -12,7 +8,7 @@ calls store methods and wires store state to child components.
 
 	// Stores
 	import { setupStore } from '@stores/setupStore.svelte';
-	import { app } from '@stores/store.svelte';
+	import { app, toaster } from '@stores/store.svelte';
 
 	// Child Layout Components
 	import SetupHeader from './SetupHeader.svelte';
@@ -28,9 +24,10 @@ calls store methods and wires store state to child components.
 	import EmailConfig from './EmailConfig.svelte';
 	import ReviewConfig from './ReviewConfig.svelte';
 
-	// Skeleton
-	import { getModalStore, type ModalSettings, Modal } from '@skeletonlabs/skeleton';
-	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
+	// Skeleton v4
+	import { Toast } from '@skeletonlabs/skeleton-svelte';
+	import DialogManager from '@components/system/DialogManager.svelte';
+	import { modalState } from '@utils/modalState.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -38,11 +35,10 @@ calls store methods and wires store state to child components.
 
 	// Utils
 	import { getLanguageName } from '@utils/languageUtils';
-	import { setGlobalToastStore } from '@utils/toast';
 	import { locales as availableLocales } from '@src/paraglide/runtime';
 
 	// --- 1. STATE MANAGEMENT (Wired to Store) ---
-	const wizard = setupStore.wizard; // Get direct rune access
+	const wizard = setupStore.wizard;
 	const { load: loadStore, clear: clearStore, setupPersistence: setupPersistenceFn, validateStep, seedDatabase, completeSetup } = setupStore;
 
 	// --- 1. COMPONENT IMPORTS ---
@@ -55,11 +51,7 @@ calls store methods and wires store state to child components.
 	let currentLanguageTag = $state(getLocale());
 
 	// --- 4. LIFECYCLE HOOKS ---
-	const modalComponentRegistry: Record<string, any> = { welcomeModal: { ref: WelcomeModal } };
-	const modalStore = getModalStore();
-
 	onMount(() => {
-		setGlobalToastStore(getToastStore());
 		loadStore();
 		initialDataSnapshot = JSON.stringify(wizard);
 		document.addEventListener('click', outsideLang);
@@ -93,8 +85,7 @@ calls store methods and wires store state to child components.
 	});
 
 	function showWelcomeModal() {
-		const modal: ModalSettings = { type: 'component', component: 'welcomeModal' };
-		modalStore.trigger(modal);
+		modalState.trigger(WelcomeModal);
 	}
 
 	// --- 5. DERIVED STATE (Page-Specific) ---
@@ -129,16 +120,14 @@ calls store methods and wires store state to child components.
 
 	// --- 6. CORE LOGIC & API CALLS (Now delegated to store) ---
 	// svelte-ignore non_reactive_update
-	let dbConfigComponent: any = null; // Still needed to call installDatabaseDriver
+	let dbConfigComponent: any = null;
 
 	async function nextStep() {
 		if (!setupStore.canProceed) return;
 		if (wizard.currentStep === 0) {
-			// Call install driver on the component instance (if it exists)
 			if (dbConfigComponent && typeof (dbConfigComponent as any).installDatabaseDriver === 'function') {
 				await (dbConfigComponent as any).installDatabaseDriver(wizard.dbConfig.type);
 			}
-			// Seed the database via the store
 			await seedDatabase();
 		}
 		if (wizard.currentStep === 1 || wizard.currentStep === 2) {
@@ -150,7 +139,6 @@ calls store methods and wires store state to child components.
 				wizard.highestStepReached = wizard.currentStep;
 			}
 		}
-		// Clear local page errors
 		setupStore.clearDbTestError();
 	}
 
@@ -163,12 +151,11 @@ calls store methods and wires store state to child components.
 
 	async function handleCompleteSetup() {
 		const success = await completeSetup((redirectPath: string) => {
-			// This callback handles the redirect after store is cleared
-			initialDataSnapshot = JSON.stringify(wizard); // Prevent unsaved changes warning
+			initialDataSnapshot = JSON.stringify(wizard);
 			goto(redirectPath);
 		});
 		if (success) {
-			initialDataSnapshot = JSON.stringify(wizard); // Also update snapshot immediately
+			initialDataSnapshot = JSON.stringify(wizard);
 		}
 	}
 
@@ -192,28 +179,30 @@ calls store methods and wires store state to child components.
 
 <svelte:head>
 	<title>SveltyCMS Setup</title>
-	<style>
-		:global(.setup-page .toast-container) {
-			position: fixed !important;
-			bottom: 1.5rem !important;
-			right: 1.5rem !important;
-			left: auto !important;
-			top: auto !important;
-			transform: none !important;
-			z-index: 9999 !important;
-		}
-		:global(.setup-page .toast) {
-			transform: none !important;
-			animation: none !important;
-		}
-	</style>
 </svelte:head>
 
 <div class="bg-surface-50-900 min-h-screen w-full transition-colors">
-	<Modal components={modalComponentRegistry} />
-	<Toast />
+	<DialogManager />
+	<Toast.Group {toaster}>
+		{#snippet children(toast)}
+			<Toast
+				{toast}
+				class="min-w-[300px] max-w-[400px] shadow-lg backdrop-blur-md dark:bg-surface-800/90 bg-white/90 border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden"
+			>
+				<Toast.Message class="flex flex-col gap-1 p-4 pr-8 relative">
+					{#if toast.title}
+						<Toast.Title class="font-bold text-base">{toast.title}</Toast.Title>
+					{/if}
+					<Toast.Description class="text-sm opacity-90">{toast.description}</Toast.Description>
+				</Toast.Message>
+				<Toast.CloseTrigger
+					class="absolute right-2 top-2 p-1.5 hover:bg-surface-500/10 rounded-full transition-colors opacity-60 hover:opacity-100"
+				/>
+			</Toast>
+		{/snippet}
+	</Toast.Group>
+
 	<div class="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-		<!-- ✅ NEW: Component for Header -->
 		<SetupHeader
 			siteName={wizard.systemSettings.siteName}
 			{systemLanguages}
@@ -224,9 +213,7 @@ calls store methods and wires store state to child components.
 			ontoggleLang={() => (isLangOpen = !isLangOpen)}
 		/>
 
-		<!-- Main Content with Left Side Steps -->
 		<div class="flex flex-col gap-4 lg:flex-row lg:gap-6">
-			<!-- ✅ NEW: Component for Stepper -->
 			<SetupStepper
 				{steps}
 				currentStep={wizard.currentStep}
@@ -236,9 +223,7 @@ calls store methods and wires store state to child components.
 				onselectStep={(e: number) => (wizard.currentStep = e)}
 			/>
 
-			<!-- Main Card (Right Side) -->
 			<div class="flex flex-1 flex-col rounded-xl border border-surface-200 bg-white shadow-xl dark:border-white dark:bg-surface-800">
-				<!-- ✅ NEW: Component for Card Header -->
 				<SetupCardHeader
 					currentStep={wizard.currentStep}
 					{steps}
@@ -248,7 +233,6 @@ calls store methods and wires store state to child components.
 					}}
 				/>
 
-				<!-- Card Content -->
 				<div class="p-4 sm:p-6 lg:p-8">
 					{#if wizard.currentStep === 0}
 						<DatabaseConfig
@@ -283,7 +267,6 @@ calls store methods and wires store state to child components.
 						<ReviewConfig dbConfig={wizard.dbConfig} adminUser={wizard.adminUser} systemSettings={wizard.systemSettings} />
 					{/if}
 
-					<!-- ✅ Status Messages (Now reads from store) -->
 					{#if (wizard.successMessage || wizard.errorMessage) && wizard.lastDbTestResult}
 						<div
 							class="mt-4 flex flex-col rounded-md border-l-4 p-0 text-sm"
@@ -371,7 +354,6 @@ calls store methods and wires store state to child components.
 						</div>
 					{/if}
 				</div>
-				<!-- ✅ NEW: Component for Navigation (wired to store state) -->
 				<SetupNavigation
 					currentStep={wizard.currentStep}
 					{totalSteps}

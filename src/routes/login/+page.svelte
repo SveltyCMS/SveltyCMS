@@ -314,7 +314,9 @@
 						>
 							{m.db_error_reset_setup()}
 						</button>
-						<button type="button" onclick={() => window.location.reload()} class="preset-filled-secondary-500 btn"> {m.db_error_refresh_page()} </button>
+						<button type="button" onclick={() => window.location.reload()} class="preset-filled-secondary-500 btn">
+							{m.db_error_refresh_page()}
+						</button>
 					</div>
 				{/if}
 			</div>

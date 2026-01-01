@@ -160,7 +160,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 
 {#if isVisible}
 	<div
-		class="fixed inset-0 z-[99999999] flex items-center justify-center bg-gray-950/50 backdrop-blur-sm"
+		class="fixed inset-0 z-99999999 flex items-center justify-center bg-gray-950/50 backdrop-blur-sm"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="loading-title"
@@ -211,7 +211,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 						aria-valuemax={100}
 					>
 						<div
-							class="h-full rounded-full bg-gradient-to-r from-primary-500 to-tertiary-500 transition-all duration-300"
+							class="h-full rounded-full bg-linear-to-r from-primary-500 to-tertiary-500 transition-all duration-300"
 							style="width: {progress}%"
 						></div>
 					</div>
@@ -265,22 +265,22 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 
 	/* Individual loader animations */
 	.loader-1 {
-		@apply h-[150px] w-[150px] border-[7px] border-error-500;
+		@apply border-error-500 h-[150px] w-[150px] border-[7px];
 		animation: rotate 3s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 
 	.loader-2 {
-		@apply h-[170px] w-[170px] border-[6px] border-success-400;
+		@apply border-success-400 h-[170px] w-[170px] border-[6px];
 		animation: rotate-reverse 2s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 
 	.loader-3 {
-		@apply h-[190px] w-[190px] border-[5px] border-tertiary-400;
+		@apply border-tertiary-400 h-[190px] w-[190px] border-[5px];
 		animation: rotate 3s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 
 	.loader-4 {
-		@apply h-[210px] w-[210px] border-[4px] border-surface-400;
+		@apply border-surface-400 h-[210px] w-[210px] border-4;
 		animation: rotate-reverse 3s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 

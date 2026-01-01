@@ -27,7 +27,7 @@
 
 <script lang="ts">
 	// Selected theme:
-	import '../../app.postcss';
+	import '../../app.css';
 
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
@@ -50,7 +50,7 @@
 	import { publicEnv } from '@stores/globalSettings.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { screen } from '@stores/screenSizeStore.svelte';
-	import { app } from '@stores/store.svelte';
+	import { app, toaster } from '@stores/store.svelte';
 	import { ui } from '@stores/UIStore.svelte';
 	import { widgets } from '@stores/widgetStore.svelte';
 	import { initializeDarkMode } from '@stores/themeStore.svelte';
@@ -62,9 +62,10 @@
 	import RightSidebar from '@components/RightSidebar.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
+	import DialogManager from '@components/system/DialogManager.svelte';
 
-	// Skeleton
-	import { setInitialClassState, setModeCurrent, setModeUserPrefers } from '@skeletonlabs/skeleton';
+	// Skeleton v4
+	import { Toast } from '@skeletonlabs/skeleton-svelte';
 
 	// =============================================
 	// TYPE DEFINITIONS
@@ -92,7 +93,6 @@
 
 	// Component State
 	const loadError = $state<Error | null>(null);
-	let mediaQuery: MediaQueryList | undefined;
 
 	// =============================================
 	// DERIVED STATE
@@ -150,31 +150,8 @@
 	// EVENT HANDLERS
 	// =============================================
 
-	/**
-	 * Updates theme based on OS preference changes
-	 * Only applies if user hasn't set an explicit preference
-	 */
-	function handleSystemThemeChange(event: MediaQueryListEvent): void {
-		// Only update if user hasn't set an explicit preference
-		const userHasPreference = document.cookie.includes('theme=');
-
-		if (!userHasPreference) {
-			const prefersDarkMode = event.matches;
-			setModeUserPrefers(prefersDarkMode);
-			setModeCurrent(prefersDarkMode);
-
-			// Immediately apply theme to DOM
-			if (prefersDarkMode) {
-				document.documentElement.classList.add('dark');
-			} else {
-				document.documentElement.classList.remove('dark');
-			}
-		}
-	}
-
 	// Global keyboard shortcuts handler
 	function handleKeyDown(event: KeyboardEvent): void {
-		// Alt+S: Toggle search
 		if (event.altKey && event.key === 's') {
 			event.preventDefault();
 			isSearchVisible.update((visible) => !visible);
@@ -200,44 +177,25 @@
 	// =============================================
 
 	onMount(() => {
-		// Start initialization loading ONLY if content structure is missing
-		// This prevents a race condition where onMount (running after effect) restarts loading
 		if (!Array.isArray(data.contentStructure)) {
 			globalLoadingStore.startLoading(loadingOperations.initialization);
 		}
 
-		// Initialize widgets
 		widgets.initialize();
-
-		// Initialize theme from cookie/system preference
 		initializeDarkMode();
-
-		// Set up system theme preference listener
-		mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-		mediaQuery.addEventListener('change', handleSystemThemeChange);
-
-		// Initialize user avatar
 		initializeUserAvatar(data.user);
-
-		// Register global keyboard shortcuts
 		window.addEventListener('keydown', handleKeyDown);
 	});
 
-	// Navigation loading handlers
 	beforeNavigate(({ from, to }) => {
-		// Only show loading for actual page changes, not hash changes
 		if (from && to && from.route.id !== to.route.id) {
 			globalLoadingStore.startLoading(loadingOperations.navigation);
 		}
 	});
 
 	afterNavigate(() => {
-		// Stop navigation loading
 		globalLoadingStore.stopLoading(loadingOperations.navigation);
-
-		// Clear stale loading operations after navigation
 		setTimeout(() => {
-			// Only clear if no other operations are running
 			if (globalLoadingStore.loadingStack.size === 1 && globalLoadingStore.isLoadingReason(loadingOperations.navigation)) {
 				globalLoadingStore.stopLoading(loadingOperations.navigation);
 			}
@@ -245,23 +203,12 @@
 	});
 
 	onDestroy(() => {
-		// Cleanup: remove event listeners
-		mediaQuery?.removeEventListener('change', handleSystemThemeChange);
 		window.removeEventListener('keydown', handleKeyDown);
 	});
 </script>
 
-<!-- HEAD: SEO & THEME INITIALIZATION -->
-
 <svelte:head>
-	<!-- Dark Mode Initialization (CSP-compliant with nonce) -->
-	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-	{@html '<script nonce="' + (data?.nonce || '') + '">(' + setInitialClassState.toString() + ')();</script>'}
-
-	<!-- Basic SEO -->
 	<meta name="description" content={seoDescription} />
-
-	<!-- Open Graph -->
 	<meta property="og:title" content={siteName} />
 	<meta property="og:description" content={seoDescription} />
 	<meta property="og:type" content="website" />
@@ -269,8 +216,6 @@
 	<meta property="og:image:width" content="1200" />
 	<meta property="og:image:height" content="630" />
 	<meta property="og:site_name" content={page.url.origin} />
-
-	<!-- Twitter Card -->
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content={siteName} />
 	<meta name="twitter:description" content={seoDescription} />
@@ -279,10 +224,7 @@
 	<meta property="twitter:url" content={page.url.href} />
 </svelte:head>
 
-<!-- MAIN LAYOUT -->
-
 {#if loadError}
-	<!-- Error State -->
 	<div class="flex h-screen w-screen items-center justify-center bg-error-50 dark:bg-error-900">
 		<div class="text-center">
 			<h1 class="text-2xl font-bold text-error-600 dark:text-error-300">Application Error</h1>
@@ -290,9 +232,28 @@
 		</div>
 	</div>
 {:else}
-	<!-- Application Container -->
 	<div class="relative h-lvh w-full">
-		<!-- Overlays: Mobile Nav, Toasts, Modals, Search -->
+		<DialogManager />
+
+		<Toast.Group {toaster}>
+			{#snippet children(toast)}
+				<Toast
+					{toast}
+					class="min-w-[300px] max-w-[400px] shadow-lg backdrop-blur-md dark:bg-surface-800/90 bg-white/90 border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden"
+				>
+					<Toast.Message class="flex flex-col gap-1 p-4 pr-8 relative">
+						{#if toast.title}
+							<Toast.Title class="font-bold text-base">{toast.title}</Toast.Title>
+						{/if}
+						<Toast.Description class="text-sm opacity-90">{toast.description}</Toast.Description>
+					</Toast.Message>
+					<Toast.CloseTrigger
+						class="absolute right-2 top-2 p-1.5 hover:bg-surface-500/10 rounded-full transition-colors opacity-60 hover:opacity-100"
+					/>
+				</Toast>
+			{/snippet}
+		</Toast.Group>
+
 		{#if screen.isMobile}
 			<FloatingNav />
 		{/if}
@@ -301,56 +262,44 @@
 			<SearchComponent />
 		{/if}
 
-		<!-- Main Layout Structure -->
 		<div class="flex h-lvh flex-col overflow-hidden">
-			<!-- Header (Optional) -->
 			{#if ui.state.header !== 'hidden'}
-				<header class="sticky top-0 z-10 bg-tertiary-500">
-					<!-- Header content goes here -->
-				</header>
+				<header class="sticky top-0 z-10 bg-tertiary-500"></header>
 			{/if}
 
-			<!-- Body: Sidebars + Main Content -->
 			<div class="flex flex-1 overflow-hidden">
-				<!-- Left Sidebar -->
 				{#if ui.state.leftSidebar !== 'hidden'}
 					<aside
 						class="max-h-dvh {ui.state.leftSidebar === 'full'
 							? 'w-[220px]'
-							: 'w-fit'} relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
+							: 'w-fit'} relative border-r bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900"
 						aria-label="Left sidebar navigation"
 					>
 						<LeftSidebar />
 					</aside>
 				{/if}
 
-				<!-- Main Content Area -->
 				<main class="relative z-0 flex w-full min-w-0 flex-1 flex-col">
-					<!-- Page Header -->
 					{#if ui.state.pageheader !== 'hidden'}
 						<header class="sticky top-0 z-20 w-full">
 							<HeaderEdit />
 						</header>
 					{/if}
 
-					<!-- Router Slot -->
 					<div class="relative flex-1 overflow-visible {ui.state.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {screen.isDesktop ? 'mb-2' : 'mb-16'}">
-						<!-- Page Content Slot -->
 						{@render children?.()}
 					</div>
 
-					<!-- Page Footer / Mobile Nav -->
 					{#if ui.state.pagefooter !== 'hidden'}
-						<footer class="mt-auto w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
+						<footer class="mt-auto w-full bg-surface-50 bg-linear-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
 							<PageFooter />
 						</footer>
 					{/if}
 				</main>
 
-				<!-- Right Sidebar -->
 				{#if ui.state.rightSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh w-[220px] border-l bg-white bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+						class="max-h-dvh w-[220px] border-l bg-white bg-linear-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 						aria-label="Right sidebar"
 					>
 						<RightSidebar />
@@ -358,11 +307,8 @@
 				{/if}
 			</div>
 
-			<!-- Footer (Optional) -->
 			{#if ui.state.footer !== 'hidden'}
-				<footer class="bg-blue-500">
-					<!-- Footer content goes here -->
-				</footer>
+				<footer class="bg-blue-500"></footer>
 			{/if}
 		</div>
 	</div>

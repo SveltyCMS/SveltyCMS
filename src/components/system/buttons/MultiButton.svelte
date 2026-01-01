@@ -85,7 +85,7 @@
 <div class="relative flex items-center md:w-[200px]">
 	<button
 		style="--color:{buttons[defaultButton].color};background-color:{buttons[defaultButton].bg_color}"
-		class="flex grow items-center justify-center rounded-l-lg md:text-lg max-md:!p-[10px]"
+		class="flex grow items-center justify-center rounded-l-lg md:text-lg max-md:p-[10px]!"
 		class:rounded-bl-[10px]={!expanded}
 		aria-label="Create"
 		onclick={buttons[defaultButton].fn}
@@ -97,7 +97,7 @@
 	</button>
 	<button
 		onclick={toggleExpanded}
-		class="relative w-[50px] cursor-pointer rounded-r-lg hover:active:scale-95 md:!p-2"
+		class="relative w-[50px] cursor-pointer rounded-r-lg hover:active:scale-95 md:p-2!"
 		aria-label="Expand/Collapse"
 		class:pointer-events-none={!activeArrow}
 		style="background-color: rgb(37, 36, 36);"

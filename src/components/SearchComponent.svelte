@@ -304,7 +304,7 @@ A highly performant, accessible, and secure global search component with fuzzy m
 
 {#if $isSearchVisible}
 	<div
-		class="search-component fixed inset-0 z-[999999] flex flex-col items-center justify-start bg-surface-300/90 dark:bg-surface-900/90 pt-[15vh] backdrop-blur-sm transition-opacity duration-200"
+		class="search-component fixed inset-0 z-999999 flex flex-col items-center justify-start bg-surface-300/90 dark:bg-surface-900/90 pt-[15vh] backdrop-blur-sm transition-opacity duration-200"
 		role="dialog"
 		aria-modal="true"
 		aria-label="Global Search"
@@ -376,7 +376,7 @@ A highly performant, accessible, and secure global search component with fuzzy m
 								aria-label={`${result.title}: ${result.description}. Path: ${trigger?.path ?? 'Unknown'}`}
 							>
 								<div class="flex items-center justify-between gap-4">
-									<div class="flex-grow overflow-hidden">
+									<div class="grow overflow-hidden">
 										<div class="truncate font-semibold text-tertiary-700 dark:text-primary-500">
 											<HighlightedText text={result.title} term={sanitizedQuery} />
 										</div>
@@ -386,7 +386,7 @@ A highly performant, accessible, and secure global search component with fuzzy m
 									</div>
 									{#if trigger?.path}
 										<span
-											class="ml-auto flex-shrink-0 rounded bg-surface-200 dark:bg-surface-700 px-2 py-1 text-xs font-medium text-tertiary-700 dark:text-primary-500"
+											class="ml-auto shrink-0 rounded bg-surface-200 dark:bg-surface-700 px-2 py-1 text-xs font-medium text-tertiary-700 dark:text-primary-500"
 										>
 											{trigger.path}
 										</span>

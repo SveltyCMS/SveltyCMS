@@ -16,19 +16,14 @@
 	import Toggles from '@components/system/inputs/Toggles.svelte';
 	import ProgressBar from '@components/system/ProgressBar.svelte';
 	// Skeleton components
-	import { getToastStore } from '@skeletonlabs/skeleton';
+	import { getToastStore } from '@utils/toast';
 
 	// Utils
 	import { getCollections } from '@utils/apiClient';
 	import { logger } from '@utils/logger';
 
 	// Types
-	interface Collection {
-		id: string;
-		name: string;
-		label: string;
-		description?: string;
-	}
+	import type { Schema } from '@src/content/types';
 
 	interface ExportOptions {
 		format: 'json' | 'csv';
@@ -55,7 +50,7 @@
 	}
 
 	// --- State using Svelte 5 Runes ---
-	let collections = $state<Collection[]>([]);
+	let collections = $state<Partial<Schema>[]>([]);
 	let loading = $state(false);
 	let showExportModal = $state(false);
 	let showImportModal = $state(false);
@@ -122,7 +117,7 @@
 				}));
 
 				// Select all collections by default
-				exportOptions.collections = collections.map((c) => c.id);
+				exportOptions.collections = collections.map((c) => String(c.id));
 			} else {
 				showAlertMessage('Failed to load collections', 'error');
 			}
@@ -324,7 +319,7 @@
 	}
 
 	function selectAllCollections() {
-		exportOptions.collections = collections.map((c) => c.id);
+		exportOptions.collections = collections.map((c) => String(c.id));
 	}
 
 	function clearCollectionSelection() {
@@ -450,8 +445,8 @@
 								<input
 									id={inputId}
 									type="checkbox"
-									checked={exportOptions.collections.includes(collection.id)}
-									onchange={() => toggleCollectionSelection(collection.id)}
+									checked={exportOptions.collections.includes(String(collection.id))}
+									onchange={() => toggleCollectionSelection(String(collection.id))}
 									class="rounded"
 								/>
 

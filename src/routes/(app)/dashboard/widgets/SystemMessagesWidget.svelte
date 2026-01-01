@@ -76,7 +76,7 @@
 					<div class="rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60" role="listitem">
 						<div class="flex items-start justify-between">
 							<strong class="text-text-900 dark:text-text-100 text-sm" aria-label="Message title">{message.title}</strong>
-							<small class="flex-shrink-0 pl-2 text-surface-500 dark:text-surface-400" aria-label="Timestamp">
+							<small class="shrink-0 pl-2 text-surface-500 dark:text-surface-400" aria-label="Timestamp">
 								{new Date(message.timestamp).toLocaleString()}
 							</small>
 						</div>

@@ -26,6 +26,7 @@ FIXES:
 	import type { Locale } from '@src/paraglide/runtime';
 	import { scale, fade } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	// Portal container for dropdown
 	let portalTarget = $state<HTMLElement | null>(null);
@@ -170,8 +171,8 @@ FIXES:
 
 		for (const lang of availableLanguages) {
 			newProgress[lang] = {
-				total: new Set<string>(),
-				translated: new Set<string>()
+				total: new SvelteSet<string>(),
+				translated: new SvelteSet<string>()
 			};
 		}
 
@@ -213,7 +214,7 @@ FIXES:
 			const originalLangProgress = newProgress[lang];
 			if (!originalLangProgress) continue;
 
-			const newTranslatedSet = new Set(originalLangProgress.translated);
+			const newTranslatedSet = new SvelteSet(originalLangProgress.translated);
 			let langHasUpdates = false;
 
 			for (const field of currentCollection.fields as { translated?: boolean; label: string; widget?: any }[]) {

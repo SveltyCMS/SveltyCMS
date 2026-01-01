@@ -76,7 +76,7 @@ Controls for the Rotate tool
 		</button>
 	</div>
 
-	<div class="flex-grow"></div>
+	<div class="grow"></div>
 
 	<!-- Actions -->
 	<button onclick={onReset} class="btn variant-ghost-surface">

@@ -27,10 +27,8 @@
 
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
-	import { getToastStore } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
 	import type { WidgetSize } from '@src/content/types';
-
-	const toastStore = getToastStore();
 
 	type SystemState = 'IDLE' | 'INITIALIZING' | 'READY' | 'DEGRADED' | 'FAILED';
 	type ServiceHealth = 'healthy' | 'unhealthy' | 'initializing';
@@ -69,10 +67,7 @@
 
 	async function reinitializeSystem() {
 		try {
-			toastStore.trigger({
-				message: 'Reinitializing system...',
-				background: 'variant-filled-warning'
-			});
+			showToast('Reinitializing system...', 'warning');
 
 			const response = await fetch('/api/system', {
 				method: 'POST',
@@ -82,19 +77,13 @@
 
 			if (response.ok) {
 				const result = await response.json();
-				toastStore.trigger({
-					message: result.message || `System reinitialized: ${result.status}`,
-					background: 'variant-filled-success'
-				});
+				showToast(result.message || `System reinitialized: ${result.status}`, 'success');
 			} else {
 				const error = await response.json();
 				throw new Error(error.error || 'Reinitialization failed');
 			}
 		} catch (error) {
-			toastStore.trigger({
-				message: `Failed to reinitialize: ${error instanceof Error ? error.message : 'Unknown error'}`,
-				background: 'variant-filled-error'
-			});
+			showToast(`Failed to reinitialize: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
 		}
 	}
 	function getStateColor(state: SystemState): string {

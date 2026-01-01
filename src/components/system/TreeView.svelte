@@ -442,7 +442,7 @@
 					<!-- Badge overlay -->
 					{#if showBadges && !node.isExpanded && node.badge?.count && node.badge.count > 0}
 						<div
-							class="absolute right-0 top-0 flex h-5 min-w-[1.25rem] items-center justify-center rounded px-1.5 text-xs font-medium text-white shadow-sm
+							class="absolute right-0 top-0 flex h-5 min-w-5 items-center justify-center rounded px-1.5 text-xs font-medium text-white shadow-sm
 							       {node.badge.color || 'bg-tertiary-500 dark:bg-primary-500'}"
 							transition:scale={{ duration: transitionDuration, start: 0.8 }}
 						>
@@ -455,7 +455,7 @@
 
 				<!-- Icon -->
 				{#if node.icon}
-					<div class="relative flex flex-shrink-0 items-center">
+					<div class="relative flex shrink-0 items-center">
 						<iconify-icon icon={node.icon} width={compact ? '20' : '24'} height={compact ? '20' : '24'} class={iconColorClass} aria-hidden="true"
 						></iconify-icon>
 					</div>
@@ -485,7 +485,7 @@
 				<div id={`node-${node.id}-children`} class="relative {compact ? 'ms-1' : 'ms-4'}" role="group" aria-labelledby={`node-${node.id}`}>
 					<!-- Vertical line -->
 					<div
-						class="absolute -left-0.5 top-0 h-full w-0.5 bg-gradient-to-b
+						class="absolute -left-0.5 top-0 h-full w-0.5 bg-linear-to-b
 						       from-surface-100 from-20% to-transparent dark:from-surface-400"
 					></div>
 

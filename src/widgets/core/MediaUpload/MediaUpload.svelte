@@ -325,7 +325,7 @@ functionality for image editing and basic file information display.
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${getFieldName(field)}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${getFieldName(field)}-error`} class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert">
 			{validationError}
 		</p>
 	{/if}

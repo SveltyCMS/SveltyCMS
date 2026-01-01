@@ -273,6 +273,22 @@ export function isWidgetAvailable(name: string): boolean {
 	return !!getWidgetFunction(name) && isWidgetActive(name);
 }
 
+// Compatibility export for theme branch components
+export const widgetStoreActions = {
+	updateStatus: widgets.updateStatus.bind(widgets),
+	updateConfig: widgets.updateConfig.bind(widgets),
+	reload: widgets.reload.bind(widgets),
+	initializeWidgets: widgets.initialize.bind(widgets)
+};
+
+// Compatibility store for legacy components
+export const widgetFunctions = {
+	subscribe(fn: (value: WidgetRegistry) => void) {
+		fn(widgets.widgetFunctions);
+		return () => {}; // Non-reactive for now, sufficient for initial load or use $effect if needed
+	}
+};
+
 // HMR
 if (import.meta.hot) {
 	import.meta.hot.accept(() => {

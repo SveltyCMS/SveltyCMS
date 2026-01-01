@@ -35,7 +35,7 @@ It handles widget configuration, permissions, and specific options.
 		body?: string;
 	}
 
-	const { parent = {}, value, response, title, body }: Props = $props();
+	const { value, response, title, body }: Props = $props();
 
 	// Local variables
 	// const modalData = $derived($modalStore[0]);
@@ -117,7 +117,7 @@ It handles widget configuration, permissions, and specific options.
 			</Tabs.List>
 
 			<Tabs.Content value="0">
-				<Default {guiSchema} />
+				<Default guiSchema={guiSchema as any} />
 			</Tabs.Content>
 			<Tabs.Content value="1">
 				<Permission />

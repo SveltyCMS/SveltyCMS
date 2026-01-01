@@ -44,7 +44,7 @@
 				/>
 			</svg>
 		</div>
-		<p class="text-center font-semibold uppercase !text-black">{m.form_signin()}</p>
+		<p class="text-center font-semibold uppercase text-black!">{m.form_signin()}</p>
 	</div>
 </div>
 

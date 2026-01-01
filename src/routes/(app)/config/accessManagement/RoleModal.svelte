@@ -24,7 +24,7 @@
 	import type { SvelteComponent } from 'svelte';
 
 	// Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@utils/modalState.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';

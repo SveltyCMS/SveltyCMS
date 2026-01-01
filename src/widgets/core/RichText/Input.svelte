@@ -13,7 +13,7 @@
 	import type { RichTextData } from './types';
 	import { app } from '@src/stores/store.svelte';
 
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@utils/modalState.svelte';
 	import type { MediaFile } from '../MediaUpload/types';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
 

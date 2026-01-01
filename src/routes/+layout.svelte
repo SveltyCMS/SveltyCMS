@@ -5,11 +5,13 @@
 
  ### Features
  - Paraglide i18n integration
- - Theme management
+ - Theme Management
+ - Skeleton v4 Toasts & Modals
  -->
 
 <script lang="ts">
-	import '../app.postcss';
+	// Selected theme
+	import '../app.css';
 	// Register Iconify custom element globally
 	import 'iconify-icon';
 
@@ -17,24 +19,13 @@
 	import { onMount, untrack } from 'svelte';
 	import { browser } from '$app/environment';
 
-	// Skeleton UI
-	import { initializeStores, storePopup, Toast, Modal, getToastStore, getModalStore } from '@skeletonlabs/skeleton';
-	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
-	import { setGlobalToastStore } from '@utils/toast';
-	import { setGlobalModalStore } from '@utils/modalUtils';
-
-	// Modal Components Registry
-	import ScheduleModal from '@components/collectionDisplay/ScheduleModal.svelte';
-	import MediaLibraryModal from '@components/MediaLibraryModal.svelte';
-
-	const modalComponentRegistry: Record<string, any> = {
-		scheduleModal: ScheduleModal,
-		mediaLibraryModal: MediaLibraryModal
-	};
+	// Skeleton v4
+	import { toaster, app } from '@stores/store.svelte';
+	import { Toast } from '@skeletonlabs/skeleton-svelte';
+	import DialogManager from '@components/system/DialogManager.svelte';
 
 	// Paraglide locale bridge
 	import { locales as availableLocales, getLocale, setLocale } from '@src/paraglide/runtime';
-	import { app } from '@stores/store.svelte';
 
 	// Theme management
 	import { themeStore, initializeThemeStore, initializeDarkMode } from '@stores/themeStore.svelte';
@@ -57,18 +48,10 @@
 
 	let currentLocale = $state(getLocale());
 	let isMounted = $state(false);
-	let isHydrated = $state(false);
-	let toastReady = $state(false);
 
 	// ============================================================================
 	// Initialization
 	// ============================================================================
-
-	// Initialize Skeleton stores early (idempotent)
-	initializeStores();
-	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
-	setGlobalToastStore(getToastStore());
-	setGlobalModalStore(getModalStore());
 
 	// Initialize public environment settings from server data
 	$effect(() => {
@@ -84,15 +67,6 @@
 	onMount(() => {
 		console.log('[RootLayout] Mounting in', browser ? 'browser' : 'server');
 
-		// Stores are already initialized above; mark toast as ready for client render
-		toastReady = true;
-
-		// Wait for hydration to complete before syncing
-		requestAnimationFrame(() => {
-			isHydrated = true;
-			console.log('[RootLayout] Hydration complete');
-		});
-
 		// URL is the source of truth on initial load
 		const urlLocale = getLocale();
 		if (urlLocale && availableLocales.includes(urlLocale as any)) {
@@ -107,7 +81,6 @@
 		initializeDarkMode();
 
 		isMounted = true;
-		console.log('[RootLayout] Mount complete');
 	});
 
 	// ============================================================================
@@ -115,8 +88,8 @@
 	// ============================================================================
 
 	$effect(() => {
-		// Guard: Only sync after hydration is complete
-		if (!isMounted || !isHydrated) return;
+		// Guard: Only sync after mount
+		if (!isMounted) return;
 
 		const desired = app.systemLanguage;
 		const current = untrack(() => currentLocale);
@@ -158,13 +131,27 @@
 	<title>{siteName}</title>
 </svelte:head>
 
-<div>
-	{#key currentLocale}
-		{@render children?.()}
-	{/key}
+{#key currentLocale}
+	<DialogManager />
+	<Toast.Group {toaster}>
+		{#snippet children(toast)}
+			<Toast
+				{toast}
+				class="min-w-[300px] max-w-[400px] shadow-lg backdrop-blur-md dark:bg-surface-800/90 bg-white/90 border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden"
+			>
+				<Toast.Message class="flex flex-col gap-1 p-4 pr-8 relative">
+					{#if toast.title}
+						<Toast.Title class="font-bold text-base">{toast.title}</Toast.Title>
+					{/if}
+					<Toast.Description class="text-sm opacity-90">{toast.description}</Toast.Description>
+				</Toast.Message>
+				<Toast.CloseTrigger
+					class="absolute right-2 top-2 p-1.5 hover:bg-surface-500/10 rounded-full transition-colors opacity-60 hover:opacity-100"
+				/>
+			</Toast>
+		{/snippet}
+	</Toast.Group>
+
+	{@render children?.()}
 	<TokenPicker />
-	{#if isMounted}
-		<Toast />
-		<Modal components={modalComponentRegistry} />
-	{/if}
-</div>
+{/key}

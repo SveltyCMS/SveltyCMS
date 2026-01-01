@@ -1,17 +1,9 @@
 import adapter from '@sveltejs/adapter-node'; // To generate a standalone Node server
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
-import { betterSvelteEmailPreprocessor } from 'better-svelte-email';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
-	// Consult https://kit.svelte.dev/docs/integrations#preprocessors
-	// for more information about preprocessors
-	preprocess: [
-		vitePreprocess(),
-		betterSvelteEmailPreprocessor({
-			pathToEmailFolder: './src/components/emails'
-		})
-	],
+	preprocess: [vitePreprocess()],
 
 	// ✅ **ACTION REQUIRED**: Uncomment this to enable Svelte 5 runes mode!
 	// This is essential for using the latest Svelte 5 features.
@@ -23,24 +15,22 @@ const config = {
 		// See https://kit.svelte.dev/docs/adapters for more information about adapters.
 		adapter: adapter({
 			out: 'build', // default: true | The directory to build the server to
-			precompress: true, // Enables precompressing using gzip & brotli for assets & prerendered pages
+			precompress: true, // ✅ Enables precompressing using gzip & brotli for assets & prerendered pages
 			envPrefix: '', // default: '' | If you need to change the name of the environment variables used to configure the deployment
-			external: ['typescript', 'ts-node', '@typescript-eslint/parser', '@typescript-eslint/eslint-plugin', '@config/private', '@config/private.test'], // Prevent TypeScript and related modules from being bundled into the server
-			polyfill: false, // Disable polyfills as we handle them in Vite config
-			split: true // Enable route splitting for better preview performance
+			external: ['typescript', 'ts-node', '@typescript-eslint/parser', '@typescript-eslint/eslint-plugin'], // Prevent TypeScript and related modules from being bundled into the server
+			polyfill: false // Disable polyfills as we handle them in Vite config
 		}),
 
 		alias: {
 			$paraglide: './src/paraglide',
-			'@paraglide': './src/paraglide',
 			'@api': './src/routes/api',
 			'@auth': './src/databases/auth',
 			'@collections': './config/collections',
+			'@config': './config',
 			'@components': './src/components',
 			'@content': './src/content',
 			'@databases': './src/databases',
 			'@hooks': './src/hooks',
-			'@messages': './src/messages',
 			'@root': '.',
 			'@services': './src/services',
 			'@src': './src',

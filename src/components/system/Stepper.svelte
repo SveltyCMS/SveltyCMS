@@ -44,7 +44,7 @@
 			<div class="relative z-10 flex flex-1 flex-col items-center" role="listitem">
 				<button
 					type="button"
-					class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 sm:h-10 sm:w-10 sm:text-sm
+					class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 sm:h-10 sm:w-10 sm:text-sm
 					{derivedCompleted[i]
 						? 'bg-primary-500 text-white'
 						: i === currentStep
@@ -92,7 +92,7 @@
 						onclick={() => handleStepClick(i)}
 					>
 						<div
-							class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold ring-2 ring-white transition-all dark:ring-surface-800
+							class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ring-2 ring-white transition-all dark:ring-surface-800
 							{derivedCompleted[i]
 								? 'bg-primary-500 text-white'
 								: i === currentStep

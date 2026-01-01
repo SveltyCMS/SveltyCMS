@@ -59,7 +59,7 @@ Modern controls for the Crop tool. Injected into the master toolbar.
 		<iconify-icon icon="mdi:flip-horizontal"></iconify-icon>
 	</button>
 
-	<div class="flex-grow"></div>
+	<div class="grow"></div>
 
 	<!-- Cancel -->
 	<button class="btn variant-ghost-error" onclick={onCancel}>

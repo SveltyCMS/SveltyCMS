@@ -11,7 +11,7 @@
 	import { onMount } from 'svelte';
 
 	// Skeleton Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@utils/modalState.svelte';
 	const modalStore = getModalStore();
 
 	// Props

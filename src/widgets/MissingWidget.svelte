@@ -52,13 +52,7 @@ Provides actionable information for developers and administrators.
 >
 	<!-- Icon and Title -->
 	<div class="mb-2 flex items-start gap-3">
-		<svg
-			class="h-6 w-6 flex-shrink-0 text-warning-600 dark:text-warning-400"
-			fill="none"
-			viewBox="0 0 24 24"
-			stroke="currentColor"
-			aria-hidden="true"
-		>
+		<svg class="h-6 w-6 shrink-0 text-warning-600 dark:text-warning-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
 			<path
 				stroke-linecap="round"
 				stroke-linejoin="round"

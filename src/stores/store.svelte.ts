@@ -6,6 +6,7 @@
 import type { Locale } from '@src/paraglide/runtime';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { createToaster } from '@skeletonlabs/skeleton-svelte';
 
 // --- TYPES & INTERFACES ---
 
@@ -224,6 +225,107 @@ class DataChangeStore {
 
 export const dataChangeStore = new DataChangeStore();
 
+// Skeleton Toaster Singleton
+export const toaster = createToaster();
+
 // Static Constants
 export const tableHeaders = ['id', 'email', 'username', 'role', 'createdAt'] as const;
 export const indexer = undefined;
+
+// --- Language Store Wrappers (Compatibility with theme branch API) ---
+// These provide .value getter and .set() method that delegate to app store
+
+export const systemLanguage = {
+	get value() {
+		return app.systemLanguage;
+	},
+	set value(newValue: Locale) {
+		app.systemLanguage = newValue;
+	},
+	set(newValue: Locale) {
+		app.systemLanguage = newValue;
+	},
+	update(fn: (value: Locale) => Locale) {
+		app.systemLanguage = fn(app.systemLanguage);
+	}
+};
+
+export const contentLanguage = {
+	get value() {
+		return app.contentLanguage;
+	},
+	set value(newValue: Locale) {
+		app.contentLanguage = newValue;
+	},
+	set(newValue: Locale) {
+		app.contentLanguage = newValue;
+	},
+	update(fn: (value: Locale) => Locale) {
+		app.contentLanguage = fn(app.contentLanguage);
+	}
+};
+
+// --- Compatibility Exports for theme branch components ---
+
+// translationProgress - direct reference to app.translationProgress
+export const translationProgress = {
+	get value() {
+		return app.translationProgress;
+	},
+	set value(newValue: TranslationProgress) {
+		Object.assign(app.translationProgress, newValue);
+	},
+	subscribe(fn: (value: TranslationProgress) => void) {
+		fn(app.translationProgress);
+		return () => {};
+	}
+};
+
+// avatarSrc - provides .value getter and setter
+export const avatarSrc = {
+	get value() {
+		return app.avatarSrc;
+	},
+	set value(newValue: string) {
+		app.avatarSrc = newValue;
+	},
+	set(newValue: string) {
+		app.avatarSrc = newValue;
+	}
+};
+
+export const storeListboxValue = {
+	get value() {
+		return app.listboxValueState;
+	},
+	set value(newValue: string) {
+		app.listboxValueState = newValue;
+	},
+	set(newValue: string) {
+		app.listboxValueState = newValue;
+	},
+	subscribe(fn: (value: string) => void) {
+		fn(app.listboxValueState);
+		return () => {};
+	}
+};
+
+// tabSet - direct reference to app.tabSetState
+export const tabSet = {
+	get value() {
+		return app.tabSetState;
+	},
+	set value(newValue: number) {
+		app.tabSetState = newValue;
+	},
+	set(newValue: number) {
+		app.tabSetState = newValue;
+	},
+	subscribe(fn: (value: number) => void) {
+		fn(app.tabSetState);
+		return () => {};
+	},
+	update(fn: (value: number) => number) {
+		app.tabSetState = fn(app.tabSetState);
+	}
+};

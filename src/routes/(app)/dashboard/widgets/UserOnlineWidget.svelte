@@ -113,7 +113,7 @@ Features:
 				{/if}
 
 				<!-- User list -->
-				<div class="flex-grow space-y-1 overflow-y-auto" style="max-height: 180px;">
+				<div class="grow space-y-1 overflow-y-auto" style="max-height: 180px;">
 					{#if filteredUsers.length > 0}
 						{#each filteredUsers as user (user.id)}
 							<div class="flex items-center justify-between gap-2 rounded-lg p-2 hover:bg-surface-50 dark:hover:bg-surface-700">
@@ -121,11 +121,11 @@ Features:
 									<img
 										src={user.avatarUrl || getPlaceholderAvatar(user.name)}
 										alt="{user.name}'s avatar"
-										class="h-7 w-7 flex-shrink-0 rounded-full bg-surface-200 dark:bg-surface-700"
+										class="h-7 w-7 shrink-0 rounded-full bg-surface-200 dark:bg-surface-700"
 									/>
 									<span class="truncate text-sm font-medium text-surface-800 dark:text-surface-200">{user.name}</span>
 								</div>
-								<span class="flex-shrink-0 text-xs text-surface-500 dark:text-surface-400">
+								<span class="shrink-0 text-xs text-surface-500 dark:text-surface-400">
 									{user.onlineTime || 'N/A'}
 								</span>
 							</div>

@@ -53,7 +53,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import OauthLogin from './OauthLogin.svelte';
 
 	// Screen size store
-	import { isDesktop } from '@stores/screenSizeStore.svelte';
+	import { screen } from '@stores/screenSizeStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Props
@@ -415,7 +415,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	// Lazy-load FloatingPaths only when needed (desktop + active 0)
 	$effect(() => {
 		// track dependencies
-		const desktop = isDesktop.value;
+		const desktop = screen.isDesktop;
 		const isActiveLogin = active === 0;
 		if (browser && desktop && isActiveLogin) {
 			import('@root/src/components/system/FloatingPaths.svelte').then((m) => {
@@ -448,7 +448,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	{#if active === 0}
 		<!-- Background pattern  -->
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
-			{#if isDesktop.value && FloatingPathsComponent}
+			{#if screen.isDesktop && FloatingPathsComponent}
 				<div class="absolute inset-0 z-0">
 					<FloatingPathsComponent position={-1} background="white" />
 					<FloatingPathsComponent position={1} background="white" />

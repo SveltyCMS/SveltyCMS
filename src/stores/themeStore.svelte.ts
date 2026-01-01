@@ -162,6 +162,11 @@ function _applyThemeToDOM(isDark: boolean) {
 		document.documentElement.classList.remove('dark');
 		logger.debug('[Theme] Removed dark class from DOM');
 	}
+
+	// Ensure the base theme attribute is always present for Skeleton v4
+	if (document.body.getAttribute('data-theme') !== 'sveltycms') {
+		document.body.setAttribute('data-theme', 'sveltycms');
+	}
 }
 
 /**
@@ -170,12 +175,10 @@ function _applyThemeToDOM(isDark: boolean) {
 function _setCookie(preference: ThemePreference) {
 	if (!browser) return;
 
-	// Delete old cookie first
-	document.cookie = `${THEME_COOKIE_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-	document.cookie = `${THEME_COOKIE_KEY}=; path=/; max-age=0`;
-
-	// Set new cookie
+	// Overwrite cookie with explicit path and max-age
+	// Note: We don't need to explicitly delete it first; overwriting with the same name and path works.
 	document.cookie = `${THEME_COOKIE_KEY}=${preference}; path=/; max-age=31536000; SameSite=Lax`;
+	logger.debug('[Theme] Updated cookie to:', preference);
 }
 
 /**

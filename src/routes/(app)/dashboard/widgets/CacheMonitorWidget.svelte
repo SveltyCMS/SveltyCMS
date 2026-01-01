@@ -116,7 +116,7 @@
 		{:else}
 			<div class="flex h-full flex-col space-y-3 overflow-auto p-1 text-sm">
 				<!-- Overall Cache Performance -->
-				<div class="rounded-xl bg-gradient-to-br from-surface-50 to-surface-100 p-4 shadow-sm dark:from-surface-800 dark:to-surface-900">
+				<div class="rounded-xl bg-linear-to-br from-surface-50 to-surface-100 p-4 shadow-sm dark:from-surface-800 dark:to-surface-900">
 					<div class="mb-3 flex items-start justify-between">
 						<div>
 							<h3 class="text-xs font-semibold uppercase tracking-wider">Overall Performance</h3>
@@ -155,7 +155,7 @@
 					<!-- Progress Bar -->
 					<div class="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
 						<div
-							class="h-full bg-gradient-to-r from-success-500 via-primary-500
+							class="h-full bg-linear-to-r from-success-500 via-primary-500
 							to-primary-600 transition-all duration-500 ease-out"
 							style="width: {metrics.overall.hitRate}%"
 						></div>
@@ -185,7 +185,7 @@
 											<span class="tabular-nums text-surface-500">
 												{formatNumber(stats.hits)}<span class="text-surface-400">/</span>{formatNumber(stats.hits + stats.misses)}
 											</span>
-											<span class={`min-w-[3rem] text-right text-sm font-bold tabular-nums ${getHitRateColor(stats.hitRate)}`}>
+											<span class={`min-w-12 text-right text-sm font-bold tabular-nums ${getHitRateColor(stats.hitRate)}`}>
 												{stats.hitRate.toFixed(0)}%
 											</span>
 										</div>
@@ -194,10 +194,10 @@
 										<div
 											class={`h-full transition-all duration-300 ${
 												stats.hitRate >= 80
-													? 'bg-gradient-to-r from-success-400 to-success-600'
+													? 'bg-linear-to-r from-success-400 to-success-600'
 													: stats.hitRate >= 60
-														? 'bg-gradient-to-r from-warning-400 to-warning-600'
-														: 'bg-gradient-to-r from-error-400 to-error-600'
+														? 'bg-linear-to-r from-warning-400 to-warning-600'
+														: 'bg-linear-to-r from-error-400 to-error-600'
 											}`}
 											style="width: {stats.hitRate}%"
 										></div>
@@ -226,7 +226,7 @@
 									</div>
 									<div class="flex items-center gap-3">
 										<span class="tabular-nums text-surface-500">{formatNumber(stats.hits + stats.misses)} ops</span>
-										<span class={`min-w-[3rem] text-right font-bold tabular-nums ${getHitRateColor(stats.hitRate)}`}>
+										<span class={`min-w-12 text-right font-bold tabular-nums ${getHitRateColor(stats.hitRate)}`}>
 											{stats.hitRate.toFixed(0)}%
 										</span>
 									</div>

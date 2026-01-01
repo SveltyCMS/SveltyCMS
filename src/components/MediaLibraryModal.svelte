@@ -4,7 +4,7 @@
 -->
 
 <script lang="ts">
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@utils/modalState.svelte';
 
 	// Props interface (required for modal components)
 	interface Props {

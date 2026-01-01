@@ -40,7 +40,9 @@
 			</div>
 		{:then module}
 			<!-- Resolved State -->
-			<svelte:component this={module.EmailPreview} {emailList} />
+			<!-- Resolved State -->
+			<!-- @ts-ignore -->
+			<svelte:component this={module.EmailPreview as any} {emailList} />
 		{:catch error}
 			<!-- Error State -->
 			<div class="rounded border border-red-200 bg-red-50 p-4 text-red-500">

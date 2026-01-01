@@ -202,7 +202,7 @@ It provides the following functionality:
 	</p>
 
 	<div class="sticky top-0 z-10 mb-4 flex items-center justify-between">
-		<input type="text" bind:value={searchTerm} placeholder="Search Permissions..." class="input mr-4 flex-grow" aria-label="Search permissions" />
+		<input type="text" bind:value={searchTerm} placeholder="Search Permissions..." class="input mr-4 grow" aria-label="Search permissions" />
 	</div>
 
 	{#if filteredPermissions.length === 0}

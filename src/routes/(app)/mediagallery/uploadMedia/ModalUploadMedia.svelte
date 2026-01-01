@@ -21,7 +21,7 @@
 
 <script lang="ts">
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@utils/modalState.svelte';
 	import { logger } from '@utils/logger';
 	import { untrack } from 'svelte';
 	const modalStore = getModalStore();
@@ -251,14 +251,14 @@
 		<header class={cHeader}>
 			{sectionName}
 		</header>
-		<article class="hidden flex-shrink-0 text-center sm:block">
+		<article class="hidden shrink-0 text-center sm:block">
 			{$modalStore[0]?.body ?? '(body missing)'}
 		</article>
 		<!-- Enable for debugging: -->
 
-		<form id="upload-form" class="{cForm} flex-grow overflow-hidden" onsubmit={onFormSubmit}>
+		<form id="upload-form" class="{cForm} grow overflow-hidden" onsubmit={onFormSubmit}>
 			<!-- Scrollable content area -->
-			<div class="flex-grow overflow-y-auto">
+			<div class="grow overflow-y-auto">
 				<!-- Show all media as cards with delete buttons on hover -->
 				<div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
 					{#each files as file (file.name + file.size)}
@@ -291,13 +291,13 @@
 
 							<!-- Media Filename -->
 							<div
-								class="label mt-1 overflow-hidden overflow-ellipsis whitespace-normal bg-gray-100 p-2 text-center text-tertiary-500 dark:bg-surface-600 dark:text-primary-500"
+								class="label mt-1 overflow-hidden text-ellipsis whitespace-normal bg-gray-100 p-2 text-center text-tertiary-500 dark:bg-surface-600 dark:text-primary-500"
 							>
 								{file.name}
 							</div>
 
 							<!-- Media Type & Size -->
-							<div class="flex flex-grow items-center justify-between p-1 dark:bg-surface-700">
+							<div class="flex grow items-center justify-between p-1 dark:bg-surface-700">
 								<div class="variant-ghost-tertiary badge flex items-center gap-1">
 									<!-- Media Icon & type  -->
 									<iconify-icon icon={iconName} width="16" height="16"></iconify-icon>
@@ -326,7 +326,7 @@
 			</div>
 		</form>
 
-		<footer class="modal-footer m-4 flex w-full justify-between {parent.regionFooter} flex-shrink-0">
+		<footer class="modal-footer m-4 flex w-full justify-between {parent.regionFooter} shrink-0">
 			<button type="button" class="variant-outline-secondary btn" onclick={handleCancel}>{m.button_cancel()}</button>
 			<button type="submit" form="upload-form" class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}"
 				>{m.button_save()}</button

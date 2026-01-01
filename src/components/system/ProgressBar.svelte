@@ -168,9 +168,7 @@ Accessible progress bar with animations, variants, and status indicators.
 			<!-- Determinate state -->
 			<div
 				class="h-full rounded-full transition-all {prefersReducedMotion ? 'duration-0' : 'duration-500'} ease-out {colorClasses}
-				       {animated && !prefersReducedMotion
-					? 'animate-[stripes_1s_linear_infinite] bg-gradient-to-r from-current to-current bg-[length:1rem_1rem]'
-					: ''}"
+				       {animated && !prefersReducedMotion ? 'animate-[stripes_1s_linear_infinite] bg-linear-to-r from-current to-current bg-size-[1rem_1rem]' : ''}"
 				style="width: {clampedValue}%; {animated && !prefersReducedMotion
 					? 'background-image: linear-gradient(45deg, rgba(255,255,255,.2) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.2) 50%, rgba(255,255,255,.2) 75%, transparent 75%, transparent);'
 					: ''}"

@@ -1,0 +1,339 @@
+/**
+ * @file src/app.css
+ * @description Main stylesheet for SveltyCMS (TailwindCSS v4 + Skeleton v4)
+ */
+
+/* TailwindCSS v4 - CSS-first configuration */
+@import 'tailwindcss';
+
+/* Skeleton v4 - Import the theme and components */
+@import '@skeletonlabs/skeleton';
+@import '@skeletonlabs/skeleton-svelte';
+
+/* =~= SveltyCMS Theme (Skeleton v4 format) =~= */
+[data-theme='sveltycms'] {
+	/* =~= Theme Properties =~= */
+	--text-scaling: 1;
+
+	/* Base Typography */
+	--base-font-color: var(--color-surface-950);
+	--base-font-color-dark: var(--color-surface-50);
+	--base-font-family: system-ui, sans-serif;
+	--base-font-size: inherit;
+	--base-line-height: inherit;
+	--base-font-weight: normal;
+	--base-font-style: normal;
+	--base-letter-spacing: 0em;
+
+	/* Headings */
+	--heading-font-color: inherit;
+	--heading-font-color-dark: inherit;
+	--heading-font-family: inherit;
+	--heading-font-weight: bold;
+	--heading-font-style: normal;
+	--heading-letter-spacing: inherit;
+
+	/* Anchors/Links */
+	--anchor-font-color: var(--color-primary-500);
+	--anchor-font-color-dark: var(--color-primary-500);
+	--anchor-font-family: inherit;
+	--anchor-font-size: inherit;
+	--anchor-line-height: inherit;
+	--anchor-font-weight: inherit;
+	--anchor-font-style: inherit;
+	--anchor-letter-spacing: inherit;
+	--anchor-text-decoration: none;
+	--anchor-text-decoration-hover: underline;
+	--anchor-text-decoration-active: none;
+	--anchor-text-decoration-focus: none;
+
+	/* Container & Spacing */
+	--spacing: 0.22rem;
+	--radius-base: 0.2rem;
+	--radius-container: 0.2rem;
+	--default-border-width: 1px;
+	--default-divide-width: 1px;
+	--default-ring-width: 1px;
+	--body-background-color: 255 255 255;
+	--body-background-color-dark: 0 0 0;
+
+	/* =~= Theme Colors (OKLCH) =~= */
+
+	/* Primary | #5fd317 #0078f0 (Green - Trust & Professionalism) */
+	--color-primary-50: oklch(96.25% 0.12 120.09deg);
+	--color-primary-100: oklch(92.01% 0.15 125.75deg);
+	--color-primary-200: oklch(87.85% 0.17 129.95deg);
+	--color-primary-300: oklch(84.14% 0.2 132.96deg);
+	--color-primary-400: oklch(80.36% 0.22 135.49deg);
+	--color-primary-500: oklch(76.87% 0.23 137.58deg);
+	--color-primary-600: oklch(69.97% 0.21 138.5deg);
+	--color-primary-700: oklch(62.66% 0.19 139.5deg);
+	--color-primary-800: oklch(55.46% 0.18 140.59deg);
+	--color-primary-900: oklch(47.8% 0.16 141.65deg);
+	--color-primary-950: oklch(40.2% 0.14 142.5deg);
+	--color-primary-contrast-dark: var(--color-primary-950);
+	--color-primary-contrast-light: var(--color-primary-50);
+	--color-primary-contrast-50: var(--color-primary-contrast-dark);
+	--color-primary-contrast-100: var(--color-primary-contrast-dark);
+	--color-primary-contrast-200: var(--color-primary-contrast-dark);
+	--color-primary-contrast-300: var(--color-primary-contrast-dark);
+	--color-primary-contrast-400: var(--color-primary-contrast-dark);
+	--color-primary-contrast-500: var(--color-primary-contrast-dark);
+	--color-primary-contrast-600: var(--color-primary-contrast-dark);
+	--color-primary-contrast-700: var(--color-primary-contrast-dark);
+	--color-primary-contrast-800: var(--color-primary-contrast-light);
+	--color-primary-contrast-900: var(--color-primary-contrast-light);
+	--color-primary-contrast-950: var(--color-primary-contrast-light);
+
+	/* Secondary | #757575 (Neutral Gray) */
+	--color-secondary-50: oklch(94.91% 0 none);
+	--color-secondary-100: oklch(87.61% 0 none);
+	--color-secondary-200: oklch(80.15% 0 none);
+	--color-secondary-300: oklch(72.19% 0 none);
+	--color-secondary-400: oklch(64.34% 0 none);
+	--color-secondary-500: oklch(56.24% 0 none);
+	--color-secondary-600: oklch(49.26% 0 none);
+	--color-secondary-700: oklch(41.65% 0 none);
+	--color-secondary-800: oklch(34.07% 0 none);
+	--color-secondary-900: oklch(25.62% 0 none);
+	--color-secondary-950: oklch(16.84% 0 none);
+	--color-secondary-contrast-dark: var(--color-secondary-950);
+	--color-secondary-contrast-light: var(--color-secondary-50);
+	--color-secondary-contrast-50: var(--color-secondary-contrast-dark);
+	--color-secondary-contrast-100: var(--color-secondary-contrast-dark);
+	--color-secondary-contrast-200: var(--color-secondary-contrast-dark);
+	--color-secondary-contrast-300: var(--color-secondary-contrast-dark);
+	--color-secondary-contrast-400: var(--color-secondary-contrast-dark);
+	--color-secondary-contrast-500: var(--color-secondary-contrast-light);
+	--color-secondary-contrast-600: var(--color-secondary-contrast-light);
+	--color-secondary-contrast-700: var(--color-secondary-contrast-light);
+	--color-secondary-contrast-800: var(--color-secondary-contrast-light);
+	--color-secondary-contrast-900: var(--color-secondary-contrast-light);
+	--color-secondary-contrast-950: var(--color-secondary-contrast-light);
+
+	/* Tertiary | #5fd317 (Blue - Accent & CTA) */
+	--color-tertiary-50: oklch(92.74% 0.06 216.34deg);
+	--color-tertiary-100: oklch(85.39% 0.08 232.5deg);
+	--color-tertiary-200: oklch(78.19% 0.11 241.06deg);
+	--color-tertiary-300: oklch(71.05% 0.14 247.2deg);
+	--color-tertiary-400: oklch(64.57% 0.17 251.64deg);
+	--color-tertiary-500: oklch(58.74% 0.2 256.12deg);
+	--color-tertiary-600: oklch(52.83% 0.19 257.61deg);
+	--color-tertiary-700: oklch(46.79% 0.18 259.2deg);
+	--color-tertiary-800: oklch(40.53% 0.18 261.13deg);
+	--color-tertiary-900: oklch(34.3% 0.17 262.64deg);
+	--color-tertiary-950: oklch(28.06% 0.16 263.8deg);
+	--color-tertiary-contrast-dark: var(--color-tertiary-950);
+	--color-tertiary-contrast-light: var(--color-tertiary-50);
+	--color-tertiary-contrast-50: var(--color-tertiary-contrast-dark);
+	--color-tertiary-contrast-100: var(--color-tertiary-contrast-dark);
+	--color-tertiary-contrast-200: var(--color-tertiary-contrast-dark);
+	--color-tertiary-contrast-300: var(--color-tertiary-contrast-dark);
+	--color-tertiary-contrast-400: var(--color-tertiary-contrast-light);
+	--color-tertiary-contrast-500: var(--color-tertiary-contrast-light);
+	--color-tertiary-contrast-600: var(--color-tertiary-contrast-light);
+	--color-tertiary-contrast-700: var(--color-tertiary-contrast-light);
+	--color-tertiary-contrast-800: var(--color-tertiary-contrast-light);
+	--color-tertiary-contrast-900: var(--color-tertiary-contrast-light);
+	--color-tertiary-contrast-950: var(--color-tertiary-contrast-light);
+
+	/* Success | #10b981 (Modern Green - Emerald) */
+	--color-success-50: oklch(94.85% 0.08 193.9deg);
+	--color-success-100: oklch(89.46% 0.09 184.74deg);
+	--color-success-200: oklch(84.18% 0.11 177.94deg);
+	--color-success-300: oklch(79.11% 0.13 172.91deg);
+	--color-success-400: oklch(74.21% 0.14 167.7deg);
+	--color-success-500: oklch(69.59% 0.15 162.47deg);
+	--color-success-600: oklch(62.71% 0.14 160.77deg);
+	--color-success-700: oklch(55.91% 0.13 158.38deg);
+	--color-success-800: oklch(48.61% 0.12 155.86deg);
+	--color-success-900: oklch(41.34% 0.11 152.48deg);
+	--color-success-950: oklch(33.42% 0.09 148.88deg);
+	--color-success-contrast-dark: var(--color-success-950);
+	--color-success-contrast-light: var(--color-success-50);
+	--color-success-contrast-50: var(--color-success-contrast-dark);
+	--color-success-contrast-100: var(--color-success-contrast-dark);
+	--color-success-contrast-200: var(--color-success-contrast-dark);
+	--color-success-contrast-300: var(--color-success-contrast-dark);
+	--color-success-contrast-400: var(--color-success-contrast-dark);
+	--color-success-contrast-500: var(--color-success-contrast-dark);
+	--color-success-contrast-600: var(--color-success-contrast-dark);
+	--color-success-contrast-700: var(--color-success-contrast-light);
+	--color-success-contrast-800: var(--color-success-contrast-light);
+	--color-success-contrast-900: var(--color-success-contrast-light);
+	--color-success-contrast-950: var(--color-success-contrast-light);
+
+	/* Warning | #f59e0b (Amber - Modern, Less Harsh) */
+	--color-warning-50: oklch(97.81% 0.13 108.52deg);
+	--color-warning-100: oklch(93.43% 0.14 100.86deg);
+	--color-warning-200: oklch(88.95% 0.14 93.1deg);
+	--color-warning-300: oklch(84.8% 0.15 86.03deg);
+	--color-warning-400: oklch(80.63% 0.16 78.12deg);
+	--color-warning-500: oklch(76.86% 0.16 70.07deg);
+	--color-warning-600: oklch(69.65% 0.15 67.59deg);
+	--color-warning-700: oklch(62.27% 0.14 64.51deg);
+	--color-warning-800: oklch(54.5% 0.13 60.03deg);
+	--color-warning-900: oklch(46.69% 0.11 55.14deg);
+	--color-warning-950: oklch(38.63% 0.1 49.13deg);
+	--color-warning-contrast-dark: var(--color-warning-950);
+	--color-warning-contrast-light: var(--color-warning-50);
+	--color-warning-contrast-50: var(--color-warning-contrast-dark);
+	--color-warning-contrast-100: var(--color-warning-contrast-dark);
+	--color-warning-contrast-200: var(--color-warning-contrast-dark);
+	--color-warning-contrast-300: var(--color-warning-contrast-dark);
+	--color-warning-contrast-400: var(--color-warning-contrast-dark);
+	--color-warning-contrast-500: var(--color-warning-contrast-dark);
+	--color-warning-contrast-600: var(--color-warning-contrast-light);
+	--color-warning-contrast-700: var(--color-warning-contrast-light);
+	--color-warning-contrast-800: var(--color-warning-contrast-light);
+	--color-warning-contrast-900: var(--color-warning-contrast-light);
+	--color-warning-contrast-950: var(--color-warning-contrast-light);
+
+	/* Error | #eb0000 (Red) */
+	--color-error-50: oklch(80.71% 0.12 49.3deg);
+	--color-error-100: oklch(74.25% 0.15 38.64deg);
+	--color-error-200: oklch(68.68% 0.19 33.06deg);
+	--color-error-300: oklch(64.04% 0.22 30.12deg);
+	--color-error-400: oklch(60.86% 0.23 29.23deg);
+	--color-error-500: oklch(59.04% 0.24 29.23deg);
+	--color-error-600: oklch(53.66% 0.22 29.23deg);
+	--color-error-700: oklch(48.15% 0.2 29.23deg);
+	--color-error-800: oklch(42.68% 0.18 29.23deg);
+	--color-error-900: oklch(36.82% 0.15 29.23deg);
+	--color-error-950: oklch(30.71% 0.13 29.23deg);
+	--color-error-contrast-dark: var(--color-error-950);
+	--color-error-contrast-light: var(--color-error-50);
+	--color-error-contrast-50: var(--color-error-contrast-dark);
+	--color-error-contrast-100: var(--color-error-contrast-dark);
+	--color-error-contrast-200: var(--color-error-contrast-dark);
+	--color-error-contrast-300: var(--color-error-contrast-dark);
+	--color-error-contrast-400: var(--color-error-contrast-light);
+	--color-error-contrast-500: var(--color-error-contrast-light);
+	--color-error-contrast-600: var(--color-error-contrast-light);
+	--color-error-contrast-700: var(--color-error-contrast-light);
+	--color-error-contrast-800: var(--color-error-contrast-light);
+	--color-error-contrast-900: var(--color-error-contrast-light);
+	--color-error-contrast-950: var(--color-error-contrast-light);
+
+	/* Surface | #242728 (Dark Background) */
+	--color-surface-50: oklch(65.78% 0 219.34deg);
+	--color-surface-100: oklch(58.75% 0 219.37deg);
+	--color-surface-200: oklch(51.15% 0 219.41deg);
+	--color-surface-300: oklch(43.62% 0 219.45deg);
+	--color-surface-400: oklch(35.37% 0 219.5deg);
+	--color-surface-500: oklch(27.01% 0 219.57deg);
+	--color-surface-600: oklch(23.76% 0 228.89deg);
+	--color-surface-700: oklch(20.39% 0 247.93deg);
+	--color-surface-800: oklch(17.08% 0 196.76deg);
+	--color-surface-900: oklch(13.3% 0 196.79deg);
+	--color-surface-950: oklch(0% 0 none);
+	--color-surface-contrast-dark: var(--color-surface-950);
+	--color-surface-contrast-light: var(--color-surface-50);
+	--color-surface-contrast-50: var(--color-surface-contrast-dark);
+	--color-surface-contrast-100: var(--color-surface-contrast-dark);
+	--color-surface-contrast-200: var(--color-surface-contrast-dark);
+	--color-surface-contrast-300: var(--color-surface-contrast-light);
+	--color-surface-contrast-400: var(--color-surface-contrast-light);
+	--color-surface-contrast-500: var(--color-surface-contrast-light);
+	--color-surface-contrast-600: var(--color-surface-contrast-light);
+	--color-surface-contrast-700: var(--color-surface-contrast-light);
+	--color-surface-contrast-800: var(--color-surface-contrast-light);
+	--color-surface-contrast-900: var(--color-surface-contrast-light);
+	--color-surface-contrast-950: var(--color-surface-contrast-light);
+}
+
+.btn {
+	padding: --spacing(2);
+}
+
+/**
+ * Gradient Utilities
+ * Tailwind v4 syntax - no @apply, use direct CSS
+ * Using :where(.dark) for dark mode to work with class on same element
+ * 
+ * COLOR SCHEME:
+ * - Light mode: Blue gradients (tertiary colors)
+ * - Dark mode: Green gradients (primary colors)
+ */
+@layer components {
+	/* Primary Gradients - Blue in light, stays blue (for specific use cases) */
+	.gradient-primary {
+		background-image: linear-gradient(to bottom right, var(--color-primary-700), var(--color-primary-600), var(--color-primary-500));
+	}
+
+	:where(.dark) .gradient-primary,
+	.dark.gradient-primary {
+		background-image: linear-gradient(to bottom right, var(--color-primary-800), var(--color-primary-600), var(--color-primary-400));
+	}
+
+	.gradient-primary-hover:hover {
+		background-image: linear-gradient(to bottom right, var(--color-primary-700), var(--color-primary-600), var(--color-primary-500));
+	}
+
+	:where(.dark) .gradient-primary-hover:hover,
+	.dark.gradient-primary-hover:hover {
+		background-image: linear-gradient(to bottom right, var(--color-primary-800), var(--color-primary-600), var(--color-primary-400));
+	}
+
+	.gradient-primary-focus:focus {
+		background-image: linear-gradient(to bottom right, var(--color-primary-800), var(--color-primary-600), var(--color-primary-500));
+	}
+
+	:where(.dark) .gradient-primary-focus:focus,
+	.dark.gradient-primary-focus:focus {
+		background-image: linear-gradient(to bottom right, var(--color-primary-700), var(--color-primary-600), var(--color-primary-400));
+	}
+
+	/* Secondary Gradients */
+	.gradient-secondary {
+		background-image: linear-gradient(to bottom right, var(--color-surface-500), var(--color-surface-400), var(--color-surface-300));
+	}
+
+	:where(.dark) .gradient-secondary,
+	.dark.gradient-secondary {
+		background-image: linear-gradient(to bottom right, var(--color-surface-600), var(--color-surface-500), var(--color-surface-400));
+	}
+
+	/* Error Gradients */
+	.gradient-error {
+		background-image: linear-gradient(to bottom right, var(--color-error-600), var(--color-error-500), var(--color-error-300));
+	}
+
+	:where(.dark) .gradient-error,
+	.dark.gradient-error {
+		background-image: linear-gradient(to bottom right, var(--color-error-700), var(--color-error-500), var(--color-error-300));
+	}
+
+	/* Tertiary Gradients - GREEN in light mode, BLUE in dark mode */
+	.gradient-tertiary {
+		background-image: linear-gradient(to bottom right, var(--color-tertiary-600), var(--color-tertiary-500), var(--color-tertiary-300));
+	}
+
+	:where(.dark) .gradient-tertiary,
+	.dark.gradient-tertiary {
+		background-image: linear-gradient(to bottom right, var(--color-primary-700), var(--color-primary-600), var(--color-primary-400));
+	}
+
+	/* Warning/Yellow Gradients */
+	.gradient-yellow,
+	.gradient-warning {
+		background-image: linear-gradient(to bottom right, var(--color-warning-600), var(--color-warning-500), var(--color-warning-300));
+	}
+
+	:where(.dark) .gradient-yellow,
+	:where(.dark) .gradient-warning,
+	.dark.gradient-yellow,
+	.dark.gradient-warning {
+		background-image: linear-gradient(to bottom right, var(--color-warning-700), var(--color-warning-600), var(--color-warning-300));
+	}
+
+	/* Success Gradients */
+	.gradient-success {
+		background-image: linear-gradient(to bottom right, var(--color-success-600), var(--color-success-500), var(--color-success-300));
+	}
+
+	:where(.dark) .gradient-success,
+	.dark.gradient-success {
+		background-image: linear-gradient(to bottom right, var(--color-success-700), var(--color-success-600), var(--color-success-400));
+	}
+}

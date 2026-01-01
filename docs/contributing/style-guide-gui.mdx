@@ -62,7 +62,7 @@ All form input widgets (Text, Relation, RichText, etc.) follow a standard layout
 ```svelte
 <div class="relative mb-4 w-full pb-6">
 	{#if error}
-		<p class="absolute bottom-[-1rem] ...">
+		<p class="absolute -bottom-4 ...">
 			{error}
 		</p>
 	{/if}
@@ -89,7 +89,7 @@ The `rounded-none` is critical to make it blend seamlessly with the group's roun
 	</span>
 
 	<div class="flex items-center">
-		<button type="button" class="btn variant-ghost-primary !rounded-none !px-3"> Select </button>
+		<button type="button" class="btn variant-ghost-primary rounded-none! px-3!"> Select </button>
 	</div>
 </div>
 ```
@@ -121,7 +121,7 @@ This is the preferred method for most inputs. The error text appears below the i
 
 - **When to Use**: Text, Relation, RichText, and any input that is a single, contained block.
 - **Container Class**: The input wrapper must have `pb-6`.
-- **Error Classes**: `absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500`
+- **Error Classes**: `absolute -bottom-4 left-0 w-full text-center text-xs text-error-500`
 - **Input Error State**: `class:!border-error-500={!!error}` and/or `class:!ring-1={!!error} class:!ring-error-500={!!error}`. The `!` prefix is required to override Skeleton's specificity.
 
 ```svelte
@@ -129,7 +129,7 @@ This is the preferred method for most inputs. The error text appears below the i
 	<input class="input" class:!border-error-500={!!error} ... />
 
 	{#if error}
-		<p class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert">
 			{error}
 		</p>
 	{/if}

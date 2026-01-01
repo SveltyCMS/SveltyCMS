@@ -49,7 +49,7 @@
 	import { app } from '@stores/store.svelte';
 
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@utils/modalState.svelte';
 
 	// Components
 	import ScheduleModal from './ScheduleModal.svelte';

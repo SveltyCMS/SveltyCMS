@@ -33,7 +33,7 @@
 		id?: string;
 	}
 
-	const { parent = { regionFooter: '', buttonPositive: '' }, existingCategory = { name: '', icon: '' }, title, body, close }: Props = $props();
+	const { existingCategory = { name: '', icon: '' }, title, body, close }: Props = $props();
 
 	// State variables for form and UI
 	const formData = $state<FormData>({

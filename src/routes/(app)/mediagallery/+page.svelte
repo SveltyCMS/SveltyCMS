@@ -71,8 +71,6 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 	// Enterprise features state
 	let advancedSearchCriteria: SearchCriteria | null = $state(null);
-	let showEditor = $state(false);
-	let imageToEdit = $state<MediaImage | null>(null);
 
 	// Performance optimization: Use virtual scrolling for large collections
 	const USE_VIRTUAL_THRESHOLD = 100;

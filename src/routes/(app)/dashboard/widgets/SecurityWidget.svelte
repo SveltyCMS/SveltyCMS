@@ -40,10 +40,8 @@ and automated response visualization for enterprise security operations.
 	import { onMount, onDestroy } from 'svelte';
 	import { logger } from '@utils/logger';
 	import BaseWidget from '../BaseWidget.svelte';
-	import { getToastStore } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
 	import type { WidgetSize } from '@src/content/types';
-
-	const toastStore = getToastStore();
 
 	const {
 		label = 'Security Monitor',
@@ -210,19 +208,13 @@ and automated response visualization for enterprise security operations.
 			});
 
 			if (response.ok) {
-				toastStore.trigger({
-					message: 'Incident resolved successfully',
-					background: 'variant-filled-success'
-				});
+				showToast('Incident resolved successfully', 'success');
 				await fetchSecurityData(); // Refresh data
 			} else {
 				throw new Error('Failed to resolve incident');
 			}
 		} catch (err) {
-			toastStore.trigger({
-				message: `Failed to resolve incident: ${err instanceof Error ? err.message : 'Unknown error'}`,
-				background: 'variant-filled-error'
-			});
+			showToast(`Failed to resolve incident: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
 		}
 	}
 
@@ -235,19 +227,13 @@ and automated response visualization for enterprise security operations.
 			});
 
 			if (response.ok) {
-				toastStore.trigger({
-					message: `IP ${ip} unblocked successfully`,
-					background: 'variant-filled-success'
-				});
+				showToast(`IP ${ip} unblocked successfully`, 'success');
 				await fetchSecurityData(); // Refresh data
 			} else {
 				throw new Error('Failed to unblock IP');
 			}
 		} catch (err) {
-			toastStore.trigger({
-				message: `Failed to unblock IP: ${err instanceof Error ? err.message : 'Unknown error'}`,
-				background: 'variant-filled-error'
-			});
+			showToast(`Failed to unblock IP: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
 		}
 	}
 

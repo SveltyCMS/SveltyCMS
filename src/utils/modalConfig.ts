@@ -10,7 +10,23 @@
  * - Action-specific modal templates
  */
 
-import type { ModalSettings } from '@skeletonlabs/skeleton';
+// Local type definition for ModalSettings (was imported from skeleton v2)
+export interface ModalSettings {
+	type?: 'confirm' | 'component' | 'alert';
+	title?: string;
+	body?: string;
+	buttonTextConfirm?: string;
+	buttonTextCancel?: string;
+	modalClasses?: string;
+	backdropClasses?: string;
+	meta?: Record<string, unknown>;
+	response?: (r: boolean) => void;
+	component?: {
+		ref: string;
+		props?: Record<string, unknown>;
+	};
+}
+
 import { showToast } from '@utils/toast';
 import { writable } from 'svelte/store';
 
@@ -60,7 +76,7 @@ export function createConfirmModal(config: ActionModalConfig, onConfirm: () => v
 
 		// Styling
 		modalClasses: `!bg-${theme.color}-500/10 !border-${theme.color}-500/20`,
-		backdropClasses: '!bg-surface-500/50',
+		backdropClasses: 'bg-surface-500/50!',
 
 		// Enhanced styling for buttons (use `meta` as expected by ModalSettings)
 		meta: {
@@ -175,7 +191,7 @@ export function createScheduleModal(itemType: string, itemName: string, onConfir
 			}
 		},
 		buttonTextCancel: m.button_cancel(),
-		modalClasses: '!bg-tertiary-500/10 !border-tertiary-500/20'
+		modalClasses: 'bg-tertiary-500/10! border-tertiary-500/20!'
 	};
 }
 
@@ -201,7 +217,7 @@ export function createBatchModal(
 			}
 		},
 		buttonTextCancel: m.button_cancel(),
-		modalClasses: '!bg-primary-500/10 !border-primary-500/20'
+		modalClasses: 'bg-primary-500/10! border-primary-500/20!'
 	};
 }
 

@@ -23,7 +23,7 @@ Features:
 	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 
 	// Skeleton Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@utils/modalState.svelte';
 	const modalStore = getModalStore();
 
 	// Stores

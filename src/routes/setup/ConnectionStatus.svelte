@@ -268,7 +268,7 @@ Features:
 		<div class="border-t border-blue-200 bg-white p-4 dark:border-blue-800 dark:bg-surface-800">
 			<div class="flex items-center gap-3">
 				<div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
-					<div class="h-full w-1/3 animate-[slide_1.5s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+					<div class="h-full w-1/3 animate-[slide_1.5s_ease-in-out_infinite] rounded-full bg-linear-to-r from-blue-500 to-indigo-500"></div>
 				</div>
 				<span class="text-sm text-surface-600 dark:text-surface-400">{m.setup_connection_connecting()}</span>
 			</div>

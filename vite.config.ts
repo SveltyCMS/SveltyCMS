@@ -10,6 +10,7 @@
  * - Seamless integration with Paraglide for i18n and better-svelte-email for email templating.
  */
 
+import tailwindcss from '@tailwindcss/vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { existsSync, promises as fs } from 'fs';
@@ -49,26 +50,44 @@ function privateConfigFallbackPlugin(): Plugin {
 
 	return {
 		name: 'private-config-fallback',
-		enforce: 'pre',
 		resolveId(id) {
-			// Check for both the virtual ID and the resolved absolute path (because aliases run first)
-			if (id === virtualModuleId || id === path.resolve(CWD, 'config/private') || id === path.resolve(CWD, 'config/private.ts')) {
+			if (id === virtualModuleId) {
 				// Check if actual file exists
 				const prodPath = path.resolve(CWD, 'config/private.ts');
 				if (existsSync(prodPath)) {
 					return null; // Let Vite handle it normally
 				}
-				// File doesn't exist, mark as external to handle at runtime
-				return { id: virtualModuleId, external: true };
+				// File doesn't exist, use virtual module
+				return resolvedVirtualModuleId;
 			}
-			if (id === virtualTestModuleId || id === path.resolve(CWD, 'config/private.test') || id === path.resolve(CWD, 'config/private.test.ts')) {
+			if (id === virtualTestModuleId) {
 				// Check if actual file exists
 				const testPath = path.resolve(CWD, 'config/private.test.ts');
 				if (existsSync(testPath)) {
 					return null; // Let Vite handle it normally
 				}
-				// File doesn't exist, mark as external
-				return { id: virtualTestModuleId, external: true };
+				// File doesn't exist, use virtual module
+				return resolvedVirtualTestModuleId;
+			}
+		},
+		load(id) {
+			if (id === resolvedVirtualModuleId || id === resolvedVirtualTestModuleId) {
+				// Provide fallback that reads from environment variables
+				return `
+export const privateEnv = {
+	DB_TYPE: process.env.DB_TYPE || 'mongodb',
+	DB_HOST: process.env.DB_HOST || 'localhost',
+	DB_PORT: parseInt(process.env.DB_PORT || '27017'),
+	DB_NAME: process.env.DB_NAME || 'sveltycms',
+	DB_USER: process.env.DB_USER || '',
+	DB_PASSWORD: process.env.DB_PASSWORD || '',
+	JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || '',
+	ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || '',
+	GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
+	GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
+	MULTI_TENANT: process.env.MULTI_TENANT === 'true'
+} as const;
+`;
 			}
 		}
 	};
@@ -124,7 +143,7 @@ async function initializeCollectionsStructure() {
 
 	if (sourceFiles.length > 0) {
 		log.info(`Found \x1b[32m${sourceFiles.length}\x1b[0m collection(s), compiling...`);
-		await compile({ userCollections: paths.userCollections, compiledCollections: paths.compiledCollections, logger: log });
+		await compile({ userCollections: paths.userCollections, compiledCollections: paths.compiledCollections });
 		log.success('Initial collection compilation successful!');
 	} else {
 		log.info('No user collections found. Creating placeholder structure.');
@@ -170,20 +189,13 @@ function setupWizardPlugin(): Plugin {
 				log.info('Setup complete: config/private.ts exists');
 			}
 
-			// Ensure collections are ready ONLY if setup is complete
-			if (!wasPrivateConfigMissing) {
-				await initializeCollectionsStructure();
-			}
+			// Ensure collections are ready even in setup mode
+			await initializeCollectionsStructure();
 		},
 		config: () => ({
 			define: { __FRESH_INSTALL__: JSON.stringify(wasPrivateConfigMissing) }
 		}),
 		configureServer(server) {
-			// Internal guard: strictly check status at runtime
-			if (isSetupComplete()) {
-				return;
-			}
-
 			// Only open setup wizard if private.ts is missing
 			if (!wasPrivateConfigMissing) {
 				return; // Setup already completed, skip browser opening
@@ -233,8 +245,7 @@ function cmsWatcherPlugin(): Plugin {
 					await compile({
 						userCollections: paths.userCollections,
 						compiledCollections: paths.compiledCollections,
-						targetFile: file, // Pass the specific file that changed
-						logger: log
+						targetFile: file // Pass the specific file that changed
 					});
 					log.success(`Re-compilation successful for ${path.basename(file)}!`);
 
@@ -277,16 +288,12 @@ function cmsWatcherPlugin(): Plugin {
 				log.info(`Widget file change detected. Reloading widget store...`);
 				try {
 					// Invalidate and reload the widget store module to get the latest code
-					const { widgets } = await server.ssrLoadModule('./src/stores/widgetStore.svelte.ts?t=' + Date.now());
+					const { widgetStoreActions } = await server.ssrLoadModule('./src/stores/widgetStore.svelte.ts?t=' + Date.now());
 					// Call the reload action, which re-scans the filesystem
-					if (widgets && typeof widgets.reload === 'function') {
-						await widgets.reload();
-						// Trigger a full reload on the client to reflect the changes
-						server.ws.send({ type: 'full-reload', path: '*' });
-						log.success('Widgets reloaded and client updated.');
-					} else {
-						log.warn('Could not find widgets.reload function in reloaded module');
-					}
+					await widgetStoreActions.reloadWidgets();
+					// Trigger a full reload on the client to reflect the changes
+					server.ws.send({ type: 'full-reload', path: '*' });
+					log.success('Widgets reloaded and client updated.');
 				} catch (err) {
 					log.error('Error reloading widgets:', err);
 				}
@@ -298,15 +305,10 @@ function cmsWatcherPlugin(): Plugin {
 		name: 'svelty-cms-watcher',
 		enforce: 'post',
 		async buildStart() {
-			// Internal guard: Do not run CMS logic if setup is not complete
-			if (!isSetupComplete()) return;
 			await initializeCollectionsStructure();
 		},
 		configureServer(server) {
 			server.watcher.on('all', (event, file) => {
-				// Internal guard: Do not run CMS logic if setup is not complete
-				if (!isSetupComplete()) return;
-
 				if (event === 'add' || event === 'change' || event === 'unlink') {
 					handleHmr(server, file);
 				}
@@ -331,6 +333,7 @@ export default defineConfig((): UserConfig => {
 
 	return {
 		plugins: [
+			tailwindcss(),
 			// Private config fallback - provides virtual module when file doesn't exist
 			privateConfigFallbackPlugin(),
 			// Security check plugin runs first to detect private setting imports
@@ -339,24 +342,14 @@ export default defineConfig((): UserConfig => {
 				showWarnings: true,
 				extensions: ['.svelte', '.ts', '.js']
 			}),
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			sveltekit() as any,
-			setupWizardPlugin(),
-			cmsWatcherPlugin(),
+			sveltekit(),
+			!setupComplete ? setupWizardPlugin() : cmsWatcherPlugin(),
 			paraglideVitePlugin({
 				project: './project.inlang',
 				outdir: './src/paraglide'
 			})
 		],
-
 		server: {
-			proxy: {
-				'/api/graphql-ws': {
-					target: 'ws://localhost:3001',
-					ws: true,
-					rewrite: (path) => path.replace(/^\/api\/graphql-ws/, '/api/graphql')
-				}
-			},
 			fs: {
 				allow: ['static', '.'],
 				deny: ['**/tests/**']
@@ -368,9 +361,7 @@ export default defineConfig((): UserConfig => {
 		},
 		ssr: {
 			noExternal: [],
-			// Skip build-time analysis of config/private - it's loaded dynamically at runtime
-			// Setup detection happens via filesystem check in handleSetup middleware
-			external: ['bun:test', 'redis', '@config/private', '@config/private.test']
+			external: ['bun:test', 'redis']
 		},
 		resolve: {
 			alias: {
@@ -403,12 +394,11 @@ export default defineConfig((): UserConfig => {
 				},
 				onwarn(warning, warn) {
 					// Suppress circular dependency warnings from third-party libraries
-					if (warning.code === 'CIRCULAR_DEPENDENCY') {
-						if (warning.ids?.some((id) => id.includes('node_modules'))) return;
-						if (warning.message.includes('node_modules')) return;
+					if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.message.includes('node_modules')) {
+						return;
 					}
 					// Suppress unused external import warnings
-					if (warning.code === 'UNUSED_EXTERNAL_IMPORT' || (warning.code === 'UNUSED_EXTERNAL_IMPORT' && warning.message.includes('flexsearch'))) {
+					if (warning.code === 'UNUSED_EXTERNAL_IMPORT') {
 						return;
 					}
 					// Suppress eval warnings from Vite (common in dev dependencies)
@@ -425,10 +415,6 @@ export default defineConfig((): UserConfig => {
 						if (isWidgetStore || isRichTextInput || isSettingsService || isDb) {
 							return;
 						}
-					}
-					// Suppress unresolved import warnings for private config (handled at runtime)
-					if (warning.code === 'UNRESOLVED_IMPORT' && warning.message.includes('@config/private')) {
-						return;
 					}
 					// Show all other warnings
 					warn(warning);

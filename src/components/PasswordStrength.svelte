@@ -201,7 +201,7 @@ Visual password strength indicator with match validation and accessibility featu
 			<!-- Shine effect (only when motion allowed) -->
 			{#if !prefersReducedMotion && percentage > 0 && percentage < 100}
 				<div
-					class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-60 transition-transform duration-500"
+					class="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent opacity-60 transition-transform duration-500"
 					style="transform: translateX({percentage - 20}%);"
 					aria-hidden="true"
 				></div>
@@ -209,7 +209,7 @@ Visual password strength indicator with match validation and accessibility featu
 		</div>
 
 		<!-- Bottom row: Match indicator and strength bars -->
-		<div class="flex min-h-[1.75rem] w-full items-center justify-between gap-2">
+		<div class="flex min-h-7 w-full items-center justify-between gap-2">
 			<!-- Left side: Match indicator or requirements toggle -->
 			<div class="min-w-0 flex-1">
 				{#if !showMatchIndicator}

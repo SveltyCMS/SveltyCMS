@@ -227,7 +227,7 @@
 <div class="relative mb-4 min-h-10 w-full pb-6">
 	<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
 		{#if field?.prefix}
-			<button class="!px-2" type="button" aria-label={`${field.prefix} prefix`}>
+			<button class="px-2!" type="button" aria-label={`${field.prefix} prefix`}>
 				{field?.prefix}
 			</button>
 		{/if}
@@ -284,7 +284,7 @@
 					</span>
 				{/if}
 				{#if field?.suffix}
-					<span class="!px-1" aria-label={`${field.suffix} suffix`}>{field?.suffix}</span>
+					<span class="px-1!" aria-label={`${field.suffix} suffix`}>{field?.suffix}</span>
 				{/if}
 			</div>
 		{/if}
@@ -306,7 +306,7 @@
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
+		<p id={`${fieldName}-error`} class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
 			{validationError}
 		</p>
 	{/if}

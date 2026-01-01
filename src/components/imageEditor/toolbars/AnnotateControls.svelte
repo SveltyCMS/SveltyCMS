@@ -76,7 +76,7 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 		<input type="color" class="input-color" oninput={(e) => onFillColorChange(e.currentTarget.value)} value={fillColor} />
 	</label>
 
-	<div class="flex-grow"></div>
+	<div class="grow"></div>
 
 	<!-- Actions -->
 	<button onclick={onDelete} class="btn variant-ghost-error">
@@ -97,6 +97,6 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 		@apply p-0;
 	}
 	.input-color::-webkit-color-swatch {
-		@apply rounded-md border border-surface-400;
+		@apply border-surface-400 rounded-md border;
 	}
 </style>

@@ -80,7 +80,7 @@
 				<SiteName highlight="CMS" />
 			</div>
 			<!-- Slogan -->
-			<div class="-mt-[1px] text-[13px] font-bold text-secondary-500">
+			<div class="-mt-px text-[13px] font-bold text-secondary-500">
 				{m.logo_slogan()}
 			</div>
 		</div>

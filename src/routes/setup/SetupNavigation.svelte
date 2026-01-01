@@ -37,7 +37,7 @@ Handles Previous, Next, and Complete buttons and their states.
 		</div>
 	{/if}
 
-	<div class="flex flex-shrink-0 items-center justify-between px-4 pb-4 pt-4 sm:px-8 sm:pb-6 sm:pt-6">
+	<div class="flex shrink-0 items-center justify-between px-4 pb-4 pt-4 sm:px-8 sm:pb-6 sm:pt-6">
 		<!-- Previous Button -->
 		<div class="flex-1">
 			{#if currentStep > 0}
@@ -49,7 +49,7 @@ Handles Previous, Next, and Complete buttons and their states.
 		</div>
 
 		<!-- Step Indicator -->
-		<div class="flex-shrink-0 text-center text-sm font-medium">
+		<div class="shrink-0 text-center text-sm font-medium">
 			{m.setup_progress_step_of({ current: String(currentStep + 1), total: String(totalSteps) })}
 		</div>
 

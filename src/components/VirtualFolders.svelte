@@ -202,7 +202,7 @@
 			href="/"
 			onclick={handleReturnToCollections}
 			aria-label="Return to Collections"
-			class="btn mt-2 flex-col bg-surface-400 uppercase text-white hover:!bg-surface-300 dark:bg-surface-500"
+			class="btn mt-2 flex-col bg-surface-400 uppercase text-white hover:bg-surface-300! dark:bg-surface-500"
 			data-sveltekit-preload-data="hover"
 		>
 			<iconify-icon icon="bi:collection" width="24" class="text-error-500"></iconify-icon>
@@ -240,7 +240,7 @@
 				{:else}
 					<!-- Sidebar Collapsed -->
 					<div
-						class="nowrap mt-2 flex w-full flex-col items-center rounded bg-surface-400 uppercase text-white hover:!bg-surface-300 dark:bg-surface-500"
+						class="nowrap mt-2 flex w-full flex-col items-center rounded bg-surface-400 uppercase text-white hover:bg-surface-300! dark:bg-surface-500"
 					>
 						<a
 							href={`/mediagallery?folderId=${folder._id}`}

@@ -77,7 +77,7 @@ Controls for the Blur tool, including strength slider and pattern/shape selector
 		<span class="w-8 text-right">{blurStrength}</span>
 	</label>
 
-	<div class="flex-grow"></div>
+	<div class="grow"></div>
 
 	<button onclick={onReset} class="btn variant-ghost-surface">
 		<iconify-icon icon="mdi:restore"></iconify-icon>

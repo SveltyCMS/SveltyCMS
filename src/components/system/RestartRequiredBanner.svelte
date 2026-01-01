@@ -137,7 +137,7 @@ Displays a prominent banner when server restart is required with countdown and s
 		<div class="relative flex flex-col items-center gap-3 md:flex-row md:justify-between">
 			<!-- Warning icon and message -->
 			<div class="flex items-center gap-3 text-center md:text-left">
-				<div class="flex-shrink-0">
+				<div class="shrink-0">
 					<iconify-icon
 						icon="mdi:alert-circle"
 						width="32"

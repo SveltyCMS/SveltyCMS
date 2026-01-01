@@ -34,7 +34,7 @@ Displays detailed SEO analysis results in a modal overlay.
 {#if show}
 	<!-- Backdrop -->
 	<div
-		class="fixed inset-0 z-[999] bg-surface-backdrop-token backdrop-blur-sm"
+		class="fixed inset-0 z-999 bg-surface-backdrop-token backdrop-blur-sm"
 		transition:fade={{ duration: 150 }}
 		onclick={close}
 		role="presentation"
@@ -42,7 +42,7 @@ Displays detailed SEO analysis results in a modal overlay.
 
 	<!-- Modal -->
 	<div
-		class="fixed left-1/2 top-1/2 z-[1000] -translate-x-1/2 -translate-y-1/2 shadow-xl"
+		class="fixed left-1/2 top-1/2 z-1000 -translate-x-1/2 -translate-y-1/2 shadow-xl"
 		transition:scale={{ duration: 200, start: 0.95 }}
 		role="dialog"
 		aria-modal="true"

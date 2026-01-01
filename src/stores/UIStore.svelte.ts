@@ -231,3 +231,41 @@ class UIStore {
 
 // Singleton instance - the main export
 export const ui = new UIStore();
+
+// Backward compatibility exports for theme branch components
+export function toggleUIElement(element: keyof UIState, visibility: UIVisibility): void {
+	ui.toggle(element, visibility);
+}
+
+// Compatibility export for uiStateManager - wraps ui instance
+export const uiStateManager = {
+	get state() {
+		return ui.state;
+	},
+	get uiState() {
+		return { value: ui.state };
+	},
+	toggle: ui.toggle.bind(ui),
+	show: (element: keyof UIState) => ui.toggle(element, 'full'),
+	hide: (element: keyof UIState) => ui.toggle(element, 'hidden')
+};
+
+// Compatibility export for userPreferredState - wraps ui.state
+export const userPreferredState = {
+	get leftSidebar() {
+		return ui.state.leftSidebar;
+	},
+	get rightSidebar() {
+		return ui.state.rightSidebar;
+	},
+	get pageheader() {
+		return ui.state.pageheader;
+	},
+	set(state: UIVisibility) {
+		// No-op or map to something?
+		// Theme branch likely set a preference.
+		ui.userPreferred = state;
+	}
+};
+
+export const setRouteContext = ui.setRouteContext.bind(ui);

@@ -291,16 +291,16 @@
 					<div class="relative h-2 overflow-hidden rounded-full {theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}">
 						<div
 							class="h-full rounded-full transition-all duration-700 ease-out {usageLevel === 'high'
-								? 'bg-gradient-to-r from-red-500 to-red-600'
+								? 'bg-linear-to-r from-red-500 to-red-600'
 								: usageLevel === 'medium'
-									? 'bg-gradient-to-r from-yellow-500 to-orange-500'
-									: 'bg-gradient-to-r from-blue-500 to-blue-600'}"
+									? 'bg-linear-to-r from-yellow-500 to-orange-500'
+									: 'bg-linear-to-r from-blue-500 to-blue-600'}"
 							style="width: {currentUsage}%"
 						></div>
-						<div class="absolute inset-0 h-full w-full animate-pulse bg-gradient-to-r from-transparent via-white to-transparent opacity-20"></div>
+						<div class="absolute inset-0 h-full w-full animate-pulse bg-linear-to-r from-transparent via-white to-transparent opacity-20"></div>
 					</div>
 				</div>
-				<div class="relative flex-grow rounded-lg" style="min-height: {size.h >= 2 ? '150px' : '120px'}; height: 100%;">
+				<div class="relative grow rounded-lg" style="min-height: {size.h >= 2 ? '150px' : '120px'}; height: 100%;">
 					<div class="relative h-full w-full">
 						<canvas
 							bind:this={chartCanvasElement}

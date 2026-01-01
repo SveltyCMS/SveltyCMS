@@ -30,7 +30,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 				<div class="relative z-10 flex flex-1 flex-col items-center" role="listitem">
 					<button
 						type="button"
-						class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 sm:h-10 sm:w-10 sm:text-sm {stepCompleted[
+						class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 sm:h-10 sm:w-10 sm:text-sm {stepCompleted[
 							i
 						]
 							? 'bg-primary-500 text-white'
@@ -84,7 +84,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 						onclick={() => handleStepClick(i)}
 					>
 						<div
-							class="relative z-10 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold ring-2 ring-white transition-all {stepCompleted[
+							class="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm font-semibold ring-2 ring-white transition-all {stepCompleted[
 								i
 							]
 								? 'bg-primary-500 text-white'
@@ -118,7 +118,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 						</div>
 					</button>
 					{#if i !== steps.length - 1}<div
-							class="absolute left-[1.65rem] top-[3.5rem] h-[calc(100%-3.5rem)] w-[2px] {stepCompleted[i]
+							class="absolute left-[1.65rem] top-14 h-[calc(100%-3.5rem)] w-[2px] {stepCompleted[i]
 								? 'bg-primary-500'
 								: 'border-l-2 border-dashed border-slate-200'}"
 						></div>{/if}

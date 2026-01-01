@@ -28,7 +28,7 @@ Displays logo, site name, language selector, and theme toggle.
 	}
 </script>
 
-<div class="mb-4 flex-shrink-0 rounded-xl border border-surface-200 bg-white p-3 shadow-xl dark:border-white dark:bg-surface-800 sm:p-6 lg:mb-6">
+<div class="mb-4 shrink-0 rounded-xl border border-surface-200 bg-white p-3 shadow-xl dark:border-white dark:bg-surface-800 sm:p-6 lg:mb-6">
 	<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
 		<div class="flex flex-1 items-center gap-3 sm:gap-4">
 			<a href="https://github.com/SveltyCMS/SveltyCMS" target="_blank" rel="noopener noreferrer">
@@ -41,7 +41,7 @@ Displays logo, site name, language selector, and theme toggle.
 			</h1>
 		</div>
 
-		<div class="flex flex-shrink-0 items-center gap-1 sm:gap-4">
+		<div class="flex shrink-0 items-center gap-1 sm:gap-4">
 			<div class="hidden rounded border border-indigo-100 bg-indigo-50 px-3 py-1.5 lg:flex">
 				<div class="text-xs font-medium uppercase tracking-wider text-surface-500">{m.setup_heading_badge()}</div>
 			</div>

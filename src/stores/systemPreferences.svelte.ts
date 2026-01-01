@@ -95,6 +95,16 @@ class PreferencesStore {
 		this.preferences = prefs;
 		await saveLayout({ id: 'default', name: 'Default', preferences: prefs });
 	}
+
+	// Compatibility aliases
+	async loadPreferences() {
+		return this.load();
+	}
+
+	async setPreferences(prefs: DashboardWidgetConfig[]) {
+		return this.set(prefs);
+	}
 }
 
 export const preferences = new PreferencesStore();
+export const systemPreferences = preferences;

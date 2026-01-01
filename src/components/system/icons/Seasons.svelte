@@ -25,6 +25,9 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
+	// Confetti effect
+	import { Confetti } from 'svelte-confetti';
+
 	// Settings helper
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
@@ -36,7 +39,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 	 * Calculate approximate new moon date using lunar cycle
 	 * Accurate to within ±2 days for years 1900-2100
 	 */
-	function findNewMoonNear(year: number, month: number, day: number): Date {
+	function findNewMoonNear(year: number, month: number, _day: number): Date {
 		const k = Math.floor((year - 2000) * 12.3685 + (month - 1));
 		const T = k / 1236.85;
 
@@ -59,11 +62,9 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		return new Date(resultYear, resultMonth - 1, resultDay);
 	}
 
-	/**
-	 * Calculate full moon date (14.77 days after new moon)
-	 */
-	function findFullMoonNear(year: number, month: number, day: number): Date {
-		const newMoon = findNewMoonNear(year, month, day);
+	// Calculate full moon date (14.77 days after new moon)
+	function findFullMoonNear(year: number, month: number, _day: number): Date {
+		const newMoon = findNewMoonNear(year, month, _day);
 		const fullMoon = new Date(newMoon);
 		fullMoon.setDate(fullMoon.getDate() + 15);
 		return fullMoon;
@@ -73,9 +74,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 	// CHINESE LUNAR FESTIVALS
 	// =====================================================================
 
-	/**
-	 * Chinese New Year - First new moon between Jan 21 and Feb 20
-	 */
+	// Chinese New Year - First new moon between Jan 21 and Feb 20
 	function calculateChineseNewYear(year: number): Date {
 		const newMoon = findNewMoonNear(year, 1, 25);
 
@@ -90,9 +89,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		return newMoon;
 	}
 
-	/**
-	 * Dragon Boat Festival - 5th day of 5th lunar month
-	 */
+	// Dragon Boat Festival - 5th day of 5th lunar month
 	function calculateDragonBoatFestival(year: number): Date {
 		const cny = calculateChineseNewYear(year);
 		const approxDate = new Date(cny);
@@ -100,9 +97,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		return approxDate;
 	}
 
-	/**
-	 * Mid-Autumn Festival - 15th day of 8th lunar month (full moon)
-	 */
+	// Mid-Autumn Festival - 15th day of 8th lunar month (full moon)
 	function calculateMidAutumnFestival(year: number): Date {
 		const cny = calculateChineseNewYear(year);
 		const approxDate = new Date(cny);
@@ -116,9 +111,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 	// HINDU LUNAR FESTIVALS
 	// =====================================================================
 
-	/**
-	 * Diwali - New moon in Hindu month Kartik (Oct/Nov)
-	 */
+	// Diwali - New moon in Hindu month Kartik (Oct/Nov)
 	function calculateDiwali(year: number): Date {
 		const newMoon = findNewMoonNear(year, 10, 25);
 
@@ -133,9 +126,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		return newMoon;
 	}
 
-	/**
-	 * Holi - Full moon in Hindu month Phalguna (Feb/Mar)
-	 */
+	// Holi - Full moon in Hindu month Phalguna (Feb/Mar)
 	function calculateHoli(year: number): Date {
 		const fullMoon = findFullMoonNear(year, 3, 10);
 
@@ -150,9 +141,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		return fullMoon;
 	}
 
-	/**
-	 * Navratri - Starts 20 days before Diwali
-	 */
+	// Navratri - Starts 20 days before Diwali
 	function calculateNavratri(year: number): Date {
 		const diwali = calculateDiwali(year);
 		const navratri = new Date(diwali);
@@ -181,17 +170,13 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		return new Date(year, month - 1, day);
 	}
 
-	/**
-	 * Cherry Blossom Season (March-April)
-	 */
+	// Cherry Blossom Season (March-April)
 	function isCherryBlossomSeason(date: Date): boolean {
 		const month = date.getMonth();
 		return month === 2 || month === 3; // March-April
 	}
 
-	/**
-	 * Helper to check if date is within range
-	 */
+	// Helper to check if date is within range
 	function isDateInRange(date: Date, start: Date, end: Date): boolean {
 		return date >= start && date <= end;
 	}
@@ -259,10 +244,21 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 	let seasonRegion = $derived(publicEnv.SEASON_REGION);
 </script>
 
+<!-- New Year Confetti - Always shows on Jan 1st regardless of settings -->
+{#if isNewYear}
+	<div class="pointer-events-none fixed inset-0 z-50 flex justify-center">
+		<Confetti x={[-0.5, 0.5]} y={[0.25, 1]} delay={[0, 2000]} duration={3500} amount={200} fallDistance="100vh" />
+	</div>
+{/if}
+
 {#if seasonsEnabled}
 	{#if seasonRegion === 'Western_Europe'}
 		{#if isNewYear}
-			<!-- New Year -->
+			<!-- New Year with Confetti -->
+			<div class="pointer-events-none fixed inset-0 z-50 flex justify-center">
+				<Confetti x={[-0.5, 0.5]} y={[0.25, 1]} delay={[0, 2000]} duration={3500} amount={200} fallDistance="100vh" />
+			</div>
+
 			<p class="absolute -top-28 left-1/2 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-4xl font-bold text-error-500">
 				{m.login_new_year()}
 			</p>
@@ -287,10 +283,10 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		{#if isEaster}
 			<!-- Easter -->
 			<div class="absolute -top-24 left-1/2 -translate-x-1/2 -translate-y-1/2">
-				<iconify-icon icon="mdi:egg-easter" width="40" class="absolute -top-[18px] right-2 -rotate-[25deg] text-tertiary-500"></iconify-icon>
+				<iconify-icon icon="mdi:egg-easter" width="40" class="absolute -top-[18px] right-2 -rotate-25 text-tertiary-500"></iconify-icon>
 				<iconify-icon icon="game-icons:easter-egg" width="40" class="absolute -top-[25px] left-0 rotate-12 text-yellow-500"></iconify-icon>
-				<iconify-icon icon="game-icons:high-grass" width="40" class="absolute -top-[5px] right-10 -rotate-[32deg] text-green-500"></iconify-icon>
-				<iconify-icon icon="mdi:easter" width="70" class="absolute -top-[31px] left-8 rotate-[32deg] text-red-500"></iconify-icon>
+				<iconify-icon icon="game-icons:high-grass" width="40" class="absolute -top-[5px] right-10 -rotate-32 text-green-500"></iconify-icon>
+				<iconify-icon icon="mdi:easter" width="70" class="absolute -top-[31px] left-8 rotate-32 text-red-500"></iconify-icon>
 			</div>
 		{/if}
 
@@ -338,7 +334,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		{#if isDragonBoatFestival}
 			<!-- Dragon Boat Festival -->
 			<div class="absolute left-1/2 top-[-50px] -translate-x-1/2 justify-center">
-				<iconify-icon icon="noto:dragon" width="100" class="absolute -left-[00px] -top-[35px] rotate-12"></iconify-icon>
+				<iconify-icon icon="noto:dragon" width="100" class="absolute left-0 -top-[35px] rotate-12"></iconify-icon>
 			</div>
 		{/if}
 
@@ -368,12 +364,12 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 			<!-- Holi -->
 			<div class="absolute inset-0 flex">
 				<!-- Powder effects with gradients -->
-				<div class="h-full w-full translate-y-8 bg-gradient-to-b from-red-300/80 via-red-400/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-12 bg-gradient-to-b from-yellow-200/80 via-yellow-300/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-8 bg-gradient-to-b from-green-300/80 via-green-400/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-12 bg-gradient-to-b from-cyan-300/80 via-cyan-400/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-8 bg-gradient-to-b from-blue-300/80 via-blue-400/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-12 bg-gradient-to-b from-purple-300/80 via-purple-400/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-8 bg-linear-to-b from-red-300/80 via-red-400/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-12 bg-linear-to-b from-yellow-200/80 via-yellow-300/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-8 bg-linear-to-b from-green-300/80 via-green-400/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-12 bg-linear-to-b from-cyan-300/80 via-cyan-400/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-8 bg-linear-to-b from-blue-300/80 via-blue-400/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-12 bg-linear-to-b from-purple-300/80 via-purple-400/80 to-transparent blur-xl"></div>
 			</div>
 
 			<div class="absolute left-1/2 top-[-50px] -translate-x-1/2 justify-center">
@@ -383,7 +379,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 				<iconify-icon icon="game-icons:powder" width="30" class="absolute -right-[120px] top-[220px] -rotate-12 text-warning-500"></iconify-icon>
 			</div>
 			<p
-				class="absolute -left-[30px] top-[170px] justify-center bg-gradient-to-br from-pink-500 to-violet-500 box-decoration-clone bg-clip-text text-4xl font-bold text-transparent"
+				class="absolute -left-[30px] top-[170px] justify-center bg-linear-to-br from-pink-500 to-violet-500 box-decoration-clone bg-clip-text text-4xl font-bold text-transparent"
 			>
 				{m.login_Happy_Holi()}
 			</p>
@@ -398,7 +394,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 			</div>
 
 			<p
-				class="absolute -left-[30px] top-[170px] justify-center text-nowrap bg-gradient-to-br from-pink-500 to-warning-500 box-decoration-clone bg-clip-text text-4xl font-bold text-transparent"
+				class="absolute -left-[30px] top-[170px] justify-center text-nowrap bg-linear-to-br from-pink-500 to-warning-500 box-decoration-clone bg-clip-text text-4xl font-bold text-transparent"
 			>
 				{m.login_happy_navratri()}
 			</p>

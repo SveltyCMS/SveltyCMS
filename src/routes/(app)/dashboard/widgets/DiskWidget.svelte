@@ -291,10 +291,10 @@ This widget fetches and displays real-time disk usage data, including:
 						>
 							<div
 								class="h-full rounded-full transition-all duration-700 ease-out {usageLevel === 'high'
-									? 'bg-gradient-to-r from-red-500 to-red-600'
+									? 'bg-linear-to-r from-red-500 to-red-600'
 									: usageLevel === 'medium'
-										? 'bg-gradient-to-r from-orange-500 to-red-500'
-										: 'bg-gradient-to-r from-blue-500 to-blue-600'}"
+										? 'bg-linear-to-r from-orange-500 to-red-500'
+										: 'bg-linear-to-r from-blue-500 to-blue-600'}"
 								style="width: {usedPercentage}%"
 								aria-valuenow={usedPercentage}
 								aria-valuemin="0"

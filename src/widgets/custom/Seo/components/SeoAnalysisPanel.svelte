@@ -28,7 +28,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 	>
 		<div class="flex items-center gap-2 flex-1">
 			<iconify-icon icon="mdi:google-analytics" class="text-tertiary-500 text-xl"></iconify-icon>
-			<h3 class="h3 !text-lg">Analysis</h3>
+			<h3 class="h3 text-lg!">Analysis</h3>
 		</div>
 
 		{#if analysisResult}

@@ -96,7 +96,7 @@
 		<!-- Button -->
 		<a
 			href="/"
-			class="relative mt-5 block rounded-full bg-gradient-to-br from-error-700 via-error-600 to-error-700 px-8 py-4 font-bold uppercase !text-white shadow-xl"
+			class="relative mt-5 block rounded-full bg-linear-to-br from-error-700 via-error-600 to-error-700 px-8 py-4 font-bold uppercase text-white! shadow-xl"
 		>
 			{m.error_gofrontpage()}
 		</a>

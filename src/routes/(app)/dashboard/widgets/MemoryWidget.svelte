@@ -242,7 +242,7 @@ Features:
 				</div>
 
 				<h3 class="text-xs font-semibold {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} text-center">Memory Usage Overview</h3>
-				<div class="relative flex-shrink-0" style="height: 120px; min-height: 80px; max-height: 180px; width: 100%;">
+				<div class="relative shrink-0" style="height: 120px; min-height: 80px; max-height: 180px; width: 100%;">
 					<canvas
 						bind:this={chartCanvas}
 						class="h-full w-full"
@@ -253,7 +253,7 @@ Features:
 				</div>
 
 				<h3 class="text-xs font-semibold {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} text-center">Memory Statistics</h3>
-				<div class="flex-shrink-0 space-y-3">
+				<div class="shrink-0 space-y-3">
 					<div class="grid {size.w === 1 ? 'grid-cols-2' : 'grid-cols-3'} gap-3 text-xs">
 						<div class="flex flex-col text-center">
 							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Total</span>

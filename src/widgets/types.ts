@@ -58,6 +58,7 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
 
 	// Configuration UI in Collection Builder
 	GuiFields?: Record<string, unknown>;
+	GuiSchema?: Record<string, unknown>; // Compatibility for legacy widgets
 
 	// Generic translation support
 	// getTranslatablePaths is already defined above in WidgetDefinition interface

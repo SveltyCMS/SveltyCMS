@@ -45,7 +45,7 @@ Renders a color input with label, helper, and validation
 			aria-label="Color Picker"
 		/>
 
-		<div class="relative flex-grow">
+		<div class="relative grow">
 			<input
 				type="text"
 				bind:value

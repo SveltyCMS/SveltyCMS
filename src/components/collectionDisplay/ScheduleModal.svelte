@@ -15,17 +15,14 @@ Features:
 -->
 
 <script lang="ts">
+	// Force recompile
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@utils/modalState.svelte';
 
-	// Props
-	interface Props {
-		parent: any;
-	}
-	const { parent }: Props = $props();
+	// No Props needed
 
 	// --- Component State ---
 	const modalStore = getModalStore();
@@ -127,9 +124,9 @@ Features:
 			{/if}
 		</form>
 
-		<footer class="modal-footer flex items-center justify-end space-x-4 {parent.regionFooter}">
-			<button class="btn {parent.buttonNeutral}" onclick={() => parent.onClose()}>{m.button_cancel()}</button>
-			<button class="btn {parent.buttonPositive}" onclick={() => handleSubmission()} disabled={!isFormValid}
+		<footer class="modal-footer flex items-center justify-end space-x-4">
+			<button class="btn variant-ghost-secondary" onclick={() => modalStore.close()}>{m.button_cancel()}</button>
+			<button class="btn variant-filled-primary" onclick={() => handleSubmission()} disabled={!isFormValid}
 				>{m.entrylist_multibutton_schedule()}</button
 			>
 		</footer>
