@@ -35,7 +35,8 @@ permissions:
   contents: read
   actions: read
   checks: write
-
+-name: seed test database
+run: bun run seed:test
 jobs:
   # ------------------------------------------------------------------
   # 1. Unit Tests (Fastest, no server needed)
@@ -127,7 +128,7 @@ unit-tests:
           echo "🚀 Starting preview server on port 4173..."
           bun run preview &
           echo "⏳ Waiting for server to be ready..."
-          bun x wait-on http://localhost:4173 -t 60000
+          bun x wait-on http://localhost:4173 -t 120000
           echo "✅ Preview server is ready!"
 
       - name: Run Integration Tests
