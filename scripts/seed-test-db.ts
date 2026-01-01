@@ -67,8 +67,10 @@ async function wait(ms: number) {
 
 async function checkServer() {
 	try {
-		const res = await fetch(API_BASE_URL);
-		return res.ok || res.status === 404; // 404 is fine for root
+		// Use redirect: 'manual' to avoid "too many redirects" errors during setup
+		const res = await fetch(`${API_BASE_URL}/api/system/version`, { redirect: 'manual' });
+		// Accept 200, 302/307 (setup redirect means server is running), or 404
+		return res.ok || res.status === 302 || res.status === 307 || res.status === 404;
 	} catch (e) {
 		return false;
 	}
@@ -93,7 +95,7 @@ async function seedDatabase() {
 	console.log('1. Seeding configuration...');
 	const seedRes = await fetch(`${API_BASE_URL}/api/setup/seed`, {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
+		headers: { 'Content-Type': 'application/json', Origin: API_BASE_URL },
 		body: JSON.stringify(testDbConfig)
 	});
 
@@ -147,7 +149,7 @@ async function seedDatabase() {
 	console.log('2. Creating admin user...');
 	const completeRes = await fetch(`${API_BASE_URL}/api/setup/complete`, {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
+		headers: { 'Content-Type': 'application/json', Origin: API_BASE_URL },
 		body: JSON.stringify({
 			admin: testAdminUser,
 			skipWelcomeEmail: true

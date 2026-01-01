@@ -47,8 +47,10 @@ async function wait(ms: number) {
 
 async function checkServer() {
 	try {
-		const res = await fetch(API_BASE_URL);
-		return res.ok || res.status === 404; // 404 is fine for root
+		// Use redirect: 'manual' to avoid "too many redirects" errors during setup
+		const res = await fetch(`${API_BASE_URL}/api/system/version`, { redirect: 'manual' });
+		// Accept 200, 302/307 (setup redirect means server is running), or 404
+		return res.ok || res.status === 302 || res.status === 307 || res.status === 404;
 	} catch (e) {
 		return false;
 	}
@@ -71,7 +73,7 @@ async function loginAsAdmin() {
 
 	const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
+		headers: { 'Content-Type': 'application/json', Origin: API_BASE_URL },
 		body: JSON.stringify(ADMIN_CREDENTIALS)
 	});
 
@@ -98,6 +100,7 @@ async function createUserViaInvitation(user: (typeof TEST_USERS)['developer'], s
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
+			Origin: API_BASE_URL,
 			Cookie: sessionCookie
 		},
 		body: JSON.stringify({
@@ -132,7 +135,7 @@ async function createUserViaInvitation(user: (typeof TEST_USERS)['developer'], s
 	console.log(`  ✍️  Registering user with invitation token...`);
 	const registerResponse = await fetch(`${API_BASE_URL}/api/auth/register`, {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
+		headers: { 'Content-Type': 'application/json', Origin: API_BASE_URL },
 		body: JSON.stringify({
 			token,
 			password: user.password,
@@ -159,6 +162,7 @@ async function createUserDirectly(user: (typeof TEST_USERS)['developer'], sessio
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
+			Origin: API_BASE_URL,
 			Cookie: sessionCookie
 		},
 		body: JSON.stringify(user)
