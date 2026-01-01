@@ -6,6 +6,7 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from "url";
 
 // Constants for test stability
 const TEST_USER = {
@@ -15,6 +16,8 @@ const TEST_USER = {
 
 // Construct reliable file path for CI/CD environments
 // This looks for 'testthumb.png' in the SAME directory as this test file
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const AVATAR_PATH = path.join(__dirname, 'testthumb.png');
 
 test.describe('User Profile Management', () => {
