@@ -185,9 +185,27 @@ jobs:
 
       - name: Install Playwright Browsers
         run: bunx playwright install --with-deps
+      - name: Create temporary config/private.ts for build
+        run: |
+             mkdir -p config
+              cat > config/private.ts << 'EOF'
+              export const privateEnv = {
+                            DB_TYPE: 'mongodb',
+                            DB_HOST: 'localhost',
+                            DB_PORT: 27017,
+                            DB_NAME: 'sveltycms_test',
+                            DB_USER: 'admin',
+                            DB_PASSWORD: 'admin',
+                            JWT_SECRET_KEY: 'test_jwt_secret',
+                            ENCRYPTION_KEY: 'test_encryption_key',
+                            MULTI_TENANT: false
+                        } as const;
+                        EOF
 
       - name: Build Production
         run: bun run build
+      - name: Remove temporary config/private.ts
+        run: rm -f config/private.ts
 
       - name: Start Preview Server
         run: |
