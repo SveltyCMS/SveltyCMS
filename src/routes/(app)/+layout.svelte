@@ -46,11 +46,12 @@
 	import { getTextDirection } from '@utils/utils';
 
 	// Stores
+	// Stores
 	import { setContentStructure, setCollection } from '@stores/collectionStore.svelte';
 	import { publicEnv } from '@stores/globalSettings.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { screen } from '@stores/screenSizeStore.svelte';
-	import { app, toaster } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 	import { ui } from '@stores/UIStore.svelte';
 	import { widgets } from '@stores/widgetStore.svelte';
 	import { initializeDarkMode } from '@stores/themeStore.svelte';
@@ -63,9 +64,6 @@
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
 	import DialogManager from '@components/system/DialogManager.svelte';
-
-	// Skeleton v4
-	import { Toast } from '@skeletonlabs/skeleton-svelte';
 
 	// =============================================
 	// TYPE DEFINITIONS
@@ -234,25 +232,6 @@
 {:else}
 	<div class="relative h-lvh w-full">
 		<DialogManager />
-
-		<Toast.Group {toaster}>
-			{#snippet children(toast)}
-				<Toast
-					{toast}
-					class="min-w-[300px] max-w-[400px] shadow-lg backdrop-blur-md dark:bg-surface-800/90 bg-white/90 border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden"
-				>
-					<Toast.Message class="flex flex-col gap-1 p-4 pr-8 relative">
-						{#if toast.title}
-							<Toast.Title class="font-bold text-base">{toast.title}</Toast.Title>
-						{/if}
-						<Toast.Description class="text-sm opacity-90">{toast.description}</Toast.Description>
-					</Toast.Message>
-					<Toast.CloseTrigger
-						class="absolute right-2 top-2 p-1.5 hover:bg-surface-500/10 rounded-full transition-colors opacity-60 hover:opacity-100"
-					/>
-				</Toast>
-			{/snippet}
-		</Toast.Group>
 
 		{#if screen.isMobile}
 			<FloatingNav />

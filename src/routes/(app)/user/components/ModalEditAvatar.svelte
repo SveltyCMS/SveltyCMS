@@ -24,7 +24,8 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	// Skeleton
 	import { Avatar, FileUpload } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '@stores/store.svelte';
-	import { modalState, showConfirm } from '@utils/modalState.svelte';
+	import { modalState } from '@utils/modalState.svelte';
+	import { showConfirm } from '@utils/modalUtils';
 
 	let files = $state<File[]>([]);
 	let isUploading = $state(false);

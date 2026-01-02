@@ -35,7 +35,7 @@ Interactive menu builder with add/edit/reorder capabilities
 -->
 
 <script lang="ts">
-	import { getModalStore } from '@utils/modalState.svelte';
+	import { showModal } from '@utils/modalUtils';
 	import type { FieldType } from './';
 	import type { MenuItem, MenuEditContext } from './types';
 	import { app } from '@src/stores/store.svelte';
@@ -127,8 +127,7 @@ Interactive menu builder with add/edit/reorder capabilities
 			}
 		};
 
-		getModalStore().trigger({
-			type: 'component',
+		showModal({
 			component: 'menuItemEditorModal',
 			meta: modalContext
 		});

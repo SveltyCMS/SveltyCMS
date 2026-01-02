@@ -49,7 +49,8 @@
 	import { app } from '@stores/store.svelte';
 
 	// Skeleton
-	import { getModalStore } from '@utils/modalState.svelte';
+	import { modalState } from '@utils/modalState.svelte';
+	import { showConfirm } from '@utils/modalUtils';
 
 	// Components
 	import ScheduleModal from './ScheduleModal.svelte';
@@ -60,7 +61,6 @@
 	import { quintOut } from 'svelte/easing';
 
 	// Initialize modal store at component level
-	const modalStore = getModalStore();
 
 	// Types
 	type ActionType = 'create' | 'archive' | keyof typeof StatusTypes;
@@ -198,38 +198,35 @@
 
 	function openScheduleModal(): void {
 		logger.debug('Opening schedule modal with count:', selectedCount);
-		logger.debug('Modal store:', modalStore);
 
-		// Use the component-level modalStore directly
-		modalStore.trigger({
-			type: 'component',
-			component: { ref: ScheduleModal },
-			title: 'Schedule Entry',
-			meta: {
-				initialAction: 'publish'
+		// Use modalState directly
+		modalState.trigger(
+			ScheduleModal,
+			{
+				title: 'Schedule Entry',
+				meta: {
+					initialAction: 'publish'
+				}
 			},
-			response: (result: { date: Date; action: string } | boolean) => {
+			(result: { date: Date; action: string } | boolean) => {
 				if (result && typeof result === 'object' && 'date' in result) {
 					logger.debug('Schedule confirmed:', result.date, result.action);
 					schedule(result.date.toISOString(), result.action);
 				}
 			}
-		});
+		);
 	}
 
 	function openPublishModal(): void {
 		logger.debug('Opening publish modal with count:', selectedCount);
 
-		modalStore.trigger({
-			type: 'confirm',
+		showConfirm({
 			title: `Please Confirm <span class="text-primary-500 font-bold">Publication</span>`,
 			body: `Are you sure you want to <span class="text-primary-500 font-semibold">change</span> ${selectedCount} ${selectedCount === 1 ? 'entry' : 'entries'} status to <span class="text-primary-500 font-semibold">publish</span>?`,
 			buttonTextConfirm: 'Publish',
-			response: (confirmed: boolean) => {
-				if (confirmed) {
-					logger.debug('Publish confirmed');
-					publish();
-				}
+			onConfirm: () => {
+				logger.debug('Publish confirmed');
+				publish();
 			}
 		});
 	}
@@ -237,16 +234,13 @@
 	function openUnpublishModal(): void {
 		logger.debug('Opening unpublish modal with count:', selectedCount);
 
-		modalStore.trigger({
-			type: 'confirm',
+		showConfirm({
 			title: `Please Confirm <span class="text-yellow-500 font-bold">Unpublication</span>`,
 			body: `Are you sure you want to <span class="text-yellow-500 font-semibold">change</span> ${selectedCount} ${selectedCount === 1 ? 'entry' : 'entries'} status to <span class="text-yellow-500 font-semibold">unpublish</span>?`,
 			buttonTextConfirm: 'Unpublish',
-			response: (confirmed: boolean) => {
-				if (confirmed) {
-					logger.debug('Unpublish confirmed');
-					unpublish();
-				}
+			onConfirm: () => {
+				logger.debug('Unpublish confirmed');
+				unpublish();
 			}
 		});
 	}
@@ -254,16 +248,13 @@
 	function openCloneModal(): void {
 		logger.debug('Opening clone modal with count:', selectedCount);
 
-		modalStore.trigger({
-			type: 'confirm',
+		showConfirm({
 			title: m.entrylist_multibutton_clone(),
 			body: `Are you sure you want to clone ${selectedCount} ${selectedCount === 1 ? 'entry' : 'entries'}? This will create ${selectedCount === 1 ? 'a duplicate' : 'duplicates'} of the selected ${selectedCount === 1 ? 'entry' : 'entries'}.`,
 			buttonTextConfirm: m.entrylist_multibutton_clone(),
-			response: (confirmed: boolean) => {
-				if (confirmed) {
-					logger.debug('Clone confirmed');
-					clone();
-				}
+			onConfirm: () => {
+				logger.debug('Clone confirmed');
+				clone();
 			}
 		});
 	}

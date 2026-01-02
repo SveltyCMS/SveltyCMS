@@ -25,7 +25,7 @@
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import { browser } from '$app/environment';
-	import { enhance } from '$app/forms';
+	import { deserialize, enhance } from '$app/forms';
 	import { preloadData } from '$app/navigation';
 
 	import type { PageData } from '../$types';
@@ -35,6 +35,7 @@
 
 	import { Form } from '@utils/Form.svelte';
 	import { signUpFormSchema } from '@utils/formSchemas';
+	import { toaster } from '@stores/store.svelte';
 	// Components
 	import PasswordStrength from '@components/PasswordStrength.svelte';
 	import SiteName from '@components/SiteName.svelte';
@@ -74,7 +75,19 @@
 	let showPassword = $state(false);
 	let isSubmitting = $state(false);
 	let isRedirecting = $state(false);
-	let FloatingPathsComponent: Component | null = $state(null);
+
+	let prefetched = $state(false);
+
+	async function prefetchFirstCollection() {
+		if (prefetched || !firstCollectionPath) return;
+		prefetched = true;
+
+		try {
+			await preloadData(firstCollectionPath);
+		} catch (error) {
+			console.error('Prefetch failed:', error);
+		}
+	}
 
 	// Pre-calculate tab indices
 	const usernameTabIndex = 1;
@@ -101,6 +114,12 @@
 
 			if (result.type === 'redirect') {
 				isRedirecting = true;
+
+				toaster.success({
+					title: 'Account Created!',
+					description: 'Welcome to SveltyCMS. Redirecting to your dashboard...'
+				});
+
 				setTimeout(() => {
 					isRedirecting = false;
 				}, 100);
@@ -110,6 +129,14 @@
 			isRedirecting = false;
 
 			if (result.type === 'failure' || result.type === 'error') {
+				const errorMessage =
+					result.type === 'failure' ? result.data?.message || 'Failed to create account' : result.error?.message || 'An unexpected error occurred';
+
+				toaster.error({
+					title: 'Sign Up Failed',
+					description: errorMessage
+				});
+
 				formElement?.classList.add('wiggle');
 				setTimeout(() => {
 					formElement?.classList.remove('wiggle');
@@ -118,6 +145,10 @@
 
 			if (result.type === 'success') {
 				response = result.data?.message;
+				toaster.success({
+					title: 'Account Created',
+					description: result.data?.message || 'Your account has been successfully created'
+				});
 			}
 
 			await update();
@@ -204,23 +235,10 @@
 
 	const baseClasses = 'hover relative flex items-center overflow-y-auto';
 
-	// Lazy-load FloatingPaths only on desktop when SignUp is active
-	$effect(() => {
-		const desktop = screen.isDesktop;
-		const isActiveSignUp = active === 1;
-		if (browser && desktop && isActiveSignUp) {
-			import('@root/src/components/system/FloatingPaths.svelte').then((m) => {
-				FloatingPathsComponent = m.default as Component;
-			});
-		} else {
-			FloatingPathsComponent = null;
-		}
-	});
-
 	// Prefetch first collection data when active
 	$effect(() => {
-		if (active === 1 && firstCollectionPath) {
-			preloadData(firstCollectionPath);
+		if (active === 1) {
+			prefetchFirstCollection();
 		}
 	});
 </script>
@@ -238,12 +256,6 @@
 >
 	{#if active === 1}
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
-			{#if screen.isDesktop && FloatingPathsComponent}
-				<div class="absolute inset-0">
-					<FloatingPathsComponent position={1} background="dark" mirrorAnimation />
-					<FloatingPathsComponent position={-1} background="dark" mirrorAnimation />
-				</div>
-			{/if}
 			<!-- CSS Logo -->
 			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
 				<SveltyCMSLogoFull />

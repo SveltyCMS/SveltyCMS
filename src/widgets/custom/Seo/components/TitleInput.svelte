@@ -81,7 +81,7 @@
 	aria-describedby="title-status"
 />
 
-<style lang="postcss">
+<style>
 	.input-label {
 		color: gray;
 	}

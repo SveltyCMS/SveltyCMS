@@ -19,7 +19,7 @@ All dynamic CMS settings organized into logical groups
 	import { writable } from 'svelte/store';
 	import PageTitle from '@components/PageTitle.svelte';
 	import { logger } from '@utils/logger';
-	import { showConfirm } from '@utils/modalState.svelte';
+	import { showConfirm } from '@utils/modalUtils';
 
 	// Import settings structure
 	import { getSettingGroupsByRole } from './settingsGroups';

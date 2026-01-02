@@ -68,10 +68,10 @@ This component provides a user interface for managing 2FA settings:
 
 	// Show success toast
 	function showSuccessToast(message: string) {
-		toaster.success({ description: `<iconify-icon icon="mdi:check-circle" color="white" width="24" class="mr-2"></iconify-icon>${message}` });
+		toaster.create({ title: 'Success', description: message, type: 'success' });
 	}
 	function showErrorToast(message: string) {
-		toaster.error({ description: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-2"></iconify-icon>${message}` });
+		toaster.create({ title: 'Error', description: message, type: 'error' });
 	}
 
 	// Load setup data (QR code, secret, backup codes)

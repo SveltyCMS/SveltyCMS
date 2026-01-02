@@ -50,7 +50,7 @@
 	</div>
 </div>
 
-<style lang="postcss">
+<style>
 	.hide {
 		animation: _hide 0.3s forwards;
 	}

@@ -82,7 +82,7 @@
 	aria-describedby="description-status"
 ></textarea>
 
-<style lang="postcss">
+<style>
 	.input-label {
 		color: gray;
 	}

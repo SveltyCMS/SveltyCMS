@@ -554,23 +554,7 @@ Comprehensive image editing interface with Konva.js integration.
 	</div>
 </div>
 
-<style lang="postcss">
-	.image-editor {
-		@apply flex h-full w-full flex-col overflow-hidden;
-	}
-
-	.editor-layout {
-		@apply flex h-full overflow-hidden;
-	}
-
-	.editor-main {
-		@apply flex min-w-0 flex-1 flex-col;
-	}
-
-	.canvas-wrapper {
-		@apply relative flex flex-1 flex-col;
-	}
-
+<style>
 	:global(.crop-bottom-bar) {
 		position: absolute;
 		bottom: 1rem;

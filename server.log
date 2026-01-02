@@ -1,0 +1,49 @@
+$ bun run vite preview
+2026-01-02 18:45:01 [32m● [INFO ][0m ✅ DB module loaded. System will initialize on first request via handleSystemState. 
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Private config found, starting full system initialization
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Starting SvelteCMS System Initialization...
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] System state changed: IDLE → INITIALIZING { reason: 'Starting system initialization' }
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] [Widget Proxy] Loaded [34m10[0m core widgets and [34m10[0m custom widgets
+2026-01-02 18:45:01 [32m● [INFO ][0m 📡 Initializing Telemetry Service... 
+  ➜  Local:   http://localhost:4173/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+2026-01-02 18:45:01 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] MongoAuthModelRegistrar initialized.
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Authentication models registered successfully.
+2026-01-02 18:45:01 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-02 18:45:01 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Steps [34m1[0m-[34m2[0m: DB connected & adapters loaded in [32m43.19ms[0m
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Step [34m3[0m: Database models setup in [32m43.19ms[0m (⚡ parallelized with connection)
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Step [34m4[0m: Skipping eager ContentManager init (moved to Step [34m6[0m)
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Creating in-memory session manager
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] ✓ System auto-transitioned to READY (initialization completed in [32m208ms[0m)
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] ✅ System settings loaded and cached from database.
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] In-memory cache initialized.
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] [WidgetStore] Initializing for tenant: default
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] [WidgetStore] Initialized: [34m10[0m core, [34m9[0m custom widgets.
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Parallel I/O completed in [32m15.52ms[0m (Media: [32m15.42ms[0m, Revisions: [32m1.07ms[0m, Virtual Folders: [32m10.28ms[0m, Themes: [32m9.82ms[0m, Widgets: [32m12.44ms[0m)
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Step [34m5[0m: Critical components initialized in [32m36.62ms[0m (Auth: [32m21.05ms[0m, Settings: [32m20.89ms[0m)
+2026-01-02 18:45:01 [32m● [INFO ][0m [ContentManager] Starting initialization [33m{tenantId: [90mundefined[0m}[0m
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Initializing WidgetRegistryService, registering pre-scanned widgets...
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ]  [34m705[0m WidgetRegistryService initialized with [34m19[0m widgets in [32m4.05ms[0m.
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Collection model created: [33mdae3e3e9e9fd4501ab131199[0m66d0ddb8 (collection_[33mdae3e3e9e9fd4501ab131199[0m66d0ddb8)
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Indexes created for collection: [33mdae3e3e9e9fd4501ab131199[0m66d0ddb8
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Collection model created: [33me0665a3e7e064f1fb5163680[0mda45bc73 (collection_[33me0665a3e7e064f1fb5163680[0mda45bc73)
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Indexes created for collection: [33me0665a3e7e064f1fb5163680[0mda45bc73
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Collection model created: [33m3e6b20330cfd4fc488327fa4[0m37468692 (collection_[33m3e6b20330cfd4fc488327fa4[0m37468692)
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Indexes created for collection: [33m3e6b20330cfd4fc488327fa4[0m37468692
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Collection model created: [33m318af82da7624414a8390d48[0mcc048bfb (collection_[33m318af82da7624414a8390d48[0mcc048bfb)
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Indexes created for collection: [33m318af82da7624414a8390d48[0mcc048bfb
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Collection model created: [33m63f7efc6d2744ef4a357fe7f[0m245872e4 (collection_[33m63f7efc6d2744ef4a357fe7f[0m245872e4)
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Indexes created for collection: [33m63f7efc6d2744ef4a357fe7f[0m245872e4
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Collection model created: [33me284d654f7814a1c84d3709b[0m830d9639 (collection_[33me284d654f7814a1c84d3709b[0m830d9639)
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Indexes created for collection: [33me284d654f7814a1c84d3709b[0m830d9639
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] [bulkUpdateNodes] Result: modified=[34m9[0m, upserted=[34m0[0m, total=[34m9[0m
+2026-01-02 18:45:01 [32m● [INFO ][0m 📦 ContentManager fully initialized in [32m.[34m$1[0m[0m 
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] Step [34m6[0m: ContentManager initialized (Dependencies ready).
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] System state changed: READY → READY { reason: 'All critical services initialized successfully' }
+[2m2026-01-02 18:45:01[0m ℹ️ [INFO ] 🚀 System initialization completed successfully in [32m322.61ms[0m!
+[2m2026-01-02 18:45:11[0m ℹ️ [INFO ] 📡 Starting Telemetry check (Background)...
+2026-01-02 18:46:00 [32m● [INFO ][0m 📋 First collection loaded: Names ([33mdae3e3e9e9fd4501ab131199[0m66d0ddb8) in [32m.[34m$1[0m[0m 
+2026-01-02 18:46:00 [32m● [INFO ][0m Redirecting to first collection: Names at path: /en/Collections/Names 

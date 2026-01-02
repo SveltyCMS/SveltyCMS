@@ -24,7 +24,7 @@
 	import type { SvelteComponent } from 'svelte';
 
 	// Stores
-	import { getModalStore } from '@utils/modalState.svelte';
+	import { modalState } from '@utils/modalState.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -52,21 +52,16 @@
 		formDescription = roleDescription;
 	});
 
-	const modalStore = getModalStore();
-
 	function onFormSubmit(event: SubmitEvent): void {
 		event.preventDefault();
-		const modal = $modalStore[0];
-		if (modal?.response) {
-			modal.response({
-				roleName: formName,
-				roleDescription: formDescription,
-				currentGroupName,
-				selectedPermissions,
-				currentRoleId
-			});
-		}
-		modalStore.close();
+
+		modalState.close({
+			roleName: formName,
+			roleDescription: formDescription,
+			currentGroupName,
+			selectedPermissions,
+			currentRoleId
+		});
 	}
 </script>
 

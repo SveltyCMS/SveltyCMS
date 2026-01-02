@@ -1028,7 +1028,7 @@ Features:
 	{/if}
 {/if}
 
-<style lang="postcss">
+<style>
 	div::-webkit-scrollbar-thumb {
 		border-radius: 50px;
 		background-color: #0ec423;

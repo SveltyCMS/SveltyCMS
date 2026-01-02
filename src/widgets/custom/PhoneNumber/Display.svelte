@@ -34,7 +34,7 @@ Renders: <a href="tel:+49 30 12345678">+49 30 12345678</a>
 	<span>–</span>
 {/if}
 
-<style lang="postcss">
+<style>
 	.tel-link {
 		color: #007bff;
 		text-decoration: underline;

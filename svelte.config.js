@@ -49,16 +49,16 @@ const config = {
 				'default-src': ['self'],
 				// Allow SvelteKit's nonced inline scripts plus dev HMR
 				// TEMPORARY DEBUG: Allow unsafe-eval/inline in production to rule out CSP issues
-				'script-src': ['self', 'unsafe-inline', 'unsafe-eval', 'blob:'],
+				'script-src': ['self', 'unsafe-inline', 'unsafe-eval', 'blob:', 'https://*.iconify.design', 'https://code.iconify.design'],
 				'worker-src': ['self', 'blob:'], // Allow workers from same origin and blob URLs
-				'style-src': ['self', 'unsafe-inline'], // unsafe-inline for faster builds
+				'style-src': ['self', 'unsafe-inline', 'https://*.iconify.design'], // unsafe-inline for faster builds
 				'img-src': [
 					'self',
 					'data:',
 					'blob:',
-					'https://api.iconify.design',
-					'https://api.unisvg.com',
-					'https://api.simplesvg.com',
+					'https://*.iconify.design',
+					'https://*.simplesvg.com',
+					'https://*.unisvg.com',
 					'https://placehold.co',
 					'https://api.qrserver.com',
 					'https://github.com',
@@ -67,12 +67,13 @@ const config = {
 				'font-src': ['self', 'data:'],
 				'connect-src': [
 					'self',
-					'https://api.iconify.design',
+					'https://*.iconify.design',
+					'https://*.simplesvg.com',
+					'https://*.unisvg.com',
+					'https://code.iconify.design',
 					'https://raw.githubusercontent.com',
 					'wss:',
-					'ws:',
-					'https://api.simplesvg.com',
-					'https://api.unisvg.com'
+					'ws:'
 				],
 				'object-src': ['none'],
 				'base-uri': ['self'],

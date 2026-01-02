@@ -1,0 +1,24 @@
+$ NODE_OPTIONS="--no-warnings --no-deprecation" bun run vite build
+vite v7.3.0 building ssr environment for production...
+[SveltyCMS] Found [32m6[0m collection(s), compiling...
+[SveltyCMS] ✅ Initial collection compilation successful!
+✔ [paraglide-js] Compilation complete (message-modules)
+transforming...
+✓ Security check passed: No private settings exposed to client
+✓ 2177 modules transformed.
+✗ Build failed in 8.98s
+error during build:
+[@tailwindcss/vite:generate:build] Cannot apply unknown utility class `border-surface-400`
+file: /var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/components/imageEditor/toolbars/AnnotateControls.svelte?svelte&type=style&lang.css
+    at onInvalidCandidate (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/tailwindcss/dist/chunk-MEY3PWYT.mjs:21:1511)
+    at Ae (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/tailwindcss/dist/chunk-MEY3PWYT.mjs:16:36364)
+    at file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/tailwindcss/dist/chunk-MEY3PWYT.mjs:21:355
+    at hr (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/tailwindcss/dist/chunk-MEY3PWYT.mjs:3:1718)
+    at I (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/tailwindcss/dist/chunk-MEY3PWYT.mjs:3:1377)
+    at xe (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/tailwindcss/dist/chunk-MEY3PWYT.mjs:21:172)
+    at zi (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/tailwindcss/dist/chunk-MEY3PWYT.mjs:38:294)
+    at async Ba (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/tailwindcss/dist/chunk-MEY3PWYT.mjs:38:631)
+    at async Hu (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/tailwindcss/dist/chunk-MEY3PWYT.mjs:38:1406)
+    at async nu (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@tailwindcss/node/dist/index.mjs:10:3433)
+error: "vite" exited with code 1
+error: script "build" exited with code 1

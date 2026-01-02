@@ -16,10 +16,10 @@ Features:
 	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 
 	// Skeleton Stores
-	import { getModalStore } from '@utils/modalState.svelte';
+	import { modalState } from '@utils/modalState.svelte';
 	import { collections } from '@src/stores/collectionStore.svelte';
 
-	const modalStore = getModalStore();
+	// Removed modalStore
 
 	// Define widget keys and excluded fields for specificity
 	const defaultFields = ['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'];
@@ -37,7 +37,7 @@ Features:
 	}
 </script>
 
-{#if $modalStore[0] && currentGuiSchema && specificFields.length > 0}
+{#if modalState.active && currentGuiSchema && specificFields.length > 0}
 	{#each specificFields as property}
 		<InputSwitch
 			value={collections.targetWidget[property]}
@@ -46,6 +46,6 @@ Features:
 			key={property}
 		/>
 	{/each}
-{:else if $modalStore[0] && currentWidgetName}
+{:else if modalState.active && currentWidgetName}
 	<div class="text-center text-sm text-gray-500">No specific options for this widget type</div>
 {/if}

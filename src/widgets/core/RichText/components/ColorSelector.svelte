@@ -128,7 +128,7 @@
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	.selected {
 		display: flex;
 		width: 100%;

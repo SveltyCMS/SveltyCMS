@@ -13,7 +13,7 @@
 	import type { RichTextData } from './types';
 	import { app } from '@src/stores/store.svelte';
 
-	import { getModalStore } from '@utils/modalState.svelte';
+	import { showModal } from '@utils/modalUtils';
 	import type { MediaFile } from '../MediaUpload/types';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
 
@@ -28,7 +28,6 @@
 	} = $props();
 
 	const lang = $derived(field.translated ? app.contentLanguage : 'default');
-	const modalStore = getModalStore();
 
 	$effect(() => {
 		if (!value) value = {};
@@ -64,8 +63,7 @@
 
 	// New Feature Functions
 	function openMediaLibrary() {
-		modalStore.trigger({
-			type: 'component',
+		showModal({
 			component: 'mediaLibraryModal',
 			response: (files: MediaFile[] | undefined) => {
 				if (files && files.length > 0) {

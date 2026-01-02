@@ -25,13 +25,11 @@ This modal			class="input text-center font-mono tracking-wider"
 -->
 
 <script lang="ts">
-	import { getModalStore } from '@utils/modalState.svelte';
+	import { modalState } from '@utils/modalState.svelte';
 	import * as m from '@src/paraglide/messages';
 
 	// Props
 	const { parent, title = '', description = '' } = $props();
-
-	const modalStore = getModalStore();
 
 	// State
 	let code = $state('');
@@ -84,7 +82,7 @@ This modal			class="input text-center font-mono tracking-wider"
 		try {
 			// Return the code to the parent modal
 			if (parent.onClose) parent.onClose(trimmedCode);
-			modalStore.close();
+			modalState.close();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Verification failed';
 		} finally {
@@ -95,7 +93,7 @@ This modal			class="input text-center font-mono tracking-wider"
 	// Cancel verification
 	function cancelVerification() {
 		if (parent.onClose) parent.onClose(null);
-		modalStore.close();
+		modalState.close();
 	}
 
 	// Toggle between authenticator and backup code

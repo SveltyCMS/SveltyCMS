@@ -167,7 +167,7 @@ Part of the Three Pillars Architecture for widget system.
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	/* Screen reader only utility */
 	.sr-only {
 		position: absolute;

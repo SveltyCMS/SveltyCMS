@@ -89,14 +89,24 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 	</button>
 </div>
 
-<style lang="postcss">
+<style>
 	.input-color {
-		@apply h-8 w-8 cursor-pointer appearance-none rounded-md border-none bg-transparent p-0;
+		height: var(--spacing-8, 2rem);
+		width: var(--spacing-8, 2rem);
+		cursor: pointer;
+		appearance: none;
+		border-radius: var(--radius-base, 0.375rem);
+		border: none;
+		background-color: transparent;
+		padding: 0;
 	}
 	.input-color::-webkit-color-swatch-wrapper {
-		@apply p-0;
+		padding: 0;
 	}
 	.input-color::-webkit-color-swatch {
-		@apply border-surface-400 rounded-md border;
+		border-color: var(--color-surface-400);
+		border-radius: var(--radius-base, 0.375rem);
+		border-width: 1px;
+		border-style: solid;
 	}
 </style>

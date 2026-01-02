@@ -72,7 +72,7 @@
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	.description {
 		left: 50%;
 		transform: translate(-50%);

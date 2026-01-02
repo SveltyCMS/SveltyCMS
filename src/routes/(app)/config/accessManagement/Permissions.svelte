@@ -307,7 +307,7 @@ It provides the following functionality:
 	{/if}
 {/if}
 
-<style lang="postcss">
+<style>
 	.permission {
 		height: calc(100vh - 400px);
 	}

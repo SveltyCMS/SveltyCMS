@@ -52,7 +52,7 @@
 			onConfirm();
 		}}
 	>
-		<input class="input p-2 border rounded-container-token bg-surface-200-800" {type} bind:value={inputValue} autofocus />
+		<input class="input p-2 border rounded-container-token bg-surface-200-800" {type} bind:value={inputValue} />
 	</form>
 
 	<div class="flex justify-end gap-2 pt-2">

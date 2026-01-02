@@ -8,8 +8,7 @@ Features:
 - Provides suggestions for resolving conflicts
 -->
 <script lang="ts">
-	import { getModalStore } from '@utils/modalState.svelte';
-	const modalStore = getModalStore();
+	import { modalState } from '@utils/modalState.svelte';
 
 	interface Props {
 		conflictingName: string;
@@ -29,14 +28,14 @@ Features:
 		const newName = useCustomName ? customName : selectedName;
 		if (newName && validateCustomName(newName)) {
 			// Validate custom name even if not explicitly enabled
-			modalStore.close();
+			modalState.close();
 			onConfirm(newName); // Call the provided confirmation callback
 		}
 	}
 
 	// Handles the cancel action, closing the modal without confirmation
 	function handleCancel() {
-		modalStore.close();
+		modalState.close();
 	}
 
 	/**

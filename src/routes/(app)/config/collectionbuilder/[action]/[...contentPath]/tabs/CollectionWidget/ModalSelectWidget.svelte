@@ -11,8 +11,7 @@
 	import { onMount } from 'svelte';
 
 	// Skeleton Stores
-	import { getModalStore } from '@utils/modalState.svelte';
-	const modalStore = getModalStore();
+	import { modalState } from '@utils/modalState.svelte';
 
 	// Props
 	interface Props {
@@ -35,12 +34,8 @@
 	// We've created a custom submit function to pass the response and close the modal.
 	function onFormSubmit(selected: any): void {
 		if (selected !== null) {
-			if ($modalStore[0].response) {
-				// Set the selected widget in the form data and update the modalStore
-				$modalStore[0].response({ selectedWidget: selected });
-			}
-			// close the modal
-			modalStore.close();
+			// close the modal and pass response
+			modalState.close({ selectedWidget: selected });
 		} else {
 			logger.error('No widget selected');
 		}
@@ -53,11 +48,11 @@
 	// Tooltip not needed with new card design showing description
 </script>
 
-{#if $modalStore[0]}
+{#if modalState.active}
 	<div class={cBase}>
 		<header class="flex items-center justify-between border-b border-surface-200 pb-4 dark:border-surface-700">
 			<h2 class={cHeader}>
-				{$modalStore[0]?.title || 'Select Widget'}
+				{modalState.active?.props?.title || 'Select Widget'}
 			</h2>
 			<button class="btn-icon variant-ghost-surface" onclick={parent.onClose} aria-label="Close modal">
 				<iconify-icon icon="mdi:close" width="24"></iconify-icon>

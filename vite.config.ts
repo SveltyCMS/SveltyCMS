@@ -387,9 +387,16 @@ export default defineConfig((): UserConfig => {
 			sourcemap: true,
 			chunkSizeWarningLimit: 600, // Increase from 500KB (after optimizations)
 			rollupOptions: {
-				// Aggressive tree-shaking for production builds
+				// Tree-shaking with preserved side effects for critical packages
 				treeshake: {
-					moduleSideEffects: false, // Assume modules have no side effects unless marked
+					// Preserve side-effect imports for packages that need them
+					moduleSideEffects: (id) => {
+						// These packages have important side effects that must not be removed
+						if (id.includes('iconify-icon')) return true;
+						if (id.includes('paraglide')) return true;
+						// Default: assume no side effects for other modules
+						return false;
+					},
 					propertyReadSideEffects: false // Allow property reads to be removed
 				},
 				onwarn(warning, warn) {

@@ -20,7 +20,7 @@ Handles all field types and validation automatically
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { logger } from '@utils/logger';
-	import { showConfirm } from '@utils/modalState.svelte';
+	import { showConfirm } from '@utils/modalUtils';
 
 	// Log levels from logger.svelte.ts
 	const LOG_LEVELS = ['none', 'fatal', 'error', 'warn', 'info', 'debug', 'trace'] as const;

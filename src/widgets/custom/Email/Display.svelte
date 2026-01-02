@@ -33,7 +33,7 @@ Renders: <a href="mailto:user@example.com">user@example.com</a>
 	<span>–</span>
 {/if}
 
-<style lang="postcss">
+<style>
 	.email-link {
 		color: #007bff;
 		text-decoration: underline;

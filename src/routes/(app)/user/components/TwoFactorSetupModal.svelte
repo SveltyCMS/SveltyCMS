@@ -56,10 +56,14 @@ This modal displays the QR code for setting up 2FA and handles verification.
 	async function copyToClipboard(text: string) {
 		try {
 			await navigator.clipboard.writeText(text);
-			toaster.success({ description: `<iconify-icon icon="mdi:check" width="20" class="mr-1"></iconify-icon> ${m.button_copy()} successful` });
+			toaster.create({
+				title: 'Success',
+				description: `${m.button_copy()} successful`,
+				type: 'success'
+			});
 		} catch (err) {
 			logger.error('Failed to copy:', err);
-			toaster.error({ description: `<iconify-icon icon="mdi:alert-circle" width="20" class="mr-1"></iconify-icon> Failed to copy` });
+			toaster.create({ title: 'Error', description: 'Failed to copy', type: 'error' });
 		}
 	}
 
@@ -89,12 +93,14 @@ This modal displays the QR code for setting up 2FA and handles verification.
 			}
 
 			currentStep = 'complete';
-			toaster.success({
-				description: `<iconify-icon icon="mdi:check-circle" width="20" class="mr-1"></iconify-icon> ${m.twofa_setup_complete_title()}`
+			toaster.create({
+				title: 'Success',
+				description: m.twofa_setup_complete_title(),
+				type: 'success'
 			});
 		} catch (err) {
 			error = err instanceof Error ? err.message : m.twofa_error_invalid_code();
-			toaster.error({ description: `<iconify-icon icon="mdi:alert-circle" width="20" class="mr-1"></iconify-icon> ${error}` });
+			toaster.create({ title: 'Error', description: error, type: 'error' });
 		} finally {
 			isVerifying = false;
 		}

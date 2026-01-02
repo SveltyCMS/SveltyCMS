@@ -180,7 +180,7 @@ Part of the Three Pillars Architecture for widget system.
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	/* Add styles for input, preview, thumbnail, details, and error messages */
 	.input-container {
 		position: relative;

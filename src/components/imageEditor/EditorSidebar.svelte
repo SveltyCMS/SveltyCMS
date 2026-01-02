@@ -88,7 +88,7 @@ and proper active state indication.
 	</div>
 </div>
 
-<style lang="postcss">
+<style>
 	.editor-sidebar {
 		background-color: rgb(var(--color-surface-100) / 1);
 		border-color: rgb(var(--color-surface-200) / 1);

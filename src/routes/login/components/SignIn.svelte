@@ -25,7 +25,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { goto, preloadData } from '$app/navigation';
-	import { enhance } from '$app/forms';
+	import { deserialize, enhance } from '$app/forms';
 
 	// Stores
 	import { page } from '$app/state';
@@ -41,19 +41,14 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import PasswordStrength from '@components/PasswordStrength.svelte';
-	// Lazy-load FloatingPaths on desktop for performance
-	let FloatingPathsComponent: Component | null = $state(null);
-
 	// Skeleton
 	import { toaster } from '@stores/store.svelte';
-	import type { Component } from 'svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import OauthLogin from './OauthLogin.svelte';
 
 	// Screen size store
-	import { screen } from '@stores/screenSizeStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Props
@@ -99,6 +94,19 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	let useBackupCode = $state(false);
 	let isVerifying2FA = $state(false);
 
+	let prefetched = $state(false);
+
+	async function prefetchFirstCollection() {
+		if (prefetched || !firstCollectionPath) return;
+		prefetched = true;
+
+		try {
+			await preloadData(firstCollectionPath);
+		} catch (error) {
+			console.error('Prefetch failed:', error);
+		}
+	}
+
 	// Login form setup
 	// Login form setup
 	const loginForm = new Form({ email: '', password: '', isToken: false }, loginFormSchema);
@@ -130,19 +138,15 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				// Keep authenticating state for redirect phase
 				isAuthenticating = true;
 
-				// Trigger the toast
-				toaster.success({ description: m.signin_signinsuccess() });
-
-				// Cancel default redirect behavior so we can use client-side navigation
-				// cancel(); // Form class doesn't support cancelling redirect in onResult easily without preventing update?
-				// Actually, if we don't call update(), the redirect doesn't happen automatically?
-				// SvelteKit default applyAction handles redirect.
-				// We want to use goto.
-
-				// Use client-side navigation for instant redirect
 				if (result.location) {
 					goto(result.location);
 				}
+
+				// Trigger the toast
+				toaster.success({
+					title: 'Welcome Back!',
+					description: 'Successfully signed in. Redirecting...'
+				});
 
 				// Clear authenticating state immediately
 				isAuthenticating = false;
@@ -159,7 +163,10 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				globalLoadingStore.stopLoading(loadingOperations.authentication);
 
 				// Show 2FA required message
-				toaster.warning({ description: m.twofa_verify_title() });
+				toaster.warning({
+					title: 'Two-Factor Authentication Required',
+					description: 'Please enter your authentication code to continue'
+				});
 				return;
 			}
 
@@ -168,8 +175,13 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 			globalLoadingStore.stopLoading(loadingOperations.authentication);
 
 			if (result.type === 'failure' || result.type === 'error') {
-				// Trigger the toast
-				toaster.error({ description: m.signin_wrong_user_or_password() });
+				const errorMessage =
+					result.type === 'failure' ? result.data?.message || 'Invalid email or password' : result.error?.message || 'An unexpected error occurred';
+
+				toaster.error({
+					title: 'Sign In Failed',
+					description: errorMessage
+				});
 
 				// add wiggle animation to form element
 				formElement?.classList.add('wiggle');
@@ -215,40 +227,45 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				return;
 			}
 
-			if (result.type === 'success' || result.type === 'failure') {
-				// Failure can also contain data
-				// Check if user exists
-				if (result.data && result.data.userExists === false) {
-					PWreset = false;
-					toaster.error({ description: 'No account found with this email address.' });
-					formElement?.classList.add('wiggle');
-					setTimeout(() => formElement?.classList.remove('wiggle'), 300);
-					return;
-				} else if (result.data && result.data.userExists === true) {
+			if (result.type === 'success') {
+				// Check if user exists (success with data)
+				if (result.data && result.data.userExists === true) {
 					PWreset = true;
 					toaster.success({ description: m.signin_forgottontoast() });
 					return;
 				} else {
-					// Fallback
+					// Fallback or specific logic for User check
 					if (result.data?.status === false) {
+						// User does not exist case handled by backend returning success: false or similar?
+						// Actually, standard SvelteKit 'success' means 200 OK.
+						// If backend returns { userExists: false }, we handle it.
 						PWreset = false;
+						toaster.error({ description: 'No account found with this email address.' });
 						formElement?.classList.add('wiggle');
 						setTimeout(() => formElement?.classList.remove('wiggle'), 300);
 					} else {
+						// Default success
 						PWreset = true;
-						toaster.success({ description: m.signin_forgottontoast() });
+						toaster.success({
+							title: 'Email Sent',
+							description: 'Password reset instructions have been sent to your email'
+						});
 					}
 				}
+			} else if (result.type === 'failure') {
+				const errorMessage = result.data?.message || 'Password reset failed';
+
+				toaster.error({
+					title: 'Reset Failed',
+					description: errorMessage
+				});
+
+				formElement?.classList.add('wiggle');
+				setTimeout(() => formElement?.classList.remove('wiggle'), 300);
+				return;
 			}
 
 			await update();
-
-			if (result.type === 'failure') {
-				formElement?.classList.add('wiggle');
-				setTimeout(() => {
-					formElement?.classList.remove('wiggle');
-				}, 300);
-			}
 		}
 	});
 
@@ -270,7 +287,10 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 			PWforgot = false;
 
 			if (result.type === 'success' || result.type === 'redirect') {
-				toaster.success({ description: m.signin_restpasswordtoast() });
+				toaster.success({
+					title: 'Password Reset Successful',
+					description: 'You can now sign in with your new password'
+				});
 				if (result.type === 'redirect') {
 					if (result.location) goto(result.location);
 					return;
@@ -317,7 +337,10 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 			// Parse response
 			if (response.ok) {
 				// Success - redirect will be handled by SvelteKit
-				toaster.success({ description: m.twofa_success_verified() });
+				toaster.success({
+					title: 'Verification Successful',
+					description: 'Redirecting to your dashboard...'
+				});
 
 				// The server will redirect on successful verification
 				window.location.reload();
@@ -412,24 +435,10 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 	const baseClasses = 'hover relative flex items-center';
 
-	// Lazy-load FloatingPaths only when needed (desktop + active 0)
-	$effect(() => {
-		// track dependencies
-		const desktop = screen.isDesktop;
-		const isActiveLogin = active === 0;
-		if (browser && desktop && isActiveLogin) {
-			import('@root/src/components/system/FloatingPaths.svelte').then((m) => {
-				FloatingPathsComponent = m.default as Component;
-			});
-		} else {
-			FloatingPathsComponent = null;
-		}
-	});
-
 	// Prefetch first collection data when active
 	$effect(() => {
-		if (active === 0 && firstCollectionPath) {
-			preloadData(firstCollectionPath);
+		if (active === 0) {
+			prefetchFirstCollection();
 		}
 	});
 </script>
@@ -448,17 +457,9 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	{#if active === 0}
 		<!-- Background pattern  -->
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
-			{#if screen.isDesktop && FloatingPathsComponent}
-				<div class="absolute inset-0 z-0">
-					<FloatingPathsComponent position={-1} background="white" />
-					<FloatingPathsComponent position={1} background="white" />
-				</div>
-			{/if}
-
 			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
 				<SveltyCMSLogoFull />
 			</div>
-			<!-- CSS Logo -->
 			<div class="z-0 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded-md bg-white p-4 lg:w-4/5" class:hide={active !== 0}>
 				<div class="mb-1 flex flex-row gap-2">
 					<SveltyCMSLogo className="w-14" fill="red" />

@@ -251,7 +251,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 	</div>
 {/if}
 
-<style lang="postcss">
+<style>
 	/* Base loader styles */
 	.loader {
 		position: absolute;
@@ -265,22 +265,34 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 
 	/* Individual loader animations */
 	.loader-1 {
-		@apply border-error-500 h-[150px] w-[150px] border-[7px];
+		border-color: var(--color-error-500);
+		height: 150px;
+		width: 150px;
+		border-width: 7px;
 		animation: rotate 3s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 
 	.loader-2 {
-		@apply border-success-400 h-[170px] w-[170px] border-[6px];
+		border-color: var(--color-success-400);
+		height: 170px;
+		width: 170px;
+		border-width: 6px;
 		animation: rotate-reverse 2s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 
 	.loader-3 {
-		@apply border-tertiary-400 h-[190px] w-[190px] border-[5px];
+		border-color: var(--color-tertiary-400);
+		height: 190px;
+		width: 190px;
+		border-width: 5px;
 		animation: rotate 3s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 
 	.loader-4 {
-		@apply border-surface-400 h-[210px] w-[210px] border-4;
+		border-color: var(--color-surface-400);
+		height: 210px;
+		width: 210px;
+		border-width: 4px;
 		animation: rotate-reverse 3s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 

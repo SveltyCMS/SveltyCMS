@@ -4,7 +4,7 @@
 -->
 
 <script lang="ts">
-	import { getModalStore } from '@utils/modalState.svelte';
+	import { modalState } from '@utils/modalState.svelte';
 
 	// Props interface (required for modal components)
 	interface Props {
@@ -12,16 +12,16 @@
 	}
 	const { parent }: Props = $props();
 
-	// Get modal store AFTER props
-	const modalStore = getModalStore();
+	// Get modal props if needed, but we rely on modalState
+	// const modalStore = getModalStore(); // Removed
 
 	function handleClose() {
 		console.log('[MediaLibraryModal] Closing modal');
-		modalStore.close();
+		modalState.close();
 	}
 </script>
 
-{#if $modalStore[0]}
+{#if modalState.active}
 	<div class="modal-media-library card p-4 w-modal shadow-xl space-y-4 bg-white dark:bg-surface-800">
 		<header class="text-center text-primary-500 text-2xl font-bold">Media Library Modal Test</header>
 

@@ -27,7 +27,7 @@ Interactive selector with "Select" button and clear functionality
 -->
 
 <script lang="ts">
-	import { getModalStore } from '@utils/modalState.svelte';
+	import { showModal } from '@utils/modalUtils';
 	import type { FieldType } from './';
 	import { app } from '@src/stores/store.svelte';
 
@@ -60,8 +60,7 @@ Interactive selector with "Select" button and clear functionality
 
 	// Function to open the selection/creation modal.
 	function openRelationModal() {
-		getModalStore().trigger({
-			type: 'component',
+		showModal({
 			component: 'relationModal', // This would be your entry selection modal
 			meta: {
 				collectionId: field.collection,

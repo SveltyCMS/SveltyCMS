@@ -3,25 +3,22 @@
  * @description Centralized utility functions for creating consistent modal configurations
  */
 
-import { modalState, showConfirm as _showConfirm } from '@utils/modalState.svelte';
+import { modalState } from '@utils/modalState.svelte';
 import * as m from '@src/paraglide/messages';
+
+// Dialog Components
+import ConfirmDialog from '@components/system/ConfirmDialog.svelte';
+import ScheduleModal from '@components/collectionDisplay/ScheduleModal.svelte';
 
 export interface ConfirmModalOptions {
 	title: string;
 	body: string;
 	confirmText?: string;
+	/** Alias for confirmText */
+	buttonTextConfirm?: string;
 	cancelText?: string;
-	confirmClasses?: string;
-	cancelClasses?: string;
 	onConfirm?: () => void | Promise<void>;
 	onCancel?: () => void;
-}
-
-/**
- * Backward compatibility: formerly used to set global store in layout.
- */
-export function setGlobalModalStore(_store?: any): void {
-	// No-op in v4
 }
 
 /**
@@ -36,14 +33,22 @@ export function showModal(settings: any): void {
  * Standardized confirmation modal
  */
 export function showConfirm(options: ConfirmModalOptions): void {
-	_showConfirm({
-		title: options.title,
-		body: options.body,
-		confirmText: options.confirmText || m.button_confirm?.() || 'Confirm',
-		cancelText: options.cancelText || m.button_cancel?.() || 'Cancel',
-		onConfirm: options.onConfirm || (() => {}),
-		onCancel: options.onCancel || (() => {})
-	});
+	modalState.trigger(
+		ConfirmDialog,
+		{
+			title: options.title,
+			body: options.body,
+			buttonTextConfirm: options.buttonTextConfirm || options.confirmText || m.button_confirm?.() || 'Confirm',
+			buttonTextCancel: options.cancelText || m.button_cancel?.() || 'Cancel'
+		},
+		(confirmed: boolean) => {
+			if (confirmed) {
+				options.onConfirm?.();
+			} else {
+				options.onCancel?.();
+			}
+		}
+	);
 }
 
 /**
@@ -57,10 +62,9 @@ export function showDeleteConfirm(options: {
 }): void {
 	const { isArchive = false, count = 1, onConfirm, onCancel } = options;
 	const action = isArchive ? 'Archive' : 'Delete';
-	const actionColor = isArchive ? 'warning' : 'error';
 
 	showConfirm({
-		title: `Please Confirm <span class="text-${actionColor}-500 font-bold">${action}</span>`,
+		title: `Confirm ${action}`,
 		body: `Are you sure you want to ${action.toLowerCase()} ${count} item(s)?`,
 		confirmText: action,
 		onConfirm,
@@ -79,7 +83,7 @@ export function showStatusChangeConfirm(options: {
 }): void {
 	const { status, count = 1, onConfirm, onCancel } = options;
 	showConfirm({
-		title: 'Please Confirm Status Change',
+		title: 'Confirm Status Change',
 		body: `Are you sure you want to change ${count} item(s) to ${status}?`,
 		confirmText: 'Change Status',
 		onConfirm,
@@ -90,7 +94,6 @@ export function showStatusChangeConfirm(options: {
 /**
  * Schedule modal
  */
-import ScheduleModal from '@components/collectionDisplay/ScheduleModal.svelte';
 export function showScheduleModal(options: { initialAction?: string; onSchedule: (date: Date, action: string) => void | Promise<void> }): void {
 	modalState.trigger(ScheduleModal, { initialAction: options.initialAction }, (result: any) => {
 		if (result?.confirmed && result.date) {

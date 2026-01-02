@@ -23,8 +23,7 @@ Features:
 	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 
 	// Skeleton Stores
-	import { getModalStore } from '@utils/modalState.svelte';
-	const modalStore = getModalStore();
+	import { modalState } from '@utils/modalState.svelte';
 
 	// Stores
 	import { collections } from '@src/stores/collectionStore.svelte';
@@ -64,7 +63,7 @@ Features:
 	}
 </script>
 
-{#if $modalStore[0]}
+{#if modalState.active}
 	<!-- Default section -->
 	<div class="flex flex-col gap-4">
 		{#each displayProperties as property}

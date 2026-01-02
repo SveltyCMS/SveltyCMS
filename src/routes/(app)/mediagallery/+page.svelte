@@ -48,7 +48,8 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 	// Initialize modal store
 	// const modalStore = getModalStore();
-	import { modalState, showConfirm } from '@utils/modalState.svelte';
+	import { modalState } from '@utils/modalState.svelte';
+	import { showConfirm } from '@utils/modalUtils';
 	import ModalPrompt from '@components/ModalPrompt.svelte';
 
 	import type { PageData } from './$types';

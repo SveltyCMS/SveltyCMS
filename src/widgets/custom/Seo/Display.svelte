@@ -46,7 +46,7 @@ Renders: SEO icon + "Keyword: svelte cms" with hover tooltip showing full meta d
 	<span>–</span>
 {/if}
 
-<style lang="postcss">
+<style>
 	.seo-display {
 		display: inline-flex;
 		align-items: center;

@@ -33,7 +33,8 @@
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton-svelte';
 	import { setCollection } from '@src/stores/collectionStore.svelte';
-	import { modalState, showConfirm } from '@utils/modalState.svelte';
+	import { modalState } from '@utils/modalState.svelte';
+	import { showConfirm } from '@utils/modalUtils';
 	import { toaster } from '@stores/store.svelte';
 	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
 	import ModalEditForm from './components/ModalEditForm.svelte';

@@ -45,7 +45,7 @@
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	// import { CodeBlock, Tab, TabGroup, clipboard } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '@stores/store.svelte';
-	import { showConfirm } from '@utils/modalState.svelte';
+	import { showConfirm } from '@utils/modalUtils';
 
 	import { widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte';
 

@@ -21,10 +21,9 @@
 
 <script lang="ts">
 	// Skeleton
-	import { getModalStore } from '@utils/modalState.svelte';
+	import { modalState } from '@utils/modalState.svelte';
 	import { logger } from '@utils/logger';
 	import { untrack } from 'svelte';
-	const modalStore = getModalStore();
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -164,7 +163,7 @@
 
 		// If that was the last file, just close the modal
 		if (files.length === 0) {
-			modalStore.close(); // Close the modal directly
+			modalState.close(); // Close the modal directly
 		}
 	}
 
@@ -211,7 +210,7 @@
 		// Clear the files array and fileSet
 		files = []; // This will also trigger the $effect cleanup, but revoking first ensures immediate removal
 		fileSet.clear();
-		modalStore.close(); // Close the modal
+		modalState.close(); // Close the modal
 	}
 
 	const onFormSubmit = async () => {
@@ -245,14 +244,14 @@
 	const cForm = 'w-full mt-3 border border-surface-500 p-2 space-y-4 rounded-container-token flex flex-col'; // Added w-full, flex, flex-col
 </script>
 
-{#if $modalStore[0]}
+{#if modalState.isOpen}
 	<div class={cBase} style="max-height: 90vh;">
 		<!-- Added max-height to outer div -->
 		<header class={cHeader}>
 			{sectionName}
 		</header>
 		<article class="hidden shrink-0 text-center sm:block">
-			{$modalStore[0]?.body ?? '(body missing)'}
+			{modalState.active?.props?.body ?? '(body missing)'}
 		</article>
 		<!-- Enable for debugging: -->
 

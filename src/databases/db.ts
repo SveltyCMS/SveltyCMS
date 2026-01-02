@@ -546,22 +546,9 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		logger.info(`Steps 1-2: DB connected & adapters loaded in ${step2And3Time.toFixed(2)}ms`);
 		logger.info(`Step 3: Database models setup in ${step2And3Time.toFixed(2)}ms (⚡ parallelized with connection)`);
 
-		// Step 4: Lazy-initialize Server-Side Services (will initialize on first use)
-		// WidgetRegistryService and ContentManager are now lazy-loaded for faster startup
-		updateServiceHealth('contentManager', 'healthy', 'Will lazy-initialize on first use');
-		logger.info('Step 4: Server services (Widgets & Content) will lazy-initialize on first use');
-
-		// Eagerly initialize ContentManager to prevent race conditions on first load
-		try {
-			const { ContentManager } = await import('@src/content/ContentManager');
-			const contentManagerInstance = ContentManager.getInstance();
-			logger.debug('ContentManager imported, initializing...');
-			await contentManagerInstance.initialize();
-			logger.info('ContentManager eagerly initialized.');
-		} catch (cmError) {
-			logger.error('ContentManager initialization failed:', cmError);
-			throw cmError;
-		}
+		// Step 4: Pre-load Server-Side Services
+		// WidgetRegistryService and ContentManager are moved to AFTER Step 5 to ensure dependencies (Settings, Widgets) are ready.
+		logger.info('Step 4: Skipping eager ContentManager init (moved to Step 6)');
 
 		// Step 5: Initialize Critical Components (optimized for speed)
 		logger.debug('Starting Step 5: Critical components initialization...');
@@ -650,6 +637,25 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		logger.info(
 			`Step 5: Critical components initialized in ${step5Time.toFixed(2)}ms (Auth: ${authTime.toFixed(2)}ms, Settings: ${settingsTime.toFixed(2)}ms)`
 		);
+
+		// Step 6: Initialize ContentManager (Moved here to ensure Settings & Widgets are ready)
+		logger.debug('Starting Step 6: ContentManager initialization...');
+		try {
+			// Update health status to initializing
+			updateServiceHealth('contentManager', 'initializing', 'Initializing ContentManager...');
+
+			const { ContentManager } = await import('@src/content/ContentManager');
+			const contentManagerInstance = ContentManager.getInstance();
+			logger.debug('ContentManager imported, initializing...');
+			await contentManagerInstance.initialize();
+
+			updateServiceHealth('contentManager', 'healthy', 'ContentManager initialized');
+			logger.info('Step 6: ContentManager initialized (Dependencies ready).');
+		} catch (cmError) {
+			logger.error('ContentManager initialization failed:', cmError);
+			updateServiceHealth('contentManager', 'unhealthy', 'ContentManager initialization failed');
+			throw cmError;
+		}
 
 		// --- Demo Mode Cleanup Service ---
 		if (privateConfig?.DEMO) {

@@ -30,7 +30,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	try {
 		// Wait for the database and ContentManager to be ready
 		await dbInitPromise;
-		await contentManager.initialize(tenantId);
+
+		// Verify ContentManager is ready (should be from hooks)
+		const healthStatus = contentManager.getHealthStatus();
+		if (healthStatus.state !== 'initialized') {
+			logger.warn('ContentManager not initialized in page load', {
+				state: healthStatus.state
+			});
+		}
 		logger.debug('System is ready, proceeding with page load.', { tenantId });
 
 		// For any route other than the root, just return user data

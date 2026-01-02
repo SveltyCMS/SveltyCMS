@@ -22,8 +22,9 @@ latest version available on GitHub with comprehensive status reporting.
 - Reduced motion support
 -->
 <script lang="ts">
-	import { page } from '$app/state';
 	import { onMount, onDestroy } from 'svelte';
+	import { publicEnv } from '@stores/globalSettings.svelte';
+	import { browser } from '$app/environment';
 
 	// Types
 	type VersionStatus = {
@@ -54,8 +55,8 @@ latest version available on GitHub with comprehensive status reporting.
 	const MAX_RETRIES = 3;
 	const RETRY_DELAY = 2000;
 
-	// State
-	const pkg = $derived(page.data?.settings?.PKG_VERSION || '0.0.0');
+	// State - use publicEnv directly instead of page.data
+	const pkg = $derived(publicEnv?.PKG_VERSION || '0.0.0');
 	let githubVersion = $state('');
 	let badgeVariant = $state<'variant-filled' | 'variant-soft' | 'variant-outline' | 'variant-glass'>('variant-filled');
 	let badgeColor = $state('bg-primary-500 text-white');
@@ -81,8 +82,8 @@ latest version available on GitHub with comprehensive status reporting.
 		lastChecked
 	});
 
-	// Transparent mode styling
-	const isLoginRoute = $derived(page.url.pathname.startsWith('/login'));
+	// Transparent mode styling - check pathname defensively
+	const isLoginRoute = $derived(browser ? window.location.pathname.startsWith('/login') : false);
 	const effectiveTransparent = $derived(transparent || isLoginRoute);
 
 	const transparentClasses = $derived.by(() => {

@@ -19,12 +19,10 @@ Displays real-time system state and individual service health with comprehensive
 
 <script lang="ts">
 	import { systemState, type SystemState, type ServiceHealth } from '@src/stores/system';
-	import { getToastStore } from '@utils/toast';
+	import { showToast } from '@utils/toast';
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import { logger } from '@utils/logger';
 	import { onMount, onDestroy } from 'svelte';
-
-	const toastStore = getToastStore();
 
 	// Type for service data
 	type ServiceData = {
@@ -151,20 +149,12 @@ Displays real-time system state and individual service health with comprehensive
 
 			if (retryCount < MAX_RETRIES) {
 				retryCount++;
-				toastStore.trigger({
-					message: `Health check failed. Retrying... (${retryCount}/${MAX_RETRIES})`,
-					background: 'variant-filled-warning',
-					timeout: 2000
-				});
+				showToast(`Health check failed. Retrying... (${retryCount}/${MAX_RETRIES})`, 'warning', 2000);
 
 				// Exponential backoff
 				setTimeout(() => fetchHealth(), 1000 * Math.pow(2, retryCount));
 			} else {
-				toastStore.trigger({
-					message: 'Failed to fetch system health after multiple retries',
-					background: 'variant-filled-error',
-					timeout: 5000
-				});
+				showToast('Failed to fetch system health after multiple retries', 'error', 5000);
 				retryCount = 0;
 			}
 		} finally {
@@ -182,10 +172,7 @@ Displays real-time system state and individual service health with comprehensive
 		isReinitializing = true;
 
 		try {
-			toastStore.trigger({
-				message: 'Reinitializing system...',
-				background: 'variant-filled-warning'
-			});
+			showToast('Reinitializing system...', 'warning');
 
 			const response = await fetch('/api/system', {
 				method: 'POST',
@@ -200,11 +187,7 @@ Displays real-time system state and individual service health with comprehensive
 
 			if (response.ok) {
 				const result = await response.json();
-				toastStore.trigger({
-					message: result.message || `System reinitialized: ${result.status}`,
-					background: 'variant-filled-success',
-					timeout: 5000
-				});
+				showToast(result.message || `System reinitialized: ${result.status}`, 'success', 5000);
 
 				// Wait a bit before fetching health
 				setTimeout(() => fetchHealth(), 1000);
@@ -216,11 +199,7 @@ Displays real-time system state and individual service health with comprehensive
 			const message = err instanceof Error ? err.message : 'Unknown error';
 			logger.error('Reinitialization failed:', err);
 
-			toastStore.trigger({
-				message: `Failed to reinitialize: ${message}`,
-				background: 'variant-filled-error',
-				timeout: 5000
-			});
+			showToast(`Failed to reinitialize: ${message}`, 'error', 5000);
 		} finally {
 			isReinitializing = false;
 		}
@@ -231,22 +210,14 @@ Displays real-time system state and individual service health with comprehensive
 		try {
 			await navigator.clipboard.writeText(apiHealthUrl);
 			copiedEndpoint = true;
-			toastStore.trigger({
-				message: 'Endpoint copied to clipboard',
-				background: 'variant-filled-success',
-				timeout: 2000
-			});
+			showToast('Endpoint copied to clipboard', 'success', 2000);
 
 			setTimeout(() => {
 				copiedEndpoint = false;
 			}, 2000);
 		} catch (err) {
 			logger.error('Failed to copy:', err);
-			toastStore.trigger({
-				message: 'Failed to copy endpoint',
-				background: 'variant-filled-error',
-				timeout: 2000
-			});
+			showToast('Failed to copy endpoint', 'error', 2000);
 		}
 	}
 

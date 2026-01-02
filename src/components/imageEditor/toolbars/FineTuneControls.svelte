@@ -89,7 +89,7 @@ Controls for the FineTune tool, including a dropdown for adjustment type and a s
 	</button>
 </div>
 
-<style lang="postcss">
+<style>
 	.no-scrollbar::-webkit-scrollbar {
 		display: none;
 	}

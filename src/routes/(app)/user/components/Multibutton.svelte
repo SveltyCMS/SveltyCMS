@@ -27,7 +27,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import { Menu } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '@stores/store.svelte';
 	// Use modalState directly
-	import { modalState, showConfirm } from '@utils/modalState.svelte';
+	import { modalState } from '@utils/modalState.svelte';
+	import { showConfirm } from '@utils/modalUtils';
 
 	import ModalEditForm from './ModalEditForm.svelte';
 	import ModalEditToken from './ModalEditToken.svelte';

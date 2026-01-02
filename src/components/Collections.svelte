@@ -253,7 +253,7 @@
 	</div>
 </div>
 
-<style lang="postcss">
+<style>
 	.collections-list {
 		scrollbar-width: thin;
 		scrollbar-color: rgb(var(--color-primary-500) / 0.3) transparent;

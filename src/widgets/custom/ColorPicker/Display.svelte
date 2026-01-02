@@ -39,7 +39,7 @@ Renders: color swatch or hex value
 	<span>–</span>
 {/if}
 
-<style lang="postcss">
+<style>
 	.display-wrapper {
 		display: inline-flex;
 		align-items: center;

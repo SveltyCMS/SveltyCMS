@@ -36,7 +36,7 @@ It dynamically renders controls based on the active tool.
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	:global(.dark) .border-t {
 		border-color: rgb(var(--color-surface-700) / 1);
 	}

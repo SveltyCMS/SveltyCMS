@@ -21,9 +21,6 @@ It handles token creation, updates, and deletion with proper validation and erro
 	import { page } from '$app/state';
 
 	// Skeleton & Stores
-	// // getModalStore deprecated - use modalState from @utils/modalState.svelte;
-	// const modalStore = getModalStore();
-
 	import { toaster } from '@stores/store.svelte';
 
 	// Component
@@ -134,18 +131,22 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 			// Check if SMTP is not configured
 			if (responseData.smtp_not_configured) {
-				toaster.warning({
-					description: `<iconify-icon icon="mdi:email-alert" color="white" width="24" class="mr-1"></iconify-icon> ${isEditMode ? 'Token updated' : 'Token created'} - Email not sent: SMTP not configured`
+				toaster.create({
+					title: 'Warning',
+					description: `${isEditMode ? 'Token updated' : 'Token created'} - Email not sent: SMTP not configured`,
+					type: 'warning'
 				});
 			} else if (responseData.dev_mode && !responseData.email_sent) {
 				// Email was skipped due to dev mode or dummy config
-				toaster.info({
-					description: `<iconify-icon icon="mdi:dev-to" color="white" width="24" class="mr-1"></iconify-icon> ${isEditMode ? 'Token updated' : 'Token created'} - Email sending skipped (dev mode)`
+				toaster.create({
+					title: 'Info',
+					description: `${isEditMode ? 'Token updated' : 'Token created'} - Email sending skipped (dev mode)`,
+					type: 'info'
 				});
 			} else {
 				// Success - email sent
 				// TODO: Add 'user_token_created' to messages or find correct key
-				toaster.success({ description: 'User token created' });
+				toaster.create({ title: 'Success', description: 'User token created', type: 'success' });
 			}
 
 			// Invalidate data first, then close modal
@@ -155,7 +156,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 			if (close) close();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'An unknown error occurred';
-			toaster.error({ description: message });
+			toaster.create({ title: 'Error', description: message, type: 'error' });
 		} finally {
 			tokenForm.submitting = false;
 		}
@@ -175,8 +176,10 @@ It handles token creation, updates, and deletion with proper validation and erro
 				throw new Error(data.message || 'Failed to delete token');
 			}
 
-			toaster.success({
-				description: `<iconify-icon icon="mdi:check" width="24" class="mr-1"></iconify-icon> ${m.modal_token_deleted_successfully()}`
+			toaster.create({
+				title: 'Success',
+				description: m.modal_token_deleted_successfully(),
+				type: 'success'
 			});
 			// Invalidate data first, then close modal
 			await invalidateAll();
@@ -186,7 +189,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to delete token';
 			// This catch block will now receive a proper error message if the API fails.
-			toaster.error({ description: `<iconify-icon icon="mdi:alert-circle" width="24" class="mr-1"></iconify-icon> ${message}` });
+			toaster.create({ title: 'Error', description: message, type: 'error' });
 		}
 	}
 

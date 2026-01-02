@@ -40,7 +40,8 @@
 	import * as m from '@src/paraglide/messages';
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton-svelte';
-	import { modalState, showConfirm } from '@utils/modalState.svelte';
+	import { modalState } from '@utils/modalState.svelte';
+	import { showConfirm } from '@utils/modalUtils';
 	import { toaster } from '@stores/store.svelte';
 	// Svelte-dnd-action
 	import { PermissionAction, PermissionType } from '@src/databases/auth/types';

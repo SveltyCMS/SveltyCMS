@@ -48,7 +48,7 @@ Renders: ★★★★☆ (4 filled stars, 1 empty star)
 	<span>–</span>
 {/if}
 
-<style lang="postcss">
+<style>
 	.display-wrapper {
 		display: inline-flex;
 		align-items: center;

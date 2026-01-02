@@ -16,7 +16,7 @@
 	import Toggles from '@components/system/inputs/Toggles.svelte';
 	import ProgressBar from '@components/system/ProgressBar.svelte';
 	// Skeleton components
-	import { getToastStore } from '@utils/toast';
+	import { showToast } from '@utils/toast';
 
 	// Utils
 	import { getCollections } from '@utils/apiClient';
@@ -277,23 +277,9 @@
 	}
 
 	// --- UI & Utility Functions ---
-	const toastStore = getToastStore();
 
 	function showAlertMessage(message: string, type: 'success' | 'error' | 'info' | 'warning') {
-		const background =
-			type === 'success'
-				? 'variant-filled-success'
-				: type === 'error'
-					? 'variant-filled-error'
-					: type === 'warning'
-						? 'variant-filled-warning'
-						: 'variant-filled-secondary';
-
-		toastStore.trigger({
-			message,
-			background,
-			timeout: 5000
-		});
+		showToast(message, type, 5000);
 	}
 
 	function downloadExport() {

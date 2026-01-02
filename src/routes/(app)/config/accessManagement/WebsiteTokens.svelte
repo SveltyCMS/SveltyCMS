@@ -191,7 +191,7 @@
 			toaster.error({ description: 'An error occurred while generating the token' });
 		}
 	}
-	import { showConfirm } from '@utils/modalState.svelte';
+	import { showConfirm } from '@utils/modalUtils';
 
 	async function deleteToken(id: string, name: string) {
 		showConfirm({

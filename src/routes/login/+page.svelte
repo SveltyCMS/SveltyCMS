@@ -1,7 +1,7 @@
 <!--
-@file Authentication Form Component for SveltyCMS
+@file src/routes/login/+page.svelte 
 @component
-**This component handles both SignIn and SignUp functionality for the SveltyCMS**
+**Authentication Form Component handles both SignIn and SignUp functionality for the SveltyCMS**
 
 ### Props:
  - `data`: { firstUserExists: boolean, demoMode: boolean, showDatabaseError: boolean }
@@ -31,6 +31,10 @@
 	import { locales as availableLocales } from '@src/paraglide/runtime';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+
+	// Stores
+	import { screen } from '@stores/screenSizeStore.svelte';
+	import FloatingPaths from '@components/system/FloatingPaths.svelte';
 
 	// Props
 	const { data } = $props();
@@ -186,21 +190,18 @@
 		}
 		if (isTransitioning) return;
 		isTransitioning = true;
-		// First reset to initial state to show the logo
-		active = 0;
-		background = 'white';
 
-		// Then after a short delay, transition to signin
+		if (!firstUserExists) {
+			active = 1; // Show SignUp for fresh installation
+			background = '#242728';
+		} else {
+			active = 0; // Show SignIn for existing users
+			background = 'white';
+		}
+
 		setTimeout(() => {
-			if (!firstUserExists) {
-				active = 1; // Show SignUp for fresh installation
-				background = '#242728';
-			} else {
-				active = 0; // Show SignIn for existing users
-				background = 'white';
-			}
 			isTransitioning = false;
-		}, 600);
+		}, 400); // Match CSS transition duration
 	}
 
 	// Handle SignUp click
@@ -214,7 +215,7 @@
 		background = '#242728';
 		setTimeout(() => {
 			isTransitioning = false;
-		}, 600);
+		}, 400); // Match CSS transition duration
 	}
 
 	// Handle pointer enter events
@@ -234,34 +235,25 @@
 	function handleDropdownToggle() {
 		isDropdownOpen = !isDropdownOpen;
 	}
-
-	// Prefetch when active state changes to SignIn (0) or SignUp (1)
-	$effect(() => {
-		if (active !== undefined) {
-			// Call prefetch action on the server
-			fetch('/login?/prefetch', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/x-www-form-urlencoded'
-				},
-				body: new URLSearchParams({
-					lang: systemLanguage.value || 'en'
-				})
-			})
-				.then((response) => {
-					if (response.ok) {
-					} else {
-						logger.debug('[DEBUG] Prefetch action failed:', response.status);
-					}
-				})
-				.catch((err) => {
-					logger.debug('[DEBUG] Prefetch fetch error:', err);
-				});
-		}
-	});
 </script>
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`}>
+	{#if screen.isDesktop && active !== undefined}
+		<div class="fixed inset-0 z-0 pointer-events-none" class:text-white={active === 1} class:text-black={active === 0}>
+			<FloatingPaths position={active === 1 ? 1 : -1} background={active === 1 ? 'dark' : 'white'} mirrorAnimation={active === 1} />
+			<FloatingPaths position={active === 1 ? -1 : 1} background={active === 1 ? 'dark' : 'white'} mirrorAnimation={active === 1} />
+		</div>
+	{/if}
+
+	<!-- Seasons (always present, opacity/position managed) -->
+	<div
+		class="pointer-events-none fixed inset-0 z-10 transition-all duration-300"
+		class:opacity-0={active === undefined}
+		class:opacity-100={active !== undefined}
+	>
+		<Seasons />
+	</div>
+
 	<!-- Database Error Display -->
 	{#if data.showDatabaseError}
 		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -370,8 +362,6 @@
 		<!-- CMS Logo -->
 		<div class="absolute left-1/2 top-1/4 -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">
 			<SveltyCMSLogoFull />
-			<!-- Seasons -->
-			<Seasons />
 		</div>
 
 		<!-- Language Select -->

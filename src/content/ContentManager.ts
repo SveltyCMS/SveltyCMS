@@ -217,15 +217,19 @@ class ContentManager {
 
 	// Initializes the ContentManager, handling race conditions and loading data
 	public async initialize(tenantId?: string): Promise<void> {
+		// Already initialized - return immediately
 		if (this.initState === 'initialized') {
 			return;
 		}
 
-		// If another request is already initializing, wait for it to complete.
+		// Already initializing - wait for existing initialization
 		if (this.initPromise) {
+			logger.debug('[ContentManager] Waiting for existing initialization to complete');
 			return this.initPromise;
 		}
-		// Start initialization and store the promise.
+
+		// Start new initialization
+		logger.info('[ContentManager] Starting initialization', { tenantId });
 		this.initPromise = this._doInitialize(tenantId);
 
 		try {
@@ -409,6 +413,12 @@ class ContentManager {
 
 	// Retrieves the entire content structure as a nested tree
 	public async getContentStructure(): Promise<ContentNode[]> {
+		// Don't call during initialization - prevents deadlock
+		if (this.initState === 'initializing') {
+			logger.warn('[ContentManager] getContentStructure called during initialization, returning empty array');
+			return [];
+		}
+
 		// Auto-initialize on first access (lazy loading)
 		if (this.initState !== 'initialized') {
 			await this.initialize();
@@ -517,6 +527,12 @@ class ContentManager {
 	 * Includes only essential metadata needed for display and ordering.
 	 */
 	public async getNavigationStructure(): Promise<NavigationNode[]> {
+		// Don't call during initialization - prevents deadlock
+		if (this.initState === 'initializing') {
+			logger.warn('[ContentManager] getNavigationStructure called during initialization, returning empty array');
+			return [];
+		}
+
 		// Auto-initialize on first access (lazy loading)
 		if (this.initState !== 'initialized') {
 			await this.initialize();
@@ -1798,6 +1814,7 @@ class ContentManager {
 		}
 	}
 
+	// 2. Fix _warmFrequentPaths - build tree directly without calling methods
 	private async _warmFrequentPaths(cacheService: any, ttl: number, tenantId?: string): Promise<void> {
 		// Cache first collection for instant access
 		const collections = Array.from(this.contentNodeMap.values()).filter((node) => node.nodeType === 'collection' && node.collectionDef);

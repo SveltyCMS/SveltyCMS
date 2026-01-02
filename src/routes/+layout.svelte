@@ -22,7 +22,7 @@
 	// Skeleton v4
 	import { toaster, app } from '@stores/store.svelte';
 	import { Toast } from '@skeletonlabs/skeleton-svelte';
-	import DialogManager from '@components/system/DialogManager.svelte';
+	// import DialogManager from '@components/system/DialogManager.svelte';
 
 	// Paraglide locale bridge
 	import { locales as availableLocales, getLocale, setLocale } from '@src/paraglide/runtime';
@@ -31,10 +31,10 @@
 	import { themeStore, initializeThemeStore, initializeDarkMode } from '@stores/themeStore.svelte';
 
 	// Global Settings
-	import { initPublicEnv } from '@stores/globalSettings.svelte';
+	import { initPublicEnv, publicEnv } from '@stores/globalSettings.svelte';
 
 	// Components
-	import TokenPicker from '@components/TokenPicker.svelte';
+	// import TokenPicker from '@components/TokenPicker.svelte';
 
 	// Props
 	interface Props {
@@ -54,8 +54,9 @@
 	// ============================================================================
 
 	// Initialize public environment settings from server data
+	// Note: Only access page.data after mount to avoid hydration issues
 	$effect(() => {
-		if (page.data?.settings) {
+		if (browser && page.data?.settings) {
 			initPublicEnv(page.data.settings);
 		}
 	});
@@ -123,8 +124,8 @@
 	// Derived State
 	// ============================================================================
 
-	// Get the site name from data loaded in layout.server.ts
-	const siteName = $derived(page.data.settings?.SITE_NAME || 'SveltyCMS');
+	// Get the site name from publicEnv store (safer for SSR/CSR transitions)
+	const siteName = $derived(publicEnv?.SITE_NAME || 'SveltyCMS');
 </script>
 
 <svelte:head>
@@ -132,26 +133,18 @@
 </svelte:head>
 
 {#key currentLocale}
-	<DialogManager />
+	<!-- <DialogManager /> -->
 	<Toast.Group {toaster}>
 		{#snippet children(toast)}
-			<Toast
-				{toast}
-				class="min-w-[300px] max-w-[400px] shadow-lg backdrop-blur-md dark:bg-surface-800/90 bg-white/90 border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden"
-			>
-				<Toast.Message class="flex flex-col gap-1 p-4 pr-8 relative">
-					{#if toast.title}
-						<Toast.Title class="font-bold text-base">{toast.title}</Toast.Title>
-					{/if}
-					<Toast.Description class="text-sm opacity-90">{toast.description}</Toast.Description>
-				</Toast.Message>
-				<Toast.CloseTrigger
-					class="absolute right-2 top-2 p-1.5 hover:bg-surface-500/10 rounded-full transition-colors opacity-60 hover:opacity-100"
-				/>
+			<Toast {toast} class="card w-[300px] shadow-xl p-4 space-y-2 bg-surface-100-900 border border-surface-200-800 rounded-lg">
+				{#if toast.title}
+					<Toast.Title class="h6 font-bold">{toast.title}</Toast.Title>
+				{/if}
+				<Toast.Description class="text-sm">{toast.description}</Toast.Description>
+				<Toast.CloseTrigger class="absolute right-2 top-2 btn-icon btn-sm" />
 			</Toast>
 		{/snippet}
 	</Toast.Group>
 
 	{@render children?.()}
-	<TokenPicker />
 {/key}

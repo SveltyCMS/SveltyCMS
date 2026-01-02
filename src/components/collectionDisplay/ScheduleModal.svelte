@@ -20,18 +20,20 @@ Features:
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getModalStore } from '@utils/modalState.svelte';
+	import { modalState } from '@utils/modalState.svelte';
 
 	// No Props needed
 
 	// --- Component State ---
-	const modalStore = getModalStore();
+	// --- Component State ---
+	// Removed modalStore
 
 	type ActionType = 'publish' | 'unpublish' | 'delete';
 
 	let scheduleDateOnly = $state('');
 	let scheduleTimeOnly = $state('');
-	let action: ActionType = $state(($modalStore[0]?.meta?.initialAction as ActionType) || 'publish');
+	// Access meta prop through modalState.active
+	let action: ActionType = $state((modalState.active?.props?.meta?.initialAction as ActionType) || 'publish');
 	let errorMessage = $state('');
 
 	const scheduleDate = $derived(`${scheduleDateOnly}T${scheduleTimeOnly}`);
@@ -66,16 +68,11 @@ Features:
 	function handleSubmission(): void {
 		if (!validateForm()) return;
 
-		// The component that opened the modal is responsible for handling this response.
-		if ($modalStore[0]?.response) {
-			$modalStore[0].response({
-				date: new Date(scheduleDate),
-				action: action
-			});
-		}
-
-		// Close the modal
-		modalStore.close();
+		// Pass data back via modalState.close(), which calls the response callback
+		modalState.close({
+			date: new Date(scheduleDate),
+			action: action
+		});
 	}
 
 	// --- Base Classes ---
@@ -84,7 +81,7 @@ Features:
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
 
-{#if $modalStore[0]}
+{#if modalState.active}
 	<div class="modal-schedule {cBase}" role="dialog" aria-labelledby="schedule-modal-title">
 		<header id="schedule-modal-title" class={`text-center text-primary-500 ${cHeader}`}>Schedule Entry</header>
 		<article class="text-center text-sm">Set a date and time to publish this entry.</article>
@@ -125,7 +122,7 @@ Features:
 		</form>
 
 		<footer class="modal-footer flex items-center justify-end space-x-4">
-			<button class="btn variant-ghost-secondary" onclick={() => modalStore.close()}>{m.button_cancel()}</button>
+			<button class="btn variant-ghost-secondary" onclick={() => modalState.close()}>{m.button_cancel()}</button>
 			<button class="btn variant-filled-primary" onclick={() => handleSubmission()} disabled={!isFormValid}
 				>{m.entrylist_multibutton_schedule()}</button
 			>

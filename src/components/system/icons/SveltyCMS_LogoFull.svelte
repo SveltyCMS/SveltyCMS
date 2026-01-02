@@ -8,18 +8,30 @@
 	// Components
 	import SiteName from '@components/SiteName.svelte';
 	import Logo from '@components/system/icons/SveltyCMS_Logo.svelte';
+	import { browser } from '$app/environment';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { getLocale } from '@src/paraglide/runtime';
+
+	// Safely get the slogan - paraglide may not be ready during initial render in production
+	function getSlogan(): string {
+		try {
+			// Only call message if we're in browser and locale is available
+			if (browser && getLocale()) {
+				return m.logo_slogan();
+			}
+			return 'Content made simple';
+		} catch {
+			return 'Content made simple';
+		}
+	}
+
+	const slogan = $derived(getSlogan());
 </script>
 
-<!-- CSS Logo -->
-<a
-	href="https://github.com/SveltyCMS/SveltyCMS"
-	target="_blank"
-	rel="noopener"
-	class="absolute left-1/2 top-1/3 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center"
->
+<!-- CSS Logo - Removed <a> tag to prevent navigation interference -->
+<div class="absolute left-1/2 top-1/3 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">
 	<!--White Inner Background -->
 	<div class="relative flex h-[170px] w-[170px] items-center justify-center rounded-full bg-white">
 		<!-- Red circle -->
@@ -80,9 +92,9 @@
 				<SiteName highlight="CMS" />
 			</div>
 			<!-- Slogan -->
-			<div class="-mt-px text-[13px] font-bold text-secondary-500">
-				{m.logo_slogan()}
+			<div class="-mt-px text-[13px] font-bold text-surface-500">
+				{slogan}
 			</div>
 		</div>
 	</div>
-</a>
+</div>

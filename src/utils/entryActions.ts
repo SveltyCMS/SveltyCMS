@@ -23,7 +23,7 @@ import {
 	updateEntryStatus
 } from './apiClient';
 import { entryMessages } from './entryActionsMessages';
-import { showConfirm, showScheduleModal, showCloneModal } from './modalState.svelte';
+import { showConfirm, showScheduleModal, showCloneModal } from '@utils/modalUtils';
 // Helper function to update entry status
 async function updateStatus(collectionId: string, entryId: string, status: string) {
 	const result = await updateEntryStatus(collectionId, entryId, status);
