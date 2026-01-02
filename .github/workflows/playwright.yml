@@ -28,8 +28,8 @@ on:
     branches: [main, next]
   pull_request:
     branches: [main, next]
-  workflow_dispatch: {}
-  workflow_call: {}
+  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -47,9 +47,10 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-     - name: Setup Node.js
-       uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
-       with: node-version: '22'
+      - name: Setup Node.js
+        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
+        with:
+          node-version: '20'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.1
@@ -59,7 +60,9 @@ jobs:
       - name: Cache Bun dependencies
         uses: actions/cache@v4
         with:
-          path: ~/.bun/install/cache
+          path: |
+            ~/.bun/install/cache
+            ~/.cache/bun
           key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
           restore-keys: |
             ${{ runner.os }}-bun-
@@ -67,7 +70,6 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # Generate .svelte-kit/tsconfig.json for path alias resolution
       - name: Generate SvelteKit types
         run: bunx svelte-kit sync
 
@@ -97,28 +99,23 @@ jobs:
       DB_PASSWORD: admin
       TEST_MODE: 'true'
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.1
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5
         with:
           bun-version: latest
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # Ensure fresh state - remove any existing config
       - name: Clean config for fresh CI run
         run: |
-          echo "🧹 Ensuring fresh state for CI..."
           rm -rf config/collections
           rm -f config/private.ts
-          echo "✅ Cleaned config directory"
 
-      # Create placeholder config/private.test.ts to ensure runtime config works
       - name: Create placeholder config/private.test.ts
         run: |
-          echo "📝 Creating placeholder config/private.test.ts..."
           cat > config/private.test.ts <<EOF
           export const privateEnv = {
             DB_TYPE: '${{ env.DB_TYPE }}',
@@ -132,12 +129,9 @@ jobs:
             MULTI_TENANT: false
           } as const;
           EOF
-          echo "✅ Created config/private.test.ts"
 
-      # Create temporary config/private.ts for build (will be removed before E2E tests)
-      - name: Create temporary config for build
+      - name: Create temporary config/private.ts
         run: |
-          echo "📝 Creating temporary config/private.ts for build..."
           cat > config/private.ts <<EOF
           export const privateEnv = {
             DB_TYPE: '${{ env.DB_TYPE }}',
@@ -151,60 +145,36 @@ jobs:
             MULTI_TENANT: false
           } as const;
           EOF
-          echo "✅ Created temporary config/private.ts"
 
-      # Build production version for faster, optimized testing
       - name: Build Production
         run: bun run build
 
-      # Kill any process using port 4173 to prevent conflicts
-      - name: Clean up port 4173
-        run: |
-          echo "🧹 Cleaning up port 4173..."
-          lsof -ti:4173 | xargs kill -9 2>/dev/null || echo "Port 4173 is free"
-
-      # --- START PREVIEW SERVER (PORT 4173) ---
       - name: Start Preview Server
         run: |
-          echo "🚀 Starting preview server on port 4173..."
           bun run preview &
-          echo "⏳ Waiting for server to be ready..."
-          bun x wait-on http://localhost:4173 -t 60000
-          echo "✅ Preview server is ready!"
+          bunx wait-on http://localhost:4173 -t 60000
 
       - name: Run Integration Tests
         run: bun run test:integration:run
         env:
-          TEST_MODE: 'true' # Ensures server loads config/private.test.ts instead of config/private.ts
-          API_BASE_URL: 'http://localhost:4173'
+          API_BASE_URL: http://localhost:4173
 
   # ------------------------------------------------------------------
-  # 3. E2E Tests (Requires Server + MongoDB + Browser)
+  # 3. E2E Tests
   # ------------------------------------------------------------------
   e2e-tests:
     name: 🎭 E2E Tests
-    timeout-minutes: 30 # Increased to fix your timeout issue
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     services:
       mongodb:
         image: mongo:latest
         ports: [27017:27017]
-        env:
-          MONGO_INITDB_ROOT_USERNAME: admin
-          MONGO_INITDB_ROOT_PASSWORD: admin
-    env:
-      DB_TYPE: mongodb
-      DB_HOST: localhost
-      DB_PORT: 27017
-      DB_NAME: sveltycms_test
-      DB_USER: admin
-      DB_PASSWORD: admin
-      TEST_MODE: 'true'
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.1
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5
         with:
           bun-version: latest
 
@@ -214,146 +184,18 @@ jobs:
       - name: Install Playwright Browsers
         run: bunx playwright install --with-deps
 
-      # Install tools needed for CI scripts
-      - name: Install CI Tools
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq jq
-
-      # Create temporary config/private.ts for build (will be removed before E2E tests)
-      - name: Create Temporary Config for Build
-        run: |
-          echo "📝 Creating temporary config/private.ts for build..."
-          cat > config/private.ts << 'EOF'
-          export default {
-            database: { type: 'mongodb', uri: 'mongodb://localhost:27017/temp' },
-            general: { siteURL: 'http://localhost:4173' }
-          };
-          EOF
-          echo "✅ Created temporary config/private.ts"
-
-      # Build production version for E2E testing
       - name: Build Production
         run: bun run build
 
-      # Remove temporary config before E2E tests (tests use fresh setup)
-      - name: Remove Temporary Config
-        run: |
-          echo "🧹 Removing temporary config/private.ts..."
-          rm -f config/private.ts
-          echo "✅ Removed temporary config, ready for E2E tests"
-      # Create placeholder config/private.test.ts to ensure runtime config works
-      - name: Create placeholder config/private.test.ts
-        run: |
-          echo "📝 Creating placeholder config/private.test.ts..."
-          cat > config/private.test.ts <<EOF
-          export const privateEnv = {
-            DB_TYPE: '${{ env.DB_TYPE }}',
-            DB_HOST: '${{ env.DB_HOST }}',
-            DB_PORT: ${{ env.DB_PORT }},
-            DB_NAME: '${{ env.DB_NAME }}',
-            DB_USER: '${{ env.DB_USER }}',
-            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
-            JWT_SECRET_KEY: 'test_jwt_secret',
-            ENCRYPTION_KEY: 'test_encryption_key',
-            MULTI_TENANT: false
-          } as const;
-          EOF
-          echo "✅ Created config/private.test.ts"
-
-      # Kill any process using port 4173 to prevent conflicts
-      - name: Clean up port 4173
-        run: |
-          echo "🧹 Cleaning up port 4173..."
-          lsof -ti:4173 | xargs kill -9 2>/dev/null || echo "Port 4173 is free"
-
-      # Wait for MongoDB to be ready
-      - name: Wait for MongoDB
-        run: |
-          echo "⏳ Waiting for MongoDB to be ready..."
-          for i in {1..30}; do
-            if nc -z localhost 27017 2>/dev/null; then
-              echo "✅ MongoDB port is open!"
-              # Give it a moment for full initialization
-              sleep 2
-              break
-            fi
-            echo "Waiting for MongoDB... ($i/30)"
-            sleep 1
-          done
-
-      # --- START PREVIEW SERVER (PORT 4173) ---
       - name: Start Preview Server
         run: |
-          echo "🚀 Starting preview server on port 4173..."
           bun run preview &
-          echo "⏳ Waiting for server to be ready..."
-          bun x wait-on http://localhost:4173 -t 60000
-          echo "✅ Preview server is ready!"
+          bunx wait-on http://localhost:4173 -t 60000
 
-      # =================================================================
-      # E2E TESTS: Setup → Seed Users → RBAC → Main Suite
-      # =================================================================
+      - name: Run E2E Tests
+        run: bunx playwright test --project=chromium
 
-      # Remove temporary config for fresh setup wizard test
-      - name: Clean config for fresh setup test
-        run: |
-          echo "🧹 Removing temporary config/private.ts..."
-          rm -f config/private.ts
-          echo "✅ Cleaned - setup wizard will create real config"
-
-      # STEP A: Run the Setup Wizard first to initialize the DB/User
-      - name: 🧙‍♂️ Run Setup Wizard Test
-        run: |
-          echo "=== Running setup wizard to initialize application ==="
-          # Runs ONLY the setup wizard spec
-          bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list
-        env:
-          # Setup Wizard specific envs (if your app uses them to seed)
-          ADMIN_EMAIL: admin@example.com
-          ADMIN_PASS: Admin123!
-
-      # Wait for background seeding to complete
-      - name: ⏳ Wait for Seeding Completion
-        run: |
-          echo "=== Waiting for database seeding to complete ==="
-          for i in {1..30}; do
-            STATUS=$(curl -s http://localhost:4173/api/setup/status || echo '{"isSeeding":true}')
-            IS_SEEDING=$(echo $STATUS | jq -r '.isSeeding // true')
-            PROGRESS=$(echo $STATUS | jq -r '.progress // 0')
-            if [ "$IS_SEEDING" = "false" ]; then
-              echo "✅ Seeding complete! Progress: $PROGRESS%"
-              break
-            fi
-            echo "⏳ Seeding in progress... ($PROGRESS%) - attempt $i/30"
-            sleep 2
-          done
-
-      # STEP B: Seed Additional Test Users (Developer, Editor)
-      - name: 🌱 Seed Additional Test Users
-        run: |
-          echo "=== Seeding developer and editor test users ==="
-          bun run scripts/seed-test-users.ts
-        env:
-          API_BASE_URL: http://localhost:4173
-          ADMIN_EMAIL: admin@example.com
-          ADMIN_PASS: Admin123!
-
-      # STEP C: Run Role-Based Access Control Tests
-      - name: 🔐 Run Role-Based Access Tests
-        run: |
-          echo "=== Running RBAC tests (admin, developer, editor) ==="
-          bunx playwright test tests/playwright/role-based-access.spec.ts --project=chromium --reporter=list
-
-      # STEP D: Run the rest of the tests (skipping the wizard and RBAC)
-      - name: 🧪 Run Application E2E Tests
-        if: success() # Only run if previous tests passed
-        run: |
-          echo "=== Running main E2E suite ==="
-          # --grep-invert skips the setup wizard and RBAC since we just ran them
-          bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard|role-based"
-
-      - uses: actions/upload-artifact@604373da6381bf24206979c74d06a550515601b9 # v4.6.0
+      - uses: actions/upload-artifact@604373da6381bf24206979c74d06a550515601b9
         if: always()
         with:
           name: playwright-report
