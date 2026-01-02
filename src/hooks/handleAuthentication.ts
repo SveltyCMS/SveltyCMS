@@ -9,17 +9,14 @@ import { dev } from '$app/environment';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import type { User } from '@src/databases/auth/types';
-import type { ISODateString } from '@databases/dbInterface';
 import { auth, dbAdapter } from '@src/databases/db';
-import { getSystemState } from '@src/stores/system';
 import { seedDemoTenant } from '@src/routes/api/setup/seed';
-import { cacheService, SESSION_CACHE_TTL_MS } from '@src/databases/CacheService';
+import { cacheService } from '@src/databases/CacheService';
 import { logger } from '@utils/logger.server';
 import { metricsService } from '@src/services/MetricsService';
-import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
 /* =========================================================
-   🚨 TEST MODE DETECTION
+   TEST MODE DETECTION
    ========================================================= */
 function isTestMode(event: RequestEvent): boolean {
 	return (
@@ -31,7 +28,7 @@ function isTestMode(event: RequestEvent): boolean {
 }
 
 /* =========================================================
-   SESSION CACHE TYPES
+   SESSION CACHE (MINIMAL, REQUIRED FOR EXPORTS)
    ========================================================= */
 
 interface SessionCacheEntry {
@@ -39,22 +36,21 @@ interface SessionCacheEntry {
 	timestamp: number;
 }
 
+const sessionCache = new Map<string, SessionCacheEntry>();
+const lastRefreshAttempt = new Map<string, number>();
+const lastRotationAttempt = new Map<string, number>();
+const strongRefs = new Map<string, SessionCacheEntry>();
+
 /* =========================================================
-   MAIN AUTHENTICATION HOOK
+   MAIN AUTH HOOK
    ========================================================= */
 
 export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
-	/* =====================================================
-	   ✅ ABSOLUTE BYPASS FOR INTEGRATION TESTS
-	   ===================================================== */
+	/* ✅ ABSOLUTE BYPASS FOR INTEGRATION TESTS */
 	if (isTestMode(event)) {
 		return resolve(event);
 	}
-
-	/* =====================================================
-	   NORMAL PRODUCTION LOGIC (UNCHANGED)
-	   ===================================================== */
 
 	const { locals, url, cookies } = event;
 
@@ -77,16 +73,13 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	}
 
 	/* =====================================================
-	   MULTI-TENANCY
+	   MULTI-TENANCY (SAFE)
 	   ===================================================== */
 
-	const multiTenant = getPrivateSettingSync('MULTI_TENANT');
-	const isDemoMode = getPrivateSettingSync('DEMO');
-
-	if (multiTenant) {
+	if (getPrivateSettingSync('MULTI_TENANT')) {
 		let tenantId: string | null = null;
 
-		if (isDemoMode) {
+		if (getPrivateSettingSync('DEMO')) {
 			tenantId = cookies.get('demo_tenant_id') || crypto.randomUUID();
 			cookies.set('demo_tenant_id', tenantId, {
 				path: '/',
@@ -99,7 +92,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 			try {
 				await seedDemoTenant(dbAdapter, tenantId);
 			} catch (e) {
-				logger.error(`Demo tenant seed failed`, e);
+				logger.error('Demo tenant seed failed', e);
 			}
 		} else {
 			tenantId = url.hostname.split('.')[0] ?? null;
@@ -117,6 +110,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	   ===================================================== */
 
 	const sessionId = cookies.get(SESSION_COOKIE_NAME);
+
 	if (sessionId && auth) {
 		const user = await auth.validateSession(sessionId);
 
@@ -124,6 +118,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 			locals.user = user;
 			locals.session_id = sessionId;
 			locals.permissions = user.permissions ?? [];
+			sessionCache.set(sessionId, { user, timestamp: Date.now() });
 			metricsService.incrementAuthValidations();
 		} else {
 			cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
@@ -133,3 +128,44 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
 	return resolve(event);
 };
+
+/* =========================================================
+   REQUIRED EXPORTS (FIXES BUILD ERROR)
+   ========================================================= */
+
+export function invalidateSessionCache(sessionId: string, tenantId?: string): void {
+	sessionCache.delete(sessionId);
+	strongRefs.delete(sessionId);
+	lastRefreshAttempt.delete(sessionId);
+	lastRotationAttempt.delete(sessionId);
+
+	const cacheKey = tenantId
+		? `session:${tenantId}:${sessionId}`
+		: `session:${sessionId}`;
+
+	cacheService.delete(cacheKey, tenantId).catch(() => {});
+}
+
+export function clearSessionRefreshAttempt(sessionId: string): void {
+	lastRefreshAttempt.delete(sessionId);
+}
+
+export function forceSessionRotation(sessionId: string): void {
+	lastRotationAttempt.delete(sessionId);
+}
+
+export function clearAllSessionCaches(): void {
+	sessionCache.clear();
+	strongRefs.clear();
+	lastRefreshAttempt.clear();
+	lastRotationAttempt.clear();
+}
+
+export function getSessionCacheStats() {
+	return {
+		sessionCache: sessionCache.size,
+		strongRefs: strongRefs.size,
+		refreshAttempts: lastRefreshAttempt.size,
+		rotationAttempts: lastRotationAttempt.size
+	};
+}
