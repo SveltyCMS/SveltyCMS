@@ -145,6 +145,8 @@ jobs:
             MULTI_TENANT: false
           } as const;
           EOF
+      - name: Generate SvelteKit types
+        run: bunx svelte-kit sync
 
       - name: Build Production
         run: bun run build
