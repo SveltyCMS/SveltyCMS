@@ -10,9 +10,12 @@ import { getApiBaseUrl } from './server';
 
 const BASE_URL = getApiBaseUrl();
 
-// ✅ Shared integration-test header
-const TEST_HEADERS = {
-	'x-integration-test': 'true'
+// ✅ Browser-like headers REQUIRED for CSRF + cookies
+const BROWSER_HEADERS = {
+	Origin: BASE_URL,
+	Referer: `${BASE_URL}/login`,
+	'User-Agent': 'Mozilla/5.0 Integration-Test',
+	Accept: 'text/html,application/json'
 };
 
 // Internal helper using FormData (Browser-like behavior)
@@ -23,8 +26,9 @@ async function login(email: string, password: string): Promise<string> {
 
 	const response = await fetch(`${BASE_URL}/api/user/login`, {
 		method: 'POST',
-		headers: TEST_HEADERS, // ✅ FIX HERE
-		body: formData
+		headers: BROWSER_HEADERS,
+		body: formData,
+		credentials: 'include' // ✅ CRITICAL
 	});
 
 	if (!response.ok) {
@@ -33,16 +37,25 @@ async function login(email: string, password: string): Promise<string> {
 	}
 
 	const cookie = response.headers.get('set-cookie');
-	if (!cookie) throw new Error(`Login successful but no cookie returned for ${email}`);
+	if (!cookie) {
+		throw new Error(`Login successful but no cookie returned for ${email}`);
+	}
+
 	return cookie;
 }
 
 export async function loginAsAdmin(): Promise<string> {
-	return login(testFixtures.users.admin.email, testFixtures.users.admin.password);
+	return login(
+		testFixtures.users.admin.email,
+		testFixtures.users.admin.password
+	);
 }
 
 export async function loginAsEditor(): Promise<string> {
-	return login(testFixtures.users.editor.email, testFixtures.users.editor.password);
+	return login(
+		testFixtures.users.editor.email,
+		testFixtures.users.editor.password
+	);
 }
 
 /**
@@ -50,7 +63,11 @@ export async function loginAsEditor(): Promise<string> {
  * Idempotent: Ignores "Duplicate" errors so tests can re-run.
  */
 export async function createTestUsers(): Promise<void> {
-	const users = [testFixtures.users.admin, testFixtures.users.editor];
+	const users = [
+		testFixtures.users.admin,
+		testFixtures.users.editor
+	];
+
 	let adminCookie: string | undefined;
 
 	for (const [i, user] of users.entries()) {
@@ -62,27 +79,32 @@ export async function createTestUsers(): Promise<void> {
 		if (user.username) formData.append('username', user.username);
 
 		const headers: Record<string, string> = {
-			...TEST_HEADERS // ✅ FIX HERE
+			...BROWSER_HEADERS
 		};
 
 		// Admin auth required for second user
 		if (i > 0 && adminCookie) {
-			headers['Cookie'] = adminCookie;
+			headers.Cookie = adminCookie;
 		}
 
 		const res = await fetch(`${BASE_URL}/api/user/createUser`, {
 			method: 'POST',
 			headers,
-			body: formData
+			body: formData,
+			credentials: 'include'
 		});
 
 		if (!res.ok) {
 			const text = await res.text();
-			if (!text.toLowerCase().includes('duplicate') && !text.toLowerCase().includes('exists')) {
+			if (
+				!text.toLowerCase().includes('duplicate') &&
+				!text.toLowerCase().includes('exists')
+			) {
 				console.warn(`Failed to create ${user.role}: ${res.status} ${text}`);
 			}
 		}
 
+		// After creating admin, log in so we can create the editor
 		if (i === 0) {
 			try {
 				adminCookie = await loginAsAdmin();
