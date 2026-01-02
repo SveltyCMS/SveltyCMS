@@ -1,3 +1,5 @@
+ts
+
 import { error } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
