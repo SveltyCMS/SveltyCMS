@@ -87,7 +87,7 @@ export async function createTestUsers(): Promise<void> {
 			headers.Cookie = adminCookie;
 		}
 
-		const res = await fetch(`${BASE_URL}/api/user/createUser`, {
+		const response = await fetch(`${BASE_URL}/api/user/createUser`, {
 			method: 'POST',
 			headers,
 			body: formData,
