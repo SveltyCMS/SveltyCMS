@@ -1,12 +1,11 @@
-ts
-
 // @ts-ignore
 /**
  * @file tests/bun/helpers/testSetup.ts
  * @description Static test data and environment initialization with SAFETY GUARDS.
  */
+
 /* =========================================================
-   GLOBAL COOKIE JAR FOR BUN (REQUIRED)
+   ✅ GLOBAL COOKIE JAR (CRITICAL FOR BUN)
    ========================================================= */
 
 const originalFetch = globalThis.fetch;
@@ -17,7 +16,7 @@ let cookieJar = '';
 globalThis.fetch = async (input: RequestInfo, init: RequestInit = {}) => {
 	const headers = new Headers(init.headers || {});
 
-	// ✅ Send stored cookies
+	// ✅ Attach cookies automatically
 	if (cookieJar) {
 		headers.set('Cookie', cookieJar);
 	}
@@ -33,20 +32,24 @@ globalThis.fetch = async (input: RequestInfo, init: RequestInit = {}) => {
 	// ✅ Capture Set-Cookie
 	const setCookie = response.headers.get('set-cookie');
 	if (setCookie) {
-		// keep only cookie value, ignore attributes
+		// keep only cookie value (ignore attributes)
 		cookieJar = setCookie.split(';')[0];
 	}
 
 	return response;
 };
 
-import { waitForServer, getApiBaseUrl } from './server';
-import { createTestUsers, loginAsAdmin } from './auth';
-
-
 /* ========================================================= */
 
-const API_BASE_URL = getApiBaseUrl();
+import { waitForServer } from './server';
+import { createTestUsers, loginAsAdmin } from './auth';
+
+/* =========================================================
+   PERFORMANCE OPTIMIZATION: Smart caching
+   ========================================================= */
+
+let globalServerReady = false;
+let globalUsersCreated = false;
 
 /**
  * Initialize the environment (wait for server).
@@ -55,14 +58,8 @@ export async function initializeTestEnvironment(): Promise<void> {
 	await waitForServer();
 }
 
-// --- PERFORMANCE OPTIMIZATION: Smart caching ---
-let globalServerReady = false;
-let globalAuthCookie: string | null = null;
-let globalAuthTestFile: string | null = null;
-let globalUsersCreated = false;
-
 /**
- * SAFETY GUARD: Cleans the test database.
+ * SAFETY GUARD: Cleans the test database (logical reset only).
  */
 export async function cleanupTestDatabase(): Promise<void> {
 	const targetDb = process.env.DB_NAME || process.env.MONGO_DB || '';
@@ -77,8 +74,8 @@ DB "${targetDb}" does not look like a test database
 		return;
 	}
 
-	globalAuthCookie = null;
-	globalAuthTestFile = null;
+	// Reset test state
+	cookieJar = '';
 	globalUsersCreated = false;
 }
 
@@ -92,44 +89,22 @@ export async function ensureServerReady(): Promise<void> {
 }
 
 /**
- * Get the current test file name from the call stack.
+ * Prepare a logged-in admin for authenticated tests.
+ * Cookies are handled automatically by the global fetch patch.
  */
-function getCurrentTestFile(): string {
-	const stack = new Error().stack || '';
-	const match = stack.match(/\/tests\/bun\/api\/([^\/]+\.test\.ts)/);
-	return match ? match[1] : 'unknown';
-}
-
-/**
- * Prepare a clean DB and a logged-in admin for a test case.
- */
-export async function prepareAuthenticatedContext(): Promise<string> {
+export async function prepareAuthenticatedContext(): Promise<void> {
 	await ensureServerReady();
 
-	const currentTestFile = getCurrentTestFile();
-	const canReuseAuth =
-		globalAuthCookie &&
-		globalAuthTestFile === currentTestFile &&
-		globalUsersCreated;
-
-	if (canReuseAuth) {
-		return globalAuthCookie!;
-	}
-
 	try {
-		const adminCookie = await loginAsAdmin();
-		globalAuthCookie = adminCookie;
-		globalAuthTestFile = currentTestFile;
+		// Try login first (users may already exist)
+		await loginAsAdmin();
 		globalUsersCreated = true;
-		return adminCookie;
 	} catch {
-		console.log(`Creating test users for ${currentTestFile}...`);
+		// Create users if login fails
+		console.log('Creating test users...');
 		await createTestUsers();
-		const adminCookie = await loginAsAdmin();
-		globalAuthCookie = adminCookie;
-		globalAuthTestFile = currentTestFile;
+		await loginAsAdmin();
 		globalUsersCreated = true;
-		return adminCookie;
 	}
 }
 
@@ -149,7 +124,10 @@ export async function initializeSetupTests(): Promise<void> {
 	console.log('✅ Setup test environment ready (setup mode)');
 }
 
-// --- FIXTURES ---
+/* =========================================================
+   FIXTURES
+   ========================================================= */
+
 export const testFixtures = {
 	users: {
 		admin: {
