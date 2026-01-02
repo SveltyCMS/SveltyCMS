@@ -155,9 +155,10 @@ jobs:
         run: |
           bun run preview &
           bunx wait-on http://localhost:4173 -t 60000
-
       - name: Run Integration Tests
-        run: bun run test:integration:run
+        run: |
+           wait-on http://localhost:4173
+           bun test --preload ./tests/bun/setup.ts tests/bun/api tests/bun/databases tests/bun/hooks
         env:
           API_BASE_URL: http://localhost:4173
 
