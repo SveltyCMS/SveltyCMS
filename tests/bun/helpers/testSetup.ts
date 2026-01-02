@@ -5,10 +5,6 @@ ts
  * @file tests/bun/helpers/testSetup.ts
  * @description Static test data and environment initialization with SAFETY GUARDS.
  */
-
-import { waitForServer, getApiBaseUrl } from './server';
-import { createTestUsers, loginAsAdmin } from './auth';
-
 /* =========================================================
    ✅ GLOBAL FETCH PATCH (CRITICAL FIX)
    Ensures cookies are preserved in Bun tests
@@ -27,6 +23,10 @@ globalThis.fetch = async (input: RequestInfo, init: RequestInit = {}) => {
 		}
 	});
 };
+
+import { waitForServer, getApiBaseUrl } from './server';
+import { createTestUsers, loginAsAdmin } from './auth';
+
 
 /* ========================================================= */
 
