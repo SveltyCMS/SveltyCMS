@@ -1,16 +1,19 @@
+ts
+
 /**
  * @file tests/bun/helpers/auth.ts
  * @description Real authentication actions against the running server.
- * Provides functions to:
- * - Login as admin/editor
- * - Create test users
- * - Prepare authenticated context
- *
  */
+
 import { testFixtures } from './testSetup';
 import { getApiBaseUrl } from './server';
 
 const BASE_URL = getApiBaseUrl();
+
+// ✅ Shared integration-test header
+const TEST_HEADERS = {
+	'x-integration-test': 'true'
+};
 
 // Internal helper using FormData (Browser-like behavior)
 async function login(email: string, password: string): Promise<string> {
@@ -20,11 +23,11 @@ async function login(email: string, password: string): Promise<string> {
 
 	const response = await fetch(`${BASE_URL}/api/user/login`, {
 		method: 'POST',
+		headers: TEST_HEADERS, // ✅ FIX HERE
 		body: formData
 	});
 
 	if (!response.ok) {
-		// Fallback for debugging
 		const text = await response.text();
 		throw new Error(`Login failed (${response.status}): ${text.substring(0, 100)}...`);
 	}
@@ -58,8 +61,11 @@ export async function createTestUsers(): Promise<void> {
 		formData.append('role', user.role);
 		if (user.username) formData.append('username', user.username);
 
-		const headers: Record<string, string> = {};
-		// The first user (Admin) is created publicly. Subsequent users need Admin auth.
+		const headers: Record<string, string> = {
+			...TEST_HEADERS // ✅ FIX HERE
+		};
+
+		// Admin auth required for second user
 		if (i > 0 && adminCookie) {
 			headers['Cookie'] = adminCookie;
 		}
@@ -72,13 +78,11 @@ export async function createTestUsers(): Promise<void> {
 
 		if (!res.ok) {
 			const text = await res.text();
-			// Only throw if it's NOT a "User already exists" error
 			if (!text.toLowerCase().includes('duplicate') && !text.toLowerCase().includes('exists')) {
 				console.warn(`Failed to create ${user.role}: ${res.status} ${text}`);
 			}
 		}
 
-		// After creating admin, log in so we can create the editor
 		if (i === 0) {
 			try {
 				adminCookie = await loginAsAdmin();
@@ -88,7 +92,7 @@ export async function createTestUsers(): Promise<void> {
 }
 
 /**
- * Clean Setup Helper: Use this in beforeAll()
+ * Clean Setup Helper
  */
 export async function prepareAuthenticatedContext(): Promise<string> {
 	await createTestUsers();
