@@ -24,7 +24,7 @@ export default defineConfig({
 	use: {
 		/* Base URL to use in actions like `await page.goto('/')`. */
 		baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || (process.env.CI ? 'http://localhost:4173' : 'http://localhost:5173'),
-
+        headless: true,
 		launchOptions: {
 			slowMo: parseInt(process.env.SLOW_MO || '0'),
 			devtools: !process.env.CI // Enable devtools when not in CI
