@@ -27,51 +27,69 @@ on:
   push:
     branches: [main, next]
   pull_request:
-    branches: [main]
-  workflow_dispatch: {}
-  workflow_call: {}
+    branches: [main, next]
+  workflow_dispatch:
 
 permissions:
   contents: read
-  actions: read
   checks: write
 
+# =========================================================
+# 1. UNIT TESTS (FAST – NO SERVER)
+# =========================================================
 jobs:
-  # ------------------------------------------------------------------
-  # 1. Unit Tests (Fastest, no server needed)
-  # ------------------------------------------------------------------
   unit-tests:
     name: ⚡ Unit Tests
-    timeout-minutes: 10
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
+      - name: Cache Bun
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            ~/.cache/bun
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Generate SvelteKit types
+        run: bunx svelte-kit sync
 
       - name: Run Unit Tests
         run: bun run test:unit
 
-  # ------------------------------------------------------------------
-  # 2. Integration Tests (Requires Server + MongoDB)
-  # ------------------------------------------------------------------
+# =========================================================
+# 2. INTEGRATION TESTS (SERVER + MONGODB)
+# =========================================================
   integration-tests:
     name: 🔌 Integration Tests
-    timeout-minutes: 15
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
     services:
       mongodb:
         image: mongo:latest
-        ports: [27017:27017]
+        ports:
+          - 27017:27017
         env:
           MONGO_INITDB_ROOT_USERNAME: admin
           MONGO_INITDB_ROOT_PASSWORD: admin
+
     env:
       DB_TYPE: mongodb
       DB_HOST: localhost
@@ -80,157 +98,141 @@ jobs:
       DB_USER: admin
       DB_PASSWORD: admin
       TEST_MODE: 'true'
+
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@v4
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # Ensure fresh state - remove any existing config
-      - name: Clean config for fresh CI run
+      - name: Wait for MongoDB
         run: |
-          echo "🧹 Ensuring fresh state for CI..."
+          until mongosh --eval "db.adminCommand('ping')" >/dev/null 2>&1; do
+            echo "Waiting for MongoDB..."
+            sleep 2
+          done
+
+      - name: Clean config
+        run: |
           rm -rf config/collections
           rm -f config/private.ts
-          echo "✅ Cleaned config directory"
 
-      # Create placeholder config/private.test.ts to ensure runtime config works
-      - name: Create placeholder config/private.test.ts
+      - name: Create config/private.ts
         run: |
-          echo "📝 Creating placeholder config/private.test.ts..."
-          cat > config/private.test.ts <<EOF
+          mkdir -p config
+          cat > config/private.ts <<EOF
           export const privateEnv = {
-            DB_TYPE: '${{ env.DB_TYPE }}',
-            DB_HOST: '${{ env.DB_HOST }}',
-            DB_PORT: ${{ env.DB_PORT }},
-            DB_NAME: '${{ env.DB_NAME }}',
-            DB_USER: '${{ env.DB_USER }}',
-            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
+            DB_TYPE: 'mongodb',
+            DB_HOST: 'localhost',
+            DB_PORT: 27017,
+            DB_NAME: 'sveltycms_test',
+            DB_USER: 'admin',
+            DB_PASSWORD: 'admin',
             JWT_SECRET_KEY: 'test_jwt_secret',
             ENCRYPTION_KEY: 'test_encryption_key',
             MULTI_TENANT: false
           } as const;
           EOF
-          echo "✅ Created config/private.test.ts"
 
-      # Build production version for faster, optimized testing
-      - name: Build Production
+      - name: Generate SvelteKit types
+        run: bunx svelte-kit sync
+
+      - name: Build app
         run: bun run build
 
-      # --- START PREVIEW SERVER (PORT 4173) ---
       - name: Start Preview Server
         run: |
-          echo "🚀 Starting preview server on port 4173..."
-          bun run preview &
-          echo "⏳ Waiting for server to be ready..."
-          bun x wait-on http://localhost:4173 -t 60000
-          echo "✅ Preview server is ready!"
+          nohup bun run preview > server.log 2>&1 &
+          bunx wait-on http://localhost:4173 -t 60000
 
       - name: Run Integration Tests
-        run: bun run test:integration
+        env:
+          API_BASE_URL: http://localhost:4173
+        run: |
+          bun test \
+            --preload ./tests/bun/setup.ts \
+            tests/bun/api \
+            tests/bun/databases \
+            tests/bun/hooks
 
-  # ------------------------------------------------------------------
-  # 3. E2E Tests (Requires Server + MongoDB + Browser)
-  # ------------------------------------------------------------------
+      - name: Upload server logs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-server-log
+          path: server.log
+
+# =========================================================
+# 3. E2E TESTS (PLAYWRIGHT)
+# =========================================================
   e2e-tests:
     name: 🎭 E2E Tests
-    timeout-minutes: 30 # Increased to fix your timeout issue
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
     services:
       mongodb:
         image: mongo:latest
-        ports: [27017:27017]
-        env:
-          MONGO_INITDB_ROOT_USERNAME: admin
-          MONGO_INITDB_ROOT_PASSWORD: admin
-    env:
-      DB_TYPE: mongodb
-      DB_HOST: localhost
-      DB_PORT: 27017
-      DB_NAME: sveltycms_test
-      DB_USER: admin
-      DB_PASSWORD: admin
-      TEST_MODE: 'true'
+        ports:
+          - 27017:27017
+
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@v4
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Install Playwright Browsers
-        run: bun x playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps
 
-      # Ensure fresh state - remove any existing config
-      - name: Clean config for fresh CI run
+      - name: Wait for MongoDB
         run: |
-          echo "🧹 Ensuring fresh state for CI..."
-          rm -rf config/collections
-          rm -f config/private.ts
-          echo "✅ Cleaned config directory"
+          until mongosh --eval "db.adminCommand('ping')" >/dev/null 2>&1; do
+            echo "Waiting for MongoDB..."
+            sleep 2
+          done
 
-      # Create placeholder config/private.test.ts to ensure runtime config works
-      - name: Create placeholder config/private.test.ts
+      - name: Create config/private.ts
         run: |
-          echo "📝 Creating placeholder config/private.test.ts..."
-          cat > config/private.test.ts <<EOF
+          mkdir -p config
+          cat > config/private.ts <<EOF
           export const privateEnv = {
-            DB_TYPE: '${{ env.DB_TYPE }}',
-            DB_HOST: '${{ env.DB_HOST }}',
-            DB_PORT: ${{ env.DB_PORT }},
-            DB_NAME: '${{ env.DB_NAME }}',
-            DB_USER: '${{ env.DB_USER }}',
-            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
+            DB_TYPE: 'mongodb',
+            DB_HOST: 'localhost',
+            DB_PORT: 27017,
+            DB_NAME: 'sveltycms_test',
+            DB_USER: 'admin',
+            DB_PASSWORD: 'admin',
             JWT_SECRET_KEY: 'test_jwt_secret',
             ENCRYPTION_KEY: 'test_encryption_key',
             MULTI_TENANT: false
           } as const;
           EOF
-          echo "✅ Created config/private.test.ts"
 
-      # Build production version for faster, optimized testing
-      - name: Build Production
+      - name: Build app
         run: bun run build
 
-      # --- START PREVIEW SERVER (PORT 4173) ---
       - name: Start Preview Server
         run: |
-          echo "🚀 Starting preview server on port 4173..."
-          bun run preview &
-          echo "⏳ Waiting for server to be ready..."
-          bun x wait-on http://localhost:4173 -t 60000
-          echo "✅ Preview server is ready!"
+          nohup bun run preview > server.log 2>&1 &
+          bunx wait-on http://localhost:4173 -t 60000
 
-      # STEP A: Run the Setup Wizard first to initialize the DB/User
-      - name: 🧙‍♂️ Run Setup Wizard Test
-        run: |
-          echo "=== Running setup wizard to initialize application ==="
-          # Runs ONLY the setup wizard spec
-          bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list
-        env:
-          # Setup Wizard specific envs (if your app uses them to seed)
-          ADMIN_EMAIL: admin@example.com
-          ADMIN_PASS: Admin123!
+      - name: Run Playwright tests
+        run: bunx playwright test --project=chromium
 
-      # STEP B: Run the rest of the tests (skipping the wizard)
-      - name: 🧪 Run Application E2E Tests
-        if: success() # Only run if Wizard passed
-        run: |
-          echo "=== Running main E2E suite ==="
-          # --grep-invert skips the setup wizard since we just ran it
-          bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard"
-
-      - uses: actions/upload-artifact@604373da6381bf24206979c74d06a550515601b9 # v4.6.0
+      - name: Upload Playwright report
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: playwright-report/
