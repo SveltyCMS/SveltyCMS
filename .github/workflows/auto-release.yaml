@@ -16,66 +16,75 @@ permissions:
   pull-requests: write
 
 jobs:
-  test:
-    name: Run Playwright Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+ test:
+  name: Run Playwright Tests
+  runs-on: ubuntu-latest
+  timeout-minutes: 30
 
-    services:
-      mongodb:
-        image: mongo:latest
-        ports: [27017:27017]
-        env:
-          MONGO_INITDB_ROOT_USERNAME: admin
-          MONGO_INITDB_ROOT_PASSWORD: admin
+  services:
+    mongodb:
+      image: mongo:latest
+      ports: [27017:27017]
+      env:
+        MONGO_INITDB_ROOT_USERNAME: admin
+        MONGO_INITDB_ROOT_PASSWORD: admin
 
-    env:
-      DB_TYPE: mongodb
-      DB_HOST: localhost
-      DB_PORT: 27017
-      DB_NAME: sveltycms_test
-      DB_USER: admin
-      DB_PASSWORD: admin
-      TEST_MODE: 'true'
+  env:
+    DB_TYPE: mongodb
+    DB_HOST: localhost
+    DB_PORT: 27017
+    DB_NAME: sveltycms_test
+    DB_USER: admin
+    DB_PASSWORD: admin
+    TEST_MODE: 'true'
+    API_BASE_URL: http://localhost:4173
 
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+  steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-      - name: Setup Node.js (LTS)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+    - name: Setup Node.js (LTS)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+    - name: Install dependencies
+      run: bun install --frozen-lockfile
 
-      - name: Install Playwright Browsers
-        run: bunx playwright install --with-deps
+    - name: Install Playwright browsers
+      run: bunx playwright install --with-deps
 
-      - name: Create placeholder config/private.test.ts
-        run: |
-          cat > config/private.test.ts <<EOF
-          export const privateEnv = {
-            DB_TYPE: '${{ env.DB_TYPE }}',
-            DB_HOST: '${{ env.DB_HOST }}',
-            DB_PORT: ${{ env.DB_PORT }},
-            DB_NAME: '${{ env.DB_NAME }}',
-            DB_USER: '${{ env.DB_USER }}',
-            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
-            JWT_SECRET_KEY: 'test_jwt_secret',
-            ENCRYPTION_KEY: 'test_encryption_key',
-            MULTI_TENANT: false
-          } as const;
-          EOF
+    - name: Create placeholder config/private.test.ts
+      run: |
+        cat > config/private.test.ts <<EOF
+        export const privateEnv = {
+          DB_TYPE: '${{ env.DB_TYPE }}',
+          DB_HOST: '${{ env.DB_HOST }}',
+          DB_PORT: ${{ env.DB_PORT }},
+          DB_NAME: '${{ env.DB_NAME }}',
+          DB_USER: '${{ env.DB_USER }}',
+          DB_PASSWORD: '${{ env.DB_PASSWORD }}',
+          JWT_SECRET_KEY: 'test_jwt_secret',
+          ENCRYPTION_KEY: 'test_encryption_key',
+          MULTI_TENANT: false
+        } as const;
+        EOF
 
-      - name: Run Playwright tests
-        run: bunx playwright test
+    - name: Build application
+      run: bun run build
+
+    - name: Start preview server
+      run: |
+        bun run preview &
+        bunx wait-on http://localhost:4173 -t 60000
+
+    - name: Run Playwright tests
+      run: bunx playwright test
 
   release:
     name: Release with Semantic Release
