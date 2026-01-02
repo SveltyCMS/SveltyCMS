@@ -6,22 +6,38 @@ ts
  * @description Static test data and environment initialization with SAFETY GUARDS.
  */
 /* =========================================================
-   ✅ GLOBAL FETCH PATCH (CRITICAL FIX)
-   Ensures cookies are preserved in Bun tests
+   GLOBAL COOKIE JAR FOR BUN (REQUIRED)
    ========================================================= */
 
 const originalFetch = globalThis.fetch;
 
+// Simple in-memory cookie jar
+let cookieJar = '';
+
 globalThis.fetch = async (input: RequestInfo, init: RequestInit = {}) => {
-	return originalFetch(input, {
-		credentials: 'include', // ✅ KEEP SESSION COOKIES
+	const headers = new Headers(init.headers || {});
+
+	// ✅ Send stored cookies
+	if (cookieJar) {
+		headers.set('Cookie', cookieJar);
+	}
+
+	headers.set('Accept', 'application/json');
+	headers.set('x-integration-test', 'true');
+
+	const response = await originalFetch(input, {
 		...init,
-		headers: {
-			Accept: 'application/json',
-			'x-integration-test': 'true',
-			...(init.headers || {})
-		}
+		headers
 	});
+
+	// ✅ Capture Set-Cookie
+	const setCookie = response.headers.get('set-cookie');
+	if (setCookie) {
+		// keep only cookie value, ignore attributes
+		cookieJar = setCookie.split(';')[0];
+	}
+
+	return response;
 };
 
 import { waitForServer, getApiBaseUrl } from './server';
