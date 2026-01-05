@@ -50,11 +50,11 @@
 
 {#if modalState.active}
 	<div class={cBase}>
-		<header class="flex items-center justify-between border-b border-surface-200 pb-4 dark:border-surface-700">
+		<header class="flex items-center justify-between border-b border-surface-200 pb-4 dark:text-surface-50">
 			<h2 class={cHeader}>
 				{modalState.active?.props?.title || 'Select Widget'}
 			</h2>
-			<button class="btn-icon variant-ghost-surface" onclick={parent.onClose} aria-label="Close modal">
+			<button class="btn-icon preset-outlined-surface-500" onclick={parent.onClose} aria-label="Close modal">
 				<iconify-icon icon="mdi:close" width="24"></iconify-icon>
 			</button>
 		</header>
@@ -81,7 +81,7 @@
 
 				{#if filteredKeys.length > 0}
 					<div class="mb-8 last:mb-0">
-						<h3 class="mb-4 text-xl font-bold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+						<h3 class="mb-4 text-xl font-bold uppercase tracking-wider text-surface-500 dark:text-surface-50">
 							{category} Widgets
 						</h3>
 						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -89,7 +89,7 @@
 								{#if item && (availableWidgets[item] as any)?.GuiSchema}
 									<button
 										onclick={() => onFormSubmit(item)}
-										class="group relative flex flex-col gap-3 rounded-xl border border-surface-200 bg-surface-50 p-5 text-left transition-all hover:-translate-y-1 hover:border-primary-500 hover:shadow-lg dark:border-surface-700 dark:bg-surface-800 dark:hover:border-primary-500"
+										class="group relative flex flex-col gap-3 rounded-xl border border-surface-200 bg-surface-50 p-5 text-left transition-all hover:-translate-y-1 hover:border-primary-500 hover:shadow-lg dark:text-surface-50 dark:bg-surface-800 dark:hover:border-primary-500"
 										aria-label={item}
 									>
 										<div class="flex items-start justify-between w-full">
@@ -105,7 +105,7 @@
 											<h3 class="text-lg font-bold text-surface-900 group-hover:text-primary-500 dark:text-white dark:group-hover:text-primary-400">
 												{item}
 											</h3>
-											<p class="mt-1 line-clamp-2 text-xs text-surface-500 dark:text-surface-400">
+											<p class="mt-1 line-clamp-2 text-xs text-surface-500 dark:text-surface-50">
 												{availableWidgets[item]?.Description || 'No description available'}
 											</p>
 										</div>

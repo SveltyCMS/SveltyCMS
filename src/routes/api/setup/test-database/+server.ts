@@ -152,6 +152,18 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 	const start = Date.now();
 	let resultPayload: object | null = null;
 	try {
+		// Mock success in TEST_MODE if host is 'mock-host' for UI audit purposes
+		if (process.env.TEST_MODE === 'true' && dbConfig.host === 'mock-host') {
+			logger.info('🛠️ Mocking DB success for UI audit in TEST_MODE');
+			return json({
+				success: true,
+				message: 'Database connected successfully! (MOCKED)',
+				latencyMs: 10,
+				collectionsSample: ['users', 'collections'],
+				authenticated: true
+			});
+		}
+
 		const driverCheck = await checkMongoDBDriver();
 		if (!driverCheck.available) {
 			// In CI/test mode, don't attempt to install drivers - they should be pre-installed

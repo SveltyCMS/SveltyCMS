@@ -4,6 +4,12 @@
  *
  * This module defines a schema and model for Content Structure in the MongoDB database.
  * Content Structure represents the hierarchical organization of content in the CMS.
+ *
+ * Features:
+ * - Defines a schema for Content Structure
+ * - Defines a model for Content Structure
+ * - Defines static methods for Content Structure
+ * - Defines indexes for Content Structure
  */
 
 import type { ContentNode, Translation } from '@src/content/types';

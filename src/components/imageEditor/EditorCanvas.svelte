@@ -55,16 +55,16 @@ for the image editor canvas with responsive behavior.
 				</div>
 				<div class="empty-text">
 					<h3 class="mb-2 text-lg font-medium text-surface-700 dark:text-surface-300 max-md:text-base">No Image Selected</h3>
-					<p class="text-sm text-surface-500 dark:text-surface-400 max-md:text-xs">Upload an image to start editing</p>
+					<p class="text-sm text-surface-500 dark:text-surface-50 max-md:text-xs">Upload an image to start editing</p>
 				</div>
 				<div class="empty-hints flex flex-col gap-2">
 					<div class="hint-item flex items-center justify-center gap-2">
 						<iconify-icon icon="mdi:gesture-tap" width="16" class="text-surface-400"></iconify-icon>
-						<span class="text-xs text-surface-500 dark:text-surface-400 max-md:text-[10px]"> Drag & drop supported </span>
+						<span class="text-xs text-surface-500 dark:text-surface-50 max-md:text-[10px]"> Drag & drop supported </span>
 					</div>
 					<div class="hint-item flex items-center justify-center gap-2">
 						<iconify-icon icon="mdi:file-image" width="16" class="text-surface-400"></iconify-icon>
-						<span class="text-xs text-surface-500 dark:text-surface-400 max-md:text-[10px]"> PNG, JPG, WebP, GIF </span>
+						<span class="text-xs text-surface-500 dark:text-surface-50 max-md:text-[10px]"> PNG, JPG, WebP, GIF </span>
 					</div>
 				</div>
 			</div>

@@ -89,6 +89,20 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 	switch (config.type) {
 		case 'mongodb':
 		case 'mongodb+srv': {
+			// Mock success in TEST_MODE if host is 'mock-host' for UI audit purposes
+			if (process.env.TEST_MODE === 'true' && config.host === 'mock-host') {
+				logger.info('🛠️ Mocking DB connection for setup in TEST_MODE');
+				const { MongoDBAdapter } = await import('@src/databases/mongodb/mongoDBAdapter');
+				dbAdapter = new MongoDBAdapter() as unknown as IDBAdapter;
+
+				// Mock the connect method to return success
+				dbAdapter.connect = async () => ({ success: true, data: undefined });
+				// Mock the auth setup to do nothing
+				dbAdapter.auth.setupAuthModels = async () => {};
+
+				return { dbAdapter, connectionString };
+			}
+
 			const { MongoDBAdapter } = await import('@src/databases/mongodb/mongoDBAdapter');
 			dbAdapter = new MongoDBAdapter() as unknown as IDBAdapter;
 

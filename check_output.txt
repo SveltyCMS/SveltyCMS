@@ -1,0 +1,110 @@
+$ svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error
+Loading svelte-check in workspace: /var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS
+Getting Svelte diagnostics...
+
+/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/routes/api/setup/utils.ts:99:37
+Error: Type 'Promise<{ success: true; }>' is not assignable to type 'Promise<DatabaseResult<void>>'.
+  Type '{ success: true; }' is not assignable to type 'DatabaseResult<void>'.
+    Property 'data' is missing in type '{ success: true; }' but required in type '{ success: true; data: void; meta?: QueryMeta | undefined; }'. 
+				// Mock the connect method to return success
+				dbAdapter.connect = async () => ({ success: true });
+				// Mock the auth setup to do nothing
+
+/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/components/Collections.svelte:110:17
+Error: Property 'test' does not exist on type '{ readonly archive: "archive"; readonly draft: "draft"; readonly publish: "publish"; readonly unpublish: "unpublish"; readonly schedule: "schedule"; readonly clone: "clone"; readonly delete: "delete"; }'. (ts)
+			[StatusTypes.clone]: 'bg-secondary-500',
+			[StatusTypes.test]: 'bg-tertiary-500',
+			[StatusTypes.delete]: 'bg-error-500',
+
+/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/components/system/table/Status.svelte:44:31
+Error: Property 'test' does not exist on type '{ readonly archive: "archive"; readonly draft: "draft"; readonly publish: "publish"; readonly unpublish: "unpublish"; readonly schedule: "schedule"; readonly clone: "clone"; readonly delete: "delete"; }'. (ts)
+						? 'gradient-secondary'
+						: value === StatusTypes.test
+							? 'gradient-error'
+
+/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/components/system/table/Status.svelte:71:34
+Error: Property 'test' does not exist on type '{ readonly archive: "archive"; readonly draft: "draft"; readonly publish: "publish"; readonly unpublish: "unpublish"; readonly schedule: "schedule"; readonly clone: "clone"; readonly delete: "delete"; }'. (ts)
+		<p class="hidden sm:block">{m.entrylist_multibutton_clone()}</p>
+	{:else if value === StatusTypes.test}
+		<iconify-icon icon="icon-park-outline:preview-open" width="20" class="mx-auto"></iconify-icon>
+
+/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/components/system/table/TableIcons.svelte:59:32
+Error: Property 'test' does not exist on type '{ readonly archive: "archive"; readonly draft: "draft"; readonly publish: "publish"; readonly unpublish: "unpublish"; readonly schedule: "schedule"; readonly clone: "clone"; readonly delete: "delete"; }'. (ts)
+			{iconStatus === StatusTypes.schedule ? 'border-pink-500' : ''}
+			{iconStatus === StatusTypes.test ? 'border-red-500' : ''}
+			{iconStatus === undefined ? 'border-surface-800' : ''}
+
+/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/components/collectionDisplay/EntryList.svelte:324:2
+Error: 'recalculatePaths' is declared but its value is never read. (ts)
+	// Tree Logic
+	import { recalculatePaths } from '@utils/treeViewAdapter';
+
+/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/components/collectionDisplay/EntryList.svelte:76:8
+Error: 'flipDurationMs' is declared but its value is never read. (ts)
+
+	const flipDurationMs = 300;
+
+/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/components/collectionDisplay/EntryList.svelte:362:10
+Error: 'draggedItem' is declared but its value is never read. (ts)
+		// Move item
+		const [draggedItem] = updatedData.splice(draggedIndex, 1);
+
+/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/components/collectionDisplay/EntryList.svelte:365:7
+Error: 'newIndex' is declared but its value is never read. (ts)
+		// Calculate new index
+		let newIndex = dropIndex;
+		if (draggedIndex < dropIndex) {
+
+/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/components/collectionDisplay/EntryList.svelte:871:29
+Error: Parameter 'node' implicitly has an 'any' type. (ts)
+
+				{#snippet badgeTemplate(node, toggle, isOpen)}
+					{@const header = node.data || node}
+
+/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/components/collectionDisplay/EntryList.svelte:871:35
+Error: 'toggle' is declared but its value is never read. (ts)
+
+				{#snippet badgeTemplate(node, toggle, isOpen)}
+					{@const header = node.data || node}
+
+/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/components/collectionDisplay/EntryList.svelte:871:35
+Error: Parameter 'toggle' implicitly has an 'any' type. (ts)
+
+				{#snippet badgeTemplate(node, toggle, isOpen)}
+					{@const header = node.data || node}
+
+/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/components/collectionDisplay/EntryList.svelte:871:43
+Error: 'isOpen' is declared but its value is never read. (ts)
+
+				{#snippet badgeTemplate(node, toggle, isOpen)}
+					{@const header = node.data || node}
+
+/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/components/collectionDisplay/EntryList.svelte:871:43
+Error: Parameter 'isOpen' implicitly has an 'any' type. (ts)
+
+				{#snippet badgeTemplate(node, toggle, isOpen)}
+					{@const header = node.data || node}
+
+/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/components/collectionDisplay/EntryList.svelte:868:7
+Error: Property 'pathMember' is missing in type '{ data: any[]; nodeTemplate: (node: any, toggle: any, isOpen: any) => ReturnType<import("svelte").Snippet>; onNodeDrop: (dropNode: any, draggedNode: any, position: string, _event: any, _operation: any) => void; idMember: string; displayValueMember: string; }' but required in type '{ idMember: string; pathMember: string; parentPathMember?: string | null | undefined; levelMember?: string | null | undefined; isExpandedMember?: string | null | undefined; isSelectedMember?: string | ... 1 more ... | undefined; ... 55 more ...; contextMenuYOffset?: number | ... 1 more ... | undefined; }'. (ts)
+				<div class="horizontal-tree-tokens flex w-full flex-wrap justify-center gap-1 p-1">
+					<Tree bind:data={treeData} nodeTemplate={badgeTemplate} onNodeDrop={handleColumnDrop} idMember="id" displayValueMember="label" />
+				</div>
+
+/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/routes/(app)/user/components/Multibutton.svelte:127:52
+Error: No overload matches this call.
+  Overload 1 of 2, '(fn: () => ActionType[]): ActionType[]', gave the following error.
+    Argument of type '() => string[]' is not assignable to parameter of type '() => ActionType[]'.
+      Type 'string[]' is not assignable to type 'ActionType[]'.
+        Type 'string' is not assignable to type 'ActionType'.
+  Overload 2 of 2, '(fn: () => ActionType[]): ActionType[]', gave the following error.
+    Argument of type '() => string[]' is not assignable to parameter of type '() => ActionType[]'.
+      Type 'string[]' is not assignable to type 'ActionType[]'.
+        Type 'string' is not assignable to type 'ActionType'. (ts)
+	// Actions to show in dropdown
+	const filteredActions = $derived.by<ActionType[]>(() => {
+		const actions = Array.isArray(availableActions) ? availableActions : [];
+
+====================================
+svelte-check found 16 errors and 0 warnings in 6 files
+error: script "check" exited with code 1

@@ -229,7 +229,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 			{#if canCancel}
 				<button
 					onclick={handleCancel}
-					class="variant-ghost-error btn btn-sm mt-2"
+					class="preset-outlined-error-500 btn-sm mt-2"
 					type="button"
 					transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 				>

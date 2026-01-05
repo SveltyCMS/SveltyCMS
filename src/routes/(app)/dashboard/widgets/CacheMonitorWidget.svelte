@@ -120,7 +120,7 @@
 					<div class="mb-3 flex items-start justify-between">
 						<div>
 							<h3 class="text-xs font-semibold uppercase tracking-wider">Overall Performance</h3>
-							<p class="mt-1 text-xs text-surface-600 dark:text-surface-400">
+							<p class="mt-1 text-xs text-surface-600 dark:text-surface-50">
 								{metrics.overall.totalOperations.toLocaleString()} operations
 							</p>
 						</div>
@@ -177,7 +177,7 @@
 											<iconify-icon
 												icon={getCategoryIcon(category)}
 												width="18"
-												class="text-surface-600 transition-colors group-hover:text-primary-500 dark:text-surface-400"
+												class="text-surface-600 transition-colors group-hover:text-primary-500 dark:text-surface-50"
 											></iconify-icon>
 											<span class="font-semibold">{category.toLowerCase()}</span>
 										</div>
@@ -211,7 +211,7 @@
 				<!-- By Tenant (if available) -->
 				{#if metrics.byTenant && Object.keys(metrics.byTenant).length > 0}
 					<div class="rounded-xl bg-surface-50 p-4 dark:bg-surface-800/50">
-						<h3 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400">
+						<h3 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-50">
 							<iconify-icon icon="mdi:domain" width="14"></iconify-icon>
 							By Tenant
 						</h3>
@@ -253,7 +253,7 @@
 												<iconify-icon icon={getCategoryIcon(miss.category)} width="14" class="text-error-600 dark:text-error-400"></iconify-icon>
 												<span class="font-semibold">{miss.category}</span>
 											</div>
-											<div class="truncate font-mono text-[10px] text-surface-600 dark:text-surface-400" title={miss.key}>
+											<div class="truncate font-mono text-[10px] text-surface-600 dark:text-surface-50" title={miss.key}>
 												{miss.key}
 											</div>
 										</div>

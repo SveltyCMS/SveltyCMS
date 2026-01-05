@@ -144,19 +144,19 @@ and rule-of-thirds grid overlay.
 			transition:scale={{ start: 0.95, duration: 150 }}
 		>
 			<!-- Header -->
-			<header class="flex items-center justify-between border-b border-surface-300 p-4 dark:border-surface-700">
+			<header class="flex items-center justify-between border-b border-surface-300 p-4 dark:text-surface-50">
 				<h3 id="focal-modal-title" class="text-lg font-semibold flex items-center gap-2">
 					<iconify-icon icon="mdi:crosshairs-gps" width="24" class="text-primary-500"></iconify-icon>
 					Set Focal Point
 				</h3>
-				<button onclick={handleClose} class="btn-icon variant-ghost-surface" aria-label="Close">
+				<button onclick={handleClose} class="btn-icon preset-outlined-surface-500" aria-label="Close">
 					<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 				</button>
 			</header>
 
 			<!-- Image Container -->
 			<div class="p-4">
-				<p class="text-sm text-surface-500 dark:text-surface-400 mb-3">
+				<p class="text-sm text-surface-500 dark:text-surface-50 mb-3">
 					Click or drag to set the focal point. This determines the focus area when the image is cropped for different sizes.
 				</p>
 
@@ -202,22 +202,22 @@ and rule-of-thirds grid overlay.
 			</div>
 
 			<!-- Footer -->
-			<footer class="flex items-center justify-between border-t border-surface-300 p-4 dark:border-surface-700">
+			<footer class="flex items-center justify-between border-t border-surface-300 p-4 dark:text-surface-50">
 				<div class="flex items-center gap-4">
 					<!-- Coordinate display -->
-					<div class="text-sm font-mono text-surface-600 dark:text-surface-400 bg-surface-200 dark:bg-surface-700 px-2 py-1 rounded">
+					<div class="text-sm font-mono text-surface-600 dark:text-surface-50 bg-surface-200 dark:bg-surface-700 px-2 py-1 rounded">
 						X: {focalPoint.x.toFixed(0)}% | Y: {focalPoint.y.toFixed(0)}%
 					</div>
 					<!-- Reset button -->
-					<button onclick={resetToCenter} class="btn btn-sm variant-ghost-surface" title="Reset to center">
+					<button onclick={resetToCenter} class="btn-sm preset-outlined-surface-500" title="Reset to center">
 						<iconify-icon icon="mdi:target" width="16"></iconify-icon>
 						<span>Center</span>
 					</button>
 				</div>
 
 				<div class="flex gap-2">
-					<button onclick={handleClose} class="btn variant-ghost-surface">Cancel</button>
-					<button onclick={handleSave} class="btn variant-filled-primary">
+					<button onclick={handleClose} class="btn preset-outlined-surface-500">Cancel</button>
+					<button onclick={handleSave} class="btn preset-filled-primary-500">
 						<iconify-icon icon="mdi:check" width="18"></iconify-icon>
 						<span>Save</span>
 					</button>

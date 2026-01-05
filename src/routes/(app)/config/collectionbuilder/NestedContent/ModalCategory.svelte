@@ -33,7 +33,7 @@
 		id?: string;
 	}
 
-	const { existingCategory = { name: '', icon: '' }, title, body, close }: Props = $props();
+	const { existingCategory = { name: '', icon: '' }, close }: Props = $props();
 
 	// State variables for form and UI
 	const formData = $state<FormData>({
@@ -168,19 +168,10 @@
 	}
 
 	// Base Classes for Skeleton modal
-	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-xl';
 </script>
 
 <div class="modal-example-form space-y-4">
-	<header class={cHeader}>
-		<h2 id="modal-title">{title ?? '(title missing)'}</h2>
-	</header>
-
-	<article class="text-center text-sm">
-		{body ?? '(body missing)'}
-	</article>
-
 	{#if formError}
 		<div class="rounded bg-error-500/10 p-2 text-error-500" role="alert">
 			{formError}
@@ -206,7 +197,7 @@
 		</label>
 
 		<label class="label" for="icon-picker">
-			{m.modalcategory_icon()}
+			<span>Icon</span>
 			<IconifyPicker bind:iconselected={formData.newCategoryIcon} searchQuery={formData.newCategoryIcon} />
 			{#if validationErrors.icon}
 				<span id="icon-error" class="text-sm text-error-500">{validationErrors.icon}</span>

@@ -42,10 +42,10 @@ Displays real-time system state and individual service health with comprehensive
 	} as const;
 
 	const SERVICE_CONFIG = {
-		healthy: { color: 'variant-filled-success', icon: '✓', label: 'Healthy' },
-		unhealthy: { color: 'variant-filled-error', icon: '✗', label: 'Unhealthy' },
-		initializing: { color: 'variant-filled-primary', icon: '⟳', label: 'Initializing' },
-		unknown: { color: 'variant-filled-surface', icon: '?', label: 'Unknown' }
+		healthy: { color: 'preset-filled-success-500', icon: '✓', label: 'Healthy' },
+		unhealthy: { color: 'preset-filled-error-500', icon: '✗', label: 'Unhealthy' },
+		initializing: { color: 'preset-filled-primary-500', icon: '⟳', label: 'Initializing' },
+		unknown: { color: 'preset-filled-surface-500', icon: '?', label: 'Unknown' }
 	} as const;
 
 	const REFRESH_INTERVAL_MS = 5000;
@@ -333,7 +333,7 @@ Displays real-time system state and individual service health with comprehensive
 			</label>
 
 			<button
-				class="variant-ghost-primary btn btn-sm"
+				class="preset-outlined-primary-500 btn-sm"
 				onclick={fetchHealth}
 				disabled={isLoading}
 				title="Refresh now"
@@ -343,7 +343,7 @@ Displays real-time system state and individual service health with comprehensive
 			</button>
 
 			<button
-				class="variant-ghost-warning btn btn-sm"
+				class="preset-outlined-warning-500 btn-sm"
 				onclick={reinitializeSystem}
 				disabled={isReinitializing || isLoading}
 				title="Reinitialize system"
@@ -361,17 +361,17 @@ Displays real-time system state and individual service health with comprehensive
 
 	<!-- Stats Grid -->
 	<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-		<div class="card variant-ghost-surface p-3">
+		<div class="card preset-outlined-surface-500p-3">
 			<p class="text-xs opacity-70">Uptime</p>
 			<p class="text-lg font-bold">{formatUptime(uptime)}</p>
 		</div>
 
-		<div class="card variant-ghost-surface p-3">
+		<div class="card preset-outlined-surface-500p-3">
 			<p class="text-xs opacity-70">Last Checked</p>
 			<p class="text-sm font-bold">{formattedLastChecked}</p>
 		</div>
 
-		<div class="card variant-ghost-surface p-3">
+		<div class="card preset-outlined-surface-500p-3">
 			<p class="text-xs opacity-70">Services</p>
 			<p class="text-lg font-bold">
 				{serviceCount}
@@ -381,7 +381,7 @@ Displays real-time system state and individual service health with comprehensive
 			</p>
 		</div>
 
-		<div class="card variant-ghost-surface p-3">
+		<div class="card preset-outlined-surface-500p-3">
 			<p class="text-xs opacity-70">Health</p>
 			<p class="text-lg font-bold {healthPercentage >= 80 ? 'text-success-500' : healthPercentage >= 50 ? 'text-warning-500' : 'text-error-500'}">
 				{healthPercentage}%
@@ -415,14 +415,14 @@ Displays real-time system state and individual service health with comprehensive
 		<div class="flex items-center justify-between">
 			<h4 class="h4 text-sm font-semibold opacity-70">Service Status</h4>
 			{#if unhealthyServices > 0}
-				<span class="badge variant-filled-error text-xs">
+				<span class="badge preset-filled-error-500 text-xs">
 					{unhealthyServices} unhealthy
 				</span>
 			{/if}
 		</div>
 
 		{#if serviceCount === 0}
-			<div class="card variant-ghost-surface p-6 text-center">
+			<div class="card preset-outlined-surface-500p-6 text-center">
 				<p class="text-sm opacity-70">No services registered</p>
 			</div>
 		{:else}
@@ -463,7 +463,7 @@ Displays real-time system state and individual service health with comprehensive
 	</div>
 
 	<!-- API Health Endpoint Info -->
-	<div class="card variant-ghost-surface p-3">
+	<div class="card preset-outlined-surface-500p-3">
 		<details class="space-y-2">
 			<summary class="cursor-pointer text-sm font-semibold opacity-70 hover:opacity-100"> API Health Endpoint </summary>
 			<div class="space-y-2 text-xs opacity-70">
@@ -472,7 +472,7 @@ Displays real-time system state and individual service health with comprehensive
 					<code class="code flex-1 p-2">{apiHealthUrl}</code>
 					<button
 						type="button"
-						class="btn btn-sm variant-ghost-primary"
+						class="btn-sm preset-outlined-primary-500"
 						onclick={copyEndpoint}
 						title="Copy to clipboard"
 						aria-label="Copy endpoint URL to clipboard"

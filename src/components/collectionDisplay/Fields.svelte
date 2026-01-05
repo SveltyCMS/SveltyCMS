@@ -485,7 +485,7 @@
 					</button>
 				</div>
 
-				<div class="rounded-lg border p-4 dark:border-surface-700">
+				<div class="rounded-lg border p-4 dark:text-surface-50">
 					<h3 class="mb-3 text-lg font-bold">Changes from Selected Revision</h3>
 					{#if selectedRevision}
 						{@const diffObject = selectedRevision?.diff || null}
@@ -536,7 +536,7 @@
 					<iconify-icon icon="mdi:open-in-new" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					<input type="text" class="input grow text-sm" readonly value={previewUrl} />
 					<button
-						class="preset-ghost-surface-500 btn btn-sm"
+						class="preset-outline-surface-500 btn-sm"
 						onclick={() => {
 							navigator.clipboard.writeText(previewUrl);
 							toaster.success({ description: 'Preview URL Copied' });
@@ -546,13 +546,13 @@
 						<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>
 					</button>
 				</div>
-				<a href={previewUrl} target="_blank" rel="noopener noreferrer" class="preset-filled-primary-500 btn btn-sm">
+				<a href={previewUrl} target="_blank" rel="noopener noreferrer" class="preset-filled-primary-500 btn-sm">
 					<iconify-icon icon="mdi:open-in-new" width="16" class="mr-1"></iconify-icon>
 					Open
 				</a>
 			</div>
 
-			<div class="flex-1 overflow-hidden rounded-lg border border-surface-300 dark:border-surface-700">
+			<div class="flex-1 overflow-hidden rounded-lg border border-surface-300 dark:text-surface-50">
 				<iframe src={previewUrl} title="Live Preview" class="h-full w-full" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
 				></iframe>
 			</div>
@@ -567,7 +567,7 @@
 			<div class="flex items-center gap-2">
 				<input type="text" class="input grow" readonly value={apiUrl} />
 				<button
-					class="preset-ghost-surface-500 btn"
+					class="preset-outline-surface-500 btn"
 					onclick={() => {
 						navigator.clipboard.writeText(apiUrl);
 						toaster.success({ description: 'API URL Copied' });

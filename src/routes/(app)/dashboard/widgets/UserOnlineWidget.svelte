@@ -125,7 +125,7 @@ Features:
 									/>
 									<span class="truncate text-sm font-medium text-surface-800 dark:text-surface-200">{user.name}</span>
 								</div>
-								<span class="shrink-0 text-xs text-surface-500 dark:text-surface-400">
+								<span class="shrink-0 text-xs text-surface-500 dark:text-surface-50">
 									{user.onlineTime || 'N/A'}
 								</span>
 							</div>

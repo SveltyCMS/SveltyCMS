@@ -18,7 +18,7 @@ async function login(email: string, password: string): Promise<string> {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
-			'Origin': BASE_URL
+			Origin: BASE_URL
 		},
 		body: JSON.stringify({ email, password })
 	});
@@ -53,7 +53,7 @@ export async function createTestUsers(): Promise<void> {
 	for (const [i, user] of users.entries()) {
 		const headers: Record<string, string> = {
 			'Content-Type': 'application/json',
-			'Origin': BASE_URL
+			Origin: BASE_URL
 		};
 		// The first user (Admin) is created publicly. Subsequent users need Admin auth.
 		if (i > 0 && adminCookie) {

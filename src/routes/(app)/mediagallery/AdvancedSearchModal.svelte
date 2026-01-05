@@ -202,7 +202,7 @@ Structure optimized for LLM integration and AI-powered search.
 						<span>Tags (comma-separated)</span>
 						<input type="text" bind:value={formValues.tagsInput} class="input" placeholder="landscape, nature" />
 						{#if suggestions.tags.length > 0}
-							<div class="mt-1 text-xs text-surface-600 dark:text-surface-400">
+							<div class="mt-1 text-xs text-surface-600 dark:text-surface-50">
 								Suggestions: {suggestions.tags.join(', ')}
 							</div>
 						{/if}
@@ -248,7 +248,7 @@ Structure optimized for LLM integration and AI-powered search.
 				</div>
 
 				{#if suggestions.dimensions.length > 0}
-					<div class="mt-2 text-xs text-surface-600 dark:text-surface-400">
+					<div class="mt-2 text-xs text-surface-600 dark:text-surface-50">
 						Common dimensions: {suggestions.dimensions.join(', ')}
 					</div>
 				{/if}
@@ -308,7 +308,7 @@ Structure optimized for LLM integration and AI-powered search.
 						<span>Camera</span>
 						<input type="text" bind:value={formValues.camera} class="input" placeholder="Canon EOS 5D" />
 						{#if suggestions.cameras.length > 0}
-							<div class="mt-1 text-xs text-surface-600 dark:text-surface-400">
+							<div class="mt-1 text-xs text-surface-600 dark:text-surface-50">
 								Found: {suggestions.cameras.join(', ')}
 							</div>
 						{/if}
@@ -344,9 +344,9 @@ Structure optimized for LLM integration and AI-powered search.
 
 			<!-- Actions -->
 			<div class="flex justify-end gap-3 border-t border-surface-300 pt-4 dark:border-surface-600">
-				<button type="button" onclick={resetForm} class="variant-ghost-surface btn">Reset</button>
-				<button type="button" onclick={onClose} class="variant-ghost-surface btn">Cancel</button>
-				<button type="submit" class="variant-filled-primary btn">
+				<button type="button" onclick={resetForm} class="preset-outlined-surface-500btn">Reset</button>
+				<button type="button" onclick={onClose} class="preset-outlined-surface-500btn">Cancel</button>
+				<button type="submit" class="preset-filled-primary-500 btn">
 					<iconify-icon icon="mdi:magnify" width="20"></iconify-icon>
 					Search
 				</button>
@@ -355,8 +355,8 @@ Structure optimized for LLM integration and AI-powered search.
 
 		<div class="text-md mt-4">
 			<strong class="text-tertiary-500 dark:text-primary-500">Tip:</strong> Press
-			<kbd class="variant-filled-tertiary badge dark:variant-filled-primary">Ctrl+Enter</kbd>
-			to search, <kbd class="variant-filled-tertiary badge dark:variant-filled-primary">Esc</kbd> to close
+			<kbd class="preset-filled-tertiary-500 badge dark:preset-filled-primary-500">Ctrl+Enter</kbd>
+			to search, <kbd class="preset-filled-tertiary-500 badge dark:preset-filled-primary-500">Esc</kbd> to close
 		</div>
 	</div>
 </div>

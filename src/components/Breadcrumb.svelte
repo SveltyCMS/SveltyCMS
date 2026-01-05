@@ -165,7 +165,7 @@ Accessible breadcrumb navigation with icons, keyboard support, and visual feedba
 	<!-- Copy path button -->
 	<button
 		onclick={copyPath}
-		class="btn-icon btn-icon-sm variant-ghost ml-auto"
+		class="btn-icon btn-icon-sm preset-outlined-surface-500 ml-auto"
 		title="Copy path to clipboard"
 		aria-label="Copy current path to clipboard"
 		type="button"

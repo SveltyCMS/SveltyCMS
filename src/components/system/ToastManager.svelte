@@ -32,10 +32,7 @@ optional actions, and smooth animations.
 		showProgress?: boolean;
 	}
 
-	const {
-		position = 'bottom-right',
-		showProgress = true
-	}: Props = $props();
+	const { position = 'top-right', showProgress = true }: Props = $props();
 
 	// Position classes mapping - fixed inset ensures proper viewport positioning
 	const positionClasses: Record<string, string> = {
@@ -50,7 +47,7 @@ optional actions, and smooth animations.
 	// Toast type configuration
 	const toastConfig = {
 		success: {
-			gradient: 'gradient-success',
+			gradient: 'gradient-primary',
 			textColor: 'text-white',
 			icon: 'mdi:check-circle',
 			defaultTitle: 'Success'
@@ -101,7 +98,7 @@ optional actions, and smooth animations.
 	});
 </script>
 
-<Toast.Group {toaster} class="fixed z-9999 flex flex-col gap-3 {positionClasses[position]}">
+<Toast.Group {toaster} class="fixed z-9999 flex {position.includes('bottom') ? 'flex-col-reverse' : 'flex-col'} gap-3 {positionClasses[position]}">
 	{#snippet children(toast)}
 		<div in:fly={animParams} out:fade={{ duration: 200 }} class="relative" role="alert" aria-live="polite">
 			<Toast {toast} class="card min-w-80 max-w-100 shadow-2xl rounded-xl overflow-hidden {getToastClasses(toast.type)}">
@@ -126,22 +123,13 @@ optional actions, and smooth animations.
 					{#if toast.action}
 						<div class="mt-3 flex gap-2">
 							<Toast.ActionTrigger
-								class="btn btn-sm {toast.type === 'warning' ? 'preset-filled-surface-900' : 'preset-filled-surface-50'} text-xs font-medium"
+								class="btn-sm {toast.type === 'warning' ? 'preset-filled-surface-900' : 'preset-filled-surface-50'} text-xs font-medium"
 								onclick={() => {
 									toast.action?.onClick?.();
 								}}
 							>
 								{toast.action.label}
 							</Toast.ActionTrigger>
-							{#if toast.action.cancel}
-								<button
-									type="button"
-									class="btn btn-sm preset-ghost text-xs font-medium opacity-80 hover:opacity-100"
-									onclick={() => toaster.dismiss(toast.id)}
-								>
-									{toast.action.cancel}
-								</button>
-							{/if}
 						</div>
 					{/if}
 				</Toast.Message>

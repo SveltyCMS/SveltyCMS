@@ -497,7 +497,7 @@ Advanced icon picker with search, pagination, and favorites.
 					aria-hidden="true"
 				></iconify-icon>
 				<div class="flex-1 overflow-hidden">
-					<p class="text-xs text-surface-600 dark:text-surface-400">Selected Icon</p>
+					<p class="text-xs text-surface-600 dark:text-surface-50">Selected Icon</p>
 					<p class="truncate text-sm font-medium text-tertiary-500 dark:text-primary-500">
 						{iconselected}
 					</p>
@@ -508,7 +508,7 @@ Advanced icon picker with search, pagination, and favorites.
 				<button
 					onclick={() => toggleFavorite(iconselected)}
 					type="button"
-					class="btn-icon variant-ghost transition-all duration-200 hover:scale-110"
+					class="btn-icon preset-outlined-surface-500 transition-all duration-200 hover:scale-110"
 					aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
 					title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
 				>
@@ -518,7 +518,7 @@ Advanced icon picker with search, pagination, and favorites.
 				<button
 					onclick={copyIconName}
 					type="button"
-					class="btn-icon variant-ghost transition-all duration-200 hover:scale-110"
+					class="btn-icon preset-outlined-surface-500 transition-all duration-200 hover:scale-110"
 					aria-label="Copy icon name"
 					title="Copy icon name"
 				>
@@ -528,7 +528,7 @@ Advanced icon picker with search, pagination, and favorites.
 				<button
 					onclick={removeIcon}
 					type="button"
-					class="btn-icon variant-ghost-error transition-all duration-200 hover:scale-110"
+					class="btn-icon preset-outlined-error-500 transition-all duration-200 hover:scale-110"
 					aria-label="Remove selected icon"
 					title="Remove icon"
 				>
@@ -588,21 +588,21 @@ Advanced icon picker with search, pagination, and favorites.
 	{#if showDropdown}
 		<div
 			id="icon-dropdown"
-			class="mt-2 overflow-hidden rounded-lg border border-surface-200 bg-surface-50 shadow-2xl dark:border-surface-700 dark:bg-surface-800"
+			class="mt-2 overflow-hidden rounded-lg border border-surface-200 bg-surface-50 shadow-2xl dark:text-surface-50 dark:bg-surface-800"
 			role="region"
 			aria-label="Icon picker dropdown"
 			in:scale={{ duration: prefersReducedMotion ? 0 : 200, easing: quintOut, start: 0.95, opacity: 0 }}
 			out:scale={{ duration: prefersReducedMotion ? 0 : 150, easing: quintOut, start: 0.95, opacity: 0 }}
 		>
 			<!-- Tabs -->
-			<div class="flex border-b border-surface-200 dark:border-surface-700" role="tablist">
+			<div class="flex border-b border-surface-200 dark:text-surface-50" role="tablist">
 				<button
 					role="tab"
 					aria-selected={activeTab === 'search'}
 					onclick={() => switchTab('search')}
 					class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'search'
 						? 'border-b-2 border-primary-500 text-primary-500'
-						: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100'}"
+						: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
 				>
 					Search
 				</button>
@@ -613,7 +613,7 @@ Advanced icon picker with search, pagination, and favorites.
 						onclick={() => switchTab('favorites')}
 						class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'favorites'
 							? 'border-b-2 border-primary-500 text-primary-500'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100'}"
+							: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
 					>
 						Favorites ({favorites.length})
 					</button>
@@ -625,7 +625,7 @@ Advanced icon picker with search, pagination, and favorites.
 						onclick={() => switchTab('recent')}
 						class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'recent'
 							? 'border-b-2 border-primary-500 text-primary-500'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100'}"
+							: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
 					>
 						Recent ({recentSelections.length})
 					</button>
@@ -634,7 +634,7 @@ Advanced icon picker with search, pagination, and favorites.
 
 			<!-- Library selector (only for search tab) -->
 			{#if activeTab === 'search'}
-				<div class="border-b border-surface-200 p-4 dark:border-surface-700" transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}>
+				<div class="border-b border-surface-200 p-4 dark:text-surface-50" transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}>
 					<label for="library-select" class="mb-2 block text-sm font-medium"> Icon Library </label>
 					<div class="relative">
 						<select
@@ -668,7 +668,7 @@ Advanced icon picker with search, pagination, and favorites.
 					<div class="flex justify-center py-12" in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 						<div class="flex flex-col items-center gap-3">
 							<div class="h-10 w-10 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
-							<p class="text-sm text-surface-600 dark:text-surface-400">Loading icons...</p>
+							<p class="text-sm text-surface-600 dark:text-surface-50">Loading icons...</p>
 						</div>
 					</div>
 				{:else if displayIcons.length > 0}
@@ -728,7 +728,7 @@ Advanced icon picker with search, pagination, and favorites.
 					<!-- No results -->
 					<div class="flex flex-col items-center gap-3 py-12 text-center" in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 						<iconify-icon icon="mdi:magnify-close" width="48" class="text-surface-400" aria-hidden="true"></iconify-icon>
-						<p class="text-surface-600 dark:text-surface-400">
+						<p class="text-surface-600 dark:text-surface-50">
 							No icons found for "<span class="font-medium">{searchQuery}</span>"
 						</p>
 					</div>
@@ -741,7 +741,7 @@ Advanced icon picker with search, pagination, and favorites.
 							class="text-surface-400"
 							aria-hidden="true"
 						></iconify-icon>
-						<p class="text-surface-600 dark:text-surface-400">
+						<p class="text-surface-600 dark:text-surface-50">
 							{#if activeTab === 'favorites'}
 								No favorite icons yet
 							{:else if activeTab === 'recent'}

@@ -197,7 +197,7 @@ All dynamic CMS settings organized into logical groups
 								<span class="text-lg text-warning-500" title="Needs configuration">⚠️</span>
 							{/if}
 							{#if group.requiresRestart}
-								<span class="preset-soft-warning-500 badge text-xs">Restart</span>
+								<span class="preset-tonal -warning-500 badge text-xs">Restart</span>
 							{/if}
 						</div>
 					</div>

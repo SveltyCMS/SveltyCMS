@@ -197,12 +197,12 @@
 			>
 				{#each fetchedData.logs as log}
 					<div
-						class="flex items-center gap-1 rounded border border-surface-200 bg-surface-50/50 px-1 py-1 text-xs dark:border-surface-700 dark:bg-surface-800/30"
+						class="flex items-center gap-1 rounded border border-surface-200 bg-surface-50/50 px-1 py-1 text-xs dark:text-surface-50 dark:bg-surface-800/30"
 						role="listitem"
 					>
 						<iconify-icon icon="mdi:circle" width="8" class="{getLogLevelColor(log.level)} shrink-0" aria-label="{log.level} log level"
 						></iconify-icon>
-						<span class="w-8 shrink-0 text-xs text-surface-500 dark:text-surface-400">
+						<span class="w-8 shrink-0 text-xs text-surface-500 dark:text-surface-50">
 							{new Date(log.timestamp).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
 						</span>
 						<span class="w-14 shrink-0 text-xs font-medium {getLogLevelColor(log.level)}">

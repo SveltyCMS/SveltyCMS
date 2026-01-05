@@ -195,11 +195,11 @@ Key features:
 							<td>
 								<a
 									href="/imageEditor?mediaId={file._id?.toString()}"
-									class="variant-ghost-primary btn btn-sm"
+									class="preset-outlined-primary-500 btn-sm"
 									aria-label="Edit"
 									data-sveltekit-preload-data="hover">Edit</a
 								>
-								<button onclick={() => handleDelete(file)} class="variant-filled-error btn btn-sm" aria-label="Delete"> Delete </button>
+								<button onclick={() => handleDelete(file)} class="preset-filled-error-500 btn-sm" aria-label="Delete"> Delete </button>
 							</td>
 						</tr>
 					{/each}

@@ -46,10 +46,10 @@ Controls for the Rotate tool
 	<!-- Rotate Controls -->
 	<div class="flex items-center gap-2">
 		<span class="text-sm">Rotate:</span>
-		<button class="btn btn-icon btn-sm variant-ghost-surface" onclick={onRotateLeft} title="Rotate Left 90°">
+		<button class="btn btn-icon btn-sm preset-outlined-surface-500" onclick={onRotateLeft} title="Rotate Left 90°">
 			<iconify-icon icon="mdi:rotate-left"></iconify-icon>
 		</button>
-		<button class="btn btn-icon btn-sm variant-ghost-surface" onclick={onRotateRight} title="Rotate Right 90°">
+		<button class="btn btn-icon btn-sm preset-outlined-surface-500" onclick={onRotateRight} title="Rotate Right 90°">
 			<iconify-icon icon="mdi:rotate-right"></iconify-icon>
 		</button>
 	</div>
@@ -68,10 +68,10 @@ Controls for the Rotate tool
 	<!-- Flip Controls -->
 	<div class="flex items-center gap-2">
 		<span class="text-sm">Flip:</span>
-		<button class="btn btn-icon btn-sm variant-ghost-surface" onclick={onFlipHorizontal} title="Flip Horizontal">
+		<button class="btn btn-icon btn-sm preset-outlined-surface-500" onclick={onFlipHorizontal} title="Flip Horizontal">
 			<iconify-icon icon="mdi:flip-horizontal"></iconify-icon>
 		</button>
-		<button class="btn btn-icon btn-sm variant-ghost-surface" onclick={onFlipVertical} title="Flip Vertical">
+		<button class="btn btn-icon btn-sm preset-outlined-surface-500" onclick={onFlipVertical} title="Flip Vertical">
 			<iconify-icon icon="mdi:flip-vertical"></iconify-icon>
 		</button>
 	</div>
@@ -79,12 +79,12 @@ Controls for the Rotate tool
 	<div class="grow"></div>
 
 	<!-- Actions -->
-	<button onclick={onReset} class="btn variant-ghost-surface">
+	<button onclick={onReset} class="btn preset-outlined-surface-500">
 		<iconify-icon icon="mdi:restore"></iconify-icon>
 		<span>Reset</span>
 	</button>
 
-	<button class="btn variant-filled-success" onclick={onApply}>
+	<button class="btn preset-filled-success-500" onclick={onApply}>
 		<iconify-icon icon="mdi:check"></iconify-icon>
 		<span>Apply</span>
 	</button>

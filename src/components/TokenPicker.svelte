@@ -279,7 +279,7 @@
 		<header use:draggable class="mb-4 flex cursor-move select-none items-center justify-between">
 			<div class="flex items-center gap-3">
 				{#if mode === 'configure'}
-					<button onclick={back} class="btn-icon btn-icon-sm variant-ghost-surface" aria-label="Back">
+					<button onclick={back} class="btn-icon btn-icon-sm preset-outlined-surface-500" aria-label="Back">
 						<iconify-icon icon="mdi:arrow-left"></iconify-icon>
 					</button>
 				{/if}
@@ -291,7 +291,7 @@
 					</span>
 				</h3>
 			</div>
-			<button onclick={() => activeInput.set(null)} class="btn-icon btn-icon-sm variant-ghost-surface" aria-label="Close">
+			<button onclick={() => activeInput.set(null)} class="btn-icon btn-icon-sm preset-outlined-surface-500" aria-label="Close">
 				<iconify-icon icon="mdi:close"></iconify-icon>
 			</button>
 		</header>
@@ -304,7 +304,7 @@
 
 			<div class="scrollbar-thin flex-1 space-y-2 overflow-y-auto pr-1">
 				{#each Object.entries(filteredGroups) as [cat, tokens]}
-					<div class="card variant-soft p-2">
+					<div class="card preset-tonal p-2">
 						<button
 							onclick={() => (openCategories[cat] = !openCategories[cat])}
 							class="flex w-full items-center justify-between text-sm font-bold uppercase opacity-70 hover:opacity-100"
@@ -321,7 +321,7 @@
 								{#each tokens as t}
 									<!-- svelte-ignore a11y_no_static_element_interactions -->
 									<div
-										class="card variant-filled-surface hover:variant-soft-primary cursor-pointer p-2 transition-colors"
+										class="card preset-filled-surface-500 hover:variant-soft-primary cursor-pointer p-2 transition-colors"
 										onclick={() => selectToken(t)}
 										onkeydown={(e) => e.key === 'Enter' && selectToken(t)}
 										tabindex="0"
@@ -336,7 +336,7 @@
 												<span class="badge variant-soft-secondary text-[10px] uppercase">{t.type}</span>
 												<button
 													onclick={(e: MouseEvent) => toggleInfo(t.token, e)}
-													class="btn-icon btn-icon-sm variant-ghost-surface"
+													class="btn-icon btn-icon-sm preset-outlined-surface-500"
 													aria-label="More information"
 													title="Info"
 												>
@@ -366,7 +366,7 @@
 				<div class="card variant-soft-primary border border-primary-500/30 p-4">
 					<div class="mb-2 flex items-center justify-between">
 						<div class="text-lg font-bold text-primary-700 dark:text-primary-400">{selectedToken.name}</div>
-						<span class="badge variant-filled-primary">{selectedToken.type}</span>
+						<span class="badge preset-filled-primary-500">{selectedToken.type}</span>
 					</div>
 					<code class="code mb-2 block">{selectedToken.token}</code>
 					<p class="text-sm opacity-80">{selectedToken.description}</p>
@@ -382,7 +382,7 @@
 									<span class="font-bold text-secondary-500">{mod.def.label}</span>
 									<button
 										onclick={() => removeModifier(i)}
-										class="btn-icon btn-icon-sm variant-ghost-error text-error-500"
+										class="btn-icon btn-icon-sm preset-outlined-error-500 text-error-500"
 										aria-label="Remove modifier"
 									>
 										<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
@@ -418,7 +418,7 @@
 					<div class="mb-2 text-xs font-bold uppercase opacity-50">Add Modifier</div>
 					<div class="flex flex-wrap gap-2">
 						{#each availableModifiers as m}
-							<button onclick={() => addModifier(m)} class="chip variant-filled-surface hover:variant-filled-secondary transition-colors">
+							<button onclick={() => addModifier(m)} class="chip preset-filled-surface-500 hover:variant-filled-secondary transition-colors">
 								<iconify-icon icon="mdi:plus"></iconify-icon>
 								{m.label}
 							</button>
@@ -445,7 +445,7 @@
 				<div>
 					<div class="mb-1 text-[10px] uppercase opacity-50">Live Result</div>
 					{#if isLoadingPreview}
-						<div class="card variant-soft animate-pulse p-3 text-sm">Resolving...</div>
+						<div class="card preset-tonal animate-pulse p-3 text-sm">Resolving...</div>
 					{:else}
 						<div class="card variant-soft-secondary p-3 text-sm font-bold">
 							{resolvedPreview || '(Empty)'}
@@ -457,11 +457,11 @@
 					<button onclick={deleteToken} class="btn variant-soft-error" title="Clear input">
 						<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
 					</button>
-					<button onclick={addAnotherToken} class="btn variant-soft-surface flex-1">
+					<button onclick={addAnotherToken} class="btn preset-tonal-surface flex-1">
 						<iconify-icon icon="mdi:plus"></iconify-icon>
 						Add Another
 					</button>
-					<button onclick={insert} class="btn variant-filled-primary flex-1 font-bold"> Insert Token </button>
+					<button onclick={insert} class="btn preset-filled-primary-500 flex-1 font-bold"> Insert Token </button>
 				</div>
 			</div>
 		{/if}

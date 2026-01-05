@@ -472,7 +472,7 @@ Handles all field types and validation automatically
 
 	<!-- Loading State -->
 	{#if loading}
-		<div class="card preset-soft-surface-500 rounded-xl p-6 text-center">
+		<div class="card preset-tonal -surface-500 rounded-xl p-6 text-center">
 			<p>Loading settings...</p>
 		</div>
 	{:else}
@@ -583,7 +583,7 @@ Handles all field types and validation automatically
 													</span>
 												{/each}
 											{:else if availableLangsField.placeholder}
-												<span class="text-surface-500 dark:text-surface-400 text-xs">{availableLangsField.placeholder}</span>
+												<span class="text-surface-500 dark:text-surface-50 text-xs">{availableLangsField.placeholder}</span>
 											{/if}
 
 											{#if !availableLangsField.readonly}
@@ -753,7 +753,7 @@ Handles all field types and validation automatically
 													</span>
 												{/each}
 											{:else if localesField.placeholder}
-												<span class="text-surface-500 dark:text-surface-400 text-xs">{localesField.placeholder}</span>
+												<span class="text-surface-500 dark:text-surface-50 text-xs">{localesField.placeholder}</span>
 											{/if}
 
 											{#if !localesField.readonly}
@@ -853,7 +853,7 @@ Handles all field types and validation automatically
 									<div class="group relative inline-block">
 										<button
 											type="button"
-											class="text-surface-500 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-50 cursor-help"
+											class="text-surface-500 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-50 cursor-help"
 											aria-label="Field information"
 										>
 											<iconify-icon icon="material-symbols:info-outline" width="16"></iconify-icon>
@@ -900,7 +900,7 @@ Handles all field types and validation automatically
 										<div class="input-group-shim text-sm">
 											{field.unit}
 											{#if typeof values[field.key] === 'number' && field.unit === 'seconds'}
-												<span class="ml-2 text-surface-500 dark:text-surface-400">
+												<span class="ml-2 text-surface-500 dark:text-surface-50">
 													({formatDuration(values[field.key] as number)})
 												</span>
 											{/if}
@@ -978,7 +978,7 @@ Handles all field types and validation automatically
 										errors[field.key] = '';
 									}}
 								/>
-								<p class="mt-1 text-xs text-surface-500 dark:text-surface-400">Enter values separated by commas</p>
+								<p class="mt-1 text-xs text-surface-500 dark:text-surface-50">Enter values separated by commas</p>
 
 								<!-- Language Multi-Select -->
 							{:else if field.type === 'language-multi'}
@@ -1006,7 +1006,7 @@ Handles all field types and validation automatically
 												</span>
 											{/each}
 										{:else if field.placeholder}
-											<span class="text-surface-500 dark:text-surface-400 text-xs">{field.placeholder}</span>
+											<span class="text-surface-500 dark:text-surface-50 text-xs">{field.placeholder}</span>
 										{/if}
 
 										{#if !field.readonly}
@@ -1068,7 +1068,7 @@ Handles all field types and validation automatically
 									{/if}
 								</div>
 								{#if field.placeholder && (values[field.key] as string[])?.length > 0}
-									<p class="text-surface-500 dark:text-surface-400 mt-1 text-[10px]">Example: {field.placeholder}</p>
+									<p class="text-surface-500 dark:text-surface-50 mt-1 text-[10px]">Example: {field.placeholder}</p>
 								{/if}
 
 								<!-- Log Level Multi-Select -->
@@ -1096,7 +1096,7 @@ Handles all field types and validation automatically
 												</span>
 											{/each}
 										{:else if field.placeholder}
-											<span class="text-surface-500 dark:text-surface-400 text-xs">{field.placeholder}</span>
+											<span class="text-surface-500 dark:text-surface-50 text-xs">{field.placeholder}</span>
 										{/if}
 
 										{#if !field.readonly}
@@ -1145,7 +1145,7 @@ Handles all field types and validation automatically
 									{/if}
 								</div>
 								{#if field.placeholder && (values[field.key] as LogLevel[])?.length > 0}
-									<p class="text-surface-500 dark:text-surface-400 mt-1 text-[10px]">Example: {field.placeholder}</p>
+									<p class="text-surface-500 dark:text-surface-50 mt-1 text-[10px]">Example: {field.placeholder}</p>
 								{/if}
 							{/if}
 

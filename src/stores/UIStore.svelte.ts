@@ -94,6 +94,9 @@ class UIStore {
 			$effect(() => {
 				const size = screen.size;
 				const currentMode = mode.value;
+				// Track route context changes to trigger updates
+				const _ctx = this.routeContext.isImageEditor || this.routeContext.isCollectionBuilder;
+				void _ctx;
 
 				untrack(() => {
 					if (!this.manualOverrideActive) {
@@ -197,16 +200,11 @@ class UIStore {
 	 * Set route context for special layouts
 	 */
 	setRouteContext(ctx: { isImageEditor?: boolean; isCollectionBuilder?: boolean }): void {
-		let changed = false;
 		for (const key in ctx) {
 			const k = key as keyof typeof ctx;
 			if (this.routeContext[k] !== ctx[k]) {
 				this.routeContext[k] = ctx[k] ?? false; // Fallback to false if undefined
-				changed = true;
 			}
-		}
-		if (changed) {
-			this.forceUpdate();
 		}
 	}
 

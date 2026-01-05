@@ -98,8 +98,8 @@ const CWD = process.cwd();
 const paths = {
 	configDir: path.resolve(CWD, 'config'),
 	privateConfig: path.resolve(CWD, 'config/private.ts'),
-	userCollections: path.resolve(CWD, 'config/collections'),
-	compiledCollections: path.resolve(CWD, 'compiledCollections'),
+	userCollections: path.resolve(CWD, process.env.COLLECTIONS_DIR || 'config/collections'),
+	compiledCollections: path.resolve(CWD, process.env.COMPILED_COLLECTIONS_DIR || 'compiledCollections'),
 	widgets: path.resolve(CWD, 'src/widgets')
 };
 

@@ -135,7 +135,7 @@ Features:
 			? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
 			: state === 'testing'
 				? 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'
-				: 'border-surface-200 bg-surface-50 dark:border-surface-700 dark:bg-surface-800/50'}"
+				: 'border-surface-200 bg-surface-50 dark:text-surface-50 dark:bg-surface-800/50'}"
 >
 	<!-- Status Header -->
 	<div class="p-4">
@@ -148,7 +148,7 @@ Features:
 					{getStatusText(state, result)}
 				</p>
 				{#if result?.latencyMs && state === 'success'}
-					<p class="text-sm text-surface-600 dark:text-surface-400">
+					<p class="text-sm text-surface-600 dark:text-surface-50">
 						{m.setup_connection_latency({ ms: result.latencyMs })}
 					</p>
 				{/if}
@@ -177,7 +177,7 @@ Features:
 				{#if result.stats}
 					<div class="rounded-lg bg-surface-50 p-3 dark:bg-surface-900/50">
 						<p class="mb-2 font-semibold text-surface-900 dark:text-surface-50">{m.setup_connection_stats_title()}</p>
-						<div class="grid gap-1 text-surface-600 dark:text-surface-400">
+						<div class="grid gap-1 text-surface-600 dark:text-surface-50">
 							{#if result.stats.collections !== undefined}
 								<div class="flex justify-between">
 									<span>{m.setup_connection_stats_collections({ count: result.stats.collections })}</span>
@@ -219,8 +219,8 @@ Features:
 			<!-- Technical Error Message -->
 			{#if result.error && result.error !== result.userFriendly}
 				<div class="mb-3 rounded-lg bg-surface-50 p-3 dark:bg-surface-900/50">
-					<p class="mb-1 text-xs font-semibold uppercase text-surface-500 dark:text-surface-400">{m.setup_connection_technical_details()}</p>
-					<p class="font-mono text-xs text-surface-600 dark:text-surface-400">
+					<p class="mb-1 text-xs font-semibold uppercase text-surface-500 dark:text-surface-50">{m.setup_connection_technical_details()}</p>
+					<p class="font-mono text-xs text-surface-600 dark:text-surface-50">
 						{result.error}
 					</p>
 				</div>
@@ -247,7 +247,7 @@ Features:
 			<!-- Retry Button -->
 			{#if onRetry}
 				<div class="mt-3 flex justify-end">
-					<button onclick={onRetry} class="variant-ghost-surface btn btn-sm flex items-center gap-2">
+					<button onclick={onRetry} class="preset-outlined-surface-500btn btn-sm flex items-center gap-2">
 						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path
 								stroke-linecap="round"
@@ -270,7 +270,7 @@ Features:
 				<div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
 					<div class="h-full w-1/3 animate-[slide_1.5s_ease-in-out_infinite] rounded-full bg-linear-to-r from-blue-500 to-indigo-500"></div>
 				</div>
-				<span class="text-sm text-surface-600 dark:text-surface-400">{m.setup_connection_connecting()}</span>
+				<span class="text-sm text-surface-600 dark:text-surface-50">{m.setup_connection_connecting()}</span>
 			</div>
 		</div>
 	{/if}

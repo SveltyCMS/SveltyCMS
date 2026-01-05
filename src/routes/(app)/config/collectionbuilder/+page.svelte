@@ -20,6 +20,7 @@
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	// Simple ID generator (no need for crypto UUID)
 	function generateId(): string {
 		return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
@@ -30,11 +31,11 @@
 
 	// Stores
 	import { setCollectionValue, setMode, setContentStructure, contentStructure } from '@src/stores/collectionStore.svelte';
-	import { setRouteContext } from '@src/stores/UIStore.svelte';
+	import { setRouteContext, ui } from '@src/stores/UIStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	import Board from './NestedContent/Board.svelte';
+	import TreeViewBoard from './NestedContent/TreeViewBoard.svelte';
 	import ModalCategory from './NestedContent/ModalCategory.svelte';
 
 	// ParaglideJS
@@ -253,20 +254,24 @@
 	}
 
 	$effect(() => {
-		setRouteContext({ isCollectionBuilder: true });
-		return () => setRouteContext({ isCollectionBuilder: false });
+		if (!ui.routeContext.isCollectionBuilder) {
+			setRouteContext({ isCollectionBuilder: true });
+		}
+		return () => {
+			if (!page.url.pathname.includes('/config/collectionbuilder')) {
+				setRouteContext({ isCollectionBuilder: false });
+			}
+		};
 	});
 </script>
 
-<PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config" />
-
-<div class="my-2 flex w-full justify-around gap-2">
+<PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config">
 	<!-- Add Category Button -->
 	<button
 		onclick={() => modalAddCategory()}
 		type="button"
 		aria-label="Add New Category"
-		class="preset-filled-tertiary-500 btn flex items-center gap-1 md:preset-filled-tertiary-500 md:btn"
+		class="preset-filled-tertiary-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1 md:preset-filled-tertiary-500 md:btn"
 		disabled={isLoading}
 	>
 		<iconify-icon icon="bi:collection" width="18" class="text-white"></iconify-icon>
@@ -278,11 +283,11 @@
 		onclick={handleAddCollectionClick}
 		type="button"
 		aria-label="Add New Collection"
-		class="preset-filled-surface-500 btn flex items-center justify-between gap-1 rounded font-bold"
+		class="preset-filled-surface-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1 rounded font-bold"
 		disabled={isLoading}
 	>
 		<iconify-icon icon="material-symbols:category" width="18"></iconify-icon>
-		{m.collection_add()}
+		<span class="hidden md:inline">{m.collection_add()}</span>
 	</button>
 
 	<!-- Save Button -->
@@ -290,7 +295,7 @@
 		type="button"
 		onclick={handleSave}
 		aria-label="Save"
-		class="preset-filled-primary-500 btn flex items-center gap-1 md:btn"
+		class="preset-filled-primary-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1 md:btn"
 		disabled={isLoading}
 	>
 		{#if isLoading}
@@ -300,7 +305,7 @@
 		{/if}
 		<span class="hidden md:inline">{m.button_save()}</span>
 	</button>
-</div>
+</PageTitle>
 
 {#if apiError}
 	<div class="mb-4 rounded bg-error-500/10 p-4 text-error-500" role="alert">
@@ -314,6 +319,6 @@
 			{m.collection_description()}
 		</p>
 
-		<Board contentNodes={currentConfig ?? []} onNodeUpdate={handleNodeUpdate} onEditCategory={modalAddCategory} />
+		<TreeViewBoard contentNodes={currentConfig ?? []} onNodeUpdate={handleNodeUpdate} onEditCategory={modalAddCategory} />
 	</div>
 </div>

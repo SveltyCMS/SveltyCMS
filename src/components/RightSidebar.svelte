@@ -197,7 +197,7 @@
 	<div class="flex h-full flex-col justify-between px-3 py-4">
 		<!-- Special "Next" button for Menu wizard -->
 		{#if app.shouldShowNextButton && currentMode === 'create' && isMenuCollection}
-			<button type="button" onclick={nextAction!} class="btn variant-filled-primary w-full gap-2 shadow-lg">
+			<button type="button" onclick={nextAction!} class="btn preset-filled-primary-500 w-full gap-2 shadow-lg">
 				<iconify-icon icon="carbon:next-filled" width="20"></iconify-icon>
 				{m.button_next()}
 			</button>
@@ -208,7 +208,7 @@
 					type="button"
 					onclick={save}
 					disabled={!isFormValid || !canWrite}
-					class="btn variant-filled-primary w-full gap-2 shadow-lg transition-all"
+					class="btn preset-filled-primary-500 w-full gap-2 shadow-lg transition-all"
 					class:opacity-50={!isFormValid || !canWrite}
 					class:cursor-not-allowed={!isFormValid || !canWrite}
 					aria-label="Save"
@@ -242,7 +242,7 @@
 							Clone <span class="font-semibold text-primary-500">{currentCollection?.name}</span>
 						</button>
 
-						<button type="button" onclick={handleDelete} disabled={!canDelete} class="btn variant-filled-error w-full gap-2 shadow-md">
+						<button type="button" onclick={handleDelete} disabled={!canDelete} class="btn preset-filled-error-500 w-full gap-2 shadow-md">
 							<iconify-icon icon="icomoon-free:bin" width="18"></iconify-icon>
 							{m.button_delete()}
 						</button>
@@ -265,7 +265,7 @@
 					{/if}
 					<button
 						onclick={openSchedule}
-						class="btn variant-filled-surface hover:variant-filled-primary-hover w-full justify-start gap-2 text-left transition-colors"
+						class="btn preset-filled-surface-500 hover:preset-filled-primary-500-hover w-full justify-start gap-2 text-left transition-colors"
 					>
 						<iconify-icon icon="bi:clock" width="16"></iconify-icon>
 						<span class="text-sm text-tertiary-500 dark:text-primary-500">
@@ -277,7 +277,7 @@
 				<div class="space-y-3">
 					<div class="space-y-1">
 						<p class="text-sm font-medium">{m.sidebar_createdby()}</p>
-						<div class="variant-filled-surface rounded-lg p-3 text-center">
+						<div class="preset-filled-surface-500 rounded-lg p-3 text-center">
 							<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
 								{getDisplayName(currentEntry?.createdBy as string)}
 							</span>
@@ -287,7 +287,7 @@
 					{#if currentEntry?.updatedBy}
 						<div class="space-y-1">
 							<p class="text-sm font-medium text-surface-600 dark:text-surface-300">Last updated by</p>
-							<div class="variant-filled-surface rounded-lg p-3 text-center">
+							<div class="preset-filled-surface-500 rounded-lg p-3 text-center">
 								<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
 									{getDisplayName(currentEntry?.updatedBy as string)}
 								</span>

@@ -362,7 +362,7 @@ A highly performant, accessible, and secure global search component with fuzzy m
 						id={`search-result-${index}`}
 						role="option"
 						aria-selected={index === selectedIndex}
-						class="border-b border-surface-300 dark:border-surface-700 last:border-b-0 {index === selectedIndex
+						class="border-b border-surface-300 dark:text-surface-50 last:border-b-0 {index === selectedIndex
 							? 'bg-tertiary-500/10 dark:bg-primary-500/20'
 							: ''}"
 					>
@@ -395,7 +395,7 @@ A highly performant, accessible, and secure global search component with fuzzy m
 							</button>
 						{:else}
 							<!-- Multiple triggers -->
-							<div class="border-b border-surface-300 dark:border-surface-700 px-4 py-3">
+							<div class="border-b border-surface-300 dark:text-surface-50 px-4 py-3">
 								<div class="font-bold text-tertiary-500 dark:text-primary-500">
 									<HighlightedText text={result.title} term={sanitizedQuery} />
 								</div>
@@ -434,7 +434,7 @@ A highly performant, accessible, and secure global search component with fuzzy m
 				role="status"
 				aria-live="polite"
 			>
-				<p class="text-surface-600 dark:text-surface-400">
+				<p class="text-surface-600 dark:text-surface-50">
 					No results found for <span class="font-semibold text-tertiary-500 dark:text-primary-500">"{sanitizedQuery}"</span>
 				</p>
 				<p class="mt-2 text-sm text-surface-500 dark:text-primary-500">Try using different keywords or check your spelling</p>

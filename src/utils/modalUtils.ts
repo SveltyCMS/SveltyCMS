@@ -36,7 +36,7 @@ export function showConfirm(options: ConfirmModalOptions): void {
 	modalState.trigger(
 		ConfirmDialog,
 		{
-			title: options.title,
+			htmlTitle: options.title,
 			body: options.body,
 			buttonTextConfirm: options.buttonTextConfirm || options.confirmText || m.button_confirm?.() || 'Confirm',
 			buttonTextCancel: options.cancelText || m.button_cancel?.() || 'Cancel'

@@ -126,8 +126,8 @@
 		</form>
 
 		<footer class="modal-footer flex items-center justify-end space-x-4">
-			<button class="btn variant-ghost-secondary" onclick={() => modalState.close()}>{m.button_cancel()}</button>
-			<button class="btn variant-filled-primary" onclick={() => handleSubmission()} disabled={!isFormValid}
+			<button class="btn preset-outlined-secondary-500" onclick={() => modalState.close()}>{m.button_cancel()}</button>
+			<button class="btn preset-filled-primary-500" onclick={() => handleSubmission()} disabled={!isFormValid}
 				>{m.entrylist_multibutton_schedule()}</button
 			>
 		</footer>

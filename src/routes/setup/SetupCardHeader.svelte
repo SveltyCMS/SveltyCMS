@@ -16,7 +16,13 @@ Displays the current step title and icon, and a reset button.
 		{/if}
 		{steps[currentStep]?.label || 'Loading...'}
 	</h2>
-	<button onclick={() => onreset()} type="button" class="variant-ghost btn btn-sm rounded text-xs" aria-label="Reset data" title="Reset data">
+	<button
+		onclick={() => onreset()}
+		type="button"
+		class="preset-outlined-surface-500 btn-sm rounded text-xs"
+		aria-label="Reset data"
+		title="Reset data"
+	>
 		<iconify-icon icon="mdi:backup-restore" class="mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
 		<span class="hidden sm:inline">Reset Data</span>
 	</button>

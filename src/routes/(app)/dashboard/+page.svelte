@@ -397,7 +397,7 @@
 </script>
 
 <main bind:this={mainContainerEl} class="relative overflow-y-auto overflow-x-hidden" style="touch-action: pan-y;">
-	<header class="mb-2 flex items-center justify-between gap-2 border-b border-surface-200 p-2 dark:border-surface-700">
+	<header class="mb-2 flex items-center justify-between gap-2 border-b border-surface-200 p-2 dark:text-surface-50">
 		<PageTitle name="Dashboard" icon="bi:bar-chart-line" showBackButton={true} backUrl="/config" />
 		<div class="flex items-center gap-2">
 			<!-- Reset All Button - Small and subtle -->
@@ -472,7 +472,7 @@
 						<div
 							role="button"
 							tabindex="0"
-							class="widget-container group relative select-none overflow-hidden rounded-lg border border-surface-200/80 bg-surface-50 shadow-sm transition-all duration-300 dark:border-surface-700 dark:bg-surface-800"
+							class="widget-container group relative select-none overflow-hidden rounded-lg border border-surface-200/80 bg-surface-50 shadow-sm transition-all duration-300 dark:text-surface-50 dark:bg-surface-800"
 							data-widget-id={item.id}
 							style:grid-column="span {item.size.w}"
 							style:grid-row="span {item.size.h}"
@@ -498,7 +498,7 @@
 									<iconify-icon icon="mdi:alert-circle-outline" width="48" class="mb-2 text-error-500"></iconify-icon>
 									<h3 class="h4 mb-2">Widget Load Error</h3>
 									<p class="text-sm">Failed to load: {item.component}</p>
-									<button class="preset-filled-error-500 btn btn-sm mt-4" onclick={() => removeWidget(item.id)}> Remove Widget </button>
+									<button class="preset-filled-error-500 btn-sm mt-4" onclick={() => removeWidget(item.id)}> Remove Widget </button>
 								</div>
 							{:else}
 								<!-- Render the actual widget - Svelte 5 dynamic components -->
@@ -548,7 +548,7 @@
 		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>
-				<button onclick={() => (showImportExport = false)} class="preset-ghost btn btn-sm" aria-label="Close import/export modal">
+				<button onclick={() => (showImportExport = false)} class="preset-ghost btn-sm" aria-label="Close import/export modal">
 					<iconify-icon icon="mdi:close" class="h-5 w-5"></iconify-icon>
 				</button>
 			</div>

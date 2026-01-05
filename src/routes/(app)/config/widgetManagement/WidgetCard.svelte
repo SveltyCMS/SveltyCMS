@@ -56,7 +56,7 @@ canManage: boolean;
 	}
 </script>
 
-<div class="card border border-surface-200 dark:border-surface-700 transition-shadow hover:shadow-lg">
+<div class="card border border-surface-200 dark:text-surface-50 transition-shadow hover:shadow-lg">
 	<!-- Widget Header -->
 	<div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between">
 		<div class="flex min-w-0 flex-1 items-start gap-4">
@@ -71,18 +71,18 @@ canManage: boolean;
 						{widget.name}
 					</h3>
 					{#if widget.isCore}
-						<span class="badge variant-filled-primary">Core</span>
+						<span class="badge preset-filled-primary-500">Core</span>
 					{:else}
-						<span class="badge variant-filled-tertiary">Custom</span>
+						<span class="badge preset-filled-tertiary-500">Custom</span>
 					{/if}
 					{#if widget.isActive}
-						<span class="badge variant-filled-success">Active</span>
+						<span class="badge preset-filled-success-500">Active</span>
 					{:else}
-						<span class="badge variant-filled-surface">Inactive</span>
+						<span class="badge preset-filled-surface-500">Inactive</span>
 					{/if}
 				</div>
 				{#if widget.description}
-					<p class="text-sm text-surface-600 dark:text-surface-400 line-clamp-2">{widget.description}</p>
+					<p class="text-sm text-surface-600 dark:text-surface-50 line-clamp-2">{widget.description}</p>
 				{/if}
 
 				<!-- 3-Pillar Architecture Indicators -->
@@ -125,12 +125,12 @@ canManage: boolean;
 					type="button"
 					onclick={() => onToggle(widget.name)}
 					data-testid="widget-toggle-{widget.name}"
-					class="btn btn-sm {widget.isActive ? 'variant-filled-error' : 'variant-filled-success'}"
+					class="btn-sm {widget.isActive ? 'preset-filled-error-500' : 'preset-filled-success-500'}"
 				>
 					{widget.isActive ? 'Deactivate' : 'Activate'}
 				</button>
 			{:else if widget.isCore}
-				<span class="badge variant-soft-surface">System</span>
+				<span class="badge preset-tonal-surface">System</span>
 			{:else if !widget.canDisable}
 				<span class="badge variant-soft-warning" title="Required by other widgets">Required</span>
 			{/if}

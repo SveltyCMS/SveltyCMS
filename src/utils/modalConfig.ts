@@ -81,7 +81,7 @@ export function createConfirmModal(config: ActionModalConfig, onConfirm: () => v
 		// Enhanced styling for buttons (use `meta` as expected by ModalSettings)
 		meta: {
 			buttonConfirmClasses: `variant-${theme.variant}-${theme.color}`,
-			buttonCancelClasses: 'variant-ghost-surface'
+			buttonCancelClasses: 'preset-outlined-surface-500'
 		},
 
 		response: (confirmed: boolean) => {

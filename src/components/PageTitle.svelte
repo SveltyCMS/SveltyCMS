@@ -107,14 +107,14 @@
 	}
 </script>
 
-<div class="my-1 flex w-full min-w-0 items-center justify-between gap-4">
+<div class="my-1.5 flex w-full min-w-0 items-center justify-between gap-4">
 	<div class="flex min-w-0 items-center">
 		{#if ui.state.leftSidebar === 'hidden'}
 			<button
 				type="button"
 				onclick={() => ui.toggle('leftSidebar', screen.isDesktop ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
-				class="variant-ghost-surface btn-icon"
+				class="preset-outlined-surface-500btn-icon"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
@@ -155,8 +155,7 @@
 				<a
 					href={backUrl}
 					aria-label="Go back"
-					class="variant-outline-tertiary btn-icon shrink-0 dark:variant-outline-primary"
-					style="min-width: 48px; min-height: 48px;"
+					class="btn-icon rounded-full border border-surface-500 dark:border-surface-200 hover:bg-surface-500/10 shrink-0"
 					data-cms-action="back"
 					data-sveltekit-preload-data="hover"
 					onclick={(e) => handleBackClick(e)}
@@ -168,8 +167,7 @@
 					onclick={(e) => handleBackClick(e)}
 					aria-label="Go back"
 					tabindex="0"
-					class="variant-outline-tertiary btn-icon shrink-0 dark:variant-outline-primary"
-					style="min-width: 48px; min-height: 48px;"
+					class="btn-icon rounded-full border border-surface-500 dark:border-surface-200 hover:bg-surface-500/10 shrink-0"
 					data-cms-action="back"
 				>
 					<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>

@@ -100,7 +100,7 @@ This component provides a user interface for managing 2FA settings:
 
 			// Generate QR code image URL using a QR code API
 			// Using qrcode.show API (simple, no registration needed)
-			const qrCodeImageUrl = otpauthUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauthUrl)}` : '';
+			const qrCodeImageUrl = otpauthUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(otpauthUrl)}` : '';
 
 			setupData = {
 				qrCodeUrl: qrCodeImageUrl,
@@ -218,11 +218,11 @@ This component provides a user interface for managing 2FA settings:
 
 	// Base Classes for modal
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-xl overflow-y-auto flex-1';
+	const cForm = 'border border-surface-500 p-3 space-y-3 rounded-xl overflow-y-auto flex-1';
 </script>
 
 <!-- Main Modal Component -->
-<div class="modal-2fa space-y-4">
+<div class="modal-2fa space-y-3">
 	<header class={`text-center text-primary-500 ${cHeader} shrink-0`}>
 		{title ?? m.twofa_title()}
 	</header>
@@ -231,7 +231,7 @@ This component provides a user interface for managing 2FA settings:
 		{body ?? m.twofa_description()}
 	</article>
 
-	<form class="modal-form {cForm}">
+	<form class="modal-form {cForm} max-h-[60vh]">
 		<!-- Status Section -->
 		<div class="mb-4 flex items-center justify-between rounded-lg bg-surface-100 p-3 dark:bg-surface-700">
 			<div class="flex items-center gap-3">
@@ -263,18 +263,18 @@ This component provides a user interface for managing 2FA settings:
 					<!-- Step 1: Scan QR Code -->
 					<div class="space-y-3">
 						<h4 class="h4 flex items-center gap-2">
-							<span class="preset-soft-primary-500 badge">1</span>
+							<span class="preset-tonal -primary-500 badge">1</span>
 							{m.twofa_setup_scan_title()}
 						</h4>
 						<p class="text-sm text-surface-600 dark:text-surface-300">{m.twofa_setup_step_1()}</p>
 
 						<!-- QR Code -->
-						<div class="flex justify-center rounded-lg bg-white p-4 dark:bg-white">
+						<div class="flex justify-center rounded-lg bg-white p-2 dark:bg-white">
 							{#if setupData.qrCodeUrl}
-								<img src={setupData.qrCodeUrl} alt="2FA QR Code" class="h-48 w-48" />
+								<img src={setupData.qrCodeUrl} alt="2FA QR Code" class="h-32 w-32" />
 							{:else}
-								<div class="flex h-48 w-48 items-center justify-center bg-surface-200">
-									<p class="text-sm text-surface-600">QR Code not available</p>
+								<div class="flex h-32 w-32 items-center justify-center bg-surface-200">
+									<p class="text-xs text-surface-600">QR Code</p>
 								</div>
 							{/if}
 						</div>
@@ -283,7 +283,7 @@ This component provides a user interface for managing 2FA settings:
 					<!-- Step 2: Manual Entry (Optional) -->
 					<div class="space-y-3">
 						<h4 class="h4 flex items-center gap-2">
-							<span class="preset-soft-secondary-500 badge">2</span>
+							<span class="preset-tonal -secondary-500 badge">2</span>
 							{m.twofa_show_secret()}
 						</h4>
 						<p class="text-sm text-surface-600 dark:text-surface-300">{m.twofa_manual_entry_description()}</p>
@@ -295,7 +295,7 @@ This component provides a user interface for managing 2FA settings:
 					<!-- Step 3: Verify -->
 					<div class="space-y-3">
 						<h4 class="h4 flex items-center gap-2">
-							<span class="preset-soft-tertiary-500 badge">3</span>
+							<span class="preset-tonal -tertiary-500 badge">3</span>
 							{m.twofa_verify_setup_title()}
 						</h4>
 						<p class="text-sm text-surface-600 dark:text-surface-300">{m.twofa_verify_setup_description()}</p>
@@ -379,7 +379,7 @@ This component provides a user interface for managing 2FA settings:
 			</button>
 		{:else if is2FAEnabled}
 			<!-- Management buttons when 2FA is enabled -->
-			<button onclick={generateBackupCodes} disabled={isLoading} class="preset-soft-secondary-500 btn">
+			<button onclick={generateBackupCodes} disabled={isLoading} class="preset-tonal -secondary-500 btn">
 				{#if isLoading}
 					<iconify-icon icon="svg-spinners:3-dots-fade" width="20" class="mr-2"></iconify-icon>
 					{m.twofa_generating_codes()}

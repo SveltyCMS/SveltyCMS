@@ -347,7 +347,7 @@
 		</div>
 
 		<!-- Upload Stats -->
-		<div class="flex items-center justify-between text-xs text-surface-600 dark:text-surface-400">
+		<div class="flex items-center justify-between text-xs text-surface-600 dark:text-surface-50">
 			<span>Speed: {formatBytes(uploadSpeed)}/s</span>
 			<span>{files.length} file{files.length !== 1 ? 's' : ''}</span>
 		</div>

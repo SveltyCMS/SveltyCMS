@@ -48,8 +48,8 @@ Controls for the FineTune tool, including a dropdown for adjustment type and a s
 		<div class="flex items-center gap-1 min-w-max px-2">
 			{#each adjustments as adj}
 				<button
-					class="btn btn-sm variant-ghost-surface flex flex-col items-center gap-1 w-20 h-14"
-					class:variant-filled-primary={activeAdjustment === adj.key}
+					class="btn-sm preset-outlined-surface-500flex flex-col items-center gap-1 w-20 h-14"
+					class:preset-filled-primary-500={activeAdjustment === adj.key}
 					onclick={() => onAdjustmentChange(adj.key)}
 					title={adj.label}
 				>
@@ -70,20 +70,20 @@ Controls for the FineTune tool, including a dropdown for adjustment type and a s
 	</div>
 
 	<!-- Reset -->
-	<button onclick={onReset} class="btn btn-sm btn-icon variant-ghost-surface" title="Reset this adjustment" disabled={value === 0}>
+	<button onclick={onReset} class="btn-sm btn-icon preset-outlined-surface-500" title="Reset this adjustment" disabled={value === 0}>
 		<iconify-icon icon="mdi:restore"></iconify-icon>
 	</button>
 
 	<div class="h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
 
 	<!-- Cancel -->
-	<button class="btn variant-ghost-error" onclick={onCancel}>
+	<button class="btn preset-outlined-error-500" onclick={onCancel}>
 		<iconify-icon icon="mdi:close"></iconify-icon>
 		<span>Cancel</span>
 	</button>
 
 	<!-- Apply -->
-	<button class="btn variant-filled-success" onclick={onApply}>
+	<button class="btn preset-filled-success-500" onclick={onApply}>
 		<iconify-icon icon="mdi:check"></iconify-icon>
 		<span>Apply</span>
 	</button>

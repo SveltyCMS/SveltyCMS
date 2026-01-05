@@ -97,7 +97,7 @@ This widget fetches and displays the latest content items, including:
 								<span class="text-text-900 dark:text-text-100 truncate font-medium" title={item.title}>
 									{item.title}
 								</span>
-								<span class="text-xs text-surface-500 dark:text-surface-400" title={`Collection: ${item.collection}`}>
+								<span class="text-xs text-surface-500 dark:text-surface-50" title={`Collection: ${item.collection}`}>
 									{item.collection}
 								</span>
 							</div>
@@ -106,7 +106,7 @@ This widget fetches and displays the latest content items, including:
 							<span class="text-xs font-medium uppercase text-surface-600 dark:text-surface-300">
 								{formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
 							</span>
-							<span class="text-xs text-surface-500 dark:text-surface-400" title={`By: ${item.createdBy}`}>
+							<span class="text-xs text-surface-500 dark:text-surface-50" title={`By: ${item.createdBy}`}>
 								{item.createdBy}
 							</span>
 						</div>

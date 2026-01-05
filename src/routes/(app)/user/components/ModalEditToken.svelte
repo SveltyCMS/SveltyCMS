@@ -22,6 +22,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 	// Skeleton & Stores
 	import { toaster } from '@stores/store.svelte';
+	import { modalState } from '@utils/modalState.svelte';
 
 	// Component
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
@@ -296,7 +297,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 			{/if}
 			<div class="flex gap-2">
 				<!-- Cancel -->
-				<button type="button" class="preset-outlined-secondary-500 btn" onclick={() => close?.()}>{m.button_cancel()}</button>
+				<button type="button" class="preset-outlined-secondary-500 btn" onclick={() => modalState.close()}>{m.button_cancel()}</button>
 				<!-- Save -->
 				<button type="submit" form="token-form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">
 					{m.button_save()}

@@ -3,12 +3,12 @@
 @description Professional multi-step setup wizard for SveltyCMS.
 -->
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 
 	// Stores
 	import { setupStore } from '@stores/setupStore.svelte';
-	import { app, toaster } from '@stores/store.svelte';
+	import { app } from '@stores/store.svelte';
 
 	// Child Layout Components
 	import SetupHeader from './SetupHeader.svelte';
@@ -25,7 +25,7 @@
 	import ReviewConfig from './ReviewConfig.svelte';
 
 	// Skeleton v4
-	import { Toast } from '@skeletonlabs/skeleton-svelte';
+
 	import DialogManager from '@components/system/DialogManager.svelte';
 	import { modalState } from '@utils/modalState.svelte';
 
@@ -46,15 +46,12 @@
 	let showAdminPassword = $state(false);
 	let showConfirmPassword = $state(false);
 	let initialDataSnapshot = $state('');
-	let isLangOpen = $state(false);
-	let langSearch = $state('');
 	let currentLanguageTag = $state(getLocale());
 
 	// --- 4. LIFECYCLE HOOKS ---
 	onMount(() => {
 		loadStore();
 		initialDataSnapshot = JSON.stringify(wizard);
-		document.addEventListener('click', outsideLang);
 		setupPersistenceFn();
 
 		const welcomeShown = sessionStorage.getItem('sveltycms_welcome_modal_shown');
@@ -76,12 +73,7 @@
 
 		return () => {
 			window.removeEventListener('beforeunload', handleBeforeUnload);
-			document.removeEventListener('click', outsideLang);
 		};
-	});
-
-	onDestroy(() => {
-		document.removeEventListener('click', outsideLang);
 	});
 
 	function showWelcomeModal() {
@@ -160,20 +152,9 @@
 	}
 
 	// --- 7. UI HANDLERS ---
-	function selectLanguage(event: CustomEvent) {
-		const lang = event.detail;
+	function selectLanguage(lang: string) {
 		app.systemLanguage = lang as any;
 		currentLanguageTag = lang as typeof currentLanguageTag;
-		isLangOpen = false;
-		langSearch = '';
-	}
-
-	function outsideLang(e: MouseEvent) {
-		const t = e.target as HTMLElement;
-		if (!t.closest('.language-selector')) {
-			isLangOpen = false;
-			langSearch = '';
-		}
 	}
 </script>
 
@@ -183,35 +164,9 @@
 
 <div class="bg-surface-50-900 min-h-screen w-full transition-colors">
 	<DialogManager />
-	<Toast.Group {toaster}>
-		{#snippet children(toast)}
-			<Toast
-				{toast}
-				class="min-w-[300px] max-w-[400px] shadow-lg backdrop-blur-md dark:bg-surface-800/90 bg-white/90 border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden"
-			>
-				<Toast.Message class="flex flex-col gap-1 p-4 pr-8 relative">
-					{#if toast.title}
-						<Toast.Title class="font-bold text-base">{toast.title}</Toast.Title>
-					{/if}
-					<Toast.Description class="text-sm opacity-90">{toast.description}</Toast.Description>
-				</Toast.Message>
-				<Toast.CloseTrigger
-					class="absolute right-2 top-2 p-1.5 hover:bg-surface-500/10 rounded-full transition-colors opacity-60 hover:opacity-100"
-				/>
-			</Toast>
-		{/snippet}
-	</Toast.Group>
 
 	<div class="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-		<SetupHeader
-			siteName={wizard.systemSettings.siteName}
-			{systemLanguages}
-			{currentLanguageTag}
-			bind:isLangOpen
-			bind:langSearch
-			onselectLanguage={selectLanguage}
-			ontoggleLang={() => (isLangOpen = !isLangOpen)}
-		/>
+		<SetupHeader siteName={wizard.systemSettings.siteName} {systemLanguages} {currentLanguageTag} onselectLanguage={selectLanguage} />
 
 		<div class="flex flex-col gap-4 lg:flex-row lg:gap-6">
 			<SetupStepper
@@ -223,7 +178,7 @@
 				onselectStep={(e: number) => (wizard.currentStep = e)}
 			/>
 
-			<div class="flex flex-1 flex-col rounded-xl border border-surface-200 bg-white shadow-xl dark:border-white dark:bg-surface-800">
+			<div class="flex flex-1 flex-col rounded-xl border border-surface-200 bg-white shadow-xl dark:text-surface-50 dark:bg-surface-800">
 				<SetupCardHeader
 					currentStep={wizard.currentStep}
 					{steps}

@@ -259,7 +259,7 @@
 	{:else}
 		<!-- No Folders Found Message -->
 		<div class="w-full pt-4 text-center">
-			<p class="variant-outline-secondary btn w-full text-sm text-warning-500">No folders</p>
+			<p class="preset-outline-secondary-500 btn w-full text-sm text-warning-500">No folders</p>
 		</div>
 	{/if}
 </div>

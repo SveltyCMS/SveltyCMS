@@ -622,7 +622,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 							<!-- Action Buttons -->
 							<div class="flex gap-3">
-								<button type="button" onclick={back2FAToLogin} class="btn preset-soft-surface-500 flex-1" aria-label={m.button_back()}>
+								<button type="button" onclick={back2FAToLogin} class="btn preset-tonal -surface-500 flex-1" aria-label={m.button_back()}>
 									<iconify-icon icon="mdi:arrow-left" width="20" class="mr-2"></iconify-icon>
 									{m.button_back()}
 								</button>

@@ -88,7 +88,7 @@ Requires user confirmation before proceeding with changes that may cause data lo
 				<h2 id="modal-title" class="text-lg font-bold text-surface-900 dark:text-white">
 					{hasDataLoss ? 'Data Loss Warning' : 'Breaking Changes Detected'}
 				</h2>
-				<p class="text-sm text-surface-600 dark:text-surface-400">
+				<p class="text-sm text-surface-600 dark:text-surface-50">
 					Collection: <span class="font-medium">{collectionName}</span>
 				</p>
 			</div>
@@ -109,7 +109,7 @@ Requires user confirmation before proceeding with changes that may cause data lo
 								<div>
 									<p class="text-surface-800 dark:text-surface-200">{change.message}</p>
 									{#if change.suggestion}
-										<p class="mt-1 text-xs text-surface-600 dark:text-surface-400">
+										<p class="mt-1 text-xs text-surface-600 dark:text-surface-50">
 											<iconify-icon icon="mdi:lightbulb-outline" width="14" class="inline"></iconify-icon>
 											{change.suggestion}
 										</p>
@@ -134,7 +134,7 @@ Requires user confirmation before proceeding with changes that may cause data lo
 								<div>
 									<p class="text-surface-800 dark:text-surface-200">{change.message}</p>
 									{#if change.suggestion}
-										<p class="mt-1 text-xs text-surface-600 dark:text-surface-400">
+										<p class="mt-1 text-xs text-surface-600 dark:text-surface-50">
 											<iconify-icon icon="mdi:lightbulb-outline" width="14" class="inline"></iconify-icon>
 											{change.suggestion}
 										</p>
@@ -157,7 +157,7 @@ Requires user confirmation before proceeding with changes that may cause data lo
 					/>
 					<div>
 						<span class="font-medium text-surface-900 dark:text-white"> I understand that this will permanently delete data </span>
-						<p id="confirm-description" class="mt-1 text-sm text-surface-600 dark:text-surface-400">
+						<p id="confirm-description" class="mt-1 text-sm text-surface-600 dark:text-surface-50">
 							The affected field data cannot be recovered after saving
 						</p>
 					</div>

@@ -123,13 +123,13 @@
 	function getServiceBadgeClass(status: ServiceHealth): string {
 		switch (status) {
 			case 'healthy':
-				return 'variant-filled-primary';
+				return 'preset-filled-primary-500';
 			case 'unhealthy':
-				return 'variant-filled-error';
+				return 'preset-filled-error-500';
 			case 'initializing':
 				return 'variant-filled-warning';
 			default:
-				return 'variant-filled-surface';
+				return 'preset-filled-surface-500';
 		}
 	}
 
@@ -166,7 +166,7 @@
 						</div>
 					</div>
 
-					<button class="variant-ghost-warning btn btn-sm" onclick={reinitializeSystem} title="Reinitialize system">
+					<button class="preset-outlined-warning-500 btn-sm" onclick={reinitializeSystem} title="Reinitialize system">
 						<iconify-icon icon="mdi:refresh" width="16"></iconify-icon>
 					</button>
 				</div>
@@ -174,7 +174,7 @@
 				<!-- Services Grid -->
 				<div class="grid flex-1 grid-cols-2 gap-2 overflow-y-auto" style="max-height: calc({size.h} * 120px - 80px);">
 					{#each Object.entries(data.components) as [name, service]}
-						<div class="card variant-ghost-surface flex flex-col gap-1 p-2">
+						<div class="card preset-outlined-surface-500flex flex-col gap-1 p-2">
 							<div class="flex items-center justify-between">
 								<span class="text-xs font-semibold">{formatServiceName(name)}</span>
 								<span class={`badge ${getServiceBadgeClass(service.status)}`}>

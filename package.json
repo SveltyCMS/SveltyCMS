@@ -80,7 +80,7 @@
 		"mongodb"
 	],
 	"devDependencies": {
-		"@iconify/svelte": "^5.1.0",
+		"@iconify/svelte": "^5.2.1",
 		"@playwright/test": "^1.57.0",
 		"@semantic-release/changelog": "^6.0.3",
 		"@semantic-release/commit-analyzer": "^13.0.1",
@@ -131,6 +131,7 @@
 		"@aws-sdk/client-s3": "^3.962.0",
 		"@floating-ui/dom": "^1.7.4",
 		"@inlang/paraglide-js": "^2.7.1",
+		"@keenmate/svelte-treeview": "4.5.0-rc01",
 		"@mapbox/mapbox-gl-geocoder": "^5.1.2",
 		"@mapbox/mapbox-gl-language": "^1.0.1",
 		"@tailwindcss/forms": "^0.5.11",
@@ -157,8 +158,8 @@
 		"@tiptap/extension-youtube": "^3.14.0",
 		"@tiptap/pm": "^3.14.0",
 		"@tiptap/starter-kit": "^3.14.0",
-		"@types/mapbox__mapbox-gl-geocoder": "^5.1.0",
 		"@types/mapbox-gl": "^3.4.1",
+		"@types/mapbox__mapbox-gl-geocoder": "^5.1.0",
 		"@types/serialize-javascript": "^5.0.4",
 		"argon2": "^0.44.0",
 		"axios": "^1.13.2",
@@ -196,7 +197,7 @@
 	},
 	"optionalDependencies": {
 		"mariadb": "^3.4.5",
-		"mongoose": "^9.1.1",
+		"mongoose": "^9.1.2",
 		"mysql2": "^3.16.0",
 		"postgres": "^3.4.7"
 	}

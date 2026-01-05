@@ -166,7 +166,7 @@
 			<button
 				class="px-4 py-2 border-b-2 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700/50 {activeTab === 0
 					? 'border-primary-500 font-bold text-primary-500'
-					: 'border-transparent text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-200'}"
+					: 'border-transparent text-surface-600 dark:text-surface-50 hover:text-surface-900 dark:hover:text-surface-200'}"
 				onclick={() => (activeTab = 0)}
 			>
 				Basic
@@ -175,7 +175,7 @@
 				<button
 					class="px-4 py-2 border-b-2 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700/50 {activeTab === 1
 						? 'border-primary-500 font-bold text-primary-500'
-						: 'border-transparent text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-200'}"
+						: 'border-transparent text-surface-600 dark:text-surface-50 hover:text-surface-900 dark:hover:text-surface-200'}"
 					onclick={() => (activeTab = 1)}
 				>
 					Social
@@ -185,7 +185,7 @@
 				<button
 					class="px-4 py-2 border-b-2 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700/50 {activeTab === 2
 						? 'border-primary-500 font-bold text-primary-500'
-						: 'border-transparent text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-200'}"
+						: 'border-transparent text-surface-600 dark:text-surface-50 hover:text-surface-900 dark:hover:text-surface-200'}"
 					onclick={() => (activeTab = 2)}
 				>
 					Advanced

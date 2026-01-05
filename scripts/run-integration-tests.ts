@@ -56,21 +56,6 @@ async function main() {
 			console.log('✅ Found config/private.test.ts');
 		}
 
-		// Build the app
-		console.log('🔧 Building the app...');
-		await new Promise<void>((resolve, reject) => {
-			const build = spawn('bun', ['run', 'build'], {
-				cwd: rootDir,
-				stdio: 'inherit',
-				shell: true,
-				env: { ...process.env, TEST_MODE: 'true' }
-			});
-			build.on('close', (code) => {
-				if (code === 0) resolve();
-				else reject(new Error('Build failed'));
-			});
-		});
-
 		// Start preview server on port 4173
 		console.log('🚀 Starting preview server on port 4173...');
 		previewProcess = spawn('bun', ['run', 'preview', '--port', '4173'], {
@@ -82,46 +67,20 @@ async function main() {
 
 		// Wait for preview server to be ready
 		await waitForServer();
-		// Small pause to ensure server is fully ready before seeding
+		// Small pause to ensure server is fully ready
 		await new Promise((r) => setTimeout(r, 500));
-
-		// Seed database using existing seed script
-		// Note: We don't pass DB env vars here anymore, assuming config/private.test.ts handles connection
-		// or that the user has set them in their environment if needed.
-		console.log('🧪 Seeding test database...');
-		await new Promise<void>((resolve, reject) => {
-			const seed = spawn('bun', ['run', 'scripts/seed-test-db.ts'], {
-				cwd: rootDir,
-				stdio: 'inherit',
-				shell: true,
-				env: {
-					...process.env,
-					TEST_MODE: 'true',
-					API_BASE_URL: 'http://localhost:4173'
-				}
-			});
-			seed.on('close', (code) => {
-				if (code === 0) resolve();
-				else reject(new Error('Seed script failed'));
-			});
-		});
 
 		process.env.TELEMETRY_ENDPOINT = 'http://localhost:9999'; // Prevent real telemetry calls
 
 		// Run integration tests
 		console.log('🧪 Starting integration tests...\n');
 
-		// Get API test files, excluding setup.test.ts to prevent DB wiping race conditions
-		const { readdirSync } = await import('fs');
-		const apiDir = join(rootDir, 'tests', 'bun', 'api');
-		const apiTests = ['tests/bun/api/system.test.ts', 'tests/bun/api/media.test.ts'];
-
-		const testArgs = ['test', '--preload', './tests/bun/setup.ts', ...apiTests, 'tests/bun/databases'];
+		const testArgs = ['test', '--preload', './tests/bun/setup.ts', 'tests/bun/api', 'tests/bun/databases'];
 
 		testProcess = spawn('bun', testArgs, {
 			cwd: rootDir,
 			stdio: 'inherit',
-			shell: false, // Shell false is safer for large arg lists
+			shell: false,
 			env: { ...process.env, TEST_MODE: 'true', API_BASE_URL: 'http://localhost:4173' }
 		});
 

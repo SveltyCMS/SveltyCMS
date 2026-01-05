@@ -87,7 +87,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 </script>
 
 <div class="input-container relative mb-4">
-	<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
+	<div class="preset-filled-surface-500 btn-group flex w-full rounded" role="group">
 		{#if field?.prefix}
 			<button class="px-2!" type="button" aria-label={`${field.prefix} prefix`}>
 				{field?.prefix}

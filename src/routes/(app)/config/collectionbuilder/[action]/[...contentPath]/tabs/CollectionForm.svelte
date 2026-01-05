@@ -276,6 +276,8 @@
 	<!-- Buttons Section -->
 	<div class="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-between">
 		<a href="/config/collectionbuilder" class="preset-outlined-secondary-500 btn sm:w-auto">{m.button_cancel()}</a>
-		<button type="button" onclick={handleNextClick} class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 sm:w-auto">{m.button_next()}</button>
+		<button type="button" onclick={handleNextClick} class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 sm:w-auto"
+			>{m.button_next()}</button
+		>
 	</div>
 </div>

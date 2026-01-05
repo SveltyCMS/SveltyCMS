@@ -359,7 +359,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 		<div class="flex gap-4">
 			<!-- Cancel -->
-			<button type="button" class="preset-outlined-secondary-500 btn" onclick={modalState.close}>{m.button_cancel()}</button>
+			<button type="button" class="preset-outlined-secondary-500 btn" onclick={() => modalState.close()}>{m.button_cancel()}</button>
 			<!-- Save -->
 			<button type="submit" form="change_user_form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">
 				{m.button_save()}

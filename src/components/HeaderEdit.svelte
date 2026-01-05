@@ -242,7 +242,7 @@
 			<button
 				onclick={() => ui.toggle('leftSidebar', isDesktop ? 'full' : 'collapsed')}
 				aria-label="Toggle sidebar"
-				class="btn-icon variant-ghost-surface shrink-0"
+				class="btn-icon preset-outlined-surface-500shrink-0"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
@@ -271,14 +271,14 @@
 					<button
 						onclick={save}
 						disabled={!isFormValid || !canWrite}
-						class="btn-icon variant-filled-tertiary dark:variant-filled-primary"
+						class="btn-icon preset-filled-tertiary-500 dark:preset-filled-primary-500"
 						class:opacity-50={!isFormValid || !canWrite}
 						aria-label="Save"
 					>
 						<iconify-icon icon="material-symbols:save" width="24"></iconify-icon>
 					</button>
 				{/if}
-				<button onclick={() => (showMore = false)} class="btn-icon variant-filled-tertiary" aria-label="Show less">
+				<button onclick={() => (showMore = false)} class="btn-icon preset-filled-tertiary-500" aria-label="Show less">
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
 				</button>
 			{:else}
@@ -286,14 +286,14 @@
 
 				{#if ['edit', 'create'].includes(currentMode)}
 					{#if showNextButton}
-						<button onclick={next} class="btn-icon variant-filled-primary lg:hidden" aria-label="Next">
+						<button onclick={next} class="btn-icon preset-filled-primary-500 lg:hidden" aria-label="Next">
 							<iconify-icon icon="carbon:next-filled" width="24"></iconify-icon>
 						</button>
 					{:else}
 						<button
 							onclick={save}
 							disabled={!isFormValid || !canWrite}
-							class="btn-icon variant-filled-tertiary dark:variant-filled-primary lg:hidden"
+							class="btn-icon preset-filled-tertiary-500 dark:preset-filled-primary-500 lg:hidden"
 							class:opacity-50={!isFormValid || !canWrite}
 							aria-label="Save"
 						>
@@ -302,7 +302,7 @@
 					{/if}
 				{/if}
 
-				<button onclick={() => (showMore = true)} class="btn-icon variant-ghost-surface" aria-label="Show more">
+				<button onclick={() => (showMore = true)} class="btn-icon preset-outlined-surface-500" aria-label="Show more">
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
 				</button>
 			{/if}
@@ -314,7 +314,7 @@
 		{/if}
 
 		{#if !app.headerActionButton}
-			<button onclick={cancel} class="btn-icon variant-ghost-surface" aria-label="Cancel">
+			<button onclick={cancel} class="btn-icon preset-outlined-surface-500" aria-label="Cancel">
 				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 			</button>
 		{/if}

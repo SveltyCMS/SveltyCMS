@@ -165,17 +165,17 @@ Displays a prominent banner when server restart is required with countdown and s
 			<div class="flex flex-wrap items-center gap-2">
 				{#if countdown !== null}
 					<!-- Cancel countdown -->
-					<button onclick={stopCountdown} class="variant-ghost-surface btn btn-sm" disabled={isRestarting}> Cancel Auto-Restart </button>
+					<button onclick={stopCountdown} class="preset-outlined-surface-500btn btn-sm" disabled={isRestarting}> Cancel Auto-Restart </button>
 				{:else}
 					<!-- Start countdown -->
-					<button onclick={startCountdown} class="variant-ghost-surface btn btn-sm" disabled={isRestarting}>
+					<button onclick={startCountdown} class="preset-outlined-surface-500btn btn-sm" disabled={isRestarting}>
 						<iconify-icon icon="mdi:timer" width="18"></iconify-icon>
 						Auto-Restart in {AUTO_RESTART_SECONDS}s
 					</button>
 				{/if}
 
 				<!-- Restart now -->
-				<button onclick={() => restartServer(false)} class="variant-filled-error btn btn-sm" disabled={isRestarting} aria-label="Restart server now">
+				<button onclick={() => restartServer(false)} class="preset-filled-error-500 btn-sm" disabled={isRestarting} aria-label="Restart server now">
 					{#if isRestarting}
 						<div class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
 						<span>Restarting...</span>
@@ -188,7 +188,7 @@ Displays a prominent banner when server restart is required with countdown and s
 				<!-- Dismiss -->
 				<button
 					onclick={dismiss}
-					class="btn-icon btn-icon-sm variant-ghost"
+					class="btn-icon btn-icon-sm preset-outlined-surface-500"
 					aria-label="Dismiss restart reminder"
 					disabled={isRestarting}
 					title="Dismiss (you can restart manually later)"

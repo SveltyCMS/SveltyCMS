@@ -50,7 +50,7 @@
 	{#if addField}
 		<AddWidget bind:fields bind:addField />
 	{:else}
-		<button class="variant-filled-tertiary btn mb-4 mt-1 dark:variant-filled-primary" onclick={toggleAddField}>
+		<button class="preset-filled-tertiary-500 btn mb-4 mt-1 dark:preset-filled-primary-500" onclick={toggleAddField}>
 			{m.WidgetBuilder_AddColectionField()}
 		</button>
 		<WidgetFields {fields} onFieldsUpdate={updateFields} />

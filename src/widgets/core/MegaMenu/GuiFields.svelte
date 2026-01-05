@@ -52,7 +52,7 @@ Interactive level configuration with add/remove level capabilities
 </script>
 
 <div class="space-y-6">
-	<div class="border-b border-surface-200 pb-4 dark:border-surface-700">
+	<div class="border-b border-surface-200 pb-4 dark:text-surface-50">
 		<h3 class="mb-2 text-lg font-semibold text-surface-900 dark:text-surface-100">Menu Structure Configuration</h3>
 		<p class="text-sm leading-relaxed text-surface-600 dark:text-surface-300">
 			Define the fields available at each level of your hierarchical menu. Each level can have different widgets and configurations.
@@ -62,12 +62,12 @@ Interactive level configuration with add/remove level capabilities
 	<div class="levels-container space-y-4">
 		{#each value as levelFields, levelIndex}
 			<div
-				class="level-card rounded-lg border border-surface-200 bg-surface-50/50 dark:border-surface-700 dark:bg-surface-800/50 {levelIndex === 0
+				class="level-card rounded-lg border border-surface-200 bg-surface-50/50 dark:text-surface-50 dark:bg-surface-800/50 {levelIndex === 0
 					? 'border-primary-200! bg-primary-50/30! dark:border-primary-700! dark:bg-primary-900/20!'
 					: ''}"
 			>
 				<div
-					class="level-header flex items-center justify-between border-b border-surface-200 bg-surface-100/50 p-4 dark:border-surface-700 dark:bg-surface-800"
+					class="level-header flex items-center justify-between border-b border-surface-200 bg-surface-100/50 p-4 dark:text-surface-50 dark:bg-surface-800"
 				>
 					<div class="level-info flex items-center gap-3">
 						<h4 class="level-title text-base font-medium text-surface-800 dark:text-surface-100">Level {levelIndex + 1}</h4>
@@ -87,7 +87,7 @@ Interactive level configuration with add/remove level capabilities
 					{#if value.length > 1}
 						<button
 							type="button"
-							class="variant-filled-error btn"
+							class="preset-filled-error-500 btn"
 							onclick={() => removeLevel(levelIndex)}
 							aria-label="Remove level {levelIndex + 1}"
 							title="Remove this menu level"
@@ -101,7 +101,7 @@ Interactive level configuration with add/remove level capabilities
 					<div class="space-y-3">
 						<label class="block text-sm font-medium text-surface-700 dark:text-surface-200" for={'widget-builder-' + levelIndex}>
 							Fields for Level {levelIndex + 1}
-							<span class="field-count font-normal text-surface-500 dark:text-surface-400"
+							<span class="field-count font-normal text-surface-500 dark:text-surface-50"
 								>({levelFields.length} field{levelFields.length !== 1 ? 's' : ''})</span
 							>
 						</label>
@@ -115,7 +115,7 @@ Interactive level configuration with add/remove level capabilities
 						>
 							<iconify-icon icon="mdi:information-outline" width="20" class="text-surface-400"></iconify-icon>
 							<span class="text-sm font-medium text-surface-600 dark:text-surface-300">No fields configured for this level yet.</span>
-							<span class="text-xs text-surface-500 dark:text-surface-400">Use the Widget Builder above to add fields.</span>
+							<span class="text-xs text-surface-500 dark:text-surface-50">Use the Widget Builder above to add fields.</span>
 						</div>
 					{/if}
 				</div>
@@ -123,8 +123,8 @@ Interactive level configuration with add/remove level capabilities
 		{/each}
 	</div>
 
-	<div class=" border-t border-surface-200 pt-4 dark:border-surface-700">
-		<button type="button" class="variant-filled-tertiary btn dark:variant-filled-primary" onclick={addLevel}>
+	<div class=" border-t border-surface-200 pt-4 dark:text-surface-50">
+		<button type="button" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={addLevel}>
 			<iconify-icon icon="mdi:plus" width="20"></iconify-icon>
 			Add Menu Level
 		</button>

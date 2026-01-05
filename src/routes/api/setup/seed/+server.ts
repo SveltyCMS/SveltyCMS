@@ -37,38 +37,46 @@ export const POST: RequestHandler = async ({ request }) => {
 		const firstCollection = collections.length > 0 ? { name: collections[0].name, path: collections[0].path, _id: collections[0]._id } : null;
 		logger.info(`Found ${collections.length} collections. First collection for redirect: ${firstCollection?.name} (ID: ${firstCollection?._id})`);
 
-		// Run the full seeding process in the background
+		// Run the full seeding process
 		const { initSystemFromSetup } = await import('../seed');
 		const { getSetupDatabaseAdapter } = await import('../utils');
 		const { setupManager } = await import('../setupManager');
 
+		const isTestMode = process.env.TEST_MODE === 'true' || request.headers.get('x-seed-sync') === 'true';
+
 		const seedProcess = async () => {
 			try {
 				setupManager.isSeeding = true;
-				logger.info('📦 Getting setup database adapter for background seeding...');
+				logger.info(`📦 Getting setup database adapter for ${isTestMode ? 'synchronous' : 'background'} seeding...`);
 				const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
-				logger.info('🌱 Starting background seeding of default data (settings, themes, collections)...');
+				logger.info(`🌱 Starting ${isTestMode ? 'synchronous' : 'background'} seeding of default data (settings, themes, collections)...`);
 				await initSystemFromSetup(dbAdapter);
-				logger.info('✅ Background seeding completed successfully');
+				logger.info(`✅ ${isTestMode ? 'Synchronous' : 'Background'} seeding completed successfully`);
+				return { rolesSeeded: true, settingsSeeded: true, themesSeeded: true };
 			} catch (seedError) {
-				logger.error('❌ Background seeding process failed:', seedError);
+				logger.error(`❌ ${isTestMode ? 'Synchronous' : 'Background'} seeding process failed:`, seedError);
 				setupManager.seedingError = seedError instanceof Error ? seedError.message : String(seedError);
+				throw seedError;
 			} finally {
 				setupManager.isSeeding = false;
 			}
 		};
-		seedProcess(); // Fire-and-forget
 
-		// Return response immediately
-		logger.info('✅ Immediately returning response while seeding continues in background.');
+		let seedResults = { rolesSeeded: false, settingsSeeded: false, themesSeeded: false };
 
-		// Success message removed - "System initialization completed" already logged in seed.ts
-		// Hook will log the final completion with timing
+		if (isTestMode) {
+			logger.info('⏳ TEST_MODE detected: Awaiting seeding synchronously...');
+			seedResults = await seedProcess();
+		} else {
+			seedProcess(); // Fire-and-forget for normal UX
+			logger.info('✅ Immediately returning response while seeding continues in background.');
+		}
 
 		return json({
 			success: true,
 			message: 'Database initialized successfully! ✨',
-			firstCollection // Return first collection info for faster redirect
+			firstCollection, // Return first collection info for faster redirect
+			...seedResults
 		});
 	} catch (error) {
 		const errorDetails = {

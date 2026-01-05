@@ -36,7 +36,7 @@
 </script>
 
 <div
-	class="h-full w-full shrink-0 flex flex-col rounded-xl border border-surface-200 bg-white shadow-sm dark:border-surface-700 dark:bg-surface-800 lg:w-64 xl:w-72"
+	class="h-full w-full shrink-0 flex flex-col rounded-xl border border-surface-200 bg-white shadow-sm dark:text-surface-50 dark:bg-surface-800 lg:w-64 xl:w-72"
 >
 	<!-- Mobile: Horizontal Step Indicator -->
 	<div class="relative flex items-start justify-between p-4 lg:hidden" role="list">
@@ -49,7 +49,7 @@
 						? 'bg-primary-500 text-white'
 						: i === currentStep
 							? 'bg-tertiary-500 text-white dark:bg-primary-500'
-							: 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-400'} 
+							: 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-50'} 
 					{derivedClickable[i] ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}"
 					disabled={!derivedClickable[i]}
 					onclick={() => handleStepClick(i)}
@@ -60,7 +60,7 @@
 					<div
 						class="max-w-16 truncate text-xs font-medium sm:max-w-20 sm:text-sm {i <= currentStep
 							? 'text-surface-900 dark:text-white'
-							: 'text-surface-500 dark:text-surface-400'}"
+							: 'text-surface-500 dark:text-surface-50'}"
 					>
 						{step.label.split(' ')[0]}
 					</div>
@@ -97,7 +97,7 @@
 								? 'bg-primary-500 text-white'
 								: i === currentStep
 									? 'bg-tertiary-500 text-white dark:bg-primary-500'
-									: 'bg-surface-200 text-surface-600 dark:bg-surface-700 dark:text-surface-400'}"
+									: 'bg-surface-200 text-surface-600 dark:bg-surface-700 dark:text-surface-50'}"
 						>
 							{derivedCompleted[i] ? '✓' : i + 1}
 						</div>
@@ -108,7 +108,7 @@
 								{step.label}
 							</div>
 							{#if step.shortDesc}
-								<div class="text-xs text-surface-500 dark:text-surface-400">
+								<div class="text-xs text-surface-500 dark:text-surface-50">
 									{step.shortDesc}
 								</div>
 							{/if}
@@ -122,7 +122,7 @@
 		</div>
 
 		{#if footer}
-			<div class="mt-4 border-t border-surface-200 pt-4 dark:border-surface-700">
+			<div class="mt-4 border-t border-surface-200 pt-4 dark:text-surface-50">
 				{@render footer()}
 			</div>
 		{/if}

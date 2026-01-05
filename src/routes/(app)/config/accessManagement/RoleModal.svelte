@@ -84,7 +84,7 @@
 
 	<!-- Footer -->
 	<footer class="modal-footer flex justify-end gap-4">
-		<button class="variant-ghost-surface btn" onclick={parent.onClose}>{m.button_cancel()}</button>
-		<button type="submit" form="roleForm" class="variant-filled-primary btn">{isEditMode ? 'Update' : 'Create'}</button>
+		<button class="preset-outlined-surface-500btn" onclick={parent.onClose}>{m.button_cancel()}</button>
+		<button type="submit" form="roleForm" class="preset-filled-primary-500 btn">{isEditMode ? 'Update' : 'Create'}</button>
 	</footer>
 </div>

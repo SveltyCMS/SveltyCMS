@@ -7,13 +7,13 @@
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { locales as systemLocales } from '@src/paraglide/runtime';
-	// ✅ FIX: Import types from the store
+	//  Import types from the store
 	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { systemSettingsSchema } from '@utils/formSchemas';
 
 	// --- PROPS ---
-	// ✅ FIX: Added $bindable() to systemSettings
+	// Added $bindable() to systemSettings
 	let { systemSettings = $bindable(), validationErrors } = $props(); // Now uses imported type
 
 	const availableLanguages: string[] = [...systemLocales];
@@ -167,7 +167,7 @@
 
 <div class="fade-in">
 	<div class="mb-8">
-		<p class="text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">
+		<p class="text-sm text-center text-tertiary-500 dark:text-primary-500 sm:text-base">
 			{m.setup_system_intro()}
 		</p>
 	</div>
@@ -186,7 +186,7 @@
 							tabindex="-1"
 							title="Help available"
 							aria-label="Help: Site Name"
-							class="ml-1 text-slate-400 hover:text-primary-500"
+							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 						</button>
@@ -220,7 +220,7 @@
 							tabindex="-1"
 							title="Help available"
 							aria-label="Help: Production URL"
-							class="ml-1 text-slate-400 hover:text-primary-500"
+							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 						</button>
@@ -257,7 +257,7 @@
 							tabindex="-1"
 							title="Help available"
 							aria-label="Help: Media Storage Type"
-							class="ml-1 text-slate-400 hover:text-primary-500"
+							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
@@ -285,7 +285,7 @@
 							tabindex="-1"
 							title="Help available"
 							aria-label="Help: Media Folder"
-							class="ml-1 text-slate-400 hover:text-primary-500"
+							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
@@ -329,7 +329,7 @@
 							type="button"
 							title="Help available"
 							aria-label="Help: Default System Language"
-							class="ml-1 text-slate-400 hover:text-primary-500"
+							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 						</button>
@@ -355,7 +355,7 @@
 								type="button"
 								title="Help available"
 								aria-label="Help: System Languages"
-								class="ml-1 text-slate-400 hover:text-primary-500"
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
 								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 							</button>
@@ -371,16 +371,18 @@
 							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border border-slate-300/50 bg-surface-50 p-2 pr-16 dark:border-slate-600 dark:bg-surface-700/40"
 						>
 							{#each systemSettings.systemLanguages as lang (lang)}
-								<span class="group preset-ghost-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-ghost-primary-500">
-									{displayLang(lang)}
+								<span
+									class="group badge preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-white"
+								>
+									<span class="text-sm font-medium">{displayLang(lang)}</span>
 									{#if systemSettings.systemLanguages.length > 1}
 										<button
 											type="button"
-											class="opacity-60 transition hover:opacity-100"
+											class="flex items-center justify-center -mr-1.5 p-0.5 rounded-full hover:bg-white/20 transition-colors"
 											onclick={() => removeSystemLang(lang)}
 											aria-label={`Remove ${displayLang(lang)}`}
 										>
-											×
+											<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 										</button>
 									{/if}
 								</span>
@@ -446,7 +448,7 @@
 							type="button"
 							title="Help available"
 							aria-label="Help: Default Content Language"
-							class="ml-1 text-slate-400 hover:text-primary-500"
+							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 						</button>
@@ -481,7 +483,7 @@
 								type="button"
 								title="Help available"
 								aria-label="Help: Content Languages"
-								class="ml-1 text-slate-400 hover:text-primary-500"
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
 								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 							</button>
@@ -499,16 +501,18 @@
 								: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 						>
 							{#each systemSettings.contentLanguages as lang (lang)}
-								<span class="group preset-ghost-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-ghost-primary-500">
-									{displayLang(lang)}
+								<span
+									class="group badge preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-white"
+								>
+									<span class="text-sm font-medium">{displayLang(lang)}</span>
 									{#if lang !== systemSettings.defaultContentLanguage || systemSettings.contentLanguages.length > 1}
 										<button
 											type="button"
-											class="opacity-60 transition hover:opacity-100"
+											class="flex items-center justify-center -mr-1.5 p-0.5 rounded-full hover:bg-white/20 transition-colors"
 											onclick={() => removeContentLang(lang)}
 											aria-label={`Remove ${displayLang(lang)}`}
 										>
-											×
+											<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 										</button>
 									{/if}
 								</span>

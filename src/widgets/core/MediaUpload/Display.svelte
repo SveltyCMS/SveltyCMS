@@ -56,7 +56,7 @@ Renders selected media files as thumbnails for display purposes.
 				src={file.thumbnailUrl}
 				alt={file.name}
 				title={file.name}
-				class="h-8 w-8 rounded border border-surface-200 object-cover dark:border-surface-700"
+				class="h-8 w-8 rounded border border-surface-200 object-cover dark:text-surface-50"
 			/>
 		{/each}
 	{:else}

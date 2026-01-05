@@ -84,8 +84,9 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 	}
 
 	// --- Step 3: Handle Complete Setup ---
-	// If setup is complete, BLOCK access to /setup routes
-	if (pathname.startsWith('/setup') && !pathname.startsWith('/api/setup')) {
+	// If setup is complete, BLOCK access to /setup routes (including localized ones)
+	const isSetupRoute = pathname.startsWith('/setup') || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
+	if (isSetupRoute && !pathname.includes('/api/setup')) {
 		if (!event.locals.__setupLoginRedirectLogged) {
 			logger.trace(`Setup complete. Blocking access to ${pathname}, redirecting to /login`);
 			event.locals.__setupLoginRedirectLogged = true;

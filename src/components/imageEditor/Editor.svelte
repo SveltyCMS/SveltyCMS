@@ -256,7 +256,7 @@ Comprehensive image editing interface with Konva.js integration.
 		if (event.key === 'Delete') {
 			const currentState = imageEditorStore.state.activeState;
 			if (currentState === 'textoverlay' || currentState === 'shapeoverlay') {
-				const deleteBtn = document.querySelector('.variant-filled-error.btn') as HTMLButtonElement;
+				const deleteBtn = document.querySelector('.preset-filled-error-500.btn') as HTMLButtonElement;
 				deleteBtn?.click();
 			}
 		}

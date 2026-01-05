@@ -27,24 +27,24 @@ Toolbar controls for the FocalPoint widget
 	</div>
 
 	<!-- Instructions -->
-	<span class="text-xs text-surface-600 dark:text-surface-400"> Click on the image to set focal point </span>
+	<span class="text-xs text-surface-600 dark:text-surface-50"> Click on the image to set focal point </span>
 
 	<!-- Spacer -->
 	<div class="flex-1"></div>
 
 	<!-- Actions -->
 	<div class="flex items-center gap-2">
-		<button onclick={onReset} class="btn variant-ghost-surface btn-sm" title="Reset to center">
+		<button onclick={onReset} class="btn preset-outlined-surface-500btn-sm" title="Reset to center">
 			<iconify-icon icon="mdi:restore" width="18"></iconify-icon>
 			<span>Reset</span>
 		</button>
 
-		<button onclick={onCancel} class="btn variant-ghost-error btn-sm" title="Discard changes">
+		<button onclick={onCancel} class="btn preset-outlined-error-500 btn-sm" title="Discard changes">
 			<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 			<span>Cancel</span>
 		</button>
 
-		<button onclick={onApply} class="btn variant-filled-primary btn-sm" title="Apply focal point">
+		<button onclick={onApply} class="btn preset-filled-primary-500 btn-sm" title="Apply focal point">
 			<iconify-icon icon="mdi:check" width="18"></iconify-icon>
 			<span>Apply</span>
 		</button>

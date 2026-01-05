@@ -298,7 +298,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						tabindex="-1"
 						title="Help available"
 						aria-label="Help: Database Type"
-						class="ml-1 text-slate-400 hover:text-primary-500"
+						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
 					>
 				</label>
@@ -342,7 +342,12 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				<label for="db-host" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{isAtlas ? 'Atlas Cluster Host' : m.setup_database_host()}</span>
-					<button type="button" tabindex="-1" title="Help available" aria-label="Help: Host" class="ml-1 text-slate-400 hover:text-primary-500"
+					<button
+						type="button"
+						tabindex="-1"
+						title="Help available"
+						aria-label="Help: Host"
+						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
 					>
 				</label>
@@ -388,7 +393,12 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					<label for="db-port" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:ethernet" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span>{m.setup_database_port()}</span>
-						<button type="button" tabindex="-1" title="Help available" aria-label="Help: Port" class="ml-1 text-slate-400 hover:text-primary-500"
+						<button
+							type="button"
+							tabindex="-1"
+							title="Help available"
+							aria-label="Help: Port"
+							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
 						>
 					</label>
@@ -416,7 +426,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						tabindex="-1"
 						title="Help available"
 						aria-label="Help: Database Name"
-						class="ml-1 text-slate-400 hover:text-primary-500"
+						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
 					>
 				</label>
@@ -449,7 +459,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						tabindex="-1"
 						title="Help available"
 						aria-label="Help: Database User"
-						class="ml-1 text-slate-400 hover:text-primary-500"
+						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
 					>
 				</label>
@@ -484,7 +494,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						tabindex="-1"
 						title="Help available"
 						aria-label="Help: Database Password"
-						class="ml-1 text-slate-400 hover:text-primary-500"
+						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
 					>
 				</label>

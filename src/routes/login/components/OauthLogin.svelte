@@ -39,7 +39,7 @@
 			form="oauth-login"
 			type="submit"
 			aria-label="OAuth"
-			class="variant-filled-surface btn w-full sm:w-auto"
+			class="preset-filled-surface-500 btn w-full sm:w-auto"
 			onmouseenter={prefetchFirstCollection}
 		>
 			<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1"></iconify-icon>

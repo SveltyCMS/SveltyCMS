@@ -1,29 +1,28 @@
 <!-- 
 @files src/routes/(app)/config/collectionbuilder/NestedContent/TreeViewNode.svelte
 @component
-**This component displays a node in the TreeView (Collection or Category)**
-It is purely presentational, as drag-and-drop is handled by the parent TreeView.
+**Enhanced TreeView Node with improved design and drag & drop support**
 
 Features:	
-- Node Name & Icon
-- Action Buttons (Edit, Delete, Duplicate)
-- Visual styling based on node type
+- Modern card-like design with depth shadows
+- Smooth animations and transitions
+- Clear visual hierarchy between categories and collections
+- Action buttons with hover states
+- Drag handle with visual feedback
 -->
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import type { TreeViewItem } from '@utils/treeViewAdapter';
+	// Tree View
 
 	interface Props {
-		item: TreeViewItem & { hasChildren?: boolean }; // The current item provided by TreeView
-
-		// TreeView props passed via snippet
+		item: TreeViewItem & { hasChildren?: boolean };
 		isOpen?: boolean;
 		toggle?: () => void;
-
-		onEditCategory: (item: any) => void;
-		onDelete?: (item: any) => void;
-		onDuplicate?: (item: any) => void;
+		onEditCategory: (item: TreeViewItem) => void;
+		onDelete?: (item: TreeViewItem) => void;
+		onDuplicate?: (item: TreeViewItem) => void;
 	}
 
 	let { item, isOpen, toggle, onEditCategory, onDelete, onDuplicate }: Props = $props();
@@ -33,11 +32,17 @@ Features:
 	const icon = $derived(item.icon || (item.nodeType === 'category' ? 'bi:folder' : 'bi:collection'));
 	const isCategory = $derived(item.nodeType === 'category');
 
-	// Styling classes
+	// Enhanced styling with better visual hierarchy
 	const containerClass = $derived(
 		isCategory
-			? 'group card p-2 variant-soft-secondary flex items-center gap-2 mb-1 cursor-pointer hover:variant-filled-secondary'
-			: 'group card p-2 variant-filled-surface flex items-center gap-2 mb-1 border-l-4 border-primary-500 cursor-pointer hover:variant-filled-surface-active'
+			? 'group w-full min-h-[56px] p-3 rounded bg-gradient-to-r from-tertiary-500/10 to-tertiary-600/5 border-2 border-tertiary-500/30 flex items-center gap-3 mb-2 cursor-pointer hover:border-tertiary-500 hover:shadow-lg hover:from-tertiary-500/20 hover:to-tertiary-600/10 transition-all duration-300 ease-out'
+			: 'group w-full min-h-[56px] p-3 rounded bg-gradient-to-r from-surface-100 to-surface-50 dark:from-surface-700 dark:to-surface-800 border-2 border-l-4 border-surface-500/40 border-l-surface-500 flex items-center gap-3 mb-2 cursor-pointer hover:border-surface-500 hover:shadow-lg hover:translate-x-1 transition-all duration-300 ease-out'
+	);
+
+	const iconClass = $derived(
+		isCategory
+			? 'text-tertiary-500 group-hover:text-tertiary-600 transition-colors duration-200'
+			: 'text-error-500 group-hover:text-error-600 transition-colors duration-200'
 	);
 
 	function handleClick(e: MouseEvent) {
@@ -57,53 +62,67 @@ Features:
 	{#if item.hasChildren || isCategory}
 		<button
 			type="button"
-			class="btn-icon btn-icon-sm variant-soft hover:variant-filled"
+			class="btn-icon preset-tonal hover:preset-filled transition-all duration-200 hover:scale-110"
 			onclick={(e) => {
 				e.stopPropagation();
+				console.log('Toggle clicked', { toggle, isOpen });
 				toggle?.();
 			}}
 			aria-label={isOpen ? 'Collapse' : 'Expand'}
 		>
-			<iconify-icon icon={isOpen ? 'bi:chevron-down' : 'bi:chevron-right'}></iconify-icon>
+			<iconify-icon icon={isOpen ? 'bi:chevron-down' : 'bi:chevron-right'} width="20" class="transition-transform duration-200"></iconify-icon>
 		</button>
 	{:else}
-		<div class="w-8"></div>
+		<div class="w-10"></div>
 	{/if}
 
-	<iconify-icon {icon} width="20" class="text-error-500"></iconify-icon>
+	<!-- Icon with Animation -->
+	<div class="relative">
+		<iconify-icon {icon} width="24" class={iconClass}></iconify-icon>
+		{#if isCategory}
+			<div class="absolute -top-1 -right-1 w-2 h-2 bg-tertiary-500 rounded-full animate-pulse"></div>
+		{/if}
+	</div>
 
-	<!-- Name & Info -->
-	<div class="flex flex-col gap-0.5 min-w-[200px]">
+	<!-- Name & Badge Section -->
+	<div class="flex flex-col gap-1.5 min-w-[220px] shrink-0">
 		<div class="flex items-center gap-2">
-			<span class="font-bold">{name}</span>
+			<span class="font-bold text-base leading-none">{name}</span>
 			{#if isCategory}
-				<span class="badge variant-soft-secondary text-[10px] uppercase opacity-60">Category</span>
+				<span class="badge font-semibold bg-tertiary-500 text-white text-[10px] px-2.5 py-1 rounded-sm uppercase shadow-sm"> Category </span>
 			{:else}
-				<span class="badge variant-soft-tertiary text-[10px] uppercase opacity-60">Collection</span>
+				<span class="badge font-semibold bg-surface-500 text-white text-[10px] px-2.5 py-1 rounded-sm uppercase shadow-sm"> Collection </span>
 			{/if}
 		</div>
 	</div>
 
-	<!-- Description -->
+	<!-- Description with Tooltip -->
 	<div class="flex-1 px-4 min-w-0 flex justify-start">
 		{#if item.description}
-			<span class="italic text-sm opacity-60 truncate w-full max-w-[400px] text-left" title={item.description}>
-				{item.description}
-			</span>
+			<div class="relative group/desc">
+				<span
+					class="italic text-sm opacity-70 truncate w-full max-w-[500px] text-left hover:opacity-100 transition-opacity duration-200"
+					title={item.description}
+				>
+					{item.description}
+				</span>
+			</div>
 		{/if}
 	</div>
 
-	<!-- Slug -->
+	<!-- Slug Badge -->
 	{#if item.slug}
-		<span class="badge bg-white text-black px-1.5 py-0.5 opacity-90 mr-2">/{item.slug}</span>
+		<span class="badge bg-surface-200 dark:bg-surface-700 text-surface-900 dark:text-surface-100 px-3 py-1 rounded-sm font-mono text-xs shadow-sm">
+			/{item.slug}
+		</span>
 	{/if}
 
-	<!-- Actions -->
-	<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+	<!-- Action Buttons with Enhanced Design -->
+	<div class="flex gap-2 ml-auto transition-opacity duration-200">
 		<!-- Edit Button -->
 		<button
 			type="button"
-			class="btn-icon btn-icon-sm variant-soft hover:variant-filled-primary"
+			class="btn-icon preset-tonal hover:preset-filled rounded transition-all duration-200 hover:scale-110"
 			onclick={(e) => {
 				e.stopPropagation();
 				if (isCategory) {
@@ -114,38 +133,97 @@ Features:
 			}}
 			title="Edit"
 		>
-			<iconify-icon icon="mdi:pencil-outline" width="18"></iconify-icon>
+			<iconify-icon icon="mdi:pencil-outline" width="18" class="text-primary-500"></iconify-icon>
 		</button>
 
 		<!-- Duplicate Button -->
 		<button
 			type="button"
-			class="btn-icon btn-icon-sm variant-soft hover:variant-filled-tertiary"
+			class="btn-icon preset-tonal hover:preset-filled rounded transition-all duration-200 hover:scale-110"
 			onclick={(e) => {
 				e.stopPropagation();
 				onDuplicate?.(item);
 			}}
 			title="Duplicate"
 		>
-			<iconify-icon icon="mdi:content-copy" width="18"></iconify-icon>
+			<iconify-icon icon="mdi:content-copy" width="18" class="text-tertiary-500"></iconify-icon>
 		</button>
 
 		<!-- Delete Button -->
 		<button
 			type="button"
-			class="btn-icon btn-icon-sm variant-soft hover:variant-filled-error"
+			class="btn-icon preset-tonal hover:preset-filled rounded transition-all duration-200 hover:scale-110"
 			onclick={(e) => {
 				e.stopPropagation();
 				onDelete?.(item);
 			}}
 			title="Delete"
 		>
-			<iconify-icon icon="lucide:trash-2" width="18"></iconify-icon>
+			<iconify-icon icon="lucide:trash-2" width="18" class="text-error-500"></iconify-icon>
 		</button>
 
-		<!-- Drag Handle -->
-		<div class="cursor-grab opacity-30 hover:opacity-100 flex items-center justify-center ml-1" aria-hidden="true">
-			<iconify-icon icon="mdi-drag" width="20"></iconify-icon>
+		<!-- Drag Handle with Enhanced Visual -->
+		<div
+			class="btn-icon preset-tonal rounded cursor-grab active:cursor-grabbing opacity-60 hover:opacity-100 flex items-center justify-center ml-2 hover:bg-surface-300 dark:hover:bg-surface-600 transition-all duration-200 hover:scale-110"
+			aria-hidden="true"
+			title="Drag to reorder"
+		>
+			<iconify-icon icon="mdi:drag-vertical" width="22"></iconify-icon>
 		</div>
 	</div>
 </div>
+
+<style>
+	/* Enhance focus states for accessibility */
+	div[role='button']:focus-visible {
+		outline: 3px solid rgb(var(--color-primary-500));
+		outline-offset: 4px;
+		border-radius: 0.5rem;
+	}
+
+	/* Smooth badge animations */
+	.badge {
+		transition: all 0.2s ease;
+	}
+
+	.group:hover .badge {
+		transform: translateY(-1px);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	}
+
+	/* Icon pulse animation for categories */
+	@keyframes pulse {
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.5;
+		}
+	}
+
+	/* Action button enhancements */
+	button.btn-icon {
+		position: relative;
+		overflow: hidden;
+	}
+
+	button.btn-icon::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
+		opacity: 0;
+		transition: opacity 0.3s ease;
+	}
+
+	button.btn-icon:hover::before {
+		opacity: 1;
+	}
+
+	/* Description tooltip enhancement */
+	.group\/desc:hover span {
+		z-index: 10;
+		position: relative;
+	}
+</style>

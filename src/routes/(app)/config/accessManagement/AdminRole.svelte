@@ -130,7 +130,7 @@ It provides functionality to:
 				<button onclick={cancelChanges} class="variant-filled-secondary btn"> Cancel </button>
 
 				<!-- Save -->
-				<button onclick={saveAdminRole} class="variant-filled-tertiary btn" disabled={isSaving}>
+				<button onclick={saveAdminRole} class="preset-filled-tertiary-500 btn" disabled={isSaving}>
 					{#if isSaving}
 						Saving...
 					{:else}

@@ -267,7 +267,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		<div class="flex gap-1 rounded-lg border border-surface-300 p-1 dark:border-surface-600" role="group" aria-label="View mode">
 			<button
 				onclick={() => (currentViewMode = 'grid')}
-				class="btn-icon btn-icon-sm {currentViewMode === 'grid' ? 'variant-filled-primary' : 'variant-ghost'}"
+				class="btn-icon btn-icon-sm {currentViewMode === 'grid' ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}"
 				aria-label="Grid view"
 				aria-pressed={currentViewMode === 'grid'}
 			>
@@ -275,7 +275,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			</button>
 			<button
 				onclick={() => (currentViewMode = 'list')}
-				class="btn-icon btn-icon-sm {currentViewMode === 'list' ? 'variant-filled-primary' : 'variant-ghost'}"
+				class="btn-icon btn-icon-sm {currentViewMode === 'list' ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}"
 				aria-label="List view"
 				aria-pressed={currentViewMode === 'list'}
 			>
@@ -284,7 +284,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		</div>
 
 		<!-- Refresh -->
-		<button onclick={fetchMedia} class="variant-ghost-primary btn btn-sm" disabled={isLoading} aria-label="Refresh media">
+		<button onclick={fetchMedia} class="preset-outlined-primary-500 btn-sm" disabled={isLoading} aria-label="Refresh media">
 			<iconify-icon icon="mdi:refresh" width="20" class={isLoading && !prefersReducedMotion ? 'animate-spin' : ''}></iconify-icon>
 		</button>
 
@@ -297,7 +297,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 
 		<button
 			onclick={() => (sortAscending = !sortAscending)}
-			class="btn-icon btn-icon-sm variant-ghost"
+			class="btn-icon btn-icon-sm preset-outlined-surface-500"
 			aria-label={sortAscending ? 'Sort descending' : 'Sort ascending'}
 		>
 			<iconify-icon icon={sortAscending ? 'mdi:sort-ascending' : 'mdi:sort-descending'} width="20"></iconify-icon>
@@ -314,8 +314,8 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 				{selectedCount} file{selectedCount !== 1 ? 's' : ''} selected
 			</span>
 			<div class="flex gap-2">
-				<button onclick={clearSelection} class="variant-ghost-surface btn btn-sm"> Clear </button>
-				<button onclick={confirmSelection} class="variant-filled-primary btn btn-sm"> Confirm Selection </button>
+				<button onclick={clearSelection} class="preset-outlined-surface-500btn btn-sm"> Clear </button>
+				<button onclick={confirmSelection} class="preset-filled-primary-500 btn-sm"> Confirm Selection </button>
 			</div>
 		</div>
 	{/if}
@@ -334,7 +334,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			<div class="flex flex-col items-center gap-3">
 				<iconify-icon icon="mdi:alert-circle" width="48" class="text-error-500"></iconify-icon>
 				<p class="text-lg text-error-500">Error: {error}</p>
-				<button onclick={fetchMedia} class="variant-filled-primary btn btn-sm"> Try Again </button>
+				<button onclick={fetchMedia} class="preset-filled-primary-500 btn-sm"> Try Again </button>
 			</div>
 		</div>
 	{:else if !hasFiles}
@@ -342,7 +342,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		<div class="flex flex-1 items-center justify-center" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 			<div class="flex flex-col items-center gap-3">
 				<iconify-icon icon="mdi:image-off" width="48" class="text-surface-400"></iconify-icon>
-				<p class="text-lg text-surface-600 dark:text-surface-400">
+				<p class="text-lg text-surface-600 dark:text-surface-50">
 					{search ? `No media found for "${search}"` : m.mediagallery_nomedia()}
 				</p>
 			</div>
@@ -384,7 +384,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 							onclick={(e) => toggleInfo(e, index)}
 							aria-label={`${isInfoShown(index) ? 'Hide' : 'Show'} info for ${file.filename}`}
 							aria-pressed={isInfoShown(index)}
-							class="btn btn-sm m-1 p-1 hover:bg-surface-600"
+							class="btn-sm m-1 p-1 hover:bg-surface-600"
 							type="button"
 						>
 							<iconify-icon icon={isInfoShown(index) ? 'mdi:information-off' : 'mdi:information'} width="20" class="text-primary-500"></iconify-icon>

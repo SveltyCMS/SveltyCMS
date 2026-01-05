@@ -95,7 +95,8 @@
 	// Modal Trigger - User Form
 	function modalUserForm(): void {
 		modalState.trigger(ModalEditForm, {
-			slot: '<p>Edit Form</p>'
+			title: m.adminarea_title(),
+			body: m.usermodaluser_settingbody() || 'Update your user details below.'
 		});
 	}
 
@@ -145,16 +146,24 @@
 		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
 			<!-- Avatar with user info -->
 			<div class="relative flex flex-col items-center justify-center gap-1">
-				<Avatar class="w-32 rounded-none">
-					<Avatar.Image
-						src={avatarSrc.value && avatarSrc.value.startsWith('data:') ? avatarSrc.value : `${avatarSrc.value}?t=${Date.now()}`}
-						class="object-cover"
-					/>
-					<Avatar.Fallback>AV</Avatar.Fallback>
-				</Avatar>
+				<div class="relative group">
+					<Avatar class="w-32 h-32 rounded-full border border-white shadow-lg dark:border-surface-800">
+						<Avatar.Image
+							src={avatarSrc.value && avatarSrc.value.startsWith('data:') ? avatarSrc.value : `${avatarSrc.value}?t=${Date.now()}`}
+							class="object-cover"
+						/>
+						<Avatar.Fallback>AV</Avatar.Fallback>
+					</Avatar>
 
-				<!-- Edit button -->
-				<button onclick={modalEditAvatar} class="gradient-primary w-30 badge absolute -top-44 text-white sm:top-4">{m.userpage_editavatar()}</button>
+					<!-- Edit button - icon overlay -->
+					<button
+						onclick={modalEditAvatar}
+						class="absolute bottom-0 right-0 p-2 rounded-full gradient-tertiary dark:gradient-primary btn-icon"
+						title={m.userpage_editavatar()}
+					>
+						<iconify-icon icon="mdi:pencil" width="18"></iconify-icon>
+					</button>
+				</div>
 				<!-- User ID -->
 				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
 					{m.userpage_user_id()}<span class="ml-2">{user?._id || 'N/A'}</span>
@@ -165,7 +174,7 @@
 				</div>
 				<!-- Two-Factor Authentication Status -->
 				{#if is2FAEnabledGlobal}
-					<button onclick={open2FAModal} class="preset-ghost-surface-500 btn-sm w-full max-w-xs">
+					<button onclick={open2FAModal} class="btn preset-outlined btn-sm w-full max-w-xs">
 						<div class="flex w-full items-center justify-between">
 							<span>Two-Factor Auth</span>
 							<div class="flex items-center gap-1">

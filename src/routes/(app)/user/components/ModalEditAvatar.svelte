@@ -51,12 +51,12 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	interface Props {
 		// Props
 		isGivenData?: boolean; // Unused but kept for interface compat
-		title?: string;
+		heading?: string;
 		body?: string;
 		parent?: any; // Loose type for now
 	}
 
-	const { title, body }: Props = $props();
+	const { heading, body }: Props = $props();
 
 	const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml', 'image/gif'];
 	const MAX_FILE_SIZE = 5242880; // 5MB
@@ -330,7 +330,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 <div class="modal-avatar space-y-4">
 	<header class={`text-center text-primary-500 ${cHeader} shrink-0`}>
-		{title ?? '(title missing)'}
+		{heading ?? '(title missing)'}
 	</header>
 	<article class="text-center text-sm">
 		{body ?? '(body missing)'}
@@ -344,7 +344,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 				<!-- Avatar Trigger (Clickable) -->
 				<FileUpload.Trigger class="outline-none relative mx-auto mb-3 cursor-pointer rounded-full focus:ring-2 focus:ring-primary-500">
-					<Avatar class="size-32 rounded-full overflow-hidden bg-surface-100-900 border-4 border-surface-100-900 shadow-xl">
+					<Avatar class="size-32 rounded-full overflow-hidden border border-white dark:border-surface-800 shadow-xl">
 						<Avatar.Image src={displayAvatar} alt="User avatar" class="size-full object-cover" />
 						<Avatar.Fallback class="flex size-full items-center justify-center bg-surface-500 text-3xl font-bold uppercase text-white">
 							AB

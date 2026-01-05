@@ -71,7 +71,7 @@
 	<!-- Dropdown button -->
 	<button
 		onclick={toggleExpanded}
-		class="variant-filled-tertiary btn dark:variant-ghost-primary"
+		class="preset-filled-tertiary-500 btn dark:preset-outlined-primary-500"
 		aria-label="Toggle Dropdown"
 		class:selected={expanded}
 	>

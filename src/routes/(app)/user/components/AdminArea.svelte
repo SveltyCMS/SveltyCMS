@@ -636,9 +636,11 @@
 
 			<div class="table-container max-h-[calc(100vh-120px)] overflow-auto">
 				<table class="table table-interactive {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
-					<thead class="text-tertiary-500 dark:text-primary-500">
+					<thead
+						class="divide-x divide-surface-200/50 dark:divide-surface-700/50 text-tertiary-500 dark:text-primary-500 bg-secondary-100 dark:bg-surface-800/50"
+					>
 						{#if filterShow}
-							<tr class="divide-x divide-preset-400">
+							<tr class="divide-x divide-surface-200/50 dark:divide-surface-700/50">
 								<th>
 									{#if Object.keys(filters).length > 0}
 										<button onclick={() => (filters = {})} aria-label="Clear All Filters" class="preset-outline btn-icon">
@@ -663,7 +665,7 @@
 							</tr>
 						{/if}
 
-						<tr class="divide-x divide-preset-400 border-b border-black dark:border-white">
+						<tr class="divide-x divide-preset-400 border-b border-preset-400 font-semibold tracking-wide uppercase text-xs">
 							<TableIcons
 								cellClass="w-10 text-center"
 								checked={selectAll}
@@ -677,6 +679,7 @@
 
 							{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
 								<th
+									class="cursor-pointer text-tertiary-500 dark:text-primary-500 hover:bg-surface-100/50 dark:hover:bg-surface-800/50 transition-colors"
 									onclick={() => {
 										sorting = {
 											sortedBy: header.key,
@@ -684,11 +687,11 @@
 										};
 									}}
 								>
-									<div class="flex items-center justify-center text-center">
+									<div class="flex items-center justify-center gap-1">
 										{header.label}
 										<iconify-icon
 											icon="material-symbols:arrow-upward-rounded"
-											width="22"
+											width="18"
 											class="origin-center duration-300 ease-in-out"
 											class:up={sorting.isSorted === 1 && sorting.sortedBy === header.key}
 											class:invisible={sorting.isSorted === 0 || sorting.sortedBy !== header.key}
@@ -699,7 +702,7 @@
 						</tr>
 					</thead>
 
-					<tbody>
+					<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
 						{#each tableData as row, index (isUser(row) ? row._id : isToken(row) ? row.token : index)}
 							{@const expiresVal: string | Date | null = isToken(row) ? row.expires : null}
 							{@const isExpired = showUsertoken && expiresVal && new Date(expiresVal) < new Date()}
@@ -746,14 +749,14 @@
 												</button>
 											{/if}
 										{:else if showUserList && header.key === 'avatar'}
-											<Avatar class="overflow-hidden w-10">
+											<Avatar class="size-10 overflow-hidden rounded-full border border-surface-200/50 dark:text-surface-50/50">
 												<Avatar.Image
 													src={currentUser && isUser(row) && row._id === currentUser._id
 														? avatarSrc.value
 														: isUser(row) && header.key === 'avatar'
 															? normalizeMediaUrl(row.avatar)
 															: '/Default_User.svg'}
-													class="object-cover"
+													class="h-full w-full object-cover"
 												/>
 												<Avatar.Fallback>User</Avatar.Fallback>
 											</Avatar>
@@ -767,7 +770,7 @@
 											<div class="flex items-center justify-center gap-2">
 												<span class="font-mono text-sm">{isUser(row) ? row._id : isToken(row) ? row._id : '-'}</span>
 												<button
-													class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500"
+													class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500 hover:dark:preset-filled-primary-500"
 													aria-label="Copy User ID"
 													title="Copy User ID to clipboard"
 													onclick={(event) => {
@@ -791,7 +794,7 @@
 											<div class="flex items-center justify-center gap-2">
 												<span class="max-w-[200px] truncate font-mono text-sm">{isToken(row) && header.key === 'token' ? row.token : '-'}</span>
 												<button
-													class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500"
+													class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500 hover:dark:preset-filled-primary-500"
 													aria-label="Copy Token"
 													title="Copy Token to clipboard"
 													onclick={(event) => {

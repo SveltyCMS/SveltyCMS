@@ -40,11 +40,11 @@ Controls for the Blur tool, including strength slider and pattern/shape selector
 	<div class="h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
 
 	<span class="text-sm">Shape:</span>
-	<div class="btn-group variant-ghost-surface">
-		<button class="btn btn-sm" class:active={shape === 'rectangle'} onclick={() => onShapeChange('rectangle')} title="Rectangle">
+	<div class="btn-group preset-outlined-surface-500">
+		<button class="btn-sm" class:active={shape === 'rectangle'} onclick={() => onShapeChange('rectangle')} title="Rectangle">
 			<iconify-icon icon="mdi:crop-square"></iconify-icon>
 		</button>
-		<button class="btn btn-sm" class:active={shape === 'ellipse'} onclick={() => onShapeChange('ellipse')} title="Ellipse">
+		<button class="btn-sm" class:active={shape === 'ellipse'} onclick={() => onShapeChange('ellipse')} title="Ellipse">
 			<iconify-icon icon="mdi:circle-outline"></iconify-icon>
 		</button>
 	</div>
@@ -52,11 +52,11 @@ Controls for the Blur tool, including strength slider and pattern/shape selector
 	<div class="h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
 
 	<span class="text-sm">Pattern:</span>
-	<div class="btn-group variant-ghost-surface">
-		<button class="btn btn-sm" class:active={pattern === 'blur'} onclick={() => onPatternChange('blur')} title="Blur">
+	<div class="btn-group preset-outlined-surface-500">
+		<button class="btn-sm" class:active={pattern === 'blur'} onclick={() => onPatternChange('blur')} title="Blur">
 			<iconify-icon icon="mdi:blur"></iconify-icon>
 		</button>
-		<button class="btn btn-sm" class:active={pattern === 'pixelate'} onclick={() => onPatternChange('pixelate')} title="Pixelate">
+		<button class="btn-sm" class:active={pattern === 'pixelate'} onclick={() => onPatternChange('pixelate')} title="Pixelate">
 			<iconify-icon icon="mdi:grid"></iconify-icon>
 		</button>
 	</div>
@@ -79,17 +79,17 @@ Controls for the Blur tool, including strength slider and pattern/shape selector
 
 	<div class="grow"></div>
 
-	<button onclick={onReset} class="btn variant-ghost-surface">
+	<button onclick={onReset} class="btn preset-outlined-surface-500">
 		<iconify-icon icon="mdi:restore"></iconify-icon>
 		<span>Reset All</span>
 	</button>
 
-	<button onclick={onCancel} class="btn variant-ghost-error">
+	<button onclick={onCancel} class="btn preset-outlined-error-500">
 		<iconify-icon icon="mdi:close"></iconify-icon>
 		<span>Cancel</span>
 	</button>
 
-	<button class="btn variant-filled-success" onclick={onApply}>
+	<button class="btn preset-filled-success-500" onclick={onApply}>
 		<iconify-icon icon="mdi:check"></iconify-icon>
 		<span>Apply Blur</span>
 	</button>

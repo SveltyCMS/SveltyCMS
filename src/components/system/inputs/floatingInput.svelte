@@ -127,7 +127,7 @@
 				class="absolute left-0 top-3"
 				style={iconColor !== 'gray' ? `color: ${iconColor};` : ''}
 				class:text-surface-500={iconColor === 'gray'}
-				class:dark:text-surface-400={iconColor === 'gray'}
+				class:dark:text-surface-50={iconColor === 'gray'}
 				aria-hidden="true"
 			></iconify-icon>
 		{/if}
@@ -139,7 +139,7 @@
 				icon={showPassword ? 'bi:eye-fill' : 'bi:eye-slash-fill'}
 				aria-label={showPassword ? 'Hide password' : 'Show password'}
 				aria-pressed={showPassword}
-				class="absolute right-2 top-3 cursor-pointer hover:opacity-75 focus:outline-none text-surface-500 dark:text-surface-400"
+				class="absolute right-2 top-3 cursor-pointer hover:opacity-75 focus:outline-none text-surface-500 dark:text-surface-50"
 				width="24"
 				style={passwordIconColor !== 'gray' ? `color: ${passwordIconColor};` : ''}
 				onkeydown={handleIconKeyDown}

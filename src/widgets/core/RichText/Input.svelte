@@ -421,7 +421,7 @@
 <div
 	class="my-2 relative overflow-hidden rounded border {error
 		? 'border-red-500 ring-2 ring-red-500 ring-opacity-50'
-		: 'border-surface-200 dark:border-surface-700'} bg-white dark:bg-surface-900 shadow-xl"
+		: 'border-surface-200 dark:text-surface-50'} bg-white dark:bg-surface-900 shadow-xl"
 >
 	<!-- Toolbar -->
 	<div
@@ -454,11 +454,11 @@
 									</button>
 									{#if activeDropdown === btn.label}
 										<div
-											class="absolute top-full left-0 mt-1 min-w-[180px] rounded-lg border border-surface-200 bg-white p-1 shadow-lg dark:border-surface-700 dark:bg-surface-900 z-50 ring-1 ring-black/5"
+											class="absolute top-full left-0 mt-1 min-w-[180px] rounded-lg border border-surface-200 bg-white p-1 shadow-lg dark:text-surface-50 dark:bg-surface-900 z-50 ring-1 ring-black/5"
 										>
 											{#if btn.label === 'Table'}
 												<div class="p-2 w-48">
-													<div class="mb-2 text-xs font-medium text-surface-500 dark:text-surface-400 text-center">
+													<div class="mb-2 text-xs font-medium text-surface-500 dark:text-surface-50 text-center">
 														{hoverRows || 1} x {hoverCols || 1}
 													</div>
 													<div
@@ -475,7 +475,7 @@
 																<button
 																	class="w-8 h-8 rounded-sm border transition-colors {r < hoverRows && c < hoverCols
 																		? 'bg-blue-100 border-blue-500 dark:bg-blue-500/30 dark:border-blue-400'
-																		: 'bg-surface-50 border-surface-200 dark:bg-surface-800 dark:border-surface-700'}"
+																		: 'bg-surface-50 border-surface-200 dark:bg-surface-800 dark:text-surface-50'}"
 																	onmouseover={() => {
 																		hoverRows = r + 1;
 																		hoverCols = c + 1;
@@ -654,7 +654,7 @@
 				}
 			}}
 		>
-			<div class="w-full max-w-lg rounded-2xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 p-6 shadow-2xl">
+			<div class="w-full max-w-lg rounded-2xl border border-surface-300 dark:text-surface-50 bg-white dark:bg-surface-900 p-6 shadow-2xl">
 				<h3 class="mb-5 text-xl font-semibold text-surface-900 dark:text-white">Command Menu</h3>
 				<div class="space-y-2">
 					<button
@@ -664,10 +664,10 @@
 							showSlashMenu = false;
 						}}
 					>
-						<iconify-icon icon="mdi:arrow-down-bold" width="22" class="text-surface-600 dark:text-surface-400"></iconify-icon>
+						<iconify-icon icon="mdi:arrow-down-bold" width="22" class="text-surface-600 dark:text-surface-50"></iconify-icon>
 						<div class="text-left">
 							<div class="font-medium text-surface-900 dark:text-white">Hard Break</div>
-							<div class="text-sm text-surface-500 dark:text-surface-400">Insert line break</div>
+							<div class="text-sm text-surface-500 dark:text-surface-50">Insert line break</div>
 						</div>
 					</button>
 					{#if field.aiEnabled}
@@ -681,7 +681,7 @@
 							<iconify-icon icon="mdi:sparkles" width="22" class="text-purple-600"></iconify-icon>
 							<div class="text-left">
 								<div class="font-medium text-surface-900 dark:text-white">Ask AI</div>
-								<div class="text-sm text-surface-500 dark:text-surface-400">Generate or rewrite with AI</div>
+								<div class="text-sm text-surface-500 dark:text-surface-50">Generate or rewrite with AI</div>
 							</div>
 						</button>
 					{/if}

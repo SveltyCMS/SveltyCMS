@@ -725,7 +725,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 			<div class="flex flex-col text-center">
 				<label for="sortButton">Sort</label>
-				<button id="sortButton" aria-label="Sort" class="preset-ghost-surface-500 btn">
+				<button id="sortButton" aria-label="Sort" class="preset-outline-surface-500 btn">
 					<iconify-icon icon="flowbite:sort-outline" width="24"></iconify-icon>
 				</button>
 			</div>
@@ -926,7 +926,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 		<div class="mb-8 flex flex-col justify-center gap-1 text-center">
 			<label for="sortButton">Sort</label>
-			<button id="sortButton" class="preset-ghost-surface-500 btn" aria-label="Sort">
+			<button id="sortButton" class="preset-outline-surface-500 btn" aria-label="Sort">
 				<iconify-icon icon="flowbite:sort-outline" width="24"></iconify-icon>
 			</button>
 		</div>
@@ -1097,7 +1097,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 		{#if useVirtualScrolling}
 			<!-- Enterprise Virtual Scrolling for Large Collections (100+ files) -->
 			<VirtualMediaGrid {filteredFiles} {gridSize} ondeleteImage={handleDeleteImage} onBulkDelete={handleBulkDelete} onEditImage={handleEditImage} />
-			<div class="alert preset-ghost-surface-500 mt-4">
+			<div class="alert preset-outline-surface-500 mt-4">
 				<iconify-icon icon="mdi:lightning-bolt" width="20"></iconify-icon>
 				<span class="text-sm">
 					Virtual scrolling enabled for optimal performance with {filteredFiles.length} files
@@ -1131,7 +1131,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			<p class="font-semibold">Advanced search active</p>
 			<p class="text-sm opacity-90">Showing filtered results</p>
 		</div>
-		<button onclick={clearAdvancedSearch} class="preset-ghost-surface-500 btn-icon btn-sm" aria-label="Clear search">
+		<button onclick={clearAdvancedSearch} class="preset-outline-surface-500 btn-icon btn-sm" aria-label="Clear search">
 			<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 		</button>
 	</div>

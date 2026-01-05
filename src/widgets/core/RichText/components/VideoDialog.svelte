@@ -92,14 +92,14 @@
 		{#if insert_url}
 			<form onsubmit={handleSubmit} class="relative mt-2 flex flex-col items-center justify-center gap-4">
 				<FloatingInput bind:value={youtube_url} autofocus={true} textColor="black" name="Youtube URL" label="Youtube URL" />
-				<button type="submit" class="variant-filled-primary btn w-full">Add Video</button>
+				<button type="submit" class="preset-filled-primary-500 btn w-full">Add Video</button>
 			</form>
 		{:else}
 			<div class="relative mt-2 flex flex-col items-center justify-center gap-4">
 				<p class="text-sm text-gray-500">Video upload is not yet implemented.</p>
 				<p>or</p>
 				<div class="flex w-full justify-center gap-2">
-					<button class="variant-outline-primary btn w-full" disabled>Browse locally</button>
+					<button class="preset-outline-primary-500 btn w-full" disabled>Browse locally</button>
 					<button class="variant-filled-secondary btn w-full" onclick={() => (insert_url = true)}> YouTube </button>
 				</div>
 			</div>

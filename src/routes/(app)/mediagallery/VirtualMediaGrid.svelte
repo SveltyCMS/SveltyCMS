@@ -163,7 +163,7 @@ Implements custom virtual scrolling without external dependencies.
 					isSelectionMode = !isSelectionMode;
 					selectedFiles = new Set();
 				}}
-				class="preset-ghost-surface-500 btn btn-sm"
+				class="preset-outline-surface-500 btn-sm"
 				aria-label="Toggle selection mode"
 			>
 				<iconify-icon icon={isSelectionMode ? 'mdi:close' : 'mdi:checkbox-multiple-marked'} width="20"></iconify-icon>
@@ -171,11 +171,11 @@ Implements custom virtual scrolling without external dependencies.
 			</button>
 
 			{#if isSelectionMode}
-				<button onclick={selectAll} class="preset-ghost-surface-500 btn btn-sm">
+				<button onclick={selectAll} class="preset-outline-surface-500 btn-sm">
 					<iconify-icon icon="mdi:select-all" width="20"></iconify-icon>
 					All
 				</button>
-				<button onclick={deselectAll} class="preset-ghost-surface-500 btn btn-sm">
+				<button onclick={deselectAll} class="preset-outline-surface-500 btn-sm">
 					<iconify-icon icon="mdi:select-off" width="20"></iconify-icon>
 					None
 				</button>
@@ -186,27 +186,27 @@ Implements custom virtual scrolling without external dependencies.
 			<div class="flex flex-wrap items-center gap-2">
 				<span class="text-sm font-semibold">{selectedFiles.size} selected</span>
 
-				<button onclick={handleBulkDownload} class="preset-filled-primary-500 btn btn-sm">
+				<button onclick={handleBulkDownload} class="preset-filled-primary-500 btn-sm">
 					<iconify-icon icon="mdi:download" width="18"></iconify-icon>
 					Download
 				</button>
 
-				<button onclick={() => openBulkEditModal('tag')} class="preset-filled-secondary-500 btn btn-sm">
+				<button onclick={() => openBulkEditModal('tag')} class="preset-filled-secondary-500 btn-sm">
 					<iconify-icon icon="mdi:tag-multiple" width="18"></iconify-icon>
 					Tag
 				</button>
 
-				<button onclick={() => openBulkEditModal('move')} class="preset-filled-secondary-500 btn btn-sm">
+				<button onclick={() => openBulkEditModal('move')} class="preset-filled-secondary-500 btn-sm">
 					<iconify-icon icon="mdi:folder-move" width="18"></iconify-icon>
 					Move
 				</button>
 
-				<button onclick={() => openBulkEditModal('rename')} class="preset-filled-secondary-500 btn btn-sm">
+				<button onclick={() => openBulkEditModal('rename')} class="preset-filled-secondary-500 btn-sm">
 					<iconify-icon icon="mdi:rename-box" width="18"></iconify-icon>
 					Rename
 				</button>
 
-				<button onclick={handleBulkDelete} class="preset-filled-error-500 btn btn-sm">
+				<button onclick={handleBulkDelete} class="preset-filled-error-500 btn-sm">
 					<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
 					Delete
 				</button>
@@ -369,7 +369,7 @@ Implements custom virtual scrolling without external dependencies.
 				Bulk {bulkEditAction === 'rename' ? 'Rename' : bulkEditAction === 'move' ? 'Move' : 'Tag'}
 			</h3>
 
-			<p class="mb-4 text-sm text-surface-600 dark:text-surface-400">
+			<p class="mb-4 text-sm text-surface-600 dark:text-surface-50">
 				{selectedFiles.size} file{selectedFiles.size !== 1 ? 's' : ''} selected
 			</p>
 
@@ -393,7 +393,7 @@ Implements custom virtual scrolling without external dependencies.
 			</div>
 
 			<div class="flex justify-end gap-2">
-				<button onclick={() => (showBulkEditModal = false)} class="preset-ghost-surface-500 btn">Cancel</button>
+				<button onclick={() => (showBulkEditModal = false)} class="preset-outline-surface-500 btn">Cancel</button>
 				<button onclick={applyBulkEdit} class="preset-filled-primary-500 btn" disabled={!bulkEditValue.trim()}>Apply</button>
 			</div>
 		</div>

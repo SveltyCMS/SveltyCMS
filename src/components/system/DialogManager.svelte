@@ -43,7 +43,7 @@
 							<Dialog.Title class="h3 font-bold">
 								{modalState.active.props.title}
 							</Dialog.Title>
-							<Dialog.CloseTrigger class="btn-icon btn-sm variant-soft hover:variant-filled">
+							<Dialog.CloseTrigger class="btn-icon btn-sm preset-tonal  hover:variant-filled">
 								<iconify-icon icon="mingcute:close-fill"></iconify-icon>
 							</Dialog.CloseTrigger>
 						</div>

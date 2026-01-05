@@ -19,7 +19,12 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 		iconSize?: number;
 	}
 
-	const { showTooltip = true, tooltipPlacement = 'bottom', buttonClass = 'preset-ghost btn-icon', iconSize = 22 }: Props = $props();
+	const {
+		showTooltip = true,
+		tooltipPlacement = 'bottom',
+		buttonClass = 'preset-outline-surface-500 btn-icon rounded-full',
+		iconSize = 22
+	}: Props = $props();
 
 	// Cycle through system -> light -> dark -> system
 	function cycleTheme() {

@@ -42,7 +42,7 @@ and proper active state indication.
 	<div class="sidebar-tools flex flex-1 flex-col gap-1 p-1.5 lg:p-2 max-lg:gap-0.5 max-lg:p-1">
 		{#each tools as tool}
 			<button
-				class="btn variant-filled-primary group relative flex flex-col items-center justify-center gap-1 py-2"
+				class="btn preset-filled-primary-500 group relative flex flex-col items-center justify-center gap-1 py-2"
 				class:active={isToolActive(tool)}
 				class:disabled={!hasImage}
 				class:bg-primary-500={isToolActive(tool)}
@@ -82,7 +82,7 @@ and proper active state indication.
 		{#if !hasImage}
 			<div class="no-image-hint flex flex-col items-center gap-1 p-2 text-center">
 				<iconify-icon icon="mdi:information-outline" width="16" class="text-surface-400"></iconify-icon>
-				<span class="text-xs text-surface-500 dark:text-surface-400"> Upload an image to enable tools </span>
+				<span class="text-xs text-surface-500 dark:text-surface-50"> Upload an image to enable tools </span>
 			</div>
 		{/if}
 	</div>

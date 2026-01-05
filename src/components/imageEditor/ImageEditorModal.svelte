@@ -101,7 +101,7 @@ A reusable modal that wraps the main Image Editor.
 
 		<div class="relative flex h-[90vh] w-[90vw] max-w-7xl flex-col rounded-lg bg-surface-100 shadow-xl dark:bg-surface-800">
 			<header
-				class="flex items-center justify-between border-b border-surface-300 p-3 lg:p-4 dark:border-surface-700 bg-surface-100/80 dark:bg-surface-800/80 sticky top-0 z-10"
+				class="flex items-center justify-between border-b border-surface-300 p-3 lg:p-4 dark:text-surface-50 bg-surface-100/80 dark:bg-surface-800/80 sticky top-0 z-10"
 			>
 				<div class="flex items-center gap-3 overflow-hidden">
 					{#if activeWidget}
@@ -134,7 +134,7 @@ A reusable modal that wraps the main Image Editor.
 					<button
 						onclick={() => editorComponent?.handleUndo()}
 						disabled={!imageEditorStore.canUndoState}
-						class="btn-icon variant-ghost-surface"
+						class="btn-icon preset-outlined-surface-500"
 						title="Undo (Ctrl+Z)"
 						aria-label="Undo"
 					>
@@ -143,22 +143,22 @@ A reusable modal that wraps the main Image Editor.
 					<button
 						onclick={() => editorComponent?.handleRedo()}
 						disabled={!imageEditorStore.canRedoState}
-						class="btn-icon variant-ghost-surface"
+						class="btn-icon preset-outlined-surface-500"
 						title="Redo (Ctrl+Shift+Z)"
 						aria-label="Redo"
 					>
 						<iconify-icon icon="mdi:redo" width="20"></iconify-icon>
 					</button>
 					<div class="h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
-					<button onclick={handleCancelClick} class="btn variant-ghost-surface">
+					<button onclick={handleCancelClick} class="btn preset-outlined-surface-500">
 						{activeState ? 'Exit Tool' : 'Cancel'}
 					</button>
-					<button onclick={() => editorComponent?.handleSave()} class="btn variant-filled-success">
+					<button onclick={() => editorComponent?.handleSave()} class="btn preset-filled-success-500">
 						<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
 						<span>Save</span>
 					</button>
 					<div class="h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
-					<button onclick={handleClose} class="btn-icon variant-ghost-surface" aria-label="Close">
+					<button onclick={handleClose} class="btn-icon preset-outlined-surface-500" aria-label="Close">
 						<iconify-icon icon="mdi:close" width="24"></iconify-icon>
 					</button>
 				</div>

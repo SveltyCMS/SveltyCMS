@@ -172,7 +172,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 						<button
 							type="button"
 							onclick={() => copyToClipboard(secret)}
-							class="preset-soft-primary-500 btn btn-sm"
+							class="preset-tonal -primary-500 btn-sm"
 							title={m.button_copy()}
 							aria-label={m.button_copy()}
 						>
@@ -241,7 +241,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 					</div>
 
 					<div class="mb-3 flex justify-center">
-						<button type="button" onclick={() => copyToClipboard(backupCodes.join('\n'))} class="preset-soft-primary-500 btn btn-sm">
+						<button type="button" onclick={() => copyToClipboard(backupCodes.join('\n'))} class="preset-tonal -primary-500 btn-sm">
 							<iconify-icon icon="mdi:content-copy" width="16" class="mr-1"></iconify-icon>
 							{m.button_copy_all()}
 						</button>

@@ -104,12 +104,12 @@ Replaces the ModalWidgetForm, providing a full-screen or focused editor experien
 	</Stepper>
 
 	<!-- Main Content Area -->
-	<div class="flex flex-1 flex-col rounded-xl border border-surface-200 bg-white shadow-sm dark:border-surface-700 dark:bg-surface-800">
+	<div class="flex flex-1 flex-col rounded-xl border border-surface-200 bg-white shadow-sm dark:text-surface-50 dark:bg-surface-800">
 		<!-- Header -->
-		<div class="border-b border-surface-200 p-6 dark:border-surface-700">
+		<div class="border-b border-surface-200 p-6 dark:text-surface-50">
 			<!-- Fallback for title key -->
 			<h2 class="text-2xl font-bold">{(m as any).widget_configuration_title || 'Widget Configuration'}</h2>
-			<p class="text-surface-500 dark:text-surface-400">
+			<p class="text-surface-500 dark:text-surface-50">
 				Configuring <span class="font-bold text-primary-500">{target?.label || 'New Field'}</span>
 				<span class="text-xs opacity-70">({target?.widget?.Name || 'Unknown'})</span>
 			</p>
@@ -136,17 +136,17 @@ Replaces the ModalWidgetForm, providing a full-screen or focused editor experien
 		</div>
 
 		<!-- Footer Actions -->
-		<div class="flex items-center justify-between border-t border-surface-200 p-4 dark:border-surface-700">
-			<button type="button" onclick={handleDelete} class="variant-ghost-error btn">
+		<div class="flex items-center justify-between border-t border-surface-200 p-4 dark:text-surface-50">
+			<button type="button" onclick={handleDelete} class="preset-outlined-error-500 btn">
 				<iconify-icon icon="lucide:trash-2"></iconify-icon>
 				<span>{m.button_delete()}</span>
 			</button>
 
 			<div class="flex gap-2">
-				<button type="button" onclick={handleBack} class="variant-ghost-secondary btn">
+				<button type="button" onclick={handleBack} class="preset-outlined-secondary-500 btn">
 					{currentStep === 0 ? m.button_cancel() : m.button_previous()}
 				</button>
-				<button type="button" onclick={handleNext} class="variant-filled-primary btn">
+				<button type="button" onclick={handleNext} class="preset-filled-primary-500 btn">
 					{currentStep === steps.length - 1 ? m.button_save() : m.button_next()}
 				</button>
 			</div>

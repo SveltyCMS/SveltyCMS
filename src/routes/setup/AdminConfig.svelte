@@ -98,9 +98,14 @@
 				<label for="admin-username" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:account" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.form_username?.() || 'Username'}</span>
-					<button type="button" tabindex="-1" title="Help available" aria-label="Help: Username" class="ml-1 text-slate-400 hover:text-primary-500">
-						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-					</button>
+					<button
+						type="button"
+						tabindex="-1"
+						title="Help available"
+						aria-label="Help: Username"
+						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
+					>
 				</label>
 				<div
 					data-popup="popupAdminUsername"
@@ -137,9 +142,14 @@
 				<label for="admin-email" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:email" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.form_email?.() || 'Email'}</span>
-					<button type="button" tabindex="-1" title="Help available" aria-label="Help: Email" class="ml-1 text-slate-400 hover:text-primary-500">
-						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-					</button>
+					<button
+						type="button"
+						tabindex="-1"
+						title="Help available"
+						aria-label="Help: Email"
+						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
+					>
 				</label>
 				<div
 					data-popup="popupAdminEmail"
@@ -176,9 +186,14 @@
 				<label for="admin-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.form_password()}</span>
-					<button type="button" tabindex="-1" title="Help available" aria-label="Help: Password" class="ml-1 text-slate-400 hover:text-primary-500">
-						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-					</button>
+					<button
+						type="button"
+						tabindex="-1"
+						title="Help available"
+						aria-label="Help: Password"
+						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
+					>
 				</label>
 				<div
 					data-popup="popupAdminPassword"
@@ -226,7 +241,7 @@
 						type="button"
 						title="Help available"
 						aria-label="Help: Confirm Password"
-						class="ml-1 text-slate-400 hover:text-primary-500"
+						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 					>
 						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 					</button>
@@ -277,7 +292,7 @@
 				<li
 					class="flex items-center {passwordRequirements.length
 						? 'text-tertiary-500 dark:text-primary-500'
-						: 'text-surface-500 dark:text-surface-400'}"
+						: 'text-surface-500 dark:text-surface-50'}"
 				>
 					<span
 						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.length
@@ -294,7 +309,7 @@
 				<li
 					class="flex items-center {passwordRequirements.letter
 						? 'text-tertiary-500 dark:text-primary-500'
-						: 'text-surface-500 dark:text-surface-400'}"
+						: 'text-surface-500 dark:text-surface-50'}"
 				>
 					<span
 						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.letter
@@ -311,7 +326,7 @@
 				<li
 					class="flex items-center {passwordRequirements.number
 						? 'text-tertiary-500 dark:text-primary-500'
-						: 'text-surface-500 dark:text-surface-400'}"
+						: 'text-surface-500 dark:text-surface-50'}"
 				>
 					<span
 						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.number
@@ -328,7 +343,7 @@
 				<li
 					class="flex items-center {passwordRequirements.special
 						? 'text-tertiary-500 dark:text-primary-500'
-						: 'text-surface-500 dark:text-surface-400'}"
+						: 'text-surface-500 dark:text-surface-50'}"
 				>
 					<span
 						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.special
@@ -343,9 +358,7 @@
 					<span class="sr-only">, {passwordRequirements.special ? 'complete' : 'incomplete'}.</span>
 				</li>
 				<li
-					class="flex items-center {passwordRequirements.match
-						? 'text-tertiary-500 dark:text-primary-500'
-						: 'text-surface-500 dark:text-surface-400'}"
+					class="flex items-center {passwordRequirements.match ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-500 dark:text-surface-50'}"
 				>
 					<span
 						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.match
@@ -363,7 +376,7 @@
 					class="mt-2 flex items-center justify-center border-t border-slate-200 pt-2 font-bold text-tertiary-500 dark:border-slate-700 dark:text-primary-500"
 				>
 					<span class="mr-2 inline-flex h-5 w-5 items-center justify-center">
-						<iconify-icon icon="mdi:shield-check" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="mdi:shield-check" width="18" class="text-error-500" aria-hidden="true"></iconify-icon>
 					</span>
 					{m.setup_help_admin_password_requirements_account_note?.() || 'This account will have full administrative privileges'}
 				</li>

@@ -56,7 +56,6 @@
 			{iconStatus === StatusTypes.unpublish ? 'border-yellow-500' : ''}
 			{iconStatus === StatusTypes.publish ? 'border-primary-500' : ''}
 			{iconStatus === StatusTypes.schedule ? 'border-pink-500' : ''}
-			{iconStatus === StatusTypes.test ? 'border-red-500' : ''}
 			{iconStatus === undefined ? 'border-surface-800' : ''} 
 			{!iconStatus ? 'dark:border-surface-400' : ''}"
 	>
@@ -127,18 +126,7 @@
 					</linearGradient>
 				</defs>
 			</svg>
-		{:else if checked && app.listboxValueState === 'test'}
-			<!-- Yellow Exclamation  icon 3d -->
-			<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
-				<!-- Yellow triangle -->
-				<polygon points="25,5 45,40 5,40" style="fill:yellow;stroke:black;stroke-width:1" />
-				<!-- Black exclamation mark -->
-				<line x1="25" y1="15" x2="25" y2="30" style="stroke:black;stroke-width:2" />
-				<circle cx="25" cy="35" r="2" style="fill:black" />
-				<!-- Shadow for 3D effect -->
-				<polygon points="27,7 47,42 7,42" style="fill:rgba(0,0,0,0.1)" />
-			</svg>
-		{:else if checked && app.listboxValueState !== 'delete' && app.listboxValueState !== 'test'}
+		{:else if checked && app.listboxValueState !== 'delete'}
 			<!--Green Check icon 3d-->
 			<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 				<defs>

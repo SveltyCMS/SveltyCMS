@@ -157,7 +157,7 @@
 			onconsider={(e) => (selectedFiles = e.detail.items)}
 		>
 			{#each selectedFiles as file (file._id)}
-				<div class="relative overflow-hidden rounded border border-surface-200 dark:border-surface-700" animate:flip>
+				<div class="relative overflow-hidden rounded border border-surface-200 dark:text-surface-50" animate:flip>
 					<img src={file.thumbnailUrl} alt={file.name} class="h-[100px] w-full object-cover" />
 					<span class="block truncate p-1 text-center text-xs">{file.name}</span>
 					<button

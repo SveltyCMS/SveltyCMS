@@ -34,28 +34,31 @@
 	import { logger } from '@utils/logger';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
+
 	// Utils
 	import { batchDeleteEntries, deleteEntry, invalidateCollectionCache, updateEntryStatus } from '@utils/apiClient';
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import { cloneEntries, setEntriesStatus } from '@utils/entryActions';
 	import { debounce, getFieldName, meta_data } from '@utils/utils';
 	import { preloadEntry, reflectModeInURL } from '@utils/navigationUtils';
-	// Import centralized actions
+	import { showToast } from '@utils/toast';
+
 	// Config
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
+
 	// Types
 	import type { PaginationSettings, TableHeader } from '@src/content/types';
 	import type { StatusType } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
+
 	// Stores
 	import { collection, collectionValue, mode, setCollectionValue, setMode, setModifyEntry, statusMap } from '@stores/collectionStore.svelte';
-	// DELETED: globalLoadingStore imports - not needed with SSR
 	import { screen } from '@stores/screenSizeStore.svelte';
 	import { app } from '@stores/store.svelte';
 	import { ui } from '@stores/UIStore.svelte';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -67,14 +70,13 @@
 	import TablePagination from '@components/system/table/TablePagination.svelte';
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
 	import TranslationStatus from './TranslationStatus.svelte';
+
 	// Skeleton
 	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modalUtils';
-	import { showToast } from '@utils/toast';
+
 	// Svelte-dnd-action
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
-
-	const flipDurationMs = 300;
 
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
@@ -321,11 +323,14 @@
 		return () => clearInterval(cleanupInterval);
 	});
 
+	// DND Logic for Headers
 	function handleDndConsider(event: CustomEvent) {
 		displayTableHeaders = event.detail.items;
 	}
+
 	function handleDndFinalize(event: CustomEvent) {
 		displayTableHeaders = event.detail.items;
+		entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
 	}
 
 	// Pagination
@@ -339,6 +344,42 @@
 		displayTableHeaders: []
 	});
 	let entryListPaginationSettings = $state(defaultPaginationSettings(collection.value?._id ?? null));
+
+	// Load settings from localStorage
+	$effect(() => {
+		if (browser && collection.value?._id) {
+			const key = `entryListPaginationSettings_${collection.value._id}`;
+			const saved = localStorage.getItem(key);
+			if (saved) {
+				try {
+					const parsed = JSON.parse(saved);
+					// Ensure we don't overwrite with stale data structure, merge carefully if needed
+					// For now, assume saved state is valid but ensure collectionId matches
+					if (parsed.collectionId === collection.value._id) {
+						// We need to match the Shape of PaginationSettings
+						entryListPaginationSettings = {
+							...defaultPaginationSettings(collection.value._id),
+							...parsed
+							// Ensure displayTableHeaders are re-verified against current schema later by existing effects
+						};
+					}
+				} catch (e) {
+					console.error('Failed to load entry list settings', e);
+				}
+			}
+		}
+	});
+
+	// Save settings to localStorage
+	$effect(() => {
+		if (browser && collection.value?._id && entryListPaginationSettings) {
+			const key = `entryListPaginationSettings_${collection.value._id}`;
+			// Debounce save slightly or just save? $effect runs after render.
+			// Use untrack? No, we want to track entryListPaginationSettings.
+			const stringified = JSON.stringify(entryListPaginationSettings);
+			localStorage.setItem(key, stringified);
+		}
+	});
 
 	// Simplified stable state management
 	let showDeleted = $state(false); // Controls whether to view active or archived entries
@@ -381,7 +422,41 @@
 				});
 			});
 		});
-	}); // Destructure for easier access
+	});
+
+	// Sync filters from URL parameters
+	$effect(() => {
+		const searchParams = page.url.searchParams;
+		untrack(() => {
+			const newFilters = { ...entryListPaginationSettings.filters };
+			let hasChanges = false;
+			let hasActiveUrlFilters = false;
+
+			// Check all filter_ params in URL
+			for (const [key, value] of searchParams.entries()) {
+				if (key.startsWith('filter_')) {
+					const filterName = key.replace('filter_', '');
+					if (newFilters[filterName] !== value) {
+						newFilters[filterName] = value;
+						hasChanges = true;
+					}
+					if (value) hasActiveUrlFilters = true;
+				}
+			}
+
+			// Apply changes if any
+			if (hasChanges) {
+				entryListPaginationSettings.filters = newFilters;
+			}
+
+			// Auto-open filter row if filters are present in URL
+			if (hasActiveUrlFilters && !filterShow) {
+				filterShow = true;
+			}
+		});
+	});
+
+	// Destructure for easier access
 	const currentLanguage = $derived(propContentLanguage || currentStates.language);
 	const currentMode = $derived(currentStates.mode);
 	const currentCollection = $derived(currentStates.collection);
@@ -477,6 +552,14 @@
 		selectAllColumns = displayTableHeaders.length > 0 ? displayTableHeaders.every((h) => h.visible) : false;
 	});
 
+	const cellPaddingClass = $derived(
+		entryListPaginationSettings.density === 'compact'
+			? '!p-1'
+			: entryListPaginationSettings.density === 'comfortable'
+				? '!p-3' // Comfortable
+				: '!p-2' // Normal
+	);
+
 	$effect(() => {
 		if (currentMode === 'view') {
 			untrack(() => {
@@ -520,6 +603,8 @@
 	const hasSelections = $derived.by(() => {
 		return Object.values(selectedMap).some((isSelected) => isSelected);
 	});
+
+	const hasActiveFilters = $derived(Object.values(entryListPaginationSettings.filters).some((f) => !!f) || !!globalSearchValue);
 
 	setModifyEntry(async (status?: keyof typeof statusMap): Promise<void> => {
 		const selectedIds = getSelectedIds();
@@ -696,7 +781,7 @@
 					onkeydown={() => {}}
 					onclick={() => ui.toggle('leftSidebar', screen.isDesktop ? 'full' : 'collapsed')}
 					aria-label="Open Sidebar"
-					class="variant-ghost-surface btn-icon mt-1"
+					class="preset-outlined-surface-500 btn-icon mt-1"
 				>
 					<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 				</button>
@@ -732,7 +817,7 @@
 				type="button"
 				onkeydown={() => {}}
 				onclick={() => (expand = !expand)}
-				class="variant-ghost-surface btn-icon p-1 sm:hidden"
+				class="preset-outlined-surface-500 btn-icon p-1 sm:hidden"
 				aria-label="Expand/Collapse Filters"
 			>
 				<iconify-icon icon="material-symbols:filter-list-rounded" width="30"> </iconify-icon>
@@ -778,8 +863,8 @@
 
 	{#if columnShow}
 		<!-- Column order -->
-		<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 p-2 text-center dark:bg-surface-700">
-			<div class="text-sm text-white dark:text-primary-500">
+		<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-secondary-100 p-2 text-center dark:bg-surface-700">
+			<div class="text-sm dark:text-primary-500">
 				{m.entrylist_dnd()}
 			</div>
 			<!-- Select All Columns -->
@@ -790,43 +875,41 @@
 						{m.entrylist_all()}
 					</label>
 
-					<button class="variant-ghost-surface btn btn-sm" onclick={resetViewSettings}>
-						<iconify-icon icon="material-symbols-light:device-reset" width="20" class="mr-1 text-tertiary-500"></iconify-icon>
+					<button class="bg-surface-400 btn text-white" onclick={resetViewSettings}>
+						<iconify-icon icon="material-symbols-light:device-reset" width="20" class="mr-1 text-white"></iconify-icon>
 						Reset View
 					</button>
 				</div>
 				<section
-					use:dndzone={{ items: displayTableHeaders, flipDurationMs }}
+					use:dndzone={{ items: displayTableHeaders, flipDurationMs: 300, type: 'columns', dropTargetStyle: { outline: 'none' } }}
 					onconsider={handleDndConsider}
 					onfinalize={handleDndFinalize}
-					class="flex flex-wrap justify-center gap-1 rounded-md p-1"
+					class="flex w-full flex-wrap justify-center gap-2 p-2 border-2 border-dashed border-secondary-500/50 rounded transition-all hover:border-secondary-500"
 				>
 					{#each displayTableHeaders as header (header.id)}
-						<button
-							class="chip {header.visible ? 'variant-filled-secondary' : 'variant-ghost-secondary'} mr-1 flex items-center justify-center text-xs"
-							animate:flip={{ duration: flipDurationMs }}
-							onclick={() => handleColumnVisibilityToggle(header)}
-						>
-							{#if header.visible}<iconify-icon icon="fa:check" class="mr-1"></iconify-icon>{/if}
-							<span class="capitalize">{header.label}</span>
-						</button>
+						<div animate:flip={{ duration: 300 }}>
+							<button
+								type="button"
+								class="chip {header.visible
+									? 'dark:preset-filled-primary-500 preset-filled-tertiary-500'
+									: 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move"
+								onclick={() => handleColumnVisibilityToggle(header)}
+							>
+								{#if header.visible}<iconify-icon icon="fa:check" class="mr-1"></iconify-icon>{/if}
+								<span class="capitalize">{header.label}</span>
+							</button>
+						</div>
 					{/each}
 				</section>
 			</div>
 		</div>
 	{/if}
 
-	{#if tableData.length > 0}
+	{#if tableData.length > 0 || hasActiveFilters}
 		<div class="table-container max-h-[calc(100dvh)] overflow-auto">
-			<table
-				class="table table-interactive table-hover {entryListPaginationSettings.density === 'compact'
-					? 'table-compact'
-					: entryListPaginationSettings.density === 'comfortable'
-						? 'table-comfortable'
-						: ''}"
-			>
+			<table class="table table-interactive table-hover">
 				<!-- Table Header -->
-				<thead class="sticky top-0 z-10 bg-surface-100 text-tertiary-500 dark:bg-surface-900 dark:text-primary-500">
+				<thead class="sticky top-0 z-10 bg-secondary-100 text-tertiary-500 dark:bg-surface-900 dark:text-primary-500">
 					{#if filterShow && visibleTableHeaders.length > 0}
 						<tr class="divide-x divide-surface-400 dark:divide-surface-600">
 							<th>
@@ -835,11 +918,19 @@
 									<button
 										onclick={() => {
 											const clearedFilters: Record<string, string> = {};
-											Object.keys(entryListPaginationSettings.filters).forEach((key) => (clearedFilters[key] = ''));
+											const urlUpdates: Record<string, string | null> = {};
+
+											Object.keys(entryListPaginationSettings.filters).forEach((key) => {
+												clearedFilters[key] = '';
+												urlUpdates[`filter_${key}`] = null;
+											});
+
 											entryListPaginationSettings.filters = clearedFilters;
+											urlUpdates.page = '1';
+											updateURL(urlUpdates);
 										}}
 										aria-label="Clear All Filters"
-										class="variant-ghost-surface btn-icon btn-sm"
+										class="preset-outlined-surface-500 btn-icon"
 									>
 										<iconify-icon icon="material-symbols:close" width="18"></iconify-icon>
 									</button>
@@ -856,7 +947,9 @@
 											name={(header as TableHeader).name}
 											value={entryListPaginationSettings.filters[(header as TableHeader).name] || ''}
 											onInput={(value: string) => onFilterChange((header as TableHeader).name, value)}
-											inputClass="text-xs"
+											inputClass="text-xs dark:text-primary-500"
+											textColor=""
+											labelClass="dark:text-white"
 										/>
 									</div>
 								</th>
@@ -875,7 +968,7 @@
 
 						{#each visibleTableHeaders as header (header.id)}
 							<th
-								class="cursor-pointer px-2 py-1 text-center text-xs sm:text-sm {(header as TableHeader).name ===
+								class="cursor-pointer text-center text-xs sm:text-sm {cellPaddingClass} {(header as TableHeader).name ===
 								entryListPaginationSettings.sorting.sortedBy
 									? 'font-semibold text-primary-500 dark:text-secondary-400'
 									: 'text-tertiary-500 dark:text-primary-500'}"
@@ -915,7 +1008,7 @@
 								{#if visibleTableHeaders}
 									{#each visibleTableHeaders as header (header.id)}
 										<td
-											class="p-0 text-center text-xs font-bold sm:text-sm {(header as TableHeader).name !== 'status'
+											class="text-center {cellPaddingClass} text-xs font-bold sm:text-sm {(header as TableHeader).name !== 'status'
 												? 'cursor-pointer transition-colors duration-200 hover:bg-primary-500/10 dark:hover:bg-secondary-500/20'
 												: 'cursor-pointer transition-colors duration-200 hover:bg-warning-500/10 dark:hover:bg-warning-500/20'}"
 											title={(header as TableHeader).name !== 'status' ? 'Click to edit this entry' : 'Click to change status'}
@@ -966,7 +1059,7 @@
 														}
 													});
 												} else {
-													// ✅ GUI-FIRST PATTERN: Navigate to edit mode (loads full multilingual data)
+													// GUI-FIRST PATTERN: Navigate to edit mode (loads full multilingual data)
 													const originalEntry = tableData.find((e: any) => e._id === entry._id);
 													if (originalEntry) {
 														// Navigate to edit mode - this triggers SSR to load full multilingual data
@@ -1013,13 +1106,17 @@
 								{/if}
 							</tr>
 						{/each}
+					{:else}
+						<tr>
+							<td colspan={visibleTableHeaders.length + 1} class="p-4 text-center text-surface-500 dark:text-surface-50"> No results found. </td>
+						</tr>
 					{/if}
 				</tbody>
 			</table>
 		</div>
 		<!-- Pagination -->
 		<div
-			class="sticky bottom-0 left-0 right-0 z-10 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-surface-100 dark:border-surface-700 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
+			class="sticky bottom-0 left-0 right-0 z-10 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-secondary-100 dark:text-surface-50 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
 		>
 			<TablePagination
 				currentPage={serverPagination.currentPage}

@@ -97,7 +97,7 @@ export class AppStore {
 	// Rendering & UI Elements
 	headerActionButton = $state<any>(undefined);
 	headerActionButton2 = $state<any>(undefined);
-	pkgBgColor = $state('variant-filled-primary');
+	pkgBgColor = $state('preset-filled-primary-500');
 	file = $state<File | null>(null);
 	saveEditedImage = $state(false);
 	saveFunction = $state<SaveFunction>({ fn: () => {}, reset: () => {} });

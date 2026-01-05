@@ -18,19 +18,19 @@
 
 <script lang="ts">
 	import { getPublicSetting, publicEnv } from '@src/stores/globalSettings.svelte';
-	
+
 	// Components
 	import Seasons from '@components/system/icons/Seasons.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import SignIn from './components/SignIn.svelte';
 	import SignUp from './components/SignUp.svelte';
 	import VersionCheck from '@components/VersionCheck.svelte';
-	
+
 	// Stores
 	import { systemLanguage } from '@stores/store.svelte';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { locales as availableLocales } from '@src/paraglide/runtime';
-	
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 

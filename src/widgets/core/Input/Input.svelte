@@ -101,8 +101,8 @@
 		if (field?.maxLength && length > (field?.maxLength as number)) return 'bg-error-500';
 		if (field?.count && length === (field?.count as number)) return 'bg-success-500'; // Semantic success color
 		if (field?.count && length > (field?.count as number)) return 'bg-warning-500'; // Semantic warning color
-		if (field?.minLength) return '!variant-filled-surface';
-		return '!variant-ghost-surface';
+		if (field?.minLength) return '!preset-filled-surface-500';
+		return '!preset-outlined-surface-500';
 	});
 
 	// ✅ SSOT: Use validation schema from index.ts
@@ -225,7 +225,7 @@
 </script>
 
 <div class="relative mb-4 min-h-10 w-full pb-6">
-	<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
+	<div class="preset-filled-surface-500 btn-group flex w-full rounded" role="group">
 		{#if field?.prefix}
 			<button class="px-2!" type="button" aria-label={`${field.prefix} prefix`}>
 				{field?.prefix}
@@ -299,7 +299,7 @@
 
 	<!-- Helper Text -->
 	{#if field.helper}
-		<p id={`${fieldName}-helper`} class="absolute bottom-0 left-0 w-full text-center text-xs text-surface-500 dark:text-surface-400">
+		<p id={`${fieldName}-helper`} class="absolute bottom-0 left-0 w-full text-center text-xs text-surface-500 dark:text-surface-50">
 			{field.helper}
 		</p>
 	{/if}

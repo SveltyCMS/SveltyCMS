@@ -165,9 +165,9 @@ Interactive menu builder with add/edit/reorder capabilities
 </script>
 
 <div class="space-y-4">
-	<div class="flex items-center justify-between border-b border-surface-200 pb-3 dark:border-surface-700">
+	<div class="flex items-center justify-between border-b border-surface-200 pb-3 dark:text-surface-50">
 		<h3 class=" text-lg font-semibold text-surface-900 dark:text-surface-100">Menu Structure</h3>
-		<button type="button" class="variant-filled-tertiary btn dark:variant-filled-primary" onclick={addItem}>
+		<button type="button" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={addItem}>
 			<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
 			Add Menu Item
 		</button>
@@ -182,7 +182,7 @@ Interactive menu builder with add/edit/reorder capabilities
 		{#if value && value.length > 0}
 			{#each value as item, index (item._id)}
 				<div
-					class="rounded-lg border border-surface-200 bg-surface-50/50 transition-all duration-200 dark:border-surface-700 dark:bg-surface-800/50"
+					class="rounded-lg border border-surface-200 bg-surface-50/50 transition-all duration-200 dark:text-surface-50 dark:bg-surface-800/50"
 					class:scale-95={draggedItem?._id === item._id}
 					class:opacity-50={draggedItem?._id === item._id}
 					class:!border-primary-400={dragOverIndex === index}
@@ -210,7 +210,7 @@ Interactive menu builder with add/edit/reorder capabilities
 							{#if item.children.length > 0 && (field as any).defaults?.enableExpandCollapse !== false}
 								<button
 									type="button"
-									class="variant-filled-surface btn"
+									class="preset-filled-surface-500 btn"
 									onclick={() => toggleExpanded(item)}
 									aria-expanded={item._expanded !== false}
 									aria-label={item._expanded !== false ? 'Collapse children' : 'Expand children'}
@@ -232,7 +232,7 @@ Interactive menu builder with add/edit/reorder capabilities
 								{(item._fields as any)?.title?.[lang] || (item._fields as any)?.title?.en || 'Untitled Item'}
 							</span>
 							{#if item.children.length > 0}
-								<span class=" ml-2 text-xs text-surface-500 dark:text-surface-400">({item.children.length} children)</span>
+								<span class=" ml-2 text-xs text-surface-500 dark:text-surface-50">({item.children.length} children)</span>
 							{/if}
 						</div>
 
@@ -240,7 +240,7 @@ Interactive menu builder with add/edit/reorder capabilities
 							{#if (field as any).fields && (field as any).fields.length > 1}
 								<button
 									type="button"
-									class="variant-filled-tertiary btn dark:variant-filled-primary"
+									class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500"
 									onclick={() => addChildItem(item)}
 									aria-label="Add child item"
 									title="Add child item"
@@ -249,18 +249,18 @@ Interactive menu builder with add/edit/reorder capabilities
 								</button>
 							{/if}
 
-							<button type="button" class="abtn variant-filled-surface" onclick={() => editItem(item, 0)} aria-label="Edit item" title="Edit item">
+							<button type="button" class="abtn preset-filled-surface-500" onclick={() => editItem(item, 0)} aria-label="Edit item" title="Edit item">
 								<iconify-icon icon="mdi:pencil" width="14"></iconify-icon>
 							</button>
 
-							<button type="button" class="variant-filled-error btn" onclick={() => deleteItem(item)} aria-label="Delete item" title="Delete item">
+							<button type="button" class="preset-filled-error-500 btn" onclick={() => deleteItem(item)} aria-label="Delete item" title="Delete item">
 								<iconify-icon icon="mdi:delete" width="14"></iconify-icon>
 							</button>
 						</div>
 					</div>
 
 					{#if item.children.length > 0 && item._expanded !== false}
-						<div class="ml-8 border-l-2 border-surface-200 pl-4 dark:border-surface-700">
+						<div class="ml-8 border-l-2 border-surface-200 pl-4 dark:text-surface-50">
 							<MegaMenuInput bind:value={item.children} {field} {error} />
 						</div>
 					{/if}
@@ -269,7 +269,7 @@ Interactive menu builder with add/edit/reorder capabilities
 		{:else}
 			<div class="py-8 text-center">
 				<iconify-icon icon="mdi:menu" width="48" class="empty-icon mb-4 text-surface-300 dark:text-surface-600"></iconify-icon>
-				<p class="empty-message text-surface-500 dark:text-surface-400">No menu items yet. Click "Add Menu Item" to get started.</p>
+				<p class="empty-message text-surface-500 dark:text-surface-50">No menu items yet. Click "Add Menu Item" to get started.</p>
 			</div>
 		{/if}
 	</div>

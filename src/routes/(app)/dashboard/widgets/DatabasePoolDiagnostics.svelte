@@ -115,25 +115,25 @@
 			<div class="mb-6 grid grid-cols-2 gap-4">
 				<!-- Total Connections -->
 				<div class="rounded-lg bg-surface-100 p-3 dark:bg-surface-700/50">
-					<div class="mb-1 text-xs text-surface-500 dark:text-surface-400">Total</div>
+					<div class="mb-1 text-xs text-surface-500 dark:text-surface-50">Total</div>
 					<div class="text-2xl font-bold text-surface-900 dark:text-white">{diagnostics.totalConnections}</div>
 				</div>
 
 				<!-- Active Connections -->
 				<div class="rounded-lg bg-surface-100 p-3 dark:bg-surface-700/50">
-					<div class="mb-1 text-xs text-surface-500 dark:text-surface-400">Active</div>
+					<div class="mb-1 text-xs text-surface-500 dark:text-surface-50">Active</div>
 					<div class="text-2xl font-bold text-surface-900 dark:text-white">{diagnostics.activeConnections}</div>
 				</div>
 
 				<!-- Idle Connections -->
 				<div class="rounded-lg bg-surface-100 p-3 dark:bg-surface-700/50">
-					<div class="mb-1 text-xs text-surface-500 dark:text-surface-400">Idle</div>
+					<div class="mb-1 text-xs text-surface-500 dark:text-surface-50">Idle</div>
 					<div class="text-2xl font-bold text-surface-900 dark:text-white">{diagnostics.idleConnections}</div>
 				</div>
 
 				<!-- Waiting Requests -->
 				<div class="rounded-lg bg-surface-100 p-3 dark:bg-surface-700/50">
-					<div class="mb-1 text-xs text-surface-500 dark:text-surface-400">Waiting</div>
+					<div class="mb-1 text-xs text-surface-500 dark:text-surface-50">Waiting</div>
 					<div class="text-2xl font-bold {diagnostics.waitingRequests > 0 ? 'text-warning-600' : 'text-surface-900 dark:text-white'}">
 						{diagnostics.waitingRequests}
 					</div>
@@ -158,11 +158,11 @@
 
 			<!-- Recommendations -->
 			{#if diagnostics.recommendations && diagnostics.recommendations.length > 0}
-				<div class="border-t border-surface-200 pt-4 dark:border-surface-700">
+				<div class="border-t border-surface-200 pt-4 dark:text-surface-50">
 					<h4 class="mb-2 text-sm font-semibold text-surface-700 dark:text-surface-300">Recommendations</h4>
 					<ul class="space-y-2">
 						{#each diagnostics.recommendations as recommendation}
-							<li class="flex items-start gap-2 text-sm text-surface-600 dark:text-surface-400">
+							<li class="flex items-start gap-2 text-sm text-surface-600 dark:text-surface-50">
 								<svg
 									class="mt-0.5 h-4 w-4 shrink-0 {getRecommendationIconColor(recommendation)}"
 									fill="none"

@@ -91,10 +91,10 @@ Features:
 	</div>
 
 	<footer class="modal-footer flex justify-end gap-4">
-		<button type="button" class="variant-ghost btn" onclick={handleCancel}> Cancel </button>
+		<button type="button" class="preset-outlined-surface-500 btn" onclick={handleCancel}> Cancel </button>
 		<button
 			type="button"
-			class="variant-filled-primary btn"
+			class="preset-filled-primary-500 btn"
 			onclick={handleConfirm}
 			disabled={useCustomName ? !validateCustomName(customName) : !selectedName}
 		>

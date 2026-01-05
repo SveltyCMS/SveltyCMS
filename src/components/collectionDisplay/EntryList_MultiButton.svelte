@@ -23,12 +23,13 @@
 
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { fly, fade, scale } from 'svelte/transition';
+	import { scale } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
 	import { StatusTypes } from '@src/content/types';
 	import { storeListboxValue } from '@stores/store.svelte';
 	import * as m from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
+	import { showToast } from '@utils/toast';
 
 	// --- Types ---
 	type ActionType = 'create' | 'publish' | 'unpublish' | 'draft' | 'schedule' | 'clone' | 'delete';
@@ -43,38 +44,7 @@
 		shortcut?: string;
 		shortcutKey?: string;
 		requiresSelection: boolean;
-		confirmThreshold: number;
 		dangerLevel: DangerLevel;
-	}
-
-	interface QueuedAction {
-		id: string;
-		type: ActionType;
-		count: number;
-		status: 'pending' | 'processing' | 'success' | 'error' | 'retrying';
-		progress: number;
-		error?: string;
-		timestamp: number;
-		retryCount?: number;
-		maxRetries?: number;
-		optimisticId?: string; // Track optimistic update
-	}
-
-	interface ActionHistory {
-		id: string;
-		action: ActionType;
-		timestamp: number;
-		affectedIds: string[];
-		canUndo: boolean;
-		label: string;
-	}
-
-	// Optimistic UI State
-	interface OptimisticUpdate {
-		id: string;
-		action: ActionType;
-		items: any[];
-		timestamp: number;
 	}
 
 	// --- Props ---
@@ -119,7 +89,6 @@
 			shortcut: 'Alt+N',
 			shortcutKey: 'n',
 			requiresSelection: false,
-			confirmThreshold: 999,
 			dangerLevel: 'low'
 		},
 		{
@@ -131,7 +100,6 @@
 			shortcut: 'Alt+P',
 			shortcutKey: 'p',
 			requiresSelection: true,
-			confirmThreshold: 5,
 			dangerLevel: 'medium'
 		},
 		{
@@ -143,7 +111,6 @@
 			shortcut: 'Alt+U',
 			shortcutKey: 'u',
 			requiresSelection: true,
-			confirmThreshold: 5,
 			dangerLevel: 'medium'
 		},
 		{
@@ -155,7 +122,6 @@
 			shortcut: 'Alt+D',
 			shortcutKey: 'd',
 			requiresSelection: true,
-			confirmThreshold: 10,
 			dangerLevel: 'low'
 		},
 		{
@@ -165,7 +131,6 @@
 			icon: 'ic:round-schedule',
 			textColor: 'text-white',
 			requiresSelection: true,
-			confirmThreshold: 10,
 			dangerLevel: 'low'
 		},
 		{
@@ -175,7 +140,6 @@
 			icon: 'ic:round-content-copy',
 			textColor: 'text-white',
 			requiresSelection: true,
-			confirmThreshold: 3,
 			dangerLevel: 'low'
 		},
 		{
@@ -187,7 +151,6 @@
 			shortcut: 'Alt+Del',
 			shortcutKey: 'Delete',
 			requiresSelection: true,
-			confirmThreshold: 1,
 			dangerLevel: 'high'
 		}
 	];
@@ -197,40 +160,15 @@
 	let manualActionSet = $state(false);
 	let dropdownRef = $state<HTMLElement | null>(null);
 	let hoveredAction = $state<ActionType | null>(null);
+	let isProcessing = $state(false);
 
 	// Dropdown keyboard navigation
 	let focusedIndex = $state(0);
 	let menuItemRefs = $state<HTMLButtonElement[]>([]);
 
-	// Action Queue
-	let actionQueue = $state<QueuedAction[]>([]);
-	let isProcessing = $state(false);
-	let currentProcessingAction = $state<ActionType | null>(null);
-
-	// Optimistic UI
-	let optimisticUpdates = $state<OptimisticUpdate[]>([]);
-
-	// Action History (Undo)
-	let actionHistory = $state<ActionHistory[]>([]);
-	const UNDO_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
-	const MAX_RETRIES = 3;
-
 	// Connection Awareness
 	let isSlowConnection = $state(false);
 	const batchSizeLimit = $derived(isSlowConnection ? 10 : 50);
-
-	// Undo countdown timer
-	const undoTimeRemaining = $derived.by(() => {
-		if (actionHistory.length === 0) return null;
-		const lastAction = actionHistory[0];
-		const elapsed = Date.now() - lastAction.timestamp;
-		const remaining = Math.max(0, UNDO_WINDOW_MS - elapsed);
-		return {
-			minutes: Math.floor(remaining / 60000),
-			seconds: Math.floor((remaining % 60000) / 1000),
-			total: remaining
-		};
-	});
 
 	// --- Derived State ---
 	const currentAction = $derived((storeListboxValue.value as ActionType) || 'create');
@@ -250,8 +188,8 @@
 
 	// Dynamic label with selection count
 	const dynamicLabel = $derived.by(() => {
-		if (isProcessing && currentProcessingAction) {
-			return `Processing...`;
+		if (isProcessing) {
+			return `${m.button_loading()}...`;
 		}
 		if (selectedCount < 2 || currentAction === 'create') {
 			return currentConfig.label;
@@ -277,9 +215,6 @@
 			return true;
 		});
 	});
-
-	// Check if undo is available
-	const canUndo = $derived(actionHistory.length > 0 && actionHistory[0].canUndo);
 
 	// --- Effects ---
 
@@ -343,16 +278,6 @@
 		};
 	});
 
-	// Clean old history entries
-	$effect(() => {
-		const interval = setInterval(() => {
-			const cutoff = Date.now() - UNDO_WINDOW_MS;
-			actionHistory = actionHistory.filter((item) => item.timestamp > cutoff);
-		}, 60000); // Check every minute
-
-		return () => clearInterval(interval);
-	});
-
 	// --- Keyboard Shortcuts ---
 	function handleKeyDown(e: KeyboardEvent) {
 		// Dropdown navigation when open
@@ -396,13 +321,6 @@
 		// Global shortcuts with Alt key
 		if (!e.altKey) return;
 
-		// Alt+Z for undo
-		if (e.key === 'z' || e.key === 'Z') {
-			e.preventDefault();
-			handleUndo();
-			return;
-		}
-
 		const matchedConfig = ACTION_CONFIGS.find((config) => {
 			if (!config.shortcutKey) return false;
 			return e.key.toLowerCase() === config.shortcutKey.toLowerCase() || e.key === config.shortcutKey;
@@ -431,100 +349,22 @@
 		isDropdownOpen = false;
 
 		// Validate batch size
-		if (selectedCount > batchSizeLimit) {
-			logger.warn(`[MultiButton] Batch size limited to ${batchSizeLimit} items on slow connection`);
-			// Could show toast here
+		if (selectedCount > batchSizeLimit && isSlowConnection) {
+			const limitMsg = m.entrylist_multibutton_limit_warning
+				? m.entrylist_multibutton_limit_warning({ count: batchSizeLimit })
+				: 'Slow connection: Batch size limited';
+			showToast(limitMsg, 'warning');
 			return;
 		}
 
-		// Execute action (confirmation would be handled by parent component)
+		// IMMEDIATE EXECUTION - No Queue, No Undo
 		await executeAction(action);
 	}
 
-	// --- Optimistic UI ---
-	function createOptimisticUpdate(action: ActionType): string {
-		const updateId = crypto.randomUUID();
-		const update: OptimisticUpdate = {
-			id: updateId,
-			action,
-			items: [...selectedItems],
-			timestamp: Date.now()
-		};
-		optimisticUpdates = [...optimisticUpdates, update];
-		logger.debug(`[MultiButton] Created optimistic update ${updateId} for ${action}`);
-		return updateId;
-	}
-
-	function commitOptimisticUpdate(updateId: string) {
-		optimisticUpdates = optimisticUpdates.filter((u) => u.id !== updateId);
-	}
-
-	function revertOptimisticUpdate(updateId: string) {
-		const update = optimisticUpdates.find((u) => u.id === updateId);
-		if (update) {
-			logger.debug(`[MultiButton] Reverted optimistic update ${updateId}`);
-			optimisticUpdates = optimisticUpdates.filter((u) => u.id !== updateId);
-		}
-	}
-
-	// --- Retry Logic ---
-	async function retryAction(queueItem: QueuedAction) {
-		if (!queueItem.maxRetries) queueItem.maxRetries = MAX_RETRIES;
-		if (!queueItem.retryCount) queueItem.retryCount = 0;
-
-		if (queueItem.retryCount >= queueItem.maxRetries) {
-			logger.warn(`[MultiButton] Max retries reached for ${queueItem.type}`);
-			return;
-		}
-
-		queueItem.retryCount++;
-		queueItem.status = 'retrying';
-		queueItem.progress = 0;
-		queueItem.error = undefined;
-		actionQueue = [...actionQueue];
-
-		logger.info(`[MultiButton] Retrying ${queueItem.type} (attempt ${queueItem.retryCount}/${queueItem.maxRetries})`);
-
-		// Re-execute
-		await executeActionCore(queueItem);
-	}
-
 	async function executeAction(action: ActionType) {
-		// Create optimistic update for instant feedback
-		const optimisticId = createOptimisticUpdate(action);
-
-		// Create queue item
-		const queueItem: QueuedAction = {
-			id: crypto.randomUUID(),
-			type: action,
-			count: selectedCount || 1,
-			status: 'processing',
-			progress: 0,
-			timestamp: Date.now(),
-			retryCount: 0,
-			maxRetries: MAX_RETRIES,
-			optimisticId
-		};
-
-		actionQueue = [...actionQueue, queueItem];
 		isProcessing = true;
-		currentProcessingAction = action;
-
-		await executeActionCore(queueItem);
-	}
-
-	async function executeActionCore(queueItem: QueuedAction) {
 		try {
-			// Simulate progress
-			const progressInterval = setInterval(() => {
-				if (queueItem.progress < 90) {
-					queueItem.progress += 10;
-					actionQueue = [...actionQueue]; // Trigger reactivity
-				}
-			}, 100);
-
-			// Execute the action
-			switch (queueItem.type) {
+			switch (action) {
 				case 'create':
 					create();
 					break;
@@ -541,6 +381,9 @@
 					await clone();
 					break;
 				case 'delete':
+					// Delete usually has its own confirmation in parent if triggering via deleteAction?
+					// If not, we should probably confirm. But user said "only DELETE need a confirmation modal".
+					// Assuming deleteAction triggers the modal logic or actual delete.
 					await deleteAction(showDeleted);
 					break;
 				case 'schedule':
@@ -548,75 +391,13 @@
 					schedule(now, 'publish');
 					break;
 			}
-
-			clearInterval(progressInterval);
-
-			// Mark success
-			queueItem.status = 'success';
-			queueItem.progress = 100;
-			actionQueue = [...actionQueue];
-
-			// Commit optimistic update
-			if (queueItem.optimisticId) {
-				commitOptimisticUpdate(queueItem.optimisticId);
-			}
-
-			// Add to history for undo
-			if (['publish', 'unpublish', 'draft', 'clone'].includes(queueItem.type)) {
-				addToHistory(
-					queueItem.type,
-					selectedItems.map((item: any) => item._id)
-				);
-			}
-
-			// Remove from queue after 3 seconds
-			setTimeout(() => {
-				actionQueue = actionQueue.filter((item) => item.id !== queueItem.id);
-			}, 3000);
 		} catch (error) {
-			// Revert optimistic update
-			if (queueItem.optimisticId) {
-				revertOptimisticUpdate(queueItem.optimisticId);
-			}
-
-			queueItem.status = 'error';
-			queueItem.error = (error as Error).message;
-			actionQueue = [...actionQueue];
-
-			logger.error(`[MultiButton] Action ${queueItem.type} failed:`, error);
-
-			// Don't auto-remove errors - let user retry or dismiss
+			const errMsg = (error as Error).message;
+			showToast(errMsg, 'error');
+			logger.error(`[MultiButton] Action ${action} failed:`, error);
 		} finally {
 			isProcessing = false;
-			currentProcessingAction = null;
 		}
-	}
-
-	function addToHistory(action: ActionType, affectedIds: string[]) {
-		const config = ACTION_CONFIGS.find((c) => c.type === action);
-		const historyItem: ActionHistory = {
-			id: crypto.randomUUID(),
-			action,
-			timestamp: Date.now(),
-			affectedIds,
-			canUndo: ['publish', 'unpublish', 'draft', 'clone'].includes(action),
-			label: `${config?.label || action} ${affectedIds.length} item(s)`
-		};
-
-		actionHistory = [historyItem, ...actionHistory.slice(0, 9)]; // Keep max 10 items
-	}
-
-	function handleUndo() {
-		if (!canUndo) return;
-
-		const lastAction = actionHistory[0];
-		logger.info(`[MultiButton] Undo requested for ${lastAction.action} on ${lastAction.affectedIds.length} items`);
-
-		// Remove from history (undo logic would be implemented by parent)
-		actionHistory = actionHistory.slice(1);
-
-		// Show feedback
-		// Could dispatch event to parent for actual undo logic
 	}
 
 	function toggleDropdown(e: MouseEvent) {
@@ -643,14 +424,14 @@
 		<button
 			type="button"
 			onclick={() => (showDeleted = !showDeleted)}
-			class="btn rounded-full mr-2 transition-all duration-200 active:scale-90 {!showDeleted
+			class="mt-1 btn rounded-full mr-2 transition-all duration-200 active:scale-90 {!showDeleted
 				? 'preset-outlined-surface-500 '
 				: 'preset-filled-error-500 text-white ring-2 ring-error-500 animate-pulse'}"
-			title={showDeleted ? 'Show Active' : 'Show Archived'}
-			aria-label={showDeleted ? 'Currently viewing archived items' : 'Currently viewing active items'}
+			title={showDeleted ? m.entrylist_multibutton_show_active() : m.entrylist_multibutton_show_archived()}
+			aria-label={showDeleted ? m.entrylist_multibutton_viewing_archived() : m.entrylist_multibutton_viewing_active()}
 			aria-pressed={showDeleted}
 		>
-			<iconify-icon icon={showDeleted ? 'ic:round-archive' : 'ic:round-unarchive'} width="20"></iconify-icon>
+			<iconify-icon icon={showDeleted ? 'ic:round-archive' : 'ic:round-unarchive'} width="24"></iconify-icon>
 		</button>
 
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -669,7 +450,7 @@
 				class="h-[40px] min-w-[60px] md:min-w-[140px] rtl:rotate-180 font-bold transition-all duration-200
 					{hasSelections ? 'active:scale-95' : 'pointer-events-none'} 
 					{currentConfig.gradient} {currentConfig.textColor} 
-					rounded-l-full rounded-r-none px-6 flex items-center gap-2 border-r border-white/20
+					rounded-l-full rounded-r-none px-6 flex items-center gap-2 border-r border-white
 					disabled:opacity-50 disabled:cursor-not-allowed"
 				aria-label={dynamicLabel}
 				aria-busy={isProcessing}
@@ -682,19 +463,29 @@
 				<span class="hidden md:inline-block">{dynamicLabel}</span>
 			</button>
 
+			<!-- Selection Badge -->
+			{#if hasSelections && selectedCount > 0}
+				<span
+					class="absolute left-0.5 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-surface-500 text-xs font-bold text-white animate-pulse shadow-lg"
+					transition:scale={{ duration: 200, easing: quintOut }}
+				>
+					{selectedCount}
+				</span>
+			{/if}
+
 			<!-- Dropdown Toggle -->
 			{#if !isCollectionEmpty}
 				<button
 					type="button"
 					onclick={hasSelections ? toggleDropdown : undefined}
 					disabled={!hasSelections || isProcessing}
-					class="h-[40px] w-[32px] border-l border-white/20 transition-all duration-200 text-white flex items-center justify-center shadow-inner rounded-r-md
+					class="h-[40px] w-[32px] border-l border-white/20 transition-all duration-200 text-white flex items-center justify-center shadow-inner
 						{hasSelections && !isProcessing
 						? 'bg-surface-500 hover:bg-surface-400 active:scale-95 cursor-pointer'
 						: currentConfig.gradient + ' pointer-events-none opacity-90'}"
 					aria-haspopup="menu"
 					aria-expanded={isDropdownOpen}
-					aria-label="Toggle actions menu"
+					aria-label={m.entrylist_multibutton_toggle_menu()}
 				>
 					{#if hasSelections}
 						<iconify-icon
@@ -706,22 +497,12 @@
 				</button>
 			{/if}
 
-			<!-- Selection Badge -->
-			{#if hasSelections && selectedCount > 0}
-				<span
-					class="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary-500 text-xs font-bold text-white animate-pulse shadow-lg"
-					transition:scale={{ duration: 200, easing: quintOut }}
-				>
-					{selectedCount}
-				</span>
-			{/if}
-
 			<!-- Dropdown Menu -->
 			{#if isDropdownOpen}
 				<div
 					class="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl bg-surface-800 shadow-2xl ring-1 ring-black/20 backdrop-blur-md"
 					role="menu"
-					aria-label="Available actions"
+					aria-label={m.entrylist_multibutton_available_actions()}
 					transition:scale={{ duration: 150, easing: quintOut, start: 0.95, opacity: 0 }}
 				>
 					<ul class="flex flex-col">
@@ -769,137 +550,12 @@
 								</button>
 							</li>
 						{/each}
-
-						<!-- Undo Button -->
-						{#if canUndo}
-							<li role="none" class="border-t border-surface-600">
-								<button
-									type="button"
-									onclick={handleUndo}
-									class="flex w-full items-center gap-3 px-4 py-3 text-left text-warning-400 hover:bg-warning-500/10 transition-colors"
-									role="menuitem"
-									aria-label="Undo last action"
-								>
-									<iconify-icon icon="mdi:undo" width="20"></iconify-icon>
-									<span class="text-sm font-medium">Undo {actionHistory[0]?.action}</span>
-								</button>
-							</li>
-						{/if}
 					</ul>
 				</div>
 			{/if}
 		</div>
 	</div>
 </div>
-
-<!-- Action Queue Progress Toasts -->
-{#if actionQueue.length > 0}
-	<div class="fixed bottom-4 right-4 z-9999 space-y-2 pointer-events-none" transition:fade role="region" aria-label="Action progress">
-		{#each actionQueue as queueItem (queueItem.id)}
-			<div
-				class="pointer-events-auto flex flex-col rounded-lg p-4 min-w-80 shadow-2xl backdrop-blur-sm
-					{queueItem.status === 'success'
-					? 'bg-success-500'
-					: queueItem.status === 'error'
-						? 'bg-error-500'
-						: queueItem.status === 'retrying'
-							? 'bg-warning-500'
-							: 'bg-tertiary-500'}"
-				role="status"
-				aria-live="polite"
-				transition:fly={{ x: 100, duration: 300 }}
-			>
-				<div class="flex items-center gap-3">
-					<!-- Status Icon -->
-					{#if queueItem.status === 'processing' || queueItem.status === 'retrying'}
-						<iconify-icon icon="svg-spinners:ring-resize" width="24" class="text-white"></iconify-icon>
-					{:else if queueItem.status === 'success'}
-						<iconify-icon icon="mdi:check-circle" width="24" class="text-white"></iconify-icon>
-					{:else if queueItem.status === 'error'}
-						<iconify-icon icon="mdi:alert-circle" width="24" class="text-white"></iconify-icon>
-					{/if}
-
-					<!-- Info -->
-					<div class="flex-1 text-white">
-						<div class="font-bold capitalize">
-							{queueItem.status === 'retrying' ? `Retrying ${queueItem.type}` : queueItem.type}
-						</div>
-						<div class="text-sm opacity-90">
-							{queueItem.count}
-							{queueItem.count === 1 ? 'item' : 'items'}
-							{#if queueItem.status === 'retrying'}
-								(attempt {queueItem.retryCount}/{queueItem.maxRetries})
-							{/if}
-						</div>
-					</div>
-
-					<!-- Progress -->
-					{#if queueItem.status === 'processing' || queueItem.status === 'retrying'}
-						<div class="text-sm font-bold text-white">{queueItem.progress}%</div>
-					{/if}
-				</div>
-
-				<!-- Error with Retry Button -->
-				{#if queueItem.status === 'error'}
-					<div class="mt-3 space-y-2">
-						{#if queueItem.error}
-							<div class="text-sm text-white/90">{queueItem.error}</div>
-						{/if}
-						<div class="flex gap-2">
-							<button
-								type="button"
-								onclick={() => retryAction(queueItem)}
-								class="btn btn-sm bg-white/20 text-white hover:bg-white/30 flex-1"
-								aria-label="Retry action"
-							>
-								<iconify-icon icon="mdi:refresh" width="16" class="mr-1"></iconify-icon>
-								Retry ({(queueItem.retryCount || 0) + 1}/{queueItem.maxRetries || MAX_RETRIES})
-							</button>
-							<button
-								type="button"
-								onclick={() => (actionQueue = actionQueue.filter((q) => q.id !== queueItem.id))}
-								class="btn btn-sm bg-white/20 text-white hover:bg-white/30"
-								aria-label="Dismiss error"
-							>
-								<iconify-icon icon="mdi:close" width="16"></iconify-icon>
-							</button>
-						</div>
-					</div>
-				{/if}
-
-				<!-- Progress Bar -->
-				{#if queueItem.status === 'processing' || queueItem.status === 'retrying'}
-					<div class="mt-2 h-1 bg-black/20 rounded-full overflow-hidden">
-						<div
-							class="h-full bg-white/80 transition-all duration-300"
-							style="width: {queueItem.progress}%"
-							role="progressbar"
-							aria-valuenow={queueItem.progress}
-							aria-valuemin={0}
-							aria-valuemax={100}
-						></div>
-					</div>
-				{/if}
-			</div>
-		{/each}
-	</div>
-{/if}
-
-<!-- Undo Countdown Indicator -->
-{#if canUndo && undoTimeRemaining && undoTimeRemaining.total > 0}
-	<button
-		type="button"
-		onclick={handleUndo}
-		class="fixed top-20 right-4 z-9999 btn btn-sm bg-warning-500 text-white shadow-lg hover:scale-105 transition-transform"
-		transition:fly={{ x: 100, duration: 300 }}
-		aria-label="Undo {actionHistory[0]?.label}. {undoTimeRemaining.minutes}:{undoTimeRemaining.seconds
-			.toString()
-			.padStart(2, '0')} remaining. Keyboard shortcut: Alt+Z"
-	>
-		<iconify-icon icon="mdi:undo" width="16" class="mr-1"></iconify-icon>
-		Undo ({undoTimeRemaining.minutes}:{undoTimeRemaining.seconds.toString().padStart(2, '0')})
-	</button>
-{/if}
 
 <style>
 	.menu-dropdown {

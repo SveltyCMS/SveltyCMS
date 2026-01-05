@@ -367,7 +367,7 @@
 
 <div class="space-y-6">
 	<!-- Why SMTP is Needed -->
-	<div class="card variant-ghost-primary p-4">
+	<div class="card preset-outlined-primary-500 p-4">
 		<!-- Header - Always visible with toggle button -->
 		<button
 			type="button"
@@ -376,11 +376,14 @@
 			aria-expanded={showWhySmtp}
 			aria-controls="why-smtp-content"
 		>
-			<iconify-icon icon="mdi:information" class="mt-0.5 shrink-0 text-xl text-primary-500" aria-hidden="true"></iconify-icon>
+			<iconify-icon icon="mdi:information" class="mt-0.5 shrink-0 text-xl dark:text-primary-500 text-tertiary-500" aria-hidden="true"></iconify-icon>
 			<div class="flex-1">
-				<h3 class="font-semibold text-primary-700 dark:text-primary-400">{m.setup_email_why_title()}</h3>
+				<h3 class="font-semibold text-tertiary-500 dark:text-primary-500">{m.setup_email_why_title()}</h3>
 			</div>
-			<iconify-icon icon={showWhySmtp ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="mt-0.5 shrink-0 text-xl text-primary-500" aria-hidden="true"
+			<iconify-icon
+				icon={showWhySmtp ? 'mdi:chevron-up' : 'mdi:chevron-down'}
+				class="mt-0.5 shrink-0 text-xl text-tertiary-500 dark:text-primary-500"
+				aria-hidden="true"
 			></iconify-icon>
 		</button>
 
@@ -413,7 +416,7 @@
 		{#if selectedPreset !== m.setup_email_preset_custom()}
 			{@const preset = presets.find((p) => p.name === selectedPreset)}
 			{#if preset?.note}
-				<div class="card variant-ghost-warning flex items-start gap-2 p-3" role="alert">
+				<div class="card preset-outlined-warning-500 flex items-start gap-2 p-3" role="alert">
 					<iconify-icon icon="mdi:alert" class="mt-0.5 text-lg text-warning-500" aria-hidden="true"></iconify-icon>
 					<p class="text-sm text-warning-700 dark:text-warning-300">{preset.note}</p>
 				</div>
@@ -425,7 +428,25 @@
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 		<!-- SMTP Host -->
 		<label class="label">
-			<span class="font-medium">{m.setup_email_host()} <span class="text-error-500">*</span></span>
+			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
+				<span>{m.setup_email_host()} <span class="text-error-500">*</span></span>
+				<button
+					type="button"
+					tabindex="-1"
+					title={m.setup_email_help_tip()}
+					aria-label={m.setup_email_aria_help_host()}
+					class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+				>
+					<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+				</button>
+			</div>
+			<div
+				data-popup="popupSmtpHost"
+				class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+			>
+				<p>{m.setup_email_help_host()}</p>
+				<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
+			</div>
 			<input
 				type="text"
 				class="input"
@@ -448,9 +469,9 @@
 				<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
 					<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
 					{#if smtpHost.includes('@')}
-						Invalid hostname. Use "smtp.domain.com" not "email@domain.com"
+						{m.setup_email_invalid_hostname()}
 					{:else}
-						Invalid hostname format. Example: smtp.gmail.com
+						{m.setup_email_invalid_hostname_format()}
 					{/if}
 				</span>
 			{/if}
@@ -459,13 +480,31 @@
 		<!-- SMTP Port with Auto-Detection -->
 		<label class="label">
 			<div class="mb-1 flex items-center justify-between">
-				<span class="font-medium">{m.setup_email_port()} <span class="text-error-500">*</span></span>
+				<div class="flex items-center gap-1">
+					<span class="font-medium">{m.setup_email_port()} <span class="text-error-500">*</span></span>
+					<button
+						type="button"
+						tabindex="-1"
+						title={m.setup_email_help_tip()}
+						aria-label={m.setup_email_aria_help_port()}
+						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+					>
+						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+					</button>
+				</div>
 				{#if portAutoDetected && !useCustomPort}
 					<span class="variant-soft-success badge flex items-center gap-1 text-xs">
 						<iconify-icon icon="mdi:auto-fix" class="text-sm"></iconify-icon>
-						Auto-detected
+						{m.setup_email_port_autodetected()}
 					</span>
 				{/if}
+			</div>
+			<div
+				data-popup="popupSmtpPort"
+				class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+			>
+				<p>{m.setup_email_help_port()}</p>
+				<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
 			</div>
 
 			{#if useCustomPort}
@@ -489,8 +528,8 @@
 					/>
 					<button
 						type="button"
-						class="variant-ghost-surface btn btn-sm"
-						aria-label="Switch back to standard SMTP ports"
+						class="preset-outlined-surface-500btn btn-sm"
+						aria-label={m.setup_email_aria_switch_standard()}
 						onclick={() => {
 							useCustomPort = false;
 							smtpPort = 587; // Reset to default
@@ -506,7 +545,7 @@
 						{displayErrors.port}
 					</span>
 				{:else}
-					<span class="text-xs text-surface-600 dark:text-surface-400">{m.setup_email_port_custom_desc()}</span>
+					<span class="text-xs text-surface-600 dark:text-surface-50">{m.setup_email_port_custom_desc()}</span>
 				{/if}
 			{:else}
 				<!-- Standard port dropdown -->
@@ -527,7 +566,7 @@
 					</select>
 					<button
 						type="button"
-						class="variant-ghost-surface btn btn-sm whitespace-nowrap"
+						class="preset-outlined-surface-500btn btn-sm whitespace-nowrap"
 						aria-label="Enter a custom SMTP port"
 						onclick={() => {
 							useCustomPort = true;
@@ -544,10 +583,10 @@
 						{#if effectiveSecure()}
 							<span class="variant-soft-success badge flex items-center gap-1 text-xs">
 								<iconify-icon icon="mdi:lock" class="text-sm"></iconify-icon>
-								Encrypted
+								{m.setup_email_port_encrypted()}
 							</span>
 						{/if}
-						<span class="text-xs text-surface-600 dark:text-surface-400">{selectedPort.description}</span>
+						<span class="text-xs text-surface-600 dark:text-surface-50">{selectedPort.description}</span>
 					</div>
 				{/if}
 			{/if}
@@ -555,7 +594,25 @@
 
 		<!-- SMTP User -->
 		<label class="label">
-			<span class="font-medium">{m.setup_email_user()} <span class="text-error-500">*</span></span>
+			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
+				<span>{m.setup_email_user()} <span class="text-error-500">*</span></span>
+				<button
+					type="button"
+					tabindex="-1"
+					title={m.setup_email_help_tip()}
+					aria-label={m.setup_email_aria_help_user()}
+					class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+				>
+					<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+				</button>
+			</div>
+			<div
+				data-popup="popupSmtpUser"
+				class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+			>
+				<p>{m.setup_email_help_user()}</p>
+				<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
+			</div>
 			<input
 				type="text"
 				class="input"
@@ -585,7 +642,25 @@
 
 		<!-- SMTP Password -->
 		<label class="label">
-			<span class="font-medium">{m.setup_email_password()} <span class="text-error-500">*</span></span>
+			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
+				<span>{m.setup_email_password()} <span class="text-error-500">*</span></span>
+				<button
+					type="button"
+					tabindex="-1"
+					title={m.setup_email_help_tip()}
+					aria-label={m.setup_email_aria_help_password()}
+					class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+				>
+					<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+				</button>
+			</div>
+			<div
+				data-popup="popupSmtpPassword"
+				class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+			>
+				<p>{m.setup_email_help_password()}</p>
+				<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
+			</div>
 			<div class="relative">
 				<input
 					type={showPassword ? 'text' : 'password'}
@@ -610,9 +685,9 @@
 					type="button"
 					class="btn-icon btn-sm absolute right-1 top-1/2 -translate-y-1/2"
 					onclick={() => (showPassword = !showPassword)}
-					aria-label={showPassword ? 'Hide password' : 'Show password'}
+					aria-label={showPassword ? m.setup_email_aria_hide_password() : m.setup_email_aria_show_password()}
 				>
-					<iconify-icon icon={showPassword ? 'mdi:eye-off' : 'mdi:eye'} class="text-lg text-surface-600 dark:text-surface-400"></iconify-icon>
+					<iconify-icon icon={showPassword ? 'mdi:eye-off' : 'mdi:eye'} class="text-lg text-surface-600 dark:text-surface-50"></iconify-icon>
 				</button>
 			</div>
 			{#if displayErrors.password}
@@ -638,20 +713,25 @@
 					}
 				}}
 			/>
-			<span class="text-xs text-surface-600 dark:text-surface-400">{m.setup_email_from_note()}</span>
+			<span class="text-xs text-surface-600 dark:text-surface-50">{m.setup_email_from_note()}</span>
 		</label>
 	</div>
 
 	<!-- Test Connection Button -->
 	<div class="space-y-3">
-		<button type="button" class="variant-filled-primary btn w-full" onclick={testConnection} disabled={!isFormValid || isTesting}>
+		<button
+			type="button"
+			class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn w-full"
+			onclick={testConnection}
+			disabled={!isFormValid || isTesting}
+		>
 			<iconify-icon icon="mdi:email" class="mr-2 text-xl"></iconify-icon>
 			{isTesting ? m.setup_email_testing() : m.setup_email_test_button()}
 		</button>
 
 		<!-- Test Result -->
 		{#if testSuccess}
-			<div class="card variant-ghost-success p-4">
+			<div class="card preset-outlined-primary-500 p-4">
 				<!-- Header - Always visible with toggle button on mobile -->
 				<div class="flex items-start gap-3">
 					<iconify-icon icon="mdi:check-circle" class="text-2xl text-success-500"></iconify-icon>
@@ -682,7 +762,7 @@
 		{/if}
 
 		{#if testError}
-			<div class="card variant-ghost-error flex items-start gap-3 p-4">
+			<div class="card preset-outlined-error-500 flex items-start gap-3 p-4">
 				<iconify-icon icon="mdi:close-circle" class="text-2xl text-error-500"></iconify-icon>
 				<div class="flex-1">
 					<p class="font-semibold text-error-700 dark:text-error-300">{m.setup_email_connection_failed()}</p>

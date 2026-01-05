@@ -387,7 +387,7 @@ Key features:
 						isSelectionMode = !isSelectionMode;
 						selectedFiles = new Set();
 					}}
-					class="preset-ghost-surface-500 btn btn-sm"
+					class="preset-outline-surface-500 btn-sm"
 					aria-label="Toggle selection mode"
 				>
 					<iconify-icon icon={isSelectionMode ? 'mdi:close' : 'mdi:checkbox-multiple-marked'} width="20"></iconify-icon>
@@ -395,11 +395,11 @@ Key features:
 				</button>
 
 				{#if isSelectionMode}
-					<button onclick={selectAll} class="preset-ghost-surface-500 btn btn-sm">
+					<button onclick={selectAll} class="preset-outline-surface-500 btn-sm">
 						<iconify-icon icon="mdi:select-all" width="20"></iconify-icon>
 						Select All
 					</button>
-					<button onclick={deselectAll} class="preset-ghost-surface-500 btn btn-sm">
+					<button onclick={deselectAll} class="preset-outline-surface-500 btn-sm">
 						<iconify-icon icon="mdi:select-off" width="20"></iconify-icon>
 						Deselect All
 					</button>
@@ -409,7 +409,7 @@ Key features:
 			{#if selectedFiles.size > 0}
 				<div class="flex items-center gap-2">
 					<span class="text-sm">{selectedFiles.size} selected</span>
-					<button onclick={handleBulkDelete} class="preset-filled-error-500 btn btn-sm">
+					<button onclick={handleBulkDelete} class="preset-filled-error-500 btn-sm">
 						<iconify-icon icon="mdi:delete" width="20"></iconify-icon>
 						Delete Selected
 					</button>
@@ -685,7 +685,7 @@ Key features:
 													e.stopPropagation();
 													addManualTag(file as MediaImage);
 												}}
-												class="btn btn-sm preset-ghost-primary-500"
+												class="btn-sm preset-ghost-primary-500"
 												title="Add tag"
 											>
 												<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
@@ -697,7 +697,7 @@ Key features:
 												e.stopPropagation();
 												saveAITags(file as MediaImage);
 											}}
-											class="btn btn-sm preset-filled-success-500 mt-2 w-full"
+											class="btn-sm preset-filled-success-500 mt-2 w-full"
 										>
 											<iconify-icon icon="mdi:check" width="16"></iconify-icon>
 											Save Tags
@@ -708,7 +708,7 @@ Key features:
 								<!-- User Tags Section -->
 								{#if file.metadata?.tags && file.metadata.tags.length > 0}
 									<div class="rounded bg-surface-100 p-2 dark:bg-surface-700">
-										<div class="mb-1 text-xs font-medium text-surface-600 dark:text-surface-400">Saved Tags:</div>
+										<div class="mb-1 text-xs font-medium text-surface-600 dark:text-surface-50">Saved Tags:</div>
 										<div class="flex flex-wrap gap-1">
 											{#each file.metadata.tags as tag, tagIndex}
 												{@const fileId = file._id?.toString() || ''}

@@ -129,7 +129,7 @@
 
 <div class="wrapper">
 	<!-- Header Description -->
-	<div class="variant-soft-surface mb-4 p-4">
+	<div class="preset-tonal-surface mb-4 p-4">
 		<p class="text-surface-600 dark:text-surface-300">
 			This tool manages the synchronization between configuration defined in the filesystem (the "source of truth") and the configuration active in
 			the database. Use it to deploy structural changes between different environments (e.g., from development to live).
@@ -137,7 +137,7 @@
 	</div>
 
 	<!-- Tabs -->
-	<div class="flex w-full overflow-x-auto border border-surface-300 bg-surface-100/70 dark:border-surface-700 dark:bg-surface-800/70">
+	<div class="flex w-full overflow-x-auto border border-surface-300 bg-surface-100/70 dark:text-surface-50 dark:bg-surface-800/70">
 		{#each ['sync', 'import', 'export', 'debug'] as tab}
 			<!-- Explicitly type tab as 'sync' | 'import' | 'export' | 'debug' -->
 			{#key tab}
@@ -161,7 +161,7 @@
 	<section transition:fade|local>
 		{#if activeTab === 'sync'}
 			{#if status?.unmetRequirements && status.unmetRequirements.length > 0}
-				<div class="alert variant-filled-error my-4 p-4" transition:slide>
+				<div class="alert preset-filled-error-500 my-4 p-4" transition:slide>
 					<h4 class="font-bold">Sync Blocked: Unmet Requirements</h4>
 					<p class="text-sm">The following requirements must be met before you can import configuration:</p>
 					<ul class="mt-2 list-disc pl-5 text-sm">
@@ -174,7 +174,7 @@
 
 			<div class="my-4">
 				<button
-					class="variant-filled-tertiary btn w-full dark:variant-filled-primary sm:w-auto"
+					class="preset-filled-tertiary-500 btn w-full dark:preset-filled-primary-500 sm:w-auto"
 					disabled={isProcessing || !status || status.status === 'in_sync' || status.unmetRequirements.length > 0}
 					onclick={syncAllChanges}
 				>
@@ -189,7 +189,7 @@
 					Checking synchronization status...
 					<button
 						onclick={loadStatus}
-						class="variant-filled-tertiary btn mt-6 flex items-center gap-2 dark:variant-filled-primary"
+						class="preset-filled-tertiary-500 btn mt-6 flex items-center gap-2 dark:preset-filled-primary-500"
 						disabled={isLoading}
 					>
 						<iconify-icon icon="mdi:refresh" class={isLoading ? 'animate-spin' : ''}></iconify-icon>
@@ -211,7 +211,7 @@
 					<p class="text-surface-500">
 						{changeSummary().new} new, {changeSummary().updated} updated, {changeSummary().deleted} deleted.
 					</p>
-					<div class="overflow-hidden border border-surface-200 dark:border-surface-700">
+					<div class="overflow-hidden border border-surface-200 dark:text-surface-50">
 						<table class="table w-full text-sm">
 							<thead class="bg-surface-100 dark:bg-surface-800">
 								<tr>
@@ -223,13 +223,13 @@
 							<tbody>
 								{#each Object.entries(status?.changes || {}) as [changeType, items]}
 									{#each items as item}
-										<tr class="border-t border-surface-200 hover:bg-surface-50 dark:border-surface-700 dark:hover:bg-surface-800/50">
+										<tr class="border-t border-surface-200 hover:bg-surface-50 dark:text-surface-50 dark:hover:bg-surface-800/50">
 											<td>{item.name}</td>
-											<td><span class="variant-soft badge capitalize">{item.type}</span></td>
+											<td><span class="preset-tonal badge capitalize">{item.type}</span></td>
 											<td>
-												{#if changeType === 'new'}<span class="variant-filled-success badge">New</span>{/if}
+												{#if changeType === 'new'}<span class="preset-filled-success-500 badge">New</span>{/if}
 												{#if changeType === 'updated'}<span class="variant-filled-warning badge">Updated</span>{/if}
-												{#if changeType === 'deleted'}<span class="variant-filled-error badge">Deleted</span>{/if}
+												{#if changeType === 'deleted'}<span class="preset-filled-error-500 badge">Deleted</span>{/if}
 											</td>
 										</tr>
 									{/each}
@@ -249,7 +249,11 @@
 				<p class="mb-4 text-sm text-surface-500">Upload a JSON or CSV file containing configuration changes to apply them to the database.</p>
 				<div class="flex flex-col gap-4">
 					<input type="file" class="input" accept=".json,.csv" onchange={handleFileSelect} />
-					<button class="variant-filled-tertiary btn dark:variant-filled-primary" disabled={!fileToImport || isProcessing} onclick={performImport}>
+					<button
+						class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500"
+						disabled={!fileToImport || isProcessing}
+						onclick={performImport}
+					>
 						<iconify-icon icon="mdi:upload" class={isProcessing ? 'animate-spin' : ''}></iconify-icon>
 						{isProcessing ? 'Importing...' : 'Import from File'}
 					</button>
@@ -264,7 +268,7 @@
 				</h3>
 				<p class="mb-4 text-sm text-surface-500">Save the detected configuration changes to a file.</p>
 				<div class="flex gap-4">
-					<button class="variant-filled-tertiary btn dark:variant-filled-primary" disabled={isProcessing} onclick={exportToJSON}>
+					<button class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" disabled={isProcessing} onclick={exportToJSON}>
 						<iconify-icon icon="mdi:code-json"></iconify-icon> Export as JSON
 					</button>
 					<button class="variant-filled-secondary btn" disabled={isProcessing} onclick={exportToCSV}>

@@ -86,17 +86,17 @@
 	}
 </script>
 
-<div class="mt-4 border-t border-surface-500 pt-4 dark:border-surface-700">
+<div class="mt-4 border-t border-surface-500 pt-4 dark:text-surface-50">
 	<div class="mb-4 flex flex-wrap items-center justify-between gap-4">
 		<h3 class="h3">SEO Preview</h3>
 
 		<div class="flex items-center gap-2">
 			<!-- Device Toggle -->
-			<div class="variant-filled-surface btn-group [&>*+*]:border-surface-500">
+			<div class="preset-filled-surface-500 btn-group [&>*+*]:border-surface-500">
 				<button
 					type="button"
 					onclick={() => !SeoPreviewToggle && handleTogglePreview()}
-					class="{!SeoPreviewToggle ? 'variant-filled-primary' : ''} btn btn-sm"
+					class="{!SeoPreviewToggle ? 'preset-filled-primary-500' : ''} btn-sm"
 					title="Desktop View"
 				>
 					<iconify-icon icon="mdi:monitor" width="18"></iconify-icon>
@@ -104,7 +104,7 @@
 				<button
 					type="button"
 					onclick={() => SeoPreviewToggle && handleTogglePreview()}
-					class="{SeoPreviewToggle ? 'variant-filled-primary' : ''} btn btn-sm"
+					class="{SeoPreviewToggle ? 'preset-filled-primary-500' : ''} btn-sm"
 					title="Mobile View"
 				>
 					<iconify-icon icon="mdi:cellphone" width="18"></iconify-icon>
@@ -114,7 +114,7 @@
 			<!-- Heatmap Toggle -->
 			<button
 				type="button"
-				class="btn btn-sm {heatmapMode ? 'variant-filled-warning' : 'variant-filled-surface'}"
+				class="btn-sm {heatmapMode ? 'variant-filled-warning' : 'preset-filled-surface-500'}"
 				onclick={() => (heatmapMode = !heatmapMode)}
 				title="Toggle Heatmap Visualization"
 			>
@@ -127,7 +127,7 @@
 	<!-- Preview Card -->
 	<div class="card variant-glass-surface p-4 transition-all duration-200 {SeoPreviewToggle ? 'max-w-[375px] mx-auto' : 'w-full'}">
 		<!-- URL Line -->
-		<div class="mb-1 flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400">
+		<div class="mb-1 flex items-center gap-2 text-xs text-surface-500 dark:text-surface-50">
 			<div class="flex h-6 w-6 items-center justify-center rounded-full bg-surface-200 dark:bg-surface-700">
 				<iconify-icon icon="mdi:earth" width="14" class="text-surface-700 dark:text-surface-300"></iconify-icon>
 			</div>

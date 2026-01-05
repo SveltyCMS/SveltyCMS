@@ -195,7 +195,7 @@
 			<button
 				type="button"
 				onclick={() => (isEditMode = !isEditMode)}
-				class="btn btn-sm {isEditMode ? 'variant-filled-warning' : 'variant-ghost-surface'}"
+				class="btn-sm {isEditMode ? 'variant-filled-warning' : 'preset-outlined-surface-500'}"
 				aria-pressed={isEditMode}
 			>
 				<iconify-icon icon={isEditMode ? 'bi:check-circle' : 'bi:pencil'} width="16"></iconify-icon>
@@ -221,13 +221,13 @@
 					<div class="h-3 w-3 animate-bounce rounded-full bg-primary-500 [animation-delay:0.1s]"></div>
 					<div class="h-3 w-3 animate-bounce rounded-full bg-primary-500 [animation-delay:0.2s]"></div>
 				</div>
-				<p class="text-sm text-surface-600 dark:text-surface-400">Loading folders...</p>
+				<p class="text-sm text-surface-600 dark:text-surface-50">Loading folders...</p>
 			</div>
 		{:else if error}
 			<div class="flex flex-col items-center justify-center gap-3 p-6 text-center">
 				<iconify-icon icon="ic:outline-error" width="32" class="text-error-500"></iconify-icon>
 				<p class="text-sm text-error-500">{error}</p>
-				<button type="button" onclick={loadFolders} class="btn btn-sm variant-filled-error">
+				<button type="button" onclick={loadFolders} class="btn-sm preset-filled-error-500">
 					<iconify-icon icon="ic:outline-refresh" width="16" class="mr-1"></iconify-icon>
 					Retry
 				</button>
@@ -245,7 +245,7 @@
 		{:else}
 			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center">
 				<iconify-icon icon="bi:folder" width="32" class="text-surface-400 opacity-50"></iconify-icon>
-				<p class="text-sm text-surface-500 dark:text-surface-400">No folders yet</p>
+				<p class="text-sm text-surface-500 dark:text-surface-50">No folders yet</p>
 				<p class="text-xs text-surface-400">Create your first media folder to get started</p>
 			</div>
 		{/if}

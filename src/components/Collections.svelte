@@ -107,7 +107,6 @@
 			[StatusTypes.archive]: 'bg-surface-500',
 			[StatusTypes.schedule]: 'bg-primary-500',
 			[StatusTypes.clone]: 'bg-secondary-500',
-			[StatusTypes.test]: 'bg-tertiary-500',
 			[StatusTypes.delete]: 'bg-error-500',
 			[StatusTypes.unpublish]: 'bg-warning-400'
 		};
@@ -232,7 +231,7 @@
 				<button
 					type="button"
 					onclick={clearSearch}
-					class="btn rounded-full preset-outline-surface-500 {isFullSidebar ? 'h-10 w-10' : 'h-8 w-8'}"
+					class="btn rounded-full preset-outline-surface-500 {isFullSidebar ? 'h-11 w-11' : 'h-10 w-10'}"
 					aria-label="Clear search"
 				>
 					<iconify-icon icon="ic:round-close" width="16"></iconify-icon>
@@ -241,7 +240,7 @@
 				<!-- Search with icon -->
 				<div
 					class="flex items-center justify-center rounded-r bg-secondary-100 dark:bg-surface-700 {isFullSidebar
-						? 'h-11.5 w-11.5 mt-px mr-px'
+						? 'h-11 w-11 mt-px mr-px'
 						: 'h-8 w-8'}"
 				>
 					<iconify-icon icon="ic:outline-search" width="24"></iconify-icon>
@@ -255,7 +254,7 @@
 		{#if treeNodes.length === 0}
 			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center">
 				<iconify-icon icon="bi:collection" width="32" class="text-surface-400 opacity-50"></iconify-icon>
-				<p class="text-sm text-surface-500 dark:text-surface-400">{m.collection_no_collections_found()}</p>
+				<p class="text-sm text-surface-500 dark:text-surface-50">{m.collection_no_collections_found()}</p>
 			</div>
 		{:else}
 			<TreeView nodes={treeNodes} {selectedId} compact={!isFullSidebar} search={debouncedSearch} iconColorClass="text-error-500" showBadges={true} />

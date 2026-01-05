@@ -402,7 +402,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 			{#if keyword && !disabled}
 				<button
 					type="button"
-					class="btn-icon btn-icon-sm variant-ghost transition-all duration-200 hover:scale-110 hover:bg-error-500/10 hover:text-error-500"
+					class="btn-icon btn-icon-sm preset-outlined-surface-500 transition-all duration-200 hover:scale-110 hover:bg-error-500/10 hover:text-error-500"
 					onclick={clearSelection}
 					aria-label="Clear selection"
 					tabindex="-1"
@@ -415,7 +415,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 			<!-- Dropdown toggle -->
 			<button
 				type="button"
-				class="btn-icon btn-icon-sm variant-ghost transition-all duration-200 hover:scale-110"
+				class="btn-icon btn-icon-sm preset-outlined-surface-500 transition-all duration-200 hover:scale-110"
 				onclick={toggleDropdown}
 				aria-label={showDropdown ? 'Close options' : 'Show options'}
 				aria-controls="autocomplete-list"
@@ -430,23 +430,21 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 	<!-- Dropdown -->
 	{#if showDropdown && !disabled}
 		<div
-			class="absolute z-50 mt-2 w-full overflow-hidden rounded-lg border border-surface-200 bg-white shadow-xl dark:border-surface-700 dark:bg-surface-800"
+			class="absolute z-50 mt-2 w-full overflow-hidden rounded-lg border border-surface-200 bg-white shadow-xl dark:text-surface-50 dark:bg-surface-800"
 			transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>
 			<!-- Loading state -->
 			{#if isLoading}
 				<div class="flex items-center justify-center gap-2 p-4">
 					<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
-					<span class="text-sm text-surface-600 dark:text-surface-400">Loading...</span>
+					<span class="text-sm text-surface-600 dark:text-surface-50">Loading...</span>
 				</div>
 			{:else if hasOptions}
 				<!-- Options list -->
 				<ul bind:this={listElement} id="autocomplete-list" class="max-h-60 overflow-y-auto" role="listbox" aria-label="Available options">
 					{#if !keyword.trim() && recentSelections.length > 0}
 						<!-- Recent selections header -->
-						<li class="border-b border-surface-200 px-4 py-2 text-xs font-semibold text-surface-600 dark:border-surface-700 dark:text-surface-400">
-							Recent Selections
-						</li>
+						<li class="border-b border-surface-200 px-4 py-2 text-xs font-semibold text-surface-600 dark:text-surface-50">Recent Selections</li>
 					{/if}
 
 					{#each displayOptions as option, index (option)}
@@ -457,7 +455,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 							id={`option-${index}`}
 							role="option"
 							aria-selected={isSelected}
-							class="cursor-pointer border-b border-surface-100 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-primary-500/10 dark:border-surface-700 {isSelected
+							class="cursor-pointer border-b border-surface-100 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-primary-500/10 dark:text-surface-50 {isSelected
 								? 'bg-primary-500/20'
 								: ''} {isCreateOption ? 'font-medium text-primary-500' : 'text-surface-900 dark:text-surface-100'}"
 							onmousedown={(e) => handleOptionMouseDown(option, e)}
@@ -484,11 +482,11 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 					transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 				>
 					<iconify-icon icon="mdi:magnify-close" width="32" class="text-surface-400" aria-hidden="true"></iconify-icon>
-					<p class="text-sm text-surface-600 dark:text-surface-400">
+					<p class="text-sm text-surface-600 dark:text-surface-50">
 						No results found for "<span class="font-medium">{keyword}</span>"
 					</p>
 					{#if allowCustomValue}
-						<button type="button" class="variant-ghost-primary btn btn-sm mt-2" onclick={() => selectOption(keyword)}> Use custom value </button>
+						<button type="button" class="preset-outlined-surface-500 btn-sm mt-2" onclick={() => selectOption(keyword)}> Use custom value </button>
 					{/if}
 				</div>
 			{/if}

@@ -187,7 +187,7 @@
 	}
 </script>
 
-<div class="flex h-full w-full flex-col justify-between bg-white dark:bg-surface-900">
+<div class="flex h-full w-full flex-col justify-between bg-transparent">
 	<!-- Corporate Identity -->
 	{#if isSidebarFull}
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 no-underline!" data-sveltekit-preload-data="hover">
@@ -202,7 +202,7 @@
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
 				aria-label="Close Sidebar"
-				class="preset-ghost-surface-500 btn-icon mt-1"
+				class="preset-outline-surface-500 btn-icon mt-1"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
@@ -256,7 +256,7 @@
 
 		<!-- Toggle to Media Gallery Button -->
 		<button
-			class="btn preset-filled-surface-200 dark:preset-filled-surface-500 mt-2 flex h-12 w-full items-center justify-center gap-2 rounded border border-surface-300 transition-all duration-200 hover:bg-surface-300 dark:border-surface-700 dark:hover:bg-surface-400"
+			class="btn preset-outlined-surface-500 dark:preset-filled-surface-500 mt-2 flex h-14 w-full items-center justify-center gap-2 rounded"
 			onclick={() => {
 				setMode('media');
 				navigateTo('/mediagallery');
@@ -331,7 +331,7 @@
 							<Menu positioning={{ placement: 'right-start', gutter: 10 }}>
 								<Menu.Trigger
 									class="preset-filled-surface-500 hover:bg-surface-400 rounded-full btn-icon flex items-center justify-center uppercase transition-colors {isSidebarFull
-										? 'w-10 h-10 text-sm'
+										? 'mb-3 w-8 h-8 text-sm'
 										: 'w-8 h-8 text-xs'}"
 									aria-label="Select language"
 								>
@@ -345,13 +345,13 @@
 										>
 											<!-- Header to inform user about System Language context -->
 											<div
-												class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-600 mb-1"
+												class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1"
 											>
 												{m.applayout_systemlanguage()}
 											</div>
 
 											{#if showLanguageDropdown}
-												<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-600">
+												<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
 													<input
 														type="text"
 														bind:value={searchQuery}
@@ -381,7 +381,7 @@
 														onclick={() => handleLanguageSelection(lang)}
 														class="flex w-full items-center justify-between px-3 py-2 text-left  rounded-sm cursor-pointer"
 													>
-														<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
+														<span class="text-sm font-medium">{getLanguageName(lang)}</span>
 														<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
 													</Menu.Item>
 												{/each}

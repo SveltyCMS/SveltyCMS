@@ -1,7 +1,15 @@
 <!--
 @file src/routes/setup/SetupNavigation.svelte
-@description Footer navigation component for the main content card.
-Handles Previous, Next, and Complete buttons and their states.
+@component **Footer navigation component for the main content card**
+
+Features:
+- Previous button
+- Next button
+- Complete button
+- Step indicator
+- Loading state
+- Error state	
+
 -->
 <script lang="ts">
 	import * as m from '@src/paraglide/messages';
@@ -41,16 +49,17 @@ Handles Previous, Next, and Complete buttons and their states.
 		<!-- Previous Button -->
 		<div class="flex-1">
 			{#if currentStep > 0}
-				<button onclick={() => onprev()} class="variant-filled-tertiary btn dark:variant-filled-primary">
-					<iconify-icon icon="mdi:arrow-left-bold" class="mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
-					{m.button_previous()}
+				<button onclick={() => onprev()} class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">
+					<iconify-icon icon="mdi:arrow-left-bold" class="sm:mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+					<span class="hidden sm:inline">{m.button_previous()}</span>
 				</button>
 			{/if}
 		</div>
 
 		<!-- Step Indicator -->
 		<div class="shrink-0 text-center text-sm font-medium">
-			{m.setup_progress_step_of({ current: String(currentStep + 1), total: String(totalSteps) })}
+			<span class="sm:hidden">{currentStep + 1} / {totalSteps}</span>
+			<span class="hidden sm:inline">{m.setup_progress_step_of({ current: String(currentStep + 1), total: String(totalSteps) })}</span>
 		</div>
 
 		<!-- Next/Complete Button -->
@@ -60,14 +69,14 @@ Handles Previous, Next, and Complete buttons and their states.
 					onclick={() => onnext()}
 					disabled={!canProceed || isLoading}
 					aria-disabled={!canProceed || isLoading}
-					class="variant-filled-tertiary btn transition-all dark:variant-filled-primary {canProceed ? '' : 'cursor-not-allowed opacity-60'}"
+					class="preset-filled-tertiary-500 btn transition-all dark:preset-filled-primary-500 {canProceed ? '' : 'cursor-not-allowed opacity-60'}"
 				>
 					{#if isLoading && currentStep === 0}
 						<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>
-						<span class="ml-2">Seeding...</span>
+						<span class="ml-2 hidden sm:inline">Seeding...</span>
 					{:else}
-						{m.button_next()}
-						<iconify-icon icon="mdi:arrow-right-bold" class="ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+						<span class="hidden sm:inline">{m.button_next()}</span>
+						<iconify-icon icon="mdi:arrow-right-bold" class="sm:ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>
 					{/if}
 				</button>
 			{:else if currentStep === totalSteps - 1}
@@ -75,14 +84,14 @@ Handles Previous, Next, and Complete buttons and their states.
 					onclick={() => oncomplete()}
 					disabled={isLoading}
 					aria-disabled={isLoading}
-					class="variant-filled-tertiary btn transition-all dark:variant-filled-primary {isLoading ? 'cursor-not-allowed opacity-60' : ''}"
+					class="preset-filled-tertiary-500 btn transition-all dark:preset-filled-primary-500 {isLoading ? 'cursor-not-allowed opacity-60' : ''}"
 				>
 					{#if isLoading}
 						<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>
-						<span class="ml-2">Completing...</span>
+						<span class="ml-2 hidden sm:inline">Completing...</span>
 					{:else}
-						{m.button_complete?.() || 'Complete'}
-						<iconify-icon icon="mdi:check-bold" class="ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+						<span class="hidden sm:inline">{m.button_complete?.() || 'Complete'}</span>
+						<iconify-icon icon="mdi:check-bold" class="sm:ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>
 					{/if}
 				</button>
 			{/if}
