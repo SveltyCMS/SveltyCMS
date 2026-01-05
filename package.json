@@ -131,7 +131,6 @@
 		"@aws-sdk/client-s3": "^3.962.0",
 		"@floating-ui/dom": "^1.7.4",
 		"@inlang/paraglide-js": "^2.7.1",
-		"@keenmate/svelte-treeview": "4.5.0-rc01",
 		"@mapbox/mapbox-gl-geocoder": "^5.1.2",
 		"@mapbox/mapbox-gl-language": "^1.0.1",
 		"@tailwindcss/forms": "^0.5.11",
