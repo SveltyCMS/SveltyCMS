@@ -20,7 +20,6 @@
 <script lang="ts">
 	// Component
 	import TreeViewNode from './TreeViewNode.svelte';
-	import { logger } from '@utils/logger';
 
 	// DB / Types
 	import type { ContentNode } from '@databases/dbInterface';
@@ -73,9 +72,11 @@
 	});
 
 	// Build hierarchical structure for rendering
+	type EnhancedTreeViewItem = TreeViewItem & { children: EnhancedTreeViewItem[]; level: number };
+
 	const hierarchicalData = $derived.by(() => {
 		const items = filteredItems;
-		const itemMap = new Map<string, TreeViewItem & { children: TreeViewItem[]; level: number }>();
+		const itemMap = new Map<string, EnhancedTreeViewItem>();
 
 		// First pass: create enhanced items with children arrays
 		items.forEach((item) => {
@@ -83,7 +84,7 @@
 		});
 
 		// Second pass: build hierarchy
-		const roots: (TreeViewItem & { children: TreeViewItem[]; level: number })[] = [];
+		const roots: EnhancedTreeViewItem[] = [];
 		items.forEach((item) => {
 			const enhanced = itemMap.get(item.id)!;
 			if (item.parent && itemMap.has(item.parent)) {
@@ -140,8 +141,7 @@
 		// Update treeData with the new order for items at this level
 		const updatedData = [...treeData];
 
-		// Remove all items that belong to this parent
-		const itemsToUpdate = updatedData.filter((item) => (item.parent || null) === parentId);
+		// Remove all items that belong to this parent and keep others
 		const otherItems = updatedData.filter((item) => (item.parent || null) !== parentId);
 
 		// Update parent references for the reordered items
@@ -217,16 +217,16 @@
 </div>
 
 <!-- Recursive Tree Node Renderer -->
-{#snippet treeNode(item: TreeViewItem & { children: TreeViewItem[]; level: number }, level: number)}
+{#snippet treeNode(item: EnhancedTreeViewItem, level: number)}
 	<div class="tree-node-container" style="margin-left: {level * 2}rem">
 		<!-- Render the node -->
 		<TreeViewNode
-			{item}
+			item={{...item}}
 			isOpen={expandedNodes.has(item.id)}
 			toggle={() => toggleNode(item.id)}
-			onEditCategory={() => onEditCategory(item)}
-			onDelete={() => onDeleteNode?.(item)}
-			onDuplicate={() => onDuplicateNode?.(item)}
+			onEditCategory={() => onEditCategory(item as any)}
+			onDelete={() => onDeleteNode?.(item as any)}
+			onDuplicate={() => onDuplicateNode?.(item as any)}
 		/>
 
 		<!-- Render children if expanded -->
