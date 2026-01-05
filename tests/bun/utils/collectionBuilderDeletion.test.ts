@@ -38,21 +38,25 @@ function simulateCategoryDeletion(currentConfig: ContentNode[], nodeToDelete: Co
 		return currentConfig.filter((n) => n._id !== nodeToDelete._id);
 	}
 
-	// Category deletion logic:
-	// 1. Find all descendants (subcategories and collections)
+	// Category deletion logic using BFS (same as production code)
 	const descendants: ContentNode[] = [];
-	const findDescendants = (parentId: string) => {
+	const queue: string[] = [nodeToDelete._id];
+
+	// Use BFS to find all descendants (avoids stack overflow with deep nesting)
+	while (queue.length > 0) {
+		const parentId = queue.shift()!;
 		currentConfig.forEach((n) => {
 			if (n.parentId === parentId) {
 				descendants.push(n);
-				// Recursively find children
-				findDescendants(n._id);
+				// If it's a category, add to queue to find its children
+				if (n.nodeType === 'category') {
+					queue.push(n._id);
+				}
 			}
 		});
-	};
-	findDescendants(nodeToDelete._id);
+	}
 
-	// 2. Update descendants to be root-level
+	// Update descendants to be root-level
 	let updatedConfig = currentConfig.map((n) => {
 		if (descendants.find((d) => d._id === n._id)) {
 			return { ...n, parentId: undefined };
@@ -60,7 +64,7 @@ function simulateCategoryDeletion(currentConfig: ContentNode[], nodeToDelete: Co
 		return n;
 	});
 
-	// 3. Filter out the deleted category
+	// Filter out the deleted category
 	updatedConfig = updatedConfig.filter((n) => n._id !== nodeToDelete._id);
 
 	return updatedConfig;

@@ -194,22 +194,27 @@
 		try {
 			if (node.nodeType === 'category') {
 				// Category deletion logic:
-				// 1. Find all descendants (subcategories and collections)
+				// 1. Find all descendants (subcategories and collections) using iterative approach
 				// 2. Promote subcategories to root (set parentId = undefined)
 				// 3. Move all collections to root (set parentId = undefined)
 				// 4. Delete the category itself
 
 				const descendants: ContentNode[] = [];
-				const findDescendants = (parentId: string) => {
+				const queue: string[] = [node._id];
+
+				// Use BFS to find all descendants (avoids stack overflow with deep nesting)
+				while (queue.length > 0) {
+					const parentId = queue.shift()!;
 					currentConfig.forEach((n) => {
 						if (n.parentId === parentId) {
 							descendants.push(n);
-							// Recursively find children
-							findDescendants(n._id);
+							// If it's a category, add to queue to find its children
+							if (n.nodeType === 'category') {
+								queue.push(n._id);
+							}
 						}
 					});
-				};
-				findDescendants(node._id);
+				}
 
 				// Update descendants to be root-level
 				descendants.forEach((desc) => {
