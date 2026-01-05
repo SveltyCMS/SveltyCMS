@@ -86,11 +86,15 @@
 		// Second pass: build hierarchy
 		const roots: EnhancedTreeViewItem[] = [];
 		items.forEach((item) => {
-			const enhanced = itemMap.get(item.id)!;
+			const enhanced = itemMap.get(item.id);
+			if (!enhanced) return; // Safety check
+
 			if (item.parent && itemMap.has(item.parent)) {
-				const parent = itemMap.get(item.parent)!;
-				parent.children.push(enhanced);
-				enhanced.level = parent.level + 1;
+				const parent = itemMap.get(item.parent);
+				if (parent) {
+					parent.children.push(enhanced);
+					enhanced.level = parent.level + 1;
+				}
 			} else {
 				roots.push(enhanced);
 			}
@@ -141,19 +145,32 @@
 		// Update treeData with the new order for items at this level
 		const updatedData = [...treeData];
 
-		// Remove all items that belong to this parent and keep others
+		// Separate items: those belonging to this parent vs others
 		const otherItems = updatedData.filter((item) => (item.parent || null) !== parentId);
 
 		// Update parent references for the reordered items
-		const reorderedItems = newItems.map((item) => ({
+		const reorderedItems = newItems.map((item, index) => ({
 			...item,
-			parent: parentId
+			parent: parentId,
+			order: index // Ensure order is set based on position
 		}));
 
-		// Merge back together
-		treeData = [...otherItems, ...reorderedItems];
+		// Merge: keep other items in their original positions, append reordered items
+		// This maintains the original ordering for items not affected by this drag operation
+		const mergedItems = otherItems.concat(reorderedItems);
 
-		// Recalculate paths and orders
+		// Sort to maintain a consistent ordering in the flat array
+		// Items are sorted by their path depth and then by order within siblings
+		mergedItems.sort((a, b) => {
+			const aDepth = a.path.split('.').length;
+			const bDepth = b.path.split('.').length;
+			if (aDepth !== bDepth) return aDepth - bDepth;
+			return (a.order ?? 0) - (b.order ?? 0);
+		});
+
+		treeData = mergedItems;
+
+		// Recalculate paths and orders based on new structure
 		treeData = recalculatePaths(treeData);
 	}
 
@@ -165,6 +182,17 @@
 		setTimeout(() => {
 			onNodeUpdate(contentNodes);
 		}, 50);
+	}
+
+	// Helper to convert EnhancedTreeViewItem to Partial<ContentNode> for callbacks
+	function toPartialContentNode(item: TreeViewItem | EnhancedTreeViewItem): Partial<ContentNode> {
+		// Extract only the properties needed for ContentNode
+		const { children, level, parent, path, ...contentNodeProps } = item as any;
+		return {
+			...contentNodeProps,
+			_id: item._id || item.id,
+			parentId: parent
+		};
 	}
 </script>
 
@@ -224,9 +252,9 @@
 			item={{...item}}
 			isOpen={expandedNodes.has(item.id)}
 			toggle={() => toggleNode(item.id)}
-			onEditCategory={() => onEditCategory(item as any)}
-			onDelete={() => onDeleteNode?.(item as any)}
-			onDuplicate={() => onDuplicateNode?.(item as any)}
+			onEditCategory={() => onEditCategory(toPartialContentNode(item))}
+			onDelete={() => onDeleteNode?.(toPartialContentNode(item))}
+			onDuplicate={() => onDuplicateNode?.(toPartialContentNode(item))}
 		/>
 
 		<!-- Render children if expanded -->
