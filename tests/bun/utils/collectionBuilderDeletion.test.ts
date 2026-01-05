@@ -8,17 +8,22 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import type { ContentNode } from '../../../src/content/types';
+import type { ContentNode, DatabaseId } from '../../../src/content/types';
+
+// Helper to convert string to DatabaseId for testing
+function toDatabaseId(id: string): DatabaseId {
+	return id as DatabaseId;
+}
 
 // Mock ContentNode data for testing
 function createMockContentNode(overrides: Record<string, unknown> = {}): ContentNode {
 	return {
-		_id: overrides._id || 'test-id',
+		_id: toDatabaseId(overrides._id as string || 'test-id'),
 		name: overrides.name || 'Test Node',
 		nodeType: overrides.nodeType || 'collection',
 		icon: overrides.icon || 'mdi:folder',
 		order: overrides.order ?? 0,
-		parentId: overrides.parentId,
+		parentId: overrides.parentId as DatabaseId | undefined,
 		...overrides
 	} as ContentNode;
 }
@@ -71,14 +76,14 @@ describe('Collection Builder - Category Deletion', () => {
 		const result = simulateCategoryDeletion(nodes, nodes[0]);
 
 		expect(result).toHaveLength(1);
-		expect(result[0]._id).toBe('cat2' as any);
+		expect(result[0]._id).toBe(toDatabaseId('cat2'));
 	});
 
 	test('should move collections to root when deleting their parent category', () => {
 		const nodes: ContentNode[] = [
 			createMockContentNode({ _id: 'cat1', name: 'Category 1', nodeType: 'category' }),
-			createMockContentNode({ _id: 'col1', name: 'Collection 1', nodeType: 'collection', parentId: 'cat1' as any }),
-			createMockContentNode({ _id: 'col2', name: 'Collection 2', nodeType: 'collection', parentId: 'cat1' as any })
+			createMockContentNode({ _id: 'col1', name: 'Collection 1', nodeType: 'collection', parentId: toDatabaseId('cat1') }),
+			createMockContentNode({ _id: 'col2', name: 'Collection 2', nodeType: 'collection', parentId: toDatabaseId('cat1') })
 		];
 
 		const result = simulateCategoryDeletion(nodes, nodes[0]);
@@ -93,8 +98,8 @@ describe('Collection Builder - Category Deletion', () => {
 	test('should promote subcategories to root when deleting parent category', () => {
 		const nodes: ContentNode[] = [
 			createMockContentNode({ _id: 'cat1', name: 'Category 1', nodeType: 'category' }),
-			createMockContentNode({ _id: 'cat2', name: 'Subcategory 1', nodeType: 'category', parentId: 'cat1' as any }),
-			createMockContentNode({ _id: 'cat3', name: 'Subcategory 2', nodeType: 'category', parentId: 'cat1' as any })
+			createMockContentNode({ _id: 'cat2', name: 'Subcategory 1', nodeType: 'category', parentId: toDatabaseId('cat1') }),
+			createMockContentNode({ _id: 'cat3', name: 'Subcategory 2', nodeType: 'category', parentId: toDatabaseId('cat1') })
 		];
 
 		const result = simulateCategoryDeletion(nodes, nodes[0]);
@@ -109,10 +114,10 @@ describe('Collection Builder - Category Deletion', () => {
 	test('should handle deeply nested structures', () => {
 		const nodes: ContentNode[] = [
 			createMockContentNode({ _id: 'root', name: 'Root Category', nodeType: 'category' }),
-			createMockContentNode({ _id: 'level1', name: 'Level 1 Category', nodeType: 'category', parentId: 'root' as any }),
-			createMockContentNode({ _id: 'col1', name: 'Collection in L1', nodeType: 'collection', parentId: 'level1' as any }),
-			createMockContentNode({ _id: 'level2', name: 'Level 2 Category', nodeType: 'category', parentId: 'level1' as any }),
-			createMockContentNode({ _id: 'col2', name: 'Collection in L2', nodeType: 'collection', parentId: 'level2' as any })
+			createMockContentNode({ _id: 'level1', name: 'Level 1 Category', nodeType: 'category', parentId: toDatabaseId('root') }),
+			createMockContentNode({ _id: 'col1', name: 'Collection in L1', nodeType: 'collection', parentId: toDatabaseId('level1') }),
+			createMockContentNode({ _id: 'level2', name: 'Level 2 Category', nodeType: 'category', parentId: toDatabaseId('level1') }),
+			createMockContentNode({ _id: 'col2', name: 'Collection in L2', nodeType: 'collection', parentId: toDatabaseId('level2') })
 		];
 
 		const result = simulateCategoryDeletion(nodes, nodes[0]); // Delete root
@@ -127,33 +132,33 @@ describe('Collection Builder - Category Deletion', () => {
 	test('should delete a collection without affecting others', () => {
 		const nodes: ContentNode[] = [
 			createMockContentNode({ _id: 'cat1', name: 'Category 1', nodeType: 'category' }),
-			createMockContentNode({ _id: 'col1', name: 'Collection 1', nodeType: 'collection', parentId: 'cat1' as any }),
-			createMockContentNode({ _id: 'col2', name: 'Collection 2', nodeType: 'collection', parentId: 'cat1' as any })
+			createMockContentNode({ _id: 'col1', name: 'Collection 1', nodeType: 'collection', parentId: toDatabaseId('cat1') }),
+			createMockContentNode({ _id: 'col2', name: 'Collection 2', nodeType: 'collection', parentId: toDatabaseId('cat1') })
 		];
 
 		const result = simulateCategoryDeletion(nodes, nodes[1]); // Delete col1
 
 		expect(result).toHaveLength(2);
-		expect(result.find((n) => n._id === 'cat1' as any)).toBeDefined();
-		expect(result.find((n) => n._id === 'col2' as any)).toBeDefined();
-		expect(result.find((n) => n._id === 'col1' as any)).toBeUndefined();
+		expect(result.find((n) => n._id === toDatabaseId('cat1'))).toBeDefined();
+		expect(result.find((n) => n._id === toDatabaseId('col2'))).toBeDefined();
+		expect(result.find((n) => n._id === toDatabaseId('col1'))).toBeUndefined();
 	});
 
 	test('should not affect siblings when deleting a category', () => {
 		const nodes: ContentNode[] = [
 			createMockContentNode({ _id: 'cat1', name: 'Category 1', nodeType: 'category' }),
 			createMockContentNode({ _id: 'cat2', name: 'Category 2', nodeType: 'category' }),
-			createMockContentNode({ _id: 'col1', name: 'Collection 1', nodeType: 'collection', parentId: 'cat1' as any }),
-			createMockContentNode({ _id: 'col2', name: 'Collection 2', nodeType: 'collection', parentId: 'cat2' as any })
+			createMockContentNode({ _id: 'col1', name: 'Collection 1', nodeType: 'collection', parentId: toDatabaseId('cat1') }),
+			createMockContentNode({ _id: 'col2', name: 'Collection 2', nodeType: 'collection', parentId: toDatabaseId('cat2') })
 		];
 
 		const result = simulateCategoryDeletion(nodes, nodes[0]); // Delete cat1
 
 		expect(result).toHaveLength(3);
 		// cat2 and its collection should remain untouched
-		expect(result.find((n) => n._id === 'cat2' as any)?.parentId).toBeUndefined();
-		expect(result.find((n) => n._id === 'col2' as any)?.parentId).toBe('cat2' as any);
+		expect(result.find((n) => n._id === toDatabaseId('cat2'))?.parentId).toBeUndefined();
+		expect(result.find((n) => n._id === toDatabaseId('col2'))?.parentId).toBe(toDatabaseId('cat2'));
 		// col1 should be promoted to root
-		expect(result.find((n) => n._id === 'col1' as any)?.parentId).toBeUndefined();
+		expect(result.find((n) => n._id === toDatabaseId('col1'))?.parentId).toBeUndefined();
 	});
 });

@@ -22,7 +22,7 @@
 	import TreeViewNode from './TreeViewNode.svelte';
 
 	// DB / Types
-	import type { ContentNode } from '@databases/dbInterface';
+	import type { ContentNode, DatabaseId } from '@databases/dbInterface';
 
 	// Drag and Drop
 	import { dndzone, SHADOW_PLACEHOLDER_ITEM_ID } from 'svelte-dnd-action';
@@ -106,7 +106,7 @@
 			const contentNode: ContentNode = {
 				...rest,
 				_id: item._id,
-				parentId: parentId as any, // Cast to DatabaseId
+				parentId: parentId as DatabaseId | undefined, // Safe cast: parentId is a DatabaseId from the tree
 				order: index
 			};
 			result.push(contentNode);
