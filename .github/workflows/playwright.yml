@@ -45,22 +45,24 @@ jobs:
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
       - name: Cache Bun dependencies
         uses: actions/cache@v4
         with:
-          path: ~/.bun/install/cache
+          path: |
+            ~/.bun/install/cache
+            node_modules
           key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
           restore-keys: |
             ${{ runner.os }}-bun-
@@ -68,11 +70,23 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Verify Bun installation
+        run: |
+          echo "🔍 Verifying Bun installation..."
+          bun --version
+          echo "✅ Bun is ready"
+
       # Generate .svelte-kit/tsconfig.json for path alias resolution
       - name: Generate SvelteKit types
-        run: bunx svelte-kit sync
+        timeout-minutes: 2
+        continue-on-error: true
+        run: |
+          echo "🔄 Running svelte-kit sync..."
+          bunx svelte-kit sync
+          echo "✅ SvelteKit types generation complete"
 
       - name: Run Unit Tests
+        timeout-minutes: 5
         run: bun run test:unit
 
   # ------------------------------------------------------------------
@@ -98,15 +112,15 @@ jobs:
       DB_PASSWORD: admin
       TEST_MODE: 'true'
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
@@ -207,15 +221,15 @@ jobs:
       DB_PASSWORD: admin
       TEST_MODE: 'true'
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
@@ -364,7 +378,7 @@ jobs:
           # --grep-invert skips the setup wizard and RBAC since we just ran them
           bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard|role-based"
 
-      - uses: actions/upload-artifact@604373da6381bf24206979c74d06a550515601b9 # v4.6.0
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report
