@@ -45,12 +45,7 @@
 	import { toaster } from '@stores/store.svelte';
 	import { modalState } from '@utils/modalState.svelte';
 	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
-	import type { ISODateString } from '@root/src/content/types';
-
-	interface NodeOperation {
-		type: 'create' | 'update' | 'move' | 'rename';
-		node: ContentNode;
-	}
+	import type { ISODateString, ContentNodeOperation } from '@root/src/content/types';
 
 	interface CategoryModalResponse {
 		newCategoryName: string;
@@ -73,8 +68,8 @@
 	// `currentConfig` holds the live, mutable state of the content structure for the UI.
 	// It's initialized from `data.contentStructure` and updated by DnD operations.
 	let currentConfig: ContentNode[] = $state([]);
-	// `nodesToSave` stores operations (create, update, move, rename) that need to be persisted to the backend.
-	let nodesToSave: Record<string, NodeOperation> = $state({});
+	// `nodesToSave` stores operations (create, update, move, rename, delete) that need to be persisted to the backend.
+	let nodesToSave: Record<string, ContentNodeOperation> = $state({});
 
 	$effect(() => {
 		if (data.contentStructure) {
@@ -169,6 +164,101 @@
 			type: 'create',
 			node: newCategory
 		};
+	}
+
+	/**
+	 * Handles deletion of a node (category or collection).
+	 * For categories: promotes subcategories to root and moves all collections to root.
+	 * For collections: simple deletion.
+	 * @param node The node to delete
+	 */
+	async function handleDeleteNode(node: Partial<ContentNode>) {
+		if (!node._id) {
+			logger.warn('Cannot delete node without _id');
+			return;
+		}
+
+		// Confirm deletion
+		const confirmed = await new Promise<boolean>((resolve) => {
+			const message =
+				node.nodeType === 'category'
+					? `Delete category "${node.name}"? All subcategories will be promoted to root and collections will be moved to root.`
+					: `Delete collection "${node.name}"?`;
+
+			// Use native confirm for now (can be replaced with a modal later)
+			resolve(confirm(message));
+		});
+
+		if (!confirmed) return;
+
+		try {
+			if (node.nodeType === 'category') {
+				// Category deletion logic:
+				// 1. Find all descendants (subcategories and collections)
+				// 2. Promote subcategories to root (set parentId = undefined)
+				// 3. Move all collections to root (set parentId = undefined)
+				// 4. Delete the category itself
+
+				const descendants: ContentNode[] = [];
+				const findDescendants = (parentId: string) => {
+					currentConfig.forEach((n) => {
+						if (n.parentId === parentId) {
+							descendants.push(n);
+							// Recursively find children
+							findDescendants(n._id);
+						}
+					});
+				};
+				findDescendants(node._id);
+
+				// Update descendants to be root-level
+				descendants.forEach((desc) => {
+					const updatedNode: ContentNode = {
+						...desc,
+						parentId: undefined,
+						updatedAt: new Date().toISOString() as ISODateString
+					};
+					nodesToSave[desc._id] = {
+						type: 'move',
+						node: updatedNode
+					};
+				});
+
+				// Update currentConfig to reflect the changes
+				currentConfig = currentConfig.map((n) => {
+					if (descendants.find((d) => d._id === n._id)) {
+						return { ...n, parentId: undefined };
+					}
+					return n;
+				});
+
+				// Filter out the deleted category
+				currentConfig = currentConfig.filter((n) => n._id !== node._id);
+			} else {
+				// Simple collection deletion
+				currentConfig = currentConfig.filter((n) => n._id !== node._id);
+			}
+
+			// Mark the node for deletion
+			nodesToSave[node._id] = {
+				type: 'delete',
+				node: node as ContentNode
+			};
+
+			toaster.success({ description: `${node.nodeType === 'category' ? 'Category' : 'Collection'} "${node.name}" marked for deletion` });
+		} catch (error) {
+			logger.error('Error deleting node:', error);
+			toaster.error({ description: error instanceof Error ? error.message : 'Failed to delete node' });
+		}
+	}
+
+	/**
+	 * Handles duplication of a node (category or collection).
+	 * @param _node The node to duplicate
+	 */
+	async function handleDuplicateNode(_node: Partial<ContentNode>) {
+		// TODO: Implement duplication logic
+		toaster.info({ description: 'Duplication feature coming soon' });
 	}
 
 	/**
@@ -319,6 +409,12 @@
 			{m.collection_description()}
 		</p>
 
-		<TreeViewBoard contentNodes={currentConfig ?? []} onNodeUpdate={handleNodeUpdate} onEditCategory={modalAddCategory} />
+		<TreeViewBoard
+			contentNodes={currentConfig ?? []}
+			onNodeUpdate={handleNodeUpdate}
+			onEditCategory={modalAddCategory}
+			onDeleteNode={handleDeleteNode}
+			onDuplicateNode={handleDuplicateNode}
+		/>
 	</div>
 </div>

@@ -13,16 +13,20 @@ Features:
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import type { TreeViewItem } from '@utils/treeViewAdapter';
-	// Tree View
+	import type { ContentNode } from '@databases/dbInterface';
+
+	interface DndItem extends ContentNode {
+		id: string;
+		children?: DndItem[];
+	}
 
 	interface Props {
-		item: TreeViewItem & { hasChildren?: boolean };
+		item: DndItem;
 		isOpen?: boolean;
 		toggle?: () => void;
-		onEditCategory: (item: TreeViewItem) => void;
-		onDelete?: (item: TreeViewItem) => void;
-		onDuplicate?: (item: TreeViewItem) => void;
+		onEditCategory: (item: DndItem) => void;
+		onDelete?: (item: DndItem) => void;
+		onDuplicate?: (item: DndItem) => void;
 	}
 
 	let { item, isOpen, toggle, onEditCategory, onDelete, onDuplicate }: Props = $props();
@@ -31,6 +35,7 @@ Features:
 	const name = $derived(item.name || 'Untitled');
 	const icon = $derived(item.icon || (item.nodeType === 'category' ? 'bi:folder' : 'bi:collection'));
 	const isCategory = $derived(item.nodeType === 'category');
+	const hasChildren = $derived(item.children && item.children.length > 0);
 
 	// Enhanced styling with better visual hierarchy
 	const containerClass = $derived(
@@ -59,13 +64,12 @@ Features:
 	tabindex="0"
 >
 	<!-- Expand/Collapse Toggle -->
-	{#if item.hasChildren || isCategory}
+	{#if hasChildren || isCategory}
 		<button
 			type="button"
 			class="btn-icon preset-tonal hover:preset-filled transition-all duration-200 hover:scale-110"
 			onclick={(e) => {
 				e.stopPropagation();
-				console.log('Toggle clicked', { toggle, isOpen });
 				toggle?.();
 			}}
 			aria-label={isOpen ? 'Collapse' : 'Expand'}
