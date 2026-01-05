@@ -14,42 +14,24 @@ FIXES:
 
 <script lang="ts">
 	import { logger } from '@utils/logger';
-	import { untrack, onMount, onDestroy } from 'svelte';
+	import { untrack } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Progress } from '@skeletonlabs/skeleton-svelte';
 	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
+	import { getLanguageName } from '@utils/languageUtils';
+
+	// SkeletonUI
+	import { Progress, Menu, Portal } from '@skeletonlabs/skeleton-svelte';
+
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
-	import { scale, fade } from 'svelte/transition';
-	import { quintOut } from 'svelte/easing';
-	import { SvelteSet } from 'svelte/reactivity';
-
-	// Portal container for dropdown
-	let portalTarget = $state<HTMLElement | null>(null);
-
-	onMount(() => {
-		if (typeof document !== 'undefined') {
-			portalTarget = document.createElement('div');
-			portalTarget.id = 'translation-dropdown-portal';
-			portalTarget.style.position = 'fixed';
-			portalTarget.style.zIndex = '99999';
-			portalTarget.style.pointerEvents = 'none';
-			document.body.appendChild(portalTarget);
-		}
-	});
-
-	onDestroy(() => {
-		if (portalTarget && portalTarget.parentNode) {
-			portalTarget.parentNode.removeChild(portalTarget);
-		}
-	});
 
 	// State
-	let isOpen = $state(false);
 	let isInitialized = $state(false);
 	let completionTotals = $state({ total: 0, translated: 0 });
 
@@ -65,6 +47,14 @@ FIXES:
 	const currentLanguage = $derived(contentLanguage.value);
 	const currentMode = $derived(mode.value);
 	const isViewMode = $derived(currentMode === 'view');
+
+	// Logic: In View Mode, only show *other* languages (switcher style). In Edit Mode, show all (status style).
+	const dropdownLanguages = $derived.by(() => {
+		if (isViewMode) {
+			return availableLanguages.filter((l) => l !== currentLanguage);
+		}
+		return availableLanguages;
+	});
 
 	const overallPercentage = $derived.by(() => {
 		const { total, translated } = completionTotals;
@@ -291,29 +281,31 @@ FIXES:
 		completionTotals = { total, translated };
 	}
 
-	// Dropdown position state
-	let dropdownPosition = $state({ top: 0, right: 0 });
-
-	function updateDropdownPosition(): void {
-		const button = document.querySelector('.translation-status-container button');
-		if (button) {
-			const rect = button.getBoundingClientRect();
-			dropdownPosition = {
-				top: rect.bottom + 8,
-				right: window.innerWidth - rect.right
-			};
-		}
-	}
-
-	// Event handlers
-	function toggleDropdown(): void {
-		isOpen = !isOpen;
-	}
+	// Dropdown positioning handled by Skeleton Menu
 
 	function handleLanguageChange(selectedLanguage: Locale): void {
 		logger.debug('[TranslationStatus] Language change:', contentLanguage.value, '→', selectedLanguage);
 		contentLanguage.set(selectedLanguage);
-		isOpen = false;
+
+		// Handle View Mode Navigation (previously handleViewModeLanguageChange)
+		if (isViewMode) {
+			const currentCollectionId = collection.value?._id;
+			const currentSearch = page.url.search;
+
+			if (currentCollectionId) {
+				const newPath = `/${selectedLanguage}/${currentCollectionId}${currentSearch}`;
+				goto(newPath, { replaceState: false, invalidateAll: true });
+			} else {
+				const currentPath = page.url.pathname;
+				const pathParts = currentPath.split('/').filter(Boolean);
+				if (pathParts.length > 0) {
+					pathParts[0] = selectedLanguage;
+					const newPath = '/' + pathParts.join('/') + currentSearch;
+					goto(newPath, { replaceState: false, invalidateAll: true });
+				}
+			}
+			return;
+		}
 
 		if (typeof window !== 'undefined') {
 			const currentPath = window.location.pathname;
@@ -332,42 +324,6 @@ FIXES:
 			});
 			window.dispatchEvent(customEvent);
 			logger.debug('[TranslationStatus] Dispatched languageChanged event');
-		}
-	}
-
-	async function handleViewModeLanguageChange(event: Event) {
-		const target = event.target as HTMLSelectElement;
-		const selectedLanguage = target.value as Locale;
-
-		contentLanguage.set(selectedLanguage);
-
-		const currentCollectionId = collection.value?._id;
-		const currentSearch = page.url.search;
-
-		if (currentCollectionId) {
-			const newPath = `/${selectedLanguage}/${currentCollectionId}${currentSearch}`;
-			await goto(newPath, { replaceState: false, invalidateAll: true });
-		} else {
-			const currentPath = page.url.pathname;
-			const pathParts = currentPath.split('/').filter(Boolean);
-			if (pathParts.length > 0) {
-				pathParts[0] = selectedLanguage;
-				const newPath = '/' + pathParts.join('/') + currentSearch;
-				await goto(newPath, { replaceState: false, invalidateAll: true });
-			}
-		}
-
-		const customEvent = new CustomEvent('languageChanged', {
-			detail: { language: selectedLanguage },
-			bubbles: true
-		});
-		target.dispatchEvent(customEvent);
-	}
-
-	function handleClickOutside(event: MouseEvent): void {
-		const target = event.target as HTMLElement;
-		if (!target.closest('.translation-status-container')) {
-			isOpen = false;
 		}
 	}
 
@@ -424,134 +380,93 @@ FIXES:
 			}
 		}
 	});
-
-	$effect(() => {
-		if (isOpen) {
-			updateDropdownPosition();
-			document.addEventListener('click', handleClickOutside);
-			return () => document.removeEventListener('click', handleClickOutside);
-		}
-	});
 </script>
 
-{#if isViewMode}
-	<select
-		class="select w-full max-w-[70px] transition-all duration-200 hover:scale-105 focus:scale-105 focus:shadow-lg"
-		value={currentLanguage}
-		onchange={handleViewModeLanguageChange}
-		disabled={availableLanguages.length === 0}
-		aria-label="Select content language"
-	>
-		{#if availableLanguages.length === 0}
-			<option disabled>Loading...</option>
-		{:else}
-			{#each availableLanguages as lang (lang)}
-				<option value={lang}>{lang.toUpperCase()}</option>
-			{/each}
-		{/if}
-	</select>
-{:else}
-	<div class="translation-status-container relative mt-1 inline-block text-left">
-		<div>
-			<button
-				type="button"
-				onclick={toggleDropdown}
-				class="preset-outlined-surface-500 btn flex w-full items-center gap-1 p-1.5 transition-all duration-200 hover:scale-105"
-				aria-haspopup="true"
-				aria-expanded={isOpen}
-				aria-controls="translation-menu"
-				aria-label="Toggle language menu"
-			>
-				<span class="font-medium">{currentLanguage.toUpperCase()}</span>
-				<iconify-icon
-					icon="mdi:chevron-down"
-					class="h-5 w-5 transition-transform duration-200"
-					style="transform: rotate({isOpen ? 180 : 0}deg);"
-					aria-hidden="true"
-				></iconify-icon>
-			</button>
-
-			<div class="mt-0.5 transition-all duration-300">
-				<Progress
-					class="preset-outlined-secondary-500 transition-all duration-300 hover:shadow-sm"
-					value={overallPercentage}
-					aria-label={m.translationsstatus_overall_progress({ percentage: overallPercentage })}
-				/>
-				<div class="mt-1 text-center text-xs text-tertiary-500 dark:text-primary-500">
-					{overallPercentage}% {m.translationsstatus_completed()}
-				</div>
-			</div>
-		</div>
-	</div>
-{/if}
-
-{#if isOpen && portalTarget}
-	<div style="position: fixed; z-index: 99999; top: 0; left: 0; pointer-events: none; width: 100%; height: 100%;">
-		<div
-			id="translation-menu"
-			class="origin-top-right divide-y divide-preset-200 rounded-lg border-2 border-surface-400 bg-white py-1 shadow-2xl backdrop-blur-sm focus:outline-none dark:divide-preset-600 dark:border-surface-500 dark:bg-surface-800 {showProgress
-				? 'w-64'
-				: 'w-48'}"
-			style="position: fixed; top: {dropdownPosition.top}px; right: {dropdownPosition.right}px; pointer-events: auto;"
-			role="menu"
-			aria-orientation="vertical"
-			aria-labelledby="language-menu-button"
-			transition:scale={{ duration: 200, easing: quintOut, start: 0.95 }}
+<div class="translation-status-container relative mt-1 inline-block text-left">
+	<Menu>
+		<Menu.Trigger
+			class="btn preset-outlined-surface-500 rounded-full flex w-full items-center gap-1 p-1.5 transition-all duration-200 hover:scale-105"
+			aria-label="Toggle language menu"
 		>
-			<div role="none" class="divide-y divide-preset-200 dark:divide-preset-400">
-				{#each availableLanguages as lang, index (lang)}
-					{@const percentage = languageProgress[lang] || 0}
-					{@const isActive = currentLanguage === lang}
+			<span class="font-medium md:hidden">{currentLanguage.toUpperCase()}</span>
+			<span class="font-medium hidden md:inline">{getLanguageName(currentLanguage)}</span>
+			<iconify-icon icon="mdi:chevron-down" class="h-5 w-5 transition-transform duration-200" aria-hidden="true"></iconify-icon>
+		</Menu.Trigger>
 
-					<button
-						role="menuitem"
-						class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-all duration-200 hover:scale-[1.02] hover:bg-surface-300 active:scale-[0.98] dark:hover:bg-surface-600 {isActive
-							? 'bg-primary-500/20 text-primary-700 dark:text-primary-300'
-							: ''} {showProgress ? 'justify-between' : 'justify-center'}"
-						onclick={() => handleLanguageChange(lang as Locale)}
-						aria-label={m.translationsstatus_select_language({ language: lang.toUpperCase() })}
-						in:fade={{ duration: 200, delay: index * 30 }}
+		<Portal>
+			<Menu.Positioner>
+				<Menu.Content
+					class="card p-2 shadow-xl preset-filled-surface-100-900 z-9999 border border-surface-200 dark:border-surface-500 {showProgress &&
+					!isViewMode
+						? 'w-72'
+						: 'w-56'}"
+				>
+					<div
+						class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1"
 					>
-						<div class="flex w-full items-center justify-between gap-2">
-							<span class="font-medium transition-colors duration-200">
-								{lang.toUpperCase()}
-								{#if isActive}
-									<span class="ml-1 text-xs" aria-label="Current language">●</span>
-								{/if}
-							</span>
+						{m.applayout_contentlanguage()}
+					</div>
 
-							{#if showProgress && translationProgress.value?.[lang as Locale]}
-								<div class="ml-2 flex flex-1 items-center gap-2">
-									<div class="flex-1">
-										<Progress class="transition-all duration-300" value={percentage} aria-hidden="true" />
-									</div>
-									<span class="min-w-10 text-right text-sm font-semibold">
-										{percentage}%
-									</span>
+					{#each dropdownLanguages as lang (lang)}
+						{@const percentage = languageProgress[lang] || 0}
+						{@const isActive = currentLanguage === lang}
+
+						<Menu.Item value={lang} onclick={() => handleLanguageChange(lang as Locale)} class={isActive ? 'bg-primary-500/20' : ''}>
+							<div class="flex w-full items-center justify-between gap-2">
+								<!-- Left: Language Name (Desktop) / Short Code (Mobile) -->
+								<span class="font-medium transition-colors duration-200 {isActive ? 'text-primary-700 dark:text-primary-300' : ''}">
+									<span class="md:hidden">{lang.toUpperCase()}</span>
+									<span class="hidden md:inline">{getLanguageName(lang)}</span>
+								</span>
+
+								<!-- Right: Code, Status, Progress -->
+								<div class="flex items-center gap-2">
+									{#if !isViewMode && showProgress && translationProgress.value?.[lang as Locale]}
+										<div class="flex w-32 items-center gap-2">
+											<div class="flex-1">
+												<Progress class="transition-all duration-300" value={percentage} aria-hidden="true" />
+											</div>
+											<span class="min-w-8 text-right text-sm font-semibold">
+												{percentage}%
+											</span>
+										</div>
+									{:else}
+										<!-- View Mode: Show Code on Right -->
+										<span class="hidden text-xs font-normal text-tertiary-500 dark:text-primary-500 md:inline">{lang.toUpperCase()}</span>
+									{/if}
+
+									{#if isActive}
+										<span class="text-xs" aria-label="Current language">●</span>
+									{/if}
 								</div>
-							{/if}
-						</div>
-					</button>
-				{/each}
-			</div>
-
-			{#if showProgress}
-				<div class="px-4 py-2" role="none" in:fade={{ duration: 200, delay: 100 }}>
-					<div class="mb-1 text-center text-xs font-medium text-tertiary-500 dark:text-primary-500">
-						{m.translationsstatus_completed()}
-					</div>
-					<div class="flex items-center justify-between gap-3">
-						{#if overallPercentage}
-							<div class="flex-1">
-								<Progress class="transition-all duration-300" value={overallPercentage} aria-hidden="true" />
 							</div>
-						{/if}
-						<span class="min-w-10 text-right text-sm font-bold {getTextColor(overallPercentage)}">
-							{overallPercentage}%
-						</span>
-					</div>
-				</div>
-			{/if}
-		</div>
+						</Menu.Item>
+					{/each}
+
+					{#if !isViewMode && showProgress}
+						<Menu.Separator />
+						<div class="px-4 py-2">
+							<div class="mb-1 text-center text-xs font-medium text-tertiary-500 dark:text-primary-500">
+								{m.translationsstatus_completed()}
+							</div>
+							<div class="flex items-center justify-between gap-3">
+								{#if overallPercentage}
+									<div class="flex-1">
+										<Progress class="transition-all duration-300" value={overallPercentage} aria-hidden="true" />
+									</div>
+								{/if}
+								<span class="min-w-10 text-right text-sm font-bold {getTextColor(overallPercentage)}">
+									{overallPercentage}%
+								</span>
+							</div>
+						</div>
+					{/if}
+				</Menu.Content>
+			</Menu.Positioner>
+		</Portal>
+	</Menu>
+
+	<div class="mt-0.5 transition-all duration-300">
+		<!-- External progress bar removed to prevent header overflow -->
 	</div>
-{/if}
+</div>

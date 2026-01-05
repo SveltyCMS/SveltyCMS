@@ -15,11 +15,13 @@
 <script lang="ts">
 	// Stores
 	import { page } from '$app/state';
+	import { app } from '@stores/store.svelte';
+
 	// Components
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
+
 	// ParaglideJS
-	import { app } from '@stores/store.svelte';
 	import * as m from '@src/paraglide/messages';
 
 	const speed = 100;

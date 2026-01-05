@@ -88,8 +88,8 @@
 			<Logo fill="red" className="w-14 h-14" />
 
 			<!-- PUBLIC SITENAME -->
-			<div class="-mt-2 text-3xl font-bold text-black">
-				<SiteName highlight="CMS" />
+			<div class="-mt-2 text-3xl font-bold">
+				<SiteName highlight="CMS" textClass="text-black" />
 			</div>
 			<!-- Slogan -->
 			<div class="-mt-px text-[13px] font-bold text-surface-500">

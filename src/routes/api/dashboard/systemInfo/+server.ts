@@ -558,6 +558,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		// Fetch system information
 		const systemInfo = await getSystemInfo(type);
+
+		// Debug logging for memory type
+		if (type === 'memory') {
+			logger.info('System info memory fetched:', {
+				hasMemoryInfo: !!(systemInfo as any).memoryInfo,
+				keys: Object.keys(systemInfo)
+			});
+		}
 		logger.info(`System information (${type}) fetched successfully`, {
 			userId: locals.user?._id,
 			userEmail: locals.user?.email

@@ -25,7 +25,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { goto, preloadData } from '$app/navigation';
-	import { deserialize, enhance } from '$app/forms';
+	import { enhance } from '$app/forms';
 
 	// Stores
 	import { page } from '$app/state';
@@ -41,6 +41,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import PasswordStrength from '@components/PasswordStrength.svelte';
+	import FloatingPaths from '@components/system/FloatingPaths.svelte';
+
 	// Skeleton
 	import { toaster } from '@stores/store.svelte';
 
@@ -48,7 +50,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import * as m from '@src/paraglide/messages';
 	import OauthLogin from './OauthLogin.svelte';
 
-	// Screen size store
+	// Stores
+	import { screen } from '@stores/screenSizeStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Props
@@ -138,19 +141,20 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				// Keep authenticating state for redirect phase
 				isAuthenticating = true;
 
-				if (result.location) {
-					goto(result.location);
-				}
+				// Store flash message in sessionStorage for display after redirect
+				sessionStorage.setItem(
+					'flashMessage',
+					JSON.stringify({
+						type: 'success',
+						title: 'Welcome Back!',
+						description: 'Successfully signed in.',
+						duration: 4000
+					})
+				);
 
-				// Trigger the toast
-				toaster.success({
-					title: 'Welcome Back!',
-					description: 'Successfully signed in. Redirecting...'
-				});
-
-				// Clear authenticating state immediately
-				isAuthenticating = false;
-				globalLoadingStore.stopLoading(loadingOperations.authentication);
+				// Use window.location.href for reliable redirect after auth
+				const redirectUrl = (result.location as string) || '/';
+				window.location.href = redirectUrl;
 
 				return;
 			}
@@ -457,6 +461,12 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	{#if active === 0}
 		<!-- Background pattern  -->
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
+			{#if screen.isDesktop}
+				<div class="absolute inset-0 z-0">
+					<FloatingPaths position={1} background="white" />
+					<FloatingPaths position={-1} background="white" />
+				</div>
+			{/if}
 			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
 				<SveltyCMSLogoFull />
 			</div>

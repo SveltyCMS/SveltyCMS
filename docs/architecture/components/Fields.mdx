@@ -1,0 +1,121 @@
+---
+path: 'docs/architecture/components/Fields.mdx'
+title: 'Fields Component'
+description: 'Documentation for the dynamic field renderer with widget loading, validation, and revision history.'
+order: 3
+icon: 'mdi:form-textbox'
+author: 'admin'
+created: '2026-01-04'
+updated: '2026-01-04'
+tags:
+  - 'components'
+  - 'fields'
+  - 'widgets'
+  - 'validation'
+  - 'revisions'
+---
+
+# Fields Component
+
+The `Fields` component is responsible for rendering collection fields dynamically, loading appropriate widgets, handling validation, and managing revision history.
+
+---
+
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph Fields["Fields Component"]
+        direction TB
+        FD[Field Definitions]
+        WL[Widget Loader]
+        VL[Validation Logic]
+        RH[Revision History]
+    end
+
+    subgraph Widgets["Widget System"]
+        TW[Text Widget]
+        RTW[RichText Widget]
+        MW[Media Widget]
+        RW[Relation Widget]
+        CW[Custom Widgets]
+    end
+
+    subgraph Stores["State Stores"]
+        CV[collectionValue]
+        TP[translationProgress]
+        DC[dataChangeStore]
+    end
+
+    FD --> WL
+    WL --> Widgets
+    Widgets --> CV
+    CV --> VL
+    VL --> DC
+    RH --> CV
+```
+
+---
+
+## Features
+
+| Feature                    | Description                                  |
+| -------------------------- | -------------------------------------------- |
+| **Dynamic Widget Loading** | Lazy-loads widgets based on field type       |
+| **Real-Time Validation**   | Field-level validation with instant feedback |
+| **Revision History**       | View and revert to previous versions         |
+| **Translation Progress**   | Visual indicators for multilingual content   |
+| **Role-Based Filtering**   | Show/hide fields based on user permissions   |
+| **Two-Way Binding**        | Sync between local and global state          |
+
+---
+
+## Widget Loading Flow
+
+```mermaid
+sequenceDiagram
+    participant F as Fields
+    participant WL as WidgetLoader
+    participant I as import.meta.glob
+    participant W as Widget
+
+    F->>WL: Render field
+    WL->>I: Load widget module
+    I-->>WL: Widget component
+    WL->>W: Mount with props
+    W->>F: bind:value updates
+```
+
+---
+
+## Props
+
+```typescript
+interface FieldsProps {
+	fields: FieldDefinition[];
+	collection: Collection;
+	entry: Entry;
+	entryId: string;
+	collectionValue: ValueStore;
+	revisions?: Revision[];
+	contentLanguage?: string;
+}
+```
+
+---
+
+## Tabs
+
+The component uses a tabbed interface:
+
+1. **Edit Tab** - Form fields for data entry
+2. **Revisions Tab** - Historical snapshots with revert capability
+
+---
+
+## Related Documentation
+
+- [EntryList Component](./EntryList.mdx)
+- [Widget System Overview](/docs/widgets/widget-system-overview.mdx)
+- [Validation Instant Feedback](/docs/architecture/validation-instant-feedback.mdx)
+- [Multilingual Data Loading](/docs/architecture/multilingual-data-loading.mdx)

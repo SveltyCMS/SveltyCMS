@@ -20,8 +20,8 @@
 	import { browser } from '$app/environment';
 
 	// Skeleton v4
-	import { toaster, app } from '@stores/store.svelte';
-	import { Toast } from '@skeletonlabs/skeleton-svelte';
+	import { app } from '@stores/store.svelte';
+	import ToastManager from '@components/system/ToastManager.svelte';
 	// import DialogManager from '@components/system/DialogManager.svelte';
 
 	// Paraglide locale bridge
@@ -82,6 +82,41 @@
 		initializeDarkMode();
 
 		isMounted = true;
+
+		// Check for flash messages (e.g., from login redirect)
+		const flashMessageJson = sessionStorage.getItem('flashMessage');
+		if (flashMessageJson) {
+			try {
+				const flashMessage = JSON.parse(flashMessageJson);
+				sessionStorage.removeItem('flashMessage');
+
+				// Import toaster dynamically to avoid circular deps (though it's available in stores)
+				// We can also import it directly if we want, but dynamic is safer for layout
+				import('@stores/store.svelte').then(({ toaster }) => {
+					const opts = {
+						title: flashMessage.title,
+						description: flashMessage.description,
+						duration: flashMessage.duration || 4000
+					};
+
+					// Small delay to ensure ToastManager is ready
+					setTimeout(() => {
+						if (flashMessage.type === 'success') {
+							toaster.success(opts);
+						} else if (flashMessage.type === 'warning') {
+							toaster.warning(opts);
+						} else if (flashMessage.type === 'error') {
+							toaster.error(opts);
+						} else {
+							toaster.info(opts);
+						}
+					}, 100);
+				});
+			} catch (e) {
+				console.error('Failed to parse flash message:', e);
+				sessionStorage.removeItem('flashMessage');
+			}
+		}
 	});
 
 	// ============================================================================
@@ -134,17 +169,7 @@
 
 {#key currentLocale}
 	<!-- <DialogManager /> -->
-	<Toast.Group {toaster}>
-		{#snippet children(toast)}
-			<Toast {toast} class="card w-[300px] shadow-xl p-4 space-y-2 bg-surface-100-900 border border-surface-200-800 rounded-lg">
-				{#if toast.title}
-					<Toast.Title class="h6 font-bold">{toast.title}</Toast.Title>
-				{/if}
-				<Toast.Description class="text-sm">{toast.description}</Toast.Description>
-				<Toast.CloseTrigger class="absolute right-2 top-2 btn-icon btn-sm" />
-			</Toast>
-		{/snippet}
-	</Toast.Group>
+	<ToastManager position="bottom-right" />
 
 	{@render children?.()}
 {/key}

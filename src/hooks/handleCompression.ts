@@ -38,12 +38,15 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
 	}
 
 	// We need to read the body to compress it.
-	// Note: This buffers the response in memory. For very large files, streams are better,
-	// but for API JSON responses, this is usually fine.
+	// Note: This buffers the response in memory.
 	const body = await response.arrayBuffer();
 
 	if (body.byteLength < MIN_COMPRESSION_SIZE) {
-		return response;
+		return new Response(body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers: response.headers
+		});
 	}
 
 	const acceptEncoding = event.request.headers.get('Accept-Encoding') || '';
@@ -85,9 +88,17 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
 		}
 	} catch (error) {
 		console.error('Compression failed:', error);
-		// Return original response on failure
-		return response;
+		// Return new response with original body on failure
+		return new Response(body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers: response.headers
+		});
 	}
 
-	return response;
+	return new Response(body, {
+		status: response.status,
+		statusText: response.statusText,
+		headers: response.headers
+	});
 };

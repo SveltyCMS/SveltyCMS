@@ -127,7 +127,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 			aria-label="Search for items in the table"
 			bind:value={globalSearchValue}
 			onkeydown={(e) => e.key === 'Enter' && closeOpenStates()}
-			class="input outline-none transition-all duration-500 ease-in-out"
+			class="input outline-none transition-all duration-500 ease-in-out focus:border-tertiary-500 dark:border-surface-700 dark:bg-surface-800 dark:focus:border-primary-500"
 		/>
 		<button
 			onclick={() => {
@@ -155,9 +155,10 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		}}
 		aria-label="Search"
 		title="Search"
-		class="variant-ghost-surface btn-icon"
+		class="btn preset-outlined-surface-500 rounded-full"
 	>
-		<iconify-icon icon="material-symbols:search-rounded" width="24" class={searchShow ? 'text-primary-500' : ''}></iconify-icon>
+		<iconify-icon icon="material-symbols:search-rounded" width="24" class={searchShow ? 'text-tertiary-500 dark:text-primary-500' : ''}
+		></iconify-icon>
 	</button>
 
 	<!-- Filter -->
@@ -169,9 +170,9 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		}}
 		aria-label="Toggle Column Filters"
 		title="Column Filters"
-		class="variant-ghost-surface btn-icon"
+		class="btn preset-outlined-surface-500 rounded-full"
 	>
-		<iconify-icon icon="carbon:filter-edit" width="24" class={filterShow ? 'text-primary-500' : ''}></iconify-icon>
+		<iconify-icon icon="carbon:filter-edit" width="24" class={filterShow ? 'text-tertiary-500 dark:text-primary-500' : ''}></iconify-icon>
 	</button>
 
 	<!-- Column Order & Visibility -->
@@ -183,9 +184,10 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		}}
 		aria-label="Toggle Column Visibility/Order"
 		title="Manage Columns"
-		class="variant-ghost-surface btn-icon"
+		class="btn preset-outlined-surface-500 rounded-full"
 	>
-		<iconify-icon icon="fluent:column-triple-edit-24-regular" width="24" class={columnShow ? 'text-primary-500' : ''}></iconify-icon>
+		<iconify-icon icon="fluent:column-triple-edit-24-regular" width="24" class={columnShow ? 'text-tertiary-500 dark:text-primary-500' : ''}
+		></iconify-icon>
 	</button>
 
 	<!-- Spacing/Density -->
@@ -197,7 +199,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		}}
 		aria-label="Cycle Table Density"
 		title={`Density: ${getDensityDisplayName()}`}
-		class="variant-ghost-surface btn-icon"
+		class="btn preset-outlined-surface-500 rounded-full"
 	>
 		<iconify-icon icon={getDensityIcon()} width="24"></iconify-icon>
 	</button>

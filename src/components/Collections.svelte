@@ -216,24 +216,34 @@
 		<input
 			type="text"
 			bind:value={search}
-			placeholder={isFullSidebar ? 'Search collections...' : 'Search...'}
+			placeholder={isFullSidebar ? m.collections_search() : m.MediaGallery_Search()}
 			class="w-full rounded border border-surface-300 bg-surface-50 px-3 pr-11 text-sm outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isFullSidebar
 				? 'h-12 py-3'
 				: 'h-10 py-2'}"
 			aria-label="Search collections"
 		/>
 
-		<div class="absolute right-1 top-1/2 -translate-y-1/2">
+		<div class="absolute right-0 top-0 flex h-full items-center">
 			{#if isSearching}
-				<div class="flex h-8 w-8 items-center justify-center">
+				<div class="flex h-12 w-12 items-center justify-center">
 					<div class="h-2 w-2 animate-pulse rounded-full bg-tertiary-500 dark:bg-primary-500"></div>
 				</div>
 			{:else if search}
-				<button type="button" onclick={clearSearch} class="btn variant-glass {isFullSidebar ? 'h-10 w-10' : 'h-8 w-8'}" aria-label="Clear search">
+				<button
+					type="button"
+					onclick={clearSearch}
+					class="btn rounded-full preset-outline-surface-500 {isFullSidebar ? 'h-10 w-10' : 'h-8 w-8'}"
+					aria-label="Clear search"
+				>
 					<iconify-icon icon="ic:round-close" width="16"></iconify-icon>
 				</button>
 			{:else}
-				<div class="flex h-12 w-12 items-center justify-center rounded bg-surface-200 dark:bg-surface-700">
+				<!-- Search with icon -->
+				<div
+					class="flex items-center justify-center rounded-r bg-secondary-100 dark:bg-surface-700 {isFullSidebar
+						? 'h-11.5 w-11.5 mt-px mr-px'
+						: 'h-8 w-8'}"
+				>
 					<iconify-icon icon="ic:outline-search" width="24"></iconify-icon>
 				</div>
 			{/if}

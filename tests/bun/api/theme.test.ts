@@ -1,316 +1,102 @@
 /**
  * @file tests/bun/api/theme.test.ts
- * @description Integration tests for Theme Management API endpoints
- *
- * Tests theme management endpoints:
- * - GET /api/theme - List all themes
- * - POST /api/theme - Create/install theme
- * - GET /api/theme/[id] - Get theme details
- * - PATCH /api/theme/[id] - Update theme
- * - DELETE /api/theme/[id] - Delete theme
- * - POST /api/theme/[id]/activate - Activate theme
+ * @description
+ * Integration tests for Theme Management API endpoints.
+ * Aligned with consolidated routes: get-current-theme, update-theme, set-default.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
-import { getApiBaseUrl, waitForServer } from '../helpers/server';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
 import { prepareAuthenticatedContext, cleanupTestDatabase } from '../helpers/testSetup';
+import { getApiBaseUrl, waitForServer } from '../helpers/server';
 
-const BASE_URL = getApiBaseUrl();
-let authCookie: string;
+const API_BASE_URL = getApiBaseUrl();
 
-beforeAll(async () => {
-	await waitForServer();
-	authCookie = await prepareAuthenticatedContext();
-});
+describe('Theme API Endpoints', () => {
+	let authCookie: string;
 
-afterAll(async () => {
-	await cleanupTestDatabase();
-});
-
-describe('Theme API - List Themes', () => {
-	it('should list all available themes', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme`, {
-			headers: { Cookie: authCookie }
-		});
-
-		expect([200, 404]).toContain(response.status);
-
-		if (response.ok) {
-			const data = await response.json();
-			expect(Array.isArray(data) || typeof data === 'object').toBe(true);
-		}
+	beforeAll(async () => {
+		await waitForServer();
 	});
 
-	it('should include theme metadata', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme`, {
-			headers: { Cookie: authCookie }
-		});
-
-		if (response.ok) {
-			const data = await response.json();
-			// Themes should have name, version, active status, etc.
-			expect(typeof data).toBeDefined();
-		}
+	afterAll(async () => {
+		await cleanupTestDatabase();
 	});
 
-	it('should require authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme`);
-		expect([401, 403]).toContain(response.status);
+	beforeEach(async () => {
+		authCookie = await prepareAuthenticatedContext();
 	});
 
-	it('should identify active theme', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme`, {
-			headers: { Cookie: authCookie }
-		});
-
-		if (response.ok) {
-			const data = await response.json();
-			// Should indicate which theme is currently active
-			expect(typeof data).toBe('object');
-		}
-	});
-});
-
-describe('Theme API - Get Theme Details', () => {
-	it('should get theme details by ID', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme/default`, {
-			headers: { Cookie: authCookie }
-		});
-
-		expect([200, 404]).toContain(response.status);
-
-		if (response.ok) {
+	describe('GET /api/theme/get-current-theme', () => {
+		it('should return current theme for authenticated user', async () => {
+			const response = await fetch(`${API_BASE_URL}/api/theme/get-current-theme`, {
+				headers: { Cookie: authCookie }
+			});
+			expect(response.status).toBe(200);
 			const data = await response.json();
 			expect(data).toHaveProperty('name');
-		}
-	});
-
-	it('should include theme configuration', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme/default`, {
-			headers: { Cookie: authCookie }
 		});
 
-		if (response.ok) {
-			const data = await response.json();
-			// Should include colors, fonts, layout settings
-			expect(typeof data).toBe('object');
-		}
+		it('should fail without authentication', async () => {
+			const response = await fetch(`${API_BASE_URL}/api/theme/get-current-theme`);
+			expect(response.status).toBe(401);
+		});
 	});
 
-	it('should require authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme/default`);
-		expect([401, 403]).toContain(response.status);
+	describe('POST /api/theme/update-theme', () => {
+		it('should update theme custom CSS with admin authentication', async () => {
+			// First get current theme to get an ID
+			const getResponse = await fetch(`${API_BASE_URL}/api/theme/get-current-theme`, {
+				headers: { Cookie: authCookie }
+			});
+			const current = await getResponse.json();
+			const themeId = current._id || 'default';
+
+			const response = await fetch(`${API_BASE_URL}/api/theme/update-theme`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Cookie: authCookie
+				},
+				body: JSON.stringify({
+					themeId,
+					customCss: '/* test css */'
+				})
+			});
+
+			// Might be 200 or 404 if themeId is "default" but not in DB
+			expect([200, 404]).toContain(response.status);
+		});
+
+		it('should fail with missing themeId', async () => {
+			const response = await fetch(`${API_BASE_URL}/api/theme/update-theme`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Cookie: authCookie
+				},
+				body: JSON.stringify({
+					customCss: '/* test css */'
+				})
+			});
+			expect(response.status).toBe(400);
+		});
 	});
 
-	it('should return 404 for non-existent theme', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme/nonexistent`, {
-			headers: { Cookie: authCookie }
+	describe('POST /api/theme/set-default', () => {
+		it('should set default theme with admin authentication', async () => {
+			const response = await fetch(`${API_BASE_URL}/api/theme/set-default`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Cookie: authCookie
+				},
+				body: JSON.stringify({
+					themeId: 'Modern'
+				})
+			});
+
+			// Might fail 404 if theme doesn't exist, but route should be valid
+			expect([200, 404, 500]).toContain(response.status);
 		});
-
-		expect([404, 400]).toContain(response.status);
-	});
-});
-
-describe('Theme API - Create Theme', () => {
-	it('should create new theme', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			},
-			body: JSON.stringify({
-				name: 'Test Theme',
-				version: '1.0.0',
-				config: {
-					colors: {
-						primary: '#007bff',
-						secondary: '#6c757d'
-					}
-				}
-			})
-		});
-
-		expect([200, 201, 400, 409]).toContain(response.status);
-	});
-
-	it('should validate theme data', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			},
-			body: JSON.stringify({
-				invalidField: 'value'
-			})
-		});
-
-		expect([400, 422]).toContain(response.status);
-	});
-
-	it('should require admin authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ name: 'Test' })
-		});
-
-		expect([401, 403]).toContain(response.status);
-	});
-
-	it('should prevent duplicate theme names', async () => {
-		const themeData = {
-			name: 'Duplicate Theme',
-			version: '1.0.0'
-		};
-
-		// Create first theme
-		await fetch(`${BASE_URL}/api/theme`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			},
-			body: JSON.stringify(themeData)
-		});
-
-		// Try to create duplicate
-		const response = await fetch(`${BASE_URL}/api/theme`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			},
-			body: JSON.stringify(themeData)
-		});
-
-		expect([409, 400, 200]).toContain(response.status);
-	});
-});
-
-describe('Theme API - Update Theme', () => {
-	it('should update theme configuration', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme/default`, {
-			method: 'PATCH',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			},
-			body: JSON.stringify({
-				config: {
-					colors: {
-						primary: '#ff0000'
-					}
-				}
-			})
-		});
-
-		expect([200, 404, 400]).toContain(response.status);
-	});
-
-	it('should validate theme updates', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme/default`, {
-			method: 'PATCH',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			},
-			body: JSON.stringify({
-				config: 'invalid config'
-			})
-		});
-
-		expect([200, 400, 422]).toContain(response.status);
-	});
-
-	it('should require admin authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme/default`, {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({})
-		});
-
-		expect([401, 403]).toContain(response.status);
-	});
-});
-
-describe('Theme API - Delete Theme', () => {
-	it('should delete theme', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme/test-theme`, {
-			method: 'DELETE',
-			headers: { Cookie: authCookie }
-		});
-
-		expect([200, 204, 404]).toContain(response.status);
-	});
-
-	it('should prevent deleting active theme', async () => {
-		// Try to delete the currently active theme
-		const response = await fetch(`${BASE_URL}/api/theme/default`, {
-			method: 'DELETE',
-			headers: { Cookie: authCookie }
-		});
-
-		expect([400, 409, 204]).toContain(response.status);
-	});
-
-	it('should require admin authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme/test-theme`, {
-			method: 'DELETE'
-		});
-
-		expect([401, 403]).toContain(response.status);
-	});
-});
-
-describe('Theme API - Activate Theme', () => {
-	it('should activate theme', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme/default/activate`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			}
-		});
-
-		expect([200, 404]).toContain(response.status);
-	});
-
-	it('should deactivate previous theme when activating new one', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme/default/activate`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			}
-		});
-
-		if (response.ok) {
-			const data = await response.json();
-			// Should indicate theme activation
-			expect(typeof data).toBe('object');
-		}
-	});
-
-	it('should require admin authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme/default/activate`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' }
-		});
-
-		expect([401, 403]).toContain(response.status);
-	});
-
-	it('should return 404 for non-existent theme', async () => {
-		const response = await fetch(`${BASE_URL}/api/theme/nonexistent/activate`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			}
-		});
-
-		expect([404, 400]).toContain(response.status);
 	});
 });

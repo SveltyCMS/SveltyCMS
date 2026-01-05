@@ -81,68 +81,91 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		let encryptionKeyMatch: RegExpMatchArray | null;
 
 		try {
-			// Read private.ts from filesystem to bypass Vite's import cache
-			const fs = await import('fs/promises');
-			const path = await import('path');
-			const privateFilePath = path.resolve(process.cwd(), process.env.TEST_MODE ? 'config/private.test.ts' : 'config/private.ts');
+			if (process.env.TEST_MODE) {
+				logger.debug('Loading private.test.ts config via import (TEST_MODE active)');
+				// In test mode, the file is available at build time and keys are dynamic, so we import it
+				const pathUtil = await import('path');
+				const privateTestPath = pathUtil.resolve(process.cwd(), 'config/private.test.ts');
 
-			logger.debug('Reading private.ts from filesystem', { path: privateFilePath });
-			const privateFileContent = await fs.readFile(privateFilePath, 'utf-8');
-			logger.debug('File read successfully', { length: privateFileContent.length });
+				const module = await import(/* @vite-ignore */ privateTestPath);
+				const env = module.privateEnv;
 
-			// Extract database config from the file content
-			// The format is: DB_TYPE: 'value', (inside createPrivateConfig call)
-			const dbTypeMatch = privateFileContent.match(/DB_TYPE:\s*['"]([^'"]+)['"]/);
-			const dbHostMatch = privateFileContent.match(/DB_HOST:\s*['"]([^'"]+)['"]/);
-			const dbPortMatch = privateFileContent.match(/DB_PORT:\s*(\d+)/);
-			const dbNameMatch = privateFileContent.match(/DB_NAME:\s*['"]([^'"]+)['"]/);
-			const dbUserMatch = privateFileContent.match(/DB_USER:\s*['"]([^'"]*)['"]/);
-			const dbPasswordMatch = privateFileContent.match(/DB_PASSWORD:\s*['"]([^'"]*)['"]/);
-			jwtSecretMatch = privateFileContent.match(/JWT_SECRET_KEY:\s*['"]([^'"]+)['"]/);
-			encryptionKeyMatch = privateFileContent.match(/ENCRYPTION_KEY:\s*['"]([^'"]+)['"]/);
+				dbConfig = {
+					type: env.DB_TYPE as 'mongodb',
+					host: env.DB_HOST || 'localhost',
+					port: Number(env.DB_PORT) || 27017,
+					name: env.DB_NAME || 'sveltycms_test',
+					user: env.DB_USER || '',
+					password: env.DB_PASSWORD || ''
+				};
 
-			logger.debug('Regex matches', {
-				hasDbType: !!dbTypeMatch,
-				hasDbHost: !!dbHostMatch,
-				hasDbName: !!dbNameMatch,
-				hasJwtSecret: !!jwtSecretMatch,
-				hasEncryptionKey: !!encryptionKeyMatch,
-				dbTypeValue: dbTypeMatch?.[1],
-				dbHostValue: dbHostMatch?.[1],
-				dbNameValue: dbNameMatch?.[1]
-			});
+				// Simulate regex matches for downstream checks
+				jwtSecretMatch = ['MATCH', env.JWT_SECRET_KEY || ''];
+				encryptionKeyMatch = ['MATCH', env.ENCRYPTION_KEY || ''];
+			} else {
+				// Read private.ts from filesystem to bypass Vite's import cache
+				const fs = await import('fs/promises');
+				const path = await import('path');
+				const privateFilePath = path.resolve(process.cwd(), 'config/private.ts');
 
-			if (!dbTypeMatch || !dbHostMatch || !dbNameMatch || !jwtSecretMatch || !encryptionKeyMatch) {
-				throw new Error(
-					`Could not parse required config from private.ts. Missing: ${[
-						!dbTypeMatch && 'DB_TYPE',
-						!dbHostMatch && 'DB_HOST',
-						!dbNameMatch && 'DB_NAME',
-						!jwtSecretMatch && 'JWT_SECRET',
-						!encryptionKeyMatch && 'ENCRYPTION_KEY'
-					]
-						.filter(Boolean)
-						.join(', ')}`
-				);
+				logger.debug('Reading private.ts from filesystem', { path: privateFilePath });
+				const privateFileContent = await fs.readFile(privateFilePath, 'utf-8');
+				logger.debug('File read successfully', { length: privateFileContent.length });
+
+				// Extract database config from the file content
+				// The format is: DB_TYPE: 'value', (inside createPrivateConfig call)
+				const dbTypeMatch = privateFileContent.match(/DB_TYPE:\s*['"]([^'"]+)['"]/);
+				const dbHostMatch = privateFileContent.match(/DB_HOST:\s*['"]([^'"]+)['"]/);
+				const dbPortMatch = privateFileContent.match(/DB_PORT:\s*(\d+)/);
+				const dbNameMatch = privateFileContent.match(/DB_NAME:\s*['"]([^'"]+)['"]/);
+				const dbUserMatch = privateFileContent.match(/DB_USER:\s*['"]([^'"]*)['"]/);
+				const dbPasswordMatch = privateFileContent.match(/DB_PASSWORD:\s*['"]([^'"]*)['"]/);
+				jwtSecretMatch = privateFileContent.match(/JWT_SECRET_KEY:\s*['"]([^'"]+)['"]/);
+				encryptionKeyMatch = privateFileContent.match(/ENCRYPTION_KEY:\s*['"]([^'"]+)['"]/);
+
+				logger.debug('Regex matches', {
+					hasDbType: !!dbTypeMatch,
+					hasDbHost: !!dbHostMatch,
+					hasDbName: !!dbNameMatch,
+					hasJwtSecret: !!jwtSecretMatch,
+					hasEncryptionKey: !!encryptionKeyMatch,
+					dbTypeValue: dbTypeMatch?.[1],
+					dbHostValue: dbHostMatch?.[1],
+					dbNameValue: dbNameMatch?.[1]
+				});
+
+				if (!dbTypeMatch || !dbHostMatch || !dbNameMatch || !jwtSecretMatch || !encryptionKeyMatch) {
+					throw new Error(
+						`Could not parse required config from private.ts. Missing: ${[
+							!dbTypeMatch && 'DB_TYPE',
+							!dbHostMatch && 'DB_HOST',
+							!dbNameMatch && 'DB_NAME',
+							!jwtSecretMatch && 'JWT_SECRET',
+							!encryptionKeyMatch && 'ENCRYPTION_KEY'
+						]
+							.filter(Boolean)
+							.join(', ')}`
+					);
+				}
+
+				dbConfig = {
+					type: dbTypeMatch[1] as 'mongodb' | 'mongodb+srv',
+					host: dbHostMatch[1],
+					port: dbPortMatch ? parseInt(dbPortMatch[1]) : 27017,
+					name: dbNameMatch[1],
+					user: dbUserMatch?.[1] || '',
+					password: dbPasswordMatch?.[1] || ''
+				};
 			}
 
-			dbConfig = {
-				type: dbTypeMatch[1] as 'mongodb' | 'mongodb+srv',
-				host: dbHostMatch[1],
-				port: dbPortMatch ? parseInt(dbPortMatch[1]) : 27017,
-				name: dbNameMatch[1],
-				user: dbUserMatch?.[1] || '',
-				password: dbPasswordMatch?.[1] || ''
-			};
-
-			logger.info('Database config parsed from filesystem', {
+			logger.info('Database config loaded', {
 				type: dbConfig.type,
 				host: dbConfig.host,
 				port: dbConfig.port,
 				name: dbConfig.name,
 				hasUser: !!dbConfig.user,
-				hasJwtSecret: !!jwtSecretMatch[1],
-				hasEncryptionKey: !!encryptionKeyMatch[1]
+				hasJwtSecret: !!jwtSecretMatch?.[1],
+				hasEncryptionKey: !!encryptionKeyMatch?.[1]
 			});
 
 			// Manually create database adapter (same as seed endpoint)

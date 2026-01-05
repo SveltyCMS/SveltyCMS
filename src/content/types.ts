@@ -36,7 +36,6 @@ export const StatusTypes = {
 	unpublish: 'unpublish',
 	schedule: 'schedule',
 	clone: 'clone',
-	test: 'test',
 	delete: 'delete'
 } as const;
 

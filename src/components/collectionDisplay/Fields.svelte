@@ -1,26 +1,22 @@
 <!--
 @file src/components/collectionDisplay/Fields.svelte
 @component
-**Fields is a \"dumb\" component that renders collection fields for data entry and provides revision history.**
+**Fields is a core component that renders collection fields for data entry and provides revision history.**
 
-@example
-<Fields {fields} {revisions} contentLanguage="en" />
+### Features:
+- **Widget Rendering**: Automatically loads and renders appropriate widgets for each field.
+- **Reactivity**: Binds form data to the `collectionValue` store with real-time sync.
+- **Revision History**: Displays entry revisions with compare and revert functionality.
+- **Validation**: Performs field-level validation based on schema constraints.
+- **Translation Aware**: Manages multilingual data input through widget-integrated language context.
 
 ### Props
-- `fields` - The array of field objects from the collection schema.
-- `revisions` - An array of revision metadata for the current entry.
-- `contentLanguage` - The current content language for editing multilingual field data.
+- `fields` (Array): The array of field instances from the collection schema.
+- `revisions` (Array): Historical snapshot data for the current entry.
+- `contentLanguage` (String): The language for data entry (GUI remains in systemLanguage).
 
-### Features
-- Renders appropriate widgets for each field in the schema.
-- Binds form data to the `collectionValue` store.
-- Displays revision history and allows comparing/reverting to previous versions.
-- Does not perform any data fetching; all data is received as props.
-
-### Dual-Language Architecture
-- **GUI (systemLanguage)**: All UI text uses ParaglideJS (compile-time) for interface labels, buttons, messages
-- **Data (contentLanguage)**: Content data uses dynamic contentLanguage passed to widgets for translated fields
-- **Database-Agnostic**: Widgets handle data format (MongoDB: nested objects, SQL: relation tables via IDBAdapter)
+### Keyboard Shortcuts
+- `Alt + S`: Save currently edited entry (if focused)
 -->
 <script lang="ts">
 	import { untrack } from 'svelte';

@@ -31,7 +31,7 @@ const rolesCache = new Map<string, { data: Role[]; timestamp: number }>();
 // --- UTILITIES ---
 
 function isPublicRoute(pathname: string): boolean {
-	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/sendMail', '/api/setup', '/api/system/version'];
+	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/sendMail', '/api/setup', '/api/system/version', '/api/user/login'];
 	return publicRoutes.some((route) => pathname.startsWith(route));
 }
 

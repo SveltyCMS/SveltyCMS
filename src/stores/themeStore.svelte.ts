@@ -31,7 +31,7 @@ const state = $state<ThemeState>({
 	error: null,
 	lastUpdateAttempt: null,
 	themePreference: 'unknown',
-	resolvedDarkMode: false,
+	resolvedDarkMode: true, // Default to true to match app.html
 	autoRefreshEnabled: false
 });
 
@@ -79,28 +79,23 @@ let systemThemeListener: ((this: MediaQueryList, ev: MediaQueryListEvent) => voi
 const THEME_COOKIE_KEY = 'theme';
 
 /**
- * Get the system's preferred color scheme
- */
-function getSystemPreference(): boolean {
-	if (!browser) return false;
-	return window.matchMedia('(prefers-color-scheme: dark)').matches;
-}
-
-/**
  * Resolve the actual dark mode state based on preference
  */
 function resolveDarkMode(preference: ThemePreference): boolean {
+	if (!browser) return true; // Default dark for SSR
+
+	const systemPrefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+
 	switch (preference) {
 		case 'dark':
 			return true;
 		case 'light':
 			return false;
 		case 'system':
-			return getSystemPreference();
 		case 'unknown':
-			return getSystemPreference();
 		default:
-			return false;
+			// Priority System: if light is preferred, use it. Otherwise dark.
+			return !systemPrefersLight;
 	}
 }
 
@@ -129,6 +124,9 @@ export function initializeDarkMode() {
 	} else if (cookieValue) {
 		console.warn('[Theme Init] Unknown cookie value, defaulting to system:', cookieValue);
 		preference = 'system';
+	} else {
+		// No cookie: use system preference as default
+		preference = 'system';
 	}
 
 	// 4. Update state WITHOUT touching the DOM (SSR script already set it correctly)
@@ -138,7 +136,7 @@ export function initializeDarkMode() {
 	// 5. Save preference if not set
 	if (!cookieValue) {
 		_setCookie(preference);
-		logger.debug('[Theme Init] Set cookie to:', preference);
+		logger.debug('[Theme Init] Set cookie to default dark mode:', preference);
 	}
 
 	// 6. Clean up old 'darkMode' cookie if it exists
@@ -155,12 +153,16 @@ export function initializeDarkMode() {
 function _applyThemeToDOM(isDark: boolean) {
 	if (!browser) return;
 
+	const h = document.documentElement;
+
 	if (isDark) {
-		document.documentElement.classList.add('dark');
-		logger.debug('[Theme] Applied dark class to DOM');
+		h.classList.add('dark');
+		h.classList.remove('light');
+		logger.debug('[Theme] Applied dark/removed light from DOM');
 	} else {
-		document.documentElement.classList.remove('dark');
-		logger.debug('[Theme] Removed dark class from DOM');
+		h.classList.add('light');
+		h.classList.remove('dark');
+		logger.debug('[Theme] Applied light/removed dark from DOM');
 	}
 
 	// Ensure the base theme attribute is always present for Skeleton v4

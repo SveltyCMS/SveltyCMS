@@ -50,8 +50,9 @@
 					{/if}
 
 					{#if modalState.active.component}
+						{@const ActiveComponent = modalState.active.component}
 						<div class="modal-body">
-							<svelte:component this={modalState.active.component} {...modalState.active.props || {}} close={modalState.close.bind(modalState)} />
+							<ActiveComponent {...modalState.active.props || {}} close={modalState.close.bind(modalState)} />
 						</div>
 					{/if}
 				{/if}

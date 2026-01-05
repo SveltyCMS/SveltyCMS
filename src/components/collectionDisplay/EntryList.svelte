@@ -1,23 +1,29 @@
 <!--
 @file src/components/collectionDisplay/EntryList.svelte
 @component
-**EntryList component to display collections data**
+**EntryList component to display collections data in a tabular format.**
 
-@example
-<EntryList />
+### Features:
+- **Search & Filter**: Real-time server-side search and field-level filtering.
+- **Pagination**: Configurable rows per page and page navigation.
+- **Selection**: Multi-select entries for bulk actions.
+- **Sorting**: Clickable headers for server-side sorting.
+- **Preloading**: Hover-based predictive data preloading for faster navigation.
+- **Smart Actions**: Integrated with `EntryList_MultiButton` for context-aware operations.
 
-#### Props
-- `collection` - The collection object to display data from.
-- `mode` - The current mode of the component. Can be 'view', 'edit', 'create', 'delete', 'modify', or 'media'.
+### Props
+- `entries` (Array): The raw collection entry data from the server.
+- `pagination` (Object): Pagination metadata (currentPage, pageSize, totalItems, pagesCount).
+- `contentLanguage` (String): The language for displaying translatable field data.
+- `breadcrumb` (Array, optional): Breadcrumb navigation paths.
+- `collectionStats` (Object, optional): Stats like count and last modified.
 
-Features:
-- Search
-- Pagination
-- Multi-select
-- Sorting
-- Status
-- Icons
-- Filter
+### Keyboard Shortcuts
+- `Alt + N`: Create new entry
+- `Alt + P`: Publish selected
+- `Alt + U`: Unpublish selected
+- `Alt + D`: Move selected to Draft
+- `Alt + Del`: Delete selected
 -->
 
 <script module lang="ts">
@@ -585,7 +591,7 @@ Features:
 
 	const onPublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess);
 	const onUnpublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess);
-	const onTest = () => setEntriesStatus(getSelectedIds(), StatusTypes.test, onActionSuccess);
+	const onDraft = () => setEntriesStatus(getSelectedIds(), StatusTypes.draft, onActionSuccess);
 	const onDelete = (isPermanent = false) => {
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) {
@@ -749,12 +755,13 @@ Features:
 					isCollectionEmpty={tableData?.length === 0}
 					{hasSelections}
 					selectedCount={Object.values(selectedMap).filter(Boolean).length}
+					selectedItems={getSelectedRawEntries()}
 					bind:showDeleted
 					publish={onPublish}
 					unpublish={onUnpublish}
 					schedule={onSchedule}
 					delete={onDelete}
-					test={onTest}
+					draft={onDraft}
 					clone={onClone}
 					create={onCreate}
 				/>
@@ -980,8 +987,13 @@ Features:
 													<div class="font-semibold">
 														{formatDisplayDate(entry[(header as TableHeader).name], 'en', { year: 'numeric', month: 'short', day: 'numeric' })}
 													</div>
-													<div class="text-surface-500 dark:text-surface-400">
-														{formatDisplayDate(entry[(header as TableHeader).name], 'en', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+													<div class="text-surface-500 dark:text-surface-200">
+														{formatDisplayDate(entry[(header as TableHeader).name], 'en', {
+															hour: '2-digit',
+															minute: '2-digit',
+															second: '2-digit',
+															hour12: false
+														})}
 													</div>
 												</div>
 											{:else if typeof entry[(header as TableHeader).name] === 'object' && entry[(header as TableHeader).name] !== null}
@@ -1007,7 +1019,7 @@ Features:
 		</div>
 		<!-- Pagination -->
 		<div
-			class="sticky bottom-0 left-0 right-0 z-10 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-surface-100 px-2 py-2 dark:border-surface-700 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
+			class="sticky bottom-0 left-0 right-0 z-10 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-surface-100 dark:border-surface-700 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
 		>
 			<TablePagination
 				currentPage={serverPagination.currentPage}

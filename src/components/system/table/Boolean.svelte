@@ -17,8 +17,13 @@
 <script lang="ts">
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	// Boolean badge for tables
-	export let value: boolean = false;
+
+	// Svelte 5 props
+	interface Props {
+		value?: boolean;
+	}
+
+	const { value = false }: Props = $props();
 </script>
 
 <!-- Display 'Yes' for true and 'No' for false with badges -->

@@ -9,22 +9,23 @@ This component presents a summary of all configuration steps before finalizing t
 - Review system settings (site name, language, timezone, media folder)
 - Confirm all information before completing setup
 
-Key Features:
-- Uses Svelte 5 runes for state management
-- TypeScript for type safety
-- Skeleton UI for consistent styling
-- Designed for integration as the final step in a multi-step setup wizard
+
 -->
 <script lang="ts">
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+
 	// Types from setupStore
 	import type { AdminUser, DbConfig, SystemSettings } from '@stores/setupStore.svelte';
 
-	// Props passed from parent setup page
-	export let dbConfig: DbConfig;
-	export let adminUser: AdminUser;
-	export let systemSettings: SystemSettings;
+	//  props
+	interface Props {
+		dbConfig: DbConfig;
+		adminUser: AdminUser;
+		systemSettings: SystemSettings;
+	}
+
+	const { dbConfig, adminUser, systemSettings }: Props = $props();
 </script>
 
 <div class="fade-in">

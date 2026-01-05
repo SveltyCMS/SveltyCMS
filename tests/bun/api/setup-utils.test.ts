@@ -286,7 +286,7 @@ describe('Connection String Validation', () => {
 
 		// Should match MongoDB connection string format
 		expect(connectionString).toMatch(/^mongodb:\/\//);
-		expect(connectionString).toMatch(/\/testdb$/);
+		expect(connectionString).toMatch(/\/testdb(\?.*)?$/);
 	});
 
 	it('should create valid MongoDB SRV connection strings', () => {

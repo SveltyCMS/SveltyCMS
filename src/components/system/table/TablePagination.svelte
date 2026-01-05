@@ -93,7 +93,7 @@
 		type="button"
 		aria-label="Go to first page"
 		title="First Page"
-		class="btn h-8 w-8 rounded-none border-r border-surface-400 px-1 disabled:text-surface-400 disabled:opacity-50!"
+		class="btn h-8 w-8 rounded-none border-r border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-700 dark:hover:bg-surface-800"
 		aria-disabled={isFirstPage}
 	>
 		<iconify-icon icon="material-symbols:first-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>
@@ -106,7 +106,7 @@
 		type="button"
 		aria-label="Go to previous page"
 		title="Previous Page"
-		class="btn h-8 w-8 rounded-none border-r border-surface-400 px-1 disabled:text-surface-400 disabled:opacity-50!"
+		class="btn h-8 w-8 rounded-none border-r border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-700 dark:hover:bg-surface-800"
 		aria-disabled={isFirstPage}
 	>
 		<iconify-icon icon="material-symbols:chevron-left" width="24" role="presentation" aria-hidden="true"></iconify-icon>
@@ -117,7 +117,7 @@
 		bind:value={rowsPerPage}
 		onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
 		aria-label="Select number of rows per page"
-		class="appearance-none border-r border-surface-400 bg-transparent p-0 px-2 text-center text-sm text-tertiary-500 dark:border-surface-600 dark:text-primary-500 sm:px-4"
+		class="appearance-none border-r border-surface-300 bg-transparent p-0 px-2 text-center text-sm text-tertiary-500 hover:bg-surface-200 dark:border-surface-700 dark:text-primary-500 dark:hover:bg-surface-800 sm:px-4"
 		title="Rows per page"
 	>
 		{#each rowsPerPageOptions as pageSize}
@@ -135,7 +135,7 @@
 		type="button"
 		aria-label="Go to next page"
 		title="Next Page"
-		class="btn h-8 w-8 rounded-none border-l border-surface-400 px-1 disabled:text-surface-400 disabled:opacity-50!"
+		class="btn h-8 w-8 rounded-none border-l border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-700 dark:hover:bg-surface-800"
 		aria-disabled={isLastPage}
 	>
 		<iconify-icon icon="material-symbols:chevron-right" width="24" role="presentation" aria-hidden="true"></iconify-icon>
@@ -148,7 +148,7 @@
 		type="button"
 		aria-label="Go to last page"
 		title="Last Page"
-		class="btn h-8 w-8 rounded-none border-l border-surface-400 px-1 disabled:text-surface-400 disabled:opacity-50!"
+		class="btn h-8 w-8 rounded-none border-l border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-700 dark:hover:bg-surface-800"
 		aria-disabled={isLastPage}
 	>
 		<iconify-icon icon="material-symbols:last-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>

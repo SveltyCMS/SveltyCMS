@@ -1,0 +1,123 @@
+---
+path: 'docs/architecture/components/ScheduleModal.mdx'
+title: 'ScheduleModal Component'
+description: 'Documentation for the scheduling modal that allows future-dated publish/unpublish/delete actions.'
+order: 4
+icon: 'mdi:calendar-clock'
+author: 'admin'
+created: '2026-01-04'
+updated: '2026-01-04'
+tags:
+  - 'components'
+  - 'scheduling'
+  - 'modal'
+  - 'publish'
+---
+
+# ScheduleModal Component
+
+The `ScheduleModal` component provides a user interface for scheduling future actions (publish, unpublish, delete) on collection entries.
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Trigger["Action Trigger"]
+        MB[MultiButton]
+        EA[EntryActions]
+    end
+
+    subgraph Modal["ScheduleModal"]
+        DI[Date Input]
+        TI[Time Input]
+        AS[Action Select]
+        VL[Validation]
+    end
+
+    subgraph Response["Response Handler"]
+        MS[modalState]
+        CB[Callback]
+    end
+
+    Trigger -->|Open| Modal
+    DI --> VL
+    TI --> VL
+    VL -->|Valid| CB
+    CB --> MS
+    MS -->|Close| Trigger
+```
+
+---
+
+## Features
+
+| Feature                | Description                                  |
+| ---------------------- | -------------------------------------------- |
+| **DateTime Selection** | Separate date and time inputs for precision  |
+| **Action Selection**   | Choose between publish, unpublish, or delete |
+| **Future Validation**  | Enforces scheduling for future dates only    |
+| **Modal Integration**  | Uses `modalState` for dialog management      |
+| **Accessible**         | ARIA labels and keyboard navigation          |
+
+---
+
+## User Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant MB as MultiButton
+    participant SM as ScheduleModal
+    participant MS as modalState
+    participant API as Server
+
+    U->>MB: Click Schedule
+    MB->>MS: Open modal
+    MS->>SM: Render form
+    U->>SM: Select date/time/action
+    SM->>SM: Validate (future date)
+    U->>SM: Click Schedule
+    SM->>MS: close(response)
+    MS->>MB: Callback with data
+    MB->>API: Schedule action
+```
+
+---
+
+## Response Format
+
+```typescript
+interface ScheduleResponse {
+	confirmed: boolean;
+	date: Date;
+	action: 'publish' | 'unpublish' | 'delete';
+}
+```
+
+---
+
+## Usage
+
+The modal is opened via `modalState` and returns a response object:
+
+```typescript
+// Opening the modal
+modalState.open({
+	component: ScheduleModal,
+	props: {
+		meta: { initialAction: 'publish' }
+	}
+});
+
+// Handling response (via modalState callback)
+// { confirmed: true, date: Date, action: 'publish' }
+```
+
+---
+
+## Related Documentation
+
+- [MultiButton Component](./EntryList_MultiButton.mdx)
+- [EntryList Component](./EntryList.mdx)

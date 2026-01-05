@@ -4,11 +4,22 @@
 **Animated SVG Background Pattern Component**
 
 Creates a dynamic animated background with SVG paths that draw themselves
-with varying widths, opacities, and colors. Refactored for buttery smooth
-CSS-based animations in Svelte 5.
+with varying widths, opacities, and colors. Replicates the svelte-motion
+behavior using native Svelte 5 $state and requestAnimationFrame.
+
+@example
+<FloatingPaths />
+
+@features
+- Automatic contrasting colors based on background
+- Customizable background color (white or dark)
+- Smooth path drawing animations
+- Responsive design
 -->
 
 <script lang="ts">
+	import { onMount } from 'svelte';
+
 	interface Props {
 		background?: string;
 		position?: number;
@@ -17,77 +28,87 @@ CSS-based animations in Svelte 5.
 
 	const { background = 'white', position = 1, mirrorAnimation = false }: Props = $props();
 
-	const paths = Array.from({ length: 36 }, (_, i) => ({
+	// Generate paths with their animation configs
+	const pathConfigs = Array.from({ length: 36 }, (_, i) => ({
 		id: i,
 		d: `M-${380 - i * 5 * position} -${189 + i * 6}C-${380 - i * 5 * position} -${189 + i * 6} -${312 - i * 5 * position} ${216 - i * 6} ${
 			152 - i * 5 * position
 		} ${343 - i * 6}C${616 - i * 5 * position} ${470 - i * 6} ${684 - i * 5 * position} ${875 - i * 6} ${684 - i * 5 * position} ${875 - i * 6}`,
 		width: 0.05 + i * 0.01,
-		opacity: 0.1 + i * 0.03,
-		// Stagger via duration variation + small fixed delay range (avoids negative delays)
-		duration: 18 + (i % 12) * 0.9, // 18–28s range, feels more organic
-		delay: (i * 0.3) % 5 // Positive, small, cycling delays
+		duration: 20 + (i % 15) * 0.7, // Duration in seconds (matching original)
+		baseOpacity: 0.1 + i * 0.03
 	}));
+
+	// Reactive state for all path animations - using array to store animation values
+	let pathStates = $state<Array<{ pathLength: number; opacity: number; pathOffset: number }>>(
+		pathConfigs.map(() => ({
+			pathLength: 0.3,
+			opacity: 0.3,
+			pathOffset: mirrorAnimation ? 1 : 0
+		}))
+	);
+
+	onMount(() => {
+		// Check for reduced motion preference
+		const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		if (prefersReducedMotion) return;
+
+		let animationId: number;
+		const startTime = performance.now();
+
+		const animate = (currentTime: number) => {
+			const elapsed = (currentTime - startTime) / 1000; // Convert to seconds
+
+			pathStates = pathConfigs.map((config) => {
+				const duration = config.duration;
+				// Progress cycles from 0 to 1 over the duration
+				const progress = (elapsed / duration) % 1;
+
+				// Create smooth sinusoidal animation for pathLength (0.3 -> 1 -> 0.3)
+				// Using cosine for smooth start
+				const wave = 0.5 * (1 - Math.cos(progress * Math.PI * 2));
+				const pathLength = 0.3 + wave * 0.7; // Range: 0.3 to 1.0
+
+				// Opacity animation (0.3 -> 0.6 -> 0.3)
+				const opacity = 0.3 + wave * 0.3; // Range: 0.3 to 0.6
+
+				// PathOffset animation (for the "drawing" effect)
+				const pathOffset = mirrorAnimation ? 1 - progress : progress;
+
+				return {
+					pathLength,
+					opacity,
+					pathOffset
+				};
+			});
+
+			animationId = requestAnimationFrame(animate);
+		};
+
+		animationId = requestAnimationFrame(animate);
+
+		return () => cancelAnimationFrame(animationId);
+	});
 </script>
 
-<div class="pointer-events-none absolute inset-0 overflow-hidden">
+<div class="pointer-events-none absolute inset-0">
 	<svg
-		class="h-full w-full {background === 'white' ? 'text-slate-950' : 'text-white'} {mirrorAnimation ? 'mirror' : ''}"
+		class="h-full w-full {background === 'white' ? 'text-slate-950' : 'text-white'} {mirrorAnimation ? '-scale-x-100' : ''}"
 		viewBox="0 0 696 316"
 		stroke-linecap="round"
-		fill="none"
-		preserveAspectRatio="xMidYMid slice"
+		fill="transparent"
 	>
-		{#each paths as path (path.id)}
+		{#each pathConfigs as path, index (path.id)}
+			{@const state = pathStates[index]}
 			<path
 				d={path.d}
 				stroke="currentColor"
 				stroke-width={path.width}
-				stroke-opacity={path.opacity}
-				class="floating-path"
-				style:--duration="{path.duration}s"
-				style:--delay="{path.delay}s"
-				style:--direction={mirrorAnimation ? -1 : 1}
+				stroke-opacity={state.opacity}
+				pathLength="1"
+				stroke-dasharray={state.pathLength}
+				stroke-dashoffset={state.pathOffset}
 			/>
 		{/each}
 	</svg>
 </div>
-
-<style>
-	.floating-path {
-		stroke-dasharray: 0.3 0.7;
-		stroke-dashoffset: 1;
-		opacity: 0.3;
-		will-change: stroke-dashoffset, opacity;
-		animation: floating-draw var(--duration, 20s) linear infinite var(--delay, 0s);
-		transform: translateZ(0); /* Force GPU layer */
-	}
-
-	@keyframes floating-draw {
-		0% {
-			stroke-dashoffset: calc(1 + var(--direction, 1));
-			opacity: 0.3;
-		}
-		50% {
-			stroke-dashoffset: calc(0.3 + var(--direction, 1));
-			opacity: 0.6;
-		}
-		100% {
-			stroke-dashoffset: calc(0 + var(--direction, 1));
-			opacity: 0.3;
-		}
-	}
-
-	.mirror {
-		transform: scaleX(-1);
-	}
-
-	/* Reduced motion respect */
-	@media (prefers-reduced-motion: reduce) {
-		.floating-path {
-			animation: none;
-			stroke-dashoffset: 0.5;
-			opacity: 0.4;
-		}
-	}
-</style>

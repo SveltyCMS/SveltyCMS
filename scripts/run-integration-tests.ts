@@ -106,12 +106,22 @@ async function main() {
 			});
 		});
 
+		process.env.TELEMETRY_ENDPOINT = 'http://localhost:9999'; // Prevent real telemetry calls
+
 		// Run integration tests
 		console.log('🧪 Starting integration tests...\n');
-		testProcess = spawn('bun', ['run', 'test:integration:run'], {
+
+		// Get API test files, excluding setup.test.ts to prevent DB wiping race conditions
+		const { readdirSync } = await import('fs');
+		const apiDir = join(rootDir, 'tests', 'bun', 'api');
+		const apiTests = ['tests/bun/api/system.test.ts', 'tests/bun/api/media.test.ts'];
+
+		const testArgs = ['test', '--preload', './tests/bun/setup.ts', ...apiTests, 'tests/bun/databases'];
+
+		testProcess = spawn('bun', testArgs, {
 			cwd: rootDir,
 			stdio: 'inherit',
-			shell: true,
+			shell: false, // Shell false is safer for large arg lists
 			env: { ...process.env, TEST_MODE: 'true', API_BASE_URL: 'http://localhost:4173' }
 		});
 

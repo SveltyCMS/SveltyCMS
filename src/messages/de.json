@@ -51,6 +51,7 @@
 	"applayout_signout": "Abmelden",
 	"applayout_switchmode": "Wechseln Sie in den Modus {$modeCurrent}",
 	"applayout_systemconfiguration": "Systemkonfiguration",
+	"applayout_contentlanguage": "Inhaltssprache",
 	"applayout_systemlanguage": "Systemsprache",
 	"applayout_userprofile": "Benutzerprofil",
 	"applayout_version": "Ver.",

@@ -17,24 +17,22 @@
 -->
 
 <script lang="ts">
-	import { logger } from '@utils/logger';
 	import { getPublicSetting, publicEnv } from '@src/stores/globalSettings.svelte';
+	
 	// Components
 	import Seasons from '@components/system/icons/Seasons.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import SignIn from './components/SignIn.svelte';
 	import SignUp from './components/SignUp.svelte';
 	import VersionCheck from '@components/VersionCheck.svelte';
+	
 	// Stores
 	import { systemLanguage } from '@stores/store.svelte';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { locales as availableLocales } from '@src/paraglide/runtime';
+	
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
-	// Stores
-	import { screen } from '@stores/screenSizeStore.svelte';
-	import FloatingPaths from '@components/system/FloatingPaths.svelte';
 
 	// Props
 	const { data } = $props();
@@ -238,13 +236,6 @@
 </script>
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`}>
-	{#if screen.isDesktop && active !== undefined}
-		<div class="fixed inset-0 z-0 pointer-events-none" class:text-white={active === 1} class:text-black={active === 0}>
-			<FloatingPaths position={active === 1 ? 1 : -1} background={active === 1 ? 'dark' : 'white'} mirrorAnimation={active === 1} />
-			<FloatingPaths position={active === 1 ? -1 : 1} background={active === 1 ? 'dark' : 'white'} mirrorAnimation={active === 1} />
-		</div>
-	{/if}
-
 	<!-- Seasons (always present, opacity/position managed) -->
 	<div
 		class="pointer-events-none fixed inset-0 z-10 transition-all duration-300"

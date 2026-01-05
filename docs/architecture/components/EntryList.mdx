@@ -1,0 +1,128 @@
+---
+path: 'docs/architecture/components/EntryList.mdx'
+title: 'EntryList Component'
+description: 'Documentation for the main collection data table with search, filtering, pagination, and hover preloading.'
+order: 2
+icon: 'mdi:table'
+author: 'admin'
+created: '2026-01-04'
+updated: '2026-01-04'
+tags:
+  - 'components'
+  - 'entrylist'
+  - 'table'
+  - 'pagination'
+  - 'filtering'
+---
+
+# EntryList Component
+
+The `EntryList` is the primary component for displaying collection data in a tabular format with enterprise features like server-side search, filtering, and intelligent preloading.
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Server["Server (+page.server.ts)"]
+        DB[(Database)]
+        SC[Server Cache]
+    end
+
+    subgraph EntryList["EntryList Component"]
+        direction TB
+        TH[Table Header]
+        TR[Table Rows]
+        FI[Filters]
+        PG[Pagination]
+        MB[MultiButton]
+    end
+
+    subgraph Preload["Hover Preloading"]
+        HP[preloadData]
+        PC[Preload Cache]
+    end
+
+    DB --> SC
+    SC --> EntryList
+    TR -->|Hover| HP
+    HP --> PC
+```
+
+---
+
+## Features
+
+| Feature                | Description                                   |
+| ---------------------- | --------------------------------------------- |
+| **Server-Side Search** | Real-time search with debounced queries       |
+| **Field Filtering**    | Per-column filtering options                  |
+| **Smart Pagination**   | Configurable page sizes (10, 25, 50, 100)     |
+| **Hover Preloading**   | Connection-aware speculative loading          |
+| **Bulk Selection**     | Multi-item selection with Shift+Click         |
+| **Sortable Columns**   | Click-to-sort with ASC/DESC toggle            |
+| **Status Display**     | Visual status badges (Published, Draft, etc.) |
+
+---
+
+## Data Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant EL as EntryList
+    participant URL as URL State
+    participant S as Server
+
+    U->>EL: Change filter/search/page
+    EL->>URL: Update URL params
+    URL->>S: Request new data
+    S-->>EL: Return entries + pagination
+    EL->>U: Render updated table
+
+    Note over EL,U: Hover Preloading
+    U->>EL: Hover over row
+    EL->>S: preloadData(entry URL)
+    S-->>EL: Cache response
+```
+
+---
+
+## Props
+
+```typescript
+interface EntryListProps {
+	entries: Entry[];
+	pagination: {
+		currentPage: number;
+		pageSize: number;
+		totalItems: number;
+		pagesCount: number;
+	};
+	contentLanguage: string;
+	breadcrumb: BreadcrumbItem[];
+	collectionStats: CollectionStats | null;
+}
+```
+
+---
+
+## Keyboard Shortcuts
+
+| Shortcut  | Action             |
+| --------- | ------------------ |
+| `Alt+N`   | Create new entry   |
+| `Alt+P`   | Publish selected   |
+| `Alt+U`   | Unpublish selected |
+| `Alt+D`   | Move to draft      |
+| `Alt+Del` | Delete selected    |
+
+---
+
+## Related Documentation
+
+- [MultiButton Component](./EntryList_MultiButton.mdx)
+- [Fields Component](./Fields.mdx)
+- [Hover Preloading Architecture](/docs/architecture/hover-preloading.mdx)
+- [Collection Store Dataflow](/docs/architecture/collection-store-dataflow.mdx)

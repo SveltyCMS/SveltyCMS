@@ -25,7 +25,7 @@
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import { browser } from '$app/environment';
-	import { deserialize, enhance } from '$app/forms';
+	import { enhance } from '$app/forms';
 	import { preloadData } from '$app/navigation';
 
 	import type { PageData } from '../$types';
@@ -43,12 +43,12 @@
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import SignupIcon from './icons/SignupIcon.svelte';
+	import FloatingPaths from '@components/system/FloatingPaths.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Screen size store
 	import { screen } from '@stores/screenSizeStore.svelte';
-	import type { Component } from 'svelte';
 
 	// Props
 	const {
@@ -256,6 +256,12 @@
 >
 	{#if active === 1}
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
+			{#if screen.isDesktop}
+				<div class="absolute inset-0 z-0">
+					<FloatingPaths position={1} background="dark" mirrorAnimation />
+					<FloatingPaths position={-1} background="dark" mirrorAnimation />
+				</div>
+			{/if}
 			<!-- CSS Logo -->
 			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
 				<SveltyCMSLogoFull />

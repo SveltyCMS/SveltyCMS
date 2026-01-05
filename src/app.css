@@ -10,14 +10,17 @@
 @import '@skeletonlabs/skeleton';
 @import '@skeletonlabs/skeleton-svelte';
 
+/* Tailwind v4: Enable class-based dark mode with .dark class on <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* =~= SveltyCMS Theme (Skeleton v4 format) =~= */
 [data-theme='sveltycms'] {
 	/* =~= Theme Properties =~= */
 	--text-scaling: 1;
 
 	/* Base Typography */
-	--base-font-color: var(--color-surface-950);
-	--base-font-color-dark: var(--color-surface-50);
+	--base-font-color: oklch(0 0 0 / 1);
+	--base-font-color-dark: oklch(1 0 0 / 1);
 	--base-font-family: system-ui, sans-serif;
 	--base-font-size: inherit;
 	--base-line-height: inherit;
@@ -49,17 +52,19 @@
 
 	/* Container & Spacing */
 	--spacing: 0.22rem;
-	--radius-base: 0.2rem;
-	--radius-container: 0.2rem;
+	--radius-base: 0.125rem;
+	--radius-container: 0.75rem;
 	--default-border-width: 1px;
 	--default-divide-width: 1px;
 	--default-ring-width: 1px;
-	--body-background-color: 255 255 255;
-	--body-background-color-dark: 0 0 0;
+
+	/* Root Background */
+	--body-background-color: oklch(1 0 0 / 1);
+	--body-background-color-dark: var(--color-surface-950);
 
 	/* =~= Theme Colors (OKLCH) =~= */
 
-	/* Primary | #5fd317 #0078f0 (Green - Trust & Professionalism) */
+	/* Primary | #5fd317 (Green - Trust & Professionalism) */
 	--color-primary-50: oklch(96.25% 0.12 120.09deg);
 	--color-primary-100: oklch(92.01% 0.15 125.75deg);
 	--color-primary-200: oklch(87.85% 0.17 129.95deg);
@@ -80,7 +85,7 @@
 	--color-primary-contrast-400: var(--color-primary-contrast-dark);
 	--color-primary-contrast-500: var(--color-primary-contrast-dark);
 	--color-primary-contrast-600: var(--color-primary-contrast-dark);
-	--color-primary-contrast-700: var(--color-primary-contrast-dark);
+	--color-primary-contrast-700: var(--color-primary-contrast-light);
 	--color-primary-contrast-800: var(--color-primary-contrast-light);
 	--color-primary-contrast-900: var(--color-primary-contrast-light);
 	--color-primary-contrast-950: var(--color-primary-contrast-light);
@@ -103,7 +108,7 @@
 	--color-secondary-contrast-100: var(--color-secondary-contrast-dark);
 	--color-secondary-contrast-200: var(--color-secondary-contrast-dark);
 	--color-secondary-contrast-300: var(--color-secondary-contrast-dark);
-	--color-secondary-contrast-400: var(--color-secondary-contrast-dark);
+	--color-secondary-contrast-400: var(--color-secondary-contrast-light);
 	--color-secondary-contrast-500: var(--color-secondary-contrast-light);
 	--color-secondary-contrast-600: var(--color-secondary-contrast-light);
 	--color-secondary-contrast-700: var(--color-secondary-contrast-light);
@@ -111,7 +116,7 @@
 	--color-secondary-contrast-900: var(--color-secondary-contrast-light);
 	--color-secondary-contrast-950: var(--color-secondary-contrast-light);
 
-	/* Tertiary | #5fd317 (Blue - Accent & CTA) */
+	/* Tertiary | #0078f0 (Blue - Accent & CTA) */
 	--color-tertiary-50: oklch(92.74% 0.06 216.34deg);
 	--color-tertiary-100: oklch(85.39% 0.08 232.5deg);
 	--color-tertiary-200: oklch(78.19% 0.11 241.06deg);
@@ -157,7 +162,7 @@
 	--color-success-contrast-300: var(--color-success-contrast-dark);
 	--color-success-contrast-400: var(--color-success-contrast-dark);
 	--color-success-contrast-500: var(--color-success-contrast-dark);
-	--color-success-contrast-600: var(--color-success-contrast-dark);
+	--color-success-contrast-600: var(--color-success-contrast-light);
 	--color-success-contrast-700: var(--color-success-contrast-light);
 	--color-success-contrast-800: var(--color-success-contrast-light);
 	--color-success-contrast-900: var(--color-success-contrast-light);
@@ -206,7 +211,7 @@
 	--color-error-contrast-50: var(--color-error-contrast-dark);
 	--color-error-contrast-100: var(--color-error-contrast-dark);
 	--color-error-contrast-200: var(--color-error-contrast-dark);
-	--color-error-contrast-300: var(--color-error-contrast-dark);
+	--color-error-contrast-300: var(--color-error-contrast-light);
 	--color-error-contrast-400: var(--color-error-contrast-light);
 	--color-error-contrast-500: var(--color-error-contrast-light);
 	--color-error-contrast-600: var(--color-error-contrast-light);
@@ -222,11 +227,11 @@
 	--color-surface-300: oklch(43.62% 0 219.45deg);
 	--color-surface-400: oklch(35.37% 0 219.5deg);
 	--color-surface-500: oklch(27.01% 0 219.57deg);
-	--color-surface-600: oklch(23.76% 0 228.89deg);
-	--color-surface-700: oklch(20.39% 0 247.93deg);
-	--color-surface-800: oklch(17.08% 0 196.76deg);
-	--color-surface-900: oklch(13.3% 0 196.79deg);
-	--color-surface-950: oklch(0% 0 none);
+	--color-surface-600: oklch(25.03% 0 228.87deg);
+	--color-surface-700: oklch(23.01% 0 247.91deg);
+	--color-surface-800: oklch(21.12% 0 196.8deg);
+	--color-surface-900: oklch(19.01% 0 196.8deg);
+	--color-surface-950: oklch(16.84% 0 none);
 	--color-surface-contrast-dark: var(--color-surface-950);
 	--color-surface-contrast-light: var(--color-surface-50);
 	--color-surface-contrast-50: var(--color-surface-contrast-dark);
@@ -256,7 +261,7 @@
  * - Dark mode: Green gradients (primary colors)
  */
 @layer components {
-	/* Primary Gradients - Blue in light, stays blue (for specific use cases) */
+	/* Primary Gradients - Uses Adaptive var(--color-primary-X) */
 	.gradient-primary {
 		background-image: linear-gradient(to bottom right, var(--color-primary-700), var(--color-primary-600), var(--color-primary-500));
 	}
@@ -339,16 +344,6 @@
 }
 
 /* Legacy SveltyCMS Global Styles */
-html,
-body {
-	height: 100%;
-	overflow: auto;
-	background-color: #eeeeee;
-}
-:global(.dark) html,
-:global(.dark) body {
-	background-color: black;
-}
 
 .wrapper {
 	border-radius: 0.375rem;

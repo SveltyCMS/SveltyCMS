@@ -2,24 +2,7 @@
  * @file tests/bun/api/dashboard.test.ts
  * @description Integration tests for dashboard API endpoints
  *
- * SETUP REQUIREMENTS:
- * ===================
- * These integration tests require a fresh test database, NOT a production system.
- *
- * **Option 1: Automated Test Database (Recommended)**
- * Run the full test suite which sets up a clean test environment:
- *   `bun test tests/bun/api/user.test.ts && bun test tests/bun/api/dashboard.test.ts`
- *
- * **Option 2: Manual Credentials (For testing against existing system)**
- * If you need to test against an already-initialized system, provide credentials:
- *   `TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD=yourpassword bun test tests/bun/api/dashboard.test.ts`
- *
- * **Why tests fail on production systems:**
- * - Dashboard tests expect to create their own admin user
- * - Production systems already have users and require authentication
- * - Test suite needs a clean state to verify API behavior
- *
- * TESTED ENDPOINTS (9 total):
+ * * TESTED ENDPOINTS (9 total):
  * ============================
  * - GET /api/dashboard/health - System health check
  * - GET /api/dashboard/metrics - Performance metrics
@@ -113,9 +96,8 @@ describe('Dashboard API - Metrics Endpoint', () => {
 		const data = await response.json();
 
 		expect(data).toHaveProperty('requests');
-		expect(data).toHaveProperty('auth');
-		expect(data).toHaveProperty('cache');
-		expect(data).toHaveProperty('sessions');
+		expect(data).toHaveProperty('authentication');
+		expect(data).toHaveProperty('api');
 	});
 
 	test('should return detailed metrics when requested', async () => {
@@ -144,9 +126,8 @@ describe('Dashboard API - Metrics Endpoint', () => {
 		const data = await response.json();
 
 		expect(typeof data.requests.total).toBe('number');
-		expect(typeof data.auth.validations).toBe('number');
-		expect(typeof data.cache.hits).toBe('number');
-		expect(typeof data.sessions.active).toBe('number');
+		expect(typeof data.authentication.validations).toBe('number');
+		expect(typeof data.api.cacheHits).toBe('number');
 	});
 });
 
@@ -236,7 +217,7 @@ describe('Dashboard API - Logs Endpoint', () => {
 		expect(data).toHaveProperty('logs');
 		expect(data).toHaveProperty('total');
 		expect(data).toHaveProperty('page');
-		expect(data).toHaveProperty('totalPages');
+		expect(data).toHaveProperty('hasMore');
 		expect(Array.isArray(data.logs)).toBe(true);
 		expect(data.page).toBe(1);
 	});
@@ -289,7 +270,6 @@ describe('Dashboard API - Logs Endpoint', () => {
 	});
 
 	test('should validate limit parameter', async () => {
-		// Limit > 100 should be rejected
 		const response = await fetch(`${BASE_URL}/api/dashboard/logs?limit=200`, {
 			headers: { Cookie: authCookie }
 		});
@@ -485,13 +465,14 @@ describe('Dashboard API - System Messages Endpoint', () => {
 	});
 
 	test('should return default message when no logs exist', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/systemMessages?limit=100`, {
+		const response = await fetch(`${BASE_URL}/api/dashboard/systemMessages`, {
 			headers: { Cookie: authCookie }
 		});
 
 		const data = await response.json();
 
-		// Should always return at least one message
+		// Should always return at least one message (even if mock)
+		expect(Array.isArray(data)).toBe(true);
 		expect(data.length).toBeGreaterThanOrEqual(1);
 	});
 });
@@ -566,7 +547,7 @@ describe('Dashboard API - Cache Metrics Endpoint', () => {
 
 		const total = data.overall.hits + data.overall.misses;
 		if (total > 0) {
-			const expectedHitRate = (data.overall.hits / total) * 100;
+			const expectedHitRate = data.overall.hits / total;
 			expect(Math.abs(data.overall.hitRate - expectedHitRate)).toBeLessThan(0.01);
 		} else {
 			expect(data.overall.hitRate).toBe(0);

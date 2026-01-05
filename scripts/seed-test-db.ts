@@ -102,12 +102,8 @@ async function seedDatabase() {
 	if (!seedRes.ok) {
 		const err = await seedRes.text();
 		// If already seeded, that's fine - but we still need to ensure data is seeded
-		if (err.includes('already exists') || err.includes('setup already completed') || seedRes.status === 409) {
-			console.log('⚠ Configuration already exists - checking if data needs seeding...');
-
-			// Even though config exists, we need to seed roles/settings/themes
-			// Call the seed endpoint again with a flag to force data seeding
-			// For now, we'll just log and continue - roles should be created by /api/setup/complete
+		if (err.includes('already exists') || err.includes('setup already completed') || seedRes.status === 409 || seedRes.status === 400) {
+			console.log('⚠ Configuration already exists (Setup completed) - skipping config seeding.');
 			console.log('ℹ️  Continuing to admin user creation...');
 		} else {
 			throw new Error(`Failed to seed configuration: ${err}`);
@@ -158,8 +154,8 @@ async function seedDatabase() {
 
 	if (!completeRes.ok) {
 		const err = await completeRes.text();
-		if (err.includes('already completed') || completeRes.status === 400) {
-			console.log('⚠ Setup already completed, skipping admin creation.');
+		if (err.includes('already completed') || completeRes.status === 400 || completeRes.status === 409) {
+			console.log('⚠ Admin creation skipped (already exists or setup complete).');
 		} else {
 			throw new Error(`Failed to create admin user: ${err}`);
 		}

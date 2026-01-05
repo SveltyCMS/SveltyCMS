@@ -28,8 +28,9 @@ async function loadPrivateConfig(forceReload = false) {
 			logger.debug('Loading @config/private configuration...');
 			let module;
 			if (process.env.TEST_MODE) {
-				const path = '@config/' + 'private.test';
-				module = await import(/* @vite-ignore */ path);
+				const pathUtil = await import('path');
+				const configPath = pathUtil.resolve(process.cwd(), 'config/private.test.ts');
+				module = await import(/* @vite-ignore */ configPath);
 			} else {
 				module = await import('@config/private');
 			}

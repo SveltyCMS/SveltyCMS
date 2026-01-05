@@ -49,9 +49,9 @@ const testSmtpConfig = {
 // Test admin user
 const testAdminUser = {
 	username: 'admin',
-	email: 'admin@test.com',
-	password: 'Admin123!@#',
-	confirmPassword: 'Admin123!@#'
+	email: 'admin@example.com',
+	password: 'Admin123!',
+	confirmPassword: 'Admin123!'
 };
 
 describe('Setup API - Database Connection Tests', () => {

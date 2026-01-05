@@ -97,12 +97,15 @@ describe('Collections & Content API', () => {
 	// testGetEndpoint('/api/exportData'); // Often fails if no data exists, enable if needed
 
 	// --- SEARCH ---
-	describe('POST /api/search', () => {
+	describe('GET /api/search', () => {
 		it('should perform search with valid query', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/search`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
-				body: JSON.stringify({ query: 'test', collections: [TEST_COLLECTION_NAME] })
+			const queryParams = new URLSearchParams({
+				q: 'test',
+				collections: TEST_COLLECTION_NAME
+			});
+			const response = await fetch(`${API_BASE_URL}/api/search?${queryParams.toString()}`, {
+				method: 'GET',
+				headers: { Cookie: adminCookie }
 			});
 
 			expect(response.status).toBe(200);
@@ -112,10 +115,9 @@ describe('Collections & Content API', () => {
 		});
 
 		it('should handle empty queries gracefully', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/search`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
-				body: JSON.stringify({ query: '', collections: [] })
+			const response = await fetch(`${API_BASE_URL}/api/search?q=`, {
+				method: 'GET',
+				headers: { Cookie: adminCookie }
 			});
 			expect(response.status).toBe(200);
 		});

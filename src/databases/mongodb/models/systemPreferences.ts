@@ -22,6 +22,7 @@ import { nowISODateString } from '@utils/dateUtils';
 
 // System Logger
 import { logger } from '@utils/logger';
+import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 interface SystemPreferencesModelType extends Model<SystemPreferencesDocument> {
 	getPreferenceByLayout(userId: string, layoutId: string): Promise<DatabaseResult<Layout | null>>;
 	setPreference(
@@ -62,13 +63,13 @@ const LayoutSchema = new Schema({
 	preferences: { type: [WidgetSchema], default: [] }
 });
 
-// System preferences schema
 const SystemPreferencesSchema = new Schema(
 	{
-		_id: { type: String, required: true }, // UUID as per dbInterface.ts
+		_id: { type: String, required: true, default: () => generateId() }, // UUID as per dbInterface.ts
 		userId: { type: String, ref: 'auth_users', required: false }, // Optional userId for user-scoped preferences
-		layoutId: { type: String, required: true }, // Unique layout identifier
-		layout: { type: LayoutSchema, required: true }, // Structured layout data
+		layoutId: { type: String, required: false }, // Optional layout identifier
+		layout: { type: LayoutSchema, required: false }, // Optional structured layout data
+		preferences: { type: Schema.Types.Mixed, default: {} }, // Generic key-value preferences
 		scope: { type: String, enum: ['user', 'system', 'widget'], default: 'user' }, // Scope of the preference
 		createdAt: { type: String, default: () => nowISODateString() },
 		updatedAt: { type: String, default: () => nowISODateString() }

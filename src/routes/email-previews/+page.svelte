@@ -19,13 +19,18 @@
 	import { browser } from '$app/environment';
 	import type { PageData } from './$types';
 
-	export let data: PageData;
+	// props
+	interface Props {
+		data: PageData;
+	}
 
-	// Prepare the data structure required by EmailPreview
-	const emailList = {
+	const { data }: Props = $props();
+
+	// Use $derived to ensure reactivity
+	const emailList = $derived({
 		...data,
 		path: data.path ?? null
-	};
+	});
 </script>
 
 {#if emailList.files && emailList.files.length}
@@ -39,10 +44,9 @@
 				</div>
 			</div>
 		{:then module}
-			<!-- Resolved State -->
-			<!-- Resolved State -->
-			<!-- @ts-ignore -->
-			<svelte:component this={module.EmailPreview as any} {emailList} />
+			<!-- Resolved State - Dynamic component with any typing for third-party module -->
+			{@const EmailPreviewComponent = module.EmailPreview as any}
+			<EmailPreviewComponent {emailList} />
 		{:catch error}
 			<!-- Error State -->
 			<div class="rounded border border-red-200 bg-red-50 p-4 text-red-500">

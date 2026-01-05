@@ -143,8 +143,8 @@ describeOrSkip('Telemetry API Endpoints', () => {
 			expect([200, 500]).toContain(response.status);
 		});
 
-		it('should not require authentication (public endpoint)', async () => {
-			// Telemetry endpoint should be accessible without auth
+		it('should require authentication', async () => {
+			// Telemetry endpoint should NOT be accessible without auth
 			const response = await fetch(`${API_BASE_URL}/api/telemetry/report`, {
 				method: 'POST',
 				headers: {
@@ -157,8 +157,8 @@ describeOrSkip('Telemetry API Endpoints', () => {
 				})
 			});
 
-			// Should work without auth (telemetry is meant to be accessible)
-			expect([200, 401]).toContain(response.status);
+			// Should fail without auth
+			expect(response.status).toBe(401);
 		});
 	});
 

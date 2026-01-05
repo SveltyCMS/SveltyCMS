@@ -52,16 +52,16 @@ export const testFixtures = {
 	users: {
 		admin: {
 			username: 'admin',
-			email: 'admin@test.com',
-			password: 'AdminPassword123!',
-			confirmPassword: 'AdminPassword123!',
+			email: 'admin@example.com',
+			password: 'Admin123!',
+			confirmPassword: 'Admin123!',
 			role: 'admin'
 		},
 		firstAdmin: {
 			username: 'admin',
-			email: 'admin@test.com',
-			password: 'AdminPassword123!',
-			confirmPassword: 'AdminPassword123!',
+			email: 'admin@example.com',
+			password: 'Admin123!',
+			confirmPassword: 'Admin123!',
 			role: 'admin'
 		},
 		editor: {

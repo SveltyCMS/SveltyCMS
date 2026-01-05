@@ -1,17 +1,20 @@
 <!-- 
-@file src/components/ScheduleModal.svelte
+@file src/components/collectionDisplay/ScheduleModal.svelte
 @component
-**ScheduleModal component for scheduling actions on entries**
+**ScheduleModal component for scheduling future actions (publish/unpublish/delete) on entries.**
 
-This is a "dumb" UI component. Its only responsibility is to collect a date,
-time, and action from the user and return it via the modal's response function.
-It does not contain any API logic itself.
+### Features:
+- **DateTime Selection**: Integrated date and time inputs for precise scheduling.
+- **Action Selection**: Choose between publishing, unpublishing, or deleting at the scheduled time.
+- **Validation**: Enforces future-dated scheduling and required fields.
+- **Dialog System**: Integrated with the custom `modalState` and `modalUtils`.
 
-Features:
-- Date and time picker for scheduling
-- Action type selection
-- Responsive design & Accessibility
-- Form validation
+### Props
+- `initialAction` (String): The default action to pre-select ('publish', 'unpublish', 'delete').
+
+### Interaction
+- Returns `{ confirmed: true, date: Date, action: String }` on success.
+- Returns `undefined` on cancel.
 -->
 
 <script lang="ts">
@@ -70,6 +73,7 @@ Features:
 
 		// Pass data back via modalState.close(), which calls the response callback
 		modalState.close({
+			confirmed: true,
 			date: new Date(scheduleDate),
 			action: action
 		});

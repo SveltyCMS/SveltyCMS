@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" dir="ltr">
+<html lang="en" dir="ltr" class="dark">
 	<head>
 		<meta charset="utf-8" />
 		<script nonce="%sveltekit.nonce%">
@@ -10,21 +10,24 @@
 
 				try {
 					// Determine if dark mode should be active
-					let isDark = false;
-					const systemPrefersDark = matchMedia('(prefers-color-scheme: dark)').matches;
+					const systemPrefersLight = matchMedia('(prefers-color-scheme: light)').matches;
+					let isDark = true; // Default to dark mode
 
 					if (c === 'dark') {
 						isDark = true;
 					} else if (c === 'light') {
 						isDark = false;
 					} else if (c === 'system' || !c) {
-						// Use system preference if explicitly set to 'system' or no preference
-						isDark = systemPrefersDark;
+						// Priority System: if system says light, use light. Otherwise default dark.
+						isDark = !systemPrefersLight;
 					}
 
 					if (isDark) {
 						h.classList.add('dark');
+						h.classList.remove('light');
 					} else {
+						h.classList.add('light');
+						h.classList.remove('dark');
 					}
 				} catch (e) {
 					console.error('[SSR Script] Error:', e);
