@@ -21,10 +21,34 @@ export function isSetupComplete(): boolean {
 	}
 
 	try {
-		// Use process.cwd() to ensure we look at the project root
-		const privateConfigPath = path.join(process.cwd(), 'config', 'private.ts');
+		const isTestMode = process.env.TEST_MODE === 'true' || process.env.NODE_ENV === 'test';
+		
+		// Determine which config file to check based on test mode
+		let privateConfigPath: string;
+		if (isTestMode) {
+			// In test mode, check for private.test.ts first, then fall back to private.ts
+			const testConfigPath = path.join(process.cwd(), 'config', 'private.test.ts');
+			const prodConfigPath = path.join(process.cwd(), 'config', 'private.ts');
+			privateConfigPath = fs.existsSync(testConfigPath) ? testConfigPath : prodConfigPath;
+		} else {
+			privateConfigPath = path.join(process.cwd(), 'config', 'private.ts');
+		}
 
+		// Check if config file exists
 		if (!fs.existsSync(privateConfigPath)) {
+			// In test mode, also check if environment variables are set (Vite fallback plugin provides these)
+			if (isTestMode) {
+				const hasEnvConfig = 
+					!!(process.env.JWT_SECRET_KEY || process.env.ENCRYPTION_KEY) &&
+					!!process.env.DB_HOST &&
+					!!process.env.DB_NAME;
+				
+				if (hasEnvConfig) {
+					// Environment variables are set - assume setup complete
+					setupStatus = true;
+					return setupStatus;
+				}
+			}
 			setupStatus = false;
 			return setupStatus;
 		}

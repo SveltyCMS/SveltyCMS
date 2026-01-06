@@ -85,7 +85,9 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			// Read private.ts from filesystem to bypass Vite's import cache
 			const fs = await import('fs/promises');
 			const path = await import('path');
-			const privateFilePath = path.resolve(process.cwd(), process.env.TEST_MODE ? 'config/private.test.ts' : 'config/private.ts');
+			const isTestMode = process.env.TEST_MODE === 'true' || process.env.NODE_ENV === 'test';
+			const configFileName = isTestMode ? 'private.test.ts' : 'private.ts';
+			const privateFilePath = path.resolve(process.cwd(), 'config', configFileName);
 
 			logger.debug('Reading private.ts from filesystem', { path: privateFilePath });
 			const privateFileContent = await fs.readFile(privateFilePath, 'utf-8');

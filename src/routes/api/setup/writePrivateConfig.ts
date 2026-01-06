@@ -8,7 +8,7 @@
 
 import type { DatabaseConfig } from '@src/databases/schemas';
 import { logger } from '@utils/logger.server';
-import { isSetupComplete } from '@utils/setupCheck';
+import { isSetupComplete, invalidateSetupCache } from '@utils/setupCheck';
 
 /**
  * Writes database credentials and security keys to private.ts
@@ -19,7 +19,9 @@ export async function writePrivateConfig(dbConfig: DatabaseConfig): Promise<void
 	const path = await import('path');
 	const { randomBytes } = await import('crypto');
 
-	const privateConfigPath = path.resolve(process.cwd(), 'config', 'private.ts');
+	const isTestMode = process.env.TEST_MODE === 'true' || process.env.NODE_ENV === 'test';
+	const configFileName = isTestMode ? 'private.test.ts' : 'private.ts';
+	const privateConfigPath = path.resolve(process.cwd(), 'config', configFileName);
 
 	// Prevent overwrite after setup complete
 	if (isSetupComplete()) {
@@ -36,7 +38,7 @@ export async function writePrivateConfig(dbConfig: DatabaseConfig): Promise<void
 	// Generate the private.ts content
 	const privateConfigContent = `
 /**
- * @file config/private.ts
+ * @file config/${configFileName}
  * @description Private configuration file containing essential bootstrap variables.
  * These values are required for the server to start and connect to the database.
  * This file was populated during the initial setup process.
@@ -91,6 +93,10 @@ export const privateEnv = createPrivateConfig({
 		}
 
 		logger.info('Private configuration file written and validated successfully');
+		
+		// Invalidate setup cache so isSetupComplete() will re-check with the new file
+		invalidateSetupCache(false);
+		logger.debug('Setup cache invalidated after writing config file');
 	} catch (error) {
 		logger.error('Failed to write private config:', error);
 		throw new Error(`Failed to write private configuration: ${error instanceof Error ? error.message : String(error)}`);
