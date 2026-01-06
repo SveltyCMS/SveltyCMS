@@ -45,12 +45,12 @@ jobs:
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -69,7 +69,7 @@ jobs:
           path: |
             ~/.bun/install/cache
             node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
@@ -108,12 +108,12 @@ jobs:
       DB_USER: admin
       DB_PASSWORD: admin
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -195,6 +195,135 @@ jobs:
           API_BASE_URL: 'http://localhost:4173'
 
   # ------------------------------------------------------------------
+  # 2b. Integration Tests - MariaDB
+  # ------------------------------------------------------------------
+  integration-tests-mariadb:
+    name: 🔌 Integration Tests (MariaDB)
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11
+        ports: [3306:3306]
+        env:
+          MARIADB_ROOT_PASSWORD: rootpass
+          MARIADB_DATABASE: sveltycms_test
+          MARIADB_USER: testuser
+          MARIADB_PASSWORD: testpass
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DB_TYPE: mariadb
+      DB_HOST: localhost
+      DB_PORT: 3306
+      DB_NAME: sveltycms_test
+      DB_USER: testuser
+      DB_PASSWORD: testpass
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Ensure fresh state - remove any existing config
+      - name: Clean config for fresh CI run
+        run: |
+          echo "🧹 Ensuring fresh state for CI..."
+          rm -rf config/collections
+          rm -f config/private.ts
+          echo "✅ Cleaned config directory"
+
+      # Create placeholder config/private.test.ts for MariaDB
+      - name: Create placeholder config/private.test.ts
+        run: |
+          echo "📝 Creating placeholder config/private.test.ts for MariaDB..."
+          cat > config/private.test.ts <<EOF
+          export const privateEnv = {
+            DB_TYPE: '${{ env.DB_TYPE }}',
+            DB_HOST: '${{ env.DB_HOST }}',
+            DB_PORT: ${{ env.DB_PORT }},
+            DB_NAME: '${{ env.DB_NAME }}',
+            DB_USER: '${{ env.DB_USER }}',
+            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
+            JWT_SECRET_KEY: 'test_jwt_secret',
+            ENCRYPTION_KEY: 'test_encryption_key',
+            MULTI_TENANT: false
+          } as const;
+          EOF
+          echo "✅ Created config/private.test.ts"
+
+      # Create temporary config/private.ts for build
+      - name: Create temporary config for build
+        run: |
+          echo "📝 Creating temporary config/private.ts for build..."
+          cat > config/private.ts <<EOF
+          export const privateEnv = {
+            DB_TYPE: '${{ env.DB_TYPE }}',
+            DB_HOST: '${{ env.DB_HOST }}',
+            DB_PORT: ${{ env.DB_PORT }},
+            DB_NAME: '${{ env.DB_NAME }}',
+            DB_USER: '${{ env.DB_USER }}',
+            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
+            JWT_SECRET_KEY: 'test_jwt_secret',
+            ENCRYPTION_KEY: 'test_encryption_key',
+            MULTI_TENANT: false
+          } as const;
+          EOF
+          echo "✅ Created temporary config/private.ts"
+
+      # Wait for MariaDB to be ready
+      - name: Wait for MariaDB
+        run: |
+          echo "⏳ Waiting for MariaDB to be ready..."
+          for i in {1..30}; do
+            if nc -z localhost 3306 2>/dev/null; then
+              echo "✅ MariaDB port is open!"
+              sleep 2
+              break
+            fi
+            echo "Waiting for MariaDB... ($i/30)"
+            sleep 1
+          done
+
+      # Build production version for faster, optimized testing
+      - name: Build Production
+        run: bun run build
+
+      # Kill any process using port 4173 to prevent conflicts
+      - name: Clean up port 4173
+        run: |
+          echo "🧹 Cleaning up port 4173..."
+          lsof -ti:4173 | xargs kill -9 2>/dev/null || echo "Port 4173 is free"
+
+      # --- START PREVIEW SERVER (PORT 4173) ---
+      - name: Start Preview Server
+        run: |
+          echo "🚀 Starting preview server on port 4173..."
+          bun run preview &
+          echo "⏳ Waiting for server to be ready..."
+          bun x wait-on http://localhost:4173 -t 60000
+          echo "✅ Preview server is ready!"
+
+      - name: Run Integration Tests
+        run: bun run test:integration:run
+        env:
+          TEST_MODE: 'true'
+          API_BASE_URL: 'http://localhost:4173'
+
+  # ------------------------------------------------------------------
   # 3. E2E Tests (Requires Server + MongoDB + Browser)
   # ------------------------------------------------------------------
   e2e-tests:
@@ -216,12 +345,12 @@ jobs:
       DB_USER: admin
       DB_PASSWORD: admin
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
