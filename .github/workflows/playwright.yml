@@ -69,7 +69,7 @@ jobs:
           path: |
             ~/.bun/install/cache
             node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
@@ -89,9 +89,9 @@ jobs:
   # ------------------------------------------------------------------
   # 2. Integration Tests (Requires Server + MongoDB)
   # ------------------------------------------------------------------
-  integration-tests:
-    name: 🔌 Integration Tests
-    timeout-minutes: 15
+  integration-tests-mongodb:
+    name: 🔌 Integration Tests (MongoDB)
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     services:
       mongodb:
@@ -100,6 +100,11 @@ jobs:
         env:
           MONGO_INITDB_ROOT_USERNAME: admin
           MONGO_INITDB_ROOT_PASSWORD: admin
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       DB_TYPE: mongodb
       DB_HOST: localhost
@@ -183,9 +188,15 @@ jobs:
       - name: Start Preview Server
         run: |
           echo "🚀 Starting preview server on port 4173..."
-          bun run preview &
+          nohup bun run preview > /tmp/preview-server.log 2>&1 &
+          PREVIEW_PID=$!
+          echo "PREVIEW_PID=$PREVIEW_PID" >> $GITHUB_ENV
           echo "⏳ Waiting for server to be ready..."
-          bun x wait-on http://localhost:4173 -t 60000
+          timeout 60 bash -c 'until curl -f http://localhost:4173 > /dev/null 2>&1; do sleep 1; done' || {
+            echo "❌ Server failed to start. Logs:"
+            cat /tmp/preview-server.log
+            exit 1
+          }
           echo "✅ Preview server is ready!"
 
       - name: Run Integration Tests
@@ -193,6 +204,161 @@ jobs:
         env:
           TEST_MODE: 'true' # Ensures server loads config/private.test.ts instead of config/private.ts
           API_BASE_URL: 'http://localhost:4173'
+
+      - name: Stop Preview Server
+        if: always()
+        run: |
+          echo "🛑 Stopping preview server..."
+          if [ ! -z "$PREVIEW_PID" ]; then
+            kill $PREVIEW_PID 2>/dev/null || true
+          fi
+          pkill -f "bun run preview" || true
+          lsof -ti:4173 | xargs kill -9 2>/dev/null || true
+          echo "✅ Server stopped"
+
+  # ------------------------------------------------------------------
+  # 2b. Integration Tests (Requires Server + MariaDB)
+  # ------------------------------------------------------------------
+  integration-tests-mariadb:
+    name: 🔌 Integration Tests (MariaDB)
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11
+        ports: [3306:3306]
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sveltycms_test
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -proot"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DB_TYPE: mariadb
+      DB_HOST: localhost
+      DB_PORT: 3306
+      DB_NAME: sveltycms_test
+      DB_USER: root
+      DB_PASSWORD: root
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Ensure fresh state - remove any existing config
+      - name: Clean config for fresh CI run
+        run: |
+          echo "🧹 Ensuring fresh state for CI..."
+          rm -rf config/collections
+          rm -f config/private.ts
+          echo "✅ Cleaned config directory"
+
+      # Create placeholder config/private.test.ts to ensure runtime config works
+      - name: Create placeholder config/private.test.ts
+        run: |
+          echo "📝 Creating placeholder config/private.test.ts..."
+          cat > config/private.test.ts <<EOF
+          export const privateEnv = {
+            DB_TYPE: '${{ env.DB_TYPE }}',
+            DB_HOST: '${{ env.DB_HOST }}',
+            DB_PORT: ${{ env.DB_PORT }},
+            DB_NAME: '${{ env.DB_NAME }}',
+            DB_USER: '${{ env.DB_USER }}',
+            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
+            JWT_SECRET_KEY: 'test_jwt_secret',
+            ENCRYPTION_KEY: 'test_encryption_key',
+            MULTI_TENANT: false
+          } as const;
+          EOF
+          echo "✅ Created config/private.test.ts"
+
+      # Create temporary config/private.ts for build
+      - name: Create temporary config for build
+        run: |
+          echo "📝 Creating temporary config/private.ts for build..."
+          cat > config/private.ts <<EOF
+          export const privateEnv = {
+            DB_TYPE: '${{ env.DB_TYPE }}',
+            DB_HOST: '${{ env.DB_HOST }}',
+            DB_PORT: ${{ env.DB_PORT }},
+            DB_NAME: '${{ env.DB_NAME }}',
+            DB_USER: '${{ env.DB_USER }}',
+            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
+            JWT_SECRET_KEY: 'test_jwt_secret',
+            ENCRYPTION_KEY: 'test_encryption_key',
+            MULTI_TENANT: false
+          } as const;
+          EOF
+          echo "✅ Created temporary config/private.ts"
+
+      # Build production version for faster, optimized testing
+      - name: Build Production
+        run: bun run build
+
+      # Kill any process using port 4173 to prevent conflicts
+      - name: Clean up port 4173
+        run: |
+          echo "🧹 Cleaning up port 4173..."
+          lsof -ti:4173 | xargs kill -9 2>/dev/null || echo "Port 4173 is free"
+
+      # Wait for MariaDB to be ready
+      - name: Wait for MariaDB
+        run: |
+          echo "⏳ Waiting for MariaDB to be ready..."
+          for i in {1..30}; do
+            if nc -z localhost 3306 2>/dev/null; then
+              echo "✅ MariaDB port is open!"
+              sleep 2
+              break
+            fi
+            echo "Waiting for MariaDB... ($i/30)"
+            sleep 1
+          done
+
+      # --- START PREVIEW SERVER (PORT 4173) ---
+      - name: Start Preview Server
+        run: |
+          echo "🚀 Starting preview server on port 4173..."
+          nohup bun run preview > /tmp/preview-server.log 2>&1 &
+          PREVIEW_PID=$!
+          echo "PREVIEW_PID=$PREVIEW_PID" >> $GITHUB_ENV
+          echo "⏳ Waiting for server to be ready..."
+          timeout 60 bash -c 'until curl -f http://localhost:4173 > /dev/null 2>&1; do sleep 1; done' || {
+            echo "❌ Server failed to start. Logs:"
+            cat /tmp/preview-server.log
+            exit 1
+          }
+          echo "✅ Preview server is ready!"
+
+      - name: Run Integration Tests
+        run: bun run test:integration:run
+        env:
+          TEST_MODE: 'true' # Ensures server loads config/private.test.ts instead of config/private.ts
+          API_BASE_URL: 'http://localhost:4173'
+
+      - name: Stop Preview Server
+        if: always()
+        run: |
+          echo "🛑 Stopping preview server..."
+          if [ ! -z "$PREVIEW_PID" ]; then
+            kill $PREVIEW_PID 2>/dev/null || true
+          fi
+          pkill -f "bun run preview" || true
+          lsof -ti:4173 | xargs kill -9 2>/dev/null || true
+          echo "✅ Server stopped"
 
   # ------------------------------------------------------------------
   # 3. E2E Tests (Requires Server + MongoDB + Browser)
@@ -287,9 +453,15 @@ jobs:
       - name: Start Preview Server
         run: |
           echo "🚀 Starting preview server on port 4173..."
-          bun run preview &
+          nohup bun run preview > /tmp/preview-server.log 2>&1 &
+          PREVIEW_PID=$!
+          echo "PREVIEW_PID=$PREVIEW_PID" >> $GITHUB_ENV
           echo "⏳ Waiting for server to be ready..."
-          bun x wait-on http://localhost:4173 -t 60000
+          timeout 60 bash -c 'until curl -f http://localhost:4173 > /dev/null 2>&1; do sleep 1; done' || {
+            echo "❌ Server failed to start. Logs:"
+            cat /tmp/preview-server.log
+            exit 1
+          }
           echo "✅ Preview server is ready!"
 
       # =================================================================
@@ -343,6 +515,17 @@ jobs:
           echo "=== Running main E2E suite ==="
           # --grep-invert skips the setup wizard and RBAC since we just ran them
           bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard|role-based"
+
+      - name: Stop Preview Server
+        if: always()
+        run: |
+          echo "🛑 Stopping preview server..."
+          if [ ! -z "$PREVIEW_PID" ]; then
+            kill $PREVIEW_PID 2>/dev/null || true
+          fi
+          pkill -f "bun run preview" || true
+          lsof -ti:4173 | xargs kill -9 2>/dev/null || true
+          echo "✅ Server stopped"
 
       - uses: actions/upload-artifact@v4
         if: always()
