@@ -13,7 +13,7 @@ test.describe('Full Collection & Widget Flow', () => {
 
 	test('Login, create collection, perform actions, and add widget', async ({ page }) => {
 		// 1. Login
-		await page.goto('http://localhost:5173/login', { timeout: 60000 });
+		await page.goto('/login', { timeout: 60000 });
 		await page
 			.getByRole('button', { name: /sign in/i })
 			.first()
@@ -28,7 +28,7 @@ test.describe('Full Collection & Widget Flow', () => {
 		await page.getByPlaceholder(/enter first name/i).fill('First Name');
 		await page.getByPlaceholder(/enter last name/i).fill('Last Name');
 		await page.getByRole('button', { name: /save/i }).click();
-		await expect(page).toHaveURL('http://localhost:5173/en/Collections/Names');
+		await expect(page).toHaveURL(/\/en\/Collections\/Names/);
 
 		// 3. Perform Collection Actions
 		const actions = ['Published', 'Unpublished', 'Scheduled', 'Cloned', 'Delete', 'Testing'];
@@ -46,7 +46,7 @@ test.describe('Full Collection & Widget Flow', () => {
 			await page.getByRole('button', { name: /save/i }).click();
 
 			// Confirm redirect to collection list
-			await expect(page).toHaveURL('http://localhost:5173/en/Collections/Names');
+			await expect(page).toHaveURL(/\/en\/Collections\/Names/);
 		}
 
 		// 4. Add a Widget to Dashboard
@@ -60,6 +60,6 @@ test.describe('Full Collection & Widget Flow', () => {
 		await cpuWidget.click();
 
 		// Final redirect check to dashboard
-		await expect(page).toHaveURL('http://localhost:5173/dashboard', { timeout: 15000 });
+		await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
 	});
 });

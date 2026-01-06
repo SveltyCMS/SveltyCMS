@@ -16,7 +16,7 @@ test.describe('Permission Management Flow', () => {
 
 	test('Login and change permissions in Access Management', async ({ page }) => {
 		// 1. Login
-		await page.goto('http://localhost:5173/login');
+		await page.goto('/login');
 		await page
 			.getByRole('button', { name: /sign in/i })
 			.first()

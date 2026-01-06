@@ -9,6 +9,11 @@
  */
 import { test, expect } from '@playwright/test';
 
+// Helper to get base URL from config
+function getBaseURL() {
+	return process.env.PLAYWRIGHT_TEST_BASE_URL || (process.env.CI ? 'http://localhost:4173' : 'http://localhost:5173');
+}
+
 test.describe('OAuth First User Signup', () => {
 	test.beforeEach(async ({ page }) => {
 		// Use baseURL from playwright config
@@ -54,12 +59,13 @@ test.describe('OAuth First User Signup', () => {
 		await page.route('**/login', (route) => {
 			const request = route.request();
 			if (request.method() === 'POST' && request.postData()?.includes('OAuth')) {
+				const baseURL = getBaseURL();
 				// Mock successful OAuth redirect
 				route.fulfill({
 					status: 302,
 					headers: {
 						Location:
-							'https://accounts.google.com/o/oauth2/v2/auth?access_type=online&scope=email%20profile%20openid&redirect_uri=http://localhost:5173/login/oauth&client_id=test'
+							`https://accounts.google.com/o/oauth2/v2/auth?access_type=online&scope=email%20profile%20openid&redirect_uri=${baseURL}/login/oauth&client_id=test`
 					}
 				});
 			} else {
@@ -84,7 +90,7 @@ test.describe('OAuth First User Signup', () => {
 				// Verify the redirect URL contains expected parameters
 				expect(location).toContain('accounts.google.com');
 				expect(location).toContain('oauth2');
-				expect(location).toContain('localhost:5173/login/oauth');
+				expect(location).toContain('/login/oauth');
 			}
 		} else {
 			console.log('❌ OAuth button not found - skipping redirect test');
@@ -169,7 +175,7 @@ test.describe('OAuth First User Signup', () => {
 		});
 
 		// Simulate OAuth callback with authorization code
-		const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
+		const baseURL = getBaseURL();;
 		const testUrl = `${baseURL}/login/oauth?code=mock_auth_code_ci_test&scope=email+profile+openid`;
 
 		await page.goto(testUrl, {
@@ -199,7 +205,7 @@ test.describe('OAuth First User Signup', () => {
 		console.log('Testing OAuth error handling');
 
 		// Test invalid OAuth callback URL to ensure proper error handling
-		const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
+		const baseURL = getBaseURL();;
 		const testUrl = `${baseURL}/login/oauth?error=access_denied&error_description=User%20denied%20access`;
 
 		await page.goto(testUrl);
@@ -230,7 +236,7 @@ test.describe('OAuth First User Signup', () => {
 
 		// Simulate the OAuth callback with invalid grant error
 		// This should reproduce the issue mentioned in the conversation
-		const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
+		const baseURL = getBaseURL();;
 		const testUrl = `${baseURL}/login/oauth?code=invalid_code&state=test_state`;
 
 		await page.goto(testUrl);
@@ -319,7 +325,7 @@ test.describe('OAuth First User Signup', () => {
 		});
 
 		// Simulate OAuth callback with avatar-enabled user
-		const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
+		const baseURL = getBaseURL();;
 		const testUrl = `${baseURL}/login/oauth?code=mock_auth_code_avatar_test&scope=email+profile+openid`;
 
 		await page.goto(testUrl, {
@@ -348,7 +354,7 @@ test.describe('OAuth Configuration Check', () => {
 	test('Check if OAuth is properly configured for testing', async ({ page }) => {
 		console.log('Checking OAuth configuration for testing environment');
 
-		const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
+		const baseURL = getBaseURL();;
 		const testUrl = `${baseURL}/login`;
 
 		await page.goto(testUrl);

@@ -4,8 +4,9 @@
  *
  */
 import { describe, it, expect } from 'bun:test';
+import { getApiBaseUrl } from '../helpers/server';
 
-const BASE_URL = 'http://localhost:5173';
+const BASE_URL = getApiBaseUrl();
 
 describe('Security Enhancements Verification', () => {
 	it('should block requests with blocked User-Agent (Firewall)', async () => {
