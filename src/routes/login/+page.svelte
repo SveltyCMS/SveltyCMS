@@ -31,6 +31,9 @@
 	import { getLanguageName } from '@utils/languageUtils';
 	import { locales as availableLocales } from '@src/paraglide/runtime';
 
+	// Skeleton UI
+	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -228,11 +231,6 @@
 			background = '#242728';
 		}
 	}
-
-	// Handle dropdown toggle
-	function handleDropdownToggle() {
-		isDropdownOpen = !isDropdownOpen;
-	}
 </script>
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`}>
@@ -360,73 +358,66 @@
 			class="language-selector absolute bottom-1/4 left-1/2 -translate-x-1/2 transform transition-opacity duration-300"
 			class:opacity-50={isTransitioning}
 		>
-			{#if Array.isArray(getPublicSetting('LOCALES')) && getPublicSetting('LOCALES').length > 5}
-				<div class="relative">
-					<!-- Current Language Display -->
-					<button
-						class="flex w-64 items-center justify-between gap-2 rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 hover:bg-[#363a3b] focus:ring-2"
-						onclick={handleDropdownToggle}
-					>
-						<span>{getLanguageName(currentLanguage)} ({currentLanguage.toUpperCase()})</span>
-						<svg
-							class="h-5 w-5 transition-transform duration-300 {isDropdownOpen ? 'rotate-180' : ''}"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-						</svg>
-					</button>
-
-					<!-- Dropdown -->
-					{#if isDropdownOpen}
-						<div class="absolute -left-6 -top-3 z-10 mt-2 w-64 rounded-lg border bg-[#242728] shadow-lg transition-opacity duration-300">
-							<!-- Search Input -->
-							<div class="border-b border-gray-700 p-2">
-								<input
-									type="text"
-									bind:this={searchInput}
-									bind:value={searchQuery}
-									placeholder="Search language..."
-									class="w-full rounded-md bg-[#363a3b] px-3 py-2 text-white transition-colors duration-300 placeholder:text-gray-400 focus:outline-none focus:ring-2"
-								/>
-							</div>
-
-							<!-- Language List -->
-							<div class="max-h-48 divide-y divide-gray-700 overflow-y-auto py-1">
-								{#each filteredLanguages as lang}
-									<button
-										class="flex w-full items-center justify-between px-4 py-2 text-left text-white transition-colors duration-300 hover:bg-[#363a3b] {currentLanguage ===
-										lang
-											? 'bg-[#363a3b]'
-											: ''}"
-										onclick={() => handleLanguageSelection(lang)}
-									>
-										<span>{getLanguageName(lang)} ({lang.toUpperCase()})</span>
-									</button>
-								{/each}
-							</div>
-						</div>
-					{/if}
-				</div>
-			{:else}
-				<!-- Simple dropdown for 5 or fewer languages -->
-				<select
-					bind:value={systemLanguage.value}
-					class="rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 focus:ring-2"
-					onchange={(e: Event) => {
-						const target = e.target as HTMLSelectElement;
-						if (target) {
-							const lang = target.value;
-							handleLanguageSelection(lang);
-						}
-					}}
+			<Menu positioning={{ placement: 'top', gutter: 10 }}>
+				<Menu.Trigger
+					class="flex w-30 items-center justify-between gap-2 rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 hover:bg-[#363a3b] focus:ring-2"
+					aria-label="Select language"
 				>
-					{#each availableLanguages as lang}
-						<option value={lang}>{getLanguageName(lang)} ({lang.toUpperCase()})</option>
-					{/each}
-				</select>
-			{/if}
+					<span>{getLanguageName(currentLanguage)}</span>
+					<iconify-icon icon="mdi:chevron-up" width="20"></iconify-icon>
+				</Menu.Trigger>
+
+				<Portal>
+					<Menu.Positioner>
+						<Menu.Content class="card p-2 shadow-xl preset-filled-surface-100-900 z-9999 w-64 border border-surface-200 dark:border-surface-500">
+							<!-- Header to inform user about System Language context -->
+							<div
+								class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1"
+							>
+								{m.applayout_systemlanguage()}
+							</div>
+
+							{#if Array.isArray(getPublicSetting('LOCALES')) && getPublicSetting('LOCALES').length > 5}
+								<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
+									<input
+										type="text"
+										bind:this={searchInput}
+										bind:value={searchQuery}
+										placeholder="Search language..."
+										class="w-full rounded-md bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
+										aria-label="Search languages"
+										onclick={(e) => e.stopPropagation()}
+									/>
+								</div>
+
+								<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
+									{#each filteredLanguages as lang (lang)}
+										<Menu.Item
+											value={lang}
+											onclick={() => handleLanguageSelection(lang)}
+											class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer"
+										>
+											<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
+											<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
+										</Menu.Item>
+									{/each}
+								</div>
+							{:else}
+								{#each availableLanguages.filter((l) => l !== currentLanguage) as lang (lang)}
+									<Menu.Item
+										value={lang}
+										onclick={() => handleLanguageSelection(lang)}
+										class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer"
+									>
+										<span class="text-sm font-medium">{getLanguageName(lang)}</span>
+										<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
+									</Menu.Item>
+								{/each}
+							{/if}
+						</Menu.Content>
+					</Menu.Positioner>
+				</Portal>
+			</Menu>
 		</div>
 		<!-- CMS Version -->
 		<div class="absolute bottom-5 left-1/2 -translate-x-1/2">

@@ -14,6 +14,7 @@ Features:
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import type { TreeViewItem } from '@utils/treeViewAdapter';
+	import { screen } from '@stores/screenSizeStore.svelte';
 	// Tree View
 
 	interface Props {
@@ -35,8 +36,8 @@ Features:
 	// Enhanced styling with better visual hierarchy
 	const containerClass = $derived(
 		isCategory
-			? 'group w-full min-h-[56px] p-3 rounded bg-gradient-to-r from-tertiary-500/10 to-tertiary-600/5 border-2 border-tertiary-500/30 flex items-center gap-3 mb-2 cursor-pointer hover:border-tertiary-500 hover:shadow-lg hover:from-tertiary-500/20 hover:to-tertiary-600/10 transition-all duration-300 ease-out'
-			: 'group w-full min-h-[56px] p-3 rounded bg-gradient-to-r from-surface-100 to-surface-50 dark:from-surface-700 dark:to-surface-800 border-2 border-l-4 border-surface-500/40 border-l-surface-500 flex items-center gap-3 mb-2 cursor-pointer hover:border-surface-500 hover:shadow-lg hover:translate-x-1 transition-all duration-300 ease-out'
+			? 'group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-tertiary-500/10 to-tertiary-600/5 border-2 border-tertiary-500/30 flex items-center gap-2 sm:gap-3 mb-2 cursor-pointer hover:border-tertiary-500 hover:shadow-lg hover:from-tertiary-500/20 hover:to-tertiary-600/10 transition-all duration-300 ease-out min-w-0 overflow-hidden'
+			: 'group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-surface-100 to-surface-50 dark:from-surface-700 dark:to-surface-800 border-2 border-l-4 border-surface-500/40 border-l-surface-500 flex items-center gap-2 sm:gap-3 mb-2 cursor-pointer hover:border-surface-500 hover:shadow-lg hover:translate-x-1 transition-all duration-300 ease-out min-w-0 overflow-hidden'
 	);
 
 	const iconClass = $derived(
@@ -85,30 +86,40 @@ Features:
 	</div>
 
 	<!-- Name & Badge Section -->
-	<div class="flex flex-col gap-1.5 min-w-[220px] shrink-0">
-		<div class="flex items-center gap-2">
-			<span class="font-bold text-base leading-none">{name}</span>
+	<div class="flex flex-col gap-1 min-w-0 shrink">
+		<div class="flex items-center gap-1 sm:gap-2 flex-wrap">
+			<span class="font-bold text-sm sm:text-base leading-none truncate">{name}</span>
 			{#if isCategory}
-				<span class="badge font-semibold bg-tertiary-500 text-white text-[10px] px-2.5 py-1 rounded-sm uppercase shadow-sm"> Category </span>
+				<span
+					class="badge font-semibold bg-tertiary-500 text-white text-[9px] sm:text-[10px] px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm uppercase shadow-sm"
+				>
+					Category
+				</span>
 			{:else}
-				<span class="badge font-semibold bg-surface-500 text-white text-[10px] px-2.5 py-1 rounded-sm uppercase shadow-sm"> Collection </span>
+				<span
+					class="badge font-semibold bg-surface-500 text-white text-[9px] sm:text-[10px] px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm uppercase shadow-sm"
+				>
+					Collection
+				</span>
 			{/if}
 		</div>
 	</div>
 
-	<!-- Description with Tooltip -->
-	<div class="flex-1 px-4 min-w-0 flex justify-start">
-		{#if item.description}
-			<div class="relative group/desc">
-				<span
-					class="italic text-sm opacity-70 truncate w-full max-w-[500px] text-left hover:opacity-100 transition-opacity duration-200"
-					title={item.description}
-				>
-					{item.description}
-				</span>
-			</div>
-		{/if}
-	</div>
+	<!-- Description with Tooltip - hidden on mobile -->
+	{#if screen.isDesktop}
+		<div class="flex-1 px-4 min-w-0 flex justify-start">
+			{#if item.description}
+				<div class="relative group/desc">
+					<span
+						class="italic text-sm opacity-70 truncate w-full max-w-[500px] text-left hover:opacity-100 transition-opacity duration-200"
+						title={item.description}
+					>
+						{item.description}
+					</span>
+				</div>
+			{/if}
+		</div>
+	{/if}
 
 	<!-- Slug Badge -->
 	{#if item.slug}
@@ -118,7 +129,7 @@ Features:
 	{/if}
 
 	<!-- Action Buttons with Enhanced Design -->
-	<div class="flex gap-2 ml-auto transition-opacity duration-200">
+	<div class="flex gap-1 sm:gap-2 ml-auto shrink-0 transition-opacity duration-200">
 		<!-- Edit Button -->
 		<button
 			type="button"

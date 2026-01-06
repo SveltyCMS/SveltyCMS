@@ -1,7 +1,7 @@
 <!--
 @files src/routes/(app)/config/collectionbuilder/NestedContent/TreeViewBoard.svelte
 @component
-**Board component for managing nested collections using @keenmate/svelte-treeview**
+**Board component for managing nested collections using svelte-dnd-action**
 
 ### Props
 - `contentNodes` {ContentNode[]} - Array of content nodes representing collections and categories
@@ -11,8 +11,8 @@
 - `onDuplicateNode` {Function} - Callback function to handle node duplication
 
 ### Features:
-- Drag and drop reordering of collections using TreeView
-- Support for nested categories
+- Drag and drop reordering of collections using svelte-dnd-action
+- Support for nested categories with cross-level drag
 - Search/Filter functionality
 - Expand/Collapse all
 - Enhanced visual feedback for drag & drop
@@ -20,15 +20,13 @@
 <script lang="ts">
 	// Component
 	import TreeViewNode from './TreeViewNode.svelte';
-	import { logger } from '@utils/logger';
 
 	// DB / Types
 	import type { ContentNode } from '@databases/dbInterface';
 
-	// Tree View
-	import { Tree } from '@keenmate/svelte-treeview';
-	import '../../../../../styles/treeview.css';
-	import type { SearchOptions } from 'flexsearch';
+	// Drag and Drop
+	import { dndzone, TRIGGERS } from 'svelte-dnd-action';
+	import { flip } from 'svelte/animate';
 
 	// Adapter
 	import { toTreeViewData, toFlatContentNodes, recalculatePaths, type TreeViewItem } from '@utils/treeViewAdapter';
@@ -43,158 +41,266 @@
 
 	let { contentNodes = [], onNodeUpdate, onEditCategory, onDeleteNode, onDuplicateNode }: Props = $props();
 
-	// Tree reference for programmatic control
-	let treeRef: any = $state(null);
-
 	// Search state
 	let searchText = $state('');
-	let searchTimeout: ReturnType<typeof setTimeout>;
 
-	// Local state for the tree data
+	// Local state for the tree data - flat structure for dnd-action
 	let treeData = $state<TreeViewItem[]>([]);
 	let initialized = false;
+
+	// Expanded nodes tracking
+	let expandedNodes = $state<Set<string>>(new Set());
+
+	// Drag state for visual feedback
+	let isDragging = $state(false);
 
 	$effect(() => {
 		if (contentNodes.length > 0 && (!initialized || treeData.length === 0)) {
 			treeData = toTreeViewData(contentNodes);
 			initialized = true;
+			// Auto-expand root level nodes
+			treeData.forEach((item) => {
+				if (!item.parent) {
+					expandedNodes.add(item.id);
+				}
+			});
+			expandedNodes = new Set(expandedNodes);
 		}
 	});
 
-	$effect(() => {
-		if (!treeRef) return;
-
-		clearTimeout(searchTimeout);
-		searchTimeout = setTimeout(() => {
-			const options: SearchOptions = {
-				suggest: true,
-				limit: 100
-			};
-			treeRef.searchNodes(searchText, options);
-		}, 300);
+	// Filter items based on search
+	const filteredItems = $derived.by(() => {
+		if (!searchText.trim()) return treeData;
+		const searchLower = searchText.toLowerCase();
+		return treeData.filter((item) => item.name.toLowerCase().includes(searchLower));
 	});
 
-	// Expand all nodes in the tree
+	// Build hierarchical structure for rendering
+	type EnhancedTreeViewItem = TreeViewItem & { children: EnhancedTreeViewItem[]; level: number };
+
+	const hierarchicalData = $derived.by(() => {
+		const items = filteredItems;
+		const itemMap = new Map<string, EnhancedTreeViewItem>();
+
+		// First pass: create enhanced items with children arrays
+		items.forEach((item) => {
+			itemMap.set(item.id, { ...item, children: [], level: 0 });
+		});
+
+		// Second pass: build hierarchy
+		const roots: EnhancedTreeViewItem[] = [];
+		items.forEach((item) => {
+			const enhanced = itemMap.get(item.id);
+			if (!enhanced) return; // Safety check
+
+			if (item.parent && itemMap.has(item.parent)) {
+				const parent = itemMap.get(item.parent);
+				if (parent) {
+					parent.children.push(enhanced);
+					enhanced.level = parent.level + 1;
+				}
+			} else {
+				roots.push(enhanced);
+			}
+		});
+
+		return roots;
+	});
+
+	// Get root level items for top-level dnd zone
+	const rootItems = $derived(hierarchicalData);
+
+	// Expand all nodes
 	function expandAll(): void {
-		if (treeRef?.expandAll) {
-			treeRef.expandAll();
-		} else {
-			logger.warn('expandAll not available on treeRef', treeRef);
-		}
+		expandedNodes = new Set(treeData.map((item) => item.id));
 	}
 
-	// Collapse all nodes in the tree
+	// Collapse all nodes
 	function collapseAll(): void {
-		if (treeRef?.collapseAll) {
-			treeRef.collapseAll();
-		} else {
-			logger.warn('collapseAll not available on treeRef', treeRef);
-		}
+		expandedNodes = new Set();
 	}
 
-	// Clear the search and show all nodes
+	// Clear the search
 	function clearSearch(): void {
 		searchText = '';
 	}
 
-	// Manual toggle handler to ensure reliability
-	function handleManualToggle(node: TreeViewItem) {
-		if (treeRef) {
-			treeRef.toggleNode(node.id);
+	// Toggle node expansion
+	function toggleNode(id: string) {
+		if (expandedNodes.has(id)) {
+			expandedNodes.delete(id);
 		} else {
-			logger.warn('treeRef not available for toggle', node);
+			expandedNodes.add(id);
 		}
+		expandedNodes = new Set(expandedNodes);
 	}
 
-	/**
-	 * Handles the drop event from the TreeView - v4.5.0+ signature with position and operation
-	 * @param dropNode - Target node (null for root drops)
-	 * @param draggedNode - The node being dragged
-	 * @param position - 'above' | 'below' | 'child'
-	 * @param event - Browser drag event
-	 * @param operation - 'move' | 'copy'
-	 */
-	function handleNodeDrop(
-		dropNode: any,
-		draggedNode: any,
-		position: 'above' | 'below' | 'child',
-		_event: DragEvent | TouchEvent,
-		operation: 'move' | 'copy'
-	) {
-		try {
-			logger.debug('TreeView drop:', {
-				dropNode: dropNode?.data?.name || dropNode?.name || 'root',
-				draggedNode: draggedNode?.data?.name || draggedNode?.name,
-				position,
-				operation
+	// Handle drag and drop at root level
+	function handleRootDndConsider(e: CustomEvent) {
+		const { items, info } = e.detail;
+		if (info.trigger === TRIGGERS.DRAG_STARTED) {
+			isDragging = true;
+		}
+		updateRootItems(items);
+	}
+
+	function handleRootDndFinalize(e: CustomEvent) {
+		const { items } = e.detail;
+		isDragging = false;
+
+		// Update items with null parent (root level)
+		const updatedItems = items.map((item: EnhancedTreeViewItem) => ({
+			...item,
+			parent: null
+		}));
+
+		updateRootItems(updatedItems);
+		saveTreeData();
+	}
+
+	function updateRootItems(newItems: EnhancedTreeViewItem[]) {
+		// Get IDs of items now at root level
+		const newRootIds = new Set(newItems.map((item) => item.id));
+
+		// For each item that moved TO root, we need to keep its descendants
+		// For items that moved AWAY from root, they'll be handled by the nested zone
+
+		// Start with items that are NOT in the new root list AND not descendants of moved items
+		const itemsToKeep: TreeViewItem[] = [];
+		const processedIds = new Set<string>();
+
+		// First, add all new root items with updated parent
+		newItems.forEach((item, index) => {
+			itemsToKeep.push({
+				...stripEnhanced(item),
+				parent: null,
+				order: index
 			});
+			processedIds.add(item.id);
 
-			const draggedId = draggedNode?.data?.id || draggedNode?.id;
-			const dropId = dropNode?.data?.id || dropNode?.id;
+			// Also add all descendants of this item (they keep their relative parent refs)
+			const descendants = getAllDescendants(item.id, treeData);
+			descendants.forEach((desc) => {
+				if (!processedIds.has(desc.id)) {
+					itemsToKeep.push(desc);
+					processedIds.add(desc.id);
+				}
+			});
+		});
 
-			if (!draggedId) {
-				logger.warn('No dragged item ID found');
-				return;
+		// Add remaining items that weren't processed (items still in nested zones)
+		treeData.forEach((item) => {
+			if (!processedIds.has(item.id) && !newRootIds.has(item.id)) {
+				// Check if this item's parent is still valid
+				const parentStillExists = itemsToKeep.some((i) => i.id === item.parent);
+				if (parentStillExists || item.parent === null) {
+					itemsToKeep.push(item);
+					processedIds.add(item.id);
+				}
 			}
+		});
 
-			// Prevent drops on self
-			if (draggedId === dropId && position !== 'child') {
-				logger.warn('Cannot drop node on itself');
-				return;
-			}
-
-			let updatedData = treeData.map((item) => ({ ...item }));
-
-			const draggedIndex = updatedData.findIndex((item) => item.id === draggedId);
-			if (draggedIndex === -1) {
-				logger.warn('Dragged item not found in treeData');
-				return;
-			}
-
-			const draggedItem = updatedData[draggedIndex];
-
-			// Remove brought item from its original position
-			updatedData.splice(draggedIndex, 1);
-
-			// Re-find drop item index after removal to ensure accuracy
-			const dropIndex = dropId ? updatedData.findIndex((item) => item.id === dropId) : -1;
-
-			if (position === 'child' && dropId) {
-				// Drop as child: Set parent and move to end of array (or after parent?)
-				// For LTree, array order matters for siblings. If we make it a child,
-				// its array position matters relative to other children of the same parent.
-				// We'll append it to the end of the array to be safe, or after the drop node.
-				draggedItem.parent = dropId;
-				// Inserting after drop node keeps it close in the file
-				updatedData.splice(dropIndex + 1, 0, draggedItem);
-			} else if ((position === 'above' || position === 'below') && dropId) {
-				const dropItem = updatedData[dropIndex]; // This is valid because we found index
-				draggedItem.parent = dropItem.parent || null;
-
-				// Calculate insertion index
-				const insertIndex = position === 'above' ? dropIndex : dropIndex + 1;
-				updatedData.splice(insertIndex, 0, draggedItem);
-			} else {
-				// Root drop or fallback
-				draggedItem.parent = null;
-				updatedData.push(draggedItem);
-			}
-
-			// Recalculate paths based on new parent relationships and array order
-			updatedData = recalculatePaths(updatedData);
-			treeData = updatedData;
-
-			// Convert back to ContentNodes and notify parent
-			const contentNodes = toFlatContentNodes(updatedData);
-
-			// Defer update to prevent synchronous state update loop
-			setTimeout(() => {
-				onNodeUpdate(contentNodes);
-			}, 50);
-		} catch (error) {
-			logger.error('Error handling TreeView drop:', error);
-		}
+		treeData = recalculatePaths(itemsToKeep);
 	}
+
+	// Handle drag and drop at nested level
+	function handleNestedDndConsider(e: CustomEvent, parentId: string) {
+		const { items, info } = e.detail;
+		if (info.trigger === TRIGGERS.DRAG_STARTED) {
+			isDragging = true;
+		}
+		updateItemsAtLevel(items, parentId);
+	}
+
+	function handleNestedDndFinalize(e: CustomEvent, parentId: string) {
+		const { items } = e.detail;
+		isDragging = false;
+		updateItemsAtLevel(items, parentId);
+		saveTreeData();
+	}
+
+	function updateItemsAtLevel(newItems: EnhancedTreeViewItem[], parentId: string) {
+		// Get IDs of items now at this level
+		const newChildIds = new Set(newItems.map((item) => item.id));
+
+		const itemsToKeep: TreeViewItem[] = [];
+		const processedIds = new Set<string>();
+
+		// Add items at this level with updated parent reference
+		newItems.forEach((item, index) => {
+			itemsToKeep.push({
+				...stripEnhanced(item),
+				parent: parentId,
+				order: index
+			});
+			processedIds.add(item.id);
+
+			// Also add all descendants of this item (they keep their relative parent refs)
+			const descendants = getAllDescendants(item.id, treeData);
+			descendants.forEach((desc) => {
+				if (!processedIds.has(desc.id)) {
+					itemsToKeep.push(desc);
+					processedIds.add(desc.id);
+				}
+			});
+		});
+
+		// Add all other items that weren't affected
+		treeData.forEach((item) => {
+			if (!processedIds.has(item.id) && !newChildIds.has(item.id) && item.parent !== parentId) {
+				itemsToKeep.push(item);
+				processedIds.add(item.id);
+			}
+		});
+
+		// Also add items that are still children of this parent but not in newItems
+		// (they were removed from this zone, handled elsewhere)
+
+		treeData = recalculatePaths(itemsToKeep);
+	}
+
+	// Helper: Get all descendants of an item
+	function getAllDescendants(itemId: string, items: TreeViewItem[]): TreeViewItem[] {
+		const descendants: TreeViewItem[] = [];
+		const directChildren = items.filter((item) => item.parent === itemId);
+
+		directChildren.forEach((child) => {
+			descendants.push(child);
+			descendants.push(...getAllDescendants(child.id, items));
+		});
+
+		return descendants;
+	}
+
+	// Helper: Strip enhanced properties from item
+	function stripEnhanced(item: EnhancedTreeViewItem): TreeViewItem {
+		const { children, level, ...base } = item;
+		return base;
+	}
+
+	function saveTreeData() {
+		// Convert back to ContentNodes and notify parent
+		const contentNodes = toFlatContentNodes(treeData);
+
+		// Defer update to prevent synchronous state update loop
+		setTimeout(() => {
+			onNodeUpdate(contentNodes);
+		}, 50);
+	}
+
+	// Helper to convert EnhancedTreeViewItem to Partial<ContentNode> for callbacks
+	function toPartialContentNode(item: TreeViewItem | EnhancedTreeViewItem): Partial<ContentNode> {
+		// Extract only the properties needed for ContentNode
+		const { children, level, parent, path, ...contentNodeProps } = item as any;
+		return {
+			...contentNodeProps,
+			_id: item._id || item.id,
+			parentId: parent
+		};
+	}
+
+	// Flip animation duration
+	const flipDurationMs = 300;
 </script>
 
 <!-- Toolbar -->
@@ -228,264 +334,195 @@
 	</div>
 </div>
 
-<!-- Tree View -->
-<div class="collection-builder-tree relative w-full h-auto overflow-y-auto rounded">
-	<Tree
-		bind:this={treeRef}
-		bind:data={treeData}
-		nodeTemplate={itemTemplate}
-		onNodeDrop={handleNodeDrop}
-		pathMember="path"
-		idMember="id"
-		displayValueMember="name"
-		expandLevel={2}
-		shouldUseInternalSearchIndex={true}
-		searchValueMember="name"
-		{...{ isDragAndDropEnabled: true } as any}
-		dropZoneLayout="around"
-		dropZoneStart={33}
-		dropZoneMaxWidth={120}
-		isDropAllowed={() => true}
-		childrenMember="children"
-		dragOverNodeClass="ltree-dragover-glow"
-		treeClass="custom-tree"
-		nodeClass="custom-tree-node"
-	/>
+<!-- Tree View with Drag and Drop -->
+<div class="collection-builder-tree relative w-full h-auto overflow-y-auto rounded p-2">
+	{#if hierarchicalData.length === 0}
+		<div class="text-center p-8 text-surface-500">
+			{#if searchText}
+				<iconify-icon icon="mdi:magnify-close" width="48" class="opacity-50 mb-2"></iconify-icon>
+				<p>No results found for "{searchText}"</p>
+			{:else}
+				<iconify-icon icon="mdi:folder-open-outline" width="48" class="opacity-50 mb-2"></iconify-icon>
+				<p>No categories or collections yet</p>
+			{/if}
+		</div>
+	{:else}
+		<!-- Root Level DnD Zone -->
+		<div
+			class="root-dnd-zone"
+			use:dndzone={{
+				items: rootItems,
+				flipDurationMs,
+				type: 'tree-items',
+				dropFromOthersDisabled: false,
+				dropTargetStyle: {}
+			}}
+			onconsider={handleRootDndConsider}
+			onfinalize={handleRootDndFinalize}
+		>
+			{#each rootItems as item (item.id)}
+				<div class="tree-node-wrapper" animate:flip={{ duration: flipDurationMs }}>
+					{@render treeNode(item, 0)}
+				</div>
+			{/each}
+		</div>
+	{/if}
+
+	<!-- Drop to Root Zone (visible during drag) -->
+	{#if isDragging}
+		<div class="drop-to-root-zone">
+			<iconify-icon icon="mdi:arrow-up" width="20"></iconify-icon>
+			<span>Drop here to move to root level</span>
+		</div>
+	{/if}
 </div>
 
-<!-- Custom Node Template for the Tree -->
-{#snippet itemTemplate(node: any, _toggle: () => void, isOpen: boolean)}
-	<div class="w-full">
+<!-- Recursive Tree Node Renderer -->
+{#snippet treeNode(item: EnhancedTreeViewItem, level: number)}
+	<div class="tree-node-container" style="margin-left: {level * 0.75}rem">
+		<!-- Render the node -->
 		<TreeViewNode
-			item={{
-				...(node.data || node),
-				hasChildren: node.hasChildren || (node.children && node.children.length > 0)
-			}}
-			{isOpen}
-			toggle={() => handleManualToggle(node.data || node)}
-			onEditCategory={() => onEditCategory(node.data || node)}
-			onDelete={() => onDeleteNode?.(node.data || node)}
-			onDuplicate={() => onDuplicateNode?.(node.data || node)}
+			item={{ ...item, hasChildren: item.children && item.children.length > 0 }}
+			isOpen={expandedNodes.has(item.id)}
+			toggle={() => toggleNode(item.id)}
+			onEditCategory={() => onEditCategory(toPartialContentNode(item))}
+			onDelete={() => onDeleteNode?.(toPartialContentNode(item))}
+			onDuplicate={() => onDuplicateNode?.(toPartialContentNode(item))}
 		/>
+
+		<!-- Render children if expanded and has children -->
+		{#if expandedNodes.has(item.id) && item.children && item.children.length > 0}
+			<div
+				class="tree-children"
+				use:dndzone={{
+					items: item.children,
+					flipDurationMs,
+					type: 'tree-items',
+					dropFromOthersDisabled: false,
+					dropTargetStyle: {}
+				}}
+				onconsider={(e) => handleNestedDndConsider(e, item.id)}
+				onfinalize={(e) => handleNestedDndFinalize(e, item.id)}
+			>
+				{#each item.children as child (child.id)}
+					<div class="tree-node-wrapper" animate:flip={{ duration: flipDurationMs }}>
+						{@render treeNode(child, level + 1)}
+					</div>
+				{/each}
+			</div>
+		{:else if expandedNodes.has(item.id) && item.nodeType === 'category'}
+			<!-- Empty drop zone for categories with no children -->
+			<div
+				class="tree-children empty-drop-zone"
+				use:dndzone={{
+					items: [],
+					flipDurationMs,
+					type: 'tree-items',
+					dropFromOthersDisabled: false,
+					dropTargetStyle: {}
+				}}
+				onconsider={(e) => handleNestedDndConsider(e, item.id)}
+				onfinalize={(e) => handleNestedDndFinalize(e, item.id)}
+			>
+				<span class="empty-hint">Drop items here</span>
+			</div>
+		{/if}
 	</div>
 {/snippet}
 
 <style>
 	/* Base Tree Styling */
-	:global(.collection-builder-tree .custom-tree) {
+	.collection-builder-tree {
 		background: transparent;
 		color: inherit;
 		font-family: inherit;
 		padding: 0.5rem;
+		min-height: 200px;
 	}
 
-	/* Tree Node Spacing */
-	:global(.collection-builder-tree .custom-tree-node) {
-		margin-bottom: 0.75rem !important;
+	/* Root DnD Zone */
+	.root-dnd-zone {
+		min-height: 100px;
+	}
+
+	/* Tree Node Wrapper for animations */
+	.tree-node-wrapper {
+		margin-bottom: 0.5rem;
+	}
+
+	/* Tree Node Container */
+	.tree-node-container {
 		transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 		position: relative;
 	}
 
-	/* Last child remove bottom margin */
-	:global(.collection-builder-tree .custom-tree-node:last-child) {
-		margin-bottom: 0 !important;
+	/* Tree Children Container */
+	.tree-children {
+		padding-left: 0.5rem;
+		border-left: 2px solid rgb(var(--color-surface-300));
+		margin-left: 0.5rem;
+		margin-top: 0.5rem;
+		min-height: 40px;
+		transition: all 0.2s ease;
 	}
 
-	/* Dragging State - Ghost/Original Item */
-	:global(.collection-builder-tree .custom-tree-node.dragging) {
-		opacity: 0.4;
-		transform: scale(0.95);
-		filter: blur(1px);
+	.tree-children.empty-drop-zone {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 2px dashed rgb(var(--color-surface-300));
+		border-left: 2px solid rgb(var(--color-surface-300));
+		border-radius: 4px;
+		background: rgb(var(--color-surface-50) / 0.3);
 	}
 
-	/* Drag Over Glow Mode - CORE FEATURE */
-	:global(.collection-builder-tree .ltree-dragover-glow) {
-		position: relative;
-		z-index: 100;
+	.empty-hint {
+		color: rgb(var(--color-surface-500));
+		font-size: 0.85rem;
+		font-style: italic;
 	}
 
-	/* Position Indicator: Above (Green) */
-	:global(.collection-builder-tree .ltree-glow-above::before) {
-		content: '';
-		position: absolute;
-		top: -6px;
-		left: 0;
-		right: 0;
-		height: 4px;
-		background: linear-gradient(90deg, rgb(var(--color-success-500)) 0%, rgb(var(--color-success-400)) 100%);
-		border-radius: 2px;
-		box-shadow:
-			0 0 12px rgb(var(--color-success-500) / 0.6),
-			0 0 24px rgb(var(--color-success-400) / 0.3);
-		animation: pulse-glow 1.5s ease-in-out infinite;
-		z-index: 50;
-	}
-
-	/* Position Indicator: Below (Orange) */
-	:global(.collection-builder-tree .ltree-glow-below::after) {
-		content: '';
-		position: absolute;
-		bottom: -6px;
-		left: 0;
-		right: 0;
-		height: 4px;
-		background: linear-gradient(90deg, rgb(var(--color-warning-500)) 0%, rgb(var(--color-warning-400)) 100%);
-		border-radius: 2px;
-		box-shadow:
-			0 0 12px rgb(var(--color-warning-500) / 0.6),
-			0 0 24px rgb(var(--color-warning-400) / 0.3);
-		animation: pulse-glow 1.5s ease-in-out infinite;
-		z-index: 50;
-	}
-
-	/* Position Indicator: Child (Purple) */
-	:global(.collection-builder-tree .ltree-glow-child) {
-		outline: 3px solid rgb(var(--color-tertiary-500));
-		outline-offset: 3px;
-		background: rgb(var(--color-tertiary-500) / 0.15);
-		box-shadow:
-			0 0 16px rgb(var(--color-tertiary-500) / 0.5),
-			inset 0 0 24px rgb(var(--color-tertiary-400) / 0.2);
+	/* Drop to Root Zone */
+	.drop-to-root-zone {
+		margin-top: 1rem;
+		padding: 1rem;
+		border: 2px dashed rgb(var(--color-primary-500));
 		border-radius: 8px;
+		background: rgb(var(--color-primary-500) / 0.1);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		color: rgb(var(--color-primary-500));
+		font-weight: 500;
 		animation: pulse-border 1.5s ease-in-out infinite;
 	}
 
-	/* Glow Pulse Animation */
-	@keyframes pulse-glow {
-		0%,
-		100% {
-			opacity: 1;
-			transform: scaleY(1);
-		}
-		50% {
-			opacity: 0.7;
-			transform: scaleY(1.2);
-		}
-	}
-
-	/* Border Pulse Animation */
 	@keyframes pulse-border {
 		0%,
 		100% {
-			outline-width: 3px;
-			outline-offset: 3px;
+			border-color: rgb(var(--color-primary-500));
 		}
 		50% {
-			outline-width: 4px;
-			outline-offset: 4px;
+			border-color: rgb(var(--color-primary-300));
 		}
 	}
 
-	/* Empty Tree Drop Zone */
-	:global(.collection-builder-tree .ltree-drop-placeholder) {
-		min-height: 200px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		border: 3px dashed rgb(var(--color-surface-400));
-		border-radius: 12px;
-		background: rgb(var(--color-surface-50) / 0.5);
-		margin: 1rem;
-		transition: all 0.3s ease;
+	/* Dragging State - Applied by svelte-dnd-action */
+	:global(.tree-node-wrapper[aria-grabbed='true']) {
+		opacity: 0.5;
+		transform: scale(0.98);
 	}
 
-	:global(.collection-builder-tree .ltree-drop-placeholder:hover) {
-		border-color: rgb(var(--color-primary-500));
-		background: rgb(var(--color-primary-50) / 0.3);
-		box-shadow: 0 0 20px rgb(var(--color-primary-500) / 0.3);
-	}
-
-	:global(.collection-builder-tree .ltree-drop-placeholder-content) {
-		padding: 2rem;
-		text-align: center;
-		color: rgb(var(--color-surface-600));
-		font-size: 1.1rem;
-	}
-
-	/* Root Drop Zone (Bottom of Tree) */
-	:global(.collection-builder-tree .ltree-root-drop-zone) {
-		min-height: 60px;
-		margin-top: 1rem;
-		border: 2px dashed rgb(var(--color-surface-300));
-		border-radius: 8px;
-		background: rgb(var(--color-surface-50) / 0.3);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		color: rgb(var(--color-surface-500));
-		font-size: 0.9rem;
-		opacity: 0;
-		transition: all 0.3s ease;
-	}
-
-	:global(.collection-builder-tree .ltree-root-drop-zone.drag-active) {
-		opacity: 1;
-		border-color: rgb(var(--color-primary-500));
-		background: rgb(var(--color-primary-50) / 0.2);
-	}
-
-	/* Touch Ghost Element (Mobile) */
-	:global(.ltree-touch-ghost) {
-		position: fixed;
-		pointer-events: none;
-		z-index: 10000;
-		opacity: 0.85;
-		transform: scale(1.05);
-		filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3));
-		transition: transform 0.1s ease;
-	}
-
-	/* Loading Overlay */
-	:global(.collection-builder-tree .ltree-loading-overlay) {
-		position: absolute;
-		inset: 0;
-		background: rgb(var(--color-surface-900) / 0.6);
-		backdrop-filter: blur(4px);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 1000;
-		border-radius: 8px;
-	}
-
-	/* Improved Node Content Dragging */
-	:global(.collection-builder-tree .custom-tree-node .node-content) {
-		cursor: grab;
-		width: 100%;
-		user-select: none;
-	}
-
-	:global(.collection-builder-tree .custom-tree-node .node-content:active) {
-		cursor: grabbing;
+	/* Drop target visual feedback */
+	:global(.tree-children:has([aria-grabbed='true'])) {
+		background: rgb(var(--color-primary-500) / 0.05);
+		border-left-color: rgb(var(--color-primary-500));
 	}
 
 	/* Hover Effects */
-	:global(.collection-builder-tree .custom-tree-node:not(.dragging):hover) {
-		transform: translateY(-1px);
-	}
-
-	/* Focus/Active States */
-	:global(.collection-builder-tree .custom-tree-node:focus-within) {
-		outline: 2px solid rgb(var(--color-primary-500));
-		outline-offset: 2px;
-		border-radius: 8px;
-	}
-
-	/* Nested Level Indentation */
-	:global(.collection-builder-tree .custom-tree-node[data-level='0']) {
-		margin-left: 0;
-	}
-
-	:global(.collection-builder-tree .custom-tree-node[data-level='1']) {
-		margin-left: 3rem;
-	}
-
-	:global(.collection-builder-tree .custom-tree-node[data-level='2']) {
-		margin-left: 6rem;
-	}
-
-	:global(.collection-builder-tree .custom-tree-node[data-level='3']) {
-		margin-left: 9rem;
+	.tree-node-container:hover {
+		transform: translateX(2px);
 	}
 
 	/* Smooth Scrollbar */

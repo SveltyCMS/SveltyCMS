@@ -135,7 +135,7 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             # The '|| true' ensures the workflow doesn't fail if there's nothing to commit.
-            git commit -m "chore(build): auto-remove collections directory for release" || true
+            git commit -m "chore(build): auto-remove collections directory for release [skip ci]" || true
             git push origin main
             echo "Collections directory removed and changes pushed."
           else
