@@ -32,6 +32,7 @@
 	// Stores
 	import { setCollectionValue, setMode, setContentStructure, contentStructure } from '@src/stores/collectionStore.svelte';
 	import { setRouteContext, ui } from '@src/stores/UIStore.svelte';
+	import { screen } from '@stores/screenSizeStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -266,46 +267,93 @@
 </script>
 
 <PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config">
-	<!-- Add Category Button -->
-	<button
-		onclick={() => modalAddCategory()}
-		type="button"
-		aria-label="Add New Category"
-		class="preset-filled-tertiary-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1 md:preset-filled-tertiary-500 md:btn"
-		disabled={isLoading}
-	>
-		<iconify-icon icon="bi:collection" width="18" class="text-white"></iconify-icon>
-		<span class="hidden md:inline">{m.collection_addcategory()}</span>
-	</button>
+	<!-- Desktop action buttons - hidden on mobile/tablet -->
+	{#snippet children()}
+		{#if screen.isDesktop}
+			<!-- Add Category Button -->
+			<button
+				onclick={() => modalAddCategory()}
+				type="button"
+				aria-label="Add New Category"
+				class="preset-filled-tertiary-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1"
+				disabled={isLoading}
+			>
+				<iconify-icon icon="bi:collection" width="18" class="text-white"></iconify-icon>
+				<span>{m.collection_addcategory()}</span>
+			</button>
 
-	<!-- Add Collection Button -->
-	<button
-		onclick={handleAddCollectionClick}
-		type="button"
-		aria-label="Add New Collection"
-		class="preset-filled-surface-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1 rounded font-bold"
-		disabled={isLoading}
-	>
-		<iconify-icon icon="material-symbols:category" width="18"></iconify-icon>
-		<span class="hidden md:inline">{m.collection_add()}</span>
-	</button>
+			<!-- Add Collection Button -->
+			<button
+				onclick={handleAddCollectionClick}
+				type="button"
+				aria-label="Add New Collection"
+				class="preset-filled-surface-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1 rounded font-bold"
+				disabled={isLoading}
+			>
+				<iconify-icon icon="material-symbols:category" width="18"></iconify-icon>
+				<span>{m.collection_add()}</span>
+			</button>
 
-	<!-- Save Button -->
-	<button
-		type="button"
-		onclick={handleSave}
-		aria-label="Save"
-		class="preset-filled-primary-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1 md:btn"
-		disabled={isLoading}
-	>
-		{#if isLoading}
-			<iconify-icon icon="eos-icons:loading" width="24" class="animate-spin text-white"></iconify-icon>
-		{:else}
-			<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
+			<!-- Save Button -->
+			<button
+				type="button"
+				onclick={handleSave}
+				aria-label="Save"
+				class="preset-filled-primary-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1"
+				disabled={isLoading}
+			>
+				{#if isLoading}
+					<iconify-icon icon="eos-icons:loading" width="24" class="animate-spin text-white"></iconify-icon>
+				{:else}
+					<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
+				{/if}
+				<span>{m.button_save()}</span>
+			</button>
 		{/if}
-		<span class="hidden md:inline">{m.button_save()}</span>
-	</button>
+	{/snippet}
 </PageTitle>
+
+<!-- Mobile/Tablet action buttons (shown below title, horizontal row, equal width) -->
+{#if !screen.isDesktop}
+	<div class="flex gap-2 mb-2 px-2">
+		<button
+			onclick={() => modalAddCategory()}
+			type="button"
+			aria-label="Add New Category"
+			class="preset-filled-tertiary-500 btn flex flex-1 items-center justify-center gap-1"
+			disabled={isLoading}
+		>
+			<iconify-icon icon="bi:collection" width="18" class="text-white"></iconify-icon>
+			<span>{m.collection_addcategory()}</span>
+		</button>
+
+		<button
+			onclick={handleAddCollectionClick}
+			type="button"
+			aria-label="Add New Collection"
+			class="preset-filled-surface-500 btn flex flex-1 items-center justify-center gap-1 rounded font-bold"
+			disabled={isLoading}
+		>
+			<iconify-icon icon="material-symbols:category" width="18"></iconify-icon>
+			<span>{m.collection_add()}</span>
+		</button>
+
+		<button
+			type="button"
+			onclick={handleSave}
+			aria-label="Save"
+			class="preset-filled-primary-500 btn flex flex-1 items-center justify-center gap-1"
+			disabled={isLoading}
+		>
+			{#if isLoading}
+				<iconify-icon icon="eos-icons:loading" width="24" class="animate-spin text-white"></iconify-icon>
+			{:else}
+				<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
+			{/if}
+			<span>{m.button_save()}</span>
+		</button>
+	</div>
+{/if}
 
 {#if apiError}
 	<div class="mb-4 rounded bg-error-500/10 p-4 text-error-500" role="alert">

@@ -127,9 +127,16 @@ class UIStore {
 		}
 
 		if (this.routeContext.isCollectionBuilder) {
-			// Collection builder should be like VIEW mode: no HeaderEdit, full sidebar
+			// Collection builder should respect screen size for sidebar
+			let sidebarState: UIVisibility = 'full';
+			if (size === ScreenSize.XS || size === ScreenSize.SM) {
+				sidebarState = 'hidden';
+			} else if (size === ScreenSize.MD) {
+				sidebarState = 'collapsed';
+			}
+
 			this.state = {
-				leftSidebar: 'full',
+				leftSidebar: sidebarState,
 				rightSidebar: 'hidden',
 				pageheader: 'hidden', // No HeaderEdit in collection builder
 				pagefooter: 'hidden',

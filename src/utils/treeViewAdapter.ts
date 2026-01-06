@@ -209,7 +209,10 @@ export function recalculatePaths(items: TreeViewItem[]): TreeViewItem[] {
 		childrenByParent.get(parentKey)!.push(itemMap.get(item.id)!);
 	}
 
-	// Sort children within each parent group by their current order/path
+	// Sort children within each parent group by their original order
+	for (const [, children] of childrenByParent) {
+		children.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+	}
 
 	// Recursively assign new paths starting from roots
 	function assignPaths(parentId: string | null, parentPath: string): void {
