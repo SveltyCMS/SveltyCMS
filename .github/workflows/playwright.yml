@@ -335,7 +335,6 @@ jobs:
         run: |
           echo "=== Running RBAC tests (admin, developer, editor) ==="
           bunx playwright test tests/playwright/role-based-access.spec.ts --project=chromium --reporter=list
-        continue-on-error: true
 
       # STEP C: Run the rest of the tests (skipping the wizard and RBAC)
       - name: 🧪 Run Application E2E Tests
