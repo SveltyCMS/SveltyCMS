@@ -1,23 +1,20 @@
 /**
  * @file src/databases/mariadb/migrations.ts
  * @description Automatic schema migration for MariaDB
+ *
+ * Features:
+ * - Create tables if they don't exist
+ * - Update tables if they exist
+ * - Drop tables if they exist
  */
 
-import { drizzle } from 'drizzle-orm/mysql2';
-import { migrate } from 'drizzle-orm/mysql2/migrator';
 import type mysql from 'mysql2/promise';
 import { logger } from '@utils/logger';
-import * as schema from './schema';
-import { sql } from 'drizzle-orm';
 
-/**
- * Run migrations to create/update database schema
- */
+// Run migrations to create/update database schema
 export async function runMigrations(connection: mysql.Pool): Promise<{ success: boolean; error?: string }> {
 	try {
 		logger.info('Running database migrations...');
-
-		const db = drizzle(connection, { schema, mode: 'default' });
 
 		// For initial setup, we'll create tables directly using Drizzle's push
 		// This is simpler than maintaining migration files

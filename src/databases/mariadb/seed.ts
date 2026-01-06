@@ -4,9 +4,8 @@
  */
 
 import type { MySql2Database } from 'drizzle-orm/mysql2';
-import type { DatabaseId } from '../dbInterface';
-import { authUsers, roles, themes, systemVirtualFolders } from './schema';
-import { generateId, dateToISO } from './utils';
+import * as schema from './schema';
+import { generateId } from './utils';
 import { logger } from '@utils/logger';
 
 /**
@@ -27,7 +26,7 @@ export async function seedDatabase(
 		const userRoleId = generateId();
 		const editorRoleId = generateId();
 
-		await db.insert(roles).values([
+		await db.insert(schema.roles).values([
 			{
 				_id: adminRoleId,
 				name: 'Admin',
@@ -67,7 +66,7 @@ export async function seedDatabase(
 
 		// 2. Create admin user
 		const adminUserId = generateId();
-		await db.insert(authUsers).values({
+		await db.insert(schema.authUsers).values({
 			_id: adminUserId,
 			email: adminEmail,
 			username: adminUsername,
@@ -82,7 +81,7 @@ export async function seedDatabase(
 		logger.info('✅ Admin user created');
 
 		// 3. Create default theme
-		await db.insert(themes).values({
+		await db.insert(schema.themes).values({
 			_id: generateId(),
 			name: 'SveltyCMS Default',
 			path: '/themes/default',
@@ -99,7 +98,7 @@ export async function seedDatabase(
 		logger.info('✅ Default theme created');
 
 		// 4. Create root system virtual folder
-		await db.insert(systemVirtualFolders).values({
+		await db.insert(schema.systemVirtualFolders).values({
 			_id: generateId(),
 			name: 'mediaFolder',
 			path: 'mediaFolder',

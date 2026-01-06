@@ -56,9 +56,9 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 			const port = config.port ? `:${config.port}` : ':3306';
 			const hasCredentials = config.user && config.password;
 			const user = hasCredentials ? `${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@` : '';
-			
+
 			const connectionString = `mysql://${user}${config.host}${port}/${config.name}`;
-			
+
 			return connectionString;
 		}
 		default: {

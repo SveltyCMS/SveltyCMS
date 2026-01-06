@@ -19,7 +19,7 @@ const DRIVER_PACKAGES = {
 	'mongodb+srv': 'mongoose',
 	postgresql: 'postgres',
 	mysql: 'mysql2',
-	mariadb: 'mariadb'
+	mariadb: 'mysql2'
 } as const;
 
 type DatabaseType = keyof typeof DRIVER_PACKAGES;

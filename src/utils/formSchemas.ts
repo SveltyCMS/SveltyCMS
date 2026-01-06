@@ -225,7 +225,7 @@ export const smtpConfigSchema = object({
 // --- Database Configuration Schemas ---
 
 // Database Type Schema
-const dbTypeSchema = picklist(['mongodb', 'mongodb+srv', 'postgresql', 'mysql'], 'Invalid database type');
+const dbTypeSchema = picklist(['mongodb', 'mongodb+srv', 'postgresql', 'mysql', 'mariadb'], 'Invalid database type');
 
 // Database Host Schema
 const dbHostSchema = pipe(string(), trim(), minLength(1, 'Database host is required'), maxLength(255, 'Database host is too long'));
@@ -271,7 +271,7 @@ export const dbConfigSchema = pipe(
 	}),
 	check((input) => {
 		// For PostgreSQL and MySQL, username and password are required
-		if (input.type === 'postgresql' || input.type === 'mysql') {
+		if (input.type === 'postgresql' || input.type === 'mysql' || input.type === 'mariadb') {
 			return input.user.length > 0 && input.password.length > 0;
 		}
 		// For MongoDB (both standard and Atlas), authentication is optional

@@ -12,6 +12,7 @@
  * - Uses Hashed Secret for Unique ID (Never sends raw secret)
  */
 import { building, dev } from '$app/environment';
+import { getPrivateEnv } from '@src/databases/db';
 import { getPrivateSetting } from '@src/services/settingsService';
 import pkg from '../../package.json';
 import { createHash } from 'node:crypto';
@@ -88,7 +89,9 @@ export const telemetryService = {
 					logger.debug('[Telemetry] Failed to collect widget info:', err);
 				}
 
-				const dbType = await getPrivateSetting('DB_TYPE');
+				// Use direct env access for infrastructure config (more reliable than settings cache)
+				const privateEnv = getPrivateEnv();
+				const dbType = privateEnv?.DB_TYPE || (await getPrivateSetting('DB_TYPE')) || 'unknown';
 
 				// Collect geolocation data
 				let location = {

@@ -52,6 +52,7 @@ export interface BaseEntity {
 	isDeleted?: boolean; // Soft delete flag
 	deletedAt?: ISODateString; // Timestamp of deletion
 	deletedBy?: string; // User who performed deletion
+	tenantId?: string; // For multi-tenant support
 }
 
 // Collection Entry - A data record in a collection with common metadata

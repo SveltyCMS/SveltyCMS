@@ -4,6 +4,22 @@
  *
  * This module defines a schema and model for media files in the CMS.
  * Media files include images, videos, documents, and other file types.
+ *
+ * Features:
+ * - UUID as per dbInterface.ts
+ * - Hash for media
+ * - Filename for media
+ * - Original filename for media
+ * - Path to the media file
+ * - Size of the media file
+ * - Mime type of the media file
+ * - Folder paths/ids as strings
+ * - Thumbnails for images
+ * - Metadata for media files
+ * - Created by user ID
+ * - Updated by user ID
+ * - CreatedAt ISODate type
+ * - UpdatedAt ISODate type
  */
 
 import mongoose, { Schema } from 'mongoose';

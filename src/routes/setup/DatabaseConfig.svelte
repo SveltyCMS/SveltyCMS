@@ -270,7 +270,27 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		</div>
 	{/if}
 
-	{#if dbConfig.type === 'postgresql' || dbConfig.type === 'mysql'}
+	{#if dbConfig.type === 'postgresql'}
+		<div
+			class="mb-6 rounded border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+		>
+			<div class="flex items-center gap-2 mb-2">
+				<iconify-icon icon="mdi:hand-shake" width="24"></iconify-icon>
+				<p class="font-semibold">Help Wanted!</p>
+			</div>
+			<p class="mt-1">
+				PostgreSQL support via Drizzle is currently in development. We are actively looking for contributors to help finalize this implementation.
+			</p>
+			<p class="mt-2 text-sm">
+				<a
+					href="https://github.com/SveltyCMS/SveltyCMS/issues"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="underline hover:text-amber-700 dark:hover:text-amber-100">Check our GitHub Issues</a
+				> to get involved!
+			</p>
+		</div>
+	{:else if dbConfig.type === 'mysql'}
 		<div class="mb-6 rounded border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
 			<p class="font-semibold">{m.setup_db_coming_soon()}</p>
 			<p class="mt-1">
@@ -306,8 +326,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				<select id="db-type" bind:value={dbConfig.type} onchange={clearDbTestError} class="input rounded">
 					<option value="mongodb">MongoDB (localhost/Docker)</option>
 					<option value="mongodb+srv">MongoDB Atlas (SRV)</option>
-					<option value="postgresql">PostgreSQL</option>
-					<option value="mysql">MySQL</option>
+					<option value="mariadb">MariaDB (via Drizzle)</option>
+					<option value="postgresql">PostgreSQL (via Drizzle) (coming soon)</option>
 				</select>
 				{#if isInstallingDriver}
 					<div class="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400" role="status">

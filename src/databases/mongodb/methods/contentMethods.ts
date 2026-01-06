@@ -134,9 +134,7 @@ export class MongoContentMethods {
 		return withCache(cacheKey, fetchData, { category: CacheCategory.CONTENT });
 	}
 
-	/**
-	 * Atomically creates a new node or updates an existing one based on its path.
-	 */
+	// Atomically creates a new node or updates an existing one based on its path.
 	async upsertNodeByPath(nodeData: Omit<ContentNode, '_id' | 'createdAt' | 'updatedAt'>): Promise<ContentNode> {
 		try {
 			const { path, parentId } = nodeData;
@@ -229,9 +227,7 @@ export class MongoContentMethods {
 		}
 	}
 
-	/**
-	 * Persists a full or partial content structure reorder using the efficient Model method.
-	 */
+	// Persists a full or partial content structure reorder using the efficient Model method.
 	async reorderStructure(items: Array<{ id: string; parentId: string | null; order: number; path: string }>): Promise<void> {
 		try {
 			// Cast model to any to access the static method we added
@@ -320,9 +316,7 @@ export class MongoContentMethods {
 		}
 	}
 
-	/**
-	 * Publishes multiple drafts in a single batch operation.
-	 */
+	// Publishes multiple drafts in a single batch operation.
 	async publishManyDrafts(draftIds: DatabaseId[]): Promise<{ modifiedCount: number }> {
 		if (draftIds.length === 0) return { modifiedCount: 0 };
 		try {
@@ -370,9 +364,7 @@ export class MongoContentMethods {
 		}
 	}
 
-	/**
-	 * Deletes old revisions for a piece of content, keeping only the specified number of recent ones.
-	 */
+	// Deletes old revisions for a piece of content, keeping only the specified number of recent ones.
 	async cleanupRevisions(contentId: DatabaseId, keepLatest: number): Promise<{ deletedCount: number }> {
 		try {
 			const revisionsToKeep = await this.revisionsRepo.model

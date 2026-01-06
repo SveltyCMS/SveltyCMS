@@ -27,24 +27,25 @@ This guide covers the **MariaDB-specific** implementation in SveltyCMS using Dri
 **MariaDB Version**: 10.5+ (latest stable recommended)  
 **ORM**: Drizzle ORM 0.45+  
 **Driver**: mysql2 3.16+  
-**Implementation Status**: **Foundation Complete (31%)**
+**Implementation Status**: **Implementation Complete (100%)**
 
 ### Current Status
 
-✅ **Completed Components** (900+ lines):
+✅ **Completed Components**:
+
 - Complete Drizzle schema (13 relational tables)
 - Connection pool management with mysql2
 - Automatic migration system
 - Database seeding infrastructure
 - Date conversion utilities (ISODateString compliance)
 - Multi-tenant support (nullable tenantId columns)
-
-⚠️ **In Progress** (~2050 lines remaining):
 - IDBAdapter interface implementation
 - Auth methods (users, sessions, tokens, roles)
 - Content methods (nodes, drafts, revisions)
 - Media methods (files, folders)
 - CRUD operations and batch processing
+- System methods (virtual folders, preferences)
+- Theme & Widget management
 
 ---
 
@@ -66,25 +67,22 @@ SveltyCMS uses **Drizzle ORM** for MariaDB, providing:
 
 ```typescript
 // Authentication Tables
-- auth_users          // User accounts with roles
-- auth_sessions       // Active user sessions
-- auth_tokens         // Verification/reset tokens
-- roles               // Permission-based roles
-
-// Content Tables
-- content_nodes       // Pages and collections
-- content_drafts      // Draft versions
-- content_revisions   // Version history
-
-// Media Tables
-- media_items         // File metadata
-- system_virtual_folders // Folder organization
-
-// System Tables
-- themes              // Theme configurations
-- widgets             // Widget instances
-- system_preferences  // System/user settings
-- website_tokens      // API tokens
+-auth_users - // User accounts with roles
+	auth_sessions - // Active user sessions
+	auth_tokens - // Verification/reset tokens
+	roles - // Permission-based roles
+	// Content Tables
+	content_nodes - // Pages and collections
+	content_drafts - // Draft versions
+	content_revisions - // Version history
+	// Media Tables
+	media_items - // File metadata
+	system_virtual_folders - // Folder organization
+	// System Tables
+	themes - // Theme configurations
+	widgets - // Widget instances
+	system_preferences - // System/user settings
+	website_tokens; // API tokens
 ```
 
 ---
@@ -97,11 +95,11 @@ MariaDB/MySQL packages are included as `optionalDependencies`:
 
 ```json
 {
-  "optionalDependencies": {
-    "mysql2": "^3.16.0",
-    "mariadb": "^3.4.5",
-    "drizzle-orm": "^0.45.1"
-  }
+	"optionalDependencies": {
+		"mysql2": "^3.16.0",
+		"mariadb": "^3.4.5",
+		"drizzle-orm": "^0.45.1"
+	}
 }
 ```
 
@@ -128,25 +126,33 @@ Packages are auto-installed when MariaDB is selected in the setup wizard.
 
 ```typescript
 // Auth Users Table
-export const authUsers = mysqlTable('auth_users', {
-  _id: varchar('_id', { length: 36 }).primaryKey(),
-  email: varchar('email', { length: 255 }).notNull(),
-  username: varchar('username', { length: 255 }),
-  password: varchar('password', { length: 255 }),
-  emailVerified: boolean('emailVerified').notNull().default(false),
-  blocked: boolean('blocked').notNull().default(false),
-  firstName: varchar('firstName', { length: 255 }),
-  lastName: varchar('lastName', { length: 255 }),
-  avatar: text('avatar'),
-  roleIds: json('roleIds').$type<string[]>().notNull().default([]),
-  tenantId: varchar('tenantId', { length: 36 }),
-  createdAt: datetime('createdAt').notNull().default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: datetime('updatedAt').notNull().default(sql`CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`)
-}, (table) => ({
-  emailIdx: index('email_idx').on(table.email),
-  tenantIdx: index('tenant_idx').on(table.tenantId),
-  emailTenantUnique: unique('email_tenant_unique').on(table.email, table.tenantId)
-}));
+export const authUsers = mysqlTable(
+	'auth_users',
+	{
+		_id: varchar('_id', { length: 36 }).primaryKey(),
+		email: varchar('email', { length: 255 }).notNull(),
+		username: varchar('username', { length: 255 }),
+		password: varchar('password', { length: 255 }),
+		emailVerified: boolean('emailVerified').notNull().default(false),
+		blocked: boolean('blocked').notNull().default(false),
+		firstName: varchar('firstName', { length: 255 }),
+		lastName: varchar('lastName', { length: 255 }),
+		avatar: text('avatar'),
+		roleIds: json('roleIds').$type<string[]>().notNull().default([]),
+		tenantId: varchar('tenantId', { length: 36 }),
+		createdAt: datetime('createdAt')
+			.notNull()
+			.default(sql`CURRENT_TIMESTAMP`),
+		updatedAt: datetime('updatedAt')
+			.notNull()
+			.default(sql`CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`)
+	},
+	(table) => ({
+		emailIdx: index('email_idx').on(table.email),
+		tenantIdx: index('tenant_idx').on(table.tenantId),
+		emailTenantUnique: unique('email_tenant_unique').on(table.email, table.tenantId)
+	})
+);
 ```
 
 ### Key Design Principles
@@ -260,19 +266,14 @@ All tables include nullable `tenantId` columns:
 
 ```typescript
 // Queries automatically filter by tenantId when provided
-const users = await db
-  .select()
-  .from(authUsers)
-  .where(eq(authUsers.tenantId, currentTenantId));
+const users = await db.select().from(authUsers).where(eq(authUsers.tenantId, currentTenantId));
 ```
 
 ### Cross-Tenant Operations
 
 ```typescript
 // Admin operations can work across tenants
-const allUsers = await db
-  .select()
-  .from(authUsers);
+const allUsers = await db.select().from(authUsers);
 // No tenantId filter = all tenants
 ```
 
@@ -282,14 +283,14 @@ const allUsers = await db
 
 ### TypeScript ↔ MariaDB
 
-| TypeScript Type | MariaDB Type | Notes |
-|----------------|--------------|-------|
-| `DatabaseId` (UUID) | `VARCHAR(36)` | Standard UUID format |
-| `ISODateString` | `DATETIME` | Converted at boundaries |
-| `string` | `VARCHAR(n)` or `TEXT` | Based on length |
-| `number` | `INT` | Integer values |
-| `boolean` | `BOOLEAN` | True/False |
-| `object` / `array` | `JSON` | Native JSON column type |
+| TypeScript Type     | MariaDB Type           | Notes                   |
+| ------------------- | ---------------------- | ----------------------- |
+| `DatabaseId` (UUID) | `VARCHAR(36)`          | Standard UUID format    |
+| `ISODateString`     | `DATETIME`             | Converted at boundaries |
+| `string`            | `VARCHAR(n)` or `TEXT` | Based on length         |
+| `number`            | `INT`                  | Integer values          |
+| `boolean`           | `BOOLEAN`              | True/False              |
+| `object` / `array`  | `JSON`                 | Native JSON column type |
 
 ### Date Handling
 
@@ -300,9 +301,9 @@ const allUsers = await db
 // Adapter returns: ISODateString ("2026-01-06T12:00:00.000Z")
 
 // Conversion helpers
-utils.dateToISO(date)        // Date → ISODateString
-utils.isoToDate(isoString)   // ISODateString → Date
-utils.convertDatesToISO(row) // Convert all dates in object
+utils.dateToISO(date); // Date → ISODateString
+utils.isoToDate(isoString); // ISODateString → Date
+utils.convertDatesToISO(row); // Convert all dates in object
 ```
 
 ---
@@ -315,31 +316,22 @@ utils.convertDatesToISO(row) // Convert all dates in object
 // Create
 const id = generateId();
 await db.insert(authUsers).values({
-  _id: id,
-  email: 'user@example.com',
-  password: hashedPassword,
-  roleIds: [adminRoleId],
-  createdAt: new Date(),
-  updatedAt: new Date()
+	_id: id,
+	email: 'user@example.com',
+	password: hashedPassword,
+	roleIds: [adminRoleId],
+	createdAt: new Date(),
+	updatedAt: new Date()
 });
 
 // Read
-const [user] = await db
-  .select()
-  .from(authUsers)
-  .where(eq(authUsers.email, 'user@example.com'))
-  .limit(1);
+const [user] = await db.select().from(authUsers).where(eq(authUsers.email, 'user@example.com')).limit(1);
 
 // Update
-await db
-  .update(authUsers)
-  .set({ emailVerified: true, updatedAt: new Date() })
-  .where(eq(authUsers._id, userId));
+await db.update(authUsers).set({ emailVerified: true, updatedAt: new Date() }).where(eq(authUsers._id, userId));
 
 // Delete
-await db
-  .delete(authUsers)
-  .where(eq(authUsers._id, userId));
+await db.delete(authUsers).where(eq(authUsers._id, userId));
 ```
 
 ### Complex Queries
@@ -347,24 +339,18 @@ await db
 ```typescript
 // Multi-condition query with tenant filtering
 const activeUsers = await db
-  .select()
-  .from(authUsers)
-  .where(
-    and(
-      eq(authUsers.tenantId, tenantId),
-      eq(authUsers.blocked, false),
-      eq(authUsers.emailVerified, true)
-    )
-  );
+	.select()
+	.from(authUsers)
+	.where(and(eq(authUsers.tenantId, tenantId), eq(authUsers.blocked, false), eq(authUsers.emailVerified, true)));
 
 // Join example (when implemented)
 const usersWithRoles = await db
-  .select({
-    user: authUsers,
-    role: roles
-  })
-  .from(authUsers)
-  .leftJoin(roles, eq(authUsers.roleIds, roles._id));
+	.select({
+		user: authUsers,
+		role: roles
+	})
+	.from(authUsers)
+	.leftJoin(roles, eq(authUsers.roleIds, roles._id));
 ```
 
 ---
@@ -417,10 +403,7 @@ Drizzle ORM uses **parameterized queries** automatically:
 
 ```typescript
 // ✅ Safe - Parameters are escaped
-await db
-  .select()
-  .from(authUsers)
-  .where(eq(authUsers.email, userInput)); // Automatically parameterized
+await db.select().from(authUsers).where(eq(authUsers.email, userInput)); // Automatically parameterized
 
 // ❌ Never do this
 await db.execute(sql`SELECT * FROM users WHERE email = '${userInput}'`);
@@ -441,10 +424,10 @@ const isValid = await argon2.verify(hashedPassword, plainPassword);
 ```typescript
 // Always apply tenant filter for user queries
 const applyTenantFilter = (conditions, tenantId) => {
-  if (tenantId) {
-    return and(conditions, eq(table.tenantId, tenantId));
-  }
-  return conditions;
+	if (tenantId) {
+		return and(conditions, eq(table.tenantId, tenantId));
+	}
+	return conditions;
 };
 ```
 
@@ -470,8 +453,8 @@ import { userSchema } from './schemas';
 
 const result = safeParse(userSchema, userData);
 if (!result.success) {
-  // Handle validation errors
-  console.error(result.issues);
+	// Handle validation errors
+	console.error(result.issues);
 }
 ```
 
@@ -482,24 +465,28 @@ if (!result.success) {
 ### Common Issues
 
 **Connection Refused**
+
 ```
 Error: connect ECONNREFUSED 127.0.0.1:3306
 Solution: Ensure MariaDB is running and port 3306 is accessible
 ```
 
 **Authentication Failed**
+
 ```
 Error: ER_ACCESS_DENIED_ERROR
 Solution: Verify username/password and user has proper grants
 ```
 
 **Table Already Exists**
+
 ```
 Warning: Table already exists
 Solution: This is normal - migrations are idempotent
 ```
 
 **Date Format Issues**
+
 ```
 Error: Invalid date format
 Solution: Ensure using utils.dateToISO() for date conversions
@@ -511,9 +498,9 @@ Enable query logging for debugging:
 
 ```typescript
 const db = drizzle(connection, {
-  schema,
-  mode: 'default',
-  logger: true  // Logs all SQL queries
+	schema,
+	mode: 'default',
+	logger: true // Logs all SQL queries
 });
 ```
 
@@ -522,35 +509,39 @@ const db = drizzle(connection, {
 ## 📚 Implementation Roadmap
 
 ### Phase 1: Foundation ✅ (Complete)
+
 - [x] Drizzle schema definitions
 - [x] Connection pool management
 - [x] Migration system
 - [x] Database seeding
 - [x] Utility functions
 
-### Phase 2: Core Adapter (In Progress)
-- [ ] Auth methods implementation
-- [ ] System preferences methods
-- [ ] Theme management methods
-- [ ] Virtual folder methods
-- [ ] Widget methods
+### Phase 2: Core Adapter ✅ (Complete)
 
-### Phase 3: Content & Media
-- [ ] Content node operations
-- [ ] Draft management
-- [ ] Revision tracking
-- [ ] Media file operations
-- [ ] Folder management
+- [x] Auth methods implementation
+- [x] System preferences methods
+- [x] Theme management methods
+- [x] Virtual folder methods
+- [x] Widget methods
 
-### Phase 4: Advanced Features
-- [ ] Generic CRUD operations
-- [ ] Batch operations
-- [ ] Transaction support
-- [ ] Query builder
-- [ ] Performance monitoring
-- [ ] Cache integration
+### Phase 3: Content & Media ✅ (Complete)
 
-**Estimated Completion**: 18-22 hours of development
+- [x] Content node operations
+- [x] Draft management
+- [x] Revision tracking
+- [x] Media file operations
+- [x] Folder management
+
+### Phase 4: Advanced Features ✅ (Complete)
+
+- [x] Generic CRUD operations
+- [x] Batch operations
+- [x] Transaction support
+- [x] Query builder
+- [x] Performance monitoring
+- [x] Cache integration
+
+**Status**: **Complete** (Ready for Production)
 
 See `MARIADB_IMPLEMENTATION.md` in repository root for detailed implementation guide.
 
@@ -568,11 +559,13 @@ See `MARIADB_IMPLEMENTATION.md` in repository root for detailed implementation g
 ## 📖 Additional Resources
 
 ### External Documentation
+
 - [Drizzle ORM Documentation](https://orm.drizzle.team/)
 - [mysql2 Driver](https://github.com/sidorares/node-mysql2)
 - [MariaDB Documentation](https://mariadb.com/kb/en/documentation/)
 
 ### Repository Files
+
 - `src/databases/mariadb/schema/index.ts` - Schema definitions
 - `src/databases/mariadb/connection.ts` - Connection management
 - `src/databases/mariadb/migrations.ts` - Migration system
@@ -584,17 +577,8 @@ See `MARIADB_IMPLEMENTATION.md` in repository root for detailed implementation g
 
 ## 🤝 Contributing
 
-Want to help complete the MariaDB implementation?
+This module is considered feature-complete (`v1.0`). Future contributions should focus on:
 
-1. Review `MARIADB_IMPLEMENTATION.md` for current status
-2. Pick an unimplemented method from the roadmap
-3. Follow patterns from MongoDB adapter
-4. Ensure proper error handling and type safety
-5. Add tests for new functionality
-6. Update this documentation
-
----
-
-**Status**: Foundation Complete (31%)  
-**Last Updated**: 2026-01-06  
-**Maintained by**: SveltyCMS Team
+1. Performance optimization (indexing, query caching)
+2. Advanced features (connection pooling tweaking)
+3. Extended testing coverage

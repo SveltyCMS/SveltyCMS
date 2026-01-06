@@ -417,7 +417,6 @@
 				use:dndzone={{
 					items: [],
 					flipDurationMs,
-					flipDurationMs,
 					type: 'tree-items',
 					dropFromOthersDisabled: false,
 					dropTargetStyle: {}

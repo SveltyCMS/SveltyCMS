@@ -53,7 +53,7 @@ interface TelemetryPayload {
 
 	// Optional fields
 	stable_id?: string;
-	db_type?: string;
+	db_type?: string; // "mongodb" | "mariadb" | "postgres"
 	location?: { ... };
 	usage_metrics?: { ... };
 	system_info?: { ... };
