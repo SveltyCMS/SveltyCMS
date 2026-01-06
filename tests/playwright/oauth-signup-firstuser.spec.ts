@@ -11,9 +11,8 @@ import { test, expect } from '@playwright/test';
 
 test.describe('OAuth First User Signup', () => {
 	test.beforeEach(async ({ page }) => {
-		// Use baseURL from playwright config or environment variable
-		const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
-		await page.goto(`${baseURL}/login`, { waitUntil: 'domcontentloaded' });
+		// Use baseURL from playwright config
+		await page.goto('/login', { waitUntil: 'domcontentloaded' });
 	});
 
 	test('OAuth button should be visible when OAuth is enabled', async ({ page }) => {

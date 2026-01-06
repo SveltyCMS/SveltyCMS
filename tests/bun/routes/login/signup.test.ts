@@ -16,8 +16,9 @@
 
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { dropDatabase, getUser, getUserCount, userExists, waitFor } from '../../helpers/db-helper';
+import { getApiBaseUrl } from '../../helpers/server';
 
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5173';
+const API_BASE_URL = getApiBaseUrl();
 
 describe('Invitation-Based Signup Tests', () => {
 	// Clean database before each test

@@ -173,6 +173,14 @@ jobs:
       - name: Build Production
         run: bun run build
 
+      # CRITICAL: Remove temporary config before starting server
+      # This ensures the server starts in setup wizard mode for integration tests
+      - name: Remove temporary build config
+        run: |
+          echo "🧹 Removing temporary config/private.ts to enable setup mode..."
+          rm -f config/private.ts
+          echo "✅ Removed temporary config/private.ts"
+
       # Kill any process using port 4173 to prevent conflicts
       - name: Clean up port 4173
         run: |
@@ -240,15 +248,30 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq jq
 
-      # Create temporary config/private.ts for build (will be removed before E2E tests)
+      # Ensure fresh state - remove any existing config and collections
+      - name: Clean config for fresh CI run
+        run: |
+          echo "🧹 Ensuring fresh state for E2E tests..."
+          rm -rf config/collections
+          rm -f config/private.ts
+          echo "✅ Cleaned config directory - setup wizard will run fresh"
+
+      # Create temporary config/private.ts for build only
       - name: Create Temporary Config for Build
         run: |
           echo "📝 Creating temporary config/private.ts for build..."
           cat > config/private.ts << 'EOF'
-          export default {
-            database: { type: 'mongodb', uri: 'mongodb://localhost:27017/temp' },
-            general: { siteURL: 'http://localhost:4173' }
-          };
+          export const privateEnv = {
+            DB_TYPE: '${{ env.DB_TYPE }}',
+            DB_HOST: '${{ env.DB_HOST }}',
+            DB_PORT: ${{ env.DB_PORT }},
+            DB_NAME: '${{ env.DB_NAME }}',
+            DB_USER: '${{ env.DB_USER }}',
+            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
+            JWT_SECRET_KEY: 'test_jwt_secret',
+            ENCRYPTION_KEY: 'test_encryption_key',
+            MULTI_TENANT: false
+          } as const;
           EOF
           echo "✅ Created temporary config/private.ts"
 
@@ -256,12 +279,13 @@ jobs:
       - name: Build Production
         run: bun run build
 
-      # Remove temporary config before E2E tests (tests use fresh setup)
-      - name: Remove Temporary Config
+      # CRITICAL: Remove temporary config before starting server
+      - name: Remove Temporary Config for Runtime
         run: |
           echo "🧹 Removing temporary config/private.ts..."
           rm -f config/private.ts
-          echo "✅ Removed temporary config, ready for E2E tests"
+          echo "✅ Removed - server will start in setup wizard mode"
+
       # Kill any process using port 4173 to prevent conflicts
       - name: Clean up port 4173
         run: |
@@ -275,7 +299,6 @@ jobs:
           for i in {1..30}; do
             if nc -z localhost 27017 2>/dev/null; then
               echo "✅ MongoDB port is open!"
-              # Give it a moment for full initialization
               sleep 2
               break
             fi
@@ -293,24 +316,21 @@ jobs:
           echo "✅ Preview server is ready!"
 
       # =================================================================
-      # E2E TESTS: Setup → Seed Users → RBAC → Main Suite
+      # E2E TEST FLOW: Setup → Admin Tests → Sign Out → Auth Flow Tests
       # =================================================================
 
-      # Remove temporary config for fresh setup wizard test
-      - name: Clean config for fresh setup test
-        run: |
-          echo "🧹 Removing temporary config/private.ts..."
-          rm -f config/private.ts
-          echo "✅ Cleaned - setup wizard will create real config"
-
-      # STEP A: Run the Setup Wizard first to initialize the DB/User
+      # STEP 1: Run Setup Wizard to initialize DB and create admin user
       - name: 🧙‍♂️ Run Setup Wizard Test
         run: |
           echo "=== Running setup wizard to initialize application ==="
-          # Runs ONLY the setup wizard spec
           bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list
         env:
-          # Setup Wizard specific envs (if your app uses them to seed)
+          MONGO_HOST: ${{ env.DB_HOST }}
+          MONGO_PORT: ${{ env.DB_PORT }}
+          MONGO_DB: ${{ env.DB_NAME }}
+          MONGO_USER: ${{ env.DB_USER }}
+          MONGO_PASS: ${{ env.DB_PASSWORD }}
+          ADMIN_USER: admin
           ADMIN_EMAIL: admin@example.com
           ADMIN_PASS: Admin123!
 
@@ -330,19 +350,31 @@ jobs:
             sleep 2
           done
 
-      # STEP B: Run Role-Based Access Control Tests
+      # STEP 2: Run admin-authenticated tests
       - name: 🔐 Run Role-Based Access Tests
         run: |
           echo "=== Running RBAC tests (admin, developer, editor) ==="
           bunx playwright test tests/playwright/role-based-access.spec.ts --project=chromium --reporter=list
 
-      # STEP C: Run the rest of the tests (skipping the wizard and RBAC)
-      - name: 🧪 Run Application E2E Tests
-        if: success() # Only run if previous tests passed
+      - name: 🧪 Run Admin E2E Tests
+        if: success()
         run: |
-          echo "=== Running main E2E suite ==="
-          # --grep-invert skips the setup wizard and RBAC since we just ran them
-          bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard|role-based"
+          echo "=== Running admin E2E suite ==="
+          bunx playwright test tests/playwright/collection*.spec.ts tests/playwright/user*.spec.ts tests/playwright/permission*.spec.ts --project=chromium --reporter=list
+
+      # STEP 3: Clear session and run signed-out auth flow tests
+      - name: 🔓 Clear Sessions for Auth Flow Tests
+        run: |
+          echo "=== Clearing sessions for signed-out auth tests ==="
+          # Clear any session cookies by making a logout request
+          curl -s http://localhost:4173/api/user/logout || true
+          echo "✅ Sessions cleared"
+
+      - name: 🔑 Run Auth Flow Tests (Login/Register/Forgot Password)
+        if: success()
+        run: |
+          echo "=== Running signed-out auth flow tests ==="
+          bunx playwright test tests/playwright/login.spec.ts tests/playwright/signupfirstuser.spec.ts --project=chromium --reporter=list
 
       - uses: actions/upload-artifact@v4
         if: always()

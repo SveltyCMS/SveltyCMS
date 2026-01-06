@@ -5,8 +5,9 @@
  */
 
 import { cleanupTestEnvironment, initializeTestEnvironment } from './helpers/testSetup';
+import { getApiBaseUrl } from './helpers/server';
 
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5173';
+const API_BASE_URL = getApiBaseUrl();
 
 async function testFirstUserSignup() {
 	console.log('🧪 Testing first user signup via email...');

@@ -96,7 +96,21 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 	}
 
 	// --- VERIFICATION ---
-	// Expect redirect to Login or Dashboard
+	// After setup completes, admin is automatically signed in and redirected to either:
+	// 1. First collection route (if collections exist), e.g., /Collections/Posts
+	// 2. Collection builder (if no collections exist), e.g., /collectionBuilder
 	await expect(page).not.toHaveURL(/\/setup/, { timeout: 30000 });
-	console.log('Setup completed successfully.');
+	
+	// Check that we're on either a collection route or collectionBuilder
+	const finalUrl = page.url();
+	const isValidRedirect = /\/(Collections\/|collectionBuilder|admin|dashboard)/i.test(finalUrl);
+	
+	if (!isValidRedirect) {
+		console.warn(`Unexpected redirect URL after setup: ${finalUrl}`);
+		// Still allow the test to pass if we're signed in (not on setup or login)
+		const isSetupOrLogin = /\/(setup|login)/i.test(finalUrl);
+		expect(isSetupOrLogin).toBe(false);
+	}
+	
+	console.log(`Setup completed successfully. Redirected to: ${finalUrl}`);
 });
