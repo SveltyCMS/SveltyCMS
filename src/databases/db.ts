@@ -331,9 +331,21 @@ async function loadAdapters() {
 					logger.debug('MongoDB adapter created');
 					break;
 				}
+				case 'mariadb': {
+					logger.debug('Importing MariaDB adapter...');
+					const mariadbAdapterModule = await import('./mariadb/mariadbAdapter');
+					if (!mariadbAdapterModule || !mariadbAdapterModule.MariaDBAdapter) {
+						throw new Error('MariaDBAdapter is not exported correctly from mariadbAdapter.ts');
+					}
+					const { MariaDBAdapter } = mariadbAdapterModule;
+					dbAdapter = new MariaDBAdapter() as unknown as DatabaseAdapter;
+
+					logger.debug('MariaDB adapter created');
+					break;
+				}
 				default:
-					logger.error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Only MongoDB is supported.`);
-					throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Only MongoDB is currently supported.`);
+					logger.error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Supported types: mongodb, mongodb+srv, mariadb`);
+					throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Supported types: mongodb, mongodb+srv, mariadb`);
 			}
 		}, 'Database Adapter Loading');
 
@@ -514,6 +526,12 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			const authPart = hasAuth ? `${encodeURIComponent(privateConfig.DB_USER!)}:${encodeURIComponent(privateConfig.DB_PASSWORD!)}@` : '';
 			connectionString = `mongodb+srv://${authPart}${privateConfig.DB_HOST}/${privateConfig.DB_NAME}?retryWrites=true&w=majority`;
 			logger.debug(`Connecting to MongoDB Atlas (SRV)...`);
+		} else if (privateConfig.DB_TYPE === 'mariadb') {
+			// MariaDB connection string
+			const hasAuth = privateConfig.DB_USER && privateConfig.DB_PASSWORD;
+			const authPart = hasAuth ? `${encodeURIComponent(privateConfig.DB_USER!)}:${encodeURIComponent(privateConfig.DB_PASSWORD!)}@` : '';
+			connectionString = `mysql://${authPart}${privateConfig.DB_HOST}:${privateConfig.DB_PORT}/${privateConfig.DB_NAME}`;
+			logger.debug(`Connecting to MariaDB...`);
 		} else {
 			connectionString = '';
 		}
@@ -720,6 +738,10 @@ export async function initializeForSetup(dbConfig: {
 			const hasAuth = dbConfig.user && dbConfig.password;
 			const authPart = hasAuth ? `${encodeURIComponent(dbConfig.user!)}:${encodeURIComponent(dbConfig.password!)}@` : '';
 			connectionString = `mongodb://${authPart}${dbConfig.host}:${dbConfig.port}/${dbConfig.name}${hasAuth ? '?authSource=admin' : ''}`;
+		} else if (dbConfig.type === 'mariadb') {
+			const hasAuth = dbConfig.user && dbConfig.password;
+			const authPart = hasAuth ? `${encodeURIComponent(dbConfig.user!)}:${encodeURIComponent(dbConfig.password!)}@` : '';
+			connectionString = `mysql://${authPart}${dbConfig.host}:${dbConfig.port}/${dbConfig.name}`;
 		} else {
 			return { success: false, error: `Database type '${dbConfig.type}' not supported yet` };
 		}

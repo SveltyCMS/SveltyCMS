@@ -496,3 +496,484 @@ return this.handleError(error, 'GET_DEFAULT_THEME_FAILED');
 }
 }
 };
+
+//==============================================================================
+// SYSTEM VIRTUAL FOLDER (CRITICAL for init)
+//==============================================================================
+
+systemVirtualFolder = {
+getAll: async (): Promise<DatabaseResult<SystemVirtualFolder[]>> => {
+if (!this.db) return this.notConnectedError();
+
+try {
+const folders = await this.db.select().from(schema.systemVirtualFolders);
+return { success: true, data: utils.convertArrayDatesToISO(folders) as SystemVirtualFolder[] };
+} catch (error) {
+return this.handleError(error, 'GET_VIRTUAL_FOLDERS_FAILED');
+}
+},
+
+getById: async (id: DatabaseId): Promise<DatabaseResult<SystemVirtualFolder>> => {
+if (!this.db) return this.notConnectedError();
+
+try {
+const [folder] = await this.db
+.select()
+.from(schema.systemVirtualFolders)
+.where(eq(schema.systemVirtualFolders._id, id))
+.limit(1);
+
+if (!folder) {
+return { success: false, message: 'Virtual folder not found', error: utils.createDatabaseError('NOT_FOUND', 'Virtual folder not found') };
+}
+
+return { success: true, data: utils.convertDatesToISO(folder) as SystemVirtualFolder };
+} catch (error) {
+return this.handleError(error, 'GET_VIRTUAL_FOLDER_FAILED');
+}
+},
+
+getByParentId: async (parentId: DatabaseId | null): Promise<DatabaseResult<SystemVirtualFolder[]>> => {
+if (!this.db) return this.notConnectedError();
+
+try {
+const folders = parentId
+? await this.db
+.select()
+.from(schema.systemVirtualFolders)
+.where(eq(schema.systemVirtualFolders.parentId, parentId))
+: await this.db
+.select()
+.from(schema.systemVirtualFolders)
+.where(sql`${schema.systemVirtualFolders.parentId} IS NULL`);
+
+return { success: true, data: utils.convertArrayDatesToISO(folders) as SystemVirtualFolder[] };
+} catch (error) {
+return this.handleError(error, 'GET_VIRTUAL_FOLDERS_BY_PARENT_FAILED');
+}
+},
+
+create: async (folder: Omit<SystemVirtualFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<SystemVirtualFolder>> => {
+if (!this.db) return this.notConnectedError();
+
+try {
+const id = utils.generateId();
+await this.db.insert(schema.systemVirtualFolders).values({
+_id: id,
+name: folder.name,
+path: folder.path,
+parentId: folder.parentId || null,
+icon: folder.icon || null,
+order: folder.order,
+type: folder.type,
+metadata: folder.metadata as any,
+tenantId: folder.tenantId || null,
+createdAt: new Date(),
+updatedAt: new Date()
+});
+
+const [created] = await this.db
+.select()
+.from(schema.systemVirtualFolders)
+.where(eq(schema.systemVirtualFolders._id, id));
+
+return { success: true, data: utils.convertDatesToISO(created) as SystemVirtualFolder };
+} catch (error) {
+return this.handleError(error, 'CREATE_VIRTUAL_FOLDER_FAILED');
+}
+},
+
+update: async (id: DatabaseId, folder: Partial<Omit<SystemVirtualFolder, '_id' | 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<SystemVirtualFolder>> => {
+if (!this.db) return this.notConnectedError();
+
+try {
+await this.db
+.update(schema.systemVirtualFolders)
+.set({ ...folder, metadata: folder.metadata as any, updatedAt: new Date() })
+.where(eq(schema.systemVirtualFolders._id, id));
+
+const [updated] = await this.db
+.select()
+.from(schema.systemVirtualFolders)
+.where(eq(schema.systemVirtualFolders._id, id));
+
+return { success: true, data: utils.convertDatesToISO(updated) as SystemVirtualFolder };
+} catch (error) {
+return this.handleError(error, 'UPDATE_VIRTUAL_FOLDER_FAILED');
+}
+},
+
+delete: async (id: DatabaseId): Promise<DatabaseResult<void>> => {
+if (!this.db) return this.notConnectedError();
+
+try {
+await this.db
+.delete(schema.systemVirtualFolders)
+.where(eq(schema.systemVirtualFolders._id, id));
+return { success: true, data: undefined };
+} catch (error) {
+return this.handleError(error, 'DELETE_VIRTUAL_FOLDER_FAILED');
+}
+},
+
+exists: async (path: string): Promise<DatabaseResult<boolean>> => {
+if (!this.db) return this.notConnectedError();
+
+try {
+const [folder] = await this.db
+.select()
+.from(schema.systemVirtualFolders)
+.where(eq(schema.systemVirtualFolders.path, path))
+.limit(1);
+
+return { success: true, data: !!folder };
+} catch (error) {
+return this.handleError(error, 'CHECK_VIRTUAL_FOLDER_EXISTS_FAILED');
+}
+},
+
+getContents: async (folderId: DatabaseId): Promise<DatabaseResult<SystemVirtualFolder[]>> => {
+if (!this.db) return this.notConnectedError();
+
+try {
+const folders = await this.db
+.select()
+.from(schema.systemVirtualFolders)
+.where(eq(schema.systemVirtualFolders.parentId, folderId));
+
+return { success: true, data: utils.convertArrayDatesToISO(folders) as SystemVirtualFolder[] };
+} catch (error) {
+return this.handleError(error, 'GET_VIRTUAL_FOLDER_CONTENTS_FAILED');
+}
+}
+};
+
+//==============================================================================
+// WIDGETS (needed for init)
+//==============================================================================
+
+widgets = {
+setupWidgetModels: async (): Promise<void> => {
+// No-op for SQL - tables created by migrations
+logger.debug('Widget models setup (no-op for SQL)');
+},
+
+register: async (widget: any): Promise<DatabaseResult<void>> => {
+if (!this.db) return this.notConnectedError();
+
+try {
+const exists = await this.db
+.select()
+.from(schema.widgets)
+.where(eq(schema.widgets.name, widget.name))
+.limit(1);
+
+if (exists.length > 0) {
+await this.db
+.update(schema.widgets)
+.set({
+isActive: widget.isActive,
+instances: widget.instances as any,
+dependencies: widget.dependencies,
+updatedAt: new Date()
+})
+.where(eq(schema.widgets.name, widget.name));
+} else {
+await this.db.insert(schema.widgets).values({
+_id: utils.generateId(),
+name: widget.name,
+isActive: widget.isActive,
+instances: widget.instances as any,
+dependencies: widget.dependencies,
+createdAt: new Date(),
+updatedAt: new Date()
+});
+}
+
+return { success: true, data: undefined };
+} catch (error) {
+return this.handleError(error, 'REGISTER_WIDGET_FAILED');
+}
+},
+
+findAll: async (): Promise<DatabaseResult<any[]>> => {
+if (!this.db) return this.notConnectedError();
+
+try {
+const widgets = await this.db.select().from(schema.widgets);
+return { success: true, data: utils.convertArrayDatesToISO(widgets) };
+} catch (error) {
+return this.handleError(error, 'FIND_ALL_WIDGETS_FAILED');
+}
+},
+
+findByName: async (name: string): Promise<DatabaseResult<any>> => {
+if (!this.db) return this.notConnectedError();
+
+try {
+const [widget] = await this.db
+.select()
+.from(schema.widgets)
+.where(eq(schema.widgets.name, name))
+.limit(1);
+
+if (!widget) {
+return { success: false, message: 'Widget not found', error: utils.createDatabaseError('NOT_FOUND', 'Widget not found') };
+}
+
+return { success: true, data: utils.convertDatesToISO(widget) };
+} catch (error) {
+return this.handleError(error, 'FIND_WIDGET_BY_NAME_FAILED');
+}
+},
+
+activate: async (name: string): Promise<DatabaseResult<void>> => {
+if (!this.db) return this.notConnectedError();
+
+try {
+await this.db
+.update(schema.widgets)
+.set({ isActive: true, updatedAt: new Date() })
+.where(eq(schema.widgets.name, name));
+
+return { success: true, data: undefined };
+} catch (error) {
+return this.handleError(error, 'ACTIVATE_WIDGET_FAILED');
+}
+},
+
+deactivate: async (name: string): Promise<DatabaseResult<void>> => {
+if (!this.db) return this.notConnectedError();
+
+try {
+await this.db
+.update(schema.widgets)
+.set({ isActive: false, updatedAt: new Date() })
+.where(eq(schema.widgets.name, name));
+
+return { success: true, data: undefined };
+} catch (error) {
+return this.handleError(error, 'DEACTIVATE_WIDGET_FAILED');
+}
+}
+};
+
+//==============================================================================
+// MEDIA (needed for init)
+//==============================================================================
+
+media = {
+setupMediaModels: async (): Promise<void> => {
+// No-op for SQL - tables created by migrations
+logger.debug('Media models setup (no-op for SQL)');
+}
+};
+
+//==============================================================================
+// CONTENT (stub - not critical for initial setup)
+//==============================================================================
+
+content = {
+nodes: {
+create: async (): Promise<DatabaseResult<any>> => this.notImplemented('content.nodes.create'),
+update: async (): Promise<DatabaseResult<any>> => this.notImplemented('content.nodes.update'),
+delete: async (): Promise<DatabaseResult<void>> => this.notImplemented('content.nodes.delete'),
+getById: async (): Promise<DatabaseResult<any>> => this.notImplemented('content.nodes.getById'),
+getByPath: async (): Promise<DatabaseResult<any>> => this.notImplemented('content.nodes.getByPath'),
+getChildren: async (): Promise<DatabaseResult<any[]>> => this.notImplemented('content.nodes.getChildren'),
+getStructure: async (): Promise<DatabaseResult<any>> => this.notImplemented('content.nodes.getStructure'),
+reorder: async (): Promise<DatabaseResult<void>> => this.notImplemented('content.nodes.reorder')
+},
+drafts: {
+create: async (): Promise<DatabaseResult<any>> => this.notImplemented('content.drafts.create'),
+update: async (): Promise<DatabaseResult<any>> => this.notImplemented('content.drafts.update'),
+delete: async (): Promise<DatabaseResult<void>> => this.notImplemented('content.drafts.delete'),
+getById: async (): Promise<DatabaseResult<any>> => this.notImplemented('content.drafts.getById'),
+getByContentId: async (): Promise<DatabaseResult<any>> => this.notImplemented('content.drafts.getByContentId'),
+publish: async (): Promise<DatabaseResult<any>> => this.notImplemented('content.drafts.publish')
+},
+revisions: {
+create: async (): Promise<DatabaseResult<any>> => this.notImplemented('content.revisions.create'),
+getById: async (): Promise<DatabaseResult<any>> => this.notImplemented('content.revisions.getById'),
+getByContentId: async (): Promise<DatabaseResult<any[]>> => this.notImplemented('content.revisions.getByContentId'),
+getHistory: async (): Promise<DatabaseResult<any[]>> => this.notImplemented('content.revisions.getHistory'),
+restore: async (): Promise<DatabaseResult<any>> => this.notImplemented('content.revisions.restore')
+}
+};
+
+//==============================================================================
+// CRUD (stub - not critical for initial setup)
+//==============================================================================
+
+crud = {
+findOne: async (): Promise<DatabaseResult<any>> => this.notImplemented('crud.findOne'),
+findMany: async (): Promise<DatabaseResult<any[]>> => this.notImplemented('crud.findMany'),
+insert: async (): Promise<DatabaseResult<any>> => this.notImplemented('crud.insert'),
+update: async (): Promise<DatabaseResult<any>> => this.notImplemented('crud.update'),
+delete: async (): Promise<DatabaseResult<void>> => this.notImplemented('crud.delete'),
+upsert: async (): Promise<DatabaseResult<any>> => this.notImplemented('crud.upsert'),
+count: async (): Promise<DatabaseResult<number>> => this.notImplemented('crud.count'),
+exists: async (): Promise<DatabaseResult<boolean>> => this.notImplemented('crud.exists'),
+aggregate: async (): Promise<DatabaseResult<any[]>> => this.notImplemented('crud.aggregate'),
+insertMany: async (): Promise<DatabaseResult<any[]>> => this.notImplemented('crud.insertMany'),
+updateMany: async (): Promise<DatabaseResult<number>> => this.notImplemented('crud.updateMany'),
+deleteMany: async (): Promise<DatabaseResult<number>> => this.notImplemented('crud.deleteMany')
+};
+
+//==============================================================================
+// WEBSITE TOKENS (stub)
+//==============================================================================
+
+websiteTokens = {
+create: async (): Promise<DatabaseResult<WebsiteToken>> => this.notImplemented('websiteTokens.create'),
+getAll: async (): Promise<DatabaseResult<WebsiteToken[]>> => this.notImplemented('websiteTokens.getAll'),
+getById: async (): Promise<DatabaseResult<WebsiteToken>> => this.notImplemented('websiteTokens.getById'),
+delete: async (): Promise<DatabaseResult<void>> => this.notImplemented('websiteTokens.delete')
+};
+
+//==============================================================================
+// AUTH (CRITICAL for setup - stub for now, implement as needed)
+//==============================================================================
+
+auth = {
+setupAuthModels: async (): Promise<void> => {
+// No-op for SQL - tables created by migrations
+logger.debug('Auth models setup (no-op for SQL)');
+},
+
+// User methods
+createUser: async (): Promise<DatabaseResult<User>> => this.notImplemented('auth.createUser'),
+updateUserAttributes: async (): Promise<DatabaseResult<User>> => this.notImplemented('auth.updateUserAttributes'),
+deleteUser: async (): Promise<DatabaseResult<void>> => this.notImplemented('auth.deleteUser'),
+getUserById: async (): Promise<DatabaseResult<User>> => this.notImplemented('auth.getUserById'),
+getUserByEmail: async (): Promise<DatabaseResult<User>> => this.notImplemented('auth.getUserByEmail'),
+getAllUsers: async (): Promise<DatabaseResult<User[]>> => this.notImplemented('auth.getAllUsers'),
+getUserCount: async (): Promise<DatabaseResult<number>> => this.notImplemented('auth.getUserCount'),
+deleteUsers: async (): Promise<DatabaseResult<void>> => this.notImplemented('auth.deleteUsers'),
+blockUsers: async (): Promise<DatabaseResult<void>> => this.notImplemented('auth.blockUsers'),
+unblockUsers: async (): Promise<DatabaseResult<void>> => this.notImplemented('auth.unblockUsers'),
+
+// Combined methods
+createUserAndSession: async (): Promise<DatabaseResult<{ user: User; session: Session }>> => this.notImplemented('auth.createUserAndSession'),
+deleteUserAndSessions: async (): Promise<DatabaseResult<void>> => this.notImplemented('auth.deleteUserAndSessions'),
+
+// Session methods
+createSession: async (): Promise<DatabaseResult<Session>> => this.notImplemented('auth.createSession'),
+updateSessionExpiry: async (): Promise<DatabaseResult<Session>> => this.notImplemented('auth.updateSessionExpiry'),
+deleteSession: async (): Promise<DatabaseResult<void>> => this.notImplemented('auth.deleteSession'),
+deleteExpiredSessions: async (): Promise<DatabaseResult<void>> => this.notImplemented('auth.deleteExpiredSessions'),
+getSessionById: async (): Promise<DatabaseResult<Session>> => this.notImplemented('auth.getSessionById'),
+getSessionsByUserId: async (): Promise<DatabaseResult<Session[]>> => this.notImplemented('auth.getSessionsByUserId'),
+validateSession: async (): Promise<DatabaseResult<{ session: Session; user: User }>> => this.notImplemented('auth.validateSession'),
+deleteSessionsByUserId: async (): Promise<DatabaseResult<void>> => this.notImplemented('auth.deleteSessionsByUserId'),
+
+// Token methods
+createToken: async (): Promise<DatabaseResult<Token>> => this.notImplemented('auth.createToken'),
+getTokenByValue: async (): Promise<DatabaseResult<Token>> => this.notImplemented('auth.getTokenByValue'),
+validateToken: async (): Promise<DatabaseResult<Token>> => this.notImplemented('auth.validateToken'),
+consumeToken: async (): Promise<DatabaseResult<void>> => this.notImplemented('auth.consumeToken'),
+deleteToken: async (): Promise<DatabaseResult<void>> => this.notImplemented('auth.deleteToken'),
+deleteExpiredTokens: async (): Promise<DatabaseResult<void>> => this.notImplemented('auth.deleteExpiredTokens'),
+deleteTokensByUserId: async (): Promise<DatabaseResult<void>> => this.notImplemented('auth.deleteTokensByUserId'),
+
+// Role methods
+getAllRoles: async (): Promise<DatabaseResult<Role[]>> => this.notImplemented('auth.getAllRoles'),
+getRoleById: async (): Promise<DatabaseResult<Role>> => this.notImplemented('auth.getRoleById'),
+createRole: async (): Promise<DatabaseResult<Role>> => this.notImplemented('auth.createRole'),
+updateRole: async (): Promise<DatabaseResult<Role>> => this.notImplemented('auth.updateRole'),
+deleteRole: async (): Promise<DatabaseResult<void>> => this.notImplemented('auth.deleteRole')
+};
+
+//==============================================================================
+// BATCH OPERATIONS (stub)
+//==============================================================================
+
+batch = {
+executeBatch: async (): Promise<DatabaseResult<BatchResult>> => this.notImplemented('batch.executeBatch'),
+insertMany: async (): Promise<DatabaseResult<any[]>> => this.notImplemented('batch.insertMany'),
+updateMany: async (): Promise<DatabaseResult<number>> => this.notImplemented('batch.updateMany'),
+deleteMany: async (): Promise<DatabaseResult<number>> => this.notImplemented('batch.deleteMany')
+};
+
+//==============================================================================
+// COLLECTION (stub)
+//==============================================================================
+
+collection = {
+getModel: (): CollectionModel | null => null,
+registerDynamicModel: async (): Promise<void> => {},
+getDynamicModel: (): any => null,
+listDynamicModels: (): string[] => []
+};
+
+//==============================================================================
+// PERFORMANCE & CACHE (stub)
+//==============================================================================
+
+performance = {
+getMetrics: async (): Promise<DatabaseResult<PerformanceMetrics>> => this.notImplemented('performance.getMetrics'),
+resetMetrics: async (): Promise<DatabaseResult<void>> => this.notImplemented('performance.resetMetrics'),
+optimizeQuery: async (): Promise<DatabaseResult<any>> => this.notImplemented('performance.optimizeQuery'),
+analyzeQuery: async (): Promise<DatabaseResult<any>> => this.notImplemented('performance.analyzeQuery')
+};
+
+cache = {
+get: async (): Promise<DatabaseResult<any>> => this.notImplemented('cache.get'),
+set: async (): Promise<DatabaseResult<void>> => this.notImplemented('cache.set'),
+delete: async (): Promise<DatabaseResult<void>> => this.notImplemented('cache.delete'),
+clear: async (): Promise<DatabaseResult<void>> => this.notImplemented('cache.clear')
+};
+
+//==============================================================================
+// TRANSACTION (stub)
+//==============================================================================
+
+transaction = async (): Promise<DatabaseResult<any>> => this.notImplemented('transaction');
+
+//==============================================================================
+// QUERY BUILDER (stub)
+//==============================================================================
+
+queryBuilder = (): QueryBuilder<any> => {
+throw new Error('QueryBuilder not implemented for MariaDB adapter yet');
+};
+
+//==============================================================================
+// COLLECTION DATA (stub)
+//==============================================================================
+
+getCollectionData = async (): Promise<DatabaseResult<any>> => this.notImplemented('getCollectionData');
+getMultipleCollectionData = async (): Promise<DatabaseResult<any>> => this.notImplemented('getMultipleCollectionData');
+
+//==============================================================================
+// HELPER METHODS
+//==============================================================================
+
+private notConnectedError(): DatabaseResult<any> {
+return {
+success: false,
+message: 'Database not connected',
+error: utils.createDatabaseError('NOT_CONNECTED', 'Database connection not established')
+};
+}
+
+private handleError(error: unknown, code: string): DatabaseResult<any> {
+const message = error instanceof Error ? error.message : String(error);
+logger.error(`MariaDB adapter error [${code}]:`, message);
+return {
+success: false,
+message,
+error: utils.createDatabaseError(code, message, error)
+};
+}
+
+private notImplemented(method: string): DatabaseResult<any> {
+const message = `Method ${method} not yet implemented for MariaDB adapter. See MARIADB_IMPLEMENTATION.md for completion roadmap.`;
+logger.warn(message);
+return {
+success: false,
+message,
+error: utils.createDatabaseError('NOT_IMPLEMENTED', message)
+};
+}
+}

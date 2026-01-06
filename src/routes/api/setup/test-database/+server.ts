@@ -535,11 +535,8 @@ async function testPostgresConnection(dbConfig: DatabaseConfig) {
 	}
 }
 
-// Tests a MySQL/MariaDB connection using Drizzle
-// Currently unused as only MongoDB is supported by the schema
-// @ts-expect-error - Function kept for future MySQL/MariaDB support
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function testMySqlConnection(dbConfig: DatabaseConfig) {
+// Tests a MySQL/MariaDB connection using mysql2
+async function testMariaDbConnection(dbConfig: DatabaseConfig) {
 	const start = Date.now();
 	let connection;
 	try {
@@ -547,12 +544,12 @@ async function testMySqlConnection(dbConfig: DatabaseConfig) {
 		try {
 			mysql = (await import('mysql2/promise')).default;
 		} catch {
-			logger.error('MySQL/MariaDB driver not available. Install with: npm install mysql2 mariadb');
+			logger.error('MariaDB driver not available. Install with: npm install mysql2');
 			return json(
 				{
 					success: false,
-					error: 'MySQL/MariaDB driver not installed',
-					details: 'To test MySQL/MariaDB connections, install the required packages: npm install mysql2 mariadb'
+					error: 'MariaDB driver not installed',
+					details: 'To test MariaDB connections, install the required package: npm install mysql2'
 				},
 				{ status: 400 }
 			);
@@ -575,7 +572,7 @@ async function testMySqlConnection(dbConfig: DatabaseConfig) {
 		await connection.query('SELECT 1');
 
 		const durationMs = Date.now() - start;
-		logger.info('✅ MySQL/MariaDB connection test successful.');
+		logger.info('✅ MariaDB connection test successful.');
 
 		return json({
 			success: true,
@@ -583,7 +580,7 @@ async function testMySqlConnection(dbConfig: DatabaseConfig) {
 			latencyMs: durationMs
 		});
 	} catch (error) {
-		logger.error('❌ MySQL/MariaDB connection test failed:', { error });
+		logger.error('❌ MariaDB connection test failed:', { error });
 		const { classification, raw, userFriendly } = classifyDatabaseError(error, 'mysql', dbConfig);
 		const durationMs = Date.now() - start;
 		return json(
@@ -647,11 +644,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		logger.info(`🎯 Database type ${dbConfig.type} is supported, proceeding with test...`);
 
 		// Dispatch to the correct test function based on db type
-		// Currently only MongoDB is supported by the schema
 		switch (dbConfig.type) {
 			case 'mongodb':
 			case 'mongodb+srv':
 				return await testMongoDbConnection(dbConfig);
+			case 'mariadb':
+				return await testMariaDbConnection(dbConfig);
 			default:
 				// This should never happen due to schema validation, but TypeScript requires it
 				logger.warn(`Unsupported database type requested: ${dbConfig.type}`);
