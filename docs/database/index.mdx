@@ -61,10 +61,18 @@ Implementation guides for specific database backends:
    - 70-90% performance improvement
    - **NEW**: Optimized `upsertMany` with `bulkWrite` for high-volume writes
 
+5. **[MariaDB Implementation](./MariaDB_Implementation.mdx)** 🆕
+   - Drizzle ORM with mysql2 driver
+   - 13 relational tables with proper indexes
+   - Connection pooling and health monitoring
+   - Automatic migration system
+   - Multi-tenant support (nullable tenantId)
+   - Type-safe queries with full TypeScript support
+   - **Status**: Foundation complete (31%), core adapter in progress
+
 **Coming Soon:**
 
 - PostgreSQL Implementation (via Drizzle ORM)
-- MySQL Implementation (via Drizzle ORM)
 - SQLite Implementation (via Drizzle ORM)
 
 ---
@@ -77,6 +85,7 @@ Implementation guides for specific database backends:
 - **Learn about caching** → Read [Cache System](./Cache_System.mdx)
 - **Understand authentication** → Read [Authentication System](./Authentication_System.mdx)
 - **Optimize MongoDB** → Read [MongoDB Implementation](./MongoDB_Implementation.mdx)
+- **Implement MariaDB** → Read [MariaDB Implementation](./MariaDB_Implementation.mdx)
 - **Add a new database** → Read [Core Infrastructure](./Core_Infrastructure.mdx) section "Adding New Adapters"
 - **Check cache performance** → Read [Cache System](./Cache_System.mdx) section "Metrics"
 - **Implement permissions** → Read [Authentication System](./Authentication_System.mdx) section "Permissions"
@@ -96,6 +105,12 @@ Implementation guides for specific database backends:
 1. Read [MongoDB Implementation](./MongoDB_Implementation.mdx) for best practices
 2. Check the "Quick Reference" section for common operations
 3. Review index strategy for your use case
+
+### For MariaDB Users
+
+1. Read [MariaDB Implementation](./MariaDB_Implementation.mdx) for setup guide
+2. Review the schema design and migration system
+3. Check implementation roadmap for completion status
 
 ### For Adding New Database Support
 
@@ -128,13 +143,13 @@ Implementation guides for specific database backends:
 │  • QueryCriteria translation                            │
 └───────────────────────┬─────────────────────────────────┘
                         │
-        ┌───────────────┴───────────────┐
-        │                               │
-┌───────▼────────┐              ┌──────▼─────────┐
-│  MongoDB       │              │  PostgreSQL    │
-│  Adapter       │              │  Adapter       │
-│  (Current)     │              │  (Drizzle ORM) │
-└────────────────┘              └────────────────┘
+        ┌───────────────┴───────────────┬────────────────┐
+        │                               │                │
+┌───────▼────────┐              ┌──────▼─────────┐ ┌────▼──────┐
+│  MongoDB       │              │  MariaDB       │ │PostgreSQL │
+│  Adapter       │              │  Adapter       │ │ Adapter   │
+│  (Mongoose)    │              │  (Drizzle ORM) │ │(Drizzle)  │
+└────────────────┘              └────────────────┘ └───────────┘
 ```
 
 ---
@@ -143,7 +158,7 @@ Implementation guides for specific database backends:
 
 ### Database Agnostic
 
-- ✅ Works with MongoDB, PostgreSQL, MySQL, SQLite
+- ✅ Works with MongoDB, MariaDB, PostgreSQL, MySQL, SQLite
 - ✅ Unified `DatabaseAdapter` interface
 - ✅ No database-specific code in business logic
 - ✅ `DatabaseResult<T>` pattern (no exceptions)
