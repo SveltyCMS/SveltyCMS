@@ -175,7 +175,7 @@ test.describe('OAuth First User Signup', () => {
 		});
 
 		// Simulate OAuth callback with authorization code
-		const baseURL = getBaseURL();;
+		const baseURL = getBaseURL();
 		const testUrl = `${baseURL}/login/oauth?code=mock_auth_code_ci_test&scope=email+profile+openid`;
 
 		await page.goto(testUrl, {
@@ -205,7 +205,7 @@ test.describe('OAuth First User Signup', () => {
 		console.log('Testing OAuth error handling');
 
 		// Test invalid OAuth callback URL to ensure proper error handling
-		const baseURL = getBaseURL();;
+		const baseURL = getBaseURL();
 		const testUrl = `${baseURL}/login/oauth?error=access_denied&error_description=User%20denied%20access`;
 
 		await page.goto(testUrl);
@@ -236,7 +236,7 @@ test.describe('OAuth First User Signup', () => {
 
 		// Simulate the OAuth callback with invalid grant error
 		// This should reproduce the issue mentioned in the conversation
-		const baseURL = getBaseURL();;
+		const baseURL = getBaseURL();
 		const testUrl = `${baseURL}/login/oauth?code=invalid_code&state=test_state`;
 
 		await page.goto(testUrl);
@@ -325,7 +325,7 @@ test.describe('OAuth First User Signup', () => {
 		});
 
 		// Simulate OAuth callback with avatar-enabled user
-		const baseURL = getBaseURL();;
+		const baseURL = getBaseURL();
 		const testUrl = `${baseURL}/login/oauth?code=mock_auth_code_avatar_test&scope=email+profile+openid`;
 
 		await page.goto(testUrl, {
@@ -354,7 +354,7 @@ test.describe('OAuth Configuration Check', () => {
 	test('Check if OAuth is properly configured for testing', async ({ page }) => {
 		console.log('Checking OAuth configuration for testing environment');
 
-		const baseURL = getBaseURL();;
+		const baseURL = getBaseURL();
 		const testUrl = `${baseURL}/login`;
 
 		await page.goto(testUrl);
