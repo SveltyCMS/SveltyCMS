@@ -333,7 +333,6 @@ export default defineConfig((): UserConfig => {
 
 	return {
 		plugins: [
-			tailwindcss(),
 			// Private config fallback - provides virtual module when file doesn't exist
 			privateConfigFallbackPlugin(),
 			// Security check plugin runs first to detect private setting imports
@@ -342,7 +341,11 @@ export default defineConfig((): UserConfig => {
 				showWarnings: true,
 				extensions: ['.svelte', '.ts', '.js']
 			}),
+			// SvelteKit must be loaded BEFORE tailwindcss for proper HMR handling
 			sveltekit(),
+			// Tailwind CSS v4 Vite plugin - must come AFTER sveltekit to allow
+			// SvelteKit's HMR handlers to initialize first
+			tailwindcss(),
 			!setupComplete ? setupWizardPlugin() : cmsWatcherPlugin(),
 			paraglideVitePlugin({
 				project: './project.inlang',
@@ -357,7 +360,9 @@ export default defineConfig((): UserConfig => {
 			watch: {
 				// Prevent watcher from triggering on generated/sensitive files
 				ignored: ['**/config/private.ts', '**/config/private.backup.*.ts', '**/compiledCollections/**', '**/tests/**']
-			}
+			},
+			// Explicit HMR configuration to ensure it's enabled
+			hmr: true
 		},
 		ssr: {
 			noExternal: [],
@@ -431,7 +436,7 @@ export default defineConfig((): UserConfig => {
 		},
 		optimizeDeps: {
 			exclude: [...builtinModules, ...builtinModules.map((m) => `node:${m}`), 'redis', '@src/databases/CacheService'],
-			include: ['@skeletonlabs/skeleton'],
+			include: ['@skeletonlabs/skeleton', '@skeletonlabs/skeleton-svelte'],
 			entries: ['!tests/**/*', '!**/*.server.ts', '!**/*.server.js']
 		}
 	};
