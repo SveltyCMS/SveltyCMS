@@ -333,7 +333,6 @@ export default defineConfig((): UserConfig => {
 
 	return {
 		plugins: [
-			tailwindcss(),
 			// Private config fallback - provides virtual module when file doesn't exist
 			privateConfigFallbackPlugin(),
 			// Security check plugin runs first to detect private setting imports
@@ -344,6 +343,7 @@ export default defineConfig((): UserConfig => {
 			}),
 			sveltekit(),
 			!setupComplete ? setupWizardPlugin() : cmsWatcherPlugin(),
+			tailwindcss(),
 			paraglideVitePlugin({
 				project: './project.inlang',
 				outdir: './src/paraglide'

@@ -524,6 +524,15 @@ export async function seedSettings(dbAdapter: DatabaseAdapter, tenantId?: string
 		// Only organize public settings for immediate cache population
 		const publicSettings: Record<string, unknown> = {};
 
+		// Add existing public settings first
+		for (const [key, value] of Object.entries(existingSettings)) {
+			const isPublic = defaultPublicSettings.some((s) => s.key === key);
+			if (isPublic) {
+				publicSettings[key] = (value as any).value ?? value;
+			}
+		}
+
+		// Add/overwrite with new seeded settings
 		for (const setting of settingsToSeed) {
 			const isPublic = defaultPublicSettings.some((s) => s.key === setting.key);
 			if (isPublic) {
@@ -539,6 +548,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter, tenantId?: string
 			logger.info('✅ Public settings validated successfully');
 		} else {
 			logger.warn('Public settings validation failed');
+			// Filter out expected undefined errors for cleaner logs if needed, or just log issues
 			logger.debug('Public settings validation issues:', parsedPublic.issues);
 		}
 	} catch (error) {

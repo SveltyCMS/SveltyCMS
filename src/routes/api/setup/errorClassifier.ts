@@ -192,7 +192,12 @@ export function classifyDatabaseError(
 				return { classification: 'authentication_failed', raw, userFriendly: 'Authentication failed. Please check your username and password.' };
 			}
 			if (code === 'ER_DBACCESS_DENIED_ERROR') {
-				return { classification: 'not_authorized', raw, userFriendly: 'Access denied to database. Please check your permissions.' };
+				return {
+					classification: 'not_authorized',
+					raw,
+					userFriendly:
+						'Access denied to database. The user has a valid password but lacks permission to access this specific database. Please GRANT permissions or ensure the database exists.'
+				};
 			}
 			if (code === 'ER_BAD_DB_ERROR' || /unknown database/i.test(lower)) {
 				return { classification: 'database_not_found', raw, userFriendly: 'Database not found. Please check your database name.' };

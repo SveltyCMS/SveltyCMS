@@ -1350,12 +1350,28 @@ class ContentManager {
 
 		// Process each operation
 		const bulkUpdates: Array<{ path: string; changes: Partial<ContentNode> }> = [];
+		const bulkCreates: Array<Omit<ContentNode, 'createdAt' | 'updatedAt'>> = [];
 
 		for (const operation of operations) {
 			const { type, node } = operation;
 
 			switch (type) {
-				case 'create':
+				case 'create': {
+					if (!node.path) {
+						logger.warn('[ContentManager] Node missing path, skipping:', node);
+						continue;
+					}
+					// For creation, we need _id and all fields. createdAt/updatedAt are handled by adapter/DB
+					// eslint-disable-next-line @typescript-eslint/no-unused-vars
+					const { createdAt, updatedAt, ...createFields } = node;
+
+					bulkCreates.push(createFields);
+
+					this.contentNodeMap.set(node._id, node);
+					if (node.path) this.pathLookupMap.set(node.path, node._id);
+					break;
+				}
+
 				case 'update':
 				case 'rename':
 				case 'move': {
@@ -1388,6 +1404,11 @@ class ContentManager {
 				default:
 					logger.warn('[ContentManager] Unknown operation type:', type);
 			}
+		}
+
+		if (bulkCreates.length > 0) {
+			await dbAdapter.content.nodes.createMany(bulkCreates);
+			logger.info('[ContentManager] Bulk created nodes:', bulkCreates.length);
 		}
 
 		if (bulkUpdates.length > 0) {

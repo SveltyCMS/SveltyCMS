@@ -96,7 +96,10 @@ export class PreferencesModule {
 	async setMany<T>(preferences: Array<{ key: string; value: T; scope?: 'user' | 'system'; userId?: DatabaseId }>): Promise<DatabaseResult<void>> {
 		return (this.core as any).wrap(async () => {
 			for (const pref of preferences) {
-				await this.set(pref.key, pref.value, pref.scope, pref.userId);
+				const result = await this.set(pref.key, pref.value, pref.scope, pref.userId);
+				if (!result.success) {
+					throw new Error(`Failed to set preference ${pref.key}: ${result.message}`);
+				}
 			}
 		}, 'SET_PREFERENCES_FAILED');
 	}

@@ -39,6 +39,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import SigninIcon from './icons/SigninIcon.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
+	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import PasswordStrength from '@components/PasswordStrength.svelte';
 	import FloatingPaths from '@components/system/FloatingPaths.svelte';
 
@@ -467,7 +468,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				</div>
 			{/if}
 			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
-				<SiteName highlight="CMS" textClass="text-black" />
+				<SveltyCMSLogoFull />
 			</div>
 			<div class="z-0 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded-md bg-white p-4 lg:w-4/5" class:hide={active !== 0}>
 				<div class="mb-1 flex flex-row gap-2">

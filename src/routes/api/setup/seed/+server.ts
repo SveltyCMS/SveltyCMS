@@ -49,6 +49,31 @@ export const POST: RequestHandler = async ({ request }) => {
 				setupManager.isSeeding = true;
 				logger.info(`📦 Getting setup database adapter for ${isTestMode ? 'synchronous' : 'background'} seeding...`);
 				const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
+
+				// Run migrations for SQL databases (MariaDB)
+				if (dbConfig.type === 'mariadb') {
+					logger.info('🐘 Running MariaDB migrations...');
+					try {
+						// Dynamically import migrations to avoid loading if not using MariaDB
+						const { runMigrations } = await import('@src/databases/mariadb/migrations');
+
+						// Access the connection pool from the adapter implementation
+						// The adapter is typed as IDBAdapter but the implementation has a 'pool' property
+						const adapterImpl = dbAdapter as any;
+						if (adapterImpl.pool) {
+							const migrationResult = await runMigrations(adapterImpl.pool);
+							if (!migrationResult.success) {
+								throw new Error(`Migration failed: ${migrationResult.error}`);
+							}
+						} else {
+							logger.warn('⚠️ MariaDB adapter does not have a pool property, skipping migrations. This may cause seeding errors.');
+						}
+					} catch (migrationError) {
+						logger.error('❌ Migration failed:', migrationError);
+						throw migrationError;
+					}
+				}
+
 				logger.info(`🌱 Starting ${isTestMode ? 'synchronous' : 'background'} seeding of default data (settings, themes, collections)...`);
 				await initSystemFromSetup(dbAdapter);
 				logger.info(`✅ ${isTestMode ? 'Synchronous' : 'Background'} seeding completed successfully`);

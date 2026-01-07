@@ -191,31 +191,47 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		await testDatabaseConnection();
 	}
 
+	function handleTypeChange() {
+		clearDbTestError();
+
+		const isAtlas = dbConfig.type === 'mongodb+srv';
+
+		// Smart host selection
+		if (!isAtlas && !dbConfig.host) {
+			dbConfig.host = 'localhost';
+		} else if (isAtlas && dbConfig.host === 'localhost') {
+			dbConfig.host = '';
+		}
+
+		// Smart port selection based on database type
+		switch (dbConfig.type) {
+			case 'mongodb':
+				dbConfig.port = '27017';
+				if (!dbConfig.name) dbConfig.name = 'SveltyCMS';
+				break;
+			case 'mariadb':
+				dbConfig.port = '3306';
+				// Clear default name for SQL DBs to force explicit entry (as they likely need pre-created DBs)
+				if (dbConfig.name === 'SveltyCMS') dbConfig.name = '';
+				break;
+			case 'postgresql':
+				dbConfig.port = '5432';
+				if (dbConfig.name === 'SveltyCMS') dbConfig.name = '';
+				break;
+			case 'mongodb+srv':
+				dbConfig.port = '';
+				if (!dbConfig.name) dbConfig.name = 'SveltyCMS';
+				break;
+		}
+	}
+
 	$effect(() => {
-		// Preserve database name when switching between Atlas and localhost
-		const previousDbName = dbConfig.name;
-
-		if (isAtlas) {
-			dbConfig.port = ''; // Port is not used for Atlas SRV
-			if (dbConfig.host === 'localhost') {
-				dbConfig.host = ''; // Clear default host when switching to Atlas
-			}
-		} else if (dbConfig.type === 'mongodb' && !dbConfig.port) {
-			dbConfig.port = '27017'; // Default port for standard MongoDB
-		}
-
-		// Restore database name if it was cleared
-		if (!dbConfig.name && previousDbName) {
-			dbConfig.name = previousDbName;
-		}
-
 		// Set default database name if empty
 		if (!dbConfig.name) {
 			dbConfig.name = 'SveltyCMS';
 		}
 
 		unsupportedDbSelected = false; // All database types are now supported
-		// No automatic driver install here
 	});
 </script>
 
@@ -323,7 +339,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					>
 				</label>
 
-				<select id="db-type" bind:value={dbConfig.type} onchange={clearDbTestError} class="input rounded">
+				<select id="db-type" bind:value={dbConfig.type} onchange={handleTypeChange} class="input rounded">
 					<option value="mongodb">MongoDB (localhost/Docker)</option>
 					<option value="mongodb+srv">MongoDB Atlas (SRV)</option>
 					<option value="mariadb">MariaDB (via Drizzle)</option>

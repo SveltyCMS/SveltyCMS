@@ -11,6 +11,7 @@
  */
 
 import { drizzle, type MySql2Database } from 'drizzle-orm/mysql2';
+import { eq, and } from 'drizzle-orm';
 import mysql from 'mysql2/promise';
 import type { DatabaseCapabilities, DatabaseResult, DatabaseError } from '../../dbInterface';
 import * as schema from '../schema';
@@ -148,10 +149,24 @@ export class AdapterCore {
 	}
 
 	public getTable(collection: string): any {
-		return (schema as any)[collection];
+		if ((schema as any)[collection]) {
+			return (schema as any)[collection];
+		}
+		// Fallback to contentNodes for dynamic collections
+		return schema.contentNodes;
 	}
 
-	public mapQuery(query: Record<string, any>): any {
-		return query;
+	public mapQuery(table: any, query: Record<string, any>): any {
+		if (!query || Object.keys(query).length === 0) return undefined;
+
+		const conditions: any[] = [];
+		for (const [key, value] of Object.entries(query)) {
+			if (table[key]) {
+				conditions.push(eq(table[key], value));
+			}
+		}
+
+		if (conditions.length === 0) return undefined;
+		return and(...conditions);
 	}
 }

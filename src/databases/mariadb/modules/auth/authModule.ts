@@ -35,9 +35,24 @@ export class AuthModule {
 	private mapUser(dbUser: any): User {
 		if (!dbUser) throw new Error('User not found');
 		const user = utils.convertDatesToISO(dbUser) as any;
+
+		// Handle roleIds - ensure it is an array
+		let roleIds = user.roleIds;
+		if (typeof roleIds === 'string') {
+			try {
+				roleIds = JSON.parse(roleIds);
+			} catch (e) {
+				// Fallback if parsing fails
+				roleIds = [];
+			}
+		}
+
+		const finalRoleIds = Array.isArray(roleIds) ? roleIds : [];
+
 		return {
 			...user,
-			role: user.roleIds?.[0] || 'user',
+			roleIds: finalRoleIds,
+			role: finalRoleIds.length > 0 ? finalRoleIds[0] : 'user',
 			permissions: user.permissions || []
 		} as unknown as User;
 	}
@@ -53,12 +68,22 @@ export class AuthModule {
 		return (this.core as any).wrap(async () => {
 			const id = userData._id || utils.generateId();
 			const now = new Date();
+
+			// Ensure password is hashed if provided and not already hashed
+			let password = userData.password;
+			if (password && !password.startsWith('$argon2')) {
+				const argon2 = await import('argon2');
+				password = await argon2.hash(password);
+			}
+
 			const values = {
 				...userData,
 				_id: id,
+				password: password,
 				createdAt: now,
 				updatedAt: now,
-				roleIds: (userData as any).roleIds || []
+				// Map legacy 'role' string to 'roleIds' array if roleIds is missing/empty
+				roleIds: (userData as any).roleIds?.length ? (userData as any).roleIds : userData.role ? [userData.role] : []
 			} as any;
 			await this.db.insert(schema.authUsers).values(values);
 			const [result] = await this.db.select().from(schema.authUsers).where(eq(schema.authUsers._id, id)).limit(1);
@@ -71,9 +96,15 @@ export class AuthModule {
 			const conditions = [eq(schema.authUsers._id, user_id)];
 			if (tenantId) conditions.push(eq(schema.authUsers.tenantId, tenantId));
 
+			const dataToUpdate = { ...userData } as any;
+			// Map legacy role string to roleIds array if roleIds is missing
+			if (userData.role && !dataToUpdate.roleIds) {
+				dataToUpdate.roleIds = [userData.role];
+			}
+
 			await this.db
 				.update(schema.authUsers)
-				.set({ ...userData, updatedAt: new Date() } as any)
+				.set({ ...dataToUpdate, updatedAt: new Date() } as any)
 				.where(and(...conditions));
 
 			const [result] = await this.db
@@ -152,11 +183,16 @@ export class AuthModule {
 	async getUserCount(filter?: Record<string, unknown>): Promise<DatabaseResult<number>> {
 		return (this.core as any).wrap(async () => {
 			const table = schema.authUsers;
-			const where = (this.core as any).mapQuery(table, filter as any);
-			const [result] = await this.db
-				.select({ count: sql<number>`count(*)` })
-				.from(table)
-				.where(where);
+			// Pass table schema AND filter to mapQuery
+			const where = filter ? (this.core as any).mapQuery(table, filter) : undefined;
+
+			const query = this.db.select({ count: sql<number>`count(*)` }).from(table);
+
+			if (where) {
+				query.where(where);
+			}
+
+			const [result] = await query;
 			return Number(result.count);
 		}, 'GET_USER_COUNT_FAILED');
 	}
