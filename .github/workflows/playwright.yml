@@ -100,6 +100,11 @@ jobs:
         env:
           MONGO_INITDB_ROOT_USERNAME: admin
           MONGO_INITDB_ROOT_PASSWORD: admin
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand({ping: 1})' --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       DB_TYPE: mongodb
       DB_HOST: localhost
@@ -107,6 +112,8 @@ jobs:
       DB_NAME: sveltycms_test
       DB_USER: admin
       DB_PASSWORD: admin
+      CI: 'true'
+      TEST_MODE: 'true'
     steps:
       - uses: actions/checkout@v6
 
@@ -177,29 +184,43 @@ jobs:
       - name: Clean up port 4173
         run: |
           echo "🧹 Cleaning up port 4173..."
-          lsof -ti:4173 | xargs kill -9 2>/dev/null || echo "Port 4173 is free"
+          pkill -f "vite preview" || true
+          fuser -k 4173/tcp 2>/dev/null || echo "Port 4173 is free"
+        continue-on-error: true
 
       # --- START PREVIEW SERVER (PORT 4173) ---
       - name: Start Preview Server
         run: |
           echo "🚀 Starting preview server on port 4173..."
-          bun run preview &
+          nohup bun run preview > preview-integration.log 2>&1 &
+          echo $! > preview.pid
           echo "⏳ Waiting for server to be ready..."
-          bun x wait-on http://localhost:4173 -t 60000
+          bun x wait-on http://localhost:4173 -t 90000 --interval 1000
           echo "✅ Preview server is ready!"
+          # Verify server responds
+          curl -f http://localhost:4173 || (echo "❌ Server not responding"; cat preview-integration.log; exit 1)
 
       - name: Run Integration Tests
         run: bun run test:integration:run
         env:
-          TEST_MODE: 'true' # Ensures server loads config/private.test.ts instead of config/private.ts
+          TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
+
+      # Upload logs on failure
+      - name: Upload Integration Server Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-server-logs
+          path: preview-integration.log
+          retention-days: 7
 
   # ------------------------------------------------------------------
   # 3. E2E Tests (Requires Server + MongoDB + Browser)
   # ------------------------------------------------------------------
   e2e-tests:
     name: 🎭 E2E Tests
-    timeout-minutes: 30 # Increased to fix your timeout issue
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     services:
       mongodb:
@@ -208,6 +229,11 @@ jobs:
         env:
           MONGO_INITDB_ROOT_USERNAME: admin
           MONGO_INITDB_ROOT_PASSWORD: admin
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand({ping: 1})' --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       DB_TYPE: mongodb
       DB_HOST: localhost
@@ -215,6 +241,8 @@ jobs:
       DB_NAME: sveltycms_test
       DB_USER: admin
       DB_PASSWORD: admin
+      CI: 'true'
+      PLAYWRIGHT_TEST_BASE_URL: 'http://localhost:4173'
     steps:
       - uses: actions/checkout@v6
 
@@ -231,8 +259,25 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # Cache Playwright browsers for faster E2E tests
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(bun pm ls --all 2>/dev/null | grep @playwright/test | head -1 | awk '{print $2}')" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright Browsers
+        id: playwright-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
+
       - name: Install Playwright Browsers
-        run: bunx playwright install --with-deps
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: bunx playwright install --with-deps chromium
+
+      - name: Install Playwright Browser Dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: bunx playwright install-deps chromium
 
       # Install tools needed for CI scripts
       - name: Install CI Tools
@@ -266,16 +311,17 @@ jobs:
       - name: Clean up port 4173
         run: |
           echo "🧹 Cleaning up port 4173..."
-          lsof -ti:4173 | xargs kill -9 2>/dev/null || echo "Port 4173 is free"
+          pkill -f "vite preview" || true
+          fuser -k 4173/tcp 2>/dev/null || echo "Port 4173 is free"
+        continue-on-error: true
 
-      # Wait for MongoDB to be ready
-      - name: Wait for MongoDB
+      # Wait for MongoDB to be ready (health checks should handle this, but double-check)
+      - name: Verify MongoDB Ready
         run: |
-          echo "⏳ Waiting for MongoDB to be ready..."
+          echo "⏳ Verifying MongoDB is ready..."
           for i in {1..30}; do
             if nc -z localhost 27017 2>/dev/null; then
               echo "✅ MongoDB port is open!"
-              # Give it a moment for full initialization
               sleep 2
               break
             fi
@@ -287,10 +333,13 @@ jobs:
       - name: Start Preview Server
         run: |
           echo "🚀 Starting preview server on port 4173..."
-          bun run preview &
+          nohup bun run preview > preview-e2e.log 2>&1 &
+          echo $! > preview.pid
           echo "⏳ Waiting for server to be ready..."
-          bun x wait-on http://localhost:4173 -t 60000
+          bun x wait-on http://localhost:4173 -t 90000 --interval 1000 --httpTimeout 10000
           echo "✅ Preview server is ready!"
+          # Verify server responds
+          curl -f http://localhost:4173 || (echo "❌ Server not responding"; cat preview-e2e.log; exit 1)
 
       # =================================================================
       # E2E TESTS: Setup → Seed Users → RBAC → Main Suite
@@ -344,9 +393,27 @@ jobs:
           # --grep-invert skips the setup wizard and RBAC since we just ran them
           bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard|role-based"
 
-      - uses: actions/upload-artifact@v4
+      # Upload artifacts for debugging
+      - name: Upload Playwright Report
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report
           path: playwright-report/
-          retention-days: 30
+          retention-days: 14
+
+      - name: Upload E2E Server Logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-server-logs
+          path: preview-e2e.log
+          retention-days: 7
+
+      - name: Upload Test Screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-screenshots
+          path: test-results/
+          retention-days: 7
