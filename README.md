@@ -206,6 +206,40 @@ See our `package.json` for more information about development, build, preview, f
 - Development server runs on `localhost:5173`
 - Preview server runs on `localhost:4173`
 
+## 📦 Nx Monorepo Structure
+
+SveltyCMS now uses an **Nx monorepo** for optimal performance and flexibility:
+
+- **apps/setup** - Standalone setup wizard (only loads selected database driver)
+- **apps/cms** - Main CMS application 
+- **shared/** - 7 shared libraries (theme, database, utils, components, hooks, stores, paraglide)
+
+### Key Benefits
+
+✅ **Optimal Performance** - Each app bundles only what it needs  
+✅ **Conditional Database Loading** - Only MongoDB OR Drizzle code is bundled (~75% size reduction)  
+✅ **Independent Deployment** - Apps can be deployed separately  
+✅ **Efficient Caching** - Nx caches builds for faster CI/CD  
+✅ **Flexible Updates** - Update Skeleton UI v4 → v5 per app
+
+### Documentation
+
+- **[MONOREPO.md](./MONOREPO.md)** - Complete usage guide
+- **[MIGRATION.md](./MIGRATION.md)** - Migration from current structure
+- **[NX-IMPLEMENTATION-SUMMARY.md](./NX-IMPLEMENTATION-SUMMARY.md)** - What was built
+- **[docs/AI-DOCUMENTATION-GUIDE.md](./docs/AI-DOCUMENTATION-GUIDE.md)** - AI/LLM best practices
+
+### Nx Commands
+
+```bash
+nx dev setup              # Run setup wizard
+nx dev cms                # Run CMS
+nx build setup            # Build setup
+nx build cms              # Build CMS
+nx graph                  # View dependency graph
+nx run-many --target=build --all  # Build all
+```
+
 ## 🔒 Authentication & Security
 
 We want to keep your data Private and Secure.
