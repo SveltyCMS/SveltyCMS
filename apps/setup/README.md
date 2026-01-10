@@ -23,17 +23,19 @@ This standalone application handles:
 
 ```
 apps/setup/
-├── src/
+├── src/                         # (NOT CREATED YET - awaiting migration)
 │   ├── routes/
-│   │   └── setup/       # Setup wizard pages
-│   ├── components/      # Setup-specific components
-│   └── lib/             # Setup utilities
-├── static/              # Static assets
-├── project.json         # Nx project configuration
-├── vite.config.ts       # Vite configuration
-├── svelte.config.js     # Svelte configuration
-└── tsconfig.json        # TypeScript configuration
+│   │   └── setup/               # Setup wizard pages
+│   ├── components/              # Setup-specific components
+│   └── lib/                     # Setup utilities
+├── static/                      # (NOT CREATED YET)
+├── project.json                 # Nx project configuration
+├── vite.config.ts.example       # Vite configuration EXAMPLE
+├── svelte.config.js.example     # Svelte configuration EXAMPLE
+└── tsconfig.json.example        # TypeScript configuration EXAMPLE
 ```
+
+**Note**: Config files have `.example` extension to prevent accidental execution before migration.
 
 ## Development
 

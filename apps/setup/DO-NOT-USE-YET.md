@@ -12,11 +12,13 @@ This workspace configuration is **scaffolding only** and cannot be used until so
 
 This directory contains:
 - `project.json` - Nx workspace configuration (scaffold)
-- `svelte.config.js` - SvelteKit configuration example
-- `vite.config.ts` - Vite configuration example  
-- `tsconfig.json` - TypeScript configuration example
+- `svelte.config.js.example` - SvelteKit configuration example (RENAMED to prevent execution)
+- `vite.config.ts.example` - Vite configuration example (RENAMED to prevent execution)
+- `tsconfig.json.example` - TypeScript configuration example (RENAMED to prevent execution)
 
 These are **examples** showing how the workspace will be configured after migration.
+
+**Config files are renamed with `.example` extension** to prevent accidental execution before migration is complete.
 
 ## When Will This Work?
 

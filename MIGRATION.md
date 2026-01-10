@@ -1,5 +1,13 @@
 # Nx Monorepo Migration Guide
 
+⚠️ **IMPORTANT: Config Files Are Examples**
+
+The workspace config files are currently named with `.example` extension to prevent accidental execution:
+- `apps/setup/*.example` - Rename these when ready to migrate setup wizard
+- `apps/cms/*.example` - Rename these when ready to migrate CMS
+
+**Before migrating**, rename example files (remove `.example`) in the workspace you're migrating to.
+
 This guide helps you migrate from the current structure to the new Nx monorepo structure.
 
 ## Overview

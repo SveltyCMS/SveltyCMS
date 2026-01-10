@@ -26,20 +26,22 @@ The CMS may be further split into micro-apps:
 
 ```
 apps/cms/
-├── src/
+├── src/                         # (NOT CREATED YET - awaiting migration)
 │   ├── routes/
-│   │   ├── (app)/       # Main CMS routes
-│   │   ├── api/         # API endpoints
-│   │   ├── login/       # Authentication
-│   │   └── files/       # File management
-│   ├── components/      # CMS-specific components
-│   └── lib/             # CMS utilities
-├── static/              # Static assets
-├── project.json         # Nx project configuration
-├── vite.config.ts       # Vite configuration
-├── svelte.config.js     # Svelte configuration
-└── tsconfig.json        # TypeScript configuration
+│   │   ├── (app)/               # Main CMS routes
+│   │   ├── api/                 # API endpoints
+│   │   ├── login/               # Authentication
+│   │   └── files/               # File management
+│   ├── components/              # CMS-specific components
+│   └── lib/                     # CMS utilities
+├── static/                      # (NOT CREATED YET)
+├── project.json                 # Nx project configuration
+├── vite.config.ts.example       # Vite configuration EXAMPLE
+├── svelte.config.js.example     # Svelte configuration EXAMPLE
+└── tsconfig.json.example        # TypeScript configuration EXAMPLE
 ```
+
+**Note**: Config files have `.example` extension to prevent accidental execution before migration.
 
 ## Development
 
