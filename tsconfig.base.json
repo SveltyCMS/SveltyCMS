@@ -1,0 +1,59 @@
+{
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"compilerOptions": {
+		// Language and module settings
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"lib": ["ESNext", "DOM", "DOM.Iterable"],
+		
+		// Module interop
+		"verbatimModuleSyntax": true,
+		"isolatedModules": true,
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		
+		// Type checking
+		"strict": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true,
+		"forceConsistentCasingInFileNames": true,
+		
+		// JavaScript support
+		"allowJs": true,
+		"checkJs": true,
+		
+		// File resolution
+		"skipLibCheck": true,
+		"allowArbitraryExtensions": true,
+		"resolveJsonModule": true,
+		"allowImportingTsExtensions": true,
+		
+		// Type declarations
+		"types": ["@types/bun"],
+		
+		// Path aliases for shared libraries
+		"paths": {
+			"@shared/theme": ["./shared/theme/src"],
+			"@shared/theme/*": ["./shared/theme/src/*"],
+			"@shared/database": ["./shared/database/src"],
+			"@shared/database/*": ["./shared/database/src/*"],
+			"@shared/utils": ["./shared/utils/src"],
+			"@shared/utils/*": ["./shared/utils/src/*"],
+			"@shared/components": ["./shared/components/src"],
+			"@shared/components/*": ["./shared/components/src/*"],
+			"@shared/hooks": ["./shared/hooks/src"],
+			"@shared/hooks/*": ["./shared/hooks/src/*"],
+			"@shared/stores": ["./shared/stores/src"],
+			"@shared/stores/*": ["./shared/stores/src/*"],
+			"@shared/paraglide": ["./shared/paraglide/src"],
+			"@shared/paraglide/*": ["./shared/paraglide/src/*"],
+			"@config": ["./config"],
+			"@config/*": ["./config/*"],
+			"@root": ["."],
+			"@root/*": ["./*"]
+		}
+	}
+}

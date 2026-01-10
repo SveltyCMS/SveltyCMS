@@ -9,6 +9,12 @@ The new structure separates the codebase into focused workspaces:
 - **apps/cms**: Main CMS application (extracted from `src/routes/(app)`, `src/routes/api`)
 - **shared/***: Shared libraries (extracted from `src/`)
 
+## Related Documentation
+
+- **[CMS-WORKSPACE-ENHANCEMENT.md](./docs/CMS-WORKSPACE-ENHANCEMENT.md)** - How to further modularize CMS (media, imageEditor, dashboard, collectionBuilder, GraphQL)
+- **[MONOREPO.md](./MONOREPO.md)** - Complete usage guide with Nx commands
+- **Base Config Files**: `svelte.config.base.js`, `vite.config.base.js`, `tsconfig.base.json`
+
 ## Migration Steps
 
 ### Phase 1: Setup (Completed)

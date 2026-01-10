@@ -1,0 +1,28 @@
+{
+	"extends": [
+		"../../tsconfig.base.json",
+		"./.svelte-kit/tsconfig.json"
+	],
+	"compilerOptions": {
+		"types": ["@types/bun"],
+		"noEmit": true,
+		"skipLibCheck": true,
+		
+		"paths": {
+			"$lib": ["./src/lib"],
+			"$lib/*": ["./src/lib/*"],
+			"@cms": ["./src/lib"],
+			"@cms/*": ["./src/lib/*"],
+			"@api": ["./src/routes/api"],
+			"@api/*": ["./src/routes/api/*"],
+			"@widgets": ["../../shared/widgets/src"],
+			"@widgets/*": ["../../shared/widgets/src/*"]
+		}
+	},
+	"include": [
+		"src/**/*.js",
+		"src/**/*.ts",
+		"src/**/*.svelte",
+		"types/**/*.ts"
+	]
+}
