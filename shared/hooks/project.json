@@ -1,0 +1,24 @@
+{
+	"name": "hooks",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "shared/hooks/src",
+	"projectType": "library",
+	"tags": ["type:shared", "scope:hooks"],
+	"targets": {
+		"build": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"outputPath": "dist/shared/hooks",
+				"main": "shared/hooks/src/index.ts",
+				"tsConfig": "shared/hooks/tsconfig.json"
+			}
+		},
+		"lint": {
+			"executor": "@nx/eslint:lint"
+		},
+		"test": {
+			"executor": "@nx/vite:test"
+		}
+	}
+}

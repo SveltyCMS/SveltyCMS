@@ -1,0 +1,24 @@
+{
+	"name": "stores",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "shared/stores/src",
+	"projectType": "library",
+	"tags": ["type:shared", "scope:stores"],
+	"targets": {
+		"build": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"outputPath": "dist/shared/stores",
+				"main": "shared/stores/src/index.ts",
+				"tsConfig": "shared/stores/tsconfig.json"
+			}
+		},
+		"lint": {
+			"executor": "@nx/eslint:lint"
+		},
+		"test": {
+			"executor": "@nx/vite:test"
+		}
+	}
+}

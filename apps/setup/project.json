@@ -1,0 +1,47 @@
+{
+	"name": "setup",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "apps/setup/src",
+	"projectType": "application",
+	"tags": ["type:app", "scope:setup"],
+	"targets": {
+		"build": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"defaultConfiguration": "production",
+			"options": {
+				"outputPath": "dist/apps/setup",
+				"configFile": "apps/setup/vite.config.ts"
+			},
+			"configurations": {
+				"development": {
+					"mode": "development"
+				},
+				"production": {
+					"mode": "production"
+				}
+			}
+		},
+		"dev": {
+			"executor": "@nx/vite:dev-server",
+			"options": {
+				"buildTarget": "setup:build",
+				"port": 5173
+			}
+		},
+		"preview": {
+			"executor": "@nx/vite:preview-server",
+			"options": {
+				"buildTarget": "setup:build",
+				"port": 4173
+			}
+		},
+		"test": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/apps/setup"]
+		},
+		"lint": {
+			"executor": "@nx/eslint:lint"
+		}
+	}
+}

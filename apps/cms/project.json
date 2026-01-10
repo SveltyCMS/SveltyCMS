@@ -1,0 +1,47 @@
+{
+	"name": "cms",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "apps/cms/src",
+	"projectType": "application",
+	"tags": ["type:app", "scope:cms"],
+	"targets": {
+		"build": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"defaultConfiguration": "production",
+			"options": {
+				"outputPath": "dist/apps/cms",
+				"configFile": "apps/cms/vite.config.ts"
+			},
+			"configurations": {
+				"development": {
+					"mode": "development"
+				},
+				"production": {
+					"mode": "production"
+				}
+			}
+		},
+		"dev": {
+			"executor": "@nx/vite:dev-server",
+			"options": {
+				"buildTarget": "cms:build",
+				"port": 5174
+			}
+		},
+		"preview": {
+			"executor": "@nx/vite:preview-server",
+			"options": {
+				"buildTarget": "cms:build",
+				"port": 4174
+			}
+		},
+		"test": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/apps/cms"]
+		},
+		"lint": {
+			"executor": "@nx/eslint:lint"
+		}
+	}
+}

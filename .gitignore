@@ -58,5 +58,10 @@ yarn-error.log*
 #paraglide.js
 src/paraglide/**/*.js
 
+# Nx
+.nx/cache
+dist/
 
-
+# Workspace artifacts
+apps/*/dist
+shared/*/dist

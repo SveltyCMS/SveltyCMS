@@ -1,0 +1,27 @@
+{
+	"name": "paraglide",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "shared/paraglide/src",
+	"projectType": "library",
+	"tags": ["type:shared", "scope:i18n"],
+	"targets": {
+		"build": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"outputPath": "dist/shared/paraglide",
+				"main": "shared/paraglide/src/index.ts",
+				"tsConfig": "shared/paraglide/tsconfig.json"
+			}
+		},
+		"lint": {
+			"executor": "@nx/eslint:lint"
+		},
+		"compile": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "paraglide-js compile --project ./shared/paraglide/project.inlang --outdir ./shared/paraglide/src"
+			}
+		}
+	}
+}

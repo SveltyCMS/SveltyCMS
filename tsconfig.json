@@ -19,6 +19,15 @@
 		"allowImportingTsExtensions": true,
 		"types": ["@types/bun"]
 	},
-	"include": ["src/**/*.js", "src/**/*.ts", "src/**/*.svelte", "config/**/*.ts", "types/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"],
-	"exclude": ["node_modules", ".svelte-kit"]
+	"include": ["src/**/*.js", "src/**/*.ts", "src/**/*.svelte", "config/**/*.ts", "types/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts", "apps/**/*.ts", "apps/**/*.svelte", "shared/**/*.ts", "shared/**/*.svelte"],
+	"exclude": ["node_modules", ".svelte-kit", "dist", ".nx"],
+	"references": [
+		{ "path": "./shared/theme" },
+		{ "path": "./shared/database" },
+		{ "path": "./shared/utils" },
+		{ "path": "./shared/components" },
+		{ "path": "./shared/hooks" },
+		{ "path": "./shared/stores" },
+		{ "path": "./shared/paraglide" }
+	]
 }

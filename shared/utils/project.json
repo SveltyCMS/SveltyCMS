@@ -1,0 +1,24 @@
+{
+	"name": "utils",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "shared/utils/src",
+	"projectType": "library",
+	"tags": ["type:shared", "scope:utils"],
+	"targets": {
+		"build": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"outputPath": "dist/shared/utils",
+				"main": "shared/utils/src/index.ts",
+				"tsConfig": "shared/utils/tsconfig.json"
+			}
+		},
+		"lint": {
+			"executor": "@nx/eslint:lint"
+		},
+		"test": {
+			"executor": "@nx/vite:test"
+		}
+	}
+}
