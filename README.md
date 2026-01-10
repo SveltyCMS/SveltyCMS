@@ -208,13 +208,30 @@ See our `package.json` for more information about development, build, preview, f
 
 ## 📦 Nx Monorepo Structure
 
-SveltyCMS now uses an **Nx monorepo** for optimal performance and flexibility:
+⚠️ **NOTE**: The Nx workspace structure is **scaffolding/documentation only**. No code has been moved. Continue using `bun dev` as normal.
 
-- **apps/setup** - Standalone setup wizard (only loads selected database driver)
-- **apps/cms** - Main CMS application 
-- **shared/** - 7 shared libraries (theme, database, utils, components, hooks, stores, paraglide)
+SveltyCMS now has Nx monorepo **planning and base configurations** for optimal performance and flexibility:
 
-### Key Benefits
+- **apps/setup** - Template for setup wizard (not functional yet - see [apps/setup/DO-NOT-USE-YET.md](apps/setup/DO-NOT-USE-YET.md))
+- **apps/cms** - Template for main CMS (not functional yet - see [apps/cms/DO-NOT-USE-YET.md](apps/cms/DO-NOT-USE-YET.md))
+- **shared/** - Template libraries for future use
+
+### Current Development
+
+**Use existing workflow** (nothing has changed):
+```bash
+bun dev               # ✅ Runs from src/ (works as before)
+bun build             # ✅ Builds from src/ (works as before)
+bun test              # ✅ Tests existing code (works as before)
+```
+
+**Do NOT use Nx commands yet** (workspaces not ready):
+```bash
+nx dev setup          # ❌ No code in workspace
+nx dev cms            # ❌ No code in workspace
+```
+
+### Key Benefits (After Migration)
 
 ✅ **Optimal Performance** - Each app bundles only what it needs  
 ✅ **Conditional Database Loading** - Only MongoDB OR Drizzle code is bundled (~75% size reduction)  
@@ -224,21 +241,18 @@ SveltyCMS now uses an **Nx monorepo** for optimal performance and flexibility:
 
 ### Documentation
 
-- **[MONOREPO.md](./MONOREPO.md)** - Complete usage guide
-- **[MIGRATION.md](./MIGRATION.md)** - Migration from current structure
+- **[MONOREPO.md](./MONOREPO.md)** - Complete structure overview and status
+- **[MIGRATION.md](./MIGRATION.md)** - Future migration guide (optional)
 - **[NX-IMPLEMENTATION-SUMMARY.md](./NX-IMPLEMENTATION-SUMMARY.md)** - What was built
+- **[docs/CMS-WORKSPACE-ENHANCEMENT.md](./docs/CMS-WORKSPACE-ENHANCEMENT.md)** - Future enhancements
 - **[docs/AI-DOCUMENTATION-GUIDE.md](./docs/AI-DOCUMENTATION-GUIDE.md)** - AI/LLM best practices
 
-### Nx Commands
+### Base Configuration Files
 
-```bash
-nx dev setup              # Run setup wizard
-nx dev cms                # Run CMS
-nx build setup            # Build setup
-nx build cms              # Build CMS
-nx graph                  # View dependency graph
-nx run-many --target=build --all  # Build all
-```
+Shared configs for future use:
+- `svelte.config.base.js` - Reusable SvelteKit configuration
+- `vite.config.base.js` - Reusable Vite configuration  
+- `tsconfig.base.json` - Reusable TypeScript configuration
 
 ## 🔒 Authentication & Security
 

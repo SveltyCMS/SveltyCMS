@@ -1,5 +1,7 @@
 # CMS Application
 
+⚠️ **WORKSPACE NOT READY** - See [DO-NOT-USE-YET.md](./DO-NOT-USE-YET.md)
+
 The main SveltyCMS headless CMS application.
 
 ## Purpose

@@ -1,5 +1,7 @@
 # Setup Wizard Application
 
+⚠️ **WORKSPACE NOT READY** - See [DO-NOT-USE-YET.md](./DO-NOT-USE-YET.md)
+
 The first-time installation wizard for SveltyCMS.
 
 ## Purpose

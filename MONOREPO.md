@@ -1,6 +1,43 @@
 # SveltyCMS Nx Monorepo Structure
 
-This project uses Nx to manage a monorepo structure optimized for performance, flexibility, and developer experience.
+## ⚠️ IMPORTANT: Workspace Structure is Scaffolding Only
+
+**The workspace structure (`apps/` and `shared/`) contains configuration examples but NO actual source code yet.**
+
+### Current Status
+
+✅ **Working**: Root application in `src/` directory - use `bun dev` as normal  
+❌ **Not Working**: Workspace applications in `apps/` - these are templates only  
+📝 **Ready**: Base configuration files and documentation
+
+### For Developers
+
+**Continue using the existing development workflow:**
+```bash
+bun dev              # ✅ Works - runs from src/
+bun build            # ✅ Works - builds from src/
+bun test             # ✅ Works - tests existing code
+```
+
+**Do NOT use workspace commands yet:**
+```bash
+nx dev setup         # ❌ Fails - no code in apps/setup/src
+nx dev cms           # ❌ Fails - no code in apps/cms/src
+nx build setup       # ❌ Fails - workspace not ready
+```
+
+### What This PR Provides
+
+1. **Documentation** - Complete guides for Nx monorepo structure
+2. **Base Configs** - Reusable configuration files (svelte.config.base.js, etc.)
+3. **Workspace Templates** - Example configurations in `apps/` and `shared/`
+4. **Migration Guide** - Step-by-step instructions for future migration
+
+**No code has been moved.** The existing application in `src/` continues to work normally.
+
+See [MIGRATION.md](./MIGRATION.md) for details on the optional, incremental migration process.
+
+---
 
 ## Structure Overview
 
