@@ -355,8 +355,17 @@ export default defineConfig((): UserConfig => {
 				deny: ['**/tests/**']
 			},
 			watch: {
-				// Prevent watcher from triggering on generated/sensitive files
-				ignored: ['**/config/private.ts', '**/config/private.backup.*.ts', '**/compiledCollections/**', '**/tests/**']
+				// Prevent watcher from triggering on generated/sensitive files and empty Nx workspaces
+				ignored: [
+					'**/config/private.ts',
+					'**/config/private.backup.*.ts',
+					'**/compiledCollections/**',
+					'**/tests/**',
+					'**/apps/**',     // Nx workspace apps (empty until migration)
+					'**/shared/**',   // Nx shared libraries (placeholder until migration)
+					'**/.nx/**',      // Nx cache directory
+					'**/dist/**'      // Build output
+				]
 			}
 		},
 		ssr: {
@@ -430,7 +439,17 @@ export default defineConfig((): UserConfig => {
 			}
 		},
 		optimizeDeps: {
-			exclude: [...builtinModules, ...builtinModules.map((m) => `node:${m}`), 'redis', '@src/databases/CacheService'],
+			exclude: [
+				...builtinModules,
+				...builtinModules.map((m) => `node:${m}`),
+				'redis',
+				'@src/databases/CacheService',
+				// Exclude Nx packages from pre-bundling (not used until migration)
+				'@nx/js',
+				'@nx/vite',
+				'@nx/workspace',
+				'nx'
+			],
 			include: ['@skeletonlabs/skeleton'],
 			entries: ['!tests/**/*', '!**/*.server.ts', '!**/*.server.js']
 		}
