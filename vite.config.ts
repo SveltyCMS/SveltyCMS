@@ -356,7 +356,17 @@ export default defineConfig((): UserConfig => {
 			},
 			watch: {
 				// Prevent watcher from triggering on generated/sensitive files
-				ignored: ['**/config/private.ts', '**/config/private.backup.*.ts', '**/compiledCollections/**', '**/tests/**']
+				// Also ignore NX workspace directories to improve performance
+				ignored: [
+					'**/config/private.ts', 
+					'**/config/private.backup.*.ts', 
+					'**/compiledCollections/**', 
+					'**/tests/**',
+					'**/apps/**',        // NX workspace apps (not used yet)
+					'**/shared/**',      // NX shared libraries (not used yet)
+					'**/.nx/**',         // NX cache directory
+					'**/dist/**'         // Build output
+				]
 			}
 		},
 		ssr: {
@@ -430,9 +440,23 @@ export default defineConfig((): UserConfig => {
 			}
 		},
 		optimizeDeps: {
-			exclude: [...builtinModules, ...builtinModules.map((m) => `node:${m}`), 'redis', '@src/databases/CacheService'],
+			exclude: [
+				...builtinModules, 
+				...builtinModules.map((m) => `node:${m}`), 
+				'redis', 
+				'@src/databases/CacheService',
+				'@nx/devkit',       // Exclude NX packages from optimization
+				'@nx/workspace',
+				'nx'
+			],
 			include: ['@skeletonlabs/skeleton'],
-			entries: ['!tests/**/*', '!**/*.server.ts', '!**/*.server.js']
+			entries: [
+				'!tests/**/*', 
+				'!**/*.server.ts', 
+				'!**/*.server.js',
+				'!apps/**/*',       // Don't scan NX workspace apps
+				'!shared/**/*'      // Don't scan NX shared libraries
+			]
 		}
 	};
 });
