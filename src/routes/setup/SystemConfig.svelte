@@ -11,6 +11,7 @@
 	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { systemSettingsSchema } from '@utils/formSchemas';
+	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
 
 	// --- PROPS ---
 	// Added $bindable() to systemSettings
@@ -180,24 +181,35 @@
 				<div class="space-y-3">
 					<label for="site-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:web" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span>{m.setup_system_site_name?.() || 'CMS Name'}</span>
-						<button
-							type="button"
-							tabindex="-1"
-							title="Help available"
-							aria-label="Help: Site Name"
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
-						</button>
+						<span class="text-black dark:text-white">{m.setup_system_site_name?.() || 'CMS Name'}</span>
+						<Tooltip positioning={{ placement: 'top' }}>
+							<Tooltip.Trigger>
+								<button
+									type="button"
+									tabindex="-1"
+									aria-label="Help: Site Name"
+									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								>
+									<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
+								</button>
+							</Tooltip.Trigger>
+							<Portal>
+								<Tooltip.Positioner>
+									<Tooltip.Content
+										class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+									>
+										<p>{m.setup_help_site_name()}</p>
+										<Tooltip.Arrow
+											class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+										>
+											<Tooltip.ArrowTip />
+										</Tooltip.Arrow>
+									</Tooltip.Content>
+								</Tooltip.Positioner>
+							</Portal>
+						</Tooltip>
 					</label>
-					<div
-						data-popup="popupSiteName"
-						class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-					>
-						<p>{m.setup_help_site_name()}</p>
-						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
-					</div>
+
 					<input
 						id="site-name"
 						bind:value={systemSettings.siteName}
@@ -214,24 +226,35 @@
 
 					<label for="host-prod" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:earth" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span>Production URL</span>
-						<button
-							type="button"
-							tabindex="-1"
-							title="Help available"
-							aria-label="Help: Production URL"
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
-						</button>
+						<span class="text-black dark:text-white">Production URL</span>
+						<Tooltip positioning={{ placement: 'top' }}>
+							<Tooltip.Trigger>
+								<button
+									type="button"
+									tabindex="-1"
+									aria-label="Help: Production URL"
+									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								>
+									<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
+								</button>
+							</Tooltip.Trigger>
+							<Portal>
+								<Tooltip.Positioner>
+									<Tooltip.Content
+										class="card w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+									>
+										<p>The production URL where your CMS will be accessible (e.g., https://mysite.com). Used for OAuth callbacks and email links.</p>
+										<Tooltip.Arrow
+											class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+										>
+											<Tooltip.ArrowTip />
+										</Tooltip.Arrow>
+									</Tooltip.Content>
+								</Tooltip.Positioner>
+							</Portal>
+						</Tooltip>
 					</label>
-					<div
-						data-popup="popupHostProd"
-						class="card z-30 hidden w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-					>
-						<p>The production URL where your CMS will be accessible (e.g., https://mysite.com). Used for OAuth callbacks and email links.</p>
-						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
-					</div>
+
 					<input
 						id="host-prod"
 						bind:value={systemSettings.hostProd}
@@ -251,24 +274,34 @@
 				<div class="space-y-3">
 					<label for="media-storage-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:cloud-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span>Media Storage Type</span>
-						<button
-							type="button"
-							tabindex="-1"
-							title="Help available"
-							aria-label="Help: Media Storage Type"
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-						</button>
+						<span class="text-black dark:text-white">Media Storage Type</span>
+						<Tooltip positioning={{ placement: 'top' }}>
+							<Tooltip.Trigger>
+								<button
+									type="button"
+									tabindex="-1"
+									aria-label="Help: Media Storage Type"
+									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								>
+									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+								</button>
+							</Tooltip.Trigger>
+							<Portal>
+								<Tooltip.Positioner>
+									<Tooltip.Content
+										class="card w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+									>
+										<p>{m.setup_help_media_path()}</p>
+										<Tooltip.Arrow
+											class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+										>
+											<Tooltip.ArrowTip />
+										</Tooltip.Arrow>
+									</Tooltip.Content>
+								</Tooltip.Positioner>
+							</Portal>
+						</Tooltip>
 					</label>
-					<div
-						data-popup="popupMediaPath"
-						class="card z-30 hidden w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-					>
-						<p>{m.setup_help_media_path()}</p>
-						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
-					</div>
 
 					<select id="media-storage-type" bind:value={systemSettings.mediaStorageType} class="input w-full rounded">
 						<option value="local">📁 Local Storage</option>
@@ -279,24 +312,35 @@
 
 					<label for="media-folder" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:folder" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span>{systemSettings.mediaStorageType === 'local' ? 'Media Folder Path' : 'Bucket/Cloud Name'}</span>
-						<button
-							type="button"
-							tabindex="-1"
-							title="Help available"
-							aria-label="Help: Media Folder"
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-						</button>
+						<span class="text-black dark:text-white">{systemSettings.mediaStorageType === 'local' ? 'Media Folder Path' : 'Bucket/Cloud Name'}</span>
+						<Tooltip positioning={{ placement: 'top' }}>
+							<Tooltip.Trigger>
+								<button
+									type="button"
+									tabindex="-1"
+									aria-label="Help: Media Folder"
+									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								>
+									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+								</button>
+							</Tooltip.Trigger>
+							<Portal>
+								<Tooltip.Positioner>
+									<Tooltip.Content
+										class="card w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+									>
+										<p>For local storage: specify the folder path (e.g., ./mediaFolder). For cloud storage: enter the bucket or container name.</p>
+										<Tooltip.Arrow
+											class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+										>
+											<Tooltip.ArrowTip />
+										</Tooltip.Arrow>
+									</Tooltip.Content>
+								</Tooltip.Positioner>
+							</Portal>
+						</Tooltip>
 					</label>
-					<div
-						data-popup="popupMediaFolder"
-						class="card z-30 hidden w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-					>
-						<p>For local storage: specify the folder path (e.g., ./mediaFolder). For cloud storage: enter the bucket or container name.</p>
-						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
-					</div>
+
 					<input
 						id="media-folder"
 						bind:value={systemSettings.mediaFolder}
@@ -323,24 +367,35 @@
 				<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
 					<label for="default-system-lang" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:translate" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span>{m.setup_label_default_system_language?.() || 'Default System Language'}</span>
-						<button
-							tabindex="-1"
-							type="button"
-							title="Help available"
-							aria-label="Help: Default System Language"
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
-						</button>
+						<span class="text-black dark:text-white">{m.setup_label_default_system_language?.() || 'Default System Language'}</span>
+						<Tooltip positioning={{ placement: 'top' }}>
+							<Tooltip.Trigger>
+								<button
+									tabindex="-1"
+									type="button"
+									aria-label="Help: Default System Language"
+									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								>
+									<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
+								</button>
+							</Tooltip.Trigger>
+							<Portal>
+								<Tooltip.Positioner>
+									<Tooltip.Content
+										class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+									>
+										<p>{m.setup_help_default_system_language()}</p>
+										<Tooltip.Arrow
+											class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+										>
+											<Tooltip.ArrowTip />
+										</Tooltip.Arrow>
+									</Tooltip.Content>
+								</Tooltip.Positioner>
+							</Portal>
+						</Tooltip>
 					</label>
-					<div
-						data-popup="popupDefaultSystem"
-						class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-					>
-						<p>{m.setup_help_default_system_language()}</p>
-						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
-					</div>
+
 					<select id="default-system-lang" bind:value={systemSettings.defaultSystemLanguage} class="input w-full rounded">
 						{#each systemSettings.systemLanguages as lang (lang)}
 							<option value={lang}>{displayLang(lang)}</option>
@@ -349,24 +404,35 @@
 					<div>
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
 							<iconify-icon icon="mdi:translate-variant" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-							<span>{m.setup_label_system_languages?.() || 'System Languages'}</span>
-							<button
-								tabindex="-1"
-								type="button"
-								title="Help available"
-								aria-label="Help: System Languages"
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-							</button>
+							<span class="text-black dark:text-white">{m.setup_label_system_languages?.() || 'System Languages'}</span>
+							<Tooltip positioning={{ placement: 'top' }}>
+								<Tooltip.Trigger>
+									<button
+										tabindex="-1"
+										type="button"
+										aria-label="Help: System Languages"
+										class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+									>
+										<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+									</button>
+								</Tooltip.Trigger>
+								<Portal>
+									<Tooltip.Positioner>
+										<Tooltip.Content
+											class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+										>
+											<p>{m.setup_help_system_languages()}</p>
+											<Tooltip.Arrow
+												class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+											>
+												<Tooltip.ArrowTip />
+											</Tooltip.Arrow>
+										</Tooltip.Content>
+									</Tooltip.Positioner>
+								</Portal>
+							</Tooltip>
 						</div>
-						<div
-							data-popup="popupSystemLanguages"
-							class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-						>
-							<p>{m.setup_help_system_languages()}</p>
-							<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
-						</div>
+
 						<div
 							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border border-slate-300/50 bg-surface-50 p-2 pr-16 dark:border-slate-600 dark:bg-surface-700/40"
 						>
@@ -442,24 +508,35 @@
 					<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
 						></iconify-icon>
-						<span>{m.setup_label_default_content_language?.() || 'Default Content Language'}</span>
-						<button
-							tabindex="-1"
-							type="button"
-							title="Help available"
-							aria-label="Help: Default Content Language"
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
-						</button>
+						<span class="text-black dark:text-white">{m.setup_label_default_content_language?.() || 'Default Content Language'}</span>
+						<Tooltip positioning={{ placement: 'top' }}>
+							<Tooltip.Trigger>
+								<button
+									tabindex="-1"
+									type="button"
+									aria-label="Help: Default Content Language"
+									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								>
+									<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
+								</button>
+							</Tooltip.Trigger>
+							<Portal>
+								<Tooltip.Positioner>
+									<Tooltip.Content
+										class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+									>
+										<p>{m.setup_help_default_content_language()}</p>
+										<Tooltip.Arrow
+											class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+										>
+											<Tooltip.ArrowTip />
+										</Tooltip.Arrow>
+									</Tooltip.Content>
+								</Tooltip.Positioner>
+							</Portal>
+						</Tooltip>
 					</div>
-					<div
-						data-popup="popupDefaultContent"
-						class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-					>
-						<p>{m.setup_help_default_content_language()}</p>
-						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
-					</div>
+
 					<select
 						bind:value={systemSettings.defaultContentLanguage}
 						onblur={() => handleBlur('defaultContentLanguage')}
@@ -477,24 +554,35 @@
 					<div>
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
 							<iconify-icon icon="mdi:book-multiple" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-							<span>{m.setup_label_content_languages?.() || 'Content Languages'}</span>
-							<button
-								tabindex="-1"
-								type="button"
-								title="Help available"
-								aria-label="Help: Content Languages"
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-							</button>
+							<span class="text-black dark:text-white">{m.setup_label_content_languages?.() || 'Content Languages'}</span>
+							<Tooltip positioning={{ placement: 'top' }}>
+								<Tooltip.Trigger>
+									<button
+										tabindex="-1"
+										type="button"
+										aria-label="Help: Content Languages"
+										class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+									>
+										<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+									</button>
+								</Tooltip.Trigger>
+								<Portal>
+									<Tooltip.Positioner>
+										<Tooltip.Content
+											class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+										>
+											<p>{m.setup_help_content_languages()}</p>
+											<Tooltip.Arrow
+												class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+											>
+												<Tooltip.ArrowTip />
+											</Tooltip.Arrow>
+										</Tooltip.Content>
+									</Tooltip.Positioner>
+								</Portal>
+							</Tooltip>
 						</div>
-						<div
-							data-popup="popupContentLanguages"
-							class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-						>
-							<p>{m.setup_help_content_languages()}</p>
-							<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
-						</div>
+
 						<div
 							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border p-2 pr-16 {displayErrors.contentLanguages
 								? 'border-error-500 bg-error-50 dark:bg-error-900/20'

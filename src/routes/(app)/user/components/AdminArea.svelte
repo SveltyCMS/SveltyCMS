@@ -279,13 +279,22 @@
 		if (!url) return '/Default_User.svg';
 		try {
 			if (url.startsWith('data:') || /^https?:\/\//i.test(url)) return url;
-			if (url === '/files' || url === '/files/') return '/Default_User.svg';
-			if (url.startsWith('/files/')) return url;
+
 			// Allow direct svg in static
 			if (/^\/?[^\s?]+\.svg$/i.test(url)) return url.startsWith('/') ? url : `/${url}`;
-			// Fallback: prefix media-ish paths with /files/
-			const trimmed = url.startsWith('/') ? url.slice(1) : url;
-			return `/files/${trimmed}`;
+
+			// Normalize path
+			// 1. Remove leading slashes
+			let clean = url.replace(/^\/+/, '');
+			// 2. Remove prefixes
+			clean = clean.replace(/^mediaFolder\//, '').replace(/^files\//, '');
+			// 3. Remove leading slashes again just in case
+			clean = clean.replace(/^\/+/, '');
+
+			if (clean === 'files' || clean === '') return '/Default_User.svg';
+
+			// Add timestamp for cache busting
+			return `/files/${clean}?t=${Date.now()}`;
 		} catch {
 			return '/Default_User.svg';
 		}
@@ -752,7 +761,7 @@
 											<Avatar class="size-10 overflow-hidden rounded-full border border-surface-200/50 dark:text-surface-50/50">
 												<Avatar.Image
 													src={currentUser && isUser(row) && row._id === currentUser._id
-														? avatarSrc.value
+														? normalizeMediaUrl(avatarSrc.value)
 														: isUser(row) && header.key === 'avatar'
 															? normalizeMediaUrl(row.avatar)
 															: '/Default_User.svg'}

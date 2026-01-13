@@ -39,14 +39,18 @@
 	<PageTitle name={m.uploadMedia_title()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
 
 	<!-- Back -->
-	<button onclick={() => history.back()} aria-label="Back" class="preset-outlined-tertiary-500 btn-icon dark:preset-outlined-primary-500">
+	<button
+		onclick={() => history.back()}
+		aria-label="Back"
+		class="preset-outlined-tertiary-500 btn-icon rounded-full dark:preset-outlined-primary-500"
+	>
 		<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
 	</button>
 </div>
 
 <div class="wrapper">
 	<Tabs value={tabSet} onValueChange={(e) => (tabSet = e.value)}>
-		<Tabs.List class="flex border-b border-surface-200-800">
+		<Tabs.List class="flex border-b border-surface-200-800 font-bold">
 			<Tabs.Trigger value="0" class="flex-1">
 				<div class="flex items-center justify-center gap-2 py-4">
 					<iconify-icon icon="material-symbols:database" width="28"></iconify-icon>
@@ -59,7 +63,9 @@
 					<p class="text-tertiary-500 dark:text-primary-500">Remote Upload</p>
 				</div>
 			</Tabs.Trigger>
+			<Tabs.Indicator />
 		</Tabs.List>
+
 		<Tabs.Content value="0">
 			<div class="p-4">
 				<LocalUpload />

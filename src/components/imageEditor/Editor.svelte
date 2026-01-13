@@ -116,7 +116,21 @@ Comprehensive image editing interface with Konva.js integration.
 		error = null;
 
 		const img = new Image();
-		img.crossOrigin = 'anonymous';
+
+		// Determine crossOrigin
+		try {
+			const currentOrigin = window.location.origin;
+			const imageOrigin = new URL(imageSrc, currentOrigin).origin;
+
+			if (imageOrigin !== currentOrigin) {
+				img.crossOrigin = 'anonymous';
+			}
+			// For same-origin (including local relative paths), we don't set crossOrigin
+			// to ensure cookies/auth headers are sent if needed.
+		} catch (e) {
+			// Fallback for invalid URLs or other parsing errors
+			img.crossOrigin = 'anonymous';
+		}
 
 		img.onerror = () => {
 			error = 'Failed to load image';

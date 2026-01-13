@@ -613,13 +613,12 @@ Displays a collection of media files (images, documents, audio, video) with:
 	// let imageToEdit: any = $state(null); // No longer needed
 	// let showEditor = $state(false);      // No longer needed
 
-	async function handleEditImage(detail: any) {
-		const file = detail.file;
+	async function handleEditImage(file: any) {
 		// Trigger the modal via modalState
 		modalState.trigger(ImageEditorModal as any, {
 			image: file,
 			onsave: handleEditorSave,
-			modalClasses: 'w-full max-w-7xl'
+			modalClasses: 'w-full h-full max-w-none max-h-none p-0'
 		});
 	}
 
@@ -643,6 +642,12 @@ Displays a collection of media files (images, documents, audio, video) with:
 		} catch (err) {
 			toaster.error({ description: 'Error saving image' });
 			logger.error('Error saving edited image', err);
+		}
+	}
+	function handleUpdateImage(updatedFile: MediaImage) {
+		const index = files.findIndex((f) => f._id === updatedFile._id);
+		if (index !== -1) {
+			files[index] = updatedFile;
 		}
 	}
 </script>
@@ -894,200 +899,99 @@ Displays a collection of media files (images, documents, audio, video) with:
 		</div>
 	</div>
 
-	<div class="mb-2 hidden items-center justify-between gap-1 md:flex md:gap-3">
-		<div class="mb-8 flex w-full flex-col justify-center gap-1">
-			<label for="globalSearchMd">Search</label>
-			<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto_auto]">
-				<input bind:value={globalSearchValue} id="globalSearchMd" type="text" placeholder="Search" class="input" />
-				{#if globalSearchValue}
-					<button onclick={clearSearch} class="preset-filled-surface-500 w-12" aria-label="Clear search">
-						<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
-					</button>
-				{/if}
+	<div class="mb-4 hidden items-end justify-between gap-4 md:flex">
+		<!-- Left Side: Search & Advanced -->
+		<div class="flex items-end gap-2">
+			<div class="flex flex-col gap-1">
+				<label for="globalSearchMd" class="text-sm font-medium">Search</label>
+				<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto_auto]">
+					<input bind:value={globalSearchValue} id="globalSearchMd" type="text" placeholder="Search" class="input" />
+					{#if globalSearchValue}
+						<button onclick={clearSearch} class="preset-filled-surface-500 w-12" aria-label="Clear search">
+							<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
+						</button>
+					{/if}
+				</div>
 			</div>
-		</div>
 
-		<!-- Advanced Search Button (Desktop) -->
-		<button onclick={openAdvancedSearch} aria-label="Advanced search" class="preset-filled-surface-500 btn gap-2" title="Advanced Search">
-			<iconify-icon icon="mdi:magnify-plus-outline" width="24"></iconify-icon>
-			Advanced
-		</button>
-
-		<div class="mb-8 flex flex-col justify-center gap-1">
-			<label for="mediaTypeMd">Type</label>
-			<div class="input-group">
-				<select id="mediaTypeMd" bind:value={selectedMediaType}>
-					{#each mediaTypes as type}
-						<option value={type.value}>{type.label}</option>
-					{/each}
-				</select>
-			</div>
-		</div>
-
-		<div class="mb-8 flex flex-col justify-center gap-1 text-center">
-			<label for="sortButton">Sort</label>
-			<button id="sortButton" class="preset-outline-surface-500 btn" aria-label="Sort">
-				<iconify-icon icon="flowbite:sort-outline" width="24"></iconify-icon>
+			<!-- Advanced Search Button (Desktop) -->
+			<button onclick={openAdvancedSearch} aria-label="Advanced search" class="preset-filled-surface-500 btn gap-2" title="Advanced Search">
+				<iconify-icon icon="mdi:magnify-plus-outline" width="24"></iconify-icon>
+				Advanced
 			</button>
 		</div>
 
-		<div class="flex items-center justify-center gap-4">
-			<div class="hidden flex-col items-center sm:flex">
-				Display
-				<div class="flex divide-x divide-gray-500">
-					<button onclick={() => handleViewChange('grid')} class="px-2" aria-label="Grid">
-						<iconify-icon icon="material-symbols:grid-view-rounded" height="40" style={`color: ${view === 'grid' ? 'black dark:white' : 'grey'}`}
-						></iconify-icon>
-						<br /> <span class="text-tertiary-500 dark:text-primary-500">Grid</span>
+		<!-- Right Side: Type, Sort, Display, Size -->
+		<div class="flex items-end gap-4">
+			<div class="flex flex-col gap-1">
+				<label for="mediaTypeMd" class="text-sm font-medium">Type</label>
+				<div class="input-group">
+					<select id="mediaTypeMd" bind:value={selectedMediaType} class="select">
+						{#each mediaTypes as type}
+							<option value={type.value}>{type.label}</option>
+						{/each}
+					</select>
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-1 text-center">
+				<label for="sortButton" class="text-sm font-medium">Sort</label>
+				<button id="sortButton" class="preset-outline-surface-500 btn" aria-label="Sort">
+					<iconify-icon icon="flowbite:sort-outline" width="24"></iconify-icon>
+				</button>
+			</div>
+
+			<div class="flex flex-col items-center gap-1">
+				<span class="text-sm font-medium">Display</span>
+				<div class="flex divide-x divide-gray-500 border border-surface-500/30 rounded-token overflow-hidden">
+					<button
+						onclick={() => handleViewChange('grid')}
+						class={`px-3 py-1.5 flex flex-col items-center justify-center transition-colors ${view === 'grid' ? 'bg-primary-500/20 text-primary-500' : 'hover:bg-surface-500/10'}`}
+						aria-label="Grid"
+						title="Grid View"
+					>
+						<iconify-icon icon="material-symbols:grid-view-rounded" height="20"></iconify-icon>
+						<span class="text-[10px] hidden xl:inline">Grid</span>
 					</button>
-					<button onclick={() => handleViewChange('table')} class="px-2" aria-label="Table">
-						<iconify-icon icon="material-symbols:list-alt-outline" height="40" style={`color: ${view === 'table' ? 'black dark:white' : 'grey'}`}
-						></iconify-icon>
-						<br /><span class="text-tertiary-500 dark:text-primary-500">Table</span>
+					<button
+						onclick={() => handleViewChange('table')}
+						class={`px-3 py-1.5 flex flex-col items-center justify-center transition-colors ${view === 'table' ? 'bg-primary-500/20 text-primary-500' : 'hover:bg-surface-500/10'}`}
+						aria-label="Table"
+						title="Table View"
+					>
+						<iconify-icon icon="material-symbols:list-alt-outline" height="20"></iconify-icon>
+						<span class="text-[10px] hidden xl:inline">Table</span>
 					</button>
 				</div>
 			</div>
 
-			<div class="hidden flex-col items-center sm:flex">
-				Size
-				<div class="flex divide-x divide-gray-500">
-					{#if (view === 'grid' && gridSize === 'tiny') || (view === 'table' && tableSize === 'tiny')}
+			<div class="flex flex-col items-center gap-1">
+				<span class="text-sm font-medium">Size</span>
+				<div class="flex divide-x divide-gray-500 border border-surface-500/30 rounded-token overflow-hidden">
+					{#each ['tiny', 'small', 'medium', 'large'] as size}
 						<button
 							onclick={() => {
-								const newSize =
-									view === 'grid'
-										? gridSize === 'tiny'
-											? 'small'
-											: gridSize === 'small'
-												? 'medium'
-												: gridSize === 'medium'
-													? 'large'
-													: 'tiny'
-										: tableSize === 'tiny'
-											? 'small'
-											: tableSize === 'small'
-												? 'medium'
-												: tableSize === 'medium'
-													? 'large'
-													: 'tiny';
-
-								if (view === 'grid') {
-									gridSize = newSize;
-								} else {
-									tableSize = newSize;
-								}
+								if (view === 'grid') gridSize = size as any;
+								else tableSize = size as any;
 								storeUserPreference(view, gridSize, tableSize);
 							}}
-							type="button"
-							class="px-1 md:px-2"
-							aria-label="Tiny"
+							class={`px-2 py-1.5 flex flex-col items-center justify-center transition-colors ${
+								(view === 'grid' ? gridSize : tableSize) === size ? 'bg-primary-500/20 text-primary-500' : 'hover:bg-surface-500/10'
+							}`}
+							aria-label={size}
+							title={size.charAt(0).toUpperCase() + size.slice(1)}
 						>
-							<iconify-icon icon="material-symbols:apps" height="40"></iconify-icon>
-							<br /><span class="text-tertiary-500 dark:text-primary-500">Tiny</span>
+							{#if size === 'tiny'}
+								<iconify-icon icon="material-symbols:apps" height="20"></iconify-icon>
+							{:else if size === 'small'}
+								<iconify-icon icon="material-symbols:background-grid-small-sharp" height="20"></iconify-icon>
+							{:else if size === 'medium'}
+								<iconify-icon icon="material-symbols:grid-on-sharp" height="20"></iconify-icon>
+							{:else}
+								<iconify-icon icon="material-symbols:grid-view" height="20"></iconify-icon>
+							{/if}
 						</button>
-					{:else if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
-						<button
-							onclick={() => {
-								const newSize =
-									view === 'grid'
-										? gridSize === 'tiny'
-											? 'small'
-											: gridSize === 'small'
-												? 'medium'
-												: gridSize === 'medium'
-													? 'large'
-													: 'tiny'
-										: tableSize === 'tiny'
-											? 'small'
-											: tableSize === 'small'
-												? 'medium'
-												: tableSize === 'medium'
-													? 'large'
-													: 'tiny';
-
-								if (view === 'grid') {
-									gridSize = newSize;
-								} else {
-									tableSize = newSize;
-								}
-								storeUserPreference(view, gridSize, tableSize);
-							}}
-							type="button"
-							class="px-1 md:px-2"
-							aria-label="Small"
-						>
-							<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40"></iconify-icon>
-							<br /><span class="text-tertiary-500 dark:text-primary-500">Small</span>
-						</button>
-					{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
-						<button
-							onclick={() => {
-								const newSize =
-									view === 'grid'
-										? gridSize === 'tiny'
-											? 'small'
-											: gridSize === 'small'
-												? 'medium'
-												: gridSize === 'medium'
-													? 'large'
-													: 'tiny'
-										: tableSize === 'tiny'
-											? 'small'
-											: tableSize === 'small'
-												? 'medium'
-												: tableSize === 'medium'
-													? 'large'
-													: 'tiny';
-
-								if (view === 'grid') {
-									gridSize = newSize;
-								} else {
-									tableSize = newSize;
-								}
-								storeUserPreference(view, gridSize, tableSize);
-							}}
-							type="button"
-							class="px-1 md:px-2"
-							aria-label="Medium"
-						>
-							<iconify-icon icon="material-symbols:grid-on-sharp" height="40"></iconify-icon>
-							<br /><span class="text-tertiary-500 dark:text-primary-500">Medium</span>
-						</button>
-					{:else}
-						<button
-							onclick={() => {
-								const newSize =
-									view === 'grid'
-										? gridSize === 'tiny'
-											? 'small'
-											: gridSize === 'small'
-												? 'medium'
-												: gridSize === 'medium'
-													? 'large'
-													: 'tiny'
-										: tableSize === 'tiny'
-											? 'small'
-											: tableSize === 'small'
-												? 'medium'
-												: tableSize === 'medium'
-													? 'large'
-													: 'tiny';
-
-								if (view === 'grid') {
-									gridSize = newSize;
-								} else {
-									tableSize = newSize;
-								}
-								storeUserPreference(view, gridSize, tableSize);
-							}}
-							type="button"
-							class="px-1 md:px-2"
-							aria-label="Large"
-						>
-							<iconify-icon icon="material-symbols:grid-view" height="40"></iconify-icon>
-							<br /><span class="text-tertiary-500 dark:text-primary-500">Large</span>
-						</button>
-					{/if}
+					{/each}
 				</div>
 			</div>
 		</div>
@@ -1112,10 +1016,18 @@ Displays a collection of media files (images, documents, audio, video) with:
 				onBulkDelete={handleBulkDelete}
 				onsizechange={handleSizeChange}
 				onEditImage={handleEditImage}
+				onUpdateImage={handleUpdateImage}
 			/>
 		{/if}
 	{:else}
-		<MediaTable {filteredFiles} tableSize={safeTableSize} ondeleteImage={handleDeleteImage} />
+		<MediaTable
+			{filteredFiles}
+			tableSize={safeTableSize}
+			ondeleteImage={handleDeleteImage}
+			onEditImage={handleEditImage}
+			onUpdateImage={handleUpdateImage}
+			onDeleteFiles={handleBulkDelete}
+		/>
 	{/if}
 </div>
 

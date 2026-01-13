@@ -136,6 +136,20 @@
 			}
 		});
 	}
+	// Helper to normalize avatar URL
+	function normalizeAvatarUrl(url: string | null | undefined): string {
+		if (!url) return '/Default_User.svg';
+		if (url.startsWith('data:')) return url;
+
+		// 1. Remove leading slashes
+		let clean = url.replace(/^\/+/, '');
+		// 2. Remove prefixes
+		clean = clean.replace(/^mediaFolder\//, '').replace(/^files\//, '');
+		// 3. Remove leading slashes again just in case
+		clean = clean.replace(/^\/+/, '');
+
+		return `/files/${clean}?t=${Date.now()}`;
+	}
 </script>
 
 <!-- Page Title with Back Button -->
@@ -148,10 +162,7 @@
 			<div class="relative flex flex-col items-center justify-center gap-1">
 				<div class="relative group">
 					<Avatar class="w-32 h-32 rounded-full border border-white shadow-lg dark:border-surface-800">
-						<Avatar.Image
-							src={avatarSrc.value && avatarSrc.value.startsWith('data:') ? avatarSrc.value : `${avatarSrc.value}?t=${Date.now()}`}
-							class="object-cover"
-						/>
+						<Avatar.Image src={normalizeAvatarUrl(avatarSrc.value)} class="object-cover" />
 						<Avatar.Fallback>AV</Avatar.Fallback>
 					</Avatar>
 

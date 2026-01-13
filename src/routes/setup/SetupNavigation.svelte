@@ -27,7 +27,7 @@ Features:
 	} = $props();
 </script>
 
-<div class="flex flex-col border-t border-slate-200">
+<div class="flex flex-col border-t border-slate-200 dark:text-white">
 	{#if isSeeding}
 		<div class="bg-surface-100 h-1.5 w-full overflow-hidden dark:bg-surface-700">
 			<div

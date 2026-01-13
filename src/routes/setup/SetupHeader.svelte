@@ -120,7 +120,7 @@ Displays logo, site name, language selector, and theme toggle.
 			<ThemeToggle showTooltip={true} tooltipPlacement="bottom" iconSize={22} />
 		</div>
 
-		<p class="w-full text-center text-sm sm:text-base">
+		<p class="w-full text-center text-sm dark:text-white sm:text-base">
 			{m.setup_heading_subtitle({ siteName: siteName || 'SveltyCMS' })}
 		</p>
 	</div>

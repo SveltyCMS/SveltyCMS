@@ -4,13 +4,12 @@
 Provides DB type, host, port, name, user, password inputs, validation display, test button, and change warning.
 -->
 <script lang="ts">
-	// popup and PopupSettings not available in skeleton-svelte v4
-	// import { popup, type PopupSettings } from '@skeletonlabs/skeleton-svelte';
 	import * as m from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
 	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { dbConfigSchema } from '@utils/formSchemas';
+	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
 
 	// Popup settings (click to toggle)
 
@@ -328,15 +327,33 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			<div>
 				<label for="db-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:database" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span>{m.setup_label_database_type()}</span>
-					<button
-						type="button"
-						tabindex="-1"
-						title="Help available"
-						aria-label="Help: Database Type"
-						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
-					>
+					<span class="text-black dark:text-white">{m.setup_label_database_type()}</span>
+					<Tooltip positioning={{ placement: 'top' }}>
+						<Tooltip.Trigger>
+							<button
+								type="button"
+								tabindex="-1"
+								aria-label={'Help: Database Type'}
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+							</button>
+						</Tooltip.Trigger>
+						<Portal>
+							<Tooltip.Positioner>
+								<Tooltip.Content
+									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+								>
+									<p>{m.setup_help_database_type()}</p>
+									<Tooltip.Arrow
+										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+									>
+										<Tooltip.ArrowTip />
+									</Tooltip.Arrow>
+								</Tooltip.Content>
+							</Tooltip.Positioner>
+						</Portal>
+					</Tooltip>
 				</label>
 
 				<select id="db-type" bind:value={dbConfig.type} onchange={handleTypeChange} class="input rounded">
@@ -377,15 +394,33 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			<div>
 				<label for="db-host" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span>{isAtlas ? 'Atlas Cluster Host' : m.setup_database_host()}</span>
-					<button
-						type="button"
-						tabindex="-1"
-						title="Help available"
-						aria-label="Help: Host"
-						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
-					>
+					<span class="text-black dark:text-white">{isAtlas ? 'Atlas Cluster Host' : m.setup_database_host()}</span>
+					<Tooltip positioning={{ placement: 'top' }}>
+						<Tooltip.Trigger>
+							<button
+								type="button"
+								tabindex="-1"
+								aria-label={'Help: Host'}
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+							</button>
+						</Tooltip.Trigger>
+						<Portal>
+							<Tooltip.Positioner>
+								<Tooltip.Content
+									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+								>
+									<p>{m.setup_help_database_host()}</p>
+									<Tooltip.Arrow
+										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+									>
+										<Tooltip.ArrowTip />
+									</Tooltip.Arrow>
+								</Tooltip.Content>
+							</Tooltip.Positioner>
+						</Portal>
+					</Tooltip>
 				</label>
 
 				<input
@@ -428,15 +463,33 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				<div>
 					<label for="db-port" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:ethernet" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span>{m.setup_database_port()}</span>
-						<button
-							type="button"
-							tabindex="-1"
-							title="Help available"
-							aria-label="Help: Port"
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-							><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
-						>
+						<span class="text-black dark:text-white">{m.setup_database_port()}</span>
+						<Tooltip positioning={{ placement: 'top' }}>
+							<Tooltip.Trigger>
+								<button
+									type="button"
+									tabindex="-1"
+									aria-label={'Help: Port'}
+									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								>
+									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+								</button>
+							</Tooltip.Trigger>
+							<Portal>
+								<Tooltip.Positioner>
+									<Tooltip.Content
+										class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+									>
+										<p>{m.setup_help_database_port()}</p>
+										<Tooltip.Arrow
+											class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+										>
+											<Tooltip.ArrowTip />
+										</Tooltip.Arrow>
+									</Tooltip.Content>
+								</Tooltip.Positioner>
+							</Portal>
+						</Tooltip>
 					</label>
 
 					<input
@@ -456,15 +509,33 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			<div>
 				<label for="db-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:database-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span>{m.setup_database_name()}</span>
-					<button
-						type="button"
-						tabindex="-1"
-						title="Help available"
-						aria-label="Help: Database Name"
-						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
-					>
+					<span class="text-black dark:text-white">{m.setup_database_name()}</span>
+					<Tooltip positioning={{ placement: 'top' }}>
+						<Tooltip.Trigger>
+							<button
+								type="button"
+								tabindex="-1"
+								aria-label={'Help: Database Name'}
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+							</button>
+						</Tooltip.Trigger>
+						<Portal>
+							<Tooltip.Positioner>
+								<Tooltip.Content
+									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+								>
+									<p>{m.setup_help_database_name()}</p>
+									<Tooltip.Arrow
+										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+									>
+										<Tooltip.ArrowTip />
+									</Tooltip.Arrow>
+								</Tooltip.Content>
+							</Tooltip.Positioner>
+						</Portal>
+					</Tooltip>
 				</label>
 
 				<input
@@ -489,15 +560,33 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			<div>
 				<label for="db-user" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:account-key" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span>{m.setup_database_user()}</span>
-					<button
-						type="button"
-						tabindex="-1"
-						title="Help available"
-						aria-label="Help: Database User"
-						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
-					>
+					<span class="text-black dark:text-white">{m.setup_database_user()}</span>
+					<Tooltip positioning={{ placement: 'top' }}>
+						<Tooltip.Trigger>
+							<button
+								type="button"
+								tabindex="-1"
+								aria-label={'Help: Database User'}
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+							</button>
+						</Tooltip.Trigger>
+						<Portal>
+							<Tooltip.Positioner>
+								<Tooltip.Content
+									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+								>
+									<p>{m.setup_help_database_user()}</p>
+									<Tooltip.Arrow
+										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+									>
+										<Tooltip.ArrowTip />
+									</Tooltip.Arrow>
+								</Tooltip.Content>
+							</Tooltip.Positioner>
+						</Portal>
+					</Tooltip>
 				</label>
 
 				<input
@@ -524,15 +613,33 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			<div>
 				<label for="db-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span>{m.setup_database_password()}</span>
-					<button
-						type="button"
-						tabindex="-1"
-						title="Help available"
-						aria-label="Help: Database Password"
-						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
-					>
+					<span class="text-black dark:text-white">{m.setup_database_password()}</span>
+					<Tooltip positioning={{ placement: 'top' }}>
+						<Tooltip.Trigger>
+							<button
+								type="button"
+								tabindex="-1"
+								aria-label={'Help: Database Password'}
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+							</button>
+						</Tooltip.Trigger>
+						<Portal>
+							<Tooltip.Positioner>
+								<Tooltip.Content
+									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+								>
+									<p>{m.setup_help_database_password()}</p>
+									<Tooltip.Arrow
+										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+									>
+										<Tooltip.ArrowTip />
+									</Tooltip.Arrow>
+								</Tooltip.Content>
+							</Tooltip.Positioner>
+						</Portal>
+					</Tooltip>
 				</label>
 
 				<div class="relative">

@@ -29,13 +29,13 @@ Features:
 <div class="space-y-4 text-center">
 	<header id="welcome-heading" class="flex flex-col items-center justify-center space-y-4">
 		<img src="/SveltyCMS_Logo.svg" alt="SveltyCMS Logo" class="h-20 w-auto" />
-		<h3 class="h3">Welcome to <SiteName siteName="SveltyCMS" highlight="CMS" />!</h3>
+		<h3 class="h3">Welcome to <SiteName siteName="SveltyCMS" highlight="CMS" /> !</h3>
 	</header>
 
 	<section id="welcome-body" class="space-y-4 p-4">
 		<p>{m.welcome_modal_body()}</p>
 		<p class="text-sm text-surface-500 dark:text-surface-50">
-			<span class="mr-1 inline-block">⏱️</span>
+			<span class="mr-1 inline-block text-xl">⏱️</span>
 			{m.welcome_modal_eta()}
 		</p>
 	</section>

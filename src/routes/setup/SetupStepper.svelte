@@ -36,7 +36,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 							? 'bg-primary-500 text-white'
 							: i === currentStep
 								? 'bg-error-500 text-white shadow-xl'
-								: 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-50'} {stepClickable[i] || i === currentStep
+								: 'bg-surface-200 text-surface-500 dark:bg-surface-100 dark:text-surface-50'} {stepClickable[i] || i === currentStep
 							? 'cursor-pointer'
 							: 'cursor-not-allowed'}"
 						aria-current={i === currentStep ? 'step' : undefined}

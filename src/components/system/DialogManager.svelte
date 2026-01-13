@@ -36,7 +36,10 @@
 		<Dialog.Backdrop class="fixed inset-0 z-50 bg-black/40 transition-opacity" />
 
 		<Dialog.Positioner class="fixed inset-0 z-50 flex items-center justify-center p-4">
-			<Dialog.Content class="card w-full space-y-4 p-4 shadow-xl bg-surface-100-900 {modalState.active?.props?.modalClasses ?? 'max-w-lg'}">
+			<Dialog.Content
+				class="card w-full space-y-4 p-4 shadow-xl bg-surface-100-900 border border-surface-300 dark:border-surface-50 {modalState.active?.props
+					?.modalClasses ?? 'max-w-lg'}"
+			>
 				{#if modalState.active}
 					{#if modalState.active.props?.title}
 						<div class="flex items-center justify-between">

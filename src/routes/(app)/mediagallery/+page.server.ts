@@ -350,17 +350,34 @@ export const actions: Actions = {
 
 			// Move file to trash before deleting from database
 			try {
-				if (image.url) {
-					await moveMediaToTrash(image.url);
-					logger.info('File moved to trash:', image.url);
+				const sanitizePath = (p: string) => {
+					if (!p) return '';
+					let clean = p;
+					// Remove web prefixes
+					clean = clean.replace(/^\/files\//, '').replace(/^files\//, '');
+					// Remove storage root prefix if present (prevents duplication mediaFolder/mediaFolder/...)
+					clean = clean.replace(/^mediaFolder\//, '');
+					// Ensure no leading slashes
+					return clean.replace(/^\/+/, '');
+				};
+
+				// Try to use path first (source of truth), then URL
+				const targetPath = image.path || image.url;
+				if (targetPath) {
+					const cleanPath = sanitizePath(targetPath);
+					await moveMediaToTrash(cleanPath);
+					logger.info('File moved to trash:', cleanPath);
+				} else {
+					logger.warn('No path or url found for file deletion:', image._id);
 				}
 
 				// Also move thumbnails to trash if they exist
 				if (image.thumbnails) {
 					for (const size in image.thumbnails) {
 						if (image.thumbnails[size]?.url) {
-							await moveMediaToTrash(image.thumbnails[size].url);
-							logger.info('Thumbnail moved to trash:', image.thumbnails[size].url);
+							const cleanThumbUrl = sanitizePath(image.thumbnails[size].url);
+							await moveMediaToTrash(cleanThumbUrl);
+							logger.info('Thumbnail moved to trash:', cleanThumbUrl);
 						}
 					}
 				}

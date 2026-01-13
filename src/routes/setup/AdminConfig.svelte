@@ -25,6 +25,7 @@
 	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { setupAdminSchema } from '@utils/formSchemas';
+	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
 
 	// Props from parent
 	let {
@@ -97,23 +98,35 @@
 			<div>
 				<label for="admin-username" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:account" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span>{m.form_username?.() || 'Username'}</span>
-					<button
-						type="button"
-						tabindex="-1"
-						title="Help available"
-						aria-label="Help: Username"
-						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
-					>
+					<span class="text-black dark:text-white">{m.form_username?.() || 'Username'}</span>
+					<Tooltip positioning={{ placement: 'top' }}>
+						<Tooltip.Trigger>
+							<button
+								type="button"
+								tabindex="-1"
+								aria-label={m.setup_help_admin_username_aria?.() || 'Help: Username'}
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+							</button>
+						</Tooltip.Trigger>
+						<Portal>
+							<Tooltip.Positioner>
+								<Tooltip.Content
+									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+								>
+									<p>{m.setup_help_admin_username()}</p>
+									<Tooltip.Arrow
+										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+									>
+										<Tooltip.ArrowTip />
+									</Tooltip.Arrow>
+								</Tooltip.Content>
+							</Tooltip.Positioner>
+						</Portal>
+					</Tooltip>
 				</label>
-				<div
-					data-popup="popupAdminUsername"
-					class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-				>
-					<p>{m.setup_help_admin_username()}</p>
-					<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
-				</div>
+
 				<input
 					id="admin-username"
 					bind:value={adminUser.username}
@@ -141,23 +154,35 @@
 			<div>
 				<label for="admin-email" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:email" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span>{m.form_email?.() || 'Email'}</span>
-					<button
-						type="button"
-						tabindex="-1"
-						title="Help available"
-						aria-label="Help: Email"
-						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
-					>
+					<span class="text-black dark:text-white">{m.form_email?.() || 'Email'}</span>
+					<Tooltip positioning={{ placement: 'top' }}>
+						<Tooltip.Trigger>
+							<button
+								type="button"
+								tabindex="-1"
+								aria-label={m.setup_help_admin_email_aria?.() || 'Help: Email'}
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+							</button>
+						</Tooltip.Trigger>
+						<Portal>
+							<Tooltip.Positioner>
+								<Tooltip.Content
+									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+								>
+									<p>{m.setup_help_admin_email()}</p>
+									<Tooltip.Arrow
+										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+									>
+										<Tooltip.ArrowTip />
+									</Tooltip.Arrow>
+								</Tooltip.Content>
+							</Tooltip.Positioner>
+						</Portal>
+					</Tooltip>
 				</label>
-				<div
-					data-popup="popupAdminEmail"
-					class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-				>
-					<p>{m.setup_help_admin_email()}</p>
-					<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
-				</div>
+
 				<input
 					id="admin-email"
 					bind:value={adminUser.email}
@@ -185,23 +210,35 @@
 			<div>
 				<label for="admin-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span>{m.form_password()}</span>
-					<button
-						type="button"
-						tabindex="-1"
-						title="Help available"
-						aria-label="Help: Password"
-						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
-					>
+					<span class="text-black dark:text-white">{m.form_password()}</span>
+					<Tooltip positioning={{ placement: 'top' }}>
+						<Tooltip.Trigger>
+							<button
+								type="button"
+								tabindex="-1"
+								aria-label={m.setup_help_admin_password_aria?.() || 'Help: Password'}
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+							</button>
+						</Tooltip.Trigger>
+						<Portal>
+							<Tooltip.Positioner>
+								<Tooltip.Content
+									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+								>
+									<p>{m.setup_help_admin_password()}</p>
+									<Tooltip.Arrow
+										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+									>
+										<Tooltip.ArrowTip />
+									</Tooltip.Arrow>
+								</Tooltip.Content>
+							</Tooltip.Positioner>
+						</Portal>
+					</Tooltip>
 				</label>
-				<div
-					data-popup="popupAdminPassword"
-					class="card z-30 hidden w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-				>
-					<p>{m.setup_help_admin_password()}</p>
-					<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
-				</div>
+
 				<div class="relative">
 					<input
 						id="admin-password"
@@ -235,24 +272,35 @@
 			<div>
 				<label for="admin-confirm-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:key" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span>{m.form_confirmpassword?.() || 'Confirm Password'}</span>
-					<button
-						tabindex="-1"
-						type="button"
-						title="Help available"
-						aria-label="Help: Confirm Password"
-						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-					>
-						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-					</button>
+					<span class="text-black dark:text-white">{m.form_confirmpassword?.() || 'Confirm Password'}</span>
+					<Tooltip positioning={{ placement: 'top' }}>
+						<Tooltip.Trigger>
+							<button
+								type="button"
+								tabindex="-1"
+								aria-label={m.setup_help_admin_confirm_password_aria?.() || 'Help: Confirm Password'}
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+							</button>
+						</Tooltip.Trigger>
+						<Portal>
+							<Tooltip.Positioner>
+								<Tooltip.Content
+									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+								>
+									<p>{m.setup_help_admin_confirm_password()}</p>
+									<Tooltip.Arrow
+										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+									>
+										<Tooltip.ArrowTip />
+									</Tooltip.Arrow>
+								</Tooltip.Content>
+							</Tooltip.Positioner>
+						</Portal>
+					</Tooltip>
 				</label>
-				<div
-					data-popup="popupAdminConfirmPassword"
-					class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-				>
-					<p>{m.setup_help_admin_confirm_password()}</p>
-					<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
-				</div>
+
 				<div class="relative">
 					<input
 						id="admin-confirm-password"
@@ -285,7 +333,7 @@
 
 		<!-- Password Requirements Box -->
 		<div class="mt-4 rounded border-l-4 border-tertiary-500 bg-white p-4 shadow-xl dark:border-primary-500 dark:bg-surface-800">
-			<h4 class="mb-2 text-center text-sm font-bold tracking-tight text-tertiary-500 dark:text-primary-500" id="password-reqs-heading">
+			<h4 class="mb-2 text-center text-sm font-bold tracking-tight dark:text-white" id="password-reqs-heading">
 				{m.setup_help_admin_password?.() || 'Password Requirements'}
 			</h4>
 			<ul class="space-y-2 text-sm" aria-labelledby="password-reqs-heading">
@@ -372,9 +420,7 @@
 					{m.setup_help_admin_password_requirements_match?.() || 'Passwords match'}
 					<span class="sr-only">, {passwordRequirements.match ? 'complete' : 'incomplete'}.</span>
 				</li>
-				<li
-					class="mt-2 flex items-center justify-center border-t border-slate-200 pt-2 font-bold text-tertiary-500 dark:border-slate-700 dark:text-primary-500"
-				>
+				<li class="mt-2 flex items-center justify-center border-t border-slate-200 pt-2 font-bold dark:border-slate-700 dark:text-white">
 					<span class="mr-2 inline-flex h-5 w-5 items-center justify-center">
 						<iconify-icon icon="mdi:shield-check" width="18" class="text-error-500" aria-hidden="true"></iconify-icon>
 					</span>

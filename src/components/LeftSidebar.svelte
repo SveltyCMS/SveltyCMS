@@ -93,10 +93,19 @@
 	);
 
 	const avatarUrl = $derived.by(() => {
-		const src = avatarSrc.value;
+		let src = avatarSrc.value;
 		if (!src) return '/Default_User.svg';
 		if (src.startsWith('data:')) return src;
-		return `${src}?t=${AVATAR_CACHE_BUSTER}`;
+
+		// Normalize path
+		// 1. Remove leading slashes
+		src = src.replace(/^\/+/, '');
+		// 2. Remove prefixes
+		src = src.replace(/^mediaFolder\//, '').replace(/^files\//, '');
+		// 3. Remove leading slashes again just in case
+		src = src.replace(/^\/+/, '');
+
+		return `/files/${src}?t=${AVATAR_CACHE_BUSTER}`;
 	});
 
 	// Helper functions

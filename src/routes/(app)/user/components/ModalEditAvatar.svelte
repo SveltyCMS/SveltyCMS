@@ -33,30 +33,37 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	let previewUrl = $state<string | null>(null); // Local preview URL, separate from global store
 	let imageLoadError = $state(false); // Track if current avatar failed to load
 
-	// Computed value for avatar display with fallback
-	const displayAvatar = $derived.by(() => {
-		if (previewUrl) return previewUrl;
-		if (imageLoadError) return '/Default_User.svg';
-		const avatarUrl = avatarSrc.value || '/Default_User.svg';
-		// Add timestamp for cache busting, unless it's a data URI or default avatar
-		if (avatarUrl !== '/Default_User.svg' && !avatarUrl.startsWith('data:')) {
-			return `${avatarUrl}?t=${Date.now()}`;
-		}
-		return avatarUrl;
-	});
-
 	// Valibot validation schema
 	import { object, instance, check, pipe, parse, type InferInput, type ValiError } from 'valibot';
 
 	interface Props {
 		// Props
 		isGivenData?: boolean; // Unused but kept for interface compat
-		heading?: string;
+		title?: string;
 		body?: string;
 		parent?: any; // Loose type for now
 	}
 
-	const { heading, body }: Props = $props();
+	const { title, body }: Props = $props();
+
+	// ... (rest of code) ...
+
+	// Computed value for avatar display with fallback
+	const displayAvatar = $derived.by(() => {
+		if (previewUrl) return previewUrl;
+		if (imageLoadError) return '/Default_User.svg';
+		let src = avatarSrc.value || '/Default_User.svg';
+
+		if (src === '/Default_User.svg') return src;
+		if (src.startsWith('data:')) return src;
+
+		// Normalize path
+		src = src.replace(/^\/+/, '');
+		src = src.replace(/^mediaFolder\//, '').replace(/^files\//, '');
+		src = src.replace(/^\/+/, '');
+
+		return `/files/${src}?t=${Date.now()}`;
+	});
 
 	const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml', 'image/gif'];
 	const MAX_FILE_SIZE = 5242880; // 5MB
@@ -330,7 +337,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 <div class="modal-avatar space-y-4">
 	<header class={`text-center text-primary-500 ${cHeader} shrink-0`}>
-		{heading ?? '(title missing)'}
+		{title ?? '(title missing)'}
 	</header>
 	<article class="text-center text-sm">
 		{body ?? '(body missing)'}

@@ -21,17 +21,13 @@ export interface ConfirmModalOptions {
 	onCancel?: () => void;
 }
 
-/**
- * Triggers a modal using the custom modalState
- */
+// Triggers a modal using the custom modalState
 export function showModal(settings: any): void {
 	const comp = settings.component?.ref || settings.component;
 	modalState.trigger(comp, settings.props || settings.meta || {}, settings.response);
 }
 
-/**
- * Standardized confirmation modal
- */
+// Standardized confirmation modal
 export function showConfirm(options: ConfirmModalOptions): void {
 	modalState.trigger(
 		ConfirmDialog,
@@ -51,9 +47,7 @@ export function showConfirm(options: ConfirmModalOptions): void {
 	);
 }
 
-/**
- * Delete confirmation modal
- */
+// Delete confirmation modal
 export function showDeleteConfirm(options: {
 	isArchive?: boolean;
 	count?: number;
@@ -72,9 +66,7 @@ export function showDeleteConfirm(options: {
 	});
 }
 
-/**
- * Status change confirmation
- */
+// Status change confirmation
 export function showStatusChangeConfirm(options: {
 	status: string;
 	count?: number;
@@ -91,9 +83,7 @@ export function showStatusChangeConfirm(options: {
 	});
 }
 
-/**
- * Schedule modal
- */
+// Schedule modal
 export function showScheduleModal(options: { initialAction?: string; onSchedule: (date: Date, action: string) => void | Promise<void> }): void {
 	modalState.trigger(ScheduleModal, { initialAction: options.initialAction }, (result: any) => {
 		if (result?.confirmed && result.date) {
@@ -102,9 +92,7 @@ export function showScheduleModal(options: { initialAction?: string; onSchedule:
 	});
 }
 
-/**
- * Clone confirmation
- */
+// Clone confirmation
 export function showCloneModal(options: { count?: number; onConfirm: () => void | Promise<void>; onCancel?: () => void }): void {
 	const { count = 1, onConfirm, onCancel } = options;
 	showConfirm({

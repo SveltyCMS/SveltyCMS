@@ -51,6 +51,8 @@ export const GET: RequestHandler = async ({ params, request }) => {
 
 		// --- LOCAL STORAGE SERVING ---
 		const mediaFolder = getPublicSettingSync('MEDIA_FOLDER');
+		console.log('Files Route Debug:', { mediaFolder, filePath, storageType });
+
 		if (!mediaFolder) {
 			logger.error('MEDIA_FOLDER not configured');
 			throw error(500, 'Media storage not configured');
@@ -58,6 +60,7 @@ export const GET: RequestHandler = async ({ params, request }) => {
 
 		const normalizedMediaFolder = mediaFolder.replace(/^\.\//, '').replace(/^\/+/, '');
 		const fullPath = path.join(process.cwd(), normalizedMediaFolder, filePath);
+		console.log('Files Route resolving:', fullPath);
 
 		// Security: Directory Traversal Prevention
 		const resolvedPath = path.resolve(fullPath);

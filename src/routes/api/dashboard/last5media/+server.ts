@@ -88,13 +88,21 @@ export const GET: RequestHandler = async ({ locals }) => {
 			items = items.filter((file) => (file as unknown as Record<string, unknown>).tenantId === tenantId);
 		}
 
-		const recentMedia = items.map((file) => ({
-			name: file.filename || 'Unknown',
-			size: file.size || 0,
-			modified: new Date(file.updatedAt),
-			type: file.mimeType.split('/')[1] || 'unknown',
-			url: file.path || ''
-		}));
+		const recentMedia = items.map((file) => {
+			let url = file.path || '';
+			// Strip 'mediaFolder/' or 'files/' prefix
+			url = url.replace(/^mediaFolder\//, '').replace(/^files\//, '');
+			// Ensure no leading slash before prepending /files/
+			url = url.replace(/^\/+/, '');
+
+			return {
+				name: file.filename || 'Unknown',
+				size: file.size || 0,
+				modified: new Date(file.updatedAt),
+				type: file.mimeType.split('/')[1] || 'unknown',
+				url: `/files/${url}`
+			};
+		});
 		const validatedData = v.parse(v.array(MediaItemSchema), recentMedia);
 
 		logger.info('Recent media fetched successfully via database adapter', {

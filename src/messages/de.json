@@ -448,6 +448,8 @@
 	"setup_email_password_placeholder": "••••••••",
 	"setup_email_from": "Absender-E-Mail-Adresse (Optional)",
 	"setup_email_from_note": "Wenn leer, wird der SMTP-Benutzername als Absender verwendet",
+	"setup_email_help_provider": "Wählen Sie Ihren E-Mail-Dienstanbieter aus, um die SMTP-Einstellungen automatisch zu konfigurieren, oder wählen Sie „Benutzerdefiniert“, um Ihre eigenen einzugeben.",
+	"setup_email_aria_help_provider": "Hilfe: E-Mail-Anbieter",
 	"setup_email_help_host": "Geben Sie Ihre SMTP-Serveradresse ein (z. B. smtp.gmail.com). Dieser Server wird zum Senden aller System-E-Mails verwendet.",
 	"setup_email_help_port": "Gängige Ports sind 587 (TLS/STARTTLS) und 465 (SSL). Port 25 ist veraltet und wird oft von Providern blockiert.",
 	"setup_email_help_user": "Ihr SMTP-Benutzername, normalerweise Ihre vollständige E-Mail-Adresse (z. B. mail@beispiel.de).",
