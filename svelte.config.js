@@ -17,7 +17,24 @@ const config = {
 			precompress: true, // ✅ Enables precompressing using gzip & brotli for assets & prerendered pages
 			envPrefix: '', // default: '' | If you need to change the name of the environment variables used to configure the deployment
 			external: ['typescript', 'ts-node', '@typescript-eslint/parser', '@typescript-eslint/eslint-plugin'], // Prevent TypeScript and related modules from being bundled into the server
-			polyfill: false // Disable polyfills as we handle them in Vite config
+			polyfill: false, // Disable polyfills as we handle them in Vite config
+			rollupOptions: {
+				onwarn: (warning, handler) => {
+					// Suppress circular dependency warnings from third-party node_modules
+					// These are known issues in mongodb, mongoose, and other dependencies
+					if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.ids?.some(id => id.includes('node_modules'))) {
+						return;
+					}
+					
+					// Suppress unused external import warnings (e.g., "equal" from "assert" in prettier)
+					if (warning.code === 'UNUSED_EXTERNAL_IMPORT') {
+						return;
+					}
+					
+					// For all other warnings, use the default handler
+					handler(warning);
+				}
+			}
 		}),
 
 		alias: {
