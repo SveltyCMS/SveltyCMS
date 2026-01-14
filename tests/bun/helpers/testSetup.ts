@@ -7,6 +7,7 @@ import { waitForServer, getApiBaseUrl } from './server';
 import { createTestUsers, loginAsAdmin } from './auth';
 
 const API_BASE_URL = getApiBaseUrl();
+const IS_CI = process.env.CI === 'true';
 
 /**
  * Initialize the environment (wait for server).
@@ -90,6 +91,8 @@ function getCurrentTestFile(): string {
  * This optimizes for:
  * - Most tests (beforeAll): Reuse auth across all tests in file
  * - Some tests (beforeEach): Fresh auth per test (auto-detected via cleanup)
+ * 
+ * NOTE: Extended users (editor, viewer) are only available in CI mode.
  */
 export async function prepareAuthenticatedContext(): Promise<string> {
 	// Ensure server is ready (always cached)
@@ -117,6 +120,9 @@ export async function prepareAuthenticatedContext(): Promise<string> {
 	} catch (error) {
 		// Login failed, users don't exist yet - create them
 		console.log(`Creating test users for ${currentTestFile}...`);
+		if (!IS_CI) {
+			console.log('Note: Extended users (editor, viewer) are only created in CI mode');
+		}
 		await createTestUsers();
 		const adminCookie = await loginAsAdmin();
 		globalAuthCookie = adminCookie;
@@ -149,24 +155,33 @@ export async function initializeSetupTests(): Promise<void> {
 export const testFixtures = {
 	users: {
 		admin: {
-			email: `admin_${Date.now()}@test.com`,
+			email: 'admin@example.com',
 			username: 'admin',
-			password: 'Test123!',
-			confirmPassword: 'Test123!',
+			password: 'Admin123!',
+			confirmPassword: 'Admin123!',
 			role: 'admin'
 		},
 		editor: {
-			email: `editor_${Date.now()}@test.com`,
+			email: 'editor@example.com',
 			username: 'editor',
-			password: 'Test123!',
-			confirmPassword: 'Test123!',
-			role: 'editor'
+			password: 'Editor123!',
+			confirmPassword: 'Editor123!',
+			role: 'editor',
+			availableInCI: true  // Only seeded in CI mode
+		},
+		viewer: {
+			email: 'viewer@example.com',
+			username: 'viewer',
+			password: 'Viewer123!',
+			confirmPassword: 'Viewer123!',
+			role: 'viewer',
+			availableInCI: true  // Only seeded in CI mode
 		}
 	},
 	apiTokens: {
 		fullAccess: {
 			type: 'access',
-			email: 'admin@test.com',
+			email: 'admin@example.com',
 			expires: new Date(Date.now() + 31536000000).toISOString()
 		}
 	}

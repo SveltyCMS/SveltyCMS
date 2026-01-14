@@ -42,12 +42,22 @@ export async function loginAsEditor(): Promise<string> {
 	return login(testFixtures.users.editor.email, testFixtures.users.editor.password);
 }
 
+export async function loginAsViewer(): Promise<string> {
+	return login(testFixtures.users.viewer.email, testFixtures.users.viewer.password);
+}
+
 /**
  * Creates test users via the API.
  * Idempotent: Ignores "Duplicate" errors so tests can re-run.
+ * 
+ * In CI mode (CI=true), creates admin + editor + viewer.
+ * In local mode, creates only admin + editor (for backward compatibility).
  */
 export async function createTestUsers(): Promise<void> {
-	const users = [testFixtures.users.admin, testFixtures.users.editor];
+	const IS_CI = process.env.CI === 'true';
+	const users = IS_CI 
+		? [testFixtures.users.admin, testFixtures.users.editor, testFixtures.users.viewer]
+		: [testFixtures.users.admin, testFixtures.users.editor];
 	let adminCookie: string | undefined;
 
 	for (const [i, user] of users.entries()) {
@@ -78,7 +88,7 @@ export async function createTestUsers(): Promise<void> {
 			}
 		}
 
-		// After creating admin, log in so we can create the editor
+		// After creating admin, log in so we can create the editor and viewer
 		if (i === 0) {
 			try {
 				adminCookie = await loginAsAdmin();
