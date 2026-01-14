@@ -26,6 +26,7 @@ export class BlurRegion {
 	id: string;
 	shapeNode: Konva.Rect | Konva.Ellipse;
 	overlay: Konva.Image;
+	overlayGroup: Konva.Group;
 	transformer?: Konva.Transformer;
 	toolbar?: Konva.Group;
 	private layer: Konva.Layer;
@@ -104,15 +105,19 @@ export class BlurRegion {
 			cornerRadius: this.imageNode.cornerRadius()
 		});
 
+		// Create Group for clipping
+		this.overlayGroup = new Konva.Group({ listening: false });
+		this.overlayGroup.add(this.overlay);
+
 		// ensure no filters initially
 		this.overlay.filters([]);
-		// install clipFunc (local space since both are in same group)
-		(this.overlay as any).clipFunc(this.makeClipFunc());
-		this.imageGroup.add(this.overlay);
+		// install clipFunc on GROUP
+		this.overlayGroup.clipFunc(this.makeClipFunc());
+		this.imageGroup.add(this.overlayGroup);
 
 		// set predictable zIndex ordering within group
 		this.imageNode.zIndex(0);
-		this.overlay.zIndex(1);
+		this.overlayGroup.zIndex(1);
 		this.shapeNode.zIndex(2); // Shape node is now in imageGroup
 		this.layer.batchDraw();
 
@@ -136,27 +141,21 @@ export class BlurRegion {
 	private updateToolbarPosition() {
 		if (!this.toolbar) return;
 		const n = this.shapeNode;
-		let x = 0,
-			y = 0,
-			w = 0;
+
+		let localPt = { x: 0, y: 0 };
 		if (n instanceof Konva.Rect) {
-			x = n.x();
-			y = n.y();
-			w = n.width();
+			// Bottom center of rect
+			localPt = { x: n.width() / 2, y: n.height() + 20 };
 		} else {
-			const ell = n as Konva.Ellipse;
-			x = ell.x() - ell.radiusX();
-			y = ell.y() - ell.radiusY();
-			w = ell.radiusX() * 2;
+			// Bottom center of ellipse (radiusY is half-height)
+			localPt = { x: 0, y: (n as Konva.Ellipse).radiusY() + 20 };
 		}
 
-		// Adjust for shapeNode's own rotation if any (simplified: center top)
-		this.toolbar.position({
-			x: x + w / 2,
-			y: y - 50
-		});
+		// Transform local point to parent (imageGroup) space
+		// This accounts for rotation, scaling, and position of the shape
+		const pos = n.getTransform().point(localPt);
 
-		// Map rotation of toolbar to the shape's rotation so it stays "up" relative to shape
+		this.toolbar.position(pos);
 		this.toolbar.rotation(n.rotation());
 
 		this.layer.batchDraw();
@@ -187,8 +186,8 @@ export class BlurRegion {
 		if (this._cacheTimer) window.clearTimeout(this._cacheTimer);
 		this._cacheTimer = window.setTimeout(() => {
 			try {
-				this.overlay.clearCache();
-				this.overlay.cache(cacheRect);
+				this.overlayGroup.clearCache();
+				this.overlayGroup.cache(cacheRect);
 				this.layer.batchDraw();
 			} catch (e) {
 				/* ignore cache errors */
@@ -202,12 +201,12 @@ export class BlurRegion {
 	// create a clipFunc (local sibling logic)
 	private makeClipFunc(): (ctx: CanvasRenderingContext2D) => void {
 		const shape = this.shapeNode;
-		const overlay = this.overlay;
+		// const overlay = this.overlay;
 		return (ctx: CanvasRenderingContext2D) => {
 			// They are siblings in imageGroup.
 			// Offset shape's local transform by overlay's position.
 			const tr = shape.getTransform().copy();
-			tr.translate(-overlay.x(), -overlay.y());
+			// tr.translate(-overlay.x(), -overlay.y()); // No longer needed as overlayGroup is at 0,0 relative to imageGroup parent
 
 			const m = tr.m;
 			ctx.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
@@ -287,7 +286,7 @@ export class BlurRegion {
 
 			rotateEnabled: true,
 			rotationSnaps: [0, 45, 90, 135, 180, 225, 270, 315],
-			rotateAnchorOffset: 45,
+			rotateAnchorOffset: 25,
 			enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
 			keepRatio: false,
 			ignoreStroke: true,
@@ -422,14 +421,27 @@ export class BlurRegion {
 	}
 
 	// clone overlay and its clipFunc for offscreen baking
-	cloneForBake(): Konva.Image | null {
+	cloneForBake(): Konva.Group | null {
 		try {
-			const c = this.overlay.clone({ listening: false });
-			(c as any).clipFunc((this.overlay as any).clipFunc());
+			const c = this.overlayGroup.clone();
 			return c;
 		} catch (e) {
 			return null;
 		}
+	}
+
+	public rotate(deg: number) {
+		this.shapeNode.rotate(deg);
+		this.updateToolbarPosition();
+		this.updateOverlayClip();
+		this.layer.batchDraw();
+	}
+
+	public flipX() {
+		this.shapeNode.scaleX(this.shapeNode.scaleX() * -1);
+		this.updateToolbarPosition();
+		this.updateOverlayClip();
+		this.layer.batchDraw();
 	}
 
 	// explicit destruction with listener removal
@@ -437,7 +449,7 @@ export class BlurRegion {
 		this.shapeNode.off('dragmove transform click tap');
 		this.transformer?.destroy();
 		this.toolbar?.destroy();
-		this.overlay.destroy();
+		this.overlayGroup.destroy();
 		this.shapeNode.destroy();
 		this._onDestroy?.();
 	}

@@ -7,7 +7,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 <script lang="ts">
 	import Konva from 'konva';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-	import Controls from '@src/components/imageEditor/toolbars/BlurControls.svelte';
+	import Controls from './Controls.svelte';
 	import { BlurRegion, type RegionInit, type BlurPattern, type BlurShape } from './regions';
 
 	// reactive tool state (Svelte 5 runes)
@@ -36,6 +36,8 @@ handles drawing, applies/bakes effects, and registers toolbar.
 					blurStrength,
 					pattern,
 					shape,
+					onAdd: undefined, // Remove duplicates
+					onDelete: undefined, // Remove duplicates
 					onStrengthChange: (v: number) => {
 						blurStrength = v;
 						if (strengthDebounceTimer) clearTimeout(strengthDebounceTimer);
@@ -72,6 +74,25 @@ handles drawing, applies/bakes effects, and registers toolbar.
 								});
 							}
 						}
+					},
+					// NEW: Add, Delete, Rotate, Flip handlers
+					onAddRegion: () => {
+						const stage = imageEditorStore.state.stage;
+						const x = stage ? stage.width() / 2 : 100;
+						const y = stage ? stage.height() / 2 : 100;
+						createRegion({ x, y });
+					},
+					onDeleteRegion: () => {
+						if (activeId) deleteRegion(activeId);
+					},
+					onRotateLeft: () => {
+						if (activeId) regions.find((x) => x.id === activeId)?.rotate(-90);
+					},
+					onRotateRight: () => {
+						if (activeId) regions.find((x) => x.id === activeId)?.rotate(90);
+					},
+					onFlipHorizontal: () => {
+						if (activeId) regions.find((x) => x.id === activeId)?.flipX();
 					},
 					onReset: () => reset(),
 					onCancel: () => onCancel(),

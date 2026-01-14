@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-	import RotateControls from '@src/components/imageEditor/toolbars/RotateControls.svelte';
+	import RotateControls from './Controls.svelte';
 
 	let rotationAngle = $state(0);
 

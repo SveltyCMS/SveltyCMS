@@ -55,6 +55,7 @@ graph TD
 - **`ImageEditorModal.svelte`:** A wrapper that provides the modal UI (overlay, panel, header) and is responsible for launching the editor.
 - **`Editor.svelte`:** The core editor, containing the Konva.js stage, tool components, and state management via the `imageEditorStore`.
 - **`EditorToolbar.svelte`:** A single, intelligent bottom toolbar that dynamically displays controls for the currently active tool.
+- **`widgets/`:** Tool-specific logic and controls are modularized into `src/components/imageEditor/widgets/`. Each widget (e.g., `Blur`, `Crop`) contains its own `Tool.svelte` (canvas logic) and `Controls.svelte` (UI inputs), making the editor highly extensible.
 
 ### Key UI Principles
 
@@ -103,7 +104,7 @@ This structure unlocks powerful features for the Media Gallery UI:
 All editing tools operate in a non-destructive manner. When you apply a blur or add an annotation, you are creating a new object or filter on the Konva.js stage. These changes are only "baked" into a final image when you click the main "Save" button, which generates a new image variant.
 
 - **Crop:** Crop, rotate, and flip.
-- **Blur:** Apply regional blur or pixelation. The bug that caused this to break the undo/redo stack has been **fixed**.
+- **Blur:** Apply regional blur or pixelation. Features a fully interactive UI with resizable, rotatable regions (Rectangle/Ellipse), independent strength settings, and easy add/remove controls.
 - **FineTune:** Adjust brightness, contrast, saturation, and more.
 - **Annotate:** Add text, arrows, and shapes to the image.
 - **Watermark:** Overlay a watermark image. The position, scale, and opacity are configurable in the `MediaUpload` widget's options. Server-side processing applies the watermark upon saving.

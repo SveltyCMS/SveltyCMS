@@ -14,7 +14,7 @@ Orchestrates the watermark lifecycle:
 	import Konva from 'konva';
 	import { getContext } from 'svelte';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-	import WatermarkControls from '@src/components/imageEditor/toolbars/WatermarkControls.svelte';
+	import WatermarkControls from './Controls.svelte';
 	import { WatermarkItem } from './regions';
 	import { createStyledTransformer, attachStyledTransformer } from '../transformerConfig';
 	import type { WatermarkOptions } from '@src/utils/media/mediaModels';

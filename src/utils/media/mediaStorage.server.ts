@@ -21,6 +21,7 @@ import { isCloud, upload, remove, getUrl, getConfig, exists } from './cloudStora
 import type { ResizedImage } from './mediaModels';
 
 // Image sizes
+// Image sizes
 const DEFAULT_SIZES = { sm: 600, md: 900, lg: 1200 } as const;
 const SIZES = {
 	...DEFAULT_SIZES,
@@ -28,6 +29,11 @@ const SIZES = {
 	original: 0,
 	thumbnail: 200
 };
+
+/** Get configured image sizes */
+export function getImageSizes() {
+	return SIZES;
+}
 
 const MEDIA_ROOT = getPublicSettingSync('MEDIA_FOLDER') ?? 'mediaFiles';
 

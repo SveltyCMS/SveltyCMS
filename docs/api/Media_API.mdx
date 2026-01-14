@@ -179,6 +179,8 @@ Content-Type: multipart/form-data
 
 **Permissions Required:** `media:write` or authenticated user.
 
+**Note on Filenames:** SveltyCMS automatically sanitizes filenames during upload to ensure filesystem compatibility. This includes removing special characters and normalizing date prefixes (e.g., `2024-01-01` becomes `20240101`). The `url` and `path` properties in the response reflect this sanitized filename, which may differ slightly from the original `filename`.
+
 #### Response (Success 200)
 
 A `MediaItem` object for each successfully uploaded file.

@@ -128,7 +128,7 @@
 		"wait-on": "^9.0.3"
 	},
 	"dependencies": {
-		"@aws-sdk/client-s3": "^3.967.0",
+		"@aws-sdk/client-s3": "^3.968.0",
 		"@floating-ui/dom": "^1.7.4",
 		"@inlang/paraglide-js": "^2.8.0",
 		"@mapbox/mapbox-gl-geocoder": "^5.1.2",

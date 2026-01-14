@@ -73,6 +73,184 @@ Implements custom virtual scrolling without external dependencies.
 	// Container ref
 	let container: HTMLDivElement;
 
+	// Keyboard navigation state
+    let focusedIndex = $state(-1);
+
+    // Drag-to-select state
+    let isDragging = $state(false);
+    let selectionStart = $state<{x: number, y: number} | null>(null);
+    let selectionRect = $state<{left: number, top: number, width: number, height: number} | null>(null);
+    
+    // Context menu state
+    let contextMenu = $state<{x: number, y: number, file: MediaBase | MediaImage | null} | null>(null);
+
+    // Computed item width for selection math
+    const itemWidth = $derived(gridSize === 'tiny' ? 100 : gridSize === 'small' ? 140 : gridSize === 'medium' ? 260 : 380);
+
+    // Handle keyboard navigation
+    function handleKeyDown(e: KeyboardEvent) {
+        if (!container) return;
+        
+        // Ignore if searching or editing
+        if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
+
+        if (e.key === 'Delete' && selectedFiles.size > 0) {
+            // Trigger bulk delete
+             const filesToDelete = filteredFiles.filter(f => selectedFiles.has(f._id?.toString() || f.filename));
+             if(filesToDelete.length > 0) onBulkDelete(filesToDelete);
+        } else if (e.ctrlKey && e.key === 'a') {
+             e.preventDefault();
+             // Select All
+             const newSet = new Set<string>();
+             filteredFiles.forEach(f => newSet.add(f._id?.toString() || f.filename));
+             selectedFiles = newSet;
+        } else if (e.key === 'Escape') {
+             // Clear selection or context menu
+             if (contextMenu) contextMenu = null;
+             else selectedFiles = new Set();
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            focusedIndex = Math.min(filteredFiles.length - 1, focusedIndex + 1);
+            scrollToIndex(focusedIndex);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            focusedIndex = Math.max(0, focusedIndex - 1);
+            scrollToIndex(focusedIndex);
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            focusedIndex = Math.min(filteredFiles.length - 1, focusedIndex + itemsPerRow);
+            scrollToIndex(focusedIndex);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            focusedIndex = Math.max(0, focusedIndex - itemsPerRow);
+            scrollToIndex(focusedIndex);
+        } else if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            if (focusedIndex >= 0 && filteredFiles[focusedIndex]) {
+                 toggleSelection(filteredFiles[focusedIndex]);
+            }
+        }
+    }
+
+    function scrollToIndex(index: number) {
+        if (index < 0) return;
+        const row = Math.floor(index / itemsPerRow);
+        const top = row * itemHeight;
+        const bottom = top + itemHeight;
+        
+        if (top < scrollTop) {
+            container.scrollTop = top;
+        } else if (bottom > scrollTop + container.clientHeight) {
+            container.scrollTop = bottom - container.clientHeight;
+        }
+    }
+
+    // Drag Selection Logic
+    function handleMouseDown(e: MouseEvent) {
+        // Ignore right click or if clicking on interactive elements
+        if (e.button !== 0 || (e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('.interactive')) return;
+
+        // Clear context menu
+        contextMenu = null;
+
+        const rect = container.getBoundingClientRect();
+        const startX = e.clientX - rect.left + container.scrollLeft;
+        const startY = e.clientY - rect.top + container.scrollTop;
+
+        isDragging = true;
+        selectionStart = { x: startX, y: startY };
+        selectionRect = { left: startX, top: startY, width: 0, height: 0 };
+
+        // If not holding Ctrl/Shift, clear previous selection
+        if (!e.ctrlKey && !e.shiftKey) {
+            selectedFiles = new Set();
+        }
+    }
+
+    function handleMouseMove(e: MouseEvent) {
+        if (!isDragging || !selectionStart) return;
+
+        const rect = container.getBoundingClientRect();
+        const currentX = e.clientX - rect.left + container.scrollLeft;
+        const currentY = e.clientY - rect.top + container.scrollTop;
+
+        // Calculate selection box
+        const left = Math.min(selectionStart.x, currentX);
+        const top = Math.min(selectionStart.y, currentY);
+        const width = Math.abs(currentX - selectionStart.x);
+        const height = Math.abs(currentY - selectionStart.y);
+
+        selectionRect = { left, top, width, height };
+
+        // Select items intersecting with rect
+        // Optimization: only check items in relevant rows
+        const startRowIndex = Math.floor(top / itemHeight);
+        const endRowIndex = Math.floor((top + height) / itemHeight);
+        
+        // Temporary set for visual feedback during drag could be implemented, 
+        // but for now we'll just update final selection on mouse up to avoid performance issues with 10k items
+        // OR we can do real-time selection if optimized.
+        // Let's do real-time selection update on a debounced set or just purely visual overlay for now?
+        // Actually, let's implement real-time selection for "File Explorer" feel.
+        selectItemsInRect(left, top, width, height, e.ctrlKey);
+    }
+
+    function handleMouseUp(e: MouseEvent) {
+        if (isDragging) {
+            isDragging = false;
+            selectionStart = null;
+            selectionRect = null;
+        }
+    }
+
+    function selectItemsInRect(left: number, top: number, width: number, height: number, preserveExisting: boolean) {
+         const newSet = preserveExisting ? new Set(selectedFiles) : new Set<string>();
+         
+         // Convert pixel rect to grid capacity
+         const startRowIdx = Math.max(0, Math.floor(top / itemHeight));
+         const endRowIdx = Math.min(totalRows - 1, Math.floor((top + height) / itemHeight));
+
+         for (let r = startRowIdx; r <= endRowIdx; r++) {
+             for (let c = 0; c < itemsPerRow; c++) {
+                 const index = r * itemsPerRow + c;
+                 if (index >= filteredFiles.length) break;
+
+                 // Calculate item rect
+                 // Note: Ideally use precise offsetLeft/Top if available, but math approximation works for uniform grid
+                 const itemLeft = c * itemWidth; // Approximation requires ensuring justify-start or similar
+                 const itemTop = r * itemHeight;
+                 
+                 // Intersection check
+                 if (
+                     left < itemLeft + itemWidth &&
+                     left + width > itemLeft &&
+                     top < itemTop + itemHeight &&
+                     top + height > itemTop
+                 ) {
+                     const file = filteredFiles[index];
+                     newSet.add(file._id?.toString() || file.filename);
+                 }
+             }
+         }
+         selectedFiles = newSet;
+    }
+
+    // Context Menu
+    function handleContextMenu(e: MouseEvent, file: MediaBase | MediaImage) {
+        e.preventDefault();
+        // If file not in selection, select it (exclusive)
+        const fileId = file._id?.toString() || file.filename;
+        if (!selectedFiles.has(fileId)) {
+            selectedFiles = new Set([fileId]);
+        }
+        
+        contextMenu = {
+            x: e.clientX,
+            y: e.clientY,
+            file
+        };
+    }
+
 	// Calculate items per row based on container width
 	function updateItemsPerRow() {
 		if (!container) return;
