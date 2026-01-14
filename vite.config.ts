@@ -264,7 +264,8 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
 					if (warningPatterns.some(pattern => pattern.test(message))) {
 						return;
 					}
-					originalConsoleWarn!.apply(console, args as any[]);
+					// Apply with original context - args are already unknown[] which matches console.warn signature
+					(originalConsoleWarn as typeof console.warn).apply(console, args);
 				};
 			}
 		},
