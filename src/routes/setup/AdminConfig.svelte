@@ -104,7 +104,7 @@
 							<button
 								type="button"
 								tabindex="-1"
-								aria-label={m.setup_help_admin_username_aria?.() || 'Help: Username'}
+								aria-label={m.setup_help_admin_username?.() || 'Help: Username'}
 								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
 								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
@@ -160,7 +160,7 @@
 							<button
 								type="button"
 								tabindex="-1"
-								aria-label={m.setup_help_admin_email_aria?.() || 'Help: Email'}
+								aria-label={m.setup_help_admin_email?.() || 'Help: Email'}
 								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
 								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
@@ -216,7 +216,7 @@
 							<button
 								type="button"
 								tabindex="-1"
-								aria-label={m.setup_help_admin_password_aria?.() || 'Help: Password'}
+								aria-label={m.setup_help_admin_password?.() || 'Help: Password'}
 								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
 								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
@@ -278,7 +278,7 @@
 							<button
 								type="button"
 								tabindex="-1"
-								aria-label={m.setup_help_admin_confirm_password_aria?.() || 'Help: Confirm Password'}
+								aria-label={m.setup_help_admin_confirm_password?.() || 'Help: Confirm Password'}
 								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
 								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>

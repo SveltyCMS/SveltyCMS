@@ -459,7 +459,15 @@ bun add -D mongodb-memory-server
 
 ### Environment Variables
 
-Create `.env.test`:
+> [!CAUTION]
+> **Strict Test Isolation Enforced**
+> The system enforces strict isolation for tests. If `NODE_ENV=test`:
+>
+> 1. You **MUST** use `config/private.test.ts`.
+> 2. Attempting to load `config/private.ts` (the live config) will throw a **fatal error** to prevent accidental production database connections.
+> 3. `TEST_MODE=true` is automatically set by Bun.
+
+Create `.env.test` (optional, for overriding defaults):
 
 ```env
 # Test Database
@@ -577,11 +585,11 @@ bun test --watch tests/bun/databases/
 
 ### Implementation Status
 
-| Test File                 | Status        | Tests | Notes                   |
-| ------------------------- | ------------- | ----- | ----------------------- |
-| `db-interface.test.ts`    | 📝 Scaffolded | 0/50+ | Awaiting database setup |
-| `mongodb-adapter.test.ts` | 📝 Scaffolded | 0/40+ | Awaiting database setup |
-| `auth-system.test.ts`     | 📝 Scaffolded | 0/50+ | Awaiting database setup |
+| Test File                 | Status         | Tests | Notes                        |
+| ------------------------- | -------------- | ----- | ---------------------------- |
+| `db-interface.test.ts`    | ✅ Implemented | 39    | Verifies DB adapter contract |
+| `mongodb-adapter.test.ts` | 📝 Scaffolded  | 0/40+ | Awaiting implementation      |
+| `auth-system.test.ts`     | 📝 Scaffolded  | 0/50+ | Awaiting implementation      |
 
 ### Next Steps
 

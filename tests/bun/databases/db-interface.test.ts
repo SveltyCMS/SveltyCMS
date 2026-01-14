@@ -8,18 +8,71 @@
  * NOTE: TypeScript errors for 'bun:test' module are expected - it's a runtime module.
  */
 
-import { beforeAll, describe, expect, it } from 'bun:test';
+import { beforeAll, describe, expect, it, mock } from 'bun:test';
 import type { DatabaseResult } from '../../../src/databases/dbInterface';
-// import { MongoDBConnector } from '../../../src/databases/mongodb-connector';
 
-describe.skip('Database Interface Contract Tests', () => {
+// Mock SvelteKit modules
+mock.module('$app/environment', () => ({
+	browser: true,
+	building: false,
+	dev: true,
+	version: 'test'
+}));
+
+// Mock logger to avoid import issues
+mock.module('@src/utils/logger', () => ({
+	logger: {
+		fatal: () => {},
+		error: () => {},
+		warn: () => {},
+		info: () => {},
+		debug: () => {},
+		trace: () => {},
+		channel: () => ({ info: () => {}, error: () => {}, warn: () => {}, debug: () => {} })
+	}
+}));
+
+// Mock Svelte 5 Runes
+(globalThis as any).$state = (initial: any) => initial; // Simple pass-through for tests
+(globalThis as any).$derived = (fn: any) => (typeof fn === 'function' ? fn() : fn);
+(globalThis as any).$effect = () => {};
+(globalThis as any).$props = () => ({});
+
+describe('Database Interface Contract Tests', () => {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db: any = null; // Placeholder - will be replaced with actual adapter instance
+	let db: any = null;
 
 	beforeAll(async () => {
-		// These tests will be implemented when database is available
-		// For now, we test the interface contract
+		// Import the REAL adapter implementation directly, bypassing the mocked 'db.ts'
+		const { MongoDBAdapter } = await import('../../../src/databases/mongodb/mongoDBAdapter');
+		// Import utils to get connection string
+		const { privateEnv } = await import('../../../config/private.test');
+
+		if (!privateEnv || !privateEnv.DB_TYPE) {
+			console.warn('Skipping DB Interface tests: No private.test.ts or DB_TYPE found');
+			return;
+		}
+
+		db = new MongoDBAdapter();
+
+		// Construct basic connection string for test
+		const connectionString = `mongodb://${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${privateEnv.DB_NAME}`;
+
+		try {
+			await db.connect(connectionString);
+			console.log('DB Interface Test: Connected to', connectionString);
+		} catch (err) {
+			console.error('DB Interface Test Check: Failed to connect', err);
+			// We don't throw here to allow tests to fail gracefully with "db not connected"
+		}
 	});
+
+	// Cleanup
+	// afterAll(async () => {
+	// 	if (db && typeof db.disconnect === 'function') {
+	// 		await db.disconnect();
+	// 	}
+	// });
 
 	describe('Connection Management', () => {
 		it('should implement connect method', () => {

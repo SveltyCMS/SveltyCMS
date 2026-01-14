@@ -40,6 +40,7 @@
 	import VersionCheck from '@components/VersionCheck.svelte';
 	import Collections from '@components/Collections.svelte';
 	import MediaFolders from '@components/MediaFolders.svelte';
+	import SettingsMenu from '@components/SettingsMenu.svelte';
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
@@ -66,6 +67,8 @@
 	const collections: Schema[] = $derived(page.data.collections);
 	// Check if we're in media mode
 	const isMediaMode = $derived(currentPath.includes('/mediagallery'));
+	// Check if we're in settings mode
+	const isSettingsMode = $derived(currentPath.includes('/config/systemsetting'));
 
 	// Language state
 	let languageTag = $state(getLocale() as AvailableLanguage);
@@ -239,8 +242,28 @@
 		></iconify-icon>
 	</button>
 
-	<!-- Navigation: Collections or Media Folders -->
-	{#if isMediaMode}
+	<!-- Navigation: Collections, Media Folders, or Settings -->
+	{#if isSettingsMode}
+		<SettingsMenu isFullSidebar={isSidebarFull} />
+
+		<!-- Toggle to Collections Button -->
+		<button
+			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-4 transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
+			onclick={() => {
+				setMode('view');
+				navigateTo(firstCollectionPath);
+			}}
+			aria-label="Switch to Collections"
+		>
+			<iconify-icon icon="bi:arrow-left" width="18" class="text-error-500"></iconify-icon>
+			{#if isSidebarFull}
+				<iconify-icon icon="bi:collection" width="20" class="text-error-500"></iconify-icon>
+				<span class="">{m.button_Collections()} </span>
+			{:else}
+				<iconify-icon icon="bi:collection" width="18" class="text-error-500"></iconify-icon>
+			{/if}
+		</button>
+	{:else if isMediaMode}
 		<MediaFolders />
 
 		<!-- Toggle to Collections Button -->

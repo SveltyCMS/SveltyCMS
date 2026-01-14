@@ -388,3 +388,8 @@
 		0 20px 25px -5px rgb(0 0 0 / 0.3),
 		0 8px 10px -6px rgb(0 0 0 / 0.3);
 }
+
+/* Utility to hide elements (used in Login page) */
+.hide {
+	display: none !important;
+}

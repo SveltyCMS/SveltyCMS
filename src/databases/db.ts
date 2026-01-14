@@ -24,6 +24,12 @@ async function loadPrivateConfig(forceReload = false) {
 	if (privateEnv && !forceReload) return privateEnv;
 
 	try {
+		// SAFETY: Force TEST_MODE if running in test environment (Bun test)
+		if (process.env.NODE_ENV === 'test' && !process.env.TEST_MODE) {
+			console.warn('⚠️ Running in TEST environment but TEST_MODE is not set. Forcing usage of private.test.ts to protect live database.');
+			process.env.TEST_MODE = 'true';
+		}
+
 		try {
 			logger.debug('Loading @config/private configuration...');
 			let module;
@@ -32,9 +38,29 @@ async function loadPrivateConfig(forceReload = false) {
 				const configPath = pathUtil.resolve(process.cwd(), 'config/private.test.ts');
 				module = await import(/* @vite-ignore */ configPath);
 			} else {
+				// STRICT SAFETY: Never allow loading live config if NODE_ENV is 'test'
+				if (process.env.NODE_ENV === 'test') {
+					const msg =
+						'CRITICAL SAFETY ERROR: Attempted to load live config/private.ts in TEST environment. Strict isolation requires config/private.test.ts.';
+					console.error(msg);
+					throw new Error(msg);
+				}
 				module = await import('@config/private');
 			}
 			privateEnv = module.privateEnv;
+
+			// SAFETY: Double-check we are not connecting to production in test mode
+			if (
+				(process.env.TEST_MODE || process.env.NODE_ENV === 'test') &&
+				privateEnv?.DB_NAME &&
+				!privateEnv.DB_NAME.includes('test') &&
+				!privateEnv.DB_NAME.endsWith('_functional')
+			) {
+				const msg = `⚠️ SAFETY ERROR: DB_NAME '${privateEnv.DB_NAME}' does not look like a test database! Tests must use isolated databases.`;
+				console.error(msg);
+				throw new Error(msg);
+			}
+
 			logger.debug('Private config loaded successfully', {
 				hasConfig: !!privateEnv,
 				dbType: privateEnv?.DB_TYPE,
@@ -215,6 +241,10 @@ export async function loadSettingsFromDB() {
 					const path = '@config/private.test';
 					imported = await import(/* @vite-ignore */ path);
 				} else {
+					// STRICT SAFETY: Never allow loading live config if NODE_ENV is 'test'
+					if (process.env.NODE_ENV === 'test') {
+						throw new Error('CRITICAL SAFETY ERROR: Attempted to load live config/private.ts in TEST environment via filesystem fallback.');
+					}
 					imported = await import('@config/private');
 				}
 				privateConfig = imported.privateEnv;

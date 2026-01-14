@@ -236,21 +236,25 @@
 		const tokenData = tokenId;
 		if (!tokenData) return;
 
-		modalState.trigger(ModalEditToken as any, {
-			token: tokenData.token,
-			email: tokenData.email,
-			role: tokenData.role,
-			expires: convertDateToExpiresFormat(tokenData.expires),
-			title: m.multibuttontoken_modaltitle(),
-			body: m.multibuttontoken_modalbody(),
-			response: (result: any) => {
+		modalState.trigger(
+			ModalEditToken as any,
+			{
+				token: tokenData.token,
+				email: tokenData.email,
+				role: tokenData.role,
+				expires: convertDateToExpiresFormat(tokenData.expires),
+				title: m.multibuttontoken_modaltitle(),
+				body: m.multibuttontoken_modalbody(),
+				roles // Pass roles explicitly
+			},
+			(result: any) => {
 				if (result && result.success) {
 					fetchData();
 				} else if (result?.success === false) {
 					toaster.error({ description: result.error || 'Failed to update token' });
 				}
 			}
-		});
+		);
 	}
 
 	// Helper function to convert Date to expires format expected by ModalEditToken
@@ -466,8 +470,21 @@
 	}
 
 	function modalTokenUser() {
-		// TODO: Implement modalTokenUser logic or locate missing import
-		toaster.warning({ description: 'Feature not implemented yet' });
+		modalState.trigger(
+			ModalEditToken as any,
+			{
+				title: m.multibuttontoken_modaltitle(),
+				body: m.multibuttontoken_modalbody(),
+				roles, // Pass available roles
+				user: currentUser // Pass current user context if needed
+			},
+			(result: any) => {
+				// Refresh data if token was created
+				if (result && result.success) {
+					fetchData();
+				}
+			}
+		);
 	}
 
 	// Toggle views
@@ -646,7 +663,7 @@
 			<div class="table-container max-h-[calc(100vh-120px)] overflow-auto">
 				<table class="table table-interactive {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 					<thead
-						class="divide-x divide-surface-200/50 dark:divide-surface-700/50 text-tertiary-500 dark:text-primary-500 bg-secondary-100 dark:bg-surface-800/50"
+						class="divide-x divide-surface-200/50 dark:divide-surface-50 text-surface-500 dark:text-surface-300 bg-secondary-100 dark:bg-surface-800/50"
 					>
 						{#if filterShow}
 							<tr class="divide-x divide-surface-200/50 dark:divide-surface-700/50">
@@ -674,7 +691,9 @@
 							</tr>
 						{/if}
 
-						<tr class="divide-x divide-preset-400 border-b border-preset-400 font-semibold tracking-wide uppercase text-xs">
+						<tr
+							class="divide-x divide-surface-300 dark:divide-surface-50 border-b border-surface-300 dark:border-surface-50 font-semibold tracking-wide uppercase text-xs"
+						>
 							<TableIcons
 								cellClass="w-10 text-center"
 								checked={selectAll}
@@ -716,9 +735,9 @@
 							{@const expiresVal: string | Date | null = isToken(row) ? row.expires : null}
 							{@const isExpired = showUsertoken && expiresVal && new Date(expiresVal) < new Date()}
 							<tr
-								class="divide-x divide-preset-400 {isExpired ? 'bg-error-50 opacity-60 dark:bg-error-900/20' : ''} {showUsertoken
-									? 'cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-800'
-									: ''}"
+								class="divide-x divide-surface-200/50 dark:divide-surface-50 {isExpired
+									? 'bg-error-50 opacity-60 dark:bg-error-900/20'
+									: ''} {showUsertoken ? 'cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-800' : ''}"
 								onclick={(event) => {
 									// Only handle click if it's on a token row and not on the checkbox
 									if (showUsertoken && !(event.target as HTMLElement)?.closest('td:first-child')) {

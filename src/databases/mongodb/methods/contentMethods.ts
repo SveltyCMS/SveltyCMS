@@ -265,7 +265,7 @@ export class MongoContentMethods {
 						await this.nodesRepo.model.deleteOne({ path });
 						await this.nodesRepo.model.insertOne({
 							_id: expectedId,
-							...changes,
+							...(changes as any),
 							createdAt: existing.createdAt || (new Date() as any),
 							updatedAt: new Date() as any
 						});

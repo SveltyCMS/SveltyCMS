@@ -50,19 +50,26 @@ function privateConfigFallbackPlugin(): Plugin {
 
 	return {
 		name: 'private-config-fallback',
+		enforce: 'pre',
 		resolveId(id) {
-			if (id === virtualModuleId) {
+			const cwd = process.cwd();
+			const absPrivate = path.resolve(cwd, 'config/private');
+			const absPrivateTs = path.resolve(cwd, 'config/private.ts');
+			const absTest = path.resolve(cwd, 'config/private.test');
+			const absTestTs = path.resolve(cwd, 'config/private.test.ts');
+
+			if (id === virtualModuleId || id === absPrivate || id === absPrivateTs) {
 				// Check if actual file exists
-				const prodPath = path.resolve(CWD, 'config/private.ts');
+				const prodPath = path.resolve(cwd, 'config/private.ts');
 				if (existsSync(prodPath)) {
 					return null; // Let Vite handle it normally
 				}
 				// File doesn't exist, use virtual module
 				return resolvedVirtualModuleId;
 			}
-			if (id === virtualTestModuleId) {
+			if (id === virtualTestModuleId || id === absTest || id === absTestTs) {
 				// Check if actual file exists
-				const testPath = path.resolve(CWD, 'config/private.test.ts');
+				const testPath = path.resolve(cwd, 'config/private.test.ts');
 				if (existsSync(testPath)) {
 					return null; // Let Vite handle it normally
 				}
@@ -75,7 +82,7 @@ function privateConfigFallbackPlugin(): Plugin {
 				// Provide fallback that reads from environment variables
 				return `
 export const privateEnv = {
-	DB_TYPE: process.env.DB_TYPE || 'mongodb',
+	DB_TYPE: process.env.DB_TYPE || '',
 	DB_HOST: process.env.DB_HOST || 'localhost',
 	DB_PORT: parseInt(process.env.DB_PORT || '27017'),
 	DB_NAME: process.env.DB_NAME || 'sveltycms',
@@ -86,7 +93,7 @@ export const privateEnv = {
 	GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
 	GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
 	MULTI_TENANT: process.env.MULTI_TENANT === 'true'
-} as const;
+};
 `;
 			}
 		}

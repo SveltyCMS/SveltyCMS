@@ -18,9 +18,9 @@ tags:
 
 # SveltyCMS Testing Documentation
 
-**Last Updated:** November 21, 2025
+**Last Updated:** January 14, 2026
 **Total Tests:** ~615
-**Pass Rate:** ~65% (403 passing, 172 failing, 40 skipped)
+**Pass Rate:** ~65% (403 passing, 212 failing, 0 skipped)
 
 ## Why Multiple Test Documentation Files?
 
@@ -161,6 +161,9 @@ bun run test:unit          # Fast (~2s) - No server needed
 bun run test:integration   # Medium (~15s) - Requires server
 bun run test:e2e           # Slow (~60s) - Requires server + browser
 ```
+
+> [!IMPORTANT]
+> **Test Config Isolation**: Local tests **ALWAYS** use `config/private.test.ts`. The system will throw a fatal error if it detects an attempt to load the live `config/private.ts` while `NODE_ENV=test`, protecting your local development database.
 
 ### Unit Tests Only (Fastest)
 

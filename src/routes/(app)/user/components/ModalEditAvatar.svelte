@@ -39,12 +39,10 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	interface Props {
 		// Props
 		isGivenData?: boolean; // Unused but kept for interface compat
-		title?: string;
-		body?: string;
 		parent?: any; // Loose type for now
 	}
 
-	const { title, body }: Props = $props();
+	const {}: Props = $props();
 
 	// ... (rest of code) ...
 
@@ -331,18 +329,11 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	}
 
 	// Base Classes
-	const cHeader = 'text-2xl font-bold';
+
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-xl';
 </script>
 
 <div class="modal-avatar space-y-4">
-	<header class={`text-center text-primary-500 ${cHeader} shrink-0`}>
-		{title ?? '(title missing)'}
-	</header>
-	<article class="text-center text-sm">
-		{body ?? '(body missing)'}
-	</article>
-
 	<form class="modal-form {cForm}">
 		<div class="grid grid-cols-1 grid-rows-{avatarSrc.value ? '1' : '2'} items-center justify-center">
 			<FileUpload acceptedFiles={files} accept={acceptMime} maxFiles={1} {onFileChange} class="w-full flex flex-col items-center gap-4">
@@ -351,7 +342,9 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 				<!-- Avatar Trigger (Clickable) -->
 				<FileUpload.Trigger class="outline-none relative mx-auto mb-3 cursor-pointer rounded-full focus:ring-2 focus:ring-primary-500">
-					<Avatar class="size-32 rounded-full overflow-hidden border border-white dark:border-surface-800 shadow-xl">
+					<Avatar
+						class="size-32 flex items-center justify-center rounded-full overflow-hidden border-4 border-surface-200 dark:border-surface-700 shadow-xl bg-surface-100 dark:bg-surface-800 aspect-square"
+					>
 						<Avatar.Image src={displayAvatar} alt="User avatar" class="size-full object-cover" />
 						<Avatar.Fallback class="flex size-full items-center justify-center bg-surface-500 text-3xl font-bold uppercase text-white">
 							AB

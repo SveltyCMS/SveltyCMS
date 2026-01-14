@@ -165,7 +165,10 @@ Structure optimized for LLM integration and AI-powered search.
 	<div
 		class="card max-h-[85vh] w-full max-w-4xl flex flex-col overflow-hidden bg-surface-100 dark:bg-surface-800 shadow-xl"
 		onclick={(e) => e.stopPropagation()}
-		onkeydown={(e) => e.key === 'Enter' && e.stopPropagation()}
+		onkeydown={(e) => {
+			if (e.key === 'Enter') e.stopPropagation();
+			handleKeydown(e);
+		}}
 		role="dialog"
 		aria-labelledby="advanced-search-title"
 		tabindex="0"

@@ -13,7 +13,7 @@ import { logger } from '@utils/logger';
 // The PRIVATE configuration for the application.
 export const privateConfigSchema = object({
 	// --- Database configuration (Essential for startup) ---
-	DB_TYPE: union([literal('mongodb'), literal('mongodb+srv'), literal('mariadb')]),
+	DB_TYPE: union([literal('mongodb'), literal('mongodb+srv'), literal('mariadb'), literal('')]),
 	DB_HOST: pipe(string(), minLength(1, 'Database host is required.')),
 	DB_PORT: pipe(number(), minValue(1)),
 	DB_NAME: pipe(string(), minLength(1, 'Database name is required.')),

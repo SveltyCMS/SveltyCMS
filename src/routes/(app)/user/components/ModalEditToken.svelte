@@ -32,20 +32,20 @@ It handles token creation, updates, and deletion with proper validation and erro
 	import { Form } from '@utils/Form.svelte';
 	import { addUserTokenSchema } from '@utils/formSchemas';
 
-	// Get data from page store, which is populated by our server hooks
-	const { roles, user } = page.data;
-
 	// Props
 	interface Props {
-		token: string;
-		user_id: string;
-		email: string;
-		role: string;
-		expires: string;
-		close?: () => void;
+		token?: string;
+		user_id?: string;
+		email?: string;
+		role?: string;
+		expires?: string;
+		// Allow passing user/roles as props for flexibility/testing
+		user?: any;
+		roles?: any[];
+		close?: (val?: any) => void;
 	}
 
-	const { token = '', user_id = '', email = '', role = 'user', expires = '', close }: Props = $props();
+	let { token = '', user_id = '', email = '', role = 'user', expires = '', user = page.data.user, roles = page.data.roles, close }: Props = $props();
 
 	// Form Data with format conversion
 	function convertLegacyFormat(expires: string): string {
@@ -134,7 +134,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 			if (responseData.smtp_not_configured) {
 				toaster.create({
 					title: 'Warning',
-					description: `${isEditMode ? 'Token updated' : 'Token created'} - Email not sent: SMTP not configured`,
+					description: `${isEditMode ? 'Token updated' : 'Token created'} - Email not sent: SMTP not configured. Token is listed in Admin Area.`,
 					type: 'warning'
 				});
 			} else if (responseData.dev_mode && !responseData.email_sent) {
@@ -154,7 +154,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 			await invalidateAll();
 
 			// Close modal and trigger response handler
-			if (close) close();
+			if (close) close({ success: true });
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'An unknown error occurred';
 			toaster.create({ title: 'Error', description: message, type: 'error' });
@@ -186,7 +186,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 			await invalidateAll();
 
 			// Close modal and trigger response handler
-			if (close) close();
+			if (close) close({ success: true });
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to delete token';
 			// This catch block will now receive a proper error message if the API fails.
@@ -253,7 +253,9 @@ It handles token creation, updates, and deletion with proper validation and erro
 							{#each roles as r}
 								<button
 									type="button"
-									class="chip {tokenForm.data.role === r._id ? 'preset-filled-tertiary-500' : 'preset-ghost-secondary-500'}"
+									class="chip {tokenForm.data.role === r._id
+										? 'preset-filled-tertiary-500'
+										: 'bg-surface-200 dark:bg-surface-700 text-black dark:text-white'}"
 									onclick={() => (tokenForm.data.role = r._id)}
 								>
 									{#if tokenForm.data.role === r._id}
@@ -288,21 +290,19 @@ It handles token creation, updates, and deletion with proper validation and erro
 			</select>
 		</div>
 
-		<footer class="modal-footer flex items-center {tokenForm.data.token ? 'justify-between' : 'justify-end'} pt-4 border-t border-surface-500/20">
+		<footer class="modal-footer flex items-center justify-between pt-4 border-t border-surface-500/20">
 			<!-- Delete - Only show for existing tokens -->
 			{#if tokenForm.data.token}
 				<button type="button" onclick={deleteToken} class="preset-filled-error-500 btn">
 					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
 				</button>
 			{/if}
-			<div class="flex gap-2">
-				<!-- Cancel -->
-				<button type="button" class="preset-outlined-secondary-500 btn" onclick={() => modalState.close()}>{m.button_cancel()}</button>
-				<!-- Save -->
-				<button type="submit" form="token-form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">
-					{m.button_save()}
-				</button>
-			</div>
+			<!-- Cancel -->
+			<button type="button" class="preset-outlined-secondary-500 btn" onclick={() => modalState.close()}>{m.button_cancel()}</button>
+			<!-- Save -->
+			<button type="submit" form="token-form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">
+				{m.button_save()}
+			</button>
 		</footer>
 	</form>
 </div>

@@ -12,6 +12,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { logger } from '@utils/logger.server';
+import { invalidateSetupCache } from '@utils/setupCheck';
 import type { DatabaseConfig } from '@src/databases/schemas';
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -28,6 +29,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		logger.info('📝 Writing private.ts configuration file...');
 		const { writePrivateConfig } = await import('../writePrivateConfig');
 		await writePrivateConfig(dbConfig);
+		invalidateSetupCache(true); // Clear cache so system knows setup is done
 		logger.info('✅ Private configuration file written');
 
 		// STEP 2: Asynchronously seed database and get first collection for quick redirect

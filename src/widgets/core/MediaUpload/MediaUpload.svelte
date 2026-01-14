@@ -331,5 +331,7 @@ functionality for image editing and basic file information display.
 	{/if}
 
 	<!-- Editor Modal -->
-	<ImageEditorModal bind:show={showEditor} image={value instanceof File ? null : value} {watermarkPreset} onsave={handleEditorSave} />
+	{#if showEditor}
+		<ImageEditorModal image={value instanceof File ? null : value} {watermarkPreset} onsave={handleEditorSave} close={() => (showEditor = false)} />
+	{/if}
 </div>

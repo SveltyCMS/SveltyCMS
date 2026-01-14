@@ -304,14 +304,14 @@ A highly performant, accessible, and secure global search component with fuzzy m
 
 {#if $isSearchVisible}
 	<div
-		class="search-component fixed inset-0 z-999999 flex flex-col items-center justify-start bg-surface-300/90 dark:bg-surface-900/90 pt-[15vh] backdrop-blur-sm transition-opacity duration-200"
+		class="search-component fixed inset-0 z-50 flex flex-col items-center justify-start pointer-events-none pt-[15vh] transition-opacity duration-200"
 		role="dialog"
 		aria-modal="true"
 		aria-label="Global Search"
 		aria-live="polite"
 	>
 		<!-- Search input with loading indicator -->
-		<div class="relative w-full max-w-xl">
+		<div class="relative w-full max-w-xl pointer-events-auto">
 			<input
 				bind:value={searchQuery}
 				bind:this={inputRef}
@@ -353,7 +353,7 @@ A highly performant, accessible, and secure global search component with fuzzy m
 			<ul
 				bind:this={listElement}
 				id="search-results"
-				class="mt-4 max-h-[50vh] w-full max-w-xl overflow-y-auto rounded-lg bg-surface-50/90 dark:bg-surface-900/90 shadow-2xl backdrop-blur-sm"
+				class="mt-4 max-h-[50vh] w-full max-w-xl overflow-y-auto rounded-lg bg-surface-50/90 dark:bg-surface-900/90 shadow-2xl backdrop-blur-sm pointer-events-auto"
 				role="listbox"
 				aria-label="Search results"
 			>
@@ -430,7 +430,7 @@ A highly performant, accessible, and secure global search component with fuzzy m
 			</ul>
 		{:else if showNoResults}
 			<div
-				class="mt-4 w-full max-w-xl rounded-lg bg-surface-50/90 dark:bg-surface-900/90 p-6 text-center shadow-2xl backdrop-blur-sm"
+				class="mt-4 w-full max-w-xl rounded-lg bg-surface-50/90 dark:bg-surface-900/90 p-6 text-center shadow-2xl backdrop-blur-sm pointer-events-auto"
 				role="status"
 				aria-live="polite"
 			>
@@ -443,7 +443,7 @@ A highly performant, accessible, and secure global search component with fuzzy m
 
 		<!-- Help text -->
 		{#if !sanitizedQuery}
-			<div class="mt-4 w-full max-w-xl px-4 text-center text-sm">
+			<div class="mt-4 w-full max-w-xl px-4 text-center text-sm pointer-events-auto">
 				<p>Start typing to search...</p>
 				<p class="mt-1 text-xs text-tertiary-500 dark:text-primary-500 font-semibold">
 					Use <kbd class="badge bg-surface-500 text-white px-1.5 py-0.5">↑</kbd>

@@ -37,7 +37,7 @@
 	let smtpPassword = $state('');
 	let smtpFrom = $state('');
 	let useCustomPort = $state(false);
-	let portAutoDetected = $state(false);
+
 	let showPassword = $state(false);
 
 	// Derived values for auto-detection
@@ -187,11 +187,9 @@
 			const provider = detectProviderFromHost(smtpHost);
 			if (provider) {
 				smtpPort = provider.port;
-				portAutoDetected = true;
 
 				// Show subtle feedback
 			} else {
-				portAutoDetected = false;
 			}
 		}
 	});
@@ -306,7 +304,6 @@
 			smtpHost = preset.host;
 			smtpPort = preset.port;
 			useCustomPort = false;
-			portAutoDetected = false;
 			testSuccess = false;
 			testError = '';
 		}
@@ -566,7 +563,6 @@
 						onchange={() => {
 							testSuccess = false;
 							testError = '';
-							portAutoDetected = false;
 						}}
 					/>
 					<button
@@ -600,7 +596,6 @@
 						onchange={() => {
 							testSuccess = false;
 							testError = '';
-							portAutoDetected = false;
 						}}
 					>
 						{#each commonPorts as port, index (index)}
@@ -613,7 +608,6 @@
 						aria-label="Enter a custom SMTP port"
 						onclick={() => {
 							useCustomPort = true;
-							portAutoDetected = false;
 						}}
 					>
 						<iconify-icon icon="mdi:pencil" class="text-lg" aria-hidden="true"></iconify-icon>

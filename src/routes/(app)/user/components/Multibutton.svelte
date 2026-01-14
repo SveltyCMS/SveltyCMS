@@ -449,20 +449,23 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 					body: config.modalBody() // Pass body if ModalEditForm supports it
 				});
 			} else {
-				modalState.trigger(ModalEditToken as any, {
-					token: (safeSelectedRows[0] as Token).token,
-					email: safeSelectedRows[0].email,
-					role: safeSelectedRows[0].role,
-					user_id: (safeSelectedRows[0] as Token).user_id,
-					expires: convertDateToExpiresFormat((safeSelectedRows[0] as Token).expires),
-					title: config.modalTitle(),
-					body: config.modalBody(),
-					onClose: (res: any) => {
+				modalState.trigger(
+					ModalEditToken as any,
+					{
+						token: (safeSelectedRows[0] as Token).token,
+						email: safeSelectedRows[0].email,
+						role: safeSelectedRows[0].role,
+						user_id: (safeSelectedRows[0] as Token).user_id,
+						expires: convertDateToExpiresFormat((safeSelectedRows[0] as Token).expires),
+						title: config.modalTitle(),
+						body: config.modalBody()
+					},
+					(res: any) => {
 						if (res && res.success) {
 							onTokenUpdate();
 						}
 					}
-				});
+				);
 			}
 		} else {
 			// Confirm Dialog

@@ -26,9 +26,7 @@ Key features:
 	import type { MediaImage, MediaBase } from '@utils/media/mediaModels';
 
 	// Skeleton
-	import { toaster } from '@stores/store.svelte';
 	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
-
 	// Svelte transitions
 	import { scale } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';

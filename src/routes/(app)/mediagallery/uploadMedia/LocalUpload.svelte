@@ -20,7 +20,7 @@
 	import { toaster } from '@stores/store.svelte';
 	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
-	import * as m from '@src/paraglide/messages';
+
 	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
 
 	let files: File[] = $state([]);
@@ -32,7 +32,7 @@
 
 	// Internal state moved from ModalUploadMedia
 	let fileSet = $state(new Set<string>());
-	let duplicateWarning = $state('');
+
 	let objectUrls = $state<Map<string, string>>(new Map());
 
 	const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB

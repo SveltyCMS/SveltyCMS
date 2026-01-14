@@ -26,7 +26,6 @@ import { MediaService } from '@src/services/MediaService.server';
 import { buildUrl } from '@utils/media/mediaUtils';
 import { moveMediaToTrash, getImageSizes } from '@utils/media/mediaStorage.server';
 import { getSanitizedFileName } from '@utils/media/mediaProcessing';
-import mime from 'mime-types';
 
 // Auth
 import { dbAdapter } from '@src/databases/db';

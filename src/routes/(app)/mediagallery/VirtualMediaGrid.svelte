@@ -74,20 +74,21 @@ Implements custom virtual scrolling without external dependencies.
 	let container: HTMLDivElement;
 
 	// Keyboard navigation state
-    let focusedIndex = $state(-1);
+	// let focusedIndex = $state(-1);
 
-    // Drag-to-select state
-    let isDragging = $state(false);
-    let selectionStart = $state<{x: number, y: number} | null>(null);
-    let selectionRect = $state<{left: number, top: number, width: number, height: number} | null>(null);
-    
-    // Context menu state
-    let contextMenu = $state<{x: number, y: number, file: MediaBase | MediaImage | null} | null>(null);
+	// Drag-to-select state (Unused/Incomplete)
+	// let isDragging = $state(false);
+	// let selectionStart = $state<{x: number, y: number} | null>(null);
+	// let selectionRect = $state<{left: number, top: number, width: number, height: number} | null>(null);
 
-    // Computed item width for selection math
-    const itemWidth = $derived(gridSize === 'tiny' ? 100 : gridSize === 'small' ? 140 : gridSize === 'medium' ? 260 : 380);
+	// Context menu state (Unused/Incomplete)
+	// let contextMenu = $state<{x: number, y: number, file: MediaBase | MediaImage | null} | null>(null);
 
-    // Handle keyboard navigation
+	// Computed item width for selection math
+	// const itemWidth = $derived(gridSize === 'tiny' ? 100 : gridSize === 'small' ? 140 : gridSize === 'medium' ? 260 : 380);
+
+	// Handle keyboard navigation (Unused - connect to window or container if needed)
+	/*
     function handleKeyDown(e: KeyboardEvent) {
         if (!container) return;
         
@@ -131,21 +132,24 @@ Implements custom virtual scrolling without external dependencies.
             }
         }
     }
+    */
 
-    function scrollToIndex(index: number) {
-        if (index < 0) return;
-        const row = Math.floor(index / itemsPerRow);
-        const top = row * itemHeight;
-        const bottom = top + itemHeight;
-        
-        if (top < scrollTop) {
-            container.scrollTop = top;
-        } else if (bottom > scrollTop + container.clientHeight) {
-            container.scrollTop = bottom - container.clientHeight;
-        }
-    }
+	/*
+	function scrollToIndex(index: number) {
+		if (index < 0) return;
+		const row = Math.floor(index / itemsPerRow);
+		const top = row * itemHeight;
+		const bottom = top + itemHeight;
 
-    // Drag Selection Logic
+		if (top < scrollTop) {
+			container.scrollTop = top;
+		} else if (bottom > scrollTop + container.clientHeight) {
+			container.scrollTop = bottom - container.clientHeight;
+		}
+	}
+
+	// Drag Selection Logic (Unused)
+	/*
     function handleMouseDown(e: MouseEvent) {
         // Ignore right click or if clicking on interactive elements
         if (e.button !== 0 || (e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('.interactive')) return;
@@ -250,6 +254,7 @@ Implements custom virtual scrolling without external dependencies.
             file
         };
     }
+    */
 
 	// Calculate items per row based on container width
 	function updateItemsPerRow() {

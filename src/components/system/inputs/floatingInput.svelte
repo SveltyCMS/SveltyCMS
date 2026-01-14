@@ -70,6 +70,7 @@
 	const currentId = $derived(id || (label ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId'));
 	const errorId = $derived(errorMessage ? `error-${currentId}` : undefined);
 	const effectiveType = $derived(showPassword && type === 'password' ? 'text' : type);
+	const isTextColorClass = $derived(textColor.includes('text-') || textColor.includes(' '));
 
 	$effect(() => {
 		if (autofocus && inputElement) {
@@ -111,8 +112,10 @@
 			onpaste={onPaste}
 			{onkeydown}
 			type={effectiveType}
-			style={textColor ? `color: ${textColor};` : ''}
-			class="peer block h-12 w-full appearance-none border-0 border-b-2 border-surface-300 bg-transparent pl-8 pr-6 pb-1 pt-5 text-base focus:border-tertiary-600 focus:outline-none focus:ring-0 disabled:opacity-50 dark:border-surface-400 dark:focus:border-tertiary-500 {inputClass}"
+			style={!isTextColorClass && textColor ? `color: ${textColor};` : ''}
+			class="peer block h-12 w-full appearance-none border-0 border-b-2 border-surface-300 bg-transparent pl-8 pr-6 pb-1 pt-5 text-base focus:border-tertiary-600 focus:outline-none focus:ring-0 disabled:opacity-50 dark:border-surface-400 dark:focus:border-tertiary-500 {inputClass} {isTextColorClass
+				? textColor
+				: ''}"
 			class:!border-error-500={invalid}
 			class:dark:!border-error-500={invalid}
 			class:pr-10={type === 'password'}
@@ -150,10 +153,10 @@
 		{#if label}
 			<label
 				for={currentId}
-				style={textColor ? `color: ${textColor};` : ''}
+				style={!isTextColorClass && textColor ? `color: ${textColor};` : ''}
 				class="pointer-events-none absolute left-8 top-1.5 origin-left -translate-y-3 scale-75 transform text-base text-surface-500 transition-all duration-200 ease-in-out peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:text-base peer-focus:-translate-y-3 peer-focus:scale-75 peer-focus:text-tertiary-500! peer-disabled:text-surface-500 {value
 					? `-translate-y-3 scale-75 ${invalid ? 'text-error-500!' : 'text-tertiary-500!'}`
-					: ''} {labelClass}"
+					: ''} {isTextColorClass ? textColor : ''} {labelClass}"
 			>
 				{label}
 				{#if required}

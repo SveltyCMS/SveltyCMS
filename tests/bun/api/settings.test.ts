@@ -384,7 +384,7 @@ describe('Settings API - User Preferences', () => {
 
 	it('should update user preferences', async () => {
 		const response = await fetch(`${BASE_URL}/api/systemPreferences`, {
-			method: 'PUT',
+			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
 				Cookie: authCookie

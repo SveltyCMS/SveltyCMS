@@ -611,7 +611,13 @@ async function testMariaDbConnection(dbConfig: DatabaseConfig) {
 export const POST: RequestHandler = async ({ request }) => {
 	try {
 		logger.info('🚀 Starting database test request processing...');
-		const raw = await request.json();
+		let raw;
+		try {
+			raw = await request.json();
+		} catch (e) {
+			logger.error('Failed to parse request JSON:', e);
+			return json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
+		}
 		logger.info('🔍 Raw request body received:', raw, typeof raw, Array.isArray(raw));
 		// IMPORTANT: All dbConfig validation is performed server-side only using databaseConfigSchema.
 		// The frontend should send the raw config object; only the server validates and normalizes it.

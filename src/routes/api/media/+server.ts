@@ -82,7 +82,9 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			// Normalize thumbnails if present
 			const thumbnails = file.thumbnails
 				? Object.entries(file.thumbnails).reduce((acc, [key, val]) => {
-						acc[key] = { ...val, url: normalizePath(val.url) };
+						if (val) {
+							acc[key] = { ...val, url: normalizePath(val.url) };
+						}
 						return acc;
 					}, {} as any)
 				: undefined;

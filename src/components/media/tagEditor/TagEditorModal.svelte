@@ -5,7 +5,7 @@ A modal for managing media tags.
 -->
 <script lang="ts">
 	import type { MediaImage } from '@utils/media/mediaModels';
-	import { logger } from '@utils/logger';
+
 	import { toaster } from '@stores/store.svelte';
 
 	// Props
@@ -192,13 +192,16 @@ A modal for managing media tags.
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
 		role="dialog"
 		aria-modal="true"
-		onclick={close}
+		tabindex="-1"
+		onclick={(e) => {
+			if (e.target === e.currentTarget) close();
+		}}
 		onkeydown={(e) => e.key === 'Escape' && close()}
 	>
-		<div class="card w-full max-w-lg p-4 bg-surface-100 dark:bg-surface-800 shadow-xl m-4" onclick={(e) => e.stopPropagation()} role="document">
+		<div class="card w-full max-w-lg p-4 bg-surface-100 dark:bg-surface-800 shadow-xl m-4" role="document">
 			<header class="flex justify-between items-center mb-4">
 				<h3 class="h3 font-bold">Manage Tags</h3>
-				<button class="btn-icon btn-icon-sm" onclick={close}>
+				<button class="btn-icon btn-icon-sm" onclick={close} aria-label="Close Modal">
 					<iconify-icon icon="mdi:close" width="24"></iconify-icon>
 				</button>
 			</header>
@@ -223,9 +226,9 @@ A modal for managing media tags.
 						{#if !file.metadata?.aiTags?.length}
 							<button class="btn btn-sm variant-filled-secondary" onclick={handleAITagging} disabled={isGenerating}>
 								{#if isGenerating}
-									<iconify-icon icon="eos-icons:loading" class="animate-spin" />
+									<iconify-icon icon="eos-icons:loading" class="animate-spin"></iconify-icon>
 								{:else}
-									<iconify-icon icon="mdi:magic-staff" />
+									<iconify-icon icon="mdi:magic-staff"></iconify-icon>
 									<span>Generate</span>
 								{/if}
 							</button>
@@ -262,9 +265,9 @@ A modal for managing media tags.
 												removeTag(tag, 'ai');
 											}}
 											onkeydown={(e) => e.key === 'Enter' && removeTag(tag, 'ai')}
-											class="hover:text-black/50 dark:hover:text-white/50 ml-1"
+											aria-label="Remove Tag"
 										>
-											<iconify-icon icon="mdi:close" width="14" />
+											<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 										</span>
 									</button>
 								{/if}
@@ -282,15 +285,15 @@ A modal for managing media tags.
 							bind:value={newTagInput}
 							onkeydown={(e) => e.key === 'Enter' && addManualTag()}
 						/>
-						<button class="btn btn-sm variant-filled-surface" onclick={addManualTag} disabled={!newTagInput.trim()}>
-							<iconify-icon icon="mdi:plus" />
+						<button class="btn btn-sm variant-filled-surface" onclick={addManualTag} disabled={!newTagInput.trim()} aria-label="Add Tag">
+							<iconify-icon icon="mdi:plus"></iconify-icon>
 						</button>
 					</div>
 
 					{#if file.metadata?.aiTags?.length}
 						<div class="mt-3 pt-3 border-t border-primary-500/20">
 							<button class="btn btn-sm variant-filled-success w-full" onclick={saveAITags} disabled={isSaving}>
-								<iconify-icon icon="mdi:check-all" />
+								<iconify-icon icon="mdi:check-all"></iconify-icon>
 								<span>Save All to Media Tags</span>
 							</button>
 						</div>
@@ -330,9 +333,9 @@ A modal for managing media tags.
 												removeTag(tag, 'user');
 											}}
 											onkeydown={(e) => e.key === 'Enter' && removeTag(tag, 'user')}
-											class="hover:text-error-500 ml-1"
+											aria-label="Remove Tag"
 										>
-											<iconify-icon icon="mdi:close" width="14" />
+											<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 										</span>
 									</button>
 								{/if}
