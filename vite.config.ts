@@ -238,6 +238,7 @@ function setupWizardPlugin(): Plugin {
  */
 function suppressThirdPartyWarningsPlugin(): Plugin {
 	let originalConsoleWarn: typeof console.warn | undefined;
+	let isIntercepted = false;
 	const warningPatterns = [
 		/Circular dependency:.*node_modules/,
 		/".*" is imported from external module ".*" but never used/,
@@ -245,9 +246,10 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
 	];
 
 	const restoreConsoleWarn = () => {
-		if (originalConsoleWarn) {
+		if (originalConsoleWarn && isIntercepted) {
 			console.warn = originalConsoleWarn;
 			originalConsoleWarn = undefined;
+			isIntercepted = false;
 		}
 	};
 
@@ -256,15 +258,18 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
 		enforce: 'pre',
 		buildStart() {
 			// Intercept console.warn during build to filter out third-party warnings
-			if (!originalConsoleWarn) {
+			// Guard against concurrent builds
+			if (!isIntercepted) {
+				isIntercepted = true;
 				originalConsoleWarn = console.warn;
 				console.warn = function (...args: unknown[]) {
-					const message = args.join(' ');
+					// Extract message from first argument if it's a string
+					const message = typeof args[0] === 'string' ? args[0] : String(args[0] ?? '');
 					// Only filter warnings that match our patterns
 					if (warningPatterns.some(pattern => pattern.test(message))) {
 						return;
 					}
-					// Apply with original context - args are already unknown[] which matches console.warn signature
+					// Apply with original context
 					(originalConsoleWarn as typeof console.warn).apply(console, args);
 				};
 			}
