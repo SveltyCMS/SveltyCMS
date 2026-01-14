@@ -246,6 +246,7 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
 	];
 
 	const restoreConsoleWarn = () => {
+		// Only restore once per interception
 		if (originalConsoleWarn && isIntercepted) {
 			console.warn = originalConsoleWarn;
 			originalConsoleWarn = undefined;
