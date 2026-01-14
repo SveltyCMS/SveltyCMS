@@ -237,39 +237,44 @@ function setupWizardPlugin(): Plugin {
  * This filters out console output for known issues in mongodb, mongoose, and other libraries.
  */
 function suppressThirdPartyWarningsPlugin(): Plugin {
-	let originalConsoleWarn: typeof console.warn;
+	let originalConsoleWarn: typeof console.warn | undefined;
 	const warningPatterns = [
 		/Circular dependency:.*node_modules/,
 		/".*" is imported from external module ".*" but never used/,
 		/".*" is imported by ".*", but could not be resolved – treating it as an external dependency/
 	];
 
+	const restoreConsoleWarn = () => {
+		if (originalConsoleWarn) {
+			console.warn = originalConsoleWarn;
+			originalConsoleWarn = undefined;
+		}
+	};
+
 	return {
 		name: 'suppress-third-party-warnings',
 		enforce: 'pre',
 		buildStart() {
 			// Intercept console.warn during build to filter out third-party warnings
-			originalConsoleWarn = console.warn;
-			console.warn = function (...args: any[]) {
-				const message = args.join(' ');
-				// Only filter warnings that match our patterns
-				if (warningPatterns.some(pattern => pattern.test(message))) {
-					return;
-				}
-				originalConsoleWarn.apply(console, args);
-			};
+			if (!originalConsoleWarn) {
+				originalConsoleWarn = console.warn;
+				console.warn = function (...args: unknown[]) {
+					const message = args.join(' ');
+					// Only filter warnings that match our patterns
+					if (warningPatterns.some(pattern => pattern.test(message))) {
+						return;
+					}
+					originalConsoleWarn!.apply(console, args as any[]);
+				};
+			}
 		},
 		buildEnd() {
 			// Restore original console.warn after build
-			if (originalConsoleWarn) {
-				console.warn = originalConsoleWarn;
-			}
+			restoreConsoleWarn();
 		},
 		closeBundle() {
 			// Also restore on closeBundle to ensure cleanup
-			if (originalConsoleWarn) {
-				console.warn = originalConsoleWarn;
-			}
+			restoreConsoleWarn();
 		}
 	};
 }
