@@ -63,7 +63,8 @@
 		onClick,
 		onInput,
 		onkeydown,
-		onPaste
+		onPaste,
+		...rest
 	}: FloatingInputProps = $props();
 
 	let inputElement = $state<HTMLInputElement | null>(null);
@@ -121,6 +122,7 @@
 			class:pr-10={type === 'password'}
 			placeholder=" "
 			id={currentId}
+			{...rest}
 		/>
 
 		{#if icon}

@@ -74,7 +74,34 @@ The database is **reset and seeded** before the test suite runs.
 - **Admin User:** `admin@example.com` / `Admin123!`
 - **Database:** `sveltycms_test`
 
-### 3. CI/CD
+- **Database:** `sveltycms_test`
+- **Seeding:** Handled by `scripts/seed-test-db.ts`
+
+### 3. Use `data-testid` Selectors
+
+For robust tests that don't break when CSS classes change, always use `data-testid` attributes for interactive elements.
+
+**In Svelte Component:**
+
+```svelte
+<button data-testid="signin-submit">Sign In</button>
+<input data-testid="signin-email" />
+```
+
+**In Playwright Test:**
+
+```typescript
+await page.getByTestId('signin-email').fill('admin@example.com');
+await page.getByTestId('signin-submit').click();
+```
+
+Avoid using:
+
+- CSS classes (e.g., `.btn-primary`)
+- Text content (e.g., `text="Sign In"`) unless checking localized text specifically.
+- XPath selectors
+
+### 4. CI/CD
 
 In GitHub Actions, E2E tests run in parallel with Unit and Integration tests.
 

@@ -520,6 +520,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							label={m.email()}
 							required
 							icon="mdi:email"
+							data-testid="signin-email"
 						/>
 						{#if loginForm.errors.email}<span class="invalid text-xs text-error-500">{loginForm.errors.email[0]}</span>{/if}
 
@@ -537,6 +538,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							icon="mdi:lock"
 							iconColor="black"
 							textColor="black"
+							data-testid="signin-password"
 						/>
 						{#if loginForm.errors.password}<span class="invalid text-xs text-error-500">{loginForm.errors.password[0]}</span>{/if}
 					</form>
@@ -544,7 +546,13 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 					<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
 						<!-- Row 1 -->
 						<div class="flex w-full justify-between gap-2 sm:w-auto">
-							<button type="submit" form="signin-form" class="preset-filled-surface-500 btn w-full text-white sm:w-auto" aria-label={m.form_signin()}>
+							<button
+								type="submit"
+								form="signin-form"
+								class="preset-filled-surface-500 btn w-full text-white sm:w-auto"
+								aria-label={m.form_signin()}
+								data-testid="signin-submit"
+							>
 								{m.form_signin()}
 								<!-- Optimized loading indicators -->
 								{#if isSubmitting || isAuthenticating}
@@ -563,6 +571,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 								aria-label={m.signin_forgottenpassword()}
 								tabindex={forgotPasswordTabIndex}
 								onclick={handleForgotPassword}
+								data-testid="signin-forgot-password"
 							>
 								{m.signin_forgottenpassword()}
 							</button>

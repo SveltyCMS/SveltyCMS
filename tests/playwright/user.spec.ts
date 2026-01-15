@@ -5,6 +5,7 @@
  */
 import { test, expect } from '@playwright/test';
 import path from 'path';
+import { loginAsAdmin } from './helpers/auth';
 import fs from 'fs';
 
 // Constants for test stability
@@ -20,13 +21,8 @@ const AVATAR_PATH = path.join(__dirname, 'testthumb.png');
 test.describe('User Profile Management', () => {
 	// 1. Setup: Run before every test in this group
 	test.beforeEach(async ({ page }) => {
-		// Navigate to login
-		await page.goto('/login'); // Use relative path (baseURL is set in playwright.config.ts)
-
 		// Perform Login
-		await page.getByLabel('Email Address').fill(TEST_USER.email);
-		await page.getByLabel('Password').fill(TEST_USER.password);
-		await page.getByRole('button', { name: 'Sign In' }).click();
+		await loginAsAdmin(page);
 
 		// Verification: Wait for dashboard to ensure we are logged in
 		await expect(page).toHaveURL('/');

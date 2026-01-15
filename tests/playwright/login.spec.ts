@@ -7,7 +7,7 @@
  *   - Logs out and checks redirect to login page
  */
 import { test, expect } from '@playwright/test';
-import { loginAsAdmin, ensureSidebarVisible } from './helpers/auth';
+import { loginAsAdmin, logout, ensureSidebarVisible } from './helpers/auth';
 
 test('Login and logout flow', async ({ page }) => {
 	// Set a higher timeout for this test (optional)
@@ -24,11 +24,11 @@ test('Login and logout flow', async ({ page }) => {
 	await ensureSidebarVisible(page);
 
 	// Wait for logout button and click it
-	const logoutButton = page.locator('button[aria-label="Sign Out"]').first();
-	await expect(logoutButton).toBeVisible({ timeout: 30000 });
+	// const logoutButton = page.locator('button[aria-label="Sign Out"]').first();
+	// await expect(logoutButton).toBeVisible({ timeout: 30000 });
 
 	// Click logout
-	await logoutButton.click();
+	await logout(page);
 
 	// Assert redirect back to login
 	await expect(page).toHaveURL(/\/(login|signup)/, { timeout: 10000 });

@@ -48,6 +48,12 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 	// Wait longer for the heading as things might be initializing
 	await expect(page.getByRole('heading', { name: /database/i }).first()).toBeVisible({ timeout: 15000 });
 
+	// Select Database Type if specified (default is mongodb)
+	const dbType = process.env.DB_TYPE || 'mongodb';
+	if (dbType !== 'mongodb') {
+		await page.locator('#db-type').selectOption(dbType);
+	}
+
 	// Fill credentials from ENV (CI) or Defaults (Local)
 	await page.locator('#db-host').fill(process.env.MONGO_HOST || 'localhost');
 	await page.locator('#db-port').fill(process.env.MONGO_PORT || '27017');

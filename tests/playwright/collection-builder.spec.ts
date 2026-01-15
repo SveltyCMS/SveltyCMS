@@ -1,14 +1,11 @@
 // tests/playwright/collection-builder.spec.ts
 import { expect, test } from '@playwright/test';
+import { loginAsAdmin } from './helpers/auth';
 
 test.describe('Collection Builder with Modern Widgets', () => {
 	test.beforeEach(async ({ page }) => {
 		// Login as admin first
-		await page.goto('/login');
-		await page.fill('input[name="email"]', 'admin@example.com');
-		await page.fill('input[name="password"]', 'admin123');
-		await page.click('button[type="submit"]');
-		await page.waitForURL('**/dashboard');
+		await loginAsAdmin(page);
 	});
 
 	test('should navigate to collection builder', async ({ page }) => {

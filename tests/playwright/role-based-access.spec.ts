@@ -11,6 +11,7 @@
  */
 
 import { test, expect, type Page } from '@playwright/test';
+import { loginAsAdmin } from './helpers/auth';
 
 // Test credentials (created by setup wizard + seed script)
 const USERS = {
@@ -32,11 +33,13 @@ async function login(page: Page, user: { email: string; password: string }) {
 	await page.goto('/login');
 
 	// Fill login form
-	await page.locator('input[name="email"]').fill(user.email);
-	await page.locator('input[name="password"]').fill(user.password);
+	// Fill login form
+	await page.getByTestId('signin-email').fill(user.email);
+	await page.getByTestId('signin-password').fill(user.password);
 
 	// Submit
-	await page.getByRole('button', { name: /sign in/i }).click();
+	// Submit
+	await page.getByTestId('signin-submit').click();
 
 	// Wait for redirect away from login
 	await expect(page).not.toHaveURL(/\/login/, { timeout: 10000 });
@@ -55,7 +58,7 @@ test.describe('Role-Based Access Control', () => {
 	test.setTimeout(60000); // 1 minute timeout for all tests
 
 	test('Admin: Full access to all system areas', async ({ page }) => {
-		await login(page, USERS.admin);
+		await loginAsAdmin(page);
 
 		// System Settings (admin only)
 		await page.goto('/config/systemsetting');

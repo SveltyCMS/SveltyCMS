@@ -26,20 +26,6 @@ export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = /\/
 	// Navigate to login page
 	console.log('[Auth] Navigating to /login...');
 	await page.goto('/login', { waitUntil: 'networkidle', timeout: 30000 });
-	console.log(`[Auth] Current URL after navigation: ${page.url()}`);
-
-	// Take screenshot for debugging
-	await page.screenshot({ path: 'debug-login-page.png', fullPage: true });
-	console.log('[Auth] Screenshot saved: debug-login-page.png');
-
-	// Log page content for debugging
-	const pageContent = await page.content();
-	console.log(`[Auth] Page content length: ${pageContent.length} chars`);
-	console.log(`[Auth] Page title: ${await page.title()}`);
-
-	// Check if page contains actual content or just bootstrap
-	const bodyText = await page.locator('body').innerText();
-	console.log(`[Auth] Body text preview (first 500 chars): ${bodyText.substring(0, 500)}`);
 
 	// Check if we got redirected to setup (config incomplete)
 	if (page.url().includes('/setup')) {
@@ -49,37 +35,31 @@ export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = /\/
 	// Check if we're on the login selection page (SIGN IN / SIGN UP buttons)
 	const signInButton = page.locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")').first();
 	const signInVisible = await signInButton.isVisible({ timeout: 5000 }).catch(() => false);
-	console.log(`[Auth] SIGN IN button visible: ${signInVisible}`);
 
 	if (signInVisible) {
 		console.log('[Auth] Clicking SIGN IN button...');
 		await signInButton.click();
 		await page.waitForTimeout(1000);
-		console.log('[Auth] Clicked SIGN IN button');
 	}
 
 	// Wait for login form to be visible - use data-testid
 	console.log('[Auth] Waiting for signin-email field...');
 	await page.waitForSelector('[data-testid="signin-email"]', { timeout: 15000, state: 'visible' }).catch(async (e) => {
 		console.error('[Auth] ERROR: signin-email field not found!');
-		console.error(`[Auth] Available inputs: ${await page.locator('input').count()}`);
+		// Provide debug info about available inputs
 		const inputs = await page.locator('input').all();
 		for (let i = 0; i < inputs.length; i++) {
 			const input = inputs[i];
-			const id = await input.getAttribute('id');
 			const name = await input.getAttribute('name');
-			const type = await input.getAttribute('type');
 			const testId = await input.getAttribute('data-testid');
-			console.error(`[Auth]   Input ${i}: id=${id}, name=${name}, type=${type}, data-testid=${testId}`);
+			console.error(`[Auth]   Input ${i}: name=${name}, data-testid=${testId}`);
 		}
 		throw e;
 	});
-	console.log('[Auth] Email field found');
 
 	// Fill login form using data-testid selectors
 	console.log(`[Auth] Filling email: ${ADMIN_CREDENTIALS.email}`);
 	await page.getByTestId('signin-email').fill(ADMIN_CREDENTIALS.email);
-	console.log(`[Auth] Filling password: ${'*'.repeat(ADMIN_CREDENTIALS.password.length)}`);
 	await page.getByTestId('signin-password').fill(ADMIN_CREDENTIALS.password);
 
 	// Submit form using data-testid

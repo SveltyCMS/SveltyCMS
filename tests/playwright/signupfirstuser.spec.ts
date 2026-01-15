@@ -78,9 +78,9 @@ test('SignOut after login', async ({ page }) => {
 	await page.goto('http://localhost:5173/login');
 
 	await page.getByText(/sign in/i).click();
-	await page.locator('#email-address').fill('test@test.de');
-	await page.locator('#password').fill('Test123!');
-	await page.getByRole('button', { name: /sign in/i }).click();
+	await page.getByTestId('signin-email').fill('test@test.de');
+	await page.getByTestId('signin-password').fill('Test123!');
+	await page.getByTestId('signin-submit').click();
 
 	const signOutButton = page.locator('button[value="Sign out"]');
 	if (await signOutButton.isVisible()) {
@@ -94,9 +94,9 @@ test('Login First User', async ({ page }) => {
 	await page.goto('http://localhost:5173/login');
 
 	await page.getByText(/sign in/i).click();
-	await page.locator('#email-address').fill('test@test2.de');
-	await page.locator('#password').fill('Test123!');
-	await page.getByRole('button', { name: /sign in/i }).click();
+	await page.getByTestId('signin-email').fill('test@test2.de');
+	await page.getByTestId('signin-password').fill('Test123!');
+	await page.getByTestId('signin-submit').click();
 
 	await expect(page).toHaveURL('http://localhost:5173/en/Posts');
 });
@@ -107,7 +107,7 @@ test('Forgot Password Flow', async ({ page }) => {
 
 	await page.getByText(/sign in/i).click();
 	await page.getByRole('button', { name: /forgotten password/i }).click();
-	await page.locator('#email-address').fill('test@test2.de');
+	await page.locator('#emailforgot').fill('test@test2.de');
 	await page.getByRole('button', { name: /send password reset email/i }).click();
 
 	// Assume redirected to reset form
