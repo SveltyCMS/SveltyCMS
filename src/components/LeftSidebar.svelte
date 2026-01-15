@@ -35,6 +35,7 @@
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+	import { themeStore } from '@stores/themeStore.svelte';
 
 	// Import components
 	import VersionCheck from '@components/VersionCheck.svelte';
@@ -56,6 +57,9 @@
 	const MOBILE_BREAKPOINT = 768;
 	const LANGUAGE_DROPDOWN_THRESHOLD = 5;
 	const AVATAR_CACHE_BUSTER = Date.now();
+	const TOOLTIP_CLASS =
+		'card w-48 rounded-md border border-slate-300/50 bg-surface-50 p-2 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700 text-black dark:text-white';
+	const ARROW_CLASS = '[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-100-900)]';
 
 	// Types
 	type AvailableLanguage = string;
@@ -109,6 +113,13 @@
 		src = src.replace(/^\/+/, '');
 
 		return `/files/${src}?t=${AVATAR_CACHE_BUSTER}`;
+	});
+
+	const themeTooltipText = $derived.by(() => {
+		const current = themeStore.themePreference;
+		if (current === 'system') return 'System theme (click for Light)';
+		if (current === 'light') return 'Light theme (click for Dark)';
+		return 'Dark theme (click for System)';
 	});
 
 	// Helper functions
@@ -323,8 +334,8 @@
 								? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-surface-500/20'
 								: 'btn-icon flex-col items-center justify-center'} relative text-center no-underline!"
 						>
-							<Avatar class="mx-auto overflow-visible {isSidebarFull ? 'size-10' : 'size-9'}">
-								<Avatar.Image src={avatarUrl} alt="User Avatar" />
+							<Avatar class="mx-auto overflow-hidden rounded-full {isSidebarFull ? 'size-10' : 'size-9'}">
+								<Avatar.Image src={avatarUrl} alt="User Avatar" class="h-full w-full object-cover" />
 								<Avatar.Fallback>AV</Avatar.Fallback>
 							</Avatar>
 							{#if isSidebarFull && user?.username}
@@ -339,10 +350,10 @@
 					</Tooltip.Trigger>
 					<Portal>
 						<Tooltip.Positioner>
-							<Tooltip.Content class="card preset-filled-surface-700 z-50 rounded-md p-2 text-sm text-white shadow-xl">
+							<Tooltip.Content class={TOOLTIP_CLASS}>
 								<span>{m.applayout_userprofile()}</span>
-								<Tooltip.Arrow>
-									<Tooltip.ArrowTip class="bg-surface-700" />
+								<Tooltip.Arrow class={ARROW_CLASS}>
+									<Tooltip.ArrowTip />
 								</Tooltip.Arrow>
 							</Tooltip.Content>
 						</Tooltip.Positioner>
@@ -352,7 +363,24 @@
 
 			<!-- Theme Toggle -->
 			<div class="{isSidebarFull ? 'order-2' : 'order-2'} flex items-center justify-center">
-				<ThemeToggle showTooltip={true} tooltipPlacement="right" buttonClass="btn-icon hover:bg-surface-500/20" iconSize={22} />
+				<Tooltip positioning={{ placement: 'right' }}>
+					<Tooltip.Trigger>
+						<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
+						<div class="flex items-center justify-center">
+							<ThemeToggle showTooltip={false} buttonClass="btn-icon hover:bg-surface-500/20" iconSize={22} />
+						</div>
+					</Tooltip.Trigger>
+					<Portal>
+						<Tooltip.Positioner>
+							<Tooltip.Content class={TOOLTIP_CLASS}>
+								<span>{themeTooltipText}</span>
+								<Tooltip.Arrow class={ARROW_CLASS}>
+									<Tooltip.ArrowTip />
+								</Tooltip.Arrow>
+							</Tooltip.Content>
+						</Tooltip.Positioner>
+					</Portal>
+				</Tooltip>
 			</div>
 
 			<!-- Language Selector -->
@@ -426,10 +454,10 @@
 					</Tooltip.Trigger>
 					<Portal>
 						<Tooltip.Positioner>
-							<Tooltip.Content class="card preset-filled-surface-700 z-50 rounded-md p-2 text-sm shadow-xl">
+							<Tooltip.Content class={TOOLTIP_CLASS}>
 								<span>{m.applayout_systemlanguage()}</span>
-								<Tooltip.Arrow>
-									<Tooltip.ArrowTip class="bg-surface-700" />
+								<Tooltip.Arrow class={ARROW_CLASS}>
+									<Tooltip.ArrowTip />
 								</Tooltip.Arrow>
 							</Tooltip.Content>
 						</Tooltip.Positioner>
@@ -447,10 +475,10 @@
 					</Tooltip.Trigger>
 					<Portal>
 						<Tooltip.Positioner>
-							<Tooltip.Content class="card preset-filled-surface-700 z-50 rounded-md p-2 text-sm shadow-xl">
+							<Tooltip.Content class={TOOLTIP_CLASS}>
 								<span>{m.applayout_signout()}</span>
-								<Tooltip.Arrow>
-									<Tooltip.ArrowTip class="bg-surface-700" />
+								<Tooltip.Arrow class={ARROW_CLASS}>
+									<Tooltip.ArrowTip />
 								</Tooltip.Arrow>
 							</Tooltip.Content>
 						</Tooltip.Positioner>
@@ -471,12 +499,13 @@
 							<iconify-icon icon="material-symbols:build-circle" width="34" class=""></iconify-icon>
 						</button>
 					</Tooltip.Trigger>
+
 					<Portal>
 						<Tooltip.Positioner>
-							<Tooltip.Content class="card preset-filled-surface-700 z-50 rounded-md p-2 text-sm  shadow-xl">
+							<Tooltip.Content class={TOOLTIP_CLASS}>
 								<span>{m.applayout_systemconfiguration()}</span>
-								<Tooltip.Arrow>
-									<Tooltip.ArrowTip class="bg-surface-700" />
+								<Tooltip.Arrow class={ARROW_CLASS}>
+									<Tooltip.ArrowTip />
 								</Tooltip.Arrow>
 							</Tooltip.Content>
 						</Tooltip.Positioner>
@@ -506,10 +535,10 @@
 						</Tooltip.Trigger>
 						<Portal>
 							<Tooltip.Positioner>
-								<Tooltip.Content class="card preset-filled-surface-700 z-50 rounded-md p-2 text-sm  shadow-xl">
+								<Tooltip.Content class={TOOLTIP_CLASS}>
 									<span>{m.applayout_githubdiscussion()}</span>
-									<Tooltip.Arrow>
-										<Tooltip.ArrowTip class="bg-surface-700" />
+									<Tooltip.Arrow class={ARROW_CLASS}>
+										<Tooltip.ArrowTip />
 									</Tooltip.Arrow>
 								</Tooltip.Content>
 							</Tooltip.Positioner>

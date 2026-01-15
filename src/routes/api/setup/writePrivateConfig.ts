@@ -19,7 +19,9 @@ export async function writePrivateConfig(dbConfig: DatabaseConfig): Promise<void
 	const path = await import('path');
 	const { randomBytes } = await import('crypto');
 
-	const privateConfigPath = path.resolve(process.cwd(), 'config', 'private.ts');
+	// Support TEST_MODE for isolated testing
+	const configFileName = process.env.TEST_MODE ? 'private.test.ts' : 'private.ts';
+	const privateConfigPath = path.resolve(process.cwd(), 'config', configFileName);
 
 	// Prevent overwrite after setup complete
 	if (isSetupComplete()) {
@@ -41,9 +43,9 @@ export async function writePrivateConfig(dbConfig: DatabaseConfig): Promise<void
  * These values are required for the server to start and connect to the database.
  * This file was populated during the initial setup process.
  */
-import { createPrivateConfig } from '@src/databases/schemas';
+// import { createPrivateConfig } from '@src/databases/schemas'; // Removed to avoid alias resolution issues in production/tests
 
-export const privateEnv = createPrivateConfig({
+export const privateEnv = {
 	// --- Core Database Connection ---
 	DB_TYPE: '${dbConfig.type}',
 	DB_HOST: '${dbConfig.host}',
@@ -66,7 +68,7 @@ export const privateEnv = createPrivateConfig({
 	/* * NOTE: All other settings (SMTP, Google OAuth, feature flags, etc.)
 	 * are loaded dynamically from the database after the application starts.
 	 */
-});
+};
 `;
 
 	try {

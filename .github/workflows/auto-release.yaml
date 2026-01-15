@@ -3,7 +3,7 @@
 #
 # CURRENT: Tests run against MongoDB only before release
 # FUTURE: Will test against multiple databases (MongoDB, PostgreSQL, MariaDB, MySQL) before allowing release
-name: Semantic Release
+name: Auto Release
 
 # Triggers the workflow ONLY when a push happens to the main or next branch.
 on:

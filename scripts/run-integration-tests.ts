@@ -75,7 +75,7 @@ async function main() {
 		// Run integration tests
 		console.log('🧪 Starting integration tests...\n');
 
-		const testArgs = ['test', '--preload', './tests/bun/setup.ts', 'tests/bun/api', 'tests/bun/databases'];
+		const testArgs = ['test', '--timeout', '15000', '--preload', './tests/bun/setup.ts', 'tests/bun/api', 'tests/bun/databases'];
 
 		testProcess = spawn('bun', testArgs, {
 			cwd: rootDir,

@@ -110,17 +110,27 @@
 		);
 	}
 
-	// Custom event handler for token updates from Multibutton
-	function handleTokenUpdate(event: CustomEvent) {
-		const { tokenIds, action } = event.detail;
+	// Custom event handler for updates from Multibutton
+	function handleBatchUpdate(data: { ids: string[]; action: string; type: 'user' | 'token' }) {
+		const { ids, action, type } = data;
+
+		if (action === 'refresh') {
+			fetchData();
+			return;
+		}
 
 		// Update the tableData instead of adminData for scalability
 		if (tableData) {
 			let updated = false;
 
 			if (action === 'delete') {
-				// Remove deleted tokens from the table
-				const updatedData = tableData.filter((item: User | Token) => !tokenIds.includes((item as Token).token as string));
+				// Remove deleted items from the table
+				const updatedData = tableData.filter((item: User | Token) => {
+					if (type === 'user' && isUser(item)) return !ids.includes(item._id);
+					if (type === 'token' && isToken(item)) return !ids.includes(item.token);
+					return true;
+				});
+
 				if (updatedData.length !== tableData.length) {
 					tableData = updatedData;
 					updated = true;
@@ -128,7 +138,11 @@
 			} else {
 				// Handle block/unblock actions
 				const updatedData = tableData.map((item: User | Token) => {
-					if (tokenIds.includes((item as Token).token as string)) {
+					let shouldUpdate = false;
+					if (type === 'user' && isUser(item) && ids.includes(item._id)) shouldUpdate = true;
+					if (type === 'token' && isToken(item) && ids.includes(item.token)) shouldUpdate = true;
+
+					if (shouldUpdate) {
 						updated = true;
 						if (action === 'block') {
 							return { ...item, blocked: true };
@@ -146,7 +160,8 @@
 
 			// Clear selection after any action
 			if (updated) {
-				selectedRows = [];
+				selectedMap = {};
+				selectAll = false;
 			}
 		}
 	} // Table header definitions
@@ -618,7 +633,7 @@
 			</div>
 
 			<div class="order-2 flex items-center justify-center sm:order-3">
-				<Multibutton {selectedRows} type={showUserList ? 'user' : 'token'} totalUsers={totalItems} {currentUser} onTokenUpdate={handleTokenUpdate} />
+				<Multibutton {selectedRows} type={showUserList ? 'user' : 'token'} totalUsers={totalItems} {currentUser} onUpdate={handleBatchUpdate} />
 			</div>
 		</div>
 

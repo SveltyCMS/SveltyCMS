@@ -11,7 +11,6 @@ Sidebar navigation for System Settings
 	import { getSettingGroupsByRole } from '@src/routes/(app)/config/systemsetting/settingsGroups';
 	import type { SettingGroup } from '@src/routes/(app)/config/systemsetting/settingsGroups';
 	import { groupsNeedingConfig } from '@stores/configStore.svelte';
-	import * as m from '@src/paraglide/messages';
 
 	// Props
 	let { isFullSidebar = true } = $props();
@@ -78,7 +77,7 @@ Sidebar navigation for System Settings
 				title={group.name}
 			>
 				<div class="flex items-center gap-3 overflow-hidden">
-					<span class="text-xl flex-shrink-0">{group.icon}</span>
+					<span class="text-xl shrink-0">{group.icon}</span>
 					{#if isFullSidebar}
 						<span class="text-sm font-medium truncate">{group.name}</span>
 					{/if}

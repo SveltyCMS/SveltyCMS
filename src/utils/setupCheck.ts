@@ -22,7 +22,9 @@ export function isSetupComplete(): boolean {
 
 	try {
 		// Use process.cwd() to ensure we look at the project root
-		const privateConfigPath = path.join(process.cwd(), 'config', 'private.ts');
+		// Support TEST_MODE for isolated testing without affecting live config
+		const configFileName = process.env.TEST_MODE ? 'private.test.ts' : 'private.ts';
+		const privateConfigPath = path.join(process.cwd(), 'config', configFileName);
 
 		if (!fs.existsSync(privateConfigPath)) {
 			setupStatus = false;
