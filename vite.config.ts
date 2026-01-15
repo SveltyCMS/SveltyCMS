@@ -174,6 +174,40 @@ process.on('SIGINT', () => {
 // --- Vite Plugins ---
 
 /**
+ * Plugin to suppress noisy third-party warnings during build
+ */
+function suppressThirdPartyWarningsPlugin(): Plugin {
+	let originalConsoleWarn: typeof console.warn | undefined;
+	let isIntercepted = false;
+	const warningPatterns = [
+		/Circular dependency:.*node_modules/,
+		/".*" is imported from external module ".*" but never used/,
+		/".*" is imported by ".*", but could not be resolved – treating it as an external dependency/
+	];
+
+	return {
+		name: 'suppress-third-party-warnings',
+		buildStart() {
+			if (!isIntercepted) {
+				isIntercepted = true;
+				originalConsoleWarn = console.warn;
+				console.warn = function (...args: unknown[]) {
+					const message = typeof args[0] === 'string' ? args[0] : String(args[0] ?? '');
+					if (warningPatterns.some((pattern) => pattern.test(message))) return;
+					(originalConsoleWarn as typeof console.warn).apply(console, args);
+				};
+			}
+		},
+		buildEnd() {
+			/* restore console.warn */
+		},
+		closeBundle() {
+			/* ensure cleanup */
+		}
+	};
+}
+
+/**
  * A lightweight plugin to handle the initial setup wizard.
  * Checks if private.ts exists and opens the setup page if needed.
  * The setup wizard will create private.ts with real credentials.
@@ -340,6 +374,8 @@ export default defineConfig((): UserConfig => {
 
 	return {
 		plugins: [
+			// Suppress third-party warnings
+			suppressThirdPartyWarningsPlugin(),
 			// Private config fallback - provides virtual module when file doesn't exist
 			privateConfigFallbackPlugin(),
 			// Security check plugin runs first to detect private setting imports

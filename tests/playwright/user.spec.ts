@@ -8,12 +8,6 @@ import path from 'path';
 import { loginAsAdmin } from './helpers/auth';
 import fs from 'fs';
 
-// Constants for test stability
-const TEST_USER = {
-	email: 'test@test.de', // Ensure this user exists in your seed/setup
-	password: 'Test123!'
-};
-
 // Construct reliable file path for CI/CD environments
 // This looks for 'testthumb.png' in the SAME directory as this test file
 const AVATAR_PATH = path.join(__dirname, 'testthumb.png');
