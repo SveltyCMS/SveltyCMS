@@ -457,3 +457,37 @@ Tests run automatically on:
 **Cause**: Missing module declarations or path alias issues.
 
 **Solution**: Run `bun run check` to identify specific errors and fix path aliases in `tsconfig.json`.
+
+---
+
+## Remote Playwright Testing
+
+You can run Playwright tests from your local machine against a remote SveltyCMS instance (e.g. running on a Plesk server) using an SSH tunnel.
+
+### Method 1: SSH Port Forwarding (Recommended)
+
+This method securely forwards your local port 5173 to the remote server's port 5173, making the remote app appear local.
+
+1.  **Open an SSH Tunnel** in a separate terminal window:
+
+    ```bash
+    # Forwards local 5173 -> remote 5173
+    ssh -L 5173:localhost:5173 user@your-remote-server.com
+    ```
+
+2.  **Run Playwright Locally**:
+    By default, `playwright.config.ts` is configured to reuse an existing server on port 5173.
+    ```bash
+    # Run tests against the tunnel
+    PLAYWRIGHT_TEST_BASE_URL=http://localhost:5173 npx playwright test
+    ```
+
+### Method 2: Direct URL
+
+If your remote server is publicly accessible (e.g. `https://dev.example.com` or a specific IP), you can point Playwright directly to it.
+
+```bash
+PLAYWRIGHT_TEST_BASE_URL=https://dev.example.com npx playwright test
+```
+
+> **Note**: Ensure the remote server is running in a mode that accepts connections (e.g. `bun dev --host` or a preview build) and that any firewalls allow traffic on the target port.

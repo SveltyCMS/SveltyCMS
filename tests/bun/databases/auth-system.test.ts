@@ -43,6 +43,9 @@ mock.module('@src/utils/logger', () => ({
 let adapterClass: typeof import('../../../src/databases/mongodb/mongoDBAdapter').MongoDBAdapter;
 let privateEnv: any;
 
+// Import fixtures for reusing users
+import { testFixtures } from '../helpers/testSetup';
+
 describe('Auth System Functional Tests', () => {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let db: any = null;
@@ -51,6 +54,7 @@ describe('Auth System Functional Tests', () => {
 	beforeAll(async () => {
 		const adapterModule = await import('../../../src/databases/mongodb/mongoDBAdapter');
 		adapterClass = adapterModule.MongoDBAdapter;
+		// @ts-ignore
 		const configModule = await import('../../../config/private.test');
 		privateEnv = configModule.privateEnv;
 
@@ -58,14 +62,18 @@ describe('Auth System Functional Tests', () => {
 
 		db = new adapterClass();
 
-		// CRITICAL: Use isolated test database
-		const dbName = (privateEnv.DB_NAME || 'sveltycms_test') + '_functional';
+		// OPTIMIZATION: Use shared test database in TEST_MODE for speed
+		// Otherwise use isolated functional DB
+		const isTestMode = process.env.TEST_MODE === 'true';
+		const dbName = isTestMode ? privateEnv.DB_NAME || 'sveltycms_test' : (privateEnv.DB_NAME || 'sveltycms_test') + '_functional';
+
 		let connectionString = `mongodb://${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${dbName}`;
 
 		if (privateEnv.DB_USER && privateEnv.DB_PASSWORD) {
 			connectionString = `mongodb://${privateEnv.DB_USER}:${privateEnv.DB_PASSWORD}@${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${dbName}?authSource=admin`;
 		}
 
+		// Use shorter timeouts for tests
 		const connectOptions = { serverSelectionTimeoutMS: 2000, connectTimeoutMS: 2000 };
 
 		try {
@@ -97,6 +105,9 @@ describe('Auth System Functional Tests', () => {
 		if (mongoose.connection?.db && db) {
 			// Safety check: ensure we are not dropping production DB
 			const dbName = mongoose.connection.db.databaseName;
+
+			// OPTIMIZATION: Do NOT drop the shared test database in TEST_MODE
+			// Only drop if it's the isolated _functional one
 			if (dbName.endsWith('_functional')) {
 				await mongoose.connection.db.dropDatabase().catch(() => {});
 			}
@@ -105,41 +116,63 @@ describe('Auth System Functional Tests', () => {
 	});
 
 	describe('User Management', () => {
-		const testUser = {
+		// Use pre-seeded admin from testFixtures for read tests
+		const existingUser = testFixtures.users.admin;
+		let existingUserId: string;
+
+		// New user for creation test
+		const newUser = {
 			email: `test_${Date.now()}@example.com`,
 			username: `user_${Date.now()}`,
 			password: 'SecurePassword123!',
-			role: 'admin'
+			role: 'editor'
 		};
-		let userId: string;
+		let newUserId: string;
+
+		beforeAll(async () => {
+			if (!db) return;
+			// Retrieve the pre-seeded admin user ID
+			const result = await db.auth.getUserByEmail(existingUser.email);
+			if (result.success && result.data) {
+				existingUserId = result.data._id;
+			}
+		});
 
 		it('should create a new user with hashed password', async () => {
 			if (!db) return;
 
 			const userPayload = {
-				...testUser,
+				...newUser,
 				avatar: 'default.png'
 			};
 
 			const result = await db.auth.createUser(userPayload);
 			expect(result.success).toBe(true);
 			expect(result.data).toBeDefined();
-			userId = (result.data as any)._id;
-			expect(userId).toBeDefined();
+			newUserId = (result.data as any)._id;
+			expect(newUserId).toBeDefined();
 		});
 
-		it('should find user by email', async () => {
+		it('should find existing user by email', async () => {
 			if (!db) return;
-			const result = await db.auth.getUserByEmail(testUser.email);
+			// Use the pre-seeded user (should be faster as it's definitely there)
+			const result = await db.auth.getUserByEmail(existingUser.email);
 			expect(result.success).toBe(true);
-			expect(result.data.username).toBe(testUser.username);
+			expect(result.data.username).toBe(existingUser.username);
 		});
 
-		it('should find user by ID', async () => {
-			if (!db) return;
-			const result = await db.auth.getUserById(userId);
+		it('should find existing user by ID', async () => {
+			if (!db || !existingUserId) return;
+			const result = await db.auth.getUserById(existingUserId);
 			expect(result.success).toBe(true);
-			expect(result.data.email).toBe(testUser.email);
+			expect(result.data.email).toBe(existingUser.email);
+		});
+
+		// Cleanup created user to keep shared DB clean
+		afterAll(async () => {
+			if (db && newUserId) {
+				await db.auth.deleteUser(newUserId);
+			}
 		});
 	});
 

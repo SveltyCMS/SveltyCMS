@@ -36,18 +36,16 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import type { User, Token } from '@src/databases/auth/types';
 
 	const isUser = (row: unknown): row is User => {
-		if (!row || typeof row !== 'object') return false;
-		return '_id' in row && !('token' in row);
+		return !!row && typeof row === 'object' && '_id' in row;
 	};
 	const isToken = (row: unknown): row is Token => {
-		if (!row || typeof row !== 'object') return false;
-		return 'token' in row;
+		return !!row && typeof row === 'object' && 'token' in row;
 	};
 
 	type ActionType = 'edit' | 'delete' | 'block' | 'unblock';
 
 	// Props
-	let { selectedRows, type = 'user', totalUsers = 0, currentUser = null, onTokenUpdate = () => {} } = $props();
+	let { selectedRows, type = 'user', totalUsers = 0, currentUser = null, onUpdate = () => {} } = $props();
 
 	// State
 	let listboxValue = $state<ActionType>('edit');
@@ -379,11 +377,17 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 			toaster.success({ description: toastMessage });
 
-			// Dispatch token update event for parent component to handle local state updates
-			if (type === 'token' && (action === 'block' || action === 'unblock' || action === 'delete')) {
-				onTokenUpdate({
-					tokenIds: safeSelectedRows.filter(isToken).map((row: Token) => row.token),
-					action: action
+			// Dispatch update event for parent component to handle local state updates
+			if (action === 'block' || action === 'unblock' || action === 'delete') {
+				const ids =
+					type === 'user'
+						? safeSelectedRows.filter(isUser).map((row: User) => row._id)
+						: safeSelectedRows.filter(isToken).map((row: Token) => row.token);
+
+				onUpdate({
+					ids,
+					action: action,
+					type
 				});
 			}
 
@@ -462,7 +466,11 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 					},
 					(res: any) => {
 						if (res && res.success) {
-							onTokenUpdate();
+							onUpdate({
+								action: 'refresh',
+								type: 'token',
+								ids: []
+							});
 						}
 					}
 				);

@@ -20,7 +20,6 @@ All dynamic CMS settings organized into logical groups
 	import { goto } from '$app/navigation';
 	import PageTitle from '@components/PageTitle.svelte';
 	import { logger } from '@utils/logger';
-	import { showConfirm } from '@utils/modalUtils';
 	import { groupsNeedingConfig } from '@stores/configStore.svelte';
 
 	// Import settings structure
@@ -35,7 +34,6 @@ All dynamic CMS settings organized into logical groups
 	const isAdmin = $derived(data.isAdmin);
 
 	//  Use $state for all component state
-	let currentGroupHasUnsavedChanges = $state(false);
 	let availableGroups: SettingGroup[] = $state([]);
 
 	// Derived selection from URL
@@ -50,10 +48,6 @@ All dynamic CMS settings organized into logical groups
 	});
 
 	// Remove filteredGroups logic as sidebar manages it externally
-
-	function handleUnsavedChanges(hasChanges: boolean) {
-		currentGroupHasUnsavedChanges = hasChanges;
-	}
 
 	// Check all groups for empty fields on page load
 	async function checkAllGroupsForEmptyFields() {
@@ -141,7 +135,7 @@ All dynamic CMS settings organized into logical groups
 			{#if group}
 				<div class="h-full overflow-y-auto p-6">
 					<!-- Use generic component for all groups -->
-					<GenericSettingsGroup {group} {groupsNeedingConfig} onUnsavedChanges={handleUnsavedChanges} />
+					<GenericSettingsGroup {group} {groupsNeedingConfig} />
 				</div>
 			{:else}
 				<div class="flex h-full items-center justify-center p-6 text-center">
