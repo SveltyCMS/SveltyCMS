@@ -14,9 +14,8 @@
 	// Components
 	import Input from '@components/system/inputs/Input.svelte';
 	import Toggles from '@components/system/inputs/Toggles.svelte';
-	import ProgressBar from '@components/system/ProgressBar.svelte';
-	// Skeleton components
-	import { showToast } from '@utils/toast';
+	import Progress from '@components/system/ProgressBar.svelte';
+	import { toaster } from '@stores/store.svelte';
 
 	// Utils
 	import { getCollections } from '@utils/apiClient';
@@ -110,14 +109,14 @@
 
 				// Map to our Collection interface
 				collections = rawCollections.map((col) => ({
-					id: col.id || col.name,
+					_id: col.id || col.name,
 					name: col.name,
 					label: col.label || col.name,
 					description: col.description
 				}));
 
 				// Select all collections by default
-				exportOptions.collections = collections.map((c) => String(c.id));
+				exportOptions.collections = collections.map((c) => c._id || '').filter(Boolean);
 			} else {
 				showAlertMessage('Failed to load collections', 'error');
 			}
@@ -276,10 +275,9 @@
 		}
 	}
 
-	// --- UI & Utility Functions ---
-
 	function showAlertMessage(message: string, type: 'success' | 'error' | 'info' | 'warning') {
-		showToast(message, type, 5000);
+		// @ts-ignore
+		toaster[type]({ description: message });
 	}
 
 	function downloadExport() {
@@ -305,7 +303,7 @@
 	}
 
 	function selectAllCollections() {
-		exportOptions.collections = collections.map((c) => String(c.id));
+		exportOptions.collections = collections.map((c) => c._id || '').filter(Boolean);
 	}
 
 	function clearCollectionSelection() {
@@ -321,12 +319,12 @@
 		</div>
 
 		<div class="flex gap-3">
-			<button onclick={() => (showExportModal = true)} class="preset-outlined-secondary-500 btn" disabled={loading}>
+			<button onclick={() => (showExportModal = true)} class="preset-ghost-secondary-500 btn" disabled={loading}>
 				<iconify-icon icon="mdi:export" width="24" class=""></iconify-icon>
 				Export Data
 			</button>
 
-			<button onclick={() => (showImportModal = true)} class="preset-outlined-primary-500 btn" disabled={loading}>
+			<button onclick={() => (showImportModal = true)} class="preset-ghost-primary-500 btn" disabled={loading}>
 				<iconify-icon icon="mdi:import" width="24" class=""></iconify-icon>
 
 				Import Data
@@ -346,7 +344,7 @@
 				</div>
 			</div>
 
-			<button onclick={exportAllData} disabled={loading} class="preset-outline-secondary-500 btn mt-4 w-full">Export Everything</button>
+			<button onclick={exportAllData} disabled={loading} class="preset-outlined-secondary-500 btn mt-4 w-full">Export Everything</button>
 		</div>
 
 		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
@@ -363,7 +361,7 @@
 			</div>
 
 			<div class="space-y-2">
-				{#each collections.slice(0, 3) as collection (collection.id)}
+				{#each collections.slice(0, 3) as collection (collection._id)}
 					<div class="flex items-center justify-between text-sm">
 						<span class="text-tertiary-500 dark:text-primary-500">{collection.label}</span>
 						<iconify-icon icon="mdi:chevron-right" width="24" class=""></iconify-icon>
@@ -378,7 +376,7 @@
 
 	{#if loading && (exportProgress > 0 || importProgress > 0)}
 		<div class="mb-6">
-			<ProgressBar value={exportProgress || importProgress} label={exportProgress > 0 ? 'Exporting...' : 'Importing...'} />
+			<Progress value={exportProgress || importProgress} label={exportProgress > 0 ? 'Exporting...' : 'Importing...'} />
 		</div>
 	{/if}
 
@@ -402,7 +400,7 @@
 		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Export Collections</h3>
-				<button onclick={() => (showExportModal = false)} class="preset-outlined-surface-500 btn-icon" aria-label="Close export modal">
+				<button onclick={() => (showExportModal = false)} class="preset-ghost btn-icon" aria-label="Close export modal">
 					<iconify-icon icon="mdi:close" width="24" class=""></iconify-icon>
 				</button>
 			</div>
@@ -419,20 +417,20 @@
 					<div class="mb-3 flex items-center justify-between">
 						<p class="block text-sm font-medium">Select Collections</p>
 						<div class="space-x-2">
-							<button onclick={selectAllCollections} class="preset-outlined-secondary-500 btn">Select All</button>
-							<button onclick={clearCollectionSelection} class="preset-outlined-secondary-500 btn">Clear All</button>
+							<button onclick={selectAllCollections} class="preset-ghost-secondary-500 btn">Select All</button>
+							<button onclick={clearCollectionSelection} class="preset-ghost-secondary-500 btn">Clear All</button>
 						</div>
 					</div>
 
 					<div class="max-h-48 overflow-y-auto rounded-md border border-gray-200 p-3 dark:border-gray-700">
-						{#each collections as collection (collection.id)}
-							{@const inputId = `export-collection-${collection.id}`}
+						{#each collections as collection (collection._id)}
+							{@const inputId = `export-collection-${collection._id}`}
 							<label for={inputId} class="flex cursor-pointer items-center space-x-3 py-2">
 								<input
 									id={inputId}
 									type="checkbox"
-									checked={exportOptions.collections.includes(String(collection.id))}
-									onchange={() => toggleCollectionSelection(String(collection.id))}
+									checked={collection._id ? exportOptions.collections.includes(collection._id) : false}
+									onchange={() => collection._id && toggleCollectionSelection(collection._id)}
 									class="rounded"
 								/>
 
@@ -458,7 +456,7 @@
 			</div>
 
 			<div class="flex justify-end space-x-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<button onclick={() => (showExportModal = false)} class="preset-outlined-secondary-500 btn">Cancel</button>
+				<button onclick={() => (showExportModal = false)} class="preset-ghost-secondary-500 btn">Cancel</button>
 				<button
 					onclick={exportSelectedCollections}
 					class="preset-filled-primary-500 btn"
@@ -476,7 +474,7 @@
 		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Import Collections</h3>
-				<button onclick={() => (showImportModal = false)} class="preset-outlined-surface-500 btn-icon" aria-label="Close import modal">
+				<button onclick={() => (showImportModal = false)} class="preset-ghost btn-icon" aria-label="Close import modal">
 					<iconify-icon icon="mdi:close" width="24" class=""></iconify-icon>
 				</button>
 			</div>
@@ -513,7 +511,7 @@
 			</div>
 
 			<div class="flex justify-end space-x-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<button onclick={() => (showImportModal = false)} class="preset-outlined-secondary-500 btn">Cancel</button>
+				<button onclick={() => (showImportModal = false)} class="preset-ghost-secondary-500 btn">Cancel</button>
 				<button onclick={handleImport} class="preset-filled-primary-500 btn" disabled={loading || !importFiles}>Import Data</button>
 			</div>
 		</div>
@@ -525,7 +523,7 @@
 		<div class="max-h-[80vh] w-full max-w-4xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Import Results</h3>
-				<button onclick={() => (showResultsModal = false)} class="preset-outlined-surface-500 btn-sm">
+				<button onclick={() => (showResultsModal = false)} class="preset-ghost btn btn-sm">
 					<iconify-icon icon="mdi:close" width="24" class=""></iconify-icon>
 					mdi:close
 				</button>
@@ -589,7 +587,7 @@
 			</div>
 
 			<div class="flex justify-end border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<button onclick={() => (showResultsModal = false)} class="variant-primary">Close</button>
+				<button onclick={() => (showResultsModal = false)} class="preset-primary">Close</button>
 			</div>
 		</div>
 	</div>

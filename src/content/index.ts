@@ -14,10 +14,10 @@ import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
 // Stores
-import { collections, contentStructure, setCollection, setCollectionValue, setMode, unAssigned } from '@src/stores/collectionStore.svelte';
+import { collections, contentStructure, setCollection, setCollectionValue, setMode, unAssigned } from '@root/src/stores/collectionStore.svelte';
 
 // Components
-import { widgets } from '@stores/widgetStore.svelte';
+import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 // Types
 import type { Category, ContentTypes, Schema } from './types';
@@ -233,14 +233,14 @@ async function createCategoriesFromPath(collections: Schema[]): Promise<Category
 
 // Function to get collections with cache support
 export async function getCollections(): Promise<Partial<Record<ContentTypes, Schema>>> {
-	await widgets.initialize();
+	await widgetStoreActions.initializeWidgets();
 
 	if (collectionModelsCache) {
 		return collectionModelsCache;
 	}
 
-	collectionModelsCache = collections.all;
-	return collections.all;
+	collectionModelsCache = collections;
+	return collections;
 }
 
 // Function to update collections
@@ -281,8 +281,8 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 			updatedAt: new Date().toISOString() as ISODateString
 		}));
 
-		Object.keys(collections.all).forEach((key) => delete collections.all[key]);
-		Object.assign(collections.all, _collections);
+		Object.keys(collections).forEach((key) => delete collections[key]);
+		Object.assign(collections, _collections);
 
 		const unassigned = Object.values(imports).filter((x) => !Object.values(_collections).includes(x));
 		Object.assign(unAssigned, unassigned.length > 0 ? unassigned[0] : { fields: [] });
@@ -306,7 +306,7 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 
 // Function to get imports based on environment
 async function getImports(recompile: boolean = false): Promise<Record<ContentTypes, Schema>> {
-	await widgets.initialize();
+	await widgetStoreActions.initializeWidgets();
 
 	if (!recompile && Object.keys(importsCache).length > 0) {
 		return importsCache;

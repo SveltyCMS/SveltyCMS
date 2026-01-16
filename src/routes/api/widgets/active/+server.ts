@@ -5,9 +5,8 @@
 import { json, error } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
-import { widgets, getWidgetFunction, isWidgetCore } from '@stores/widgetStore.svelte';
+import { widgetStoreActions, getWidgetFunction, isWidgetCore } from '@stores/widgetStore.svelte';
 import { cacheService } from '@src/databases/CacheService';
-import { CacheCategory } from '@src/databases/CacheCategory';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	const start = performance.now();
@@ -22,20 +21,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			await cacheService.delete('widget:active:all', tenantId);
 		}
 
-		// Try to get from cache first
-		const cacheKey = 'widget:active:all';
-		const cachedData = await cacheService.get<any>(cacheKey, tenantId);
-		if (cachedData && !forceRefresh) {
-			logger.trace('[/api/widgets/active] Serving from cache', { tenantId });
-			return json({
-				success: true,
-				data: cachedData,
-				message: 'Active widgets retrieved from cache'
-			});
-		}
-
 		// Initialize widgets if not already loaded
-		await widgets.initialize(tenantId);
+		await widgetStoreActions.initializeWidgets(tenantId);
 
 		// Get active widgets from database
 		const dbAdapter = locals.dbAdapter;
@@ -75,13 +62,12 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		// Ensure core widgets are always included
 		// Use WidgetRegistryService (server-side) instead of widgetStore (client-side) to avoid build issues
 		const { widgetRegistryService } = await import('@src/services/WidgetRegistryService');
-		await widgetRegistryService.initialize();
 		const allWidgets = widgetRegistryService.getAllWidgets();
 
 		const uniqueNames = new Set(widgetNames);
 
 		for (const [name, factory] of allWidgets.entries()) {
-			if ((factory as any).__widgetType === 'core') {
+			if (factory.__widgetType === 'core') {
 				uniqueNames.add(name);
 			}
 		}
@@ -91,14 +77,12 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		logger.trace('[/api/widgets/active] Extracted widget names (including core)', {
 			tenantId,
 			count: widgetNames.length,
-			widgets: widgetNames,
-			allRegistryKeys: Array.from(allWidgets.keys()),
-			inputWidgetType: allWidgets.get('Input') ? (allWidgets.get('Input') as any).__widgetType : 'NOT_FOUND'
+			widgets: widgetNames
 		});
 
 		// Enrich widget data with metadata from widget functions (3-pillar architecture)
 		const enrichedWidgets = widgetNames.map((name) => {
-			const widgetFn = getWidgetFunction(name) as any;
+			const widgetFn = getWidgetFunction(name);
 			return {
 				name,
 				isCore: isWidgetCore(name),
@@ -111,39 +95,20 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			};
 		});
 
-		const duration = performance.now() - start;
 		logger.trace('Retrieved active widgets with metadata', {
 			tenantId,
 			widgetCount: enrichedWidgets.length,
 			widgetNames: enrichedWidgets.map((w) => w.name),
-			duration: `${duration.toFixed(2)}ms`
+			duration: `${(performance.now() - start).toFixed(2)}ms`
 		});
-		const responseData = {
+		return json({
 			widgets: enrichedWidgets,
 			tenantId
-		};
-
-		// Cache the enriched results
-		await cacheService.setWithCategory(cacheKey, responseData, CacheCategory.WIDGET, tenantId);
-
-		return json({
-			success: true,
-			data: responseData,
-			message: 'Active widgets retrieved successfully',
-			performance: { duration: `${duration.toFixed(2)}ms` }
 		});
 	} catch (err) {
 		const duration = performance.now() - start;
 		const message = `Failed to get active widgets: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms` });
-
-		return json(
-			{
-				success: false,
-				message: 'Internal Server Error',
-				error: message
-			},
-			{ status: 500 }
-		);
+		throw error(500, message);
 	}
 };

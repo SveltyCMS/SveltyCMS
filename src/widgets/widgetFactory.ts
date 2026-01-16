@@ -11,18 +11,10 @@
 
 import type { BaseIssue, BaseSchema } from 'valibot';
 import type { FieldInstance } from '@src/content/types';
-import type { WidgetDefinition, WidgetFactory } from '@widgets/types';
+import type { WidgetDefinition, FieldConfig, WidgetFactory } from '@widgets/types';
 
 // A base constraint for widget-specific properties.
 type WidgetProps = Record<string, unknown>;
-
-export type FieldConfig<TProps extends WidgetProps = WidgetProps> = {
-	widget?: any;
-	label?: string;
-	db_fieldName?: string;
-	permissions?: any;
-	[key: string]: any;
-} & TProps;
 
 /**
  * The configuration for DEFINING a widget's blueprint.

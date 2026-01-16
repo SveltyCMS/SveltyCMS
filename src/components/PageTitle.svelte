@@ -46,12 +46,11 @@
 -->
 <script lang="ts">
 	// Stores
-	import { ui } from '@stores/UIStore.svelte';
-	import { screen } from '@stores/screenSizeStore.svelte';
+	import { toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
+	import { isDesktop } from '@stores/screenSizeStore.svelte';
 
 	type DefaultBehaviorFn = () => void;
 
-	// Props
 	interface Props {
 		name: string;
 		highlight?: string;
@@ -62,7 +61,6 @@
 		backUrl?: string;
 		truncate?: boolean;
 		onBackClick?: (defaultBehavior: DefaultBehaviorFn) => void;
-		children?: import('svelte').Snippet; // For action buttons
 	}
 
 	const {
@@ -74,8 +72,7 @@
 		showBackButton = false,
 		backUrl = '',
 		truncate = true,
-		onBackClick,
-		children
+		onBackClick
 	}: Props = $props();
 
 	const titleParts = $derived(() => {
@@ -107,14 +104,14 @@
 	}
 </script>
 
-<div class="my-1.5 flex w-full min-w-0 items-center justify-between gap-4">
+<div class="my-1 flex w-full min-w-0 items-center justify-between gap-4">
 	<div class="flex min-w-0 items-center">
-		{#if ui.state.leftSidebar === 'hidden'}
+		{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
 			<button
 				type="button"
-				onclick={() => ui.toggle('leftSidebar', screen.isDesktop ? 'full' : 'collapsed')}
+				onclick={() => toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
-				class="preset-outlined-surface-500btn-icon"
+				class="preset-ghost-surface-500 btn-icon"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
@@ -143,36 +140,30 @@
 			</span>
 		</h1>
 	</div>
-
-	<div class="flex items-center gap-2">
-		<!-- Action Buttons -->
-		{#if children}
-			{@render children()}
+	{#if showBackButton}
+		{#if backUrl}
+			<a
+				href={backUrl}
+				aria-label="Go back"
+				class="preset-outlined-tertiary-500 btn-icon shrink-0 dark:preset-outlined-primary-500"
+				style="min-width: 48px; min-height: 48px;"
+				data-cms-action="back"
+				data-sveltekit-preload-data="hover"
+				onclick={(e) => handleBackClick(e)}
+			>
+				<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
+			</a>
+		{:else}
+			<button
+				onclick={(e) => handleBackClick(e)}
+				aria-label="Go back"
+				tabindex="0"
+				class="preset-outlined-tertiary-500 btn-icon shrink-0 dark:preset-outlined-primary-500"
+				style="min-width: 48px; min-height: 48px;"
+				data-cms-action="back"
+			>
+				<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
+			</button>
 		{/if}
-
-		{#if showBackButton}
-			{#if backUrl}
-				<a
-					href={backUrl}
-					aria-label="Go back"
-					class="btn-icon rounded-full border border-surface-500 dark:border-surface-200 hover:bg-surface-500/10 shrink-0"
-					data-cms-action="back"
-					data-sveltekit-preload-data="hover"
-					onclick={(e) => handleBackClick(e)}
-				>
-					<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
-				</a>
-			{:else}
-				<button
-					onclick={(e) => handleBackClick(e)}
-					aria-label="Go back"
-					tabindex="0"
-					class="btn-icon rounded-full border border-surface-500 dark:border-surface-200 hover:bg-surface-500/10 shrink-0"
-					data-cms-action="back"
-				>
-					<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
-				</button>
-			{/if}
-		{/if}
-	</div>
+	{/if}
 </div>

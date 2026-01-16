@@ -1,11 +1,11 @@
 <!--
 @file src/components/system/buttons/Button.svelte
 @component
-**Button component** is a reusable button component that supports different sizes, variants, icons, and rounded corners, optimized for CMS use.
+**Button component** is a reusable button component that supports different sizes, presets, icons, and rounded corners, optimized for CMS use.
 
 ### Props
 - `size` {string} - Size of the button: 'sm', 'md', 'lg', or 'xl' (default: 'md')
-- `variant` {string} - Variant of the button: 'primary', 'secondary', 'error', 'ghost', 'text', or 'outline' (default: 'primary')
+- `preset` {string} - Preset of the button: 'primary', 'secondary', 'error', 'ghost', 'text', or 'outline' (default: 'primary')
 - `leadingIcon` {string} - Icon to display before the button content
 - `trailingIcon` {string} - Icon to display after the button content
 - `href` {string} - URL to navigate to when the button is clicked
@@ -27,13 +27,13 @@ Icon-only buttons automatically get an 'aria-label="Button"' fallback unless `ar
 - `default` - Content to be displayed inside the button
 
 ### Usage
-<Button size="md" variant="outline" leadingIcon="mdi:star" onclick={() => alert('clicked')}>
+<Button size="md" preset="outline" leadingIcon="mdi:star" onclick={() => alert('clicked')}>
   Click Me
 </Button>
 
 <Button leadingIcon="mdi:save" aria-label="Save document" loading />
 
-<Button variant="primary" loading replaceTextOnLoading onclick={() => logger.debug('clicked')}>
+<Button preset="primary" loading replaceTextOnLoading onclick={() => logger.debug('clicked')}>
   Submit
 </Button>
 -->
@@ -41,12 +41,12 @@ Icon-only buttons automatically get an 'aria-label="Button"' fallback unless `ar
 <script lang="ts">
 	// — Types —
 	type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
-	type ButtonVariant = 'primary' | 'secondary' | 'error' | 'ghost' | 'text' | 'outline';
+	type ButtonPreset = 'primary' | 'secondary' | 'error' | 'ghost' | 'text' | 'outline';
 
 	// — Props —
 	const {
 		size = 'md' as ButtonSize,
-		variant = 'primary' as ButtonVariant,
+		preset = 'primary' as ButtonPreset,
 		leadingIcon,
 		trailingIcon,
 		href,
@@ -62,7 +62,7 @@ Icon-only buttons automatically get an 'aria-label="Button"' fallback unless `ar
 		...rest
 	}: {
 		size?: ButtonSize;
-		variant?: ButtonVariant;
+		preset?: ButtonPreset;
 		leadingIcon?: string;
 		trailingIcon?: string;
 		href?: string;
@@ -86,7 +86,7 @@ Icon-only buttons automatically get an 'aria-label="Button"' fallback unless `ar
 		xl: 'h-14 px-6 text-xl'
 	};
 
-	const variantClasses: Record<ButtonVariant, string> = {
+	const presetClasses: Record<ButtonPreset, string> = {
 		primary: 'bg-[var(--primary-color, #2563eb)] text-white shadow-sm hover:bg-[var(--primary-hover, #1e40af)]',
 		secondary: 'bg-[var(--secondary-color, #4b5563)] text-white shadow-sm hover:bg-[var(--secondary-hover, #374151)]',
 		error: 'bg-[var(--error-color, #dc2626)] text-white shadow-sm hover:bg-[var(--error-hover, #b91c1c)]',
@@ -120,7 +120,7 @@ Icon-only buttons automatically get an 'aria-label="Button"' fallback unless `ar
 			'transform transition-transform hover:scale-105 active:scale-95',
 			rounded ? 'rounded-full' : 'rounded-md',
 			sizeClasses[size],
-			variantClasses[variant],
+			presetClasses[preset],
 			(disabled || loading) && 'opacity-50 pointer-events-none cursor-not-allowed',
 			loading && 'animate-pulse',
 			!children && (leadingIcon || trailingIcon || loading) ? iconOnlyPadding[size] : ''

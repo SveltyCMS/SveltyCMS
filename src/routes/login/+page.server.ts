@@ -38,9 +38,11 @@ import type { ISODateString } from '@src/content/types';
 
 // Stores
 import type { Locale } from '@src/paraglide/runtime';
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import { publicEnv } from '@src/stores/globalSettings.svelte';
-import { app } from '@stores/store.svelte';
+import { getPrivateSettingSync, getPublicSettingSync } from '@src/services/settingsService';
+// publicEnv from store is client-side only and empty on server during init
+// import { publicEnv } from '@src/stores/globalSettings.svelte';
+import { systemLanguage } from '@stores/store.svelte';
+import { get } from 'svelte/store';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -60,7 +62,7 @@ const limiter = new RateLimiter({
 });
 
 // Password strength configuration
-const MIN_PPASSWORD_LENGTH = publicEnv.PASSWORD_LENGTH || 8;
+const MIN_PPASSWORD_LENGTH = getPublicSettingSync('PASSWORD_LENGTH') || 8;
 const YELLOW_LENGTH = MIN_PPASSWORD_LENGTH + 3;
 const GREEN_LENGTH = YELLOW_LENGTH + 4;
 
@@ -178,7 +180,7 @@ import { getCachedFirstCollectionPath } from '@utils/server/collection-utils.ser
 // Helper function to check if OAuth should be available
 async function shouldShowOAuth(hasInviteToken: boolean): Promise<boolean> {
 	// If Google OAuth is not enabled, never show it
-	if (!publicEnv.USE_GOOGLE_OAUTH) {
+	if (!getPublicSettingSync('USE_GOOGLE_OAUTH')) {
 		return false;
 	}
 
@@ -210,10 +212,12 @@ async function shouldShowOAuth(hasInviteToken: boolean): Promise<boolean> {
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
 	const demoMode = getPrivateSettingSync('DEMO');
 	// --- START: Language Validation Logic ---
-	const langFromStore = app.systemLanguage as Locale | null;
+	const langFromStore = get(systemLanguage) as Locale | null;
+	const locales = (await getPublicSettingSync('LOCALES')) || [(await getPublicSettingSync('BASE_LOCALE')) || 'en'];
+	const baseLocale = (await getPublicSettingSync('BASE_LOCALE')) || 'en';
 	// Use PUBLIC_ENV.LOCALES for validation, fallback to BASE_LOCALE
-	const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-	const userLanguage = (langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale)) || 'en';
+	const supportedLocales = locales as Locale[];
+	const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (baseLocale as Locale);
 	// --- END: Language Validation Logic ---
 
 	try {
@@ -412,7 +416,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		logger.debug(`Authorization code from URL: ${code ?? 'none'}`);
 
 		// Handle Google OAuth flow if code is present
-		if (publicEnv.USE_GOOGLE_OAUTH && code) {
+		if (getPublicSettingSync('USE_GOOGLE_OAUTH') && code) {
 			logger.debug('Entering Google OAuth flow in load function');
 			try {
 				const googleAuthInstance = await googleAuth();
@@ -482,8 +486,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					const emailProps = {
 						username: googleUser.name || newUser?.username || '',
 						email: email,
-						hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
-						sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+						hostLink: getPublicSettingSync('HOST_PROD') || `https://${request.headers.get('host')}`,
+						sitename: getPublicSettingSync('SITE_NAME') || 'SveltyCMS'
 					};
 					try {
 						const mailResponse = await fetch('/api/sendMail', {
@@ -494,7 +498,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 								subject: `Welcome to ${emailProps.sitename}`,
 								templateName: 'welcomeUser',
 								props: emailProps,
-								languageTag: app.systemLanguage
+								languageTag: userLanguage
 							})
 						});
 						if (!mailResponse.ok) {
@@ -609,7 +613,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			forgotForm,
 			resetForm,
 			signUpForm,
-			pkgVersion: publicEnv.PKG_VERSION || '0.0.0',
+			pkgVersion: getPublicSettingSync('PKG_VERSION') || '0.0.0',
 			demoMode,
 			firstCollectionPath
 		};
@@ -629,7 +633,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			resetForm: {},
 			signUpForm: {},
 			error: 'The login system encountered an unexpected error. Please try again later.',
-			pkgVersion: publicEnv.PKG_VERSION || '0.0.0',
+			pkgVersion: getPublicSettingSync('PKG_VERSION') || '0.0.0',
 			demoMode
 		};
 	}
@@ -639,9 +643,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 export const actions: Actions = {
 	signUp: async (event) => {
 		// --- START: Language Validation Logic ---
-		const langFromStore = app.systemLanguage as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
+		const langFromStore = get(systemLanguage) as Locale | null;
+		const baseLocale = (await getPublicSettingSync('BASE_LOCALE')) || 'en';
+		const locales = (await getPublicSettingSync('LOCALES')) || [baseLocale];
+		const supportedLocales = (locales || [baseLocale || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (baseLocale as Locale) || 'en';
 		logger.debug(`Validated user language for sign-up: ${userLanguage}`);
 		// --- END: Language Validation Logic ---
 
@@ -754,8 +760,8 @@ export const actions: Actions = {
 				const emailProps = {
 					username: username || email,
 					email,
-					hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get('host')}`,
-					sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+					hostLink: getPublicSettingSync('HOST_PROD') || `https://${event.request.headers.get('host')}`,
+					sitename: getPublicSettingSync('SITE_NAME') || 'SveltyCMS'
 				};
 				const mailResponse = await event.fetch('/api/sendMail', {
 					method: 'POST',
@@ -824,9 +830,11 @@ export const actions: Actions = {
 
 	signIn: async (event) => {
 		// --- START: Language Validation Logic ---
-		const langFromStore = app.systemLanguage as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
+		const langFromStore = get(systemLanguage) as Locale | null;
+		const baseLocale = (await getPublicSettingSync('BASE_LOCALE')) || 'en';
+		const locales = (await getPublicSettingSync('LOCALES')) || [baseLocale];
+		const supportedLocales = (locales || [baseLocale || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (baseLocale as Locale) || 'en';
 		logger.debug(`Validated user language for sign-in: ${userLanguage}`);
 		// --- END: Language Validation Logic ---
 
@@ -933,9 +941,11 @@ export const actions: Actions = {
 
 	verify2FA: async (event) => {
 		// --- START: Language Validation Logic ---
-		const langFromStore = app.systemLanguage as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		const langFromStore = get(systemLanguage) as Locale | null;
+		const baseLocale = (await getPublicSettingSync('BASE_LOCALE')) || 'en';
+		const locales = (await getPublicSettingSync('LOCALES')) || [baseLocale];
+		const supportedLocales = (locales || [baseLocale || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (baseLocale as Locale) || 'en';
 		// --- END: Language Validation Logic ---
 
 		if (await limiter.isLimited(event)) {
@@ -1028,9 +1038,11 @@ export const actions: Actions = {
 
 	forgotPW: async (event) => {
 		// --- START: Language Validation Logic ---
-		const langFromStore = app.systemLanguage as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
+		const langFromStore = get(systemLanguage) as Locale | null;
+		const baseLocale = (await getPublicSettingSync('BASE_LOCALE')) || 'en';
+		const locales = (await getPublicSettingSync('LOCALES')) || [baseLocale];
+		const supportedLocales = (locales || [baseLocale || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (baseLocale as Locale) || 'en';
 		// --- END: Language Validation Logic ---
 
 		if (await limiter.isLimited(event)) {
@@ -1067,7 +1079,7 @@ export const actions: Actions = {
 			checkMail = await forgotPWCheck(email);
 
 			if (checkMail.success && checkMail.token && checkMail.expiresIn) {
-				const baseUrl = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
+				const baseUrl = dev ? getPublicSettingSync('HOST_DEV') : getPublicSettingSync('HOST_PROD');
 				const resetLink = `${baseUrl}/login?token=${checkMail.token}&email=${encodeURIComponent(email)}`;
 				logger.debug(`Reset link generated: ${resetLink}`);
 
@@ -1077,7 +1089,7 @@ export const actions: Actions = {
 					expiresIn: checkMail.expiresIn,
 					resetLink: resetLink,
 					username: checkMail.username || email,
-					sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+					sitename: getPublicSettingSync('SITE_NAME') || 'SveltyCMS'
 				};
 
 				// Use SvelteKit's fetch for server-side API calls
@@ -1118,9 +1130,11 @@ export const actions: Actions = {
 
 	resetPW: async (event) => {
 		// --- START: Language Validation Logic ---
-		const langFromStore = app.systemLanguage as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
+		const langFromStore = get(systemLanguage) as Locale | null;
+		const baseLocale = (await getPublicSettingSync('BASE_LOCALE')) || 'en';
+		const locales = (await getPublicSettingSync('LOCALES')) || [baseLocale];
+		const supportedLocales = (locales || [baseLocale || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (baseLocale as Locale) || 'en';
 		// --- END: Language Validation Logic ---
 
 		if (await limiter.isLimited(event)) {
@@ -1160,8 +1174,8 @@ export const actions: Actions = {
 				const emailProps = {
 					username: resp.username || email,
 					email: email,
-					hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get('host')}`,
-					sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+					hostLink: getPublicSettingSync('HOST_PROD') || `https://${event.request.headers.get('host')}`,
+					sitename: getPublicSettingSync('SITE_NAME') || 'SveltyCMS'
 				};
 				try {
 					// Use SvelteKit's fetch for server-side API calls
@@ -1209,15 +1223,17 @@ export const actions: Actions = {
 
 	prefetch: async () => {
 		// --- START: Language Validation Logic ---
-		const langFromStore = app.systemLanguage as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = (langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale)) || 'en';
+		const langFromStore = get(systemLanguage) as Locale | null;
+		const baseLocale = (await getPublicSettingSync('BASE_LOCALE')) || 'en';
+		const locales = (await getPublicSettingSync('LOCALES')) || [baseLocale];
+		const supportedLocales = (locales || [baseLocale || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (baseLocale as Locale) || 'en';
 		// --- END: Language Validation Logic ---
 
 		// This action is called when user switches to SignIn/SignUp components
 		// to get collection info for later data fetching after authentication
 		try {
-			logger.info(`Collection lookup triggered for language: ${userLanguage}`);
+			logger.info(`Collection lookup triggered for language: ${userLanguage}}`);
 
 			// Get first collection from ContentManager (cached lookup)
 			const firstCollectionSchema = await contentManager.getFirstCollection();

@@ -21,8 +21,10 @@ It handles token creation, updates, and deletion with proper validation and erro
 	import { page } from '$app/state';
 
 	// Skeleton & Stores
+	// // getModalStore deprecated - use modalState from @utils/modalState.svelte;
+	// const modalStore = getModalStore();
+
 	import { toaster } from '@stores/store.svelte';
-	import { modalState } from '@utils/modalState.svelte';
 
 	// Component
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
@@ -32,20 +34,20 @@ It handles token creation, updates, and deletion with proper validation and erro
 	import { Form } from '@utils/Form.svelte';
 	import { addUserTokenSchema } from '@utils/formSchemas';
 
+	// Get data from page store, which is populated by our server hooks
+	const { roles, user } = page.data;
+
 	// Props
 	interface Props {
-		token?: string;
-		user_id?: string;
-		email?: string;
-		role?: string;
-		expires?: string;
-		// Allow passing user/roles as props for flexibility/testing
-		user?: any;
-		roles?: any[];
-		close?: (val?: any) => void;
+		token: string;
+		user_id: string;
+		email: string;
+		role: string;
+		expires: string;
+		close?: () => void;
 	}
 
-	let { token = '', user_id = '', email = '', role = 'user', expires = '', user = page.data.user, roles = page.data.roles, close }: Props = $props();
+	const { token = '', user_id = '', email = '', role = 'user', expires = '', close }: Props = $props();
 
 	// Form Data with format conversion
 	function convertLegacyFormat(expires: string): string {
@@ -132,32 +134,28 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 			// Check if SMTP is not configured
 			if (responseData.smtp_not_configured) {
-				toaster.create({
-					title: 'Warning',
-					description: `${isEditMode ? 'Token updated' : 'Token created'} - Email not sent: SMTP not configured. Token is listed in Admin Area.`,
-					type: 'warning'
+				toaster.warning({
+					description: `<iconify-icon icon="mdi:email-alert" color="white" width="24" class="mr-1"></iconify-icon> ${isEditMode ? 'Token updated' : 'Token created'} - Email not sent: SMTP not configured`
 				});
 			} else if (responseData.dev_mode && !responseData.email_sent) {
 				// Email was skipped due to dev mode or dummy config
-				toaster.create({
-					title: 'Info',
-					description: `${isEditMode ? 'Token updated' : 'Token created'} - Email sending skipped (dev mode)`,
-					type: 'info'
+				toaster.info({
+					description: `<iconify-icon icon="mdi:dev-to" color="white" width="24" class="mr-1"></iconify-icon> ${isEditMode ? 'Token updated' : 'Token created'} - Email sending skipped (dev mode)`
 				});
 			} else {
 				// Success - email sent
 				// TODO: Add 'user_token_created' to messages or find correct key
-				toaster.create({ title: 'Success', description: 'User token created', type: 'success' });
+				toaster.success({ description: 'User token created' });
 			}
 
 			// Invalidate data first, then close modal
 			await invalidateAll();
 
 			// Close modal and trigger response handler
-			if (close) close({ success: true });
+			if (close) close();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'An unknown error occurred';
-			toaster.create({ title: 'Error', description: message, type: 'error' });
+			toaster.error({ description: message });
 		} finally {
 			tokenForm.submitting = false;
 		}
@@ -177,20 +175,18 @@ It handles token creation, updates, and deletion with proper validation and erro
 				throw new Error(data.message || 'Failed to delete token');
 			}
 
-			toaster.create({
-				title: 'Success',
-				description: m.modal_token_deleted_successfully(),
-				type: 'success'
+			toaster.success({
+				description: `<iconify-icon icon="mdi:check" width="24" class="mr-1"></iconify-icon> ${m.modal_token_deleted_successfully()}`
 			});
 			// Invalidate data first, then close modal
 			await invalidateAll();
 
 			// Close modal and trigger response handler
-			if (close) close({ success: true });
+			if (close) close();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to delete token';
 			// This catch block will now receive a proper error message if the API fails.
-			toaster.create({ title: 'Error', description: message, type: 'error' });
+			toaster.error({ description: `<iconify-icon icon="mdi:alert-circle" width="24" class="mr-1"></iconify-icon> ${message}` });
 		}
 	}
 
@@ -253,9 +249,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 							{#each roles as r}
 								<button
 									type="button"
-									class="chip {tokenForm.data.role === r._id
-										? 'preset-filled-tertiary-500'
-										: 'bg-surface-200 dark:bg-surface-700 text-black dark:text-white'}"
+									class="chip {tokenForm.data.role === r._id ? 'preset-filled-tertiary-500' : 'preset-ghost-secondary-500'}"
 									onclick={() => (tokenForm.data.role = r._id)}
 								>
 									{#if tokenForm.data.role === r._id}
@@ -290,19 +284,21 @@ It handles token creation, updates, and deletion with proper validation and erro
 			</select>
 		</div>
 
-		<footer class="modal-footer flex items-center justify-between pt-4 border-t border-surface-500/20">
+		<footer class="modal-footer flex items-center {tokenForm.data.token ? 'justify-between' : 'justify-end'} pt-4 border-t border-surface-500/20">
 			<!-- Delete - Only show for existing tokens -->
 			{#if tokenForm.data.token}
 				<button type="button" onclick={deleteToken} class="preset-filled-error-500 btn">
 					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
 				</button>
 			{/if}
-			<!-- Cancel -->
-			<button type="button" class="preset-outlined-secondary-500 btn" onclick={() => modalState.close()}>{m.button_cancel()}</button>
-			<!-- Save -->
-			<button type="submit" form="token-form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">
-				{m.button_save()}
-			</button>
+			<div class="flex gap-2">
+				<!-- Cancel -->
+				<button type="button" class="preset-outlined-secondary-500 btn" onclick={() => close?.()}>{m.button_cancel()}</button>
+				<!-- Save -->
+				<button type="submit" form="token-form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">
+					{m.button_save()}
+				</button>
+			</div>
 		</footer>
 	</form>
 </div>

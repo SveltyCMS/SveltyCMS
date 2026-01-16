@@ -1,9 +1,6 @@
 /**
  * @file src/utils/statusToggle.ts
  * @description Utility functions for status toggle operations
- *
- * This module provides functions for toggling entry status between publish and unpublish.
- * It includes functions for getting initial publish status and toggling entry status.
  */
 
 import type { StatusType } from '@src/content/types';
@@ -16,9 +13,7 @@ export interface StatusToggleOptions {
 	onError?: (error: string) => void;
 }
 
-/**
- * Toggle entry status between publish/unpublish
- */
+// Toggle entry status between publish/unpublish
 export async function toggleEntryStatus(options: StatusToggleOptions): Promise<{
 	success: boolean;
 	newStatus?: StatusType;
@@ -52,9 +47,7 @@ export async function toggleEntryStatus(options: StatusToggleOptions): Promise<{
 	}
 }
 
-/**
- * Get initial publish status based on mode and collection/entry status
- */
+// Get initial publish status based on mode and collection/entry status
 export function getInitialPublishStatus(mode: string, collectionStatus?: StatusType, entryStatus?: StatusType): boolean {
 	if (mode === 'create') {
 		const defaultStatus = collectionStatus || 'unpublish';

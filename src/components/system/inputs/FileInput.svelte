@@ -32,15 +32,11 @@
 	let showMedia = $state(false);
 
 	// Handle media selection
-	function handleMediaSelect(data: MediaImage | MediaImage[]) {
+	function handleMediaSelect(data: MediaImage) {
 		show = false;
 		showMedia = false;
-		// If multiple support is added later, this logic will need update
-		const selected = Array.isArray(data) ? data[0] : data;
-		if (selected) {
-			value = selected;
-			onChange?.(selected);
-		}
+		value = data;
+		onChange?.(data);
 	}
 
 	// Handle file change
@@ -145,13 +141,13 @@
 	<!-- Show existing Media Images -->
 	{#if showMedia}
 		<div
-			class="bg-surface-100-800-token fixed left-[50%] top-[50%] z-999999999 flex h-[90%] w-[95%] translate-x-[-50%] translate-y-[-50%] flex-col rounded border border-surface-400 p-2"
+			class="bg-surface-100 dark:bg-surface-800 fixed left-[50%] top-[50%] z-[999999999] flex h-[90%] w-[95%] translate-x-[-50%] translate-y-[-50%] flex-col rounded border-[1px] border-surface-400 p-2"
 		>
-			<div class="bg-surface-100-800-token flex items-center justify-between border-b p-2">
+			<div class="bg-surface-100 dark:bg-surface-800 flex items-center justify-between border-b p-2">
 				<p class="ml-auto font-bold text-black dark:text-primary-500">
 					{m.widget_ImageUpload_SelectImage()}
 				</p>
-				<button onclick={() => toggleMedia(false)} aria-label="Close" class="preset-outlined-secondary-500 btn-icon ml-auto">
+				<button onclick={() => toggleMedia(false)} aria-label="Close" class="preset-ghost-secondary-500 btn-icon ml-auto">
 					<iconify-icon icon="material-symbols:close" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				</button>
 			</div>

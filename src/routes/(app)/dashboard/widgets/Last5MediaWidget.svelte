@@ -104,7 +104,7 @@
 								<span class="text-text-900 dark:text-text-100 truncate font-medium" title={file.name}>
 									{file.name}
 								</span>
-								<span class="text-xs text-surface-500 dark:text-surface-50" title={`Size: ${formatFileSize(file.size)}`}>
+								<span class="text-xs text-surface-500 dark:text-surface-400" title={`Size: ${formatFileSize(file.size)}`}>
 									{formatFileSize(file.size)}
 								</span>
 							</div>
@@ -113,7 +113,7 @@
 							<span class="text-xs font-medium uppercase text-surface-600 dark:text-surface-300">
 								{file.type}
 							</span>
-							<span class="text-xs text-surface-500 dark:text-surface-50" title={`Modified: ${formatDisplayDate(file.modified)}`}>
+							<span class="text-xs text-surface-500 dark:text-surface-400" title={`Modified: ${formatDisplayDate(file.modified)}`}>
 								{formatDisplayDate(file.modified)}
 							</span>
 						</div>

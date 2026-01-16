@@ -174,18 +174,18 @@ export const icon = {
 
 export const color = {
 	disabled: {
-		create: 'preset-outline-primary-500',
-		read: 'preset-outline-tertiary-500',
-		write: 'variant-outline-warning',
-		delete: 'variant-outline-error',
-		share: 'preset-outline-secondary-500'
+		create: 'preset-outline-primary',
+		read: 'preset-outline-tertiary',
+		write: 'preset-outline-warning',
+		delete: 'preset-outline-error',
+		share: 'preset-outline-secondary'
 	},
 	enabled: {
-		create: 'preset-filled-primary-500',
-		read: 'preset-filled-tertiary-500',
-		write: 'variant-filled-warning',
-		delete: 'preset-filled-error-500',
-		share: 'variant-filled-secondary'
+		create: 'preset-filled-primary',
+		read: 'preset-filled-tertiary',
+		write: 'preset-filled-warning',
+		delete: 'preset-filled-error',
+		share: 'preset-filled-secondary'
 	}
 } as const;
 

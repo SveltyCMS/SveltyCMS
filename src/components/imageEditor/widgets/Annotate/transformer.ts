@@ -1,24 +1,53 @@
 /**
  * @file src/routes/(app)/imageEditor/widgets/Annotate/transformer.ts
- * @description Transformer utilities for Annotate tool
+ * @description Transformer for Konva
  *
- * Re-exports shared transformer config for consistent styling across widgets.
+ * Features:
+ * - Safe transformer with conservative defaults
+ * - Attach transformer to node with robust error handling
  */
 import Konva from 'konva';
-import { createStyledTransformer, attachStyledTransformer } from '../transformerConfig';
 
-/**
- * Create a transformer for annotations with consistent styling.
- * Uses more anchors than other tools for flexible annotation resizing.
- */
-export function createTransformer(layer: Konva.Layer): Konva.Transformer {
-	return createStyledTransformer(layer, {
+/** Create a safe transformer with conservative defaults */
+export function createTransformer(layer: Konva.Layer) {
+	const tr = new Konva.Transformer({
 		keepRatio: false,
-		enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right']
+		enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right'],
+		rotateEnabled: true,
+		anchorSize: 10,
+		borderStroke: '#0066ff',
+		borderStrokeWidth: 2,
+		anchorFill: '#0066ff',
+		anchorStroke: '#ffffff',
+		boundBoxFunc: (oldBox, newBox) => {
+			if (Math.abs(newBox.width) < 5 || Math.abs(newBox.height) < 5) return oldBox;
+			return newBox;
+		}
 	});
+	layer.add(tr);
+	tr.hide();
+	tr.moveToTop();
+	return tr;
 }
 
-/**
- * Re-export attach function for convenience
- */
-export const attachTransformer = attachStyledTransformer;
+/** Attach transformer to node with robust error handling */
+export function attachTransformer(tr: Konva.Transformer, node?: Konva.Node | null) {
+	try {
+		if (!node) {
+			tr.nodes([]);
+			tr.hide();
+			return;
+		}
+		tr.nodes([node]);
+		tr.show();
+		tr.forceUpdate();
+		tr.moveToTop();
+	} catch {
+		try {
+			tr.nodes([]);
+			tr.hide();
+		} catch {
+			// ignore
+		}
+	}
+}

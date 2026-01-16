@@ -40,8 +40,7 @@
 	import * as m from '@src/paraglide/messages';
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton-svelte';
-	import { modalState } from '@utils/modalState.svelte';
-	import { showConfirm } from '@utils/modalUtils';
+	import { modalState, showConfirm } from '@utils/modalState.svelte';
 	import { toaster } from '@stores/store.svelte';
 	// Svelte-dnd-action
 	import { PermissionAction, PermissionType } from '@src/databases/auth/types';
@@ -110,27 +109,17 @@
 		);
 	}
 
-	// Custom event handler for updates from Multibutton
-	function handleBatchUpdate(data: { ids: string[]; action: string; type: 'user' | 'token' }) {
-		const { ids, action, type } = data;
-
-		if (action === 'refresh') {
-			fetchData();
-			return;
-		}
+	// Custom event handler for token updates from Multibutton
+	function handleTokenUpdate(event: CustomEvent) {
+		const { tokenIds, action } = event.detail;
 
 		// Update the tableData instead of adminData for scalability
 		if (tableData) {
 			let updated = false;
 
 			if (action === 'delete') {
-				// Remove deleted items from the table
-				const updatedData = tableData.filter((item: User | Token) => {
-					if (type === 'user' && isUser(item)) return !ids.includes(item._id);
-					if (type === 'token' && isToken(item)) return !ids.includes(item.token);
-					return true;
-				});
-
+				// Remove deleted tokens from the table
+				const updatedData = tableData.filter((item: User | Token) => !tokenIds.includes((item as Token).token as string));
 				if (updatedData.length !== tableData.length) {
 					tableData = updatedData;
 					updated = true;
@@ -138,11 +127,7 @@
 			} else {
 				// Handle block/unblock actions
 				const updatedData = tableData.map((item: User | Token) => {
-					let shouldUpdate = false;
-					if (type === 'user' && isUser(item) && ids.includes(item._id)) shouldUpdate = true;
-					if (type === 'token' && isToken(item) && ids.includes(item.token)) shouldUpdate = true;
-
-					if (shouldUpdate) {
+					if (tokenIds.includes((item as Token).token as string)) {
 						updated = true;
 						if (action === 'block') {
 							return { ...item, blocked: true };
@@ -160,8 +145,7 @@
 
 			// Clear selection after any action
 			if (updated) {
-				selectedMap = {};
-				selectAll = false;
+				selectedRows = [];
 			}
 		}
 	} // Table header definitions
@@ -251,25 +235,21 @@
 		const tokenData = tokenId;
 		if (!tokenData) return;
 
-		modalState.trigger(
-			ModalEditToken as any,
-			{
-				token: tokenData.token,
-				email: tokenData.email,
-				role: tokenData.role,
-				expires: convertDateToExpiresFormat(tokenData.expires),
-				title: m.multibuttontoken_modaltitle(),
-				body: m.multibuttontoken_modalbody(),
-				roles // Pass roles explicitly
-			},
-			(result: any) => {
+		modalState.trigger(ModalEditToken as any, {
+			token: tokenData.token,
+			email: tokenData.email,
+			role: tokenData.role,
+			expires: convertDateToExpiresFormat(tokenData.expires),
+			title: m.multibuttontoken_modaltitle(),
+			body: m.multibuttontoken_modalbody(),
+			response: (result: any) => {
 				if (result && result.success) {
 					fetchData();
 				} else if (result?.success === false) {
 					toaster.error({ description: result.error || 'Failed to update token' });
 				}
 			}
-		);
+		});
 	}
 
 	// Helper function to convert Date to expires format expected by ModalEditToken
@@ -298,22 +278,13 @@
 		if (!url) return '/Default_User.svg';
 		try {
 			if (url.startsWith('data:') || /^https?:\/\//i.test(url)) return url;
-
+			if (url === '/files' || url === '/files/') return '/Default_User.svg';
+			if (url.startsWith('/files/')) return url;
 			// Allow direct svg in static
 			if (/^\/?[^\s?]+\.svg$/i.test(url)) return url.startsWith('/') ? url : `/${url}`;
-
-			// Normalize path
-			// 1. Remove leading slashes
-			let clean = url.replace(/^\/+/, '');
-			// 2. Remove prefixes
-			clean = clean.replace(/^mediaFolder\//, '').replace(/^files\//, '');
-			// 3. Remove leading slashes again just in case
-			clean = clean.replace(/^\/+/, '');
-
-			if (clean === 'files' || clean === '') return '/Default_User.svg';
-
-			// Add timestamp for cache busting
-			return `/files/${clean}?t=${Date.now()}`;
+			// Fallback: prefix media-ish paths with /files/
+			const trimmed = url.startsWith('/') ? url.slice(1) : url;
+			return `/files/${trimmed}`;
 		} catch {
 			return '/Default_User.svg';
 		}
@@ -485,21 +456,8 @@
 	}
 
 	function modalTokenUser() {
-		modalState.trigger(
-			ModalEditToken as any,
-			{
-				title: m.multibuttontoken_modaltitle(),
-				body: m.multibuttontoken_modalbody(),
-				roles, // Pass available roles
-				user: currentUser // Pass current user context if needed
-			},
-			(result: any) => {
-				// Refresh data if token was created
-				if (result && result.success) {
-					fetchData();
-				}
-			}
-		);
+		// TODO: Implement modalTokenUser logic or locate missing import
+		toaster.warning({ description: 'Feature not implemented yet' });
 	}
 
 	// Toggle views
@@ -633,7 +591,7 @@
 			</div>
 
 			<div class="order-2 flex items-center justify-center sm:order-3">
-				<Multibutton {selectedRows} type={showUserList ? 'user' : 'token'} totalUsers={totalItems} {currentUser} onUpdate={handleBatchUpdate} />
+				<Multibutton {selectedRows} type={showUserList ? 'user' : 'token'} totalUsers={totalItems} {currentUser} onTokenUpdate={handleTokenUpdate} />
 			</div>
 		</div>
 
@@ -677,11 +635,9 @@
 
 			<div class="table-container max-h-[calc(100vh-120px)] overflow-auto">
 				<table class="table table-interactive {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
-					<thead
-						class="divide-x divide-surface-200/50 dark:divide-surface-50 text-surface-500 dark:text-surface-300 bg-secondary-100 dark:bg-surface-800/50"
-					>
+					<thead class="text-tertiary-500 dark:text-primary-500">
 						{#if filterShow}
-							<tr class="divide-x divide-surface-200/50 dark:divide-surface-700/50">
+							<tr class="divide-x divide-preset-400">
 								<th>
 									{#if Object.keys(filters).length > 0}
 										<button onclick={() => (filters = {})} aria-label="Clear All Filters" class="preset-outline btn-icon">
@@ -706,9 +662,7 @@
 							</tr>
 						{/if}
 
-						<tr
-							class="divide-x divide-surface-300 dark:divide-surface-50 border-b border-surface-300 dark:border-surface-50 font-semibold tracking-wide uppercase text-xs"
-						>
+						<tr class="divide-x divide-preset-400 border-b border-black dark:border-white">
 							<TableIcons
 								cellClass="w-10 text-center"
 								checked={selectAll}
@@ -722,7 +676,6 @@
 
 							{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
 								<th
-									class="cursor-pointer text-tertiary-500 dark:text-primary-500 hover:bg-surface-100/50 dark:hover:bg-surface-800/50 transition-colors"
 									onclick={() => {
 										sorting = {
 											sortedBy: header.key,
@@ -730,11 +683,11 @@
 										};
 									}}
 								>
-									<div class="flex items-center justify-center gap-1">
+									<div class="flex items-center justify-center text-center">
 										{header.label}
 										<iconify-icon
 											icon="material-symbols:arrow-upward-rounded"
-											width="18"
+											width="22"
 											class="origin-center duration-300 ease-in-out"
 											class:up={sorting.isSorted === 1 && sorting.sortedBy === header.key}
 											class:invisible={sorting.isSorted === 0 || sorting.sortedBy !== header.key}
@@ -745,14 +698,14 @@
 						</tr>
 					</thead>
 
-					<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
+					<tbody>
 						{#each tableData as row, index (isUser(row) ? row._id : isToken(row) ? row.token : index)}
 							{@const expiresVal: string | Date | null = isToken(row) ? row.expires : null}
 							{@const isExpired = showUsertoken && expiresVal && new Date(expiresVal) < new Date()}
 							<tr
-								class="divide-x divide-surface-200/50 dark:divide-surface-50 {isExpired
-									? 'bg-error-50 opacity-60 dark:bg-error-900/20'
-									: ''} {showUsertoken ? 'cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-800' : ''}"
+								class="divide-x divide-preset-400 {isExpired ? 'bg-error-50 opacity-60 dark:bg-error-900/20' : ''} {showUsertoken
+									? 'cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-800'
+									: ''}"
 								onclick={(event) => {
 									// Only handle click if it's on a token row and not on the checkbox
 									if (showUsertoken && !(event.target as HTMLElement)?.closest('td:first-child')) {
@@ -792,14 +745,14 @@
 												</button>
 											{/if}
 										{:else if showUserList && header.key === 'avatar'}
-											<Avatar class="size-10 overflow-hidden rounded-full border border-surface-200/50 dark:text-surface-50/50">
+											<Avatar class="overflow-hidden w-10">
 												<Avatar.Image
 													src={currentUser && isUser(row) && row._id === currentUser._id
-														? normalizeMediaUrl(avatarSrc.value)
+														? avatarSrc.value
 														: isUser(row) && header.key === 'avatar'
 															? normalizeMediaUrl(row.avatar)
 															: '/Default_User.svg'}
-													class="h-full w-full object-cover"
+													class="object-cover"
 												/>
 												<Avatar.Fallback>User</Avatar.Fallback>
 											</Avatar>
@@ -813,7 +766,7 @@
 											<div class="flex items-center justify-center gap-2">
 												<span class="font-mono text-sm">{isUser(row) ? row._id : isToken(row) ? row._id : '-'}</span>
 												<button
-													class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500 hover:dark:preset-filled-primary-500"
+													class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500"
 													aria-label="Copy User ID"
 													title="Copy User ID to clipboard"
 													onclick={(event) => {
@@ -837,7 +790,7 @@
 											<div class="flex items-center justify-center gap-2">
 												<span class="max-w-[200px] truncate font-mono text-sm">{isToken(row) && header.key === 'token' ? row.token : '-'}</span>
 												<button
-													class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500 hover:dark:preset-filled-primary-500"
+													class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500"
 													aria-label="Copy Token"
 													title="Copy Token to clipboard"
 													onclick={(event) => {

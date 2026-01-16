@@ -5,7 +5,6 @@
 
 import { contentManager } from '@src/content/ContentManager';
 import type { User } from '@src/databases/auth/types';
-import { logger } from '@utils/logger.server';
 
 interface GraphQLContext {
 	user?: User;
@@ -102,100 +101,55 @@ export const systemResolvers = {
 		// --- Collection Metadata ---
 		collectionStats: async (_: unknown, args: { collectionId: string }, context: GraphQLContext) => {
 			if (!context.user) throw new Error('Authentication required');
-			try {
-				return await contentManager.getCollectionStats(args.collectionId, context.tenantId);
-			} catch (error) {
-				logger.error(`Error in collectionStats:`, { error, collectionId: args.collectionId, tenantId: context.tenantId });
-				throw new Error('Failed to fetch collection stats');
-			}
+			return contentManager.getCollectionStats(args.collectionId, context.tenantId);
 		},
 
 		allCollectionStats: async (_: unknown, __: unknown, context: GraphQLContext) => {
 			if (!context.user) throw new Error('Authentication required');
-			try {
-				const collections = await contentManager.getCollections(context.tenantId);
-				return collections.map((col) => contentManager.getCollectionStats(col._id!, context.tenantId)).filter(Boolean);
-			} catch (error) {
-				logger.error(`Error in allCollectionStats:`, { error, tenantId: context.tenantId });
-				throw new Error('Failed to fetch all collection stats');
-			}
+			const collections = await contentManager.getCollections(context.tenantId);
+			return collections.map((col) => contentManager.getCollectionStats(col._id!, context.tenantId)).filter(Boolean);
 		},
 
 		// --- Navigation ---
 		navigationStructure: async (_: unknown, args: { options?: { maxDepth?: number; expandedIds?: string[] } }, context: GraphQLContext) => {
 			if (!context.user) throw new Error('Authentication required');
-			try {
-				const expandedIds = new Set(args.options?.expandedIds || []);
-				return await contentManager.getNavigationStructureProgressive({
-					maxDepth: args.options?.maxDepth ?? 1,
-					expandedIds,
-					tenantId: context.tenantId
-				});
-			} catch (error) {
-				logger.error(`Error in navigationStructure:`, { error, tenantId: context.tenantId });
-				throw new Error('Failed to fetch navigation structure');
-			}
+			const expandedIds = new Set(args.options?.expandedIds || []);
+			return contentManager.getNavigationStructureProgressive({
+				maxDepth: args.options?.maxDepth ?? 1,
+				expandedIds,
+				tenantId: context.tenantId
+			});
 		},
 
 		nodeChildren: async (_: unknown, args: { nodeId: string }, context: GraphQLContext) => {
 			if (!context.user) throw new Error('Authentication required');
-			try {
-				return await contentManager.getNodeChildren(args.nodeId, context.tenantId);
-			} catch (error) {
-				logger.error(`Error in nodeChildren:`, { error, nodeId: args.nodeId, tenantId: context.tenantId });
-				throw new Error('Failed to fetch node children');
-			}
+			return contentManager.getNodeChildren(args.nodeId, context.tenantId);
 		},
 
 		breadcrumb: async (_: unknown, args: { path: string }, context: GraphQLContext) => {
 			if (!context.user) throw new Error('Authentication required');
-			try {
-				return await contentManager.getBreadcrumb(args.path);
-			} catch (error) {
-				logger.error(`Error in breadcrumb:`, { error, path: args.path, tenantId: context.tenantId });
-				throw new Error('Failed to fetch breadcrumb');
-			}
+			return contentManager.getBreadcrumb(args.path);
 		},
 
 		// --- Health & Diagnostics ---
 		contentManagerHealth: async (_: unknown, __: unknown, context: GraphQLContext) => {
 			if (!context.user) throw new Error('Authentication required');
-			try {
-				return await contentManager.getHealthStatus();
-			} catch (error) {
-				logger.error(`Error in contentManagerHealth:`, { error });
-				throw new Error('Failed to fetch health status');
-			}
+			return contentManager.getHealthStatus();
 		},
 
 		contentManagerDiagnostics: async (_: unknown, __: unknown, context: GraphQLContext) => {
 			if (!context.user || !context.user.isAdmin) throw new Error('Admin access required');
-			try {
-				return await contentManager.getDiagnostics();
-			} catch (error) {
-				logger.error(`Error in contentManagerDiagnostics:`, { error });
-				throw new Error('Failed to fetch diagnostics');
-			}
+			return contentManager.getDiagnostics();
 		},
 
 		contentManagerMetrics: async (_: unknown, __: unknown, context: GraphQLContext) => {
 			if (!context.user || !context.user.isAdmin) throw new Error('Admin access required');
-			try {
-				return await contentManager.getMetrics();
-			} catch (error) {
-				logger.error(`Error in contentManagerMetrics:`, { error });
-				throw new Error('Failed to fetch metrics');
-			}
+			return contentManager.getMetrics();
 		},
 
 		validateContentStructure: async (_: unknown, __: unknown, context: GraphQLContext) => {
 			if (!context.user || !context.user.isAdmin) throw new Error('Admin access required');
-			try {
-				return await contentManager.validateStructure();
-			} catch (error) {
-				logger.error(`Error in validateContentStructure:`, { error });
-				throw new Error('Failed to validate structure');
-			}
+			return contentManager.validateStructure();
 		}
 	}
 };

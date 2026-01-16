@@ -191,7 +191,7 @@
 			toaster.error({ description: 'An error occurred while generating the token' });
 		}
 	}
-	import { showConfirm } from '@utils/modalUtils';
+	import { showConfirm } from '@utils/modalState.svelte';
 
 	async function deleteToken(id: string, name: string) {
 		showConfirm({
@@ -343,7 +343,7 @@
 														await navigator.clipboard.writeText(token.token);
 														toaster.success({ description: 'Token copied to clipboard' });
 													}}
-													class="preset-outline-surface-500 btn-icon btn-icon-sm"
+													class="preset-ghost-surface-500 btn-icon btn-icon-sm"
 													aria-label="Copy token to clipboard"
 												>
 													<iconify-icon icon="mdi:clipboard-outline" width="16"></iconify-icon>
@@ -359,7 +359,7 @@
 									</td>
 								{/each}
 								<td>
-									<button class="preset-filled-error-500 btn-sm" onclick={() => deleteToken(token._id, token.name)}>Delete</button>
+									<button class="preset-filled-error-500 btn btn-sm" onclick={() => deleteToken(token._id, token.name)}>Delete</button>
 								</td>
 							</tr>
 						{/each}

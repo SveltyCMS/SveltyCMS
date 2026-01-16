@@ -14,7 +14,7 @@ Orchestrates the annotation lifecycle:
 <script lang="ts">
 	import Konva from 'konva';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-	import AnnotateControls from './Controls.svelte';
+	import AnnotateControls from '@src/components/imageEditor/toolbars/AnnotateControls.svelte';
 	import { AnnotationItem, type AnnotationKind } from './regions';
 	import * as draw from './draw';
 	import { createTransformer, attachTransformer } from './transformer';

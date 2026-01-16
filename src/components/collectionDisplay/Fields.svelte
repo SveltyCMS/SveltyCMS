@@ -1,22 +1,26 @@
 <!--
 @file src/components/collectionDisplay/Fields.svelte
 @component
-**Fields is a core component that renders collection fields for data entry and provides revision history.**
+**Fields is a \"dumb\" component that renders collection fields for data entry and provides revision history.**
 
-### Features:
-- **Widget Rendering**: Automatically loads and renders appropriate widgets for each field.
-- **Reactivity**: Binds form data to the `collectionValue` store with real-time sync.
-- **Revision History**: Displays entry revisions with compare and revert functionality.
-- **Validation**: Performs field-level validation based on schema constraints.
-- **Translation Aware**: Manages multilingual data input through widget-integrated language context.
+@example
+<Fields {fields} {revisions} contentLanguage="en" />
 
 ### Props
-- `fields` (Array): The array of field instances from the collection schema.
-- `revisions` (Array): Historical snapshot data for the current entry.
-- `contentLanguage` (String): The language for data entry (GUI remains in systemLanguage).
+- `fields` - The array of field objects from the collection schema.
+- `revisions` - An array of revision metadata for the current entry.
+- `contentLanguage` - The current content language for editing multilingual field data.
 
-### Keyboard Shortcuts
-- `Alt + S`: Save currently edited entry (if focused)
+### Features
+- Renders appropriate widgets for each field in the schema.
+- Binds form data to the `collectionValue` store.
+- Displays revision history and allows comparing/reverting to previous versions.
+- Does not perform any data fetching; all data is received as props.
+
+### Dual-Language Architecture
+- **GUI (systemLanguage)**: All UI text uses ParaglideJS (compile-time) for interface labels, buttons, messages
+- **Data (contentLanguage)**: Content data uses dynamic contentLanguage passed to widgets for translated fields
+- **Database-Agnostic**: Widgets handle data format (MongoDB: nested objects, SQL: relation tables via IDBAdapter)
 -->
 <script lang="ts">
 	import { untrack } from 'svelte';
@@ -41,7 +45,7 @@
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	// import { CodeBlock, Tab, TabGroup, clipboard } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '@stores/store.svelte';
-	import { showConfirm } from '@utils/modalUtils';
+	import { showConfirm } from '@utils/modalState.svelte';
 
 	import { widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte';
 
@@ -485,7 +489,7 @@
 					</button>
 				</div>
 
-				<div class="rounded-lg border p-4 dark:text-surface-50">
+				<div class="rounded-lg border p-4 dark:border-surface-700">
 					<h3 class="mb-3 text-lg font-bold">Changes from Selected Revision</h3>
 					{#if selectedRevision}
 						{@const diffObject = selectedRevision?.diff || null}
@@ -536,7 +540,7 @@
 					<iconify-icon icon="mdi:open-in-new" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					<input type="text" class="input grow text-sm" readonly value={previewUrl} />
 					<button
-						class="preset-outline-surface-500 btn-sm"
+						class="preset-ghost-surface-500 btn btn-sm"
 						onclick={() => {
 							navigator.clipboard.writeText(previewUrl);
 							toaster.success({ description: 'Preview URL Copied' });
@@ -546,13 +550,13 @@
 						<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>
 					</button>
 				</div>
-				<a href={previewUrl} target="_blank" rel="noopener noreferrer" class="preset-filled-primary-500 btn-sm">
+				<a href={previewUrl} target="_blank" rel="noopener noreferrer" class="preset-filled-primary-500 btn btn-sm">
 					<iconify-icon icon="mdi:open-in-new" width="16" class="mr-1"></iconify-icon>
 					Open
 				</a>
 			</div>
 
-			<div class="flex-1 overflow-hidden rounded-lg border border-surface-300 dark:text-surface-50">
+			<div class="flex-1 overflow-hidden rounded-lg border border-surface-300 dark:border-surface-700">
 				<iframe src={previewUrl} title="Live Preview" class="h-full w-full" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
 				></iframe>
 			</div>
@@ -567,7 +571,7 @@
 			<div class="flex items-center gap-2">
 				<input type="text" class="input grow" readonly value={apiUrl} />
 				<button
-					class="preset-outline-surface-500 btn"
+					class="preset-ghost-surface-500 btn"
 					onclick={() => {
 						navigator.clipboard.writeText(apiUrl);
 						toaster.success({ description: 'API URL Copied' });

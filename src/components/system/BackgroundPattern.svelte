@@ -32,7 +32,7 @@ and configurable quality settings for weaker devices.
 -->
 
 <script lang="ts">
-	import { onMount, onDestroy, untrack } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { Tween } from 'svelte/motion';
 	import { cubicOut } from 'svelte/easing';
@@ -56,12 +56,10 @@ and configurable quality settings for weaker devices.
 	}>();
 
 	// Performance-based configuration
-	let actualQuality = $state(untrack(() => quality));
+	// svelte-ignore state_referenced_locally
+	let actualQuality = $state(quality);
 	$effect(() => {
-		// Sync local state when prop changes, but only if not overriding via auto-detection
-		if (!autoDetectPerformance) {
-			actualQuality = quality;
-		}
+		actualQuality = quality;
 	});
 	let pathCount = $state(12); // Reduced from 72
 	let shouldReduceMotion = $state(false);

@@ -17,7 +17,7 @@
 -->
 
 <script lang="ts">
-	import { showToast } from '@utils/toast';
+	import { toaster } from '@stores/store.svelte';
 	import { logger } from '@utils/logger';
 
 	let remoteUrls: string[] = $state([]);
@@ -31,7 +31,7 @@
 
 	async function uploadRemoteUrls() {
 		if (remoteUrls.length === 0) {
-			showToast('No URLs entered for upload', 'warning');
+			toaster.warning({ description: 'No URLs entered for upload' });
 			return;
 		}
 
@@ -51,14 +51,14 @@
 			const result = await response.json();
 
 			if (result.success) {
-				showToast('URLs uploaded successfully', 'success');
+				toaster.success({ description: 'URLs uploaded successfully' });
 				remoteUrls = []; // Clear the remote URLs array after successful upload
 			} else {
 				throw Error(result.error || 'Upload failed');
 			}
 		} catch (error) {
 			logger.error('Error uploading URLs:', error);
-			showToast('Error uploading URLs: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
+			toaster.error({ description: 'Error uploading URLs: ' + (error instanceof Error ? error.message : 'Unknown error') });
 		}
 	}
 </script>
@@ -68,7 +68,7 @@
 		bind:value={remoteUrls}
 		placeholder="Paste Remote URLs here, one per line..."
 		rows="6"
-		class="textarea w-full bg-secondary-50 dark:bg-secondary-800"
+		class="textarea w-full"
 		oninput={handleRemoteUrlInput}
 	></textarea>
 	<!-- Upload Button -->

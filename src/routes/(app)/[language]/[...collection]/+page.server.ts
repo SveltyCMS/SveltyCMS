@@ -93,13 +93,6 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			// Direct UUID lookup
 			logger.debug(`Loading collection by UUID: \x1b[33m${collection}\x1b[0m`);
 			currentCollection = contentManager.getCollectionById(collection!, tenantId);
-
-			// Redirect to pretty path if available (Prevents UUID -> Path flicker on client)
-			if (currentCollection && currentCollection.path) {
-				const newPath = `/${language}${currentCollection.path}${url.search}`;
-				logger.debug(`Redirecting UUID to canonical path: ${newPath}`);
-				throw redirect(302, newPath);
-			}
 		} else {
 			// Path-based lookup (backward compatibility)
 			const collectionPath = `/${collection}`;
@@ -139,19 +132,9 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		const globalSearch = url.searchParams.get('search') || '';
 
 		const filterParams: Record<string, { contains: string }> = {};
-		let forceEmpty = false;
-
 		for (const [key, value] of url.searchParams.entries()) {
 			if (key.startsWith('filter_')) {
 				const filterKey = key.substring(7); // remove "filter_"
-
-				// Validate System Date fields to prevent DB cast errors on invalid inputs
-				if ((filterKey === 'createdAt' || filterKey === 'updatedAt') && value) {
-					// Check for "asda" type garbage. Valid dates or partial headers (numbers) allow pass.
-					if (isNaN(Date.parse(value)) && !/^\d+$/.test(value)) {
-						forceEmpty = true;
-					}
-				}
 				filterParams[filterKey] = { contains: value }; // Assuming a 'contains' filter strategy
 			}
 		}
@@ -239,36 +222,20 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			countQuery = countQuery.search(globalSearch, searchableFields as any);
 		}
 
-		// Initialize with empty defaults
-		let entries: any[] = [];
-		let totalItems = 0;
+		const [entriesResult, countResult] = await Promise.all([query.execute(), countQuery.count()]);
 
-		if (!forceEmpty) {
-			const [entriesResult, countResult] = await Promise.all([query.execute(), countQuery.count()]);
-
-			if (!entriesResult.success || !countResult.success) {
-				const dbError =
-					(!entriesResult.success && 'error' in entriesResult ? entriesResult.error : undefined) ||
-					(!countResult.success && 'error' in countResult ? countResult.error : undefined) ||
-					'Unknown database error';
-
-				const errStr = typeof dbError === 'object' ? JSON.stringify(dbError) : String(dbError);
-
-				// Gracefully handle CastErrors (invalid filters) by returning empty results
-				if (errStr.includes('Cast') || errStr.includes('convert')) {
-					logger.warn('Invalid filter value caused DB error, returning empty result.', { error: dbError });
-					entries = [];
-					totalItems = 0;
-				} else {
-					logger.error('Failed to load collection entries.', { error: dbError });
-					throw error(500, `Failed to load collection entries: ${errStr}`);
-				}
-			} else {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				entries = (entriesResult.data || []) as any[];
-				totalItems = countResult.data as number;
-			}
+		if (!entriesResult.success || !countResult.success) {
+			const dbError =
+				(!entriesResult.success && 'error' in entriesResult ? entriesResult.error : undefined) ||
+				(!countResult.success && 'error' in countResult ? countResult.error : undefined) ||
+				'Unknown database error';
+			logger.error('Failed to load collection entries.', { error: dbError });
+			throw error(500, `Failed to load collection entries: ${dbError}`);
 		}
+
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const entries = (entriesResult.data || []) as any[];
+		const totalItems = countResult.data;
 
 		// =================================================================
 		// 5. RUN MODIFYREQUEST (Enrich entries)
@@ -397,12 +364,6 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 		return returnData;
 	} catch (err) {
-		// If it's a redirect (SvelteKit standard behavior), just rethrow it without logging an error
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		if ((err as any)?.status >= 300 && (err as any)?.status < 400 && (err as any)?.location) {
-			throw err;
-		}
-
 		logger.error('Error loading collection page', {
 			error: err,
 			collection,

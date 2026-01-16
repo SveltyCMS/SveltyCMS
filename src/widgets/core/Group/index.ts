@@ -8,7 +8,7 @@
  * @features
  * - **Field Organization**: Groups related fields together visually
  * - **Collapsible Sections**: Optional collapsible functionality for better UX
- * - **Visual Variants**: Different styling options (default, card, bordered)
+ * - **Visual Presets**: Different styling options (default, card, bordered)
  * - **Accessibility**: Proper ARIA attributes and keyboard navigation
  * - **Responsive Design**: Adapts to different screen sizes
  * - **Nested Structure**: Can contain other widgets within the group
@@ -46,7 +46,7 @@ const GroupWidget = createWidget<GroupProps>({
 	defaults: {
 		collapsible: false,
 		collapsed: false,
-		variant: 'default'
+		preset: 'default'
 	},
 
 	// Pass the GuiSchema directly into the widget's definition.
@@ -55,7 +55,7 @@ const GroupWidget = createWidget<GroupProps>({
 		groupTitle: { widget: Input, required: false },
 		collapsible: { widget: Toggles, required: false },
 		collapsed: { widget: Toggles, required: false },
-		variant: { widget: Input, required: false },
+		preset: { widget: Input, required: false },
 		db_fieldName: { widget: Input, required: false },
 		icon: { widget: IconifyPicker, required: false },
 		helper: { widget: Input, required: false },

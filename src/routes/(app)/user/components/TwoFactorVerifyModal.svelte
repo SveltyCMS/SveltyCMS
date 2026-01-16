@@ -3,11 +3,7 @@
 @component
 **Two-Factor Authentication Verification Modal**
 
-This modal			class="input text-center font-mono tracking-wider"
-			class:text-2xl={!useBackupCode}
-			class:text-lg={useBackupCode}
-			maxlength={useBackupCode ? 10 : 6}
-			autocomplete="off"les verification of 2FA codes for various operations like disabling 2FA.
+This modal handles verification of 2FA codes for various operations like disabling 2FA.
 
 @example
 <TwoFactorVerifyModal title="Verify 2FA" description="Enter your code..." />
@@ -25,11 +21,11 @@ This modal			class="input text-center font-mono tracking-wider"
 -->
 
 <script lang="ts">
-	import { modalState } from '@utils/modalState.svelte';
+	// getModalStore deprecated - use modalState from @utils/modalState.svelte;
 	import * as m from '@src/paraglide/messages';
 
 	// Props
-	const { parent, title = '', description = '' } = $props();
+	const { parent, title = '', description = '', close } = $props();
 
 	// State
 	let code = $state('');
@@ -82,7 +78,7 @@ This modal			class="input text-center font-mono tracking-wider"
 		try {
 			// Return the code to the parent modal
 			if (parent.onClose) parent.onClose(trimmedCode);
-			modalState.close();
+			close?.(trimmedCode);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Verification failed';
 		} finally {
@@ -93,7 +89,7 @@ This modal			class="input text-center font-mono tracking-wider"
 	// Cancel verification
 	function cancelVerification() {
 		if (parent.onClose) parent.onClose(null);
-		modalState.close();
+		close?.(null);
 	}
 
 	// Toggle between authenticator and backup code
@@ -164,7 +160,7 @@ This modal			class="input text-center font-mono tracking-wider"
 
 	<!-- Action Buttons -->
 	<div class="flex gap-3">
-		<button onclick={cancelVerification} class="preset-tonal-surface btn flex-1">
+		<button onclick={cancelVerification} class="preset-soft-surface-500 btn flex-1">
 			{m.button_cancel()}
 		</button>
 

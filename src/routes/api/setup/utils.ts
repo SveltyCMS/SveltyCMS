@@ -19,8 +19,8 @@ import { logger } from '@utils/logger';
 
 /**
  * Database connection string builder for supported database types.
- * Currently supports: MongoDB (standard and Atlas SRV), MariaDB
- * Future support planned: PostgreSQL
+ * Currently supports: MongoDB (standard and Atlas SRV)
+ * Future support planned: PostgreSQL, MySQL, MariaDB via Drizzle ORM
  */
 export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 	// Validate config
@@ -31,7 +31,8 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 			const protocol = isSrv ? 'mongodb+srv' : 'mongodb';
 			const port = isSrv || !config.port ? '' : `:${config.port}`;
 
-			// Check if credentials are provided
+			// Check if this is localhost without auth
+			const isLocalhost = config.host === 'localhost' || config.host === '127.0.0.1';
 			const hasCredentials = config.user && config.password;
 
 			const user = hasCredentials ? `${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@` : '';
@@ -48,16 +49,23 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 
 			const connectionString = `${protocol}://${user}${config.host}${port}/${config.name}${queryParams}`;
 
-			// Logging happens in getSetupDatabaseAdapter with correlationId
-			return connectionString;
-		}
-		case 'mariadb': {
-			// MariaDB connection string
-			const port = config.port ? `:${config.port}` : ':3306';
-			const hasCredentials = config.user && config.password;
-			const user = hasCredentials ? `${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@` : '';
-
-			const connectionString = `mysql://${user}${config.host}${port}/${config.name}`;
+			// Enhanced logging for Atlas connections
+			if (isSrv) {
+				logger.info('🌐 Building MongoDB Atlas (SRV) connection string', {
+					host: config.host,
+					database: config.name,
+					hasCredentials,
+					user: config.user || 'none'
+				});
+			} else {
+				logger.info('🔧 Building MongoDB connection string', {
+					host: config.host,
+					port: config.port || '27017',
+					database: config.name,
+					hasCredentials,
+					isLocalhost
+				});
+			}
 
 			return connectionString;
 		}
@@ -99,20 +107,6 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 	switch (config.type) {
 		case 'mongodb':
 		case 'mongodb+srv': {
-			// Mock success in TEST_MODE if host is 'mock-host' for UI audit purposes
-			if (process.env.TEST_MODE === 'true' && config.host === 'mock-host') {
-				logger.info('🛠️ Mocking DB connection for setup in TEST_MODE');
-				const { MongoDBAdapter } = await import('@src/databases/mongodb/mongoDBAdapter');
-				dbAdapter = new MongoDBAdapter() as unknown as IDBAdapter;
-
-				// Mock the connect method to return success
-				dbAdapter.connect = async () => ({ success: true, data: undefined });
-				// Mock the auth setup to do nothing
-				dbAdapter.auth.setupAuthModels = async () => {};
-
-				return { dbAdapter, connectionString };
-			}
-
 			const { MongoDBAdapter } = await import('@src/databases/mongodb/mongoDBAdapter');
 			dbAdapter = new MongoDBAdapter() as unknown as IDBAdapter;
 
@@ -141,37 +135,11 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 
 			break;
 		}
-		case 'mariadb': {
-			// Mock success in TEST_MODE if host is 'mock-host' for UI audit purposes
-			if (process.env.TEST_MODE === 'true' && config.host === 'mock-host') {
-				logger.info('🛠️ Mocking MariaDB connection for setup in TEST_MODE');
-				const { MariaDBAdapter } = await import('@src/databases/mariadb/mariadbAdapter');
-				dbAdapter = new MariaDBAdapter() as unknown as IDBAdapter;
-
-				// Mock the connect method to return success
-				dbAdapter.connect = async () => ({ success: true, data: undefined });
-				// Mock the auth setup to do nothing
-				dbAdapter.auth.setupAuthModels = async () => {};
-
-				return { dbAdapter, connectionString };
-			}
-
-			const { MariaDBAdapter } = await import('@src/databases/mariadb/mariadbAdapter');
-			dbAdapter = new MariaDBAdapter() as unknown as IDBAdapter;
-
-			const connectResult = await dbAdapter.connect(connectionString);
-			if (!connectResult.success) {
-				logger.error(`MariaDB connection failed: ${connectResult.error?.message}`, { correlationId });
-				throw new Error(`Database connection failed: ${connectResult.error?.message}`);
-			}
-
-			break;
-		}
 		default: {
 			// TypeScript ensures exhaustive checking - this should never be reached
 			const _exhaustiveCheck: never = config.type;
 			logger.error(`Unsupported database type: ${_exhaustiveCheck}`, { correlationId });
-			throw new Error(`Database type '${_exhaustiveCheck}' is not supported for setup. Supported types: mongodb, mongodb+srv, mariadb`);
+			throw new Error(`Database type '${_exhaustiveCheck}' is not supported for setup. Only MongoDB is currently supported.`);
 		}
 	}
 

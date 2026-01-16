@@ -12,7 +12,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { logger } from '@utils/logger.server';
-import { invalidateSetupCache } from '@utils/setupCheck';
 import type { DatabaseConfig } from '@src/databases/schemas';
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -29,7 +28,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		logger.info('📝 Writing private.ts configuration file...');
 		const { writePrivateConfig } = await import('../writePrivateConfig');
 		await writePrivateConfig(dbConfig);
-		invalidateSetupCache(true); // Clear cache so system knows setup is done
 		logger.info('✅ Private configuration file written');
 
 		// STEP 2: Asynchronously seed database and get first collection for quick redirect
@@ -39,71 +37,32 @@ export const POST: RequestHandler = async ({ request }) => {
 		const firstCollection = collections.length > 0 ? { name: collections[0].name, path: collections[0].path, _id: collections[0]._id } : null;
 		logger.info(`Found ${collections.length} collections. First collection for redirect: ${firstCollection?.name} (ID: ${firstCollection?._id})`);
 
-		// Run the full seeding process
+		// Run the full seeding process in the background
 		const { initSystemFromSetup } = await import('../seed');
 		const { getSetupDatabaseAdapter } = await import('../utils');
-		const { setupManager } = await import('../setupManager');
-
-		const isTestMode = process.env.TEST_MODE === 'true' || request.headers.get('x-seed-sync') === 'true';
 
 		const seedProcess = async () => {
 			try {
-				setupManager.isSeeding = true;
-				logger.info(`📦 Getting setup database adapter for ${isTestMode ? 'synchronous' : 'background'} seeding...`);
+				logger.info('📦 Getting setup database adapter for background seeding...');
 				const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
-
-				// Run migrations for SQL databases (MariaDB)
-				if (dbConfig.type === 'mariadb') {
-					logger.info('🐘 Running MariaDB migrations...');
-					try {
-						// Dynamically import migrations to avoid loading if not using MariaDB
-						const { runMigrations } = await import('@src/databases/mariadb/migrations');
-
-						// Access the connection pool from the adapter implementation
-						// The adapter is typed as IDBAdapter but the implementation has a 'pool' property
-						const adapterImpl = dbAdapter as any;
-						if (adapterImpl.pool) {
-							const migrationResult = await runMigrations(adapterImpl.pool);
-							if (!migrationResult.success) {
-								throw new Error(`Migration failed: ${migrationResult.error}`);
-							}
-						} else {
-							logger.warn('⚠️ MariaDB adapter does not have a pool property, skipping migrations. This may cause seeding errors.');
-						}
-					} catch (migrationError) {
-						logger.error('❌ Migration failed:', migrationError);
-						throw migrationError;
-					}
-				}
-
-				logger.info(`🌱 Starting ${isTestMode ? 'synchronous' : 'background'} seeding of default data (settings, themes, collections)...`);
+				logger.info('🌱 Starting background seeding of default data (settings, themes, collections)...');
 				await initSystemFromSetup(dbAdapter);
-				logger.info(`✅ ${isTestMode ? 'Synchronous' : 'Background'} seeding completed successfully`);
-				return { rolesSeeded: true, settingsSeeded: true, themesSeeded: true };
 			} catch (seedError) {
-				logger.error(`❌ ${isTestMode ? 'Synchronous' : 'Background'} seeding process failed:`, seedError);
-				setupManager.seedingError = seedError instanceof Error ? seedError.message : String(seedError);
-				throw seedError;
-			} finally {
-				setupManager.isSeeding = false;
+				logger.error('❌ Background seeding process failed:', seedError);
 			}
 		};
+		seedProcess(); // Fire-and-forget
 
-		let seedResults = { rolesSeeded: false, settingsSeeded: false, themesSeeded: false };
+		// Return response immediately
+		logger.info('✅ Immediately returning response while seeding continues in background.');
 
-		if (isTestMode) {
-			logger.info('⏳ TEST_MODE detected: Awaiting seeding synchronously...');
-			seedResults = await seedProcess();
-		} else {
-			seedProcess(); // Fire-and-forget for normal UX
-			logger.info('✅ Immediately returning response while seeding continues in background.');
-		}
+		// Success message removed - "System initialization completed" already logged in seed.ts
+		// Hook will log the final completion with timing
 
 		return json({
 			success: true,
 			message: 'Database initialized successfully! ✨',
-			firstCollection, // Return first collection info for faster redirect
-			...seedResults
+			firstCollection // Return first collection info for faster redirect
 		});
 	} catch (error) {
 		const errorDetails = {

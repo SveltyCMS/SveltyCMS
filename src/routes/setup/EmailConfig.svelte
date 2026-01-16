@@ -12,10 +12,9 @@
 <script lang="ts">
 	import { setupStore } from '@stores/setupStore.svelte';
 	import * as m from '@src/paraglide/messages';
-	import { showToast } from '@utils/toast';
+	import { toaster } from '@stores/store.svelte';
 	import { safeParse } from 'valibot';
 	import { smtpConfigSchema, type SmtpConfigSchema } from '@utils/formSchemas';
-	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
 
 	const { wizard } = setupStore;
 
@@ -37,7 +36,7 @@
 	let smtpPassword = $state('');
 	let smtpFrom = $state('');
 	let useCustomPort = $state(false);
-
+	let portAutoDetected = $state(false);
 	let showPassword = $state(false);
 
 	// Derived values for auto-detection
@@ -187,9 +186,11 @@
 			const provider = detectProviderFromHost(smtpHost);
 			if (provider) {
 				smtpPort = provider.port;
+				portAutoDetected = true;
 
 				// Show subtle feedback
 			} else {
+				portAutoDetected = false;
 			}
 		}
 	});
@@ -304,6 +305,7 @@
 			smtpHost = preset.host;
 			smtpPort = preset.port;
 			useCustomPort = false;
+			portAutoDetected = false;
 			testSuccess = false;
 			testError = '';
 		}
@@ -311,7 +313,7 @@
 
 	async function testConnection() {
 		if (!isFormValid) {
-			showToast(m.setup_email_test_required(), 'warning');
+			toaster.warning({ description: m.setup_email_test_required() });
 			return;
 		}
 
@@ -349,14 +351,14 @@
 				const message = testEmailSent
 					? `${m.setup_email_test_success()} ${m.setup_email_test_email_sent({ email: wizard.adminUser.email })}`
 					: m.setup_email_test_success();
-				showToast(message, 'success');
+				toaster.success({ description: message });
 			} else {
 				testError = result.error || 'Connection failed';
-				showToast(`${m.setup_email_test_failed()}: ${testError}`, 'error');
+				toaster.error({ description: `${m.setup_email_test_failed()}: ${testError}` });
 			}
 		} catch (error) {
 			testError = error instanceof Error ? error.message : 'Unknown error occurred';
-			showToast(`${m.setup_email_test_failed()}: ${testError}`, 'error');
+			toaster.error({ description: `${m.setup_email_test_failed()}: ${testError}` });
 		} finally {
 			isTesting = false;
 		}
@@ -365,7 +367,7 @@
 
 <div class="space-y-6">
 	<!-- Why SMTP is Needed -->
-	<div class="card preset-outlined-primary-500 p-4">
+	<div class="card preset-ghost-primary-500 p-4">
 		<!-- Header - Always visible with toggle button -->
 		<button
 			type="button"
@@ -374,14 +376,11 @@
 			aria-expanded={showWhySmtp}
 			aria-controls="why-smtp-content"
 		>
-			<iconify-icon icon="mdi:information" class="mt-0.5 shrink-0 text-xl dark:text-primary-500 text-tertiary-500" aria-hidden="true"></iconify-icon>
+			<iconify-icon icon="mdi:information" class="mt-0.5 shrink-0 text-xl text-primary-500" aria-hidden="true"></iconify-icon>
 			<div class="flex-1">
-				<h3 class="font-semibold text-tertiary-500 dark:text-primary-500">{m.setup_email_why_title()}</h3>
+				<h3 class="font-semibold text-primary-700 dark:text-primary-400">{m.setup_email_why_title()}</h3>
 			</div>
-			<iconify-icon
-				icon={showWhySmtp ? 'mdi:chevron-up' : 'mdi:chevron-down'}
-				class="mt-0.5 shrink-0 text-xl text-tertiary-500 dark:text-primary-500"
-				aria-hidden="true"
+			<iconify-icon icon={showWhySmtp ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="mt-0.5 shrink-0 text-xl text-primary-500" aria-hidden="true"
 			></iconify-icon>
 		</button>
 
@@ -404,35 +403,7 @@
 	<!-- SMTP Provider Presets -->
 	<div class="space-y-2">
 		<label class="label">
-			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-				<span class="text-black dark:text-white">{m.setup_email_provider()}</span>
-				<Tooltip positioning={{ placement: 'top' }}>
-					<Tooltip.Trigger>
-						<button
-							type="button"
-							tabindex="-1"
-							aria-label={m.setup_email_aria_help_provider()}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-						</button>
-					</Tooltip.Trigger>
-					<Portal>
-						<Tooltip.Positioner>
-							<Tooltip.Content
-								class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-							>
-								<p>{m.setup_email_help_provider()}</p>
-								<Tooltip.Arrow
-									class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-								>
-									<Tooltip.ArrowTip />
-								</Tooltip.Arrow>
-							</Tooltip.Content>
-						</Tooltip.Positioner>
-					</Portal>
-				</Tooltip>
-			</div>
+			<span class="font-medium">{m.setup_email_provider()}</span>
 			<select class="select" bind:value={selectedPreset} onchange={() => applyPreset(selectedPreset)} aria-label="Select an SMTP provider preset">
 				{#each presets as preset, index (index)}
 					<option value={preset.name}>{preset.name}</option>
@@ -442,7 +413,7 @@
 		{#if selectedPreset !== m.setup_email_preset_custom()}
 			{@const preset = presets.find((p) => p.name === selectedPreset)}
 			{#if preset?.note}
-				<div class="card preset-outlined-warning-500 flex items-start gap-2 p-3" role="alert">
+				<div class="card preset-ghost-warning-500 flex items-start gap-2 p-3" role="alert">
 					<iconify-icon icon="mdi:alert" class="mt-0.5 text-lg text-warning-500" aria-hidden="true"></iconify-icon>
 					<p class="text-sm text-warning-700 dark:text-warning-300">{preset.note}</p>
 				</div>
@@ -454,35 +425,7 @@
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 		<!-- SMTP Host -->
 		<label class="label">
-			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-				<span class="text-black dark:text-white">{m.setup_email_host()} <span class="text-error-500">*</span></span>
-				<Tooltip positioning={{ placement: 'top' }}>
-					<Tooltip.Trigger>
-						<button
-							type="button"
-							tabindex="-1"
-							aria-label={m.setup_email_aria_help_host()}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-						</button>
-					</Tooltip.Trigger>
-					<Portal>
-						<Tooltip.Positioner>
-							<Tooltip.Content
-								class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-							>
-								<p>{m.setup_email_help_host()}</p>
-								<Tooltip.Arrow
-									class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-								>
-									<Tooltip.ArrowTip />
-								</Tooltip.Arrow>
-							</Tooltip.Content>
-						</Tooltip.Positioner>
-					</Portal>
-				</Tooltip>
-			</div>
+			<span class="font-medium">{m.setup_email_host()} <span class="text-error-500">*</span></span>
 			<input
 				type="text"
 				class="input"
@@ -505,9 +448,9 @@
 				<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
 					<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
 					{#if smtpHost.includes('@')}
-						{m.setup_email_invalid_hostname()}
+						Invalid hostname. Use "smtp.domain.com" not "email@domain.com"
 					{:else}
-						{m.setup_email_invalid_hostname_format()}
+						Invalid hostname format. Example: smtp.gmail.com
 					{/if}
 				</span>
 			{/if}
@@ -516,35 +459,13 @@
 		<!-- SMTP Port with Auto-Detection -->
 		<label class="label">
 			<div class="mb-1 flex items-center justify-between">
-				<div class="flex items-center gap-1">
-					<span class="font-medium text-black dark:text-white">{m.setup_email_port()} <span class="text-error-500">*</span></span>
-					<Tooltip positioning={{ placement: 'top' }}>
-						<Tooltip.Trigger>
-							<button
-								type="button"
-								tabindex="-1"
-								aria-label={m.setup_email_aria_help_port()}
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-							</button>
-						</Tooltip.Trigger>
-						<Portal>
-							<Tooltip.Positioner>
-								<Tooltip.Content
-									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-								>
-									<p>{m.setup_email_help_port()}</p>
-									<Tooltip.Arrow
-										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-									>
-										<Tooltip.ArrowTip />
-									</Tooltip.Arrow>
-								</Tooltip.Content>
-							</Tooltip.Positioner>
-						</Portal>
-					</Tooltip>
-				</div>
+				<span class="font-medium">{m.setup_email_port()} <span class="text-error-500">*</span></span>
+				{#if portAutoDetected && !useCustomPort}
+					<span class="preset-soft-success-500 badge flex items-center gap-1 text-xs">
+						<iconify-icon icon="mdi:auto-fix" class="text-sm"></iconify-icon>
+						Auto-detected
+					</span>
+				{/if}
 			</div>
 
 			{#if useCustomPort}
@@ -563,12 +484,13 @@
 						onchange={() => {
 							testSuccess = false;
 							testError = '';
+							portAutoDetected = false;
 						}}
 					/>
 					<button
 						type="button"
-						class="preset-outlined-surface-500btn btn-sm"
-						aria-label={m.setup_email_aria_switch_standard()}
+						class="preset-ghost-surface-500 btn btn-sm"
+						aria-label="Switch back to standard SMTP ports"
 						onclick={() => {
 							useCustomPort = false;
 							smtpPort = 587; // Reset to default
@@ -584,7 +506,7 @@
 						{displayErrors.port}
 					</span>
 				{:else}
-					<span class="text-xs text-surface-600 dark:text-surface-50">{m.setup_email_port_custom_desc()}</span>
+					<span class="text-xs text-surface-600 dark:text-surface-400">{m.setup_email_port_custom_desc()}</span>
 				{/if}
 			{:else}
 				<!-- Standard port dropdown -->
@@ -596,6 +518,7 @@
 						onchange={() => {
 							testSuccess = false;
 							testError = '';
+							portAutoDetected = false;
 						}}
 					>
 						{#each commonPorts as port, index (index)}
@@ -604,10 +527,11 @@
 					</select>
 					<button
 						type="button"
-						class="preset-outlined-surface-500btn btn-sm whitespace-nowrap"
+						class="preset-ghost-surface-500 btn btn-sm whitespace-nowrap"
 						aria-label="Enter a custom SMTP port"
 						onclick={() => {
 							useCustomPort = true;
+							portAutoDetected = false;
 						}}
 					>
 						<iconify-icon icon="mdi:pencil" class="text-lg" aria-hidden="true"></iconify-icon>
@@ -618,12 +542,12 @@
 				{#if selectedPort}
 					<div class="mt-1 flex items-center gap-2">
 						{#if effectiveSecure()}
-							<span class="variant-soft-success badge flex items-center gap-1 text-xs">
+							<span class="preset-soft-success-500 badge flex items-center gap-1 text-xs">
 								<iconify-icon icon="mdi:lock" class="text-sm"></iconify-icon>
-								{m.setup_email_port_encrypted()}
+								Encrypted
 							</span>
 						{/if}
-						<span class="text-xs text-surface-600 dark:text-surface-50">{selectedPort.description}</span>
+						<span class="text-xs text-surface-600 dark:text-surface-400">{selectedPort.description}</span>
 					</div>
 				{/if}
 			{/if}
@@ -631,35 +555,7 @@
 
 		<!-- SMTP User -->
 		<label class="label">
-			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-				<span class="text-black dark:text-white">{m.setup_email_user()} <span class="text-error-500">*</span></span>
-				<Tooltip positioning={{ placement: 'top' }}>
-					<Tooltip.Trigger>
-						<button
-							type="button"
-							tabindex="-1"
-							aria-label={m.setup_email_aria_help_user()}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-						</button>
-					</Tooltip.Trigger>
-					<Portal>
-						<Tooltip.Positioner>
-							<Tooltip.Content
-								class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-							>
-								<p>{m.setup_email_help_user()}</p>
-								<Tooltip.Arrow
-									class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-								>
-									<Tooltip.ArrowTip />
-								</Tooltip.Arrow>
-							</Tooltip.Content>
-						</Tooltip.Positioner>
-					</Portal>
-				</Tooltip>
-			</div>
+			<span class="font-medium">{m.setup_email_user()} <span class="text-error-500">*</span></span>
 			<input
 				type="text"
 				class="input"
@@ -689,35 +585,7 @@
 
 		<!-- SMTP Password -->
 		<label class="label">
-			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-				<span class="text-black dark:text-white">{m.setup_email_password()} <span class="text-error-500">*</span></span>
-				<Tooltip positioning={{ placement: 'top' }}>
-					<Tooltip.Trigger>
-						<button
-							type="button"
-							tabindex="-1"
-							aria-label={m.setup_email_aria_help_password()}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-						</button>
-					</Tooltip.Trigger>
-					<Portal>
-						<Tooltip.Positioner>
-							<Tooltip.Content
-								class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-							>
-								<p>{m.setup_email_help_password()}</p>
-								<Tooltip.Arrow
-									class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-								>
-									<Tooltip.ArrowTip />
-								</Tooltip.Arrow>
-							</Tooltip.Content>
-						</Tooltip.Positioner>
-					</Portal>
-				</Tooltip>
-			</div>
+			<span class="font-medium">{m.setup_email_password()} <span class="text-error-500">*</span></span>
 			<div class="relative">
 				<input
 					type={showPassword ? 'text' : 'password'}
@@ -742,9 +610,9 @@
 					type="button"
 					class="btn-icon btn-sm absolute right-1 top-1/2 -translate-y-1/2"
 					onclick={() => (showPassword = !showPassword)}
-					aria-label={showPassword ? m.setup_email_aria_hide_password() : m.setup_email_aria_show_password()}
+					aria-label={showPassword ? 'Hide password' : 'Show password'}
 				>
-					<iconify-icon icon={showPassword ? 'mdi:eye-off' : 'mdi:eye'} class="text-lg text-surface-600 dark:text-surface-50"></iconify-icon>
+					<iconify-icon icon={showPassword ? 'mdi:eye-off' : 'mdi:eye'} class="text-lg text-surface-600 dark:text-surface-400"></iconify-icon>
 				</button>
 			</div>
 			{#if displayErrors.password}
@@ -757,7 +625,7 @@
 
 		<!-- From Email (Optional) -->
 		<label class="label md:col-span-2">
-			<span class="font-medium text-black dark:text-white">{m.setup_email_from()}</span>
+			<span class="font-medium">{m.setup_email_from()}</span>
 			<input
 				type="email"
 				class="input"
@@ -770,25 +638,20 @@
 					}
 				}}
 			/>
-			<span class="text-xs text-surface-600 dark:text-surface-50">{m.setup_email_from_note()}</span>
+			<span class="text-xs text-surface-600 dark:text-surface-400">{m.setup_email_from_note()}</span>
 		</label>
 	</div>
 
 	<!-- Test Connection Button -->
 	<div class="space-y-3">
-		<button
-			type="button"
-			class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn w-full"
-			onclick={testConnection}
-			disabled={!isFormValid || isTesting}
-		>
+		<button type="button" class="preset-filled-primary-500 btn w-full" onclick={testConnection} disabled={!isFormValid || isTesting}>
 			<iconify-icon icon="mdi:email" class="mr-2 text-xl"></iconify-icon>
 			{isTesting ? m.setup_email_testing() : m.setup_email_test_button()}
 		</button>
 
 		<!-- Test Result -->
 		{#if testSuccess}
-			<div class="card preset-outlined-primary-500 p-4">
+			<div class="card preset-ghost-success-500 p-4">
 				<!-- Header - Always visible with toggle button on mobile -->
 				<div class="flex items-start gap-3">
 					<iconify-icon icon="mdi:check-circle" class="text-2xl text-success-500"></iconify-icon>
@@ -819,7 +682,7 @@
 		{/if}
 
 		{#if testError}
-			<div class="card preset-outlined-error-500 flex items-start gap-3 p-4">
+			<div class="card preset-ghost-error-500 flex items-start gap-3 p-4">
 				<iconify-icon icon="mdi:close-circle" class="text-2xl text-error-500"></iconify-icon>
 				<div class="flex-1">
 					<p class="font-semibold text-error-700 dark:text-error-300">{m.setup_email_connection_failed()}</p>

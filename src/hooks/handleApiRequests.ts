@@ -73,8 +73,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
 	// Allow public API endpoints without authentication
 	// - /api/system/version: Version check for login page
-	// - /api/user/login: Public login endpoint
-	if (['/api/system/version', '/api/user/login'].includes(url.pathname)) {
+	if (url.pathname === '/api/system/version') {
 		return resolve(event);
 	}
 

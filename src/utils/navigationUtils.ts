@@ -3,7 +3,7 @@
  * @description  GUI-first navigation via uuids/mode for SveltyCMS using SvelteKit's built-in systems
  */
 
-const browser = typeof window !== 'undefined';
+import { browser } from '$app/environment';
 import { preloadData } from '$app/navigation';
 import { logger } from './logger';
 import type { ModeType } from '@stores/collectionStore.svelte';
@@ -13,9 +13,9 @@ import type { ModeType } from '@stores/collectionStore.svelte';
 // ============================================================================
 
 const preloadTimers = new Map<string, number>();
-export const PRELOAD_DELAY = 200; // Configurable delay to prevent aggressive prefetching
+const PRELOAD_DELAY = 500; // Increased to prevent aggressive prefetching on scroll
 
-export function preloadEntry(entryId: string, currentPath: string, delay: number = PRELOAD_DELAY): void {
+export function preloadEntry(entryId: string, currentPath: string): void {
 	const existingTimer = preloadTimers.get(entryId);
 	if (existingTimer) clearTimeout(existingTimer);
 
@@ -30,7 +30,7 @@ export function preloadEntry(entryId: string, currentPath: string, delay: number
 		} finally {
 			preloadTimers.delete(entryId);
 		}
-	}, delay);
+	}, PRELOAD_DELAY);
 
 	preloadTimers.set(entryId, timer as unknown as number);
 }

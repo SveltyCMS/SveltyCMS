@@ -69,32 +69,15 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			throw error(500, 'Failed to retrieve media files');
 		} // Transform the data to match widget expectations
 
-		const mediaFiles = result.data.items.map((file) => {
-			// Helper to map DB path (mediaFolder/...) to URL path (/files/...)
-			const normalizePath = (p: string) => {
-				// Strip 'mediaFolder/' or 'files/' prefix if present in the raw path
-				let path = p.replace(/^mediaFolder\//, '').replace(/^files\//, '');
-				// Ensure no leading slash before prepending /files/
-				path = path.replace(/^\/+/, '');
-				return `/files/${path}`;
-			};
-
-			// Normalize thumbnails if present
-			const thumbnails = file.thumbnails
-				? Object.entries(file.thumbnails).reduce((acc, [key, val]) => {
-						if (val) {
-							acc[key] = { ...val, url: normalizePath(val.url) };
-						}
-						return acc;
-					}, {} as any)
-				: undefined;
-
-			return {
-				...file,
-				url: normalizePath(file.path),
-				thumbnails
-			};
-		});
+		const mediaFiles = result.data.items.map((file) => ({
+			id: file._id,
+			name: file.filename,
+			size: file.size,
+			modified: file.updatedAt,
+			type: file.mimeType.split('/')[1] || 'unknown',
+			url: file.path,
+			createdBy: file.createdBy
+		}));
 
 		logger.info('Media files fetched successfully via database adapter', {
 			count: mediaFiles.length,

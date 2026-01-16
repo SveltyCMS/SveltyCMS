@@ -35,23 +35,28 @@ functionality for image editing and basic file information display.
 	import { collectionValue } from '@stores/collectionStore.svelte';
 
 	// Components
-	import type { MediaImage, WatermarkOptions } from '@utils/media/mediaModels';
+	import type { MediaImage } from '@utils/media/mediaModels';
 	import FileInput from '@components/system/inputs/FileInput.svelte';
 	import ImageEditorModal from '@src/components/imageEditor/ImageEditorModal.svelte';
 	import { updateMediaMetadata } from '@utils/media/api';
+	import { modalState } from '@utils/modalState.svelte';
 
 	// Define reactive state
 	let isFlipped = $state(false);
 
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
-	let showEditor = $state(false);
+
+	function openEditor() {
+		modalState.trigger(ImageEditorModal as any, {
+			image: value instanceof File || !value ? null : value,
+			onsave: handleEditorSave,
+			modalClasses: 'w-full max-w-7xl'
+		});
+	}
 
 	// Define props
 	let { field, value = $bindable<File | MediaImage | undefined>() } = $props(); // 'value' is the bindable prop
-
-	// Extract watermark preset from field configuration
-	const watermarkPreset = $derived((field as any).watermark as WatermarkOptions | undefined);
 
 	// Effect to initialize 'value' if it's undefined and a default is available
 	// This runs after the component has initialized and 'value' would have received its initial binding
@@ -122,10 +127,9 @@ functionality for image editing and basic file information display.
 		formData.append('processType', 'save');
 		formData.append('files', editedFile);
 
-		// Pass watermark options from field config if configured
-		if (watermarkPreset) {
-			formData.append('watermarkOptions', JSON.stringify(watermarkPreset));
-		}
+		// TODO: Pass watermark and other options from the field config
+		// const watermark = field.watermark;
+		// if(watermark) formData.append('watermarkOptions', JSON.stringify(watermark));
 
 		try {
 			// Send to media API
@@ -146,7 +150,7 @@ functionality for image editing and basic file information display.
 
 			// Update the widget data with the new persisted image data
 			value = result.data.data[0].data; // Assign directly to the bindable prop
-			showEditor = false;
+			modalState.close();
 		} catch (error) {
 			logger.error('Error saving edited image:', error);
 		}
@@ -300,12 +304,12 @@ functionality for image editing and basic file information display.
 					<!-- Buttons -->
 					<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
 						<!-- Edit -->
-						<button onclick={() => (showEditor = true)} aria-label="Edit image" class="preset-outlined-surface-500 btn-icon" title="Edit image">
+						<button onclick={openEditor} aria-label="Edit image" class="preset-ghost btn-icon" title="Edit image">
 							<iconify-icon icon="material-symbols:edit" width="24" class="text-primary-500"></iconify-icon>
 						</button>
 
 						<!-- Flip -->
-						<button onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" class="preset-outlined-surface-500 btn-icon" title="Flip details">
+						<button onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" class="preset-ghost btn-icon" title="Flip details">
 							<iconify-icon
 								icon="uiw:reload"
 								width="24"
@@ -314,7 +318,7 @@ functionality for image editing and basic file information display.
 						</button>
 
 						<!-- Delete -->
-						<button onclick={() => (value = undefined)} aria-label="Delete" class="preset-outlined-surface-500 btn-icon" title="Delete image">
+						<button onclick={() => (value = undefined)} aria-label="Delete" class="preset-ghost btn-icon" title="Delete image">
 							<iconify-icon icon="material-symbols:delete-outline" width="30" class="text-error-500"></iconify-icon>
 						</button>
 					</div>
@@ -328,10 +332,5 @@ functionality for image editing and basic file information display.
 		<p id={`${getFieldName(field)}-error`} class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert">
 			{validationError}
 		</p>
-	{/if}
-
-	<!-- Editor Modal -->
-	{#if showEditor}
-		<ImageEditorModal image={value instanceof File ? null : value} {watermarkPreset} onsave={handleEditorSave} close={() => (showEditor = false)} />
 	{/if}
 </div>

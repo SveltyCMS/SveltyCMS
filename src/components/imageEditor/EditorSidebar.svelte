@@ -26,7 +26,10 @@ and proper active state indication.
 	// Drive tools from the widgets registry, with a focalpoint fallback
 	import { editorWidgets, type EditorWidget } from './widgets/registry';
 
-	const tools = [...editorWidgets.map((w: EditorWidget) => ({ id: w.key, name: w.title, icon: w.icon ?? 'mdi:cog', description: '' }))];
+	const tools = [
+		...editorWidgets.map((w: EditorWidget) => ({ id: w.key, name: w.title, icon: w.icon ?? 'mdi:cog', description: '' })),
+		{ id: 'focalpoint', name: 'Focal', icon: 'mdi:focus-field', description: 'Set focal point with rule of thirds' }
+	];
 
 	function handleToolClick(tool: any) {
 		if (!hasImage) return;
@@ -42,7 +45,7 @@ and proper active state indication.
 	<div class="sidebar-tools flex flex-1 flex-col gap-1 p-1.5 lg:p-2 max-lg:gap-0.5 max-lg:p-1">
 		{#each tools as tool}
 			<button
-				class="btn preset-filled-primary-500 group relative flex flex-col items-center justify-center gap-1 py-2"
+				class="btn preset-filled-primary-500 flex flex-col items-center justify-center gap-1 py-2"
 				class:active={isToolActive(tool)}
 				class:disabled={!hasImage}
 				class:bg-primary-500={isToolActive(tool)}
@@ -53,6 +56,7 @@ and proper active state indication.
 				class:opacity-50={!hasImage}
 				class:bg-transparent={!hasImage}
 				onclick={() => handleToolClick(tool)}
+				title="{tool.name}{tool.description ? `: ${tool.description}` : ''}"
 				aria-label={tool.name}
 				disabled={!hasImage}
 			>
@@ -60,18 +64,6 @@ and proper active state indication.
 					<iconify-icon icon={tool.icon} width="24"></iconify-icon>
 				</div>
 				<span class="tool-label text-[10px] font-medium leading-none lg:text-xs">{tool.name}</span>
-
-				<!-- Tooltip -->
-				<div
-					class="tooltip pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded bg-surface-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100 dark:bg-surface-700 shadow-lg"
-				>
-					<div class="font-medium">{tool.name}</div>
-					{#if tool.description}
-						<div class="text-[10px] text-surface-300">{tool.description}</div>
-					{/if}
-					<!-- Arrow -->
-					<div class="absolute -left-1 top-1/2 -mt-1 h-2 w-2 -rotate-45 bg-surface-900 dark:bg-surface-700"></div>
-				</div>
 
 				<!-- coming soon badge removed; driven by registry now -->
 			</button>
@@ -82,7 +74,7 @@ and proper active state indication.
 		{#if !hasImage}
 			<div class="no-image-hint flex flex-col items-center gap-1 p-2 text-center">
 				<iconify-icon icon="mdi:information-outline" width="16" class="text-surface-400"></iconify-icon>
-				<span class="text-xs text-surface-500 dark:text-surface-50"> Upload an image to enable tools </span>
+				<span class="text-xs text-surface-500 dark:text-surface-400"> Upload an image to enable tools </span>
 			</div>
 		{/if}
 	</div>
@@ -90,21 +82,21 @@ and proper active state indication.
 
 <style>
 	.editor-sidebar {
-		background-color: rgb(var(--color-surface-100) / 1);
-		border-color: rgb(var(--color-surface-200) / 1);
+		background-color: rgb(var(--color-preset-100) / 1);
+		border-color: rgb(var(--color-preset-200) / 1);
 		min-height: 100%;
 	}
 
 	:global(.dark) .editor-sidebar {
-		background-color: rgb(var(--color-surface-800) / 1);
-		border-color: rgb(var(--color-surface-700) / 1);
+		background-color: rgb(var(--color-preset-800) / 1);
+		border-color: rgb(var(--color-preset-700) / 1);
 	}
 
 	.sidebar-footer {
-		border-color: rgb(var(--color-surface-200) / 1);
+		border-color: rgb(var(--color-preset-200) / 1);
 	}
 
 	:global(.dark) .sidebar-footer {
-		border-color: rgb(var(--color-surface-700) / 1);
+		border-color: rgb(var(--color-preset-700) / 1);
 	}
 </style>

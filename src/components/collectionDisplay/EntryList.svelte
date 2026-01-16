@@ -1,29 +1,23 @@
 <!--
 @file src/components/collectionDisplay/EntryList.svelte
 @component
-**EntryList component to display collections data in a tabular format.**
+**EntryList component to display collections data**
 
-### Features:
-- **Search & Filter**: Real-time server-side search and field-level filtering.
-- **Pagination**: Configurable rows per page and page navigation.
-- **Selection**: Multi-select entries for bulk actions.
-- **Sorting**: Clickable headers for server-side sorting.
-- **Preloading**: Hover-based predictive data preloading for faster navigation.
-- **Smart Actions**: Integrated with `EntryList_MultiButton` for context-aware operations.
+@example
+<EntryList />
 
-### Props
-- `entries` (Array): The raw collection entry data from the server.
-- `pagination` (Object): Pagination metadata (currentPage, pageSize, totalItems, pagesCount).
-- `contentLanguage` (String): The language for displaying translatable field data.
-- `breadcrumb` (Array, optional): Breadcrumb navigation paths.
-- `collectionStats` (Object, optional): Stats like count and last modified.
+#### Props
+- `collection` - The collection object to display data from.
+- `mode` - The current mode of the component. Can be 'view', 'edit', 'create', 'delete', 'modify', or 'media'.
 
-### Keyboard Shortcuts
-- `Alt + N`: Create new entry
-- `Alt + P`: Publish selected
-- `Alt + U`: Unpublish selected
-- `Alt + D`: Move selected to Draft
-- `Alt + Del`: Delete selected
+Features:
+- Search
+- Pagination
+- Multi-select
+- Sorting
+- Status
+- Icons
+- Filter
 -->
 
 <script module lang="ts">
@@ -34,31 +28,28 @@
 	import { logger } from '@utils/logger';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
+
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
-
 	// Utils
 	import { batchDeleteEntries, deleteEntry, invalidateCollectionCache, updateEntryStatus } from '@utils/apiClient';
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import { cloneEntries, setEntriesStatus } from '@utils/entryActions';
 	import { debounce, getFieldName, meta_data } from '@utils/utils';
 	import { preloadEntry, reflectModeInURL } from '@utils/navigationUtils';
-	import { showToast } from '@utils/toast';
-
+	// Import centralized actions
 	// Config
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
-
 	// Types
 	import type { PaginationSettings, TableHeader } from '@src/content/types';
 	import type { StatusType } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
-
 	// Stores
 	import { collection, collectionValue, mode, setCollectionValue, setMode, setModifyEntry, statusMap } from '@stores/collectionStore.svelte';
-	import { screen } from '@stores/screenSizeStore.svelte';
-	import { app } from '@stores/store.svelte';
-	import { ui } from '@stores/UIStore.svelte';
-
+	// DELETED: globalLoadingStore imports - not needed with SSR
+	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
+	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
+	import { handleUILayoutToggle, toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -70,13 +61,14 @@
 	import TablePagination from '@components/system/table/TablePagination.svelte';
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
 	import TranslationStatus from './TranslationStatus.svelte';
-
 	// Skeleton
-	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modalUtils';
-
+	import { toaster } from '@stores/store.svelte';
+	import { showStatusChangeConfirm, showDeleteConfirm } from '@utils/modalState.svelte';
 	// Svelte-dnd-action
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
+
+	const flipDurationMs = 300;
 
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
@@ -323,14 +315,11 @@
 		return () => clearInterval(cleanupInterval);
 	});
 
-	// DND Logic for Headers
 	function handleDndConsider(event: CustomEvent) {
 		displayTableHeaders = event.detail.items;
 	}
-
 	function handleDndFinalize(event: CustomEvent) {
 		displayTableHeaders = event.detail.items;
-		entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
 	}
 
 	// Pagination
@@ -345,42 +334,6 @@
 	});
 	let entryListPaginationSettings = $state(defaultPaginationSettings(collection.value?._id ?? null));
 
-	// Load settings from localStorage
-	$effect(() => {
-		if (browser && collection.value?._id) {
-			const key = `entryListPaginationSettings_${collection.value._id}`;
-			const saved = localStorage.getItem(key);
-			if (saved) {
-				try {
-					const parsed = JSON.parse(saved);
-					// Ensure we don't overwrite with stale data structure, merge carefully if needed
-					// For now, assume saved state is valid but ensure collectionId matches
-					if (parsed.collectionId === collection.value._id) {
-						// We need to match the Shape of PaginationSettings
-						entryListPaginationSettings = {
-							...defaultPaginationSettings(collection.value._id),
-							...parsed
-							// Ensure displayTableHeaders are re-verified against current schema later by existing effects
-						};
-					}
-				} catch (e) {
-					console.error('Failed to load entry list settings', e);
-				}
-			}
-		}
-	});
-
-	// Save settings to localStorage
-	$effect(() => {
-		if (browser && collection.value?._id && entryListPaginationSettings) {
-			const key = `entryListPaginationSettings_${collection.value._id}`;
-			// Debounce save slightly or just save? $effect runs after render.
-			// Use untrack? No, we want to track entryListPaginationSettings.
-			const stringified = JSON.stringify(entryListPaginationSettings);
-			localStorage.setItem(key, stringified);
-		}
-	});
-
 	// Simplified stable state management
 	let showDeleted = $state(false); // Controls whether to view active or archived entries
 	let globalSearchValue = $state('');
@@ -388,11 +341,11 @@
 	let filterShow = $state(false);
 	let columnShow = $state(false);
 	const currentStates = $derived.by(() => ({
-		language: app.contentLanguage,
-		systemLanguage: app.systemLanguage,
+		language: contentLanguage.value,
+		systemLanguage: systemLanguage.value,
 		mode: mode.value,
 		collection: collection.value,
-		screenSize: screen.size
+		screenSize: screenSize.value
 	}));
 
 	// Initialize globalSearchValue from URL parameter on mount/navigation
@@ -422,41 +375,7 @@
 				});
 			});
 		});
-	});
-
-	// Sync filters from URL parameters
-	$effect(() => {
-		const searchParams = page.url.searchParams;
-		untrack(() => {
-			const newFilters = { ...entryListPaginationSettings.filters };
-			let hasChanges = false;
-			let hasActiveUrlFilters = false;
-
-			// Check all filter_ params in URL
-			for (const [key, value] of searchParams.entries()) {
-				if (key.startsWith('filter_')) {
-					const filterName = key.replace('filter_', '');
-					if (newFilters[filterName] !== value) {
-						newFilters[filterName] = value;
-						hasChanges = true;
-					}
-					if (value) hasActiveUrlFilters = true;
-				}
-			}
-
-			// Apply changes if any
-			if (hasChanges) {
-				entryListPaginationSettings.filters = newFilters;
-			}
-
-			// Auto-open filter row if filters are present in URL
-			if (hasActiveUrlFilters && !filterShow) {
-				filterShow = true;
-			}
-		});
-	});
-
-	// Destructure for easier access
+	}); // Destructure for easier access
 	const currentLanguage = $derived(propContentLanguage || currentStates.language);
 	const currentMode = $derived(currentStates.mode);
 	const currentCollection = $derived(currentStates.collection);
@@ -552,14 +471,6 @@
 		selectAllColumns = displayTableHeaders.length > 0 ? displayTableHeaders.every((h) => h.visible) : false;
 	});
 
-	const cellPaddingClass = $derived(
-		entryListPaginationSettings.density === 'compact'
-			? '!p-1'
-			: entryListPaginationSettings.density === 'comfortable'
-				? '!p-3' // Comfortable
-				: '!p-2' // Normal
-	);
-
 	$effect(() => {
 		if (currentMode === 'view') {
 			untrack(() => {
@@ -604,12 +515,10 @@
 		return Object.values(selectedMap).some((isSelected) => isSelected);
 	});
 
-	const hasActiveFilters = $derived(Object.values(entryListPaginationSettings.filters).some((f) => !!f) || !!globalSearchValue);
-
 	setModifyEntry(async (status?: keyof typeof statusMap): Promise<void> => {
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) {
-			showToast('No entries selected', 'warning');
+			toaster.warning({ description: 'No entries selected' });
 			return;
 		}
 
@@ -669,18 +578,18 @@
 
 		// 3. Toggle UI
 		await Promise.resolve();
-		ui.forceUpdate();
+		handleUILayoutToggle();
 
 		logger.debug('[Create] INSTANT - New entry mode');
 	};
 
 	const onPublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess);
 	const onUnpublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess);
-	const onDraft = () => setEntriesStatus(getSelectedIds(), StatusTypes.draft, onActionSuccess);
+	const onTest = () => setEntriesStatus(getSelectedIds(), StatusTypes.test, onActionSuccess);
 	const onDelete = (isPermanent = false) => {
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) {
-			showToast('No entries selected', 'warning');
+			toaster.warning({ description: 'No entries selected' });
 			return;
 		}
 
@@ -700,7 +609,7 @@
 							if (collId) {
 								const result = await batchDeleteEntries(collId, selectedIds);
 								if (result.success) {
-									showToast(`${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully`, 'success');
+									toaster.success({ description: `${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully` });
 								} else {
 									throw new Error('Batch delete failed');
 								}
@@ -716,14 +625,14 @@
 									return Promise.resolve();
 								})
 							);
-							showToast(`${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully`, 'success');
+							toaster.success({ description: `${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully` });
 						}
 					} else {
 						await setEntriesStatus(selectedIds, StatusTypes.archive, () => {});
 					}
 					onActionSuccess();
 				} catch (error) {
-					showToast(`Failed to ${actionVerb} entries: ${(error as Error).message}`, 'error');
+					toaster.error({ description: `Failed to ${actionVerb} entries: ${(error as Error).message}` });
 				}
 			}
 		});
@@ -775,20 +684,20 @@
 		<!-- Row 1 for Mobile -->
 		<div class="flex items-center justify-between">
 			<!-- Hamburger -->
-			{#if ui.state.leftSidebar === 'hidden'}
+			{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
 				<button
 					type="button"
 					onkeydown={() => {}}
-					onclick={() => ui.toggle('leftSidebar', screen.isDesktop ? 'full' : 'collapsed')}
+					onclick={() => toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed')}
 					aria-label="Open Sidebar"
-					class="preset-outlined-surface-500 btn-icon mt-1"
+					class="preset-ghost-surface-500 btn-icon mt-1"
 				>
 					<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 				</button>
 			{/if}
 
 			<!-- Collection type with icon -->
-			<div class="mr-1 flex flex-col {!ui.state.leftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
+			<div class="mr-1 flex flex-col {!uiStateManager.uiState.value.leftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
 				{#if categoryName}
 					<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
 						{categoryName}
@@ -817,18 +726,18 @@
 				type="button"
 				onkeydown={() => {}}
 				onclick={() => (expand = !expand)}
-				class="preset-outlined-surface-500 btn-icon p-1 sm:hidden"
+				class="preset-ghost-surface-500 btn-icon p-1 sm:hidden"
 				aria-label="Expand/Collapse Filters"
 			>
 				<iconify-icon icon="material-symbols:filter-list-rounded" width="30"> </iconify-icon>
 			</button>
 
-			<!-- Translation Content Language - Mobile -->
+			<!-- Translation Content Language -->
 			<div class="mt-1 sm:hidden">
 				<TranslationStatus />
 			</div>
 
-			<!-- Table Filter with Translation Content Language - Desktop -->
+			<!-- Table Filter with Translation Content Language -->
 			<div class="relative mt-1 hidden items-center justify-center gap-2 sm:flex">
 				<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density={entryListPaginationSettings.density} />
 				<TranslationStatus />
@@ -840,13 +749,12 @@
 					isCollectionEmpty={tableData?.length === 0}
 					{hasSelections}
 					selectedCount={Object.values(selectedMap).filter(Boolean).length}
-					selectedItems={getSelectedRawEntries()}
 					bind:showDeleted
 					publish={onPublish}
 					unpublish={onUnpublish}
 					schedule={onSchedule}
 					delete={onDelete}
-					draft={onDraft}
+					test={onTest}
 					clone={onClone}
 					create={onCreate}
 				/>
@@ -863,8 +771,8 @@
 
 	{#if columnShow}
 		<!-- Column order -->
-		<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-secondary-100 p-2 text-center dark:bg-surface-700">
-			<div class="text-sm dark:text-primary-500">
+		<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 p-2 text-center dark:bg-surface-700">
+			<div class="text-sm text-white dark:text-primary-500">
 				{m.entrylist_dnd()}
 			</div>
 			<!-- Select All Columns -->
@@ -875,62 +783,58 @@
 						{m.entrylist_all()}
 					</label>
 
-					<button class="bg-surface-400 btn text-white" onclick={resetViewSettings}>
-						<iconify-icon icon="material-symbols-light:device-reset" width="20" class="mr-1 text-white"></iconify-icon>
+					<button class="preset-ghost-surface-500 btn btn-sm" onclick={resetViewSettings}>
+						<iconify-icon icon="material-symbols-light:device-reset" width="20" class="mr-1 text-tertiary-500"></iconify-icon>
 						Reset View
 					</button>
 				</div>
 				<section
-					use:dndzone={{ items: displayTableHeaders, flipDurationMs: 300, type: 'columns', dropTargetStyle: { outline: 'none' } }}
+					use:dndzone={{ items: displayTableHeaders, flipDurationMs }}
 					onconsider={handleDndConsider}
 					onfinalize={handleDndFinalize}
-					class="flex w-full flex-wrap justify-center gap-2 p-2 border-2 border-dashed border-secondary-500/50 rounded transition-all hover:border-secondary-500"
+					class="flex flex-wrap justify-center gap-1 rounded-md p-1"
 				>
 					{#each displayTableHeaders as header (header.id)}
-						<div animate:flip={{ duration: 300 }}>
-							<button
-								type="button"
-								class="chip {header.visible
-									? 'dark:preset-filled-primary-500 preset-filled-tertiary-500'
-									: 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move"
-								onclick={() => handleColumnVisibilityToggle(header)}
-							>
-								{#if header.visible}<iconify-icon icon="fa:check" class="mr-1"></iconify-icon>{/if}
-								<span class="capitalize">{header.label}</span>
-							</button>
-						</div>
+						<button
+							class="chip {header.visible
+								? 'preset-filled-secondary-500'
+								: 'preset-ghost-secondary-500'} mr-1 flex items-center justify-center text-xs"
+							animate:flip={{ duration: flipDurationMs }}
+							onclick={() => handleColumnVisibilityToggle(header)}
+						>
+							{#if header.visible}<iconify-icon icon="fa:check" class="mr-1"></iconify-icon>{/if}
+							<span class="capitalize">{header.label}</span>
+						</button>
 					{/each}
 				</section>
 			</div>
 		</div>
 	{/if}
 
-	{#if tableData.length > 0 || hasActiveFilters}
+	{#if tableData.length > 0}
 		<div class="table-container max-h-[calc(100dvh)] overflow-auto">
-			<table class="table table-interactive table-hover">
+			<table
+				class="table table-interactive {entryListPaginationSettings.density === 'compact'
+					? 'table-compact'
+					: entryListPaginationSettings.density === 'comfortable'
+						? 'table-comfortable'
+						: ''}"
+			>
 				<!-- Table Header -->
-				<thead class="sticky top-0 z-10 bg-secondary-100 text-tertiary-500 dark:bg-surface-900 dark:text-primary-500">
+				<thead class="sticky top-0 z-10 bg-surface-100 text-tertiary-500 dark:bg-surface-900 dark:text-primary-500">
 					{#if filterShow && visibleTableHeaders.length > 0}
-						<tr class="divide-x divide-surface-400 dark:divide-surface-600">
+						<tr class="divide-x divide-preset-400 dark:divide-preset-600">
 							<th>
 								<!-- Clear All Filters Button -->
 								{#if Object.values(entryListPaginationSettings.filters).some((f) => f !== '')}
 									<button
 										onclick={() => {
 											const clearedFilters: Record<string, string> = {};
-											const urlUpdates: Record<string, string | null> = {};
-
-											Object.keys(entryListPaginationSettings.filters).forEach((key) => {
-												clearedFilters[key] = '';
-												urlUpdates[`filter_${key}`] = null;
-											});
-
+											Object.keys(entryListPaginationSettings.filters).forEach((key) => (clearedFilters[key] = ''));
 											entryListPaginationSettings.filters = clearedFilters;
-											urlUpdates.page = '1';
-											updateURL(urlUpdates);
 										}}
 										aria-label="Clear All Filters"
-										class="preset-outlined-surface-500 btn-icon"
+										class="preset-ghost-surface-500 btn-icon btn-sm"
 									>
 										<iconify-icon icon="material-symbols:close" width="18"></iconify-icon>
 									</button>
@@ -947,9 +851,7 @@
 											name={(header as TableHeader).name}
 											value={entryListPaginationSettings.filters[(header as TableHeader).name] || ''}
 											onInput={(value: string) => onFilterChange((header as TableHeader).name, value)}
-											inputClass="text-xs dark:text-primary-500"
-											textColor=""
-											labelClass="dark:text-white"
+											inputClass="text-xs"
 										/>
 									</div>
 								</th>
@@ -957,7 +859,7 @@
 						</tr>
 					{/if}
 
-					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
+					<tr class="divide-x divide-preset-400 border-b border-black dark:border-white">
 						<TableIcons
 							cellClass={`w-10 ${hasSelections ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
 							checked={SelectAll}
@@ -968,7 +870,7 @@
 
 						{#each visibleTableHeaders as header (header.id)}
 							<th
-								class="cursor-pointer text-center text-xs sm:text-sm {cellPaddingClass} {(header as TableHeader).name ===
+								class="cursor-pointer px-2 py-1 text-center text-xs sm:text-sm {(header as TableHeader).name ===
 								entryListPaginationSettings.sorting.sortedBy
 									? 'font-semibold text-primary-500 dark:text-secondary-400'
 									: 'text-tertiary-500 dark:text-primary-500'}"
@@ -994,7 +896,7 @@
 					{#if tableData.length > 0}
 						{#each tableData as entry, index (entry._id)}
 							<tr
-								class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-primary-500/5 dark:bg-secondary-500/10' : ''}"
+								class="divide-x divide-preset-400 dark:divide-preset-700 {selectedMap[index] ? 'bg-primary-500/5 dark:bg-secondary-500/10' : ''}"
 								onmouseenter={() => handleRowHoverStart(entry._id)}
 								onmouseleave={handleRowHoverEnd}
 							>
@@ -1008,7 +910,7 @@
 								{#if visibleTableHeaders}
 									{#each visibleTableHeaders as header (header.id)}
 										<td
-											class="text-center {cellPaddingClass} text-xs font-bold sm:text-sm {(header as TableHeader).name !== 'status'
+											class="p-0 text-center text-xs font-bold sm:text-sm {(header as TableHeader).name !== 'status'
 												? 'cursor-pointer transition-colors duration-200 hover:bg-primary-500/10 dark:hover:bg-secondary-500/20'
 												: 'cursor-pointer transition-colors duration-200 hover:bg-warning-500/10 dark:hover:bg-warning-500/20'}"
 											title={(header as TableHeader).name !== 'status' ? 'Click to edit this entry' : 'Click to change status'}
@@ -1047,19 +949,19 @@
 																if (!collId) return;
 																const result = await updateEntryStatus(collId, entry._id, String(nextStatus));
 																if (result.success) {
-																	showToast(`Entry status updated to ${nextStatus}`, 'success');
+																	toaster.success({ description: `Entry status updated to ${nextStatus}` });
 																	onActionSuccess();
 																} else {
-																	showToast(result.error || 'Failed to update entry status', 'error');
+																	toaster.error({ description: result.error || 'Failed to update entry status' });
 																}
 															} catch (error) {
 																logger.error('Error updating entry status:', error);
-																showToast('An error occurred while updating entry status', 'error');
+																toaster.error({ description: 'An error occurred while updating entry status' });
 															}
 														}
 													});
 												} else {
-													// GUI-FIRST PATTERN: Navigate to edit mode (loads full multilingual data)
+													// ✅ GUI-FIRST PATTERN: Navigate to edit mode (loads full multilingual data)
 													const originalEntry = tableData.find((e: any) => e._id === entry._id);
 													if (originalEntry) {
 														// Navigate to edit mode - this triggers SSR to load full multilingual data
@@ -1080,13 +982,8 @@
 													<div class="font-semibold">
 														{formatDisplayDate(entry[(header as TableHeader).name], 'en', { year: 'numeric', month: 'short', day: 'numeric' })}
 													</div>
-													<div class="text-surface-500 dark:text-surface-200">
-														{formatDisplayDate(entry[(header as TableHeader).name], 'en', {
-															hour: '2-digit',
-															minute: '2-digit',
-															second: '2-digit',
-															hour12: false
-														})}
+													<div class="text-surface-500 dark:text-surface-400">
+														{formatDisplayDate(entry[(header as TableHeader).name], 'en', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
 													</div>
 												</div>
 											{:else if typeof entry[(header as TableHeader).name] === 'object' && entry[(header as TableHeader).name] !== null}
@@ -1106,17 +1003,13 @@
 								{/if}
 							</tr>
 						{/each}
-					{:else}
-						<tr>
-							<td colspan={visibleTableHeaders.length + 1} class="p-4 text-center text-surface-500 dark:text-surface-50"> No results found. </td>
-						</tr>
 					{/if}
 				</tbody>
 			</table>
 		</div>
 		<!-- Pagination -->
 		<div
-			class="sticky bottom-0 left-0 right-0 z-10 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-secondary-100 dark:text-surface-50 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
+			class="sticky bottom-0 left-0 right-0 z-10 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-surface-100 px-2 py-2 dark:border-surface-700 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
 		>
 			<TablePagination
 				currentPage={serverPagination.currentPage}

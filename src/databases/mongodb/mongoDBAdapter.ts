@@ -672,8 +672,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						await this._content.bulkUpdateNodes(updates);
 						const paths = nodeUpdates.map((u) => u.path);
 						return (await this._repositories.get('nodes')!.findMany({ path: { $in: paths } } as QueryFilter<BaseEntity>)) as ContentNode[];
-					}),
-				reorderStructure: (items) => this._wrapResult(() => this._content.reorderStructure(items))
+					})
 			},
 			drafts: {
 				create: (draft) => this._wrapResult(() => this._content.createDraft(draft)),

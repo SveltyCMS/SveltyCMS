@@ -32,7 +32,7 @@
 	const { items, headers = [], flipDurationMs, handleDndConsider, handleDndFinalize, children }: Props = $props();
 
 	const gridClass = $derived(
-		`grid grid-cols-${headers.length + 1} preset-outlined-tertiary-500 dark:preset-outlined-primary-500 w-full items-start justify-start p-1 py-2 pl-3 text-center font-semibold`
+		`grid grid-cols-${headers.length + 1} preset-ghost-tertiary-500 dark:preset-ghost-primary-500 w-full items-start justify-start p-1 py-2 pl-3 text-center font-semibold`
 	);
 </script>
 

@@ -1,22 +1,21 @@
 /**
  * @file src/stores/UIStore.svelte.ts
- * @description UI visibility management using Svelte 5 runes
+ * @description Manages the UI element visibility states
  *
  * Features:
- * - Class-based singleton with $state properties
- * - Single $effect.root for controlled updates
- * - Manual override timer for sidebar toggles
- *
- * Usage:
- * - ui.state - Current UIState object
- * - ui.toggle(element, visibility) - Toggle UI element
- * - ui.forceUpdate() - Force layout recalculation
- * - ui.setRouteContext(ctx) - Set special route context
+ * - UI element visibility management
+ * - Responsive layout updates based on screen size and collection mode
+ * - Lazy initialization and cleanup
+ * - Optimized reactivity with consolidated effects
+ * - Smart manual override handling
  */
 
+// Stores
 import { mode } from './collectionStore.svelte';
-import { screen, ScreenSize } from './screenSizeStore.svelte';
-import { untrack } from 'svelte';
+import { screenSize, ScreenSize } from './screenSizeStore.svelte';
+
+// System Logger
+import { logger } from '@utils/logger';
 
 // Types for UI visibility states
 export type UIVisibility = 'hidden' | 'collapsed' | 'full';
@@ -31,91 +30,27 @@ export interface UIState {
 	footer: UIVisibility;
 }
 
-/**
- * UIStore - Manages UI element visibility based on screen size and mode
- */
-class UIStore {
-	// Core reactive state
-	state = $state<UIState>({
-		leftSidebar: 'full',
-		rightSidebar: 'hidden',
-		pageheader: 'full',
-		pagefooter: 'hidden',
-		header: 'hidden',
-		footer: 'hidden'
-	});
+// Create base stores
+const createUIStores = () => {
+	let resizeObserver: ResizeObserver | null = null;
+	const initialSize = screenSize.value;
 
-	// Route context for special layouts
-	routeContext = $state({
-		isImageEditor: false,
-		isCollectionBuilder: false
-	});
+	let routeContext = $state({ isImageEditor: false, isCollectionBuilder: false });
 
-	// UI toggles
-	manualOverrideActive = $state(false);
-	headerShowMore = $state(false);
-	isSearchVisible = $state(false);
-	userPreferred = $state<UIVisibility>('collapsed');
-
-	// Internal state
-	private manualTimer: ReturnType<typeof setTimeout> | null = null;
-	private effectCleanup?: () => void;
-
-	// Computed visibility getters
-	get isLeftSidebarVisible(): boolean {
-		return this.state.leftSidebar !== 'hidden';
+	function setRouteContext(context: { isImageEditor?: boolean; isCollectionBuilder?: boolean }) {
+		const newContext = { ...routeContext, ...context };
+		if (JSON.stringify(routeContext) !== JSON.stringify(newContext)) {
+			routeContext = newContext;
+			logger.debug('UIStore: Route context updated', newContext);
+			updateLayout();
+		}
 	}
 
-	get isRightSidebarVisible(): boolean {
-		return this.state.rightSidebar !== 'hidden';
-	}
-
-	get isPageHeaderVisible(): boolean {
-		return this.state.pageheader !== 'hidden';
-	}
-
-	get isPageFooterVisible(): boolean {
-		return this.state.pagefooter !== 'hidden';
-	}
-
-	get isHeaderVisible(): boolean {
-		return this.state.header !== 'hidden';
-	}
-
-	get isFooterVisible(): boolean {
-		return this.state.footer !== 'hidden';
-	}
-
-	constructor() {
-		if (typeof window === 'undefined') return;
-
-		// Single effect root watches size + mode changes
-		this.effectCleanup = $effect.root(() => {
-			$effect(() => {
-				const size = screen.size;
-				const currentMode = mode.value;
-				// Track route context changes to trigger updates
-				const _ctx = this.routeContext.isImageEditor || this.routeContext.isCollectionBuilder;
-				void _ctx;
-
-				untrack(() => {
-					if (!this.manualOverrideActive) {
-						this.updateFromContext(size, currentMode);
-					}
-				});
-			});
-		});
-	}
-
-	/**
-	 * Updates UI state based on screen size and current mode
-	 */
-	private updateFromContext(size: ScreenSize, currentMode: string): void {
-		const isViewMode = currentMode === 'view' || currentMode === 'media';
-
-		// Special routes
-		if (this.routeContext.isImageEditor) {
-			this.state = {
+	// Tailored default state based on screen size and mode
+	const getDefaultState = (size: ScreenSize, isViewMode: boolean): UIState => {
+		// Special route: Image Editor
+		if (routeContext.isImageEditor) {
+			return {
 				leftSidebar: 'collapsed',
 				rightSidebar: 'hidden',
 				pageheader: 'full',
@@ -123,154 +58,336 @@ class UIStore {
 				header: 'hidden',
 				footer: 'hidden'
 			};
-			return;
 		}
 
-		if (this.routeContext.isCollectionBuilder) {
-			// Collection builder should respect screen size for sidebar
-			let sidebarState: UIVisibility = 'full';
-			if (size === ScreenSize.XS || size === ScreenSize.SM) {
-				sidebarState = 'hidden';
-			} else if (size === ScreenSize.MD) {
-				sidebarState = 'collapsed';
-			}
-
-			this.state = {
-				leftSidebar: sidebarState,
+		// Special route: Collection Builder
+		if (routeContext.isCollectionBuilder) {
+			return {
+				leftSidebar: 'collapsed',
 				rightSidebar: 'hidden',
-				pageheader: 'hidden', // No HeaderEdit in collection builder
+				pageheader: 'full',
 				pagefooter: 'hidden',
 				header: 'hidden',
 				footer: 'hidden'
 			};
-			return;
 		}
 
-		const showPageHeader = ['edit', 'create', 'modify', 'media'].includes(currentMode);
+		// Determine if we should show the collection header (HeaderEdit)
+		// Show in edit, create, modify, media modes (exclude view as EntryList has its own header)
+		const isCollectionMode = ['edit', 'create', 'modify', 'media'].includes(mode.value);
 
-		// Mobile
+		// Mobile behavior (<768px)
 		if (size === ScreenSize.XS || size === ScreenSize.SM) {
-			this.state = {
-				leftSidebar: 'hidden',
+			return {
+				leftSidebar: 'hidden', // Always hidden on mobile
 				rightSidebar: 'hidden',
-				pageheader: showPageHeader ? 'full' : 'hidden',
+				pageheader: isCollectionMode ? 'full' : 'hidden',
 				pagefooter: 'hidden',
 				header: 'hidden',
 				footer: 'hidden'
 			};
-			return;
 		}
 
-		// Tablet
+		// Tablet behavior (768-1023px)
 		if (size === ScreenSize.MD) {
-			this.state = {
+			return {
 				leftSidebar: isViewMode ? 'collapsed' : 'hidden',
 				rightSidebar: 'hidden',
-				pageheader: showPageHeader ? 'full' : 'hidden',
+				pageheader: isCollectionMode ? 'full' : 'hidden',
 				pagefooter: 'hidden',
 				header: 'hidden',
 				footer: 'hidden'
 			};
-			return;
 		}
 
-		// Desktop
-		this.state = {
+		// Desktop behavior (≥1024px)
+		return {
 			leftSidebar: isViewMode ? 'full' : 'collapsed',
 			rightSidebar: isViewMode ? 'hidden' : 'full',
-			pageheader: showPageHeader ? 'full' : 'hidden',
+			pageheader: isCollectionMode ? 'full' : 'hidden',
 			pagefooter: 'hidden',
 			header: 'hidden',
 			footer: 'hidden'
 		};
+	};
+
+	// Base state with Svelte 5 runes
+	const initialMode = mode.value;
+	const initialIsViewMode = initialMode === 'view' || initialMode === 'media';
+	logger.debug('UIStore: Initializing with mode', { initialMode, initialIsViewMode, initialSize });
+
+	let uiState = $state<UIState>(getDefaultState(initialSize, initialIsViewMode));
+	let userPreferred = $state<UIVisibility>('collapsed');
+	let isInitialized = $state(false);
+
+	// ✅ OPTIMIZATION 1: Better manual override tracking
+	let userManuallyToggledSidebar = $state(false);
+	let manualToggleTimer: ReturnType<typeof setTimeout> | null = null;
+
+	// Batch update helper
+	const batchUpdate = (newState: Partial<UIState>) => {
+		uiState = { ...uiState, ...newState };
+	};
+
+	// ✅ OPTIMIZATION 2: Simplified layout update logic
+	let isUpdating = $state(false);
+
+	function updateLayout() {
+		if (isUpdating) return;
+
+		// Skip if user just manually toggled
+		if (userManuallyToggledSidebar) {
+			logger.debug('UIStore: Skipping layout update - manual override active');
+			return;
+		}
+
+		isUpdating = true;
+
+		try {
+			const currentSize = screenSize.value;
+			const isViewMode = mode.value === 'view' || mode.value === 'media';
+			const newState = getDefaultState(currentSize, isViewMode);
+
+			// Only update if state actually changes
+			const isDifferent = Object.keys(newState).some((key) => newState[key as keyof UIState] !== uiState[key as keyof UIState]);
+
+			if (isDifferent) {
+				requestAnimationFrame(() => {
+					uiState = newState;
+					logger.debug('UIStore: State updated', { newState });
+				});
+			}
+		} finally {
+			isUpdating = false;
+		}
 	}
 
-	/**
-	 * Toggle a UI element's visibility
-	 */
-	toggle(element: keyof UIState, visibility: UIVisibility): void {
-		this.state[element] = visibility;
+	// Debounced resize handler
+	let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+	function debouncedUpdateLayout() {
+		if (resizeTimeout) clearTimeout(resizeTimeout);
+		resizeTimeout = setTimeout(() => {
+			updateLayout();
+			resizeTimeout = null;
+		}, 100);
+	}
 
-		// Prevent auto-updates for 600ms after manual toggle
+	// Initial layout update
+	updateLayout();
+
+	// ✅ OPTIMIZATION 3: Improved toggle with timer cleanup
+	function toggleUIElement(element: keyof UIState, state: UIVisibility) {
+		batchUpdate({ [element]: state });
+
+		// Set manual override flag for sidebars
 		if (element === 'leftSidebar' || element === 'rightSidebar') {
-			this.manualOverrideActive = true;
+			userManuallyToggledSidebar = true;
 
-			if (this.manualTimer) clearTimeout(this.manualTimer);
-			this.manualTimer = setTimeout(() => {
-				this.manualOverrideActive = false;
-				this.manualTimer = null;
+			// Clear existing timer
+			if (manualToggleTimer) {
+				clearTimeout(manualToggleTimer);
+			}
+
+			// Reset flag after animation completes
+			manualToggleTimer = setTimeout(() => {
+				userManuallyToggledSidebar = false;
+				manualToggleTimer = null;
+				logger.debug('UIStore: Manual override cleared');
 			}, 600);
 		}
 	}
 
-	/**
-	 * Set route context for special layouts
-	 */
-	setRouteContext(ctx: { isImageEditor?: boolean; isCollectionBuilder?: boolean }): void {
-		for (const key in ctx) {
-			const k = key as keyof typeof ctx;
-			if (this.routeContext[k] !== ctx[k]) {
-				this.routeContext[k] = ctx[k] ?? false; // Fallback to false if undefined
+	// Lazy initialization
+	let initPromise: Promise<void> | null = null;
+	function initialize() {
+		if (isInitialized || typeof window === 'undefined') {
+			return Promise.resolve();
+		}
+
+		if (!initPromise) {
+			initPromise = new Promise<void>((resolve) => {
+				const setup = () => {
+					if (resizeObserver) return;
+
+					// Resize observer for body size changes
+					resizeObserver = new ResizeObserver(() => {
+						if (screenSize) {
+							debouncedUpdateLayout();
+						}
+					});
+
+					resizeObserver.observe(document.body);
+
+					// Window resize listener as fallback
+					window.addEventListener('resize', debouncedUpdateLayout);
+
+					updateLayout();
+					isInitialized = true;
+					logger.trace('UIStore: Initialized');
+					resolve();
+				};
+
+				if (document.readyState === 'loading') {
+					window.addEventListener('DOMContentLoaded', setup);
+				} else {
+					setup();
+				}
+			});
+		}
+
+		return initPromise;
+	}
+
+	// Cleanup
+	function destroy() {
+		if (resizeObserver) {
+			resizeObserver.disconnect();
+			resizeObserver = null;
+		}
+
+		window.removeEventListener('resize', debouncedUpdateLayout);
+
+		if (resizeTimeout) {
+			clearTimeout(resizeTimeout);
+			resizeTimeout = null;
+		}
+
+		if (manualToggleTimer) {
+			clearTimeout(manualToggleTimer);
+			manualToggleTimer = null;
+		}
+
+		// Clean up effect root if it exists
+		if (effectRoot) {
+			effectRoot();
+			effectRoot = undefined;
+		}
+
+		initPromise = null;
+		logger.trace('UIStore: Destroyed');
+	}
+
+	return {
+		// Base state accessors
+		uiState: {
+			get value() {
+				return uiState;
+			},
+			set value(newValue: UIState) {
+				uiState = newValue;
 			}
-		}
-	}
+		},
+		userPreferred: {
+			get value() {
+				return userPreferred;
+			},
+			set value(newValue: UIVisibility) {
+				userPreferred = newValue;
+			}
+		},
+		isInitialized: {
+			get value() {
+				return isInitialized;
+			},
+			set value(newValue: boolean) {
+				isInitialized = newValue;
+			}
+		},
 
-	/**
-	 * Force a layout update
-	 */
-	forceUpdate(): void {
-		this.updateFromContext(screen.size, mode.value);
-	}
+		// Derived visibility
+		isLeftSidebarVisible: {
+			get value() {
+				return uiState.leftSidebar !== 'hidden';
+			}
+		},
+		isRightSidebarVisible: {
+			get value() {
+				return uiState.rightSidebar !== 'hidden';
+			}
+		},
+		isPageHeaderVisible: {
+			get value() {
+				return uiState.pageheader !== 'hidden';
+			}
+		},
+		isPageFooterVisible: {
+			get value() {
+				return uiState.pagefooter !== 'hidden';
+			}
+		},
+		isHeaderVisible: {
+			get value() {
+				return uiState.header !== 'hidden';
+			}
+		},
+		isFooterVisible: {
+			get value() {
+				return uiState.footer !== 'hidden';
+			}
+		},
 
-	/**
-	 * Cleanup resources
-	 */
-	destroy(): void {
-		if (this.manualTimer) {
-			clearTimeout(this.manualTimer);
-			this.manualTimer = null;
-		}
-		this.effectCleanup?.();
-	}
-}
-
-// Singleton instance - the main export
-export const ui = new UIStore();
-
-// Backward compatibility exports for theme branch components
-export function toggleUIElement(element: keyof UIState, visibility: UIVisibility): void {
-	ui.toggle(element, visibility);
-}
-
-// Compatibility export for uiStateManager - wraps ui instance
-export const uiStateManager = {
-	get state() {
-		return ui.state;
-	},
-	get uiState() {
-		return { value: ui.state };
-	},
-	toggle: ui.toggle.bind(ui),
-	show: (element: keyof UIState) => ui.toggle(element, 'full'),
-	hide: (element: keyof UIState) => ui.toggle(element, 'hidden')
+		// Functions
+		toggleUIElement,
+		updateLayout,
+		initialize,
+		destroy,
+		setRouteContext
+	};
 };
 
-// Compatibility export for userPreferredState - wraps ui.state
+// Create and export the UI state manager
+let effectRoot: (() => void) | undefined;
+
+export const uiStateManager = (() => {
+	const manager = createUIStores();
+
+	// ✅ OPTIMIZATION 4: Single consolidated effect for mode changes
+	if (typeof window !== 'undefined') {
+		effectRoot = $effect.root(() => {
+			$effect(() => {
+				const currentMode = mode.value;
+				logger.debug(`UIStore: Mode changed to '${currentMode}', updating layout`);
+				manager.updateLayout();
+			});
+		});
+	}
+
+	return manager;
+})();
+
+// Export individual store-like wrappers for backward compatibility
 export const userPreferredState = {
-	get leftSidebar() {
-		return ui.state.leftSidebar;
+	get value() {
+		return uiStateManager.userPreferred.value;
 	},
-	get rightSidebar() {
-		return ui.state.rightSidebar;
+	set value(val: UIVisibility) {
+		uiStateManager.userPreferred.value = val;
 	},
-	get pageheader() {
-		return ui.state.pageheader;
-	},
-	set(state: UIVisibility) {
-		// No-op or map to something?
-		// Theme branch likely set a preference.
-		ui.userPreferred = state;
+	set(val: UIVisibility) {
+		uiStateManager.userPreferred.value = val;
 	}
 };
 
-export const setRouteContext = ui.setRouteContext.bind(ui);
+// Export functions
+export const toggleUIElement = uiStateManager.toggleUIElement;
+export const handleUILayoutToggle = uiStateManager.updateLayout;
+export const setRouteContext = uiStateManager.setRouteContext;
+
+// Auto-initialize (client-side only)
+if (typeof window !== 'undefined') {
+	uiStateManager.initialize();
+}
+
+// Header options controller
+const headerOptions = $state({
+	showMore: false
+});
+
+export const headerController = {
+	get options() {
+		return headerOptions;
+	},
+	setShowMore(visible: boolean) {
+		headerOptions.showMore = visible;
+	}
+};

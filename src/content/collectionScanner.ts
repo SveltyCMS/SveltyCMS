@@ -72,7 +72,7 @@ function extractCollectionPath(fullPath: string, baseDir: string): string {
  * @returns Array of collection schemas found in the filesystem
  */
 export async function scanCompiledCollections(): Promise<Schema[]> {
-	const envDir = process.env.COLLECTIONS_DIR || process.env.COLLECTIONS_FOLDER || import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
+	const envDir = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
 
 	// Resolve to absolute path to ensure we look in the project root
 	const compiledDirectoryPath = path.resolve(process.cwd(), envDir);

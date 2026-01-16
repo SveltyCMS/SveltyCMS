@@ -7,8 +7,8 @@
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import DropDown from '@components/system/dropDown/DropDown.svelte';
-	import { widgets } from '@stores/widgetStore.svelte';
-	import type { WidgetFactory } from '@src/widgets/types';
+	import { widgetFunctions } from '@stores/widgetStore.svelte';
+	import type { WidgetFunction } from '@src/widgets/types';
 	import InputSwitch from './InputSwitch.svelte';
 
 	import type { AddWidgetProps } from './types';
@@ -27,13 +27,13 @@
 		})
 	}: AddWidgetProps = $props();
 
-	const widget_keys = $derived(Object.keys(widgets.widgetFunctions));
-	let guiSchema = $state<WidgetFactory['GuiSchema'] | undefined>(undefined);
+	const widget_keys = Object.keys($widgetFunctions);
+	let guiSchema = $state<WidgetFunction['GuiSchema'] | undefined>(undefined);
 
 	$effect(() => {
 		if (selected_widget) {
-			const widgetFn = widgets.widgetFunctions[selected_widget];
-			guiSchema = (widgetFn as WidgetFactory)?.GuiSchema;
+			const widgetFn = $widgetFunctions[selected_widget];
+			guiSchema = widgetFn?.GuiSchema as WidgetFunction['GuiSchema'];
 		}
 	});
 
@@ -58,7 +58,7 @@
 <div class="fixed -top-16 left-0 flex h-screen w-full flex-col overflow-auto bg-white dark:bg-surface-900">
 	<div class="mb-3 flex items-center justify-between text-surface-900 dark:text-white">
 		<PageTitle name="Add a Widget" icon="material-symbols:ink-pen" iconColor="text-tertiary-500 dark:text-primary-500" />
-		<button type="button" onclick={handleCancel} aria-label="Cancel" class="preset-outlined-secondary-500 btn-icon mr-2">
+		<button type="button" onclick={handleCancel} aria-label="Cancel" class="preset-ghost-secondary-500 btn-icon mr-2">
 			<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 		</button>
 	</div>
@@ -77,7 +77,7 @@
 				<button class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={handleSave}>
 					Save {selected_widget} Widget
 				</button>
-				<button class="variant-filled-secondary btn dark:preset-outlined-secondary-500" onclick={handleWidgetCancel}>Cancel</button>
+				<button class="preset-filled-secondary-500 btn dark:preset-ghost-secondary-500" onclick={handleWidgetCancel}>Cancel</button>
 			</div>
 
 			{#if guiSchema}

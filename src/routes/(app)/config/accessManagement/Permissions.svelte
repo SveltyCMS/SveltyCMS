@@ -66,8 +66,6 @@ It provides the following functionality:
 					group = 'API Access';
 				} else if (prefix === 'content') {
 					group = 'Content Management';
-				} else if (prefix === 'media') {
-					group = 'Media Management';
 				} else if (prefix === 'config') {
 					group = 'Configuration';
 				} else if (prefix === 'admin') {
@@ -155,8 +153,6 @@ It provides the following functionality:
 			filtered = permissions.filter((cur) => cur.type === PermissionType.SYSTEM && cur._id.startsWith('api:'));
 		} else if (group === 'Content Management') {
 			filtered = permissions.filter((cur) => cur.type === PermissionType.SYSTEM && cur._id.startsWith('content:'));
-		} else if (group === 'Media Management') {
-			filtered = permissions.filter((cur) => cur.type === PermissionType.SYSTEM && cur._id.startsWith('media:'));
 		} else if (group === 'Admin') {
 			filtered = permissions.filter((cur) => cur.type === PermissionType.SYSTEM && cur._id.startsWith('admin:'));
 		} else {

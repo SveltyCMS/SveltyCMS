@@ -61,7 +61,7 @@
 </script>
 
 <div class:hidden={!show} class="relative">
-	<button onclick={handleClick} aria-label="Description" class="btn-sm flex items-center">
+	<button onclick={handleClick} aria-label="Description" class="btn btn-sm flex items-center">
 		<iconify-icon icon="material-symbols:description" width="20"></iconify-icon>
 		<span class="hidden sm:inline">Description</span>
 	</button>

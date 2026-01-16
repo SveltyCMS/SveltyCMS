@@ -12,14 +12,14 @@ Displays detailed SEO analysis results in a modal overlay.
 	interface Props {
 		show: boolean;
 		analysisResult: SeoAnalysisResult | null;
-		onclose?: () => void;
+		close?: () => void;
 	}
 
-	let { show = $bindable(), analysisResult, onclose = () => {} }: Props = $props();
+	let { show = $bindable(), analysisResult, close = () => {} }: Props = $props();
 
-	function close() {
+	function closeModal() {
 		show = false;
-		onclose();
+		close();
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -34,9 +34,9 @@ Displays detailed SEO analysis results in a modal overlay.
 {#if show}
 	<!-- Backdrop -->
 	<div
-		class="fixed inset-0 z-999 bg-surface-backdrop-token backdrop-blur-sm"
+		class="fixed inset-0 z-999 bg-surface-50/50 dark:bg-surface-950/50 backdrop-blur-sm"
 		transition:fade={{ duration: 150 }}
-		onclick={close}
+		onclick={closeModal}
 		role="presentation"
 	></div>
 
@@ -47,14 +47,14 @@ Displays detailed SEO analysis results in a modal overlay.
 		role="dialog"
 		aria-modal="true"
 	>
-		<div class="card w-[90vw] max-w-2xl max-h-[85vh] overflow-hidden flex flex-col bg-surface-100-800-token">
+		<div class="card w-[90vw] max-w-2xl max-h-[85vh] overflow-hidden flex flex-col bg-surface-100 dark:bg-surface-800">
 			<!-- Header -->
 			<header class="card-header flex items-center justify-between border-b border-surface-500/20 p-4">
 				<h3 class="h3 flex items-center gap-2">
 					<iconify-icon icon="mdi:google-analytics" class="text-primary-500"></iconify-icon>
 					SEO Analysis Report
 				</h3>
-				<button type="button" class="btn-icon btn-icon-sm preset-outlined-surface-500" onclick={close} aria-label="Close">
+				<button type="button" class="btn-icon btn-icon-sm preset-ghost-surface-500" onclick={closeModal} aria-label="Close">
 					<iconify-icon icon="mdi:close" width="24"></iconify-icon>
 				</button>
 			</header>
@@ -63,7 +63,7 @@ Displays detailed SEO analysis results in a modal overlay.
 			<div class="flex-1 overflow-y-auto p-4 space-y-4">
 				{#if analysisResult}
 					<!-- Score Overview -->
-					<div class="flex items-center justify-center p-4 bg-surface-200-700-token rounded-container-token mb-6">
+					<div class="flex items-center justify-center p-4 bg-surface-200-800 rounded-xl mb-6">
 						<div class="text-center">
 							<div
 								class="radial-progress text-4xl font-bold {analysisResult.score.overall >= 80
@@ -138,7 +138,7 @@ Displays detailed SEO analysis results in a modal overlay.
 											class="badge {suggestion.type === 'error'
 												? 'preset-filled-error-500'
 												: suggestion.type === 'warning'
-													? 'variant-filled-warning'
+													? 'preset-filled-warning-500'
 													: 'preset-filled-primary-500'} uppercase text-[10px]"
 										>
 											{suggestion.type}
@@ -148,7 +148,7 @@ Displays detailed SEO analysis results in a modal overlay.
 							{/each}
 						</div>
 					{:else}
-						<div class="alert variant-soft-success">
+						<div class="alert preset-soft-success-500">
 							<iconify-icon icon="mdi:check-circle" class="text-2xl mr-2"></iconify-icon>
 							<span>Great job! No specific issues found.</span>
 						</div>
@@ -160,9 +160,10 @@ Displays detailed SEO analysis results in a modal overlay.
 					</div>
 				{/if}
 			</div>
+
 			<!-- Footer -->
 			<footer class="card-footer p-4 border-t border-surface-500/20 flex justify-end">
-				<button class="btn preset-filled-surface-500" onclick={close}>Close</button>
+				<button class="btn preset-filled-surface-500" onclick={closeModal}>Close</button>
 			</footer>
 		</div>
 	</div>

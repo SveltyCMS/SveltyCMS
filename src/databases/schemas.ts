@@ -13,7 +13,7 @@ import { logger } from '@utils/logger';
 // The PRIVATE configuration for the application.
 export const privateConfigSchema = object({
 	// --- Database configuration (Essential for startup) ---
-	DB_TYPE: union([literal('mongodb'), literal('mongodb+srv'), literal('mariadb'), literal('')]),
+	DB_TYPE: union([literal('mongodb'), literal('mongodb+srv')]),
 	DB_HOST: pipe(string(), minLength(1, 'Database host is required.')),
 	DB_PORT: pipe(number(), minValue(1)),
 	DB_NAME: pipe(string(), minLength(1, 'Database name is required.')),
@@ -35,7 +35,8 @@ export const privateConfigSchema = object({
 
 	// --- Licensing & Telemetry (BSL 1.1 Support) ---
 	LICENSE_KEY: optional(string()), // For Enterprise users to disable nags/tracking
-	SVELTYCMS_TELEMETRY: optional(boolean()), // Usage tracking (default: true)
+	SVELTY_TELEMETRY_DISABLED: optional(boolean()), // Opt-out of usage tracking
+	DO_NOT_TRACK: optional(boolean()), // Standard opt-out compliance
 
 	// --- Optional service toggles (populated dynamically post-startup) ---
 	USE_REDIS: optional(boolean()),
@@ -171,7 +172,7 @@ export const websiteTokenSchema = object({
 });
 
 export const databaseConfigSchema = object({
-	type: union([literal('mongodb'), literal('mongodb+srv'), literal('mariadb')]),
+	type: union([literal('mongodb'), literal('mongodb+srv')]),
 	host: pipe(string(), minLength(1)),
 	port: optional(pipe(number(), minValue(0))),
 	name: pipe(string(), minLength(1)),

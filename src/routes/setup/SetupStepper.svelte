@@ -36,7 +36,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 							? 'bg-primary-500 text-white'
 							: i === currentStep
 								? 'bg-error-500 text-white shadow-xl'
-								: 'bg-surface-200 text-surface-500 dark:bg-surface-100 dark:text-surface-50'} {stepClickable[i] || i === currentStep
+								: 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-400'} {stepClickable[i] || i === currentStep
 							? 'cursor-pointer'
 							: 'cursor-not-allowed'}"
 						aria-current={i === currentStep ? 'step' : undefined}
@@ -54,7 +54,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 						<div
 							class="text-xs font-medium sm:text-sm {i <= currentStep
 								? 'text-surface-900 dark:text-white'
-								: 'text-surface-500 dark:text-surface-50'} max-w-16 truncate sm:max-w-20"
+								: 'text-surface-500 dark:text-surface-400'} max-w-16 truncate sm:max-w-20"
 						>
 							{step.label.split(' ')[0]}
 						</div>
@@ -118,15 +118,16 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 						</div>
 					</button>
 					{#if i !== steps.length - 1}<div
-							class="absolute left-[1.65rem] top-14 h-[calc(100%-3.5rem)] w-[2px] {stepCompleted[i]
+							class="absolute left-[1.65rem] top-[3.5rem] h-[calc(100%-3.5rem)] w-[2px] {stepCompleted[i]
 								? 'bg-primary-500'
 								: 'border-l-2 border-dashed border-slate-200'}"
 						></div>{/if}
 				</div>
 			{/each}
 			<!-- Setup Steps Legend -->
-			<div class="mt-6 flex items-end gap-6 border-t pt-6">
-				<div class="flex-1">
+			<!-- Setup Steps Legend -->
+			<div class="mt-6 border-t pt-6">
+				<div class="mb-4">
 					<h4 class="mb-4 text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-200">Legend</h4>
 					<ul class="space-y-2 text-xs">
 						{#each legendItems as item (item.key)}
@@ -146,7 +147,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 				</div>
 
 				<!-- Version Check  -->
-				<div class="flex shrink-0 items-center">
+				<div class="flex items-center text-left">
 					<VersionCheck />
 				</div>
 			</div>

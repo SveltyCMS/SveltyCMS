@@ -14,8 +14,8 @@ export interface GroupProps {
 	// Group title/label
 	groupTitle?: string;
 
-	// Visual style variant @default 'default'
-	variant?: 'default' | 'card' | 'bordered';
+	// Visual style preset @default 'default'
+	preset?: 'default' | 'card' | 'bordered';
 
 	// Allow additional widget properties
 	[key: string]: unknown;

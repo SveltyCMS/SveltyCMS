@@ -23,9 +23,9 @@ import type { SystemVirtualFolder, QueryFilter, MediaItem } from '@root/src/data
 import type { DatabaseId } from '@root/src/content/types';
 import type { MediaAccess } from '@root/src/utils/media/mediaModels';
 import { MediaService } from '@src/services/MediaService.server';
-import { buildUrl } from '@utils/media/mediaUtils';
-import { moveMediaToTrash, getImageSizes } from '@utils/media/mediaStorage.server';
-import { getSanitizedFileName } from '@utils/media/mediaProcessing';
+import { constructUrl } from '@utils/media/mediaUtils';
+import { moveMediaToTrash } from '@utils/media/mediaStorage.server';
+import mime from 'mime-types';
 
 // Auth
 import { dbAdapter } from '@src/databases/db';
@@ -201,10 +201,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			.map((item) => {
 				try {
 					const mediaItem = item as unknown as MediaItem;
-					// Sanitize filename to match storage strategy
-					const { fileNameWithoutExt, ext } = getSanitizedFileName(mediaItem.filename);
-					const filename = fileNameWithoutExt;
-					const extension = ext;
+					const extension = mime.extension(mediaItem.mimeType) || '';
+					const filename = mediaItem.filename.replace(`.${extension}`, '');
 
 					// MEDIA_FOLDER may not be eagerly available; use a safe default
 					const mediaFolder = publicEnv.MEDIA_FOLDER || 'mediaFiles';
@@ -220,8 +218,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 					const basePath = cleanPath.split('/')[0] || 'global';
 
 					// Build thumbnail URL
-					// buildUrl(path, hash, fileName, format, contentTypes, size) -> Actual signature: path, hash, filename, ext, category, size
-					const thumbnailUrl = buildUrl(basePath, mediaItem.hash, filename, extension, basePath, 'thumbnail');
+					// constructUrl(path, hash, fileName, format, contentTypes, size)
+					const thumbnailUrl = constructUrl(basePath, mediaItem.hash, filename, extension, basePath, 'thumbnail');
 
 					return {
 						...mediaItem,
@@ -229,7 +227,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 						path: mediaItem.path ?? 'global',
 						name: mediaItem.filename ?? 'unnamed-media',
 						// Use the item's path if available when constructing the original URL
-						url: buildUrl(basePath, mediaItem.hash, filename, extension, basePath),
+						url: constructUrl(basePath, mediaItem.hash, filename, extension, basePath),
 						thumbnail: {
 							url: thumbnailUrl
 						}
@@ -350,71 +348,19 @@ export const actions: Actions = {
 				throw error(500, 'Internal Server Error');
 			}
 
-			// Move files to trash before deleting from database
-			// FIX: Explicitly delete from ALL size folders to ensure complete cleanup
+			// Move file to trash before deleting from database
 			try {
-				const sanitizePath = (p: string) => {
-					if (!p) return '';
-					let clean = p;
-					// Remove web prefixes
-					clean = clean.replace(/^\/files\//, '').replace(/^files\//, '');
-					// Remove storage root prefix if present
-					clean = clean.replace(/^mediaFolder\//, '');
-					// Ensure no leading slashes
-					return clean.replace(/^\/+/, '');
-				};
-
-				// Extract base path and filename from the stored path
-				// Path format: "global/original/filename-hash.ext"
-				const targetPath = image.path || image.url;
-				if (targetPath) {
-					const cleanPath = sanitizePath(targetPath);
-					// Parse the path to extract components
-					const pathParts = cleanPath.split('/');
-
-					if (pathParts.length >= 3) {
-						// Format: basePath/sizeFolder/filename
-						const basePath = pathParts[0]; // e.g., "global"
-						const fileName = pathParts[pathParts.length - 1]; // e.g., "image-hash.ext"
-
-						// Get configured sizes dynamically + ensure standard folders
-						const configuredSizes = getImageSizes();
-						const standardFolders = ['original', 'thumbnail'];
-						const dynamicFolders = Object.keys(configuredSizes);
-						const allSizes = [...new Set([...standardFolders, ...dynamicFolders])];
-
-						logger.info(`Deleting all variants for file: ${fileName} in ${basePath} - Sizes: ${allSizes.join(', ')}`);
-
-						for (const size of allSizes) {
-							const sizePath = `${basePath}/${size}/${fileName}`;
-							try {
-								await moveMediaToTrash(sizePath);
-								logger.info(`Deleted ${size} variant:`, sizePath);
-							} catch (sizeErr) {
-								// File might not exist in this size folder - that's OK
-								logger.debug(`No ${size} variant found (or already deleted):`, sizePath);
-							}
-						}
-					} else {
-						// Fallback: just try to delete the exact path
-						await moveMediaToTrash(cleanPath);
-						logger.info('File moved to trash (fallback):', cleanPath);
-					}
-				} else {
-					logger.warn('No path or url found for file deletion:', image._id);
+				if (image.url) {
+					await moveMediaToTrash(image.url);
+					logger.info('File moved to trash:', image.url);
 				}
 
-				// Also delete any thumbnails explicitly listed (for backwards compatibility)
+				// Also move thumbnails to trash if they exist
 				if (image.thumbnails) {
 					for (const size in image.thumbnails) {
 						if (image.thumbnails[size]?.url) {
-							const cleanThumbUrl = sanitizePath(image.thumbnails[size].url);
-							try {
-								await moveMediaToTrash(cleanThumbUrl);
-								logger.debug('Additional thumbnail cleaned up:', cleanThumbUrl);
-							} catch {
-								// Already deleted above or doesn't exist
-							}
+							await moveMediaToTrash(image.thumbnails[size].url);
+							logger.info('Thumbnail moved to trash:', image.thumbnails[size].url);
 						}
 					}
 				}

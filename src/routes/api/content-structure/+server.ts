@@ -122,29 +122,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		logger.debug('POST request received', { data, action, tenantId });
 
 		switch (action) {
-			case 'reorderContentStructure': {
-				const { items }: { items: ContentNodeOperation[] } = data;
-
-				if (!items || !Array.isArray(items)) {
-					throw error(400, 'Items array is required for reorderContentStructure');
-				}
-
-				const updatedContentStructure = await contentManager.reorderContentNodes(items);
-
-				if (!browser) {
-					const cachePattern = `api:content-structure:${tenantId || 'global'}:*`;
-					await cacheService.clearByPattern(cachePattern);
-					logger.debug('Cleared content-structure cache after reorder.', { tenantId });
-				}
-
-				logger.info('Content structure reordered successfully', { tenantId });
-				return json({
-					success: true,
-					contentStructure: updatedContentStructure,
-					message: 'Content structure reordered successfully'
-				});
-			}
-
 			case 'updateContentStructure': {
 				const { items }: { items: ContentNodeOperation[] } = data;
 

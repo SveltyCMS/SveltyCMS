@@ -35,7 +35,6 @@
 
 	import { Form } from '@utils/Form.svelte';
 	import { signUpFormSchema } from '@utils/formSchemas';
-	import { toaster } from '@stores/store.svelte';
 	// Components
 	import PasswordStrength from '@components/PasswordStrength.svelte';
 	import SiteName from '@components/SiteName.svelte';
@@ -43,12 +42,12 @@
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import SignupIcon from './icons/SignupIcon.svelte';
-	import FloatingPaths from '@components/system/FloatingPaths.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Screen size store
-	import { screen } from '@stores/screenSizeStore.svelte';
+	import { isDesktop } from '@stores/screenSizeStore.svelte';
+	import type { Component } from 'svelte';
 
 	// Props
 	const {
@@ -75,19 +74,7 @@
 	let showPassword = $state(false);
 	let isSubmitting = $state(false);
 	let isRedirecting = $state(false);
-
-	let prefetched = $state(false);
-
-	async function prefetchFirstCollection() {
-		if (prefetched || !firstCollectionPath) return;
-		prefetched = true;
-
-		try {
-			await preloadData(firstCollectionPath);
-		} catch (error) {
-			console.error('Prefetch failed:', error);
-		}
-	}
+	let FloatingPathsComponent: Component | null = $state(null);
 
 	// Pre-calculate tab indices
 	const usernameTabIndex = 1;
@@ -114,12 +101,6 @@
 
 			if (result.type === 'redirect') {
 				isRedirecting = true;
-
-				toaster.success({
-					title: 'Account Created!',
-					description: 'Welcome to SveltyCMS. Redirecting to your dashboard...'
-				});
-
 				setTimeout(() => {
 					isRedirecting = false;
 				}, 100);
@@ -129,14 +110,6 @@
 			isRedirecting = false;
 
 			if (result.type === 'failure' || result.type === 'error') {
-				const errorMessage =
-					result.type === 'failure' ? result.data?.message || 'Failed to create account' : result.error?.message || 'An unexpected error occurred';
-
-				toaster.error({
-					title: 'Sign Up Failed',
-					description: errorMessage
-				});
-
 				formElement?.classList.add('wiggle');
 				setTimeout(() => {
 					formElement?.classList.remove('wiggle');
@@ -145,10 +118,6 @@
 
 			if (result.type === 'success') {
 				response = result.data?.message;
-				toaster.success({
-					title: 'Account Created',
-					description: result.data?.message || 'Your account has been successfully created'
-				});
 			}
 
 			await update();
@@ -235,10 +204,23 @@
 
 	const baseClasses = 'hover relative flex items-center overflow-y-auto';
 
+	// Lazy-load FloatingPaths only on desktop when SignUp is active
+	$effect(() => {
+		const desktop = isDesktop.value;
+		const isActiveSignUp = active === 1;
+		if (browser && desktop && isActiveSignUp) {
+			import('@root/src/components/system/FloatingPaths.svelte').then((m) => {
+				FloatingPathsComponent = m.default as Component;
+			});
+		} else {
+			FloatingPathsComponent = null;
+		}
+	});
+
 	// Prefetch first collection data when active
 	$effect(() => {
-		if (active === 1) {
-			prefetchFirstCollection();
+		if (active === 1 && firstCollectionPath) {
+			preloadData(firstCollectionPath);
 		}
 	});
 </script>
@@ -256,10 +238,10 @@
 >
 	{#if active === 1}
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
-			{#if screen.isDesktop}
-				<div class="absolute inset-0 z-0">
-					<FloatingPaths position={1} background="dark" mirrorAnimation />
-					<FloatingPaths position={-1} background="dark" mirrorAnimation />
+			{#if isDesktop.value && FloatingPathsComponent}
+				<div class="absolute inset-0">
+					<FloatingPathsComponent position={1} background="dark" mirrorAnimation />
+					<FloatingPathsComponent position={-1} background="dark" mirrorAnimation />
 				</div>
 			{/if}
 			<!-- CSS Logo -->

@@ -26,7 +26,7 @@
 </script>
 
 <div
-	class="icon dark:text-dark absolute left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] transition-all duration-300"
+	class="icon dark:text-dark absolute left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] transition-all duration-300"
 	class:hide={!show}
 	class:pointer-events-none={!show || disabled}
 	class:opacity-50={disabled}

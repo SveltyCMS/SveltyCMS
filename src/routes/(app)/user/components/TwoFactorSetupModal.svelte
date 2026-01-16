@@ -56,14 +56,10 @@ This modal displays the QR code for setting up 2FA and handles verification.
 	async function copyToClipboard(text: string) {
 		try {
 			await navigator.clipboard.writeText(text);
-			toaster.create({
-				title: 'Success',
-				description: `${m.button_copy()} successful`,
-				type: 'success'
-			});
+			toaster.success({ description: `<iconify-icon icon="mdi:check" width="20" class="mr-1"></iconify-icon> ${m.button_copy()} successful` });
 		} catch (err) {
 			logger.error('Failed to copy:', err);
-			toaster.create({ title: 'Error', description: 'Failed to copy', type: 'error' });
+			toaster.error({ description: `<iconify-icon icon="mdi:alert-circle" width="20" class="mr-1"></iconify-icon> Failed to copy` });
 		}
 	}
 
@@ -93,14 +89,12 @@ This modal displays the QR code for setting up 2FA and handles verification.
 			}
 
 			currentStep = 'complete';
-			toaster.create({
-				title: 'Success',
-				description: m.twofa_setup_complete_title(),
-				type: 'success'
+			toaster.success({
+				description: `<iconify-icon icon="mdi:check-circle" width="20" class="mr-1"></iconify-icon> ${m.twofa_setup_complete_title()}`
 			});
 		} catch (err) {
 			error = err instanceof Error ? err.message : m.twofa_error_invalid_code();
-			toaster.create({ title: 'Error', description: error, type: 'error' });
+			toaster.error({ description: `<iconify-icon icon="mdi:alert-circle" width="20" class="mr-1"></iconify-icon> ${error}` });
 		} finally {
 			isVerifying = false;
 		}
@@ -172,7 +166,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 						<button
 							type="button"
 							onclick={() => copyToClipboard(secret)}
-							class="preset-tonal -primary-500 btn-sm"
+							class="preset-soft-primary-500 btn btn-sm"
 							title={m.button_copy()}
 							aria-label={m.button_copy()}
 						>
@@ -241,7 +235,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 					</div>
 
 					<div class="mb-3 flex justify-center">
-						<button type="button" onclick={() => copyToClipboard(backupCodes.join('\n'))} class="preset-tonal -primary-500 btn-sm">
+						<button type="button" onclick={() => copyToClipboard(backupCodes.join('\n'))} class="preset-soft-primary-500 btn btn-sm">
 							<iconify-icon icon="mdi:content-copy" width="16" class="mr-1"></iconify-icon>
 							{m.button_copy_all()}
 						</button>

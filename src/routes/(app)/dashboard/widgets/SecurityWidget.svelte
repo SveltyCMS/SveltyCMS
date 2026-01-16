@@ -39,8 +39,9 @@ and automated response visualization for enterprise security operations.
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { logger } from '@utils/logger';
+	import { toaster } from '@stores/store.svelte';
 	import BaseWidget from '../BaseWidget.svelte';
-	import { showToast } from '@utils/toast';
+	// getToastStore deprecated - use custom toaster from @stores/toasterStore;
 	import type { WidgetSize } from '@src/content/types';
 
 	const {
@@ -208,13 +209,13 @@ and automated response visualization for enterprise security operations.
 			});
 
 			if (response.ok) {
-				showToast('Incident resolved successfully', 'success');
+				toaster.success({ description: 'Incident resolved successfully' });
 				await fetchSecurityData(); // Refresh data
 			} else {
 				throw new Error('Failed to resolve incident');
 			}
 		} catch (err) {
-			showToast(`Failed to resolve incident: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+			toaster.error({ description: `Failed to resolve incident: ${err instanceof Error ? err.message : 'Unknown error'}` });
 		}
 	}
 
@@ -227,13 +228,13 @@ and automated response visualization for enterprise security operations.
 			});
 
 			if (response.ok) {
-				showToast(`IP ${ip} unblocked successfully`, 'success');
+				toaster.success({ description: `IP ${ip} unblocked successfully` });
 				await fetchSecurityData(); // Refresh data
 			} else {
 				throw new Error('Failed to unblock IP');
 			}
 		} catch (err) {
-			showToast(`Failed to unblock IP: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+			toaster.error({ description: `Failed to unblock IP: ${err instanceof Error ? err.message : 'Unknown error'}` });
 		}
 	}
 
@@ -286,12 +287,7 @@ and automated response visualization for enterprise security operations.
 					</p>
 				</div>
 			</div>
-			<button
-				class="preset-outlined-surface-500btn btn-sm"
-				onclick={() => fetchSecurityData()}
-				disabled={isLoading}
-				aria-label="Refresh security data"
-			>
+			<button class="preset-ghost-surface-500 btn btn-sm" onclick={() => fetchSecurityData()} disabled={isLoading} aria-label="Refresh security data">
 				<iconify-icon icon="mdi:refresh" class="text-sm"></iconify-icon>
 			</button>
 		</div>
@@ -348,11 +344,11 @@ and automated response visualization for enterprise security operations.
 									{/if}
 								</div>
 								<div class="flex space-x-1">
-									<button class="btn-xs preset-outlined-surface-500btn" onclick={() => resolveIncident(incident.id)} title="Resolve incident">
+									<button class="btn-xs preset-ghost-surface-500 btn" onclick={() => resolveIncident(incident.id)} title="Resolve incident">
 										<iconify-icon icon="mdi:check" class="text-xs"></iconify-icon>
 									</button>
 									{#if incident.responseActions.includes('block') || incident.responseActions.includes('blacklist')}
-										<button class="btn-xs preset-outlined-surface-500btn" onclick={() => unblockIP(incident.clientIp)} title="Unblock IP">
+										<button class="btn-xs preset-ghost-surface-500 btn" onclick={() => unblockIP(incident.clientIp)} title="Unblock IP">
 											<iconify-icon icon="mdi:lock-open" class="text-xs"></iconify-icon>
 										</button>
 									{/if}

@@ -29,13 +29,16 @@ Structure optimized for LLM integration and AI-powered search.
 	import type { MediaBase } from '@utils/media/mediaModels';
 	import type { SearchCriteria } from '@utils/media/advancedSearch';
 
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+
 	interface Props {
 		files: MediaBase[];
 		onSearch: (criteria: SearchCriteria) => void;
-		onClose: () => void;
+		close: () => void;
 	}
 
-	const { files, onSearch, onClose }: Props = $props();
+	const { files, onSearch, close }: Props = $props();
 
 	// Search criteria state (not used directly, converted from formValues)
 	// let criteria = $state<SearchCriteria>({...});
@@ -153,268 +156,192 @@ Structure optimized for LLM integration and AI-powered search.
 	// Keyboard shortcuts
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') {
-			onClose();
+			close();
 		} else if (e.key === 'Enter' && e.ctrlKey) {
 			handleSearch();
 		}
 	}
 </script>
 
-<!-- Modal Content Wrapper -->
-<div class="h-full w-full flex flex-col items-center justify-center p-4">
-	<div
-		class="card max-h-[85vh] w-full max-w-4xl flex flex-col overflow-hidden bg-surface-100 dark:bg-surface-800 shadow-xl"
-		onclick={(e) => e.stopPropagation()}
-		onkeydown={(e) => {
-			if (e.key === 'Enter') e.stopPropagation();
-			handleKeydown(e);
+<svelte:window onkeydown={handleKeydown} />
+
+<div class="max-h-[90vh] overflow-y-auto">
+	<h2 id="advanced-search-title" class="mb-6 text-center text-2xl font-bold text-tertiary-500 underline dark:text-primary-500">Advanced Search</h2>
+
+	<form
+		onsubmit={(e) => {
+			e.preventDefault();
+			handleSearch();
 		}}
-		role="dialog"
-		aria-labelledby="advanced-search-title"
-		tabindex="0"
+		class="space-y-6"
 	>
-		<!-- Header -->
-		<div class="flex-none border-b border-surface-300 p-4 dark:border-surface-600 bg-surface-200/50 dark:bg-surface-700/50">
-			<h2 id="advanced-search-title" class="text-center text-2xl font-bold text-tertiary-500 underline dark:text-primary-500">Advanced Search</h2>
-		</div>
+		<!-- Basic Search -->
+		<section>
+			<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Basic Criteria</h3>
+			<div class="grid gap-4 md:grid-cols-2">
+				<label class="label">
+					<span>Filename</span>
+					<input type="text" bind:value={formValues.filename} class="input" placeholder="image.jpg" />
+				</label>
 
-		<!-- Scrollable Body -->
-		<div class="flex-1 overflow-y-auto p-6">
-			<form
-				id="advanced-search-form"
-				onsubmit={(e) => {
-					e.preventDefault();
-					handleSearch();
-				}}
-				class="space-y-6"
-			>
-				<!-- Search Presets -->
-				<div class="flex flex-wrap gap-2">
-					<button
-						type="button"
-						class="chip preset-outlined-primary-500 hover:preset-filled-primary-500 transition-colors"
-						onclick={() => {
-							const date = new Date();
-							date.setDate(date.getDate() - 7);
-							formValues.uploadedAfter = date.toISOString().split('T')[0];
-							formValues.uploadedBefore = '';
-						}}
-					>
-						<iconify-icon icon="mdi:calendar-week"></iconify-icon>
-						<span>Recent (7 days)</span>
-					</button>
-					<button
-						type="button"
-						class="chip preset-outlined-primary-500 hover:preset-filled-primary-500 transition-colors"
-						onclick={() => {
-							const date = new Date();
-							date.setDate(date.getDate() - 30);
-							formValues.uploadedAfter = date.toISOString().split('T')[0];
-							formValues.uploadedBefore = '';
-						}}
-					>
-						<iconify-icon icon="mdi:calendar-month"></iconify-icon>
-						<span>Recent (30 days)</span>
-					</button>
-					<button
-						type="button"
-						class="chip preset-outlined-primary-500 hover:preset-filled-primary-500 transition-colors"
-						onclick={() => {
-							formValues.minSize = '5';
-							formValues.maxSize = '';
-						}}
-					>
-						<iconify-icon icon="mdi:file-star"></iconify-icon>
-						<span>Large (>5MB)</span>
-					</button>
-					<button
-						type="button"
-						class="chip preset-outlined-primary-500 hover:preset-filled-primary-500 transition-colors"
-						onclick={() => {
-							formValues.minWidth = '3840';
-							formValues.minHeight = '2160';
-						}}
-					>
-						<iconify-icon icon="mdi:monitor-screenshot"></iconify-icon>
-						<span>4K+ Images</span>
-					</button>
-				</div>
-
-				<hr class="border-surface-300 dark:border-surface-600" />
-
-				<!-- Basic Search -->
-				<section>
-					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Basic Criteria</h3>
-					<div class="grid gap-4 md:grid-cols-2">
-						<label class="label">
-							<span>Filename</span>
-							<input type="text" bind:value={formValues.filename} class="input" placeholder="image.jpg" />
-						</label>
-
-						<label class="label">
-							<span>Tags (comma-separated)</span>
-							<input type="text" bind:value={formValues.tagsInput} class="input" placeholder="landscape, nature" />
-							{#if suggestions.tags.length > 0}
-								<div class="mt-1 text-xs text-surface-600 dark:text-surface-50">
-									Suggestions: {suggestions.tags.join(', ')}
-								</div>
-							{/if}
-						</label>
-					</div>
-				</section>
-
-				<!-- Dimensions -->
-				<section>
-					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Dimensions</h3>
-					<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-						<label class="label">
-							<span>Min Width (px)</span>
-							<input type="number" bind:value={formValues.minWidth} class="input" placeholder="1920" />
-						</label>
-
-						<label class="label">
-							<span>Max Width (px)</span>
-							<input type="number" bind:value={formValues.maxWidth} class="input" placeholder="3840" />
-						</label>
-
-						<label class="label">
-							<span>Min Height (px)</span>
-							<input type="number" bind:value={formValues.minHeight} class="input" placeholder="1080" />
-						</label>
-
-						<label class="label">
-							<span>Max Height (px)</span>
-							<input type="number" bind:value={formValues.maxHeight} class="input" placeholder="2160" />
-						</label>
-					</div>
-
-					<div class="mt-4">
-						<label class="label">
-							<span>Aspect Ratio</span>
-							<select bind:value={formValues.aspectRatio} class="select">
-								<option value="any">Any</option>
-								<option value="landscape">Landscape</option>
-								<option value="portrait">Portrait</option>
-								<option value="square">Square</option>
-							</select>
-						</label>
-					</div>
-
-					{#if suggestions.dimensions.length > 0}
-						<div class="mt-2 text-xs text-surface-600 dark:text-surface-50">
-							Common dimensions: {suggestions.dimensions.join(', ')}
+				<label class="label">
+					<span>Tags (comma-separated)</span>
+					<input type="text" bind:value={formValues.tagsInput} class="input" placeholder="landscape, nature" />
+					{#if suggestions.tags.length > 0}
+						<div class="mt-1 text-xs text-surface-600 dark:text-surface-400">
+							Suggestions: {suggestions.tags.join(', ')}
 						</div>
 					{/if}
-				</section>
-
-				<!-- File Properties -->
-				<section>
-					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">File Properties</h3>
-					<div class="grid gap-4 md:grid-cols-3">
-						<label class="label">
-							<span>Min Size (MB)</span>
-							<input type="number" bind:value={formValues.minSize} class="input" placeholder="1" step="0.1" />
-						</label>
-
-						<label class="label">
-							<span>Max Size (MB)</span>
-							<input type="number" bind:value={formValues.maxSize} class="input" placeholder="50" step="0.1" />
-						</label>
-
-						<label class="label">
-							<span>File Types</span>
-							<input type="text" bind:value={formValues.fileTypesInput} class="input" placeholder="image/jpeg, image/png" />
-						</label>
-					</div>
-				</section>
-
-				<!-- Dates -->
-				<section>
-					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Upload Dates</h3>
-					<div class="grid gap-4 md:grid-cols-2">
-						<label class="label">
-							<span>Uploaded After</span>
-							<input type="date" bind:value={formValues.uploadedAfter} class="input" />
-						</label>
-
-						<label class="label">
-							<span>Uploaded Before</span>
-							<input type="date" bind:value={formValues.uploadedBefore} class="input" />
-						</label>
-					</div>
-				</section>
-
-				<!-- EXIF & Metadata -->
-				<section>
-					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Metadata & EXIF</h3>
-					<div class="grid gap-4 md:grid-cols-3">
-						<label class="label">
-							<span>Has EXIF Data</span>
-							<select bind:value={formValues.hasEXIF} class="select">
-								<option value="any">Any</option>
-								<option value="yes">Yes</option>
-								<option value="no">No</option>
-							</select>
-						</label>
-
-						<label class="label">
-							<span>Camera</span>
-							<input type="text" bind:value={formValues.camera} class="input" placeholder="Canon EOS 5D" />
-							{#if suggestions.cameras.length > 0}
-								<div class="mt-1 text-xs text-surface-600 dark:text-surface-50">
-									Found: {suggestions.cameras.join(', ')}
-								</div>
-							{/if}
-						</label>
-
-						<label class="label">
-							<span>Location</span>
-							<input type="text" bind:value={formValues.location} class="input" placeholder="New York" />
-						</label>
-					</div>
-				</section>
-
-				<!-- Advanced -->
-				<section>
-					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Advanced</h3>
-					<div class="grid gap-4 md:grid-cols-2">
-						<label class="label">
-							<span>Dominant Color (hex)</span>
-							<input type="text" bind:value={formValues.dominantColor} class="input" placeholder="#FF5733" />
-						</label>
-
-						<label class="label">
-							<span>Hash Match</span>
-							<input type="text" bind:value={formValues.hashMatch} class="input" placeholder="a1b2c3d4..." />
-						</label>
-					</div>
-
-					<label class="mt-4 flex items-center gap-2">
-						<input type="checkbox" bind:checked={formValues.showDuplicatesOnly} class="checkbox" />
-						<span>Show Duplicates Only</span>
-					</label>
-				</section>
-			</form>
-		</div>
-
-		<!-- Footer -->
-		<div class="flex-none border-t border-surface-300 p-4 dark:border-surface-600 bg-surface-200/50 dark:bg-surface-700/50">
-			<div class="flex items-center justify-between">
-				<div class="text-sm hidden sm:block">
-					<strong class="text-tertiary-500 dark:text-primary-500">Tip:</strong> Press
-					<kbd class="preset-filled-tertiary-500 badge dark:preset-filled-primary-500">Ctrl+Enter</kbd>
-					to search
-				</div>
-
-				<div class="flex gap-3 ml-auto">
-					<button type="button" onclick={resetForm} class="preset-outlined-surface-500 btn">Reset</button>
-					<button type="button" onclick={onClose} class="preset-outlined-surface-500 btn">Cancel</button>
-					<button type="submit" form="advanced-search-form" class="preset-filled-primary-500 btn">
-						<iconify-icon icon="mdi:magnify" width="20"></iconify-icon>
-						Search
-					</button>
-				</div>
+				</label>
 			</div>
+		</section>
+
+		<!-- Dimensions -->
+		<section>
+			<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Dimensions</h3>
+			<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+				<label class="label">
+					<span>Min Width (px)</span>
+					<input type="number" bind:value={formValues.minWidth} class="input" placeholder="1920" />
+				</label>
+
+				<label class="label">
+					<span>Max Width (px)</span>
+					<input type="number" bind:value={formValues.maxWidth} class="input" placeholder="3840" />
+				</label>
+
+				<label class="label">
+					<span>Min Height (px)</span>
+					<input type="number" bind:value={formValues.minHeight} class="input" placeholder="1080" />
+				</label>
+
+				<label class="label">
+					<span>Max Height (px)</span>
+					<input type="number" bind:value={formValues.maxHeight} class="input" placeholder="2160" />
+				</label>
+			</div>
+
+			<div class="mt-4">
+				<label class="label">
+					<span>Aspect Ratio</span>
+					<select bind:value={formValues.aspectRatio} class="select">
+						<option value="any">Any</option>
+						<option value="landscape">Landscape</option>
+						<option value="portrait">Portrait</option>
+						<option value="square">Square</option>
+					</select>
+				</label>
+			</div>
+
+			{#if suggestions.dimensions.length > 0}
+				<div class="mt-2 text-xs text-surface-600 dark:text-surface-400">
+					Common dimensions: {suggestions.dimensions.join(', ')}
+				</div>
+			{/if}
+		</section>
+
+		<!-- File Properties -->
+		<section>
+			<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">File Properties</h3>
+			<div class="grid gap-4 md:grid-cols-3">
+				<label class="label">
+					<span>Min Size (MB)</span>
+					<input type="number" bind:value={formValues.minSize} class="input" placeholder="1" step="0.1" />
+				</label>
+
+				<label class="label">
+					<span>Max Size (MB)</span>
+					<input type="number" bind:value={formValues.maxSize} class="input" placeholder="50" step="0.1" />
+				</label>
+
+				<label class="label">
+					<span>File Types</span>
+					<input type="text" bind:value={formValues.fileTypesInput} class="input" placeholder="image/jpeg, image/png" />
+				</label>
+			</div>
+		</section>
+
+		<!-- Dates -->
+		<section>
+			<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Upload Dates</h3>
+			<div class="grid gap-4 md:grid-cols-2">
+				<label class="label">
+					<span>Uploaded After</span>
+					<input type="date" bind:value={formValues.uploadedAfter} class="input" />
+				</label>
+
+				<label class="label">
+					<span>Uploaded Before</span>
+					<input type="date" bind:value={formValues.uploadedBefore} class="input" />
+				</label>
+			</div>
+		</section>
+
+		<!-- EXIF & Metadata -->
+		<section>
+			<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Metadata & EXIF</h3>
+			<div class="grid gap-4 md:grid-cols-3">
+				<label class="label">
+					<span>Has EXIF Data</span>
+					<select bind:value={formValues.hasEXIF} class="select">
+						<option value="any">Any</option>
+						<option value="yes">Yes</option>
+						<option value="no">No</option>
+					</select>
+				</label>
+
+				<label class="label">
+					<span>Camera</span>
+					<input type="text" bind:value={formValues.camera} class="input" placeholder="Canon EOS 5D" />
+					{#if suggestions.cameras.length > 0}
+						<div class="mt-1 text-xs text-surface-600 dark:text-surface-400">
+							Found: {suggestions.cameras.join(', ')}
+						</div>
+					{/if}
+				</label>
+
+				<label class="label">
+					<span>Location</span>
+					<input type="text" bind:value={formValues.location} class="input" placeholder="New York" />
+				</label>
+			</div>
+		</section>
+
+		<!-- Advanced -->
+		<section>
+			<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Advanced</h3>
+			<div class="grid gap-4 md:grid-cols-2">
+				<label class="label">
+					<span>Dominant Color (hex)</span>
+					<input type="text" bind:value={formValues.dominantColor} class="input" placeholder="#FF5733" />
+				</label>
+
+				<label class="label">
+					<span>Hash Match</span>
+					<input type="text" bind:value={formValues.hashMatch} class="input" placeholder="a1b2c3d4..." />
+				</label>
+			</div>
+
+			<label class="mt-4 flex items-center gap-2">
+				<input type="checkbox" bind:checked={formValues.showDuplicatesOnly} class="checkbox" />
+				<span>Show Duplicates Only</span>
+			</label>
+		</section>
+
+		<!-- Actions -->
+		<div class="flex justify-end gap-3 border-t border-surface-300 pt-4 dark:border-surface-600">
+			<button type="button" onclick={resetForm} class="preset-ghost-surface-500 btn">Reset</button>
+			<button type="button" onclick={close} class="preset-ghost-surface-500 btn">{m.button_cancel()}</button>
+			<button type="submit" class="preset-filled-primary-500 btn">
+				<iconify-icon icon="mdi:magnify" width="20"></iconify-icon>
+				{m.MediaGallery_Search()}
+			</button>
 		</div>
+	</form>
+
+	<div class="text-md mt-4">
+		<strong class="text-tertiary-500 dark:text-primary-500">Tip:</strong> Press
+		<kbd class="preset-filled-tertiary-500 badge dark:preset-filled-primary-500">Ctrl+Enter</kbd>
+		to search, <kbd class="preset-filled-tertiary-500 badge dark:preset-filled-primary-500">Esc</kbd> to close
 	</div>
 </div>

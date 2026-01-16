@@ -137,11 +137,11 @@ Displays real-time system metrics integrated with the dashboard grid system
 
 						<div class="grid grid-cols-2 gap-2 text-xs">
 							<div class="flex justify-between">
-								<span class="text-surface-600 dark:text-surface-50">Memory:</span>
+								<span class="text-surface-600 dark:text-surface-400">Memory:</span>
 								<span class="font-mono">{formatMemory(metrics.system.memory.used)}</span>
 							</div>
 							<div class="flex justify-between">
-								<span class="text-surface-600 dark:text-surface-50">Uptime:</span>
+								<span class="text-surface-600 dark:text-surface-400">Uptime:</span>
 								<span class="font-mono">{formatUptime(metrics.system.uptime)}</span>
 							</div>
 						</div>
@@ -154,11 +154,11 @@ Displays real-time system metrics integrated with the dashboard grid system
 
 					<div class="grid grid-cols-2 gap-2 text-xs">
 						<div class="flex justify-between">
-							<span class="text-surface-600 dark:text-surface-50">Total:</span>
+							<span class="text-surface-600 dark:text-surface-400">Total:</span>
 							<span class="font-mono">{metrics.requests.total}</span>
 						</div>
 						<div class="flex justify-between">
-							<span class="text-surface-600 dark:text-surface-50">Errors:</span>
+							<span class="text-surface-600 dark:text-surface-400">Errors:</span>
 							<span class="font-mono text-error-500">{metrics.requests.errors}</span>
 						</div>
 					</div>

@@ -30,13 +30,10 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	import { browser } from '$app/environment';
 
 	// Stores
-	import { app } from '@stores/store.svelte';
+	import { setTranslationStatusOpen } from '@stores/store.svelte';
 
 	// Logger
 	import { logger } from '@utils/logger';
-
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
 
 	// Props with types
 	let {
@@ -48,14 +45,6 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		densityOptions = $bindable(['compact', 'normal', 'comfortable']),
 		showDeleted = $bindable(false)
 	} = $props();
-
-	let searchInput = $state<HTMLInputElement>();
-
-	$effect(() => {
-		if (searchShow && searchInput) {
-			searchInput.focus();
-		}
-	});
 
 	// Storage key for user settings
 	const USER_SETTINGS_KEY = 'userTableSettings';
@@ -99,7 +88,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		if (except !== 'column') {
 			columnShow = false;
 		}
-		app.setTranslationStatusOpen(false);
+		setTranslationStatusOpen(false);
 	}
 
 	// Function to cycle density
@@ -131,15 +120,14 @@ It includes search, filter toggles, column visibility, and density controls, opt
 
 <!-- Expanding Search -->
 {#if searchShow}
-	<div class="input-group input-group-divider grid grid-cols-[1fr_auto] h-10 w-full max-w-xs sm:max-w-sm transition-all duration-300 z-50">
+	<div class="input-group input-group-divider grid grid-cols-[auto_1fr_auto]">
 		<input
-			bind:this={searchInput}
 			type="text"
-			placeholder={m.table_search_placeholder()}
-			aria-label={m.table_search_aria()}
+			placeholder="Search..."
+			aria-label="Search for items in the table"
 			bind:value={globalSearchValue}
 			onkeydown={(e) => e.key === 'Enter' && closeOpenStates()}
-			class="input w-full h-full outline-none border-none bg-transparent px-4 transition-all duration-500 ease-in-out focus:border-tertiary-500 dark:text-surface-50 dark:bg-surface-800 dark:focus:border-primary-500"
+			class="input outline-none transition-all duration-500 ease-in-out"
 		/>
 		<button
 			onclick={() => {
@@ -152,10 +140,10 @@ It includes search, filter toggles, column visibility, and density controls, opt
 					searchShow = false;
 				}
 			}}
-			aria-label={m.table_clear_search()}
-			class="preset-filled-surface-500 w-10 flex items-center justify-center"
+			aria-label="Clear Search"
+			class="preset-filled-surface-500 w-12"
 		>
-			<iconify-icon icon="ic:outline-search-off" width="20"></iconify-icon>
+			<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
 		</button>
 	</div>
 {:else}
@@ -165,12 +153,11 @@ It includes search, filter toggles, column visibility, and density controls, opt
 			searchShow = !searchShow;
 			if (searchShow) closeOpenStates('search');
 		}}
-		aria-label={m.table_search_toggle()}
-		title={m.table_search_toggle()}
-		class="btn preset-outlined-surface-500 rounded-full"
+		aria-label="Search"
+		title="Search"
+		class="preset-ghost-surface-500 btn-icon"
 	>
-		<iconify-icon icon="material-symbols:search-rounded" width="24" class={searchShow ? 'text-tertiary-500 dark:text-primary-500' : ''}
-		></iconify-icon>
+		<iconify-icon icon="material-symbols:search-rounded" width="24" class={searchShow ? 'text-primary-500' : ''}></iconify-icon>
 	</button>
 
 	<!-- Filter -->
@@ -180,11 +167,11 @@ It includes search, filter toggles, column visibility, and density controls, opt
 			filterShow = !filterShow;
 			if (filterShow) closeOpenStates('filter');
 		}}
-		aria-label={m.table_filter_toggle()}
-		title={m.table_filter_toggle()}
-		class="btn preset-outlined-surface-500 rounded-full"
+		aria-label="Toggle Column Filters"
+		title="Column Filters"
+		class="preset-ghost-surface-500 btn-icon"
 	>
-		<iconify-icon icon="carbon:filter-edit" width="24" class={filterShow ? 'text-tertiary-500 dark:text-primary-500' : ''}></iconify-icon>
+		<iconify-icon icon="carbon:filter-edit" width="24" class={filterShow ? 'text-primary-500' : ''}></iconify-icon>
 	</button>
 
 	<!-- Column Order & Visibility -->
@@ -194,12 +181,11 @@ It includes search, filter toggles, column visibility, and density controls, opt
 			columnShow = !columnShow;
 			if (columnShow) closeOpenStates('column');
 		}}
-		aria-label={m.table_column_toggle()}
-		title={m.table_column_toggle()}
-		class="btn preset-outlined-surface-500 rounded-full"
+		aria-label="Toggle Column Visibility/Order"
+		title="Manage Columns"
+		class="preset-ghost-surface-500 btn-icon"
 	>
-		<iconify-icon icon="fluent:column-triple-edit-24-regular" width="24" class={columnShow ? 'text-tertiary-500 dark:text-primary-500' : ''}
-		></iconify-icon>
+		<iconify-icon icon="fluent:column-triple-edit-24-regular" width="24" class={columnShow ? 'text-primary-500' : ''}></iconify-icon>
 	</button>
 
 	<!-- Spacing/Density -->
@@ -209,9 +195,9 @@ It includes search, filter toggles, column visibility, and density controls, opt
 			cycleDensity();
 			closeOpenStates('density');
 		}}
-		aria-label={m.table_density_toggle()}
-		title={m.table_density_label({ density: getDensityDisplayName() })}
-		class="btn preset-outlined-surface-500 rounded-full"
+		aria-label="Cycle Table Density"
+		title={`Density: ${getDensityDisplayName()}`}
+		class="preset-ghost-surface-500 btn-icon"
 	>
 		<iconify-icon icon={getDensityIcon()} width="24"></iconify-icon>
 	</button>

@@ -19,7 +19,7 @@
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	// ParaglideJS
-	import { app } from '@stores/store.svelte';
+	import { contentLanguage } from '@root/src/stores/store.svelte';
 	import * as m from '@src/paraglide/messages';
 
 	const speed = 100;
@@ -45,8 +45,8 @@
 
 {#if page}
 	<main
-		lang={app.contentLanguage}
-		class="bg-linear-to-t flex h-screen w-full flex-col items-center justify-center from-surface-900 via-surface-700 to-surface-900 text-white"
+		lang={$contentLanguage}
+		class="bg-linear-to-t flex h-screen w-full flex-col items-center justify-center from-preset-900 via-preset-700 to-preset-900 text-white"
 	>
 		<div class="relative">
 			<!-- Rotating SiteName -->
@@ -96,7 +96,7 @@
 		<!-- Button -->
 		<a
 			href="/"
-			class="relative mt-5 block rounded-full bg-linear-to-br from-error-700 via-error-600 to-error-700 px-8 py-4 font-bold uppercase text-white! shadow-xl"
+			class="relative mt-5 block rounded-full bg-gradient-to-br from-error-700 via-error-600 to-error-700 px-8 py-4 font-bold uppercase !text-white shadow-xl"
 		>
 			{m.error_gofrontpage()}
 		</a>

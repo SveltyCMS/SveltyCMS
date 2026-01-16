@@ -41,17 +41,19 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import PasswordStrength from '@components/PasswordStrength.svelte';
-	import FloatingPaths from '@components/system/FloatingPaths.svelte';
+	// Lazy-load FloatingPaths on desktop for performance
+	let FloatingPathsComponent: Component | null = $state(null);
 
 	// Skeleton
 	import { toaster } from '@stores/store.svelte';
+	import type { Component } from 'svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import OauthLogin from './OauthLogin.svelte';
 
-	// Stores
-	import { screen } from '@stores/screenSizeStore.svelte';
+	// Screen size store
+	import { isDesktop } from '@stores/screenSizeStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Props
@@ -97,19 +99,6 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	let useBackupCode = $state(false);
 	let isVerifying2FA = $state(false);
 
-	let prefetched = $state(false);
-
-	async function prefetchFirstCollection() {
-		if (prefetched || !firstCollectionPath) return;
-		prefetched = true;
-
-		try {
-			await preloadData(firstCollectionPath);
-		} catch (error) {
-			console.error('Prefetch failed:', error);
-		}
-	}
-
 	// Login form setup
 	// Login form setup
 	const loginForm = new Form({ email: '', password: '', isToken: false }, loginFormSchema);
@@ -141,20 +130,23 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				// Keep authenticating state for redirect phase
 				isAuthenticating = true;
 
-				// Store flash message in sessionStorage for display after redirect
-				sessionStorage.setItem(
-					'flashMessage',
-					JSON.stringify({
-						type: 'success',
-						title: 'Welcome Back!',
-						description: 'Successfully signed in.',
-						duration: 4000
-					})
-				);
+				// Trigger the toast
+				toaster.success({ description: m.signin_signinsuccess() });
 
-				// Use window.location.href for reliable redirect after auth
-				const redirectUrl = (result.location as string) || '/';
-				window.location.href = redirectUrl;
+				// Cancel default redirect behavior so we can use client-side navigation
+				// cancel(); // Form class doesn't support cancelling redirect in onResult easily without preventing update?
+				// Actually, if we don't call update(), the redirect doesn't happen automatically?
+				// SvelteKit default applyAction handles redirect.
+				// We want to use goto.
+
+				// Use client-side navigation for instant redirect
+				if (result.location) {
+					goto(result.location);
+				}
+
+				// Clear authenticating state immediately
+				isAuthenticating = false;
+				globalLoadingStore.stopLoading(loadingOperations.authentication);
 
 				return;
 			}
@@ -167,10 +159,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				globalLoadingStore.stopLoading(loadingOperations.authentication);
 
 				// Show 2FA required message
-				toaster.warning({
-					title: 'Two-Factor Authentication Required',
-					description: 'Please enter your authentication code to continue'
-				});
+				toaster.warning({ description: m.twofa_verify_title() });
 				return;
 			}
 
@@ -179,13 +168,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 			globalLoadingStore.stopLoading(loadingOperations.authentication);
 
 			if (result.type === 'failure' || result.type === 'error') {
-				const errorMessage =
-					result.type === 'failure' ? result.data?.message || 'Invalid email or password' : result.error?.message || 'An unexpected error occurred';
-
-				toaster.error({
-					title: 'Sign In Failed',
-					description: errorMessage
-				});
+				// Trigger the toast
+				toaster.error({ description: m.signin_wrong_user_or_password() });
 
 				// add wiggle animation to form element
 				formElement?.classList.add('wiggle');
@@ -231,45 +215,40 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				return;
 			}
 
-			if (result.type === 'success') {
-				// Check if user exists (success with data)
-				if (result.data && result.data.userExists === true) {
+			if (result.type === 'success' || result.type === 'failure') {
+				// Failure can also contain data
+				// Check if user exists
+				if (result.data && result.data.userExists === false) {
+					PWreset = false;
+					toaster.error({ description: 'No account found with this email address.' });
+					formElement?.classList.add('wiggle');
+					setTimeout(() => formElement?.classList.remove('wiggle'), 300);
+					return;
+				} else if (result.data && result.data.userExists === true) {
 					PWreset = true;
 					toaster.success({ description: m.signin_forgottontoast() });
 					return;
 				} else {
-					// Fallback or specific logic for User check
+					// Fallback
 					if (result.data?.status === false) {
-						// User does not exist case handled by backend returning success: false or similar?
-						// Actually, standard SvelteKit 'success' means 200 OK.
-						// If backend returns { userExists: false }, we handle it.
 						PWreset = false;
-						toaster.error({ description: 'No account found with this email address.' });
 						formElement?.classList.add('wiggle');
 						setTimeout(() => formElement?.classList.remove('wiggle'), 300);
 					} else {
-						// Default success
 						PWreset = true;
-						toaster.success({
-							title: 'Email Sent',
-							description: 'Password reset instructions have been sent to your email'
-						});
+						toaster.success({ description: m.signin_forgottontoast() });
 					}
 				}
-			} else if (result.type === 'failure') {
-				const errorMessage = result.data?.message || 'Password reset failed';
-
-				toaster.error({
-					title: 'Reset Failed',
-					description: errorMessage
-				});
-
-				formElement?.classList.add('wiggle');
-				setTimeout(() => formElement?.classList.remove('wiggle'), 300);
-				return;
 			}
 
 			await update();
+
+			if (result.type === 'failure') {
+				formElement?.classList.add('wiggle');
+				setTimeout(() => {
+					formElement?.classList.remove('wiggle');
+				}, 300);
+			}
 		}
 	});
 
@@ -291,10 +270,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 			PWforgot = false;
 
 			if (result.type === 'success' || result.type === 'redirect') {
-				toaster.success({
-					title: 'Password Reset Successful',
-					description: 'You can now sign in with your new password'
-				});
+				toaster.success({ description: m.signin_restpasswordtoast() });
 				if (result.type === 'redirect') {
 					if (result.location) goto(result.location);
 					return;
@@ -341,10 +317,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 			// Parse response
 			if (response.ok) {
 				// Success - redirect will be handled by SvelteKit
-				toaster.success({
-					title: 'Verification Successful',
-					description: 'Redirecting to your dashboard...'
-				});
+				toaster.success({ description: m.twofa_success_verified() });
 
 				// The server will redirect on successful verification
 				window.location.reload();
@@ -439,10 +412,24 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 	const baseClasses = 'hover relative flex items-center';
 
+	// Lazy-load FloatingPaths only when needed (desktop + active 0)
+	$effect(() => {
+		// track dependencies
+		const desktop = isDesktop.value;
+		const isActiveLogin = active === 0;
+		if (browser && desktop && isActiveLogin) {
+			import('@root/src/components/system/FloatingPaths.svelte').then((m) => {
+				FloatingPathsComponent = m.default as Component;
+			});
+		} else {
+			FloatingPathsComponent = null;
+		}
+	});
+
 	// Prefetch first collection data when active
 	$effect(() => {
-		if (active === 0) {
-			prefetchFirstCollection();
+		if (active === 0 && firstCollectionPath) {
+			preloadData(firstCollectionPath);
 		}
 	});
 </script>
@@ -461,21 +448,23 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	{#if active === 0}
 		<!-- Background pattern  -->
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
-			{#if screen.isDesktop}
+			{#if isDesktop.value && FloatingPathsComponent}
 				<div class="absolute inset-0 z-0">
-					<FloatingPaths position={1} background="white" />
-					<FloatingPaths position={-1} background="white" />
+					<FloatingPathsComponent position={-1} background="white" />
+					<FloatingPathsComponent position={1} background="white" />
 				</div>
 			{/if}
+
 			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
 				<SveltyCMSLogoFull />
 			</div>
+			<!-- CSS Logo -->
 			<div class="z-0 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded-md bg-white p-4 lg:w-4/5" class:hide={active !== 0}>
 				<div class="mb-1 flex flex-row gap-2">
 					<SveltyCMSLogo className="w-14" fill="red" />
 
 					<h1 class="text-3xl font-bold text-black lg:text-4xl">
-						<div class="text-xs text-surface-300"><SiteName highlight="CMS" textClass="text-black" /></div>
+						<div class="text-xs text-surface-300"><SiteName highlight="CMS" /></div>
 						{#if !PWforgot && !PWreset}
 							<div class="lg:-mt-1">{m.form_signin()}</div>
 						{:else if PWforgot && !PWreset}
@@ -520,7 +509,6 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							label={m.email()}
 							required
 							icon="mdi:email"
-							data-testid="signin-email"
 						/>
 						{#if loginForm.errors.email}<span class="invalid text-xs text-error-500">{loginForm.errors.email[0]}</span>{/if}
 
@@ -538,7 +526,6 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							icon="mdi:lock"
 							iconColor="black"
 							textColor="black"
-							data-testid="signin-password"
 						/>
 						{#if loginForm.errors.password}<span class="invalid text-xs text-error-500">{loginForm.errors.password[0]}</span>{/if}
 					</form>
@@ -546,13 +533,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 					<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
 						<!-- Row 1 -->
 						<div class="flex w-full justify-between gap-2 sm:w-auto">
-							<button
-								type="submit"
-								form="signin-form"
-								class="preset-filled-surface-500 btn w-full text-white sm:w-auto"
-								aria-label={m.form_signin()}
-								data-testid="signin-submit"
-							>
+							<button type="submit" form="signin-form" class="preset-filled-surface-500 btn w-full text-white sm:w-auto" aria-label={m.form_signin()}>
 								{m.form_signin()}
 								<!-- Optimized loading indicators -->
 								{#if isSubmitting || isAuthenticating}
@@ -571,7 +552,6 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 								aria-label={m.signin_forgottenpassword()}
 								tabindex={forgotPasswordTabIndex}
 								onclick={handleForgotPassword}
-								data-testid="signin-forgot-password"
 							>
 								{m.signin_forgottenpassword()}
 							</button>
@@ -631,7 +611,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 							<!-- Action Buttons -->
 							<div class="flex gap-3">
-								<button type="button" onclick={back2FAToLogin} class="btn preset-tonal -surface-500 flex-1" aria-label={m.button_back()}>
+								<button type="button" onclick={back2FAToLogin} class="btn preset-soft-surface-500 flex-1" aria-label={m.button_back()}>
 									<iconify-icon icon="mdi:arrow-left" width="20" class="mr-2"></iconify-icon>
 									{m.button_back()}
 								</button>

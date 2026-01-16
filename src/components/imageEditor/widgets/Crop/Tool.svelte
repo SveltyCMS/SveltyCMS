@@ -9,17 +9,14 @@ imageNode's 'crop' properties.
 -->
 <script lang="ts">
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-	import CropControls from './Controls.svelte';
+	import CropControls from '@src/components/imageEditor/toolbars/CropControls.svelte';
 	import CropRegion, { type CropShape } from './regions';
-	import { showToast } from '@utils/toast';
 
 	let cropShape = $state<CropShape>('rectangle');
 	let aspectRatio = $state('free');
 
 	// This is the *only* region. We don't use an array for crop.
 	let region = $state<CropRegion | null>(null);
-
-	const { onCancel }: { onCancel: () => void } = $props();
 
 	// guard to avoid duplicate event bindings
 	let _toolBound = $state(false);
@@ -41,9 +38,6 @@ imageNode's 'crop' properties.
 						if (s === 'square' || s === 'circular') {
 							aspectRatio = '1:1';
 						}
-						if (s === 'circular') {
-							showToast('Round Crop selected. Image will be saved with transparency.', 'info');
-						}
 						initDefaultRegion();
 					},
 					onAspectRatio: (r: number | null) => {
@@ -55,8 +49,7 @@ imageNode's 'crop' properties.
 						}
 						initDefaultRegion();
 					},
-					onApply: apply,
-					onCancel: () => onCancel()
+					onApply: apply
 				}
 			});
 		} else {
@@ -190,13 +183,6 @@ imageNode's 'crop' properties.
 			// Reset image position to center within the group
 			imageNode.x(-imageCrop.width / 2);
 			imageNode.y(-imageCrop.height / 2);
-
-			// Handle round crop transparency
-			if (cropShape === 'circular') {
-				imageNode.cornerRadius(Math.max(imageCrop.width, imageCrop.height));
-			} else {
-				imageNode.cornerRadius(0);
-			}
 
 			// Recalculate scale to fit the cropped image in the viewport
 			const containerWidth = stage.width();

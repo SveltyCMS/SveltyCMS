@@ -116,11 +116,11 @@
 		{:else}
 			<div class="flex h-full flex-col space-y-3 overflow-auto p-1 text-sm">
 				<!-- Overall Cache Performance -->
-				<div class="rounded-xl bg-linear-to-br from-surface-50 to-surface-100 p-4 shadow-sm dark:from-surface-800 dark:to-surface-900">
+				<div class="rounded-xl bg-gradient-to-br from-preset-50 to-preset-100 p-4 shadow-sm dark:from-preset-800 dark:to-preset-900">
 					<div class="mb-3 flex items-start justify-between">
 						<div>
 							<h3 class="text-xs font-semibold uppercase tracking-wider">Overall Performance</h3>
-							<p class="mt-1 text-xs text-surface-600 dark:text-surface-50">
+							<p class="mt-1 text-xs text-surface-600 dark:text-surface-400">
 								{metrics.overall.totalOperations.toLocaleString()} operations
 							</p>
 						</div>
@@ -177,7 +177,7 @@
 											<iconify-icon
 												icon={getCategoryIcon(category)}
 												width="18"
-												class="text-surface-600 transition-colors group-hover:text-primary-500 dark:text-surface-50"
+												class="text-surface-600 transition-colors group-hover:text-primary-500 dark:text-surface-400"
 											></iconify-icon>
 											<span class="font-semibold">{category.toLowerCase()}</span>
 										</div>
@@ -185,7 +185,7 @@
 											<span class="tabular-nums text-surface-500">
 												{formatNumber(stats.hits)}<span class="text-surface-400">/</span>{formatNumber(stats.hits + stats.misses)}
 											</span>
-											<span class={`min-w-12 text-right text-sm font-bold tabular-nums ${getHitRateColor(stats.hitRate)}`}>
+											<span class={`min-w-[3rem] text-right text-sm font-bold tabular-nums ${getHitRateColor(stats.hitRate)}`}>
 												{stats.hitRate.toFixed(0)}%
 											</span>
 										</div>
@@ -211,7 +211,7 @@
 				<!-- By Tenant (if available) -->
 				{#if metrics.byTenant && Object.keys(metrics.byTenant).length > 0}
 					<div class="rounded-xl bg-surface-50 p-4 dark:bg-surface-800/50">
-						<h3 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-50">
+						<h3 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400">
 							<iconify-icon icon="mdi:domain" width="14"></iconify-icon>
 							By Tenant
 						</h3>
@@ -226,7 +226,7 @@
 									</div>
 									<div class="flex items-center gap-3">
 										<span class="tabular-nums text-surface-500">{formatNumber(stats.hits + stats.misses)} ops</span>
-										<span class={`min-w-12 text-right font-bold tabular-nums ${getHitRateColor(stats.hitRate)}`}>
+										<span class={`min-w-[3rem] text-right font-bold tabular-nums ${getHitRateColor(stats.hitRate)}`}>
 											{stats.hitRate.toFixed(0)}%
 										</span>
 									</div>
@@ -253,7 +253,7 @@
 												<iconify-icon icon={getCategoryIcon(miss.category)} width="14" class="text-error-600 dark:text-error-400"></iconify-icon>
 												<span class="font-semibold">{miss.category}</span>
 											</div>
-											<div class="truncate font-mono text-[10px] text-surface-600 dark:text-surface-50" title={miss.key}>
+											<div class="truncate font-mono text-[10px] text-surface-600 dark:text-surface-400" title={miss.key}>
 												{miss.key}
 											</div>
 										</div>

@@ -57,9 +57,6 @@ async function fetchPublicSettings() {
 function startListening() {
 	if (!browser || eventSource) return;
 
-	// Do not connect to stream on login page to avoid 401 errors
-	if (window.location.pathname.startsWith('/login')) return;
-
 	try {
 		eventSource = new EventSource('/api/settings/public/stream');
 

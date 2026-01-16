@@ -46,8 +46,8 @@ import type { TransportOptions } from 'nodemailer';
 // System Logger
 import { logger } from '@utils/logger.server';
 
-// Svelte SSR rendering
-import { render } from 'svelte/server';
+// Better-svelte-email v1 Renderer
+import Renderer from 'better-svelte-email/render';
 
 // --- Dynamic Email Template Imports ---
 // This will find all .svelte files in the specified directory
@@ -100,11 +100,10 @@ const renderEmailToStrings = async (
 	props?: EmailTemplateProps
 ): Promise<RenderedEmailContent> => {
 	try {
-		// Use Svelte's server-side render function
-		const result = render(component, { props: props || {} });
-		// Extract HTML and create a simple text version
+		// Use better-svelte-email v1 Renderer class
+		const { render } = new Renderer();
+		const html = await render(component, { props: props || {} });
 
-		const html = result.body;
 		// Create a simple text version by stripping HTML tags
 		const text = html
 			.replace(/<[^>]*>/g, '')

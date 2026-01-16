@@ -27,7 +27,7 @@
 
 <script lang="ts">
 	// Selected theme:
-	import '../../app.css';
+	import '@src/app.css';
 
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
@@ -46,14 +46,13 @@
 	import { getTextDirection } from '@utils/utils';
 
 	// Stores
-	// Stores
 	import { setContentStructure, setCollection } from '@stores/collectionStore.svelte';
 	import { publicEnv } from '@stores/globalSettings.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
-	import { screen } from '@stores/screenSizeStore.svelte';
-	import { app } from '@stores/store.svelte';
-	import { ui } from '@stores/UIStore.svelte';
-	import { widgets } from '@stores/widgetStore.svelte';
+	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
+	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
+	import { uiStateManager } from '@stores/UIStore.svelte';
+	import { widgetStoreActions } from '@stores/widgetStore.svelte';
 	import { initializeDarkMode } from '@stores/themeStore.svelte';
 
 	// Components
@@ -63,7 +62,8 @@
 	import RightSidebar from '@components/RightSidebar.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
-	import DialogManager from '@components/system/DialogManager.svelte';
+
+	// Dark mode handled by custom themeStore (initializeDarkMode)
 
 	// =============================================
 	// TYPE DEFINITIONS
@@ -84,13 +84,16 @@
 	}
 
 	// =============================================
-	// STATE & DERIVED
+	// PROPS & STATE
 	// =============================================
 
 	const { children, data }: Props = $props();
 
+	// setGlobalToastStore(getToastStore());
+
 	// Component State
 	const loadError = $state<Error | null>(null);
+	let mediaQuery: MediaQueryList | undefined;
 
 	// =============================================
 	// DERIVED STATE
@@ -134,7 +137,7 @@
 
 	// Effect: Handle system language changes
 	$effect(() => {
-		const lang = app.systemLanguage;
+		const lang = systemLanguage.value;
 		if (!lang) return;
 
 		const dir = getTextDirection(lang);
@@ -148,8 +151,28 @@
 	// EVENT HANDLERS
 	// =============================================
 
+	/**
+	 * Updates theme based on OS preference changes
+	 * Only applies if user hasn't set an explicit preference
+	 */
+	function handleSystemThemeChange(event: MediaQueryListEvent): void {
+		// Only update if user hasn't set an explicit preference
+		const userHasPreference = document.cookie.includes('theme=');
+
+		if (!userHasPreference) {
+			const prefersDarkMode = event.matches;
+			// Apply theme to DOM
+			if (prefersDarkMode) {
+				document.documentElement.classList.add('dark');
+			} else {
+				document.documentElement.classList.remove('dark');
+			}
+		}
+	}
+
 	// Global keyboard shortcuts handler
 	function handleKeyDown(event: KeyboardEvent): void {
+		// Alt+S: Toggle search
 		if (event.altKey && event.key === 's') {
 			event.preventDefault();
 			isSearchVisible.update((visible) => !visible);
@@ -159,14 +182,14 @@
 	// Initialize avatar from user data
 	function initializeUserAvatar(user: User | null): void {
 		if (!user) {
-			app.avatarSrc = '/Default_User.svg';
+			avatarSrc.value = '/Default_User.svg';
 			return;
 		}
 
 		if (user.avatar && user.avatar !== '/Default_User.svg') {
-			app.avatarSrc = user.avatar;
+			avatarSrc.value = user.avatar;
 		} else {
-			app.avatarSrc = '/Default_User.svg';
+			avatarSrc.value = '/Default_User.svg';
 		}
 	}
 
@@ -175,25 +198,44 @@
 	// =============================================
 
 	onMount(() => {
+		// Start initialization loading ONLY if content structure is missing
+		// This prevents a race condition where onMount (running after effect) restarts loading
 		if (!Array.isArray(data.contentStructure)) {
 			globalLoadingStore.startLoading(loadingOperations.initialization);
 		}
 
-		widgets.initialize();
+		// Initialize widgets
+		widgetStoreActions.initializeWidgets();
+
+		// Initialize theme from cookie/system preference
 		initializeDarkMode();
+
+		// Set up system theme preference listener
+		mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+		mediaQuery.addEventListener('change', handleSystemThemeChange);
+
+		// Initialize user avatar
 		initializeUserAvatar(data.user);
+
+		// Register global keyboard shortcuts
 		window.addEventListener('keydown', handleKeyDown);
 	});
 
+	// Navigation loading handlers
 	beforeNavigate(({ from, to }) => {
+		// Only show loading for actual page changes, not hash changes
 		if (from && to && from.route.id !== to.route.id) {
 			globalLoadingStore.startLoading(loadingOperations.navigation);
 		}
 	});
 
 	afterNavigate(() => {
+		// Stop navigation loading
 		globalLoadingStore.stopLoading(loadingOperations.navigation);
+
+		// Clear stale loading operations after navigation
 		setTimeout(() => {
+			// Only clear if no other operations are running
 			if (globalLoadingStore.loadingStack.size === 1 && globalLoadingStore.isLoadingReason(loadingOperations.navigation)) {
 				globalLoadingStore.stopLoading(loadingOperations.navigation);
 			}
@@ -201,12 +243,23 @@
 	});
 
 	onDestroy(() => {
+		// Cleanup: remove event listeners
+		mediaQuery?.removeEventListener('change', handleSystemThemeChange);
 		window.removeEventListener('keydown', handleKeyDown);
 	});
 </script>
 
+<!-- HEAD: SEO & THEME INITIALIZATION -->
+
 <svelte:head>
+	<!-- Dark Mode Initialization (CSP-compliant with nonce) -->
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+	<!-- Dark mode initialization handled by themeStore -->
+
+	<!-- Basic SEO -->
 	<meta name="description" content={seoDescription} />
+
+	<!-- Open Graph -->
 	<meta property="og:title" content={siteName} />
 	<meta property="og:description" content={seoDescription} />
 	<meta property="og:type" content="website" />
@@ -214,6 +267,8 @@
 	<meta property="og:image:width" content="1200" />
 	<meta property="og:image:height" content="630" />
 	<meta property="og:site_name" content={page.url.origin} />
+
+	<!-- Twitter Card -->
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content={siteName} />
 	<meta name="twitter:description" content={seoDescription} />
@@ -222,7 +277,10 @@
 	<meta property="twitter:url" content={page.url.href} />
 </svelte:head>
 
+<!-- MAIN LAYOUT -->
+
 {#if loadError}
+	<!-- Error State -->
 	<div class="flex h-screen w-screen items-center justify-center bg-error-50 dark:bg-error-900">
 		<div class="text-center">
 			<h1 class="text-2xl font-bold text-error-600 dark:text-error-300">Application Error</h1>
@@ -230,10 +288,10 @@
 		</div>
 	</div>
 {:else}
+	<!-- Application Container -->
 	<div class="relative h-lvh w-full">
-		<DialogManager />
-
-		{#if screen.isMobile}
+		<!-- Overlays: Mobile Nav, Toasts, Modals, Search -->
+		{#if screenSize.value === 'XS' || screenSize.value === 'SM'}
 			<FloatingNav />
 		{/if}
 
@@ -241,44 +299,60 @@
 			<SearchComponent />
 		{/if}
 
+		<!-- Main Layout Structure -->
 		<div class="flex h-lvh flex-col overflow-hidden">
-			{#if ui.state.header !== 'hidden'}
-				<header class="sticky top-0 z-10 bg-tertiary-500"></header>
+			<!-- Header (Optional) -->
+			{#if uiStateManager.uiState.value.header !== 'hidden'}
+				<header class="sticky top-0 z-10 bg-tertiary-500">
+					<!-- Header content goes here -->
+				</header>
 			{/if}
 
+			<!-- Body: Sidebars + Main Content -->
 			<div class="flex flex-1 overflow-hidden">
-				{#if ui.state.leftSidebar !== 'hidden'}
+				<!-- Left Sidebar -->
+				{#if uiStateManager.uiState.value.leftSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh {ui.state.leftSidebar === 'full'
+						class="max-h-dvh {uiStateManager.uiState.value.leftSidebar === 'full'
 							? 'w-[220px]'
-							: 'w-fit'} relative border-r bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900"
+							: 'w-fit'} relative border-r bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-preset-700 dark:to-preset-900"
 						aria-label="Left sidebar navigation"
 					>
 						<LeftSidebar />
 					</aside>
 				{/if}
 
+				<!-- Main Content Area -->
 				<main class="relative z-0 flex w-full min-w-0 flex-1 flex-col">
-					{#if ui.state.pageheader !== 'hidden'}
+					<!-- Page Header -->
+					{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
 						<header class="sticky top-0 z-20 w-full">
 							<HeaderEdit />
 						</header>
 					{/if}
 
-					<div class="relative flex-1 overflow-visible {ui.state.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {screen.isDesktop ? 'mb-2' : 'mb-16'}">
+					<!-- Router Slot -->
+					<div
+						class="relative flex-1 overflow-visible {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {isDesktop.value
+							? 'mb-2'
+							: 'mb-16'}"
+					>
+						<!-- Page Content Slot -->
 						{@render children?.()}
 					</div>
 
-					{#if ui.state.pagefooter !== 'hidden'}
-						<footer class="mt-auto w-full bg-surface-50 bg-linear-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
+					<!-- Page Footer / Mobile Nav -->
+					{#if uiStateManager.uiState.value.pagefooter !== 'hidden'}
+						<footer class="mt-auto w-full bg-surface-50 bg-linear-to-b px-1 text-center dark:from-preset-700 dark:to-preset-900">
 							<PageFooter />
 						</footer>
 					{/if}
 				</main>
 
-				{#if ui.state.rightSidebar !== 'hidden'}
+				<!-- Right Sidebar -->
+				{#if uiStateManager.uiState.value.rightSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh w-[220px] border-l bg-white bg-linear-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+						class="max-h-dvh w-[220px] border-l bg-white bg-linear-to-r dark:border-surface-500 dark:from-preset-700 dark:to-preset-900"
 						aria-label="Right sidebar"
 					>
 						<RightSidebar />
@@ -286,8 +360,11 @@
 				{/if}
 			</div>
 
-			{#if ui.state.footer !== 'hidden'}
-				<footer class="bg-blue-500"></footer>
+			<!-- Footer (Optional) -->
+			{#if uiStateManager.uiState.value.footer !== 'hidden'}
+				<footer class="bg-tertiary-500">
+					<!-- Footer content goes here -->
+				</footer>
 			{/if}
 		</div>
 	</div>

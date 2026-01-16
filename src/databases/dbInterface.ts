@@ -525,7 +525,6 @@ export interface IDBAdapter {
 			delete(path: string): Promise<DatabaseResult<void>>;
 			deleteMany(paths: string[]): Promise<DatabaseResult<{ deletedCount: number }>>;
 			reorder(nodeUpdates: Array<{ path: string; newOrder: number }>): Promise<DatabaseResult<ContentNode[]>>;
-			reorderStructure(items: Array<{ id: string; parentId: string | null; order: number; path: string }>): Promise<DatabaseResult<void>>;
 		};
 		drafts: {
 			create(draft: Omit<ContentDraft, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentDraft>>;

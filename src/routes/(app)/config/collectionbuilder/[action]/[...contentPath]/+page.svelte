@@ -43,7 +43,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	// import { Tab, TabGroup } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '@stores/store.svelte';
-	import { showConfirm } from '@utils/modalUtils';
+	import { showConfirm } from '@utils/modalState.svelte';
 
 	import { widgetStoreActions } from '@stores/widgetStore.svelte';
 

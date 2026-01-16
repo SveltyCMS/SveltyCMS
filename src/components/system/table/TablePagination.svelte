@@ -72,21 +72,20 @@
 		<span class="text-tertiary-500 dark:text-primary-500">{computedPagesCount}</span>
 		<span class="ml-4" aria-label="Current items shown">
 			{#if totalItems > 0}
-				{m.entrylist_showing()} <span class="text-tertiary-500 dark:text-primary-500">{startItem}</span>–<span
-					class="text-tertiary-500 dark:text-primary-500">{endItem}</span
+				Showing <span class="text-tertiary-500 dark:text-primary-500">{startItem}</span>–<span class="text-tertiary-500 dark:text-primary-500"
+					>{endItem}</span
 				>
-				{m.entrylist_of()}
-				<span class="text-tertiary-500 dark:text-primary-500">{totalItems}</span>
-				{m.entrylist_items()}
+				of
+				<span class="text-tertiary-500 dark:text-primary-500">{totalItems}</span> items
 			{:else}
-				{m.entrylist_showing()} 0 {m.entrylist_of()} 0 {m.entrylist_items()}
+				Showing 0 of 0 items
 			{/if}
 		</span>
 	</div>
 </div>
 
 <!-- Pagination controls -->
-<nav class="btn-group" aria-label="Table pagination">
+<nav class="preset-outline " aria-label="Table pagination">
 	<!-- First page button -->
 	<button
 		onclick={() => goToPage(1)}
@@ -94,7 +93,7 @@
 		type="button"
 		aria-label="Go to first page"
 		title="First Page"
-		class="btn h-8 w-8 rounded-none border-r border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-50 dark:hover:bg-surface-800"
+		class="btn h-8 w-8 rounded-none border-r border-surface-400 px-1 disabled:text-surface-400 disabled:!opacity-50"
 		aria-disabled={isFirstPage}
 	>
 		<iconify-icon icon="material-symbols:first-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>
@@ -107,7 +106,7 @@
 		type="button"
 		aria-label="Go to previous page"
 		title="Previous Page"
-		class="btn h-8 w-8 rounded-none border-r border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-50 dark:hover:bg-surface-800"
+		class="btn h-8 w-8 rounded-none border-r border-surface-400 px-1 disabled:text-surface-400 disabled:!opacity-50"
 		aria-disabled={isFirstPage}
 	>
 		<iconify-icon icon="material-symbols:chevron-left" width="24" role="presentation" aria-hidden="true"></iconify-icon>
@@ -118,11 +117,11 @@
 		bind:value={rowsPerPage}
 		onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
 		aria-label="Select number of rows per page"
-		class="appearance-none bg-transparent p-0 px-2 text-center text-sm text-tertiary-500 hover:bg-surface-200 dark:border-surface-50 dark:text-primary-500 dark:hover:bg-surface-800 sm:px-4"
+		class="appearance-none border-r border-surface-400 bg-transparent p-0 px-2 text-center text-sm text-tertiary-500 dark:border-surface-600 dark:text-primary-500 sm:px-4"
 		title="Rows per page"
 	>
 		{#each rowsPerPageOptions as pageSize}
-			<option class="bg-surface-300 text-black dark:bg-surface-700 dark:text-white" value={pageSize}>
+			<option class="bg-surface-100 text-black dark:bg-surface-700 dark:text-white" value={pageSize}>
 				{pageSize}
 				{m.entrylist_rows()}
 			</option>
@@ -136,7 +135,7 @@
 		type="button"
 		aria-label="Go to next page"
 		title="Next Page"
-		class="btn h-8 w-8 rounded-none border-l border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-50 dark:hover:bg-surface-800"
+		class="btn h-8 w-8 rounded-none border-l border-surface-400 px-1 disabled:text-surface-400 disabled:!opacity-50"
 		aria-disabled={isLastPage}
 	>
 		<iconify-icon icon="material-symbols:chevron-right" width="24" role="presentation" aria-hidden="true"></iconify-icon>
@@ -149,7 +148,7 @@
 		type="button"
 		aria-label="Go to last page"
 		title="Last Page"
-		class="btn h-8 w-8 rounded-none border-l border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-50 dark:hover:bg-surface-800"
+		class="btn h-8 w-8 rounded-none border-l border-surface-400 px-1 disabled:text-surface-400 disabled:!opacity-50"
 		aria-disabled={isLastPage}
 	>
 		<iconify-icon icon="material-symbols:last-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>

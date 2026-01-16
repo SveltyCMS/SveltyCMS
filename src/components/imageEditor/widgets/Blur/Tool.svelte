@@ -7,7 +7,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 <script lang="ts">
 	import Konva from 'konva';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-	import Controls from './Controls.svelte';
+	import Controls from '@src/components/imageEditor/toolbars/BlurControls.svelte';
 	import { BlurRegion, type RegionInit, type BlurPattern, type BlurShape } from './regions';
 
 	// reactive tool state (Svelte 5 runes)
@@ -19,8 +19,6 @@ handles drawing, applies/bakes effects, and registers toolbar.
 
 	// guard to avoid duplicate event bindings
 	let _toolBound = $state(false);
-
-	let { onCancel }: { onCancel: () => void } = $props();
 
 	// debounce timer for strength slider updates
 	let strengthDebounceTimer: number | null = null;
@@ -36,20 +34,13 @@ handles drawing, applies/bakes effects, and registers toolbar.
 					blurStrength,
 					pattern,
 					shape,
-					onAdd: undefined, // Remove duplicates
-					onDelete: undefined, // Remove duplicates
 					onStrengthChange: (v: number) => {
 						blurStrength = v;
 						if (strengthDebounceTimer) clearTimeout(strengthDebounceTimer);
 						strengthDebounceTimer = window.setTimeout(() => {
-							// ALWAYS update activeId if exists, or all regions
-							if (activeId) {
-								regions.find((r) => r.id === activeId)?.setStrength(v);
-							} else {
-								regions.forEach((r) => r.setStrength(v));
-							}
+							regions.forEach((r) => r.setStrength(v));
 							imageEditorStore.state.layer?.batchDraw();
-						}, 30); // Fast feedback
+						}, 60);
 					},
 					onPatternChange: (p: BlurPattern) => {
 						pattern = p;
@@ -75,27 +66,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 							}
 						}
 					},
-					// NEW: Add, Delete, Rotate, Flip handlers
-					onAddRegion: () => {
-						const stage = imageEditorStore.state.stage;
-						const x = stage ? stage.width() / 2 : 100;
-						const y = stage ? stage.height() / 2 : 100;
-						createRegion({ x, y });
-					},
-					onDeleteRegion: () => {
-						if (activeId) deleteRegion(activeId);
-					},
-					onRotateLeft: () => {
-						if (activeId) regions.find((x) => x.id === activeId)?.rotate(-90);
-					},
-					onRotateRight: () => {
-						if (activeId) regions.find((x) => x.id === activeId)?.rotate(90);
-					},
-					onFlipHorizontal: () => {
-						if (activeId) regions.find((x) => x.id === activeId)?.flipX();
-					},
 					onReset: () => reset(),
-					onCancel: () => onCancel(),
 					onApply: apply
 				}
 			});
@@ -105,13 +76,6 @@ handles drawing, applies/bakes effects, and registers toolbar.
 			if (imageEditorStore.state.toolbarControls?.component === Controls) {
 				imageEditorStore.setToolbarControls(null);
 			}
-		}
-	});
-
-	// Auto-initialize first region if empty
-	$effect(() => {
-		if (_toolBound && regions.length === 0) {
-			createRegion();
 		}
 	});
 
@@ -171,18 +135,6 @@ handles drawing, applies/bakes effects, and registers toolbar.
 		activeId = newR.id;
 
 		newR.onSelect(() => selectRegion(newR.id));
-		newR.onClone(() => {
-			const bounds = newR.shapeNode.getClientRect();
-			createRegion({
-				x: bounds.x + 20,
-				y: bounds.y + 20,
-				width: bounds.width,
-				height: bounds.height,
-				shape: newR.shapeNode instanceof Konva.Ellipse ? 'ellipse' : 'rectangle',
-				pattern: pattern,
-				strength: blurStrength
-			});
-		});
 		newR.onDestroy(() => {
 			regions = regions.filter((x) => x.id !== newR.id);
 			if (activeId === newR.id) activeId = null;

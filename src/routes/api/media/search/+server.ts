@@ -59,7 +59,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		logger.info('Advanced search completed', {
 			totalFiles: files.length,
 			matchedFiles: searchResult.files.length,
-			matchedCriteria: searchResult.matched
+			matchedCriteria: searchResult.matchedCriteria
 		});
 
 		return json({
@@ -110,7 +110,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		logger.info('Search suggestions generated', {
 			tags: suggestions.tags.length,
 			cameras: suggestions.cameras.length,
-			dimensions: suggestions.commonDimensions.length
+			dimensions: suggestions.dimensions.length
 		});
 
 		return json({

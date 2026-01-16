@@ -1,11 +1,10 @@
+/* Moved from src/widgets/WidgetRegistryService.ts */
 /**
  * @file src/services/WidgetRegistryService.ts
  * @description A server-side singleton service that discovers and holds all widget blueprints.
  */
-
 import type { WidgetFactory, WidgetModule, WidgetType } from '@src/widgets/types';
 import { logger } from '@utils/logger';
-import { coreModules, customModules } from '@src/widgets/scanner';
 
 class WidgetRegistryService {
 	private static instance: WidgetRegistryService;
@@ -35,24 +34,27 @@ class WidgetRegistryService {
 
 		this.initializationPromise = (async () => {
 			const startTime = performance.now();
-			logger.info('Initializing WidgetRegistryService, registering pre-scanned widgets...');
+			logger.info('Initializing WidgetRegistryService, scanning for widgets...');
 
 			try {
-				// Register core widgets
-				for (const [path, module] of Object.entries(coreModules)) {
-					const processed = this._processWidgetModule(path, module, 'core');
-					if (processed) {
-						this.widgets.set(processed.name, processed.widgetFn);
-						logger.trace(`[WidgetRegistryService] Registered core: ${processed.name}`);
-					}
-				}
+				const coreModules = import.meta.glob<WidgetModule>('../widgets/core/*/index.ts', { eager: true });
+				const customModules = import.meta.glob<WidgetModule>('../widgets/custom/*/index.ts', { eager: true });
+				const allModules = { ...coreModules, ...customModules };
 
-				// Register custom widgets
-				for (const [path, module] of Object.entries(customModules)) {
-					const processed = this._processWidgetModule(path, module, 'custom');
+				for (const [path, module] of Object.entries(allModules)) {
+					// Robust type detection based on path segments
+					let type: WidgetType = 'custom';
+					if (path.includes('/core/')) {
+						type = 'core';
+					} else if (path.includes('/custom/')) {
+						type = 'custom';
+					}
+
+					const processed = this._processWidgetModule(path, module, type); // Call the private method
 					if (processed) {
-						this.widgets.set(processed.name, processed.widgetFn);
-						logger.trace(`[WidgetRegistryService] Registered custom: ${processed.name}`);
+						const { name, widgetFn } = processed;
+						this.widgets.set(name, widgetFn);
+						logger.trace(`[WidgetRegistryService] Registered: ${name} (from ${path})`);
 					}
 				}
 
@@ -69,7 +71,7 @@ class WidgetRegistryService {
 				// This DEFINITELY caused double registration for custom widgets.
 				// I will REMOVE the second redundant loop.
 
-				logger.trace('[WidgetRegistryService] All registered widget names:', Array.from(this.widgets.keys()));
+				logger.debug('[WidgetRegistryService] All registered widget names:', Array.from(this.widgets.keys()));
 
 				// Scan marketplace widgets (runtime discovery)
 				try {
@@ -79,7 +81,7 @@ class WidgetRegistryService {
 
 					try {
 						const widgetFolders = await fs.readdir(marketplaceDir, { withFileTypes: true });
-						logger.trace(`[WidgetRegistry] Scanning marketplace directory: ${marketplaceDir}`);
+						logger.debug(`[WidgetRegistry] Scanning marketplace directory: ${marketplaceDir}`);
 
 						for (const folder of widgetFolders) {
 							if (folder.isDirectory()) {
@@ -105,7 +107,7 @@ class WidgetRegistryService {
 						}
 					} catch (e) {
 						if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
-							logger.trace('[WidgetRegistry] Marketplace directory does not exist yet (this is normal)');
+							logger.debug('[WidgetRegistry] Marketplace directory does not exist yet (this is normal)');
 						} else {
 							logger.warn('[WidgetRegistry] Error scanning marketplace directory:', e);
 						}

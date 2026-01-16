@@ -18,56 +18,23 @@ import { version } from '../../package.json';
 import { loadSettingsCache, getPrivateSettingSync } from '@src/services/settingsService';
 import type { LayoutServerLoad } from './$types';
 import type { Locale } from '@src/paraglide/runtime';
-import type { NavigationNode } from '@src/content/ContentManager';
 
-export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
-	// Use cached setup status from hooks instead of re-checking
-	// The handleSetup hook already sets locals.__setupConfigExists
-	const setupMode = locals.__setupConfigExists === false || url.pathname.startsWith('/setup');
-
-	// Fast-path for setup mode - skip ALL CMS initialization
-	if (setupMode) {
-		return {
-			systemLanguage: (cookies.get('systemLanguage') as Locale) ?? 'en',
-			contentLanguage: (cookies.get('contentLanguage') as Locale) ?? 'en',
-			user: null,
-			isAdmin: false,
-			isMultiTenant: false,
-			cspNonce: locals.cspNonce,
-			tenantId: null,
-			darkMode: locals.darkMode ?? false,
-			navigationStructure: [],
-			contentVersion: 0,
-			settings: {
-				PKG_VERSION: version,
-				siteName: 'SveltyCMS Setup'
-			}
-		};
-	}
-
-	// Wrap settings loading in try-catch for preview mode resilience
+export const load: LayoutServerLoad = async ({ cookies, locals }) => {
+	// Load settings from database cache (ensures cache is populated)
 	let publicSettings;
 	try {
-		const settingsResult = await loadSettingsCache();
-		publicSettings = settingsResult.public;
-	} catch (error) {
-		console.error('[Layout] Settings load failed (preview mode?):', error);
-		// Return minimal valid data structure
-		return {
-			systemLanguage: 'en' as Locale,
-			contentLanguage: 'en' as Locale,
-			user: null,
-			isAdmin: false,
-			isMultiTenant: false,
-			cspNonce: locals.cspNonce,
-			tenantId: null,
-			darkMode: locals.darkMode ?? false,
-			navigationStructure: [],
-			contentVersion: 0,
-			settings: {
-				PKG_VERSION: version,
-				siteName: 'SveltyCMS'
-			}
+		const cache = await loadSettingsCache();
+		publicSettings = cache.public;
+	} catch (e) {
+		// Log error only if setup is complete (otherwise it's expected)
+		// We'll use fallback defaults so the layout doesn't crash
+		// Log as debug/info because this is expected behavior during first-time setup
+		console.debug('Layout: Settings cache not available, using defaults (Setup Mode enabled).');
+		publicSettings = {
+			BASE_LOCALE: 'en',
+			DEFAULT_CONTENT_LANGUAGE: 'en',
+			SITE_NAME: 'SveltyCMS Setup',
+			SITE_TITLE: 'SveltyCMS Setup'
 		};
 	}
 
@@ -81,25 +48,24 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
 	const systemLanguage = (cookies.get('systemLanguage') as Locale) ?? baseLocale;
 	const contentLanguage = (cookies.get('contentLanguage') as Locale) ?? defaultContentLanguage;
 
-	// Content System Hydration with error handling for preview mode
-	const { contentManager } = await import('@src/content/ContentManager');
-	let navigationStructure: NavigationNode[] = [];
+	// --- Content System Hydration ---
+	// --- Content System Hydration ---
+	// Only load content if not in setup mode (settings loaded successfully)
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let navigationStructure: any[] = [];
 	let contentVersion = 0;
 
-	try {
-		// Check if ContentManager is initialized before using it
-		if (contentManager.getHealthStatus().state === 'initialized') {
+	if (!publicSettings['SITE_NAME'] || publicSettings['SITE_NAME'] !== 'SveltyCMS Setup') {
+		try {
+			const { contentManager } = await import('@src/content/ContentManager');
 			navigationStructure = await contentManager.getNavigationStructureProgressive({
 				maxDepth: 1,
 				tenantId: locals.tenantId
 			});
 			contentVersion = contentManager.getContentVersion();
-		} else {
-			console.warn('[Layout] ContentManager not initialized, skipping navigation load');
+		} catch (err) {
+			console.warn('Layout: Failed to initialize ContentManager (non-fatal):', err);
 		}
-	} catch (error) {
-		console.error('[Layout] ContentManager error (preview mode?):', error);
-		// Continue with empty navigation - don't block page load
 	}
 
 	return {
@@ -110,7 +76,7 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
 		isMultiTenant,
 		cspNonce: locals.cspNonce,
 		tenantId: locals.tenantId ?? null,
-		darkMode: locals.darkMode ?? false,
+		darkMode: locals.darkMode,
 		navigationStructure,
 		contentVersion,
 		// Pass public settings to client for store initialization

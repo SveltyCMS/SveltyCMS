@@ -79,7 +79,6 @@ export interface FloatingInputProps {
 	onInput?: (value: string) => void;
 	onkeydown?: (event: KeyboardEvent) => void;
 	onPaste?: (event: ClipboardEvent) => void;
-	[key: string]: any;
 }
 
 export interface TogglesProps {

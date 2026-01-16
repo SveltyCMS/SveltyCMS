@@ -324,7 +324,7 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 			event.cookies.set(SESSION_COOKIE_NAME, newSessionId, {
 				path: '/',
 				httpOnly: true,
-				secure: event.url.protocol === 'https:' || (event.url.hostname !== 'localhost' && !dev),
+				secure: event.url.protocol === 'https:' || !dev,
 				sameSite: 'lax',
 				maxAge: 60 * 60 * 24 * 30 // 30 days
 			});
@@ -376,17 +376,13 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	const { locals, url, cookies } = event;
 
 	// Skip internal or special requests
-	const ASSET_REGEX =
-		/^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|favicon\.ico|\.svelte-kit\/generated\/client\/nodes|.*\.(svg|png|jpg|jpeg|gif|css|js|woff|woff2|ttf|eot|map|json))/;
-	if (url.pathname.startsWith('/.well-known/') || url.pathname.startsWith('/_') || ASSET_REGEX.test(url.pathname)) {
+	if (url.pathname.startsWith('/.well-known/') || url.pathname.startsWith('/_')) {
 		return resolve(event);
 	}
 
 	// Skip public routes
 	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/setup'];
-	const isLocalizedPublic = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register|forgot-password)/.test(url.pathname);
-
-	if (publicRoutes.some((r) => url.pathname.startsWith(r)) || isLocalizedPublic) {
+	if (publicRoutes.some((r) => url.pathname.startsWith(r))) {
 		return resolve(event);
 	}
 
@@ -420,7 +416,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 				cookies.set('demo_tenant_id', tenantId, {
 					path: '/',
 					httpOnly: true,
-					secure: url.protocol === 'https:' || (url.hostname !== 'localhost' && !dev),
+					secure: !url.hostname.includes('localhost'),
 					sameSite: 'lax',
 					maxAge: 60 * 20 // 20 minutes for a demo session
 				});

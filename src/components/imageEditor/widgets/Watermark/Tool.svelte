@@ -12,12 +12,9 @@ Orchestrates the watermark lifecycle:
 
 <script lang="ts">
 	import Konva from 'konva';
-	import { getContext } from 'svelte';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-	import WatermarkControls from './Controls.svelte';
+	import WatermarkControls from '@src/components/imageEditor/toolbars/WatermarkControls.svelte';
 	import { WatermarkItem } from './regions';
-	import { createStyledTransformer, attachStyledTransformer } from '../transformerConfig';
-	import type { WatermarkOptions } from '@src/utils/media/mediaModels';
 
 	// --- Svelte 5 State ---
 	let watermarks: WatermarkItem[] = $state([]);
@@ -28,11 +25,6 @@ Orchestrates the watermark lifecycle:
 
 	// guard to avoid duplicate event bindings
 	let _toolBound = $state(false);
-	// guard to prevent loading preset multiple times
-	let _presetLoaded = $state(false);
-
-	// Get watermark preset from parent context (set by ImageEditorModal)
-	const getWatermarkPreset = getContext<(() => WatermarkOptions | null) | undefined>('watermarkPreset');
 
 	// --- Lifecycle $effect ---
 	// Binds/unbounds the tool and registers the toolbar
@@ -40,14 +32,6 @@ Orchestrates the watermark lifecycle:
 		const activeState = imageEditorStore.state.activeState;
 		if (activeState === 'watermark') {
 			bindTool();
-
-			// Auto-load preset watermark if available and not already loaded
-			const preset = getWatermarkPreset?.();
-			if (preset?.url && watermarks.length === 0 && !_presetLoaded) {
-				_presetLoaded = true;
-				loadPresetWatermark(preset);
-			}
-
 			imageEditorStore.setToolbarControls({
 				component: WatermarkControls,
 				props: {
@@ -60,7 +44,6 @@ Orchestrates the watermark lifecycle:
 			});
 		} else {
 			unbindTool();
-			_presetLoaded = false; // Reset for next activation
 			if (imageEditorStore.state.toolbarControls?.component === WatermarkControls) {
 				imageEditorStore.setToolbarControls(null);
 			}
@@ -74,7 +57,7 @@ Orchestrates the watermark lifecycle:
 		_toolBound = true;
 
 		if (!transformer) {
-			transformer = createStyledTransformer(layer);
+			transformer = createTransformer(layer);
 		}
 		stage.on('click.watermark tap.watermark', onStageClick);
 		stage.container().style.cursor = 'default';
@@ -95,59 +78,6 @@ Orchestrates the watermark lifecycle:
 		// Deselect if clicking on stage background
 		if (e.target === e.target.getStage()) {
 			deselect();
-		}
-	}
-
-	// --- Preset Watermark Loading ---
-	async function loadPresetWatermark(preset: WatermarkOptions) {
-		const { stage, layer, imageNode, imageGroup } = imageEditorStore.state;
-		if (!stage || !layer || !imageNode || !imageGroup) return;
-
-		try {
-			// Fetch the watermark image from the preset URL
-			const response = await fetch(preset.url);
-			if (!response.ok) {
-				console.warn('Failed to fetch preset watermark:', preset.url);
-				return;
-			}
-
-			const blob = await response.blob();
-			const filename = preset.url.split('/').pop() || 'preset-watermark.png';
-			const file = new File([blob], filename, { type: blob.type || 'image/png' });
-
-			const item = new WatermarkItem({
-				id: crypto.randomUUID(),
-				layer,
-				imageGroup
-			});
-
-			item.onSelect(() => select(item));
-			item.onDestroy(() => {
-				watermarks = watermarks.filter((w) => w.id !== item.id);
-				if (selected?.id === item.id) deselect();
-			});
-
-			watermarks = [...watermarks, item];
-			select(item);
-
-			// Load with preset opacity (convert percentage scale to 0-1 if needed)
-			const presetOpacity = typeof preset.scale === 'number' && preset.scale > 1 ? preset.scale / 100 : (preset.scale ?? 0.8);
-
-			await item.loadImage(file, {
-				opacity: presetOpacity,
-				stageWidth: stage.width(),
-				stageHeight: stage.height()
-			});
-
-			// Apply preset position if specified
-			if (preset.position) {
-				item.snapTo(preset.position);
-			}
-
-			attachStyledTransformer(transformer!, item.node);
-			layer.batchDraw();
-		} catch (err) {
-			console.error('Failed to load preset watermark', err);
 		}
 	}
 
@@ -179,7 +109,7 @@ Orchestrates the watermark lifecycle:
 				stageHeight: stage.height()
 			});
 			// Attach transformer *after* image is loaded and sized
-			attachStyledTransformer(transformer!, item.node);
+			attachTransformer(transformer!, item.node);
 			layer.batchDraw();
 		} catch (err) {
 			console.error('Failed to load watermark image', err);
@@ -190,7 +120,7 @@ Orchestrates the watermark lifecycle:
 	function select(item: WatermarkItem) {
 		selected = item;
 		if (!transformer) return;
-		attachStyledTransformer(transformer, item.node);
+		attachTransformer(transformer, item.node);
 		// Update controls to match selected item's opacity
 		opacity = item.node.opacity();
 	}
@@ -198,7 +128,7 @@ Orchestrates the watermark lifecycle:
 	function deselect() {
 		selected = null;
 		if (!transformer) return;
-		attachStyledTransformer(transformer, null);
+		attachTransformer(transformer, null);
 	}
 
 	function deleteSelected() {
@@ -223,6 +153,47 @@ Orchestrates the watermark lifecycle:
 	function apply() {
 		imageEditorStore.takeSnapshot();
 		imageEditorStore.setActiveState('');
+	}
+
+	/**
+	 * Creates a shared transformer for watermarks.
+	 */
+	function createTransformer(layer: Konva.Layer) {
+		const tr = new Konva.Transformer({
+			keepRatio: true,
+			rotateEnabled: true,
+			anchorSize: 10,
+			borderStroke: '#0066ff',
+			borderStrokeWidth: 2,
+			anchorFill: '#0066ff',
+			anchorStroke: '#ffffff',
+			boundBoxFunc: (oldBox, newBox) => {
+				return newBox.width < 10 || newBox.height < 10 ? oldBox : newBox;
+			}
+		});
+		layer.add(tr);
+		tr.hide();
+		tr.moveToTop();
+		return tr;
+	}
+
+	/**
+	 * Attaches the shared transformer to a node.
+	 */
+	function attachTransformer(tr: Konva.Transformer, node?: Konva.Node | null) {
+		try {
+			if (!node) {
+				tr.nodes([]);
+				tr.hide();
+				return;
+			}
+			tr.nodes([node]);
+			tr.show();
+			tr.forceUpdate();
+			tr.moveToTop();
+		} catch (e) {
+			/* ignore */
+		}
 	}
 
 	function handleFileChange(e: Event) {

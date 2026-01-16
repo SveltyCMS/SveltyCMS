@@ -12,40 +12,38 @@ Features:
 	import { asAny } from '@utils/utils';
 
 	// Components
-	import { widgets } from '@stores/widgetStore.svelte';
+	import { widgetFunctions } from '@stores/widgetStore.svelte';
 	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 
 	// Skeleton Stores
-	import { modalState } from '@utils/modalState.svelte';
-	import { collections } from '@src/stores/collectionStore.svelte';
-
-	// Removed modalStore
+	// Skeleton Stores
+	import { targetWidget } from '@src/stores/collectionStore.svelte';
 
 	// Define widget keys and excluded fields for specificity
 	const defaultFields = ['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'];
 
 	// Reactive statements to derive widget-related data
-	const currentWidgetName = $derived((collections.targetWidget as any)?.widget?.Name);
-	const currentGuiSchema = $derived(currentWidgetName ? (widgets.widgetFunctions[currentWidgetName] as any)?.GuiSchema || null : null);
+	const currentWidgetName = $derived((targetWidget.value?.widget as any)?.Name);
+	const currentGuiSchema = $derived(currentWidgetName ? $widgetFunctions[currentWidgetName]?.GuiSchema || null : null);
 	const specificFields = $derived(currentGuiSchema ? Object.keys(currentGuiSchema).filter((key) => !defaultFields.includes(key)) : []);
 
 	/** Updates the target widget property */
 	function handleUpdate(detail: { value: any }, property: string) {
-		const currentWidget = collections.targetWidget;
+		const currentWidget = targetWidget.value;
 		currentWidget[property] = detail.value;
-		collections.setTargetWidget(currentWidget);
+		targetWidget.value = currentWidget;
 	}
 </script>
 
-{#if modalState.active && currentGuiSchema && specificFields.length > 0}
+{#if targetWidget.value && currentGuiSchema && specificFields.length > 0}
 	{#each specificFields as property}
 		<InputSwitch
-			value={collections.targetWidget[property]}
+			value={targetWidget.value[property]}
 			onupdate={(e: { value: any }) => handleUpdate(e, property)}
 			widget={asAny((currentGuiSchema as any)[property]?.widget)}
 			key={property}
 		/>
 	{/each}
-{:else if modalState.active && currentWidgetName}
+{:else if targetWidget.value && currentWidgetName}
 	<div class="text-center text-sm text-gray-500">No specific options for this widget type</div>
 {/if}

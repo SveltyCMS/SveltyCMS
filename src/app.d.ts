@@ -9,6 +9,9 @@
 
 import type { Role, Token, User } from '@src/databases/auth/types'; // Import the actual types
 import type { DatabaseAdapter, Theme } from '@src/databases/dbInterface'; // Ensure correct import path
+import type { PrivateConfig } from '@src/databases/schemas';
+
+// Declarations removed - handled by alias resolution
 
 declare global {
 	/// <reference path="./types/**/*.d.ts" />

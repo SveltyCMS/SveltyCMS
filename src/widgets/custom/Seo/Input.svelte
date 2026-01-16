@@ -3,7 +3,7 @@
 	import { slide } from 'svelte/transition';
 
 	// Stores & Props
-	import { app } from '@stores/store.svelte';
+	import { contentLanguage } from '@stores/store.svelte';
 	import { publicEnv } from '@stores/globalSettings.svelte';
 
 	// Parsers & Services
@@ -36,7 +36,7 @@
 	// Multi-language handling
 	let availableLanguages = $state<string[]>([]);
 	// Use contentLanguage store value
-	const currentLang = $derived(app.contentLanguage);
+	const currentLang = $derived(contentLanguage.value);
 	// Fallback to 'en' if no language selected
 	let lang = $derived(currentLang || 'en');
 
@@ -160,13 +160,13 @@
 	</div>
 
 	<!-- Bottom Area: Tabs & Inputs -->
-	<div class="card p-4 variant-glass-surface">
+	<div class="card p-4 preset-glass-surface">
 		<!-- Inline Tabs Implementation -->
 		<div class="flex border-b border-surface-400/30 mb-6">
 			<button
 				class="px-4 py-2 border-b-2 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700/50 {activeTab === 0
 					? 'border-primary-500 font-bold text-primary-500'
-					: 'border-transparent text-surface-600 dark:text-surface-50 hover:text-surface-900 dark:hover:text-surface-200'}"
+					: 'border-transparent text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-200'}"
 				onclick={() => (activeTab = 0)}
 			>
 				Basic
@@ -175,7 +175,7 @@
 				<button
 					class="px-4 py-2 border-b-2 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700/50 {activeTab === 1
 						? 'border-primary-500 font-bold text-primary-500'
-						: 'border-transparent text-surface-600 dark:text-surface-50 hover:text-surface-900 dark:hover:text-surface-200'}"
+						: 'border-transparent text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-200'}"
 					onclick={() => (activeTab = 1)}
 				>
 					Social
@@ -185,7 +185,7 @@
 				<button
 					class="px-4 py-2 border-b-2 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700/50 {activeTab === 2
 						? 'border-primary-500 font-bold text-primary-500'
-						: 'border-transparent text-surface-600 dark:text-surface-50 hover:text-surface-900 dark:hover:text-surface-200'}"
+						: 'border-transparent text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-200'}"
 					onclick={() => (activeTab = 2)}
 				>
 					Advanced

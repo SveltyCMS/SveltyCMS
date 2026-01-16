@@ -11,15 +11,15 @@
 -->
 
 <script lang="ts">
-	import { collections } from '@src/stores/collectionStore.svelte';
+	import { collectionValue } from '@src/stores/collectionStore.svelte';
 	import { page } from '$app/state';
 
 	const { user } = page.data;
 
 	// Convert ISO date string to formatted date
 	const dates = $derived({
-		created: (collections.activeValue as Record<string, any>)?.createdAt
-			? new Date((collections.activeValue as Record<string, any>).createdAt as string | number | Date).toLocaleDateString('en-US', {
+		created: (collectionValue as Record<string, any>)?.createdAt
+			? new Date((collectionValue as Record<string, any>).createdAt as string | number | Date).toLocaleDateString('en-US', {
 					year: 'numeric',
 					month: '2-digit',
 					day: '2-digit',
@@ -27,8 +27,8 @@
 					minute: '2-digit'
 				})
 			: '-',
-		updated: (collections.activeValue as Record<string, any>)?.updatedAt
-			? new Date((collections.activeValue as Record<string, any>).updatedAt as string | number | Date).toLocaleDateString('en-US', {
+		updated: (collectionValue as Record<string, any>)?.updatedAt
+			? new Date((collectionValue as Record<string, any>).updatedAt as string | number | Date).toLocaleDateString('en-US', {
 					year: 'numeric',
 					month: '2-digit',
 					day: '2-digit',
@@ -43,7 +43,7 @@
 	<!-- Labels -->
 	{#each Object.keys(dates) as key (key)}
 		<div class="font-bold">
-			<span class="capitalize">{key}</span>: <span class="font-normal text-surface-600 dark:text-surface-50">by {user?.username || 'Unknown'}</span>
+			<span class="capitalize">{key}</span>: <span class="font-normal text-surface-600 dark:text-surface-400">by {user?.username || 'Unknown'}</span>
 		</div>
 	{/each}
 

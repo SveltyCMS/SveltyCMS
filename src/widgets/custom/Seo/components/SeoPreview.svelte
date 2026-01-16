@@ -86,17 +86,17 @@
 	}
 </script>
 
-<div class="mt-4 border-t border-surface-500 pt-4 dark:text-surface-50">
+<div class="mt-4 border-t border-surface-500 pt-4 dark:border-surface-700">
 	<div class="mb-4 flex flex-wrap items-center justify-between gap-4">
 		<h3 class="h3">SEO Preview</h3>
 
 		<div class="flex items-center gap-2">
 			<!-- Device Toggle -->
-			<div class="preset-filled-surface-500 btn-group [&>*+*]:border-surface-500">
+			<div class="preset-filled-surface-500  [&>*+*]:border-surface-500">
 				<button
 					type="button"
 					onclick={() => !SeoPreviewToggle && handleTogglePreview()}
-					class="{!SeoPreviewToggle ? 'preset-filled-primary-500' : ''} btn-sm"
+					class="{!SeoPreviewToggle ? 'preset-filled-primary-500' : ''} btn btn-sm"
 					title="Desktop View"
 				>
 					<iconify-icon icon="mdi:monitor" width="18"></iconify-icon>
@@ -104,7 +104,7 @@
 				<button
 					type="button"
 					onclick={() => SeoPreviewToggle && handleTogglePreview()}
-					class="{SeoPreviewToggle ? 'preset-filled-primary-500' : ''} btn-sm"
+					class="{SeoPreviewToggle ? 'preset-filled-primary-500' : ''} btn btn-sm"
 					title="Mobile View"
 				>
 					<iconify-icon icon="mdi:cellphone" width="18"></iconify-icon>
@@ -114,7 +114,7 @@
 			<!-- Heatmap Toggle -->
 			<button
 				type="button"
-				class="btn-sm {heatmapMode ? 'variant-filled-warning' : 'preset-filled-surface-500'}"
+				class="btn btn-sm {heatmapMode ? 'preset-filled-warning-500' : 'preset-filled-surface-500'}"
 				onclick={() => (heatmapMode = !heatmapMode)}
 				title="Toggle Heatmap Visualization"
 			>
@@ -125,9 +125,9 @@
 	</div>
 
 	<!-- Preview Card -->
-	<div class="card variant-glass-surface p-4 transition-all duration-200 {SeoPreviewToggle ? 'max-w-[375px] mx-auto' : 'w-full'}">
+	<div class="card preset-glass-surface p-4 transition-all duration-200 {SeoPreviewToggle ? 'max-w-[375px] mx-auto' : 'w-full'}">
 		<!-- URL Line -->
-		<div class="mb-1 flex items-center gap-2 text-xs text-surface-500 dark:text-surface-50">
+		<div class="mb-1 flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400">
 			<div class="flex h-6 w-6 items-center justify-center rounded-full bg-surface-200 dark:bg-surface-700">
 				<iconify-icon icon="mdi:earth" width="14" class="text-surface-700 dark:text-surface-300"></iconify-icon>
 			</div>
@@ -184,7 +184,7 @@
 	{#if heatmapMode}
 		<div class="mt-4 grid grid-cols-2 md:grid-cols-5 gap-2 text-[10px]" transition:fade>
 			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-100 dark:bg-surface-800">
-				<div class="w-2 h-2 rounded-full bg-red-500"></div>
+				<div class="w-2 h-2 rounded-full bg-error-500"></div>
 				<span>Keyword</span>
 			</div>
 			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-100 dark:bg-surface-800">
@@ -196,11 +196,11 @@
 				<span>Prominent</span>
 			</div>
 			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-100 dark:bg-surface-800">
-				<div class="w-2 h-2 rounded-full bg-green-500"></div>
+				<div class="w-2 h-2 rounded-full bg-primary-500"></div>
 				<span>Good Length</span>
 			</div>
 			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-100 dark:bg-surface-800">
-				<div class="w-2 h-2 rounded-full bg-blue-500"></div>
+				<div class="w-2 h-2 rounded-full bg-tertiary-500"></div>
 				<span>Neutral</span>
 			</div>
 		</div>

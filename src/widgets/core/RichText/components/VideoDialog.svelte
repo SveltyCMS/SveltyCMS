@@ -38,7 +38,7 @@
 
 		// SECURITY: Validate YouTube URL to prevent XSS
 		// Only allow youtube.com and youtu.be URLs (HTTPS only)
-		const youtubePattern = /^https:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})$/;
+		const youtubePattern = /^https:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
 
 		if (youtube_url && editor) {
 			if (youtubePattern.test(youtube_url)) {
@@ -99,8 +99,8 @@
 				<p class="text-sm text-gray-500">Video upload is not yet implemented.</p>
 				<p>or</p>
 				<div class="flex w-full justify-center gap-2">
-					<button class="preset-outline-primary-500 btn w-full" disabled>Browse locally</button>
-					<button class="variant-filled-secondary btn w-full" onclick={() => (insert_url = true)}> YouTube </button>
+					<button class="preset-outlined-primary-500 btn w-full" disabled>Browse locally</button>
+					<button class="preset-filled-secondary-500 btn w-full" onclick={() => (insert_url = true)}> YouTube </button>
 				</div>
 			</div>
 		{/if}

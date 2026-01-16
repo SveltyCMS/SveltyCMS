@@ -52,9 +52,6 @@ interface LoadingEntry {
 	startTime: number;
 	context?: string;
 	timeoutId?: ReturnType<typeof setTimeout>;
-	progress?: number;
-	canCancel?: boolean;
-	onCancel?: () => void;
 }
 
 // Enterprise-grade loading store with automatic cleanup and SSR safety
@@ -64,9 +61,6 @@ export class LoadingStore {
 	private _loadingStack = $state<SvelteSet<string>>(new SvelteSet());
 	private _loadingEntries = new SvelteMap<string, LoadingEntry>();
 	private _maxTimeout = 30000; // 30 second max timeout for safety
-	private _progress = $state<number | null>(null);
-	private _canCancel = $state(false);
-	private _onCancel = $state<(() => void) | undefined>(undefined);
 
 	// Public getters
 	get isLoading() {
@@ -79,18 +73,6 @@ export class LoadingStore {
 
 	get loadingStack() {
 		return this._loadingStack;
-	}
-
-	get progress() {
-		return this._progress;
-	}
-
-	get canCancel() {
-		return this._canCancel;
-	}
-
-	get onCancel() {
-		return this._onCancel;
 	}
 
 	/**
@@ -158,60 +140,16 @@ export class LoadingStore {
 		if (this._loadingStack.size === 0) {
 			this._isLoading = false;
 			this._loadingReason = null;
-			this._progress = null;
-			this._canCancel = false;
-			this._onCancel = undefined;
 		} else {
 			// Update to most recent operation
 			const entries = Array.from(this._loadingStack);
-			const newReason = entries[entries.length - 1];
-			this._loadingReason = newReason;
-
-			// Restore progress/cancel state of the active operation
-			const newEntry = this._loadingEntries.get(newReason);
-			if (newEntry) {
-				this._progress = newEntry.progress ?? null;
-				this._canCancel = newEntry.canCancel ?? false;
-				this._onCancel = newEntry.onCancel;
-			}
+			this._loadingReason = entries[entries.length - 1];
 		}
 
 		if (entry) {
 			const duration = Date.now() - entry.startTime;
 			console.debug(`[LoadingStore] Stopped: ${reason} (${duration}ms)`);
 		}
-	}
-
-	/**
-	 * Update loading progress and cancellation for the current operation
-	 */
-	updateStatus(reason: string, progress?: number, canCancel?: boolean, onCancel?: () => void) {
-		if (!browser || !this._loadingEntries.has(reason)) return;
-
-		const entry = this._loadingEntries.get(reason)!;
-
-		if (progress !== undefined) {
-			entry.progress = progress;
-			if (this._loadingReason === reason) {
-				this._progress = progress;
-			}
-		}
-
-		if (canCancel !== undefined) {
-			entry.canCancel = canCancel;
-			if (this._loadingReason === reason) {
-				this._canCancel = canCancel;
-			}
-		}
-
-		if (onCancel !== undefined) {
-			entry.onCancel = onCancel;
-			if (this._loadingReason === reason) {
-				this._onCancel = onCancel;
-			}
-		}
-
-		this._loadingEntries.set(reason, entry);
 	}
 
 	// Forcefully clear all loading states (emergency use only)
@@ -229,9 +167,6 @@ export class LoadingStore {
 		this._loadingStack.clear();
 		this._isLoading = false;
 		this._loadingReason = null;
-		this._progress = null;
-		this._canCancel = false;
-		this._onCancel = undefined;
 
 		console.warn('[LoadingStore] Force cleared all loading states');
 	}

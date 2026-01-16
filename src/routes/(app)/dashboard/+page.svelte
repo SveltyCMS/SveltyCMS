@@ -133,10 +133,10 @@
 	}
 
 	const widgetComponentRegistry = $derived(widgetRegistry);
-	const currentPreferences = $derived(systemPreferences.preferences || []);
+	const currentPreferences = $derived($systemPreferences?.preferences || []);
 	const availableWidgets = $derived(
 		registryLoaded && currentPreferences
-			? Object.keys(widgetComponentRegistry).filter((name) => !currentPreferences.some((item: DashboardWidgetConfig) => item.component === name))
+			? Object.keys(widgetComponentRegistry).filter((name) => !currentPreferences.some((item) => item.component === name))
 			: []
 	);
 	const filteredWidgets = $derived(availableWidgets.filter((name) => name.toLowerCase().includes(searchQuery.toLowerCase())));
@@ -270,7 +270,7 @@
 	}
 
 	function resizeWidget(widgetId: string, newSize: WidgetSize) {
-		const item = currentPreferences.find((i: DashboardWidgetConfig) => i.id === widgetId);
+		const item = currentPreferences.find((i) => i.id === widgetId);
 		if (item) {
 			const updatedSize = {
 				w: Math.max(1, Math.min(MAX_COLUMNS, newSize.w)),
@@ -341,7 +341,7 @@
 
 		// Show visual feedback for insertion position
 		if (dragState.item) {
-			const currentIndex = currentPreferences.findIndex((p: DashboardWidgetConfig) => p.id === dragState.item?.id);
+			const currentIndex = currentPreferences.findIndex((p) => p.id === dragState.item?.id);
 			if (currentIndex !== -1 && insertionIndex !== currentIndex && insertionIndex !== currentIndex + 1) {
 				dropIndicator = {
 					show: true,
@@ -397,7 +397,7 @@
 </script>
 
 <main bind:this={mainContainerEl} class="relative overflow-y-auto overflow-x-hidden" style="touch-action: pan-y;">
-	<header class="mb-2 flex items-center justify-between gap-2 border-b border-surface-200 p-2 dark:text-surface-50">
+	<header class="mb-2 flex items-center justify-between gap-2 border-b border-surface-200 p-2 dark:border-surface-700">
 		<PageTitle name="Dashboard" icon="bi:bar-chart-line" showBackButton={true} backUrl="/config" />
 		<div class="flex items-center gap-2">
 			<!-- Reset All Button - Small and subtle -->
@@ -467,12 +467,12 @@
 						></div>
 					{/if}
 
-					{#each currentPreferences.sort((a: DashboardWidgetConfig, b: DashboardWidgetConfig) => (a.order || 0) - (b.order || 0)) as item (item.id)}
+					{#each currentPreferences.sort((a, b) => (a.order || 0) - (b.order || 0)) as item (item.id)}
 						{@const WidgetComponent = loadedWidgets.get(item.id)}
 						<div
 							role="button"
 							tabindex="0"
-							class="widget-container group relative select-none overflow-hidden rounded-lg border border-surface-200/80 bg-surface-50 shadow-sm transition-all duration-300 dark:text-surface-50 dark:bg-surface-800"
+							class="widget-container group relative select-none overflow-hidden rounded-lg border border-surface-200/80 bg-surface-50 shadow-sm transition-all duration-300 dark:border-surface-700 dark:bg-surface-800"
 							data-widget-id={item.id}
 							style:grid-column="span {item.size.w}"
 							style:grid-row="span {item.size.h}"
@@ -498,7 +498,7 @@
 									<iconify-icon icon="mdi:alert-circle-outline" width="48" class="mb-2 text-error-500"></iconify-icon>
 									<h3 class="h4 mb-2">Widget Load Error</h3>
 									<p class="text-sm">Failed to load: {item.component}</p>
-									<button class="preset-filled-error-500 btn-sm mt-4" onclick={() => removeWidget(item.id)}> Remove Widget </button>
+									<button class="preset-filled-error-500 btn btn-sm mt-4" onclick={() => removeWidget(item.id)}> Remove Widget </button>
 								</div>
 							{:else}
 								<!-- Render the actual widget - Svelte 5 dynamic components -->
@@ -511,7 +511,7 @@
 								/>
 							{/if}
 							{#if dropIndicator}
-								{@const currentIndex = currentPreferences.findIndex((p: DashboardWidgetConfig) => p.id === item.id)}
+								{@const currentIndex = currentPreferences.findIndex((p) => p.id === item.id)}
 								{@const isDropTarget = dropIndicator.targetIndex === currentIndex}
 								{#if isDropTarget}
 									<div class="pointer-events-none absolute inset-x-0 top-0 z-20 h-1 bg-primary-500" style:transform="translateY(-50%)"></div>
@@ -548,7 +548,7 @@
 		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>
-				<button onclick={() => (showImportExport = false)} class="preset-ghost btn-sm" aria-label="Close import/export modal">
+				<button onclick={() => (showImportExport = false)} class="preset-ghost btn btn-sm" aria-label="Close import/export modal">
 					<iconify-icon icon="mdi:close" class="h-5 w-5"></iconify-icon>
 				</button>
 			</div>

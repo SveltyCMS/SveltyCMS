@@ -23,7 +23,7 @@ import {
 	updateEntryStatus
 } from './apiClient';
 import { entryMessages } from './entryActionsMessages';
-import { showConfirm, showScheduleModal, showCloneModal } from '@utils/modalUtils';
+import { showConfirm, showScheduleModal, showCloneModal } from './modalState.svelte';
 // Helper function to update entry status
 async function updateStatus(collectionId: string, entryId: string, status: string) {
 	const result = await updateEntryStatus(collectionId, entryId, status);
@@ -226,7 +226,7 @@ function showAdminChoiceModal(collectionId: string, entryId: string) {
 		body: `
 			<div class="space-y-3">
 				<p>Do you want to <strong class="text-warning-600">archive</strong> this entry?</p>
-				<p class="text-sm text-surface-600 dark:text-surface-50">Archived entries are hidden from view but kept in the database and can be restored later.</p>
+				<p class="text-sm text-surface-600 dark:text-surface-400">Archived entries are hidden from view but kept in the database and can be restored later.</p>
 			</div>
 		`,
 		confirmText: 'Archive',
@@ -238,7 +238,7 @@ function showAdminChoiceModal(collectionId: string, entryId: string) {
 				body: `
 					<div class="space-y-3">
 						<p>Do you want to <strong class="text-error-600">permanently delete</strong> this entry?</p>
-						<p class="text-sm text-surface-600 dark:text-surface-50">This will completely remove the entry from the database. This action cannot be undone.</p>
+						<p class="text-sm text-surface-600 dark:text-surface-400">This will completely remove the entry from the database. This action cannot be undone.</p>
 					</div>
 				`,
 				confirmText: 'Delete Permanently',

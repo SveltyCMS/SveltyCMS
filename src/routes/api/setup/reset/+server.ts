@@ -27,9 +27,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 		const isAdmin = locals.user?.role === 'admin';
 		const isSystemFailed = systemState.overallState === 'FAILED';
 
-		const isTestMode = process.env.TEST_MODE === 'true';
-
-		if (!isAdmin && !isSystemFailed && !isTestMode) {
+		if (!isAdmin && !isSystemFailed) {
 			logger.warn('Unauthorized setup reset attempt', {
 				userRole: locals.user?.role,
 				systemState: systemState.overallState

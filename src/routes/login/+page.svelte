@@ -1,7 +1,7 @@
 <!--
-@file src/routes/login/+page.svelte 
+@file Authentication Form Component for SveltyCMS
 @component
-**Authentication Form Component handles both SignIn and SignUp functionality for the SveltyCMS**
+**This component handles both SignIn and SignUp functionality for the SveltyCMS**
 
 ### Props:
  - `data`: { firstUserExists: boolean, demoMode: boolean, showDatabaseError: boolean }
@@ -17,23 +17,18 @@
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { getPublicSetting, publicEnv } from '@src/stores/globalSettings.svelte';
-
 	// Components
 	import Seasons from '@components/system/icons/Seasons.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import SignIn from './components/SignIn.svelte';
 	import SignUp from './components/SignUp.svelte';
 	import VersionCheck from '@components/VersionCheck.svelte';
-
 	// Stores
 	import { systemLanguage } from '@stores/store.svelte';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { locales as availableLocales } from '@src/paraglide/runtime';
-
-	// Skeleton UI
-	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -191,18 +186,21 @@
 		}
 		if (isTransitioning) return;
 		isTransitioning = true;
+		// First reset to initial state to show the logo
+		active = 0;
+		background = 'white';
 
-		if (!firstUserExists) {
-			active = 1; // Show SignUp for fresh installation
-			background = '#242728';
-		} else {
-			active = 0; // Show SignIn for existing users
-			background = 'white';
-		}
-
+		// Then after a short delay, transition to signin
 		setTimeout(() => {
+			if (!firstUserExists) {
+				active = 1; // Show SignUp for fresh installation
+				background = '#242728';
+			} else {
+				active = 0; // Show SignIn for existing users
+				background = 'white';
+			}
 			isTransitioning = false;
-		}, 400); // Match CSS transition duration
+		}, 600);
 	}
 
 	// Handle SignUp click
@@ -216,7 +214,7 @@
 		background = '#242728';
 		setTimeout(() => {
 			isTransitioning = false;
-		}, 400); // Match CSS transition duration
+		}, 600);
 	}
 
 	// Handle pointer enter events
@@ -231,18 +229,39 @@
 			background = '#242728';
 		}
 	}
+
+	// Handle dropdown toggle
+	function handleDropdownToggle() {
+		isDropdownOpen = !isDropdownOpen;
+	}
+
+	// Prefetch when active state changes to SignIn (0) or SignUp (1)
+	$effect(() => {
+		if (active !== undefined) {
+			// Call prefetch action on the server
+			fetch('/login?/prefetch', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded'
+				},
+				body: new URLSearchParams({
+					lang: systemLanguage.value || 'en'
+				})
+			})
+				.then((response) => {
+					if (response.ok) {
+					} else {
+						logger.debug('[DEBUG] Prefetch action failed:', response.status);
+					}
+				})
+				.catch((err) => {
+					logger.debug('[DEBUG] Prefetch fetch error:', err);
+				});
+		}
+	});
 </script>
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`}>
-	<!-- Seasons (always present, opacity/position managed) -->
-	<div
-		class="pointer-events-none fixed inset-0 z-10 transition-all duration-300"
-		class:opacity-0={active === undefined}
-		class:opacity-100={active !== undefined}
-	>
-		<Seasons />
-	</div>
-
 	<!-- Database Error Display -->
 	{#if data.showDatabaseError}
 		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -295,9 +314,7 @@
 						>
 							{m.db_error_reset_setup()}
 						</button>
-						<button type="button" onclick={() => window.location.reload()} class="preset-filled-secondary-500 btn">
-							{m.db_error_refresh_page()}
-						</button>
+						<button type="button" onclick={() => window.location.reload()} class="preset-filled-secondary-500 btn"> {m.db_error_refresh_page()} </button>
 					</div>
 				{/if}
 			</div>
@@ -351,6 +368,8 @@
 		<!-- CMS Logo -->
 		<div class="absolute left-1/2 top-1/4 -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">
 			<SveltyCMSLogoFull />
+			<!-- Seasons -->
+			<Seasons />
 		</div>
 
 		<!-- Language Select -->
@@ -358,66 +377,73 @@
 			class="language-selector absolute bottom-1/4 left-1/2 -translate-x-1/2 transform transition-opacity duration-300"
 			class:opacity-50={isTransitioning}
 		>
-			<Menu positioning={{ placement: 'top', gutter: 10 }}>
-				<Menu.Trigger
-					class="flex w-30 items-center justify-between gap-2 rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 hover:bg-[#363a3b] focus:ring-2"
-					aria-label="Select language"
-				>
-					<span>{getLanguageName(currentLanguage)}</span>
-					<iconify-icon icon="mdi:chevron-up" width="20"></iconify-icon>
-				</Menu.Trigger>
+			{#if Array.isArray(getPublicSetting('LOCALES')) && getPublicSetting('LOCALES').length > 5}
+				<div class="relative">
+					<!-- Current Language Display -->
+					<button
+						class="flex w-64 items-center justify-between gap-2 rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 hover:bg-[#363a3b] focus:ring-2"
+						onclick={handleDropdownToggle}
+					>
+						<span>{getLanguageName(currentLanguage)} ({currentLanguage.toUpperCase()})</span>
+						<svg
+							class="h-5 w-5 transition-transform duration-300 {isDropdownOpen ? 'rotate-180' : ''}"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+						</svg>
+					</button>
 
-				<Portal>
-					<Menu.Positioner>
-						<Menu.Content class="card p-2 shadow-xl preset-filled-surface-100-900 z-9999 w-64 border border-surface-200 dark:border-surface-500">
-							<!-- Header to inform user about System Language context -->
-							<div
-								class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1"
-							>
-								{m.applayout_systemlanguage()}
+					<!-- Dropdown -->
+					{#if isDropdownOpen}
+						<div class="absolute -left-6 -top-3 z-10 mt-2 w-64 rounded-lg border bg-[#242728] shadow-lg transition-opacity duration-300">
+							<!-- Search Input -->
+							<div class="border-b border-gray-700 p-2">
+								<input
+									type="text"
+									bind:this={searchInput}
+									bind:value={searchQuery}
+									placeholder="Search language..."
+									class="w-full rounded-md bg-[#363a3b] px-3 py-2 text-white transition-colors duration-300 placeholder:text-gray-400 focus:outline-none focus:ring-2"
+								/>
 							</div>
 
-							{#if Array.isArray(getPublicSetting('LOCALES')) && getPublicSetting('LOCALES').length > 5}
-								<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
-									<input
-										type="text"
-										bind:this={searchInput}
-										bind:value={searchQuery}
-										placeholder="Search language..."
-										class="w-full rounded-md bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
-										aria-label="Search languages"
-										onclick={(e) => e.stopPropagation()}
-									/>
-								</div>
-
-								<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
-									{#each filteredLanguages as lang (lang)}
-										<Menu.Item
-											value={lang}
-											onclick={() => handleLanguageSelection(lang)}
-											class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer"
-										>
-											<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
-											<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
-										</Menu.Item>
-									{/each}
-								</div>
-							{:else}
-								{#each availableLanguages.filter((l) => l !== currentLanguage) as lang (lang)}
-									<Menu.Item
-										value={lang}
+							<!-- Language List -->
+							<div class="max-h-48 divide-y divide-gray-700 overflow-y-auto py-1">
+								{#each filteredLanguages as lang}
+									<button
+										class="flex w-full items-center justify-between px-4 py-2 text-left text-white transition-colors duration-300 hover:bg-[#363a3b] {currentLanguage ===
+										lang
+											? 'bg-[#363a3b]'
+											: ''}"
 										onclick={() => handleLanguageSelection(lang)}
-										class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer"
 									>
-										<span class="text-sm font-medium">{getLanguageName(lang)}</span>
-										<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
-									</Menu.Item>
+										<span>{getLanguageName(lang)} ({lang.toUpperCase()})</span>
+									</button>
 								{/each}
-							{/if}
-						</Menu.Content>
-					</Menu.Positioner>
-				</Portal>
-			</Menu>
+							</div>
+						</div>
+					{/if}
+				</div>
+			{:else}
+				<!-- Simple dropdown for 5 or fewer languages -->
+				<select
+					bind:value={systemLanguage.value}
+					class="rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 focus:ring-2"
+					onchange={(e: Event) => {
+						const target = e.target as HTMLSelectElement;
+						if (target) {
+							const lang = target.value;
+							handleLanguageSelection(lang);
+						}
+					}}
+				>
+					{#each availableLanguages as lang}
+						<option value={lang}>{getLanguageName(lang)} ({lang.toUpperCase()})</option>
+					{/each}
+				</select>
+			{/if}
 		</div>
 		<!-- CMS Version -->
 		<div class="absolute bottom-5 left-1/2 -translate-x-1/2">

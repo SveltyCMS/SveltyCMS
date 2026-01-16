@@ -26,7 +26,8 @@ import { publicEnv } from '@src/stores/globalSettings.svelte';
 import type { BaseIssue, BaseSchema } from 'valibot';
 
 // Stores
-import { app } from '@stores/store.svelte';
+import { contentLanguage } from '@stores/store.svelte';
+import { get } from 'svelte/store';
 
 // System Logger
 import { logger, type LoggableValue } from '@utils/logger';
@@ -319,7 +320,7 @@ export function convertTimestampToDateString(timestamp: number) {
 		minute: '2-digit',
 		hour12: false
 	};
-	const locale = app.contentLanguage;
+	const locale = get(contentLanguage);
 	const date = new Date(timestamp * 1000);
 	return date.toLocaleDateString(locale, options);
 }

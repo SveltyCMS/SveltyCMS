@@ -46,7 +46,7 @@ Displays a preview of the shared link for different platforms.
 	] as const;
 </script>
 
-<div class="card preset-tonal-surface p-4 rounded-container-token mb-6">
+<div class="card preset-soft-surface-500 p-4 rounded-xl bg-surface-100 dark:bg-surface-800 mb-6">
 	<div class="flex items-center gap-2 mb-4">
 		<iconify-icon icon="mdi:share-variant" class="text-secondary-500 text-xl"></iconify-icon>
 		<h3 class="h3">Social Share Preview</h3>
@@ -58,8 +58,8 @@ Displays a preview of the shared link for different platforms.
 			<button
 				type="button"
 				class="btn btn-icon btn-icon-sm transition-all {activePlatform === platform.id
-					? 'variant-filled-secondary ring-2 ring-surface-900 dark:ring-white scale-110'
-					: 'preset-tonal-surface hover:preset-filled-surface-500'}"
+					? 'preset-filled-secondary-500 ring-2 ring-preset-900 dark:ring-white scale-110'
+					: 'preset-soft-surface-500 hover:preset-filled-surface-500'}"
 				onclick={() => (activePlatform = platform.id)}
 				title={platform.label}
 			>
@@ -69,7 +69,7 @@ Displays a preview of the shared link for different platforms.
 	</div>
 
 	<!-- Preview Card Area -->
-	<div class="bg-surface-50 dark:bg-surface-900 rounded-lg p-4 md:p-8 flex justify-center border border-surface-200 dark:text-surface-50">
+	<div class="bg-surface-50 dark:bg-surface-900 rounded-lg p-4 md:p-8 flex justify-center border border-surface-200 dark:border-surface-700">
 		<!-- Dynamic Preview Styling based on Platform -->
 		<div class="w-full max-w-[500px] bg-white text-black overflow-hidden shadow-lg rounded-lg transition-all duration-300">
 			<!-- Image Area -->

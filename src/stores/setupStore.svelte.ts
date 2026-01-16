@@ -19,7 +19,7 @@
 import { safeParse } from 'valibot';
 import { setupAdminSchema, dbConfigSchema, systemSettingsSchema } from '@utils/formSchemas';
 import { logger } from '@utils/logger';
-import { showToast } from '@utils/toast';
+import { toaster } from '@stores/store.svelte';
 import { goto } from '$app/navigation';
 
 // --- Types ---
@@ -166,11 +166,7 @@ function createSetupStore() {
 		lastTestFingerprint: null as string | null,
 		errorMessage: '',
 		successMessage: '',
-		showDbDetails: false,
-		// Seeding status
-		isSeeding: false,
-		seedingProgress: 0,
-		seedingError: null as string | null
+		showDbDetails: false
 	});
 
 	// --- Validation Logic (Moved from Page) ---
@@ -286,7 +282,6 @@ function createSetupStore() {
 		if (wizard.currentStep === 0) return wizard.dbTestPassed;
 		if (wizard.currentStep === 1 || wizard.currentStep === 2) return validateStep(wizard.currentStep, false);
 		if (wizard.currentStep === 3) return true; // Email step is optional, always can proceed
-		if (wizard.currentStep === 4) return !wizard.isSeeding; // Block completion if still seeding
 		return false;
 	});
 
@@ -422,19 +417,16 @@ function createSetupStore() {
 			const data: SeedDatabaseResponse = await response.json();
 
 			if (data.success) {
-				logger.debug('✅ Database initialization started');
+				logger.debug('✅ Database initialized successfully');
+				toaster.success({ description: 'Database initialized successfully! ✨' });
 
 				if (data.firstCollection) {
 					wizard.firstCollection = data.firstCollection;
 				}
-
-				// Start polling for seeding status
-				startPollingSeedingStatus();
-
 				return true;
 			} else {
 				logger.warn('⚠️  Database initialization had issues:', data.error);
-				showToast('Setup will continue, data will be created as needed.', 'info', 4000);
+				toaster.info({ description: 'Setup will continue, data will be created as needed.' });
 				return false;
 			}
 		} catch (error) {
@@ -442,46 +434,6 @@ function createSetupStore() {
 			return false;
 		} finally {
 			wizard.isLoading = false;
-		}
-	}
-
-	let pollingInterval: ReturnType<typeof setInterval> | null = null;
-
-	function startPollingSeedingStatus() {
-		if (pollingInterval) clearInterval(pollingInterval);
-
-		wizard.isSeeding = true;
-
-		checkSeedingStatus(); // Initial check
-
-		pollingInterval = setInterval(async () => {
-			const active = await checkSeedingStatus();
-			if (!active && pollingInterval) {
-				clearInterval(pollingInterval);
-				pollingInterval = null;
-			}
-		}, 2000);
-	}
-
-	async function checkSeedingStatus(): Promise<boolean> {
-		try {
-			const response = await fetch('/api/setup/status');
-			if (!response.ok) return true;
-
-			const data = await response.json();
-			wizard.isSeeding = data.isSeeding;
-			wizard.seedingProgress = data.progress;
-			wizard.seedingError = data.error;
-
-			if (data.error) {
-				showToast(`Seeding Error: ${data.error}`, 'error');
-				return false;
-			}
-
-			return data.isSeeding;
-		} catch (error) {
-			logger.error('Failed to check seeding status:', error);
-			return true; // Keep polling
 		}
 	}
 
@@ -502,7 +454,7 @@ function createSetupStore() {
 		const step2Valid = validateStep(2, true);
 
 		if (!step0Valid || !step1Valid || !step2Valid) {
-			showToast('Please fix validation errors before completing setup.', 'error');
+			toaster.error({ description: 'Please fix validation errors before completing setup.' });
 
 			// Navigate to first invalid step
 			if (!step0Valid) wizard.currentStep = 0;
@@ -534,13 +486,13 @@ function createSetupStore() {
 
 			if (!response.ok || !data.success) {
 				const errorMsg = data.error || 'Failed to finalize setup.';
-				showToast(errorMsg, 'error', 5000);
+				toaster.error({ description: errorMsg });
 				wizard.errorMessage = errorMsg;
 				throw new Error(errorMsg);
 			}
 
 			// Success!
-			showToast('Setup complete! Welcome to SveltyCMS! 🎉', 'success', 3000);
+			toaster.success({ description: 'Setup complete! Welcome to SveltyCMS! 🎉' });
 
 			// Clear store
 			clear();
@@ -561,7 +513,7 @@ function createSetupStore() {
 			wizard.errorMessage = errorMsg;
 
 			if (!wizard.errorMessage.includes('Failed to')) {
-				showToast(errorMsg, 'error', 5000);
+				toaster.error({ description: errorMsg });
 			}
 
 			return false;

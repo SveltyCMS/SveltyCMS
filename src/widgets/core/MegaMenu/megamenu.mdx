@@ -326,7 +326,7 @@ interface MenuItem {
   <details class="menu-item" open={level === 0}>
     <summary class="menu-summary {isActive ? 'active' : ''}">
       <a href={item._fields.url} class="menu-link">
-        {item._fields.title?.[app.contentLanguage] || 'Untitled'}
+        {item._fields.title?.[$contentLanguage] || 'Untitled'}
       </a>
     </summary>
     <ul class="submenu">
@@ -339,7 +339,7 @@ interface MenuItem {
   </details>
 {:else}
   <a href={item._fields.url} class="menu-link {isActive ? 'active' : ''}">
-    {item._fields.title?.[app.contentLanguage] || 'Untitled'}
+    {item._fields.title?.[$contentLanguage] || 'Untitled'}
   </a>
 {/if}
 ```

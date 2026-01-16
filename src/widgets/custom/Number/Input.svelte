@@ -36,7 +36,8 @@
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Stores
-	import { app, validationStore } from '@stores/store.svelte';
+	import { validationStore } from '@stores/store.svelte';
+	import { contentLanguage } from '@stores/store.svelte';
 
 	import { getFieldName } from '@utils/utils';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
@@ -53,8 +54,8 @@
 
 	const fieldName = $derived(getFieldName(field));
 	// Use current content language for translated fields, default for non-translated
-	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
-	const language = $derived(app.contentLanguage);
+	const _language = $derived(field.translated ? contentLanguage.value : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const language = $derived(contentLanguage.value);
 
 	// Initialize value
 	$effect(() => {
@@ -184,7 +185,7 @@
 </script>
 
 <div class="input-container relative mb-4">
-	<div class="preset-filled-surface-500 btn-group flex w-full rounded" role="group">
+	<div class="preset-filled-surface-500  flex w-full rounded" role="group">
 		{#if field?.prefix}
 			<button class="px-2!" type="button" aria-label={`${field.prefix} prefix`}>
 				{field?.prefix}
@@ -215,7 +216,7 @@
 				class:!border-error-500={!!validationError}
 				class:!ring-1={!!validationError || isValidating}
 				class:!ring-error-500={!!validationError}
-				class:!border-primary-500={isValidating && !validationError}
+				class:border-primary-500!={isValidating && !validationError}
 				class:!ring-primary-500={isValidating && !validationError}
 				aria-invalid={!!validationError}
 				aria-describedby={validationError ? `${fieldName}-error` : undefined}
@@ -240,7 +241,7 @@
 
 	<!-- Error Message -->
 	{#if validationError && isTouched}
-		<p id={`${fieldName}-error`} class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
+		<p id={`${fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
 			{validationError}
 		</p>
 	{/if}

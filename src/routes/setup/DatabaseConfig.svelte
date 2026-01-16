@@ -4,12 +4,13 @@
 Provides DB type, host, port, name, user, password inputs, validation display, test button, and change warning.
 -->
 <script lang="ts">
+	// popup and PopupSettings not available in skeleton-svelte v4
+	// import { popup, type PopupSettings } from '@skeletonlabs/skeleton-svelte';
 	import * as m from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
 	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { dbConfigSchema } from '@utils/formSchemas';
-	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
 
 	// Popup settings (click to toggle)
 
@@ -190,47 +191,31 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		await testDatabaseConnection();
 	}
 
-	function handleTypeChange() {
-		clearDbTestError();
-
-		const isAtlas = dbConfig.type === 'mongodb+srv';
-
-		// Smart host selection
-		if (!isAtlas && !dbConfig.host) {
-			dbConfig.host = 'localhost';
-		} else if (isAtlas && dbConfig.host === 'localhost') {
-			dbConfig.host = '';
-		}
-
-		// Smart port selection based on database type
-		switch (dbConfig.type) {
-			case 'mongodb':
-				dbConfig.port = '27017';
-				if (!dbConfig.name) dbConfig.name = 'SveltyCMS';
-				break;
-			case 'mariadb':
-				dbConfig.port = '3306';
-				// Clear default name for SQL DBs to force explicit entry (as they likely need pre-created DBs)
-				if (dbConfig.name === 'SveltyCMS') dbConfig.name = '';
-				break;
-			case 'postgresql':
-				dbConfig.port = '5432';
-				if (dbConfig.name === 'SveltyCMS') dbConfig.name = '';
-				break;
-			case 'mongodb+srv':
-				dbConfig.port = '';
-				if (!dbConfig.name) dbConfig.name = 'SveltyCMS';
-				break;
-		}
-	}
-
 	$effect(() => {
+		// Preserve database name when switching between Atlas and localhost
+		const previousDbName = dbConfig.name;
+
+		if (isAtlas) {
+			dbConfig.port = ''; // Port is not used for Atlas SRV
+			if (dbConfig.host === 'localhost') {
+				dbConfig.host = ''; // Clear default host when switching to Atlas
+			}
+		} else if (dbConfig.type === 'mongodb' && !dbConfig.port) {
+			dbConfig.port = '27017'; // Default port for standard MongoDB
+		}
+
+		// Restore database name if it was cleared
+		if (!dbConfig.name && previousDbName) {
+			dbConfig.name = previousDbName;
+		}
+
 		// Set default database name if empty
 		if (!dbConfig.name) {
 			dbConfig.name = 'SveltyCMS';
 		}
 
 		unsupportedDbSelected = false; // All database types are now supported
+		// No automatic driver install here
 	});
 </script>
 
@@ -285,27 +270,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		</div>
 	{/if}
 
-	{#if dbConfig.type === 'postgresql'}
-		<div
-			class="mb-6 rounded border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
-		>
-			<div class="flex items-center gap-2 mb-2">
-				<iconify-icon icon="mdi:hand-shake" width="24"></iconify-icon>
-				<p class="font-semibold">Help Wanted!</p>
-			</div>
-			<p class="mt-1">
-				PostgreSQL support via Drizzle is currently in development. We are actively looking for contributors to help finalize this implementation.
-			</p>
-			<p class="mt-2 text-sm">
-				<a
-					href="https://github.com/SveltyCMS/SveltyCMS/issues"
-					target="_blank"
-					rel="noopener noreferrer"
-					class="underline hover:text-amber-700 dark:hover:text-amber-100">Check our GitHub Issues</a
-				> to get involved!
-			</p>
-		</div>
-	{:else if dbConfig.type === 'mysql'}
+	{#if dbConfig.type === 'postgresql' || dbConfig.type === 'mysql'}
 		<div class="mb-6 rounded border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
 			<p class="font-semibold">{m.setup_db_coming_soon()}</p>
 			<p class="mt-1">
@@ -327,40 +292,22 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			<div>
 				<label for="db-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:database" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span class="text-black dark:text-white">{m.setup_label_database_type()}</span>
-					<Tooltip positioning={{ placement: 'top' }}>
-						<Tooltip.Trigger>
-							<button
-								type="button"
-								tabindex="-1"
-								aria-label={'Help: Database Type'}
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-							</button>
-						</Tooltip.Trigger>
-						<Portal>
-							<Tooltip.Positioner>
-								<Tooltip.Content
-									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-								>
-									<p>{m.setup_help_database_type()}</p>
-									<Tooltip.Arrow
-										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-									>
-										<Tooltip.ArrowTip />
-									</Tooltip.Arrow>
-								</Tooltip.Content>
-							</Tooltip.Positioner>
-						</Portal>
-					</Tooltip>
+					<span>{m.setup_label_database_type()}</span>
+					<button
+						type="button"
+						tabindex="-1"
+						title="Help available"
+						aria-label="Help: Database Type"
+						class="ml-1 text-slate-400 hover:text-primary-500"
+						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
+					>
 				</label>
 
-				<select id="db-type" bind:value={dbConfig.type} onchange={handleTypeChange} class="input rounded">
+				<select id="db-type" bind:value={dbConfig.type} onchange={clearDbTestError} class="input rounded">
 					<option value="mongodb">MongoDB (localhost/Docker)</option>
 					<option value="mongodb+srv">MongoDB Atlas (SRV)</option>
-					<option value="mariadb">MariaDB (via Drizzle)</option>
-					<option value="postgresql">PostgreSQL (via Drizzle) (coming soon)</option>
+					<option value="postgresql">PostgreSQL</option>
+					<option value="mysql">MySQL</option>
 				</select>
 				{#if isInstallingDriver}
 					<div class="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400" role="status">
@@ -394,33 +341,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			<div>
 				<label for="db-host" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span class="text-black dark:text-white">{isAtlas ? 'Atlas Cluster Host' : m.setup_database_host()}</span>
-					<Tooltip positioning={{ placement: 'top' }}>
-						<Tooltip.Trigger>
-							<button
-								type="button"
-								tabindex="-1"
-								aria-label={'Help: Host'}
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-							</button>
-						</Tooltip.Trigger>
-						<Portal>
-							<Tooltip.Positioner>
-								<Tooltip.Content
-									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-								>
-									<p>{m.setup_help_database_host()}</p>
-									<Tooltip.Arrow
-										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-									>
-										<Tooltip.ArrowTip />
-									</Tooltip.Arrow>
-								</Tooltip.Content>
-							</Tooltip.Positioner>
-						</Portal>
-					</Tooltip>
+					<span>{isAtlas ? 'Atlas Cluster Host' : m.setup_database_host()}</span>
+					<button type="button" tabindex="-1" title="Help available" aria-label="Help: Host" class="ml-1 text-slate-400 hover:text-primary-500"
+						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
+					>
 				</label>
 
 				<input
@@ -463,33 +387,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				<div>
 					<label for="db-port" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:ethernet" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span class="text-black dark:text-white">{m.setup_database_port()}</span>
-						<Tooltip positioning={{ placement: 'top' }}>
-							<Tooltip.Trigger>
-								<button
-									type="button"
-									tabindex="-1"
-									aria-label={'Help: Port'}
-									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
-							</Tooltip.Trigger>
-							<Portal>
-								<Tooltip.Positioner>
-									<Tooltip.Content
-										class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-									>
-										<p>{m.setup_help_database_port()}</p>
-										<Tooltip.Arrow
-											class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-										>
-											<Tooltip.ArrowTip />
-										</Tooltip.Arrow>
-									</Tooltip.Content>
-								</Tooltip.Positioner>
-							</Portal>
-						</Tooltip>
+						<span>{m.setup_database_port()}</span>
+						<button type="button" tabindex="-1" title="Help available" aria-label="Help: Port" class="ml-1 text-slate-400 hover:text-primary-500"
+							><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
+						>
 					</label>
 
 					<input
@@ -509,33 +410,15 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			<div>
 				<label for="db-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:database-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span class="text-black dark:text-white">{m.setup_database_name()}</span>
-					<Tooltip positioning={{ placement: 'top' }}>
-						<Tooltip.Trigger>
-							<button
-								type="button"
-								tabindex="-1"
-								aria-label={'Help: Database Name'}
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-							</button>
-						</Tooltip.Trigger>
-						<Portal>
-							<Tooltip.Positioner>
-								<Tooltip.Content
-									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-								>
-									<p>{m.setup_help_database_name()}</p>
-									<Tooltip.Arrow
-										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-									>
-										<Tooltip.ArrowTip />
-									</Tooltip.Arrow>
-								</Tooltip.Content>
-							</Tooltip.Positioner>
-						</Portal>
-					</Tooltip>
+					<span>{m.setup_database_name()}</span>
+					<button
+						type="button"
+						tabindex="-1"
+						title="Help available"
+						aria-label="Help: Database Name"
+						class="ml-1 text-slate-400 hover:text-primary-500"
+						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
+					>
 				</label>
 
 				<input
@@ -560,33 +443,15 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			<div>
 				<label for="db-user" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:account-key" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span class="text-black dark:text-white">{m.setup_database_user()}</span>
-					<Tooltip positioning={{ placement: 'top' }}>
-						<Tooltip.Trigger>
-							<button
-								type="button"
-								tabindex="-1"
-								aria-label={'Help: Database User'}
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-							</button>
-						</Tooltip.Trigger>
-						<Portal>
-							<Tooltip.Positioner>
-								<Tooltip.Content
-									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-								>
-									<p>{m.setup_help_database_user()}</p>
-									<Tooltip.Arrow
-										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-									>
-										<Tooltip.ArrowTip />
-									</Tooltip.Arrow>
-								</Tooltip.Content>
-							</Tooltip.Positioner>
-						</Portal>
-					</Tooltip>
+					<span>{m.setup_database_user()}</span>
+					<button
+						type="button"
+						tabindex="-1"
+						title="Help available"
+						aria-label="Help: Database User"
+						class="ml-1 text-slate-400 hover:text-primary-500"
+						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
+					>
 				</label>
 
 				<input
@@ -613,33 +478,15 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			<div>
 				<label for="db-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span class="text-black dark:text-white">{m.setup_database_password()}</span>
-					<Tooltip positioning={{ placement: 'top' }}>
-						<Tooltip.Trigger>
-							<button
-								type="button"
-								tabindex="-1"
-								aria-label={'Help: Database Password'}
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-							</button>
-						</Tooltip.Trigger>
-						<Portal>
-							<Tooltip.Positioner>
-								<Tooltip.Content
-									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-								>
-									<p>{m.setup_help_database_password()}</p>
-									<Tooltip.Arrow
-										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-									>
-										<Tooltip.ArrowTip />
-									</Tooltip.Arrow>
-								</Tooltip.Content>
-							</Tooltip.Positioner>
-						</Portal>
-					</Tooltip>
+					<span>{m.setup_database_password()}</span>
+					<button
+						type="button"
+						tabindex="-1"
+						title="Help available"
+						aria-label="Help: Database Password"
+						class="ml-1 text-slate-400 hover:text-primary-500"
+						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
+					>
 				</label>
 
 				<div class="relative">

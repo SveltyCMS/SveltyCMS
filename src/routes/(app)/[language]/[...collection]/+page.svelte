@@ -27,13 +27,13 @@
 	import { beforeNavigate, invalidateAll, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { untrack, onMount } from 'svelte';
-	import { collections } from '@src/stores/collectionStore.svelte';
-	import { app, validationStore } from '@stores/store.svelte';
+	import { collection, mode, setCollection, collectionValue, setMode, setCollectionValue } from '@src/stores/collectionStore.svelte';
+	import { contentLanguage, validationStore } from '@stores/store.svelte';
 	import { parseURLToMode } from '@utils/navigationUtils';
 	import { getFieldName } from '@utils/utils';
 	import EntryList from '@src/components/collectionDisplay/EntryList.svelte';
 	import Fields from '@src/components/collectionDisplay/Fields.svelte';
-	import { showToast } from '@utils/toast';
+	import { toaster } from '@stores/store.svelte';
 	import type { Schema } from '@src/content/types';
 
 	interface PageData {
@@ -64,8 +64,8 @@
 			schemaId: data?.collectionSchema?._id,
 			schemaName: data?.collectionSchema?.name,
 			entriesCount: data?.entries?.length,
-			storeId: collections.active?._id,
-			storeName: collections.active?.name
+			storeId: collection.value?._id,
+			storeName: collection.value?.name
 		});
 	});
 
@@ -121,12 +121,12 @@
 		if (serverContentLanguage) {
 			// Only sync if server language actually changed (indicates new server load)
 			if (serverContentLanguage !== lastServerLanguage) {
-				const currentStoreLanguage = app.contentLanguage;
+				const currentStoreLanguage = contentLanguage.value;
 				if (currentStoreLanguage !== serverContentLanguage) {
 					logger.debug('[+page.svelte] Syncing contentLanguage from server:', currentStoreLanguage, '→', serverContentLanguage);
 					// Set without untrack to ensure all reactive subscribers are notified
-					app.contentLanguage = serverContentLanguage as any;
-					logger.debug('[+page.svelte] ContentLanguage store now:', app.contentLanguage);
+					contentLanguage.set(serverContentLanguage as any);
+					logger.debug('[+page.svelte] ContentLanguage store now:', contentLanguage.value);
 				}
 				lastServerLanguage = serverContentLanguage;
 			}
@@ -137,12 +137,12 @@
 	// CRITICAL: Always sync when collectionSchema changes to keep store in sync with server data
 	$effect(() => {
 		if (collectionSchema) {
-			const currentStoreId = collections.active?._id;
+			const currentStoreId = collection.value?._id;
 			const schemaId = collectionSchema._id;
 			// Only update if different to avoid unnecessary re-renders
 			if (currentStoreId !== schemaId) {
 				logger.debug('[+page.svelte] Syncing collection store:', currentStoreId, '→', schemaId, collectionSchema.name);
-				collections.setCollection(collectionSchema);
+				setCollection(collectionSchema);
 			}
 		}
 	});
@@ -198,9 +198,9 @@
 			logger.debug('[Collection Change] New entries count:', entries.length, 'pagination:', pagination);
 
 			// CRITICAL: Sync collection store with server data
-			// This ensures collections.active is updated when navigating between collections
+			// This ensures collection.value is updated when navigating between collections
 			if (collectionSchema) {
-				collections.setCollection(collectionSchema);
+				setCollection(collectionSchema);
 				logger.debug('[Collection Change] Store synced with server data:', collectionSchema.name);
 			}
 
@@ -214,7 +214,7 @@
 			const editParam = page.url.searchParams.get('edit');
 			const createParam = page.url.searchParams.get('create');
 			if (!editParam && !createParam) {
-				collections.setMode('view');
+				setMode('view');
 			}
 		}
 	});
@@ -231,8 +231,8 @@
 			const entryData = entries[0];
 			logger.debug('[Initial Load] Edit mode detected, loading entry:', entryData._id);
 
-			collections.setMode('edit');
-			collections.setCollectionValue(entryData);
+			setMode('edit');
+			setCollectionValue(entryData);
 			initialCollectionValue = JSON.stringify(entryData);
 			lastUrlString = currentUrl;
 			return; // Exit early to avoid triggering URL change logic
@@ -243,16 +243,16 @@
 			hasInitiallyLoaded = true;
 			lastUrlString = currentUrl;
 
-			collections.setMode('create');
+			setMode('create');
 			const newEntry: Record<string, any | null> = {};
-			const fields = collections.active?.fields || [];
+			const fields = collection.value?.fields || [];
 
 			// Initialize empty entry
 			for (const field of fields) {
 				const fieldName = getFieldName(field as any, false);
 				newEntry[fieldName] = null;
 			}
-			collections.setCollectionValue(newEntry);
+			setCollectionValue(newEntry);
 
 			// ✅ Validation is now handled by $effect.pre() above
 			// No need to duplicate validation logic here
@@ -273,8 +273,8 @@
 
 			// If we're in edit/create mode and only URL language changed, ignore the URL change
 			// This happens when user changes language in TranslationStatus dropdown
-			if ((collections.mode === 'edit' || collections.mode === 'create') && editParam === lastEditParam && isInCreateMode === wasInCreateMode) {
-				logger.debug('[URL Change] Language prefix changed, but staying in', collections.mode, 'mode (no reload needed)');
+			if ((mode.value === 'edit' || mode.value === 'create') && editParam === lastEditParam && isInCreateMode === wasInCreateMode) {
+				logger.debug('[URL Change] Language prefix changed, but staying in', mode.value, 'mode (no reload needed)');
 				lastUrlString = currentUrl;
 				return; // Don't reload data, just update URL tracking
 			}
@@ -283,7 +283,7 @@
 			lastEditParam = editParam;
 			const parsed = parseURLToMode(page.url);
 
-			logger.debug(`[URL Change] ${collections.mode} → ${parsed.mode}`, {
+			logger.debug(`[URL Change] ${mode.value} → ${parsed.mode}`, {
 				entryId: parsed.entryId,
 				hasEntries: entries.length,
 				editParamChanged
@@ -294,31 +294,31 @@
 				if (entries && entries.length === 1) {
 					// Data already loaded by server
 					const entryData = entries[0];
-					collections.setMode('edit');
-					collections.setCollectionValue(entryData);
+					setMode('edit');
+					setCollectionValue(entryData);
 					initialCollectionValue = JSON.stringify(entryData);
 				} else {
 					// Need to reload data
 					invalidateAll().then(() => {
-						collections.setMode('edit');
+						setMode('edit');
 						logger.debug(`[URL Change] Reloaded entry ${parsed.entryId}`);
 					});
 				}
-			} else if (parsed.mode === 'view' && collections.mode === 'edit') {
+			} else if (parsed.mode === 'view' && mode.value === 'edit') {
 				// Exiting edit mode
-				collections.setMode('view');
+				setMode('view');
 			} else if (parsed.mode === 'create') {
 				// Create mode (URL change while already loaded)
-				collections.setMode('create');
+				setMode('create');
 				const newEntry: Record<string, any | null> = {};
-				const fields = collections.active?.fields || [];
+				const fields = collection.value?.fields || [];
 
 				// Initialize empty entry with null values
 				for (const field of fields) {
 					const fieldName = getFieldName(field as any, false);
 					newEntry[fieldName] = null;
 				}
-				collections.setCollectionValue(newEntry);
+				setCollectionValue(newEntry);
 
 				// 🔧 FIX: Perform initial validation for required fields
 				validationStore.clearAllErrors();
@@ -340,9 +340,9 @@
 				}
 
 				logger.debug('[URL Change] Create mode validation initialized');
-			} else if (collections.mode !== parsed.mode) {
+			} else if (mode.value !== parsed.mode) {
 				// Other mode changes
-				collections.setMode(parsed.mode);
+				setMode(parsed.mode);
 			}
 		}
 
@@ -357,17 +357,17 @@
 	// Sync collection schema from server data
 	$effect(() => {
 		if (collectionSchema) {
-			collections.setCollection(collectionSchema);
+			setCollection(collectionSchema);
 		}
 	});
 
 	// Track initial state when entering edit mode
-	// This runs AFTER collections.activeValue is set, but doesn't trigger when collections.activeValue changes
+	// This runs AFTER collectionValue is set, but doesn't trigger when collectionValue changes
 	$effect(() => {
-		const currentMode = collections.mode;
+		const currentMode = mode.value;
 		if (currentMode === 'edit' || currentMode === 'create') {
-			// Use untrack to read collections.activeValue without creating a dependency
-			const currentValue = untrack(() => collections.activeValue);
+			// Use untrack to read collectionValue without creating a dependency
+			const currentValue = untrack(() => collectionValue.value);
 			if (currentValue) {
 				initialCollectionValue = JSON.stringify(currentValue);
 				userClickedCancel = false; // Reset cancel flag
@@ -381,8 +381,8 @@
 
 		isSavingDraft = true;
 		try {
-			const entryData = collections.activeValue as any;
-			const collectionId = collections.active?._id;
+			const entryData = collectionValue.value as any;
+			const collectionId = collection.value?._id;
 			const tenantId = page.data?.tenantId;
 
 			if (!collectionId || !entryData) {
@@ -419,7 +419,7 @@
 
 				// Update collectionValue with the saved draft (including _id for new entries)
 				if (isNewEntry && result.data?._id) {
-					collections.activeValue = { ...draftData, _id: result.data._id };
+					collectionValue.value = { ...draftData, _id: result.data._id };
 				}
 
 				logger.debug('[Auto-save] Draft saved successfully');
@@ -445,8 +445,8 @@
 
 		const handleEntrySaved = () => {
 			// Update baseline to match current value, preventing unsaved changes detection
-			if (collections.activeValue) {
-				initialCollectionValue = JSON.stringify(collections.activeValue);
+			if (collectionValue.value) {
+				initialCollectionValue = JSON.stringify(collectionValue.value);
 				logger.debug('[Auto-save] Entry saved manually - baseline updated');
 			}
 		};
@@ -470,8 +470,8 @@
 		}
 
 		// Only check if we're in edit/create mode and have unsaved changes
-		if (['edit', 'create'].includes(collections.mode) && collections.activeValue) {
-			const currentValue = JSON.stringify(collections.activeValue);
+		if (['edit', 'create'].includes(mode.value) && collectionValue.value) {
+			const currentValue = JSON.stringify(collectionValue.value);
 			const hasUnsavedChanges = currentValue !== initialCollectionValue;
 
 			if (hasUnsavedChanges && !isSavingDraft) {
@@ -484,13 +484,13 @@
 				const saved = await autoSaveDraft();
 
 				if (saved) {
-					showToast('Changes auto-saved as draft', 'success');
+					toaster.success({ description: 'Changes auto-saved as draft' });
 					// Update initial value to prevent re-saving
-					initialCollectionValue = JSON.stringify(collections.activeValue);
+					initialCollectionValue = JSON.stringify(collectionValue.value);
 					// Allow navigation to continue
-					collections.setMode('view');
+					setMode('view');
 				} else {
-					showToast('Failed to auto-save. Please save manually.', 'error');
+					toaster.error({ description: 'Failed to auto-save. Please save manually.' });
 				}
 			}
 		}
@@ -510,7 +510,7 @@
 		</div>
 	{/if}
 
-	{#if !collections.active}
+	{#if !collection.value}
 		<!-- Collection data should be available from SSR, if not show error -->
 		<div class="dark:bg-error-950 flex h-64 flex-col items-center justify-center rounded-lg border border-error-500 bg-error-50 p-8">
 			<svg class="mb-4 h-16 w-16 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -524,15 +524,15 @@
 			<h3 class="mb-2 text-xl font-bold text-error-600 dark:text-error-400">Collection Not Loaded</h3>
 			<p class="text-center text-error-600 dark:text-error-400">Unable to load collection schema. Please refresh the page.</p>
 		</div>
-	{:else if collections.mode === 'view' || collections.mode === 'modify'}
+	{:else if mode.value === 'view' || mode.value === 'modify'}
 		<!-- Key block forces EntryList to remount when collection changes -->
 		{#key collectionSchema?._id}
 			<EntryList {entries} {pagination} contentLanguage={serverContentLanguage} />
 		{/key}
-	{:else if ['edit', 'create'].includes(collections.mode)}
+	{:else if ['edit', 'create'].includes(mode.value)}
 		<div id="fields_container" class="fields max-h-[calc(100vh-100px)] overflow-y-auto overflow-x-visible max-md:max-h-[calc(100vh-120px)]">
 			<!-- Pass the server-loaded data directly as props -->
-			<Fields fields={collections.active.fields} {revisions} contentLanguage={serverContentLanguage} />
+			<Fields fields={collection.value.fields} {revisions} contentLanguage={serverContentLanguage} />
 		</div>
 	{/if}
 </div>

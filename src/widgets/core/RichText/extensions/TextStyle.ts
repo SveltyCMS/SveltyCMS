@@ -53,7 +53,7 @@ export default TextStyle.extend({
 					// SECURITY: Sanitize font-size to prevent CSS injection
 					// Only allow numeric values with px/em/rem/% units
 					const size = String(fontSize);
-					const sanitized = size.match(/^\d+(\.\d+)?(px|em|rem|%)$/) ? size : '16px';
+					const sanitized = size.match(/^\d+(\.\d+)?(px|em|rem|pt|%)$/) ? size : '16px';
 					return chain().focus().setMark(this.name, { fontSize: sanitized }).run();
 				},
 			unsetFontSize:

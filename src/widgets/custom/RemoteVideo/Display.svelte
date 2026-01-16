@@ -45,7 +45,7 @@ Renders: Thumbnail + title + duration in compact horizontal layout
 		/>
 
 		<div class="flex min-w-0 flex-wrap items-center gap-x-2">
-			<span class="max-w-48 truncate text-sm font-medium">
+			<span class="max-w-[12rem] truncate text-sm font-medium">
 				{value.title}
 			</span>
 

@@ -43,10 +43,8 @@ const KNOWN_PRIVATE_KEYS = Object.keys(privateConfigSchema.entries).filter((key)
 // Internal server-side cache (not reactive, plain objects)
 const cache = {
 	loaded: false,
-	loadedAt: 0, // Timestamp for TTL
 	private: {} as PrivateEnv,
-	public: {} as PublicEnv,
-	TTL: 5 * 60 * 1000 // 5 minutes TTL
+	public: {} as PublicEnv
 };
 
 // Memoized version loader
@@ -60,33 +58,17 @@ async function loadPkgVersion(): Promise<string> {
 
 /**
  * Loads settings from the database into the server-side cache if not already loaded.
- * Cache automatically invalidates after TTL (5 minutes) to prevent stale data.
  * This is the single source of truth on the server.
  */
 export async function loadSettingsCache(): Promise<typeof cache> {
-	const now = Date.now();
-
-	// Invalidate cache after TTL
-	if (cache.loaded && now - cache.loadedAt > cache.TTL) {
-		cache.loaded = false;
-		logger.debug('Settings cache invalidated (TTL expired)');
-	}
-
 	if (cache.loaded) {
 		return cache;
 	}
 
 	try {
 		const { dbAdapter, getPrivateEnv } = await import('@src/databases/db');
-
-		// Check if database adapter is available (might not be during setup)
 		if (!dbAdapter?.systemPreferences) {
-			logger.warn('Database adapter not yet initialized, using empty settings cache');
-			// Return an empty cache but mark it as loaded to prevent repeated warnings
-			cache.loaded = true;
-			cache.loadedAt = Date.now();
-			cache.public.PKG_VERSION = await loadPkgVersion();
-			return cache;
+			throw new Error('Database adapter for systemPreferences is not available.');
 		}
 
 		// Load both public and private settings in parallel
@@ -140,13 +122,19 @@ export async function loadSettingsCache(): Promise<typeof cache> {
 		cache.public = publicSettings as PublicEnv;
 		cache.public.PKG_VERSION = await loadPkgVersion();
 		cache.loaded = true;
-		cache.loadedAt = Date.now(); // Track when cache was loaded
 
 		return cache;
 	} catch (error) {
-		// Log error but don't throw during initial load to prevent blocking server startup
 		const { logger } = await import('@utils/logger');
-		logger.error('Failed to load settings cache:', error);
+		const errMessage = error instanceof Error ? error.message : String(error);
+
+		// Suppress error logging if DB adapter is missing (expected during setup)
+		if (errMessage.includes('Database adapter') || errMessage.includes('not available')) {
+			logger.trace('Settings cache not available (expected during setup or DB init):', errMessage);
+		} else {
+			// Log unexpected errors
+			logger.error('Failed to load settings cache:', error);
+		}
 
 		// Return empty cache with PKG_VERSION to allow server to continue
 		cache.public.PKG_VERSION = await loadPkgVersion();
@@ -162,10 +150,8 @@ export async function loadSettingsCache(): Promise<typeof cache> {
 export async function invalidateSettingsCache(): Promise<void> {
 	const pkgVersion = await loadPkgVersion();
 	cache.loaded = false;
-	cache.loadedAt = 0; // Reset timestamp
 	cache.private = {} as PrivateEnv;
 	cache.public = { PKG_VERSION: pkgVersion } as PublicEnv;
-	logger.debug('Settings cache manually invalidated');
 }
 
 /**

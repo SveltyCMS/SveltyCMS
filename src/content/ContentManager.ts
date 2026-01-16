@@ -217,19 +217,15 @@ class ContentManager {
 
 	// Initializes the ContentManager, handling race conditions and loading data
 	public async initialize(tenantId?: string): Promise<void> {
-		// Already initialized - return immediately
 		if (this.initState === 'initialized') {
 			return;
 		}
 
-		// Already initializing - wait for existing initialization
+		// If another request is already initializing, wait for it to complete.
 		if (this.initPromise) {
-			logger.debug('[ContentManager] Waiting for existing initialization to complete');
 			return this.initPromise;
 		}
-
-		// Start new initialization
-		logger.info('[ContentManager] Starting initialization', { tenantId });
+		// Start initialization and store the promise.
 		this.initPromise = this._doInitialize(tenantId);
 
 		try {
@@ -243,17 +239,6 @@ class ContentManager {
 
 	// Core initialization logic
 	private async _doInitialize(tenantId?: string): Promise<void> {
-		const { isSetupComplete } = await import('@utils/setupCheck');
-
-		// Guard: If setup is not complete, skip heavy content loading.
-		// The Setup Wizard does not need CMS content.
-		if (!isSetupComplete()) {
-			logger.info('Setup not complete. ContentManager skipping initialization (SETUP MODE).');
-			this.initState = 'initialized'; // Mark as initialized to prevent blocking
-			this.metrics.initializationTime = 0;
-			return;
-		}
-
 		this.initState = 'initializing';
 		const startTime = performance.now();
 		const maxRetries = 3;
@@ -413,12 +398,6 @@ class ContentManager {
 
 	// Retrieves the entire content structure as a nested tree
 	public async getContentStructure(): Promise<ContentNode[]> {
-		// Don't call during initialization - prevents deadlock
-		if (this.initState === 'initializing') {
-			logger.warn('[ContentManager] getContentStructure called during initialization, returning empty array');
-			return [];
-		}
-
 		// Auto-initialize on first access (lazy loading)
 		if (this.initState !== 'initialized') {
 			await this.initialize();
@@ -527,12 +506,6 @@ class ContentManager {
 	 * Includes only essential metadata needed for display and ordering.
 	 */
 	public async getNavigationStructure(): Promise<NavigationNode[]> {
-		// Don't call during initialization - prevents deadlock
-		if (this.initState === 'initializing') {
-			logger.warn('[ContentManager] getNavigationStructure called during initialization, returning empty array');
-			return [];
-		}
-
 		// Auto-initialize on first access (lazy loading)
 		if (this.initState !== 'initialized') {
 			await this.initialize();
@@ -1350,28 +1323,12 @@ class ContentManager {
 
 		// Process each operation
 		const bulkUpdates: Array<{ path: string; changes: Partial<ContentNode> }> = [];
-		const bulkCreates: Array<Omit<ContentNode, 'createdAt' | 'updatedAt'>> = [];
 
 		for (const operation of operations) {
 			const { type, node } = operation;
 
 			switch (type) {
-				case 'create': {
-					if (!node.path) {
-						logger.warn('[ContentManager] Node missing path, skipping:', node);
-						continue;
-					}
-					// For creation, we need _id and all fields. createdAt/updatedAt are handled by adapter/DB
-					// eslint-disable-next-line @typescript-eslint/no-unused-vars
-					const { createdAt, updatedAt, ...createFields } = node;
-
-					bulkCreates.push(createFields);
-
-					this.contentNodeMap.set(node._id, node);
-					if (node.path) this.pathLookupMap.set(node.path, node._id);
-					break;
-				}
-
+				case 'create':
 				case 'update':
 				case 'rename':
 				case 'move': {
@@ -1406,54 +1363,11 @@ class ContentManager {
 			}
 		}
 
-		if (bulkCreates.length > 0) {
-			await dbAdapter.content.nodes.createMany(bulkCreates);
-			logger.info('[ContentManager] Bulk created nodes:', bulkCreates.length);
-		}
-
 		if (bulkUpdates.length > 0) {
 			await dbAdapter.content.nodes.bulkUpdate(bulkUpdates);
 			logger.info('[ContentManager] Bulk updated nodes:', bulkUpdates.length);
 		}
 
-		return await this.getContentStructureFromDatabase('flat');
-	}
-
-	/**
-	 * Optimized method for reordering content nodes using transactional logic.
-	 * This replaces the generic upsertContentNodes for drag-and-drop operations.
-	 */
-	public async reorderContentNodes(operations: ContentNodeOperation[]): Promise<ContentNode[]> {
-		if (this.initState !== 'initialized') {
-			throw new Error('ContentManager is not initialized.');
-		}
-		const dbAdapter = await getDbAdapter();
-		if (!dbAdapter) {
-			throw new Error('Database adapter is not available');
-		}
-
-		// Transform operations to reorder items
-		const reorderItems = operations.map((op) => {
-			const { node } = op;
-			return {
-				id: node._id,
-				parentId: typeof node.parentId === 'string' ? node.parentId : (node.parentId as any)?.toString() || null,
-				order: node.order || 0,
-				path: node.path || '' // Path should be recalculated and correct before reaching here
-			};
-		});
-
-		// Call the transactional reorder method
-		await dbAdapter.content.nodes.reorderStructure(reorderItems);
-
-		// Update in-memory state
-		for (const op of operations) {
-			const { node } = op;
-			this.contentNodeMap.set(node._id, node);
-			if (node.path) this.pathLookupMap.set(node.path, node._id);
-		}
-
-		logger.info('[ContentManager] Reordered nodes:', reorderItems.length);
 		return await this.getContentStructureFromDatabase('flat');
 	}
 
@@ -1494,6 +1408,7 @@ class ContentManager {
 			logger.trace(`Processed batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(jsFiles.length / BATCH_SIZE)}`);
 		}
 
+		logger.trace(`Processed ${schemas.length} collection schemas from filesystem`);
 		return schemas;
 	}
 
@@ -1613,8 +1528,6 @@ class ContentManager {
 				path: schema.path,
 				name: typeof schema.name === 'string' ? schema.name : String(schema.name),
 				icon: schema.icon ?? dbNode?.icon ?? 'bi:file',
-				slug: schema.slug ?? dbNode?.slug,
-				description: schema.description ?? dbNode?.description,
 				order: dbNode?.order ?? 999,
 				nodeType: 'collection',
 				translations: schema.translations ?? dbNode?.translations ?? [],
@@ -1713,6 +1626,8 @@ class ContentManager {
 		}
 
 		const finalNodes = finalStructureResult.data;
+		logger.debug(`[ContentManager] Final structure: ${finalNodes.length} nodes retrieved`);
+
 		// Clear and rebuild local maps with the complete database structure
 		this.contentNodeMap.clear();
 		this.pathLookupMap.clear();
@@ -1835,7 +1750,6 @@ class ContentManager {
 		}
 	}
 
-	// 2. Fix _warmFrequentPaths - build tree directly without calling methods
 	private async _warmFrequentPaths(cacheService: any, ttl: number, tenantId?: string): Promise<void> {
 		// Cache first collection for instant access
 		const collections = Array.from(this.contentNodeMap.values()).filter((node) => node.nodeType === 'collection' && node.collectionDef);

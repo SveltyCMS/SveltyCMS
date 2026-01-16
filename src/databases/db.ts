@@ -24,43 +24,16 @@ async function loadPrivateConfig(forceReload = false) {
 	if (privateEnv && !forceReload) return privateEnv;
 
 	try {
-		// SAFETY: Force TEST_MODE if running in test environment (Bun test)
-		if (process.env.NODE_ENV === 'test' && !process.env.TEST_MODE) {
-			console.warn('⚠️ Running in TEST environment but TEST_MODE is not set. Forcing usage of private.test.ts to protect live database.');
-			process.env.TEST_MODE = 'true';
-		}
-
 		try {
 			logger.debug('Loading @config/private configuration...');
 			let module;
 			if (process.env.TEST_MODE) {
-				const pathUtil = await import('path');
-				const configPath = pathUtil.resolve(process.cwd(), 'config/private.test.ts');
-				module = await import(/* @vite-ignore */ configPath);
+				const path = '@config/private.test';
+				module = await import(/* @vite-ignore */ path);
 			} else {
-				// STRICT SAFETY: Never allow loading live config if NODE_ENV is 'test'
-				if (process.env.NODE_ENV === 'test') {
-					const msg =
-						'CRITICAL SAFETY ERROR: Attempted to load live config/private.ts in TEST environment. Strict isolation requires config/private.test.ts.';
-					console.error(msg);
-					throw new Error(msg);
-				}
 				module = await import('@config/private');
 			}
 			privateEnv = module.privateEnv;
-
-			// SAFETY: Double-check we are not connecting to production in test mode
-			if (
-				(process.env.TEST_MODE || process.env.NODE_ENV === 'test') &&
-				privateEnv?.DB_NAME &&
-				!privateEnv.DB_NAME.includes('test') &&
-				!privateEnv.DB_NAME.endsWith('_functional')
-			) {
-				const msg = `⚠️ SAFETY ERROR: DB_NAME '${privateEnv.DB_NAME}' does not look like a test database! Tests must use isolated databases.`;
-				console.error(msg);
-				throw new Error(msg);
-			}
-
 			logger.debug('Private config loaded successfully', {
 				hasConfig: !!privateEnv,
 				dbType: privateEnv?.DB_TYPE,
@@ -241,10 +214,6 @@ export async function loadSettingsFromDB() {
 					const path = '@config/private.test';
 					imported = await import(/* @vite-ignore */ path);
 				} else {
-					// STRICT SAFETY: Never allow loading live config if NODE_ENV is 'test'
-					if (process.env.NODE_ENV === 'test') {
-						throw new Error('CRITICAL SAFETY ERROR: Attempted to load live config/private.ts in TEST environment via filesystem fallback.');
-					}
 					imported = await import('@config/private');
 				}
 				privateConfig = imported.privateEnv;
@@ -361,21 +330,9 @@ async function loadAdapters() {
 					logger.debug('MongoDB adapter created');
 					break;
 				}
-				case 'mariadb': {
-					logger.debug('Importing MariaDB adapter...');
-					const mariadbAdapterModule = await import('./mariadb/mariadbAdapter');
-					if (!mariadbAdapterModule || !mariadbAdapterModule.MariaDBAdapter) {
-						throw new Error('MariaDBAdapter is not exported correctly from mariadbAdapter.ts');
-					}
-					const { MariaDBAdapter } = mariadbAdapterModule;
-					dbAdapter = new MariaDBAdapter() as unknown as DatabaseAdapter;
-
-					logger.debug('MariaDB adapter created');
-					break;
-				}
 				default:
-					logger.error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Supported types: mongodb, mongodb+srv, mariadb`);
-					throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Supported types: mongodb, mongodb+srv, mariadb`);
+					logger.error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Only MongoDB is supported.`);
+					throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Only MongoDB is currently supported.`);
 			}
 		}, 'Database Adapter Loading');
 
@@ -556,12 +513,6 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			const authPart = hasAuth ? `${encodeURIComponent(privateConfig.DB_USER!)}:${encodeURIComponent(privateConfig.DB_PASSWORD!)}@` : '';
 			connectionString = `mongodb+srv://${authPart}${privateConfig.DB_HOST}/${privateConfig.DB_NAME}?retryWrites=true&w=majority`;
 			logger.debug(`Connecting to MongoDB Atlas (SRV)...`);
-		} else if (privateConfig.DB_TYPE === 'mariadb') {
-			// MariaDB connection string
-			const hasAuth = privateConfig.DB_USER && privateConfig.DB_PASSWORD;
-			const authPart = hasAuth ? `${encodeURIComponent(privateConfig.DB_USER!)}:${encodeURIComponent(privateConfig.DB_PASSWORD!)}@` : '';
-			connectionString = `mysql://${authPart}${privateConfig.DB_HOST}:${privateConfig.DB_PORT}/${privateConfig.DB_NAME}`;
-			logger.debug(`Connecting to MariaDB...`);
 		} else {
 			connectionString = '';
 		}
@@ -595,9 +546,22 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		logger.info(`Steps 1-2: DB connected & adapters loaded in ${step2And3Time.toFixed(2)}ms`);
 		logger.info(`Step 3: Database models setup in ${step2And3Time.toFixed(2)}ms (⚡ parallelized with connection)`);
 
-		// Step 4: Pre-load Server-Side Services
-		// WidgetRegistryService and ContentManager are moved to AFTER Step 5 to ensure dependencies (Settings, Widgets) are ready.
-		logger.info('Step 4: Skipping eager ContentManager init (moved to Step 6)');
+		// Step 4: Lazy-initialize Server-Side Services (will initialize on first use)
+		// WidgetRegistryService and ContentManager are now lazy-loaded for faster startup
+		updateServiceHealth('contentManager', 'healthy', 'Will lazy-initialize on first use');
+		logger.info('Step 4: Server services (Widgets & Content) will lazy-initialize on first use');
+
+		// Eagerly initialize ContentManager to prevent race conditions on first load
+		try {
+			const { ContentManager } = await import('@src/content/ContentManager');
+			const contentManagerInstance = ContentManager.getInstance();
+			logger.debug('ContentManager imported, initializing...');
+			await contentManagerInstance.initialize();
+			logger.info('ContentManager eagerly initialized.');
+		} catch (cmError) {
+			logger.error('ContentManager initialization failed:', cmError);
+			throw cmError;
+		}
 
 		// Step 5: Initialize Critical Components (optimized for speed)
 		logger.debug('Starting Step 5: Critical components initialization...');
@@ -668,8 +632,8 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 				const t = performance.now();
 				updateServiceHealth('widgets', 'initializing', 'Initializing widget store...');
 				// Dynamic import to avoid circular dependency with client bundle
-				const { widgets } = await import('@stores/widgetStore.svelte');
-				await widgets.initialize(undefined, dbAdapter);
+				const { widgetStoreActions } = await import('@stores/widgetStore.svelte');
+				await widgetStoreActions.initializeWidgets(undefined, dbAdapter);
 				updateServiceHealth('widgets', 'healthy', 'Widget store initialized');
 				widgetsTime = performance.now() - t;
 			})()
@@ -686,25 +650,6 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		logger.info(
 			`Step 5: Critical components initialized in ${step5Time.toFixed(2)}ms (Auth: ${authTime.toFixed(2)}ms, Settings: ${settingsTime.toFixed(2)}ms)`
 		);
-
-		// Step 6: Initialize ContentManager (Moved here to ensure Settings & Widgets are ready)
-		logger.debug('Starting Step 6: ContentManager initialization...');
-		try {
-			// Update health status to initializing
-			updateServiceHealth('contentManager', 'initializing', 'Initializing ContentManager...');
-
-			const { ContentManager } = await import('@src/content/ContentManager');
-			const contentManagerInstance = ContentManager.getInstance();
-			logger.debug('ContentManager imported, initializing...');
-			await contentManagerInstance.initialize();
-
-			updateServiceHealth('contentManager', 'healthy', 'ContentManager initialized');
-			logger.info('Step 6: ContentManager initialized (Dependencies ready).');
-		} catch (cmError) {
-			logger.error('ContentManager initialization failed:', cmError);
-			updateServiceHealth('contentManager', 'unhealthy', 'ContentManager initialization failed');
-			throw cmError;
-		}
 
 		// --- Demo Mode Cleanup Service ---
 		if (privateConfig?.DEMO) {
@@ -768,10 +713,6 @@ export async function initializeForSetup(dbConfig: {
 			const hasAuth = dbConfig.user && dbConfig.password;
 			const authPart = hasAuth ? `${encodeURIComponent(dbConfig.user!)}:${encodeURIComponent(dbConfig.password!)}@` : '';
 			connectionString = `mongodb://${authPart}${dbConfig.host}:${dbConfig.port}/${dbConfig.name}${hasAuth ? '?authSource=admin' : ''}`;
-		} else if (dbConfig.type === 'mariadb') {
-			const hasAuth = dbConfig.user && dbConfig.password;
-			const authPart = hasAuth ? `${encodeURIComponent(dbConfig.user!)}:${encodeURIComponent(dbConfig.password!)}@` : '';
-			connectionString = `mysql://${authPart}${dbConfig.host}:${dbConfig.port}/${dbConfig.name}`;
 		} else {
 			return { success: false, error: `Database type '${dbConfig.type}' not supported yet` };
 		}

@@ -31,7 +31,7 @@ const rolesCache = new Map<string, { data: Role[]; timestamp: number }>();
 // --- UTILITIES ---
 
 function isPublicRoute(pathname: string): boolean {
-	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/sendMail', '/api/setup', '/api/system/version', '/api/user/login'];
+	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/sendMail', '/api/setup', '/api/system/version'];
 	return publicRoutes.some((route) => pathname.startsWith(route));
 }
 
@@ -116,9 +116,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	const isPublic = isPublicRoute(pathname);
 
 	// --- Skip static or internal routes early ---
-	const ASSET_REGEX =
-		/^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|favicon\.ico|\.svelte-kit\/generated\/client\/nodes|.*\.(svg|png|jpg|jpeg|gif|css|js|woff|woff2|ttf|eot|map|json))/;
-	if (pathname.startsWith('/.well-known/') || pathname.startsWith('/_') || ASSET_REGEX.test(pathname)) {
+	if (pathname.startsWith('/.well-known/') || pathname.startsWith('/_')) {
 		return resolve(event);
 	}
 
@@ -139,8 +137,15 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	locals.roles = rolesData;
 
 	// --- Redirect to setup if database not initialized (no roles found) ---
-	const isLocalizedSetup = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
-	if (rolesData.length === 0 && !pathname.startsWith('/setup') && !pathname.startsWith('/api/setup') && !isLocalizedSetup) {
+	if (rolesData.length === 0 && !pathname.startsWith('/setup') && !pathname.startsWith('/api/setup')) {
+		// Also check system state to avoid spam during initialization
+		const { getSystemState } = await import('@src/stores/system');
+		const systemState = getSystemState();
+
+		if (systemState.overallState === 'INITIALIZING') {
+			throw error(503, 'System Initializing: Please wait a moment...');
+		}
+
 		logger.warn('No roles found in database - redirecting to setup', { pathname, tenantId: locals.tenantId });
 		if (isApi) {
 			throw error(503, 'Service Unavailable: System not initialized. Please run setup.');

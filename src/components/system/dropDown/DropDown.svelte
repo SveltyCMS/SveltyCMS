@@ -29,11 +29,10 @@
 		class: className = '' // Custom class for the dropdown container
 	} = $props();
 
-	// --- STATE ---
 	// State for dropdown expansion and selected item
 	let expanded = $state(false);
-	// Use $derived to reactively track selected prop changes
-	let currentSelected = $derived(selected);
+	// svelte-ignore state_referenced_locally
+	let currentSelected = $state(selected);
 
 	// Effect to update currentSelected when the selected prop changes or to set initial default
 	$effect(() => {
@@ -71,7 +70,7 @@
 	<!-- Dropdown button -->
 	<button
 		onclick={toggleExpanded}
-		class="preset-filled-tertiary-500 btn dark:preset-outlined-primary-500"
+		class="preset-filled-tertiary-500 btn dark:preset-ghost-primary-500"
 		aria-label="Toggle Dropdown"
 		class:selected={expanded}
 	>
@@ -89,7 +88,7 @@
 		{#each filteredItems as item}
 			<button
 				onclick={() => selectItem(item)}
-				class="variant-filled-warning btn relative hover:variant-filled-secondary dark:variant-outline-warning"
+				class="preset-filled-warning-500 btn relative hover:preset-filled-secondary-500 dark:preset-outlined-warning-500"
 				aria-label={modifier(item)}
 			>
 				<span class="text-surface-700 dark:text-white">{modifier(item)}</span>

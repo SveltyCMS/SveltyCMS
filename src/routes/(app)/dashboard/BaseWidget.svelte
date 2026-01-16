@@ -342,12 +342,12 @@ New Features:
 
 <article
 	bind:this={widgetEl}
-	class="widget-base-container text-text-900 dark:text-text-100 group relative flex h-full flex-col rounded-lg border border-surface-200 bg-white shadow-sm transition-all duration-150 focus-within:ring-2 focus-within:ring-primary-200 dark:text-surface-50 dark:bg-surface-800"
+	class="widget-base-container text-text-900 dark:text-text-100 group relative flex h-full flex-col rounded-lg border border-surface-200 bg-white shadow-sm transition-all duration-150 focus-within:ring-2 focus-within:ring-primary-200 dark:border-surface-700 dark:bg-surface-800"
 	aria-labelledby="widget-title-{widgetId || label}"
 	style="overflow: visible;"
 >
 	<header
-		class="widget-header flex cursor-grab items-center justify-between border-b border-gray-100 bg-white py-2 pl-4 pr-2 dark:text-surface-50 dark:bg-surface-800"
+		class="widget-header flex cursor-grab items-center justify-between border-b border-gray-100 bg-white py-2 pl-4 pr-2 dark:border-surface-700 dark:bg-surface-800"
 		style="touch-action: none; overflow: visible; position: relative; z-index: 10;"
 	>
 		<div class="flex flex-1 flex-col gap-0.5">
@@ -378,24 +378,18 @@ New Features:
 
 		<div class="flex items-center gap-1">
 			{#if endpoint && showRefreshButton}
-				<button
-					onclick={() => refresh()}
-					class="variant-outline-surface btn-icon"
-					aria-label="Refresh widget"
-					disabled={loading}
-					title="Refresh data"
-				>
+				<button onclick={() => refresh()} class="preset-outlined-surface-500 btn-icon" aria-label="Refresh widget" disabled={loading} title="Refresh data">
 					<iconify-icon icon="mdi:refresh" width="16" class={loading ? 'animate-spin' : ''}></iconify-icon>
 				</button>
 			{/if}
 
 			<div class="relative" style="overflow: visible;">
-				<button onclick={() => (showSizeMenu = !showSizeMenu)} class="variant-outline-surface btn-icon" aria-label="Change widget size">
+				<button onclick={() => (showSizeMenu = !showSizeMenu)} class="preset-outlined-surface-500 btn-icon" aria-label="Change widget size">
 					<iconify-icon icon="mdi:dots-vertical" width="18"></iconify-icon>
 				</button>
 				{#if showSizeMenu}
 					<div
-						class="absolute right-0 top-full z-50 mt-2 w-48 rounded-md border border-surface-200 bg-white py-1 shadow-xl dark:text-surface-50 dark:bg-surface-800"
+						class="absolute right-0 top-full z-50 mt-2 w-48 rounded-md border border-surface-200 bg-white py-1 shadow-xl dark:border-surface-700 dark:bg-surface-800"
 						style="z-index: 9999; position: absolute;"
 					>
 						{#each availableSizes as s}
@@ -415,7 +409,7 @@ New Features:
 					</div>
 				{/if}
 			</div>
-			<button onclick={onCloseRequest} class="variant-outline-surface btn-icon" aria-label="Remove {label} widget">
+			<button onclick={onCloseRequest} class="preset-outlined-surface-500 btn-icon" aria-label="Remove {label} widget">
 				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 			</button>
 		</div>

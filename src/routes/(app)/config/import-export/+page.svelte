@@ -93,7 +93,7 @@ is handled in reusable backend APIs.
 			{#if importResult}
 				<div class="mt-4">
 					<h4 class="mb-2 text-sm font-bold">Import Result:</h4>
-					<pre class="card preset-tonal  max-h-64 overflow-x-auto p-4 font-mono text-xs">{importResult}</pre>
+					<pre class="card preset-soft max-h-64 overflow-x-auto p-4 font-mono text-xs">{importResult}</pre>
 				</div>
 			{/if}
 		</section>

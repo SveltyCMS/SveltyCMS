@@ -11,10 +11,9 @@
 	import type { Editor } from '@tiptap/core';
 	import type { FieldType } from './';
 	import type { RichTextData } from './types';
-	import { app } from '@src/stores/store.svelte';
-
-	import { showModal } from '@utils/modalUtils';
-	import type { MediaFile } from '../MediaUpload/types';
+	import { contentLanguage } from '@src/stores/store.svelte';
+	import { modalState } from '@utils/modalState.svelte';
+	import MediaLibraryModal from '@components/MediaLibraryModal.svelte';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	let {
@@ -27,7 +26,7 @@
 		error?: string | null;
 	} = $props();
 
-	const lang = $derived(field.translated ? app.contentLanguage : 'default');
+	const lang = $derived(field.translated ? $contentLanguage : 'default');
 
 	$effect(() => {
 		if (!value) value = {};
@@ -63,16 +62,18 @@
 
 	// New Feature Functions
 	function openMediaLibrary() {
-		showModal({
-			component: 'mediaLibraryModal',
-			response: (files: MediaFile[] | undefined) => {
+		modalState.trigger(
+			MediaLibraryModal as any,
+			{}, // No specific props needed for single select?
+			(files: any) => {
+				// Using any for result to avoid type complexity for now
 				if (files && files.length > 0) {
 					// Insert the first selected image
 					const file = files[0];
 					editor?.chain().focus().setImage({ src: file.url, alt: file.name }).run();
 				}
 			}
-		});
+		);
 	}
 
 	async function pasteUnformatted() {
@@ -421,7 +422,7 @@
 <div
 	class="my-2 relative overflow-hidden rounded border {error
 		? 'border-red-500 ring-2 ring-red-500 ring-opacity-50'
-		: 'border-surface-200 dark:text-surface-50'} bg-white dark:bg-surface-900 shadow-xl"
+		: 'border-surface-200 dark:border-surface-700'} bg-white dark:bg-surface-900 shadow-xl"
 >
 	<!-- Toolbar -->
 	<div
@@ -454,11 +455,11 @@
 									</button>
 									{#if activeDropdown === btn.label}
 										<div
-											class="absolute top-full left-0 mt-1 min-w-[180px] rounded-lg border border-surface-200 bg-white p-1 shadow-lg dark:text-surface-50 dark:bg-surface-900 z-50 ring-1 ring-black/5"
+											class="absolute top-full left-0 mt-1 min-w-[180px] rounded-lg border border-surface-200 bg-white p-1 shadow-lg dark:border-surface-700 dark:bg-surface-900 z-50 ring-1 ring-black/5"
 										>
 											{#if btn.label === 'Table'}
 												<div class="p-2 w-48">
-													<div class="mb-2 text-xs font-medium text-surface-500 dark:text-surface-50 text-center">
+													<div class="mb-2 text-xs font-medium text-surface-500 dark:text-surface-400 text-center">
 														{hoverRows || 1} x {hoverCols || 1}
 													</div>
 													<div
@@ -475,7 +476,7 @@
 																<button
 																	class="w-8 h-8 rounded-sm border transition-colors {r < hoverRows && c < hoverCols
 																		? 'bg-blue-100 border-blue-500 dark:bg-blue-500/30 dark:border-blue-400'
-																		: 'bg-surface-50 border-surface-200 dark:bg-surface-800 dark:text-surface-50'}"
+																		: 'bg-surface-50 border-surface-200 dark:bg-surface-800 dark:border-surface-700'}"
 																	onmouseover={() => {
 																		hoverRows = r + 1;
 																		hoverCols = c + 1;
@@ -634,27 +635,17 @@
 
 	<!-- Slash Menu Modal -->
 	{#if showSlashMenu}
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			transition:slide={{ duration: 200, easing: quintOut }}
-			role="button"
-			tabindex="0"
 			class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-			onclick={(e) => {
-				if (e.target === e.currentTarget) showSlashMenu = false;
-			}}
-			onkeydown={(e) => {
-				if (e.key === 'Escape') {
-					showSlashMenu = false;
-				}
-				if (e.key === 'Enter' || e.key === ' ') {
-					if (e.target === e.currentTarget) {
-						e.preventDefault();
-						showSlashMenu = false;
-					}
-				}
-			}}
+			onclick={() => (showSlashMenu = false)}
 		>
-			<div class="w-full max-w-lg rounded-2xl border border-surface-300 dark:text-surface-50 bg-white dark:bg-surface-900 p-6 shadow-2xl">
+			<div
+				class="w-full max-w-lg rounded-2xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 p-6 shadow-2xl"
+				onclick={(e) => e.stopPropagation()}
+			>
 				<h3 class="mb-5 text-xl font-semibold text-surface-900 dark:text-white">Command Menu</h3>
 				<div class="space-y-2">
 					<button
@@ -664,10 +655,10 @@
 							showSlashMenu = false;
 						}}
 					>
-						<iconify-icon icon="mdi:arrow-down-bold" width="22" class="text-surface-600 dark:text-surface-50"></iconify-icon>
+						<iconify-icon icon="mdi:arrow-down-bold" width="22" class="text-surface-600 dark:text-surface-400"></iconify-icon>
 						<div class="text-left">
 							<div class="font-medium text-surface-900 dark:text-white">Hard Break</div>
-							<div class="text-sm text-surface-500 dark:text-surface-50">Insert line break</div>
+							<div class="text-sm text-surface-500 dark:text-surface-400">Insert line break</div>
 						</div>
 					</button>
 					{#if field.aiEnabled}
@@ -681,7 +672,7 @@
 							<iconify-icon icon="mdi:sparkles" width="22" class="text-purple-600"></iconify-icon>
 							<div class="text-left">
 								<div class="font-medium text-surface-900 dark:text-white">Ask AI</div>
-								<div class="text-sm text-surface-500 dark:text-surface-50">Generate or rewrite with AI</div>
+								<div class="text-sm text-surface-500 dark:text-surface-400">Generate or rewrite with AI</div>
 							</div>
 						</button>
 					{/if}

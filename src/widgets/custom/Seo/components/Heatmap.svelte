@@ -120,7 +120,7 @@
 	});
 </script>
 
-<div class="wrap-break-word leading-6 max-sm:text-sm max-sm:leading-tight">
+<div class="break-words leading-6 max-sm:text-sm max-sm:leading-tight">
 	{#if heatmapData.length > 0}
 		{#each heatmapData as { word, heatLevel, isKeyword }}
 			<span

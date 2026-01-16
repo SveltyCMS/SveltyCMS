@@ -7,11 +7,8 @@
  * - User-related schemas and resolvers
  * - Media-related schemas and resolvers
  * - Access management permission definition and checking
- * - GraphQL Subscriptions for real-time updates (WebSocket)
- * - Optimized Cache Client wrapping CacheService
+ * - GraphQL Subscriptions for real-time updates
  */
-
-import { CacheCategory } from '@src/databases/CacheCategory';
 
 import { building } from '$app/environment';
 import { getPrivateSettingSync } from '@src/services/settingsService';
@@ -19,42 +16,20 @@ import type { RequestEvent } from '@sveltejs/kit';
 
 // GraphQL Yoga
 import type { DatabaseAdapter, DatabaseId } from '@src/databases/dbInterface';
-
-// Create a cache client adapter compatible with the expected interface in resolvers
-const cacheClient = getPrivateSettingSync('USE_REDIS')
-	? {
-			get: async (key: string, tenantId?: string) => {
-				try {
-					// Namespace GraphQL caches and include tenant when provided
-					return await cacheService.get<string>(`graphql:${key}`, tenantId);
-				} catch (err) {
-					logger.debug('GraphQL cache get failed, continuing without cache', err);
-					return null;
-				}
-			},
-			set: async (key: string, value: string, _ex: string, duration: number, tenantId?: string) => {
-				try {
-					// Ignore 'EX' (Generic wrapper) and use duration directly
-					// Namespace GraphQL caches
-					await cacheService.set(`graphql:${key}`, value, duration, tenantId, CacheCategory.API);
-				} catch (err) {
-					logger.debug('GraphQL cache set failed, continuing without cache', err);
-				}
-			}
-		}
-	: null;
-import { createSchema, createYoga } from 'graphql-yoga';
+import { createSchema, createYoga, createPubSub } from 'graphql-yoga';
 import { collectionsResolvers, createCleanTypeName, registerCollections } from './resolvers/collections';
 import { mediaResolvers, mediaTypeDefs } from './resolvers/media';
 import { userResolvers, userTypeDefs } from './resolvers/users';
 import { systemResolvers, systemTypeDefs } from './resolvers/system';
 
 // GraphQL Subscriptions
+// @ts-expect-error - ws module types not available
 import { WebSocketServer } from 'ws';
 import { useServer } from 'graphql-ws/use/ws';
 
 // Widget Store - ensure widgets are loaded before GraphQL setup
-import { widgets } from '@stores/widgetStore.svelte';
+import { widgetStoreActions, isLoaded } from '@stores/widgetStore.svelte';
+import { get } from 'svelte/store';
 
 // Unified Cache Service
 import { cacheService } from '@src/databases/CacheService';
@@ -66,11 +41,8 @@ import { PermissionAction, PermissionType, type User, type Role } from '@src/dat
 // System Logger
 import { logger } from '@utils/logger.server';
 
-// Import shared PubSub instance
-import { pubSub } from '@src/services/pubSub';
-
-// Removed local createPubSub() call
-// const pubSub = createPubSub();
+// Create a PubSub instance for subscriptions
+const pubSub = createPubSub();
 
 // Define the access management permission configuration
 const accessManagementPermission = {
@@ -89,17 +61,35 @@ if (!building) {
 }
 
 // Create a cache client adapter compatible with the expected interface in resolvers
-// WRAPPER: Maps generic get/set to CacheService with 'graphql' namespace prefix
-// NOTE: Resolvers should append specific keys. This ensures separation.
-// Cache client created above
+const cacheClient = getPrivateSettingSync('USE_REDIS')
+	? {
+			get: async (key: string, tenantId?: string) => {
+				try {
+					// Namespace GraphQL caches and include tenant when provided
+					return await cacheService.get<string>(`graphql:${key}`, tenantId);
+				} catch (err) {
+					logger.debug('GraphQL cache get failed, continuing without cache', err);
+					return null;
+				}
+			},
+			set: async (key: string, value: string, _ex: string, duration: number, tenantId?: string) => {
+				try {
+					await cacheService.set(`graphql:${key}`, value, duration, tenantId);
+				} catch (err) {
+					logger.debug('GraphQL cache set failed, continuing without cache', err);
+				}
+			}
+		}
+	: null;
 
 // Setup GraphQL schema and resolvers
 async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string) {
+	logger.info('Creating GraphQL schema', { tenantId });
+
 	// Ensure widgets are loaded before proceeding
-	if (!widgets.isLoaded) {
+	if (!get(isLoaded)) {
 		logger.debug('Widgets not loaded yet, initializing...');
-		// Pass dbAdapter to load active widgets from DB
-		await widgets.initialize(tenantId, dbAdapter);
+		await widgetStoreActions.initializeWidgets(tenantId);
 	}
 
 	const { typeDefs: collectionsTypeDefs, collections } = await registerCollections(tenantId);
@@ -109,6 +99,10 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 		_id?: string;
 		name?: string;
 	}>;
+	logger.debug('Collections array for GraphQL', {
+		collectionsCount: collectionsArray.length,
+		collectionNames: collectionsArray.map((c) => c?.name).filter(Boolean)
+	});
 
 	const typeDefs = `
 		input PaginationInput {
@@ -116,33 +110,21 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 			limit: Int = 50
 		}
 
-		scalar JSON
-
 		${collectionsTypeDefs}
 		${userTypeDefs()}
 		${mediaTypeDefs()}
 		${systemTypeDefs}
 
-
+		type Subscription {
+			postAdded: Post
+			contentStructureUpdated: ContentUpdateEvent!
+		}
 
 		type ContentUpdateEvent {
 			version: Int!
 			timestamp: String!
 			affectedCollections: [String!]!
 			changeType: String!
-		}
-
-		type EntryUpdateEvent {
-			collection: String!
-			id: String!
-			action: String!
-			data: JSON
-			timestamp: String!
-		}
-
-		type Subscription {
-			contentStructureUpdated: ContentUpdateEvent!
-			entryUpdated(collection: String, id: String): EntryUpdateEvent!
 		}
 
 		type AccessManagementPermission {
@@ -156,7 +138,7 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 		type Query {
 			${collectionsArray
 				.filter((collection) => collection && collection.name && collection._id)
-				.map((collection) => `${createCleanTypeName(collection)}(pagination: PaginationInput): [${createCleanTypeName(collection)}]`)
+				.map((collection) => `${createCleanTypeName(collection)}: [${createCleanTypeName(collection)}]`)
 				.join('\n')}
 			users(pagination: PaginationInput): [User]
 			me: User
@@ -166,17 +148,6 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 			mediaVideos(pagination: PaginationInput): [MediaVideo]
 			mediaRemote(pagination: PaginationInput): [MediaRemote]
 			accessManagementPermission: AccessManagementPermission
-
-			# System Queries
-			collectionStats(collectionId: String!): CollectionStats
-			allCollectionStats: [CollectionStats!]
-			navigationStructure(options: NavigationOptions): [NavigationNode]
-			nodeChildren(nodeId: String!): [NavigationNode]
-			breadcrumb(path: String!): [BreadcrumbItem]
-			contentManagerHealth: ContentManagerHealth
-			contentManagerDiagnostics: ContentManagerDiagnostics
-			contentManagerMetrics: ContentManagerMetrics
-			validateContentStructure: StructureValidation
 		}
 	`;
 
@@ -215,20 +186,6 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 					return context.pubSub.subscribe('contentStructureUpdated');
 				},
 				resolve: (payload: any) => payload
-			},
-			entryUpdated: {
-				subscribe: (_: unknown, _args: { collection?: string; id?: string }, context: { pubSub: any }) => {
-					// Subscribe to all updates
-					// In a real app, you might want to filter by collection/id here if the PubSub supports it,
-					// or filter in the resolver. For simplest implementation: subscribe to channel, modify payload in resolve?
-					// Actually, graphql-yoga pubsub is simple.
-					// We can just subscribe to the channel 'entryUpdated'.
-					const iterator = context.pubSub.subscribe('entryUpdated');
-					// We can filter in the resolver or using pipe/filter on iterator if needed.
-					// But standard pattern: client receives event and checks if it matches.
-					return iterator;
-				},
-				resolve: (payload: any) => payload
 			}
 		}
 	};
@@ -239,12 +196,14 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 
 async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
 	try {
+		logger.info('Setting up GraphQL schema and resolvers', { tenantId });
+
 		const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, tenantId);
 
 		// Create GraphQL Yoga app; let Yoga manage the schema from typeDefs/resolvers
 		const yogaApp = createYoga({
 			graphqlEndpoint: '/api/graphql',
-			landingPage: true,
+			landingPage: false as const,
 			plugins: [],
 			cors: false,
 			graphiql: {
@@ -255,6 +214,11 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
 			context: async ({ request }) => {
 				// Extract the context from the request if it was passed
 				const contextData = (request as Request & { contextData?: { user: unknown; tenantId?: string } }).contextData;
+				const user = contextData?.user as { _id?: string } | undefined;
+				logger.debug('GraphQL context created', {
+					userId: user?._id,
+					tenantId: contextData?.tenantId
+				});
 				return {
 					user: contextData?.user,
 					tenantId: contextData?.tenantId,
@@ -269,6 +233,9 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
 	} catch (error) {
 		logger.error('Error setting up GraphQL:', {
 			errorMessage: error instanceof Error ? error.message : 'Unknown error',
+			errorStack: error instanceof Error ? error.stack : undefined,
+			errorType: typeof error,
+			errorString: String(error),
 			tenantId
 		});
 		throw error;
@@ -318,6 +285,7 @@ async function initializeWebSocketServer(dbAdapter: DatabaseAdapter, tenantId?: 
 						try {
 							// Method 1: Bearer token (for API tokens)
 							if (connectionParams.authorization) {
+								logger.debug('WebSocket: Attempting auth via bearer token');
 								const token = connectionParams.authorization.replace(/^Bearer\s+/i, '');
 								const tokenValidation = await dbAdapter.auth.validateToken(token, undefined, 'access', tenantId);
 
@@ -332,11 +300,18 @@ async function initializeWebSocketServer(dbAdapter: DatabaseAdapter, tenantId?: 
 									}
 								}
 							}
+
+							// If no auth method succeeded
+							if (!user) {
+								logger.warn('WebSocket: Authentication failed - no valid credentials provided');
+							}
 						} catch (error) {
 							logger.error('WebSocket authentication error:', {
 								error: error instanceof Error ? error.message : 'Unknown error'
 							});
 						}
+					} else {
+						logger.warn('WebSocket: No connection params provided');
 					}
 
 					return {
@@ -363,6 +338,7 @@ const handler = async (event: RequestEvent) => {
 
 	// Authentication is handled by hooks.server.ts, but let's be extra sure
 	if (!locals.user) {
+		logger.warn('Unauthorized access to GraphQL endpoint');
 		return new Response(
 			JSON.stringify({
 				error: 'Unauthorized',
@@ -377,6 +353,7 @@ const handler = async (event: RequestEvent) => {
 
 	// Check if database adapter is available
 	if (!locals.dbAdapter) {
+		logger.error('Database adapter not available in GraphQL handler');
 		return new Response(
 			JSON.stringify({
 				error: 'Service Unavailable',
@@ -405,6 +382,8 @@ const handler = async (event: RequestEvent) => {
 			logger.debug('Initializing WebSocket server', { tenantId: locals.tenantId });
 			void initializeWebSocketServer(locals.dbAdapter, locals.tenantId);
 		}
+
+		logger.debug('GraphQL Yoga app ready, handling request');
 
 		// Create a compatible Request object for GraphQL Yoga
 		// The issue is that SvelteKit's request.url is a URL object, but GraphQL Yoga expects a string
@@ -435,32 +414,28 @@ const handler = async (event: RequestEvent) => {
 			tenantId: locals.tenantId
 		});
 
-		logger.debug('GraphQL Yoga response:', {
-			status: yogaResponse?.status,
-			statusText: yogaResponse?.statusText,
-			headers: yogaResponse ? Object.fromEntries(yogaResponse.headers.entries()) : 'N/A',
-			isResponse: yogaResponse instanceof Response
+		// Convert GraphQL Yoga response to proper SvelteKit Response
+		const responseText = await yogaResponse.text();
+		const headers = new Headers();
+
+		// Copy headers from yoga response
+		yogaResponse.headers.forEach((value, key) => {
+			headers.set(key, value);
 		});
 
-		if (!yogaResponse) {
-			logger.error('GraphQL Yoga returned undefined or null response');
-			throw new Error('GraphQL Yoga returned no response');
-		}
-
-		// Return a SvelteKit-compatible Response
-		// FIX: We consume the body to ensure it's loaded and return a new Response
-		// This handles streaming issues where SvelteKit/Node might not like the Yoga stream format directly
-		const bodyBuffer = await yogaResponse.arrayBuffer();
-
-		return new Response(bodyBuffer, {
+		return new Response(responseText, {
 			status: yogaResponse.status,
 			statusText: yogaResponse.statusText,
-			headers: yogaResponse.headers
+			headers: headers
 		});
 	} catch (error) {
 		logger.error('Error handling GraphQL request:', {
 			errorMessage: error instanceof Error ? error.message : 'Unknown error',
-			tenantId: locals.tenantId
+			errorStack: error instanceof Error ? error.stack : undefined,
+			errorType: typeof error,
+			errorString: String(error),
+			tenantId: locals.tenantId,
+			userId: locals.user?._id
 		});
 
 		// Return proper JSON error response

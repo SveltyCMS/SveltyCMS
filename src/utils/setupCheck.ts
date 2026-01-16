@@ -22,9 +22,7 @@ export function isSetupComplete(): boolean {
 
 	try {
 		// Use process.cwd() to ensure we look at the project root
-		// Support TEST_MODE for isolated testing without affecting live config
-		const configFileName = process.env.TEST_MODE ? 'private.test.ts' : 'private.ts';
-		const privateConfigPath = path.join(process.cwd(), 'config', configFileName);
+		const privateConfigPath = path.join(process.cwd(), 'config', 'private.ts');
 
 		if (!fs.existsSync(privateConfigPath)) {
 			setupStatus = false;
@@ -34,10 +32,9 @@ export function isSetupComplete(): boolean {
 		const configContent = fs.readFileSync(privateConfigPath, 'utf8');
 
 		// Regex checks to ensure keys are not set to empty strings
-		// Supports both Object property style (Key: "Value") and Variable assignment style (Key = "Value")
-		const hasJwtSecret = !/JWT_SECRET_KEY[:=]\s*(""|''|``)/.test(configContent);
-		const hasDbHost = !/DB_HOST[:=]\s*(""|''|``)/.test(configContent);
-		const hasDbName = !/DB_NAME[:=]\s*(""|''|``)/.test(configContent);
+		const hasJwtSecret = !/JWT_SECRET_KEY:\s*(""|''|``)/.test(configContent);
+		const hasDbHost = !/DB_HOST:\s*(""|''|``)/.test(configContent);
+		const hasDbName = !/DB_NAME:\s*(""|''|``)/.test(configContent);
 
 		// Config file exists and has values - assume setup complete for now
 		// Database validation will happen asynchronously in isSetupCompleteAsync()

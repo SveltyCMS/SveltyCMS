@@ -105,7 +105,7 @@ Features:
 							type="text"
 							placeholder="Search users..."
 							bind:value={searchTerm}
-							class="w-full rounded-md border border-surface-300 bg-surface-50 px-3 py-1.5 text-xs placeholder-surface-400 focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-200 dark:placeholder-surface-500"
+							class="w-full rounded-md border border-surface-300 bg-surface-50 px-3 py-1.5 text-xs placeholder-preset-400 focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-200 dark:placeholder-preset-500"
 						/>
 						<iconify-icon icon="mdi:magnify" class="absolute right-2 top-1/2 -translate-y-1/2 text-surface-400 dark:text-surface-500" width="14"
 						></iconify-icon>
@@ -125,7 +125,7 @@ Features:
 									/>
 									<span class="truncate text-sm font-medium text-surface-800 dark:text-surface-200">{user.name}</span>
 								</div>
-								<span class="shrink-0 text-xs text-surface-500 dark:text-surface-50">
+								<span class="shrink-0 text-xs text-surface-500 dark:text-surface-400">
 									{user.onlineTime || 'N/A'}
 								</span>
 							</div>

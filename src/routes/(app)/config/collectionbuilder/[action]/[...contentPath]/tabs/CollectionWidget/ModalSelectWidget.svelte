@@ -6,9 +6,12 @@
 
 <script lang="ts">
 	// Modern widget system
-	import { widgets } from '@stores/widgetStore.svelte';
+	import { activeWidgets, widgetFunctions, widgetStoreActions } from '@stores/widgetStore.svelte';
 	import { logger } from '@utils/logger';
+	import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 	import { onMount } from 'svelte';
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Skeleton Stores
 	import { modalState } from '@utils/modalState.svelte';
@@ -16,116 +19,101 @@
 	// Props
 	interface Props {
 		/** Exposes parent props to this component. */
-		parent: any;
+		parent?: any;
+		existingCategory?: any;
+		title?: string;
+		body?: string;
+		response?: (r: any) => void;
 	}
-	const { parent }: Props = $props();
+
+	const { existingCategory = { name: '', icon: '' }, title, body, response }: Props = $props();
 
 	// Define the search term variable
 	let searchTerm: string = $state('');
 
 	// Get available widgets from the modern store
-	const availableWidgets = $derived(widgets.widgetFunctions || {});
+	const availableWidgets = $derived($widgetFunctions || {});
+	const activeWidgetList = $derived($activeWidgets || []);
+
+	// Get only active widgets for the collection builder
+	const widget_keys = $derived(Object.keys(availableWidgets).filter((key) => activeWidgetList.includes(key)));
+
+	// Define the selected widget variable
+	const selected: string | null = $state(null);
 
 	// Initialize widgets on mount
 	onMount(async () => {
-		await widgets.initialize();
+		await widgetStoreActions.initializeWidgets();
 	});
 
 	// We've created a custom submit function to pass the response and close the modal.
+	// We've created a custom submit function to pass the response and close the modal.
 	function onFormSubmit(selected: any): void {
 		if (selected !== null) {
-			// close the modal and pass response
-			modalState.close({ selectedWidget: selected });
+			if (response) {
+				// Set the selected widget in the form data and update the modalStore
+				response({ selectedWidget: selected });
+			}
+			// close the modal
+			modalState.close();
 		} else {
 			logger.error('No widget selected');
 		}
 	}
 
 	// Base Classes
-	const cBase = 'card p-6 w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl bg-white dark:bg-surface-800';
-	const cHeader = 'text-3xl font-bold text-center mb-6 text-surface-900 dark:text-white';
-
-	// Tooltip not needed with new card design showing description
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-xl';
 </script>
 
-{#if modalState.active}
-	<div class={cBase}>
-		<header class="flex items-center justify-between border-b border-surface-200 pb-4 dark:text-surface-50">
-			<h2 class={cHeader}>
-				{modalState.active?.props?.title || 'Select Widget'}
-			</h2>
-			<button class="btn-icon preset-outlined-surface-500" onclick={parent.onClose} aria-label="Close modal">
-				<iconify-icon icon="mdi:close" width="24"></iconify-icon>
-			</button>
-		</header>
+<div class="space-y-4">
+	<header class="text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500">
+		{title ?? '(title missing)'}
+	</header>
+	<article class="hidden text-center sm:block">{body ?? '(body missing)'}</article>
+	<!-- Enable for debugging: -->
+	<form class={cForm}>
+		<div class="mb-3 border-b text-center text-primary-500">Choose your Widget</div>
+		<input type="text" placeholder="Search ..." class="input mb-3 w-full" bind:value={searchTerm} />
 
-		<!-- Search -->
-		<div class="relative my-4">
-			<iconify-icon icon="mdi:magnify" width="24" class="absolute left-4 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
-			<input type="text" placeholder="Search widgets..." class="input h-12 w-full pl-12 text-lg" bind:value={searchTerm} />
-		</div>
+		<div class="grid grid-cols-1 items-center justify-center gap-2 sm:grid-cols-2 md:grid-cols-3 md:gap-3">
+			{#each widget_keys.filter((item) => item !== null) as item}
+				{#if item && $widgets[item]?.GuiSchema}
+					{#if item.toLowerCase().includes(searchTerm.toLowerCase())}
+						<!-- Tooltip migration -->
+						<div class="relative block group">
+							<button
+								onclick={() => {
+									onFormSubmit(item);
+								}}
+								aria-label={item}
+								data-testid="widget-select-{item}"
+								class="preset-outlined-warning-500 btn relative flex items-center justify-start gap-1 w-full {selected === item
+									? 'bg-primary-500'
+									: ' preset-outlined-warning-500 hover:preset-ghost-warning-500'}"
+							>
+								<iconify-icon icon={$widgets[item]?.Icon} width="22" class="mr-1 text-tertiary-500"></iconify-icon>
+								<span class="text-surface-700 dark:text-white">{item}</span>
 
-		<!-- Grid -->
-		<div class="flex-1 overflow-y-auto p-6">
-			{#each ['Core', 'Custom', 'Marketplace'] as category}
-				{@const categoryKeys =
-					category === 'Core'
-						? widgets.coreWidgets
-						: category === 'Custom'
-							? widgets.customWidgets
-							: category === 'Marketplace'
-								? widgets.marketplaceWidgets
-								: []}
-
-				{@const filteredKeys = categoryKeys.filter((key) => !searchTerm || key.toLowerCase().includes(searchTerm.toLowerCase()))}
-
-				{#if filteredKeys.length > 0}
-					<div class="mb-8 last:mb-0">
-						<h3 class="mb-4 text-xl font-bold uppercase tracking-wider text-surface-500 dark:text-surface-50">
-							{category} Widgets
-						</h3>
-						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-							{#each filteredKeys as item}
-								{#if item && (availableWidgets[item] as any)?.GuiSchema}
-									<button
-										onclick={() => onFormSubmit(item)}
-										class="group relative flex flex-col gap-3 rounded-xl border border-surface-200 bg-surface-50 p-5 text-left transition-all hover:-translate-y-1 hover:border-primary-500 hover:shadow-lg dark:text-surface-50 dark:bg-surface-800 dark:hover:border-primary-500"
-										aria-label={item}
-									>
-										<div class="flex items-start justify-between w-full">
-											<div
-												class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-200 text-surface-600 transition-colors group-hover:bg-primary-500 group-hover:text-white dark:bg-surface-700 dark:text-surface-300"
-											>
-												<iconify-icon icon={availableWidgets[item]?.Icon} width="28"></iconify-icon>
-											</div>
-											<!-- Optional: Add specific badges here if metadata existed -->
-										</div>
-
-										<div>
-											<h3 class="text-lg font-bold text-surface-900 group-hover:text-primary-500 dark:text-white dark:group-hover:text-primary-400">
-												{item}
-											</h3>
-											<p class="mt-1 line-clamp-2 text-xs text-surface-500 dark:text-surface-50">
-												{availableWidgets[item]?.Description || 'No description available'}
-											</p>
-										</div>
-									</button>
-								{/if}
-							{/each}
+								<!-- helpericon -->
+								<iconify-icon icon="material-symbols:info" width="20" class="absolute right-2 top-2 text-primary-500"></iconify-icon>
+							</button>
+							<!-- Hover Tooltip -->
+							<div
+								class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 rounded bg-surface-800 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"
+							>
+								{$widgets[item]?.Description}
+								<div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-surface-800"></div>
+							</div>
 						</div>
-					</div>
+					{/if}
 				{/if}
 			{/each}
-
-			<!-- Empty State -->
-			{#if [...widgets.coreWidgets, ...widgets.customWidgets, ...widgets.marketplaceWidgets].filter((key) => key
-					.toLowerCase()
-					.includes(searchTerm.toLowerCase())).length === 0}
-				<div class="flex flex-col items-center justify-center py-20 opacity-50">
-					<iconify-icon icon="mdi:package-variant-closed" width="64" class="mb-4"></iconify-icon>
-					<p class="text-xl">No widgets found for "{searchTerm}"</p>
-				</div>
-			{/if}
 		</div>
-	</div>
-{/if}
+	</form>
+
+	<footer class="flex {existingCategory.name ? 'justify-between' : 'justify-end'} pt-4 border-t border-surface-500/20">
+		<div class="flex gap-2">
+			<button class="preset-outlined-secondary-500 btn" onclick={() => modalState.close()}>{m.button_cancel()}</button>
+		</div>
+	</footer>
+</div>

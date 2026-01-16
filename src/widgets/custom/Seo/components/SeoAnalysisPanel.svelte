@@ -20,15 +20,15 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 	let { analysisResult, class: className = '', expanded = $bindable(false), isAnalyzing = false }: Props = $props();
 </script>
 
-<div class="card preset-tonal-surface flex flex-col overflow-hidden {className} transition-all duration-300 {expanded ? 'h-[500px]' : 'h-16'}">
+<div class="card preset-soft-surface-500 flex flex-col overflow-hidden {className} transition-all duration-300 {expanded ? 'h-[500px]' : 'h-16'}">
 	<button
 		type="button"
-		class="flex items-center gap-4 w-full p-3 bg-surface-100-800-token hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors text-left"
+		class="flex items-center gap-4 w-full p-3 bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors text-left"
 		onclick={() => (expanded = !expanded)}
 	>
 		<div class="flex items-center gap-2 flex-1">
 			<iconify-icon icon="mdi:google-analytics" class="text-tertiary-500 text-xl"></iconify-icon>
-			<h3 class="h3 text-lg!">Analysis</h3>
+			<h3 class="h3 !text-lg">Analysis</h3>
 		</div>
 
 		{#if analysisResult}
@@ -103,7 +103,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 						</div>
 					{/each}
 				{:else}
-					<div class="alert variant-soft-success">
+					<div class="alert preset-soft-success-500">
 						<iconify-icon icon="mdi:check-circle" class="text-xl"></iconify-icon>
 						<span class="text-sm">No issues found!</span>
 					</div>

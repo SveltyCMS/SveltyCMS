@@ -2,348 +2,546 @@
  * @file src/utils/compilation/compile.ts
  * @description Compiles TypeScript files from the collections folder into JavaScript files using vite with custom AST transformations
  *
- * Enterprise Features:
- * - Robust Error Handling & Typing
- * - Concurrent Processing with Limit
- * - Structured Logging Interface
- * - Modular AST Transformers
- * - Content Hashing & UUID Management
- * - Orphaned File Cleanup
+ * Features:
+ * - Recursive directory scanning for nested collections
+ * - Avoids recompilation of unchanged files via hash comparison
+ * - Content hashing for change detection
+ * - Concurrent file operations for improved performance
+ * - Support for nested category structure
+ * - Error handling and logging
+ * - Cleanup of orphaned collection files
+ * - Name conflict detection to prevent duplicate collection names
+ * - HASH and UUID Management for collections and widgets
  */
 
 import fs from 'fs/promises';
 import path from 'path';
 import * as ts from 'typescript';
 import { v4 as uuidv4 } from 'uuid';
-import { createHash } from 'crypto';
-import type { CompileOptions, CompilationResult, ExistingFileData, Logger } from './types';
-import { widgetTransformer, addJsExtensionTransformer, commonjsToEsModuleTransformer, schemaUuidTransformer } from './transformers';
-// Schema comparison (collectionSchemaWarnings.ts) runs at runtime in GUI/API when schemas are loaded
-// schemaWarnings in CompilationResult is populated by the collection save flow, not compilation
 
-// Default logger implementation
-const defaultLogger: Logger = {
-	info: (msg) => console.log(`\x1b[34m[Compile]\x1b[0m ${msg}`),
-	success: (msg) => console.log(`\x1b[34m[Compile]\x1b[0m \x1b[32m${msg}\x1b[0m`),
-	warn: (msg) => console.warn(`\x1b[34m[Compile]\x1b[0m \x1b[33m${msg}\x1b[0m`),
-	error: (msg, err) => console.error(`\x1b[34m[Compile]\x1b[0m \x1b[31m${msg}\x1b[0m`, err)
-};
+// Note: Cannot import logger.server here as this file is imported by vite.config.ts
+// which runs before SvelteKit is initialized. Use console for build-time logging.
 
-function logSuccess(logger: Logger, msg: string) {
-	if (logger.success) {
-		logger.success(msg);
-	} else {
-		logger.info(msg);
-	}
+interface CompileOptions {
+	systemCollections?: string;
+	userCollections?: string;
+	compiledCollections?: string;
 }
 
-export async function compile(options: CompileOptions = {}): Promise<CompilationResult> {
-	const startTime = Date.now();
-	const logger = options.logger || defaultLogger;
+interface ExistingFileData {
+	jsPath: string;
+	uuid: string | null;
+	hash: string | null;
+}
 
-	// Default paths
-	const userCollections = options.userCollections || path.posix.join(process.cwd(), 'config/collections');
-	const compiledCollections = options.compiledCollections || path.posix.join(process.cwd(), 'compiledCollections');
-	const concurrencyLimit = options.concurrency || 5;
-
-	const result: CompilationResult = {
-		processed: 0,
-		skipped: 0,
-		errors: [],
-		duration: 0,
-		orphanedFiles: [],
-		schemaWarnings: []
-	};
+export async function compile(options: CompileOptions = {}): Promise<void> {
+	// Define collection paths directly and use process.cwd()
+	const {
+		userCollections = path.posix.join(process.cwd(), 'config/collections'),
+		compiledCollections = path.posix.join(process.cwd(), 'compiledCollections')
+	} = options;
 
 	try {
-		// Ensure output directories exist
+		// Ensure both input and output directories exist
 		await fs.mkdir(userCollections, { recursive: true });
 		await fs.mkdir(compiledCollections, { recursive: true });
 
-		// 1. Scan existing state
-		const { existingFilesByPath, existingFilesByHash } = await scanCompiledFiles(compiledCollections, logger);
+		// 1. Pre-scan existing compiled files
+		const { existingFilesByPath, existingFilesByHash } = await scanCompiledFiles(compiledCollections);
 
-		// 2. Discover source files
+		// 2. Get source TypeScript and JavaScript files
 		const sourceFiles = await getTypescriptAndJavascriptFiles(userCollections);
+		// Create a set of source file relative paths for quick lookup during clone detection
 		const sourceFileSet = new Set(sourceFiles);
-
-		// 3. Create directory structure
+		// 3. Create output directories for source files
 		await createOutputDirectories(sourceFiles, compiledCollections);
 
-		// 4. Process files with concurrency control
+		// 4. Compile source files concurrently and track processed paths
 		const processedJsPaths = new Set<string>();
-		const queue = [...sourceFiles]; // Clone array to manage queue
-		const workers = [];
-
-		// Simple concurrency implementation
-		const worker = async () => {
-			while (queue.length > 0) {
-				const file = queue.shift();
-				if (!file) break;
-
-				// If specific target file is requested, skip others
-				if (options.targetFile) {
-					// Normalize paths for comparison (handle leading ./ or different separators)
-					const normalizedTarget = path.normalize(options.targetFile);
-					const normalizedFile = path.normalize(path.join(userCollections, file));
-					// Check if this source file corresponds to the target file
-					// The passed targetFile might be absolute or relative
-					if (!normalizedFile.endsWith(normalizedTarget) && !normalizedTarget.endsWith(file)) {
-						continue;
-					}
-				}
-
-				try {
-					// Calculate the expected JS path for this source file
-					const expectedJsPath = file.replace(/\.(ts|js)$/, '.js');
-
-					const jsFilePath = await compileFile(
-						file,
-						userCollections,
-						compiledCollections,
-						existingFilesByPath,
-						existingFilesByHash,
-						sourceFileSet,
-						logger
-					);
-
-					if (jsFilePath) {
-						if (jsFilePath === 'SKIPPED') {
-							// For skipped files, add the actual expected path (not 'SKIPPED')
-							processedJsPaths.add(expectedJsPath);
-							result.skipped++;
-						} else {
-							processedJsPaths.add(jsFilePath);
-							result.processed++;
-						}
-					}
-				} catch (err) {
-					result.errors.push({
-						file,
-						error: err instanceof Error ? err : new Error(String(err))
-					});
-					logger.error(`Failed to compile ${file}`, err);
-				}
+		const compilePromises = sourceFiles.map(async (file) => {
+			const jsFilePath = await compileFile(file, userCollections, compiledCollections, existingFilesByPath, existingFilesByHash, sourceFileSet);
+			if (jsFilePath) {
+				processedJsPaths.add(jsFilePath);
 			}
-		};
+		});
+		await Promise.all(compilePromises);
 
-		// Start workers
-		for (let i = 0; i < Math.min(concurrencyLimit, sourceFiles.length); i++) {
-			workers.push(worker());
-		}
-		await Promise.all(workers);
-
-		// 5. Cleanup (only if doing a full compile, i.e., no targetFile)
-		if (!options.targetFile) {
-			result.orphanedFiles = await cleanupOrphanedFiles(existingFilesByPath, processedJsPaths, compiledCollections, logger);
-		}
+		// 5. Cleanup orphaned files
+		await cleanupOrphanedFiles(compiledCollections, existingFilesByPath, processedJsPaths);
 	} catch (error) {
-		logger.error('Fatal compilation error', error);
 		if (error instanceof Error && error.message.includes('Collection name conflict')) {
+			console.error('\x1b[31mError:\x1b[0m', error.message);
+			// Propagate the specific error
 			throw error;
 		}
-		// Propagate but ensure error is logged
+		// Rethrow other errors
 		throw error;
 	}
-
-	result.duration = Date.now() - startTime;
-	return result;
 }
 
-// --- Helper Functions ---
-
-async function scanCompiledFiles(
-	dir: string,
-	logger: Logger
-): Promise<{
+// Helper to scan existing compiled files and build lookup maps
+async function scanCompiledFiles(compiledCollections: string): Promise<{
 	existingFilesByPath: Map<string, ExistingFileData>;
 	existingFilesByHash: Map<string, ExistingFileData>;
 }> {
-	const byPath = new Map<string, ExistingFileData>();
-	const byHash = new Map<string, ExistingFileData>();
+	const existingFilesByPath = new Map<string, ExistingFileData>();
+	const existingFilesByHash = new Map<string, ExistingFileData>();
 
-	async function traverse(current: string) {
+	async function traverseDirectory(currentFolder: string) {
 		try {
-			const entries = await fs.readdir(current, { withFileTypes: true });
+			const entries = await fs.readdir(currentFolder, { withFileTypes: true });
 			for (const entry of entries) {
-				const fullPath = path.posix.join(current, entry.name);
+				const fullPath = path.posix.join(currentFolder, entry.name);
 				if (entry.isDirectory()) {
-					await traverse(fullPath);
+					await traverseDirectory(fullPath);
 				} else if (entry.isFile() && entry.name.endsWith('.js')) {
-					const relativePath = path.posix.relative(dir, fullPath);
+					const relativePath = path.posix.relative(compiledCollections, fullPath);
 					try {
 						const content = await fs.readFile(fullPath, 'utf8');
 						const hash = extractHashFromJs(content);
 						const uuid = extractUUIDFromJs(content);
-						const data: ExistingFileData = { jsPath: relativePath, uuid, hash };
+						const fileData: ExistingFileData = { jsPath: relativePath, uuid, hash };
 
-						byPath.set(relativePath, data);
-						if (hash) byHash.set(hash, data);
-					} catch (e) {
-						logger.warn(`Could not read compiled file ${relativePath}`);
+						existingFilesByPath.set(relativePath, fileData);
+						// Only add to hash map if hash is valid
+						if (hash) {
+							// Handle potential hash collisions (rare, but possible)
+							// If collision, prioritize the one already in the map or log a warning.
+							// For simplicity here, we overwrite, assuming MD5 collisions are unlikely for typical collection files.
+							existingFilesByHash.set(hash, fileData);
+						}
+					} catch (readError) {
+						console.warn(`Warning: Could not read or parse compiled file ${relativePath}:`, readError);
 					}
 				}
 			}
-		} catch (e) {
-			if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
-				logger.error(`Error scanning ${current}`, e);
+		} catch (err) {
+			if (err instanceof Error && 'code' in err && err.code !== 'ENOENT') {
+				console.error(`Error scanning directory ${currentFolder}:`, err);
 			}
 		}
 	}
 
-	await traverse(dir);
-	return { existingFilesByPath: byPath, existingFilesByHash: byHash };
+	await traverseDirectory(compiledCollections);
+	return { existingFilesByPath, existingFilesByHash };
 }
 
-async function getTypescriptAndJavascriptFiles(folder: string, subdir = ''): Promise<string[]> {
+async function getTypescriptAndJavascriptFiles(folder: string, subdir: string = ''): Promise<string[]> {
 	const files: string[] = [];
+
 	try {
 		const entries = await fs.readdir(path.posix.join(folder, subdir), { withFileTypes: true });
-		const collectionNames = new Set<string>();
+		const dirCollectionNames = new Set<string>();
 
 		for (const entry of entries) {
 			const relativePath = path.posix.join(subdir, entry.name);
+
 			if (entry.isDirectory()) {
-				files.push(...(await getTypescriptAndJavascriptFiles(folder, relativePath)));
-			} else if (entry.isFile() && /\.(ts|js)$/.test(entry.name)) {
-				const name = entry.name.replace(/\.(ts|js)$/, '');
-				if (collectionNames.has(name)) {
-					throw new Error(`Collection name conflict: "${name}" used multiple times in ${path.posix.join(folder, subdir)}`);
+				// Recursively get files from subdirectories
+				const subFiles = await getTypescriptAndJavascriptFiles(folder, relativePath);
+				files.push(...subFiles);
+			} else if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.js'))) {
+				const collectionName = entry.name.replace(/\.(ts|js)$/, '');
+				if (dirCollectionNames.has(collectionName)) {
+					// Construct full path for error message
+					const conflictPath = path.posix.join(folder, subdir, entry.name);
+					throw new Error(`Collection name conflict: "${collectionName}" is used multiple times in directory "${path.posix.dirname(conflictPath)}".`);
 				}
-				collectionNames.add(name);
+				dirCollectionNames.add(collectionName);
 				files.push(relativePath);
 			}
 		}
-	} catch (e) {
-		if ((e as NodeJS.ErrnoException).code === 'ENOENT') return [];
-		throw e;
+	} catch (err) {
+		if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
+			console.warn(`Source directory not found: ${path.posix.join(folder, subdir)}`);
+			return [];
+		}
+		// Rethrow other errors
+		throw err;
 	}
+
 	return files;
 }
 
-async function createOutputDirectories(files: string[], baseDir: string): Promise<void> {
-	const dirs = new Set(files.map((f) => path.posix.dirname(f)).filter((d) => d !== '.'));
-	await Promise.all(Array.from(dirs).map((d) => fs.mkdir(path.posix.join(baseDir, d), { recursive: true })));
+// Updated cleanup function
+export async function cleanupOrphanedFiles(
+	compiledCollections: string,
+	existingFilesByPath: Map<string, ExistingFileData>,
+	processedJsPaths: Set<string>
+): Promise<void> {
+	const unlinkPromises: Promise<void>[] = [];
+
+	// Iterate through the files found during the initial scan
+	for (const relativePath of existingFilesByPath.keys()) {
+		// Only need the path (key)
+		// If a file existed before but wasn't processed in this run (not compiled, not skipped), it's orphaned.
+		if (!processedJsPaths.has(relativePath)) {
+			const fullPath = path.posix.join(compiledCollections, relativePath);
+			// Keep essential log for removal action
+			console.log(`\x1b[31mRemoving orphaned collection file:\x1b[0m \x1b[34m${relativePath}\x1b[0m`);
+			// Add the unlink promise to the array
+			unlinkPromises.push(fs.unlink(fullPath).catch((err) => console.error(`Error removing orphaned file ${fullPath}:`, err)));
+		}
+	}
+
+	// Wait for all unlink operations to complete
+	await Promise.all(unlinkPromises);
+
+	// Clean up empty directories using a recursive function with a post-order traversal
+	async function removeEmptyDirs(folder: string): Promise<boolean> {
+		let entries;
+		try {
+			entries = await fs.readdir(folder, { withFileTypes: true });
+		} catch (err) {
+			if (err instanceof Error && 'code' in err && err.code === 'ENOENT') return true;
+			console.error(`Error reading directory ${folder} for cleanup:`, err);
+			return false;
+		}
+
+		let isEmpty = true;
+		const dirPromises: Promise<boolean>[] = [];
+
+		for (const entry of entries) {
+			const fullPath = path.posix.join(folder, entry.name);
+			if (entry.isDirectory()) {
+				// Recursively check subdirectory and add promise
+				dirPromises.push(removeEmptyDirs(fullPath));
+			} else {
+				// If there's a file, the directory is not empty
+				isEmpty = false;
+			}
+		}
+
+		if ((await Promise.all(dirPromises)).some((res) => !res)) {
+			isEmpty = false;
+		}
+
+		if (isEmpty) {
+			try {
+				await fs.rmdir(folder);
+				return true;
+			} catch (rmErr) {
+				console.error(`Error removing directory ${folder}:`, rmErr);
+				return false;
+			}
+		}
+		return false;
+	}
+
+	// Start cleanup from the root compiled directory
+	await removeEmptyDirs(compiledCollections);
 }
 
+// Optimized for creating nested output directories
+async function createOutputDirectories(files: string[], destFolder: string): Promise<void> {
+	const directories = new Set(files.map((file) => path.posix.dirname(file)).filter((dir) => dir !== '.'));
+	const mkdirPromises = Array.from(directories).map((dir) => fs.mkdir(path.posix.join(destFolder, dir), { recursive: true }));
+	await Promise.all(mkdirPromises);
+}
+
+// Updated compileFile function
 async function compileFile(
 	file: string,
-	srcDir: string,
-	destDir: string,
-	existingByPath: Map<string, ExistingFileData>,
-	existingByHash: Map<string, ExistingFileData>,
-	sourceSet: Set<string>,
-	logger: Logger
+	srcFolder: string,
+	destFolder: string,
+	existingFilesByPath: Map<string, ExistingFileData>,
+	existingFilesByHash: Map<string, ExistingFileData>,
+	sourceFileSet: Set<string>
 ): Promise<string | null> {
-	const srcPath = path.posix.join(srcDir, file);
-	const targetRel = file.replace(/\.(ts|js)$/, '.js');
-	const targetAbs = path.posix.join(destDir, targetRel);
+	const sourceFilePath = path.posix.join(srcFolder, file);
+	const targetJsPathRelative = file.replace(/\.(ts|js)$/, '.js');
+	const targetJsPathAbsolute = path.posix.join(destFolder, targetJsPathRelative);
+	const shortPath = path.posix.relative(process.cwd(), targetJsPathAbsolute);
 
-	const content = await fs.readFile(srcPath, 'utf8');
-	const hash = createHash('sha256').update(content).digest('hex').slice(0, 16);
-	const existing = existingByPath.get(targetRel);
+	try {
+		// 1. Read the source file content
+		const sourceContent = await fs.readFile(sourceFilePath, 'utf8');
+		const sourceContentHash = getContentHash(sourceContent);
+		const existingDataAtPath = existingFilesByPath.get(targetJsPathRelative);
 
-	// Optimization: Skip if hash matches
-	if (existing && existing.hash === hash) {
-		return 'SKIPPED';
-	}
-
-	// UUID Resolution Strategy
-	let uuid: string | null = null;
-	let reason = '';
-
-	// 1. Check content hash (move/rename detection)
-	const moved = existingByHash.get(hash);
-	if (!existing && moved?.uuid) {
-		// Check if original still exists to distinguish move vs clone
-		const origTs = moved.jsPath.replace(/\.js$/, '.ts');
-		if (!sourceSet.has(origTs)) {
-			uuid = moved.uuid;
-			reason = 'Reused (move/rename)';
+		// Case 1: Target file exists and hash matches -> Reuse UUID, skip compile
+		if (existingDataAtPath && existingDataAtPath.hash === sourceContentHash) {
+			return targetJsPathRelative;
 		}
+
+		let uuid: string | null = null;
+		let uuidReason = '';
+		let isClone = false;
+		const existingDataByHash = existingFilesByHash.get(sourceContentHash);
+
+		if (!existingDataAtPath && existingDataByHash?.uuid) {
+			const potentialOriginalSourceTs = existingDataByHash.jsPath.replace(/\.js$/, '.ts');
+			const potentialOriginalSourceJs = existingDataByHash.jsPath;
+			const tsSourceExists = sourceFileSet.has(potentialOriginalSourceTs);
+			const jsSourceExists = sourceFileSet.has(potentialOriginalSourceJs);
+
+			if ((tsSourceExists && potentialOriginalSourceTs !== file) || (jsSourceExists && potentialOriginalSourceJs !== file)) {
+				// Original source still exists -> This is a CLONE
+				isClone = true;
+			} else {
+				// Original source likely gone -> This is a MOVE/RENAME
+				uuid = existingDataByHash.uuid;
+				uuidReason = 'Reused from content hash (move/rename)';
+			}
+		}
+
+		// Case 3: Target file exists but hash differs (and not a clone detected above) -> Reuse existing UUID at path if valid
+		if (!uuid && !isClone && existingDataAtPath && existingDataAtPath.uuid) {
+			uuid = existingDataAtPath.uuid;
+			uuidReason = 'Reused from existing file path';
+		}
+
+		// Case 4: No existing UUID found (or it's a clone) -> Generate new UUID
+		if (!uuid || isClone) {
+			uuid = uuidv4().replace(/-/g, '');
+			uuidReason = isClone ? 'Generated new (clone detected)' : 'Generated new';
+		}
+
+		const isTypeScript = file.endsWith('.ts');
+		const transpileResult = isTypeScript
+			? ts.transpileModule(sourceContent, {
+					compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext, esModuleInterop: true, allowJs: true }
+				})
+			: { outputText: sourceContent };
+
+		let finalCode = transformCodeWithAST(transpileResult.outputText, uuid);
+		finalCode = processHashAndUUID(finalCode, sourceContentHash, targetJsPathRelative);
+
+		await writeCompiledFile(targetJsPathAbsolute, finalCode);
+		console.log(`Compiled \x1b[32m${shortPath}\x1b[0m (\x1b[36m${uuidReason}\x1b[0m: \x1b[33m${uuid}\x1b[0m)`);
+
+		return targetJsPathRelative;
+	} catch (error) {
+		console.error(`Error compiling file ${file}:`, error);
+		return null;
 	}
-
-	// 2. Reuse existing file's UUID
-	if (!uuid && existing?.uuid) {
-		uuid = existing.uuid;
-		reason = 'Reused (path match)';
-	}
-
-	// 3. Generate new
-	if (!uuid) {
-		uuid = uuidv4().replace(/-/g, '');
-		reason = 'Generated new';
-	}
-
-	// Compile
-	const transpile = file.endsWith('.ts')
-		? ts.transpileModule(content, { compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext } })
-		: { outputText: content };
-
-	let code = transformAST(transpile.outputText, uuid);
-	code = wrapOutput(code, hash, targetRel);
-
-	await fs.writeFile(targetAbs, code);
-	logSuccess(logger, `Compiled ${file} (${reason}: \x1b[33m${uuid}\x1b[0m)`);
-
-	return targetRel;
 }
 
+// --- AST Transformation Functions ---
 const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-function transformAST(code: string, uuid: string): string {
-	const source = ts.createSourceFile('temp.js', code, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS);
-	const res = ts.transform(source, [schemaUuidTransformer(uuid), widgetTransformer, addJsExtensionTransformer, commonjsToEsModuleTransformer]);
-	return printer.printFile(res.transformed[0]);
+
+function transformCodeWithAST(code: string, uuid: string): string {
+	const sourceFile = ts.createSourceFile('tempFile.js', code, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS);
+	const transformationResult = ts.transform(sourceFile, [
+		schemaUuidTransformer(uuid), // Inject UUID into schema
+		widgetTransformer, // Apply custom transformations
+		addJsExtensionTransformer, // Add .js extensions
+		commonjsToEsModuleTransformer // Replace __filename and __dirname
+	]);
+	return printer.printFile(transformationResult.transformed[0]);
 }
 
-function wrapOutput(code: string, hash: string, pathRel: string): string {
-	// Add header comments
-	let out = code.replace(/(\s*\*\s*@file\s+)(.*)/, `$1compiledCollections/${pathRel}`);
-	out = out.replace(/^\/\/\s*(HASH|UUID):.*$/gm, '').trimStart();
+// Transformer factory for widget-related changes
+const widgetTransformer: ts.TransformerFactory<ts.SourceFile> = (context) => (sourceFile) => {
+	const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
+		// 1. Remove widget imports
+		if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+			const moduleSpecifier = node.moduleSpecifier.text;
+			let removeImport = false;
 
-	return `// WARNING: Generated file. Do not edit.\n` + `// HASH: ${hash}\n\n` + out;
-}
+			// Old pattern: import widgets from '@widgets'
+			if (node.importClause?.name?.text === 'widgets' && /widgets/.test(moduleSpecifier)) {
+				removeImport = true;
+			}
 
-function extractHashFromJs(content: string) {
-	return content.match(/^\/\/\s*HASH:\s*([a-f0-9]{16})\s*$/m)?.[1] || null;
-}
-function extractUUIDFromJs(content: string) {
-	return content.match(/^\/\/\s*UUID:\s*([a-f0-9-]+)\s*$/m)?.[1] || null;
-}
+			// New patterns (aliased):
+			if (node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings)) {
+				const hasWidgetsAlias = node.importClause.namedBindings.elements.some((element) => element.name.text === 'widgets');
 
-async function cleanupOrphanedFiles(
-	existing: Map<string, ExistingFileData>,
-	kept: Set<string>,
-	compiledCollections: string,
-	logger: Logger
-): Promise<string[]> {
-	const orphanedFiles = Array.from(existing.keys()).filter((f) => !kept.has(f) && f !== 'SKIPPED');
+				if (hasWidgetsAlias) {
+					// Check if it's one of the known widget sources
+					if (
+						moduleSpecifier.includes('@stores/widgetStore.svelte') ||
+						moduleSpecifier.includes('@src/widgets/proxy') || // <-- THIS IS THE FIX
+						moduleSpecifier.includes('widgets/proxy') || // <-- Added for robustness
+						/widgets/.test(moduleSpecifier)
+					) {
+						removeImport = true;
+					}
+				}
+			}
 
-	if (orphanedFiles.length > 0) {
-		// Terminal-friendly formatted message with actionable guidance
-		const divider = '─'.repeat(60);
-		logger.warn(`\n┌${divider}┐`);
-		logger.warn(`│  ⚠️  Orphaned Compiled Collections Detected${' '.repeat(15)}│`);
-		logger.warn(`├${divider}┤`);
-		logger.warn(`│${' '.repeat(61)}│`);
-		logger.warn(`│  The following compiled files have no matching source:${' '.repeat(4)}│`);
-
-		for (const file of orphanedFiles) {
-			const padding = 57 - file.length;
-			logger.warn(`│    • ${file}${' '.repeat(Math.max(0, padding))}│`);
+			if (removeImport) {
+				return []; // Return an empty array to remove the import node
+			}
 		}
 
-		logger.warn(`│${' '.repeat(61)}│`);
-		logger.warn(`│  This usually means:${' '.repeat(39)}│`);
-		logger.warn(`│    1. You renamed/moved a source collection file${' '.repeat(10)}│`);
-		logger.warn(`│    2. You deleted a collection that's no longer needed${' '.repeat(4)}│`);
-		logger.warn(`│${' '.repeat(61)}│`);
-		logger.warn(`│  To clean up manually, delete from:${' '.repeat(23)}│`);
-		logger.warn(`│    ${compiledCollections.slice(-50)}${' '.repeat(Math.max(0, 55 - compiledCollections.slice(-50).length))}│`);
-		logger.warn(`│${' '.repeat(61)}│`);
-		logger.warn(`└${divider}┘\n`);
-	}
+		// 2. Replace standalone `widgets` identifier with `globalThis.widgets`
+		if (ts.isIdentifier(node) && node.text === 'widgets') {
+			// Avoid replacing if it's already part of `globalThis.widgets` or a property name
+			if (
+				!ts.isPropertyAccessExpression(node.parent) ||
+				(ts.isPropertyAccessExpression(node.parent) && node.parent.name !== node) ||
+				(ts.isPropertyAccessExpression(node.parent) &&
+					node.parent.expression.kind !== ts.SyntaxKind.ThisKeyword &&
+					(!ts.isIdentifier(node.parent.expression) || node.parent.expression.text !== 'globalThis'))
+			) {
+				return ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier('globalThis'), ts.factory.createIdentifier('widgets'));
+			}
+		}
 
-	// Return the list so GUI can display it appropriately
-	return orphanedFiles;
+		// 3. Inject UUID into widget calls (unchanged from your code)
+		if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
+			const isWidgetCall =
+				ts.isPropertyAccessExpression(node.expression.expression) &&
+				ts.isIdentifier(node.expression.expression.expression) &&
+				node.expression.expression.expression.text === 'globalThis' &&
+				ts.isIdentifier(node.expression.expression.name) &&
+				node.expression.expression.name.text === 'widgets';
+			if (isWidgetCall && node.arguments.length > 0 && ts.isObjectLiteralExpression(node.arguments[0])) {
+				const objectLiteral = node.arguments[0];
+				const hasUuid = objectLiteral.properties.some(
+					(prop) => ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name) && prop.name.text === 'uuid'
+				);
+				if (!hasUuid) {
+					const uuidProperty = ts.factory.createPropertyAssignment('uuid', ts.factory.createStringLiteral(uuidv4()));
+					const updatedProperties = [uuidProperty, ...objectLiteral.properties];
+					const updatedObjectLiteral = ts.factory.updateObjectLiteralExpression(objectLiteral, updatedProperties);
+					return ts.factory.updateCallExpression(node, node.expression, node.typeArguments, [updatedObjectLiteral, ...node.arguments.slice(1)]);
+				}
+			}
+		}
+
+		return ts.visitEachChild(node, visitor, context);
+	};
+	return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+};
+
+// Transformer factory specifically for adding .js extensions to relative imports/exports
+const addJsExtensionTransformer: ts.TransformerFactory<ts.SourceFile> = (context) => (sourceFile) => {
+	const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
+		if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+			const specifier = node.moduleSpecifier.text;
+			if (specifier.startsWith('.') && !specifier.endsWith('.js') && !specifier.endsWith('.json')) {
+				// Avoid adding .js to .json
+				const newSpecifier = ts.factory.createStringLiteral(specifier + '.js');
+				if (ts.isImportDeclaration(node)) {
+					return ts.factory.updateImportDeclaration(node, node.modifiers, node.importClause, newSpecifier, node.assertClause);
+				} else {
+					return ts.factory.updateExportDeclaration(node, node.modifiers, node.isTypeOnly, node.exportClause, newSpecifier, node.assertClause);
+				}
+			}
+		}
+		return ts.visitEachChild(node, visitor, context);
+	};
+	return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+};
+
+// Transformer factory for converting CommonJS globals to ES module equivalents
+const commonjsToEsModuleTransformer: ts.TransformerFactory<ts.SourceFile> = (context) => (sourceFile) => {
+	let needsFileURLToPath = false;
+	const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
+		// Replace __filename with ES module equivalent
+		if (ts.isIdentifier(node) && node.text === '__filename') {
+			needsFileURLToPath = true;
+			// Create: fileURLToPath(import.meta.url)
+			return ts.factory.createCallExpression(ts.factory.createIdentifier('fileURLToPath'), undefined, [
+				ts.factory.createPropertyAccessExpression(
+					ts.factory.createMetaProperty(ts.SyntaxKind.ImportKeyword, ts.factory.createIdentifier('meta')),
+					'url'
+				)
+			]);
+		}
+
+		// Replace __dirname with ES module equivalent
+		if (ts.isIdentifier(node) && node.text === '__dirname') {
+			needsFileURLToPath = true;
+			return ts.factory.createCallExpression(ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier('path'), 'dirname'), undefined, [
+				ts.factory.createCallExpression(ts.factory.createIdentifier('fileURLToPath'), undefined, [
+					ts.factory.createPropertyAccessExpression(
+						ts.factory.createMetaProperty(ts.SyntaxKind.ImportKeyword, ts.factory.createIdentifier('meta')),
+						'url'
+					)
+				])
+			]);
+		}
+		return ts.visitEachChild(node, visitor, context);
+	};
+
+	let transformedFile = ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+	if (needsFileURLToPath) {
+		const urlImport = ts.factory.createImportDeclaration(
+			undefined,
+			ts.factory.createImportClause(
+				false,
+				undefined,
+				ts.factory.createNamedImports([ts.factory.createImportSpecifier(false, undefined, ts.factory.createIdentifier('fileURLToPath'))])
+			),
+			ts.factory.createStringLiteral('url')
+		);
+		const pathImport = ts.factory.createImportDeclaration(
+			undefined,
+			ts.factory.createImportClause(false, ts.factory.createIdentifier('path'), undefined),
+			ts.factory.createStringLiteral('path')
+		);
+		transformedFile = ts.factory.updateSourceFile(transformedFile, [urlImport, pathImport, ...transformedFile.statements]);
+	}
+	return transformedFile;
+};
+
+const schemaUuidTransformer =
+	(uuid: string): ts.TransformerFactory<ts.SourceFile> =>
+	(context) =>
+	(sourceFile) => {
+		const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
+			if (ts.isObjectLiteralExpression(node)) {
+				const hasSchemaProperties = node.properties.some(
+					(prop) =>
+						ts.isPropertyAssignment(prop) &&
+						ts.isIdentifier(prop.name) &&
+						['fields', 'icon', 'status', 'revision', 'livePreview'].includes(prop.name.text)
+				);
+				if (hasSchemaProperties) {
+					const hasIdProperty = node.properties.some(
+						(prop) => ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name) && prop.name.text === '_id'
+					);
+					if (!hasIdProperty) {
+						const idProperty = ts.factory.createPropertyAssignment('_id', ts.factory.createStringLiteral(uuid));
+						return ts.factory.updateObjectLiteralExpression(node, [idProperty, ...node.properties]);
+					}
+				}
+			}
+			return ts.visitEachChild(node, visitor, context);
+		};
+		return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+	};
+
+function processHashAndUUID(code: string, hash: string, targetJsPathRelative: string): string {
+	let processedCode = code;
+	processedCode = processedCode.replace(/(\s*\*\s*@file\s+)(.*)/, `$1compiledCollections/${targetJsPathRelative}`);
+	processedCode = processedCode.replace(/^\/\/\s*HASH:\s*[a-f0-9]+\s*$/gm, '').replace(/^\/\/\s*UUID:\s*[a-f0-9-]+\s*$/gm, '');
+	processedCode = processedCode.trimStart();
+	const warningComment = `// WARNING: This file is automatically generated. Any changes made here will be lost.\n// Please edit the original source file in the 'config/collections' directory instead.`;
+	const hashComment = `// HASH: ${hash}`;
+	return `${warningComment}\n${hashComment}\n\n${processedCode}`;
+}
+
+async function writeCompiledFile(filePath: string, code: string): Promise<void> {
+	await fs.mkdir(path.posix.dirname(filePath), { recursive: true });
+	await fs.writeFile(filePath, code);
+}
+
+function getContentHash(content: string): string {
+	let hash = 0;
+	for (let i = 0; i < content.length; i++) {
+		const char = content.charCodeAt(i);
+		hash = (hash << 5) - hash + char;
+		hash &= hash;
+	}
+	// Convert to hex and ensure it's always positive
+	return Math.abs(hash).toString(16);
+}
+
+// Helper function to extract Hash from JS file content
+function extractHashFromJs(content: string): string | null {
+	//regex to handle potential whitespace variations and hex format
+	const match = content.match(/^\/\/\s*HASH:\s*([a-f0-9]+)\s*$/m);
+	return match ? match[1] : null;
+}
+
+// Helper function to extract UUID from JS file content
+function extractUUIDFromJs(content: string): string | null {
+	// regex
+	const match = content.match(/^\/\/\s*UUID:\s*([a-f0-9-]+)\s*$/m);
+	return match ? match[1] : null;
 }

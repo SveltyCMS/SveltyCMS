@@ -2,10 +2,25 @@
  * @file src/utils/media/cloudStorage.ts
  * @description Cloud storage abstraction layer for S3, R2, and Cloudinary
  *
- * Performace Enhancements:
- * - Singleton S3/Cloudinary clients (reuse connections)
- * - Keep-Alive agents for HTTP/HTTPS
- * - Unified interface exports
+ * This module provides a unified interface for storing media files in cloud storage
+ * services. It respects the MEDIA_FOLDER setting as a path prefix within the bucket/container.
+ *
+ * Supported storage types:
+ * - local: Files stored on local filesystem
+ * - s3: Amazon S3 or S3-compatible services
+ * - r2: Cloudflare R2
+ * - cloudinary: Cloudinary media platform
+ *
+ * Architecture:
+ * - MEDIA_FOLDER setting is used as path prefix in all storage types
+ * - Local: MEDIA_FOLDER is filesystem path (e.g., "./mediaFolder")
+ * - Cloud: MEDIA_FOLDER is bucket prefix (e.g., "cms-media")
+ *
+ * Examples:
+ * - Local: "./mediaFolder/avatars/image.avif" → filesystem path
+ * - S3: "cms-media/avatars/image.avif" → bucket key
+ * - R2: "cms-media/avatars/image.avif" → bucket key
+ * - Cloudinary: "cms-media/avatars/image" → public_id
  */
 
 import { getPublicSettingSync } from '@src/services/settingsService';
@@ -13,33 +28,31 @@ import { logger } from '@utils/logger.server';
 import { error } from '@sveltejs/kit';
 import type { StorageType } from './mediaModels';
 
-// Lazy-load clients to avoid init cost if unused
-let s3Client: any = null;
-let cloudinary: any = null;
-
 // Cloud storage configuration interface
 export interface CloudStorageConfig {
 	storageType: StorageType;
-	bucketName?: string;
-	mediaFolder: string;
+	bucketName?: string; // <-- ADDED: Explicit bucket name
+	mediaFolder: string; // Used as path prefix in all storage types
 	region?: string;
 	endpoint?: string;
-	publicUrl?: string;
-	accessKeyId?: string;
-	secretAccessKey?: string;
-	cloudinaryCloudName?: string;
+	publicUrl?: string; // Public URL for accessing files
+	accessKeyId?: string; // Set via environment variables
+	secretAccessKey?: string; // Set via environment variables
+	cloudinaryCloudName?: string; // For Cloudinary
 }
 
-// Get cloud storage configuration from settings
-export function getConfig(): CloudStorageConfig {
+//Get cloud storage configuration from settings
+export function getCloudStorageConfig(): CloudStorageConfig {
 	const storageType = getPublicSettingSync('MEDIA_STORAGE_TYPE') as StorageType;
 	const mediaFolder = getPublicSettingSync('MEDIA_FOLDER') || '';
+
+	// Normalize media folder - remove ./ prefix and any leading/trailing slashes
 	const normalizedFolder = mediaFolder.replace(/^\.\//, '').replace(/^\/+/, '').replace(/\/+$/, '');
 
 	return {
 		storageType,
-		bucketName: getPublicSettingSync('MEDIA_BUCKET_NAME') as string | undefined,
-		mediaFolder: normalizedFolder,
+		bucketName: getPublicSettingSync('MEDIA_BUCKET_NAME') as string | undefined, // Explicitly cast to string | undefined
+		mediaFolder: normalizedFolder, // This is NOW JUST a prefix
 		region: getPublicSettingSync('MEDIA_CLOUD_REGION'),
 		endpoint: getPublicSettingSync('MEDIA_CLOUD_ENDPOINT'),
 		publicUrl: getPublicSettingSync('MEDIA_CLOUD_PUBLIC_URL') || getPublicSettingSync('MEDIASERVER_URL'),
@@ -49,177 +62,367 @@ export function getConfig(): CloudStorageConfig {
 	};
 }
 
-export function isCloud(): boolean {
-	const type = getPublicSettingSync('MEDIA_STORAGE_TYPE');
-	return type === 's3' || type === 'r2' || type === 'cloudinary';
+// Check if cloud storage is configured
+export function isCloudStorage(): boolean {
+	const storageType = getPublicSettingSync('MEDIA_STORAGE_TYPE') as StorageType;
+	return storageType !== 'local';
 }
 
-/** Get S3 Client Singleton with Keep-Alive */
-async function getS3Client(config: CloudStorageConfig) {
-	if (s3Client) return s3Client;
+/**
+ * Construct full cloud path with MEDIA_FOLDER prefix
+ * @param relativePath - Path relative to media folder (e.g., "avatars/image.avif")
+ * @returns Full path including MEDIA_FOLDER prefix (e.g., "cms-media/avatars/image.avif")
+ */
+export function getCloudPath(relativePath: string): string {
+	const config = getCloudStorageConfig();
+	const cleanPath = relativePath.replace(/^\/+/, '');
+	if (!config.mediaFolder) {
+		return cleanPath;
+	}
+	return `${config.mediaFolder}/${cleanPath}`;
+}
 
-	const { S3Client } = await import('@aws-sdk/client-s3');
-	const { NodeHttpHandler } = await import('@smithy/node-http-handler');
-	const { Agent: HttpsAgent } = await import('https');
-	const { Agent: HttpAgent } = await import('http');
+/**
+ * Construct public URL for cloud-stored file
+ * @param relativePath - Path relative to media folder (e.g., "avatars/image.avif")
+ * @returns Full public URL
+ */
+export function getCloudUrl(relativePath: string): string {
+	const config = getCloudStorageConfig();
 
-	if (!config.accessKeyId || !config.secretAccessKey) {
-		throw error(500, 'S3/R2 credentials missing');
+	if (config.storageType === 'local') {
+		// Local files use /files/ route
+		return `/files/${relativePath.replace(/^\/+/, '')}`;
 	}
 
-	s3Client = new S3Client({
+	if (!config.publicUrl) {
+		logger.error('Cloud storage configured but no public URL available', { storageType: config.storageType });
+		throw error(500, 'Cloud storage public URL not configured');
+	}
+
+	// Construct full cloud path including MEDIA_FOLDER prefix
+	const fullPath = getCloudPath(relativePath);
+
+	// Combine public URL with full path
+	const baseUrl = config.publicUrl.replace(/\/+$/, ''); // Remove trailing slash
+	return `${baseUrl}/${fullPath}`;
+}
+
+/**
+ * Upload file to cloud storage
+ * @param buffer - File buffer to upload
+ * @param relativePath - Path relative to media folder (e.g., "avatars/image.avif")
+ * @returns Public URL of uploaded file
+ */
+export async function uploadToCloud(buffer: Buffer, relativePath: string): Promise<string> {
+	const config = getCloudStorageConfig();
+
+	if (config.storageType === 'local') {
+		throw error(500, 'uploadToCloud called with local storage type');
+	}
+
+	// S3/R2 use the full path (prefix + relative) as the Key
+	const fullPath = getCloudPath(relativePath);
+
+	logger.debug('Uploading to cloud storage', {
+		storageType: config.storageType,
+		relativePath,
+		fullPath,
+		size: buffer.length
+	});
+
+	switch (config.storageType) {
+		case 's3':
+		case 'r2':
+			// Pass the FULL path (e.g., "cms-media/avatars/image.avif")
+			await uploadToS3Compatible(buffer, fullPath, config);
+			return getCloudUrl(relativePath); // Return public URL
+
+		case 'cloudinary':
+			// Pass the RELATIVE path (e.g., "avatars/image.avif")
+			// Cloudinary combines `folder` and `public_id` itself
+			return await uploadToCloudinary(buffer, relativePath, config);
+
+		default:
+			throw error(500, `Unsupported storage type: ${config.storageType}`);
+	}
+}
+
+/**
+ * Delete file from cloud storage
+ * @param relativePath - Path relative to media folder (e.g., "avatars/image.avif")
+ */
+export async function deleteFromCloud(relativePath: string): Promise<void> {
+	const config = getCloudStorageConfig();
+
+	if (config.storageType === 'local') {
+		throw error(500, 'deleteFromCloud called with local storage type');
+	}
+
+	const fullPath = getCloudPath(relativePath);
+
+	logger.debug('Deleting from cloud storage', {
+		storageType: config.storageType,
+		relativePath,
+		fullPath
+	});
+
+	switch (config.storageType) {
+		case 's3':
+		case 'r2':
+			await deleteFromS3Compatible(fullPath, config);
+			break;
+
+		case 'cloudinary':
+			// Pass relative path
+			await deleteFromCloudinary(relativePath, config);
+			break;
+
+		default:
+			throw error(500, `Unsupported storage type: ${config.storageType}`);
+	}
+}
+
+/**
+ * Check if file exists in cloud storage
+ * @param relativePath - Path relative to media folder
+ */
+export async function cloudFileExists(relativePath: string): Promise<boolean> {
+	const config = getCloudStorageConfig();
+
+	if (config.storageType === 'local') {
+		throw error(500, 'cloudFileExists called with local storage type');
+	}
+
+	const fullPath = getCloudPath(relativePath);
+
+	switch (config.storageType) {
+		case 's3':
+		case 'r2':
+			return await s3FileExists(fullPath, config);
+
+		case 'cloudinary':
+			return await cloudinaryFileExists(relativePath, config);
+
+		default:
+			return false;
+	}
+}
+
+// ==================== S3/R2 Implementation ====================
+
+async function uploadToS3Compatible(buffer: Buffer, key: string, config: CloudStorageConfig): Promise<void> {
+	const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
+
+	if (!config.accessKeyId || !config.secretAccessKey) {
+		throw error(500, 'S3 credentials not configured. Set MEDIA_ACCESS_KEY_ID and MEDIA_SECRET_ACCESS_KEY environment variables.');
+	}
+	if (!config.bucketName) {
+		// <-- CHECK for bucket name
+		throw error(500, 'S3 storage configured but MEDIA_BUCKET_NAME is not set.');
+	}
+
+	const client = new S3Client({
 		region: config.region || 'auto',
 		endpoint: config.endpoint,
 		credentials: {
 			accessKeyId: config.accessKeyId,
 			secretAccessKey: config.secretAccessKey
-		},
-		requestHandler: new NodeHttpHandler({
-			httpsAgent: new HttpsAgent({
-				keepAlive: true,
-				timeout: 60_000,
-				maxSockets: 50
-			}),
-			httpAgent: new HttpAgent({
-				keepAlive: true,
-				timeout: 60_000,
-				maxSockets: 50
-			})
-		})
+		}
 	});
 
-	return s3Client;
+	try {
+		const command = new PutObjectCommand({
+			Bucket: config.bucketName, // <-- Use config.bucketName
+			Key: key, // <-- Use the full path as the key
+			Body: buffer,
+			ContentType: getMimeType(key)
+		});
+
+		await client.send(command);
+		logger.info('File uploaded to S3/R2', { key, size: buffer.length });
+	} catch (err) {
+		logger.error('Failed to upload to S3/R2', { key, error: err });
+		const message = err instanceof Error ? err.message : String(err);
+		throw error(500, `Failed to upload to cloud storage: ${message}`);
+	}
 }
 
-/** Get Cloudinary Singleton */
-async function getCloudinary(config: CloudStorageConfig) {
-	if (cloudinary) return cloudinary;
+async function deleteFromS3Compatible(key: string, config: CloudStorageConfig): Promise<void> {
+	const { S3Client, DeleteObjectCommand } = await import('@aws-sdk/client-s3');
 
-	const lib = await import('cloudinary');
-	cloudinary = lib.v2;
+	if (!config.accessKeyId || !config.secretAccessKey) {
+		throw error(500, 'S3 credentials not configured');
+	}
+	if (!config.bucketName) {
+		throw error(500, 'S3 storage configured but MEDIA_BUCKET_NAME is not set.');
+	}
+
+	const client = new S3Client({
+		region: config.region || 'auto',
+		endpoint: config.endpoint,
+		credentials: {
+			accessKeyId: config.accessKeyId,
+			secretAccessKey: config.secretAccessKey
+		}
+	});
+
+	try {
+		const command = new DeleteObjectCommand({
+			Bucket: config.bucketName, // <-- Use config.bucketName
+			Key: key // <-- Use the full path as the key
+		});
+
+		await client.send(command);
+		logger.info('File deleted from S3/R2', { key });
+	} catch (err) {
+		logger.error('Failed to delete from S3/R2', { key, error: err });
+		const message = err instanceof Error ? err.message : String(err);
+		throw error(500, `Failed to delete from cloud storage: ${message}`);
+	}
+}
+
+async function s3FileExists(key: string, config: CloudStorageConfig): Promise<boolean> {
+	const { S3Client, HeadObjectCommand } = await import('@aws-sdk/client-s3');
+
+	if (!config.accessKeyId || !config.secretAccessKey) {
+		return false;
+	}
+	if (!config.bucketName) {
+		return false;
+	}
+
+	const client = new S3Client({
+		region: config.region || 'auto',
+		endpoint: config.endpoint,
+		credentials: {
+			accessKeyId: config.accessKeyId,
+			secretAccessKey: config.secretAccessKey
+		}
+	});
+
+	try {
+		const command = new HeadObjectCommand({
+			Bucket: config.bucketName, // <-- Use config.bucketName
+			Key: key // <-- Use the full path as the key
+		});
+
+		await client.send(command);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+// ==================== Cloudinary Implementation ====================
+
+// Pass RELATIVE path here (e.g., "avatars/image.avif")
+async function uploadToCloudinary(buffer: Buffer, relativePath: string, config: CloudStorageConfig): Promise<string> {
+	const cloudinary = await import('cloudinary').then((m) => m.v2);
+
+	if (!config.cloudinaryCloudName) {
+		throw error(500, 'Cloudinary cloud name not configured. Set CLOUDINARY_CLOUD_NAME environment variable.');
+	}
 
 	cloudinary.config({
 		cloud_name: config.cloudinaryCloudName,
 		api_key: process.env.CLOUDINARY_API_KEY,
-		api_secret: process.env.CLOUDINARY_API_SECRET,
-		secure: true
+		api_secret: process.env.CLOUDINARY_API_SECRET
 	});
 
-	return cloudinary;
-}
+	// Remove extension from relative path for public_id
+	const publicId = relativePath.replace(/\.[^.]+$/, '');
 
-export function getPath(relativePath: string): string {
-	const config = getConfig();
-	const clean = relativePath.replace(/^\/+/, '');
-	return config.mediaFolder ? `${config.mediaFolder}/${clean}` : clean;
-}
-
-export function getUrl(relativePath: string): string {
-	const config = getConfig();
-	if (config.storageType === 'local') return `/files/${relativePath.replace(/^\/+/, '')}`;
-
-	if (!config.publicUrl) {
-		// Fallback for Cloudinary if needed, usually handles own URLs
-		if (config.storageType === 'cloudinary') return ''; // Cloudinary returns URL on upload
-		throw error(500, 'Cloud public URL not configured');
-	}
-
-	const fullPath = getPath(relativePath);
-	return `${config.publicUrl.replace(/\/+$/, '')}/${fullPath}`;
-}
-
-/** Upload file */
-export async function upload(buffer: Buffer, relativePath: string): Promise<string> {
-	const config = getConfig();
-	const fullPath = getPath(relativePath);
-
-	logger.debug('Cloud upload start', { type: config.storageType, path: fullPath });
-
-	if (config.storageType === 's3' || config.storageType === 'r2') {
-		const client = await getS3Client(config);
-		const { PutObjectCommand } = await import('@aws-sdk/client-s3');
-		const mime = (await import('./mediaUtils')).getMimeType(relativePath) || 'application/octet-stream';
-
-		await client.send(
-			new PutObjectCommand({
-				Bucket: config.bucketName,
-				Key: fullPath,
-				Body: buffer,
-				ContentType: mime
-			})
-		);
-		return getUrl(relativePath);
-	}
-
-	if (config.storageType === 'cloudinary') {
-		const cld = await getCloudinary(config);
-		const publicId = relativePath.replace(/\.[^.]+$/, ''); // Remove ext
-
-		return new Promise((resolve, reject) => {
-			const stream = cld.uploader.upload_stream(
-				{
-					public_id: publicId,
-					folder: config.mediaFolder,
-					resource_type: 'auto',
-					overwrite: true
-				},
-				(err: any, res: any) => {
-					if (err) return reject(err);
-					resolve(res.secure_url);
+	return new Promise((resolve, reject) => {
+		const uploadStream = cloudinary.uploader.upload_stream(
+			{
+				public_id: publicId, // e.g., "avatars/image"
+				folder: config.mediaFolder, // e.g., "cms-media"
+				resource_type: 'auto'
+			},
+			(error, result) => {
+				if (error) {
+					logger.error('Failed to upload to Cloudinary', { publicId, error });
+					reject(new Error(`Failed to upload to Cloudinary: ${error.message}`));
+				} else if (!result) {
+					logger.error('Failed to upload to Cloudinary: No result returned', { publicId });
+					reject(new Error('Failed to upload to Cloudinary: No result returned'));
+				} else {
+					logger.info('File uploaded to Cloudinary', { publicId: result.public_id, url: result.secure_url });
+					resolve(result.secure_url);
 				}
-			);
-			stream.end(buffer);
-		});
-	}
+			}
+		);
 
-	throw error(500, 'Invalid storage type for cloud upload');
+		uploadStream.end(buffer);
+	});
 }
 
-/** Delete file */
-export async function remove(relativePath: string): Promise<void> {
-	const config = getConfig();
-	const fullPath = getPath(relativePath);
+// Pass RELATIVE path here
+async function deleteFromCloudinary(relativePath: string, config: CloudStorageConfig): Promise<void> {
+	const cloudinary = await import('cloudinary').then((m) => m.v2);
 
-	if (config.storageType === 's3' || config.storageType === 'r2') {
-		const client = await getS3Client(config);
-		const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
-		try {
-			await client.send(new DeleteObjectCommand({ Bucket: config.bucketName, Key: fullPath }));
-		} catch (e) {
-			logger.warn('S3 delete failed', { error: e });
-		}
-		return;
+	if (!config.cloudinaryCloudName) {
+		throw error(500, 'Cloudinary cloud name not configured');
 	}
 
-	if (config.storageType === 'cloudinary') {
-		const cld = await getCloudinary(config);
-		const publicId = `${config.mediaFolder}/${relativePath.replace(/\.[^.]+$/, '')}`;
-		await cld.uploader.destroy(publicId);
-		return;
-	}
-}
+	cloudinary.config({
+		cloud_name: config.cloudinaryCloudName,
+		api_key: process.env.CLOUDINARY_API_KEY,
+		api_secret: process.env.CLOUDINARY_API_SECRET
+	});
 
-/** Check existence */
-export async function exists(relativePath: string): Promise<boolean> {
-	const config = getConfig();
-	const fullPath = getPath(relativePath);
+	// Construct the full public_id (folder + relative path without extension)
+	const publicId = `${config.mediaFolder}/${relativePath.replace(/\.[^.]+$/, '')}`;
 
 	try {
-		if (config.storageType === 's3' || config.storageType === 'r2') {
-			const client = await getS3Client(config);
-			const { HeadObjectCommand } = await import('@aws-sdk/client-s3');
-			await client.send(new HeadObjectCommand({ Bucket: config.bucketName, Key: fullPath }));
-			return true;
-		}
+		await cloudinary.uploader.destroy(publicId);
+		logger.info('File deleted from Cloudinary', { publicId });
+	} catch (err) {
+		logger.error('Failed to delete from Cloudinary', { publicId, error: err });
+		throw error(500, `Failed to delete from Cloudinary: ${err instanceof Error ? err.message : String(err)}`);
+	}
+}
 
-		if (config.storageType === 'cloudinary') {
-			const cld = await getCloudinary(config);
-			const publicId = `${config.mediaFolder}/${relativePath.replace(/\.[^.]+$/, '')}`;
-			await cld.api.resource(publicId);
-			return true;
-		}
+// Pass RELATIVE path here
+async function cloudinaryFileExists(relativePath: string, config: CloudStorageConfig): Promise<boolean> {
+	const cloudinary = await import('cloudinary').then((m) => m.v2);
+
+	if (!config.cloudinaryCloudName) {
+		return false;
+	}
+
+	cloudinary.config({
+		cloud_name: config.cloudinaryCloudName,
+		api_key: process.env.CLOUDINARY_API_KEY,
+		api_secret: process.env.CLOUDINARY_API_SECRET
+	});
+
+	const publicId = `${config.mediaFolder}/${relativePath.replace(/\.[^.]+$/, '')}`;
+
+	try {
+		await cloudinary.api.resource(publicId);
+		return true;
 	} catch {
 		return false;
 	}
-	return false;
+}
+
+// ==================== Utilities ====================
+
+function getMimeType(filename: string): string {
+	const ext = filename.split('.').pop()?.toLowerCase();
+	const mimeTypes: Record<string, string> = {
+		jpg: 'image/jpeg',
+		jpeg: 'image/jpeg',
+		png: 'image/png',
+		gif: 'image/gif',
+		webp: 'image/webp',
+		avif: 'image/avif',
+		svg: 'image/svg+xml',
+		mp4: 'video/mp4',
+		webm: 'video/webm',
+		pdf: 'application/pdf'
+	};
+	return mimeTypes[ext || ''] || 'application/octet-stream';
 }

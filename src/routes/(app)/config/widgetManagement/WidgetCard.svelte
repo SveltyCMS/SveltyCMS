@@ -1,31 +1,6 @@
 <!--
-@files src/routes/(app)/config/widgetManagement/WidgetCard.svelte
 @component Enhanced Widget Card
 **Displays widget information**
-
-#### Props
-widget: {
-	name: string;
-	icon: string;
-	description?: string;
-	isCore: boolean;
-	isActive: boolean;
-	dependencies: string[];
-	canDisable: boolean;
-	pillar?: {
-		input?: { exists: boolean };
-		display?: { exists: boolean };
-	};
-	hasValidation?: boolean;
-}
-onToggle: (name: string) => void;
-onUninstall?: (name: string) => void;
-canManage: boolean;
-
-### Features
-- Displays widget information
-- Toggle active status
-- Uninstall widget
 -->
 <script lang="ts">
 	interface Props {
@@ -37,11 +12,6 @@ canManage: boolean;
 			isActive: boolean;
 			dependencies: string[];
 			canDisable: boolean;
-			pillar?: {
-				input?: { exists: boolean };
-				display?: { exists: boolean };
-			};
-			hasValidation?: boolean;
 		};
 		onToggle: (name: string) => void;
 		onUninstall?: (name: string) => void;
@@ -49,66 +19,43 @@ canManage: boolean;
 	}
 
 	const { widget, onToggle, onUninstall, canManage }: Props = $props();
-
-	/* Function to determine color for boolean status */
-	function getStatusColor(exists: boolean) {
-		return exists ? 'text-green-500' : 'text-gray-300 dark:text-gray-600';
-	}
 </script>
 
-<div class="card border border-surface-200 dark:text-surface-50 transition-shadow hover:shadow-lg">
+<div class="card border border-secondary-500">
 	<!-- Widget Header -->
-	<div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between">
-		<div class="flex min-w-0 flex-1 items-start gap-4">
+	<div class="flex items-start justify-between gap-4 p-4">
+		<div class="flex min-w-0 flex-1 items-start gap-3">
 			<div
-				class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface-100 text-surface-900 dark:bg-surface-800 dark:text-surface-100"
+				class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-tertiary-50 text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-500"
 			>
-				<iconify-icon icon={widget.icon} class="text-3xl"></iconify-icon>
+				<iconify-icon icon={widget.icon} class="text-2xl"></iconify-icon>
 			</div>
-			<div class="min-w-0 flex-1 space-y-2">
+			<div class="min-w-0 flex-1">
 				<div class="flex flex-wrap items-center gap-2">
-					<h3 class="text-lg font-bold text-surface-900 dark:text-surface-50">
+					<h3 class="font-semibold text-gray-900 dark:text-white">
 						{widget.name}
 					</h3>
 					{#if widget.isCore}
-						<span class="badge preset-filled-primary-500">Core</span>
+						<span class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"> Core </span>
 					{:else}
-						<span class="badge preset-filled-tertiary-500">Custom</span>
+						<span class="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+							Custom
+						</span>
 					{/if}
 					{#if widget.isActive}
-						<span class="badge preset-filled-success-500">Active</span>
+						<span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-primary-500 dark:bg-green-900/30"> Active </span>
 					{:else}
-						<span class="badge preset-filled-surface-500">Inactive</span>
+						<span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-300"> Inactive </span>
 					{/if}
 				</div>
 				{#if widget.description}
-					<p class="text-sm text-surface-600 dark:text-surface-50 line-clamp-2">{widget.description}</p>
+					<p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{widget.description}</p>
 				{/if}
-
-				<!-- 3-Pillar Architecture Indicators -->
-				{#if widget.pillar}
-					<div class="flex items-center gap-4 pt-1 text-xs text-surface-500">
-						<div class="flex items-center gap-1" title="Input Component">
-							<iconify-icon icon="mdi:form-textbox" class={getStatusColor(widget.pillar.input?.exists ?? false)}></iconify-icon>
-							<span>Input</span>
-						</div>
-						<div class="flex items-center gap-1" title="Display Component">
-							<iconify-icon icon="mdi:monitor-dashboard" class={getStatusColor(widget.pillar.display?.exists ?? false)}></iconify-icon>
-							<span>Display</span>
-						</div>
-						<div class="flex items-center gap-1" title="Database/Validation">
-							<iconify-icon icon="mdi:database-check" class={getStatusColor(widget.hasValidation ?? false)}></iconify-icon>
-							<span>DB/Valid</span>
-						</div>
-					</div>
-				{/if}
-
 				<!-- Dependencies -->
 				{#if widget.dependencies && widget.dependencies.length > 0}
-					<div class="flex flex-wrap gap-1.5 pt-1">
-						<span class="text-xs text-surface-500">Depends on:</span>
+					<div class="mt-2 flex flex-wrap gap-1.5">
 						{#each widget.dependencies as dep}
-							<span class="badge variant-soft-secondary text-xs">
+							<span class="rounded-md bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
 								{dep}
 							</span>
 						{/each}
@@ -118,27 +65,31 @@ canManage: boolean;
 		</div>
 
 		<!-- Actions -->
-		<div class="flex items-center gap-2 self-end sm:self-auto">
+		<div class="flex items-center gap-2">
 			<!-- Toggle Active Status -->
 			{#if canManage && widget.canDisable}
 				<button
 					type="button"
 					onclick={() => onToggle(widget.name)}
 					data-testid="widget-toggle-{widget.name}"
-					class="btn-sm {widget.isActive ? 'preset-filled-error-500' : 'preset-filled-success-500'}"
+					class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors {widget.isActive
+						? 'bg-green-600 text-white hover:bg-green-700'
+						: 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300'}"
 				>
-					{widget.isActive ? 'Deactivate' : 'Activate'}
+					{widget.isActive ? 'Active' : 'Inactive'}
 				</button>
 			{:else if widget.isCore}
-				<span class="badge preset-tonal-surface">System</span>
+				<span class="rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-primary-500 dark:bg-gray-700"> Always On </span>
 			{:else if !widget.canDisable}
-				<span class="badge variant-soft-warning" title="Required by other widgets">Required</span>
+				<span class="rounded-lg bg-amber-100 px-3 py-1.5 text-sm font-medium text-warning-500 dark:bg-amber-900/30" title="Required by other widgets">
+					Required
+				</span>
 			{/if}
 
 			<!-- Uninstall (only for inactive custom widgets) -->
 			{#if canManage && !widget.isCore && !widget.isActive && onUninstall}
-				<button type="button" onclick={() => onUninstall?.(widget.name)} class="btn-icon btn-icon-sm variant-soft-error" title="Uninstall widget">
-					<iconify-icon icon="mdi:delete" class="text-lg"></iconify-icon>
+				<button type="button" onclick={() => onUninstall?.(widget.name)} class="preset-ghost-secondary-500 btn-icon" title="Uninstall widget">
+					<iconify-icon icon="mdi:delete" class="text-xl"></iconify-icon>
 				</button>
 			{/if}
 		</div>

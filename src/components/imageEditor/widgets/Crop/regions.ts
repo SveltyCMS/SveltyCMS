@@ -8,7 +8,6 @@
 import Konva from 'konva';
 import { parseAspectRatio } from './aspect';
 import { syncHighlight } from './highlight';
-import { TRANSFORMER_STYLE_CROP, GRID_STYLE } from '../transformerConfig';
 
 export type CropShape = 'rectangle' | 'square' | 'circular';
 export type RegionInit = { x?: number; y?: number; width?: number; height?: number; shape?: CropShape; aspect?: string };
@@ -24,7 +23,6 @@ export class CropRegion {
 
 	shape: Konva.Rect | Konva.Circle; // visible crop tool
 	overlayGroup: Konva.Group; // cached overlay group that holds dark overlay + cutout
-	gridGroup?: Konva.Group; // rule-of-thirds grid
 	transformer?: Konva.Transformer; // transformer for resize/rotate
 	private aspect: string | null = null; // aspect ratio string
 
@@ -50,7 +48,7 @@ export class CropRegion {
 		const sw = stage?.width() ?? 0;
 		const sh = stage?.height() ?? 0;
 
-		const dark = new Konva.Rect({ x: 0, y: 0, width: sw, height: sh, fill: 'rgba(0,0,0,0.8)', listening: false, name: 'cropOverlay' });
+		const dark = new Konva.Rect({ x: 0, y: 0, width: sw, height: sh, fill: 'rgba(0,0,0,0.7)', listening: false, name: 'cropOverlay' });
 		this.overlayGroup.add(dark);
 
 		// compute initial size & center inside imageGroup visible area
@@ -102,13 +100,10 @@ export class CropRegion {
 				width: shapeWidth,
 				height: shapeHeight,
 				stroke: 'white',
-				strokeWidth: 1,
+				strokeWidth: 3,
 				draggable: true,
 				name: 'cropTool'
 			});
-
-			// Create Grid for Rect
-			this.createGrid();
 		}
 
 		// cache overlay group to make globalCompositeOperation effect efficient
@@ -119,54 +114,16 @@ export class CropRegion {
 		// layering: ensure imageGroup at bottom, overlay above image and shape above overlay
 		this.imageGroup.zIndex(0);
 		this.overlayGroup.zIndex(1);
-		this.gridGroup?.zIndex(2);
-		this.shape.zIndex(3);
+		this.shape.zIndex(2);
 
 		// ** FIX: Event wiring **
 		// Wire up events to the internal callbacks
 		this.shape.on('dragmove transform', () => {
 			this._onTransform?.();
-			this.updateCutout(false); // Immediate shade update
-			this.updateGrid();
 		});
 		this.shape.on('dragend transformend', () => {
 			this._onTransformEnd?.();
 		});
-	}
-
-	/** Create 3x3 rule-of-thirds grid */
-	private createGrid() {
-		if (!(this.shape instanceof Konva.Rect)) return;
-		if (this.gridGroup) this.gridGroup.destroy();
-
-		this.gridGroup = new Konva.Group({ listening: false });
-		for (let i = 1; i <= 2; i++) {
-			this.gridGroup.add(new Konva.Line({ name: `v${i}`, points: [0, 0, 0, 0], ...GRID_STYLE }));
-			this.gridGroup.add(new Konva.Line({ name: `h${i}`, points: [0, 0, 0, 0], ...GRID_STYLE }));
-		}
-		this.layer.add(this.gridGroup);
-		this.updateGrid();
-	}
-
-	/** Update grid lines to match shape bounds */
-	private updateGrid() {
-		if (!this.gridGroup || !(this.shape instanceof Konva.Rect)) return;
-
-		const x = this.shape.x();
-		const y = this.shape.y();
-		const w = this.shape.width() * this.shape.scaleX();
-		const h = this.shape.height() * this.shape.scaleY();
-
-		// Vertical lines
-		for (let i = 1; i <= 2; i++) {
-			const lx = x + (w * i) / 3;
-			const vLine = this.gridGroup.findOne(`.v${i}`) as Konva.Line;
-			if (vLine) vLine.points([lx, y, lx, y + h]);
-
-			const ly = y + (h * i) / 3;
-			const hLine = this.gridGroup.findOne(`.h${i}`) as Konva.Line;
-			if (hLine) hLine.points([x, ly, x + w, ly]);
-		}
 	}
 
 	// ** FIX: Use the 'highlight.ts' util **
@@ -191,10 +148,13 @@ export class CropRegion {
 
 		this.transformer = new Konva.Transformer({
 			nodes: [this.shape],
-			...TRANSFORMER_STYLE_CROP,
 			keepRatio: keepRatio,
 			enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
 			rotateEnabled: false, // Rotation is handled by the main tool
+			anchorSize: 10,
+			borderStroke: 'white',
+			anchorStroke: 'white',
+			anchorFill: '#4f46e5',
 			boundBoxFunc: (oldBox, newBox) => {
 				if (newBox.width < 30 || newBox.height < 30) return oldBox;
 				// Enforce aspect ratio if set
@@ -205,7 +165,7 @@ export class CropRegion {
 			}
 		});
 		this.layer.add(this.transformer);
-		this.transformer.zIndex(4);
+		this.transformer.zIndex(3);
 		this.transformer.moveToTop();
 	}
 
@@ -213,7 +173,6 @@ export class CropRegion {
 	hideUI() {
 		this.transformer?.visible(false);
 		this.shape.visible(false);
-		this.gridGroup?.visible(false);
 		this.overlayGroup.visible(false); // Hide the whole overlay
 		this.layer.batchDraw();
 	}
@@ -222,7 +181,6 @@ export class CropRegion {
 	destroy() {
 		this.shape.off('dragmove transform dragend transformend');
 		this.transformer?.destroy();
-		this.gridGroup?.destroy();
 		this.overlayGroup.destroy();
 		this.shape.destroy();
 		this._onDestroy?.();

@@ -53,7 +53,7 @@
 
 		<div class="flex flex-col text-center">
 			<label for="sortButton">Sort</label>
-			<button id="sortButton" class="preset-outlined-surface-500btn" aria-label="Sort">
+			<button id="sortButton" class="preset-ghost-surface-500 btn" aria-label="Sort">
 				<iconify-icon icon="flowbite:sort-outline" width="24"> </iconify-icon>
 			</button>
 		</div>

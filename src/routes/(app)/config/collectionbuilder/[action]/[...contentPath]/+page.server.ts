@@ -24,7 +24,7 @@ import { contentManager } from '@src/content/ContentManager';
 import { compile } from '@src/utils/compilation/compile';
 
 // Widgets
-import { widgets } from '@stores/widgetStore.svelte';
+import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 
 // Auth
 // Use hasPermissionWithRoles and roles from locals, like the example pattern
@@ -118,18 +118,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 		// 6. Handle 'edit' action (default)
 		await contentManager.refresh(); // Force a refresh to bypass any stale cache
-		const collectionIdentifier = params.contentPath;
-
-		// Try resolving exactly as passed (UUID or relative path)
-		let currentCollection = await contentManager.getCollection(collectionIdentifier);
-
-		// Fallback: Try identifying as an absolute path if not found
-		if (!currentCollection && !collectionIdentifier.startsWith('/')) {
-			currentCollection = await contentManager.getCollection(`/${collectionIdentifier}`);
-		}
+		const collection = params.contentPath;
+		const currentCollection = await contentManager.getCollection(`/${collection}`);
 
 		if (!currentCollection) {
-			logger.warn(`Collection not found at path: ${collectionIdentifier}`, { identifier: collectionIdentifier });
+			logger.warn(`Collection not found at path: /${collection}`, { path: `/${collection}` });
 			throw error(404, 'Collection not found');
 		}
 
@@ -214,7 +207,7 @@ export const actions: Actions = {
 				fs.renameSync(`${collectionPath}/${originalName}.ts`, `${process.env.COLLECTIONS_FOLDER_TS}/${contentName}.ts`);
 			}
 			fs.writeFileSync(`${collectionPath}/${contentName}.ts`, content);
-			await compile({ logger });
+			await compile();
 			//await contentManager.generateContentTypes();
 			//await contentManager.generateCollectionFieldTypes();
 			await contentManager.refresh();
@@ -272,7 +265,7 @@ export const actions: Actions = {
 			const formData = await request.formData();
 			const contentTypes = JSON.parse(formData.get('contentTypes') as string);
 			fs.unlinkSync(`${process.env.COLLECTIONS_FOLDER_TS}/${contentTypes}.ts`);
-			await compile({ logger });
+			await compile();
 			await contentManager.refresh();
 			return { status: 200 };
 		} catch (err) {
@@ -305,7 +298,8 @@ async function goThrough(object: FieldsData, fields: string): Promise<string> {
 
 			// Get widget definition
 			const widgetName = fieldWithWidget.widget.Name;
-			const widget = widgets.widgetFunctions[widgetName] as unknown as WidgetDefinition;
+			const widgetStore = widgets as unknown as Record<string, WidgetDefinition>;
+			const widget = widgetStore[widgetName];
 			if (!widget || !widget.GuiSchema) continue;
 
 			// Process widget imports

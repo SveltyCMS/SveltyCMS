@@ -1,159 +1,184 @@
 /**
  * @file src/utils/media/bulkDownload.ts
- * @description Server-side bulk media download as ZIP/TAR.GZ
- *
- * Features:
- * - Simple TAR + GZIP (no external deps)
- * - Safe filename sanitization
- * - Progress-ready (extensible)
- * - Stream to response
- * - Automatic cleanup
+ * @description Bulk download files as ZIP using Node's built-in zlib and archiver-like functionality
  */
 
 import { createWriteStream, createReadStream } from 'fs';
 import { pipeline } from 'stream/promises';
 import { createGzip } from 'zlib';
 import { join } from 'path';
-import { mkdir, unlink, stat } from 'fs/promises';
-
+import { mkdir, unlink } from 'fs/promises';
 import type { MediaBase } from './mediaModels';
 import { logger } from '@utils/logger.server';
 
-/** Minimal TAR creator */
-class TarBuilder {
-	entries: { name: string; path: string; size: number }[] = [];
+/**
+ * Simple TAR implementation (no external dependencies)
+ * Creates a TAR archive that can be compressed with gzip
+ */
+class SimpleTar {
+	private entries: { name: string; path: string; size: number }[] = [];
 
-	add(name: string, path: string, size: number) {
+	addFile(name: string, path: string, size: number) {
 		this.entries.push({ name, path, size });
 	}
 
-	async write(outputPath: string): Promise<void> {
-		const out = createWriteStream(outputPath);
+	async writeToStream(outputPath: string): Promise<void> {
+		const output = createWriteStream(outputPath);
 
-		for (const e of this.entries) {
-			const header = Buffer.alloc(512, 0);
+		for (const entry of this.entries) {
+			// TAR header (512 bytes)
+			const header = Buffer.alloc(512);
 
-			// Name (100 bytes)
-			Buffer.from(e.name.slice(0, 99)).copy(header, 0);
+			// File name (100 bytes)
+			Buffer.from(entry.name).copy(header, 0, 0, Math.min(100, entry.name.length));
 
-			// Mode, uid, gid
-			'0000644 \0'.split('').forEach((c, i) => header.writeUInt8(c.charCodeAt(0), 100 + i));
-			'0000000 \0'.split('').forEach((c, i) => header.writeUInt8(c.charCodeAt(0), 108 + i));
-			'0000000 \0'.split('').forEach((c, i) => header.writeUInt8(c.charCodeAt(0), 116 + i));
+			// File mode (8 bytes) - "0000644\0"
+			Buffer.from('0000644\0').copy(header, 100);
 
-			// Size (octal)
-			const sizeOct = e.size.toString(8).padStart(11, '0') + '\0';
-			Buffer.from(sizeOct).copy(header, 124);
+			// Owner ID (8 bytes)
+			Buffer.from('0000000\0').copy(header, 108);
 
-			// Mtime
-			const mtimeOct =
+			// Group ID (8 bytes)
+			Buffer.from('0000000\0').copy(header, 116);
+
+			// File size (12 bytes) - octal
+			const sizeOctal = entry.size.toString(8).padStart(11, '0') + '\0';
+			Buffer.from(sizeOctal).copy(header, 124);
+
+			// Modification time (12 bytes) - octal timestamp
+			const mtime =
 				Math.floor(Date.now() / 1000)
 					.toString(8)
 					.padStart(11, '0') + '\0';
-			Buffer.from(mtimeOct).copy(header, 136);
+			Buffer.from(mtime).copy(header, 136);
 
-			// Checksum placeholder
-			'        '.split('').forEach((c, i) => header.writeUInt8(c.charCodeAt(0), 148 + i));
+			// Checksum (8 bytes) - initially spaces
+			Buffer.from('        ').copy(header, 148);
 
-			// Type: regular file
+			// Type flag (1 byte) - '0' for regular file
 			header[156] = 48; // '0'
 
-			// Checksum
-			let sum = 0;
-			for (let i = 0; i < 512; i++) sum += header[i];
-			const chksum = sum.toString(8).padStart(6, '0') + '\0 ';
-			Buffer.from(chksum).copy(header, 148);
+			// Calculate checksum
+			let checksum = 0;
+			for (let i = 0; i < 512; i++) {
+				checksum += header[i];
+			}
+			const checksumOctal = checksum.toString(8).padStart(6, '0') + '\0 ';
+			Buffer.from(checksumOctal).copy(header, 148);
 
-			out.write(header);
+			// Write header
+			output.write(header);
 
-			// File data
-			const inStream = createReadStream(e.path);
-			await new Promise((res, rej) => {
-				inStream.on('error', rej);
-				inStream.on('end', res);
-				inStream.pipe(out, { end: false });
-			});
-
-			// Padding
-			const pad = 512 - (e.size % 512);
-			if (pad < 512) out.write(Buffer.alloc(pad));
+			// Write file content
+			const fileStream = createReadStream(entry.path);
+			await new Promise<void>((resolve, reject) => {
+				fileStream.on('end', () => resolve());
+				fileStream.on('error', reject);
+				fileStream.pipe(output, { end: false });
+			}); // Padding to 512-byte boundary
+			const padding = 512 - (entry.size % 512);
+			if (padding < 512) {
+				output.write(Buffer.alloc(padding));
+			}
 		}
 
-		// End of archive
-		out.write(Buffer.alloc(1024));
-		out.end();
+		// End of archive (two 512-byte zero blocks)
+		output.write(Buffer.alloc(1024));
+		output.end();
 
-		await new Promise((res, rej) => {
-			out.on('finish', res);
-			out.on('error', rej);
+		await new Promise<void>((resolve, reject) => {
+			output.on('finish', () => resolve());
+			output.on('error', reject);
 		});
 	}
 }
 
-/** Create TAR.GZ archive */
-export async function createBulkArchive(files: MediaBase[], outputDir: string): Promise<{ path: string; size: number; filename: string }> {
-	const ts = Date.now();
-	const tarPath = join(outputDir, `bulk-${ts}.tar`);
-	const gzPath = join(outputDir, `bulk-${ts}.tar.gz`);
+// Create a TAR.GZ archive of selected files
+export async function createBulkDownloadArchive(files: MediaBase[], outputDir: string): Promise<{ path: string; size: number; filename: string }> {
+	const timestamp = Date.now();
+	const tarPath = join(outputDir, `media-${timestamp}.tar`);
+	const gzPath = join(outputDir, `media-${timestamp}.tar.gz`);
 
 	try {
+		// Ensure output directory exists
 		await mkdir(outputDir, { recursive: true });
 
-		const tar = new TarBuilder();
-		for (const f of files) {
-			if (!f.path || !f.size) continue;
-			const name = f.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
-			tar.add(name, f.path, f.size);
+		// Create TAR archive
+		const tar = new SimpleTar();
+
+		for (const file of files) {
+			if (!file.path || !file.size) continue;
+
+			const sanitizedName = file.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+			tar.addFile(sanitizedName, file.path, file.size);
 		}
 
-		await tar.write(tarPath);
+		await tar.writeToStream(tarPath);
 
-		await pipeline(createReadStream(tarPath), createGzip({ level: 6 }), createWriteStream(gzPath));
+		// Compress with gzip
+		const source = createReadStream(tarPath);
+		const destination = createWriteStream(gzPath);
+		const gzip = createGzip({ level: 6 }); // Balanced compression
 
+		await pipeline(source, gzip, destination);
+
+		// Get file size
+		const { size } = await import('fs/promises').then((fs) => fs.stat(gzPath));
+
+		// Clean up TAR file
 		await unlink(tarPath);
-
-		const { size } = await stat(gzPath);
 
 		return {
 			path: gzPath,
 			size,
-			filename: `media-bulk-${ts}.tar.gz`
+			filename: `media-${timestamp}.tar.gz`
 		};
-	} catch (err) {
-		logger.error('Bulk archive creation failed', err);
-		await Promise.allSettled([unlink(tarPath), unlink(gzPath)]);
-		throw err;
+	} catch (error) {
+		logger.error('Failed to create bulk download archive:', error);
+
+		// Clean up on error
+		try {
+			await unlink(tarPath).catch(() => {});
+			await unlink(gzPath).catch(() => {});
+		} catch (cleanupError) {
+			logger.warn('Failed to cleanup after error:', cleanupError);
+		}
+
+		throw error;
 	}
 }
 
-/** Stream archive to response */
-export function streamArchive(archivePath: string, filename: string, setHeader: (name: string, value: string) => void): ReadableStream {
-	setHeader('Content-Type', 'application/gzip');
-	setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+// Stream archive to HTTP response
+export async function streamArchiveToResponse(
+	archivePath: string,
+	filename: string,
+	headers: (name: string, value: string) => void
+): Promise<ReadableStream> {
+	const stream = createReadStream(archivePath);
 
-	const nodeStream = createReadStream(archivePath);
+	headers('Content-Type', 'application/gzip');
+	headers('Content-Disposition', `attachment; filename="${filename}"`);
 
-	return new ReadableStream({
+	// Convert Node stream to Web ReadableStream
+	const webStream = new ReadableStream({
 		start(controller) {
-			nodeStream.on('data', (chunk) => controller.enqueue(chunk));
-			nodeStream.on('end', () => controller.close());
-			nodeStream.on('error', (err) => controller.error(err));
+			stream.on('data', (chunk) => controller.enqueue(chunk));
+			stream.on('end', () => controller.close());
+			stream.on('error', (err) => controller.error(err));
 		},
 		cancel() {
-			nodeStream.destroy();
+			stream.destroy();
 		}
 	});
+
+	return webStream;
 }
 
-/** Cleanup archive file */
-export async function cleanupArchive(path: string): Promise<void> {
+// Clean up temporary archive file
+export async function cleanupArchive(archivePath: string): Promise<void> {
 	try {
-		await unlink(path);
-	} catch (err) {
-		logger.warn('Archive cleanup failed', { path, error: err });
+		await unlink(archivePath);
+	} catch (error) {
+		logger.warn('Failed to cleanup archive:', error);
 	}
 }
-
-/** Aliases for backward compatibility */
-export const createBulkDownloadArchive = createBulkArchive;
-export const streamArchiveToResponse = streamArchive;

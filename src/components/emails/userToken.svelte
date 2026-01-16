@@ -9,7 +9,7 @@
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Stores
-	import { app } from '@stores/store.svelte';
+	import { systemLanguage } from '@stores/store.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -26,7 +26,7 @@
 		languageTag?: string;
 	}
 
-	const { email = '', role = '', token = '', tokenLink = '', expiresInLabel = '', languageTag = app.systemLanguage }: Props = $props();
+	const { email = '', role = '', token = '', tokenLink = '', expiresInLabel = '', languageTag = systemLanguage.value }: Props = $props();
 
 	// Use production host logo if available, otherwise fall back to GitHub
 	const logoSrc = publicEnv?.HOST_PROD

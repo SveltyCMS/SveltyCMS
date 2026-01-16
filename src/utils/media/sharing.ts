@@ -1,19 +1,17 @@
 /**
  * @file src/utils/media/sharing.ts
- * @description Secure file sharing with expiring links & access controls
+ * @description File sharing with expiring links and access control
  *
  * Features:
- * - Token generation
- * - Expiring links
- * - Password & IP restrictions
- * - Download limits
- * - Access logging
- * - Revoke/extend
- * - Stats & cleanup
+ * - **Expiring Links**: Create shareable links that expire after a set duration.
+ * - **Access Control**: Restrict access via passwords and IP whitelisting.
+ * - **Download Limits**: Set maximum download counts for shared files.
+ * - **Access Logging**: Track views and downloads with timestamps and IP addresses.
+ * - **Link Management**: Revoke or extend share links as needed.
  */
 
+import type { DatabaseId, ISODateString } from '@src/databases/dbInterface';
 import { randomBytes } from 'crypto';
-import type { DatabaseId, ISODateString } from '@src/content/types';
 
 export interface ShareLink {
 	_id?: DatabaseId;
@@ -24,137 +22,195 @@ export interface ShareLink {
 	expiresAt: ISODateString;
 	maxDownloads?: number;
 	downloadCount: number;
-	passwordHash?: string; // Store hashed
+	password?: string; // Hashed
 	allowedIPs?: string[];
-	logs: ShareLog[];
-	active: boolean;
-	meta?: {
+	accessLog: ShareAccessLog[];
+	isActive: boolean;
+	metadata?: {
 		requireEmail?: boolean;
-		message?: string;
-		notify?: boolean;
+		customMessage?: string;
+		notifyOnAccess?: boolean;
 	};
 }
 
-export interface ShareLog {
-	at: ISODateString;
-	ip: string;
-	ua: string;
+export interface ShareAccessLog {
+	timestamp: ISODateString;
+	ipAddress: string;
+	userAgent: string;
 	action: 'view' | 'download';
-	ok: boolean;
+	success: boolean;
 }
 
-/** Secure token (base64url, 32 bytes) */
-export function newToken(): string {
+// Generate a secure share token
+export function generateShareToken(): string {
 	return randomBytes(32).toString('base64url');
 }
 
-/** Create share link */
-export function createLink(
+// Create a new share link
+export function createShareLink(
 	fileId: DatabaseId,
 	userId: DatabaseId,
-	opts: {
-		hours?: number;
+	options: {
+		expiresIn?: number; // hours
 		maxDownloads?: number;
-		passwordHash?: string;
-		ips?: string[];
+		password?: string;
+		allowedIPs?: string[];
 		requireEmail?: boolean;
-		message?: string;
-		notify?: boolean;
+		customMessage?: string;
+		notifyOnAccess?: boolean;
 	} = {}
 ): ShareLink {
 	const now = new Date();
-	const hours = opts.hours ?? 24;
-	const expires = new Date(now.getTime() + hours * 3600000);
+	const expiresIn = options.expiresIn || 24; // Default 24 hours
+	const expiresAt = new Date(now.getTime() + expiresIn * 60 * 60 * 1000);
 
 	return {
-		token: newToken(),
+		token: generateShareToken(),
 		fileId,
 		createdBy: userId,
 		createdAt: now.toISOString() as ISODateString,
-		expiresAt: expires.toISOString() as ISODateString,
-		maxDownloads: opts.maxDownloads,
+		expiresAt: expiresAt.toISOString() as ISODateString,
+		maxDownloads: options.maxDownloads,
 		downloadCount: 0,
-		passwordHash: opts.passwordHash,
-		allowedIPs: opts.ips,
-		logs: [],
-		active: true,
-		meta: {
-			requireEmail: opts.requireEmail,
-			message: opts.message,
-			notify: opts.notify
+		password: options.password, // Should be hashed before storing
+		allowedIPs: options.allowedIPs,
+		accessLog: [],
+		isActive: true,
+		metadata: {
+			requireEmail: options.requireEmail,
+			customMessage: options.customMessage,
+			notifyOnAccess: options.notifyOnAccess
 		}
 	};
 }
 
-/** Validate access */
-export function validateLink(link: ShareLink, ip?: string, passwordHash?: string): { ok: boolean; reason?: string } {
-	if (!link.active) return { ok: false, reason: 'inactive' };
-	if (new Date() > new Date(link.expiresAt)) return { ok: false, reason: 'expired' };
-	if (link.maxDownloads != null && link.downloadCount >= link.maxDownloads) return { ok: false, reason: 'limit' };
-	if (link.allowedIPs?.length && ip && !link.allowedIPs.includes(ip)) return { ok: false, reason: 'ip' };
-	if (link.passwordHash && passwordHash !== link.passwordHash) return { ok: false, reason: 'password' };
+//  Validate a share link
+export function validateShareLink(
+	link: ShareLink,
+	options: {
+		ipAddress?: string;
+		password?: string;
+	} = {}
+): { valid: boolean; reason?: string } {
+	// Check if active
+	if (!link.isActive) {
+		return { valid: false, reason: 'Link has been deactivated' };
+	}
 
-	return { ok: true };
+	// Check expiration
+	const now = new Date();
+	const expiresAt = new Date(link.expiresAt);
+	if (now > expiresAt) {
+		return { valid: false, reason: 'Link has expired' };
+	}
+
+	// Check download limit
+	if (link.maxDownloads !== undefined && link.downloadCount >= link.maxDownloads) {
+		return { valid: false, reason: 'Download limit reached' };
+	}
+
+	// Check IP whitelist
+	if (link.allowedIPs && link.allowedIPs.length > 0 && options.ipAddress) {
+		if (!link.allowedIPs.includes(options.ipAddress)) {
+			return { valid: false, reason: 'Access denied from this IP address' };
+		}
+	}
+
+	// Check password
+	if (link.password && options.password) {
+		// In production, use proper password hashing (bcrypt, argon2)
+		if (link.password !== options.password) {
+			return { valid: false, reason: 'Incorrect password' };
+		}
+	} else if (link.password && !options.password) {
+		return { valid: false, reason: 'Password required' };
+	}
+
+	return { valid: true };
 }
 
-/** Log access */
-export function logAccess(link: ShareLink, action: 'view' | 'download', ip: string, ua: string, ok: boolean): ShareLink {
-	link.logs.push({
-		at: new Date().toISOString() as ISODateString,
-		ip,
-		ua,
+// Log access to a share link
+export function logShareAccess(link: ShareLink, action: 'view' | 'download', ipAddress: string, userAgent: string, success: boolean): ShareLink {
+	const logEntry: ShareAccessLog = {
+		timestamp: new Date().toISOString() as ISODateString,
+		ipAddress,
+		userAgent,
 		action,
-		ok
-	});
+		success
+	};
 
-	if (action === 'download' && ok) link.downloadCount++;
+	link.accessLog.push(logEntry);
+
+	// Increment download count
+	if (action === 'download' && success) {
+		link.downloadCount++;
+	}
 
 	return link;
 }
 
-/** Revoke link */
-export function revoke(link: ShareLink): ShareLink {
-	link.active = false;
+// Revoke a share link
+export function revokeShareLink(link: ShareLink): ShareLink {
+	link.isActive = false;
 	return link;
 }
 
-/** Extend expiration */
-export function extend(link: ShareLink, hours: number): ShareLink {
-	const expires = new Date(link.expiresAt);
-	expires.setHours(expires.getHours() + hours);
-	link.expiresAt = expires.toISOString() as ISODateString;
+// Extend expiration of a share link
+export function extendShareLink(link: ShareLink, additionalHours: number): ShareLink {
+	const currentExpiry = new Date(link.expiresAt);
+	const newExpiry = new Date(currentExpiry.getTime() + additionalHours * 60 * 60 * 1000);
+	link.expiresAt = newExpiry.toISOString() as ISODateString;
 	return link;
 }
 
-/** Link statistics */
-export function stats(link: ShareLink) {
-	const views = link.logs.filter((l) => l.action === 'view' && l.ok).length;
-	const downloads = link.logs.filter((l) => l.action === 'download' && l.ok).length;
-	const ips = new Set(link.logs.map((l) => l.ip)).size;
-	const last = link.logs[link.logs.length - 1]?.at;
+// Get share link statistics
+export function getShareLinkStats(link: ShareLink): {
+	totalAccess: number;
+	views: number;
+	downloads: number;
+	uniqueIPs: number;
+	lastAccess?: ISODateString;
+	timeRemaining: number; // hours
+	downloadsRemaining?: number;
+} {
+	const views = link.accessLog.filter((log) => log.action === 'view' && log.success).length;
+	const downloads = link.accessLog.filter((log) => log.action === 'download' && log.success).length;
+	const uniqueIPs = new Set(link.accessLog.map((log) => log.ipAddress)).size;
+	const lastAccess = link.accessLog.length > 0 ? link.accessLog[link.accessLog.length - 1].timestamp : undefined;
 
-	const remainingHours = Math.max(0, (new Date(link.expiresAt).getTime() - Date.now()) / 3600000);
-	const remainingDownloads = link.maxDownloads != null ? link.maxDownloads - link.downloadCount : undefined;
+	const now = new Date();
+	const expiresAt = new Date(link.expiresAt);
+	const timeRemaining = Math.max(0, (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60));
+
+	const downloadsRemaining = link.maxDownloads !== undefined ? link.maxDownloads - link.downloadCount : undefined;
 
 	return {
-		total: link.logs.length,
+		totalAccess: link.accessLog.length,
 		views,
 		downloads,
-		uniqueIPs: ips,
-		lastAccess: last,
-		hoursLeft: Math.round(remainingHours),
-		downloadsLeft: remainingDownloads
+		uniqueIPs,
+		lastAccess,
+		timeRemaining,
+		downloadsRemaining
 	};
 }
 
-/** Filter active/expired links */
-export function filterLinks(links: ShareLink[]): { active: ShareLink[]; expired: ShareLink[] } {
-	const now = Date.now();
+// Clean up expired share links
+export function cleanupExpiredLinks(links: ShareLink[]): {
+	active: ShareLink[];
+	expired: ShareLink[];
+} {
+	const now = new Date();
 	const active: ShareLink[] = [];
 	const expired: ShareLink[] = [];
 
-	for (const l of links) {
-		(l.active && now <= new Date(l.expiresAt).getTime() ? active : expired).push(l);
+	for (const link of links) {
+		const expiresAt = new Date(link.expiresAt);
+		if (link.isActive && now <= expiresAt) {
+			active.push(link);
+		} else {
+			expired.push(link);
+		}
 	}
 
 	return { active, expired };

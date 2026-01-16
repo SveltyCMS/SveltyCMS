@@ -12,9 +12,8 @@ Orchestrates the filter modules:
 -->
 
 <script lang="ts">
-	import Konva from 'konva';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-	import FineTuneControls from './Controls.svelte';
+	import FineTuneControls from '@src/components/imageEditor/toolbars/FineTuneControls.svelte';
 	import { type Adjustments, DEFAULT_ADJUSTMENTS } from './adjustments';
 	import { applyBaseFilters } from './baseFilters';
 	import { createCustomFilter } from './customFilters';
@@ -22,19 +21,6 @@ Orchestrates the filter modules:
 	// --- Svelte 5 State ---
 	let adjustments = $state({ ...DEFAULT_ADJUSTMENTS });
 	let activeAdjustment = $state<keyof Adjustments>('brightness');
-
-	const adjustments_list = [
-		{ key: 'brightness', label: 'Brightness', icon: 'mdi:brightness-6' },
-		{ key: 'contrast', label: 'Contrast', icon: 'mdi:contrast-box' },
-		{ key: 'saturation', label: 'Saturation', icon: 'mdi:palette' },
-		{ key: 'exposure', label: 'Exposure', icon: 'mdi:brightness-7' },
-		{ key: 'highlights', label: 'Highlights', icon: 'mdi:white-balance-sunny' },
-		{ key: 'shadows', label: 'Shadows', icon: 'mdi:weather-night' },
-		{ key: 'temperature', label: 'Temperature', icon: 'mdi:thermometer' },
-		{ key: 'clarity', label: 'Clarity', icon: 'mdi:crystal-ball' },
-		{ key: 'vibrance', label: 'Vibrance', icon: 'mdi:vibrate' }
-	];
-	let { onCancel }: { onCancel: () => void } = $props();
 
 	// guard to avoid duplicate event bindings
 	let _toolBound = $state(false);
@@ -52,7 +38,6 @@ Orchestrates the filter modules:
 				component: FineTuneControls,
 				props: {
 					activeAdjustment: activeAdjustment,
-					activeIcon: adjustments_list.find((a) => a.key === activeAdjustment)?.icon,
 					value: adjustments[activeAdjustment],
 					onChange: (value: number) => {
 						adjustments[activeAdjustment] = value;
@@ -61,7 +46,6 @@ Orchestrates the filter modules:
 						activeAdjustment = key;
 					},
 					onReset: () => resetAdjustment(),
-					onCancel: () => onCancel(),
 					onApply: () => apply()
 				}
 			});
@@ -79,9 +63,6 @@ Orchestrates the filter modules:
 	$effect(() => {
 		if (!_toolBound) return;
 
-		// Force dependency tracking by reading adjustments state here
-		const currentAdjustments = JSON.parse(JSON.stringify(adjustments));
-
 		// Debounce to prevent thrashing on slider drag
 		if (filterDebounceTimer) clearTimeout(filterDebounceTimer);
 
@@ -89,36 +70,21 @@ Orchestrates the filter modules:
 			const { imageNode, layer } = imageEditorStore.state;
 			if (!imageNode || !layer) return;
 
-			// Log for debugging
-			console.log('Applying FineTune adjustments:', currentAdjustments);
+			// 1. Apply fast, Konva-native filters (brightness, contrast, etc.)
+			applyBaseFilters(imageNode, adjustments);
 
-			// 1. Prepare filter list
-			const activeFilters = [];
+			// 2. Apply slow, custom pixel-looping filters
+			const needsCustom = adjustments.exposure !== 0 || adjustments.highlights !== 0 || adjustments.shadows !== 0 || adjustments.clarity !== 0;
 
-			// Base Konva filters (Brighten, Contrast, HSL for saturation/hue)
-			activeFilters.push(Konva.Filters.Brighten);
-			activeFilters.push(Konva.Filters.Contrast);
-			activeFilters.push(Konva.Filters.HSL);
-
-			// 2. Check for slow, custom pixel-looping filters
-			const needsCustom =
-				adjustments.exposure !== 0 ||
-				adjustments.highlights !== 0 ||
-				adjustments.shadows !== 0 ||
-				adjustments.clarity !== 0 ||
-				adjustments.temperature !== 0;
 			if (needsCustom) {
-				activeFilters.push(createCustomFilter(currentAdjustments));
+				imageNode.filters([createCustomFilter(adjustments)]);
+			} else {
+				// CRITICAL: Set to empty array to prevent slow,
+				// unnecessary pixel loop if all custom values are 0.
+				imageNode.filters([]);
 			}
 
-			// 3. Set filters on node
-			imageNode.filters(activeFilters);
-
-			// 4. Update the actual properties (brightness, contrast, saturation, hue)
-			applyBaseFilters(imageNode, currentAdjustments);
-
-			// 5. Re-cache the node to apply all filters
-			imageNode.clearCache();
+			// 3. Re-cache the node to apply all filters
 			imageNode.cache();
 			layer.batchDraw();
 		}, 100); // 100ms debounce

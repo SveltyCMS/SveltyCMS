@@ -24,7 +24,8 @@ import { saveAvatarImage } from '@utils/media/mediaStorage.server';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
 import type { Locale } from '@src/paraglide/runtime';
-import { app } from '@stores/store.svelte';
+import { systemLanguage } from '@stores/store.svelte';
+import { get } from 'svelte/store';
 
 // System Logger
 import { generateGoogleAuthUrl, getOAuthRedirectUri } from '@src/databases/auth/googleAuth';
@@ -48,7 +49,7 @@ async function sendWelcomeEmail(
 	request: Request
 ) {
 	try {
-		const userLanguage = app.systemLanguage || 'en';
+		const userLanguage = (get(systemLanguage) as Locale) || 'en';
 		const hostProd = publicEnv.HOST_PROD;
 		const siteName = publicEnv.SITE_NAME;
 		const emailProps = {
@@ -146,7 +147,7 @@ async function handleGoogleUser(
 		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
 		const locale = googleUser.locale as Locale;
 		if (supportedLocales.includes(locale)) {
-			app.systemLanguage = locale;
+			systemLanguage.set(locale);
 		}
 	}
 

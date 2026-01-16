@@ -35,19 +35,17 @@
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
-	import { themeStore } from '@stores/themeStore.svelte';
 
 	// Import components
 	import VersionCheck from '@components/VersionCheck.svelte';
 	import Collections from '@components/Collections.svelte';
 	import MediaFolders from '@components/MediaFolders.svelte';
-	import SettingsMenu from '@components/SettingsMenu.svelte';
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
 
 	// Skeleton components
-	import { Avatar, Portal, Tooltip, Menu } from '@skeletonlabs/skeleton-svelte';
+	import { Avatar, Portal, Tooltip } from '@skeletonlabs/skeleton-svelte';
 
 	// Language and messaging
 	import * as m from '@src/paraglide/messages';
@@ -57,9 +55,6 @@
 	const MOBILE_BREAKPOINT = 768;
 	const LANGUAGE_DROPDOWN_THRESHOLD = 5;
 	const AVATAR_CACHE_BUSTER = Date.now();
-	const TOOLTIP_CLASS =
-		'card w-48 rounded-md border border-slate-300/50 bg-surface-50 p-2 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700 text-black dark:text-white';
-	const ARROW_CLASS = '[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-100-900)]';
 
 	// Types
 	type AvailableLanguage = string;
@@ -71,16 +66,16 @@
 	const collections: Schema[] = $derived(page.data.collections);
 	// Check if we're in media mode
 	const isMediaMode = $derived(currentPath.includes('/mediagallery'));
-	// Check if we're in settings mode
-	const isSettingsMode = $derived(currentPath.includes('/config/systemsetting'));
 
 	// Language state
 	let languageTag = $state(getLocale() as AvailableLanguage);
 	let searchQuery = $state('');
-	// Removed isDropdownOpen and dropdownRef as Menu handles this
+	let isDropdownOpen = $state(false);
+	let dropdownRef = $state<HTMLElement | null>(null);
 
 	// Derived values
 	const isSidebarFull = $derived(uiStateManager.uiState.value.leftSidebar === 'full');
+	const isSidebarCollapsed = $derived(uiStateManager.uiState.value.leftSidebar === 'collapsed');
 
 	const firstCollectionPath = $derived(collections?.[0] ? `/Collections/${collections[0].name}` : '/Collections');
 
@@ -89,37 +84,19 @@
 	const showLanguageDropdown = $derived(availableLanguages.length > LANGUAGE_DROPDOWN_THRESHOLD);
 
 	const filteredLanguages = $derived(
-		availableLanguages
-			.filter((lang) => lang !== languageTag) // Hide current language
-			.filter((lang: string) => {
-				const searchLower = searchQuery.toLowerCase();
-				const systemLangName = getLanguageName(lang, systemLanguage.value).toLowerCase();
-				const enLangName = getLanguageName(lang, 'en').toLowerCase();
-				return systemLangName.includes(searchLower) || enLangName.includes(searchLower);
-			}) as AvailableLanguage[]
+		availableLanguages.filter((lang: string) => {
+			const searchLower = searchQuery.toLowerCase();
+			const systemLangName = getLanguageName(lang, systemLanguage.value).toLowerCase();
+			const enLangName = getLanguageName(lang, 'en').toLowerCase();
+			return systemLangName.includes(searchLower) || enLangName.includes(searchLower);
+		}) as AvailableLanguage[]
 	);
 
 	const avatarUrl = $derived.by(() => {
-		let src = avatarSrc.value;
+		const src = avatarSrc.value;
 		if (!src) return '/Default_User.svg';
 		if (src.startsWith('data:')) return src;
-
-		// Normalize path
-		// 1. Remove leading slashes
-		src = src.replace(/^\/+/, '');
-		// 2. Remove prefixes
-		src = src.replace(/^mediaFolder\//, '').replace(/^files\//, '');
-		// 3. Remove leading slashes again just in case
-		src = src.replace(/^\/+/, '');
-
-		return `/files/${src}?t=${AVATAR_CACHE_BUSTER}`;
-	});
-
-	const themeTooltipText = $derived.by(() => {
-		const current = themeStore.themePreference;
-		if (current === 'system') return 'System theme (click for Light)';
-		if (current === 'light') return 'Light theme (click for Dark)';
-		return 'Dark theme (click for System)';
+		return `${src}?t=${AVATAR_CACHE_BUSTER}`;
 	});
 
 	// Helper functions
@@ -140,11 +117,8 @@
 		globalLoadingStore.startLoading(loadingOperations.navigation, `LeftSidebar.navigateTo(${path})`);
 
 		try {
-			// Special handling: System routes that don't use language prefixes
-			const unlocalizedRoutes = ['/mediagallery', '/config', '/user', '/dashboard', '/setup'];
-			const isUnlocalized = unlocalizedRoutes.some((r) => path === r || path.startsWith(r + '/'));
-
-			if (isUnlocalized) {
+			// Special handling: mediagallery doesn't use language prefix
+			if (path === '/mediagallery' || path.startsWith('/mediagallery')) {
 				await goto(path, { replaceState: false });
 				return;
 			}
@@ -163,11 +137,39 @@
 		}
 	}
 
+	// Click outside handler
+	$effect(() => {
+		if (!browser) return;
+
+		const handleClick = (event: MouseEvent) => {
+			if (dropdownRef && !dropdownRef.contains(event.target as Node)) {
+				isDropdownOpen = false;
+				searchQuery = '';
+			}
+		};
+
+		document.addEventListener('click', handleClick);
+		return () => document.removeEventListener('click', handleClick);
+	});
+
 	// Event handlers
 	function handleLanguageSelection(lang: AvailableLanguage): void {
 		systemLanguage.set(lang as any);
 		languageTag = lang;
+		isDropdownOpen = false;
 		searchQuery = '';
+	}
+
+	function handleLanguageSelectChange(event: Event): void {
+		const target = event.target as HTMLSelectElement;
+		if (target?.value) {
+			handleLanguageSelection(target.value as AvailableLanguage);
+		}
+	}
+
+	function toggleLanguageDropdown(event: Event): void {
+		event.stopPropagation();
+		isDropdownOpen = !isDropdownOpen;
 	}
 
 	function toggleSidebar(): void {
@@ -210,7 +212,7 @@
 	}
 </script>
 
-<div class="flex h-full w-full flex-col justify-between bg-transparent">
+<div class="flex h-full w-full flex-col justify-between bg-white dark:bg-surface-900 border-r border-surface-200 dark:border-surface-700">
 	<!-- Corporate Identity -->
 	{#if isSidebarFull}
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 no-underline!" data-sveltekit-preload-data="hover">
@@ -225,7 +227,7 @@
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
 				aria-label="Close Sidebar"
-				class="preset-outline-surface-500 btn-icon mt-1"
+				class="preset-ghost-surface-500 btn-icon mt-1"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
@@ -253,28 +255,8 @@
 		></iconify-icon>
 	</button>
 
-	<!-- Navigation: Collections, Media Folders, or Settings -->
-	{#if isSettingsMode}
-		<SettingsMenu isFullSidebar={isSidebarFull} />
-
-		<!-- Toggle to Collections Button -->
-		<button
-			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-4 transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
-			onclick={() => {
-				setMode('view');
-				navigateTo(firstCollectionPath);
-			}}
-			aria-label="Switch to Collections"
-		>
-			<iconify-icon icon="bi:arrow-left" width="18" class="text-error-500"></iconify-icon>
-			{#if isSidebarFull}
-				<iconify-icon icon="bi:collection" width="20" class="text-error-500"></iconify-icon>
-				<span class="">{m.button_Collections()} </span>
-			{:else}
-				<iconify-icon icon="bi:collection" width="18" class="text-error-500"></iconify-icon>
-			{/if}
-		</button>
-	{:else if isMediaMode}
+	<!-- Navigation: Collections or Media Folders -->
+	{#if isMediaMode}
 		<MediaFolders />
 
 		<!-- Toggle to Collections Button -->
@@ -299,7 +281,7 @@
 
 		<!-- Toggle to Media Gallery Button -->
 		<button
-			class="btn preset-outlined-surface-500 dark:preset-filled-surface-500 mt-2 flex h-14 w-full items-center justify-center gap-2 rounded"
+			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-4 transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
 			onclick={() => {
 				setMode('media');
 				navigateTo('/mediagallery');
@@ -318,12 +300,12 @@
 	{/if}
 
 	<!-- Footer -->
-	<div class="mb-2 mt-auto w-full px-1">
-		<div class="mx-1 mb-2 border-0 border-t border-surface-500"></div>
+	<div class="mb-2 mt-auto">
+		<div class="mx-1 mb-1 border-0 border-t border-surface-500"></div>
 
-		<div class="grid w-full items-center justify-center gap-2 {isSidebarFull ? 'grid-cols-3' : 'grid-cols-2'}">
+		<div class="grid items-center justify-center gap-1 {isSidebarFull ? 'grid-cols-3' : 'grid-cols-2'}">
 			<!-- Avatar -->
-			<div class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex items-center justify-center">
+			<div class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex justify-center">
 				<Tooltip positioning={{ placement: 'right' }}>
 					<Tooltip.Trigger>
 						<button
@@ -331,16 +313,16 @@
 							onkeypress={(e) => handleKeyPress(e, handleUserClick)}
 							aria-label="User Profile"
 							class="{isSidebarFull
-								? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-surface-500/20'
-								: 'btn-icon flex-col items-center justify-center'} relative text-center no-underline!"
+								? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-surface-500 hover:text-white'
+								: 'btn-icon flex-col items-center justify-center'} relative text-center no-underline! md:row-span-2"
 						>
-							<Avatar class="mx-auto overflow-hidden rounded-full {isSidebarFull ? 'size-10' : 'size-9'}">
-								<Avatar.Image src={avatarUrl} alt="User Avatar" class="h-full w-full object-cover" />
+							<Avatar class="mx-auto {isSidebarFull ? 'w-[40px]' : 'w-[35px]'}">
+								<Avatar.Image src={avatarUrl} alt="User Avatar" />
 								<Avatar.Fallback>AV</Avatar.Fallback>
 							</Avatar>
 							{#if isSidebarFull && user?.username}
 								<div
-									class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-[11px] font-medium leading-tight"
+									class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-[11px] font-medium leading-tight text-black dark:text-white"
 									title={user.username}
 								>
 									{user.username}
@@ -350,31 +332,9 @@
 					</Tooltip.Trigger>
 					<Portal>
 						<Tooltip.Positioner>
-							<Tooltip.Content class={TOOLTIP_CLASS}>
-								<span>{m.applayout_userprofile()}</span>
-								<Tooltip.Arrow class={ARROW_CLASS}>
-									<Tooltip.ArrowTip />
-								</Tooltip.Arrow>
-							</Tooltip.Content>
-						</Tooltip.Positioner>
-					</Portal>
-				</Tooltip>
-			</div>
-
-			<!-- Theme Toggle -->
-			<div class="{isSidebarFull ? 'order-2' : 'order-2'} flex items-center justify-center">
-				<Tooltip positioning={{ placement: 'right' }}>
-					<Tooltip.Trigger>
-						<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
-						<div class="flex items-center justify-center">
-							<ThemeToggle showTooltip={false} buttonClass="btn-icon hover:bg-surface-500/20" iconSize={22} />
-						</div>
-					</Tooltip.Trigger>
-					<Portal>
-						<Tooltip.Positioner>
-							<Tooltip.Content class={TOOLTIP_CLASS}>
-								<span>{themeTooltipText}</span>
-								<Tooltip.Arrow class={ARROW_CLASS}>
+							<Tooltip.Content class="card preset-filled-surface-900 z-50 rounded-md p-2 text-sm text-white shadow-xl">
+								{m.applayout_userprofile()}
+								<Tooltip.Arrow class="[--arrow-size:--spacing(2)]">
 									<Tooltip.ArrowTip />
 								</Tooltip.Arrow>
 							</Tooltip.Content>
@@ -384,79 +344,79 @@
 			</div>
 
 			<!-- Language Selector -->
-			<div class="{isSidebarFull ? 'order-3 row-span-2' : 'order-4'} flex items-center justify-center px-1">
+			<div class={isSidebarFull ? 'order-3 row-span-2 mx-auto pb-4' : 'order-2 mx-auto'}>
 				<Tooltip positioning={{ placement: 'right' }}>
 					<Tooltip.Trigger>
-						<div class="language-selector relative">
-							<Menu positioning={{ placement: 'right-start', gutter: 10 }}>
-								<Menu.Trigger
-									class="preset-filled-surface-500 hover:bg-surface-400 rounded-full btn-icon flex items-center justify-center uppercase transition-colors {isSidebarFull
-										? 'mb-3 w-8 h-8 text-sm'
-										: 'w-8 h-8 text-xs'}"
+						<div class="language-selector relative" bind:this={dropdownRef}>
+							{#if showLanguageDropdown}
+								<button
+									class="preset-filled-surface-500 btn-icon flex items-center justify-between uppercase text-white {isSidebarFull
+										? 'px-2.5 py-2'
+										: 'px-1.5 py-0'}"
+									onclick={toggleLanguageDropdown}
 									aria-label="Select language"
+									data-testid="language-selector"
+									aria-expanded={isDropdownOpen}
 								>
-									{languageTag}
-								</Menu.Trigger>
+									<span>{languageTag}</span>
+									<svg
+										class="h-4 w-4 transition-transform {isDropdownOpen ? 'rotate-180' : ''}"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+										aria-hidden="true"
+									>
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+									</svg>
+								</button>
 
-								<Portal>
-									<Menu.Positioner>
-										<Menu.Content
-											class="card p-2 shadow-xl preset-filled-surface-100-900 z-9999 w-56 border border-surface-200 dark:border-surface-500"
-										>
-											<!-- Header to inform user about System Language context -->
-											<div
-												class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1"
-											>
-												{m.applayout_systemlanguage()}
-											</div>
+								{#if isDropdownOpen}
+									<div class="absolute -top-40 left-20 z-50 mt-1 w-48 rounded-lg border bg-surface-700 shadow-lg">
+										<div class="border-b border-surface-600 p-2">
+											<input
+												type="text"
+												bind:value={searchQuery}
+												placeholder="Search language..."
+												class="w-full rounded-md bg-surface-800 px-3 py-2 text-white placeholder:text-surface-400 focus:outline-none focus:ring-2"
+												aria-label="Search languages"
+											/>
+										</div>
 
-											{#if showLanguageDropdown}
-												<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
-													<input
-														type="text"
-														bind:value={searchQuery}
-														placeholder="Search language..."
-														class="w-full rounded-md bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
-														aria-label="Search languages"
-														onclick={(e) => e.stopPropagation()}
-													/>
-												</div>
-
-												<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
-													{#each filteredLanguages as lang (lang)}
-														<Menu.Item
-															value={lang}
-															onclick={() => handleLanguageSelection(lang)}
-															class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer"
-														>
-															<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
-															<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
-														</Menu.Item>
-													{/each}
-												</div>
-											{:else}
-												{#each availableLanguages.filter((l) => l !== languageTag) as lang (lang)}
-													<Menu.Item
-														value={lang}
-														onclick={() => handleLanguageSelection(lang)}
-														class="flex w-full items-center justify-between px-3 py-2 text-left  rounded-sm cursor-pointer"
-													>
-														<span class="text-sm font-medium">{getLanguageName(lang)}</span>
-														<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
-													</Menu.Item>
-												{/each}
-											{/if}
-										</Menu.Content>
-									</Menu.Positioner>
-								</Portal>
-							</Menu>
+										<div class="max-h-48 divide-y divide-preset-600 overflow-y-auto py-1">
+											{#each filteredLanguages as lang (lang)}
+												<button
+													class="flex w-full items-center justify-between px-4 py-2 text-left text-white hover:bg-surface-600 {languageTag === lang
+														? 'bg-surface-600'
+														: ''}"
+													onclick={() => handleLanguageSelection(lang)}
+												>
+													<span>{getLanguageName(lang)} ({lang.toUpperCase()})</span>
+												</button>
+											{/each}
+										</div>
+									</div>
+								{/if}
+							{:else}
+								<select
+									bind:value={languageTag}
+									onchange={handleLanguageSelectChange}
+									aria-label="Select language"
+									class="preset-filled-surface-500 appearance-none! rounded-full uppercase text-white {isSidebarFull
+										? 'btn-icon px-2.5 py-2'
+										: 'btn-icon-sm px-1.5 py-0'}"
+								>
+									{#each availableLanguages as lang (lang)}
+										<option value={lang}>{lang.toUpperCase()}</option>
+									{/each}
+								</select>
+							{/if}
 						</div>
 					</Tooltip.Trigger>
 					<Portal>
 						<Tooltip.Positioner>
-							<Tooltip.Content class={TOOLTIP_CLASS}>
-								<span>{m.applayout_systemlanguage()}</span>
-								<Tooltip.Arrow class={ARROW_CLASS}>
+							<Tooltip.Content class="card preset-filled-surface-900 z-50 rounded-md p-2 text-sm text-white shadow-xl">
+								{m.applayout_systemlanguage()}
+								<Tooltip.Arrow class="[--arrow-size:--spacing(2)]">
 									<Tooltip.ArrowTip />
 								</Tooltip.Arrow>
 							</Tooltip.Content>
@@ -465,19 +425,24 @@
 				</Tooltip>
 			</div>
 
+			<!-- Theme Toggle -->
+			<div class={isSidebarFull ? 'order-2' : 'order-3'}>
+				<ThemeToggle showTooltip={true} tooltipPlacement="right" buttonClass="btn-icon hover:bg-surface-500 hover:text-white" iconSize={22} />
+			</div>
+
 			<!-- Sign Out -->
-			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
+			<div class="order-4">
 				<Tooltip positioning={{ placement: 'right' }}>
 					<Tooltip.Trigger>
-						<button onclick={signOut} type="button" aria-label="Sign Out" class="btn-icon hover:bg-surface-500/20">
-							<iconify-icon icon="uil:signout" width="26" class=""></iconify-icon>
+						<button onclick={signOut} type="button" aria-label="Sign Out" class="btn-icon hover:bg-surface-500 hover:text-white">
+							<iconify-icon icon="uil:signout" width="26"></iconify-icon>
 						</button>
 					</Tooltip.Trigger>
 					<Portal>
 						<Tooltip.Positioner>
-							<Tooltip.Content class={TOOLTIP_CLASS}>
-								<span>{m.applayout_signout()}</span>
-								<Tooltip.Arrow class={ARROW_CLASS}>
+							<Tooltip.Content class="card preset-filled-surface-900 z-50 rounded-md p-2 text-sm text-white shadow-xl">
+								{m.applayout_signout()}
+								<Tooltip.Arrow class="[--arrow-size:--spacing(2)]">
 									<Tooltip.ArrowTip />
 								</Tooltip.Arrow>
 							</Tooltip.Content>
@@ -487,24 +452,23 @@
 			</div>
 
 			<!-- Config -->
-			<div class="{isSidebarFull ? 'order-5' : 'order-6'} flex items-center justify-center">
+			<div class={isSidebarFull ? 'order-5' : 'order-6'}>
 				<Tooltip positioning={{ placement: 'right' }}>
 					<Tooltip.Trigger>
 						<button
 							onclick={handleConfigClick}
 							onkeypress={(e) => handleKeyPress(e, handleConfigClick)}
 							aria-label="System Configuration"
-							class="btn-icon hover:bg-surface-500/20"
+							class="btn-icon hover:bg-surface-500 hover:text-white"
 						>
-							<iconify-icon icon="material-symbols:build-circle" width="34" class=""></iconify-icon>
+							<iconify-icon icon="material-symbols:build-circle" width="34"></iconify-icon>
 						</button>
 					</Tooltip.Trigger>
-
 					<Portal>
 						<Tooltip.Positioner>
-							<Tooltip.Content class={TOOLTIP_CLASS}>
-								<span>{m.applayout_systemconfiguration()}</span>
-								<Tooltip.Arrow class={ARROW_CLASS}>
+							<Tooltip.Content class="card preset-filled-surface-900 z-50 rounded-md p-2 text-sm text-white shadow-xl">
+								{m.applayout_systemconfiguration()}
+								<Tooltip.Arrow class="[--arrow-size:--spacing(2)]">
 									<Tooltip.ArrowTip />
 								</Tooltip.Arrow>
 							</Tooltip.Content>
@@ -514,36 +478,23 @@
 			</div>
 
 			<!-- Version -->
-			<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center">
-				<VersionCheck compact={!isSidebarFull} />
+			<div class={isSidebarFull ? 'order-6' : 'order-5'}>
+				<VersionCheck compact={isSidebarCollapsed} />
 			</div>
 
 			<!-- GitHub (only when expanded) -->
 			{#if isSidebarFull}
-				<div class="order-7 flex items-center justify-center {isSidebarFull ? '' : 'col-span-2'}">
-					<Tooltip positioning={{ placement: 'right' }}>
-						<Tooltip.Trigger>
-							<a
-								href="https://github.com/SveltyCMS/SveltyCMS/discussions"
-								target="_blank"
-								rel="noopener noreferrer"
-								aria-label="GitHub Discussions"
-								class="btn-icon flex items-center justify-center hover:bg-surface-500/20"
-							>
-								<iconify-icon icon="grommet-icons:github" width="30" class=""></iconify-icon>
-							</a>
-						</Tooltip.Trigger>
-						<Portal>
-							<Tooltip.Positioner>
-								<Tooltip.Content class={TOOLTIP_CLASS}>
-									<span>{m.applayout_githubdiscussion()}</span>
-									<Tooltip.Arrow class={ARROW_CLASS}>
-										<Tooltip.ArrowTip />
-									</Tooltip.Arrow>
-								</Tooltip.Content>
-							</Tooltip.Positioner>
-						</Portal>
-					</Tooltip>
+				<div class="order-7">
+					<a
+						href="https://github.com/SveltyCMS/SveltyCMS/discussions"
+						target="_blank"
+						rel="noopener noreferrer"
+						title={m.applayout_githubdiscussion()}
+						aria-label="GitHub Discussions"
+						class="btn-icon flex items-center justify-center hover:bg-surface-500 hover:text-white"
+					>
+						<iconify-icon icon="grommet-icons:github" width="30"></iconify-icon>
+					</a>
 				</div>
 			{/if}
 		</div>
@@ -554,7 +505,7 @@
 	/* Scrollbar styling */
 	.overflow-y-auto {
 		scrollbar-width: thin;
-		scrollbar-color: rgb(var(--color-surface-500)) transparent;
+		scrollbar-color: rgb(var(--color-preset-500)) transparent;
 	}
 
 	.overflow-y-auto::-webkit-scrollbar {
@@ -566,7 +517,7 @@
 	}
 
 	.overflow-y-auto::-webkit-scrollbar-thumb {
-		background-color: rgb(var(--color-surface-500));
+		background-color: rgb(var(--color-preset-500));
 		border-radius: 3px;
 	}
 </style>

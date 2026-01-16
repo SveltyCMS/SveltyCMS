@@ -87,7 +87,9 @@ export class DatabaseResilience {
 		this.startHealthMonitoring();
 	}
 
-	// Execute operation with automatic retry and exponential backoff
+	/**
+	 * Execute operation with automatic retry and exponential backoff
+	 */
 	async executeWithRetry<T>(operation: () => Promise<T>, operationName: string, onRetry?: (attempt: number, error: Error) => void): Promise<T> {
 		let lastError: Error | undefined;
 
@@ -129,7 +131,9 @@ export class DatabaseResilience {
 		throw lastError || new Error(`Operation '${operationName}' failed after all retry attempts`);
 	}
 
-	// Attempt to reconnect to database with self-healing
+	/**
+	 * Attempt to reconnect to database with self-healing
+	 */
 	async attemptReconnection(reconnectFn: () => Promise<void>, notifyAdmins: (error: DatabaseError) => Promise<void>): Promise<boolean> {
 		if (this.isReconnecting) {
 			logger.debug('Reconnection already in progress, skipping...');
@@ -236,7 +240,9 @@ export class DatabaseResilience {
 		}
 	}
 
-	// Get MongoDB-specific pool statistics from mongoose connection
+	/**
+	 * Get MongoDB-specific pool statistics from mongoose connection
+	 */
 	private async getMongoosePoolStats(mongoose: typeof import('mongoose')): Promise<{
 		total: number;
 		active: number;
@@ -302,7 +308,9 @@ export class DatabaseResilience {
 		return poolStats;
 	}
 
-	// Get resilience metrics
+	/**
+	 * Get resilience metrics
+	 */
 	getMetrics(): ResilienceMetrics {
 		const uptime = this.connectionEstablishedAt ? Date.now() - this.connectionEstablishedAt : 0;
 
@@ -312,7 +320,9 @@ export class DatabaseResilience {
 		};
 	}
 
-	// Check if database connection is healthy
+	/**
+	 * Check if database connection is healthy
+	 */
 	async healthCheck(pingFn: () => Promise<number>): Promise<{
 		healthy: boolean;
 		latency: number;
@@ -334,7 +344,9 @@ export class DatabaseResilience {
 		}
 	}
 
-	// Start continuous health monitoring
+	/**
+	 * Start continuous health monitoring
+	 */
 	private startHealthMonitoring(): void {
 		// Monitor every 30 seconds
 		this.monitoringInterval = setInterval(() => {
@@ -342,7 +354,9 @@ export class DatabaseResilience {
 		}, 30000);
 	}
 
-	// Stop health monitoring (cleanup)
+	/**
+	 * Stop health monitoring (cleanup)
+	 */
 	stop(): void {
 		if (this.monitoringInterval) {
 			clearInterval(this.monitoringInterval);
@@ -350,7 +364,9 @@ export class DatabaseResilience {
 		}
 	}
 
-	// Calculate exponential backoff delay with jitter
+	/**
+	 * Calculate exponential backoff delay with jitter
+	 */
 	private calculateBackoffDelay(attempt: number): number {
 		const exponentialDelay = Math.min(
 			this.retryConfig.initialDelayMs * Math.pow(this.retryConfig.backoffMultiplier, attempt - 1),
@@ -363,12 +379,16 @@ export class DatabaseResilience {
 		return Math.floor(exponentialDelay + jitter);
 	}
 
-	// Sleep utility
+	/**
+	 * Sleep utility
+	 */
 	private sleep(ms: number): Promise<void> {
 		return new Promise((resolve) => setTimeout(resolve, ms));
 	}
 
-	// Update average recovery time with exponential moving average
+	/**
+	 * Update average recovery time with exponential moving average
+	 */
 	private updateAverageRecoveryTime(newRecoveryTime: number): void {
 		if (this.metrics.averageRecoveryTime === 0) {
 			this.metrics.averageRecoveryTime = newRecoveryTime;
@@ -378,14 +398,18 @@ export class DatabaseResilience {
 		}
 	}
 
-	// Update connection uptime
+	/**
+	 * Update connection uptime
+	 */
 	private updateConnectionUptime(): void {
 		if (this.connectionEstablishedAt) {
 			this.metrics.connectionUptime = Date.now() - this.connectionEstablishedAt;
 		}
 	}
 
-	// Determine pool health status based on metrics
+	/**
+	 * Determine pool health status based on metrics
+	 */
 	private determinePoolHealth(utilization: number, waiting: number): 'healthy' | 'degraded' | 'critical' {
 		if (waiting > 10 || utilization > 90) {
 			return 'critical';
@@ -396,7 +420,9 @@ export class DatabaseResilience {
 		return 'healthy';
 	}
 
-	// Generate recommendations based on pool stats
+	/**
+	 * Generate recommendations based on pool stats
+	 */
 	private generatePoolRecommendations(stats: { total: number; active: number; idle: number; waiting: number }, utilization: number): string[] {
 		const recommendations: string[] = [];
 
@@ -424,7 +450,9 @@ export class DatabaseResilience {
 	}
 }
 
-// Send email notification to administrators
+/**
+ * Send email notification to administrators
+ */
 export async function notifyAdminsOfDatabaseFailure(error: DatabaseError, metrics: ResilienceMetrics): Promise<void> {
 	try {
 		// Check if SMTP is configured
@@ -501,7 +529,9 @@ export async function notifyAdminsOfDatabaseFailure(error: DatabaseError, metric
 	}
 }
 
-// Global resilience instance (singleton)
+/**
+ * Global resilience instance (singleton)
+ */
 let resilienceInstance: DatabaseResilience | null = null;
 
 export function getDatabaseResilience(config?: Partial<RetryConfig>): DatabaseResilience {

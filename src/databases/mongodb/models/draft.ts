@@ -4,12 +4,6 @@
  *
  * This module defines a schema and model for Drafts in the MongoDB database.
  * A Draft is a version of a document that is not yet published.
- *
- * Features:
- * - Defines a schema for Drafts
- * - Defines a model for Drafts
- * - Defines static methods for Drafts
- * - Defines indexes for Drafts
  */
 
 import mongoose, { Schema } from 'mongoose';

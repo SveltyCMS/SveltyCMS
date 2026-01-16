@@ -156,10 +156,10 @@
 	<div class="welcome-container mx-auto max-w-4xl rounded-lg bg-surface-50 p-6 shadow-lg dark:bg-surface-800">
 		<!-- Header -->
 		<div class="mb-8 text-center">
-			<div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
-				<Icon icon="mdi:rocket-launch" class="h-10 w-10 text-blue-600 dark:text-blue-400" />
+			<div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 dark:bg-tertiary-900">
+				<Icon icon="mdi:rocket-launch" class="h-10 w-10 text-tertiary-500 dark:text-tertiary-400" />
 			</div>
-			<h2 class="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
+			<h2 class="mb-2 text-2xl font-bold text-surface-900 dark:text-white">
 				Congratulations, {user?.username || 'Admin'}!
 			</h2>
 			<p class="text-gray-600 dark:text-gray-400">Your SveltyCMS installation is ready. Let's get you started with the essential features.</p>
@@ -171,10 +171,10 @@
 				{#each welcomeSteps as step, index}
 					<button
 						class="h-3 w-3 rounded-full transition-colors duration-200 {index === currentStep
-							? 'bg-blue-600'
+							? 'bg-tertiary-500'
 							: step.completed
-								? 'bg-green-500'
-								: 'bg-gray-300 dark:bg-gray-600'}"
+								? 'bg-primary-500'
+								: 'bg-surface-500 '}"
 						onclick={() => (currentStep = index)}
 						aria-label="Go to step {index + 1}: {step.title}"
 					></button>
@@ -200,7 +200,7 @@
 
 				<!-- Step Action -->
 				<div class="mb-6 text-center">
-					<Button onclick={() => handleStepAction(step)} variant="primary" size="lg" class="px-8">
+					<Button onclick={() => handleStepAction(step)} preset="primary" size="lg" class="px-8">
 						<Icon icon={step.icon} class="mr-2 h-5 w-5" />
 						{step.action}
 					</Button>
@@ -250,22 +250,22 @@
 	<!-- Footer -->
 	<div class="flex w-full items-center justify-between">
 		<div class="flex space-x-2">
-			<Button onclick={previousStep} variant="ghost" disabled={currentStep === 0}>
+			<Button onclick={previousStep} preset="ghost" disabled={currentStep === 0}>
 				<Icon icon="mdi:chevron-left" class="mr-1 h-4 w-4" />
 				Previous
 			</Button>
 		</div>
 
 		<div class="flex space-x-2">
-			<Button onclick={dismissWelcome} variant="ghost">Skip Tour</Button>
+			<Button onclick={dismissWelcome} preset="ghost">Skip Tour</Button>
 
 			{#if currentStep < welcomeSteps.length - 1}
-				<Button onclick={nextStep} variant="secondary">
+				<Button onclick={nextStep} preset="secondary">
 					Next
 					<Icon icon="mdi:chevron-right" class="ml-1 h-4 w-4" />
 				</Button>
 			{:else}
-				<Button onclick={goToDashboard} variant="primary">
+				<Button onclick={goToDashboard} preset="primary">
 					Go to Dashboard
 					<Icon icon="mdi:view-dashboard" class="ml-2 h-4 w-4" />
 				</Button>
@@ -280,7 +280,7 @@
 		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>
-				<button onclick={() => (showImportExport = false)} class="preset-outlined-surface-500 btn-sm">
+				<button onclick={() => (showImportExport = false)} class="preset-ghost btn btn-sm">
 					<Icon icon="mdi:close" class="h-5 w-5" />
 				</button>
 			</div>
@@ -300,7 +300,7 @@
 							showImportExport = false;
 							markStepCompleted('data-management');
 						}}
-						variant="primary"
+						preset="primary"
 					>
 						Done
 					</Button>

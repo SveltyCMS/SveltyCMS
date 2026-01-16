@@ -1,11 +1,34 @@
 /**
  * @file src/routes/api/graphql/resolvers/media.ts
  * @description Dynamic GraphQL schema and resolver generation for media.
+ *
+ * This module provides functionality to:
+ * - Dynamically register media schemas based on the CMS configuration
+ * - Generate GraphQL type definitions and resolvers for each media type
+ * - Handle complex field types and nested structures
+ * - Integrate with Redis for caching (if enabled)
+ *
+ * Features:
+ * - Dynamic schema generation based on widget configurations
+ * - Support for extracted fields and nested structures
+ * - Integration with custom widget schemas
+ * - Redis caching for improved performance
+ * - Error handling and logging
+ *
+ * Usage:
+ * - Used by the main GraphQL setup to generate media-specific schemas and resolvers
+ * - Provides the foundation for querying media data through the GraphQL API
  */
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import type { DatabaseAdapter, BaseEntity } from '@src/databases/dbInterface';
+
+// System Logs
 import { logger } from '@utils/logger.server';
+
+// Permissions
+
+// Types
 import type { User } from '@src/databases/auth/types';
 
 // Registers media schemas dynamically.
@@ -48,6 +71,7 @@ export function mediaTypeDefs() {
     `;
 }
 
+// GraphQL Types
 interface PaginationArgs {
 	pagination: {
 		page: number;
@@ -55,13 +79,16 @@ interface PaginationArgs {
 	};
 }
 
+// GraphQL context type
 interface GraphQLContext {
 	user?: User;
 	tenantId?: string;
 }
 
+// GraphQL parent type for media resolvers
 type MediaResolverParent = unknown;
 
+// Media entity type with tenantId support
 interface MediaEntity extends BaseEntity {
 	url?: string;
 	tenantId?: string;
@@ -70,39 +97,49 @@ interface MediaEntity extends BaseEntity {
 // Builds resolvers for querying media data with pagination support.
 export function mediaResolvers(dbAdapter: DatabaseAdapter) {
 	if (!dbAdapter) {
+		logger.error('Database adapter is not initialized');
 		throw new Error('Database adapter is not initialized');
 	}
-
 	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }, context: GraphQLContext) => {
-		if (!context.user) throw new Error('Authentication required');
+		// Check media permissions
+		if (!context.user) {
+			logger.warn(`GraphQL: No user in context for media type ${contentTypes}`);
+			throw new Error('Authentication required');
+		}
+
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		if (getPrivateSettingSync('MULTI_TENANT') && !context.tenantId) {
+			logger.error('GraphQL: Tenant ID is missing from context in a multi-tenant setup.');
 			throw new Error('Internal Server Error: Tenant context is missing.');
 		}
 
 		const { page = 1, limit = 50 } = pagination || {};
 
 		try {
+			// --- MULTI-TENANCY: Scope the query by tenantId ---
 			const query: Partial<MediaEntity> = {};
 			if (getPrivateSettingSync('MULTI_TENANT')) {
 				query.tenantId = context.tenantId;
 			}
 
-			const result = await dbAdapter
+			// Use query builder pattern consistent with REST API
+			const queryBuilder = dbAdapter
 				.queryBuilder<MediaEntity>(contentTypes)
 				.where(query)
 				.sort('createdAt', 'desc')
-				.paginate({ page, pageSize: limit })
-				.execute();
+				.paginate({ page, pageSize: limit });
 
-			if (!result.success) throw new Error(result.error?.message || 'Query failed');
+			const result = await queryBuilder.execute();
 
+			if (!result.success) {
+				throw new Error(`Database query failed: ${result.error?.message || 'Unknown error'}`);
+			}
+
+			logger.info(`Fetched ${contentTypes}`, { count: result.data.length, tenantId: context.tenantId });
 			return result.data;
 		} catch (error) {
-			logger.error(`Error fetching data for ${contentTypes}:`, {
-				error: error instanceof Error ? error.message : String(error),
-				tenantId: context.tenantId
-			});
+			logger.error(`Error fetching data for ${contentTypes}:`, { error, tenantId: context.tenantId });
 			throw Error(`Failed to fetch data for ${contentTypes}`);
 		}
 	};

@@ -17,19 +17,16 @@ Features:
 
 <script lang="ts">
 	import { asAny } from '@utils/utils';
-	import type { Component } from 'svelte';
+	import type { SvelteComponent } from 'svelte';
 
 	// Components
 	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 
-	// Skeleton Stores
-	import { modalState } from '@utils/modalState.svelte';
-
 	// Stores
-	import { collections } from '@src/stores/collectionStore.svelte';
+	import { targetWidget } from '@src/stores/collectionStore.svelte';
 
 	// GuiSchema is a record of field properties with their widget configs
-	type GuiSchema = Record<string, { widget: Component<any> }>;
+	type GuiSchema = Record<string, { widget: typeof SvelteComponent }>;
 
 	interface Props {
 		guiSchema: GuiSchema;
@@ -52,25 +49,32 @@ Features:
 	function defaultValue(property: string) {
 		if (property === 'required' || property === 'translated') {
 			return false;
-		} else return (collections.targetWidget.widget as any)?.Name;
+		} else return (targetWidget.value.widget as any)?.Name;
 	}
 
 	function handleUpdate(detail: { value: any }, property: string) {
 		// Update the targetWidget store
-		const currentWidget = collections.targetWidget;
+		const currentWidget = targetWidget.value;
 		currentWidget[property] = detail.value;
-		collections.setTargetWidget(currentWidget);
+		targetWidget.value = currentWidget;
 	}
 </script>
 
-{#if modalState.active}
+{#if targetWidget.value}
 	<!-- Default section -->
-	<div class="flex flex-col gap-4">
+	<div class="mb-2 border-y text-center text-primary-500">
+		<div class="text-xl text-primary-500">
+			Widget <span class="font-bold text-black dark:text-white">{(targetWidget.value.widget as any).Name}</span> Input Options
+		</div>
+		<div class="my-1 text-xs text-error-500">* Required</div>
+	</div>
+
+	<div class="options-table">
 		{#each displayProperties as property}
 			{#if guiSchema[property]}
 				<InputSwitch
-					value={collections.targetWidget[property] ?? defaultValue(property)}
-					icon={collections.targetWidget[property] as string}
+					value={targetWidget.value[property] ?? defaultValue(property)}
+					icon={targetWidget.value[property] as string}
 					widget={asAny(guiSchema[property]?.widget)}
 					key={property}
 					onupdate={(e: { value: any }) => handleUpdate(e, property)}

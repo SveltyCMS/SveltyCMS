@@ -19,7 +19,7 @@
  * - Describe the data contract for API endpoints related to content.
  */
 
-import type { WidgetRegistry as widgets } from '@stores/widgetStore.svelte';
+import type { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 // Note: collectionSchemas may be used in the future for runtime validation
 
 // Auth
@@ -36,6 +36,7 @@ export const StatusTypes = {
 	unpublish: 'unpublish',
 	schedule: 'schedule',
 	clone: 'clone',
+	test: 'test',
 	delete: 'delete'
 } as const;
 
@@ -50,9 +51,6 @@ export interface BaseEntity {
 	createdAt: ISODateString;
 	updatedAt: ISODateString;
 	isDeleted?: boolean; // Soft delete flag
-	deletedAt?: ISODateString; // Timestamp of deletion
-	deletedBy?: string; // User who performed deletion
-	tenantId?: string; // For multi-tenant support
 }
 
 // Collection Entry - A data record in a collection with common metadata
@@ -90,8 +88,6 @@ export interface Translation {
 export interface ContentNode {
 	_id: DatabaseId;
 	name: string;
-	slug?: string;
-	description?: string;
 	nodeType: 'category' | 'collection';
 	icon?: string;
 	order: number;
@@ -103,13 +99,11 @@ export interface ContentNode {
 	createdAt: ISODateString;
 	updatedAt: ISODateString;
 	tenantId?: string; // For multi-tenant support
-	deletedAt?: ISODateString; // Timestamp of deletion
-	deletedBy?: string; // User who performed deletion
 }
 
 // Widget field type definition
-export type WidgetKeys = keyof widgets;
-export type WidgetTypes = widgets[WidgetKeys];
+export type WidgetKeys = keyof typeof widgets;
+export type WidgetTypes = (typeof widgets)[WidgetKeys];
 
 // Widget Definition is now imported from @widgets/types
 import type { WidgetDefinition } from '@widgets/types';
@@ -439,6 +433,4 @@ export interface TablePaginationProps {
 	onUpdateRowsPerPage?: (rows: number) => void;
 }
 
-/* AUTOGEN_START: ContentTypes */
-export type ContentTypes = 'Names' | 'Posts' | 'Relation' | 'WidgetTest' | 'Menu';
-/* AUTOGEN_END: ContentTypes */
+export type ContentTypes = 'Posts' | 'Names' | 'Relation' | 'WidgetTest' | 'Menu';

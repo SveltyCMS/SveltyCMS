@@ -27,7 +27,8 @@
 
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
-	import { showToast } from '@utils/toast';
+	// getToastStore deprecated - use custom toaster from @stores/toasterStore;
+	import { toaster } from '@stores/store.svelte';
 	import type { WidgetSize } from '@src/content/types';
 
 	type SystemState = 'IDLE' | 'INITIALIZING' | 'READY' | 'DEGRADED' | 'FAILED';
@@ -67,7 +68,7 @@
 
 	async function reinitializeSystem() {
 		try {
-			showToast('Reinitializing system...', 'warning');
+			toaster.warning({ description: 'Reinitializing system...' });
 
 			const response = await fetch('/api/system', {
 				method: 'POST',
@@ -77,13 +78,13 @@
 
 			if (response.ok) {
 				const result = await response.json();
-				showToast(result.message || `System reinitialized: ${result.status}`, 'success');
+				toaster.success({ description: result.message || `System reinitialized: ${result.status}` });
 			} else {
 				const error = await response.json();
 				throw new Error(error.error || 'Reinitialization failed');
 			}
 		} catch (error) {
-			showToast(`Failed to reinitialize: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+			toaster.error({ description: `Failed to reinitialize: ${error instanceof Error ? error.message : 'Unknown error'}` });
 		}
 	}
 	function getStateColor(state: SystemState): string {
@@ -127,7 +128,7 @@
 			case 'unhealthy':
 				return 'preset-filled-error-500';
 			case 'initializing':
-				return 'variant-filled-warning';
+				return 'preset-filled-warning-500';
 			default:
 				return 'preset-filled-surface-500';
 		}
@@ -166,7 +167,7 @@
 						</div>
 					</div>
 
-					<button class="preset-outlined-warning-500 btn-sm" onclick={reinitializeSystem} title="Reinitialize system">
+					<button class="preset-ghost-warning-500 btn btn-sm" onclick={reinitializeSystem} title="Reinitialize system">
 						<iconify-icon icon="mdi:refresh" width="16"></iconify-icon>
 					</button>
 				</div>
@@ -174,7 +175,7 @@
 				<!-- Services Grid -->
 				<div class="grid flex-1 grid-cols-2 gap-2 overflow-y-auto" style="max-height: calc({size.h} * 120px - 80px);">
 					{#each Object.entries(data.components) as [name, service]}
-						<div class="card preset-outlined-surface-500flex flex-col gap-1 p-2">
+						<div class="card preset-ghost-surface-500 flex flex-col gap-1 p-2">
 							<div class="flex items-center justify-between">
 								<span class="text-xs font-semibold">{formatServiceName(name)}</span>
 								<span class={`badge ${getServiceBadgeClass(service.status)}`}>

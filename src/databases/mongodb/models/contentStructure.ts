@@ -4,12 +4,6 @@
  *
  * This module defines a schema and model for Content Structure in the MongoDB database.
  * Content Structure represents the hierarchical organization of content in the CMS.
- *
- * Features:
- * - Defines a schema for Content Structure
- * - Defines a model for Content Structure
- * - Defines static methods for Content Structure
- * - Defines indexes for Content Structure
  */
 
 import type { ContentNode, Translation } from '@src/content/types';
@@ -108,14 +102,6 @@ contentStructureSchema.index({ tenantId: 1, slug: 1 }, { sparse: true }); // Slu
 contentStructureSchema.index({ tenantId: 1, 'translations.languageTag': 1, nodeType: 1 }); // Multi-language content
 contentStructureSchema.index({ parentId: 1, order: 1, nodeType: 1 }); // Child node ordering
 contentStructureSchema.index({ nodeType: 1, updatedAt: -1 }); // Recent content by type
-
-// --- DTOs ---
-export interface ContentStructureReorderItem {
-	id: string;
-	parentId: string | null;
-	order: number;
-	path: string;
-}
 
 // --- Static Methods ---
 
@@ -228,85 +214,6 @@ contentStructureSchema.statics = {
 				message,
 				error: createDatabaseError(error, 'CONTENT_GET_CHILDREN_ERROR', message)
 			};
-		}
-	},
-
-	/**
-	 * Validates a parent-child relationship before persisting changes.
-	 */
-	async validateMove(nodeId: string, newParentId: string | null): Promise<DatabaseResult<void>> {
-		try {
-			const node = await this.findOne({ _id: nodeId }).lean();
-			const parent = newParentId ? await this.findOne({ _id: newParentId }).lean() : null;
-
-			if (!node) {
-				return {
-					success: false,
-					message: 'Node not found',
-					error: createDatabaseError(new Error('Node not found'), 'CONTENT_NODE_NOT_FOUND', 'Node not found')
-				};
-			}
-
-			if (parent && parent.nodeType === 'collection' && node.nodeType === 'category') {
-				return {
-					success: false,
-					message: 'Categories cannot be nested under collections',
-					error: createDatabaseError(new Error('Invalid nesting'), 'CONTENT_INVALID_NESTING', 'Categories cannot be nested under collections')
-				};
-			}
-
-			return { success: true, data: undefined };
-		} catch (error) {
-			const message = `Error validating move for node ${nodeId}`;
-			return {
-				success: false,
-				message,
-				error: createDatabaseError(error, 'CONTENT_VALIDATE_MOVE_ERROR', message)
-			};
-		}
-	},
-
-	/**
-	 * Persists a full or partial content structure reorder.
-	 * This method updates parentId, order, and path atomically.
-	 */
-	async reorderStructure(items: ContentStructureReorderItem[], tenantId?: string): Promise<DatabaseResult<void>> {
-		const session = await mongoose.startSession();
-		session.startTransaction();
-
-		try {
-			const bulkOps = items.map((item) => ({
-				updateOne: {
-					filter: {
-						_id: item.id,
-						...(tenantId ? { tenantId } : {})
-					} as any,
-					update: {
-						$set: {
-							parentId: item.parentId as any,
-							order: item.order,
-							path: item.path
-						}
-					}
-				}
-			}));
-
-			if (bulkOps.length > 0) {
-				await this.bulkWrite(bulkOps, { session });
-			}
-
-			await session.commitTransaction();
-			return { success: true, data: undefined };
-		} catch (error) {
-			await session.abortTransaction();
-			const message = 'Error reordering content structure';
-			return {
-				success: false,
-				message,
-				error: createDatabaseError(error, 'CONTENT_REORDER_ERROR', message)
-			};
-		} finally {
-			session.endSession();
 		}
 	}
 };

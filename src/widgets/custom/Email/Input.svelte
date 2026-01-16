@@ -28,9 +28,10 @@
 
 	// Stores
 	// Stores
-	import { app, validationStore } from '@stores/store.svelte';
+	import { validationStore } from '@stores/store.svelte';
+	import { contentLanguage } from '@stores/store.svelte';
 	import { collection } from '@src/stores/collectionStore.svelte';
-	import { activeInput } from '@src/stores/activeInputStore.svelte';
+	import { activeInputStore } from '@src/stores/activeInputStore.svelte';
 
 	// Utils
 	import { getFieldName } from '@utils/utils';
@@ -46,9 +47,8 @@
 	let { field, value = $bindable() }: Props = $props();
 
 	// Use current content language for translated fields, default for non-translated
-	// Use current content language for translated fields, default for non-translated
 	const fieldName = $derived(getFieldName(field));
-	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const _language = $derived(field.translated ? contentLanguage.value : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Initialize value
 	$effect(() => {
@@ -138,10 +138,10 @@
 
 	// Handle focus events
 	function handleFocus(e: FocusEvent) {
-		// If the token picker is already open (activeInput.current has a value),
+		// If the token picker is already open (activeInputStore has a value),
 		// update it to point to this input.
-		if (activeInput.current) {
-			activeInput.set({
+		if (activeInputStore.value) {
+			activeInputStore.set({
 				element: e.currentTarget as HTMLInputElement,
 				field: {
 					name: field.db_fieldName,
@@ -169,7 +169,7 @@
 </script>
 
 <div class="input-container relative mb-4">
-	<div class="preset-filled-surface-500 btn-group flex w-full rounded" role="group">
+	<div class="preset-filled-surface-500  flex w-full rounded" role="group">
 		{#if field?.prefix}
 			<button class="px-2!" type="button" aria-label={`${field.prefix} prefix`}>
 				{field?.prefix}
@@ -193,7 +193,7 @@
 				class:!border-error-500={!!validationError}
 				class:!ring-1={!!validationError || isValidating}
 				class:!ring-error-500={!!validationError}
-				class:!border-primary-500={isValidating && !validationError}
+				class:border-primary-500!={isValidating && !validationError}
 				class:!ring-primary-500={isValidating && !validationError}
 				aria-invalid={!!validationError}
 				aria-describedby={validationError ? `${fieldName}-error` : undefined}
@@ -219,7 +219,7 @@
 		{#if validationError && isTouched}
 			<p
 				id={`${field.db_fieldName}-error`}
-				class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500"
+				class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500"
 				role="alert"
 				aria-live="polite"
 			>

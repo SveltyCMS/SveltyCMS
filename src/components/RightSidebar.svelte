@@ -1,111 +1,143 @@
-<!--
+<!-- 
 @file src/components/RightSidebar.svelte
-@component RightSidebar – Collection entry management (save, status, schedule, metadata)
+@component
+**RightSidebar component displaying collection fields, publish options and translation status.**
 
-@features
-- Centralized validation & change tracking
-- Save with proper validation guard
-- Status toggle with loading state
-- Schedule publication modal
-- Clone/delete with permission checks
-- Clean display of created/updated metadata
+This component provides a streamlined interface for managing collection entries with:
+- Simplified validation logic that relies on centralized validation store
+- Clean save functionality without complex field-by-field validation
+- Improved user experience with disabled save button when validation fails
+- Efficient data handling using store snapshots rather than rebuilding data objects
+
+@example
+<RightSidebar />	
+
+
+#### Props
+- `collection` {object} - Collection object containing schema and permissions
+- Relies on global stores for validation state and form data
+
+#### Key Features
+- **Validation Integration**: Uses `$validationStore.isValid` to control save button state
+- **Simplified Save Logic**: Trusts validation store and uses store snapshots for efficiency
+- **User Experience**: Provides clear feedback when form has validation errors
+- **Permission Handling**: Respects user role permissions for various operations
 -->
 
 <script lang="ts">
 	import { logger } from '@utils/logger';
-	import { page } from '$app/state';
+	import { toaster } from '@stores/store.svelte';
+	import { showScheduleModal } from '@utils/modalState.svelte';
+	// SvelteKit imports
+	import { page } from '$app/state'; // Svelte 5 uses $app/state
 	import { navigationManager } from '@utils/navigationManager';
 	import { getLocale } from '@src/paraglide/runtime';
 
+	// Actions and Utils
 	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '../utils/entryActions';
-	import { showScheduleModal } from '@utils/modalUtils';
-	import { showToast } from '@utils/toast';
 	import * as m from '@src/paraglide/messages';
 
+	// Types
 	import { StatusTypes } from '@src/content/types';
 
-	import { screen } from '@stores/screenSizeStore.svelte';
-	import { collection, collectionValue, mode } from '@stores/collectionStore.svelte';
-	import { app, validationStore, dataChangeStore } from '@stores/store.svelte';
-	import { ui } from '@stores/UIStore.svelte';
+	// Stores
+	import { screenSize } from '@stores/screenSizeStore.svelte';
+	import { collection, collectionValue, mode, setCollectionValue } from '@stores/collectionStore.svelte';
+	import { saveLayerStore, shouldShowNextButton, validationStore, dataChangeStore } from '@stores/store.svelte';
+	import { handleUILayoutToggle, uiStateManager } from '@stores/UIStore.svelte';
+
+	// Components
+	import Toggles from './system/inputs/Toggles.svelte';
 	import { statusStore } from '@stores/statusStore.svelte';
 
-	import Toggles from './system/inputs/Toggles.svelte';
+	// Define a clearer type for the entry data
+	type EntryData = Record<string, any>;
 
-	// --- Derived from page & stores ---
-	let user = $derived(page.data.user);
-	let isAdmin = $derived(page.data.isAdmin === true);
+	// --- Derived State from Page Data ---
+	const user = $derived(page.data.user);
+	const isAdmin = $derived((page.data.isAdmin || false) as boolean);
 
-	let currentMode = $derived(mode.value);
-	let currentCollection = $derived(collection.value);
-	let currentEntry = $derived(collectionValue.value as Record<string, any> | null);
-	let currentScreenSize = $derived(screen.size);
+	// --- Local State ---
+	// isLoading removed, using statusStore.isLoading
 
-	let isFormValid = $derived(validationStore.isValid);
-	let hasChanges = $derived(dataChangeStore.hasChanges);
+	// Track data changes using the centralized store
+	const hasDataChanged = $derived(dataChangeStore.hasChanges);
 
-	let canWrite = $derived(currentCollection?.permissions?.[user?.role]?.write !== false);
-	let canCreate = $derived(currentCollection?.permissions?.[user?.role]?.create !== false);
-	let canDelete = $derived(currentCollection?.permissions?.[user?.role]?.delete !== false);
+	// --- Derived State from Stores and Props ---
+	const currentMode = $derived(mode.value);
+	const currentCollection = $derived(collection.value);
+	const currentEntry = $derived(collectionValue.value as EntryData | null); // Use EntryData type
+	const isRightSidebarVisible = $derived(uiStateManager.isRightSidebarVisible.value);
+	const currentScreenSize = $derived(screenSize.value);
+	const isFormValid = $derived(validationStore.isValid);
 
-	let scheduleTimestamp = $derived(currentEntry?._scheduled ? Number(currentEntry._scheduled) : null);
+	// Derive schedule timestamp directly from currentEntry for display
+	const scheduleTimestamp = $derived(currentEntry?._scheduled ? Number(currentEntry._scheduled) : null);
 
-	// --- Permissions & UI logic ---
-	let showSidebar = $derived(['edit', 'create'].includes(currentMode) && canWrite);
-
-	let shouldDisableStatusToggle = $derived(
-		(currentMode === 'create' && !ui.isRightSidebarVisible) ||
-			(currentMode === 'edit' && !ui.isRightSidebarVisible && currentScreenSize !== 'LG') ||
-			statusStore.isLoading
-	);
-
-	let isMenuCollection = $derived(currentCollection?.name === 'Menu' || currentCollection?.slug === 'menu');
-
-	// --- Next button handling ---
-	// Restore logic for MegaMenu wizard support
-	let nextAction = $state<(() => void | Promise<void>) | null>(null);
-
-	$effect(() => {
-		// Logic: If it's the Menu collection in create mode, we ENABLE the Next button.
-		if (isMenuCollection && currentMode === 'create') {
-			app.shouldShowNextButton = true;
-			// If app.saveLayerStore is explicitly set (by widget?), use it.
-			nextAction = app.saveLayerStore;
-		} else {
-			app.shouldShowNextButton = false;
-			nextAction = null;
-		}
-	});
-
-	// --- Helpers ---
-	function isUUID(str: string): boolean {
-		// Support both standard UUIDs (with dashes) and dashless UUIDs (32 hex chars)
-		return /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(str);
-	}
-
-	function getDisplayName(value: string | undefined | null): string {
-		if (!value) return 'system';
-
-		if (isUUID(value)) {
-			// If it matches the current user's ID, show their details
-			if (user && user._id === value) {
-				if (user.username && !isUUID(user.username)) return user.username;
-				if (user.firstName || user.lastName) return [user.firstName, user.lastName].filter(Boolean).join(' ');
-				if (user.email) return user.email.split('@')[0];
+	// Helper to get a display-friendly username
+	// If the value looks like a UUID, try to get actual username from user object
+	function getDisplayName(value: string | undefined | null, fallbackUser?: typeof user): string {
+		if (!value) {
+			// Try to construct name from user object
+			if (fallbackUser) {
+				if (fallbackUser.username && !isUUID(fallbackUser.username)) {
+					return fallbackUser.username;
+				}
+				if (fallbackUser.firstName || fallbackUser.lastName) {
+					return [fallbackUser.firstName, fallbackUser.lastName].filter(Boolean).join(' ');
+				}
+				if (fallbackUser.email) {
+					return fallbackUser.email.split('@')[0];
+				}
 			}
-			// TODO: Add lookup for other users if needed (requires a user store or API call)
-			// For now, if it's a UUID and not the current user, it falls back to showing the UUID relative to the context,
-			// or we could show "User ..."
-			// But returning the raw UUID is better than "system".
+			return 'system';
 		}
 
+		// Check if it looks like a UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+		if (isUUID(value)) {
+			// It's a UUID, try to get actual name from user object
+			if (fallbackUser) {
+				if (fallbackUser.username && !isUUID(fallbackUser.username)) {
+					return fallbackUser.username;
+				}
+				if (fallbackUser.firstName || fallbackUser.lastName) {
+					return [fallbackUser.firstName, fallbackUser.lastName].filter(Boolean).join(' ');
+				}
+				if (fallbackUser.email) {
+					return fallbackUser.email.split('@')[0];
+				}
+			}
+			return 'system';
+		}
 		return value;
 	}
 
-	function formatDate(dateStr: string | undefined | null): string {
-		if (!dateStr) return '-';
+	function isUUID(value: string): boolean {
+		const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+		return uuidPattern.test(value);
+	}
+
+	// Permissions derived from collection schema
+	const canWrite = $derived(currentCollection?.permissions?.[user?.role]?.write !== false);
+	const canCreate = $derived(currentCollection?.permissions?.[user?.role]?.create !== false);
+	const canDelete = $derived(currentCollection?.permissions?.[user?.role]?.delete !== false);
+
+	// Determine current status (local state or collection default)
+	// (isPublished removed, using statusStore.isPublish directly)
+
+	// Disable status toggle logic
+	const shouldDisableStatusToggle = $derived(
+		(currentMode === 'create' && !isRightSidebarVisible) ||
+			(currentMode === 'edit' && !isRightSidebarVisible && currentScreenSize !== 'LG') ||
+			statusStore.isLoading
+	);
+
+	// Formatted dates
+	const formatDate = (dateString: string | undefined | null): string => {
+		if (!dateString) return '-';
 		try {
-			return new Date(dateStr).toLocaleString(getLocale(), {
+			return new Date(dateString).toLocaleString(getLocale(), {
+				// Use toLocaleString for better format
 				year: 'numeric',
 				month: 'short',
 				day: '2-digit',
@@ -115,58 +147,74 @@
 		} catch {
 			return '-';
 		}
-	}
-
-	let dates = $derived({
-		created: formatDate(currentEntry?.createdAt as string),
-		updated: formatDate(currentEntry?.updatedAt as string)
+	};
+	const dates = $derived({
+		created: formatDate(currentEntry?.createdAt as string | undefined),
+		updated: formatDate(currentEntry?.updatedAt as string | undefined)
 	});
 
-	// --- Actions ---
-	function handleClone() {
-		cloneCurrentEntry();
-	}
+	// Visibility of the sidebar itself
+	const showSidebar = $derived(['edit', 'create'].includes(currentMode) || canWrite);
 
-	function handleDelete() {
-		deleteCurrentEntry(isAdmin);
-	}
+	// --- Effects ---
 
-	async function toggleStatus(newValue: boolean): Promise<boolean> {
+	// Subscribe to saveLayerStore for potential 'next' actions
+	let nextAction = $state<(() => void) | null>(null);
+	$effect(() => {
+		const unsubscribe = saveLayerStore.subscribe((value) => {
+			nextAction = value; // Store the function directly
+			shouldShowNextButton.set(!!value); // Show button if action exists
+		});
+		return unsubscribe;
+	});
+
+	// --- Event Handlers ---
+
+	const handleCloneEntry = () => cloneCurrentEntry();
+	const handleDeleteEntry = () => deleteCurrentEntry(isAdmin);
+
+	async function handleStatusToggle(newValue: boolean): Promise<boolean> {
 		return await statusStore.toggleStatus(newValue, 'RightSidebar');
 	}
 
-	function openSchedule() {
+	function openScheduleModal(): void {
 		showScheduleModal({
 			initialAction: currentEntry?.status === StatusTypes.publish ? 'publish' : 'unpublish',
 			onSchedule: (date: Date, action: string) => {
 				const timestamp = date.getTime();
-				collectionValue.value = {
-					...currentEntry!,
+				setCollectionValue({
+					...currentEntry,
 					status: StatusTypes.schedule,
 					_scheduled: timestamp
-				};
-				showToast(`Entry scheduled for ${action}.`, 'success');
+				});
+				toaster.success({ description: `Entry scheduled for ${action}.` });
 			}
 		});
 	}
 
-	async function save() {
+	async function prepareAndSaveEntry() {
+		// ✅ FIX 1: Strict validation check before save
 		if (!isFormValid) {
-			showToast(m.validation_fix_before_save(), 'warning');
+			toaster.warning({ description: m.validation_fix_before_save() });
 			return;
 		}
 
-		// In edit mode: no changes → just navigate back
-		if (currentMode === 'edit' && !hasChanges) {
-			logger.debug('[RightSidebar] No changes – navigating to list');
-			ui.forceUpdate();
+		// Check if there are any changes using the centralized store
+		// Only check for changes in edit mode. In create mode, always attempt to save (even with defaults).
+		if (currentMode === 'edit' && !hasDataChanged) {
+			// No changes - but still need to reload full list view
+			logger.debug('[RightSidebar] No changes detected, returning to list view without save');
+			handleUILayoutToggle();
+
+			// Delegate navigation to manager
 			await navigationManager.navigateToList();
 			return;
 		}
 
-		// Prepare data
-		const dataToSave = { ...currentEntry! };
+		// Get a fresh snapshot of collectionValue to ensure we have the latest widget data
+		const dataToSave: EntryData = { ...(currentEntry as EntryData) };
 
+		// ✅ FIXED: Proper if/else for schedule logic
 		if (scheduleTimestamp) {
 			dataToSave.status = StatusTypes.schedule;
 			dataToSave._scheduled = scheduleTimestamp;
@@ -175,58 +223,74 @@
 			delete dataToSave._scheduled;
 		}
 
-		// Metadata
+		// Set metadata
 		if (currentMode === 'create') {
-			dataToSave.createdBy = getDisplayName(user?.username);
+			// Use the same display name logic to ensure we save readable names
+			dataToSave.createdBy = getDisplayName(user?.username, user);
 		}
-		dataToSave.updatedBy = getDisplayName(user?.username);
+		dataToSave.updatedBy = getDisplayName(user?.username, user);
 
 		if (process.env.NODE_ENV !== 'production') {
-			logger.debug('[RightSidebar] Saving entry:', dataToSave);
+			logger.debug('[RightSidebar] Data to save:', dataToSave);
 		}
 
+		// ✅ FIX 2: Save entry and let it handle navigation
 		const success = await saveEntry(dataToSave);
-		if (!success) return;
 
-		ui.forceUpdate();
+		if (!success) {
+			logger.warn('[RightSidebar] Save failed');
+			return;
+		}
+
+		// Close sidebars
+		handleUILayoutToggle();
+
+		// Delegate navigation and state cleanup to manager
 		await navigationManager.navigateToList();
+	}
+	function saveData() {
+		prepareAndSaveEntry();
 	}
 </script>
 
 {#if showSidebar}
-	<div class="flex h-full flex-col justify-between px-3 py-4">
-		<!-- Special "Next" button for Menu wizard -->
-		{#if app.shouldShowNextButton && currentMode === 'create' && isMenuCollection}
-			<button type="button" onclick={nextAction!} class="btn preset-filled-primary-500 w-full gap-2 shadow-lg">
-				<iconify-icon icon="carbon:next-filled" width="20"></iconify-icon>
+	<div class="flex h-full w-full flex-col justify-between px-3 py-4">
+		{#if $shouldShowNextButton && currentMode === 'create' && (currentCollection?.name === 'Menu' || currentCollection?.slug === 'menu')}
+			<button type="button" onclick={nextAction} aria-label="Next" class="preset-filled-primary-500 btn w-full gap-2 shadow-lg">
+				<iconify-icon icon="carbon:next-filled" width="20" class="font-extrabold text-white"></iconify-icon>
 				{m.button_next()}
 			</button>
-		{:else}
-			<!-- Main actions -->
-			<header class="flex flex-col gap-3">
+		{/if}
+		{#if !($shouldShowNextButton && currentMode === 'create' && (currentCollection?.name === 'Menu' || currentCollection?.slug === 'menu'))}
+			<header class="flex flex-col items-center justify-center gap-3">
 				<button
 					type="button"
-					onclick={save}
+					onclick={saveData}
 					disabled={!isFormValid || !canWrite}
-					class="btn preset-filled-primary-500 w-full gap-2 shadow-lg transition-all"
+					class="preset-filled-primary-500 btn w-full gap-2 shadow-lg transition-all duration-200"
 					class:opacity-50={!isFormValid || !canWrite}
 					class:cursor-not-allowed={!isFormValid || !canWrite}
-					aria-label="Save"
-					title={!isFormValid ? 'Fix validation errors before saving' : 'Save changes'}
+					aria-label="Save entry"
+					title={isFormValid ? 'Save changes' : 'Please fix validation errors before saving'}
 				>
-					<iconify-icon icon="material-symbols:save" width="20"></iconify-icon>
+					<iconify-icon icon="material-symbols:save" width="20" class="font-extrabold text-white"></iconify-icon>
 					{m.button_save()}
 				</button>
 
-				<div class="btn gradient-secondary w-full gap-2 shadow-md">
+				<div class="gradient-secondary btn w-full gap-2 shadow-md">
 					<Toggles
 						value={statusStore.isPublish}
 						label={statusStore.isPublish ? m.status_publish() : m.status_unpublish()}
 						labelColor={statusStore.isPublish ? 'text-primary-500' : 'text-error-500'}
 						iconOn="ic:baseline-check-circle"
 						iconOff="material-symbols:close"
-						disabled={shouldDisableStatusToggle}
-						onChange={toggleStatus}
+						disabled={shouldDisableStatusToggle || statusStore.isLoading}
+						onChange={handleStatusToggle}
+						title={shouldDisableStatusToggle
+							? 'Status managed by header in mobile view'
+							: statusStore.isPublish
+								? m.status_publish()
+								: m.status_unpublish()}
 					/>
 				</div>
 
@@ -234,15 +298,22 @@
 					<div class="flex w-full flex-col gap-2">
 						<button
 							type="button"
-							onclick={handleClone}
+							onclick={handleCloneEntry}
 							disabled={!canCreate}
-							class="btn gradient-secondary gradient-secondary-hover w-full gap-2 text-white shadow-md"
+							class="gradient-secondary gradient-secondary-hover btn w-full gap-2 text-white shadow-md transition-all duration-200"
+							aria-label="Clone entry"
 						>
 							<iconify-icon icon="bi:clipboard-data-fill" width="18"></iconify-icon>
 							Clone <span class="font-semibold text-primary-500">{currentCollection?.name}</span>
 						</button>
 
-						<button type="button" onclick={handleDelete} disabled={!canDelete} class="btn preset-filled-error-500 w-full gap-2 shadow-md">
+						<button
+							type="button"
+							onclick={handleDeleteEntry}
+							disabled={!canDelete}
+							class="preset-filled-error-500 btn w-full gap-2 shadow-md transition-all duration-200 hover:shadow-lg"
+							aria-label="Delete entry"
+						>
 							<iconify-icon icon="icomoon-free:bin" width="18"></iconify-icon>
 							{m.button_delete()}
 						</button>
@@ -259,13 +330,12 @@
 
 				<div class="space-y-2">
 					{#if scheduleTimestamp}
-						<p class="text-sm font-medium text-surface-600 dark:text-surface-300">
-							{m.sidebar_will_publish_on()}
-						</p>
+						<p class="text-sm font-medium text-surface-600 dark:text-surface-300">{m.sidebar_will_publish_on()}</p>
 					{/if}
 					<button
-						onclick={openSchedule}
-						class="btn preset-filled-surface-500 hover:preset-filled-primary-500-hover w-full justify-start gap-2 text-left transition-colors"
+						onclick={openScheduleModal}
+						aria-label="Schedule publication"
+						class="hover:preset-filled-primary-500-hover preset-filled-surface-500 btn w-full justify-start gap-2 text-left transition-colors duration-200"
 					>
 						<iconify-icon icon="bi:clock" width="16"></iconify-icon>
 						<span class="text-sm text-tertiary-500 dark:text-primary-500">
@@ -275,21 +345,22 @@
 				</div>
 
 				<div class="space-y-3">
+					<!-- Created By -->
 					<div class="space-y-1">
 						<p class="text-sm font-medium">{m.sidebar_createdby()}</p>
 						<div class="preset-filled-surface-500 rounded-lg p-3 text-center">
 							<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-								{getDisplayName(currentEntry?.createdBy as string)}
+								{getDisplayName(currentEntry?.createdBy as string, user)}
 							</span>
 						</div>
 					</div>
-
+					<!-- Updated By -->
 					{#if currentEntry?.updatedBy}
 						<div class="space-y-1">
 							<p class="text-sm font-medium text-surface-600 dark:text-surface-300">Last updated by</p>
 							<div class="preset-filled-surface-500 rounded-lg p-3 text-center">
 								<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-									{getDisplayName(currentEntry?.updatedBy as string)}
+									{getDisplayName(currentEntry?.updatedBy as string, user)}
 								</span>
 							</div>
 						</div>
@@ -298,26 +369,28 @@
 			</main>
 
 			<footer class="mt-6 border-t border-surface-300 pt-4 dark:border-surface-600">
-				<div class="space-y-2 text-xs">
-					<div class="flex items-center justify-between">
+				<div class="space-y-2">
+					<div class="flex items-center justify-between text-xs">
 						<span class="font-medium capitalize">Created:</span>
 						<span class="font-bold text-tertiary-500 dark:text-primary-500">{dates.created}</span>
 					</div>
-					<div class="flex items-center justify-between">
+					<div class="flex items-center justify-between text-xs">
 						<span class="font-medium capitalize">Updated:</span>
 						<span class="font-bold text-tertiary-500 dark:text-primary-500">{dates.updated}</span>
 					</div>
 				</div>
 
 				{#if currentMode === 'create'}
-					<div class="mt-3 text-center text-xs text-tertiary-500 dark:text-primary-500">
-						{new Date().toLocaleString(getLocale(), {
-							year: 'numeric',
-							month: 'short',
-							day: 'numeric',
-							hour: '2-digit',
-							minute: '2-digit'
-						})}
+					<div class="mt-3 text-center">
+						<p class="text-xs text-tertiary-500 dark:text-primary-500">
+							{new Date().toLocaleString(getLocale(), {
+								year: 'numeric',
+								month: 'short',
+								day: 'numeric',
+								hour: '2-digit',
+								minute: '2-digit'
+							})}
+						</p>
 					</div>
 				{/if}
 			</footer>

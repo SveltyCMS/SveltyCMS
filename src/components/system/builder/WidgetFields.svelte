@@ -24,7 +24,7 @@
 
 <script lang="ts">
 	//Stores
-	import { ui } from '@root/src/stores/UIStore.svelte';
+	import { uiStateManager } from '@root/src/stores/UIStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -32,6 +32,9 @@
 
 	import { debounce } from '@utils/utils';
 	import type { FieldInstance } from '@content/types';
+
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Props
 	const { fields = [], onFieldsUpdate = () => {} } = $props();
@@ -205,19 +208,23 @@
 <!-- Edit individual selected widget  -->
 {#if currentField}
 	<div
-		class="fixed -top-16 left-0 z-20 flex h-full w-full flex-col items-center justify-center overflow-auto bg-white dark:bg-surface-900 {ui.state
-			.leftSidebar === 'full'
+		class="fixed -top-16 left-0 z-20 flex h-full w-full flex-col items-center justify-center overflow-auto bg-white dark:bg-surface-900 {uiStateManager
+			.uiState.value.leftSidebar === 'full'
 			? 'left-[220px] '
 			: 'left-0 '}"
 	>
-		<div class="fixed top-0 flex items-center justify-between {ui.state.leftSidebar === 'full' ? 'left-[220px] w-full' : 'left-0 w-screen'}">
+		<div
+			class="fixed top-0 flex items-center justify-between {uiStateManager.uiState.value.leftSidebar === 'full'
+				? 'left-[220px] w-full'
+				: 'left-0 w-screen'}"
+		>
 			<PageTitle name="Edit Widget" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
 
 			<div class="flex gap-2">
 				<!-- Save Button -->
-				<button class="preset-filled-primary-500 btn" aria-label="Save" onclick={handleSave}>Save</button>
+				<button class="preset-filled-primary-500 btn" aria-label="Save" onclick={handleSave}>{m.button_save()}</button>
 				<!-- Cancel Button -->
-				<button class="preset-outlined-secondary-500 btn-icon mr-2" aria-label="Cancel" onclick={handleCancel}>
+				<button class="preset-ghost-secondary-500 btn-icon mr-2" aria-label="Cancel" onclick={handleCancel}>
 					<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 				</button>
 			</div>

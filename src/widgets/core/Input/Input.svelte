@@ -31,8 +31,9 @@
 
 	// Valibot validation
 	import { parse, type ValiError } from 'valibot';
-	import { app, validationStore } from '@src/stores/store.svelte';
+	import { validationStore } from '@root/src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { contentLanguage } from '@src/stores/store.svelte';
 
 	// Props
 	interface Props {
@@ -52,8 +53,7 @@
 	let { field, value = $bindable(), validateOnChange = true, validateOnBlur = true, debounceMs = 300 }: Props = $props();
 
 	// New derived state for validateOnMount
-	// Disable immediate validation for required fields to prevent error spam on new entries
-	const validateOnMount = $derived(false);
+	const validateOnMount = $derived(field.required ?? false);
 
 	// SECURITY: Maximum input length to prevent ReDoS attacks
 	const MAX_INPUT_LENGTH = 100000; // 100KB
@@ -64,7 +64,7 @@
 	}
 
 	// Use current content language for translated fields, default for non-translated
-	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const _language = $derived(field.translated ? contentLanguage.value : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Initialize value if null/undefined
 	// Safe value access with fallback
@@ -102,7 +102,7 @@
 		if (field?.count && length === (field?.count as number)) return 'bg-success-500'; // Semantic success color
 		if (field?.count && length > (field?.count as number)) return 'bg-warning-500'; // Semantic warning color
 		if (field?.minLength) return '!preset-filled-surface-500';
-		return '!preset-outlined-surface-500';
+		return '!preset-ghost-surface-500';
 	});
 
 	// ✅ SSOT: Use validation schema from index.ts
@@ -225,7 +225,7 @@
 </script>
 
 <div class="relative mb-4 min-h-10 w-full pb-6">
-	<div class="preset-filled-surface-500 btn-group flex w-full rounded" role="group">
+	<div class="preset-filled-surface-500  flex w-full rounded" role="group">
 		{#if field?.prefix}
 			<button class="px-2!" type="button" aria-label={`${field.prefix} prefix`}>
 				{field?.prefix}
@@ -253,7 +253,7 @@
 			class:!border-error-500={!!validationError}
 			class:!ring-1={!!validationError || isValidating}
 			class:!ring-error-500={!!validationError}
-			class:!border-primary-500={isValidating && !validationError}
+			class:border-primary-500!={isValidating && !validationError}
 			class:!ring-primary-500={isValidating && !validationError}
 			aria-invalid={!!validationError}
 			aria-describedby={validationError ? `${fieldName}-error` : field.helper ? `${fieldName}-helper` : undefined}
@@ -299,14 +299,14 @@
 
 	<!-- Helper Text -->
 	{#if field.helper}
-		<p id={`${fieldName}-helper`} class="absolute bottom-0 left-0 w-full text-center text-xs text-surface-500 dark:text-surface-50">
+		<p id={`${fieldName}-helper`} class="absolute bottom-0 left-0 w-full text-center text-xs text-surface-500 dark:text-surface-400">
 			{field.helper}
 		</p>
 	{/if}
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${fieldName}-error`} class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
+		<p id={`${fieldName}-error`} class="absolute bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
 			{validationError}
 		</p>
 	{/if}

@@ -25,14 +25,14 @@ Renders current language text with truncation for long content
 -->
 
 <script lang="ts">
-	import { app } from '@src/stores/store.svelte';
+	import { contentLanguage } from '@src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import type { FieldType } from './';
 
 	const { field, value }: { field: FieldType; value: Record<string, any> | null | undefined } = $props();
 	// Determine the current language (uses store API from contentLanguage)
 	const lang = $derived(
-		field?.translated ? app.contentLanguage.toLowerCase() : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase()
+		field?.translated ? contentLanguage.value.toLowerCase() : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase()
 	);
 
 	// ✨ IMPROVED: Separate truncation logic from display logic for better performance

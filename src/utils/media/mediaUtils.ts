@@ -1,20 +1,34 @@
 /**
- * @file src/utils/media/mediaUtils.ts
- * @description Client-safe media utilities (MIME, URL construction, validation)
+ * @file utils/media/mediaUtils.ts
+ * @description Contains utility functions for media operations
+ *
+ * @example import { getBrowserMimeType } from '@utils/media/mediaUtils';
+ *
+ * Features:
+ * - getBrowserMimeType: Returns the MIME type of a file based on its name
+ * - constructUrl: Constructs a URL for a media file
+ * - validateMediaFile: Validates a media file against allowed types and size limits
+ * - getSanitizedFileName: Sanitizes a file name to remove special characters
  */
 
 import { publicEnv } from '@src/stores/globalSettings.svelte';
-import { formatBytes, removeExtension } from '@utils/utils';
-// import { logger } from '@utils/logger';
+import type { MediaBase, Thumbnail } from '@utils/media/mediaModels';
+import { formatBytes, sanitize } from '@utils/utils';
+import { removeExtension } from '../utils';
 
-import type { MediaBase } from './mediaModels';
+// System Logger
+import { logger } from '@utils/logger';
 
-/** Browser-compatible MIME lookup */
-export function getMimeType(name: string): string | null {
-	const ext = name.toLowerCase().split('.').pop();
-	if (!ext) return null;
+// Define types for image sizes
+type ImageSizeConfig = { width: number; height: number };
+type ImageSizes = Record<string, ImageSizeConfig>;
 
-	const map: Record<string, string> = {
+// Browser-compatible MIME type lookup
+function getBrowserMimeType(fileName: string): string | null {
+	const extension = fileName.toLowerCase().split('.').pop();
+	if (!extension) return null;
+
+	const mimeTypes: Record<string, string> = {
 		// Images
 		jpg: 'image/jpeg',
 		jpeg: 'image/jpeg',
@@ -28,7 +42,14 @@ export function getMimeType(name: string): string | null {
 
 		// Documents
 		pdf: 'application/pdf',
+		doc: 'application/msword',
+		docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+		xls: 'application/vnd.ms-excel',
+		xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+		ppt: 'application/vnd.ms-powerpoint',
+		pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 		txt: 'text/plain',
+		rtf: 'application/rtf',
 
 		// Audio
 		mp3: 'audio/mpeg',
@@ -41,83 +62,378 @@ export function getMimeType(name: string): string | null {
 		// Video
 		mp4: 'video/mp4',
 		webm: 'video/webm',
-		mov: 'video/quicktime'
+		mkv: 'video/x-matroska',
+		avi: 'video/x-msvideo',
+		mov: 'video/quicktime',
+		wmv: 'video/x-ms-wmv',
+		flv: 'video/x-flv',
+
+		// Archives
+		zip: 'application/zip',
+		rar: 'application/vnd.rar',
+		'7z': 'application/x-7z-compressed',
+		tar: 'application/x-tar',
+		gz: 'application/gzip'
 	};
 
-	return map[ext] ?? null;
+	return mimeTypes[extension] || null;
 }
 
-/** Construct public media URL */
-export function mediaUrl(item: MediaBase, size?: string): string {
-	if (!item?.url) return '';
+// Convert IMAGE_SIZES to an array of size configurations
+const defaultImageSizes: ImageSizes = { sm: { width: 600, height: 600 }, md: { width: 900, height: 900 }, lg: { width: 1200, height: 1200 } };
+
+// Helper function to safely get image sizes configuration
+function getImageSizesConfig(): ImageSizes {
+	const envSizes = publicEnv.IMAGE_SIZES;
+	if (envSizes && typeof envSizes === 'object' && !Array.isArray(envSizes)) {
+		return envSizes as ImageSizes;
+	}
+	return defaultImageSizes;
+}
+
+const imageSizes: Array<{ name: string; width: number; height: number }> = Object.keys(getImageSizesConfig()).map(
+	(key) =>
+		({
+			name: key,
+			width: getImageSizesConfig()[key].width,
+			height: getImageSizesConfig()[key].height
+		}) as { name: string; width: number; height: number }
+);
+
+// Media categories definition
+export const mediaCategories = {
+	Images: ['Original', 'Thumbnail', ...imageSizes.map((size) => size.name)],
+	Audio: [],
+	Videos: [],
+	Documents: [],
+	RemoteVideos: []
+} as const;
+
+// Constructs the full media URL based on the environment.
+export function constructMediaUrl(mediaItem: MediaBase, size?: string): string {
+	if (!mediaItem?.url) {
+		const message = 'Media item is missing required url property';
+		try {
+			logger.error(message, {
+				mediaItem,
+				stack: new Error().stack
+			});
+		} catch (logError) {
+			logger.error('Failed to log error:', logError);
+		}
+		throw new Error(message);
+	}
+
+	try {
+		let url: string;
+		const mediaServerUrl = publicEnv.MEDIASERVER_URL;
+		const mediaFolder = publicEnv.MEDIA_FOLDER;
+
+		if (mediaServerUrl) {
+			url = `${mediaServerUrl}/${mediaItem.url}`;
+		} else {
+			const basePath = `${mediaFolder}/${mediaItem.url}`.replace(/\/+/g, '/');
+			if (size && 'thumbnails' in mediaItem && mediaItem.thumbnails && (mediaItem.thumbnails as Record<string, Thumbnail>)[size]) {
+				url = (mediaItem.thumbnails as Record<string, Thumbnail>)[size].url;
+			} else {
+				url = basePath;
+			}
+		}
+
+		return url;
+	} catch (err) {
+		const message = `Error constructing media URL: ${err instanceof Error ? err.message : String(err)}`;
+		try {
+			logger.error(message, {
+				mediaItem,
+				size,
+				stack: new Error().stack
+			});
+		} catch (logError) {
+			logger.error('Failed to log error:', logError);
+		}
+		throw new Error(message);
+	}
+}
+
+// Constructs a URL for a media item based on its path, type, and other parameters.
+export function constructUrl(path: string, hash: string, fileName: string, format: string, contentTypes: string, size?: string): string {
+	// Validate all required parameters with detailed checks
+	const missingParams = [];
+	if (!path || typeof path !== 'string') missingParams.push('path');
+	// Accept both 20-char (truncated) and 32-char (full) hashes
+	if (!hash || typeof hash !== 'string' || (hash.length !== 20 && hash.length !== 32)) missingParams.push('hash');
+	if (!fileName || typeof fileName !== 'string') missingParams.push('fileName');
+	if (!format || typeof format !== 'string') missingParams.push('format');
+	if (!contentTypes || typeof contentTypes !== 'string') missingParams.push('contentTypes');
+
+	if (missingParams.length > 0) {
+		const message = `Invalid URL construction parameters: Missing or invalid ${missingParams.join(', ')}`;
+		try {
+			logger.error(message, {
+				path: path ?? null,
+				hash: hash ?? null,
+				fileName: fileName ?? null,
+				format: format ?? null,
+				contentTypes: contentTypes ?? null,
+				stack: new Error().stack
+			});
+		} catch (logError) {
+			logger.error('Failed to log error:', logError);
+		}
+		throw new Error(message);
+	}
+
+	let urlPath: string;
+
+	switch (path) {
+		case 'global':
+			urlPath = size
+				? `${sanitize(contentTypes)}/sizes/${sanitize(size)}/${sanitize(fileName)}-${hash}.${format}`
+				: `${sanitize(contentTypes)}/original/${sanitize(fileName)}-${hash}.${format}`;
+			// logger.debug('Constructed global path URL', { urlPath });
+			break;
+		case 'unique':
+			urlPath = `${sanitize(contentTypes)}/original/${sanitize(fileName)}-${hash}.${format}`;
+			try {
+				logger.debug('Constructed unique path URL', { urlPath });
+			} catch (logError) {
+				logger.error('Failed to log debug info:', logError);
+			}
+			break;
+		default:
+			// Ensure path is not over-sanitized (don't remove slashes from the path variable if it contains them)
+			// But we should sanitize the other parts
+			const fileSuffix = `${sanitize(fileName)}-${hash}.${format}`;
+			if (path.endsWith(fileSuffix)) {
+				if (size) {
+					// Handle resizing logic for full path
+					// For global/original/..., we want global/sizes/size/...
+					if (path.includes('/original/')) {
+						urlPath = path.replace('/original/', `/sizes/${sanitize(size)}/`);
+					} else {
+						// Try to insert size before filename
+						const dir = path.substring(0, path.lastIndexOf('/'));
+						urlPath = `${dir}/${sanitize(size)}/${fileSuffix}`;
+					}
+				} else {
+					urlPath = path;
+				}
+			} else {
+				urlPath = size ? `${path}/${sanitize(size)}/${fileSuffix}` : `${path}/${fileSuffix}`;
+			}
+			try {
+				logger.debug('Constructed custom path URL', { urlPath });
+			} catch (logError) {
+				logger.error('Failed to log debug info:', logError);
+			}
+	}
 
 	if (publicEnv.MEDIASERVER_URL) {
-		return `${publicEnv.MEDIASERVER_URL.replace(/\/+$/, '')}/${item.url}`;
-	}
-
-	if (size && 'thumbnails' in item && (item.thumbnails as any)?.[size]?.url) {
-		return (item.thumbnails as any)[size].url;
-	}
-
-	return `/files/${item.url}`;
-}
-
-/** Build URL from parts (hash-based naming) */
-export function buildUrl(path: string, hash: string, filename: string, ext: string, category: string, size?: string): string {
-	if (!path || !hash || !filename || !ext || !category) return '';
-
-	const base = removeExtension(filename);
-	const file = `${base}-${hash}.${ext}`;
-
-	let rel: string;
-
-	if (path === 'global') {
-		rel = size ? `${category}/sizes/${size}/${file}` : `${category}/original/${file}`;
-	} else if (path === 'unique') {
-		rel = `${category}/original/${file}`;
+		const url = `${publicEnv.MEDIASERVER_URL}/files/${urlPath}`;
+		try {
+			logger.debug('Using media server URL', { url });
+		} catch (logError) {
+			logger.error('Failed to log debug info:', logError);
+		}
+		return url;
 	} else {
-		rel = size ? `${path}/${size}/${file}` : `${path}/${file}`;
+		// Use local files route for media serving
+		const url = `/files/${urlPath}`;
+		try {
+			logger.debug('Using local files route URL', { url });
+		} catch (logError) {
+			logger.error('Failed to log debug info:', logError);
+		}
+		return url;
 	}
-
-	return publicEnv.MEDIASERVER_URL ? `${publicEnv.MEDIASERVER_URL.replace(/\/+$/, '')}/files/${rel}` : `/files/${rel}`;
 }
 
-/** Client-side file validation */
-export function validateFile(file: File, allowedPattern: RegExp, maxSize = 10 * 1024 * 1024): { valid: boolean; message?: string } {
-	const type = getMimeType(file.name) ?? file.type;
-
-	if (!type || !allowedPattern.test(type)) {
-		return { valid: false, message: `Invalid type: ${type}` };
+// Returns the URL for accessing a media item.
+export function getMediaUrl(mediaItem: MediaBase, contentTypes: string, size?: string): string {
+	if (!mediaItem?.path || !mediaItem?.hash || !mediaItem?.filename) {
+		throw new Error('Invalid media item: Missing required properties');
+	}
+	if (!contentTypes) {
+		throw new Error('Content types parameter is required');
 	}
 
-	if (file.size > maxSize) {
-		return { valid: false, message: `Size exceeds ${formatBytes(maxSize)}` };
+	try {
+		const fileName = removeExtension(mediaItem.filename);
+		const format = mediaItem.filename.split('.').slice(-1)[0];
+		if (!format) {
+			throw new Error('Could not determine file format');
+		}
+		return constructUrl(mediaItem.path, mediaItem.hash, fileName, format, contentTypes, size);
+	} catch (err) {
+		throw new Error(`Failed to construct media URL: ${err instanceof Error ? err.message : String(err)}`);
 	}
-
-	return { valid: true };
 }
 
-/** Server-side buffer validation */
-export function validateBuffer(
+// Safe version for use in reactive contexts
+export function getMediaUrlSafe(mediaItem: MediaBase, contentTypes: string, size?: string): string {
+	try {
+		if (!mediaItem?.path || !mediaItem?.hash || !mediaItem?.filename) {
+			return ''; // Return empty string instead of throwing
+		}
+		if (!contentTypes) {
+			return '';
+		}
+
+		const fileName = removeExtension(mediaItem.filename);
+		const format = mediaItem.filename.split('.').slice(-1)[0];
+		if (!format) {
+			return '';
+		}
+		return constructUrl(mediaItem.path, mediaItem.hash, fileName, format, contentTypes, size);
+	} catch {
+		// Don't log errors in reactive context to avoid state mutations
+		return ''; // Return empty string instead of throwing
+	}
+}
+
+// Validates a media file against allowed types and size limits
+export function validateMediaFile(
+	file: File,
+	allowedTypesPattern: RegExp,
+	maxSizeBytes: number = 10 * 1024 * 1024 // Default to 10MB
+): { isValid: boolean; message?: string } {
+	const startTime = performance.now();
+
+	try {
+		const fileType = getBrowserMimeType(file.name) || file.type;
+		try {
+			logger.debug('Validating media file', {
+				fileName: file.name,
+				fileSize: file.size,
+				fileType,
+				allowedTypesPattern: allowedTypesPattern.toString(),
+				maxSizeBytes
+			});
+		} catch (logError) {
+			logger.error('Failed to log debug info:', logError);
+		}
+
+		if (!fileType || !allowedTypesPattern.test(fileType)) {
+			const message = `Invalid file type (${fileType}). Allowed pattern: ${allowedTypesPattern}`;
+			try {
+				logger.warn(message, {
+					fileName: file.name,
+					fileType,
+					allowedTypesPattern: allowedTypesPattern.toString()
+				});
+			} catch (logError) {
+				logger.error('Failed to log warning:', logError);
+			}
+			return {
+				isValid: false,
+				message
+			};
+		}
+
+		if (file.size > maxSizeBytes) {
+			const message = `File size (${formatBytes(file.size)}) exceeds limit of ${formatBytes(maxSizeBytes)}`;
+			try {
+				logger.warn(message, {
+					fileName: file.name,
+					fileSize: file.size,
+					maxSizeBytes
+				});
+			} catch (logError) {
+				logger.error('Failed to log warning:', logError);
+			}
+			return {
+				isValid: false,
+				message
+			};
+		}
+
+		try {
+			logger.debug('Media file validation passed', {
+				fileName: file.name,
+				processingTime: performance.now() - startTime
+			});
+		} catch (logError) {
+			logger.error('Failed to log debug info:', logError);
+		}
+		return { isValid: true };
+	} catch (err) {
+		const message = `Error validating media file: ${err instanceof Error ? err.message : String(err)}`;
+		try {
+			logger.error(message, {
+				fileName: file?.name,
+				stack: new Error().stack
+			});
+		} catch (logError) {
+			logger.error('Failed to log error:', logError);
+		}
+		return {
+			isValid: false,
+			message
+		};
+	}
+}
+
+/**
+ * Validates a media file against allowed types and size limits (SERVER-SIDE)
+ * @param buffer The file buffer
+ * @param fileName The original file name
+ * @param allowedTypesPattern The regex pattern to test against
+ * @param maxSizeBytes The maximum allowed size in bytes
+ */
+export function validateMediaFileServer(
 	buffer: Buffer,
-	name: string,
-	allowedPattern: RegExp,
-	maxSize = 10 * 1024 * 1024
-): { valid: boolean; message?: string } {
-	const type = getMimeType(name) ?? 'application/octet-stream';
+	fileName: string,
+	allowedTypesPattern: RegExp,
+	maxSizeBytes: number = 10 * 1024 * 1024 // Default to 10MB
+): { isValid: boolean; message?: string } {
+	const startTime = performance.now();
 
-	if (!allowedPattern.test(type)) {
-		return { valid: false, message: `Invalid type: ${type}` };
+	try {
+		// 1. Get MIME type from file name (browser-compatible)
+		const fileType = getBrowserMimeType(fileName) || 'application/octet-stream';
+
+		logger.debug('Validating media file (server-side)', {
+			fileName,
+			fileSize: buffer.length,
+			fileType,
+			allowedTypesPattern: allowedTypesPattern.toString(),
+			maxSizeBytes
+		});
+
+		// 2. Check Type
+		if (!fileType || !allowedTypesPattern.test(fileType)) {
+			const message = `Invalid file type (${fileType}). Allowed pattern: ${allowedTypesPattern}`;
+			logger.warn(message, {
+				fileName,
+				fileType,
+				allowedTypesPattern: allowedTypesPattern.toString()
+			});
+			return { isValid: false, message };
+		}
+
+		// 3. Check Size
+		if (buffer.length > maxSizeBytes) {
+			const message = `File size (${formatBytes(buffer.length)}) exceeds limit of ${formatBytes(maxSizeBytes)}`;
+			logger.warn(message, {
+				fileName,
+				fileSize: buffer.length,
+				maxSizeBytes
+			});
+			return { isValid: false, message };
+		}
+
+		logger.debug('Media file validation passed (server-side)', {
+			fileName,
+			processingTime: performance.now() - startTime
+		});
+		return { isValid: true };
+	} catch (err) {
+		const message = `Error validating media file: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message, {
+			fileName,
+			stack: new Error().stack
+		});
+		return { isValid: false, message };
 	}
-
-	if (buffer.length > maxSize) {
-		return { valid: false, message: `Size exceeds ${formatBytes(maxSize)}` };
-	}
-
-	return { valid: true };
 }
-
-/** Aliases for backward compatibility */
-export const validateMediaFileServer = validateBuffer;
-export const constructUrl = mediaUrl;
-export const constructMediaUrl = mediaUrl;

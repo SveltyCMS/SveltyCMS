@@ -4,7 +4,7 @@
  */
 import type { EditorWidget } from '../registry';
 import Tool from './Tool.svelte';
-import Controls from './Controls.svelte';
+import Controls from '@src/components/imageEditor/toolbars/RotateControls.svelte';
 
 const widget = {
 	key: 'rotate',

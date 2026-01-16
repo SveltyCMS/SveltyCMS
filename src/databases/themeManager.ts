@@ -23,9 +23,8 @@ import { logger } from '@utils/logger';
  */
 export const DEFAULT_THEME: Theme = {
 	_id: '670e8b8c4d123456789abcde' as DatabaseId, // Matches the seeded theme ID
-	path: '', // Default path
 	name: 'SveltyCMSTheme',
-
+	path: '/src/themes/SveltyCMS/SveltyCMSTheme.css',
 	isActive: false,
 	isDefault: true,
 	config: {

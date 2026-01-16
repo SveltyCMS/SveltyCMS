@@ -1,204 +1,205 @@
 /**
  * @file src/utils/memoryOptimizer.svelte.ts
- * @description Memory-efficient utilities with automatic cleanup
+ * @description Memory optimization utilities
  *
- * Features:
- * - WeakRef-aware store (auto cleanup of dead subscribers)
- * - Debounced/throttled effects
- * - Resource manager for cleanup functions
- * - IntersectionObserver wrapper
- * - Lazy image loader
+ * Provides automatic cleanup and memory management helpers
  */
 
+import { SvelteSet } from 'svelte/reactivity';
 import { logger } from '@utils/logger';
 
 /**
- * Memory-efficient store with WeakRef support for component subscribers
+ * Creates a memory-efficient store with automatic cleanup
+ * Uses WeakRef for components that might be garbage collected
  */
-export function createMemoryEfficientStore<T>(initial: T) {
-	let value = $state(initial);
-	const strong = new Set<(v: T) => void>();
-	const weak = new Set<WeakRef<(v: T) => void>>();
-
-	const notify = () => {
-		strong.forEach((cb) => cb(value));
-
-		// Clean & notify weak refs
-		for (const ref of weak) {
-			const cb = ref.deref();
-			if (cb) cb(value);
-			else weak.delete(ref);
-		}
-	};
+export function createMemoryEfficientStore<T>(initialValue: T) {
+	let value = $state(initialValue);
+	const subscribers = new SvelteSet<(value: T) => void>();
+	const weakSubscribers = new SvelteSet<WeakRef<(value: T) => void>>();
 
 	return {
 		get value() {
 			return value;
 		},
-		set value(v: T) {
-			value = v;
-			notify();
+		set(newValue: T) {
+			value = newValue;
+			// Notify strong subscribers
+			subscribers.forEach((callback) => callback(value));
+			// Notify weak subscribers and clean up dead references
+			weakSubscribers.forEach((weakRef) => {
+				const callback = weakRef.deref();
+				if (callback) {
+					callback(value);
+				} else {
+					weakSubscribers.delete(weakRef);
+				}
+			});
 		},
-		set(v: T) {
-			value = v;
-			notify();
-		},
-		subscribe(cb: (v: T) => void, weakRef = false) {
-			if (weakRef) {
-				const ref = new WeakRef(cb);
-				weak.add(ref);
-				return () => weak.delete(ref);
+		subscribe(callback: (value: T) => void, weak = false) {
+			if (weak) {
+				const weakRef = new WeakRef(callback);
+				weakSubscribers.add(weakRef);
+				return () => weakSubscribers.delete(weakRef);
+			} else {
+				subscribers.add(callback);
+				return () => subscribers.delete(callback);
 			}
-			strong.add(cb);
-			return () => strong.delete(cb);
 		},
-		clear() {
-			strong.clear();
-			weak.clear();
+		cleanup() {
+			subscribers.clear();
+			weakSubscribers.clear();
 		}
 	};
 }
 
-/**
- * Debounced effect
- */
-export function debouncedEffect(fn: () => void, deps: () => unknown[], delay = 300) {
-	let id: number | null = null;
+// Debounced effect for expensive operations,  Automatically cleans up on component unmount
+export function createDebouncedEffect(fn: () => void, dependencies: () => unknown[], delay = 300) {
+	let timeoutId: number | null = null;
 
 	$effect(() => {
-		deps();
+		// Track dependencies
+		dependencies();
 
-		if (id) clearTimeout(id);
-		id = setTimeout(fn, delay) as unknown as number;
+		// Clear existing timeout
+		if (timeoutId) {
+			clearTimeout(timeoutId);
+		}
 
+		// Set new timeout
+		timeoutId = setTimeout(fn, delay) as unknown as number;
+
+		// Cleanup function
 		return () => {
-			if (id) clearTimeout(id);
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+				timeoutId = null;
+			}
 		};
 	});
 }
 
-/**
- * Throttled effect
- */
-export function throttledEffect(fn: () => void, deps: () => unknown[], delay = 100) {
-	let last = 0;
-	let id: number | null = null;
+// Throttled effect for high-frequency updates
+export function createThrottledEffect(fn: () => void, dependencies: () => unknown[], delay = 100) {
+	let lastRun = 0;
+	let timeoutId: number | null = null;
 
 	$effect(() => {
-		deps();
+		dependencies();
 
 		const now = Date.now();
-		const remaining = delay - (now - last);
-
-		if (remaining <= 0) {
-			last = now;
+		if (now - lastRun >= delay) {
+			lastRun = now;
 			fn();
-		} else if (!id) {
-			id = setTimeout(() => {
-				last = Date.now();
-				id = null;
-				fn();
-			}, remaining) as unknown as number;
+		} else if (!timeoutId) {
+			timeoutId = setTimeout(
+				() => {
+					lastRun = Date.now();
+					timeoutId = null;
+					fn();
+				},
+				delay - (now - lastRun)
+			) as unknown as number;
 		}
 
 		return () => {
-			if (id) clearTimeout(id);
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+				timeoutId = null;
+			}
 		};
 	});
 }
 
-/**
- * Resource cleanup manager
- */
-export function resourceManager() {
-	const cleanups = new Set<() => void>();
+// Resource cleanup manager for components
+export function createResourceManager() {
+	const resources = new SvelteSet<() => void>();
 
 	return {
 		add(cleanup: () => void) {
-			cleanups.add(cleanup);
-			return () => cleanups.delete(cleanup);
+			resources.add(cleanup);
+			return () => resources.delete(cleanup);
 		},
-		clear() {
-			cleanups.forEach((fn) => {
+		cleanup() {
+			resources.forEach((cleanup) => {
 				try {
-					fn();
-				} catch (e) {
-					logger.warn('Cleanup error:', e);
+					cleanup();
+				} catch (error) {
+					logger.warn('Resource cleanup error:', error);
 				}
 			});
-			cleanups.clear();
+			resources.clear();
 		}
 	};
 }
 
-/**
- * IntersectionObserver wrapper with auto cleanup
- */
-export function intersectionObserver(cb: IntersectionObserverCallback, opts?: IntersectionObserverInit) {
-	let obs: IntersectionObserver | null = null;
+// Intersection observer with automatic cleanup
+export function createIntersectionObserver(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+	let observer: IntersectionObserver | null = null;
 
 	const start = () => {
-		if (typeof window === 'undefined') return null;
-		obs ??= new IntersectionObserver(cb, opts);
-		return obs;
+		if (typeof window !== 'undefined' && !observer) {
+			observer = new IntersectionObserver(callback, options);
+		}
+		return observer;
 	};
 
-	const stop = () => {
-		obs?.disconnect();
-		obs = null;
+	const cleanup = () => {
+		if (observer) {
+			observer.disconnect();
+			observer = null;
+		}
 	};
 
-	// Auto cleanup on unmount
-	$effect(() => stop);
+	// Auto-cleanup on effect cleanup
+	$effect(() => {
+		return cleanup;
+	});
 
 	return {
 		start,
-		stop,
-		get active() {
-			return !!obs;
+		cleanup,
+		get observer() {
+			return observer;
 		}
 	};
 }
 
-/**
- * Lazy image loader
- */
-export function lazyImage(src: string, placeholder = '') {
-	let current = $state(placeholder);
+// Efficient image lazy loading
+export function createLazyImage(src: string, placeholder?: string) {
 	let loaded = $state(false);
-	let failed = $state(false);
+	let error = $state(false);
+	let currentSrc = $state(placeholder || '');
 
-	const { start, stop } = intersectionObserver((entries) => {
+	const { start, cleanup } = createIntersectionObserver((entries) => {
 		entries.forEach((entry) => {
 			if (entry.isIntersecting) {
 				const img = new Image();
 				img.onload = () => {
-					current = src;
+					currentSrc = src;
 					loaded = true;
-					stop();
+					cleanup(); // Stop observing once loaded
 				};
 				img.onerror = () => {
-					failed = true;
-					stop();
+					error = true;
+					cleanup();
 				};
 				img.src = src;
-				stop(); // Stop after load attempt
 			}
 		});
 	});
 
 	return {
 		get src() {
-			return current;
+			return currentSrc;
 		},
 		get loaded() {
 			return loaded;
 		},
 		get error() {
-			return failed;
+			return error;
 		},
-		observe(el: Element) {
-			start()?.observe(el);
+		observe(element: Element) {
+			start()?.observe(element);
 		}
 	};
 }

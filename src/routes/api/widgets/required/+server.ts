@@ -3,7 +3,7 @@
  * @description API endpoint for getting widgets required by collections
  */
 import { contentManager } from '@src/content/ContentManager';
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
 
@@ -17,15 +17,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		if (!allCollections || Object.keys(allCollections).length === 0) {
 			logger.trace('No collections found', { tenantId });
-			return json({
-				success: true,
-				data: {
-					requiredWidgets: [],
-					collectionsAnalyzed: 0,
-					tenantId
-				},
-				message: 'No collections found'
-			});
+			return json({ requiredWidgets: [], collectionsAnalyzed: 0, tenantId });
 		}
 
 		// Extract widget types from all collection fields
@@ -60,36 +52,26 @@ export const GET: RequestHandler = async ({ locals }) => {
 		requiredWidgets.push(...Array.from(widgetSet));
 
 		const collectionCount = Object.keys(allCollections).length;
-		const duration = performance.now() - start;
 
 		logger.trace('Analyzed collection widget dependencies', {
 			tenantId,
 			collectionsAnalyzed: collectionCount,
 			requiredWidgets: Array.from(requiredWidgets)
 		});
-
 		return json({
-			success: true,
-			data: {
-				requiredWidgets,
-				collectionsAnalyzed: collectionCount,
-				tenantId,
-				performance: { duration: `${duration.toFixed(2)}ms` }
-			},
-			message: 'Required widgets analyzed successfully'
+			requiredWidgets,
+			collectionsAnalyzed: collectionCount,
+			tenantId
 		});
 	} catch (err) {
 		const duration = performance.now() - start;
 		const message = `Failed to analyze collection widget dependencies: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
+		logger.error(message, { duration: `${duration.toFixed(2)}ms` });
 
-		return json(
-			{
-				success: false,
-				message: 'Internal Server Error',
-				error: message
-			},
-			{ status: 500 }
-		);
+		if (err instanceof Response) {
+			throw err;
+		}
+
+		throw error(500, message);
 	}
 };

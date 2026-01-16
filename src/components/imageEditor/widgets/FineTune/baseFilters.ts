@@ -21,6 +21,10 @@ export function applyBaseFilters(node: Konva.Image, adj: Adjustments) {
 	const combinedSaturation = (adj.saturation + adj.vibrance * 0.7) / 100;
 	node.saturation(combinedSaturation);
 
+	// Temperature is just a hue shift
+	const combinedHue = adj.temperature * 0.1; // Small shifts
+	node.hue(combinedHue);
+
 	// Konva has HSL filters, but they are often less intuitive
 	// for 'saturation' than the built-in property.
 }

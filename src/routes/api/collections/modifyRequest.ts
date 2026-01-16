@@ -21,7 +21,7 @@
  */
 
 import { getFieldName } from '@utils/utils';
-import { widgets } from '@stores/widgetStore.svelte';
+import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 
 // Types
 import type { User } from '@src/databases/auth/types';
@@ -64,7 +64,8 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 		for (const field of fields) {
 			const fieldStart = performance.now();
 			// Access widget from store with proper type casting
-			const widget = widgets.widgetFunctions[field.widget.Name];
+			const widgetStore = widgets as unknown as Record<string, unknown>;
+			const widget = widgetStore[field.widget.Name];
 			const fieldName = getFieldName(field);
 
 			logger.trace(`Processing field: ${fieldName}, widget: ${field.widget.Name}`);

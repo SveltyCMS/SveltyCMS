@@ -16,7 +16,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 #### Features
 - Visual grouping with clean separation
 - Collapsible display functionality
-- Multiple styling variants (default, card, bordered)
+- Multiple styling presets (default, card, bordered)
 - Responsive design
 - Accessible with ARIA attributes
 - Keyboard navigation support
@@ -38,7 +38,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 	const fieldName = $derived(getFieldName(field));
 
 	// Variant classes
-	const variantClasses = {
+	const presetClasses = {
 		default: {
 			container: '',
 			header: 'border-b border-gray-200 bg-transparent dark:border-gray-700',
@@ -56,7 +56,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 		}
 	};
 
-	const variant = $derived(variantClasses[field.variant as keyof typeof variantClasses] || variantClasses.default);
+	const preset = $derived(presetClasses[field.preset as keyof typeof presetClasses] || presetClasses.default);
 
 	// State for collapsible functionality
 	let isCollapsed = $state(false);
@@ -64,18 +64,14 @@ Renders grouped content in a read-only display format with collapsible functiona
 		isCollapsed = (field.collapsed as boolean) || false;
 	});
 
-	/**
-	 * Toggle collapse state
-	 */
+	// Toggle collapse state
 	function toggleCollapse(): void {
 		if (field.collapsible) {
 			isCollapsed = !isCollapsed;
 		}
 	}
 
-	/**
-	 * Handle keyboard navigation
-	 */
+	// Handle keyboard navigation
 	function handleKeyDown(event: KeyboardEvent): void {
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
@@ -84,13 +80,13 @@ Renders grouped content in a read-only display format with collapsible functiona
 	}
 </script>
 
-<div class="mb-4 w-full {variant.container}">
+<div class="mb-4 w-full {preset.container}">
 	<!-- Group Header -->
 	{#if field.groupTitle || field.collapsible}
 		{#if field.collapsible}
 			<button
 				type="button"
-				class="flex w-full items-center justify-between p-3 transition-colors duration-200 {variant.header} {field.collapsible
+				class="flex w-full items-center justify-between p-3 transition-colors duration-200 {preset.header} {field.collapsible
 					? 'cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:hover:bg-gray-700'
 					: ''}"
 				aria-expanded={!isCollapsed}
@@ -109,7 +105,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 				</div>
 			</button>
 		{:else}
-			<div class="flex items-center justify-between p-3 {variant.header}">
+			<div class="flex items-center justify-between p-3 {preset.header}">
 				{#if field.groupTitle}
 					<h4 class="m-0 text-base font-semibold text-gray-900 dark:text-gray-100">
 						{field.groupTitle}
@@ -122,7 +118,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 	<!-- Group Content -->
 	<div
 		id={field.collapsible ? `${fieldName}-content` : undefined}
-		class="overflow-hidden transition-all duration-200 ease-in-out {variant.content} {isCollapsed ? 'max-h-0 opacity-0' : 'max-h-screen opacity-100'}"
+		class="overflow-hidden transition-all duration-200 ease-in-out {preset.content} {isCollapsed ? 'max-h-0 opacity-0' : 'max-h-screen opacity-100'}"
 	>
 		{#if children}
 			{@render children()}

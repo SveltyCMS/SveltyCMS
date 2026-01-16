@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
 	import { fade, slide } from 'svelte/transition';
-	import { showToast } from '@utils/toast';
+	import { toaster } from '@stores/store.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
 	import { onMount } from 'svelte';
 
@@ -40,7 +40,7 @@
 			console.debug('[Config Sync] Received status:', status);
 		} catch (err) {
 			const errorMsg = err instanceof Error ? err.message : String(err);
-			showToast(`Failed to fetch status: ${errorMsg}`, 'error');
+			toaster.error({ description: `Failed to fetch status: ${errorMsg}` });
 			status = null;
 		} finally {
 			isLoading = false;
@@ -56,7 +56,7 @@
 
 	async function performImport() {
 		if (!status || status.unmetRequirements.length > 0) {
-			showToast('Sync blocked due to unmet requirements.', 'warning');
+			toaster.warning({ description: 'Sync blocked due to unmet requirements.' });
 			return;
 		}
 
@@ -67,9 +67,9 @@
 			if (fileToImport) {
 				const fileContent = await fileToImport.text();
 				payload.payload = JSON.parse(fileContent);
-				showToast(`Importing from file: ${fileToImport.name}`, 'info');
+				toaster.info({ description: `Importing from file: ${fileToImport.name}` });
 			} else {
-				showToast('No file selected, performing standard filesystem sync.', 'info');
+				toaster.info({ description: 'No file selected, performing standard filesystem sync.' });
 			}
 
 			const res = await fetch('/api/config_sync', {
@@ -81,11 +81,11 @@
 			const result = await res.json();
 			if (!res.ok) throw new Error(result.message || `HTTP ${res.status}`);
 
-			showToast(result.message || 'Sync successful!', 'success');
+			toaster.success({ description: result.message || 'Sync successful!' });
 			await loadStatus(); // Refresh status after sync/import
 		} catch (err) {
 			const errorMsg = err instanceof Error ? err.message : String(err);
-			showToast(`Sync failed: ${errorMsg}`, 'error');
+			toaster.error({ description: `Sync failed: ${errorMsg}` });
 		} finally {
 			isProcessing = false;
 			fileToImport = null;
@@ -94,7 +94,7 @@
 
 	function exportToJSON() {
 		if (!status || !status.changes) {
-			showToast('No changes to export.', 'warning');
+			toaster.warning({ description: 'No changes to export.' });
 			return;
 		}
 		const jsonString = JSON.stringify(status.changes, null, 2);
@@ -107,11 +107,11 @@
 		a.click();
 		document.body.removeChild(a);
 		URL.revokeObjectURL(url);
-		showToast('Configuration changes exported to JSON.', 'success');
+		toaster.success({ description: 'Configuration changes exported to JSON.' });
 	}
 
 	function exportToCSV() {
-		showToast('CSV export is not yet implemented.', 'info');
+		toaster.info({ description: 'CSV export is not yet implemented.' });
 	}
 
 	// Sync all detected changes (filesystem -> DB)
@@ -129,7 +129,7 @@
 
 <div class="wrapper">
 	<!-- Header Description -->
-	<div class="preset-tonal-surface mb-4 p-4">
+	<div class="preset-soft-surface-500 mb-4 p-4">
 		<p class="text-surface-600 dark:text-surface-300">
 			This tool manages the synchronization between configuration defined in the filesystem (the "source of truth") and the configuration active in
 			the database. Use it to deploy structural changes between different environments (e.g., from development to live).
@@ -137,7 +137,7 @@
 	</div>
 
 	<!-- Tabs -->
-	<div class="flex w-full overflow-x-auto border border-surface-300 bg-surface-100/70 dark:text-surface-50 dark:bg-surface-800/70">
+	<div class="flex w-full overflow-x-auto border border-surface-300 bg-surface-100/70 dark:border-surface-700 dark:bg-surface-800/70">
 		{#each ['sync', 'import', 'export', 'debug'] as tab}
 			<!-- Explicitly type tab as 'sync' | 'import' | 'export' | 'debug' -->
 			{#key tab}
@@ -211,7 +211,7 @@
 					<p class="text-surface-500">
 						{changeSummary().new} new, {changeSummary().updated} updated, {changeSummary().deleted} deleted.
 					</p>
-					<div class="overflow-hidden border border-surface-200 dark:text-surface-50">
+					<div class="overflow-hidden border border-surface-200 dark:border-surface-700">
 						<table class="table w-full text-sm">
 							<thead class="bg-surface-100 dark:bg-surface-800">
 								<tr>
@@ -223,12 +223,12 @@
 							<tbody>
 								{#each Object.entries(status?.changes || {}) as [changeType, items]}
 									{#each items as item}
-										<tr class="border-t border-surface-200 hover:bg-surface-50 dark:text-surface-50 dark:hover:bg-surface-800/50">
+										<tr class="border-t border-surface-200 hover:bg-surface-50 dark:border-surface-700 dark:hover:bg-surface-800/50">
 											<td>{item.name}</td>
-											<td><span class="preset-tonal badge capitalize">{item.type}</span></td>
+											<td><span class="preset-soft badge capitalize">{item.type}</span></td>
 											<td>
 												{#if changeType === 'new'}<span class="preset-filled-success-500 badge">New</span>{/if}
-												{#if changeType === 'updated'}<span class="variant-filled-warning badge">Updated</span>{/if}
+												{#if changeType === 'updated'}<span class="preset-filled-warning-500 badge">Updated</span>{/if}
 												{#if changeType === 'deleted'}<span class="preset-filled-error-500 badge">Deleted</span>{/if}
 											</td>
 										</tr>
@@ -271,7 +271,7 @@
 					<button class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" disabled={isProcessing} onclick={exportToJSON}>
 						<iconify-icon icon="mdi:code-json"></iconify-icon> Export as JSON
 					</button>
-					<button class="variant-filled-secondary btn" disabled={isProcessing} onclick={exportToCSV}>
+					<button class="preset-filled-secondary-500 btn" disabled={isProcessing} onclick={exportToCSV}>
 						<iconify-icon icon="mdi:file-csv-outline"></iconify-icon> Export as CSV
 					</button>
 				</div>

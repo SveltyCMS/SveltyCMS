@@ -1,12 +1,6 @@
 /**
  * @file src/databases/mongodb/models/index.ts
  * @description Central export file for all MongoDB models
- *
- * Features:
- * - Exports all models
- * - Exports all model types
- * - Exports all model schemas
- * - Exports all model discriminators
  */
 
 // Content Structure

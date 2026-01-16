@@ -27,14 +27,15 @@
 -->
 
 <script lang="ts">
-	import { showToast } from '@utils/toast';
+	import { toaster } from '@stores/store.svelte';
 	import { logger } from '@utils/logger';
 	import { onMount } from 'svelte';
 	// Stores
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import { ui } from '@stores/UIStore.svelte';
-	import { screen } from '@stores/screenSizeStore.svelte';
+	import { toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
 	import { setMode } from '@stores/collectionStore.svelte';
+	import { screenSize } from '@stores/screenSizeStore.svelte';
+	import { get } from 'svelte/store';
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 
@@ -76,7 +77,7 @@
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			error = message;
-			showToast('Error fetching folders: ' + message, 'error');
+			toaster.error({ description: 'Error fetching folders: ' + message });
 			folders = [];
 		} finally {
 			isLoading = false;
@@ -104,7 +105,7 @@
 
 			const result = await response.json();
 			if (result.success) {
-				showToast('Folder created successfully', 'success');
+				toaster.success({ description: 'Folder created successfully' });
 				newFolderName = '';
 				await fetchVirtualFolders();
 			} else {
@@ -113,7 +114,7 @@
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			error = message;
-			showToast('Error creating folder: ' + message, 'error');
+			toaster.error({ description: 'Error creating folder: ' + message });
 		} finally {
 			isLoading = false;
 		}
@@ -130,14 +131,14 @@
 			const result = await response.json();
 
 			if (result.success) {
-				showToast('Folder updated successfully', 'success');
+				toaster.success({ description: 'Folder updated successfully' });
 				await fetchVirtualFolders();
 			} else {
 				throw new Error(result.error || 'Failed to update folder');
 			}
 		} catch (error) {
 			logger.error('Error updating folder:', error);
-			showToast('Error updating folder', 'error');
+			toaster.error({ description: 'Error updating folder' });
 		}
 	}
 
@@ -152,21 +153,21 @@
 			const result = await response.json();
 
 			if (result.success) {
-				showToast('Folder deleted successfully', 'success');
+				toaster.success({ description: 'Folder deleted successfully' });
 				await fetchVirtualFolders();
 			} else {
 				throw new Error(result.error || 'Failed to delete folder');
 			}
 		} catch (error) {
 			logger.error('Error deleting folder:', error);
-			showToast('Error deleting folder', 'error');
+			toaster.error({ description: 'Error deleting folder' });
 		}
 	}
 
 	// Handle mobile sidebar close on navigation
 	function handleMobileSidebarClose() {
-		if (screen.isMobile) {
-			ui.toggle('leftSidebar', 'hidden');
+		if (get(screenSize) === 'SM') {
+			toggleUIElement('leftSidebar', 'hidden');
 		}
 	}
 
@@ -184,7 +185,7 @@
 
 <div class="mt-2 overflow-y-auto">
 	<!-- Return to Collections Button -->
-	{#if ui.state.leftSidebar === 'full'}
+	{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 		<!-- Sidebar Expanded -->
 		<a
 			href="/"
@@ -218,14 +219,14 @@
 	{:else if error}
 		<!-- Error State -->
 		<div class="w-full pt-4 text-center">
-			<p class="variant-outline-error btn w-full text-sm">{error}</p>
+			<p class="preset-outlined-error-500 btn w-full text-sm">{error}</p>
 		</div>
 	{:else if folders.length > 0}
 		<div class="relative flex flex-wrap">
 			{#each folders.filter((f) => !currentFolder || f.parentId === currentFolder?._id) as folder (folder._id)}
-				{#if ui.state.leftSidebar === 'full'}
+				{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 					<!-- Sidebar Expanded -->
-					<div class="nowrap variant-outline-surface flex w-full">
+					<div class="nowrap preset-outlined-surface-500 flex w-full">
 						<a
 							href={`/mediagallery?folderId=${folder._id}`}
 							onclick={handleMobileSidebarClose}
@@ -259,7 +260,7 @@
 	{:else}
 		<!-- No Folders Found Message -->
 		<div class="w-full pt-4 text-center">
-			<p class="preset-outline-secondary-500 btn w-full text-sm text-warning-500">No folders</p>
+			<p class="preset-outlined-secondary-500 btn w-full text-sm text-warning-500">No folders</p>
 		</div>
 	{/if}
 </div>

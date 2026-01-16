@@ -14,9 +14,6 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 -->
 
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import { scale } from 'svelte/transition';
-	import { quintOut } from 'svelte/easing';
 	import { invalidateAll } from '$app/navigation';
 	import { logger } from '@utils/logger';
 
@@ -26,51 +23,35 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	// Stores
 	import { storeListboxValue } from '@stores/store.svelte';
 
-	// Skeleton & Utils
+	// Skeleton
+	import { Menu } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '@stores/store.svelte';
-	import { modalState } from '@utils/modalState.svelte';
-	import { showConfirm } from '@utils/modalUtils';
+	// Use modalState directly
+	import { modalState, showConfirm } from '@utils/modalState.svelte';
 
 	import ModalEditForm from './ModalEditForm.svelte';
 	import ModalEditToken from './ModalEditToken.svelte';
 	import type { User, Token } from '@src/databases/auth/types';
 
 	const isUser = (row: unknown): row is User => {
-		return !!row && typeof row === 'object' && '_id' in row;
+		if (!row || typeof row !== 'object') return false;
+		return '_id' in row && !('token' in row);
 	};
 	const isToken = (row: unknown): row is Token => {
-		return !!row && typeof row === 'object' && 'token' in row;
+		if (!row || typeof row !== 'object') return false;
+		return 'token' in row;
 	};
 
 	type ActionType = 'edit' | 'delete' | 'block' | 'unblock';
 
-	// Props
-	let { selectedRows, type = 'user', totalUsers = 0, currentUser = null, onUpdate = () => {} } = $props();
-
-	// State
+	// Popup Combobox
+	// Listbox value is single string in logic, wrapped in array for component
 	let listboxValue = $state<ActionType>('edit');
-	let isDropdownOpen = $state(false);
-	let hoveredAction = $state<ActionType | null>(null);
-	let dropdownRef = $state<HTMLElement | null>(null);
+	const { selectedRows, type = 'user', totalUsers = 0, currentUser = null, onTokenUpdate = () => {} } = $props();
 
 	// Sync local listboxValue with global store for TableIcons
 	$effect(() => {
 		storeListboxValue.set(listboxValue);
-	});
-
-	// Handle click outside to close dropdown
-	function handleClickOutside(event: MouseEvent) {
-		if (isDropdownOpen && dropdownRef && !dropdownRef.contains(event.target as Node)) {
-			isDropdownOpen = false;
-		}
-	}
-
-	onMount(() => {
-		document.addEventListener('click', handleClickOutside);
-	});
-
-	onDestroy(() => {
-		document.removeEventListener('click', handleClickOutside);
 	});
 
 	// Normalize selection to a safe array
@@ -106,7 +87,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	});
 
 	// Available actions based on current state
-	const availableActions = $derived.by<ActionType[]>(() => {
+	const availableActions = $derived.by(() => {
 		const baseActions: ActionType[] = ['edit', 'delete'];
 		const currentBlockState = blockState;
 
@@ -121,8 +102,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		return baseActions;
 	});
 
-	// Actions to show in dropdown
-	const filteredActions = $derived.by<ActionType[]>(() => {
+	// Always provide an array for the template to iterate over
+	const filteredActions = $derived.by(() => {
 		const actions = Array.isArray(availableActions) ? availableActions : [];
 		return actions.filter((action) => action !== listboxValue);
 	});
@@ -155,6 +136,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 				safeSelectedRows.length >= totalUsers)
 	);
 
+	// Use showToast for notifications
+
 	// Helper function to convert Date to expires format expected by ModalEditToken
 	function convertDateToExpiresFormat(expiresDate: Date | string | null): string {
 		if (!expiresDate) return '7d'; // Default
@@ -176,25 +159,11 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	}
 
 	// Unified batch endpoints for consistent API design
-	interface ActionConfigItem {
-		buttonClass: string;
-		hoverClass: string;
-		iconValue: string;
-		label: string;
-		modalTitle: () => any;
-		modalBody: () => any;
-		endpoint: () => string;
-		method: () => string;
-		toastMessage: () => string;
-		toastBackground: string;
-	}
-
-	const actionConfig = $derived<Record<ActionType, ActionConfigItem>>({
+	const actionConfig = $derived({
 		edit: {
 			buttonClass: 'gradient-primary',
 			hoverClass: 'gradient-primary-hover',
 			iconValue: 'bi:pencil-fill',
-			label: 'Edit',
 			modalTitle: () => (type === 'user' ? m.adminarea_title() : m.multibuttontoken_modaltitle()),
 			modalBody: () => (type === 'user' ? 'Modify your data and then press Save.' : m.multibuttontoken_modalbody()),
 			endpoint: () => {
@@ -216,7 +185,6 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			buttonClass: 'gradient-error',
 			hoverClass: 'gradient-error-hover',
 			iconValue: 'bi:trash3-fill',
-			label: 'Delete',
 			modalTitle: () => {
 				if (type === 'user') {
 					return `Please Confirm User <span class="text-error-500 font-bold">Deletion</span>`;
@@ -255,7 +223,6 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			buttonClass: 'gradient-pink',
 			hoverClass: 'gradient-yellow-hover',
 			iconValue: 'material-symbols:lock',
-			label: 'Block',
 			modalTitle: () => {
 				if (type === 'user') {
 					return `Please Confirm User <span class="text-error-500 font-bold">Block</span>`;
@@ -295,7 +262,6 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			buttonClass: 'gradient-yellow',
 			hoverClass: 'gradient-primary-hover',
 			iconValue: 'material-symbols:lock-open',
-			label: 'Unblock',
 			modalTitle: () => {
 				if (type === 'user') {
 					return `Please Confirm User <span class="text-success-500 font-bold">Unblock</span>`;
@@ -377,17 +343,11 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 			toaster.success({ description: toastMessage });
 
-			// Dispatch update event for parent component to handle local state updates
-			if (action === 'block' || action === 'unblock' || action === 'delete') {
-				const ids =
-					type === 'user'
-						? safeSelectedRows.filter(isUser).map((row: User) => row._id)
-						: safeSelectedRows.filter(isToken).map((row: Token) => row.token);
-
-				onUpdate({
-					ids,
-					action: action,
-					type
+			// Dispatch token update event for parent component to handle local state updates
+			if (type === 'token' && (action === 'block' || action === 'unblock' || action === 'delete')) {
+				onTokenUpdate({
+					tokenIds: safeSelectedRows.filter(isToken).map((row: Token) => row.token),
+					action: action
 				});
 			}
 
@@ -453,27 +413,20 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 					body: config.modalBody() // Pass body if ModalEditForm supports it
 				});
 			} else {
-				modalState.trigger(
-					ModalEditToken as any,
-					{
-						token: (safeSelectedRows[0] as Token).token,
-						email: safeSelectedRows[0].email,
-						role: safeSelectedRows[0].role,
-						user_id: (safeSelectedRows[0] as Token).user_id,
-						expires: convertDateToExpiresFormat((safeSelectedRows[0] as Token).expires),
-						title: config.modalTitle(),
-						body: config.modalBody()
-					},
-					(res: any) => {
+				modalState.trigger(ModalEditToken as any, {
+					token: (safeSelectedRows[0] as Token).token,
+					email: safeSelectedRows[0].email,
+					role: safeSelectedRows[0].role,
+					user_id: (safeSelectedRows[0] as Token).user_id,
+					expires: convertDateToExpiresFormat((safeSelectedRows[0] as Token).expires),
+					title: config.modalTitle(),
+					body: config.modalBody(),
+					onClose: (res: any) => {
 						if (res && res.success) {
-							onUpdate({
-								action: 'refresh',
-								type: 'token',
-								ids: []
-							});
+							onTokenUpdate();
 						}
 					}
-				);
+				});
 			}
 		} else {
 			// Confirm Dialog
@@ -488,103 +441,49 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		}
 	}
 
-	function toggleDropdown(e: MouseEvent) {
-		e.stopPropagation();
-		if (isDisabled) return;
-		isDropdownOpen = !isDropdownOpen;
-	}
-
-	function handleOptionClick(event: Event, action: ActionType) {
-		event.preventDefault();
-		event.stopPropagation();
-		listboxValue = action;
-		isDropdownOpen = false;
-		handleAction(action);
-	}
+	const buttonConfig = $derived({
+		class: `btn bg-surface-500 hover:${actionConfig[listboxValue].buttonClass} rounded-none w-48 justify-between w-full font-semibold uppercase ${isDeleteDisabled && listboxValue === 'delete' ? 'opacity-50 cursor-not-allowed' : ''}`,
+		icon: actionConfig[listboxValue].iconValue
+	});
 </script>
 
-<!-- Multi-button group -->
-<div class="relative flex items-center" bind:this={dropdownRef}>
-	<div
-		class="group/main relative flex items-center shadow-xl overflow-visible transition-all duration-200 {!isDisabled
-			? 'active:scale-95 cursor-pointer'
-			: ''} rounded-l-full rounded-r-md border border-white/20 {isDropdownOpen ? 'ring-2 ring-primary-500/50' : ''}"
-		role="group"
+<!-- Multibutton group-->
+<div class=" relative rounded-md text-white" role="group" aria-label="{type} management actions">
+	<!-- Action button  -->
+	<button
+		type="button"
+		onclick={() => handleAction(listboxValue)}
+		class={buttonConfig.class}
+		aria-label={`${listboxValue} selected ${type}s`}
+		disabled={isDisabled || (listboxValue === 'delete' && isDeleteDisabled)}
+		aria-disabled={isDisabled || (listboxValue === 'delete' && isDeleteDisabled)}
 	>
-		<!-- Main Action Button -->
-		<button
-			type="button"
-			onclick={() => handleAction(listboxValue)}
-			disabled={isDisabled || (listboxValue === 'delete' && isDeleteDisabled)}
-			class="h-[40px] min-w-[120px] font-bold transition-all duration-200
-				{!isDisabled ? 'active:scale-95' : 'pointer-events-none opacity-50 grayscale'} 
-				{actionConfig[listboxValue].buttonClass} text-white
-				rounded-l-full rounded-r-none px-6 flex items-center justify-center gap-2 border-r border-white/20"
-			aria-label="{listboxValue} selected items"
-		>
-			<iconify-icon icon={actionConfig[listboxValue].iconValue} width="20"></iconify-icon>
-			<span class="uppercase tracking-wider">{listboxValue}</span>
-		</button>
+		<iconify-icon icon={buttonConfig.icon} width="20" class="mr-2 text-white" role="presentation" aria-hidden="true"></iconify-icon>
+		<span>{listboxValue}</span>
+	</button>
 
-		<!-- Dropdown Toggle -->
-		<button
-			type="button"
-			onclick={toggleDropdown}
-			disabled={isDisabled}
-			class="h-[40px] w-[40px] transition-all duration-200 text-white flex items-center justify-center shadow-inner rounded-r-md
-				{!isDisabled ? 'bg-surface-800 hover:bg-surface-700 active:scale-95 cursor-pointer' : 'bg-surface-800 opacity-50 pointer-events-none'}"
-			aria-haspopup="menu"
-			aria-expanded={isDropdownOpen}
-			aria-label="Toggle actions menu"
-		>
-			<iconify-icon icon="ic:round-keyboard-arrow-down" width="24" class="transition-transform duration-200 {isDropdownOpen ? 'rotate-180' : ''}"
-			></iconify-icon>
-		</button>
+	<span class="border border-white" aria-hidden="true"></span>
 
-		<!-- Dropdown Menu -->
-		{#if isDropdownOpen}
-			<div
-				class="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl bg-surface-800 shadow-2xl ring-1 ring-black/20 backdrop-blur-md origin-top-right"
-				role="menu"
-				aria-label="Available actions"
-				transition:scale={{ duration: 150, easing: quintOut, start: 0.95, opacity: 0 }}
-			>
-				<ul class="flex flex-col py-1">
-					{#each filteredActions as action}
-						{@const config = actionConfig[action]}
-						<li role="none" onmouseenter={() => (hoveredAction = action)} onmouseleave={() => (hoveredAction = null)}>
-							<button
-								type="button"
-								onclick={(e) => handleOptionClick(e, action)}
-								role="menuitem"
-								class="group/item relative flex w-full items-center gap-3 px-4 py-3 text-left text-white transition-all duration-200 hover:bg-white/5"
-							>
-								<!-- Hover Gradient Indicator - Full Background -->
-								<div class="absolute inset-0 {config.buttonClass} opacity-0 transition-opacity duration-200 group-hover/item:opacity-100"></div>
-
-								<!-- Icon -->
-								<div
-									class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-700/50 transition-transform group-hover/item:scale-110"
-								>
-									<iconify-icon icon={config.iconValue} width="16"></iconify-icon>
-								</div>
-
-								<!-- Label -->
-								<div class="relative z-10 flex-1">
-									<div class="font-semibold capitalize">{action}</div>
-								</div>
-
-								<!-- Check Indicator or Chevron -->
-								{#if hoveredAction === action}
-									<iconify-icon icon="mdi:chevron-right" width="18" class="relative z-10 text-white"></iconify-icon>
-								{:else if listboxValue === action}
-									<iconify-icon icon="mdi:check" width="18" class="relative z-10 text-primary-500"></iconify-icon>
-								{/if}
-							</button>
-						</li>
-					{/each}
-				</ul>
-			</div>
-		{/if}
-	</div>
+	<!-- Dropdown button -->
+	<Menu>
+		<Menu.Trigger>
+			<button aria-label="Open actions menu" class="divide-x-2 rounded-r-sm bg-surface-500 hover:bg-surface-800!">
+				<iconify-icon icon="mdi:chevron-down" width="20" class="text-white" role="presentation" aria-hidden="true"></iconify-icon>
+			</button>
+		</Menu.Trigger>
+		<Menu.Content class="z-10 w-48 rounded-sm bg-surface-500 text-black divide-y">
+			{#each filteredActions as action (action)}
+				{@const actionKey = action as ActionType}
+				{@const config = actionConfig[actionKey]}
+				<Menu.Item
+					value={action}
+					class="w-full text-left px-4 py-2 hover:bg-surface-700 hover:text-white flex items-center cursor-pointer"
+					onclick={() => handleAction(action as ActionType)}
+				>
+					<iconify-icon icon={config.iconValue} width="20" class="mr-1" role="presentation" aria-hidden="true"></iconify-icon>
+					{action}
+				</Menu.Item>
+			{/each}
+		</Menu.Content>
+	</Menu>
 </div>

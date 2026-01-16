@@ -43,23 +43,9 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		const fit = url.searchParams.get('fit') as keyof sharp.FitEnum | undefined;
 		const format = url.searchParams.get('format') as keyof sharp.FormatEnum | undefined;
 
-		// --- Parse Focal Point (e.g., ?focal=60,30 for 60% from left, 30% from top) ---
-		const focalParam = url.searchParams.get('focal');
-		let focalPosition: string | undefined;
-		if (focalParam) {
-			const [x, y] = focalParam.split(',').map(Number);
-			if (!isNaN(x) && !isNaN(y) && x >= 0 && x <= 100 && y >= 0 && y <= 100) {
-				// Sharp accepts position as percentage string for attention point
-				focalPosition = `${x}% ${y}%`;
-			}
-		}
-
 		// --- Apply Transformations ---
 		if (width || height || fit) {
-			transformer = transformer.resize(width, height, {
-				fit: fit || 'cover',
-				position: focalPosition || 'centre' // Use focal point if provided, else center
-			});
+			transformer = transformer.resize(width, height, { fit });
 		}
 
 		// --- Apply Format Conversion ---
