@@ -16,36 +16,34 @@ jobs:
   # ------------------------------------------------------------------
   # 1. Unit Tests (Fastest, no server needed)
   # ------------------------------------------------------------------
-  unit-tests:
-    name: ⚡ Unit Tests
-    timeout-minutes: 10
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+unit-tests:
+  name: ⚡ Unit Tests
+  timeout-minutes: 10
+  runs-on: ubuntu-latest
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+  steps:
+    - uses: actions/checkout@v4
 
-      - name: Cache Bun dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+    # Correct Bun cache
+    - name: Cache Bun
+      uses: actions/cache@v4
+      with:
+        path: ~/.bun
+        key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
 
-      - name: Generate SvelteKit types
-        run: bunx svelte-kit sync || true # Best effort
+    - name: Install dependencies
+      run: bun install
 
-      - name: Run Unit Tests
-        run: bun run test:unit
+    - name: Generate SvelteKit types
+      run: bunx svelte-kit sync || true
+
+    - name: Run Unit Tests
+      run: bun run test:unit
 
   # ------------------------------------------------------------------
   # 2. Integration Tests (Requires Server + MongoDB)
