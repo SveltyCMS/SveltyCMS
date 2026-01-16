@@ -16,7 +16,7 @@ jobs:
   # ------------------------------------------------------------------
   # 1. Unit Tests (Fastest, no server needed)
   # ------------------------------------------------------------------
-unit-tests:
+ unit-tests:
   name: ⚡ Unit Tests
   timeout-minutes: 10
   runs-on: ubuntu-latest
