@@ -77,8 +77,17 @@
 	let previousTabSet = $state(app.tabSetState);
 	let tempData = $state<Partial<Record<string, Record<string, any>>>>({});
 
-	// Schedule (not used in current logic – kept if needed later)
-	let scheduleTimestamp = $derived(currentEntry?._scheduled ? Number(currentEntry._scheduled) : null);
+	// Schedule timestamp for current locale
+	let scheduleTimestamp = $derived.by(() => {
+		if (!currentEntry) return null;
+		const currentLocale = app.contentLanguage;
+		// Check locale-specific schedule first
+		if (currentEntry.localeStatus && currentEntry.localeStatus[currentLocale]) {
+			return currentEntry.localeStatus[currentLocale].scheduledAt ? Number(currentEntry.localeStatus[currentLocale].scheduledAt) : null;
+		}
+		// Fallback to global _scheduled for backward compatibility
+		return currentEntry._scheduled ? Number(currentEntry._scheduled) : null;
+	});
 
 	// Status toggle state & disable logic
 	let publishToggle = $derived(statusStore.isPublish);
@@ -138,11 +147,8 @@
 	function openSchedule(): void {
 		showScheduleModal({
 			onSchedule: (date: Date) => {
-				setCollectionValue({
-					...currentEntry!,
-					status: StatusTypes.schedule,
-					_scheduled: date.getTime()
-				});
+				// Use statusStore to set schedule for current locale
+				statusStore.setScheduleLocal(date.getTime());
 			}
 		});
 	}
@@ -161,13 +167,9 @@
 
 		const dataToSave = { ...currentEntry! };
 
-		// Use status from store
-		dataToSave.status = statusStore.getStatusForSave();
-		if (scheduleTimestamp) {
-			dataToSave._scheduled = scheduleTimestamp;
-		} else {
-			delete dataToSave._scheduled;
-		}
+		// localeStatus is now managed by statusStore and already in currentEntry
+		// Just ensure we preserve it during save
+		// Legacy fields (status, _scheduled) are maintained for backward compatibility
 
 		// Metadata
 		if (currentMode === 'create') {

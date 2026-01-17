@@ -48,7 +48,16 @@
 	let canCreate = $derived(currentCollection?.permissions?.[user?.role]?.create !== false);
 	let canDelete = $derived(currentCollection?.permissions?.[user?.role]?.delete !== false);
 
-	let scheduleTimestamp = $derived(currentEntry?._scheduled ? Number(currentEntry._scheduled) : null);
+	let scheduleTimestamp = $derived.by(() => {
+		if (!currentEntry) return null;
+		const currentLocale = app.contentLanguage;
+		// Check locale-specific schedule first
+		if (currentEntry.localeStatus && currentEntry.localeStatus[currentLocale]) {
+			return currentEntry.localeStatus[currentLocale].scheduledAt ? Number(currentEntry.localeStatus[currentLocale].scheduledAt) : null;
+		}
+		// Fallback to global _scheduled for backward compatibility
+		return currentEntry._scheduled ? Number(currentEntry._scheduled) : null;
+	});
 
 	// --- Permissions & UI logic ---
 	let showSidebar = $derived(['edit', 'create'].includes(currentMode) && canWrite);
@@ -136,16 +145,15 @@
 	}
 
 	function openSchedule() {
+		const currentLocale = app.contentLanguage;
+		const currentStatus = statusStore.currentStatus;
+
 		showScheduleModal({
-			initialAction: currentEntry?.status === StatusTypes.publish ? 'publish' : 'unpublish',
+			initialAction: currentStatus === StatusTypes.publish ? 'publish' : 'unpublish',
 			onSchedule: (date: Date, action: string) => {
 				const timestamp = date.getTime();
-				collectionValue.value = {
-					...currentEntry!,
-					status: StatusTypes.schedule,
-					_scheduled: timestamp
-				};
-				showToast(`Entry scheduled for ${action}.`, 'success');
+				statusStore.setScheduleLocal(timestamp);
+				showToast(`Entry scheduled for ${action} (${currentLocale.toUpperCase()}).`, 'success');
 			}
 		});
 	}
@@ -164,16 +172,8 @@
 			return;
 		}
 
-		// Prepare data
+		// Prepare data - localeStatus is already managed by statusStore
 		const dataToSave = { ...currentEntry! };
-
-		if (scheduleTimestamp) {
-			dataToSave.status = StatusTypes.schedule;
-			dataToSave._scheduled = scheduleTimestamp;
-		} else {
-			dataToSave.status = statusStore.getStatusForSave();
-			delete dataToSave._scheduled;
-		}
 
 		// Metadata
 		if (currentMode === 'create') {

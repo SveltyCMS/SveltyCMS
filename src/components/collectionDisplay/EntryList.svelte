@@ -44,6 +44,7 @@
 	import { debounce, getFieldName, meta_data } from '@utils/utils';
 	import { preloadEntry, reflectModeInURL } from '@utils/navigationUtils';
 	import { showToast } from '@utils/toast';
+	import { getLocaleStatus } from '@utils/localeStatus';
 
 	// Config
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
@@ -674,9 +675,9 @@
 		logger.debug('[Create] INSTANT - New entry mode');
 	};
 
-	const onPublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess);
-	const onUnpublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess);
-	const onDraft = () => setEntriesStatus(getSelectedIds(), StatusTypes.draft, onActionSuccess);
+	const onPublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess, {}, currentContentLanguage);
+	const onUnpublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess, {}, currentContentLanguage);
+	const onDraft = () => setEntriesStatus(getSelectedIds(), StatusTypes.draft, onActionSuccess, {}, currentContentLanguage);
 	const onDelete = (isPermanent = false) => {
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) {
@@ -719,7 +720,7 @@
 							showToast(`${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully`, 'success');
 						}
 					} else {
-						await setEntriesStatus(selectedIds, StatusTypes.archive, () => {});
+						await setEntriesStatus(selectedIds, StatusTypes.archive, () => {}, {}, currentContentLanguage);
 					}
 					onActionSuccess();
 				} catch (error) {
@@ -732,7 +733,7 @@
 
 	const onSchedule = (date: string) => {
 		const payload = { _scheduled: new Date(date).getTime() };
-		setEntriesStatus(getSelectedIds(), StatusTypes.draft, onActionSuccess, payload);
+		setEntriesStatus(getSelectedIds(), StatusTypes.schedule, onActionSuccess, payload, currentContentLanguage);
 	};
 
 	function handleColumnVisibilityToggle(headerToToggle: TableHeader) {
@@ -1014,8 +1015,8 @@
 											title={(header as TableHeader).name !== 'status' ? 'Click to edit this entry' : 'Click to change status'}
 											onclick={async () => {
 												if ((header as TableHeader).name === 'status') {
-													// Handle single entry status change with modal (same style as multibutton)
-													const currentStatus = entry.status || entry.raw_status || 'draft';
+													// Handle single entry status change for current locale
+													const currentStatus = getLocaleStatus(entry, currentContentLanguage);
 													let nextStatus;
 
 													// Define status progression logic using StatusTypes
@@ -1045,9 +1046,9 @@
 															try {
 																const collId = collection.value?._id;
 																if (!collId) return;
-																const result = await updateEntryStatus(collId, entry._id, String(nextStatus));
+																const result = await updateEntryStatus(collId, entry._id, String(nextStatus), currentContentLanguage);
 																if (result.success) {
-																	showToast(`Entry status updated to ${nextStatus}`, 'success');
+																	showToast(`Entry status updated to ${nextStatus} (${currentContentLanguage.toUpperCase()})`, 'success');
 																	onActionSuccess();
 																} else {
 																	showToast(result.error || 'Failed to update entry status', 'error');
@@ -1073,7 +1074,7 @@
 										>
 											{#if (header as TableHeader).name === 'status'}
 												<div class="flex w-full items-center justify-center">
-													<Status value={entry.status || entry.raw_status || 'draft'} />
+													<Status value={getLocaleStatus(entry, currentContentLanguage)} />
 												</div>
 											{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
 												<div class="flex flex-col text-xs">

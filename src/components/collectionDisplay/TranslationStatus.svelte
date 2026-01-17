@@ -23,6 +23,8 @@ FIXES:
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
 	import { getLanguageName } from '@utils/languageUtils';
+	import { getLocaleStatus } from '@utils/localeStatus';
+	import { StatusTypes } from '@src/content/types';
 
 	// SkeletonUI
 	import { Progress, Menu, Portal } from '@skeletonlabs/skeleton-svelte';
@@ -47,6 +49,7 @@ FIXES:
 	const currentLanguage = $derived(contentLanguage.value);
 	const currentMode = $derived(mode.value);
 	const isViewMode = $derived(currentMode === 'view');
+	const currentEntry = $derived(collectionValue.value);
 
 	// Logic: In View Mode, only show *other* languages (switcher style). In Edit Mode, show all (status style).
 	const dropdownLanguages = $derived.by(() => {
@@ -89,6 +92,44 @@ FIXES:
 
 	function getTextColor(value: number): string {
 		return getProgressColor(value).replace('bg-', 'text-');
+	}
+
+	/**
+	 * Get status badge color for a locale
+	 */
+	function getStatusBadgeColor(locale: string): string {
+		const status = getLocaleStatus(currentEntry, locale);
+		switch (status) {
+			case StatusTypes.publish:
+				return 'bg-primary-500';
+			case StatusTypes.unpublish:
+				return 'bg-error-500';
+			case StatusTypes.draft:
+				return 'bg-warning-500';
+			case StatusTypes.schedule:
+				return 'bg-secondary-500';
+			default:
+				return 'bg-surface-500';
+		}
+	}
+
+	/**
+	 * Get status badge icon for a locale
+	 */
+	function getStatusIcon(locale: string): string {
+		const status = getLocaleStatus(currentEntry, locale);
+		switch (status) {
+			case StatusTypes.publish:
+				return 'ic:baseline-check-circle';
+			case StatusTypes.unpublish:
+				return 'material-symbols:close';
+			case StatusTypes.draft:
+				return 'material-symbols:edit';
+			case StatusTypes.schedule:
+				return 'bi:clock';
+			default:
+				return 'material-symbols:help';
+		}
 	}
 
 	/**
@@ -413,11 +454,17 @@ FIXES:
 
 						<Menu.Item value={lang} onclick={() => handleLanguageChange(lang as Locale)} class={isActive ? 'bg-primary-500/20' : ''}>
 							<div class="flex w-full items-center justify-between gap-2">
-								<!-- Left: Language Name (Desktop) / Short Code (Mobile) -->
-								<span class="font-medium transition-colors duration-200 {isActive ? 'text-primary-700 dark:text-primary-300' : ''}">
-									<span class="md:hidden">{lang.toUpperCase()}</span>
-									<span class="hidden md:inline">{getLanguageName(lang)}</span>
-								</span>
+								<!-- Left: Language Name (Desktop) / Short Code (Mobile) + Status Badge -->
+								<div class="flex items-center gap-2">
+									{#if !isViewMode && currentEntry}
+										<!-- Status badge in edit mode -->
+										<iconify-icon icon={getStatusIcon(lang)} width="16" class={getStatusBadgeColor(lang).replace('bg-', 'text-')}></iconify-icon>
+									{/if}
+									<span class="font-medium transition-colors duration-200 {isActive ? 'text-primary-700 dark:text-primary-300' : ''}">
+										<span class="md:hidden">{lang.toUpperCase()}</span>
+										<span class="hidden md:inline">{getLanguageName(lang)}</span>
+									</span>
+								</div>
 
 								<!-- Right: Code, Status, Progress -->
 								<div class="flex items-center gap-2">
