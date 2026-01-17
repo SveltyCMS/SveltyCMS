@@ -287,6 +287,22 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		}
 
 		// =================================================================
+		// 5.3. MIGRATE LEGACY STATUS TO LOCALE STATUS
+		// =================================================================
+		// For backward compatibility, initialize localeStatus from global status
+		// if localeStatus doesn't exist or is incomplete
+		if (entries.length > 0) {
+			const { initializeLocaleStatus } = await import('@utils/localeStatus');
+			for (let i = 0; i < entries.length; i++) {
+				const entry = entries[i];
+				// Only initialize if localeStatus is missing or empty
+				if (!entry.localeStatus || Object.keys(entry.localeStatus).length === 0) {
+					entries[i] = initializeLocaleStatus(entry, availableLanguages);
+				}
+			}
+		}
+
+		// =================================================================
 		// 5.5. ENTERPRISE SSR: LANGUAGE PROJECTION FOR VIEW MODE
 		// =================================================================
 		// For list views (EntryList), project only the current language data to:
