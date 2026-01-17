@@ -11,7 +11,7 @@
  * * Permission checking for status modifications, scoped to the current tenant
  */
 
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { getPrivateSettingSync, getPublicSettingSync } from '@src/services/settingsService';
 import { error, json, type RequestHandler } from '@sveltejs/kit';
 
 // Auth
@@ -81,7 +81,6 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		const normalizedCollectionId = normalizeCollectionName(schema._id);
 		
 		// Determine if per-locale publishing is enabled
-		const { getPublicSettingSync } = await import('@src/services/settingsService');
 		const systemEnabled = getPublicSettingSync('ENABLE_PER_LOCALE_PUBLISHING') ?? false;
 		const collectionEnabled = schema.perLocalePublishing ?? false;
 		const perLocaleEnabled = systemEnabled && collectionEnabled;

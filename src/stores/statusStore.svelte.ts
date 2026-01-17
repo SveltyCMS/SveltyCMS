@@ -146,8 +146,9 @@ export const statusStore = {
 					
 					if (perLocale) {
 						// Update locale-specific status
+						const existingStatusByLocale = (updatedValue.statusByLocale as Record<string, StatusType>) || {};
 						updatedValue.statusByLocale = {
-							...(updatedValue.statusByLocale as Record<string, StatusType> || {}),
+							...existingStatusByLocale,
 							[locale]: newStatus
 						};
 						// Clear locale-specific schedule

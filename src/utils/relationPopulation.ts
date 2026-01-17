@@ -44,10 +44,12 @@ function isRelationField(field: FieldInstance): boolean {
 function getRelationConfig(field: FieldInstance): { collection: string; displayField: string; populationDepth?: number } | null {
 	if (!isRelationField(field)) return null;
 	
-	// Extract config from widget props
-	const collection = (field as any).collection;
-	const displayField = (field as any).displayField;
-	const populationDepth = (field as any).populationDepth;
+	// Type guard: check if field has relation properties
+	const fieldWithProps = field as FieldInstance & { collection?: string; displayField?: string; populationDepth?: number };
+	
+	const collection = fieldWithProps.collection;
+	const displayField = fieldWithProps.displayField;
+	const populationDepth = fieldWithProps.populationDepth;
 	
 	if (!collection || !displayField) return null;
 	
@@ -65,12 +67,12 @@ function getRelationConfig(field: FieldInstance): { collection: string; displayF
  * @returns Populated entries
  */
 export async function populateRelations(
-	entries: any[],
+	entries: Array<Record<string, unknown>>,
 	schema: Schema,
 	options: PopulationOptions,
 	dbAdapter: DatabaseAdapter,
-	contentManager: any
-): Promise<any[]> {
+	contentManager: { getCollectionById: (id: string, tenantId?: string) => Promise<Schema | null> }
+): Promise<Array<Record<string, unknown>>> {
 	// Depth 0 means no population
 	if (options.depth <= 0 || !entries || entries.length === 0) {
 		return entries;
@@ -121,13 +123,13 @@ export async function populateRelations(
  * Populate a single relation field across multiple entries
  */
 async function populateField(
-	entries: any[],
+	entries: Array<Record<string, unknown>>,
 	field: FieldInstance,
 	config: { collection: string; displayField: string },
 	remainingDepth: number,
 	options: PopulationOptions,
 	dbAdapter: DatabaseAdapter,
-	contentManager: any
+	contentManager: { getCollectionById: (id: string, tenantId?: string) => Promise<Schema | null> }
 ): Promise<void> {
 	const fieldName = field.db_fieldName;
 	
