@@ -87,8 +87,11 @@
 ✨ **Fastest rebuilds** with NX caching (5 seconds vs 90-120s)
 ✨ **Type-safe i18n** with Paraglide (unique in CMS space)
 ✨ **Modern stack**: SvelteKit 5 + Svelte 5 + TypeScript
-✨ **Database agnostic**: MongoDB & MariaDB/MySQL (PostgreSQL planned)
+✨ **Database agnostic**: MongoDB & MariaDB/MySQL (PostgreSQL via Drizzle)
 ✨ **Both REST and GraphQL** APIs out of the box
+✨ **Advanced Infrastructure**: Self-healing connections, state machine, multi-layer caching (Redis + DB)
+✨ **Security Built-in**: 2FA, Google OAuth, field-level access control
+✨ **Plugin System**: Extensible foundation for third-party integrations
 
 ## Migration from Next to NX
 

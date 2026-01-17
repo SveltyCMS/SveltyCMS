@@ -243,7 +243,7 @@ Both architectures produce similar runtime performance as they both compile to S
 | **Database** | ||||||||
 | MongoDB | ✅ | ✅ | ⚠️ Plugin | ✅ | ✅ | ✅ | ✅ |
 | MariaDB/MySQL | ✅ | ✅ | ✅ Native | ✅ | ✅ | ✅ | ❌ |
-| PostgreSQL | 📅 Planned | 📅 Planned | ⚠️ Plugin | ✅ | ✅ | ✅ | ❌ |
+| PostgreSQL | ⚠️ Via Drizzle | ⚠️ Via Drizzle | ⚠️ Plugin | ✅ | ✅ | ✅ | ❌ |
 | Database Agnostic | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
 | **API** | ||||||||
 | REST API | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
@@ -253,7 +253,7 @@ Both architectures produce similar runtime performance as they both compile to S
 | Role-Based Access | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Field-Level Security | ✅ | ✅ | ⚠️ Limited | ✅ | ✅ | ✅ | ✅ |
 | OAuth Support | ✅ Google | ✅ Google | ✅ Many | ✅ Many | ✅ Many | ✅ Many | ✅ Many |
-| 2FA | 📅 Planned | 📅 Planned | ✅ | ⚠️ Plugin | ⚠️ Plugin | ✅ | ✅ |
+| 2FA | ✅ | ✅ | ✅ | ⚠️ Plugin | ⚠️ Plugin | ✅ | ✅ |
 | **Localization** | ||||||||
 | System i18n | ✅ Paraglide | ✅ Paraglide | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Content i18n | ✅ | ✅ | ⚠️ Plugin | ✅ | ✅ | ✅ | ✅ |
@@ -274,7 +274,11 @@ Both architectures produce similar runtime performance as they both compile to S
 | **Community** | ||||||||
 | GitHub Stars | ~100 | ~100 | N/A CMS | ~65k | ~28k | ~26k | N/A |
 | Contributors | Growing | Growing | Massive | 600+ | 300+ | 100+ | N/A |
-| Plugin Ecosystem | 📅 Planned | 📅 Planned | Massive | Large | Growing | Growing | Large |
+| Plugin Ecosystem | ✅ Foundation | ✅ Foundation | Massive | Large | Growing | Growing | Large |
+| **Infrastructure** | ||||||||
+| Self-Healing | ✅ | ✅ | ❌ | ⚠️ Limited | ⚠️ Limited | ⚠️ Limited | ✅ |
+| State Machine | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ Limited |
+| Multi-Layer Caching | ✅ Redis+DB | ✅ Redis+DB | ⚠️ Plugins | ⚠️ Basic | ⚠️ Basic | ⚠️ Basic | ✅ Native |
 
 ### Key Insights
 
@@ -283,15 +287,20 @@ Both architectures produce similar runtime performance as they both compile to S
 2. **Smallest Bundle**: 508 KB (Brotli) vs competitors at 1-2 MB
 3. **Type Safety**: Full TypeScript with type-safe i18n (Paraglide)
 4. **Build Performance**: NX monorepo provides fastest rebuild times
-5. **Database Flexibility**: MongoDB & MariaDB/MySQL support
+5. **Database Flexibility**: MongoDB & MariaDB/MySQL support (PostgreSQL via Drizzle)
 6. **Developer Experience**: Modern tooling with great DX
+7. **Advanced Infrastructure**: Self-healing database connections, state machine, multi-layer caching
+8. **Security**: 2FA authentication, Google OAuth, field-level security
+9. **Plugin System**: Extensible foundation for third-party integrations
 
 #### Areas for Improvement:
 1. **Community Size**: Smaller than established competitors
-2. **Plugin Ecosystem**: Still developing
+2. **Plugin Ecosystem**: Foundation in place, growing library needed
 3. **Cloud Hosting**: Not yet available (planned)
 4. **Documentation**: Growing but less comprehensive than mature projects
-5. **Third-Party Integrations**: Fewer pre-built integrations
+5. **Pre-built Templates**: Need collection templates for shopping sites, CRM, blogs
+6. **Image Editor**: Needs additional features and enhancements
+7. **Third-Party Integrations**: Fewer pre-built integrations (plugin system addresses this)
 
 #### WordPress:
 - **Pros**: Massive ecosystem, plugins for everything, huge community
@@ -384,6 +393,47 @@ Compared to other CMS platforms, SveltyCMS offers:
 - **Modern stack** (SvelteKit 5 + TypeScript)
 - **Fastest rebuild times** (with NX caching)
 - **Type-safe development** (full TypeScript + Paraglide i18n)
-- **Flexible database support** (MongoDB + MariaDB/MySQL)
+- **Flexible database support** (MongoDB + MariaDB/MySQL + PostgreSQL via Drizzle)
+- **Advanced infrastructure** (self-healing, state machine, multi-layer caching)
+- **Built-in security** (2FA, OAuth, field-level access)
+- **Extensible architecture** (plugin system foundation)
 
 The main trade-offs are a smaller community and ecosystem compared to established platforms like WordPress and Strapi, but SveltyCMS compensates with superior technical architecture and developer experience.
+
+## Roadmap: Upcoming Features
+
+### Collection Templates (High Priority)
+Pre-built collection templates to accelerate common use cases:
+- **E-commerce/Shopping Site**: Products, categories, cart, orders, customers
+- **CRM System**: Contacts, companies, deals, tasks, activities
+- **Blog Platform**: Posts, categories, tags, authors, comments
+- **News/Magazine**: Articles, sections, breaking news, featured content
+- **Portfolio Site**: Projects, case studies, testimonials, clients
+- **Event Management**: Events, venues, speakers, registrations
+- **Knowledge Base**: Documentation, FAQs, guides, tutorials
+
+### Image Editor Enhancements
+Planned improvements to the image editing system:
+- Advanced filters and effects
+- Layer support
+- Batch processing
+- AI-powered enhancements
+- More precise cropping and transformation tools
+- Template/preset management
+
+### Plugin Ecosystem Growth
+With the plugin system foundation in place:
+- SEO optimization plugins
+- Analytics integrations
+- Social media connectors
+- Email marketing integrations
+- Payment gateway plugins
+- Search engine plugins (Algolia, Meilisearch)
+
+### Enterprise Features
+- Advanced workflow and approval processes
+- Content versioning and rollback
+- Audit logging and compliance tools
+- Advanced caching strategies
+- CDN integration
+- Multi-region deployment support
