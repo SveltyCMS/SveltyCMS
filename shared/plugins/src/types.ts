@@ -15,9 +15,17 @@
  * - Secure: Separate public/private settings, enforce authz
  */
 
-import type { IDBAdapter, DatabaseResult } from '$shared/database/dbInterface';
-import type { User } from '$shared/database/auth/types';
-import type { Schema } from '$shared/content/types';
+// TODO: Update these imports once database/content structure is migrated to shared/
+// For now, using placeholder types
+// import type { IDBAdapter, DatabaseResult } from '$shared/database/dbInterface';
+// import type { User } from '$shared/database/auth/types';
+// import type { Schema } from '$shared/content/types';
+
+// Placeholder types until database structure is migrated
+export type IDBAdapter = any;
+export type DatabaseResult = any;
+export type User = any;
+export type Schema = any;
 
 /**
  * Plugin metadata and registration info

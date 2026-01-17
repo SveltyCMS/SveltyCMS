@@ -1,54 +1,33 @@
 /**
- * @file src/plugins/index.ts
- * @description Plugin system initialization and exports
+ * @file shared/plugins/src/index.ts
+ * @description Main entry point for the SveltyCMS plugin system
  *
- * This module:
- * - Exports plugin registry and types
- * - Registers all available plugins
- * - Initializes plugins during server startup
+ * Exports:
+ * - Plugin types and interfaces
+ * - Plugin registry for managing plugins
+ * - Plugin initialization function
  */
 
+// Export all plugin types
 export * from './types';
+
+// Export plugin registry
 export { pluginRegistry } from './registry';
 
-// Import all plugins
-import { pageSpeedPlugin } from './pagespeed';
-import type { Plugin } from './types';
-
 /**
- * All available plugins
+ * Available plugins
+ * TODO: Import plugins from apps/cms/src/plugins/ when implemented
  */
-export const availablePlugins: Plugin[] = [
-	pageSpeedPlugin
-];
+export const availablePlugins: any[] = [];
 
 /**
  * Initialize plugin system
- * Registers all plugins and runs migrations
- *
- * Called during server startup (from hooks.server.ts or db.ts)
+ * Called during application startup
  */
-export async function initializePlugins(dbAdapter: any, tenantId: string = 'default'): Promise<void> {
-	const { pluginRegistry } = await import('./registry');
-	const { logger } = await import('@utils/logger.server');
-	
-	try {
-		logger.info('🔌 Initializing plugin system...');
-		
-		// Register all available plugins
-		for (const plugin of availablePlugins) {
-			await pluginRegistry.register(plugin);
-		}
-		
-		// Run migrations for all plugins
-		await pluginRegistry.runAllMigrations(dbAdapter, tenantId);
-		
-		// Mark registry as initialized
-		pluginRegistry.markInitialized();
-		
-		logger.info('✅ Plugin system initialized');
-	} catch (error) {
-		logger.error('Failed to initialize plugin system', { error });
-		// Don't throw - allow server to start even if plugins fail
-	}
+export async function initializePlugins() {
+	console.log('Plugin system: Initialization pending - see shared/plugins/README.md');
+	// TODO: Implement full plugin initialization
+	// - Register plugins from availablePlugins
+	// - Run database migrations
+	// - Initialize plugin state
 }
