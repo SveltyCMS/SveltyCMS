@@ -14,6 +14,11 @@ vite.config.ts.timestamp-*
 .nx/cache
 .nx/workspace-data
 
+# Apps workspace build artifacts
+/apps/*/build
+/apps/*/.svelte-kit
+/apps/*/logs
+
 # secrets
 .env
 .env.*

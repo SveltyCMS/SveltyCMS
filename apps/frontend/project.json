@@ -1,0 +1,53 @@
+{
+	"name": "frontend",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "apps/frontend/src",
+	"projectType": "application",
+	"tags": ["app:frontend", "scope:public"],
+	"targets": {
+		"dev": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "vite dev --port 5174 --strictPort",
+				"cwd": "apps/frontend",
+				"color": true
+			}
+		},
+		"build": {
+			"executor": "nx:run-commands",
+			"dependsOn": ["^build"],
+			"options": {
+				"command": "vite build",
+				"cwd": "apps/frontend"
+			},
+			"outputs": ["{projectRoot}/build", "{projectRoot}/.svelte-kit"],
+			"configurations": {
+				"production": {
+					"command": "NODE_ENV=production vite build"
+				}
+			}
+		},
+		"preview": {
+			"executor": "nx:run-commands",
+			"dependsOn": ["build"],
+			"options": {
+				"command": "vite preview --port 4174",
+				"cwd": "apps/frontend"
+			}
+		},
+		"check": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error",
+				"cwd": "apps/frontend"
+			}
+		},
+		"lint": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "eslint .",
+				"cwd": "apps/frontend"
+			}
+		}
+	}
+}

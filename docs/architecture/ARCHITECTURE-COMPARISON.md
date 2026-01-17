@@ -44,7 +44,30 @@
 | Rebuild (cached) | **5s** ⚡ | 90s |
 | Dev server start | 3s | 3s |
 | CI/CD pipeline | **40% faster** | Baseline |
-| Bundle size | 508 KB | 508 KB |
+| Bundle size (CMS) | **~6 MB** | 508 KB (all-in-one) |
+| Bundle size (Setup) | **~2 MB** ⚡ | 508 KB (all-in-one) |
+
+### Additional NX Monorepo Benefits
+
+**Smaller Initial Bundle**
+- Setup wizard: ~2 MB (75% smaller) - excludes heavy CMS dependencies (TipTap, Chart.js)
+- User only downloads setup bundle once for initial configuration
+- CMS bundle loaded only after setup complete
+
+**Database Optimization**
+- Only selected database driver included in production bundle
+- Not all agnostic database adapters shipped to client
+- Reduces bundle size and improves security
+
+**Faster Workflow with Bun**
+- `bun install` significantly faster than npm/pnpm
+- `bun run dev` starts development server quicker
+- `bun test` runs tests with better performance
+
+**Theme Updates Simplified**
+- Both Tailwind CSS v4 and Skeleton v4 can coexist
+- Different apps can use different versions if needed
+- Easier to test theme updates in isolation
 
 ## SveltyCMS vs Other CMS - Quick Comparison
 
