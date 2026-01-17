@@ -1,0 +1,38 @@
+.selected.svelte-1eh7a52 {
+	display: flex;
+	width: 100%;
+	justify-content: center;
+	align-items: center;
+	gap: 5px;
+}
+.wrapper.svelte-1eh7a52 {
+	z-index: 10;
+	position: relative;
+	box-shadow: 0 0 3px #bfbfbf;
+	padding: 2px;
+	cursor: pointer;
+	border-radius: 4px;
+}
+.palette.svelte-1eh7a52 {
+	position: absolute;
+	top: 100%;
+	padding: 10px;
+	margin-top: 10px;
+	cursor: pointer;
+	background: #fff;
+	border-radius: 5px;
+	box-shadow: 0 0 10px #0000001a;
+}
+.arrow.svelte-1eh7a52:after {
+	content: '';
+	border: solid #6b6b6b;
+	border-width: 0 2px 2px 0;
+	display: inline-block;
+	padding: 3px;
+	transform: rotate(45deg);
+	transition: transform 0.2s ease-in-out;
+	margin-left: auto;
+}
+.arrow_up.svelte-1eh7a52:after {
+	transform: rotate(-135deg);
+}

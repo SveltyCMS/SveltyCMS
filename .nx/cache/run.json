@@ -1,0 +1,21 @@
+{
+  "run": {
+    "command": "nx dev cms",
+    "startTime": "2026-01-17T21:41:00.668Z",
+    "endTime": "2026-01-17T21:49:31.107Z",
+    "inner": false
+  },
+  "tasks": [
+    {
+      "taskId": "cms:dev",
+      "target": "dev",
+      "projectName": "cms",
+      "hash": "16834063078688132284",
+      "startTime": "2026-01-17T21:41:00.675Z",
+      "endTime": "2026-01-17T21:49:31.106Z",
+      "params": "",
+      "cacheStatus": "cache-miss",
+      "status": 1
+    }
+  ]
+}

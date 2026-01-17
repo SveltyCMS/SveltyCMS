@@ -1,0 +1,53 @@
+{
+	"name": "cms",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "apps/cms/src",
+	"projectType": "application",
+	"tags": ["app:cms", "scope:admin"],
+	"targets": {
+		"dev": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "vite dev --port 5173 --strictPort",
+				"cwd": "apps/cms",
+				"color": true
+			}
+		},
+		"build": {
+			"executor": "nx:run-commands",
+			"dependsOn": ["^build"],
+			"options": {
+				"command": "vite build",
+				"cwd": "apps/cms"
+			},
+			"outputs": ["{projectRoot}/build", "{projectRoot}/.svelte-kit"],
+			"configurations": {
+				"production": {
+					"command": "NODE_ENV=production vite build"
+				}
+			}
+		},
+		"preview": {
+			"executor": "nx:run-commands",
+			"dependsOn": ["build"],
+			"options": {
+				"command": "vite preview --port 4173",
+				"cwd": "apps/cms"
+			}
+		},
+		"check": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error",
+				"cwd": "apps/cms"
+			}
+		},
+		"lint": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "eslint .",
+				"cwd": "apps/cms"
+			}
+		}
+	}
+}

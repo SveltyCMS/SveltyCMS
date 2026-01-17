@@ -55,7 +55,7 @@ mock.module('$app/environment', () => ({
 }));
 
 // Mock logger.server.ts to prevent "cannot be imported in browser" error
-mock.module('@src/utils/logger.server', () => ({
+mock.module('@shared/utils/logger.server', () => ({
 	logger: {
 		fatal: () => {},
 		error: () => {},
@@ -75,7 +75,7 @@ mock.module('@src/utils/logger.server', () => ({
 }));
 
 // Mock universal logger.ts
-mock.module('@src/utils/logger', () => ({
+mock.module('@shared/utils/logger', () => ({
 	logger: {
 		fatal: () => {},
 		error: () => {},
@@ -228,7 +228,7 @@ mock.module('@sveltejs/kit', () => ({
 (globalThis as any).$props = () => ({});
 
 // Mock loadingStore.svelte.ts to prevent $state error
-mock.module('@src/stores/loadingStore.svelte', () => {
+mock.module('@shared/stores/loadingStore.svelte', () => {
 	const loadingOps = {
 		navigation: 'navigation',
 		dataFetch: 'data-fetch',
@@ -293,7 +293,7 @@ mock.module('@src/stores/loadingStore.svelte', () => {
 });
 
 // Mock screenSizeStore.svelte.ts to prevent $state error
-mock.module('@src/stores/screenSizeStore.svelte', () => {
+mock.module('@shared/stores/screenSizeStore.svelte', () => {
 	const ScreenSize = { XS: 'XS', SM: 'SM', MD: 'MD', LG: 'LG', XL: 'XL', XXL: '2XL' };
 	const getScreenSizeName = (width: number): string => {
 		if (width < 640) return ScreenSize.XS;
@@ -322,19 +322,19 @@ mock.module('@src/stores/screenSizeStore.svelte', () => {
 // 7. STORE & SETTINGS MOCKS
 // =============================================================================
 
-mock.module('@src/stores/globalSettings', () => ({
+mock.module('@shared/stores/globalSettings', () => ({
 	publicEnv: (globalThis as any).publicEnv,
 	privateEnv: (globalThis as any).privateEnv
 }));
 
-mock.module('@src/stores/globalSettings.svelte.ts', () => ({
+mock.module('@shared/stores/globalSettings.svelte.ts', () => ({
 	publicEnv: (globalThis as any).publicEnv,
 	privateEnv: (globalThis as any).privateEnv,
 	initPublicEnv: () => {},
 	initPrivateEnv: () => {}
 }));
 
-mock.module('@src/stores/store.svelte', () => {
+mock.module('@shared/stores/store.svelte', () => {
 	const mockApp = {
 		systemLanguage: 'en',
 		contentLanguage: 'en',
@@ -372,7 +372,7 @@ mock.module('@src/stores/store.svelte', () => {
 // 8. PARAGLIDE i18n MOCKS
 // =============================================================================
 
-mock.module('@src/paraglide/messages', () => ({
+mock.module('@shared/paraglide/messages', () => ({
 	widgets_nodata: () => 'No Data',
 	widget_richText_description: () => 'Rich text widget description',
 	setup_step_database: () => 'Database Configuration',
@@ -406,7 +406,7 @@ mock.module('@src/paraglide/messages', () => ({
 	setup_progress_step_of: (params: any) => `Step ${params.current} of ${params.total}`
 }));
 
-mock.module('@src/paraglide/runtime', () => ({
+mock.module('@shared/paraglide/runtime', () => ({
 	getLocale: () => 'en',
 	setLocale: (_locale: string) => {},
 	locales: ['en', 'de', 'fr', 'es', 'it', 'pt']
@@ -416,13 +416,13 @@ mock.module('@src/paraglide/runtime', () => ({
 // 9. OTHER UTILITY MOCKS
 // =============================================================================
 
-mock.module('@src/paraglide/runtime', () => ({
+mock.module('@shared/paraglide/runtime', () => ({
 	getLocale: () => 'en',
 	setLocale: (_locale: string) => {},
 	locales: ['en', 'de', 'fr', 'es', 'it', 'pt']
 }));
 
-mock.module('@utils/languageUtils', () => ({
+mock.module('@shared/utils/languageUtils', () => ({
 	getLanguageName: (code: string, _displayLang?: string) => {
 		const names: Record<string, string> = {
 			en: 'English',
@@ -436,7 +436,7 @@ mock.module('@utils/languageUtils', () => ({
 	}
 }));
 
-mock.module('@utils/toast', () => ({
+mock.module('@shared/utils/toast', () => ({
 	setGlobalToastStore: (_store: any) => {},
 	showToast: (message: string, type?: string, _duration?: number) => {
 		console.log(`[TOAST ${type || 'info'}]`, message);
@@ -447,7 +447,7 @@ mock.module('@utils/toast', () => ({
 // 10. WIDGET FACTORY & DATABASE MOCKS
 // =============================================================================
 
-mock.module('@src/widgets/widgetFactory', () => ({
+mock.module('@cms/widgets/widgetFactory', () => ({
 	createWidget: (config: any) => {
 		const widgetDefinition = {
 			widgetId: config.Name,
@@ -514,7 +514,7 @@ mock.module('@src/widgets/widgetFactory', () => ({
 	}
 }));
 
-mock.module('@src/databases/db', () => ({
+mock.module('@shared/database/db', () => ({
 	auth: {
 		getUserCount: () => Promise.resolve(1),
 		getAllRoles: () =>

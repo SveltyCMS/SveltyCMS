@@ -1,0 +1,15 @@
+> vite build
+
+[36mvite v7.3.1 [32mbuilding ssr environment for production...[36m[39m
+[32m✔[39m [1m[32m[paraglide-js] [39m[22mCompilation complete (message-modules)
+transforming...
+[32m✓[39m 1249 modules transformed.
+[31m✗[39m Build failed in 22.73s
+[31merror during build:
+[31mCould not resolve "./relationResolver" from "../../shared/services/src/token/engine.ts"[31m
+file: [36m/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/services/src/token/engine.ts[31m
+    at getRollupError (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/parseAst.js:401:41)
+    at error (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/parseAst.js:397:42)
+    at ModuleLoader.handleInvalidResolvedId (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/node-entry.js:21590:24)
+    at file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/node-entry.js:21550:26[39m
+Warning: command "vite build" exited with non-zero status code

@@ -55,8 +55,8 @@ Error: Cannot find module 'mariadb'
 
 3. **Clear cache and reinstall:**
    ```bash
-   rm -rf node_modules package-lock.json
-   npm install
+   rm -rf node_modules package-lock.json bun.lockb
+   bun install
    ```
 
 ### Issue: Database driver installation fails (EACCES)
@@ -119,7 +119,7 @@ Error: listen EADDRINUSE: address already in use :::5173
 2. **Or use a different port:**
 
    ```bash
-   PORT=3000 npm run dev
+   PORT=3000 bun dev
    ```
 
 3. **Update vite.config.ts:**
@@ -222,7 +222,7 @@ MariaDB connection failed: Access denied
 1. **Manually run installer:**
 
    ```bash
-   npm run installer
+   bun dev
    ```
 
 2. **Or navigate to setup page:**
@@ -295,13 +295,13 @@ TypeError: Cannot read properties of undefined (reading 'user')
 
    ```bash
    # Stop server (Ctrl+C)
-   npm run dev
+   bun dev
    ```
 
 3. **Clear build cache:**
    ```bash
    rm -rf .svelte-kit
-   npm run dev
+   bun dev
    ```
 
 ---
@@ -338,7 +338,7 @@ TypeError: Cannot read properties of undefined (reading 'user')
 
 4. **Restart server:**
    ```bash
-   npm run dev
+   bun dev
    ```
 
 ---
@@ -494,7 +494,7 @@ FATAL ERROR: Reached heap limit
 1. **Increase Node memory:**
 
    ```bash
-   NODE_OPTIONS="--max-old-space-size=4096" npm run dev
+   NODE_OPTIONS="--max-old-space-size=4096" bun dev
    ```
 
 2. **Add to package.json:**
@@ -502,7 +502,7 @@ FATAL ERROR: Reached heap limit
    ```json
    {
    	"scripts": {
-   		"dev": "NODE_OPTIONS='--max-old-space-size=4096' vite dev"
+   		"dev": "NODE_OPTIONS='--max-old-space-size=4096' bun vite dev"
    	}
    }
    ```
@@ -551,7 +551,9 @@ Type error: Property 'user' does not exist on type 'Locals'
 2. **Run type check:**
 
    ```bash
-   npm run typecheck
+   bun check
+   # or
+   nx check cms
    ```
 
 3. **Install missing types:**

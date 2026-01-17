@@ -18,13 +18,13 @@ import type { RequestEvent } from '@sveltejs/kit';
 // Mock dependencies
 const mockMetricsIncrementSecurityViolations = mock(() => {});
 
-mock.module('@src/services/MetricsService', () => ({
+mock.module('@shared/services/MetricsService', () => ({
 	metricsService: {
 		incrementSecurityViolations: mockMetricsIncrementSecurityViolations
 	}
 }));
 
-mock.module('@utils/logger.server', () => ({
+mock.module('@shared/utils/logger.server', () => ({
 	logger: {
 		warn: mock(() => {}),
 		debug: mock(() => {}),
@@ -32,7 +32,7 @@ mock.module('@utils/logger.server', () => ({
 	}
 }));
 
-import { handleFirewall } from '@src/hooks/handleFirewall';
+import { handleFirewall } from '@cms/hooks/handleFirewall';
 
 /**
  * Helper to create a RequestEvent with custom URL and User-Agent

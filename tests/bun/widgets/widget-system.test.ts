@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { createWidget, type FieldConfig, type WidgetConfig } from '../../../src/widgets/widgetFactory';
+import { createWidget, type FieldConfig, type WidgetConfig } from '../../../apps/cms/src/widgets/widgetFactory';
 import { object, string, number, boolean, minLength } from 'valibot';
 
 describe('Widget System - Factory Pattern', () => {

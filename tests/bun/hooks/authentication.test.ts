@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
-import { handleAuthentication } from '@src/hooks/handleAuthentication';
+import { handleAuthentication } from '@cms/hooks/handleAuthentication';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // --- Test Utilities ---

@@ -6,14 +6,14 @@
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import type { RequestEvent, ResolveOptions } from '@sveltejs/kit';
-import type { Theme } from '@src/databases/dbInterface';
+import type { Theme } from '@shared/database/dbInterface';
 
 // --- Mock ThemeManager ---
 // We need to mock the ThemeManager singleton to avoid DB calls during tests
 const mockGetTheme = mock(() => Promise.resolve(null));
 const mockIsInitialized = mock(() => true);
 
-mock.module('@src/databases/themeManager', () => ({
+mock.module('@shared/database/themeManager', () => ({
 	ThemeManager: {
 		getInstance: () => ({
 			getTheme: mockGetTheme,
@@ -77,7 +77,7 @@ describe('Middleware: handleTheme', () => {
 		mockIsInitialized.mockReturnValue(true); // Default to initialized
 
 		// Dynamic import to ensure mocks are applied
-		const mod = await import('@src/hooks/handleTheme');
+		const mod = await import('@cms/hooks/handleTheme');
 		handleTheme = mod.handleTheme;
 
 		// A robust mock of SvelteKit's `resolve` function

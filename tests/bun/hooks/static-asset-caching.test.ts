@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
-import { handleStaticAssetCaching, isStaticAsset, STATIC_ASSET_REGEX } from '@src/hooks/handleStaticAssetCaching';
+import { handleStaticAssetCaching, isStaticAsset, STATIC_ASSET_REGEX } from '@cms/hooks/handleStaticAssetCaching';
 import type { RequestEvent, ResolveOptions } from '@sveltejs/kit';
 
 // --- Helper: Strictly Typed Mock Event ---

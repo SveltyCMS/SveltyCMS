@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
-import { handleRateLimit } from '@src/hooks/handleRateLimit';
+import { handleRateLimit } from '@cms/hooks/handleRateLimit';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // --- Test Utilities ---

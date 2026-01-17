@@ -1,0 +1,14 @@
+> vite build
+
+[36mvite v7.3.1 [32mbuilding ssr environment for production...[36m[39m
+[32m✔[39m [1m[32m[paraglide-js] [39m[22mCompilation complete (message-modules)
+[2K[1Gtransforming (1) [2m../../node_modules/@sveltej[2K[1Gtransforming (27) [2msrc/routes/config/themeMan[2K[1Gtransforming (74) [2m../../node_modules/esm-env[2K[1Gtransforming (151) [2m../../node_modules/@svelt[2K[1Gtransforming (186) [2msrc/routes/[language]/+pa[2K[1Gtransforming (308) [2m../../node_modules/@svelt[2K[1Gtransforming (338) [2m../../shared/theme/src/ap[2K[1G[32m✓[39m 349 modules transformed.
+[2K[1G[31m✗[39m Build failed in 5.43s
+[31merror during build:
+[31m[vite:load-fallback] Could not load /var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/cms/src/lib/components/system/icons/SveltyCMS_Logo.svelte (imported by src/routes/+error.svelte): ENOENT: no such file or directory, open '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/cms/src/lib/components/system/icons/SveltyCMS_Logo.svelte'[31m
+    at async open (node:internal/fs/promises:641:25)
+    at async Object.readFile (node:internal/fs/promises:1279:14)
+    at async Object.handler (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/chunks/config.js:33169:21)
+    at async PluginDriver.hookFirstAndGetPlugin (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/node-entry.js:22333:28)
+    at async file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/node-entry.js:21333:33
+    at async Queue.work (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/node-entry.js:22561:32)[39m

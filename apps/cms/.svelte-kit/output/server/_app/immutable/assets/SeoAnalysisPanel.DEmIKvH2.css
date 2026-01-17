@@ -1,0 +1,10 @@
+.custom-scrollbar.svelte-h69ce9::-webkit-scrollbar {
+	width: 6px;
+}
+.custom-scrollbar.svelte-h69ce9::-webkit-scrollbar-track {
+	background: transparent;
+}
+.custom-scrollbar.svelte-h69ce9::-webkit-scrollbar-thumb {
+	background-color: #9ca3af80;
+	border-radius: 20px;
+}

@@ -1,0 +1,438 @@
+{
+	"graph": {
+		"nodes": {
+			"database": {
+				"name": "database",
+				"type": "lib",
+				"data": {
+					"root": "shared/database",
+					"name": "database",
+					"$schema": "../../node_modules/nx/schemas/project-schema.json",
+					"sourceRoot": "shared/database/src",
+					"projectType": "library",
+					"tags": ["lib:database", "scope:shared"],
+					"targets": {
+						"lint": {
+							"executor": "nx:run-commands",
+							"options": {
+								"commands": ["eslint src/**/*.ts"],
+								"cwd": "shared/database"
+							},
+							"configurations": {},
+							"parallelism": true,
+							"inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
+							"cache": true
+						}
+					},
+					"implicitDependencies": []
+				}
+			},
+			"services": {
+				"name": "services",
+				"type": "lib",
+				"data": {
+					"root": "shared/services",
+					"name": "services",
+					"$schema": "../../node_modules/nx/schemas/project-schema.json",
+					"sourceRoot": "shared/services/src",
+					"projectType": "library",
+					"tags": ["lib:services", "scope:shared"],
+					"implicitDependencies": [],
+					"targets": {}
+				}
+			},
+			"stores": {
+				"name": "stores",
+				"type": "lib",
+				"data": {
+					"root": "shared/stores",
+					"name": "stores",
+					"$schema": "../../node_modules/nx/schemas/project-schema.json",
+					"sourceRoot": "shared/stores/src",
+					"projectType": "library",
+					"tags": ["lib:stores", "scope:shared"],
+					"implicitDependencies": [],
+					"targets": {}
+				}
+			},
+			"theme": {
+				"name": "theme",
+				"type": "lib",
+				"data": {
+					"root": "shared/theme",
+					"name": "theme",
+					"$schema": "../../node_modules/nx/schemas/project-schema.json",
+					"sourceRoot": "shared/theme/src",
+					"projectType": "library",
+					"tags": ["lib:theme", "scope:shared"],
+					"implicitDependencies": [],
+					"targets": {}
+				}
+			},
+			"utils": {
+				"name": "utils",
+				"type": "lib",
+				"data": {
+					"root": "shared/utils",
+					"name": "utils",
+					"$schema": "../../node_modules/nx/schemas/project-schema.json",
+					"sourceRoot": "shared/utils/src",
+					"projectType": "library",
+					"tags": ["lib:utils", "scope:shared"],
+					"implicitDependencies": [],
+					"targets": {}
+				}
+			},
+			"setup": {
+				"name": "setup",
+				"type": "app",
+				"data": {
+					"root": "apps/setup",
+					"name": "setup",
+					"$schema": "../../node_modules/nx/schemas/project-schema.json",
+					"sourceRoot": "apps/setup/src",
+					"projectType": "application",
+					"tags": ["app:setup", "scope:public"],
+					"targets": {
+						"dev": {
+							"executor": "nx:run-commands",
+							"options": {
+								"command": "vite dev --port 5173 --strictPort",
+								"cwd": "apps/setup",
+								"color": true
+							},
+							"configurations": {},
+							"parallelism": true,
+							"cache": false
+						},
+						"build": {
+							"executor": "nx:run-commands",
+							"dependsOn": ["^build"],
+							"options": {
+								"command": "vite build",
+								"cwd": "apps/setup"
+							},
+							"outputs": ["{projectRoot}/build", "{projectRoot}/.svelte-kit"],
+							"configurations": {
+								"production": {
+									"command": "NODE_ENV=production vite build"
+								}
+							},
+							"parallelism": true,
+							"inputs": ["production", "^production"],
+							"cache": true
+						},
+						"preview": {
+							"executor": "nx:run-commands",
+							"dependsOn": ["build"],
+							"options": {
+								"command": "vite preview --port 4173",
+								"cwd": "apps/setup"
+							},
+							"configurations": {},
+							"parallelism": true
+						},
+						"check": {
+							"executor": "nx:run-commands",
+							"options": {
+								"command": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error",
+								"cwd": "apps/setup"
+							},
+							"configurations": {},
+							"parallelism": true,
+							"inputs": ["default"],
+							"cache": true
+						},
+						"lint": {
+							"executor": "nx:run-commands",
+							"options": {
+								"command": "eslint .",
+								"cwd": "apps/setup"
+							},
+							"configurations": {},
+							"parallelism": true,
+							"inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
+							"cache": true
+						}
+					},
+					"implicitDependencies": []
+				}
+			},
+			"cms": {
+				"name": "cms",
+				"type": "app",
+				"data": {
+					"root": "apps/cms",
+					"name": "cms",
+					"$schema": "../../node_modules/nx/schemas/project-schema.json",
+					"sourceRoot": "apps/cms/src",
+					"projectType": "application",
+					"tags": ["app:cms", "scope:admin"],
+					"targets": {
+						"dev": {
+							"executor": "nx:run-commands",
+							"options": {
+								"command": "vite dev --port 5173 --strictPort",
+								"cwd": "apps/cms",
+								"color": true
+							},
+							"configurations": {},
+							"parallelism": true,
+							"cache": false
+						},
+						"build": {
+							"executor": "nx:run-commands",
+							"dependsOn": ["^build"],
+							"options": {
+								"command": "vite build",
+								"cwd": "apps/cms"
+							},
+							"outputs": ["{projectRoot}/build", "{projectRoot}/.svelte-kit"],
+							"configurations": {
+								"production": {
+									"command": "NODE_ENV=production vite build"
+								}
+							},
+							"parallelism": true,
+							"inputs": ["production", "^production"],
+							"cache": true
+						},
+						"preview": {
+							"executor": "nx:run-commands",
+							"dependsOn": ["build"],
+							"options": {
+								"command": "vite preview --port 4173",
+								"cwd": "apps/cms"
+							},
+							"configurations": {},
+							"parallelism": true
+						},
+						"check": {
+							"executor": "nx:run-commands",
+							"options": {
+								"command": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error",
+								"cwd": "apps/cms"
+							},
+							"configurations": {},
+							"parallelism": true,
+							"inputs": ["default"],
+							"cache": true
+						},
+						"lint": {
+							"executor": "nx:run-commands",
+							"options": {
+								"command": "eslint .",
+								"cwd": "apps/cms"
+							},
+							"configurations": {},
+							"parallelism": true,
+							"inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
+							"cache": true
+						}
+					},
+					"implicitDependencies": []
+				}
+			}
+		},
+		"dependencies": {
+			"database": [
+				{
+					"source": "database",
+					"target": "utils",
+					"type": "static"
+				},
+				{
+					"source": "database",
+					"target": "utils",
+					"type": "dynamic"
+				},
+				{
+					"source": "database",
+					"target": "services",
+					"type": "static"
+				},
+				{
+					"source": "database",
+					"target": "services",
+					"type": "dynamic"
+				},
+				{
+					"source": "database",
+					"target": "stores",
+					"type": "static"
+				},
+				{
+					"source": "database",
+					"target": "stores",
+					"type": "dynamic"
+				}
+			],
+			"services": [
+				{
+					"source": "services",
+					"target": "utils",
+					"type": "static"
+				},
+				{
+					"source": "services",
+					"target": "utils",
+					"type": "dynamic"
+				},
+				{
+					"source": "services",
+					"target": "database",
+					"type": "dynamic"
+				},
+				{
+					"source": "services",
+					"target": "database",
+					"type": "static"
+				},
+				{
+					"source": "services",
+					"target": "stores",
+					"type": "static"
+				},
+				{
+					"source": "services",
+					"target": "cms",
+					"type": "static"
+				}
+			],
+			"stores": [
+				{
+					"source": "stores",
+					"target": "utils",
+					"type": "static"
+				},
+				{
+					"source": "stores",
+					"target": "database",
+					"type": "static"
+				}
+			],
+			"theme": [],
+			"utils": [
+				{
+					"source": "utils",
+					"target": "stores",
+					"type": "static"
+				},
+				{
+					"source": "utils",
+					"target": "services",
+					"type": "static"
+				},
+				{
+					"source": "utils",
+					"target": "database",
+					"type": "static"
+				},
+				{
+					"source": "utils",
+					"target": "database",
+					"type": "dynamic"
+				},
+				{
+					"source": "utils",
+					"target": "cms",
+					"type": "static"
+				}
+			],
+			"setup": [
+				{
+					"source": "setup",
+					"target": "database",
+					"type": "static"
+				},
+				{
+					"source": "setup",
+					"target": "database",
+					"type": "dynamic"
+				},
+				{
+					"source": "setup",
+					"target": "utils",
+					"type": "static"
+				},
+				{
+					"source": "setup",
+					"target": "utils",
+					"type": "dynamic"
+				},
+				{
+					"source": "setup",
+					"target": "cms",
+					"type": "static"
+				},
+				{
+					"source": "setup",
+					"target": "cms",
+					"type": "dynamic"
+				},
+				{
+					"source": "setup",
+					"target": "services",
+					"type": "static"
+				},
+				{
+					"source": "setup",
+					"target": "services",
+					"type": "dynamic"
+				},
+				{
+					"source": "setup",
+					"target": "stores",
+					"type": "static"
+				},
+				{
+					"source": "setup",
+					"target": "stores",
+					"type": "dynamic"
+				}
+			],
+			"cms": [
+				{
+					"source": "cms",
+					"target": "database",
+					"type": "static"
+				},
+				{
+					"source": "cms",
+					"target": "database",
+					"type": "dynamic"
+				},
+				{
+					"source": "cms",
+					"target": "services",
+					"type": "static"
+				},
+				{
+					"source": "cms",
+					"target": "services",
+					"type": "dynamic"
+				},
+				{
+					"source": "cms",
+					"target": "utils",
+					"type": "static"
+				},
+				{
+					"source": "cms",
+					"target": "utils",
+					"type": "dynamic"
+				},
+				{
+					"source": "cms",
+					"target": "stores",
+					"type": "static"
+				},
+				{
+					"source": "cms",
+					"target": "stores",
+					"type": "dynamic"
+				}
+			]
+		}
+	}
+}

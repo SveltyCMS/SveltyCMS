@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
-import { addSecurityHeaders } from '@src/hooks/addSecurityHeaders';
+import { addSecurityHeaders } from '@cms/hooks/addSecurityHeaders';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // --- Test Utilities ---

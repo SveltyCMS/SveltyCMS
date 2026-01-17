@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'bun:test';
-import { LoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+import { LoadingStore, loadingOperations } from '@shared/stores/loadingStore.svelte';
 
 describe('Loading Store - Basic Operations', () => {
 	let store: LoadingStore;

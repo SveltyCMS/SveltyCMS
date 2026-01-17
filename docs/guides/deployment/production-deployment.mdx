@@ -96,8 +96,8 @@ server {
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
 
-    # Root directory
-    root /var/www/sveltycms/build/client;
+    # Root directory (CMS)
+    root /var/www/sveltycms/apps/cms/build/client;
 
     # Logging
     access_log /var/log/nginx/sveltycms.access.log;
@@ -384,7 +384,7 @@ module.exports = {
 	apps: [
 		{
 			name: 'sveltycms',
-			script: 'build/index.js',
+			script: 'apps/cms/build/index.js',
 
 			// Cluster mode (uses all CPU cores)
 			instances: 'max',
@@ -436,7 +436,7 @@ module.exports = {
 			ref: 'origin/main',
 			repo: 'git@github.com:yourorg/sveltycms.git',
 			path: '/var/www/sveltycms',
-			'post-deploy': 'bun install && bun run build && pm2 reload ecosystem.config.js --env production'
+			'post-deploy': 'bun install && bun run build:cms && pm2 reload ecosystem.config.js --env production'
 		}
 	}
 };
@@ -495,13 +495,9 @@ Since Nginx now handles static assets, you can optionally remove `handleStaticAs
 
 ```typescript
 // Before (with static middleware)
-export const handle: Handle = sequence(
-	handleStaticAssetCaching, // ← Remove this (Nginx handles it)
-	handleSystemState,
-	handleRateLimit,
-	handleFirewall
-	// ... rest of middleware
-);
+// NOT APPLICABLE IN MONOREPO v2
+// Middleware is now split between setup and CMS apps.
+// See individual app src/hooks.server.ts files.
 
 // After (optimized for Nginx)
 export const handle: Handle = sequence(
@@ -632,7 +628,7 @@ CREATE INDEX idx_media_uploaded ON media(uploaded_at DESC);
 
 ### Health Check Endpoint
 
-**File**: `src/routes/api/health/+server.ts`
+**File**: `apps/cms/src/routes/api/health/+server.ts`
 
 ```typescript
 import { json } from '@sveltejs/kit';
@@ -670,7 +666,7 @@ export const GET: RequestHandler = async () => {
 
 ### Prometheus Metrics Endpoint
 
-**File**: `src/routes/api/metrics/+server.ts`
+**File**: `apps/cms/src/routes/api/metrics/+server.ts`
 
 ```typescript
 import { metricsService } from '@src/services/MetricsService';

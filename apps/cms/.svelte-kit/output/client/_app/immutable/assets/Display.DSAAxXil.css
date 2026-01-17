@@ -1,0 +1,10 @@
+.seo-display.svelte-1m84ivt {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.875rem;
+	color: #555;
+}
+.icon.svelte-1m84ivt {
+	flex-shrink: 0;
+}

@@ -1,0 +1,9 @@
+{
+	"extends": ["../../tsconfig.base.json", "./.svelte-kit/tsconfig.json"],
+	"compilerOptions": {
+		"types": ["@types/bun"],
+		"noEmit": true,
+		"skipLibCheck": true
+	},
+	"include": ["src/**/*.js", "src/**/*.ts", "src/**/*.svelte", "types/**/*.ts", "../../shared/**/*.ts", "../../shared/**/*.svelte"]
+}

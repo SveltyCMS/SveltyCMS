@@ -1,0 +1,7 @@
+{
+	"name": "theme",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "shared/theme/src",
+	"projectType": "library",
+	"tags": ["lib:theme", "scope:shared"]
+}

@@ -4,9 +4,9 @@
  */
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
-import { handleApiRequests } from '@src/hooks/handleApiRequests';
+import { handleApiRequests } from '@cms/hooks/handleApiRequests';
 import type { RequestEvent } from '@sveltejs/kit';
-import type { User } from '@src/databases/auth/types';
+import type { User } from '@shared/database/auth/types';
 
 // --- Test Utilities ---
 

@@ -14,7 +14,7 @@ import {
 	isoDateStringToDate,
 	formatDisplayDate,
 	formatRelativeDate
-} from '@utils/dateUtils';
+} from '@shared/utils/dateUtils';
 
 describe('Date Utils - Type Guards', () => {
 	it('should validate ISO date strings', () => {

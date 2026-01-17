@@ -1,0 +1,822 @@
+2026-01-16 08:46:45 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-16 08:46:45 [33m⚠ [WARN ][0m System requires initial setup. 
+2026-01-16 08:49:29 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-16 08:49:29 [33m⚠ [WARN ][0m Database adapter unavailable; system initializing. 
+2026-01-16 08:49:29 [33m⚠ [WARN ][0m Database adapter unavailable; system initializing. 
+2026-01-16 08:49:29 [33m⚠ [WARN ][0m No roles found in database - redirecting to setup [33m{pathname: /, tenantId: [90mundefined[0m}[0m
+2026-01-16 08:49:29 [33m⚠ [WARN ][0m No roles found in database - redirecting to setup [33m{pathname: /, tenantId: [90mundefined[0m}[0m
+2026-01-16 14:13:04 [33m⚠ [WARN ][0m System requires initial setup. 
+2026-01-16 14:14:32 [33m⚠ [WARN ][0m System requires initial setup. 
+2026-01-16 14:19:57 [33m⚠ [WARN ][0m System requires initial setup. 
+2026-01-16 14:22:16 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 14:22:16 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 14:22:16 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 14:22:16 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 14:22:16 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 14:22:16 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 14:22:16 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 14:22:16 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 14:22:16 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 14:22:16 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 14:22:16 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 14:22:16 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 14:22:16 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 14:22:16 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 14:22:16 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 14:22:16 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 14:22:16 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 14:22:16 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 14:22:16 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 14:22:16 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 14:22:16 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 14:22:16 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 14:22:16 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 14:22:16 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 14:22:16 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 14:22:16 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 14:22:16 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 14:22:16 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 14:22:16 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 14:22:16 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 14:22:16 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 14:22:16 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 14:22:16 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 14:30:23 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 14:30:23 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 14:30:23 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 14:30:23 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 14:30:23 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 14:30:23 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 14:30:23 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 14:30:23 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 14:30:23 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 14:30:23 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 14:30:23 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 14:30:23 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 14:30:30 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 14:30:30 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 14:30:30 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 14:30:30 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 14:30:30 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 14:30:30 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 14:30:30 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 14:30:30 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 14:30:30 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 14:30:30 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 14:30:30 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 14:30:30 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 14:30:30 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 14:30:30 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 14:30:30 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 14:30:30 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 14:30:30 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 14:30:30 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 14:30:30 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 14:30:30 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 14:30:30 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 14:33:34 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 14:33:34 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 14:33:34 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 14:33:34 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 14:33:34 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 14:33:34 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 14:33:34 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 14:33:34 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 14:33:34 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 14:33:34 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 14:33:34 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 14:33:34 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 14:33:34 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 14:33:34 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 14:33:34 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 14:33:34 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 14:33:34 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 14:33:34 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 14:33:34 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 14:33:34 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 14:33:34 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 14:33:34 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 14:33:34 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 14:33:34 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 14:33:34 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 14:33:34 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 14:33:34 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 14:33:34 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 14:33:34 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 14:33:34 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 14:33:34 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 14:33:34 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 14:33:34 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 14:41:14 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 14:41:14 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 14:41:14 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 14:41:14 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 14:41:14 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 14:41:14 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 14:41:14 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 14:41:14 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 14:41:14 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 14:41:14 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 14:41:14 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 14:41:14 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 14:41:14 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 14:41:14 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 14:41:14 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 14:41:14 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 14:41:14 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 14:41:14 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 14:41:14 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 14:41:14 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 14:41:14 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 14:41:14 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 14:41:14 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 14:41:14 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 14:41:14 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 14:41:14 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 14:41:14 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 14:41:14 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 14:41:14 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 14:41:14 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 14:41:14 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 14:41:14 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 14:41:14 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 14:46:34 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 14:46:34 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 14:46:34 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 14:46:34 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 14:46:34 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 14:46:34 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 14:46:34 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 14:46:34 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 14:46:34 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 14:46:34 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 14:46:34 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 14:46:34 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 14:47:03 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 14:47:03 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 14:47:03 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 14:47:03 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 14:47:03 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 14:47:03 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 14:47:03 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 14:47:03 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 14:47:03 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 14:47:03 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 14:47:03 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 14:47:03 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 14:47:03 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 14:47:03 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 14:47:03 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 14:47:03 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 14:47:03 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 14:47:03 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 14:47:03 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 14:47:03 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 14:47:03 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 14:47:18 [32m● [INFO ][0m Starting setup finalization [33m{correlationId: 977ae01bc19d, admin: RKroells@web.de}[0m
+2026-01-16 14:47:18 [32m● [INFO ][0m 📝 Writing private.ts configuration file (deferred)... [33m{correlationId: 977ae01bc19d}[0m
+2026-01-16 14:47:18 [31m✗ [ERROR][0m Failed to write private config: [33m{errno: [34m-2[0m, code: ENOENT, syscall: open, path: /var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/setup/config/private.ts}[0m
+2026-01-16 14:47:18 [31m✗ [ERROR][0m Setup finalization failed [33m{correlationId: 977ae01bc19d, error: Failed to write private configuration: ENOENT: no such file or directory, open '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/setup/config/private.ts'}[0m
+2026-01-16 14:57:58 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 14:57:58 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 14:57:58 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 14:57:58 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 14:57:58 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 14:57:58 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 14:57:58 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 14:57:58 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 14:57:58 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 14:57:58 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 14:57:58 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 14:57:58 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 14:57:58 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 14:57:58 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 14:57:58 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 14:57:58 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 14:57:58 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 14:57:58 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 14:57:58 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 14:57:58 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 14:57:58 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 14:57:58 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 14:57:58 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 14:57:58 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 14:57:58 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 14:57:58 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 14:57:58 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 14:57:58 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 14:57:58 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 14:57:58 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 14:57:58 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 14:57:58 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 14:57:58 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 14:58:36 [32m● [INFO ][0m Starting setup finalization [33m{correlationId: da6386ef7d66, admin: [REDACTED]}[0m
+2026-01-16 14:58:36 [32m● [INFO ][0m Initializing full system with in-memory configuration... [33m{correlationId: da6386ef7d66}[0m
+2026-01-16 14:58:36 [31m✗ [ERROR][0m Setup finalization failed [33m{correlationId: da6386ef7d66, error: dbConfigFromPayload is not defined}[0m
+2026-01-16 15:02:02 [32m● [INFO ][0m Starting setup finalization [33m{correlationId: 7e01aaa6c227, admin: [REDACTED]}[0m
+2026-01-16 15:02:02 [32m● [INFO ][0m Initializing full system with in-memory configuration... [33m{correlationId: 7e01aaa6c227}[0m
+2026-01-16 15:02:02 [31m✗ [ERROR][0m Failed to initialize system: [33m{error: ENOENT: no such file or directory, open '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/setup/config/private.ts', stack: Error: ENOENT: no such file or directory, open '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/setup/config/private.ts'
+    at async open (node:internal/fs/promises:[34m$1[0m:[34m$1[0m)
+    at async Module.readFile (node:internal/fs/promises:[34m$1[0m:[34m$1[0m)
+    at async POST (eval at runInlinedModule (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/module-runner.js:[34m$1[0m:[34m$1[0m), <anonymous>:[34m$1[0m:[34m$1[0m)
+    at async render_endpoint (/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:[34m$1[0m:[34m$1[0m)
+    at async resolve (/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/runtime/server/respond.js:[34m$1[0m:[34m$1[0m)
+    at async fn (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/exports/hooks/sequence.js:[34m$1[0m:[34m$1[0m)
+    at async fn (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/exports/hooks/sequence.js:[34m$1[0m:[34m$1[0m)
+    at async fn (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/exports/hooks/sequence.js:[34m$1[0m:[34m$1[0m)
+    at async fn (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/exports/hooks/sequence.js:[34m$1[0m:[34m$1[0m)
+    at async handleCompression (eval at runInlinedModule (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/module-runner.js:[34m$1[0m:[34m$1[0m), <anonymous>:[34m$1[0m:[34m$1[0m), correlationId: 7e01aaa6c227}[0m
+2026-01-16 15:02:18 [32m● [INFO ][0m Starting setup finalization [33m{correlationId: 9a55a43a365f, admin: [REDACTED]}[0m
+2026-01-16 15:02:18 [32m● [INFO ][0m Initializing full system with in-memory configuration... [33m{correlationId: 9a55a43a365f}[0m
+2026-01-16 15:02:18 [31m✗ [ERROR][0m Failed to initialize system: [33m{error: ENOENT: no such file or directory, open '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/setup/config/private.ts', stack: Error: ENOENT: no such file or directory, open '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/setup/config/private.ts'
+    at async open (node:internal/fs/promises:[34m$1[0m:[34m$1[0m)
+    at async Module.readFile (node:internal/fs/promises:[34m$1[0m:[34m$1[0m)
+    at async POST (eval at runInlinedModule (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/module-runner.js:[34m$1[0m:[34m$1[0m), <anonymous>:[34m$1[0m:[34m$1[0m)
+    at async render_endpoint (/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:[34m$1[0m:[34m$1[0m)
+    at async resolve (/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/runtime/server/respond.js:[34m$1[0m:[34m$1[0m)
+    at async fn (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/exports/hooks/sequence.js:[34m$1[0m:[34m$1[0m)
+    at async fn (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/exports/hooks/sequence.js:[34m$1[0m:[34m$1[0m)
+    at async fn (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/exports/hooks/sequence.js:[34m$1[0m:[34m$1[0m)
+    at async fn (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/exports/hooks/sequence.js:[34m$1[0m:[34m$1[0m)
+    at async handleCompression (eval at runInlinedModule (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/module-runner.js:[34m$1[0m:[34m$1[0m), <anonymous>:[34m$1[0m:[34m$1[0m), correlationId: 9a55a43a365f}[0m
+2026-01-16 15:09:22 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 15:09:22 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 15:09:22 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 15:09:22 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 15:09:22 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 15:09:22 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 15:09:22 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 15:09:22 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 15:09:22 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 15:09:22 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 15:09:22 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 15:09:22 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 15:09:22 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 15:09:22 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 15:09:22 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 15:09:22 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 15:09:22 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 15:09:22 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 15:09:22 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 15:09:22 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 15:09:22 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 15:09:22 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 15:09:22 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 15:09:22 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 15:09:22 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 15:09:22 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 15:09:22 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 15:09:22 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 15:09:22 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 15:09:22 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 15:09:22 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 15:09:22 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 15:09:22 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 15:09:52 [32m● [INFO ][0m Starting setup finalization [33m{correlationId: 38dbdda7a69c, admin: [REDACTED]}[0m
+2026-01-16 15:09:52 [32m● [INFO ][0m Initializing full system with in-memory configuration... [33m{correlationId: 38dbdda7a69c}[0m
+2026-01-16 15:09:52 [31m✗ [ERROR][0m Failed to initialize system: [33m{error: ENOENT: no such file or directory, open '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/setup/config/private.ts', stack: Error: ENOENT: no such file or directory, open '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/setup/config/private.ts'
+    at async open (node:internal/fs/promises:[34m$1[0m:[34m$1[0m)
+    at async Module.readFile (node:internal/fs/promises:[34m$1[0m:[34m$1[0m)
+    at async POST (eval at runInlinedModule (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/module-runner.js:[34m$1[0m:[34m$1[0m), <anonymous>:[34m$1[0m:[34m$1[0m)
+    at async render_endpoint (/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:[34m$1[0m:[34m$1[0m)
+    at async resolve (/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/runtime/server/respond.js:[34m$1[0m:[34m$1[0m)
+    at async fn (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/exports/hooks/sequence.js:[34m$1[0m:[34m$1[0m)
+    at async fn (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/exports/hooks/sequence.js:[34m$1[0m:[34m$1[0m)
+    at async fn (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/exports/hooks/sequence.js:[34m$1[0m:[34m$1[0m)
+    at async fn (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/exports/hooks/sequence.js:[34m$1[0m:[34m$1[0m)
+    at async handleCompression (eval at runInlinedModule (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/module-runner.js:[34m$1[0m:[34m$1[0m), <anonymous>:[34m$1[0m:[34m$1[0m), correlationId: 38dbdda7a69c}[0m
+2026-01-16 15:18:48 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 15:18:48 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 15:18:48 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 15:18:48 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 15:18:48 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 15:18:48 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 15:18:48 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 15:18:48 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 15:18:48 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 15:18:48 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 15:18:48 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 15:18:48 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 15:18:48 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 15:18:48 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 15:18:48 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 15:18:48 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 15:18:48 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 15:18:48 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 15:18:48 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 15:18:48 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 15:18:48 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 15:18:48 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 15:18:48 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 15:18:48 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 15:18:48 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 15:18:48 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 15:18:48 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 15:18:48 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 15:18:48 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 15:18:48 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 15:18:48 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 15:18:48 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 15:18:48 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 15:21:35 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 15:21:35 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 15:21:35 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 15:21:35 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 15:21:35 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 15:21:35 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 15:21:35 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 15:21:35 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 15:21:35 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 15:21:35 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 15:21:35 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 15:21:35 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 15:21:35 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 15:21:35 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 15:21:35 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 15:21:35 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 15:21:35 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 15:21:35 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 15:21:35 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-16 15:21:35 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 15:21:35 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 15:21:35 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 15:21:35 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 15:21:35 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 15:21:35 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 15:21:35 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 15:21:35 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 15:21:35 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 15:21:35 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 15:21:35 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 15:21:35 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 15:21:35 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 15:21:35 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 15:26:29 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 15:26:29 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 15:26:29 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 15:26:29 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 15:26:29 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 15:26:29 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 15:26:29 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 15:26:29 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 15:26:29 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 15:26:29 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 15:26:29 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 15:26:29 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 15:26:29 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 15:26:29 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 15:26:29 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 15:26:29 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 15:26:29 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 15:26:29 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 15:26:29 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-16 15:26:29 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 15:26:29 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 15:26:29 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 15:26:29 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 15:26:29 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 15:26:29 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 15:26:29 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 15:26:29 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 15:26:29 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 15:26:29 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 15:26:29 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 15:26:29 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 15:26:29 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 15:26:29 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 15:28:16 [32m● [INFO ][0m Starting setup finalization [33m{correlationId: 427c27315b44, admin: [REDACTED]}[0m
+2026-01-16 15:28:16 [32m● [INFO ][0m Initializing full system with in-memory configuration... [33m{correlationId: 427c27315b44}[0m
+2026-01-16 15:28:16 [31m✗ [ERROR][0m Failed to initialize system: [33m{error: ENOENT: no such file or directory, open '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/config/private.ts', stack: Error: ENOENT: no such file or directory, open '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/config/private.ts'
+    at async open (node:internal/fs/promises:[34m$1[0m:[34m$1[0m)
+    at async Module.readFile (node:internal/fs/promises:[34m$1[0m:[34m$1[0m)
+    at async POST (eval at runInlinedModule (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/module-runner.js:[34m$1[0m:[34m$1[0m), <anonymous>:[34m$1[0m:[34m$1[0m)
+    at async render_endpoint (/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:[34m$1[0m:[34m$1[0m)
+    at async resolve (/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/runtime/server/respond.js:[34m$1[0m:[34m$1[0m)
+    at async fn (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/exports/hooks/sequence.js:[34m$1[0m:[34m$1[0m)
+    at async fn (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/exports/hooks/sequence.js:[34m$1[0m:[34m$1[0m)
+    at async fn (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/exports/hooks/sequence.js:[34m$1[0m:[34m$1[0m)
+    at async fn (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/@sveltejs/kit/src/exports/hooks/sequence.js:[34m$1[0m:[34m$1[0m)
+    at async handleCompression (eval at runInlinedModule (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/module-runner.js:[34m$1[0m:[34m$1[0m), <anonymous>:[34m$1[0m:[34m$1[0m), correlationId: 427c27315b44}[0m
+2026-01-16 15:28:57 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 15:28:57 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 15:28:57 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 15:28:57 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 15:28:57 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 15:28:57 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 15:28:57 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 15:28:57 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 15:28:57 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 15:28:57 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 15:28:57 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 15:28:57 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 15:28:57 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 15:28:57 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 15:28:57 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 15:28:57 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 15:28:57 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 15:28:57 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 15:28:57 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-16 15:28:57 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 15:28:57 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 15:28:57 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 15:28:57 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 15:28:57 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 15:28:57 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 15:28:57 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 15:28:57 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 15:28:57 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 15:28:57 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 15:28:57 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 15:28:57 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 15:28:57 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 15:28:57 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 15:32:30 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 15:32:30 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 15:32:30 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 15:32:30 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 15:32:30 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 15:32:30 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 15:32:30 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 15:32:30 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 15:32:30 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 15:32:30 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 15:32:30 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 15:32:30 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 15:32:30 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 15:32:30 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 15:32:30 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 15:32:30 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 15:32:30 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 15:32:30 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 15:32:30 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-16 15:32:30 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 15:32:30 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 15:32:30 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 15:32:30 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 15:32:30 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 15:32:30 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 15:32:30 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 15:32:30 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 15:32:30 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 15:32:30 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 15:32:30 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 15:32:30 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 15:32:30 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 15:32:30 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 21:11:26 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 21:11:26 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 21:11:26 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 21:11:26 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 21:11:26 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 21:11:26 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 21:11:26 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 21:11:26 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 21:11:26 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 21:11:26 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 21:11:26 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 21:11:26 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 21:12:10 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 21:12:10 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 21:12:10 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 21:12:10 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 21:12:10 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 21:12:10 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 21:12:10 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 21:12:10 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 21:12:10 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 21:12:10 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 21:12:10 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 21:12:10 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 21:12:10 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 21:12:10 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 21:12:10 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 21:12:10 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 21:12:10 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 21:12:10 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 21:12:10 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 21:12:10 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 21:12:10 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 21:13:49 [32m● [INFO ][0m Starting setup finalization [33m{correlationId: 69c840dede5e, admin: [REDACTED]}[0m
+2026-01-16 21:13:49 [32m● [INFO ][0m Initializing full system with in-memory configuration... [33m{correlationId: 69c840dede5e}[0m
+2026-01-16 21:13:49 [32m● [INFO ][0m Database config prepared with generated keys [33m{type: mongodb, host: localhost, port: [34m27017[0m, name: SveltyCMS, hasUser: [32mtrue[0m, hasJwtSecret: [REDACTED], hasEncryptionKey: [REDACTED]}[0m
+2026-01-16 21:13:49 [31m✗ [ERROR][0m Failed to initialize system: [33m{error: Cannot find module '@setup/routes[36m$[34m$1[0m[0m imported from '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/setup/src/routes[36m$[34m$1[0m[0m, stack: Error: Cannot find module '@setup/routes[36m$[34m$1[0m[0m imported from '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/setup/src/routes[36m$[34m$1[0m[0m
+    at fetchModule (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/chunks/config.js:[34m$1[0m:[34m$1[0m)
+    at RunnableDevEnvironment.fetchModule (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/chunks/config.js:[34m$1[0m:[34m$1[0m)
+    at fetchModule (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/chunks/config.js:[34m$1[0m:[34m$1[0m)
+    at handleInvoke (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/chunks/config.js:[34m$1[0m:[34m$1[0m)
+    at EventEmitter.listenerForInvokeHandler (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/chunks/config.js:[34m$1[0m:[34m$1[0m)
+    at EventEmitter.emit (node:events:[34m$1[0m:[34m$1[0m)
+    at Object.send (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/chunks/config.js:[34m$1[0m:[34m$1[0m)
+    at Object.invoke (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/module-runner.js:[34m$1[0m:[34m$1[0m)
+    at Object.invoke (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/module-runner.js:[34m$1[0m:[34m$1[0m)
+    at SSRCompatModuleRunner.getModuleInformation (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/module-runner.js:[34m$1[0m:[34m$1[0m), correlationId: 69c840dede5e}[0m
+2026-01-16 21:23:53 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 21:23:53 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 21:23:53 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 21:23:53 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 21:23:53 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 21:23:53 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 21:23:53 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 21:23:53 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 21:23:53 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 21:23:53 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 21:23:53 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 21:23:53 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 21:23:53 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 21:23:53 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 21:23:53 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 21:23:53 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 21:23:53 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 21:23:53 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 21:23:53 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 21:23:53 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 21:23:53 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 21:23:53 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 21:23:53 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 21:23:53 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 21:23:53 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 21:23:53 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 21:23:53 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 21:23:53 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 21:23:53 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 21:23:53 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 21:23:53 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 21:23:53 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 21:23:53 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 21:24:13 [32m● [INFO ][0m Starting setup finalization [33m{correlationId: 67599756e851, admin: [REDACTED]}[0m
+2026-01-16 21:24:13 [32m● [INFO ][0m Initializing full system with in-memory configuration... [33m{correlationId: 67599756e851}[0m
+2026-01-16 21:24:13 [32m● [INFO ][0m Database config prepared with generated keys [33m{type: mongodb, host: localhost, port: [34m27017[0m, name: SveltyCMS, hasUser: [32mtrue[0m, hasJwtSecret: [REDACTED], hasEncryptionKey: [REDACTED]}[0m
+2026-01-16 21:24:13 [31m✗ [ERROR][0m Failed to initialize system: [33m{error: Cannot find module '@setup/routes[36m$[34m$1[0m[0m imported from '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/setup/src/routes[36m$[34m$1[0m[0m, stack: Error: Cannot find module '@setup/routes[36m$[34m$1[0m[0m imported from '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/setup/src/routes[36m$[34m$1[0m[0m
+    at fetchModule (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/chunks/config.js:[34m$1[0m:[34m$1[0m)
+    at RunnableDevEnvironment.fetchModule (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/chunks/config.js:[34m$1[0m:[34m$1[0m)
+    at fetchModule (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/chunks/config.js:[34m$1[0m:[34m$1[0m)
+    at handleInvoke (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/chunks/config.js:[34m$1[0m:[34m$1[0m)
+    at EventEmitter.listenerForInvokeHandler (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/chunks/config.js:[34m$1[0m:[34m$1[0m)
+    at EventEmitter.emit (node:events:[34m$1[0m:[34m$1[0m)
+    at Object.send (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/chunks/config.js:[34m$1[0m:[34m$1[0m)
+    at Object.invoke (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/module-runner.js:[34m$1[0m:[34m$1[0m)
+    at Object.invoke (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/module-runner.js:[34m$1[0m:[34m$1[0m)
+    at SSRCompatModuleRunner.getModuleInformation (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/vite/dist/node/module-runner.js:[34m$1[0m:[34m$1[0m), correlationId: 67599756e851}[0m
+2026-01-16 21:31:47 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 21:31:47 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 21:31:47 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 21:31:47 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 21:31:47 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 21:31:47 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 21:31:47 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 21:31:47 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 21:31:47 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 21:31:47 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 21:31:47 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 21:31:47 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 21:31:47 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 21:31:47 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 21:31:47 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 21:31:47 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 21:31:47 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 21:31:47 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 21:31:47 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 21:31:47 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 21:31:47 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 21:31:47 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 21:31:47 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 21:31:47 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 21:31:47 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 21:31:47 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 21:31:47 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 21:31:47 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 21:31:47 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 21:31:47 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 21:31:47 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 21:31:47 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 21:31:47 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 21:32:20 [32m● [INFO ][0m Starting setup finalization [33m{correlationId: 4e1455adc45e, admin: [REDACTED]}[0m
+2026-01-16 21:32:20 [32m● [INFO ][0m Initializing full system with in-memory configuration... [33m{correlationId: 4e1455adc45e}[0m
+2026-01-16 21:32:20 [32m● [INFO ][0m Database config prepared with generated keys [33m{type: mongodb, host: localhost, port: [34m27017[0m, name: SveltyCMS, hasUser: [32mtrue[0m, hasJwtSecret: [REDACTED], hasEncryptionKey: [REDACTED]}[0m
+2026-01-16 21:32:20 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-16 21:32:20 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 21:32:20 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 21:32:20 [32m● [INFO ][0m ✅ Database adapter and Auth service initialized successfully [33m{correlationId: 4e1455adc45e}[0m
+2026-01-16 21:32:20 [32m● [INFO ][0m Updating existing admin user [33m{correlationId: 4e1455adc45e, email: RK***@web.de, userId: [33m3225d7eb98cb462e9a6bcdb1[0mda2999d2}[0m
+2026-01-16 21:32:20 [32m● [INFO ][0m ✅ Admin user updated and session created [33m{correlationId: 4e1455adc45e, userId: [33m3225d7eb98cb462e9a6bcdb1[0mda2999d2, sessionId: [33m1445d02235d74388b7d0db62[0m0ce32055}[0m
+2026-01-16 21:32:20 [32m● [INFO ][0m 🚀 Initializing global system with in-memory config (zero-restart optimization)... [33m{correlationId: 4e1455adc45e}[0m
+2026-01-16 21:32:20 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-16 21:32:20 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 21:32:20 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 21:32:20 [31m✗ [ERROR][0m System initialization failed: CRITICAL: System initialization failed: Cannot find module '@cms/components/IconifyPicker.svelte' imported from '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/cms/src/widgets/core/Checkbox/index.ts' [33m{correlationId: 4e1455adc45e}[0m
+2026-01-16 21:39:18 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 21:39:18 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 21:39:18 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 21:39:18 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 21:39:18 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 21:39:18 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 21:39:18 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 21:39:18 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 21:39:18 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 21:39:18 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 21:39:18 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 21:39:18 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 21:39:18 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 21:39:18 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 21:39:18 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 21:39:18 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 21:39:18 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 21:39:18 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 21:39:18 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 21:39:18 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 21:39:18 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 21:39:18 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 21:39:18 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 21:39:18 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 21:39:18 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 21:39:18 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 21:39:18 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 21:39:18 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 21:39:18 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 21:39:18 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 21:39:18 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 21:39:18 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 21:39:18 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 21:39:51 [32m● [INFO ][0m Starting setup finalization [33m{correlationId: 2fdd8a54e46e, admin: [REDACTED]}[0m
+2026-01-16 21:39:51 [32m● [INFO ][0m Initializing full system with in-memory configuration... [33m{correlationId: 2fdd8a54e46e}[0m
+2026-01-16 21:39:51 [32m● [INFO ][0m Database config prepared with generated keys [33m{type: mongodb, host: localhost, port: [34m27017[0m, name: SveltyCMS, hasUser: [32mtrue[0m, hasJwtSecret: [REDACTED], hasEncryptionKey: [REDACTED]}[0m
+2026-01-16 21:39:51 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-16 21:39:51 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 21:39:51 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 21:39:51 [32m● [INFO ][0m ✅ Database adapter and Auth service initialized successfully [33m{correlationId: 2fdd8a54e46e}[0m
+2026-01-16 21:39:51 [32m● [INFO ][0m Updating existing admin user [33m{correlationId: 2fdd8a54e46e, email: RK***@web.de, userId: [33m3225d7eb98cb462e9a6bcdb1[0mda2999d2}[0m
+2026-01-16 21:39:51 [32m● [INFO ][0m ✅ Admin user updated and session created [33m{correlationId: 2fdd8a54e46e, userId: [33m3225d7eb98cb462e9a6bcdb1[0mda2999d2, sessionId: [33m3a6cb6d921a448e88934444a[0me9fb25fd}[0m
+2026-01-16 21:39:51 [32m● [INFO ][0m 🚀 Initializing global system with in-memory config (zero-restart optimization)... [33m{correlationId: 2fdd8a54e46e}[0m
+2026-01-16 21:39:51 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-16 21:39:51 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 21:39:51 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 21:39:51 [31m✗ [ERROR][0m System initialization failed: CRITICAL: System initialization failed: Cannot find module '@cms/components/IconifyPicker.svelte' imported from '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/cms/src/widgets/core/Checkbox/index.ts' [33m{correlationId: 2fdd8a54e46e}[0m
+2026-01-16 21:50:47 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 21:50:47 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 21:50:47 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 21:50:47 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 21:50:47 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 21:50:47 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 21:50:47 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 21:50:47 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 21:50:47 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 21:50:47 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 21:50:47 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 21:50:47 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 21:50:47 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 21:50:47 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 21:50:47 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 21:50:47 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 21:50:47 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 21:50:47 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 21:50:47 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 21:50:47 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 21:50:47 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 21:50:47 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 21:50:47 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 21:50:47 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 21:50:47 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 21:50:47 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 21:50:47 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 21:50:47 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 21:50:52 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 21:50:52 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 21:50:52 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 21:50:52 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 21:50:52 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 21:51:49 [32m● [INFO ][0m Starting setup finalization [33m{correlationId: bde2b9b65bbc, admin: [REDACTED]}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m Initializing full system with in-memory configuration... [33m{correlationId: bde2b9b65bbc}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m Database config prepared with generated keys [33m{type: mongodb, host: localhost, port: [34m27017[0m, name: SveltyCMS, hasUser: [32mtrue[0m, hasJwtSecret: [REDACTED], hasEncryptionKey: [REDACTED]}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-16 21:51:49 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 21:51:49 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 21:51:49 [32m● [INFO ][0m ✅ Database adapter and Auth service initialized successfully [33m{correlationId: bde2b9b65bbc}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m Updating existing admin user [33m{correlationId: bde2b9b65bbc, email: RK***@web.de, userId: [33m3225d7eb98cb462e9a6bcdb1[0mda2999d2}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m ✅ Admin user updated and session created [33m{correlationId: bde2b9b65bbc, userId: [33m3225d7eb98cb462e9a6bcdb1[0mda2999d2, sessionId: [33mc425b86ba4d04577b54dc381[0m845a9d86}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m 🚀 Initializing global system with in-memory config (zero-restart optimization)... [33m{correlationId: bde2b9b65bbc}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-16 21:51:49 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 21:51:49 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 21:51:49 [32m● [INFO ][0m ✅ Global system initialized successfully (in-memory config) [33m{correlationId: bde2b9b65bbc}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m Caches invalidated [33m{correlationId: bde2b9b65bbc}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m ✅ Session cache warmed up in global auth instance [33m{correlationId: bde2b9b65bbc, sessionId: [33mc425b86ba4d04577b54dc381[0m845a9d86, userId: [33m3225d7eb98cb462e9a6bcdb1[0mda2999d2}[0m
+2026-01-16 21:51:49 [33m⚠ [WARN ][0m Failed to warm up session cache (non-fatal) [33m{correlationId: bde2b9b65bbc, error: Cannot find module '@cms/hooks/handleAuthentication' imported from '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/setup/src/routes[36m$[34m$1[0m[0m}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m Skipping welcome email (SMTP not configured during setup) [33m{correlationId: bde2b9b65bbc}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m 🔥 Warming cache by fetching http://localhost:[34m$1[0m/... [33m{correlationId: bde2b9b65bbc}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m ✅ Cache successfully warmed - first load will be INSTANT [33m{correlationId: bde2b9b65bbc, status: [34m200[0m, contentLength: [34m$1[0m bytes, cached: homepage SSR pre-rendered}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m [ContentManager] Starting initialization [33m{tenantId: [90mundefined[0m}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m Setup not complete. ContentManager skipping initialization (SETUP MODE). 
+2026-01-16 21:51:49 [33m⚠ [WARN ][0m No collections found via getFirstCollection(), returning null. 
+2026-01-16 21:51:49 [32m● [INFO ][0m Setup complete: No collections available, redirecting to collection builder [33m{correlationId: bde2b9b65bbc}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m ✅ Session cookie created [33m{correlationId: bde2b9b65bbc, sessionId: [33mc425b86ba4d04577b54dc381[0m845a9d86}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m 📡 Triggering post-setup telemetry check... [33m{correlationId: bde2b9b65bbc}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m ✅ Post-setup telemetry check initiated [33m{correlationId: bde2b9b65bbc}[0m
+2026-01-16 21:51:49 [32m● [INFO ][0m 📝 Writing completion marker and configuration... [33m{correlationId: bde2b9b65bbc}[0m
+2026-01-16 21:51:49 [31m✗ [ERROR][0m Failed to write configuration: [33m{correlationId: bde2b9b65bbc, error: [33m{errno: [34m-2[0m, code: ENOENT, syscall: open, path: config/.setup-complete}[0m}[0m
+2026-01-16 22:01:41 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 22:01:41 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 22:01:41 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 22:01:41 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 22:01:41 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 22:01:41 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 22:01:41 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 22:01:41 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 22:01:41 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 22:01:41 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 22:01:41 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 22:01:41 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 22:01:41 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 22:01:41 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 22:01:41 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 22:01:41 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 22:01:41 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 22:01:41 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 22:01:41 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 22:01:41 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 22:01:41 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 22:01:41 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 22:01:41 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 22:01:41 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 22:01:41 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 22:01:41 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 22:01:41 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 22:01:41 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 22:01:41 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 22:01:41 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 22:01:41 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 22:01:41 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 22:01:41 [32m● [INFO ][0m ✅ Background seeding completed successfully 
+2026-01-16 22:01:54 [32m● [INFO ][0m Starting setup finalization [33m{correlationId: fcdd6ca831ee, admin: [REDACTED]}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m Initializing full system with in-memory configuration... [33m{correlationId: fcdd6ca831ee}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m Database config prepared with generated keys [33m{type: mongodb, host: localhost, port: [34m27017[0m, name: SveltyCMS, hasUser: [32mtrue[0m, hasJwtSecret: [REDACTED], hasEncryptionKey: [REDACTED]}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-16 22:01:54 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 22:01:54 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 22:01:54 [32m● [INFO ][0m ✅ Database adapter and Auth service initialized successfully [33m{correlationId: fcdd6ca831ee}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m Updating existing admin user [33m{correlationId: fcdd6ca831ee, email: RK***@web.de, userId: [33m3225d7eb98cb462e9a6bcdb1[0mda2999d2}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m ✅ Admin user updated and session created [33m{correlationId: fcdd6ca831ee, userId: [33m3225d7eb98cb462e9a6bcdb1[0mda2999d2, sessionId: [33meb5d457f10f8480899d84796[0m7fc63fe0}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m 🚀 Initializing global system with in-memory config (zero-restart optimization)... [33m{correlationId: fcdd6ca831ee}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-16 22:01:54 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 22:01:54 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 22:01:54 [32m● [INFO ][0m ✅ Global system initialized successfully (in-memory config) [33m{correlationId: fcdd6ca831ee}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m Caches invalidated [33m{correlationId: fcdd6ca831ee}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m ✅ Session cache warmed up in global auth instance [33m{correlationId: fcdd6ca831ee, sessionId: [33meb5d457f10f8480899d84796[0m7fc63fe0, userId: [33m3225d7eb98cb462e9a6bcdb1[0mda2999d2}[0m
+2026-01-16 22:01:54 [33m⚠ [WARN ][0m Failed to warm up session cache (non-fatal) [33m{correlationId: fcdd6ca831ee, error: Cannot find module '@cms/hooks/handleAuthentication' imported from '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/setup/src/routes[36m$[34m$1[0m[0m}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m Skipping welcome email (SMTP not configured during setup) [33m{correlationId: fcdd6ca831ee}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m 🔥 Warming cache by fetching http://localhost:[34m$1[0m/... [33m{correlationId: fcdd6ca831ee}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m ✅ Cache successfully warmed - first load will be INSTANT [33m{correlationId: fcdd6ca831ee, status: [34m200[0m, contentLength: [34m$1[0m bytes, cached: homepage SSR pre-rendered}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m [ContentManager] Starting initialization [33m{tenantId: [90mundefined[0m}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m Setup not complete. ContentManager skipping initialization (SETUP MODE). 
+2026-01-16 22:01:54 [33m⚠ [WARN ][0m No collections found via getFirstCollection(), returning null. 
+2026-01-16 22:01:54 [32m● [INFO ][0m Setup complete: No collections available, redirecting to collection builder [33m{correlationId: fcdd6ca831ee}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m ✅ Session cookie created [33m{correlationId: fcdd6ca831ee, sessionId: [33meb5d457f10f8480899d84796[0m7fc63fe0}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m 📡 Triggering post-setup telemetry check... [33m{correlationId: fcdd6ca831ee}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m ✅ Post-setup telemetry check initiated [33m{correlationId: fcdd6ca831ee}[0m
+2026-01-16 22:01:54 [32m● [INFO ][0m 📝 Writing completion marker and configuration... [33m{correlationId: fcdd6ca831ee}[0m
+2026-01-16 22:01:54 [31m✗ [ERROR][0m Failed to write configuration: [33m{correlationId: fcdd6ca831ee, error: [33m{errno: [34m-2[0m, code: ENOENT, syscall: open, path: config/.setup-complete}[0m}[0m
+2026-01-16 22:03:59 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 22:03:59 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 22:03:59 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 22:03:59 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 22:03:59 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 22:03:59 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 22:03:59 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 22:03:59 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 22:03:59 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 22:03:59 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 22:03:59 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 22:03:59 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 22:04:04 [32m● [INFO ][0m 🚀 Starting database test request processing... 
+2026-01-16 22:04:04 [32m● [INFO ][0m 🔍 Raw request body received: [33m{type: mongodb, host: localhost, port: [34m$1[0m, name: SveltyCMS, user: admin, password: [REDACTED]}[0m object [31mfalse[0m
+2026-01-16 22:04:04 [32m● [INFO ][0m 📝 Request body parsed successfully 
+2026-01-16 22:04:04 [32m● [INFO ][0m 🎯 Database type mongodb is supported, proceeding with test... 
+2026-01-16 22:04:04 [32m● [INFO ][0m MongoDB driver (mongoose) is available 
+2026-01-16 22:04:04 [32m● [INFO ][0m Successfully imported mongoose 
+2026-01-16 22:04:04 [32m● [INFO ][0m 🔌 Attempting MongoDB connection... [33m{host: localhost, port: [34m27017[0m, database: SveltyCMS, hasCredentials: [32mtrue[0m, hasUser: [32mtrue[0m, hasPassword: [REDACTED], isAtlas: [31mfalse[0m, connectionString: mongodb://admin:****@localhost:[34m$1[0m/SveltyCMS?authSource=admin, options: [33m{user: admin, pass: ****, dbName: SveltyCMS, authSource: admin, retryWrites: [32mtrue[0m, serverSelectionTimeoutMS: [34m15000[0m, maxPoolSize: [34m1[0m}[0m}[0m
+2026-01-16 22:04:04 [32m● [INFO ][0m ✅ Ping command successful 
+2026-01-16 22:04:04 [32m● [INFO ][0m Auth status check result: [33m{authenticatedUsers: [34m1[0m, status: [33m{authInfo: [33m{authenticatedUsers: [33m[[33m{user: admin, db: admin}[0m][0m, authenticatedUserRoles: [33m[[33m{role: root, db: admin}[0m][0m}[0m, ok: [34m1[0m}[0m}[0m
+2026-01-16 22:04:04 [32m● [INFO ][0m Authentication analysis: [33m{authProvided: [32mtrue[0m, authenticated: [32mtrue[0m, authenticatedUsersCount: [34m1[0m, warnings: [33m[][0m}[0m
+2026-01-16 22:04:04 [32m● [INFO ][0m ✅ Connection successful with credentials provided 
+2026-01-16 22:04:04 [32m● [INFO ][0m ✅ Connection test passed! User can proceed to next step 
+2026-01-16 22:04:04 [32m● [INFO ][0m � Starting setup initialization... [33m{host: localhost, port: [34m$1[0m, name: SveltyCMS}[0m
+2026-01-16 22:04:04 [32m● [INFO ][0m ✅ Private configuration writing deferred to completion step 
+2026-01-16 22:04:04 [32m● [INFO ][0m Pre-scanning collections for faster redirect... 
+2026-01-16 22:04:04 [32m● [INFO ][0m Found [34m$1[0m collections. First collection for redirect: undefined (ID: undefined) 
+2026-01-16 22:04:04 [32m● [INFO ][0m 📦 Getting setup database adapter for background seeding... 
+2026-01-16 22:04:04 [32m● [INFO ][0m ✅ Immediately returning response while seeding continues in background. 
+2026-01-16 22:04:04 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 22:04:04 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 22:04:04 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 22:04:04 [32m● [INFO ][0m 🌱 Starting background seeding of default data (settings, themes, collections)... 
+2026-01-16 22:04:04 [32m● [INFO ][0m 🚀 Starting system initialization from setup... 
+2026-01-16 22:04:04 [32m● [INFO ][0m 🌱 Checking which settings need seeding... 
+2026-01-16 22:04:04 [32m● [INFO ][0m ✅ All settings already exist, skipping settings seeding 
+2026-01-16 22:04:04 [32m● [INFO ][0m 🎨 Checking if default theme needs seeding... 
+2026-01-16 22:04:04 [32m● [INFO ][0m ✅ Themes already exist, skipping theme seeding 
+2026-01-16 22:04:04 [32m● [INFO ][0m 🔐 Seeding default roles... 
+2026-01-16 22:04:04 [32m● [INFO ][0m ✅ Default roles seeded successfully 
+2026-01-16 22:04:04 [32m● [INFO ][0m 📦 Seeding collections from filesystem... 
+2026-01-16 22:04:04 [32m● [INFO ][0m ℹ️  No collections found in filesystem, skipping collection seeding 
+2026-01-16 22:04:04 [32m● [INFO ][0m ✅ System initialization completed 
+2026-01-16 22:04:04 [32m● [INFO ][0m ✅ Background seeding completed successfully 

@@ -1,0 +1,56 @@
+{
+	"$schema": "./node_modules/nx/schemas/nx-schema.json",
+	"namedInputs": {
+		"default": ["{projectRoot}/**/*", "sharedGlobals"],
+		"sharedGlobals": ["{workspaceRoot}/shared/**/*", "{workspaceRoot}/tsconfig.base.json", "{workspaceRoot}/tailwind.config.ts"],
+		"production": [
+			"default",
+			"!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
+			"!{projectRoot}/tsconfig.spec.json",
+			"!{projectRoot}/.eslintrc.json",
+			"!{projectRoot}/**/*.md"
+		]
+	},
+	"targetDefaults": {
+		"build": {
+			"dependsOn": ["^build"],
+			"inputs": ["production", "^production"],
+			"outputs": ["{projectRoot}/build", "{projectRoot}/.svelte-kit"],
+			"cache": true
+		},
+		"dev": {
+			"cache": false
+		},
+		"lint": {
+			"inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
+			"cache": true
+		},
+		"test": {
+			"inputs": ["default", "^production"],
+			"cache": true
+		},
+		"check": {
+			"inputs": ["default"],
+			"cache": true
+		}
+	},
+	"tasksRunnerOptions": {
+		"default": {
+			"runner": "nx/tasks-runners/default",
+			"options": {
+				"cacheableOperations": ["build", "lint", "test", "check"],
+				"parallel": 3,
+				"cacheDirectory": ".nx/cache"
+			}
+		}
+	},
+	"defaultBase": "main",
+	"workspaceLayout": {
+		"appsDir": "apps",
+		"libsDir": "shared"
+	},
+	"affected": {
+		"defaultBase": "main"
+	},
+	"parallel": 3
+}
