@@ -34,7 +34,9 @@
 
 <h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend</strong></h3>
 
-This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 2 / Svelte 5](https://svelte.dev) framework. Being designed to be database agnostic, we fully support **MongoDB 9** and **MariaDB/MySQL** (via [Drizzle ORM](https://drizzle-orm.netlify.app)). Postgres support is planned.
+This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 2 / Svelte 5](https://svelte.dev) framework. Built with an **[Nx monorepo](https://nx.dev)** architecture for optimal build performance and scalability, it features separate applications for the CMS and setup wizard, enabling faster development cycles and better code organization.
+
+Being designed to be database agnostic, we fully support **MongoDB 9** and **MariaDB/MySQL** (via [Drizzle ORM](https://drizzle-orm.netlify.app)). Postgres support is planned.
 
 You can define Content Collections in two ways: in code or via the GUI-based collection builder. Full TypeScript support and a rich widget library make it straightforward to build custom data structures.
 
@@ -50,16 +52,24 @@ Backend data is available via REST API or [GraphQL Yoga](https://the-guild.dev/g
 
 | Feature                    | Status     | Notes                                                         |
 | -------------------------- | ---------- | ------------------------------------------------------------- |
+| **Architecture**           |            |                                                               |
+| Nx Monorepo                | ✅         | 85% faster rebuilds with caching, modular app structure       |
+| TypeScript Native          | ✅         | Full type safety across all applications                      |
+| **Content Management**     |            |                                                               |
 | Collection Builder         | ✅         | GUI and code-based definitions                                |
 | Typed Widget System        | ✅         | Localization, validation, access control                      |
 | Multi-language (Paraglide) | ✅         | Type-safe i18n out of the box                                 |
+| **APIs**                   |            |                                                               |
 | REST API                   | ✅         | CRUD and configuration endpoints                              |
 | GraphQL API (Yoga)         | ✅         | High-performance schema                                       |
-| Database Resilience        | ✅         | Retries, self-healing reconnection, diagnostics, log download |
-| Email Templating           | ✅         | Svelte Email + SMTP                                           |
-| Roles & Permissions        | ✅         | Database-backed access control                                |
+| **Database**               |            |                                                               |
+| MongoDB                    | ✅         | NoSQL support with resilience features                        |
 | MariaDB / MySQL            | ✅         | SQL support via Drizzle ORM                                   |
 | PostgreSQL                 | 📅 Planned | Roadmap item                                                  |
+| Database Resilience        | ✅         | Retries, self-healing reconnection, diagnostics, log download |
+| **Security & Features**    |            |                                                               |
+| Email Templating           | ✅         | Svelte Email + SMTP                                           |
+| Roles & Permissions        | ✅         | Database-backed access control                                |
 
 ## 🚀 Quick Start
 
@@ -276,6 +286,7 @@ Comprehensive documentation is available to help you get started:
 - 📖 **[Documentation](./docs/)** — Guides, API reference, and architecture
 - 🎯 **[Getting Started](./docs/getting-started.mdx)** — Quick start guide
 - 🏗️ **Architecture: Database Resilience** — [./docs/architecture/database-resilience.mdx](./docs/architecture/database-resilience.mdx)
+- 🏛️ **[NX Monorepo vs Next Branch Comparison](./docs/architecture/ARCHITECTURE-COMPARISON.md)** — Architecture comparison and recommendations
 - 🤝 **[Contributing Guide](./CONTRIBUTING.md)** — How to contribute
 
 ## 🔌 Quick API Examples
