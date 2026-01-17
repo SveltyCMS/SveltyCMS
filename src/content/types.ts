@@ -123,6 +123,7 @@ export interface EntryListProps {
 		pagesCount: number;
 	};
 	contentLanguage?: string;
+	pluginData?: Record<string, any>; // Plugin-enriched data keyed by entryId
 }
 
 export interface FieldsProps {
