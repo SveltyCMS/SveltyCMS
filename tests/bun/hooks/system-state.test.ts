@@ -18,18 +18,18 @@ const mockIsSystemReady = mock(() => true);
 const mockDbInitPromise = Promise.resolve();
 
 // Mock the system store
-mock.module('@src/stores/system', () => ({
+mock.module('@shared/stores/system', () => ({
 	getSystemState: mockGetSystemState,
 	isSystemReady: mockIsSystemReady
 }));
 
 // Mock the database initialization
-mock.module('@src/databases/db', () => ({
+mock.module('@shared/database/db', () => ({
 	dbInitPromise: mockDbInitPromise
 }));
 
 // Mock logger to prevent console noise
-mock.module('@utils/logger.server', () => ({
+mock.module('@shared/utils/logger.server', () => ({
 	logger: {
 		debug: mock(() => {}),
 		trace: mock(() => {}),
@@ -41,7 +41,7 @@ mock.module('@utils/logger.server', () => ({
 }));
 
 // Now import the hook after mocks are set up
-import { handleSystemState } from '@src/hooks/handleSystemState';
+import { handleSystemState } from '@cms/hooks/handleSystemState';
 
 /**
  * Helper to create a minimal RequestEvent for testing

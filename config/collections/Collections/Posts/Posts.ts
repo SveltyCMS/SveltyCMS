@@ -3,8 +3,8 @@
  * @description Collection file for Posts
  */
 
-import type { FieldInstance, Schema } from '@root/src/content/types';
-import { widgets } from '@src/widgets/proxy';
+import type { FieldInstance, Schema } from '@cms/content/types';
+import { widgets } from '@cms/widgets/proxy';
 
 export const schema: Schema = {
 	// Collection Name comming from filename, so not needed

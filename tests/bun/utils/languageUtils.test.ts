@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'bun:test';
-import { getLanguageName } from '@utils/languageUtils';
+import { getLanguageName } from '@shared/utils/languageUtils';
 
 describe('Language Utils - Get Language Name', () => {
 	it('should get language names', () => {

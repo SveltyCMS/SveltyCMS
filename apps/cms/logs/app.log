@@ -1,0 +1,269 @@
+2026-01-15 20:48:10 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-15 20:48:10 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-15 20:48:10 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 08:44:37 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-16 08:44:37 [33m⚠ [WARN ][0m Database adapter unavailable; system initializing. 
+2026-01-16 08:44:37 [33m⚠ [WARN ][0m No roles found in database - redirecting to setup [33m{pathname: /, tenantId: [90mundefined[0m}[0m
+2026-01-16 08:45:53 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-16 08:45:53 [33m⚠ [WARN ][0m Database adapter unavailable; system initializing. 
+2026-01-16 08:45:53 [33m⚠ [WARN ][0m No roles found in database - redirecting to setup [33m{pathname: /, tenantId: [90mundefined[0m}[0m
+2026-01-16 14:55:02 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-16 14:55:02 [33m⚠ [WARN ][0m Database adapter unavailable; system initializing. 
+2026-01-16 14:55:02 [33m⚠ [WARN ][0m No roles found in database - redirecting to setup [33m{pathname: /, tenantId: [90mundefined[0m}[0m
+2026-01-16 22:10:49 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-16 22:10:49 [33m⚠ [WARN ][0m Database adapter unavailable; system initializing. 
+2026-01-16 22:10:49 [33m⚠ [WARN ][0m Database adapter unavailable; system initializing. 
+2026-01-16 22:10:49 [33m⚠ [WARN ][0m No roles found in database - redirecting to setup [33m{pathname: /, tenantId: [90mundefined[0m}[0m
+2026-01-16 22:10:49 [33m⚠ [WARN ][0m No roles found in database - redirecting to setup [33m{pathname: /, tenantId: [90mundefined[0m}[0m
+2026-01-16 22:12:36 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-16 22:12:36 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 22:12:36 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 22:12:36 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 22:36:09 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-16 22:36:09 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 22:36:09 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 22:36:46 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 22:36:46 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 22:36:46 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 22:36:51 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-16 22:40:49 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-16 22:40:49 [33m⚠ [WARN ][0m Database adapter unavailable; system initializing. 
+2026-01-16 22:40:49 [33m⚠ [WARN ][0m No roles found in database - redirecting to setup [33m{pathname: /, tenantId: [90mundefined[0m}[0m
+2026-01-16 22:40:49 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-16 22:40:49 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 22:40:49 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 22:43:13 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-16 22:43:13 [33m⚠ [WARN ][0m Database adapter unavailable; system initializing. 
+2026-01-16 22:43:13 [33m⚠ [WARN ][0m No roles found in database - redirecting to setup [33m{pathname: /, tenantId: [90mundefined[0m}[0m
+2026-01-16 22:43:13 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-16 22:43:13 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 22:43:13 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 22:53:17 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 22:53:17 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 22:53:17 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 22:53:17 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-16 23:03:57 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-16 23:03:57 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 23:03:57 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 23:03:57 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-16 23:13:34 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 23:13:34 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 23:13:34 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 23:16:05 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 23:16:05 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 23:16:05 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 23:18:51 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 23:18:51 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 23:18:51 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 23:23:50 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 23:23:50 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 23:23:50 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-16 23:26:47 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-16 23:26:47 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-16 23:26:47 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 09:16:51 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-17 09:16:51 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 09:16:51 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 09:30:04 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-17 09:30:04 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 09:30:04 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 09:30:15 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-17 16:49:15 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-17 16:49:15 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 16:49:15 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 16:49:21 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-17 16:51:10 [33m⚠ [WARN ][0m Request to /kontakt blocked: System is currently IDLE. 
+2026-01-17 16:53:31 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-17 16:53:31 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 16:53:31 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 16:53:31 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-17 16:54:15 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-17 16:54:15 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 16:54:15 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 16:54:15 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-17 16:54:28 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-17 16:54:28 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 16:54:28 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 16:54:28 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-17 16:54:37 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-17 16:54:37 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 16:54:37 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 16:54:37 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-17 16:59:09 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-17 16:59:09 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 16:59:09 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 16:59:09 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-17 16:59:09 [33m⚠ [WARN ][0m No roles found in database - redirecting to setup [33m{pathname: /, tenantId: [90mundefined[0m}[0m
+2026-01-17 17:00:00 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-17 17:00:00 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 17:00:00 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 17:00:00 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-17 17:00:21 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-17 17:00:21 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 17:00:21 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 17:00:21 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-17 17:02:19 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-17 17:02:19 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 17:02:19 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 17:02:19 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-17 18:05:01 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-17 18:05:01 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-17 18:05:01 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 18:05:01 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 18:05:42 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-17 18:05:42 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-17 18:05:42 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 18:05:42 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 18:11:18 [33m⚠ [WARN ][0m Request to /mediagallery blocked: System is currently IDLE. 
+2026-01-17 18:14:44 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-17 18:14:44 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 18:14:44 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 18:14:44 [32m● [INFO ][0m System is IDLE and setup is not complete. Skipping DB initialization. 
+2026-01-17 18:24:45 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-17 18:24:45 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 18:24:45 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 18:24:51 [32m● [INFO ][0m System is IDLE and setup is complete. Starting initialization... 
+2026-01-17 18:24:51 [32m● [INFO ][0m Initialization complete in [32m[0m. System state: IDLE 
+2026-01-17 18:27:21 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-17 18:27:21 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 18:27:21 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 18:27:21 [32m● [INFO ][0m System is IDLE and setup is complete. Starting initialization... 
+2026-01-17 18:27:21 [32m● [INFO ][0m Initialization complete in [32m[0m. System state: IDLE 
+2026-01-17 18:27:21 [33m⚠ [WARN ][0m ContentManager not initialized in page load [33m{state: uninitialized}[0m
+2026-01-17 18:27:21 [32m● [INFO ][0m [ContentManager] Starting initialization [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 18:27:21 [32m● [INFO ][0m 📦 ContentManager fully initialized in [32m.[34m$1[0m[0m 
+2026-01-17 18:27:21 [32m● [INFO ][0m 📋 First collection loaded: Names ([33m2a6d5c5d3d624eaab241cf59[0m66fff01c) in [32m.[34m$1[0m[0m 
+2026-01-17 18:27:21 [32m● [INFO ][0m Redirecting to first collection: /en/[33m2a6d5c5d3d624eaab241cf59[0m66fff01c [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 18:27:27 [33m⚠ [WARN ][0m Request to /en/[33m2a6d5c5d3d624eaab241cf59[0m66fff01c blocked: System is currently IDLE. 
+2026-01-17 18:27:27 [33m⚠ [WARN ][0m Request to /en/[33m2a6d5c5d3d624eaab241cf59[0m66fff01c blocked: System is currently IDLE. 
+2026-01-17 18:27:27 [33m⚠ [WARN ][0m Request to /en/[33m2a6d5c5d3d624eaab241cf59[0m66fff01c blocked: System is currently IDLE. 
+2026-01-17 18:28:37 [33m⚠ [WARN ][0m Request to /en/[33m2a6d5c5d3d624eaab241cf59[0m66fff01c blocked: System is currently IDLE. 
+2026-01-17 18:29:02 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-17 18:29:02 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 18:29:02 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 18:29:12 [32m● [INFO ][0m System is IDLE and setup is complete. Starting initialization... 
+2026-01-17 18:29:12 [32m● [INFO ][0m Initialization complete in [32m[0m. System state: IDLE 
+2026-01-17 18:29:12 [33m⚠ [WARN ][0m Request to /en/[33m2a6d5c5d3d624eaab241cf59[0m66fff01c blocked: System is currently IDLE. 
+2026-01-17 18:29:12 [33m⚠ [WARN ][0m ContentManager not initialized in page load [33m{state: uninitialized}[0m
+2026-01-17 18:29:12 [32m● [INFO ][0m [ContentManager] Starting initialization [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 18:29:12 [32m● [INFO ][0m [ContentManager] Fixed [34m$1[0m nodes with mismatched IDs 
+2026-01-17 18:29:12 [32m● [INFO ][0m 📦 ContentManager fully initialized in [32m.[34m$1[0m[0m 
+2026-01-17 18:29:12 [32m● [INFO ][0m 📋 First collection loaded: Names ([33m514e197452aa4436930e526e[0mc552b8bb) in [32m.[34m$1[0m[0m 
+2026-01-17 18:29:12 [32m● [INFO ][0m Redirecting to first collection: /en/[33m514e197452aa4436930e526e[0mc552b8bb [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 18:29:12 [33m⚠ [WARN ][0m Request to /en/[33m514e197452aa4436930e526e[0mc552b8bb blocked: System is currently IDLE. 
+2026-01-17 18:29:12 [33m⚠ [WARN ][0m Request to /en/[33m514e197452aa4436930e526e[0mc552b8bb blocked: System is currently IDLE. 
+2026-01-17 18:29:12 [33m⚠ [WARN ][0m Request to /en/[33m514e197452aa4436930e526e[0mc552b8bb blocked: System is currently IDLE. 
+2026-01-17 18:29:32 [33m⚠ [WARN ][0m Request to /en/[33m514e197452aa4436930e526e[0mc552b8bb blocked: System is currently IDLE. 
+2026-01-17 18:29:40 [32m● [INFO ][0m Redirecting to first collection: /en/[33m514e197452aa4436930e526e[0mc552b8bb [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 18:29:40 [33m⚠ [WARN ][0m Request to /en/[33m514e197452aa4436930e526e[0mc552b8bb blocked: System is currently IDLE. 
+2026-01-17 18:29:40 [33m⚠ [WARN ][0m Request to /en/[33m514e197452aa4436930e526e[0mc552b8bb blocked: System is currently IDLE. 
+2026-01-17 18:29:40 [33m⚠ [WARN ][0m Request to /en/[33m514e197452aa4436930e526e[0mc552b8bb blocked: System is currently IDLE. 
+2026-01-17 18:30:50 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-17 18:30:50 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 18:30:50 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 18:30:50 [32m● [INFO ][0m [ContentManager] Starting initialization [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 18:30:50 [32m● [INFO ][0m 📦 ContentManager fully initialized in [32m.[34m$1[0m[0m 
+2026-01-17 18:31:23 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-17 18:31:23 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 18:31:23 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 18:31:23 [32m● [INFO ][0m [ContentManager] Starting initialization [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 18:31:23 [32m● [INFO ][0m 📦 ContentManager fully initialized in [32m.[34m$1[0m[0m 
+2026-01-17 18:31:43 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-17 18:31:43 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 18:31:43 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 18:31:43 [32m● [INFO ][0m [ContentManager] Starting initialization [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 18:31:43 [32m● [INFO ][0m 📦 ContentManager fully initialized in [32m.[34m$1[0m[0m 
+2026-01-17 18:33:14 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-17 18:33:14 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 18:33:14 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 18:33:21 [32m● [INFO ][0m [Language Redirect] Collections loaded [33m{language: en, collectionCount: [34m0[0m, collectionNames: [33m[][0m}[0m
+2026-01-17 18:33:21 [32m● [INFO ][0m [Language Redirect] No collections found, redirecting to dashboard 
+2026-01-17 18:33:21 [31m✗ [ERROR][0m Failed to discover widgets: [33m{errno: [34m-2[0m, code: ENOENT, syscall: scandir, path: /var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/cms/src/routes/(app)/dashboard/widgets}[0m
+2026-01-17 18:33:53 [32m● [INFO ][0m [ContentManager] Starting initialization [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 18:33:53 [32m● [INFO ][0m 📦 ContentManager fully initialized in [32m.[34m$1[0m[0m 
+2026-01-17 18:33:53 [32m● [INFO ][0m 📋 First collection loaded: Names ([33m514e197452aa4436930e526e[0mc552b8bb) in [32m.[34m$1[0m[0m 
+2026-01-17 18:33:53 [32m● [INFO ][0m Redirecting to first collection: Names at path: /en/Collections/Names 
+2026-01-17 18:38:44 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-17 18:38:44 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 18:38:44 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 18:39:09 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-17 18:39:09 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 18:39:09 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 18:39:19 [32m● [INFO ][0m [ContentManager] Starting initialization [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 18:39:19 [32m● [INFO ][0m 📦 ContentManager fully initialized in [32m.[34m$1[0m[0m 
+2026-01-17 18:39:19 [32m● [INFO ][0m 📋 First collection loaded: Names ([33m514e197452aa4436930e526e[0mc552b8bb) in [32m.[34m$1[0m[0m 
+2026-01-17 18:39:19 [32m● [INFO ][0m Redirecting to first collection: Names at path: /en/Collections/Names 
+2026-01-17 18:41:16 [31m✗ [ERROR][0m Failed to discover widgets: [33m{errno: [34m-2[0m, code: ENOENT, syscall: scandir, path: /var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/cms/src/routes/(app)/dashboard/widgets}[0m
+2026-01-17 18:42:11 [31m✗ [ERROR][0m Failed to discover widgets: [33m{errno: [34m-2[0m, code: ENOENT, syscall: scandir, path: /var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/cms/src/routes/(app)/dashboard/widgets}[0m
+2026-01-17 18:44:21 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-17 18:44:21 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 18:44:21 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 18:44:38 [33m⚠ [WARN ][0m ContentManager not initialized in page load [33m{state: uninitialized}[0m
+2026-01-17 18:44:38 [32m● [INFO ][0m [ContentManager] Starting initialization [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 18:44:38 [32m● [INFO ][0m 📦 ContentManager fully initialized in [32m.[34m$1[0m[0m 
+2026-01-17 18:44:38 [32m● [INFO ][0m 📋 First collection loaded: Names ([33m514e197452aa4436930e526e[0mc552b8bb) in [32m.[34m$1[0m[0m 
+2026-01-17 18:44:38 [32m● [INFO ][0m Redirecting to first collection: /en/[33m514e197452aa4436930e526e[0mc552b8bb [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 18:44:38 [32m● [INFO ][0m Redirecting to first collection: /en/[33m514e197452aa4436930e526e[0mc552b8bb [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 18:45:04 [31m✗ [ERROR][0m Failed to discover widgets: [33m{errno: [34m-2[0m, code: ENOENT, syscall: scandir, path: /var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/cms/shared/features/src/dashboard/widgets}[0m
+2026-01-17 18:48:50 [32m● [INFO ][0m 📋 First collection loaded: Names ([33m514e197452aa4436930e526e[0mc552b8bb) in [32m.[34m$1[0m[0m 
+2026-01-17 18:48:50 [32m● [INFO ][0m Redirecting to first collection: /en/[33m514e197452aa4436930e526e[0mc552b8bb [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 18:50:26 [32m● [INFO ][0m [ContentManager] Starting initialization [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 18:50:26 [32m● [INFO ][0m 📦 ContentManager fully initialized in [32m.[34m$1[0m[0m 
+2026-01-17 18:51:14 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-17 18:51:14 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 18:51:14 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 18:51:14 [32m● [INFO ][0m [ContentManager] Starting initialization [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 18:51:14 [32m● [INFO ][0m 📦 ContentManager fully initialized in [32m.[34m$1[0m[0m 
+2026-01-17 19:03:51 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-17 19:03:51 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 19:03:51 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 19:03:59 [33m⚠ [WARN ][0m ContentManager not initialized in page load [33m{state: uninitialized}[0m
+2026-01-17 19:03:59 [32m● [INFO ][0m [ContentManager] Starting initialization [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 19:03:59 [32m● [INFO ][0m 📦 ContentManager fully initialized in [32m.[34m$1[0m[0m 
+2026-01-17 19:03:59 [32m● [INFO ][0m 📋 First collection loaded: Names ([33m514e197452aa4436930e526e[0mc552b8bb) in [32m.[34m$1[0m[0m 
+2026-01-17 19:03:59 [32m● [INFO ][0m Redirecting to first collection: /en/Collections/Names [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 19:06:05 [32m● [INFO ][0m 📋 First collection loaded: Names ([33m514e197452aa4436930e526e[0mc552b8bb) in [32m.[34m$1[0m[0m 
+2026-01-17 19:06:05 [32m● [INFO ][0m Redirecting to first collection: /en/Collections/Names [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 19:08:38 [31m✗ [ERROR][0m Failed to discover widgets: [33m{errno: [34m-2[0m, code: ENOENT, syscall: scandir, path: /var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/cms/shared/features/src/dashboard/widgets}[0m
+2026-01-17 19:08:38 [32m● [INFO ][0m Loading media gallery for folderId: root 
+2026-01-17 19:08:38 [32m● [INFO ][0m Fetched [34m$1[0m total media items from all collections 
+2026-01-17 19:08:38 [32m● [INFO ][0m After deduplication: [34m$1[0m unique media items 
+2026-01-17 19:08:38 [32m● [INFO ][0m Fetched [34m$1[0m media items for folder root 
+2026-01-17 19:08:38 [32m● [INFO ][0m Fetched [34m$1[0m total virtual folders 
+2026-01-17 19:08:44 [32m● [INFO ][0m Loading media gallery for folderId: root 
+2026-01-17 19:08:44 [32m● [INFO ][0m Fetched [34m$1[0m total media items from all collections 
+2026-01-17 19:08:44 [32m● [INFO ][0m After deduplication: [34m$1[0m unique media items 
+2026-01-17 19:08:44 [32m● [INFO ][0m Fetched [34m$1[0m media items for folder root 
+2026-01-17 19:08:44 [32m● [INFO ][0m Fetched [34m$1[0m total virtual folders 
+2026-01-17 19:08:56 [31m✗ [ERROR][0m Failed to discover widgets: [33m{errno: [34m-2[0m, code: ENOENT, syscall: scandir, path: /var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/cms/shared/features/src/dashboard/widgets}[0m
+2026-01-17 19:08:56 [32m● [INFO ][0m Loading media gallery for folderId: root 
+2026-01-17 19:08:56 [32m● [INFO ][0m Fetched [34m$1[0m total media items from all collections 
+2026-01-17 19:08:56 [32m● [INFO ][0m After deduplication: [34m$1[0m unique media items 
+2026-01-17 19:08:56 [32m● [INFO ][0m Fetched [34m$1[0m media items for folder root 
+2026-01-17 19:08:56 [32m● [INFO ][0m Fetched [34m$1[0m total virtual folders 
+2026-01-17 19:09:11 [32m● [INFO ][0m 📋 First collection loaded: Names ([33m514e197452aa4436930e526e[0mc552b8bb) in [32m.[34m$1[0m[0m 
+2026-01-17 19:09:11 [32m● [INFO ][0m Redirecting to first collection: /en/Collections/Names [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 19:09:11 [32m● [INFO ][0m Loading media gallery for folderId: root 
+2026-01-17 19:09:11 [32m● [INFO ][0m Fetched [34m$1[0m total media items from all collections 
+2026-01-17 19:09:11 [32m● [INFO ][0m After deduplication: [34m$1[0m unique media items 
+2026-01-17 19:09:11 [32m● [INFO ][0m Fetched [34m$1[0m media items for folder root 
+2026-01-17 19:09:11 [32m● [INFO ][0m Fetched [34m$1[0m total virtual folders 
+2026-01-17 19:12:57 [32m● [INFO ][0m 📋 First collection loaded: Names ([33m514e197452aa4436930e526e[0mc552b8bb) in [32m.[34m$1[0m[0m 
+2026-01-17 19:12:57 [32m● [INFO ][0m Redirecting to first collection: /en/Collections/Names [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 19:13:55 [32m● [INFO ][0m MongoDB connection exists but adapter not fully initialized. Completing initialization... 
+2026-01-17 19:13:55 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 19:13:55 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 21:41:22 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-17 21:41:22 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 21:41:22 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 21:41:35 [32m● [INFO ][0m [ContentManager] Starting initialization [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 21:41:35 [32m● [INFO ][0m 📦 ContentManager fully initialized in [32m.[34m$1[0m[0m 
+2026-01-17 21:41:56 [32m● [INFO ][0m 📋 First collection loaded: Names ([33m514e197452aa4436930e526e[0mc552b8bb) in [32m.[34m$1[0m[0m 
+2026-01-17 21:41:56 [32m● [INFO ][0m Redirecting to first collection: /en/Collections/Names [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 22:07:04 [32m● [INFO ][0m MongoDB connection established with resilience and optimized pool configuration. 
+2026-01-17 22:07:04 [32m● [INFO ][0m All Mongoose models registered. 
+2026-01-17 22:07:04 [32m● [INFO ][0m MongoDB adapter fully initialized. 
+2026-01-17 22:07:13 [32m● [INFO ][0m [ContentManager] Starting initialization [33m{tenantId: [90mundefined[0m}[0m
+2026-01-17 22:07:13 [32m● [INFO ][0m 📦 ContentManager fully initialized in [32m.[34m$1[0m[0m 
+2026-01-17 22:07:13 [32m● [INFO ][0m 📋 First collection loaded: Names ([33m514e197452aa4436930e526e[0mc552b8bb) in [32m.[34m$1[0m[0m 
+2026-01-17 22:07:13 [32m● [INFO ][0m Redirecting to first collection: Names at path: /en/Collections/Names 

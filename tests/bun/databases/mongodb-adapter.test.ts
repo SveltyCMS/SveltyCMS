@@ -24,7 +24,7 @@ mock.module('$app/environment', () => ({
 }));
 
 // Mock logger
-mock.module('@src/utils/logger', () => ({
+mock.module('@shared/utils/logger', () => ({
 	logger: {
 		fatal: () => {},
 		error: () => {},
@@ -44,7 +44,7 @@ mock.module('@src/utils/logger', () => ({
 
 // Dynamic import to avoid module mocking issues
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-let adapterClass: typeof import('../../../src/databases/mongodb/mongoDBAdapter').MongoDBAdapter;
+let adapterClass: typeof import('../../../shared/database/src/mongodb/mongoDBAdapter').MongoDBAdapter;
 let privateEnv: any;
 
 describe('MongoDB Adapter Functional Tests', () => {
@@ -54,7 +54,7 @@ describe('MongoDB Adapter Functional Tests', () => {
 
 	beforeAll(async () => {
 		// Import modules dynamically to bypass mocks
-		const adapterModule = await import('../../../src/databases/mongodb/mongoDBAdapter');
+		const adapterModule = await import('../../../shared/database/src/mongodb/mongoDBAdapter');
 		adapterClass = adapterModule.MongoDBAdapter;
 		// @ts-ignore
 		const configModule = await import('../../../config/private.test');

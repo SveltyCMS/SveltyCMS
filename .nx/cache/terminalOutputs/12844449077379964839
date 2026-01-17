@@ -1,0 +1,17 @@
+> vite build
+
+[36mvite v7.3.1 [32mbuilding ssr environment for production...[36m[39m
+[32m✔[39m [1m[32m[paraglide-js] [39m[22mCompilation complete (message-modules)
+transforming...
+[33m"Declaration" is imported from external module "postcss" but never used in "../../node_modules/better-svelte-email/dist/render/utils/css/get-matching-global-rules-for-element.js".[39m
+[33m"isEqual" is imported from external module "@zag-js/utils" but never used in "../../node_modules/@zag-js/svelte/dist/track.svelte.js".[39m
+[32m✓[39m 1351 modules transformed.
+[31m✗[39m Build failed in 20.98s
+[31merror during build:
+[31m"@tiptap/core" cannot be included in manualChunks because it is resolved as an external module by the "external" option or plugins.[31m
+    at getRollupError (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/parseAst.js:401:41)
+    at error (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/parseAst.js:397:42)
+    at ModuleLoader.loadEntryModule (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/node-entry.js:21617:20)
+    at async Promise.all (index 0)
+    at async Promise.all (index 0)[39m
+Warning: command "vite build" exited with non-zero status code

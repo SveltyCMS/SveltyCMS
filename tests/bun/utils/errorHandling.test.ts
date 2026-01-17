@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'bun:test';
-import { AppError, isAppError, isHttpError, getErrorMessage, wrapError } from '@utils/errorHandling';
+import { AppError, isAppError, isHttpError, getErrorMessage, wrapError } from '@shared/utils/errorHandling';
 
 describe('Error Handling - AppError Class', () => {
 	it('should create AppError with message and status', () => {

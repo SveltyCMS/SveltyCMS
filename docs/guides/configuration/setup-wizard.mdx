@@ -37,7 +37,7 @@ The SveltyCMS setup wizard provides a professional, multi-step configuration exp
 
 ## Overview
 
-The setup wizard is a multi-step form that guides users through initial SveltyCMS configuration. It consists of 5 main steps:
+The setup wizard is a standalone, optimized application (`apps/setup`) that guides users through initial SveltyCMS configuration. It consists of 5 main steps:
 
 1. **Database Configuration** - Database connection and testing
 2. **Admin Account** - Administrator user creation
@@ -54,9 +54,9 @@ The setup wizard is a multi-step form that guides users through initial SveltyCM
 - **✨ NO SERVER RESTART REQUIRED**: System becomes operational immediately after setup completion
 
 <Callout type="success">
-	**Zero-Restart Architecture**: Unlike traditional CMSs that require server restart after initial setup, SveltyCMS uses dynamic in-memory
-	configuration loading (`initializeWithConfig()`). The system transitions from `IDLE` → `READY` state instantly, with cache warming ensuring the
-	first page load is blazing fast.
+	**Automated Workspace Switching**: SveltyCMS uses a smart development server (`bun dev`) that automatically launches the Setup workspace when
+	needed. Upon completion, the server cleanly transitions to the CMS workspace on the same port, providing a seamless "zero-restart" experience for
+	the user.
 </Callout>
 
 ---
@@ -109,7 +109,7 @@ WCAG 2.1 AA compliant features:
 ### Component Structure
 
 ```
-src/routes/setup/
+apps/setup/src/routes/
 ├── +page.svelte              # Main orchestrator
 ├── +page.server.ts           # Server-side load function
 ├── DatabaseConfig.svelte     # Step 1: Database setup
@@ -800,6 +800,12 @@ class SetupStore {
       localStorage.setItem('sveltycms_setup', json);
     });
   }
+}
+```
+
+    });
+
+}
 }
 
 export const setupStore = new SetupStore();

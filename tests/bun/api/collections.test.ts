@@ -18,7 +18,7 @@ const API_BASE_URL = getApiBaseUrl();
 const TEST_COLLECTION_NAME = 'test_posts';
 const TEST_COLLECTION_PATH = `config/collections/${TEST_COLLECTION_NAME}.ts`;
 const TEST_COLLECTION_CONFIG = `
-import type { CollectionConfig } from '@src/types/CollectionConfig';
+import type { CollectionConfig } from '@shared/types/CollectionConfig';
 const config: CollectionConfig = {
 	name: '${TEST_COLLECTION_NAME}',
 	slug: '${TEST_COLLECTION_NAME}',

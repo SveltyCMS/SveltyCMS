@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="dark">
+	<head>
+		<meta charset="utf-8" />
+		<script nonce="%sveltekit.nonce%">
+			// Theme initialization (before page render to prevent flicker)
+			(() => {
+				const c = document.cookie.match(/theme=(\w+)/)?.[1];
+				const h = document.documentElement;
+
+				try {
+					// Determine if dark mode should be active
+					const systemPrefersLight = matchMedia('(prefers-color-scheme: light)').matches;
+					let isDark = true; // Default to dark mode
+
+					if (c === 'dark') {
+						isDark = true;
+					} else if (c === 'light') {
+						isDark = false;
+					} else if (c === 'system' || !c) {
+						// Priority System: if system says light, use light. Otherwise default dark.
+						isDark = !systemPrefersLight;
+					}
+
+					if (isDark) {
+						h.classList.add('dark');
+						h.classList.remove('light');
+					} else {
+						h.classList.add('light');
+						h.classList.remove('dark');
+					}
+				} catch (e) {
+					console.error('[SSR Script] Error:', e);
+				}
+			})();
+		</script>
+		<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+		<link rel="icon" href="%sveltekit.assets%/SveltyCMS_Logo.svg" />
+		<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+		%sveltekit.head%
+		<!-- Custom CSS injection point for dynamic styles -->
+		<style nonce="%sveltekit.nonce%">
+			%sveltekit.customCss%
+		</style>
+	</head>
+
+	<body data-sveltekit-preload-data="hover" data-theme="sveltycms">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>

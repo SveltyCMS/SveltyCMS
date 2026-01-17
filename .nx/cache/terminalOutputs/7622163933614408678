@@ -1,0 +1,1802 @@
+> vite build
+
+[36mvite v7.3.1 [32mbuilding ssr environment for production...[36m[39m
+[32m✔[39m [1m[32m[paraglide-js] [39m[22mCompilation complete (message-modules)                                                                                                                       
+[2K[1Gtransforming (1) [2m../../node_modules/@sveltejs/kit/src/runtime/server/index.js[22m[2K[1Gtransforming (27) [2msrc/routes/config/themeManagement/+page.svelte[22m[2K[1Gtransforming (85) [2m../../node_modules/@sveltejs/kit/src/runtime/app/paths/internal/server.js[22m[2K[1Gtransforming (119) [2msrc/lib/components/collectionDisplay/Fields.svelte[22m[2K[1Gtransforming (191) [2m../../node_modules/@sveltejs/kit/src/runtime/server/page/index.js[22m[2K[1Gtransforming (229) [2msrc/routes/dashboard/+page.server.ts[22m[2K[1Gtransforming (269) [2msrc/lib/components/collectionDisplay/WidgetLoader.svelte[22m[2K[1Gtransforming (413) [2m../../shared/paraglide/src/messages/de.js[22m[2K[1Gtransforming (459) [2msrc/routes/dashboard/+page.svelte[22m[2K[1Gtransforming (504) [2m../../node_modules/svelte/src/internal/client/reactivity/effects.js[22m[2K[1Gtransforming (850) [2m../../node_modules/@sveltejs/kit/src/runtime/server/page/crypto.js[22m[2K[1Gtransforming (884) [2m../../node_modules/svelte/src/internal/client/dom/operations.js[22m[2K[1Gtransforming (1054) [2msrc/lib/user/components/AdminArea.svelte[22m[2K[1Gtransforming (1065) [2msrc/lib/mediagallery/components/MediaGrid.svelte[22m[2K[1Gtransforming (1072) [2m../../node_modules/.bun/sveltekit-rate-limiter@0.7.0+fe0513b84f156ec4/node_modules/sveltekit-rate-limiter/dist/server/stores/index.js[22m[2K[1Gtransforming (1134) [2msrc/lib/components/system/table/Boolean.svelte[22m[2K[1Gtransforming (1165) [2msrc/content/index.ts[22m[2K[1Gtransforming (1205) [2m../../shared/services/src/token/modifiers.ts[22m[2K[1Gtransforming (1236) [2msrc/content/collectionScanner.ts[22m[2K[1Gtransforming (1284) [2msrc/lib/components/imageEditor/widgets/Blur/Tool.svelte[22m[2K[1Gtransforming (1296) [2msrc/lib/components/imageEditor/widgets/FocalPoint/Tool.svelte[22m[2K[1Gtransforming (1311) [2msrc/lib/components/imageEditor/widgets/FocalPoint/Controls.svelte[22m[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[33m"Declaration" is imported from external module "postcss" but never used in "../../node_modules/better-svelte-email/dist/render/utils/css/get-matching-global-rules-for-element.js".[39m
+[2K[1G[33m"isEqual" is imported from external module "@zag-js/utils" but never used in "../../node_modules/@zag-js/svelte/dist/track.svelte.js".[39m
+[2K[1G[32m✓[39m 1351 modules transformed.
+[2K[1Grendering chunks (1)...[2K[1Grendering chunks (2)...[2K[1Grendering chunks (3)...[2K[1Grendering chunks (4)...[2K[1Grendering chunks (5)...[2K[1Grendering chunks (6)...[2K[1Grendering chunks (7)...[2K[1Grendering chunks (8)...[2K[1Grendering chunks (9)...[2K[1Grendering chunks (10)...[2K[1Grendering chunks (11)...[2K[1Grendering chunks (12)...[2K[1Grendering chunks (13)...[2K[1Grendering chunks (14)...[2K[1Grendering chunks (15)...[2K[1Grendering chunks (16)...[2K[1Grendering chunks (17)...[2K[1Grendering chunks (18)...[2K[1Grendering chunks (19)...[2K[1Grendering chunks (20)...[2K[1Grendering chunks (21)...[2K[1Grendering chunks (22)...[2K[1Grendering chunks (23)...[2K[1Grendering chunks (24)...[2K[1Grendering chunks (25)...[2K[1Grendering chunks (26)...[2K[1Grendering chunks (27)...[2K[1Grendering chunks (28)...[2K[1Grendering chunks (29)...[2K[1Grendering chunks (30)...[2K[1Grendering chunks (31)...[2K[1Grendering chunks (32)...[2K[1Grendering chunks (33)...[2K[1Grendering chunks (34)...[2K[1Grendering chunks (35)...[2K[1Grendering chunks (36)...[2K[1Grendering chunks (37)...[2K[1Grendering chunks (38)...[2K[1Grendering chunks (39)...[2K[1Grendering chunks (40)...[2K[1Grendering chunks (41)...[2K[1Grendering chunks (42)...[2K[1Grendering chunks (43)...[2K[1Grendering chunks (44)...[2K[1Grendering chunks (45)...[2K[1Grendering chunks (46)...[2K[1Grendering chunks (47)...[2K[1Grendering chunks (48)...[2K[1Grendering chunks (49)...[2K[1Grendering chunks (50)...[2K[1Grendering chunks (51)...[2K[1Grendering chunks (52)...[2K[1Grendering chunks (53)...[2K[1Grendering chunks (54)...[2K[1Grendering chunks (55)...[2K[1Grendering chunks (56)...[2K[1Grendering chunks (57)...[2K[1Grendering chunks (58)...[2K[1Grendering chunks (59)...[2K[1Grendering chunks (60)...[2K[1Grendering chunks (61)...[2K[1Grendering chunks (62)...[2K[1Grendering chunks (63)...[2K[1Grendering chunks (64)...[2K[1Grendering chunks (65)...[2K[1Grendering chunks (66)...[2K[1Grendering chunks (67)...[2K[1Grendering chunks (68)...[2K[1Grendering chunks (69)...[2K[1Grendering chunks (70)...[2K[1Grendering chunks (71)...[2K[1Grendering chunks (72)...[2K[1Grendering chunks (73)...[2K[1Grendering chunks (74)...[2K[1Grendering chunks (75)...[2K[1Grendering chunks (76)...[2K[1Grendering chunks (77)...[2K[1Grendering chunks (78)...[2K[1Grendering chunks (79)...[2K[1Grendering chunks (80)...[2K[1Grendering chunks (81)...[2K[1Grendering chunks (82)...[2K[1Grendering chunks (83)...[2K[1Grendering chunks (84)...[2K[1Grendering chunks (85)...[2K[1Grendering chunks (86)...[2K[1Grendering chunks (87)...[2K[1Grendering chunks (88)...[2K[1Grendering chunks (89)...[2K[1Grendering chunks (90)...[2K[1Grendering chunks (91)...[2K[1Grendering chunks (92)...[2K[1Grendering chunks (93)...[2K[1Grendering chunks (94)...[2K[1Grendering chunks (95)...[2K[1Grendering chunks (96)...[2K[1Grendering chunks (97)...[2K[1Grendering chunks (98)...[2K[1Grendering chunks (99)...[2K[1Grendering chunks (100)...[2K[1Grendering chunks (101)...[2K[1Grendering chunks (102)...[2K[1Grendering chunks (103)...[2K[1Grendering chunks (104)...[2K[1Grendering chunks (105)...[2K[1Grendering chunks (106)...[2K[1Grendering chunks (107)...[2K[1Grendering chunks (108)...[2K[1Grendering chunks (109)...[2K[1Grendering chunks (110)...[2K[1Grendering chunks (111)...[2K[1Grendering chunks (112)...[2K[1Grendering chunks (113)...[2K[1Grendering chunks (114)...[2K[1Grendering chunks (115)...[2K[1Grendering chunks (116)...[2K[1Grendering chunks (117)...[2K[1Grendering chunks (118)...[2K[1Grendering chunks (119)...[2K[1Grendering chunks (120)...[2K[1Grendering chunks (121)...[2K[1Grendering chunks (122)...[2K[1Grendering chunks (123)...[2K[1Grendering chunks (124)...[2K[1Grendering chunks (125)...[2K[1Grendering chunks (126)...[2K[1Grendering chunks (127)...[2K[1Grendering chunks (128)...[2K[1Grendering chunks (129)...[2K[1Grendering chunks (130)...[2K[1Grendering chunks (131)...[2K[1Grendering chunks (132)...[2K[1Grendering chunks (133)...[2K[1Grendering chunks (134)...[2K[1Grendering chunks (135)...[2K[1Grendering chunks (136)...[2K[1Grendering chunks (137)...[2K[1Grendering chunks (138)...[2K[1Grendering chunks (139)...[2K[1Grendering chunks (140)...[2K[1Grendering chunks (141)...[2K[1Grendering chunks (142)...[2K[1Grendering chunks (143)...[2K[1Grendering chunks (144)...[2K[1Grendering chunks (145)...[2K[1Grendering chunks (146)...[2K[1Grendering chunks (147)...[2K[1Grendering chunks (148)...[2K[1Grendering chunks (149)...[2K[1Grendering chunks (150)...[2K[1Grendering chunks (151)...[2K[1Grendering chunks (152)...[2K[1Grendering chunks (153)...[2K[1Grendering chunks (154)...[2K[1Grendering chunks (155)...[2K[1Grendering chunks (156)...[2K[1Grendering chunks (157)...[2K[1Grendering chunks (158)...[2K[1Grendering chunks (159)...[2K[1Grendering chunks (160)...[2K[1Grendering chunks (161)...[2K[1Grendering chunks (162)...[2K[1Grendering chunks (163)...[2K[1Grendering chunks (164)...[2K[1Grendering chunks (165)...[2K[1Grendering chunks (166)...[2K[1Grendering chunks (167)...[2K[1Grendering chunks (168)...[2K[1Grendering chunks (169)...[2K[1Grendering chunks (170)...[2K[1Grendering chunks (171)...[2K[1Grendering chunks (172)...[2K[1Grendering chunks (173)...[2K[1Grendering chunks (174)...[2K[1Grendering chunks (175)...[2K[1Grendering chunks (176)...[2K[1Grendering chunks (177)...[2K[1Grendering chunks (178)...[2K[1Grendering chunks (179)...[2K[1Grendering chunks (180)...[2K[1Grendering chunks (181)...[2K[1Grendering chunks (182)...[2K[1Grendering chunks (183)...[2K[1Grendering chunks (184)...[2K[1Grendering chunks (185)...[2K[1Grendering chunks (186)...[2K[1Grendering chunks (187)...[2K[1Grendering chunks (188)...[2K[1Grendering chunks (189)...[2K[1Grendering chunks (190)...[2K[1Grendering chunks (191)...[2K[1Grendering chunks (192)...[2K[1Grendering chunks (193)...[2K[1Grendering chunks (194)...[2K[1Grendering chunks (195)...[2K[1Grendering chunks (196)...[2K[1Grendering chunks (197)...[2K[1Grendering chunks (198)...[2K[1Grendering chunks (199)...[2K[1Grendering chunks (200)...[2K[1Grendering chunks (201)...[2K[1Grendering chunks (202)...[2K[1Grendering chunks (203)...[2K[1Grendering chunks (204)...[2K[1Grendering chunks (205)...[2K[1Grendering chunks (206)...[2K[1Grendering chunks (207)...[2K[1Grendering chunks (208)...[2K[1Grendering chunks (209)...[2K[1Grendering chunks (210)...[2K[1Grendering chunks (211)...[2K[1Grendering chunks (212)...[2K[1Grendering chunks (213)...[2K[1Grendering chunks (214)...[2K[1Grendering chunks (215)...[2K[1Grendering chunks (216)...[2K[1Grendering chunks (217)...[2K[1Grendering chunks (218)...[2K[1Grendering chunks (219)...[2K[1Grendering chunks (220)...[2K[1Grendering chunks (221)...[2K[1Grendering chunks (222)...[2K[1Grendering chunks (223)...[2K[1Grendering chunks (224)...[2K[1Grendering chunks (225)...[2K[1Grendering chunks (226)...[2K[1Grendering chunks (227)...[2K[1Grendering chunks (228)...[2K[1Grendering chunks (229)...[2K[1Grendering chunks (230)...[2K[1Grendering chunks (231)...[2K[1Grendering chunks (232)...[2K[1Grendering chunks (233)...[2K[1Grendering chunks (234)...[2K[1Grendering chunks (235)...[2K[1Grendering chunks (236)...[2K[1Grendering chunks (237)...[2K[1Grendering chunks (238)...[2K[1Grendering chunks (239)...[2K[1Grendering chunks (240)...[2K[1Grendering chunks (241)...[2K[1Grendering chunks (242)...[2K[1Grendering chunks (243)...[2K[1Grendering chunks (244)...[2K[1Grendering chunks (245)...[2K[1Grendering chunks (246)...[2K[1Grendering chunks (247)...[2K[1Grendering chunks (248)...[2K[1Grendering chunks (249)...[2K[1Grendering chunks (250)...[2K[1Grendering chunks (251)...[2K[1Grendering chunks (252)...[2K[1Grendering chunks (253)...[2K[1Grendering chunks (254)...[2K[1Grendering chunks (255)...[2K[1Grendering chunks (256)...[2K[1Grendering chunks (257)...[2K[1Grendering chunks (258)...[2K[1Grendering chunks (259)...[2K[1Grendering chunks (260)...[2K[1Grendering chunks (261)...[2K[1Grendering chunks (262)...[2K[1Grendering chunks (263)...[2K[1Grendering chunks (264)...[2K[1Grendering chunks (265)...[2K[1Grendering chunks (266)...[2K[1Grendering chunks (267)...[2K[1Grendering chunks (268)...[2K[1Grendering chunks (269)...[2K[1Grendering chunks (270)...[2K[1Grendering chunks (271)...[2K[1Grendering chunks (272)...[2K[1Grendering chunks (273)...[2K[1Grendering chunks (274)...[2K[1Grendering chunks (275)...[2K[1Grendering chunks (276)...[2K[1Grendering chunks (277)...[2K[1Grendering chunks (278)...[2K[1Grendering chunks (279)...[2K[1Grendering chunks (280)...[2K[1Grendering chunks (281)...[2K[1Grendering chunks (282)...[2K[1Grendering chunks (283)...[2K[1Grendering chunks (284)...[2K[1Grendering chunks (285)...[2K[1Grendering chunks (286)...[2K[1Grendering chunks (287)...[2K[1Grendering chunks (288)...[2K[1Grendering chunks (289)...[2K[1Grendering chunks (290)...[2K[1Grendering chunks (291)...[2K[1Grendering chunks (292)...[2K[1Grendering chunks (293)...[2K[1Grendering chunks (294)...[2K[1Grendering chunks (295)...[2K[1Grendering chunks (296)...[2K[1Grendering chunks (297)...[2K[1Grendering chunks (298)...[2K[1Grendering chunks (299)...[2K[1Grendering chunks (300)...[2K[1Grendering chunks (301)...[2K[1Grendering chunks (302)...[2K[1Grendering chunks (303)...[2K[1Grendering chunks (304)...[2K[1Grendering chunks (305)...[2K[1Grendering chunks (306)...[2K[1Grendering chunks (307)...[2K[1Grendering chunks (308)...[2K[1Grendering chunks (309)...[2K[1Grendering chunks (310)...[2K[1Grendering chunks (311)...[2K[1Grendering chunks (312)...[2K[1Grendering chunks (313)...[2K[1Grendering chunks (314)...[2K[1Grendering chunks (315)...[2K[1Grendering chunks (316)...[2K[1Grendering chunks (317)...[2K[1Grendering chunks (318)...[2K[1Grendering chunks (319)...[2K[1Grendering chunks (320)...[2K[1Grendering chunks (321)...[2K[1Grendering chunks (322)...[2K[1Grendering chunks (323)...[2K[1Grendering chunks (324)...[2K[1Grendering chunks (325)...[2K[1Grendering chunks (326)...[2K[1Grendering chunks (327)...[2K[1Grendering chunks (328)...[2K[1Grendering chunks (329)...[2K[1Grendering chunks (330)...[2K[1Grendering chunks (331)...[2K[1Grendering chunks (332)...[2K[1Grendering chunks (333)...[2K[1Grendering chunks (334)...[2K[1G[36mvite v7.3.1 [32mbuilding client environment for production...[36m[39m
+[32m✔[39m [1m[32m[paraglide-js] [39m[22mCompilation complete (message-modules)                                                                                                                       
+[2K[1Gtransforming (1) [2m../../node_modules/@sveltejs/kit/src/runtime/client/entry.js[22m[2K[1Gtransforming (42) [2msrc/routes/config/widgetManagement/+page.svelte[22m[2K[1Gtransforming (52) [2msrc/routes/config/themeManagement/+page.svelte[22m[2K[1Gtransforming (84) [2m../../node_modules/better-svelte-email/dist/preview/index.js[22m[2K[1Gtransforming (105) [2m../../node_modules/esm-env/index.js[22m[2K[1G[33m[plugin vite:resolve] Module "fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/better-svelte-email/dist/preview/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "path" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/better-svelte-email/dist/preview/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/better-svelte-email/dist/preview/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "path" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/better-svelte-email/dist/preview/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1Gtransforming (126) [2m../../node_modules/@sveltejs/kit/src/runtime/client/utils.js[22m[2K[1Gtransforming (208) [2msrc/lib/components/collectionDisplay/EntryList_MultiButton.svelte[22m[2K[1Gtransforming (280) [2m../../node_modules/esm-env/true.js[22m[2K[1Gtransforming (305) [2m commonjsHelpers.js[22m[2K[1Gtransforming (322) [2m../../node_modules/svelte/src/utils.js[22m[2K[1Gtransforming (348) [2m../../node_modules/svelte/src/easing/index.js[22m[2K[1Gtransforming (531) [2m../../shared/paraglide/src/messages/en.js[22m[2K[1Gtransforming (562) [2msrc/routes/dashboard/+page.svelte[22m[2K[1Gtransforming (587) [2m vite/dynamic-import-helper.js[22m[2K[1Gtransforming (1069) [2m../../node_modules/prettier/plugins/html.mjs[22m[2K[1Gtransforming (1083) [2msrc/lib/dashboard/widgets/CacheMonitorWidget.svelte[22m[2K[1Gtransforming (1102) [2m../../shared/database/src/themeManager.ts[22m[2K[1G[33m[plugin vite:resolve] Module "node:fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/logger.server.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:path" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/logger.server.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:zlib" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/logger.server.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:stream/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/logger.server.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:fs/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/logger.server.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/logger.server.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:path" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/logger.server.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:zlib" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/logger.server.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:stream/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/logger.server.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:fs/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/logger.server.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1Gtransforming (1177) [2m../../node_modules/svelte/src/events/index.js[22m[2K[1Gtransforming (1695) [2m../../node_modules/.bun/postcss@8.5.6/node_modules/postcss/lib/list.js[22m[2K[1G[33m[plugin vite:resolve] Module "node:fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/setupCheck.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:path" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/setupCheck.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/setupCheck.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:path" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/setupCheck.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "path" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/database/src/db.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:fs/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/database/src/db.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "path" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/database/src/db.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:fs/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/database/src/db.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1Gtransforming (1713) [2m../../node_modules/.bun/postcss@8.5.6/node_modules/postcss/lib/result.js[22m[2K[1Gtransforming (1727) [2m../../node_modules/svix/dist/models/rotateTokenOut.js[22m[2K[1Gtransforming (1810) [2m../../node_modules/.bun/postcss@8.5.6/node_modules/postcss/lib/symbols.js[22m[2K[1Gtransforming (1927) [2m../../node_modules/proxy-compare/dist/index.js[22m[2K[1G[33m[plugin vite:resolve] Module "node:async_hooks" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/svelte/src/internal/server/render-context.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "node:async_hooks" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/svelte/src/internal/server/render-context.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/svelte/src/internal/server/crypto.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "node:crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/svelte/src/internal/server/crypto.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1Gtransforming (1943) [2m../../node_modules/.bun/postcss@8.5.6/node_modules/postcss/lib/input.js[22m[2K[1Gtransforming (2257) [2m../../node_modules/.bun/postcss@8.5.6/node_modules/postcss/lib/map-generator.js[22m[2K[1Gtransforming (2272) [2m../../node_modules/.bun/postcss@8.5.6/node_modules/postcss/lib/container.js[22m[2K[1Gtransforming (2315) [2m../../node_modules/react-dom/cjs/react-dom.production.js[22m[2K[1G[33m[plugin vite:resolve] Module "node:fs/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/content/scanner.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:path" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/content/scanner.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:fs/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/content/scanner.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:path" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/content/scanner.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1Gtransforming (2344) [2m../../node_modules/react-dom/index.js[22m[2K[1G[33m[plugin vite:resolve] Module "node:crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/lua-script.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "node:crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/lua-script.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:events" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/pool.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "node:events" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/pool.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:events" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:url" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:events" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:url" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:events" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/cluster/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "node:events" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/cluster/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:events" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/sentinel/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:timers/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/sentinel/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:events" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/sentinel/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:timers/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/sentinel/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/cache.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/cache.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1Gtransforming (2368) [2m../../node_modules/react-dom/cjs/react-dom-server-legacy.browser.production.js[22m[2K[1G[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/crypto.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/shared/utils/src/crypto.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1Gtransforming (2407) [2m../../node_modules/.bun/postcss@8.5.6/node_modules/postcss/lib/processor.js[22m[2K[1Gtransforming (2427) [2m../../node_modules/.bun/postcss@8.5.6/node_modules/postcss/lib/postcss.js[22m[2K[1G[33m[plugin vite:resolve] Module "node:events" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/socket.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/socket.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:tls" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/socket.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:timers/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/socket.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:events" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/socket.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/socket.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:tls" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/socket.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:timers/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/socket.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:events" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/sentinel/pub-sub-proxy.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "node:events" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/sentinel/pub-sub-proxy.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/enterprise-maintenance-manager.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "dns/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/enterprise-maintenance-manager.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:assert" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/enterprise-maintenance-manager.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:timers/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/enterprise-maintenance-manager.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:diagnostics_channel" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/enterprise-maintenance-manager.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/enterprise-maintenance-manager.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "dns/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/enterprise-maintenance-manager.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:assert" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/enterprise-maintenance-manager.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:timers/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/enterprise-maintenance-manager.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:diagnostics_channel" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/enterprise-maintenance-manager.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1Gtransforming (2761) [2m../../node_modules/svix/node_modules/uuid/dist/commonjs-browser/index.js[22m[2K[1Gtransforming (2796) [2m../../node_modules/.bun/@redis+client@5.10.0/node_modules/@redis/client/dist/lib/client/socket.js[22m[2K[1G[33m[plugin vite:resolve] Module "node:crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/argon2@0.44.0/node_modules/argon2/argon2.cjs". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/argon2@0.44.0/node_modules/argon2/argon2.cjs". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/argon2@0.44.0/node_modules/argon2/argon2.cjs". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/argon2@0.44.0/node_modules/argon2/argon2.cjs". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1Gtransforming (2965) [2m../../node_modules/mongoose/lib/driver.js[22m[2K[1G[33m[plugin vite:resolve] Module "async_hooks" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/mongoose.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "async_hooks" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/mongoose.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1Gtransforming (3035) [2m../../node_modules/property-information/lib/util/schema.js[22m[2K[1Gtransforming (3077) [2m../../node_modules/.bun/@phc+format@1.0.0/node_modules/@phc/format/index.js[22m[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/drivers/node-mongodb-native/collection.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/drivers/node-mongodb-native/collection.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/drivers/node-mongodb-native/collection.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/drivers/node-mongodb-native/collection.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/gridfs/download.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/gridfs/download.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/gridfs/upload.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/gridfs/upload.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/mongo_client.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/mongo_client.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1Gtransforming (3340) [2m../../node_modules/mongodb/lib/error.js[22m[2K[1G[33m[plugin vite:resolve] Module "net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/client-side-encryption/auto_encrypter.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/client-side-encryption/auto_encrypter.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "dns" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/auth/gssapi.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "dns" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/auth/gssapi.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/wire_protocol/compression.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "zlib" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/wire_protocol/compression.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/wire_protocol/compression.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "zlib" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/wire_protocol/compression.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/mongo_logger.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/mongo_logger.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cursor/abstract_cursor.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cursor/abstract_cursor.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/document.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/document.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/query.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/query.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cast.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cast.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/error/setOptionError.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/error/setOptionError.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/model.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/model.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "assert" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mquery/lib/mquery.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mquery/lib/mquery.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "assert" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mquery/lib/mquery.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mquery/lib/mquery.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "dns" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/sdam/srv_polling.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/sdam/srv_polling.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "dns" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/sdam/srv_polling.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/sdam/srv_polling.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1Gtransforming (3368) [2m../../node_modules/mongodb/lib/explain.js[22m[2K[1G[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/utils.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/utils.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "http" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/utils.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/utils.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "url" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/utils.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/utils.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/utils.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/utils.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "http" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/utils.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/utils.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "url" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/utils.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/utils.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/timeout.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/timeout.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "child_process" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/client-side-encryption/mongocryptd_manager.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "child_process" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/client-side-encryption/mongocryptd_manager.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/auth/scram.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/auth/scram.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/helpers/populate/validateRef.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/helpers/populate/validateRef.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/schema/array.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/schema/array.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/helpers/populate/modelNamesFromRefPath.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/helpers/populate/modelNamesFromRefPath.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/types/map.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/types/map.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/types/subdocument.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/types/subdocument.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/error/validation.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/error/validation.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/helpers/common.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/helpers/common.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/error/cast.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/error/cast.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/error/notFound.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/error/notFound.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cursor/queryCursor.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cursor/queryCursor.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cursor/queryCursor.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cursor/queryCursor.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "assert" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cast/number.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "assert" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cast/number.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cursor/aggregationCursor.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cursor/aggregationCursor.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cursor/aggregationCursor.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cursor/aggregationCursor.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/helpers/model/castBulkWrite.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/helpers/model/castBulkWrite.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1Gtransforming (3505) [2m../../node_modules/mongoose/lib/types/subdocument.js[22m[2K[1G[33m[plugin vite:resolve] Module "fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/node-gyp-build@4.8.4/node_modules/node-gyp-build/node-gyp-build.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "path" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/node-gyp-build@4.8.4/node_modules/node-gyp-build/node-gyp-build.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "os" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/node-gyp-build@4.8.4/node_modules/node-gyp-build/node-gyp-build.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/node-gyp-build@4.8.4/node_modules/node-gyp-build/node-gyp-build.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "path" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/node-gyp-build@4.8.4/node_modules/node-gyp-build/node-gyp-build.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "os" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/.bun/node-gyp-build@4.8.4/node_modules/node-gyp-build/node-gyp-build.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "os" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/handshake/client_metadata.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "process" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/handshake/client_metadata.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "dns" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/connection_string.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "url" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/connection_string.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "fs/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/client-side-encryption/state_machine.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/client-side-encryption/state_machine.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "tls" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/client-side-encryption/state_machine.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "os" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/handshake/client_metadata.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "process" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/handshake/client_metadata.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "dns" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/connection_string.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "url" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/connection_string.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "fs/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/client-side-encryption/state_machine.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/client-side-encryption/state_machine.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "tls" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/client-side-encryption/state_machine.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1Gtransforming (3540) [2m../../node_modules/mongoose/lib/types/arraySubdocument.js[22m[2K[1G[33m[plugin vite:resolve] Module "process" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/pool_cluster.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "process" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/pool_cluster.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1Gtransforming (3601) [2m../../node_modules/mongoose/lib/error/messages.js[22m[2K[1G[33m[plugin vite:resolve] Module "timers/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/auth/mongodb_oidc/callback_workflow.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "timers/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/auth/mongodb_oidc/callback_workflow.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "assert" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cast/date.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "assert" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cast/date.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "assert" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cast/decimal128.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "assert" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cast/decimal128.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "assert" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cast/double.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "assert" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cast/double.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "assert" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cast/int32.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "assert" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongoose/lib/cast/int32.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:events" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/drizzle-orm/mysql2/session.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "node:events" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/drizzle-orm/mysql2/session.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "fs/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/auth/mongodb_oidc/k8s_machine_workflow.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/auth/mongodb_oidc/token_machine_workflow.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "fs/promises" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/auth/mongodb_oidc/k8s_machine_workflow.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/auth/mongodb_oidc/token_machine_workflow.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1Gtransforming (3676) [2m../../node_modules/mongodb/lib/cmap/wire_protocol/responses.js[22m[2K[1G[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/sdam/monitor.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/sdam/monitor.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "url" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/connection_config.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "url" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/connection_config.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/base/connection.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "tls" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/base/connection.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/base/connection.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/base/connection.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/base/connection.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "tls" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/base/connection.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/base/connection.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/base/connection.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "process" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/base/pool.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "process" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/base/pool.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1Gtransforming (3743) [2m../../node_modules/mongodb/lib/utils.js[22m[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/connection.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/connection.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/connection.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/connection.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/connection_pool.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/connection_pool.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1Gtransforming (3791) [2m../../node_modules/mongodb/lib/cmap/auth/mongodb_oidc/callback_workflow.js[22m[2K[1G[33m[plugin vite:resolve] Module "net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/connect.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "tls" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/connect.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/connect.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "tls" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mongodb/lib/cmap/connect.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/gcp-metadata/build/src/gcp-residency.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "os" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/gcp-metadata/build/src/gcp-residency.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/gcp-metadata/build/src/gcp-residency.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "os" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/gcp-metadata/build/src/gcp-residency.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1Gtransforming (3801) [2m../../node_modules/mongodb/lib/cmap/auth/mongodb_oidc/automated_callback_workflow.js[22m[2K[1Gtransforming (4380) [2m../../node_modules/mongodb/lib/cmap/auth/mongodb_oidc.js[22m[2K[1G[33m[plugin vite:resolve] Module "process" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/packets/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "process" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/packets/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/server.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/server.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1Gtransforming (4426) [2m../../node_modules/mongodb/lib/cmap/connection.js[22m[2K[1G[33m[plugin vite:resolve] Module "process" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/commands/query.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/commands/query.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/commands/query.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "process" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/commands/query.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/commands/query.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/commands/query.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "https" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/gaxios/build/cjs/src/gaxios.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/gaxios/build/cjs/src/gaxios.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "process" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/google-logging-utils/build/src/logging-utils.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/google-logging-utils/build/src/logging-utils.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "https" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/gaxios/build/cjs/src/gaxios.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/gaxios/build/cjs/src/gaxios.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "process" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/google-logging-utils/build/src/logging-utils.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/google-logging-utils/build/src/logging-utils.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1Gtransforming (4455) [2m../../node_modules/mongodb/lib/collection.js[22m[2K[1G[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/packets/handshake.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/packets/handshake.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/auth_plugins/caching_sha2_password.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/auth_plugins/caching_sha2_password.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/auth_plugins/sha256_password.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "tls" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/auth_plugins/sha256_password.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/auth_plugins/sha256_password.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "tls" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/auth_plugins/sha256_password.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1Gtransforming (4495) [2m../../node_modules/sparse-bitfield/index.js[22m[2K[1G[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/auth_41.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/auth_41.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/commands/command.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "timers" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/commands/command.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "zlib" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/compressed_protocol.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "zlib" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/mysql2/lib/compressed_protocol.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1Gtransforming (4522) [2m../../node_modules/@mongodb-js/saslprep/dist/browser.js[22m[2K[1Gtransforming (4550) [2m../../node_modules/.bun/base64-js@1.5.1/node_modules/base64-js/index.js[22m[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/generate-function/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/generate-function/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/gaxios/build/cjs/src/gaxios.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/gaxios/build/cjs/src/gaxios.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/seq-queue/lib/seq-queue.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/seq-queue/lib/seq-queue.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1Gtransforming (4606) [2m../../node_modules/mongodb/lib/deps.js[22m[2K[1G[33m[plugin vite:resolve] Module "net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/https-proxy-agent/dist/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "tls" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/https-proxy-agent/dist/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "assert" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/https-proxy-agent/dist/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "url" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/https-proxy-agent/dist/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/https-proxy-agent/dist/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "tls" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/https-proxy-agent/dist/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "assert" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/https-proxy-agent/dist/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "url" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/https-proxy-agent/dist/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:http" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:https" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:zlib" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:buffer" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:http" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:https" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:zlib" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:buffer" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/agent-base/dist/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "http" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/agent-base/dist/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "https" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/agent-base/dist/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/agent-base/dist/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "http" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/agent-base/dist/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "https" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/agent-base/dist/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1Gtransforming (4646) [2m../../node_modules/data-uri-to-buffer/dist/index.js[22m[2K[1G[33m[plugin vite:resolve] Module "node:util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/headers.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:http" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/headers.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/headers.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:http" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/headers.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/body.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/body.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:buffer" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/body.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:stream" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/body.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/body.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:buffer" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/body.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:url" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/request.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/request.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:url" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/request.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:util" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/request.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/utils/referrer.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "node:net" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-fetch/src/utils/referrer.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/fetch-blob/from.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:path" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/fetch-blob/from.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:fs" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/fetch-blob/from.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:path" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/fetch-blob/from.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "http" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/agent-base/dist/helpers.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "https" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/agent-base/dist/helpers.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "http" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/agent-base/dist/helpers.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "https" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/agent-base/dist/helpers.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "worker_threads" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-domexception/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[33m[plugin vite:resolve] Module "worker_threads" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/node-domexception/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m [33m(x2)[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:process" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/fetch-blob/streams.cjs". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:stream/web" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/fetch-blob/streams.cjs". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:process" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/fetch-blob/streams.cjs". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1G[33m[plugin vite:resolve] Module "node:stream/web" has been externalized for browser compatibility, imported by "/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/fetch-blob/streams.cjs". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2K[1Gtransforming (4914) [2m../../node_modules/mysql2/lib/packet_parser.js[22m[2K[1Gtransforming (4964) [2m../../node_modules/mysql2/lib/promise/pool_connection.js[22m[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[32m✓[39m 5020 modules transformed.
+[2K[1G[31m✗[39m Build failed in 25.68s
+[2K[1G[31m✗[39m Build failed in 1m 5s
+[31merror during build:
+[31m[vite-plugin-sveltekit-compile] [31m../../node_modules/drizzle-orm/mysql2/session.js (1:9): "once" is not exported by "__vite-browser-external", imported by "../../node_modules/drizzle-orm/mysql2/session.js".[31m
+file: [36m/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/drizzle-orm/mysql2/session.js:1:9[31m
+[33m
+1: import { once } from "node:events";
+            ^
+2: import { NoopCache } from "../cache/core/index.js";
+3: import { Column } from "../column.js";
+[31m
+    at getRollupError (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/parseAst.js:401:41)
+    at error (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/parseAst.js:397:42)
+    at Module.error (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/node-entry.js:16956:16)
+    at Module.traceVariable (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/node-entry.js:17412:29)
+    at ModuleScope.findVariable (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/node-entry.js:15076:39)
+    at ChildScope.findVariable (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/node-entry.js:5649:38)
+    at ClassBodyScope.findVariable (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/node-entry.js:5649:38)
+    at ChildScope.findVariable (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/node-entry.js:5649:38)
+    at ChildScope.findVariable (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/node-entry.js:5649:38)
+    at FunctionScope.findVariable (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/node_modules/rollup/dist/es/shared/node-entry.js:5649:38)[31m
+[39m

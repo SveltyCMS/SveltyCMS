@@ -2,8 +2,8 @@
  * @file config/collections/Menu.ts
  * @description Collection file for Menu
  */
-import type { Schema } from '@root/src/content/types';
-import { widgets } from '@src/widgets/proxy';
+import type { Schema } from '@cms/content/types';
+import { widgets } from '@cms/widgets/proxy';
 
 export const schema: Schema = {
 	// Collection Name comming from filename, so not needed

@@ -5,9 +5,9 @@
  */
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
-import { handleAuthorization, invalidateUserCountCache } from '@src/hooks/handleAuthorization';
+import { handleAuthorization, invalidateUserCountCache } from '@cms/hooks/handleAuthorization';
 import type { RequestEvent } from '@sveltejs/kit';
-import type { User, Role } from '@src/databases/auth/types';
+import type { User, Role } from '@shared/database/auth/types';
 
 // Type declarations for test environment
 declare module '@sveltejs/kit' {
@@ -31,7 +31,7 @@ declare module '@sveltejs/kit' {
 let mockUserCount = 1;
 let mockRoles: Role[] = [];
 
-mock.module('@src/databases/db', () => ({
+mock.module('@shared/database/db', () => ({
 	auth: {
 		getUserCount: () => Promise.resolve(mockUserCount),
 		getAllRoles: () => Promise.resolve(mockRoles),

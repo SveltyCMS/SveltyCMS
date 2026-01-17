@@ -1,0 +1,1 @@
+{"version":3,"file":"_layout.ts.js","sources":["../../../../../src/routes/+layout.ts"],"sourcesContent":["export const ssr = false;\nexport const prerender = false;\n"],"names":[],"mappings":"AAAO,MAAM,MAAM;AACZ,MAAM,YAAY;"}

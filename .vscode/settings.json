@@ -1,4 +1,7 @@
 {
+	"files.associations": {
+		"*.mdx": "markdown"
+	},
 	"editor.defaultFormatter": "esbenp.prettier-vscode",
 	"editor.formatOnSave": true,
 	"workbench.editor.enablePreview": true,

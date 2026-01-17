@@ -571,9 +571,9 @@ db.collection('users').find({ status: 'active' }).sort({ createdAt: -1 }).limit(
 
 // PostgreSQL Adapter
 db.query(`
-  SELECT * FROM users 
-  WHERE status = 'active' 
-  ORDER BY created_at DESC 
+  SELECT * FROM users
+  WHERE status = 'active'
+  ORDER BY created_at DESC
   LIMIT 20
 `);
 ```

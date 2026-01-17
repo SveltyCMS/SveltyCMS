@@ -1,0 +1,11 @@
+.input-container.svelte-189v5sz {
+	min-height: 2.5rem;
+}
+.animate-spin.svelte-189v5sz {
+	animation: svelte-189v5sz-spin 1s linear infinite;
+}
+@keyframes svelte-189v5sz-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}

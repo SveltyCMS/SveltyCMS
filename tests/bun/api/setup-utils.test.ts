@@ -10,9 +10,9 @@
  */
 
 import { describe, it, expect } from 'bun:test';
-import { buildDatabaseConnectionString } from '@src/routes/api/setup/utils';
-import { classifyDatabaseError } from '@src/routes/api/setup/errorClassifier';
-import type { DatabaseConfig } from '@src/databases/schemas';
+import { buildDatabaseConnectionString } from '@setup/routes/api/utils';
+import { classifyDatabaseError } from '@setup/routes/api/errorClassifier';
+import type { DatabaseConfig } from '@shared/database/schemas';
 
 describe('Setup Utils - Connection String Builder', () => {
 	it('should build standard MongoDB connection string', () => {

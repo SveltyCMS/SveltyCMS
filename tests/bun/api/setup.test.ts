@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { getApiBaseUrl } from '../helpers/server';
 import { cleanupTestDatabase } from '../helpers/testSetup';
-import type { DatabaseConfig } from '@src/databases/schemas';
+import type { DatabaseConfig } from '@shared/database/schemas';
 
 const API_BASE_URL = getApiBaseUrl();
 

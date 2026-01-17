@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'bun:test';
-import { hashPassword, verifyPassword, generateRandomToken, createChecksum } from '@utils/crypto';
+import { hashPassword, verifyPassword, generateRandomToken, createChecksum } from '@shared/utils/crypto';
 
 describe('Crypto Utils - Password Hashing', () => {
 	it('should hash a password', async () => {

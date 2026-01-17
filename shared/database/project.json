@@ -1,0 +1,16 @@
+{
+	"name": "database",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "shared/database/src",
+	"projectType": "library",
+	"tags": ["lib:database", "scope:shared"],
+	"targets": {
+		"lint": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["eslint src/**/*.ts"],
+				"cwd": "shared/database"
+			}
+		}
+	}
+}

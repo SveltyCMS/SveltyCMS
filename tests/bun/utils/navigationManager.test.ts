@@ -3,10 +3,10 @@
  * @description Tests for navigationManager functions
  */
 import { describe, it, expect, mock, beforeEach } from 'bun:test';
-import { navigationManager } from '@src/utils/navigationManager';
-import { globalLoadingStore } from '@stores/loadingStore.svelte';
-import { dataChangeStore } from '@stores/store.svelte';
-import { mode } from '@stores/collectionStore.svelte';
+import { navigationManager } from '@shared/utils/navigationManager';
+import { globalLoadingStore } from '@shared/stores/loadingStore.svelte';
+import { dataChangeStore } from '@shared/stores/store.svelte';
+import { mode } from '@shared/stores/collectionStore.svelte';
 
 // Mock $app/navigation
 // Bun executes setup.ts which mocks the module.
@@ -16,7 +16,7 @@ import { mode } from '@stores/collectionStore.svelte';
 // But simpler: we will verify the SIDE EFFECTS (stores reset, etc.)
 
 // Mock logger to keep tests clean
-mock.module('@utils/logger', () => ({
+mock.module('@shared/utils/logger', () => ({
 	logger: {
 		debug: mock(),
 		warn: mock(),

@@ -9,7 +9,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 
 // --- Mock the setup check module ---
 let mockConfigExists = true; // controls isSetupComplete()
-mock.module('@utils/setupCheck', () => ({
+mock.module('@shared/utils/setupCheck', () => ({
 	isSetupComplete: () => mockConfigExists
 }));
 
@@ -79,7 +79,7 @@ describe('handleSetup Middleware', () => {
 		// Dynamic import to ensure mocks are applied
 		// We use a query param to force re-evaluation if possible, but Bun might not support it for local files easily.
 		// However, mock.module updates should be reflected in subsequent imports if the module wasn't fully cached or if Bun's test runner handles it.
-		const mod = await import('@src/hooks/handleSetup');
+		const mod = await import('@setup/hooks/handleSetup');
 		handleSetup = mod.handleSetup;
 	});
 

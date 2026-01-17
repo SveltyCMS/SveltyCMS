@@ -1,0 +1,9 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"outDir": "../../dist/shared/paraglide",
+		"rootDir": "./src",
+		"types": ["node"]
+	},
+	"include": ["src/**/*.ts", "src/**/*.js"]
+}

@@ -3,8 +3,8 @@
  * @description Integration tests for token resolution middleware
  */
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
-import { handleTokenResolution } from '@src/hooks/tokenResolution';
-import { TokenRegistry } from '@src/services/token/engine';
+import { handleTokenResolution } from '@cms/hooks/tokenResolution';
+import { TokenRegistry } from '@shared/services/token/engine';
 
 describe('Token Resolution Middleware', () => {
 	let mockEvent: any;

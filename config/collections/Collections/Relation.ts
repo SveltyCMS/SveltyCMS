@@ -3,8 +3,8 @@
  * @description Collection file for Relation
  */
 
-import { widgets } from '@src/widgets/proxy';
-import type { Schema } from '@root/src/content/types';
+import { widgets } from '@cms/widgets/proxy';
+import type { Schema } from '@cms/content/types';
 
 export const schema: Schema = {
 	// Collection Name comming from filename, so not needed
