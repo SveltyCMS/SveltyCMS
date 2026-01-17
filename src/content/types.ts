@@ -59,6 +59,9 @@ export interface BaseEntity {
 export interface CollectionEntry extends Record<string, unknown> {
 	_id?: string;
 	status?: StatusType;
+	statusByLocale?: Record<string, StatusType>; // Per-locale publication status
+	_scheduled?: string; // Global scheduled timestamp
+	_scheduledByLocale?: Record<string, string>; // Per-locale scheduled timestamps
 	createdAt?: string;
 	updatedAt?: string;
 	createdBy?: string;
@@ -220,6 +223,7 @@ export interface Schema {
 	permissions?: RolePermissions;
 	livePreview?: boolean;
 	status?: StatusType;
+	perLocalePublishing?: boolean; // Enable per-locale publication status for this collection
 	links?: Array<ContentTypes>;
 	fields: FieldDefinition[];
 	translations?: Translation[]; // Optional translations with enhanced metadata

@@ -149,7 +149,10 @@ export const publicConfigSchema = object({
 
 	// --- Demo Mode ---
 	USE_GOOGLE_OAUTH: optional(boolean()),
-	DEMO: optional(boolean())
+	DEMO: optional(boolean()),
+
+	// --- Per-Locale Publishing ---
+	ENABLE_PER_LOCALE_PUBLISHING: optional(boolean())
 });
 
 export const websiteTokenSchema = object({

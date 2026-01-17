@@ -56,7 +56,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			throw error(400, 'Invalid JSON in request body');
 		}
 
-		const { status, entries } = body;
+		const { status, entries, locale } = body;
 
 		if (!status) {
 			throw error(400, 'Status is required');
@@ -79,7 +79,37 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 		let results = [];
 		const normalizedCollectionId = normalizeCollectionName(schema._id);
-		const updateData = { status, updatedBy: user._id };
+		
+		// Determine if per-locale publishing is enabled
+		const { getPublicSettingSync } = await import('@src/services/settingsService');
+		const systemEnabled = getPublicSettingSync('ENABLE_PER_LOCALE_PUBLISHING') ?? false;
+		const collectionEnabled = schema.perLocalePublishing ?? false;
+		const perLocaleEnabled = systemEnabled && collectionEnabled;
+		
+		// Build update data based on per-locale setting
+		let updateData: Record<string, unknown>;
+		if (perLocaleEnabled && locale) {
+			// Update locale-specific status
+			updateData = {
+				[`statusByLocale.${locale}`]: status,
+				updatedBy: user._id
+			};
+			// Clear locale-specific schedule when setting status
+			if (status !== StatusTypes.schedule) {
+				updateData[`_scheduledByLocale.${locale}`] = null;
+			}
+		} else {
+			// Update global status
+			updateData = { 
+				status, 
+				updatedBy: user._id
+			};
+			// Clear global schedule when setting status
+			if (status !== StatusTypes.schedule) {
+				updateData._scheduled = null;
+			}
+		}
+		
 		if (entries && Array.isArray(entries) && entries.length > 0) {
 			// Batch status update
 			const query: Record<string, unknown> = { _id: { $in: entries } };

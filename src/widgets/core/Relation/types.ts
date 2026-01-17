@@ -15,6 +15,9 @@ export interface RelationProps {
 	// The field from the related collection to display in the selector.
 	displayField: string;
 
+	// Population depth for relationships (0-10). 0 = ID only, higher values populate nested relations.
+	populationDepth?: number;
+
 	// Index signature to satisfy WidgetProps constraint
 	[key: string]: unknown;
 }
