@@ -106,35 +106,40 @@ ui: {
 }
 ```
 
-## Example Plugin: PageSpeed
+## Example Plugin: PageSpeed (Pending Implementation)
 
-See `apps/cms/src/plugins/pagespeed/` for a complete example that:
+A PageSpeed plugin example exists in the original branch that:
 - Analyzes page speed for entries
 - Stores results in database
 - Displays scores in EntryList
 - Provides refresh action
 
+**Status**: Pending integration - see `docs/BRANCH_INTEGRATION_SUMMARY.md` for migration path.
+
 ## Integration Status
 
 This plugin system has been integrated into the NX monorepo structure:
 
-✅ Core types defined in `shared/plugins/src/types.ts`
+✅ Core types defined in `shared/plugins/src/types.ts` (with placeholder types)
 ✅ Plugin registry in `shared/plugins/src/registry.ts`
 ✅ Exports in `shared/plugins/src/index.ts`
 
 ## Pending Integration
 
 The following features from the original branches still need integration:
-- PageSpeed plugin implementation
+- PageSpeed plugin implementation (from copilot/add-language-aware-plugin-system)
 - Plugin UI components
 - API endpoints for plugin management
-- Documentation updates
+- Full documentation migration
 
-## Learn More
+See `docs/BRANCH_INTEGRATION_SUMMARY.md` for the complete integration roadmap.
 
-- [Plugin Architecture Documentation](../../../docs/plugins/ARCHITECTURE_DIAGRAM.md)
-- [Developer Guide](../../../docs/plugins/developer-guide.md)
-- [Implementation Summary](../../../docs/plugins/IMPLEMENTATION_SUMMARY.md)
+## Future Documentation
+
+Once fully implemented, documentation will include:
+- Plugin Architecture Diagrams
+- Developer Guide
+- Implementation Examples
 
 ## License
 
