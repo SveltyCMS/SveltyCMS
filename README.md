@@ -106,6 +106,24 @@ Prefer a full walkthrough? See: [./docs/getting-started.mdx](./docs/getting-star
 - CLI installer auto-launches for smooth first-run setup
 - Typed widgets and schema-driven collection builder
 - Fast feedback loop with hot reloads and strong typing
+- **NX monorepo**: Separate apps for setup, CMS, and frontend preview
+- **Bun workflow**: Faster installs, dev server, and test execution
+
+## 🎨 Multiple Applications
+
+SveltyCMS uses an Nx monorepo with three specialized applications:
+
+| App | Purpose | Port | Bundle Size |
+|-----|---------|------|-------------|
+| **Setup** | Initial configuration wizard | 5173 | ~2 MB |
+| **CMS** | Main admin panel | 5173 | ~6 MB |
+| **Frontend** | Live preview / public site | 5174 | Customizable |
+
+**Benefits:**
+- Setup runs once → smaller initial download
+- CMS admin loads only when needed
+- Frontend can be deployed independently
+- Only selected database driver in production bundle
 
 ## 🚀 Setup
 
