@@ -49,6 +49,7 @@ import { getPublicSettingSync, getPrivateSettingSync } from '@src/services/setti
 import { logger } from '@utils/logger.server';
 import type { FieldDefinition } from '@src/content/types';
 import type { User } from '@src/databases/auth/types';
+import { populateRelations, getDepthFromQuery } from '@utils/relationPopulation';
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const { user, tenantId, dbAdapter } = locals;
@@ -284,6 +285,29 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 				type: 'GET',
 				tenantId
 			});
+		}
+
+		// =================================================================
+		// 5.3. POPULATE RELATIONSHIPS (based on depth parameter)
+		// =================================================================
+		if (entries.length > 0) {
+			const depth = getDepthFromQuery(url);
+			if (depth > 0) {
+				try {
+					await populateRelations(
+						entries,
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						currentCollection as any,
+						{ depth, tenantId },
+						dbAdapter,
+						contentManager
+					);
+					logger.debug(`Populated relations with depth ${depth} for ${entries.length} entries`);
+				} catch (error) {
+					logger.error('Failed to populate relations:', error);
+					// Continue without population
+				}
+			}
 		}
 
 		// =================================================================
