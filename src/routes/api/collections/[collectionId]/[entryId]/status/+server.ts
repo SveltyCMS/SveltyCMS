@@ -56,7 +56,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			throw error(400, 'Invalid JSON in request body');
 		}
 
-		const { status, entries } = body;
+		const { status, entries, locale, scheduledAt } = body;
 
 		if (!status) {
 			throw error(400, 'Status is required');
@@ -79,7 +79,28 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 		let results = [];
 		const normalizedCollectionId = normalizeCollectionName(schema._id);
-		const updateData = { status, updatedBy: user._id };
+
+		// Prepare update data based on whether this is a locale-specific or global update
+		let updateData: Record<string, unknown> = { updatedBy: user._id };
+
+		if (locale) {
+			// Per-locale status update
+			const localeStatusKey = `localeStatus.${locale}`;
+			updateData[localeStatusKey] = {
+				status,
+				...(scheduledAt !== undefined && { scheduledAt })
+			};
+
+			// Also update global status for backward compatibility (use default locale status or this locale)
+			updateData.status = status;
+		} else {
+			// Global status update (backward compatibility mode)
+			updateData.status = status;
+			if (scheduledAt !== undefined) {
+				updateData._scheduled = scheduledAt;
+			}
+		}
+
 		if (entries && Array.isArray(entries) && entries.length > 0) {
 			// Batch status update
 			const query: Record<string, unknown> = { _id: { $in: entries } };
@@ -141,7 +162,11 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			logger.warn('Failed to invalidate page cache after status change', { pattern: cachePattern, error: err });
 		});
 
-		logger.info(`Status updated for ${successCount}/${results.length} entries in ${duration.toFixed(2)}ms`, { tenantId });
+		const logMessage = locale
+			? `Status updated for ${successCount}/${results.length} entries (locale: ${locale}) in ${duration.toFixed(2)}ms`
+			: `Status updated for ${successCount}/${results.length} entries (global) in ${duration.toFixed(2)}ms`;
+
+		logger.info(logMessage, { tenantId, locale });
 
 		return json({
 			success: true,

@@ -41,6 +41,24 @@ export const StatusTypes = {
 
 export type StatusType = (typeof StatusTypes)[keyof typeof StatusTypes];
 
+// Fallback strategies for per-locale publishing
+export const FallbackStrategies = {
+	default: 'default', // Fallback to DEFAULT_CONTENT_LANGUAGE
+	bestComplete: 'best-complete', // Fallback to most complete translation
+	strict: 'strict' // No fallback, show empty/missing content
+} as const;
+
+export type FallbackStrategy = (typeof FallbackStrategies)[keyof typeof FallbackStrategies];
+
+// Per-locale status for multilingual publishing
+export interface LocaleStatus {
+	status: StatusType;
+	scheduledAt?: number; // Timestamp for scheduled publishing
+}
+
+// Map of locale codes to their status
+export type LocaleStatusMap = Record<string, LocaleStatus>;
+
 // --- Strongly-Typed Identifiers ---
 export type DatabaseId = string & { readonly __brand: 'DatabaseId' };
 export type ISODateString = string & { readonly __isoDate: 'ISODateString' };
@@ -58,7 +76,9 @@ export interface BaseEntity {
 // Collection Entry - A data record in a collection with common metadata
 export interface CollectionEntry extends Record<string, unknown> {
 	_id?: string;
-	status?: StatusType;
+	status?: StatusType; // Legacy global status (for backward compatibility)
+	localeStatus?: LocaleStatusMap; // Per-locale status and scheduling
+	_scheduled?: number; // Legacy scheduled timestamp (for backward compatibility)
 	createdAt?: string;
 	updatedAt?: string;
 	createdBy?: string;

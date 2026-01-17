@@ -25,41 +25,56 @@ import {
 import { entryMessages } from './entryActionsMessages';
 import { showConfirm, showScheduleModal, showCloneModal } from '@utils/modalUtils';
 // Helper function to update entry status
-async function updateStatus(collectionId: string, entryId: string, status: string) {
-	const result = await updateEntryStatus(collectionId, entryId, status);
+// Helper function to update entry status
+async function updateStatus(collectionId: string, entryId: string, status: string, locale?: string) {
+	const result = await updateEntryStatus(collectionId, entryId, status, locale);
 	if (!result.success) {
 		throw new Error(result.error || 'Failed to update status');
 	}
 	return result;
 }
 
-// Sets the status for one or more entries
-export async function setEntriesStatus(entryIds: string[], status: StatusType, onSuccess: () => void, payload: Record<string, unknown> = {}) {
+// Sets the status for one or more entries (supports per-locale updates)
+export async function setEntriesStatus(
+	entryIds: string[],
+	status: StatusType,
+	onSuccess: () => void,
+	payload: Record<string, unknown> = {},
+	locale?: string
+) {
 	if (!entryIds.length) return;
 	const collId = collection.value?._id;
 	if (!collId) return;
 
-	const result = await batchUpdateEntries(collId, { ids: entryIds, status, ...payload });
+	// Build payload with locale if provided
+	const requestPayload: Record<string, unknown> = { ids: entryIds, status, ...payload };
+	if (locale) {
+		requestPayload.locale = locale;
+	}
+
+	const result = await batchUpdateEntries(collId, requestPayload);
 	if (result.success) {
 		// Use centralized messaging
 		const count = entryIds.length;
 		let message: string;
 
+		const localeLabel = locale ? ` (${locale.toUpperCase()})` : '';
+
 		switch (status) {
 			case StatusTypes.archive:
-				message = entryMessages.entriesArchived(count);
+				message = entryMessages.entriesArchived(count) + localeLabel;
 				break;
 			case StatusTypes.publish:
-				message = entryMessages.entriesPublished(count);
+				message = entryMessages.entriesPublished(count) + localeLabel;
 				break;
 			case StatusTypes.unpublish:
-				message = entryMessages.entriesUnpublished(count);
+				message = entryMessages.entriesUnpublished(count) + localeLabel;
 				break;
 			case StatusTypes.draft:
-				message = entryMessages.entriesUpdated(count, StatusTypes.draft);
+				message = entryMessages.entriesUpdated(count, StatusTypes.draft) + localeLabel;
 				break;
 			default:
-				message = entryMessages.entriesUpdated(count, status);
+				message = entryMessages.entriesUpdated(count, status) + localeLabel;
 		}
 
 		toaster.success({ description: message });

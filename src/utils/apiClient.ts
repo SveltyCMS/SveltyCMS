@@ -99,10 +99,20 @@ export function batchUpdateEntries(collectionId: string, payload: Record<string,
 	throw new Error('Batch updates only supported for status changes');
 }
 
-export function updateEntryStatus(collectionId: string, entryId: string, status: string): Promise<ApiResponse<unknown>> {
+export function updateEntryStatus(
+	collectionId: string,
+	entryId: string,
+	status: string,
+	locale?: string
+): Promise<ApiResponse<unknown>> {
+	const body: Record<string, unknown> = { status };
+	if (locale) {
+		body.locale = locale;
+	}
+
 	return fetchApi(`/api/collections/${collectionId}/${entryId}/status`, {
 		method: 'PATCH',
-		body: JSON.stringify({ status })
+		body: JSON.stringify(body)
 	});
 }
 
@@ -134,10 +144,20 @@ export function batchCloneEntries(collectionId: string, entryIds: string[]): Pro
 	});
 }
 
-export function batchUpdateEntriesStatus(collectionId: string, entryIds: string[], status: string): Promise<ApiResponse<unknown>> {
+export function batchUpdateEntriesStatus(
+	collectionId: string,
+	entryIds: string[],
+	status: string,
+	locale?: string
+): Promise<ApiResponse<unknown>> {
+	const body: Record<string, unknown> = { action: 'status', entryIds, status };
+	if (locale) {
+		body.locale = locale;
+	}
+
 	return fetchApi(`/api/collections/${collectionId}/batch`, {
 		method: 'POST',
-		body: JSON.stringify({ action: 'status', entryIds, status })
+		body: JSON.stringify(body)
 	});
 }
 
