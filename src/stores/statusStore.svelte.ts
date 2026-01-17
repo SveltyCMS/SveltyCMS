@@ -106,13 +106,24 @@ export const statusStore = {
 		try {
 			// Initialize localeStatus if not present (migration support)
 			if (!collections.activeValue?.localeStatus) {
+				// Ensure we have a valid entry before initializing
+				if (!collections.activeValue) {
+					logger.error('[StatusStore] Cannot toggle status: no active entry');
+					return false;
+				}
+
 				const availableLanguages = getAvailableContentLanguages();
-				const initialized = initializeLocaleStatus(collections.activeValue || {}, availableLanguages);
+				const initialized = initializeLocaleStatus(collections.activeValue, availableLanguages);
 				collections.setCollectionValue(initialized);
 			}
 
-			// Update locale-specific status
-			const updatedEntry = setLocaleStatus(collections.activeValue || {}, currentLocale, newStatus);
+			// Update locale-specific status - ensure we have a valid entry
+			if (!collections.activeValue) {
+				logger.error('[StatusStore] Cannot set locale status: no active entry');
+				return false;
+			}
+
+			const updatedEntry = setLocaleStatus(collections.activeValue, currentLocale, newStatus);
 
 			// Case 1: Entry exists - update via API
 			if (collections.activeValue?._id && collections.active?._id) {
@@ -170,14 +181,20 @@ export const statusStore = {
 		const currentLocale = locale || app.contentLanguage;
 		logger.debug(`[StatusStore] Setting status locally to ${status} for locale ${currentLocale}`);
 
+		// Ensure we have a valid entry
+		if (!collections.activeValue) {
+			logger.error('[StatusStore] Cannot set status: no active entry');
+			return;
+		}
+
 		// Initialize localeStatus if not present
-		if (!collections.activeValue?.localeStatus) {
+		if (!collections.activeValue.localeStatus) {
 			const availableLanguages = getAvailableContentLanguages();
-			const initialized = initializeLocaleStatus(collections.activeValue || {}, availableLanguages);
+			const initialized = initializeLocaleStatus(collections.activeValue, availableLanguages);
 			collections.setCollectionValue(initialized);
 		}
 
-		const updatedEntry = setLocaleStatus(collections.activeValue || {}, currentLocale, status);
+		const updatedEntry = setLocaleStatus(collections.activeValue, currentLocale, status);
 		collections.setCollectionValue(updatedEntry);
 	},
 
@@ -188,14 +205,20 @@ export const statusStore = {
 		const currentLocale = locale || app.contentLanguage;
 		logger.debug(`[StatusStore] Setting schedule to ${scheduledAt} for locale ${currentLocale}`);
 
+		// Ensure we have a valid entry
+		if (!collections.activeValue) {
+			logger.error('[StatusStore] Cannot set schedule: no active entry');
+			return;
+		}
+
 		// Initialize localeStatus if not present
-		if (!collections.activeValue?.localeStatus) {
+		if (!collections.activeValue.localeStatus) {
 			const availableLanguages = getAvailableContentLanguages();
-			const initialized = initializeLocaleStatus(collections.activeValue || {}, availableLanguages);
+			const initialized = initializeLocaleStatus(collections.activeValue, availableLanguages);
 			collections.setCollectionValue(initialized);
 		}
 
-		const updatedEntry = setLocaleStatus(collections.activeValue || {}, currentLocale, StatusTypes.schedule, scheduledAt);
+		const updatedEntry = setLocaleStatus(collections.activeValue, currentLocale, StatusTypes.schedule, scheduledAt);
 		collections.setCollectionValue(updatedEntry);
 	},
 

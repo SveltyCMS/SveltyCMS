@@ -225,13 +225,15 @@ export function getAllLocaleStatuses(entry: CollectionEntry | null | undefined):
 
 /**
  * Validate locale status map
- * Ensures all available languages have status entries
+ * Ensures all available languages have valid status entries
  */
 export function validateLocaleStatus(localeStatus: LocaleStatusMap | undefined): boolean {
-	if (!localeStatus) return false;
+	if (!localeStatus || typeof localeStatus !== 'object') return false;
 
 	const availableLanguages = getAvailableContentLanguages();
-	return availableLanguages.every((lang) => localeStatus[lang] !== undefined);
+	return availableLanguages.every(
+		(lang) => localeStatus[lang] !== undefined && typeof localeStatus[lang] === 'object' && 'status' in localeStatus[lang]
+	);
 }
 
 /**

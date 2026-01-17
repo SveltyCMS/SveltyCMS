@@ -1,0 +1,449 @@
+# Per-Locale Publishing Status Guide
+
+## Overview
+
+SveltyCMS supports **per-locale publishing status**, allowing you to publish, unpublish, or schedule content independently for each language. This enterprise-grade feature enables sophisticated multilingual content workflows similar to Drupal's translation management.
+
+## Key Concepts
+
+### What is Per-Locale Publishing?
+
+Unlike traditional CMSs that apply a single publish/unpublish state to all languages, SveltyCMS allows each language version of your content to have its own status:
+
+- **English version**: Published ✅
+- **German version**: Draft 📝
+- **French version**: Scheduled ⏰
+- **Spanish version**: Unpublished ❌
+
+### Status Types
+
+Each locale can have one of the following statuses:
+
+| Status | Icon | Description |
+|--------|------|-------------|
+| `publish` | ✅ | Content is live and publicly visible |
+| `unpublish` | ❌ | Content is hidden from public view |
+| `draft` | 📝 | Content is being edited, not public |
+| `schedule` | ⏰ | Content will auto-publish at a scheduled time |
+| `archive` | 📦 | Content is archived (soft deleted) |
+
+## User Interface
+
+### Translation Status Dropdown
+
+The language selector in the header shows per-locale status indicators:
+
+```
+┌─────────────────────────────────┐
+│ Content Language                │
+├─────────────────────────────────┤
+│ ✅ English        [===100%===]  │ ← Published, 100% complete
+│ 📝 Deutsch (DE)   [===75%====]  │ ← Draft, 75% complete
+│ ⏰ Français (FR)  [===50%====]  │ ← Scheduled, 50% complete
+│ ❌ Español (ES)   [===25%====]  │ ← Unpublished, 25% complete
+└─────────────────────────────────┘
+```
+
+**Legend:**
+- **Icon**: Current publishing status for that locale
+- **Progress bar**: Translation completion percentage
+- **●**: Indicates currently active language
+
+### Entry List Status Badges
+
+In the collection entry list, the status column shows the status for the **currently active language**:
+
+```
+┌────────────────────────────────────────────────┐
+│ Title (EN)          │ Status │ Updated         │
+├────────────────────────────────────────────────┤
+│ Welcome Page        │   ✅   │ 2024-01-15      │
+│ About Us            │   📝   │ 2024-01-14      │
+│ Contact             │   ⏰   │ 2024-01-13      │
+└────────────────────────────────────────────────┘
+```
+
+Switch to a different language, and the status badges update to reflect that locale's state.
+
+### Status Toggle
+
+The publish/unpublish toggle in `HeaderEdit` and `RightSidebar` **only affects the current locale**:
+
+```
+Current Language: 🇩🇪 German
+
+┌─────────────────────────┐
+│  Publish   ⚪→ 🟢       │  ← Toggle only updates German status
+│  [Save]                 │
+└─────────────────────────┘
+```
+
+After toggling, you'll see a confirmation:
+```
+✅ Published for DE
+```
+
+### Scheduling Per Locale
+
+Each locale can have its own scheduled publication time:
+
+1. Click the **Schedule** button (⏰)
+2. Select date/time for the current locale
+3. Confirmation: `Entry scheduled for publish (DE).`
+
+## Bulk Actions
+
+All bulk actions in `EntryList` operate on the **active content language**:
+
+```
+Selected: 3 entries
+Language: 🇫🇷 French
+
+[Publish] [Unpublish] [Draft] [Delete]
+   ↓
+Updates French status only for selected entries
+```
+
+**Toast notification:**
+```
+✅ 3 entries published (FR)
+```
+
+## API Integration
+
+### Status Endpoint
+
+Update status for a specific locale:
+
+```javascript
+// Update only French status to published
+PATCH /api/collections/{collectionId}/{entryId}/status
+{
+  "status": "publish",
+  "locale": "fr"
+}
+```
+
+Update global status (backward compatible):
+
+```javascript
+// Updates all locales (legacy behavior)
+PATCH /api/collections/{collectionId}/{entryId}/status
+{
+  "status": "publish"
+}
+```
+
+### Batch Status Updates
+
+```javascript
+// Bulk publish for German locale
+PATCH /api/collections/{collectionId}/{entryId}/status
+{
+  "status": "publish",
+  "entries": ["id1", "id2", "id3"],
+  "locale": "de"
+}
+```
+
+### Entry Data Structure
+
+Entries now include a `localeStatus` field:
+
+```json
+{
+  "_id": "abc123",
+  "title": {
+    "en": "Welcome",
+    "de": "Willkommen",
+    "fr": "Bienvenue"
+  },
+  "status": "publish",  // Legacy global status
+  "localeStatus": {
+    "en": {
+      "status": "publish",
+      "scheduledAt": null
+    },
+    "de": {
+      "status": "draft",
+      "scheduledAt": null
+    },
+    "fr": {
+      "status": "schedule",
+      "scheduledAt": 1705276800000  // Unix timestamp
+    }
+  }
+}
+```
+
+## Fallback Strategies
+
+When a locale is unpublished or incomplete, you can configure how the system handles fallback:
+
+### 1. Default Language Fallback (Default)
+
+Falls back to the `DEFAULT_CONTENT_LANGUAGE` when requested locale is unpublished:
+
+```
+User requests: /fr/blog/post-1 (French version unpublished)
+System serves: English version (default language)
+```
+
+**Use case:** Ensure users always see content, even if translation is incomplete.
+
+### 2. Best Complete Fallback
+
+Falls back to the most complete published translation:
+
+```
+Available versions:
+- EN: 100% complete, published ✅
+- DE: 90% complete, published ✅
+- FR: 50% complete, unpublished ❌
+
+User requests: /fr/blog/post-1
+System serves: German version (highest completion among published)
+```
+
+**Use case:** Show the best available translation to users.
+
+### 3. Strict Mode (No Fallback)
+
+Shows no content if requested locale is unpublished:
+
+```
+User requests: /fr/blog/post-1 (French version unpublished)
+System serves: 404 or empty placeholder
+```
+
+**Use case:** Ensure users only see explicitly published locales.
+
+### Configuration
+
+Fallback strategy is configured in **System Preferences** (future implementation):
+
+```typescript
+// In system settings
+{
+  "publishing": {
+    "fallbackStrategy": "default", // or "best-complete" or "strict"
+    "perLocalePublishing": true     // Enable/disable feature
+  }
+}
+```
+
+## Workflow Examples
+
+### Example 1: Gradual Translation Rollout
+
+1. **English (default)**: Create and publish article in English
+   - Status: Published ✅
+   
+2. **German**: Translate and review
+   - Status: Draft 📝 (visible to editors, not public)
+   
+3. **French**: Partial translation, schedule for future
+   - Status: Scheduled ⏰ for next Monday
+   
+4. **Spanish**: Translation in progress
+   - Status: Unpublished ❌
+
+Result: English readers see content immediately, while other languages roll out progressively.
+
+### Example 2: Regional Product Launch
+
+Product available in different markets at different times:
+
+```
+Product: "Winter Sale 2024"
+
+┌──────────┬──────────┬─────────────────────┐
+│ Locale   │ Status   │ Scheduled           │
+├──────────┼──────────┼─────────────────────┤
+│ en-US    │ Schedule │ Jan 1, 2024 00:00   │
+│ en-GB    │ Schedule │ Jan 1, 2024 06:00   │
+│ de-DE    │ Schedule │ Jan 5, 2024 08:00   │
+│ fr-FR    │ Schedule │ Jan 8, 2024 09:00   │
+└──────────┴──────────┴─────────────────────┘
+```
+
+Each market sees the product launch at the appropriate time.
+
+## Backward Compatibility
+
+### Automatic Migration
+
+Existing entries without `localeStatus` are **automatically migrated** on load:
+
+```javascript
+// Old entry (before migration)
+{
+  "_id": "abc123",
+  "status": "publish",
+  "_scheduled": 1705276800000
+}
+
+// After automatic migration
+{
+  "_id": "abc123",
+  "status": "publish",  // Preserved for compatibility
+  "_scheduled": 1705276800000,  // Preserved
+  "localeStatus": {
+    "en": { "status": "publish", "scheduledAt": 1705276800000 },
+    "de": { "status": "publish", "scheduledAt": 1705276800000 },
+    "fr": { "status": "publish", "scheduledAt": 1705276800000 }
+  }
+}
+```
+
+**Migration happens:**
+- On SSR page load (`+page.server.ts`)
+- Zero downtime
+- Preserves existing global status
+- Initializes all locales with same status
+
+### Legacy API Support
+
+Old API calls without `locale` parameter still work:
+
+```javascript
+// Updates all locales (legacy behavior)
+PATCH /api/collections/posts/123/status
+{ "status": "publish" }
+```
+
+## Utilities Reference
+
+### `localeStatus.ts`
+
+```typescript
+// Get status for specific locale
+import { getLocaleStatus } from '@utils/localeStatus';
+const status = getLocaleStatus(entry, 'de'); // 'publish'
+
+// Set status for specific locale
+import { setLocaleStatus } from '@utils/localeStatus';
+const updated = setLocaleStatus(entry, 'de', 'draft');
+
+// Initialize localeStatus from global status
+import { initializeLocaleStatus } from '@utils/localeStatus';
+const migrated = initializeLocaleStatus(entry, ['en', 'de', 'fr']);
+
+// Get all locale statuses
+import { getAllLocaleStatuses } from '@utils/localeStatus';
+const statuses = getAllLocaleStatuses(entry);
+// { en: 'publish', de: 'draft', fr: 'schedule' }
+
+// Check if locale is published
+import { isLocalePublished } from '@utils/localeStatus';
+const isLive = isLocalePublished(entry, 'en'); // true
+
+// Find fallback locale based on strategy
+import { findFallbackLocale } from '@utils/localeStatus';
+const fallback = findFallbackLocale(
+  entry,
+  'fr',
+  'best-complete',
+  ['title', 'content']
+); // 'de' (if German is most complete)
+```
+
+## Best Practices
+
+### 1. Use Draft Status for Work-in-Progress
+
+Keep translations in draft until review is complete:
+
+```
+✅ DO: EN → Published, DE → Draft (under review)
+❌ DON'T: Both published with incomplete DE translation
+```
+
+### 2. Schedule Coordinated Releases
+
+For time-sensitive content, use scheduling:
+
+```
+Product announcement across markets:
+- US (EST): Schedule for 9:00 AM
+- UK (GMT): Schedule for 2:00 PM
+- DE (CET): Schedule for 3:00 PM
+```
+
+### 3. Monitor Translation Completion
+
+Use the translation progress indicator before publishing:
+
+```
+✅ Publish when: ≥80% complete
+⏰ Schedule when: 50-80% complete
+📝 Keep draft when: <50% complete
+```
+
+### 4. Document Workflow in Collection Schema
+
+Add notes to collection definitions:
+
+```typescript
+{
+  name: 'Blog Posts',
+  description: 'Workflow: EN published first, DE/FR scheduled +1 week',
+  // ...
+}
+```
+
+## Troubleshooting
+
+### Status Not Updating
+
+**Problem:** Status toggle doesn't update the entry.
+
+**Solution:**
+1. Check browser console for errors
+2. Verify user has write permissions
+3. Check if `localeStatus` field exists in database
+4. Clear cache: `/api/collections/warm-cache`
+
+### Status Shows as Unpublished When It Should Be Published
+
+**Problem:** Entry shows unpublished status in one language.
+
+**Solution:**
+1. Switch to that language in UI
+2. Check current status in `TranslationStatus` dropdown
+3. Manually toggle to publish
+4. Save entry
+
+### Bulk Actions Affect Wrong Language
+
+**Problem:** Bulk publish updated wrong locale.
+
+**Solution:**
+1. Check active content language in header
+2. Verify language selector shows correct locale
+3. Bulk actions always use active `contentLanguage`
+
+### Migration Not Happening
+
+**Problem:** Old entries still show global status only.
+
+**Solution:**
+1. Migration happens automatically on page load
+2. Force reload the page (not browser cache)
+3. Check server logs for migration errors
+4. Verify `availableLanguages` is configured
+
+## Related Documentation
+
+- [Multilingual Data Loading](../architecture/multilingual-data-loading.mdx)
+- [Widget Multilingual Guide](../widgets/widget-multilingual-guide.mdx)
+- [Status Types Reference](../architecture/status-types.mdx)
+- [Collection Store Dataflow](../architecture/collection-store-dataflow.mdx)
+
+## Technical Architecture
+
+For implementation details, see:
+- `src/utils/localeStatus.ts` - Core utilities
+- `src/stores/statusStore.svelte.ts` - Reactive status management
+- `src/routes/api/collections/[collectionId]/[entryId]/status/+server.ts` - API endpoint
+- `src/routes/(app)/[language]/[...collection]/+page.server.ts` - SSR migration logic
