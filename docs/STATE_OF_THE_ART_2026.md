@@ -124,34 +124,386 @@ interface SAMLConfig {
 - Manual onboarding/offboarding creates security risks
 - Competitors have SCIM endpoints for major IdPs
 
-**Implementation Plan:**
-```typescript
-// Add SCIM 2.0 Support
+**Implementation Plan (Following Scalekit Best Practices):**
+
+#### Step 1: Install Dependencies
+```bash
+# SCIM 2.0 Protocol Support
 bun add scim2-parse-filter
 bun add scim-patch
+bun add @scalekit-sdk/node  # Optional: Managed SCIM service
+```
 
-// SCIM 2.0 Endpoints
-POST   /scim/v2/Users           // Create user
-GET    /scim/v2/Users           // List users (filtered)
-GET    /scim/v2/Users/:id       // Get user
-PUT    /scim/v2/Users/:id       // Update user
-PATCH  /scim/v2/Users/:id       // Partial update
-DELETE /scim/v2/Users/:id       // Deactivate user
-POST   /scim/v2/Groups          // Create group
-GET    /scim/v2/Groups          // List groups
+#### Step 2: SCIM 2.0 Core Endpoints Architecture
 
-// SCIM User Schema
+Following RFC 7644, implement these required endpoints:
+
+```typescript
+// SCIM Resource Endpoints (RFC 7644)
+// Base URL: /scim/v2
+
+// 1. Service Provider Configuration (Discovery)
+GET /scim/v2/ServiceProviderConfig
+// Returns: Supported features, authentication schemes, bulk operations
+
+// 2. Resource Type Discovery
+GET /scim/v2/ResourceTypes
+// Returns: Supported resource types (Users, Groups)
+
+// 3. Schema Discovery
+GET /scim/v2/Schemas
+// Returns: Supported SCIM schemas
+
+// 4. User Resource Endpoints
+POST   /scim/v2/Users              // Create user
+GET    /scim/v2/Users              // List users (with filtering)
+GET    /scim/v2/Users/:id          // Get specific user
+PUT    /scim/v2/Users/:id          // Replace user (full update)
+PATCH  /scim/v2/Users/:id          // Partial update user
+DELETE /scim/v2/Users/:id          // Deactivate user (soft delete)
+
+// 5. Group Resource Endpoints
+POST   /scim/v2/Groups             // Create group
+GET    /scim/v2/Groups             // List groups
+GET    /scim/v2/Groups/:id         // Get specific group
+PUT    /scim/v2/Groups/:id         // Replace group
+PATCH  /scim/v2/Groups/:id         // Partial update group
+DELETE /scim/v2/Groups/:id         // Delete group
+
+// 6. Bulk Operations (Optional but recommended)
+POST   /scim/v2/Bulk               // Batch operations
+```
+
+#### Step 3: SCIM User Schema (RFC 7643)
+
+```typescript
+// Core User Schema
+interface SCIMUser {
+  schemas: string[];  // ["urn:ietf:params:scim:schemas:core:2.0:User"]
+  id: string;         // Unique identifier (immutable)
+  externalId?: string; // IdP identifier
+  
+  // Required fields
+  userName: string;    // Unique, primary identifier (email)
+  
+  // Name object
+  name?: {
+    formatted?: string;      // "Ms. Barbara J Jensen III"
+    familyName?: string;     // "Jensen"
+    givenName?: string;      // "Barbara"
+    middleName?: string;     // "Jane"
+    honorificPrefix?: string; // "Ms."
+    honorificSuffix?: string; // "III"
+  };
+  
+  // Display name
+  displayName?: string;
+  
+  // Email addresses (multi-valued)
+  emails?: Array<{
+    value: string;
+    type?: 'work' | 'home' | 'other';
+    primary?: boolean;
+  }>;
+  
+  // Phone numbers (multi-valued)
+  phoneNumbers?: Array<{
+    value: string;
+    type?: 'work' | 'home' | 'mobile' | 'fax' | 'pager' | 'other';
+    primary?: boolean;
+  }>;
+  
+  // Status
+  active: boolean;  // true = active, false = deactivated
+  
+  // Groups membership (read-only, managed via Groups)
+  groups?: Array<{
+    value: string;      // Group ID
+    $ref: string;       // Group resource URL
+    display?: string;   // Group display name
+  }>;
+  
+  // Metadata (read-only)
+  meta?: {
+    resourceType: 'User';
+    created?: string;      // ISO 8601 datetime
+    lastModified?: string; // ISO 8601 datetime
+    location?: string;     // Resource URL
+    version?: string;      // ETag
+  };
+}
+
+// Example SCIM User Response
 {
   "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
-  "id": "user-id",
-  "userName": "user@company.com",
+  "id": "2819c223-7f76-453a-919d-413861904646",
+  "externalId": "bjensen",
+  "userName": "bjensen@example.com",
   "name": {
-    "givenName": "John",
-    "familyName": "Doe"
+    "formatted": "Ms. Barbara J Jensen III",
+    "familyName": "Jensen",
+    "givenName": "Barbara",
+    "middleName": "Jane"
   },
-  "emails": [{"value": "user@company.com", "primary": true}],
+  "displayName": "Barbara Jensen",
+  "emails": [
+    {
+      "value": "bjensen@example.com",
+      "type": "work",
+      "primary": true
+    }
+  ],
   "active": true,
-  "groups": ["admin", "editors"]
+  "groups": [
+    {
+      "value": "e9e30dba-f08f-4109-8486-d5c6a331660a",
+      "$ref": "https://example.com/scim/v2/Groups/e9e30dba",
+      "display": "Admins"
+    }
+  ],
+  "meta": {
+    "resourceType": "User",
+    "created": "2026-01-15T19:32:45.000Z",
+    "lastModified": "2026-01-17T12:45:30.000Z",
+    "location": "https://example.com/scim/v2/Users/2819c223",
+    "version": "W/\"a330bc54f0671c9\""
+  }
+}
+```
+
+#### Step 4: SCIM Group Schema
+
+```typescript
+// Core Group Schema
+interface SCIMGroup {
+  schemas: string[];  // ["urn:ietf:params:scim:schemas:core:2.0:Group"]
+  id: string;
+  displayName: string;  // Required
+  
+  // Group members (multi-valued)
+  members?: Array<{
+    value: string;      // User or Group ID
+    $ref: string;       // Resource URL
+    type?: 'User' | 'Group';
+    display?: string;   // Member display name
+  }>;
+  
+  meta?: {
+    resourceType: 'Group';
+    created?: string;
+    lastModified?: string;
+    location?: string;
+  };
+}
+```
+
+#### Step 5: Filtering Support (RFC 7644 Section 3.4.2)
+
+```typescript
+// SCIM Filter Syntax Examples
+GET /scim/v2/Users?filter=userName eq "bjensen@example.com"
+GET /scim/v2/Users?filter=active eq true
+GET /scim/v2/Users?filter=emails.value co "@example.com"
+GET /scim/v2/Users?filter=name.familyName eq "Jensen" and active eq true
+GET /scim/v2/Groups?filter=displayName sw "Admin"
+
+// Supported Filter Operators
+- eq  : Equal
+- ne  : Not equal
+- co  : Contains
+- sw  : Starts with
+- ew  : Ends with
+- pr  : Present (has value)
+- gt  : Greater than
+- ge  : Greater than or equal
+- lt  : Less than
+- le  : Less than or equal
+- and : Logical AND
+- or  : Logical OR
+- not : Logical NOT
+
+// Pagination
+GET /scim/v2/Users?startIndex=1&count=100
+
+// Sorting
+GET /scim/v2/Users?sortBy=userName&sortOrder=ascending
+
+// Attribute Selection
+GET /scim/v2/Users?attributes=userName,emails,name
+GET /scim/v2/Users?excludedAttributes=groups,meta
+```
+
+#### Step 6: PATCH Operations (RFC 7644 Section 3.5.2)
+
+```typescript
+// PATCH Request Format
+PATCH /scim/v2/Users/2819c223
+{
+  "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+  "Operations": [
+    // Add operation
+    {
+      "op": "add",
+      "path": "emails",
+      "value": {
+        "value": "new@example.com",
+        "type": "work"
+      }
+    },
+    // Replace operation
+    {
+      "op": "replace",
+      "path": "active",
+      "value": false
+    },
+    // Remove operation
+    {
+      "op": "remove",
+      "path": "phoneNumbers[type eq \"mobile\"]"
+    }
+  ]
+}
+```
+
+#### Step 7: Error Handling (RFC 7644 Section 3.12)
+
+```typescript
+// SCIM Error Response Format
+interface SCIMError {
+  schemas: ["urn:ietf:params:scim:api:messages:2.0:Error"];
+  status: string;      // HTTP status code as string
+  scimType?: string;   // Specific error type
+  detail?: string;     // Human-readable description
+}
+
+// Common SCIM Error Types
+- invalidFilter    : Invalid filter syntax
+- tooMany          : Too many results
+- uniqueness       : Uniqueness constraint violation
+- mutability       : Attempt to modify immutable attribute
+- invalidSyntax    : Invalid request syntax
+- invalidPath      : Invalid path in PATCH operation
+- noTarget         : Target resource not found
+- invalidValue     : Invalid attribute value
+- invalidVers      : Invalid version (ETag mismatch)
+- sensitive        : Cannot return sensitive data
+
+// Example Error Response
+{
+  "schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
+  "status": "409",
+  "scimType": "uniqueness",
+  "detail": "User with userName 'bjensen@example.com' already exists"
+}
+```
+
+#### Step 8: Authentication & Authorization
+
+```typescript
+// SCIM Endpoint Security
+// Recommended: Bearer Token Authentication
+Authorization: Bearer {scim_token}
+
+// Generate SCIM tokens per tenant/IdP
+interface SCIMToken {
+  tenantId: string;
+  idpId: string;           // Okta, Azure AD, etc.
+  token: string;           // Unique bearer token
+  permissions: string[];   // ['scim.users.read', 'scim.users.write', etc.]
+  createdAt: Date;
+  expiresAt?: Date;
+}
+
+// Validate token on every SCIM request
+async function authenticateSCIMRequest(req: Request): Promise<SCIMToken> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    throw new SCIMError(401, 'unauthorized', 'Missing or invalid authorization header');
+  }
+  
+  const token = authHeader.substring(7);
+  const scimToken = await validateSCIMToken(token);
+  
+  if (!scimToken) {
+    throw new SCIMError(401, 'unauthorized', 'Invalid SCIM token');
+  }
+  
+  return scimToken;
+}
+```
+
+#### Step 9: Implementation Structure
+
+```typescript
+// File structure for SCIM implementation
+apps/cms/src/routes/scim/v2/
+├── ServiceProviderConfig/+server.ts
+├── ResourceTypes/+server.ts
+├── Schemas/+server.ts
+├── Users/
+│   ├── +server.ts              // POST, GET (list)
+│   └── [id]/+server.ts         // GET, PUT, PATCH, DELETE
+├── Groups/
+│   ├── +server.ts
+│   └── [id]/+server.ts
+└── Bulk/+server.ts
+
+shared/scim/
+├── schemas.ts                   // SCIM schema definitions
+├── filters.ts                   // Filter parser and executor
+├── patches.ts                   // PATCH operation handler
+├── validators.ts                // Schema validation
+├── errors.ts                    // SCIM error responses
+└── mapper.ts                    // Map SveltyCMS users ↔ SCIM users
+```
+
+#### Step 10: Database Mapping
+
+```typescript
+// Map SveltyCMS User to SCIM User
+function toSCIMUser(cmsUser: User): SCIMUser {
+  return {
+    schemas: ["urn:ietf:params:scim:schemas:core:2.0:User"],
+    id: cmsUser._id,
+    externalId: cmsUser.externalId,
+    userName: cmsUser.email,
+    name: {
+      givenName: cmsUser.firstName,
+      familyName: cmsUser.lastName,
+      formatted: `${cmsUser.firstName} ${cmsUser.lastName}`
+    },
+    displayName: cmsUser.displayName || `${cmsUser.firstName} ${cmsUser.lastName}`,
+    emails: [{
+      value: cmsUser.email,
+      type: 'work',
+      primary: true
+    }],
+    active: cmsUser.active,
+    groups: cmsUser.roles.map(role => ({
+      value: role.id,
+      $ref: `${baseUrl}/scim/v2/Groups/${role.id}`,
+      display: role.name
+    })),
+    meta: {
+      resourceType: 'User',
+      created: cmsUser.createdAt.toISOString(),
+      lastModified: cmsUser.updatedAt.toISOString(),
+      location: `${baseUrl}/scim/v2/Users/${cmsUser._id}`,
+      version: `W/"${cmsUser.version}"`
+    }
+  };
+}
+
+// Map SCIM User to SveltyCMS User
+function fromSCIMUser(scimUser: Partial<SCIMUser>): Partial<User> {
+  return {
+    email: scimUser.userName,
+    firstName: scimUser.name?.givenName,
+    lastName: scimUser.name?.familyName,
+    displayName: scimUser.displayName,
+    active: scimUser.active,
+    externalId: scimUser.externalId
+  };
 }
 ```
 
@@ -161,8 +513,23 @@ GET    /scim/v2/Groups          // List groups
 - ✅ Reduced security risk (immediate deactivation on termination)
 - ✅ Compliance automation
 - ✅ Integration with HR systems (Workday, BambooHR)
+- ✅ Standards-compliant (RFC 7643, RFC 7644)
+- ✅ Works with all major IdPs (Okta, Azure AD, OneLogin, Google Workspace)
 
-**Timeline:** 3-4 weeks for SCIM core endpoints and IdP integrations
+**Timeline:** 3-4 weeks for complete SCIM 2.0 implementation with all IdP integrations
+
+**Testing Checklist:**
+- [ ] User provisioning (create)
+- [ ] User deprovisioning (soft delete via active=false)
+- [ ] User updates (full and partial)
+- [ ] Group creation and membership management
+- [ ] Filtering with complex queries
+- [ ] Pagination and sorting
+- [ ] PATCH operations (add, replace, remove)
+- [ ] Error handling for all edge cases
+- [ ] Integration testing with Okta
+- [ ] Integration testing with Azure AD
+- [ ] Integration testing with OneLogin
 
 ### 3. Comprehensive Audit Logging & Compliance ⭐⭐⭐ **CRITICAL**
 **Current State:** Basic application logging  
