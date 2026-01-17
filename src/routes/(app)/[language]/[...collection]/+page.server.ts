@@ -328,7 +328,56 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		}
 
 		// =================================================================
-		// 6. LOAD REVISIONS (for Fields.svelte) - Direct Import
+		// 6. PLUGIN SSR HOOKS: Enrich entries with plugin data
+		// =================================================================
+		let pluginData: Record<string, any> = {};
+		if (!editEntryId && entries.length > 0) {
+			try {
+				const { pluginRegistry } = await import('@src/plugins');
+				const hooks = pluginRegistry.getSSRHooks(currentCollection._id as string);
+				
+				if (hooks.length > 0) {
+					logger.debug('Running plugin SSR hooks', {
+						collectionId: currentCollection._id,
+						hooksCount: hooks.length,
+						entriesCount: entries.length
+					});
+					
+					const pluginContext = {
+						user: typedUser,
+						tenantId,
+						language,
+						dbAdapter,
+						collectionSchema: currentCollection
+					};
+					
+					// Run all plugin hooks and collect their data
+					const allPluginData = await Promise.all(
+						hooks.map((hook) => hook(pluginContext, entries))
+					);
+					
+					// Merge plugin data by entry ID
+					for (const hookData of allPluginData) {
+						for (const entryData of hookData) {
+							if (!pluginData[entryData.entryId]) {
+								pluginData[entryData.entryId] = {};
+							}
+							Object.assign(pluginData[entryData.entryId], entryData.data);
+						}
+					}
+					
+					logger.debug('Plugin SSR hooks completed', {
+						entriesWithData: Object.keys(pluginData).length
+					});
+				}
+			} catch (err) {
+				logger.warn('Failed to run plugin SSR hooks', { error: err });
+				// Don't fail page load if plugins fail
+			}
+		}
+
+		// =================================================================
+		// 7. LOAD REVISIONS (for Fields.svelte) - Direct Import
 		// =================================================================
 		let revisionsMeta = [];
 		// Only load revisions if we're in edit mode and have an entry ID
@@ -354,7 +403,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		}
 
 		// =================================================================
-		// 7. PREPARE FINAL DATA & SET CACHE
+		// 8. PREPARE FINAL DATA & SET CACHE
 		// =================================================================
 
 		// Strip all non-serializable data (functions, circular refs, etc.) from collection schema
@@ -384,7 +433,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 				currentPage: page,
 				pageSize: pageSize
 			},
-			revisions: revisionsMeta || []
+			revisions: revisionsMeta || [],
+			pluginData: pluginData || {} // Plugin-enriched data keyed by entryId
 		};
 
 		// Cache with TTL (5 minutes for dynamic content)

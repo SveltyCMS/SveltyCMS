@@ -706,6 +706,23 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			throw cmError;
 		}
 
+		// Step 7: Initialize Plugin System
+		logger.debug('Starting Step 7: Plugin system initialization...');
+		try {
+			updateServiceHealth('plugins', 'initializing', 'Initializing plugin system...');
+			
+			const { initializePlugins } = await import('@src/plugins');
+			const tenantId = privateConfig?.MULTI_TENANT ? 'default' : 'default';
+			await initializePlugins(dbAdapter, tenantId);
+			
+			updateServiceHealth('plugins', 'healthy', 'Plugin system initialized');
+			logger.info('Step 7: Plugin system initialized.');
+		} catch (pluginError) {
+			// Log but don't fail system initialization if plugins fail
+			logger.warn('Plugin system initialization failed (non-critical):', pluginError);
+			updateServiceHealth('plugins', 'degraded', 'Plugin system initialization failed');
+		}
+
 		// --- Demo Mode Cleanup Service ---
 		if (privateConfig?.DEMO) {
 			import('@src/utils/demoCleanup').then(({ cleanupExpiredDemoTenants }) => {
