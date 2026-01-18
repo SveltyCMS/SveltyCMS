@@ -10,8 +10,9 @@
  */
 
 import { describe, it, expect } from 'bun:test';
-import { buildDatabaseConnectionString } from '@setup/routes/api/utils';
-import { classifyDatabaseError } from '@setup/routes/api/errorClassifier';
+// Use relative imports since Bun test runner doesn't resolve @setup alias
+import { buildDatabaseConnectionString } from '../../../apps/setup/src/routes/api/utils';
+import { classifyDatabaseError } from '../../../apps/setup/src/routes/api/errorClassifier';
 import type { DatabaseConfig } from '@shared/database/schemas';
 
 describe('Setup Utils - Connection String Builder', () => {

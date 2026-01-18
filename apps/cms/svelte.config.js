@@ -6,7 +6,6 @@
  */
 
 import { getBaseSvelteConfig } from '../../svelte.config.base.js';
-import { enhancedImages } from '@sveltejs/enhanced-img';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 /** @type {import('@sveltejs/kit').Config} */
@@ -51,7 +50,7 @@ const config = getBaseSvelteConfig({
 	}
 });
 
-// Add CMS-specific preprocessing (enhanced images)
-config.preprocess = [enhancedImages(), vitePreprocess()];
+// Add CMS-specific preprocessing
+config.preprocess = [vitePreprocess()];
 
 export default config;

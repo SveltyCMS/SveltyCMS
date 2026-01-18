@@ -16,8 +16,8 @@ import { createWidget } from '@widgets/widgetFactory';
 import { custom, literal, maxLength, object, optional, pipe, regex, string, transform, union, url, type InferInput as ValibotInput } from 'valibot';
 
 // Import components needed for the GuiSchema
-import Input from '@cms/components/system/inputs/Input.svelte';
-import Toggles from '@cms/components/system/inputs/Toggles.svelte';
+import Input from '@shared/components/system/inputs/Input.svelte';
+import Toggles from '@shared/components/system/inputs/Toggles.svelte';
 
 // SECURITY: Escape HTML entities to prevent meta tag injection
 const escapeHtml = (str: string): string => {

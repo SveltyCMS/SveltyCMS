@@ -6,7 +6,7 @@ order: 1
 icon: 'mdi:test-tube'
 author: 'admin'
 created: '2025-11-08'
-updated: '2025-11-21'
+updated: '2026-01-18'
 tags:
   - 'testing'
   - 'documentation'
@@ -18,19 +18,25 @@ tags:
 
 # SveltyCMS Testing Documentation
 
-**Last Updated:** January 14, 2026
-**Total Tests:** ~615
-**Pass Rate:** ~65% (403 passing, 212 failing, 0 skipped)
+**Last Updated:** January 18, 2026
+**Total Tests:** ~295 (Unit: 245, Integration: ~40, E2E: ~10)
+**Pass Rate:** ~100% for unit tests
 
-## Why Multiple Test Documentation Files?
+## Quick Links
 
-This testing documentation is organized into 12 specialized files for easy navigation and maintenance:
+- 📚 **[Testing Strategy](./testing-strategy.mdx)** — When to use unit, integration, and E2E tests
+- 📊 **[Test Status](./test-status.mdx)** — Current pass rates and known issues
+- 🔌 **[API Coverage](./api-test-coverage.mdx)** — API endpoint test coverage
 
-- **By Test Type**: Unit, Integration, E2E
-- **By Coverage Area**: APIs, Hooks, Stores, Widgets, Utilities
-- **By Purpose**: Status reports, workflow guides, coverage reports
+## Documentation Organization
 
-This structure allows developers to quickly find relevant testing information without wading through a single massive document.
+Testing docs are organized by purpose:
+
+| Category                | Files                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| **Strategy & Overview** | `testing-strategy.mdx`, `index.mdx`                                            |
+| **Coverage Reports**    | `api-test-coverage.mdx`, `hook-test-coverage.mdx`, `utility-test-coverage.mdx` |
+| **Guides**              | `e2e-testing-guide.mdx`, `database-tests.mdx`, `git-workflow.mdx`              |
 
 ---
 
@@ -90,7 +96,7 @@ SveltyCMS uses two complementary test frameworks to ensure comprehensive quality
 
 All tests run automatically in CI/CD via GitHub Actions:
 
-**Workflow**: `.github/workflows/playwright.yml`
+**Workflow**: `.github/workflows/ci.yml`
 
 ```yaml
 jobs:
@@ -111,6 +117,16 @@ jobs:
       - Run Bun integration tests (~225 tests)
       - Execution time: ~15 seconds
 
+  integration-tests-mariadb:
+    runs-on: ubuntu-latest
+    services:
+      mariadb: # MariaDB 11 service container
+    steps:
+      - Clean config directory
+      - Start dev server
+      - Run Drizzle ORM integration tests
+      - Execution time: ~15 seconds
+
   e2e-tests:
     runs-on: ubuntu-latest
     services:
@@ -121,6 +137,17 @@ jobs:
       - Start dev server
       - Seed test database
       - Run Playwright E2E tests (~40 tests)
+      - Execution time: ~60 seconds
+
+  e2e-tests-mariadb:
+    runs-on: ubuntu-latest
+    services:
+      mariadb: # MariaDB 11 service container
+    steps:
+      - Clean config directory
+      - Install Playwright browsers
+      - Start dev server
+      - Run Playwright E2E tests with Drizzle ORM
       - Execution time: ~60 seconds
 ```
 
@@ -133,18 +160,19 @@ jobs:
 - **On Push to main/next**: Full test suite + release checks
 - **Manual Trigger**: Via `workflow_dispatch`
 
-### Future: Multi-Database Matrix Testing
+### Multi-Database Testing (Active)
 
 > [!NOTE]
-> **Coming Soon**: Parallel testing against multiple databases
+> **Currently Running**: Tests execute in parallel against multiple databases
 >
-> ```yaml
-> strategy:
->   matrix:
->     database: [mongodb, postgresql, mariadb, mysql]
-> ```
+> **Supported Databases**:
 >
-> This will ensure SveltyCMS works correctly with all supported databases via Drizzle ORM.
+> - ✅ **MongoDB** - Native adapter (integration + E2E)
+> - ✅ **MariaDB** - Drizzle ORM (integration + E2E)
+> - 🚧 **PostgreSQL** - Drizzle ORM (planned)
+> - 🚧 **MySQL** - Drizzle ORM (planned)
+>
+> This ensures SveltyCMS works correctly with all supported databases.
 
 ---
 

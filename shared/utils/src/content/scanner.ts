@@ -74,13 +74,29 @@ function extractCollectionPath(fullPath: string, baseDir: string): string {
 export async function scanCompiledCollections(): Promise<Schema[]> {
 	const envDir = process.env.COLLECTIONS_DIR || process.env.COLLECTIONS_FOLDER || import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
 
-	// Resolve to absolute path to ensure we look in the project root
-	const compiledDirectoryPath = path.resolve(process.cwd(), envDir);
+	// Resolve to absolute path - start with current working directory
+	let compiledDirectoryPath = path.resolve(process.cwd(), envDir);
 
+	// Check if directory exists
+	let exists = false;
 	try {
 		await fs.access(compiledDirectoryPath);
+		exists = true;
 	} catch {
-		logger.trace(`Compiled collections directory not found at: ${compiledDirectoryPath}. Assuming fresh start.`);
+		// If not found in CWD, check if we are in an app directory (monorepo) and valid path exists at root
+		const rootPath = path.resolve(process.cwd(), '../../', envDir);
+		try {
+			await fs.access(rootPath);
+			logger.info(`Found compiled collections at workspace root: ${rootPath}`);
+			compiledDirectoryPath = rootPath;
+			exists = true;
+		} catch {
+			// Still not found
+		}
+	}
+
+	if (!exists) {
+		logger.trace(`Compiled collections directory not found at: ${compiledDirectoryPath} or workspace root. Assuming fresh start.`);
 		return [];
 	}
 
