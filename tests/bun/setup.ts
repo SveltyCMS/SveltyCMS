@@ -47,8 +47,9 @@ import { mock } from 'bun:test';
 // =============================================================================
 
 // Mock $app/environment
+// NOTE: browser: false allows server-side modules (argon2, crypto) to load
 mock.module('$app/environment', () => ({
-	browser: true,
+	browser: false, // Changed from true to allow crypto modules to load
 	building: false,
 	dev: true,
 	version: 'test'

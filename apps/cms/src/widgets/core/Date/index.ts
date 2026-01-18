@@ -18,10 +18,10 @@
  */
 
 // Components needed for the GuiSchema
-import IconifyPicker from '@cms/components/IconifyPicker.svelte';
-import PermissionsSetting from '@cms/components/PermissionsSetting.svelte';
-import Input from '@cms/components/system/inputs/Input.svelte';
-import Toggles from '@cms/components/system/inputs/Toggles.svelte';
+import IconifyPicker from '@shared/components/IconifyPicker.svelte';
+import PermissionsSetting from '@shared/components/PermissionsSetting.svelte';
+import Input from '@shared/components/system/inputs/Input.svelte';
+import Toggles from '@shared/components/system/inputs/Toggles.svelte';
 
 import { createWidget } from '@widgets/widgetFactory';
 

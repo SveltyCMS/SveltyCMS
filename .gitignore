@@ -29,25 +29,18 @@ logs/*
 /data.json
 .node-version
 
-# Ensure src/utils/media and its contents are not ignored
-!src/utils/media/
-!src/utils/media/*.ts
-
 # Debug Logs
 npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+bun-debug.log*
 
 # Testing & Build
 /test-results/
 /playwright-report/
 /playwright/.cache/
 /error-screenshot.png
-
-# Rust
-/indexes
-/*.bin
 
 # Paraglide.js
 src/paraglide/**/*.js
@@ -58,8 +51,12 @@ src/paraglide/**/*.js
 # Workspace Artifacts
 dist/
 apps/*/dist
+apps/*/build
 shared/*/dist
 
 # SvelteKit per-app
-apps/setup/.svelte-kit
-apps/cms/.svelte-kit
+apps/**/.svelte-kit
+apps/**/build
+apps/**/logs
+apps/**/mediaFolder
+apps/**/trash

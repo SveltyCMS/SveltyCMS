@@ -437,9 +437,23 @@ async function initializeThemeManager(): Promise<void> {
 // Initialize the media folder
 async function initializeMediaFolder(): Promise<void> {
 	// During setup, MEDIA_FOLDER might not be loaded yet, so use fallback
-	const mediaFolderPath = (await getPublicSetting('MEDIA_FOLDER')) || './mediaFolder';
+	let mediaFolderPath = (await getPublicSetting('MEDIA_FOLDER')) || 'mediaFolder';
 	if (building) return;
+
 	const fs = await import('node:fs/promises');
+	const path = await import('node:path');
+
+	// Resolve relative paths to project root (not current working directory)
+	// This ensures mediaFolder is created in project root regardless of which Nx app is running
+	if (!path.isAbsolute(mediaFolderPath)) {
+		// Use import.meta.url to get the location of this file, then navigate to project root
+		const currentFileUrl = import.meta.url;
+		const currentFilePath = new URL(currentFileUrl).pathname;
+		// This file is at: shared/database/src/db.ts - go up 4 levels to reach project root
+		const projectRoot = path.resolve(path.dirname(currentFilePath), '../../../..');
+		mediaFolderPath = path.join(projectRoot, mediaFolderPath);
+	}
+
 	try {
 		// Fast stat() check, skip debug logging overhead
 		await fs.stat(mediaFolderPath);

@@ -3,24 +3,32 @@
 	"$schema": "../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "apps/setup/src",
 	"projectType": "application",
-	"tags": ["app:setup", "scope:public"],
+	"tags": [
+		"app:setup",
+		"scope:public"
+	],
 	"targets": {
 		"dev": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "vite dev --port 5173 --strictPort",
+				"command": "svelte-kit sync && vite dev --port 5173",
 				"cwd": "apps/setup",
 				"color": true
 			}
 		},
 		"build": {
 			"executor": "nx:run-commands",
-			"dependsOn": ["^build"],
+			"dependsOn": [
+				"^build"
+			],
 			"options": {
 				"command": "vite build",
 				"cwd": "apps/setup"
 			},
-			"outputs": ["{projectRoot}/build", "{projectRoot}/.svelte-kit"],
+			"outputs": [
+				"{projectRoot}/build",
+				"{projectRoot}/.svelte-kit"
+			],
 			"configurations": {
 				"production": {
 					"command": "NODE_ENV=production vite build"
@@ -29,7 +37,9 @@
 		},
 		"preview": {
 			"executor": "nx:run-commands",
-			"dependsOn": ["build"],
+			"dependsOn": [
+				"build"
+			],
 			"options": {
 				"command": "vite preview --port 4173",
 				"cwd": "apps/setup"

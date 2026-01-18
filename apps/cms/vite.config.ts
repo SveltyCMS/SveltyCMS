@@ -175,7 +175,7 @@ function cmsWatcherPlugin(): Plugin {
 				try {
 					const widgetStorePath = path.resolve(WORKSPACE_ROOT, 'shared/stores/src/widgetStore.svelte.ts');
 					const { widgetStoreActions } = await server.ssrLoadModule(widgetStorePath);
-					await widgetStoreActions.reloadWidgets();
+					await widgetStoreActions.reload();
 					server.ws.send({ type: 'full-reload', path: '*' });
 					log.success('Widgets reloaded and client updated.');
 				} catch (err) {

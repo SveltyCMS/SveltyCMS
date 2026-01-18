@@ -9,7 +9,7 @@
 -->
 
 <script lang="ts">
-	import FloatingInput from '@cms/components/system/inputs/floatingInput.svelte';
+	import FloatingInput from '@shared/components/system/inputs/floatingInput.svelte';
 	import type { Editor } from '@tiptap/core';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';

@@ -22,7 +22,7 @@ Interactive level configuration with add/remove level capabilities
 -->
 
 <script lang="ts">
-	import WidgetBuilder from '@cms/components/system/builder/WidgetBuilder.svelte';
+	import WidgetBuilder from '@shared/components/system/builder/WidgetBuilder.svelte';
 	import type { FieldInstance } from '@cms-types';
 
 	let { value = $bindable([]) }: { value: FieldInstance[][] } = $props();
