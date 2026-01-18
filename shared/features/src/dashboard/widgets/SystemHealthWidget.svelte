@@ -127,7 +127,7 @@
 			case 'unhealthy':
 				return 'preset-filled-error-500';
 			case 'initializing':
-				return 'variant-filled-warning';
+				return 'preset-filled-warning-500';
 			default:
 				return 'preset-filled-surface-500';
 		}

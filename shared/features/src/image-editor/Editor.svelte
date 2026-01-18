@@ -35,7 +35,7 @@ Comprehensive image editing interface with Konva.js integration.
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { logger } from '@shared/utils/logger';
-	import { imageEditorStore } from '@shared/stores/imageEditorStore.svelte';
+	import { imageEditorStore } from '@cms/stores/imageEditorStore.svelte';
 
 	import EditorSidebar from './EditorSidebar.svelte';
 	import EditorCanvas from './EditorCanvas.svelte';

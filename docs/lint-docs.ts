@@ -80,7 +80,7 @@ function* walk(dir: string): Generator<string> {
 }
 
 // --- run validation ---
-const SCAN_DIRS = [path.resolve('./src/widgets'), path.resolve('./docs')];
+const SCAN_DIRS = [path.resolve('./apps/cms/src/widgets'), path.resolve('./docs')];
 const PROJECT_ROOT = path.resolve('.');
 let totalFiles = 0;
 let validFiles = 0;

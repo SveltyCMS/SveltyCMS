@@ -12,7 +12,7 @@ Allows users to set the focal point of an image with rule of thirds grid overlay
 
 <script lang="ts">
 	import Konva from 'konva';
-	import { imageEditorStore } from '@shared/stores/imageEditorStore.svelte';
+	import { imageEditorStore } from '@cms/stores/imageEditorStore.svelte';
 	import FocalPointControls from './Controls.svelte';
 
 	// --- Svelte 5 State ---

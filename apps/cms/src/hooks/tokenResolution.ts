@@ -44,18 +44,51 @@ export const handleTokenResolution: Handle = async ({ event, resolve }) => {
 
 		// Process tokens with RBAC context
 		// We use event.locals which are populated by handleAuthentication and handleAuthorization
-		const processed = await processTokensInResponse(body, event.locals.user || undefined, (event.locals as any).contentLanguage || 'en', {
-			tenantId: (event.locals as any).tenantId,
-			roles: (event.locals as any).roles
-			// Add collection context if available in locals (optional optimization)
-			// collection: event.locals.collection
-		});
+		// Check if this is a collection list response (has items array)
+		if (body && Array.isArray((body as any).items)) {
+			const items = (body as any).items as any[];
+			const contextBase = {
+				tenantId: (event.locals as any).tenantId,
+				roles: (event.locals as any).roles
+			};
+
+			// Process each item individually to provide self-reference context
+			const processedItems = await Promise.all(
+				items.map((item) =>
+					processTokensInResponse(item, event.locals.user || undefined, (event.locals as any).contentLanguage || 'en', {
+						...contextBase,
+						entry: item // Inject self as entry context
+					})
+				)
+			);
+
+			// Reassign processed items to body
+			(body as any).items = processedItems;
+
+			// Process other top-level properties (like total, facets) without entry context
+			// We can skip deep processing of items since we just did it
+			// But for safety/completeness, we could process the rest excluding items?
+			// Assuming other fields don't need entry context, we can just process them or leave them?
+			// Let's just return the modifed body.
+			var processed = body;
+		} else {
+			// Standard processing for single entry or other objects
+			var processed = await processTokensInResponse(body, event.locals.user || undefined, (event.locals as any).contentLanguage || 'en', {
+				tenantId: (event.locals as any).tenantId,
+				roles: (event.locals as any).roles
+			});
+		}
 
 		// Return new response with processed body
+		// CRITICAL Fix: Remove content-length/encoding headers to prevent mismatches
+		const newHeaders = new Headers(response.headers);
+		newHeaders.delete('content-length');
+		newHeaders.delete('content-encoding');
+
 		return new Response(JSON.stringify(processed), {
 			status: response.status,
 			statusText: response.statusText,
-			headers: response.headers
+			headers: newHeaders
 		});
 	} catch (error) {
 		logger.error('Token resolution middleware failed', {

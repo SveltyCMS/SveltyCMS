@@ -16,7 +16,8 @@
 import { redirect, json, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { readdirSync } from 'fs';
-import { join } from 'path';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 
 // System Logger
@@ -69,7 +70,10 @@ async function discoverWidgets(): Promise<WidgetInfo[]> {
 	}
 
 	try {
-		const widgetsPath = join(process.cwd(), 'shared/features/src/dashboard/widgets');
+		// Resolve path relative to this file to ensure it works regardless of CWD
+		const currentDir = dirname(fileURLToPath(import.meta.url));
+		// Path: apps/cms/src/routes/dashboard -> ../../../../../shared/features/src/dashboard/widgets
+		const widgetsPath = resolve(currentDir, '../../../../../../shared/features/src/dashboard/widgets');
 		const files = readdirSync(widgetsPath, { withFileTypes: true });
 
 		const widgetPromises = files

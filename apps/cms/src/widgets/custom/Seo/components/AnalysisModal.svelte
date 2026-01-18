@@ -138,7 +138,7 @@ Displays detailed SEO analysis results in a modal overlay.
 											class="badge {suggestion.type === 'error'
 												? 'preset-filled-error-500'
 												: suggestion.type === 'warning'
-													? 'variant-filled-warning'
+													? 'preset-filled-warning-500'
 													: 'preset-filled-primary-500'} uppercase text-[10px]"
 										>
 											{suggestion.type}
@@ -148,7 +148,7 @@ Displays detailed SEO analysis results in a modal overlay.
 							{/each}
 						</div>
 					{:else}
-						<div class="alert variant-soft-success">
+						<div class="alert preset-tonal-success-500">
 							<iconify-icon icon="mdi:check-circle" class="text-2xl mr-2"></iconify-icon>
 							<span>Great job! No specific issues found.</span>
 						</div>

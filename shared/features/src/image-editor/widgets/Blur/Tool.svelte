@@ -6,7 +6,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 -->
 <script lang="ts">
 	import Konva from 'konva';
-	import { imageEditorStore } from '@shared/stores/imageEditorStore.svelte';
+	import { imageEditorStore } from '@cms/stores/imageEditorStore.svelte';
 	import Controls from './Controls.svelte';
 	import { BlurRegion, type RegionInit, type BlurPattern, type BlurShape } from './regions';
 

@@ -306,7 +306,7 @@
 <!-- Toolbar -->
 <div class="mb-4 flex flex-wrap items-center gap-2">
 	<!-- Search Input -->
-	<div class="relative flex-1 min-w-[200px]">
+	<div class="relative flex-1 min-w-[160px]">
 		<iconify-icon icon="mdi:magnify" width="18" class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"></iconify-icon>
 		<input type="text" placeholder="Search collections..." bind:value={searchText} class="input w-full h-12 pl-10 pr-8 rounded shadow-sm" />
 		{#if searchText}
@@ -324,11 +324,11 @@
 	<!-- Expand/Collapse Buttons -->
 	<div class="flex gap-2">
 		<button type="button" onclick={expandAll} class="btn preset-tonal hover:preset-filled transition-all shadow-sm" title="Expand All">
-			<iconify-icon icon="mdi:unfold-more-horizontal" width="18"></iconify-icon>
+			<iconify-icon icon="mdi:unfold-more-horizontal" width="20"></iconify-icon>
 			<span class="hidden sm:inline ml-1">Expand All</span>
 		</button>
 		<button type="button" onclick={collapseAll} class="btn preset-tonal hover:preset-filled transition-all shadow-sm" title="Collapse All">
-			<iconify-icon icon="mdi:unfold-less-horizontal" width="18"></iconify-icon>
+			<iconify-icon icon="mdi:unfold-less-horizontal" width="20"></iconify-icon>
 			<span class="hidden sm:inline ml-1">Collapse All</span>
 		</button>
 	</div>
@@ -337,7 +337,7 @@
 <!-- Tree View with Drag and Drop -->
 <div class="collection-builder-tree relative w-full h-auto overflow-y-auto rounded p-2">
 	{#if hierarchicalData.length === 0}
-		<div class="text-center p-8 text-surface-500">
+		<div class="text-center p-8 text-surface-500 dark:text-surface-50">
 			{#if searchText}
 				<iconify-icon icon="mdi:magnify-close" width="48" class="opacity-50 mb-2"></iconify-icon>
 				<p>No results found for "{searchText}"</p>
@@ -379,7 +379,7 @@
 
 <!-- Recursive Tree Node Renderer -->
 {#snippet treeNode(item: EnhancedTreeViewItem, level: number)}
-	<div class="tree-node-container" style="margin-left: {level * 0.75}rem">
+	<div class="tree-node-container" style="margin-left: {level * 0.5}rem">
 		<!-- Render the node -->
 		<TreeViewNode
 			item={{ ...item, hasChildren: item.children && item.children.length > 0 }}
@@ -458,9 +458,9 @@
 
 	/* Tree Children Container */
 	.tree-children {
-		padding-left: 0.5rem;
+		padding-left: 0.25rem;
 		border-left: 2px solid rgb(var(--color-surface-300));
-		margin-left: 0.5rem;
+		margin-left: 0.25rem;
 		margin-top: 0.5rem;
 		min-height: 40px;
 		transition: all 0.2s ease;

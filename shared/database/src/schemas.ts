@@ -90,6 +90,12 @@ export const privateConfigSchema = object({
 	TWITCH_TOKEN: optional(pipe(string(), minLength(1))),
 	TIKTOK_TOKEN: optional(pipe(string(), minLength(1))),
 
+	// --- AI / LLM Configuration ---
+	USE_AI: optional(boolean()),
+	AI_PROVIDER: optional(union([literal('openai'), literal('anthropic'), literal('gemini'), literal('custom')])),
+	AI_API_KEY: optional(pipe(string(), minLength(1))),
+	AI_API_ENDPOINT: optional(pipe(string(), minLength(1))),
+
 	// --- Firewall Configuration ---
 	FIREWALL_ENABLED: optional(boolean()),
 	FIREWALL_ALLOWED_BOTS: optional(array(string())),
@@ -149,7 +155,10 @@ export const publicConfigSchema = object({
 
 	// --- Demo Mode ---
 	USE_GOOGLE_OAUTH: optional(boolean()),
-	DEMO: optional(boolean())
+	DEMO: optional(boolean()),
+
+	// --- Per-Locale Publishing ---
+	ENABLE_PER_LOCALE_PUBLISHING: optional(boolean())
 });
 
 export const websiteTokenSchema = object({

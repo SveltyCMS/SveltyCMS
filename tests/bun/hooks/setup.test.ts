@@ -79,7 +79,7 @@ describe('handleSetup Middleware', () => {
 		// Dynamic import to ensure mocks are applied
 		// We use a query param to force re-evaluation if possible, but Bun might not support it for local files easily.
 		// However, mock.module updates should be reflected in subsequent imports if the module wasn't fully cached or if Bun's test runner handles it.
-		const mod = await import('@setup/hooks/handleSetup');
+		const mod = await import('@setup/hooks.server');
 		handleSetup = mod.handleSetup;
 	});
 

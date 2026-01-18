@@ -18,7 +18,7 @@
 	import { app } from '@shared/stores/store.svelte';
 
 	// Components
-	import SiteName from '@shared/components/SiteName.svelte';
+	import SiteName from '@cms/components/SiteName.svelte';
 	import SveltyCMSLogo from '@cms/components/system/icons/SveltyCMS_Logo.svelte';
 
 	// ParaglideJS

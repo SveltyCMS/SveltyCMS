@@ -11,7 +11,7 @@ Features:
 -->
 
 <script lang="ts">
-	import SiteName from '@shared/components/SiteName.svelte';
+	import SiteName from '@cms/components/SiteName.svelte';
 	import * as m from '@shared/paraglide/messages';
 
 	// Props

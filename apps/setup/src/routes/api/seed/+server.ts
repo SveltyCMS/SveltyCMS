@@ -12,7 +12,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { logger } from '@shared/utils/logger.server';
-import { invalidateSetupCache } from '@shared/utils/setupCheck';
 import type { DatabaseConfig } from '@shared/database/schemas';
 
 export const POST: RequestHandler = async ({ request }) => {

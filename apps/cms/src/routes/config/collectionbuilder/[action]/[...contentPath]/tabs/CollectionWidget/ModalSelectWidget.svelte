@@ -6,7 +6,7 @@
 
 <script lang="ts">
 	// Modern widget system
-	import { widgets } from '@shared/stores/widgetStore.svelte';
+	import { widgets } from '@cms/stores/widgetStore.svelte';
 	import { logger } from '@shared/utils/logger';
 	import { onMount } from 'svelte';
 
@@ -16,9 +16,9 @@
 	// Props
 	interface Props {
 		/** Exposes parent props to this component. */
-		parent: any;
+		parent?: any;
 	}
-	const { parent }: Props = $props();
+	const { parent: _parent }: Props = $props();
 
 	// Define the search term variable
 	let searchTerm: string = $state('');
@@ -33,8 +33,10 @@
 
 	// We've created a custom submit function to pass the response and close the modal.
 	function onFormSubmit(selected: any): void {
+		console.log('[ModalSelectWidget] Widget selected:', selected);
 		if (selected !== null) {
 			// close the modal and pass response
+			console.log('[ModalSelectWidget] Closing modal with selectedWidget:', selected);
 			modalState.close({ selectedWidget: selected });
 		} else {
 			logger.error('No widget selected');
@@ -43,30 +45,18 @@
 
 	// Base Classes
 	const cBase = 'card p-6 w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl bg-white dark:bg-surface-800';
-	const cHeader = 'text-3xl font-bold text-center mb-6 text-surface-900 dark:text-white';
-
-	// Tooltip not needed with new card design showing description
 </script>
 
 {#if modalState.active}
 	<div class={cBase}>
-		<header class="flex items-center justify-between border-b border-surface-200 pb-4 dark:text-surface-50">
-			<h2 class={cHeader}>
-				{modalState.active?.props?.title || 'Select Widget'}
-			</h2>
-			<button class="btn-icon preset-outlined-surface-500" onclick={parent.onClose} aria-label="Close modal">
-				<iconify-icon icon="mdi:close" width="24"></iconify-icon>
-			</button>
-		</header>
-
 		<!-- Search -->
-		<div class="relative my-4">
+		<div class="relative mb-6">
 			<iconify-icon icon="mdi:magnify" width="24" class="absolute left-4 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
 			<input type="text" placeholder="Search widgets..." class="input h-12 w-full pl-12 text-lg" bind:value={searchTerm} />
 		</div>
 
 		<!-- Grid -->
-		<div class="flex-1 overflow-y-auto p-6">
+		<div class="flex-1 overflow-y-auto">
 			{#each ['Core', 'Custom', 'Marketplace'] as category}
 				{@const categoryKeys =
 					category === 'Core'
@@ -81,34 +71,33 @@
 
 				{#if filteredKeys.length > 0}
 					<div class="mb-8 last:mb-0">
-						<h3 class="mb-4 text-xl font-bold uppercase tracking-wider text-surface-500 dark:text-surface-50">
+						<h3 class="mb-2 text-center text-xl font-bold uppercase tracking-wider text-tertiary-500 dark:text-primary-500">
 							{category} Widgets
 						</h3>
-						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+						<div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 							{#each filteredKeys as item}
 								{#if item && (availableWidgets[item] as any)?.GuiSchema}
 									<button
 										onclick={() => onFormSubmit(item)}
-										class="group relative flex flex-col gap-3 rounded-xl border border-surface-200 bg-surface-50 p-5 text-left transition-all hover:-translate-y-1 hover:border-primary-500 hover:shadow-lg dark:text-surface-50 dark:bg-surface-800 dark:hover:border-primary-500"
+										class="group relative flex flex-col gap-3 rounded-xl border-2 border-surface-200 bg-surface-50 p-5 text-left transition-all hover:-translate-y-1 hover:border-tertiary-500 hover:shadow-lg dark:border-surface-400 dark:text-surface-50 dark:bg-surface-800 dark:hover:border-primary-500"
 										aria-label={item}
 									>
-										<div class="flex items-start justify-between w-full">
+										<!-- Icon and Title inline -->
+										<div class="flex items-center gap-3">
 											<div
-												class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-200 text-surface-600 transition-colors group-hover:bg-primary-500 group-hover:text-white dark:bg-surface-700 dark:text-surface-300"
+												class="flex items-center justify-center text-tertiary-500 transition-colors group-hover:text-white dark:text-primary-400 dark:group-hover:text-white"
 											>
-												<iconify-icon icon={availableWidgets[item]?.Icon} width="28"></iconify-icon>
+												<iconify-icon icon={availableWidgets[item]?.Icon} width="24"></iconify-icon>
 											</div>
-											<!-- Optional: Add specific badges here if metadata existed -->
-										</div>
-
-										<div>
-											<h3 class="text-lg font-bold text-surface-900 group-hover:text-primary-500 dark:text-white dark:group-hover:text-primary-400">
+											<h3 class="text-lg font-bold text-surface-900 group-hover:text-tertiary-500 dark:text-white dark:group-hover:text-primary-400">
 												{item}
 											</h3>
-											<p class="mt-1 line-clamp-2 text-xs text-surface-500 dark:text-surface-50">
-												{availableWidgets[item]?.Description || 'No description available'}
-											</p>
 										</div>
+
+										<!-- Description -->
+										<p class="line-clamp-2 text-xs text-surface-500 dark:text-surface-50">
+											{availableWidgets[item]?.Description || 'No description available'}
+										</p>
 									</button>
 								{/if}
 							{/each}

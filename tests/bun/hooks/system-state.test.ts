@@ -18,7 +18,7 @@ const mockIsSystemReady = mock(() => true);
 const mockDbInitPromise = Promise.resolve();
 
 // Mock the system store
-mock.module('@shared/stores/system', () => ({
+mock.module('@cms/stores/system', () => ({
 	getSystemState: mockGetSystemState,
 	isSystemReady: mockIsSystemReady
 }));

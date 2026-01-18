@@ -32,12 +32,12 @@ functionality for image editing and basic file information display.
 
 	// Stores
 	import { validationStore } from '@shared/stores/store.svelte';
-	import { collectionValue } from '@shared/stores/collectionStore.svelte';
+	import { collectionValue } from '@cms/stores/collectionStore.svelte';
 
 	// Components
 	import type { MediaImage, WatermarkOptions } from '@shared/utils/media/mediaModels';
-	import FileInput from '@shared/components/system/inputs/FileInput.svelte';
-	import ImageEditorModal from '@shared/components/imageEditor/ImageEditorModal.svelte';
+	import FileInput from '@cms/components/system/inputs/FileInput.svelte';
+	import ImageEditorModal from '@cms/components/imageEditor/ImageEditorModal.svelte';
 	import { updateMediaMetadata } from '@shared/utils/media/api';
 
 	// Define reactive state

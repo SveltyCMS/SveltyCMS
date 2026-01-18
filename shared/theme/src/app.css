@@ -10,12 +10,6 @@
 @import '@skeletonlabs/skeleton';
 @import '@skeletonlabs/skeleton-svelte';
 
-/* Tailwind v4: Explicitly scan all related folders for classes */
-@source '../../components/src/**/*.svelte';
-@source '../../../apps/cms/src/**/*.svelte';
-@source '../../../apps/cms/src/**/*.ts';
-@source '../../utils/src/**/*.ts';
-
 /* Tailwind v4: Enable class-based dark mode with .dark class on <html> */
 @custom-variant dark (&:where(.dark, .dark *));
 

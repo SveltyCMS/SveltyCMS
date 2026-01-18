@@ -10,7 +10,7 @@ Sidebar navigation for System Settings
 	import { goto } from '$app/navigation';
 	import { getSettingGroupsByRole } from '../../../apps/cms/src/routes/config/settingsGroups';
 	import type { SettingGroup, SettingField } from '../../../apps/cms/src/routes/config/settingsGroups';
-	import { groupsNeedingConfig } from '@shared/stores/configStore.svelte';
+	import { groupsNeedingConfig } from '@shared/stores';
 
 	// Props
 	let { isFullSidebar = true } = $props();

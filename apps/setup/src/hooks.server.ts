@@ -50,7 +50,7 @@ function createSetupResolver() {
 	};
 }
 
-const handleSetup: Handle = async ({ event, resolve }) => {
+export const handleSetup: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
 
 	// --- Step 1: Check Setup Status ---

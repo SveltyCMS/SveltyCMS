@@ -13,7 +13,7 @@ import {
 	resetSystemState,
 	startServiceInitialization,
 	type ServiceName
-} from '@shared/stores/system/index';
+} from '@cms/stores/system/index';
 
 describe('System Store - Service Health Management', () => {
 	beforeEach(() => {

@@ -4,7 +4,7 @@
 
 -->
 <script lang="ts">
-	import { imageEditorStore } from '@shared/stores/imageEditorStore.svelte';
+	import { imageEditorStore } from '@cms/stores/imageEditorStore.svelte';
 	import RotateControls from './Controls.svelte';
 
 	let rotationAngle = $state(0);

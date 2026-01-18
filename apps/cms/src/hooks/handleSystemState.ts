@@ -3,7 +3,7 @@
  * @description Middleware that acts as a gatekeeper, blocking or allowing requests based on the system's operational state.
  *
  * ### Features
- * - Integrates with the central state machine (`@stores/system`).
+ * - Integrates with the central state machine (`@cms/stores/system`).
  * - Robust initialization with timeout protection
  * - Proper state machine with error recovery
  * - Prevents setup routes from returning before initialization
@@ -11,7 +11,7 @@
 
 import { error } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
-import { getSystemState, isSystemReady } from '@shared/stores/system';
+import { getSystemState, isSystemReady } from '@cms/stores/system';
 import { logger } from '@shared/utils/logger.server';
 import { dbInitPromise } from '@shared/database/db';
 import { isSetupComplete } from '@shared/utils/setupCheck';
@@ -149,6 +149,18 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
 		if (isAllowedRoute) {
 			logger.trace(`Allowing request to ${pathname} during INITIALIZING state.`);
+			return resolve(event);
+		}
+
+		// 🟢 API PRIORITIZATION: Allow API requests if the system has reached 'api_ready' stage
+		// This allows the API to function while background services (Themes, Widgets) are still helping
+		if (
+			pathname.startsWith('/api/') &&
+			(systemState.initializationStage === 'api_ready' ||
+				systemState.initializationStage === 'services_starting' ||
+				systemState.initializationStage === 'active')
+		) {
+			logger.trace(`Allowing API request to ${pathname} during ${systemState.initializationStage} stage.`);
 			return resolve(event);
 		}
 

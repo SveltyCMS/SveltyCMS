@@ -22,6 +22,17 @@ SveltyCMS employs a robust **State Machine** to manage the application's lifecyc
 
 The system state is managed by a central store (`@stores/system`) and enforced by the `handleSystemState` server hook.
 
+### Initialization Stages (Granular Control)
+
+Beyond simple states, the system tracks precise initialization progress:
+
+1.  **`starting`**: Process begun.
+2.  **`db_connecting`**: Critical. Establishing database pool.
+3.  **`auth_initializing`**: Critical. Setting up authentication models.
+4.  **`api_ready`**: **API Prioritization Point.** Database and Auth are ready. API endpoints can serve requests.
+5.  **`services_starting`**: Background services (Themes, Widgets) initializing lazily or in background.
+6.  **`active`**: Full system ready.
+
 ### System States
 
 The application can be in one of the following states:
@@ -42,43 +53,49 @@ The `handleSystemState` hook (`src/hooks/handleSystemState.ts`) intercepts every
 
 ### Logic Flow
 
-1.  **Health Checks & Static Assets**: Always allowed, regardless of state.
-2.  **IDLE State (Setup Mode)**:
-    - Checks if `isSetupComplete()`.
-    - If **No**: Allows access to `/setup`, `/api/setup`, and `/login`. Blocks others.
-    - If **Yes**: Triggers initialization and transitions to `INITIALIZING`.
+### Logic Flow
+
+1.  **Health Checks & Static Assets**: Always allowed.
+2.  **IDLE State**: Setup mode only (`/setup`, `/api/setup`).
 3.  **INITIALIZING State**:
-    - Pauses incoming requests until initialization completes (or times out).
-    - If initialization succeeds -> Proceeds to `READY`.
-    - If initialization fails -> Transitions to `FAILED` and returns 503.
-4.  **FAILED State**:
-    - Blocks all traffic with a 503 error.
-    - _Exception_: In `TEST_MODE`, requests may be allowed with a warning to facilitate debugging.
-5.  **READY / DEGRADED State**:
-    - Allows request to proceed.
-    - If `DEGRADED`, injects `event.locals.degradedServices` for UI notifications.
+    - **Gradual API Unlocking**: As soon as the `api_ready` stage is reached, API endpoints become accessible, even if `Themes` or `Widgets` are still loading. This utilizes **Lazy Loading** to prioritize data availability.
+    - Full system waits for `active` stage for UI rendering.
+4.  **FAILED State**: 503 Service Unavailable.
+5.  **READY / DEGRADED**: Normal operation.
 
 ---
 
-## 🔮 Future Improvements: Smart State Machine
+## 🚀 Smart Architecture Features
 
-We are planning to evolve the state machine into a more event-driven, granular system.
+We have implemented an advanced, resilient state machine:
 
-### Proposed Features
+### 1. Resource Optimization (Lazy Loading)
 
-1.  **Granular Sub-States**:
-    - Instead of a global `INITIALIZING`, track `DB_CONNECTING`, `CACHE_WARMING`, `INDEX_BUILDING`.
-    - Allow partial traffic (e.g., read-only) during specific sub-states.
+To save resources (CPU/RAM) and improve startup speed, non-critical services are initialized **Lazily or in Background**:
 
-2.  **Event-Driven Transitions**:
-    - Move from polling/check-based transitions to an event bus architecture.
-    - Example: `db:connected` event triggers transition to `CACHE_WARMING`.
+- **Themes & Widgets**: Initialized only when requested or after critical paths.
+- **Media System**: Virtual folders verified in background.
 
-3.  **Automatic Recovery**:
-    - Self-healing mechanisms that attempt to reconnect services when in `FAILED` or `DEGRADED` states without requiring a full restart.
+This decoupling allows the API to respond milliseconds after DB connection, without waiting for filesystem scans.
 
-4.  **Circuit Breakers**:
-    - Automatically disable specific widgets or API endpoints if their dependent services fail, keeping the rest of the site `READY`.
+### 2. Event-Driven Architecture
+
+The system uses a `SystemEventBus` (`systemEvents`) to broadcast state changes, replacing rigid polling:
+
+- `SYSTEM:READY`
+- `BREAKER:TRIPPED`
+- `STAGE:CHANGED`
+
+### 3. Circuit Breakers (Resilience)
+
+To prevent cascading failures, individual services (e.g., `widgets`) have **Circuit Breakers**:
+
+- If a service fails repeatedly (default 5 times), the breaker **TRIPS**.
+- The service enters `breaker_tripped` status.
+- Traffic to that service is fast-failed, while the rest of the CMS remains `READY`.
+- System attempts auto-reset after a cooldown.
+
+---
 
 ---
 

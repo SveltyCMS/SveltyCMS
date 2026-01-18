@@ -229,7 +229,7 @@ mock.module('@sveltejs/kit', () => ({
 (globalThis as any).$props = () => ({});
 
 // Mock loadingStore.svelte.ts to prevent $state error
-mock.module('@shared/stores/loadingStore.svelte', () => {
+mock.module('@cms/stores/loadingStore.svelte', () => {
 	const loadingOps = {
 		navigation: 'navigation',
 		dataFetch: 'data-fetch',
@@ -294,7 +294,7 @@ mock.module('@shared/stores/loadingStore.svelte', () => {
 });
 
 // Mock screenSizeStore.svelte.ts to prevent $state error
-mock.module('@shared/stores/screenSizeStore.svelte', () => {
+mock.module('@cms/stores/screenSizeStore.svelte', () => {
 	const ScreenSize = { XS: 'XS', SM: 'SM', MD: 'MD', LG: 'LG', XL: 'XL', XXL: '2XL' };
 	const getScreenSizeName = (width: number): string => {
 		if (width < 640) return ScreenSize.XS;

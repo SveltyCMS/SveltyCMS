@@ -48,16 +48,12 @@ describe('Token System', () => {
 		});
 
 		it('should support logic modifiers', async () => {
-			expect(await replaceTokens('{{entry.price | gt(10) | if("Big", "Small")}}', context)).toBe(
-				'Big'
-			);
+			expect(await replaceTokens('{{entry.price | gt(10) | if("Big", "Small")}}', context)).toBe('Big');
 		});
 
 		it('should support comparison and conditional logic', async () => {
 			const lowPriceContext = { entry: { price: 5 } };
-			expect(
-				await replaceTokens('{{entry.price | gt(10) | if("Expensive", "Cheap")}}', lowPriceContext)
-			).toBe('Cheap');
+			expect(await replaceTokens('{{entry.price | gt(10) | if("Expensive", "Cheap")}}', lowPriceContext)).toBe('Cheap');
 		});
 	});
 

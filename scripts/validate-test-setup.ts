@@ -2,16 +2,16 @@
 /**
  * @file scripts/validate-test-setup.ts
  * @description Smart test environment validator
- * 
+ *
  * This script checks if the required setup is present before running integration/E2E tests.
  * Instead of showing cryptic failures, it provides clear guidance to developers.
- * 
+ *
  * Checks:
  * - Database configuration (config/private.ts)
  * - Database connectivity
  * - Server availability
  * - Test database isolation
- * 
+ *
  * Usage:
  *   bun run scripts/validate-test-setup.ts [unit|integration|e2e]
  */

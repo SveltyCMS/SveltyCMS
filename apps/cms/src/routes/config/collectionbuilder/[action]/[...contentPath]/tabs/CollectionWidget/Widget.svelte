@@ -8,9 +8,9 @@
 	import type { DndEvent, Item } from 'svelte-dnd-action';
 	// Stores
 	import { page } from '$app/state';
-	import { collectionValue, setCollectionValue, setTargetWidget } from '@shared/stores/collectionStore.svelte';
+	import { collectionValue, setCollectionValue, setTargetWidget } from '@cms/stores/collectionStore.svelte';
 	import { tabSet } from '@shared/stores/store.svelte';
-	import { widgetFunctions } from '@shared/stores/widgetStore.svelte';
+	import { widgetFunctions } from '@cms/stores/widgetStore.svelte';
 	import { get } from 'svelte/store';
 	// Components
 	import VerticalList from '@cms/components/VerticalList.svelte';

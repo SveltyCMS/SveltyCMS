@@ -15,8 +15,8 @@
  */
 
 // Import components needed for the GuiSchema
-import Input from '@shared/components/system/inputs/Input.svelte';
-import Toggles from '@shared/components/system/inputs/Toggles.svelte';
+import Input from '@cms/components/system/inputs/Input.svelte';
+import Toggles from '@cms/components/system/inputs/Toggles.svelte';
 
 import * as m from '@shared/paraglide/messages';
 import { createWidget } from '@widgets/widgetFactory';

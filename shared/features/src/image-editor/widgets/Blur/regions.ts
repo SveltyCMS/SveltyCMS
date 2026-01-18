@@ -12,7 +12,7 @@
  */
 
 import Konva from 'konva';
-import { imageEditorStore } from '@shared/stores/imageEditorStore.svelte';
+import { imageEditorStore } from '@cms/stores/imageEditorStore.svelte';
 
 export type BlurShape = 'rectangle' | 'ellipse';
 export type BlurPattern = 'blur' | 'pixelate';

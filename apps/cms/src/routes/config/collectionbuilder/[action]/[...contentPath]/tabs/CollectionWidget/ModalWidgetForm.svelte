@@ -9,7 +9,7 @@ It handles widget configuration, permissions, and specific options.
 	import { type SvelteComponent } from 'svelte';
 
 	// Components
-	import { widgetFunctions } from '@shared/stores/widgetStore.svelte';
+	import { widgetFunctions } from '@cms/stores/widgetStore.svelte';
 	import Default from './tabsFields/Default.svelte';
 	import Permission from './tabsFields/Permission.svelte';
 	import Specific from './tabsFields/Specific.svelte';
@@ -17,7 +17,7 @@ It handles widget configuration, permissions, and specific options.
 	import * as m from '@shared/paraglide/messages';
 
 	// Stores
-	import { collectionValue, setCollectionValue, targetWidget } from '@shared/stores/collectionStore.svelte';
+	import { collectionValue, setCollectionValue, targetWidget } from '@cms/stores/collectionStore.svelte';
 
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { modalState } from '@shared/utils/modalState.svelte';
@@ -35,7 +35,7 @@ It handles widget configuration, permissions, and specific options.
 		body?: string;
 	}
 
-	const { value, response, title, body }: Props = $props();
+	const { value, response: _response, title, body }: Props = $props();
 
 	// Local variables
 	// const modalData = $derived($modalStore[0]);
@@ -55,10 +55,8 @@ It handles widget configuration, permissions, and specific options.
 
 	// We've created a custom submit function to pass the response and close the modal.
 	async function onFormSubmit(): Promise<void> {
-		if (response) {
-			response(targetWidget);
-		}
-		modalState.close();
+		// Pass targetWidget to the response callback via modalState.close
+		modalState.close(targetWidget);
 	}
 
 	// Function to delete the widget
@@ -82,17 +80,10 @@ It handles widget configuration, permissions, and specific options.
 </script>
 
 <div class="space-y-4">
-	<header class="text-2xl font-bold text-center">
-		{title ?? '(title missing)'}
-	</header>
-	<article class="text-center">
-		{body ?? '(body missing)'}
-	</article>
-
 	<!-- Tabs Headers -->
 	<form class={cForm}>
 		<Tabs value={localTabSet} onValueChange={(e) => (localTabSet = e.value)}>
-			<Tabs.List class="flex justify-between lg:justify-start border-b border-surface-200-800">
+			<Tabs.List class="relative flex justify-between lg:justify-start border-b border-surface-200-800">
 				<Tabs.Trigger value="0">
 					<div class="flex items-center gap-1 py-2 px-4">
 						<iconify-icon icon="mdi:required" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -114,6 +105,8 @@ It handles widget configuration, permissions, and specific options.
 						</div>
 					</Tabs.Trigger>
 				{/if}
+				<!-- Tab Indicator -->
+				<Tabs.Indicator class="absolute bottom-0 h-0.5 bg-tertiary-500 dark:bg-primary-500 transition-all duration-300" />
 			</Tabs.List>
 
 			<Tabs.Content value="0">

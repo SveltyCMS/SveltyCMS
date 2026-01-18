@@ -7,7 +7,7 @@
 	import { goto } from '$app/navigation';
 
 	// Stores
-	import { setupStore } from '@shared/stores/setupStore.svelte';
+	import { setupStore } from '@setup/stores/setupStore.svelte';
 	import { app } from '@shared/stores/store.svelte';
 
 	// Child Layout Components

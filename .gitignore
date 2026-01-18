@@ -16,6 +16,7 @@ vite.config.ts.timestamp-*
 /config/private.ts
 /config/private.test.ts
 /config/backup/
+/config/collections/
 .bundle-history.json
 
 # SveltyCMS Runtime
@@ -24,7 +25,7 @@ trash/*
 media/*
 mediaFiles/
 mediaFolder/
-compiledCollections/*
+.compiledCollections/*
 logs/*
 /data.json
 .node-version

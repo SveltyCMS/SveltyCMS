@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
 	// Stores
-	import { contentStructure } from '@shared/stores/collectionStore.svelte';
+	import { contentStructure } from '@cms/stores/collectionStore.svelte';
 	import { logger } from '@shared/utils/logger';
 
 	// Components

@@ -35,7 +35,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import { loginFormSchema, forgotFormSchema, resetFormSchema } from '@shared/utils/formSchemas';
 
 	// Components
-	import SiteName from '@shared/components/SiteName.svelte';
+	import SiteName from '@cms/components/SiteName.svelte';
 	import SigninIcon from './icons/SigninIcon.svelte';
 	import FloatingInput from '@cms/components/system/inputs/floatingInput.svelte';
 	import SveltyCMSLogo from '@cms/components/system/icons/SveltyCMS_Logo.svelte';
@@ -51,8 +51,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import OauthLogin from './OauthLogin.svelte';
 
 	// Stores
-	import { screen } from '@shared/stores/screenSizeStore.svelte';
-	import { globalLoadingStore, loadingOperations } from '@shared/stores/loadingStore.svelte';
+	import { screen } from '@shared/stores/screenSizeStore.svelte.js';
+	import { globalLoadingStore, loadingOperations } from '@cms/stores/loadingStore.svelte';
 
 	// Props
 	const {
@@ -520,6 +520,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							label={m.email()}
 							required
 							icon="mdi:email"
+							iconColor="black"
+							textColor="black"
 							data-testid="signin-email"
 						/>
 						{#if loginForm.errors.email}<span class="invalid text-xs text-error-500">{loginForm.errors.email[0]}</span>{/if}
@@ -694,6 +696,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							label={m.email()}
 							required
 							icon="mdi:email"
+							iconColor="black"
+							textColor="black"
 						/>
 						{#if forgotForm.errors.email}
 							<span class="invalid text-xs text-error-500">

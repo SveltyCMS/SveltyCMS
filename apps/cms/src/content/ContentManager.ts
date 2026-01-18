@@ -450,7 +450,10 @@ class ContentManager implements IContentManager {
 			const children: NavigationNode[] = [];
 
 			for (const node of this.contentNodeMap.values()) {
-				if (node.parentId === parentId) {
+				const isRootQuery = parentId === undefined;
+				const isNodeRoot = node.parentId === null || node.parentId === undefined;
+
+				if ((isRootQuery && isNodeRoot) || node.parentId === parentId) {
 					const nodeDepth = currentDepth + 1;
 					const shouldLoadChildren = nodeDepth < maxDepth || expandedIds.has(node._id);
 					const hasChildren = this.contentNodeMap.size > 0 && Array.from(this.contentNodeMap.values()).some((n) => n.parentId === node._id);
@@ -597,7 +600,7 @@ class ContentManager implements IContentManager {
 		const result = await dbAdapter.content.nodes.getStructure(format);
 
 		if (!result.success) {
-			logger.error('[ContentManager] Failed to get content structure from database:', result.error);
+			logger.error('[ContentManager] Failed to get content structure from database:', (result as { message: string }).message);
 			return [];
 		}
 
@@ -650,8 +653,8 @@ class ContentManager implements IContentManager {
 
 	// ...
 
-	public async getCollectionById(collectionId: string, tenantId?: string): Promise<Schema | undefined | null> {
-		return await this.getCollection(collectionId, tenantId);
+	public async getCollectionById(collectionId: string, tenantId?: string): Promise<Schema | null> {
+		return (await this.getCollection(collectionId, tenantId)) || null;
 	}
 
 	/**
@@ -1448,57 +1451,15 @@ class ContentManager implements IContentManager {
 
 	// Scans the compiledCollections directory and processes each file into a Schema object
 	private async _scanAndProcessFiles(): Promise<Schema[]> {
-		const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
-
 		try {
-			const fs = await getFs();
-			await fs.access(compiledDirectoryPath);
-		} catch {
-			logger.trace(`Compiled collections directory not found: ${compiledDirectoryPath}`);
-			return [];
-		}
-
-		const files = await this._recursivelyGetFiles(compiledDirectoryPath);
-		const jsFiles = files.filter((file) => file.endsWith('.js'));
-
-		// Process in batches to avoid memory spikes
-		const BATCH_SIZE = 10;
-		const schemas: Schema[] = [];
-
-		for (let i = 0; i < jsFiles.length; i += BATCH_SIZE) {
-			const batch = jsFiles.slice(i, i + BATCH_SIZE);
-			const batchSchemas = await Promise.all(batch.map((filePath) => this._processSchemaFile(filePath)));
-			schemas.push(...batchSchemas.filter((s): s is Schema => !!s));
-
-			logger.trace(`Processed batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(jsFiles.length / BATCH_SIZE)}`);
-		}
-
-		return schemas;
-	}
-
-	private async _processSchemaFile(filePath: string): Promise<Schema | null> {
-		try {
-			const fs = await getFs();
-			const content = await fs.readFile(filePath, 'utf-8');
-			const { processModule } = await import('./utils');
-			const moduleData = await processModule(content);
-
-			if (!moduleData?.schema) return null;
-
-			const schema = moduleData.schema as Schema;
-			const path = this._extractPathFromFilePath(filePath);
-			const fileName = filePath.split('/').pop()?.replace('.js', '') ?? 'unknown';
-
-			return {
-				...schema,
-				_id: schema._id!,
-				path: path,
-				name: schema.name || fileName,
-				tenantId: schema.tenantId ?? undefined
-			};
+			// Use the robust scanner implementation that checks multiple paths
+			const { scanCompiledCollections } = await import('./collectionScanner');
+			const schemas = await scanCompiledCollections();
+			logger.trace(`[ContentManager] Scanned ${schemas.length} collections via collectionScanner`);
+			return schemas;
 		} catch (error) {
-			logger.warn(`Could not process collection file: ${filePath}`, error);
-			return null;
+			logger.warn('[ContentManager] Failed to scan compiled collections:', error);
+			return [];
 		}
 	}
 
@@ -1890,13 +1851,6 @@ class ContentManager implements IContentManager {
 			})
 		);
 		return files.flat();
-	}
-
-	private _extractPathFromFilePath(filePath: string): string {
-		const compiledDir = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
-		let relativePath = filePath.substring(filePath.indexOf(compiledDir) + compiledDir.length);
-		relativePath = relativePath.replace(/\.js$/, '');
-		return relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
 	}
 
 	private _getElapsedTime(startTime: number): string {

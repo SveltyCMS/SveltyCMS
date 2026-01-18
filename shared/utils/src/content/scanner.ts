@@ -74,29 +74,37 @@ function extractCollectionPath(fullPath: string, baseDir: string): string {
 export async function scanCompiledCollections(): Promise<Schema[]> {
 	const envDir = process.env.COLLECTIONS_DIR || process.env.COLLECTIONS_FOLDER || import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
 
-	// Resolve to absolute path - start with current working directory
-	let compiledDirectoryPath = path.resolve(process.cwd(), envDir);
+	// Robust workspace root resolution
+	let workspaceRoot = process.cwd();
+	if (workspaceRoot.endsWith('apps/cms') || workspaceRoot.endsWith('apps/setup') || workspaceRoot.endsWith('apps/api')) {
+		workspaceRoot = path.resolve(workspaceRoot, '../../');
+	}
 
-	// Check if directory exists
-	let exists = false;
-	try {
-		await fs.access(compiledDirectoryPath);
-		exists = true;
-	} catch {
-		// If not found in CWD, check if we are in an app directory (monorepo) and valid path exists at root
-		const rootPath = path.resolve(process.cwd(), '../../', envDir);
+	// Potential paths to check
+	const possiblePaths = [
+		path.resolve(workspaceRoot, '.compiledCollections'), // 1. Hidden root location (Priority)
+		path.resolve(workspaceRoot, 'compiledCollections'), // 2. Old location (Fallback)
+		path.resolve(process.cwd(), '.compiledCollections') // 3. Relative hidden
+	];
+
+	// Allow override via env var
+	if (envDir !== 'compiledCollections') {
+		possiblePaths.unshift(path.resolve(workspaceRoot, envDir));
+	}
+
+	let compiledDirectoryPath = '';
+	for (const p of possiblePaths) {
 		try {
-			await fs.access(rootPath);
-			logger.info(`Found compiled collections at workspace root: ${rootPath}`);
-			compiledDirectoryPath = rootPath;
-			exists = true;
+			await fs.access(p);
+			compiledDirectoryPath = p;
+			break;
 		} catch {
-			// Still not found
+			// Continue
 		}
 	}
 
-	if (!exists) {
-		logger.trace(`Compiled collections directory not found at: ${compiledDirectoryPath} or workspace root. Assuming fresh start.`);
+	if (!compiledDirectoryPath) {
+		logger.trace(`Compiled collections directory not found. Checked: ${possiblePaths.join(', ')}. Assuming fresh start.`);
 		return [];
 	}
 

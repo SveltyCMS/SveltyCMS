@@ -11,7 +11,7 @@
 
 import { json, error as svelteError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getHealthCheckReport } from '@shared/stores/system';
+import { getHealthCheckReport } from '@cms/stores/system';
 import { reinitializeSystem } from '@shared/database/db';
 import { logger } from '@shared/utils/logger.server';
 

@@ -78,7 +78,164 @@ if (!building) {
 			const contentManager = ContentManager.getInstance();
 			configService.setContentManager(contentManager as any);
 
-			// 2. Register Widgets in WidgetRegistryService
+			// 2. Register all compiled collections in database adapter
+			try {
+				const { dbAdapter } = await import('@shared/database/db');
+				if (dbAdapter?.collection) {
+					// Initialize Widget Registry first (Required for schema processing)
+					logger.info('🧩 Initializing Widget Registry for schema processing...');
+					const { widgetRegistryService } = await import('@cms/services/WidgetRegistryService');
+					const { allWidgetModules } = await import('@cms/widgets/scanner');
+
+					for (const [path, module] of Object.entries(allWidgetModules)) {
+						const type = path.includes('/core/') ? 'core' : 'custom';
+						const processed = widgetRegistryService.processWidgetModule(path, module, type as 'core' | 'custom');
+						if (processed) {
+							widgetRegistryService.registerWidget(processed.name, processed.widgetFn);
+						}
+					}
+					logger.debug(`Registered ${widgetRegistryService.getAllWidgets().size} widgets.`);
+
+					logger.info('📚 Registering compiled collections in database...');
+
+					// Scan compiled collections
+					const { scanCompiledCollections } = await import('@content/collectionScanner');
+					const compiledCollections = await scanCompiledCollections();
+
+					logger.debug(`Found ${compiledCollections.length} compiled collections to register`);
+
+					// Register each collection in the database adapter
+					// AND gather updates for the system_content_structure (Categories + Collections)
+					const structureUpdates = [];
+
+					// Dynamic import for utils
+					const { generateCategoryNodesFromPaths } = await import('@content/utils');
+
+					// 1. Generate Category Nodes from paths
+					const categoriesMap = generateCategoryNodesFromPaths(compiledCollections);
+					const pathIdMap = new Map<string, string>();
+
+					// 2. Fetch existing categories to reuse IDs (preserve stability)
+					try {
+						const existingStructure = await dbAdapter.content.nodes.getStructure('flat', { nodeType: 'category' }, true);
+						if (existingStructure.success) {
+							for (const node of existingStructure.data) {
+								if (node.path) pathIdMap.set(node.path, node._id);
+							}
+						}
+					} catch (e) {
+						logger.warn('Failed to fetch existing categories:', e);
+					}
+
+					// 3. Prepare Category Updates
+					for (const [path, node] of categoriesMap.entries()) {
+						let categoryId = pathIdMap.get(path);
+						if (!categoryId) {
+							categoryId = dbAdapter.utils.generateId();
+							pathIdMap.set(path, categoryId);
+						}
+
+						// Calculate parentId for category (for nested folders)
+						// path is e.g. "/Folder/Subfolder" -> parent is "/Folder"
+						const parts = path.split('/').filter(Boolean);
+						parts.pop(); // remove self
+						const parentPath = parts.length > 0 ? '/' + parts.join('/') : null;
+						const parentId = parentPath ? pathIdMap.get(parentPath) : null;
+
+						structureUpdates.push({
+							path,
+							changes: {
+								_id: categoryId,
+								name: node.name,
+								nodeType: 'category',
+								parentId: parentId
+								// Ensure we don't overwrite other fields if they exist?
+								// upsert handles logical merge if we passed just Partial, but bulkUpdate might replace entire sub-doc if not careful?
+								// bulkUpdate uses $set: { ...changes }. So it merges.
+							}
+						});
+					}
+
+					// 4. Prepare Collection Updates
+					for (const collection of compiledCollections) {
+						try {
+							// Register Model
+							await dbAdapter.collection.createModel(collection);
+
+							// Prepare Content Node
+							let cleanPath = collection.path || collection.name || '';
+							if (!cleanPath.startsWith('/')) cleanPath = '/' + cleanPath;
+
+							// Determine Parent Category ID
+							const parts = cleanPath.split('/').filter(Boolean);
+							parts.pop(); // remove collection name
+							const parentPath = parts.length > 0 ? '/' + parts.join('/') : null;
+							const parentId = parentPath ? pathIdMap.get(parentPath) : null;
+
+							structureUpdates.push({
+								path: cleanPath,
+								changes: {
+									_id: collection._id,
+									name: collection.name || 'Unnamed Collection',
+									slug: collection.slug,
+									nodeType: 'collection',
+									icon: collection.icon,
+									order: collection.order || 0,
+									collectionDef: collection,
+									description: collection.description,
+									translations: collection.translations || [],
+									parentId: parentId // Link to category
+								}
+							});
+
+							logger.debug(`✅ Registered model: ${collection.name}`);
+						} catch (collectionError) {
+							logger.warn(`Failed to register collection ${collection.name}:`, collectionError);
+						}
+					}
+
+					// 5. Batch Sync to System Content Structure
+					// 5. Batch Sync to System Content Structure
+					if (structureUpdates.length > 0) {
+						try {
+							await dbAdapter.content.nodes.bulkUpdate(structureUpdates as any);
+							logger.info(`✅ Synced ${structureUpdates.length} nodes (categories + collections) to content structure`);
+
+							// Force refresh ContentManager cache so it picks up the newly synced structure
+							// This prevents the race condition where ContentManager initialized with empty DB
+							logger.info('🔄 Refreshing ContentManager cache...');
+							await contentManager.refresh();
+							logger.info('✅ ContentManager cache refreshed');
+
+							// Verification
+							try {
+								const dbCheck = await dbAdapter.content.nodes.getStructure('flat', {}, true);
+								if (dbCheck.success) {
+									logger.info(`🔍 Post-sync DB Check: Found ${dbCheck.data.length} nodes`);
+								} else {
+									logger.warn(`🔍 Post-sync DB Check: Failed to verify nodes: ${dbCheck.message}`);
+								}
+
+								const cmCheck = await contentManager.getContentStructure();
+								logger.info(`🔍 Post-sync CM Check: Found ${cmCheck.length} nodes`);
+							} catch (e) {
+								logger.error('Verification failed:', e);
+							}
+						} catch (syncError) {
+							logger.error('Failed to sync content structure:', syncError);
+						}
+					}
+
+					logger.info(`✅ Registered ${compiledCollections.length} collections in database`);
+				} else {
+					logger.warn('Database adapter collections interface not available - skipping collection registration');
+				}
+			} catch (collectionRegError) {
+				logger.error('Failed to register collections:', collectionRegError);
+				// Don't throw - allow system to continue even if collection registration fails
+			}
+
+			// 3. Register Widgets in WidgetRegistryService
 			const { widgetRegistryService } = await import('@shared/services/WidgetRegistryService');
 			const { coreModules, customModules } = await import('@widgets/scanner');
 

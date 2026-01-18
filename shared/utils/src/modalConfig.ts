@@ -35,7 +35,7 @@ import * as m from '@shared/paraglide/messages';
 
 // Modal themes and configurations
 export interface ModalTheme {
-	variant: 'filled' | 'ghost' | 'soft' | 'glass';
+	preset: 'filled' | 'ghost' | 'soft' | 'glass';
 	color: 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error' | 'surface';
 }
 
@@ -51,13 +51,13 @@ export interface ActionModalConfig {
 
 // Default themes for different actions
 export const DEFAULT_THEMES: Record<string, ModalTheme> = {
-	delete: { variant: 'filled', color: 'error' },
-	archive: { variant: 'filled', color: 'warning' },
-	publish: { variant: 'filled', color: 'success' },
-	unpublish: { variant: 'filled', color: 'warning' },
-	clone: { variant: 'filled', color: 'primary' },
-	schedule: { variant: 'filled', color: 'tertiary' },
-	default: { variant: 'filled', color: 'primary' }
+	delete: { preset: 'filled', color: 'error' },
+	archive: { preset: 'filled', color: 'warning' },
+	publish: { preset: 'filled', color: 'success' },
+	unpublish: { preset: 'filled', color: 'warning' },
+	clone: { preset: 'filled', color: 'primary' },
+	schedule: { preset: 'filled', color: 'tertiary' },
+	default: { preset: 'filled', color: 'primary' }
 };
 
 // Store for managing modal state
@@ -80,7 +80,7 @@ export function createConfirmModal(config: ActionModalConfig, onConfirm: () => v
 
 		// Enhanced styling for buttons (use `meta` as expected by ModalSettings)
 		meta: {
-			buttonConfirmClasses: `variant-${theme.variant}-${theme.color}`,
+			buttonConfirmClasses: `preset-${theme.preset}-${theme.color}-500`,
 			buttonCancelClasses: 'preset-outlined-surface-500'
 		},
 
@@ -108,7 +108,7 @@ export function createDeleteModal(itemType: string, itemName: string | string[],
 
 	// Enhanced warning for admins
 	const warning = isAdmin
-		? `<div class="alert variant-filled-warning mt-4">
+		? `<div class="alert preset-filled-warning-500 mt-4">
 			<i class="fa-solid fa-triangle-exclamation"></i>
 			<div>
 				<h3>Important</h3>

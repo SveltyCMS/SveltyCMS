@@ -176,16 +176,16 @@ export const color = {
 	disabled: {
 		create: 'preset-outline-primary-500',
 		read: 'preset-outline-tertiary-500',
-		write: 'variant-outline-warning',
-		delete: 'variant-outline-error',
+		write: 'preset-outlined-warning-500',
+		delete: 'preset-outlined-error-500',
 		share: 'preset-outline-secondary-500'
 	},
 	enabled: {
 		create: 'preset-filled-primary-500',
 		read: 'preset-filled-tertiary-500',
-		write: 'variant-filled-warning',
+		write: 'preset-filled-warning-500',
 		delete: 'preset-filled-error-500',
-		share: 'variant-filled-secondary'
+		share: 'preset-filled-secondary-500'
 	}
 } as const;
 

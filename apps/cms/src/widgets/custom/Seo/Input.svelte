@@ -160,7 +160,7 @@
 	</div>
 
 	<!-- Bottom Area: Tabs & Inputs -->
-	<div class="card p-4 variant-glass-surface">
+	<div class="card p-4 preset-tonal-surface">
 		<!-- Inline Tabs Implementation -->
 		<div class="flex border-b border-surface-400/30 mb-6">
 			<button

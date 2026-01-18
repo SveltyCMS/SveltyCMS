@@ -29,8 +29,8 @@
 	// Stores
 	// Stores
 	import { app, validationStore } from '@shared/stores/store.svelte';
-	import { collection } from '@shared/stores/collectionStore.svelte';
-	import { activeInput } from '@shared/stores/activeInputStore.svelte';
+	import { collection } from '@cms/stores/collectionStore.svelte';
+	import { activeInput } from '@cms/stores/activeInputStore.svelte';
 
 	// Utils
 	import { getFieldName } from '@shared/utils/utils';

@@ -114,7 +114,7 @@
 			<!-- Heatmap Toggle -->
 			<button
 				type="button"
-				class="btn-sm {heatmapMode ? 'variant-filled-warning' : 'preset-filled-surface-500'}"
+				class="btn-sm {heatmapMode ? 'preset-filled-warning-500' : 'preset-filled-surface-500'}"
 				onclick={() => (heatmapMode = !heatmapMode)}
 				title="Toggle Heatmap Visualization"
 			>
@@ -125,7 +125,7 @@
 	</div>
 
 	<!-- Preview Card -->
-	<div class="card variant-glass-surface p-4 transition-all duration-200 {SeoPreviewToggle ? 'max-w-[375px] mx-auto' : 'w-full'}">
+	<div class="card preset-tonal-surface-500 p-4 transition-all duration-200 {SeoPreviewToggle ? 'max-w-[375px] mx-auto' : 'w-full'}">
 		<!-- URL Line -->
 		<div class="mb-1 flex items-center gap-2 text-xs text-surface-500 dark:text-surface-50">
 			<div class="flex h-6 w-6 items-center justify-center rounded-full bg-surface-200 dark:bg-surface-700">

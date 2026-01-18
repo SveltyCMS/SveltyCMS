@@ -27,7 +27,7 @@ const paths = {
 	configDir: path.resolve(WORKSPACE_ROOT, 'config'),
 	privateConfig: path.resolve(WORKSPACE_ROOT, 'config/private.ts'),
 	userCollections: path.resolve(WORKSPACE_ROOT, 'config/collections'),
-	compiledCollections: path.resolve(WORKSPACE_ROOT, 'compiledCollections'),
+	compiledCollections: path.resolve(WORKSPACE_ROOT, '.compiledCollections'),
 	widgets: path.resolve(__dirname, 'src/widgets')
 };
 
@@ -107,7 +107,7 @@ function setupWizardPlugin(): Plugin {
 			await initializeCollectionsStructure();
 		},
 		config: () => ({ define: { __FRESH_INSTALL__: JSON.stringify(wasPrivateConfigMissing) } }),
-		configureServer(server) {
+		configureServer() {
 			if (!wasPrivateConfigMissing) return;
 			// In monorepo, smart-dev handles opening, so we just log here
 			log.info(`Setup wizard active.`);
@@ -148,7 +148,7 @@ function cmsWatcherPlugin(): Plugin {
 							const collections = await scanCompiledCollections();
 							log.info(`Found ${collections.length} collections, registering models...`);
 							for (const schema of collections) {
-								await dbAdapter.collection.createModel(schema);
+								await dbAdapter.collections.createModel(schema);
 								await new Promise((resolve) => setTimeout(resolve, 100));
 							}
 							log.success(`Collection models registered! (${collections.length} total)`);
@@ -173,7 +173,7 @@ function cmsWatcherPlugin(): Plugin {
 			widgetTimeout = setTimeout(async () => {
 				log.info(`Widget file change detected. Reloading widget store...`);
 				try {
-					const widgetStorePath = path.resolve(WORKSPACE_ROOT, 'shared/stores/src/widgetStore.svelte.ts');
+					const widgetStorePath = path.resolve(__dirname, 'src/stores/widgetStore.svelte.ts');
 					const { widgetStoreActions } = await server.ssrLoadModule(widgetStorePath);
 					await widgetStoreActions.reload();
 					server.ws.send({ type: 'full-reload', path: '*' });
@@ -203,7 +203,7 @@ function cmsWatcherPlugin(): Plugin {
 
 // --- Construction ---
 
-const setupComplete = isSetupComplete(paths.privateConfig);
+const setupComplete = isSetupComplete();
 
 // Get Base Config
 const baseConfig = getBaseViteConfig(__dirname, {

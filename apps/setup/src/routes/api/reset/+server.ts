@@ -21,7 +21,7 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = async ({ locals }) => {
 	try {
 		// Security check: Only allow reset if user is admin OR system is in failed state
-		const { getSystemState } = await import('@shared/stores/system');
+		const { getSystemState } = await import('@cms/stores/system');
 		const systemState = getSystemState();
 
 		const isAdmin = locals.user?.role === 'admin';

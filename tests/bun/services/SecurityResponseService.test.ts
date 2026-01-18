@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { securityResponseService } from '../../../shared/services/src/SecurityResponseService';
+import { securityResponseService } from '@shared/services/SecurityResponseService';
 
 describe('SecurityResponseService', () => {
 	// Helper to create a mock Request object that looks like a web Request

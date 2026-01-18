@@ -8,7 +8,7 @@
 	import { getLanguageName } from '@shared/utils/languageUtils';
 	import { locales as systemLocales } from '@shared/paraglide/runtime';
 	//  Import types from the store
-	import type { ValidationErrors } from '@shared/stores/setupStore.svelte';
+	import type { ValidationErrors } from '@setup/stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { systemSettingsSchema } from '@shared/utils/formSchemas';
 	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';

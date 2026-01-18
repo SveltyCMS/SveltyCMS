@@ -58,7 +58,7 @@ test.describe('User Profile Management', () => {
 
 		// Use a more specific selector for the delete button (add data-testid in source if possible)
 		// Fallback to class if needed, but verify visibility first
-		const deleteBtn = page.locator('button.variant-filled-error');
+		const deleteBtn = page.locator('button.preset-filled-error-500');
 		await expect(deleteBtn).toBeVisible();
 		await deleteBtn.click();
 

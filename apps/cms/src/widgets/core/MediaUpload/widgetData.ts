@@ -1,5 +1,5 @@
 import type { MediaImage } from '@shared/utils/media/mediaModels';
-import { mode } from '@shared/stores/collectionStore.svelte';
+import { mode } from '@cms/stores/collectionStore.svelte';
 import { meta_data } from '@shared/utils/utils';
 
 export const getWidgetData = async (

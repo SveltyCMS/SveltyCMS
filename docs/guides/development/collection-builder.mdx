@@ -541,6 +541,14 @@ See [Widget Architecture](/docs/widgets/widget-architecture) for details.
 - Validate file types and sizes
 - Use server-side validation
 
+### Version Control & Git
+
+**Important**: By default, collection configuration files (`config/collections/*`) and compiled artifacts (`.compiledCollections/*`) are **NOT committed to Git**.
+
+- This allows you to manage content schemas locally without affecting the main repository.
+- **Team Workflow**: If you are working in a team or deploying to production, you must ensure your collection schemas are shared (e.g., via a separate config repo, shared volume, or by manually untracking them from `.gitignore` if desired).
+- **UUID Persistence**: Compiled collections contain unique IDs (UUIDs) that link your content schema to database entries. If you delete the `.compiledCollections` folder, these UUIDs will be regenerated, potentially breaking links to existing content in your database.
+
 ## Troubleshooting
 
 ### Common Issues

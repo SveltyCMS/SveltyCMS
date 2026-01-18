@@ -12,12 +12,12 @@ Features:
 	import { asAny } from '@shared/utils/utils';
 
 	// Components
-	import { widgets } from '@shared/stores/widgetStore.svelte';
+	import { widgets } from '@cms/stores/widgetStore.svelte';
 	import InputSwitch from '@cms/components/system/builder/InputSwitch.svelte';
 
 	// Skeleton Stores
 	import { modalState } from '@shared/utils/modalState.svelte';
-	import { collections } from '@shared/stores/collectionStore.svelte';
+	import { collections } from '@cms/stores/collectionStore.svelte';
 
 	// Removed modalStore
 

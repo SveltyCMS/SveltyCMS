@@ -14,7 +14,7 @@ Features:
 	import { onMount } from 'svelte';
 	import { logger } from '@shared/utils/logger';
 	import WidgetCard from './WidgetCard.svelte';
-	import { widgetStoreActions } from '@shared/stores/widgetStore.svelte';
+	import { widgetStoreActions } from '@cms/stores/widgetStore.svelte';
 
 	// Props
 	const { data }: { data: any } = $props();

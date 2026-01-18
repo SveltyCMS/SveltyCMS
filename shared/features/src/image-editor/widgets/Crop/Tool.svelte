@@ -8,7 +8,7 @@ and implements the correct 'apply' logic by setting the
 imageNode's 'crop' properties.
 -->
 <script lang="ts">
-	import { imageEditorStore } from '@shared/stores/imageEditorStore.svelte';
+	import { imageEditorStore } from '@cms/stores/imageEditorStore.svelte';
 	import CropControls from './Controls.svelte';
 	import CropRegion, { type CropShape } from './regions';
 	import { showToast } from '@shared/utils/toast';

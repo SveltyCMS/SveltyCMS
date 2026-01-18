@@ -54,7 +54,7 @@ import { WebSocketServer } from 'ws';
 import { useServer } from 'graphql-ws/use/ws';
 
 // Widget Store - ensure widgets are loaded before GraphQL setup
-import { widgets } from '@shared/stores/widgetStore.svelte';
+import { widgets } from '@cms/stores/widgetStore.svelte';
 
 // Unified Cache Service
 import { cacheService } from '@shared/database/CacheService';

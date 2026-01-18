@@ -22,23 +22,25 @@
 	// Skeleton v4
 	import { app } from '@shared/stores/store.svelte';
 	import ToastManager from '@cms/components/system/ToastManager.svelte';
-	// import DialogManager from '@shared/components/system/DialogManager.svelte';
+	import DialogManager from '@shared/components/system/DialogManager.svelte';
 
 	// Paraglide locale bridge
 	import { locales as availableLocales, getLocale, setLocale } from '@shared/paraglide/runtime';
 
 	// Theme management
-	import { themeStore, initializeThemeStore, initializeDarkMode } from '@shared/stores/themeStore.svelte';
+	import { themeStore, initializeThemeStore, initializeDarkMode } from '@cms/stores/themeStore.svelte';
 
 	// Global Settings
 	import { initPublicEnv, publicEnv } from '@shared/stores/globalSettings.svelte';
 
 	// Stores
-	import { ui } from '@shared/stores/UIStore.svelte';
+	import { ui } from '@cms/stores/UIStore.svelte';
+	import { setContentStructure } from '@cms/stores/collectionStore.svelte';
 
 	// Components
-	import LeftSidebar from '@shared/components/LeftSidebar.svelte';
-	import RightSidebar from '@shared/components/RightSidebar.svelte';
+	import LeftSidebar from '@cms/components/LeftSidebar.svelte';
+	import RightSidebar from '@cms/components/RightSidebar.svelte';
+	import HeaderEdit from '@cms/components/HeaderEdit.svelte';
 
 	// Props
 	interface Props {
@@ -62,6 +64,12 @@
 	$effect(() => {
 		if (browser && page.data?.settings) {
 			initPublicEnv(page.data.settings);
+		}
+		if (browser && page.data?.navigationStructure) {
+			console.log('[Layout] Hydrating contentStructure with', page.data.navigationStructure.length, 'nodes');
+			setContentStructure(page.data.navigationStructure);
+		} else if (browser) {
+			console.log('[Layout] Skipping hydration. Structure missing?', page.data?.navigationStructure);
 		}
 	});
 
@@ -182,27 +190,31 @@
 
 {#key currentLocale}
 	<ToastManager position="bottom-right" />
+	<DialogManager />
 
 	<div class="flex h-screen w-screen overflow-hidden bg-surface-50 dark:bg-surface-900">
 		{#if showSidebars && ui.isLeftSidebarVisible}
 			<aside
-				class="h-full border-r border-surface-200 bg-white transition-all duration-300 dark:border-surface-800 dark:bg-surface-900 {ui.state
-					.leftSidebar === 'full'
-					? 'w-72'
-					: 'w-20'}"
+				class="relative h-full border-r border-surface-200 bg-white px-2! text-center transition-all duration-300 dark:border-surface-50 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900 {ui
+					.state.leftSidebar === 'full'
+					? 'w-[220px]'
+					: 'w-36'}"
 			>
 				<LeftSidebar />
 			</aside>
 		{/if}
 
 		<main class="relative flex h-full flex-1 flex-col overflow-hidden">
+			{#if ui.isPageHeaderVisible}
+				<HeaderEdit />
+			{/if}
 			<div class="h-full w-full overflow-auto">
 				{@render children?.()}
 			</div>
 		</main>
 
 		{#if showSidebars && ui.isRightSidebarVisible}
-			<aside class="h-full w-72 border-l border-surface-200 bg-white transition-all duration-300 dark:border-surface-800 dark:bg-surface-900">
+			<aside class="h-full w-60 border-l border-surface-200 bg-white transition-all duration-300 dark:border-surface-50 dark:bg-surface-900">
 				<RightSidebar />
 			</aside>
 		{/if}

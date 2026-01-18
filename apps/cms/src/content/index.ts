@@ -14,10 +14,10 @@ import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
 // Stores
-import { collections, contentStructure, setCollection, setCollectionValue, setMode, unAssigned } from '@shared/stores/collectionStore.svelte';
+import { collections, contentStructure, setCollection, setCollectionValue, setMode, unAssigned } from '@cms/stores/collectionStore.svelte';
 
 // Components
-import { widgets } from '@shared/stores/widgetStore.svelte';
+import { widgets } from '@cms/stores/widgetStore.svelte';
 
 // Types
 import type { Category, ContentTypes, Schema } from './types';

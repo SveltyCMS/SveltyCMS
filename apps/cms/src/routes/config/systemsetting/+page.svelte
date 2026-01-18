@@ -20,7 +20,7 @@ All dynamic CMS settings organized into logical groups
 	import { goto } from '$app/navigation';
 	import PageTitle from '@cms/components/PageTitle.svelte';
 	import { logger } from '@shared/utils/logger';
-	import { groupsNeedingConfig } from '@shared/stores/configStore.svelte';
+	import { groupsNeedingConfig } from '@shared/stores';
 
 	// Import settings structure
 	import { getSettingGroupsByRole } from '../settingsGroups';
@@ -43,7 +43,7 @@ All dynamic CMS settings organized into logical groups
 	let unconfiguredCount = $state(0);
 
 	// Subscribe to changes in groups needing config (from store)
-	groupsNeedingConfig.subscribe((groups) => {
+	groupsNeedingConfig.subscribe((groups: Set<string>) => {
 		unconfiguredCount = groups.size;
 	});
 

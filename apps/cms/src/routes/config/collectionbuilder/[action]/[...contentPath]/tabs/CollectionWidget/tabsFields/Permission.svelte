@@ -9,11 +9,15 @@ Features:
 -->
 
 <script lang="ts">
+	import { onMount } from 'svelte';
 	// Components
 	import PermissionsSetting from '@cms/components/PermissionsSetting.svelte';
-	// Skeleton Stores
-	import { modalState } from '@shared/utils/modalState.svelte';
-	import { collections } from '@shared/stores/collectionStore.svelte';
+	import { collections } from '@cms/stores/collectionStore.svelte';
+
+	// State for roles
+	let roles = $state<{ _id: string; name: string }[]>([]);
+	let loading = $state(true);
+	let error = $state<string | null>(null);
 
 	// Function to handle permission updates
 	function handlePermissionUpdate(updatedPermissions: Record<string, Record<string, boolean>>) {
@@ -23,12 +27,55 @@ Features:
 		collections.setTargetWidget(w);
 	}
 
-	// Get roles from the modal props
-	const roles = $derived(modalState.active?.props?.value?.roles || []);
+	// Default fallback roles
+	const defaultRoles = [
+		{ _id: 'admin', name: 'Admin' },
+		{ _id: 'developer', name: 'Developer' },
+		{ _id: 'editor', name: 'Editor' }
+	];
+
+	// Fetch roles on mount or use defaults
+	onMount(async () => {
+		try {
+			const response = await fetch('/api/roles');
+			if (response.ok) {
+				const data = await response.json();
+				roles = data.roles || data || [];
+				// If no roles returned, use defaults
+				if (roles.length === 0) {
+					roles = defaultRoles;
+				}
+			} else {
+				// API failed (403/404), use default roles
+				console.warn('Roles API returned', response.status, '- using default roles');
+				roles = defaultRoles;
+			}
+		} catch (e) {
+			console.warn('Error loading roles, using defaults:', e);
+			roles = defaultRoles;
+		} finally {
+			loading = false;
+			error = null;
+		}
+	});
 </script>
 
-{#if modalState.active}
-	<div class="mb-4">
-		<PermissionsSetting {roles} permissions={collections.targetWidget.permissions || {}} onUpdate={handlePermissionUpdate} />
-	</div>
-{/if}
+<div class="mb-4">
+	{#if loading}
+		<div class="flex items-center justify-center py-8">
+			<iconify-icon icon="mdi:loading" width="32" class="animate-spin text-tertiary-500 dark:text-primary-500"></iconify-icon>
+			<span class="ml-2 text-surface-500">Loading roles...</span>
+		</div>
+	{:else if error}
+		<div class="rounded-lg bg-error-100 p-4 text-error-700 dark:bg-error-900/30 dark:text-error-300">
+			{error}
+		</div>
+	{:else if roles.length > 0}
+		<PermissionsSetting {roles} permissions={collections.targetWidget?.permissions || {}} onUpdate={handlePermissionUpdate} />
+	{:else}
+		<div class="rounded-lg bg-warning-100 p-4 text-warning-700 dark:bg-warning-900/30 dark:text-warning-300">
+			<iconify-icon icon="mdi:alert" width="20" class="inline-block mr-2"></iconify-icon>
+			No roles found. Please create roles in System Settings first.
+		</div>
+	{/if}
+</div>

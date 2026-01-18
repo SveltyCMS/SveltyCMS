@@ -442,7 +442,7 @@ export const validationStore = (() => {
 	type="button"
 	onclick={saveData}
 	disabled={!isFormValid || !canWrite}
-	class="variant-filled-primary btn"
+	class="preset-filled-primary-500 btn"
 	class:opacity-50={!isFormValid}
 	class:cursor-not-allowed={!isFormValid}
 	title={isFormValid ? 'Save changes' : 'Please fix validation errors before saving'}
