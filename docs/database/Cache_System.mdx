@@ -42,8 +42,8 @@ SveltyCMS features a sophisticated **dual-layer caching system** with Redis L1 (
             │             │
             │             ↓
             │   ┌──────────────────────┐
-            │   │ Check MongoDB (L2)   │ ← Medium (5-10ms)
-            │   │ Persistent Cache     │
+            │   │ Check Database (L2)  │ ← Medium (5-10ms)
+            │   │ (Mongo/MariaDB)      │
             │   └──────────┬───────────┘
             │              │
             │       ┌──────┴──────┐
@@ -54,11 +54,11 @@ SveltyCMS features a sophisticated **dual-layer caching system** with Redis L1 (
             │       │             ↓
             │       │   ┌──────────────────────┐
             │       │   │ Fetch from Source DB │ ← Slow (50-100ms)
-            │       │   │ (MongoDB/PostgreSQL) │
+            │       │   │ (Compute/Query)      │
             │       │   └──────────┬───────────┘
             │       │              │
             │       │              ↓
-            │       │      Store in L2 (MongoDB)
+            │       │      Store in L2 (Database)
             │       │              │
             │       └──────────────┴─────────────┐
             │                                    │
@@ -71,17 +71,17 @@ SveltyCMS features a sophisticated **dual-layer caching system** with Redis L1 (
 
 ### Performance Benefits
 
-| Layer           | Storage | Speed    | Persistence | Use Case                  |
-| --------------- | ------- | -------- | ----------- | ------------------------- |
-| **L1: Redis**   | RAM     | 1-2ms    | Session     | Hot data, frequent access |
-| **L2: MongoDB** | Disk    | 5-10ms   | Permanent   | Warm data, recovery       |
-| **Source DB**   | Disk    | 50-100ms | Permanent   | Cold data, cache miss     |
+| Layer            | Storage | Speed    | Persistence | Use Case                  |
+| ---------------- | ------- | -------- | ----------- | ------------------------- |
+| **L1: Redis**    | RAM     | 1-2ms    | Session     | Hot data, frequent access |
+| **L2: Database** | Disk    | 5-10ms   | Permanent   | Warm data, recovery       |
+| **Source**       | Disk    | 50-100ms | Permanent   | Cold data, cache miss     |
 
 **Cache Hit Rates**:
 
 - L1 (Redis): 85% of requests
-- L2 (MongoDB): 10% of requests
-- Source DB: 5% of requests
+- L2 (Database): 10% of requests
+- Source: 5% of requests
 
 **Average Response Time**:
 

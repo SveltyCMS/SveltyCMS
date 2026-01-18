@@ -14,8 +14,12 @@ Features:
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import type { TreeViewItem } from '@shared/utils/treeViewAdapter';
-	import { screen } from '@shared/stores/screenSizeStore.svelte';
-	// Tree View
+	import { screen } from '@shared/stores/screenSizeStore.svelte.js';
+	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
+
+	// Tooltip styling class
+	const TOOLTIP_CLASS =
+		'card rounded-md border border-surface-300/50 bg-surface-50 dark:bg-surface-700 dark:border-surface-600 px-2 py-1 text-xs shadow-lg text-black dark:text-white';
 
 	interface Props {
 		item: TreeViewItem & { hasChildren?: boolean };
@@ -37,7 +41,7 @@ Features:
 	const containerClass = $derived(
 		isCategory
 			? 'group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-tertiary-500/10 to-tertiary-600/5 border-2 border-tertiary-500/30 flex items-center gap-2 sm:gap-3 mb-2 cursor-pointer hover:border-tertiary-500 hover:shadow-lg hover:from-tertiary-500/20 hover:to-tertiary-600/10 transition-all duration-300 ease-out min-w-0 overflow-hidden'
-			: 'group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-surface-100 to-surface-50 dark:from-surface-700 dark:to-surface-800 border-2 border-l-4 border-surface-500/40 border-l-surface-500 flex items-center gap-2 sm:gap-3 mb-2 cursor-pointer hover:border-surface-500 hover:shadow-lg hover:translate-x-1 transition-all duration-300 ease-out min-w-0 overflow-hidden'
+			: 'group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-surface-100 to-surface-50 dark:from-surface-700 dark:to-surface-800 border-2 border-l-4 border-surface-500/40 border-l-tertiary-500 dark:border-l-primary-500 flex items-center gap-2 sm:gap-3 mb-2 cursor-pointer hover:border-surface-500 hover:shadow-lg hover:translate-x-1 transition-all duration-300 ease-out min-w-0 overflow-hidden'
 	);
 
 	const iconClass = $derived(
@@ -74,7 +78,7 @@ Features:
 			<iconify-icon icon={isOpen ? 'bi:chevron-down' : 'bi:chevron-right'} width="20" class="transition-transform duration-200"></iconify-icon>
 		</button>
 	{:else}
-		<div class="w-10"></div>
+		<div class="w-2"></div>
 	{/if}
 
 	<!-- Icon with Animation -->
@@ -86,21 +90,13 @@ Features:
 	</div>
 
 	<!-- Name & Badge Section -->
-	<div class="flex flex-col gap-1 min-w-0 shrink">
-		<div class="flex items-center gap-1 sm:gap-2 flex-wrap">
-			<span class="font-bold text-sm sm:text-base leading-none truncate">{name}</span>
+	<div class="flex flex-col gap-1 min-w-0 shrink items-start">
+		<span class="font-bold text-sm sm:text-base leading-none truncate">{name}</span>
+		<div>
 			{#if isCategory}
-				<span
-					class="badge font-semibold bg-tertiary-500 text-white text-[9px] sm:text-[10px] px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm uppercase shadow-sm"
-				>
-					Category
-				</span>
+				<span class="badge font-semibold bg-tertiary-500 text-white text-[9px] px-1 py-0.5 rounded-sm uppercase shadow-sm"> Category </span>
 			{:else}
-				<span
-					class="badge font-semibold bg-surface-500 text-white text-[9px] sm:text-[10px] px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm uppercase shadow-sm"
-				>
-					Collection
-				</span>
+				<span class="badge font-semibold bg-surface-300 text-white text-[9px] px-1 py-0.5 rounded-sm uppercase shadow-sm"> Collection </span>
 			{/if}
 		</div>
 	</div>
@@ -128,59 +124,91 @@ Features:
 		</span>
 	{/if}
 
-	<!-- Action Buttons with Enhanced Design -->
-	<div class="flex gap-1 sm:gap-2 ml-auto shrink-0 transition-opacity duration-200">
+	<!-- Action Buttons with Tooltips -->
+	<div class="flex gap-0.5 sm:gap-1 ml-auto shrink-0 transition-opacity duration-200">
 		<!-- Edit Button -->
-		<button
-			type="button"
-			class="btn-icon preset-tonal hover:preset-filled rounded transition-all duration-200 hover:scale-110"
-			onclick={(e) => {
-				e.stopPropagation();
-				if (isCategory) {
-					onEditCategory(item);
-				} else {
-					goto(`/config/collectionbuilder/edit/${item.id}`);
-				}
-			}}
-			title="Edit"
-		>
-			<iconify-icon icon="mdi:pencil-outline" width="18" class="text-primary-500"></iconify-icon>
-		</button>
+		<Tooltip positioning={{ placement: 'top' }}>
+			<Tooltip.Trigger>
+				<button
+					type="button"
+					class="btn-icon preset-tonal hover:preset-filled rounded transition-all duration-200 hover:scale-110"
+					onclick={(e) => {
+						e.stopPropagation();
+						if (isCategory) {
+							onEditCategory(item);
+						} else {
+							goto(`/config/collectionbuilder/edit/${item.id}`);
+						}
+					}}
+				>
+					<iconify-icon icon="mdi:pencil-outline" width="18" class="text-primary-500"></iconify-icon>
+				</button>
+			</Tooltip.Trigger>
+			<Portal>
+				<Tooltip.Positioner>
+					<Tooltip.Content class={TOOLTIP_CLASS}>Edit</Tooltip.Content>
+				</Tooltip.Positioner>
+			</Portal>
+		</Tooltip>
 
 		<!-- Duplicate Button -->
-		<button
-			type="button"
-			class="btn-icon preset-tonal hover:preset-filled rounded transition-all duration-200 hover:scale-110"
-			onclick={(e) => {
-				e.stopPropagation();
-				onDuplicate?.(item);
-			}}
-			title="Duplicate"
-		>
-			<iconify-icon icon="mdi:content-copy" width="18" class="text-tertiary-500"></iconify-icon>
-		</button>
+		<Tooltip positioning={{ placement: 'top' }}>
+			<Tooltip.Trigger>
+				<button
+					type="button"
+					class="btn-icon preset-tonal hover:preset-filled rounded transition-all duration-200 hover:scale-110"
+					onclick={(e) => {
+						e.stopPropagation();
+						onDuplicate?.(item);
+					}}
+				>
+					<iconify-icon icon="mdi:content-copy" width="18" class="text-tertiary-500"></iconify-icon>
+				</button>
+			</Tooltip.Trigger>
+			<Portal>
+				<Tooltip.Positioner>
+					<Tooltip.Content class={TOOLTIP_CLASS}>Duplicate</Tooltip.Content>
+				</Tooltip.Positioner>
+			</Portal>
+		</Tooltip>
 
 		<!-- Delete Button -->
-		<button
-			type="button"
-			class="btn-icon preset-tonal hover:preset-filled rounded transition-all duration-200 hover:scale-110"
-			onclick={(e) => {
-				e.stopPropagation();
-				onDelete?.(item);
-			}}
-			title="Delete"
-		>
-			<iconify-icon icon="lucide:trash-2" width="18" class="text-error-500"></iconify-icon>
-		</button>
+		<Tooltip positioning={{ placement: 'top' }}>
+			<Tooltip.Trigger>
+				<button
+					type="button"
+					class="btn-icon preset-tonal hover:preset-filled rounded transition-all duration-200 hover:scale-110"
+					onclick={(e) => {
+						e.stopPropagation();
+						onDelete?.(item);
+					}}
+				>
+					<iconify-icon icon="lucide:trash-2" width="18" class="text-error-500"></iconify-icon>
+				</button>
+			</Tooltip.Trigger>
+			<Portal>
+				<Tooltip.Positioner>
+					<Tooltip.Content class={TOOLTIP_CLASS}>Delete</Tooltip.Content>
+				</Tooltip.Positioner>
+			</Portal>
+		</Tooltip>
 
-		<!-- Drag Handle with Enhanced Visual -->
-		<div
-			class="btn-icon preset-tonal rounded cursor-grab active:cursor-grabbing opacity-60 hover:opacity-100 flex items-center justify-center ml-2 hover:bg-surface-300 dark:hover:bg-surface-600 transition-all duration-200 hover:scale-110"
-			aria-hidden="true"
-			title="Drag to reorder"
-		>
-			<iconify-icon icon="mdi:drag-vertical" width="22"></iconify-icon>
-		</div>
+		<!-- Drag Handle with Tooltip -->
+		<Tooltip positioning={{ placement: 'top' }}>
+			<Tooltip.Trigger>
+				<div
+					class="btn-icon preset-tonal rounded cursor-grab active:cursor-grabbing opacity-60 hover:opacity-100 flex items-center justify-center hover:bg-surface-300 dark:hover:bg-surface-600 transition-all duration-200 hover:scale-110 pr-0!"
+					aria-hidden="true"
+				>
+					<iconify-icon icon="mdi:drag-vertical" width="22"></iconify-icon>
+				</div>
+			</Tooltip.Trigger>
+			<Portal>
+				<Tooltip.Positioner>
+					<Tooltip.Content class={TOOLTIP_CLASS}>Drag to reorder</Tooltip.Content>
+				</Tooltip.Positioner>
+			</Portal>
+		</Tooltip>
 	</div>
 </div>
 

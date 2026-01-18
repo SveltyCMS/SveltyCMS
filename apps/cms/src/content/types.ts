@@ -3,7 +3,7 @@
  * @description Defines the application-level TypeScript interfaces for content modeling and runtime data.
  */
 
-import type { WidgetRegistry as widgets } from '@shared/stores/widgetStore.svelte';
+import type { WidgetRegistry as widgets } from '@cms/stores/widgetStore.svelte';
 
 // Shared types
 export * from '@cms/types';

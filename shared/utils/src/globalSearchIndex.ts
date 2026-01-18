@@ -21,9 +21,6 @@
  */
 
 import { writable } from 'svelte/store';
-import { modalState } from '@shared/utils/modalState.svelte';
-import { ModalEditAvatar, ModalEditForm } from '@cms/user';
-
 // System Logs
 import { logger } from '@shared/utils/logger';
 
@@ -68,29 +65,7 @@ export const globalSearchIndex = writable<SearchData[]>([
 		description: 'View and edit your user profile.',
 		keywords: ['user', 'avatar', 'profile', 'settings', 'account', 'password', 'delete'],
 		triggers: {
-			'Show User Profile': { path: '/user' },
-			'Edit Avatar Image': {
-				path: '/user',
-				action: [
-					() => {
-						modalState.trigger(ModalEditAvatar, {
-							title: 'Edit Avatar',
-							body: 'Upload or change your avatar image'
-						});
-					}
-				]
-			},
-			'Edit User Profile': {
-				path: '/user',
-				action: [
-					() => {
-						modalState.trigger(ModalEditForm, {
-							title: 'Edit Profile',
-							body: 'Modify your data and then press Save.'
-						});
-					}
-				]
-			}
+			'Show User Profile': { path: '/user' }
 		}
 	},
 	{

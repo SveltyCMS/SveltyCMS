@@ -103,7 +103,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 						</div>
 					{/each}
 				{:else}
-					<div class="alert variant-soft-success">
+					<div class="alert preset-tonal-success-500">
 						<iconify-icon icon="mdi:check-circle" class="text-xl"></iconify-icon>
 						<span class="text-sm">No issues found!</span>
 					</div>

@@ -65,7 +65,13 @@ async function fetchApi<T>(endpoint: string, options: RequestInit): Promise<ApiR
 	} catch (error) {
 		const err = error as Error;
 		logger.error(`[API Client Error]`, err);
-		return { success: false, error: err.message };
+
+		let errorMessage = err.message;
+		if (errorMessage === 'Failed to fetch') {
+			errorMessage += ' (Network error: Request may be blocked by WAF/Firewall)';
+		}
+
+		return { success: false, error: errorMessage };
 	}
 }
 
@@ -99,10 +105,15 @@ export function batchUpdateEntries(collectionId: string, payload: Record<string,
 	throw new Error('Batch updates only supported for status changes');
 }
 
-export function updateEntryStatus(collectionId: string, entryId: string, status: string): Promise<ApiResponse<unknown>> {
+export function updateEntryStatus(
+	collectionId: string,
+	entryId: string,
+	status: string,
+	payload?: Record<string, unknown>
+): Promise<ApiResponse<unknown>> {
 	return fetchApi(`/api/collections/${collectionId}/${entryId}/status`, {
 		method: 'PATCH',
-		body: JSON.stringify({ status })
+		body: JSON.stringify({ status, ...payload })
 	});
 }
 
@@ -130,7 +141,7 @@ export function createClones(collectionId: string, entries: Record<string, unkno
 export function batchCloneEntries(collectionId: string, entryIds: string[]): Promise<ApiResponse<unknown>> {
 	return fetchApi(`/api/collections/${collectionId}/batch`, {
 		method: 'POST',
-		body: JSON.stringify({ action: 'clone', entryIds })
+		body: JSON.stringify({ action: 'clone', entryIds, cloneCount: '1' })
 	});
 }
 

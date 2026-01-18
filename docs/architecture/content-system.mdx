@@ -6,7 +6,7 @@ order: 5
 icon: 'mdi:database-sync'
 author: 'admin'
 created: '2025-12-02'
-updated: '2025-12-02'
+updated: '2026-01-18'
 tags:
   - 'architecture'
   - 'content-system'
@@ -67,7 +67,27 @@ SveltyCMS uses a **Pull-based Reactivity Model** for content updates:
 
 ## Data Flow
 
-1.  **Server Start**: `ContentManager` initializes -> `getImports` loads collections -> `createCategories` builds structure.
+```mermaid
+flowchart TD
+    subgraph Startup [Server Startup]
+        Hooks[hooks.server.ts] -->|1. Initialize DB| DB[Database]
+        Hooks -->|2. Scan Collections| Scanner[Collection Scanner]
+        Scanner -->|3. Get Schemas| compiledCollections
+        Hooks -->|4. Register Models| Adapter[DB Adapter]
+        Adapter -->|Create Models| DB
+        Hooks -->|5. Init ContentManager| CM[ContentManager]
+        CM -->|6. Create Structure| Nav[Navigation Structure]
+    end
+
+    subgraph ClientLoad [Client Load]
+        Layout[+layout.server.ts] -->|Fetch| Nav
+        Layout -->|Pass to Client| Browser
+    end
+
+    Startup --> ClientLoad
+```
+
+1.  **Server Start**: `hooks.server.ts` scans compiled collections -> Registers models via `dbAdapter.collection.createModel` -> `ContentManager` initializes -> `createCategories` builds structure.
 2.  **Client Load**: `+layout.server.ts` fetches `navigationStructure` and `contentVersion` -> Passes to client.
 3.  **Hydration**: `initializeContent` uses server data to populate stores.
 4.  **Runtime**: Client polls version -> Updates on change.

@@ -27,9 +27,8 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Stores
 	import { page } from '$app/state';
-	import { tabSet } from '@shared/stores/store.svelte';
-	import { collection, setCollection } from '@shared/stores/collectionStore.svelte';
-	import { setRouteContext } from '@shared/stores/UIStore.svelte';
+	import { collection, setCollection } from '@cms/stores/collectionStore.svelte';
+	import { setRouteContext } from '@cms/stores/UIStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@shared/paraglide/messages';
@@ -38,27 +37,47 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import CollectionForm from './tabs/CollectionForm.svelte';
 	import CollectionWidget from './tabs/CollectionWidget.svelte';
 	import PageTitle from '@cms/components/PageTitle.svelte';
+	import HorizontalStepper from './widget/HorizontalStepper.svelte';
 
 	// Skeleton
-	import { Tabs } from '@skeletonlabs/skeleton-svelte';
-	// import { Tab, TabGroup } from '@skeletonlabs/skeleton-svelte';
+	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '@shared/stores/store.svelte';
 	import { showConfirm } from '@shared/utils/modalUtils';
+	import { widgetStoreActions } from '@cms/stores/widgetStore.svelte';
 
-	import { widgetStoreActions } from '@shared/stores/widgetStore.svelte';
+	// Tooltip styling
+	const TOOLTIP_CLASS =
+		'card rounded-md border border-surface-300/50 bg-surface-50 dark:bg-surface-700 dark:border-surface-600 px-2 py-1 text-xs shadow-lg text-black dark:text-white';
 
-	// Create local tabSet variable for binding
-	let localTabSet = $state(String(tabSet.value));
+	// Stepper state
+	let currentStep = $state(0);
+	const steps = [
+		{ label: 'Edit Collection', shortDesc: 'Basic settings & Details', icon: 'ic:baseline-edit' },
+		{ label: 'Widget Fields', shortDesc: 'Manage content fields', icon: 'mdi:widgets-outline' }
+	];
+	// Track step completion - step 0 is complete if we have a name (simplified)
+	let stepCompleted = $derived([!!collection.value?.name, (collection.value?.fields?.length ?? 0) > 0]);
+	// Steps are clickable if previous step is complete or it's the current step
+	let stepClickable = $derived([
+		true, // Step 0 always clickable
+		!!collection.value?.name // Step 1 clickable if name exists
+	]);
 
-	// Sync with store when local value changes
-	$effect(() => {
-		tabSet.set(Number(localTabSet));
-	});
+	function handleStepSelect(index: number) {
+		currentStep = index;
+	}
 
-	// Sync local value when store changes
-	$effect(() => {
-		localTabSet = String(tabSet.value);
-	});
+	function handleNextStep() {
+		if (currentStep < steps.length - 1) {
+			currentStep++;
+		}
+	}
+
+	function handlePrevStep() {
+		if (currentStep > 0) {
+			currentStep--;
+		}
+	}
 
 	import type { User } from '@shared/database/auth/types';
 	import type { FieldInstance, Schema } from '@cms-types';
@@ -81,10 +100,37 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	onMount(() => {
 		if (action === 'edit') {
 			loadCollection();
+			// Initialize widgets
+			widgetStoreActions.initializeWidgets();
 		} else {
-			setCollection(null);
-			originalName = '';
+			// Initialize with name from URL if provided (e.g. /new/admin)
+			if (collectionPath) {
+				setCollection({ name: collectionPath } as any);
+				originalName = collectionPath;
+			} else {
+				setCollection(null);
+				originalName = '';
+			}
+			widgetStoreActions.initializeWidgets();
 		}
+
+		// Check for widgetSaved or tab param to restore state
+		const isWidgetSaved = page.url.searchParams.get('widgetSaved') === 'true';
+		const tabParam = page.url.searchParams.get('tab');
+
+		if (isWidgetSaved || tabParam === '1') {
+			currentStep = 1;
+			// If returning from save, clean up the URL
+			if (isWidgetSaved) {
+				const url = new URL(page.url);
+				url.searchParams.delete('widgetSaved');
+				goto(url.toString(), { replaceState: true, keepFocus: true, noScroll: true });
+			}
+		}
+
+		// Set route context
+		setRouteContext({ isCollectionBuilder: true });
+		return () => setRouteContext({ isCollectionBuilder: false });
 	});
 
 	function loadCollection() {
@@ -212,43 +258,45 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			}
 		});
 	}
-
-	onMount(() => {
-		// Set the initial tab
-		widgetStoreActions.initializeWidgets();
-		tabSet.set(0);
-	});
-
-	$effect(() => {
-		setRouteContext({ isCollectionBuilder: true });
-		return () => setRouteContext({ isCollectionBuilder: false });
-	});
 </script>
 
 <!-- Page Title -->
 <div class="my-2 flex items-center justify-between gap-2">
 	<PageTitle name={pageTitle} highlight={highlightedPart} icon="ic:baseline-build" />
 
-	<!-- Back -->
-	<button onclick={() => history.back()} type="button" aria-label="Back" class="preset-outlined-primary-500 btn-icon">
-		<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
-	</button>
+	<!-- Back Button with Tooltip -->
+	<Tooltip positioning={{ placement: 'left' }}>
+		<Tooltip.Trigger>
+			<button onclick={() => history.back()} type="button" aria-label="Back" class="preset-outlined-primary-500 btn-icon rounded-full">
+				<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
+			</button>
+		</Tooltip.Trigger>
+		<Portal>
+			<Tooltip.Positioner>
+				<Tooltip.Content class={TOOLTIP_CLASS}>Go Back</Tooltip.Content>
+			</Tooltip.Positioner>
+		</Portal>
+	</Tooltip>
 </div>
 
 <div class="wrapper">
+	<!-- Top Actions (Delete) -->
 	{#if action == 'edit'}
-		<div class="flex justify-center gap-3">
-			<button
-				type="button"
-				onclick={handleCollectionDelete}
-				class=" preset-filled-error-500 btn mb-3 mr-1 mt-1 justify-end dark:preset-filled-error-500 dark:text-black"
-				>{m.button_delete()}
-			</button>
-			<button
-				type="button"
-				onclick={handleCollectionSave}
-				class="preset-filled-tertiary-500 btn mb-3 mr-1 mt-1 justify-end dark:preset-filled-tertiary-500 dark:text-black">{m.button_save()}</button
-			>
+		<div class="flex justify-end gap-3 mb-4">
+			<!-- Delete Button with Tooltip -->
+			<Tooltip positioning={{ placement: 'top' }}>
+				<Tooltip.Trigger>
+					<button type="button" onclick={handleCollectionDelete} class="preset-filled-error-500 btn btn-sm">
+						<iconify-icon icon="mdi:delete" width="18" class="mr-1"></iconify-icon>
+						{m.button_delete()}
+					</button>
+				</Tooltip.Trigger>
+				<Portal>
+					<Tooltip.Positioner>
+						<Tooltip.Content class={TOOLTIP_CLASS}>Delete this collection permanently</Tooltip.Content>
+					</Tooltip.Positioner>
+				</Portal>
+			</Tooltip>
 		</div>
 	{/if}
 
@@ -257,38 +305,30 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	</p>
 	<!-- Required Text  -->
 	<div class="mb-2 text-center text-xs text-error-500" data-testid="required-indicator">* {m.collection_required()}</div>
-	<Tabs value={localTabSet} onValueChange={(e) => (localTabSet = e.value)}>
-		<Tabs.List class="flex border-b border-surface-200-800 mb-4">
-			<!-- User Permissions -->
-			{#if page.data.isAdmin}
-				<!-- Edit -->
-				<Tabs.Trigger value="0">
-					<div class="flex items-center gap-1 py-2 px-4">
-						<iconify-icon icon="ic:baseline-edit" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<span class:active={tabSet.value === 0} class:text-tertiary-500={tabSet.value === 0} class:text-primary-500={tabSet.value === 0}
-							>{m.button_edit()}</span
-						>
-					</div>
-				</Tabs.Trigger>
 
-				<!-- Widget Fields -->
-				<Tabs.Trigger value="1" data-testid="widget-fields-tab">
-					<div class="flex items-center gap-1 py-2 px-4">
-						<iconify-icon icon="mdi:widgets-outline" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<span class:active={tabSet.value === 1} class:text-tertiary-500={tabSet.value === 2} class:text-primary-500={tabSet.value === 2}
-							>{m.collection_widgetfields()}</span
-						>
-					</div>
-				</Tabs.Trigger>
-			{/if}
-		</Tabs.List>
+	<!-- Step Content -->
+	<div class="mt-6">
+		{#if currentStep === 0}
+			<div class="card p-4 shadow-xl border border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/50">
+				<CollectionForm data={collectionValue} {handlePageTitleUpdate} />
 
-		<!-- Tab Panels -->
-		<Tabs.Content value="0">
-			<CollectionForm data={collectionValue} {handlePageTitleUpdate} />
-		</Tabs.Content>
-		<Tabs.Content value="1">
-			<CollectionWidget fields={collectionValue?.fields as FieldInstance[] | undefined} {handleCollectionSave} />
-		</Tabs.Content>
-	</Tabs>
+				<!-- Step 0 Actions -->
+				<div class="flex justify-end mt-4">
+					<button onclick={handleNextStep} class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" disabled={!collectionValue?.name}>
+						Next: Widget Fields
+						<iconify-icon icon="mdi:arrow-right" width="20" class="ml-2"></iconify-icon>
+					</button>
+				</div>
+			</div>
+		{:else if currentStep === 1}
+			<div class="card p-4 shadow-xl border border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/50">
+				<!-- CollectionWidget handles its own layout, but we need to hide its buttons or adapt them -->
+				<CollectionWidget fields={collectionValue?.fields as FieldInstance[] | undefined} {handleCollectionSave} />
+
+				<!-- Step 1 Actions are partly inside CollectionWidget, we might need to adjust CollectionWidget to accept slots or props for actions 
+				     For now, CollectionWidget has "Previous" and "Save". We should update CollectionWidget to use our navigation.
+				-->
+			</div>
+		{/if}
+	</div>
 </div>

@@ -6,7 +6,7 @@ It dynamically renders controls based on the active tool.
 -->
 <script lang="ts">
 	import { fade } from 'svelte/transition';
-	import { imageEditorStore } from '@shared/stores/imageEditorStore.svelte';
+	import { imageEditorStore } from '@cms/stores/imageEditorStore.svelte';
 
 	const toolbarControls = $derived(imageEditorStore.state.toolbarControls);
 </script>

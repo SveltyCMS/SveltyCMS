@@ -7,7 +7,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { logger } from '@shared/utils/logger.server';
 import { hasPermissionWithRoles } from '@shared/database/auth/permissions';
-import { widgets, getWidgetDependencies } from '@shared/stores/widgetStore.svelte';
+import { widgets, getWidgetDependencies } from '@cms/stores/widgetStore.svelte';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const start = performance.now();

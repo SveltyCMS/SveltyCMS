@@ -12,6 +12,6 @@
 		"https://cdn.jsdelivr.net/npm/@inlang/plugin-m-function-matcher@0/dist/index.js"
 	],
 	"plugin.inlang.messageFormat": {
-		"pathPattern": "./shared/messages/{languageTag}.json"
+		"pathPattern": "./apps/cms/src/messages/{languageTag}.json"
 	}
 }

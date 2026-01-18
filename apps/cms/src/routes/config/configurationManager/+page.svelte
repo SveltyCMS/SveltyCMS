@@ -228,7 +228,7 @@
 											<td><span class="preset-tonal badge capitalize">{item.type}</span></td>
 											<td>
 												{#if changeType === 'new'}<span class="preset-filled-success-500 badge">New</span>{/if}
-												{#if changeType === 'updated'}<span class="variant-filled-warning badge">Updated</span>{/if}
+												{#if changeType === 'updated'}<span class="preset-filled-warning-500 badge">Updated</span>{/if}
 												{#if changeType === 'deleted'}<span class="preset-filled-error-500 badge">Deleted</span>{/if}
 											</td>
 										</tr>
@@ -271,7 +271,7 @@
 					<button class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" disabled={isProcessing} onclick={exportToJSON}>
 						<iconify-icon icon="mdi:code-json"></iconify-icon> Export as JSON
 					</button>
-					<button class="variant-filled-secondary btn" disabled={isProcessing} onclick={exportToCSV}>
+					<button class="preset-filled-surface-500 btn" disabled={isProcessing} onclick={exportToCSV}>
 						<iconify-icon icon="mdi:file-csv-outline"></iconify-icon> Export as CSV
 					</button>
 				</div>

@@ -1,65 +1,101 @@
 <!--
-@fil src/routes/(app)/config/collectionbuilder/[...ContentTypes]/tabs/CollectionWidget.svelte
-component
+@file src/routes/(app)/config/collectionbuilder/[...ContentTypes]/tabs/CollectionWidget.svelte
+@component
 **This component displays the collection widget**
 -->
 
 <script lang="ts">
 	// Stores
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { logger } from '@shared/utils/logger';
-	import { collection, setTargetWidget } from '@shared/stores/collectionStore.svelte';
-	import { tabSet } from '@shared/stores/store.svelte';
-	import { asAny, getGuiFields } from '@shared/utils/utils';
-	// Components
-	import VerticalList from '@cms/components/VerticalList.svelte';
-	import { widgetFunctions } from '@shared/stores/widgetStore.svelte';
-	import { get } from 'svelte/store';
-	// ParaglideJS
+	import { collection, collections, setTargetWidget } from '@cms/stores/collectionStore.svelte';
+	import { widgets } from '@cms/stores/widgetStore.svelte';
+	import { untrack } from 'svelte';
 	import * as m from '@shared/paraglide/messages';
 
-	// Skeleton
-
-	import { modalState } from '@shared/utils/modalState.svelte';
+	// Components
+	import VerticalList from '@cms/components/VerticalList.svelte';
 	import ModalSelectWidget from './CollectionWidget/ModalSelectWidget.svelte';
-	import ModalWidgetForm from './CollectionWidget/ModalWidgetForm.svelte';
 
-	const props = $props();
+	// Stores & Utils
+	import { modalState } from '@shared/utils/modalState.svelte';
+	import { getGuiFields, asAny } from '@shared/utils/utils';
 
-	// Extract the collection path from the URL
-	const contentPath = page.params.contentPath;
+	const contentPath = $derived(page.params.contentPath);
+	const action = $derived(page.params.action);
 
-	// Helper function to map fields
 	function mapFieldsWithWidgets(fields: any[]) {
-		if (!fields) return [];
-		return fields.map((field, index) => {
-			const widgetType =
-				field.widget?.key || // For new widgets
-				field.widget?.Name || // For existing widgets
-				field.__type || // For schema-defined widgets
-				field.type || // Backup type field
-				Object.keys(get(widgetFunctions)).find((key) => field[key]) || // Check if field has widget property
-				'Unknown Widget'; // Fallback
-
-			return {
-				id: index + 1,
-				...field,
-				widget: {
-					key: widgetType,
-					Name: widgetType,
-					...field.widget
-				}
-			};
+		return fields.map((field) => {
+			return field;
 		});
 	}
+	// Props
+	interface Props {
+		fields: any[];
+		handleCollectionSave: () => void;
+		onPrevious?: () => void;
+	}
+
+	const { fields: initialFields, handleCollectionSave, onPrevious }: Props = $props();
 
 	// Use state for fields (not derived, since we need to mutate it via drag-and-drop)
-	let fields = $state(mapFieldsWithWidgets(props.fields ?? []));
+	let fields = $state(mapFieldsWithWidgets(initialFields ?? []));
+
+	// ... (rest of the logic)
 
 	// Watch for changes in props.fields and update our state
 	$effect(() => {
-		if (props.fields) {
-			fields = mapFieldsWithWidgets(props.fields);
+		if (initialFields) {
+			// Only update if we're not returning from a save
+			const isReturningFromSave = page.url.searchParams.get('widgetSaved') === 'true';
+			if (!isReturningFromSave) {
+				fields = mapFieldsWithWidgets(initialFields);
+			}
+		}
+	});
+
+	// ... (widgetSaved logic remains same)
+
+	// ...
+
+	// Handle returning from widget configuration
+	$effect(() => {
+		const isSaved = page.url.searchParams.get('widgetSaved') === 'true';
+
+		if (isSaved && collections.targetWidget) {
+			untrack(() => {
+				console.log('[CollectionWidget] Returning from save with widget:', collections.targetWidget);
+
+				// Get the widget from store
+				const newWidget = { ...collections.targetWidget };
+				const widgetType = newWidget.widget?.key || newWidget.widget?.Name || 'Unknown';
+
+				// Check if we're editing an existing field or adding a new one
+				// We can use ID or some other identifier if available, otherwise assume append for now
+				// For simplicity in this flow, we'll append to the list
+
+				const mappedWidget = {
+					id: fields.length + 1,
+					...newWidget,
+					widget: {
+						key: widgetType,
+						Name: widgetType,
+						...newWidget.widget
+					}
+				};
+
+				// Update fields
+				fields = [...fields, mappedWidget];
+
+				// Clear the query param so we don't add it again on refresh
+				const url = new URL(page.url);
+				url.searchParams.delete('widgetSaved');
+				goto(url.toString(), { replaceState: true, keepFocus: true, noScroll: true });
+
+				// Clear target widget to prevent re-adding
+				// setTargetWidget(null); // Keep it for now in case of issues, or clear it
+			});
 		}
 	});
 
@@ -78,6 +114,7 @@ component
 	};
 
 	function modalSelectWidget(): void {
+		console.log('[CollectionWidget] Opening widget selection modal');
 		modalState.trigger(
 			ModalSelectWidget as any,
 			{
@@ -85,9 +122,15 @@ component
 				body: 'Select your widget and then press submit.'
 			},
 			(r: { selectedWidget: string } | undefined) => {
-				if (!r) return;
+				console.log('[CollectionWidget] Modal callback received:', r);
+				if (!r) {
+					console.log('[CollectionWidget] No response received, returning');
+					return;
+				}
 				const { selectedWidget } = r;
-				const widgetInstance = get(widgetFunctions)[selectedWidget];
+				console.log('[CollectionWidget] Selected widget:', selectedWidget);
+				const widgetInstance = widgets.widgetFunctions[selectedWidget];
+				console.log('[CollectionWidget] Widget instance:', widgetInstance);
 				if (selectedWidget && widgetInstance) {
 					// Create a new widget object with the selected widget data
 					const newWidget = {
@@ -95,61 +138,40 @@ component
 						GuiFields: getGuiFields({ key: selectedWidget }, asAny(widgetInstance.GuiSchema)),
 						permissions: {} // Initialize empty permissions object
 					};
-					// Call modalWidgetForm with the new widget object
-					modalWidgetForm(newWidget);
+					console.log('[CollectionWidget] Creating new widget:', newWidget);
+					// Navigate to widget configuration page
+					navigateToWidgetConfig(newWidget, 'create');
+				} else {
+					console.log('[CollectionWidget] Widget instance not found or no selection');
 				}
 			}
 		);
 	}
 
-	// Modal 2 to Edit a selected widget
-	function modalWidgetForm(selectedWidget: any): void {
+	// Navigate to widget configuration page
+	function navigateToWidgetConfig(selectedWidget: any, widgetAction: 'create' | 'edit'): void {
+		console.log('[CollectionWidget] Navigating to widget config:', selectedWidget);
 		// Ensure permissions object exists
 		if (!selectedWidget.permissions) {
 			selectedWidget.permissions = {};
 		}
-		setTargetWidget(selectedWidget);
-		modalState.trigger(
-			ModalWidgetForm as any,
-			{
-				title: 'Define your Widget',
-				body: 'Setup your widget and then press Save.',
-				value: selectedWidget
-			},
-			(r: any) => {
-				if (!r) return;
-				// Find the index of the existing widget based on its ID
-				const existingIndex = fields.findIndex((widget) => widget.id === r.id);
+		// Set the target widget in the store for the config page to access
+		collections.setTargetWidget(selectedWidget);
 
-				if (existingIndex !== -1) {
-					// If the existing widget is found, update its properties
-					const updatedFields = [
-						...fields.slice(0, existingIndex), // Copy widgets before the updated one
-						{ ...r }, // Update the existing widget
-						...fields.slice(existingIndex + 1) // Copy widgets after the updated one
-					];
-					fields = updatedFields;
-				} else {
-					// If the existing widget is not found, add it as a new widget
-					const newField = {
-						id: fields.length + 1,
-						...r
-					};
-					fields = [...fields, newField];
-				}
-				// Update the collectionValue store
-				if (collection?.value) {
-					collection.value.fields = fields;
-				}
-			}
-		);
+		// Navigate to the widget configuration page
+		goto(`/config/collectionbuilder/${action}/${contentPath}/widget/${widgetAction}`);
+	}
+
+	// Edit an existing widget field
+	function editWidgetField(field: any): void {
+		navigateToWidgetConfig(field, 'edit');
 	}
 
 	// Function to save data by sending a POST request
 	async function handleSave() {
 		try {
 			const updatedFields = fields.map((field) => {
-				const widgetInstance = field.widget?.Name ? get(widgetFunctions)[field.widget.Name] : undefined;
+				const widgetInstance = field.widget?.Name ? widgets.widgetFunctions[field.widget.Name] : undefined;
 				if (field.widget?.Name && widgetInstance) {
 					const GuiFields = getGuiFields({ key: field.widget.Name }, asAny(widgetInstance.GuiSchema));
 					for (const [property, value] of Object.entries(field)) {
@@ -197,7 +219,7 @@ component
 					<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
 					<div class=" ">{field.widget?.key || field.__type || 'Unknown Widget'}</div>
 
-					<button onclick={() => modalWidgetForm(field)} type="button" aria-label={m.button_edit()} class="preset-ghost-primary-500 btn-icon ml-auto">
+					<button onclick={() => editWidgetField(field)} type="button" aria-label={m.button_edit()} class="preset-ghost-primary-500 btn-icon ml-auto">
 						<iconify-icon icon="ic:baseline-edit" width="24" class="dark:text-white"></iconify-icon>
 					</button>
 				</div>
@@ -216,7 +238,13 @@ component
 			</button>
 		</div>
 		<div class=" flex items-center justify-between">
-			<button onclick={() => tabSet.set(0)} type="button" aria-label={m.button_previous()} class="preset-filled-secondary-500 btn mt-2 justify-end">
+			<button
+				onclick={() => onPrevious?.()}
+				type="button"
+				aria-label={m.button_previous()}
+				class="preset-filled-secondary-500 btn mt-2 justify-end"
+				disabled={!onPrevious}
+			>
 				{m.button_previous()}
 			</button>
 			<button

@@ -23,7 +23,7 @@
 	import { flip } from 'svelte/animate';
 	import type { WebsiteToken } from '@shared/database/schemas';
 	import type { User } from '@shared/database/auth/types';
-	import { globalLoadingStore, loadingOperations } from '@shared/stores/loadingStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@cms/stores/loadingStore.svelte';
 
 	interface TableHeader {
 		label: string;

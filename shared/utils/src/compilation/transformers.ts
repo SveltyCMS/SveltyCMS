@@ -24,7 +24,7 @@ export const widgetTransformer: ts.TransformerFactory<ts.SourceFile> = (context)
 				const hasWidgetsAlias = node.importClause.namedBindings.elements.some((element) => element.name.text === 'widgets');
 				if (hasWidgetsAlias) {
 					if (
-						moduleSpecifier.includes('@shared/stores/widgetStore.svelte') ||
+						moduleSpecifier.includes('@cms/stores/widgetStore.svelte') ||
 						moduleSpecifier.includes('@widgets/proxy') ||
 						moduleSpecifier.includes('widgets/proxy')
 					) {

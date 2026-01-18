@@ -59,7 +59,7 @@ export function showDeleteConfirm(options: {
 
 	showConfirm({
 		title: `Confirm ${action}`,
-		body: `Are you sure you want to ${action.toLowerCase()} ${count} item(s)?`,
+		body: `Are you sure you want to ${action.toLowerCase()} <span class="text-primary-500 font-bold dark:text-primary-400">${count}</span> item(s)?`,
 		confirmText: action,
 		onConfirm,
 		onCancel

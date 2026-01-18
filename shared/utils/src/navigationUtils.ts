@@ -6,7 +6,7 @@
 const browser = typeof window !== 'undefined';
 import { preloadData } from '$app/navigation';
 import { logger } from './logger';
-import type { ModeType } from '@shared/stores/collectionStore.svelte';
+import type { ModeType } from '@cms/stores/collectionStore.svelte';
 
 // ============================================================================
 // PRELOADING

@@ -6,7 +6,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 <script lang="ts">
 	import * as m from '@shared/paraglide/messages';
 	import { logger } from '@shared/utils/logger';
-	import type { ValidationErrors } from '@shared/stores/setupStore.svelte';
+	import type { ValidationErrors } from '@setup/stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { dbConfigSchema } from '@shared/utils/formSchemas';
 

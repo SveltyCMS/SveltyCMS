@@ -25,7 +25,7 @@
 	import type { FieldType } from './';
 	import type { MediaFile } from './types';
 	import { modalState } from '@shared/utils/modalState.svelte';
-	import MediaLibraryModal from '@shared/components/MediaLibraryModal.svelte';
+	import MediaLibraryModal from '@cms/components/MediaLibraryModal.svelte';
 
 	// SECURITY: File validation constants
 	const ALLOWED_MIME_TYPES = [

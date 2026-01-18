@@ -10,7 +10,7 @@
 - Clear explanation of why SMTP is needed
 -->
 <script lang="ts">
-	import { setupStore } from '@shared/stores/setupStore.svelte';
+	import { setupStore } from '@setup/stores/setupStore.svelte';
 	import * as m from '@shared/paraglide/messages';
 	import { showToast } from '@shared/utils/toast';
 	import { safeParse } from 'valibot';
@@ -566,7 +566,7 @@
 				{#if selectedPort}
 					<div class="mt-1 flex items-center gap-2">
 						{#if effectiveSecure()}
-							<span class="variant-soft-success badge flex items-center gap-1 text-xs">
+							<span class="preset-tonal-success badge flex items-center gap-1 text-xs">
 								<iconify-icon icon="mdi:lock" class="text-sm"></iconify-icon>
 								{m.setup_email_port_encrypted()}
 							</span>

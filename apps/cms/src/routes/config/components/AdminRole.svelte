@@ -127,7 +127,7 @@ It provides functionality to:
 			</p>
 			<div class="mt-4 flex justify-between">
 				<!-- cancel -->
-				<button onclick={cancelChanges} class="variant-filled-secondary btn"> Cancel </button>
+				<button onclick={cancelChanges} class="preset-filled-secondary-500 btn"> Cancel </button>
 
 				<!-- Save -->
 				<button onclick={saveAdminRole} class="preset-filled-tertiary-500 btn" disabled={isSaving}>

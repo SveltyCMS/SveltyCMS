@@ -27,7 +27,7 @@
 	import { beforeNavigate, invalidateAll, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { untrack, onMount } from 'svelte';
-	import { collections } from '@shared/stores/collectionStore.svelte';
+	import { collections } from '@cms/stores/collectionStore.svelte';
 	import { app, validationStore } from '@shared/stores/store.svelte';
 	import { parseURLToMode } from '@shared/utils/navigationUtils';
 	import { getFieldName } from '@shared/utils/utils';
@@ -313,19 +313,12 @@
 
 			// Edit mode from URL change
 			if (parsed.mode === 'edit' && parsed.entryId && editParamChanged) {
-				if (entries && entries.length === 1) {
-					// Data already loaded by server
-					const entryData = entries[0];
+				// ALWAYS reload data when switching to edit mode to ensure we get RAW data (not resolved tokens)
+				// The previous optimization (using entries[0]) is unsafe if the list view has resolved tokens.
+				logger.debug(`[URL Change] Reloading entry ${parsed.entryId} for Edit Mode`);
+				invalidateAll().then(() => {
 					collections.setMode('edit');
-					collections.setCollectionValue(entryData);
-					initialCollectionValue = JSON.stringify(entryData);
-				} else {
-					// Need to reload data
-					invalidateAll().then(() => {
-						collections.setMode('edit');
-						logger.debug(`[URL Change] Reloaded entry ${parsed.entryId}`);
-					});
-				}
+				});
 			} else if (parsed.mode === 'view' && collections.mode === 'edit') {
 				// Exiting edit mode
 				collections.setMode('view');

@@ -1,0 +1,270 @@
+---
+path: 'docs/guides/content/per-locale-publishing.mdx'
+title: 'Per-Locale Publication Status'
+description: 'Guide on independent publication state management for multilingual content.'
+order: 10
+icon: 'mdi:earth'
+author: 'admin'
+created: '2026-01-18'
+updated: '2026-01-18'
+tags:
+  - 'publishing'
+  - 'localization'
+  - 'workflow'
+---
+
+# Per-Locale Publication Status
+
+## Overview
+
+Per-locale publication status allows you to independently manage the publication state of content for each language in your multilingual site. This enterprise feature enables sophisticated publishing workflows where different language versions of the same content can be published, unpublished, or scheduled independently.
+
+## Workflow Diagram
+
+```mermaid
+graph TD
+    User([User Action]) --> Toggle[Toggle Publication Status]
+    Toggle --> CheckEnabled{Per-Locale Enabled?}
+
+    CheckEnabled -- No --> Global[Update global 'status' field]
+    Global --> Sync[Save to Database]
+
+    CheckEnabled -- Yes --> LocaleAware[Update language-specific status]
+    LocaleAware --> StatusByLocale[Update 'statusByLocale' record]
+    StatusByLocale --> Sync
+
+    Sync --> UI[Refresh UI with updated state]
+```
+
+## Key Concepts
+
+### Translation Completion vs Publication Status
+
+It's important to understand the distinction between these two concepts:
+
+- **Translation Completion**: Indicates whether all translatable fields have been filled in for a given language. This is a measure of content completeness.
+- **Publication Status**: Indicates whether the content is visible to end users for a given language. This is a publishing workflow state.
+
+For example, you might have:
+
+- English version: 100% translated, **published**
+- German version: 100% translated, **unpublished** (undergoing review)
+- French version: 60% translated, **unpublished** (work in progress)
+
+## Enabling Per-Locale Publishing
+
+Per-locale publishing must be enabled at **two levels**:
+
+### 1. System-Level Setting
+
+First, enable the feature globally in your system settings:
+
+**Via Admin UI**: Settings → System Preferences → Enable Per-Locale Publishing
+
+**Via Configuration File** (if applicable):
+
+```json
+{
+	"ENABLE_PER_LOCALE_PUBLISHING": true
+}
+```
+
+### 2. Collection-Level Setting
+
+Then, enable it for specific collections where you need per-locale control:
+
+**In Collection Schema** (`config/collections/.../YourCollection.ts`):
+
+```typescript
+export const schema: Schema = {
+	name: 'posts',
+	slug: 'posts',
+	perLocalePublishing: true, // ← Enable per-locale publishing for this collection
+	fields: [
+		// ... your fields
+	]
+};
+```
+
+**Important**: Both system and collection settings must be enabled for per-locale publishing to work. This two-tier approach ensures the feature is only active where needed.
+
+## How It Works
+
+### Data Model
+
+When per-locale publishing is enabled, entries store status information in two ways:
+
+1. **Global status** (backward compatible):
+
+   ```typescript
+   {
+     status: 'publish',  // Fallback/default status
+     _scheduled: '2024-12-25T00:00:00Z'  // Global schedule
+   }
+   ```
+
+2. **Per-locale status** (when feature is enabled):
+   ```typescript
+   {
+     status: 'publish',  // Fallback
+     statusByLocale: {
+       en: 'publish',
+       de: 'unpublish',
+       fr: 'draft'
+     },
+     _scheduledByLocale: {
+       en: '2024-12-25T00:00:00Z',
+       de: '2024-12-26T00:00:00Z'
+     }
+   }
+   ```
+
+### UI Behavior
+
+When per-locale publishing is enabled:
+
+1. **Entry List**: Shows the status for the currently selected content language
+2. **Edit View**: Status toggles and schedules apply only to the current content language
+3. **Bulk Actions**: Operate on entries for the active language only
+4. **Version History**: Reflects locale-specific status changes
+
+### Status Types
+
+Available status values (same for global and per-locale):
+
+- `publish`: Content is live and visible to users
+- `unpublish`: Content is hidden from users but not deleted
+- `draft`: Content is a work in progress
+- `schedule`: Content will be automatically published at a future time
+- `archive`: Content is archived (soft-deleted)
+
+## Usage Examples
+
+### Example 1: Staged Rollout
+
+Launch content in different markets at different times:
+
+1. Create entry in English, set status to `publish`
+2. Translate to German, set German status to `draft` (review pending)
+3. Schedule German version for next week
+4. Translate to French, set French status to `unpublish` (waiting for marketing approval)
+
+### Example 2: Localized Campaigns
+
+Run region-specific campaigns:
+
+1. Create campaign content
+2. Publish English version immediately
+3. Keep German version unpublished until regional event
+4. Never publish French version (campaign not relevant in that market)
+
+### Example 3: Compliance & Legal Review
+
+Different locales may require different approval processes:
+
+1. Publish English version (reviewed and approved)
+2. Keep German version as `draft` while undergoing legal review
+3. Keep Spanish version as `unpublish` pending compliance check
+
+## API Usage
+
+### Setting Per-Locale Status
+
+When updating status via the API, include the `locale` parameter:
+
+```javascript
+// Update status for German locale only
+PATCH /api/collections/{collectionId}/{entryId}/status
+{
+  "status": "publish",
+  "locale": "de"
+}
+```
+
+Without the `locale` parameter, the global status is updated (when per-locale is disabled).
+
+### Reading Entries
+
+The current locale's status is automatically returned based on your content language context. When per-locale publishing is enabled:
+
+- Entry list shows status for the active content language
+- Edit mode shows locale-specific status and schedule
+- Version history includes per-locale status changes
+
+## Version History
+
+When per-locale publishing is enabled, the revision system tracks status changes per locale:
+
+- Each locale's status changes are recorded separately
+- Revision view shows which locale was affected by each change
+- You can restore to a previous status for a specific locale
+
+## Best Practices
+
+### 1. Use for Content That Truly Needs Independent Publishing
+
+Not all content requires per-locale publishing. Enable it only for collections where:
+
+- Different regions have different launch schedules
+- Locales require independent approval workflows
+- Compliance or legal reviews vary by region
+
+### 2. Coordinate with Translation Workflow
+
+Per-locale publishing works best when integrated with your translation process:
+
+- Start with `draft` status for new translations
+- Move to `unpublish` when translation is complete but not approved
+- Publish only after review and approval
+
+### 3. Monitor Status Across Locales
+
+Regularly review the publication status across all locales to ensure:
+
+- No locales are accidentally left unpublished
+- Scheduled publications are correct
+- Archived content is consistent
+
+### 4. Document Your Workflow
+
+Establish clear guidelines for your team:
+
+- When to use `draft` vs `unpublish` vs `archive`
+- Who has authority to publish each locale
+- What approval process is required per locale
+
+## Troubleshooting
+
+### Content Not Showing in a Specific Locale
+
+1. Check the system setting is enabled
+2. Verify the collection has `perLocalePublishing: true`
+3. Confirm the entry's status for that locale is `publish`
+4. Check if a schedule is set and hasn't been reached yet
+
+### Status Changes Not Saving
+
+1. Ensure you have write permissions for the collection
+2. Verify the locale parameter is being sent correctly
+3. Check server logs for validation errors
+
+### Bulk Actions Not Working as Expected
+
+Bulk actions operate on the currently active content language. Switch to the desired language before performing bulk status updates.
+
+## Migration from Global Status
+
+Existing entries continue to work with the global `status` field. When you enable per-locale publishing:
+
+1. Existing entries show the global status for all locales
+2. Once you update status for a specific locale, it's stored in `statusByLocale`
+3. Locales without a specific status fall back to the global `status`
+
+This ensures backward compatibility and smooth migration.
+
+## See Also
+
+- [Translation Management Guide](./translation-management.mdx)
+- [Scheduling Content](./scheduling.mdx)
+- [Version Control & Revisions](./version-control.mdx)
+- [Collection Configuration](../configuration/collections.mdx)

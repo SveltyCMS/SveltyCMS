@@ -154,8 +154,8 @@ src/components/ImageEditor/
 				<iconify-icon icon="mdi:redo" />
 			</button>
 			<div class="h-8 w-px bg-surface-300" />
-			<button onclick={cancel} class="variant-ghost btn">Cancel</button>
-			<button onclick={save} class="variant-filled-primary btn">Save</button>
+			<button onclick={cancel} class="preset-outlined-surface-500 btn">Cancel</button>
+			<button onclick={save} class="preset-filled-primary-500 btn">Save</button>
 		</div>
 	</div>
 </div>
@@ -208,7 +208,7 @@ src/components/ImageEditor/
 	<div class="h-6 w-px bg-surface-300" />
 
 	<!-- Apply -->
-	<button class="variant-filled-success btn" onclick={() => cropToolRef.apply()}> Apply Crop </button>
+	<button class="preset-filled-success-500 btn" onclick={() => cropToolRef.apply()}> Apply Crop </button>
 </div>
 ```
 
@@ -368,7 +368,7 @@ On mobile, the same `EditorToolbar.svelte` stacks vertically:
 		<!-- Actions -->
 		<div class="flex gap-2">
 			<button class="btn flex-1">Cancel</button>
-			<button class="variant-filled-primary btn flex-1">Save</button>
+			<button class="preset-filled-primary-500 btn flex-1">Save</button>
 		</div>
 	</div>
 {/if}

@@ -4,9 +4,9 @@
  */
 import { describe, it, expect, mock, beforeEach } from 'bun:test';
 import { navigationManager } from '@shared/utils/navigationManager';
-import { globalLoadingStore } from '@shared/stores/loadingStore.svelte';
+import { globalLoadingStore } from '@cms/stores/loadingStore.svelte';
 import { dataChangeStore } from '@shared/stores/store.svelte';
-import { mode } from '@shared/stores/collectionStore.svelte';
+import { mode } from '@cms/stores/collectionStore.svelte';
 
 // Mock $app/navigation
 // Bun executes setup.ts which mocks the module.

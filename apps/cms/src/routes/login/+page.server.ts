@@ -76,7 +76,7 @@ function calculatePasswordStrength(password: string): number {
 async function checkDatabaseHealth(): Promise<{ healthy: boolean; reason?: string }> {
 	try {
 		// First check system state - leverage existing state management
-		const { getSystemState, isServiceHealthy } = await import('@shared/stores/system');
+		const { getSystemState, isServiceHealthy } = await import('@cms/stores/system');
 		const systemState = getSystemState();
 
 		// If database service is explicitly unhealthy in state management, return early
@@ -218,7 +218,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 	try {
 		// Check system state first - leverage existing state management for performance
-		const { getSystemState } = await import('@shared/stores/system');
+		const { getSystemState } = await import('@cms/stores/system');
 		const systemState = getSystemState();
 
 		// If system is FAILED, provide detailed error immediately without waiting

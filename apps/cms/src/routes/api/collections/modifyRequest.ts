@@ -21,7 +21,7 @@
  */
 
 import { getFieldName } from '@shared/utils/utils';
-import { widgets } from '@shared/stores/widgetStore.svelte';
+import { widgets } from '@cms/stores/widgetStore.svelte';
 
 // Types
 import type { User } from '@shared/database/auth/types';

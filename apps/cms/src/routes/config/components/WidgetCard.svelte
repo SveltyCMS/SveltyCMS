@@ -108,7 +108,7 @@ canManage: boolean;
 					<div class="flex flex-wrap gap-1.5 pt-1">
 						<span class="text-xs text-surface-500">Depends on:</span>
 						{#each widget.dependencies as dep}
-							<span class="badge variant-soft-secondary text-xs">
+							<span class="badge preset-filled-surface-500 text-xs">
 								{dep}
 							</span>
 						{/each}
@@ -132,12 +132,17 @@ canManage: boolean;
 			{:else if widget.isCore}
 				<span class="badge preset-tonal-surface">System</span>
 			{:else if !widget.canDisable}
-				<span class="badge variant-soft-warning" title="Required by other widgets">Required</span>
+				<span class="badge preset-outlined-warning-500" title="Required by other widgets">Required</span>
 			{/if}
 
 			<!-- Uninstall (only for inactive custom widgets) -->
 			{#if canManage && !widget.isCore && !widget.isActive && onUninstall}
-				<button type="button" onclick={() => onUninstall?.(widget.name)} class="btn-icon btn-icon-sm variant-soft-error" title="Uninstall widget">
+				<button
+					type="button"
+					onclick={() => onUninstall?.(widget.name)}
+					class="btn-icon btn-icon-sm preset-outlined-error-500"
+					title="Uninstall widget"
+				>
 					<iconify-icon icon="mdi:delete" class="text-lg"></iconify-icon>
 				</button>
 			{/if}

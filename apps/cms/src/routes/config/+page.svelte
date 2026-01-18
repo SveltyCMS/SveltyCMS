@@ -8,8 +8,8 @@
 	import PageTitle from '@cms/components/PageTitle.svelte';
 	import PermissionGuard from '@cms/components/PermissionGuard.svelte';
 	import * as m from '@shared/paraglide/messages';
-	import { collections } from '@shared/stores/collectionStore.svelte';
-	import { ui } from '@shared/stores/UIStore.svelte';
+	import { collections } from '@cms/stores/collectionStore.svelte';
+	import { ui } from '@cms/stores/UIStore.svelte';
 	import { onMount } from 'svelte';
 
 	onMount(() => {

@@ -42,7 +42,7 @@ export const getBaseViteConfig = (workspaceDir, options = {}) => {
 
 		// Development server
 		server: {
-			port,
+			port: Number(port),
 			fs: {
 				// Allow serving files from workspace and shared libraries
 				allow: [workspaceDir, path.resolve(workspaceDir, '../../shared'), path.resolve(workspaceDir, '../../config')]

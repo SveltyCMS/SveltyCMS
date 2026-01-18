@@ -58,8 +58,8 @@ Displays a preview of the shared link for different platforms.
 			<button
 				type="button"
 				class="btn btn-icon btn-icon-sm transition-all {activePlatform === platform.id
-					? 'variant-filled-secondary ring-2 ring-surface-900 dark:ring-white scale-110'
-					: 'preset-tonal-surface hover:preset-filled-surface-500'}"
+					? 'preset-filled-secondary-500 ring-2 ring-surface-900 dark:ring-white scale-110'
+					: 'preset-tonal-surface-500 hover:preset-filled-surface-500'}"
 				onclick={() => (activePlatform = platform.id)}
 				title={platform.label}
 			>

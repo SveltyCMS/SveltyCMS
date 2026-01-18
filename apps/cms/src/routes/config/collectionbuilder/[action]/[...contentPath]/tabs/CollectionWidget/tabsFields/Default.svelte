@@ -22,11 +22,8 @@ Features:
 	// Components
 	import InputSwitch from '@cms/components/system/builder/InputSwitch.svelte';
 
-	// Skeleton Stores
-	import { modalState } from '@shared/utils/modalState.svelte';
-
 	// Stores
-	import { collections } from '@shared/stores/collectionStore.svelte';
+	import { collections } from '@cms/stores/collectionStore.svelte';
 
 	// GuiSchema is a record of field properties with their widget configs
 	type GuiSchema = Record<string, { widget: Component<any> }>;
@@ -52,7 +49,13 @@ Features:
 	function defaultValue(property: string) {
 		if (property === 'required' || property === 'translated') {
 			return false;
-		} else return (collections.targetWidget.widget as any)?.Name;
+		} else if (property === 'label') {
+			// Use widget name as initial label suggestion
+			return (collections.targetWidget.widget as any)?.Name ?? '';
+		} else {
+			// Return empty string for other text fields
+			return '';
+		}
 	}
 
 	function handleUpdate(detail: { value: any }, property: string) {
@@ -63,19 +66,17 @@ Features:
 	}
 </script>
 
-{#if modalState.active}
-	<!-- Default section -->
-	<div class="flex flex-col gap-4">
-		{#each displayProperties as property}
-			{#if guiSchema[property]}
-				<InputSwitch
-					value={collections.targetWidget[property] ?? defaultValue(property)}
-					icon={collections.targetWidget[property] as string}
-					widget={asAny(guiSchema[property]?.widget)}
-					key={property}
-					onupdate={(e: { value: any }) => handleUpdate(e, property)}
-				/>
-			{/if}
-		{/each}
-	</div>
-{/if}
+<!-- Default section -->
+<div class="flex flex-col gap-4">
+	{#each displayProperties as property}
+		{#if guiSchema[property]}
+			<InputSwitch
+				value={collections.targetWidget[property] ?? defaultValue(property)}
+				icon={collections.targetWidget[property] as string}
+				widget={asAny(guiSchema[property]?.widget)}
+				key={property}
+				onupdate={(e: { value: any }) => handleUpdate(e, property)}
+			/>
+		{/if}
+	{/each}
+</div>

@@ -89,7 +89,8 @@ export const getBaseSvelteConfig = (options = {}) => {
 				'@shared/utils': '../../shared/utils/src',
 				'@shared/hooks': '../../shared/hooks/src',
 				'@shared/stores': '../../shared/stores/src',
-				'@shared/services': '../../shared/services/src',
+				'@shared/services': '../../apps/cms/src/services',
+				'@shared/services/*': '../../apps/cms/src/services/*',
 				'@shared/paraglide': '../../shared/paraglide/src',
 
 				// CMS-specific content module (ContentManager, types, etc.)

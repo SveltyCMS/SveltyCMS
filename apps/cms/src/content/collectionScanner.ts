@@ -77,15 +77,45 @@ function extractCollectionPath(fullPath: string, baseDir: string): string {
 export async function scanCompiledCollections(): Promise<Schema[]> {
 	const envDir = process.env.COLLECTIONS_DIR || process.env.COLLECTIONS_FOLDER || import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
 
-	// Resolve to absolute path to ensure we look in the project root
-	const compiledDirectoryPath = path.resolve(process.cwd(), envDir);
+	// Robust workspace root resolution
+	let workspaceRoot = process.cwd();
+	if (workspaceRoot.endsWith('apps/cms') || workspaceRoot.endsWith('apps/setup')) {
+		workspaceRoot = path.resolve(workspaceRoot, '../../');
+	} else if (workspaceRoot.endsWith('apps/cms/') || workspaceRoot.endsWith('apps/setup/')) {
+		workspaceRoot = path.resolve(workspaceRoot, '../../');
+	}
 
-	try {
-		await fs.access(compiledDirectoryPath);
-	} catch {
-		logger.trace(`Compiled collections directory not found at: ${compiledDirectoryPath}. Assuming fresh start.`);
+	// Potential paths to check
+	const possiblePaths = [
+		path.resolve(workspaceRoot, '.compiledCollections'), // 1. Hidden root location (Priority)
+		path.resolve(workspaceRoot, 'compiledCollections'), // 2. Old location (Fallback)
+		path.resolve(process.cwd(), '.compiledCollections') // 3. Relative hidden
+	];
+
+	// Allow override via env var
+	if (envDir !== 'compiledCollections') {
+		possiblePaths.unshift(path.resolve(workspaceRoot, envDir));
+	}
+
+	let compiledDirectoryPath = '';
+	for (const p of possiblePaths) {
+		try {
+			await fs.access(p);
+			compiledDirectoryPath = p;
+			break;
+		} catch {
+			// Continue
+		}
+	}
+
+	if (!compiledDirectoryPath) {
+		logger.warn(
+			`Compiled collections directory not found. Checked: ${possiblePaths.map((p) => path.relative(workspaceRoot, p)).join(', ')}. Assuming fresh start.`
+		);
 		return [];
 	}
+
+	logger.debug(`Scanning compiled collections at: ${compiledDirectoryPath}`);
 
 	// Get only relevant JS files
 	const files = await recursivelyGetFiles(compiledDirectoryPath);

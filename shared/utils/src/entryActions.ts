@@ -9,13 +9,12 @@ import { publicEnv } from '@shared/stores/globalSettings.svelte';
 
 // ParaglideJS
 import * as m from '@shared/paraglide/messages';
-import { collection, collectionValue, setCollectionValue, setMode } from '@shared/stores/collectionStore.svelte';
+import { collection, collectionValue, setCollectionValue, setMode } from '@cms/stores/collectionStore.svelte';
 import { toaster } from '@shared/stores/store.svelte';
 import { logger } from './logger';
 import {
 	batchDeleteEntries,
 	batchUpdateEntries,
-	createClones,
 	createEntry,
 	deleteEntry,
 	invalidateCollectionCache,
@@ -109,19 +108,16 @@ export async function deleteEntries(entryIds: string[], isPermanentDelete: boole
 	}
 }
 
-// Clones one or more entries
+// Clones one or more entries using the batch API
 export async function cloneEntries(rawEntries: Record<string, unknown>[], onSuccess: () => void) {
 	if (!rawEntries.length) return;
 	const collId = collection.value?._id;
 	if (!collId) return;
 
-	const entriesToClone = rawEntries.map((entry) => {
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		const { _id, createdAt, updatedAt, ...rest } = entry;
-		return { ...rest, clonedFrom: _id };
-	});
+	const entryIds = rawEntries.map((e) => e._id as string);
 
-	const result = await createClones(collId, entriesToClone);
+	const result = await import('./apiClient').then((m) => m.batchCloneEntries(collId, entryIds));
+
 	if (result.success) {
 		toaster.success({ description: 'Entries cloned' });
 		onSuccess();

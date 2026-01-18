@@ -1,8 +1,0 @@
-{
-	"extends": "../../tsconfig.base.json",
-	"compilerOptions": {
-		"outDir": "../../dist/out-tsc",
-		"types": ["@types/bun"]
-	},
-	"include": ["src/**/*.ts", "src/**/*.svelte"]
-}

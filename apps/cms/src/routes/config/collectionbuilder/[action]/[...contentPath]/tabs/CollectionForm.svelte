@@ -17,8 +17,7 @@
 	import { untrack } from 'svelte';
 	// Stores
 	import { page } from '$app/state';
-	import { tabSet } from '@shared/stores/store.svelte';
-	import { collection, setCollection } from '@shared/stores/collectionStore.svelte';
+	import { collection, setCollection } from '@cms/stores/collectionStore.svelte';
 
 	// Components
 	import IconifyPicker from '@cms/components/IconifyPicker.svelte';
@@ -27,7 +26,11 @@
 	import * as m from '@shared/paraglide/messages';
 
 	// Skeleton
-	// Collection Manager
+	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
+
+	// Tooltip styling
+	const TOOLTIP_CLASS =
+		'card rounded-md border border-surface-300/50 bg-surface-50 dark:bg-surface-700 dark:border-surface-600 px-3 py-2 text-sm shadow-lg text-black dark:text-white max-w-xs';
 
 	const props = $props();
 
@@ -84,28 +87,27 @@
 		const currentIcon = selectedIcon;
 
 		// Use untrack to prevent reading collection.value from triggering this effect again
+		// Use untrack to prevent reading collection.value from triggering this effect again
 		untrack(() => {
-			if (collection.value?._id) {
-				// Check if values have actually changed to avoid unnecessary updates
-				if (
-					collection.value.name === currentName &&
-					collection.value.slug === currentSlug &&
-					collection.value.description === currentDescription &&
-					collection.value.status === currentStatus &&
-					collection.value.icon === currentIcon
-				) {
-					return;
-				}
-
-				setCollection({
-					...collection.value, // Spread existing values (including _id)
-					name: currentName,
-					slug: currentSlug,
-					description: currentDescription,
-					status: currentStatus,
-					icon: currentIcon // Ensure icon is updated
-				});
+			// Check if values have actually changed to avoid unnecessary updates
+			if (
+				collection.value?.name === currentName &&
+				collection.value?.slug === currentSlug &&
+				collection.value?.description === currentDescription &&
+				collection.value?.status === currentStatus &&
+				collection.value?.icon === currentIcon
+			) {
+				return;
 			}
+
+			setCollection({
+				...(collection.value || {}), // Spread existing values or empty object
+				name: currentName,
+				slug: currentSlug,
+				description: currentDescription,
+				status: currentStatus,
+				icon: currentIcon // Ensure icon is updated
+			});
 		});
 	});
 
@@ -159,11 +161,29 @@
 	// Import status types from the content types
 	import { StatusTypes } from '@cms-types';
 	const statuses = Object.values(StatusTypes);
-
-	function handleNextClick() {
-		tabSet.set(1);
-	}
 </script>
+
+{#snippet infoTooltip(text: string)}
+	<Tooltip positioning={{ placement: 'top' }}>
+		<Tooltip.Trigger>
+			<iconify-icon
+				icon="material-symbols:info"
+				width="18"
+				class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500 hover:scale-110 transition-transform"
+			></iconify-icon>
+		</Tooltip.Trigger>
+		<Portal>
+			<Tooltip.Positioner>
+				<Tooltip.Content class={TOOLTIP_CLASS}>
+					<span>{text}</span>
+					<Tooltip.Arrow class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)]">
+						<Tooltip.ArrowTip />
+					</Tooltip.Arrow>
+				</Tooltip.Content>
+			</Tooltip.Positioner>
+		</Portal>
+	</Tooltip>
+{/snippet}
 
 <!-- Single Column Layout Container -->
 <div class="flex w-full flex-col">
@@ -173,12 +193,7 @@
 		<div class="flex flex-col">
 			<label for="name" class="mb-1 flex items-center font-medium">
 				{m.collection_name()} <span class="mx-1 text-error-500">*</span>
-				<iconify-icon
-					icon="material-symbols:info"
-					title={`${m.collection_name_tooltip1()} ${m.collection_name_tooltip2()}`}
-					width="18"
-					class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
-				></iconify-icon>
+				{@render infoTooltip(`${m.collection_name_tooltip1()} ${m.collection_name_tooltip2()}`)}
 			</label>
 			<input
 				type="text"
@@ -204,18 +219,13 @@
 		<!-- Separator (Optional) -->
 		<hr class="my-2 border-gray-300 dark:border-gray-600" />
 
-		<p class="base-font-color mb-0 text-center font-bold">{m.collectionname_optional()}:</p>
+		<p class="text-tertiary-500 dark:text-primary-500 mb-0 text-center font-bold">{m.collectionname_optional()}:</p>
 
 		<!-- Icon -->
 		<div class="flex flex-col">
 			<label for="icon" class="mb-1 flex items-center font-medium">
 				{m.collectionname_labelicon()}
-				<iconify-icon
-					icon="material-symbols:info"
-					title={m.collection_icon_tooltip()}
-					width="18"
-					class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
-				></iconify-icon>
+				{@render infoTooltip(m.collection_icon_tooltip())}
 			</label>
 			<IconifyPicker bind:iconselected={selectedIcon} bind:searchQuery />
 		</div>
@@ -224,12 +234,7 @@
 		<div class="flex flex-col">
 			<label for="slug" class="mb-1 flex items-center font-medium">
 				{m.collection_slug()}
-				<iconify-icon
-					icon="material-symbols:info"
-					title={m.collection_slug_tooltip()}
-					width="18"
-					class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
-				></iconify-icon>
+				{@render infoTooltip(m.collection_slug_tooltip())}
 			</label>
 			<input type="text" id="slug" bind:value={slug} placeholder={m.collection_slug_input()} class="input w-full text-black dark:text-primary-500" />
 		</div>
@@ -238,12 +243,7 @@
 		<div class="flex flex-col">
 			<label for="description" class="mb-1 flex items-center font-medium">
 				{m.collectionname_description()}
-				<iconify-icon
-					icon="material-symbols:info"
-					title={m.collection_description()}
-					width="18"
-					class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
-				></iconify-icon>
+				{@render infoTooltip(m.collection_description())}
 			</label>
 			<textarea
 				id="description"
@@ -258,12 +258,7 @@
 		<div class="flex flex-col">
 			<label for="status" class="mb-1 flex items-center font-medium">
 				{m.collection_status()}
-				<iconify-icon
-					icon="material-symbols:info"
-					title={m.collection_status_tooltip()}
-					width="18"
-					class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
-				></iconify-icon>
+				{@render infoTooltip(m.collection_status_tooltip())}
 			</label>
 			<select id="status" bind:value={status} class="select w-full text-black dark:text-primary-500">
 				{#each statuses as statusOption}
@@ -271,13 +266,5 @@
 				{/each}
 			</select>
 		</div>
-	</div>
-
-	<!-- Buttons Section -->
-	<div class="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-between">
-		<a href="/config/collectionbuilder" class="preset-outlined-secondary-500 btn sm:w-auto">{m.button_cancel()}</a>
-		<button type="button" onclick={handleNextClick} class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 sm:w-auto"
-			>{m.button_next()}</button
-		>
 	</div>
 </div>

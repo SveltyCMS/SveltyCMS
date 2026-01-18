@@ -20,7 +20,7 @@
 	import { toaster } from '@shared/stores/store.svelte';
 	import { logger } from '@shared/utils/logger';
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
-	import { globalLoadingStore, loadingOperations } from '@shared/stores/loadingStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@cms/stores/loadingStore.svelte';
 
 	// Components
 	import PageTitle from '@cms/components/PageTitle.svelte';

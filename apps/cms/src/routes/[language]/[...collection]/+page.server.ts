@@ -49,6 +49,7 @@ import { getPublicSettingSync, getPrivateSettingSync } from '@shared/services/se
 import { logger } from '@shared/utils/logger.server';
 import type { FieldDefinition } from '@cms-types';
 import type { User } from '@shared/database/auth/types';
+import { populateRelations, getDepthFromQuery } from '@shared/utils/content/relationPopulation';
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const { user, tenantId, dbAdapter } = locals;
@@ -284,6 +285,29 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 				type: 'GET',
 				tenantId
 			});
+
+			// --- POPULATE RELATIONS (Recursion Depth Support) ---
+			const depth = getDepthFromQuery(url);
+			if (depth > 1) {
+				await populateRelations(entries, currentCollection, { depth, tenantId }, dbAdapter, contentManager);
+			}
+
+			// --- TOKEN RESOLUTION (Resolve {{ entry.field }} tokens) ---
+			// Ensure list view displays resolved values instead of raw tokens
+			try {
+				const { processTokensInResponse } = await import('@shared/services/token/helper');
+				entries = await Promise.all(
+					entries.map((entry) =>
+						processTokensInResponse(entry, typedUser, language, {
+							// Inject entry as context for self-reference tokens
+							entry
+						})
+					)
+				);
+			} catch (tokenError) {
+				logger.warn('Failed to resolve tokens for entry list', { error: tokenError });
+				// Continue with raw values if resolution fails
+			}
 		}
 
 		// =================================================================
@@ -324,6 +348,23 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 						(entry as any)[fieldName] = value !== undefined && value !== null && value !== '' ? value : '-';
 					}
 				}
+			}
+
+			// --- TOKEN RESOLUTION (Resolve {{ entry.field }} tokens) ---
+			// Ensure list view displays resolved values instead of raw tokens
+			try {
+				const { processTokensInResponse } = await import('@shared/services/token/helper');
+				entries = await Promise.all(
+					entries.map((entry) =>
+						processTokensInResponse(entry, typedUser, language, {
+							// Inject entry as context for self-reference tokens
+							entry
+						})
+					)
+				);
+			} catch (tokenError) {
+				logger.warn('Failed to resolve tokens for entry list', { error: tokenError });
+				// Continue with raw values if resolution fails
 			}
 		}
 

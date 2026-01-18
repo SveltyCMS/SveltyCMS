@@ -6,7 +6,7 @@ order: 52
 icon: 'mdi:code-tags'
 author: 'admin'
 created: '2025-11-01'
-updated: '2025-11-01'
+updated: '2026-01-18'
 tags:
   - 'developer'
   - 'types'
@@ -33,7 +33,7 @@ When you define collections in `config/collections/`, SveltyCMS automatically:
 
 ### 1. Vite Plugin Watcher
 
-The system uses a Vite plugin (`src/content/vite.ts`) that watches for changes:
+The system uses a Vite plugin (`src/content/vite.ts`) that watches for changes. It first synchronizes the database with `dbAdapter.collection.createModel()`, then regenerates types:
 
     // Read existing types file
     let types = await fs.readFile('src/content/types.ts', 'utf-8');

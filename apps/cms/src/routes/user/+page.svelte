@@ -19,7 +19,10 @@
 	import { onMount } from 'svelte';
 	// Auth
 	// Auth
-	import { ModalTwoFactorAuth, AdminArea, ModalEditAvatar, ModalEditForm } from '@cms/user';
+	import ModalTwoFactorAuth from './components/ModalTwoFactorAuth.svelte';
+	import AdminArea from './components/AdminArea.svelte';
+	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
+	import ModalEditForm from './components/ModalEditForm.svelte';
 	// ParaglideJS
 	import * as m from '@shared/paraglide/messages';
 
@@ -31,7 +34,7 @@
 	import PermissionGuard from '@cms/components/PermissionGuard.svelte';
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton-svelte';
-	import { setCollection } from '@shared/stores/collectionStore.svelte';
+	import { setCollection } from '@cms/stores/collectionStore.svelte';
 	import { modalState } from '@shared/utils/modalState.svelte';
 	import { showConfirm } from '@shared/utils/modalUtils';
 	import { toaster } from '@shared/stores/store.svelte';
@@ -92,7 +95,7 @@
 	// Modal Trigger - User Form
 	function modalUserForm(): void {
 		modalState.trigger(ModalEditForm, {
-			title: m.adminarea_title(),
+			title: m.usermodaluser_edittitle(),
 			body: m.usermodaluser_settingbody() || 'Update your user details below.'
 		});
 	}
@@ -137,6 +140,11 @@
 	function normalizeAvatarUrl(url: string | null | undefined): string {
 		if (!url) return '/Default_User.svg';
 		if (url.startsWith('data:')) return url;
+
+		// Don't process the default avatar - it's a static asset
+		if (url === '/Default_User.svg' || url === 'Default_User.svg') {
+			return '/Default_User.svg';
+		}
 
 		// 1. Remove leading slashes
 		let clean = url.replace(/^\/+/, '');

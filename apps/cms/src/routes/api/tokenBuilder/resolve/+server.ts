@@ -9,7 +9,7 @@ import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
-		const { text } = await request.json();
+		const { text, entry } = await request.json();
 		const locale = (locals as any).locale || 'en';
 
 		// Resolve tokens
@@ -17,7 +17,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// For now, we mainly rely on the server-side context (user, system)
 		// but we could allow passing specific entry data if needed for preview.
 
-		const resolved = await processTokensInResponse(text, locals.user ?? undefined, locale);
+		const resolved = await processTokensInResponse(text, locals.user ?? undefined, locale, {
+			entry // Pass the entry context provided by the client
+		});
 
 		return json({ resolved });
 	} catch (error) {

@@ -4,7 +4,7 @@ title: Compilation Pipeline
 description: Detailed architecture of the SveltyCMS compilation system, explaining how TypeScript collections are transformed into runtime-ready JavaScript with UUID syncing and robust validation.
 author: 'admin'
 created: '2025-12-29'
-updated: '2025-12-29'
+updated: '2026-01-18'
 tags:
   - 'architecture'
   - 'compilation'
@@ -36,7 +36,7 @@ The system is modularized into three core components located in `src/utils/compi
 
 The compiler ensures that your content schemas maintain stable IDs, even when you rename files or change content.
 
-- **Mechanism**: Before compiling, the system scans the `compiledCollections` directory.
+- **Mechanism**: Before compiling, the system scans the `.compiledCollections` directory (hidden in root).
 - **Logic**:
   1.  If a target file exists, its UUID is extracted and reused.
   2.  If the file is new but shares a content hash with a deleted file (detecting a move/rename), the old UUID is preserved.
@@ -59,21 +59,53 @@ Instead of regex-based replacement, we use the TypeScript Compiler API to perfor
 
 The compilation pipeline is integrated into both the development server and the production build:
 
-### Vite Plugin (`vite.config.ts`)
+### Vite Plugin (`apps/cms/vite.config.ts`)
 
-In development mode, the `cmsWatcherPlugin` invokes the compiler on file changes:
+In development mode, the `svelty-cms-watcher` plugin invokes the compiler on file changes and **synchronizes the database**:
 
 ```typescript
-// vite.config.ts leverage the shared compile utility
-import { compile } from './src/utils/compilation/compile';
+// apps/cms/vite.config.ts
+import { compile } from '@shared/utils/compilation/compile';
 
 // ... inside watcher
 await compile({
 	userCollections: paths.userCollections,
 	compiledCollections: paths.compiledCollections,
 	targetFile: file, // Incremental compilation
-	logger: log // Injects the Vite logger
+	logger: log
 });
+
+// Database Synchronization (Hot Reload)
+if (dbAdapter && dbAdapter.collection) {
+	const { scanCompiledCollections } = await server.ssrLoadModule('src/content/collectionScanner.ts');
+	const collections = await scanCompiledCollections();
+
+	// Register new models in MongoDB/MariaDB immediately
+	for (const schema of collections) {
+		await dbAdapter.collection.createModel(schema);
+	}
+}
+
+// Regenerate Types
+const { generateContentTypes } = await server.ssrLoadModule('src/content/vite.ts');
+await generateContentTypes(server);
+```
+
+### Server Startup (`hooks.server.ts`)
+
+To ensure production environments and fresh server restarts have all collections registered, the system scans and registers collections during the boot process:
+
+```typescript
+// apps/cms/src/hooks.server.ts
+import { scanCompiledCollections } from '@content/collectionScanner';
+
+// ... after DB initialization
+const compiledCollections = await scanCompiledCollections();
+
+for (const collection of compiledCollections) {
+	// Registers Mongoose models (MongoDB) or Schema definitions (MariaDB)
+	await dbAdapter.collection.createModel(collection);
+}
 ```
 
 ### Server-Side Route (`+page.server.ts`)
@@ -86,6 +118,50 @@ import { compile } from '@src/utils/compilation/compile';
 
 // ... inside save action
 await compile({ logger }); // Trigger full or partial compile
+```
+
+## Database Synchronization
+
+A critical part of the pipeline is ensuring that the running database adapter knows about the latest content schemas.
+
+1.  **Compilation**: Transforms TypeScript config to JS.
+2.  **Model Registration**: Calls `dbAdapter.collection.createModel(schema)`.
+    - **MongoDB**: Creates/Updates Mongoose models, enabling immediate CRUD operations.
+    - **MariaDB**: Registers the schema in memory for the generic `system_content_structure` table wrapper.
+3.  **Type Generation**: Updates `types.ts` for IntelliSense.
+
+This ensures that as soon as a file is saved, the API is ready to accept requests for that collection.
+
+### Pipeline Visualization
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant Watcher as Vite Watcher
+    participant Compiler as Compiler (compile.ts)
+    participant DB as Database Adapter
+    participant Generator as Type Generator
+
+    Dev->>Watcher: Save Collection File
+    Watcher->>Compiler: Trigger Compilation
+    Compiler->>Compiler: Transform TS -> JS
+    Compiler-->>Watcher: Compilation Complete
+
+    rect rgb(20, 20, 20)
+        Note over Watcher, DB: Database Synchronization
+        Watcher->>DB: Scan Compiled Collections
+        loop Each Collection
+            Watcher->>DB: dbAdapter.collection.createModel(schema)
+            alt MongoDB
+                DB->>DB: Register Mongoose Model
+            else MariaDB
+                DB->>DB: Register Schema in Memory
+            end
+        end
+    end
+
+    Watcher->>Generator: Generate Types
+    Generator->>Dev: Update types.ts (IntelliSense)
 ```
 
 ## Logging
@@ -104,7 +180,7 @@ import { compile } from '@src/utils/compilation/compile';
 
 await compile({
 	userCollections: './config/collections',
-	compiledCollections: './compiledCollections',
+	compiledCollections: './.compiledCollections',
 	concurrency: 10 // Optional: speed up for large projects
 });
 ```

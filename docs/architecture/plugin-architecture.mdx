@@ -1,0 +1,88 @@
+---
+path: 'docs/architecture/plugin-architecture.mdx'
+title: 'Plugin System Architecture'
+description: 'Technical architecture of the SveltyCMS plugin system.'
+order: 85
+icon: 'mdi:puzzle-outline'
+author: 'admin'
+created: '2026-01-18'
+updated: '2026-01-18'
+tags:
+  - 'architecture'
+  - 'plugins'
+  - 'diagram'
+---
+
+# Plugin System Architecture
+
+SveltyCMS features an enterprise-grade plugin system designed for high extensibility while maintaining server-side rendering performance and multi-tenant security.
+
+## System Workflow
+
+```mermaid
+graph TD
+    Startup[1. Server Startup] --> Hooks[hooks.server.ts]
+    Hooks --> DB[db.ts → initializePlugins]
+    DB --> Registry[Plugin Registry]
+    Registry --> Migrations[Migration Runner]
+    Migrations --> ExecMig[Execute Pending Migrations]
+
+    Request[2. SSR Request] --> ServerPage[+page.server.ts]
+    ServerPage --> LoadBlog[Load entries from DB]
+    ServerPage --> PluginHooks[Execute SSR Hooks]
+    PluginHooks --> Context[Context: User, Tenant, Language]
+    PluginHooks --> Merge[Merge Plugin Data into SSR Payload]
+    Merge --> Client[Return to EntryList.svelte]
+
+    API[3. Plugin API Request] --> Endpoint[/api/plugins/...]
+    Endpoint --> Auth[Auth & Tenant Isolation Check]
+    Endpoint --> Logic[Execute Plugin Logic]
+    Logic --> External[Optional: External API Fetch]
+    External --> Store[Store Metrics in Plugin DB Tables]
+    Store --> Response[Return JSON with fresh data]
+```
+
+## Key Architectual Phases
+
+### 1. Server Initialization
+
+On startup, the system scans for registered plugins. The **Migration Runner** checks the database against defined plugin migrations and automatically applies any pending schemas. This ensures plugin-specific tables (like `plugin_pagespeed_results`) are always in sync across environments.
+
+### 2. SSR Request Flow
+
+When a user visits a collection list (e.g., `/en/blog`), the server-side logic:
+
+1.  Loads primary entries.
+2.  Fetches active SSR hooks for that collection.
+3.  Executes hooks in parallel, passing a context containing the current user, tenant, and language.
+4.  Merges the returned plugin data into the page payload.
+5.  **Result**: The UI renders with plugin features (like performance scores) immediately, with zero additional client-side roundtrips.
+
+### 3. Asynchronous Plugin Actions
+
+For actions that require external processing (e.g., running a PageSpeed audit):
+
+1.  The client sends a POST request to the plugin's API endpoint.
+2.  The server validates authentication and **tenant isolation**.
+3.  Plugin logic handles external API interactions securely (using private settings for API keys).
+4.  Results are persisted to the database and returned to the client.
+5.  Client triggers `invalidateAll()` to refresh the SSR state.
+
+## Implementation Guide
+
+To add a new plugin:
+
+1.  **Define Plugin**: Create a directory in `src/plugins/` and implement the `Plugin` interface.
+2.  **Migrations**: Define database tables required, always including `tenantId` and `language` for isolation.
+3.  **SSR Hooks**: Implement functions to fetch and augment data during page load.
+4.  **API Endpoints**: Create SvelteKit server routes for asynchronous actions.
+5.  **Registration**: Add your plugin to the central registry in `src/plugins/index.ts`.
+
+## Key Takeaways
+
+- **Automatic Initialization**: Plugins register and migrate on server startup.
+- **SSR-First**: Highly performant UI with no client-side data "pop-in".
+- **Language-Aware**: All lookups, cache keys, and URLs respect the active locale.
+- **Multi-Tenant**: Native isolation using `tenantId` in all plugin data structures.
+- **Secure**: Protection against SSRF and accidental exposure of private secrets.
+- **Decoupled**: Extend core functionality without modifying core codebase.

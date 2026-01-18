@@ -9,7 +9,7 @@
 -->
 
 <script lang="ts">
-	import FloatingInput from '@shared/components/system/inputs/floatingInput.svelte';
+	import FloatingInput from '@cms/components/system/inputs/floatingInput.svelte';
 	import type { Editor } from '@tiptap/core';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
@@ -100,7 +100,7 @@
 				<p>or</p>
 				<div class="flex w-full justify-center gap-2">
 					<button class="preset-outline-primary-500 btn w-full" disabled>Browse locally</button>
-					<button class="variant-filled-secondary btn w-full" onclick={() => (insert_url = true)}> YouTube </button>
+					<button class="preset-outlined-surface-500 btn w-full" onclick={() => (insert_url = true)}> YouTube </button>
 				</div>
 			</div>
 		{/if}

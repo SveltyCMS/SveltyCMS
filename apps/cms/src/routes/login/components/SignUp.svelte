@@ -38,7 +38,7 @@
 	import { toaster } from '@shared/stores/store.svelte';
 	// Components
 	import PasswordStrength from '@cms/components/PasswordStrength.svelte';
-	import SiteName from '@shared/components/SiteName.svelte';
+	import SiteName from '@cms/components/SiteName.svelte';
 	import SveltyCMSLogo from '@cms/components/system/icons/SveltyCMS_Logo.svelte';
 	import SveltyCMSLogoFull from '@cms/components/system/icons/SveltyCMS_LogoFull.svelte';
 	import FloatingInput from '@cms/components/system/inputs/floatingInput.svelte';
@@ -48,7 +48,7 @@
 	import * as m from '@shared/paraglide/messages';
 
 	// Screen size store
-	import { screen } from '@shared/stores/screenSizeStore.svelte';
+	import { screen } from '@shared/stores/screenSizeStore.svelte.js';
 
 	// Props
 	const {

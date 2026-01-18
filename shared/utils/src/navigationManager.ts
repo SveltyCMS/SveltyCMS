@@ -14,10 +14,10 @@ import { goto } from '$app/navigation';
 import { page } from '$app/state';
 
 // Stores
-import { modeStateMachine } from '@shared/stores/modeStateMachine.svelte';
-import { setCollectionValue } from '@shared/stores/collectionStore.svelte';
+import { modeStateMachine } from '@cms/stores/modeStateMachine.svelte';
+import { setCollectionValue } from '@cms/stores/collectionStore.svelte';
 import { dataChangeStore } from '@shared/stores/store.svelte';
-import { globalLoadingStore, loadingOperations } from '@shared/stores/loadingStore.svelte';
+import { globalLoadingStore, loadingOperations } from '@cms/stores/loadingStore.svelte';
 
 // Utils
 import { logger } from '@shared/utils/logger';

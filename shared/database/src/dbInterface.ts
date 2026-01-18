@@ -94,6 +94,7 @@ export interface Schema {
 	links?: Array<string>;
 	fields: any[]; // Using any[] to avoid circular dependency on Widget definitions
 	translations?: Translation[];
+	perLocalePublishing?: boolean;
 	tenantId?: string;
 }
 // Auth types (moved from authDBInterface)
@@ -326,13 +327,19 @@ export type QueryFilter<T> = {
 	$nor?: QueryFilter<T>[];
 };
 
-export type DatabaseResult<T> =
-	| { success: true; data: T; meta?: QueryMeta }
-	| {
-			message: string;
-			success: false;
-			error: DatabaseError;
-	  };
+export interface DatabaseSuccess<T> {
+	success: true;
+	data: T;
+	meta?: QueryMeta;
+}
+
+export interface DatabaseFailure {
+	success: false;
+	message: string;
+	error: DatabaseError;
+}
+
+export type DatabaseResult<T> = DatabaseSuccess<T> | DatabaseFailure;
 
 export interface QueryMeta {
 	executionTime?: number; // Query execution time in milliseconds

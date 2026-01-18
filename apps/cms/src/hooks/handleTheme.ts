@@ -11,7 +11,7 @@
 import type { Handle } from '@sveltejs/kit';
 import { ThemeManager } from '@shared/database/themeManager';
 import { logger } from '@shared/utils/logger.server';
-import { getSystemState } from '@shared/stores/system';
+import { getSystemState } from '@cms/stores/system';
 
 // Get the singleton ThemeManager instance
 const themeManager = ThemeManager.getInstance();

@@ -8,7 +8,7 @@ A reusable modal that wraps the main Image Editor.
 	import { setContext } from 'svelte';
 	import Editor from './Editor.svelte';
 	import EditorToolbar from './EditorToolbar.svelte';
-	import { imageEditorStore } from '@shared/stores/imageEditorStore.svelte';
+	import { imageEditorStore } from '@cms/stores/imageEditorStore.svelte';
 	import { editorWidgets } from './widgets/registry';
 
 	let {

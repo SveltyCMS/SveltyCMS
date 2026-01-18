@@ -26,7 +26,7 @@
 	import FloatingInput from '@cms/components/system/inputs/floatingInput.svelte';
 
 	// Stores
-	import { globalLoadingStore, loadingOperations } from '@shared/stores/loadingStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@cms/stores/loadingStore.svelte';
 
 	//ParaglideJS
 	import * as m from '@shared/paraglide/messages';
@@ -124,7 +124,7 @@
 
 		<div class="mt-2 flex w-full justify-between gap-1 sm:gap-2">
 			<!-- Cancel Button -->
-			<button type="button" onclick={handleCancel} aria-label={m.button_cancel()} class="variant-filled btn">
+			<button type="button" onclick={handleCancel} aria-label={m.button_cancel()} class="preset-filled-secondary-500 btn">
 				{m.button_cancel()}
 			</button>
 
@@ -133,7 +133,7 @@
 				type="submit"
 				disabled={!isFormValid || globalLoadingStore.isLoading}
 				aria-label={m.button_send()}
-				class="variant-filled btn items-center"
+				class="preset-filled-primary-500 btn items-center"
 			>
 				<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-1"></iconify-icon>
 				<p>{m.oauth_signup()}</p>

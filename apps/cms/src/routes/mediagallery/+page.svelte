@@ -25,8 +25,8 @@ Displays a collection of media files (images, documents, audio, video) with:
 	import { goto } from '$app/navigation';
 	import axios from 'axios';
 	// Stores
-	import { toggleUIElement } from '@shared/stores/UIStore.svelte';
-	import { globalLoadingStore, loadingOperations } from '@shared/stores/loadingStore.svelte';
+	import { toggleUIElement } from '@cms/stores/UIStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@cms/stores/loadingStore.svelte';
 	// Logger
 	import { logger } from '@shared/utils/logger';
 	// Utils & Media
@@ -36,7 +36,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	import Breadcrumb from '@cms/components/Breadcrumb.svelte';
 	import PageTitle from '@cms/components/PageTitle.svelte';
 	import { MediaGrid, MediaTable, VirtualMediaGrid, AdvancedSearchModal } from '@cms/mediagallery';
-	import ImageEditorModal from '@cms/image-editor/ImageEditorModal.svelte';
+	import ImageEditorModal from '@cms/components/imageEditor/ImageEditorModal.svelte';
 	// Skeleton
 	import { toaster } from '@shared/stores/store.svelte';
 	// Import types

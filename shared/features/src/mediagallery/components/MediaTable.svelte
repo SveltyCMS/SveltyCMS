@@ -156,7 +156,7 @@ Key features:
 				<h2 class="text-lg font-bold">Media Files</h2>
 				{#if selectedFiles.size > 0}
 					<button
-						class="variant-filled-error btn btn-sm ml-4"
+						class="preset-filled-error-500 btn btn-sm ml-4"
 						onclick={() => {
 							const filesToDelete = filteredFiles.filter((f) => selectedFiles.has(f.filename));
 							onDeleteFiles(filesToDelete);
@@ -255,20 +255,20 @@ Key features:
 										{@const allTagsCount = tags.length + aiTags.length}
 
 										{#if tags.length > 0}
-											<span class="badge variant-filled-surface text-[10px]">{tags[0]}</span>
+											<span class="badge preset-filled-surface-500 text-[10px]">{tags[0]}</span>
 										{:else if aiTags.length > 0}
-											<span class="badge variant-filled-secondary text-[10px]">{aiTags[0]}</span>
+											<span class="badge preset-filled-secondary-500 text-[10px]">{aiTags[0]}</span>
 										{/if}
 
 										{#if allTagsCount > 1}
-											<span class="badge variant-soft text-[10px]">+{allTagsCount - 1}</span>
+											<span class="badge preset-filled-surface-500 text-[10px]">+{allTagsCount - 1}</span>
 										{/if}
 									{/if}
 									<!-- Toggle Tags Tooltip -->
 									<Tooltip positioning={{ placement: 'top' }}>
 										<Tooltip.Trigger>
 											<button
-												class="btn-icon btn-icon-sm variant-soft-primary"
+												class="btn-icon btn-icon-sm preset-filled-primary-500"
 												onclick={() => openTagEditor(file as MediaImage)}
 												aria-label="Manage Tags"
 											>

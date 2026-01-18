@@ -105,11 +105,11 @@ import { logger } from '@shared/utils/logger';
 
 // System State Management
 // Using dynamic imports to break circular dependency while still updating actual system state
-let _systemStateModule: typeof import('@shared/stores/system') | null = null;
+let _systemStateModule: typeof import('@cms/stores/system') | null = null;
 
 async function loadSystemStateModule() {
 	if (!_systemStateModule) {
-		_systemStateModule = await import('@shared/stores/system');
+		_systemStateModule = await import('@cms/stores/system');
 	}
 	return _systemStateModule;
 }
@@ -121,6 +121,15 @@ const setSystemState = async (status: string, message: string) => {
 		mod.setSystemState(status as any, message);
 	} catch (err) {
 		logger.warn('Failed to update system state:', err);
+	}
+};
+
+const setInitializationStage = async (stage: string) => {
+	try {
+		const mod = await loadSystemStateModule();
+		mod.setInitializationStage(stage as any);
+	} catch (err) {
+		logger.warn('Failed to update initialization stage:', err);
 	}
 };
 
@@ -137,7 +146,7 @@ const updateServiceHealth = async (service: string, status: string, message?: st
 const waitForServiceHealthy = async (_service?: string, _options?: any) => true;
 
 // Widget Store - Dynamic import to avoid circular dependency
-// import { widgetStoreActions } from '@shared/stores/widgetStore.svelte';
+// import { widgetStoreActions } from '@cms/stores/widgetStore.svelte';
 
 // State Variables
 export let dbAdapter: DatabaseAdapter | null = null; // Database adapter
@@ -541,6 +550,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 
 	// Set system state to INITIALIZING
 	await setSystemState('INITIALIZING', 'Starting system initialization');
+	await setInitializationStage('starting');
 
 	try {
 		// Step 1: Check for setup mode (skip if called from initializeWithConfig)
@@ -562,6 +572,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		}
 
 		// Step 2: Load Adapters & Connect to DB
+		await setInitializationStage('db_connecting');
 		updateServiceHealth('database', 'initializing', 'Loading database adapter...');
 		await loadAdapters();
 		if (!dbAdapter) {
@@ -629,6 +640,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		const step5StartTime = performance.now();
 
 		// Auth (fast, required immediately)
+		await setInitializationStage('auth_initializing');
 		logger.debug('Initializing Auth service...');
 		updateServiceHealth('auth', 'initializing', 'Initializing authentication service...');
 		if (!dbAdapter) {
@@ -655,6 +667,11 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 
 		// Run slow I/O operations in parallel
 		logger.debug('Starting parallel I/O operations...');
+
+		// 🟢 API PRIORITIZATION: API is ready to serve functionality now (Auth + DB + Settings)
+		await setInitializationStage('api_ready');
+		await setInitializationStage('services_starting');
+
 		const parallelStartTime = performance.now();
 		updateServiceHealth('cache', 'initializing', 'Initializing media, revisions, and themes...');
 		updateServiceHealth('themeManager', 'initializing', 'Initializing theme manager...');
@@ -693,7 +710,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 				const t = performance.now();
 				updateServiceHealth('widgets', 'initializing', 'Initializing widget store...');
 				// Dynamic import to avoid circular dependency with client bundle
-				const { widgets } = await import('@shared/stores/widgetStore.svelte');
+				const { widgets } = await import('@cms/stores/widgetStore.svelte');
 				await widgets.initialize(undefined, dbAdapter);
 				updateServiceHealth('widgets', 'healthy', 'Widget store initialized');
 				widgetsTime = performance.now() - t;
@@ -731,6 +748,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 
 		// Explicitly set system state to READY after all services are initialized
 		await setSystemState('READY', 'All critical services initialized successfully');
+		await setInitializationStage('active');
 
 		const totalTime = performance.now() - systemStartTime;
 		logger.info(`🚀 System initialization completed successfully in ${totalTime.toFixed(2)}ms!`);

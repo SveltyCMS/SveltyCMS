@@ -380,7 +380,7 @@ New Features:
 			{#if endpoint && showRefreshButton}
 				<button
 					onclick={() => refresh()}
-					class="variant-outline-surface btn-icon"
+					class="preset-outlined-surface-500 btn-icon"
 					aria-label="Refresh widget"
 					disabled={loading}
 					title="Refresh data"
@@ -390,7 +390,7 @@ New Features:
 			{/if}
 
 			<div class="relative" style="overflow: visible;">
-				<button onclick={() => (showSizeMenu = !showSizeMenu)} class="variant-outline-surface btn-icon" aria-label="Change widget size">
+				<button onclick={() => (showSizeMenu = !showSizeMenu)} class="preset-outlined-surface-500 btn-icon" aria-label="Change widget size">
 					<iconify-icon icon="mdi:dots-vertical" width="18"></iconify-icon>
 				</button>
 				{#if showSizeMenu}
@@ -415,7 +415,7 @@ New Features:
 					</div>
 				{/if}
 			</div>
-			<button onclick={onCloseRequest} class="variant-outline-surface btn-icon" aria-label="Remove {label} widget">
+			<button onclick={onCloseRequest} class="preset-outlined-surface-500 btn-icon" aria-label="Remove {label} widget">
 				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 			</button>
 		</div>

@@ -19,6 +19,7 @@ import { loadSettingsCache, getPrivateSettingSync } from '@shared/services/setti
 import type { LayoutServerLoad } from './$types';
 import type { Locale } from '@shared/paraglide/runtime';
 import type { NavigationNode } from '@cms-types';
+import { logger } from '@shared/utils/logger';
 
 export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
 	// Use cached setup status from hooks instead of re-checking
@@ -90,15 +91,16 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
 		// Check if ContentManager is initialized before using it
 		if (contentManager.getHealthStatus().state === 'initialized') {
 			navigationStructure = await contentManager.getNavigationStructureProgressive({
-				maxDepth: 1,
+				maxDepth: 10, // Load full hierarchy for sidebar navigation
 				tenantId: locals.tenantId
 			});
+			logger.debug('[LayoutServer] Navigation structure loaded:', navigationStructure?.length, 'nodes');
 			contentVersion = contentManager.getContentVersion();
 		} else {
-			console.warn('[Layout] ContentManager not initialized, skipping navigation load');
+			logger.warn('[Layout] ContentManager not initialized, skipping navigation load');
 		}
 	} catch (error) {
-		console.error('[Layout] ContentManager error (preview mode?):', error);
+		logger.error('[Layout] ContentManager error (preview mode?):', error);
 		// Continue with empty navigation - don't block page load
 	}
 
@@ -113,6 +115,7 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
 		darkMode: locals.darkMode ?? false,
 		navigationStructure,
 		contentVersion,
+		collections: JSON.parse(JSON.stringify(await contentManager.getCollections(locals.tenantId))),
 		// Pass public settings to client for store initialization
 		settings: {
 			...publicSettings,

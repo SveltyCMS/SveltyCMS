@@ -77,19 +77,19 @@ We use two main styles for form inputs.
 
 For simple inputs, we use a `btn-group` structure, often from Skeleton UI. This wraps the input and any related buttons (prefix, suffix, select) into a single, cohesive block.
 
-- **Container**: `variant-filled-surface btn-group flex w-full items-center rounded`
+- **Container**: `preset-filled-surface-500 btn-group flex w-full items-center rounded`
 - **Input Element**: `class="input w-full flex-1 rounded-none ..."`
 
 The `rounded-none` is critical to make it blend seamlessly with the group's rounded container.
 
 ```svelte
-<div class="variant-filled-surface btn-group flex w-full items-center rounded">
+<div class="preset-filled-surface-500 btn-group flex w-full items-center rounded">
 	<span class="min-w-0 flex-1 truncate p-2 text-left">
 		{displayText}
 	</span>
 
 	<div class="flex items-center">
-		<button type="button" class="btn variant-ghost-primary rounded-none! px-3!"> Select </button>
+		<button type="button" class="btn preset-outlined-primary-500 rounded-none! px-3!"> Select </button>
 	</div>
 </div>
 ```
@@ -178,11 +178,11 @@ This method is for complex, multi-part components where a single line of text is
 
 ## 🔘 Buttons & Actions
 
-- **Primary Action**: `class="... btn variant-filled-primary"` (e.g., "Save").
-- **Secondary Action**: `class="... btn variant-filled-secondary"` (e.g., "YouTube").
-- **Tertiary/Brand Action**: `class="... btn variant-filled-tertiary"` (e.g., "Add New").
-- **Ghost Action**: `class="... btn variant-ghost-surface"` (e.g., toolbar buttons).
-- **Destructive Action**: `class="... btn variant-ghost-error"` or a hover effect `class="... hover:text-error-500 dark:hover:text-error-400"`.
+- **Primary Action**: `class="... btn preset-filled-primary-500"` (e.g., "Save").
+- **Secondary Action**: `class="... btn preset-filled-secondary-500"` (e.g., "YouTube").
+- **Tertiary/Brand Action**: `class="... btn preset-filled-tertiary-500"` (e.g., "Add New").
+- **Ghost Action**: `class="... btn preset-outlined-surface-500"` (e.g., toolbar buttons).
+- **Destructive Action**: `class="... btn preset-outlined-error-500"` or a hover effect `class="... hover:text-error-500 dark:hover:text-error-400"`.
 - **Gradient Buttons**: For special CTAs, use the pre-defined gradient classes (e.g., `gradient-primary`, `gradient-tertiary`). These are defined in the main theme file and include hover/focus states.
 
 ## 🌫️ Overlays (Modals & Dropdowns)

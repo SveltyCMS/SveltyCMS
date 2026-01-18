@@ -8,7 +8,7 @@ Replaces the ModalWidgetForm, providing a full-screen or focused editor experien
 <script lang="ts">
 	import type { Component } from 'svelte';
 	// Components
-	import { widgets } from '@shared/stores/widgetStore.svelte';
+	import { widgets } from '@cms/stores/widgetStore.svelte';
 	import Stepper from '@cms/components/system/Stepper.svelte';
 	import Default from './tabsFields/Default.svelte';
 	import Permission from './tabsFields/Permission.svelte';
@@ -18,7 +18,7 @@ Replaces the ModalWidgetForm, providing a full-screen or focused editor experien
 	import * as m from '@shared/paraglide/messages';
 
 	// Stores
-	import { collections } from '@shared/stores/collectionStore.svelte';
+	import { collections } from '@cms/stores/collectionStore.svelte';
 
 	interface Props {
 		widgetData: any; // The widget being edited

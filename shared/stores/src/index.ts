@@ -6,5 +6,4 @@
  */
 
 export { app } from './store.svelte';
-export { setupStore } from './setupStore.svelte';
-export { imageEditorStore } from './imageEditorStore.svelte';
+export { groupsNeedingConfig } from './configStore.svelte.ts';

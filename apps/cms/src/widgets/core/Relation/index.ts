@@ -13,12 +13,12 @@
  */
 
 // Import components needed for the GuiSchema
-import IconifyPicker from '@shared/components/IconifyPicker.svelte';
-import PermissionsSetting from '@shared/components/PermissionsSetting.svelte';
-import CollectionPicker from '@shared/components/system/builder/CollectionPicker.svelte';
-import FieldPicker from '@shared/components/system/builder/FieldPicker.svelte';
-import Input from '@shared/components/system/inputs/Input.svelte';
-import Toggles from '@shared/components/system/inputs/Toggles.svelte';
+import IconifyPicker from '@cms/components/IconifyPicker.svelte';
+import PermissionsSetting from '@cms/components/PermissionsSetting.svelte';
+import CollectionPicker from '@cms/components/system/builder/CollectionPicker.svelte';
+import FieldPicker from '@cms/components/system/builder/FieldPicker.svelte';
+import Input from '@cms/components/system/inputs/Input.svelte';
+import Toggles from '@cms/components/system/inputs/Toggles.svelte';
 
 import type { FieldInstance } from '@cms-types';
 import * as m from '@shared/paraglide/messages';

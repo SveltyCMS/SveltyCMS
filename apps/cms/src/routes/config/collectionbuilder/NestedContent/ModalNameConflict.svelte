@@ -50,7 +50,7 @@ Features:
 </script>
 
 <div class="modal-body p-4">
-	<div class="alert variant-filled-warning mb-4">
+	<div class="alert preset-filled-warning-500 mb-4">
 		<div class="alert-message">
 			<h3 class="h3">Collection Name Conflict</h3>
 			<p>The collection name "<code class="font-bold">{conflictingName}</code>" already exists at:</p>

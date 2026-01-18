@@ -30,9 +30,9 @@
 	import { logger } from '@shared/utils/logger';
 
 	// Stores
-	import { setCollectionValue, setMode, setContentStructure, contentStructure } from '@shared/stores/collectionStore.svelte';
-	import { setRouteContext, ui } from '@shared/stores/UIStore.svelte';
-	import { screen } from '@shared/stores/screenSizeStore.svelte';
+	import { setCollectionValue, setMode, setContentStructure, contentStructure } from '@cms/stores/collectionStore.svelte';
+	import { setRouteContext, ui } from '@cms/stores/UIStore.svelte';
+	import { screen } from '@shared/stores/screenSizeStore.svelte.js';
 
 	// Components
 	import PageTitle from '@cms/components/PageTitle.svelte';
@@ -287,7 +287,7 @@
 				onclick={handleAddCollectionClick}
 				type="button"
 				aria-label="Add New Collection"
-				class="preset-filled-surface-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1 rounded font-bold"
+				class="preset-filled-surface-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1 rounded"
 				disabled={isLoading}
 			>
 				<iconify-icon icon="material-symbols:category" width="18"></iconify-icon>
@@ -331,7 +331,7 @@
 			onclick={handleAddCollectionClick}
 			type="button"
 			aria-label="Add New Collection"
-			class="preset-filled-surface-500 btn flex flex-1 items-center justify-center gap-1 rounded font-bold"
+			class="preset-filled-surface-500 btn flex flex-1 items-center justify-center gap-1 rounded"
 			disabled={isLoading}
 		>
 			<iconify-icon icon="material-symbols:category" width="18"></iconify-icon>
