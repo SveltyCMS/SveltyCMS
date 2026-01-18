@@ -1,6 +1,6 @@
 .DS_Store
 
-# sveltekit
+# SvelteKit
 /build
 /.svelte-kit
 /package
@@ -10,18 +10,15 @@ node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# secrets
+# Secrets & Config
 .env
 .env.*
 /config/private.ts
 /config/private.test.ts
-/data.json
+/config/backup/
 .bundle-history.json
 
-# Backup folder under config
-/config/backup/
-
-# SveltyCMS
+# SveltyCMS Runtime
 /tmp
 trash/*
 media/*
@@ -29,34 +26,40 @@ mediaFiles/
 mediaFolder/
 compiledCollections/*
 logs/*
-
+/data.json
 .node-version
-
 
 # Ensure src/utils/media and its contents are not ignored
 !src/utils/media/
 !src/utils/media/*.ts
 
-
-# debug
+# Debug Logs
 npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# build
+# Testing & Build
 /test-results/
 /playwright-report/
 /playwright/.cache/
 /error-screenshot.png
 
 # Rust
-/data.json
 /indexes
 /*.bin
 
-#paraglide.js
+# Paraglide.js
 src/paraglide/**/*.js
 
+# Nx Monorepo
+.nx/
 
+# Workspace Artifacts
+dist/
+apps/*/dist
+shared/*/dist
 
+# SvelteKit per-app
+apps/setup/.svelte-kit
+apps/cms/.svelte-kit
