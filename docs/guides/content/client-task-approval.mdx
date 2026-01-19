@@ -1,0 +1,273 @@
+---
+path: 'docs/guides/content/client-task-approval'
+title: 'Client Task Approval System'
+description: 'Manage client work requests with approval workflows, cost tracking, and invoicing'
+order: 10
+icon: 'mdi:clipboard-check'
+author: 'SveltyCMS Team'
+created: '2024-01-19'
+updated: '2024-01-19'
+tags:
+  - 'workflow'
+  - 'invoicing'
+  - 'client-management'
+  - 'billing'
+---
+
+# Client Task Approval System
+
+**A complete solution for managing client work requests with approval workflows and billing.**
+
+Perfect for agencies, freelancers, and development teams who need client approval before starting work.
+
+---
+
+## Quick Overview
+
+The Client Task Approval System provides three interconnected collections:
+
+1. **Clients** - Store client information and hourly rates
+2. **Tasks** - Manage work requests with approval workflows  
+3. **Invoices** - Generate bills for completed work
+
+## Installation
+
+### Quick Install
+
+Copy the example collections to your SveltyCMS instance:
+
+```bash
+cp docs/examples/collections/*.ts config/collections/Collections/
+bun run dev
+```
+
+The collections will appear in your admin panel under Collections.
+
+### Manual Setup
+
+Alternatively, create the collections through the Collection Builder GUI using the example files as templates.
+
+## Complete Documentation
+
+For detailed information, see:
+
+- 📖 **[Full Guide](../../client-task-approval-system.md)** - Complete documentation
+- 🚀 **[Quick Reference](../../client-task-approval-quickref.md)** - At-a-glance guide
+- 🏗️ **[Architecture Diagrams](../../client-task-approval-architecture.md)** - Visual overview
+
+## Basic Workflow
+
+### 1. Add a Client
+
+Navigate to **Collections → Clients → Create New Entry**
+
+```
+Client Name: Acme Corporation
+Email: contact@acme.com
+Hourly Rate: $150.00
+```
+
+### 2. Create a Task
+
+Navigate to **Collections → Tasks → Create New Entry**
+
+```
+Task Title: Build Authentication System
+Client: [Select Acme Corp]
+Estimated Hours: 12
+Estimated Cost: $1,800 (12 × $150)
+Approval Status: Pending
+Work Status: Not Started
+```
+
+### 3. Get Client Approval
+
+Share task details with client. When they approve:
+
+```
+Approval Status: Approved
+Approval Date: 2024-01-15
+```
+
+### 4. Do the Work
+
+Update as you progress:
+
+```
+Work Status: In Progress → Completed
+Actual Hours: 10.5
+Completion Date: 2024-01-20
+```
+
+### 5. Generate Invoice
+
+Navigate to **Collections → Invoices → Create New Entry**
+
+```
+Invoice Number: INV-2024-001
+Client: [Select Acme Corp]
+Total Amount: $1,575 (10.5 × $150)
+Payment Status: Sent
+```
+
+### 6. Track Payment
+
+When payment is received:
+
+```
+Payment Status: Paid
+Payment Date: 2024-02-01
+Payment Method: Wire Transfer
+```
+
+## Key Features
+
+✅ **Approval Workflow** - 4 approval states (pending, approved, rejected, changes requested)  
+✅ **Work Status Tracking** - 4 work states (not started, in progress, completed, on hold)  
+✅ **Cost Calculation** - Automatic cost calculation from hours × hourly rate  
+✅ **Client Relationships** - Link tasks and invoices to clients  
+✅ **Payment Tracking** - Monitor invoice payment status  
+✅ **Revision History** - Track all changes  
+✅ **API Access** - REST and GraphQL endpoints  
+
+## API Examples
+
+### REST API
+
+```bash
+# Get pending tasks
+GET /api/collections/tasks?filter[approvalStatus]=pending
+
+# Get unpaid invoices
+GET /api/collections/invoices?filter[paymentStatus]=sent
+```
+
+### GraphQL
+
+```graphql
+# Get pending tasks with client info
+query {
+  tasks(filter: { approvalStatus: "pending" }) {
+    id
+    taskTitle
+    estimatedCost
+    client {
+      clientName
+      hourlyRate
+    }
+  }
+}
+```
+
+## Customization
+
+### Change Currency
+
+Edit the Currency widget in any collection:
+
+```typescript
+widgets.Currency({
+  currencyCode: 'EUR' // Change from USD to EUR
+})
+```
+
+### Add Custom Fields
+
+Extend collections with additional fields:
+
+```typescript
+widgets.Input({
+  label: 'Project Category',
+  db_fieldName: 'category',
+  placeholder: 'Web Development, Bug Fix, etc.'
+})
+```
+
+### Modify Status Options
+
+Update Radio widget options:
+
+```typescript
+widgets.Radio({
+  label: 'Priority',
+  options: [
+    { label: 'Low', value: 'low' },
+    { label: 'Medium', value: 'medium' },
+    { label: 'High', value: 'high' },
+    { label: 'Urgent', value: 'urgent' }
+  ]
+})
+```
+
+## Automation Ideas
+
+Extend the system with custom hooks:
+
+1. **Auto-calculate costs** - Add `modifyRequest` hook to calculate task cost from hours × client rate
+2. **Email notifications** - Send emails when tasks are approved or invoices are sent
+3. **Auto-generate invoices** - Create invoices automatically from completed tasks
+4. **Status updates** - Automatically update work status based on developer actions
+5. **Reporting** - Generate revenue reports, profitability analysis, etc.
+
+## Best Practices
+
+### For Accurate Billing
+
+1. ✅ Set realistic time estimates
+2. ✅ Track actual hours precisely
+3. ✅ Bill based on actual hours, not estimates
+4. ✅ Document any scope changes in task notes
+
+### For Smooth Workflow
+
+1. ✅ Get approval before starting work
+2. ✅ Update task status regularly
+3. ✅ Use internal notes for team communication
+4. ✅ Use client feedback for external communication
+
+### For Financial Management
+
+1. ✅ Generate invoices promptly after completion
+2. ✅ Follow up on overdue payments
+3. ✅ Keep payment records updated
+4. ✅ Archive completed work for reference
+
+## Troubleshooting
+
+**Q: Can I change a client's hourly rate?**  
+A: Yes, but it only affects new tasks. Existing tasks keep their original cost.
+
+**Q: What if actual hours exceed estimate?**  
+A: Bill for actual hours. Update the cost in the invoice line items accordingly.
+
+**Q: How do I handle discounts?**  
+A: Add a line item in the invoice with a negative amount, or adjust the total.
+
+**Q: Can I use different currencies per client?**  
+A: Yes, edit each client's hourly rate field and change the `currencyCode`.
+
+## Security Notes
+
+- **Field Permissions**: Configure who can view/edit hourly rates and invoices
+- **Internal Notes**: Consider hiding internal notes from client-facing views
+- **Tenant Isolation**: Multi-tenant support ensures clients only see their data
+- **Audit Trail**: Revision history tracks all changes for accountability
+
+## Related Documentation
+
+- 📖 [Collection Builder Guide](../development/collection-builder.mdx)
+- 📖 [Media Gallery Guide](./media-gallery-guide.mdx)
+- 📖 [API Documentation](../../api/)
+
+## Support
+
+Need help with the Client Task Approval system?
+
+- 💬 [Discord Community](https://discord.gg/qKQRB6mP)
+- 🐛 [Report Issues](https://github.com/SveltyCMS/SveltyCMS/issues)
+- 📧 Email: support@sveltycms.com
+
+---
+
+**Version**: 1.0  
+**Compatibility**: SveltyCMS 0.0.7+
