@@ -4,6 +4,43 @@
 
 The SveltyCMS Client Task Approval System enables you to manage client work requests with approval workflows, cost tracking, and invoice generation. This feature is perfect for agencies, freelancers, and development teams who need client approval before starting work.
 
+## Installation
+
+The system consists of three collections that you can create in your SveltyCMS installation:
+
+1. **Clients** - Store client information and hourly rates
+2. **Tasks** - Manage work requests with approval workflows
+3. **Invoices** - Generate bills for completed work
+
+### Quick Setup
+
+Example collection files are provided in `docs/examples/collections/`:
+- `Clients.ts`
+- `Tasks.ts`
+- `Invoices.ts`
+
+To use them:
+
+1. Copy the example files to your `config/collections/Collections/` directory:
+   ```bash
+   cp docs/examples/collections/*.ts config/collections/Collections/
+   ```
+
+2. Restart your development server:
+   ```bash
+   bun run dev
+   ```
+
+3. The collections will appear in your CMS admin panel under Collections
+
+### Manual Setup via GUI
+
+Alternatively, you can create these collections using the Collection Builder in the admin panel:
+
+1. Navigate to **Admin → Collection Builder**
+2. Create each collection following the field definitions below
+3. Configure widgets and validation as specified
+
 ## Features
 
 - **Client Management**: Store client information with negotiated hourly rates
