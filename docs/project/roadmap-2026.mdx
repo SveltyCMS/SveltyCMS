@@ -90,10 +90,11 @@ SveltyCMS is on the path to becoming **enterprise-grade and best-in-class** for 
 
 ### 9. Enterprise Foundations (SOTA 2026)
 
-- ✅ **Audit Logging** - Immutable, cryptographic chain of security events for compliance.
+- ✅ **Audit Logging** - Implemented (`AuditLogService` with SHA-256 cryptographic chaining).
 - ✅ **Automated Security Response (ASR)** - Real-time threat detection (SQLi, XSS) and dynamic firewall.
-- ✅ **Self-Healing State Machine** - Deterministic lifecycle management to prevent race conditions.
-- ✅ **Plugin System** - Isomorphic hook-based architecture with tenant-aware auto-migrations.
+- ✅ **Self-Healing State Machine** - Deterministic lifecycle management.
+- ✅ **Plugin System** - Isomorphic hook-based architecture.
+- ✅ **SCIM 2.0 Endpoints** - Native endpoints scaffolded for IdP integration.
 
 ---
 
@@ -148,17 +149,15 @@ interface SAMLConfig {
 
 **Timeline:** 2-3 weeks for SAML core, 4-6 weeks with UI and all IdP integrations
 
-### 2. SCIM Provisioning (System for Cross-domain Identity Management) ⭐⭐⭐ **CRITICAL**
+### 2. SCIM Provisioning (System for Cross-domain Identity Management)
 
-**Current State:** Manual user management only  
+**Current State:** ✅ **Native Endpoints Implemented (Beta)**
 **Enterprise Standard:** Automated user lifecycle via SCIM 2.0
 
 **Gap Analysis:**
 
-- No automated user provisioning/deprovisioning
-- No group/role synchronization with IdP
-- Manual onboarding/offboarding creates security risks
-- Competitors have SCIM endpoints for major IdPs
+- ✅ Native `/api/scim/v2` endpoints verified in codebase.
+- Needs integration with specific IdPs (Okta/Azure) for production hardening.
 
 **Implementation Plan (Following Scalekit Best Practices):**
 

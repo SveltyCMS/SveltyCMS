@@ -1,5 +1,5 @@
 /**
- * @file src/routes/api/plugins/toggle/+server.ts
+ * @file apps/cms/src/routes/api/plugins/toggle/+server.ts
  * @description API endpoint for toggling plugin enabled/disabled state
  */
 

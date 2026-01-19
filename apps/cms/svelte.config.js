@@ -19,6 +19,7 @@ const config = getBaseSvelteConfig({
 	aliases: {
 		'@cms/components': './src/components',
 		'@cms/widgets': './src/widgets',
+		'@cms/dashboard': '../../shared/features/src/dashboard',
 		'@content': './src/content',
 		'@cms/content': './src/content',
 		'@cms/config': './src/routes/config',

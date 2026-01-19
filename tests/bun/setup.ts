@@ -1,4 +1,12 @@
+/**
+ * @file tests/bun/setup.ts
+ * @description Setup for running Svelte tests with Bun.
+ */
+
 import { mock } from 'bun:test';
+import { GlobalRegistrator } from '@happy-dom/global-registrator';
+
+GlobalRegistrator.register();
 
 // Mock $app/environment
 mock.module('$app/environment', () => ({

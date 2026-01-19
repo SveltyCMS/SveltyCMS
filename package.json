@@ -95,6 +95,7 @@
 		"mongodb"
 	],
 	"devDependencies": {
+		"@happy-dom/global-registrator": "^20.3.3",
 		"@iconify/svelte": "^5.2.1",
 		"@nx/js": "^22.3.3",
 		"@nx/vite": "^22.3.3",
@@ -126,6 +127,7 @@
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.14.0",
 		"globals": "^17.0.0",
+		"happy-dom": "^20.3.3",
 		"nx": "^22.3.3",
 		"prettier": "^3.8.0",
 		"prettier-plugin-svelte": "^3.4.1",
@@ -198,6 +200,7 @@
 		"graphql-yoga": "^5.18.0",
 		"iconify-icon": "^3.0.2",
 		"isomorphic-dompurify": "^2.35.0",
+		"js-sha256": "^0.11.1",
 		"konva": "^10.2.0",
 		"mapbox-gl": "^3.18.0",
 		"mime-types": "^3.0.2",
