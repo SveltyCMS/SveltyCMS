@@ -55,7 +55,7 @@ class UIStore {
 	manualOverrideActive = $state(false);
 	headerShowMore = $state(false);
 	isSearchVisible = $state(false);
-	userPreferred = $state<UIVisibility>('collapsed');
+	userPreferred = $state<UIVisibility>('full');
 
 	// Internal state
 	private manualTimer: ReturnType<typeof setTimeout> | null = null;

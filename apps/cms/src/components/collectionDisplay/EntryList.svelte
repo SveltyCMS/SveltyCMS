@@ -70,6 +70,7 @@
 	import TablePagination from '@cms/components/system/table/TablePagination.svelte';
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
 	import TranslationStatus from './TranslationStatus.svelte';
+	import PageSpeedScore from '@cms/components/plugins/PageSpeedScore.svelte';
 
 	// Skeleton
 	import { showDeleteConfirm, showStatusChangeConfirm } from '@shared/utils/modalUtils';
@@ -500,6 +501,19 @@
 			{ id: `${cacheKey}-status`, label: 'status', name: 'status', visible: true }
 		];
 
+		// Plugin Headers (Dynamic detection)
+		// Check if any visible entry has plugin data to warrant a column
+		// Ideally this should come from configuration, but auto-detection is safer for now
+		const hasPageSpeedData = tableData.some((entry: any) => entry.pluginData?.performanceScore !== undefined);
+		if (hasPageSpeedData) {
+			systemHeaders.unshift({
+				id: `${cacheKey}-pagespeed`,
+				label: 'PageSpeed',
+				name: 'PageSpeed', // Special identifier
+				visible: true
+			});
+		}
+
 		return [...schemaHeaders, ...systemHeaders];
 	});
 
@@ -789,7 +803,7 @@
 	</div>
 {:else}
 	<!-- Header -->
-	<div class="mb-2 flex justify-between dark:text-white">
+	<div class="ml-2 mb-2 flex justify-between dark:text-white">
 		<!-- Row 1 for Mobile -->
 		<div class="flex items-center justify-between">
 			<!-- Hamburger -->
@@ -1093,6 +1107,12 @@
 												<div class="flex w-full items-center justify-center">
 													<Status value={entry.status || entry.raw_status || 'draft'} />
 												</div>
+											{:else if (header as TableHeader).name === 'PageSpeed'}
+												{#if (entry as any).pluginData?.performanceScore !== undefined}
+													<PageSpeedScore score={(entry as any).pluginData.performanceScore} compact={true} />
+												{:else}
+													<span class="text-surface-400 opacity-50">-</span>
+												{/if}
 											{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
 												<div class="flex flex-col text-xs">
 													<div class="font-semibold">
@@ -1121,7 +1141,32 @@
 													{@html translatedValue}
 												{/if}
 											{:else}
-												{@html entry[(header as TableHeader).name] || '-'}
+												{@const val = entry[(header as TableHeader).name]}
+												{@const rawEntry = (entry as any).__raw}
+												{@const rawField = rawEntry?.[(header as TableHeader).name]}
+
+												<!-- Handle Raw Value Display (Projecting localized fields if needed) -->
+												{@const rawDisplay = (() => {
+													if (rawField === undefined || rawField === null) return null;
+													// If object (localized), try to get current language
+													if (typeof rawField === 'object' && !Array.isArray(rawField)) {
+														return rawField[currentLanguage] || rawField['en'] || null;
+													}
+													return rawField;
+												})()}
+
+												<div class="flex flex-col justify-center h-full">
+													{#if rawDisplay && rawDisplay !== val && typeof rawDisplay !== 'object'}
+														<span
+															class="text-[0.65rem] leading-tight text-surface-500 dark:text-surface-400 font-mono mb-0.5 truncate max-w-[180px] opacity-80"
+															title={`Saved: ${rawDisplay}`}
+														>
+															{rawDisplay}
+														</span>
+													{/if}
+
+													<span class="truncate block">{@html val || '-'}</span>
+												</div>
 											{/if}
 										</td>
 									{/each}

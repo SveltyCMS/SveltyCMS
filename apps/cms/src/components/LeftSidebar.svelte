@@ -27,6 +27,7 @@
 	// Import necessary utilities and types
 	import { page } from '$app/state';
 	import type { Schema } from '@cms/types/content'; // Import Schema type (collection definition)
+	import type { Role } from '@shared/database/auth/types';
 	import { getLanguageName } from '@shared/utils/languageUtils';
 	import { locales as availableLocales } from '@shared/paraglide/runtime';
 
@@ -214,6 +215,17 @@
 			callback();
 		}
 	}
+
+	function iconForRole(role: Role): string {
+		switch (role) {
+			case 'admin':
+				return 'eos-icons:admin-outlined';
+			case 'editor':
+				return 'user-expert';
+			default:
+				return 'carbon:user-avatar-filled-alt';
+		}
+	}
 </script>
 
 <div class="flex h-full w-full flex-col justify-between bg-transparent py-4">
@@ -340,10 +352,17 @@
 								? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-surface-500/20'
 								: 'btn-icon rounded-full! w-10 h-10 flex items-center justify-center p-0'} relative text-center no-underline!"
 						>
-							<Avatar class="mx-auto overflow-hidden rounded-full {isSidebarFull ? 'size-10' : 'size-9'}">
-								<Avatar.Image src={avatarUrl} alt="User Avatar" class="h-full w-full object-cover" />
-								<Avatar.Fallback>AV</Avatar.Fallback>
-							</Avatar>
+							<div class="relative inline-block">
+								<Avatar class="mx-auto overflow-hidden rounded-full {isSidebarFull ? 'size-10' : 'size-9'}">
+									<Avatar.Image src={avatarUrl} alt="User Avatar" class="h-full w-full object-cover" />
+									<Avatar.Fallback>AV</Avatar.Fallback>
+								</Avatar>
+								{#if user?.role}
+									<div class="absolute -right-2 -top-2 z-10 badge-icon preset-filled-primary-500" title={user.role}>
+										<iconify-icon icon={iconForRole(user.role as Role)} width="16"></iconify-icon>
+									</div>
+								{/if}
+							</div>
 							{#if isSidebarFull && user?.username}
 								<div
 									class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-[11px] font-medium leading-tight"

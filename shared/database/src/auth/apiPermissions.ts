@@ -63,6 +63,9 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 	// Widget Management - Admin and Developer
 	'api:widgets': ['admin', 'developer'], // Widget management and marketplace
 
+	// Token Builder - Admin and Editor
+	'api:tokenBuilder': ['admin', 'editor'], // Token resolution preview
+
 	// Public/Semi-public endpoints (authenticated users)
 	'api:sendMail': ['*'], // Email sending (used internally, but needs auth)
 	'api:getTokensProvided': ['admin'] // Token information - admin only

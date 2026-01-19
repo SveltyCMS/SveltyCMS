@@ -291,23 +291,6 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			if (depth > 1) {
 				await populateRelations(entries, currentCollection, { depth, tenantId }, dbAdapter, contentManager);
 			}
-
-			// --- TOKEN RESOLUTION (Resolve {{ entry.field }} tokens) ---
-			// Ensure list view displays resolved values instead of raw tokens
-			try {
-				const { processTokensInResponse } = await import('@shared/services/token/helper');
-				entries = await Promise.all(
-					entries.map((entry) =>
-						processTokensInResponse(entry, typedUser, language, {
-							// Inject entry as context for self-reference tokens
-							entry
-						})
-					)
-				);
-			} catch (tokenError) {
-				logger.warn('Failed to resolve tokens for entry list', { error: tokenError });
-				// Continue with raw values if resolution fails
-			}
 		}
 
 		// =================================================================
@@ -369,7 +352,63 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		}
 
 		// =================================================================
-		// 6. LOAD REVISIONS (for Fields.svelte) - Direct Import
+		// 6. PLUGIN SSR HOOKS: Enrich entries with plugin data
+		// =================================================================
+		let pluginData: Record<string, any> = {};
+		if (!editEntryId && entries.length > 0) {
+			try {
+				const { pluginRegistry } = await import('@cms/plugins');
+				const hooks = await pluginRegistry.getSSRHooks(currentCollection._id as string, tenantId);
+
+				if (hooks.length > 0) {
+					logger.debug('Running plugin SSR hooks', {
+						collectionId: currentCollection._id,
+						hooksCount: hooks.length,
+						entriesCount: entries.length
+					});
+
+					const pluginContext = {
+						user: typedUser,
+						tenantId,
+						language,
+						dbAdapter,
+						collectionSchema: currentCollection
+					};
+
+					// Run all plugin hooks and collect their data
+					const allPluginData = await Promise.all(hooks.map((hook) => hook(pluginContext, entries)));
+
+					// Merge plugin data by entry ID
+					for (const hookData of allPluginData) {
+						for (const entryData of hookData) {
+							if (!pluginData[entryData.entryId]) {
+								pluginData[entryData.entryId] = {};
+							}
+							Object.assign(pluginData[entryData.entryId], entryData.data);
+						}
+					}
+
+					// Attach plugin data to entries
+					entries = entries.map((entry) => {
+						const pData = pluginData[entry._id as string];
+						if (pData) {
+							return { ...entry, pluginData: pData };
+						}
+						return entry;
+					});
+
+					logger.debug('Plugin SSR hooks completed', {
+						entriesWithData: Object.keys(pluginData).length
+					});
+				}
+			} catch (err) {
+				logger.warn('Failed to run plugin SSR hooks', { error: err });
+				// Don't fail page load if plugins fail
+			}
+		}
+
+		// =================================================================
+		// 7. LOAD REVISIONS (for Fields.svelte) - Direct Import
 		// =================================================================
 		let revisionsMeta = [];
 		// Only load revisions if we're in edit mode and have an entry ID

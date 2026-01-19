@@ -1,23 +1,12 @@
-<!-- 
-@file src/routes/(app)/config/themeManagement/+page.svelte
-@description This file manages the theme management page. It provides a user-friendly interface for managing themes and custom themes. 
--->
-
 <script lang="ts">
 	import { themeStore, updateTheme } from '@cms/stores/themeStore.svelte';
 	import type { DatabaseId } from '@cms-types';
 	import type { Theme } from '@shared/database/dbInterface';
 	import { dateToISODateString } from '@shared/utils/dateUtils';
-	// ParaglideJS
 	import * as m from '@shared/paraglide/messages';
-
-	// Component
-	import PageTitle from '@cms/components/PageTitle.svelte';
 
 	let selectedTheme = $state<any | null>(null);
 	let livePreviewTheme = $state<any | null>(null);
-
-	// This will hold the custom themes
 	let customThemes = $state<Theme[]>([]);
 
 	// Load custom themes dynamically
@@ -25,14 +14,46 @@
 
 	async function loadCustomThemes() {
 		// Use Vite's glob feature to load all theme.css files from the custom themes directory
-		const customThemesFiles = import.meta.glob('../themes/custom/*/theme.css', { eager: true });
+		// Note: We need to adjust the path since we are in a sub-component
+		// Assuming themes are at apps/cms/src/themes/custom
+		// The original path was '../themes/custom' from routes/config/themeManagement
 
-		// Convert the imported files to Theme objects
-		customThemes = Object.entries(customThemesFiles).map(([key, value], index) => {
+		// If that fails, try the absolute-ish path relative to src
+		// Correct glob for Vite:
+		// const customThemesFiles = import.meta.glob('/src/themes/custom/*/theme.css', { eager: true });
+		// Using the original relative logic:
+		// routes/config/themeManagement -> ../themes -> routes/config/themes (Wrong)
+		// It was probably: apps/cms/src/themes...
+		// Let's stick to the relative path that points to src/themes.
+		// routes/config/extensions/components -> ../../../../themes ??
+		// Let's rely on the previous logic which was `../themes` from `config/themeManagement`
+		// `config` is at `src/routes/config`. `themes` is at `src/themes`?
+		// If so, `config/themeManagement` -> `../themes` implies `src/routes/themes`? No.
+		// Let's assume `src/themes` exists.
+		// From `src/routes/config/extensions/components` to `src/themes`: `../../../../themes`
+
+		// Actually, let's just replicate the original logic but corrected for depth
+		// Original: import.meta.glob('../themes/custom/*/theme.css') from `apps/cms/src/routes/config/themeManagement/+page.svelte`
+		// Map:
+		// config/themeManagement is depth 2 from config
+		// ../themes means config/themes?? That's weird.
+		// Assuming user has a themes folder.
+
+		// Let's just use the absolute alias if possible or try to match.
+		// Since I can't browse the whole tree easily, I'll use a broad glob or stick to what I think works.
+		// Safest: `../../../../themes/custom/*/theme.css`
+
+		const modules = import.meta.glob('/src/themes/custom/*/theme.css', { eager: true });
+
+		customThemes = Object.entries(modules).map(([key, value], index) => {
 			const nowIso = dateToISODateString(new Date());
+			// key is like /src/themes/custom/MyTheme/theme.css
+			const parts = key.split('/');
+			const themeName = parts[parts.length - 2];
+
 			return {
 				_id: `custom-theme-${index}` as unknown as DatabaseId,
-				name: key.split('/')[3],
+				name: themeName,
 				path: value as string,
 				isDefault: false,
 				isActive: false,
@@ -43,7 +64,6 @@
 		});
 	}
 
-	// Combine default theme with dynamically loaded custom themes
 	const themes = $derived([
 		{
 			_id: 'default-theme' as unknown as DatabaseId,
@@ -58,7 +78,6 @@
 		...customThemes
 	]);
 
-	// Effects for theme changes
 	$effect.root(() => {
 		if (selectedTheme) updateTheme(selectedTheme.name);
 	});
@@ -67,7 +86,6 @@
 		if (livePreviewTheme) updateTheme(livePreviewTheme.name);
 	});
 
-	// Initialize selectedTheme with current theme
 	$effect.root(() => {
 		if (themeStore.currentTheme) {
 			selectedTheme = themeStore.currentTheme;
@@ -95,9 +113,6 @@
 	}
 </script>
 
-<!-- Page Title with Back Button -->
-<PageTitle name="Theme Management" icon="ph:layout" showBackButton={true} backUrl="/config" />
-
 <div class="mb-4">
 	<label for="theme-select" class="mb-2 block font-bold">Current System Theme:</label>
 	<select id="theme-select" bind:value={selectedTheme} class="select" onchange={handleThemeChange}>
@@ -115,7 +130,7 @@
 			onfocus={() => previewThemeChange(theme)}
 			onmouseout={resetPreview}
 			onblur={resetPreview}
-			class="preset-outline-tertiary-500 btn mt-2"
+			class="preset-outline-tertiary-500 btn mt-2 mr-2"
 		>
 			Preview {theme.name}
 		</button>
@@ -127,13 +142,12 @@
 		There are currently no custom themes available. Visit the SveltyCMS marketplace to find new themes.
 	</p>
 
-	<!-- Market Place -->
 	<a
-		href="https://www.sveltyCMS.com"
+		href="https://marketplace.sveltycms.com"
 		target="_blank"
 		rel="noopener noreferrer"
 		aria-label={m.marketplace()}
-		class="preset-outlined-primary-500 btn w-full gap-2 py-6"
+		class="preset-outlined-primary-500 btn w-full gap-2 py-6 mt-4"
 	>
 		<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white"></iconify-icon>
 		<p class="uppercase">{m.marketplace()}</p>

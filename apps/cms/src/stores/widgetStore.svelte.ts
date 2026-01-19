@@ -12,7 +12,7 @@
 import { logger } from '@shared/utils/logger';
 import type { DatabaseAdapter } from '@shared/database/dbInterface';
 import type { WidgetFactory, WidgetDefinition, FieldInstance } from '@cms-types';
-import { coreModules, customModules } from '@widgets/scanner';
+import { coreModules, customModules } from '@cms/widgets/scanner.ts';
 
 export type WidgetStatus = 'active' | 'inactive';
 

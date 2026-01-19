@@ -252,7 +252,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				// Ensure user data is serializable
 				role: user.role,
 				_id: user._id.toString(), // Convert user ID to string
-				avatar: user.avatar
+				avatar: user.avatar,
+				username: user.username,
+				email: user.email
 			},
 			media: processedMedia, // Use the processed and filtered media
 			systemVirtualFolders: serializedVirtualFolders as SystemVirtualFolder[], // All folders for the VirtualFolders component

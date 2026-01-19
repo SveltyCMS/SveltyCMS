@@ -54,12 +54,18 @@ export const handleTokenResolution: Handle = async ({ event, resolve }) => {
 
 			// Process each item individually to provide self-reference context
 			const processedItems = await Promise.all(
-				items.map((item) =>
-					processTokensInResponse(item, event.locals.user || undefined, (event.locals as any).contentLanguage || 'en', {
+				items.map(async (item) => {
+					const processed = await processTokensInResponse(item, event.locals.user || undefined, (event.locals as any).contentLanguage || 'en', {
 						...contextBase,
 						entry: item // Inject self as entry context
-					})
-				)
+					});
+
+					// Attach raw data for UI debugging/display (preserved original)
+					if (processed && typeof processed === 'object') {
+						processed.__raw = item;
+					}
+					return processed;
+				})
 			);
 
 			// Reassign processed items to body

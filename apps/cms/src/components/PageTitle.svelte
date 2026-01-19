@@ -107,7 +107,7 @@
 	}
 </script>
 
-<div class="my-1.5 flex w-full min-w-0 items-center justify-between gap-4">
+<div class="m-2 flex min-w-0 items-center justify-between gap-2">
 	<div class="flex min-w-0 items-center">
 		{#if ui.state.leftSidebar === 'hidden'}
 			<button

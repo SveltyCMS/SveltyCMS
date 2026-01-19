@@ -14,6 +14,7 @@ export type WidgetTypes = widgets[WidgetKeys];
 
 export interface EntryListProps {
 	entries?: any[];
+	pluginData?: Record<string, any>;
 	pagination?: {
 		currentPage: number;
 		pageSize: number;

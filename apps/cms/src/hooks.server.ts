@@ -85,7 +85,7 @@ if (!building) {
 					// Initialize Widget Registry first (Required for schema processing)
 					logger.info('🧩 Initializing Widget Registry for schema processing...');
 					const { widgetRegistryService } = await import('@cms/services/WidgetRegistryService');
-					const { allWidgetModules } = await import('@cms/widgets/scanner');
+					const { allWidgetModules } = await import('@cms/widgets/scanner.ts');
 
 					for (const [path, module] of Object.entries(allWidgetModules)) {
 						const type = path.includes('/core/') ? 'core' : 'custom';
@@ -237,7 +237,7 @@ if (!building) {
 
 			// 3. Register Widgets in WidgetRegistryService
 			const { widgetRegistryService } = await import('@shared/services/WidgetRegistryService');
-			const { coreModules, customModules } = await import('@widgets/scanner');
+			const { coreModules, customModules } = await import('@cms/widgets/scanner.ts');
 
 			// Register core widgets
 			for (const [path, module] of Object.entries(coreModules)) {

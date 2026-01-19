@@ -318,6 +318,10 @@
 				logger.debug(`[URL Change] Reloading entry ${parsed.entryId} for Edit Mode`);
 				invalidateAll().then(() => {
 					collections.setMode('edit');
+					if (entries && entries.length === 1) {
+						collections.setCollectionValue(entries[0]);
+						logger.debug('[URL Change] Updated collection value with fresh entry:', entries[0]._id);
+					}
 				});
 			} else if (parsed.mode === 'view' && collections.mode === 'edit') {
 				// Exiting edit mode

@@ -22,7 +22,7 @@ latest version available on GitHub with comprehensive status reporting.
 - Reduced motion support
 -->
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, untrack } from 'svelte';
 	import { publicEnv } from '@shared/stores/globalSettings.svelte';
 	import { browser } from '$app/environment';
 
@@ -62,7 +62,7 @@ latest version available on GitHub with comprehensive status reporting.
 
 	// State - use publicEnv directly instead of page.data
 	const pkg = $derived(publicEnv?.PKG_VERSION || '0.0.0');
-	let githubVersion = $state<string>(pkg);
+	let githubVersion = $state<string>(untrack(() => pkg));
 	let badgePreset = $state<
 		'preset-filled-primary-500' | 'preset-filled-success-500' | 'preset-filled-warning-500' | 'preset-filled-error-500' | 'preset-filled-surface-500'
 	>('preset-filled-primary-500');

@@ -9,7 +9,7 @@
  * - Graceful fallback for missing widgets
  */
 
-import { coreModules, customModules } from '@widgets/scanner';
+import { coreModules, customModules } from '@cms/widgets/scanner.ts';
 import type { WidgetFactory, WidgetModule, WidgetType } from '@cms-types';
 import { logger } from '@shared/utils/logger';
 

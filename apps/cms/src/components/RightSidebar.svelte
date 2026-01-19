@@ -276,7 +276,7 @@
 				<div class="space-y-3">
 					<div class="space-y-1">
 						<p class="text-sm font-medium">{m.sidebar_createdby()}</p>
-						<div class="preset-filled-surface-500 rounded-lg p-3 text-center">
+						<div class="preset-filled-surface-500 rounded-lg p-1.5 text-center">
 							<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
 								{getDisplayName(currentEntry?.createdBy as string)}
 							</span>
@@ -285,8 +285,8 @@
 
 					{#if currentEntry?.updatedBy}
 						<div class="space-y-1">
-							<p class="text-sm font-medium text-surface-600 dark:text-surface-300">Last updated by</p>
-							<div class="preset-filled-surface-500 rounded-lg p-3 text-center">
+							<p class="text-sm font-medium">Last updated by</p>
+							<div class="preset-filled-surface-500 rounded-lg p-1.5 text-center">
 								<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
 									{getDisplayName(currentEntry?.updatedBy as string)}
 								</span>

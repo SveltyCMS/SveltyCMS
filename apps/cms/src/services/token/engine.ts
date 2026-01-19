@@ -63,7 +63,14 @@ class TokenRegistryService {
 			}
 		}
 
-		return tokenKey.split('.').reduce((curr: any, key) => curr?.[key], ctx);
+		const val = tokenKey.split('.').reduce((curr: any, key) => curr?.[key], ctx);
+
+		// Handle Localized Fields in fallback (when no specific resolver is registered)
+		if (val && typeof val === 'object' && !Array.isArray(val) && ctx.locale && (ctx.locale in val || 'en' in val)) {
+			return val[ctx.locale] || val['en'];
+		}
+
+		return val;
 	}
 
 	clearCache() {

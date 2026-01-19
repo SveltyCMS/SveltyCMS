@@ -25,6 +25,7 @@
 
 	// A single, data-driven array to define all configuration items.
 	const configItems = [
+		// Collection Builder
 		{
 			id: 'collectionbuilder',
 			href: '/config/collectionbuilder',
@@ -42,6 +43,7 @@
 				contextType: 'configuration'
 			}
 		},
+		// GraphQL
 		{
 			id: 'graphql',
 			href: '/api/graphql',
@@ -60,6 +62,7 @@
 				contextType: 'system'
 			}
 		},
+		// Email Previews
 		{
 			id: 'emailPreviews',
 			href: '/email-previews',
@@ -78,6 +81,7 @@
 				contextType: 'system'
 			}
 		},
+		// Dashboard
 		{
 			id: 'dashboard',
 			href: '/dashboard',
@@ -95,6 +99,7 @@
 				contextType: 'system'
 			}
 		},
+		// Marketplace
 		{
 			id: 'marketplace',
 			href: 'https://www.sveltyCMS.com',
@@ -106,40 +111,46 @@
 			target: '_blank',
 			permission: null
 		},
+
+		// Extension Management
 		{
-			id: 'widgetManagement',
-			href: '/config/widgetManagement',
-			label: m.config_widgetManagement(),
-			icon: 'mdi:widgets',
+			id: 'extensions',
+			href: '/config/extensions',
+			label: 'Extensions',
+			icon: 'mdi:puzzle-outline',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
-			iconColor: 'text-tertiary-500',
+			iconColor: 'text-indigo-500',
 			permission: {
-				contextId: 'config:widgetManagement',
-				name: 'Widget Management',
-				description: 'Manage system widgets',
+				contextId: 'config:extensions',
+				name: 'Extension Management',
+				description: 'Manage plugins, widgets, and themes',
 				requiredRole: 'admin',
 				action: 'manage',
 				contextType: 'configuration'
 			}
 		},
+		// Access Management
 		{
-			id: 'themeManagement',
-			href: '/config/themeManagement',
-			label: m.config_themeManagement(),
-			icon: 'ph:layout',
+			id: 'accessManagement',
+			// FIX: Corrected typo from 'assessManagement'
+			href: '/config/accessManagement',
+			label: m.config_accessManagement(),
+			icon: 'mdi:account-group',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
-			iconColor: 'text-primary-500',
+			iconColor: 'text-error-500',
 			permission: {
-				contextId: 'config:themeManagement',
-				name: 'Theme Management',
-				description: 'Manage system themes',
+				contextId: 'config:accessManagement',
+				name: 'Access Management',
+				description: 'Manage user access and roles',
 				requiredRole: 'admin',
 				action: 'manage',
 				contextType: 'configuration'
 			}
 		},
+
+		// Settings
 		{
 			id: 'settings',
 			href: '/config/systemsetting',
@@ -147,9 +158,8 @@
 			icon: 'uil:setting',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
-			iconColor: 'text-surface-500',
+			iconColor: 'text-surface-400',
 			permission: {
-				// FIX: Changed from 'system:settings' to 'config:settings' to match +page.server.ts
 				contextId: 'config:settings',
 				name: 'Settings',
 				description: 'Manage system settings',
@@ -158,6 +168,8 @@
 				contextType: 'system'
 			}
 		},
+
+		// Import & Export
 		{
 			id: 'importExport',
 			href: '/config/import-export',
@@ -175,7 +187,8 @@
 				contextType: 'system'
 			}
 		},
-		// START: New Configuration Manager Button
+
+		// Configuration Manager
 		{
 			id: 'configurationManager',
 			href: '/config/configurationManager',
@@ -193,8 +206,8 @@
 				contextType: 'system'
 			}
 		},
-		// END: New Configuration Manager Button
-		// START: System Health Monitor
+
+		// System Health Monitor
 		{
 			id: 'systemHealth',
 			href: '/config/system-health',
@@ -202,7 +215,7 @@
 			icon: 'mdi:heart-pulse',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
-			iconColor: 'text-success-500',
+			iconColor: 'text-warning-500',
 			permission: {
 				contextId: 'config:systemHealth',
 				name: 'System Health',
@@ -210,25 +223,6 @@
 				requiredRole: 'admin',
 				action: 'view',
 				contextType: 'system'
-			}
-		},
-		// END: System Health Monitor
-		{
-			id: 'accessManagement',
-			// FIX: Corrected typo from 'assessManagement'
-			href: '/config/accessManagement',
-			label: m.config_accessManagement(),
-			icon: 'mdi:account-group',
-			classes:
-				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
-			iconColor: 'text-error-500',
-			permission: {
-				contextId: 'config:accessManagement',
-				name: 'Access Management',
-				description: 'Manage user access and roles',
-				requiredRole: 'admin',
-				action: 'manage',
-				contextType: 'configuration'
 			}
 		}
 	];

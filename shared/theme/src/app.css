@@ -351,6 +351,7 @@
 	border-color: var(--color-surface-200);
 	background-color: white;
 	padding: 1.5rem 1rem;
+	margin: 6px;
 	box-shadow:
 		0 10px 15px -3px rgb(0 0 0 / 0.1),
 		0 4px 6px -4px rgb(0 0 0 / 0.1);
@@ -373,6 +374,7 @@
 	border-color: var(--color-secondary-200);
 	background-color: white;
 	padding: 1.5rem 1rem;
+	margin: 6px;
 	box-shadow:
 		0 10px 15px -3px rgb(0 0 0 / 0.1),
 		0 4px 6px -4px rgb(0 0 0 / 0.1);

@@ -56,6 +56,8 @@ export const privateConfigSchema = object({
 	GOOGLE_CLIENT_ID: optional(pipe(string(), minLength(1))),
 	GOOGLE_CLIENT_SECRET: optional(pipe(string(), minLength(1))),
 	GOOGLE_API_KEY: optional(pipe(string(), minLength(1))),
+	GOOGLE_PAGESPEED_API_KEY: optional(pipe(string(), minLength(1))),
+
 	SMTP_HOST: optional(pipe(string(), minLength(1))),
 	SMTP_PORT: optional(pipe(number(), minValue(1))),
 	SMTP_USER: optional(string()),
