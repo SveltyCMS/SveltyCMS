@@ -333,7 +333,7 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 
 	try {
 		const processModule = async (name: string, module: ProcessedModule, modulePath: string) => {
-			const collection = (module as { schema: Schema })?.schema ?? {};
+			const collection: any = (module as { schema: Schema })?.schema ?? {};
 			if (collection) {
 				// Use stable hash for collection IDs too if possible, but UUID is okay for now if singular
 				const randomId = uuidv4();

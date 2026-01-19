@@ -18,8 +18,8 @@ export type LoggableValue = string | number | boolean | null | undefined | objec
 
 // Log levels from env
 const env = import.meta.env || {};
-const proc = typeof process !== 'undefined' ? process.env : {};
-const LOG_LEVELS = (env.VITE_LOG_LEVELS ?? proc.LOG_LEVELS ?? 'info').split(',').map((l) => l.trim().toLowerCase()) as LogLevel[];
+const proc = typeof process !== 'undefined' ? (process.env as any) : {};
+const LOG_LEVELS = ((env as any).VITE_LOG_LEVELS ?? proc.LOG_LEVELS ?? 'info').split(',').map((l: string) => l.trim().toLowerCase()) as LogLevel[];
 
 const DISABLED = LOG_LEVELS.includes('none');
 

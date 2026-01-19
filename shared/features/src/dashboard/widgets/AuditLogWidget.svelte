@@ -7,15 +7,21 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	export let config: any;
+	import { untrack } from 'svelte';
+
+	const { config } = $props<{ config: any }>();
 
 	// Use config to suppress warning in dev
-	if (import.meta.env.DEV && config) {
-		console.log('AuditLogWidget config:', config);
-	}
+	$effect(() => {
+		untrack(() => {
+			if (import.meta.env.DEV && config) {
+				console.log('AuditLogWidget config:', config);
+			}
+		});
+	});
 
-	let logs: any[] = [];
-	let loading = true;
+	let logs = $state<any[]>([]);
+	let loading = $state(true);
 
 	onMount(async () => {
 		try {

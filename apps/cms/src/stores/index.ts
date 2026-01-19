@@ -10,4 +10,14 @@ export * from './activeInputStore.svelte';
 export * from './UIStore.svelte';
 
 export * from './themeStore.svelte';
-export * from './system';
+export {
+	getSystemState,
+	setSystemState,
+	setInitializationStage,
+	updateServiceHealth,
+	isServiceHealthy,
+	getSystemMetrics,
+	type SystemState,
+	type ServiceStatus,
+	type InitializationStage
+} from '@shared/stores/system';

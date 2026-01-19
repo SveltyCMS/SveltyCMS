@@ -23,7 +23,7 @@
 
 <script lang="ts">
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	// Props with default values
 	let {

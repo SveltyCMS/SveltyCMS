@@ -6,7 +6,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
-import { auditLogService } from '../../../../services/audit/AuditLogService';
+import { auditLogService } from '../../../services/audit/AuditLogService';
 
 export const GET = async ({ url }: RequestEvent) => {
 	// In a real app, ensure this is protected by admin auth

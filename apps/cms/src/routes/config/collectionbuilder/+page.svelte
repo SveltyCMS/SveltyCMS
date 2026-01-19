@@ -40,7 +40,7 @@
 	import ModalCategory from './NestedContent/ModalCategory.svelte';
 
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	// Skeleton
 	import { toaster } from '@shared/stores/store.svelte';

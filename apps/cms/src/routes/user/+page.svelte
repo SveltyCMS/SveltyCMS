@@ -24,7 +24,7 @@
 	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
 	import ModalEditForm from './components/ModalEditForm.svelte';
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	// Stores
 	import { avatarSrc } from '@shared/stores/store.svelte';

@@ -211,12 +211,13 @@ export interface PluginMigrationRecord {
  * Stored in plugin_states collection
  */
 export interface PluginState {
-	_id?: DatabaseId;
+	_id: DatabaseId;
 	pluginId: string;
 	tenantId: string;
 	enabled: boolean;
 	settings?: Record<string, any>;
-	updatedAt: Date;
+	createdAt: ISODateString;
+	updatedAt: ISODateString;
 	updatedBy?: string;
 }
 

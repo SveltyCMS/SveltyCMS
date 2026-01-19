@@ -32,7 +32,7 @@
 	import WebsiteTokens from '../components/WebsiteTokens.svelte';
 
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	// Use $state for local component state
 	let currentTab = $state('0'); // Initial tab set to string '0' for Tabs component

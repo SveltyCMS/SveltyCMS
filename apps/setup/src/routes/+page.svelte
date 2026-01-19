@@ -7,7 +7,7 @@
 	import { goto } from '$app/navigation';
 
 	// Stores
-	import { setupStore } from '@setup/stores/setupStore.svelte';
+	import { setupStore } from '$lib/stores/setupStore.svelte';
 	import { app } from '@shared/stores/store.svelte';
 
 	// Child Layout Components
@@ -30,12 +30,12 @@
 	import { modalState } from '@shared/utils/modalState.svelte';
 
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
-	import { getLocale } from '@shared/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages.js';
+	import { getLocale } from '$lib/paraglide/runtime.js';
 
 	// Utils
 	import { getLanguageName } from '@shared/utils/languageUtils';
-	import { locales as availableLocales } from '@shared/paraglide/runtime';
+	import { locales as availableLocales } from '$lib/paraglide/runtime.js';
 
 	// --- 1. STATE MANAGEMENT (Wired to Store) ---
 	const wizard = setupStore.wizard;

@@ -23,7 +23,7 @@
 	import { app } from '@shared/stores/store.svelte';
 
 	// Paraglide
-	import { getLocale, setLocale, locales as availableLocales } from '@shared/paraglide/runtime';
+	import { getLocale, setLocale, locales as availableLocales } from '$lib/paraglide/runtime.js';
 
 	// Dynamically generate LanguageCode type from Paraglide's available locales.
 	type LanguageCode = (typeof availableLocales)[number];

@@ -15,7 +15,7 @@
 
 import fs from 'fs';
 import prettier from 'prettier';
-import * as ts from 'typescript';
+import ts from 'typescript';
 import { redirect, type Actions, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -421,7 +421,7 @@ export const schema: Schema = {
 		const transformedSourceFile = transformationResult.transformed[0];
 
 		// Print the transformed AST back to code
-		const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+		const printer = ts.createPrinter({ newLine: 1 }); // 1 is ts.NewLineKind.LineFeed
 		let result = printer.printFile(transformedSourceFile);
 
 		// Clean up the 🗑️ markers and format with prettier

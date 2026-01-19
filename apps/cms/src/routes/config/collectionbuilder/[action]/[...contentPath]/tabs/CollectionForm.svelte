@@ -23,7 +23,7 @@
 	import IconifyPicker from '@cms/components/IconifyPicker.svelte';
 
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	// Skeleton
 	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
@@ -71,7 +71,8 @@
 			if (collection.value && currentIcon !== collection.value.icon) {
 				setCollection({
 					...collection.value,
-					icon: currentIcon
+					icon: currentIcon,
+					fields: collection.value?.fields || []
 				});
 			}
 		});
@@ -106,7 +107,8 @@
 				slug: currentSlug,
 				description: currentDescription,
 				status: currentStatus,
-				icon: currentIcon // Ensure icon is updated
+				icon: currentIcon, // Ensure icon is updated
+				fields: collection.value?.fields || []
 			});
 		});
 	});

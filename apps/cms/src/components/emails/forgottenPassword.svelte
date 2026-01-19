@@ -9,7 +9,7 @@
 	import { publicEnv } from '@shared/stores/globalSettings.svelte';
 
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 	import { app } from '@shared/stores/store.svelte';
 	// better-svelte-email
 	import { Body, Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';

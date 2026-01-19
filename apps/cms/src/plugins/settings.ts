@@ -3,7 +3,7 @@
  * @description Service for managing persistent plugin settings and states
  */
 
-import type { IDBAdapter, DatabaseResult } from '@shared/database/dbInterface';
+import type { IDBAdapter, DatabaseResult, ISODateString } from '@shared/database/dbInterface';
 import { logger } from '@shared/utils/logger.server';
 import type { DatabaseId } from '@shared/database/dbInterface';
 import type { PluginState } from './types';
@@ -22,11 +22,11 @@ export class PluginSettingsService {
 			if (!count.success) {
 				logger.info(`Creating ${this.COLLECTION} collection...`);
 				// Create by inserting and deleting a dummy record if createCollection not explicitly available
-				await this.dbAdapter.crud.insert(this.COLLECTION, {
+				await this.dbAdapter.crud.insert<PluginState>(this.COLLECTION, {
 					pluginId: '__INIT__',
 					tenantId: 'system',
 					enabled: false,
-					updatedAt: new Date()
+					updatedBy: 'system'
 				});
 				await this.dbAdapter.crud.deleteMany(this.COLLECTION, { pluginId: '__INIT__' } as any);
 			}
@@ -81,7 +81,6 @@ export class PluginSettingsService {
 				// Update
 				const updateResult = await this.dbAdapter.crud.update<PluginState>(this.COLLECTION, existing._id, {
 					enabled,
-					updatedAt: new Date(),
 					updatedBy: userId
 				});
 				return updateResult.success;
@@ -91,7 +90,6 @@ export class PluginSettingsService {
 					pluginId,
 					tenantId,
 					enabled,
-					updatedAt: new Date(),
 					updatedBy: userId
 				});
 				return insertResult.success;

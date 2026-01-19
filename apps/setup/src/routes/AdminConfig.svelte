@@ -21,8 +21,9 @@
 
 -->
 <script lang="ts">
-	import * as m from '@shared/paraglide/messages';
-	import type { ValidationErrors } from '@setup/stores/setupStore.svelte';
+	import { setupStore } from '$lib/stores/setupStore.svelte';
+	import * as m from '$lib/paraglide/messages.js';
+	import type { ValidationErrors } from '$lib/stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { setupAdminSchema } from '@shared/utils/formSchemas';
 

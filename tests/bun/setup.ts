@@ -8,9 +8,60 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 GlobalRegistrator.register();
 
+// Mock logger to prevent errors in tests
+mock.module('@shared/utils/logger', () => ({
+	logger: {
+		info: () => {},
+		warn: () => {},
+		error: () => {},
+		debug: () => {},
+		trace: () => {}
+	}
+}));
+mock.module('@shared/utils/logger.server', () => ({
+	logger: {
+		info: () => {},
+		warn: () => {},
+		error: () => {},
+		debug: () => {},
+		trace: () => {}
+	}
+}));
+
+// Mock server-side crypto modules for client-side tests
+mock.module('crypto', () => ({
+	default: {
+		randomBytes: (size: number) => new Uint8Array(size),
+		createHash: () => ({
+			update: () => ({
+				digest: () => 'mocked_hash'
+			})
+		}),
+		randomUUID: () => 'mocked-uuid',
+		createCipheriv: () => ({
+			update: () => Buffer.from(''),
+			final: () => Buffer.from(''),
+			getAuthTag: () => Buffer.from('')
+		}),
+		createDecipheriv: () => ({
+			update: () => Buffer.from(''),
+			final: () => Buffer.from(''),
+			setAuthTag: () => {}
+		})
+	}
+}));
+
+mock.module('argon2', () => ({
+	default: {
+		hash: async (password: string) => `mocked_hash_${password}`,
+		verify: async (hash: string, password: string) => hash === `mocked_hash_${password}`,
+		argon2id: 2
+	}
+}));
+
 // Mock $app/environment
 mock.module('$app/environment', () => ({
-	browser: false,
+	browser: true, // Set to true for component tests
 	dev: true,
 	building: false,
 	version: 'test'
@@ -35,6 +86,11 @@ mock.module('$app/stores', () => ({
 	},
 	navigating: { subscribe: (fn: any) => fn(null) },
 	updated: { subscribe: (fn: any) => fn(false) }
+}));
+
+// Mock $app/state
+mock.module('$app/state', () => ({
+	state: { subscribe: (fn: any) => fn({}) }
 }));
 
 // Mock Svelte 5 Runes for testing

@@ -4,10 +4,10 @@
 Displays logo, site name, language selector, and theme toggle.
 -->
 <script lang="ts">
-	import SiteName from '@cms/components/SiteName.svelte';
+	import SiteName from '@shared/components/SiteName.svelte';
 	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
-	import ThemeToggle from '@cms/components/ThemeToggle.svelte';
-	import * as m from '@shared/paraglide/messages';
+	import ThemeToggle from '@shared/components/ThemeToggle.svelte';
+	import * as m from '$lib/paraglide/messages.js';
 	import { getLanguageName } from '@shared/utils/languageUtils';
 
 	let { siteName, systemLanguages, currentLanguageTag, onselectLanguage = () => {} } = $props();

@@ -1,5 +1,5 @@
 <!--
-@file src/components/SiteName.svelte
+@file shared/components/src/SiteName.svelte
 @component
 **SiteName component for displaying the site name**
 

@@ -15,12 +15,12 @@
 	import { logger } from '@shared/utils/logger';
 	import { page } from '$app/state';
 	import { navigationManager } from '@shared/utils/navigationManager';
-	import { getLocale } from '@shared/paraglide/runtime';
+	import { getLocale } from '$lib/paraglide/runtime.js';
 
 	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '@shared/utils/entryActions';
 	import { showScheduleModal } from '@shared/utils/modalUtils';
 	import { showToast } from '@shared/utils/toast';
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	import { StatusTypes } from '@cms/types/content';
 

@@ -17,7 +17,7 @@
 
 <script lang="ts">
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	interface Props {
 		description: string;

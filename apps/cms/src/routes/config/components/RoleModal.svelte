@@ -27,7 +27,7 @@
 	import { modalState } from '@shared/utils/modalState.svelte';
 
 	//ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	// Props
 	interface Props {

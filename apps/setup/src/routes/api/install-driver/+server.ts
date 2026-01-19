@@ -3,7 +3,7 @@
  * @description An API endpoint to automatically install database drivers during setup.
  */
 
-import * as m from '@shared/paraglide/messages';
+import * as m from '$lib/paraglide/messages.js';
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { logger } from '@shared/utils/logger.server';
 import { exec } from 'child_process';

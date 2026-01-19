@@ -18,21 +18,14 @@ const config = getBaseSvelteConfig({
 	// Setup-specific aliases
 	aliases: {
 		// Local paraglide (generated per-app)
-		$paraglide: './src/paraglide',
+		$paraglide: './src/lib/paraglide',
 
-		// Shared libraries (relative from apps/setup)
-		'@shared/services': '../../apps/cms/src/services',
-		'@shared/services/*': '../../apps/cms/src/services/*',
-
-		// Cross-app access
-		'@cms': '../../apps/cms/src',
-		'@content': '../../apps/cms/src/content',
-		'@widgets': '../../apps/cms/src/widgets',
-		'@api': '../../apps/cms/src/routes/api',
-		'@cms-types': '../../apps/cms/src/types',
+		// Shared libraries
+		'@shared/services': '../../shared/services/src',
+		'@shared/services/*': '../../shared/services/src/*',
 
 		// Setup-specific
-		'@setup': './src/lib'
+		'@setup': './src'
 	}
 });
 

@@ -22,7 +22,7 @@
 	import Media from '@cms/components/Media.svelte';
 
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	// Props
 	let { value = $bindable(), multiple = $bindable(false), show = $bindable(true), className = '', onChange } = $props();

@@ -20,16 +20,14 @@ export async function cleanupTestEnvironment(): Promise<void> {
 	// Logic for cleaning up after tests
 }
 
-/**
- * Cleanup the test database (placeholder for now).
- */
+// Cleanup the test database (placeholder for now).
 export async function cleanupTestDatabase(): Promise<void> {
 	console.log('[cleanupTestDatabase] Starting...');
 	// 1. Call reset endpoint to clear config and cache on the server
 	try {
 		const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5173';
 		console.log('[cleanupTestDatabase] Calling reset endpoint:', API_BASE_URL);
-		await fetch(`${API_BASE_URL}/api/setup/reset`, { method: 'POST' });
+		await fetch(`${API_BASE_URL}/api/reset`, { method: 'POST' });
 		console.log('[cleanupTestDatabase] Reset endpoint called');
 	} catch (e) {
 		// Ignore connection errors if server is down
@@ -110,9 +108,7 @@ export async function prepareAuthenticatedContext(): Promise<string> {
 	return cookie;
 }
 
-/**
- * Common test data (fixtures).
- */
+// Common test data (fixtures).
 export const testFixtures = {
 	users: {
 		admin: {

@@ -43,20 +43,9 @@ import type {
 import type { ConnectionPoolDiagnostics } from '../DatabaseResilience';
 
 // All Mongoose Models
-import {
-	ContentNodeModel,
-	DraftModel,
-	MediaModel,
-	RevisionModel,
-	SystemPreferencesModel,
-	SystemSettingModel,
-	ThemeModel,
-	WidgetModel,
-	WebsiteTokenModel
-} from './models';
+// Models will be loaded dynamically in _initializeModelsAndWrappers function
 
 // The full suite of refined, modular method classes
-import { MongoAuthModelRegistrar } from './methods/authMethods';
 import { MongoCollectionMethods } from './methods/collectionMethods';
 import { MongoContentMethods } from './methods/contentMethods';
 import { MongoCrudMethods } from './methods/crudMethods';
@@ -72,6 +61,7 @@ import { MongoQueryBuilder } from './MongoQueryBuilder';
 
 // Auth adapter composition
 import { composeMongoAuthAdapter } from './methods/authComposition';
+import { MongoAuthModelRegistrar } from './methods/authMethods';
 
 import { logger } from '@shared/utils/logger.server';
 import type {
@@ -101,7 +91,7 @@ export class MongoDBAdapter implements IDBAdapter {
 	private _websiteTokens!: MongoWebsiteTokenMethods;
 	private _system!: MongoSystemMethods;
 	private _systemVirtualFolder!: MongoSystemVirtualFolderMethods;
-	private _auth!: MongoAuthModelRegistrar;
+	private _auth!: IDBAdapter['auth'];
 	private _repositories = new Map<string, MongoCrudMethods<BaseEntity>>();
 
 	// --- Public properties that expose the compliant, wrapped API ---
@@ -330,8 +320,30 @@ export class MongoDBAdapter implements IDBAdapter {
 
 	// Initialize all models, repositories, method classes, and wrappers
 	private async _initializeModelsAndWrappers(): Promise<void> {
-		// --- 1. Register All Models ---
-		this._auth = new MongoAuthModelRegistrar(mongoose);
+		// --- 1. Load Models and registrars dynamically to break static dependency chain ---
+		const {
+			ContentNodeModel,
+			DraftModel,
+			MediaModel,
+			RevisionModel,
+			SystemPreferencesModel,
+			SystemSettingModel,
+			ThemeModel,
+			WidgetModel,
+			WebsiteTokenModel
+		} = await import('./models');
+
+		const { MongoAuthModelRegistrar } = await import('./methods/authMethods');
+		const { composeMongoAuthAdapter } = await import('./methods/authComposition');
+
+		// Auth adapter composition
+		const authAdapter = composeMongoAuthAdapter();
+		const authRegistrar = new MongoAuthModelRegistrar(mongoose);
+
+		this._auth = {
+			...authAdapter,
+			setupAuthModels: () => authRegistrar.setupAuthModels()
+		};
 		await this._auth.setupAuthModels();
 		MongoMediaMethods.registerModels(mongoose);
 		logger.info('All Mongoose models registered.');
@@ -454,13 +466,13 @@ export class MongoDBAdapter implements IDBAdapter {
 			},
 			setDefault: async (id) => {
 				const result = await this._wrapResult(() => this._themes.setDefault(id));
-				if (!result.success) return result;
+				if (!result.success) return result as unknown as DatabaseResult<void>;
 				return { success: true, data: undefined };
 			},
 			install: (theme) => this._wrapResult(() => this._themes.install(theme)),
 			uninstall: async (id) => {
 				const result = await this._wrapResult(() => this._themes.uninstall(id));
-				if (!result.success) return result;
+				if (!result.success) return result as unknown as DatabaseResult<void>;
 				return { success: true, data: undefined };
 			},
 			update: async (id, theme) => {
@@ -503,12 +515,12 @@ export class MongoDBAdapter implements IDBAdapter {
 			},
 			activate: async (id) => {
 				const result = await this._wrapResult(() => this._widgets.activate(id));
-				if (!result.success) return result;
+				if (!result.success) return result as unknown as DatabaseResult<void>;
 				return { success: true, data: undefined };
 			},
 			deactivate: async (id) => {
 				const result = await this._wrapResult(() => this._widgets.deactivate(id));
-				if (!result.success) return result;
+				if (!result.success) return result as unknown as DatabaseResult<void>;
 				return { success: true, data: undefined };
 			},
 			update: async (id, widget) => {
@@ -519,7 +531,7 @@ export class MongoDBAdapter implements IDBAdapter {
 			},
 			delete: async (id) => {
 				const result = await this._wrapResult(() => this._widgets.delete(id));
-				if (!result.success) return result;
+				if (!result.success) return result as unknown as DatabaseResult<void>;
 				return { success: true, data: undefined };
 			}
 		};
@@ -528,7 +540,7 @@ export class MongoDBAdapter implements IDBAdapter {
 		this.systemPreferences = {
 			get: async <T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId) => {
 				const result = await this._wrapResult(() => this._system.get(key, scope, userId));
-				if (!result.success) return result;
+				if (!result.success) return result as unknown as DatabaseResult<T>;
 				if (result.data === null)
 					return { success: false, message: 'Preference not found', error: { code: 'NOT_FOUND', message: 'Preference not found' } };
 				return { success: true, data: result.data as T };
@@ -560,7 +572,7 @@ export class MongoDBAdapter implements IDBAdapter {
 				uploadMany: (files) => this._wrapResult(() => this._media.uploadMany(files as any)),
 				delete: async (id) => {
 					const result = await this._wrapResult(() => this._media.deleteMany([id]));
-					if (!result.success) return result;
+					if (!result.success) return result as unknown as DatabaseResult<void>;
 					return { success: true, data: undefined };
 				},
 				deleteMany: (ids) => this._wrapResult(() => this._media.deleteMany(ids)),
@@ -684,7 +696,7 @@ export class MongoDBAdapter implements IDBAdapter {
 					this._wrapResult(() => this._repositories.get('drafts')!.update(id, { data } as Partial<BaseEntity>) as Promise<ContentDraft<unknown>>),
 				publish: async (id) => {
 					const result = await this._wrapResult(() => this._content.publishManyDrafts([id]));
-					if (!result.success) return result;
+					if (!result.success) return result as unknown as DatabaseResult<void>;
 					return { success: true, data: undefined };
 				},
 				publishMany: (ids) =>
@@ -695,7 +707,7 @@ export class MongoDBAdapter implements IDBAdapter {
 				getForContent: (contentId, options) => this._wrapResult(() => this._content.getDraftsForContent(contentId, options)),
 				delete: async (id) => {
 					const result = await this._wrapResult(() => this._repositories.get('drafts')!.delete(id));
-					if (!result.success) return result;
+					if (!result.success) return result as unknown as DatabaseResult<void>;
 					return { success: true, data: undefined };
 				},
 				deleteMany: (ids) => this._wrapResult(() => this._repositories.get('drafts')!.deleteMany({ _id: { $in: ids } } as QueryFilter<BaseEntity>))
@@ -710,7 +722,7 @@ export class MongoDBAdapter implements IDBAdapter {
 					}),
 				delete: async (id) => {
 					const result = await this._wrapResult(() => this._repositories.get('revisions')!.delete(id));
-					if (!result.success) return result;
+					if (!result.success) return result as unknown as DatabaseResult<void>;
 					return { success: true, data: undefined };
 				},
 				deleteMany: (ids) =>

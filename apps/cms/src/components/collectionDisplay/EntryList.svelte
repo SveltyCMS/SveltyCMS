@@ -60,7 +60,7 @@
 	import { ui } from '@cms/stores/UIStore.svelte';
 
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	// Components
 	import FloatingInput from '@cms/components/system/inputs/floatingInput.svelte';

@@ -24,7 +24,7 @@ Advanced icon picker with search, pagination, and favorites.
 -->
 
 <script lang="ts">
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 	import { loadIcons } from '@iconify/svelte';
 	import { logger } from '@shared/utils/logger';
 	import { onMount, onDestroy } from 'svelte';

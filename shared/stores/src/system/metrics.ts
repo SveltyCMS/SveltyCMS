@@ -7,9 +7,7 @@ import { logger } from '@shared/utils/logger';
 import type { Writable } from 'svelte/store';
 import type { SystemStateStore, ServiceHealth, AnomalyDetection, ServiceName } from './types';
 
-/**
- * Track state timing (startup/shutdown) and update metrics
- */
+// Track state timing (startup/shutdown) and update metrics
 export function trackStateTransition(
 	serviceName: keyof SystemStateStore['services'],
 	fromState: ServiceHealth,
@@ -92,9 +90,7 @@ export function trackStateTransition(
 	});
 }
 
-/**
- * Self-calibrate anomaly thresholds based on historical performance
- */
+// Self-calibrate anomaly thresholds based on historical performance
 export function calibrateAnomalyThresholds(serviceName: keyof SystemStateStore['services'], store: Writable<SystemStateStore>): void {
 	store.update((current) => {
 		const service = { ...current.services[serviceName] };
@@ -163,9 +159,7 @@ export function calibrateAnomalyThresholds(serviceName: keyof SystemStateStore['
 	});
 }
 
-/**
- * Detect anomalies and notify if something is wrong
- */
+// Detect anomalies and notify if something is wrong
 export function detectAnomalies(serviceName: keyof SystemStateStore['services'], state: SystemStateStore): AnomalyDetection[] {
 	const service = state.services[serviceName];
 	const metrics = service.metrics;
@@ -254,9 +248,7 @@ export function detectAnomalies(serviceName: keyof SystemStateStore['services'],
 	return anomalies;
 }
 
-/**
- * Update uptime percentage based on health checks
- */
+// Update uptime percentage based on health checks
 export function updateUptimeMetrics(serviceName: ServiceName, store: Writable<SystemStateStore>): void {
 	store.update((current) => {
 		const service = { ...current.services[serviceName] };

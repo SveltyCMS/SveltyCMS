@@ -12,10 +12,11 @@ Features:
 	import { onMount } from 'svelte';
 	// Components
 	import PermissionsSetting from '@cms/components/PermissionsSetting.svelte';
+	import type { Role } from '@shared/database/auth/types';
 	import { collections } from '@cms/stores/collectionStore.svelte';
 
 	// State for roles
-	let roles = $state<{ _id: string; name: string }[]>([]);
+	let roles = $state<Role[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 
@@ -32,7 +33,7 @@ Features:
 		{ _id: 'admin', name: 'Admin' },
 		{ _id: 'developer', name: 'Developer' },
 		{ _id: 'editor', name: 'Editor' }
-	];
+	] as unknown as Role[];
 
 	// Fetch roles on mount or use defaults
 	onMount(async () => {
@@ -40,7 +41,7 @@ Features:
 			const response = await fetch('/api/roles');
 			if (response.ok) {
 				const data = await response.json();
-				roles = data.roles || data || [];
+				roles = (data.roles || data || []) as Role[];
 				// If no roles returned, use defaults
 				if (roles.length === 0) {
 					roles = defaultRoles;

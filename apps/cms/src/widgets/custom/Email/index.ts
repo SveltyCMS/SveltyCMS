@@ -16,7 +16,7 @@ import Input from '@cms/components/system/inputs/Input.svelte';
 import Toggles from '@cms/components/system/inputs/Toggles.svelte';
 
 import type { FieldInstance } from '@cms-types';
-import * as m from '@shared/paraglide/messages';
+import * as m from '$lib/paraglide/messages.js';
 import { createWidget } from '@widgets/widgetFactory';
 import { custom, email, minLength, optional, pipe, string, type InferInput as ValibotInput } from 'valibot';
 import type { EmailProps } from './types';

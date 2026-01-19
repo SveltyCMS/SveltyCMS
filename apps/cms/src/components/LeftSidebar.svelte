@@ -29,30 +29,30 @@
 	import type { Schema } from '@cms/types/content'; // Import Schema type (collection definition)
 	import type { Role } from '@shared/database/auth/types';
 	import { getLanguageName } from '@shared/utils/languageUtils';
-	import { locales as availableLocales } from '@shared/paraglide/runtime';
+	import { locales as availableLocales } from '$lib/paraglide/runtime.js';
 
 	// Stores
 	import { setMode } from '@cms/stores/collectionStore.svelte';
 	import { avatarSrc, systemLanguage } from '@shared/stores/store.svelte';
 	import { toggleUIElement, uiStateManager, userPreferredState } from '@cms/stores/UIStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@cms/stores/loadingStore.svelte';
-	import { themeStore } from '@cms/stores/themeStore.svelte';
+	import { themeStore } from '@shared/stores/themeStore.svelte';
 
 	// Import components
 	import VersionCheck from '@shared/components/VersionCheck.svelte';
 	import Collections from '@cms/components/Collections.svelte';
 	import MediaFolders from '@cms/components/MediaFolders.svelte';
 	import SettingsMenu from '@shared/components/SettingsMenu.svelte';
-	import SiteName from '@cms/components/SiteName.svelte';
+	import SiteName from '@shared/components/SiteName.svelte';
 	import SveltyCMSLogo from '@cms/components/system/icons/SveltyCMS_Logo.svelte';
-	import ThemeToggle from '@cms/components/ThemeToggle.svelte';
+	import ThemeToggle from '@shared/components/ThemeToggle.svelte';
 
 	// Skeleton components
 	import { Avatar, Portal, Tooltip, Menu } from '@skeletonlabs/skeleton-svelte';
 
 	// Language and messaging
-	import * as m from '@shared/paraglide/messages';
-	import { getLocale } from '@shared/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages.js';
+	import { getLocale } from '$lib/paraglide/runtime.js';
 
 	// Constants
 	const MOBILE_BREAKPOINT = 768;
@@ -216,8 +216,9 @@
 		}
 	}
 
-	function iconForRole(role: Role): string {
-		switch (role) {
+	function iconForRole(role: Role | string): string {
+		const roleName = typeof role === 'string' ? role : role.name;
+		switch (roleName) {
 			case 'admin':
 				return 'eos-icons:admin-outlined';
 			case 'editor':
@@ -357,11 +358,9 @@
 									<Avatar.Image src={avatarUrl} alt="User Avatar" class="h-full w-full object-cover" />
 									<Avatar.Fallback>AV</Avatar.Fallback>
 								</Avatar>
-								{#if user?.role}
-									<div class="absolute -right-2 -top-2 z-10 badge-icon preset-filled-primary-500" title={user.role}>
-										<iconify-icon icon={iconForRole(user.role as Role)} width="16"></iconify-icon>
-									</div>
-								{/if}
+								<div class="absolute -right-2 -top-2 z-10 badge-icon preset-filled-primary-500" title={user.role}>
+									<iconify-icon icon={iconForRole(user.role)} width="16"></iconify-icon>
+								</div>
 							</div>
 							{#if isSidebarFull && user?.username}
 								<div

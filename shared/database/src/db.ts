@@ -104,21 +104,16 @@ import { DEFAULT_THEME, ThemeManager } from '@shared/database/themeManager';
 import { logger } from '@shared/utils/logger';
 
 // System State Management
-// Using dynamic imports to break circular dependency while still updating actual system state
-let _systemStateModule: typeof import('@cms/stores/system') | null = null;
-
-async function loadSystemStateModule() {
-	if (!_systemStateModule) {
-		_systemStateModule = await import('@cms/stores/system');
-	}
-	return _systemStateModule;
-}
+import {
+	setSystemState as _setSystemState,
+	setInitializationStage as _setInitializationStage,
+	updateServiceHealth as _updateServiceHealth
+} from '@shared/stores/system';
 
 const setSystemState = async (status: string, message: string) => {
 	logger.debug(`[SystemState] ${status}: ${message}`);
 	try {
-		const mod = await loadSystemStateModule();
-		mod.setSystemState(status as any, message);
+		_setSystemState(status as any, message);
 	} catch (err) {
 		logger.warn('Failed to update system state:', err);
 	}
@@ -126,8 +121,7 @@ const setSystemState = async (status: string, message: string) => {
 
 const setInitializationStage = async (stage: string) => {
 	try {
-		const mod = await loadSystemStateModule();
-		mod.setInitializationStage(stage as any);
+		_setInitializationStage(stage as any);
 	} catch (err) {
 		logger.warn('Failed to update initialization stage:', err);
 	}
@@ -136,8 +130,7 @@ const setInitializationStage = async (stage: string) => {
 const updateServiceHealth = async (service: string, status: string, message?: string, error?: string) => {
 	logger.debug(`[ServiceHealth] ${service} ${status}: ${message}`);
 	try {
-		const mod = await loadSystemStateModule();
-		mod.updateServiceHealth(service as any, status as any, message || '', error);
+		_updateServiceHealth(service as any, status as any, message || '', error);
 	} catch (err) {
 		logger.warn('Failed to update service health:', err);
 	}
@@ -709,8 +702,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			(async () => {
 				const t = performance.now();
 				updateServiceHealth('widgets', 'initializing', 'Initializing widget store...');
-				// Dynamic import to avoid circular dependency with client bundle
-				const { widgets } = await import('@cms/stores/widgetStore.svelte');
+				const { widgets } = await import('@shared/stores');
 				await widgets.initialize(undefined, dbAdapter);
 				updateServiceHealth('widgets', 'healthy', 'Widget store initialized');
 				widgetsTime = performance.now() - t;
@@ -729,26 +721,9 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			`Step 5: Critical components initialized in ${step5Time.toFixed(2)}ms (Auth: ${authTime.toFixed(2)}ms, Settings: ${settingsTime.toFixed(2)}ms)`
 		);
 
-		// Step 6: Application-level services (like ContentManager) are now initialized
+		// Plugins and application-level services are now initialized
 		// in the application hooks (apps/cms/src/hooks.server.ts) after DB is ready.
-		logger.info('Step 5: Database and core components initialized.');
-
-		// Step 7: Initialize Plugin System
-		logger.debug('Starting Step 7: Plugin system initialization...');
-		try {
-			updateServiceHealth('plugins', 'initializing', 'Initializing plugin system...');
-
-			const { initializePlugins } = await import('@cms/plugins');
-			const tenantId = privateConfig?.MULTI_TENANT ? 'default' : 'default';
-			await initializePlugins(dbAdapter, tenantId);
-
-			updateServiceHealth('plugins', 'healthy', 'Plugin system initialized');
-			logger.info('Step 7: Plugin system initialized.');
-		} catch (pluginError) {
-			// Log but don't fail system initialization if plugins fail
-			logger.warn('Plugin system initialization failed (non-critical):', pluginError);
-			updateServiceHealth('plugins', 'degraded', 'Plugin system initialization failed');
-		}
+		logger.info('Step 6: Database and core components initialized.');
 
 		// --- Demo Mode Cleanup Service ---
 		if (privateConfig?.DEMO) {

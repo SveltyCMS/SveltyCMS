@@ -6,13 +6,13 @@
 
 <script lang="ts">
 	// Components
-	import SiteName from '@cms/components/SiteName.svelte';
+	import SiteName from '@shared/components/SiteName.svelte';
 	import Logo from '@cms/components/system/icons/SveltyCMS_Logo.svelte';
 	import { browser } from '$app/environment';
 
 	//ParaglideJS
-	import * as m from '@shared/paraglide/messages';
-	import { getLocale } from '@shared/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages.js';
+	import { getLocale } from '$lib/paraglide/runtime.js';
 
 	// Safely get the slogan - paraglide may not be ready during initial render in production
 	function getSlogan(): string {

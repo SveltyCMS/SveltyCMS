@@ -16,8 +16,9 @@ import { dev } from '$app/environment';
 // Auth
 import type { User, Session } from '@shared/database/auth/types';
 import type { DatabaseConfig } from '@shared/database/schemas';
-import type { ISODateString } from '@cms/types';
-import { Auth } from '@shared/database/auth';
+import type { ISODateString } from '@shared/database/dbInterface';
+// Auth will be imported dynamically
+
 import { invalidateSettingsCache } from '@shared/services/settingsService';
 import { setupAdminSchema } from '@shared/utils/formSchemas';
 import { json } from '@sveltejs/kit';
@@ -27,7 +28,7 @@ import { safeParse } from 'valibot';
 import type { RequestHandler } from './$types';
 
 // Collection utilities
-import type { Locale } from '@shared/paraglide/runtime';
+import type { Locale } from '$lib/paraglide/runtime.js';
 import { publicEnv } from '@shared/stores/globalSettings.svelte';
 import { app } from '@shared/stores/store.svelte';
 
@@ -38,7 +39,8 @@ interface AdminConfig {
 	confirmPassword: string;
 }
 
-import { getCachedFirstCollectionPath } from '@shared/utils/server/collection-utils.server.ts';
+// Collection utilities removed to break circular dependency
+// import { getCachedFirstCollectionPath } from '@shared/utils/server/collection-utils.server.ts';
 
 export const POST: RequestHandler = async ({ request, cookies, url }) => {
 	const correlationId = randomBytes(6).toString('hex');
@@ -108,6 +110,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 
 			// Create Auth instance with the adapter and session store
 			const { getDefaultSessionStore } = await import('@shared/database/auth/sessionManager');
+			const { Auth } = await import('@shared/database/auth');
 			setupAuth = new Auth(dbAdapter, getDefaultSessionStore());
 
 			logger.info('✅ Database adapter and Auth service initialized successfully', { correlationId });
@@ -334,12 +337,11 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 						userId: validatedUser._id
 					});
 
-					// Also warm up the handleAuthentication cache
-					const { clearSessionRefreshAttempt } = await import('@cms/hooks/handleAuthentication');
-					if (clearSessionRefreshAttempt) {
-						clearSessionRefreshAttempt(session._id);
-						logger.debug('Cleared session refresh cooldown', { correlationId, sessionId: session._id });
-					}
+					logger.info('✅ Session cache warmed up in global auth instance', {
+						correlationId,
+						sessionId: session._id,
+						userId: validatedUser._id
+					});
 				} else {
 					logger.warn('Session validation returned null - session may not be recognized', {
 						correlationId,
@@ -451,19 +453,12 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 					correlationId
 				});
 			}
-			// ✅ PRIORITY 2: Fallback to database query for collections
+			// ✅ PRIORITY 2: Fallback to a default path if firstCollection is missing
 			else if (!firstCollection) {
-				const collectionPath = await getCachedFirstCollectionPath(userLanguage);
-
-				if (collectionPath) {
-					// getCachedFirstCollectionPath already includes language prefix
-					redirectPath = collectionPath;
-					logger.info(`Setup complete: Redirecting to collection from database: ${redirectPath}`, { correlationId });
-				} else {
-					// No collections available - redirect to collection builder
-					logger.info('Setup complete: No collections available, redirecting to collection builder', { correlationId });
-					redirectPath = '/config/collectionbuilder';
-				}
+				// We don't have collection-utils anymore to avoid circular dependencies
+				// Redirect to collection builder which is a safe landing spot
+				redirectPath = '/config/collectionbuilder';
+				logger.info(`Setup complete: No firstCollection in payload, redirecting to collection builder`, { correlationId });
 			}
 			// ⚠️ LEGACY FALLBACK: Use UUID only if path unavailable (will auto-redirect to path via client)
 			else if (firstCollection?._id) {

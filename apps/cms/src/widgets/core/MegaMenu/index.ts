@@ -16,7 +16,7 @@
  * - **Clean Data Contract**: Stores a clean, predictable array of `MenuItem` objects.
  */
 
-import * as m from '@shared/paraglide/messages';
+import * as m from '$lib/paraglide/messages.js';
 import { createWidget } from '@widgets/widgetFactory';
 import { array, maxLength, object, pipe, string } from 'valibot';
 import type { MegaMenuProps, MenuItem } from './types';

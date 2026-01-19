@@ -53,7 +53,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Get collection schema
 		await contentManager.initialize(tenantId);
-		const schema = contentManager.getCollectionById(collectionId, tenantId);
+		const schema = await contentManager.getCollectionById(collectionId, tenantId);
 
 		if (!schema) {
 			throw error(404, `Collection ${collectionId} not found`);
@@ -68,7 +68,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Validate tenant isolation
-		const entry = entryResult.data as Record<string, unknown>;
+		const entry = entryResult.data as unknown as Record<string, unknown>;
 		const multiTenant = getPrivateSettingSync('MULTI_TENANT');
 		if (multiTenant && entry.tenantId !== tenantId) {
 			throw error(403, 'Access denied: tenant mismatch');
@@ -89,7 +89,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Derive URL from entry
-		const baseUrl = getPublicSettingSync('SITE_URL') as string;
+		const baseUrl = getPublicSettingSync('SITE_URL' as any) as string;
 		const baseLocale = (getPublicSettingSync('BASE_LOCALE') as string) || 'en';
 
 		if (!baseUrl) {

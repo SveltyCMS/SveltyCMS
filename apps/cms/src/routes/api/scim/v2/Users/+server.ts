@@ -5,7 +5,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
-import { SCIM_SCHEMAS } from '../../../../../../types/scim';
+import { SCIM_SCHEMAS } from '@cms/types/scim';
 
 // Mock database for scaffolding
 const users = [

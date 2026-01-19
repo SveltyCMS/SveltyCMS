@@ -40,7 +40,7 @@ export const getBaseSvelteConfig = (options = {}) => {
 			// Node adapter for all workspaces
 			adapter: adapter({
 				out: 'build',
-				precompress: true, // Enables gzip & brotli compression
+				precompress: false, // Temporarily disabled for faster build verification
 				envPrefix: '',
 				external: [
 					// Prevent TypeScript tools from being bundled
@@ -92,6 +92,12 @@ export const getBaseSvelteConfig = (options = {}) => {
 				'@shared/services': '../../apps/cms/src/services',
 				'@shared/services/*': '../../apps/cms/src/services/*',
 				'@shared/paraglide': '../../shared/paraglide/src',
+
+				// Content module aliases (now shared)
+				'@cms/types': '../../shared/types/src',
+				'@cms/types/*': '../../shared/types/src/*',
+				'@cms-types': '../../shared/types/src',
+				'@cms-types/*': '../../shared/types/src/*',
 
 				// CMS-specific content module (ContentManager, types, etc.)
 				// These paths are relative to the consuming app (apps/cms/, apps/setup/)

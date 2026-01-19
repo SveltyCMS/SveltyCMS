@@ -20,6 +20,7 @@ All dynamic CMS settings organized into logical groups
 	import { goto } from '$app/navigation';
 	import PageTitle from '@cms/components/PageTitle.svelte';
 	import { logger } from '@shared/utils/logger';
+	import { getSystemState, getSystemMetrics, type SystemState } from '@shared/stores/system';
 	import { groupsNeedingConfig } from '@shared/stores';
 
 	// Import settings structure

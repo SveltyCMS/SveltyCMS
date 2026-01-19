@@ -20,7 +20,7 @@
 	import Specific from '../../tabs/CollectionWidget/tabsFields/Specific.svelte';
 
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	// Route params
 	const action = $derived(page.params.action); // create or edit collection
@@ -33,7 +33,7 @@
 	let stepClickable = $state([true, false, false]);
 
 	// Widget data
-	const widgetKey = $derived(collections.targetWidget?.widget?.key || '');
+	const widgetKey = $derived((collections.targetWidget?.widget as any)?.key || '');
 	const availableWidgets = $derived(widgets.widgetFunctions || {});
 	const guiSchema = $derived((availableWidgets[widgetKey]?.GuiSchema || {}) as Record<string, { widget: any }>);
 

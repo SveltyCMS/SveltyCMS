@@ -17,53 +17,151 @@
 		"resolveJsonModule": true,
 		"allowImportingTsExtensions": true,
 		"noEmit": true,
-		"types": ["@types/bun"],
+		"types": [
+			"@types/bun"
+		],
 		"paths": {
-			"$paraglide/*": ["./shared/paraglide/src/*"],
-			"@shared/database/*": ["./shared/database/src/*"],
-			"@shared/stores/*": ["./shared/stores/src/*"],
-			"@shared/stores": ["./shared/stores/src/index.ts"],
-			"@shared/utils/*": ["./shared/utils/src/*"],
-			"@shared/utils": ["./shared/utils/src/index.ts"],
-			"@shared/components/*": ["./shared/components/src/*"],
-			"@shared/services/*": ["./apps/cms/src/services/*"],
-			"@shared/services": ["./apps/cms/src/services/index.ts"],
-			"@shared/theme/*": ["./shared/theme/src/*"],
-			"@api/*": ["./apps/cms/src/routes/api/*"],
-			"@content/*": ["./apps/cms/src/content/*"],
-			"@content": ["./apps/cms/src/content/index.ts"],
-			"@cms/types/*": ["./apps/cms/src/types/*"],
-			"@cms/types": ["./apps/cms/src/types/index.ts"],
-			"@cms-types/*": ["./apps/cms/src/types/*"],
-			"@cms-types": ["./apps/cms/src/types/index.ts"],
-			"@cms/mediagallery/*": ["./shared/features/src/mediagallery/*"],
-			"@cms/mediagallery": ["./shared/features/src/mediagallery/index.ts"],
-			"@cms/hooks/*": ["./apps/cms/src/hooks/*"],
-			"@cms/hooks": ["./apps/cms/src/hooks/index.ts"],
-			"@utils/*": ["./shared/utils/src/*"],
-			"@stores/*": ["./shared/stores/src/*"],
-			"@themes/*": ["./shared/theme/src/*"],
-			"@cms/*": ["./apps/cms/src/*"],
-			"@shared/paraglide/*": ["./shared/paraglide/src/*"],
-			"@shared/paraglide": ["./shared/paraglide/src/index.ts"],
-			"@cms/widgets/*": ["./apps/cms/src/widgets/*"],
-			"@cms/widgets": ["./apps/cms/src/widgets/index.ts"],
-			"@widgets/*": ["./apps/cms/src/widgets/*"],
-			"@widgets": ["./apps/cms/src/widgets/widgetFactory.ts"],
-			"@cms/content/*": ["./apps/cms/src/content/*"],
-			"@cms/content": ["./apps/cms/src/content/index.ts"],
-			"@cms/routes/*": ["./apps/cms/src/routes/*"],
-			"@cms/config/*": ["./apps/cms/src/routes/config/*"],
-			"@cms/stores/*": ["./apps/cms/src/stores/*"],
-			"@cms/stores": ["./apps/cms/src/stores/index.ts"],
-			"@setup/*": ["./apps/setup/src/*"],
-			"@setup": ["./apps/setup/src/index.ts"],
-			"@setup/stores/*": ["./apps/setup/src/stores/*"],
-			"@setup/stores": ["./apps/setup/src/stores/index.ts"],
-			"@config/*": ["./config/*"],
-			"@config": ["./config/index.ts"],
-			"@root/*": ["./*"],
-			"@root": ["./"]
+			"$paraglide/*": [
+				"./shared/paraglide/src/*"
+			],
+			"@shared/database/*": [
+				"./shared/database/src/*"
+			],
+			"@shared/stores/*": [
+				"./shared/stores/src/*"
+			],
+			"@shared/stores": [
+				"./shared/stores/src/index.ts"
+			],
+			"@shared/utils/*": [
+				"./shared/utils/src/*"
+			],
+			"@shared/utils": [
+				"./shared/utils/src/index.ts"
+			],
+			"@shared/components/*": [
+				"./shared/components/src/*"
+			],
+			"@shared/services/*": [
+				"./shared/services/src/*"
+			],
+			"@shared/services": [
+				"./shared/services/src/index.ts"
+			],
+			"@shared/theme/*": [
+				"./shared/theme/src/*"
+			],
+			"@api/*": [
+				"./apps/cms/src/routes/api/*"
+			],
+			"@content/*": [
+				"./apps/cms/src/content/*"
+			],
+			"@content": [
+				"./apps/cms/src/content/index.ts"
+			],
+			"@shared/types/*": [
+				"./shared/types/src/*"
+			],
+			"@shared/types": [
+				"./shared/types/src/index.ts"
+			],
+			"@cms/types/*": [
+				"./shared/types/src/*"
+			],
+			"@cms/types": [
+				"./shared/types/src/index.ts"
+			],
+			"@cms-types/*": [
+				"./shared/types/src/*"
+			],
+			"@cms-types": [
+				"./shared/types/src/index.ts"
+			],
+			"@cms/mediagallery/*": [
+				"./shared/features/src/mediagallery/*"
+			],
+			"@cms/mediagallery": [
+				"./shared/features/src/mediagallery/index.ts"
+			],
+			"@cms/hooks/*": [
+				"./apps/cms/src/hooks/*"
+			],
+			"@cms/hooks": [
+				"./apps/cms/src/hooks/index.ts"
+			],
+			"@utils/*": [
+				"./shared/utils/src/*"
+			],
+			"@stores/*": [
+				"./shared/stores/src/*"
+			],
+			"@themes/*": [
+				"./shared/theme/src/*"
+			],
+			"@cms/*": [
+				"./apps/cms/src/*"
+			],
+			"@shared/paraglide/*": [
+				"./shared/paraglide/src/*"
+			],
+			"@shared/paraglide": [
+				"./shared/paraglide/src/index.ts"
+			],
+			"@cms/widgets/*": [
+				"./apps/cms/src/widgets/*"
+			],
+			"@cms/widgets": [
+				"./apps/cms/src/widgets/index.ts"
+			],
+			"@widgets/*": [
+				"./apps/cms/src/widgets/*"
+			],
+			"@widgets": [
+				"./apps/cms/src/widgets/widgetFactory.ts"
+			],
+			"@cms/content/*": [
+				"./apps/cms/src/content/*"
+			],
+			"@cms/content": [
+				"./apps/cms/src/content/index.ts"
+			],
+			"@cms/routes/*": [
+				"./apps/cms/src/routes/*"
+			],
+			"@cms/config/*": [
+				"./apps/cms/src/routes/config/*"
+			],
+			"@cms/stores/*": [
+				"./apps/cms/src/stores/*"
+			],
+			"@cms/stores": [
+				"./apps/cms/src/stores/index.ts"
+			],
+			"@setup/*": [
+				"./apps/setup/src/*"
+			],
+			"@setup": [
+				"./apps/setup/src/index.ts"
+			],
+			"@setup/stores/*": [
+				"./apps/setup/src/lib/stores/*"
+			],
+			"@setup/stores": [
+				"./apps/setup/src/lib/stores/setupStore.svelte.ts"
+			],
+			"@config/*": [
+				"./config/*"
+			],
+			"@config": [
+				"./config/index.ts"
+			],
+			"@root/*": [
+				"./*"
+			],
+			"@root": [
+				"./"
+			]
 		}
 	}
 }

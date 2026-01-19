@@ -28,7 +28,7 @@ functionality for image editing and basic file information display.
 	import { logger } from '@shared/utils/logger';
 
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	// Stores
 	import { validationStore } from '@shared/stores/store.svelte';

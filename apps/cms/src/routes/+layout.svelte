@@ -25,10 +25,10 @@
 	import DialogManager from '@shared/components/system/DialogManager.svelte';
 
 	// Paraglide locale bridge
-	import { locales as availableLocales, getLocale, setLocale } from '@shared/paraglide/runtime';
+	import { locales as availableLocales, getLocale, setLocale } from '$lib/paraglide/runtime.js';
 
 	// Theme management
-	import { themeStore, initializeThemeStore, initializeDarkMode } from '@cms/stores/themeStore.svelte';
+	import { themeStore, initializeThemeStore, initializeDarkMode } from '@shared/stores/themeStore.svelte';
 
 	// Global Settings
 	import { initPublicEnv, publicEnv } from '@shared/stores/globalSettings.svelte';

@@ -12,7 +12,7 @@
 	import { collection, collections, setTargetWidget } from '@cms/stores/collectionStore.svelte';
 	import { widgets } from '@cms/stores/widgetStore.svelte';
 	import { untrack } from 'svelte';
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	// Components
 	import VerticalList from '@cms/components/VerticalList.svelte';
@@ -40,7 +40,7 @@
 	const { fields: initialFields, handleCollectionSave, onPrevious }: Props = $props();
 
 	// Use state for fields (not derived, since we need to mutate it via drag-and-drop)
-	let fields = $state(mapFieldsWithWidgets(initialFields ?? []));
+	let fields = $state(mapFieldsWithWidgets(untrack(() => initialFields) ?? []));
 
 	// ... (rest of the logic)
 
@@ -68,8 +68,8 @@
 				console.log('[CollectionWidget] Returning from save with widget:', collections.targetWidget);
 
 				// Get the widget from store
-				const newWidget = { ...collections.targetWidget };
-				const widgetType = newWidget.widget?.key || newWidget.widget?.Name || 'Unknown';
+				const newWidget = { ...(collections.targetWidget as any) };
+				const widgetType = (newWidget.widget as any)?.key || (newWidget.widget as any)?.Name || 'Unknown';
 
 				// Check if we're editing an existing field or adding a new one
 				// We can use ID or some other identifier if available, otherwise assume append for now
@@ -81,7 +81,7 @@
 					widget: {
 						key: widgetType,
 						Name: widgetType,
-						...newWidget.widget
+						...(newWidget.widget as any)
 					}
 				};
 
@@ -189,7 +189,7 @@
 				collection.value.fields = updatedFields;
 			}
 
-			await props.handleCollectionSave();
+			await handleCollectionSave();
 		} catch (error) {
 			logger.error('Error saving collection:', error);
 		}

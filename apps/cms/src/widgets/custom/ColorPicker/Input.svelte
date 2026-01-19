@@ -23,7 +23,7 @@ Renders a color input with label, helper, and validation
 -->
 <script lang="ts">
 	import type { FieldType } from './';
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 	let { field, value, error }: { field: FieldType; value: string | null | undefined; error?: string | null } = $props();
 
 	// If the value is initially null, undefined, or empty, default it to black.

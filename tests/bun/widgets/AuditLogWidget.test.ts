@@ -4,7 +4,7 @@
  */
 
 import '../setup';
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect, mock } from 'bun:test';
 import AuditLogWidget from '../../../shared/features/src/dashboard/widgets/AuditLogWidget.svelte';
 import { render } from '@testing-library/svelte';
 
@@ -17,7 +17,7 @@ describe('AuditLogWidget', () => {
 
 	it('shows fetched logs', async () => {
 		// Mock fetch
-		global.fetch = jest.fn(() =>
+		global.fetch = mock(() =>
 			Promise.resolve({
 				ok: true,
 				json: () => Promise.resolve([{ id: 1, action: 'user.login', actor: 'test@example.com', time: 'Just now', hash: 'abc' }])

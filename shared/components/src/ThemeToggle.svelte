@@ -1,5 +1,5 @@
 <!--
-@file src/components/ThemeToggle.svelte
+@file shared/components/src/ThemeToggle.svelte
 @component
 **A component for cycling through all application theme states.**
 It relies entirely on the centralized `themeStore` for its state and logic.
@@ -9,7 +9,7 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 - Optional tooltip for user guidance
 -->
 <script lang="ts">
-	import { themeStore, setThemePreference, useSystemPreference } from '@cms/stores/themeStore.svelte';
+	import { themeStore, setThemePreference, useSystemPreference } from '@shared/stores/themeStore.svelte';
 
 	interface Props {
 		showTooltip?: boolean;
@@ -18,12 +18,7 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 		iconSize?: number;
 	}
 
-	const {
-		showTooltip = true,
-
-		buttonClass = 'preset-outline-surface-500 btn-icon rounded-full',
-		iconSize = 22
-	}: Props = $props();
+	const { showTooltip = true, buttonClass = 'preset-outline-surface-500 btn-icon rounded-full', iconSize = 22 }: Props = $props();
 
 	// Cycle through system -> light -> dark -> system
 	function cycleTheme() {

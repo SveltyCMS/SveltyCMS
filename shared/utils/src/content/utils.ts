@@ -13,7 +13,6 @@
  * Widget Utilities:
  * - resolveWidgetPlaceholder: Resolves a widget placeholder
  */
-import { widgetRegistryService } from '@shared/services/WidgetRegistryService';
 import { logger } from '@shared/utils/logger';
 import type { ContentNode, MinimalContentNode, Schema } from '@cms-types';
 
@@ -155,6 +154,7 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 			return null;
 		}
 
+		const { widgetRegistryService } = await import('@shared/services/WidgetRegistryService');
 		const widgetsMap = widgetRegistryService.getAllWidgets();
 
 		if (widgetsMap.size === 0) {

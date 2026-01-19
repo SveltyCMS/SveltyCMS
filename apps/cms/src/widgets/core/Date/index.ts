@@ -33,7 +33,7 @@ import { isoDate, minLength, pipe, string, type InferInput as ValibotInput } fro
 import type { DateProps } from './types';
 
 // ParaglideJS
-import * as m from '@shared/paraglide/messages';
+import * as m from '$lib/paraglide/messages.js';
 
 // Define the validation schema for the data this widget stores.
 const DateValidationSchema = pipe(

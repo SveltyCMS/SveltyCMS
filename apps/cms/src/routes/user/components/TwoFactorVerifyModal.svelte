@@ -26,7 +26,7 @@ This modal			class="input text-center font-mono tracking-wider"
 
 <script lang="ts">
 	import { modalState } from '@shared/utils/modalState.svelte';
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	// Props
 	const { parent, title = '', description = '' } = $props();

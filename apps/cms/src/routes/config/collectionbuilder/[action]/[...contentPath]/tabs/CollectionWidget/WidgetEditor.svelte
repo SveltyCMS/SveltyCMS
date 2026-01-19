@@ -15,7 +15,7 @@ Replaces the ModalWidgetForm, providing a full-screen or focused editor experien
 	import Specific from './tabsFields/Specific.svelte';
 
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	// Stores
 	import { collections } from '@cms/stores/collectionStore.svelte';

@@ -8,7 +8,7 @@ Features:
 - Animated testing indicator
 -->
 <script lang="ts">
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	type ConnectionState = 'idle' | 'testing' | 'success' | 'error';
 

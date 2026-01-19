@@ -20,16 +20,11 @@ import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ locals }) => {
 	try {
-		// Security check: Only allow reset if user is admin OR system is in failed state
-		const { getSystemState } = await import('@cms/stores/system');
-		const systemState = getSystemState();
-
+		// Security check: Only allow reset if user is admin or explicitly in test mode
 		const isAdmin = locals.user?.role === 'admin';
-		const isSystemFailed = systemState.overallState === 'FAILED';
-
 		const isTestMode = process.env.TEST_MODE === 'true';
 
-		if (!isAdmin && !isSystemFailed && !isTestMode) {
+		if (!isAdmin && !isTestMode) {
 			logger.warn('Unauthorized setup reset attempt', {
 				userRole: locals.user?.role,
 				systemState: systemState.overallState

@@ -5,9 +5,8 @@
  * Pure Tailwind CSS implementation - no Skeleton Labs dependencies
  */
 import { browser } from '$app/environment';
-import type { Theme } from '@shared/database/dbInterface';
+import type { Theme, ISODateString } from '@shared/database/dbInterface';
 import { nowISODateString } from '@shared/utils/dateUtils';
-import type { ISODateString } from '@cms-types/content';
 import { logger } from '@shared/utils/logger';
 
 // --- Theme Preference Type ---
@@ -78,9 +77,7 @@ export const themeStore = {
 let systemThemeListener: ((this: MediaQueryList, ev: MediaQueryListEvent) => void) | null = null;
 const THEME_COOKIE_KEY = 'theme';
 
-/**
- * Resolve the actual dark mode state based on preference
- */
+// Resolve the actual dark mode state based on preference
 function resolveDarkMode(preference: ThemePreference): boolean {
 	if (!browser) return true; // Default dark for SSR
 
@@ -147,9 +144,9 @@ export function initializeDarkMode() {
 
 	// 7. Listen for system preference changes (only if using 'system' preference)
 	_setupSystemListener();
-} /**
- * Apply dark mode state to DOM
- */
+}
+
+// Apply dark mode state to DOM
 function _applyThemeToDOM(isDark: boolean) {
 	if (!browser) return;
 
@@ -171,9 +168,7 @@ function _applyThemeToDOM(isDark: boolean) {
 	}
 }
 
-/**
- * Set the theme cookie
- */
+// Set the theme cookie
 function _setCookie(preference: ThemePreference) {
 	if (!browser) return;
 
@@ -183,9 +178,7 @@ function _setCookie(preference: ThemePreference) {
 	logger.debug('[Theme] Updated cookie to:', preference);
 }
 
-/**
- * Setup listener for system preference changes
- */
+// Setup listener for system preference changes
 function _setupSystemListener() {
 	if (!browser) return;
 
@@ -261,12 +254,11 @@ export function toggleDarkMode(force?: boolean) {
 	setThemePreference(newPreference);
 }
 
-/**
- * Reset to system preference
- */
+// Reset to system preference
 export function useSystemPreference() {
 	setThemePreference('system');
-} // ... (Rest of your themeStore.svelte.ts file) ...
+}
+
 export async function initializeThemeStore() {
 	state.isLoading = true;
 	state.error = null;

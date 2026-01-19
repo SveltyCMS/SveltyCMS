@@ -29,13 +29,13 @@
 	// Stores
 	import { systemLanguage } from '@shared/stores/store.svelte';
 	import { getLanguageName } from '@shared/utils/languageUtils';
-	import { locales as availableLocales } from '@shared/paraglide/runtime';
+	import { locales as availableLocales } from '$lib/paraglide/runtime.js';
 
 	// Skeleton UI
 	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
 
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	// Props
 	const { data } = $props();

@@ -21,7 +21,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import { logger } from '@shared/utils/logger';
 
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	// Stores
 	import { storeListboxValue } from '@shared/stores/store.svelte';

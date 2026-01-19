@@ -22,7 +22,7 @@
 	import ImportExportManager from '@cms/components/admin/ImportExportManager.svelte';
 	import PageTitle from '@cms/components/PageTitle.svelte';
 	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@cms-types';
-	import { themeStore } from '@cms/stores/themeStore.svelte';
+	import { themeStore } from '@shared/stores/themeStore.svelte';
 	import { systemPreferences } from '@cms/stores/systemPreferences.svelte';
 	import { logger } from '@shared/utils/logger';
 	import { onMount } from 'svelte';

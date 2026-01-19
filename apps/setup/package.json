@@ -1,0 +1,14 @@
+{
+    "name": "setup",
+    "version": "0.0.7",
+    "type": "module",
+    "scripts": {
+        "build": "vite build",
+        "dev": "vite dev",
+        "preview": "vite preview"
+    },
+    "devDependencies": {
+        "@inlang/paraglide-js": "^2.9.0",
+        "@inlang/paraglide-sveltekit": "^0.16.1"
+    }
+}

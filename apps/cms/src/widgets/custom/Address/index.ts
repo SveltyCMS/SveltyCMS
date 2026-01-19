@@ -19,7 +19,7 @@ import Toggles from '@cms/components/system/inputs/Toggles.svelte';
 import { createWidget } from '@widgets/widgetFactory';
 import { object, string, number, minLength, pipe, type InferInput as ValibotInput } from 'valibot';
 import type { AddressProps } from './types';
-import * as m from '@shared/paraglide/messages';
+import * as m from '$lib/paraglide/messages.js';
 
 // Define the validation schema for the address data object.
 const AddressValidationSchema = object({

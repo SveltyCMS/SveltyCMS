@@ -141,11 +141,17 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	// --- Redirect to setup if database not initialized (no roles found) ---
 	const isLocalizedSetup = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
 	if (rolesData.length === 0 && !pathname.startsWith('/setup') && !pathname.startsWith('/api/setup') && !isLocalizedSetup) {
-		logger.warn('No roles found in database - redirecting to setup', { pathname, tenantId: locals.tenantId });
+		logger.warn('No roles found in database - system appears uninitialized', { pathname, tenantId: locals.tenantId });
 		if (isApi) {
 			throw error(503, 'Service Unavailable: System not initialized. Please run setup.');
 		}
-		throw redirect(302, '/setup');
+		// In a decoupled architecture, we cannot assume /setup exists on this app.
+		// We should redirect to the setup app or show a friendly 503.
+		throw error(503, {
+			message: 'System Not Initialized',
+			code: 'SYSTEM_NOT_READY',
+			suggestion: 'Please run the setup application to initialize the database and create the first admin user.'
+		} as any);
 	}
 
 	// --- Handle authenticated users ---

@@ -6,9 +6,7 @@
 import { getSystemState } from './state';
 import { SERVICE_BASELINE_TIMES } from './config';
 
-/**
- * Export comprehensive system state for health check endpoint with performance data
- */
+// Export comprehensive system state for health check endpoint with performance data
 export function getHealthCheckReport() {
 	const state = getSystemState();
 	const now = Date.now();
@@ -89,9 +87,7 @@ export function getHealthCheckReport() {
 	};
 }
 
-/**
- * Get performance summary for analysis and optimization
- */
+// Get performance summary for analysis and optimization
 export function getPerformanceSummary() {
 	const state = getSystemState();
 
@@ -124,9 +120,7 @@ export function getPerformanceSummary() {
 	};
 }
 
-/**
- * Identify performance bottlenecks
- */
+// Identify performance bottlenecks
 export function identifyBottlenecks() {
 	const state = getSystemState();
 	const bottlenecks: Array<{
@@ -189,9 +183,7 @@ export function identifyBottlenecks() {
 	});
 }
 
-/**
- * Get recommended timeout values based on performance history
- */
+// Get recommended timeout values based on performance history
 export function getRecommendedTimeouts() {
 	const state = getSystemState();
 

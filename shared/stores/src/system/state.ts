@@ -12,6 +12,7 @@ import type {
 	ServiceHealth,
 	ServiceStatus,
 	ServicePerformanceMetrics,
+	SystemPerformanceMetrics,
 	ServiceName,
 	InitializationStage
 } from './types';
@@ -186,9 +187,7 @@ function transitionServiceState(
 	return updatedState;
 }
 
-/**
- * Start tracking initialization for a service
- */
+// Start tracking initialization for a service
 export function startServiceInitialization(serviceName: keyof SystemStateStore['services']): void {
 	const now = Date.now();
 	systemStateStore.update((state) => {
@@ -211,9 +210,7 @@ export function startServiceInitialization(serviceName: keyof SystemStateStore['
 	});
 }
 
-/**
- * Update a specific service's health status with performance tracking
- */
+// Update a specific service's health status with performance tracking
 export function updateServiceHealth(serviceName: keyof SystemStateStore['services'], status: ServiceHealth, message: string, error?: string): void {
 	// Use the centralized transition helper
 	systemStateStore.update((state) => transitionServiceState(state, serviceName, status, message, error));
@@ -246,9 +243,7 @@ export function updateServiceHealth(serviceName: keyof SystemStateStore['service
 	}
 }
 
-/**
- * Set the overall system state with transition tracking
- */
+// Set the overall system state with transition tracking
 export function setSystemState(state: SystemState, reason?: string): void {
 	const now = Date.now();
 
@@ -319,9 +314,7 @@ export function setSystemState(state: SystemState, reason?: string): void {
 	});
 }
 
-/**
- * Update the granular initialization stage
- */
+// Update the granular initialization stage
 export function setInitializationStage(stage: InitializationStage): void {
 	systemStateStore.update((state) => {
 		logger.debug(`[SystemState] Stage: ${state.initializationStage} -> ${stage}`);
@@ -330,9 +323,7 @@ export function setInitializationStage(stage: InitializationStage): void {
 	});
 }
 
-/**
- * Reset a tripped circuit breaker for a service
- */
+// Reset a tripped circuit breaker for a service
 export function resetCircuitBreaker(serviceName: keyof SystemStateStore['services']): void {
 	logger.info(`Manual reset of circuit breaker for ${serviceName}`);
 	systemStateStore.update((state) => {
@@ -388,6 +379,11 @@ export function getSystemState(): SystemStateStore {
 	return get(systemStateStore);
 }
 
+// Get the current system performance metrics (synchronous)
+export function getSystemMetrics(): SystemPerformanceMetrics {
+	return get(systemStateStore).performanceMetrics;
+}
+
 // Check if the system is ready (synchronous)
 export function isSystemReady(): boolean {
 	const state = getSystemState();
@@ -423,24 +419,16 @@ export const overallState: Readable<SystemState> = derived(systemStateStore, ($s
  */
 export const isReady: Readable<boolean> = derived(overallState, ($s) => $s === 'READY' || $s === 'DEGRADED');
 
-/**
- * A derived store that returns true if the system is currently initializing.
- */
+// A derived store that returns true if the system is currently initializing.
 export const isInitializing: Readable<boolean> = derived(overallState, ($s) => $s === 'INITIALIZING');
 
-/**
- * A derived store that returns true if the system has failed.
- */
+// A derived store that returns true if the system has failed.
 export const isFailed: Readable<boolean> = derived(overallState, ($s) => $s === 'FAILED');
 
-/**
- * A derived store that returns true if the system is in a degraded state.
- */
+// A derived store that returns true if the system is in a degraded state.
 export const isDegraded: Readable<boolean> = derived(overallState, ($s) => $s === 'DEGRADED');
 
-/**
- * A derived store containing the status of all individual services.
- */
+// A derived store containing the status of all individual services.
 export const servicesStatus: Readable<SystemStateStore['services']> = derived(systemState, ($s) => $s.services);
 
 /**

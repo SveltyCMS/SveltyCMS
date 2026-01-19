@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { themeStore, updateTheme } from '@cms/stores/themeStore.svelte';
+	import { themeStore, updateTheme } from '@shared/stores/themeStore.svelte';
 	import type { DatabaseId } from '@cms-types';
 	import type { Theme } from '@shared/database/dbInterface';
 	import { dateToISODateString } from '@shared/utils/dateUtils';
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let selectedTheme = $state<any | null>(null);
 	let livePreviewTheme = $state<any | null>(null);

@@ -37,7 +37,7 @@ import { google } from 'googleapis';
 import type { ISODateString } from '@cms-types';
 
 // Stores
-import type { Locale } from '@shared/paraglide/runtime';
+import type { Locale } from '$lib/paraglide/runtime.js';
 import { getPrivateSettingSync } from '@shared/services/settingsService';
 import { publicEnv } from '@shared/stores/globalSettings.svelte';
 import { app } from '@shared/stores/store.svelte';
@@ -173,7 +173,7 @@ async function waitForAuthService(maxWaitMs: number = 10000): Promise<boolean> {
 	return false;
 }
 
-import { getCachedFirstCollectionPath } from '@shared/utils/server/collection-utils.server';
+import { getCachedFirstCollectionPath } from '@cms/utils/collection-utils.server';
 
 // Helper function to check if OAuth should be available
 async function shouldShowOAuth(hasInviteToken: boolean): Promise<boolean> {

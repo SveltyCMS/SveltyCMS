@@ -28,8 +28,8 @@ FIXES:
 	import { Progress, Menu, Portal } from '@skeletonlabs/skeleton-svelte';
 
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
-	import type { Locale } from '@shared/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages.js';
+	import type { Locale } from '$lib/paraglide/runtime.js';
 
 	// State
 	let isInitialized = $state(false);

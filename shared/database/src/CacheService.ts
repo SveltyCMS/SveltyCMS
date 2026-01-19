@@ -163,7 +163,7 @@ class RedisStore implements ICacheStore {
 	async get<T>(key: string): Promise<T | null> {
 		await this.ensureReady();
 		const value = await this.client!.get(key);
-		return value ? (JSON.parse(value) as T) : null;
+		return value ? (JSON.parse(value as unknown as string) as T) : null;
 	}
 
 	async set<T>(key: string, value: T, ttlSeconds: number): Promise<void> {

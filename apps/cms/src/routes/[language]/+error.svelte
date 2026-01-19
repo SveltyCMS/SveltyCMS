@@ -16,11 +16,11 @@
 	// Stores
 	import { page } from '$app/state';
 	// Components
-	import SiteName from '@cms/components/SiteName.svelte';
+	import SiteName from '@shared/components/SiteName.svelte';
 	import SveltyCMSLogo from '@cms/components/system/icons/SveltyCMS_Logo.svelte';
 	// ParaglideJS
 	import { app } from '@shared/stores/store.svelte';
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	const speed = 100;
 	const size = 140;

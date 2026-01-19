@@ -1,0 +1,18 @@
+$ vite build
+vite v7.3.1 building ssr environment for production...
+✔ [paraglide-js] Compilation complete (message-modules)
+transforming...
+✓ 1263 modules transformed.
+
+✓ Build complete for cms
+  Ready for Plesk deployment
+✗ Build failed in 10.04s
+error during build:
+[vite:load-fallback] Could not load /var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/cms/src/stores/widgetStore.svelte (imported by src/routes/config/collectionbuilder/[action]/[...contentPath]/+page.svelte): ENOENT: no such file or directory, open '/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/cms/src/stores/widgetStore.svelte'
+    at async open (node:internal/fs/promises:636:25)
+    at async Object.readFile (node:internal/fs/promises:1269:14)
+    at async Object.handler (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/cms/node_modules/vite/dist/node/chunks/config.js:33169:21)
+    at async PluginDriver.hookFirstAndGetPlugin (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/cms/node_modules/rollup/dist/es/shared/node-entry.js:22449:28)
+    at async file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/cms/node_modules/rollup/dist/es/shared/node-entry.js:21449:33
+    at async Queue.work (file:///var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/apps/cms/node_modules/rollup/dist/es/shared/node-entry.js:22677:32)
+error: script "build" exited with code 1

@@ -336,6 +336,13 @@ class PluginRegistry implements IPluginService {
 		} catch (error) {
 			// Table doesn't exist, create it
 			logger.info('Creating plugin_migrations table');
+			try {
+				if (dbAdapter.collection && typeof (dbAdapter.collection as any).createCollection === 'function') {
+					await (dbAdapter.collection as any).createCollection('plugin_migrations');
+				}
+			} catch (creationError) {
+				logger.warn('Explicit collection creation failed (might be auto-created by insert)', creationError);
+			}
 		}
 
 		// Create the table using the database adapter
@@ -348,6 +355,11 @@ class PluginRegistry implements IPluginService {
 			appliedAt: new Date(),
 			tenantId: 'system'
 		});
+
+		if (!createResult.success) {
+			logger.error('Failed to create plugin_migrations table', { error: createResult });
+			throw new Error(`Failed to create plugin_migrations table: ${createResult.message}`);
+		}
 
 		if (createResult.success) {
 			// Delete the init record

@@ -5,7 +5,7 @@
 -->
 
 <script lang="ts">
-	export let config: any;
+	const { config } = $props<{ config: any }>();
 </script>
 
 <div class="h-full w-full p-4 flex flex-col justify-between">

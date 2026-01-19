@@ -31,7 +31,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { parse } from 'valibot';
 
 // ParaglideJS
-import { getLocale } from '@shared/paraglide/runtime';
+import { getLocale } from '$lib/paraglide/runtime.js';
 
 export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 	try {

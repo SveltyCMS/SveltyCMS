@@ -121,7 +121,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		const queryPromises = collectionsEntries.map(async ([collectionId, collection]) => {
 			try {
-				const collectionName = `collection_${collection._id}`;
+				const collectionName = `collection_${(collection as any)._id}`;
 				const filter = getPrivateSettingSync('MULTI_TENANT') ? { tenantId } : {};
 
 				// Use database-agnostic CRUD methods with explicit generic
@@ -142,7 +142,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				}
 				return [];
 			} catch (err) {
-				logger.warn(`Failed to query collection ${collection.name}:`, err);
+				logger.warn(`Failed to query collection ${(collection as any).name}:`, err);
 				return [];
 			}
 		});

@@ -6,4 +6,6 @@
  */
 
 export { app } from './store.svelte';
-export { groupsNeedingConfig } from './configStore.svelte.ts';
+export { groupsNeedingConfig } from './configStore.svelte';
+export * from './themeStore.svelte';
+export * from './widgetStore.svelte';

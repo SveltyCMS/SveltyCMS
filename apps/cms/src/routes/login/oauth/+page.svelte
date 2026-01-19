@@ -29,7 +29,7 @@
 	import { globalLoadingStore, loadingOperations } from '@cms/stores/loadingStore.svelte';
 
 	//ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	interface Props {
 		data: PageData;

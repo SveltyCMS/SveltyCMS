@@ -27,7 +27,7 @@
 	import { quintOut } from 'svelte/easing';
 	import { StatusTypes } from '@cms/types/content';
 	import { storeListboxValue } from '@shared/stores/store.svelte';
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 	import { logger } from '@shared/utils/logger';
 	import { showToast } from '@shared/utils/toast';
 

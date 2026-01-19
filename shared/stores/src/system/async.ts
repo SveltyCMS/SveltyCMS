@@ -13,9 +13,7 @@ interface WaitOptions {
 	signal?: AbortSignal;
 }
 
-/**
- * Wait for the system to be ready (async with AbortSignal support)
- */
+// Wait for the system to be ready (async with AbortSignal support)
 export async function waitForSystemReady(options: WaitOptions = {}): Promise<boolean> {
 	const { timeoutMs = DEFAULT_SYSTEM_READY_TIMEOUT, signal } = options;
 
@@ -67,9 +65,7 @@ export async function waitForSystemReady(options: WaitOptions = {}): Promise<boo
 	});
 }
 
-/**
- * Calculate intelligent timeout for a service based on historical performance
- */
+// Calculate intelligent timeout for a service based on historical performance
 export function getServiceTimeout(serviceName: ServiceName, multiplier: number = 3): number {
 	const state = getSystemState();
 	const service = state.services[serviceName];
@@ -86,9 +82,7 @@ export function getServiceTimeout(serviceName: ServiceName, multiplier: number =
 	return baseline * multiplier;
 }
 
-/**
- * Wait for a specific service to be healthy with AbortSignal support
- */
+// Wait for a specific service to be healthy with AbortSignal support
 export async function waitForServiceHealthy(serviceName: ServiceName, options: WaitOptions = {}): Promise<boolean> {
 	const { timeoutMs, signal } = options;
 	const effectiveTimeout = timeoutMs ?? getServiceTimeout(serviceName);

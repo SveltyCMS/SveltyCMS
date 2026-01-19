@@ -72,6 +72,17 @@ if (!building) {
 		logger.info('📦 [SveltyCMS] Database initialized. Performing application-side service injection...');
 
 		try {
+			// 0. Register widget modules into the shared store
+			const { widgets } = await import('@shared/stores');
+			const { coreModules, customModules } = await import('@cms/widgets/scanner');
+			widgets.registerModules(coreModules, customModules);
+
+			// 1. Initialize Plugin System
+			const { initializePlugins } = await import('@cms/plugins');
+			const { dbAdapter } = await import('@shared/database/db');
+			// During initial step, we don't have privateConfig easily here without re-loading it,
+			// but we can just use defaults as db.ts did.
+			await initializePlugins(dbAdapter, 'default');
 			// 1. Initialize ContentManager and inject into ConfigService
 			const { ContentManager } = await import('@content/ContentManager');
 			const { configService } = await import('@shared/services');
@@ -85,7 +96,7 @@ if (!building) {
 					// Initialize Widget Registry first (Required for schema processing)
 					logger.info('🧩 Initializing Widget Registry for schema processing...');
 					const { widgetRegistryService } = await import('@cms/services/WidgetRegistryService');
-					const { allWidgetModules } = await import('@cms/widgets/scanner.ts');
+					const { allWidgetModules } = await import('@cms/widgets/scanner');
 
 					for (const [path, module] of Object.entries(allWidgetModules)) {
 						const type = path.includes('/core/') ? 'core' : 'custom';
@@ -237,7 +248,7 @@ if (!building) {
 
 			// 3. Register Widgets in WidgetRegistryService
 			const { widgetRegistryService } = await import('@shared/services/WidgetRegistryService');
-			const { coreModules, customModules } = await import('@cms/widgets/scanner.ts');
+			// const { coreModules, customModules } = await import('@cms/widgets/scanner.ts');
 
 			// Register core widgets
 			for (const [path, module] of Object.entries(coreModules)) {

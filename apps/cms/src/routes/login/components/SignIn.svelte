@@ -35,7 +35,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import { loginFormSchema, forgotFormSchema, resetFormSchema } from '@shared/utils/formSchemas';
 
 	// Components
-	import SiteName from '@cms/components/SiteName.svelte';
+	import SiteName from '@shared/components/SiteName.svelte';
 	import SigninIcon from './icons/SigninIcon.svelte';
 	import FloatingInput from '@cms/components/system/inputs/floatingInput.svelte';
 	import SveltyCMSLogo from '@cms/components/system/icons/SveltyCMS_Logo.svelte';
@@ -47,7 +47,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import { toaster } from '@shared/stores/store.svelte';
 
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 	import OauthLogin from './OauthLogin.svelte';
 
 	// Stores

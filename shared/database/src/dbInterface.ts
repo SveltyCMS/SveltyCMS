@@ -339,7 +339,9 @@ export interface DatabaseFailure {
 	error: DatabaseError;
 }
 
-export type DatabaseResult<T> = DatabaseSuccess<T> | DatabaseFailure;
+export type DatabaseResult<T> =
+	| { success: true; data: T; meta?: QueryMeta; error?: never; message?: never }
+	| { success: false; message: string; error: DatabaseError; data?: never; meta?: never };
 
 export interface QueryMeta {
 	executionTime?: number; // Query execution time in milliseconds

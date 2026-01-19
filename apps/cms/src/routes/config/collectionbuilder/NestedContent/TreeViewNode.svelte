@@ -131,6 +131,7 @@ Features:
 			<Tooltip.Trigger>
 				<button
 					type="button"
+					aria-label="Edit"
 					class="btn-icon preset-tonal hover:preset-filled rounded transition-all duration-200 hover:scale-110"
 					onclick={(e) => {
 						e.stopPropagation();
@@ -156,6 +157,7 @@ Features:
 			<Tooltip.Trigger>
 				<button
 					type="button"
+					aria-label="Duplicate"
 					class="btn-icon preset-tonal hover:preset-filled rounded transition-all duration-200 hover:scale-110"
 					onclick={(e) => {
 						e.stopPropagation();
@@ -177,6 +179,7 @@ Features:
 			<Tooltip.Trigger>
 				<button
 					type="button"
+					aria-label="Delete"
 					class="btn-icon preset-tonal hover:preset-filled rounded transition-all duration-200 hover:scale-110"
 					onclick={(e) => {
 						e.stopPropagation();

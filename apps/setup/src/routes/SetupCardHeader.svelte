@@ -4,6 +4,7 @@
 Displays the current step title and icon, and a reset button.
 -->
 <script lang="ts">
+	import { setupStore } from '$lib/stores/setupStore.svelte';
 	const { currentStep, steps, onreset = () => {} } = $props();
 
 	const icons = $derived(['mdi:database', 'mdi:account', 'mdi:cog', 'mdi:email', 'mdi:check-circle']);

@@ -32,7 +32,7 @@ const config = getBaseSvelteConfig({
 		'@api': './src/routes/api',
 		'@config': '../../config',
 		'@widgets': './src/widgets',
-		$paraglide: './src/paraglide',
+		$paraglide: './src/lib/paraglide',
 		'@shared/services': './src/services',
 		'@shared/services/*': './src/services/*'
 	},

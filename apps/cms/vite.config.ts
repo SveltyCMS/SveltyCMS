@@ -16,8 +16,8 @@ import { existsSync, promises as fs } from 'fs';
 import { getBaseViteConfig } from '../../vite.config.base.js';
 
 // Import Shared Utilities
-import { compile } from '../../shared/utils/src/compilation/compile';
-import { isSetupComplete } from '../../shared/utils/src/setupCheck';
+// import { compile } from '../../shared/utils/src/compilation/compile';
+// import { isSetupComplete } from '../../shared/utils/src/setupCheck';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WORKSPACE_ROOT = path.resolve(__dirname, '../../');
@@ -90,6 +90,28 @@ const createPleskDeployPlugin = (projectRoot: string) => ({
 		console.log('  Ready for Plesk deployment');
 	}
 });
+
+// Plugin to handle missing private config during build
+function privateConfigFallbackPlugin(): Plugin {
+	const virtualModuleId = '\0virtual:private-config';
+	return {
+		name: 'svelty-cms-private-config-fallback',
+		resolveId(id) {
+			if (id === '@config/private' || id.includes('config/private')) {
+				if (!existsSync(paths.privateConfig)) {
+					return virtualModuleId;
+				}
+			}
+			return null;
+		},
+		load(id) {
+			if (id === virtualModuleId) {
+				return 'export const privateEnv = null;';
+			}
+			return null;
+		}
+	};
+}
 
 /**
  * Setup Wizard Plugin (Monorepo Adapted)
@@ -203,17 +225,18 @@ function cmsWatcherPlugin(): Plugin {
 
 // --- Construction ---
 
-const setupComplete = isSetupComplete();
+const setupComplete = true; // isSetupComplete();
 
 // Get Base Config
 const baseConfig = getBaseViteConfig(__dirname, {
 	port: Number(process.env.PORT) || 5173,
 	additionalPlugins: [
+		privateConfigFallbackPlugin(),
 		paraglideVitePlugin({
-			project: './project.inlang',
-			outdir: './shared/paraglide/src'
+			project: path.resolve(__dirname, 'project.inlang'),
+			outdir: path.resolve(__dirname, 'src/lib/paraglide')
 		}) as any,
-		!setupComplete ? setupWizardPlugin() : cmsWatcherPlugin(),
+		// !setupComplete ? setupWizardPlugin() : cmsWatcherPlugin(),
 		createPleskDeployPlugin(__dirname)
 	],
 	optimizeDeps: {
@@ -230,7 +253,7 @@ export default defineConfig({
 		__FRESH_INSTALL__: !setupComplete
 	},
 	ssr: {
-		noExternal: ['@skeletonlabs/skeleton-svelte', '@zag-js/svelte']
+		noExternal: ['@skeletonlabs/skeleton-svelte', '@zag-js/svelte', 'better-svelte-email']
 	},
 	// Server overrides (merging usually handled by Vite, but safe to be explicit for critical paths)
 	server: {

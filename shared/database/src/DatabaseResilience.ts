@@ -11,7 +11,7 @@
  */
 
 import { logger } from '@shared/utils/logger';
-import { updateServiceHealth, getSystemState } from '@cms/stores/system';
+import { updateServiceHealth, getSystemState } from '@shared/stores/system';
 import type { DatabaseError } from './dbInterface';
 
 // Type definitions

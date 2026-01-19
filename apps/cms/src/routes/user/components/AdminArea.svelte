@@ -37,7 +37,7 @@
 	import ModalEditToken from './ModalEditToken.svelte';
 	import Multibutton from './Multibutton.svelte';
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton-svelte';
 	import { modalState } from '@shared/utils/modalState.svelte';

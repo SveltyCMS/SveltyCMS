@@ -6,7 +6,7 @@
 
 <script lang="ts">
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	let { show = $bindable(true), disabled = false, onClick = (_event: Event) => {} } = $props();
 

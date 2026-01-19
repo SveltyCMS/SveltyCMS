@@ -232,7 +232,7 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 			return projection;
 		}
 
-		return this.projectionFields as Record<string, number> | undefined;
+		return this.projectionFields as unknown as Record<string, number> | undefined;
 	}
 
 	private createDatabaseError(error: unknown, code: string, message: string): DatabaseError {
@@ -484,7 +484,7 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 				mongoQuery = mongoQuery.sort(this.sortOptions);
 			}
 
-			const result = await mongoQuery.lean().exec();
+			const result = (await mongoQuery.lean().exec()) as any;
 
 			if (!result) {
 				const meta = this.buildQueryMeta(startTime);

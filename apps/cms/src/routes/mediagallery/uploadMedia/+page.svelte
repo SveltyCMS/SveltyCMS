@@ -21,7 +21,7 @@
 
 <script lang="ts">
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	// Components
 	import PageTitle from '@cms/components/PageTitle.svelte';

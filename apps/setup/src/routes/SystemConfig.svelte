@@ -3,12 +3,13 @@
 @description System configuration step.
 -->
 <script lang="ts">
-	import * as m from '@shared/paraglide/messages';
+	import { setupStore } from '$lib/stores/setupStore.svelte';
+	import * as m from '$lib/paraglide/messages.js';
 	import iso6391 from '@shared/utils/iso639-1.json';
 	import { getLanguageName } from '@shared/utils/languageUtils';
-	import { locales as systemLocales } from '@shared/paraglide/runtime';
+	import { locales as systemLocales } from '$lib/paraglide/runtime.js';
 	//  Import types from the store
-	import type { ValidationErrors } from '@setup/stores/setupStore.svelte';
+	import type { ValidationErrors } from '$lib/stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { systemSettingsSchema } from '@shared/utils/formSchemas';
 	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';

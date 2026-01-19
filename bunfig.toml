@@ -1,0 +1,5 @@
+[test]
+preload = ["./tests/bun/setup.ts"]
+
+[module]
+rules = { "*.svelte" = "js" }

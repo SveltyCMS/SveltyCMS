@@ -17,7 +17,7 @@
 	import ModalSelectWidget from './ModalSelectWidget.svelte';
 	import ModalWidgetForm from './ModalWidgetForm.svelte';
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 
 	// Skeleton
 	import { modalState } from '@shared/utils/modalState.svelte';

@@ -30,7 +30,7 @@ import { saveAvatarImage } from '@shared/utils/media/mediaStorage.server';
 // Stores
 import { getPrivateSettingSync } from '@shared/services/settingsService';
 import { publicEnv } from '@shared/stores/globalSettings.svelte';
-import type { Locale } from '@shared/paraglide/runtime';
+import type { Locale } from '$lib/paraglide/runtime.js';
 import { app } from '@shared/stores/store.svelte';
 
 // System Logger

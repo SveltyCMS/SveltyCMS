@@ -28,7 +28,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 	import FloatingInput from '@cms/components/system/inputs/floatingInput.svelte';
 
 	// ParaglideJS
-	import * as m from '@shared/paraglide/messages';
+	import * as m from '$lib/paraglide/messages.js';
 	import { Form } from '@shared/utils/Form.svelte';
 	import { addUserTokenSchema } from '@shared/utils/formSchemas';
 
