@@ -58,6 +58,7 @@ Backend data is available via REST API or [GraphQL Yoga](https://the-guild.dev/g
 | Database Resilience        | ✅         | Retries, self-healing reconnection, diagnostics, log download |
 | Email Templating           | ✅         | Svelte Email + SMTP                                           |
 | Roles & Permissions        | ✅         | Database-backed access control                                |
+| Client Task Approval       | ✅         | Work approval workflow with invoicing ([docs](./docs/client-task-approval-system.md)) |
 | MariaDB / MySQL            | ✅         | SQL support via Drizzle ORM                                   |
 | PostgreSQL                 | 📅 Planned | Roadmap item                                                  |
 
@@ -244,6 +245,14 @@ If a language has not yet been defined, reach out to us, so that you can help ex
 Great Experience to designing user-friendly and intuitive interfaces for managing content.
 Full Typescript support to display all available widgets, options to create fully custom data structures.
 
+### 💼 Real-World Use Cases
+
+SveltyCMS comes with ready-to-use collection examples for common business needs:
+
+- **Client Task Approval System** — Manage client work requests with approval workflows, cost tracking, and invoicing. Perfect for agencies and freelancers. [Learn more →](./docs/client-task-approval-system.md)
+
+More example collections coming soon!
+
 ## 📧 Flexible Email Templating System
 
 Build and send emails using [Svelty Email](https://svelte-email.vercel.app/) and TypeScript.
@@ -275,6 +284,7 @@ Comprehensive documentation is available to help you get started:
 
 - 📖 **[Documentation](./docs/)** — Guides, API reference, and architecture
 - 🎯 **[Getting Started](./docs/getting-started.mdx)** — Quick start guide
+- 💼 **[Client Task Approval System](./docs/client-task-approval-system.md)** — Work approval & invoicing workflow
 - 🏗️ **Architecture: Database Resilience** — [./docs/architecture/database-resilience.mdx](./docs/architecture/database-resilience.mdx)
 - 🤝 **[Contributing Guide](./CONTRIBUTING.md)** — How to contribute
 
