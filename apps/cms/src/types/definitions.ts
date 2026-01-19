@@ -190,6 +190,9 @@ export interface RevisionData {
 export interface CollectionEntry extends Record<string, unknown> {
 	_id?: string;
 	status?: StatusType;
+	statusByLocale?: Record<string, StatusType>;
+	_scheduled?: string;
+	_scheduledByLocale?: Record<string, string>;
 	createdAt?: string;
 	updatedAt?: string;
 	createdBy?: string;
