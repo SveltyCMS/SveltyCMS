@@ -28,7 +28,7 @@ import { safeParse } from 'valibot';
 import type { RequestHandler } from './$types';
 
 // Collection utilities
-import type { Locale } from '$lib/paraglide/runtime.js';
+import type { Locale } from '$paraglide/runtime.js';
 import { publicEnv } from '@shared/stores/globalSettings.svelte';
 import { app } from '@shared/stores/store.svelte';
 

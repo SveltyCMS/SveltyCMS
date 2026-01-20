@@ -16,19 +16,6 @@ const paths = {
 	privateConfig: path.resolve(__dirname, '../../config/private.ts')
 };
 
-// Plugin to log all transformed modules
-function moduleLoggingPlugin(): any {
-	return {
-		name: 'module-logging',
-		transform(code: string, id: string) {
-			if (!id.includes('node_modules')) {
-				fs.appendFileSync(path.resolve(__dirname, 'transformed_modules.txt'), id + '\n');
-			}
-			return null;
-		}
-	};
-}
-
 // Plugin to handle missing private config during fresh setup
 function setupWizardPlugin(): any {
 	const virtualModuleId = '\0virtual:private-config';
@@ -71,7 +58,6 @@ const fixParaglideSourceMap = () => ({
 const baseConfig = getBaseViteConfig(__dirname, {
 	port: Number(process.env.PORT) || 5173,
 	additionalPlugins: [
-		moduleLoggingPlugin(),
 		setupWizardPlugin(),
 		// fixParaglideSourceMap(),
 		paraglideVitePlugin({

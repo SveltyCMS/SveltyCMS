@@ -11,7 +11,7 @@
 -->
 <script lang="ts">
 	import { setupStore } from '$lib/stores/setupStore.svelte';
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 	import { showToast } from '@shared/utils/toast';
 	import { safeParse } from 'valibot';
 	import { smtpConfigSchema, type SmtpConfigSchema } from '@shared/utils/formSchemas';

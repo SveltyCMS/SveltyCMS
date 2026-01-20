@@ -29,7 +29,7 @@
 			],
 			"configurations": {
 				"production": {
-					"command": "NODE_ENV=production vite build"
+					"command": "vite build"
 				}
 			}
 		},

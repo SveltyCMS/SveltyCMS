@@ -11,7 +11,7 @@
 	import { browser } from '$app/environment';
 
 	//ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 	import { getLocale } from '$lib/paraglide/runtime.js';
 
 	// Safely get the slogan - paraglide may not be ready during initial render in production

@@ -21,7 +21,7 @@ import Input from '@cms/components/system/inputs/Input.svelte';
 import Toggles from '@cms/components/system/inputs/Toggles.svelte';
 
 import type { FieldInstance } from '@cms-types';
-import * as m from '$lib/paraglide/messages.js';
+import * as m from '$paraglide/messages.js';
 import { createWidget } from '@widgets/widgetFactory';
 
 // Type for aggregation field parameter

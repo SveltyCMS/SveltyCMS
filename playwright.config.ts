@@ -5,20 +5,38 @@
 
 import { defineConfig, devices } from '@playwright/test';
 
+// Detect if we should run headless (CI, no display, or explicit flag)
+const shouldRunHeadless = !!process.env.CI || !process.env.DISPLAY || process.env.HEADLESS === 'true';
+
 // See https://playwright.dev/docs/test-configuration.
 export default defineConfig({
 	testDir: './tests/playwright',
 	testMatch: '**/*.{test,spec,spect}.ts',
+
+	/* Global setup: Clean state, seed users, save auth states */
+	globalSetup: require.resolve('./tests/playwright/global-setup.ts'),
+
 	/* Run tests in files in parallel */
 	fullyParallel: true,
 	/* Fail the build on CI if you accidentally left test.only in the source code. */
 	forbidOnly: !!process.env.CI,
+
 	/* Retry on CI only */
 	retries: process.env.CI ? 2 : 0,
 	/* Opt out of parallel tests on CI. */
 	workers: process.env.CI ? 1 : undefined,
 	/* Reporter to use. See https://playwright.dev/docs/test-reporters */
-	//reporter: 'html',
+	reporter: [
+		['list'], // Console output
+		['html', { open: 'never' }], // HTML report (open manually)
+		...(process.env.CI ? [['github'] as const] : []) // GitHub annotations in CI
+	],
+
+	/* Global timeout settings */
+	timeout: 60000, // 60 seconds per test
+	expect: {
+		timeout: 10000 // 10 seconds for expect assertions
+	},
 
 	/* Set environment variables for tests */
 	use: {
@@ -29,12 +47,22 @@ export default defineConfig({
 			slowMo: parseInt(process.env.SLOW_MO || '0'),
 			devtools: !process.env.CI // Enable devtools when not in CI
 		},
-		// Explicitly set PWDEBUG for local runs
-		// Set environment variables in your test runner or webServer configuration if needed
 
-		/* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-		trace: 'on-first-retry',
-		video: 'retain-on-failure',
+		/* ========== DEBUG ON FAILURE ========== */
+		/* Trace: Full timeline of actions, network, DOM snapshots */
+		trace: 'retain-on-failure', // Keep trace only when test fails
+
+		/* Video: Record browser video */
+		video: 'retain-on-failure', // Keep video only when test fails
+
+		/* Screenshot: Capture final state */
+		screenshot: 'only-on-failure', // Screenshot on failure
+
+		/* Action timeout */
+		actionTimeout: 15000, // 15 seconds for clicks, fills, etc.
+
+		/* Navigation timeout */
+		navigationTimeout: 30000, // 30 seconds for page loads
 
 		/* Bypass CSP in tests to allow MongoDB connections */
 		bypassCSP: true
@@ -46,7 +74,7 @@ export default defineConfig({
 			name: 'chromium',
 			use: {
 				...devices['Desktop Chrome'],
-				headless: process.env.CI ? true : false // Always headless in CI
+				headless: shouldRunHeadless // Always headless in CI
 			}
 		},
 
@@ -54,7 +82,7 @@ export default defineConfig({
 			name: 'firefox',
 			use: {
 				...devices['Desktop Firefox'],
-				headless: process.env.CI ? true : false
+				headless: shouldRunHeadless
 			}
 		},
 
@@ -62,7 +90,7 @@ export default defineConfig({
 			name: 'webkit',
 			use: {
 				...devices['Desktop Safari'],
-				headless: process.env.CI ? true : false
+				headless: shouldRunHeadless
 			}
 		},
 
@@ -71,14 +99,14 @@ export default defineConfig({
 			name: 'Mobile Chrome',
 			use: {
 				...devices['Pixel 5'],
-				headless: process.env.CI ? true : false
+				headless: shouldRunHeadless
 			}
 		},
 		{
 			name: 'Mobile Safari',
 			use: {
 				...devices['iPhone 12'],
-				headless: process.env.CI ? true : false
+				headless: shouldRunHeadless
 			}
 		},
 
@@ -88,7 +116,7 @@ export default defineConfig({
 			use: {
 				...devices['Desktop Edge'],
 				channel: 'msedge',
-				headless: process.env.CI ? true : false
+				headless: shouldRunHeadless
 			}
 		},
 		{
@@ -96,7 +124,7 @@ export default defineConfig({
 			use: {
 				...devices['Desktop Chrome'],
 				channel: 'chrome',
-				headless: process.env.CI ? true : false
+				headless: shouldRunHeadless
 			}
 		}
 	],

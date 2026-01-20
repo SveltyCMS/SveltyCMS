@@ -259,6 +259,54 @@ export async function seedCollectionsForSetup(
 	}
 }
 
+/**
+ * Seeds a default admin user for debugging purposes.
+ * This ensures that even if setup fails, there is a way to access the system.
+ */
+export async function seedDefaultUser(dbAdapter: DatabaseAdapter, tenantId?: string): Promise<void> {
+	logger.info(`👤 Seeding default user${tenantId ? ` for tenant ${tenantId}` : ''}...`);
+
+	if (!dbAdapter || !dbAdapter.auth) {
+		throw new Error('Database adapter or auth interface not available');
+	}
+
+	try {
+		const email = 'admin@example.com';
+		const password = 'password';
+
+		// Check if user already exists
+		const existingUser = await dbAdapter.auth.getUserByEmail(email, tenantId);
+		if (existingUser.success && existingUser.data) {
+			logger.info(`ℹ️  Default user "${email}" already exists, skipping creation`);
+			return;
+		}
+
+		// Get admin role
+		const roleResult = await dbAdapter.auth.getRoleById('admin', tenantId);
+		const adminRole = roleResult.success ? roleResult.data : null;
+
+		if (!adminRole) {
+			logger.warn('⚠️  Admin role not found, cannot seed default user');
+			return;
+		}
+
+		// Create user
+		await dbAdapter.auth.createUser({
+			email,
+			password,
+			role: adminRole._id,
+			username: 'Default Admin',
+			isRegistered: true,
+			...(tenantId && { tenantId })
+		});
+
+		logger.info(`✅ Default user seeded successfully: ${email} / ${password}`);
+	} catch (error) {
+		logger.error(`Failed to seed default user: ${error instanceof Error ? error.message : String(error)}`);
+		// Don't throw, as this is a fallback/debug feature
+	}
+}
+
 // Initialize system from setup using database-agnostic interface
 export async function initSystemFromSetup(
 	adapter: DatabaseAdapter,
@@ -279,6 +327,9 @@ export async function initSystemFromSetup(
 
 	// Seed default roles into database (from shared defaultRoles module)
 	await seedRoles(adapter, tenantId);
+
+	// Seed default user for debugging/fallback
+	await seedDefaultUser(adapter, tenantId);
 
 	// Seed collections from filesystem
 	// This creates collection models in MongoDB so ContentManager can access them quickly

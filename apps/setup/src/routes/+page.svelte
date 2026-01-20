@@ -30,7 +30,7 @@
 	import { modalState } from '@shared/utils/modalState.svelte';
 
 	// ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 	import { getLocale } from '$lib/paraglide/runtime.js';
 
 	// Utils

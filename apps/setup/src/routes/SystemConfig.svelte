@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
 	import { setupStore } from '$lib/stores/setupStore.svelte';
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 	import iso6391 from '@shared/utils/iso639-1.json';
 	import { getLanguageName } from '@shared/utils/languageUtils';
 	import { locales as systemLocales } from '$lib/paraglide/runtime.js';

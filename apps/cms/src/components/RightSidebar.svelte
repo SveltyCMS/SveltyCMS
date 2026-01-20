@@ -20,7 +20,7 @@
 	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '@shared/utils/entryActions';
 	import { showScheduleModal } from '@shared/utils/modalUtils';
 	import { showToast } from '@shared/utils/toast';
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	import { StatusTypes } from '@cms/types/content';
 

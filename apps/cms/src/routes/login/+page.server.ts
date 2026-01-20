@@ -37,7 +37,7 @@ import { google } from 'googleapis';
 import type { ISODateString } from '@cms-types';
 
 // Stores
-import type { Locale } from '$lib/paraglide/runtime.js';
+import type { Locale } from '$paraglide/runtime.js';
 import { getPrivateSettingSync } from '@shared/services/settingsService';
 import { publicEnv } from '@shared/stores/globalSettings.svelte';
 import { app } from '@shared/stores/store.svelte';

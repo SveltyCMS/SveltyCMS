@@ -21,6 +21,7 @@
 <script lang="ts">
 	import { logger } from '@shared/utils/logger';
 	import { dndzone } from 'svelte-dnd-action';
+	dndzone;
 	import { flip } from 'svelte/animate';
 	import type { FieldType } from './';
 	import type { MediaFile } from './types';

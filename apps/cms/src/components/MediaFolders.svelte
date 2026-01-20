@@ -17,7 +17,7 @@
 	import { ui } from '@cms/stores/UIStore.svelte';
 	import { screen } from '@shared/stores/screenSizeStore.svelte.js';
 	import TreeView from '@cms/components/system/TreeView.svelte';
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	interface RawFolder {
 		_id: string;

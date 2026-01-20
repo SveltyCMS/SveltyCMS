@@ -10,6 +10,7 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = getBaseSvelteConfig({
+	externalizeDeps: true,
 	// CMS-specific adapter options
 	adapterOptions: {
 		out: 'build/cms'

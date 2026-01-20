@@ -60,8 +60,8 @@ import { MongoWidgetMethods } from './methods/widgetMethods';
 import { MongoQueryBuilder } from './MongoQueryBuilder';
 
 // Auth adapter composition
-import { composeMongoAuthAdapter } from './methods/authComposition';
-import { MongoAuthModelRegistrar } from './methods/authMethods';
+// import { composeMongoAuthAdapter } from './methods/authComposition';
+// import { MongoAuthModelRegistrar } from './methods/authMethods';
 
 import { logger } from '@shared/utils/logger.server';
 import type {

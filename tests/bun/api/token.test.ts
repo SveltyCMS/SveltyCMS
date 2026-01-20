@@ -53,7 +53,7 @@ describe('Token API Endpoints', () => {
 			const response = await fetch(`${API_BASE_URL}/api/token/createToken`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email: testFixtures.users.secondUser.email, role: 'user', expiresIn: '2 days' })
+				body: JSON.stringify({ email: testFixtures.users.editor.email, role: 'user', expiresIn: '2 days' })
 			});
 
 			expect(response.status).toBe(401);
@@ -78,7 +78,7 @@ describe('Token API Endpoints', () => {
 			const createResponse = await fetch(`${API_BASE_URL}/api/token/createToken`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Cookie: authCookie },
-				body: JSON.stringify({ email: testFixtures.users.secondUser.email, role: 'user', expiresIn: '2 days' })
+				body: JSON.stringify({ email: testFixtures.users.editor.email, role: 'user', expiresIn: '2 days' })
 			});
 			const createResult = await createResponse.json();
 			invitationToken = createResult.token.value;

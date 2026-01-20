@@ -36,7 +36,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	import { logger } from '@shared/utils/logger';
 
 	// ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	// Props with types
 	let {

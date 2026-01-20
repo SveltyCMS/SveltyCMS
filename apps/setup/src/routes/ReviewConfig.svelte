@@ -13,7 +13,7 @@ This component presents a summary of all configuration steps before finalizing t
 -->
 <script lang="ts">
 	// ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	// Types from setupStore
 	import type { AdminUser, DbConfig, SystemSettings } from '$lib/stores/setupStore.svelte';

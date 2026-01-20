@@ -60,7 +60,7 @@
 	import { ui } from '@cms/stores/UIStore.svelte';
 
 	// ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	// Components
 	import FloatingInput from '@cms/components/system/inputs/floatingInput.svelte';
@@ -77,6 +77,7 @@
 
 	// Svelte-dnd-action
 	import { dndzone } from 'svelte-dnd-action';
+	dndzone;
 	import { flip } from 'svelte/animate';
 
 	// =================================================================

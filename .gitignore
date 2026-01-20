@@ -61,3 +61,5 @@ apps/**/build
 apps/**/logs
 apps/**/mediaFolder
 apps/**/trash
+# Playwright auth state cache
+tests/playwright/.auth/

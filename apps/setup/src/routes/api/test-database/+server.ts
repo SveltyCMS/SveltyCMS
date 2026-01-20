@@ -12,7 +12,7 @@ import { join } from 'path';
 import { promisify } from 'util';
 import { safeParse } from 'valibot';
 // ParaglideJS
-import * as m from '$lib/paraglide/messages.js';
+import * as m from '$paraglide/messages.js';
 // Centralized error classification
 import { classifyDatabaseError } from '../errorClassifier';
 

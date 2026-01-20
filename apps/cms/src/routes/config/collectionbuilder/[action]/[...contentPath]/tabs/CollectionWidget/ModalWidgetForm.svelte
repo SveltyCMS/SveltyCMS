@@ -14,7 +14,7 @@ It handles widget configuration, permissions, and specific options.
 	import Permission from './tabsFields/Permission.svelte';
 	import Specific from './tabsFields/Specific.svelte';
 	// ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	// Stores
 	import { collectionValue, setCollectionValue, targetWidget } from '@cms/stores/collectionStore.svelte';

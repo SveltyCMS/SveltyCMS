@@ -243,7 +243,7 @@ describe('2FA Authentication API - Disable', () => {
 				Cookie: authCookie
 			},
 			body: JSON.stringify({
-				password: testFixtures.users.firstAdmin.password
+				password: testFixtures.users.admin.password
 			})
 		});
 
@@ -277,7 +277,7 @@ describe('2FA Authentication API - Disable', () => {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				password: testFixtures.users.firstAdmin.password
+				password: testFixtures.users.admin.password
 			})
 		});
 
@@ -292,7 +292,7 @@ describe('2FA Authentication API - Disable', () => {
 				Cookie: authCookie
 			},
 			body: JSON.stringify({
-				password: testFixtures.users.firstAdmin.password
+				password: testFixtures.users.admin.password
 			})
 		});
 

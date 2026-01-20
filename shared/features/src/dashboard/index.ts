@@ -11,4 +11,4 @@
 export { default as BaseWidget } from './BaseWidget.svelte';
 
 // Widget exports
-export * from './widgets/widgetDefaults';
+export { type WidgetCategory, type WidgetDefaults, WIDGET_DEFAULTS, getWidgetDefaults } from './widgets/widgetDefaults';

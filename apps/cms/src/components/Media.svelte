@@ -33,7 +33,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 	import axios from 'axios';
 	import { onMount, onDestroy } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	type ThumbnailSize = 'sm' | 'md' | 'lg';
 	type ViewMode = 'grid' | 'list';

@@ -37,7 +37,7 @@
 	import ModalEditToken from './ModalEditToken.svelte';
 	import Multibutton from './Multibutton.svelte';
 	// ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton-svelte';
 	import { modalState } from '@shared/utils/modalState.svelte';
@@ -46,6 +46,7 @@
 	// Svelte-dnd-action
 	import { PermissionAction, PermissionType } from '@shared/database/auth/types';
 	import { dndzone } from 'svelte-dnd-action';
+	dndzone;
 	import { flip } from 'svelte/animate';
 
 	// Types

@@ -18,7 +18,7 @@
  */
 
 import { describe, it, expect } from 'bun:test';
-import { replaceTokens } from '@shared/services/token/engine';
+import { replaceTokens } from '@cms/services/token/engine';
 
 describe('Token System', () => {
 	const context = {

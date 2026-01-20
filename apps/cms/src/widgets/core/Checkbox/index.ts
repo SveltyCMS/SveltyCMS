@@ -24,7 +24,7 @@ import { boolean, type InferInput as ValibotInput } from 'valibot';
 import type { CheckboxProps } from './types';
 
 // ParaglideJS
-import * as m from '$lib/paraglide/messages.js';
+import * as m from '$paraglide/messages.js';
 
 // Define the validation schema for the data this widget stores.
 const CheckboxValidationSchema = boolean('Must be a boolean.');

@@ -12,8 +12,8 @@ import { existsSync, watch } from 'fs';
 import { unlink } from 'fs/promises';
 import path from 'path';
 
-const CONFIG_PATH = 'config/private.ts';
-const MARKER_PATH = 'config/.setup-complete';
+const CONFIG_PATH = path.resolve(process.cwd(), 'config/private.ts');
+const MARKER_PATH = path.resolve(process.cwd(), 'config/.setup-complete');
 const CONFIG_DIR = path.resolve(process.cwd(), 'config');
 
 let currentChild: ChildProcess | null = null;

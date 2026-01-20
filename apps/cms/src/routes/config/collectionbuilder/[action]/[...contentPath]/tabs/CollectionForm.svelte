@@ -23,7 +23,7 @@
 	import IconifyPicker from '@cms/components/IconifyPicker.svelte';
 
 	// ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	// Skeleton
 	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';

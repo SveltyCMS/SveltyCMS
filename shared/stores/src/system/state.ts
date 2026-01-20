@@ -17,6 +17,7 @@ import type {
 	InitializationStage
 } from './types';
 import { initialState } from './config';
+export { initialState };
 import { updateUptimeMetrics, trackStateTransition, calibrateAnomalyThresholds, detectAnomalies } from './metrics';
 
 // Create the writable store

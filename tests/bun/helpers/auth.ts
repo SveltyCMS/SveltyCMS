@@ -38,6 +38,10 @@ export async function loginAsAdmin(): Promise<string> {
 	return login(testFixtures.users.admin.email, testFixtures.users.admin.password);
 }
 
+export async function loginAsDev(): Promise<string> {
+	return login(testFixtures.users.dev.email, testFixtures.users.dev.password);
+}
+
 export async function loginAsEditor(): Promise<string> {
 	return login(testFixtures.users.editor.email, testFixtures.users.editor.password);
 }
@@ -49,14 +53,11 @@ export async function loginAsViewer(): Promise<string> {
 /**
  * Creates test users via the API.
  * Idempotent: Ignores "Duplicate" errors so tests can re-run.
+ * Always creates: admin, dev, editor, viewer
  */
 export async function createTestUsers(): Promise<void> {
-	const users = [testFixtures.users.admin, testFixtures.users.editor];
-
-	// In CI environments (or if explicitly requested), add the viewer user
-	if (process.env.CI === 'true') {
-		users.push(testFixtures.users.viewer);
-	}
+	// Always create all role users for comprehensive RBAC testing
+	const users = [testFixtures.users.admin, testFixtures.users.dev, testFixtures.users.editor, testFixtures.users.viewer];
 
 	let adminCookie: string | undefined;
 

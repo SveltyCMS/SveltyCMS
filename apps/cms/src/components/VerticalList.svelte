@@ -19,6 +19,7 @@
 <script lang="ts">
 	import { dndzone } from 'svelte-dnd-action';
 	import type { DndEvent } from 'svelte-dnd-action';
+	dndzone; // explicit reference to silence unused import warning
 
 	interface Props {
 		items: Record<string, unknown>[];

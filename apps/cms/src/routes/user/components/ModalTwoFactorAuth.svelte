@@ -31,7 +31,7 @@ This component provides a user interface for managing 2FA settings:
 	import TwoFactorVerifyModal from './TwoFactorVerifyModal.svelte';
 
 	// ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	import { logger } from '@shared/utils/logger';
 	import { toaster } from '@shared/stores/store.svelte';

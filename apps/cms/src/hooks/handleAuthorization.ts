@@ -13,7 +13,6 @@ import { error, redirect, type Handle } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@shared/services/settingsService';
 import { hasPermissionByAction } from '@shared/database/auth/permissions';
 import type { Role } from '@shared/database/auth/types';
-import { auth } from '@shared/database/db';
 import {
 	cacheService,
 	USER_COUNT_CACHE_TTL_MS,
@@ -57,6 +56,7 @@ async function getCachedUserCount(tenantId?: string): Promise<number> {
 	}
 
 	try {
+		const { auth } = await import('@shared/database/db');
 		if (!auth) return -1;
 		const filter = getPrivateSettingSync('MULTI_TENANT') && tenantId ? { tenantId } : {};
 		const count = await auth.getUserCount(filter);
@@ -84,6 +84,7 @@ async function getCachedRoles(tenantId?: string): Promise<Role[]> {
 	}
 
 	try {
+		const { auth } = await import('@shared/database/db');
 		if (!auth) {
 			logger.debug('Database adapter not initialized - roles unavailable');
 			return [];

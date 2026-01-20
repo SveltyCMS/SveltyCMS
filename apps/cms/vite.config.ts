@@ -16,8 +16,8 @@ import { existsSync, promises as fs } from 'fs';
 import { getBaseViteConfig } from '../../vite.config.base.js';
 
 // Import Shared Utilities
-// import { compile } from '../../shared/utils/src/compilation/compile';
-// import { isSetupComplete } from '../../shared/utils/src/setupCheck';
+import { compile } from '../../shared/utils/src/compilation/compile';
+import { isSetupComplete } from '../../shared/utils/src/setupCheck';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WORKSPACE_ROOT = path.resolve(__dirname, '../../');
@@ -77,6 +77,95 @@ async function initializeCollectionsStructure() {
 }
 
 // --- Plugins ---
+
+// Plugin to stub server modules for browser build
+function stubServerModulesPlugin(): Plugin {
+	return {
+		name: 'stub-server-modules',
+		enforce: 'pre',
+		resolveId(id, importer, options) {
+			// Skip SSR builds - we want the real modules there
+			if (options?.ssr) return null;
+
+			// Stub heavy server-only modules for client build
+			if (
+				id === 'drizzle-orm' ||
+				id.startsWith('drizzle-orm/') ||
+				id.startsWith('mysql2') ||
+				id === 'node-fetch' ||
+				id.includes('better-svelte-email/preview')
+			) {
+				return `\0virtual:${id}`;
+			}
+			return null;
+		},
+		load(id) {
+			if (id.includes('better-svelte-email/preview')) {
+				return 'export const EmailPreview = () => null; export const createEmail = () => {}; export const sendEmail = () => {}; export const emailList = [];';
+			}
+			// specific subpath: drizzle-orm/mysql2
+			if (id === '\0virtual:drizzle-orm/mysql2') {
+				return 'export const drizzle = () => {}; export default {};';
+			}
+
+			if (id === '\0virtual:node-fetch') {
+				return `
+                    export const Request = globalThis.Request;
+                    export const Response = globalThis.Response;
+                    export const Headers = globalThis.Headers;
+                    export default globalThis.fetch;
+                `;
+			}
+
+			// Return minimal shims to satisfy imports
+			if (id.startsWith('\0virtual:drizzle-orm')) {
+				return `
+					export const eq = () => {};
+					export const and = () => {};
+					export const or = () => {};
+					export const like = () => {};
+					export const ilike = () => {}; 
+					export const inArray = () => {};
+					export const desc = () => {};
+					export const asc = () => {};
+					export const sql = () => {};
+					export const count = () => {};
+					export const gt = () => {};
+					export const lt = () => {};
+					export const gte = () => {};
+					export const lte = () => {};
+					export const ne = () => {};
+					export const notInArray = () => {};
+					export const isNull = () => {};
+					export const isNotNull = () => {};
+					
+					// mysql-core exports
+					export const mysqlTable = () => ({});
+					export const int = () => {};
+					export const tinyint = () => {};
+					export const bigint = () => {};
+					export const varchar = () => {};
+					export const text = () => {};
+					export const boolean = () => {};
+					export const datetime = () => {};
+					export const timestamp = () => {};
+					export const date = () => {};
+					export const json = () => {};
+					export const index = () => {};
+					export const unique = () => {};
+					export const primaryKey = () => {};
+					export const foreignKey = () => {};
+					
+					export default {};
+				`;
+			}
+			if (id.startsWith('\0virtual:mysql2')) {
+				return 'export default {};';
+			}
+			return null;
+		}
+	};
+}
 
 /**
  * Plesk Deploy Plugin - copies runtime files and triggers Passenger restart
@@ -224,23 +313,20 @@ function cmsWatcherPlugin(): Plugin {
 }
 
 // --- Construction ---
-
-const setupComplete = true; // isSetupComplete();
+const setupComplete = isSetupComplete();
 
 // Get Base Config
 const baseConfig = getBaseViteConfig(__dirname, {
 	port: Number(process.env.PORT) || 5173,
 	additionalPlugins: [
+		stubServerModulesPlugin(),
 		privateConfigFallbackPlugin(),
-		paraglideVitePlugin({
-			project: path.resolve(__dirname, 'project.inlang'),
-			outdir: path.resolve(__dirname, 'src/lib/paraglide')
-		}) as any,
-		// !setupComplete ? setupWizardPlugin() : cmsWatcherPlugin(),
+		!setupComplete ? setupWizardPlugin() : cmsWatcherPlugin(),
 		createPleskDeployPlugin(__dirname)
 	],
 	optimizeDeps: {
-		include: ['iconify-icon']
+		include: ['iconify-icon'],
+		exclude: ['drizzle-orm']
 	}
 });
 
@@ -253,13 +339,46 @@ export default defineConfig({
 		__FRESH_INSTALL__: !setupComplete
 	},
 	ssr: {
-		noExternal: ['@skeletonlabs/skeleton-svelte', '@zag-js/svelte', 'better-svelte-email']
+		noExternal: ['@skeletonlabs/skeleton-svelte', '@zag-js/svelte', 'better-svelte-email'],
+		external: ['drizzle-orm', 'mysql2', 'mariadb', 'pg', 'redis', 'ioredis', 'sharp', 'cloudinary', 'resend', '@react-email/render']
 	},
 	// Server overrides (merging usually handled by Vite, but safe to be explicit for critical paths)
 	server: {
 		...baseConfig.server,
 		watch: {
-			ignored: ['**/config/private.ts', '**/config/private.backup.*.ts', '**/compiledCollections/**', '**/tests/**']
+			ignored: [
+				'**/config/private.ts',
+				'**/config/private.backup.*.ts',
+				'**/compiledCollections/**',
+				'**/tests/**',
+				'**/src/content/types.ts',
+				'**/src/lib/paraglide/**'
+			]
+		}
+	},
+	build: {
+		sourcemap: false, // Disabled for production build optimization
+		rollupOptions: {
+			onwarn(warning, warn) {
+				// Suppress circular dependency warnings from node_modules
+				if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.ids?.some((id) => id.includes('node_modules'))) {
+					return;
+				}
+
+				// Suppress specific unused import warnings that are false positives or from 3rd-party libs
+				if (warning.code === 'UNUSED_EXTERNAL_IMPORT' || warning.code === 'UNUSED_IMPORT') {
+					// dndzone is used via use:dndzone, but Rollup sometimes misses this in Svelte 5
+					if (warning.names?.includes('dndzone') || warning.message?.includes('dndzone')) {
+						return;
+					}
+					// 3rd-party library warnings
+					if (warning.ids?.some((id) => id.includes('better-svelte-email') || id.includes('@zag-js') || id.includes('postcss'))) {
+						return;
+					}
+				}
+
+				warn(warning);
+			}
 		}
 	}
 });

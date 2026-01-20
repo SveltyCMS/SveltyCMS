@@ -3,7 +3,7 @@
 	import type { DatabaseId } from '@cms-types';
 	import type { Theme } from '@shared/database/dbInterface';
 	import { dateToISODateString } from '@shared/utils/dateUtils';
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	let selectedTheme = $state<any | null>(null);
 	let livePreviewTheme = $state<any | null>(null);

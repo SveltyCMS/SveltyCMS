@@ -12,7 +12,7 @@
 	import IconifyPicker from '@cms/components/IconifyPicker.svelte';
 
 	//ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 	import type { ContentNode } from '@shared/database/dbInterface';
 
 	interface Props {

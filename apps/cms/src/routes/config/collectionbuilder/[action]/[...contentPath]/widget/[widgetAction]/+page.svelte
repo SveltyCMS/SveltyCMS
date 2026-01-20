@@ -20,7 +20,7 @@
 	import Specific from '../../tabs/CollectionWidget/tabsFields/Specific.svelte';
 
 	// ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	// Route params
 	const action = $derived(page.params.action); // create or edit collection

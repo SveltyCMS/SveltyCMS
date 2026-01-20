@@ -20,7 +20,7 @@
 	import SveltyCMSLogo from '@cms/components/system/icons/SveltyCMS_Logo.svelte';
 	// ParaglideJS
 	import { app } from '@shared/stores/store.svelte';
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	const speed = 100;
 	const size = 140;

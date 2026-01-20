@@ -45,7 +45,7 @@
 	import SignupIcon from './icons/SignupIcon.svelte';
 	import FloatingPaths from '@cms/components/system/FloatingPaths.svelte';
 	// ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	// Screen size store
 	import { screen } from '@shared/stores/screenSizeStore.svelte.js';

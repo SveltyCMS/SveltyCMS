@@ -41,7 +41,7 @@
 	import TranslationStatus from './collectionDisplay/TranslationStatus.svelte';
 	import Toggles from './system/inputs/Toggles.svelte';
 	// ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	// Modal types import
 	// Stores

@@ -18,7 +18,7 @@
 
 <script lang="ts">
 	// ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	import { publicEnv } from '@shared/stores/globalSettings.svelte';
 	import { fade } from 'svelte/transition';

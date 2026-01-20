@@ -21,7 +21,7 @@ Values form StatusTypes
 	import { StatusTypes } from '@cms/types/content';
 
 	// ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	const { value } = $props(); // The status value to display
 </script>

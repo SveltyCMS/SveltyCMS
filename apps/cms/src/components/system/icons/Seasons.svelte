@@ -23,7 +23,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 
 <script lang="ts">
 	// ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	// Confetti effect
 	import { Confetti } from 'svelte-confetti';

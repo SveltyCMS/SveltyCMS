@@ -10,7 +10,7 @@
  */
 
 import { contentManager } from '@content/ContentManager';
-import type { Locale } from '$lib/paraglide/runtime.js';
+import type { Locale } from '$paraglide/runtime.js';
 import { logger } from '@shared/utils/logger.server';
 import { SvelteMap } from 'svelte/reactivity';
 

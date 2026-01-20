@@ -28,7 +28,6 @@ import { getPrivateSettingSync } from '@shared/services/settingsService';
 import { SESSION_COOKIE_NAME } from '@shared/database/auth/constants';
 import type { User } from '@shared/database/auth/types';
 import type { ISODateString } from '@shared/database/dbInterface';
-import { auth, dbAdapter } from '@shared/database/db';
 import { getSystemState } from '@cms/stores/system';
 import { seedDemoTenant } from '@shared/database/seed';
 import { cacheService, SESSION_CACHE_TTL_MS } from '@shared/database/CacheService';
@@ -249,6 +248,7 @@ async function getUserFromSession(sessionId: string, tenantId?: string): Promise
 	if (lastAttempt && now - lastAttempt < 60000) return null; // 1-minute cooldown
 	lastRefreshAttempt.set(sessionId, now);
 
+	const { auth } = await import('@shared/database/db');
 	if (!auth) {
 		// Only log as error if system is ready, otherwise suppress or log as debug
 		const sysState = getSystemState();
@@ -305,6 +305,7 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 
 	// Attempt rotation
 	try {
+		const { auth } = await import('@shared/database/db');
 		if (!auth?.createSession || !auth?.destroySession) {
 			logger.warn('Session rotation not supported by auth adapter');
 			return;
@@ -395,6 +396,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
 	// Attach database adapter
 	locals.dbAdapter = dbAdapter;
+	const { dbAdapter } = await import('@shared/database/db');
 	if (!dbAdapter) {
 		logger.warn('Database adapter unavailable; system initializing.');
 		// During setup/initialization, skip authentication entirely

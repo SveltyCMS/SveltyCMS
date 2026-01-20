@@ -28,6 +28,7 @@ It provides the following functionality:
 	import { toaster } from '@shared/stores/store.svelte';
 	// Svelte DND-actions
 	import { dndzone } from 'svelte-dnd-action';
+	dndzone;
 	import { v4 as uuidv4 } from 'uuid';
 
 	const flipDurationMs = 100;

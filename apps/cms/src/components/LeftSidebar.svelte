@@ -51,7 +51,7 @@
 	import { Avatar, Portal, Tooltip, Menu } from '@skeletonlabs/skeleton-svelte';
 
 	// Language and messaging
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 	import { getLocale } from '$lib/paraglide/runtime.js';
 
 	// Constants

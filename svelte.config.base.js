@@ -14,6 +14,7 @@
 
 import adapter from '@sveltejs/adapter-node';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+import { readFileSync } from 'fs';
 
 /**
  * Get base SvelteKit configuration
@@ -22,10 +23,57 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
  * @param {Object} [options.adapterOptions={}] - Adapter-specific options
  * @param {Object} [options.aliases={}] - Additional path aliases
  * @param {Object} [options.csp={}] - Additional CSP directives
+ * @param {boolean} [options.externalizeDeps=false] - Whether to externalize all dependencies (reduces bundle size)
  * @returns {import('@sveltejs/kit').Config} SvelteKit configuration
  */
 export const getBaseSvelteConfig = (options = {}) => {
-	const { adapterOptions = {}, aliases = {}, csp = {} } = options;
+	const { adapterOptions = {}, aliases = {}, csp = {}, externalizeDeps = false } = options;
+
+	let external = [
+		// Prevent TypeScript tools from being bundled
+		'typescript',
+		'ts-node',
+		'@typescript-eslint/parser',
+		'@typescript-eslint/eslint-plugin',
+		// Heavy DB libs - Externalize to prevent bundling OOM
+		'mongoose',
+		'mongodb',
+		'mariadb',
+		'mysql2',
+		'pg',
+		'redis',
+		'ioredis',
+		'drizzle-orm',
+		// Heavy utilities
+		'sharp',
+		'cloudinary',
+		'prettier',
+		'valibot',
+		'axios',
+		'resend',
+		'@aws-sdk/client-s3',
+		'@aws-sdk/s3-request-presigner'
+	];
+
+	if (externalizeDeps) {
+		try {
+			// Read app-level dependencies
+			const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+			external = [...external, ...Object.keys(pkg.dependencies || {})];
+
+			// Read root-level dependencies (Monorepo support)
+			// We try to locate the root package.json by going up two levels
+			// This assumes standard apps/<app> structure
+			try {
+				const rootPkg = JSON.parse(readFileSync('../../package.json', 'utf8'));
+				external = [...external, ...Object.keys(rootPkg.dependencies || {})];
+			} catch {
+				// Silently fail if root package.json is not found (might not be in monorepo or different structure)
+			}
+		} catch (e) {
+			console.warn('⚠️ Could not read package.json for externalization:', e.message);
+		}
+	}
 
 	return {
 		// Enable Svelte 5 runes mode for better HMR and modern reactivity
@@ -42,13 +90,7 @@ export const getBaseSvelteConfig = (options = {}) => {
 				out: 'build',
 				precompress: false, // Temporarily disabled for faster build verification
 				envPrefix: '',
-				external: [
-					// Prevent TypeScript tools from being bundled
-					'typescript',
-					'ts-node',
-					'@typescript-eslint/parser',
-					'@typescript-eslint/eslint-plugin'
-				],
+				external,
 				polyfill: false,
 				...adapterOptions
 			}),
@@ -65,7 +107,7 @@ export const getBaseSvelteConfig = (options = {}) => {
 				'@shared/components': '../../shared/components/src',
 				'@shared/hooks': '../../shared/hooks/src',
 				'@shared/stores': '../../shared/stores/src',
-				'@shared/paraglide': '../../shared/paraglide/src',
+				'@shared/paraglide': './src/lib/paraglide',
 				'@shared/types': '../../shared/types/src',
 
 				// Root resources
@@ -91,7 +133,7 @@ export const getBaseSvelteConfig = (options = {}) => {
 				'@shared/stores': '../../shared/stores/src',
 				'@shared/services': '../../apps/cms/src/services',
 				'@shared/services/*': '../../apps/cms/src/services/*',
-				'@shared/paraglide': '../../shared/paraglide/src',
+				'@shared/paraglide': './src/lib/paraglide',
 
 				// Content module aliases (now shared)
 				'@cms/types': '../../shared/types/src',

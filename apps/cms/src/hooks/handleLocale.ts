@@ -25,7 +25,7 @@
 
 import type { Handle } from '@sveltejs/kit';
 import { app } from '@shared/stores/store.svelte';
-import type { Locale } from '$lib/paraglide/runtime.js';
+import type { Locale } from '$paraglide/runtime.js';
 import { locales } from '$lib/paraglide/runtime.js';
 import { logger } from '@shared/utils/logger.server';
 

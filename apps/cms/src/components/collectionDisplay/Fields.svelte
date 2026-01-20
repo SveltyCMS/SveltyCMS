@@ -32,10 +32,10 @@
 	import { collection, collectionValue, setCollectionValue } from '@cms/stores/collectionStore.svelte';
 	import { translationProgress, contentLanguage, dataChangeStore, validationStore } from '@shared/stores/store.svelte';
 	import { publicEnv } from '@shared/stores/globalSettings.svelte';
-	import type { Locale } from '$lib/paraglide/runtime.js';
+	import type { Locale } from '$paraglide/runtime.js';
 
 	// ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	// Skeleton
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';

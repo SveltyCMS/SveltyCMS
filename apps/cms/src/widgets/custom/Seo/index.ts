@@ -11,7 +11,7 @@
  * - **Translatable**: Fully supports multilingual SEO content.
  */
 
-import * as m from '$lib/paraglide/messages.js';
+import * as m from '$paraglide/messages.js';
 import { createWidget } from '@widgets/widgetFactory';
 import { custom, literal, maxLength, object, optional, pipe, regex, string, transform, union, url, type InferInput as ValibotInput } from 'valibot';
 

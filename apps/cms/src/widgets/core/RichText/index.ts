@@ -13,7 +13,7 @@
  */
 
 import type { FieldInstance } from '@cms-types';
-import * as m from '$lib/paraglide/messages.js';
+import * as m from '$paraglide/messages.js';
 import { createWidget } from '@widgets/widgetFactory';
 import { object, optional, pipe, string, custom, type InferInput } from 'valibot';
 import type { RichTextProps } from './types';

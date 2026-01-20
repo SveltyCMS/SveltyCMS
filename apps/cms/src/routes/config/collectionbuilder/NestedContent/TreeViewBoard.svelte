@@ -26,6 +26,7 @@
 
 	// Drag and Drop
 	import { dndzone, TRIGGERS } from 'svelte-dnd-action';
+	dndzone;
 	import { flip } from 'svelte/animate';
 
 	// Adapter

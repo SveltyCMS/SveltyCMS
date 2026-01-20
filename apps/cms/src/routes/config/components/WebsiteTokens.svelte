@@ -20,6 +20,7 @@
 	import TableFilter from '@cms/components/system/table/TableFilter.svelte';
 	// import { clipboard } from '@skeletonlabs/skeleton-svelte';
 	import { dndzone } from 'svelte-dnd-action';
+	dndzone;
 	import { flip } from 'svelte/animate';
 	import type { WebsiteToken } from '@shared/database/schemas';
 	import type { User } from '@shared/database/auth/types';

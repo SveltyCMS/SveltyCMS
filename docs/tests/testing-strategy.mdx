@@ -1,12 +1,12 @@
 ---
 path: 'docs/tests/testing-strategy.mdx'
 title: 'Testing Strategy: Unit, Integration & E2E'
-description: 'Understanding the testing pyramid and when to use unit, integration, and E2E tests in SveltyCMS.'
+description: 'Understanding the testing pyramid and when to use unit, integration, and E2E tests in SveltyCMS with the fastest tools available.'
 order: 2
 icon: 'mdi:layers-triple'
 author: 'admin'
 created: '2026-01-18'
-updated: '2026-01-18'
+updated: '2026-01-20'
 tags:
   - 'testing'
   - 'strategy'
@@ -14,31 +14,54 @@ tags:
   - 'integration-tests'
   - 'e2e-tests'
   - 'best-practices'
+  - 'bun'
+  - 'playwright'
 ---
 
 # Testing Strategy: Unit, Integration & E2E
 
-This guide explains the testing pyramid and how each test type contributes to SveltyCMS quality.
+This guide explains our testing pyramid and why we use **Bun Test** and **Playwright** — the fastest testing tools available in 2026.
+
+---
+
+## Why Bun + Playwright?
+
+> [!IMPORTANT]
+> We chose **Bun Test** and **Playwright** because they are the **fastest testing tools available** for their respective domains.
+
+### Speed Comparison (2026)
+
+| Framework       | 241 Unit Tests   | Why We Don't Use It |
+| --------------- | ---------------- | ------------------- |
+| **Bun Test** ⚡ | **~0.5 seconds** | ✅ We use this      |
+| Vitest          | ~2 seconds       | 4x slower           |
+| Jest            | ~8 seconds       | 16x slower          |
+
+| E2E Framework     | 20 Browser Tests | Why We Don't Use It        |
+| ----------------- | ---------------- | -------------------------- |
+| **Playwright** 🎭 | **~30 seconds**  | ✅ We use this             |
+| Cypress           | ~60 seconds      | 2x slower, worse debugging |
+| WebdriverIO       | ~90 seconds      | Complex setup              |
 
 ---
 
 ## The Testing Pyramid
 
 ```
-        /\
-       /E2E\      ← Few, Slow (Full user flows)
-      /------\
-     /  INT  \    ← Moderate (API + Database)
-    /----------\
-   /   UNIT     \ ← Many, Fast (Pure logic)
-  /--------------\
+         /\
+        /E2E\      ← Few, Slow (Full user flows) - Playwright
+       /------\
+      /  INT  \    ← Moderate (API + Database) - Bun + fetch
+     /----------\
+    /   UNIT     \ ← Many, Fast (Pure logic) - Bun Test
+   /--------------\
 ```
 
 **Golden Rule:** More tests at the bottom, fewer at the top.
 
 ---
 
-## 1. Unit Tests 🧪
+## 1. Unit Tests 🧪 (Bun Test)
 
 ### What They Test
 
@@ -46,33 +69,34 @@ This guide explains the testing pyramid and how each test type contributes to Sv
 
 ### SveltyCMS Examples
 
-| Test File               | What It Tests            | Example                                |
-| ----------------------- | ------------------------ | -------------------------------------- |
-| `crypto.test.ts`        | Password hashing, tokens | `hashPassword()`, `verifyPassword()`   |
-| `dateUtils.test.ts`     | Date formatting          | `formatDisplayDate()`, ISO conversions |
-| `errorHandling.test.ts` | AppError class           | Error wrapping, message extraction     |
-| `token-system.test.ts`  | Token replacement        | `{{entry.title}}` → actual value       |
+| Test File              | What It Tests            | Speed |
+| ---------------------- | ------------------------ | ----- |
+| `crypto.test.ts`       | Password hashing, tokens | ~10ms |
+| `dateUtils.test.ts`    | Date formatting          | ~5ms  |
+| `token-system.test.ts` | Token replacement        | ~15ms |
+| `navigation.test.ts`   | Navigation manager       | ~8ms  |
 
 ### When to Use Unit Tests
 
-✅ Utility functions (date, string, crypto)  
-✅ Business logic (validation, token replacement)  
-✅ State management (stores)  
-✅ Data transformations  
-❌ Database operations  
+✅ Utility functions (date, string, crypto)
+✅ Business logic (validation, token replacement)
+✅ State management (stores)
+✅ Data transformations
+❌ Database operations
 ❌ API endpoints
 
 ### Running Unit Tests
 
 ```bash
-bun run test:unit                    # All unit tests (~245 tests, ~2s)
+bun run test:unit                    # All unit tests (~0.5s)
 bun test tests/bun/utils/            # Utility tests only
-bun test tests/bun/services/         # Service tests only
+bun test tests/bun/stores/           # Store tests only
+bun test --watch tests/bun/          # Watch mode
 ```
 
 ---
 
-## 2. Integration Tests 🔌
+## 2. Integration Tests 🔌 (Bun + fetch)
 
 ### What They Test
 
@@ -80,20 +104,19 @@ bun test tests/bun/services/         # Service tests only
 
 ### SveltyCMS Examples
 
-| Test File                 | What It Tests      | Requires      |
-| ------------------------- | ------------------ | ------------- |
-| `setup.test.ts`           | Setup wizard API   | Server + DB   |
-| `mongodb-adapter.test.ts` | Database CRUD      | MongoDB       |
-| `user.test.ts`            | User API endpoints | Server + Auth |
-| `auth-2fa.test.ts`        | 2FA authentication | Server + TOTP |
+| Test File             | What It Tests      | Requires      |
+| --------------------- | ------------------ | ------------- |
+| `user.test.ts`        | User API endpoints | Server + Auth |
+| `collections.test.ts` | CRUD operations    | Server + DB   |
+| `auth-2fa.test.ts`    | 2FA authentication | Server + TOTP |
 
 ### When to Use Integration Tests
 
-✅ API endpoints  
-✅ Database operations  
-✅ Authentication flows  
-✅ File uploads  
-❌ UI rendering  
+✅ API endpoints
+✅ Database operations
+✅ Authentication flows
+✅ File uploads
+❌ UI rendering
 ❌ User interactions
 
 ### Running Integration Tests
@@ -101,12 +124,11 @@ bun test tests/bun/services/         # Service tests only
 ```bash
 bun run test:integration           # All integration tests
 bun test tests/bun/api/            # API tests only
-bun test tests/bun/databases/      # Database tests only
 ```
 
 ---
 
-## 3. E2E Tests 🎭
+## 3. E2E Tests 🎭 (Playwright)
 
 ### What They Test
 
@@ -114,51 +136,102 @@ bun test tests/bun/databases/      # Database tests only
 
 ### SveltyCMS Examples
 
-| Test File                   | What It Tests | Browser Actions                     |
-| --------------------------- | ------------- | ----------------------------------- |
-| `setup-wizard.spec.ts`      | Initial setup | Fill forms, navigate steps          |
-| `user.spec.ts`              | Login/logout  | Enter credentials, verify dashboard |
-| `role-based-access.spec.ts` | RBAC          | Test permissions across roles       |
+| Test File                   | What It Tests | Browser Actions      |
+| --------------------------- | ------------- | -------------------- |
+| `setup-wizard.spec.ts`      | Initial setup | Fill forms, navigate |
+| `login.spec.ts`             | Login/logout  | Enter credentials    |
+| `role-based-access.spec.ts` | RBAC          | Permission checks    |
+
+### Role-Based E2E Testing
+
+We use **pre-authenticated fixtures** for fast role testing:
+
+```typescript
+import { test, expect } from './fixtures/auth.fixtures';
+
+test('admin can access settings', async ({ adminPage }) => {
+	await adminPage.goto('/settings');
+	await expect(adminPage).toHaveURL('/settings');
+});
+
+test('editor cannot access users', async ({ editorPage }) => {
+	await editorPage.goto('/users');
+	await expect(editorPage).toHaveURL(/403|access-denied/);
+});
+```
+
+### Available Role Fixtures
+
+| Fixture      | User               | Access Level              |
+| ------------ | ------------------ | ------------------------- |
+| `adminPage`  | admin@example.com  | Full access               |
+| `devPage`    | dev@example.com    | Admin panel, no user mgmt |
+| `editorPage` | editor@example.com | Content only              |
+| `viewerPage` | viewer@example.com | Read only                 |
 
 ### When to Use E2E Tests
 
-✅ Critical user journeys (login, setup)  
-✅ Multi-step workflows  
-✅ UI interactions (forms, modals)  
-❌ Every edge case (too slow)  
+✅ Critical user journeys (login, setup)
+✅ Multi-step workflows
+✅ UI interactions (forms, modals)
+✅ Role-based access control
+❌ Every edge case (too slow)
 ❌ Pure logic (use unit tests)
 
 ### Running E2E Tests
 
 ```bash
 bun run test:e2e                    # All E2E tests
-bun x playwright test tests/playwright/setup-wizard.spec.ts
+bun x playwright test tests/playwright/login.spec.ts
+bun x playwright test --ui          # Interactive UI
 ```
 
 ---
 
-## Nx Workspace-Specific Testing
+## 4-Stage Test Pipeline
 
-SveltyCMS uses an Nx monorepo. Tests can be run by workspace:
+Our tests run in a specific order to maximize efficiency:
 
-### Shared Library Tests
-
-```bash
-bun run test:unit                   # Shared utils, services, stores
+```
+┌─────────────────────────────────────────────────────────────┐
+│ STAGE 1: UNIT TESTS (No server)           ⚡ ~0.5s         │
+│ └─ bun run test:unit                                        │
+├─────────────────────────────────────────────────────────────┤
+│ STAGE 2: FRESH SETUP (E2E)                                  │
+│ ├─ Clean config/private.ts                                  │
+│ ├─ Run Setup Wizard → Creates Admin                         │
+│ └─ Seed users (dev, editor, viewer)                         │
+├─────────────────────────────────────────────────────────────┤
+│ STAGE 3: SIGNED-OUT TESTS                                   │
+│ ├─ Login page functionality                                 │
+│ └─ Signup with invite token                                 │
+├─────────────────────────────────────────────────────────────┤
+│ STAGE 4: SIGNED-IN TESTS (RBAC)                             │
+│ ├─ Admin: Full access tests                                 │
+│ ├─ Dev: Limited admin access                                │
+│ ├─ Editor: Content-only access                              │
+│ └─ Viewer: Read-only access                                 │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Setup App Tests
+---
+
+## Debugging Failed Tests
+
+### Playwright Artifacts on Failure
+
+When a Playwright test fails, you automatically get:
+
+| Artifact       | What It Shows                        |
+| -------------- | ------------------------------------ |
+| **Screenshot** | Visual state at exact failure moment |
+| **Video**      | Full recording of the test           |
+| **Trace**      | Timeline with network, DOM, actions  |
+
+### Viewing a Trace
 
 ```bash
-bun test tests/bun/api/setup*.ts    # Setup API tests
-bun x playwright test tests/playwright/setup-wizard.spec.ts
-```
-
-### CMS App Tests
-
-```bash
-bun test tests/bun/api --ignore '**/setup*.ts'  # CMS API tests
-bun x playwright test tests/playwright --ignore '**/setup*.ts'
+npx playwright show-trace test-results/your-test/trace.zip
 ```
 
 ---
@@ -173,43 +246,13 @@ bun x playwright test tests/playwright --ignore '**/setup*.ts'
 
 ---
 
-## Best Practices
-
-### 1. Test Isolation
-
-```typescript
-// ✅ GOOD: Each test is independent
-beforeEach(async () => {
-	await cleanupTestDatabase();
-});
-```
-
-### 2. Unique Test Data
-
-```typescript
-// ✅ GOOD: Unique identifiers prevent conflicts
-const email = `test-${Date.now()}@example.com`;
-```
-
-### 3. Fail Fast
-
-```typescript
-// ✅ GOOD: Skip if prerequisites missing
-if (!isCryptoAvailable()) {
-	console.warn('Skipping crypto tests');
-	return;
-}
-```
-
----
-
 ## Summary
 
-| Ask Yourself                    | Test Type        |
-| ------------------------------- | ---------------- |
-| "Am I testing logic?"           | Unit Test        |
-| "Am I testing integration?"     | Integration Test |
-| "Am I testing user experience?" | E2E Test         |
+| Ask Yourself               | Test Type   | Tool        |
+| -------------------------- | ----------- | ----------- |
+| "Am I testing logic?"      | Unit Test   | Bun Test    |
+| "Am I testing API/DB?"     | Integration | Bun + fetch |
+| "Am I testing user flows?" | E2E Test    | Playwright  |
 
 ---
 

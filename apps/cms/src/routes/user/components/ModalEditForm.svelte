@@ -23,7 +23,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	import { Form } from '@shared/utils/Form.svelte';
 	import { editUserSchema } from '@shared/utils/formSchemas';
 	// ParaglideJS
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	// Get data from page store
 	const { roles, user } = page.data;

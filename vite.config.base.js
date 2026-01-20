@@ -78,7 +78,7 @@ export const getBaseViteConfig = (workspaceDir, options = {}) => {
 				'@shared/components': path.resolve(workspaceDir, '../../shared/components/src'),
 				'@shared/hooks': path.resolve(workspaceDir, '../../shared/hooks/src'),
 				'@shared/stores': path.resolve(workspaceDir, '../../shared/stores/src'),
-				'@shared/paraglide': path.resolve(workspaceDir, '../../shared/paraglide/src'),
+				'@shared/paraglide': path.resolve(workspaceDir, 'src/lib/paraglide'),
 				'@shared/types': path.resolve(workspaceDir, '../../shared/types/src'),
 				'@shared/features': path.resolve(workspaceDir, '../../shared/features/src'),
 

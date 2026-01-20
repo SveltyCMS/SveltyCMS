@@ -94,8 +94,10 @@ export const POST: RequestHandler = async ({ request }) => {
 			logger.info('⏳ TEST_MODE detected: Awaiting seeding synchronously...');
 			seedResults = await seedProcess();
 		} else {
-			seedProcess(); // Fire-and-forget for normal UX
-			logger.info('✅ Immediately returning response while seeding continues in background.');
+			// Changed to synchronous execution to ensure data integrity
+			// Fire-and-forget caused race conditions where users completed setup before seeding finished
+			logger.info('⏳ Awaiting seeding synchronously to ensure data integrity...');
+			seedResults = await seedProcess();
 		}
 
 		return json({

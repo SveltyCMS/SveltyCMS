@@ -29,7 +29,7 @@ import { check, isoDate, minLength, object, pipe, string, type InferInput as Val
 import type { DateRangeProps } from './types';
 
 //ParaglideJS
-import * as m from '$lib/paraglide/messages.js';
+import * as m from '$paraglide/messages.js';
 
 // Define the validation schema for the `{ start, end }` object.
 const DateRangeValidationSchema = pipe(

@@ -13,7 +13,6 @@ import { error } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
 import { getSystemState, isSystemReady } from '@cms/stores/system';
 import { logger } from '@shared/utils/logger.server';
-import { dbInitPromise } from '@shared/database/db';
 import { isSetupComplete } from '@shared/utils/setupCheck';
 
 // Track initialization state more robustly
@@ -54,6 +53,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 				logger.info('System is IDLE and setup is complete. Starting initialization...');
 
 				try {
+					const { dbInitPromise } = await import('@shared/database/db');
 					// Add timeout wrapper
 					await Promise.race([
 						dbInitPromise,
@@ -89,6 +89,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
 			logger.debug(`[handleSystemState] Request to ${pathname} waiting for ongoing initialization (${elapsed}ms elapsed)...`);
 			try {
+				const { dbInitPromise } = await import('@shared/database/db');
 				await Promise.race([
 					dbInitPromise,
 					new Promise((_, reject) => setTimeout(() => reject(new Error('Initialization wait timeout')), INIT_TIMEOUT_MS - elapsed))
@@ -167,6 +168,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 		// Wait for initialization to complete with timeout
 		logger.debug(`Request to ${pathname} waiting for initialization to complete...`);
 		try {
+			const { dbInitPromise } = await import('@shared/database/db');
 			await Promise.race([dbInitPromise, new Promise((_, reject) => setTimeout(() => reject(new Error('Init wait timeout')), INIT_TIMEOUT_MS))]);
 			systemState = getSystemState();
 			logger.debug(`Initialization complete. System state is now: ${systemState.overallState}`);

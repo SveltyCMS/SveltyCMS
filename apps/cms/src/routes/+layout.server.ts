@@ -17,7 +17,7 @@
 import { version } from '@root/package.json';
 import { loadSettingsCache, getPrivateSettingSync } from '@shared/services/settingsService';
 import type { LayoutServerLoad } from './$types';
-import type { Locale } from '$lib/paraglide/runtime.js';
+import type { Locale } from '$paraglide/runtime.js';
 import type { NavigationNode } from '@cms-types';
 import { logger } from '@shared/utils/logger';
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Locale } from '$lib/paraglide/runtime.js';
+	import type { Locale } from '$paraglide/runtime.js';
 	import { tokenTarget } from '@shared/services/token/tokenTarget';
 
 	import type { Snippet } from 'svelte';

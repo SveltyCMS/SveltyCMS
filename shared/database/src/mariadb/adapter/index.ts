@@ -115,5 +115,5 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 	};
 }
 
-export * from './adapterTypes';
-export * from './adapterCore';
+export { type MariaDBConnection } from './adapterTypes';
+export { AdapterCore } from './adapterCore';

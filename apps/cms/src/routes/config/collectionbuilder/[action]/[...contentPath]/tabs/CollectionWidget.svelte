@@ -12,7 +12,7 @@
 	import { collection, collections, setTargetWidget } from '@cms/stores/collectionStore.svelte';
 	import { widgets } from '@cms/stores/widgetStore.svelte';
 	import { untrack } from 'svelte';
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 
 	// Components
 	import VerticalList from '@cms/components/VerticalList.svelte';

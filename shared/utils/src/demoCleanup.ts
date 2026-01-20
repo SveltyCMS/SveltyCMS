@@ -8,18 +8,23 @@
  */
 
 import { logger } from '@shared/utils/logger.server';
-import mongoose from 'mongoose';
-import { SystemSettingModel } from '@shared/database/mongodb/models/systemSetting';
-import { ThemeModel } from '@shared/database/mongodb/models/theme';
-import { ContentStructureModel } from '@shared/database/mongodb/models/contentStructure';
-import { WebsiteTokenModel } from '@shared/database/mongodb/models/websiteToken';
-import { getPrivateEnv } from '@shared/database/db';
+// Static imports removed to prevent mongoose bundling in SSR
+// import mongoose from 'mongoose';
+// import { SystemSettingModel } from '@shared/database/mongodb/models/systemSetting';
+// ...
 
 /**
  * Cleans up expired demo tenants.
  * Runs only if DEMO mode is enabled (via env var or private config).
  */
 export async function cleanupExpiredDemoTenants() {
+	const { getPrivateEnv } = await import('@shared/database/db');
+	const mongoose = (await import('mongoose')).default;
+	const { SystemSettingModel } = await import('@shared/database/mongodb/models/systemSetting');
+	const { ThemeModel } = await import('@shared/database/mongodb/models/theme');
+	const { ContentStructureModel } = await import('@shared/database/mongodb/models/contentStructure');
+	const { WebsiteTokenModel } = await import('@shared/database/mongodb/models/websiteToken');
+
 	const env = getPrivateEnv();
 	const isDemo = process.env.SVELTYCMS_DEMO === 'true' || env?.DEMO === true;
 

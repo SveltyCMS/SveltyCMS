@@ -8,7 +8,22 @@
  * - Initializes plugins during server startup
  */
 
-export * from './types';
+export {
+	type PluginMetadata,
+	type PluginMigration,
+	type PluginConfig,
+	type PluginContext,
+	type PluginEntryData,
+	type PluginSSRHook,
+	type PluginColumn,
+	type PluginUIContribution,
+	type Plugin,
+	type PluginRegistryEntry,
+	type PluginMigrationRecord,
+	type PluginState,
+	type IPluginService
+} from './types';
+
 export { pluginRegistry } from './registry';
 
 // Import all plugins

@@ -12,7 +12,7 @@
  * - **Advanced Aggregation**: Performs a `$lookup` to filter/sort based on actual media metadata.
  */
 
-import * as m from '$lib/paraglide/messages.js';
+import * as m from '$paraglide/messages.js';
 import { createWidget } from '@widgets/widgetFactory';
 import Checkbox from '@widgets/core/Checkbox/index';
 import Input from '@widgets/core/Input/index';

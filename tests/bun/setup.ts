@@ -8,6 +8,14 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 GlobalRegistrator.register();
 
+// Mock @zag-js/svelte (required by Skeleton UI components)
+mock.module('@zag-js/svelte', () => ({
+	useMachine: () => ({}),
+	normalizeProps: (props: unknown) => props,
+	useSnapshot: () => ({}),
+	mergeProps: (...props: unknown[]) => Object.assign({}, ...props)
+}));
+
 // Mock logger to prevent errors in tests
 mock.module('@shared/utils/logger', () => ({
 	logger: {
@@ -88,12 +96,21 @@ mock.module('$app/stores', () => ({
 	updated: { subscribe: (fn: any) => fn(false) }
 }));
 
-// Mock $app/state
+// Mock $app/state (SvelteKit 2.0+)
 mock.module('$app/state', () => ({
-	state: { subscribe: (fn: any) => fn({}) }
+	state: { subscribe: (fn: (val: object) => void) => fn({}) },
+	page: {
+		url: new URL('http://localhost'),
+		params: {},
+		route: { id: null },
+		status: 200,
+		error: null,
+		data: {},
+		form: null
+	}
 }));
 
 // Mock Svelte 5 Runes for testing
-globalThis.$state = ((initial) => initial) as any;
-globalThis.$derived = ((fn) => (typeof fn === 'function' ? fn() : fn)) as any;
-globalThis.$effect = (() => {}) as any;
+globalThis.$state = ((initial: unknown) => initial) as typeof $state;
+globalThis.$derived = ((fn: unknown) => (typeof fn === 'function' ? fn() : fn)) as typeof $derived;
+globalThis.$effect = (() => {}) as typeof $effect;

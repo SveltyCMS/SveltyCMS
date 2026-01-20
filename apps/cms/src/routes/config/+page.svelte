@@ -7,7 +7,7 @@
 <script lang="ts">
 	import PageTitle from '@cms/components/PageTitle.svelte';
 	import PermissionGuard from '@cms/components/PermissionGuard.svelte';
-	import * as m from '$lib/paraglide/messages.js';
+	import * as m from '$paraglide/messages.js';
 	import { collections } from '@cms/stores/collectionStore.svelte';
 	import { ui } from '@cms/stores/UIStore.svelte';
 	import { onMount } from 'svelte';

@@ -12,7 +12,17 @@
 export type { IDBAdapter } from './dbInterface';
 
 // Schema exports
-export * from './schemas';
+export {
+	privateConfigSchema,
+	publicConfigSchema,
+	websiteTokenSchema,
+	databaseConfigSchema,
+	collectionSchemas,
+	createPrivateConfig,
+	createPublicConfig,
+	validateConfig
+} from './schemas';
+export type { DatabaseConfig, PrivateConfig, WebsiteToken, PublicConfig } from './schemas';
 
 // Services
 export { cacheService } from './CacheService';
