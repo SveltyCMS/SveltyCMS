@@ -755,7 +755,7 @@ This solves circular dependency issues and enforces clean architecture.
 
 ```bash
 # Required for CMS builds
-NODE_OPTIONS="--max-old-space-size=8192" bun x nx run cms:build
+NODE_OPTIONS="--max-old-space-size=4096" bun x nx run cms:build
 ```
 
 **Root Cause**: The massive dependency tree of database drivers (`mongoose`, `mongodb`, `drizzle-orm`) causes Rollup/Vite to consume significant memory during analysis.
@@ -766,16 +766,12 @@ NODE_OPTIONS="--max-old-space-size=8192" bun x nx run cms:build
 2. **Externalization**: Database drivers added to `adapter` external options in `svelte.config.base.js`.
 3. **Barrel File Refactoring**: Replaced wildcard exports with explicit named exports for better tree-shaking.
 
-### Production Build Scripts
-
-```json
 {
-	"scripts": {
-		"build:cms": "cross-env NODE_OPTIONS='--max-old-space-size=8192' nx run cms:build --configuration=production",
-		"build:all": "cross-env NODE_OPTIONS='--max-old-space-size=8192' nx run-many --target=build --all --configuration=production"
-	}
+"scripts": {
+"build:cms": "cross-env NODE_OPTIONS='--max-old-space-size=4096' nx run cms:build --configuration=production",
+"build:all": "cross-env NODE_OPTIONS='--max-old-space-size=4096' nx run-many --target=build --all --configuration=production"
 }
-```
+}
 
 ---
 

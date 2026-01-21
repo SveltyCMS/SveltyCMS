@@ -52,4 +52,4 @@ export {
 	type StateTimingMetrics,
 	type SystemPerformanceMetrics,
 	type SystemStateStore
-} from '@shared/stores/system';
+} from '@shared/stores';
