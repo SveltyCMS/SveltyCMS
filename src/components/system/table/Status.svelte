@@ -17,6 +17,8 @@ Values form StatusTypes
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
 	// Import StatusTypes for centralized status management
 	import { StatusTypes } from '@src/content/types';
 
@@ -47,28 +49,28 @@ Values form StatusTypes
 	title={`Status: ${value}`}
 >
 	{#if value === StatusTypes.publish}
-		<iconify-icon icon="bi:hand-thumbs-up-fill" width="16"></iconify-icon>
+		<CircleQuestionMark size={24} />
 		<p class="hidden sm:block text-xs font-bold uppercase">{m.entrylist_multibutton_publish()}</p>
 	{:else if value === StatusTypes.unpublish}
-		<iconify-icon icon="bi:pause-circle" width="16"></iconify-icon>
+		<CircleQuestionMark size={24} />
 		<p class="hidden sm:block text-xs font-bold uppercase">{m.entrylist_multibutton_unpublish()}</p>
 	{:else if value === StatusTypes.schedule}
-		<iconify-icon icon="bi:clock" width="16"></iconify-icon>
+		<Clock size={24} />
 		<p class="hidden sm:block text-xs font-bold uppercase">{m.entrylist_multibutton_schedule()}</p>
 	{:else if value === 'deleted'}
-		<iconify-icon icon="bi:trash3-fill" width="16"></iconify-icon>
+		<CircleQuestionMark size={24} />
 		<p class="hidden sm:block text-xs font-bold uppercase">{m.button_delete()}</p>
 	{:else if value === StatusTypes.delete}
-		<iconify-icon icon="bi:trash3-fill" width="16"></iconify-icon>
+		<CircleQuestionMark size={24} />
 		<p class="hidden sm:block text-xs font-bold uppercase">{m.button_delete()}</p>
 	{:else if value === StatusTypes.clone}
-		<iconify-icon icon="bi:clipboard-data-fill" width="16"></iconify-icon>
+		<ClipboardCopy size={24} />
 		<p class="hidden sm:block text-xs font-bold uppercase">{m.entrylist_multibutton_clone()}</p>
 	{:else if value === StatusTypes.draft}
-		<iconify-icon icon="bi:pencil-square" width="16"></iconify-icon>
+		<CircleQuestionMark size={24} />
 		<p class="hidden sm:block text-xs font-bold uppercase">{m.entrylist_multibutton_draft()}</p>
 	{:else if value === StatusTypes.archive}
-		<iconify-icon icon="bi:archive-fill" width="16"></iconify-icon>
+		<CircleQuestionMark size={24} />
 		<p class="hidden sm:block text-xs font-bold uppercase">{m.button_archive()}</p>
 	{:else}
 		<p class="px-2">{value}</p>

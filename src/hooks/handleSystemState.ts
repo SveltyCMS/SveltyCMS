@@ -11,7 +11,7 @@
 
 import { error } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
-import { getSystemState, isSystemReady } from '@src/stores/system';
+import { getSystemState, isSystemReady } from '@src/stores/system/state';
 import { logger } from '@utils/logger.server';
 import { dbInitPromise } from '@src/databases/db';
 import { isSetupComplete } from '@utils/setupCheck';

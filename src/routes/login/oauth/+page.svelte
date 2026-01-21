@@ -4,6 +4,8 @@
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
 	import type { PageData } from './$types';
 
 	// Components
@@ -11,7 +13,7 @@
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 
 	// Stores
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -120,7 +122,7 @@
 				aria-label={m.button_send()}
 				class="variant-filled btn items-center"
 			>
-				<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-1"></iconify-icon>
+				<CircleQuestionMark size={24} />
 				<p>{m.oauth_signup()}</p>
 			</button>
 		</div>

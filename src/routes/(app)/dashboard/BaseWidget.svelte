@@ -1,5 +1,5 @@
 <!--
-@file src/routes/(app)/dashboard/BaseWidget.svelte
+@file src/routes/(app)/dashboard/BaseWidget
 @component
 **Base widget**
 
@@ -14,6 +14,16 @@ New Features:
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import type { WidgetSize } from '@src/content/types';
+
+	// Lucide icons
+	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
+	import GripVertical from '@lucide/svelte/icons/grip-vertical';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
+	import Check from '@lucide/svelte/icons/check';
+	import X from '@lucide/svelte/icons/x';
+	import LayoutPanelLeft from '@lucide/svelte/icons/layout-panel-left';
+
 	export type { WidgetSize };
 
 	type Snippet<T = any> = (args: T) => any;
@@ -30,7 +40,6 @@ New Features:
 	const {
 		label = 'Widget',
 		theme = 'light',
-		icon = undefined,
 		endpoint = undefined,
 		pollInterval = 0,
 		widgetId = undefined,
@@ -50,7 +59,6 @@ New Features:
 	} = $props<{
 		label: string;
 		theme?: 'light' | 'dark';
-		icon?: string;
 		endpoint?: string;
 		pollInterval?: number;
 		widgetId?: string;
@@ -355,9 +363,7 @@ New Features:
 				id="widget-title-{widgetId || label}"
 				class="font-display text-text-900 dark:text-text-100 flex items-center gap-2 truncate text-base font-semibold tracking-tight"
 			>
-				{#if icon}
-					<iconify-icon {icon} width="24" class={theme === 'light' ? 'text-tertiary-600' : 'text-primary-400'}></iconify-icon>
-				{/if}
+				<LayoutPanelLeft size={24} class={theme === 'light' ? 'text-tertiary-600' : 'text-primary-400'} />
 				<span class="truncate">{label}</span>
 			</h2>
 
@@ -366,7 +372,7 @@ New Features:
 					<span>{getLastUpdateText()}</span>
 					{#if loading}
 						<span class="flex items-center gap-1">
-							<iconify-icon icon="mdi:loading" class="animate-spin" width="10"></iconify-icon>
+							<RefreshCw size={10} class="animate-spin" />
 							{#if currentRetry > 0}
 								<span>Retry {currentRetry}/{retryCount}</span>
 							{/if}
@@ -377,21 +383,13 @@ New Features:
 		</div>
 
 		<div class="flex items-center gap-1">
-			{#if endpoint && showRefreshButton}
-				<button
-					onclick={() => refresh()}
-					class="variant-outline-surface btn-icon"
-					aria-label="Refresh widget"
-					disabled={loading}
-					title="Refresh data"
-				>
-					<iconify-icon icon="mdi:refresh" width="16" class={loading ? 'animate-spin' : ''}></iconify-icon>
-				</button>
-			{/if}
+			<button onclick={() => refresh()} class="variant-outline-surface btn-icon" aria-label="Refresh widget" disabled={loading} title="Refresh data">
+				<RefreshCw size={16} class={loading ? 'animate-spin' : ''} />
+			</button>
 
 			<div class="relative" style="overflow: visible;">
 				<button onclick={() => (showSizeMenu = !showSizeMenu)} class="variant-outline-surface btn-icon" aria-label="Change widget size">
-					<iconify-icon icon="mdi:dots-vertical" width="18"></iconify-icon>
+					<EllipsisVertical size={18} />
 				</button>
 				{#if showSizeMenu}
 					<div
@@ -408,7 +406,7 @@ New Features:
 							>
 								<span>{getSizeLabel(s)}</span>
 								{#if size.w === s.w && size.h === s.h}
-									<iconify-icon icon="mdi:check" class="text-primary-500"></iconify-icon>
+									<Check size={16} class="text-primary-500" />
 								{/if}
 							</button>
 						{/each}
@@ -416,7 +414,7 @@ New Features:
 				{/if}
 			</div>
 			<button onclick={onCloseRequest} class="variant-outline-surface btn-icon" aria-label="Remove {label} widget">
-				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
+				<X size={18} />
 			</button>
 		</div>
 	</header>
@@ -428,7 +426,7 @@ New Features:
 			<div class="loading-state text-text-400 absolute inset-0 flex items-center justify-center text-base">Loading...</div>
 		{:else if endpoint && error && !internalData}
 			<div class="error-state absolute inset-0 flex flex-col items-center justify-center p-2 text-center text-base text-error-500">
-				<iconify-icon icon="mdi:alert-circle-outline" width="24" class="mb-1"></iconify-icon>
+				<CircleAlert size={24} class="mb-1" />
 				<span>{error}</span>
 			</div>
 		{:else if children}
@@ -468,7 +466,7 @@ New Features:
 						}
 					}}
 				>
-					<iconify-icon icon={handle.icon} width={handle.size} class="text-gray-900 drop-shadow-sm dark:text-surface-300"></iconify-icon>
+					<GripVertical size={12} class="text-gray-900 drop-shadow-sm dark:text-surface-300" />
 				</div>
 			{/each}
 		</div>

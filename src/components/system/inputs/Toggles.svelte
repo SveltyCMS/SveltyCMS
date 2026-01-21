@@ -22,6 +22,7 @@
 -->
 
 <script lang="ts">
+	import Icon from '@iconify/svelte';
 	import { logger } from '@utils/logger';
 
 	import type { TogglesProps } from './types';
@@ -101,12 +102,14 @@
 				class:bg-surface-400={disabled}
 			>
 				{#if iconOn && iconOff}
-					<iconify-icon
-						icon={value ? iconOn : iconOff}
-						width={iconSize}
-						class={value ? 'text-primary-500' : 'text-error-500'}
-						class:text-surface-600={disabled}
-					></iconify-icon>
+					{@const currentIcon = value ? iconOn : iconOff}
+					{#if iconsData[currentIcon as keyof typeof iconsData]}
+						<Icon
+							icon={iconsData[currentIcon as keyof typeof iconsData] as any}
+							size={iconSize}
+							class="{value ? 'text-primary-500' : 'text-error-500'} {disabled ? 'text-surface-600' : ''}"
+						/>
+					{/if}
 				{:else}
 					<span class="text-[10px] font-bold {value ? 'text-primary-500' : 'text-error-500'}" class:text-surface-600={disabled}>
 						{value ? 'ON' : 'OFF'}

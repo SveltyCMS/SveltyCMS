@@ -9,8 +9,8 @@ import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
-import { collection, collectionValue, setCollectionValue, setMode } from '@stores/collectionStore.svelte';
-import { toaster } from '@stores/store.svelte';
+import { collection, collectionValue, setCollectionValue, setMode } from '@stores/collectionStore.svelte.ts';
+import { toaster } from '@stores/store.svelte.ts';
 import { logger } from './logger';
 import {
 	batchDeleteEntries,

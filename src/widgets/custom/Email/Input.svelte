@@ -28,7 +28,7 @@
 
 	// Stores
 	// Stores
-	import { app, validationStore } from '@stores/store.svelte';
+	import { app, validationStore } from '@stores/store.svelte.ts';
 	import { collection } from '@src/stores/collectionStore.svelte';
 	import { activeInput } from '@src/stores/activeInputStore.svelte';
 

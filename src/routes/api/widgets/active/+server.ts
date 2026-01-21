@@ -5,7 +5,7 @@
 import { json, error } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
-import { widgets, getWidgetFunction, isWidgetCore } from '@stores/widgetStore.svelte';
+import { widgets, getWidgetFunction, isWidgetCore } from '@stores/widgetStore.svelte.ts';
 import { cacheService } from '@src/databases/CacheService';
 import { CacheCategory } from '@src/databases/CacheCategory';
 

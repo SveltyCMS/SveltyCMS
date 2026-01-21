@@ -15,6 +15,8 @@
 - Integrates with BaseWidget for common widget functionalities.
 -->
 <script lang="ts" module>
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
 	export const widgetMeta = {
 		name: 'Logs',
 		icon: 'mdi:text-box-outline',
@@ -200,8 +202,7 @@
 						class="flex items-center gap-1 rounded border border-surface-200 bg-surface-50/50 px-1 py-1 text-xs dark:text-surface-50 dark:bg-surface-800/30"
 						role="listitem"
 					>
-						<iconify-icon icon="mdi:circle" width="8" class="{getLogLevelColor(log.level)} shrink-0" aria-label="{log.level} log level"
-						></iconify-icon>
+						<CircleQuestionMark size={24} />
 						<span class="w-8 shrink-0 text-xs text-surface-500 dark:text-surface-50">
 							{new Date(log.timestamp).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
 						</span>
@@ -228,7 +229,7 @@
 			</div>
 		{:else}
 			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
-				<iconify-icon icon="mdi:file-remove-outline" width="32" class="mb-2 text-surface-400 dark:text-surface-500" aria-hidden="true"></iconify-icon>
+				<CircleQuestionMark size={24} />
 				<span>No logs found</span>
 			</div>
 		{/if}

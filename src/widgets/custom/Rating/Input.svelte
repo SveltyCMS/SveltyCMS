@@ -28,6 +28,7 @@ Interactive star rating with hover states and click selection
 -->
 
 <script lang="ts">
+	import Icon from '@iconify/svelte';
 	import { RatingGroup } from '@skeletonlabs/skeleton-svelte';
 	import type { FieldType } from './';
 
@@ -58,14 +59,19 @@ Interactive star rating with hover states and click selection
 	<div class={error ? ' text-error-500' : ''}>
 		<RatingGroup value={ratingValue} onValueChange={(e) => (ratingValue = e.value)} aria-label={field.label}>
 			<RatingGroup.Control>
+				{@const iconFull = ((field.iconFull as string) || 'star').replace('material-symbols:', '')}
+				{@const iconEmpty = ((field.iconEmpty as string) || 'star-outline').replace('material-symbols:', '').replace('-outline', '')}
 				{#each { length: Number(field.max) || 5 } as _, i}
 					<RatingGroup.Item index={i + 1}>
 						{#snippet empty()}
-							<iconify-icon icon={field.iconEmpty || 'material-symbols:star-outline'} width="24" class="text-surface-400"></iconify-icon>
+							{#if iconsData[iconEmpty as keyof typeof iconsData]}
+								<Icon icon={iconsData[iconEmpty as keyof typeof iconsData] as any} size={24} class="text-surface-400" />
+							{/if}
 						{/snippet}
 						{#snippet full()}
-							<iconify-icon icon={field.iconFull || 'material-symbols:star'} width="24" class={error ? 'text-error-500' : 'text-warning-500'}
-							></iconify-icon>
+							{#if iconsData[iconFull as keyof typeof iconsData]}
+								<Icon icon={iconsData[iconFull as keyof typeof iconsData] as any} size={24} class={error ? 'text-error-500' : 'text-warning-500'} />
+							{/if}
 						{/snippet}
 					</RatingGroup.Item>
 				{/each}

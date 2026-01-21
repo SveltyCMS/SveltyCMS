@@ -1,5 +1,5 @@
 <!--
-@files src/routes/(app)/config/collection/ModalCategory.svelte
+@file src/routes/(app)/config/collectionbuilder/NestedContent/ModalCategory.svelte
 @component
 **This component displays a modal for editing a category**
 -->
@@ -9,7 +9,11 @@
 	import { logger } from '@utils/logger';
 
 	// Components
-	import IconifyPicker from '@components/IconifyPicker.svelte';
+	import IconPicker from '@components/IconPicker.svelte';
+
+	// Lucide Icons
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -198,7 +202,7 @@
 
 		<label class="label" for="icon-picker">
 			<span>Icon</span>
-			<IconifyPicker bind:iconselected={formData.newCategoryIcon} searchQuery={formData.newCategoryIcon} />
+			<IconPicker bind:iconselected={formData.newCategoryIcon} searchQuery={formData.newCategoryIcon} />
 			{#if validationErrors.icon}
 				<span id="icon-error" class="text-sm text-error-500">{validationErrors.icon}</span>
 			{/if}
@@ -206,7 +210,7 @@
 		<footer class="modal-footer flex {existingCategory.name ? 'justify-between' : 'justify-end'} pt-4 border-t border-surface-500/20">
 			{#if existingCategory.name}
 				<button type="button" onclick={deleteCategory} class="preset-filled-error-500 btn" aria-label="Delete category" disabled={isSubmitting}>
-					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
+					<Trash2 size={24} />
 					<span class="hidden md:inline">{m.button_delete()}</span>
 				</button>
 			{/if}
@@ -222,7 +226,7 @@
 					disabled={isSubmitting}
 				>
 					{#if isSubmitting}
-						<iconify-icon icon="eos-icons:loading" class="animate-spin" width="24"></iconify-icon>
+						<LoaderCircle size={24} class="animate-spin" />
 					{/if}
 					{m.button_save()}
 				</button>

@@ -9,8 +9,12 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 - Optional tooltip for user guidance
 -->
 <script lang="ts">
-	import { themeStore, setThemePreference, useSystemPreference } from '@stores/themeStore.svelte';
+	import { themeStore, setThemePreference, useSystemPreference } from '@stores/themeStore.svelte.ts';
 	import { Portal, Tooltip } from '@skeletonlabs/skeleton-svelte';
+	// Explicit imports
+	import Sun from '@lucide/svelte/icons/sun';
+	import Moon from '@lucide/svelte/icons/moon';
+	import SunMoon from '@lucide/svelte/icons/sun-moon';
 
 	interface Props {
 		showTooltip?: boolean;
@@ -45,21 +49,19 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 		if (current === 'light') return 'Light theme (click for Dark)';
 		return 'Dark theme (click for System)';
 	});
-
-	// Get icon based on current preference
-	const getCurrentIcon = $derived(() => {
-		const current = themeStore.themePreference;
-		if (current === 'system') return 'bi:circle-half';
-		if (current === 'light') return 'bi:sun';
-		return 'bi:moon-fill';
-	});
 </script>
 
 {#if showTooltip}
 	<Tooltip positioning={{ placement: tooltipPlacement }}>
 		<Tooltip.Trigger>
 			<button onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>
-				<iconify-icon icon={getCurrentIcon()} width={iconSize}></iconify-icon>
+				{#if themeStore.themePreference === 'light'}
+					<Sun size={iconSize} />
+				{:else if themeStore.themePreference === 'dark'}
+					<Moon size={iconSize} />
+				{:else}
+					<SunMoon size={iconSize} />
+				{/if}
 			</button>
 		</Tooltip.Trigger>
 		<Portal>
@@ -75,6 +77,12 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 	</Tooltip>
 {:else}
 	<button onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>
-		<iconify-icon icon={getCurrentIcon()} width={iconSize}></iconify-icon>
+		{#if themeStore.themePreference === 'light'}
+			<Sun size={iconSize} />
+		{:else if themeStore.themePreference === 'dark'}
+			<Moon size={iconSize} />
+		{:else}
+			<SunMoon size={iconSize} />
+		{/if}
 	</button>
 {/if}

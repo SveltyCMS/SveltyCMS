@@ -2,6 +2,10 @@
 	import type { Locale } from '@src/paraglide/runtime';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
 
+	// Lucide Icons
+	import Info from '@lucide/svelte/icons/info';
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
 	import type { Snippet } from 'svelte';
 
 	interface Props {
@@ -56,7 +60,7 @@
 			<span class="font-bold text-sm">{label}</span>
 			{@render icon?.()}
 			<span class="text-surface-400 cursor-help" title={placeholder}>
-				<iconify-icon icon="mdi:information-outline" width="16"></iconify-icon>
+				<Info size={16} />
 			</span>
 		</div>
 		<div class="flex items-center gap-3 text-xs">
@@ -68,7 +72,7 @@
 					inputRef?.focus();
 				}}
 			>
-				<iconify-icon icon="mdi:code-braces" width="16" class="font-bold text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				<CircleQuestionMark size={24} />
 			</button>
 			{#if maxLength}
 				{#if type === 'input'}
@@ -79,7 +83,7 @@
 			{/if}
 			{#if translated}
 				<div class="flex items-center gap-1 text-xs">
-					<iconify-icon icon="bi:translate" width="16"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					<span class="font-medium text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
 					<span class="font-medium text-surface-400">({translationPct}%)</span>
 				</div>

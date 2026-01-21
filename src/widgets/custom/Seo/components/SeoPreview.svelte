@@ -17,6 +17,8 @@
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -99,7 +101,7 @@
 					class="{!SeoPreviewToggle ? 'preset-filled-primary-500' : ''} btn-sm"
 					title="Desktop View"
 				>
-					<iconify-icon icon="mdi:monitor" width="18"></iconify-icon>
+					<CircleQuestionMark size={24} />
 				</button>
 				<button
 					type="button"
@@ -107,7 +109,7 @@
 					class="{SeoPreviewToggle ? 'preset-filled-primary-500' : ''} btn-sm"
 					title="Mobile View"
 				>
-					<iconify-icon icon="mdi:cellphone" width="18"></iconify-icon>
+					<CircleQuestionMark size={24} />
 				</button>
 			</div>
 
@@ -118,7 +120,7 @@
 				onclick={() => (heatmapMode = !heatmapMode)}
 				title="Toggle Heatmap Visualization"
 			>
-				<iconify-icon icon="mdi:fire" width="18" class="mr-1"></iconify-icon>
+				<CircleQuestionMark size={24} />
 				Heatmap
 			</button>
 		</div>
@@ -129,13 +131,13 @@
 		<!-- URL Line -->
 		<div class="mb-1 flex items-center gap-2 text-xs text-surface-500 dark:text-surface-50">
 			<div class="flex h-6 w-6 items-center justify-center rounded-full bg-surface-200 dark:bg-surface-700">
-				<iconify-icon icon="mdi:earth" width="14" class="text-surface-700 dark:text-surface-300"></iconify-icon>
+				<CircleQuestionMark size={24} />
 			</div>
 			<div class="flex flex-col leading-none">
 				<span class="font-bold text-surface-700 dark:text-surface-300">{publicEnv.HOST_PROD || 'Your Site'}</span>
 				<span class="truncate text-[10px]">{hostUrl}</span>
 			</div>
-			<iconify-icon icon="mdi:dots-vertical" class="ml-auto"></iconify-icon>
+			<CircleQuestionMark size={24} class="ml-auto" />
 		</div>
 
 		<!-- Title -->

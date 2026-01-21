@@ -17,7 +17,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { collections, contentStructure, setCollection, setCollectionValue, setMode, unAssigned } from '@src/stores/collectionStore.svelte';
 
 // Components
-import { widgets } from '@stores/widgetStore.svelte';
+import { widgets } from '@stores/widgetStore.svelte.ts';
 
 // Types
 import type { Category, ContentTypes, Schema } from './types';

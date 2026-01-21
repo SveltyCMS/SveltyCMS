@@ -17,6 +17,9 @@ It provides the following functionality:
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import Pencil from '@lucide/svelte/icons/pencil';
+
 	// Store
 
 	// Auth
@@ -25,7 +28,7 @@ It provides the following functionality:
 	import RoleModal from './RoleModal.svelte';
 	// Skeleton
 	import { modalState } from '@utils/modalState.svelte';
-	import { toaster } from '@stores/store.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 	// Svelte DND-actions
 	import { dndzone } from 'svelte-dnd-action';
 	import { v4 as uuidv4 } from 'uuid';
@@ -229,7 +232,7 @@ It provides the following functionality:
 							<div class="animate-flip flex items-center justify-between rounded border p-2 hover:bg-surface-500 md:flex-row">
 								<div class="flex items-center gap-2">
 									<!-- Drag Icon -->
-									<iconify-icon icon="mdi:drag" width="18" class="cursor-move text-gray-500 dark:text-gray-300"></iconify-icon>
+									<CircleQuestionMark size={24} />
 
 									{#if !role.isAdmin}
 										<input type="checkbox" checked={selectedRoles.has(role._id)} onchange={() => toggleRoleSelection(role._id)} class="mr-2" />
@@ -240,12 +243,7 @@ It provides the following functionality:
 										{role.name}
 
 										{#if role.description}
-											<iconify-icon
-												icon="material-symbols:info"
-												width="18"
-												class="ml-1 text-tertiary-500 dark:text-primary-500"
-												title={role.description}
-											></iconify-icon>
+											<CircleQuestionMark size={18} class="ml-1 text-tertiary-500 dark:text-primary-500" />
 										{/if}
 									</span>
 								</div>
@@ -257,7 +255,7 @@ It provides the following functionality:
 
 								<!-- Edit Button: changes layout depending on screen size -->
 								<button onclick={() => openModal(role)} aria-label="Edit role" class="preset-filled-secondary-500 btn">
-									<iconify-icon icon="mdi:pencil" class="text-white" width="18"></iconify-icon>
+									<Pencil class="text-white" size={18} />
 									<span class="hidden md:block">Edit</span>
 								</button>
 							</div>

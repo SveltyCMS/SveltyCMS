@@ -4,11 +4,15 @@
 A reusable modal that wraps the main Image Editor.
 -->
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import X from '@lucide/svelte/icons/x';
+
+	import Icon from '@iconify/svelte';
 	import type { MediaImage, WatermarkOptions } from '@src/utils/media/mediaModels';
 	import { setContext } from 'svelte';
 	import Editor from './Editor.svelte';
 	import EditorToolbar from './EditorToolbar.svelte';
-	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte.ts';
 	import { editorWidgets } from './widgets/registry';
 
 	let {
@@ -73,7 +77,6 @@ A reusable modal that wraps the main Image Editor.
 			handleClose();
 		}
 	}
-
 </script>
 
 {#if image}
@@ -84,7 +87,11 @@ A reusable modal that wraps the main Image Editor.
 			<div class="flex items-center gap-3 overflow-hidden">
 				{#if activeWidget}
 					<div class="flex items-center gap-2 text-primary-500 shrink-0">
-						<iconify-icon icon={activeWidget.icon} width="24" class="max-sm:width-[20px]"></iconify-icon>
+						{#if iconsData[activeWidget.icon as keyof typeof iconsData] as any}<Icon
+								icon={iconsData[activeWidget.icon as keyof typeof iconsData] as any}
+								size={24}
+								class="max-sm:width-[20px]"
+							/>{/if}
 					</div>
 					<div class="flex flex-col min-w-0">
 						<h2 id="image-editor-title" class="text-sm lg:text-lg font-bold truncate leading-tight flex items-center gap-1.5">
@@ -93,7 +100,11 @@ A reusable modal that wraps the main Image Editor.
 								<span class="max-sm:hidden text-surface-400">:</span>
 								<span class="flex items-center gap-1 text-primary-600 dark:text-primary-400 font-extrabold">
 									{#if subInfo.icon}
-										<iconify-icon icon={subInfo.icon} width="16" class="lg:width-[20px]"></iconify-icon>
+										{#if iconsData[subInfo.icon as keyof typeof iconsData] as any}<Icon
+												icon={iconsData[subInfo.icon as keyof typeof iconsData] as any}
+												size={16}
+												class="lg:width-[20px]"
+											/>{/if}
 									{/if}
 									<span>{subInfo.label}</span>
 								</span>
@@ -116,7 +127,7 @@ A reusable modal that wraps the main Image Editor.
 					title="Undo (Ctrl+Z)"
 					aria-label="Undo"
 				>
-					<iconify-icon icon="mdi:undo" width="20"></iconify-icon>
+					<CircleQuestionMark size={24} />
 				</button>
 				<button
 					onclick={() => editorComponent?.handleRedo()}
@@ -125,19 +136,19 @@ A reusable modal that wraps the main Image Editor.
 					title="Redo (Ctrl+Shift+Z)"
 					aria-label="Redo"
 				>
-					<iconify-icon icon="mdi:redo" width="20"></iconify-icon>
+					<CircleQuestionMark size={24} />
 				</button>
 				<div class="h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
 				<button onclick={handleCancelClick} class="btn preset-outlined-surface-500">
 					{activeState ? 'Exit Tool' : 'Cancel'}
 				</button>
 				<button onclick={() => editorComponent?.handleSave()} class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500">
-					<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
+					<Save size={18} />
 					<span>Save</span>
 				</button>
 				<div class="h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
 				<button onclick={handleClose} class="btn-icon preset-outlined-surface-500" aria-label="Close">
-					<iconify-icon icon="mdi:close" width="24"></iconify-icon>
+					<X size={24} />
 				</button>
 			</div>
 		</header>

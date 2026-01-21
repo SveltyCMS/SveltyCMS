@@ -34,7 +34,7 @@ is handled in reusable backend APIs.
 
 	<div class="mt-4 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
 		<div class="flex items-start space-x-3">
-			<iconify-icon icon="mdi:information" width="24" class="mt-1 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+			<Info size={24} class="mt-1 text-tertiary-500 dark:text-primary-500" />
 			<div>
 				<p class="mb-2 font-semibold">Data Management Tools:</p>
 				<ul class="list-none space-y-1 text-sm">
@@ -76,7 +76,7 @@ is handled in reusable backend APIs.
 			<h3 class="h3 mb-4">Export Configuration</h3>
 			<p class="mb-4 text-sm">Download a JSON backup of all your collections and settings.</p>
 			<button onclick={handleExport} class="preset-filled-primary-500 btn" disabled={isExporting}>
-				<iconify-icon icon="mdi:database-export" class="mr-2"></iconify-icon>
+				<DatabaseExport size={24} class="mr-2" />
 				<span>{isExporting ? 'Exporting...' : 'Download Export'}</span>
 			</button>
 		</section>
@@ -93,7 +93,7 @@ is handled in reusable backend APIs.
 			{#if importResult}
 				<div class="mt-4">
 					<h4 class="mb-2 text-sm font-bold">Import Result:</h4>
-					<pre class="card preset-tonal  max-h-64 overflow-x-auto p-4 font-mono text-xs">{importResult}</pre>
+					<pre class="card preset-tonal-surface-500  max-h-64 overflow-x-auto p-4 font-mono text-xs">{importResult}</pre>
 				</div>
 			{/if}
 		</section>

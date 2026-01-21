@@ -23,6 +23,10 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import Check from '@lucide/svelte/icons/check';
+
 	import { browser } from '$app/environment';
 	import { goto, preloadData } from '$app/navigation';
 	import { enhance } from '$app/forms';
@@ -44,15 +48,15 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import FloatingPaths from '@components/system/FloatingPaths.svelte';
 
 	// Skeleton
-	import { toaster } from '@stores/store.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import OauthLogin from './OauthLogin.svelte';
 
 	// Stores
-	import { screen } from '@stores/screenSizeStore.svelte';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+	import { screen } from '@stores/screenSizeStore.svelte.ts';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
 
 	// Props
 	const {
@@ -491,7 +495,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 					{m.form_required()}
 
 					<button onclick={handleBack} aria-label="Back" class="btn-icon preset-outlined-secondary-500 rounded-full">
-						<iconify-icon icon="ri:arrow-right-line" width="20" class="text-black"></iconify-icon>
+						<CircleQuestionMark size={24} />
 					</button>
 				</div>
 
@@ -585,7 +589,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 						<!-- 2FA Header -->
 						<div class="text-center">
 							<div class="mb-3">
-								<iconify-icon icon="mdi:shield-key" width="48" class="mx-auto text-primary-500"></iconify-icon>
+								<CircleQuestionMark size={24} />
 							</div>
 							<h3 class="h3 mb-2">{m.twofa_verify_title()}</h3>
 							<p class="text-sm text-surface-600 dark:text-surface-300">
@@ -631,8 +635,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 							<!-- Action Buttons -->
 							<div class="flex gap-3">
-								<button type="button" onclick={back2FAToLogin} class="btn preset-tonal -surface-500 flex-1" aria-label={m.button_back()}>
-									<iconify-icon icon="mdi:arrow-left" width="20" class="mr-2"></iconify-icon>
+								<button type="button" onclick={back2FAToLogin} class="btn preset-tonal-surface-500 -surface-500 flex-1" aria-label={m.button_back()}>
+									<ArrowLeft size={20} class="mr-2" />
 									{m.button_back()}
 								</button>
 
@@ -650,7 +654,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 										<img src="/Spinner.svg" alt="Loading.." class="mr-2 h-5 invert filter" />
 										{m.twofa_verifying()}
 									{:else}
-										<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
+										<Check size={20} class="mr-2" />
 										{m.twofa_verify_button()}
 									{/if}
 								</button>
@@ -726,7 +730,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 									PWreset = false;
 								}}
 							>
-								<iconify-icon icon="mdi:arrow-left-circle" width="38"></iconify-icon>
+								<CircleQuestionMark size={24} />
 							</button>
 						</div>
 					</form>
@@ -832,7 +836,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 									PWreset = false;
 								}}
 							>
-								<iconify-icon icon="mdi:arrow-left-circle" width="38"></iconify-icon>
+								<CircleQuestionMark size={24} />
 							</button>
 						</div>
 					</form>

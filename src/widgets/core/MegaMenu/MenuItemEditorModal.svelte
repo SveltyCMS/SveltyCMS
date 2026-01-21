@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Menu from '@lucide/svelte/icons/menu';
+
 	import { modalState } from '@utils/modalState.svelte';
 	import type { MenuEditContext } from './types';
 

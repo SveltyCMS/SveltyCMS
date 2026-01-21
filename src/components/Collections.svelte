@@ -13,16 +13,19 @@
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import Search from '@lucide/svelte/icons/search';
+
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 
 	import type { ContentNode, Schema, StatusType } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 
-	import { collection, contentStructure, setMode } from '@stores/collectionStore.svelte';
-	import { ui } from '@stores/UIStore.svelte';
+	import { collection, contentStructure, setMode } from '@stores/collectionStore.svelte.ts';
+	import { ui } from '@stores/UIStore.svelte.ts';
 	import { app } from '@stores/store.svelte';
-	import { widgets } from '@stores/widgetStore.svelte';
+	import { widgets } from '@stores/widgetStore.svelte.ts';
 
 	import { validateSchemaWidgets } from '@utils/widgetValidation';
 	import { debounce } from '@utils/utils';
@@ -234,7 +237,7 @@
 					class="btn rounded-full preset-outline-surface-500 {isFullSidebar ? 'h-11 w-11' : 'h-10 w-10'}"
 					aria-label="Clear search"
 				>
-					<iconify-icon icon="ic:round-close" width="16"></iconify-icon>
+					<CircleQuestionMark size={24} />
 				</button>
 			{:else}
 				<!-- Search with icon -->
@@ -243,7 +246,7 @@
 						? 'h-11 w-11 mt-px mr-px'
 						: 'h-8 w-8'}"
 				>
-					<iconify-icon icon="ic:outline-search" width="24"></iconify-icon>
+					<CircleQuestionMark size={24} />
 				</div>
 			{/if}
 		</div>
@@ -253,7 +256,7 @@
 	<div class="collections-list" role="tree" aria-label="Collection tree">
 		{#if treeNodes.length === 0}
 			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center">
-				<iconify-icon icon="bi:collection" width="32" class="text-surface-400 opacity-50"></iconify-icon>
+				<CircleQuestionMark size={24} />
 				<p class="text-sm text-surface-500 dark:text-surface-50">{m.collection_no_collections_found()}</p>
 			</div>
 		{:else}

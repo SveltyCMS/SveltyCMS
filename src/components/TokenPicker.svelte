@@ -1,5 +1,5 @@
 <!--
-@file src/components/TokenPicker.svelte
+@file src/components/TokenPicker
 @component TokenPicker – Floating token selector and configurator for input fields
 
 @features
@@ -14,20 +14,31 @@
 <script lang="ts">
 	import { activeInput } from '@src/stores/activeInputStore.svelte';
 	import { TokenRegistry, replaceTokens } from '@src/services/token/engine';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import X from '@lucide/svelte/icons/x';
+	import Search from '@lucide/svelte/icons/search';
+	import FileText from '@lucide/svelte/icons/file-text';
+	import CircleUser from '@lucide/svelte/icons/circle-user';
+	import Globe from '@lucide/svelte/icons/globe';
+	import Settings from '@lucide/svelte/icons/settings';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Info from '@lucide/svelte/icons/info';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Plus from '@lucide/svelte/icons/plus';
 	import { modifierMetadata } from '@src/services/token/modifiers';
 	import { page } from '$app/state';
 	import { collection, collectionValue } from '@src/stores/collectionStore.svelte';
-	import { ui } from '@src/stores/UIStore.svelte';
+	import { ui } from '@src/stores/UIStore.svelte.ts';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { fade, slide } from 'svelte/transition';
 	import { nowISODateString } from '@utils/dateUtils';
 	import type { TokenDefinition, ModifierMetadata } from '@src/services/token/types';
 
-	const icons: Record<string, string> = {
-		entry: 'mdi:file-document-outline',
-		user: 'mdi:account-circle-outline',
-		site: 'mdi:web',
-		system: 'mdi:cog-outline'
+	const icons: Record<string, any> = {
+		entry: FileText,
+		user: CircleUser,
+		site: Globe,
+		system: Settings
 	};
 
 	// Reactive state
@@ -280,7 +291,7 @@
 			<div class="flex items-center gap-3">
 				{#if mode === 'configure'}
 					<button onclick={back} class="btn-icon btn-icon-sm preset-outlined-surface-500" aria-label="Back">
-						<iconify-icon icon="mdi:arrow-left"></iconify-icon>
+						<ArrowLeft size={16} />
 					</button>
 				{/if}
 				<h3 class="text-lg font-bold text-tertiary-500 dark:text-primary-500">
@@ -292,34 +303,34 @@
 				</h3>
 			</div>
 			<button onclick={() => activeInput.set(null)} class="btn-icon btn-icon-sm preset-outlined-surface-500" aria-label="Close">
-				<iconify-icon icon="mdi:close"></iconify-icon>
+				<X size={16} />
 			</button>
 		</header>
 
 		{#if mode === 'list'}
 			<div class="relative mb-4">
-				<iconify-icon icon="mdi:magnify" class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"></iconify-icon>
+				<Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50" />
 				<input bind:value={search} class="input pl-10" type="search" placeholder="Search tokens..." />
 			</div>
 
 			<div class="scrollbar-thin flex-1 space-y-2 overflow-y-auto pr-1">
 				{#each Object.entries(filteredGroups) as [cat, tokens]}
-					<div class="card preset-tonal p-2">
+					<div class="card preset-tonal-surface-500 p-2">
 						<button
 							onclick={() => (openCategories[cat] = !openCategories[cat])}
 							class="flex w-full items-center justify-between text-sm font-bold uppercase opacity-70 hover:opacity-100"
 						>
 							<div class="flex items-center gap-2">
-								<iconify-icon icon={icons[cat]}></iconify-icon>
+								{#if icons[cat]}{@const IconComp = icons[cat]}<IconComp size={16} />{/if}
 								<span>{cat}</span>
 							</div>
-							<iconify-icon icon="mdi:chevron-down" class="transition-transform {openCategories[cat] || search ? 'rotate-180' : ''}"></iconify-icon>
+							<ChevronDown size={16} class="transition-transform {openCategories[cat] || search ? 'rotate-180' : ''}" />
 						</button>
 
 						{#if openCategories[cat] || search}
 							<div transition:slide class="mt-2 space-y-1">
 								{#each tokens as t}
-									<!-- svelte-ignore a11y_no_static_element_interactions -->
+									<!---ignore a11y_no_static_element_interactions -->
 									<div
 										class="card preset-filled-surface-500 hover:variant-soft-primary cursor-pointer p-2 transition-colors"
 										onclick={() => selectToken(t)}
@@ -340,7 +351,7 @@
 													aria-label="More information"
 													title="Info"
 												>
-													<iconify-icon icon="mdi:information-outline"></iconify-icon>
+													<Info size={16} />
 												</button>
 											</div>
 										</div>
@@ -385,7 +396,7 @@
 										class="btn-icon btn-icon-sm preset-outlined-error-500 text-error-500"
 										aria-label="Remove modifier"
 									>
-										<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
+										<Trash2 size={16} />
 									</button>
 								</div>
 								{#if mod.def.args.length > 0}
@@ -419,7 +430,7 @@
 					<div class="flex flex-wrap gap-2">
 						{#each availableModifiers as m}
 							<button onclick={() => addModifier(m)} class="chip preset-filled-surface-500 hover:variant-filled-secondary transition-colors">
-								<iconify-icon icon="mdi:plus"></iconify-icon>
+								<Plus size={16} />
 								{m.label}
 							</button>
 						{/each}
@@ -445,7 +456,7 @@
 				<div>
 					<div class="mb-1 text-[10px] uppercase opacity-50">Live Result</div>
 					{#if isLoadingPreview}
-						<div class="card preset-tonal animate-pulse p-3 text-sm">Resolving...</div>
+						<div class="card preset-tonal-surface-500 animate-pulse p-3 text-sm">Resolving...</div>
 					{:else}
 						<div class="card variant-soft-secondary p-3 text-sm font-bold">
 							{resolvedPreview || '(Empty)'}
@@ -455,10 +466,10 @@
 
 				<div class="flex gap-2">
 					<button onclick={deleteToken} class="btn variant-soft-error" title="Clear input">
-						<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
+						<Trash2 size={16} />
 					</button>
 					<button onclick={addAnotherToken} class="btn preset-tonal-surface flex-1">
-						<iconify-icon icon="mdi:plus"></iconify-icon>
+						<Plus size={16} />
 						Add Another
 					</button>
 					<button onclick={insert} class="btn preset-filled-primary-500 flex-1 font-bold"> Insert Token </button>

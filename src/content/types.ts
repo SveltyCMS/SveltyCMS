@@ -19,7 +19,7 @@
  * - Describe the data contract for API endpoints related to content.
  */
 
-import type { WidgetRegistry as widgets } from '@stores/widgetStore.svelte';
+import type { WidgetRegistry as widgets } from '@stores/widgetStore.svelte.ts';
 // Note: collectionSchemas may be used in the future for runtime validation
 
 // Auth
@@ -223,6 +223,7 @@ export interface Schema {
 	links?: Array<ContentTypes>;
 	fields: FieldDefinition[];
 	translations?: Translation[]; // Optional translations with enhanced metadata
+	plugins?: string[]; // Enabled plugin IDs for this collection
 	tenantId?: string; // For multi-tenant support
 }
 

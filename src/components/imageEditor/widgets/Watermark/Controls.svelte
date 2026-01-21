@@ -4,6 +4,9 @@
 Controls for the Watermark tool. Allows adding, deleting, and positioning watermarks.
 -->
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
+	import Icon from '@iconify/svelte';
 	let {
 		onAddWatermark,
 		onDeleteWatermark,
@@ -31,7 +34,7 @@ Controls for the Watermark tool. Allows adding, deleting, and positioning waterm
 
 <div class="flex w-full items-center gap-4">
 	<button onclick={onAddWatermark} class="btn preset-outlined-surface-500">
-		<iconify-icon icon="mdi:plus-box-outline"></iconify-icon>
+		<CircleQuestionMark size={24} />
 		<span>Add Watermark</span>
 	</button>
 
@@ -41,7 +44,7 @@ Controls for the Watermark tool. Allows adding, deleting, and positioning waterm
 		<div class="btn-group preset-outlined-surface-500">
 			{#each positions as pos}
 				<button class="btn-sm" onclick={() => onPositionChange(pos.value)} title={pos.value}>
-					<iconify-icon icon={pos.icon}></iconify-icon>
+					{#if iconsData[pos.icon as keyof typeof iconsData] as any}<Icon icon={iconsData[pos.icon as keyof typeof iconsData] as any} />{/if}
 				</button>
 			{/each}
 		</div>
@@ -49,7 +52,7 @@ Controls for the Watermark tool. Allows adding, deleting, and positioning waterm
 		<div class="grow"></div>
 
 		<button onclick={onDeleteWatermark} class="btn preset-outlined-error-500">
-			<iconify-icon icon="mdi:delete-outline"></iconify-icon>
+			<CircleQuestionMark size={24} />
 			<span>Delete</span>
 		</button>
 	{/if}

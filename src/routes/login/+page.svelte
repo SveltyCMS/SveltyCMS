@@ -17,6 +17,9 @@
 -->
 
 <script lang="ts">
+	import MenuIcon from '@lucide/svelte/icons/menu';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+
 	import { getPublicSetting, publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Components
@@ -27,7 +30,7 @@
 	import VersionCheck from '@components/VersionCheck.svelte';
 
 	// Stores
-	import { systemLanguage } from '@stores/store.svelte';
+	import { systemLanguage } from '@stores/store.svelte.ts';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { locales as availableLocales } from '@src/paraglide/runtime';
 
@@ -364,7 +367,7 @@
 					aria-label="Select language"
 				>
 					<span>{getLanguageName(currentLanguage)}</span>
-					<iconify-icon icon="mdi:chevron-up" width="20"></iconify-icon>
+					<ChevronUp size={20} />
 				</Menu.Trigger>
 
 				<Portal>

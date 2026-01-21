@@ -15,12 +15,15 @@ All dynamic CMS settings organized into logical groups
 -->
 
 <script lang="ts">
+	import Settings from '@lucide/svelte/icons/settings';
+	import Search from '@lucide/svelte/icons/search';
+
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import PageTitle from '@components/PageTitle.svelte';
 	import { logger } from '@utils/logger';
-	import { groupsNeedingConfig } from '@stores/configStore.svelte';
+	import { groupsNeedingConfig } from '@stores/configStore.svelte.ts';
 
 	// Import settings structure
 	import { getSettingGroupsByRole } from './settingsGroups';

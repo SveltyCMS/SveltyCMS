@@ -23,7 +23,7 @@ latest version available on GitHub with comprehensive status reporting.
 -->
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { publicEnv } from '@stores/globalSettings.svelte';
+	import { publicEnv } from '@stores/globalSettings.svelte.ts';
 	import { browser } from '$app/environment';
 
 	// Types

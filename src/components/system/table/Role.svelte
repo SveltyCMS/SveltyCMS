@@ -17,6 +17,7 @@
 -->
 
 <script lang="ts">
+	import Icon from '@iconify/svelte';
 	// Auth
 	import type { Role } from '@src/databases/auth/types';
 
@@ -53,7 +54,11 @@
 
 <span class="badge {roleClasses(value)}">
 	{#if iconForRole(value)}
-		<iconify-icon icon={iconForRole(value)} width="20"></iconify-icon> {roleName(value)}
+		{#if iconsData[iconForRole(value) as keyof typeof iconsData] as any}<Icon
+				icon={iconsData[iconForRole(value) as keyof typeof iconsData] as any}
+				size={20}
+			/>{/if}
+		{roleName(value)}
 	{:else}
 		<span>{roleName(value)}</span>
 	{/if}

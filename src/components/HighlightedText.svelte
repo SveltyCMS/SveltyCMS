@@ -31,6 +31,10 @@ Intelligent text highlighting with character limits and expand/collapse function
 -->
 
 <script lang="ts">
+	import Search from '@lucide/svelte/icons/search';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+
 	import { fade } from 'svelte/transition';
 	import { onMount } from 'svelte';
 
@@ -180,7 +184,7 @@ Intelligent text highlighting with character limits and expand/collapse function
 			transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>
 			{isExpanded ? 'Show Less' : 'Show More'}
-			<iconify-icon icon={isExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="16" aria-hidden="true"></iconify-icon>
+			{#if isExpanded}<ChevronUp size={16} aria-hidden="true" />{:else}<ChevronDown size={16} aria-hidden="true" />{/if}
 		</button>
 	{/if}
 
@@ -191,7 +195,7 @@ Intelligent text highlighting with character limits and expand/collapse function
 			title="Number of matches found"
 			transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>
-			<iconify-icon icon="mdi:magnify" width="12" aria-hidden="true"></iconify-icon>
+			<Search size={12} aria-hidden="true" />
 			{matchCount} match{matchCount !== 1 ? 'es' : ''}
 		</span>
 	{/if}

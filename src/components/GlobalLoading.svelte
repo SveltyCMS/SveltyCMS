@@ -22,7 +22,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 <script lang="ts">
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import * as m from '@src/paraglide/messages';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
 	import { onMount } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
 

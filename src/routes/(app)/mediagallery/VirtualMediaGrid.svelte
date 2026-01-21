@@ -23,6 +23,12 @@ Implements custom virtual scrolling without external dependencies.
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import X from '@lucide/svelte/icons/x';
+	import Menu from '@lucide/svelte/icons/menu';
+
+	import Icon from '@iconify/svelte';
 	import { formatBytes } from '@utils/utils';
 
 	import type { MediaImage, MediaBase } from '@utils/media/mediaModels';
@@ -349,17 +355,20 @@ Implements custom virtual scrolling without external dependencies.
 				class="preset-outline-surface-500 btn-sm"
 				aria-label="Toggle selection mode"
 			>
-				<iconify-icon icon={isSelectionMode ? 'mdi:close' : 'mdi:checkbox-multiple-marked'} width="20"></iconify-icon>
+				{#if iconsData[isSelectionMode ? 'mdi:close' : ('mdi:checkbox-multiple-marked' as keyof typeof iconsData)] as any}<Icon
+						icon={iconsData[isSelectionMode ? 'mdi:close' : ('mdi:checkbox-multiple-marked' as keyof typeof iconsData)] as any}
+						size={20}
+					/>{/if}
 				{isSelectionMode ? 'Cancel' : 'Select'}
 			</button>
 
 			{#if isSelectionMode}
 				<button onclick={selectAll} class="preset-outline-surface-500 btn-sm">
-					<iconify-icon icon="mdi:select-all" width="20"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					All
 				</button>
 				<button onclick={deselectAll} class="preset-outline-surface-500 btn-sm">
-					<iconify-icon icon="mdi:select-off" width="20"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					None
 				</button>
 			{/if}
@@ -370,27 +379,27 @@ Implements custom virtual scrolling without external dependencies.
 				<span class="text-sm font-semibold">{selectedFiles.size} selected</span>
 
 				<button onclick={handleBulkDownload} class="preset-filled-primary-500 btn-sm">
-					<iconify-icon icon="mdi:download" width="18"></iconify-icon>
+					<Download size={18} />
 					Download
 				</button>
 
 				<button onclick={() => openBulkEditModal('tag')} class="preset-filled-secondary-500 btn-sm">
-					<iconify-icon icon="mdi:tag-multiple" width="18"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					Tag
 				</button>
 
 				<button onclick={() => openBulkEditModal('move')} class="preset-filled-secondary-500 btn-sm">
-					<iconify-icon icon="mdi:folder-move" width="18"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					Move
 				</button>
 
 				<button onclick={() => openBulkEditModal('rename')} class="preset-filled-secondary-500 btn-sm">
-					<iconify-icon icon="mdi:rename-box" width="18"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					Rename
 				</button>
 
 				<button onclick={handleBulkDelete} class="preset-filled-error-500 btn-sm">
-					<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
+					<Trash2 size={18} />
 					Delete
 				</button>
 			</div>
@@ -402,7 +411,7 @@ Implements custom virtual scrolling without external dependencies.
 		{#if filteredFiles.length === 0}
 			<div class="flex h-full items-center justify-center text-center text-tertiary-500 dark:text-primary-500">
 				<div>
-					<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
+					<CircleQuestionMark size={24} class="mb-2" />
 					<p class="text-lg">No media found</p>
 				</div>
 			</div>
@@ -441,12 +450,12 @@ Implements custom virtual scrolling without external dependencies.
 									aria-label="File Info"
 									class="btn-icon"
 								>
-									<iconify-icon icon="raphael:info" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+									<CircleQuestionMark size={24} />
 								</button>
 
 								{#if activePopup === fileId}
 									<div
-										class="card preset-filled z-50 min-w-[250px] p-2 absolute left-8 top-0 shadow-xl"
+										class="card preset-filled-surface-500 z-50 min-w-[250px] p-2 absolute left-8 top-0 shadow-xl"
 										onclick={(e) => e.stopPropagation()}
 										onkeydown={(e) => e.stopPropagation()}
 										role="dialog"
@@ -465,7 +474,7 @@ Implements custom virtual scrolling without external dependencies.
 										<!-- Close button for mobile/convenience -->
 										<div class="flex justify-end mt-2">
 											<button class="btn-icon btn-icon-sm preset-filled-surface-500" aria-label="Close" onclick={() => (activePopup = null)}>
-												<iconify-icon icon="mdi:close" width="16"></iconify-icon>
+												<X size={16} />
 											</button>
 										</div>
 									</div>
@@ -474,11 +483,11 @@ Implements custom virtual scrolling without external dependencies.
 								{#if !isSelectionMode}
 									{#if file.type === 'image'}
 										<button onclick={() => onEditImage(file as MediaImage)} aria-label="Edit" class="btn-icon">
-											<iconify-icon icon="mdi:pen" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+											<CircleQuestionMark size={24} />
 										</button>
 									{/if}
 									<button onclick={() => handleDelete(file)} aria-label="Delete" class="btn-icon">
-										<iconify-icon icon="mdi:delete" width="20" class="text-error-500"></iconify-icon>
+										<Trash2 size={20} class="text-error-500" />
 									</button>
 								{/if}
 							</header>
@@ -502,7 +511,7 @@ Implements custom virtual scrolling without external dependencies.
 									/>
 								{:else}
 									<div class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-700">
-										<iconify-icon icon="bi:exclamation-triangle-fill" height="24" class="text-warning-500"></iconify-icon>
+										<CircleQuestionMark size={24} class="text-warning-500" />
 									</div>
 								{/if}
 							</section>

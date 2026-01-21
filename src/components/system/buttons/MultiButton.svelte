@@ -23,6 +23,7 @@
 -->
 
 <script lang="ts">
+	import Icon from '@iconify/svelte';
 	import { logger } from '@utils/logger';
 
 	// Stores
@@ -90,7 +91,9 @@
 		aria-label="Create"
 		onclick={buttons[defaultButton].fn}
 	>
-		<iconify-icon class="md:hidden" icon={buttons[defaultButton].icon}></iconify-icon>
+		{#if iconsData[buttons[defaultButton].icon as keyof typeof iconsData]}
+			<Icon icon={iconsData[buttons[defaultButton].icon as keyof typeof iconsData]} class="md:hidden" />
+		{/if}
 		<span class="max-md:hidden">
 			{defaultButton}
 		</span>
@@ -116,7 +119,9 @@
 					style="--color:{buttons[button].color};--bg-color:{buttons[button].bg_color || 'rgb(37, 36, 36)'}"
 					class="w-full border-b border-gray-700 bg-gray-800 px-4 py-2 text-lg font-medium text-white last:border-0 hover:bg-gray-600"
 				>
-					<iconify-icon icon={buttons[button].icon}></iconify-icon>
+					{#if iconsData[buttons[button].icon as keyof typeof iconsData] as any}<Icon
+							icon={iconsData[buttons[button].icon as keyof typeof iconsData] as any}
+						/>{/if}
 					{button}
 				</button>
 			{/if}

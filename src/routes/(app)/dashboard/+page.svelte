@@ -19,15 +19,32 @@
 - Lazy loading with Intersection Observer for optimal performance
 -->
 <script lang="ts">
-	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
-	import PageTitle from '@components/PageTitle.svelte';
-	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
-	import { themeStore } from '@stores/themeStore.svelte';
-	import { systemPreferences } from '@stores/systemPreferences.svelte';
-	import { logger } from '@utils/logger';
 	import { onMount } from 'svelte';
 	import { flip } from 'svelte/animate';
+
+	// Types
 	import type { PageData } from './$types';
+	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
+
+	// Components
+	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
+	import Icon from '@iconify/svelte';
+
+	// Stores
+	import { themeStore } from '@stores/themeStore.svelte.ts';
+	import { systemPreferences } from '@stores/systemPreferences.svelte.ts';
+
+	// System logger
+	import { logger } from '@utils/logger';
+
+	// Lucide Icons
+	import RefreshCcw from '@lucide/svelte/icons/refresh-ccw';
+	import Plus from '@lucide/svelte/icons/plus';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
+	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
+	import X from '@lucide/svelte/icons/x';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
 
 	const { data }: { data: PageData } = $props();
 
@@ -403,7 +420,7 @@
 			<!-- Reset All Button - Small and subtle -->
 			{#if currentPreferences.length > 0}
 				<button class="preset-outlined-surface-500 btn-icon" onclick={resetAllWidgets} aria-label="Reset all widgets" title="Reset all widgets">
-					<iconify-icon icon="mdi:refresh"></iconify-icon>
+					<RefreshCcw size={20} />
 				</button>
 			{/if}
 			<!-- Add Widget Button -->
@@ -416,7 +433,7 @@
 						aria-expanded={dropdownOpen}
 						aria-label="Add Widget"
 					>
-						<iconify-icon icon="mdi:plus" class="mr-2"></iconify-icon>
+						<Plus size={18} class="mr-2" />
 						Add Widget
 					</button>
 				{/if}
@@ -437,7 +454,11 @@
 									title={widgetInfo?.description}
 									role="menuitem"
 								>
-									<iconify-icon icon={widgetInfo?.icon || 'mdi:widgets'} class="text-primary-500"></iconify-icon>
+									{#if widgetInfo?.icon}
+										<Icon icon={widgetInfo.icon} width="20" class="text-primary-500" />
+									{:else}
+										<LayoutDashboard size={20} class="text-primary-500" />
+									{/if}
 									<div class="flex flex-col">
 										<span>{widgetInfo?.name || widgetName}</span>
 									</div>
@@ -495,7 +516,7 @@
 							{:else if WidgetComponent === null}
 								<!-- Error state -->
 								<div class="card preset-ghost-error-500 flex h-full flex-col items-center justify-center p-4">
-									<iconify-icon icon="mdi:alert-circle-outline" width="48" class="mb-2 text-error-500"></iconify-icon>
+									<CircleAlert size={48} class="mb-2 text-error-500" />
 									<h3 class="h4 mb-2">Widget Load Error</h3>
 									<p class="text-sm">Failed to load: {item.component}</p>
 									<button class="preset-filled-error-500 btn-sm mt-4" onclick={() => removeWidget(item.id)}> Remove Widget </button>
@@ -523,8 +544,7 @@
 			{:else}
 				<div class="mx-auto flex h-[60vh] w-full flex-col items-center justify-center text-center">
 					<div class="flex flex-col items-center px-10 py-12">
-						<iconify-icon icon="mdi:view-dashboard-outline" width="80" class="mb-6 text-tertiary-500 drop-shadow-lg dark:text-primary-500"
-						></iconify-icon>
+						<LayoutDashboard size={80} class="mb-6 text-tertiary-500 drop-shadow-lg dark:text-primary-500" />
 						<p class="mb-2 text-2xl font-bold text-tertiary-500 dark:text-primary-500">Your Dashboard is Empty</p>
 						<p class="mb-6 text-base text-surface-600 dark:text-surface-300">Click below to add your first widget and get started.</p>
 						<button
@@ -532,7 +552,7 @@
 							onclick={() => (dropdownOpen = true)}
 							aria-label="Add first widget"
 						>
-							<iconify-icon icon="mdi:plus" width="22" class="mr-2"></iconify-icon>
+							<Plus size={22} class="mr-2" />
 							Add Widget
 						</button>
 					</div>
@@ -549,7 +569,7 @@
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>
 				<button onclick={() => (showImportExport = false)} class="preset-ghost btn-sm" aria-label="Close import/export modal">
-					<iconify-icon icon="mdi:close" class="h-5 w-5"></iconify-icon>
+					<X size={20} />
 				</button>
 			</div>
 
@@ -559,7 +579,7 @@
 
 			<div class="flex items-center justify-between border-t bg-surface-100 p-6 dark:bg-surface-700">
 				<div class="text-sm text-gray-600 dark:text-gray-400">
-					<iconify-icon icon="mdi:shield-check" class="mr-1 inline h-4 w-4"></iconify-icon>
+					<ShieldCheck size={16} class="mr-1 inline" />
 					Your data is securely managed and never leaves your server
 				</div>
 				<div class="flex space-x-2">

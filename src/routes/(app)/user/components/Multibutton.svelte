@@ -14,6 +14,11 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import Menu from '@lucide/svelte/icons/menu';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+
+	import Icon from '@iconify/svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { scale } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
@@ -24,10 +29,10 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import { storeListboxValue } from '@stores/store.svelte';
+	import { storeListboxValue } from '@stores/store.svelte.ts';
 
 	// Skeleton & Utils
-	import { toaster } from '@stores/store.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 	import { modalState } from '@utils/modalState.svelte';
 	import { showConfirm } from '@utils/modalUtils';
 
@@ -522,7 +527,10 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 				rounded-l-full rounded-r-none px-6 flex items-center justify-center gap-2 border-r border-white/20"
 			aria-label="{listboxValue} selected items"
 		>
-			<iconify-icon icon={actionConfig[listboxValue].iconValue} width="20"></iconify-icon>
+			{#if iconsData[actionConfig[listboxValue].iconValue as keyof typeof iconsData] as any}<Icon
+					icon={iconsData[actionConfig[listboxValue].iconValue as keyof typeof iconsData] as any}
+					size={20}
+				/>{/if}
 			<span class="uppercase tracking-wider">{listboxValue}</span>
 		</button>
 
@@ -537,8 +545,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			aria-expanded={isDropdownOpen}
 			aria-label="Toggle actions menu"
 		>
-			<iconify-icon icon="ic:round-keyboard-arrow-down" width="24" class="transition-transform duration-200 {isDropdownOpen ? 'rotate-180' : ''}"
-			></iconify-icon>
+			<CircleQuestionMark size={24} />
 		</button>
 
 		<!-- Dropdown Menu -->
@@ -566,7 +573,10 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 								<div
 									class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-700/50 transition-transform group-hover/item:scale-110"
 								>
-									<iconify-icon icon={config.iconValue} width="16"></iconify-icon>
+									{#if iconsData[config.iconValue as keyof typeof iconsData] as any}<Icon
+											icon={iconsData[config.iconValue as keyof typeof iconsData] as any}
+											size={16}
+										/>{/if}
 								</div>
 
 								<!-- Label -->
@@ -576,9 +586,9 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 								<!-- Check Indicator or Chevron -->
 								{#if hoveredAction === action}
-									<iconify-icon icon="mdi:chevron-right" width="18" class="relative z-10 text-white"></iconify-icon>
+									<ChevronRight size={18} class="relative z-10 text-white" />
 								{:else if listboxValue === action}
-									<iconify-icon icon="mdi:check" width="18" class="relative z-10 text-primary-500"></iconify-icon>
+									<Check size={18} class="relative z-10 text-primary-500" />
 								{/if}
 							</button>
 						</li>

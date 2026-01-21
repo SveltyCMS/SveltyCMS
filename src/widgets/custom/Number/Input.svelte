@@ -36,7 +36,7 @@
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Stores
-	import { app, validationStore } from '@stores/store.svelte';
+	import { app, validationStore } from '@stores/store.svelte.ts';
 
 	import { getFieldName } from '@utils/utils';
 	import { tokenTarget } from '@src/services/token/tokenTarget';

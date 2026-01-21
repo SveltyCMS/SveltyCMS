@@ -14,7 +14,7 @@
 	const { fill = 'red', className = '' }: Props = $props();
 </script>
 
-<svg width="72" height="57" xmlns="http://www.w3.org/2000/svg" xml:space="preserve" {fill} class={className} viewBox="0 0 72 57">
+<svg size={72} xmlns="http://www.w3.org/2000/svg" xml:space="preserve" {fill} class={className} viewBox="0 0 72 57">
 	<defs>
 		<clipPath id="clippath">
 			<rect id="svg_1" stroke-width="0px" fill="none" height="16.07" width="62.04" x="9.96" class="cls-2" />

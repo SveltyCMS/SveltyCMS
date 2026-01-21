@@ -4,13 +4,24 @@
 -->
 
 <script lang="ts">
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	// Components
+	import Icon from '@iconify/svelte';
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
+	// Data
+
+	// Svelte
 	import { onMount, onDestroy } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
 	import { createEditor } from './tiptap';
+
 	import type { Editor } from '@tiptap/core';
 	import type { FieldType } from './';
 	import type { RichTextData } from './types';
+
+	// Stores
 	import { app } from '@src/stores/store.svelte';
 
 	import { showModal } from '@utils/modalUtils';
@@ -445,11 +456,11 @@
 										title={btn.label}
 									>
 										{#if btn.icon}
-											<iconify-icon icon="mdi:{btn.icon}" width="20"></iconify-icon>
+											<CircleQuestionMark size={24} />
 										{/if}
 										{#if !btn.icon || btn.label !== 'Table'}
 											<span class={btn.icon ? 'hidden sm:inline' : ''}>{btn.label}</span>
-											<iconify-icon icon="mdi:chevron-down"></iconify-icon>
+											{#if iconsData['chevron-down' as keyof typeof iconsData]}<ChevronDown icon={ChevronDown} size={16} />{/if}
 										{/if}
 									</button>
 									{#if activeDropdown === btn.label}
@@ -527,7 +538,7 @@
 									title={btn.shortcut ? `${btn.label} (${btn.shortcut})` : btn.label}
 									onclick={btn.cmd}
 								>
-									<iconify-icon icon="mdi:{btn.icon}" width="20"></iconify-icon>
+									<CircleQuestionMark size={24} />
 								</button>
 							{/if}
 						{/each}
@@ -664,7 +675,7 @@
 							showSlashMenu = false;
 						}}
 					>
-						<iconify-icon icon="mdi:arrow-down-bold" width="22" class="text-surface-600 dark:text-surface-50"></iconify-icon>
+						<CircleQuestionMark size={22} />
 						<div class="text-left">
 							<div class="font-medium text-surface-900 dark:text-white">Hard Break</div>
 							<div class="text-sm text-surface-500 dark:text-surface-50">Insert line break</div>
@@ -678,7 +689,7 @@
 								showSlashMenu = false;
 							}}
 						>
-							<iconify-icon icon="mdi:sparkles" width="22" class="text-purple-600"></iconify-icon>
+							<CircleQuestionMark size={22} />
 							<div class="text-left">
 								<div class="font-medium text-surface-900 dark:text-white">Ask AI</div>
 								<div class="text-sm text-surface-500 dark:text-surface-50">Generate or rewrite with AI</div>

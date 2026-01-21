@@ -51,6 +51,7 @@
 </script>
 
 <script lang="ts">
+	import Icon from '@iconify/svelte';
 	import { logger } from '@utils/logger';
 	import TreeViewComponent from './TreeView.svelte';
 	const TreeView = TreeViewComponent;
@@ -456,8 +457,15 @@
 				<!-- Icon -->
 				{#if node.icon}
 					<div class="relative flex shrink-0 items-center">
-						<iconify-icon icon={node.icon} width={compact ? '20' : '24'} height={compact ? '20' : '24'} class={iconColorClass} aria-hidden="true"
-						></iconify-icon>
+						{#if iconsData[node.icon as keyof typeof iconsData]}
+							<Icon
+								icon={iconsData[node.icon as keyof typeof iconsData] as any}
+								width={compact ? '20' : '24'}
+								height={compact ? '20' : '24'}
+								class={iconColorClass}
+								aria-hidden="true"
+							/>
+						{/if}
 					</div>
 				{/if}
 

@@ -12,9 +12,12 @@ Features:
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
+	import Icon from '@iconify/svelte';
 	import { goto } from '$app/navigation';
 	import type { TreeViewItem } from '@utils/treeViewAdapter';
-	import { screen } from '@stores/screenSizeStore.svelte';
+	import { screen } from '@stores/screenSizeStore.svelte.ts';
 	// Tree View
 
 	interface Props {
@@ -63,7 +66,7 @@ Features:
 	{#if item.hasChildren || isCategory}
 		<button
 			type="button"
-			class="btn-icon preset-tonal hover:preset-filled transition-all duration-200 hover:scale-110"
+			class="btn-icon preset-tonal-surface-500 hover:preset-filled-surface-500 transition-all duration-200 hover:scale-110"
 			onclick={(e) => {
 				e.stopPropagation();
 				console.log('Toggle clicked', { toggle, isOpen });
@@ -71,7 +74,11 @@ Features:
 			}}
 			aria-label={isOpen ? 'Collapse' : 'Expand'}
 		>
-			<iconify-icon icon={isOpen ? 'bi:chevron-down' : 'bi:chevron-right'} width="20" class="transition-transform duration-200"></iconify-icon>
+			{#if iconsData[isOpen ? 'bi:chevron-down' : ('bi:chevron-right' as keyof typeof iconsData)] as any}<Icon
+					icon={iconsData[isOpen ? 'bi:chevron-down' : ('bi:chevron-right' as keyof typeof iconsData)] as any}
+					size={20}
+					class="transition-transform duration-200"
+				/>{/if}
 		</button>
 	{:else}
 		<div class="w-10"></div>
@@ -79,7 +86,11 @@ Features:
 
 	<!-- Icon with Animation -->
 	<div class="relative">
-		<iconify-icon {icon} width="24" class={iconClass}></iconify-icon>
+		{#if iconsData[icon as keyof typeof iconsData] as any}<Icon
+				icon={iconsData[icon as keyof typeof iconsData] as any}
+				size={24}
+				class={iconClass}
+			/>{/if}
 		{#if isCategory}
 			<div class="absolute -top-1 -right-1 w-2 h-2 bg-tertiary-500 rounded-full animate-pulse"></div>
 		{/if}
@@ -133,7 +144,7 @@ Features:
 		<!-- Edit Button -->
 		<button
 			type="button"
-			class="btn-icon preset-tonal hover:preset-filled rounded transition-all duration-200 hover:scale-110"
+			class="btn-icon preset-tonal-surface-500 hover:preset-filled-surface-500 rounded transition-all duration-200 hover:scale-110"
 			onclick={(e) => {
 				e.stopPropagation();
 				if (isCategory) {
@@ -144,42 +155,42 @@ Features:
 			}}
 			title="Edit"
 		>
-			<iconify-icon icon="mdi:pencil-outline" width="18" class="text-primary-500"></iconify-icon>
+			<CircleQuestionMark size={24} />
 		</button>
 
 		<!-- Duplicate Button -->
 		<button
 			type="button"
-			class="btn-icon preset-tonal hover:preset-filled rounded transition-all duration-200 hover:scale-110"
+			class="btn-icon preset-tonal-surface-500 hover:preset-filled-surface-500 rounded transition-all duration-200 hover:scale-110"
 			onclick={(e) => {
 				e.stopPropagation();
 				onDuplicate?.(item);
 			}}
 			title="Duplicate"
 		>
-			<iconify-icon icon="mdi:content-copy" width="18" class="text-tertiary-500"></iconify-icon>
+			<Copy size={24} />
 		</button>
 
 		<!-- Delete Button -->
 		<button
 			type="button"
-			class="btn-icon preset-tonal hover:preset-filled rounded transition-all duration-200 hover:scale-110"
+			class="btn-icon preset-tonal-surface-500 hover:preset-filled-surface-500 rounded transition-all duration-200 hover:scale-110"
 			onclick={(e) => {
 				e.stopPropagation();
 				onDelete?.(item);
 			}}
 			title="Delete"
 		>
-			<iconify-icon icon="lucide:trash-2" width="18" class="text-error-500"></iconify-icon>
+			<CircleQuestionMark size={24} />
 		</button>
 
 		<!-- Drag Handle with Enhanced Visual -->
 		<div
-			class="btn-icon preset-tonal rounded cursor-grab active:cursor-grabbing opacity-60 hover:opacity-100 flex items-center justify-center ml-2 hover:bg-surface-300 dark:hover:bg-surface-600 transition-all duration-200 hover:scale-110"
+			class="btn-icon preset-tonal-surface-500 rounded cursor-grab active:cursor-grabbing opacity-60 hover:opacity-100 flex items-center justify-center ml-2 hover:bg-surface-300 dark:hover:bg-surface-600 transition-all duration-200 hover:scale-110"
 			aria-hidden="true"
 			title="Drag to reorder"
 		>
-			<iconify-icon icon="mdi:drag-vertical" width="22"></iconify-icon>
+			<CircleQuestionMark size={24} />
 		</div>
 	</div>
 </div>

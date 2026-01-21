@@ -18,6 +18,8 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
 	import { logger } from '@utils/logger';
 	import axios from 'axios';
 	import { onMount } from 'svelte';
@@ -27,9 +29,9 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Stores
 	import { page } from '$app/state';
-	import { tabSet } from '@stores/store.svelte';
+	import { tabSet } from '@stores/store.svelte.ts';
 	import { collection, setCollection } from '@src/stores/collectionStore.svelte';
-	import { setRouteContext } from '@src/stores/UIStore.svelte';
+	import { setRouteContext } from '@src/stores/UIStore.svelte.ts';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -42,10 +44,10 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	// Skeleton
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	// import { Tab, TabGroup } from '@skeletonlabs/skeleton-svelte';
-	import { toaster } from '@stores/store.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 	import { showConfirm } from '@utils/modalUtils';
 
-	import { widgetStoreActions } from '@stores/widgetStore.svelte';
+	import { widgetStoreActions } from '@stores/widgetStore.svelte.ts';
 
 	// Create local tabSet variable for binding
 	let localTabSet = $state(String(tabSet.value));
@@ -231,7 +233,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	<!-- Back -->
 	<button onclick={() => history.back()} type="button" aria-label="Back" class="preset-outlined-primary-500 btn-icon">
-		<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
+		<ArrowLeft size={24} />
 	</button>
 </div>
 
@@ -264,7 +266,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 				<!-- Edit -->
 				<Tabs.Trigger value="0">
 					<div class="flex items-center gap-1 py-2 px-4">
-						<iconify-icon icon="ic:baseline-edit" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<CircleQuestionMark size={24} />
 						<span class:active={tabSet.value === 0} class:text-tertiary-500={tabSet.value === 0} class:text-primary-500={tabSet.value === 0}
 							>{m.button_edit()}</span
 						>
@@ -274,7 +276,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 				<!-- Widget Fields -->
 				<Tabs.Trigger value="1" data-testid="widget-fields-tab">
 					<div class="flex items-center gap-1 py-2 px-4">
-						<iconify-icon icon="mdi:widgets-outline" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<CircleQuestionMark size={24} />
 						<span class:active={tabSet.value === 1} class:text-tertiary-500={tabSet.value === 2} class:text-primary-500={tabSet.value === 2}
 							>{m.collection_widgetfields()}</span
 						>

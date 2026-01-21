@@ -8,7 +8,7 @@ import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 
-import { widgets } from '@stores/widgetStore.svelte';
+import { widgets } from '@stores/widgetStore.svelte.ts';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	const start = performance.now();

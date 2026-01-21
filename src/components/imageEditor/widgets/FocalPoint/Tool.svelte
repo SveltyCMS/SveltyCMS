@@ -11,8 +11,10 @@ Allows users to set the focal point of an image with rule of thirds grid overlay
 -->
 
 <script lang="ts">
+	import X from '@lucide/svelte/icons/x';
+
 	import Konva from 'konva';
-	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte.ts';
 	import FocalPointControls from './Controls.svelte';
 
 	// --- Svelte 5 State ---

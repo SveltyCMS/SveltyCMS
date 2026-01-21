@@ -23,9 +23,13 @@ This modal displays the QR code for setting up 2FA and handles verification.
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+
 	// Utils
 	import { logger } from '@utils/logger';
-	import { toaster } from '@stores/store.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 
 	// Skeleton
 	// getModalStore deprecated - use modalState from @utils/modalState.svelte;
@@ -172,11 +176,11 @@ This modal displays the QR code for setting up 2FA and handles verification.
 						<button
 							type="button"
 							onclick={() => copyToClipboard(secret)}
-							class="preset-tonal -primary-500 btn-sm"
+							class="preset-tonal-surface-500 -primary-500 btn-sm"
 							title={m.button_copy()}
 							aria-label={m.button_copy()}
 						>
-							<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>
+							<Copy size={24} />
 						</button>
 					</div>
 				</div>
@@ -213,7 +217,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		<div class="modal-form {cForm}">
 			<div class="text-center">
 				<div class="mb-4">
-					<iconify-icon icon="mdi:check-circle" width="64" class="mx-auto text-success-500"></iconify-icon>
+					<CircleCheck size={64} class="mx-auto text-success-500" />
 				</div>
 
 				<p class="mb-6 text-surface-600 dark:text-surface-300">
@@ -225,7 +229,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 			{#if backupCodes.length > 0}
 				<div class="preset-ghost-warning-500 rounded-lg border p-4">
 					<div class="mb-3 flex items-start gap-3">
-						<iconify-icon icon="mdi:key-variant" width="24" class="shrink-0"></iconify-icon>
+						<CircleQuestionMark size={24} />
 						<div class="flex-1">
 							<h5 class="mb-1 font-semibold">{m.twofa_backup_codes_title()}</h5>
 							<p class="text-sm">{m.twofa_backup_codes_save_description()}</p>
@@ -241,14 +245,14 @@ This modal displays the QR code for setting up 2FA and handles verification.
 					</div>
 
 					<div class="mb-3 flex justify-center">
-						<button type="button" onclick={() => copyToClipboard(backupCodes.join('\n'))} class="preset-tonal -primary-500 btn-sm">
-							<iconify-icon icon="mdi:content-copy" width="16" class="mr-1"></iconify-icon>
+						<button type="button" onclick={() => copyToClipboard(backupCodes.join('\n'))} class="preset-tonal-surface-500 -primary-500 btn-sm">
+							<Copy size={24} />
 							{m.button_copy_all()}
 						</button>
 					</div>
 
 					<div class="flex items-start gap-2 rounded bg-warning-500/10 p-3">
-						<iconify-icon icon="mdi:alert" width="16" class="mt-0.5 shrink-0 text-warning-600"></iconify-icon>
+						<TriangleAlert size={16} class="mt-0.5 shrink-0 text-warning-600" />
 						<p class="text-sm text-warning-600 dark:text-warning-400">
 							{m.twofa_backup_codes_warning()}
 						</p>
@@ -271,10 +275,10 @@ This modal displays the QR code for setting up 2FA and handles verification.
 				class="preset-filled-primary-500 btn {parent?.buttonPositive ?? ''}"
 			>
 				{#if isVerifying}
-					<iconify-icon icon="svg-spinners:3-dots-fade" width="20" class="mr-2"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					{m.twofa_verifying()}
 				{:else}
-					<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
+					<Check size={20} class="mr-2" />
 					{m.twofa_verify_button()}
 				{/if}
 			</button>
@@ -284,7 +288,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 				{m.button_cancel()}
 			</button>
 			<button type="button" onclick={completeSetup} class="preset-filled-success-500 btn {parent?.buttonPositive ?? ''}">
-				<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
+				<Check size={20} class="mr-2" />
 				{m.button_complete()}
 			</button>
 		{/if}

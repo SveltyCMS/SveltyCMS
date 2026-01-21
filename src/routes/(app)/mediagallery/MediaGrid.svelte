@@ -20,6 +20,10 @@ Key features:
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+
+	import Icon from '@iconify/svelte';
 	// Utils
 	import { formatBytes } from '@utils/utils';
 	import { logger } from '@utils/logger';
@@ -165,7 +169,7 @@ Key features:
 <div class="flex flex-wrap items-center gap-4 overflow-auto">
 	{#if filteredFiles.length === 0}
 		<div class="mx-auto text-center text-tertiary-500 dark:text-primary-500">
-			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
+			<CircleQuestionMark size={24} class="mb-2" />
 			<p class="text-lg">No media found</p>
 		</div>
 	{:else}
@@ -180,17 +184,20 @@ Key features:
 					class="preset-outline-surface-500 btn-sm"
 					aria-label="Toggle selection mode"
 				>
-					<iconify-icon icon={isSelectionMode ? 'mdi:close' : 'mdi:checkbox-multiple-marked'} width="20"></iconify-icon>
+					{#if iconsData[isSelectionMode ? 'mdi:close' : ('mdi:checkbox-multiple-marked' as keyof typeof iconsData)] as any}<Icon
+							icon={iconsData[isSelectionMode ? 'mdi:close' : ('mdi:checkbox-multiple-marked' as keyof typeof iconsData)] as any}
+							size={20}
+						/>{/if}
 					{isSelectionMode ? 'Cancel' : 'Select'}
 				</button>
 
 				{#if isSelectionMode}
 					<button onclick={selectAll} class="preset-outline-surface-500 btn-sm">
-						<iconify-icon icon="mdi:select-all" width="20"></iconify-icon>
+						<CircleQuestionMark size={24} />
 						Select All
 					</button>
 					<button onclick={deselectAll} class="preset-outline-surface-500 btn-sm">
-						<iconify-icon icon="mdi:select-off" width="20"></iconify-icon>
+						<CircleQuestionMark size={24} />
 						Deselect All
 					</button>
 				{/if}
@@ -200,7 +207,7 @@ Key features:
 				<div class="flex items-center gap-2">
 					<span class="text-sm">{selectedFiles.size} selected</span>
 					<button onclick={handleBulkDelete} class="preset-filled-error-500 btn-sm">
-						<iconify-icon icon="mdi:delete" width="20"></iconify-icon>
+						<Trash2 size={20} />
 						Delete Selected
 					</button>
 				</div>
@@ -237,7 +244,7 @@ Key features:
 					<Tooltip positioning={{ placement: 'right' }}>
 						<Tooltip.Trigger>
 							<button aria-label="File Info" class="btn-icon" title="File Info">
-								<iconify-icon icon="raphael:info" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+								<CircleQuestionMark size={24} />
 							</button>
 						</Tooltip.Trigger>
 						<Portal>
@@ -316,9 +323,9 @@ Key features:
 								<Tooltip.Trigger>
 									<button onclick={() => openTagEditor(file as MediaImage)} aria-label="Toggle Tags" class="btn-icon">
 										{#if file.metadata?.aiTags?.length || file.metadata?.tags?.length}
-											<iconify-icon icon="mdi:tag-multiple" width="22" class="text-primary-500"></iconify-icon>
+											<CircleQuestionMark size={24} />
 										{:else}
-											<iconify-icon icon="mdi:tag-outline" width="22" class="text-surface-500"></iconify-icon>
+											<CircleQuestionMark size={24} />
 										{/if}
 									</button>
 								</Tooltip.Trigger>
@@ -336,7 +343,7 @@ Key features:
 							<Tooltip positioning={{ placement: 'top' }}>
 								<Tooltip.Trigger>
 									<button onclick={() => onEditImage(file as MediaImage)} aria-label="Edit" class="btn-icon">
-										<iconify-icon icon="mdi:pen" width="24" class="text-primary-500"></iconify-icon>
+										<CircleQuestionMark size={24} />
 									</button>
 								</Tooltip.Trigger>
 								<Portal>
@@ -354,7 +361,7 @@ Key features:
 						<Tooltip positioning={{ placement: 'top' }}>
 							<Tooltip.Trigger>
 								<button onclick={() => handleDelete(file)} aria-label="Delete" class="btn-icon">
-									<iconify-icon icon="icomoon-free:bin" width="24" class="text-error-500"> </iconify-icon>
+									<Trash2 size={24} />
 								</button>
 							</Tooltip.Trigger>
 							<Portal>
@@ -390,7 +397,7 @@ Key features:
 						/>
 					{:else}
 						<div class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-700" aria-label="Missing thumbnail" role="img">
-							<iconify-icon icon="bi:exclamation-triangle-fill" height="24" class="text-warning-500" aria-hidden="true"></iconify-icon>
+							<CircleQuestionMark size={24} class="text-warning-500" />
 						</div>
 					{/if}
 				</section>
@@ -407,7 +414,10 @@ Key features:
 					<div class="flex grow items-center justify-between p-1 text-white">
 						<!-- Type -->
 						<div class="bg-tertiary-500 dark:bg-primary-500/50 badge flex items-center gap-1 overflow-hidden" title={file.type}>
-							<iconify-icon icon={getFileIcon(file)} width="12" height="12"></iconify-icon>
+							{#if iconsData[getFileIcon(file) as keyof typeof iconsData] as any}<Icon
+									icon={iconsData[getFileIcon(file) as keyof typeof iconsData] as any}
+									size={12}
+								/>{/if}
 							<span class="truncate text-[10px] uppercase">{formatMimeType(file.mimeType)}</span>
 						</div>
 						<!-- Size -->

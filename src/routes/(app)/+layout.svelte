@@ -26,12 +26,6 @@
 -->
 
 <script lang="ts">
-	// Selected theme:
-	import '../../app.css';
-
-	// Icons from https://icon-sets.iconify.design/
-	import 'iconify-icon';
-
 	// SvelteKit Navigation
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
@@ -47,14 +41,14 @@
 
 	// Stores
 	// Stores
-	import { setContentStructure, setCollection } from '@stores/collectionStore.svelte';
-	import { publicEnv } from '@stores/globalSettings.svelte';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
-	import { screen } from '@stores/screenSizeStore.svelte';
+	import { setContentStructure, setCollection } from '@stores/collectionStore.svelte.ts';
+	import { publicEnv } from '@stores/globalSettings.svelte.ts';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
+	import { screen } from '@stores/screenSizeStore.svelte.ts';
 	import { app } from '@stores/store.svelte';
-	import { ui } from '@stores/UIStore.svelte';
-	import { widgets } from '@stores/widgetStore.svelte';
-	import { initializeDarkMode } from '@stores/themeStore.svelte';
+	import { ui } from '@stores/UIStore.svelte.ts';
+	import { widgets } from '@stores/widgetStore.svelte.ts';
+	import { initializeDarkMode } from '@stores/themeStore.svelte.ts';
 
 	// Components
 	import HeaderEdit from '@components/HeaderEdit.svelte';

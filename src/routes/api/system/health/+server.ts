@@ -10,7 +10,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getHealthCheckReport } from '@src/stores/system';
+import { getHealthCheckReport } from '@src/stores/system/reporting';
 
 /**
  * GET /api/system/health

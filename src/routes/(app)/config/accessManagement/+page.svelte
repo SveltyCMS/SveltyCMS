@@ -16,11 +16,13 @@
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
 	import { page } from '$app/state';
-	import { toaster } from '@stores/store.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 	import { logger } from '@utils/logger';
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -140,25 +142,25 @@
 		<Tabs.List class="flex justify-around text-tertiary-500 dark:text-primary-500 border-b border-surface-200-800">
 			<Tabs.Trigger value="0" class="flex-1">
 				<div class="flex items-center justify-center gap-1 py-4">
-					<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					<span class={currentTab === '0' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>{m.system_permission()}</span>
 				</div>
 			</Tabs.Trigger>
 			<Tabs.Trigger value="1" class="flex-1">
 				<div class="flex items-center justify-center gap-1 py-4">
-					<iconify-icon icon="mdi:account-group" width="28" class="text-black dark:text-white"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					<span class={currentTab === '1' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>{m.system_roles()}</span>
 				</div>
 			</Tabs.Trigger>
 			<Tabs.Trigger value="2" class="flex-1">
 				<div class="flex items-center justify-center gap-1 py-4">
-					<iconify-icon icon="mdi:account-cog" width="28" class="text-black dark:text-white"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					<span class={currentTab === '2' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>Admin</span>
 				</div>
 			</Tabs.Trigger>
 			<Tabs.Trigger value="3" class="flex-1">
 				<div class="flex items-center justify-center gap-1 py-4">
-					<iconify-icon icon="mdi:web" width="28" class="text-black dark:text-white"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					<span class={currentTab === '3' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>Website Tokens</span>
 				</div>
 			</Tabs.Trigger>

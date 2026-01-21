@@ -12,6 +12,12 @@
 
 <script lang="ts">
 	// Components
+	import Upload from '@lucide/svelte/icons/upload';
+	import Download from '@lucide/svelte/icons/download';
+	import Database from '@lucide/svelte/icons/database';
+	import FolderOpen from '@lucide/svelte/icons/folder-open';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import X from '@lucide/svelte/icons/x';
 	import Input from '@components/system/inputs/Input.svelte';
 	import Toggles from '@components/system/inputs/Toggles.svelte';
 	import ProgressBar from '@components/system/ProgressBar.svelte';
@@ -322,12 +328,12 @@
 
 		<div class="flex gap-3">
 			<button onclick={() => (showExportModal = true)} class="preset-outlined-secondary-500 btn" disabled={loading}>
-				<iconify-icon icon="mdi:export" width="24" class=""></iconify-icon>
+				<Upload size={24} />
 				Export Data
 			</button>
 
 			<button onclick={() => (showImportModal = true)} class="preset-outlined-primary-500 btn" disabled={loading}>
-				<iconify-icon icon="mdi:import" width="24" class=""></iconify-icon>
+				<Download size={24} />
 
 				Import Data
 			</button>
@@ -338,7 +344,7 @@
 		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
 				<div class="preset-filled-tertiary-500 btn-icon mr-3">
-					<iconify-icon icon="mdi:database-export" width="24" class=""></iconify-icon>
+					<Database size={24} />
 				</div>
 				<div>
 					<h3 class="font-semibold text-gray-900 dark:text-white">Export All Data</h3>
@@ -352,7 +358,7 @@
 		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
 				<div class="preset-filled-primary-500 btn-icon mr-3">
-					<iconify-icon icon="mdi:folder-multiple" width="24" class=""></iconify-icon>
+					<FolderOpen size={24} />
 				</div>
 				<div>
 					<h3 class="font-semibold text-gray-900 dark:text-white">Collections</h3>
@@ -366,7 +372,7 @@
 				{#each collections.slice(0, 3) as collection (collection.id)}
 					<div class="flex items-center justify-between text-sm">
 						<span class="text-tertiary-500 dark:text-primary-500">{collection.label}</span>
-						<iconify-icon icon="mdi:chevron-right" width="24" class=""></iconify-icon>
+						<ChevronRight size={24} />
 					</div>
 				{/each}
 				{#if collections.length > 3}
@@ -388,7 +394,7 @@
 				<div class="flex items-center justify-between">
 					<span>Export completed successfully!</span>
 					<button onclick={downloadExport}>
-						<iconify-icon icon="mdi:download" width="24" class=""></iconify-icon>
+						<Download size={24} />
 						Download
 					</button>
 				</div>
@@ -403,7 +409,7 @@
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Export Collections</h3>
 				<button onclick={() => (showExportModal = false)} class="preset-outlined-surface-500 btn-icon" aria-label="Close export modal">
-					<iconify-icon icon="mdi:close" width="24" class=""></iconify-icon>
+					<X size={24} />
 				</button>
 			</div>
 			<div class="max-h-[calc(80vh-140px)] space-y-6 overflow-y-auto p-6">
@@ -477,7 +483,7 @@
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Import Collections</h3>
 				<button onclick={() => (showImportModal = false)} class="preset-outlined-surface-500 btn-icon" aria-label="Close import modal">
-					<iconify-icon icon="mdi:close" width="24" class=""></iconify-icon>
+					<X size={24} />
 				</button>
 			</div>
 			<div class="max-h-[calc(80vh-140px)] space-y-6 overflow-y-auto p-6">
@@ -526,7 +532,7 @@
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Import Results</h3>
 				<button onclick={() => (showResultsModal = false)} class="preset-outlined-surface-500 btn-sm">
-					<iconify-icon icon="mdi:close" width="24" class=""></iconify-icon>
+					<X size={24} />
 					mdi:close
 				</button>
 			</div>

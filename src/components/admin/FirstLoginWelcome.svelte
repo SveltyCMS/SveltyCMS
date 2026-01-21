@@ -11,12 +11,24 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	// Icons
-	import Icon from '@iconify/svelte';
+
+	// Lucide Icons
+	import Settings from '@lucide/svelte/icons/settings';
+	import X from '@lucide/svelte/icons/x';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import Rocket from '@lucide/svelte/icons/rocket';
+	import Database from '@lucide/svelte/icons/database';
+	import FolderPlus from '@lucide/svelte/icons/folder-plus';
+	import Users from '@lucide/svelte/icons/users';
+	import Info from '@lucide/svelte/icons/info';
+	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
 
 	// Components
 	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
 	import Button from '@components/system/buttons/Button.svelte';
+
 	// Utils
 	import { logger } from '@utils/logger';
 
@@ -30,6 +42,14 @@
 		actionUrl?: string;
 		completed?: boolean;
 	}
+
+	// Icon Mapping
+	const iconMap: Record<string, any> = {
+		'data-management': Database,
+		collections: FolderPlus,
+		users: Users,
+		settings: Settings
+	};
 
 	// Props
 	let { user, showWelcome = true } = $props();
@@ -157,7 +177,7 @@
 		<!-- Header -->
 		<div class="mb-8 text-center">
 			<div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
-				<Icon icon="mdi:rocket-launch" class="h-10 w-10 text-blue-600 dark:text-blue-400" />
+				<Rocket size={40} class="text-blue-600 dark:text-blue-400" />
 			</div>
 			<h2 class="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
 				Congratulations, {user?.username || 'Admin'}!
@@ -185,10 +205,11 @@
 		<!-- Current Step -->
 		{#if currentStep < welcomeSteps.length}
 			{@const step = welcomeSteps[currentStep]}
+			{@const StepIcon = iconMap[step.id] ?? Database}
 			<div class="step-content">
 				<div class="mb-6 text-center">
 					<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
-						<Icon icon={step.icon} class="h-8 w-8 text-gray-600 dark:text-gray-400" />
+						<StepIcon size={32} class="text-gray-600 dark:text-gray-400" />
 					</div>
 					<h3 class="mb-2 text-xl font-semibold text-gray-900 dark:text-white">
 						{step.title}
@@ -201,7 +222,7 @@
 				<!-- Step Action -->
 				<div class="mb-6 text-center">
 					<Button onclick={() => handleStepAction(step)} variant="primary" size="lg" class="px-8">
-						<Icon icon={step.icon} class="mr-2 h-5 w-5" />
+						<StepIcon size={20} class="mr-2" />
 						{step.action}
 					</Button>
 				</div>
@@ -210,7 +231,7 @@
 				{#if step.id === 'data-management'}
 					<div class="mb-6 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
 						<div class="flex items-start space-x-3">
-							<Icon icon="mdi:information" class="mt-0.5 h-5 w-5 text-blue-600 dark:text-blue-400" />
+							<Info size={20} class="mt-0.5 text-blue-600 dark:text-blue-400" />
 							<div class="text-sm">
 								<p class="mb-1 font-medium text-blue-900 dark:text-blue-100">Data Management Tips</p>
 								<ul class="space-y-1 text-blue-700 dark:text-blue-300">
@@ -251,7 +272,7 @@
 	<div class="flex w-full items-center justify-between">
 		<div class="flex space-x-2">
 			<Button onclick={previousStep} variant="ghost" disabled={currentStep === 0}>
-				<Icon icon="mdi:chevron-left" class="mr-1 h-4 w-4" />
+				<ChevronLeft size={16} class="mr-1" />
 				Previous
 			</Button>
 		</div>
@@ -262,12 +283,12 @@
 			{#if currentStep < welcomeSteps.length - 1}
 				<Button onclick={nextStep} variant="secondary">
 					Next
-					<Icon icon="mdi:chevron-right" class="ml-1 h-4 w-4" />
+					<ChevronRight size={16} class="ml-1" />
 				</Button>
 			{:else}
 				<Button onclick={goToDashboard} variant="primary">
 					Go to Dashboard
-					<Icon icon="mdi:view-dashboard" class="ml-2 h-4 w-4" />
+					<LayoutDashboard size={16} class="ml-2" />
 				</Button>
 			{/if}
 		</div>
@@ -281,7 +302,7 @@
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>
 				<button onclick={() => (showImportExport = false)} class="preset-outlined-surface-500 btn-sm">
-					<Icon icon="mdi:close" class="h-5 w-5" />
+					<X size={20} />
 				</button>
 			</div>
 
@@ -291,7 +312,7 @@
 
 			<div class="flex items-center justify-between border-t bg-surface-100 p-6 dark:bg-surface-700">
 				<div class="text-sm text-gray-600 dark:text-gray-400">
-					<Icon icon="mdi:shield-check" class="mr-1 inline h-4 w-4" />
+					<ShieldCheck size={16} class="mr-1 inline" />
 					Your data is securely managed and never leaves your server
 				</div>
 				<div class="flex space-x-2">

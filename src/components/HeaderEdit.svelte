@@ -28,10 +28,19 @@
 -->
 
 <script lang="ts">
-	// --- Derived from page & stores ---
-	import { logger } from '@utils/logger';
 	import { untrack } from 'svelte';
 
+	// Lucide icons
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import X from '@lucide/svelte/icons/x';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import Save from '@lucide/svelte/icons/save';
+	import Clock from '@lucide/svelte/icons/clock';
+	import ClipboardCopy from '@lucide/svelte/icons/clipboard-copy';
+
+	// --- Derived from page & stores ---
+	import { logger } from '@utils/logger';
 	import { deleteCurrentEntry, saveEntry } from '@utils/entryActions';
 	import { StatusTypes } from '@src/content/types';
 	import { createEntry, invalidateCollectionCache } from '@src/utils/apiClient';
@@ -40,6 +49,7 @@
 
 	import TranslationStatus from './collectionDisplay/TranslationStatus.svelte';
 	import Toggles from './system/inputs/Toggles.svelte';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -49,9 +59,9 @@
 	import { navigationManager } from '@utils/navigationManager';
 	import { collection, collectionValue, mode, setCollectionValue, setMode } from '@src/stores/collectionStore.svelte';
 	import { screen } from '@src/stores/screenSizeStore.svelte';
-	import { ui } from '@src/stores/UIStore.svelte';
-	import { app, validationStore, dataChangeStore } from '@stores/store.svelte';
-	import { statusStore } from '@stores/statusStore.svelte';
+	import { ui } from '@src/stores/UIStore.svelte.ts';
+	import { app, validationStore, dataChangeStore } from '@stores/store.svelte.ts';
+	import { statusStore } from '@stores/statusStore.svelte.ts';
 
 	// --- Derived from page & stores ---
 	let user = $derived(page.data.user);
@@ -244,12 +254,21 @@
 				aria-label="Toggle sidebar"
 				class="btn-icon preset-outlined-surface-500shrink-0"
 			>
-				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
+				<CircleQuestionMark size={24} />
 			</button>
 		{/if}
 
 		<div class="shrink-0 flex items-center ml-2">
-			<iconify-icon icon={currentCollection?.icon ?? 'mdi:file-document'} width="24" class="text-error-500"></iconify-icon>
+			{#if currentCollection?.icon}
+				{@const IconName = currentCollection.icon}
+				{#await import(`@lucide/svelte/icons/${IconName}`) then module}
+					<module.default size={24} class="text-error-500" />
+				{/await}
+			{:else}
+				{#await import(`@lucide/svelte/icons/file-text`) then module}
+					<module.default size={24} class="text-error-500" />
+				{/await}
+			{/if}
 		</div>
 
 		{#if currentCollection?.name && currentMode !== 'view'}
@@ -275,11 +294,11 @@
 						class:opacity-50={!isFormValid || !canWrite}
 						aria-label="Save"
 					>
-						<iconify-icon icon="material-symbols:save" width="24"></iconify-icon>
+						<Save size={24} />
 					</button>
 				{/if}
 				<button onclick={() => (showMore = false)} class="btn-icon preset-filled-tertiary-500" aria-label="Show less">
-					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
+					<CircleQuestionMark size={24} />
 				</button>
 			{:else}
 				<TranslationStatus />
@@ -287,7 +306,7 @@
 				{#if ['edit', 'create'].includes(currentMode)}
 					{#if showNextButton}
 						<button onclick={next} class="btn-icon preset-filled-primary-500 lg:hidden" aria-label="Next">
-							<iconify-icon icon="carbon:next-filled" width="24"></iconify-icon>
+							<ChevronRight size={24} />
 						</button>
 					{:else}
 						<button
@@ -297,13 +316,13 @@
 							class:opacity-50={!isFormValid || !canWrite}
 							aria-label="Save"
 						>
-							<iconify-icon icon="material-symbols:save" width="24"></iconify-icon>
+							<Save size={24} />
 						</button>
 					{/if}
 				{/if}
 
 				<button onclick={() => (showMore = true)} class="btn-icon preset-outlined-surface-500" aria-label="Show more">
-					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
+					<CircleQuestionMark size={24} />
 				</button>
 			{/if}
 		{:else}
@@ -315,7 +334,7 @@
 
 		{#if !app.headerActionButton}
 			<button onclick={cancel} class="btn-icon preset-outlined-surface-500" aria-label="Cancel">
-				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
+				<X size={24} />
 			</button>
 		{/if}
 	</div>
@@ -335,7 +354,7 @@
 			<!-- Delete -->
 			<div class="flex flex-col items-center">
 				<button onclick={openDelete} disabled={!canDelete} class="btn-icon gradient-error" aria-label="Delete">
-					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
+					<Trash2 size={24} />
 				</button>
 			</div>
 
@@ -343,14 +362,14 @@
 				<!-- Schedule -->
 				<div class="flex flex-col items-center">
 					<button onclick={openSchedule} disabled={!canWrite} class="btn-icon gradient-pink" aria-label="Schedule">
-						<iconify-icon icon="bi:clock" width="24"></iconify-icon>
+						<Clock size={24} />
 					</button>
 				</div>
 
 				<!-- Clone -->
 				<div class="flex flex-col items-center">
 					<button onclick={openClone} disabled={!canWrite || !canCreate} class="btn-icon gradient-secondary" aria-label="Clone">
-						<iconify-icon icon="bi:clipboard-data-fill" width="24"></iconify-icon>
+						<ClipboardCopy size={24} />
 					</button>
 				</div>
 			{/if}

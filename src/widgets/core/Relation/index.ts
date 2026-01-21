@@ -13,7 +13,7 @@
  */
 
 // Import components needed for the GuiSchema
-import IconifyPicker from '@components/IconifyPicker.svelte';
+import IconPicker from '@components/IconPicker.svelte';
 import PermissionsSetting from '@components/PermissionsSetting.svelte';
 import CollectionPicker from '@components/system/builder/CollectionPicker.svelte';
 import FieldPicker from '@components/system/builder/FieldPicker.svelte';
@@ -51,7 +51,7 @@ const RelationWidget = createWidget<RelationProps>({
 		label: { widget: Input, required: true },
 		db_fieldName: { widget: Input, required: false },
 		required: { widget: Toggles, required: false },
-		icon: { widget: IconifyPicker, required: false },
+		icon: { widget: IconPicker, required: false },
 		helper: { widget: Input, required: false },
 		width: { widget: Input, required: false },
 		permissions: { widget: PermissionsSetting, required: false },

@@ -4,6 +4,9 @@
 Displays logo, site name, language selector, and theme toggle.
 -->
 <script lang="ts">
+	import Search from '@lucide/svelte/icons/search';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+
 	import SiteName from '@components/SiteName.svelte';
 	import { Menu, Portal, Tooltip } from '@skeletonlabs/skeleton-svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
@@ -53,7 +56,7 @@ Displays logo, site name, language selector, and theme toggle.
 						<Menu positioning={{ placement: 'bottom-end', gutter: 10 }}>
 							<Menu.Trigger class="preset-outlined-surface-500 btn rounded px-2 py-1 flex items-center gap-2">
 								<span class="font-medium">{getLanguageName(currentLanguageTag)}</span>
-								<iconify-icon icon="mdi:chevron-down" class="h-4 w-4 transition-transform group-data-[state=open]:rotate-180"></iconify-icon>
+								<ChevronDown class="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
 							</Menu.Trigger>
 
 							<Portal>
@@ -70,7 +73,7 @@ Displays logo, site name, language selector, and theme toggle.
 										{#if systemLanguages.length > 5}
 											<div class="px-2 pb-2 mb-2 border-b border-surface-200 dark:text-surface-50">
 												<div class="relative">
-													<iconify-icon icon="mdi:magnify" class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
+													<Search class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
 													<input
 														type="text"
 														bind:value={langSearch}

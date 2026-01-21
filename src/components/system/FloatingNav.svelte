@@ -15,6 +15,10 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import X from '@lucide/svelte/icons/x';
+
+	import Icon from '@iconify/svelte';
 	import { logger } from '@utils/logger';
 	import { page } from '$app/state';
 	import { motion } from '@src/utils/utils';
@@ -27,8 +31,8 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	import type { User } from '@src/databases/auth/types';
 
 	// Stores
-	import { setMode } from '@stores/collectionStore.svelte';
-	import { toggleUIElement } from '@stores/UIStore.svelte';
+	import { setMode } from '@stores/collectionStore.svelte.ts';
+	import { toggleUIElement } from '@stores/UIStore.svelte.ts';
 
 	// Skeleton UI
 	import { modalState } from '@utils/modalState.svelte';
@@ -447,7 +451,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		}
 	}}
 >
-	<iconify-icon icon="tdesign:map-route-planning" width="36" style="color:white"></iconify-icon>
+	<CircleQuestionMark size={24} />
 </div>
 
 {#if showRoutes}
@@ -486,7 +490,9 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			style="top:{center.y}px;
 			       left:{center.x}px"
 		>
-			<iconify-icon width="32" style="color:white" icon={endpoints[0]?.icon || 'solar:home-bold'}></iconify-icon>
+			{#if iconsData[(endpoints[0]?.icon || 'home') as keyof typeof iconsData]}
+				<Icon icon={iconsData[(endpoints[0]?.icon || 'home') as keyof typeof iconsData]} size={32} class="text-white" />
+			{/if}
 		</a>
 
 		{#each endpointsWithPos.slice(1) as endpoint, index (endpoint.tooltip)}
@@ -504,7 +510,11 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 				style="top:{endpoint.y}px;
 			       left:{endpoint.x}px"
 			>
-				<iconify-icon width="32" style="color:white" icon={endpoint.icon}></iconify-icon>
+				{#if iconsData[endpoint.icon as keyof typeof iconsData]}
+					{#await import(`@lucide/svelte/icons/${endpoint.icon}`) then m}
+						<m.default size={32} class="text-white" />
+					{/await}
+				{/if}
 			</a>
 		{/each}
 	</button>

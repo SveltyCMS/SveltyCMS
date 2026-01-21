@@ -16,6 +16,9 @@ and rule-of-thirds grid overlay.
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import X from '@lucide/svelte/icons/x';
+
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import { fade, scale } from 'svelte/transition';
 
@@ -146,11 +149,11 @@ and rule-of-thirds grid overlay.
 			<!-- Header -->
 			<header class="flex items-center justify-between border-b border-surface-300 p-4 dark:text-surface-50">
 				<h3 id="focal-modal-title" class="text-lg font-semibold flex items-center gap-2">
-					<iconify-icon icon="mdi:crosshairs-gps" width="24" class="text-primary-500"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					Set Focal Point
 				</h3>
 				<button onclick={handleClose} class="btn-icon preset-outlined-surface-500" aria-label="Close">
-					<iconify-icon icon="mdi:close" width="20"></iconify-icon>
+					<X size={20} />
 				</button>
 			</header>
 
@@ -196,7 +199,7 @@ and rule-of-thirds grid overlay.
 						<!-- Outer glow -->
 						<div class="absolute inset-0 w-8 h-8 rounded-full bg-primary-500/20 blur-sm -translate-x-1/2 -translate-y-1/2"></div>
 						<!-- Crosshair icon -->
-						<iconify-icon icon="mdi:crosshairs-gps" width="32" class="text-primary-500 drop-shadow-lg relative z-10"></iconify-icon>
+						<CircleQuestionMark size={24} />
 					</div>
 				</div>
 			</div>
@@ -210,7 +213,7 @@ and rule-of-thirds grid overlay.
 					</div>
 					<!-- Reset button -->
 					<button onclick={resetToCenter} class="btn-sm preset-outlined-surface-500" title="Reset to center">
-						<iconify-icon icon="mdi:target" width="16"></iconify-icon>
+						<CircleQuestionMark size={24} />
 						<span>Center</span>
 					</button>
 				</div>
@@ -218,7 +221,7 @@ and rule-of-thirds grid overlay.
 				<div class="flex gap-2">
 					<button onclick={handleClose} class="btn preset-outlined-surface-500">Cancel</button>
 					<button onclick={handleSave} class="btn preset-filled-primary-500">
-						<iconify-icon icon="mdi:check" width="18"></iconify-icon>
+						<Check size={18} />
 						<span>Save</span>
 					</button>
 				</div>

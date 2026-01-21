@@ -13,7 +13,7 @@ Orchestrates the watermark lifecycle:
 <script lang="ts">
 	import Konva from 'konva';
 	import { getContext } from 'svelte';
-	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte.ts';
 	import WatermarkControls from './Controls.svelte';
 	import { WatermarkItem } from './regions';
 	import { createStyledTransformer, attachStyledTransformer } from '../transformerConfig';

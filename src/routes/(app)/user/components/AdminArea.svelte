@@ -12,6 +12,9 @@
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import X from '@lucide/svelte/icons/x';
+
 	// Type guards for template and logic
 	function isToken(row: User | Token): row is Token {
 		return 'token' in row && typeof row.token === 'string';
@@ -23,8 +26,8 @@
 	import { untrack } from 'svelte';
 	import { logger } from '@utils/logger';
 	// Stores
-	import { avatarSrc } from '@stores/store.svelte';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+	import { avatarSrc } from '@stores/store.svelte.ts';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
 
 	// Components
 	import PermissionGuard from '@components/PermissionGuard.svelte';
@@ -42,7 +45,7 @@
 	import { Avatar } from '@skeletonlabs/skeleton-svelte';
 	import { modalState } from '@utils/modalState.svelte';
 	import { showConfirm } from '@utils/modalUtils';
-	import { toaster } from '@stores/store.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 	// Svelte-dnd-action
 	import { PermissionAction, PermissionType } from '@src/databases/auth/types';
 	import { dndzone } from 'svelte-dnd-action';
@@ -572,7 +575,7 @@
 
 	<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
 		<button onclick={modalTokenUser} aria-label={m.adminarea_emailtoken()} class="gradient-primary btn w-full text-white sm:max-w-xs">
-			<iconify-icon icon="material-symbols:mail" color="white" width="18" class="mr-1"></iconify-icon>
+			<CircleQuestionMark size={24} />
 			<span class="whitespace-normal wrap-break-word">{m.adminarea_emailtoken()}</span>
 		</button>
 
@@ -590,7 +593,7 @@
 				aria-label={showUsertoken ? m.adminarea_hideusertoken() : m.adminarea_showtoken()}
 				class="gradient-secondary btn w-full text-white sm:max-w-xs"
 			>
-				<iconify-icon icon="material-symbols:key-outline" color="white" width="18" class="mr-1"></iconify-icon>
+				<CircleQuestionMark size={24} />
 				<span>{showUsertoken ? m.adminarea_hideusertoken() : m.adminarea_showtoken()}</span>
 			</button>
 
@@ -605,7 +608,7 @@
 						aria-label={showExpiredTokens ? 'Hide Expired Tokens' : 'Show Expired Tokens'}
 						class="gradient-secondary btn w-full text-white sm:max-w-xs"
 					>
-						<iconify-icon icon="material-symbols:schedule" color="white" width="18" class="mr-1"></iconify-icon>
+						<CircleQuestionMark size={24} />
 						<span>{showExpiredTokens ? 'Hide Expired' : 'Show Expired'}</span>
 					</button>
 				{/if}
@@ -617,7 +620,7 @@
 			aria-label={showUserList ? m.adminarea_hideuserlist() : m.adminarea_showuserlist()}
 			class="gradient-tertiary btn w-full text-white sm:max-w-xs"
 		>
-			<iconify-icon icon="mdi:account-circle" color="white" width="18" class="mr-1"></iconify-icon>
+			<CircleQuestionMark size={24} />
 			<span>{showUserList ? m.adminarea_hideuserlist() : m.adminarea_showuserlist()}</span>
 		</button>
 	</div>
@@ -665,7 +668,7 @@
 									}}
 								>
 									{#if header.visible}
-										<span><iconify-icon icon="fa:check"></iconify-icon></span>
+										<span><CircleQuestionMark size={24} /></span>
 									{/if}
 									<span class="ml-2 capitalize">{header.label}</span>
 								</button>
@@ -685,7 +688,7 @@
 								<th>
 									{#if Object.keys(filters).length > 0}
 										<button onclick={() => (filters = {})} aria-label="Clear All Filters" class="preset-outline btn-icon">
-											<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
+											<X size={24} />
 										</button>
 									{/if}
 								</th>
@@ -732,13 +735,7 @@
 								>
 									<div class="flex items-center justify-center gap-1">
 										{header.label}
-										<iconify-icon
-											icon="material-symbols:arrow-upward-rounded"
-											width="18"
-											class="origin-center duration-300 ease-in-out"
-											class:up={sorting.isSorted === 1 && sorting.sortedBy === header.key}
-											class:invisible={sorting.isSorted === 0 || sorting.sortedBy !== header.key}
-										></iconify-icon>
+										<CircleQuestionMark size={18} class="origin-center duration-300 ease-in-out" />
 									</div>
 								</th>
 							{/each}
@@ -829,7 +826,7 @@
 															});
 													}}
 												>
-													<iconify-icon icon="oui:copy-clipboard" class="" width="16"></iconify-icon>
+													<CircleQuestionMark size={24} />
 												</button>
 											</div>
 										{:else if header.key === 'token'}
@@ -853,7 +850,7 @@
 															});
 													}}
 												>
-													<iconify-icon icon="oui:copy-clipboard" class="" width="16"></iconify-icon>
+													<CircleQuestionMark size={24} />
 												</button>
 											</div>
 										{:else if ['createdAt', 'updatedAt', 'lastAccess', 'expires'].includes(header.key)}
@@ -871,7 +868,7 @@
 												<span class={isTokenExpired ? 'font-semibold text-error-500' : ''}>
 													{remainingTime}
 													{#if isTokenExpired}
-														<iconify-icon icon="material-symbols:warning" class="ml-1 text-error-500" width="16"></iconify-icon>
+														<CircleQuestionMark size={24} class="ml-1 text-error-500" />
 													{/if}
 												</span>
 											{:else}

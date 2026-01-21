@@ -4,6 +4,8 @@
 Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling (colors).
 -->
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
 	type ToolType = 'text' | 'arrow' | 'rectangle' | 'circle' | null;
 
 	let {
@@ -31,7 +33,7 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 	<!-- Tool Selection -->
 	<div class="btn-group preset-outlined-surface-500">
 		<button class="btn-sm" class:active={currentTool === 'text'} onclick={() => onSetTool(currentTool === 'text' ? null : 'text')} title="Add Text">
-			<iconify-icon icon="mdi:format-text"></iconify-icon>
+			<CircleQuestionMark size={24} />
 		</button>
 		<button
 			class="btn-sm"
@@ -39,7 +41,7 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 			onclick={() => onSetTool(currentTool === 'arrow' ? null : 'arrow')}
 			title="Draw Arrow"
 		>
-			<iconify-icon icon="mdi:arrow-top-right"></iconify-icon>
+			<CircleQuestionMark size={24} />
 		</button>
 		<button
 			class="btn-sm"
@@ -47,7 +49,7 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 			onclick={() => onSetTool(currentTool === 'rectangle' ? null : 'rectangle')}
 			title="Draw Rectangle"
 		>
-			<iconify-icon icon="mdi:rectangle-outline"></iconify-icon>
+			<CircleQuestionMark size={24} />
 		</button>
 		<button
 			class="btn-sm"
@@ -55,7 +57,7 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 			onclick={() => onSetTool(currentTool === 'circle' ? null : 'circle')}
 			title="Draw Circle"
 		>
-			<iconify-icon icon="mdi:circle-outline"></iconify-icon>
+			<CircleQuestionMark size={24} />
 		</button>
 	</div>
 
@@ -63,11 +65,11 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 
 	<!-- Color Pickers -->
 	<label class="flex items-center gap-2 text-sm" title="Stroke Color">
-		<iconify-icon icon="mdi:water-opacity"></iconify-icon>
+		<CircleQuestionMark size={24} />
 		<input type="color" class="input-color" oninput={(e) => onStrokeColorChange(e.currentTarget.value)} value={strokeColor} />
 	</label>
 	<label class="flex items-center gap-2 text-sm" title="Fill Color">
-		<iconify-icon icon="mdi:format-color-fill"></iconify-icon>
+		<CircleQuestionMark size={24} />
 		<input type="color" class="input-color" oninput={(e) => onFillColorChange(e.currentTarget.value)} value={fillColor} />
 	</label>
 
@@ -75,11 +77,11 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 
 	<!-- Actions -->
 	<button onclick={onDelete} class="btn preset-outlined-error-500">
-		<iconify-icon icon="mdi:delete-outline"></iconify-icon>
+		<CircleQuestionMark size={24} />
 		<span>Delete</span>
 	</button>
 	<button class="btn preset-filled-success-500" onclick={onApply}>
-		<iconify-icon icon="mdi:check"></iconify-icon>
+		<Check />
 		<span>Done</span>
 	</button>
 </div>

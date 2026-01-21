@@ -4,13 +4,16 @@
 **The Widget component is used to display the widget form used in the CollectionWidget component**
 -->
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
+	import Icon from '@iconify/svelte';
 	import { getGuiFields } from '@utils/utils';
 	import type { DndEvent, Item } from 'svelte-dnd-action';
 	// Stores
 	import { page } from '$app/state';
 	import { collectionValue, setCollectionValue, setTargetWidget } from '@src/stores/collectionStore.svelte';
-	import { tabSet } from '@stores/store.svelte';
-	import { widgetFunctions } from '@stores/widgetStore.svelte';
+	import { tabSet } from '@stores/store.svelte.ts';
+	import { widgetFunctions } from '@stores/widgetStore.svelte.ts';
 	import { get } from 'svelte/store';
 	// Components
 	import VerticalList from '@components/VerticalList.svelte';
@@ -189,13 +192,17 @@
 						{field.id}
 					</div>
 
-					<iconify-icon icon={field.icon} width="24" class="text-tertiary-500"></iconify-icon>
+					{#if iconsData[field.icon as keyof typeof iconsData] as any}<Icon
+							icon={iconsData[field.icon as keyof typeof iconsData] as any}
+							size={24}
+							class="text-tertiary-500"
+						/>{/if}
 					<div class="font-bold dark:text-primary-500">{field.label}</div>
 					<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
 					<div class=" ">{field.widget?.key}</div>
 
 					<button type="button" onclick={() => modalWidgetForm(field)} aria-label={m.button_edit()} class="preset-ghost-primary-500 btn-icon ml-auto">
-						<iconify-icon icon="ic:baseline-edit" width="24" class="dark:text-white"></iconify-icon>
+						<CircleQuestionMark size={24} />
 					</button>
 				</div>
 			{/each}

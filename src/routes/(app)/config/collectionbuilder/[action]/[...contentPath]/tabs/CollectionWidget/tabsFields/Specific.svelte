@@ -12,7 +12,7 @@ Features:
 	import { asAny } from '@utils/utils';
 
 	// Components
-	import { widgets } from '@stores/widgetStore.svelte';
+	import { widgets } from '@stores/widgetStore.svelte.ts';
 	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 
 	// Skeleton Stores

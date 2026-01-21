@@ -4,10 +4,12 @@
 -->
 
 <script lang="ts">
+	import X from '@lucide/svelte/icons/x';
+
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import DropDown from '@components/system/dropDown/DropDown.svelte';
-	import { widgets } from '@stores/widgetStore.svelte';
+	import { widgets } from '@stores/widgetStore.svelte.ts';
 	import type { WidgetFactory } from '@src/widgets/types';
 	import InputSwitch from './InputSwitch.svelte';
 
@@ -59,7 +61,7 @@
 	<div class="mb-3 flex items-center justify-between text-surface-900 dark:text-white">
 		<PageTitle name="Add a Widget" icon="material-symbols:ink-pen" iconColor="text-tertiary-500 dark:text-primary-500" />
 		<button type="button" onclick={handleCancel} aria-label="Cancel" class="preset-outlined-secondary-500 btn-icon mr-2">
-			<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
+			<X size={24} />
 		</button>
 	</div>
 

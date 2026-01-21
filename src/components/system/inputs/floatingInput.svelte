@@ -34,6 +34,7 @@
 -->
 
 <script lang="ts">
+	import Icon from '@iconify/svelte';
 	import type { FloatingInputProps } from './types';
 
 	let {
@@ -125,31 +126,32 @@
 			{...rest}
 		/>
 
-		{#if icon}
-			<iconify-icon
-				{icon}
-				width="1.125em"
-				class="absolute left-0 top-3"
+		{#if icon && iconsData[icon as keyof typeof iconsData]}
+			<Icon
+				icon={iconsData[icon as keyof typeof iconsData] as any}
+				size={18}
+				class="absolute left-0 top-3 {iconColor === 'gray' ? 'text-surface-500 dark:text-surface-50' : ''}"
 				style={iconColor !== 'gray' ? `color: ${iconColor};` : ''}
-				class:text-surface-500={iconColor === 'gray'}
-				class:dark:text-surface-50={iconColor === 'gray'}
 				aria-hidden="true"
-			></iconify-icon>
+			/>
 		{/if}
 
 		{#if type === 'password'}
-			<iconify-icon
-				tabindex="0"
-				role="button"
-				icon={showPassword ? 'bi:eye-fill' : 'bi:eye-slash-fill'}
-				aria-label={showPassword ? 'Hide password' : 'Show password'}
-				aria-pressed={showPassword}
-				class="absolute right-2 top-3 cursor-pointer hover:opacity-75 focus:outline-none text-surface-500 dark:text-surface-50"
-				width="24"
-				style={passwordIconColor !== 'gray' ? `color: ${passwordIconColor};` : ''}
-				onkeydown={handleIconKeyDown}
-				onclick={togglePasswordVisibility}
-			></iconify-icon>
+			{@const passwordIcon = showPassword ? 'eye' : 'eye-off'}
+			{#if iconsData[passwordIcon as keyof typeof iconsData]}
+				<Icon
+					tabindex={0}
+					role="button"
+					icon={iconsData[passwordIcon as keyof typeof iconsData] as any}
+					aria-label={showPassword ? 'Hide password' : 'Show password'}
+					aria-pressed={showPassword}
+					class="absolute right-2 top-3 cursor-pointer hover:opacity-75 focus:outline-none text-surface-500 dark:text-surface-50"
+					size={24}
+					style={passwordIconColor !== 'gray' ? `color: ${passwordIconColor};` : ''}
+					onkeydown={handleIconKeyDown}
+					onclick={togglePasswordVisibility}
+				/>
+			{/if}
 		{/if}
 
 		{#if label}

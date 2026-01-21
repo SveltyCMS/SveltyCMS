@@ -28,6 +28,12 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 -->
 
 <script lang="ts">
+	// Lucide icons
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
+	import Search from '@lucide/svelte/icons/search';
+
+	import Icon from '@iconify/svelte';
 	import { logger } from '@utils/logger';
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import axios from 'axios';
@@ -271,7 +277,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 				aria-label="Grid view"
 				aria-pressed={currentViewMode === 'grid'}
 			>
-				<iconify-icon icon="mdi:view-grid" width="18"></iconify-icon>
+				<CircleQuestionMark size={24} />
 			</button>
 			<button
 				onclick={() => (currentViewMode = 'list')}
@@ -279,13 +285,13 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 				aria-label="List view"
 				aria-pressed={currentViewMode === 'list'}
 			>
-				<iconify-icon icon="mdi:view-list" width="18"></iconify-icon>
+				<CircleQuestionMark size={24} />
 			</button>
 		</div>
 
 		<!-- Refresh -->
 		<button onclick={fetchMedia} class="preset-outlined-primary-500 btn-sm" disabled={isLoading} aria-label="Refresh media">
-			<iconify-icon icon="mdi:refresh" width="20" class={isLoading && !prefersReducedMotion ? 'animate-spin' : ''}></iconify-icon>
+			<RefreshCw size={20} class={isLoading && !prefersReducedMotion ? 'animate-spin' : ''} />
 		</button>
 
 		<!-- Sort dropdown -->
@@ -300,7 +306,10 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			class="btn-icon btn-icon-sm preset-outlined-surface-500"
 			aria-label={sortAscending ? 'Sort descending' : 'Sort ascending'}
 		>
-			<iconify-icon icon={sortAscending ? 'mdi:sort-ascending' : 'mdi:sort-descending'} width="20"></iconify-icon>
+			{#if iconsData[sortAscending ? 'mdi:sort-ascending' : ('mdi:sort-descending' as keyof typeof iconsData)] as any}<Icon
+					icon={iconsData[sortAscending ? 'mdi:sort-ascending' : ('mdi:sort-descending' as keyof typeof iconsData)] as any}
+					size={20}
+				/>{/if}
 		</button>
 	</div>
 
@@ -332,7 +341,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		<!-- Error state -->
 		<div class="flex flex-1 items-center justify-center" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 			<div class="flex flex-col items-center gap-3">
-				<iconify-icon icon="mdi:alert-circle" width="48" class="text-error-500"></iconify-icon>
+				<CircleAlert size={48} class="text-error-500" />
 				<p class="text-lg text-error-500">Error: {error}</p>
 				<button onclick={fetchMedia} class="preset-filled-primary-500 btn-sm"> Try Again </button>
 			</div>
@@ -341,7 +350,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		<!-- Empty state -->
 		<div class="flex flex-1 items-center justify-center" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 			<div class="flex flex-col items-center gap-3">
-				<iconify-icon icon="mdi:image-off" width="48" class="text-surface-400"></iconify-icon>
+				<CircleQuestionMark size={24} />
 				<p class="text-lg text-surface-600 dark:text-surface-50">
 					{search ? `No media found for "${search}"` : m.mediagallery_nomedia()}
 				</p>
@@ -387,7 +396,11 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 							class="btn-sm m-1 p-1 hover:bg-surface-600"
 							type="button"
 						>
-							<iconify-icon icon={isInfoShown(index) ? 'mdi:information-off' : 'mdi:information'} width="20" class="text-primary-500"></iconify-icon>
+							{#if iconsData[isInfoShown(index) ? 'mdi:information-off' : ('mdi:information' as keyof typeof iconsData)] as any}<Icon
+									icon={iconsData[isInfoShown(index) ? 'mdi:information-off' : ('mdi:information' as keyof typeof iconsData)] as any}
+									size={20}
+									class="text-primary-500"
+								/>{/if}
 						</button>
 						<p class="flex-1 truncate pr-2 text-center text-sm text-white" title={file.filename}>
 							{file.filename}

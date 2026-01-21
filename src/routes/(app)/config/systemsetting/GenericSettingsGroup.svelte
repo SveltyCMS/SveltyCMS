@@ -12,10 +12,14 @@ Handles all field types and validation automatically
 - Handles all field types including text, number, boolean, password, select, multi-select, language picker, log level picker, and array inputs
 -->
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import Settings from '@lucide/svelte/icons/settings';
+
+	import Icon from '@iconify/svelte';
 	import { onMount } from 'svelte';
 	import type { Writable } from 'svelte/store';
 	import type { SettingGroup, SettingField } from './settingsGroups';
-	import { toaster } from '@stores/store.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 	// getModalStore deprecated - use modalState from @utils/modalState.svelte;
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';
@@ -472,7 +476,7 @@ Handles all field types and validation automatically
 
 	<!-- Loading State -->
 	{#if loading}
-		<div class="card preset-tonal -surface-500 rounded-xl p-6 text-center">
+		<div class="card preset-tonal-surface-500 -surface-500 rounded-xl p-6 text-center">
 			<p>Loading settings...</p>
 		</div>
 	{:else}
@@ -506,7 +510,7 @@ Handles all field types and validation automatically
 							{#if defaultLangField}
 								<div>
 									<label for={defaultLangField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
-										<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										<CircleQuestionMark size={24} />
 										<span>{defaultLangField.label}</span>
 										{#if defaultLangField.required}
 											<span class="text-error-500">*</span>
@@ -517,7 +521,7 @@ Handles all field types and validation automatically
 											data-tooltip={defaultLangField.description}
 											aria-label="Field information"
 										>
-											<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
+											<CircleQuestionMark size={24} />
 										</button>
 									</label>
 									<select
@@ -544,7 +548,7 @@ Handles all field types and validation automatically
 							{#if availableLangsField}
 								<div>
 									<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-										<iconify-icon icon="mdi:book-multiple" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										<CircleQuestionMark size={24} />
 										<span>{availableLangsField.label}</span>
 										{#if availableLangsField.required}
 											<span class="text-error-500">*</span>
@@ -555,7 +559,7 @@ Handles all field types and validation automatically
 											data-tooltip={availableLangsField.description}
 											aria-label="Field information"
 										>
-											<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
+											<CircleQuestionMark size={24} />
 										</button>
 									</div>
 									<div class="relative">
@@ -598,7 +602,7 @@ Handles all field types and validation automatically
 													aria-expanded={showLanguagePicker[availableLangsField.key]}
 													aria-controls="{availableLangsField.key}-lang-picker"
 												>
-													<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
+													<Plus size={14} />
 													Add
 												</button>
 											{/if}
@@ -639,7 +643,7 @@ Handles all field types and validation automatically
 															}}
 														>
 															<span>{lang.native} ({lang.code})</span>
-															<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
+															<CircleQuestionMark size={24} />
 														</button>
 													{:else}
 														<p class="px-1 py-2 text-center text-[11px] text-slate-500">No matches</p>
@@ -668,7 +672,7 @@ Handles all field types and validation automatically
 							{#if baseLocaleField}
 								<div>
 									<label for={baseLocaleField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
-										<iconify-icon icon="mdi:translate" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										<CircleQuestionMark size={24} />
 										<span>{baseLocaleField.label}</span>
 										{#if baseLocaleField.required}
 											<span class="text-error-500">*</span>
@@ -679,7 +683,7 @@ Handles all field types and validation automatically
 											data-tooltip={baseLocaleField.description}
 											aria-label="Field information"
 										>
-											<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
+											<CircleQuestionMark size={24} />
 										</button>
 									</label>
 									<select
@@ -706,7 +710,7 @@ Handles all field types and validation automatically
 							{#if localesField}
 								<div>
 									<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-										<iconify-icon icon="mdi:translate-variant" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										<CircleQuestionMark size={24} />
 										<span>{localesField.label}</span>
 										{#if localesField.required}
 											<span class="text-error-500">*</span>
@@ -717,7 +721,7 @@ Handles all field types and validation automatically
 											data-tooltip={localesField.description}
 											aria-label="Field information"
 										>
-											<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
+											<CircleQuestionMark size={24} />
 										</button>
 									</div>
 									<div class="relative">
@@ -768,7 +772,7 @@ Handles all field types and validation automatically
 													aria-expanded={showLanguagePicker[localesField.key]}
 													aria-controls="{localesField.key}-lang-picker"
 												>
-													<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
+													<Plus size={14} />
 													Add
 												</button>
 											{/if}
@@ -810,7 +814,7 @@ Handles all field types and validation automatically
 															}}
 														>
 															<span>{displayLanguage(code)} ({code.toUpperCase()})</span>
-															<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
+															<CircleQuestionMark size={24} />
 														</button>
 													{:else}
 														<p class="px-1 py-2 text-center text-[11px] text-slate-500">No matches</p>
@@ -844,7 +848,11 @@ Handles all field types and validation automatically
 						>
 							<label for={field.key} class="mb-2 block">
 								<span class="flex items-center gap-2">
-									<iconify-icon icon={getFieldIcon(field)} width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+									{#if iconsData[getFieldIcon(field) as keyof typeof iconsData] as any}<Icon
+											icon={iconsData[getFieldIcon(field) as keyof typeof iconsData] as any}
+											size={18}
+											class="text-tertiary-500 dark:text-primary-500"
+										/>{/if}
 									<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500 md:text-base">{field.label}</span>
 									{#if field.required}
 										<span class="text-error-500">*</span>
@@ -856,7 +864,7 @@ Handles all field types and validation automatically
 											class="text-surface-500 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-50 cursor-help"
 											aria-label="Field information"
 										>
-											<iconify-icon icon="material-symbols:info-outline" width="16"></iconify-icon>
+											<CircleQuestionMark size={24} />
 										</button>
 										<!-- Tooltip Content -->
 										<div
@@ -929,7 +937,10 @@ Handles all field types and validation automatically
 											onclick={() => (showPassword[field.key] = !showPassword[field.key])}
 											aria-label={showPassword[field.key] ? 'Hide password' : 'Show password'}
 										>
-											<iconify-icon icon={showPassword[field.key] ? 'bi:eye-slash-fill' : 'bi:eye-fill'} width="20"></iconify-icon>
+											{#if iconsData[showPassword[field.key] ? 'bi:eye-slash-fill' : ('bi:eye-fill' as keyof typeof iconsData)] as any}<Icon
+													icon={iconsData[showPassword[field.key] ? 'bi:eye-slash-fill' : ('bi:eye-fill' as keyof typeof iconsData)] as any}
+													size={20}
+												/>{/if}
 										</button>
 									{/if}
 								</div>
@@ -1021,7 +1032,7 @@ Handles all field types and validation automatically
 												aria-expanded={showLanguagePicker[field.key]}
 												aria-controls="{field.key}-lang-picker"
 											>
-												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
+												<Plus size={14} />
 												Add
 											</button>
 										{/if}
@@ -1058,7 +1069,7 @@ Handles all field types and validation automatically
 														}}
 													>
 														<span>{lang.native} ({lang.code})</span>
-														<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
+														<CircleQuestionMark size={24} />
 													</button>
 												{:else}
 													<p class="px-1 py-2 text-center text-[11px] text-slate-500">No matches</p>
@@ -1108,7 +1119,7 @@ Handles all field types and validation automatically
 												aria-expanded={showLogLevelPicker[field.key]}
 												aria-controls="{field.key}-loglevel-picker"
 											>
-												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
+												<Plus size={14} />
 												Add
 											</button>
 										{/if}
@@ -1136,7 +1147,7 @@ Handles all field types and validation automatically
 															}}
 														>
 															<span>{level}</span>
-															<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
+															<CircleQuestionMark size={24} />
 														</button>
 													{/if}
 												{/each}

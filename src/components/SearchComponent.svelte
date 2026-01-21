@@ -21,6 +21,8 @@ A highly performant, accessible, and secure global search component with fuzzy m
 -->
 
 <script lang="ts">
+	import Search from '@lucide/svelte/icons/search';
+
 	import { goto } from '$app/navigation';
 	import { getEditDistance } from '@utils/utils';
 	import { onMount, onDestroy } from 'svelte';

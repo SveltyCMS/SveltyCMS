@@ -27,6 +27,10 @@ It includes search, filter toggles, column visibility, and density controls, opt
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import Search from '@lucide/svelte/icons/search';
+
+	import Icon from '@iconify/svelte';
 	import { browser } from '$app/environment';
 
 	// Stores
@@ -155,7 +159,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 			aria-label={m.table_clear_search()}
 			class="preset-filled-surface-500 w-10 flex items-center justify-center"
 		>
-			<iconify-icon icon="ic:outline-search-off" width="20"></iconify-icon>
+			<CircleQuestionMark size={24} />
 		</button>
 	</div>
 {:else}
@@ -169,8 +173,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		title={m.table_search_toggle()}
 		class="btn preset-outlined-surface-500 rounded-full"
 	>
-		<iconify-icon icon="material-symbols:search-rounded" width="24" class={searchShow ? 'text-tertiary-500 dark:text-primary-500' : ''}
-		></iconify-icon>
+		<CircleQuestionMark size={24} />
 	</button>
 
 	<!-- Filter -->
@@ -184,7 +187,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		title={m.table_filter_toggle()}
 		class="btn preset-outlined-surface-500 rounded-full"
 	>
-		<iconify-icon icon="carbon:filter-edit" width="24" class={filterShow ? 'text-tertiary-500 dark:text-primary-500' : ''}></iconify-icon>
+		<CircleQuestionMark size={24} />
 	</button>
 
 	<!-- Column Order & Visibility -->
@@ -198,8 +201,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		title={m.table_column_toggle()}
 		class="btn preset-outlined-surface-500 rounded-full"
 	>
-		<iconify-icon icon="fluent:column-triple-edit-24-regular" width="24" class={columnShow ? 'text-tertiary-500 dark:text-primary-500' : ''}
-		></iconify-icon>
+		<CircleQuestionMark size={24} />
 	</button>
 
 	<!-- Spacing/Density -->
@@ -213,6 +215,9 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		title={m.table_density_label({ density: getDensityDisplayName() })}
 		class="btn preset-outlined-surface-500 rounded-full"
 	>
-		<iconify-icon icon={getDensityIcon()} width="24"></iconify-icon>
+		{#if iconsData[getDensityIcon() as keyof typeof iconsData] as any}<Icon
+				icon={iconsData[getDensityIcon() as keyof typeof iconsData] as any}
+				size={24}
+			/>{/if}
 	</button>
 {/if}

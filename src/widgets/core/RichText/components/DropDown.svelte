@@ -21,6 +21,9 @@
 	import { onMount, tick } from 'svelte';
 	import { twMerge } from 'tailwind-merge';
 
+	// Lucide icons
+	import Check from '@lucide/svelte/icons/check';
+
 	// Define props using Svelte 5 runes
 	let {
 		items = [], // Array of selectable items
@@ -151,11 +154,9 @@
 		aria-label={label || undefined}
 	>
 		{#if getButtonIcon()}
-			<iconify-icon
-				icon={getButtonIcon()}
-				width="18"
-				class={getActiveItem() ? 'text-tertiary-50 dark:text-tertiary-300' : 'text-surface-800 dark:text-surface-200'}
-			></iconify-icon>
+			{#await import(`@lucide/svelte/icons/${getButtonIcon()}`) then module}
+				<module.default size={18} class={getActiveItem() ? 'text-tertiary-50 dark:text-tertiary-300' : 'text-surface-800 dark:text-surface-200'} />
+			{/await}
 		{/if}
 		<span class="hidden text-sm sm:inline" class:text-tertiary-50={!!getActiveItem()} class:text-surface-800={!getActiveItem()}
 			>{getButtonText()}</span
@@ -211,9 +212,11 @@
 					aria-current={item.active && item.active() ? 'true' : undefined}
 				>
 					{#if item.active && item.active()}
-						<iconify-icon icon="mdi:check" width="16" class="text-tertiary-600 dark:text-tertiary-400"></iconify-icon>
+						<Check size={16} />
 					{:else if item.icon}
-						<iconify-icon icon={item.icon} width="18"></iconify-icon>
+						{#await import(`@lucide/svelte/icons/${item.icon}`) then module}
+							<module.default size={18} />
+						{/await}
 					{/if}
 					<span class="whitespace-nowrap text-sm">{item.name || item.title || ''}</span>
 				</button>

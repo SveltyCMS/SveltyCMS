@@ -35,6 +35,13 @@ Interactive menu builder with add/edit/reorder capabilities
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Menu from '@lucide/svelte/icons/menu';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+
 	import { showModal } from '@utils/modalUtils';
 	import type { FieldType } from './';
 	import type { MenuItem, MenuEditContext } from './types';
@@ -168,7 +175,7 @@ Interactive menu builder with add/edit/reorder capabilities
 	<div class="flex items-center justify-between border-b border-surface-200 pb-3 dark:text-surface-50">
 		<h3 class=" text-lg font-semibold text-surface-900 dark:text-surface-100">Menu Structure</h3>
 		<button type="button" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={addItem}>
-			<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
+			<Plus size={24} />
 			Add Menu Item
 		</button>
 	</div>
@@ -203,7 +210,7 @@ Interactive menu builder with add/edit/reorder capabilities
 									class="cursor-move p-1 text-surface-400 transition-colors hover:text-surface-600 dark:text-surface-500 dark:hover:text-surface-300"
 									aria-label="Drag to reorder"
 								>
-									<iconify-icon icon="mdi:drag" width="16"></iconify-icon>
+									<CircleQuestionMark size={24} />
 								</div>
 							{/if}
 
@@ -215,12 +222,7 @@ Interactive menu builder with add/edit/reorder capabilities
 									aria-expanded={item._expanded !== false}
 									aria-label={item._expanded !== false ? 'Collapse children' : 'Expand children'}
 								>
-									<iconify-icon
-										icon="mdi:chevron-down"
-										width="16"
-										class="chevron transition-transform duration-200"
-										class:-rotate-90={item._expanded === false}
-									></iconify-icon>
+									<ChevronDown size={16} class="chevron transition-transform duration-200" />
 								</button>
 							{:else if item.children.length === 0}
 								<div class="spacer w-8"></div>
@@ -245,16 +247,16 @@ Interactive menu builder with add/edit/reorder capabilities
 									aria-label="Add child item"
 									title="Add child item"
 								>
-									<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
+									<Plus size={24} />
 								</button>
 							{/if}
 
 							<button type="button" class="abtn preset-filled-surface-500" onclick={() => editItem(item, 0)} aria-label="Edit item" title="Edit item">
-								<iconify-icon icon="mdi:pencil" width="14"></iconify-icon>
+								<Pencil size={24} />
 							</button>
 
 							<button type="button" class="preset-filled-error-500 btn" onclick={() => deleteItem(item)} aria-label="Delete item" title="Delete item">
-								<iconify-icon icon="mdi:delete" width="14"></iconify-icon>
+								<Trash2 size={24} />
 							</button>
 						</div>
 					</div>
@@ -268,7 +270,7 @@ Interactive menu builder with add/edit/reorder capabilities
 			{/each}
 		{:else}
 			<div class="py-8 text-center">
-				<iconify-icon icon="mdi:menu" width="48" class="empty-icon mb-4 text-surface-300 dark:text-surface-600"></iconify-icon>
+				<Menu size={48} />
 				<p class="empty-message text-surface-500 dark:text-surface-50">No menu items yet. Click "Add Menu Item" to get started.</p>
 			</div>
 		{/if}
@@ -280,7 +282,7 @@ Interactive menu builder with add/edit/reorder capabilities
 			role="alert"
 			aria-live="polite"
 		>
-			<iconify-icon icon="mdi:alert-circle" width="16"></iconify-icon>
+			<CircleAlert size={24} />
 			{error}
 		</div>
 	{/if}

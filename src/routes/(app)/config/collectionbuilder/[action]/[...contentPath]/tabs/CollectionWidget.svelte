@@ -5,15 +5,18 @@ component
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
+	import Icon from '@iconify/svelte';
 	// Stores
 	import { page } from '$app/state';
 	import { logger } from '@utils/logger';
 	import { collection, setTargetWidget } from '@src/stores/collectionStore.svelte';
-	import { tabSet } from '@stores/store.svelte';
+	import { tabSet } from '@stores/store.svelte.ts';
 	import { asAny, getGuiFields } from '@utils/utils';
 	// Components
 	import VerticalList from '@components/VerticalList.svelte';
-	import { widgetFunctions } from '@stores/widgetStore.svelte';
+	import { widgetFunctions } from '@stores/widgetStore.svelte.ts';
 	import { get } from 'svelte/store';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -192,13 +195,17 @@ component
 						{field.id}
 					</div>
 
-					<iconify-icon icon={field.icon} width="24" class="text-tertiary-500"></iconify-icon>
+					{#if iconsData[field.icon as keyof typeof iconsData] as any}<Icon
+							icon={iconsData[field.icon as keyof typeof iconsData] as any}
+							size={24}
+							class="text-tertiary-500"
+						/>{/if}
 					<div class="font-bold dark:text-primary-500">{field.label}</div>
 					<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
 					<div class=" ">{field.widget?.key || field.__type || 'Unknown Widget'}</div>
 
 					<button onclick={() => modalWidgetForm(field)} type="button" aria-label={m.button_edit()} class="preset-ghost-primary-500 btn-icon ml-auto">
-						<iconify-icon icon="ic:baseline-edit" width="24" class="dark:text-white"></iconify-icon>
+						<CircleQuestionMark size={24} />
 					</button>
 				</div>
 			{/each}

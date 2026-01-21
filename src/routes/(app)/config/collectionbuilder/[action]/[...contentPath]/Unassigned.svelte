@@ -11,6 +11,9 @@
 - Drag and drop support for reassigning collections
 -->
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
+	import Icon from '@iconify/svelte';
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -48,10 +51,14 @@
 				class="mx-2 my-1 flex h-10 w-5/12 items-center justify-between overflow-x-auto rounded-sm border border-surface-700 bg-surface-300 text-center text-xs font-bold hover:bg-surface-400 dark:text-white"
 				animate:flip={{ duration: flipDurationMs }}
 			>
-				<iconify-icon icon="mdi:drag" width="18" class="pl-0.5"></iconify-icon>
+				<CircleQuestionMark size={24} />
 
 				<span class="break-word flex items-center gap-2">
-					<iconify-icon icon={item.icon} width="18" class="text-error-500"></iconify-icon>
+					{#if iconsData[item.icon as keyof typeof iconsData] as any}<Icon
+							icon={iconsData[item.icon as keyof typeof iconsData] as any}
+							size={18}
+							class="text-error-500"
+						/>{/if}
 					{item.name}</span
 				>
 
@@ -61,7 +68,7 @@
 					class="text-black hover:text-primary-500"
 					data-sveltekit-preload-data="hover"
 				>
-					<iconify-icon icon="mdi:pen" width="18" class="pr-0.5"></iconify-icon>
+					<CircleQuestionMark size={24} />
 				</a>
 			</div>
 		{/each}

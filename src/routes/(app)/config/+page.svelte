@@ -5,11 +5,12 @@
 -->
 
 <script lang="ts">
+	import Icon from '@iconify/svelte';
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import * as m from '@src/paraglide/messages';
 	import { collections } from '@src/stores/collectionStore.svelte';
-	import { ui } from '@src/stores/UIStore.svelte';
+	import { ui } from '@src/stores/UIStore.svelte.ts';
 	import { onMount } from 'svelte';
 
 	onMount(() => {
@@ -107,34 +108,17 @@
 			permission: null
 		},
 		{
-			id: 'widgetManagement',
-			href: '/config/widgetManagement',
-			label: m.config_widgetManagement(),
-			icon: 'mdi:widgets',
+			id: 'extensions',
+			href: '/config/extensions',
+			label: 'Extensions',
+			icon: 'mdi:puzzle-outline',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
 			iconColor: 'text-tertiary-500',
 			permission: {
-				contextId: 'config:widgetManagement',
-				name: 'Widget Management',
-				description: 'Manage system widgets',
-				requiredRole: 'admin',
-				action: 'manage',
-				contextType: 'configuration'
-			}
-		},
-		{
-			id: 'themeManagement',
-			href: '/config/themeManagement',
-			label: m.config_themeManagement(),
-			icon: 'ph:layout',
-			classes:
-				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
-			iconColor: 'text-primary-500',
-			permission: {
-				contextId: 'config:themeManagement',
-				name: 'Theme Management',
-				description: 'Manage system themes',
+				contextId: 'config:extensions',
+				name: 'Extensions',
+				description: 'Manage plugins, widgets and themes',
 				requiredRole: 'admin',
 				action: 'manage',
 				contextType: 'configuration'
@@ -149,12 +133,29 @@
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
 			iconColor: 'text-surface-500',
 			permission: {
-				// FIX: Changed from 'system:settings' to 'config:settings' to match +page.server.ts
 				contextId: 'config:settings',
 				name: 'Settings',
 				description: 'Manage system settings',
 				requiredRole: 'admin',
 				action: 'manage',
+				contextType: 'system'
+			}
+		},
+		{
+			id: 'audit',
+			href: '/api/audit?limit=50',
+			label: 'Audit Log (Raw)',
+			icon: 'mdi:history',
+			classes:
+				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
+			iconColor: 'text-primary-500',
+			target: '_blank',
+			permission: {
+				contextId: 'config:audit',
+				name: 'Audit Log',
+				description: 'View system audit logs',
+				requiredRole: 'admin',
+				action: 'view',
 				contextType: 'system'
 			}
 		},
@@ -256,7 +257,9 @@
 						data-sveltekit-preload-data={item.target === '_blank' ? undefined : 'hover'}
 						onclick={handleMobileSidebarClose}
 					>
-						<iconify-icon icon={item.icon} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`}></iconify-icon>
+						{#if iconsData[item.icon as keyof typeof iconsData]}
+							<Icon icon={iconsData[item.icon as keyof typeof iconsData] as any} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`} />
+						{/if}
 						<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
 					</a>
 				</PermissionGuard>
@@ -270,7 +273,9 @@
 					data-sveltekit-preload-data={item.target === '_blank' ? undefined : 'hover'}
 					onclick={handleMobileSidebarClose}
 				>
-					<iconify-icon icon={item.icon} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`}></iconify-icon>
+					{#if iconsData[item.icon as keyof typeof iconsData]}
+						<Icon icon={iconsData[item.icon as keyof typeof iconsData] as any} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`} />
+					{/if}
 					<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
 				</a>
 			{/if}

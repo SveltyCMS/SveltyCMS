@@ -29,7 +29,7 @@ import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import type { User } from '@src/databases/auth/types';
 import type { ISODateString } from '@databases/dbInterface';
 import { auth, dbAdapter } from '@src/databases/db';
-import { getSystemState } from '@src/stores/system';
+import { getSystemState } from '@src/stores/system/state';
 import { seedDemoTenant } from '@src/routes/api/setup/seed';
 import { cacheService, SESSION_CACHE_TTL_MS } from '@src/databases/CacheService';
 import { logger } from '@utils/logger.server';

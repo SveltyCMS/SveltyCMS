@@ -11,19 +11,23 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 -->
 
 <script lang="ts">
+	// Lucide icons
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+
 	import { invalidateAll } from '$app/navigation';
 	import { logger } from '@src/utils/logger';
 	import axios from 'axios';
 
 	// Stores
-	import { avatarSrc } from '@stores/store.svelte';
+	import { avatarSrc } from '@stores/store.svelte.ts';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
 	import { Avatar, FileUpload } from '@skeletonlabs/skeleton-svelte';
-	import { toaster } from '@stores/store.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 	import { modalState } from '@utils/modalState.svelte';
 	import { showConfirm } from '@utils/modalUtils';
 
@@ -306,7 +310,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 						// Show success message
 						toaster.success({
-							description: '<iconify-icon icon="radix-icons:avatar" color="white" width="24" class="mr-1"></iconify-icon> Avatar Deleted'
+							description: '<CircleQuestionMark size={24} /> Avatar Deleted'
 						});
 
 						// Close dialog
@@ -322,7 +326,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 					const msg = error instanceof Error ? error.message : 'Failed to delete avatar';
 
-					toaster.error({ description: `<iconify-icon icon="radix-icons:cross-2" color="white" width="24" class="mr-1"></iconify-icon> ${msg}` });
+					toaster.error({ description: `<CircleQuestionMark size={24} /> ${msg}` });
 				}
 			}
 		});
@@ -367,7 +371,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				<!-- Dropzone Area -->
 				<FileUpload.Dropzone class="w-full">
 					<div class="flex flex-col items-center justify-center p-4">
-						<iconify-icon icon="mdi:cloud-upload" width="48" class="mb-2 text-primary-500"></iconify-icon>
+						<CircleQuestionMark size={24} />
 						<p class="text-sm">{m.modaledit_avatarfilesallowed()}</p>
 					</div>
 				</FileUpload.Dropzone>
@@ -393,7 +397,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		<!-- Delete Avatar -->
 		{#if avatarSrc.value && avatarSrc.value !== '/Default_User.svg'}
 			<button type="button" onclick={deleteAvatar} class="preset-filled-error-500 btn">
-				<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
+				<Trash2 size={24} />
 				<span class="hidden sm:block">{m.button_delete()}</span>
 			</button>
 		{:else}

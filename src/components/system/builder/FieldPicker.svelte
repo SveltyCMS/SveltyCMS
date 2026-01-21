@@ -4,7 +4,7 @@
 -->
 
 <script lang="ts">
-	import { collections } from '@stores/collectionStore.svelte';
+	import { collections } from '@stores/collectionStore.svelte.ts';
 
 	interface Props {
 		value?: string;

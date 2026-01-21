@@ -3,11 +3,14 @@
 @description Professional multi-step setup wizard for SveltyCMS.
 -->
 <script lang="ts">
+	import X from '@lucide/svelte/icons/x';
+
+	import Icon from '@iconify/svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 
 	// Stores
-	import { setupStore } from '@stores/setupStore.svelte';
+	import { setupStore } from '@stores/setupStore.svelte.ts';
 	import { app } from '@stores/store.svelte';
 
 	// Child Layout Components
@@ -244,7 +247,10 @@
 								</svg>
 								<div class="flex-1">{wizard.successMessage || wizard.errorMessage}</div>
 								<button type="button" class="btn-sm flex shrink-0 items-center gap-1" onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}>
-									<iconify-icon icon={wizard.showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
+									{#if iconsData[wizard.showDbDetails ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)] as any}<Icon
+											icon={iconsData[wizard.showDbDetails ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)] as any}
+											class="h-4 w-4"
+										/>{/if}
 									<span class="hidden sm:inline">{wizard.showDbDetails ? m.setup_db_test_details_hide() : m.setup_db_test_details_show()}</span>
 								</button>
 								<button
@@ -253,7 +259,7 @@
 									aria-label="Close message"
 									onclick={setupStore.clearDbTestError}
 								>
-									<iconify-icon icon="mdi:close" class="h-4 w-4"></iconify-icon>
+									<X class="h-4 w-4" />
 								</button>
 							</div>
 							{#if wizard.showDbDetails && wizard.lastDbTestResult}

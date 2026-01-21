@@ -8,7 +8,7 @@
  */
 
 // Components needed for the GuiSchema
-import IconifyPicker from '@components/IconifyPicker.svelte';
+import IconPicker from '@components/IconPicker.svelte';
 import PermissionsSetting from '@components/PermissionsSetting.svelte';
 import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
@@ -53,7 +53,7 @@ const CheckboxWidget = createWidget<CheckboxProps>({
 		label: { widget: Input, required: true },
 		db_fieldName: { widget: Input, required: false },
 		required: { widget: Toggles, required: false },
-		icon: { widget: IconifyPicker, required: false },
+		icon: { widget: IconPicker, required: false },
 		helper: { widget: Input, required: false },
 		width: { widget: Input, required: false },
 		permissions: { widget: PermissionsSetting, required: false }

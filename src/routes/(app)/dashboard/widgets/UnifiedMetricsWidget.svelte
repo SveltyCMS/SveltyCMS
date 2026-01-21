@@ -37,6 +37,13 @@ for comprehensive system monitoring and performance analysis.
 </script>
 
 <script lang="ts">
+	// Lucide icons
+	import HeartPulse from '@lucide/svelte/icons/heart-pulse';
+	import Heart from '@lucide/svelte/icons/heart';
+	import HeartCrack from '@lucide/svelte/icons/heart-crack';
+	import HeartOff from '@lucide/svelte/icons/heart-off';
+	import Activity from '@lucide/svelte/icons/activity';
+
 	import { onMount, onDestroy } from 'svelte';
 	import { logger } from '@utils/logger';
 	import BaseWidget from '../BaseWidget.svelte';
@@ -122,7 +129,25 @@ for comprehensive system monitoring and performance analysis.
 	// Computed performance indicators - using $derived correctly
 	const overallHealth = $derived(calculateOverallHealth(metrics));
 	const healthColor = $derived(getHealthColor(overallHealth));
-	const healthIcon = $derived(getHealthIcon(overallHealth));
+
+	// Map health status to icon component
+	const HealthIconComponent = $derived.by(() => {
+		switch (overallHealth) {
+			case 'excellent':
+				return HeartPulse;
+			case 'good':
+				return Heart;
+			case 'fair':
+				return Activity; // Using Activity for 'fair' as HeartHalf doesn't exist in Lucide default
+			case 'poor':
+				return HeartCrack;
+			case 'critical':
+				return HeartOff;
+			default:
+				return Activity;
+		}
+	});
+
 	const primaryMetrics = $derived(getPrimaryMetrics(metrics));
 
 	function calculateOverallHealth(m: UnifiedMetrics): 'excellent' | 'good' | 'fair' | 'poor' | 'critical' {
@@ -172,23 +197,6 @@ for comprehensive system monitoring and performance analysis.
 				return 'text-red-600 animate-pulse';
 			default:
 				return 'text-gray-500';
-		}
-	}
-
-	function getHealthIcon(health: string): string {
-		switch (health) {
-			case 'excellent':
-				return 'mdi:heart-pulse';
-			case 'good':
-				return 'mdi:heart';
-			case 'fair':
-				return 'mdi:heart-half';
-			case 'poor':
-				return 'mdi:heart-broken';
-			case 'critical':
-				return 'mdi:heart-off';
-			default:
-				return 'mdi:heart-outline';
 		}
 	}
 
@@ -299,7 +307,7 @@ for comprehensive system monitoring and performance analysis.
 		<!-- Health Status Header -->
 		<div class="flex items-center justify-between">
 			<div class="flex items-center space-x-2">
-				<iconify-icon icon={healthIcon} class="text-xl {healthColor}"></iconify-icon>
+				<HealthIconComponent class="text-xl {healthColor}" />
 				<div>
 					<h3 class="font-semibold capitalize">{overallHealth}</h3>
 					<p class="text-xs text-gray-500">System Health</p>

@@ -4,9 +4,14 @@
 Provides DB type, host, port, name, user, password inputs, validation display, test button, and change warning.
 -->
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+
+	import Icon from '@iconify/svelte';
 	import * as m from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
-	import type { ValidationErrors } from '@stores/setupStore.svelte';
+	import type { ValidationErrors } from '@stores/setupStore.svelte.ts';
 	import { safeParse } from 'valibot';
 	import { dbConfigSchema } from '@utils/formSchemas';
 	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
@@ -252,10 +257,14 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				class="flex w-full items-center justify-between p-4 text-left text-blue-900 dark:text-blue-200"
 			>
 				<div class="flex items-center gap-3">
-					<iconify-icon icon="mdi:information" width="20" class="shrink-0" aria-hidden="true"></iconify-icon>
+					<Info size={20} class="shrink-0" aria-hidden="true" />
 					<span class="font-semibold">MongoDB Atlas Quick Setup</span>
 				</div>
-				<iconify-icon icon={showAtlasHelper ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="24" aria-hidden="true"></iconify-icon>
+				{#if iconsData[showAtlasHelper ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)] as any}<Icon
+						icon={iconsData[showAtlasHelper ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)] as any}
+						size={24}
+						aria-hidden="true"
+					/>{/if}
 			</button>
 
 			{#if showAtlasHelper}
@@ -290,7 +299,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			class="mb-6 rounded border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
 		>
 			<div class="flex items-center gap-2 mb-2">
-				<iconify-icon icon="mdi:hand-shake" width="24"></iconify-icon>
+				<CircleQuestionMark size={24} />
 				<p class="font-semibold">Help Wanted!</p>
 			</div>
 			<p class="mt-1">
@@ -326,7 +335,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		<div class="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
 			<div>
 				<label for="db-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:database" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					<span class="text-black dark:text-white">{m.setup_label_database_type()}</span>
 					<Tooltip positioning={{ placement: 'top' }}>
 						<Tooltip.Trigger>
@@ -336,7 +345,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 								aria-label={'Help: Database Type'}
 								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+								<CircleQuestionMark size={24} />
 							</button>
 						</Tooltip.Trigger>
 						<Portal>
@@ -364,13 +373,13 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				</select>
 				{#if isInstallingDriver}
 					<div class="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400" role="status">
-						<iconify-icon icon="mdi:loading" class="animate-spin" width="16" aria-hidden="true"></iconify-icon>
+						<Loader2 class="animate-spin" size={16} aria-hidden="true" />
 						<span>Installing database driver...</span>
 					</div>
 				{/if}
 				{#if installSuccess}
 					<div class="mt-2 flex items-center gap-2 text-sm text-green-600 dark:text-green-400" role="status">
-						<iconify-icon icon="mdi:check-circle" width="16" aria-hidden="true"></iconify-icon>
+						<CircleCheck size={16} aria-hidden="true" />
 						<span>{installSuccess}</span>
 					</div>
 				{/if}
@@ -380,7 +389,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						role="alert"
 					>
 						<div class="flex items-center gap-2">
-							<iconify-icon icon="mdi:alert-circle" width="16" aria-hidden="true"></iconify-icon>
+							<CircleAlert size={16} aria-hidden="true" />
 							<span class="font-medium">Driver Installation Failed</span>
 						</div>
 						<p class="mt-1">{installError}</p>
@@ -393,7 +402,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 
 			<div>
 				<label for="db-host" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					<span class="text-black dark:text-white">{isAtlas ? 'Atlas Cluster Host' : m.setup_database_host()}</span>
 					<Tooltip positioning={{ placement: 'top' }}>
 						<Tooltip.Trigger>
@@ -403,7 +412,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 								aria-label={'Help: Host'}
 								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+								<CircleQuestionMark size={24} />
 							</button>
 						</Tooltip.Trigger>
 						<Portal>
@@ -448,7 +457,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						role="status"
 					>
 						<div class="flex items-center gap-2">
-							<iconify-icon icon="mdi:check-circle" width="16" aria-hidden="true"></iconify-icon>
+							<CircleCheck size={16} aria-hidden="true" />
 							<span class="font-medium">Connection string parsed!</span>
 						</div>
 						<p class="mt-1 text-xs">
@@ -462,7 +471,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			{#if !isAtlas}
 				<div>
 					<label for="db-port" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:ethernet" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<CircleQuestionMark size={24} />
 						<span class="text-black dark:text-white">{m.setup_database_port()}</span>
 						<Tooltip positioning={{ placement: 'top' }}>
 							<Tooltip.Trigger>
@@ -472,7 +481,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 									aria-label={'Help: Port'}
 									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+									<CircleQuestionMark size={24} />
 								</button>
 							</Tooltip.Trigger>
 							<Portal>
@@ -508,7 +517,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			{/if}
 			<div>
 				<label for="db-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:database-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					<span class="text-black dark:text-white">{m.setup_database_name()}</span>
 					<Tooltip positioning={{ placement: 'top' }}>
 						<Tooltip.Trigger>
@@ -518,7 +527,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 								aria-label={'Help: Database Name'}
 								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+								<CircleQuestionMark size={24} />
 							</button>
 						</Tooltip.Trigger>
 						<Portal>
@@ -559,7 +568,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			</div>
 			<div>
 				<label for="db-user" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:account-key" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					<span class="text-black dark:text-white">{m.setup_database_user()}</span>
 					<Tooltip positioning={{ placement: 'top' }}>
 						<Tooltip.Trigger>
@@ -569,7 +578,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 								aria-label={'Help: Database User'}
 								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+								<CircleQuestionMark size={24} />
 							</button>
 						</Tooltip.Trigger>
 						<Portal>
@@ -612,7 +621,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			</div>
 			<div>
 				<label for="db-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					<span class="text-black dark:text-white">{m.setup_database_password()}</span>
 					<Tooltip positioning={{ placement: 'top' }}>
 						<Tooltip.Trigger>
@@ -622,7 +631,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 								aria-label={'Help: Database Password'}
 								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+								<CircleQuestionMark size={24} />
 							</button>
 						</Tooltip.Trigger>
 						<Portal>
@@ -670,7 +679,11 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						class="absolute inset-y-0 right-0 flex min-w-10 items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none dark:text-slate-500 dark:hover:text-slate-400"
 						aria-label={showDbPassword ? 'Hide database password' : 'Show database password'}
 					>
-						<iconify-icon icon={showDbPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
+						{#if iconsData[showDbPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)] as any}<Icon
+								icon={iconsData[showDbPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)] as any}
+								size={18}
+								aria-hidden="true"
+							/>{/if}
 					</button>
 				</div>
 				{#if displayErrors.password}

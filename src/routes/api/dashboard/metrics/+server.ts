@@ -5,7 +5,7 @@
  */
 
 import { json } from '@sveltejs/kit';
-import { getHealthMetrics } from '@src/hooks.server.js';
+import { metricsService } from '@src/services/MetricsService';
 import type { RequestHandler } from './$types';
 
 // System Logger
@@ -13,7 +13,7 @@ import { logger } from '@utils/logger.server';
 
 export const GET: RequestHandler = async ({ url }) => {
 	try {
-		const metrics = getHealthMetrics();
+		const metrics = metricsService.getReport();
 
 		// Add additional system metrics if requested
 		const detailed = url.searchParams.get('detailed') === 'true';

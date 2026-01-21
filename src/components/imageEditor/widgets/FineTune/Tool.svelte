@@ -13,7 +13,7 @@ Orchestrates the filter modules:
 
 <script lang="ts">
 	import Konva from 'konva';
-	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte.ts';
 	import FineTuneControls from './Controls.svelte';
 	import { type Adjustments, DEFAULT_ADJUSTMENTS } from './adjustments';
 	import { applyBaseFilters } from './baseFilters';

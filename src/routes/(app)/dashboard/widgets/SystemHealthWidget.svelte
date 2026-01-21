@@ -26,7 +26,16 @@
 </script>
 
 <script lang="ts">
+	// Components
+	import Icon from '@iconify/svelte';
+
+	// Icons
+	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+
+	// Widgets
 	import BaseWidget from '../BaseWidget.svelte';
+
+	// Utils
 	import { showToast } from '@utils/toast';
 	import type { WidgetSize } from '@src/content/types';
 
@@ -157,7 +166,11 @@
 				<!-- Overall Status -->
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2">
-						<iconify-icon icon={getStateIcon(data.overallStatus)} class={`text-2xl ${getStateColor(data.overallStatus)}`} width="24"></iconify-icon>
+						{#if iconsData[getStateIcon(data.overallStatus) as keyof typeof iconsData] as any}<Icon
+								icon={iconsData[getStateIcon(data.overallStatus) as keyof typeof iconsData] as any}
+								class={`text-2xl ${getStateColor(data.overallStatus)}`}
+								size={24}
+							/>{/if}
 						<div>
 							<span class={`font-bold ${getStateColor(data.overallStatus)}`}>
 								{data.overallStatus}
@@ -167,7 +180,7 @@
 					</div>
 
 					<button class="preset-outlined-warning-500 btn-sm" onclick={reinitializeSystem} title="Reinitialize system">
-						<iconify-icon icon="mdi:refresh" width="16"></iconify-icon>
+						<RefreshCw size={16} />
 					</button>
 				</div>
 
@@ -195,7 +208,7 @@
 			</div>
 		{:else}
 			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400">
-				<iconify-icon icon="mdi:alert-circle-outline" width="32" class="mb-2 text-surface-400"></iconify-icon>
+				<CircleAlert size={24} />
 				<span>Health data unavailable</span>
 			</div>
 		{/if}

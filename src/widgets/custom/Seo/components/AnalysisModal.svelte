@@ -6,6 +6,10 @@ Displays detailed SEO analysis results in a modal overlay.
 -->
 
 <script lang="ts">
+	import Icon from '@iconify/svelte';
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import X from '@lucide/svelte/icons/x';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import { fade, scale } from 'svelte/transition';
 	import type { SeoAnalysisResult } from '../seoTypes';
 
@@ -51,11 +55,11 @@ Displays detailed SEO analysis results in a modal overlay.
 			<!-- Header -->
 			<header class="card-header flex items-center justify-between border-b border-surface-500/20 p-4">
 				<h3 class="h3 flex items-center gap-2">
-					<iconify-icon icon="mdi:google-analytics" class="text-primary-500"></iconify-icon>
+					<CircleQuestionMark size={24} class="text-primary-500" />
 					SEO Analysis Report
 				</h3>
 				<button type="button" class="btn-icon btn-icon-sm preset-outlined-surface-500" onclick={close} aria-label="Close">
-					<iconify-icon icon="mdi:close" width="24"></iconify-icon>
+					<X size={24} />
 				</button>
 			</header>
 
@@ -111,6 +115,7 @@ Displays detailed SEO analysis results in a modal overlay.
 							<!-- Group by priority/type implicitly by sorting -->
 							<h4 class="h4">Room for Improvement</h4>
 							{#each analysisResult.suggestions as suggestion}
+								{@const suggestionIcon = suggestion.type === 'error' ? 'circle-alert' : suggestion.type === 'warning' ? 'triangle-alert' : 'info'}
 								<div
 									class="card p-4 border-l-4 {suggestion.type === 'error'
 										? 'border-error-500 bg-error-500/10'
@@ -121,9 +126,9 @@ Displays detailed SEO analysis results in a modal overlay.
 									<div class="flex items-start justify-between">
 										<div>
 											<div class="font-bold flex items-center gap-2">
-												<iconify-icon
-													icon={suggestion.type === 'error' ? 'mdi:alert-circle' : suggestion.type === 'warning' ? 'mdi:alert' : 'mdi:information'}
-												></iconify-icon>
+												{#if iconsData[suggestionIcon as keyof typeof iconsData]}
+													<Icon icon={iconsData[suggestionIcon as keyof typeof iconsData] as any} size={16} />
+												{/if}
 												{suggestion.title}
 											</div>
 											<p class="text-sm mt-1 opacity-90">{suggestion.description}</p>
@@ -149,7 +154,7 @@ Displays detailed SEO analysis results in a modal overlay.
 						</div>
 					{:else}
 						<div class="alert variant-soft-success">
-							<iconify-icon icon="mdi:check-circle" class="text-2xl mr-2"></iconify-icon>
+							<CircleCheck class="text-2xl mr-2" />
 							<span>Great job! No specific issues found.</span>
 						</div>
 					{/if}

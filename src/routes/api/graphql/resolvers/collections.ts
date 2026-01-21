@@ -23,7 +23,7 @@
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import type { DatabaseAdapter, CollectionModel } from '@src/databases/dbInterface';
 import { getFieldName } from '@utils/utils';
-import { widgets } from '@stores/widgetStore.svelte';
+import { widgets } from '@stores/widgetStore.svelte.ts';
 import deepmerge from 'deepmerge';
 import type { GraphQLFieldResolver } from 'graphql';
 

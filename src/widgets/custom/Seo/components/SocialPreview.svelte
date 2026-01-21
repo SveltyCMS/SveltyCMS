@@ -6,6 +6,9 @@ Displays a preview of the shared link for different platforms.
 -->
 
 <script lang="ts">
+	import Icon from '@iconify/svelte';
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	interface Props {
 		ogTitle?: string;
 		ogDescription?: string;
@@ -38,17 +41,17 @@ Displays a preview of the shared link for different platforms.
 	let displayImage = $derived(activePlatform === 'twitter' && twitterImage ? twitterImage : ogImage);
 
 	const platforms = [
-		{ id: 'facebook', icon: 'mdi:facebook', color: 'text-blue-600', label: 'Facebook' },
-		{ id: 'whatsapp', icon: 'mdi:whatsapp', color: 'text-green-500', label: 'WhatsApp' },
-		{ id: 'twitter', icon: 'mdi:twitter', color: 'text-black dark:text-white', label: 'X (Twitter)' },
-		{ id: 'linkedin', icon: 'mdi:linkedin', color: 'text-blue-700', label: 'LinkedIn' },
-		{ id: 'discord', icon: 'ic:baseline-discord', color: 'text-indigo-500', label: 'Discord' }
+		{ id: 'facebook', icon: 'facebook', color: 'text-blue-600', label: 'Facebook' },
+		{ id: 'whatsapp', icon: 'message-circle', color: 'text-green-500', label: 'WhatsApp' },
+		{ id: 'twitter', icon: 'twitter', color: 'text-black dark:text-white', label: 'X (Twitter)' },
+		{ id: 'linkedin', icon: 'linkedin', color: 'text-blue-700', label: 'LinkedIn' },
+		{ id: 'discord', icon: 'discord', color: 'text-indigo-500', label: 'Discord' }
 	] as const;
 </script>
 
 <div class="card preset-tonal-surface p-4 rounded-container-token mb-6">
 	<div class="flex items-center gap-2 mb-4">
-		<iconify-icon icon="mdi:share-variant" class="text-secondary-500 text-xl"></iconify-icon>
+		<CircleQuestionMark size={24} class="text-secondary-500 text-xl" />
 		<h3 class="h3">Social Share Preview</h3>
 	</div>
 
@@ -63,7 +66,12 @@ Displays a preview of the shared link for different platforms.
 				onclick={() => (activePlatform = platform.id)}
 				title={platform.label}
 			>
-				<iconify-icon icon={platform.icon} class="text-xl {activePlatform === platform.id ? 'text-white' : platform.color}"></iconify-icon>
+				{#if iconsData[platform.icon as keyof typeof iconsData]}
+					<Icon
+						icon={iconsData[platform.icon as keyof typeof iconsData] as any}
+						class="text-xl {activePlatform === platform.id ? 'text-white' : platform.color}"
+					/>
+				{/if}
 			</button>
 		{/each}
 	</div>
@@ -78,7 +86,7 @@ Displays a preview of the shared link for different platforms.
 					<img src={displayImage} alt="Social Preview" class="w-full h-full object-cover" />
 				{:else}
 					<div class="flex flex-col items-center text-gray-400">
-						<iconify-icon icon="mdi:image-off" class="text-4xl"></iconify-icon>
+						<CircleQuestionMark size={24} class="text-4xl" />
 						<span class="text-xs uppercase font-bold mt-2 tracking-wider">No Image</span>
 					</div>
 				{/if}
@@ -106,19 +114,19 @@ Displays a preview of the shared link for different platforms.
 	<div class="mt-4 text-sm text-surface-600 dark:text-surface-300">
 		{#if displayTitle.length > 95 && activePlatform === 'facebook'}
 			<div class="flex items-center gap-2 text-warning-600">
-				<iconify-icon icon="mdi:alert"></iconify-icon>
+				<TriangleAlert />
 				<span>Title is slightly long for Facebook (recommended &lt; 95 chars).</span>
 			</div>
 		{/if}
 		{#if displayTitle.length > 70 && activePlatform === 'twitter'}
 			<div class="flex items-center gap-2 text-warning-600">
-				<iconify-icon icon="mdi:alert"></iconify-icon>
+				<TriangleAlert />
 				<span>Title is too long for X cards (recommended &lt; 70 chars).</span>
 			</div>
 		{/if}
 		{#if !displayImage}
 			<div class="flex items-center gap-2 text-warning-600 mt-1">
-				<iconify-icon icon="mdi:image-search"></iconify-icon>
+				<CircleQuestionMark size={24} />
 				<span>No Og Image selected. The platform will try to scrape one from your page body.</span>
 			</div>
 		{/if}

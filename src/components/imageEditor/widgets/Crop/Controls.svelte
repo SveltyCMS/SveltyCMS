@@ -4,6 +4,9 @@
 Modern controls for the Crop tool. Injected into the master toolbar.
 -->
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import X from '@lucide/svelte/icons/x';
+
 	let {
 		onRotateLeft,
 		onRotateRight,
@@ -39,10 +42,10 @@ Modern controls for the Crop tool. Injected into the master toolbar.
 	<!-- Shape -->
 	<div class="btn-group preset-outlined-surface-500">
 		<button class="btn-sm" class:active={cropShape === 'rectangle'} onclick={() => onCropShapeChange('rectangle')} title="Rectangle">
-			<iconify-icon icon="mdi:rectangle-outline"></iconify-icon>
+			<CircleQuestionMark size={24} />
 		</button>
 		<button class="btn-sm" class:active={cropShape === 'circular'} onclick={() => onCropShapeChange('circular')} title="Circle">
-			<iconify-icon icon="mdi:circle-outline"></iconify-icon>
+			<CircleQuestionMark size={24} />
 		</button>
 	</div>
 
@@ -50,26 +53,26 @@ Modern controls for the Crop tool. Injected into the master toolbar.
 
 	<!-- Rotate & Flip -->
 	<button class="btn btn-icon btn-sm preset-outlined-surface-500" onclick={onRotateLeft} title="Rotate Left">
-		<iconify-icon icon="mdi:rotate-left"></iconify-icon>
+		<CircleQuestionMark size={24} />
 	</button>
 	<button class="btn btn-icon btn-sm preset-outlined-surface-500" onclick={onRotateRight} title="Rotate Right">
-		<iconify-icon icon="mdi:rotate-right"></iconify-icon>
+		<CircleQuestionMark size={24} />
 	</button>
 	<button class="btn btn-icon btn-sm preset-outlined-surface-500" onclick={onFlipHorizontal} title="Flip Horizontal">
-		<iconify-icon icon="mdi:flip-horizontal"></iconify-icon>
+		<CircleQuestionMark size={24} />
 	</button>
 
 	<div class="grow"></div>
 
 	<!-- Cancel -->
 	<button class="btn preset-outlined-error-500" onclick={onCancel}>
-		<iconify-icon icon="mdi:close"></iconify-icon>
+		<X />
 		<span>Cancel</span>
 	</button>
 
 	<!-- Apply -->
 	<button class="btn preset-filled-success-500" onclick={onApply}>
-		<iconify-icon icon="mdi:check"></iconify-icon>
+		<Check />
 		<span>Apply Crop</span>
 	</button>
 </div>

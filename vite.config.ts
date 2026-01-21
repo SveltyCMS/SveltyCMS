@@ -193,6 +193,10 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
 				originalConsoleWarn = console.warn;
 				console.warn = function (...args: unknown[]) {
 					const message = typeof args[0] === 'string' ? args[0] : String(args[0] ?? '');
+					// Explicitly ignore circular dependency warnings for the build page/status components
+					if (message.includes('Circular dependency') && (message.includes('status') || message.includes('build'))) {
+						return;
+					}
 					if (warningPatterns.some((pattern) => pattern.test(message))) return;
 					(originalConsoleWarn as typeof console.warn).apply(console, args);
 				};
@@ -203,6 +207,34 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
 		},
 		closeBundle() {
 			/* ensure cleanup */
+		}
+	};
+}
+
+/**
+ * Plugin to stub out server-only modules in the client build.
+ * This prevents unnecessary bundling of heavy server dependencies and fixes "ENOENT" or "cannot find module" errors
+ * in the client bundle for files that should only run on the server.
+ */
+function stubServerModulesPlugin(): Plugin {
+	return {
+		name: 'stub-server-modules',
+		enforce: 'pre',
+		resolveId(id, importer, options) {
+			// Stub out anything ending in .server.ts or .server.js when building the client
+			if (!options?.ssr) {
+				// Only stub for client build
+				if (id.includes('.server') || id.endsWith('privateSettings.server')) {
+					return '\0stub-server-module';
+				}
+			}
+			return null;
+		},
+		load(id) {
+			if (id === '\0stub-server-module') {
+				return 'export default {}; export const getPrivateSettingSync = () => ({}); export const logger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };';
+			}
+			return null;
 		}
 	};
 }
@@ -384,6 +416,7 @@ export default defineConfig((): UserConfig => {
 				showWarnings: true,
 				extensions: ['.svelte', '.ts', '.js']
 			}),
+			stubServerModulesPlugin(),
 			sveltekit(),
 			!setupComplete ? setupWizardPlugin() : cmsWatcherPlugin(),
 			tailwindcss(),
@@ -435,7 +468,6 @@ export default defineConfig((): UserConfig => {
 					// Preserve side-effect imports for packages that need them
 					moduleSideEffects: (id) => {
 						// These packages have important side effects that must not be removed
-						if (id.includes('iconify-icon')) return true;
 						if (id.includes('paraglide')) return true;
 						// Default: assume no side effects for other modules
 						return false;

@@ -26,6 +26,9 @@ Structure optimized for LLM integration and AI-powered search.
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import Search from '@lucide/svelte/icons/search';
+
 	import type { MediaBase } from '@utils/media/mediaModels';
 	import type { SearchCriteria } from '@utils/media/advancedSearch';
 
@@ -200,7 +203,7 @@ Structure optimized for LLM integration and AI-powered search.
 							formValues.uploadedBefore = '';
 						}}
 					>
-						<iconify-icon icon="mdi:calendar-week"></iconify-icon>
+						<CircleQuestionMark size={24} />
 						<span>Recent (7 days)</span>
 					</button>
 					<button
@@ -213,7 +216,7 @@ Structure optimized for LLM integration and AI-powered search.
 							formValues.uploadedBefore = '';
 						}}
 					>
-						<iconify-icon icon="mdi:calendar-month"></iconify-icon>
+						<CircleQuestionMark size={24} />
 						<span>Recent (30 days)</span>
 					</button>
 					<button
@@ -224,7 +227,7 @@ Structure optimized for LLM integration and AI-powered search.
 							formValues.maxSize = '';
 						}}
 					>
-						<iconify-icon icon="mdi:file-star"></iconify-icon>
+						<CircleQuestionMark size={24} />
 						<span>Large (>5MB)</span>
 					</button>
 					<button
@@ -235,7 +238,7 @@ Structure optimized for LLM integration and AI-powered search.
 							formValues.minHeight = '2160';
 						}}
 					>
-						<iconify-icon icon="mdi:monitor-screenshot"></iconify-icon>
+						<CircleQuestionMark size={24} />
 						<span>4K+ Images</span>
 					</button>
 				</div>
@@ -410,7 +413,7 @@ Structure optimized for LLM integration and AI-powered search.
 					<button type="button" onclick={resetForm} class="preset-outlined-surface-500 btn">Reset</button>
 					<button type="button" onclick={onClose} class="preset-outlined-surface-500 btn">Cancel</button>
 					<button type="submit" form="advanced-search-form" class="preset-filled-primary-500 btn">
-						<iconify-icon icon="mdi:magnify" width="20"></iconify-icon>
+						<Search size={20} />
 						Search
 					</button>
 				</div>

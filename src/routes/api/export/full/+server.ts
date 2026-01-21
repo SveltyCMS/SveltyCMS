@@ -5,7 +5,7 @@ import { encryptData } from '@utils/crypto';
 import { nanoid } from 'nanoid';
 import type { ExportOptions, ExportData, ExportMetadata, CollectionExport, Schema } from '@content/types';
 import { dbAdapter } from '@src/databases/db';
-import { collections } from '@stores/collectionStore.svelte';
+import { collections } from '@stores/collectionStore.svelte.ts';
 
 // Sensitive field patterns
 const SENSITIVE_PATTERNS: string[] = [

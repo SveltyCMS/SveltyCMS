@@ -22,6 +22,8 @@ functionality for image editing and basic file information display.
 - **Styling**: Adheres to the project's style guide using Tailwind CSS utility classes and semantic colors.
 -->
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
 	import type { ISODateString } from '@src/content/types';
 	import { convertTimestampToDateString, getFieldName } from '@utils/utils';
 	import { isoDateStringToDate } from '@utils/dateUtils';
@@ -31,8 +33,8 @@ functionality for image editing and basic file information display.
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import { validationStore } from '@stores/store.svelte';
-	import { collectionValue } from '@stores/collectionStore.svelte';
+	import { validationStore } from '@stores/store.svelte.ts';
+	import { collectionValue } from '@stores/collectionStore.svelte.ts';
 
 	// Components
 	import type { MediaImage, WatermarkOptions } from '@utils/media/mediaModels';
@@ -276,7 +278,7 @@ functionality for image editing and basic file information display.
 									tabindex="0"
 									aria-label="Set focal point"
 								>
-									<iconify-icon icon="mdi:plus-circle-outline" width="24" class="text-primary-500 drop-shadow-lg"></iconify-icon>
+									<CircleQuestionMark size={24} />
 								</div>
 							{/if}
 						</div>
@@ -301,21 +303,17 @@ functionality for image editing and basic file information display.
 					<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
 						<!-- Edit -->
 						<button onclick={() => (showEditor = true)} aria-label="Edit image" class="preset-outlined-surface-500 btn-icon" title="Edit image">
-							<iconify-icon icon="material-symbols:edit" width="24" class="text-primary-500"></iconify-icon>
+							<CircleQuestionMark size={24} />
 						</button>
 
 						<!-- Flip -->
 						<button onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" class="preset-outlined-surface-500 btn-icon" title="Flip details">
-							<iconify-icon
-								icon="uiw:reload"
-								width="24"
-								class={isFlipped ? ' rotate-90 text-yellow-500 transition-transform duration-300' : 'text-white  transition-transform duration-300'}
-							></iconify-icon>
+							<CircleQuestionMark size={24} />
 						</button>
 
 						<!-- Delete -->
 						<button onclick={() => (value = undefined)} aria-label="Delete" class="preset-outlined-surface-500 btn-icon" title="Delete image">
-							<iconify-icon icon="material-symbols:delete-outline" width="30" class="text-error-500"></iconify-icon>
+							<CircleQuestionMark size={30} />
 						</button>
 					</div>
 				</div>

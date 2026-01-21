@@ -27,10 +27,14 @@
 -->
 
 <script module lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import X from '@lucide/svelte/icons/x';
+
 	export type SortOrder = 0 | 1 | -1; // Strict type for sort order
 </script>
 
 <script lang="ts">
+	import Icon from '@iconify/svelte';
 	import { logger } from '@utils/logger';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
@@ -54,10 +58,10 @@
 	import { StatusTypes } from '@src/content/types';
 
 	// Stores
-	import { collection, collectionValue, mode, setCollectionValue, setMode, setModifyEntry, statusMap } from '@stores/collectionStore.svelte';
-	import { screen } from '@stores/screenSizeStore.svelte';
+	import { collection, collectionValue, mode, setCollectionValue, setMode, setModifyEntry, statusMap } from '@stores/collectionStore.svelte.ts';
+	import { screen } from '@stores/screenSizeStore.svelte.ts';
 	import { app } from '@stores/store.svelte';
-	import { ui } from '@stores/UIStore.svelte';
+	import { ui } from '@stores/UIStore.svelte.ts';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -70,6 +74,7 @@
 	import TablePagination from '@components/system/table/TablePagination.svelte';
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
 	import TranslationStatus from './TranslationStatus.svelte';
+	import PluginComponent from '@components/plugins/PluginComponent.svelte';
 
 	// Skeleton
 	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modalUtils';
@@ -482,6 +487,17 @@
 			{ id: `${cacheKey}-status`, label: 'status', name: 'status', visible: true }
 		];
 
+		// Plugin Headers (Dynamic detection)
+		const hasPageSpeedData = tableData.some((entry: any) => entry.pluginData?.performanceScore !== undefined);
+		if (hasPageSpeedData) {
+			systemHeaders.unshift({
+				id: `${cacheKey}-pagespeed`,
+				label: 'PageSpeed',
+				name: 'PageSpeed',
+				visible: true
+			});
+		}
+
 		return [...schemaHeaders, ...systemHeaders];
 	});
 
@@ -783,7 +799,7 @@
 					aria-label="Open Sidebar"
 					class="preset-outlined-surface-500 btn-icon mt-1"
 				>
-					<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
+					<CircleQuestionMark size={24} />
 				</button>
 			{/if}
 
@@ -797,7 +813,11 @@
 				<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
 					{#if currentCollection?.icon}
 						<span>
-							<iconify-icon icon={currentCollection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon>
+							{#if iconsData[currentCollection.icon as keyof typeof iconsData] as any}<Icon
+									icon={iconsData[currentCollection.icon as keyof typeof iconsData] as any}
+									size={24}
+									class="mr-1 text-error-500 sm:mr-2"
+								/>{/if}
 						</span>
 					{/if}
 					{#if currentCollection?.name}
@@ -820,7 +840,7 @@
 				class="preset-outlined-surface-500 btn-icon p-1 sm:hidden"
 				aria-label="Expand/Collapse Filters"
 			>
-				<iconify-icon icon="material-symbols:filter-list-rounded" width="30"> </iconify-icon>
+				<CircleQuestionMark size={24} />
 			</button>
 
 			<!-- Translation Content Language - Mobile -->
@@ -876,7 +896,7 @@
 					</label>
 
 					<button class="bg-surface-400 btn text-white" onclick={resetViewSettings}>
-						<iconify-icon icon="material-symbols-light:device-reset" width="20" class="mr-1 text-white"></iconify-icon>
+						<CircleQuestionMark size={24} />
 						Reset View
 					</button>
 				</div>
@@ -895,7 +915,7 @@
 									: 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move"
 								onclick={() => handleColumnVisibilityToggle(header)}
 							>
-								{#if header.visible}<iconify-icon icon="fa:check" class="mr-1"></iconify-icon>{/if}
+								{#if header.visible}<CircleQuestionMark size={24} class="mr-1" />{/if}
 								<span class="capitalize">{header.label}</span>
 							</button>
 						</div>
@@ -932,7 +952,7 @@
 										aria-label="Clear All Filters"
 										class="preset-outlined-surface-500 btn-icon"
 									>
-										<iconify-icon icon="material-symbols:close" width="18"></iconify-icon>
+										<X size={24} />
 									</button>
 								{/if}
 							</th>
@@ -977,13 +997,10 @@
 								<div class="flex items-center justify-center">
 									{(header as TableHeader).label}
 									{#if (header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
-										<iconify-icon
-											icon={entryListPaginationSettings.sorting.isSorted === 1
-												? 'material-symbols:arrow-upward-rounded'
-												: 'material-symbols:arrow-downward-rounded'}
-											width="16"
-											class="ml-1 origin-center"
-										></iconify-icon>
+										{@const sortIcon = entryListPaginationSettings.sorting.isSorted === 1 ? 'arrow-up' : 'arrow-down'}
+										{#if iconsData[sortIcon as keyof typeof iconsData]}
+											<Icon icon={iconsData[sortIcon as keyof typeof iconsData] as any} size={16} class="ml-1 origin-center" />
+										{/if}
 									{/if}
 								</div>
 							</th>
@@ -1075,6 +1092,17 @@
 												<div class="flex w-full items-center justify-center">
 													<Status value={entry.status || entry.raw_status || 'draft'} />
 												</div>
+											{:else if (header as TableHeader).name === 'PageSpeed'}
+												{#if (entry as any).pluginData?.performanceScore !== undefined}
+													<PluginComponent
+														pluginId="pagespeed"
+														componentName="score"
+														score={(entry as any).pluginData.performanceScore}
+														compact={true}
+													/>
+												{:else}
+													<span class="text-surface-400 opacity-50">-</span>
+												{/if}
 											{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
 												<div class="flex flex-col text-xs">
 													<div class="font-semibold">
@@ -1129,7 +1157,7 @@
 		</div>
 	{:else}
 		<div class="py-10 text-center text-tertiary-500 dark:text-primary-500">
-			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
+			<CircleQuestionMark size={24} class="mb-2" />
 			<p class="text-lg">
 				{currentCollection?.name ? m.EntryList_no_collection({ name: currentCollection.name }) : 'No collection selected or collection is empty.'}
 			</p>

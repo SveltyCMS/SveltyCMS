@@ -14,14 +14,16 @@
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
 	import { untrack } from 'svelte';
 	// Stores
 	import { page } from '$app/state';
-	import { tabSet } from '@stores/store.svelte';
+	import { tabSet } from '@stores/store.svelte.ts';
 	import { collection, setCollection } from '@root/src/stores/collectionStore.svelte';
 
 	// Components
-	import IconifyPicker from '@components/IconifyPicker.svelte';
+	import IconPicker from '@components/IconPicker.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -173,12 +175,7 @@
 		<div class="flex flex-col">
 			<label for="name" class="mb-1 flex items-center font-medium">
 				{m.collection_name()} <span class="mx-1 text-error-500">*</span>
-				<iconify-icon
-					icon="material-symbols:info"
-					title={`${m.collection_name_tooltip1()} ${m.collection_name_tooltip2()}`}
-					width="18"
-					class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
-				></iconify-icon>
+				<CircleQuestionMark size={24} />
 			</label>
 			<input
 				type="text"
@@ -210,26 +207,16 @@
 		<div class="flex flex-col">
 			<label for="icon" class="mb-1 flex items-center font-medium">
 				{m.collectionname_labelicon()}
-				<iconify-icon
-					icon="material-symbols:info"
-					title={m.collection_icon_tooltip()}
-					width="18"
-					class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
-				></iconify-icon>
+				<CircleQuestionMark size={24} />
 			</label>
-			<IconifyPicker bind:iconselected={selectedIcon} bind:searchQuery />
+			<IconPicker bind:iconselected={selectedIcon} bind:searchQuery />
 		</div>
 
 		<!-- Slug -->
 		<div class="flex flex-col">
 			<label for="slug" class="mb-1 flex items-center font-medium">
 				{m.collection_slug()}
-				<iconify-icon
-					icon="material-symbols:info"
-					title={m.collection_slug_tooltip()}
-					width="18"
-					class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
-				></iconify-icon>
+				<CircleQuestionMark size={24} />
 			</label>
 			<input type="text" id="slug" bind:value={slug} placeholder={m.collection_slug_input()} class="input w-full text-black dark:text-primary-500" />
 		</div>
@@ -238,12 +225,7 @@
 		<div class="flex flex-col">
 			<label for="description" class="mb-1 flex items-center font-medium">
 				{m.collectionname_description()}
-				<iconify-icon
-					icon="material-symbols:info"
-					title={m.collection_description()}
-					width="18"
-					class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
-				></iconify-icon>
+				<CircleQuestionMark size={24} />
 			</label>
 			<textarea
 				id="description"
@@ -258,12 +240,7 @@
 		<div class="flex flex-col">
 			<label for="status" class="mb-1 flex items-center font-medium">
 				{m.collection_status()}
-				<iconify-icon
-					icon="material-symbols:info"
-					title={m.collection_status_tooltip()}
-					width="18"
-					class="ml-1 cursor-pointer text-tertiary-500 dark:text-primary-500"
-				></iconify-icon>
+				<CircleQuestionMark size={24} />
 			</label>
 			<select id="status" bind:value={status} class="select w-full text-black dark:text-primary-500">
 				{#each statuses as statusOption}

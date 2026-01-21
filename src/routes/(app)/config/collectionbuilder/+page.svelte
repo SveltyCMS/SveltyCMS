@@ -19,6 +19,8 @@
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	// Simple ID generator (no need for crypto UUID)
@@ -31,8 +33,8 @@
 
 	// Stores
 	import { setCollectionValue, setMode, setContentStructure, contentStructure } from '@src/stores/collectionStore.svelte';
-	import { setRouteContext, ui } from '@src/stores/UIStore.svelte';
-	import { screen } from '@stores/screenSizeStore.svelte';
+	import { setRouteContext, ui } from '@src/stores/UIStore.svelte.ts';
+	import { screen } from '@stores/screenSizeStore.svelte.ts';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -43,7 +45,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { toaster } from '@stores/store.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 	import { modalState } from '@utils/modalState.svelte';
 	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
 	import type { ISODateString } from '@root/src/content/types';
@@ -278,7 +280,7 @@
 				class="preset-filled-tertiary-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1"
 				disabled={isLoading}
 			>
-				<iconify-icon icon="bi:collection" width="18" class="text-white"></iconify-icon>
+				<CircleQuestionMark size={24} />
 				<span>{m.collection_addcategory()}</span>
 			</button>
 
@@ -290,7 +292,7 @@
 				class="preset-filled-surface-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1 rounded font-bold"
 				disabled={isLoading}
 			>
-				<iconify-icon icon="material-symbols:category" width="18"></iconify-icon>
+				<CircleQuestionMark size={24} />
 				<span>{m.collection_add()}</span>
 			</button>
 
@@ -303,9 +305,9 @@
 				disabled={isLoading}
 			>
 				{#if isLoading}
-					<iconify-icon icon="eos-icons:loading" width="24" class="animate-spin text-white"></iconify-icon>
+					<CircleQuestionMark size={24} />
 				{:else}
-					<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
+					<Save size={24} class="text-white" />
 				{/if}
 				<span>{m.button_save()}</span>
 			</button>
@@ -323,7 +325,7 @@
 			class="preset-filled-tertiary-500 btn flex flex-1 items-center justify-center gap-1"
 			disabled={isLoading}
 		>
-			<iconify-icon icon="bi:collection" width="18" class="text-white"></iconify-icon>
+			<CircleQuestionMark size={24} />
 			<span>{m.collection_addcategory()}</span>
 		</button>
 
@@ -334,7 +336,7 @@
 			class="preset-filled-surface-500 btn flex flex-1 items-center justify-center gap-1 rounded font-bold"
 			disabled={isLoading}
 		>
-			<iconify-icon icon="material-symbols:category" width="18"></iconify-icon>
+			<CircleQuestionMark size={24} />
 			<span>{m.collection_add()}</span>
 		</button>
 
@@ -346,9 +348,9 @@
 			disabled={isLoading}
 		>
 			{#if isLoading}
-				<iconify-icon icon="eos-icons:loading" width="24" class="animate-spin text-white"></iconify-icon>
+				<CircleQuestionMark size={24} />
 			{:else}
-				<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
+				<Save size={24} class="text-white" />
 			{/if}
 			<span>{m.button_save()}</span>
 		</button>

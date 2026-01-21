@@ -19,6 +19,10 @@
 - `Alt + S`: Save currently edited entry (if focused)
 -->
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import Search from '@lucide/svelte/icons/search';
+
+	import Icon from '@iconify/svelte';
 	import { untrack } from 'svelte';
 	import { getFieldName } from '@utils/utils';
 	import { logger } from '@utils/logger';
@@ -30,7 +34,7 @@
 
 	// Stores
 	import { collection, collectionValue, setCollectionValue } from '@src/stores/collectionStore.svelte';
-	import { translationProgress, contentLanguage, dataChangeStore, validationStore } from '@stores/store.svelte';
+	import { translationProgress, contentLanguage, dataChangeStore, validationStore } from '@stores/store.svelte.ts';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import type { Locale } from '@src/paraglide/runtime';
 
@@ -40,10 +44,10 @@
 	// Skeleton
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	// import { CodeBlock, Tab, TabGroup, clipboard } from '@skeletonlabs/skeleton-svelte';
-	import { toaster } from '@stores/store.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 	import { showConfirm } from '@utils/modalUtils';
 
-	import { widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte';
+	import { widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte.ts';
 
 	// --- PERFORMANCE FIX: DYNAMIC WIDGET IMPORTS ---
 	// Lazy-load widgets for code-splitting (eager: false is default)
@@ -55,7 +59,7 @@
 
 	// Import async widget loader component
 	import WidgetLoader from './WidgetLoader.svelte';
-	import { activeInputStore } from '@stores/activeInputStore.svelte';
+	import { activeInputStore } from '@stores/activeInputStore.svelte.ts';
 
 	// Token Picker
 	// Token Picker
@@ -332,7 +336,7 @@
 	>
 		<Tabs.Trigger value="0" class="flex-1">
 			<div class="flex items-center justify-center gap-2 py-2">
-				<iconify-icon icon="mdi:pen" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				<CircleQuestionMark size={24} />
 				{m.button_edit()}
 			</div>
 		</Tabs.Trigger>
@@ -340,7 +344,7 @@
 		{#if collection.value?.revision}
 			<Tabs.Trigger value="1" class="flex-1">
 				<div class="flex items-center justify-center gap-2 py-2">
-					<iconify-icon icon="mdi:history" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					{m.applayout_version()} <span class="preset-filled-secondary-500 badge">{revisions.length}</span>
 				</div>
 			</Tabs.Trigger>
@@ -349,7 +353,7 @@
 		{#if collection.value?.livePreview}
 			<Tabs.Trigger value="2" class="flex-1">
 				<div class="flex items-center justify-center gap-2 py-2">
-					<iconify-icon icon="mdi:eye-outline" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					{m.Fields_preview()}
 				</div>
 			</Tabs.Trigger>
@@ -358,7 +362,7 @@
 		{#if user?.isAdmin}
 			<Tabs.Trigger value="3" class="flex-1">
 				<div class="flex items-center justify-center gap-2 py-2">
-					<iconify-icon icon="mdi:api" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					API
 				</div>
 			</Tabs.Trigger>
@@ -392,21 +396,25 @@
 										title="Insert Token"
 										aria-label="Insert token into {field.label}"
 									>
-										<iconify-icon icon="mdi:code-braces" width="16" class="font-bold text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										<CircleQuestionMark size={24} />
 									</button>
 									<!-- Translation status -->
 									{#if field.translated}
 										{@const percentage = getFieldTranslationPercentage(field)}
 										{@const textColor = getTranslationTextColor(percentage)}
 										<div class="flex items-center gap-1 text-xs">
-											<iconify-icon icon="bi:translate" width="16"></iconify-icon>
+											<CircleQuestionMark size={24} />
 											<span class="font-medium text-tertiary-500 dark:text-primary-500">{currentContentLanguage.toUpperCase()}</span>
 											<span class="font-medium {textColor}">({percentage}%)</span>
 										</div>
 									{/if}
 									<!-- Icon for field type -->
 									{#if field.icon}
-										<iconify-icon icon={field.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										{#if iconsData[field.icon as keyof typeof iconsData] as any}<Icon
+												icon={iconsData[field.icon as keyof typeof iconsData] as any}
+												size={20}
+												class="text-tertiary-500 dark:text-primary-500"
+											/>{/if}
 									{/if}
 								</div>
 							</div>
@@ -481,7 +489,7 @@
 						{/each}
 					</select>
 					<button class="preset-filled-primary-500 btn" onclick={handleRevert} disabled={!selectedRevision?.data}>
-						<iconify-icon icon="mdi:restore" class="mr-1"></iconify-icon> Revert
+						<CircleQuestionMark size={24} class="mr-1" /> Revert
 					</button>
 				</div>
 
@@ -533,7 +541,7 @@
 		<div class="flex h-[600px] flex-col p-4">
 			<div class="mb-4 flex items-center justify-between gap-4">
 				<div class="flex flex-1 items-center gap-2">
-					<iconify-icon icon="mdi:open-in-new" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					<input type="text" class="input grow text-sm" readonly value={previewUrl} />
 					<button
 						class="preset-outline-surface-500 btn-sm"
@@ -543,11 +551,11 @@
 						}}
 						aria-label="Copy preview URL"
 					>
-						<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>
+						<Copy size={24} />
 					</button>
 				</div>
 				<a href={previewUrl} target="_blank" rel="noopener noreferrer" class="preset-filled-primary-500 btn-sm">
-					<iconify-icon icon="mdi:open-in-new" width="16" class="mr-1"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					Open
 				</a>
 			</div>

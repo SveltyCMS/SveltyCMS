@@ -14,8 +14,10 @@
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
 	import { onMount } from 'svelte';
-	import { toaster } from '@stores/store.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	// import { clipboard } from '@skeletonlabs/skeleton-svelte';
@@ -23,7 +25,7 @@
 	import { flip } from 'svelte/animate';
 	import type { WebsiteToken } from '@src/databases/schemas';
 	import type { User } from '@src/databases/auth/types';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
 
 	interface TableHeader {
 		label: string;
@@ -277,7 +279,7 @@
 									}}
 								>
 									{#if header.visible}
-										<span><iconify-icon icon="fa:check"></iconify-icon></span>
+										<span><CircleQuestionMark size={24} /></span>
 									{/if}
 									<span class="ml-2 capitalize">{header.label}</span>
 								</button>
@@ -317,13 +319,7 @@
 								>
 									<div class="text-terriary-500 flex items-center justify-center text-center dark:text-primary-500">
 										{header.label}
-										<iconify-icon
-											icon="material-symbols:arrow-upward-rounded"
-											width="22"
-											class="origin-center duration-300 ease-in-out"
-											class:up={sorting.isSorted === 1 && sorting.sortedBy === header.key}
-											class:invisible={sorting.isSorted === 0 || sorting.sortedBy !== header.key}
-										></iconify-icon>
+										<CircleQuestionMark size={22} class="origin-center duration-300 ease-in-out" />
 									</div>
 								</th>
 							{/each}
@@ -346,7 +342,7 @@
 													class="preset-outline-surface-500 btn-icon btn-icon-sm"
 													aria-label="Copy token to clipboard"
 												>
-													<iconify-icon icon="mdi:clipboard-outline" width="16"></iconify-icon>
+													<CircleQuestionMark size={24} />
 												</button>
 											</div>
 										{:else if header.key === 'createdAt'}

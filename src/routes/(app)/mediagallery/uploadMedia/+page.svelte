@@ -44,7 +44,7 @@
 		aria-label="Back"
 		class="preset-outlined-tertiary-500 btn-icon rounded-full dark:preset-outlined-primary-500"
 	>
-		<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
+		<ArrowLeft size={24} />
 	</button>
 </div>
 
@@ -53,13 +53,13 @@
 		<Tabs.List class="flex border-b border-surface-200-800 font-bold">
 			<Tabs.Trigger value="0" class="flex-1">
 				<div class="flex items-center justify-center gap-2 py-4">
-					<iconify-icon icon="material-symbols:database" width="28"></iconify-icon>
+					<Database size={24} />
 					<p class="text-tertiary-500 dark:text-primary-500">Local Upload</p>
 				</div>
 			</Tabs.Trigger>
 			<Tabs.Trigger value="1" class="flex-1">
 				<div class="flex items-center justify-center gap-2 py-4">
-					<iconify-icon icon="arcticons:tautulli-remote" width="28"></iconify-icon>
+					<Radio size={24} />
 					<p class="text-tertiary-500 dark:text-primary-500">Remote Upload</p>
 				</div>
 			</Tabs.Trigger>

@@ -4,6 +4,8 @@
 Controls for the Rotate tool
 -->
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
 	let {
 		rotationAngle,
 		onRotateLeft,
@@ -47,10 +49,10 @@ Controls for the Rotate tool
 	<div class="flex items-center gap-2">
 		<span class="text-sm">Rotate:</span>
 		<button class="btn btn-icon btn-sm preset-outlined-surface-500" onclick={onRotateLeft} title="Rotate Left 90°">
-			<iconify-icon icon="mdi:rotate-left"></iconify-icon>
+			<CircleQuestionMark size={24} />
 		</button>
 		<button class="btn btn-icon btn-sm preset-outlined-surface-500" onclick={onRotateRight} title="Rotate Right 90°">
-			<iconify-icon icon="mdi:rotate-right"></iconify-icon>
+			<CircleQuestionMark size={24} />
 		</button>
 	</div>
 
@@ -69,10 +71,10 @@ Controls for the Rotate tool
 	<div class="flex items-center gap-2">
 		<span class="text-sm">Flip:</span>
 		<button class="btn btn-icon btn-sm preset-outlined-surface-500" onclick={onFlipHorizontal} title="Flip Horizontal">
-			<iconify-icon icon="mdi:flip-horizontal"></iconify-icon>
+			<CircleQuestionMark size={24} />
 		</button>
 		<button class="btn btn-icon btn-sm preset-outlined-surface-500" onclick={onFlipVertical} title="Flip Vertical">
-			<iconify-icon icon="mdi:flip-vertical"></iconify-icon>
+			<CircleQuestionMark size={24} />
 		</button>
 	</div>
 
@@ -80,12 +82,12 @@ Controls for the Rotate tool
 
 	<!-- Actions -->
 	<button onclick={onReset} class="btn preset-outlined-surface-500">
-		<iconify-icon icon="mdi:restore"></iconify-icon>
+		<CircleQuestionMark size={24} />
 		<span>Reset</span>
 	</button>
 
 	<button class="btn preset-filled-success-500" onclick={onApply}>
-		<iconify-icon icon="mdi:check"></iconify-icon>
+		<Check />
 		<span>Apply</span>
 	</button>
 </div>

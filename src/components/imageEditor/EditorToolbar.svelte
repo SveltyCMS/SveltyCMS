@@ -5,8 +5,10 @@ The new single, intelligent bottom toolbar for the image editor.
 It dynamically renders controls based on the active tool.
 -->
 <script lang="ts">
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
+
 	import { fade } from 'svelte/transition';
-	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte.ts';
 
 	const toolbarControls = $derived(imageEditorStore.state.toolbarControls);
 </script>
@@ -30,7 +32,7 @@ It dynamically renders controls based on the active tool.
 			class="absolute bottom-full left-0 right-0 flex items-center justify-center bg-error-500 py-1 text-xs font-medium text-white"
 			transition:fade={{ duration: 200 }}
 		>
-			<iconify-icon icon="mdi:alert-circle" width="14" class="mr-1"></iconify-icon>
+			<CircleAlert size={14} class="mr-1" />
 			{imageEditorStore.state.error}
 		</div>
 	{/if}

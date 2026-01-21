@@ -18,7 +18,8 @@ Displays real-time system state and individual service health with comprehensive
 -->
 
 <script lang="ts">
-	import { systemState, type SystemState, type ServiceHealth } from '@src/stores/system';
+	import { systemState } from '@src/stores/system/state';
+	import type { SystemState, ServiceHealth } from '@src/stores/system/types';
 	import { showToast } from '@utils/toast';
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import { logger } from '@utils/logger';

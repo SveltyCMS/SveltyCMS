@@ -23,6 +23,9 @@
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+
 	import { logger } from '@utils/logger';
 	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
@@ -35,7 +38,7 @@
 
 	import { Form } from '@utils/Form.svelte';
 	import { signUpFormSchema } from '@utils/formSchemas';
-	import { toaster } from '@stores/store.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 	// Components
 	import PasswordStrength from '@components/PasswordStrength.svelte';
 	import SiteName from '@components/SiteName.svelte';
@@ -48,7 +51,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Screen size store
-	import { screen } from '@stores/screenSizeStore.svelte';
+	import { screen } from '@stores/screenSizeStore.svelte.ts';
 
 	// Props
 	const {
@@ -289,7 +292,7 @@
 					{m.form_required()}
 
 					<button onclick={handleBack} aria-label="Back" class="btn-icon rounded-full preset-outlined-secondary-500">
-						<iconify-icon icon="ri:arrow-left-line" width="20" class="text-white"></iconify-icon>
+						<ArrowLeft size={24} />
 					</button>
 				</div>
 
@@ -460,7 +463,7 @@
 							</button>
 
 							<button type="button" onclick={handleOAuth} aria-label="OAuth" class="btn flex w-1/4 items-center justify-center">
-								<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-0.5 sm:mr-2"></iconify-icon>
+								<CircleQuestionMark size={24} />
 								<span class="">OAuth</span>
 							</button>
 						</div>

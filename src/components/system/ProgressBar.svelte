@@ -27,6 +27,7 @@ Accessible progress bar with animations, variants, and status indicators.
 -->
 
 <script lang="ts">
+	import Icon from '@iconify/svelte';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 
@@ -90,9 +91,9 @@ Accessible progress bar with animations, variants, and status indicators.
 	const statusIcon = $derived(() => {
 		switch (status()) {
 			case 'complete':
-				return 'mdi:check-circle';
+				return 'check-circle';
 			case 'loading':
-				return 'mdi:loading';
+				return 'loader-2';
 			default:
 				return null;
 		}
@@ -124,14 +125,13 @@ Accessible progress bar with animations, variants, and status indicators.
 
 			{#if showPercentage && !indeterminate}
 				<div class="flex items-center gap-2">
-					{#if statusIcon()}
-						<iconify-icon
-							icon={statusIcon()!}
-							width="16"
-							class={status() === 'complete' ? 'text-success-500' : ''}
-							class:animate-spin={status() === 'loading' && !prefersReducedMotion}
+					{#if statusIcon() && iconsData[statusIcon()! as keyof typeof iconsData]}
+						<Icon
+							icon={iconsData[statusIcon()! as keyof typeof iconsData]}
+							size={16}
+							class="{status() === 'complete' ? 'text-success-500' : ''} {status() === 'loading' && !prefersReducedMotion ? 'animate-spin' : ''}"
 							aria-hidden="true"
-						></iconify-icon>
+						/>
 					{/if}
 					<span
 						class="text-sm font-semibold {status() === 'complete' ? 'text-success-600 dark:text-success-400' : 'text-gray-500 dark:text-gray-400'}"

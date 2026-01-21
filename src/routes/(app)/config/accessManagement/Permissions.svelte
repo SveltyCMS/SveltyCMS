@@ -18,6 +18,9 @@ It provides the following functionality:
 -->
 
 <script lang="ts">
+	import Search from '@lucide/svelte/icons/search';
+
+	import Icon from '@iconify/svelte';
 	// Stores
 	import { page } from '$app/state';
 
@@ -231,11 +234,12 @@ It provides the following functionality:
 							<div class="flex items-center justify-center">
 								Type
 								{#if sortBy === 'name' && sortOrder !== 0}
-									<iconify-icon
-										icon={sortOrder === 1 ? 'material-symbols:arrow-upward-rounded' : 'material-symbols:arrow-downward-rounded'}
-										width="16"
-										class="ml-1"
-									></iconify-icon>
+									{@const sortIcon = sortOrder === 1 ? 'arrow-up' : 'arrow-down'}
+									{#if iconsData[sortIcon as keyof typeof iconsData]}
+										{#await import(`@lucide/svelte/icons/${sortIcon}`) then m}
+											<m.default size={16} class="ml-1" />
+										{/await}
+									{/if}
 								{/if}
 							</div>
 						</th>
@@ -247,11 +251,12 @@ It provides the following functionality:
 							<div class="flex items-center justify-center">
 								Action
 								{#if sortBy === 'action' && sortOrder !== 0}
-									<iconify-icon
-										icon={sortOrder === 1 ? 'material-symbols:arrow-upward-rounded' : 'material-symbols:arrow-downward-rounded'}
-										width="16"
-										class="ml-1"
-									></iconify-icon>
+									{@const sortIcon = sortOrder === 1 ? 'arrow-up' : 'arrow-down'}
+									{#if iconsData[sortIcon as keyof typeof iconsData]}
+										{#await import(`@lucide/svelte/icons/${sortIcon}`) then m}
+											<m.default size={16} class="ml-1" />
+										{/await}
+									{/if}
 								{/if}
 							</div>
 						</th>

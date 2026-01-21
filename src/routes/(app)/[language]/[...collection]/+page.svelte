@@ -28,7 +28,7 @@
 	import { page } from '$app/state';
 	import { untrack, onMount } from 'svelte';
 	import { collections } from '@src/stores/collectionStore.svelte';
-	import { app, validationStore } from '@stores/store.svelte';
+	import { app, validationStore } from '@stores/store.svelte.ts';
 	import { parseURLToMode } from '@utils/navigationUtils';
 	import { getFieldName } from '@utils/utils';
 	import EntryList from '@src/components/collectionDisplay/EntryList.svelte';

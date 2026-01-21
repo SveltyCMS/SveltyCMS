@@ -27,14 +27,16 @@
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
 	import { showToast } from '@utils/toast';
 	import { logger } from '@utils/logger';
 	import { onMount } from 'svelte';
 	// Stores
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import { ui } from '@stores/UIStore.svelte';
-	import { screen } from '@stores/screenSizeStore.svelte';
-	import { setMode } from '@stores/collectionStore.svelte';
+	import { ui } from '@stores/UIStore.svelte.ts';
+	import { screen } from '@stores/screenSizeStore.svelte.ts';
+	import { setMode } from '@stores/collectionStore.svelte.ts';
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 
@@ -193,7 +195,7 @@
 			class="btn mt-1 flex w-full flex-row items-center justify-start bg-surface-400 py-2 pl-2 text-white dark:bg-surface-500"
 			data-sveltekit-preload-data="hover"
 		>
-			<iconify-icon icon="mdi:folder-multiple-outline" width="24" class="px-2 py-1 text-primary-600 rtl:ml-2"></iconify-icon>
+			<CircleQuestionMark size={24} />
 			<p class="mr-auto text-center uppercase">Collections</p>
 		</a>
 	{:else}
@@ -205,7 +207,7 @@
 			class="btn mt-2 flex-col bg-surface-400 uppercase text-white hover:bg-surface-300! dark:bg-surface-500"
 			data-sveltekit-preload-data="hover"
 		>
-			<iconify-icon icon="bi:collection" width="24" class="text-error-500"></iconify-icon>
+			<CircleQuestionMark size={24} />
 			<p class="text-xs uppercase text-white">Collections</p>
 		</a>
 	{/if}
@@ -213,7 +215,7 @@
 	<!-- Loading State -->
 	{#if isLoading}
 		<div class="flex w-full justify-center py-4">
-			<iconify-icon icon="svg-spinners:bars-scale" width="24" class="text-primary-500"></iconify-icon>
+			<CircleQuestionMark size={24} />
 		</div>
 	{:else if error}
 		<!-- Error State -->
@@ -233,7 +235,7 @@
 							class="btn flex items-center space-x-2 p-2"
 							data-sveltekit-preload-data="hover"
 						>
-							<iconify-icon icon="mdi:folder" width="28" class="text-yellow-500"></iconify-icon>
+							<Folder size={28} class="text-yellow-500" />
 							<span class="flex-1 overflow-hidden text-ellipsis text-left text-sm">{folder.name}</span>
 						</a>
 					</div>
@@ -249,7 +251,7 @@
 							class="btn flex flex-col items-center p-2"
 							data-sveltekit-preload-data="hover"
 						>
-							<iconify-icon icon="mdi:folder" width="28" class="text-yellow-500"></iconify-icon>
+							<Folder size={28} class="text-yellow-500" />
 							<span class="text-xs">{folder.name}</span>
 						</a>
 					</div>

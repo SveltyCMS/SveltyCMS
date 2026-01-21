@@ -10,10 +10,10 @@
  -->
 
 <script lang="ts">
+	import Settings from '@lucide/svelte/icons/settings';
+
 	// Selected theme
 	import '../app.css';
-	// Register Iconify custom element globally
-	import 'iconify-icon';
 
 	import { page } from '$app/state';
 	import { onMount, untrack } from 'svelte';
@@ -28,10 +28,10 @@
 	import { locales as availableLocales, getLocale, setLocale } from '@src/paraglide/runtime';
 
 	// Theme management
-	import { themeStore, initializeThemeStore, initializeDarkMode } from '@stores/themeStore.svelte';
+	import { themeStore, initializeThemeStore, initializeDarkMode } from '@stores/themeStore.svelte.ts';
 
 	// Global Settings
-	import { initPublicEnv, publicEnv } from '@stores/globalSettings.svelte';
+	import { initPublicEnv, publicEnv } from '@stores/globalSettings.svelte.ts';
 
 	// Components
 	// import TokenPicker from '@components/TokenPicker.svelte';
@@ -92,7 +92,7 @@
 
 				// Import toaster dynamically to avoid circular deps (though it's available in stores)
 				// We can also import it directly if we want, but dynamic is safer for layout
-				import('@stores/store.svelte').then(({ toaster }) => {
+				import('@stores/store.svelte.ts').then(({ toaster }) => {
 					const opts = {
 						title: flashMessage.title,
 						description: flashMessage.description,

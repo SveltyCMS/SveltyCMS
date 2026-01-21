@@ -5,7 +5,7 @@
  * management patterns: server-first, reactive, and self-optimizing.
  *
  * @example
- * import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+ * import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
  * // Manual control
  * globalLoadingStore.startLoading(loadingOperations.dataFetch);
  * await fetchData();

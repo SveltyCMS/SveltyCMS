@@ -4,6 +4,8 @@
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
 	import { themeStore, updateTheme } from '@root/src/stores/themeStore.svelte';
 	import type { DatabaseId } from '@src/content/types';
 	import type { Theme } from '@src/databases/dbInterface';
@@ -135,7 +137,7 @@
 		aria-label={m.marketplace()}
 		class="preset-outlined-primary-500 btn w-full gap-2 py-6"
 	>
-		<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white"></iconify-icon>
+		<CircleQuestionMark size={24} />
 		<p class="uppercase">{m.marketplace()}</p>
 	</a>
 {/if}

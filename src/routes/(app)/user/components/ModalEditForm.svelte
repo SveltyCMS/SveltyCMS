@@ -17,11 +17,18 @@ Efficiently manages user data updates with validation, role selection, and delet
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-	// Skeleton & Stores
+
+	// Lucide icons
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import Info from '@lucide/svelte/icons/info';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+
+	// Skeleton & stores
 	import { modalState } from '@utils/modalState.svelte';
-	import { toaster } from '@stores/store.svelte';
-	import { Form } from '@utils/Form.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 	import { editUserSchema } from '@utils/formSchemas';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -32,6 +39,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	// Components
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
+	import { Form } from '@root/src/utils/Form.svelte';
 
 	// Config for the general edit form permissions
 	const modaleEditFormConfig = {
@@ -157,14 +165,14 @@ Efficiently manages user data updates with validation, role selection, and delet
 			}
 
 			toaster.success({
-				description: '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Data Updated'
+				description: '<CircleCheck size={24} /> User Data Updated'
 			});
 			await invalidateAll();
 			// modalStore.close();
 			modalState.close();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'An unknown error occurred.';
-			toaster.error({ description: `<iconify-icon icon="mdi:alert-circle" width="24"/> ${message}` });
+			toaster.error({ description: `<CircleAlert size={24}/> ${message}` });
 		} finally {
 			editForm.submitting = false;
 		}
@@ -189,14 +197,14 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 			// Use the success message from the API response
 			const successMessage = data.message || 'User deleted successfully.';
-			toaster.success({ description: `<iconify-icon icon=\"mdi:check\" width=\"24\"/> ${successMessage}` });
+			toaster.success({ description: `<CircleCheck size={24}/> ${successMessage}` });
 
 			await invalidateAll();
 			// modalStore.close();
 			modalState.close();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'An unknown error occurred.';
-			toaster.error({ description: `<iconify-icon icon=\"mdi:alert-circle\" width=\"24\"/> ${message}` });
+			toaster.error({ description: `<CircleAlert size={24}/> ${message}` });
 		}
 	}
 
@@ -215,7 +223,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	<form class="modal-form {cForm}" id="change_user_form" onsubmit={onFormSubmit}>
 		<!-- Username -->
 		<div class="group relative z-0 mb-6 w-full">
-			<iconify-icon icon="mdi:user-circle" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
+			<CircleQuestionMark size={24} />
 			<FloatingInput
 				type="text"
 				name="username"
@@ -234,7 +242,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 		<!-- Email -->
 		<div class="group relative z-0 mb-6 w-full">
-			<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
+			<CircleQuestionMark size={24} />
 			<FloatingInput
 				type="email"
 				name="email"
@@ -255,7 +263,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			{#if !isOwnProfile && user?.isAdmin}
 				<div class="mb-4 rounded-md bg-warning-50 p-3 text-sm text-warning-800 dark:bg-warning-900/20 dark:text-warning-200">
 					<div class="flex">
-						<iconify-icon icon="mdi:information" width="16" class="mr-2 mt-0.5 shrink-0"></iconify-icon>
+						<Info size={16} class="mr-2 mt-0.5 shrink-0" />
 						<div>
 							<strong>Admin Password Reset:</strong> You are setting a new password for this user. Leave empty to keep current password unchanged.
 						</div>
@@ -265,7 +273,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 			<!-- Password field -->
 			<div class="group relative z-0 mb-6 w-full">
-				<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
+				<CircleQuestionMark size={24} />
 				<FloatingInput
 					type="password"
 					name="password"
@@ -284,7 +292,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			</div>
 			<!-- Password Confirm -->
 			<div class="group relative z-0 mb-6 w-full">
-				<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
+				<CircleQuestionMark size={24} />
 				<FloatingInput
 					type="password"
 					name="confirm_password"
@@ -317,7 +325,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 										onclick={() => (editForm.data.role = r._id)}
 									>
 										{#if editForm.data.role === r._id}
-											<span><iconify-icon icon="fa:check"></iconify-icon></span>
+											<CircleCheck size={16} />
 										{/if}
 										<span class="capitalize">{r.name}</span>
 									</button>
@@ -332,7 +340,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 					<div class="flex-auto">
 						<div class="rounded-md bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400">
 							<div class="flex items-center">
-								<iconify-icon icon="mdi:information" width="16" class="mr-2 shrink-0"></iconify-icon>
+								<Info size={16} class="mr-2 shrink-0" />
 								<div>
 									<strong>Current Role:</strong>
 									{roles?.find((r: any) => r._id === editForm.data.role)?.name || editForm.data.role}
@@ -351,7 +359,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 		{#if showDeleteButton}
 			<PermissionGuard config={deleteUserPermissionConfig} silent={true}>
 				<button type="button" onclick={deleteUser} class="preset-filled-error-500 btn">
-					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
+					<Trash2 size={24} />
 					<span class="hidden sm:block">{m.button_delete()}</span>
 				</button>
 			</PermissionGuard>

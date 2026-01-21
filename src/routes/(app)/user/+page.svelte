@@ -15,6 +15,9 @@
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import Pencil from '@lucide/svelte/icons/pencil';
+
 	import { invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
 	// Auth
@@ -23,8 +26,8 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import '@stores/store.svelte';
-	import { avatarSrc } from '@stores/store.svelte';
+	import '@stores/store.svelte.ts';
+	import { avatarSrc } from '@stores/store.svelte.ts';
 	import { triggerActionStore } from '@utils/globalSearchIndex';
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -35,7 +38,7 @@
 	import { setCollection } from '@src/stores/collectionStore.svelte';
 	import { modalState } from '@utils/modalState.svelte';
 	import { showConfirm } from '@utils/modalUtils';
-	import { toaster } from '@stores/store.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
 	import ModalEditForm from './components/ModalEditForm.svelte';
 
@@ -111,7 +114,7 @@
 			async (r: any) => {
 				if (r) {
 					toaster.success({
-						description: '<iconify-icon icon="radix-icons:avatar" color="white" width="26" class="mr-1"></iconify-icon> Avatar Updated'
+						description: '<CircleQuestionMark size={24} /> Avatar Updated'
 					});
 				}
 			}
@@ -172,7 +175,7 @@
 						class="absolute bottom-0 right-0 p-2 rounded-full gradient-tertiary dark:gradient-primary btn-icon"
 						title={m.userpage_editavatar()}
 					>
-						<iconify-icon icon="mdi:pencil" width="18"></iconify-icon>
+						<Pencil size={18} />
 					</button>
 				</div>
 				<!-- User ID -->
@@ -185,15 +188,11 @@
 				</div>
 				<!-- Two-Factor Authentication Status -->
 				{#if is2FAEnabledGlobal}
-					<button onclick={open2FAModal} class="btn preset-outlined btn-sm w-full max-w-xs">
+					<button onclick={open2FAModal} class="btn preset-outlined-surface-500 btn-sm w-full max-w-xs">
 						<div class="flex w-full items-center justify-between">
 							<span>Two-Factor Auth</span>
 							<div class="flex items-center gap-1">
-								<iconify-icon
-									icon="mdi:{user?.is2FAEnabled ? 'shield-check' : 'shield-off'}"
-									width="20"
-									class={user?.is2FAEnabled ? 'text-primary-500' : 'text-error-500'}
-								></iconify-icon>
+								<CircleQuestionMark size={20} />
 								<span class="text-xs">{user?.is2FAEnabled ? 'Enabled' : 'Disabled'}</span>
 							</div>
 						</div>
@@ -236,13 +235,13 @@
 							aria-label={m.userpage_edit_usersetting()}
 							class="gradient-tertiary btn w-full max-w-sm text-white {isFirstUser ? '' : 'mx-auto md:mx-0'}"
 						>
-							<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1"></iconify-icon>{m.userpage_edit_usersetting()}
+							<CircleQuestionMark size={24} />{m.userpage_edit_usersetting()}
 						</button>
 
 						<!-- Delete Modal Button -->
 						{#if isFirstUser}
 							<button onclick={modalConfirm} aria-label={m.button_delete()} class="gradient-error btn w-full max-w-sm text-white">
-								<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1"></iconify-icon>
+								<CircleQuestionMark size={24} />
 								{m.button_delete()}
 							</button>
 						{/if}

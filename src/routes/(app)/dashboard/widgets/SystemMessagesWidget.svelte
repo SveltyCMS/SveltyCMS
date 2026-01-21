@@ -18,6 +18,8 @@
 - Enhanced debugging and logging
 -->
 <script lang="ts" module>
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
+
 	export const widgetMeta = {
 		name: 'System Messages',
 		icon: 'mdi:message-alert-outline',
@@ -86,8 +88,7 @@
 			</div>
 		{:else}
 			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
-				<iconify-icon icon="mdi:alert-circle-outline" width="32" class="mb-2 text-surface-400 dark:text-surface-500" aria-hidden="true"
-				></iconify-icon>
+				<CircleAlert size={24} />
 				<span>No system messages</span>
 			</div>
 		{/if}

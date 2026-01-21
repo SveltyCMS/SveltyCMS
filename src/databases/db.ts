@@ -120,10 +120,14 @@ import { DEFAULT_THEME, ThemeManager } from '@src/databases/themeManager';
 import { logger } from '@utils/logger';
 
 // System State Management
-import { setSystemState, updateServiceHealth, waitForServiceHealthy } from '@src/stores/system';
+import { setSystemState, updateServiceHealth } from '@src/stores/system/state';
+import { waitForServiceHealthy } from '@src/stores/system/async';
+
+// Plugins
+import { initializePlugins } from '@src/plugins';
 
 // Widget Store - Dynamic import to avoid circular dependency
-// import { widgetStoreActions } from '@stores/widgetStore.svelte';
+// import { widgetStoreActions } from '@stores/widgetStore.svelte.ts';
 
 // State Variables
 export let dbAdapter: DatabaseAdapter | null = null; // Database adapter
@@ -668,7 +672,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 				const t = performance.now();
 				updateServiceHealth('widgets', 'initializing', 'Initializing widget store...');
 				// Dynamic import to avoid circular dependency with client bundle
-				const { widgets } = await import('@stores/widgetStore.svelte');
+				const { widgets } = await import('@stores/widgetStore.svelte.ts');
 				await widgets.initialize(undefined, dbAdapter);
 				updateServiceHealth('widgets', 'healthy', 'Widget store initialized');
 				widgetsTime = performance.now() - t;
@@ -715,6 +719,11 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 				// Run every 5 minutes
 				setInterval(cleanupExpiredDemoTenants, 5 * 60 * 1000);
 			});
+		}
+
+		// Step 7: Initialize Plugins
+		if (dbAdapter) {
+			await initializePlugins(dbAdapter);
 		}
 
 		isInitialized = true;

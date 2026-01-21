@@ -22,6 +22,9 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 -->
 
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import Settings from '@lucide/svelte/icons/settings';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -271,8 +274,8 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		{#if isValentine}
 			<!-- Valentine's Day -->
 			<div class="absolute -top-28 left-1/2 -translate-x-1/2 -translate-y-1/2">
-				<iconify-icon icon="mdi:heart" width="40" class="absolute -left-[60px] -top-[10px] text-red-600"></iconify-icon>
-				<iconify-icon icon="mdi:cards-heart" width="40" class="absolute -right-[60px] -top-[20px] text-pink-500"></iconify-icon>
+				<CircleQuestionMark size={24} />
+				<CircleQuestionMark size={24} />
 			</div>
 
 			<p class="absolute left-1/2 top-28 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-4xl font-bold text-pink-500">
@@ -283,19 +286,19 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		{#if isEaster}
 			<!-- Easter -->
 			<div class="absolute -top-24 left-1/2 -translate-x-1/2 -translate-y-1/2">
-				<iconify-icon icon="mdi:egg-easter" width="40" class="absolute -top-[18px] right-2 -rotate-25 text-tertiary-500"></iconify-icon>
-				<iconify-icon icon="game-icons:easter-egg" width="40" class="absolute -top-[25px] left-0 rotate-12 text-yellow-500"></iconify-icon>
-				<iconify-icon icon="game-icons:high-grass" width="40" class="absolute -top-[5px] right-10 -rotate-32 text-green-500"></iconify-icon>
-				<iconify-icon icon="mdi:easter" width="70" class="absolute -top-[31px] left-8 rotate-32 text-red-500"></iconify-icon>
+				<CircleQuestionMark size={24} />
+				<CircleQuestionMark size={24} />
+				<CircleQuestionMark size={24} />
+				<CircleQuestionMark size={24} />
 			</div>
 		{/if}
 
 		{#if isMayDay}
 			<!-- May Day -->
 			<div class="absolute -top-24 left-1/2 -translate-x-1/2 -translate-y-1/2">
-				<iconify-icon icon="noto:tulip" width="60" class="absolute -left-[16px] -top-[45px] rotate-12"></iconify-icon>
-				<iconify-icon icon="fluent-emoji:tulip" width="40" class="absolute -top-[14px] right-[20px] -rotate-12"></iconify-icon>
-				<iconify-icon icon="noto:sunflower" width="50" class="absolute -top-[16px] left-10 rotate-6"></iconify-icon>
+				<CircleQuestionMark size={24} />
+				<CircleQuestionMark size={24} />
+				<CircleQuestionMark size={24} />
 			</div>
 		{/if}
 
@@ -314,8 +317,8 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		{#if isChineseNewYear}
 			<!-- Chinese New Year -->
 			<div class="absolute left-1/2 top-[-50px] -translate-x-1/2 justify-center">
-				<iconify-icon icon="noto:lantern" width="40" class="absolute -left-[60px] -top-[20px] text-red-600"></iconify-icon>
-				<iconify-icon icon="noto:dragon-face" width="40" class="absolute -right-[60px] -top-[20px]"></iconify-icon>
+				<CircleQuestionMark size={24} />
+				<CircleQuestionMark size={24} />
 			</div>
 			<p class="absolute left-[-40px] top-[-50px] justify-center whitespace-nowrap text-2xl font-bold text-red-600">
 				{m.login_new_year()}
@@ -325,24 +328,24 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		{#if isCherryBlossom}
 			<!-- Cherry Blossom Season -->
 			<div class="absolute left-1/2 top-[-50px] -translate-x-1/2 justify-center">
-				<iconify-icon icon="noto:cherry-blossom" width="40" class="absolute -left-[60px] -top-[20px] text-pink-400"></iconify-icon>
-				<iconify-icon icon="noto:cherry-blossom" width="60" class="absolute -right-[140px] top-[40px] text-pink-300"></iconify-icon>
-				<iconify-icon icon="noto:white-flower" width="60" class="absolute -left-[140px] top-[40px] text-pink-300"></iconify-icon>
+				<CircleQuestionMark size={24} />
+				<CircleQuestionMark size={24} />
+				<CircleQuestionMark size={24} />
 			</div>
 		{/if}
 
 		{#if isDragonBoatFestival}
 			<!-- Dragon Boat Festival -->
 			<div class="absolute left-1/2 top-[-50px] -translate-x-1/2 justify-center">
-				<iconify-icon icon="noto:dragon" width="100" class="absolute left-0 -top-[35px] rotate-12"></iconify-icon>
+				<CircleQuestionMark size={24} />
 			</div>
 		{/if}
 
 		{#if isMidAutumnFestival}
 			<!-- Mid-Autumn Festival -->
 			<div class="absolute left-1/2 top-[-50px] -translate-x-1/2 justify-center">
-				<iconify-icon icon="noto:full-moon" width="80" class="absolute -left-[100px] -top-[10px]"></iconify-icon>
-				<iconify-icon icon="noto:moon-cake" width="60" class="absolute -right-[120px] top-[220px]"></iconify-icon>
+				<CircleQuestionMark size={24} />
+				<CircleQuestionMark size={24} />
 			</div>
 		{/if}
 	{/if}
@@ -351,9 +354,9 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		{#if isDiwali}
 			<!-- Diwali -->
 			<div class="absolute left-1/2 top-[-50px] -translate-x-1/2 justify-center">
-				<iconify-icon icon="noto:diya-lamp" width="70" class="absolute left-[120px] top-[190px]"></iconify-icon>
-				<iconify-icon icon="noto:sparkles" width="50" class="absolute -right-[160px] top-[120px] text-yellow-500"></iconify-icon>
-				<iconify-icon icon="noto:sparkles" width="50" class="absolute -right-[200px] top-[100px] rotate-90 text-warning-500"></iconify-icon>
+				<CircleQuestionMark size={24} />
+				<CircleQuestionMark size={24} />
+				<CircleQuestionMark size={24} />
 			</div>
 			<p class="absolute -left-[10px] top-[170px] justify-center whitespace-nowrap text-3xl font-bold italic text-yellow-600">
 				{m.login_happy_diwali()}
@@ -373,10 +376,10 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 			</div>
 
 			<div class="absolute left-1/2 top-[-50px] -translate-x-1/2 justify-center">
-				<iconify-icon icon="noto:balloon" width="40" class="absolute -left-[60px] -top-[20px] text-purple-500"></iconify-icon>
-				<iconify-icon icon="noto:balloon" width="50" class="absolute right-[60px] top-[20px] text-green-500"></iconify-icon>
-				<iconify-icon icon="game-icons:powder" width="50" class="absolute -right-[150px] top-[220px] text-primary-500"></iconify-icon>
-				<iconify-icon icon="game-icons:powder" width="30" class="absolute -right-[120px] top-[220px] -rotate-12 text-warning-500"></iconify-icon>
+				<CircleQuestionMark size={24} />
+				<CircleQuestionMark size={24} />
+				<CircleQuestionMark size={24} />
+				<CircleQuestionMark size={24} />
 			</div>
 			<p
 				class="absolute -left-[30px] top-[170px] justify-center bg-linear-to-br from-pink-500 to-violet-500 box-decoration-clone bg-clip-text text-4xl font-bold text-transparent"
@@ -388,9 +391,9 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		{#if isNavratri}
 			<!-- Navratri -->
 			<div class="absolute left-1/2 top-[-50px] -translate-x-1/2 justify-center">
-				<iconify-icon icon="noto:prayer-beads" width="40" class="absolute -left-[100px] top-[30px]"></iconify-icon>
-				<iconify-icon icon="token-branded:starl" width="40" class="absolute -right-[60px] -top-[20px]"></iconify-icon>
-				<iconify-icon icon="token-branded:starl" width="60" class="absolute -right-[160px] top-[50px]"></iconify-icon>
+				<CircleQuestionMark size={24} />
+				<CircleQuestionMark size={24} />
+				<CircleQuestionMark size={24} />
 			</div>
 
 			<p

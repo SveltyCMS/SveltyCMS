@@ -24,7 +24,7 @@ import { contentManager } from '@src/content/ContentManager';
 import { compile } from '@src/utils/compilation/compile';
 
 // Widgets
-import { widgets } from '@stores/widgetStore.svelte';
+import { widgets } from '@stores/widgetStore.svelte.ts';
 
 // Auth
 // Use hasPermissionWithRoles and roles from locals, like the example pattern

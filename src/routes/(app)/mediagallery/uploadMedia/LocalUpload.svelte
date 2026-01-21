@@ -16,8 +16,11 @@
 	
 -->
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
+	import Icon from '@iconify/svelte';
 	import { logger } from '@utils/logger';
-	import { toaster } from '@stores/store.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
 
@@ -318,7 +321,7 @@
 		aria-label="File drop zone"
 	>
 		<div class="grid grid-cols-6 items-center p-4">
-			<iconify-icon icon="fa6-solid:file-arrow-up" width="40" aria-hidden="true"></iconify-icon>
+			<CircleQuestionMark size={24} />
 
 			<div class="col-span-5 space-y-4 text-center">
 				<p class="font-bold">
@@ -369,7 +372,7 @@
 						<Tooltip positioning={{ placement: 'top' }}>
 							<Tooltip.Trigger>
 								<button type="button" onclick={() => handleDeleteFile(file)} class="btn-icon rounded-full" aria-label="Remove file">
-									<iconify-icon icon="material-symbols:delete" width="24" class="text-error-500"></iconify-icon>
+									<CircleQuestionMark size={24} />
 								</button>
 							</Tooltip.Trigger>
 							<Portal>
@@ -391,9 +394,11 @@
 							<audio controls class="max-w-full">
 								<source src={previewUrl} type={file.type} />
 							</audio>
-						{:else}
-							<iconify-icon icon={iconName} width="48" class="opacity-50"></iconify-icon>
-						{/if}
+						{:else if iconsData[iconName as keyof typeof iconsData] as any}<Icon
+								icon={iconsData[iconName as keyof typeof iconsData] as any}
+								size={48}
+								class="opacity-50"
+							/>{/if}
 					</div>
 
 					<!-- Media Filename -->
@@ -408,7 +413,10 @@
 					<div class="flex grow items-center justify-between p-1 text-white">
 						<!-- Type -->
 						<div class="bg-tertiary-500 dark:bg-primary-500/50 badge flex items-center gap-1 overflow-hidden" title={file.type}>
-							<iconify-icon icon={iconName} width="12" height="12"></iconify-icon>
+							{#if iconsData[iconName as keyof typeof iconsData] as any}<Icon
+									icon={iconsData[iconName as keyof typeof iconsData] as any}
+									size={12}
+								/>{/if}
 							<span class="truncate text-[10px] uppercase">{formatMimeType(file.type)}</span>
 						</div>
 						<!-- Size -->
@@ -421,8 +429,8 @@
 			{/each}
 
 			<!-- Add File Card -->
-			<button type="button" class="btn preset-tonal flex-col items-center gap-2" onclick={() => input?.click()}>
-				<iconify-icon icon="mingcute:add-fill" width="32" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+			<button type="button" class="btn preset-tonal-surface-500 flex-col items-center gap-2" onclick={() => input?.click()}>
+				<CircleQuestionMark size={24} />
 				<span class="font-bold">Add Files</span>
 			</button>
 		</div>
@@ -435,10 +443,10 @@
 			<button type="button" class="btn preset-outlined-surface-500" onclick={handleCancel}>Cancel</button>
 			<button type="button" class="btn dark:preset-filled-primary-500 preset-filled-tertiary-500" onclick={uploadLocalFiles} disabled={isUploading}>
 				{#if isUploading}
-					<iconify-icon icon="eos-icons:loading" class="animate-spin"></iconify-icon>
+					<CircleQuestionMark size={24} class="animate-spin" />
 					<span>Uploading... {uploadProgress}%</span>
 				{:else}
-					<iconify-icon icon="mingcute:check-fill"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					<span>Upload {files.length} File{files.length !== 1 ? 's' : ''}</span>
 				{/if}
 			</button>

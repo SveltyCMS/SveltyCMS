@@ -16,8 +16,8 @@ import { page } from '$app/state';
 // Stores
 import { modeStateMachine } from '@src/stores/modeStateMachine.svelte';
 import { setCollectionValue } from '@src/stores/collectionStore.svelte';
-import { dataChangeStore } from '@stores/store.svelte';
-import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+import { dataChangeStore } from '@stores/store.svelte.ts';
+import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
 
 // Utils
 import { logger } from '@utils/logger';

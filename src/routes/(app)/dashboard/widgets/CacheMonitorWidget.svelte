@@ -5,9 +5,12 @@
 -->
 
 <script lang="ts" module>
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
+
 	export const widgetMeta = {
 		name: 'Cache Monitor',
-		icon: 'mdi:database-clock',
+		icon: 'database',
 		description: 'Monitor cache performance and hit rates',
 		defaultSize: { w: 2, h: 3 },
 		category: 'monitoring' // Used for defaults
@@ -15,6 +18,7 @@
 </script>
 
 <script lang="ts">
+	import Icon from '@iconify/svelte';
 	import BaseWidget from '../BaseWidget.svelte';
 
 	import type { WidgetSize } from '@src/content/types';
@@ -49,7 +53,7 @@
 	const {
 		label = 'Cache Monitor',
 		theme = 'light' as 'light' | 'dark',
-		icon = 'mdi:database-clock',
+		icon = 'database',
 		widgetId = undefined,
 		size = { w: 2, h: 3 } as WidgetSize,
 		onSizeChange = (_newSize: any) => {},
@@ -78,17 +82,17 @@
 
 	function getCategoryIcon(category: string): string {
 		const icons: Record<string, string> = {
-			SCHEMA: 'mdi:database-outline',
-			WIDGET: 'mdi:widgets-outline',
-			THEME: 'mdi:palette-outline',
-			CONTENT: 'mdi:file-document-outline',
-			MEDIA: 'mdi:image-outline',
-			QUERY: 'mdi:magnify',
-			SESSION: 'mdi:account-clock-outline',
-			AUTH: 'mdi:shield-account-outline',
-			PREFERENCE: 'mdi:cog-outline'
+			SCHEMA: 'database',
+			WIDGET: 'layout-grid',
+			THEME: 'palette',
+			CONTENT: 'file-text',
+			MEDIA: 'image',
+			QUERY: 'search',
+			SESSION: 'clock',
+			AUTH: 'shield',
+			PREFERENCE: 'settings'
 		};
-		return icons[category] || 'mdi:folder-outline';
+		return icons[category] || 'folder';
 	}
 </script>
 
@@ -109,7 +113,7 @@
 		{#if !metrics}
 			<div class="flex h-full items-center justify-center text-surface-500">
 				<div class="text-center">
-					<iconify-icon icon="mdi:database-clock" width="48" class="mb-2 opacity-50"></iconify-icon>
+					<CircleQuestionMark size={24} />
 					<p>Loading cache metrics...</p>
 				</div>
 			</div>
@@ -166,7 +170,7 @@
 				{#if Object.keys(metrics.byCategory).length > 0}
 					<div class="rounded-xl bg-surface-50 p-4 dark:bg-surface-800/50">
 						<h3 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
-							<iconify-icon icon="mdi:view-grid" width="14"></iconify-icon>
+							<CircleQuestionMark size={24} />
 							By Category
 						</h3>
 						<div class="space-y-3">
@@ -174,11 +178,13 @@
 								<div class="group">
 									<div class="flex items-center justify-between text-xs">
 										<div class="flex items-center gap-2">
-											<iconify-icon
-												icon={getCategoryIcon(category)}
-												width="18"
-												class="text-surface-600 transition-colors group-hover:text-primary-500 dark:text-surface-50"
-											></iconify-icon>
+											{#if iconsData[getCategoryIcon(category) as keyof typeof iconsData]}
+												<Icon
+													icon={iconsData[getCategoryIcon(category) as keyof typeof iconsData] as any}
+													size={18}
+													class="text-surface-600 transition-colors group-hover:text-primary-500 dark:text-surface-50"
+												/>
+											{/if}
 											<span class="font-semibold">{category.toLowerCase()}</span>
 										</div>
 										<div class="flex items-center gap-3">
@@ -212,7 +218,7 @@
 				{#if metrics.byTenant && Object.keys(metrics.byTenant).length > 0}
 					<div class="rounded-xl bg-surface-50 p-4 dark:bg-surface-800/50">
 						<h3 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-50">
-							<iconify-icon icon="mdi:domain" width="14"></iconify-icon>
+							<CircleQuestionMark size={24} />
 							By Tenant
 						</h3>
 						<div class="space-y-2.5">
@@ -220,7 +226,7 @@
 								<div class="flex items-center justify-between rounded-lg bg-surface-100/50 px-3 py-2 text-xs dark:bg-surface-900/30">
 									<div class="flex items-center gap-2">
 										<div class="flex h-7 w-7 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
-											<iconify-icon icon="mdi:domain" width="14" class="text-primary-600 dark:text-primary-400"></iconify-icon>
+											<CircleQuestionMark size={24} />
 										</div>
 										<span class="font-semibold text-surface-700 dark:text-surface-300">{tenant}</span>
 									</div>
@@ -240,7 +246,7 @@
 				{#if metrics.recentMisses && metrics.recentMisses.length > 0}
 					<div class="rounded-xl bg-error-50 p-4 dark:bg-error-900/10">
 						<h3 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-error-700 dark:text-error-400">
-							<iconify-icon icon="mdi:alert-circle" width="14"></iconify-icon>
+							<CircleAlert size={14} />
 							Recent Cache Misses ({metrics.recentMisses.length})
 						</h3>
 						<div class="max-h-48 space-y-2 overflow-y-auto">
@@ -250,7 +256,11 @@
 									<div class="flex items-start justify-between gap-2">
 										<div class="min-w-0 flex-1">
 											<div class="mb-1 flex items-center gap-2">
-												<iconify-icon icon={getCategoryIcon(miss.category)} width="14" class="text-error-600 dark:text-error-400"></iconify-icon>
+												{#if iconsData[getCategoryIcon(miss.category) as keyof typeof iconsData] as any}<Icon
+														icon={iconsData[getCategoryIcon(miss.category) as keyof typeof iconsData] as any}
+														size={14}
+														class="text-error-600 dark:text-error-400"
+													/>{/if}
 												<span class="font-semibold">{miss.category}</span>
 											</div>
 											<div class="truncate font-mono text-[10px] text-surface-600 dark:text-surface-50" title={miss.key}>
@@ -298,15 +308,21 @@
 										: 'bg-error-100 dark:bg-error-900/30'
 							}`}
 						>
-							<iconify-icon
-								icon={metrics.overall.hitRate >= 80 ? 'mdi:check-circle' : metrics.overall.hitRate >= 60 ? 'mdi:alert' : 'mdi:alert-circle'}
-								width="18"
-								class={metrics.overall.hitRate >= 80
-									? 'text-success-600 dark:text-success-400'
-									: metrics.overall.hitRate >= 60
-										? 'text-warning-600 dark:text-warning-400'
-										: 'text-error-600 dark:text-error-400'}
-							></iconify-icon>
+							{#if metrics.overall}
+								{@const healthIcon =
+									metrics.overall.hitRate >= 80 ? 'check-circle' : metrics.overall.hitRate >= 60 ? 'alert-triangle' : 'alert-circle'}
+								{#if iconsData[healthIcon as keyof typeof iconsData]}
+									<Icon
+										icon={iconsData[healthIcon as keyof typeof iconsData] as any}
+										size={18}
+										class={metrics.overall.hitRate >= 80
+											? 'text-success-600 dark:text-success-400'
+											: metrics.overall.hitRate >= 60
+												? 'text-warning-600 dark:text-warning-400'
+												: 'text-error-600 dark:text-error-400'}
+									/>
+								{/if}
+							{/if}
 						</div>
 						<div class="flex-1">
 							<div

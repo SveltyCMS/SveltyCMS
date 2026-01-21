@@ -12,6 +12,7 @@ and proper active state indication.
 -->
 
 <script lang="ts">
+	import Icon from '@iconify/svelte';
 	// Props
 	const {
 		activeState,
@@ -57,7 +58,10 @@ and proper active state indication.
 				disabled={!hasImage}
 			>
 				<div class="tool-icon flex items-center justify-center">
-					<iconify-icon icon={tool.icon} width="24"></iconify-icon>
+					{#if iconsData[tool.icon as keyof typeof iconsData] as any}<Icon
+							icon={iconsData[tool.icon as keyof typeof iconsData] as any}
+							size={24}
+						/>{/if}
 				</div>
 				<span class="tool-label text-[10px] font-medium leading-none lg:text-xs">{tool.name}</span>
 
@@ -81,7 +85,7 @@ and proper active state indication.
 	<div class="sidebar-footer border-t p-2">
 		{#if !hasImage}
 			<div class="no-image-hint flex flex-col items-center gap-1 p-2 text-center">
-				<iconify-icon icon="mdi:information-outline" width="16" class="text-surface-400"></iconify-icon>
+				<Info size={16} class="text-surface-400" />
 				<span class="text-xs text-surface-500 dark:text-surface-50"> Upload an image to enable tools </span>
 			</div>
 		{/if}

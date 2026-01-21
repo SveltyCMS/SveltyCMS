@@ -21,8 +21,11 @@ optional actions, and smooth animations.
 -->
 
 <script lang="ts">
+	import X from '@lucide/svelte/icons/x';
+
+	import Icon from '@iconify/svelte';
 	import { Toast } from '@skeletonlabs/skeleton-svelte';
-	import { toaster } from '@stores/store.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 	import { fly, fade } from 'svelte/transition';
 
 	interface Props {
@@ -108,7 +111,11 @@ optional actions, and smooth animations.
 					{#if toast.title}
 						<Toast.Title class="font-bold text-base flex items-center gap-2">
 							{#if getToastIcon(toast.type)}
-								<iconify-icon icon={getToastIcon(toast.type)} width="22" class="shrink-0"></iconify-icon>
+								{#if iconsData[getToastIcon(toast.type) as keyof typeof iconsData] as any}<Icon
+										icon={iconsData[getToastIcon(toast.type) as keyof typeof iconsData] as any}
+										size={22}
+										class="shrink-0"
+									/>{/if}
 							{/if}
 							<span>{toast.title}</span>
 						</Toast.Title>
@@ -139,7 +146,7 @@ optional actions, and smooth animations.
 					class="absolute right-2 top-2 p-1.5 rounded-full opacity-70 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 transition-opacity"
 					aria-label="Dismiss notification"
 				>
-					<iconify-icon icon="mdi:close" width="18"></iconify-icon>
+					<X size={18} />
 				</Toast.CloseTrigger>
 
 				<!-- Progress Bar for Auto-dismiss -->

@@ -76,7 +76,7 @@ function calculatePasswordStrength(password: string): number {
 async function checkDatabaseHealth(): Promise<{ healthy: boolean; reason?: string }> {
 	try {
 		// First check system state - leverage existing state management
-		const { getSystemState, isServiceHealthy } = await import('@src/stores/system');
+		const { getSystemState, isServiceHealthy } = await import('@src/stores/system/state');
 		const systemState = getSystemState();
 
 		// If database service is explicitly unhealthy in state management, return early
@@ -218,7 +218,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 	try {
 		// Check system state first - leverage existing state management for performance
-		const { getSystemState } = await import('@src/stores/system');
+		const { getSystemState } = await import('@src/stores/system/state');
 		const systemState = getSystemState();
 
 		// If system is FAILED, provide detailed error immediately without waiting
@@ -1333,6 +1333,16 @@ async function signInUser(
 		});
 
 		logger.info(`User logged in successfully: ${user.username} (${user._id})`);
+
+		// Audit Log
+		const { auditLogService } = await import('@src/services/audit/AuditLogService');
+		await auditLogService.log(
+			'USER_LOGIN',
+			{ id: user._id.toString(), email: user.email, ip: 'N/A' },
+			{ type: 'user', id: user._id.toString() },
+			{ method: isToken ? 'token' : 'password' }
+		);
+
 		return { status: true, message: 'Login successful', user };
 	} catch (error) {
 		const err = error as Error;
@@ -1369,6 +1379,15 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 			type: 'password_reset'
 		});
 		logger.info(`Password reset token created`, { email });
+
+		// Audit Log
+		const { auditLogService } = await import('@src/services/audit/AuditLogService');
+		await auditLogService.log(
+			'PASSWORD_RESET_REQUESTED',
+			{ id: user._id.toString(), email: user.email, ip: 'N/A' },
+			{ type: 'user', id: user._id.toString() }
+		);
+
 		return { success: true, message: 'Password reset token generated.', token, expiresIn: expiresAt, username: user.username };
 	} catch (error) {
 		const err = error as Error;
@@ -1410,6 +1429,15 @@ async function resetPWCheck(password: string, token: string, email: string): Pro
 			return { status: false, message: updateResult.message || 'Failed to update password.' };
 		}
 		logger.info(`Password reset successfully`, { email });
+
+		// Audit Log
+		const { auditLogService } = await import('@src/services/audit/AuditLogService');
+		await auditLogService.log(
+			'PASSWORD_RESET_SUCCESS',
+			{ id: user._id.toString(), email: user.email, ip: 'N/A' },
+			{ type: 'user', id: user._id.toString() }
+		);
+
 		return { status: true, username: user.username };
 	} catch (error) {
 		const err = error as Error;

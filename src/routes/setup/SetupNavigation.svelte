@@ -12,6 +12,8 @@ Features:
 
 -->
 <script lang="ts">
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+
 	import * as m from '@src/paraglide/messages';
 
 	const {
@@ -50,7 +52,7 @@ Features:
 		<div class="flex-1">
 			{#if currentStep > 0}
 				<button onclick={() => onprev()} class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">
-					<iconify-icon icon="mdi:arrow-left-bold" class="sm:mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+					<CircleQuestionMark size={24} class="sm:mr-1 h-4 w-4" />
 					<span class="hidden sm:inline">{m.button_previous()}</span>
 				</button>
 			{/if}
@@ -76,7 +78,7 @@ Features:
 						<span class="ml-2 hidden sm:inline">Seeding...</span>
 					{:else}
 						<span class="hidden sm:inline">{m.button_next()}</span>
-						<iconify-icon icon="mdi:arrow-right-bold" class="sm:ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+						<CircleQuestionMark size={24} class="sm:ml-1 h-4 w-4" />
 					{/if}
 				</button>
 			{:else if currentStep === totalSteps - 1}
@@ -91,7 +93,7 @@ Features:
 						<span class="ml-2 hidden sm:inline">Completing...</span>
 					{:else}
 						<span class="hidden sm:inline">{m.button_complete?.() || 'Complete'}</span>
-						<iconify-icon icon="mdi:check-bold" class="sm:ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+						<CircleQuestionMark size={24} class="sm:ml-1 h-4 w-4" />
 					{/if}
 				</button>
 			{/if}

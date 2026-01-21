@@ -1,13 +1,13 @@
 <!-- 
-@file src/components/IconifyPicker.svelte
+@file src/components/IconPicker.svelte
 @component
-**Enhanced IconifyPicker - Svelte 5 Optimized**
+**Enhanced IconPicker - Svelte 5 Optimized**
 
 Advanced icon picker with search, pagination, and favorites.
 
 @example
 ```svelte
-<IconifyPicker bind:iconselected />
+<IconPicker bind:iconselected />
 ```
 
 ### Features
@@ -24,6 +24,8 @@ Advanced icon picker with search, pagination, and favorites.
 -->
 
 <script lang="ts">
+	import Search from '@lucide/svelte/icons/search';
+
 	import * as m from '@src/paraglide/messages';
 	import { loadIcons } from '@iconify/svelte';
 	import { logger } from '@utils/logger';
