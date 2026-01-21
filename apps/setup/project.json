@@ -8,8 +8,18 @@
 		"scope:public"
 	],
 	"targets": {
+		"paraglide": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide",
+				"cwd": "apps/setup"
+			}
+		},
 		"dev": {
 			"executor": "nx:run-commands",
+			"dependsOn": [
+				"paraglide"
+			],
 			"options": {
 				"command": "svelte-kit sync && vite dev --port 5173",
 				"cwd": "apps/setup",
@@ -18,7 +28,9 @@
 		},
 		"build": {
 			"executor": "nx:run-commands",
-			"dependsOn": [],
+			"dependsOn": [
+				"paraglide"
+			],
 			"options": {
 				"command": "vite build",
 				"cwd": "apps/setup"
@@ -45,6 +57,9 @@
 		},
 		"check": {
 			"executor": "nx:run-commands",
+			"dependsOn": [
+				"paraglide"
+			],
 			"options": {
 				"command": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error",
 				"cwd": "apps/setup"
