@@ -12,7 +12,15 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+	// Lucide Icons
+	import Folder from '@lucide/svelte/icons/folder';
+	import Home from '@lucide/svelte/icons/home';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import CheckCircle from '@lucide/svelte/icons/check-circle';
+	import AlertCircle from '@lucide/svelte/icons/circle-alert';
+	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+	import FolderKanban from '@lucide/svelte/icons/folder-kanban';
+	import Info from '@lucide/svelte/icons/info';
 
 	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
@@ -38,7 +46,7 @@
 		isExpanded: boolean;
 		onClick: () => void;
 		children?: FolderNode[];
-		icon?: string;
+		icon?: string | import('svelte').Component<any>;
 		nodeType: 'virtual';
 		order: number;
 		depth?: number;
@@ -75,7 +83,7 @@
 					parentId: f.parentId,
 					isExpanded: expandedNodes.has(f._id),
 					onClick: () => selectFolder(f._id),
-					icon: 'bi:folder',
+					icon: Folder,
 					nodeType: 'virtual' as const,
 					order: f.order ?? 0
 				}));
@@ -96,7 +104,7 @@
 			path: '/',
 			isExpanded: true,
 			onClick: () => selectFolder('root'),
-			icon: 'bi:house-door',
+			icon: Home,
 			nodeType: 'virtual',
 			order: 0,
 			depth: 0,
@@ -189,8 +197,8 @@
 <div class="space-y-2" role="navigation" aria-label="Media folders">
 	<!-- Header -->
 	<div class="flex items-center justify-between">
-		<h3 class="flex items-center text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-			<CircleQuestionMark size={24} />
+		<h3 class="flex items-center gap-2 text-sm font-semibold text-tertiary-500 dark:text-primary-500">
+			<FolderKanban size={20} />
 			Media Folders
 		</h3>
 
@@ -198,13 +206,14 @@
 			<button
 				type="button"
 				onclick={() => (isEditMode = !isEditMode)}
-				class="btn-sm {isEditMode ? 'variant-filled-warning' : 'preset-outlined-surface-500'}"
+				class="btn-sm {isEditMode ? 'variant-filled-warning' : 'preset-outlined-surface-500'} flex items-center"
 				aria-pressed={isEditMode}
 			>
-				{#if isEditMode ? 'bi:check-circle' : ('bi:pencil' as keyof typeof iconsData)}<Icon
-						icon={isEditMode ? 'bi:check-circle' : ('bi:pencil' as keyof typeof iconsData)}
-						size={16}
-					/>{/if}
+				{#if isEditMode}
+					<CheckCircle size={16} />
+				{:else}
+					<Pencil size={16} />
+				{/if}
 				<span class="ml-1">{isEditMode ? 'Done' : 'Edit'}</span>
 			</button>
 		{/if}
@@ -213,7 +222,7 @@
 	<!-- Edit mode hint -->
 	{#if isEditMode && isSidebarFull}
 		<div class="flex items-start gap-2 rounded-lg bg-warning-500/10 p-3 text-xs text-warning-700 dark:text-warning-400">
-			<CircleQuestionMark size={24} />
+			<Info size={16} class="shrink-0 mt-0.5" />
 			<p>Drag folders to reorder or move. Use node actions for rename/delete.</p>
 		</div>
 	{/if}
@@ -231,10 +240,10 @@
 			</div>
 		{:else if error}
 			<div class="flex flex-col items-center justify-center gap-3 p-6 text-center">
-				<CircleQuestionMark size={24} />
+				<AlertCircle size={32} class="text-error-500" />
 				<p class="text-sm text-error-500">{error}</p>
-				<button type="button" onclick={loadFolders} class="btn-sm preset-filled-error-500">
-					<CircleQuestionMark size={24} />
+				<button type="button" onclick={loadFolders} class="btn-sm preset-filled-error-500 flex items-center gap-2">
+					<RefreshCw size={16} />
 					Retry
 				</button>
 			</div>
@@ -250,7 +259,7 @@
 			/>
 		{:else}
 			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center">
-				<CircleQuestionMark size={24} />
+				<Folder size={32} class="opacity-20" />
 				<p class="text-sm text-surface-500 dark:text-surface-50">No folders yet</p>
 				<p class="text-xs text-surface-400">Create your first media folder to get started</p>
 			</div>

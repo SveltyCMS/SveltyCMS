@@ -113,8 +113,12 @@
 		>
 			<div class={`mr-1 shrink-0 ${iconColor} sm:mr-2`} aria-hidden="true" style:width="{iconSize}px" style:height="{iconSize}px">
 				{#if icon}
-					{@const Icon = icon}
-					<iconify-icon width={parseInt(iconSize)} />
+					{#if typeof icon === 'string'}
+						<iconify-icon {icon} width={iconSize}></iconify-icon>
+					{:else}
+						{@const IconComponent = icon}
+						<IconComponent size={parseInt(iconSize)} />
+					{/if}
 				{:else}
 					<LayoutDashboard size={parseInt(iconSize)} />
 				{/if}

@@ -6,12 +6,17 @@ Displays detailed SEO analysis results in a modal overlay.
 -->
 
 <script lang="ts">
-	// Using iconify-icon web component
+	import { fade, scale } from 'svelte/transition';
+
+	import type { SeoAnalysisResult } from '../seoTypes';
+
+	// Lucide Icons
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 	import X from '@lucide/svelte/icons/x';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
-	import { fade, scale } from 'svelte/transition';
-	import type { SeoAnalysisResult } from '../seoTypes';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+	import Info from '@lucide/svelte/icons/info';
 
 	interface Props {
 		show: boolean;
@@ -115,7 +120,7 @@ Displays detailed SEO analysis results in a modal overlay.
 							<!-- Group by priority/type implicitly by sorting -->
 							<h4 class="h4">Room for Improvement</h4>
 							{#each analysisResult.suggestions as suggestion}
-								{@const suggestionIcon = suggestion.type === 'error' ? 'circle-alert' : suggestion.type === 'warning' ? 'triangle-alert' : 'info'}
+								{@const Icon = suggestion.type === 'error' ? CircleAlert : suggestion.type === 'warning' ? TriangleAlert : Info}
 								<div
 									class="card p-4 border-l-4 {suggestion.type === 'error'
 										? 'border-error-500 bg-error-500/10'
@@ -126,9 +131,7 @@ Displays detailed SEO analysis results in a modal overlay.
 									<div class="flex items-start justify-between">
 										<div>
 											<div class="font-bold flex items-center gap-2">
-												{#if suggestionIcon as keyof typeof iconsData}
-													<iconify-icon icon={suggestionIcon as keyof typeof iconsData} size={16} />
-												{/if}
+												<Icon size={16} />
 												{suggestion.title}
 											</div>
 											<p class="text-sm mt-1 opacity-90">{suggestion.description}</p>

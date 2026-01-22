@@ -1,23 +1,3 @@
-<!--
-@file src/routes/(app)/dashboard/+page.svelte
-@component
-**Dashboard page providing a user-friendly interface for managing system resources and system messages**
-
-@example
-<Dashboard />
-
-### Props
-- `data` {object} - Object containing user data
-
-### Features
-- Displays widgets for CPU usage, disk usage, memory usage, performance, user activity, and system messages
-- Fully responsive grid with dynamic width and height resizing
-- Drag-and-drop widget reordering
-- Persistent widget configurations via systemPreferences with multiple layouts
-- Layout switching (e.g., default, compact)
-- Accessible widget addition, removal, and layout switching
-- Lazy loading with Intersection Observer for optimal performance
--->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { flip } from 'svelte/animate';
@@ -29,7 +9,6 @@
 	// Components
 	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
-	// Using iconify-icon web component
 
 	// Stores
 	import { themeStore } from '@stores/themeStore.svelte.ts';
@@ -45,6 +24,7 @@
 	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
 	import X from '@lucide/svelte/icons/x';
 	import ShieldCheck from '@lucide/svelte/icons/shield-check';
+	import BarChart2 from '@lucide/svelte/icons/bar-chart-2';
 
 	const { data }: { data: PageData } = $props();
 
@@ -53,7 +33,7 @@
 		component: WidgetComponent;
 		name: string;
 		description: string;
-		icon: string;
+		icon: any; // Use Lucid icon component
 		widgetMeta: WidgetMeta;
 	}
 	type WidgetRegistry = Record<string, WidgetRegistryEntry>;
@@ -95,7 +75,7 @@
 					component: module.default,
 					name: module.widgetMeta?.name || name,
 					description: module.widgetMeta?.description || '',
-					icon: module.widgetMeta?.icon || 'mdi:widgets',
+					icon: module.widgetMeta?.icon || LayoutDashboard, // Default to LayoutDashboard
 					widgetMeta: module.widgetMeta
 				};
 			}
@@ -159,6 +139,7 @@
 	const filteredWidgets = $derived(availableWidgets.filter((name) => name.toLowerCase().includes(searchQuery.toLowerCase())));
 
 	const currentTheme: 'dark' | 'light' = $derived(themeStore.isDarkMode ? 'dark' : 'light');
+	const sortedPreferences = $derived([...currentPreferences].sort((a, b) => (a.order || 0) - (b.order || 0)));
 
 	// Helper function to find insertion position based on coordinates
 	function findInsertionPosition(x: number, y: number): number {
@@ -247,7 +228,7 @@
 	function addNewWidget(componentName: string) {
 		const componentInfo = widgetComponentRegistry[componentName];
 		if (!componentInfo) {
-			logger.error(`SveltyCMS: Widget component info for "${componentName}" not found in registry.`);
+			logger.error('SveltyCMS: Widget component info for ' + componentName + ' not found in registry.');
 			return;
 		}
 
@@ -317,6 +298,7 @@
 
 		systemPreferences.updateWidgets(updatedWidgets);
 	}
+
 	function handleDragStart(event: MouseEvent | TouchEvent | PointerEvent, item: DashboardWidgetConfig, element: HTMLElement) {
 		// Ignore clicks on interactive elements and resize handles
 		if ((event.target as HTMLElement).closest('button, a, input, select, [role=button], .resize-handles, [data-direction]')) return;
@@ -415,7 +397,7 @@
 
 <main bind:this={mainContainerEl} class="relative overflow-y-auto overflow-x-hidden" style="touch-action: pan-y;">
 	<header class="mb-2 flex items-center justify-between gap-2 border-b border-surface-200 p-2 dark:text-surface-50">
-		<PageTitle name="Dashboard" icon="bi:bar-chart-line" showBackButton={true} backUrl="/config" />
+		<PageTitle name="Dashboard" icon={BarChart2} showBackButton={true} backUrl="/config" />
 		<div class="flex items-center gap-2">
 			<!-- Reset All Button - Small and subtle -->
 			{#if currentPreferences.length > 0}
@@ -455,7 +437,7 @@
 									role="menuitem"
 								>
 									{#if widgetInfo?.icon}
-										<iconify-icon icon={widgetInfo.icon} width="20" class="text-primary-500" />
+										<widgetInfo.icon size={20} class="text-primary-500" />
 									{:else}
 										<LayoutDashboard size={20} class="text-primary-500" />
 									{/if}
@@ -488,7 +470,7 @@
 						></div>
 					{/if}
 
-					{#each currentPreferences.sort((a: DashboardWidgetConfig, b: DashboardWidgetConfig) => (a.order || 0) - (b.order || 0)) as item (item.id)}
+					{#each sortedPreferences as item (item.id)}
 						{@const WidgetComponent = loadedWidgets.get(item.id)}
 						<div
 							role="button"
@@ -522,7 +504,7 @@
 									<button class="preset-filled-error-500 btn-sm mt-4" onclick={() => removeWidget(item.id)}> Remove Widget </button>
 								</div>
 							{:else}
-								<!-- Render the actual widget - Svelte 5 dynamic components -->
+								<!-- Render the actual widget -->
 								<WidgetComponent
 									config={item}
 									onRemove={() => removeWidget(item.id)}

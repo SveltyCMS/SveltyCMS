@@ -15,6 +15,11 @@
 <script lang="ts">
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 	import Search from '@lucide/svelte/icons/search';
+	import X from '@lucide/svelte/icons/x';
+	import Library from '@lucide/svelte/icons/library';
+	import Folder from '@lucide/svelte/icons/folder';
+	import Database from '@lucide/svelte/icons/database';
+	import AlertCircle from '@lucide/svelte/icons/circle-alert';
 
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
@@ -45,13 +50,13 @@
 		isExpanded: boolean;
 		onClick: () => void;
 		children?: CollectionTreeNode[];
-		icon?: string;
+		icon?: string | import('svelte').Component<any>;
 		badge?: {
 			count?: number;
 			status?: 'archive' | 'draft' | 'publish' | 'schedule' | 'clone' | 'test' | 'delete';
 			color?: string;
 			visible?: boolean;
-			icon?: string;
+			icon?: string | import('svelte').Component<any>;
 			title?: string;
 		};
 		path?: string;
@@ -148,7 +153,7 @@
 			badge = {
 				visible: true,
 				color: 'bg-warning-500',
-				icon: 'mdi:alert-circle',
+				icon: AlertCircle,
 				title: 'This collection uses inactive widgets'
 			};
 		}
@@ -159,7 +164,7 @@
 			isExpanded,
 			onClick: () => selectNode(node),
 			children,
-			icon: isCategory ? 'bi:folder' : 'bi:collection',
+			icon: isCategory ? Folder : Database,
 			badge,
 			path: !isCategory ? `/${currentLanguage}${node.path || '/' + node._id}` : undefined,
 			depth,
@@ -237,7 +242,7 @@
 					class="btn rounded-full preset-outline-surface-500 {isFullSidebar ? 'h-11 w-11' : 'h-10 w-10'}"
 					aria-label="Clear search"
 				>
-					<CircleQuestionMark size={24} />
+					<X size={24} />
 				</button>
 			{:else}
 				<!-- Search with icon -->
@@ -246,7 +251,7 @@
 						? 'h-11 w-11 mt-px mr-px'
 						: 'h-8 w-8'}"
 				>
-					<CircleQuestionMark size={24} />
+					<Search size={24} />
 				</div>
 			{/if}
 		</div>
@@ -256,7 +261,7 @@
 	<div class="collections-list" role="tree" aria-label="Collection tree">
 		{#if treeNodes.length === 0}
 			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center">
-				<CircleQuestionMark size={24} />
+				<Library size={24} class="opacity-20" />
 				<p class="text-sm text-surface-500 dark:text-surface-50">{m.collection_no_collections_found()}</p>
 			</div>
 		{:else}

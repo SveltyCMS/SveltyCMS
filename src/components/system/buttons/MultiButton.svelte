@@ -23,11 +23,16 @@
 -->
 
 <script lang="ts">
-	// Using iconify-icon web component
-	import { logger } from '@utils/logger';
-
 	// Stores
 	import { mode, setMode } from '@root/src/stores/collectionStore.svelte';
+
+	// Icons
+	import Plus from '@lucide/svelte/icons/plus';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Check from '@lucide/svelte/icons/check';
+	import EyeOff from '@lucide/svelte/icons/eye-off';
+	import FlaskConical from '@lucide/svelte/icons/flask-conical';
+	import { logger } from '@root/src/utils/logger';
 
 	// Props
 	const props = $props();
@@ -37,31 +42,31 @@
 	const defaultButtons = {
 		Create: {
 			fn: props['on:create'] || (() => setMode('create')),
-			icon: 'gravity-ui:plus',
+			icon: Plus,
 			bg_color: '#15d515',
 			color: 'white'
 		},
 		Delete: {
 			fn: props['on:delete'] || (() => logger.warn('Delete handler not provided')),
-			icon: 'tdesign:delete-1',
+			icon: Trash2,
 			bg_color: 'red',
 			color: 'white'
 		},
 		Publish: {
 			fn: props['on:publish'] || (() => logger.warn('Publish handler not provided')),
-			icon: '',
+			icon: Check,
 			bg_color: 'lime',
 			color: 'white'
 		},
 		Unpublish: {
 			fn: props['on:unpublish'] || (() => logger.warn('Unpublish handler not provided')),
-			icon: '',
+			icon: EyeOff,
 			bg_color: 'orange',
 			color: 'white'
 		},
 		Test: {
 			fn: props['on:test'] || (() => logger.warn('Test handler not provided')),
-			icon: '',
+			icon: FlaskConical,
 			bg_color: 'brown',
 			color: 'white'
 		}
@@ -91,8 +96,11 @@
 		aria-label="Create"
 		onclick={buttons[defaultButton].fn}
 	>
-		{#if buttons[defaultButton.icon as keyof typeof iconsData]}
-			<iconify-icon icon={buttons[defaultButton.icon as keyof typeof iconsData]} class="md:hidden" />
+		{#if buttons[defaultButton].icon}
+			{@const Icon = buttons[defaultButton].icon}
+			<div class="md:hidden">
+				<Icon size={20} />
+			</div>
 		{/if}
 		<span class="max-md:hidden">
 			{defaultButton}
@@ -117,11 +125,12 @@
 					onclick={buttons[button].fn}
 					aria-label={button}
 					style="--color:{buttons[button].color};--bg-color:{buttons[button].bg_color || 'rgb(37, 36, 36)'}"
-					class="w-full border-b border-gray-700 bg-gray-800 px-4 py-2 text-lg font-medium text-white last:border-0 hover:bg-gray-600"
+					class="flex w-full items-center gap-2 border-b border-gray-700 bg-gray-800 px-4 py-2 text-lg font-medium text-white last:border-0 hover:bg-gray-600"
 				>
-					{#if buttons[button.icon as keyof typeof iconsData] as any}<Icon
-							icon={buttons[button.icon as keyof typeof iconsData] as any}
-						/>{/if}
+					{#if buttons[button].icon}
+						{@const Icon = buttons[button].icon}
+						<Icon size={20} />
+					{/if}
 					{button}
 				</button>
 			{/if}

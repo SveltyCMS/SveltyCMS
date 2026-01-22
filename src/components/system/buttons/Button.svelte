@@ -164,18 +164,19 @@ Icon-only buttons automatically get an 'aria-label="Button"' fallback unless `ar
 </script>
 
 <svelte:element this={element} {...rest} {...elementProps} class={buttonClasses}>
-	{#if effectiveLeadingIcon && effectiveLeadingIcon as keyof typeof iconsData}
-		<Icon
-			icon={effectiveLeadingIcon as keyof typeof iconsData}
+	{#if effectiveLeadingIcon}
+		<iconify-icon
+			icon={effectiveLeadingIcon}
 			class={`${iconClass} ${children && !replaceTextOnLoading ? 'mr-2' : ''} ${loading ? 'animate-spin' : ''}`}
-		/>
+		></iconify-icon>
 	{/if}
 	{#if !loading || !replaceTextOnLoading}
 		{@render children?.()}
 	{/if}
-	{#if trailingIcon && !loading && trailingIcon as keyof typeof iconsData}
-		{#await import(`@lucide/svelte/icons/${trailingIcon}`) then m}
-			<m.default class={`${iconClass} ${children ? 'ml-2' : ''}`} />
-		{/await}
+	{#if trailingIcon && !loading}
+		<iconify-icon
+			icon={trailingIcon}
+			class={`${iconClass} ${children ? 'ml-2' : ''}`}
+		></iconify-icon>
 	{/if}
 </svelte:element>

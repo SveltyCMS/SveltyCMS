@@ -31,6 +31,13 @@
 
 	// Icons
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
+	import CheckCircle from '@lucide/svelte/icons/check-circle';
+	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+	import Loader from '@lucide/svelte/icons/loader';
+	import XCircle from '@lucide/svelte/icons/x-circle';
+	import PauseCircle from '@lucide/svelte/icons/pause-circle';
+	import HelpCircle from '@lucide/svelte/icons/help-circle';
 
 	// Widgets
 	import BaseWidget from '../BaseWidget.svelte';
@@ -112,20 +119,20 @@
 		}
 	}
 
-	function getStateIcon(state: SystemState): string {
+	function getStateIcon(state: SystemState) {
 		switch (state) {
 			case 'READY':
-				return 'mdi:check-circle';
+				return CheckCircle;
 			case 'DEGRADED':
-				return 'mdi:alert';
+				return AlertTriangle;
 			case 'INITIALIZING':
-				return 'mdi:loading';
+				return Loader;
 			case 'FAILED':
-				return 'mdi:close-circle';
+				return XCircle;
 			case 'IDLE':
-				return 'mdi:pause-circle';
+				return PauseCircle;
 			default:
-				return 'mdi:help-circle';
+				return HelpCircle;
 		}
 	}
 
@@ -165,19 +172,18 @@
 			<div class="flex h-full flex-col gap-3">
 				<!-- Overall Status -->
 				<div class="flex items-center justify-between">
-					<div class="flex items-center gap-2">
-						{#if getStateIcon(data.overallStatus) as keyof typeof iconsData}<Icon
-								icon={getStateIcon(data.overallStatus) as keyof typeof iconsData}
-								class={`text-2xl ${getStateColor(data.overallStatus)}`}
-								size={24}
-							/>{/if}
-						<div>
-							<span class={`font-bold ${getStateColor(data.overallStatus)}`}>
-								{data.overallStatus}
-							</span>
-							<p class="text-xs opacity-70">Uptime: {formatUptime(data.uptime)}</p>
+					{#if data.overallStatus}
+						{@const StateIcon = getStateIcon(data.overallStatus)}
+						<div class="flex items-center gap-2">
+							<StateIcon size={24} class={getStateColor(data.overallStatus)} />
+							<div>
+								<span class={`font-bold ${getStateColor(data.overallStatus)}`}>
+									{data.overallStatus}
+								</span>
+								<p class="text-xs opacity-70">Uptime: {formatUptime(data.uptime)}</p>
+							</div>
 						</div>
-					</div>
+					{/if}
 
 					<button class="preset-outlined-warning-500 btn-sm" onclick={reinitializeSystem} title="Reinitialize system">
 						<RefreshCw size={16} />
