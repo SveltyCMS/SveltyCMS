@@ -7,7 +7,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 -->
 
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
@@ -94,9 +94,9 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 						>
 							<div class="flex items-start gap-2">
 								<div class="mt-0.5 shrink-0">
-									{#if iconsData[suggestionIcon as keyof typeof iconsData]}
+									{#if suggestionIcon as keyof typeof iconsData}
 										<Icon
-											icon={iconsData[suggestionIcon as keyof typeof iconsData] as any}
+											icon={suggestionIcon as keyof typeof iconsData}
 											size={16}
 											class={suggestion.type === 'error' ? 'text-error-500' : suggestion.type === 'warning' ? 'text-warning-500' : 'text-primary-500'}
 										/>

@@ -10,7 +10,7 @@
 - Clear explanation of why SMTP is needed
 -->
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import Info from '@lucide/svelte/icons/info';
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
@@ -818,8 +818,8 @@
 						onclick={() => (showSuccessDetails = !showSuccessDetails)}
 						aria-label={showSuccessDetails ? m.setup_email_button_hide_details() : m.setup_email_button_show_details()}
 					>
-						{#if iconsData[showSuccessDetails ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)] as any}<Icon
-								icon={iconsData[showSuccessDetails ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)] as any}
+						{#if showSuccessDetails ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)}<Icon
+								icon={showSuccessDetails ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)}
 								class="text-xl"
 							/>{/if}
 					</button>

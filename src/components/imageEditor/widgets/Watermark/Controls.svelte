@@ -6,7 +6,7 @@ Controls for the Watermark tool. Allows adding, deleting, and positioning waterm
 <script lang="ts">
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	let {
 		onAddWatermark,
 		onDeleteWatermark,
@@ -44,7 +44,7 @@ Controls for the Watermark tool. Allows adding, deleting, and positioning waterm
 		<div class="btn-group preset-outlined-surface-500">
 			{#each positions as pos}
 				<button class="btn-sm" onclick={() => onPositionChange(pos.value)} title={pos.value}>
-					{#if iconsData[pos.icon as keyof typeof iconsData] as any}<Icon icon={iconsData[pos.icon as keyof typeof iconsData] as any} />{/if}
+					<iconify-icon icon={pos.icon as keyof typeof iconsData} />{/if}
 				</button>
 			{/each}
 		</div>

@@ -7,7 +7,7 @@ Controls for the FineTune tool, including a dropdown for adjustment type and a s
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 	import X from '@lucide/svelte/icons/x';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import type { Adjustments } from '@src/components/imageEditor/widgets/FineTune/adjustments';
 
 	const {
@@ -57,8 +57,8 @@ Controls for the FineTune tool, including a dropdown for adjustment type and a s
 					onclick={() => onAdjustmentChange(adj.key)}
 					title={adj.label}
 				>
-					{#if iconsData[adj.icon as keyof typeof iconsData] as any}<Icon
-							icon={iconsData[adj.icon as keyof typeof iconsData] as any}
+					{#if adj.icon as keyof typeof iconsData}<Icon
+							icon={adj.icon as keyof typeof iconsData}
 							size={18}
 						/>{/if}
 					<span class="text-[10px] uppercase tracking-tighter leading-none">{adj.label}</span>

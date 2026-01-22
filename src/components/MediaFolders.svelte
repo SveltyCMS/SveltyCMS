@@ -14,7 +14,7 @@
 <script lang="ts">
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
 	import { showToast } from '@utils/toast';
 	import { ui } from '@stores/UIStore.svelte.ts';
@@ -201,8 +201,8 @@
 				class="btn-sm {isEditMode ? 'variant-filled-warning' : 'preset-outlined-surface-500'}"
 				aria-pressed={isEditMode}
 			>
-				{#if iconsData[isEditMode ? 'bi:check-circle' : ('bi:pencil' as keyof typeof iconsData)] as any}<Icon
-						icon={iconsData[isEditMode ? 'bi:check-circle' : ('bi:pencil' as keyof typeof iconsData)] as any}
+				{#if isEditMode ? 'bi:check-circle' : ('bi:pencil' as keyof typeof iconsData)}<Icon
+						icon={isEditMode ? 'bi:check-circle' : ('bi:pencil' as keyof typeof iconsData)}
 						size={16}
 					/>{/if}
 				<span class="ml-1">{isEditMode ? 'Done' : 'Edit'}</span>

@@ -5,7 +5,7 @@
 -->
 
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import * as m from '@src/paraglide/messages';
@@ -257,8 +257,8 @@
 						data-sveltekit-preload-data={item.target === '_blank' ? undefined : 'hover'}
 						onclick={handleMobileSidebarClose}
 					>
-						{#if iconsData[item.icon as keyof typeof iconsData]}
-							<Icon icon={iconsData[item.icon as keyof typeof iconsData] as any} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`} />
+						{#if item.icon as keyof typeof iconsData}
+							<iconify-icon icon={item.icon as keyof typeof iconsData} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`} />
 						{/if}
 						<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
 					</a>
@@ -273,8 +273,8 @@
 					data-sveltekit-preload-data={item.target === '_blank' ? undefined : 'hover'}
 					onclick={handleMobileSidebarClose}
 				>
-					{#if iconsData[item.icon as keyof typeof iconsData]}
-						<Icon icon={iconsData[item.icon as keyof typeof iconsData] as any} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`} />
+					{#if item.icon as keyof typeof iconsData}
+						<iconify-icon icon={item.icon as keyof typeof iconsData} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`} />
 					{/if}
 					<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
 				</a>

@@ -28,7 +28,7 @@
 </script>
 
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import BaseWidget from '../BaseWidget.svelte';
 	import type { WidgetSize } from '@src/content/types';
@@ -101,9 +101,9 @@
 				{#each fetchedData.slice(0, 5) as file (file.id || file.name)}
 					<div class="flex items-center justify-between rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60" role="listitem">
 						<div class="flex min-w-0 items-center gap-2">
-							{#if iconsData[getFileIcon(file.type) as keyof typeof iconsData]}
+							{#if getFileIcon(file.type) as keyof typeof iconsData}
 								<Icon
-									icon={iconsData[getFileIcon(file.type) as keyof typeof iconsData] as any}
+									icon={getFileIcon(file.type) as keyof typeof iconsData}
 									class="shrink-0 text-primary-400"
 									size={18}
 									aria-label={file.type + ' file icon'}

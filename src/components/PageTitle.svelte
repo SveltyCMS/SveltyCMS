@@ -114,7 +114,7 @@
 			<div class={`mr-1 shrink-0 ${iconColor} sm:mr-2`} aria-hidden="true" style:width="{iconSize}px" style:height="{iconSize}px">
 				{#if icon}
 					{@const Icon = icon}
-					<Icon size={parseInt(iconSize)} />
+					<iconify-icon width={parseInt(iconSize)} />
 				{:else}
 					<LayoutDashboard size={parseInt(iconSize)} />
 				{/if}

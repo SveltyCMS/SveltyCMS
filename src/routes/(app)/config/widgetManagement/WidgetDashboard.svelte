@@ -17,7 +17,7 @@ Features:
 	import CircleX from '@lucide/svelte/icons/circle-x';
 	import Search from '@lucide/svelte/icons/search';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { onMount } from 'svelte';
 	import { logger } from '@utils/logger';
 	import WidgetCard from './WidgetCard.svelte';
@@ -398,8 +398,8 @@ Features:
 							class="btn {activeFilter === filter.value ? 'preset-filled-tertiary-500 text-white' : 'preset-ghost-secondary-500 '}"
 							aria-label="{filter.label} widgets ({filter.count})"
 						>
-							{#if iconsData[filter.icon as keyof typeof iconsData] as any}<Icon
-									icon={iconsData[filter.icon as keyof typeof iconsData] as any}
+							{#if filter.icon as keyof typeof iconsData}<Icon
+									icon={filter.icon as keyof typeof iconsData}
 									class="text-lg"
 								/>{/if}
 							<span>{filter.label}</span>

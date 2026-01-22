@@ -26,7 +26,7 @@ Renders: ★★★★☆ (4 filled stars, 1 empty star)
 -->
 
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import type { FieldType } from './';
 
 	const { field, value }: { field: FieldType; value: number | null | undefined } = $props();
@@ -41,11 +41,11 @@ Renders: ★★★★☆ (4 filled stars, 1 empty star)
 	<div class="display-wrapper" title="{value} out of {field.max || 5} stars">
 		{#each stars as _, i}
 			{#if i < value}
-				{#if iconsData[iconFull as keyof typeof iconsData]}
-					<Icon icon={iconsData[iconFull as keyof typeof iconsData] as any} class="text-warning-500" />
+				{#if iconFull as keyof typeof iconsData}
+					<iconify-icon icon={iconFull as keyof typeof iconsData} class="text-warning-500" />
 				{/if}
-			{:else if iconsData[iconEmpty as keyof typeof iconsData]}
-				<Icon icon={iconsData[iconEmpty as keyof typeof iconsData] as any} class="text-gray-300" />
+			{:else if iconEmpty as keyof typeof iconsData}
+				<iconify-icon icon={iconEmpty as keyof typeof iconsData} class="text-gray-300" />
 			{/if}
 		{/each}
 	</div>

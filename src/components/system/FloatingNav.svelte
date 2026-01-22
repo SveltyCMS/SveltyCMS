@@ -18,7 +18,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 	import X from '@lucide/svelte/icons/x';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
 	import { page } from '$app/state';
 	import { motion } from '@src/utils/utils';
@@ -490,8 +490,8 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			style="top:{center.y}px;
 			       left:{center.x}px"
 		>
-			{#if iconsData[(endpoints[0]?.icon || 'home') as keyof typeof iconsData]}
-				<Icon icon={iconsData[(endpoints[0]?.icon || 'home') as keyof typeof iconsData]} size={32} class="text-white" />
+			{#if (endpoints[0?.icon || 'home') as keyof typeof iconsData]}
+				<iconify-icon icon={(endpoints[0?.icon || 'home') as keyof typeof iconsData]} size={32} class="text-white" />
 			{/if}
 		</a>
 
@@ -510,7 +510,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 				style="top:{endpoint.y}px;
 			       left:{endpoint.x}px"
 			>
-				{#if iconsData[endpoint.icon as keyof typeof iconsData]}
+				{#if endpoint.icon as keyof typeof iconsData}
 					{#await import(`@lucide/svelte/icons/${endpoint.icon}`) then m}
 						<m.default size={32} class="text-white" />
 					{/await}

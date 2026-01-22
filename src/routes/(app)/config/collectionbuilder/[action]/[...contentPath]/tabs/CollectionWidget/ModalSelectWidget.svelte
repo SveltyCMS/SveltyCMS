@@ -9,7 +9,7 @@
 	import Search from '@lucide/svelte/icons/search';
 	import X from '@lucide/svelte/icons/x';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	// Modern widget system
 	import { widgets } from '@stores/widgetStore.svelte.ts';
 	import { logger } from '@utils/logger';
@@ -101,8 +101,8 @@
 											<div
 												class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-200 text-surface-600 transition-colors group-hover:bg-primary-500 group-hover:text-white dark:bg-surface-700 dark:text-surface-300"
 											>
-												{#if iconsData[availableWidgets[item]?.Icon as keyof typeof iconsData] as any}<Icon
-														icon={iconsData[availableWidgets[item]?.Icon as keyof typeof iconsData] as any}
+												{#if availableWidgets[item?.Icon as keyof typeof iconsData] as any}<Icon
+														icon={availableWidgets[item?.Icon as keyof typeof iconsData] as any}
 														size={28}
 													/>{/if}
 											</div>

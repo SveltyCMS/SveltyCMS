@@ -7,7 +7,7 @@ A reusable modal that wraps the main Image Editor.
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 	import X from '@lucide/svelte/icons/x';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import type { MediaImage, WatermarkOptions } from '@src/utils/media/mediaModels';
 	import { setContext } from 'svelte';
 	import Editor from './Editor.svelte';
@@ -87,8 +87,8 @@ A reusable modal that wraps the main Image Editor.
 			<div class="flex items-center gap-3 overflow-hidden">
 				{#if activeWidget}
 					<div class="flex items-center gap-2 text-primary-500 shrink-0">
-						{#if iconsData[activeWidget.icon as keyof typeof iconsData] as any}<Icon
-								icon={iconsData[activeWidget.icon as keyof typeof iconsData] as any}
+						{#if activeWidget.icon as keyof typeof iconsData}<Icon
+								icon={activeWidget.icon as keyof typeof iconsData}
 								size={24}
 								class="max-sm:width-[20px]"
 							/>{/if}
@@ -100,8 +100,8 @@ A reusable modal that wraps the main Image Editor.
 								<span class="max-sm:hidden text-surface-400">:</span>
 								<span class="flex items-center gap-1 text-primary-600 dark:text-primary-400 font-extrabold">
 									{#if subInfo.icon}
-										{#if iconsData[subInfo.icon as keyof typeof iconsData] as any}<Icon
-												icon={iconsData[subInfo.icon as keyof typeof iconsData] as any}
+										{#if subInfo.icon as keyof typeof iconsData}<Icon
+												icon={subInfo.icon as keyof typeof iconsData}
 												size={16}
 												class="lg:width-[20px]"
 											/>{/if}

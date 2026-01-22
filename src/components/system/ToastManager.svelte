@@ -23,7 +23,7 @@ optional actions, and smooth animations.
 <script lang="ts">
 	import X from '@lucide/svelte/icons/x';
 
-	import Icon from '@iconify/svelte';
+	// Note: Using <iconify-icon> web component for dynamic toast icons (zero build impact)
 	import { Toast } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '@stores/store.svelte.ts';
 	import { fly, fade } from 'svelte/transition';
@@ -111,11 +111,7 @@ optional actions, and smooth animations.
 					{#if toast.title}
 						<Toast.Title class="font-bold text-base flex items-center gap-2">
 							{#if getToastIcon(toast.type)}
-								{#if iconsData[getToastIcon(toast.type) as keyof typeof iconsData] as any}<Icon
-										icon={iconsData[getToastIcon(toast.type) as keyof typeof iconsData] as any}
-										size={22}
-										class="shrink-0"
-									/>{/if}
+								<iconify-icon icon={getToastIcon(toast.type)} width="22" class="shrink-0"></iconify-icon>
 							{/if}
 							<span>{toast.title}</span>
 						</Toast.Title>

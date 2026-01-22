@@ -23,7 +23,7 @@
 -->
 
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
 
 	// Stores
@@ -91,8 +91,8 @@
 		aria-label="Create"
 		onclick={buttons[defaultButton].fn}
 	>
-		{#if iconsData[buttons[defaultButton].icon as keyof typeof iconsData]}
-			<Icon icon={iconsData[buttons[defaultButton].icon as keyof typeof iconsData]} class="md:hidden" />
+		{#if buttons[defaultButton.icon as keyof typeof iconsData]}
+			<iconify-icon icon={buttons[defaultButton.icon as keyof typeof iconsData]} class="md:hidden" />
 		{/if}
 		<span class="max-md:hidden">
 			{defaultButton}
@@ -119,8 +119,8 @@
 					style="--color:{buttons[button].color};--bg-color:{buttons[button].bg_color || 'rgb(37, 36, 36)'}"
 					class="w-full border-b border-gray-700 bg-gray-800 px-4 py-2 text-lg font-medium text-white last:border-0 hover:bg-gray-600"
 				>
-					{#if iconsData[buttons[button].icon as keyof typeof iconsData] as any}<Icon
-							icon={iconsData[buttons[button].icon as keyof typeof iconsData] as any}
+					{#if buttons[button.icon as keyof typeof iconsData] as any}<Icon
+							icon={buttons[button.icon as keyof typeof iconsData] as any}
 						/>{/if}
 					{button}
 				</button>

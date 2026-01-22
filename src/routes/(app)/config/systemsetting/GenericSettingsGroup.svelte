@@ -15,7 +15,7 @@ Handles all field types and validation automatically
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 	import Settings from '@lucide/svelte/icons/settings';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { onMount } from 'svelte';
 	import type { Writable } from 'svelte/store';
 	import type { SettingGroup, SettingField } from './settingsGroups';
@@ -848,8 +848,8 @@ Handles all field types and validation automatically
 						>
 							<label for={field.key} class="mb-2 block">
 								<span class="flex items-center gap-2">
-									{#if iconsData[getFieldIcon(field) as keyof typeof iconsData] as any}<Icon
-											icon={iconsData[getFieldIcon(field) as keyof typeof iconsData] as any}
+									{#if getFieldIcon(field) as keyof typeof iconsData}<Icon
+											icon={getFieldIcon(field) as keyof typeof iconsData}
 											size={18}
 											class="text-tertiary-500 dark:text-primary-500"
 										/>{/if}
@@ -937,8 +937,8 @@ Handles all field types and validation automatically
 											onclick={() => (showPassword[field.key] = !showPassword[field.key])}
 											aria-label={showPassword[field.key] ? 'Hide password' : 'Show password'}
 										>
-											{#if iconsData[showPassword[field.key] ? 'bi:eye-slash-fill' : ('bi:eye-fill' as keyof typeof iconsData)] as any}<Icon
-													icon={iconsData[showPassword[field.key] ? 'bi:eye-slash-fill' : ('bi:eye-fill' as keyof typeof iconsData)] as any}
+											{#if showPassword[field.key ? 'bi:eye-slash-fill' : ('bi:eye-fill' as keyof typeof iconsData)] as any}<Icon
+													icon={showPassword[field.key ? 'bi:eye-slash-fill' : ('bi:eye-fill' as keyof typeof iconsData)] as any}
 													size={20}
 												/>{/if}
 										</button>

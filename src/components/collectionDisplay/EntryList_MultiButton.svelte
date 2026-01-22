@@ -26,7 +26,7 @@
 	import Menu from '@lucide/svelte/icons/menu';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { onMount, onDestroy } from 'svelte';
 	import { scale } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
@@ -436,8 +436,8 @@
 			aria-label={showDeleted ? m.entrylist_multibutton_viewing_archived() : m.entrylist_multibutton_viewing_active()}
 			aria-pressed={showDeleted}
 		>
-			{#if iconsData[showDeleted ? 'ic:round-archive' : ('ic:round-unarchive' as keyof typeof iconsData)] as any}<Icon
-					icon={iconsData[showDeleted ? 'ic:round-archive' : ('ic:round-unarchive' as keyof typeof iconsData)] as any}
+			{#if showDeleted ? 'ic:round-archive' : ('ic:round-unarchive' as keyof typeof iconsData)}<Icon
+					icon={showDeleted ? 'ic:round-archive' : ('ic:round-unarchive' as keyof typeof iconsData)}
 					size={24}
 				/>{/if}
 		</button>
@@ -465,8 +465,8 @@
 			>
 				{#if isProcessing}
 					<CircleQuestionMark size={24} />
-				{:else if iconsData[currentConfig.icon as keyof typeof iconsData] as any}<Icon
-						icon={iconsData[currentConfig.icon as keyof typeof iconsData] as any}
+				{:else if currentConfig.icon as keyof typeof iconsData}<Icon
+						icon={currentConfig.icon as keyof typeof iconsData}
 						size={24}
 					/>{/if}
 				<span class="hidden md:inline-block">{dynamicLabel}</span>
@@ -532,8 +532,8 @@
 									<div
 										class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-700 transition-transform group-hover/item:scale-110"
 									>
-										{#if iconsData[config.icon as keyof typeof iconsData] as any}<Icon
-												icon={iconsData[config.icon as keyof typeof iconsData] as any}
+										{#if config.icon as keyof typeof iconsData}<Icon
+												icon={config.icon as keyof typeof iconsData}
 												size={18}
 											/>{/if}
 									</div>

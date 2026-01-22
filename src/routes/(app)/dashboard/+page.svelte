@@ -29,7 +29,7 @@
 	// Components
 	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 
 	// Stores
 	import { themeStore } from '@stores/themeStore.svelte.ts';
@@ -455,7 +455,7 @@
 									role="menuitem"
 								>
 									{#if widgetInfo?.icon}
-										<Icon icon={widgetInfo.icon} width="20" class="text-primary-500" />
+										<iconify-icon icon={widgetInfo.icon} width="20" class="text-primary-500" />
 									{:else}
 										<LayoutDashboard size={20} class="text-primary-500" />
 									{/if}

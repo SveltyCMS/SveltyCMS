@@ -14,7 +14,7 @@ Features:
 <script lang="ts">
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { goto } from '$app/navigation';
 	import type { TreeViewItem } from '@utils/treeViewAdapter';
 	import { screen } from '@stores/screenSizeStore.svelte.ts';
@@ -74,8 +74,8 @@ Features:
 			}}
 			aria-label={isOpen ? 'Collapse' : 'Expand'}
 		>
-			{#if iconsData[isOpen ? 'bi:chevron-down' : ('bi:chevron-right' as keyof typeof iconsData)] as any}<Icon
-					icon={iconsData[isOpen ? 'bi:chevron-down' : ('bi:chevron-right' as keyof typeof iconsData)] as any}
+			{#if isOpen ? 'bi:chevron-down' : ('bi:chevron-right' as keyof typeof iconsData)}<Icon
+					icon={isOpen ? 'bi:chevron-down' : ('bi:chevron-right' as keyof typeof iconsData)}
 					size={20}
 					class="transition-transform duration-200"
 				/>{/if}
@@ -86,8 +86,8 @@ Features:
 
 	<!-- Icon with Animation -->
 	<div class="relative">
-		{#if iconsData[icon as keyof typeof iconsData] as any}<Icon
-				icon={iconsData[icon as keyof typeof iconsData] as any}
+		{#if icon as keyof typeof iconsData}<Icon
+				icon={icon as keyof typeof iconsData}
 				size={24}
 				class={iconClass}
 			/>{/if}

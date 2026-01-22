@@ -13,7 +13,7 @@
 <script lang="ts">
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -54,8 +54,8 @@
 				<CircleQuestionMark size={24} />
 
 				<span class="break-word flex items-center gap-2">
-					{#if iconsData[item.icon as keyof typeof iconsData] as any}<Icon
-							icon={iconsData[item.icon as keyof typeof iconsData] as any}
+					{#if item.icon as keyof typeof iconsData}<Icon
+							icon={item.icon as keyof typeof iconsData}
 							size={18}
 							class="text-error-500"
 						/>{/if}

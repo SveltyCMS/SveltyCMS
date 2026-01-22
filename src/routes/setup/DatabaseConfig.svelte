@@ -8,7 +8,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	import CircleAlert from '@lucide/svelte/icons/circle-alert';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import * as m from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
 	import type { ValidationErrors } from '@stores/setupStore.svelte.ts';
@@ -260,8 +260,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					<Info size={20} class="shrink-0" aria-hidden="true" />
 					<span class="font-semibold">MongoDB Atlas Quick Setup</span>
 				</div>
-				{#if iconsData[showAtlasHelper ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)] as any}<Icon
-						icon={iconsData[showAtlasHelper ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)] as any}
+				{#if showAtlasHelper ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)}<Icon
+						icon={showAtlasHelper ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)}
 						size={24}
 						aria-hidden="true"
 					/>{/if}
@@ -679,8 +679,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						class="absolute inset-y-0 right-0 flex min-w-10 items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none dark:text-slate-500 dark:hover:text-slate-400"
 						aria-label={showDbPassword ? 'Hide database password' : 'Show database password'}
 					>
-						{#if iconsData[showDbPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)] as any}<Icon
-								icon={iconsData[showDbPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)] as any}
+						{#if showDbPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)}<Icon
+								icon={showDbPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)}
 								size={18}
 								aria-hidden="true"
 							/>{/if}

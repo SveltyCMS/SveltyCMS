@@ -34,7 +34,7 @@
 -->
 
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import type { FloatingInputProps } from './types';
 
 	let {
@@ -126,9 +126,9 @@
 			{...rest}
 		/>
 
-		{#if icon && iconsData[icon as keyof typeof iconsData]}
+		{#if icon && icon as keyof typeof iconsData}
 			<Icon
-				icon={iconsData[icon as keyof typeof iconsData] as any}
+				icon={icon as keyof typeof iconsData}
 				size={18}
 				class="absolute left-0 top-3 {iconColor === 'gray' ? 'text-surface-500 dark:text-surface-50' : ''}"
 				style={iconColor !== 'gray' ? `color: ${iconColor};` : ''}
@@ -138,11 +138,11 @@
 
 		{#if type === 'password'}
 			{@const passwordIcon = showPassword ? 'eye' : 'eye-off'}
-			{#if iconsData[passwordIcon as keyof typeof iconsData]}
+			{#if passwordIcon as keyof typeof iconsData}
 				<Icon
 					tabindex={0}
 					role="button"
-					icon={iconsData[passwordIcon as keyof typeof iconsData] as any}
+					icon={passwordIcon as keyof typeof iconsData}
 					aria-label={showPassword ? 'Hide password' : 'Show password'}
 					aria-pressed={showPassword}
 					class="absolute right-2 top-3 cursor-pointer hover:opacity-75 focus:outline-none text-surface-500 dark:text-surface-50"

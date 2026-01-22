@@ -6,7 +6,7 @@ Displays detailed SEO analysis results in a modal overlay.
 -->
 
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 	import X from '@lucide/svelte/icons/x';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
@@ -126,8 +126,8 @@ Displays detailed SEO analysis results in a modal overlay.
 									<div class="flex items-start justify-between">
 										<div>
 											<div class="font-bold flex items-center gap-2">
-												{#if iconsData[suggestionIcon as keyof typeof iconsData]}
-													<Icon icon={iconsData[suggestionIcon as keyof typeof iconsData] as any} size={16} />
+												{#if suggestionIcon as keyof typeof iconsData}
+													<iconify-icon icon={suggestionIcon as keyof typeof iconsData} size={16} />
 												{/if}
 												{suggestion.title}
 											</div>

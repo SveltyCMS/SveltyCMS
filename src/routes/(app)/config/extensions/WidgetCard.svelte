@@ -31,7 +31,7 @@ canManage: boolean;
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	interface Props {
 		widget: {
 			name: string;
@@ -67,8 +67,8 @@ canManage: boolean;
 			<div
 				class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface-100 text-surface-900 dark:bg-surface-800 dark:text-surface-100"
 			>
-				{#if iconsData[widget.icon as keyof typeof iconsData] as any}<Icon
-						icon={iconsData[widget.icon as keyof typeof iconsData] as any}
+				{#if widget.icon as keyof typeof iconsData}<Icon
+						icon={widget.icon as keyof typeof iconsData}
 						class="text-3xl"
 					/>{/if}
 			</div>

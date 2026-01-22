@@ -11,7 +11,7 @@ Features:
 	import CircleAlert from '@lucide/svelte/icons/circle-alert';
 	import Settings from '@lucide/svelte/icons/settings';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	/**
 	 * @file src/routes/(app)/config/extensions/PluginsView.svelte
 	 */
@@ -82,8 +82,8 @@ Features:
 				<div class="mb-3 flex items-start justify-between">
 					<div class="flex items-center gap-3">
 						<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-50 dark:bg-surface-900/50">
-							{#if iconsData[plugin.icon || ('mdi:puzzle' as keyof typeof iconsData)] as any}<Icon
-									icon={iconsData[plugin.icon || ('mdi:puzzle' as keyof typeof iconsData)] as any}
+							{#if plugin.icon || ('mdi:puzzle' as keyof typeof iconsData)}<Icon
+									icon={plugin.icon || ('mdi:puzzle' as keyof typeof iconsData)}
 									size={32}
 									class="text-primary-500"
 								/>{/if}

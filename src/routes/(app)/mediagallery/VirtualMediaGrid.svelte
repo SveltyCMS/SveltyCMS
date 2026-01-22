@@ -28,7 +28,7 @@ Implements custom virtual scrolling without external dependencies.
 	import X from '@lucide/svelte/icons/x';
 	import Menu from '@lucide/svelte/icons/menu';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { formatBytes } from '@utils/utils';
 
 	import type { MediaImage, MediaBase } from '@utils/media/mediaModels';
@@ -355,8 +355,8 @@ Implements custom virtual scrolling without external dependencies.
 				class="preset-outline-surface-500 btn-sm"
 				aria-label="Toggle selection mode"
 			>
-				{#if iconsData[isSelectionMode ? 'mdi:close' : ('mdi:checkbox-multiple-marked' as keyof typeof iconsData)] as any}<Icon
-						icon={iconsData[isSelectionMode ? 'mdi:close' : ('mdi:checkbox-multiple-marked' as keyof typeof iconsData)] as any}
+				{#if isSelectionMode ? 'mdi:close' : ('mdi:checkbox-multiple-marked' as keyof typeof iconsData)}<Icon
+						icon={isSelectionMode ? 'mdi:close' : ('mdi:checkbox-multiple-marked' as keyof typeof iconsData)}
 						size={20}
 					/>{/if}
 				{isSelectionMode ? 'Cancel' : 'Select'}

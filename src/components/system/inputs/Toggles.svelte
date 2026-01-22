@@ -22,7 +22,7 @@
 -->
 
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
 
 	import type { TogglesProps } from './types';
@@ -103,9 +103,9 @@
 			>
 				{#if iconOn && iconOff}
 					{@const currentIcon = value ? iconOn : iconOff}
-					{#if iconsData[currentIcon as keyof typeof iconsData]}
+					{#if currentIcon as keyof typeof iconsData}
 						<Icon
-							icon={iconsData[currentIcon as keyof typeof iconsData] as any}
+							icon={currentIcon as keyof typeof iconsData}
 							size={iconSize}
 							class="{value ? 'text-primary-500' : 'text-error-500'} {disabled ? 'text-surface-600' : ''}"
 						/>

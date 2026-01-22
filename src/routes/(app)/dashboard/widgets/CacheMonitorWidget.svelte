@@ -18,7 +18,7 @@
 </script>
 
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import BaseWidget from '../BaseWidget.svelte';
 
 	import type { WidgetSize } from '@src/content/types';
@@ -178,9 +178,9 @@
 								<div class="group">
 									<div class="flex items-center justify-between text-xs">
 										<div class="flex items-center gap-2">
-											{#if iconsData[getCategoryIcon(category) as keyof typeof iconsData]}
+											{#if getCategoryIcon(category) as keyof typeof iconsData}
 												<Icon
-													icon={iconsData[getCategoryIcon(category) as keyof typeof iconsData] as any}
+													icon={getCategoryIcon(category) as keyof typeof iconsData}
 													size={18}
 													class="text-surface-600 transition-colors group-hover:text-primary-500 dark:text-surface-50"
 												/>
@@ -256,8 +256,8 @@
 									<div class="flex items-start justify-between gap-2">
 										<div class="min-w-0 flex-1">
 											<div class="mb-1 flex items-center gap-2">
-												{#if iconsData[getCategoryIcon(miss.category) as keyof typeof iconsData] as any}<Icon
-														icon={iconsData[getCategoryIcon(miss.category) as keyof typeof iconsData] as any}
+												{#if getCategoryIcon(miss.category) as keyof typeof iconsData}<Icon
+														icon={getCategoryIcon(miss.category) as keyof typeof iconsData}
 														size={14}
 														class="text-error-600 dark:text-error-400"
 													/>{/if}
@@ -311,9 +311,9 @@
 							{#if metrics.overall}
 								{@const healthIcon =
 									metrics.overall.hitRate >= 80 ? 'check-circle' : metrics.overall.hitRate >= 60 ? 'alert-triangle' : 'alert-circle'}
-								{#if iconsData[healthIcon as keyof typeof iconsData]}
+								{#if healthIcon as keyof typeof iconsData}
 									<Icon
-										icon={iconsData[healthIcon as keyof typeof iconsData] as any}
+										icon={healthIcon as keyof typeof iconsData}
 										size={18}
 										class={metrics.overall.hitRate >= 80
 											? 'text-success-600 dark:text-success-400'

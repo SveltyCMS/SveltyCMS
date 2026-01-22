@@ -23,7 +23,7 @@ Key features:
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	// Utils
 	import { formatBytes } from '@utils/utils';
 	import { logger } from '@utils/logger';
@@ -184,8 +184,8 @@ Key features:
 					class="preset-outline-surface-500 btn-sm"
 					aria-label="Toggle selection mode"
 				>
-					{#if iconsData[isSelectionMode ? 'mdi:close' : ('mdi:checkbox-multiple-marked' as keyof typeof iconsData)] as any}<Icon
-							icon={iconsData[isSelectionMode ? 'mdi:close' : ('mdi:checkbox-multiple-marked' as keyof typeof iconsData)] as any}
+					{#if isSelectionMode ? 'mdi:close' : ('mdi:checkbox-multiple-marked' as keyof typeof iconsData)}<Icon
+							icon={isSelectionMode ? 'mdi:close' : ('mdi:checkbox-multiple-marked' as keyof typeof iconsData)}
 							size={20}
 						/>{/if}
 					{isSelectionMode ? 'Cancel' : 'Select'}
@@ -414,8 +414,8 @@ Key features:
 					<div class="flex grow items-center justify-between p-1 text-white">
 						<!-- Type -->
 						<div class="bg-tertiary-500 dark:bg-primary-500/50 badge flex items-center gap-1 overflow-hidden" title={file.type}>
-							{#if iconsData[getFileIcon(file) as keyof typeof iconsData] as any}<Icon
-									icon={iconsData[getFileIcon(file) as keyof typeof iconsData] as any}
+							{#if getFileIcon(file) as keyof typeof iconsData}<Icon
+									icon={getFileIcon(file) as keyof typeof iconsData}
 									size={12}
 								/>{/if}
 							<span class="truncate text-[10px] uppercase">{formatMimeType(file.mimeType)}</span>

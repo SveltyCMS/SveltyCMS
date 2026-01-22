@@ -34,7 +34,7 @@
 </script>
 
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
@@ -813,8 +813,8 @@
 				<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
 					{#if currentCollection?.icon}
 						<span>
-							{#if iconsData[currentCollection.icon as keyof typeof iconsData] as any}<Icon
-									icon={iconsData[currentCollection.icon as keyof typeof iconsData] as any}
+							{#if currentCollection.icon as keyof typeof iconsData}<Icon
+									icon={currentCollection.icon as keyof typeof iconsData}
 									size={24}
 									class="mr-1 text-error-500 sm:mr-2"
 								/>{/if}
@@ -998,8 +998,8 @@
 									{(header as TableHeader).label}
 									{#if (header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
 										{@const sortIcon = entryListPaginationSettings.sorting.isSorted === 1 ? 'arrow-up' : 'arrow-down'}
-										{#if iconsData[sortIcon as keyof typeof iconsData]}
-											<Icon icon={iconsData[sortIcon as keyof typeof iconsData] as any} size={16} class="ml-1 origin-center" />
+										{#if sortIcon as keyof typeof iconsData}
+											<iconify-icon icon={sortIcon as keyof typeof iconsData} size={16} class="ml-1 origin-center" />
 										{/if}
 									{/if}
 								</div>

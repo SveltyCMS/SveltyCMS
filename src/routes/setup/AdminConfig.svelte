@@ -23,7 +23,7 @@
 <script lang="ts">
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import * as m from '@src/paraglide/messages';
 	import type { ValidationErrors } from '@stores/setupStore.svelte.ts';
 	import { safeParse } from 'valibot';
@@ -261,8 +261,8 @@
 						class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
 						aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
 					>
-						{#if iconsData[showAdminPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)] as any}<Icon
-								icon={iconsData[showAdminPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)] as any}
+						{#if showAdminPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)}<Icon
+								icon={showAdminPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)}
 								size={18}
 								aria-hidden="true"
 							/>{/if}
@@ -327,8 +327,8 @@
 						class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
 						aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
 					>
-						{#if iconsData[showConfirmPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)] as any}<Icon
-								icon={iconsData[showConfirmPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)] as any}
+						{#if showConfirmPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)}<Icon
+								icon={showConfirmPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)}
 								size={18}
 								aria-hidden="true"
 							/>{/if}

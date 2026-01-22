@@ -6,7 +6,7 @@ Displays a preview of the shared link for different platforms.
 -->
 
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	interface Props {
@@ -66,9 +66,9 @@ Displays a preview of the shared link for different platforms.
 				onclick={() => (activePlatform = platform.id)}
 				title={platform.label}
 			>
-				{#if iconsData[platform.icon as keyof typeof iconsData]}
+				{#if platform.icon as keyof typeof iconsData}
 					<Icon
-						icon={iconsData[platform.icon as keyof typeof iconsData] as any}
+						icon={platform.icon as keyof typeof iconsData}
 						class="text-xl {activePlatform === platform.id ? 'text-white' : platform.color}"
 					/>
 				{/if}

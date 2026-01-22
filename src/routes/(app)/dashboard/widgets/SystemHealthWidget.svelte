@@ -27,7 +27,7 @@
 
 <script lang="ts">
 	// Components
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 
 	// Icons
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
@@ -166,8 +166,8 @@
 				<!-- Overall Status -->
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2">
-						{#if iconsData[getStateIcon(data.overallStatus) as keyof typeof iconsData] as any}<Icon
-								icon={iconsData[getStateIcon(data.overallStatus) as keyof typeof iconsData] as any}
+						{#if getStateIcon(data.overallStatus) as keyof typeof iconsData}<Icon
+								icon={getStateIcon(data.overallStatus) as keyof typeof iconsData}
 								class={`text-2xl ${getStateColor(data.overallStatus)}`}
 								size={24}
 							/>{/if}

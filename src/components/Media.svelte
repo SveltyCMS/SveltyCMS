@@ -33,7 +33,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 	import CircleAlert from '@lucide/svelte/icons/circle-alert';
 	import Search from '@lucide/svelte/icons/search';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import axios from 'axios';
@@ -306,8 +306,8 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			class="btn-icon btn-icon-sm preset-outlined-surface-500"
 			aria-label={sortAscending ? 'Sort descending' : 'Sort ascending'}
 		>
-			{#if iconsData[sortAscending ? 'mdi:sort-ascending' : ('mdi:sort-descending' as keyof typeof iconsData)] as any}<Icon
-					icon={iconsData[sortAscending ? 'mdi:sort-ascending' : ('mdi:sort-descending' as keyof typeof iconsData)] as any}
+			{#if sortAscending ? 'mdi:sort-ascending' : ('mdi:sort-descending' as keyof typeof iconsData)}<Icon
+					icon={sortAscending ? 'mdi:sort-ascending' : ('mdi:sort-descending' as keyof typeof iconsData)}
 					size={20}
 				/>{/if}
 		</button>
@@ -396,8 +396,8 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 							class="btn-sm m-1 p-1 hover:bg-surface-600"
 							type="button"
 						>
-							{#if iconsData[isInfoShown(index) ? 'mdi:information-off' : ('mdi:information' as keyof typeof iconsData)] as any}<Icon
-									icon={iconsData[isInfoShown(index) ? 'mdi:information-off' : ('mdi:information' as keyof typeof iconsData)] as any}
+							{#if isInfoShown(index) ? 'mdi:information-off' : ('mdi:information' as keyof typeof iconsData)}<Icon
+									icon={isInfoShown(index) ? 'mdi:information-off' : ('mdi:information' as keyof typeof iconsData)}
 									size={20}
 									class="text-primary-500"
 								/>{/if}

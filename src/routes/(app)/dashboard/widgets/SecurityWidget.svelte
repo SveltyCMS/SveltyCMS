@@ -40,7 +40,7 @@ and automated response visualization for enterprise security operations.
 	import { onMount, onDestroy } from 'svelte';
 
 	// Components
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 
 	// Icons
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
@@ -291,8 +291,8 @@ and automated response visualization for enterprise security operations.
 		<!-- Security Status Header -->
 		<div class="flex items-center justify-between">
 			<div class="flex items-center space-x-3">
-				{#if iconsData[statusIcon as keyof typeof iconsData] as any}<Icon
-						icon={iconsData[statusIcon as keyof typeof iconsData] as any}
+				{#if statusIcon as keyof typeof iconsData}<Icon
+						icon={statusIcon as keyof typeof iconsData}
 						class="text-2xl {threatColor}"
 					/>{/if}
 				<div>

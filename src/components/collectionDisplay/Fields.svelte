@@ -22,7 +22,7 @@
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 	import Search from '@lucide/svelte/icons/search';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { untrack } from 'svelte';
 	import { getFieldName } from '@utils/utils';
 	import { logger } from '@utils/logger';
@@ -410,8 +410,8 @@
 									{/if}
 									<!-- Icon for field type -->
 									{#if field.icon}
-										{#if iconsData[field.icon as keyof typeof iconsData] as any}<Icon
-												icon={iconsData[field.icon as keyof typeof iconsData] as any}
+										{#if field.icon as keyof typeof iconsData}<Icon
+												icon={field.icon as keyof typeof iconsData}
 												size={20}
 												class="text-tertiary-500 dark:text-primary-500"
 											/>{/if}

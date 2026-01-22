@@ -30,7 +30,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 	import Search from '@lucide/svelte/icons/search';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { browser } from '$app/environment';
 
 	// Stores
@@ -215,8 +215,8 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		title={m.table_density_label({ density: getDensityDisplayName() })}
 		class="btn preset-outlined-surface-500 rounded-full"
 	>
-		{#if iconsData[getDensityIcon() as keyof typeof iconsData] as any}<Icon
-				icon={iconsData[getDensityIcon() as keyof typeof iconsData] as any}
+		{#if getDensityIcon() as keyof typeof iconsData}<Icon
+				icon={getDensityIcon() as keyof typeof iconsData}
 				size={24}
 			/>{/if}
 	</button>

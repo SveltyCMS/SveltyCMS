@@ -39,9 +39,9 @@ Icon-only buttons automatically get an 'aria-label="Button"' fallback unless `ar
 -->
 
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	// — Types —
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
 	type ButtonVariant = 'primary' | 'secondary' | 'error' | 'ghost' | 'text' | 'outline';
 
@@ -164,16 +164,16 @@ Icon-only buttons automatically get an 'aria-label="Button"' fallback unless `ar
 </script>
 
 <svelte:element this={element} {...rest} {...elementProps} class={buttonClasses}>
-	{#if effectiveLeadingIcon && iconsData[effectiveLeadingIcon as keyof typeof iconsData]}
+	{#if effectiveLeadingIcon && effectiveLeadingIcon as keyof typeof iconsData}
 		<Icon
-			icon={iconsData[effectiveLeadingIcon as keyof typeof iconsData]}
+			icon={effectiveLeadingIcon as keyof typeof iconsData}
 			class={`${iconClass} ${children && !replaceTextOnLoading ? 'mr-2' : ''} ${loading ? 'animate-spin' : ''}`}
 		/>
 	{/if}
 	{#if !loading || !replaceTextOnLoading}
 		{@render children?.()}
 	{/if}
-	{#if trailingIcon && !loading && iconsData[trailingIcon as keyof typeof iconsData]}
+	{#if trailingIcon && !loading && trailingIcon as keyof typeof iconsData}
 		{#await import(`@lucide/svelte/icons/${trailingIcon}`) then m}
 			<m.default class={`${iconClass} ${children ? 'ml-2' : ''}`} />
 		{/await}

@@ -32,7 +32,7 @@ Advanced permission management interface with bulk actions and presets.
 	import Download from '@lucide/svelte/icons/download';
 	import Upload from '@lucide/svelte/icons/upload';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import type { Role } from '@src/databases/auth/types';
 	import { PermissionAction } from '@src/databases/auth/types';
 	import { showToast } from '@utils/toast';
@@ -369,8 +369,8 @@ Advanced permission management interface with bulk actions and presets.
 								title={`Enable ${action} for all roles`}
 								aria-label={`Enable ${action} for all roles`}
 							>
-								{#if iconsData[actionIcons[action] as keyof typeof iconsData] as any}<Icon
-										icon={iconsData[actionIcons[action] as keyof typeof iconsData] as any}
+								{#if actionIcons[action as keyof typeof iconsData] as any}<Icon
+										icon={actionIcons[action as keyof typeof iconsData] as any}
 										size={16}
 									/>{/if}
 								✓
@@ -381,8 +381,8 @@ Advanced permission management interface with bulk actions and presets.
 								title={`Disable ${action} for all roles`}
 								aria-label={`Disable ${action} for all roles`}
 							>
-								{#if iconsData[actionIcons[action] as keyof typeof iconsData] as any}<Icon
-										icon={iconsData[actionIcons[action] as keyof typeof iconsData] as any}
+								{#if actionIcons[action as keyof typeof iconsData] as any}<Icon
+										icon={actionIcons[action as keyof typeof iconsData] as any}
 										size={16}
 									/>{/if}
 								✗
@@ -409,8 +409,8 @@ Advanced permission management interface with bulk actions and presets.
 						{#each Object.values(PermissionAction) as action (action)}
 							<th scope="col" class="px-4 py-3 text-center">
 								<div class="flex flex-col items-center gap-1">
-									{#if iconsData[actionIcons[action] as keyof typeof iconsData] as any}<Icon
-											icon={iconsData[actionIcons[action] as keyof typeof iconsData] as any}
+									{#if actionIcons[action as keyof typeof iconsData] as any}<Icon
+											icon={actionIcons[action as keyof typeof iconsData] as any}
 											size={20}
 											aria-hidden="true"
 										/>{/if}
@@ -456,9 +456,9 @@ Advanced permission management interface with bulk actions and presets.
 											? 'preset-filled-success-500 hover:scale-110'
 											: 'preset-filled-error-500 opacity-50 hover:opacity-100 hover:scale-110'} {role.isAdmin ? 'cursor-not-allowed opacity-30' : ''}"
 									>
-										{#if iconsData[checkIcon as keyof typeof iconsData]}
+										{#if checkIcon as keyof typeof iconsData}
 											<Icon
-												icon={iconsData[checkIcon as keyof typeof iconsData] as any}
+												icon={checkIcon as keyof typeof iconsData}
 												size={18}
 												class={permissionsState[role._id]?.[action] ? 'text-white' : 'text-white'}
 											/>

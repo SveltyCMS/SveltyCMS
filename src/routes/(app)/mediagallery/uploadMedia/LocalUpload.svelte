@@ -18,7 +18,7 @@
 <script lang="ts">
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
 	import { toaster } from '@stores/store.svelte.ts';
 	import { goto } from '$app/navigation';
@@ -394,8 +394,8 @@
 							<audio controls class="max-w-full">
 								<source src={previewUrl} type={file.type} />
 							</audio>
-						{:else if iconsData[iconName as keyof typeof iconsData] as any}<Icon
-								icon={iconsData[iconName as keyof typeof iconsData] as any}
+						{:else if iconName as keyof typeof iconsData}<Icon
+								icon={iconName as keyof typeof iconsData}
 								size={48}
 								class="opacity-50"
 							/>{/if}
@@ -413,8 +413,8 @@
 					<div class="flex grow items-center justify-between p-1 text-white">
 						<!-- Type -->
 						<div class="bg-tertiary-500 dark:bg-primary-500/50 badge flex items-center gap-1 overflow-hidden" title={file.type}>
-							{#if iconsData[iconName as keyof typeof iconsData] as any}<Icon
-									icon={iconsData[iconName as keyof typeof iconsData] as any}
+							{#if iconName as keyof typeof iconsData}<Icon
+									icon={iconName as keyof typeof iconsData}
 									size={12}
 								/>{/if}
 							<span class="truncate text-[10px] uppercase">{formatMimeType(file.type)}</span>

@@ -28,7 +28,7 @@ Interactive star rating with hover states and click selection
 -->
 
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { RatingGroup } from '@skeletonlabs/skeleton-svelte';
 	import type { FieldType } from './';
 
@@ -64,13 +64,13 @@ Interactive star rating with hover states and click selection
 				{#each { length: Number(field.max) || 5 } as _, i}
 					<RatingGroup.Item index={i + 1}>
 						{#snippet empty()}
-							{#if iconsData[iconEmpty as keyof typeof iconsData]}
-								<Icon icon={iconsData[iconEmpty as keyof typeof iconsData] as any} size={24} class="text-surface-400" />
+							{#if iconEmpty as keyof typeof iconsData}
+								<iconify-icon icon={iconEmpty as keyof typeof iconsData} size={24} class="text-surface-400" />
 							{/if}
 						{/snippet}
 						{#snippet full()}
-							{#if iconsData[iconFull as keyof typeof iconsData]}
-								<Icon icon={iconsData[iconFull as keyof typeof iconsData] as any} size={24} class={error ? 'text-error-500' : 'text-warning-500'} />
+							{#if iconFull as keyof typeof iconsData}
+								<iconify-icon icon={iconFull as keyof typeof iconsData} size={24} class={error ? 'text-error-500' : 'text-warning-500'} />
 							{/if}
 						{/snippet}
 					</RatingGroup.Item>

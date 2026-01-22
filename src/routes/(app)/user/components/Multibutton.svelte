@@ -18,7 +18,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import Menu from '@lucide/svelte/icons/menu';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { onMount, onDestroy } from 'svelte';
 	import { scale } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
@@ -527,8 +527,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 				rounded-l-full rounded-r-none px-6 flex items-center justify-center gap-2 border-r border-white/20"
 			aria-label="{listboxValue} selected items"
 		>
-			{#if iconsData[actionConfig[listboxValue].iconValue as keyof typeof iconsData] as any}<Icon
-					icon={iconsData[actionConfig[listboxValue].iconValue as keyof typeof iconsData] as any}
+			{#if actionConfig[listboxValue.iconValue as keyof typeof iconsData] as any}<Icon
+					icon={actionConfig[listboxValue.iconValue as keyof typeof iconsData] as any}
 					size={20}
 				/>{/if}
 			<span class="uppercase tracking-wider">{listboxValue}</span>
@@ -573,8 +573,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 								<div
 									class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-700/50 transition-transform group-hover/item:scale-110"
 								>
-									{#if iconsData[config.iconValue as keyof typeof iconsData] as any}<Icon
-											icon={iconsData[config.iconValue as keyof typeof iconsData] as any}
+									{#if config.iconValue as keyof typeof iconsData}<Icon
+											icon={config.iconValue as keyof typeof iconsData}
 											size={16}
 										/>{/if}
 								</div>

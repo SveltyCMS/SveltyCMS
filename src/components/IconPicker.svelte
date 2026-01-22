@@ -18,8 +18,7 @@ Avoids heavy build time by loading icons on demand.
 	import { quintOut } from 'svelte/easing';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	// Iconify
-	import Icon, { loadIcons } from '@iconify/svelte';
+	// Note: Using <iconify-icon> web component (loaded via CDN) for zero build impact
 	// Utils
 	import { showToast } from '@utils/toast';
 	// System Logger
@@ -212,11 +211,7 @@ Avoids heavy build time by loading icons on demand.
 					currentPage = 0;
 				}
 
-				// Preload icons
-				const iconIds = newIcons.map((icon) => {
-					return library ? `${library}:${icon}` : icon;
-				});
-				await loadIcons(iconIds);
+				// Icons are loaded on-demand by the iconify-icon web component
 
 				activeTab = 'search';
 			} else {
@@ -465,11 +460,11 @@ Avoids heavy build time by loading icons on demand.
 			out:scale={{ duration: prefersReducedMotion ? 0 : 150, easing: quintOut, start: 0.9 }}
 		>
 			<div class="flex flex-1 items-center gap-3 rounded-lg bg-surface-100 p-2 dark:bg-surface-800">
-				<Icon
+				<iconify-icon
 					icon={iconselected}
-					width={previewSize.toString()}
+					width={previewSize}
 					class="text-tertiary-500 transition-transform duration-200 hover:scale-110 dark:text-primary-500"
-				/>
+				></iconify-icon>
 				<div class="flex-1 overflow-hidden">
 					<p class="text-xs text-surface-600 dark:text-surface-50">Selected Icon</p>
 					<p class="truncate text-sm font-medium text-tertiary-500 dark:text-primary-500">
@@ -486,7 +481,7 @@ Avoids heavy build time by loading icons on demand.
 					aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
 					title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
 				>
-					<Icon icon={isFavorite ? 'mdi:heart' : 'mdi:heart-outline'} width="22" class={isFavorite ? 'text-error-500' : ''} />
+					<iconify-icon icon={isFavorite ? 'mdi:heart' : 'mdi:heart-outline'} width="22" class={isFavorite ? 'text-error-500' : ''}></iconify-icon>
 				</button>
 
 				<button
@@ -496,7 +491,7 @@ Avoids heavy build time by loading icons on demand.
 					aria-label="Copy icon name"
 					title="Copy icon name"
 				>
-					<Icon icon="mdi:content-copy" width="22" />
+					<iconify-icon icon="mdi:content-copy" width="22"></iconify-icon>
 				</button>
 
 				<button
@@ -506,7 +501,7 @@ Avoids heavy build time by loading icons on demand.
 					aria-label="Remove selected icon"
 					title="Remove icon"
 				>
-					<Icon icon="mdi:close" width="22" />
+					<iconify-icon icon="mdi:close" width="22"></iconify-icon>
 				</button>
 			</div>
 		</div>
@@ -537,7 +532,7 @@ Avoids heavy build time by loading icons on demand.
 				}}
 				aria-label="Clear search"
 			>
-				<Icon icon="mdi:close" width="20" />
+				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 			</button>
 		{/if}
 	</div>
@@ -549,7 +544,7 @@ Avoids heavy build time by loading icons on demand.
 			in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>
 			<div class="flex items-start gap-2">
-				<Icon icon="mdi:alert-circle" width="18" />
+				<iconify-icon icon="mdi:alert-circle" width="18"></iconify-icon>
 				<span>{searchError}</span>
 			</div>
 		</div>
@@ -650,7 +645,7 @@ Avoids heavy build time by loading icons on demand.
 									? 'ring-2 ring-primary-500'
 									: ''}"
 							>
-								<Icon {icon} width="24" class="transition-colors duration-200 group-hover:text-primary-500" />
+								<iconify-icon {icon} width="24" class="transition-colors duration-200 group-hover:text-primary-500"></iconify-icon>
 
 								{#if activeTab === 'favorites'}
 									<button
@@ -660,7 +655,7 @@ Avoids heavy build time by loading icons on demand.
 										}}
 										class="absolute right-0 top-0 opacity-0 transition-opacity group-hover:opacity-100"
 									>
-										<Icon icon="mdi:close-circle" width="16" class="text-error-500" />
+										<iconify-icon icon="mdi:close-circle" width="16" class="text-error-500"></iconify-icon>
 									</button>
 								{/if}
 							</div>
@@ -668,7 +663,7 @@ Avoids heavy build time by loading icons on demand.
 
 						{#if isLoading}
 							<div class="col-span-full py-4 text-center">
-								<Icon icon="eos-icons:loading" class="animate-spin text-surface-400" width="24" />
+								<iconify-icon icon="eos-icons:loading" class="animate-spin text-surface-400" width="24"></iconify-icon>
 							</div>
 						{/if}
 
@@ -678,7 +673,7 @@ Avoids heavy build time by loading icons on demand.
 					</div>
 				{:else if hasSearchQuery && activeTab === 'search'}
 					<div class="flex flex-col items-center gap-3 py-12 text-center" in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
-						<Icon icon="mdi:magnify-close" width="48" class="text-surface-400" />
+						<iconify-icon icon="mdi:magnify-close" width="48" class="text-surface-400"></iconify-icon>
 						<p class="text-surface-600 dark:text-surface-50">
 							No icons found for "<span class="font-medium">{searchQuery}</span>"
 						</p>

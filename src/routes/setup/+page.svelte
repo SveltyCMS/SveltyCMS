@@ -5,7 +5,7 @@
 <script lang="ts">
 	import X from '@lucide/svelte/icons/x';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 
@@ -247,8 +247,8 @@
 								</svg>
 								<div class="flex-1">{wizard.successMessage || wizard.errorMessage}</div>
 								<button type="button" class="btn-sm flex shrink-0 items-center gap-1" onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}>
-									{#if iconsData[wizard.showDbDetails ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)] as any}<Icon
-											icon={iconsData[wizard.showDbDetails ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)] as any}
+									{#if wizard.showDbDetails ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)}<Icon
+											icon={wizard.showDbDetails ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)}
 											class="h-4 w-4"
 										/>{/if}
 									<span class="hidden sm:inline">{wizard.showDbDetails ? m.setup_db_test_details_hide() : m.setup_db_test_details_show()}</span>

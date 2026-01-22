@@ -6,7 +6,7 @@
 <script lang="ts">
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import PageTitle from '@components/PageTitle.svelte';
 	import PluginsView from './PluginsView.svelte';
 	import ThemesView from './ThemesView.svelte';
@@ -37,8 +37,8 @@
 						: 'text-surface-500 hover:text-surface-900 dark:hover:text-surface-100'}"
 				>
 					<div class="flex items-center gap-2">
-						{#if iconsData[tab.icon as keyof typeof iconsData] as any}<Icon
-								icon={iconsData[tab.icon as keyof typeof iconsData] as any}
+						{#if tab.icon as keyof typeof iconsData}<Icon
+								icon={tab.icon as keyof typeof iconsData}
 								class="text-xl"
 							/>{/if}
 						<span>{tab.label}</span>

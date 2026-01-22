@@ -6,7 +6,7 @@
 <script lang="ts">
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	// Components
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 
 	// Data
@@ -460,7 +460,7 @@
 										{/if}
 										{#if !btn.icon || btn.label !== 'Table'}
 											<span class={btn.icon ? 'hidden sm:inline' : ''}>{btn.label}</span>
-											{#if iconsData['chevron-down' as keyof typeof iconsData]}<ChevronDown icon={ChevronDown} size={16} />{/if}
+											{#if 'chevron-down' as keyof typeof iconsData}<ChevronDown icon={ChevronDown} size={16} />{/if}
 										{/if}
 									</button>
 									{#if activeDropdown === btn.label}

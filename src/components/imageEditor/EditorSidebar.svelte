@@ -12,7 +12,7 @@ and proper active state indication.
 -->
 
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	// Props
 	const {
 		activeState,
@@ -58,8 +58,8 @@ and proper active state indication.
 				disabled={!hasImage}
 			>
 				<div class="tool-icon flex items-center justify-center">
-					{#if iconsData[tool.icon as keyof typeof iconsData] as any}<Icon
-							icon={iconsData[tool.icon as keyof typeof iconsData] as any}
+					{#if tool.icon as keyof typeof iconsData}<Icon
+							icon={tool.icon as keyof typeof iconsData}
 							size={24}
 						/>{/if}
 				</div>

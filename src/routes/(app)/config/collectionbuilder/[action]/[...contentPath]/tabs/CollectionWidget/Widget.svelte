@@ -6,7 +6,7 @@
 <script lang="ts">
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { getGuiFields } from '@utils/utils';
 	import type { DndEvent, Item } from 'svelte-dnd-action';
 	// Stores
@@ -192,8 +192,8 @@
 						{field.id}
 					</div>
 
-					{#if iconsData[field.icon as keyof typeof iconsData] as any}<Icon
-							icon={iconsData[field.icon as keyof typeof iconsData] as any}
+					{#if field.icon as keyof typeof iconsData}<Icon
+							icon={field.icon as keyof typeof iconsData}
 							size={24}
 							class="text-tertiary-500"
 						/>{/if}

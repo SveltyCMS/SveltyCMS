@@ -25,7 +25,7 @@ Requires user confirmation before proceeding with changes that may cause data lo
 	import CircleAlert from '@lucide/svelte/icons/circle-alert';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 
-	import Icon from '@iconify/svelte';
+	// Using iconify-icon web component
 	import { fade, slide } from 'svelte/transition';
 	import type { BreakingChange } from '@utils/collectionSchemaWarnings';
 
@@ -110,8 +110,8 @@ Requires user confirmation before proceeding with changes that may cause data lo
 					<ul class="space-y-2">
 						{#each dataLossChanges as change}
 							<li class="flex items-start gap-2 text-sm">
-								{#if iconsData[typeIcons[change.type] || ('mdi:alert' as keyof typeof iconsData)] as any}<Icon
-										icon={iconsData[typeIcons[change.type] || ('mdi:alert' as keyof typeof iconsData)] as any}
+								{#if typeIcons[change.type || ('mdi:alert' as keyof typeof iconsData)] as any}<Icon
+										icon={typeIcons[change.type || ('mdi:alert' as keyof typeof iconsData)] as any}
 										size={18}
 										class="mt-0.5 text-error-500"
 									/>{/if}
@@ -139,8 +139,8 @@ Requires user confirmation before proceeding with changes that may cause data lo
 					<ul class="space-y-2">
 						{#each otherChanges as change}
 							<li class="flex items-start gap-2 text-sm">
-								{#if iconsData[typeIcons[change.type] || ('mdi:alert' as keyof typeof iconsData)] as any}<Icon
-										icon={iconsData[typeIcons[change.type] || ('mdi:alert' as keyof typeof iconsData)] as any}
+								{#if typeIcons[change.type || ('mdi:alert' as keyof typeof iconsData)] as any}<Icon
+										icon={typeIcons[change.type || ('mdi:alert' as keyof typeof iconsData)] as any}
 										size={18}
 										class="mt-0.5 text-warning-500"
 									/>{/if}
