@@ -490,9 +490,9 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			style="top:{center.y}px;
 			       left:{center.x}px"
 		>
-			{#if (endpoints[0?.icon || 'home') as keyof typeof iconsData]}
-				<iconify-icon icon={(endpoints[0?.icon || 'home') as keyof typeof iconsData]} size={32} class="text-white" />
-			{/if}
+       {#if endpoints[0]?.icon}
+         <iconify-icon icon={endpoints[0].icon} width="32" class="text-white"></iconify-icon>
+       {/if}
 		</a>
 
 		{#each endpointsWithPos.slice(1) as endpoint, index (endpoint.tooltip)}
