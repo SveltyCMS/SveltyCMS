@@ -6,16 +6,11 @@ Sidebar navigation for System Settings
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import Settings from '@lucide/svelte/icons/settings';
-	import Search from '@lucide/svelte/icons/search';
-	import Menu from '@lucide/svelte/icons/menu';
-
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { getSettingGroupsByRole } from '@src/routes/(app)/config/systemsetting/settingsGroups';
 	import type { SettingGroup } from '@src/routes/(app)/config/systemsetting/settingsGroups';
-	import { groupsNeedingConfig } from '@stores/configStore.svelte.ts';
+	import { groupsNeedingConfig } from '@stores/configStore.svelte';
 
 	// Props
 	let { isFullSidebar = true } = $props();
@@ -67,7 +62,7 @@ Sidebar navigation for System Settings
 			aria-label="Search settings"
 		/>
 		<div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400">
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="ic:outline-search" width="20"></iconify-icon>
 		</div>
 	</div>
 

@@ -18,10 +18,6 @@
 - Enhanced visual feedback for drag & drop
 -->
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import Search from '@lucide/svelte/icons/search';
-	import X from '@lucide/svelte/icons/x';
-
 	// Component
 	import TreeViewNode from './TreeViewNode.svelte';
 
@@ -311,7 +307,7 @@
 <div class="mb-4 flex flex-wrap items-center gap-2">
 	<!-- Search Input -->
 	<div class="relative flex-1 min-w-[200px]">
-		<Search size={18} class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50" />
+		<iconify-icon icon="mdi:magnify" width="18" class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"></iconify-icon>
 		<input type="text" placeholder="Search collections..." bind:value={searchText} class="input w-full h-12 pl-10 pr-8 rounded shadow-sm" />
 		{#if searchText}
 			<button
@@ -320,7 +316,7 @@
 				class="absolute right-2 top-1/2 -translate-y-1/2 btn-icon preset-tonal-surface-500 hover:preset-filled-surface-500 transition-all"
 				aria-label="Clear search"
 			>
-				<X size={16} />
+				<iconify-icon icon="mdi:close" width={16}></iconify-icon>
 			</button>
 		{/if}
 	</div>
@@ -333,7 +329,7 @@
 			class="btn preset-tonal-surface-500 hover:preset-filled-surface-500 transition-all shadow-sm"
 			title="Expand All"
 		>
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:unfold-more-horizontal" width={24}></iconify-icon>
 			<span class="hidden sm:inline ml-1">Expand All</span>
 		</button>
 		<button
@@ -342,7 +338,7 @@
 			class="btn preset-tonal-surface-500 hover:preset-filled-surface-500 transition-all shadow-sm"
 			title="Collapse All"
 		>
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:unfold-less-horizontal" width={24}></iconify-icon>
 			<span class="hidden sm:inline ml-1">Collapse All</span>
 		</button>
 	</div>
@@ -353,10 +349,10 @@
 	{#if hierarchicalData.length === 0}
 		<div class="text-center p-8 text-surface-500">
 			{#if searchText}
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="mdi:magnify-close" width="48" class="opacity-50 mb-2"></iconify-icon>
 				<p>No results found for "{searchText}"</p>
 			{:else}
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="mdi:folder-outline" width="48" class="opacity-50 mb-2"></iconify-icon>
 				<p>No categories or collections yet</p>
 			{/if}
 		</div>
@@ -385,7 +381,7 @@
 	<!-- Drop to Root Zone (visible during drag) -->
 	{#if isDragging}
 		<div class="drop-to-root-zone">
-			<ArrowUp size={20} />
+			<iconify-icon icon="mdi:arrow-up" width="20"></iconify-icon>
 			<span>Drop here to move to root level</span>
 		</div>
 	{/if}

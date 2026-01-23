@@ -4,10 +4,6 @@
 Controls for the FineTune tool, including a dropdown for adjustment type and a slider.
 -->
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import X from '@lucide/svelte/icons/x';
-
-	// Using iconify-icon web component
 	import type { Adjustments } from '@src/components/imageEditor/widgets/FineTune/adjustments';
 
 	const {
@@ -57,10 +53,7 @@ Controls for the FineTune tool, including a dropdown for adjustment type and a s
 					onclick={() => onAdjustmentChange(adj.key)}
 					title={adj.label}
 				>
-					{#if adj.icon as keyof typeof iconsData}<Icon
-							icon={adj.icon as keyof typeof iconsData}
-							size={18}
-						/>{/if}
+					<iconify-icon icon={adj.icon} width="18"></iconify-icon>
 					<span class="text-[10px] uppercase tracking-tighter leading-none">{adj.label}</span>
 				</button>
 			{/each}
@@ -78,20 +71,20 @@ Controls for the FineTune tool, including a dropdown for adjustment type and a s
 
 	<!-- Reset -->
 	<button onclick={onReset} class="btn-sm btn-icon preset-outlined-surface-500" title="Reset this adjustment" disabled={value === 0}>
-		<CircleQuestionMark size={24} />
+		<iconify-icon icon="mdi:restore"></iconify-icon>
 	</button>
 
 	<div class="h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
 
 	<!-- Cancel -->
 	<button class="btn preset-outlined-error-500" onclick={onCancel}>
-		<X />
+		<iconify-icon icon="mdi:close"></iconify-icon>
 		<span>Cancel</span>
 	</button>
 
 	<!-- Apply -->
 	<button class="btn preset-filled-success-500" onclick={onApply}>
-		<Check />
+		<iconify-icon icon="mdi:check"></iconify-icon>
 		<span>Apply</span>
 	</button>
 </div>

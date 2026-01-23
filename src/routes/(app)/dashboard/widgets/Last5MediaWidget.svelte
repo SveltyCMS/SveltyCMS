@@ -18,8 +18,6 @@
 - Enhanced debugging and logging
 -->
 <script lang="ts" module>
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	export const widgetMeta = {
 		name: 'Last 5 Media',
 		icon: 'mdi:image-multiple-outline',
@@ -101,14 +99,8 @@
 				{#each fetchedData.slice(0, 5) as file (file.id || file.name)}
 					<div class="flex items-center justify-between rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60" role="listitem">
 						<div class="flex min-w-0 items-center gap-2">
-							{#if getFileIcon(file.type) as keyof typeof iconsData}
-								<Icon
-									icon={getFileIcon(file.type) as keyof typeof iconsData}
-									class="shrink-0 text-primary-400"
-									size={18}
-									aria-label={file.type + ' file icon'}
-								/>
-							{/if}
+							<iconify-icon icon={getFileIcon(file.type)} width="18" class="shrink-0 text-primary-400" aria-label={file.type + ' file icon'}
+							></iconify-icon>
 							<div class="flex min-w-0 flex-col">
 								<span class="text-text-900 dark:text-text-100 truncate font-medium" title={file.name}>
 									{file.name}
@@ -131,7 +123,7 @@
 			</div>
 		{:else}
 			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="mdi:file-remove-outline" width={24}></iconify-icon>
 				<span>No media files found</span>
 			</div>
 		{/if}

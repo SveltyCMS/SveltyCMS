@@ -4,7 +4,7 @@
 -->
 
 <div class="flex flex-col items-center justify-center py-20 text-center">
-	<CircleQuestionMark size={24} />
+	<iconify-icon icon="mdi:help-circle" width="24"></iconify-icon>
 	<h3 class="h3 font-bold">Theme Management</h3>
 	<p class="max-w-md text-surface-500">
 		Custom themes allow you to personalize the look and feel of your SveltyCMS instance. This feature is currently under development.

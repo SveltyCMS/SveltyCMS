@@ -9,11 +9,9 @@
 	import { logger } from '@utils/logger';
 
 	// Components
-	import IconPicker from '@components/IconPicker.svelte';
+	import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
 
 	// Lucide Icons
-	import Trash2 from '@lucide/svelte/icons/trash-2';
-	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -202,7 +200,7 @@
 
 		<label class="label" for="icon-picker">
 			<span>Icon</span>
-			<IconPicker bind:iconselected={formData.newCategoryIcon} searchQuery={formData.newCategoryIcon} />
+			<IconifyIconsPicker bind:iconselected={formData.newCategoryIcon} searchQuery={formData.newCategoryIcon} />
 			{#if validationErrors.icon}
 				<span id="icon-error" class="text-sm text-error-500">{validationErrors.icon}</span>
 			{/if}
@@ -210,7 +208,7 @@
 		<footer class="modal-footer flex {existingCategory.name ? 'justify-between' : 'justify-end'} pt-4 border-t border-surface-500/20">
 			{#if existingCategory.name}
 				<button type="button" onclick={deleteCategory} class="preset-filled-error-500 btn" aria-label="Delete category" disabled={isSubmitting}>
-					<Trash2 size={24} />
+					<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
 					<span class="hidden md:inline">{m.button_delete()}</span>
 				</button>
 			{/if}
@@ -226,7 +224,7 @@
 					disabled={isSubmitting}
 				>
 					{#if isSubmitting}
-						<LoaderCircle size={24} class="animate-spin" />
+						<iconify-icon icon="eos-icons:loading" width={24} class="animate-spin"></iconify-icon>
 					{/if}
 					{m.button_save()}
 				</button>

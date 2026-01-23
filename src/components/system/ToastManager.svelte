@@ -21,12 +21,10 @@ optional actions, and smooth animations.
 -->
 
 <script lang="ts">
-	import X from '@lucide/svelte/icons/x';
+	import { fly, fade } from 'svelte/transition';
 
-	// Note: Using <iconify-icon> web component for dynamic toast icons (zero build impact)
 	import { Toast } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '@stores/store.svelte.ts';
-	import { fly, fade } from 'svelte/transition';
 
 	interface Props {
 		/** Position of the toast container */
@@ -142,7 +140,7 @@ optional actions, and smooth animations.
 					class="absolute right-2 top-2 p-1.5 rounded-full opacity-70 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 transition-opacity"
 					aria-label="Dismiss notification"
 				>
-					<X size={18} />
+					<iconify-icon icon="mdi:close" width={18}></iconify-icon>
 				</Toast.CloseTrigger>
 
 				<!-- Progress Bar for Auto-dismiss -->

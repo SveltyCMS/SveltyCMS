@@ -20,10 +20,6 @@ Displays a prominent banner when server restart is required with countdown and s
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import CircleAlert from '@lucide/svelte/icons/circle-alert';
-	import X from '@lucide/svelte/icons/x';
-
 	import { showToast } from '@utils/toast';
 	import { onMount, onDestroy } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
@@ -142,7 +138,12 @@ Displays a prominent banner when server restart is required with countdown and s
 			<!-- Warning icon and message -->
 			<div class="flex items-center gap-3 text-center md:text-left">
 				<div class="shrink-0">
-					<CircleAlert size={32} class="text-warning-900 dark:text-warning-100 {!prefersReducedMotion ? 'animate-pulse' : ''}" />
+					<iconify-icon
+						icon="mdi:alert-circle"
+						width="32"
+						class="text-warning-900 dark:text-warning-100 {!prefersReducedMotion ? 'animate-pulse' : ''}"
+						aria-hidden="true"
+					></iconify-icon>
 				</div>
 
 				<div>
@@ -168,7 +169,7 @@ Displays a prominent banner when server restart is required with countdown and s
 				{:else}
 					<!-- Start countdown -->
 					<button onclick={startCountdown} class="preset-outlined-surface-500btn btn-sm" disabled={isRestarting}>
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="mdi:timer" width="18"></iconify-icon>
 						Auto-Restart in {AUTO_RESTART_SECONDS}s
 					</button>
 				{/if}
@@ -179,7 +180,7 @@ Displays a prominent banner when server restart is required with countdown and s
 						<div class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
 						<span>Restarting...</span>
 					{:else}
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="mdi:restart" width="18"></iconify-icon>
 						<span>Restart Now</span>
 					{/if}
 				</button>
@@ -192,7 +193,7 @@ Displays a prominent banner when server restart is required with countdown and s
 					disabled={isRestarting}
 					title="Dismiss (you can restart manually later)"
 				>
-					<X size={20} />
+					<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 				</button>
 			</div>
 		</div>

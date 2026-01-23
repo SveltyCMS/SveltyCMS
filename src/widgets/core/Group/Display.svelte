@@ -24,8 +24,6 @@ Renders grouped content in a read-only display format with collapsible functiona
 -->
 
 <script lang="ts">
-	import ChevronDown from '@lucide/svelte/icons/chevron-down';
-
 	import { getFieldName } from '@src/utils/utils';
 	import type { FieldType, GroupWidgetData } from './';
 
@@ -107,7 +105,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 				{/if}
 
 				<div class="transition-transform duration-200 ease-in-out {isCollapsed ? 'rotate-180' : ''}">
-					<ChevronDown size={18} />
+					<iconify-icon icon="mdi:chevron-down" width={18}></iconify-icon>
 				</div>
 			</button>
 		{:else}

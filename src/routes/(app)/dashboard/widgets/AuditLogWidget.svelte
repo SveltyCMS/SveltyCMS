@@ -9,8 +9,6 @@ Features:
 -->
 
 <script lang="ts" module>
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	export const widgetMeta = {
 		name: 'Audit Log',
 		icon: 'mdi:history',
@@ -89,7 +87,7 @@ Features:
 									{truncateEmail(log.actor?.email)}
 								</td>
 								<td class="py-2 pt-3 text-center text-success-500">
-									<CircleQuestionMark size={24} />
+									<iconify-icon icon="mdi:history" width={24}></iconify-icon>
 								</td>
 							</tr>
 						{/each}

@@ -25,8 +25,6 @@ Renders: SEO icon + "Keyword: svelte cms" with hover tooltip showing full meta d
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	import type { SeoData } from './types';
 
 	const { value }: { value: SeoData | null | undefined } = $props();
@@ -41,7 +39,7 @@ Renders: SEO icon + "Keyword: svelte cms" with hover tooltip showing full meta d
 
 {#if value}
 	<div class="seo-display" title="Title: {value.title} | Description: {value.description}">
-		<CircleQuestionMark size={24} style="flex-shrink: 0" />
+		<iconify-icon icon="tabler:seo" width="24" style="flex-shrink: 0"></iconify-icon>
 		<span>{displayText}</span>
 	</div>
 {:else}

@@ -20,7 +20,7 @@
 	import { browser } from '$app/environment';
 
 	// Stores
-	import { app } from '@stores/store.svelte';
+	import { systemLanguage } from '@stores/store.svelte';
 
 	// Paraglide
 	import { getLocale, setLocale, locales as availableLocales } from '@src/paraglide/runtime';
@@ -34,7 +34,7 @@
 
 	// Effect to handle language changes
 	$effect(() => {
-		const desiredLang = app.systemLanguage; // Get the desired language from the store
+		const desiredLang = systemLanguage.value; // Get the desired language from the store
 
 		if (desiredLang) {
 			// Ensure the desired language is one of the available locales and is different from the current

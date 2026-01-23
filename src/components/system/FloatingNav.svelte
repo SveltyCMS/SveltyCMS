@@ -15,10 +15,6 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import X from '@lucide/svelte/icons/x';
-
-	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
 	import { page } from '$app/state';
 	import { motion } from '@src/utils/utils';
@@ -31,11 +27,12 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	import type { User } from '@src/databases/auth/types';
 
 	// Stores
-	import { setMode } from '@stores/collectionStore.svelte.ts';
-	import { toggleUIElement } from '@stores/UIStore.svelte.ts';
+	import { setMode } from '@stores/collectionStore.svelte';
+	import { ui } from '@stores/UIStore.svelte';
 
-	// Skeleton UI
+	// Modals/Tooltips
 	import { modalState } from '@utils/modalState.svelte';
+	import { Tooltip } from '@skeletonlabs/skeleton-svelte';
 
 	// Constants
 	const BUTTON_RADIUS = 25;
@@ -142,6 +139,9 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	let firstCircle: HTMLDivElement | undefined = $state(undefined);
 	let svg: SVGSVGElement | undefined = $state(undefined);
 	const circles: (HTMLAnchorElement | undefined)[] = $state([]);
+
+	// Tooltip state
+	let activeTooltip = $state<string | null>(null);
 
 	// Calculate endpoint positions
 	const endpointsWithPos = $derived(
@@ -266,7 +266,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	function handleNavigateHome(): void {
 		setMode('view');
 		modalState.clear();
-		toggleUIElement('leftSidebar', 'hidden');
+		ui.toggle('leftSidebar', 'hidden');
 		showRoutes = false;
 		// Navigation will be handled by <a> tag
 	}
@@ -428,34 +428,44 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	});
 </script>
 
-<!-- Main navigation button -->
-<div
-	bind:this={firstCircle}
-	title="Open Navigation Menu"
-	aria-label="Open Navigation Menu"
-	role="button"
-	aria-expanded={showRoutes}
-	tabindex="0"
-	use:drag
-	class="fixed z-99999999 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full bg-tertiary-500 active:scale-90 [&&>*]:pointer-events-none"
-	style="top:{(Math.min(buttonInfo.y, browser ? window.innerHeight - BUTTON_RADIUS : 0) / (browser ? window.innerHeight : 1)) * 100}%;
-	       left:{(Math.min(isRightToLeft() ? BUTTON_RADIUS : buttonInfo.x, browser ? window.innerWidth - BUTTON_RADIUS : 0) /
-		(browser ? window.innerWidth : 1)) *
-		100}%;
-	       width:{BUTTON_RADIUS * 2}px;
-	       height:{BUTTON_RADIUS * 2}px"
-	onkeydown={(event: KeyboardEvent) => {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			toggleMenuOpen();
-		}
-	}}
->
-	<CircleQuestionMark size={24} />
-</div>
+<Tooltip open={activeTooltip === 'menu'} onOpenChange={(e) => (activeTooltip = e.open ? 'menu' : null)} positioning={{ placement: 'top' }}>
+	<Tooltip.Trigger
+		class="fixed z-99999999 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full bg-tertiary-500 active:scale-90"
+		style="top:{(Math.min(buttonInfo.y, browser ? window.innerHeight - BUTTON_RADIUS : 0) / (browser ? window.innerHeight : 1)) * 100}%;
+	              left:{(Math.min(isRightToLeft() ? BUTTON_RADIUS : buttonInfo.x, browser ? window.innerWidth - BUTTON_RADIUS : 0) /
+			(browser ? window.innerWidth : 1)) *
+			100}%;
+	              width:{BUTTON_RADIUS * 2}px;
+	              height:{BUTTON_RADIUS * 2}px"
+	>
+		<div
+			bind:this={firstCircle}
+			aria-label="Open Navigation Menu"
+			role="button"
+			aria-expanded={showRoutes}
+			tabindex="0"
+			use:drag
+			class="h-full w-full flex items-center justify-center"
+			onkeydown={(event: KeyboardEvent) => {
+				if (event.key === 'Enter' || event.key === ' ') {
+					event.preventDefault();
+					toggleMenuOpen();
+				}
+			}}
+		>
+			<iconify-icon icon="tdesign:map-route-planning" width="36" style="color:white"></iconify-icon>
+		</div>
+	</Tooltip.Trigger>
+	<Tooltip.Content class="card variant-filled-surface z-99999999 p-2 text-sm shadow-xl">
+		Open Navigation Menu
+		<Tooltip.Arrow class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-950-50)]">
+			<Tooltip.ArrowTip />
+		</Tooltip.Arrow>
+	</Tooltip.Content>
+</Tooltip>
 
 {#if showRoutes}
-	<button out:keepAlive|local onclick={closeMenu} class="fixed left-0 top-0 z-99999999" aria-label="Close navigation overlay">
+	<button out:keepAlive|local onclick={closeMenu} class="fixed left-0 top-0 z-9999999" aria-label="Close navigation overlay">
 		<svg
 			bind:this={svg}
 			xmlns="http://www.w3.org/2000/svg"
@@ -470,57 +480,71 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 		<div
 			transition:fade
-			class="absolute left-1/2 top-1/4 z-99999998 -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40"
+			class="absolute left-1/2 top-1/4 z-9999998 -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40"
 			style="top:{center.y}px;
 			       left:{center.x}px;
 			       width:{MENU_RADIUS * 2}px;
 			       height:{MENU_RADIUS * 2}px"
 		></div>
 
-		<a
-			bind:this={circles[0]}
-			href={endpoints[0]?.url?.path || '/'}
-			target={endpoints[0]?.url?.external ? '_blank' : undefined}
-			rel={endpoints[0]?.url?.external ? 'noopener noreferrer' : undefined}
-			data-sveltekit-preload-data={endpoints[0]?.url?.external ? undefined : 'hover'}
-			title={endpoints[0]?.tooltip || 'Home'}
-			onclick={handleNavigateHome}
-			aria-label={endpoints[0]?.tooltip || 'Home'}
-			class="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] cursor-pointer items-center justify-center rounded-full border-2 bg-tertiary-500"
-			style="top:{center.y}px;
-			       left:{center.x}px"
-		>
-       {#if endpoints[0]?.icon}
-         <iconify-icon icon={endpoints[0].icon} width="32" class="text-white"></iconify-icon>
-       {/if}
-		</a>
+		<Tooltip positioning={{ placement: 'top' }}>
+			<Tooltip.Trigger
+				class="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] cursor-pointer items-center justify-center rounded-full border-2 bg-tertiary-500"
+				style="top:{center.y}px; left:{center.x}px"
+			>
+				<a
+					bind:this={circles[0]}
+					href={endpoints[0]?.url?.path || '/'}
+					target={endpoints[0]?.url?.external ? '_blank' : undefined}
+					rel={endpoints[0]?.url?.external ? 'noopener noreferrer' : undefined}
+					data-sveltekit-preload-data={endpoints[0]?.url?.external ? undefined : 'hover'}
+					onclick={handleNavigateHome}
+					aria-label={endpoints[0]?.tooltip || 'Home'}
+					class="h-full w-full flex items-center justify-center"
+				>
+					<iconify-icon width="32" style="color:white" icon={endpoints[0]?.icon || 'solar:home-bold'}></iconify-icon>
+				</a>
+			</Tooltip.Trigger>
+			<Tooltip.Content class="card variant-filled-surface z-99999999 p-2 text-sm shadow-xl">
+				{endpoints[0]?.tooltip || 'Home'}
+				<Tooltip.Arrow class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-950-50)]">
+					<Tooltip.ArrowTip />
+				</Tooltip.Arrow>
+			</Tooltip.Content>
+		</Tooltip>
 
 		{#each endpointsWithPos.slice(1) as endpoint, index (endpoint.tooltip)}
-			<a
-				bind:this={circles[index + 1]}
-				href={endpoint.url.path}
-				target={endpoint.url.external ? '_blank' : undefined}
-				rel={endpoint.url.external ? 'noopener noreferrer' : undefined}
-				data-sveltekit-preload-data={endpoint.url.external ? undefined : 'hover'}
-				title={endpoint.tooltip}
-				onclick={handleNavigateToEndpoint}
-				aria-label={endpoint.tooltip}
-				class="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full {endpoint.color ||
-					'bg-tertiary-500'} animate-[showEndPoints_0.2s_0.4s_forwards] hover:scale-150 active:scale-100"
-				style="top:{endpoint.y}px;
-			       left:{endpoint.x}px"
-			>
-				{#if endpoint.icon as keyof typeof iconsData}
-					{#await import(`@lucide/svelte/icons/${endpoint.icon}`) then m}
-						<m.default size={32} class="text-white" />
-					{/await}
-				{/if}
-			</a>
+			<Tooltip positioning={{ placement: 'top' }}>
+				<Tooltip.Trigger
+					class="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full {endpoint.color ||
+						'bg-tertiary-500'} animate-[showEndPoints_0.2s_0.4s_forwards] hover:scale-150 active:scale-100"
+					style="top:{endpoint.y}px; left:{endpoint.x}px"
+				>
+					<a
+						bind:this={circles[index + 1]}
+						href={endpoint.url.path}
+						target={endpoint.url.external ? '_blank' : undefined}
+						rel={endpoint.url.external ? 'noopener noreferrer' : undefined}
+						data-sveltekit-preload-data={endpoint.url.external ? undefined : 'hover'}
+						onclick={handleNavigateToEndpoint}
+						aria-label={endpoint.tooltip}
+						class="h-full w-full flex items-center justify-center"
+					>
+						<iconify-icon width="32" style="color:white" icon={endpoint.icon}></iconify-icon>
+					</a>
+				</Tooltip.Trigger>
+				<Tooltip.Content class="card variant-filled-surface z-99999999 p-2 text-sm shadow-xl">
+					{endpoint.tooltip}
+					<Tooltip.Arrow class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-950-50)]">
+						<Tooltip.ArrowTip />
+					</Tooltip.Arrow>
+				</Tooltip.Content>
+			</Tooltip>
 		{/each}
 	</button>
 {/if}
 
-<style>
+<style lang="postcss">
 	@keyframes showEndPoints {
 		from {
 			opacity: 0;

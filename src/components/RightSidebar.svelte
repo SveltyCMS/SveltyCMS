@@ -12,36 +12,27 @@
 -->
 
 <script lang="ts">
-	// System
-	import { logger } from '@utils/logger';
-
-	// Lucide Icons
-	import ChevronRight from '@lucide/svelte/icons/chevron-right';
-	import Save from '@lucide/svelte/icons/save';
-	import ClipboardCopy from '@lucide/svelte/icons/clipboard-copy';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
-	import Clock from '@lucide/svelte/icons/clock';
 	import { page } from '$app/state';
 	import { navigationManager } from '@utils/navigationManager';
 	import { getLocale } from '@src/paraglide/runtime';
-
+	// Utils
 	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '../utils/entryActions';
 	import { showScheduleModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
-
-	// ParaglidJs
+	// ParaglideJs
 	import * as m from '@src/paraglide/messages';
 
 	import { StatusTypes } from '@src/content/types';
-
 	// Stores
-	import { screen } from '@stores/screenSizeStore.svelte.ts';
-	import { collection, collectionValue, mode } from '@stores/collectionStore.svelte.ts';
-	import { app, validationStore, dataChangeStore } from '@stores/store.svelte.ts';
-	import { ui } from '@stores/UIStore.svelte.ts';
-	import { statusStore } from '@stores/statusStore.svelte.ts';
-
+	import { screen } from '@stores/screenSizeStore.svelte';
+	import { collection, collectionValue, mode } from '@stores/collectionStore.svelte';
+	import { app, validationStore, dataChangeStore } from '@stores/store.svelte';
+	import { ui } from '@stores/UIStore.svelte';
+	import { statusStore } from '@stores/statusStore.svelte';
+	// Components
 	import Toggles from './system/inputs/Toggles.svelte';
+	// System Logger
+	import { logger } from '@utils/logger';
 
 	// --- Derived from page & stores ---
 	let user = $derived(page.data.user);
@@ -209,7 +200,7 @@
 		<!-- Special "Next" button for Menu wizard -->
 		{#if app.shouldShowNextButton && currentMode === 'create' && isMenuCollection}
 			<button type="button" onclick={nextAction!} class="btn preset-filled-primary-500 w-full gap-2 shadow-lg">
-				<ChevronRight size={20} />
+				<iconify-icon icon="carbon:next-filled" width="20"></iconify-icon>
 				{m.button_next()}
 			</button>
 		{:else}
@@ -225,7 +216,7 @@
 					aria-label="Save"
 					title={!isFormValid ? 'Fix validation errors before saving' : 'Save changes'}
 				>
-					<Save size={20} />
+					<iconify-icon icon="material-symbols:save" width="20"></iconify-icon>
 					{m.button_save()}
 				</button>
 
@@ -249,12 +240,12 @@
 							disabled={!canCreate}
 							class="btn gradient-secondary gradient-secondary-hover w-full gap-2 text-white shadow-md"
 						>
-							<ClipboardCopy size={18} />
+							<iconify-icon icon="bi:clipboard-data-fill" width="18"></iconify-icon>
 							Clone <span class="font-semibold text-primary-500">{currentCollection?.name}</span>
 						</button>
 
 						<button type="button" onclick={handleDelete} disabled={!canDelete} class="btn preset-filled-error-500 w-full gap-2 shadow-md">
-							<Trash2 size={18} />
+							<iconify-icon icon="icomoon-free:bin" width="18"></iconify-icon>
 							{m.button_delete()}
 						</button>
 					</div>
@@ -278,7 +269,7 @@
 						onclick={openSchedule}
 						class="btn preset-filled-surface-500 hover:preset-filled-primary-500-hover w-full justify-start gap-2 text-left transition-colors"
 					>
-						<Clock size={16} />
+						<iconify-icon icon="bi:clock" width="16"></iconify-icon>
 						<span class="text-sm text-tertiary-500 dark:text-primary-500">
 							{scheduleTimestamp ? new Date(scheduleTimestamp).toLocaleString(getLocale()) : 'Schedule publication...'}
 						</span>

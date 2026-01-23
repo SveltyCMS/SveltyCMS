@@ -12,8 +12,6 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
 	import { showToast } from '@utils/toast';
@@ -190,7 +188,7 @@
 	<!-- Header -->
 	<div class="flex items-center justify-between">
 		<h3 class="flex items-center text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="bi:folder" width={24}></iconify-icon>
 			Media Folders
 		</h3>
 
@@ -201,10 +199,7 @@
 				class="btn-sm {isEditMode ? 'variant-filled-warning' : 'preset-outlined-surface-500'}"
 				aria-pressed={isEditMode}
 			>
-				{#if isEditMode ? 'bi:check-circle' : ('bi:pencil' as keyof typeof iconsData)}<Icon
-						icon={isEditMode ? 'bi:check-circle' : ('bi:pencil' as keyof typeof iconsData)}
-						size={16}
-					/>{/if}
+				<iconify-icon icon={isEditMode ? 'bi:check-circle' : 'bi:pencil'} width="16"></iconify-icon>
 				<span class="ml-1">{isEditMode ? 'Done' : 'Edit'}</span>
 			</button>
 		{/if}
@@ -213,7 +208,7 @@
 	<!-- Edit mode hint -->
 	{#if isEditMode && isSidebarFull}
 		<div class="flex items-start gap-2 rounded-lg bg-warning-500/10 p-3 text-xs text-warning-700 dark:text-warning-400">
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="bi:info-circle" width={24}></iconify-icon>
 			<p>Drag folders to reorder or move. Use node actions for rename/delete.</p>
 		</div>
 	{/if}
@@ -231,10 +226,10 @@
 			</div>
 		{:else if error}
 			<div class="flex flex-col items-center justify-center gap-3 p-6 text-center">
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="ic:outline-error" width={24}></iconify-icon>
 				<p class="text-sm text-error-500">{error}</p>
 				<button type="button" onclick={loadFolders} class="btn-sm preset-filled-error-500">
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="ic:outline-refresh" width={24}></iconify-icon>
 					Retry
 				</button>
 			</div>
@@ -250,7 +245,7 @@
 			/>
 		{:else}
 			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center">
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="bi:folder" width={24}></iconify-icon>
 				<p class="text-sm text-surface-500 dark:text-surface-50">No folders yet</p>
 				<p class="text-xs text-surface-400">Create your first media folder to get started</p>
 			</div>

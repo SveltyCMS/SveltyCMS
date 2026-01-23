@@ -5,8 +5,6 @@ component
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	// Using iconify-icon web component
 	// Stores
 	import { page } from '$app/state';
@@ -195,17 +193,13 @@ component
 						{field.id}
 					</div>
 
-					{#if field.icon as keyof typeof iconsData}<Icon
-							icon={field.icon as keyof typeof iconsData}
-							size={24}
-							class="text-tertiary-500"
-						/>{/if}
+					<iconify-icon icon={field.icon} width="24" class="text-tertiary-500"></iconify-icon>
 					<div class="font-bold dark:text-primary-500">{field.label}</div>
 					<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
 					<div class=" ">{field.widget?.key || field.__type || 'Unknown Widget'}</div>
 
 					<button onclick={() => modalWidgetForm(field)} type="button" aria-label={m.button_edit()} class="preset-ghost-primary-500 btn-icon ml-auto">
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="ic:baseline-edit" width={24}></iconify-icon>
 					</button>
 				</div>
 			{/each}

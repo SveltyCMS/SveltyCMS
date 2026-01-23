@@ -9,8 +9,6 @@
 -->
 
 <script lang="ts" module>
-	import CircleCheck from '@lucide/svelte/icons/circle-check';
-
 	export const widgetMeta = {
 		name: 'Identity Sync',
 		icon: 'mdi:cloud-sync',
@@ -74,7 +72,7 @@
 
 			<div class="mt-4 border-t border-surface-100 pt-3 dark:border-surface-700">
 				<div class="flex items-center gap-1 text-[11px] font-medium text-success-600 dark:text-success-400">
-					<CircleCheck size={16} />
+					<iconify-icon icon="mdi:check-circle" width={16}></iconify-icon>
 					Endpoints Healthy
 				</div>
 			</div>

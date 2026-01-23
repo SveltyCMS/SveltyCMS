@@ -22,7 +22,6 @@
 	import { twMerge } from 'tailwind-merge';
 
 	// Lucide icons
-	import Check from '@lucide/svelte/icons/check';
 
 	// Define props using Svelte 5 runes
 	let {
@@ -212,7 +211,7 @@
 					aria-current={item.active && item.active() ? 'true' : undefined}
 				>
 					{#if item.active && item.active()}
-						<Check size={16} />
+						<iconify-icon icon="mdi:check" width={16}></iconify-icon>
 					{:else if item.icon}
 						{#await import(`@lucide/svelte/icons/${item.icon}`) then module}
 							<module.default size={18} />

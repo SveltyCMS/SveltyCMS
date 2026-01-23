@@ -1,33 +1,41 @@
 <!-- 
-@file src/components/IconPicker.svelte
+@file src/components/IconifyIconsPicker.svelte
 @component
-**Enhanced IconPicker - Svelte 5 Optimized (Iconify Version)**
+**Enhanced IconifyIconsPicker - Svelte 5 Optimized**
 
-Advanced icon picker using Iconify with search, pagination, and favorites.
-Avoids heavy build time by loading icons on demand.
+Advanced icon picker with search, pagination, and favorites.
 
 @example
 ```svelte
-<IconPicker bind:iconselected />
+<IconifyIconsPicker bind:iconselected />
 ```
+
+### Features
+- Debounced search with performance optimization
+- Paginated results with smooth loading
+- Multiple icon library support
+- Favorite icons (in-memory)
+- Recent selections history
+- Keyboard navigation (Arrow keys, Enter, Escape)
+- Copy icon name to clipboard
+- Preview mode with size adjustment
+- Full ARIA accessibility
+- Reduced motion support
 -->
 
 <script lang="ts">
+	import * as m from '@src/paraglide/messages';
+	import { loadIcons } from '@iconify/svelte';
+	import { logger } from '@utils/logger';
 	import { onMount, onDestroy } from 'svelte';
 	import { fade, scale, slide } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-	// Note: Using <iconify-icon> web component (loaded via CDN) for zero build impact
-	// Utils
 	import { showToast } from '@utils/toast';
-	// System Logger
-	import { logger } from '@utils/logger';
 
 	// Constants
 	const DEBOUNCE_MS = 300;
 	const ICONS_PER_PAGE = 50;
-	const DEFAULT_LIBRARY = 'lucide'; // Default to Lucide matching current style
+	const DEFAULT_LIBRARY = 'ic';
 	const ICONIFY_API_BASE = 'https://api.iconify.design';
 	const MAX_RECENT = 10;
 
@@ -80,6 +88,7 @@ Avoids heavy build time by loading icons on demand.
 	let gridRef = $state<HTMLDivElement | null>(null);
 
 	// Derived values
+	// Removed unused 'hasIcons'
 	const startIndex = $derived(currentPage * ICONS_PER_PAGE);
 	const librariesLoaded = $derived(Object.keys(iconLibraries).length > 0);
 	const hasSearchQuery = $derived(searchQuery.trim().length > 0);
@@ -97,6 +106,10 @@ Avoids heavy build time by loading icons on demand.
 	const displayIcons = $derived.by(() => {
 		if (activeTab === 'favorites') return favorites;
 		if (activeTab === 'recent') return recentSelections;
+
+		// If searching (API results), 'icons' is usually just the current page
+		// BUT if browsing (all icons), we slice.
+		// Since we now use infinite scroll for everything:
 		return icons.slice(0, visibleLimit);
 	});
 
@@ -124,14 +137,15 @@ Avoids heavy build time by loading icons on demand.
 		}
 		// If searching (API pagination), fetch more
 		else if (hasSearchQuery || selectedLibrary === '') {
+			// Logic to fetch next page from API and append (requires searchIcons to append)
+			// For simplicity, we can ignore this for now if searchTokens returns 50 at a time
+			// But since we removed Page Next/Prev buttons, we SHOULD implement API pagination here.
+			// Let's assume searchIcons handles appending if we pass a flag?
+			// Actually, let's keep it simple: Browse is infinite scroll local, Search is infinite scroll remote?
+			// Refactoring searchIcons to append:
 			if (!isLoading) {
-				// To properly implement pagination with API, we need to track if we have more
-				// For now, allow trigger if we are at limit
-				// Increase page?
-				// Simple logic:
-				// currentPage++;
-				// searchIcons(searchQuery, selectedLibrary, true);
-				// (Implemented below)
+				currentPage++;
+				searchIcons(searchQuery, selectedLibrary, true); // true = append
 			}
 		}
 	}
@@ -147,12 +161,7 @@ Avoids heavy build time by loading icons on demand.
 		}
 
 		if (!query.trim()) {
-			if (library) {
-				// Load library default
-				fetchCollectionIcons(library);
-			} else {
-				icons = [];
-			}
+			icons = [];
 			isLoading = false;
 			return;
 		}
@@ -165,6 +174,7 @@ Avoids heavy build time by loading icons on demand.
 
 	// Fetch icons from Iconify API
 	async function searchIcons(query: string, library: string, append: boolean = false): Promise<void> {
+		// If no query, load the library's icons instead of clearing
 		if (!query.trim()) {
 			if (library && !append) {
 				await fetchCollectionIcons(library);
@@ -178,6 +188,7 @@ Avoids heavy build time by loading icons on demand.
 		try {
 			const url = new URL(`${ICONIFY_API_BASE}/search`);
 			url.searchParams.set('query', query);
+			// Only set prefix if a specific library is selected
 			if (library) {
 				url.searchParams.set('prefix', library);
 			}
@@ -204,14 +215,19 @@ Avoids heavy build time by loading icons on demand.
 
 				if (append) {
 					icons = [...icons, ...newIcons];
-					visibleLimit += newIcons.length;
+					visibleLimit += newIcons.length; // Ensure they are visible
 				} else {
 					icons = newIcons;
 					visibleLimit = 50;
 					currentPage = 0;
 				}
 
-				// Icons are loaded on-demand by the iconify-icon web component
+				// Preload icons for better UX
+				const iconIds = newIcons.map((icon) => {
+					// If global search, icon already includes prefix
+					return library ? `${library}:${icon}` : icon;
+				});
+				await loadIcons(iconIds);
 
 				activeTab = 'search';
 			} else {
@@ -242,19 +258,27 @@ Avoids heavy build time by loading icons on demand.
 
 			const data = await response.json();
 
+			// Flatten the collection data into a simple list of icon names
 			let allIcons: string[] = [];
-			if (data.uncategorized) allIcons.push(...data.uncategorized);
+
+			// Add uncategorized
+			if (data.uncategorized) {
+				allIcons.push(...data.uncategorized);
+			}
+
+			// Add categorized
 			if (data.categories) {
 				Object.values(data.categories).forEach((categoryIcons: any) => {
 					allIcons.push(...categoryIcons);
 				});
 			}
 
-			// Prepend library
-			allIcons = allIcons.map((i) => `${library}:${i}`);
+			// Add hidden/aliases if needed, but usually main icons are enough
 
 			icons = allIcons;
-			visibleLimit = 50;
+			visibleLimit = 50; // Reset for new collection
+			// Reset to page 0 for new collection
+			// currentPage = 0; // Don't reset here, handled by caller if needed
 		} catch (error) {
 			logger.error('Error fetching collection icons:', error);
 			searchError = 'Failed to load library icons';
@@ -294,20 +318,21 @@ Avoids heavy build time by loading icons on demand.
 		}
 	}
 
-	function selectIcon(icon: string): void {
-		// Ensure icon has prefix
-		let fullIconName = icon;
-		if (!icon.includes(':') && selectedLibrary) {
-			fullIconName = `${selectedLibrary}:${icon}`;
-		}
+	// Navigation handlers
 
+	// Icon selection
+	function selectIcon(icon: string): void {
+		const fullIconName = icon.includes(':') ? icon : `${selectedLibrary}:${icon}`;
 		iconselected = fullIconName;
 
+		// Add to recent (avoiding duplicates)
 		recentSelections = [fullIconName, ...recentSelections.filter((i) => i !== fullIconName)].slice(0, MAX_RECENT);
+
 		showDropdown = false;
 		showToast(`Icon selected: ${fullIconName}`, 'success');
 	}
 
+	// Favorites management
 	function toggleFavorite(icon?: string): void {
 		const targetIcon = icon || iconselected;
 		if (!targetIcon) return;
@@ -321,34 +346,39 @@ Avoids heavy build time by loading icons on demand.
 		}
 	}
 
+	// Copy icon name
 	async function copyIconName(): Promise<void> {
 		if (!iconselected) return;
+
 		try {
 			await navigator.clipboard.writeText(iconselected);
 			showToast('Icon name copied to clipboard', 'success');
 		} catch (error) {
+			logger.error('Copy failed:', error);
 			showToast('Failed to copy icon name', 'error');
 		}
 	}
 
+	// Remove icon
 	function removeIcon(): void {
 		iconselected = '';
 		searchQuery = '';
 		icons = [];
 	}
 
+	// Library change handler
 	function handleLibraryChange(): void {
 		currentPage = 0;
 		if (hasSearchQuery) {
 			searchIcons(searchQuery, selectedLibrary);
-		} else {
-			fetchCollectionIcons(selectedLibrary);
 		}
 	}
 
+	// Show dropdown
 	function handleFocus(): void {
 		showDropdown = true;
 		fetchIconLibraries();
+		// If we have no icons yet, try to load something
 		if (icons.length === 0) {
 			if (searchQuery) {
 				searchIcons(searchQuery, selectedLibrary);
@@ -358,6 +388,7 @@ Avoids heavy build time by loading icons on demand.
 		}
 	}
 
+	// Close dropdown
 	function handleClickOutside(event: MouseEvent): void {
 		const target = event.target as HTMLElement;
 		if (dropdownRef && !dropdownRef.contains(target)) {
@@ -365,24 +396,30 @@ Avoids heavy build time by loading icons on demand.
 		}
 	}
 
+	// Keyboard navigation
 	function handleKeyDown(event: KeyboardEvent): void {
 		if (!showDropdown) return;
+
 		const iconsToNavigate = displayIcons;
+
 		switch (event.key) {
 			case 'Escape':
 				event.preventDefault();
 				showDropdown = false;
 				break;
+
 			case 'ArrowDown':
 				event.preventDefault();
 				selectedIndex = Math.min(selectedIndex + 1, iconsToNavigate.length - 1);
 				scrollToSelected();
 				break;
+
 			case 'ArrowUp':
 				event.preventDefault();
 				selectedIndex = Math.max(selectedIndex - 1, -1);
 				scrollToSelected();
 				break;
+
 			case 'Enter':
 				event.preventDefault();
 				if (selectedIndex >= 0 && iconsToNavigate[selectedIndex]) {
@@ -392,8 +429,10 @@ Avoids heavy build time by loading icons on demand.
 		}
 	}
 
+	// Scroll to selected icon
 	function scrollToSelected(): void {
 		if (!gridRef || selectedIndex < 0) return;
+
 		const selectedElement = gridRef.children[selectedIndex] as HTMLElement;
 		if (selectedElement) {
 			selectedElement.scrollIntoView({
@@ -403,11 +442,13 @@ Avoids heavy build time by loading icons on demand.
 		}
 	}
 
+	// Switch tabs
 	function switchTab(tab: typeof activeTab): void {
 		activeTab = tab;
 		selectedIndex = -1;
 	}
 
+	// Effects
 	$effect(() => {
 		if (showDropdown) {
 			document.addEventListener('click', handleClickOutside);
@@ -419,38 +460,27 @@ Avoids heavy build time by loading icons on demand.
 		}
 	});
 
+	// Lifecycle
 	onMount(() => {
-		try {
-			const storedFavorites = localStorage.getItem('svelty_icon_favorites');
-			if (storedFavorites) favorites = JSON.parse(storedFavorites);
-			const storedRecent = localStorage.getItem('svelty_icon_recent');
-			if (storedRecent) recentSelections = JSON.parse(storedRecent);
-		} catch (e) {
-			console.error('Failed to load storage', e);
-		}
-
 		const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 		prefersReducedMotion = mediaQuery.matches;
+
 		const handleChange = (e: MediaQueryListEvent) => {
 			prefersReducedMotion = e.matches;
 		};
+
 		mediaQuery.addEventListener('change', handleChange);
 		return () => mediaQuery.removeEventListener('change', handleChange);
 	});
 
-	$effect(() => {
-		localStorage.setItem('svelty_icon_favorites', JSON.stringify(favorites));
-	});
-
-	$effect(() => {
-		localStorage.setItem('svelty_icon_recent', JSON.stringify(recentSelections));
-	});
-
 	onDestroy(() => {
-		if (debounceTimer) clearTimeout(debounceTimer);
+		if (debounceTimer) {
+			clearTimeout(debounceTimer);
+		}
 	});
 </script>
 
+```
 <div class="icon-picker-container flex w-full flex-col" bind:this={dropdownRef}>
 	<!-- Selected icon display -->
 	{#if iconselected}
@@ -464,6 +494,7 @@ Avoids heavy build time by loading icons on demand.
 					icon={iconselected}
 					width={previewSize}
 					class="text-tertiary-500 transition-transform duration-200 hover:scale-110 dark:text-primary-500"
+					aria-hidden="true"
 				></iconify-icon>
 				<div class="flex-1 overflow-hidden">
 					<p class="text-xs text-surface-600 dark:text-surface-50">Selected Icon</p>
@@ -521,6 +552,7 @@ Avoids heavy build time by loading icons on demand.
 			aria-controls="icon-dropdown"
 			aria-haspopup="listbox"
 			aria-expanded={showDropdown}
+			aria-describedby={searchError ? 'search-error' : undefined}
 		/>
 		{#if searchQuery}
 			<button
@@ -540,11 +572,13 @@ Avoids heavy build time by loading icons on demand.
 	<!-- Error message -->
 	{#if searchError}
 		<div
+			id="search-error"
 			class="mt-2 rounded-lg border-l-4 border-error-500 bg-error-50 p-3 text-sm text-error-700 dark:bg-error-900/20 dark:text-error-300"
+			role="alert"
 			in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>
 			<div class="flex items-start gap-2">
-				<iconify-icon icon="mdi:alert-circle" width="18"></iconify-icon>
+				<iconify-icon icon="mdi:alert-circle" width="18" aria-hidden="true"></iconify-icon>
 				<span>{searchError}</span>
 			</div>
 		</div>
@@ -555,12 +589,16 @@ Avoids heavy build time by loading icons on demand.
 		<div
 			id="icon-dropdown"
 			class="mt-2 overflow-hidden rounded-lg border border-surface-200 bg-surface-50 shadow-2xl dark:text-surface-50 dark:bg-surface-800"
+			role="region"
+			aria-label="Icon picker dropdown"
 			in:scale={{ duration: prefersReducedMotion ? 0 : 200, easing: quintOut, start: 0.95, opacity: 0 }}
 			out:scale={{ duration: prefersReducedMotion ? 0 : 150, easing: quintOut, start: 0.95, opacity: 0 }}
 		>
 			<!-- Tabs -->
-			<div class="flex border-b border-surface-200 dark:text-surface-50">
+			<div class="flex border-b border-surface-200 dark:text-surface-50" role="tablist">
 				<button
+					role="tab"
+					aria-selected={activeTab === 'search'}
 					onclick={() => switchTab('search')}
 					class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'search'
 						? 'border-b-2 border-primary-500 text-primary-500'
@@ -570,6 +608,8 @@ Avoids heavy build time by loading icons on demand.
 				</button>
 				{#if showFavorites && hasFavorites}
 					<button
+						role="tab"
+						aria-selected={activeTab === 'favorites'}
 						onclick={() => switchTab('favorites')}
 						class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'favorites'
 							? 'border-b-2 border-primary-500 text-primary-500'
@@ -580,6 +620,8 @@ Avoids heavy build time by loading icons on demand.
 				{/if}
 				{#if hasRecent}
 					<button
+						role="tab"
+						aria-selected={activeTab === 'recent'}
 						onclick={() => switchTab('recent')}
 						class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'recent'
 							? 'border-b-2 border-primary-500 text-primary-500'
@@ -590,7 +632,7 @@ Avoids heavy build time by loading icons on demand.
 				{/if}
 			</div>
 
-			<!-- Library selector -->
+			<!-- Library selector (only for search tab) -->
 			{#if activeTab === 'search'}
 				<div class="border-b border-surface-200 p-4 dark:text-surface-50" transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}>
 					<label for="library-select" class="mb-2 block text-sm font-medium"> Icon Library </label>
@@ -602,6 +644,7 @@ Avoids heavy build time by loading icons on demand.
 							onclick={fetchIconLibraries}
 							class="input w-full"
 							disabled={isLoadingLibraries}
+							aria-label="Select icon library"
 						>
 							<option value="">All Libraries (Global Search)</option>
 							{#if !librariesLoaded}
@@ -621,6 +664,7 @@ Avoids heavy build time by loading icons on demand.
 			<!-- Content -->
 			<div class="h-80 overflow-y-auto p-4" onscroll={handleScroll}>
 				{#if isLoading && icons.length === 0}
+					<!-- Loading state (initial) -->
 					<div class="flex justify-center py-12" in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 						<div class="flex flex-col items-center gap-3">
 							<div class="h-10 w-10 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
@@ -628,24 +672,30 @@ Avoids heavy build time by loading icons on demand.
 						</div>
 					</div>
 				{:else if displayIcons.length > 0}
+					<!-- Icon grid -->
 					<div
 						bind:this={gridRef}
 						class="grid grid-cols-6 gap-2 sm:grid-cols-8 md:grid-cols-10"
+						role="listbox"
+						aria-label="Available icons"
 						in:fade={{ duration: prefersReducedMotion ? 0 : 300 }}
 					>
 						{#each displayIcons as icon, index (icon)}
+							{@const fullIconName = icon.includes(':') ? icon : `${selectedLibrary}:${icon}`}
 							<div
 								onclick={() => selectIcon(icon)}
 								onkeydown={(e) => e.key === 'Enter' && selectIcon(icon)}
 								role="option"
-								aria-selected={iconselected === icon || index === selectedIndex}
+								aria-selected={iconselected === fullIconName || index === selectedIndex}
 								tabindex="0"
 								class="group relative flex cursor-pointer items-center justify-center rounded-lg p-3 transition-all duration-200 hover:scale-110 hover:bg-primary-500/10 focus:outline-none focus:ring-2 focus:ring-primary-500 active:scale-95 {index ===
 								selectedIndex
 									? 'ring-2 ring-primary-500'
 									: ''}"
+								aria-label={`Select icon ${fullIconName}`}
 							>
-								<iconify-icon {icon} width="24" class="transition-colors duration-200 group-hover:text-primary-500"></iconify-icon>
+								<iconify-icon icon={fullIconName} width="24" aria-hidden="true" class="transition-colors duration-200 group-hover:text-primary-500"
+								></iconify-icon>
 
 								{#if activeTab === 'favorites'}
 									<button
@@ -654,6 +704,7 @@ Avoids heavy build time by loading icons on demand.
 											toggleFavorite(icon);
 										}}
 										class="absolute right-0 top-0 opacity-0 transition-opacity group-hover:opacity-100"
+										aria-label="Remove from favorites"
 									>
 										<iconify-icon icon="mdi:close-circle" width="16" class="text-error-500"></iconify-icon>
 									</button>
@@ -661,30 +712,35 @@ Avoids heavy build time by loading icons on demand.
 							</div>
 						{/each}
 
+						<!-- Infinite Scroll Loading Indicator -->
 						{#if isLoading}
 							<div class="col-span-full py-4 text-center">
 								<iconify-icon icon="eos-icons:loading" class="animate-spin text-surface-400" width="24"></iconify-icon>
 							</div>
 						{/if}
 
+						<!-- Sentinel for IntersectionObserver (infinite scroll) -->
 						{#if activeTab === 'search' && !isLoading}
 							<div class="col-span-full h-4" use:intersectionObserverAction></div>
 						{/if}
 					</div>
 				{:else if hasSearchQuery && activeTab === 'search'}
+					<!-- No results -->
 					<div class="flex flex-col items-center gap-3 py-12 text-center" in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
-						<iconify-icon icon="mdi:magnify-close" width="48" class="text-surface-400"></iconify-icon>
+						<iconify-icon icon="mdi:magnify-close" width="48" class="text-surface-400" aria-hidden="true"></iconify-icon>
 						<p class="text-surface-600 dark:text-surface-50">
 							No icons found for "<span class="font-medium">{searchQuery}</span>"
 						</p>
 					</div>
 				{:else}
+					<!-- Empty state -->
 					<div class="flex flex-col items-center gap-3 py-12 text-center" in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
-						<Icon
+						<iconify-icon
 							icon={activeTab === 'favorites' ? 'mdi:heart-outline' : activeTab === 'recent' ? 'mdi:history' : 'mdi:magnify'}
 							width="48"
 							class="text-surface-400"
-						/>
+							aria-hidden="true"
+						></iconify-icon>
 						<p class="text-surface-600 dark:text-surface-50">
 							{#if activeTab === 'favorites'}
 								No favorite icons yet

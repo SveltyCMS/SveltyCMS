@@ -34,7 +34,7 @@ const MegaMenuValidationSchema = array(MenuItemSchema);
 // Create the widget definition using the factory.
 const MegaMenuWidget = createWidget({
 	Name: 'MegaMenu',
-	Icon: 'lucide:menu-square',
+	Icon: 'mdi:menu',
 	Description: m.widget_megaMenu_description(),
 
 	// Define paths to the dedicated Svelte components.

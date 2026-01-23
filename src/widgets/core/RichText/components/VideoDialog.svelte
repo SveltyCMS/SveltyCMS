@@ -9,8 +9,6 @@
 -->
 
 <script lang="ts">
-	import X from '@lucide/svelte/icons/x';
-
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import type { Editor } from '@tiptap/core';
 	import { onMount } from 'svelte';
@@ -79,7 +77,7 @@
 		class="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 transform rounded-lg bg-white p-6 shadow-xl"
 	>
 		<button type="button" class="btn-icon btn-icon-sm absolute right-4 top-4" onclick={close} aria-label="Close">
-			<X size={24} />
+			<iconify-icon icon="material-symbols:close" width={24}></iconify-icon>
 		</button>
 
 		<h3 id="video-dialog-title" class="mb-4 text-lg font-medium">Add Video</h3>

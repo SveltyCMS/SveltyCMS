@@ -54,10 +54,7 @@
 
 <span class="badge {roleClasses(value)}">
 	{#if iconForRole(value)}
-		{#if iconForRole(value) as keyof typeof iconsData}<Icon
-				icon={iconForRole(value) as keyof typeof iconsData}
-				size={20}
-			/>{/if}
+		<iconify-icon icon={iconForRole(value)} width="20"></iconify-icon>
 		{roleName(value)}
 	{:else}
 		<span>{roleName(value)}</span>

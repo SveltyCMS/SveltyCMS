@@ -17,8 +17,6 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	interface Props {
 		show?: boolean;
 		value?: string;
@@ -64,7 +62,7 @@
 
 <div class:hidden={!show} class="relative">
 	<button onclick={handleClick} aria-label="Description" class="btn-sm flex items-center">
-		<CircleQuestionMark size={24} />
+		<iconify-icon icon="material-symbols:description" width={24}></iconify-icon>
 		<span class="hidden sm:inline">Description</span>
 	</button>
 	{#if show_input}

@@ -17,8 +17,6 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	import { onMount } from 'svelte';
 	import ColorPicker, { ChromeVariant } from 'svelte-awesome-color-picker';
 
@@ -121,7 +119,7 @@
 		class="selected btn-sm arrow"
 		class:arrow_up={expanded}
 	>
-		<CircleQuestionMark size={24} />
+		<iconify-icon icon="fluent-mdl2:color-solid" width={24}></iconify-icon>
 	</button>
 	{#if expanded}
 		<div id="color-palette-{key}" class="palette" use:setPosition>

@@ -16,9 +16,6 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import X from '@lucide/svelte/icons/x';
-
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import { twMerge } from 'tailwind-merge';
 	// Component
@@ -104,7 +101,7 @@
 		)}
 	>
 		<div class="grid grid-cols-6 items-center p-4">
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="fa6-solid:file-arrow-up" width="40"></iconify-icon>
 			<span class="text-white"> test</span>
 
 			<div class="col-span-5">
@@ -155,7 +152,7 @@
 					{m.widget_ImageUpload_SelectImage()}
 				</p>
 				<button onclick={() => toggleMedia(false)} aria-label="Close" class="preset-outlined-secondary-500 btn-icon ml-auto">
-					<X size={24} />
+					<iconify-icon icon="material-symbols:close" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				</button>
 			</div>
 			<Media onselect={handleMediaSelect} />

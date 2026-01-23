@@ -49,10 +49,6 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import CircleX from '@lucide/svelte/icons/circle-x';
-	import ChevronDown from '@lucide/svelte/icons/chevron-down';
-
 	import { fade, slide } from 'svelte/transition';
 	import { onMount, onDestroy } from 'svelte';
 	import { scale } from 'svelte/transition';
@@ -412,7 +408,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 					tabindex="-1"
 					transition:scale={{ duration: prefersReducedMotion ? 0 : 200 }}
 				>
-					<CircleX size={20} />
+					<iconify-icon icon="mdi:close-circle" width="20"></iconify-icon>
 				</button>
 			{/if}
 
@@ -426,7 +422,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 				{disabled}
 				tabindex="-1"
 			>
-				<ChevronDown size={24} class="transition-transform duration-200 {showDropdown ? 'rotate-180' : ''}" />
+				<iconify-icon icon="mdi:chevron-down" width="24" class="transition-transform duration-200 {showDropdown ? 'rotate-180' : ''}"></iconify-icon>
 			</button>
 		</div>
 	</div>
@@ -467,11 +463,11 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 						>
 							<div class="flex items-center gap-2">
 								{#if isCreateOption}
-									<CircleQuestionMark size={24} />
+									<iconify-icon icon="mdi:plus-circle" width="18" aria-hidden="true"></iconify-icon>
 								{/if}
 								<span class="flex-1">{option}</span>
 								{#if isSelected}
-									<Check size={18} aria-hidden="true" class="text-primary-500" />
+									<iconify-icon icon="mdi:check" width="18" aria-hidden="true" class="text-primary-500"></iconify-icon>
 								{/if}
 							</div>
 						</li>
@@ -485,7 +481,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 					role="status"
 					transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 				>
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:magnify-close" width="32" class="text-surface-400" aria-hidden="true"></iconify-icon>
 					<p class="text-sm text-surface-600 dark:text-surface-50">
 						No results found for "<span class="font-medium">{keyword}</span>"
 					</p>

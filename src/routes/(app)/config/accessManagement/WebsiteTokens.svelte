@@ -14,8 +14,6 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	import { onMount } from 'svelte';
 	import { toaster } from '@stores/store.svelte.ts';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
@@ -279,7 +277,7 @@
 									}}
 								>
 									{#if header.visible}
-										<span><CircleQuestionMark size={24} /></span>
+										<span><iconify-icon icon="fa:check" width={24}></iconify-icon></span>
 									{/if}
 									<span class="ml-2 capitalize">{header.label}</span>
 								</button>
@@ -319,7 +317,8 @@
 								>
 									<div class="text-terriary-500 flex items-center justify-center text-center dark:text-primary-500">
 										{header.label}
-										<CircleQuestionMark size={22} class="origin-center duration-300 ease-in-out" />
+										<iconify-icon icon="material-symbols:arrow-upward-rounded" width={22} class="origin-center duration-300 ease-in-out"
+										></iconify-icon>
 									</div>
 								</th>
 							{/each}
@@ -342,7 +341,7 @@
 													class="preset-outline-surface-500 btn-icon btn-icon-sm"
 													aria-label="Copy token to clipboard"
 												>
-													<CircleQuestionMark size={24} />
+													<iconify-icon icon="mdi:clipboard-outline" width={24}></iconify-icon>
 												</button>
 											</div>
 										{:else if header.key === 'createdAt'}

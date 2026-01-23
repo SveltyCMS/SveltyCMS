@@ -22,9 +22,6 @@ Interactive level configuration with add/remove level capabilities
 -->
 
 <script lang="ts">
-	import X from '@lucide/svelte/icons/x';
-	import Menu from '@lucide/svelte/icons/menu';
-
 	import WidgetBuilder from '@components/system/builder/WidgetBuilder.svelte';
 	import type { FieldInstance } from '@src/content/types';
 
@@ -95,7 +92,7 @@ Interactive level configuration with add/remove level capabilities
 							aria-label="Remove level {levelIndex + 1}"
 							title="Remove this menu level"
 						>
-							<X size={24} />
+							<iconify-icon icon="mdi:close" width="24"></iconify-icon>
 						</button>
 					{/if}
 				</div>
@@ -116,7 +113,7 @@ Interactive level configuration with add/remove level capabilities
 						<div
 							class="empty-fields-notice flex flex-col items-center gap-2 rounded-lg border-2 border-dashed border-surface-300 bg-surface-100/50 p-6 text-center dark:border-surface-600 dark:bg-surface-800/50"
 						>
-							<Info size={20} />
+							<iconify-icon icon="mdi:information" width="24" class="text-surface-400"></iconify-icon>
 							<span class="text-sm font-medium text-surface-600 dark:text-surface-300">No fields configured for this level yet.</span>
 							<span class="text-xs text-surface-500 dark:text-surface-50">Use the Widget Builder above to add fields.</span>
 						</div>
@@ -128,7 +125,7 @@ Interactive level configuration with add/remove level capabilities
 
 	<div class=" border-t border-surface-200 pt-4 dark:text-surface-50">
 		<button type="button" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={addLevel}>
-			<Plus size={24} />
+			<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
 			Add Menu Level
 		</button>
 	</div>

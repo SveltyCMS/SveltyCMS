@@ -25,8 +25,6 @@ rather than bundling all widgets upfront.
 -->
 
 <script lang="ts">
-	import CircleAlert from '@lucide/svelte/icons/circle-alert';
-
 	import type { FieldInstance } from '@src/content/types';
 	import { onMount } from 'svelte';
 	import { logger } from '@utils/logger';
@@ -87,7 +85,7 @@ rather than bundling all widgets upfront.
 	<!-- Error fallback -->
 	<div class="widget-loader-error rounded-lg border border-error-500 bg-error-50 p-4 dark:bg-error-900/20">
 		<div class="mb-2 flex items-center gap-2">
-			<CircleAlert class="text-error-500" size={20} />
+			<iconify-icon icon="mdi:alert-circle" class="text-error-500" width="20"></iconify-icon>
 			<span class="font-semibold text-error-700 dark:text-error-400">Widget Load Error</span>
 		</div>
 		<p class="text-sm text-error-600 dark:text-error-300">
@@ -95,7 +93,7 @@ rather than bundling all widgets upfront.
 		</p>
 		<p class="mt-1 text-xs text-error-500 dark:text-error-400">{error.message}</p>
 		<button class="preset-outlined-error-500 btn-sm mt-3" onclick={() => loadComponent()}>
-			<RefreshCw size={16} class="mr-1" />
+			<iconify-icon icon="mdi:refresh" width="16" class="mr-1"></iconify-icon>
 			Retry
 		</button>
 	</div>

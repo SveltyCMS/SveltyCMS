@@ -13,8 +13,6 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	interface Props {
 		globalSearchValue: string;
 		selectedMediaType: string;
@@ -34,7 +32,7 @@
 		<input id="globalSearch" type="text" placeholder="Search" class="input" bind:value={globalSearchValue} />
 		{#if globalSearchValue}
 			<button onclick={clearSearch} aria-label="Clear" class="preset-filled-surface-500 w-12">
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="ic:outline-search-off" width={24}></iconify-icon>
 			</button>
 		{/if}
 	</div>
@@ -54,7 +52,7 @@
 		<div class="flex flex-col text-center">
 			<label for="sortButton">Sort</label>
 			<button id="sortButton" class="preset-outlined-surface-500btn" aria-label="Sort">
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="flowbite:sort-outline" width={24}></iconify-icon>
 			</button>
 		</div>
 	</div>

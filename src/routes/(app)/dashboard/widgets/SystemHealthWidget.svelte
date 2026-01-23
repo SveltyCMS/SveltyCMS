@@ -30,7 +30,6 @@
 	// Using iconify-icon web component
 
 	// Icons
-	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
 
 	// Widgets
 	import BaseWidget from '../BaseWidget.svelte';
@@ -166,11 +165,7 @@
 				<!-- Overall Status -->
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2">
-						{#if getStateIcon(data.overallStatus) as keyof typeof iconsData}<Icon
-								icon={getStateIcon(data.overallStatus) as keyof typeof iconsData}
-								class={`text-2xl ${getStateColor(data.overallStatus)}`}
-								size={24}
-							/>{/if}
+						<iconify-icon icon={getStateIcon(data.overallStatus)} width="24" class={`text-2xl ${getStateColor(data.overallStatus)}`}></iconify-icon>
 						<div>
 							<span class={`font-bold ${getStateColor(data.overallStatus)}`}>
 								{data.overallStatus}
@@ -180,7 +175,7 @@
 					</div>
 
 					<button class="preset-outlined-warning-500 btn-sm" onclick={reinitializeSystem} title="Reinitialize system">
-						<RefreshCw size={16} />
+						<iconify-icon icon="mdi:refresh" width={16}></iconify-icon>
 					</button>
 				</div>
 
@@ -208,7 +203,7 @@
 			</div>
 		{:else}
 			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400">
-				<CircleAlert size={24} />
+				<iconify-icon icon="mdi:alert-circle" width="24"></iconify-icon>
 				<span>Health data unavailable</span>
 			</div>
 		{/if}

@@ -33,12 +33,9 @@ Comprehensive image editing interface with Konva.js integration.
 -->
 
 <script lang="ts">
-	import CircleAlert from '@lucide/svelte/icons/circle-alert';
-	import X from '@lucide/svelte/icons/x';
-
 	import { onMount, onDestroy } from 'svelte';
 	import { logger } from '@utils/logger';
-	import { imageEditorStore } from '@stores/imageEditorStore.svelte.ts';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	import EditorSidebar from './EditorSidebar.svelte';
 	import EditorCanvas from './EditorCanvas.svelte';
@@ -544,10 +541,10 @@ Comprehensive image editing interface with Konva.js integration.
 	{#if error}
 		<div class="error-banner bg-error-50 border-l-4 border-error-500 p-4 text-error-700 dark:bg-error-900/20 dark:text-error-300" role="alert">
 			<div class="flex items-center gap-2">
-				<CircleAlert size={20} />
+				<iconify-icon icon="mdi:alert-circle" width="20"></iconify-icon>
 				<span>{error}</span>
 				<button onclick={() => (error = null)} class="ml-auto text-error-600 hover:text-error-800" aria-label="Dismiss error">
-					<X size={18} />
+					<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 				</button>
 			</div>
 		</div>

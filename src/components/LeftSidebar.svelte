@@ -1,5 +1,5 @@
 <!--
-@file src/components/LeftSidebar
+@file src/components/LeftSidebar.svelte
 
 @component
 **LeftSidebar component displaying collection fields, publish options and translation status.**
@@ -31,11 +31,11 @@
 	import { locales as availableLocales } from '@src/paraglide/runtime';
 
 	// Stores
-	import { setMode } from '@stores/collectionStore.svelte.ts';
-	import { avatarSrc, systemLanguage } from '@stores/store.svelte.ts';
-	import { toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte.ts';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
-	import { themeStore } from '@stores/themeStore.svelte.ts';
+	import { setMode } from '@stores/collectionStore.svelte';
+	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
+	import { toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+	import { themeStore } from '@stores/themeStore.svelte';
 
 	// Import components
 	import VersionCheck from '@components/VersionCheck.svelte';
@@ -45,17 +45,6 @@
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
-
-	// Lucide icons
-	import MenuIcon from '@lucide/svelte/icons/menu';
-
-	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-	import Library from '@lucide/svelte/icons/library';
-	import Images from '@lucide/svelte/icons/images';
-	import LogOut from '@lucide/svelte/icons/log-out';
-	import Settings from '@lucide/svelte/icons/settings';
-	import Github from '@lucide/svelte/icons/github';
-	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 
 	// Skeleton components
 	import { Avatar, Portal, Tooltip, Menu } from '@skeletonlabs/skeleton-svelte';
@@ -238,7 +227,7 @@
 				aria-label="Close Sidebar"
 				class="preset-outline-surface-500 btn-icon mt-1"
 			>
-				<MenuIcon size={24} />
+				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
 
 			<a href="/" aria-label="SveltyCMS Logo" class="flex justify-center pt-2 no-underline!">
@@ -255,12 +244,13 @@
 		aria-expanded={isSidebarFull}
 		class="absolute top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full! border border-black p-0 dark:border-black ltr:-right-4 rtl:-left-4"
 	>
-		<ArrowLeft
-			size={34}
+		<iconify-icon
+			icon="bi:arrow-left-circle-fill"
+			width="34"
 			class="rounded-full bg-surface-500 text-white transition-transform hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 {isSidebarFull
 				? 'rotate-0 rtl:rotate-180'
 				: 'rotate-180 rtl:rotate-0'}"
-		/>
+		></iconify-icon>
 	</button>
 
 	<!-- Navigation: Collections, Media Folders, or Settings -->
@@ -276,12 +266,12 @@
 			}}
 			aria-label="Switch to Collections"
 		>
-			<ArrowLeft size={18} class="text-error-500" />
+			<iconify-icon icon="bi:arrow-left" width="18" class="text-error-500"></iconify-icon>
 			{#if isSidebarFull}
-				<Library size={20} class="text-error-500" />
+				<iconify-icon icon="bi:collection" width="20" class="text-error-500"></iconify-icon>
 				<span class="">{m.button_Collections()} </span>
 			{:else}
-				<Library size={18} class="text-error-500" />
+				<iconify-icon icon="bi:collection" width="18" class="text-error-500"></iconify-icon>
 			{/if}
 		</button>
 	{:else if isMediaMode}
@@ -296,12 +286,12 @@
 			}}
 			aria-label="Switch to Collections"
 		>
-			<ArrowLeft size={18} class="text-error-500" />
+			<iconify-icon icon="bi:arrow-left" width="18" class="text-error-500"></iconify-icon>
 			{#if isSidebarFull}
-				<Library size={20} class="text-error-500" />
+				<iconify-icon icon="bi:collection" width="20" class="text-error-500"></iconify-icon>
 				<span class="">{m.button_Collections()} </span>
 			{:else}
-				<Library size={18} class="text-error-500" />
+				<iconify-icon icon="bi:collection" width="18" class="text-error-500"></iconify-icon>
 			{/if}
 		</button>
 	{:else}
@@ -317,11 +307,11 @@
 			aria-label="Switch to Media Gallery"
 		>
 			{#if isSidebarFull}
-				<Images size={20} class="text-tertiary-500 dark:text-primary-500" />
+				<iconify-icon icon="bi:images" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				<span class="">{m.Collections_MediaGallery()}</span>
-				<ChevronRight size={18} class="text-tertiary-500 dark:text-primary-500" />
+				<iconify-icon icon="bi:arrow-right" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			{:else}
-				<Images size={18} class="text-tertiary-500 dark:text-primary-500" />
+				<iconify-icon icon="bi:images" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				<span class="text-sm">{m.collections_media()}</span>
 			{/if}
 		</button>
@@ -480,7 +470,7 @@
 				<Tooltip positioning={{ placement: 'right' }}>
 					<Tooltip.Trigger>
 						<button onclick={signOut} type="button" aria-label="Sign Out" class="btn-icon hover:bg-surface-500/20">
-							<LogOut size={26} />
+							<iconify-icon icon="uil:signout" width="26" class=""></iconify-icon>
 						</button>
 					</Tooltip.Trigger>
 					<Portal>
@@ -506,7 +496,7 @@
 							aria-label="System Configuration"
 							class="btn-icon hover:bg-surface-500/20"
 						>
-							<Settings size={34} />
+							<iconify-icon icon="material-symbols:build-circle" width="34" class=""></iconify-icon>
 						</button>
 					</Tooltip.Trigger>
 
@@ -540,7 +530,7 @@
 								aria-label="GitHub Discussions"
 								class="btn-icon flex items-center justify-center hover:bg-surface-500/20"
 							>
-								<Github size={30} />
+								<iconify-icon icon="grommet-icons:github" width="30" class=""></iconify-icon>
 							</a>
 						</Tooltip.Trigger>
 						<Portal>

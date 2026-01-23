@@ -24,11 +24,6 @@ This component provides a user interface for managing 2FA settings:
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-	import CircleCheck from '@lucide/svelte/icons/circle-check';
-	import Info from '@lucide/svelte/icons/info';
-
 	import { invalidateAll } from '$app/navigation';
 	import type { User } from '@src/databases/auth/types';
 	// Skeleton & Stores
@@ -241,7 +236,7 @@ This component provides a user interface for managing 2FA settings:
 		<div class="mb-4 flex items-center justify-between rounded-lg bg-surface-100 p-3 dark:bg-surface-700">
 			<div class="flex items-center gap-3">
 				<div class="rounded-lg bg-primary-500/10 p-2 dark:bg-primary-500/20">
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:shield-check" width={24}></iconify-icon>
 				</div>
 				<div>
 					<p class="text-sm font-semibold">{m.twofa_title()}</p>
@@ -250,7 +245,7 @@ This component provides a user interface for managing 2FA settings:
 			</div>
 			<!-- Status badge - aligned right -->
 			<span class="badge {is2FAEnabled ? 'preset-filled-success-500' : 'preset-filled-surface-500'}">
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="mdi:{is2FAEnabled ? 'check-circle' : 'circle-outline'}" width={24}></iconify-icon>
 				{is2FAEnabled ? m.twofa_status_enabled() : m.twofa_status_disabled()}
 			</span>
 		</div>
@@ -259,7 +254,7 @@ This component provides a user interface for managing 2FA settings:
 			{#if isLoading && !setupData}
 				<!-- Loading state -->
 				<div class="flex flex-col items-center justify-center gap-4 py-8">
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="svg-spinners:ring-resize" width={24}></iconify-icon>
 					<p class="text-sm text-surface-600 dark:text-surface-300">{m.twofa_setting_up()}</p>
 				</div>
 			{:else if setupData}
@@ -323,7 +318,7 @@ This component provides a user interface for managing 2FA settings:
 
 					<!-- Backup Codes Warning -->
 					<div class="alert preset-ghost-warning-500">
-						<Info size={20} />
+						<iconify-icon icon="mdi:information" width={20}></iconify-icon>
 						<div class="alert-message">
 							<h5 class="h5 mb-1">{m.twofa_backup_codes_title()}</h5>
 							<p class="text-sm">{m.twofa_backup_codes_save_description()}</p>
@@ -334,7 +329,7 @@ This component provides a user interface for managing 2FA settings:
 		{:else}
 			<!-- 2FA Already Enabled - Management Options -->
 			<div class="alert preset-ghost-success-500">
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="mdi:shield-check" width={24}></iconify-icon>
 				<div class="alert-message">
 					<p class="text-sm">{m.twofa_enabled_description()}</p>
 				</div>
@@ -343,7 +338,7 @@ This component provides a user interface for managing 2FA settings:
 			<!-- Show backup codes if generated -->
 			{#if backupCodes.length > 0}
 				<div class="alert preset-ghost-warning-500">
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:key-variant" width={24}></iconify-icon>
 					<div class="alert-message">
 						<h5 class="h5 mb-2">{m.twofa_backup_codes_title()}</h5>
 						<p class="mb-3 text-sm">{m.twofa_backup_codes_description()}</p>
@@ -355,7 +350,7 @@ This component provides a user interface for managing 2FA settings:
 							{/each}
 						</div>
 						<p class="text-sm text-warning-600 dark:text-warning-400">
-							<TriangleAlert size={16} class="mr-1" />
+							<iconify-icon icon="mdi:alert" width={16} class="mr-1"></iconify-icon>
 							{m.twofa_backup_codes_warning()}
 						</p>
 					</div>
@@ -375,10 +370,10 @@ This component provides a user interface for managing 2FA settings:
 			<!-- Verify button when setting up -->
 			<button onclick={verify2FA} disabled={isLoading || !verificationCode || verificationCode.length !== 6} class="preset-filled-primary-500 btn">
 				{#if isLoading}
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="svg-spinners:3-dots-fade" width={24}></iconify-icon>
 					{m.twofa_verifying()}
 				{:else}
-					<CircleCheck size={20} class="mr-2" />
+					<iconify-icon icon="mdi:check-circle" width={20} class="mr-2"></iconify-icon>
 					{m.twofa_verify_button()}
 				{/if}
 			</button>
@@ -386,20 +381,20 @@ This component provides a user interface for managing 2FA settings:
 			<!-- Management buttons when 2FA is enabled -->
 			<button onclick={generateBackupCodes} disabled={isLoading} class="preset-tonal-surface-500 -secondary-500 btn">
 				{#if isLoading}
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="svg-spinners:3-dots-fade" width={24}></iconify-icon>
 					{m.twofa_generating_codes()}
 				{:else}
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:key-variant" width={24}></iconify-icon>
 					{m.twofa_generate_backup_codes()}
 				{/if}
 			</button>
 
 			<button onclick={disable2FA} disabled={isLoading} class="preset-filled-error-500 btn">
 				{#if isLoading}
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="svg-spinners:3-dots-fade" width={24}></iconify-icon>
 					{m.twofa_disabling()}
 				{:else}
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:shield-remove" width={24}></iconify-icon>
 					{m.twofa_disable_button()}
 				{/if}
 			</button>

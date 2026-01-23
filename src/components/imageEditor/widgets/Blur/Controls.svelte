@@ -4,10 +4,6 @@
 Pintura-style controls for the Blur tool with add/delete/rotate/flip functionality.
 -->
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
-	import X from '@lucide/svelte/icons/x';
-
 	import type { BlurPattern, BlurShape } from '@src/components/imageEditor/widgets/Blur/regions';
 
 	let {
@@ -53,7 +49,7 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 <div class="flex w-full items-center gap-3">
 	<!-- Add Region -->
 	<button class="btn btn-sm preset-filled-primary-500" onclick={onAddRegion} title="Add Blur Region">
-		<Plus />
+		<iconify-icon icon="mdi:plus"></iconify-icon>
 		<span class="hidden sm:inline">Add</span>
 	</button>
 
@@ -63,10 +59,10 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 	<span class="hidden text-sm sm:inline">Shape:</span>
 	<div class="btn-group preset-outlined-surface-500">
 		<button class="btn-sm" class:active={shape === 'rectangle'} onclick={() => onShapeChange('rectangle')} title="Rectangle">
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:crop-square"></iconify-icon>
 		</button>
 		<button class="btn-sm" class:active={shape === 'ellipse'} onclick={() => onShapeChange('ellipse')} title="Ellipse">
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:circle-outline"></iconify-icon>
 		</button>
 	</div>
 
@@ -76,10 +72,10 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 	<span class="hidden text-sm sm:inline">Pattern:</span>
 	<div class="btn-group preset-outlined-surface-500">
 		<button class="btn-sm" class:active={pattern === 'blur'} onclick={() => onPatternChange('blur')} title="Blur">
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:blur"></iconify-icon>
 		</button>
 		<button class="btn-sm" class:active={pattern === 'pixelate'} onclick={() => onPatternChange('pixelate')} title="Pixelate">
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:grid"></iconify-icon>
 		</button>
 	</div>
 
@@ -105,36 +101,36 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 	<!-- Transform Controls (Rotate/Flip) - Only enabled when region is active -->
 	<div class="btn-group preset-outlined-surface-500">
 		<button class="btn btn-icon btn-sm" onclick={onRotateLeft} title="Rotate Region Left" disabled={!hasActiveRegion}>
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:rotate-left"></iconify-icon>
 		</button>
 		<button class="btn btn-icon btn-sm" onclick={onRotateRight} title="Rotate Region Right" disabled={!hasActiveRegion}>
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:rotate-right"></iconify-icon>
 		</button>
 		<button class="btn btn-icon btn-sm" onclick={onFlipHorizontal} title="Flip Region" disabled={!hasActiveRegion}>
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:flip-horizontal"></iconify-icon>
 		</button>
 	</div>
 
 	<!-- Delete Selected Region -->
 	<button class="btn btn-sm preset-outlined-error-500" onclick={onDeleteRegion} title="Delete Selected Region" disabled={!hasActiveRegion}>
-		<Trash2 />
+		<iconify-icon icon="mdi:delete"></iconify-icon>
 	</button>
 
 	<div class="grow"></div>
 
 	<!-- Action Buttons -->
 	<button onclick={onReset} class="btn btn-sm preset-outlined-surface-500">
-		<CircleQuestionMark size={24} />
+		<iconify-icon icon="mdi:restore"></iconify-icon>
 		<span class="hidden sm:inline">Reset</span>
 	</button>
 
 	<button onclick={onCancel} class="btn btn-sm preset-outlined-error-500">
-		<X />
+		<iconify-icon icon="mdi:close"></iconify-icon>
 		<span class="hidden sm:inline">Cancel</span>
 	</button>
 
 	<button class="btn btn-sm preset-filled-success-500" onclick={onApply}>
-		<Check />
+		<iconify-icon icon="mdi:check"></iconify-icon>
 		<span class="hidden sm:inline">Apply</span>
 	</button>
 </div>

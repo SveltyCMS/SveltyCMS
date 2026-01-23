@@ -43,9 +43,7 @@ Features:
 	<footer class="flex justify-center">
 		<button class="dark:preset-filled-primary-500 preset-filled-tertiary-500 btn font-bold" onclick={handleGetStarted}>
 			{m.welcome_modal_cta()}
-			<svg class="ml-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-			</svg>
+			<iconify-icon icon="mdi:arrow-right" width="20" class="ml-2"></iconify-icon>
 		</button>
 	</footer>
 </div>

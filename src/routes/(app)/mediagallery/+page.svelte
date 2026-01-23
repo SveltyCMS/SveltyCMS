@@ -22,10 +22,6 @@ Displays a collection of media files (images, documents, audio, video) with:
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import Search from '@lucide/svelte/icons/search';
-	import X from '@lucide/svelte/icons/x';
-
 	import { goto } from '$app/navigation';
 	import axios from 'axios';
 	// Stores
@@ -700,7 +696,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			disabled={isLoading}
 			aria-busy={isLoading}
 		>
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:folder-add-outline" width={24}></iconify-icon>
 			{isLoading ? 'Creating...' : 'Add folder'}
 			{#if isLoading}
 				<span class="loading loading-spinner loading-xs"></span>
@@ -709,7 +705,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 		<!-- Add Media -->
 		<button onclick={() => handleMobileNavigation('/mediagallery/uploadMedia')} aria-label="Add Media" class="preset-filled-primary-500 btn gap-2">
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="carbon:add-filled" width={24}></iconify-icon>
 			Add Media
 		</button>
 	</div>
@@ -726,13 +722,13 @@ Displays a collection of media files (images, documents, audio, video) with:
 				<input id="globalSearch" type="text" placeholder="Search Media" class="input" bind:value={globalSearchValue} />
 				{#if globalSearchValue}
 					<button onclick={() => (globalSearchValue = '')} aria-label="Clear search" class="preset-filled-surface-500 w-12">
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="ic:outline-search-off" width={24}></iconify-icon>
 					</button>
 				{/if}
 			</div>
 			<!-- Advanced Search Button (Mobile) - Outside input group -->
 			<button onclick={openAdvancedSearch} aria-label="Advanced search" class="preset-filled-surface-500 btn" title="Advanced Search">
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="mdi:magnify-plus-outline" width={24}></iconify-icon>
 			</button>
 		</div>
 
@@ -749,7 +745,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			<div class="flex flex-col text-center">
 				<label for="sortButton">Sort</label>
 				<button id="sortButton" aria-label="Sort" class="preset-outline-surface-500 btn">
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="flowbite:sort-outline" width={24}></iconify-icon>
 				</button>
 			</div>
 
@@ -759,13 +755,13 @@ Displays a collection of media files (images, documents, audio, video) with:
 						{#if view === 'grid'}
 							<button onclick={() => handleViewChange('table')} aria-label="Table" class="btn flex flex-col items-center justify-center px-1">
 								<p class="text-center text-xs">Display</p>
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="material-symbols:list-alt-outline" width={24}></iconify-icon>
 								<p class="text-xs">Table</p>
 							</button>
 						{:else}
 							<button onclick={() => handleViewChange('grid')} aria-label="Grid" class="btn flex flex-col items-center justify-center px-1">
 								<p class="text-center text-xs">Display</p>
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="material-symbols:grid-view-rounded" width={24}></iconify-icon>
 								<p class="text-center text-xs">Grid</p>
 							</button>
 						{/if}
@@ -805,7 +801,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 								aria-label="Tiny"
 								class="px-1"
 							>
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="material-symbols:apps" width={24}></iconify-icon>
 								<p class="text-xs">Tiny</p>
 							</button>
 						{:else if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
@@ -839,7 +835,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 								aria-label="Small"
 								class="px-1"
 							>
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="material-symbols:background-grid-small-sharp" width={24}></iconify-icon>
 								<p class="text-xs">Small</p>
 							</button>
 						{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
@@ -873,7 +869,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 								aria-label="Medium"
 								class="px-1"
 							>
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="material-symbols:grid-on-sharp" width={24}></iconify-icon>
 								<p class="text-xs">Medium</p>
 							</button>
 						{:else}
@@ -907,7 +903,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 								aria-label="Large"
 								class="px-1"
 							>
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="material-symbols:grid-view" width={24}></iconify-icon>
 								<p class="text-xs">Large</p>
 							</button>
 						{/if}
@@ -926,7 +922,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 					<input bind:value={globalSearchValue} id="globalSearchMd" type="text" placeholder="Search" class="input" />
 					{#if globalSearchValue}
 						<button onclick={clearSearch} class="preset-filled-surface-500 w-12" aria-label="Clear search">
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="ic:outline-search-off" width={24}></iconify-icon>
 						</button>
 					{/if}
 				</div>
@@ -934,7 +930,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 			<!-- Advanced Search Button (Desktop) -->
 			<button onclick={openAdvancedSearch} aria-label="Advanced search" class="preset-filled-surface-500 btn gap-2" title="Advanced Search">
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="mdi:magnify-plus-outline" width={24}></iconify-icon>
 				Advanced
 			</button>
 		</div>
@@ -955,7 +951,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			<div class="flex flex-col gap-1 text-center">
 				<label for="sortButton" class="text-sm font-medium">Sort</label>
 				<button id="sortButton" class="preset-tonal-surface-500 btn h-11" aria-label="Sort">
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="flowbite:sort-outline" width={24}></iconify-icon>
 				</button>
 			</div>
 
@@ -968,7 +964,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 						aria-label="Grid"
 						title="Grid View"
 					>
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="material-symbols:grid-view-rounded" width={24}></iconify-icon>
 						<span class="text-[10px] hidden xl:inline">Grid</span>
 					</button>
 					<button
@@ -977,7 +973,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 						aria-label="Table"
 						title="Table View"
 					>
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="material-symbols:list-alt-outline" width={24}></iconify-icon>
 						<span class="text-[10px] hidden xl:inline">Table</span>
 					</button>
 				</div>
@@ -997,7 +993,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 							aria-label="Tiny - Click for Small"
 							title="Tiny (Click to change)"
 						>
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="material-symbols:apps" width={24}></iconify-icon>
 							<span class="text-[10px] hidden xl:inline">Tiny</span>
 						</button>
 					{:else if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
@@ -1011,7 +1007,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 							aria-label="Small - Click for Medium"
 							title="Small (Click to change)"
 						>
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="material-symbols:background-grid-small-sharp" width={24}></iconify-icon>
 							<span class="text-[10px] hidden xl:inline">Small</span>
 						</button>
 					{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
@@ -1025,7 +1021,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 							aria-label="Medium - Click for Large"
 							title="Medium (Click to change)"
 						>
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="material-symbols:grid-on-sharp" width={24}></iconify-icon>
 							<span class="text-[10px] hidden xl:inline">Medium</span>
 						</button>
 					{:else}
@@ -1039,7 +1035,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 							aria-label="Large - Click for Tiny"
 							title="Large (Click to change)"
 						>
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="material-symbols:grid-view" width={24}></iconify-icon>
 							<span class="text-[10px] hidden xl:inline">Large</span>
 						</button>
 					{/if}
@@ -1053,7 +1049,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			<!-- Enterprise Virtual Scrolling for Large Collections (100+ files) -->
 			<VirtualMediaGrid {filteredFiles} {gridSize} ondeleteImage={handleDeleteImage} onBulkDelete={handleBulkDelete} onEditImage={handleEditImage} />
 			<div class="alert preset-outline-surface-500 mt-4">
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="mdi:lightning-bolt" width={24}></iconify-icon>
 				<span class="text-sm">
 					Virtual scrolling enabled for optimal performance with {filteredFiles.length} files
 				</span>
@@ -1089,13 +1085,13 @@ Displays a collection of media files (images, documents, audio, video) with:
 <!-- Active Search Indicator -->
 {#if advancedSearchCriteria}
 	<div class="alert preset-filled-warning-500 fixed bottom-4 right-4 z-40 max-w-sm">
-		<CircleQuestionMark size={24} />
+		<iconify-icon icon="mdi:filter" width={24}></iconify-icon>
 		<div class="flex-1">
 			<p class="font-semibold">Advanced search active</p>
 			<p class="text-sm opacity-90">Showing filtered results</p>
 		</div>
 		<button onclick={clearAdvancedSearch} class="preset-outline-surface-500 btn-icon btn-sm" aria-label="Clear search">
-			<X size={18} />
+			<iconify-icon icon="mdi:close" width={18}></iconify-icon>
 		</button>
 	</div>
 {/if}

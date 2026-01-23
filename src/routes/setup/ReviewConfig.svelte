@@ -8,18 +8,13 @@ This component presents a summary of all configuration steps before finalizing t
 - Review administrator account details
 - Review system settings (site name, language, timezone, media folder)
 - Confirm all information before completing setup
-
-
 -->
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import Settings from '@lucide/svelte/icons/settings';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Types from setupStore
-	import type { AdminUser, DbConfig, SystemSettings } from '@stores/setupStore.svelte.ts';
+	import type { AdminUser, DbConfig, SystemSettings } from '@stores/setupStore.svelte';
 
 	//  props
 	interface Props {
@@ -44,7 +39,7 @@ This component presents a summary of all configuration steps before finalizing t
 		<div class="grid grid-cols-1 gap-8 md:grid-cols-2">
 			<div>
 				<h3 class="mb-3 flex items-center font-semibold tracking-tight text-black dark:text-white">
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:database" width="24" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					{m.setup_review_section_database?.() || 'Database Configuration'}
 				</h3>
 				<!-- Consistent two-column grid for aligned values -->
@@ -76,7 +71,7 @@ This component presents a summary of all configuration steps before finalizing t
 
 			<div>
 				<h3 class="mb-3 flex items-center font-semibold tracking-tight text-black dark:text-white">
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:account" width="24" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					{m.setup_review_section_admin?.() || 'Administrator Account'}
 				</h3>
 				<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
@@ -91,7 +86,7 @@ This component presents a summary of all configuration steps before finalizing t
 
 			<div>
 				<h3 class="mb-3 flex items-center font-semibold tracking-tight text-black dark:text-white">
-					<Settings size={24} class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true" />
+					<iconify-icon icon="mdi:cog" width="24" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					{m.setup_review_section_system?.() || 'System Settings'}
 				</h3>
 				<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
@@ -114,7 +109,7 @@ This component presents a summary of all configuration steps before finalizing t
 
 			<div>
 				<h3 class="mb-3 flex items-center font-semibold tracking-tight text-black dark:text-white">
-					<Folder size={24} class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true" />
+					<iconify-icon icon="mdi:folder" width="24" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					{m.setup_review_section_media?.() || 'Media Storage'}
 				</h3>
 				<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">

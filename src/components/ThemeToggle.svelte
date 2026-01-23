@@ -12,9 +12,6 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 	import { themeStore, setThemePreference, useSystemPreference } from '@stores/themeStore.svelte.ts';
 	import { Portal, Tooltip } from '@skeletonlabs/skeleton-svelte';
 	// Explicit imports
-	import Sun from '@lucide/svelte/icons/sun';
-	import Moon from '@lucide/svelte/icons/moon';
-	import SunMoon from '@lucide/svelte/icons/sun-moon';
 
 	interface Props {
 		showTooltip?: boolean;
@@ -56,11 +53,11 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 		<Tooltip.Trigger>
 			<button onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>
 				{#if themeStore.themePreference === 'light'}
-					<Sun size={iconSize} />
+					<iconify-icon icon="mdi:white-balance-sunny" width={iconSize}></iconify-icon>
 				{:else if themeStore.themePreference === 'dark'}
-					<Moon size={iconSize} />
+					<iconify-icon icon="mdi:moon-waning-crescent" width={iconSize}></iconify-icon>
 				{:else}
-					<SunMoon size={iconSize} />
+					<iconify-icon icon="mdi:theme-light-dark" width={iconSize}></iconify-icon>
 				{/if}
 			</button>
 		</Tooltip.Trigger>
@@ -78,11 +75,11 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 {:else}
 	<button onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>
 		{#if themeStore.themePreference === 'light'}
-			<Sun size={iconSize} />
+			<iconify-icon icon="mdi:white-balance-sunny" width={iconSize}></iconify-icon>
 		{:else if themeStore.themePreference === 'dark'}
-			<Moon size={iconSize} />
+			<iconify-icon icon="mdi:moon-waning-crescent" width={iconSize}></iconify-icon>
 		{:else}
-			<SunMoon size={iconSize} />
+			<iconify-icon icon="mdi:theme-light-dark" width={iconSize}></iconify-icon>
 		{/if}
 	</button>
 {/if}

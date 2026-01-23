@@ -17,7 +17,7 @@
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@stores/globalSettings.svelte.ts';
+	import { publicEnv } from '@stores/globalSettings.svelte';
 
 	interface Props {
 		char?: string | null;

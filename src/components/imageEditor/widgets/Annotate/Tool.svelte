@@ -13,7 +13,7 @@ Orchestrates the annotation lifecycle:
 
 <script lang="ts">
 	import Konva from 'konva';
-	import { imageEditorStore } from '@stores/imageEditorStore.svelte.ts';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 	import AnnotateControls from './Controls.svelte';
 	import { AnnotationItem, type AnnotationKind } from './regions';
 	import * as draw from './draw';

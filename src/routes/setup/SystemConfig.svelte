@@ -3,16 +3,12 @@
 @description System configuration step.
 -->
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import Settings from '@lucide/svelte/icons/settings';
-	import X from '@lucide/svelte/icons/x';
-
 	import * as m from '@src/paraglide/messages';
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { locales as systemLocales } from '@src/paraglide/runtime';
 	//  Import types from the store
-	import type { ValidationErrors } from '@stores/setupStore.svelte.ts';
+	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { systemSettingsSchema } from '@utils/formSchemas';
 	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
@@ -184,7 +180,7 @@
 				<!-- Site Name & Production URL Group -->
 				<div class="space-y-3">
 					<label for="site-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="mdi:web" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{m.setup_system_site_name?.() || 'CMS Name'}</span>
 						<Tooltip positioning={{ placement: 'top' }}>
 							<Tooltip.Trigger>
@@ -194,7 +190,7 @@
 									aria-label="Help: Site Name"
 									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 								>
-									<CircleQuestionMark size={24} />
+									<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 								</button>
 							</Tooltip.Trigger>
 							<Portal>
@@ -229,7 +225,7 @@
 					{/if}
 
 					<label for="host-prod" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="mdi:earth" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">Production URL</span>
 						<Tooltip positioning={{ placement: 'top' }}>
 							<Tooltip.Trigger>
@@ -239,7 +235,7 @@
 									aria-label="Help: Production URL"
 									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 								>
-									<CircleQuestionMark size={24} />
+									<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 								</button>
 							</Tooltip.Trigger>
 							<Portal>
@@ -277,7 +273,7 @@
 				<!-- Media Storage Configuration Group -->
 				<div class="space-y-3">
 					<label for="media-storage-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="mdi:cloud-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">Media Storage Type</span>
 						<Tooltip positioning={{ placement: 'top' }}>
 							<Tooltip.Trigger>
@@ -287,7 +283,7 @@
 									aria-label="Help: Media Storage Type"
 									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 								>
-									<CircleQuestionMark size={24} />
+									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 								</button>
 							</Tooltip.Trigger>
 							<Portal>
@@ -315,7 +311,7 @@
 					</select>
 
 					<label for="media-folder" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<Folder size={18} class="text-tertiary-500 dark:text-primary-500" aria-hidden="true" />
+						<iconify-icon icon="mdi:folder" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{systemSettings.mediaStorageType === 'local' ? 'Media Folder Path' : 'Bucket/Cloud Name'}</span>
 						<Tooltip positioning={{ placement: 'top' }}>
 							<Tooltip.Trigger>
@@ -325,7 +321,7 @@
 									aria-label="Help: Media Folder"
 									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 								>
-									<CircleQuestionMark size={24} />
+									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 								</button>
 							</Tooltip.Trigger>
 							<Portal>
@@ -356,7 +352,7 @@
 					{#if systemSettings.mediaStorageType !== 'local'}
 						<div class="rounded-md border border-amber-300/50 bg-amber-50/50 p-3 dark:border-amber-700/50 dark:bg-amber-900/20" role="status">
 							<p class="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300">
-								<Info size={16} aria-hidden="true" />
+								<iconify-icon icon="mdi:information-outline" width="16" aria-hidden="true"></iconify-icon>
 								<strong>Note:</strong>
 								Cloud storage credentials must be configured in System Settings after setup.
 							</p>
@@ -370,7 +366,7 @@
 			<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 				<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
 					<label for="default-system-lang" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="mdi:translate" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{m.setup_label_default_system_language?.() || 'Default System Language'}</span>
 						<Tooltip positioning={{ placement: 'top' }}>
 							<Tooltip.Trigger>
@@ -380,7 +376,7 @@
 									aria-label="Help: Default System Language"
 									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 								>
-									<CircleQuestionMark size={24} />
+									<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 								</button>
 							</Tooltip.Trigger>
 							<Portal>
@@ -407,7 +403,7 @@
 					</select>
 					<div>
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="mdi:translate-variant" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 							<span class="text-black dark:text-white">{m.setup_label_system_languages?.() || 'System Languages'}</span>
 							<Tooltip positioning={{ placement: 'top' }}>
 								<Tooltip.Trigger>
@@ -417,7 +413,7 @@
 										aria-label="Help: System Languages"
 										class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 									>
-										<CircleQuestionMark size={24} />
+										<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 									</button>
 								</Tooltip.Trigger>
 								<Portal>
@@ -452,7 +448,7 @@
 											onclick={() => removeSystemLang(lang)}
 											aria-label={`Remove ${displayLang(lang)}`}
 										>
-											<X size={14} />
+											<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 										</button>
 									{/if}
 								</span>
@@ -466,7 +462,7 @@
 									aria-expanded={showSystemPicker}
 									aria-controls="system-lang-picker"
 								>
-									<Plus size={14} aria-hidden="true" />
+									<iconify-icon icon="mdi:plus" width="14" aria-hidden="true"></iconify-icon>
 									{m.button_add?.() || 'Add'}
 								</button>
 							{/if}
@@ -496,7 +492,7 @@
 												onclick={() => addSystemLanguage(sug)}
 											>
 												<span>{displayLang(sug)}</span>
-												<CircleQuestionMark size={24} />
+												<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500" aria-hidden="true"></iconify-icon>
 											</button>
 										{/each}
 									</div>
@@ -510,7 +506,8 @@
 				</div>
 				<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
 					<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
+						></iconify-icon>
 						<span class="text-black dark:text-white">{m.setup_label_default_content_language?.() || 'Default Content Language'}</span>
 						<Tooltip positioning={{ placement: 'top' }}>
 							<Tooltip.Trigger>
@@ -520,7 +517,7 @@
 									aria-label="Help: Default Content Language"
 									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 								>
-									<CircleQuestionMark size={24} />
+									<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 								</button>
 							</Tooltip.Trigger>
 							<Portal>
@@ -556,7 +553,7 @@
 					{/if}
 					<div>
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="mdi:book-multiple" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 							<span class="text-black dark:text-white">{m.setup_label_content_languages?.() || 'Content Languages'}</span>
 							<Tooltip positioning={{ placement: 'top' }}>
 								<Tooltip.Trigger>
@@ -566,7 +563,7 @@
 										aria-label="Help: Content Languages"
 										class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 									>
-										<CircleQuestionMark size={24} />
+										<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 									</button>
 								</Tooltip.Trigger>
 								<Portal>
@@ -603,7 +600,7 @@
 											onclick={() => removeContentLang(lang)}
 											aria-label={`Remove ${displayLang(lang)}`}
 										>
-											<X size={14} />
+											<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 										</button>
 									{/if}
 								</span>
@@ -616,7 +613,7 @@
 								aria-expanded={showContentPicker}
 								aria-controls="content-lang-picker"
 							>
-								<Plus size={14} aria-hidden="true" />
+								<iconify-icon icon="mdi:plus" width="14" aria-hidden="true"></iconify-icon>
 								{m.button_add?.() || 'Add'}
 							</button>
 							{#if showContentPicker}
@@ -645,7 +642,7 @@
 												onclick={() => addContentLanguage(sug.code)}
 											>
 												<span>{sug.name} ({sug.code.toUpperCase()}) <span class="text-slate-500">- {sug.native}</span></span>
-												<CircleQuestionMark size={24} />
+												<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500" aria-hidden="true"></iconify-icon>
 											</button>
 										{/each}
 									</div>

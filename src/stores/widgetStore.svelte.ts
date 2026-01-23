@@ -63,68 +63,60 @@ class WidgetState {
 			const newDependencyMap: Record<string, string[]> = {};
 
 			// Process core widgets
-			const coreEntries = Object.entries(coreModules);
-			await Promise.all(
-				coreEntries.map(async ([path, moduleLoader]) => {
-					const name = path.split('/').at(-2);
-					if (!name) return;
+			for (const [path, module] of Object.entries(coreModules)) {
+				const name = path.split('/').at(-2);
+				if (!name) continue;
 
-					try {
-						const module = await (moduleLoader as () => Promise<any>)();
-						const fn = module.default as WidgetFactory;
-						if (typeof fn !== 'function') return;
+				try {
+					const fn = (module as any).default as WidgetFactory;
+					if (typeof fn !== 'function') continue;
 
-						const widgetName = fn.Name || name;
-						fn.Name = widgetName;
-						(fn as any).__widgetType = 'core';
+					const widgetName = fn.Name || name;
+					fn.Name = widgetName;
+					(fn as any).__widgetType = 'core';
 
-						newWidgetFunctions[widgetName] = fn;
-						newCoreWidgets.push(widgetName);
+					newWidgetFunctions[widgetName] = fn;
+					newCoreWidgets.push(widgetName);
 
-						if ((fn as any).__dependencies && (fn as any).__dependencies.length > 0) {
-							newDependencyMap[widgetName] = (fn as any).__dependencies;
-						}
-
-						if (name && name !== widgetName) {
-							newWidgetFunctions[name] = fn;
-						}
-					} catch (err) {
-						logger.error(`[WidgetStore] Failed to load core widget at ${path}:`, err);
+					if ((fn as any).__dependencies && (fn as any).__dependencies.length > 0) {
+						newDependencyMap[widgetName] = (fn as any).__dependencies;
 					}
-				})
-			);
+
+					if (name && name !== widgetName) {
+						newWidgetFunctions[name] = fn;
+					}
+				} catch (err) {
+					logger.error(`[WidgetStore] Failed to load core widget at ${path}:`, err);
+				}
+			}
 
 			// Process custom widgets
-			const customEntries = Object.entries(customModules);
-			await Promise.all(
-				customEntries.map(async ([path, moduleLoader]) => {
-					const name = path.split('/').at(-2);
-					if (!name) return;
+			for (const [path, module] of Object.entries(customModules)) {
+				const name = path.split('/').at(-2);
+				if (!name) continue;
 
-					try {
-						const module = await (moduleLoader as () => Promise<any>)();
-						const fn = module.default as WidgetFactory;
-						if (typeof fn !== 'function') return;
+				try {
+					const fn = (module as any).default as WidgetFactory;
+					if (typeof fn !== 'function') continue;
 
-						const widgetName = fn.Name || name;
-						fn.Name = widgetName;
-						(fn as any).__widgetType = 'custom';
+					const widgetName = fn.Name || name;
+					fn.Name = widgetName;
+					(fn as any).__widgetType = 'custom';
 
-						newWidgetFunctions[widgetName] = fn;
-						newCustomWidgets.push(widgetName);
+					newWidgetFunctions[widgetName] = fn;
+					newCustomWidgets.push(widgetName);
 
-						if ((fn as any).__dependencies && (fn as any).__dependencies.length > 0) {
-							newDependencyMap[widgetName] = (fn as any).__dependencies;
-						}
-
-						if (name && name !== widgetName) {
-							newWidgetFunctions[name] = fn;
-						}
-					} catch (err) {
-						logger.error(`[WidgetStore] Failed to load custom widget at ${path}:`, err);
+					if ((fn as any).__dependencies && (fn as any).__dependencies.length > 0) {
+						newDependencyMap[widgetName] = (fn as any).__dependencies;
 					}
-				})
-			);
+
+					if (name && name !== widgetName) {
+						newWidgetFunctions[name] = fn;
+					}
+				} catch (err) {
+					logger.error(`[WidgetStore] Failed to load custom widget at ${path}:`, err);
+				}
+			}
 
 			this.widgetFunctions = newWidgetFunctions;
 			this.coreWidgets = newCoreWidgets;

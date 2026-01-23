@@ -5,10 +5,6 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import Search from '@lucide/svelte/icons/search';
-	import X from '@lucide/svelte/icons/x';
-
 	// Using iconify-icon web component
 	// Modern widget system
 	import { widgets } from '@stores/widgetStore.svelte.ts';
@@ -60,13 +56,13 @@
 				{modalState.active?.props?.title || 'Select Widget'}
 			</h2>
 			<button class="btn-icon preset-outlined-surface-500" onclick={parent.onClose} aria-label="Close modal">
-				<X size={24} />
+				<iconify-icon icon="mdi:close" width="24"></iconify-icon>
 			</button>
 		</header>
 
 		<!-- Search -->
 		<div class="relative my-4">
-			<Search size={24} class="absolute left-4 top-1/2 -translate-y-1/2 text-surface-400" />
+			<iconify-icon icon="mdi:magnify" width="24" class="absolute left-4 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
 			<input type="text" placeholder="Search widgets..." class="input h-12 w-full pl-12 text-lg" bind:value={searchTerm} />
 		</div>
 
@@ -101,10 +97,7 @@
 											<div
 												class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-200 text-surface-600 transition-colors group-hover:bg-primary-500 group-hover:text-white dark:bg-surface-700 dark:text-surface-300"
 											>
-												{#if availableWidgets[item?.Icon as keyof typeof iconsData] as any}<Icon
-														icon={availableWidgets[item?.Icon as keyof typeof iconsData] as any}
-														size={28}
-													/>{/if}
+												<iconify-icon icon={availableWidgets[item]?.Icon || 'mdi:puzzle'} width="28"></iconify-icon>
 											</div>
 											<!-- Optional: Add specific badges here if metadata existed -->
 										</div>
@@ -130,7 +123,7 @@
 					.toLowerCase()
 					.includes(searchTerm.toLowerCase())).length === 0}
 				<div class="flex flex-col items-center justify-center py-20 opacity-50">
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:help-circle" width="24"></iconify-icon>
 					<p class="text-xl">No widgets found for "{searchTerm}"</p>
 				</div>
 			{/if}

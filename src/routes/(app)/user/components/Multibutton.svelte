@@ -14,10 +14,6 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import Menu from '@lucide/svelte/icons/menu';
-	import ChevronRight from '@lucide/svelte/icons/chevron-right';
-
 	// Using iconify-icon web component
 	import { onMount, onDestroy } from 'svelte';
 	import { scale } from 'svelte/transition';
@@ -527,10 +523,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 				rounded-l-full rounded-r-none px-6 flex items-center justify-center gap-2 border-r border-white/20"
 			aria-label="{listboxValue} selected items"
 		>
-			{#if actionConfig[listboxValue.iconValue as keyof typeof iconsData] as any}<Icon
-					icon={actionConfig[listboxValue.iconValue as keyof typeof iconsData] as any}
-					size={20}
-				/>{/if}
+			<iconify-icon icon={actionConfig[listboxValue].iconValue} width="20"></iconify-icon>
 			<span class="uppercase tracking-wider">{listboxValue}</span>
 		</button>
 
@@ -545,7 +538,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			aria-expanded={isDropdownOpen}
 			aria-label="Toggle actions menu"
 		>
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:chevron-down" width="24"></iconify-icon>
 		</button>
 
 		<!-- Dropdown Menu -->
@@ -573,10 +566,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 								<div
 									class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-700/50 transition-transform group-hover/item:scale-110"
 								>
-									{#if config.iconValue as keyof typeof iconsData}<Icon
-											icon={config.iconValue as keyof typeof iconsData}
-											size={16}
-										/>{/if}
+									<iconify-icon icon={config.iconValue} width="16"></iconify-icon>
 								</div>
 
 								<!-- Label -->
@@ -586,9 +576,9 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 								<!-- Check Indicator or Chevron -->
 								{#if hoveredAction === action}
-									<ChevronRight size={18} class="relative z-10 text-white" />
+									<iconify-icon icon="mdi:chevron-right" width="18" class="relative z-10 text-white"></iconify-icon>
 								{:else if listboxValue === action}
-									<Check size={18} class="relative z-10 text-primary-500" />
+									<iconify-icon icon="mdi:check" width="18" class="relative z-10 text-primary-500"></iconify-icon>
 								{/if}
 							</button>
 						</li>

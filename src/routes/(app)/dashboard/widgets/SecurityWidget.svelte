@@ -38,22 +38,9 @@ and automated response visualization for enterprise security operations.
 
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-
-	// Components
-	// Using iconify-icon web component
-
-	// Icons
-	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
-	import Check from '@lucide/svelte/icons/check';
-	import CircleAlert from '@lucide/svelte/icons/circle-alert';
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
-	// Utils
 	import { logger } from '@utils/logger';
 	import BaseWidget from '../BaseWidget.svelte';
 	import { showToast } from '@utils/toast';
-
-	// Types
 	import type { WidgetSize } from '@src/content/types';
 
 	const {
@@ -291,10 +278,7 @@ and automated response visualization for enterprise security operations.
 		<!-- Security Status Header -->
 		<div class="flex items-center justify-between">
 			<div class="flex items-center space-x-3">
-				{#if statusIcon as keyof typeof iconsData}<Icon
-						icon={statusIcon as keyof typeof iconsData}
-						class="text-2xl {threatColor}"
-					/>{/if}
+				<iconify-icon icon={statusIcon} class="text-2xl {threatColor}"></iconify-icon>
 				<div>
 					<h3 class="text-lg font-semibold capitalize">{overallThreatLevel} Status</h3>
 					<p class="text-sm text-gray-600 dark:text-gray-400">
@@ -308,7 +292,7 @@ and automated response visualization for enterprise security operations.
 				disabled={isLoading}
 				aria-label="Refresh security data"
 			>
-				<RefreshCw class="text-sm" />
+				<iconify-icon icon="mdi:refresh" class="text-sm"></iconify-icon>
 			</button>
 		</div>
 
@@ -336,7 +320,7 @@ and automated response visualization for enterprise security operations.
 		{#if incidents.length > 0}
 			<div class="min-h-0 flex-1">
 				<h4 class="mb-2 flex items-center font-medium">
-					<CircleAlert class="mr-2 text-orange-500" />
+					<iconify-icon icon="mdi:alert-circle" class="mr-2 text-orange-500"></iconify-icon>
 					Active Incidents ({incidents.length})
 				</h4>
 				<div class="max-h-32 space-y-1 overflow-y-auto">
@@ -365,11 +349,11 @@ and automated response visualization for enterprise security operations.
 								</div>
 								<div class="flex space-x-1">
 									<button class="btn-xs preset-outlined-surface-500btn" onclick={() => resolveIncident(incident.id)} title="Resolve incident">
-										<Check class="text-xs" />
+										<iconify-icon icon="mdi:check" class="text-xs"></iconify-icon>
 									</button>
 									{#if incident.responseActions.includes('block') || incident.responseActions.includes('blacklist')}
 										<button class="btn-xs preset-outlined-surface-500btn" onclick={() => unblockIP(incident.clientIp)} title="Unblock IP">
-											<CircleQuestionMark size={24} class="text-xs" />
+											<iconify-icon icon="mdi:lock-open" class="text-xs"></iconify-icon>
 										</button>
 									{/if}
 								</div>
@@ -381,7 +365,7 @@ and automated response visualization for enterprise security operations.
 		{:else}
 			<div class="flex flex-1 items-center justify-center text-gray-500">
 				<div class="text-center">
-					<CircleQuestionMark size={24} class="mb-2 text-4xl text-green-500" />
+					<iconify-icon icon="mdi:shield-check" class="mb-2 text-4xl text-green-500"></iconify-icon>
 					<p class="text-sm">No active security incidents</p>
 				</div>
 			</div>

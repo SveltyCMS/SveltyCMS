@@ -21,10 +21,6 @@ Requires user confirmation before proceeding with changes that may cause data lo
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import CircleAlert from '@lucide/svelte/icons/circle-alert';
-	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-
 	// Using iconify-icon web component
 	import { fade, slide } from 'svelte/transition';
 	import type { BreakingChange } from '@utils/collectionSchemaWarnings';
@@ -87,7 +83,7 @@ Requires user confirmation before proceeding with changes that may cause data lo
 		<!-- Header -->
 		<div class="flex items-center gap-3 border-b border-surface-300 p-4 dark:border-surface-600">
 			<div class={hasDataLoss ? 'text-error-500' : 'text-warning-500'}>
-				<CircleAlert size={28} />
+				<iconify-icon icon="mdi:alert-circle" width={28}></iconify-icon>
 			</div>
 			<div>
 				<h2 id="modal-title" class="text-lg font-bold text-surface-900 dark:text-white">
@@ -104,22 +100,18 @@ Requires user confirmation before proceeding with changes that may cause data lo
 			{#if dataLossChanges.length > 0}
 				<div class="rounded-lg border-2 border-error-500/30 bg-error-500/10 p-3">
 					<p class="mb-2 flex items-center gap-2 font-semibold text-error-600 dark:text-error-400">
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="mdi:database-alert" width={24}></iconify-icon>
 						{dataLossChanges.length} change{dataLossChanges.length > 1 ? 's' : ''} will cause data loss:
 					</p>
 					<ul class="space-y-2">
 						{#each dataLossChanges as change}
 							<li class="flex items-start gap-2 text-sm">
-								{#if typeIcons[change.type || ('mdi:alert' as keyof typeof iconsData)] as any}<Icon
-										icon={typeIcons[change.type || ('mdi:alert' as keyof typeof iconsData)] as any}
-										size={18}
-										class="mt-0.5 text-error-500"
-									/>{/if}
+								<iconify-icon icon={typeIcons[change.type || 'mdi:alert']} width="18" class="mt-0.5 text-error-500"></iconify-icon>
 								<div>
 									<p class="text-surface-800 dark:text-surface-200">{change.message}</p>
 									{#if change.suggestion}
 										<p class="mt-1 text-xs text-surface-600 dark:text-surface-50">
-											<CircleQuestionMark size={24} />
+											<iconify-icon icon="mdi:lightbulb-outline" width={24}></iconify-icon>
 											{change.suggestion}
 										</p>
 									{/if}
@@ -133,22 +125,18 @@ Requires user confirmation before proceeding with changes that may cause data lo
 			{#if otherChanges.length > 0}
 				<div class="rounded-lg border-2 border-warning-500/30 bg-warning-500/10 p-3">
 					<p class="mb-2 flex items-center gap-2 font-semibold text-warning-600 dark:text-warning-400">
-						<TriangleAlert size={20} />
+						<iconify-icon icon="mdi:alert" width={20}></iconify-icon>
 						{otherChanges.length} other breaking change{otherChanges.length > 1 ? 's' : ''}:
 					</p>
 					<ul class="space-y-2">
 						{#each otherChanges as change}
 							<li class="flex items-start gap-2 text-sm">
-								{#if typeIcons[change.type || ('mdi:alert' as keyof typeof iconsData)] as any}<Icon
-										icon={typeIcons[change.type || ('mdi:alert' as keyof typeof iconsData)] as any}
-										size={18}
-										class="mt-0.5 text-warning-500"
-									/>{/if}
+								<iconify-icon icon={typeIcons[change.type || 'mdi:alert']} width="18" class="mt-0.5 text-warning-500"></iconify-icon>
 								<div>
 									<p class="text-surface-800 dark:text-surface-200">{change.message}</p>
 									{#if change.suggestion}
 										<p class="mt-1 text-xs text-surface-600 dark:text-surface-50">
-											<CircleQuestionMark size={24} />
+											<iconify-icon icon="mdi:lightbulb-outline" width={24}></iconify-icon>
 											{change.suggestion}
 										</p>
 									{/if}

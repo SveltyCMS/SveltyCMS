@@ -4,9 +4,6 @@
 Displays logo, site name, language selector, and theme toggle.
 -->
 <script lang="ts">
-	import Search from '@lucide/svelte/icons/search';
-	import ChevronDown from '@lucide/svelte/icons/chevron-down';
-
 	import SiteName from '@components/SiteName.svelte';
 	import { Menu, Portal, Tooltip } from '@skeletonlabs/skeleton-svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
@@ -54,14 +51,14 @@ Displays logo, site name, language selector, and theme toggle.
 				<Tooltip positioning={{ placement: 'bottom' }}>
 					<Tooltip.Trigger>
 						<Menu positioning={{ placement: 'bottom-end', gutter: 10 }}>
-							<Menu.Trigger class="preset-outlined-surface-500 btn rounded px-2 py-1 flex items-center gap-2">
+							<Menu.Trigger class="preset-outlined btn rounded  px-2 py-1 flex items-center gap-2">
 								<span class="font-medium">{getLanguageName(currentLanguageTag)}</span>
-								<ChevronDown class="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+								<iconify-icon icon="mdi:chevron-down" class="h-4 w-4 transition-transform group-data-[state=open]:rotate-180"></iconify-icon>
 							</Menu.Trigger>
 
 							<Portal>
 								<Menu.Positioner>
-									<Menu.Content class="card p-2 shadow-xl preset-filled-surface-100-900 z-50 w-64 border border-surface-200 dark:border-surface-600">
+									<Menu.Content class="card p-2 shadow-xl preset-filled z-50 w-64">
 										<!-- Header to inform user about System Language context -->
 										<div
 											class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-600 mb-2"
@@ -73,7 +70,7 @@ Displays logo, site name, language selector, and theme toggle.
 										{#if systemLanguages.length > 5}
 											<div class="px-2 pb-2 mb-2 border-b border-surface-200 dark:text-surface-50">
 												<div class="relative">
-													<Search class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
+													<iconify-icon icon="mdi:magnify" class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
 													<input
 														type="text"
 														bind:value={langSearch}

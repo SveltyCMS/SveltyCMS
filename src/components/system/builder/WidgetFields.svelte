@@ -23,11 +23,8 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import X from '@lucide/svelte/icons/x';
-
 	//Stores
-	import { ui } from '@root/src/stores/UIStore.svelte.ts';
+	import { ui } from '@root/src/stores/UIStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -195,7 +192,7 @@
 				<p>label: {field.label}</p>
 			</div>
 			<button onclick={(e) => handleFieldDelete(field, e)} aria-label="Delete widget" class="absolute right-[5px] top-[5px]">
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="tdesign:delete-1" width="24" height="24"></iconify-icon>
 			</button>
 		</div>
 	{/each}
@@ -221,7 +218,7 @@
 				<button class="preset-filled-primary-500 btn" aria-label="Save" onclick={handleSave}>Save</button>
 				<!-- Cancel Button -->
 				<button class="preset-outlined-secondary-500 btn-icon mr-2" aria-label="Cancel" onclick={handleCancel}>
-					<X size={24} />
+					<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 				</button>
 			</div>
 		</div>

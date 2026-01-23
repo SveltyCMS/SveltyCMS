@@ -6,8 +6,6 @@ Replaces the ModalWidgetForm, providing a full-screen or focused editor experien
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	import type { Component } from 'svelte';
 	// Components
 	import { widgets } from '@stores/widgetStore.svelte.ts';
@@ -140,7 +138,7 @@ Replaces the ModalWidgetForm, providing a full-screen or focused editor experien
 		<!-- Footer Actions -->
 		<div class="flex items-center justify-between border-t border-surface-200 p-4 dark:text-surface-50">
 			<button type="button" onclick={handleDelete} class="preset-outlined-error-500 btn">
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="mdi:delete" width={24}></iconify-icon>
 				<span>{m.button_delete()}</span>
 			</button>
 

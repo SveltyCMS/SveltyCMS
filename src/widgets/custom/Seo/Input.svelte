@@ -3,7 +3,6 @@
 	import { slide } from 'svelte/transition';
 
 	// Lucide Icons
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 
 	// Stores & Props
 	import { app } from '@stores/store.svelte';
@@ -331,7 +330,7 @@
 						placeholder="index, follow"
 					>
 						{#snippet icon()}
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="mdi:robot-happy-outline" width="24"></iconify-icon>
 						{/snippet}
 					</SeoField>
 
@@ -347,7 +346,7 @@
 						placeholder="https://example.com/slug"
 					>
 						{#snippet icon()}
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="mdi:link-variant" width="24"></iconify-icon>
 						{/snippet}
 					</SeoField>
 
@@ -356,11 +355,11 @@
 						<div class="flex items-center justify-between mb-1">
 							<div class="flex items-center gap-2">
 								<span class="font-bold text-sm">Schema.org JSON-LD</span>
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="mdi:code-json" width="24"></iconify-icon>
 							</div>
 							{#if isTranslated}
 								<div class="flex items-center gap-1 text-xs">
-									<CircleQuestionMark size={24} />
+									<iconify-icon icon="bi:translate" width="24"></iconify-icon>
 									<span class="font-medium text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
 									<span class="font-medium text-surface-400">({getFieldTranslationPercentage('schemaMarkup')}%)</span>
 								</div>

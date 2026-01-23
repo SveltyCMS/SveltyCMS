@@ -15,9 +15,6 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import Pencil from '@lucide/svelte/icons/pencil';
-
 	import { invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
 	// Auth
@@ -114,7 +111,7 @@
 			async (r: any) => {
 				if (r) {
 					toaster.success({
-						description: '<CircleQuestionMark size={24} /> Avatar Updated'
+						description: '<iconify-icon icon="radix-icons:avatar" width={24} ></iconify-icon> Avatar Updated'
 					});
 				}
 			}
@@ -175,7 +172,7 @@
 						class="absolute bottom-0 right-0 p-2 rounded-full gradient-tertiary dark:gradient-primary btn-icon"
 						title={m.userpage_editavatar()}
 					>
-						<Pencil size={18} />
+						<iconify-icon icon="mdi:pencil" width={18}></iconify-icon>
 					</button>
 				</div>
 				<!-- User ID -->
@@ -192,7 +189,7 @@
 						<div class="flex w-full items-center justify-between">
 							<span>Two-Factor Auth</span>
 							<div class="flex items-center gap-1">
-								<CircleQuestionMark size={20} />
+								<iconify-icon icon="mdi:{user?.is2FAEnabled ? 'shield-check' : 'shield-off'}" width={20}></iconify-icon>
 								<span class="text-xs">{user?.is2FAEnabled ? 'Enabled' : 'Disabled'}</span>
 							</div>
 						</div>
@@ -235,13 +232,13 @@
 							aria-label={m.userpage_edit_usersetting()}
 							class="gradient-tertiary btn w-full max-w-sm text-white {isFirstUser ? '' : 'mx-auto md:mx-0'}"
 						>
-							<CircleQuestionMark size={24} />{m.userpage_edit_usersetting()}
+							<iconify-icon icon="bi:pencil-fill" width={24}></iconify-icon>{m.userpage_edit_usersetting()}
 						</button>
 
 						<!-- Delete Modal Button -->
 						{#if isFirstUser}
 							<button onclick={modalConfirm} aria-label={m.button_delete()} class="gradient-error btn w-full max-w-sm text-white">
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="bi:trash3-fill" width={24}></iconify-icon>
 								{m.button_delete()}
 							</button>
 						{/if}

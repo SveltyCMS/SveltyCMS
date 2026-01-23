@@ -40,7 +40,7 @@ class WidgetRegistryService {
 			try {
 				// Register core widgets
 				for (const [path, module] of Object.entries(coreModules)) {
-					const processed = this._processWidgetModule(path, module, 'core');
+					const processed = this._processWidgetModule(path, module as WidgetModule, 'core');
 					if (processed) {
 						this.widgets.set(processed.name, processed.widgetFn);
 						logger.trace(`[WidgetRegistryService] Registered core: ${processed.name}`);
@@ -49,7 +49,7 @@ class WidgetRegistryService {
 
 				// Register custom widgets
 				for (const [path, module] of Object.entries(customModules)) {
-					const processed = this._processWidgetModule(path, module, 'custom');
+					const processed = this._processWidgetModule(path, module as WidgetModule, 'custom');
 					if (processed) {
 						this.widgets.set(processed.name, processed.widgetFn);
 						logger.trace(`[WidgetRegistryService] Registered custom: ${processed.name}`);

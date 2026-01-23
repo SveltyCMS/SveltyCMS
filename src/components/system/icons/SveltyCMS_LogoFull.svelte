@@ -35,7 +35,7 @@
 	<!--White Inner Background -->
 	<div class="relative flex h-[170px] w-[170px] items-center justify-center rounded-full bg-white">
 		<!-- Red circle -->
-		<svg size={160} class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
+		<svg width="160" height="160" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
 			<circle
 				cx="80"
 				cy="80"
@@ -60,7 +60,7 @@
 		</svg>
 
 		<!-- Black circle -->
-		<svg size={170} class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
+		<svg width="170" height="170" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
 			<circle
 				cx="85"
 				cy="85"

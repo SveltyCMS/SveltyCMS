@@ -4,8 +4,6 @@
  -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	// Using iconify-icon web component
 	import PageTitle from '@components/PageTitle.svelte';
 	import PluginsView from './PluginsView.svelte';
@@ -37,10 +35,7 @@
 						: 'text-surface-500 hover:text-surface-900 dark:hover:text-surface-100'}"
 				>
 					<div class="flex items-center gap-2">
-						{#if tab.icon as keyof typeof iconsData}<Icon
-								icon={tab.icon as keyof typeof iconsData}
-								class="text-xl"
-							/>{/if}
+						<iconify-icon icon={tab.icon} width="20" class="text-xl"></iconify-icon>
 						<span>{tab.label}</span>
 					</div>
 					{#if activeTab === tab.id}
@@ -57,7 +52,7 @@
 			rel="noopener noreferrer"
 			class="hidden items-center gap-2 rounded-lg bg-surface-100 px-4 py-2 text-sm font-medium transition-colors hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 sm:flex"
 		>
-			<CircleQuestionMark size={24} class="text-lg" />
+			<iconify-icon icon="mdi:store" width={24} class="text-lg"></iconify-icon>
 			<span>Marketplace</span>
 			<span class="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] uppercase text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"> Beta </span>
 		</a>

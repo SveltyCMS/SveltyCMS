@@ -38,11 +38,6 @@ for comprehensive system monitoring and performance analysis.
 
 <script lang="ts">
 	// Lucide icons
-	import HeartPulse from '@lucide/svelte/icons/heart-pulse';
-	import Heart from '@lucide/svelte/icons/heart';
-	import HeartCrack from '@lucide/svelte/icons/heart-crack';
-	import HeartOff from '@lucide/svelte/icons/heart-off';
-	import Activity from '@lucide/svelte/icons/activity';
 
 	import { onMount, onDestroy } from 'svelte';
 	import { logger } from '@utils/logger';
@@ -130,21 +125,21 @@ for comprehensive system monitoring and performance analysis.
 	const overallHealth = $derived(calculateOverallHealth(metrics));
 	const healthColor = $derived(getHealthColor(overallHealth));
 
-	// Map health status to icon component
-	const HealthIconComponent = $derived.by(() => {
+	// Map health status to icon string
+	const healthIcon = $derived.by(() => {
 		switch (overallHealth) {
 			case 'excellent':
-				return HeartPulse;
+				return 'mdi:heart-pulse';
 			case 'good':
-				return Heart;
+				return 'mdi:heart';
 			case 'fair':
-				return Activity; // Using Activity for 'fair' as HeartHalf doesn't exist in Lucide default
+				return 'mdi:pulse'; // Using Activity for 'fair' as HeartHalf doesn't exist in Lucide default
 			case 'poor':
-				return HeartCrack;
+				return 'mdi:heart-broken';
 			case 'critical':
-				return HeartOff;
+				return 'mdi:heart-off';
 			default:
-				return Activity;
+				return 'mdi:pulse';
 		}
 	});
 
@@ -307,7 +302,7 @@ for comprehensive system monitoring and performance analysis.
 		<!-- Health Status Header -->
 		<div class="flex items-center justify-between">
 			<div class="flex items-center space-x-2">
-				<HealthIconComponent class="text-xl {healthColor}" />
+				<iconify-icon icon={healthIcon} width="20" class="text-xl {healthColor}"></iconify-icon>
 				<div>
 					<h3 class="font-semibold capitalize">{overallHealth}</h3>
 					<p class="text-xs text-gray-500">System Health</p>

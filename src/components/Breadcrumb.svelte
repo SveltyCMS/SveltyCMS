@@ -24,9 +24,6 @@ Accessible breadcrumb navigation with icons, keyboard support, and visual feedba
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import ChevronRight from '@lucide/svelte/icons/chevron-right';
-
 	type Folder = {
 		_id: string;
 		name: string;
@@ -129,7 +126,7 @@ Accessible breadcrumb navigation with icons, keyboard support, and visual feedba
 						aria-label="Show all breadcrumb items"
 						type="button"
 					>
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="mdi:dots-horizontal" width="18" class="text-surface-500" aria-hidden="true"></iconify-icon>
 					</button>
 				{:else}
 					<!-- Regular breadcrumb item -->
@@ -145,11 +142,11 @@ Accessible breadcrumb navigation with icons, keyboard support, and visual feedba
 					>
 						{#if actualIndex === 0}
 							<!-- Home icon -->
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="mdi:home" width="18" class="shrink-0 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 							<span class="max-w-[150px] truncate">{crumb}</span>
 						{:else}
 							<!-- Folder icon -->
-							<Folder size={18} class="shrink-0 text-tertiary-500 dark:text-primary-500" aria-hidden="true" />
+							<iconify-icon icon="mdi:folder" width="18" class="shrink-0 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 							<span class="max-w-[150px] truncate">{crumb}</span>
 						{/if}
 					</button>
@@ -158,7 +155,7 @@ Accessible breadcrumb navigation with icons, keyboard support, and visual feedba
 				<!-- Separator (not after last item) -->
 				{#if !isLast}
 					<span class="mx-1 text-gray-400 dark:text-gray-600" aria-hidden="true">
-						<ChevronRight size={16} />
+						<iconify-icon icon="mdi:chevron-right" width="16"></iconify-icon>
 					</span>
 				{/if}
 			</li>
@@ -173,7 +170,7 @@ Accessible breadcrumb navigation with icons, keyboard support, and visual feedba
 		aria-label="Copy current path to clipboard"
 		type="button"
 	>
-		<Copy size={24} />
+		<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>
 	</button>
 
 	<!-- Screen reader announcement -->

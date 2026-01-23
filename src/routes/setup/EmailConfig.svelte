@@ -10,19 +10,7 @@
 - Clear explanation of why SMTP is needed
 -->
 <script lang="ts">
-	// Using iconify-icon web component
-	import Info from '@lucide/svelte/icons/info';
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-	import CircleAlert from '@lucide/svelte/icons/circle-alert';
-	import Pencil from '@lucide/svelte/icons/pencil';
-	import CircleCheck from '@lucide/svelte/icons/circle-check';
-	import Eye from '@lucide/svelte/icons/eye';
-	import EyeOff from '@lucide/svelte/icons/eye-off';
-	import ChevronUp from '@lucide/svelte/icons/chevron-up';
-	import ChevronDown from '@lucide/svelte/icons/chevron-down';
-	import CircleX from '@lucide/svelte/icons/circle-x';
-	import { setupStore } from '@stores/setupStore.svelte.ts';
+	import { setupStore } from '@stores/setupStore.svelte';
 	import * as m from '@src/paraglide/messages';
 	import { showToast } from '@utils/toast';
 	import { safeParse } from 'valibot';
@@ -386,15 +374,15 @@
 			aria-expanded={showWhySmtp}
 			aria-controls="why-smtp-content"
 		>
-			<Info class="mt-0.5 shrink-0 text-xl dark:text-primary-500 text-tertiary-500" aria-hidden="true" />
+			<iconify-icon icon="mdi:information" class="mt-0.5 shrink-0 text-xl dark:text-primary-500 text-tertiary-500" aria-hidden="true"></iconify-icon>
 			<div class="flex-1">
 				<h3 class="font-semibold text-tertiary-500 dark:text-primary-500">{m.setup_email_why_title()}</h3>
 			</div>
-			{#if showWhySmtp}
-				<ChevronUp class="mt-0.5 shrink-0 text-xl text-tertiary-500 dark:text-primary-500" aria-hidden="true" />
-			{:else}
-				<ChevronDown class="mt-0.5 shrink-0 text-xl text-tertiary-500 dark:text-primary-500" aria-hidden="true" />
-			{/if}
+			<iconify-icon
+				icon={showWhySmtp ? 'mdi:chevron-up' : 'mdi:chevron-down'}
+				class="mt-0.5 shrink-0 text-xl text-tertiary-500 dark:text-primary-500"
+				aria-hidden="true"
+			></iconify-icon>
 		</button>
 
 		<!-- Collapsible content -->
@@ -426,7 +414,7 @@
 							aria-label={m.setup_email_aria_help_provider()}
 							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
 					</Tooltip.Trigger>
 					<Portal>
@@ -455,7 +443,7 @@
 			{@const preset = presets.find((p) => p.name === selectedPreset)}
 			{#if preset?.note}
 				<div class="card preset-outlined-warning-500 flex items-start gap-2 p-3" role="alert">
-					<TriangleAlert class="mt-0.5 text-lg text-warning-500" aria-hidden="true" />
+					<iconify-icon icon="mdi:alert" class="mt-0.5 text-lg text-warning-500" aria-hidden="true"></iconify-icon>
 					<p class="text-sm text-warning-700 dark:text-warning-300">{preset.note}</p>
 				</div>
 			{/if}
@@ -476,7 +464,7 @@
 							aria-label={m.setup_email_aria_help_host()}
 							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
 					</Tooltip.Trigger>
 					<Portal>
@@ -510,12 +498,12 @@
 			/>
 			{#if displayErrors.host}
 				<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
-					<CircleAlert class="text-sm" />
+					<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
 					{displayErrors.host}
 				</span>
 			{:else if smtpHost.trim() && !isValidHostname()}
 				<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
-					<CircleAlert class="text-sm" />
+					<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
 					{#if smtpHost.includes('@')}
 						{m.setup_email_invalid_hostname()}
 					{:else}
@@ -538,7 +526,7 @@
 								aria-label={m.setup_email_aria_help_port()}
 								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 							</button>
 						</Tooltip.Trigger>
 						<Portal>
@@ -586,13 +574,13 @@
 							smtpPort = 587; // Reset to default
 						}}
 					>
-						<CircleQuestionMark size={24} class="text-lg" />
+						<iconify-icon icon="mdi:arrow-u-left-top" class="text-lg" aria-hidden="true"></iconify-icon>
 						{m.setup_email_button_use_standard()}
 					</button>
 				</div>
 				{#if displayErrors.port}
 					<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
-						<CircleAlert class="text-sm" />
+						<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
 						{displayErrors.port}
 					</span>
 				{:else}
@@ -622,7 +610,7 @@
 							useCustomPort = true;
 						}}
 					>
-						<Pencil class="text-lg" aria-hidden="true" />
+						<iconify-icon icon="mdi:pencil" class="text-lg" aria-hidden="true"></iconify-icon>
 						{m.setup_email_button_custom()}
 					</button>
 				</div>
@@ -631,7 +619,7 @@
 					<div class="mt-1 flex items-center gap-2">
 						{#if effectiveSecure()}
 							<span class="variant-soft-success badge flex items-center gap-1 text-xs">
-								<CircleQuestionMark size={24} class="text-sm" />
+								<iconify-icon icon="mdi:lock" class="text-sm"></iconify-icon>
 								{m.setup_email_port_encrypted()}
 							</span>
 						{/if}
@@ -653,7 +641,7 @@
 							aria-label={m.setup_email_aria_help_user()}
 							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
 					</Tooltip.Trigger>
 					<Portal>
@@ -693,7 +681,7 @@
 			/>
 			{#if displayErrors.user}
 				<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
-					<CircleAlert class="text-sm" />
+					<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
 					{displayErrors.user}
 				</span>
 			{/if}
@@ -711,7 +699,7 @@
 							aria-label={m.setup_email_aria_help_password()}
 							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
 					</Tooltip.Trigger>
 					<Portal>
@@ -756,16 +744,12 @@
 					onclick={() => (showPassword = !showPassword)}
 					aria-label={showPassword ? m.setup_email_aria_hide_password() : m.setup_email_aria_show_password()}
 				>
-					{#if showPassword}
-						<EyeOff class="text-lg text-surface-600 dark:text-surface-50" />
-					{:else}
-						<Eye class="text-lg text-surface-600 dark:text-surface-50" />
-					{/if}
+					<iconify-icon icon={showPassword ? 'mdi:eye-off' : 'mdi:eye'} class="text-lg text-surface-600 dark:text-surface-50"></iconify-icon>
 				</button>
 			</div>
 			{#if displayErrors.password}
 				<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
-					<CircleAlert class="text-sm" />
+					<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
 					{displayErrors.password}
 				</span>
 			{/if}
@@ -798,7 +782,7 @@
 			onclick={testConnection}
 			disabled={!isFormValid || isTesting}
 		>
-			<CircleQuestionMark size={24} class="mr-2 text-xl" />
+			<iconify-icon icon="mdi:email" class="mr-2 text-xl"></iconify-icon>
 			{isTesting ? m.setup_email_testing() : m.setup_email_test_button()}
 		</button>
 
@@ -807,7 +791,7 @@
 			<div class="card preset-outlined-primary-500 p-4">
 				<!-- Header - Always visible with toggle button on mobile -->
 				<div class="flex items-start gap-3">
-					<CircleCheck class="text-2xl text-success-500" />
+					<iconify-icon icon="mdi:check-circle" class="text-2xl text-success-500"></iconify-icon>
 					<div class="flex-1">
 						<p class="font-semibold text-success-700 dark:text-success-300">{m.setup_email_connection_success()}</p>
 					</div>
@@ -818,10 +802,7 @@
 						onclick={() => (showSuccessDetails = !showSuccessDetails)}
 						aria-label={showSuccessDetails ? m.setup_email_button_hide_details() : m.setup_email_button_show_details()}
 					>
-						{#if showSuccessDetails ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)}<Icon
-								icon={showSuccessDetails ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)}
-								class="text-xl"
-							/>{/if}
+						<iconify-icon icon={showSuccessDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="text-xl"></iconify-icon>
 					</button>
 				</div>
 
@@ -839,7 +820,7 @@
 
 		{#if testError}
 			<div class="card preset-outlined-error-500 flex items-start gap-3 p-4">
-				<CircleX class="text-2xl text-error-500" />
+				<iconify-icon icon="mdi:close-circle" class="text-2xl text-error-500"></iconify-icon>
 				<div class="flex-1">
 					<p class="font-semibold text-error-700 dark:text-error-300">{m.setup_email_connection_failed()}</p>
 					<p class="mt-1 text-sm text-error-600 dark:text-error-400">{testError}</p>

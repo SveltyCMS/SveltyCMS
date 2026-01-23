@@ -12,8 +12,6 @@ Features:
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	// Using iconify-icon web component
 	import { goto } from '$app/navigation';
 	import type { TreeViewItem } from '@utils/treeViewAdapter';
@@ -74,11 +72,7 @@ Features:
 			}}
 			aria-label={isOpen ? 'Collapse' : 'Expand'}
 		>
-			{#if isOpen ? 'bi:chevron-down' : ('bi:chevron-right' as keyof typeof iconsData)}<Icon
-					icon={isOpen ? 'bi:chevron-down' : ('bi:chevron-right' as keyof typeof iconsData)}
-					size={20}
-					class="transition-transform duration-200"
-				/>{/if}
+			<iconify-icon icon={isOpen ? 'bi:chevron-down' : 'bi:chevron-right'} width="20" class="transition-transform duration-200"></iconify-icon>
 		</button>
 	{:else}
 		<div class="w-10"></div>
@@ -86,11 +80,7 @@ Features:
 
 	<!-- Icon with Animation -->
 	<div class="relative">
-		{#if icon as keyof typeof iconsData}<Icon
-				icon={icon as keyof typeof iconsData}
-				size={24}
-				class={iconClass}
-			/>{/if}
+		<iconify-icon {icon} width="24" class={iconClass}></iconify-icon>
 		{#if isCategory}
 			<div class="absolute -top-1 -right-1 w-2 h-2 bg-tertiary-500 rounded-full animate-pulse"></div>
 		{/if}
@@ -155,7 +145,7 @@ Features:
 			}}
 			title="Edit"
 		>
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:pencil" width={24}></iconify-icon>
 		</button>
 
 		<!-- Duplicate Button -->
@@ -168,7 +158,7 @@ Features:
 			}}
 			title="Duplicate"
 		>
-			<Copy size={24} />
+			<iconify-icon icon="mdi:content-copy" width="24"></iconify-icon>
 		</button>
 
 		<!-- Delete Button -->
@@ -181,7 +171,7 @@ Features:
 			}}
 			title="Delete"
 		>
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:delete" width={24}></iconify-icon>
 		</button>
 
 		<!-- Drag Handle with Enhanced Visual -->
@@ -190,7 +180,7 @@ Features:
 			aria-hidden="true"
 			title="Drag to reorder"
 		>
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:drag-vertical" width={24}></iconify-icon>
 		</div>
 	</div>
 </div>

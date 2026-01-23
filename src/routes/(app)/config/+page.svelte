@@ -257,9 +257,7 @@
 						data-sveltekit-preload-data={item.target === '_blank' ? undefined : 'hover'}
 						onclick={handleMobileSidebarClose}
 					>
-						{#if item.icon as keyof typeof iconsData}
-							<iconify-icon icon={item.icon as keyof typeof iconsData} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`} />
-						{/if}
+						<iconify-icon icon={item.icon} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`}></iconify-icon>
 						<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
 					</a>
 				</PermissionGuard>
@@ -273,9 +271,7 @@
 					data-sveltekit-preload-data={item.target === '_blank' ? undefined : 'hover'}
 					onclick={handleMobileSidebarClose}
 				>
-					{#if item.icon as keyof typeof iconsData}
-						<iconify-icon icon={item.icon as keyof typeof iconsData} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`} />
-					{/if}
+					<iconify-icon icon={item.icon} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`}></iconify-icon>
 					<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
 				</a>
 			{/if}

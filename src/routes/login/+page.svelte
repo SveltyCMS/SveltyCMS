@@ -17,9 +17,6 @@
 -->
 
 <script lang="ts">
-	import MenuIcon from '@lucide/svelte/icons/menu';
-	import ChevronUp from '@lucide/svelte/icons/chevron-up';
-
 	import { getPublicSetting, publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Components
@@ -367,7 +364,7 @@
 					aria-label="Select language"
 				>
 					<span>{getLanguageName(currentLanguage)}</span>
-					<ChevronUp size={20} />
+					<iconify-icon icon="mdi:chevron-up" width={20}></iconify-icon>
 				</Menu.Trigger>
 
 				<Portal>

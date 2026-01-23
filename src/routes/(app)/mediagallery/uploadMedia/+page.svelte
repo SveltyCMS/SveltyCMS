@@ -44,7 +44,7 @@
 		aria-label="Back"
 		class="preset-outlined-tertiary-500 btn-icon rounded-full dark:preset-outlined-primary-500"
 	>
-		<ArrowLeft size={24} />
+		<iconify-icon icon="mdi:arrow-left" width="24"></iconify-icon>
 	</button>
 </div>
 
@@ -53,13 +53,13 @@
 		<Tabs.List class="flex border-b border-surface-200-800 font-bold">
 			<Tabs.Trigger value="0" class="flex-1">
 				<div class="flex items-center justify-center gap-2 py-4">
-					<Database size={24} />
+					<iconify-icon icon="mdi:database" width="24"></iconify-icon>
 					<p class="text-tertiary-500 dark:text-primary-500">Local Upload</p>
 				</div>
 			</Tabs.Trigger>
 			<Tabs.Trigger value="1" class="flex-1">
 				<div class="flex items-center justify-center gap-2 py-4">
-					<Radio size={24} />
+					<iconify-icon icon="mdi:radio" width="24"></iconify-icon>
 					<p class="text-tertiary-500 dark:text-primary-500">Remote Upload</p>
 				</div>
 			</Tabs.Trigger>

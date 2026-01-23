@@ -1,6 +1,4 @@
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	// Show OAuth when OAuth is enabled and an admin has sent an invitation
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { deserialize } from '$app/forms';
@@ -44,7 +42,7 @@
 			class="preset-filled-surface-500 btn w-full sm:w-auto"
 			onmouseenter={prefetchFirstCollection}
 		>
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="flat-color-icons:google" width={24}></iconify-icon>
 			<p>OAuth</p>
 		</button>
 	</form>

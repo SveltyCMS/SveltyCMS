@@ -16,13 +16,6 @@ New Features:
 	import type { WidgetSize } from '@src/content/types';
 
 	// Lucide icons
-	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
-	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
-	import GripVertical from '@lucide/svelte/icons/grip-vertical';
-	import CircleAlert from '@lucide/svelte/icons/circle-alert';
-	import Check from '@lucide/svelte/icons/check';
-	import X from '@lucide/svelte/icons/x';
-	import LayoutPanelLeft from '@lucide/svelte/icons/layout-panel-left';
 
 	export type { WidgetSize };
 
@@ -363,7 +356,7 @@ New Features:
 				id="widget-title-{widgetId || label}"
 				class="font-display text-text-900 dark:text-text-100 flex items-center gap-2 truncate text-base font-semibold tracking-tight"
 			>
-				<LayoutPanelLeft size={24} class={theme === 'light' ? 'text-tertiary-600' : 'text-primary-400'} />
+				<iconify-icon icon="mdi:view-grid" width={24} class={theme === 'light' ? 'text-tertiary-600' : 'text-primary-400'}></iconify-icon>
 				<span class="truncate">{label}</span>
 			</h2>
 
@@ -372,7 +365,7 @@ New Features:
 					<span>{getLastUpdateText()}</span>
 					{#if loading}
 						<span class="flex items-center gap-1">
-							<RefreshCw size={10} class="animate-spin" />
+							<iconify-icon icon="mdi:refresh" width={10} class="animate-spin"></iconify-icon>
 							{#if currentRetry > 0}
 								<span>Retry {currentRetry}/{retryCount}</span>
 							{/if}
@@ -384,12 +377,12 @@ New Features:
 
 		<div class="flex items-center gap-1">
 			<button onclick={() => refresh()} class="variant-outline-surface btn-icon" aria-label="Refresh widget" disabled={loading} title="Refresh data">
-				<RefreshCw size={16} class={loading ? 'animate-spin' : ''} />
+				<iconify-icon icon="mdi:refresh" width={16} class={loading ? 'animate-spin' : ''}></iconify-icon>
 			</button>
 
 			<div class="relative" style="overflow: visible;">
 				<button onclick={() => (showSizeMenu = !showSizeMenu)} class="variant-outline-surface btn-icon" aria-label="Change widget size">
-					<EllipsisVertical size={18} />
+					<iconify-icon icon="mdi:dots-vertical" width={18}></iconify-icon>
 				</button>
 				{#if showSizeMenu}
 					<div
@@ -406,7 +399,7 @@ New Features:
 							>
 								<span>{getSizeLabel(s)}</span>
 								{#if size.w === s.w && size.h === s.h}
-									<Check size={16} class="text-primary-500" />
+									<iconify-icon icon="mdi:check" width={16} class="text-primary-500"></iconify-icon>
 								{/if}
 							</button>
 						{/each}
@@ -414,7 +407,7 @@ New Features:
 				{/if}
 			</div>
 			<button onclick={onCloseRequest} class="variant-outline-surface btn-icon" aria-label="Remove {label} widget">
-				<X size={18} />
+				<iconify-icon icon="mdi:close" width={18}></iconify-icon>
 			</button>
 		</div>
 	</header>
@@ -426,7 +419,7 @@ New Features:
 			<div class="loading-state text-text-400 absolute inset-0 flex items-center justify-center text-base">Loading...</div>
 		{:else if endpoint && error && !internalData}
 			<div class="error-state absolute inset-0 flex flex-col items-center justify-center p-2 text-center text-base text-error-500">
-				<CircleAlert size={24} class="mb-1" />
+				<iconify-icon icon="mdi:alert-circle" width={24} class="mb-1"></iconify-icon>
 				<span>{error}</span>
 			</div>
 		{:else if children}
@@ -466,7 +459,7 @@ New Features:
 						}
 					}}
 				>
-					<GripVertical size={12} class="text-gray-900 drop-shadow-sm dark:text-surface-300" />
+					<iconify-icon icon="mdi:drag-vertical" width={12} class="text-gray-900 drop-shadow-sm dark:text-surface-300"></iconify-icon>
 				</div>
 			{/each}
 		</div>

@@ -7,10 +7,6 @@ Features:
 - Configure plugin
 -->
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import CircleAlert from '@lucide/svelte/icons/circle-alert';
-	import Settings from '@lucide/svelte/icons/settings';
-
 	// Using iconify-icon web component
 	/**
 	 * @file src/routes/(app)/config/extensions/PluginsView.svelte
@@ -71,7 +67,7 @@ Features:
 <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
 	{#if !data.plugins || data.plugins.length === 0}
 		<div class="col-span-full py-12 text-center text-surface-400">
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:help-circle" width="24"></iconify-icon>
 			<p>No plugins installed.</p>
 		</div>
 	{:else}
@@ -82,18 +78,14 @@ Features:
 				<div class="mb-3 flex items-start justify-between">
 					<div class="flex items-center gap-3">
 						<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-50 dark:bg-surface-900/50">
-							{#if plugin.icon || ('mdi:puzzle' as keyof typeof iconsData)}<Icon
-									icon={plugin.icon || ('mdi:puzzle' as keyof typeof iconsData)}
-									size={32}
-									class="text-primary-500"
-								/>{/if}
+							<iconify-icon icon={plugin.icon || 'mdi:puzzle'} width="32" class="text-primary-500"></iconify-icon>
 						</div>
 						<div>
 							<div class="flex items-center gap-2">
 								<h3 class="font-bold">{plugin.displayName}</h3>
 								{#if plugin.missingConfig}
 									<div class="group relative">
-										<CircleAlert class="text-lg text-warning-500" />
+										<iconify-icon icon="mdi:alert-circle" width="18" class="text-warning-500"></iconify-icon>
 										<div
 											class="absolute bottom-full left-1/2 mb-2 hidden w-48 -translate-x-1/2 rounded bg-surface-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:block group-hover:opacity-100"
 										>
@@ -131,7 +123,7 @@ Features:
 				<!-- actions -->
 				<div class="mt-auto flex items-center justify-end gap-2 border-t border-surface-100 pt-3 dark:border-surface-700">
 					<button class="preset-filled-surface-500 btn-sm btn" onclick={() => handleConfigure(plugin)}>
-						<Settings class="mr-1" />
+						<iconify-icon icon="mdi:cog" width="18" class="mr-1"></iconify-icon>
 						Configure
 					</button>
 				</div>

@@ -19,8 +19,6 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	// Simple ID generator (no need for crypto UUID)
@@ -280,7 +278,7 @@
 				class="preset-filled-tertiary-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1"
 				disabled={isLoading}
 			>
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="mdi:folder-plus" width="24"></iconify-icon>
 				<span>{m.collection_addcategory()}</span>
 			</button>
 
@@ -292,7 +290,7 @@
 				class="preset-filled-surface-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1 rounded font-bold"
 				disabled={isLoading}
 			>
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="mdi:plus-thick" width="24"></iconify-icon>
 				<span>{m.collection_add()}</span>
 			</button>
 
@@ -305,9 +303,9 @@
 				disabled={isLoading}
 			>
 				{#if isLoading}
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:loading" width="24" class="animate-spin"></iconify-icon>
 				{:else}
-					<Save size={24} class="text-white" />
+					<iconify-icon icon="mdi:content-save" width="24" class="text-white"></iconify-icon>
 				{/if}
 				<span>{m.button_save()}</span>
 			</button>
@@ -325,7 +323,7 @@
 			class="preset-filled-tertiary-500 btn flex flex-1 items-center justify-center gap-1"
 			disabled={isLoading}
 		>
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:folder-plus" width="24"></iconify-icon>
 			<span>{m.collection_addcategory()}</span>
 		</button>
 
@@ -336,7 +334,7 @@
 			class="preset-filled-surface-500 btn flex flex-1 items-center justify-center gap-1 rounded font-bold"
 			disabled={isLoading}
 		>
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:plus-thick" width="24"></iconify-icon>
 			<span>{m.collection_add()}</span>
 		</button>
 
@@ -348,9 +346,9 @@
 			disabled={isLoading}
 		>
 			{#if isLoading}
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="mdi:loading" width="24" class="animate-spin"></iconify-icon>
 			{:else}
-				<Save size={24} class="text-white" />
+				<iconify-icon icon="mdi:content-save" width="24" class="text-white"></iconify-icon>
 			{/if}
 			<span>{m.button_save()}</span>
 		</button>

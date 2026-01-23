@@ -20,8 +20,6 @@ This widget fetches and displays the latest content items, including:
 - Theme-aware rendering (light/dark mode support)
 -->
 <script lang="ts" module>
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	export const widgetMeta = {
 		name: 'Last 5 Content',
 		icon: 'mdi:file-document-multiple-outline',
@@ -117,7 +115,7 @@ This widget fetches and displays the latest content items, including:
 			</div>
 		{:else}
 			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="mdi:file-remove-outline" width={24}></iconify-icon>
 				<span>No content found</span>
 			</div>
 		{/if}

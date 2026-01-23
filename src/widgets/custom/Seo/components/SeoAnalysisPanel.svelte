@@ -8,10 +8,6 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 
 <script lang="ts">
 	// Using iconify-icon web component
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import CircleCheck from '@lucide/svelte/icons/circle-check';
-	import ChevronUp from '@lucide/svelte/icons/chevron-up';
-	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import type { SeoAnalysisResult } from '../seoTypes';
 	import { slide } from 'svelte/transition';
 
@@ -32,7 +28,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 		onclick={() => (expanded = !expanded)}
 	>
 		<div class="flex items-center gap-2 flex-1">
-			<CircleQuestionMark size={24} class="text-tertiary-500 text-xl" />
+			<iconify-icon icon="mdi:information" width="24" class="text-tertiary-500 text-xl"></iconify-icon>
 			<h3 class="h3 text-lg!">Analysis</h3>
 		</div>
 
@@ -57,9 +53,9 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 					{/if}
 				</div>
 				{#if expanded}
-					<ChevronUp class="text-surface-400" />
+					<iconify-icon icon="mdi:chevron-up" class="text-surface-400"></iconify-icon>
 				{:else}
-					<ChevronDown class="text-surface-400" />
+					<iconify-icon icon="mdi:chevron-down" class="text-surface-400"></iconify-icon>
 				{/if}
 			</div>
 		{:else}
@@ -84,7 +80,8 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 			<div class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar border-t border-surface-500/20" transition:slide>
 				{#if analysisResult.suggestions.length > 0}
 					{#each analysisResult.suggestions as suggestion}
-						{@const suggestionIcon = suggestion.type === 'error' ? 'circle-alert' : suggestion.type === 'warning' ? 'triangle-alert' : 'info'}
+						{@const suggestionIcon =
+							suggestion.type === 'error' ? 'mdi:alert-circle' : suggestion.type === 'warning' ? 'mdi:alert' : 'mdi:information'}
 						<div
 							class="card p-3 border-l-4 {suggestion.type === 'error'
 								? 'border-error-500 bg-error-500/10'
@@ -94,13 +91,11 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 						>
 							<div class="flex items-start gap-2">
 								<div class="mt-0.5 shrink-0">
-									{#if suggestionIcon as keyof typeof iconsData}
-										<Icon
-											icon={suggestionIcon as keyof typeof iconsData}
-											size={16}
-											class={suggestion.type === 'error' ? 'text-error-500' : suggestion.type === 'warning' ? 'text-warning-500' : 'text-primary-500'}
-										/>
-									{/if}
+									<iconify-icon
+										icon={suggestionIcon}
+										width="16"
+										class={suggestion.type === 'error' ? 'text-error-500' : suggestion.type === 'warning' ? 'text-warning-500' : 'text-primary-500'}
+									></iconify-icon>
 								</div>
 								<div class="flex-1 min-w-0">
 									<div class="font-bold text-sm truncate" title={suggestion.title}>{suggestion.title}</div>
@@ -117,7 +112,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 					{/each}
 				{:else}
 					<div class="alert variant-soft-success">
-						<CircleCheck class="text-xl" />
+						<iconify-icon icon="mdi:check-circle" class="text-xl"></iconify-icon>
 						<span class="text-sm">No issues found!</span>
 					</div>
 				{/if}

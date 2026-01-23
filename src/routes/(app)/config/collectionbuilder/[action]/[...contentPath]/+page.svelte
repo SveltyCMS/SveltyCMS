@@ -18,8 +18,6 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	import { logger } from '@utils/logger';
 	import axios from 'axios';
 	import { onMount } from 'svelte';
@@ -233,7 +231,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	<!-- Back -->
 	<button onclick={() => history.back()} type="button" aria-label="Back" class="preset-outlined-primary-500 btn-icon">
-		<ArrowLeft size={24} />
+		<iconify-icon icon="mdi:arrow-left" width="24"></iconify-icon>
 	</button>
 </div>
 
@@ -266,7 +264,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 				<!-- Edit -->
 				<Tabs.Trigger value="0">
 					<div class="flex items-center gap-1 py-2 px-4">
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="mdi:pencil" width="24"></iconify-icon>
 						<span class:active={tabSet.value === 0} class:text-tertiary-500={tabSet.value === 0} class:text-primary-500={tabSet.value === 0}
 							>{m.button_edit()}</span
 						>
@@ -276,7 +274,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 				<!-- Widget Fields -->
 				<Tabs.Trigger value="1" data-testid="widget-fields-tab">
 					<div class="flex items-center gap-1 py-2 px-4">
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="mdi:widgets" width="24"></iconify-icon>
 						<span class:active={tabSet.value === 1} class:text-tertiary-500={tabSet.value === 2} class:text-primary-500={tabSet.value === 2}
 							>{m.collection_widgetfields()}</span
 						>

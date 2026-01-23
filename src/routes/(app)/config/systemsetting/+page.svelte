@@ -15,9 +15,6 @@ All dynamic CMS settings organized into logical groups
 -->
 
 <script lang="ts">
-	import Settings from '@lucide/svelte/icons/settings';
-	import Search from '@lucide/svelte/icons/search';
-
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';

@@ -25,9 +25,6 @@ Key features:
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
-
 	// Utils
 	import type { MediaBase, MediaImage, MediaTypeEnum } from '@utils/media/mediaModels';
 	import { logger } from '@utils/logger';
@@ -149,7 +146,7 @@ Key features:
 <div class="block w-full overflow-hidden">
 	{#if filteredFiles.length === 0}
 		<div class="mx-auto text-center text-tertiary-500 dark:text-primary-500">
-			<CircleQuestionMark size={24} class="mb-2" />
+			<iconify-icon icon="bi:exclamation-circle-fill" width={24} class="mb-2"></iconify-icon>
 			<p class="text-lg">No media found</p>
 		</div>
 	{:else}
@@ -166,7 +163,7 @@ Key features:
 							selectedFiles.clear();
 						}}
 					>
-						<Trash2 size={24} />
+						<iconify-icon icon="mdi:trash-can-outline" width={24}></iconify-icon>
 						<span>Delete ({selectedFiles.size})</span>
 					</button>
 				{/if}
@@ -235,7 +232,7 @@ Key features:
 										aria-label="Missing thumbnail"
 										role="img"
 									>
-										<CircleQuestionMark size={24} class="text-warning-500" />
+										<iconify-icon icon="bi:exclamation-triangle-fill" width={24} class="text-warning-500"></iconify-icon>
 									</div>
 								{/if}
 							</td>
@@ -275,7 +272,7 @@ Key features:
 												onclick={() => openTagEditor(file as MediaImage)}
 												aria-label="Manage Tags"
 											>
-												<CircleQuestionMark size={24} />
+												<iconify-icon icon="mdi:tag-edit" width={24}></iconify-icon>
 											</button>
 										</Tooltip.Trigger>
 										<Portal>

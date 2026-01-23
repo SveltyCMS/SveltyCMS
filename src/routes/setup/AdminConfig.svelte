@@ -21,11 +21,8 @@
 
 -->
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
-	// Using iconify-icon web component
 	import * as m from '@src/paraglide/messages';
-	import type { ValidationErrors } from '@stores/setupStore.svelte.ts';
+	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { setupAdminSchema } from '@utils/formSchemas';
 	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
@@ -100,7 +97,7 @@
 			<!-- Username -->
 			<div>
 				<label for="admin-username" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:account" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span class="text-black dark:text-white">{m.form_username?.() || 'Username'}</span>
 					<Tooltip positioning={{ placement: 'top' }}>
 						<Tooltip.Trigger>
@@ -110,7 +107,7 @@
 								aria-label={m.setup_help_admin_username?.() || 'Help: Username'}
 								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 							</button>
 						</Tooltip.Trigger>
 						<Portal>
@@ -156,7 +153,7 @@
 			<!-- Email -->
 			<div>
 				<label for="admin-email" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:email" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span class="text-black dark:text-white">{m.form_email?.() || 'Email'}</span>
 					<Tooltip positioning={{ placement: 'top' }}>
 						<Tooltip.Trigger>
@@ -166,7 +163,7 @@
 								aria-label={m.setup_help_admin_email?.() || 'Help: Email'}
 								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 							</button>
 						</Tooltip.Trigger>
 						<Portal>
@@ -212,7 +209,7 @@
 			<!-- Password -->
 			<div>
 				<label for="admin-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span class="text-black dark:text-white">{m.form_password()}</span>
 					<Tooltip positioning={{ placement: 'top' }}>
 						<Tooltip.Trigger>
@@ -222,7 +219,7 @@
 								aria-label={m.setup_help_admin_password?.() || 'Help: Password'}
 								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 							</button>
 						</Tooltip.Trigger>
 						<Portal>
@@ -261,11 +258,7 @@
 						class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
 						aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
 					>
-						{#if showAdminPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)}<Icon
-								icon={showAdminPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)}
-								size={18}
-								aria-hidden="true"
-							/>{/if}
+						<iconify-icon icon={showAdminPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
 					</button>
 				</div>
 				{#if displayErrors.password}
@@ -278,7 +271,7 @@
 			<!-- Confirm Password -->
 			<div>
 				<label for="admin-confirm-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:key" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span class="text-black dark:text-white">{m.form_confirmpassword?.() || 'Confirm Password'}</span>
 					<Tooltip positioning={{ placement: 'top' }}>
 						<Tooltip.Trigger>
@@ -288,7 +281,7 @@
 								aria-label={m.setup_help_admin_confirm_password?.() || 'Help: Confirm Password'}
 								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 							</button>
 						</Tooltip.Trigger>
 						<Portal>
@@ -327,11 +320,7 @@
 						class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
 						aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
 					>
-						{#if showConfirmPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)}<Icon
-								icon={showConfirmPassword ? 'mdi:eye-off' : ('mdi:eye' as keyof typeof iconsData)}
-								size={18}
-								aria-hidden="true"
-							/>{/if}
+						<iconify-icon icon={showConfirmPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
 					</button>
 				</div>
 				{#if displayErrors.confirmPassword}
@@ -359,7 +348,7 @@
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
 						{#if passwordRequirements.length}
-							<CircleQuestionMark size={24} class="h-3.5 w-3.5" />
+							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"></iconify-icon>
 						{/if}
 					</span>
 					{m.setup_help_admin_password_requirements_length?.() || 'Minimum 8 characters'}
@@ -376,7 +365,7 @@
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
 						{#if passwordRequirements.letter}
-							<CircleQuestionMark size={24} class="h-3.5 w-3.5" />
+							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"></iconify-icon>
 						{/if}
 					</span>
 					{m.setup_help_admin_password_requirements_letter?.() || 'At least one letter (A-Z or a-z)'}
@@ -393,7 +382,7 @@
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
 						{#if passwordRequirements.number}
-							<CircleQuestionMark size={24} class="h-3.5 w-3.5" />
+							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"></iconify-icon>
 						{/if}
 					</span>
 					{m.setup_help_admin_password_requirements_number?.() || 'At least one number (0-9)'}
@@ -410,7 +399,7 @@
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
 						{#if passwordRequirements.special}
-							<CircleQuestionMark size={24} class="h-3.5 w-3.5" />
+							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"></iconify-icon>
 						{/if}
 					</span>
 					{m.setup_help_admin_password_requirements_character?.() || 'At least one special character (@$!%*#?&)'}
@@ -425,7 +414,7 @@
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
 						{#if passwordRequirements.match}
-							<CircleQuestionMark size={24} class="h-3.5 w-3.5" />
+							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"></iconify-icon>
 						{/if}
 					</span>
 					{m.setup_help_admin_password_requirements_match?.() || 'Passwords match'}
@@ -433,7 +422,7 @@
 				</li>
 				<li class="mt-2 flex items-center justify-center border-t border-slate-200 pt-2 font-bold dark:border-slate-700 dark:text-white">
 					<span class="mr-2 inline-flex h-5 w-5 items-center justify-center">
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="mdi:shield-check" width="18" class="text-error-500" aria-hidden="true"></iconify-icon>
 					</span>
 					{m.setup_help_admin_password_requirements_account_note?.() || 'This account will have full administrative privileges'}
 				</li>

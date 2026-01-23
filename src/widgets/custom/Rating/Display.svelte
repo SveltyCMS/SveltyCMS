@@ -41,11 +41,9 @@ Renders: ★★★★☆ (4 filled stars, 1 empty star)
 	<div class="display-wrapper" title="{value} out of {field.max || 5} stars">
 		{#each stars as _, i}
 			{#if i < value}
-				{#if iconFull as keyof typeof iconsData}
-					<iconify-icon icon={iconFull as keyof typeof iconsData} class="text-warning-500" />
-				{/if}
-			{:else if iconEmpty as keyof typeof iconsData}
-				<iconify-icon icon={iconEmpty as keyof typeof iconsData} class="text-gray-300" />
+				<iconify-icon icon={iconFull} width="24" class="text-warning-500"></iconify-icon>
+			{:else}
+				<iconify-icon icon={iconEmpty} width="24" class="text-gray-300"></iconify-icon>
 			{/if}
 		{/each}
 	</div>

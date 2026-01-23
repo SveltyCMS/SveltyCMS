@@ -64,14 +64,10 @@ Interactive star rating with hover states and click selection
 				{#each { length: Number(field.max) || 5 } as _, i}
 					<RatingGroup.Item index={i + 1}>
 						{#snippet empty()}
-							{#if iconEmpty as keyof typeof iconsData}
-								<iconify-icon icon={iconEmpty as keyof typeof iconsData} size={24} class="text-surface-400" />
-							{/if}
+							<iconify-icon icon={iconEmpty} width="24" class="text-surface-400"></iconify-icon>
 						{/snippet}
 						{#snippet full()}
-							{#if iconFull as keyof typeof iconsData}
-								<iconify-icon icon={iconFull as keyof typeof iconsData} size={24} class={error ? 'text-error-500' : 'text-warning-500'} />
-							{/if}
+							<iconify-icon icon={iconFull} width="24" class={error ? 'text-error-500' : 'text-warning-500'}></iconify-icon>
 						{/snippet}
 					</RatingGroup.Item>
 				{/each}

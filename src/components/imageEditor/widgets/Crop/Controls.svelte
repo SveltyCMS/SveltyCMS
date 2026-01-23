@@ -4,9 +4,6 @@
 Modern controls for the Crop tool. Injected into the master toolbar.
 -->
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import X from '@lucide/svelte/icons/x';
-
 	let {
 		onRotateLeft,
 		onRotateRight,
@@ -42,10 +39,10 @@ Modern controls for the Crop tool. Injected into the master toolbar.
 	<!-- Shape -->
 	<div class="btn-group preset-outlined-surface-500">
 		<button class="btn-sm" class:active={cropShape === 'rectangle'} onclick={() => onCropShapeChange('rectangle')} title="Rectangle">
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:rectangle-outline"></iconify-icon>
 		</button>
 		<button class="btn-sm" class:active={cropShape === 'circular'} onclick={() => onCropShapeChange('circular')} title="Circle">
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:circle-outline"></iconify-icon>
 		</button>
 	</div>
 
@@ -53,26 +50,26 @@ Modern controls for the Crop tool. Injected into the master toolbar.
 
 	<!-- Rotate & Flip -->
 	<button class="btn btn-icon btn-sm preset-outlined-surface-500" onclick={onRotateLeft} title="Rotate Left">
-		<CircleQuestionMark size={24} />
+		<iconify-icon icon="mdi:rotate-left"></iconify-icon>
 	</button>
 	<button class="btn btn-icon btn-sm preset-outlined-surface-500" onclick={onRotateRight} title="Rotate Right">
-		<CircleQuestionMark size={24} />
+		<iconify-icon icon="mdi:rotate-right"></iconify-icon>
 	</button>
 	<button class="btn btn-icon btn-sm preset-outlined-surface-500" onclick={onFlipHorizontal} title="Flip Horizontal">
-		<CircleQuestionMark size={24} />
+		<iconify-icon icon="mdi:flip-horizontal"></iconify-icon>
 	</button>
 
 	<div class="grow"></div>
 
 	<!-- Cancel -->
 	<button class="btn preset-outlined-error-500" onclick={onCancel}>
-		<X />
+		<iconify-icon icon="mdi:close"></iconify-icon>
 		<span>Cancel</span>
 	</button>
 
 	<!-- Apply -->
 	<button class="btn preset-filled-success-500" onclick={onApply}>
-		<Check />
+		<iconify-icon icon="mdi:check"></iconify-icon>
 		<span>Apply Crop</span>
 	</button>
 </div>

@@ -14,8 +14,6 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	import { untrack } from 'svelte';
 	// Stores
 	import { page } from '$app/state';
@@ -23,7 +21,7 @@
 	import { collection, setCollection } from '@root/src/stores/collectionStore.svelte';
 
 	// Components
-	import IconPicker from '@components/IconPicker.svelte';
+	import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -175,7 +173,7 @@
 		<div class="flex flex-col">
 			<label for="name" class="mb-1 flex items-center font-medium">
 				{m.collection_name()} <span class="mx-1 text-error-500">*</span>
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="material-symbols:info" width={24}></iconify-icon>
 			</label>
 			<input
 				type="text"
@@ -207,16 +205,16 @@
 		<div class="flex flex-col">
 			<label for="icon" class="mb-1 flex items-center font-medium">
 				{m.collectionname_labelicon()}
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="material-symbols:info" width={24}></iconify-icon>
 			</label>
-			<IconPicker bind:iconselected={selectedIcon} bind:searchQuery />
+			<IconifyIconsPicker bind:iconselected={selectedIcon} bind:searchQuery />
 		</div>
 
 		<!-- Slug -->
 		<div class="flex flex-col">
 			<label for="slug" class="mb-1 flex items-center font-medium">
 				{m.collection_slug()}
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="material-symbols:info" width={24}></iconify-icon>
 			</label>
 			<input type="text" id="slug" bind:value={slug} placeholder={m.collection_slug_input()} class="input w-full text-black dark:text-primary-500" />
 		</div>
@@ -225,7 +223,7 @@
 		<div class="flex flex-col">
 			<label for="description" class="mb-1 flex items-center font-medium">
 				{m.collectionname_description()}
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="material-symbols:info" width={24}></iconify-icon>
 			</label>
 			<textarea
 				id="description"
@@ -240,7 +238,7 @@
 		<div class="flex flex-col">
 			<label for="status" class="mb-1 flex items-center font-medium">
 				{m.collection_status()}
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="material-symbols:info" width={24}></iconify-icon>
 			</label>
 			<select id="status" bind:value={status} class="select w-full text-black dark:text-primary-500">
 				{#each statuses as statusOption}

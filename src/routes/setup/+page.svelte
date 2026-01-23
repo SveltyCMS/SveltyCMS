@@ -3,8 +3,6 @@
 @description Professional multi-step setup wizard for SveltyCMS.
 -->
 <script lang="ts">
-	import X from '@lucide/svelte/icons/x';
-
 	// Using iconify-icon web component
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -247,10 +245,7 @@
 								</svg>
 								<div class="flex-1">{wizard.successMessage || wizard.errorMessage}</div>
 								<button type="button" class="btn-sm flex shrink-0 items-center gap-1" onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}>
-									{#if wizard.showDbDetails ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)}<Icon
-											icon={wizard.showDbDetails ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)}
-											class="h-4 w-4"
-										/>{/if}
+									<iconify-icon icon={wizard.showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
 									<span class="hidden sm:inline">{wizard.showDbDetails ? m.setup_db_test_details_hide() : m.setup_db_test_details_show()}</span>
 								</button>
 								<button
@@ -259,7 +254,7 @@
 									aria-label="Close message"
 									onclick={setupStore.clearDbTestError}
 								>
-									<X class="h-4 w-4" />
+									<iconify-icon icon="mdi:close" class="h-4 w-4"></iconify-icon>
 								</button>
 							</div>
 							{#if wizard.showDbDetails && wizard.lastDbTestResult}

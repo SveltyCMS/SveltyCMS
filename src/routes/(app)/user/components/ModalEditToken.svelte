@@ -21,8 +21,6 @@ It handles token creation, updates, and deletion with proper validation and erro
 	import { page } from '$app/state';
 
 	// Lucide icons
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
 
 	// Skeleton & Stores
 	import { toaster } from '@stores/store.svelte.ts';
@@ -265,7 +263,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 									onclick={() => (tokenForm.data.role = r._id)}
 								>
 									{#if tokenForm.data.role === r._id}
-										<span><CircleQuestionMark size={24} /></span>
+										<span><iconify-icon icon="fa:check" width={24}></iconify-icon></span>
 									{/if}
 									<span class="capitalize">{r.name}</span>
 								</button>
@@ -300,7 +298,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 			<!-- Delete - Only show for existing tokens -->
 			{#if tokenForm.data.token}
 				<button type="button" onclick={deleteToken} class="preset-filled-error-500 btn">
-					<Trash2 size={24} /><span class="hidden sm:block">{m.button_delete()}</span>
+					<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
 				</button>
 			{/if}
 			<!-- Cancel -->

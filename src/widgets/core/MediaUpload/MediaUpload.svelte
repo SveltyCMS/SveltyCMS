@@ -22,8 +22,6 @@ functionality for image editing and basic file information display.
 - **Styling**: Adheres to the project's style guide using Tailwind CSS utility classes and semantic colors.
 -->
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	import type { ISODateString } from '@src/content/types';
 	import { convertTimestampToDateString, getFieldName } from '@utils/utils';
 	import { isoDateStringToDate } from '@utils/dateUtils';
@@ -278,7 +276,7 @@ functionality for image editing and basic file information display.
 									tabindex="0"
 									aria-label="Set focal point"
 								>
-									<CircleQuestionMark size={24} />
+									<iconify-icon icon="mdi:plus-circle-outline" width={24}></iconify-icon>
 								</div>
 							{/if}
 						</div>
@@ -303,17 +301,17 @@ functionality for image editing and basic file information display.
 					<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
 						<!-- Edit -->
 						<button onclick={() => (showEditor = true)} aria-label="Edit image" class="preset-outlined-surface-500 btn-icon" title="Edit image">
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="material-symbols:edit" width={24}></iconify-icon>
 						</button>
 
 						<!-- Flip -->
 						<button onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" class="preset-outlined-surface-500 btn-icon" title="Flip details">
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="uiw:reload" width={24}></iconify-icon>
 						</button>
 
 						<!-- Delete -->
 						<button onclick={() => (value = undefined)} aria-label="Delete" class="preset-outlined-surface-500 btn-icon" title="Delete image">
-							<CircleQuestionMark size={30} />
+							<iconify-icon icon="material-symbols:delete-outline" width={30}></iconify-icon>
 						</button>
 					</div>
 				</div>

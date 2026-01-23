@@ -4,8 +4,6 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	import type { PageData } from './$types';
 
 	// Components
@@ -122,7 +120,7 @@
 				aria-label={m.button_send()}
 				class="variant-filled btn items-center"
 			>
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="flat-color-icons:google" width={24}></iconify-icon>
 				<p>{m.oauth_signup()}</p>
 			</button>
 		</div>

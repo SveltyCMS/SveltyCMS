@@ -4,10 +4,8 @@
 -->
 
 <script lang="ts">
-	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	// Components
 	// Using iconify-icon web component
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 
 	// Data
 
@@ -456,11 +454,11 @@
 										title={btn.label}
 									>
 										{#if btn.icon}
-											<CircleQuestionMark size={24} />
+											<iconify-icon icon="mdi:{btn.icon}" width="24"></iconify-icon>
 										{/if}
 										{#if !btn.icon || btn.label !== 'Table'}
 											<span class={btn.icon ? 'hidden sm:inline' : ''}>{btn.label}</span>
-											{#if 'chevron-down' as keyof typeof iconsData}<ChevronDown icon={ChevronDown} size={16} />{/if}
+											<iconify-icon icon="mdi:chevron-down" width="16"></iconify-icon>
 										{/if}
 									</button>
 									{#if activeDropdown === btn.label}
@@ -538,7 +536,7 @@
 									title={btn.shortcut ? `${btn.label} (${btn.shortcut})` : btn.label}
 									onclick={btn.cmd}
 								>
-									<CircleQuestionMark size={24} />
+									<iconify-icon icon="mdi:{btn.icon}" width="24"></iconify-icon>
 								</button>
 							{/if}
 						{/each}
@@ -675,7 +673,7 @@
 							showSlashMenu = false;
 						}}
 					>
-						<CircleQuestionMark size={22} />
+						<iconify-icon icon="mdi:arrow-down-bold" width="22"></iconify-icon>
 						<div class="text-left">
 							<div class="font-medium text-surface-900 dark:text-white">Hard Break</div>
 							<div class="text-sm text-surface-500 dark:text-surface-50">Insert line break</div>
@@ -689,7 +687,7 @@
 								showSlashMenu = false;
 							}}
 						>
-							<CircleQuestionMark size={22} />
+							<iconify-icon icon="mdi:sparkles" width="22"></iconify-icon>
 							<div class="text-left">
 								<div class="font-medium text-surface-900 dark:text-white">Ask AI</div>
 								<div class="text-sm text-surface-500 dark:text-surface-50">Generate or rewrite with AI</div>

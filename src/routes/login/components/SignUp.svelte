@@ -23,9 +23,6 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-
 	import { logger } from '@utils/logger';
 	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
@@ -292,7 +289,7 @@
 					{m.form_required()}
 
 					<button onclick={handleBack} aria-label="Back" class="btn-icon rounded-full preset-outlined-secondary-500">
-						<ArrowLeft size={24} />
+						<iconify-icon icon="ri:arrow-left-line" width={24}></iconify-icon>
 					</button>
 				</div>
 
@@ -463,7 +460,7 @@
 							</button>
 
 							<button type="button" onclick={handleOAuth} aria-label="OAuth" class="btn flex w-1/4 items-center justify-center">
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="flat-color-icons:google" width={24}></iconify-icon>
 								<span class="">OAuth</span>
 							</button>
 						</div>

@@ -5,8 +5,6 @@ Displays real-time system metrics integrated with the dashboard grid system
 -->
 
 <script lang="ts" module>
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	export const widgetMeta = {
 		name: 'Performance Monitor',
 		icon: 'mdi:chart-line',
@@ -87,7 +85,7 @@ Displays real-time system metrics integrated with the dashboard grid system
 		{#if !metrics}
 			<div class="flex h-full items-center justify-center text-surface-500">
 				<div class="text-center">
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:chart-line" width={24}></iconify-icon>
 					<p>Loading metrics...</p>
 				</div>
 			</div>

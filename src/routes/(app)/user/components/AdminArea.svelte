@@ -12,9 +12,6 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import X from '@lucide/svelte/icons/x';
-
 	// Type guards for template and logic
 	function isToken(row: User | Token): row is Token {
 		return 'token' in row && typeof row.token === 'string';
@@ -575,7 +572,7 @@
 
 	<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
 		<button onclick={modalTokenUser} aria-label={m.adminarea_emailtoken()} class="gradient-primary btn w-full text-white sm:max-w-xs">
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="material-symbols:mail" width={24}></iconify-icon>
 			<span class="whitespace-normal wrap-break-word">{m.adminarea_emailtoken()}</span>
 		</button>
 
@@ -593,7 +590,7 @@
 				aria-label={showUsertoken ? m.adminarea_hideusertoken() : m.adminarea_showtoken()}
 				class="gradient-secondary btn w-full text-white sm:max-w-xs"
 			>
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="material-symbols:key-outline" width={24}></iconify-icon>
 				<span>{showUsertoken ? m.adminarea_hideusertoken() : m.adminarea_showtoken()}</span>
 			</button>
 
@@ -608,7 +605,7 @@
 						aria-label={showExpiredTokens ? 'Hide Expired Tokens' : 'Show Expired Tokens'}
 						class="gradient-secondary btn w-full text-white sm:max-w-xs"
 					>
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="material-symbols:schedule" width={24}></iconify-icon>
 						<span>{showExpiredTokens ? 'Hide Expired' : 'Show Expired'}</span>
 					</button>
 				{/if}
@@ -620,7 +617,7 @@
 			aria-label={showUserList ? m.adminarea_hideuserlist() : m.adminarea_showuserlist()}
 			class="gradient-tertiary btn w-full text-white sm:max-w-xs"
 		>
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:account-circle" width={24}></iconify-icon>
 			<span>{showUserList ? m.adminarea_hideuserlist() : m.adminarea_showuserlist()}</span>
 		</button>
 	</div>
@@ -668,7 +665,7 @@
 									}}
 								>
 									{#if header.visible}
-										<span><CircleQuestionMark size={24} /></span>
+										<span><iconify-icon icon="fa:check" width={24}></iconify-icon></span>
 									{/if}
 									<span class="ml-2 capitalize">{header.label}</span>
 								</button>
@@ -688,7 +685,7 @@
 								<th>
 									{#if Object.keys(filters).length > 0}
 										<button onclick={() => (filters = {})} aria-label="Clear All Filters" class="preset-outline btn-icon">
-											<X size={24} />
+											<iconify-icon icon="material-symbols:close" width={24}></iconify-icon>
 										</button>
 									{/if}
 								</th>
@@ -735,7 +732,8 @@
 								>
 									<div class="flex items-center justify-center gap-1">
 										{header.label}
-										<CircleQuestionMark size={18} class="origin-center duration-300 ease-in-out" />
+										<iconify-icon icon="material-symbols:arrow-upward-rounded" width={18} class="origin-center duration-300 ease-in-out"
+										></iconify-icon>
 									</div>
 								</th>
 							{/each}
@@ -826,7 +824,7 @@
 															});
 													}}
 												>
-													<CircleQuestionMark size={24} />
+													<iconify-icon icon="oui:copy-clipboard" width={24}></iconify-icon>
 												</button>
 											</div>
 										{:else if header.key === 'token'}
@@ -850,7 +848,7 @@
 															});
 													}}
 												>
-													<CircleQuestionMark size={24} />
+													<iconify-icon icon="oui:copy-clipboard" width={24}></iconify-icon>
 												</button>
 											</div>
 										{:else if ['createdAt', 'updatedAt', 'lastAccess', 'expires'].includes(header.key)}
@@ -868,7 +866,7 @@
 												<span class={isTokenExpired ? 'font-semibold text-error-500' : ''}>
 													{remainingTime}
 													{#if isTokenExpired}
-														<CircleQuestionMark size={24} class="ml-1 text-error-500" />
+														<iconify-icon icon="material-symbols:warning" width={24} class="ml-1 text-error-500"></iconify-icon>
 													{/if}
 												</span>
 											{:else}

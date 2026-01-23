@@ -16,8 +16,6 @@
 	
 -->
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
 	import { toaster } from '@stores/store.svelte.ts';
@@ -321,7 +319,7 @@
 		aria-label="File drop zone"
 	>
 		<div class="grid grid-cols-6 items-center p-4">
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="fa6-solid:file-arrow-up" width={24}></iconify-icon>
 
 			<div class="col-span-5 space-y-4 text-center">
 				<p class="font-bold">
@@ -372,7 +370,7 @@
 						<Tooltip positioning={{ placement: 'top' }}>
 							<Tooltip.Trigger>
 								<button type="button" onclick={() => handleDeleteFile(file)} class="btn-icon rounded-full" aria-label="Remove file">
-									<CircleQuestionMark size={24} />
+									<iconify-icon icon="material-symbols:delete" width={24}></iconify-icon>
 								</button>
 							</Tooltip.Trigger>
 							<Portal>
@@ -394,11 +392,9 @@
 							<audio controls class="max-w-full">
 								<source src={previewUrl} type={file.type} />
 							</audio>
-						{:else if iconName as keyof typeof iconsData}<Icon
-								icon={iconName as keyof typeof iconsData}
-								size={48}
-								class="opacity-50"
-							/>{/if}
+						{:else}
+							<iconify-icon icon={iconName} width="48" class="opacity-50"></iconify-icon>
+						{/if}
 					</div>
 
 					<!-- Media Filename -->
@@ -413,10 +409,7 @@
 					<div class="flex grow items-center justify-between p-1 text-white">
 						<!-- Type -->
 						<div class="bg-tertiary-500 dark:bg-primary-500/50 badge flex items-center gap-1 overflow-hidden" title={file.type}>
-							{#if iconName as keyof typeof iconsData}<Icon
-									icon={iconName as keyof typeof iconsData}
-									size={12}
-								/>{/if}
+							<iconify-icon icon={iconName} width="12"></iconify-icon>
 							<span class="truncate text-[10px] uppercase">{formatMimeType(file.type)}</span>
 						</div>
 						<!-- Size -->
@@ -430,7 +423,7 @@
 
 			<!-- Add File Card -->
 			<button type="button" class="btn preset-tonal-surface-500 flex-col items-center gap-2" onclick={() => input?.click()}>
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="mingcute:add-fill" width={24}></iconify-icon>
 				<span class="font-bold">Add Files</span>
 			</button>
 		</div>
@@ -443,10 +436,10 @@
 			<button type="button" class="btn preset-outlined-surface-500" onclick={handleCancel}>Cancel</button>
 			<button type="button" class="btn dark:preset-filled-primary-500 preset-filled-tertiary-500" onclick={uploadLocalFiles} disabled={isUploading}>
 				{#if isUploading}
-					<CircleQuestionMark size={24} class="animate-spin" />
+					<iconify-icon icon="eos-icons:loading" width={24} class="animate-spin"></iconify-icon>
 					<span>Uploading... {uploadProgress}%</span>
 				{:else}
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mingcute:check-fill" width={24}></iconify-icon>
 					<span>Upload {files.length} File{files.length !== 1 ? 's' : ''}</span>
 				{/if}
 			</button>

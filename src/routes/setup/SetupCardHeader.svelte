@@ -4,8 +4,6 @@
 Displays the current step title and icon, and a reset button.
 -->
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	// Using iconify-icon web component
 	const { currentStep, steps, onreset = () => {} } = $props();
 
@@ -15,22 +13,18 @@ Displays the current step title and icon, and a reset button.
 <div class="flex shrink-0 justify-between border-b px-4 py-3 sm:px-6 sm:py-4">
 	<h2 class="flex justify-center items-center text-lg font-semibold tracking-tight sm:text-xl text-black dark:text-white">
 		{#if icons[currentStep]}
-			{#if icons[currentStep as keyof typeof iconsData] as any}<Icon
-					icon={icons[currentStep as keyof typeof iconsData] as any}
-					class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5"
-					aria-hidden="true"
-				/>{/if}
+			<iconify-icon icon={icons[currentStep]} class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
 		{/if}
 		{steps[currentStep]?.label || 'Loading...'}
 	</h2>
 	<button
 		onclick={() => onreset()}
 		type="button"
-		class="dark:text-secondary-50 preset-outlined-surface-500 btn-sm rounded"
+		class="flex items-center dark:text-secondary-50 preset-outlined btn-sm rounded"
 		aria-label="Reset data"
 		title="Reset data"
 	>
-		<CircleQuestionMark size={24} class="mr-1" />
-		<span class="sm:inline">Reset Data</span>
+		<iconify-icon icon="mdi:backup-restore" width={24} class="mr-1"></iconify-icon>
+		<span class="">Reset Data</span>
 	</button>
 </div>

@@ -13,8 +13,6 @@ Usage:
 -->
 
 <script lang="ts">
-	import X from '@lucide/svelte/icons/x';
-
 	interface Props {
 		// Export props for external binding
 		size?: string;

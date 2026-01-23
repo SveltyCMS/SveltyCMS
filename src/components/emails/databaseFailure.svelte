@@ -5,6 +5,7 @@
 	 * Database failure notification email for administrators
 	 * Sent when database connection fails and automatic recovery attempts are exhausted
 	 */
+
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text, Row, Column } from 'better-svelte-email';

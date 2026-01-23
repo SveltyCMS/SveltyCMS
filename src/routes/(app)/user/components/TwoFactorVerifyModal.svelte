@@ -25,8 +25,6 @@ This modal			class="input text-center font-mono tracking-wider"
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	import { modalState } from '@utils/modalState.svelte';
 	import * as m from '@src/paraglide/messages';
 
@@ -116,7 +114,7 @@ This modal			class="input text-center font-mono tracking-wider"
 <div class="max-w-md p-6">
 	<div class="mb-6 text-center">
 		<div class="mb-4">
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:shield-lock" width="48" class="text-primary-500"></iconify-icon>
 		</div>
 
 		<h4 class="h4 mb-2">
@@ -176,10 +174,10 @@ This modal			class="input text-center font-mono tracking-wider"
 			class="preset-filled-primary-500 btn flex-1"
 		>
 			{#if isVerifying}
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="mdi:loading" width="20" class="mr-2 animate-spin"></iconify-icon>
 				{m.twofa_verifying()}
 			{:else}
-				<Check size={20} class="mr-2" />
+				<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
 				{m.twofa_verify_button()}
 			{/if}
 		</button>

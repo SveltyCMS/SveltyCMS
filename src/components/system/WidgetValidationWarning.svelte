@@ -30,10 +30,6 @@ Provides clear information about the issue and actionable steps to resolve it.
 	import { logger } from '@utils/logger';
 
 	// Lucide Icons
-	import CircleAlert from '@lucide/svelte/icons/circle-alert';
-	import CloseIcon from '@lucide/svelte/icons/x';
-	import Power from '@lucide/svelte/icons/power';
-	import Settings from '@lucide/svelte/icons/settings';
 
 	const { collectionName = '', fieldsWithIssues = [], missingWidgets = [], onActivateWidgets = () => {}, onDismiss = undefined } = $props();
 
@@ -59,13 +55,13 @@ Provides clear information about the issue and actionable steps to resolve it.
 {#if !dismissed && fieldsWithIssues.length > 0}
 	<div class="widget-validation-warning alert-warning alert" role="alert" aria-live="polite">
 		<div class="warning-header">
-			<CircleAlert size={24} />
+			<iconify-icon icon="mdi:alert-circle" width={24}></iconify-icon>
 			<h4 class="warning-title">
 				⚠️ Inactive Widgets Detected in "{collectionName}"
 			</h4>
 			{#if onDismiss}
 				<button type="button" class="dismiss-btn" onclick={handleDismiss} aria-label="Dismiss warning">
-					<CloseIcon size={20} />
+					<iconify-icon icon="mdi:close" width={20}></iconify-icon>
 				</button>
 			{/if}
 		</div>
@@ -88,11 +84,11 @@ Provides clear information about the issue and actionable steps to resolve it.
 
 			<div class="warning-actions">
 				<button type="button" class="btn-primary btn" onclick={handleActivate}>
-					<Power size={18} />
+					<iconify-icon icon="mdi:power" width={18}></iconify-icon>
 					Activate Missing Widgets ({missingWidgets.length})
 				</button>
 				<a href="/dashboard/widgets" class="btn-secondary btn">
-					<Settings size={18} />
+					<iconify-icon icon="mdi:cog" width={18}></iconify-icon>
 					Manage Widgets
 				</a>
 			</div>

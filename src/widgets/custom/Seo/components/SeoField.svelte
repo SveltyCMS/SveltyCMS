@@ -3,8 +3,6 @@
 	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	// Lucide Icons
-	import Info from '@lucide/svelte/icons/info';
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 
 	import type { Snippet } from 'svelte';
 
@@ -60,7 +58,7 @@
 			<span class="font-bold text-sm">{label}</span>
 			{@render icon?.()}
 			<span class="text-surface-400 cursor-help" title={placeholder}>
-				<Info size={16} />
+				<iconify-icon icon="mdi:information-outline" width={16}></iconify-icon>
 			</span>
 		</div>
 		<div class="flex items-center gap-3 text-xs">
@@ -72,7 +70,7 @@
 					inputRef?.focus();
 				}}
 			>
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="mdi:code-braces" width={24}></iconify-icon>
 			</button>
 			{#if maxLength}
 				{#if type === 'input'}
@@ -83,7 +81,7 @@
 			{/if}
 			{#if translated}
 				<div class="flex items-center gap-1 text-xs">
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="bi:translate" width={24}></iconify-icon>
 					<span class="font-medium text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
 					<span class="font-medium text-surface-400">({translationPct}%)</span>
 				</div>

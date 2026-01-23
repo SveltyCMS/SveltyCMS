@@ -12,7 +12,7 @@
  */
 
 // Import components needed for the GuiSchema
-import IconPicker from '@components/IconPicker.svelte';
+import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
 import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 
@@ -60,8 +60,8 @@ const RatingWidget = createWidget<RatingProps>({
 		db_fieldName: { widget: Input, required: false },
 		required: { widget: Toggles, required: false },
 		max: { widget: Input, required: false, helper: 'Maximum number of stars.' },
-		iconFull: { widget: IconPicker, required: false },
-		iconEmpty: { widget: IconPicker, required: false }
+		iconFull: { widget: IconifyIconsPicker, required: false },
+		iconEmpty: { widget: IconifyIconsPicker, required: false }
 	},
 
 	// Aggregations perform numeric comparisons.

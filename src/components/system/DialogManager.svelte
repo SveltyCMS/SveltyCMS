@@ -13,8 +13,6 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-
 	import { tick } from 'svelte';
 	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { modalState } from '@utils/modalState.svelte';
@@ -48,8 +46,8 @@
 							<Dialog.Title class="h3 font-bold">
 								{modalState.active.props.title}
 							</Dialog.Title>
-							<Dialog.CloseTrigger class="btn-icon btn-sm preset-tonal-surface-500  hover:variant-filled">
-								<CircleQuestionMark size={24} />
+							<Dialog.CloseTrigger class="btn-icon btn-sm preset-tonal  hover:variant-filled">
+								<iconify-icon icon="mingcute:close-fill"></iconify-icon>
 							</Dialog.CloseTrigger>
 						</div>
 					{/if}

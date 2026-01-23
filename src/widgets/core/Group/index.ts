@@ -15,7 +15,7 @@
  */
 
 // Components needed for the GuiSchema
-import IconPicker from '@components/IconPicker.svelte';
+import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
 import PermissionsSetting from '@components/PermissionsSetting.svelte';
 import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
@@ -57,7 +57,7 @@ const GroupWidget = createWidget<GroupProps>({
 		collapsed: { widget: Toggles, required: false },
 		variant: { widget: Input, required: false },
 		db_fieldName: { widget: Input, required: false },
-		icon: { widget: IconPicker, required: false },
+		icon: { widget: IconifyIconsPicker, required: false },
 		helper: { widget: Input, required: false },
 		width: { widget: Input, required: false },
 		permissions: { widget: PermissionsSetting, required: false }

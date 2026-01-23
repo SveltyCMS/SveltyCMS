@@ -5,9 +5,6 @@ Toolbar controls for the FocalPoint widget
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import X from '@lucide/svelte/icons/x';
-
 	interface Props {
 		focalX?: number;
 		focalY?: number;
@@ -38,17 +35,17 @@ Toolbar controls for the FocalPoint widget
 	<!-- Actions -->
 	<div class="flex items-center gap-2">
 		<button onclick={onReset} class="btn preset-outlined-surface-500btn-sm" title="Reset to center">
-			<CircleQuestionMark size={24} />
+			<iconify-icon icon="mdi:restore" width="18"></iconify-icon>
 			<span>Reset</span>
 		</button>
 
 		<button onclick={onCancel} class="btn preset-outlined-error-500 btn-sm" title="Discard changes">
-			<X size={18} />
+			<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 			<span>Cancel</span>
 		</button>
 
 		<button onclick={onApply} class="btn preset-filled-primary-500 btn-sm" title="Apply focal point">
-			<Check size={18} />
+			<iconify-icon icon="mdi:check" width="18"></iconify-icon>
 			<span>Apply</span>
 		</button>
 	</div>

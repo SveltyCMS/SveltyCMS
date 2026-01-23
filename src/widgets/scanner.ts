@@ -8,12 +8,12 @@ import type { WidgetModule } from './types';
 
 // Scan for core widgets
 export const coreModules = import.meta.glob<WidgetModule>('./core/*/index.ts', {
-	eager: false
+	eager: true
 });
 
 // Scan for custom widgets
 export const customModules = import.meta.glob<WidgetModule>('./custom/*/index.ts', {
-	eager: false
+	eager: true
 });
 
 // Combined modules for easier iteration

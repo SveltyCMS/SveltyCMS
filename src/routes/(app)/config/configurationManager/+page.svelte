@@ -4,10 +4,6 @@
 **This file implements the Configuration Manager page, allowing users to synchronize configuration between filesystem and database. It provides import/export functionality with detailed status and change tracking.**
 -->
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-	import CircleCheck from '@lucide/svelte/icons/circle-check';
-
 	import { fade, slide } from 'svelte/transition';
 	import { showToast } from '@utils/toast';
 	import PageTitle from '@components/PageTitle.svelte';
@@ -182,34 +178,34 @@
 					disabled={isProcessing || !status || status.status === 'in_sync' || status.unmetRequirements.length > 0}
 					onclick={syncAllChanges}
 				>
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:sync" class={isProcessing ? 'animate-spin' : ''}></iconify-icon>
 					{isProcessing ? 'Syncing...' : 'Sync All Changes'}
 				</button>
 			</div>
 
 			{#if isLoading}
 				<div class="flex animate-pulse flex-col items-center py-12 text-surface-500">
-					<CircleQuestionMark size={24} class="mb-3 animate-spin text-5xl" />
+					<iconify-icon icon="mdi:sync" class="mb-3 animate-spin text-5xl"></iconify-icon>
 					Checking synchronization status...
 					<button
 						onclick={loadStatus}
 						class="preset-filled-tertiary-500 btn mt-6 flex items-center gap-2 dark:preset-filled-primary-500"
 						disabled={isLoading}
 					>
-						<RefreshCw class={isLoading ? 'animate-spin' : ''} />
+						<iconify-icon icon="mdi:refresh" class={isLoading ? 'animate-spin' : ''}></iconify-icon>
 						{isLoading ? 'Checking...' : 'Refresh'}
 					</button>
 				</div>
 			{:else if status?.status === 'in_sync'}
 				<div class="space-y-3 py-12 text-center">
-					<CircleCheck class="mx-auto text-6xl text-success-500" />
+					<iconify-icon icon="mdi:check-circle" class="mx-auto text-6xl text-success-500"></iconify-icon>
 					<h2 class="text-xl font-semibold">System is in Sync</h2>
 					<p class="text-surface-500">Your database and filesystem configurations match perfectly.</p>
 				</div>
 			{:else}
 				<div class="space-y-4">
 					<h3 class="flex items-center gap-2 text-lg font-semibold">
-						<TriangleAlert class="text-warning-500" />
+						<iconify-icon icon="mdi:alert" class="text-warning-500"></iconify-icon>
 						Changes Detected
 					</h3>
 					<p class="text-surface-500">
@@ -248,7 +244,7 @@
 		{#if activeTab === 'import'}
 			<div transition:slide|local class="rounded border bg-surface-50 p-4 dark:bg-surface-900/40">
 				<h3 class="mb-3 flex items-center gap-2 font-semibold">
-					<CircleQuestionMark size={24} /> Import Configuration from File
+					<iconify-icon icon="mdi:database-import-outline"></iconify-icon> Import Configuration from File
 				</h3>
 				<p class="mb-4 text-sm text-surface-500">Upload a JSON or CSV file containing configuration changes to apply them to the database.</p>
 				<div class="flex flex-col gap-4">
@@ -258,7 +254,7 @@
 						disabled={!fileToImport || isProcessing}
 						onclick={performImport}
 					>
-						<Upload class={isProcessing ? 'animate-spin' : ''} />
+						<iconify-icon icon="mdi:upload" class={isProcessing ? 'animate-spin' : ''}></iconify-icon>
 						{isProcessing ? 'Importing...' : 'Import from File'}
 					</button>
 				</div>
@@ -268,15 +264,15 @@
 		{#if activeTab === 'export'}
 			<div transition:slide|local class="rounded border bg-surface-50 p-4 dark:bg-surface-900/40">
 				<h3 class="mb-3 flex items-center gap-2 font-semibold">
-					<Upload /> Export Configuration
+					<iconify-icon icon="mdi:export"></iconify-icon> Export Configuration
 				</h3>
 				<p class="mb-4 text-sm text-surface-500">Save the detected configuration changes to a file.</p>
 				<div class="flex gap-4">
 					<button class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" disabled={isProcessing} onclick={exportToJSON}>
-						<CircleQuestionMark size={24} /> Export as JSON
+						<iconify-icon icon="mdi:code-json"></iconify-icon> Export as JSON
 					</button>
 					<button class="variant-filled-secondary btn" disabled={isProcessing} onclick={exportToCSV}>
-						<CircleQuestionMark size={24} /> Export as CSV
+						<iconify-icon icon="mdi:file-csv-outline"></iconify-icon> Export as CSV
 					</button>
 				</div>
 			</div>
@@ -285,7 +281,7 @@
 		{#if activeTab === 'debug'}
 			<div transition:slide|local class="rounded border bg-surface-50 p-4 dark:bg-surface-900/40">
 				<h3 class="mb-3 flex items-center gap-2 font-semibold">
-					<CircleQuestionMark size={24} /> Raw API Response
+					<iconify-icon icon="mdi:bug-outline"></iconify-icon> Raw API Response
 				</h3>
 				<pre class="whitespace-pre-wrap text-xs">{JSON.stringify(status, null, 2)}</pre>
 			</div>

@@ -6,9 +6,6 @@ It handles widget configuration, permissions, and specific options.
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
-
 	import { type SvelteComponent } from 'svelte';
 
 	// Components
@@ -98,13 +95,13 @@ It handles widget configuration, permissions, and specific options.
 			<Tabs.List class="flex justify-between lg:justify-start border-b border-surface-200-800">
 				<Tabs.Trigger value="0">
 					<div class="flex items-center gap-1 py-2 px-4">
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="mdi:required" width={24}></iconify-icon>
 						<span>Default</span>
 					</div>
 				</Tabs.Trigger>
 				<Tabs.Trigger value="1">
 					<div class="flex items-center gap-1 py-2 px-4">
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="mdi:security-lock" width={24}></iconify-icon>
 						<span>{m.system_permission()}</span>
 					</div>
 				</Tabs.Trigger>
@@ -112,7 +109,7 @@ It handles widget configuration, permissions, and specific options.
 				{#if specificOptions.length > 0}
 					<Tabs.Trigger value="2">
 						<div class="flex items-center gap-1 py-2 px-4">
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="ph:star-fill" width={24}></iconify-icon>
 							<span>Specific</span>
 						</div>
 					</Tabs.Trigger>
@@ -138,7 +135,7 @@ It handles widget configuration, permissions, and specific options.
 	<footer class="flex justify-between pt-4 border-t border-surface-500/20">
 		<!-- Delete Button -->
 		<button type="button" onclick={deleteWidget} aria-label="Delete" class="preset-filled-error-500 btn">
-			<Trash2 size={24} />
+			<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
 			<span class="hidden sm:block">{m.button_delete()}</span>
 		</button>
 

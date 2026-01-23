@@ -39,12 +39,6 @@
 	import { logger } from '@utils/logger';
 
 	// Lucide Icons
-	import RefreshCcw from '@lucide/svelte/icons/refresh-ccw';
-	import Plus from '@lucide/svelte/icons/plus';
-	import CircleAlert from '@lucide/svelte/icons/circle-alert';
-	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
-	import X from '@lucide/svelte/icons/x';
-	import ShieldCheck from '@lucide/svelte/icons/shield-check';
 
 	const { data }: { data: PageData } = $props();
 
@@ -420,7 +414,7 @@
 			<!-- Reset All Button - Small and subtle -->
 			{#if currentPreferences.length > 0}
 				<button class="preset-outlined-surface-500 btn-icon" onclick={resetAllWidgets} aria-label="Reset all widgets" title="Reset all widgets">
-					<RefreshCcw size={20} />
+					<iconify-icon icon="mdi:refresh" width={20}></iconify-icon>
 				</button>
 			{/if}
 			<!-- Add Widget Button -->
@@ -433,7 +427,7 @@
 						aria-expanded={dropdownOpen}
 						aria-label="Add Widget"
 					>
-						<Plus size={18} class="mr-2" />
+						<iconify-icon icon="mdi:plus" width={18} class="mr-2"></iconify-icon>
 						Add Widget
 					</button>
 				{/if}
@@ -455,9 +449,9 @@
 									role="menuitem"
 								>
 									{#if widgetInfo?.icon}
-										<iconify-icon icon={widgetInfo.icon} width="20" class="text-primary-500" />
+										<iconify-icon icon={widgetInfo.icon} width="20" class="text-primary-500"></iconify-icon>
 									{:else}
-										<LayoutDashboard size={20} class="text-primary-500" />
+										<iconify-icon icon="mdi:view-dashboard" width={20} class="text-primary-500"></iconify-icon>
 									{/if}
 									<div class="flex flex-col">
 										<span>{widgetInfo?.name || widgetName}</span>
@@ -516,7 +510,7 @@
 							{:else if WidgetComponent === null}
 								<!-- Error state -->
 								<div class="card preset-ghost-error-500 flex h-full flex-col items-center justify-center p-4">
-									<CircleAlert size={48} class="mb-2 text-error-500" />
+									<iconify-icon icon="mdi:alert-circle" width={48} class="mb-2 text-error-500"></iconify-icon>
 									<h3 class="h4 mb-2">Widget Load Error</h3>
 									<p class="text-sm">Failed to load: {item.component}</p>
 									<button class="preset-filled-error-500 btn-sm mt-4" onclick={() => removeWidget(item.id)}> Remove Widget </button>
@@ -544,7 +538,7 @@
 			{:else}
 				<div class="mx-auto flex h-[60vh] w-full flex-col items-center justify-center text-center">
 					<div class="flex flex-col items-center px-10 py-12">
-						<LayoutDashboard size={80} class="mb-6 text-tertiary-500 drop-shadow-lg dark:text-primary-500" />
+						<iconify-icon icon="mdi:view-dashboard" width={80} class="mb-6 text-tertiary-500 drop-shadow-lg dark:text-primary-500"></iconify-icon>
 						<p class="mb-2 text-2xl font-bold text-tertiary-500 dark:text-primary-500">Your Dashboard is Empty</p>
 						<p class="mb-6 text-base text-surface-600 dark:text-surface-300">Click below to add your first widget and get started.</p>
 						<button
@@ -552,7 +546,7 @@
 							onclick={() => (dropdownOpen = true)}
 							aria-label="Add first widget"
 						>
-							<Plus size={22} class="mr-2" />
+							<iconify-icon icon="mdi:plus" width={22} class="mr-2"></iconify-icon>
 							Add Widget
 						</button>
 					</div>
@@ -569,7 +563,7 @@
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>
 				<button onclick={() => (showImportExport = false)} class="preset-ghost btn-sm" aria-label="Close import/export modal">
-					<X size={20} />
+					<iconify-icon icon="mdi:close" width={20}></iconify-icon>
 				</button>
 			</div>
 
@@ -579,7 +573,7 @@
 
 			<div class="flex items-center justify-between border-t bg-surface-100 p-6 dark:bg-surface-700">
 				<div class="text-sm text-gray-600 dark:text-gray-400">
-					<ShieldCheck size={16} class="mr-1 inline" />
+					<iconify-icon icon="mdi:shield-check" width={16} class="mr-1 inline"></iconify-icon>
 					Your data is securely managed and never leaves your server
 				</div>
 				<div class="flex space-x-2">

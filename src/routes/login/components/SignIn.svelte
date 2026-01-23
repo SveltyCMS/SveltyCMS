@@ -23,10 +23,6 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-	import Check from '@lucide/svelte/icons/check';
-
 	import { browser } from '$app/environment';
 	import { goto, preloadData } from '$app/navigation';
 	import { enhance } from '$app/forms';
@@ -495,7 +491,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 					{m.form_required()}
 
 					<button onclick={handleBack} aria-label="Back" class="btn-icon preset-outlined-secondary-500 rounded-full">
-						<CircleQuestionMark size={24} />
+						<iconify-icon icon="ri:arrow-right-line" width={24}></iconify-icon>
 					</button>
 				</div>
 
@@ -589,7 +585,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 						<!-- 2FA Header -->
 						<div class="text-center">
 							<div class="mb-3">
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="mdi:shield-key" width={24}></iconify-icon>
 							</div>
 							<h3 class="h3 mb-2">{m.twofa_verify_title()}</h3>
 							<p class="text-sm text-surface-600 dark:text-surface-300">
@@ -636,7 +632,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							<!-- Action Buttons -->
 							<div class="flex gap-3">
 								<button type="button" onclick={back2FAToLogin} class="btn preset-tonal-surface-500 -surface-500 flex-1" aria-label={m.button_back()}>
-									<ArrowLeft size={20} class="mr-2" />
+									<iconify-icon icon="mdi:arrow-left" width={20} class="mr-2"></iconify-icon>
 									{m.button_back()}
 								</button>
 
@@ -654,7 +650,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 										<img src="/Spinner.svg" alt="Loading.." class="mr-2 h-5 invert filter" />
 										{m.twofa_verifying()}
 									{:else}
-										<Check size={20} class="mr-2" />
+										<iconify-icon icon="mdi:check" width={20} class="mr-2"></iconify-icon>
 										{m.twofa_verify_button()}
 									{/if}
 								</button>
@@ -730,7 +726,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 									PWreset = false;
 								}}
 							>
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="mdi:arrow-left-circle" width={24}></iconify-icon>
 							</button>
 						</div>
 					</form>
@@ -836,7 +832,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 									PWreset = false;
 								}}
 							>
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="mdi:arrow-left-circle" width={24}></iconify-icon>
 							</button>
 						</div>
 					</form>

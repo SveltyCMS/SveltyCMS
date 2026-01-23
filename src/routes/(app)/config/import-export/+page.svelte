@@ -34,7 +34,7 @@ is handled in reusable backend APIs.
 
 	<div class="mt-4 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
 		<div class="flex items-start space-x-3">
-			<Info size={24} class="mt-1 text-tertiary-500 dark:text-primary-500" />
+			<iconify-icon icon="mdi:information" width="24" class="mt-1 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			<div>
 				<p class="mb-2 font-semibold">Data Management Tools:</p>
 				<ul class="list-none space-y-1 text-sm">

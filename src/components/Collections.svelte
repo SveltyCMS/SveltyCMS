@@ -13,9 +13,6 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import Search from '@lucide/svelte/icons/search';
-
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 
@@ -237,7 +234,7 @@
 					class="btn rounded-full preset-outline-surface-500 {isFullSidebar ? 'h-11 w-11' : 'h-10 w-10'}"
 					aria-label="Clear search"
 				>
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="ic:round-close" width={24}></iconify-icon>
 				</button>
 			{:else}
 				<!-- Search with icon -->
@@ -246,7 +243,7 @@
 						? 'h-11 w-11 mt-px mr-px'
 						: 'h-8 w-8'}"
 				>
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="ic:outline-search" width={24}></iconify-icon>
 				</div>
 			{/if}
 		</div>
@@ -256,7 +253,7 @@
 	<div class="collections-list" role="tree" aria-label="Collection tree">
 		{#if treeNodes.length === 0}
 			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center">
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="bi:collection" width={24}></iconify-icon>
 				<p class="text-sm text-surface-500 dark:text-surface-50">{m.collection_no_collections_found()}</p>
 			</div>
 		{:else}

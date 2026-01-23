@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { imageEditorStore } from '@stores/imageEditorStore.svelte.ts';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 	import RotateControls from './Controls.svelte';
 
 	let rotationAngle = $state(0);

@@ -62,8 +62,8 @@
 		<!-- Icons rendered based on checked and storeListboxValue -->
 		{#if checked && app.listboxValueState === 'delete'}
 			<!--Red Cross icon 3d-->
-			<svg xmlns="http://www.w3.org/2000/svg" size={20} fill="none" viewBox="0 0 224 224">
-				<mask id="a" size={224} x="0" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha">
+			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 224 224">
+				<mask id="a" width="224" height="224" x="0" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha">
 					<path
 						fill="#fff"
 						d="M48 1c-6 2-11 5-26 21C2 41-1 47 1 54c2 6 7 12 31 36l23 22-26 26c-30 30-32 33-27 43 2 4 32 35 39 40 5 4 11 4 17 1l29-27 25-25 26 25 29 27c5 2 12 2 16 0l39-39c2-5 2-11 0-16-2-3-12-15-27-29l-24-26 24-25 27-29c2-5 2-12 0-16-4-6-37-38-41-40-6-3-7-3-13 0-4 2-11 8-31 28l-25 25-24-25C61 3 55-1 48 1Z"

@@ -4,8 +4,6 @@
 -->
 
 <script lang="ts">
-	import CircleAlert from '@lucide/svelte/icons/circle-alert';
-
 	import { getPluginComponent } from '@src/plugins/client';
 
 	interface Props {
@@ -50,5 +48,5 @@
 {:else if loading}
 	<div class="h-4 w-4 animate-spin rounded-full border-2 border-surface-300 border-t-primary-500"></div>
 {:else if error}
-	<CircleAlert class="text-error-500" />
+	<iconify-icon icon="mdi:alert-circle" class="text-error-500"></iconify-icon>
 {/if}

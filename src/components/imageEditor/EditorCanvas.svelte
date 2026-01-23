@@ -51,7 +51,7 @@ for the image editor canvas with responsive behavior.
 				<div
 					class="empty-icon flex h-20 w-20 items-center justify-center rounded-full bg-surface-200 ring-4 ring-surface-300 dark:bg-surface-700 dark:ring-surface-600 max-md:h-16 max-md:w-16"
 				>
-					<ImagePlus size={48} class="text-surface-400 dark:text-surface-500" />
+					<iconify-icon icon="mdi:image-plus" width="48" class="text-surface-400 dark:text-surface-500"></iconify-icon>
 				</div>
 				<div class="empty-text">
 					<h3 class="mb-2 text-lg font-medium text-surface-700 dark:text-surface-300 max-md:text-base">No Image Selected</h3>
@@ -59,11 +59,11 @@ for the image editor canvas with responsive behavior.
 				</div>
 				<div class="empty-hints flex flex-col gap-2">
 					<div class="hint-item flex items-center justify-center gap-2">
-						<Hand size={24} />
+						<iconify-icon icon="mdi:gesture-tap" width="16" class="text-surface-400"></iconify-icon>
 						<span class="text-xs text-surface-500 dark:text-surface-50 max-md:text-[10px]"> Drag & drop supported </span>
 					</div>
 					<div class="hint-item flex items-center justify-center gap-2">
-						<Image size={24} />
+						<iconify-icon icon="mdi:file-image" width="16" class="text-surface-400"></iconify-icon>
 						<span class="text-xs text-surface-500 dark:text-surface-50 max-md:text-[10px]"> PNG, JPG, WebP, GIF </span>
 					</div>
 				</div>
@@ -81,7 +81,7 @@ for the image editor canvas with responsive behavior.
 			transition:fade={{ duration: 200 }}
 		>
 			<div class="loading-spinner flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg dark:bg-surface-800">
-				<Loader2 size={32} class="animate-spin text-primary-500" />
+				<iconify-icon icon="mdi:loading" width="32" class="animate-spin text-primary-500"></iconify-icon>
 			</div>
 			<span class="text-sm text-surface-600 dark:text-surface-300">{loadingMessage}</span>
 		</div>

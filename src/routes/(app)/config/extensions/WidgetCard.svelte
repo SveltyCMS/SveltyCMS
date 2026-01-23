@@ -28,9 +28,6 @@ canManage: boolean;
 - Uninstall widget
 -->
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
-
 	// Using iconify-icon web component
 	interface Props {
 		widget: {
@@ -53,11 +50,6 @@ canManage: boolean;
 	}
 
 	const { widget, onToggle, onUninstall, canManage }: Props = $props();
-
-	/* Function to determine color for boolean status */
-	function getStatusColor(exists: boolean) {
-		return exists ? 'text-green-500' : 'text-gray-300 dark:text-gray-600';
-	}
 </script>
 
 <div class="card border border-surface-200 dark:text-surface-50 transition-shadow hover:shadow-lg">
@@ -67,10 +59,7 @@ canManage: boolean;
 			<div
 				class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface-100 text-surface-900 dark:bg-surface-800 dark:text-surface-100"
 			>
-				{#if widget.icon as keyof typeof iconsData}<Icon
-						icon={widget.icon as keyof typeof iconsData}
-						class="text-3xl"
-					/>{/if}
+				<iconify-icon icon={widget.icon} width="32" class="text-3xl"></iconify-icon>
 			</div>
 			<div class="min-w-0 flex-1 space-y-2">
 				<div class="flex flex-wrap items-center gap-2">
@@ -96,15 +85,15 @@ canManage: boolean;
 				{#if widget.pillar}
 					<div class="flex items-center gap-4 pt-1 text-xs text-surface-500">
 						<div class="flex items-center gap-1" title="Input Component">
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="mdi:form-textbox" width="18"></iconify-icon>
 							<span>Input</span>
 						</div>
 						<div class="flex items-center gap-1" title="Display Component">
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="mdi:monitor-dashboard" width="18"></iconify-icon>
 							<span>Display</span>
 						</div>
 						<div class="flex items-center gap-1" title="Database/Validation">
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="mdi:database-check" width="18"></iconify-icon>
 							<span>DB/Valid</span>
 						</div>
 					</div>
@@ -145,7 +134,7 @@ canManage: boolean;
 			<!-- Uninstall (only for inactive custom widgets) -->
 			{#if canManage && !widget.isCore && !widget.isActive && onUninstall}
 				<button type="button" onclick={() => onUninstall?.(widget.name)} class="btn-icon btn-icon-sm variant-soft-error" title="Uninstall widget">
-					<Trash2 class="text-lg" />
+					<iconify-icon icon="mdi:trash-can-outline" width="20" class="text-lg"></iconify-icon>
 				</button>
 			{/if}
 		</div>

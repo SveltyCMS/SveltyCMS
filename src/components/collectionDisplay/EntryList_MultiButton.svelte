@@ -22,16 +22,11 @@
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import Menu from '@lucide/svelte/icons/menu';
-	import ChevronRight from '@lucide/svelte/icons/chevron-right';
-
-	// Using iconify-icon web component
 	import { onMount, onDestroy } from 'svelte';
 	import { scale } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
 	import { StatusTypes } from '@src/content/types';
-	import { storeListboxValue } from '@stores/store.svelte.ts';
+	import { storeListboxValue } from '@stores/store.svelte';
 	import * as m from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
 	import { showToast } from '@utils/toast';
@@ -436,10 +431,7 @@
 			aria-label={showDeleted ? m.entrylist_multibutton_viewing_archived() : m.entrylist_multibutton_viewing_active()}
 			aria-pressed={showDeleted}
 		>
-			{#if showDeleted ? 'ic:round-archive' : ('ic:round-unarchive' as keyof typeof iconsData)}<Icon
-					icon={showDeleted ? 'ic:round-archive' : ('ic:round-unarchive' as keyof typeof iconsData)}
-					size={24}
-				/>{/if}
+			<iconify-icon icon={showDeleted ? 'ic:round-archive' : 'ic:round-unarchive'} width="24"></iconify-icon>
 		</button>
 
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -464,11 +456,10 @@
 				aria-busy={isProcessing}
 			>
 				{#if isProcessing}
-					<CircleQuestionMark size={24} />
-				{:else if currentConfig.icon as keyof typeof iconsData}<Icon
-						icon={currentConfig.icon as keyof typeof iconsData}
-						size={24}
-					/>{/if}
+					<iconify-icon icon="svg-spinners:ring-resize" width="24" class="animate-spin"></iconify-icon>
+				{:else}
+					<iconify-icon icon={currentConfig.icon} width="24"></iconify-icon>
+				{/if}
 				<span class="hidden md:inline-block">{dynamicLabel}</span>
 			</button>
 
@@ -497,7 +488,11 @@
 					aria-label={m.entrylist_multibutton_toggle_menu()}
 				>
 					{#if hasSelections}
-						<CircleQuestionMark size={20} class="transition-transform duration-200 {isDropdownOpen ? 'rotate-180' : ''}" />
+						<iconify-icon
+							icon="ic:round-keyboard-arrow-down"
+							width="20"
+							class="transition-transform duration-200 {isDropdownOpen ? 'rotate-180' : ''}"
+						></iconify-icon>
 					{/if}
 				</button>
 			{/if}
@@ -532,10 +527,7 @@
 									<div
 										class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-700 transition-transform group-hover/item:scale-110"
 									>
-										{#if config.icon as keyof typeof iconsData}<Icon
-												icon={config.icon as keyof typeof iconsData}
-												size={18}
-											/>{/if}
+										<iconify-icon icon={config.icon} width="18"></iconify-icon>
 									</div>
 
 									<!-- Label & Shortcut -->
@@ -548,7 +540,7 @@
 
 									<!-- Hover Indicator -->
 									{#if hoveredAction === config.type}
-										<ChevronRight size={18} class="relative z-10 text-white" />
+										<iconify-icon icon="mdi:chevron-right" width="18" class="relative z-10 text-white"></iconify-icon>
 									{/if}
 
 									<!-- Danger Badge -->

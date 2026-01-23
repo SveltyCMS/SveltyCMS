@@ -1,22 +1,26 @@
 <!-- 
-@file src/components/PageTitle 
+@file src/components/PageTitle.svelte 
 @component
 **Dynamic Page Title with Accessibility and CMS Features**
 
 @example
 <PageTitle 
   name="Dashboard" 
-  icon="layout-dashboard" 
+  icon="bi:bar-chart-line" 
   highlight="Dash" 
   iconColor="text-primary-500" 
   iconSize="24" 
   showBackButton={true}  
   backUrl="/home" 
+  onBackClick={(defaultBehavior) => {
+    // Custom navigation logic
+    defaultBehavior();
+  }}
 />
 
 #### Props - Required 
 - `name` {string} - Page title
-- `icon` {string} - Lucide icon name
+- `icon` {string} - Icon name from [iconify](https://iconify.design/)
 
 #### Props - Optional 
 - `highlight` {string} - Part of `name` to highlight
@@ -26,16 +30,24 @@
 - `backUrl` {string} - Navigation URL for back button
 - `truncate` {boolean} - Enable title truncation (default: `true`)
 - `onBackClick` {function} - Custom back navigation callback
+- `color` {string} - Background/text color (default: `blue`)
+
+#### Accessibility Features:
+- ARIA live region for title changes
+- Keyboard navigation support
+- Screen reader optimization with visually hidden full title
+- Contrast validation for highlighted text
+- Responsive touch targets
+
+#### CMS Features:
+- Data attributes for CMS field mapping
+- Content editor hints
+- Fluid typography scaling
 -->
 <script lang="ts">
 	// Stores
-	import { ui } from '@stores/UIStore.svelte.ts';
-	import { screen } from '@stores/screenSizeStore.svelte.ts';
-
-	// Icons
-	import Menu from '@lucide/svelte/icons/menu';
-	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
+	import { ui } from '@stores/UIStore.svelte';
+	import { screen } from '@stores/screenSizeStore.svelte';
 
 	type DefaultBehaviorFn = () => void;
 
@@ -43,7 +55,7 @@
 	interface Props {
 		name: string;
 		highlight?: string;
-		icon?: any; // Component type
+		icon?: string;
 		iconColor?: string;
 		iconSize?: string;
 		showBackButton?: boolean;
@@ -80,15 +92,18 @@
 				event.preventDefault();
 				window.history.back();
 			}
+			// If backUrl exists, let the link handle navigation naturally
 		};
 
 		if (onBackClick) {
 			event.preventDefault();
 			onBackClick(defaultBehavior);
 		} else if (!backUrl) {
+			// No backUrl provided, use browser history
 			event.preventDefault();
 			window.history.back();
 		}
+		// Otherwise, let the <a> tag handle navigation with preloading
 	}
 </script>
 
@@ -99,9 +114,9 @@
 				type="button"
 				onclick={() => ui.toggle('leftSidebar', screen.isDesktop ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
-				class="preset-outlined-surface-500 btn-icon"
+				class="preset-outlined-surface-500btn-icon"
 			>
-				<Menu size={24} />
+				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
 		{/if}
 		<h1
@@ -111,14 +126,9 @@
 			data-cms-field="pageTitle"
 			data-cms-type="text"
 		>
-			<div class={`mr-1 shrink-0 ${iconColor} sm:mr-2`} aria-hidden="true" style:width="{iconSize}px" style:height="{iconSize}px">
-				{#if icon}
-					{@const Icon = icon}
-					<iconify-icon width={parseInt(iconSize)} />
-				{:else}
-					<LayoutDashboard size={parseInt(iconSize)} />
-				{/if}
-			</div>
+			{#if icon}
+				<iconify-icon {icon} width={iconSize} class={`mr-1 shrink-0 ${iconColor} sm:mr-2`} aria-hidden="true"></iconify-icon>
+			{/if}
 
 			<span class:block={truncate} class:overflow-hidden={truncate} class:text-ellipsis={truncate} class:whitespace-nowrap={truncate}>
 				{#each titleParts() as part, i (i)}
@@ -135,6 +145,7 @@
 	</div>
 
 	<div class="flex items-center gap-2">
+		<!-- Action Buttons -->
 		{#if children}
 			{@render children()}
 		{/if}
@@ -149,7 +160,7 @@
 					data-sveltekit-preload-data="hover"
 					onclick={(e) => handleBackClick(e)}
 				>
-					<ArrowLeft size={24} />
+					<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
 				</a>
 			{:else}
 				<button
@@ -159,7 +170,7 @@
 					class="btn-icon rounded-full border border-surface-500 dark:border-surface-200 hover:bg-surface-500/10 shrink-0"
 					data-cms-action="back"
 				>
-					<ArrowLeft size={24} />
+					<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
 				</button>
 			{/if}
 		{/if}

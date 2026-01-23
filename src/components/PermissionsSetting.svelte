@@ -28,11 +28,6 @@ Advanced permission management interface with bulk actions and presets.
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import Download from '@lucide/svelte/icons/download';
-	import Upload from '@lucide/svelte/icons/upload';
-
-	// Using iconify-icon web component
 	import type { Role } from '@src/databases/auth/types';
 	import { PermissionAction } from '@src/databases/auth/types';
 	import { showToast } from '@utils/toast';
@@ -59,15 +54,15 @@ Advanced permission management interface with bulk actions and presets.
 
 	// Icons for permissions
 	const actionIcons: Record<PermissionAction, string> = {
-		[PermissionAction.CREATE]: 'plus-circle',
-		[PermissionAction.READ]: 'eye',
-		[PermissionAction.WRITE]: 'pencil',
-		[PermissionAction.UPDATE]: 'edit',
-		[PermissionAction.DELETE]: 'trash-2',
-		[PermissionAction.MANAGE]: 'settings',
-		[PermissionAction.ACCESS]: 'key',
-		[PermissionAction.EXECUTE]: 'play',
-		[PermissionAction.SHARE]: 'share-2'
+		[PermissionAction.CREATE]: 'bi:plus-circle-fill',
+		[PermissionAction.READ]: 'bi:eye-fill',
+		[PermissionAction.WRITE]: 'bi:pencil-square',
+		[PermissionAction.UPDATE]: 'bi:pencil-fill',
+		[PermissionAction.DELETE]: 'bi:trash-fill',
+		[PermissionAction.MANAGE]: 'bi:gear-fill',
+		[PermissionAction.ACCESS]: 'bi:key-fill',
+		[PermissionAction.EXECUTE]: 'bi:play-fill',
+		[PermissionAction.SHARE]: 'bi:share-fill'
 	};
 
 	// Permission presets
@@ -323,15 +318,15 @@ Advanced permission management interface with bulk actions and presets.
 			<div class="flex flex-wrap gap-2">
 				<!-- Undo/Redo -->
 				<button onclick={undo} disabled={!canUndo} class="preset-outlined-surface-500btn btn-sm" title="Undo" aria-label="Undo last change">
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:undo" width="18"></iconify-icon>
 				</button>
 				<button onclick={redo} disabled={!canRedo} class="preset-outlined-surface-500btn btn-sm" title="Redo" aria-label="Redo last change">
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:redo" width="18"></iconify-icon>
 				</button>
 
 				<!-- Bulk Actions Toggle -->
 				<button onclick={() => (showBulkActions = !showBulkActions)} class="preset-outlined-primary-500 btn-sm" aria-expanded={showBulkActions}>
-					<CircleQuestionMark size={24} />
+					<iconify-icon icon="mdi:cog-box" width="18"></iconify-icon>
 					Bulk Actions
 				</button>
 
@@ -342,12 +337,12 @@ Advanced permission management interface with bulk actions and presets.
 					title="Export permissions"
 					aria-label="Export permissions as JSON"
 				>
-					<Download size={18} />
+					<iconify-icon icon="mdi:download" width="18"></iconify-icon>
 				</button>
 
 				<!-- Import -->
 				<label class="preset-outlined-warning-500 btn-sm cursor-pointer">
-					<Upload size={18} />
+					<iconify-icon icon="mdi:upload" width="18"></iconify-icon>
 					<input type="file" accept=".json" onchange={importPermissions} class="hidden" aria-label="Import permissions from JSON" />
 				</label>
 			</div>
@@ -369,10 +364,7 @@ Advanced permission management interface with bulk actions and presets.
 								title={`Enable ${action} for all roles`}
 								aria-label={`Enable ${action} for all roles`}
 							>
-								{#if actionIcons[action as keyof typeof iconsData] as any}<Icon
-										icon={actionIcons[action as keyof typeof iconsData] as any}
-										size={16}
-									/>{/if}
+								<iconify-icon icon={actionIcons[action]} width="16"></iconify-icon>
 								✓
 							</button>
 							<button
@@ -381,10 +373,7 @@ Advanced permission management interface with bulk actions and presets.
 								title={`Disable ${action} for all roles`}
 								aria-label={`Disable ${action} for all roles`}
 							>
-								{#if actionIcons[action as keyof typeof iconsData] as any}<Icon
-										icon={actionIcons[action as keyof typeof iconsData] as any}
-										size={16}
-									/>{/if}
+								<iconify-icon icon={actionIcons[action]} width="16"></iconify-icon>
 								✗
 							</button>
 						</div>
@@ -409,11 +398,7 @@ Advanced permission management interface with bulk actions and presets.
 						{#each Object.values(PermissionAction) as action (action)}
 							<th scope="col" class="px-4 py-3 text-center">
 								<div class="flex flex-col items-center gap-1">
-									{#if actionIcons[action as keyof typeof iconsData] as any}<Icon
-											icon={actionIcons[action as keyof typeof iconsData] as any}
-											size={20}
-											aria-hidden="true"
-										/>{/if}
+									<iconify-icon icon={actionIcons[action]} width="20" aria-hidden="true"></iconify-icon>
 									<span class="text-xs">{action}</span>
 								</div>
 							</th>
@@ -446,7 +431,6 @@ Advanced permission management interface with bulk actions and presets.
 
 							<!-- Permission Toggles -->
 							{#each Object.values(PermissionAction) as action (action)}
-								{@const checkIcon = permissionsState[role._id]?.[action] ? 'check' : 'x'}
 								<td class="px-4 py-3 text-center">
 									<button
 										onclick={() => togglePermission(role._id, action)}
@@ -456,13 +440,11 @@ Advanced permission management interface with bulk actions and presets.
 											? 'preset-filled-success-500 hover:scale-110'
 											: 'preset-filled-error-500 opacity-50 hover:opacity-100 hover:scale-110'} {role.isAdmin ? 'cursor-not-allowed opacity-30' : ''}"
 									>
-										{#if checkIcon as keyof typeof iconsData}
-											<Icon
-												icon={checkIcon as keyof typeof iconsData}
-												size={18}
-												class={permissionsState[role._id]?.[action] ? 'text-white' : 'text-white'}
-											/>
-										{/if}
+										<iconify-icon
+											icon={permissionsState[role._id]?.[action] ? 'mdi:check' : 'mdi:check'}
+											width="18"
+											class={permissionsState[role._id]?.[action] ? 'text-white' : 'text-white'}
+										></iconify-icon>
 									</button>
 								</td>
 							{/each}
@@ -521,7 +503,7 @@ Advanced permission management interface with bulk actions and presets.
 				class="flex flex-col items-center gap-3 rounded-lg bg-surface-50 py-12 text-center dark:bg-surface-800"
 				transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 			>
-				<CircleQuestionMark size={24} />
+				<iconify-icon icon="mdi:magnify-close" width="48" class="text-surface-400"></iconify-icon>
 				<p class="text-surface-600 dark:text-surface-50">
 					No roles match your search for "<span class="font-medium">{searchQuery}</span>"
 				</p>

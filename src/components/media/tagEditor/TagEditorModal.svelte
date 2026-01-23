@@ -1,15 +1,12 @@
 <!--
-@file: src/components/media/tagEditor/TagEditorModal.svelte
+@file src/components/media/tagEditor/TagEditorModal.svelte
 @component
 A modal for managing media tags.
 -->
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import X from '@lucide/svelte/icons/x';
-
 	import type { MediaImage } from '@utils/media/mediaModels';
 
-	import { toaster } from '@stores/store.svelte.ts';
+	import { toaster } from '@stores/store.svelte';
 
 	// Props
 	let {
@@ -205,7 +202,7 @@ A modal for managing media tags.
 			<header class="flex justify-between items-center mb-4">
 				<h3 class="h3 font-bold">Manage Tags</h3>
 				<button class="btn-icon btn-icon-sm" onclick={close} aria-label="Close Modal">
-					<X size={24} />
+					<iconify-icon icon="mdi:close" width="24"></iconify-icon>
 				</button>
 			</header>
 
@@ -223,15 +220,15 @@ A modal for managing media tags.
 				<section class="p-3 border border-primary-500/30 rounded bg-primary-50/50 dark:bg-primary-900/10">
 					<div class="flex justify-between items-center mb-2">
 						<span class="text-sm font-bold flex items-center gap-1 text-primary-600 dark:text-primary-400">
-							<CircleQuestionMark size={24} />
+							<iconify-icon icon="mdi:robot-excited-outline"></iconify-icon>
 							AI / Pending Tags
 						</span>
 						{#if !file.metadata?.aiTags?.length}
 							<button class="btn btn-sm variant-filled-secondary" onclick={handleAITagging} disabled={isGenerating}>
 								{#if isGenerating}
-									<CircleQuestionMark size={24} class="animate-spin" />
+									<iconify-icon icon="eos-icons:loading" class="animate-spin"></iconify-icon>
 								{:else}
-									<CircleQuestionMark size={24} />
+									<iconify-icon icon="mdi:magic-staff"></iconify-icon>
 									<span>Generate</span>
 								{/if}
 							</button>
@@ -270,7 +267,7 @@ A modal for managing media tags.
 											onkeydown={(e) => e.key === 'Enter' && removeTag(tag, 'ai')}
 											aria-label="Remove Tag"
 										>
-											<X size={14} />
+											<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 										</span>
 									</button>
 								{/if}
@@ -289,14 +286,14 @@ A modal for managing media tags.
 							onkeydown={(e) => e.key === 'Enter' && addManualTag()}
 						/>
 						<button class="btn btn-sm variant-filled-surface" onclick={addManualTag} disabled={!newTagInput.trim()} aria-label="Add Tag">
-							<Plus />
+							<iconify-icon icon="mdi:plus"></iconify-icon>
 						</button>
 					</div>
 
 					{#if file.metadata?.aiTags?.length}
 						<div class="mt-3 pt-3 border-t border-primary-500/20">
 							<button class="btn btn-sm variant-filled-success w-full" onclick={saveAITags} disabled={isSaving}>
-								<CircleQuestionMark size={24} />
+								<iconify-icon icon="mdi:check-all"></iconify-icon>
 								<span>Save All to Media Tags</span>
 							</button>
 						</div>
@@ -338,7 +335,7 @@ A modal for managing media tags.
 											onkeydown={(e) => e.key === 'Enter' && removeTag(tag, 'user')}
 											aria-label="Remove Tag"
 										>
-											<X size={14} />
+											<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 										</span>
 									</button>
 								{/if}

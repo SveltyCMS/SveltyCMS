@@ -13,8 +13,6 @@ FIXES:
 -->
 
 <script lang="ts">
-	import ChevronDown from '@lucide/svelte/icons/chevron-down';
-
 	import { logger } from '@utils/logger';
 	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -22,7 +20,7 @@ FIXES:
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
-	import { contentLanguage, translationProgress } from '@stores/store.svelte.ts';
+	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
 	import { getLanguageName } from '@utils/languageUtils';
 
@@ -392,7 +390,7 @@ FIXES:
 		>
 			<span class="font-medium md:hidden">{currentLanguage.toUpperCase()}</span>
 			<span class="font-medium hidden md:inline">{getLanguageName(currentLanguage)}</span>
-			<ChevronDown class="h-5 w-5 transition-transform duration-200" aria-hidden="true" />
+			<iconify-icon icon="mdi:chevron-down" class="h-5 w-5 transition-transform duration-200" aria-hidden="true"></iconify-icon>
 		</Menu.Trigger>
 
 		<Portal>

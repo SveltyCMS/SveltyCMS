@@ -11,12 +11,6 @@ Features:
 - Integrated marketplace tab
 -->
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import CircleAlert from '@lucide/svelte/icons/circle-alert';
-	import CircleCheck from '@lucide/svelte/icons/circle-check';
-	import CircleX from '@lucide/svelte/icons/circle-x';
-	import Search from '@lucide/svelte/icons/search';
-
 	// Using iconify-icon web component
 	import { onMount } from 'svelte';
 	import { logger } from '@utils/logger';
@@ -238,7 +232,7 @@ Features:
 	{:else if error}
 		<div class="rounded-lg border border-red-200 bg-red-50 p-4 dark:bg-red-900/20">
 			<div class="flex items-start gap-3">
-				<CircleAlert class="mt-1 text-xl text-red-600" />
+				<iconify-icon icon="mdi:alert-circle" width="24" class="mt-1 text-xl text-red-600"></iconify-icon>
 				<div>
 					<h3 class="font-semibold text-red-800 dark:text-red-300">Error Loading Widgets</h3>
 					<p class="text-red-700 dark:text-red-400">{error}</p>
@@ -251,7 +245,7 @@ Features:
 		{#if !canManageWidgets}
 			<div class="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:bg-amber-900/20">
 				<div class="flex items-start gap-3">
-					<CircleQuestionMark size={24} class="mt-1 text-xl text-amber-600" />
+					<iconify-icon icon="mdi:information" width="24" class="mt-1 text-xl text-amber-600"></iconify-icon>
 					<div>
 						<h3 class="font-semibold text-amber-800 dark:text-amber-300">Limited Access</h3>
 						<p class="text-amber-700 dark:text-amber-400">
@@ -271,7 +265,7 @@ Features:
 					: 'border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}"
 			>
 				<div class="flex items-center gap-2">
-					<CircleQuestionMark size={24} class="text-xl" />
+					<iconify-icon icon="mdi:package-variant" width="24" class="text-xl"></iconify-icon>
 					<span>Installed Widgets</span>
 				</div>
 			</button>
@@ -282,7 +276,7 @@ Features:
 					: 'border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}"
 			>
 				<div class="flex items-center gap-2">
-					<CircleQuestionMark size={24} class="text-xl" />
+					<iconify-icon icon="mdi:store" width="24" class="text-xl"></iconify-icon>
 					<span>Marketplace</span>
 					<span class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
 						Coming Soon
@@ -301,10 +295,10 @@ Features:
 						aria-label="Information about total widgets"
 						title="All registered widgets in the system (core + custom)"
 					>
-						<Info class="text-lg" />
+						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
 					</button>
 					<div class="flex items-center gap-3">
-						<CircleQuestionMark size={24} class="text-2xl text-blue-600 dark:text-blue-400" />
+						<iconify-icon icon="mdi:widgets" width="24" class="text-2xl text-blue-600 dark:text-blue-400"></iconify-icon>
 						<div>
 							<h3 class="font-semibold text-blue-800 dark:text-blue-300">Total</h3>
 							<p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.total}</p>
@@ -319,10 +313,10 @@ Features:
 						aria-label="Information about active widgets"
 						title="Widgets currently enabled and available for use in collections"
 					>
-						<Info class="text-lg" />
+						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
 					</button>
 					<div class="flex items-center gap-3">
-						<CircleCheck class="text-2xl text-primary-500" />
+						<iconify-icon icon="mdi:check-circle" width="24" class="text-2xl text-primary-500"></iconify-icon>
 						<div>
 							<h3 class="font-semibold text-primary-500">Active</h3>
 							<p class="text-2xl font-bold text-primary-500">{stats.active}</p>
@@ -337,10 +331,10 @@ Features:
 						aria-label="Information about core widgets"
 						title="Essential system widgets that are always active and cannot be disabled"
 					>
-						<Info class="text-lg" />
+						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
 					</button>
 					<div class="flex items-center gap-3">
-						<CircleQuestionMark size={24} class="text-2xl text-blue-600 dark:text-blue-400" />
+						<iconify-icon icon="mdi:puzzle" width="24" class="text-2xl text-blue-600 dark:text-blue-400"></iconify-icon>
 						<div>
 							<h3 class="font-semibold text-blue-800 dark:text-blue-300">Core</h3>
 							<p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.core}</p>
@@ -357,10 +351,10 @@ Features:
 						aria-label="Information about custom widgets"
 						title="Optional widgets that can be toggled on/off as needed"
 					>
-						<Info class="text-lg" />
+						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
 					</button>
 					<div class="flex items-center gap-3">
-						<CircleQuestionMark size={24} class="text-2xl text-yellow-600 dark:text-yellow-400" />
+						<iconify-icon icon="mdi:puzzle-plus" width="24" class="text-2xl text-yellow-600 dark:text-yellow-400"></iconify-icon>
 						<div>
 							<h3 class="font-semibold text-yellow-800 dark:text-yellow-300">Custom</h3>
 							<p class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.custom}</p>
@@ -375,7 +369,8 @@ Features:
 				<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
 					<!-- Search -->
 					<div class="relative flex-1">
-						<Search class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+						<iconify-icon icon="mdi:magnify" width="24" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+						></iconify-icon>
 						<input type="text" bind:value={searchQuery} placeholder="Search widgets... (Ctrl+F)" class="input py-2 pl-10 pr-10 dark:text-white" />
 						{#if searchQuery}
 							<button
@@ -384,7 +379,7 @@ Features:
 								aria-label="Clear search"
 								title="Clear search (Esc)"
 							>
-								<CircleX class="text-lg" />
+								<iconify-icon icon="mdi:close-circle" width="20"></iconify-icon>
 							</button>
 						{/if}
 					</div>
@@ -398,10 +393,7 @@ Features:
 							class="btn {activeFilter === filter.value ? 'preset-filled-tertiary-500 text-white' : 'preset-ghost-secondary-500 '}"
 							aria-label="{filter.label} widgets ({filter.count})"
 						>
-							{#if filter.icon as keyof typeof iconsData}<Icon
-									icon={filter.icon as keyof typeof iconsData}
-									class="text-lg"
-								/>{/if}
+							<iconify-icon icon={filter.icon} width="20"></iconify-icon>
 							<span>{filter.label}</span>
 							<span
 								class="rounded-full px-2 py-0.5 text-xs font-semibold {activeFilter === filter.value
@@ -420,7 +412,7 @@ Features:
 					<div
 						class="col-span-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center dark:border-gray-600 dark:bg-gray-800"
 					>
-						<CircleQuestionMark size={24} class="mx-auto text-6xl text-gray-400" />
+						<iconify-icon icon="mdi:help-circle" width="64" class="mx-auto text-6xl text-gray-400"></iconify-icon>
 						<h3 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">No Widgets Found</h3>
 						<p class="mt-2 text-gray-600 dark:text-gray-400">
 							{#if searchQuery}
@@ -440,7 +432,7 @@ Features:
 								class="mt-6 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
 								aria-label="Clear all filters and search"
 							>
-								<CircleQuestionMark size={24} class="text-lg" />
+								<iconify-icon icon="mdi:filter-off" width="24" class="text-lg"></iconify-icon>
 								Clear All Filters
 							</button>
 						{/if}
@@ -455,7 +447,7 @@ Features:
 			<!-- Marketplace Tab -->
 			<div class="rounded-lg border border-gray-200 bg-gray-50 p-12 text-center dark:border-gray-700 dark:bg-gray-800">
 				<div class="mx-auto max-w-md">
-					<CircleQuestionMark size={24} class="mx-auto text-6xl text-tertiary-500 dark:text-primary-500" />
+					<iconify-icon icon="mdi:store" width="64" class="mx-auto text-6xl text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					<h3 class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">Marketplace Coming Soon</h3>
 					<p class="mt-2 text-gray-600 dark:text-gray-400">
 						The Widget Marketplace will allow you to discover, install, and manage premium and community widgets to extend your SveltyCMS
@@ -463,19 +455,19 @@ Features:
 					</p>
 					<div class="mt-6 space-y-2 text-left">
 						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<CircleCheck class="mt-0.5 text-tertiary-500 dark:text-primary-500" />
+							<iconify-icon icon="mdi:check" width="20" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							<span>Browse hundreds of widgets across multiple categories</span>
 						</div>
 						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<CircleCheck class="mt-0.5 text-tertiary-500 dark:text-primary-500" />
+							<iconify-icon icon="mdi:check" width="20" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							<span>One-click installation and automatic updates</span>
 						</div>
 						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<CircleCheck class="mt-0.5 text-tertiary-500 dark:text-primary-500" />
+							<iconify-icon icon="mdi:check" width="20" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							<span>Community ratings and reviews</span>
 						</div>
 						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<CircleCheck class="mt-0.5 text-tertiary-500 dark:text-primary-500" />
+							<iconify-icon icon="mdi:check" width="20" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							<span>Support for both free and premium widgets</span>
 						</div>
 					</div>

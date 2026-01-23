@@ -17,9 +17,6 @@ It provides the following functionality:
 -->
 
 <script lang="ts">
-	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
-	import Pencil from '@lucide/svelte/icons/pencil';
-
 	// Store
 
 	// Auth
@@ -232,7 +229,7 @@ It provides the following functionality:
 							<div class="animate-flip flex items-center justify-between rounded border p-2 hover:bg-surface-500 md:flex-row">
 								<div class="flex items-center gap-2">
 									<!-- Drag Icon -->
-									<CircleQuestionMark size={24} />
+									<iconify-icon icon="mdi:drag" width={24}></iconify-icon>
 
 									{#if !role.isAdmin}
 										<input type="checkbox" checked={selectedRoles.has(role._id)} onchange={() => toggleRoleSelection(role._id)} class="mr-2" />
@@ -243,7 +240,7 @@ It provides the following functionality:
 										{role.name}
 
 										{#if role.description}
-											<CircleQuestionMark size={18} class="ml-1 text-tertiary-500 dark:text-primary-500" />
+											<iconify-icon icon="material-symbols:info" width={18} class="ml-1 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 										{/if}
 									</span>
 								</div>
@@ -255,7 +252,7 @@ It provides the following functionality:
 
 								<!-- Edit Button: changes layout depending on screen size -->
 								<button onclick={() => openModal(role)} aria-label="Edit role" class="preset-filled-secondary-500 btn">
-									<Pencil class="text-white" size={18} />
+									<iconify-icon icon="mdi:pencil" class="text-white" width={18}></iconify-icon>
 									<span class="hidden md:block">Edit</span>
 								</button>
 							</div>
