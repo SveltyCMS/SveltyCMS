@@ -126,30 +126,32 @@
 			{...rest}
 		/>
 
-		{#if icon}
-			<iconify-icon
-				icon={icon}
-				width="18"
+		{#if icon && icon as keyof typeof iconsData}
+			<Icon
+				icon={icon as keyof typeof iconsData}
+				size={18}
 				class="absolute left-0 top-3 {iconColor === 'gray' ? 'text-surface-500 dark:text-surface-50' : ''}"
 				style={iconColor !== 'gray' ? `color: ${iconColor};` : ''}
 				aria-hidden="true"
-			></iconify-icon>
+			/>
 		{/if}
 
 		{#if type === 'password'}
-			{@const passwordIcon = showPassword ? 'mdi:eye' : 'mdi:eye-off'}
-			<iconify-icon
-				tabindex={0}
-				role="button"
-				icon={passwordIcon}
-				aria-label={showPassword ? 'Hide password' : 'Show password'}
-				aria-pressed={showPassword}
-				class="absolute right-2 top-3 cursor-pointer hover:opacity-75 focus:outline-none text-surface-500 dark:text-surface-50"
-				width="24"
-				style={passwordIconColor !== 'gray' ? `color: ${passwordIconColor};` : ''}
-				onkeydown={handleIconKeyDown}
-				onclick={togglePasswordVisibility}
-			></iconify-icon>
+			{@const passwordIcon = showPassword ? 'eye' : 'eye-off'}
+			{#if passwordIcon as keyof typeof iconsData}
+				<Icon
+					tabindex={0}
+					role="button"
+					icon={passwordIcon as keyof typeof iconsData}
+					aria-label={showPassword ? 'Hide password' : 'Show password'}
+					aria-pressed={showPassword}
+					class="absolute right-2 top-3 cursor-pointer hover:opacity-75 focus:outline-none text-surface-500 dark:text-surface-50"
+					size={24}
+					style={passwordIconColor !== 'gray' ? `color: ${passwordIconColor};` : ''}
+					onkeydown={handleIconKeyDown}
+					onclick={togglePasswordVisibility}
+				/>
+			{/if}
 		{/if}
 
 		{#if label}

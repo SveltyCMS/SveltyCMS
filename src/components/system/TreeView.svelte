@@ -32,7 +32,7 @@
 		name: string; // Name of the node
 		children?: TreeNode[]; // Optional children nodes
 		isExpanded?: boolean; // Whether the node is expanded
-		icon?: string | import('svelte').Component<any>; // Optional icon (Lucide component or Iconify string)
+		icon?: string; // Optional icon for the node
 		ariaLabel?: string; // Optional aria label for the node
 		onClick?: (node: TreeNode) => void;
 		isCollection?: boolean; // Whether the node is a collection
@@ -457,12 +457,14 @@
 				<!-- Icon -->
 				{#if node.icon}
 					<div class="relative flex shrink-0 items-center">
-						{#if typeof node.icon === 'string'}
-							<iconify-icon icon={node.icon} width={compact ? '20' : '24'} height={compact ? '20' : '24'} class={iconColorClass} aria-hidden="true"
-							></iconify-icon>
-						{:else}
-							{@const Icon = node.icon}
-							<Icon size={compact ? 20 : 24} class={iconColorClass} aria-hidden="true" />
+						{#if node.icon as keyof typeof iconsData}
+							<Icon
+								icon={node.icon as keyof typeof iconsData}
+								width={compact ? '20' : '24'}
+								height={compact ? '20' : '24'}
+								class={iconColorClass}
+								aria-hidden="true"
+							/>
 						{/if}
 					</div>
 				{/if}

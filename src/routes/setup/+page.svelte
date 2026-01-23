@@ -3,13 +3,11 @@
 @description Professional multi-step setup wizard for SveltyCMS.
 -->
 <script lang="ts">
+	import X from '@lucide/svelte/icons/x';
+
+	// Using iconify-icon web component
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-
-	// Lucide Icons
-	import X from '@lucide/svelte/icons/x';
-	import ChevronUp from '@lucide/svelte/icons/chevron-up';
-	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 
 	// Stores
 	import { setupStore } from '@stores/setupStore.svelte.ts';
@@ -30,6 +28,7 @@
 	import ReviewConfig from './ReviewConfig.svelte';
 
 	// Skeleton v4
+
 	import DialogManager from '@components/system/DialogManager.svelte';
 	import { modalState } from '@utils/modalState.svelte';
 
@@ -248,11 +247,10 @@
 								</svg>
 								<div class="flex-1">{wizard.successMessage || wizard.errorMessage}</div>
 								<button type="button" class="btn-sm flex shrink-0 items-center gap-1" onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}>
-									{#if wizard.showDbDetails}
-										<ChevronUp class="h-4 w-4" />
-									{:else}
-										<ChevronDown class="h-4 w-4" />
-									{/if}
+									{#if wizard.showDbDetails ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)}<Icon
+											icon={wizard.showDbDetails ? 'mdi:chevron-up' : ('mdi:chevron-down' as keyof typeof iconsData)}
+											class="h-4 w-4"
+										/>{/if}
 									<span class="hidden sm:inline">{wizard.showDbDetails ? m.setup_db_test_details_hide() : m.setup_db_test_details_show()}</span>
 								</button>
 								<button

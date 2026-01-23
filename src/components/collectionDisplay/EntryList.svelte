@@ -27,14 +27,8 @@
 -->
 
 <script module lang="ts">
-	import HelpCircle from '@lucide/svelte/icons/help-circle';
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 	import X from '@lucide/svelte/icons/x';
-	import ArrowUp from '@lucide/svelte/icons/arrow-up';
-	import ArrowDown from '@lucide/svelte/icons/arrow-down';
-	import Menu from '@lucide/svelte/icons/menu';
-	import Reset from '@lucide/svelte/icons/rotate-ccw';
-	import Eye from '@lucide/svelte/icons/eye';
-	import EyeOff from '@lucide/svelte/icons/eye-off';
 
 	export type SortOrder = 0 | 1 | -1; // Strict type for sort order
 </script>
@@ -805,7 +799,7 @@
 					aria-label="Open Sidebar"
 					class="preset-outlined-surface-500 btn-icon mt-1"
 				>
-					<Menu size={24} />
+					<CircleQuestionMark size={24} />
 				</button>
 			{/if}
 
@@ -819,21 +813,13 @@
 				<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
 					{#if currentCollection?.icon}
 						<span>
-							{#if currentCollection.icon}
-								{#await import(`@lucide/svelte/icons/${currentCollection.icon}`).catch(() => null) then iconModule}
-									{#if iconModule && iconModule.default}
-										{@const IconComponent = iconModule.default}
-										<IconComponent size={24} class="mr-1 text-error-500 sm:mr-2" />
-									{:else}
-										<HelpCircle size={24} class="mr-1 text-error-500 sm:mr-2" />
-									{/if}
-								{:catch}
-									<HelpCircle size={24} class="mr-1 text-error-500 sm:mr-2" />
-								{/await}
-							{/if}
+							{#if currentCollection.icon as keyof typeof iconsData}<Icon
+									icon={currentCollection.icon as keyof typeof iconsData}
+									size={24}
+									class="mr-1 text-error-500 sm:mr-2"
+								/>{/if}
 						</span>
 					{/if}
-
 					{#if currentCollection?.name}
 						<div class="flex max-w-[85px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
 							{currentCollection.name}
@@ -854,7 +840,7 @@
 				class="preset-outlined-surface-500 btn-icon p-1 sm:hidden"
 				aria-label="Expand/Collapse Filters"
 			>
-				<Menu size={24} />
+				<CircleQuestionMark size={24} />
 			</button>
 
 			<!-- Translation Content Language - Mobile -->
@@ -910,7 +896,8 @@
 					</label>
 
 					<button class="bg-surface-400 btn text-white" onclick={resetViewSettings}>
-						<Reset size={24} /> Reset View
+						<CircleQuestionMark size={24} />
+						Reset View
 					</button>
 				</div>
 				<section
@@ -928,11 +915,7 @@
 									: 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move"
 								onclick={() => handleColumnVisibilityToggle(header)}
 							>
-								{#if header.visible}
-									<Eye size={24} class="mr-1" />
-								{:else}
-									<EyeOff size={24} class="mr-1" />
-								{/if}
+								{#if header.visible}<CircleQuestionMark size={24} class="mr-1" />{/if}
 								<span class="capitalize">{header.label}</span>
 							</button>
 						</div>
@@ -1014,13 +997,10 @@
 								<div class="flex items-center justify-center">
 									{(header as TableHeader).label}
 									{#if (header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
-										<div class="ml-1 origin-center">
-											{#if entryListPaginationSettings.sorting.isSorted === 1}
-												<ArrowUp size={16} />
-											{:else}
-												<ArrowDown size={16} />
-											{/if}
-										</div>
+										{@const sortIcon = entryListPaginationSettings.sorting.isSorted === 1 ? 'arrow-up' : 'arrow-down'}
+										{#if sortIcon as keyof typeof iconsData}
+											<iconify-icon icon={sortIcon as keyof typeof iconsData} size={16} class="ml-1 origin-center" />
+										{/if}
 									{/if}
 								</div>
 							</th>
@@ -1177,7 +1157,7 @@
 		</div>
 	{:else}
 		<div class="py-10 text-center text-tertiary-500 dark:text-primary-500">
-			<HelpCircle size={24} class="mb-2" />
+			<CircleQuestionMark size={24} class="mb-2" />
 			<p class="text-lg">
 				{currentCollection?.name ? m.EntryList_no_collection({ name: currentCollection.name }) : 'No collection selected or collection is empty.'}
 			</p>

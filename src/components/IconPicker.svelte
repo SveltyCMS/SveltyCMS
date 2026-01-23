@@ -654,7 +654,6 @@ Avoids heavy build time by loading icons on demand.
 											toggleFavorite(icon);
 										}}
 										class="absolute right-0 top-0 opacity-0 transition-opacity group-hover:opacity-100"
-										aria-label="Remove from favorites"
 									>
 										<iconify-icon icon="mdi:close-circle" width="16" class="text-error-500"></iconify-icon>
 									</button>

@@ -4,16 +4,9 @@
 Controls for the Watermark tool. Allows adding, deleting, and positioning watermarks.
 -->
 <script lang="ts">
-	// Lucid icons
-	import Plus from '@lucide/svelte/icons/plus';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
-	import AlignStartVertical from '@lucide/svelte/icons/align-start-vertical';
-	import AlignCenterVertical from '@lucide/svelte/icons/align-center-vertical';
-	import AlignEndVertical from '@lucide/svelte/icons/align-end-vertical';
-	import AlignStartHorizontal from '@lucide/svelte/icons/align-start-horizontal';
-	import AlignCenterHorizontal from '@lucide/svelte/icons/align-center-horizontal';
-	import AlignEndHorizontal from '@lucide/svelte/icons/align-end-horizontal';
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 
+	// Using iconify-icon web component
 	let {
 		onAddWatermark,
 		onDeleteWatermark,
@@ -27,21 +20,21 @@ Controls for the Watermark tool. Allows adding, deleting, and positioning waterm
 	} = $props();
 
 	const positions = [
-		{ value: 'top-left', icon: AlignStartVertical },
-		{ value: 'top-center', icon: AlignCenterVertical },
-		{ value: 'top-right', icon: AlignEndVertical },
-		{ value: 'center-left', icon: AlignStartHorizontal },
-		{ value: 'center', icon: AlignCenterHorizontal },
-		{ value: 'center-right', icon: AlignEndHorizontal },
-		{ value: 'bottom-left', icon: AlignStartVertical },
-		{ value: 'bottom-center', icon: AlignCenterVertical },
-		{ value: 'bottom-right', icon: AlignEndVertical }
+		{ value: 'top-left', icon: 'mdi:align-vertical-top' },
+		{ value: 'top-center', icon: 'mdi:align-vertical-center' },
+		{ value: 'top-right', icon: 'mdi:align-vertical-top' },
+		{ value: 'center-left', icon: 'mdi:align-horizontal-left' },
+		{ value: 'center', icon: 'mdi:align-horizontal-center' },
+		{ value: 'center-right', icon: 'mdi:align-horizontal-right' },
+		{ value: 'bottom-left', icon: 'mdi:align-vertical-bottom' },
+		{ value: 'bottom-center', icon: 'mdi:align-vertical-center' },
+		{ value: 'bottom-right', icon: 'mdi:align-vertical-bottom' }
 	];
 </script>
 
 <div class="flex w-full items-center gap-4">
 	<button onclick={onAddWatermark} class="btn preset-outlined-surface-500">
-		<Plus size={24} />
+		<CircleQuestionMark size={24} />
 		<span>Add Watermark</span>
 	</button>
 
@@ -51,7 +44,7 @@ Controls for the Watermark tool. Allows adding, deleting, and positioning waterm
 		<div class="btn-group preset-outlined-surface-500">
 			{#each positions as pos}
 				<button class="btn-sm" onclick={() => onPositionChange(pos.value)} title={pos.value}>
-					<pos.icon />
+					<iconify-icon icon={pos.icon as keyof typeof iconsData} />{/if}
 				</button>
 			{/each}
 		</div>
@@ -59,7 +52,7 @@ Controls for the Watermark tool. Allows adding, deleting, and positioning waterm
 		<div class="grow"></div>
 
 		<button onclick={onDeleteWatermark} class="btn preset-outlined-error-500">
-			<Trash2 size={24} />
+			<CircleQuestionMark size={24} />
 			<span>Delete</span>
 		</button>
 	{/if}

@@ -27,14 +27,8 @@ It includes search, filter toggles, column visibility, and density controls, opt
 -->
 
 <script lang="ts">
-	// Lucide icons
+	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 	import Search from '@lucide/svelte/icons/search';
-	import Filter from '@lucide/svelte/icons/filter';
-	import Columns3 from '@lucide/svelte/icons/columns-3';
-	import X from '@lucide/svelte/icons/x';
-	import AlignJustify from '@lucide/svelte/icons/align-justify';
-	import AlignVerticalJustifyCenter from '@lucide/svelte/icons/align-vertical-justify-center';
-	import AlignVerticalSpaceAround from '@lucide/svelte/icons/align-vertical-space-around';
 
 	// Using iconify-icon web component
 	import { browser } from '$app/environment';
@@ -128,13 +122,13 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	function getDensityIcon() {
 		switch (density) {
 			case 'compact':
-				return AlignJustify;
+				return 'material-symbols:align-space-even-rounded';
 			case 'normal':
-				return AlignVerticalSpaceAround;
+				return 'material-symbols:align-space-around-rounded';
 			case 'comfortable':
-				return AlignVerticalJustifyCenter;
+				return 'material-symbols:align-space-between-rounded';
 			default:
-				return AlignVerticalSpaceAround;
+				return 'material-symbols:align-space-around-rounded';
 		}
 	}
 </script>
@@ -165,7 +159,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 			aria-label={m.table_clear_search()}
 			class="preset-filled-surface-500 w-10 flex items-center justify-center"
 		>
-			<X size={24} />
+			<CircleQuestionMark size={24} />
 		</button>
 	</div>
 {:else}
@@ -179,7 +173,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		title={m.table_search_toggle()}
 		class="btn preset-outlined-surface-500 rounded-full"
 	>
-		<Search size={24} />
+		<CircleQuestionMark size={24} />
 	</button>
 
 	<!-- Filter -->
@@ -193,7 +187,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		title={m.table_filter_toggle()}
 		class="btn preset-outlined-surface-500 rounded-full"
 	>
-		<Filter size={24} />
+		<CircleQuestionMark size={24} />
 	</button>
 
 	<!-- Column Order & Visibility -->
@@ -207,7 +201,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		title={m.table_column_toggle()}
 		class="btn preset-outlined-surface-500 rounded-full"
 	>
-		<Columns3 size={24} />
+		<CircleQuestionMark size={24} />
 	</button>
 
 	<!-- Spacing/Density -->
@@ -221,9 +215,9 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		title={m.table_density_label({ density: getDensityDisplayName() })}
 		class="btn preset-outlined-surface-500 rounded-full"
 	>
-		{#if density}
-			{@const DensityIcon = getDensityIcon()}
-			<DensityIcon size={24} />
-		{/if}
+		{#if getDensityIcon() as keyof typeof iconsData}<Icon
+				icon={getDensityIcon() as keyof typeof iconsData}
+				size={24}
+			/>{/if}
 	</button>
 {/if}

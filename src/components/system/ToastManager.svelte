@@ -21,19 +21,12 @@ optional actions, and smooth animations.
 -->
 
 <script lang="ts">
-	import { fly, fade } from 'svelte/transition';
-	import type { Component } from 'svelte';
-
-	// Lucid icon
 	import X from '@lucide/svelte/icons/x';
-	import CircleCheck from '@lucide/svelte/icons/circle-check';
-	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-	import CircleAlert from '@lucide/svelte/icons/circle-alert';
-	import Info from '@lucide/svelte/icons/info';
 
-	// Skeleton
+	// Note: Using <iconify-icon> web component for dynamic toast icons (zero build impact)
 	import { Toast } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '@stores/store.svelte.ts';
+	import { fly, fade } from 'svelte/transition';
 
 	interface Props {
 		/** Position of the toast container */
@@ -59,25 +52,25 @@ optional actions, and smooth animations.
 		success: {
 			gradient: 'gradient-primary',
 			textColor: 'text-white',
-			icon: CircleCheck,
+			icon: 'mdi:check-circle',
 			defaultTitle: 'Success'
 		},
 		warning: {
 			gradient: 'gradient-warning',
 			textColor: 'text-black',
-			icon: TriangleAlert,
+			icon: 'mdi:alert',
 			defaultTitle: 'Warning'
 		},
 		error: {
 			gradient: 'gradient-error',
 			textColor: 'text-white',
-			icon: CircleAlert,
+			icon: 'mdi:alert-circle',
 			defaultTitle: 'Error'
 		},
 		info: {
 			gradient: 'gradient-tertiary',
 			textColor: 'text-white',
-			icon: Info,
+			icon: 'mdi:information',
 			defaultTitle: 'Info'
 		}
 	} as const;
@@ -94,7 +87,7 @@ optional actions, and smooth animations.
 	}
 
 	// Get icon for toast type
-	function getToastIcon(type: string | undefined): Component<any> | null {
+	function getToastIcon(type: string | undefined): string | null {
 		if (!type || !(type in toastConfig)) return null;
 		return toastConfig[type as ToastType].icon;
 	}
@@ -118,10 +111,7 @@ optional actions, and smooth animations.
 					{#if toast.title}
 						<Toast.Title class="font-bold text-base flex items-center gap-2">
 							{#if getToastIcon(toast.type)}
-								{@const IconComponent = getToastIcon(toast.type)}
-								{#if IconComponent}
-									<IconComponent size={22} class="shrink-0" />
-								{/if}
+								<iconify-icon icon={getToastIcon(toast.type)} width="22" class="shrink-0"></iconify-icon>
 							{/if}
 							<span>{toast.title}</span>
 						</Toast.Title>

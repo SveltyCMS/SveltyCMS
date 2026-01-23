@@ -17,20 +17,12 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 <script lang="ts">
 	import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 	import X from '@lucide/svelte/icons/x';
-	import Home from '@lucide/svelte/icons/home';
-	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
-	import UserIcon from '@lucide/svelte/icons/user';
-	import Hammer from '@lucide/svelte/icons/hammer';
-	import Network from '@lucide/svelte/icons/network';
-	import Settings from '@lucide/svelte/icons/settings';
-	import ShieldCheck from '@lucide/svelte/icons/shield-check';
-	import ShoppingBag from '@lucide/svelte/icons/shopping-bag';
 
-	// Auth
+	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
 	import { page } from '$app/state';
 	import { motion } from '@src/utils/utils';
-	import { onDestroy, onMount, tick, type Component } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { linear } from 'svelte/easing';
 	import { fade } from 'svelte/transition';
 	import { browser } from '$app/environment';
@@ -61,7 +53,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			external: boolean;
 			path: string;
 		};
-		icon: Component<any>;
+		icon: string;
 		color?: string;
 	};
 
@@ -73,48 +65,49 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		{
 			tooltip: 'Home',
 			url: { external: false, path: '/' },
-			icon: Home
+			icon: 'solar:home-bold'
 		},
 		{
 			tooltip: 'Dashboard',
 			url: { external: false, path: '/dashboard' },
-			icon: LayoutDashboard,
+			icon: 'mdi:view-dashboard',
 			color: 'bg-blue-500'
 		},
 		{
 			tooltip: 'User Profile',
 			url: { external: false, path: '/user' },
-			icon: UserIcon,
+			icon: 'radix-icons:avatar',
 			color: 'bg-orange-500'
 		},
 		{
 			tooltip: 'Collection Builder',
 			url: { external: false, path: '/config/collectionbuilder' },
-			icon: Hammer,
+			icon: 'fluent-mdl2:build-definition',
 			color: 'bg-green-500'
 		},
+
 		{
 			tooltip: 'GraphQL Explorer',
 			url: { external: true, path: '/api/graphql' },
-			icon: Network,
+			icon: 'teenyicons:graphql-outline',
 			color: 'bg-pink-500'
 		},
 		{
 			tooltip: 'System Configuration',
 			url: { external: false, path: '/config' },
-			icon: Settings,
+			icon: 'mynaui:config',
 			color: 'bg-surface-400'
 		},
 		{
 			tooltip: 'Access Management',
 			url: { external: false, path: '/config/accessManagement' },
-			icon: ShieldCheck,
+			icon: 'mdi:shield-account',
 			color: 'bg-purple-500'
 		},
 		{
 			tooltip: 'Marketplace',
 			url: { external: true, path: 'https://www.sveltycms.com' },
-			icon: ShoppingBag,
+			icon: 'icon-park-outline:shopping-bag',
 			color: 'bg-primary-700'
 		}
 	];
@@ -497,10 +490,9 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			style="top:{center.y}px;
 			       left:{center.x}px"
 		>
-			{#if endpoints[0]?.icon}
-				{@const Icon = endpoints[0].icon}
-				<Icon size={32} class="text-white" />
-			{/if}
+       {#if endpoints[0]?.icon}
+         <iconify-icon icon={endpoints[0].icon} width="32" class="text-white"></iconify-icon>
+       {/if}
 		</a>
 
 		{#each endpointsWithPos.slice(1) as endpoint, index (endpoint.tooltip)}
@@ -518,9 +510,10 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 				style="top:{endpoint.y}px;
 			       left:{endpoint.x}px"
 			>
-				{#if endpoint.icon}
-					{@const Icon = endpoint.icon}
-					<Icon size={32} class="text-white" />
+				{#if endpoint.icon as keyof typeof iconsData}
+					{#await import(`@lucide/svelte/icons/${endpoint.icon}`) then m}
+						<m.default size={32} class="text-white" />
+					{/await}
 				{/if}
 			</a>
 		{/each}

@@ -5,33 +5,13 @@
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
-
-	// Components
+	// Using iconify-icon web component
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
-
-	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
-	//Stors
 	import { collections } from '@src/stores/collectionStore.svelte';
 	import { ui } from '@src/stores/UIStore.svelte.ts';
-
-	// Lucide Icons
-	import Hammer from '@lucide/svelte/icons/hammer';
-	import Network from '@lucide/svelte/icons/network';
-	import Mail from '@lucide/svelte/icons/mail';
-	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
-	import ShoppingBag from '@lucide/svelte/icons/shopping-bag';
-	import Puzzle from '@lucide/svelte/icons/puzzle';
-	import Settings from '@lucide/svelte/icons/settings';
-	import History from '@lucide/svelte/icons/history';
-	import Database from '@lucide/svelte/icons/database';
-	import RefreshCcw from '@lucide/svelte/icons/refresh-ccw';
-	import Activity from '@lucide/svelte/icons/activity';
-	import Users from '@lucide/svelte/icons/users';
-	import Wrench from '@lucide/svelte/icons/wrench';
+	import { onMount } from 'svelte';
 
 	onMount(() => {
 		collections.setCollection(null);
@@ -50,7 +30,7 @@
 			id: 'collectionbuilder',
 			href: '/config/collectionbuilder',
 			label: m.config_collectionbuilder(),
-			icon: Hammer,
+			icon: 'fluent-mdl2:build-definition',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
 			iconColor: 'text-tertiary-600',
@@ -67,7 +47,7 @@
 			id: 'graphql',
 			href: '/api/graphql',
 			label: m.config_graphql(),
-			icon: Network,
+			icon: 'teenyicons:graphql-solid',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
 			iconColor: 'text-warning-600',
@@ -85,7 +65,7 @@
 			id: 'emailPreviews',
 			href: '/email-previews',
 			label: m.config_emailPreviews(),
-			icon: Mail,
+			icon: 'mdi:email-outline',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
 			iconColor: 'text-primary-600',
@@ -103,7 +83,7 @@
 			id: 'dashboard',
 			href: '/dashboard',
 			label: m.dashboard(),
-			icon: LayoutDashboard,
+			icon: 'bi:bar-chart-line',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
 			iconColor: 'text-error-600',
@@ -120,7 +100,7 @@
 			id: 'marketplace',
 			href: 'https://www.sveltyCMS.com',
 			label: m.marketplace(),
-			icon: ShoppingBag,
+			icon: 'icon-park-outline:shopping-bag',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
 			iconColor: 'text-secondary-500',
@@ -131,7 +111,7 @@
 			id: 'extensions',
 			href: '/config/extensions',
 			label: 'Extensions',
-			icon: Puzzle,
+			icon: 'mdi:puzzle-outline',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
 			iconColor: 'text-tertiary-500',
@@ -148,7 +128,7 @@
 			id: 'settings',
 			href: '/config/systemsetting',
 			label: m.config_settings(),
-			icon: Settings,
+			icon: 'uil:setting',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
 			iconColor: 'text-surface-500',
@@ -165,7 +145,7 @@
 			id: 'audit',
 			href: '/api/audit?limit=50',
 			label: 'Audit Log (Raw)',
-			icon: History,
+			icon: 'mdi:history',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
 			iconColor: 'text-primary-500',
@@ -183,7 +163,7 @@
 			id: 'importExport',
 			href: '/config/import-export',
 			label: 'Import & Export',
-			icon: Database,
+			icon: 'mdi:database-import',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
 			iconColor: 'text-warning-500',
@@ -201,7 +181,7 @@
 			id: 'configurationManager',
 			href: '/config/configurationManager',
 			label: 'Config Manager',
-			icon: RefreshCcw,
+			icon: 'mdi:sync-circle',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
 			iconColor: 'text-secondary-500',
@@ -220,7 +200,7 @@
 			id: 'systemHealth',
 			href: '/config/system-health',
 			label: 'System Health',
-			icon: Activity,
+			icon: 'mdi:heart-pulse',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
 			iconColor: 'text-success-500',
@@ -239,7 +219,7 @@
 			// FIX: Corrected typo from 'assessManagement'
 			href: '/config/accessManagement',
 			label: m.config_accessManagement(),
-			icon: Users,
+			icon: 'mdi:account-group',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
 			iconColor: 'text-error-500',
@@ -255,7 +235,7 @@
 	];
 </script>
 
-<PageTitle name={m.config_pagetitle()} showBackButton={true} backUrl="/" icon={Wrench} />
+<PageTitle name={m.config_pagetitle()} showBackButton={true} backUrl="/" icon="material-symbols:build-circle" />
 
 <div class="wrapper mb-2 max-h-[calc(100vh-65px)] overflow-auto p-2">
 	<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">
@@ -277,11 +257,8 @@
 						data-sveltekit-preload-data={item.target === '_blank' ? undefined : 'hover'}
 						onclick={handleMobileSidebarClose}
 					>
-						{#if item.icon}
-							{@const Icon = item.icon}
-							<div class={`text-3xl lg:text-2xl ${item.iconColor || ''}`}>
-								<Icon size={32} />
-							</div>
+						{#if item.icon as keyof typeof iconsData}
+							<iconify-icon icon={item.icon as keyof typeof iconsData} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`} />
 						{/if}
 						<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
 					</a>
@@ -296,11 +273,8 @@
 					data-sveltekit-preload-data={item.target === '_blank' ? undefined : 'hover'}
 					onclick={handleMobileSidebarClose}
 				>
-					{#if item.icon}
-						{@const Icon = item.icon}
-						<div class={`text-3xl lg:text-2xl ${item.iconColor || ''}`}>
-							<Icon size={32} />
-						</div>
+					{#if item.icon as keyof typeof iconsData}
+						<iconify-icon icon={item.icon as keyof typeof iconsData} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`} />
 					{/if}
 					<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
 				</a>

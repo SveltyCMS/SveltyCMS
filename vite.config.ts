@@ -437,21 +437,7 @@ export default defineConfig((): UserConfig => {
 		},
 		ssr: {
 			noExternal: [],
-			external: [
-				'bun:test',
-				'redis',
-				'sharp',
-				'mongoose',
-				'mongodb',
-				'argon2',
-				'cloudinary',
-				'googleapis',
-				'google-auth-library',
-				'graphql',
-				'graphql-yoga',
-				'drizzle-orm',
-				'@aws-sdk/client-s3'
-			]
+			external: ['bun:test', 'redis']
 		},
 		resolve: {
 			alias: {

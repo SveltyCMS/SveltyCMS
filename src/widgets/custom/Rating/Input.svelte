@@ -28,16 +28,15 @@ Interactive star rating with hover states and click selection
 -->
 
 <script lang="ts">
-	// Lucide Icons
-	import Star from '@lucide/svelte/icons/star';
-	// Skeleton
+	// Using iconify-icon web component
 	import { RatingGroup } from '@skeletonlabs/skeleton-svelte';
-
 	import type { FieldType } from './';
 
 	let { field, value = $bindable(), error }: { field: FieldType; value?: number | null | undefined; error?: string | null } = $props();
 
 	// Handle undefined/null value by defaulting to 0 for the component, but strictly binding back
+	// However, if we want to allow "no selection", we might need to handle undefined.
+	// Skeleton Ratings usually binds to a number.
 	let ratingValue = $state(value ?? 0);
 
 	$effect(() => {
@@ -60,13 +59,19 @@ Interactive star rating with hover states and click selection
 	<div class={error ? ' text-error-500' : ''}>
 		<RatingGroup value={ratingValue} onValueChange={(e) => (ratingValue = e.value)} aria-label={field.label}>
 			<RatingGroup.Control>
+				{@const iconFull = ((field.iconFull as string) || 'star').replace('material-symbols:', '')}
+				{@const iconEmpty = ((field.iconEmpty as string) || 'star-outline').replace('material-symbols:', '').replace('-outline', '')}
 				{#each { length: Number(field.max) || 5 } as _, i}
 					<RatingGroup.Item index={i + 1}>
 						{#snippet empty()}
-							<Star size={24} class="text-surface-400" />
+							{#if iconEmpty as keyof typeof iconsData}
+								<iconify-icon icon={iconEmpty as keyof typeof iconsData} size={24} class="text-surface-400" />
+							{/if}
 						{/snippet}
 						{#snippet full()}
-							<Star size={24} class={error ? 'fill-error-500 text-error-500' : 'fill-warning-500 text-warning-500'} />
+							{#if iconFull as keyof typeof iconsData}
+								<iconify-icon icon={iconFull as keyof typeof iconsData} size={24} class={error ? 'text-error-500' : 'text-warning-500'} />
+							{/if}
 						{/snippet}
 					</RatingGroup.Item>
 				{/each}

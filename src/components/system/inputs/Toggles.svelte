@@ -103,11 +103,13 @@
 			>
 				{#if iconOn && iconOff}
 					{@const currentIcon = value ? iconOn : iconOff}
-					<iconify-icon
-						icon={currentIcon}
-						width={iconSize}
-						class="{value ? 'text-primary-500' : 'text-error-500'} {disabled ? 'text-surface-600' : ''}"
-					></iconify-icon>
+					{#if currentIcon as keyof typeof iconsData}
+						<Icon
+							icon={currentIcon as keyof typeof iconsData}
+							size={iconSize}
+							class="{value ? 'text-primary-500' : 'text-error-500'} {disabled ? 'text-surface-600' : ''}"
+						/>
+					{/if}
 				{:else}
 					<span class="text-[10px] font-bold {value ? 'text-primary-500' : 'text-error-500'}" class:text-surface-600={disabled}>
 						{value ? 'ON' : 'OFF'}

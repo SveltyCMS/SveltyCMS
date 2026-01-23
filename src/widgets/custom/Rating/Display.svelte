@@ -26,7 +26,7 @@ Renders: ★★★★☆ (4 filled stars, 1 empty star)
 -->
 
 <script lang="ts">
-	import Star from '@lucide/svelte/icons/star';
+	// Using iconify-icon web component
 	import type { FieldType } from './';
 
 	const { field, value }: { field: FieldType; value: number | null | undefined } = $props();
@@ -36,12 +36,16 @@ Renders: ★★★★☆ (4 filled stars, 1 empty star)
 </script>
 
 {#if typeof value === 'number' && value > 0}
+	{@const iconFull = ((field.iconFull as string) || 'star').replace('material-symbols:', '')}
+	{@const iconEmpty = ((field.iconEmpty as string) || 'star-outline').replace('material-symbols:', '').replace('-outline', '')}
 	<div class="display-wrapper" title="{value} out of {field.max || 5} stars">
 		{#each stars as _, i}
 			{#if i < value}
-				<Star size={18} class="fill-warning-500 text-warning-500" />
-			{:else}
-				<Star size={18} class="text-gray-300 opacity-50" />
+				{#if iconFull as keyof typeof iconsData}
+					<iconify-icon icon={iconFull as keyof typeof iconsData} class="text-warning-500" />
+				{/if}
+			{:else if iconEmpty as keyof typeof iconsData}
+				<iconify-icon icon={iconEmpty as keyof typeof iconsData} class="text-gray-300" />
 			{/if}
 		{/each}
 	</div>
