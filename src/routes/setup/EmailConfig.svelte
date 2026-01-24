@@ -365,7 +365,7 @@
 
 <div class="space-y-6">
 	<!-- Why SMTP is Needed -->
-	<div class="card preset-outlined-primary-500 p-4">
+	<div class="card preset-outlined-tertiary-500 dark:preset-outlined-primary-500 p-4">
 		<!-- Header - Always visible with toggle button -->
 		<button
 			type="button"
@@ -405,6 +405,7 @@
 	<div class="space-y-2">
 		<label class="label">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
+				<iconify-icon icon="mdi:email-fast-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{m.setup_email_provider()}</span>
 				<Tooltip positioning={{ placement: 'top' }}>
 					<Tooltip.Trigger>
@@ -455,6 +456,7 @@
 		<!-- SMTP Host -->
 		<label class="label">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
+				<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{m.setup_email_host()} <span class="text-error-500">*</span></span>
 				<Tooltip positioning={{ placement: 'top' }}>
 					<Tooltip.Trigger>
@@ -517,6 +519,7 @@
 		<label class="label">
 			<div class="mb-1 flex items-center justify-between">
 				<div class="flex items-center gap-1">
+					<iconify-icon icon="mdi:ethernet" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span class="font-medium text-black dark:text-white">{m.setup_email_port()} <span class="text-error-500">*</span></span>
 					<Tooltip positioning={{ placement: 'top' }}>
 						<Tooltip.Trigger>
@@ -604,7 +607,7 @@
 					</select>
 					<button
 						type="button"
-						class="preset-outlined-surface-500btn btn-sm whitespace-nowrap"
+						class="preset-outlined btn btn-sm whitespace-nowrap"
 						aria-label="Enter a custom SMTP port"
 						onclick={() => {
 							useCustomPort = true;
@@ -632,6 +635,7 @@
 		<!-- SMTP User -->
 		<label class="label">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
+				<iconify-icon icon="mdi:account" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{m.setup_email_user()} <span class="text-error-500">*</span></span>
 				<Tooltip positioning={{ placement: 'top' }}>
 					<Tooltip.Trigger>
@@ -690,6 +694,7 @@
 		<!-- SMTP Password -->
 		<label class="label">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
+				<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{m.setup_email_password()} <span class="text-error-500">*</span></span>
 				<Tooltip positioning={{ placement: 'top' }}>
 					<Tooltip.Trigger>
@@ -757,7 +762,10 @@
 
 		<!-- From Email (Optional) -->
 		<label class="label md:col-span-2">
-			<span class="font-medium text-black dark:text-white">{m.setup_email_from()}</span>
+			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
+				<iconify-icon icon="mdi:email-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+				<span class="text-black dark:text-white">{m.setup_email_from()}</span>
+			</div>
 			<input
 				type="email"
 				class="input"

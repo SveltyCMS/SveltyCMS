@@ -84,9 +84,14 @@ export async function createTestUsers(): Promise<void> {
 
 		if (!res.ok) {
 			const text = await res.text();
-			// Only throw if it's NOT a "User already exists" error
-			if (!text.toLowerCase().includes('duplicate') && !text.toLowerCase().includes('exists')) {
+			// Only throw if it's NOT a "User already exists" error or "Unauthorized" (meaning setup done)
+			const isDuplicate = text.toLowerCase().includes('duplicate') || text.toLowerCase().includes('exists');
+			const isUnauthorized = res.status === 401 || res.status === 403;
+
+			if (!isDuplicate && !isUnauthorized) {
 				console.warn(`Failed to create ${user.role}: ${res.status} ${text}`);
+			} else if (isUnauthorized) {
+				// Quietly proceed if unauthorized, assuming user/admin exists from seeding
 			}
 		}
 

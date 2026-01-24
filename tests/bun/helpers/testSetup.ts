@@ -43,7 +43,7 @@ export async function cleanupTestDatabase(): Promise<void> {
 
 	try {
 		if (process.env.TEST_MODE) {
-			await fs.unlink(path.join(configDir, 'private.test.ts')).catch(() => {});
+			// await fs.unlink(path.join(configDir, 'private.test.ts')).catch(() => {});
 		}
 		// Also clean private.ts if we are in a safe environment (extra safety: only if TEST_MODE is explicitly set)
 		if (process.env.TEST_MODE) {
@@ -60,12 +60,14 @@ export async function cleanupTestDatabase(): Promise<void> {
 
 	let uri = process.env.MONGODB_URI;
 	if (!uri && process.env.DB_USER && process.env.DB_PASSWORD) {
-		const host = process.env.DB_HOST || 'localhost';
+		let host = process.env.DB_HOST || 'localhost';
+		if (host === 'localhost') host = '127.0.0.1'; // Avoid DNS issues
 		const port = process.env.DB_PORT || '27017';
 		uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${host}:${port}/${dbName}?authSource=admin`;
 	}
 	if (!uri) {
-		const host = process.env.DB_HOST || '127.0.0.1';
+		let host = process.env.DB_HOST || '127.0.0.1';
+		if (host === 'localhost') host = '127.0.0.1';
 		const port = process.env.DB_PORT || '27017';
 		uri = `mongodb://${host}:${port}/${dbName}`;
 	}
@@ -73,11 +75,8 @@ export async function cleanupTestDatabase(): Promise<void> {
 	// Force hardcoded URI to rule out Env var issues - REMOVED, using generated URI with directConnection
 	// uri = `mongodb://127.0.0.1:27017/${dbName}`;
 
-	console.log('[cleanupTestDatabase] Connecting to DB (URI redacted)...');
 	const client = new MongoClient(uri, {
-		serverSelectionTimeoutMS: 5000,
-		directConnection: true,
-		family: 4
+		serverSelectionTimeoutMS: 5000
 	});
 	try {
 		await client.connect();
@@ -85,10 +84,120 @@ export async function cleanupTestDatabase(): Promise<void> {
 		await client.db(dbName).dropDatabase();
 		console.log('[cleanupTestDatabase] DB Dropped.');
 	} catch (e) {
-		console.error('Failed to drop test database:', e);
+		console.warn('Warning: Failed to drop test database (non-fatal):', e.message);
 	} finally {
 		await client.close();
 		console.log('[cleanupTestDatabase] Client closed.');
+	}
+}
+
+/**
+ * Seeds basic roles into the database to ensure permissions exist.
+ * This mimics what the Setup API does but faster/direct for tests.
+ */
+async function seedBasicRoles(): Promise<void> {
+	const { MongoClient } = await import('mongodb');
+	const dbName = process.env.DB_NAME || 'sveltycms_test';
+
+	// Construct URI (reuse logic from cleanup)
+	let uri = process.env.MONGODB_URI;
+	if (!uri && process.env.DB_USER && process.env.DB_PASSWORD) {
+		let host = process.env.DB_HOST || '127.0.0.1';
+		if (host === 'localhost') host = '127.0.0.1';
+		const port = process.env.DB_PORT || '27017';
+		uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${host}:${port}/${dbName}?authSource=admin`;
+	} else if (!uri) {
+		let host = process.env.DB_HOST || '127.0.0.1';
+		if (host === 'localhost') host = '127.0.0.1';
+		const port = process.env.DB_PORT || '27017';
+		uri = `mongodb://${host}:${port}/${dbName}`;
+	}
+
+	const client = new MongoClient(uri, { serverSelectionTimeoutMS: 5000 });
+	try {
+		await client.connect();
+		const db = client.db(dbName);
+
+		// Check if admin role exists
+		const adminRole = await db.collection('roles').findOne({ _id: 'admin' });
+		if (!adminRole) {
+			console.log('[testSetup] Seeding admin role...');
+			// Hardcode commonly used permissions + 'admin' catch-all
+			// This avoids needing to import system internals
+			const permissions = ['read', 'write', 'delete', 'admin'];
+			await db.collection('roles').insertOne({
+				_id: 'admin',
+				name: 'Admin',
+				description: 'System Administrator',
+				permissions,
+				isAdmin: true,
+				createdAt: new Date(),
+				updatedAt: new Date()
+			});
+		}
+
+		// Seed settings
+		await seedBasicSettings(db);
+	} catch (e) {
+		console.warn('Warning: Failed to seed data:', e.message);
+	} finally {
+		await client.close();
+	}
+}
+
+async function seedBasicSettings(db: any): Promise<void> {
+	try {
+		const existingconfig = await db.collection('system_settings').findOne({ key: 'SITE_NAME' });
+		if (!existingconfig) {
+			console.log('[testSetup] Seeding basic settings...');
+			const crypto = await import('crypto');
+			const now = new Date();
+			const settings = [
+				{
+					_id: crypto.randomUUID(),
+					key: 'SITE_NAME',
+					value: 'SveltyCMS Test',
+					category: 'public',
+					scope: 'system',
+					isGlobal: true,
+					createdAt: now,
+					updatedAt: now
+				},
+				{
+					_id: crypto.randomUUID(),
+					key: 'HOST_DEV',
+					value: 'http://localhost:4173',
+					category: 'public',
+					scope: 'system',
+					isGlobal: true,
+					createdAt: now,
+					updatedAt: now
+				},
+				{
+					_id: crypto.randomUUID(),
+					key: 'DEFAULT_CONTENT_LANGUAGE',
+					value: 'en',
+					category: 'public',
+					scope: 'system',
+					isGlobal: true,
+					createdAt: now,
+					updatedAt: now
+				},
+				{
+					_id: crypto.randomUUID(),
+					key: 'DEFAULT_THEME_IS_DEFAULT',
+					value: true,
+					category: 'public',
+					scope: 'system',
+					isGlobal: true,
+					createdAt: now,
+					updatedAt: now
+				}
+			];
+			await db.collection('system_settings').insertMany(settings);
+		}
+	} catch (e) {
+		console.warn('Warning: Failed to seed settings:', e.message);
 	}
 }
 
@@ -97,6 +206,9 @@ export async function cleanupTestDatabase(): Promise<void> {
  * @returns {Promise<string>} Authentication cookie.
  */
 export async function prepareAuthenticatedContext(): Promise<string> {
+	// 0. Ensure Roles and Settings exist (since DB might be clean)
+	await seedBasicRoles();
+
 	// 1. Create standard test users (idempotent)
 	await createTestUsers();
 

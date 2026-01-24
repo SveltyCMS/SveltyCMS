@@ -48,73 +48,77 @@ Displays logo, site name, language selector, and theme toggle.
 			</div>
 
 			<div class="language-selector relative">
-				<Tooltip positioning={{ placement: 'bottom' }}>
-					<Tooltip.Trigger>
-						<Menu positioning={{ placement: 'bottom-end', gutter: 10 }}>
-							<Menu.Trigger class="preset-outlined btn rounded  px-2 py-1 flex items-center gap-2">
-								<span class="font-medium">{getLanguageName(currentLanguageTag)}</span>
-								<iconify-icon icon="mdi:chevron-down" class="h-4 w-4 transition-transform group-data-[state=open]:rotate-180"></iconify-icon>
-							</Menu.Trigger>
+				<Menu positioning={{ placement: 'bottom-end', gutter: 10 }}>
+					<Tooltip positioning={{ placement: 'bottom' }}>
+						<Tooltip.Trigger>
+							<div class="inline-block">
+								<Menu.Trigger class="preset-outlined btn rounded px-2 py-1 flex items-center gap-2">
+									<span class="font-medium">{getLanguageName(currentLanguageTag)}</span>
+									<iconify-icon icon="mdi:chevron-down" class="h-4 w-4 transition-transform group-data-[state=open]:rotate-180"></iconify-icon>
+								</Menu.Trigger>
+							</div>
+						</Tooltip.Trigger>
+						<Portal>
+							<Tooltip.Positioner>
+								<Tooltip.Content class="card z-50 rounded-md p-2 text-xs shadow-xl bg-surface-800 text-white border border-surface-600">
+									{m.applayout_systemlanguage?.() || 'Change system language'}
+									<Tooltip.Arrow>
+										<Tooltip.ArrowTip class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-800)]" />
+									</Tooltip.Arrow>
+								</Tooltip.Content>
+							</Tooltip.Positioner>
+						</Portal>
+					</Tooltip>
 
-							<Portal>
-								<Menu.Positioner>
-									<Menu.Content class="card p-2 shadow-xl preset-filled z-50 w-64">
-										<!-- Header to inform user about System Language context -->
-										<div
-											class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-600 mb-2"
-										>
-											{m.applayout_systemlanguage()}
-										</div>
-
-										<!-- Search Input (Only if > 5 languages) -->
-										{#if systemLanguages.length > 5}
-											<div class="px-2 pb-2 mb-2 border-b border-surface-200 dark:text-surface-50">
-												<div class="relative">
-													<iconify-icon icon="mdi:magnify" class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
-													<input
-														type="text"
-														bind:value={langSearch}
-														placeholder={m.setup_search_placeholder()}
-														class="w-full rounded-md bg-surface-50 dark:bg-surface-800 pl-9 pr-3 py-1.5 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 border border-surface-200 dark:text-surface-50"
-														onclick={(e) => e.stopPropagation()}
-													/>
-												</div>
-											</div>
-										{/if}
-
-										<!-- Language List -->
-										<div class="max-h-64 overflow-y-auto custom-scrollbar">
-											{#if filteredLanguages.length > 0}
-												{#each filteredLanguages as lang (lang)}
-													<Menu.Item
-														value={lang}
-														onclick={() => selectLanguage(lang)}
-														class="flex w-full items-center justify-between px-3 py-2 text-left rounded-md cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors"
-													>
-														<span class="text-sm font-medium">{getLanguageName(lang)}</span>
-														<span class="text-xs font-bold text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
-													</Menu.Item>
-												{/each}
-											{:else}
-												<div class="px-3 py-4 text-center text-sm text-surface-500">No languages found</div>
-											{/if}
-										</div>
-									</Menu.Content>
-								</Menu.Positioner>
-							</Portal>
-						</Menu>
-					</Tooltip.Trigger>
 					<Portal>
-						<Tooltip.Positioner>
-							<Tooltip.Content class="card preset-filled-surface-700 z-50 rounded-md p-2 text-xs text-white shadow-xl">
-								{m.applayout_systemlanguage?.() || 'Change system language'}
-								<Tooltip.Arrow>
-									<Tooltip.ArrowTip class="bg-surface-700" />
-								</Tooltip.Arrow>
-							</Tooltip.Content>
-						</Tooltip.Positioner>
+						<Menu.Positioner>
+							<Menu.Content
+								class="card p-2 shadow-xl z-50 w-64 bg-surface-50 dark:bg-surface-800 text-black dark:text-white border border-surface-200 dark:border-surface-700"
+							>
+								<!-- Header to inform user about System Language context -->
+								<div
+									class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-600 mb-2"
+								>
+									{m.applayout_systemlanguage()}
+								</div>
+
+								<!-- Search Input (Only if > 5 languages) -->
+								{#if systemLanguages.length > 5}
+									<div class="px-2 pb-2 mb-2 border-b border-surface-200 dark:text-surface-50">
+										<div class="relative">
+											<iconify-icon icon="mdi:magnify" class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
+											<input
+												type="text"
+												bind:value={langSearch}
+												placeholder={m.setup_search_placeholder()}
+												class="w-full rounded-md bg-surface-50 dark:bg-surface-800 pl-9 pr-3 py-1.5 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 border border-surface-200 dark:text-surface-50"
+												onclick={(e) => e.stopPropagation()}
+											/>
+										</div>
+									</div>
+								{/if}
+
+								<!-- Language List -->
+								<div class="max-h-64 overflow-y-auto custom-scrollbar">
+									{#if filteredLanguages.length > 0}
+										{#each filteredLanguages as lang (lang)}
+											<Menu.Item
+												value={lang}
+												onclick={() => selectLanguage(lang)}
+												class="flex w-full items-center justify-between px-3 py-2 text-left rounded-md cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors"
+											>
+												<span class="text-sm font-medium">{getLanguageName(lang)}</span>
+												<span class="text-xs font-bold text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
+											</Menu.Item>
+										{/each}
+									{:else}
+										<div class="px-3 py-4 text-center text-sm text-surface-500">No languages found</div>
+									{/if}
+								</div>
+							</Menu.Content>
+						</Menu.Positioner>
 					</Portal>
-				</Tooltip>
+				</Menu>
 			</div>
 
 			<ThemeToggle showTooltip={true} tooltipPlacement="bottom" iconSize={22} />

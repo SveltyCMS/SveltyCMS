@@ -63,9 +63,9 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 		</Tooltip.Trigger>
 		<Portal>
 			<Tooltip.Positioner>
-				<Tooltip.Content class="card preset-filled-surface-500-950-50 z-50 rounded-md p-2 text-sm shadow-xl">
+				<Tooltip.Content class="card z-50 rounded-md p-2 text-sm shadow-xl bg-surface-800 text-white border border-surface-600">
 					{getTooltipText()}
-					<Tooltip.Arrow class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-950-50)]">
+					<Tooltip.Arrow class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-800)]">
 						<Tooltip.ArrowTip />
 					</Tooltip.Arrow>
 				</Tooltip.Content>
