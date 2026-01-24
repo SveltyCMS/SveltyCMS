@@ -91,8 +91,11 @@ describeMongoDriver('Setup API - Database Driver Installation', () => {
 		expect(res.status).toBe(200);
 		const result = await res.json();
 
-		expect(result.driverPackage).toBe('mongoose');
-		expect(result.installed).toBeDefined();
+		// API returns 'package' field, not 'driverPackage'
+		expect(result.package).toBe('mongoose');
+		expect(result.success).toBe(true);
+		// Package might be already installed or newly installed
+		expect(result.alreadyInstalled !== undefined || result.output !== undefined).toBe(true);
 	});
 });
 
