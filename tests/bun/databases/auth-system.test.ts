@@ -54,23 +54,55 @@ describe('Auth System Functional Tests', () => {
 	beforeAll(async () => {
 		const adapterModule = await import('../../../src/databases/mongodb/mongoDBAdapter');
 		adapterClass = adapterModule.MongoDBAdapter;
-		// @ts-ignore
-		const configModule = await import('../../../config/private.test');
-		privateEnv = configModule.privateEnv;
+		
+		// Try to import config - use private.ts if private.test doesn't exist (integration tests)
+		try {
+			// @ts-ignore
+			const configModule = await import('../../../config/private.test');
+			privateEnv = configModule.privateEnv;
+		} catch {
+			try {
+				// @ts-ignore - In integration tests, use the real config created by setup
+				const configModule = await import('../../../config/private');
+				privateEnv = configModule.default;
+			} catch {
+				console.warn('Auth Test: No config found. Skipping tests.');
+				return;
+			}
+		}
 
-		if (!privateEnv || !privateEnv.DB_TYPE) return;
+		if (!privateEnv || !privateEnv.database?.type) return;
+
+		// Skip test if not MongoDB (MariaDB tests shouldn't run MongoDB auth tests)
+		if (!privateEnv.database.type.startsWith('mongodb')) {
+			console.warn('Auth Test: Not a MongoDB database. Skipping tests.');
+			return;
+		}
 
 		db = new adapterClass();
 
 		// OPTIMIZATION: Use shared test database in TEST_MODE for speed
 		// Otherwise use isolated functional DB
 		const isTestMode = process.env.TEST_MODE === 'true';
-		const dbName = isTestMode ? privateEnv.DB_NAME || 'sveltycms_test' : (privateEnv.DB_NAME || 'sveltycms_test') + '_functional';
-
-		let connectionString = `mongodb://${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${dbName}`;
-
-		if (privateEnv.DB_USER && privateEnv.DB_PASSWORD) {
-			connectionString = `mongodb://${privateEnv.DB_USER}:${privateEnv.DB_PASSWORD}@${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${dbName}?authSource=admin`;
+		const dbConfig = privateEnv.database;
+		
+		// Build connection string from config
+		let connectionString: string;
+		
+		if (dbConfig.uri) {
+			// Use provided URI if available
+			connectionString = dbConfig.uri;
+		} else {
+			// Build connection string from parts
+			const dbName = isTestMode ? dbConfig.name || 'sveltycms_test' : (dbConfig.name || 'sveltycms_test') + '_functional';
+			const host = dbConfig.host || 'localhost';
+			const port = dbConfig.port || 27017;
+			
+			if (dbConfig.user && dbConfig.password) {
+				connectionString = `mongodb://${dbConfig.user}:${dbConfig.password}@${host}:${port}/${dbName}?authSource=admin`;
+			} else {
+				connectionString = `mongodb://${host}:${port}/${dbName}`;
+			}
 		}
 
 		// Use shorter timeouts for tests
