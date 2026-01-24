@@ -9,7 +9,7 @@ import { cleanupTestDatabase } from '../helpers/testSetup';
 import type { DatabaseConfig } from '@src/databases/schemas';
 
 const API_BASE_URL = getApiBaseUrl();
-const dbType = (process.env.DB_TYPE as 'mongodb' | 'mariadb' | 'postgresql') || 'mongodb';
+const dbType = (process.env.DB_TYPE as 'mongodb' | 'mongodb+srv' | 'mariadb') || 'mongodb';
 
 const testDbConfig: DatabaseConfig = {
 	type: dbType,
