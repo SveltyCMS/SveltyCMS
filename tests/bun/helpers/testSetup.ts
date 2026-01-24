@@ -129,18 +129,25 @@ export const testFixtures = {
 			confirmPassword: 'Admin123!',
 			role: 'admin'
 		},
+		developer: {
+			username: 'developer',
+			email: 'developer@example.com',
+			password: 'Developer123!',
+			confirmPassword: 'Developer123!',
+			role: 'developer'
+		},
 		editor: {
 			username: 'editor',
-			email: 'editor@test.com',
-			password: 'EditorPassword123!',
-			confirmPassword: 'EditorPassword123!',
+			email: 'editor@example.com',
+			password: 'Editor123!',
+			confirmPassword: 'Editor123!',
 			role: 'editor'
 		},
 		secondUser: {
 			username: 'editor',
-			email: 'editor@test.com',
-			password: 'EditorPassword123!',
-			confirmPassword: 'EditorPassword123!',
+			email: 'editor@example.com',
+			password: 'Editor123!',
+			confirmPassword: 'Editor123!',
 			role: 'editor'
 		},
 		viewer: {

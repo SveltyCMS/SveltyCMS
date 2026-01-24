@@ -422,6 +422,13 @@ jobs:
             sleep 2
           done
 
+      # Seed test users (developer, editor) for RBAC tests
+      - name: 👥 Seed Test Users
+        run: bun run scripts/seed-test-db.ts
+        env:
+          API_BASE_URL: 'http://localhost:4173'
+          TEST_MODE: 'true'
+
       - name: 🔐 Run RBAC Tests
         run: bunx playwright test tests/playwright/role-based-access.spec.ts --project=chromium --reporter=list
 
@@ -573,6 +580,13 @@ jobs:
             fi
             sleep 2
           done
+
+      # Seed test users (developer, editor) for RBAC tests
+      - name: 👥 Seed Test Users
+        run: bun run scripts/seed-test-db.ts
+        env:
+          API_BASE_URL: 'http://localhost:4173'
+          TEST_MODE: 'true'
 
       # Note: Authentication logic in 'auth.ts' relies on 'data-testid', which is DB-agnostic.
       # However, some tests might assume MongoDB IDs. We run a core subset first.

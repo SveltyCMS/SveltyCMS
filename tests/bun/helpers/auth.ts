@@ -46,12 +46,16 @@ export async function loginAsViewer(): Promise<string> {
 	return login(testFixtures.users.viewer.email, testFixtures.users.viewer.password);
 }
 
+export async function loginAsDeveloper(): Promise<string> {
+	return login(testFixtures.users.developer.email, testFixtures.users.developer.password);
+}
+
 /**
  * Creates test users via the API.
  * Idempotent: Ignores "Duplicate" errors so tests can re-run.
  */
 export async function createTestUsers(): Promise<void> {
-	const users = [testFixtures.users.admin, testFixtures.users.editor];
+	const users = [testFixtures.users.admin, testFixtures.users.developer, testFixtures.users.editor];
 
 	// In CI environments (or if explicitly requested), add the viewer user
 	if (process.env.CI === 'true') {
