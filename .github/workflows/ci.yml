@@ -137,14 +137,21 @@ jobs:
           bun x wait-on http://localhost:4173 -t 90000 --interval 1000
           curl -f http://localhost:4173 || (cat preview-integration.log; exit 1)
 
-      # Phase 1: Run Setup Test (Installs the system via API)
+      # Phase 1: Run Setup Test (Installs the system via API, creates admin user)
       - name: 🟢 Run Setup API Test
         run: bun test tests/bun/api/setup.test.ts
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
 
-      # Phase 2: Run All Other Integration Tests (System is now installed)
+      # Phase 1.5: Seed additional test users (developer, editor) for integration tests
+      - name: 👥 Seed Test Users
+        run: bun run scripts/seed-test-db.ts
+        env:
+          API_BASE_URL: 'http://localhost:4173'
+          CI: 'true'
+
+      # Phase 2: Run All Other Integration Tests (System is now installed with all users)
       # We skip 'Setup API' tests because they expect a fresh install and we just ran them.
       - name: 🧪 Run Main Integration Suite
         run: bun test tests/bun/api tests/bun/databases tests/bun/hooks -t "!Setup API"
@@ -288,11 +295,28 @@ jobs:
           bun x wait-on http://localhost:4173 -t 60000
           echo "✅ Preview server is ready!"
 
-      - name: Run Integration Tests
-        run: bun run test:integration:run
+      # Phase 1: Run Setup Test (Installs the system via API, creates admin user)
+      - name: 🟢 Run Setup API Test
+        run: bun test tests/bun/api/setup.test.ts
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
+          DB_TYPE: mariadb
+
+      # Phase 1.5: Seed additional test users (developer, editor) for integration tests
+      - name: 👥 Seed Test Users
+        run: bun run scripts/seed-test-db.ts
+        env:
+          API_BASE_URL: 'http://localhost:4173'
+          CI: 'true'
+
+      # Phase 2: Run All Other Integration Tests (System is now installed with all users)
+      - name: 🧪 Run Main Integration Suite
+        run: bun test tests/bun/api tests/bun/databases tests/bun/hooks -t "!Setup API"
+        env:
+          TEST_MODE: 'true'
+          API_BASE_URL: 'http://localhost:4173'
+          DB_TYPE: mariadb
 
   # ------------------------------------------------------------------
   # 4. E2E Tests (Requires Server + MongoDB + Browser)
