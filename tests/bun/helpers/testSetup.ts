@@ -25,6 +25,9 @@ export async function cleanupTestEnvironment(): Promise<void> {
  */
 export async function cleanupTestDatabase(): Promise<void> {
 	console.log('[cleanupTestDatabase] Starting...');
+	
+	const dbType = process.env.DB_TYPE || 'mongodb';
+	
 	// 1. Call reset endpoint to clear config and cache on the server
 	try {
 		const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5173';
@@ -54,7 +57,12 @@ export async function cleanupTestDatabase(): Promise<void> {
 	}
 
 	// 3. Drop Test Database
-	// Note: basic drop logic, ideally use common DB helper if available
+	// Note: Only works for MongoDB currently
+	if (dbType !== 'mongodb') {
+		console.log(`[cleanupTestDatabase] Skipping DB drop for ${dbType} (not implemented)`);
+		return;
+	}
+
 	const { MongoClient } = await import('mongodb');
 	const dbName = process.env.DB_NAME || 'sveltycms_test';
 
@@ -70,10 +78,7 @@ export async function cleanupTestDatabase(): Promise<void> {
 		uri = `mongodb://${host}:${port}/${dbName}`;
 	}
 
-	// Force hardcoded URI to rule out Env var issues - REMOVED, using generated URI with directConnection
-	// uri = `mongodb://127.0.0.1:27017/${dbName}`;
-
-	console.log('[cleanupTestDatabase] Connecting to DB (URI redacted)...');
+	console.log('[cleanupTestDatabase] Connecting to MongoDB (URI redacted)...');
 	const client = new MongoClient(uri, {
 		serverSelectionTimeoutMS: 5000,
 		directConnection: true,
@@ -85,7 +90,7 @@ export async function cleanupTestDatabase(): Promise<void> {
 		await client.db(dbName).dropDatabase();
 		console.log('[cleanupTestDatabase] DB Dropped.');
 	} catch (e) {
-		console.error('Failed to drop test database:', e);
+		console.error('[cleanupTestDatabase] Failed to drop test database:', e);
 	} finally {
 		await client.close();
 		console.log('[cleanupTestDatabase] Client closed.');
