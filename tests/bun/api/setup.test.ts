@@ -11,9 +11,9 @@ import type { DatabaseConfig } from '@src/databases/schemas';
 const API_BASE_URL = getApiBaseUrl();
 
 const testDbConfig: DatabaseConfig = {
-	type: 'mongodb',
+	type: (process.env.DB_TYPE as 'mongodb' | 'mariadb' | 'postgresql') || 'mongodb',
 	host: process.env.DB_HOST || 'localhost',
-	port: parseInt(process.env.DB_PORT || '27017'),
+	port: parseInt(process.env.DB_PORT || (process.env.DB_TYPE === 'mariadb' ? '3306' : '27017')),
 	name: process.env.DB_NAME || 'sveltycms_test',
 	user: process.env.DB_USER || '',
 	password: process.env.DB_PASSWORD || ''
@@ -38,7 +38,7 @@ const testAdminUser = {
 describe('Setup API - Database Connection Tests', () => {
 	beforeEach(cleanupTestDatabase);
 
-	it('tests MongoDB connection', async () => {
+	it(`tests ${testDbConfig.type} connection`, async () => {
 		const res = await fetch(`${API_BASE_URL}/api/setup/test-database`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },

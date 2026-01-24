@@ -5,7 +5,7 @@
  */
 import { waitForServer } from './server';
 import { createTestUsers, loginAsAdmin } from './auth';
-import { testUsers } from '@tests/fixtures/users';
+import { testUsers } from '../../fixtures/users';
 
 /**
  * Initialize the environment (wait for server).
