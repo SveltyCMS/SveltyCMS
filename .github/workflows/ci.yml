@@ -280,6 +280,13 @@ jobs:
       - name: Build Production
         run: bun run build
 
+      # Remove temporary config so server starts in setup mode
+      - name: Remove temporary config
+        run: |
+          echo "🧹 Removing temporary config/private.ts..."
+          rm -f config/private.ts
+          echo "✅ Removed temporary config - server will start in setup mode"
+
       # Kill any process using port 4173 to prevent conflicts
       - name: Clean up port 4173
         run: |
