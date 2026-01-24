@@ -9,9 +9,10 @@ import { cleanupTestDatabase } from '../helpers/testSetup';
 import type { DatabaseConfig } from '@src/databases/schemas';
 
 const API_BASE_URL = getApiBaseUrl();
+const dbType = (process.env.DB_TYPE as 'mongodb' | 'mariadb' | 'postgresql') || 'mongodb';
 
 const testDbConfig: DatabaseConfig = {
-	type: (process.env.DB_TYPE as 'mongodb' | 'mariadb' | 'postgresql') || 'mongodb',
+	type: dbType,
 	host: process.env.DB_HOST || 'localhost',
 	port: parseInt(process.env.DB_PORT || (process.env.DB_TYPE === 'mariadb' ? '3306' : '27017')),
 	name: process.env.DB_NAME || 'sveltycms_test',
@@ -76,15 +77,11 @@ describe('Setup API - Database Connection Tests', () => {
 	});
 });
 
-describe('Setup API - Database Driver Installation', () => {
-	it('checks MongoDB driver', async () => {
-		// Skip this test when running MariaDB tests
-		const dbType = process.env.DB_TYPE || 'mongodb';
-		if (dbType !== 'mongodb') {
-			console.log(`Skipping MongoDB driver test (DB_TYPE=${dbType})`);
-			return;
-		}
+// Only test MongoDB driver when running MongoDB tests
+const describeMongoDriver = dbType === 'mongodb' ? describe : describe.skip;
 
+describeMongoDriver('Setup API - Database Driver Installation', () => {
+	it('checks MongoDB driver', async () => {
 		const res = await fetch(`${API_BASE_URL}/api/setup/install-driver`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
