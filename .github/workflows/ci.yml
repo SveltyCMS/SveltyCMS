@@ -429,6 +429,28 @@ jobs:
           API_BASE_URL: 'http://localhost:4173'
           TEST_MODE: 'true'
 
+      # Verify test users were created successfully
+      - name: ✅ Verify Test Users
+        run: |
+          echo "Verifying developer user..."
+          curl -f http://localhost:4173/api/user/login \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"email":"developer@example.com","password":"Developer123!"}' \
+            || (echo "❌ Developer user login failed!" && exit 1)
+          
+          echo "✅ Developer user verified"
+          
+          echo "Verifying editor user..."
+          curl -f http://localhost:4173/api/user/login \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"email":"editor@example.com","password":"Editor123!"}' \
+            || (echo "❌ Editor user login failed!" && exit 1)
+          
+          echo "✅ Editor user verified"
+          echo "✅ All test users verified successfully"
+
       - name: 🔐 Run RBAC Tests
         run: bunx playwright test tests/playwright/role-based-access.spec.ts --project=chromium --reporter=list
 
@@ -587,6 +609,28 @@ jobs:
         env:
           API_BASE_URL: 'http://localhost:4173'
           TEST_MODE: 'true'
+
+      # Verify test users were created successfully
+      - name: ✅ Verify Test Users
+        run: |
+          echo "Verifying developer user..."
+          curl -f http://localhost:4173/api/user/login \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"email":"developer@example.com","password":"Developer123!"}' \
+            || (echo "❌ Developer user login failed!" && exit 1)
+          
+          echo "✅ Developer user verified"
+          
+          echo "Verifying editor user..."
+          curl -f http://localhost:4173/api/user/login \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"email":"editor@example.com","password":"Editor123!"}' \
+            || (echo "❌ Editor user login failed!" && exit 1)
+          
+          echo "✅ Editor user verified"
+          echo "✅ All test users verified successfully"
 
       # Note: Authentication logic in 'auth.ts' relies on 'data-testid', which is DB-agnostic.
       # However, some tests might assume MongoDB IDs. We run a core subset first.

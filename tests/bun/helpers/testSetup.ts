@@ -5,6 +5,7 @@
  */
 import { waitForServer } from './server';
 import { createTestUsers, loginAsAdmin } from './auth';
+import { testUsers } from '@tests/fixtures/users';
 
 /**
  * Initialize the environment (wait for server).
@@ -117,50 +118,8 @@ export async function prepareAuthenticatedContext(): Promise<string> {
 
 /**
  * Common test data (fixtures).
+ * @deprecated Use testUsers from '@tests/fixtures/users' instead
  */
 export const testFixtures = {
-	users: {
-		admin: {
-			username: 'admin',
-			email: 'admin@example.com',
-			password: 'Admin123!',
-			confirmPassword: 'Admin123!',
-			role: 'admin'
-		},
-		firstAdmin: {
-			username: 'admin',
-			email: 'admin@example.com',
-			password: 'Admin123!',
-			confirmPassword: 'Admin123!',
-			role: 'admin'
-		},
-		developer: {
-			username: 'developer',
-			email: 'developer@example.com',
-			password: 'Developer123!',
-			confirmPassword: 'Developer123!',
-			role: 'developer'
-		},
-		editor: {
-			username: 'editor',
-			email: 'editor@example.com',
-			password: 'Editor123!',
-			confirmPassword: 'Editor123!',
-			role: 'editor'
-		},
-		secondUser: {
-			username: 'editor',
-			email: 'editor@example.com',
-			password: 'Editor123!',
-			confirmPassword: 'Editor123!',
-			role: 'editor'
-		},
-		viewer: {
-			username: 'viewer',
-			email: 'viewer@example.com',
-			password: 'ViewerPassword123!',
-			confirmPassword: 'ViewerPassword123!',
-			role: 'viewer'
-		}
-	}
+	users: testUsers
 };
