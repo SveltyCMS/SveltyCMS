@@ -77,8 +77,8 @@ describe('Setup API - Database Connection Tests', () => {
 	});
 });
 
-// Only test MongoDB driver when running MongoDB tests
-const describeMongoDriver = dbType === 'mongodb' ? describe : describe.skip;
+// Only test MongoDB driver when running MongoDB tests (mongodb or mongodb+srv)
+const describeMongoDriver = dbType.startsWith('mongodb') ? describe : describe.skip;
 
 describeMongoDriver('Setup API - Database Driver Installation', () => {
 	it('checks MongoDB driver', async () => {
