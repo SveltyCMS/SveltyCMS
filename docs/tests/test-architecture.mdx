@@ -1,8 +1,24 @@
+---
+path: 'docs/tests/test-architecture.mdx'
+title: 'SveltyCMS Test Architecture'
+description: 'Comprehensive guide to SveltyCMS testing architecture, including test types, user management, lifecycle, and implemented improvements for better test reliability.'
+order: 2
+icon: 'mdi:test-tube'
+author: 'SveltyCMS Team'
+created: '2026-01-24'
+updated: '2026-01-24'
+tags:
+  - 'testing'
+  - 'architecture'
+  - 'test-infrastructure'
+  - 'ci-cd'
+  - 'rbac'
+  - 'fixtures'
+---
+
 # SveltyCMS Test Architecture
 
-## Overview
-
-This document describes how SveltyCMS testing works, including the complete test lifecycle, user management, and test isolation strategy.
+This document describes how SveltyCMS testing works, including the complete test lifecycle, user management, test isolation strategy, and the improvements implemented to enhance test reliability.
 
 **Last Updated:** January 24, 2026  
 **Author:** SveltyCMS Team
@@ -377,101 +393,110 @@ This document adds critical information that was missing:
 
 ---
 
-## Suggested Improvements
+## Implemented Improvements
 
-### 1. Improve Test User Creation ⏳
+The following improvements have been implemented to enhance test reliability and maintainability:
 
-**Status:** Partially implemented
+### 1. Improve Test User Creation ⏳ Partially Implemented
 
-**Current Issue:** Test users are created in a separate seed script that runs after setup wizard, which can cause race conditions.
+**Status:** Partially implemented (user verification added)
 
-**Implemented:** Added user verification step in CI workflow to fail fast if users don't exist.
+**Issue:** Test users are created in a separate seed script that runs after setup wizard, which can cause race conditions.
 
-**Suggestion:** Create a unified seeding approach:
+**Implemented Solution:**
+- ✅ Added user verification step in CI workflow to fail fast if users don't exist
+- ✅ Verification checks that developer and editor users can login before RBAC tests run
 
-```typescript
-// Proposed: tests/bun/helpers/setupComplete.ts
-export async function completeTestSetup() {
-  // 1. Run setup wizard
-  await runSetupWizard();
-  
-  // 2. Wait for seeding
-  await waitForSeeding();
-  
-  // 3. Create additional test users
-  await createTestUsers();
-  
-  // 4. Verify all users exist
-  await verifyTestUsers();
-}
-```
+**Future Enhancement:** Create a unified seeding approach with `completeTestSetup()` function.
 
-### 2. Add Test User Verification ✅
+### 2. Add Test User Verification ✅ Implemented
 
-**Status:** Implemented
+**Status:** ✅ Fully implemented
 
-**Solution:** Added verification step in GitHub Actions before running RBAC tests:
+**Solution:** Added verification step in GitHub Actions before running RBAC tests.
 
+**Implementation:**
 ```yaml
 - name: ✅ Verify Test Users
   run: |
+    echo "Verifying developer user..."
     curl -f http://localhost:4173/api/user/login \
+      -X POST \
+      -H "Content-Type: application/json" \
       -d '{"email":"developer@example.com","password":"Developer123!"}' \
-      -H "Content-Type: application/json" || \
-      (echo "❌ Developer user not found!" && exit 1)
+      || (echo "❌ Developer user login failed!" && exit 1)
+    
+    echo "✅ Developer user verified"
 ```
 
-### 3. Improve Configuration Management ⏳
+**Files Changed:**
+- `.github/workflows/ci.yml` - Added verification steps for MongoDB and MariaDB E2E tests
 
-**Current Issue:** Multiple config files can get out of sync.
+### 3. Improve Configuration Management ⏳ Partially Implemented
 
-**Suggestion:** Use environment variables exclusively in tests:
+**Status:** Partially implemented (DB_TYPE environment variable)
 
-```typescript
-// Instead of creating config/private.test.ts, use ENV vars
-const dbConfig = {
-  type: process.env.DB_TYPE,
-  host: process.env.DB_HOST,
-  // ... from environment
-};
-```
+**Issue:** Multiple config files can get out of sync.
 
-### 4. Add Test Data Fixtures ✅
+**Implemented Solution:**
+- ✅ Using `DB_TYPE` environment variable to skip MongoDB cleanup for other databases
+- ✅ Added safety check in `cleanupTestDatabase()` function
 
-**Status:** Implemented
+**Future Enhancement:** Migrate to environment variables exclusively for test configuration.
 
-**Solution:** Created reusable test data fixtures:
+### 4. Add Test Data Fixtures ✅ Implemented
 
-- Created `tests/fixtures/users.ts` with centralized user definitions
-- Includes helper functions: `getTestUserByRole()`, `allTestUsers`
-- Updated `testSetup.ts` to use centralized fixtures
+**Status:** ✅ Fully implemented
 
+**Solution:** Created reusable test data fixtures with centralized user definitions.
+
+**Implementation:**
 ```typescript
 // tests/fixtures/users.ts
 export const testUsers = {
-  admin: { /* ... */ },
-  developer: { /* ... */ },
-  editor: { /* ... */ }
+  admin: {
+    username: 'admin',
+    email: 'admin@example.com',
+    password: 'Admin123!',
+    confirmPassword: 'Admin123!',
+    role: 'admin'
+  },
+  developer: {
+    username: 'developer',
+    email: 'developer@example.com',
+    password: 'Developer123!',
+    confirmPassword: 'Developer123!',
+    role: 'developer'
+  },
+  editor: {
+    username: 'editor',
+    email: 'editor@example.com',
+    password: 'Editor123!',
+    confirmPassword: 'Editor123!',
+    role: 'editor'
+  }
 };
 ```
 
-### 5. Add Signed-Out User Tests ✅
+**Files Created:**
+- `tests/fixtures/users.ts` - Centralized test user fixtures with helper functions
 
-**Status:** Implemented
+**Files Updated:**
+- `tests/bun/helpers/testSetup.ts` - Migrated to use centralized fixtures
 
-**Solution:** Created `tests/playwright/public-access.spec.ts` with 7 test scenarios:
+### 5. Add Signed-Out User Tests ✅ Implemented
 
+**Status:** ✅ Fully implemented
+
+**Solution:** Created comprehensive test suite for unauthenticated (signed-out) user access.
+
+**Implementation:**
 ```typescript
 // tests/playwright/public-access.spec.ts
 test.describe('Signed Out User Access', () => {
   test('should redirect to login when accessing dashboard', async ({ page }) => {
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/\/login/);
-  });
-  
-  test('should allow access to public API endpoints', async ({ page }) => {
-    const response = await page.request.get('/api/public/status');
-    expect(response.ok()).toBeTruthy();
   });
   
   test('should block access to protected API endpoints', async ({ page }) => {
@@ -481,15 +506,28 @@ test.describe('Signed Out User Access', () => {
 });
 ```
 
-### 6. Add Role Permission Matrix ✅
+**Files Created:**
+- `tests/playwright/public-access.spec.ts` - 7 test scenarios for public access
 
-**Status:** Implemented
+**Test Coverage:**
+- Dashboard access (redirects to login)
+- Config pages access (redirects to login)
+- User management access (redirects to login)
+- Login page access (allowed)
+- Protected API endpoints (returns 401)
+- Collections API (returns 401)
+- Health check endpoint (accessible)
 
-**Solution:** Created a central permission matrix in `src/databases/auth/permissionMatrix.ts`:
+### 6. Add Role Permission Matrix ✅ Implemented
 
+**Status:** ✅ Fully implemented
+
+**Solution:** Created a central permission matrix defining role-based access to routes and APIs.
+
+**Implementation:**
 ```typescript
 // src/databases/auth/permissionMatrix.ts
-export const permissionMatrix = {
+export const routePermissions: Record<string, Role[]> = {
   '/config/systemsetting': ['admin', 'developer'],
   '/config/user': ['admin'],
   '/config/accessManagement': ['admin'],
@@ -497,59 +535,114 @@ export const permissionMatrix = {
   '/api/collections': ['admin', 'developer', 'editor']
 };
 
-// Use in tests
-test('Developer can access system settings', async ({ page }) => {
-  await loginAsDeveloper(page);
-  const allowedRoutes = getRoutesForRole('developer');
-  for (const route of allowedRoutes) {
-    await page.goto(route);
-    expect(page.url()).toContain(route);
-  }
-});
+export function hasRoutePermission(route: string, role: Role): boolean {
+  const allowedRoles = routePermissions[route];
+  if (!allowedRoles) return role === 'admin';
+  return allowedRoles.includes(role);
+}
 ```
 
-### 7. Improve Test Isolation ✅
+**Files Created:**
+- `src/databases/auth/permissionMatrix.ts` - Central permission matrix with helper functions
 
-**Status:** Implemented
+**Features:**
+- Route-based permissions
+- API endpoint permissions
+- Wildcard pattern matching
+- Helper functions: `hasRoutePermission()`, `hasApiPermission()`, `getRoutesForRole()`, `getApisForRole()`
 
-**Solution:** Created test isolation utilities in `tests/playwright/helpers/isolation.ts`:
+### 7. Improve Test Isolation ✅ Implemented
 
+**Status:** ✅ Fully implemented
+
+**Solution:** Created test isolation utilities to ensure tests don't interfere with each other.
+
+**Implementation:**
 ```typescript
 // tests/playwright/helpers/isolation.ts
 export async function cleanupBrowserState(page: Page): Promise<void> {
   // Clear cookies
   await page.context().clearCookies();
   
-  // Clear localStorage
-  await page.evaluate(() => localStorage.clear());
+  // Clear localStorage and sessionStorage
+  await page.evaluate(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
   
-  // Reset database to known state (if needed)
-  await resetTestDatabase();
+  // Clear service worker caches
+  await page.evaluate(() => {
+    if ('caches' in window) {
+      caches.keys().then((names) => {
+        names.forEach((name) => caches.delete(name));
+      });
+    }
+  });
 }
+```
 
-// Use in tests
+**Files Created:**
+- `tests/playwright/helpers/isolation.ts` - Browser state cleanup utilities
+
+**Usage:**
+```typescript
 test.beforeEach(async ({ page }) => {
   await cleanupBrowserState(page);
 });
 ```
 
-### 8. Add Performance Benchmarks ✅
+### 8. Add Performance Benchmarks ✅ Implemented
 
-**Status:** Implemented
+**Status:** ✅ Fully implemented
 
-**Solution:** Created performance benchmark tests in `tests/performance/api-benchmarks.test.ts`:
+**Solution:** Created performance benchmark tests for API endpoints.
 
+**Implementation:**
 ```typescript
 // tests/performance/api-benchmarks.test.ts
-test('API should respond within 100ms', async () => {
+test('GET /api/systemInfo should respond within 100ms', async () => {
   const start = Date.now();
-  const response = await fetch('/api/collections');
+  const response = await fetch(`${API_BASE_URL}/api/systemInfo`, {
+    headers: adminCookie ? { Cookie: adminCookie } : {}
+  });
   const duration = Date.now() - start;
   
+  expect(response.ok).toBe(true);
   expect(duration).toBeLessThan(100);
-  expect(response.ok()).toBeTruthy();
 });
 ```
+
+**Files Created:**
+- `tests/performance/api-benchmarks.test.ts` - API performance benchmarks
+
+**Benchmarks:**
+- `/api/systemInfo` - should respond within 100ms
+- `/api/collections` - should respond within 500ms
+- `/api/user/login` - should respond within 500ms
+- `/health` - should respond within 50ms
+- Collection list query - should respond within 300ms
+
+**Benefits:**
+- Detect performance regressions in PRs
+- Track performance trends over time
+- Ensure SLA compliance
+
+---
+
+## Summary of Improvements
+
+| # | Improvement | Status | Files Created | Files Modified |
+|---|-------------|--------|---------------|----------------|
+| 1 | Test User Creation | ⏳ Partial | - | `.github/workflows/ci.yml` |
+| 2 | Test User Verification | ✅ Full | - | `.github/workflows/ci.yml` |
+| 3 | Configuration Management | ⏳ Partial | - | `tests/bun/helpers/testSetup.ts` |
+| 4 | Test Data Fixtures | ✅ Full | `tests/fixtures/users.ts` | `tests/bun/helpers/testSetup.ts` |
+| 5 | Signed-Out User Tests | ✅ Full | `tests/playwright/public-access.spec.ts` | - |
+| 6 | Permission Matrix | ✅ Full | `src/databases/auth/permissionMatrix.ts` | - |
+| 7 | Test Isolation | ✅ Full | `tests/playwright/helpers/isolation.ts` | - |
+| 8 | Performance Benchmarks | ✅ Full | `tests/performance/api-benchmarks.test.ts` | - |
+
+**Total:** 6 fully implemented, 2 partially implemented
 
 ---
 
