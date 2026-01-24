@@ -23,9 +23,19 @@ export async function cleanupTestEnvironment(): Promise<void> {
 
 /**
  * Cleanup the test database (placeholder for now).
+ * 
+ * IMPORTANT: When running setup tests as part of integration test workflow,
+ * we SKIP cleanup to preserve the admin user and config for subsequent tests.
  */
 export async function cleanupTestDatabase(): Promise<void> {
 	console.log('[cleanupTestDatabase] Starting...');
+	
+	// Skip cleanup when running in integration test mode
+	// This allows setup tests to create admin user and config that persists
+	if (process.env.SKIP_DB_CLEANUP === 'true') {
+		console.log('[cleanupTestDatabase] Skipping cleanup (SKIP_DB_CLEANUP=true)');
+		return;
+	}
 	
 	const dbType = process.env.DB_TYPE || 'mongodb';
 	

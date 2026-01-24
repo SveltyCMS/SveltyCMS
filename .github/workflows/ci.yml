@@ -143,6 +143,7 @@ jobs:
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
+          SKIP_DB_CLEANUP: 'true'  # Skip cleanup to preserve admin user for integration tests
 
       # Phase 1.5: Seed additional test users (developer, editor) for integration tests
       - name: 👥 Seed Test Users
@@ -309,6 +310,7 @@ jobs:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
           DB_TYPE: mariadb
+          SKIP_DB_CLEANUP: 'true'  # Skip cleanup to preserve admin user for integration tests
 
       # Phase 1.5: Seed additional test users (developer, editor) for integration tests
       - name: 👥 Seed Test Users
