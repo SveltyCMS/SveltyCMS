@@ -116,7 +116,9 @@ describe('Setup API - Database Seeding', () => {
 
 		const fs = await import('fs/promises');
 		const path = await import('path');
-		await fs.access(path.resolve(process.cwd(), 'config/private.ts'));
+		// In TEST_MODE (which is active), it writes to private.test.ts
+		const configName = process.env.TEST_MODE ? 'private.test.ts' : 'private.ts';
+		await fs.access(path.resolve(process.cwd(), `config/${configName}`));
 	});
 
 	it('seeds collections if applicable', async () => {

@@ -341,13 +341,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						</Tooltip.Trigger>
 						<Portal>
 							<Tooltip.Positioner>
-								<Tooltip.Content
-									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-								>
+								<Tooltip.Content class="card w-72 rounded-md bg-surface-800 p-3 text-xs text-white shadow-xl border border-surface-600">
 									<p>{m.setup_help_database_type()}</p>
-									<Tooltip.Arrow
-										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-									>
+									<Tooltip.Arrow class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-800)]">
 										<Tooltip.ArrowTip />
 									</Tooltip.Arrow>
 								</Tooltip.Content>
@@ -408,13 +404,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						</Tooltip.Trigger>
 						<Portal>
 							<Tooltip.Positioner>
-								<Tooltip.Content
-									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-								>
+								<Tooltip.Content class="card w-72 rounded-md bg-surface-800 p-3 text-xs text-white shadow-xl border border-surface-600">
 									<p>{m.setup_help_database_host()}</p>
-									<Tooltip.Arrow
-										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-									>
+									<Tooltip.Arrow class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-800)]">
 										<Tooltip.ArrowTip />
 									</Tooltip.Arrow>
 								</Tooltip.Content>
@@ -477,13 +469,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							</Tooltip.Trigger>
 							<Portal>
 								<Tooltip.Positioner>
-									<Tooltip.Content
-										class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-									>
+									<Tooltip.Content class="card w-72 rounded-md bg-surface-800 p-3 text-xs text-white shadow-xl border border-surface-600">
 										<p>{m.setup_help_database_port()}</p>
-										<Tooltip.Arrow
-											class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-										>
+										<Tooltip.Arrow class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-800)]">
 											<Tooltip.ArrowTip />
 										</Tooltip.Arrow>
 									</Tooltip.Content>
@@ -523,13 +511,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						</Tooltip.Trigger>
 						<Portal>
 							<Tooltip.Positioner>
-								<Tooltip.Content
-									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-								>
+								<Tooltip.Content class="card w-72 rounded-md bg-surface-800 p-3 text-xs text-white shadow-xl border border-surface-600">
 									<p>{m.setup_help_database_name()}</p>
-									<Tooltip.Arrow
-										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-									>
+									<Tooltip.Arrow class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-800)]">
 										<Tooltip.ArrowTip />
 									</Tooltip.Arrow>
 								</Tooltip.Content>
@@ -574,13 +558,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						</Tooltip.Trigger>
 						<Portal>
 							<Tooltip.Positioner>
-								<Tooltip.Content
-									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-								>
+								<Tooltip.Content class="card w-72 rounded-md bg-surface-800 p-3 text-xs text-white shadow-xl border border-surface-600">
 									<p>{m.setup_help_database_user()}</p>
-									<Tooltip.Arrow
-										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-									>
+									<Tooltip.Arrow class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-800)]">
 										<Tooltip.ArrowTip />
 									</Tooltip.Arrow>
 								</Tooltip.Content>
@@ -627,13 +607,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						</Tooltip.Trigger>
 						<Portal>
 							<Tooltip.Positioner>
-								<Tooltip.Content
-									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-								>
+								<Tooltip.Content class="card w-72 rounded-md bg-surface-800 p-3 text-xs text-white shadow-xl border border-surface-600">
 									<p>{m.setup_help_database_password()}</p>
-									<Tooltip.Arrow
-										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-									>
+									<Tooltip.Arrow class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-800)]">
 										<Tooltip.ArrowTip />
 									</Tooltip.Arrow>
 								</Tooltip.Content>

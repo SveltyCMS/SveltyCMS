@@ -3,6 +3,7 @@
 @description System configuration step.
 -->
 <script lang="ts">
+	import { setupStore } from '@stores/setupStore.svelte';
 	import * as m from '@src/paraglide/messages';
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';
@@ -150,6 +151,21 @@
 		}
 	}
 
+	$effect(() => {
+		// Auto-detect timezone if set to default UTC
+		if (systemSettings.timezone === 'UTC') {
+			try {
+				const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+				if (detected && Intl.supportedValuesOf('timeZone').includes(detected)) {
+					systemSettings.timezone = detected;
+				}
+			} catch (e) {
+				// Fallback to UTC if detection fails
+				console.warn('Timezone detection failed', e);
+			}
+		}
+	});
+
 	// Derived available suggestions
 	let systemAvailable = $state<string[]>([]);
 	let contentAvailable = $state<{ code: string; name: string; native: string }[]>([]);
@@ -267,6 +283,53 @@
 					/>
 					{#if displayErrors.hostProd}
 						<div id="host-prod-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.hostProd}</div>
+					{/if}
+
+					<label for="timezone" class="mb-1 flex items-center gap-1 text-sm font-medium">
+						<iconify-icon icon="mdi:clock-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<span class="text-black dark:text-white">Timezone</span>
+						<Tooltip positioning={{ placement: 'top' }}>
+							<Tooltip.Trigger>
+								<button
+									type="button"
+									tabindex="-1"
+									aria-label="Help: Timezone"
+									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								>
+									<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
+								</button>
+							</Tooltip.Trigger>
+							<Portal>
+								<Tooltip.Positioner>
+									<Tooltip.Content
+										class="card w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+									>
+										<p>The default timezone for the system. Used for scheduling and date displays.</p>
+										<Tooltip.Arrow
+											class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
+										>
+											<Tooltip.ArrowTip />
+										</Tooltip.Arrow>
+									</Tooltip.Content>
+								</Tooltip.Positioner>
+							</Portal>
+						</Tooltip>
+					</label>
+
+					<select
+						id="timezone"
+						bind:value={systemSettings.timezone}
+						onblur={() => handleBlur('timezone')}
+						class="input w-full rounded {displayErrors.timezone ? 'border-error-500' : 'border-slate-200'}"
+						aria-invalid={!!displayErrors.timezone}
+						aria-describedby={displayErrors.timezone ? 'timezone-error' : undefined}
+					>
+						{#each Intl.supportedValuesOf('timeZone') as tz}
+							<option value={tz}>{tz}</option>
+						{/each}
+					</select>
+					{#if displayErrors.timezone}
+						<div id="timezone-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.timezone}</div>
 					{/if}
 				</div>
 
