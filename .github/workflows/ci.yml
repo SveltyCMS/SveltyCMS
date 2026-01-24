@@ -140,7 +140,6 @@ jobs:
       # Phase 1: Run Setup Test (Installs the system via API, creates admin user)
       - name: 🟢 Run Setup API Test
         run: bun test tests/bun/api/setup.test.ts
-        continue-on-error: true  # Some edge-case tests may fail, but admin creation is what matters
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
@@ -307,7 +306,6 @@ jobs:
       # Phase 1: Run Setup Test (Installs the system via API, creates admin user)
       - name: 🟢 Run Setup API Test
         run: bun test tests/bun/api/setup.test.ts
-        continue-on-error: true  # Some edge-case tests may fail, but admin creation is what matters
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
