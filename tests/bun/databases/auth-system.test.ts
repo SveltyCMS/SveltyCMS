@@ -55,16 +55,17 @@ describe('Auth System Functional Tests', () => {
 		const adapterModule = await import('../../../src/databases/mongodb/mongoDBAdapter');
 		adapterClass = adapterModule.MongoDBAdapter;
 		
-		// Try to import config - use private.ts if private.test doesn't exist (integration tests)
+		// Try to import config - prioritize private.ts (CI/CD - created by setup wizard)
+		// Fallback to private.test (local testing - protects live data)
 		try {
-			// @ts-ignore
-			const configModule = await import('../../../config/private.test');
-			privateEnv = configModule.privateEnv;
+			// @ts-ignore - Try CI/CD config first (created by setup wizard)
+			const configModule = await import('../../../config/private');
+			privateEnv = configModule.default;
 		} catch {
 			try {
-				// @ts-ignore - In integration tests, use the real config created by setup
-				const configModule = await import('../../../config/private');
-				privateEnv = configModule.default;
+				// @ts-ignore - Fallback to local testing config (protects live data)
+				const configModule = await import('../../../config/private.test');
+				privateEnv = configModule.privateEnv;
 			} catch {
 				console.warn('Auth Test: No config found. Skipping tests.');
 				return;
