@@ -15,7 +15,7 @@
 	import { showToast } from '@utils/toast';
 	import { safeParse } from 'valibot';
 	import { smtpConfigSchema, type SmtpConfigSchema } from '@utils/formSchemas';
-	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	const { wizard } = setupStore;
 
@@ -407,32 +407,16 @@
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 				<iconify-icon icon="mdi:email-fast-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{m.setup_email_provider()}</span>
-				<Tooltip positioning={{ placement: 'top' }}>
-					<Tooltip.Trigger>
-						<button
-							type="button"
-							tabindex="-1"
-							aria-label={m.setup_email_aria_help_provider()}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-						</button>
-					</Tooltip.Trigger>
-					<Portal>
-						<Tooltip.Positioner>
-							<Tooltip.Content
-								class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-							>
-								<p>{m.setup_email_help_provider()}</p>
-								<Tooltip.Arrow
-									class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-								>
-									<Tooltip.ArrowTip />
-								</Tooltip.Arrow>
-							</Tooltip.Content>
-						</Tooltip.Positioner>
-					</Portal>
-				</Tooltip>
+				<SystemTooltip title={m.setup_email_help_provider()}>
+					<button
+						type="button"
+						tabindex="-1"
+						aria-label={m.setup_email_aria_help_provider()}
+						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+					>
+						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+					</button>
+				</SystemTooltip>
 			</div>
 			<select class="select" bind:value={selectedPreset} onchange={() => applyPreset(selectedPreset)} aria-label="Select an SMTP provider preset">
 				{#each presets as preset, index (index)}
@@ -458,32 +442,16 @@
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 				<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{m.setup_email_host()} <span class="text-error-500">*</span></span>
-				<Tooltip positioning={{ placement: 'top' }}>
-					<Tooltip.Trigger>
-						<button
-							type="button"
-							tabindex="-1"
-							aria-label={m.setup_email_aria_help_host()}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-						</button>
-					</Tooltip.Trigger>
-					<Portal>
-						<Tooltip.Positioner>
-							<Tooltip.Content
-								class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-							>
-								<p>{m.setup_email_help_host()}</p>
-								<Tooltip.Arrow
-									class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-								>
-									<Tooltip.ArrowTip />
-								</Tooltip.Arrow>
-							</Tooltip.Content>
-						</Tooltip.Positioner>
-					</Portal>
-				</Tooltip>
+				<SystemTooltip title={m.setup_email_help_host()}>
+					<button
+						type="button"
+						tabindex="-1"
+						aria-label={m.setup_email_aria_help_host()}
+						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+					>
+						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+					</button>
+				</SystemTooltip>
 			</div>
 			<input
 				type="text"
@@ -521,32 +489,16 @@
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:ethernet" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span class="font-medium text-black dark:text-white">{m.setup_email_port()} <span class="text-error-500">*</span></span>
-					<Tooltip positioning={{ placement: 'top' }}>
-						<Tooltip.Trigger>
-							<button
-								type="button"
-								tabindex="-1"
-								aria-label={m.setup_email_aria_help_port()}
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-							</button>
-						</Tooltip.Trigger>
-						<Portal>
-							<Tooltip.Positioner>
-								<Tooltip.Content
-									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-								>
-									<p>{m.setup_email_help_port()}</p>
-									<Tooltip.Arrow
-										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-									>
-										<Tooltip.ArrowTip />
-									</Tooltip.Arrow>
-								</Tooltip.Content>
-							</Tooltip.Positioner>
-						</Portal>
-					</Tooltip>
+					<SystemTooltip title={m.setup_email_help_port()}>
+						<button
+							type="button"
+							tabindex="-1"
+							aria-label={m.setup_email_aria_help_port()}
+							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						>
+							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+						</button>
+					</SystemTooltip>
 				</div>
 			</div>
 
@@ -637,32 +589,16 @@
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 				<iconify-icon icon="mdi:account" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{m.setup_email_user()} <span class="text-error-500">*</span></span>
-				<Tooltip positioning={{ placement: 'top' }}>
-					<Tooltip.Trigger>
-						<button
-							type="button"
-							tabindex="-1"
-							aria-label={m.setup_email_aria_help_user()}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-						</button>
-					</Tooltip.Trigger>
-					<Portal>
-						<Tooltip.Positioner>
-							<Tooltip.Content
-								class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-							>
-								<p>{m.setup_email_help_user()}</p>
-								<Tooltip.Arrow
-									class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-								>
-									<Tooltip.ArrowTip />
-								</Tooltip.Arrow>
-							</Tooltip.Content>
-						</Tooltip.Positioner>
-					</Portal>
-				</Tooltip>
+				<SystemTooltip title={m.setup_email_help_user()}>
+					<button
+						type="button"
+						tabindex="-1"
+						aria-label={m.setup_email_aria_help_user()}
+						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+					>
+						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+					</button>
+				</SystemTooltip>
 			</div>
 			<input
 				type="text"
@@ -696,32 +632,16 @@
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 				<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{m.setup_email_password()} <span class="text-error-500">*</span></span>
-				<Tooltip positioning={{ placement: 'top' }}>
-					<Tooltip.Trigger>
-						<button
-							type="button"
-							tabindex="-1"
-							aria-label={m.setup_email_aria_help_password()}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-						</button>
-					</Tooltip.Trigger>
-					<Portal>
-						<Tooltip.Positioner>
-							<Tooltip.Content
-								class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-							>
-								<p>{m.setup_email_help_password()}</p>
-								<Tooltip.Arrow
-									class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-								>
-									<Tooltip.ArrowTip />
-								</Tooltip.Arrow>
-							</Tooltip.Content>
-						</Tooltip.Positioner>
-					</Portal>
-				</Tooltip>
+				<SystemTooltip title={m.setup_email_help_password()}>
+					<button
+						type="button"
+						tabindex="-1"
+						aria-label={m.setup_email_aria_help_password()}
+						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+					>
+						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+					</button>
+				</SystemTooltip>
 			</div>
 			<div class="relative">
 				<input

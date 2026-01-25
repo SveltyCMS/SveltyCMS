@@ -13,6 +13,7 @@ Features:
 -->
 <script lang="ts">
 	import * as m from '@src/paraglide/messages';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	const {
 		currentStep,
@@ -49,10 +50,12 @@ Features:
 		<!-- Previous Button -->
 		<div class="flex-1">
 			{#if currentStep > 0}
-				<button onclick={() => onprev()} class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 flex items-center gap-1">
-					<iconify-icon icon="mdi:arrow-left-bold" class="h-5 w-5"></iconify-icon>
-					<span class="hidden sm:inline">{m.button_previous()}</span>
-				</button>
+				<SystemTooltip title={m.button_previous()}>
+					<button onclick={() => onprev()} class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 flex items-center gap-1">
+						<iconify-icon icon="mdi:arrow-left-bold" class="h-5 w-5"></iconify-icon>
+						<span class="hidden sm:inline">{m.button_previous()}</span>
+					</button>
+				</SystemTooltip>
 			{/if}
 		</div>
 
@@ -65,39 +68,43 @@ Features:
 		<!-- Next/Complete Button -->
 		<div class="flex flex-1 justify-end">
 			{#if currentStep < totalSteps - 1}
-				<button
-					onclick={() => onnext()}
-					disabled={!canProceed || isLoading}
-					aria-disabled={!canProceed || isLoading}
-					class="preset-filled-tertiary-500 btn transition-all dark:preset-filled-primary-500 {canProceed
-						? ''
-						: 'cursor-not-allowed opacity-60'} flex items-center gap-1"
-				>
-					{#if isLoading && currentStep === 0}
-						<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>
-						<span class="hidden sm:inline">Seeding...</span>
-					{:else}
-						<span class="hidden sm:inline">{m.button_next()}</span>
-						<iconify-icon icon="mdi:arrow-right-bold" class="h-5 w-5"></iconify-icon>
-					{/if}
-				</button>
+				<SystemTooltip title={m.button_next()}>
+					<button
+						onclick={() => onnext()}
+						disabled={!canProceed || isLoading}
+						aria-disabled={!canProceed || isLoading}
+						class="preset-filled-tertiary-500 btn transition-all dark:preset-filled-primary-500 {canProceed
+							? ''
+							: 'cursor-not-allowed opacity-60'} flex items-center gap-1"
+					>
+						{#if isLoading && currentStep === 0}
+							<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>
+							<span class="hidden sm:inline">Seeding...</span>
+						{:else}
+							<span class="hidden sm:inline">{m.button_next()}</span>
+							<iconify-icon icon="mdi:arrow-right-bold" class="h-5 w-5"></iconify-icon>
+						{/if}
+					</button>
+				</SystemTooltip>
 			{:else if currentStep === totalSteps - 1}
-				<button
-					onclick={() => oncomplete()}
-					disabled={isLoading}
-					aria-disabled={isLoading}
-					class="preset-filled-tertiary-500 btn transition-all dark:preset-filled-primary-500 {isLoading
-						? 'cursor-not-allowed opacity-60'
-						: ''} flex items-center gap-1"
-				>
-					{#if isLoading}
-						<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>
-						<span class="hidden sm:inline">Completing...</span>
-					{:else}
-						<span class="hidden sm:inline">{m.button_complete?.() || 'Complete'}</span>
-						<iconify-icon icon="mdi:check-bold" class="h-5 w-5"></iconify-icon>
-					{/if}
-				</button>
+				<SystemTooltip title={m.button_complete?.() || 'Complete'}>
+					<button
+						onclick={() => oncomplete()}
+						disabled={isLoading}
+						aria-disabled={isLoading}
+						class="preset-filled-tertiary-500 btn transition-all dark:preset-filled-primary-500 {isLoading
+							? 'cursor-not-allowed opacity-60'
+							: ''} flex items-center gap-1"
+					>
+						{#if isLoading}
+							<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>
+							<span class="hidden sm:inline">Completing...</span>
+						{:else}
+							<span class="hidden sm:inline">{m.button_complete?.() || 'Complete'}</span>
+							<iconify-icon icon="mdi:check-bold" class="h-5 w-5"></iconify-icon>
+						{/if}
+					</button>
+				</SystemTooltip>
 			{/if}
 		</div>
 	</div>

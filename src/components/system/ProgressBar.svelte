@@ -41,9 +41,19 @@ Accessible progress bar with animations, variants, and status indicators.
 		animated?: boolean;
 		showPercentage?: boolean;
 		indeterminate?: boolean;
+		showStatus?: boolean;
 	}
 
-	const { value = 0, label = '', color = 'blue', size = 'md', animated = false, showPercentage = true, indeterminate = false }: Props = $props();
+	const {
+		value = 0,
+		label = '',
+		color = 'blue',
+		size = 'md',
+		animated = false,
+		showPercentage = true,
+		indeterminate = false,
+		showStatus = false
+	}: Props = $props();
 
 	// State
 	let prefersReducedMotion = $state(false);
@@ -177,7 +187,7 @@ Accessible progress bar with animations, variants, and status indicators.
 	</div>
 
 	<!-- Status message (optional) -->
-	{#if status() === 'complete'}
+	{#if showStatus && status() === 'complete'}
 		<div class="mt-2 text-xs font-medium text-success-600 dark:text-success-400" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 			✓ Complete
 		</div>

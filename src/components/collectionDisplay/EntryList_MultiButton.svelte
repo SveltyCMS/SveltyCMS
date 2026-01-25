@@ -30,6 +30,7 @@
 	import * as m from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
 	import { showToast } from '@utils/toast';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	// --- Types ---
 	type ActionType = 'create' | 'publish' | 'unpublish' | 'draft' | 'schedule' | 'clone' | 'delete';
@@ -421,18 +422,19 @@
 <div class="relative flex items-center" bind:this={dropdownRef}>
 	<div class="flex items-center gap-0">
 		<!-- Archive Toggle -->
-		<button
-			type="button"
-			onclick={() => (showDeleted = !showDeleted)}
-			class="mt-1 btn rounded-full mr-2 transition-all duration-200 active:scale-90 {!showDeleted
-				? 'preset-outlined-surface-500 '
-				: 'preset-filled-error-500 text-white ring-2 ring-error-500 animate-pulse'}"
-			title={showDeleted ? m.entrylist_multibutton_show_active() : m.entrylist_multibutton_show_archived()}
-			aria-label={showDeleted ? m.entrylist_multibutton_viewing_archived() : m.entrylist_multibutton_viewing_active()}
-			aria-pressed={showDeleted}
-		>
-			<iconify-icon icon={showDeleted ? 'ic:round-archive' : 'ic:round-unarchive'} width="24"></iconify-icon>
-		</button>
+		<SystemTooltip title={showDeleted ? m.entrylist_multibutton_show_active() : m.entrylist_multibutton_show_archived()}>
+			<button
+				type="button"
+				onclick={() => (showDeleted = !showDeleted)}
+				class="mt-1 btn rounded-full mr-2 transition-all duration-200 active:scale-90 {!showDeleted
+					? 'preset-outlined-surface-500 '
+					: 'preset-filled-error-500 text-white ring-2 ring-error-500 animate-pulse'}"
+				aria-label={showDeleted ? m.entrylist_multibutton_viewing_archived() : m.entrylist_multibutton_viewing_active()}
+				aria-pressed={showDeleted}
+			>
+				<iconify-icon icon={showDeleted ? 'ic:round-archive' : 'ic:round-unarchive'} width="24"></iconify-icon>
+			</button>
+		</SystemTooltip>
 
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -534,7 +536,7 @@
 									<div class="relative z-10 flex-1">
 										<div class="font-semibold">{config.label}</div>
 										{#if config.shortcut}
-											<div class="text-xs text-surface-400">{config.shortcut}</div>
+											<div class="text-xs text-surface-200">{config.shortcut}</div>
 										{/if}
 									</div>
 

@@ -401,7 +401,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 				});
 
 				if (revisionsResult.success && revisionsResult.data) {
-					revisionsMeta = revisionsResult.data || [];
+					// Extract items from paginated result
+					revisionsMeta = (revisionsResult.data as any).items || [];
 				}
 			} catch (err) {
 				logger.warn('Failed to load revisions', { error: err, editEntryId });

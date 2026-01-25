@@ -48,6 +48,7 @@
 	// Stores
 	import { ui } from '@stores/UIStore.svelte';
 	import { screen } from '@stores/screenSizeStore.svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	type DefaultBehaviorFn = () => void;
 
@@ -152,16 +153,18 @@
 
 		{#if showBackButton}
 			{#if backUrl}
-				<a
-					href={backUrl}
-					aria-label="Go back"
-					class="btn-icon rounded-full border border-surface-500 dark:border-surface-200 hover:bg-surface-500/10 shrink-0"
-					data-cms-action="back"
-					data-sveltekit-preload-data="hover"
-					onclick={(e) => handleBackClick(e)}
-				>
-					<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
-				</a>
+				<SystemTooltip title="Go back">
+					<a
+						href={backUrl}
+						aria-label="Go back"
+						class="btn-icon rounded-full border border-surface-500 dark:border-surface-200 hover:bg-surface-500/10 shrink-0"
+						data-cms-action="back"
+						data-sveltekit-preload-data="hover"
+						onclick={(e) => handleBackClick(e)}
+					>
+						<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
+					</a>
+				</SystemTooltip>
 			{:else}
 				<button
 					onclick={(e) => handleBackClick(e)}

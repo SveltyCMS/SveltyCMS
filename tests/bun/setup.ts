@@ -509,9 +509,14 @@ mock.module('@src/widgets/widgetFactory', () => ({
 		factory.__inputComponentPath = config.inputComponentPath || '';
 		factory.__displayComponentPath = config.displayComponentPath || '';
 		factory.toString = () => '';
-
-		return factory;
 	}
+}));
+
+// Mock Widget Proxy to bypass module scanner (import.meta.glob)
+mock.module('@src/widgets/proxy', () => ({
+	getWidgetsByType: () => [],
+	getWidget: () => null,
+	getWidgetByField: () => null
 }));
 
 mock.module('@src/databases/db', () => ({
@@ -533,7 +538,8 @@ mock.module('@src/databases/db', () => ({
 					{ _id: 'editor', name: 'Editor', isAdmin: false, permissions: [] }
 				])
 		}
-	}
+	},
+	getPrivateEnv: () => ({})
 }));
 
 console.log('✅ Global test environment setup complete');

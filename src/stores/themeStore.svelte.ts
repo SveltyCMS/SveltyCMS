@@ -104,7 +104,7 @@ function resolveDarkMode(preference: ThemePreference): boolean {
  * The DOM state is set pre-render by the script in app.html.
  * This MUST be called from a component's onMount lifecycle hook.
  */
-export function initializeDarkMode() {
+export function initializeDarkMode(initialPreference?: ThemePreference) {
 	if (!browser) return;
 
 	// 1. Read theme preference from cookie
@@ -119,7 +119,9 @@ export function initializeDarkMode() {
 	// 3. Determine user's preference (default to 'system' if no cookie)
 	let preference: ThemePreference = 'system';
 
-	if (cookieValue === 'dark' || cookieValue === 'light' || cookieValue === 'system') {
+	if (initialPreference && (initialPreference === 'dark' || initialPreference === 'light' || initialPreference === 'system')) {
+		preference = initialPreference;
+	} else if (cookieValue === 'dark' || cookieValue === 'light' || cookieValue === 'system') {
 		preference = cookieValue;
 	} else if (cookieValue) {
 		console.warn('[Theme Init] Unknown cookie value, defaulting to system:', cookieValue);

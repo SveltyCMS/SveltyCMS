@@ -169,7 +169,7 @@
 
 {#key currentLocale}
 	<!-- <DialogManager /> -->
-	<ToastManager position="bottom-right" />
+	<ToastManager position="bottom-center" />
 
 	{@render children?.()}
 {/key}

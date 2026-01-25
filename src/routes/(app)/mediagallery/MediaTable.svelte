@@ -34,7 +34,7 @@ Key features:
 	import TableIcons from '@components/system/table/TableIcons.svelte';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
 	import TagEditorModal from '@components/media/tagEditor/TagEditorModal.svelte';
-	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	interface Props {
 		filteredFiles?: (MediaBase | MediaImage)[];
@@ -265,25 +265,15 @@ Key features:
 										{/if}
 									{/if}
 									<!-- Toggle Tags Tooltip -->
-									<Tooltip positioning={{ placement: 'top' }}>
-										<Tooltip.Trigger>
-											<button
-												class="btn-icon btn-icon-sm variant-soft-primary"
-												onclick={() => openTagEditor(file as MediaImage)}
-												aria-label="Manage Tags"
-											>
-												<iconify-icon icon="mdi:tag-edit" width={24}></iconify-icon>
-											</button>
-										</Tooltip.Trigger>
-										<Portal>
-											<Tooltip.Positioner>
-												<Tooltip.Content class="rounded bg-surface-900 px-2 py-1 text-xs text-white shadow-xl dark:bg-surface-100 dark:text-black">
-													Manage Tags
-													<Tooltip.Arrow class="fill-surface-900 dark:fill-surface-100" />
-												</Tooltip.Content>
-											</Tooltip.Positioner>
-										</Portal>
-									</Tooltip>
+									<SystemTooltip title="Manage Tags" positioning={{ placement: 'top' }}>
+										<button
+											class="btn-icon btn-icon-sm variant-soft-primary"
+											onclick={() => openTagEditor(file as MediaImage)}
+											aria-label="Manage Tags"
+										>
+											<iconify-icon icon="mdi:tag-edit" width={24}></iconify-icon>
+										</button>
+									</SystemTooltip>
 								</div>
 							</td>
 							<!-- Actions -->

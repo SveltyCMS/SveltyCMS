@@ -5,7 +5,8 @@ Displays logo, site name, language selector, and theme toggle.
 -->
 <script lang="ts">
 	import SiteName from '@components/SiteName.svelte';
-	import { Menu, Portal, Tooltip } from '@skeletonlabs/skeleton-svelte';
+	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
 	import * as m from '@src/paraglide/messages';
 	import { getLanguageName } from '@utils/languageUtils';
@@ -49,26 +50,14 @@ Displays logo, site name, language selector, and theme toggle.
 
 			<div class="language-selector relative">
 				<Menu positioning={{ placement: 'bottom-end', gutter: 10 }}>
-					<Tooltip positioning={{ placement: 'bottom' }}>
-						<Tooltip.Trigger>
-							<div class="inline-block">
-								<Menu.Trigger class="preset-outlined btn rounded px-2 py-1 flex items-center gap-2">
-									<span class="font-medium">{getLanguageName(currentLanguageTag)}</span>
-									<iconify-icon icon="mdi:chevron-down" class="h-4 w-4 transition-transform group-data-[state=open]:rotate-180"></iconify-icon>
-								</Menu.Trigger>
-							</div>
-						</Tooltip.Trigger>
-						<Portal>
-							<Tooltip.Positioner>
-								<Tooltip.Content class="card z-50 rounded-md p-2 text-xs shadow-xl bg-surface-800 text-white border border-surface-600">
-									{m.applayout_systemlanguage?.() || 'Change system language'}
-									<Tooltip.Arrow>
-										<Tooltip.ArrowTip class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-800)]" />
-									</Tooltip.Arrow>
-								</Tooltip.Content>
-							</Tooltip.Positioner>
-						</Portal>
-					</Tooltip>
+					<SystemTooltip title={m.applayout_systemlanguage?.() || 'Change system language'}>
+						<div class="inline-block">
+							<Menu.Trigger class="preset-outlined btn rounded px-2 py-1 flex items-center gap-2">
+								<span class="font-medium">{getLanguageName(currentLanguageTag)}</span>
+								<iconify-icon icon="mdi:chevron-down" class="h-4 w-4 transition-transform group-data-[state=open]:rotate-180"></iconify-icon>
+							</Menu.Trigger>
+						</div>
+					</SystemTooltip>
 
 					<Portal>
 						<Menu.Positioner>

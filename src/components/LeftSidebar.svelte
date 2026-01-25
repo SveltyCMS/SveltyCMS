@@ -47,7 +47,9 @@
 	import ThemeToggle from '@components/ThemeToggle.svelte';
 
 	// Skeleton components
-	import { Avatar, Portal, Tooltip, Menu } from '@skeletonlabs/skeleton-svelte';
+	import { Avatar, Menu, Portal } from '@skeletonlabs/skeleton-svelte';
+
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	// Language and messaging
 	import * as m from '@src/paraglide/messages';
@@ -57,9 +59,6 @@
 	const MOBILE_BREAKPOINT = 768;
 	const LANGUAGE_DROPDOWN_THRESHOLD = 5;
 	const AVATAR_CACHE_BUSTER = Date.now();
-	const TOOLTIP_CLASS =
-		'card w-48 rounded-md border border-slate-300/50 bg-surface-50 p-2 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700 text-black dark:text-white';
-	const ARROW_CLASS = '[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-100-900)]';
 
 	// Types
 	type AvailableLanguage = string;
@@ -101,7 +100,7 @@
 
 	const avatarUrl = $derived.by(() => {
 		let src = avatarSrc.value;
-		if (!src) return '/Default_User.svg';
+		if (!src || src === 'Default_User.svg' || src === '/Default_User.svg') return '/Default_User.svg';
 		if (src.startsWith('data:')) return src;
 
 		// Normalize path
@@ -237,21 +236,23 @@
 	{/if}
 
 	<!-- Expand/Collapse Button -->
-	<button
-		type="button"
-		onclick={toggleSidebar}
-		aria-label={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
-		aria-expanded={isSidebarFull}
-		class="absolute top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full! border border-black p-0 dark:border-black ltr:-right-4 rtl:-left-4"
-	>
-		<iconify-icon
-			icon="bi:arrow-left-circle-fill"
-			width="34"
-			class="rounded-full bg-surface-500 text-white transition-transform hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 {isSidebarFull
-				? 'rotate-0 rtl:rotate-180'
-				: 'rotate-180 rtl:rotate-0'}"
-		></iconify-icon>
-	</button>
+	<SystemTooltip title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'} positioning={{ placement: 'right' }}>
+		<button
+			type="button"
+			onclick={toggleSidebar}
+			aria-label={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
+			aria-expanded={isSidebarFull}
+			class="absolute top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full! border border-black p-0 dark:border-black ltr:-right-4 rtl:-left-4"
+		>
+			<iconify-icon
+				icon="bi:arrow-left-circle-fill"
+				width="34"
+				class="rounded-full bg-surface-500 text-white transition-transform hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 {isSidebarFull
+					? 'rotate-0 rtl:rotate-180'
+					: 'rotate-180 rtl:rotate-0'}"
+			></iconify-icon>
+		</button>
+	</SystemTooltip>
 
 	<!-- Navigation: Collections, Media Folders, or Settings -->
 	{#if isSettingsMode}
@@ -324,193 +325,132 @@
 		<div class="grid w-full items-center justify-center gap-2 {isSidebarFull ? 'grid-cols-3' : 'grid-cols-2'}">
 			<!-- Avatar -->
 			<div class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex items-center justify-center">
-				<Tooltip positioning={{ placement: 'right' }}>
-					<Tooltip.Trigger>
-						<button
-							onclick={handleUserClick}
-							onkeypress={(e) => handleKeyPress(e, handleUserClick)}
-							aria-label="User Profile"
-							class="{isSidebarFull
-								? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-surface-500/20'
-								: 'btn-icon flex-col items-center justify-center'} relative text-center no-underline!"
-						>
-							<Avatar class="mx-auto overflow-hidden rounded-full {isSidebarFull ? 'size-10' : 'size-9'}">
-								<Avatar.Image src={avatarUrl} alt="User Avatar" class="h-full w-full object-cover" />
-								<Avatar.Fallback>AV</Avatar.Fallback>
-							</Avatar>
-							{#if isSidebarFull && user?.username}
-								<div
-									class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-[11px] font-medium leading-tight"
-									title={user.username}
-								>
-									{user.username}
-								</div>
-							{/if}
-						</button>
-					</Tooltip.Trigger>
-					<Portal>
-						<Tooltip.Positioner>
-							<Tooltip.Content class={TOOLTIP_CLASS}>
-								<span>{m.applayout_userprofile()}</span>
-								<Tooltip.Arrow class={ARROW_CLASS}>
-									<Tooltip.ArrowTip />
-								</Tooltip.Arrow>
-							</Tooltip.Content>
-						</Tooltip.Positioner>
-					</Portal>
-				</Tooltip>
+				<SystemTooltip title={m.applayout_userprofile()} positioning={{ placement: 'right' }}>
+					<button
+						onclick={handleUserClick}
+						onkeypress={(e) => handleKeyPress(e, handleUserClick)}
+						aria-label="User Profile"
+						class="{isSidebarFull
+							? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-surface-500/20'
+							: 'flex h-10 w-10 flex-col items-center justify-center rounded-full hover:bg-surface-500/20'} relative text-center no-underline!"
+					>
+						<Avatar class="mx-auto overflow-hidden rounded-full {isSidebarFull ? 'size-10' : 'size-9'}">
+							<Avatar.Image src={avatarUrl} alt="User Avatar" class="h-full w-full object-cover" />
+							<Avatar.Fallback>AV</Avatar.Fallback>
+						</Avatar>
+						{#if isSidebarFull && user?.username}
+							<div
+								class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-[11px] font-medium leading-tight"
+								title={user.username}
+							>
+								{user.username}
+							</div>
+						{/if}
+					</button>
+				</SystemTooltip>
 			</div>
 
 			<!-- Theme Toggle -->
 			<div class="{isSidebarFull ? 'order-2' : 'order-2'} flex items-center justify-center">
-				<Tooltip positioning={{ placement: 'right' }}>
-					<Tooltip.Trigger>
-						<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
-						<div class="flex items-center justify-center">
-							<ThemeToggle showTooltip={false} buttonClass="btn-icon hover:bg-surface-500/20" iconSize={22} />
-						</div>
-					</Tooltip.Trigger>
-					<Portal>
-						<Tooltip.Positioner>
-							<Tooltip.Content class={TOOLTIP_CLASS}>
-								<span>{themeTooltipText}</span>
-								<Tooltip.Arrow class={ARROW_CLASS}>
-									<Tooltip.ArrowTip />
-								</Tooltip.Arrow>
-							</Tooltip.Content>
-						</Tooltip.Positioner>
-					</Portal>
-				</Tooltip>
+				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
+					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
+					<div class="flex items-center justify-center">
+						<ThemeToggle showTooltip={false} buttonClass="btn-icon hover:bg-surface-500/20" iconSize={22} />
+					</div>
+				</SystemTooltip>
 			</div>
 
 			<!-- Language Selector -->
 			<div class="{isSidebarFull ? 'order-3 row-span-2' : 'order-4'} flex items-center justify-center px-1">
-				<Tooltip positioning={{ placement: 'right' }}>
-					<Tooltip.Trigger>
-						<div class="language-selector relative">
-							<Menu positioning={{ placement: 'right-start', gutter: 10 }}>
-								<Menu.Trigger
-									class="preset-filled-surface-500 hover:bg-surface-400 rounded-full btn-icon flex items-center justify-center uppercase transition-colors {isSidebarFull
-										? 'mb-3 w-8 h-8 text-sm'
-										: 'w-8 h-8 text-xs'}"
-									aria-label="Select language"
-								>
-									{languageTag}
-								</Menu.Trigger>
+				<SystemTooltip title={m.applayout_systemlanguage()} positioning={{ placement: 'right' }}>
+					<div class="language-selector relative">
+						<Menu positioning={{ placement: 'right-start', gutter: 10 }}>
+							<Menu.Trigger
+								class="preset-filled-surface-500 hover:bg-surface-400 rounded-full btn-icon flex items-center justify-center uppercase transition-colors {isSidebarFull
+									? 'mb-3 w-8 h-8 text-sm'
+									: 'w-8 h-8 text-xs'}"
+								aria-label="Select language"
+							>
+								{languageTag}
+							</Menu.Trigger>
 
-								<Portal>
-									<Menu.Positioner>
-										<Menu.Content
-											class="card p-2 shadow-xl preset-filled-surface-100-900 z-9999 w-56 border border-surface-200 dark:border-surface-500"
+							<Portal>
+								<Menu.Positioner>
+									<Menu.Content
+										class="card p-2 shadow-xl preset-filled-surface-100-900 z-9999 w-56 border border-surface-200 dark:border-surface-500"
+									>
+										<!-- Header to inform user about System Language context -->
+										<div
+											class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1"
 										>
-											<!-- Header to inform user about System Language context -->
-											<div
-												class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1"
-											>
-												{m.applayout_systemlanguage()}
+											{m.applayout_systemlanguage()}
+										</div>
+
+										{#if showLanguageDropdown}
+											<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
+												<input
+													type="text"
+													bind:value={searchQuery}
+													placeholder="Search language..."
+													class="w-full rounded-md bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
+													aria-label="Search languages"
+													onclick={(e) => e.stopPropagation()}
+												/>
 											</div>
 
-											{#if showLanguageDropdown}
-												<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
-													<input
-														type="text"
-														bind:value={searchQuery}
-														placeholder="Search language..."
-														class="w-full rounded-md bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
-														aria-label="Search languages"
-														onclick={(e) => e.stopPropagation()}
-													/>
-												</div>
-
-												<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
-													{#each filteredLanguages as lang (lang)}
-														<Menu.Item
-															value={lang}
-															onclick={() => handleLanguageSelection(lang)}
-															class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer"
-														>
-															<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
-															<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
-														</Menu.Item>
-													{/each}
-												</div>
-											{:else}
-												{#each availableLanguages.filter((l) => l !== languageTag) as lang (lang)}
+											<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
+												{#each filteredLanguages as lang (lang)}
 													<Menu.Item
 														value={lang}
 														onclick={() => handleLanguageSelection(lang)}
-														class="flex w-full items-center justify-between px-3 py-2 text-left  rounded-sm cursor-pointer"
+														class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer"
 													>
-														<span class="text-sm font-medium">{getLanguageName(lang)}</span>
+														<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
 														<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
 													</Menu.Item>
 												{/each}
-											{/if}
-										</Menu.Content>
-									</Menu.Positioner>
-								</Portal>
-							</Menu>
-						</div>
-					</Tooltip.Trigger>
-					<Portal>
-						<Tooltip.Positioner>
-							<Tooltip.Content class={TOOLTIP_CLASS}>
-								<span>{m.applayout_systemlanguage()}</span>
-								<Tooltip.Arrow class={ARROW_CLASS}>
-									<Tooltip.ArrowTip />
-								</Tooltip.Arrow>
-							</Tooltip.Content>
-						</Tooltip.Positioner>
-					</Portal>
-				</Tooltip>
+											</div>
+										{:else}
+											{#each availableLanguages.filter((l) => l !== languageTag) as lang (lang)}
+												<Menu.Item
+													value={lang}
+													onclick={() => handleLanguageSelection(lang)}
+													class="flex w-full items-center justify-between px-3 py-2 text-left  rounded-sm cursor-pointer"
+												>
+													<span class="text-sm font-medium">{getLanguageName(lang)}</span>
+													<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
+												</Menu.Item>
+											{/each}
+										{/if}
+									</Menu.Content>
+								</Menu.Positioner>
+							</Portal>
+						</Menu>
+					</div>
+				</SystemTooltip>
 			</div>
 
 			<!-- Sign Out -->
 			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
-				<Tooltip positioning={{ placement: 'right' }}>
-					<Tooltip.Trigger>
-						<button onclick={signOut} type="button" aria-label="Sign Out" class="btn-icon hover:bg-surface-500/20">
-							<iconify-icon icon="uil:signout" width="26" class=""></iconify-icon>
-						</button>
-					</Tooltip.Trigger>
-					<Portal>
-						<Tooltip.Positioner>
-							<Tooltip.Content class={TOOLTIP_CLASS}>
-								<span>{m.applayout_signout()}</span>
-								<Tooltip.Arrow class={ARROW_CLASS}>
-									<Tooltip.ArrowTip />
-								</Tooltip.Arrow>
-							</Tooltip.Content>
-						</Tooltip.Positioner>
-					</Portal>
-				</Tooltip>
+				<SystemTooltip title={m.applayout_signout()} positioning={{ placement: 'right' }}>
+					<button onclick={signOut} type="button" aria-label="Sign Out" class="btn-icon hover:bg-surface-500/20">
+						<iconify-icon icon="uil:signout" width="26" class=""></iconify-icon>
+					</button>
+				</SystemTooltip>
 			</div>
 
 			<!-- Config -->
 			<div class="{isSidebarFull ? 'order-5' : 'order-6'} flex items-center justify-center">
-				<Tooltip positioning={{ placement: 'right' }}>
-					<Tooltip.Trigger>
-						<button
-							onclick={handleConfigClick}
-							onkeypress={(e) => handleKeyPress(e, handleConfigClick)}
-							aria-label="System Configuration"
-							class="btn-icon hover:bg-surface-500/20"
-						>
-							<iconify-icon icon="material-symbols:build-circle" width="34" class=""></iconify-icon>
-						</button>
-					</Tooltip.Trigger>
-
-					<Portal>
-						<Tooltip.Positioner>
-							<Tooltip.Content class={TOOLTIP_CLASS}>
-								<span>{m.applayout_systemconfiguration()}</span>
-								<Tooltip.Arrow class={ARROW_CLASS}>
-									<Tooltip.ArrowTip />
-								</Tooltip.Arrow>
-							</Tooltip.Content>
-						</Tooltip.Positioner>
-					</Portal>
-				</Tooltip>
+				<SystemTooltip title={m.applayout_systemconfiguration()} positioning={{ placement: 'right' }}>
+					<button
+						onclick={handleConfigClick}
+						onkeypress={(e) => handleKeyPress(e, handleConfigClick)}
+						aria-label="System Configuration"
+						class="btn-icon hover:bg-surface-500/20"
+					>
+						<iconify-icon icon="material-symbols:build-circle" width="34" class=""></iconify-icon>
+					</button>
+				</SystemTooltip>
 			</div>
 
 			<!-- Version -->
@@ -521,29 +461,17 @@
 			<!-- GitHub (only when expanded) -->
 			{#if isSidebarFull}
 				<div class="order-7 flex items-center justify-center {isSidebarFull ? '' : 'col-span-2'}">
-					<Tooltip positioning={{ placement: 'right' }}>
-						<Tooltip.Trigger>
-							<a
-								href="https://github.com/SveltyCMS/SveltyCMS/discussions"
-								target="_blank"
-								rel="noopener noreferrer"
-								aria-label="GitHub Discussions"
-								class="btn-icon flex items-center justify-center hover:bg-surface-500/20"
-							>
-								<iconify-icon icon="grommet-icons:github" width="30" class=""></iconify-icon>
-							</a>
-						</Tooltip.Trigger>
-						<Portal>
-							<Tooltip.Positioner>
-								<Tooltip.Content class={TOOLTIP_CLASS}>
-									<span>{m.applayout_githubdiscussion()}</span>
-									<Tooltip.Arrow class={ARROW_CLASS}>
-										<Tooltip.ArrowTip />
-									</Tooltip.Arrow>
-								</Tooltip.Content>
-							</Tooltip.Positioner>
-						</Portal>
-					</Tooltip>
+					<SystemTooltip title={m.applayout_githubdiscussion()} positioning={{ placement: 'right' }}>
+						<a
+							href="https://github.com/SveltyCMS/SveltyCMS/discussions"
+							target="_blank"
+							rel="noopener noreferrer"
+							aria-label="GitHub Discussions"
+							class="btn-icon flex items-center justify-center hover:bg-surface-500/20"
+						>
+							<iconify-icon icon="grommet-icons:github" width="30" class=""></iconify-icon>
+						</a>
+					</SystemTooltip>
 				</div>
 			{/if}
 		</div>

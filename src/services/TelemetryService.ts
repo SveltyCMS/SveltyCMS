@@ -33,8 +33,11 @@ let activeCheckPromise: Promise<any> | null = null; // Deduping promise
 
 export const telemetryService = {
 	async checkUpdateStatus() {
-		// Disable telemetry in test mode (CI/CD) or during build
-		if (typeof process !== 'undefined' && (process.env.TEST_MODE === 'true' || process.env.VITEST)) {
+		// Disable telemetry strictly in test mode or CI/CD
+		if (
+			typeof process !== 'undefined' &&
+			(process.env.TEST_MODE === 'true' || process.env.CI === 'true' || process.env.VITEST === 'true' || process.env.NODE_ENV === 'test')
+		) {
 			return { status: 'test_mode', latest: null, security_issue: false };
 		}
 

@@ -8,6 +8,7 @@ Displays the current step title and icon, and a reset button.
 	const { currentStep, steps, onreset = () => {} } = $props();
 
 	const icons = $derived(['mdi:database', 'mdi:account', 'mdi:cog', 'mdi:email', 'mdi:check-circle']);
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 </script>
 
 <div class="flex shrink-0 justify-between border-b px-4 py-3 sm:px-6 sm:py-4">
@@ -17,14 +18,15 @@ Displays the current step title and icon, and a reset button.
 		{/if}
 		{steps[currentStep]?.label || 'Loading...'}
 	</h2>
-	<button
-		onclick={() => onreset()}
-		type="button"
-		class="flex items-center dark:text-secondary-50 preset-outlined btn-sm rounded"
-		aria-label="Reset data"
-		title="Reset data"
-	>
-		<iconify-icon icon="mdi:backup-restore" width={24} class="mr-1"></iconify-icon>
-		<span class="">Reset Data</span>
-	</button>
+	<SystemTooltip title="Reset data">
+		<button
+			onclick={() => onreset()}
+			type="button"
+			class="flex items-center dark:text-secondary-50 preset-outlined btn-sm rounded"
+			aria-label="Reset data"
+		>
+			<iconify-icon icon="mdi:backup-restore" width={24} class="mr-1"></iconify-icon>
+			<span class="">Reset Data</span>
+		</button>
+	</SystemTooltip>
 </div>

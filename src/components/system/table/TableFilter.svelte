@@ -39,6 +39,9 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
+	// Components
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+
 	// Props with types
 	let {
 		globalSearchValue = $bindable(''),
@@ -160,58 +163,62 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		</button>
 	</div>
 {:else}
-	<button
-		type="button"
-		onclick={() => {
-			searchShow = !searchShow;
-			if (searchShow) closeOpenStates('search');
-		}}
-		aria-label={m.table_search_toggle()}
-		title={m.table_search_toggle()}
-		class="btn preset-outlined-surface-500 rounded-full"
-	>
-		<iconify-icon icon="material-symbols:search-rounded" width={24}></iconify-icon>
-	</button>
+	<SystemTooltip title={m.table_search_toggle()}>
+		<button
+			type="button"
+			onclick={() => {
+				searchShow = !searchShow;
+				if (searchShow) closeOpenStates('search');
+			}}
+			aria-label={m.table_search_toggle()}
+			class="btn preset-outlined-surface-500 rounded-full"
+		>
+			<iconify-icon icon="material-symbols:search-rounded" width={24}></iconify-icon>
+		</button>
+	</SystemTooltip>
 
 	<!-- Filter -->
-	<button
-		type="button"
-		onclick={() => {
-			filterShow = !filterShow;
-			if (filterShow) closeOpenStates('filter');
-		}}
-		aria-label={m.table_filter_toggle()}
-		title={m.table_filter_toggle()}
-		class="btn preset-outlined-surface-500 rounded-full"
-	>
-		<iconify-icon icon="carbon:filter-edit" width={24}></iconify-icon>
-	</button>
+	<SystemTooltip title={m.table_filter_toggle()}>
+		<button
+			type="button"
+			onclick={() => {
+				filterShow = !filterShow;
+				if (filterShow) closeOpenStates('filter');
+			}}
+			aria-label={m.table_filter_toggle()}
+			class="btn preset-outlined-surface-500 rounded-full"
+		>
+			<iconify-icon icon="carbon:filter-edit" width={24}></iconify-icon>
+		</button>
+	</SystemTooltip>
 
 	<!-- Column Order & Visibility -->
-	<button
-		type="button"
-		onclick={() => {
-			columnShow = !columnShow;
-			if (columnShow) closeOpenStates('column');
-		}}
-		aria-label={m.table_column_toggle()}
-		title={m.table_column_toggle()}
-		class="btn preset-outlined-surface-500 rounded-full"
-	>
-		<iconify-icon icon="fluent:column-triple-edit-24-regular" width={24}></iconify-icon>
-	</button>
+	<SystemTooltip title={m.table_column_toggle()}>
+		<button
+			type="button"
+			onclick={() => {
+				columnShow = !columnShow;
+				if (columnShow) closeOpenStates('column');
+			}}
+			aria-label={m.table_column_toggle()}
+			class="btn preset-outlined-surface-500 rounded-full"
+		>
+			<iconify-icon icon="fluent:column-triple-edit-24-regular" width={24}></iconify-icon>
+		</button>
+	</SystemTooltip>
 
 	<!-- Spacing/Density -->
-	<button
-		type="button"
-		onclick={() => {
-			cycleDensity();
-			closeOpenStates('density');
-		}}
-		aria-label={m.table_density_toggle()}
-		title={m.table_density_label({ density: getDensityDisplayName() })}
-		class="btn preset-outlined-surface-500 rounded-full"
-	>
-		<iconify-icon icon={getDensityIcon()} width="24"></iconify-icon>
-	</button>
+	<SystemTooltip title={m.table_density_label({ density: getDensityDisplayName() })}>
+		<button
+			type="button"
+			onclick={() => {
+				cycleDensity();
+				closeOpenStates('density');
+			}}
+			aria-label={m.table_density_toggle()}
+			class="btn preset-outlined-surface-500 rounded-full"
+		>
+			<iconify-icon icon={getDensityIcon()} width={24}></iconify-icon>
+		</button>
+	</SystemTooltip>
 {/if}

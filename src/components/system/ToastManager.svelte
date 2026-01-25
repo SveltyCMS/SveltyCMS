@@ -33,41 +33,41 @@ optional actions, and smooth animations.
 		showProgress?: boolean;
 	}
 
-	const { position = 'top-right', showProgress = true }: Props = $props();
+	const { position = 'bottom-center', showProgress = true }: Props = $props();
 
 	// Position classes mapping - fixed inset ensures proper viewport positioning
 	const positionClasses: Record<string, string> = {
-		'top-right': 'top-4 right-4 inset-auto items-end',
-		'top-left': 'top-4 left-4 inset-auto items-start',
-		'bottom-right': 'bottom-4 right-4 inset-auto items-end justify-end',
-		'bottom-left': 'bottom-4 left-4 inset-auto items-start justify-end',
-		'top-center': 'top-4 left-1/2 -translate-x-1/2 inset-auto items-center',
-		'bottom-center': 'bottom-4 left-1/2 -translate-x-1/2 inset-auto items-center justify-end'
+		'top-right': 'top-4 right-4 items-end pointer-events-none',
+		'top-left': 'top-4 left-4 items-start pointer-events-none',
+		'bottom-right': 'bottom-4 right-4 items-end justify-end pointer-events-none',
+		'bottom-left': 'bottom-4 left-4 items-start justify-end pointer-events-none',
+		'top-center': 'top-4 left-0 w-full items-center pointer-events-none',
+		'bottom-center': 'bottom-4 left-0 w-full items-center justify-end pointer-events-none'
 	};
 
 	// Toast type configuration
 	const toastConfig = {
 		success: {
-			gradient: 'gradient-primary',
-			textColor: 'text-white',
+			color: 'text-primary-500',
+			border: 'border-l-4 border-l-primary-500',
 			icon: 'mdi:check-circle',
 			defaultTitle: 'Success'
 		},
 		warning: {
-			gradient: 'gradient-warning',
-			textColor: 'text-black',
+			color: 'text-warning-500',
+			border: 'border-l-4 border-l-warning-500',
 			icon: 'mdi:alert',
 			defaultTitle: 'Warning'
 		},
 		error: {
-			gradient: 'gradient-error',
-			textColor: 'text-white',
+			color: 'text-error-500',
+			border: 'border-l-4 border-l-error-500',
 			icon: 'mdi:alert-circle',
 			defaultTitle: 'Error'
 		},
 		info: {
-			gradient: 'gradient-tertiary',
-			textColor: 'text-white',
+			color: 'text-tertiary-500',
+			border: 'border-l-4 border-l-tertiary-500',
 			icon: 'mdi:information',
 			defaultTitle: 'Info'
 		}
@@ -78,10 +78,15 @@ optional actions, and smooth animations.
 	// Get toast styling based on type
 	function getToastClasses(type: string | undefined): string {
 		if (!type || !(type in toastConfig)) {
-			return 'bg-surface-100 dark:bg-surface-800 text-surface-900 dark:text-surface-100 border border-surface-300 dark:border-surface-600';
+			return 'border-l-4 border-l-surface-500';
 		}
 		const config = toastConfig[type as ToastType];
-		return `${config.gradient} ${config.textColor}`;
+		return config.border;
+	}
+
+	function getIconClass(type: string | undefined): string {
+		if (!type || !(type in toastConfig)) return 'text-surface-900 dark:text-surface-100';
+		return toastConfig[type as ToastType].color;
 	}
 
 	// Get icon for toast type
@@ -102,29 +107,40 @@ optional actions, and smooth animations.
 <Toast.Group {toaster} class="fixed z-9999 flex {position.includes('bottom') ? 'flex-col-reverse' : 'flex-col'} gap-3 {positionClasses[position]}">
 	{#snippet children(toast)}
 		<div in:fly={animParams} out:fade={{ duration: 200 }} class="relative" role="alert" aria-live="polite">
-			<Toast {toast} class="card min-w-80 max-w-100 shadow-2xl rounded-xl overflow-hidden {getToastClasses(toast.type)}">
-				<!-- Toast Message Container (Skeleton v4 anatomy) -->
-				<Toast.Message class="flex flex-col gap-1 p-4 pr-10 relative">
-					<!-- Header with Icon and Title -->
-					{#if toast.title}
-						<Toast.Title class="font-bold text-base flex items-center gap-2">
-							{#if getToastIcon(toast.type)}
-								<iconify-icon icon={getToastIcon(toast.type)} width="22" class="shrink-0"></iconify-icon>
-							{/if}
-							<span>{toast.title}</span>
-						</Toast.Title>
-					{/if}
+			<Toast
+				{toast}
+				class="card w-fit min-w-[320px] md:min-w-[400px] max-w-[90vw] shadow-xl rounded-lg overflow-hidden preset-filled-surface-100-900 border border-surface-200 dark:border-surface-700 {getToastClasses(
+					toast.type
+				)} flex flex-col pointer-events-auto"
+			>
+				<!-- Row 1: Header (Icon + Title + Close) -->
+				<div class="flex items-start justify-between p-4 pb-2 gap-3">
+					<div class="flex items-center gap-3 font-bold text-base">
+						{#if getToastIcon(toast.type)}
+							<iconify-icon icon={getToastIcon(toast.type)} width="24" class="shrink-0 {getIconClass(toast.type)}"></iconify-icon>
+						{/if}
+						<span class="text-surface-900 dark:text-surface-50"
+							>{toast.title || toastConfig[toast.type as ToastType]?.defaultTitle || 'Notification'}</span
+						>
+					</div>
+					<Toast.CloseTrigger
+						class="p-1 -mr-2 -mt-1 rounded-full opacity-60 hover:opacity-100 hover:bg-surface-500/10 transition-opacity text-surface-900 dark:text-surface-100"
+						aria-label="Dismiss notification"
+					>
+						<iconify-icon icon="mdi:close" width={18}></iconify-icon>
+					</Toast.CloseTrigger>
+				</div>
 
-					<!-- Description -->
-					<Toast.Description class="text-sm opacity-95 leading-relaxed">
+				<!-- Row 2: Message -->
+				<div class="px-4 pb-4">
+					<Toast.Description class="text-sm opacity-80 leading-relaxed text-surface-700 dark:text-surface-300 ml-9">
 						{toast.description}
 					</Toast.Description>
 
-					<!-- Optional Action Buttons -->
 					{#if toast.action}
-						<div class="mt-3 flex gap-2">
+						<div class="mt-3 flex gap-2 ml-9">
 							<Toast.ActionTrigger
-								class="btn-sm {toast.type === 'warning' ? 'preset-filled-surface-900' : 'preset-filled-surface-50'} text-xs font-medium"
+								class="btn-sm preset-filled-surface-200 dark:preset-filled-surface-700 hover:preset-filled-surface-300 dark:hover:preset-filled-surface-600 text-xs font-medium"
 								onclick={() => {
 									toast.action?.onClick?.();
 								}}
@@ -133,20 +149,15 @@ optional actions, and smooth animations.
 							</Toast.ActionTrigger>
 						</div>
 					{/if}
-				</Toast.Message>
+				</div>
 
-				<!-- Close Button -->
-				<Toast.CloseTrigger
-					class="absolute right-2 top-2 p-1.5 rounded-full opacity-70 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 transition-opacity"
-					aria-label="Dismiss notification"
-				>
-					<iconify-icon icon="mdi:close" width={18}></iconify-icon>
-				</Toast.CloseTrigger>
-
-				<!-- Progress Bar for Auto-dismiss -->
+				<!-- Row 3: Timer / Progress Bar -->
 				{#if showProgress && toast.duration && toast.duration > 0}
-					<div class="absolute bottom-0 left-0 right-0 h-1 bg-black/10 dark:bg-white/10">
-						<div class="h-full bg-current opacity-50 animate-shrink" style="animation-duration: {toast.duration}ms;"></div>
+					<div class="h-1 w-full bg-surface-200 dark:bg-surface-700 mt-auto">
+						<div
+							class="h-full {getIconClass(toast.type).replace('text-', 'bg-')} opacity-100 animate-shrink"
+							style="animation-duration: {toast.duration}ms;"
+						></div>
 					</div>
 				{/if}
 			</Toast>

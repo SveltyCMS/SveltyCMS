@@ -22,7 +22,7 @@
 	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
 
-	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	let files: File[] = $state([]);
 	let input: HTMLInputElement | null = $state(null);
@@ -367,21 +367,11 @@
 				>
 					<!-- Delete button -->
 					<div class="absolute right-1 top-1 z-10 flex cursor-pointer shadow-sm">
-						<Tooltip positioning={{ placement: 'top' }}>
-							<Tooltip.Trigger>
-								<button type="button" onclick={() => handleDeleteFile(file)} class="btn-icon rounded-full" aria-label="Remove file">
-									<iconify-icon icon="material-symbols:delete" width={24}></iconify-icon>
-								</button>
-							</Tooltip.Trigger>
-							<Portal>
-								<Tooltip.Positioner>
-									<Tooltip.Content class="rounded bg-surface-900 px-2 py-1 text-xs text-white shadow-xl dark:bg-surface-100 dark:text-black">
-										Remove file
-										<Tooltip.Arrow class="fill-surface-900 dark:fill-surface-100" />
-									</Tooltip.Content>
-								</Tooltip.Positioner>
-							</Portal>
-						</Tooltip>
+						<SystemTooltip title="Remove file" positioning={{ placement: 'top' }}>
+							<button type="button" onclick={() => handleDeleteFile(file)} class="btn-icon rounded-full" aria-label="Remove file">
+								<iconify-icon icon="material-symbols:delete" width={24}></iconify-icon>
+							</button>
+						</SystemTooltip>
 					</div>
 
 					<!-- Preview -->

@@ -25,6 +25,7 @@ latest version available on GitHub with comprehensive status reporting.
 	import { onMount, onDestroy } from 'svelte';
 	import { publicEnv } from '@stores/globalSettings.svelte';
 	import { browser } from '$app/environment';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	// Types
 	type VersionStatus = {
@@ -260,62 +261,59 @@ latest version available on GitHub with comprehensive status reporting.
 	{@render children(versionStatus)}
 {:else}
 	<!-- Default UI -->
-	<a
-		href={GITHUB_RELEASES_URL}
-		target="_blank"
-		rel="noopener noreferrer"
-		class={effectiveTransparent
-			? `absolute bottom-5 left-1/2 flex -translate-x-1/2 transform items-center justify-between w-28 gap-2 rounded-full ${transparentClasses} px-4 py-1 text-sm font-bold transition-opacity duration-300 hover:opacity-90  focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2`
-			: compact
-				? `inline-flex items-center gap-1 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 badge ${badgeVariant} ${badgeColor} rounded-full px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500`
-				: `inline-flex items-center gap-1.5 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 badge ${badgeVariant} ${badgeColor} rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500`}
-		aria-label={statusAriaLabel}
-		aria-live="polite"
-	>
-		{#if effectiveTransparent}
-			<!-- Transparent mode -->
-			<span class="text-black">Ver.</span>
-			<span class="text-white">{pkg}</span>
+	<SystemTooltip title={versionStatusMessage}>
+		<a
+			href={GITHUB_RELEASES_URL}
+			target="_blank"
+			rel="noopener noreferrer"
+			class={effectiveTransparent
+				? `absolute bottom-5 left-1/2 flex -translate-x-1/2 transform items-center justify-between w-28 gap-2 rounded-full ${transparentClasses} px-4 py-1 text-sm font-bold transition-opacity duration-300 hover:opacity-90  focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2`
+				: compact
+					? `inline-flex items-center gap-1 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 badge ${badgeVariant} ${badgeColor} rounded-full px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500`
+					: `inline-flex items-center gap-1.5 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 badge ${badgeVariant} ${badgeColor} rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500`}
+			aria-label={statusAriaLabel}
+			aria-live="polite"
+		>
+			{#if effectiveTransparent}
+				<!-- Transparent mode -->
+				<span class="text-black">Ver.</span>
+				<span class="text-white">{pkg}</span>
 
-			{#if !isLoading && statusSeverity === 'critical'}
-				<span class="flex h-2 w-2">
-					<span class="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-error-400 opacity-75"></span>
-					<span class="relative inline-flex h-2 w-2 rounded-full bg-error-500"></span>
-				</span>
-			{/if}
-		{:else}
-			<!-- Standard/Compact mode -->
-			<span>
-				{#if compact}
-					v.{pkg}
-				{:else}
-					Ver. {pkg}
-					{#if githubVersion && githubVersion !== pkg && !isLoading}
-						<span class="opacity-70">→ {githubVersion}</span>
-					{/if}
+				{#if !isLoading && statusSeverity === 'critical'}
+					<span class="flex h-2 w-2">
+						<span class="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-error-400 opacity-75"></span>
+						<span class="relative inline-flex h-2 w-2 rounded-full bg-error-500"></span>
+					</span>
 				{/if}
-			</span>
+			{:else}
+				<!-- Standard/Compact mode -->
+				<span>
+					{#if compact}
+						v.{pkg}
+					{:else}
+						Ver. {pkg}
+						{#if githubVersion && githubVersion !== pkg && !isLoading}
+							<span class="opacity-70">→ {githubVersion}</span>
+						{/if}
+					{/if}
+				</span>
 
-			<!-- Status indicator dot (only show when check is complete) -->
-			{#if !compact && !isLoading && statusSeverity !== 'unknown'}
-				<span
-					class="inline-block h-2 w-2 rounded-full {statusSeverity === 'critical'
-						? 'bg-error-500'
-						: statusSeverity === 'warning'
-							? 'bg-warning-500'
-							: statusSeverity === 'success'
-								? 'bg-success-500'
-								: 'bg-surface-500'}"
-					aria-hidden="true"
-				></span>
+				<!-- Status indicator dot (only show when check is complete) -->
+				{#if !compact && !isLoading && statusSeverity !== 'unknown'}
+					<span
+						class="inline-block h-2 w-2 rounded-full {statusSeverity === 'critical'
+							? 'bg-error-500'
+							: statusSeverity === 'warning'
+								? 'bg-warning-500'
+								: statusSeverity === 'success'
+									? 'bg-success-500'
+									: 'bg-surface-500'}"
+						aria-hidden="true"
+					></span>
+				{/if}
 			{/if}
-		{/if}
-
-		<!-- Tooltip on hover -->
-		{#if !compact && !effectiveTransparent}
-			<span class="sr-only">{versionStatusMessage}</span>
-		{/if}
-	</a>
+		</a>
+	</SystemTooltip>
 
 	<!-- Error toast/message (optional - only shown if critical) -->
 	{#if error && statusSeverity === 'critical' && !compact && !transparent}

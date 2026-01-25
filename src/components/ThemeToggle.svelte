@@ -10,7 +10,7 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 -->
 <script lang="ts">
 	import { themeStore, setThemePreference, useSystemPreference } from '@stores/themeStore.svelte.ts';
-	import { Portal, Tooltip } from '@skeletonlabs/skeleton-svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	// Explicit imports
 
 	interface Props {
@@ -49,29 +49,17 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 </script>
 
 {#if showTooltip}
-	<Tooltip positioning={{ placement: tooltipPlacement }}>
-		<Tooltip.Trigger>
-			<button onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>
-				{#if themeStore.themePreference === 'light'}
-					<iconify-icon icon="mdi:white-balance-sunny" width={iconSize}></iconify-icon>
-				{:else if themeStore.themePreference === 'dark'}
-					<iconify-icon icon="mdi:moon-waning-crescent" width={iconSize}></iconify-icon>
-				{:else}
-					<iconify-icon icon="mdi:theme-light-dark" width={iconSize}></iconify-icon>
-				{/if}
-			</button>
-		</Tooltip.Trigger>
-		<Portal>
-			<Tooltip.Positioner>
-				<Tooltip.Content class="card z-50 rounded-md p-2 text-sm shadow-xl bg-surface-800 text-white border border-surface-600">
-					{getTooltipText()}
-					<Tooltip.Arrow class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-800)]">
-						<Tooltip.ArrowTip />
-					</Tooltip.Arrow>
-				</Tooltip.Content>
-			</Tooltip.Positioner>
-		</Portal>
-	</Tooltip>
+	<SystemTooltip title={getTooltipText()} positioning={{ placement: tooltipPlacement }}>
+		<button onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>
+			{#if themeStore.themePreference === 'light'}
+				<iconify-icon icon="mdi:white-balance-sunny" width={iconSize}></iconify-icon>
+			{:else if themeStore.themePreference === 'dark'}
+				<iconify-icon icon="mdi:moon-waning-crescent" width={iconSize}></iconify-icon>
+			{:else}
+				<iconify-icon icon="mdi:theme-light-dark" width={iconSize}></iconify-icon>
+			{/if}
+		</button>
+	</SystemTooltip>
 {:else}
 	<button onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>
 		{#if themeStore.themePreference === 'light'}

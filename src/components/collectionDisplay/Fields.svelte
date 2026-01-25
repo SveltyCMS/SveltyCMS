@@ -56,6 +56,7 @@
 	// Import async widget loader component
 	import WidgetLoader from './WidgetLoader.svelte';
 	import { activeInputStore } from '@stores/activeInputStore.svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	// Token Picker
 	// Token Picker
@@ -125,7 +126,7 @@
 	});
 
 	// --- 3. DERIVED STATE FROM PROPS ---
-	let selectedRevision = $derived(revisions.find((r: any) => r._id === selectedRevisionId) || null);
+	let selectedRevision = $derived(Array.isArray(revisions) ? revisions.find((r: any) => r._id === selectedRevisionId) || null : null);
 
 	// --- 4. SIMPLIFIED LOGIC ---
 	let derivedFields = $derived(fields || []);
@@ -385,15 +386,11 @@
 									</p>
 								</div>
 								<div class="flex items-center gap-2">
-									<button
-										type="button"
-										onclick={(e) => openTokenPicker(field, e)}
-										class=""
-										title="Insert Token"
-										aria-label="Insert token into {field.label}"
-									>
-										<iconify-icon icon="mdi:code-braces" width="16" class="font-bold text-tertiary-500 dark:text-primary-500"></iconify-icon>
-									</button>
+									<SystemTooltip title="Insert Token">
+										<button type="button" onclick={(e) => openTokenPicker(field, e)} class="" aria-label="Insert token into {field.label}">
+											<iconify-icon icon="mdi:code-braces" width="16" class="font-bold text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										</button>
+									</SystemTooltip>
 									<!-- Translation status -->
 									{#if field.translated}
 										{@const percentage = getFieldTranslationPercentage(field)}

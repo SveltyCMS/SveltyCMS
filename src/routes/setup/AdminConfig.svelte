@@ -25,7 +25,7 @@
 	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { setupAdminSchema } from '@utils/formSchemas';
-	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	// Props from parent
 	let {
@@ -99,32 +99,16 @@
 				<label for="admin-username" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:account" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span class="text-black dark:text-white">{m.form_username?.() || 'Username'}</span>
-					<Tooltip positioning={{ placement: 'top' }}>
-						<Tooltip.Trigger>
-							<button
-								type="button"
-								tabindex="-1"
-								aria-label={m.setup_help_admin_username?.() || 'Help: Username'}
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-							</button>
-						</Tooltip.Trigger>
-						<Portal>
-							<Tooltip.Positioner>
-								<Tooltip.Content
-									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-								>
-									<p>{m.setup_help_admin_username()}</p>
-									<Tooltip.Arrow
-										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-									>
-										<Tooltip.ArrowTip />
-									</Tooltip.Arrow>
-								</Tooltip.Content>
-							</Tooltip.Positioner>
-						</Portal>
-					</Tooltip>
+					<SystemTooltip title={m.setup_help_admin_username()}>
+						<button
+							type="button"
+							tabindex="-1"
+							aria-label={m.setup_help_admin_username?.() || 'Help: Username'}
+							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						>
+							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+						</button>
+					</SystemTooltip>
 				</label>
 
 				<input
@@ -155,32 +139,16 @@
 				<label for="admin-email" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:email" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span class="text-black dark:text-white">{m.form_email?.() || 'Email'}</span>
-					<Tooltip positioning={{ placement: 'top' }}>
-						<Tooltip.Trigger>
-							<button
-								type="button"
-								tabindex="-1"
-								aria-label={m.setup_help_admin_email?.() || 'Help: Email'}
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-							</button>
-						</Tooltip.Trigger>
-						<Portal>
-							<Tooltip.Positioner>
-								<Tooltip.Content
-									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-								>
-									<p>{m.setup_help_admin_email()}</p>
-									<Tooltip.Arrow
-										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-									>
-										<Tooltip.ArrowTip />
-									</Tooltip.Arrow>
-								</Tooltip.Content>
-							</Tooltip.Positioner>
-						</Portal>
-					</Tooltip>
+					<SystemTooltip title={m.setup_help_admin_email()}>
+						<button
+							type="button"
+							tabindex="-1"
+							aria-label={m.setup_help_admin_email?.() || 'Help: Email'}
+							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						>
+							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+						</button>
+					</SystemTooltip>
 				</label>
 
 				<input
@@ -211,32 +179,16 @@
 				<label for="admin-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span class="text-black dark:text-white">{m.form_password()}</span>
-					<Tooltip positioning={{ placement: 'top' }}>
-						<Tooltip.Trigger>
-							<button
-								type="button"
-								tabindex="-1"
-								aria-label={m.setup_help_admin_password?.() || 'Help: Password'}
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-							</button>
-						</Tooltip.Trigger>
-						<Portal>
-							<Tooltip.Positioner>
-								<Tooltip.Content
-									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-								>
-									<p>{m.setup_help_admin_password()}</p>
-									<Tooltip.Arrow
-										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-									>
-										<Tooltip.ArrowTip />
-									</Tooltip.Arrow>
-								</Tooltip.Content>
-							</Tooltip.Positioner>
-						</Portal>
-					</Tooltip>
+					<SystemTooltip title={m.setup_help_admin_password()}>
+						<button
+							type="button"
+							tabindex="-1"
+							aria-label={m.setup_help_admin_password?.() || 'Help: Password'}
+							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						>
+							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+						</button>
+					</SystemTooltip>
 				</label>
 
 				<div class="relative">
@@ -273,32 +225,16 @@
 				<label for="admin-confirm-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:key" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span class="text-black dark:text-white">{m.form_confirmpassword?.() || 'Confirm Password'}</span>
-					<Tooltip positioning={{ placement: 'top' }}>
-						<Tooltip.Trigger>
-							<button
-								type="button"
-								tabindex="-1"
-								aria-label={m.setup_help_admin_confirm_password?.() || 'Help: Confirm Password'}
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-							</button>
-						</Tooltip.Trigger>
-						<Portal>
-							<Tooltip.Positioner>
-								<Tooltip.Content
-									class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-								>
-									<p>{m.setup_help_admin_confirm_password()}</p>
-									<Tooltip.Arrow
-										class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-									>
-										<Tooltip.ArrowTip />
-									</Tooltip.Arrow>
-								</Tooltip.Content>
-							</Tooltip.Positioner>
-						</Portal>
-					</Tooltip>
+					<SystemTooltip title={m.setup_help_admin_confirm_password()}>
+						<button
+							type="button"
+							tabindex="-1"
+							aria-label={m.setup_help_admin_confirm_password?.() || 'Help: Confirm Password'}
+							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						>
+							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+						</button>
+					</SystemTooltip>
 				</label>
 
 				<div class="relative">

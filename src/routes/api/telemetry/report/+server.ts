@@ -77,6 +77,12 @@ const MAX_PAYLOAD_SIZE = 10000; // 10KB
 const REQUEST_TIMEOUT = 5000; // 5 seconds
 
 export async function POST({ request }: RequestEvent) {
+	// 0. Strict Test Mode Check (Environment Variables)
+	// This ensures that even if the database setting is enabled, we never process telemetry in CI/Test
+	if (process.env.TEST_MODE === 'true' || process.env.CI === 'true' || process.env.VITEST === 'true' || process.env.NODE_ENV === 'test') {
+		return json({ status: 'test_mode' }, { status: 200 });
+	}
+
 	// 1. Check telemetry setting
 	const telemetryEnabled = await getPrivateSettingSync('SVELTYCMS_TELEMETRY');
 

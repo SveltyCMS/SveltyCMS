@@ -40,6 +40,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	import VirtualMediaGrid from './VirtualMediaGrid.svelte';
 	import AdvancedSearchModal from './AdvancedSearchModal.svelte';
 	import ImageEditorModal from '@src/components/imageEditor/ImageEditorModal.svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	// Skeleton
 	import { toaster } from '@stores/store.svelte.ts';
 	// Import types
@@ -753,17 +754,21 @@ Displays a collection of media files (images, documents, audio, video) with:
 				<div class="flex flex-col items-center justify-center">
 					<div class="flex sm:divide-x sm:divide-gray-500">
 						{#if view === 'grid'}
-							<button onclick={() => handleViewChange('table')} aria-label="Table" class="btn flex flex-col items-center justify-center px-1">
-								<p class="text-center text-xs">Display</p>
-								<iconify-icon icon="material-symbols:list-alt-outline" width={24}></iconify-icon>
-								<p class="text-xs">Table</p>
-							</button>
+							<SystemTooltip title="Switch to Table View">
+								<button onclick={() => handleViewChange('table')} aria-label="Table" class="btn flex flex-col items-center justify-center px-1">
+									<p class="text-center text-xs">Display</p>
+									<iconify-icon icon="material-symbols:list-alt-outline" width={24}></iconify-icon>
+									<p class="text-xs">Table</p>
+								</button>
+							</SystemTooltip>
 						{:else}
-							<button onclick={() => handleViewChange('grid')} aria-label="Grid" class="btn flex flex-col items-center justify-center px-1">
-								<p class="text-center text-xs">Display</p>
-								<iconify-icon icon="material-symbols:grid-view-rounded" width={24}></iconify-icon>
-								<p class="text-center text-xs">Grid</p>
-							</button>
+							<SystemTooltip title="Switch to Grid View">
+								<button onclick={() => handleViewChange('grid')} aria-label="Grid" class="btn flex flex-col items-center justify-center px-1">
+									<p class="text-center text-xs">Display</p>
+									<iconify-icon icon="material-symbols:grid-view-rounded" width={24}></iconify-icon>
+									<p class="text-center text-xs">Grid</p>
+								</button>
+							</SystemTooltip>
 						{/if}
 					</div>
 				</div>
@@ -771,141 +776,149 @@ Displays a collection of media files (images, documents, audio, video) with:
 					<p class="text-xs">Size</p>
 					<div class="flex divide-x divide-gray-500">
 						{#if (view === 'grid' && gridSize === 'tiny') || (view === 'table' && tableSize === 'tiny')}
-							<button
-								onclick={() => {
-									const newSize =
-										view === 'grid'
-											? gridSize === 'tiny'
-												? 'small'
-												: gridSize === 'small'
-													? 'medium'
-													: gridSize === 'medium'
-														? 'large'
-														: 'tiny'
-											: tableSize === 'tiny'
-												? 'small'
-												: tableSize === 'small'
-													? 'medium'
-													: tableSize === 'medium'
-														? 'large'
-														: 'tiny';
+							<SystemTooltip title="Change Display Size">
+								<button
+									onclick={() => {
+										const newSize =
+											view === 'grid'
+												? gridSize === 'tiny'
+													? 'small'
+													: gridSize === 'small'
+														? 'medium'
+														: gridSize === 'medium'
+															? 'large'
+															: 'tiny'
+												: tableSize === 'tiny'
+													? 'small'
+													: tableSize === 'small'
+														? 'medium'
+														: tableSize === 'medium'
+															? 'large'
+															: 'tiny';
 
-									if (view === 'grid') {
-										gridSize = newSize;
-									} else {
-										tableSize = newSize;
-									}
-									storeUserPreference(view, gridSize, tableSize);
-								}}
-								type="button"
-								aria-label="Tiny"
-								class="px-1"
-							>
-								<iconify-icon icon="material-symbols:apps" width={24}></iconify-icon>
-								<p class="text-xs">Tiny</p>
-							</button>
+										if (view === 'grid') {
+											gridSize = newSize;
+										} else {
+											tableSize = newSize;
+										}
+										storeUserPreference(view, gridSize, tableSize);
+									}}
+									type="button"
+									aria-label="Tiny"
+									class="px-1"
+								>
+									<iconify-icon icon="material-symbols:apps" width={24}></iconify-icon>
+									<p class="text-xs">Tiny</p>
+								</button>
+							</SystemTooltip>
 						{:else if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
-							<button
-								onclick={() => {
-									const newSize =
-										view === 'grid'
-											? gridSize === 'tiny'
-												? 'small'
-												: gridSize === 'small'
-													? 'medium'
-													: gridSize === 'medium'
-														? 'large'
-														: 'tiny'
-											: tableSize === 'tiny'
-												? 'small'
-												: tableSize === 'small'
-													? 'medium'
-													: tableSize === 'medium'
-														? 'large'
-														: 'tiny';
+							<SystemTooltip title="Change Display Size">
+								<button
+									onclick={() => {
+										const newSize =
+											view === 'grid'
+												? gridSize === 'tiny'
+													? 'small'
+													: gridSize === 'small'
+														? 'medium'
+														: gridSize === 'medium'
+															? 'large'
+															: 'tiny'
+												: tableSize === 'tiny'
+													? 'small'
+													: tableSize === 'small'
+														? 'medium'
+														: tableSize === 'medium'
+															? 'large'
+															: 'tiny';
 
-									if (view === 'grid') {
-										gridSize = newSize;
-									} else {
-										tableSize = newSize;
-									}
-									storeUserPreference(view, gridSize, tableSize);
-								}}
-								type="button"
-								aria-label="Small"
-								class="px-1"
-							>
-								<iconify-icon icon="material-symbols:background-grid-small-sharp" width={24}></iconify-icon>
-								<p class="text-xs">Small</p>
-							</button>
+										if (view === 'grid') {
+											gridSize = newSize;
+										} else {
+											tableSize = newSize;
+										}
+										storeUserPreference(view, gridSize, tableSize);
+									}}
+									type="button"
+									aria-label="Small"
+									class="px-1"
+								>
+									<iconify-icon icon="material-symbols:background-grid-small-sharp" width={24}></iconify-icon>
+									<p class="text-xs">Small</p>
+								</button>
+							</SystemTooltip>
 						{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
-							<button
-								onclick={() => {
-									const newSize =
-										view === 'grid'
-											? gridSize === 'tiny'
-												? 'small'
-												: gridSize === 'small'
-													? 'medium'
-													: gridSize === 'medium'
-														? 'large'
-														: 'tiny'
-											: tableSize === 'tiny'
-												? 'small'
-												: tableSize === 'small'
-													? 'medium'
-													: tableSize === 'medium'
-														? 'large'
-														: 'tiny';
+							<SystemTooltip title="Change Display Size">
+								<button
+									onclick={() => {
+										const newSize =
+											view === 'grid'
+												? gridSize === 'tiny'
+													? 'small'
+													: gridSize === 'small'
+														? 'medium'
+														: gridSize === 'medium'
+															? 'large'
+															: 'tiny'
+												: tableSize === 'tiny'
+													? 'small'
+													: tableSize === 'small'
+														? 'medium'
+														: tableSize === 'medium'
+															? 'large'
+															: 'tiny';
 
-									if (view === 'grid') {
-										gridSize = newSize;
-									} else {
-										tableSize = newSize;
-									}
-									storeUserPreference(view, gridSize, tableSize);
-								}}
-								type="button"
-								aria-label="Medium"
-								class="px-1"
-							>
-								<iconify-icon icon="material-symbols:grid-on-sharp" width={24}></iconify-icon>
-								<p class="text-xs">Medium</p>
-							</button>
+										if (view === 'grid') {
+											gridSize = newSize;
+										} else {
+											tableSize = newSize;
+										}
+										storeUserPreference(view, gridSize, tableSize);
+									}}
+									type="button"
+									aria-label="Medium"
+									class="px-1"
+								>
+									<iconify-icon icon="material-symbols:grid-on-sharp" width={24}></iconify-icon>
+									<p class="text-xs">Medium</p>
+								</button>
+							</SystemTooltip>
 						{:else}
-							<button
-								onclick={() => {
-									const newSize =
-										view === 'grid'
-											? gridSize === 'tiny'
-												? 'small'
-												: gridSize === 'small'
-													? 'medium'
-													: gridSize === 'medium'
-														? 'large'
-														: 'tiny'
-											: tableSize === 'tiny'
-												? 'small'
-												: tableSize === 'small'
-													? 'medium'
-													: tableSize === 'medium'
-														? 'large'
-														: 'tiny';
+							<SystemTooltip title="Change Display Size">
+								<button
+									onclick={() => {
+										const newSize =
+											view === 'grid'
+												? gridSize === 'tiny'
+													? 'small'
+													: gridSize === 'small'
+														? 'medium'
+														: gridSize === 'medium'
+															? 'large'
+															: 'tiny'
+												: tableSize === 'tiny'
+													? 'small'
+													: tableSize === 'small'
+														? 'medium'
+														: tableSize === 'medium'
+															? 'large'
+															: 'tiny';
 
-									if (view === 'grid') {
-										gridSize = newSize;
-									} else {
-										tableSize = newSize;
-									}
-									storeUserPreference(view, gridSize, tableSize);
-								}}
-								type="button"
-								aria-label="Large"
-								class="px-1"
-							>
-								<iconify-icon icon="material-symbols:grid-view" width={24}></iconify-icon>
-								<p class="text-xs">Large</p>
-							</button>
+										if (view === 'grid') {
+											gridSize = newSize;
+										} else {
+											tableSize = newSize;
+										}
+										storeUserPreference(view, gridSize, tableSize);
+									}}
+									type="button"
+									aria-label="Large"
+									class="px-1"
+								>
+									<iconify-icon icon="material-symbols:grid-view" width={24}></iconify-icon>
+									<p class="text-xs">Large</p>
+								</button>
+							</SystemTooltip>
 						{/if}
 					</div>
 				</div>

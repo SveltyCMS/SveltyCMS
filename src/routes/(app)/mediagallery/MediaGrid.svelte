@@ -27,7 +27,7 @@ Key features:
 	import type { MediaImage, MediaBase } from '@utils/media/mediaModels';
 
 	// Skeleton
-	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	// Svelte transitions
 	import { scale } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
@@ -235,138 +235,101 @@ Key features:
 
 				<header class="m-2 flex w-auto items-center justify-between">
 					<!-- Info Tooltip -->
-					<Tooltip positioning={{ placement: 'right' }}>
-						<Tooltip.Trigger>
-							<button aria-label="File Info" class="btn-icon" title="File Info">
-								<iconify-icon icon="raphael:info" width={24}></iconify-icon>
-							</button>
-						</Tooltip.Trigger>
-						<Portal>
-							<Tooltip.Positioner>
-								<Tooltip.Content class="rounded-container-token z-50 border border-surface-500 bg-surface-50 p-2 shadow-xl dark:bg-surface-900">
-									<table class="table-auto text-xs">
-										<thead class="text-tertiary-500">
-											<tr class="divide-x divide-surface-400 border-b-2 border-surface-400 text-center">
-												<th class="px-2 text-left">Format</th>
-												<th class="px-2">Pixel</th>
-												<th class="px-2">Size</th>
+					<SystemTooltip positioning={{ placement: 'right' }}>
+						<button aria-label="File Info" class="btn-icon" title="File Info">
+							<iconify-icon icon="raphael:info" width={24}></iconify-icon>
+						</button>
+						{#snippet content()}
+							<table class="table-auto text-xs">
+								<thead class="text-tertiary-500">
+									<tr class="divide-x divide-surface-400 border-b-2 border-surface-400 text-center">
+										<th class="px-2 text-left">Format</th>
+										<th class="px-2">Pixel</th>
+										<th class="px-2">Size</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#if 'width' in file && file.width && 'height' in file && file.height}
+										<tr
+											><td class="px-2 font-semibold">Original:</td><td class="px-2">{file.width}x{file.height}</td><td class="px-2"
+												>{formatBytes(file.size)}</td
+											></tr
+										>
+									{/if}
+									{#each Object.keys(getThumbnails(file)) as size (size)}
+										{@const thumbnail = getThumbnail(file, size)}
+										{#if thumbnail}
+											<tr
+												class="divide-x divide-surface-400 border-b border-surface-400 last:border-b-0 {size === gridSize
+													? 'bg-primary-50 dark:bg-primary-900/20'
+													: ''}"
+												onclick={(e) => {
+													e.preventDefault();
+													if (size === 'tiny' || size === 'small' || size === 'medium' || size === 'large') {
+														onsizechange({
+															size: size === 'tiny' ? 'small' : size === 'small' ? 'medium' : size === 'medium' ? 'large' : 'tiny',
+															type: 'grid'
+														});
+													}
+												}}
+											>
+												<td class="px-2 font-bold text-tertiary-500"
+													>{size}
+													{#if size === gridSize}
+														<span class="ml-1 text-[10px] text-primary-500">(active)</span>
+													{/if}
+												</td>
+												<td class="px-2 text-right">
+													{#if thumbnail.width && thumbnail.height}
+														{thumbnail.width}x{thumbnail.height}
+													{:else}
+														N/A
+													{/if}
+												</td>
+												<td class="px-2 text-right">
+													{#if thumbnail.size}
+														{formatBytes(thumbnail.size)}
+													{:else if size === 'original' && file.size}
+														{formatBytes(file.size)}
+													{:else}
+														N/A
+													{/if}
+												</td>
 											</tr>
-										</thead>
-										<tbody>
-											{#if 'width' in file && file.width && 'height' in file && file.height}
-												<tr
-													><td class="px-2 font-semibold">Original:</td><td class="px-2">{file.width}x{file.height}</td><td class="px-2"
-														>{formatBytes(file.size)}</td
-													></tr
-												>
-											{/if}
-											{#each Object.keys(getThumbnails(file)) as size (size)}
-												{@const thumbnail = getThumbnail(file, size)}
-												{#if thumbnail}
-													<tr
-														class="divide-x divide-surface-400 border-b border-surface-400 last:border-b-0 {size === gridSize
-															? 'bg-primary-50 dark:bg-primary-900/20'
-															: ''}"
-														onclick={(e) => {
-															e.preventDefault();
-															if (size === 'tiny' || size === 'small' || size === 'medium' || size === 'large') {
-																onsizechange({
-																	size: size === 'tiny' ? 'small' : size === 'small' ? 'medium' : size === 'medium' ? 'large' : 'tiny',
-																	type: 'grid'
-																});
-															}
-														}}
-													>
-														<td class="px-2 font-bold text-tertiary-500"
-															>{size}
-															{#if size === gridSize}
-																<span class="ml-1 text-[10px] text-primary-500">(active)</span>
-															{/if}
-														</td>
-														<td class="px-2 text-right">
-															{#if thumbnail.width && thumbnail.height}
-																{thumbnail.width}x{thumbnail.height}
-															{:else}
-																N/A
-															{/if}
-														</td>
-														<td class="px-2 text-right">
-															{#if thumbnail.size}
-																{formatBytes(thumbnail.size)}
-															{:else if size === 'original' && file.size}
-																{formatBytes(file.size)}
-															{:else}
-																N/A
-															{/if}
-														</td>
-													</tr>
-												{/if}
-											{/each}
-										</tbody>
-									</table>
-									<Tooltip.Arrow class="fill-surface-50 dark:fill-surface-900" />
-								</Tooltip.Content>
-							</Tooltip.Positioner>
-						</Portal>
-					</Tooltip>
+										{/if}
+									{/each}
+								</tbody>
+							</table>
+						{/snippet}
+					</SystemTooltip>
 
 					<div class="flex items-center gap-1">
 						{#if file.type === 'image'}
 							<!-- Toggle Tags Tooltip -->
-							<Tooltip positioning={{ placement: 'top' }}>
-								<Tooltip.Trigger>
-									<button onclick={() => openTagEditor(file as MediaImage)} aria-label="Toggle Tags" class="btn-icon">
-										{#if file.metadata?.aiTags?.length || file.metadata?.tags?.length}
-											<iconify-icon icon="mdi:tag-multiple" width={24}></iconify-icon>
-										{:else}
-											<iconify-icon icon="mdi:tag-outline" width={24}></iconify-icon>
-										{/if}
-									</button>
-								</Tooltip.Trigger>
-								<Portal>
-									<Tooltip.Positioner>
-										<Tooltip.Content class="rounded bg-surface-900 px-2 py-1 text-xs text-white shadow-xl dark:bg-surface-100 dark:text-black">
-											View/Edit Tags
-											<Tooltip.Arrow class="fill-surface-900 dark:fill-surface-100" />
-										</Tooltip.Content>
-									</Tooltip.Positioner>
-								</Portal>
-							</Tooltip>
+							<SystemTooltip title="View/Edit Tags" positioning={{ placement: 'top' }}>
+								<button onclick={() => openTagEditor(file as MediaImage)} aria-label="Toggle Tags" class="btn-icon">
+									{#if file.metadata?.aiTags?.length || file.metadata?.tags?.length}
+										<iconify-icon icon="mdi:tag-multiple" width={24}></iconify-icon>
+									{:else}
+										<iconify-icon icon="mdi:tag-outline" width={24}></iconify-icon>
+									{/if}
+								</button>
+							</SystemTooltip>
 
 							<!-- Edit Tooltip -->
-							<Tooltip positioning={{ placement: 'top' }}>
-								<Tooltip.Trigger>
-									<button onclick={() => onEditImage(file as MediaImage)} aria-label="Edit" class="btn-icon">
-										<iconify-icon icon="mdi:pen" width={24}></iconify-icon>
-									</button>
-								</Tooltip.Trigger>
-								<Portal>
-									<Tooltip.Positioner>
-										<Tooltip.Content class="rounded bg-surface-900 px-2 py-1 text-xs text-white shadow-xl dark:bg-surface-100 dark:text-black">
-											Edit Image
-											<Tooltip.Arrow class="fill-surface-900 dark:fill-surface-100" />
-										</Tooltip.Content>
-									</Tooltip.Positioner>
-								</Portal>
-							</Tooltip>
+							<SystemTooltip title="Edit Image" positioning={{ placement: 'top' }}>
+								<button onclick={() => onEditImage(file as MediaImage)} aria-label="Edit" class="btn-icon">
+									<iconify-icon icon="mdi:pen" width={24}></iconify-icon>
+								</button>
+							</SystemTooltip>
 						{/if}
 
 						<!-- Delete Tooltip -->
-						<Tooltip positioning={{ placement: 'top' }}>
-							<Tooltip.Trigger>
-								<button onclick={() => handleDelete(file)} aria-label="Delete" class="btn-icon">
-									<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
-								</button>
-							</Tooltip.Trigger>
-							<Portal>
-								<Tooltip.Positioner>
-									<Tooltip.Content class="rounded bg-surface-900 px-2 py-1 text-xs text-white shadow-xl dark:bg-surface-100 dark:text-black">
-										Delete Image
-										<Tooltip.Arrow class="fill-surface-900 dark:fill-surface-100" />
-									</Tooltip.Content>
-								</Tooltip.Positioner>
-							</Portal>
-						</Tooltip>
+						<SystemTooltip title="Delete Image" positioning={{ placement: 'top' }}>
+							<button onclick={() => handleDelete(file)} aria-label="Delete" class="btn-icon">
+								<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
+							</button>
+						</SystemTooltip>
 					</div>
 				</header>
 

@@ -51,7 +51,7 @@
 
 	// Types
 	import type { PaginationSettings, TableHeader } from '@src/content/types';
-	import type { StatusType } from '@src/content/types';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import { StatusTypes } from '@src/content/types';
 
 	// Stores
@@ -1019,7 +1019,6 @@
 											class="text-center {cellPaddingClass} text-xs font-bold sm:text-sm {(header as TableHeader).name !== 'status'
 												? 'cursor-pointer transition-colors duration-200 hover:bg-primary-500/10 dark:hover:bg-secondary-500/20'
 												: 'cursor-pointer transition-colors duration-200 hover:bg-warning-500/10 dark:hover:bg-warning-500/20'}"
-											title={(header as TableHeader).name !== 'status' ? 'Click to edit this entry' : 'Click to change status'}
 											onclick={async () => {
 												if ((header as TableHeader).name === 'status') {
 													// Handle single entry status change with modal (same style as multibutton)
@@ -1079,47 +1078,49 @@
 												}
 											}}
 										>
-											{#if (header as TableHeader).name === 'status'}
-												<div class="flex w-full items-center justify-center">
-													<Status value={entry.status || entry.raw_status || 'draft'} />
-												</div>
-											{:else if (header as TableHeader).name === 'PageSpeed'}
-												{#if (entry as any).pluginData?.performanceScore !== undefined}
-													<PluginComponent
-														pluginId="pagespeed"
-														componentName="score"
-														score={(entry as any).pluginData.performanceScore}
-														compact={true}
-													/>
-												{:else}
-													<span class="text-surface-400 opacity-50">-</span>
-												{/if}
-											{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
-												<div class="flex flex-col text-xs">
-													<div class="font-semibold">
-														{formatDisplayDate(entry[(header as TableHeader).name], 'en', { year: 'numeric', month: 'short', day: 'numeric' })}
+											<SystemTooltip title={(header as TableHeader).name !== 'status' ? 'Click to edit this entry' : 'Click to change status'}>
+												{#if (header as TableHeader).name === 'status'}
+													<div class="flex w-full items-center justify-center">
+														<Status value={entry.status || entry.raw_status || 'draft'} />
 													</div>
-													<div class="text-surface-500 dark:text-surface-200">
-														{formatDisplayDate(entry[(header as TableHeader).name], 'en', {
-															hour: '2-digit',
-															minute: '2-digit',
-															second: '2-digit',
-															hour12: false
-														})}
+												{:else if (header as TableHeader).name === 'PageSpeed'}
+													{#if (entry as any).pluginData?.performanceScore !== undefined}
+														<PluginComponent
+															pluginId="pagespeed"
+															componentName="score"
+															score={(entry as any).pluginData.performanceScore}
+															compact={true}
+														/>
+													{:else}
+														<span class="text-surface-400 opacity-50">-</span>
+													{/if}
+												{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
+													<div class="flex flex-col text-xs">
+														<div class="font-semibold">
+															{formatDisplayDate(entry[(header as TableHeader).name], 'en', { year: 'numeric', month: 'short', day: 'numeric' })}
+														</div>
+														<div class="text-surface-500 dark:text-surface-200">
+															{formatDisplayDate(entry[(header as TableHeader).name], 'en', {
+																hour: '2-digit',
+																minute: '2-digit',
+																second: '2-digit',
+																hour12: false
+															})}
+														</div>
 													</div>
-												</div>
-											{:else if typeof entry[(header as TableHeader).name] === 'object' && entry[(header as TableHeader).name] !== null}
-												{@const fieldData = entry[(header as TableHeader).name]}
-												{@const translatedValue = fieldData[currentLanguage] || Object.values(fieldData)[0] || '-'}
-												{@const debugInfo = `Field: ${(header as TableHeader).name}, Lang: ${currentLanguage}, Data: ${JSON.stringify(fieldData)}, Value: ${translatedValue}`}
-												{#if (header as TableHeader).name === 'last_name'}
-													<span title={debugInfo}>{@html translatedValue}</span>
+												{:else if typeof entry[(header as TableHeader).name] === 'object' && entry[(header as TableHeader).name] !== null}
+													{@const fieldData = entry[(header as TableHeader).name]}
+													{@const translatedValue = fieldData[currentLanguage] || Object.values(fieldData)[0] || '-'}
+													{@const debugInfo = `Field: ${(header as TableHeader).name}, Lang: ${currentLanguage}, Data: ${JSON.stringify(fieldData)}, Value: ${translatedValue}`}
+													{#if (header as TableHeader).name === 'last_name'}
+														<span title={debugInfo}>{@html translatedValue}</span>
+													{:else}
+														{@html translatedValue}
+													{/if}
 												{:else}
-													{@html translatedValue}
+													{@html entry[(header as TableHeader).name] || '-'}
 												{/if}
-											{:else}
-												{@html entry[(header as TableHeader).name] || '-'}
-											{/if}
+											</SystemTooltip>
 										</td>
 									{/each}
 								{/if}

@@ -42,6 +42,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import PasswordStrength from '@components/PasswordStrength.svelte';
 	import FloatingPaths from '@components/system/FloatingPaths.svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	// Skeleton
 	import { toaster } from '@stores/store.svelte.ts';
@@ -487,12 +488,16 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				</div>
 
 				<!-- Required with Back button -->
-				<div class="-mt-2 flex items-center justify-end gap-2 text-right text-xs text-error-500">
+				<div class="-mt-2 relative flex items-center justify-center text-xs text-error-500">
 					{m.form_required()}
 
-					<button onclick={handleBack} aria-label="Back" class="btn-icon preset-outlined-secondary-500 rounded-full">
-						<iconify-icon icon="ri:arrow-right-line" width={24}></iconify-icon>
-					</button>
+					<div class="absolute right-0">
+						<SystemTooltip title="Go Back">
+							<button onclick={handleBack} aria-label="Back" class="btn-icon preset-outlined-secondary-500 rounded-full">
+								<iconify-icon icon="ri:arrow-right-line" width={24}></iconify-icon>
+							</button>
+						</SystemTooltip>
+					</div>
 				</div>
 
 				<!-- Sign In (first-user signup now handled by /setup) -->
@@ -520,6 +525,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							label={m.email()}
 							required
 							icon="mdi:email"
+							iconColor="black"
+							textColor="black"
 							data-testid="signin-email"
 						/>
 						{#if loginForm.errors.email}<span class="invalid text-xs text-error-500">{loginForm.errors.email[0]}</span>{/if}

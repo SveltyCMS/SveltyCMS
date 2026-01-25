@@ -281,11 +281,15 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
 let yogaAppPromise: Promise<ReturnType<typeof createYoga<any, any>>> | null = null;
 let wsServerInitialized = false;
 
+// Store global instance to prevent HMR EADDRINUSE errors
+const globalWithWs = globalThis as typeof globalThis & { __SVELTY_GRAPHQL_WS__?: WebSocketServer };
+
 // NOTE: This is a workaround for SvelteKit not exposing the HTTP server instance.
 // We create a standalone WebSocket server on a different port.
 // In a production environment, you would ideally integrate this with your main HTTP server.
 async function initializeWebSocketServer(dbAdapter: DatabaseAdapter, tenantId?: string) {
-	if (wsServerInitialized || building) {
+	if (globalWithWs.__SVELTY_GRAPHQL_WS__ || wsServerInitialized || building) {
+		logger.debug('WebSocket server already initialized, skipping...');
 		return;
 	}
 
@@ -297,6 +301,8 @@ async function initializeWebSocketServer(dbAdapter: DatabaseAdapter, tenantId?: 
 			port: 3001,
 			path: '/api/graphql'
 		});
+
+		globalWithWs.__SVELTY_GRAPHQL_WS__ = wsServer;
 
 		useServer(
 			{

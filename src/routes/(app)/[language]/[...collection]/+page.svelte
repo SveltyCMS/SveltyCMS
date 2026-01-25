@@ -226,6 +226,7 @@
 
 		// CASE 1: Initial page load with ?edit=id
 		if (!hasInitiallyLoaded && editParam && entries && entries.length === 1) {
+			console.log('✅ [Debug Case 1] Edit mode detected', { editParam, entriesLen: entries.length });
 			hasInitiallyLoaded = true;
 			lastEditParam = editParam;
 			const entryData = entries[0];
@@ -236,6 +237,14 @@
 			initialCollectionValue = JSON.stringify(entryData);
 			lastUrlString = currentUrl;
 			return; // Exit early to avoid triggering URL change logic
+		} else if (!hasInitiallyLoaded && editParam) {
+			console.log('❌ [Debug Case 1] Failed condition', {
+				hasInitiallyLoaded,
+				editParam,
+				entriesExist: !!entries,
+				entriesLen: entries?.length,
+				entry0: entries?.[0]
+			});
 		}
 
 		// CASE 1b: Initial page load with ?create=true

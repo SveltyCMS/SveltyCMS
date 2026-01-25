@@ -25,7 +25,8 @@ FIXES:
 	import { getLanguageName } from '@utils/languageUtils';
 
 	// SkeletonUI
-	import { Progress, Menu, Portal } from '@skeletonlabs/skeleton-svelte';
+	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
+	import ProgressBar from '@components/system/ProgressBar.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -81,14 +82,14 @@ FIXES:
 	});
 
 	// Helper functions
-	function getProgressColor(value: number): string {
-		if (value >= 80) return 'bg-primary-500';
-		if (value >= 40) return 'bg-warning-500';
-		return 'bg-error-500';
+	function getProgressVariant(value: number): 'primary' | 'warning' | 'error' {
+		if (value >= 80) return 'primary';
+		if (value >= 40) return 'warning';
+		return 'error';
 	}
 
 	function getTextColor(value: number): string {
-		return getProgressColor(value).replace('bg-', 'text-');
+		return `text-${getProgressVariant(value)}-500`;
 	}
 
 	/**
@@ -424,7 +425,7 @@ FIXES:
 									{#if !isViewMode && showProgress && translationProgress.value?.[lang as Locale]}
 										<div class="flex w-32 items-center gap-2">
 											<div class="flex-1">
-												<Progress class="transition-all duration-300" value={percentage} aria-hidden="true" />
+												<ProgressBar value={percentage} color={getProgressVariant(percentage)} size="sm" showPercentage={false} animated={false} />
 											</div>
 											<span class="min-w-8 text-right text-sm font-semibold">
 												{percentage}%
@@ -452,7 +453,13 @@ FIXES:
 							<div class="flex items-center justify-between gap-3">
 								{#if overallPercentage}
 									<div class="flex-1">
-										<Progress class="transition-all duration-300" value={overallPercentage} aria-hidden="true" />
+										<ProgressBar
+											value={overallPercentage}
+											color={getProgressVariant(overallPercentage)}
+											size="sm"
+											showPercentage={false}
+											animated={false}
+										/>
 									</div>
 								{/if}
 								<span class="min-w-10 text-right text-sm font-bold {getTextColor(overallPercentage)}">

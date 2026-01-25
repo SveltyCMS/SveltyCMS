@@ -174,7 +174,7 @@
 		}
 
 		widgets.initialize();
-		initializeDarkMode();
+		initializeDarkMode(data.theme as any);
 		initializeUserAvatar(data.user);
 		window.addEventListener('keydown', handleKeyDown);
 	});

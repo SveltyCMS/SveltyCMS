@@ -74,6 +74,7 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 
 		// Guard against uninitialized adapter
 		if (!dbAdapter || !dbAdapter.auth) {
+			console.log('[setupCheck] DB adapter missing or auth module not ready');
 			if (process.env.NODE_ENV === 'development') {
 				console.log('[setupCheck] Database adapter not ready yet');
 			}
@@ -82,7 +83,12 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 
 		// 4. Data Verification: Check if admin users exist
 		const result = await dbAdapter.auth.getAllUsers({ limit: 1 });
+		// console.log('[setupCheck] User check result:', JSON.stringify(result)); // Uncomment for deep debugging
+
 		const hasUsers = result.success && result.data && result.data.length > 0;
+		if (!hasUsers) {
+			console.log('[setupCheck] Config exists but NO ADMIN USERS found in DB. Marking setup as incomplete.');
+		}
 
 		// Update cache
 		setupStatus = hasUsers;

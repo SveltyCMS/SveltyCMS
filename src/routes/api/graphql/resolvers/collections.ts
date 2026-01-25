@@ -24,7 +24,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 import type { DatabaseAdapter, CollectionModel } from '@src/databases/dbInterface';
 import { getFieldName } from '@utils/utils';
 import { widgets } from '@stores/widgetStore.svelte.ts';
-import deepmerge from 'deepmerge';
+// deepmerge import removed
 import type { GraphQLFieldResolver } from 'graphql';
 
 // Collection Manager
@@ -193,7 +193,7 @@ export async function registerCollections(tenantId?: string) {
 			}
 
 			if (schema.resolver) {
-				deepmerge(resolvers, { [cleanTypeName]: schema.resolver });
+				Object.assign(resolvers[cleanTypeName], schema.resolver);
 			}
 
 			// Only add to typeDefsSet if there's actual GraphQL schema content
@@ -247,28 +247,22 @@ export async function registerCollections(tenantId?: string) {
 						}
 						collectionSchema += `                ${getFieldName(_field)}: ${nestedSchema.typeID}\n`;
 
-						const nestedResolverFn = (_field as FieldInstance).translated
-							? (parent: DocumentWithFields, _args: unknown, ctx: { locale?: string }) => getLocalizedValue(parent[getFieldName(_field)], ctx.locale)
-							: undefined;
+						// Robustly handle potentially localized data even if not marked translated
+						const nestedResolverFn = (parent: any, _args: any, ctx: any) => getLocalizedValue(parent[getFieldName(_field)], ctx.locale);
 
 						if (nestedResolverFn) {
-							deepmerge(resolvers[cleanTypeName], {
-								[getFieldName(_field)]: nestedResolverFn
-							});
+							resolvers[cleanTypeName][getFieldName(_field)] = nestedResolverFn;
 						}
 					}
 				}
 			} else {
 				collectionSchema += `                ${getFieldName(field)}: ${schema.typeID}\n`;
 
-				const resolverFn = (field as FieldInstance).translated
-					? (parent: DocumentWithFields, _args: unknown, ctx: { locale?: string }) => getLocalizedValue(parent[getFieldName(field)], ctx.locale)
-					: undefined;
+				// Robustly handle potentially localized data even if not marked translated
+				const resolverFn = (parent: any, _args: any, ctx: any) => getLocalizedValue(parent[getFieldName(field)], ctx.locale);
 
 				if (resolverFn) {
-					deepmerge(resolvers[cleanTypeName], {
-						[getFieldName(field)]: resolverFn
-					});
+					resolvers[cleanTypeName][getFieldName(field)] = resolverFn;
 				}
 			}
 		}

@@ -12,7 +12,7 @@
 	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { systemSettingsSchema } from '@utils/formSchemas';
-	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	// --- PROPS ---
 	// Added $bindable() to systemSettings
@@ -198,32 +198,16 @@
 					<label for="site-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:web" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{m.setup_system_site_name?.() || 'CMS Name'}</span>
-						<Tooltip positioning={{ placement: 'top' }}>
-							<Tooltip.Trigger>
-								<button
-									type="button"
-									tabindex="-1"
-									aria-label="Help: Site Name"
-									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
-								</button>
-							</Tooltip.Trigger>
-							<Portal>
-								<Tooltip.Positioner>
-									<Tooltip.Content
-										class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-									>
-										<p>{m.setup_help_site_name()}</p>
-										<Tooltip.Arrow
-											class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-										>
-											<Tooltip.ArrowTip />
-										</Tooltip.Arrow>
-									</Tooltip.Content>
-								</Tooltip.Positioner>
-							</Portal>
-						</Tooltip>
+						<SystemTooltip title={m.setup_help_site_name()}>
+							<button
+								type="button"
+								tabindex="-1"
+								aria-label="Help: Site Name"
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
+							</button>
+						</SystemTooltip>
 					</label>
 
 					<input
@@ -243,32 +227,18 @@
 					<label for="host-prod" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:earth" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">Production URL</span>
-						<Tooltip positioning={{ placement: 'top' }}>
-							<Tooltip.Trigger>
-								<button
-									type="button"
-									tabindex="-1"
-									aria-label="Help: Production URL"
-									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
-								</button>
-							</Tooltip.Trigger>
-							<Portal>
-								<Tooltip.Positioner>
-									<Tooltip.Content
-										class="card w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-									>
-										<p>The production URL where your CMS will be accessible (e.g., https://mysite.com). Used for OAuth callbacks and email links.</p>
-										<Tooltip.Arrow
-											class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-										>
-											<Tooltip.ArrowTip />
-										</Tooltip.Arrow>
-									</Tooltip.Content>
-								</Tooltip.Positioner>
-							</Portal>
-						</Tooltip>
+						<SystemTooltip
+							title="The production URL where your CMS will be accessible (e.g., https://mysite.com). Used for OAuth callbacks and email links."
+						>
+							<button
+								type="button"
+								tabindex="-1"
+								aria-label="Help: Production URL"
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
+							</button>
+						</SystemTooltip>
 					</label>
 
 					<input
@@ -288,32 +258,16 @@
 					<label for="timezone" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:clock-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">Timezone</span>
-						<Tooltip positioning={{ placement: 'top' }}>
-							<Tooltip.Trigger>
-								<button
-									type="button"
-									tabindex="-1"
-									aria-label="Help: Timezone"
-									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
-								</button>
-							</Tooltip.Trigger>
-							<Portal>
-								<Tooltip.Positioner>
-									<Tooltip.Content
-										class="card w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-									>
-										<p>The default timezone for the system. Used for scheduling and date displays.</p>
-										<Tooltip.Arrow
-											class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-										>
-											<Tooltip.ArrowTip />
-										</Tooltip.Arrow>
-									</Tooltip.Content>
-								</Tooltip.Positioner>
-							</Portal>
-						</Tooltip>
+						<SystemTooltip title="The default timezone for the system. Used for scheduling and date displays.">
+							<button
+								type="button"
+								tabindex="-1"
+								aria-label="Help: Timezone"
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
+							</button>
+						</SystemTooltip>
 					</label>
 
 					<select
@@ -338,32 +292,16 @@
 					<label for="media-storage-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:cloud-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">Media Storage Type</span>
-						<Tooltip positioning={{ placement: 'top' }}>
-							<Tooltip.Trigger>
-								<button
-									type="button"
-									tabindex="-1"
-									aria-label="Help: Media Storage Type"
-									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
-							</Tooltip.Trigger>
-							<Portal>
-								<Tooltip.Positioner>
-									<Tooltip.Content
-										class="card w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-									>
-										<p>{m.setup_help_media_path()}</p>
-										<Tooltip.Arrow
-											class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-										>
-											<Tooltip.ArrowTip />
-										</Tooltip.Arrow>
-									</Tooltip.Content>
-								</Tooltip.Positioner>
-							</Portal>
-						</Tooltip>
+						<SystemTooltip title={m.setup_help_media_path()}>
+							<button
+								type="button"
+								tabindex="-1"
+								aria-label="Help: Media Storage Type"
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+							</button>
+						</SystemTooltip>
 					</label>
 
 					<select id="media-storage-type" bind:value={systemSettings.mediaStorageType} class="input w-full rounded">
@@ -376,32 +314,18 @@
 					<label for="media-folder" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:folder" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{systemSettings.mediaStorageType === 'local' ? 'Media Folder Path' : 'Bucket/Cloud Name'}</span>
-						<Tooltip positioning={{ placement: 'top' }}>
-							<Tooltip.Trigger>
-								<button
-									type="button"
-									tabindex="-1"
-									aria-label="Help: Media Folder"
-									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
-							</Tooltip.Trigger>
-							<Portal>
-								<Tooltip.Positioner>
-									<Tooltip.Content
-										class="card w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-									>
-										<p>For local storage: specify the folder path (e.g., ./mediaFolder). For cloud storage: enter the bucket or container name.</p>
-										<Tooltip.Arrow
-											class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-										>
-											<Tooltip.ArrowTip />
-										</Tooltip.Arrow>
-									</Tooltip.Content>
-								</Tooltip.Positioner>
-							</Portal>
-						</Tooltip>
+						<SystemTooltip
+							title="For local storage: specify the folder path (e.g., ./mediaFolder). For cloud storage: enter the bucket or container name."
+						>
+							<button
+								type="button"
+								tabindex="-1"
+								aria-label="Help: Media Folder"
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+							</button>
+						</SystemTooltip>
 					</label>
 
 					<input
@@ -431,32 +355,16 @@
 					<label for="default-system-lang" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:translate" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{m.setup_label_default_system_language?.() || 'Default System Language'}</span>
-						<Tooltip positioning={{ placement: 'top' }}>
-							<Tooltip.Trigger>
-								<button
-									tabindex="-1"
-									type="button"
-									aria-label="Help: Default System Language"
-									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
-								</button>
-							</Tooltip.Trigger>
-							<Portal>
-								<Tooltip.Positioner>
-									<Tooltip.Content
-										class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-									>
-										<p>{m.setup_help_default_system_language()}</p>
-										<Tooltip.Arrow
-											class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-										>
-											<Tooltip.ArrowTip />
-										</Tooltip.Arrow>
-									</Tooltip.Content>
-								</Tooltip.Positioner>
-							</Portal>
-						</Tooltip>
+						<SystemTooltip title={m.setup_help_default_system_language()}>
+							<button
+								tabindex="-1"
+								type="button"
+								aria-label="Help: Default System Language"
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
+							</button>
+						</SystemTooltip>
 					</label>
 
 					<select id="default-system-lang" bind:value={systemSettings.defaultSystemLanguage} class="input w-full rounded">
@@ -468,32 +376,16 @@
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
 							<iconify-icon icon="mdi:translate-variant" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 							<span class="text-black dark:text-white">{m.setup_label_system_languages?.() || 'System Languages'}</span>
-							<Tooltip positioning={{ placement: 'top' }}>
-								<Tooltip.Trigger>
-									<button
-										tabindex="-1"
-										type="button"
-										aria-label="Help: System Languages"
-										class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									>
-										<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-									</button>
-								</Tooltip.Trigger>
-								<Portal>
-									<Tooltip.Positioner>
-										<Tooltip.Content
-											class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-										>
-											<p>{m.setup_help_system_languages()}</p>
-											<Tooltip.Arrow
-												class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-											>
-												<Tooltip.ArrowTip />
-											</Tooltip.Arrow>
-										</Tooltip.Content>
-									</Tooltip.Positioner>
-								</Portal>
-							</Tooltip>
+							<SystemTooltip title={m.setup_help_system_languages()}>
+								<button
+									tabindex="-1"
+									type="button"
+									aria-label="Help: System Languages"
+									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								>
+									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+								</button>
+							</SystemTooltip>
 						</div>
 
 						<div
@@ -572,32 +464,16 @@
 						<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
 						></iconify-icon>
 						<span class="text-black dark:text-white">{m.setup_label_default_content_language?.() || 'Default Content Language'}</span>
-						<Tooltip positioning={{ placement: 'top' }}>
-							<Tooltip.Trigger>
-								<button
-									tabindex="-1"
-									type="button"
-									aria-label="Help: Default Content Language"
-									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
-								</button>
-							</Tooltip.Trigger>
-							<Portal>
-								<Tooltip.Positioner>
-									<Tooltip.Content
-										class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-									>
-										<p>{m.setup_help_default_content_language()}</p>
-										<Tooltip.Arrow
-											class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-										>
-											<Tooltip.ArrowTip />
-										</Tooltip.Arrow>
-									</Tooltip.Content>
-								</Tooltip.Positioner>
-							</Portal>
-						</Tooltip>
+						<SystemTooltip title={m.setup_help_default_content_language()}>
+							<button
+								tabindex="-1"
+								type="button"
+								aria-label="Help: Default Content Language"
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
+							</button>
+						</SystemTooltip>
 					</div>
 
 					<select
@@ -618,32 +494,16 @@
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
 							<iconify-icon icon="mdi:book-multiple" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 							<span class="text-black dark:text-white">{m.setup_label_content_languages?.() || 'Content Languages'}</span>
-							<Tooltip positioning={{ placement: 'top' }}>
-								<Tooltip.Trigger>
-									<button
-										tabindex="-1"
-										type="button"
-										aria-label="Help: Content Languages"
-										class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									>
-										<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-									</button>
-								</Tooltip.Trigger>
-								<Portal>
-									<Tooltip.Positioner>
-										<Tooltip.Content
-											class="card w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-										>
-											<p>{m.setup_help_content_languages()}</p>
-											<Tooltip.Arrow
-												class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-50)] dark:[--arrow-background:var(--color-surface-700)]"
-											>
-												<Tooltip.ArrowTip />
-											</Tooltip.Arrow>
-										</Tooltip.Content>
-									</Tooltip.Positioner>
-								</Portal>
-							</Tooltip>
+							<SystemTooltip title={m.setup_help_content_languages()}>
+								<button
+									tabindex="-1"
+									type="button"
+									aria-label="Help: Content Languages"
+									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								>
+									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+								</button>
+							</SystemTooltip>
 						</div>
 
 						<div

@@ -44,6 +44,7 @@
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import SignupIcon from './icons/SignupIcon.svelte';
 	import FloatingPaths from '@components/system/FloatingPaths.svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -285,12 +286,16 @@
 				</div>
 
 				<!-- Required with Back button -->
-				<div class="-mt-2 flex items-center justify-end gap-2 text-right text-xs text-error-500">
+				<div class="-mt-2 relative flex items-center justify-center text-xs text-error-500">
 					{m.form_required()}
 
-					<button onclick={handleBack} aria-label="Back" class="btn-icon rounded-full preset-outlined-secondary-500">
-						<iconify-icon icon="ri:arrow-left-line" width={24}></iconify-icon>
-					</button>
+					<div class="absolute right-0">
+						<SystemTooltip title="Go Back">
+							<button onclick={handleBack} aria-label="Back" class="btn-icon rounded-full preset-outlined-secondary-500">
+								<iconify-icon icon="ri:arrow-left-line" width={24}></iconify-icon>
+							</button>
+						</SystemTooltip>
+					</div>
 				</div>
 
 				<!-- <SuperDebug data={$form} display={dev} /> -->

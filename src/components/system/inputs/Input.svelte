@@ -37,5 +37,11 @@
 	{#if label}
 		<label for="input" class="w-32 flex-none {labelClass}">{label}</label>
 	{/if}
-	<input use:typeAction id="input" class="input grow text-black dark:text-primary-500 {inputClass}" bind:value {placeholder} />
+	<input
+		use:typeAction
+		id="input"
+		class="input grow text-black dark:text-primary-500 bg-surface-50 dark:bg-surface-700 {inputClass}"
+		bind:value
+		{placeholder}
+	/>
 </div>
