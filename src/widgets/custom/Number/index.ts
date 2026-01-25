@@ -12,8 +12,9 @@
  */
 
 // Import components needed for the GuiSchema
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
+// Import components needed for the GuiSchema
+// import Input from '@components/system/inputs/Input.svelte';
+// import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
@@ -62,13 +63,13 @@ const NumberWidget = createWidget<NumberProps>({
 
 	// GuiSchema allows configuration in the collection builder.
 	GuiSchema: {
-		label: { widget: Input, required: true },
-		db_fieldName: { widget: Input, required: false },
-		required: { widget: Toggles, required: false },
-		min: { widget: Input, required: false, helper: 'Minimum allowed value.' },
-		max: { widget: Input, required: false, helper: 'Maximum allowed value.' },
-		step: { widget: Input, required: false, helper: 'Stepping interval.' },
-		placeholder: { widget: Input, required: false }
+		label: { widget: 'Input', required: true },
+		db_fieldName: { widget: 'Input', required: false },
+		required: { widget: 'Toggles', required: false },
+		min: { widget: 'Input', required: false, helper: 'Minimum allowed value.' },
+		max: { widget: 'Input', required: false, helper: 'Maximum allowed value.' },
+		step: { widget: 'Input', required: false, helper: 'Stepping interval.' },
+		placeholder: { widget: 'Input', required: false }
 	},
 
 	// Aggregations perform numeric comparisons.

@@ -13,12 +13,13 @@
  */
 
 // Import components needed for the GuiSchema
-import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
-import PermissionsSetting from '@components/PermissionsSetting.svelte';
-import CollectionPicker from '@components/system/builder/CollectionPicker.svelte';
-import FieldPicker from '@components/system/builder/FieldPicker.svelte';
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
+// Import components needed for the GuiSchema
+// import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
+// import PermissionsSetting from '@components/PermissionsSetting.svelte';
+// import CollectionPicker from '@components/system/builder/CollectionPicker.svelte';
+// import FieldPicker from '@components/system/builder/FieldPicker.svelte';
+// import Input from '@components/system/inputs/Input.svelte';
+// import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
@@ -48,21 +49,21 @@ const RelationWidget = createWidget<RelationProps>({
 	// Define the UI for configuring this widget in the Collection Builder.
 	GuiSchema: {
 		// Standard fields
-		label: { widget: Input, required: true },
-		db_fieldName: { widget: Input, required: false },
-		required: { widget: Toggles, required: false },
-		icon: { widget: IconifyIconsPicker, required: false },
-		helper: { widget: Input, required: false },
-		width: { widget: Input, required: false },
-		permissions: { widget: PermissionsSetting, required: false },
+		label: { widget: 'Input', required: true },
+		db_fieldName: { widget: 'Input', required: false },
+		required: { widget: 'Toggles', required: false },
+		icon: { widget: 'IconifyIconsPicker', required: false },
+		helper: { widget: 'Input', required: false },
+		width: { widget: 'Input', required: false },
+		permissions: { widget: 'PermissionsSetting', required: false },
 
 		// Widget-specific fields
 		collection: {
-			widget: CollectionPicker, // A dropdown to select a collection
+			widget: 'CollectionPicker', // A dropdown to select a collection
 			required: true
 		},
 		displayField: {
-			widget: FieldPicker, // A dropdown to select a field from the chosen collection
+			widget: 'FieldPicker', // A dropdown to select a field from the chosen collection
 			required: true
 		}
 	},

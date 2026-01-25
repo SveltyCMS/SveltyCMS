@@ -12,8 +12,9 @@
  */
 
 // Import components needed for the GuiSchema
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
+// Import components needed for the GuiSchema
+// import Input from '@components/system/inputs/Input.svelte';
+// import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
@@ -60,11 +61,11 @@ const PhoneNumberWidget = createWidget<PhoneNumberProps>({
 
 	// Define the UI for configuring this widget in the Collection Builder.
 	GuiSchema: {
-		label: { widget: Input, required: true },
-		db_fieldName: { widget: Input, required: false },
-		required: { widget: Toggles, required: false },
-		placeholder: { widget: Input, required: false },
-		pattern: { widget: Input, required: false, helper: 'Optional: Custom regex for validation.' }
+		label: { widget: 'Input', required: true },
+		db_fieldName: { widget: 'Input', required: false },
+		required: { widget: 'Toggles', required: false },
+		placeholder: { widget: 'Input', required: false },
+		pattern: { widget: 'Input', required: false, helper: 'Optional: Custom regex for validation.' }
 	}
 });
 

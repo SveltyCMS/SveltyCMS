@@ -14,8 +14,9 @@
  */
 
 // Import components needed for the GuiSchema
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
+// Import components needed for the GuiSchema
+// import Input from '@components/system/inputs/Input.svelte';
+// import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
@@ -67,18 +68,18 @@ const CurrencyWidget = createWidget<CurrencyProps>({
 
 	// GuiSchema allows configuration in the collection builder.
 	GuiSchema: {
-		label: { widget: Input, required: true },
-		db_fieldName: { widget: Input, required: false },
-		required: { widget: Toggles, required: false },
+		label: { widget: 'Input', required: true },
+		db_fieldName: { widget: 'Input', required: false },
+		required: { widget: 'Toggles', required: false },
 		currencyCode: {
-			widget: Input,
+			widget: 'Input',
 			required: true,
 			helper: 'ISO 4217 code (USD, EUR, GBP, etc.)',
 			pattern: '^[A-Z]{3}$'
 		},
-		minValue: { widget: Input, required: false },
-		maxValue: { widget: Input, required: false },
-		placeholder: { widget: Input, required: false }
+		minValue: { widget: 'Input', required: false },
+		maxValue: { widget: 'Input', required: false },
+		placeholder: { widget: 'Input', required: false }
 	},
 
 	// Aggregations perform numeric comparisons.

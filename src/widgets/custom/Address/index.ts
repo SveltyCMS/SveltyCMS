@@ -13,8 +13,8 @@
  */
 
 // Import components needed for the GuiSchema
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
+// import Input from '@components/system/inputs/Input.svelte'; // Removed for optimization
+// import Toggles from '@components/system/inputs/Toggles.svelte'; // Removed for optimization
 
 import { createWidget } from '@src/widgets/widgetFactory';
 import { object, string, number, minLength, pipe, type InferInput as ValibotInput } from 'valibot';
@@ -44,25 +44,25 @@ const AddressWidget = createWidget<AddressProps>({
 	// Define the UI for configuring this widget's properties in the Collection Builder.
 	GuiSchema: {
 		// Standard fields
-		label: { widget: Input, required: true },
-		db_fieldName: { widget: Input, required: false },
-		required: { widget: Toggles, required: false },
-		width: { widget: Input, required: false },
+		label: { widget: 'Input', required: true },
+		db_fieldName: { widget: 'Input', required: false },
+		required: { widget: 'Toggles', required: false },
+		width: { widget: 'Input', required: false },
 
 		// Widget-specific fields from AddressProps
 		defaultCountry: {
-			widget: Input,
+			widget: 'Input',
 			required: false,
 			helper: "Default 2-letter country code (e.g., 'DE', 'US')."
 		},
 		mapCenter: {
-			widget: Input,
+			widget: 'Input',
 			required: false,
 			helper: "Default map center (e.g., '51.34,6.57')."
 		},
-		zoom: { widget: Input, required: false, helper: 'Default map zoom level (e.g., 12).' },
+		zoom: { widget: 'Input', required: false, helper: 'Default map zoom level (e.g., 12).' },
 		hiddenFields: {
-			widget: Input,
+			widget: 'Input',
 			required: false,
 			helper: "Comma-separated list of fields to hide (e.g., 'latitude,longitude')."
 		}

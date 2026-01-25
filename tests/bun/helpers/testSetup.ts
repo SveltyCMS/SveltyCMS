@@ -31,7 +31,7 @@ export async function cleanupTestDatabase(): Promise<void> {
 		console.log('[cleanupTestDatabase] Calling reset endpoint:', API_BASE_URL);
 		await fetch(`${API_BASE_URL}/api/setup/reset`, { method: 'POST' });
 		console.log('[cleanupTestDatabase] Reset endpoint called');
-	} catch (e) {
+	} catch (e: any) {
 		// Ignore connection errors if server is down
 		console.log('[cleanupTestDatabase] Reset endpoint failed (ignored):', e);
 	}
@@ -83,7 +83,7 @@ export async function cleanupTestDatabase(): Promise<void> {
 		console.log('[cleanupTestDatabase] Connected. Dropping DB...');
 		await client.db(dbName).dropDatabase();
 		console.log('[cleanupTestDatabase] DB Dropped.');
-	} catch (e) {
+	} catch (e: any) {
 		console.warn('Warning: Failed to drop test database (non-fatal):', e.message);
 	} finally {
 		await client.close();
@@ -119,14 +119,14 @@ async function seedBasicRoles(): Promise<void> {
 		const db = client.db(dbName);
 
 		// Check if admin role exists
-		const adminRole = await db.collection('roles').findOne({ _id: 'admin' });
+		const adminRole = await db.collection('auth_roles').findOne({ _id: 'admin' } as any);
 		if (!adminRole) {
 			console.log('[testSetup] Seeding admin role...');
 			// Hardcode commonly used permissions + 'admin' catch-all
 			// This avoids needing to import system internals
 			const permissions = ['read', 'write', 'delete', 'admin'];
-			await db.collection('roles').insertOne({
-				_id: 'admin',
+			await db.collection('auth_roles').insertOne({
+				_id: 'admin' as any,
 				name: 'Admin',
 				description: 'System Administrator',
 				permissions,
@@ -138,7 +138,7 @@ async function seedBasicRoles(): Promise<void> {
 
 		// Seed settings
 		await seedBasicSettings(db);
-	} catch (e) {
+	} catch (e: any) {
 		console.warn('Warning: Failed to seed data:', e.message);
 	} finally {
 		await client.close();
@@ -196,7 +196,7 @@ async function seedBasicSettings(db: any): Promise<void> {
 			];
 			await db.collection('system_settings').insertMany(settings);
 		}
-	} catch (e) {
+	} catch (e: any) {
 		console.warn('Warning: Failed to seed settings:', e.message);
 	}
 }

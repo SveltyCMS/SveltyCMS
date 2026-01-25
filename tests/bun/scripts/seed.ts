@@ -26,12 +26,12 @@ async function seed() {
 		console.log(`[SEED] Connected. Using DB: ${db.databaseName}`);
 
 		// 1. Seed Roles
-		const adminRole = await db.collection('auth_roles').findOne({ _id: 'admin' });
+		const adminRole = await db.collection('auth_roles').findOne({ _id: 'admin' } as any);
 		console.log(`[SEED] Existing Admin Role found: ${!!adminRole}`);
 		if (!adminRole) {
 			console.log('[SEED] Creating Admin role...');
 			await db.collection('auth_roles').insertOne({
-				_id: 'admin',
+				_id: 'admin' as any,
 				name: 'Admin',
 				description: 'System Administrator',
 				permissions: ['admin', '*', 'system:manage', 'settings:view', 'settings:edit'], // comprehensive list
@@ -110,7 +110,7 @@ async function seed() {
 					updatedAt: now
 				}
 			];
-			await db.collection('system_settings').insertMany(settings);
+			await db.collection('system_settings').insertMany(settings as any);
 		}
 
 		// 3. Seed Users
@@ -119,7 +119,7 @@ async function seed() {
 			console.log('[SEED] Creating Admin User...');
 			const passwordHash = await hashPassword('Admin123!');
 			await db.collection('auth_users').insertOne({
-				_id: randomUUID(),
+				_id: randomUUID() as any,
 				email: 'admin@example.com',
 				username: 'admin',
 				password: passwordHash, // Hashed password
@@ -133,7 +133,7 @@ async function seed() {
 		}
 
 		console.log('[SEED] Database seeded successfully.');
-	} catch (e) {
+	} catch (e: any) {
 		console.error('[SEED] Error seeding:', e);
 		process.exit(1);
 	} finally {

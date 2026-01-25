@@ -506,7 +506,7 @@ export default defineConfig((): UserConfig => {
 		},
 		optimizeDeps: {
 			exclude: [...builtinModules, ...builtinModules.map((m) => `node:${m}`), 'redis', '@src/databases/CacheService'],
-			include: ['@skeletonlabs/skeleton'],
+			include: [],
 			entries: ['!tests/**/*', '!**/*.server.ts', '!**/*.server.js']
 		}
 	};

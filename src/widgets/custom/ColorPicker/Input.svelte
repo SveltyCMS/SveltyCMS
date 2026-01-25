@@ -26,7 +26,6 @@ Renders a color input with label, helper, and validation
 	import * as m from '@src/paraglide/messages';
 	import { app } from '@src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import { untrack } from 'svelte';
 
 	let {
 		field,

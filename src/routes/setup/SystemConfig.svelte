@@ -3,7 +3,6 @@
 @description System configuration step.
 -->
 <script lang="ts">
-	import { setupStore } from '@stores/setupStore.svelte';
 	import * as m from '@src/paraglide/messages';
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';

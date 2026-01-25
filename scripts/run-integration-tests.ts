@@ -118,17 +118,7 @@ async function main() {
 		// Phase 1: Run Setup Test
 		console.log('🟢 Phase 1: Setup API Test');
 		// Helper to wait for server
-		const checkServer = async () => {
-			const MAX_RETRIES = 30;
-			for (let i = 0; i < MAX_RETRIES; i++) {
-				try {
-					const res = await fetch('http://localhost:4173');
-					if (res.ok || res.status === 404) return;
-				} catch (_) {}
-				await new Promise((r) => setTimeout(r, 500));
-			}
-			throw new Error('Server did not ready');
-		};
+		// (Removed unused checkServer function)
 
 		const setupArgs = ['test', '--timeout', '15000', '--preload', './tests/bun/setup.ts', 'tests/bun/api/setup.test.ts'];
 
@@ -247,7 +237,7 @@ async function main() {
 				p.kill('SIGTERM');
 				await new Promise((r) => setTimeout(r, 500)); // Grace period
 			} catch (e) {
-				console.error(`❌ Failed: ${relativePath}`, e.message);
+				console.error(`❌ Failed: ${relativePath}`, (e as Error).message);
 				cleanup(1);
 				return;
 			}
@@ -278,7 +268,7 @@ async function waitForServer() {
 			}
 			console.log(`[WAIT] Curl exit code: ${exitCode}`);
 		} catch (e) {
-			console.error(`[WAIT] Error: ${e.message}`);
+			console.error(`[WAIT] Error: ${(e as Error).message}`);
 		}
 		await new Promise((r) => setTimeout(r, RETRY_DELAY));
 	}

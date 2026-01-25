@@ -8,10 +8,10 @@
  */
 
 // Components needed for the GuiSchema
-import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
-import PermissionsSetting from '@components/PermissionsSetting.svelte';
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
+// import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
+// import PermissionsSetting from '@components/PermissionsSetting.svelte';
+// import Input from '@components/system/inputs/Input.svelte';
+// import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import { createWidget } from '@src/widgets/widgetFactory';
 
@@ -50,13 +50,13 @@ const CheckboxWidget = createWidget<CheckboxProps>({
 
 	// Pass the GuiSchema directly into the widget's definition.
 	GuiSchema: {
-		label: { widget: Input, required: true },
-		db_fieldName: { widget: Input, required: false },
-		required: { widget: Toggles, required: false },
-		icon: { widget: IconifyIconsPicker, required: false },
-		helper: { widget: Input, required: false },
-		width: { widget: Input, required: false },
-		permissions: { widget: PermissionsSetting, required: false }
+		label: { widget: 'Input', required: true },
+		db_fieldName: { widget: 'Input', required: false },
+		required: { widget: 'Toggles', required: false },
+		icon: { widget: 'IconifyIconsPicker', required: false },
+		helper: { widget: 'Input', required: false },
+		width: { widget: 'Input', required: false },
+		permissions: { widget: 'PermissionsSetting', required: false }
 	},
 
 	// Correct database aggregation logic for booleans.

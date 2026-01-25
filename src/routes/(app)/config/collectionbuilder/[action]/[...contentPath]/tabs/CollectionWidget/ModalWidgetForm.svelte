@@ -82,13 +82,6 @@ It handles widget configuration, permissions, and specific options.
 </script>
 
 <div class="space-y-4">
-	<header class="text-2xl font-bold text-center">
-		{title ?? '(title missing)'}
-	</header>
-	<article class="text-center">
-		{body ?? '(body missing)'}
-	</article>
-
 	<!-- Tabs Headers -->
 	<form class={cForm}>
 		<Tabs value={localTabSet} onValueChange={(e) => (localTabSet = e.value)}>

@@ -27,13 +27,14 @@ Part of the Three Pillars Architecture for widget system.
 
 <script lang="ts">
 	import { getFieldName } from '@src/utils/utils';
-	import { validationStore } from '@stores/store.svelte.ts';
+	import { app, validationStore } from '@src/stores/store.svelte';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import type { FieldType } from './';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	interface Props {
 		field: FieldType;
-		value: string | null | undefined;
+		value: string | Record<string, string> | null | undefined;
 		error?: string | null | undefined;
 	}
 
@@ -116,7 +117,7 @@ Part of the Three Pillars Architecture for widget system.
 			if (!value || typeof value !== 'object') {
 				value = {};
 			}
-			value = { ...(value as object), [_language]: newValue };
+			value = { ...(value as any), [_language]: newValue };
 		} else {
 			value = newValue;
 		}

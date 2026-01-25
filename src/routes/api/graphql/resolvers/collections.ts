@@ -91,11 +91,6 @@ interface DocumentBase {
 	[key: string]: unknown;
 }
 
-// Type for document with extracted fields
-interface DocumentWithFields extends DocumentBase {
-	[fieldName: string]: unknown;
-}
-
 interface ResolverContext {
 	Query: Record<string, GraphQLFieldResolver<unknown, unknown>>;
 	[key: string]: Record<string, GraphQLFieldResolver<unknown, unknown>>;

@@ -15,10 +15,10 @@
  */
 
 // Components needed for the GuiSchema
-import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
-import PermissionsSetting from '@components/PermissionsSetting.svelte';
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
+// import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
+// import PermissionsSetting from '@components/PermissionsSetting.svelte';
+// import Input from '@components/system/inputs/Input.svelte';
+// import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import { createWidget } from '@src/widgets/widgetFactory';
 import { object, type InferInput as ValibotInput } from 'valibot';
@@ -51,16 +51,16 @@ const GroupWidget = createWidget<GroupProps>({
 
 	// Pass the GuiSchema directly into the widget's definition.
 	GuiSchema: {
-		label: { widget: Input, required: true },
-		groupTitle: { widget: Input, required: false },
-		collapsible: { widget: Toggles, required: false },
-		collapsed: { widget: Toggles, required: false },
-		variant: { widget: Input, required: false },
-		db_fieldName: { widget: Input, required: false },
-		icon: { widget: IconifyIconsPicker, required: false },
-		helper: { widget: Input, required: false },
-		width: { widget: Input, required: false },
-		permissions: { widget: PermissionsSetting, required: false }
+		label: { widget: 'Input', required: true },
+		groupTitle: { widget: 'Input', required: false },
+		collapsible: { widget: 'Toggles', required: false },
+		collapsed: { widget: 'Toggles', required: false },
+		variant: { widget: 'Input', required: false },
+		db_fieldName: { widget: 'Input', required: false },
+		icon: { widget: 'IconifyIconsPicker', required: false },
+		helper: { widget: 'Input', required: false },
+		width: { widget: 'Input', required: false },
+		permissions: { widget: 'PermissionsSetting', required: false }
 	},
 
 	// Groups don't typically need database aggregations as they contain other widgets

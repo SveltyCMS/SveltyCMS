@@ -14,8 +14,8 @@
 
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/widgetFactory';
-import Checkbox from '@src/widgets/core/Checkbox/index';
-import Input from '@src/widgets/core/Input/index';
+// import Checkbox from '@src/widgets/core/Checkbox/index';
+// import Input from '@src/widgets/core/Input/index';
 
 // Type for aggregation field parameter
 type AggregationField = { db_fieldName: string; [key: string]: unknown };
@@ -55,15 +55,15 @@ const MediaWidget = createWidget<MediaProps>({
 	},
 
 	GuiSchema: {
-		multiupload: { widget: Checkbox, label: 'Allow Multiple Files' },
+		multiupload: { widget: 'Checkbox', label: 'Allow Multiple Files' },
 		watermark: {
 			widget: 'group',
 			label: 'Watermark Options',
 			fields: {
-				text: { widget: Input, label: 'Watermark Text' },
-				position: { widget: Input, label: 'Position (e.g., center, top-right)' },
-				opacity: { widget: Input, label: 'Opacity (0-1)' },
-				scale: { widget: Input, label: 'Scale (e.g., 0.5 for 50%)' }
+				text: { widget: 'Input', label: 'Watermark Text' },
+				position: { widget: 'Input', label: 'Position (e.g., center, top-right)' },
+				opacity: { widget: 'Input', label: 'Opacity (0-1)' },
+				scale: { widget: 'Input', label: 'Scale (e.g., 0.5 for 50%)' }
 			}
 		}
 	},

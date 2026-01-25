@@ -44,7 +44,6 @@ Values form StatusTypes
 							: value === StatusTypes.archive
 								? 'bg-surface-600 text-white'
 								: 'badge'}"
-	title={`Status: ${value}`}
 >
 	{#if value === StatusTypes.publish}
 		<iconify-icon icon="bi:hand-thumbs-up-fill" width="16"></iconify-icon>

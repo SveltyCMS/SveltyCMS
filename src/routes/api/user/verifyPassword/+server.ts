@@ -26,6 +26,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	try {
 		// Fetch full user to get the password hash
+		if (!auth) {
+			throw error(500, 'Database not initialized');
+		}
 		const fullUser = await auth.getUserById(user._id);
 
 		if (!fullUser || !fullUser.password) {

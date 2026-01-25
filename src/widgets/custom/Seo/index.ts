@@ -16,8 +16,8 @@ import { createWidget } from '@src/widgets/widgetFactory';
 import { custom, literal, maxLength, object, optional, pipe, regex, string, transform, union, url, type InferInput as ValibotInput } from 'valibot';
 
 // Import components needed for the GuiSchema
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
+// import Input from '@components/system/inputs/Input.svelte';
+// import Toggles from '@components/system/inputs/Toggles.svelte';
 
 // SECURITY: Escape HTML entities to prevent meta tag injection
 const escapeHtml = (str: string): string => {
@@ -91,12 +91,12 @@ const SeoWidget = createWidget({
 
 	// GuiSchema allows configuration in the collection builder.
 	GuiSchema: {
-		label: { widget: Input, required: true },
-		db_fieldName: { widget: Input, required: false },
-		required: { widget: Toggles, required: false },
-		translated: { widget: Toggles, required: false },
+		label: { widget: 'Input', required: true },
+		db_fieldName: { widget: 'Input', required: false },
+		required: { widget: 'Toggles', required: false },
+		translated: { widget: 'Toggles', required: false },
 		features: {
-			widget: Input, // A multi-select component would be better here.
+			widget: 'Input', // A multi-select component would be better here.
 			required: false,
 			helper: 'Comma-separated features (social, schema, advanced, ai).'
 		}

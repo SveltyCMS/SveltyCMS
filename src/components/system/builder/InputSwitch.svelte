@@ -68,8 +68,11 @@ Features:
 			props.onupdate({ value });
 		}
 	}
+
+	import { resolveAdminComponent } from '@src/components/system/adminComponentRegistry';
+	const WidgetComponent = $derived(resolveAdminComponent(props.widget));
 </script>
 
-{#if props.widget}
-	<props.widget bind:value bind:icon bind:permissions on:update={updateParent} label={props.key} theme="dark" />
+{#if WidgetComponent}
+	<WidgetComponent bind:value bind:icon bind:permissions on:update={updateParent} label={props.key} theme="dark" />
 {/if}

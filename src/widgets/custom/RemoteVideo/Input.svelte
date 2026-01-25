@@ -36,7 +36,6 @@ Part of the Three Pillars Architecture for widget system.
 
 	import { app } from '@src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import { untrack } from 'svelte';
 
 	let {
 		field,
@@ -75,13 +74,30 @@ Part of the Three Pillars Architecture for widget system.
 
 	// ... (validation logic unchanged) ...
 
+	// Define simple validation function
+	function validateVideoUrl(url: string): { valid: boolean; error?: string } {
+		if (!url) return { valid: false, error: 'URL is required' };
+		// Basic URL validation
+		try {
+			new URL(url);
+			// Check for supported platforms (basic check)
+			const supported = ['youtube.com', 'youtu.be', 'vimeo.com', 'twitch.tv', 'tiktok.com'];
+			if (!supported.some((domain) => url.includes(domain))) {
+				return { valid: false, error: 'Unsupported video platform' };
+			}
+			return { valid: true };
+		} catch {
+			return { valid: false, error: 'Invalid URL format' };
+		}
+	}
+
 	// Helper to update parent value
 	function updateParent(newData: RemoteVideoData | null) {
 		if (field.translated) {
 			if (!value || typeof value !== 'object') {
 				value = {};
 			}
-			value = { ...(value as object), [_language]: newData };
+			value = { ...(value as object), [_language]: newData } as Record<string, RemoteVideoData>;
 		} else {
 			value = newData;
 		}

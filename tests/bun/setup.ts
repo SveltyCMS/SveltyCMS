@@ -509,6 +509,8 @@ mock.module('@src/widgets/widgetFactory', () => ({
 		factory.__inputComponentPath = config.inputComponentPath || '';
 		factory.__displayComponentPath = config.displayComponentPath || '';
 		factory.toString = () => '';
+
+		return factory;
 	}
 }));
 

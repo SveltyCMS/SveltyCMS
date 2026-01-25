@@ -14,9 +14,10 @@
  *
  * The module also defines important constants and types used across the application.
  *
- * @requires various - Including fs, axios, valibot, and custom types/interfaces
+ * @requires valibot - For schema validation
  * @requires @stores/store - For accessing Svelte stores
  * @requires @root/config/public - For accessing public environment variables
+ *
  *
  * @exports numerous utility functions and constants
  */
@@ -41,9 +42,23 @@ export const config = {
 };
 
 // Interface for GUI field configuration
+/**
+ * Interface for GUI field configuration in the Collection Builder.
+ */
 export interface GuiFieldConfig {
-	widget: unknown;
+	/**
+	 * The widget component to render.
+	 * Can be a direct Svelte component or a string key from `adminComponentRegistry`.
+	 * @example { widget: 'Input' }
+	 * @example { widget: InputComponent }
+	 */
+	widget: unknown | string;
+
+	/** Whether the field is required */
 	required: boolean;
+
+	/** Allow other properties */
+	[key: string]: unknown;
 }
 
 export function uniqueItems(items: Record<string, unknown>[], key: string): object[] {

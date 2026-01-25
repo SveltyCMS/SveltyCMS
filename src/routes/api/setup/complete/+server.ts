@@ -16,6 +16,7 @@ import { dev } from '$app/environment';
 // Auth
 import type { User, Session } from '@src/databases/auth/types';
 import type { ISODateString } from '@src/content/types';
+import type { DatabaseAdapter } from '@src/databases/dbInterface';
 import { Auth } from '@src/databases/auth';
 import { invalidateSettingsCache } from '@src/services/settingsService';
 import { setupAdminSchema } from '@src/utils/formSchemas';
@@ -70,6 +71,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		// 2. Initialize full system using DB config from filesystem (bypass Vite cache)
 		logger.info('Initializing full system with existing configuration...', { correlationId });
 		let setupAuth: Auth;
+		let dbAdapter: DatabaseAdapter;
 		let dbConfig: {
 			type: 'mongodb' | 'mongodb+srv';
 			host: string;
@@ -171,7 +173,8 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 
 			// Manually create database adapter (same as seed endpoint)
 			const { getSetupDatabaseAdapter } = await import('@src/routes/api/setup/utils');
-			const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
+			const result = await getSetupDatabaseAdapter(dbConfig);
+			dbAdapter = result.dbAdapter;
 
 			// Create Auth instance with the adapter and session store
 			const { getDefaultSessionStore } = await import('@src/databases/auth/sessionManager');

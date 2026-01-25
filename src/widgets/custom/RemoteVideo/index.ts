@@ -15,8 +15,9 @@
  */
 
 // Import components needed for the GuiSchema
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
+// Import components needed for the GuiSchema
+// import Input from '@components/system/inputs/Input.svelte';
+// import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/widgetFactory';
@@ -75,12 +76,12 @@ const RemoteVideoWidget = createWidget({
 
 	// Define the UI for configuring this widget in the Collection Builder.
 	GuiSchema: {
-		label: { widget: Input, required: true },
-		db_fieldName: { widget: Input, required: false },
-		required: { widget: Toggles, required: false },
-		placeholder: { widget: Input, required: false },
+		label: { widget: 'Input', required: true },
+		db_fieldName: { widget: 'Input', required: false },
+		required: { widget: 'Toggles', required: false },
+		placeholder: { widget: 'Input', required: false },
 		allowedPlatforms: {
-			widget: Input, // A multi-select component would be better here in a real CMS.
+			widget: 'Input', // A multi-select component would be better here in a real CMS.
 			required: false,
 			helper: "Comma-separated platforms (e.g., 'youtube,vimeo')."
 		}

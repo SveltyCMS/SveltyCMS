@@ -140,9 +140,6 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	let svg: SVGSVGElement | undefined = $state(undefined);
 	const circles: (HTMLAnchorElement | undefined)[] = $state([]);
 
-	// Tooltip state
-	let activeTooltip = $state<string | null>(null);
-
 	// Calculate endpoint positions
 	const endpointsWithPos = $derived(
 		endpoints.map((endpoint, index) => {

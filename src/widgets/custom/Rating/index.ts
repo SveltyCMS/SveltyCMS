@@ -12,9 +12,10 @@
  */
 
 // Import components needed for the GuiSchema
-import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
+// Import components needed for the GuiSchema
+// import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
+// import Input from '@components/system/inputs/Input.svelte';
+// import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
@@ -56,12 +57,12 @@ const RatingWidget = createWidget<RatingProps>({
 
 	// GuiSchema allows configuration in the collection builder.
 	GuiSchema: {
-		label: { widget: Input, required: true },
-		db_fieldName: { widget: Input, required: false },
-		required: { widget: Toggles, required: false },
-		max: { widget: Input, required: false, helper: 'Maximum number of stars.' },
-		iconFull: { widget: IconifyIconsPicker, required: false },
-		iconEmpty: { widget: IconifyIconsPicker, required: false }
+		label: { widget: 'Input', required: true },
+		db_fieldName: { widget: 'Input', required: false },
+		required: { widget: 'Toggles', required: false },
+		max: { widget: 'Input', required: false, helper: 'Maximum number of stars.' },
+		iconFull: { widget: 'IconifyIconsPicker', required: false },
+		iconEmpty: { widget: 'IconifyIconsPicker', required: false }
 	},
 
 	// Aggregations perform numeric comparisons.

@@ -12,8 +12,8 @@
  */
 
 // Import components needed for the GuiSchema
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
+// import Input from '@components/system/inputs/Input.svelte';
+// import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
@@ -56,12 +56,12 @@ const RadioWidget = createWidget<RadioProps>({
 
 	// GuiSchema allows a simple text area for defining options in the collection builder.
 	GuiSchema: {
-		label: { widget: Input, required: true },
-		db_fieldName: { widget: Input, required: false },
-		required: { widget: Toggles, required: false },
-		legend: { widget: Input, required: false, helper: 'Legend text for the radio group' },
+		label: { widget: 'Input', required: true },
+		db_fieldName: { widget: 'Input', required: false },
+		required: { widget: 'Toggles', required: false },
+		legend: { widget: 'Input', required: false, helper: 'Legend text for the radio group' },
 		options: {
-			widget: Input, // Using a simple textarea for JSON/JS array input
+			widget: 'Input', // Using a simple textarea for JSON/JS array input
 			required: true,
 			helper: "Enter an array of objects, e.g., [{label: 'First', value: 1}, {label: 'Second', value: 2}]"
 		}

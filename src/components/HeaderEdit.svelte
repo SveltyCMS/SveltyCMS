@@ -62,8 +62,6 @@
 	let currentEntry = $derived(collectionValue.value as Record<string, any> | null);
 
 	let isDesktop = $derived(screen.isDesktop);
-	let isTablet = $derived(screen.isTablet);
-	let isMobile = $derived(screen.isMobile);
 
 	let isFormValid = $derived(validationStore.isValid);
 	let hasChanges = $derived(dataChangeStore.hasChanges);

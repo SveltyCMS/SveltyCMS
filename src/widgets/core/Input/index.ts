@@ -16,10 +16,11 @@
  */
 
 // Import components needed for the GuiSchema
-import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
-import PermissionsSetting from '@components/PermissionsSetting.svelte';
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
+// Import components needed for the GuiSchema
+// import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
+// import PermissionsSetting from '@components/PermissionsSetting.svelte';
+// import Input from '@components/system/inputs/Input.svelte';
+// import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/widgetFactory';
@@ -81,20 +82,20 @@ const InputWidget = createWidget<InputProps>({
 
 	// Define the UI for configuring this widget in the Collection Builder.
 	GuiSchema: {
-		label: { widget: Input, required: true },
-		db_fieldName: { widget: Input, required: false },
-		required: { widget: Toggles, required: false },
-		translated: { widget: Toggles, required: false },
-		icon: { widget: IconifyIconsPicker, required: false },
-		helper: { widget: Input, required: false },
-		width: { widget: Input, required: false },
-		permissions: { widget: PermissionsSetting, required: false },
-		placeholder: { widget: Input, required: false },
-		minLength: { widget: Input, required: false },
-		maxLength: { widget: Input, required: false },
-		prefix: { widget: Input, required: false },
-		suffix: { widget: Input, required: false },
-		count: { widget: Input, required: false }
+		label: { widget: 'Input', required: true },
+		db_fieldName: { widget: 'Input', required: false },
+		required: { widget: 'Toggles', required: false },
+		translated: { widget: 'Toggles', required: false },
+		icon: { widget: 'IconifyIconsPicker', required: false },
+		helper: { widget: 'Input', required: false },
+		width: { widget: 'Input', required: false },
+		permissions: { widget: 'PermissionsSetting', required: false },
+		placeholder: { widget: 'Input', required: false },
+		minLength: { widget: 'Input', required: false },
+		maxLength: { widget: 'Input', required: false },
+		prefix: { widget: 'Input', required: false },
+		suffix: { widget: 'Input', required: false },
+		count: { widget: 'Input', required: false }
 	},
 
 	// Aggregations for text search and sorting.

@@ -42,7 +42,7 @@ optional actions, and smooth animations.
 		'bottom-right': 'bottom-4 right-4 items-end justify-end pointer-events-none',
 		'bottom-left': 'bottom-4 left-4 items-start justify-end pointer-events-none',
 		'top-center': 'top-4 left-0 w-full items-center pointer-events-none',
-		'bottom-center': 'bottom-4 left-0 w-full items-center justify-end pointer-events-none'
+		'bottom-center': 'bottom-4 inset-x-0 w-full !items-center justify-end pointer-events-none'
 	};
 
 	// Toast type configuration

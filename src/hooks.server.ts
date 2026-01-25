@@ -73,6 +73,11 @@ if (!building) {
 	// Inject server-side relation engine into TokenRegistry
 	TokenRegistry.setRelationTokenGenerator(getRelationTokens);
 
+	// Initialize Scheduler Service (Background Tasks)
+	import('@src/services/scheduler').then(({ scheduler }) => {
+		scheduler.start();
+	});
+
 	// Start telemetry heartbeat in background (Singleton pattern to survive HMR)
 	import('@utils/setupCheck').then(({ isSetupComplete }) => {
 		if (!isSetupComplete()) return;

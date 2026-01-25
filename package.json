@@ -3,6 +3,10 @@
 	"description": "A powerful Headless CMS with sveltekit power",
 	"version": "0.0.6",
 	"type": "module",
+	"sideEffects": [
+		"*.css",
+		"*.svelte"
+	],
 	"engines": {
 		"node": ">=22.0.0"
 	},

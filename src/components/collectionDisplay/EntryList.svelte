@@ -630,7 +630,7 @@
 			status: String(status ?? ''),
 			count: selectedIds.length,
 			onConfirm: async () => {
-				await setEntriesStatus(selectedIds, status as StatusType, onActionSuccess);
+				await setEntriesStatus(selectedIds, status as any, onActionSuccess);
 			}
 		});
 	});

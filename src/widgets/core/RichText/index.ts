@@ -1,21 +1,11 @@
-/**
- * @file src/widgets/core/RichText/index.ts
- * @description RichText Widget Definition.
- *
- * Implements a Tiptap-based rich text editor with a highly configurable toolbar
- * and a secure, clean data contract.
- *
- * @features
- * - **Configurable Toolbar**: The `toolbar` prop determines which editing features are available.
- * - **Advanced Validation**: Valibot schema validates the title and intelligently checks if content is empty.
- * - **Secure by Design**: Designed to work with a display component that sanitizes HTML.
- * - **Translatable**: Fully supports multilingual content by default.
- */
+// Import components needed for the GuiSchema
+// import Input from '@components/system/inputs/Input.svelte';
+// import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/widgetFactory';
-import { object, optional, pipe, string, custom, type InferInput } from 'valibot';
+import { custom, type InferInput, object, optional, pipe, string } from 'valibot';
 import type { RichTextProps } from './types';
 
 // Helper to strip HTML-like tags and angle brackets from a string.

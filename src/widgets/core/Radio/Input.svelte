@@ -29,7 +29,14 @@ Renders radio group with options from field.options array
 <script lang="ts">
 	import { app } from '@src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import { untrack } from 'svelte';
+
+	import type { FieldType } from './';
+
+	interface RadioProps {
+		options: Array<{ label: string; value: string | number }>;
+		color?: string;
+		legend?: string;
+	}
 
 	let {
 		field,
