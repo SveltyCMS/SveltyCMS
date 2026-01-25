@@ -314,7 +314,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 					}}
 					autocomplete="current-password"
 					icon="mdi:key"
-					textColor={isCurrentPasswordValidated ? 'text-success-500' : 'text-tertiary-500 dark:text-white'}
+					textColor={isCurrentPasswordValidated ? 'text-primary-500' : 'text-tertiary-500 dark:text-white'}
 					passwordIconColor="text-tertiary-500 dark:text-white"
 					invalid={!!editForm.errors.currentPassword?.length}
 					errorMessage={editForm.errors.currentPassword?.[0]}

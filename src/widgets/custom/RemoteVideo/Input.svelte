@@ -164,6 +164,7 @@ Part of the Three Pillars Architecture for widget system.
 		class:!border-error-500={!!error || !!fetchError}
 		class:!bg-error-500-10={!!error || !!fetchError}
 		class:opacity-50={isLoading}
+		class:loading={isLoading}
 		aria-invalid={!!error || !!fetchError}
 		aria-describedby={error || fetchError ? `${field.db_fieldName}-error` : undefined}
 	/>

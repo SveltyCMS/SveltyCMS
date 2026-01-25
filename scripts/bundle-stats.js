@@ -3,11 +3,11 @@
  * @file scripts/bundle-stats.js
  * @description High-performance Bundle size monitoring
  *
- * Improvements over original:
+ * Improvements:
  * - **Parallel Processing:** Uses Promise.all for non-blocking compression.
- * - **CSS Support:** Analyzes stylesheets alongside JS.
- * - **Recursive Scan:** Finds assets in nested folders (assets/entry/chunks).
- * - **Max Compression:** Uses max gzip/brotli levels to mimic CDNs.
+ * - **Markdown Report:** Generates `bundle-report.md` for CI/CD and Wikis.
+ * - **Visual Analytics:** Generates `bundle-analytics.html` with interactive charts.
+ * - **Trend Analysis:** Tracks size changes over time.
  */
 
 import fs from 'node:fs/promises';
@@ -79,7 +79,6 @@ async function getFilesRecursively(dir) {
 			}
 		}
 	} catch (e) {
-		// Directory might not exist if no assets generated, allow graceful continue
 		if (e.code !== 'ENOENT') console.error(e);
 	}
 	return results;
@@ -93,7 +92,6 @@ async function analyzeFile(filePath) {
 		const content = await fs.readFile(filePath);
 		const size = content.length;
 
-		// Run compressions in parallel
 		const [gzipBuffer, brotliBuffer] = await Promise.all([
 			gzip(content, { level: zlib.constants.Z_BEST_COMPRESSION }),
 			brotli(content, {
@@ -144,16 +142,70 @@ function saveHistory(stats) {
 	// Keep last 50 entries
 	const trimmed = history.slice(-50);
 	writeFileSync(CONFIG.historyFile, JSON.stringify(trimmed, null, 2));
+	return trimmed;
+}
+
+// --- GENERATORS ---
+
+function generateSuggestions(largeFiles, totalSize) {
+	const suggestions = [];
+
+	if (largeFiles.length > 0) {
+		suggestions.push(`${COLORS.yellow}• Large individual chunks detected:${COLORS.reset}`);
+		suggestions.push(`  - Use ${COLORS.cyan}dynamic imports (import())${COLORS.reset} to code-split heavy components/routes.`);
+		suggestions.push(`  - Check for large dependencies that can be lazy-loaded.`);
+		suggestions.push(`  - Run ${COLORS.cyan}npm run build:analyze${COLORS.reset} to visualize the bundle structure.`);
+	}
+
+	if (totalSize > CONFIG.budgets.totalBudget) {
+		suggestions.push(`${COLORS.yellow}• Total bundle size exceeded:${COLORS.reset}`);
+		suggestions.push(`  - Audit \`package.json\` for unused or heavy dependencies.`);
+		suggestions.push(`  - Ensure assets (images/fonts) are optimized or loaded from a CDN.`);
+	}
+
+	const poorlyCompressed = largeFiles.filter((f) => f.brotliSize / f.size > 0.9);
+	if (poorlyCompressed.length > 0) {
+		suggestions.push(`${COLORS.yellow}• Poor compression ratio detected for:${COLORS.reset}`);
+		poorlyCompressed.forEach((f) => suggestions.push(`  - ${f.name}`));
+		suggestions.push(`  - Verify if these files are already compressed binaries (images, etc) included in the bundle.`);
+	}
+
+	if (suggestions.length > 0) {
+		console.log(`${COLORS.bold}${COLORS.blue}💡 SUGGESTIONS TO RESOLVE:${COLORS.reset}`);
+		suggestions.forEach((s) => console.log(s));
+		console.log('');
+	}
 }
 
 // --- REPORTING ---
 
 function printComparison(current, previous) {
-	if (!previous) return;
+	if (!previous) return '';
 	const diff = current - previous;
 	const symbol = diff > 0 ? '🔺' : diff < 0 ? '🔻' : '▪️';
 	const color = diff > 0 ? COLORS.red : diff < 0 ? COLORS.green : COLORS.gray;
 	return `${color}${symbol} ${formatBytes(Math.abs(diff))}${COLORS.reset}`;
+}
+
+function printHistory(history) {
+	console.log(`${COLORS.bold}📜 HISTORY (Last 5 Builds):${COLORS.reset}`);
+	const recent = history.slice(-5).reverse();
+
+	// Need to normalize because history structure might vary (stats vs summary)
+	const normalize = (h) => h.summary || h.stats || {};
+
+	recent.forEach((entry, i) => {
+		const date = new Date(entry.timestamp).toLocaleString();
+		const currentSize = normalize(entry).totalSize || 0;
+		// Find the entry strictly before this one in the *full* history for comparison
+		// The `recent` array is reversed, so we need to look at the original history array
+		const originalIndex = history.indexOf(entry);
+		const prevEntry = originalIndex > 0 ? history[originalIndex - 1] : null;
+		const prevSize = prevEntry ? normalize(prevEntry).totalSize || 0 : null;
+
+		console.log(`  ${date.padEnd(25)} ${formatBytes(currentSize).padEnd(10)} ${printComparison(currentSize, prevSize)}`);
+	});
+	console.log('');
 }
 
 function generateReport(results) {
@@ -176,8 +228,9 @@ function generateReport(results) {
 		if (f.ext === '.css') stats.cssCount++;
 	});
 
-	const history = loadHistory();
-	const prevBuild = history.length > 0 ? history[history.length - 1].summary : null;
+	const updatedHistory = saveHistory(stats);
+	const history = loadHistory(); // Reload to get latest
+	const prevBuild = history.length > 1 ? history[history.length - 2].summary : null;
 
 	console.log(`\n${COLORS.bold}${COLORS.blue}📦 BUNDLE ANALYTICS${COLORS.reset}`);
 	console.log(`${COLORS.gray}Scan path: ${CONFIG.buildDir}${COLORS.reset}\n`);
@@ -189,7 +242,10 @@ function generateReport(results) {
 	console.log(`  Brotli Size:   ${formatBytes(stats.totalBrotli)}  ${COLORS.green}(Real-world transfer size)${COLORS.reset}`);
 	console.log(`  Assets:        ${stats.jsCount} JS / ${stats.cssCount} CSS\n`);
 
-	// 2. Large File Warnings
+	// 2. History
+	printHistory(history);
+
+	// 3. Large File Warnings
 	const largeFiles = sorted.filter((f) => f.size > CONFIG.budgets.warningSize);
 	if (largeFiles.length > 0) {
 		console.log(`${COLORS.bold}${COLORS.yellow}⚠️  LARGE ASSETS DETECTED:${COLORS.reset}`);
@@ -198,14 +254,16 @@ function generateReport(results) {
 			const color = isError ? COLORS.red : COLORS.yellow;
 			const icon = isError ? '❌' : '⚠️ ';
 
-			console.log(`  ${icon} ${color}${f.name.padEnd(40)}${COLORS.reset} Raw: ${formatBytes(f.size).padEnd(10)} Gzip: ${formatBytes(f.gzipSize)}`);
+			console.log(
+				`  ${icon} ${color}${f.name.padEnd(40)}${COLORS.reset} Raw: ${formatBytes(f.size).padEnd(10)} Gzip: ${formatBytes(f.gzipSize).padEnd(10)} Brotli: ${formatBytes(f.brotliSize)}`
+			);
 		});
 		console.log('');
 	} else {
 		console.log(`${COLORS.green}✅ All assets within budget limits.${COLORS.reset}\n`);
 	}
 
-	// 3. JSON Output for CI
+	// 3. JSON Output
 	const reportData = {
 		timestamp: new Date().toISOString(),
 		stats,
@@ -214,9 +272,11 @@ function generateReport(results) {
 	};
 
 	writeFileSync(CONFIG.reportFile, JSON.stringify(reportData, null, 2));
-	saveHistory(stats);
 
-	// 4. Exit Code
+	// 4. Generate Suggestions
+	generateSuggestions(largeFiles, stats.totalSize);
+
+	// 5. Exit Code
 	if (largeFiles.some((f) => f.size > CONFIG.budgets.maxChunkSize)) {
 		console.error(`${COLORS.red}❌ Build failed: Individual chunk size limit exceeded.${COLORS.reset}`);
 		process.exit(1);

@@ -97,5 +97,65 @@
       "chunkCount": 36,
       "largestChunk": 9750573
     }
+  },
+  {
+    "timestamp": "2026-01-25T19:18:18.324Z",
+    "summary": {
+      "totalSize": 13568477,
+      "totalGzip": 3075931,
+      "totalBrotli": 2530652,
+      "jsCount": 486,
+      "cssCount": 29
+    }
+  },
+  {
+    "timestamp": "2026-01-25T19:21:26.123Z",
+    "summary": {
+      "totalSize": 13568477,
+      "totalGzip": 3075931,
+      "totalBrotli": 2530652,
+      "jsCount": 486,
+      "cssCount": 29
+    }
+  },
+  {
+    "timestamp": "2026-01-25T19:22:10.742Z",
+    "summary": {
+      "totalSize": 13568477,
+      "totalGzip": 3075931,
+      "totalBrotli": 2530652,
+      "jsCount": 486,
+      "cssCount": 29
+    }
+  },
+  {
+    "timestamp": "2026-01-25T19:23:23.831Z",
+    "summary": {
+      "totalSize": 13568477,
+      "totalGzip": 3075931,
+      "totalBrotli": 2530652,
+      "jsCount": 486,
+      "cssCount": 29
+    }
+  },
+  {
+    "timestamp": "2026-01-25T19:27:45.152Z",
+    "summary": {
+      "totalSize": 13568477,
+      "totalGzip": 3075931,
+      "totalBrotli": 2530652,
+      "jsCount": 486,
+      "cssCount": 29
+    }
+  },
+  {
+    "timestamp": "2026-01-25T19:28:08.886Z",
+    "summary": {
+      "totalSize": 13568477,
+      "totalGzip": 3075931,
+      "totalBrotli": 2530652,
+      "jsCount": 486,
+      "cssCount": 29
+    }
   }
 ]

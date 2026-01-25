@@ -26,7 +26,8 @@ import type { RequestHandler } from './$types';
 // Auth and permission helpers
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import { cacheService } from '@src/databases/CacheService';
-import { auth, verifyPassword } from '@src/databases/db';
+import { auth } from '@src/databases/db';
+import { verifyPassword } from '@src/databases/auth';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -35,6 +36,7 @@ import { logger } from '@utils/logger.server';
 import { email, maxLength, minLength, object, optional, parse, pipe, string } from 'valibot';
 
 // Define the base schema for user data. The 'role' is handled separately for security.
+const baseUserDataSchema = object({
 	email: optional(pipe(string(), email())),
 	username: optional(pipe(string(), minLength(2, 'Username must be at least 2 characters'), maxLength(50, 'Username must not exceed 50 characters'))),
 	password: optional(pipe(string(), minLength(8, 'Password must be at least 8 characters'))),
@@ -156,6 +158,7 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 		// This eliminates redundant caching and cache invalidation complexity
 
 		// Invalidate admin users list cache so UI updates immediately
+		try {
 			await cacheService.clearByPattern(`api:*:/api/user*`, tenantId);
 			logger.debug('Admin users list cache cleared after user update');
 		} catch (cacheError) {
