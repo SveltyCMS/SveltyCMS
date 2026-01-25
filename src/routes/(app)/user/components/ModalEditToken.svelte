@@ -11,7 +11,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 - `token` {string} - Existing token (default: '')
 - `user_id` {string} - User ID (default: '')
 - `email` {string} - Associated email (default: '')
-- `role` {string} - Token role (default: 'user')
+- `role` {string} - Token role (default: 'admin')
 - `expires` {string} - Expiration date (default: '2 days')
 
 -->
@@ -49,7 +49,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 		close?: (val?: any) => void;
 	}
 
-	let { token = '', user_id = '', email = '', role = 'user', expires = '', user = page.data.user, roles = page.data.roles, close }: Props = $props();
+	let { token = '', user_id = '', email = '', role = 'admin', expires = '', user = page.data.user, roles = page.data.roles, close }: Props = $props();
 
 	// Form Data with format conversion
 	function convertLegacyFormat(expires: string): string {
@@ -85,7 +85,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 			user_id: '',
 			email: '',
 			token: '',
-			role: 'user',
+			role: 'admin',
 			expiresIn: '2 days'
 		},
 		addUserTokenSchema
@@ -95,7 +95,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 		tokenForm.data.user_id = user_id;
 		tokenForm.data.email = email;
 		tokenForm.data.token = token;
-		tokenForm.data.role = role || 'user';
+		tokenForm.data.role = role || 'admin';
 		tokenForm.data.expiresIn = !expires || expires === '' ? '2 days' : convertLegacyFormat(expires);
 	});
 
@@ -220,28 +220,21 @@ It handles token creation, updates, and deletion with proper validation and erro
 </script>
 
 <div class="modal-example-form space-y-4 text-black dark:text-white">
-	<!-- Header title handled by DialogManager if passed as prop, but keeping internal header if needed for specific layout -->
-
-	<form class="modal-form space-y-4" onsubmit={onFormSubmit} id="token-form">
+	<form class="modal-form grid grid-cols-1 gap-4" onsubmit={onFormSubmit} id="token-form">
 		<!-- Email field -->
-		<div class="group relative z-0 mb-6 w-full">
-			<FloatingInput
-				type="text"
-				name="email"
-				label={m.email()}
-				bind:value={tokenForm.data.email}
-				onkeydown={() => (tokenForm.errors.email = [])}
-				required
-				autocomplete="email"
-				icon="mdi:email"
-				textColor="text-tertiary-500 dark:text-white"
-			/>
-			{#if tokenForm.errors.email}
-				<div class="absolute left-0 top-11 text-xs text-error-500">
-					{tokenForm.errors.email[0]}
-				</div>
-			{/if}
-		</div>
+		<FloatingInput
+			type="text"
+			name="email"
+			label={m.email()}
+			bind:value={tokenForm.data.email}
+			onkeydown={() => (tokenForm.errors.email = [])}
+			required
+			autocomplete="email"
+			icon="mdi:email"
+			textColor="text-tertiary-500 dark:text-white"
+			invalid={!!tokenForm.errors.email?.length}
+			errorMessage={tokenForm.errors.email?.[0]}
+		/>
 		<!-- Token field (hidden but still submitted with form) -->
 		<input bind:value={tokenForm.data.token} type="hidden" name="token" />
 
@@ -258,8 +251,8 @@ It handles token creation, updates, and deletion with proper validation and erro
 								<button
 									type="button"
 									class="chip {tokenForm.data.role === r._id
-										? 'preset-filled-tertiary-500'
-										: 'bg-surface-200 dark:bg-surface-700 text-black dark:text-white'}"
+										? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
+										: 'bg-surface-200 dark:bg-surface-100 text-black dark:text-white'}"
 									onclick={() => (tokenForm.data.role = r._id)}
 								>
 									{#if tokenForm.data.role === r._id}
@@ -294,15 +287,19 @@ It handles token creation, updates, and deletion with proper validation and erro
 			</select>
 		</div>
 
-		<footer class="modal-footer flex items-center justify-between pt-4 border-t border-surface-500/20">
-			<!-- Delete - Only show for existing tokens -->
-			{#if tokenForm.data.token}
-				<button type="button" onclick={deleteToken} class="preset-filled-error-500 btn">
-					<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
-				</button>
-			{/if}
-			<!-- Cancel -->
-			<button type="button" class="preset-outlined-secondary-500 btn" onclick={() => modalState.close()}>{m.button_cancel()}</button>
+		<footer class="modal-footer flex flex-wrap items-center justify-between gap-4 border-t border-surface-500/20 pt-4">
+			<div class="flex items-center gap-4">
+				<!-- Cancel -->
+				<button type="button" class="preset-outlined-secondary-500 btn" onclick={() => modalState.close()}>{m.button_cancel()}</button>
+
+				<!-- Delete - Only show for existing tokens -->
+				{#if tokenForm.data.token}
+					<button type="button" onclick={deleteToken} class="preset-filled-error-500 btn">
+						<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
+					</button>
+				{/if}
+			</div>
+
 			<!-- Save -->
 			<button type="submit" form="token-form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">
 				{m.button_save()}

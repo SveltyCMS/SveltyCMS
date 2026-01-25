@@ -412,8 +412,7 @@
 							tabindex={tokenTabIndex}
 							required
 							bind:value={signUpForm.data.token}
-							label={m.registration_token?.() || m.signup_registrationtoken?.()}
-							minlength={36}
+							minlength={32}
 							maxlength={36}
 							icon="mdi:key-chain"
 							iconColor="white"

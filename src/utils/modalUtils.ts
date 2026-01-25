@@ -59,7 +59,7 @@ export function showDeleteConfirm(options: {
 
 	showConfirm({
 		title: `Confirm ${action}`,
-		body: `Are you sure you want to ${action.toLowerCase()} ${count} item(s)?`,
+		body: `Are you sure you want to ${action.toLowerCase()} <span class="text-primary-500 font-bold">${count} item(s)</span>?`,
 		confirmText: action,
 		onConfirm,
 		onCancel
@@ -76,7 +76,7 @@ export function showStatusChangeConfirm(options: {
 	const { status, count = 1, onConfirm, onCancel } = options;
 	showConfirm({
 		title: 'Confirm Status Change',
-		body: `Are you sure you want to change ${count} item(s) to ${status}?`,
+		body: `Are you sure you want to change <span class="text-primary-500 font-bold">${count} item(s)</span> to <span class="text-primary-500 font-bold">${status}</span>?`,
 		confirmText: 'Change Status',
 		onConfirm,
 		onCancel
@@ -97,7 +97,7 @@ export function showCloneModal(options: { count?: number; onConfirm: () => void 
 	const { count = 1, onConfirm, onCancel } = options;
 	showConfirm({
 		title: 'Clone Items',
-		body: `Are you sure you want to clone ${count} item(s)?`,
+		body: `Are you sure you want to clone <span class="text-primary-500 font-bold">${count} item(s)</span>?`,
 		confirmText: 'Clone',
 		onConfirm,
 		onCancel

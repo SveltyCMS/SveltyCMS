@@ -303,6 +303,7 @@ export const defaultPublicSettings: Array<{ key: string; value: unknown; descrip
 
 	// Site configuration
 	{ key: 'SITE_NAME', value: 'SveltyCMS', description: 'The public name of the website' },
+	{ key: 'TIMEZONE', value: 'UTC', description: 'Default timezone for the system' },
 	{ key: 'PASSWORD_LENGTH', value: 8, description: 'Minimum required length for user passwords' },
 
 	// Language Configuration

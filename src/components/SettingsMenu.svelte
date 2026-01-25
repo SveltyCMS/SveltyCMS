@@ -11,6 +11,7 @@ Sidebar navigation for System Settings
 	import { getSettingGroupsByRole } from '@src/routes/(app)/config/systemsetting/settingsGroups';
 	import type { SettingGroup } from '@src/routes/(app)/config/systemsetting/settingsGroups';
 	import { groupsNeedingConfig } from '@stores/configStore.svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	// Props
 	let { isFullSidebar = true } = $props();
@@ -67,33 +68,36 @@ Sidebar navigation for System Settings
 	</div>
 
 	<!-- Groups List -->
-	<div class="flex-1 overflow-y-auto px-1 space-y-1 settings-list">
+	<div class="flex-1 overflow-y-auto px-1 space-y-1 flex flex-col settings-list">
 		{#each filteredGroups as group (group.id)}
-			<button
-				class="w-full cursor-pointer rounded-lg p-2 text-left transition-colors flex items-center justify-between {selectedGroupId === group.id
-					? 'bg-primary-500 text-white'
-					: 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
-				onclick={() => handleGroupClick(group.id)}
-				title={group.name}
-			>
-				<div class="flex items-center gap-3 overflow-hidden">
-					<span class="text-xl shrink-0">{group.icon}</span>
-					{#if isFullSidebar}
-						<span class="text-sm font-medium truncate">{group.name}</span>
-					{/if}
-				</div>
-
-				{#if isFullSidebar}
-					<div class="flex items-center gap-1">
-						{#if $groupsNeedingConfig.has(group.id)}
-							<span class="text-lg text-warning-500" title="Needs configuration">⚠️</span>
+			<SystemTooltip title={group.name} positioning={{ placement: 'right', gutter: 15 }} contentClass="!text-sm" triggerClass="block w-full">
+				<button
+					class="relative w-full cursor-pointer rounded-lg p-2 transition-colors flex items-center {isFullSidebar
+						? 'justify-between text-left'
+						: 'justify-center text-center'} {selectedGroupId === group.id
+						? 'bg-primary-500 text-white'
+						: 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
+					onclick={() => handleGroupClick(group.id)}
+				>
+					<div class="flex items-center {isFullSidebar ? 'gap-3' : 'gap-0'} overflow-hidden">
+						<span class="text-xl shrink-0">{group.icon}</span>
+						{#if isFullSidebar}
+							<span class="text-sm font-medium truncate">{group.name}</span>
 						{/if}
 					</div>
-				{:else if $groupsNeedingConfig.has(group.id)}
-					<!-- Dot for collapsed state -->
-					<div class="w-2 h-2 rounded-full bg-warning-500 absolute top-1 right-1"></div>
-				{/if}
-			</button>
+
+					{#if isFullSidebar}
+						<div class="flex items-center gap-1">
+							{#if $groupsNeedingConfig.has(group.id)}
+								<span class="text-lg text-warning-500" title="Needs configuration">⚠️</span>
+							{/if}
+						</div>
+					{:else if $groupsNeedingConfig.has(group.id)}
+						<!-- Dot for collapsed state -->
+						<div class="w-2 h-2 rounded-full bg-warning-500 absolute top-1 right-1"></div>
+					{/if}
+				</button>
+			</SystemTooltip>
 		{/each}
 
 		{#if filteredGroups.length === 0}

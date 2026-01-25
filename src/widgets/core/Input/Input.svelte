@@ -37,7 +37,7 @@
 	// Props
 	interface Props {
 		field: FieldType;
-		value?: Record<string, string> | null | undefined;
+		value?: string | Record<string, string> | null | undefined;
 		// ... (omitting lines for brevity in prompt, but in tool call I must be precise or use separate chunks if valid)
 		// Wait, I cannot use comments "..." in replacement content if I'm replacing a block.
 		// I should use multi_replace for safety or just target the script and input separately.
@@ -68,8 +68,8 @@
 
 	// Initialize value if null/undefined
 	// Safe value access with fallback
-
-	let safeValue = $derived(value?.[_language] ?? '');
+	// Safe value access with fallback
+	let safeValue = $derived(field.translated ? ((value as Record<string, string>)?.[_language] ?? '') : ((value as string) ?? ''));
 
 	// Character count
 	let count = $derived(safeValue?.length ?? 0);
@@ -180,14 +180,20 @@
 	}
 
 	// Safe value setter function
+	// Safe value setter function
 	function updateValue(newValue: string) {
-		if (!value) {
-			value = {};
-		}
 		// ✨ Apply sanitization before storing
 		const sanitized = sanitizeInput(newValue);
-		// Ensure value is treated as a new object for reactivity
-		value = { ...(value || {}), [_language]: sanitized };
+
+		if (field.translated) {
+			if (!value || typeof value !== 'object') {
+				value = {};
+			}
+			// Ensure value is treated as a new object for reactivity
+			value = { ...(value || {}), [_language]: sanitized };
+		} else {
+			value = sanitized;
+		}
 	}
 
 	// Cleanup function
@@ -249,12 +255,10 @@
 			readonly={field?.readonly as boolean | undefined}
 			minlength={field?.minLength as number | undefined}
 			maxlength={field?.maxLength as number | undefined}
-			class="input w-full flex-1 rounded-none text-black dark:text-primary-500 bg-surface-50 dark:bg-surface-700"
+			class="input w-full flex-1 rounded-none text-black dark:text-primary-500 bg-surface-50 dark:bg-surface-700 focus:border-tertiary-500 focus:outline-none"
 			class:!border-error-500={!!validationError}
-			class:!ring-1={!!validationError || isValidating}
-			class:!ring-error-500={!!validationError}
 			class:!border-primary-500={isValidating && !validationError}
-			class:!ring-primary-500={isValidating && !validationError}
+			class:!bg-error-500-10={!!validationError}
 			aria-invalid={!!validationError}
 			aria-describedby={validationError ? `${fieldName}-error` : field.helper ? `${fieldName}-helper` : undefined}
 			aria-required={field?.required}

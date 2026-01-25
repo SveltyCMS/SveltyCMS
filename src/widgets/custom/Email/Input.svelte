@@ -40,7 +40,7 @@
 
 	interface Props {
 		field: FieldType;
-		value?: any;
+		value?: string | Record<string, string> | null | undefined;
 	}
 
 	let { field, value = $bindable() }: Props = $props();
@@ -57,7 +57,7 @@
 		}
 	});
 
-	const safeValue = $derived(value?.[_language] ?? '');
+	const safeValue = $derived(field.translated ? ((value as Record<string, string>)?.[_language] ?? '') : ((value as string) ?? ''));
 	const validationError = $derived(validationStore.getError(fieldName));
 	let debounceTimeout: number | undefined;
 	let inputElement = $state<HTMLInputElement | null>(null);
@@ -122,12 +122,18 @@
 	// Handle input changes
 	function handleInput(e: Event) {
 		const target = e.currentTarget as HTMLInputElement;
-		if (!value) {
-			value = {};
-		}
+
 		// ✨ Apply sanitization before storing
 		const sanitized = sanitizeInput(target.value);
-		value = { ...value, [_language]: sanitized };
+
+		if (field.translated) {
+			if (!value || typeof value !== 'object') {
+				value = {};
+			}
+			value = { ...(value || {}), [_language]: sanitized };
+		} else {
+			value = sanitized;
+		}
 	}
 
 	// Handle blur
@@ -189,12 +195,10 @@
 				required={field?.required as boolean | undefined}
 				readonly={field?.readonly as boolean | undefined}
 				disabled={field?.disabled as boolean | undefined}
-				class="input w-full rounded-none text-black dark:text-primary-500"
+				class="input w-full rounded-none text-black dark:text-primary-500 focus:border-tertiary-500 focus:outline-none"
 				class:!border-error-500={!!validationError}
-				class:!ring-1={!!validationError || isValidating}
-				class:!ring-error-500={!!validationError}
 				class:!border-primary-500={isValidating && !validationError}
-				class:!ring-primary-500={isValidating && !validationError}
+				class:!bg-error-500-10={!!validationError}
 				aria-invalid={!!validationError}
 				aria-describedby={validationError ? `${fieldName}-error` : undefined}
 				aria-required={field?.required}

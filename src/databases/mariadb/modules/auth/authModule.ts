@@ -394,10 +394,12 @@ export class AuthModule {
 		expires: ISODateString;
 		type: string;
 		tenantId?: string;
+		role?: string;
+		username?: string;
 	}): Promise<DatabaseResult<string>> {
 		return (this.core as any).wrap(async () => {
 			const id = utils.generateId();
-			const tokenValue = utils.generateId(); // Use a UUID as token for now
+			const tokenValue = utils.generateId(); // Returns a dash-less UUID now
 			await this.db.insert(schema.authTokens).values({
 				_id: id,
 				user_id: data.user_id,
@@ -406,6 +408,8 @@ export class AuthModule {
 				type: data.type,
 				expires: new Date(data.expires),
 				tenantId: data.tenantId || null,
+				role: data.role || null,
+				username: data.username || null,
 				consumed: false
 			});
 			return tokenValue;

@@ -66,7 +66,7 @@ const passwordSchema = pipe(
 const confirmPasswordSchema = pipe(string(), trim());
 
 // --- Reusable Token Schemas ---
-const tokenSchema = pipe(string(), trim(), minLength(16, 'Token must be at least 16 characters'));
+const tokenSchema = pipe(string(), trim(), minLength(32), maxLength(36, 'Token must be either 32 or 36 characters'));
 
 // Form Schemas------------------------------------
 
@@ -146,7 +146,8 @@ export const editUserSchema = pipe(
 		email: emailSchema,
 		role: optional(string()),
 		password: optional(string()),
-		confirmPassword: optional(string())
+		confirmPassword: optional(string()),
+		currentPassword: optional(string())
 	}),
 	forward(
 		check((input) => {

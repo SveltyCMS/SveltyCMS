@@ -21,6 +21,8 @@ Handles all field types and validation automatically
 	import { getLanguageName } from '@utils/languageUtils';
 	import { logger } from '@utils/logger';
 	import { showConfirm } from '@utils/modalUtils';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import * as m from '@src/paraglide/messages';
 
 	// Log levels from logger.svelte.ts
 	const LOG_LEVELS = ['none', 'fatal', 'error', 'warn', 'info', 'debug', 'trace'] as const;
@@ -437,7 +439,7 @@ Handles all field types and validation automatically
 	});
 </script>
 
-<div class="space-y-4 max-w-full overflow-x-hidden">
+<div class="space-y-4 max-w-full pb-32">
 	<!-- Header -->
 	<div class="mb-6">
 		<h2 class="mb-2 text-xl font-bold md:text-2xl">
@@ -511,14 +513,11 @@ Handles all field types and validation automatically
 										{#if defaultLangField.required}
 											<span class="text-error-500">*</span>
 										{/if}
-										<button
-											type="button"
-											class="ml-1 text-slate-400 hover:text-primary-500"
-											data-tooltip={defaultLangField.description}
-											aria-label="Field information"
-										>
-											<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
-										</button>
+										<SystemTooltip title={defaultLangField.description}>
+											<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
+												<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
+											</button>
+										</SystemTooltip>
 									</label>
 									<select
 										id={defaultLangField.key}
@@ -549,14 +548,11 @@ Handles all field types and validation automatically
 										{#if availableLangsField.required}
 											<span class="text-error-500">*</span>
 										{/if}
-										<button
-											type="button"
-											class="ml-1 text-slate-400 hover:text-primary-500"
-											data-tooltip={availableLangsField.description}
-											aria-label="Field information"
-										>
-											<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
-										</button>
+										<SystemTooltip title={availableLangsField.description}>
+											<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
+												<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
+											</button>
+										</SystemTooltip>
 									</div>
 									<div class="relative">
 										<div
@@ -565,19 +561,19 @@ Handles all field types and validation automatically
 												: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 										>
 											{#if (values[availableLangsField.key] as string[])?.length > 0}
-												{#each values[availableLangsField.key] as string[] as langCode}
+												{#each values.AVAILABLE_CONTENT_LANGUAGES as string[] as langCode}
 													<span
-														class="group preset-ghost-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-ghost-primary-500"
+														class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
 													>
-														{displayLanguage(langCode)} ({langCode})
+														<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
 														{#if !availableLangsField.readonly}
 															<button
 																type="button"
-																class="opacity-60 transition hover:opacity-100"
+																class="flex items-center justify-center -mr-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
 																onclick={() => removeLanguage(availableLangsField.key, langCode)}
 																aria-label="Remove {langCode}"
 															>
-																×
+																<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 															</button>
 														{/if}
 													</span>
@@ -673,14 +669,11 @@ Handles all field types and validation automatically
 										{#if baseLocaleField.required}
 											<span class="text-error-500">*</span>
 										{/if}
-										<button
-											type="button"
-											class="ml-1 text-slate-400 hover:text-primary-500"
-											data-tooltip={baseLocaleField.description}
-											aria-label="Field information"
-										>
-											<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
-										</button>
+										<SystemTooltip title={baseLocaleField.description}>
+											<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
+												<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
+											</button>
+										</SystemTooltip>
 									</label>
 									<select
 										id={baseLocaleField.key}
@@ -711,14 +704,11 @@ Handles all field types and validation automatically
 										{#if localesField.required}
 											<span class="text-error-500">*</span>
 										{/if}
-										<button
-											type="button"
-											class="ml-1 text-slate-400 hover:text-primary-500"
-											data-tooltip={localesField.description}
-											aria-label="Field information"
-										>
-											<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
-										</button>
+										<SystemTooltip title={localesField.description}>
+											<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
+												<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
+											</button>
+										</SystemTooltip>
 									</div>
 									<div class="relative">
 										<div
@@ -727,15 +717,15 @@ Handles all field types and validation automatically
 												: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 										>
 											{#if (values[localesField.key] as string[])?.length > 0}
-												{#each values[localesField.key] as string[] as langCode}
+												{#each values.LOCALES as string[] as langCode}
 													<span
-														class="group preset-ghost-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-ghost-primary-500"
+														class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
 													>
-														{displayLanguage(langCode)} ({langCode})
+														<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
 														{#if !localesField.readonly}
 															<button
 																type="button"
-																class="opacity-60 transition hover:opacity-100"
+																class="flex items-center justify-center -mr-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
 																onclick={() => {
 																	const currentBase = values.BASE_LOCALE;
 																	removeLanguage(localesField.key, langCode);
@@ -747,7 +737,7 @@ Handles all field types and validation automatically
 																}}
 																aria-label="Remove {langCode}"
 															>
-																×
+																<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 															</button>
 														{/if}
 													</span>
@@ -756,7 +746,7 @@ Handles all field types and validation automatically
 												<span class="text-surface-500 dark:text-surface-50 text-xs">{localesField.placeholder}</span>
 											{/if}
 
-											{#if !localesField.readonly}
+											{#if !localesField.readonly && allowedLocales.filter((code) => !((values[localesField.key] as string[]) || []).includes(code)).length > 0}
 												<button
 													type="button"
 													class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
@@ -769,7 +759,7 @@ Handles all field types and validation automatically
 													aria-controls="{localesField.key}-lang-picker"
 												>
 													<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
-													Add
+													{m.button_add?.() || 'Add'}
 												</button>
 											{/if}
 										</div>
@@ -832,40 +822,30 @@ Handles all field types and validation automatically
 				</div>
 			{:else}
 				<!-- Default Grid Layout for Other Groups -->
-				<div class="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
+				<div class="grid grid-cols-1 gap-4 md:gap-6 md:grid-cols-2">
 					{#each group.fields as field}
 						<div
 							class="space-y-2 overflow-visible max-w-full {field.type === 'array' ||
 							field.type === 'password' ||
 							field.type === 'language-multi' ||
-							field.type === 'loglevel-multi'
-								? 'lg:col-span-2'
+							field.type === 'loglevel-multi' ||
+							field.type === 'textarea'
+								? 'md:col-span-2'
 								: ''}"
 						>
 							<label for={field.key} class="mb-2 block">
-								<span class="flex items-center gap-2">
-									<iconify-icon icon={getFieldIcon(field)} width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-									<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500 md:text-base">{field.label}</span>
-									{#if field.required}
-										<span class="text-error-500">*</span>
-									{/if}
-									<!-- Info icon with tooltip -->
-									<div class="group relative inline-block">
-										<button
-											type="button"
-											class="text-surface-500 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-50 cursor-help"
-											aria-label="Field information"
-										>
-											<iconify-icon icon="material-symbols:info-outline" width="16"></iconify-icon>
-										</button>
-										<!-- Tooltip Content -->
-										<div
-											class="pointer-events-none absolute bottom-full left-1/2 z-1000 mb-2 w-max max-w-[200px] -translate-x-1/2 rounded-md bg-black/90 px-3 py-2 text-xs leading-tight text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100 md:max-w-[250px]"
-										>
-											{field.description}
-										</div>
-									</div>
-								</span>
+								<!-- Label wrapped with tooltip -->
+								<SystemTooltip title={field.description} positioning={{ placement: 'top' }}>
+									<span class="flex items-center gap-2 cursor-help">
+										<iconify-icon icon={getFieldIcon(field)} width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500 md:text-base">{field.label}</span>
+										{#if field.required}
+											<span class="text-error-500">*</span>
+										{/if}
+										<iconify-icon icon="material-symbols:info-outline" width="16" class="text-surface-500 dark:text-surface-50 opacity-60"
+										></iconify-icon>
+									</span>
+								</SystemTooltip>
 							</label>
 
 							<!-- Text Input -->
@@ -991,16 +971,18 @@ Handles all field types and validation automatically
 									>
 										{#if (values[field.key] as string[])?.length > 0}
 											{#each values[field.key] as string[] as langCode}
-												<span class="group preset-ghost-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-ghost-primary-500">
-													{displayLanguage(langCode)} ({langCode})
+												<span
+													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
+												>
+													<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
 													{#if !field.readonly}
 														<button
 															type="button"
-															class="opacity-60 transition hover:opacity-100"
+															class="flex items-center justify-center -mr-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
 															onclick={() => removeLanguage(field.key, langCode)}
 															aria-label="Remove {langCode}"
 														>
-															×
+															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 														</button>
 													{/if}
 												</span>
@@ -1081,16 +1063,18 @@ Handles all field types and validation automatically
 									>
 										{#if (values[field.key] as LogLevel[])?.length > 0}
 											{#each values[field.key] as LogLevel[] as level}
-												<span class="group preset-ghost-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-ghost-primary-500">
-													{level}
+												<span
+													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors capitalize"
+												>
+													<span class="text-sm font-medium">{level}</span>
 													{#if !field.readonly}
 														<button
 															type="button"
-															class="opacity-60 transition hover:opacity-100"
+															class="flex items-center justify-center -mr-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
 															onclick={() => removeLogLevel(field.key, level)}
 															aria-label="Remove {level}"
 														>
-															×
+															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 														</button>
 													{/if}
 												</span>

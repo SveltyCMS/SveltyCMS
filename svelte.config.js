@@ -76,7 +76,8 @@ const config = {
 				],
 				'object-src': ['none'],
 				'base-uri': ['self'],
-				'form-action': ['self']
+				'form-action': ['self'],
+				'frame-src': ['self', 'https://localhost:5173', 'https://svelty.asset-trade.de']
 			}
 		}
 	},

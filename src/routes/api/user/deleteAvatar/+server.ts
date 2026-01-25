@@ -132,7 +132,7 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 		// Invalidate cache for users list so UI updates
 		try {
 			// Invalidate all user-related caches for all users (since admin user list includes all users)
-			await cacheService.clearByPattern('api:*:/api/admin/users*', tenantId);
+			await cacheService.clearByPattern('api:*:/api/user*', tenantId);
 			logger.debug('Cache invalidated for users list after avatar deletion');
 		} catch (cacheError) {
 			// Log but don't fail the request if cache invalidation fails

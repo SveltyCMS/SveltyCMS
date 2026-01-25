@@ -26,7 +26,7 @@ import type { RequestHandler } from './$types';
 // Auth and permission helpers
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import { cacheService } from '@src/databases/CacheService';
-import { auth } from '@src/databases/db';
+import { auth, verifyPassword } from '@src/databases/db';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -35,10 +35,10 @@ import { logger } from '@utils/logger.server';
 import { email, maxLength, minLength, object, optional, parse, pipe, string } from 'valibot';
 
 // Define the base schema for user data. The 'role' is handled separately for security.
-const baseUserDataSchema = object({
 	email: optional(pipe(string(), email())),
 	username: optional(pipe(string(), minLength(2, 'Username must be at least 2 characters'), maxLength(50, 'Username must not exceed 50 characters'))),
-	password: optional(pipe(string(), minLength(8, 'Password must be at least 8 characters')))
+	password: optional(pipe(string(), minLength(8, 'Password must be at least 8 characters'))),
+	currentPassword: optional(string())
 });
 
 export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
@@ -106,6 +106,24 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 			}
 		}
 
+		// **SECURITY FEATURE**: Require current password when changing password (Self-Edit only)
+		if (isEditingSelf && newUserData.password) {
+			if (!newUserData.currentPassword) {
+				throw error(400, 'Current password is required to set a new password.');
+			}
+			// Verify current password
+			const currentUserFull = await auth.getUserById(user._id);
+			if (!currentUserFull || !currentUserFull.password) {
+				throw error(500, 'User record invalid.');
+			}
+			const isMatch = await verifyPassword(newUserData.currentPassword, currentUserFull.password);
+			if (!isMatch) {
+				throw error(401, 'Incorrect current password.');
+			}
+			// Remove currentPassword from newUserData so it doesn't get passed to DB update (even though schema filters it, it's safer)
+			delete newUserData.currentPassword;
+		}
+
 		// Validate the input against the appropriate schema (with or without 'role').
 		const validatedData = parse(schemaToUse, newUserData);
 
@@ -138,8 +156,7 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 		// This eliminates redundant caching and cache invalidation complexity
 
 		// Invalidate admin users list cache so UI updates immediately
-		try {
-			await cacheService.clearByPattern(`api:*:/api/admin/users*`, tenantId);
+			await cacheService.clearByPattern(`api:*:/api/user*`, tenantId);
 			logger.debug('Admin users list cache cleared after user update');
 		} catch (cacheError) {
 			logger.warn(`Failed to clear admin users cache: ${cacheError}`);

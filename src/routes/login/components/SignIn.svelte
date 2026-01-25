@@ -148,7 +148,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 					JSON.stringify({
 						type: 'success',
 						title: 'Welcome Back!',
-						description: 'Successfully signed in.',
+						description: `<iconify-icon icon="mdi:party-popper" width="24" class="mr-2 inline-block text-white"></iconify-icon> Successfully signed in.`,
 						duration: 4000
 					})
 				);

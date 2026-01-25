@@ -24,7 +24,7 @@
 
 	// Stores
 	import '@stores/store.svelte.ts';
-	import { avatarSrc } from '@stores/store.svelte.ts';
+	import { avatarSrc, normalizeAvatarUrl } from '@stores/store.svelte.ts';
 	import { triggerActionStore } from '@utils/globalSearchIndex';
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -95,7 +95,7 @@
 	// Modal Trigger - User Form
 	function modalUserForm(): void {
 		modalState.trigger(ModalEditForm, {
-			title: m.adminarea_title(),
+			title: m.usermodaluser_edittitle(),
 			body: m.usermodaluser_settingbody() || 'Update your user details below.'
 		});
 	}
@@ -136,20 +136,6 @@
 			}
 		});
 	}
-	// Helper to normalize avatar URL
-	function normalizeAvatarUrl(url: string | null | undefined): string {
-		if (!url) return '/Default_User.svg';
-		if (url.startsWith('data:')) return url;
-
-		// 1. Remove leading slashes
-		let clean = url.replace(/^\/+/, '');
-		// 2. Remove prefixes
-		clean = clean.replace(/^mediaFolder\//, '').replace(/^files\//, '');
-		// 3. Remove leading slashes again just in case
-		clean = clean.replace(/^\/+/, '');
-
-		return `/files/${clean}?t=${Date.now()}`;
-	}
 </script>
 
 <!-- Page Title with Back Button -->
@@ -177,11 +163,11 @@
 				</div>
 				<!-- User ID -->
 				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
-					{m.userpage_user_id()}<span class="ml-2">{user?._id || 'N/A'}</span>
+					{m.userpage_user_id()}<span class="ml-2 font-bold">{user?._id || 'N/A'}</span>
 				</div>
 				<!-- Role -->
 				<div class="gradient-tertiary badge w-full max-w-xs text-white">
-					{m.role()}<span class="ml-2">{user?.role || 'N/A'}</span>
+					{m.role()}:<span class="ml-2 font-bold">{user?.role || 'N/A'}</span>
 				</div>
 				<!-- Two-Factor Authentication Status -->
 				{#if is2FAEnabledGlobal}
@@ -189,7 +175,7 @@
 						<div class="flex w-full items-center justify-between">
 							<span>Two-Factor Auth</span>
 							<div class="flex items-center gap-1">
-								<iconify-icon icon="mdi:{user?.is2FAEnabled ? 'shield-check' : 'shield-off'}" width={20}></iconify-icon>
+								<iconify-icon icon="mdi:{user?.is2FAEnabled ? 'shield-check' : 'shield-off'}" class="text-error-500" width={20}></iconify-icon>
 								<span class="text-xs">{user?.is2FAEnabled ? 'Enabled' : 'Disabled'}</span>
 							</div>
 						</div>

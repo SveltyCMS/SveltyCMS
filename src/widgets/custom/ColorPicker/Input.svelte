@@ -24,14 +24,52 @@ Renders a color input with label, helper, and validation
 <script lang="ts">
 	import type { FieldType } from './';
 	import * as m from '@src/paraglide/messages';
-	let { field, value, error }: { field: FieldType; value: string | null | undefined; error?: string | null } = $props();
+	import { app } from '@src/stores/store.svelte';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { untrack } from 'svelte';
 
-	// If the value is initially null, undefined, or empty, default it to black.
+	let {
+		field,
+		value = $bindable(),
+		error
+	}: { field: FieldType; value?: string | null | undefined | Record<string, string>; error?: string | null } = $props();
+
+	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+
+	// Local state for the hex value
+	let localValue = $state<string>('');
+
+	// Sync localValue from parent value
 	$effect(() => {
-		if (!value) {
-			value = '#000000';
+		const parentVal = value;
+		let extracted = '#000000'; // Default
+
+		if (field.translated && typeof parentVal === 'object' && parentVal !== null) {
+			extracted = (parentVal as Record<string, any>)[_language] ?? '#000000';
+		} else if (!field.translated && typeof parentVal === 'string') {
+			extracted = parentVal;
+		} else if (!parentVal) {
+			// Initialize if empty
+			updateParent('#000000');
+			return;
+		}
+
+		if (extracted !== localValue) {
+			localValue = extracted;
 		}
 	});
+
+	// Update parent value when localValue changes
+	function updateParent(newVal: string) {
+		if (field.translated) {
+			if (!value || typeof value !== 'object') {
+				value = {};
+			}
+			value = { ...(value as object), [_language]: newVal };
+		} else {
+			value = newVal;
+		}
+	}
 </script>
 
 <div class="relative rounded p-1" class:invalid={error}>
@@ -40,7 +78,8 @@ Renders a color input with label, helper, and validation
 			type="color"
 			id={field.db_fieldName}
 			name={field.db_fieldName}
-			bind:value
+			value={localValue}
+			oninput={(e) => updateParent(e.currentTarget.value)}
 			class="pl-2 h-9 w-9 shrink-0 cursor-pointer border-none bg-transparent p-0"
 			aria-label="Color Picker"
 		/>
@@ -48,9 +87,10 @@ Renders a color input with label, helper, and validation
 		<div class="relative grow">
 			<input
 				type="text"
-				bind:value
+				value={localValue}
+				oninput={(e) => updateParent(e.currentTarget.value)}
 				placeholder={m.colorPicker_hex()}
-				class="w-full grow border-none bg-transparent font-mono outline-none focus:ring-0"
+				class="w-full grow border-none bg-transparent font-mono outline-none focus:outline-none"
 				aria-label="Hex Color Value"
 			/>
 		</div>

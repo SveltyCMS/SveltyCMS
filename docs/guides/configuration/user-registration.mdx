@@ -104,7 +104,8 @@ SveltyCMS uses a secure **invitation-based registration system** where administr
 
 **Registration Token**
 
-- Unique invitation token provided by administrator
+- Unique 32-character invitation token provided by administrator (dash-less UUID)
+- Also supports 36-character format with dashes for compatibility
 - Auto-filled when using invitation link
 - Required for all new registrations
 
@@ -117,11 +118,12 @@ Each invitation token includes:
 - **Email**: The recipient's email address
 - **Role**: User role (admin, editor, user, etc.)
 - **Expiration**: Token validity period
-  - 1 hour (1h)
-  - 1 day (1d)
-  - 7 days (7d) - recommended
-  - 30 days (30d)
-  - 90 days (90d)
+  - 2 hours (2 hrs)
+  - 12 hours (12 hrs)
+  - 2 days (2 days) - recommended
+  - 1 week (1 week)
+  - 2 weeks (2 weeks)
+  - 1 month (1 month)
 - **Tenant ID** (multi-tenant mode): Specific tenant assignment
 - **Status**: Active, used, expired, or blocked
 
@@ -162,7 +164,7 @@ Each invitation token includes:
    - **Email**: Recipient's email address
    - **Username**: Suggested username (user can change during signup)
    - **Role**: Select from available roles
-   - **Expires**: Choose expiration period (recommended: 7d or 30d)
+   - **Expires**: Choose expiration period (recommended: 2 days or 1 week)
    - **Tenant ID** (if multi-tenant): Assign to specific tenant
 3. Click **"Send Invitation"**
 4. System generates invitation email with embedded token link

@@ -111,10 +111,9 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 				required={field?.required as boolean | undefined}
 				readonly={field?.readonly as boolean | undefined}
 				disabled={field?.disabled as boolean | undefined}
-				class="input w-full rounded-none text-black dark:text-primary-500"
+				class="input w-full rounded-none text-black dark:text-primary-500 focus:border-tertiary-500 focus:outline-none"
 				class:!border-error-500={!!error}
-				class:!ring-1={!!error}
-				class:!ring-error-500={!!error}
+				class:!bg-error-500-10={!!error}
 				aria-invalid={!!error}
 				aria-describedby={error ? `${field.db_fieldName}-error` : undefined}
 				aria-required={field?.required}

@@ -41,7 +41,6 @@
 	let currentMode = $derived(mode.value);
 	let currentCollection = $derived(collection.value);
 	let currentEntry = $derived(collectionValue.value as Record<string, any> | null);
-	let currentScreenSize = $derived(screen.size);
 
 	let isFormValid = $derived(validationStore.isValid);
 	let hasChanges = $derived(dataChangeStore.hasChanges);
@@ -57,7 +56,7 @@
 
 	let shouldDisableStatusToggle = $derived(
 		(currentMode === 'create' && !ui.isRightSidebarVisible) ||
-			(currentMode === 'edit' && !ui.isRightSidebarVisible && currentScreenSize !== 'LG') ||
+			(currentMode === 'edit' && !ui.isRightSidebarVisible && !screen.isDesktop) ||
 			statusStore.isLoading
 	);
 

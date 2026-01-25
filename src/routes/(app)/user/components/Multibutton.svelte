@@ -196,8 +196,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			hoverClass: 'gradient-primary-hover',
 			iconValue: 'bi:pencil-fill',
 			label: 'Edit',
-			modalTitle: () => (type === 'user' ? m.adminarea_title() : m.multibuttontoken_modaltitle()),
-			modalBody: () => (type === 'user' ? 'Modify your data and then press Save.' : m.multibuttontoken_modalbody()),
+			modalTitle: () => (type === 'user' ? m.usermodaluser_edittitle() : m.multibuttontoken_modaltitle()),
+			modalBody: () => (type === 'user' ? m.usermodaluser_editbody() : m.multibuttontoken_modalbody()),
 			endpoint: () => {
 				if (type === 'user') {
 					return '/api/user/updateUserAttributes';

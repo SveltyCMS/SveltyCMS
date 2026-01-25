@@ -29,12 +29,12 @@
 		<h3 class="h3 font-bold text-center">{@html htmlTitle}</h3>
 	{/if}
 	{#if body}
-		<p class="text-surface-600 dark:text-surface-300 text-center">{@html body}</p>
+		<p class="text-surface-600 dark:text-surface-50 text-center">{@html body}</p>
 	{/if}
 
 	<div class="flex justify-between gap-4 pt-4">
 		{#if buttonTextCancel}
-			<button class="btn hover:bg-surface-500/10 border border-surface-200 dark:text-surface-50" onclick={onCancel}>
+			<button class="btn preset-filled-secondary-500 hover:bg-surface-300 dark:hover:bg-surface-700 font-medium transition-colors" onclick={onCancel}>
 				{buttonTextCancel}
 			</button>
 		{/if}

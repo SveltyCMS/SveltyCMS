@@ -104,6 +104,7 @@ export const publicConfigSchema = object({
 
 	// --- Site configuration ---
 	SITE_NAME: pipe(string(), minLength(1)),
+	TIMEZONE: optional(string()),
 	PASSWORD_LENGTH: pipe(number(), minValue(8)),
 
 	// --- Language Configuration ---
@@ -280,7 +281,7 @@ function performConditionalValidation(config: Config): string[] {
 	) {
 		errors.push(`The DEFAULT_CONTENT_LANGUAGE must be included in the AVAILABLE_CONTENT_LANGUAGES array.`);
 	}
-	if (config.BASE_LOCALE && config.LOCALES && Array.isArray(config.LOCALES) && config.LOCALES.includes(config.BASE_LOCALE)) {
+	if (config.BASE_LOCALE && config.LOCALES && Array.isArray(config.LOCALES) && !config.LOCALES.includes(config.BASE_LOCALE)) {
 		errors.push(`The BASE_LOCALE must be included in the LOCALES array.`);
 	}
 

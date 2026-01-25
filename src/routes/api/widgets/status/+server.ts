@@ -171,7 +171,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			await cacheService.clearByPattern('query:collections:*');
 			await cacheService.clearByPattern('static:page:*'); // Page layouts depend on collections
 			await cacheService.clearByPattern('api:widgets:*'); // Active/required widgets API cache
-			await cacheService.clearByPattern('api:*:/api/admin/users*'); // Admin UI may show widget data
+			await cacheService.clearByPattern('api:*:/api/user*'); // Admin UI may show user data
 		} catch (cacheError) {
 			logger.warn('[/api/widgets/status] Enhanced cache clearing failed (non-critical):', cacheError);
 		}

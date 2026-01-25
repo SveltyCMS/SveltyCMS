@@ -43,8 +43,9 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 	const correlationId = randomBytes(6).toString('hex');
 	try {
 		const setupData = await request.json();
-		const { admin, firstCollection, skipWelcomeEmail } = setupData as {
+		const { admin, system, firstCollection, skipWelcomeEmail } = setupData as {
 			admin: AdminConfig;
+			system?: any;
 			firstCollection?: { name: string; path: string; _id?: string } | null;
 			skipWelcomeEmail?: boolean;
 		};
@@ -324,6 +325,50 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 				},
 				{ status: 500 }
 			);
+		}
+
+		// 3.5. Save System Settings if provided
+		if (system) {
+			try {
+				logger.info('Saving system configuration settings...', { correlationId });
+
+				const settingsToSave = [
+					{ key: 'SITE_NAME', value: system.siteName },
+					{ key: 'HOST_PROD', value: system.hostProd },
+					{ key: 'BASE_LOCALE', value: system.defaultSystemLanguage },
+					{ key: 'LOCALES', value: system.systemLanguages },
+					{ key: 'DEFAULT_CONTENT_LANGUAGE', value: system.defaultContentLanguage },
+					{ key: 'AVAILABLE_CONTENT_LANGUAGES', value: system.contentLanguages },
+					{ key: 'MEDIA_STORAGE_TYPE', value: system.mediaStorageType },
+					{ key: 'MEDIA_FOLDER', value: system.mediaFolder },
+					{ key: 'TIMEZONE', value: system.timezone }
+				].filter((s) => s.value !== undefined);
+
+				const result = await (dbAdapter as any).systemPreferences.setMany(
+					settingsToSave.map((s) => ({
+						key: s.key,
+						value: s.value,
+						category: 'public',
+						scope: 'system'
+					}))
+				);
+
+				if (result.success) {
+					logger.info('✅ System configuration settings saved successfully', { correlationId });
+				} else {
+					logger.error('Failed to save system settings (non-fatal):', {
+						correlationId,
+						error: result.error?.message
+					});
+				}
+			} catch (settingsError) {
+				// We don't want to fail the entire setup if just settings fail to save,
+				// but we should log it prominently.
+				logger.error('Error saving system settings (non-fatal):', {
+					correlationId,
+					error: settingsError instanceof Error ? settingsError.message : String(settingsError)
+				});
+			}
 		}
 
 		// Verify session and user are properly set

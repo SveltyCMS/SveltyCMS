@@ -364,8 +364,14 @@ export class Auth {
 	}
 
 	async validateRegistrationToken(token: string, tenantId?: string): Promise<{ isValid: boolean; message: string; details?: Token }> {
-		const result = await this.db.auth.validateToken(token, undefined, 'user-invite', tenantId);
-		if (result && result.success && result.data) {
+		// Try both 'user-invite' (new) and 'invite' (legacy) types
+		let result = await this.db.auth.validateToken(token, undefined, 'user-invite', tenantId);
+
+		if (!result || !result.success || !result.data || !result.data.success) {
+			result = await this.db.auth.validateToken(token, undefined, 'invite', tenantId);
+		}
+
+		if (result && result.success && result.data && result.data.success) {
 			const tokenResult = await this.db.auth.getTokenByValue(token, tenantId);
 			const tokenDoc = tokenResult && tokenResult.success ? tokenResult.data : null;
 			return { isValid: true, message: result.data.message, details: tokenDoc ?? undefined };
@@ -383,7 +389,14 @@ export class Auth {
 	}
 
 	async consumeRegistrationToken(token: string, tenantId?: string): Promise<{ status: boolean; message: string }> {
-		const result = await this.db.auth.consumeToken(token, undefined, 'user-invite', tenantId);
+		// Attempt to consume as 'user-invite' first
+		let result = await this.db.auth.consumeToken(token, undefined, 'user-invite', tenantId);
+
+		// If fails (likely wrong type), try legacy 'invite'
+		if (!result || !result.success || !result.data || !result.data.status) {
+			result = await this.db.auth.consumeToken(token, undefined, 'invite', tenantId);
+		}
+
 		if (result && result.success && result.data) {
 			return result.data;
 		} else {

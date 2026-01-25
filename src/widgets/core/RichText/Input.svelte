@@ -32,15 +32,22 @@
 		error
 	}: {
 		field: FieldType;
-		value: Record<string, RichTextData> | null | undefined;
+		value: Record<string, RichTextData> | RichTextData | null | undefined;
 		error?: string | null;
 	} = $props();
 
 	const lang = $derived(field.translated ? app.contentLanguage : 'default');
 
 	$effect(() => {
-		if (!value) value = {};
-		if (!value[lang]) value[lang] = { title: '', content: '' };
+		if (!value) {
+			if (field.translated) {
+				value = { [lang]: { title: '', content: '' } };
+			} else {
+				value = { title: '', content: '' };
+			}
+		} else if (field.translated && !(value as Record<string, RichTextData>)[lang]) {
+			value = { ...(value as Record<string, RichTextData>), [lang]: { title: '', content: '' } };
+		}
 	});
 
 	let editor: Editor | null = $state(null);
@@ -395,18 +402,30 @@
 	}
 
 	onMount(() => {
-		const initialContent = value?.[lang]?.content || '';
+		let initialContent = '';
+		if (field.translated) {
+			initialContent = (value as Record<string, RichTextData>)?.[lang]?.content || '';
+		} else {
+			initialContent = (value as RichTextData)?.content || '';
+		}
+
 		editor = createEditor(element, initialContent, lang, { aiEnabled: !!field.aiEnabled });
 
 		editor.on('update', () => {
 			if (!editor) return;
-			value = {
-				...value,
-				[lang]: {
-					title: value?.[lang]?.title || '',
-					content: editor.isEmpty ? '' : editor.getHTML()
-				}
+			const newContent = {
+				title: (field.translated ? (value as Record<string, RichTextData>)?.[lang]?.title : (value as RichTextData)?.title) || '',
+				content: editor.isEmpty ? '' : editor.getHTML()
 			};
+
+			if (field.translated) {
+				value = {
+					...(value as Record<string, RichTextData>),
+					[lang]: newContent
+				};
+			} else {
+				value = newContent;
+			}
 		});
 
 		window.addEventListener('scroll', handleScroll);
@@ -420,7 +439,13 @@
 	});
 
 	$effect(() => {
-		const content = value?.[lang]?.content || '';
+		let content = '';
+		if (field.translated) {
+			content = (value as Record<string, RichTextData>)?.[lang]?.content || '';
+		} else {
+			content = (value as RichTextData)?.content || '';
+		}
+
 		if (editor && editor.getHTML() !== content) {
 			editor.commands.setContent(content, { emitUpdate: false });
 		}
@@ -429,8 +454,8 @@
 
 <div
 	class="my-2 relative overflow-hidden rounded border {error
-		? 'border-red-500 ring-2 ring-red-500 ring-opacity-50'
-		: 'border-surface-200 dark:text-surface-50'} bg-white dark:bg-surface-900 shadow-xl"
+		? 'border-error-500 bg-error-500-10'
+		: 'border-surface-200 dark:text-surface-50'} bg-white dark:bg-surface-900"
 >
 	<!-- Toolbar -->
 	<div

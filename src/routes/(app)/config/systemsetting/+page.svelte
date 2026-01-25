@@ -128,7 +128,7 @@ All dynamic CMS settings organized into logical groups
 {/if}
 
 <!-- Settings Panel (Standalone) -->
-<div class="card overflow-hidden min-h-[500px] max-h-[calc(100vh-140px)] flex flex-col">
+<div class="card flex flex-col mb-10">
 	{#if selectedGroupId}
 		{#key selectedGroupId}
 			{@const group = availableGroups.find((g) => g.id === selectedGroupId)}
@@ -156,14 +156,13 @@ All dynamic CMS settings organized into logical groups
 		<span class="text-2xl text-tertiary-500 dark:text-primary-500">●</span>
 		<span class="font-semibold text-tertiary-500 dark:text-primary-500">System Operational</span>
 		<span class="text-dark dark:text-white">|</span>
-		<span class="text-surface-600 dark:text-surface-300">Settings:</span>
+		<span class="text-surface-600 dark:text-surface-50">Settings:</span>
 		<span class="font-semibold text-tertiary-500 dark:text-primary-500">Loaded</span>
 		<span class="text-dark dark:text-white">|</span>
-		<span class="text-surface-600 dark:text-surface-300">Groups:</span>
+		<span class="text-surface-600 dark:text-surface-50">Groups:</span>
 		<span class="font-semibold text-tertiary-500 dark:text-primary-500">{availableGroups.length}</span>
 		<span class="text-dark dark:text-white">|</span>
-		<span class="text-surface-600 dark:text-surface-300">Environment:</span>
+		<span class="text-surface-600 dark:text-surface-50">Environment:</span>
 		<span class="font-semibold text-tertiary-500 dark:text-primary-500">Dynamic</span>
 	</div>
 </div>
-```

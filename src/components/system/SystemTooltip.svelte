@@ -34,7 +34,19 @@ This component provides a tooltip for any element.
 		triggerStyle?: string;
 		children?: import('svelte').Snippet;
 		positioning?: {
-			placement?: 'top' | 'bottom' | 'left' | 'right';
+			placement?:
+				| 'top'
+				| 'top-start'
+				| 'top-end'
+				| 'bottom'
+				| 'bottom-start'
+				| 'bottom-end'
+				| 'left'
+				| 'left-start'
+				| 'left-end'
+				| 'right'
+				| 'right-start'
+				| 'right-end';
 			gutter?: number;
 		};
 	}

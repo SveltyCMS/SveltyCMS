@@ -62,6 +62,7 @@
 	let currentEntry = $derived(collectionValue.value as Record<string, any> | null);
 
 	let isDesktop = $derived(screen.isDesktop);
+	let isTablet = $derived(screen.isTablet);
 	let isMobile = $derived(screen.isMobile);
 
 	let isFormValid = $derived(validationStore.isValid);
@@ -242,7 +243,7 @@
 			<button
 				onclick={() => ui.toggle('leftSidebar', isDesktop ? 'full' : 'collapsed')}
 				aria-label="Toggle sidebar"
-				class="btn-icon preset-outlined-surface-500shrink-0"
+				class="btn-icon preset-outlined-surface-500 shrink-0"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
@@ -263,8 +264,8 @@
 	</div>
 
 	<div class="flex items-center gap-2 shrink-0">
-		<!-- Mobile: Translation + Save/Next + More -->
-		{#if isMobile}
+		<!-- Mobile & Tablet: Translation + Save/Next + More -->
+		{#if !isDesktop}
 			{#if showMore}
 				<TranslationStatus />
 				{#if ['edit', 'create'].includes(currentMode)}
@@ -286,14 +287,14 @@
 
 				{#if ['edit', 'create'].includes(currentMode)}
 					{#if showNextButton}
-						<button onclick={next} class="btn-icon preset-filled-primary-500 lg:hidden" aria-label="Next">
+						<button onclick={next} class="btn-icon preset-filled-primary-500" aria-label="Next">
 							<iconify-icon icon="carbon:next-filled" width="24"></iconify-icon>
 						</button>
 					{:else}
 						<button
 							onclick={save}
 							disabled={!isFormValid || !canWrite}
-							class="btn-icon preset-filled-tertiary-500 dark:preset-filled-primary-500 lg:hidden"
+							class="btn-icon preset-filled-tertiary-500 dark:preset-filled-primary-500"
 							class:opacity-50={!isFormValid || !canWrite}
 							aria-label="Save"
 						>
@@ -308,9 +309,7 @@
 			{/if}
 		{:else}
 			<!-- Desktop: Translation status visible by default -->
-			<div class="hidden md:block">
-				<TranslationStatus />
-			</div>
+			<TranslationStatus />
 		{/if}
 
 		{#if !app.headerActionButton}

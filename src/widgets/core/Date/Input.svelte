@@ -43,10 +43,13 @@ Part of the Three Pillars Architecture for widget system.
 
 	// Convert ISO string to YYYY-MM-DD format for native input
 
+	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const safeValue = $derived(field.translated ? ((value as Record<string, string>)?.[_language] ?? '') : ((value as string) ?? ''));
+
 	const inputValue = $derived.by(() => {
-		if (!value) return '';
+		if (!safeValue) return '';
 		try {
-			return value.substring(0, 10);
+			return safeValue.substring(0, 10);
 		} catch {
 			return '';
 		}
@@ -76,6 +79,7 @@ Part of the Three Pillars Architecture for widget system.
 	// Handle date input change
 	function handleInput(event: Event & { currentTarget: HTMLInputElement }): void {
 		const dateStr = event.currentTarget.value;
+		let newValue: string | null = null;
 
 		if (dateStr) {
 			try {
@@ -94,18 +98,27 @@ Part of the Three Pillars Architecture for widget system.
 				}
 
 				// Convert to ISO string at UTC midnight
-				value = selectedDate.toISOString();
+				newValue = selectedDate.toISOString();
 				validationStore.clearError(fieldName);
 			} catch (e) {
 				validationStore.setError(fieldName, 'Invalid date format');
 			}
 		} else {
-			value = null;
 			if (field.required) {
 				validationStore.setError(fieldName, 'This field is required');
 			} else {
 				validationStore.clearError(fieldName);
 			}
+		}
+
+		// Update value based on translation status
+		if (field.translated) {
+			if (!value || typeof value !== 'object') {
+				value = {};
+			}
+			value = { ...(value as object), [_language]: newValue };
+		} else {
+			value = newValue;
 		}
 	}
 
@@ -143,8 +156,9 @@ Part of the Three Pillars Architecture for widget system.
 				label: field.label,
 				collection: (field as any).collection
 			}}
-			class="input"
-			class:invalid={error}
+			class="input w-full rounded-none text-black dark:text-primary-500 focus:border-tertiary-500 focus:outline-none"
+			class:!border-error-500={!!error}
+			class:!bg-error-500-10={!!error}
 			aria-invalid={!!error}
 			aria-describedby={error ? `${field.db_fieldName}-error` : field.helper ? `${field.db_fieldName}-helper` : undefined}
 			aria-required={field.required}

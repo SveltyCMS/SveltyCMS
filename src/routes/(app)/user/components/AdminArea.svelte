@@ -23,11 +23,12 @@
 	import { untrack } from 'svelte';
 	import { logger } from '@utils/logger';
 	// Stores
-	import { avatarSrc } from '@stores/store.svelte.ts';
+	import { avatarSrc, normalizeAvatarUrl } from '@stores/store.svelte.ts';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
 
 	// Components
 	import PermissionGuard from '@components/PermissionGuard.svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import Boolean from '@components/system/table/Boolean.svelte';
 	import Role from '@components/system/table/Role.svelte';
@@ -74,7 +75,7 @@
 		await globalLoadingStore.withLoading(
 			loadingOperations.dataFetch,
 			async () => {
-				const endpoint = showUserList ? '/api/admin/users' : '/api/admin/tokens';
+				const endpoint = showUserList ? '/api/user' : '/api/token';
 				// eslint-disable-next-line svelte/prefer-svelte-reactivity
 				const params = new URLSearchParams();
 				params.set('page', String(currentPage));
@@ -291,32 +292,6 @@
 		if (diffDays <= 30) return '1 month';
 
 		return '1 month'; // Max available option
-	}
-
-	// Normalize media URLs for table display to avoid requesting bare /files
-	function normalizeMediaUrl(url: string | null | undefined): string {
-		if (!url) return '/Default_User.svg';
-		try {
-			if (url.startsWith('data:') || /^https?:\/\//i.test(url)) return url;
-
-			// Allow direct svg in static
-			if (/^\/?[^\s?]+\.svg$/i.test(url)) return url.startsWith('/') ? url : `/${url}`;
-
-			// Normalize path
-			// 1. Remove leading slashes
-			let clean = url.replace(/^\/+/, '');
-			// 2. Remove prefixes
-			clean = clean.replace(/^mediaFolder\//, '').replace(/^files\//, '');
-			// 3. Remove leading slashes again just in case
-			clean = clean.replace(/^\/+/, '');
-
-			if (clean === 'files' || clean === '') return '/Default_User.svg';
-
-			// Add timestamp for cache busting
-			return `/files/${clean}?t=${Date.now()}`;
-		} catch {
-			return '/Default_User.svg';
-		}
 	}
 
 	// Helper function to calculate remaining time until expiration for display in table
@@ -732,8 +707,13 @@
 								>
 									<div class="flex items-center justify-center gap-1">
 										{header.label}
-										<iconify-icon icon="material-symbols:arrow-upward-rounded" width={18} class="origin-center duration-300 ease-in-out"
-										></iconify-icon>
+										{#if sorting.sortedBy === header.key && sorting.isSorted !== 0}
+											<iconify-icon
+												icon="material-symbols:arrow-upward-rounded"
+												width={18}
+												class="origin-center duration-300 ease-in-out {sorting.isSorted === -1 ? 'rotate-180' : ''}"
+											></iconify-icon>
+										{/if}
 									</div>
 								</th>
 							{/each}
@@ -790,9 +770,9 @@
 											<Avatar class="size-10 overflow-hidden rounded-full border border-surface-200/50 dark:text-surface-50/50">
 												<Avatar.Image
 													src={currentUser && isUser(row) && row._id === currentUser._id
-														? normalizeMediaUrl(avatarSrc.value)
+														? normalizeAvatarUrl(avatarSrc.value)
 														: isUser(row) && header.key === 'avatar'
-															? normalizeMediaUrl(row.avatar)
+															? normalizeAvatarUrl(row.avatar)
 															: '/Default_User.svg'}
 													class="h-full w-full object-cover"
 												/>
@@ -807,49 +787,51 @@
 											<!-- User ID with clipboard functionality -->
 											<div class="flex items-center justify-center gap-2">
 												<span class="font-mono text-sm">{isUser(row) ? row._id : isToken(row) ? row._id : '-'}</span>
-												<button
-													class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500 hover:dark:preset-filled-primary-500"
-													aria-label="Copy User ID"
-													title="Copy User ID to clipboard"
-													onclick={(event) => {
-														event.stopPropagation();
-														const val = String(isUser(row) ? row._id : isToken(row) ? row._id : '');
-														navigator.clipboard
-															.writeText(val)
-															.then(() => {
-																toaster.success({ description: 'User ID copied to clipboard' });
-															})
-															.catch(() => {
-																toaster.error({ description: 'Failed to copy' });
-															});
-													}}
-												>
-													<iconify-icon icon="oui:copy-clipboard" width={24}></iconify-icon>
-												</button>
+												<SystemTooltip title="Copy User ID to clipboard">
+													<button
+														class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500 hover:dark:preset-filled-primary-500"
+														aria-label="Copy User ID"
+														onclick={(event) => {
+															event.stopPropagation();
+															const val = String(isUser(row) ? row._id : isToken(row) ? row._id : '');
+															navigator.clipboard
+																.writeText(val)
+																.then(() => {
+																	toaster.success({ description: 'User ID copied to clipboard' });
+																})
+																.catch(() => {
+																	toaster.error({ description: 'Failed to copy' });
+																});
+														}}
+													>
+														<iconify-icon icon="oui:copy-clipboard" width={18}></iconify-icon>
+													</button>
+												</SystemTooltip>
 											</div>
 										{:else if header.key === 'token'}
 											<!-- Token with clipboard functionality -->
 											<div class="flex items-center justify-center gap-2">
 												<span class="max-w-[200px] truncate font-mono text-sm">{isToken(row) && header.key === 'token' ? row.token : '-'}</span>
-												<button
-													class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500 hover:dark:preset-filled-primary-500"
-													aria-label="Copy Token"
-													title="Copy Token to clipboard"
-													onclick={(event) => {
-														event.stopPropagation();
-														const val = isToken(row) && header.key === 'token' ? row.token : '';
-														navigator.clipboard
-															.writeText(val)
-															.then(() => {
-																toaster.success({ description: 'Token copied to clipboard' });
-															})
-															.catch(() => {
-																toaster.error({ description: 'Failed to copy' });
-															});
-													}}
-												>
-													<iconify-icon icon="oui:copy-clipboard" width={24}></iconify-icon>
-												</button>
+												<SystemTooltip title="Copy Token to clipboard">
+													<button
+														class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500 hover:dark:preset-filled-primary-500"
+														aria-label="Copy Token"
+														onclick={(event) => {
+															event.stopPropagation();
+															const val = isToken(row) && header.key === 'token' ? row.token : '';
+															navigator.clipboard
+																.writeText(val)
+																.then(() => {
+																	toaster.success({ description: 'Token copied to clipboard' });
+																})
+																.catch(() => {
+																	toaster.error({ description: 'Failed to copy' });
+																});
+														}}
+													>
+														<iconify-icon icon="oui:copy-clipboard" width={18}></iconify-icon>
+													</button>
+												</SystemTooltip>
 											</div>
 										{:else if ['createdAt', 'updatedAt', 'lastAccess', 'expires'].includes(header.key)}
 											{@const dateKey = header.key as 'createdAt' | 'updatedAt' | 'lastAccess' | 'expires'}

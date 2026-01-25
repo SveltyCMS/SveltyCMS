@@ -363,7 +363,7 @@ function cmsWatcherPlugin(): Plugin {
 					// Invalidate and reload the widget store module to get the latest code
 					const { widgetStoreActions } = await server.ssrLoadModule('./src/stores/widgetStore.svelte.ts?t=' + Date.now());
 					// Call the reload action, which re-scans the filesystem
-					await widgetStoreActions.reloadWidgets();
+					await widgetStoreActions.reload();
 					// Trigger a full reload on the client to reflect the changes
 					server.ws.send({ type: 'full-reload', path: '*' });
 					log.success('Widgets reloaded and client updated.');

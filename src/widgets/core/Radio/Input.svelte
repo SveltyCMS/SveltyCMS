@@ -27,16 +27,50 @@ Renders radio group with options from field.options array
 -->
 
 <script lang="ts">
-	import type { FieldType } from './';
-	import type { RadioProps } from './types';
+	import { app } from '@src/stores/store.svelte';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { untrack } from 'svelte';
 
 	let {
 		field,
 		value = $bindable(),
 		error
-	}: { field: FieldType & RadioProps; value?: string | number | null | undefined; error?: string | null } = $props();
+	}: { field: FieldType & RadioProps; value?: string | number | null | undefined | Record<string, any>; error?: string | null } = $props();
 
 	const fieldId = $derived(field.db_fieldName);
+	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+
+	// Local state to bind the radio group to
+	let localValue = $state<string | number | null>(null);
+
+	// Sync localValue from parent value
+	$effect(() => {
+		const parentVal = value;
+		let extracted: string | number | null = null;
+
+		if (field.translated && typeof parentVal === 'object' && parentVal !== null) {
+			extracted = (parentVal as Record<string, any>)[_language] ?? null;
+		} else if (!field.translated && (typeof parentVal === 'string' || typeof parentVal === 'number')) {
+			extracted = parentVal;
+		}
+
+		// Only update local if different to avoid loops (though primitives are safe-ish)
+		if (extracted !== localValue) {
+			localValue = extracted;
+		}
+	});
+
+	// Update parent value when localValue changes
+	function updateParent(newVal: string | number | null) {
+		if (field.translated) {
+			if (!value || typeof value !== 'object') {
+				value = {};
+			}
+			value = { ...(value as object), [_language]: newVal };
+		} else {
+			value = newVal;
+		}
+	}
 </script>
 
 <div class="mb-4">
@@ -60,9 +94,10 @@ Renders radio group with options from field.options array
 					<input
 						type="radio"
 						name={field.db_fieldName}
-						bind:group={value}
+						group={localValue}
 						value={option.value}
-						aria-checked={value === option.value}
+						onchange={() => updateParent(option.value)}
+						aria-checked={localValue === option.value}
 						aria-label={option.label}
 						class={field.color ? `accent-${field.color}` : ''}
 						style={field.color ? `accent-color: ${field.color}` : ''}

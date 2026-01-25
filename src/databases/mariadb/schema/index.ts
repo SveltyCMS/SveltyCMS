@@ -78,7 +78,8 @@ export const authTokens = mysqlTable(
 		type: varchar('type', { length: 50 }).notNull(),
 		expires: datetime('expires').notNull(),
 		consumed: boolean('consumed').notNull().default(false),
-		blocked: boolean('blocked').notNull().default(false),
+		role: varchar('role', { length: 50 }),
+		username: varchar('username', { length: 255 }),
 		tenantId: tenantField(),
 		...timestamps
 	},

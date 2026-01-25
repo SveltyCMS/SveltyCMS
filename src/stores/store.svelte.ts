@@ -31,7 +31,7 @@ export type TranslationProgress = {
 /**
  * Normalizes avatar URLs to ensure consistency across environments.
  */
-function normalizeAvatarUrl(url: string | null | undefined): string {
+export function normalizeAvatarUrl(url: string | null | undefined): string {
 	const DEFAULT_AVATAR = '/Default_User.svg';
 	if (!url) return DEFAULT_AVATAR;
 
@@ -226,7 +226,14 @@ class DataChangeStore {
 export const dataChangeStore = new DataChangeStore();
 
 // Skeleton Toaster Singleton
-export const toaster = createToaster();
+const baseToaster = createToaster();
+export const toaster = {
+	...baseToaster,
+	success: (t: any) => baseToaster.success({ duration: 5000, ...t }),
+	error: (t: any) => baseToaster.error({ duration: 5000, ...t }),
+	warning: (t: any) => baseToaster.warning({ duration: 5000, ...t }),
+	info: (t: any) => baseToaster.info({ duration: 5000, ...t })
+};
 
 // Static Constants
 export const tableHeaders = ['id', 'email', 'username', 'role', 'createdAt'] as const;

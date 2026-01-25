@@ -18,14 +18,14 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { DatabaseError, DatabaseId, ISODateString, PaginatedResult, PaginationOptions } from '../dbInterface';
 
-// Generate a new UUID v4 for database IDs
+// Generate a new compact, dash-less UUID v4 for database IDs
 export function generateId(): DatabaseId {
-	return uuidv4() as DatabaseId;
+	return uuidv4().replace(/-/g, '') as DatabaseId;
 }
 
-// Validate a DatabaseId (UUID v4)
+// Validate a DatabaseId (UUID v4, with or without dashes)
 export function validateId(id: string): boolean {
-	const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+	const uuidRegex = /^([0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
 	return uuidRegex.test(id);
 }
 

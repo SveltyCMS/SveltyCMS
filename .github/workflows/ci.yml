@@ -445,7 +445,7 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------------------------
-  # 5. E2E Tests - MariaDB (Runs after MongoDB E2E)
+  # 5. E2E Tests - MariaDB (Runs after MariaDB E2E)
   # ------------------------------------------------------------------
   e2e-tests-mariadb:
     name: 🎭 E2E Tests (MariaDB)

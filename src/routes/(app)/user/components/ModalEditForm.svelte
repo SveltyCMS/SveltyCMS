@@ -66,7 +66,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 		title?: string;
 		body?: string;
 	}
-	const { isGivenData = false, username = null, email = null, role = null, user_id = null, title, body }: Props = $props();
+	const { isGivenData = false, username = null, email = null, role = null, user_id = null }: Props = $props();
 
 	// Store initialization
 
@@ -78,6 +78,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			email: '',
 			password: '',
 			confirmPassword: '',
+			currentPassword: '',
 			role: ''
 		},
 		editUserSchema
@@ -142,6 +143,9 @@ Efficiently manages user data updates with validation, role selection, and delet
 		// Only include password fields if they're not empty
 		if (editForm.data.password && editForm.data.password.trim() !== '') {
 			submitData.password = editForm.data.password;
+			if (isOwnProfile) {
+				submitData.currentPassword = editForm.data.currentPassword;
+			}
 		}
 
 		try {
@@ -171,6 +175,44 @@ Efficiently manages user data updates with validation, role selection, and delet
 			toaster.error({ description: `<CircleAlert size={24}/> ${message}` });
 		} finally {
 			editForm.submitting = false;
+		}
+	}
+
+	let isCurrentPasswordValidated = $state(false);
+	let debounceTimer: ReturnType<typeof setTimeout>;
+
+	function debounceVerifyCurrentPassword() {
+		clearTimeout(debounceTimer);
+		isCurrentPasswordValidated = false;
+		editForm.errors.currentPassword = [];
+
+		if (!editForm.data.currentPassword) return;
+
+		debounceTimer = setTimeout(() => {
+			verifyCurrentPassword();
+		}, 800); // 800ms delay
+	}
+
+	async function verifyCurrentPassword() {
+		if (!editForm.data.currentPassword) return;
+		try {
+			const res = await fetch('/api/user/verifyPassword', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ password: editForm.data.currentPassword })
+			});
+			const data = await res.json();
+			if (data.valid) {
+				isCurrentPasswordValidated = true;
+				editForm.errors.currentPassword = [];
+				toaster.success({ description: 'Password verified', duration: 5000 });
+			} else {
+				isCurrentPasswordValidated = false;
+				editForm.errors.currentPassword = ['Incorrect password'];
+			}
+		} catch (e) {
+			console.error(e);
+			editForm.errors.currentPassword = ['Error verifying password'];
 		}
 	}
 
@@ -205,55 +247,43 @@ Efficiently manages user data updates with validation, role selection, and delet
 	}
 
 	// Base Classes
-	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-xl';
 </script>
 
-<div class="modal-example-form space-y-4">
-	<header class="text-center dark:text-primary-500 {cHeader}">
-		{title ?? '(title missing)'}
-	</header>
-	<article class="text-center text-sm">
-		{body ?? '(body missing)'}
-	</article>
-	<form class="modal-form {cForm}" id="change_user_form" onsubmit={onFormSubmit}>
+<div class="modal-example-form space-y-4 text-black dark:text-white">
+	<form class="modal-form {cForm} grid grid-cols-1 gap-4" id="change_user_form" onsubmit={onFormSubmit}>
 		<!-- Username -->
-		<div class="group relative z-0 mb-6 w-full">
-			<iconify-icon icon="mdi:user-circle" width={24}></iconify-icon>
-			<FloatingInput
-				type="text"
-				name="username"
-				label={m.username()}
-				bind:value={editForm.data.username}
-				onkeydown={() => (editForm.errors.username = [])}
-				required
-				disabled={isGivenData && user_id !== user?._id}
-				autocomplete="username"
-				textColor="text-tertiary-500 dark:text-white"
-			/>
-			{#if editForm.errors.username}
-				<div class="absolute left-0 top-11 text-xs text-error-500">{editForm.errors.username[0]}</div>
-			{/if}
-		</div>
+		<FloatingInput
+			type="text"
+			name="username"
+			label={m.username()}
+			bind:value={editForm.data.username}
+			onkeydown={() => (editForm.errors.username = [])}
+			required
+			disabled={isGivenData && user_id !== user?._id}
+			autocomplete="username"
+			icon="mdi:user-circle"
+			textColor="text-tertiary-500 dark:text-white"
+			invalid={!!editForm.errors.username?.length}
+			errorMessage={editForm.errors.username?.[0]}
+		/>
 
 		<!-- Email -->
-		<div class="group relative z-0 mb-6 w-full">
-			<iconify-icon icon="mdi:email" width={24}></iconify-icon>
-			<FloatingInput
-				type="email"
-				name="email"
-				label="Email"
-				bind:value={editForm.data.email}
-				onkeydown={() => (editForm.errors.email = [])}
-				required
-				disabled
-				autocomplete="email"
-				textColor="text-tertiary-500 dark:text-white"
-			/>
-			{#if editForm.errors.email}
-				<div class="absolute left-0 top-11 text-xs text-error-500">{editForm.errors.email[0]}</div>
-			{/if}
-		</div>
+		<FloatingInput
+			type="email"
+			name="email"
+			label="Email"
+			bind:value={editForm.data.email}
+			onkeydown={() => (editForm.errors.email = [])}
+			required
+			disabled
+			autocomplete="email"
+			icon="mdi:email"
+			textColor="text-tertiary-500 dark:text-white"
+			invalid={!!editForm.errors.email?.length}
+			errorMessage={editForm.errors.email?.[0]}
+		/>
+
 		<!-- Password Change Section -->
 		{#if canChangePassword}
 			{#if !isOwnProfile && user?.isAdmin}
@@ -267,9 +297,32 @@ Efficiently manages user data updates with validation, role selection, and delet
 				</div>
 			{/if}
 
+			{#if isOwnProfile}
+				<!-- Current Password (Required for own profile password change) -->
+				<FloatingInput
+					type="password"
+					name="current_password"
+					id="current_password"
+					label="Current Password"
+					bind:value={editForm.data.currentPassword}
+					bind:showPassword
+					onkeydown={() => (editForm.errors.currentPassword = [])}
+					onInput={debounceVerifyCurrentPassword}
+					onblur={() => {
+						clearTimeout(debounceTimer);
+						verifyCurrentPassword();
+					}}
+					autocomplete="current-password"
+					icon="mdi:key"
+					textColor={isCurrentPasswordValidated ? 'text-success-500' : 'text-tertiary-500 dark:text-white'}
+					passwordIconColor="text-tertiary-500 dark:text-white"
+					invalid={!!editForm.errors.currentPassword?.length}
+					errorMessage={editForm.errors.currentPassword?.[0]}
+				/>
+			{/if}
+
 			<!-- Password field -->
-			<div class="group relative z-0 mb-6 w-full">
-				<iconify-icon icon="mdi:password" width={24}></iconify-icon>
+			<div class:opacity-50={isOwnProfile && !isCurrentPasswordValidated} class="transition-opacity duration-200">
 				<FloatingInput
 					type="password"
 					name="password"
@@ -279,16 +332,17 @@ Efficiently manages user data updates with validation, role selection, and delet
 					bind:showPassword
 					onkeydown={() => (editForm.errors.password = [])}
 					autocomplete="new-password"
+					icon="mdi:password"
 					textColor="text-tertiary-500 dark:text-white"
 					passwordIconColor="text-tertiary-500 dark:text-white"
+					invalid={!!editForm.errors.password?.length}
+					errorMessage={editForm.errors.password?.[0]}
+					disabled={isOwnProfile && !isCurrentPasswordValidated}
 				/>
-				{#if editForm.errors.password}
-					<div class="absolute left-0 top-11 text-xs text-error-500">{editForm.errors.password[0]}</div>
-				{/if}
 			</div>
+
 			<!-- Password Confirm -->
-			<div class="group relative z-0 mb-6 w-full">
-				<iconify-icon icon="mdi:password" width={24}></iconify-icon>
+			<div class:opacity-50={isOwnProfile && !isCurrentPasswordValidated} class="transition-opacity duration-200">
 				<FloatingInput
 					type="password"
 					name="confirm_password"
@@ -298,13 +352,21 @@ Efficiently manages user data updates with validation, role selection, and delet
 					bind:showPassword
 					onkeydown={() => (editForm.errors.confirmPassword = [])}
 					autocomplete="new-password"
+					icon="mdi:password"
 					textColor="text-tertiary-500 dark:text-white"
 					passwordIconColor="text-tertiary-500 dark:text-white"
+					invalid={!!editForm.errors.confirmPassword?.length}
+					errorMessage={editForm.errors.confirmPassword?.[0]}
+					disabled={isOwnProfile && !isCurrentPasswordValidated}
 				/>
-				{#if editForm.errors.confirmPassword}
-					<div class="absolute left-0 top-11 text-xs text-error-500">{editForm.errors.confirmPassword[0]}</div>
-				{/if}
 			</div>
+
+			{#if isOwnProfile && !isCurrentPasswordValidated}
+				<div class="text-xs text-center text-surface-500 dark:text-surface-50 pl-1">
+					<iconify-icon icon="mdi:lock" class="inline-block align-text-bottom mr-1"></iconify-icon>
+					Enter your current password correctly to unlock new password fields.
+				</div>
+			{/if}
 		{/if}
 		<!-- Role Select -->
 		<PermissionGuard config={modaleEditFormConfig} silent={true}>
@@ -350,24 +412,26 @@ Efficiently manages user data updates with validation, role selection, and delet
 			{/if}
 		</PermissionGuard>
 	</form>
-	<footer class="modal-footer flex {showDeleteButton ? 'justify-between' : 'justify-end'} pt-4 border-t border-surface-500/20">
-		<!-- Delete User Button -->
-		{#if showDeleteButton}
-			<PermissionGuard config={deleteUserPermissionConfig} silent={true}>
-				<button type="button" onclick={deleteUser} class="preset-filled-error-500 btn">
-					<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
-					<span class="hidden sm:block">{m.button_delete()}</span>
-				</button>
-			</PermissionGuard>
-		{/if}
 
-		<div class="flex gap-4">
+	<footer class="modal-footer flex flex-wrap items-center justify-between gap-4 border-t border-surface-500/20 pt-4">
+		<div class="flex items-center gap-4">
 			<!-- Cancel -->
 			<button type="button" class="preset-outlined-secondary-500 btn" onclick={() => modalState.close()}>{m.button_cancel()}</button>
-			<!-- Save -->
-			<button type="submit" form="change_user_form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">
-				{m.button_save()}
-			</button>
+
+			<!-- Delete User Button (only if perm allows) -->
+			{#if showDeleteButton}
+				<PermissionGuard config={deleteUserPermissionConfig} silent={true}>
+					<button type="button" onclick={deleteUser} class="preset-filled-error-500 btn">
+						<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
+						<span class="hidden sm:block">{m.button_delete()}</span>
+					</button>
+				</PermissionGuard>
+			{/if}
 		</div>
+
+		<!-- Save -->
+		<button type="submit" form="change_user_form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">
+			{m.button_save()}
+		</button>
 	</footer>
 </div>

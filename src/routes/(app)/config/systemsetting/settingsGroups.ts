@@ -465,6 +465,20 @@ export const settingsGroups: SettingGroup[] = [
 		permissionId: 'config:settings:media',
 		fields: [
 			{
+				key: 'MEDIA_STORAGE_TYPE',
+				label: 'Media Storage Type',
+				description: 'Storage mechanism for media files (local, s3, r2, cloudinary)',
+				type: 'select',
+				category: 'private',
+				required: true,
+				options: [
+					{ value: 'local', label: '📁 Local Storage' },
+					{ value: 's3', label: '☁️ Amazon S3' },
+					{ value: 'r2', label: '☁️ Cloudflare R2' },
+					{ value: 'cloudinary', label: '☁️ Cloudinary' }
+				]
+			},
+			{
 				key: 'MEDIA_FOLDER',
 				label: 'Media Folder Path',
 				description: 'Server path where media files are stored',
@@ -611,6 +625,15 @@ export const settingsGroups: SettingGroup[] = [
 				category: 'public',
 				required: true,
 				placeholder: 'My Awesome Site'
+			},
+			{
+				key: 'TIMEZONE',
+				label: 'System Timezone',
+				description: 'Primary timezone for server-side operations and scheduling',
+				type: 'select',
+				category: 'public',
+				required: true,
+				options: Intl.supportedValuesOf('timeZone').map((tz) => ({ value: tz, label: tz }))
 			},
 			{
 				key: 'HOST_DEV',

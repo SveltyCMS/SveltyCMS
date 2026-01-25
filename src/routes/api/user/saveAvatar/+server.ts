@@ -126,7 +126,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Invalidate cache for users list so UI updates
 		try {
-			await cacheService.clearByPattern('api:*:/api/admin/users*', locals.tenantId);
+			await cacheService.clearByPattern('api:*:/api/user*', locals.tenantId);
 			logger.debug('Cache invalidated for users list after avatar update');
 		} catch (cacheError) {
 			logger.warn('Failed to invalidate cache after avatar update', { error: cacheError });

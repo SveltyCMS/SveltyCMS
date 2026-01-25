@@ -98,7 +98,7 @@
 		// Capture current state of 'users' into a local variable (or object reference if updated within async block)
 		const usersRef = { value: users };
 		try {
-			const response = await fetch('/api/admin/users');
+			const response = await fetch('/api/user');
 			if (response.ok) {
 				const result = await response.json();
 				usersRef.value = result.data; // Update the referenced value
