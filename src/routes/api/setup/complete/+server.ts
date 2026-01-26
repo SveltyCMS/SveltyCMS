@@ -61,6 +61,32 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			});
 		}
 
+		// 1.5 Update Private Config with Mode Selections (Demo / Multi-Tenant)
+		// This must happen BEFORE system initialization so the correct settings are loaded
+		if (system && (typeof system.demoMode === 'boolean' || typeof system.multiTenant === 'boolean')) {
+			try {
+				logger.info('⚙️ Updating system architectural modes...', {
+					demo: system.demoMode,
+					multiTenant: system.multiTenant
+				});
+				const { updatePrivateConfigMode } = await import('../writePrivateConfig');
+
+				// In test mode, we might want to skip this or handle it differently
+				// but since writePrivateConfig handles TEST_MODE, it should be fine.
+				await updatePrivateConfigMode({
+					demoMode: system.demoMode,
+					multiTenant: system.multiTenant
+				});
+
+				// Clear cache to ensure new values are read
+				const { invalidateSetupCache } = await import('@utils/setupCheck');
+				invalidateSetupCache(true);
+			} catch (modeError) {
+				logger.error('Failed to update system modes:', modeError);
+				return json({ success: false, error: 'Failed to apply system mode settings.' }, { status: 500 });
+			}
+		}
+
 		// 1. Validate admin user data
 		const adminValidation = safeParse(setupAdminSchema, admin);
 		if (!adminValidation.success) {

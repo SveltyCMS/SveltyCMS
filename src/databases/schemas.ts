@@ -149,8 +149,7 @@ export const publicConfigSchema = object({
 	LOG_ROTATION_SIZE: optional(pipe(number(), minValue(1))),
 
 	// --- Demo Mode ---
-	USE_GOOGLE_OAUTH: optional(boolean()),
-	DEMO: optional(boolean())
+	USE_GOOGLE_OAUTH: optional(boolean())
 });
 
 export const websiteTokenSchema = object({

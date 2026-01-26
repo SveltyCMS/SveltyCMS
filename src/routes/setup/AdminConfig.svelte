@@ -122,6 +122,7 @@
 						handleBlur('username');
 					}}
 					type="text"
+					autocomplete="username"
 					placeholder={m.setup_admin_placeholder_username?.() || 'Enter username'}
 					class="input w-full rounded {displayErrors.username ? 'border-error-500' : 'border-slate-200'}"
 					aria-invalid={!!displayErrors.username}
@@ -162,6 +163,7 @@
 						handleBlur('email');
 					}}
 					type="email"
+					autocomplete="email"
 					placeholder={m.setup_admin_placeholder_email?.() || 'admin@example.com'}
 					class="input w-full rounded {displayErrors.email ? 'border-error-500' : 'border-slate-200'}"
 					aria-invalid={!!displayErrors.email}
@@ -198,6 +200,7 @@
 						oninput={checkPasswordRequirements}
 						onblur={() => handleBlur('password')}
 						type={showAdminPassword ? 'text' : 'password'}
+						autocomplete="new-password"
 						placeholder={m.setup_admin_placeholder_password?.() || 'Enter secure password'}
 						class="input w-full rounded {displayErrors.password ? 'border-error-500' : 'border-slate-200'}"
 						aria-invalid={!!displayErrors.password}
@@ -244,6 +247,7 @@
 						oninput={checkPasswordRequirements}
 						onblur={() => handleBlur('confirmPassword')}
 						type={showConfirmPassword ? 'text' : 'password'}
+						autocomplete="new-password"
 						placeholder={m.setup_admin_placeholder_confirm_password?.() || 'Confirm your password'}
 						class="input w-full rounded {displayErrors.confirmPassword ? 'border-error-500' : 'border-slate-200'}"
 						aria-invalid={!!displayErrors.confirmPassword}

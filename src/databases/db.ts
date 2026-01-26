@@ -179,7 +179,8 @@ const INFRASTRUCTURE_KEYS = new Set([
 	'DB_POOL_SIZE',
 	'JWT_SECRET_KEY',
 	'ENCRYPTION_KEY',
-	'MULTI_TENANT'
+	'MULTI_TENANT',
+	'DEMO'
 ]);
 
 const KNOWN_PUBLIC_KEYS = Object.keys(publicConfigSchema.entries);
@@ -534,7 +535,8 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		logger.debug('Step 6: ContentManager will initialize lazily on first request.');
 
 		// --- Demo Mode Cleanup Service ---
-		if (privateConfig?.DEMO) {
+		// Initialize if DEMO is true OR if MULTI_TENANT is true (to allow runtime DEMO toggling)
+		if (privateConfig?.DEMO || privateConfig?.MULTI_TENANT) {
 			import('@src/utils/demoCleanup').then(({ cleanupExpiredDemoTenants }) => {
 				logger.info('🧹 Demo Cleanup Service initialized (Interval: 5m, TTL: 60m)');
 				// Run immediately on startup

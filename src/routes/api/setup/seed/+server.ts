@@ -95,7 +95,12 @@ export const POST: RequestHandler = async ({ request }) => {
 			logger.info('⏳ TEST_MODE detected: Awaiting seeding synchronously...');
 			seedResults = await seedProcess();
 		} else {
-			seedProcess(); // Fire-and-forget for normal UX
+			// Fire-and-forget for normal UX, but catch errors to prevent unhandled rejection crashes
+			seedProcess().catch((bgError) => {
+				logger.error('💥 Background seeding process crashed (captured at top level):', bgError);
+				// We don't re-throw here because it would crash the server.
+				// The error is already logged and stored in setupManager.seedingError by seedProcess.
+			});
 			logger.info('✅ Immediately returning response while seeding continues in background.');
 		}
 

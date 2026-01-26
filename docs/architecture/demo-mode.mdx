@@ -27,11 +27,19 @@ Demo Mode is a specialized configuration of the Multi-Tenancy system designed to
 
 ## Implementation
 
+4.  **Nx Monorepo Setup (Clone & Link)**:
+    - Clone your `next` branch: `git clone -b next <repo>`
+    - Run setup: `bun install && bun run dev`
+    - Setup Wizard: Connect to your **existing Demo Database**.
+    - **Important**: Manually set `MULTI_TENANT: true` in `config/private.ts` (requires restart).
+
 ### Enabling Demo Mode
 
-Demo mode is controlled via the `DEMO` setting in your configuration.
+Demo mode is strictly controlled via `config/private.ts` to prevent accidental disabling in production.
 
-1.  **Production**: Edit `config/private.ts` (or `config/private.js` in build):
+1.  **Strict Configuration**:
+    - Edit `config/private.ts`:
+
     ```typescript
     export const privateEnv = {
     	// ...
@@ -39,7 +47,13 @@ Demo mode is controlled via the `DEMO` setting in your configuration.
     	DEMO: true
     };
     ```
-2.  **Development**: You can also use the environment variable `SVELTYCMS_DEMO=true` or run `bun run dev:demo`.
+
+    - Restart the server.
+
+2.  **Environment Variable** (Dev only):
+    - `SVELTYCMS_DEMO=true bun run dev`
+
+### Tenant Lifecycle
 
 ### Tenant Lifecycle
 
@@ -56,7 +70,7 @@ Demo mode is controlled via the `DEMO` setting in your configuration.
 
 3.  **Expiration & Cleanup**:
     - A background job (initialized in `src/databases/db.ts`) checks for tenants created > 60 minutes ago.
-    - It deletes all associated data (collections, users, settings, media) using the `cleanupExpiredDemoTenants` service.
+    - It deletes all associated **physical files** (media) and database records (collections, users, settings) using the `cleanupExpiredDemoTenants` service.
 
 ### Seeding Strategy
 

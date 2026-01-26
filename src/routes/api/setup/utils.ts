@@ -177,7 +177,14 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 
 	// Initialize auth models with error handling
 	try {
-		await dbAdapter.auth.setupAuthModels();
+		// Ensure auth module is initialized before accessing it
+		if (dbAdapter.ensureAuth) {
+			await dbAdapter.ensureAuth();
+		} else {
+			// Fallback for adapters that might not implement ensureAuth (though they should)
+			// or if it's already initialized.
+			await dbAdapter.auth.setupAuthModels();
+		}
 	} catch (err) {
 		logger.error(`Model initialization failed: ${err instanceof Error ? err.message : String(err)}`, { correlationId });
 		await dbAdapter.disconnect();

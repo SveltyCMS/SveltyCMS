@@ -667,13 +667,6 @@ export const settingsGroups: SettingGroup[] = [
 				description: 'Enable multi-tenant database support',
 				type: 'boolean',
 				category: 'private'
-			},
-			{
-				key: 'DEMO',
-				label: 'Demo Mode',
-				description: 'Enable demo mode (restricts certain features)',
-				type: 'boolean',
-				category: 'public'
 			}
 		]
 	},

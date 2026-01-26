@@ -21,6 +21,7 @@ import { getPrivateEnv } from '@src/databases/db';
  */
 export async function cleanupExpiredDemoTenants() {
 	const env = getPrivateEnv();
+	// Check ONLY private config (static) or env var - enforced security
 	const isDemo = process.env.SVELTYCMS_DEMO === 'true' || env?.DEMO === true;
 
 	// Safety check: ONLY run in demo mode
@@ -51,11 +52,45 @@ export async function cleanupExpiredDemoTenants() {
 
 		logger.info(`🧹 [Demo Cleanup] Found ${tenantIds.length} expired tenants. Starting cleanup...`);
 
+		// Import fs and path for file deletion
+		const fs = await import('fs/promises');
+		const path = await import('path');
+		const { MediaModel } = await import('@src/databases/mongodb/models/media');
+
 		for (const tenantId of tenantIds) {
 			if (!tenantId) continue;
 			logger.debug(`🗑️ [Demo Cleanup] Deleting tenant: ${tenantId}`);
 
-			// 2. Delete Dynamic Content
+			// 2. Delete Physical Files & Media Records (NEW)
+			try {
+				const tenantMedia = await MediaModel.find({ tenantId });
+
+				if (tenantMedia.length > 0) {
+					logger.debug(`[Demo Cleanup] Deleting ${tenantMedia.length} files for tenant ${tenantId}`);
+
+					for (const media of tenantMedia) {
+						if (media.path) {
+							try {
+								// Construct absolute path if needed, or use as is if absolute
+								// Assuming media.path is relative to project root or absolute
+								const filePath = path.resolve(media.path);
+								await fs.unlink(filePath);
+							} catch (err) {
+								// Ignore file not found errors
+								if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+									logger.warn(`[Demo Cleanup] Failed to delete file ${media.path}:`, err);
+								}
+							}
+						}
+					}
+					// Delete media records
+					await MediaModel.deleteMany({ tenantId });
+				}
+			} catch (err) {
+				logger.error(`[Demo Cleanup] Error cleaning up media for tenant ${tenantId}:`, err);
+			}
+
+			// 3. Delete Dynamic Content
 			// We iterate through the ContentStructure to find collection names
 			const collections = await ContentStructureModel.find({
 				tenantId,
@@ -79,7 +114,7 @@ export async function cleanupExpiredDemoTenants() {
 				}
 			}
 
-			// 3. Delete System Data
+			// 4. Delete System Data
 			await Promise.all([
 				User.deleteMany({ tenantId }),
 				Session.deleteMany({ tenantId }),

@@ -227,6 +227,9 @@ export async function seedCollectionsForSetup(
 					skipCount++;
 				} else {
 					logger.error(`❌ Failed to create collection '${schema.name || 'unknown'}'${tenantId ? ` for tenant ${tenantId}` : ''}: ${errorMessage}`);
+					if (typeof error === 'object' && error !== null) {
+						logger.error('Error details:', JSON.stringify(error, null, 2));
+					}
 					if (error instanceof Error && error.stack) {
 						logger.debug('Stack trace:', error.stack);
 					}
@@ -251,7 +254,17 @@ export async function seedCollectionsForSetup(
 				logger.debug('Stack trace:', error.stack);
 			}
 		} else {
-			logger.error(`Failed to seed collections after ${overallTime.toFixed(2)}ms:`, error);
+			// Enhanced error logging for non-Error objects
+			logger.error(`Failed to seed collections after ${overallTime.toFixed(2)}ms. Error type: ${typeof error}`);
+			if (typeof error === 'object') {
+				try {
+					logger.error(`Error object: ${JSON.stringify(error)}`);
+				} catch (e) {
+					logger.error('Could not stringify error object');
+				}
+			} else {
+				logger.error(`Error value: ${String(error)}`);
+			}
 		}
 		// Don't throw - collections can be created later through the UI
 		logger.warn('Continuing setup without collection seeding...');

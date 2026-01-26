@@ -165,6 +165,13 @@
 		}
 	});
 
+	// Enforce dependency: Demo Mode REQUIRES Multi-Tenant
+	$effect(() => {
+		if (systemSettings.demoMode) {
+			systemSettings.multiTenant = true;
+		}
+	});
+
 	// Derived available suggestions
 	let systemAvailable = $state<string[]>([]);
 	let contentAvailable = $state<{ code: string; name: string; native: string }[]>([]);
@@ -225,10 +232,8 @@
 
 					<label for="host-prod" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:earth" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span class="text-black dark:text-white">Production URL</span>
-						<SystemTooltip
-							title="The production URL where your CMS will be accessible (e.g., https://mysite.com). Used for OAuth callbacks and email links."
-						>
+						<span class="text-black dark:text-white">{m.setup_system_host_prod?.() || 'Production URL'}</span>
+						<SystemTooltip title={m.setup_help_host_prod?.() || 'The production URL...'}>
 							<button
 								type="button"
 								tabindex="-1"
@@ -245,7 +250,7 @@
 						bind:value={systemSettings.hostProd}
 						type="url"
 						onblur={() => handleBlur('hostProd')}
-						placeholder="https://mysite.com"
+						placeholder={m.setup_system_host_prod_placeholder?.() || 'https://mysite.com'}
 						class="input w-full rounded {displayErrors.hostProd ? 'border-error-500' : 'border-slate-200'}"
 						aria-invalid={!!displayErrors.hostProd}
 						aria-describedby={displayErrors.hostProd ? 'host-prod-error' : undefined}
@@ -256,8 +261,8 @@
 
 					<label for="timezone" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:clock-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span class="text-black dark:text-white">Timezone</span>
-						<SystemTooltip title="The default timezone for the system. Used for scheduling and date displays.">
+						<span class="text-black dark:text-white">{m.setup_system_timezone?.() || 'Timezone'}</span>
+						<SystemTooltip title={m.setup_help_timezone?.() || 'Default system timezone'}>
 							<button
 								type="button"
 								tabindex="-1"
@@ -290,8 +295,8 @@
 				<div class="space-y-3">
 					<label for="media-storage-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:cloud-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span class="text-black dark:text-white">Media Storage Type</span>
-						<SystemTooltip title={m.setup_help_media_path()}>
+						<span class="text-black dark:text-white">{m.setup_system_media_type?.() || 'Media Storage Type'}</span>
+						<SystemTooltip title={m.setup_help_media_type?.() || m.setup_help_media_path()}>
 							<button
 								type="button"
 								tabindex="-1"
@@ -304,18 +309,20 @@
 					</label>
 
 					<select id="media-storage-type" bind:value={systemSettings.mediaStorageType} class="input w-full rounded">
-						<option value="local">📁 Local Storage</option>
-						<option value="s3">☁️ Amazon S3</option>
-						<option value="r2">☁️ Cloudflare R2</option>
-						<option value="cloudinary">☁️ Cloudinary</option>
+						<option value="local">{m.setup_media_type_local?.() || '📁 Local Storage'}</option>
+						<option value="s3">{m.setup_media_type_s3?.() || '☁️ Amazon S3'}</option>
+						<option value="r2">{m.setup_media_type_r2?.() || '☁️ Cloudflare R2'}</option>
+						<option value="cloudinary">{m.setup_media_type_cloudinary?.() || '☁️ Cloudinary'}</option>
 					</select>
 
 					<label for="media-folder" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:folder" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span class="text-black dark:text-white">{systemSettings.mediaStorageType === 'local' ? 'Media Folder Path' : 'Bucket/Cloud Name'}</span>
-						<SystemTooltip
-							title="For local storage: specify the folder path (e.g., ./mediaFolder). For cloud storage: enter the bucket or container name."
-						>
+						<span class="text-black dark:text-white">
+							{systemSettings.mediaStorageType === 'local'
+								? m.setup_system_media_folder_local?.() || 'Media Folder Path'
+								: m.setup_system_media_folder_cloud?.() || 'Bucket/Cloud Name'}
+						</span>
+						<SystemTooltip title={m.setup_help_media_type?.() || 'Storage path configuration'}>
 							<button
 								type="button"
 								tabindex="-1"
@@ -331,7 +338,9 @@
 						id="media-folder"
 						bind:value={systemSettings.mediaFolder}
 						type="text"
-						placeholder={systemSettings.mediaStorageType === 'local' ? './mediaFolder' : 'my-bucket-name'}
+						placeholder={systemSettings.mediaStorageType === 'local'
+							? m.setup_system_media_path_placeholder?.() || './mediaFolder'
+							: m.setup_system_bucket_placeholder?.() || 'my-bucket-name'}
 						class="input w-full rounded"
 					/>
 
@@ -339,16 +348,16 @@
 						<div class="rounded-md border border-amber-300/50 bg-amber-50/50 p-3 dark:border-amber-700/50 dark:bg-amber-900/20" role="status">
 							<p class="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300">
 								<iconify-icon icon="mdi:information-outline" width="16" aria-hidden="true"></iconify-icon>
-								<strong>Note:</strong>
-								Cloud storage credentials must be configured in System Settings after setup.
+								<strong>{m.setup_note_cloud_credentials?.() || 'Note:'}</strong>
 							</p>
 						</div>
 					{/if}
 				</div>
 			</div>
 		</section>
+
 		<!-- Languages -->
-		<section class="space-y-6">
+		<section class="space-y-6 border-t border-slate-200 pt-6 dark:border-slate-700">
 			<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 				<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
 					<label for="default-system-lang" class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -581,5 +590,55 @@
 				</div>
 			</div>
 		</section>
+
+		<!-- System Infrastructure / Mode -->
+		<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+			<!-- Multi-Tenant Toggle -->
+			<div class="input flex items-center gap-3 rounded border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-transparent">
+				<input
+					id="multi-tenant-mode"
+					type="checkbox"
+					bind:checked={systemSettings.multiTenant}
+					class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+				/>
+				<div class="flex items-center gap-2">
+					<iconify-icon icon="mdi:domain" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<label for="multi-tenant-mode" class="font-medium text-black dark:text-white">
+						{m.setup_system_multi_tenant?.() || 'Multi-Tenant Mode'}
+					</label>
+					<SystemTooltip title={m.setup_system_multi_tenant_desc?.() || 'Enables support for multiple isolated tenants...'}>
+						<iconify-icon icon="mdi:help-circle-outline" width="16" class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						></iconify-icon>
+					</SystemTooltip>
+				</div>
+			</div>
+
+			<!-- Demo Mode Toggle -->
+			<div class="input flex items-center gap-3 rounded border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-transparent">
+				<input
+					id="demo-mode"
+					type="checkbox"
+					bind:checked={systemSettings.demoMode}
+					class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+				/>
+				<div class="flex items-center gap-2">
+					<iconify-icon icon="mdi:test-tube" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<label for="demo-mode" class="font-medium text-black dark:text-white">
+						{m.setup_system_demo_mode?.() || 'Demo Mode'}
+					</label>
+					<SystemTooltip
+						title={(m.setup_system_demo_mode_desc?.() || 'Warning: Creates ephemeral environments for visitors.').replace(/<\/?[^>]+(>|$)/g, '')}
+					>
+						<iconify-icon icon="mdi:help-circle-outline" width="16" class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						></iconify-icon>
+					</SystemTooltip>
+					{#if systemSettings.demoMode && !systemSettings.multiTenant}
+						<span class="text-xs font-bold text-amber-600 dark:text-amber-400">
+							({m.setup_note_demo_requires_multitenant?.() || 'Enables Multi-Tenant'})
+						</span>
+					{/if}
+				</div>
+			</div>
+		</div>
 	</div>
 </div>
