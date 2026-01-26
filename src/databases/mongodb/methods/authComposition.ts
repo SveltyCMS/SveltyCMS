@@ -49,6 +49,40 @@ type AuthInterface = IDBAdapter['auth'];
  * const session = await authAdapter.createSession({ user_id: user._id, expires: new Date() });
  * ```
  */
+/**
+ * Helper to get or create the Role model idempotently.
+ */
+function getRoleModel(): mongoose.Model<Role> {
+	if (mongoose.models.auth_roles) {
+		return mongoose.models.auth_roles as mongoose.Model<Role>;
+	}
+
+	const schema = new mongoose.Schema(
+		{
+			_id: { type: String, required: true },
+			name: { type: String, required: true },
+			description: String,
+			isAdmin: Boolean,
+			permissions: [String],
+			tenantId: { type: String, index: true },
+			groupName: String,
+			icon: String,
+			color: String
+		},
+		{
+			_id: false,
+			timestamps: true,
+			collection: 'auth_roles'
+		}
+	);
+
+	// Create optimized indexes for multi-tenant and ID queries
+	schema.index({ tenantId: 1 });
+	schema.index({ tenantId: 1, _id: 1 });
+
+	return mongoose.model<Role>('auth_roles', schema);
+}
+
 export function composeMongoAuthAdapter(): AuthInterface {
 	const userAdapter = new UserAdapter();
 	const sessionAdapter = new SessionAdapter();
@@ -216,38 +250,10 @@ export function composeMongoAuthAdapter(): AuthInterface {
 		blockTokens: tokenAdapter.blockTokens.bind(tokenAdapter),
 		unblockTokens: tokenAdapter.unblockTokens.bind(tokenAdapter),
 
-		// Role Management Methods (basic implementation)
+		// Role Management Methods (normalized and de-duplicated)
 		createRole: async (role: Role): Promise<DatabaseResult<Role>> => {
 			try {
-				// Get or create Role model (stored in 'auth_roles' collection)
-				const RoleModel =
-					mongoose.models.auth_roles ||
-					mongoose.model<Role>(
-						'auth_roles',
-						new mongoose.Schema(
-							{
-								_id: { type: String, required: true },
-								name: { type: String, required: true },
-								description: String,
-								isAdmin: Boolean,
-								permissions: [String],
-								tenantId: { type: String, index: true }, // Multi-tenant support
-								groupName: String,
-								icon: String,
-								color: String
-							},
-							{
-								_id: false,
-								timestamps: true,
-								collection: 'auth_roles'
-							}
-						)
-					);
-
-				// Create indexes for multi-tenant queries
-				await RoleModel.collection.createIndex({ tenantId: 1 });
-				await RoleModel.collection.createIndex({ tenantId: 1, _id: 1 });
-
+				const RoleModel = getRoleModel();
 				const newRole = await RoleModel.create(role);
 
 				return {
@@ -270,35 +276,9 @@ export function composeMongoAuthAdapter(): AuthInterface {
 
 		getAllRoles: async (tenantId?: string): Promise<Role[]> => {
 			try {
-				const RoleModel =
-					mongoose.models.auth_roles ||
-					mongoose.model<Role>(
-						'auth_roles',
-						new mongoose.Schema(
-							{
-								_id: { type: String, required: true },
-								name: { type: String, required: true },
-								description: String,
-								isAdmin: Boolean,
-								permissions: [String],
-								tenantId: { type: String, index: true },
-								groupName: String,
-								icon: String,
-								color: String
-							},
-							{
-								_id: false,
-								timestamps: true,
-								collection: 'auth_roles'
-							}
-						)
-					);
-
-				// Filter by tenantId if in multi-tenant mode
+				const RoleModel = getRoleModel();
 				const filter = tenantId ? { tenantId } : { tenantId: { $exists: false } };
-				const roles = await RoleModel.find(filter).lean<Role[]>();
-
-				return roles;
+				return await RoleModel.find(filter).lean<Role[]>();
 			} catch (err) {
 				logger.error(`Error fetching roles: ${err instanceof Error ? err.message : String(err)}`);
 				return [];
@@ -307,30 +287,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
 
 		getRoleById: async (roleId: string, tenantId?: string): Promise<DatabaseResult<Role | null>> => {
 			try {
-				const RoleModel =
-					mongoose.models.auth_roles ||
-					mongoose.model<Role>(
-						'auth_roles',
-						new mongoose.Schema(
-							{
-								_id: { type: String, required: true },
-								name: { type: String, required: true },
-								description: String,
-								isAdmin: Boolean,
-								permissions: [String],
-								tenantId: { type: String, index: true },
-								groupName: String,
-								icon: String,
-								color: String
-							},
-							{
-								_id: false,
-								timestamps: true,
-								collection: 'auth_roles'
-							}
-						)
-					);
-
+				const RoleModel = getRoleModel();
 				const filter: { _id: string; tenantId?: { $exists: boolean } | string } = { _id: roleId };
 				if (tenantId) {
 					filter.tenantId = tenantId;
@@ -360,30 +317,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
 
 		updateRole: async (roleId: string, roleData: Partial<Role>, tenantId?: string): Promise<DatabaseResult<Role>> => {
 			try {
-				const RoleModel =
-					mongoose.models.auth_roles ||
-					mongoose.model<Role>(
-						'auth_roles',
-						new mongoose.Schema(
-							{
-								_id: { type: String, required: true },
-								name: { type: String, required: true },
-								description: String,
-								isAdmin: Boolean,
-								permissions: [String],
-								tenantId: { type: String, index: true },
-								groupName: String,
-								icon: String,
-								color: String
-							},
-							{
-								_id: false,
-								timestamps: true,
-								collection: 'auth_roles'
-							}
-						)
-					);
-
+				const RoleModel = getRoleModel();
 				const filter: { _id: string; tenantId?: { $exists: boolean } | string } = { _id: roleId };
 				if (tenantId) {
 					filter.tenantId = tenantId;
@@ -424,30 +358,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
 
 		deleteRole: async (roleId: string, tenantId?: string): Promise<DatabaseResult<void>> => {
 			try {
-				const RoleModel =
-					mongoose.models.auth_roles ||
-					mongoose.model<Role>(
-						'auth_roles',
-						new mongoose.Schema(
-							{
-								_id: { type: String, required: true },
-								name: { type: String, required: true },
-								description: String,
-								isAdmin: Boolean,
-								permissions: [String],
-								tenantId: { type: String, index: true },
-								groupName: String,
-								icon: String,
-								color: String
-							},
-							{
-								_id: false,
-								timestamps: true,
-								collection: 'auth_roles'
-							}
-						)
-					);
-
+				const RoleModel = getRoleModel();
 				const filter: { _id: string; tenantId?: { $exists: boolean } | string } = { _id: roleId };
 				if (tenantId) {
 					filter.tenantId = tenantId;

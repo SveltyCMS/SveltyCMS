@@ -14,7 +14,7 @@
  */
 
 import type { Model } from 'mongoose';
-import type { DatabaseId, WebsiteToken } from '../../dbInterface';
+import type { DatabaseId, DatabaseResult, WebsiteToken } from '../../dbInterface';
 import { MongoCrudMethods } from './crudMethods';
 
 export class MongoWebsiteTokenMethods {
@@ -24,7 +24,7 @@ export class MongoWebsiteTokenMethods {
 		this.crud = new MongoCrudMethods(websiteTokenModel);
 	}
 
-	async create(token: Omit<WebsiteToken, '_id' | 'createdAt'>): Promise<WebsiteToken> {
+	async create(token: Omit<WebsiteToken, '_id' | 'createdAt'>): Promise<DatabaseResult<WebsiteToken>> {
 		return this.crud.insert(token as WebsiteToken);
 	}
 
@@ -34,18 +34,28 @@ export class MongoWebsiteTokenMethods {
 		sort?: string;
 		order?: string;
 		filter?: any;
-	}): Promise<{ data: WebsiteToken[]; total: number }> {
+	}): Promise<DatabaseResult<{ data: WebsiteToken[]; total: number }>> {
 		const sort = options.sort && options.order ? { [options.sort]: options.order as 'asc' | 'desc' | 1 | -1 } : {};
-		const data = await this.crud.findMany(options.filter || {}, { limit: options.limit, skip: options.skip, sort });
-		const total = await this.crud.count(options.filter || {});
-		return { data, total };
+
+		const [dataRes, totalRes] = await Promise.all([
+			this.crud.findMany(options.filter || {}, { limit: options.limit, skip: options.skip, sort }),
+			this.crud.count(options.filter || {})
+		]);
+
+		if (!dataRes.success) return dataRes as any;
+		if (!totalRes.success) return totalRes as any;
+
+		return {
+			success: true,
+			data: { data: dataRes.data, total: totalRes.data }
+		};
 	}
 
-	async delete(tokenId: DatabaseId): Promise<boolean> {
+	async delete(tokenId: DatabaseId): Promise<DatabaseResult<boolean>> {
 		return this.crud.delete(tokenId);
 	}
 
-	async getByName(name: string): Promise<WebsiteToken | null> {
+	async getByName(name: string): Promise<DatabaseResult<WebsiteToken | null>> {
 		return this.crud.findOne({ name });
 	}
 }

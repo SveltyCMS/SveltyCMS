@@ -227,79 +227,87 @@
 	});
 
 	// Export WidgetData for data binding with Fields.svelte
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+
+	// Export WidgetData for data binding with Fields.svelte
 	export const WidgetData = async () => value;
 </script>
 
-<div class="relative mb-4 min-h-10 w-full pb-6">
-	<div class="preset-filled-surface-500 btn-group flex w-full rounded" role="group">
-		{#if field?.prefix}
-			<button class="px-2!" type="button" aria-label={`${field.prefix} prefix`}>
-				{field?.prefix}
-			</button>
-		{/if}
+<div class="relative mb-4 min-h-10 w-full">
+	<SystemTooltip title={validationError || ''} wFull={true}>
+		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600" role="group">
+			{#if field?.prefix}
+				<div
+					class="flex items-center bg-surface-200 px-3 text-surface-700 dark:bg-surface-800 dark:text-surface-200"
+					aria-label={`${field.prefix} prefix`}
+				>
+					{field?.prefix}
+				</div>
+			{/if}
 
-		<input
-			type="text"
-			value={safeValue}
-			oninput={(e) => {
-				updateValue(e.currentTarget.value);
-				handleInput();
-			}}
-			onblur={handleBlur}
-			onfocus={handleFocus}
-			name={field?.db_fieldName}
-			id={field?.db_fieldName}
-			placeholder={(field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName) as string | undefined}
-			required={field?.required as boolean | undefined}
-			disabled={field?.disabled as boolean | undefined}
-			readonly={field?.readonly as boolean | undefined}
-			minlength={field?.minLength as number | undefined}
-			maxlength={field?.maxLength as number | undefined}
-			class="input w-full flex-1 rounded-none text-black dark:text-primary-500 bg-surface-50 dark:bg-surface-700 focus:border-tertiary-500 focus:outline-none"
-			class:!border-error-500={!!validationError}
-			class:!border-primary-500={isValidating && !validationError}
-			class:!bg-error-500-10={!!validationError}
-			aria-invalid={!!validationError}
-			aria-describedby={validationError ? `${fieldName}-error` : field.helper ? `${fieldName}-helper` : undefined}
-			aria-required={field?.required}
-			data-testid="text-input"
-		/>
+			<input
+				type="text"
+				value={safeValue}
+				oninput={(e) => {
+					updateValue(e.currentTarget.value);
+					handleInput();
+				}}
+				onblur={handleBlur}
+				onfocus={handleFocus}
+				oninvalid={(e) => e.preventDefault()}
+				name={field?.db_fieldName}
+				id={field?.db_fieldName}
+				placeholder={(field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName) as string | undefined}
+				required={field?.required as boolean | undefined}
+				disabled={field?.disabled as boolean | undefined}
+				readonly={field?.readonly as boolean | undefined}
+				minlength={field?.minLength as number | undefined}
+				maxlength={field?.maxLength as number | undefined}
+				class="input w-full flex-1 rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {!!validationError
+					? 'bg-error-500-10!'
+					: ''}"
+				aria-invalid={!!validationError}
+				aria-describedby={validationError ? `${fieldName}-error` : field.helper ? `${fieldName}-helper` : undefined}
+				aria-required={field?.required}
+				data-testid="text-input"
+			/>
 
-		<!-- suffix and count -->
-		{#if field?.suffix || field?.count || field?.minLength || field?.maxLength}
-			<div class="flex items-center" role="status" aria-live="polite">
-				{#if field?.count || field?.minLength || field?.maxLength}
-					<span class="badge mr-1 rounded-full {badgeClass}" aria-label="Character count">
-						{#if field?.count && field?.minLength && field?.maxLength}
-							{count}/{field?.maxLength}
-						{:else if field?.count && field?.maxLength}
-							{count}/{field?.maxLength}
-						{:else if field?.count && field?.minLength}
-							{count} => {field?.minLength}
-						{:else if field?.minLength && field?.maxLength}
-							{count} => {field?.minLength}/{field?.maxLength}
-						{:else if field?.count}
-							{count}/{field?.count}
-						{:else if field?.maxLength}
-							{count}/{field?.maxLength}
-						{:else if field?.minLength}
-							min {field?.minLength}
-						{/if}
-					</span>
-				{/if}
-				{#if field?.suffix}
-					<span class="px-1!" aria-label={`${field.suffix} suffix`}>{field?.suffix}</span>
-				{/if}
-			</div>
-		{/if}
+			<!-- suffix and count -->
+			{#if field?.suffix || field?.count || field?.minLength || field?.maxLength}
+				<div class="flex items-center bg-surface-100 px-2 dark:bg-surface-800" role="status" aria-live="polite">
+					{#if field?.count || field?.minLength || field?.maxLength}
+						<span class="badge mr-1 rounded-full {badgeClass}" aria-label="Character count">
+							{#if field?.count && field?.minLength && field?.maxLength}
+								{count}/{field?.maxLength}
+							{:else if field?.count && field?.maxLength}
+								{count}/{field?.maxLength}
+							{:else if field?.count && field?.minLength}
+								{count} => {field?.minLength}
+							{:else if field?.minLength && field?.maxLength}
+								{count} => {field?.minLength}/{field?.maxLength}
+							{:else if field?.count}
+								{count}/{field?.count}
+							{:else if field?.maxLength}
+								{count}/{field?.maxLength}
+							{:else if field?.minLength}
+								min {field?.minLength}
+							{/if}
+						</span>
+					{/if}
+					{#if field?.suffix}
+						<span class="text-surface-700 dark:text-surface-200" aria-label={`${field.suffix} suffix`}>{field?.suffix}</span>
+					{/if}
+				</div>
+			{/if}
 
-		<!-- Validation indicator -->
-		{#if isValidating}
-			<div class="flex items-center px-2" aria-label="Validating">
-				<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
-			</div>
-		{/if}
-	</div>
+			<!-- Validation indicator -->
+			{#if isValidating}
+				<div class="flex items-center bg-white px-2 dark:bg-surface-900" aria-label="Validating">
+					<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+				</div>
+			{/if}
+		</div>
+	</SystemTooltip>
 
 	<!-- Helper Text -->
 	{#if field.helper}

@@ -7,7 +7,7 @@
 
 import { logger } from '@utils/logger';
 import type { Model } from 'mongoose';
-import type { DatabaseId, Widget } from '../../dbInterface';
+import type { DatabaseId, Widget, DatabaseResult } from '../../dbInterface';
 import type { Widget as IWidget } from '../../dbInterface'; // Assuming you have a document interface
 import { createDatabaseError, generateId } from './mongoDBUtils';
 import { withCache, CacheCategory, invalidateCollectionCache, invalidateCategoryCache } from './mongoDBCacheUtils';
@@ -31,10 +31,9 @@ export class MongoWidgetMethods {
 	/**
 	 * Registers (creates) a new widget in the database.
 	 * @param {Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>} widgetData - The data for the new widget.
-	 * @returns {Promise<Widget>} The created widget object.
-	 * @throws {DatabaseError} If the database operation fails.
+	 * @returns {Promise<DatabaseResult<Widget>>} The created widget object.
 	 */
-	async register(widgetData: Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>): Promise<Widget> {
+	async register(widgetData: Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<Widget>> {
 		try {
 			// Generate UUID for _id since schema requires it
 			const widgetWithId = {
@@ -58,13 +57,17 @@ export class MongoWidgetMethods {
 				collection: this.widgetModel.collection.name
 			});
 
-			return result;
+			return { success: true, data: result };
 		} catch (error) {
 			logger.error(`[WidgetMethods] Failed to register widget "${widgetData.name}"`, {
 				error: error instanceof Error ? error.message : String(error),
 				collection: this.widgetModel.collection.name
 			});
-			throw createDatabaseError(error, 'WIDGET_REGISTER_FAILED', 'Failed to register widget');
+			return {
+				success: false,
+				message: 'Failed to register widget',
+				error: createDatabaseError(error, 'WIDGET_REGISTER_FAILED', 'Failed to register widget')
+			};
 		}
 	}
 
@@ -72,17 +75,27 @@ export class MongoWidgetMethods {
 	 * Finds a single widget by its ID.
 	 * Cached with 600s TTL since widget configs are relatively stable
 	 * @param {DatabaseId} widgetId - The ID of the widget to find.
-	 * @returns {Promise<Widget | null>} The widget object or null if not found.
-	 * @throws {DatabaseError} If the database operation fails.
+	 * @returns {Promise<DatabaseResult<Widget | null>>} The widget object or null if not found.
 	 */
-	async findById(widgetId: DatabaseId): Promise<Widget | null> {
+	async findById(widgetId: DatabaseId): Promise<DatabaseResult<Widget | null>> {
+		// withCache doesn't natively support DatabaseResult wrapping yet if the underlying returns raw data
+		// But if we change the callback to return T, withCache returns T.
+		// We want withCache to cache the successful data.
+		// So we fetch, if success we return data. Then we wrap the result.
+
+		const cacheKey = `widget:id:${widgetId}`;
 		return withCache(
-			`widget:id:${widgetId}`,
+			cacheKey,
 			async () => {
 				try {
-					return await this.widgetModel.findById(widgetId).lean().exec();
+					const result = await this.widgetModel.findById(widgetId).lean().exec();
+					return { success: true, data: result } as DatabaseResult<Widget | null>;
 				} catch (error) {
-					throw createDatabaseError(error, 'WIDGET_FETCH_FAILED', `Failed to find widget with ID ${widgetId}`);
+					return {
+						success: false,
+						message: `Failed to find widget with ID ${widgetId}`,
+						error: createDatabaseError(error, 'WIDGET_FETCH_FAILED', `Failed to find widget with ID ${widgetId}`)
+					};
 				}
 			},
 			{ category: CacheCategory.WIDGET }
@@ -92,10 +105,9 @@ export class MongoWidgetMethods {
 	/**
 	 * Activates a widget, setting its `isActive` flag to true.
 	 * @param {DatabaseId} widgetId - The ID of the widget to activate.
-	 * @returns {Promise<Widget | null>} The updated widget object or null if not found.
-	 * @throws {DatabaseError} If the database operation fails.
+	 * @returns {Promise<DatabaseResult<Widget | null>>} The updated widget object or null if not found.
 	 */
-	async activate(widgetId: DatabaseId): Promise<Widget | null> {
+	async activate(widgetId: DatabaseId): Promise<DatabaseResult<Widget | null>> {
 		try {
 			const result = await this.widgetModel
 				.findByIdAndUpdate(widgetId, { $set: { isActive: true } }, { new: true })
@@ -105,10 +117,6 @@ export class MongoWidgetMethods {
 			// Invalidate widget caches - including the active widgets list cache
 			logger.debug('[widgetMethods.activate] Invalidating active widgets cache');
 
-			// NOTE: This cache clearing is a best-effort attempt but won't work correctly
-			// for multi-tenant setups because widgetMethods doesn't have tenant context.
-			// The REAL cache invalidation happens in /api/widgets/status/+server.ts
-			// which has access to locals.tenantId. We keep this here as defense-in-depth.
 			await Promise.all([
 				invalidateCollectionCache(`widget:id:${widgetId}`),
 				cacheService.delete('widget:active:all'), // No tenant (default)
@@ -119,19 +127,22 @@ export class MongoWidgetMethods {
 
 			logger.debug('[widgetMethods.activate] Cache invalidated successfully');
 
-			return result;
+			return { success: true, data: result };
 		} catch (error) {
-			throw createDatabaseError(error, 'WIDGET_UPDATE_FAILED', 'Failed to activate widget');
+			return {
+				success: false,
+				message: 'Failed to activate widget',
+				error: createDatabaseError(error, 'WIDGET_UPDATE_FAILED', 'Failed to activate widget')
+			};
 		}
 	}
 
 	/**
 	 * Deactivates a widget, setting its `isActive` flag to false.
 	 * @param {DatabaseId} widgetId - The ID of the widget to deactivate.
-	 * @returns {Promise<Widget | null>} The updated widget object or null if not found.
-	 * @throws {DatabaseError} If the database operation fails.
+	 * @returns {Promise<DatabaseResult<Widget | null>>} The updated widget object or null if not found.
 	 */
-	async deactivate(widgetId: DatabaseId): Promise<Widget | null> {
+	async deactivate(widgetId: DatabaseId): Promise<DatabaseResult<Widget | null>> {
 		try {
 			const result = await this.widgetModel
 				.findByIdAndUpdate(widgetId, { $set: { isActive: false } }, { new: true })
@@ -141,10 +152,6 @@ export class MongoWidgetMethods {
 			// Invalidate widget caches - including the active widgets list cache
 			logger.debug('[widgetMethods.deactivate] Invalidating active widgets cache');
 
-			// NOTE: This cache clearing is a best-effort attempt but won't work correctly
-			// for multi-tenant setups because widgetMethods doesn't have tenant context.
-			// The REAL cache invalidation happens in /api/widgets/status/+server.ts
-			// which has access to locals.tenantId. We keep this here as defense-in-depth.
 			await Promise.all([
 				invalidateCollectionCache(`widget:id:${widgetId}`),
 				cacheService.delete('widget:active:all'), // No tenant (default)
@@ -155,9 +162,13 @@ export class MongoWidgetMethods {
 
 			logger.debug('[widgetMethods.deactivate] Cache invalidated successfully');
 
-			return result;
+			return { success: true, data: result };
 		} catch (error) {
-			throw createDatabaseError(error, 'WIDGET_UPDATE_FAILED', 'Failed to deactivate widget');
+			return {
+				success: false,
+				message: 'Failed to deactivate widget',
+				error: createDatabaseError(error, 'WIDGET_UPDATE_FAILED', 'Failed to deactivate widget')
+			};
 		}
 	}
 
@@ -165,24 +176,14 @@ export class MongoWidgetMethods {
 	 * Updates an existing widget with new data.
 	 * @param {DatabaseId} widgetId - The ID of the widget to update.
 	 * @param {Partial<Omit<Widget, '_id'>>} widgetData - The fields to update.
-	 * @returns {Promise<Widget | null>} The updated widget object or null if not found.
-	 * @throws {DatabaseError} If the database operation fails.
+	 * @returns {Promise<DatabaseResult<Widget | null>>} The updated widget object or null if not found.
 	 */
-	async update(widgetId: DatabaseId, widgetData: Partial<Omit<Widget, '_id'>>): Promise<Widget | null> {
+	async update(widgetId: DatabaseId, widgetData: Partial<Omit<Widget, '_id'>>): Promise<DatabaseResult<Widget | null>> {
 		try {
 			logger.debug('[widgetMethods.update] Starting update', {
 				widgetId,
 				widgetData,
 				collection: this.widgetModel.collection.name
-			});
-
-			// Check if widget exists before update
-			const existingWidget = await this.widgetModel.findById(widgetId).lean().exec();
-			logger.debug('[widgetMethods.update] Existing widget state', {
-				widgetId,
-				exists: !!existingWidget,
-				currentIsActive: existingWidget?.isActive,
-				currentUpdatedAt: existingWidget?.updatedAt
 			});
 
 			const result = await this.widgetModel.findByIdAndUpdate(widgetId, { $set: widgetData }, { new: true }).lean().exec();
@@ -200,7 +201,6 @@ export class MongoWidgetMethods {
 				cacheKeys: ['widget:active:all (all tenants)']
 			});
 
-			// Clear cache for all possible tenant contexts since widgets are system-wide
 			await Promise.all([
 				invalidateCollectionCache(`widget:id:${widgetId}`),
 				cacheService.delete('widget:active:all'), // No tenant (default)
@@ -212,41 +212,47 @@ export class MongoWidgetMethods {
 			logger.debug('[widgetMethods.update] Caches invalidated successfully', {
 				widgetId
 			});
-			return result;
+			return { success: true, data: result };
 		} catch (error) {
 			logger.error('[widgetMethods.update] Update failed', {
 				widgetId,
 				error: error instanceof Error ? error.message : String(error)
 			});
-			throw createDatabaseError(error, 'WIDGET_UPDATE_FAILED', 'Failed to update widget');
+			return {
+				success: false,
+				message: 'Failed to update widget',
+				error: createDatabaseError(error, 'WIDGET_UPDATE_FAILED', 'Failed to update widget')
+			};
 		}
 	}
 
 	/**
 	 * Deletes a widget from the database.
 	 * @param {DatabaseId} widgetId - The ID of the widget to delete.
-	 * @returns {Promise<boolean>} True if a widget was deleted, false otherwise.
-	 * @throws {DatabaseError} If the database operation fails.
+	 * @returns {Promise<DatabaseResult<boolean>>} True if a widget was deleted, false otherwise.
 	 */
-	async delete(widgetId: DatabaseId): Promise<boolean> {
+	async delete(widgetId: DatabaseId): Promise<DatabaseResult<boolean>> {
 		try {
 			const result = await this.widgetModel.findByIdAndDelete(widgetId).exec();
 
 			// Invalidate widget caches
 			await Promise.all([invalidateCollectionCache(`widget:id:${widgetId}`), invalidateCategoryCache(CacheCategory.WIDGET)]);
 
-			return !!result;
+			return { success: true, data: !!result };
 		} catch (error) {
-			throw createDatabaseError(error, 'WIDGET_DELETE_FAILED', 'Failed to delete widget');
+			return {
+				success: false,
+				message: 'Failed to delete widget',
+				error: createDatabaseError(error, 'WIDGET_DELETE_FAILED', 'Failed to delete widget')
+			};
 		}
 	}
 
 	/**
 	 * Retrieves all widgets from the database.
-	 * @returns {Promise<Widget[]>} An array of all widget objects.
-	 * @throws {DatabaseError} If the database operation fails.
+	 * @returns {Promise<DatabaseResult<Widget[]>>} An array of all widget objects.
 	 */
-	async findAll(): Promise<Widget[]> {
+	async findAll(): Promise<DatabaseResult<Widget[]>> {
 		try {
 			logger.debug('[widgetMethods.findAll] Querying widgets from database', {
 				collection: this.widgetModel.collection.name
@@ -260,26 +266,29 @@ export class MongoWidgetMethods {
 				widgets: widgets.map((w) => ({ name: w.name, isActive: w.isActive, _id: w._id }))
 			});
 
-			return widgets;
+			return { success: true, data: widgets };
 		} catch (error) {
 			logger.error('[widgetMethods.findAll] Failed to query widgets', {
 				error: error instanceof Error ? error.message : String(error),
 				collection: this.widgetModel.collection.name
 			});
-			throw createDatabaseError(error, 'WIDGET_FETCH_ALL_FAILED', 'Failed to get all widgets');
+			return {
+				success: false,
+				message: 'Failed to get all widgets',
+				error: createDatabaseError(error, 'WIDGET_FETCH_ALL_FAILED', 'Failed to get all widgets')
+			};
 		}
 	}
 
 	/**
 	 * Retrieves all active widgets from the database.
 	 * Cached with 600s TTL since active widgets are frequently accessed on every page
-	 * @returns {Promise<Widget[]>} An array of active widget objects.
-	 * @throws {DatabaseError} If the database operation fails.
+	 * @returns {Promise<DatabaseResult<Widget[]>>} An array of active widget objects.
 	 */
-	async findAllActive(tenantId?: string): Promise<Widget[]> {
+	async findAllActive(tenantId?: string): Promise<DatabaseResult<Widget[]>> {
 		logger.debug('[widgetMethods.findAllActive] Fetching active widgets (may be cached)', { tenantId });
 
-		const result = await withCache(
+		return withCache(
 			'widget:active:all',
 			async () => {
 				try {
@@ -289,30 +298,26 @@ export class MongoWidgetMethods {
 						count: widgets.length,
 						widgets: widgets.map((w) => w.name)
 					});
-					return widgets;
+					return { success: true, data: widgets } as DatabaseResult<Widget[]>;
 				} catch (error) {
-					throw createDatabaseError(error, 'WIDGET_FETCH_ACTIVE_FAILED', 'Failed to get active widgets');
+					return {
+						success: false,
+						message: 'Failed to get active widgets',
+						error: createDatabaseError(error, 'WIDGET_FETCH_ACTIVE_FAILED', 'Failed to get active widgets')
+					};
 				}
 			},
 			{ category: CacheCategory.WIDGET, tenantId }
 		);
-
-		logger.debug('[widgetMethods.findAllActive] Returning result', {
-			count: result.length,
-			widgets: result.map((w) => w.name)
-		});
-
-		return result;
 	}
 
 	/**
 	 * Direct database query for active widgets
 	 * This method pushes filtering to the database layer instead of fetching all widgets
 	 * and filtering in application code. This is significantly faster for large widget sets.
-	 * @returns {Promise<Widget[]>} An array of active widget objects.
-	 * @throws {DatabaseError} If the database operation fails.
+	 * @returns {Promise<DatabaseResult<Widget[]>>} An array of active widget objects.
 	 */
-	async getActiveWidgets(): Promise<Widget[]> {
+	async getActiveWidgets(): Promise<DatabaseResult<Widget[]>> {
 		try {
 			logger.debug('[widgetMethods.getActiveWidgets] Querying active widgets from database');
 			const widgets = await this.widgetModel.find({ isActive: true }).lean().exec();
@@ -320,12 +325,16 @@ export class MongoWidgetMethods {
 				count: widgets.length,
 				widgets: widgets.map((w) => ({ name: w.name, _id: w._id }))
 			});
-			return widgets;
+			return { success: true, data: widgets };
 		} catch (error) {
 			logger.error('[widgetMethods.getActiveWidgets] Failed to query active widgets', {
 				error: error instanceof Error ? error.message : String(error)
 			});
-			throw createDatabaseError(error, 'WIDGET_FETCH_ACTIVE_FAILED', 'Failed to get active widgets');
+			return {
+				success: false,
+				message: 'Failed to get active widgets',
+				error: createDatabaseError(error, 'WIDGET_FETCH_ACTIVE_FAILED', 'Failed to get active widgets')
+			};
 		}
 	}
 }

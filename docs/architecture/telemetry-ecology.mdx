@@ -59,11 +59,34 @@ Instead, your CMS generates a unique **Installation ID** by hashing your private
 
 To ensure the telemetry service never interferes with user experience or system stability, we implement several safety layers:
 
+- **Dependency Hardening**: Telemetry services now use explicit `await db.ensure<Feature>()` guards. They do not trigger initialization of heavyweight modules like the Content Manager; instead, they verify that the specific sub-system is READY before attempting access.
+- **Progressive Activation**: The telemetry check is scheduled during the **WARMING** phase. This ensures it runs strictly in the background after the primary API is already operational.
+- **Connection Awareness**: All external calls respect the `dbAdapter` connection status. If the database is not connected, cycles are skipped gracefully to prevent race conditions during early boot.
 - **Strict Timeouts**: All external calls have mandatory timeouts (5s for Geolocation, 10s for the Heartbeat). If the server is slow, the check is skipped.
 - **Fail-Safe Backgrounding**: Telemetry runs strictly in the background using "fire-and-forget" async patterns. It is never awaited by the main request cycle.
 - **Non-Fatal Failures**: Hardware metric collection and network errors are wrapped in `try-catch` blocks. The system fails silently and logs issues as warnings rather than errors.
 - **Rate Limiting**: Each IP address is limited to **1 check per 12 hours** (enforced by client and server).
 - **Environment Isolation**: Telemetry is automatically disabled during build processes (`building` flag) or in CI/CD environments.
+
+---
+
+## 1.7 Comparative Telemetry Landscape
+
+| Feature          | SveltyCMS              | WP / Drupal           | Directus               | Payload / Strapi  | Contentful (SaaS)    |
+| :--------------- | :--------------------- | :-------------------- | :--------------------- | :---------------- | :------------------- |
+| **Model**        | **Ghost Mode (Local)** | Plugin-Based / Opt-in | **Opt-out (SaaS Opt)** | **Tracking-Lite** | **Always-On (SaaS)** |
+| **Transparency** | **Fully Open Source**  | Fragmented            | Partially Hidden       | Open Source       | **Closed Source**    |
+| **Perf Impact**  | **Sub-10ms (WARMING)** | Variable (Blocking)   | Low (Async)            | Medium (Runtime)  | N/A (Cloud)          |
+| **Privacy**      | **Anonymized Hash**    | Plugin-Dependent      | User-Scoped            | Instance-Scoped   | **Full User ID**     |
+| **Control**      | **Disable via Config** | Manual Uninstalls     | Environment Var        | Environment Var   | **Impossible**       |
+
+### SveltyCMS vs. The Monoliths (WP/Drupal)
+
+Legacy monoliths typically lack a unified, non-blocking telemetry system. Users often rely on third-party security plugins or "site health" modules that can execute synchronous network requests, potentially slowing down the admin dashboard. SveltyCMS specifically designs telemetry as a **WARMING phase secondary task**, ensuring it never competes for the critical path resource.
+
+### SveltyCMS vs. SaaS (Contentful)
+
+In a SaaS environment like Contentful, "telemetry" is the platform's core—every interaction is tracked, logged, and monetized internally. There is no concept of "Ghost Mode" because the user does not own the infrastructure. SveltyCMS provides the benefits of SaaS analytics (security alerts, update notifications) while maintaining the **sovereignty** of a self-hosted platform, including the ability to completely sever external connections if required for highly secure air-gapped environments.
 
 ## 2. Privacy & Opt-Out
 
@@ -121,14 +144,14 @@ SVELTYCMS_TELEMETRY=false
 
 ## SveltyCMS Telemetry vs Other CMS
 
-| Feature                    | Drupal    | WordPress         | Strapi    | SveltyCMS                 |
-| :------------------------- | :-------- | :---------------- | :-------- | :------------------------ |
-| **Authentication**         | UUID only | N/A (centralized) | UUID only | ✅ HMAC + Repo + Cache    |
-| **Replay Protection**      | ❌ None   | N/A               | ❌ None   | ✅ 5-min timestamp window |
-| **Spoofing Difficulty**    | Easy      | N/A               | Easy      | Hard (multi-layer)        |
-| **Rate Limiting**          | Basic     | N/A               | Basic     | ✅ Per-IP + flood alerts  |
-| **Version Validation**     | ❌ None   | ❌ None           | ❌ None   | ✅ GitHub cache           |
-| **Open Source Compatible** | ✅        | ✅                | ✅        | ✅                        |
+| Feature                    | SveltyCMS                 | Strapi    | Directus   | PayloadCMS | WordPress         | Drupal    |
+| :------------------------- | :------------------------ | :-------- | :--------- | :--------- | :---------------- | :-------- |
+| **Authentication**         | ✅ HMAC + Repo + Cache    | UUID only | JWT / UUID | UUID only  | N/A (centralized) | UUID only |
+| **Replay Protection**      | ✅ 5-min timestamp window | ❌ None   | ❌ None    | ❌ None    | N/A               | ❌ None   |
+| **Spoofing Difficulty**    | Hard (multi-layer)        | Easy      | Medium     | Easy       | N/A               | Easy      |
+| **Rate Limiting**          | ✅ Per-IP + flood alerts  | Basic     | Moderate   | Basic      | N/A               | Basic     |
+| **Version Validation**     | ✅ GitHub cache           | ❌ None   | ⚠️ Manual  | ❌ None    | ❌ None           | ❌ None   |
+| **Open Source Compatible** | ✅                        | ✅        | ✅         | ✅         | ✅                | ✅        |
 
 ### Your Advantages Summary
 

@@ -101,7 +101,7 @@ optional actions, and smooth animations.
 		<div in:fly={animParams} out:fade={{ duration: 200 }} class="relative" role="alert" aria-live="polite">
 			<Toast
 				{toast}
-				class="card w-fit min-w-[320px] md:min-w-[400px] max-w-[90vw] shadow-2xl rounded-2xl overflow-hidden {getToastGradient(
+				class="card w-fit min-w-[320px] md:min-w-[400px] max-w-[90vw] shadow-2xl rounded overflow-hidden {getToastGradient(
 					toast.type
 				)} border-none flex flex-col pointer-events-auto text-white"
 			>

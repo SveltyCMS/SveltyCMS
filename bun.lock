@@ -38,7 +38,7 @@
         "@types/mapbox__mapbox-gl-geocoder": "^5.1.0",
         "@types/serialize-javascript": "^5.0.4",
         "argon2": "^0.44.0",
-        "axios": "^1.13.2",
+        "axios": "^1.13.3",
         "better-svelte-email": "^1.4.0",
         "buffer": "^6.0.3",
         "chart.js": "^4.5.1",

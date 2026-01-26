@@ -133,4 +133,14 @@ export class ThemesModule {
 			return theme ? (utils.convertDatesToISO(theme) as unknown as Theme) : null;
 		}, 'GET_DEFAULT_THEME_FAILED');
 	}
+
+	async ensure(theme: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>): Promise<Theme> {
+		const exists = await this.db.select().from(schema.themes).where(eq(schema.themes.name, theme.name)).limit(1);
+		if (exists.length > 0) {
+			return utils.convertDatesToISO(exists[0]) as unknown as Theme;
+		}
+		const res = await this.install(theme);
+		if (!res.success) throw new Error(res.message);
+		return res.data;
+	}
 }

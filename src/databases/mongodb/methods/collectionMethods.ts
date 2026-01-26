@@ -61,9 +61,6 @@ export class MongoCollectionMethods {
 
 		logger.debug(`Creating/updating collection model for: ${collectionId}`);
 
-		// Invalidate cache for this collection
-		await invalidateCollectionCache(`schema:collection:${collectionId}`);
-
 		const modelName = `collection_${collectionId}`;
 
 		// Force delete existing model and registry entry to ensure clean slate
@@ -145,39 +142,14 @@ export class MongoCollectionMethods {
 		// Create database indexes for optimal query performance
 		await this.createIndexes(model, schema);
 
-		// NOTE: Physical collection creation disabled
-		// Using generic system_content_structure table for all collections instead of per-collection tables
-		// This is more efficient and reduces database clutter
-		// MongoDB will create collections lazily on first insert if needed
-
-		// Create the physical collection in MongoDB if it doesn't exist
-		// MongoDB creates collections lazily on first insert, but we want them to exist immediately
-		/* DISABLED - Using system_content_structure instead
-		try {
-			const collectionExists = await this.collectionExists(modelName.toLowerCase());
-			if (!collectionExists) {
-				logger.debug(`Creating physical collection: ${modelName} in database`);
-				await mongoose.connection.db?.createCollection(modelName.toLowerCase());
-				logger.info(`✅ Physical collection created: ${modelName}`);
-			} else {
-				logger.debug(`Physical collection already exists: ${modelName}`);
-			}
-		} catch (error) {
-			// Collection might already exist or database might not support it
-			// This is not critical - MongoDB will create it on first insert
-			logger.warn(`Could not create physical collection ${modelName}: ${error instanceof Error ? error.message : String(error)}`);
-		}
-		*/
+		// Invalidate cache for this collection AFTER successful creation
+		await invalidateCollectionCache(`schema:collection:${collectionId}`);
 	}
 
 	/**
 	 * Updates an existing collection model
 	 */
 	async updateModel(schema: Schema): Promise<void> {
-		// Invalidate cache before updating
-		if (schema._id) {
-			await invalidateCollectionCache(`schema:collection:${schema._id}`);
-		}
 		// For now, just recreate the model
 		await this.createModel(schema);
 	}
@@ -186,15 +158,15 @@ export class MongoCollectionMethods {
 	 * Deletes a collection model
 	 */
 	async deleteModel(id: string): Promise<void> {
-		// Invalidate cache before deleting
-		await invalidateCollectionCache(`schema:collection:${id}`);
-
 		this.models.delete(id);
 		const modelName = `collection_${id}`;
 		if (mongoose.models[modelName]) {
 			delete mongoose.models[modelName];
 		}
 		logger.info(`Collection model deleted: ${id}`);
+
+		// Invalidate cache after successful deletion
+		await invalidateCollectionCache(`schema:collection:${id}`);
 	}
 
 	/**
@@ -245,7 +217,7 @@ export class MongoCollectionMethods {
 			logger.debug(`Creating indexes for collection: ${collectionId}`);
 
 			// Essential indexes for all collections
-			const indexes: Array<{ fields: Record<string, 1 | -1>; options?: Record<string, unknown> }> = [
+			const indexes: Array<{ fields: Record<string, 1 | -1 | 'text'>; options?: Record<string, unknown> }> = [
 				// Primary sort/filter indexes
 				{ fields: { status: 1 } },
 				{ fields: { createdAt: -1 } },
@@ -261,6 +233,9 @@ export class MongoCollectionMethods {
 				{ fields: { tenantId: 1, status: 1 } },
 				{ fields: { tenantId: 1, createdAt: -1 } }
 			];
+
+			// Aggregate all text fields into a single text index (MongoDB restriction: only one text index per collection)
+			const textFields: Record<string, 'text'> = {};
 
 			// Add indexes for fields marked as indexed or unique
 			if (schema.fields && Array.isArray(schema.fields)) {
@@ -293,30 +268,36 @@ export class MongoCollectionMethods {
 
 						// Text index for searchable text fields
 						if (fieldObj.searchable && (fieldObj.type === 'text' || fieldObj.type === 'textarea')) {
-							indexes.push({
-								fields: { [fieldKey]: 'text' as unknown as 1 },
-								options: { default_language: 'english' }
-							});
+							textFields[fieldKey] = 'text';
 						}
 					}
 				}
 			}
 
-			// Create all indexes
+			// Add the aggregated text index if fields exist
+			if (Object.keys(textFields).length > 0) {
+				indexes.push({
+					fields: textFields,
+					options: { name: 'text_search_index', default_language: 'english' }
+				});
+			}
+
+			// Create all indexes in parallel for maximum performance
 			const collection = model.collection;
-			for (const index of indexes) {
+			const indexPromises = indexes.map(async (index) => {
 				try {
-					await collection.createIndex(index.fields, index.options || {});
+					await collection.createIndex(index.fields as any, index.options || {});
 					logger.trace(`Created index on ${Object.keys(index.fields).join(', ')} for ${collectionId}`);
 				} catch (error) {
-					// Ignore duplicate index errors
-					if ((error as Error).message.includes('already exists')) {
-						continue;
+					// Ignore duplicate index errors (Code 85: IndexOptionsConflict)
+					if ((error as any)?.code === 85 || (error as Error).message.includes('already exists')) {
+						return;
 					}
 					logger.warn(`Failed to create index for ${collectionId}: ${error}`);
 				}
-			}
+			});
 
+			await Promise.allSettled(indexPromises);
 			logger.info(`Indexes created for collection: ${collectionId}`);
 		} catch (error) {
 			logger.error(`Error creating indexes: ${error}`);

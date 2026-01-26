@@ -205,6 +205,7 @@ class CacheService {
 	private initPromise: Promise<void> | null = null;
 	private prefetchPatterns: PrefetchPattern[] = [];
 	private accessLog: Map<string, number[]> = new Map(); // Track access times for analytics
+	private bootstrapping = true; // Default to true on startup
 
 	private constructor() {
 		const config = getCacheConfig();
@@ -216,14 +217,39 @@ class CacheService {
 		return CacheService.instance;
 	}
 
+	/**
+	 * Sets the bootstrapping state. When true, metrics and some heavy logs may be disabled.
+	 */
+	setBootstrapping(val: boolean): void {
+		this.bootstrapping = val;
+		if (!val) {
+			logger.info('CacheService: Bootstrapping complete. Metrics and full logging enabled.');
+		}
+	}
+
+	/**
+	 * Checks if the service is currently bootstrapping.
+	 */
+	isBootstrapping(): boolean {
+		return this.bootstrapping;
+	}
+
 	async initialize(): Promise<void> {
 		if (this.initialized) return;
 		if (!this.initPromise) {
-			this.initPromise = this.store.initialize().then(() => {
-				this.initialized = true;
-			});
+			this.initPromise = (async () => {
+				try {
+					await this.store.initialize();
+					this.initialized = true;
+					logger.info('CacheService initialized successfully.');
+				} catch (error) {
+					logger.error('CacheService initialization failed:', error);
+					this.initPromise = null; // Allow retry
+					throw error;
+				}
+			})();
 		}
-		await this.initPromise;
+		return this.initPromise;
 	}
 
 	private async ensureInitialized() {

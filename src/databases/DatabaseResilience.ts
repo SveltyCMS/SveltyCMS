@@ -195,16 +195,25 @@ export class DatabaseResilience {
 
 	/**
 	 * Get connection pool diagnostics
-	 * Fetches real-time statistics from MongoDB connection pool
+	 * Fetches real-time statistics from the database adapter
 	 */
 	async getPoolDiagnostics(): Promise<ConnectionPoolDiagnostics> {
 		try {
-			// Import mongoose dynamically to get pool stats
-			const mongoose = await import('mongoose');
+			// Get the current database adapter
+			const { dbAdapter } = await import(/* @vite-ignore */ './db');
 
-			// Get connection pool stats from mongoose
-			const poolStats = await this.getMongoosePoolStats(mongoose.default);
+			if (!dbAdapter || typeof dbAdapter.getConnectionPoolStats !== 'function') {
+				throw new Error('Database adapter does not support pool diagnostics');
+			}
 
+			// Get connection pool stats from the adapter
+			const result = await dbAdapter.getConnectionPoolStats();
+
+			if (!result.success) {
+				throw new Error(result.message);
+			}
+
+			const poolStats = result.data;
 			const poolUtilization = poolStats.total > 0 ? (poolStats.active / poolStats.total) * 100 : 0;
 			const healthStatus = this.determinePoolHealth(poolUtilization, poolStats.waiting);
 			const recommendations = this.generatePoolRecommendations(poolStats, poolUtilization);
@@ -231,75 +240,9 @@ export class DatabaseResilience {
 				poolUtilization: 0,
 				avgConnectionTime: 0,
 				healthStatus: 'critical',
-				recommendations: ['Unable to retrieve pool statistics - database may be disconnected']
+				recommendations: ['Unable to retrieve pool statistics - database may be disconnected or adapter does not support diagnostics']
 			};
 		}
-	}
-
-	// Get MongoDB-specific pool statistics from mongoose connection
-	private async getMongoosePoolStats(mongoose: typeof import('mongoose')): Promise<{
-		total: number;
-		active: number;
-		idle: number;
-		waiting: number;
-		avgConnectionTime: number;
-	}> {
-		// Check if connected
-		if (mongoose.connection.readyState !== 1) {
-			return {
-				total: 0,
-				active: 0,
-				idle: 0,
-				waiting: 0,
-				avgConnectionTime: 0
-			};
-		}
-
-		// Get pool stats from connection
-		// Note: mongoose doesn't expose detailed pool stats directly
-		// We'll use the connection config and infer from connection state
-		// const client = mongoose.connection.getClient();
-
-		// Try to get pool stats from MongoDB driver
-		const poolStats = {
-			total: 50, // Default maxPoolSize from config
-			active: 0,
-			idle: 0,
-			waiting: 0,
-			avgConnectionTime: 0
-		};
-
-		try {
-			// TODO: Revisit this code to get pool stats without accessing internal properties
-			// // Access internal pool stats if available (MongoDB Node.js driver specific)
-			// const topology = client?.topology;
-			// if (topology && typeof topology.s === 'object') {
-			// 	const servers = topology.s.servers;
-			// 	if (servers && servers.size > 0) {
-			// 		const serverArray = Array.from(servers.values());
-			// 		const firstServer = serverArray[0];
-			// 		if (firstServer?.s?.pool) {
-			// 			const pool = firstServer.s.pool;
-			// 			// Try to get current connections count
-			// 			const totalConnections = pool.totalConnectionCount || pool.s?.options?.maxPoolSize || 50;
-			// 			const availableConnections = pool.availableConnectionCount || 0;
-			// 			const pendingConnections = pool.pendingConnectionCount || 0;
-			// 			poolStats = {
-			// 				total: totalConnections,
-			// 				active: totalConnections - availableConnections,
-			// 				idle: availableConnections,
-			// 				waiting: pendingConnections,
-			// 				avgConnectionTime: 0 // Not available from pool
-			// 			};
-			// 		}
-			// 	}
-			// }
-		} catch (err) {
-			// If we can't access internal stats, return defaults
-			logger.debug('Unable to access detailed MongoDB pool stats, using defaults', { error: err });
-		}
-
-		return poolStats;
 	}
 
 	// Get resilience metrics

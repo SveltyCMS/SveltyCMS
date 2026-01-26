@@ -134,7 +134,6 @@ class ContentManager {
 		version: number;
 	} {
 		const collections = Array.from(this.contentNodeMap.values()).filter((node) => node.nodeType === 'collection');
-
 		const cacheAge = this.firstCollectionCache ? Date.now() - this.firstCollectionCache.timestamp : null;
 
 		return {
@@ -144,6 +143,10 @@ class ContentManager {
 			cacheAge,
 			version: this.contentVersion
 		};
+	}
+
+	public isInitialized(): boolean {
+		return this.initState === 'initialized';
 	}
 
 	public getDiagnostics(): {
@@ -1536,6 +1539,10 @@ class ContentManager {
 
 		const { generateCategoryNodesFromPaths } = await import('./utils');
 		const fileCategoryNodes = generateCategoryNodesFromPaths(schemas);
+
+		if (dbAdapter.ensureContent) {
+			await dbAdapter.ensureContent();
+		}
 		const dbResult = await dbAdapter.content.nodes.getStructure('flat');
 
 		const dbNodeMap = new Map<string, ContentNode>(

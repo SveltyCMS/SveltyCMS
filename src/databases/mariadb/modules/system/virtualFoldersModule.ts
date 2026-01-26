@@ -123,4 +123,18 @@ export class VirtualFoldersModule {
 	async addToFolder(_contentId: DatabaseId, _folderPath: string): Promise<DatabaseResult<void>> {
 		return (this.core as any).notImplemented('systemVirtualFolder.addToFolder');
 	}
+
+	async ensure(folder: Omit<SystemVirtualFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<SystemVirtualFolder>> {
+		return (this.core as any).wrap(async () => {
+			const [existing] = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders.path, folder.path)).limit(1);
+
+			if (existing) {
+				return utils.convertDatesToISO(existing) as unknown as SystemVirtualFolder;
+			}
+
+			const res = await this.create(folder);
+			if (!res.success) throw new Error(res.message);
+			return res.data;
+		}, 'ENSURE_VIRTUAL_FOLDER_FAILED');
+	}
 }

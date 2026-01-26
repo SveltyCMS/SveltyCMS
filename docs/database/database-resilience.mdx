@@ -35,11 +35,11 @@ It is integrated in:
 - `src/databases/CacheService.ts` (Redis connection)
 - `src/databases/mongodb/mongoDBAdapter.ts` (reconnection handlers)
 
-### Implemented Features Summary
-
 | Feature                                           | Status         | Key Artifacts                                                                   |
 | ------------------------------------------------- | -------------- | ------------------------------------------------------------------------------- |
 | Automatic retry with exponential backoff & jitter | ✅ Implemented | `DatabaseResilience.executeWithRetry()`; used in `db.ts`, `CacheService.ts`     |
+| Promise-Based Locking (`_initPromises`)           | ✅ Implemented | `MongoDBAdapter` - Prevents race conditions during concurrent startup           |
+| Capability-Based Guards                           | ✅ Implemented | `SchedulerService` - Declares explicit dependencies via `db.ensure<Feature>()`  |
 | Admin email notification on persistent failure    | ✅ Implemented | `databaseFailure.svelte`; notification logic in `DatabaseResilience.ts`         |
 | Connection pool diagnostics                       | ✅ Implemented | API: `/api/database/pool-diagnostics`; Widget: `DatabasePoolDiagnostics.svelte` |
 | Self-healing MongoDB reconnection                 | ✅ Implemented | Mongoose event handlers + `attemptReconnection()`                               |

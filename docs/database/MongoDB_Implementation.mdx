@@ -44,12 +44,13 @@ This guide covers the **MongoDB-specific** implementation in SveltyCMS, includin
 
 ### Performance Improvements
 
-- **95-99% faster** operations through intelligent caching
-- **85-95% cache hit rate** with dual-layer Redis + MongoDB
-- **79% smaller payloads** via smart field selection
-- **O(log n) queries** through comprehensive indexing
-- **O(1) pagination** with cursor-based navigation
-- **O(1) memory** with streaming for large datasets
+- **Sub-1s Cold Start**: Progressive initialization reaches READY state (API-safe) in <850ms.
+- **95-99% faster** operations through intelligent caching.
+- **85-95% cache hit rate** with dual-layer Redis + MongoDB.
+- **79% smaller payloads** via smart field selection.
+- **O(log n) queries** through comprehensive indexing.
+- **O(1) pagination** with cursor-based navigation.
+- **O(1) memory** with streaming for large datasets.
 
 ---
 
@@ -98,6 +99,12 @@ SveltyCMS MongoDB implementation is built with **enterprise-scale performance as
 - Streaming support (O(1) memory usage)
 - Intelligent user caching (92% hit rate)
 - QueryMeta performance tracking
+
+**Phase 5**: Lazy Activation & Resiliency (2026)
+
+- **Lazy Model Registration**: Models are only compiled on-demand and cached in a local `Map` to prevent Mongoose re-registration errors and reduce cold-start memory.
+- **Dependency Guards (`ensure<Feature>`)**: Background services explicitly await the readiness of their specific database sub-systems.
+- **Promise-Based Locking**: Internal initialization is protected by a promise map to prevent race conditions during concurrent startup requests.
 
 ---
 

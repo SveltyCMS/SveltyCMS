@@ -110,15 +110,18 @@ SveltyCMS uses **ParaglideJS** to treat translations as `code`, not database row
 
 ### 4.1 Feature Matrix
 
-| Feature           | SveltyCMS                | Strapi (v5)       | PayloadCMS (v3)   | Directus (v10) | WordPress |
-| :---------------- | :----------------------- | :---------------- | :---------------- | :------------- | :-------- |
-| **Core Tech**     | **SvelteKit / TS**       | Node/React        | Next.js/React     | Node/Vue       | PHP       |
-| **Admin UI**      | **Svelte (Light)**       | React (Heavy)     | React (Heavy)     | Vue (Light)    | PHP/React |
-| **i18n**          | **Paraglide (Compiled)** | i18next (Runtime) | i18next (Runtime) | DB Fields      | plugins   |
-| **Schema**        | **Hybrid (Code/GUI)**    | GUI-First         | Code-First        | DB-First       | GUI       |
-| **Multi-Tenancy** | **Native**               | Enterprise        | Native            | Native         | Multisite |
-| **SCIM 2.0**      | **Native Endpoints**     | Enterprise        | Manual            | Enterprise     | Plugins   |
-| **Audit Logs**    | **Crypto-Chain**         | Enterprise        | Manual            | Enterprise     | Plugins   |
+| Feature            | SveltyCMS                | Strapi (v5)       | PayloadCMS (v3)   | Directus (v10) | WordPress  | Drupal     | Contentful  |
+| :----------------- | :----------------------- | :---------------- | :---------------- | :------------- | :--------- | :--------- | :---------- |
+| **Core Tech**      | **SvelteKit / TS**       | Node/React        | Next.js/React     | Node/Vue       | PHP        | PHP        | SaaS / API  |
+| **Cold Start**     | **<1s (READY)**          | 5s+ (Heavy)       | 3s+ (Heavy)       | 2s+ (Medium)   | 1s+ (PHP)  | 1s+ (PHP)  | N/A (Cloud) |
+| **Startup Model**  | **Progressive**          | Monolithic        | Monolithic        | Monolithic     | Monolithic | Monolithic | SaaS        |
+| **Admin UI**       | **Svelte (Light)**       | React (Heavy)     | React (Heavy)     | Vue (Light)    | PHP/React  | PHP (Srv)  | React (Cls) |
+| **i18n**           | **Paraglide (Compiled)** | i18next (Runtime) | i18next (Runtime) | DB Fields      | plugins    | Native     | Native      |
+| **Schema**         | **Hybrid (Code/GUI)**    | GUI-First         | Code-First        | DB-First       | GUI        | GUI-First  | GUI-First   |
+| **Multi-Tenancy**  | **Native**               | Enterprise        | Native            | Native         | Multisite  | Native     | Spaces      |
+| **SCIM 2.0**       | **Native Endpoints**     | Enterprise        | Manual            | Enterprise     | Plugins    | Plugins    | Enterprise  |
+| **Audit Logs**     | **Crypto-Chain**         | Enterprise        | Manual            | Enterprise     | Plugins    | Basic      | Enterprise  |
+| **Service Guards** | **Capability-Based**     | ❌ None           | ❌ None           | ⚠️ Limited     | ❌ None    | ❌ None    | ❌ None     |
 
 ### 4.2 Vs. Strapi (The Heavyweight)
 
@@ -128,14 +131,21 @@ Strapi is the dominant player but suffers from bloat. Its React-based admin pane
 
 Payload is the closest rival (Code-First). The difference is **React vs. Svelte**. Payload aligns with Next.js; SveltyCMS aligns with SvelteKit. SveltyCMS's **Zero-Runtime i18n** and **Valibot** validation give it a performance edge in bundle size.
 
-### 4.4 Vs. Directus (The Data Wrapper)
+### 4.4 Vs. Drupal (The Enterprise Legacy)
 
-Directus is a database wrapper. It's excellent for existing SQL DBs. SveltyCMS is a full application framework. With the move to **Drizzle ORM**, SveltyCMS bridges the gap, offering type-safe SQL access similar to Directus but with better frontend integration.
+Drupal remains a powerhouse for complex enterprise sites, but its PHP-based monolithic architecture struggles with cold starts in modern serverless/containerized environments.
 
-### 4.5 Vs. SaaS Giants (Contentful, Sanity)
+- **Complexity**: Drupal's configuration management and "Entity" system are notoriously steep. SveltyCMS favors a **TS-first** approach that is more intuitive for modern JS developers.
+- **i18n**: While Drupal has excellent native i18n, SveltyCMS's **Paraglide-based** compiled approach offers better performance and type safety at the edge.
+- **Resiliency**: Drupal relies on database-level caching (Cache Tagging) which is powerful but complex to clear; SveltyCMS uses a dual-layer **Redis/L2** system with deterministic invalidation.
 
-- **Cost:** SveltyCMS is open source. Enterprise SaaS plans can cost tens of thousands annually.
-- **Control:** SveltyCMS offers total control and data sovereignty, critical for GDPR/healthcare compliance, whereas SaaS solutions are opaque.
+### 4.5 Vs. Contentful (The SaaS Standard)
+
+Contentful is the SaaS benchmark, but its "closed-source" nature creates vendor lock-in and high platform costs.
+
+- **Native vs. Gated**: Contentful gates features like SCIM, Audit Logs, and SSO behind "Enterprise" pricing. SveltyCMS provides these **natively** and for free.
+- **Performance**: While SaaS is fast, SveltyCMS's ability to run **locally** or at the **edge** (e.g., Fly.io) allows for significantly lower latency during development and specific high-performance production workloads.
+- **Control**: SveltyCMS allows for custom database adapters (MongoDB/SQL), whereas Contentful forces you into their schema and storage models.
 
 ### 4.6 Website Comparison Summary (Official Benchmarks)
 

@@ -171,7 +171,11 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 	}
 
 	// --- State: Final Ready Check ---
-	const isNowReady = systemState.overallState === 'READY' || systemState.overallState === 'DEGRADED';
+	const isNowReady =
+		systemState.overallState === 'READY' ||
+		systemState.overallState === 'DEGRADED' ||
+		systemState.overallState === 'WARMING' ||
+		systemState.overallState === 'WARMED';
 	if (!isNowReady) {
 		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/api/setup', '/api/system/version', '/api/debug'];
 		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix));

@@ -416,9 +416,7 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 				async *[Symbol.asyncIterator]() {
 					try {
 						for await (const doc of cursor) {
-							// FIX: Check for the toISOString method instead of using `instanceof Date`.
-							// ...
-
+							// FIX: Robust date processing that handles various formats
 							const processedDoc = {
 								...doc,
 								createdAt: (doc.createdAt as any) instanceof Date ? (doc.createdAt as any).toISOString() : doc.createdAt,
@@ -491,7 +489,7 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 				return { success: true, data: null, meta };
 			}
 
-			// FIX: Check for the toISOString method instead of using `instanceof Date`.
+			// FIX: Robust date processing that handles various formats
 			const processedResult = {
 				...result,
 				createdAt: (result.createdAt as any) instanceof Date ? (result.createdAt as any).toISOString() : result.createdAt,

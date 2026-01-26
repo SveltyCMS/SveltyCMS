@@ -31,6 +31,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 	import { app } from '@src/stores/store.svelte';
 	import type { FieldType } from './';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	let { field, value, error }: { field: FieldType; value: number | null | undefined; error?: string | null } = $props();
 
@@ -86,51 +87,60 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 	}
 </script>
 
-<div class="input-container relative mb-4">
-	<div class="preset-filled-surface-500 btn-group flex w-full rounded" role="group">
-		{#if field?.prefix}
-			<button class="px-2!" type="button" aria-label={`${field.prefix} prefix`}>
-				{field?.prefix}
-			</button>
-		{/if}
+<div class="input-container relative mb-4 min-h-10 w-full">
+	<SystemTooltip title={error || ''} wFull={true}>
+		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600" role="group">
+			{#if field?.prefix}
+				<div
+					class="flex items-center bg-surface-200 px-3 text-surface-700 dark:bg-surface-800 dark:text-surface-200"
+					aria-label={`${field.prefix} prefix`}
+				>
+					{field?.prefix}
+				</div>
+			{/if}
 
-		<div class="relative w-full flex-1">
-			<input
-				type="text"
-				bind:value={formattedValue}
-				oninput={handleInput}
-				onblur={handleBlur}
-				use:tokenTarget={{
-					name: field.db_fieldName,
-					label: field.label,
-					collection: (field as any).collection
-				}}
-				name={field?.db_fieldName}
-				id={field?.db_fieldName}
-				placeholder={typeof field?.placeholder === 'string' && field.placeholder !== '' ? field.placeholder : String(field?.db_fieldName ?? '')}
-				required={field?.required as boolean | undefined}
-				readonly={field?.readonly as boolean | undefined}
-				disabled={field?.disabled as boolean | undefined}
-				class="input w-full rounded-none text-black dark:text-primary-500 focus:border-tertiary-500 focus:outline-none"
-				class:!border-error-500={!!error}
-				class:!bg-error-500-10={!!error}
-				aria-invalid={!!error}
-				aria-describedby={error ? `${field.db_fieldName}-error` : undefined}
-				aria-required={field?.required}
-				data-testid="currency-input"
-			/>
+			<div class="relative w-full flex-1">
+				<input
+					type="text"
+					bind:value={formattedValue}
+					oninput={handleInput}
+					onblur={handleBlur}
+					oninvalid={(e) => e.preventDefault()}
+					use:tokenTarget={{
+						name: field.db_fieldName,
+						label: field.label,
+						collection: (field as any).collection
+					}}
+					name={field?.db_fieldName}
+					id={field?.db_fieldName}
+					placeholder={typeof field?.placeholder === 'string' && field.placeholder !== '' ? field.placeholder : String(field?.db_fieldName ?? '')}
+					required={field?.required as boolean | undefined}
+					readonly={field?.readonly as boolean | undefined}
+					disabled={field?.disabled as boolean | undefined}
+					class="input w-full rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {!!error
+						? 'bg-error-500-10!'
+						: ''}"
+					aria-invalid={!!error}
+					aria-describedby={error ? `${field.db_fieldName}-error` : undefined}
+					aria-required={field?.required}
+					data-testid="currency-input"
+				/>
+			</div>
+
+			{#if field?.suffix}
+				<div
+					class="flex items-center bg-surface-200 px-3 text-surface-700 dark:bg-surface-800 dark:text-surface-200"
+					aria-label={`${field.suffix} suffix`}
+				>
+					{field?.suffix}
+				</div>
+			{/if}
 		</div>
+	</SystemTooltip>
 
-		{#if field?.suffix}
-			<button class="px-2!" type="button" aria-label={`${field.suffix} suffix`}>
-				{field?.suffix}
-			</button>
-		{/if}
-	</div>
-
-	<!-- Validation indicator -->
+	<!-- Error Message -->
 	{#if error}
-		<p id={`${field.db_fieldName}-error`} class="absolute bottom-0 left-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
+		<p id={`${field.db_fieldName}-error`} class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
 			{error}
 		</p>
 	{/if}

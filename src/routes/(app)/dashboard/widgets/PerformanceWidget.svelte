@@ -90,11 +90,11 @@ Displays real-time system metrics integrated with the dashboard grid system
 				</div>
 			</div>
 		{:else}
-			{@const errorRate = metrics.requests.total > 0 ? (metrics.requests.errors / metrics.requests.total) * 100 : 0}
+			{@const errorRate = metrics.requests?.total > 0 ? (metrics.requests.errors / metrics.requests.total) * 100 : 0}
 			{@const authSuccessRate =
-				metrics.auth.validations > 0 ? ((metrics.auth.validations - metrics.auth.failures) / metrics.auth.validations) * 100 : 100}
+				metrics.auth?.validations > 0 ? ((metrics.auth.validations - metrics.auth.failures) / metrics.auth.validations) * 100 : 100}
 			{@const cacheHitRate =
-				metrics.cache.hits + metrics.cache.misses > 0 ? (metrics.cache.hits / (metrics.cache.hits + metrics.cache.misses)) * 100 : 0}
+				(metrics.cache?.hits ?? 0) + (metrics.cache?.misses ?? 0) > 0 ? (metrics.cache.hits / (metrics.cache.hits + metrics.cache.misses)) * 100 : 0}
 
 			<div class="flex h-full flex-col space-y-3 text-sm">
 				<!-- Performance Overview -->

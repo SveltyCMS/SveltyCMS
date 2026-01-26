@@ -73,7 +73,7 @@ const patterns = [
 function colorMessage(msg: string): string {
 	let out = msg;
 	for (const { re, color } of patterns) {
-		out = out.replace(re, `${color}$1${RESET}`);
+		out = out.replace(re, `${color}$&${RESET}`);
 	}
 	return out;
 }

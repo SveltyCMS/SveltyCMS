@@ -38,9 +38,9 @@ export class MongoAuthModelRegistrar {
 			// This avoids dynamic import warning and improves code splitting
 
 			// Register each model using the private helper
-			this._registerModel('auth_users', UserSchema);
-			this._registerModel('auth_sessions', SessionSchema);
-			this._registerModel('auth_tokens', TokenSchema);
+			this.registerModel('auth_users', UserSchema);
+			this.registerModel('auth_sessions', SessionSchema);
+			this.registerModel('auth_tokens', TokenSchema);
 
 			logger.info('Authentication models registered successfully.');
 		} catch (error) {
@@ -53,7 +53,7 @@ export class MongoAuthModelRegistrar {
 	 * @param {string} name - The name of the model.
 	 * @param {Mongoose.Schema} schema - The Mongoose schema for the model.
 	 */
-	private _registerModel(name: string, schema: Mongoose.Schema): void {
+	private registerModel(name: string, schema: Mongoose.Schema): void {
 		// Use the injected mongoose instance
 		if (!this.mongoose.models[name]) {
 			this.mongoose.model(name, schema);

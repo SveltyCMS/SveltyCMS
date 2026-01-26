@@ -38,7 +38,7 @@ export const UserSchema = new Schema(
 	{
 		_id: { type: String, required: true }, // UUID as primary key
 		email: { type: String, required: true, unique: true }, // User's email, required field
-		tenantId: { type: String, index: true }, // Tenant identifier for multi-tenancy, indexed for performance
+		tenantId: { type: String }, // Tenant identifier for multi-tenancy, indexed via compound indexes
 		password: { type: String }, // User's password, optional field
 		role: { type: String, required: true }, // User's role, required field
 		permissions: [{ type: String }], // User-specific permissions as names, optional field

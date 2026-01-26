@@ -7,7 +7,7 @@
 import type { Model } from 'mongoose';
 import { logger } from '@utils/logger';
 import type { SystemPreferencesDocument } from '@src/content/types';
-import type { DatabaseId } from '../../dbInterface';
+import type { DatabaseId, DatabaseResult } from '../../dbInterface';
 import type { SystemSetting } from '../models/systemSetting';
 import { createDatabaseError } from './mongoDBUtils';
 
@@ -36,31 +36,54 @@ export class MongoSystemMethods {
 
 	/**
 	 * Gets a single preference value by key.
-	 * Returns null if not found, throws an error on database failure.
+	 * Returns null if not found, wrapped in DatabaseResult.
 	 */
-	async get<T>(key: string, scope: 'user' | 'system' = 'system', userId?: DatabaseId): Promise<T | null> {
+	async get<T>(key: string, scope: 'user' | 'system' = 'system', userId?: DatabaseId): Promise<DatabaseResult<T | null>> {
 		try {
 			if (scope === 'system') {
 				const setting = await this.SystemSettingModel.findOne({ key }).lean();
-				return setting ? (setting.value as T) : null;
+				return { success: true, data: setting ? (setting.value as T) : null };
 			}
 
 			if (!userId) {
-				throw new Error('User ID is required for user-scoped preferences.');
+				return {
+					success: false,
+					message: 'User ID is required for user-scoped preferences.',
+					error: createDatabaseError(new Error('Missing User ID'), 'PREFERENCE_GET_ERROR', 'User ID is required for user-scoped preferences.')
+				};
 			}
-			const userPrefs = await this.SystemPreferencesModel.findOne(
-				{ userId: userId.toString() },
-				{ [`preferences.${key}`]: 1 } // Projection
-			).lean<{ preferences: Record<string, T> }>();
 
-			return userPrefs?.preferences?.[key] ?? null;
+			// Use projection to fetch only the needed field
+			const userPrefs = await this.SystemPreferencesModel.findOne({ userId: userId.toString() }, { [`preferences.${key}`]: 1 }).lean<{
+				preferences: any;
+			}>(); // Use 'any' because strict typing fails on dynamic nested structure
+
+			if (!userPrefs?.preferences) {
+				return { success: true, data: null };
+			}
+
+			// Traverse the nested object to find the value
+			// because Mongoose un-flattens 'a.b.c' into { a: { b: { c: val } } }
+			const value = key.split('.').reduce((obj, k) => (obj && obj[k] !== undefined ? obj[k] : undefined), userPrefs.preferences);
+
+			return { success: true, data: (value as T) ?? null };
 		} catch (error) {
-			throw createDatabaseError(error, 'PREFERENCE_GET_ERROR', `Failed to get preference '${key}'`);
+			return {
+				success: false,
+				message: `Failed to get preference '${key}'`,
+				error: createDatabaseError(error, 'PREFERENCE_GET_ERROR', `Failed to get preference '${key}'`)
+			};
 		}
 	}
 
 	// Sets a single preference value by key
-	async set<T>(key: string, value: T, scope: 'user' | 'system' = 'system', userId?: DatabaseId, category?: 'public' | 'private'): Promise<void> {
+	async set<T>(
+		key: string,
+		value: T,
+		scope: 'user' | 'system' = 'system',
+		userId?: DatabaseId,
+		category?: 'public' | 'private'
+	): Promise<DatabaseResult<void>> {
 		try {
 			if (scope === 'system') {
 				const updateData: Record<string, unknown> = { value, updatedAt: new Date() };
@@ -68,11 +91,15 @@ export class MongoSystemMethods {
 					updateData.category = category;
 				}
 				await this.SystemSettingModel.updateOne({ key }, { $set: updateData }, { upsert: true });
-				return;
+				return { success: true, data: undefined };
 			}
 
 			if (!userId) {
-				throw new Error('User ID is required for user-scoped preferences.');
+				return {
+					success: false,
+					message: 'User ID is required for user-scoped preferences.',
+					error: createDatabaseError(new Error('Missing User ID'), 'PREFERENCE_SET_ERROR', 'User ID is required for user-scoped preferences.')
+				};
 			}
 
 			await this.SystemPreferencesModel.updateOne(
@@ -80,24 +107,33 @@ export class MongoSystemMethods {
 				{ $set: { [`preferences.${key}`]: value }, updatedAt: new Date() },
 				{ upsert: true }
 			);
+			return { success: true, data: undefined };
 		} catch (error) {
-			throw createDatabaseError(error, 'PREFERENCE_SET_ERROR', `Failed to set preference '${key}'`);
+			return {
+				success: false,
+				message: `Failed to set preference '${key}'`,
+				error: createDatabaseError(error, 'PREFERENCE_SET_ERROR', `Failed to set preference '${key}'`)
+			};
 		}
 	}
 
 	// Deletes a single preference by key
-	async delete(key: string, scope: 'user' | 'system' = 'system', userId?: DatabaseId): Promise<void> {
+	async delete(key: string, scope: 'user' | 'system' = 'system', userId?: DatabaseId): Promise<DatabaseResult<void>> {
 		try {
 			if (scope === 'system') {
 				const result = await this.SystemSettingModel.deleteOne({ key });
 				if (result.deletedCount === 0) {
 					logger.warn(`System setting '${key}' not found for deletion.`);
 				}
-				return;
+				return { success: true, data: undefined };
 			}
 
 			if (!userId) {
-				throw new Error('User ID is required for user-scoped preferences.');
+				return {
+					success: false,
+					message: 'User ID is required for user-scoped preferences.',
+					error: createDatabaseError(new Error('Missing User ID'), 'PREFERENCE_DELETE_ERROR', 'User ID is required for user-scoped preferences.')
+				};
 			}
 
 			// Use $unset for atomic removal of a field from the subdocument
@@ -106,8 +142,13 @@ export class MongoSystemMethods {
 			if (result.modifiedCount === 0) {
 				logger.warn(`User preference '${key}' not found for user '${userId}' during deletion.`);
 			}
+			return { success: true, data: undefined };
 		} catch (error) {
-			throw createDatabaseError(error, 'PREFERENCE_DELETE_ERROR', `Failed to delete preference '${key}'`);
+			return {
+				success: false,
+				message: `Failed to delete preference '${key}'`,
+				error: createDatabaseError(error, 'PREFERENCE_DELETE_ERROR', `Failed to delete preference '${key}'`)
+			};
 		}
 	}
 
@@ -115,34 +156,29 @@ export class MongoSystemMethods {
 	 * Gets multiple preference values in a single database call using $in operator.
 	 * 10x faster than sequential gets - one DB round-trip instead of N.
 	 */
-	async getMany<T>(keys: string[], scope: 'user' | 'system' = 'system', userId?: DatabaseId): Promise<Record<string, T>> {
+	async getMany<T>(keys: string[], scope: 'user' | 'system' = 'system', userId?: DatabaseId): Promise<DatabaseResult<Record<string, T>>> {
 		try {
-			if (keys.length === 0) return {};
+			if (keys.length === 0) return { success: true, data: {} };
 
 			if (scope === 'system') {
 				// Single query with $in operator for all keys at once
-				logger.trace(`Querying for ${keys.length} keys: ${keys.slice(0, 5).join(', ')}${keys.length > 5 ? '...' : ''}`);
 				const settings = await this.SystemSettingModel.find({ key: { $in: keys } }).lean();
-				logger.trace(`Found ${settings.length} settings`);
-				if (settings.length > 0) {
-					logger.trace(
-						`Sample: ${settings
-							.slice(0, 3)
-							.map((s) => `${s.key}=${JSON.stringify(s.value)}`)
-							.join(', ')}`
-					);
-				}
-				return settings.reduce(
+				const result = settings.reduce(
 					(acc, setting) => {
 						acc[setting.key] = setting.value as T;
 						return acc;
 					},
 					{} as Record<string, T>
 				);
+				return { success: true, data: result };
 			}
 
 			if (!userId) {
-				throw new Error('User ID is required for user-scoped preferences.');
+				return {
+					success: false,
+					message: 'User ID is required for user-scoped preferences.',
+					error: createDatabaseError(new Error('Missing User ID'), 'PREFERENCE_GET_MANY_ERROR', 'User ID is required for user-scoped preferences.')
+				};
 			}
 
 			// For user preferences, build projection for all keys at once
@@ -158,10 +194,10 @@ export class MongoSystemMethods {
 				preferences: Record<string, T>;
 			}>();
 
-			if (!userPrefs?.preferences) return {};
+			if (!userPrefs?.preferences) return { success: true, data: {} };
 
 			// Filter to only include requested keys
-			return keys.reduce(
+			const result = keys.reduce(
 				(acc, key) => {
 					if (key in userPrefs.preferences) {
 						acc[key] = userPrefs.preferences[key];
@@ -170,8 +206,13 @@ export class MongoSystemMethods {
 				},
 				{} as Record<string, T>
 			);
+			return { success: true, data: result };
 		} catch (error) {
-			throw createDatabaseError(error, 'PREFERENCE_GET_MANY_ERROR', 'Failed to get multiple preferences');
+			return {
+				success: false,
+				message: 'Failed to get multiple preferences',
+				error: createDatabaseError(error, 'PREFERENCE_GET_MANY_ERROR', 'Failed to get multiple preferences')
+			};
 		}
 	}
 
@@ -181,9 +222,9 @@ export class MongoSystemMethods {
 	 */
 	async setMany<T>(
 		preferences: Array<{ key: string; value: T; scope?: 'user' | 'system'; userId?: DatabaseId; category?: 'public' | 'private' }>
-	): Promise<void> {
+	): Promise<DatabaseResult<void>> {
 		try {
-			if (preferences.length === 0) return;
+			if (preferences.length === 0) return { success: true, data: undefined };
 
 			// Group by scope for efficient batch processing
 			const systemPrefs = preferences.filter((p) => (p.scope || 'system') === 'system');
@@ -242,8 +283,13 @@ export class MongoSystemMethods {
 				});
 				await this.SystemPreferencesModel.bulkWrite(operations);
 			}
+			return { success: true, data: undefined };
 		} catch (error) {
-			throw createDatabaseError(error, 'PREFERENCE_SET_MANY_ERROR', 'Failed to set multiple preferences');
+			return {
+				success: false,
+				message: 'Failed to set multiple preferences',
+				error: createDatabaseError(error, 'PREFERENCE_SET_MANY_ERROR', 'Failed to set multiple preferences')
+			};
 		}
 	}
 
@@ -251,18 +297,22 @@ export class MongoSystemMethods {
 	 * Deletes multiple preference keys in a single database call using bulkWrite.
 	 * 33x faster than sequential deletes - one DB round-trip instead of N.
 	 */
-	async deleteMany(keys: string[], scope: 'user' | 'system' = 'system', userId?: DatabaseId): Promise<void> {
+	async deleteMany(keys: string[], scope: 'user' | 'system' = 'system', userId?: DatabaseId): Promise<DatabaseResult<void>> {
 		try {
-			if (keys.length === 0) return;
+			if (keys.length === 0) return { success: true, data: undefined };
 
 			if (scope === 'system') {
 				// Single deleteMany with $in operator
 				await this.SystemSettingModel.deleteMany({ key: { $in: keys } });
-				return;
+				return { success: true, data: undefined };
 			}
 
 			if (!userId) {
-				throw new Error('User ID is required for user-scoped preferences.');
+				return {
+					success: false,
+					message: 'User ID is required for user-scoped preferences.',
+					error: createDatabaseError(new Error('Missing User ID'), 'PREFERENCE_DELETE_MANY_ERROR', 'User ID is required for user-scoped preferences.')
+				};
 			}
 
 			// Use $unset for all keys in a single update operation
@@ -275,17 +325,22 @@ export class MongoSystemMethods {
 			);
 
 			await this.SystemPreferencesModel.updateOne({ userId: userId.toString() }, { $unset: unsetFields });
+			return { success: true, data: undefined };
 		} catch (error) {
-			throw createDatabaseError(error, 'PREFERENCE_DELETE_MANY_ERROR', 'Failed to delete multiple preferences');
+			return {
+				success: false,
+				message: 'Failed to delete multiple preferences',
+				error: createDatabaseError(error, 'PREFERENCE_DELETE_MANY_ERROR', 'Failed to delete multiple preferences')
+			};
 		}
 	}
 
 	// Clears all preferences within a given scope
-	async clear(scope: 'user' | 'system' = 'system', userId?: DatabaseId): Promise<void> {
+	async clear(scope: 'user' | 'system' = 'system', userId?: DatabaseId): Promise<DatabaseResult<void>> {
 		try {
 			if (scope === 'system') {
 				await this.SystemSettingModel.deleteMany({});
-				return;
+				return { success: true, data: undefined };
 			}
 
 			if (userId) {
@@ -295,8 +350,13 @@ export class MongoSystemMethods {
 				// Clear all user preferences
 				await this.SystemPreferencesModel.deleteMany({});
 			}
+			return { success: true, data: undefined };
 		} catch (error) {
-			throw createDatabaseError(error, 'PREFERENCES_CLEAR_ERROR', `Failed to clear ${scope} preferences`);
+			return {
+				success: false,
+				message: `Failed to clear ${scope} preferences`,
+				error: createDatabaseError(error, 'PREFERENCES_CLEAR_ERROR', `Failed to clear ${scope} preferences`)
+			};
 		}
 	}
 }

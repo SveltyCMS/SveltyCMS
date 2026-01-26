@@ -510,20 +510,32 @@ class SecurityResponseService {
 
 // --- SINGLETON INSTANCE ---
 
-/**
- * Global security response service instance.
- */
-export const securityResponseService = new SecurityResponseService();
+// Global security response service instance.
+const globalWithSecurity = globalThis as typeof globalThis & {
+	__SVELTY_SECURITY_RESPONSE_INSTANCE__?: SecurityResponseService;
+	__SVELTY_SECURITY_CLEANUP_REGISTERED__?: boolean;
+};
 
-/**
- * Cleanup function for graceful shutdown.
- */
+// On module load, stop any existing intervals from previous versions
+if (globalWithSecurity.__SVELTY_SECURITY_RESPONSE_INSTANCE__) {
+	globalWithSecurity.__SVELTY_SECURITY_RESPONSE_INSTANCE__.destroy();
+}
+
+export const securityResponseService = (() => {
+	if (!globalWithSecurity.__SVELTY_SECURITY_RESPONSE_INSTANCE__) {
+		globalWithSecurity.__SVELTY_SECURITY_RESPONSE_INSTANCE__ = new SecurityResponseService();
+	}
+	return globalWithSecurity.__SVELTY_SECURITY_RESPONSE_INSTANCE__;
+})();
+
+// Cleanup function for graceful shutdown.
 export const cleanupSecurityService = (): void => {
 	securityResponseService.destroy();
 };
 
 // Cleanup on process exit
-if (!building) {
+if (!building && !globalWithSecurity.__SVELTY_SECURITY_CLEANUP_REGISTERED__) {
 	process.on('SIGTERM', cleanupSecurityService);
 	process.on('SIGINT', cleanupSecurityService);
+	globalWithSecurity.__SVELTY_SECURITY_CLEANUP_REGISTERED__ = true;
 }

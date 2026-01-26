@@ -129,18 +129,18 @@ Implementation guides for specific database backends:
 │  (Routes, Components, Business Logic)                   │
 └───────────────────────┬─────────────────────────────────┘
                         │
-┌───────────────────────▼─────────────────────────────────┐
+┌─────────────────────────────────────────────────────────┐
 │              Layer 1: Database Manager (db.ts)          │
-│  • Lazy initialization                                  │
-│  • Retry logic                                          │
-│  • Unified interface                                    │
+│  • Progressive Phases (READY → WARMING → WARMED)        │
+│  • Sub-1s API Readiness (Critical Path)                 │
+│  • Background Feature Activation (Non-Blocking)          │
 └───────────────────────┬─────────────────────────────────┘
                         │
 ┌───────────────────────▼─────────────────────────────────┐
 │       Layer 2: Database Adapter (dbInterface.ts)        │
-│  • DatabaseAdapter interface                            │
-│  • DatabaseResult<T> (no exceptions)                    │
-│  • QueryCriteria translation                            │
+│  • Capability-Based Dependency Guards                   │
+│  • Promise-Based Startup Locking                        │
+│  • Unified QueryCriteria translation                    │
 └───────────────────────┬─────────────────────────────────┘
                         │
         ┌───────────────┴───────────────┬────────────────┐

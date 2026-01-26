@@ -155,12 +155,22 @@ export async function forceCleanup(): Promise<{
 }
 
 // Graceful shutdown handling
-process.on('SIGTERM', () => {
-	logger.info('SIGTERM received, stopping session cleanup');
-	stopSessionCleanup();
-});
+const g = globalThis as any;
+if (!g.__SVELTY_SESSION_CLEANUP_HANDLERS_SET__) {
+	process.on('SIGTERM', () => {
+		logger.info('SIGTERM received, stopping session cleanup');
+		stopSessionCleanup();
+	});
 
-process.on('SIGINT', () => {
-	logger.info('SIGINT received, stopping session cleanup');
-	stopSessionCleanup();
-});
+	process.on('SIGINT', () => {
+		logger.info('SIGINT received, stopping session cleanup');
+		stopSessionCleanup();
+	});
+	g.__SVELTY_SESSION_CLEANUP_HANDLERS_SET__ = true;
+}
+
+// On module load, stop any existing intervals from previous versions to avoid leaks and Vite runner errors
+if (g.__SVELTY_SESSION_CLEANUP_STOP__) {
+	g.__SVELTY_SESSION_CLEANUP_STOP__();
+}
+g.__SVELTY_SESSION_CLEANUP_STOP__ = stopSessionCleanup;

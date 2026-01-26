@@ -31,6 +31,28 @@ export class MongoSystemVirtualFolderMethods {
 		}
 	}
 
+	async ensure(folder: Omit<SystemVirtualFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<SystemVirtualFolder>> {
+		try {
+			// Atomic upsert: query by path, only insert if not exists
+			// We generate the _id unconditionally but it only persists if a new doc is inserted.
+			const result = await SystemVirtualFolderModel.findOneAndUpdate(
+				{ path: folder.path },
+				{ $setOnInsert: { ...folder, _id: generateId() } },
+				{ upsert: true, new: true, setDefaultsOnInsert: true }
+			)
+				.lean()
+				.exec();
+
+			return { success: true, data: result as SystemVirtualFolder };
+		} catch (error) {
+			return {
+				success: false,
+				error: createDatabaseError(error, 'VIRTUAL_FOLDER_ENSURE_ERROR', 'Failed to ensure virtual folder'),
+				message: 'Failed to ensure virtual folder'
+			};
+		}
+	}
+
 	async getById(folderId: DatabaseId): Promise<DatabaseResult<SystemVirtualFolder | null>> {
 		try {
 			const folder = await SystemVirtualFolderModel.findById(folderId).lean().exec();
@@ -95,7 +117,13 @@ export class MongoSystemVirtualFolderMethods {
 			if (!folder) {
 				return { success: false, error: { code: 'NOT_FOUND', message: 'Folder not found' }, message: 'Folder not found' };
 			}
-			await MediaModel.findByIdAndUpdate(contentId, { folderId: folder._id });
+
+			const result = await MediaModel.updateOne({ _id: contentId }, { $set: { folderId: folder._id } });
+
+			if (result.matchedCount === 0) {
+				return { success: false, error: { code: 'NOT_FOUND', message: 'Media item not found' }, message: 'Media item not found' };
+			}
+
 			return { success: true, data: undefined };
 		} catch (error) {
 			return {
@@ -114,10 +142,18 @@ export class MongoSystemVirtualFolderMethods {
 		try {
 			const folder = await SystemVirtualFolderModel.findOne({ path: folderPath }).lean().exec();
 
+			if (!folder) {
+				return {
+					success: false,
+					error: { code: 'NOT_FOUND', message: `Folder at path "${folderPath}" not found` },
+					message: 'Folder not found'
+				};
+			}
+
 			// 🚀 Run these two independent queries in parallel
 			const [subfolders, files] = await Promise.all([
-				SystemVirtualFolderModel.find({ parentId: folder?._id }).lean().exec(),
-				MediaModel.find({ folderId: folder?._id }).lean().exec()
+				SystemVirtualFolderModel.find({ parentId: folder._id }).lean().exec(),
+				MediaModel.find({ folderId: folder._id }).lean().exec()
 			]);
 
 			return { success: true, data: { folders: subfolders as SystemVirtualFolder[], files: files as MediaItem[] } };

@@ -60,7 +60,7 @@ Renders a checkbox with label, color, size, and helper text from field props
 	>
 		<!-- Legend -->
 		<legend
-			class="mx-auto block w-fit px-2 text-center text-sm font-normal text-surface-700 dark:text-surface-300"
+			class="mx-auto block w-fit px-2 text-center text-sm font-normal text-surface-700 dark:text-surface-50"
 			style="background:none;border:none;"
 		>
 			{field.legend || 'Select one option'}
@@ -68,7 +68,7 @@ Renders a checkbox with label, color, size, and helper text from field props
 
 		<!-- Checkbox -->
 		<div class="flex flex-col gap-y-2">
-			<label class="flex cursor-pointer items-center gap-2 text-base text-surface-800 dark:text-surface-200">
+			<label class="flex cursor-pointer items-center gap-2 text-base text-surface-800 dark:text-surface-50">
 				<input
 					type="checkbox"
 					name={field.db_fieldName}

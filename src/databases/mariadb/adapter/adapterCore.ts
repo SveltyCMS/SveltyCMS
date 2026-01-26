@@ -109,6 +109,39 @@ export class AdapterCore {
 		}
 	}
 
+	// Get MariaDB connection pool statistics
+	async getConnectionPoolStats(): Promise<DatabaseResult<import('../../dbInterface').ConnectionPoolStats>> {
+		try {
+			if (!this.pool) {
+				return { success: false, message: 'Database pool not initialized', error: { code: 'POOL_NOT_INITIALIZED', message: 'Pool not initialized' } };
+			}
+
+			// Access internal pool stats for mysql2 driver
+			// @ts-ignore - internal property
+			const pool = (this.pool as any).pool;
+
+			if (!pool) {
+				return {
+					success: true,
+					data: { total: 10, active: 0, idle: 0, waiting: 0, avgConnectionTime: 0 }
+				};
+			}
+
+			return {
+				success: true,
+				data: {
+					total: pool.config?.connectionLimit || 10,
+					active: pool._allConnections?.length || 0,
+					idle: pool._freeConnections?.length || 0,
+					waiting: pool._connectionQueue?.length || 0,
+					avgConnectionTime: 0
+				}
+			};
+		} catch (error) {
+			return { success: false, message: 'Failed to get MariaDB pool stats', error: { code: 'POOL_STATS_FAILED', message: String(error) } };
+		}
+	}
+
 	protected wrap<T>(fn: () => Promise<T>, code: string): Promise<DatabaseResult<T>> {
 		if (!this.db) return Promise.resolve(this.notConnectedError());
 		try {

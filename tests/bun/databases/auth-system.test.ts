@@ -54,9 +54,21 @@ describe('Auth System Functional Tests', () => {
 	beforeAll(async () => {
 		const adapterModule = await import('../../../src/databases/mongodb/mongoDBAdapter');
 		adapterClass = adapterModule.MongoDBAdapter;
-		// @ts-ignore
-		const configModule = await import('../../../config/private.test');
-		privateEnv = configModule.privateEnv;
+		try {
+			// @ts-ignore
+			const configModule = await import('../../../config/private.test');
+			privateEnv = configModule.privateEnv;
+		} catch (err) {
+			// Fallback to environment variables if config file is missing (CI)
+			privateEnv = {
+				DB_TYPE: process.env.DB_TYPE || 'mongodb',
+				DB_HOST: process.env.DB_HOST || 'localhost',
+				DB_PORT: process.env.DB_PORT || '27017',
+				DB_NAME: process.env.DB_NAME || 'sveltycms_test',
+				DB_USER: process.env.DB_USER,
+				DB_PASSWORD: process.env.DB_PASSWORD
+			};
+		}
 
 		if (!privateEnv || !privateEnv.DB_TYPE) return;
 
@@ -132,7 +144,7 @@ describe('Auth System Functional Tests', () => {
 		beforeAll(async () => {
 			if (!db) return;
 			// Retrieve the pre-seeded admin user ID
-			const result = await db.auth.getUserByEmail(existingUser.email);
+			const result = await db.auth.getUserByEmail({ email: existingUser.email });
 			if (result.success && result.data) {
 				existingUserId = result.data._id;
 			}
@@ -156,7 +168,7 @@ describe('Auth System Functional Tests', () => {
 		it('should find existing user by email', async () => {
 			if (!db) return;
 			// Use the pre-seeded user (should be faster as it's definitely there)
-			const result = await db.auth.getUserByEmail(existingUser.email);
+			const result = await db.auth.getUserByEmail({ email: existingUser.email });
 			expect(result.success).toBe(true);
 			expect(result.data.username).toBe(existingUser.username);
 		});
@@ -193,11 +205,8 @@ describe('Auth System Functional Tests', () => {
 			userId = (user.data as any)._id;
 
 			const sessionData = {
-				userId,
-				token: 'session_token_' + Date.now(),
-				expiresAt: new Date(Date.now() + 3600000), // 1 hour
-				ipAddress: '127.0.0.1',
-				userAgent: 'Bun Test'
+				user_id: userId,
+				expires: new Date(Date.now() + 3600000).toISOString()
 			};
 
 			const result = await db.auth.createSession(sessionData);

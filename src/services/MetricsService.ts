@@ -392,7 +392,17 @@ class MetricsService {
  * Global metrics service instance.
  * Use this throughout the application for consistent metrics collection.
  */
-export const metricsService = new MetricsService();
+const globalWithMetrics = globalThis as typeof globalThis & {
+	__SVELTY_METRICS_INSTANCE__?: MetricsService;
+	__SVELTY_PROCESS_CLEANUP_REGISTERED__?: boolean;
+};
+
+export const metricsService = (() => {
+	if (!globalWithMetrics.__SVELTY_METRICS_INSTANCE__) {
+		globalWithMetrics.__SVELTY_METRICS_INSTANCE__ = new MetricsService();
+	}
+	return globalWithMetrics.__SVELTY_METRICS_INSTANCE__;
+})();
 
 /**
  * Cleanup function for graceful shutdown.
@@ -403,7 +413,8 @@ export const cleanupMetrics = (): void => {
 };
 
 // Cleanup on process exit
-if (!building) {
+if (!building && !globalWithMetrics.__SVELTY_PROCESS_CLEANUP_REGISTERED__) {
 	process.on('SIGTERM', cleanupMetrics);
 	process.on('SIGINT', cleanupMetrics);
+	globalWithMetrics.__SVELTY_PROCESS_CLEANUP_REGISTERED__ = true;
 }

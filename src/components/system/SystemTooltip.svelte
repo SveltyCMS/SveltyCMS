@@ -32,6 +32,7 @@ This component provides a tooltip for any element.
 		contentClass?: string;
 		triggerClass?: string;
 		triggerStyle?: string;
+		wFull?: boolean;
 		children?: import('svelte').Snippet;
 		positioning?: {
 			placement?:
@@ -57,6 +58,7 @@ This component provides a tooltip for any element.
 		contentClass = '',
 		triggerClass = '',
 		triggerStyle = '',
+		wFull = false,
 		children,
 		positioning = { placement: 'top', gutter: 10 }
 	}: Props = $props();
@@ -66,7 +68,7 @@ This component provides a tooltip for any element.
 </script>
 
 <Tooltip {positioning}>
-	<Tooltip.Trigger class={triggerClass} style={triggerStyle}>
+	<Tooltip.Trigger class={`${triggerClass} p-0 m-0 border-none bg-transparent ${wFull ? 'block w-full' : 'inline-block'}`} style={triggerStyle}>
 		{@render children?.()}
 	</Tooltip.Trigger>
 	<Portal>

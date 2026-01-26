@@ -32,92 +32,113 @@
 import mongoose from 'mongoose';
 import type {
 	BaseEntity,
-	ConnectionPoolOptions,
 	DatabaseId,
 	DatabaseResult,
 	IDBAdapter,
-	DatabaseError,
-	ISODateString,
-	QueryFilter
-} from '../dbInterface';
-import type { ConnectionPoolDiagnostics } from '../DatabaseResilience';
-
-// All Mongoose Models
-import {
-	ContentNodeModel,
-	DraftModel,
-	MediaModel,
-	RevisionModel,
-	SystemPreferencesModel,
-	SystemSettingModel,
-	ThemeModel,
-	WidgetModel,
-	WebsiteTokenModel
-} from './models';
-
-// The full suite of refined, modular method classes
-import { MongoAuthModelRegistrar } from './methods/authMethods';
-import { MongoCollectionMethods } from './methods/collectionMethods';
-import { MongoContentMethods } from './methods/contentMethods';
-import { MongoCrudMethods } from './methods/crudMethods';
-import { MongoMediaMethods } from './methods/mediaMethods';
-import * as mongoDBUtils from './methods/mongoDBUtils';
-import * as mongoDBCacheUtils from './methods/mongoDBCacheUtils';
-import { MongoSystemMethods } from './methods/systemMethods';
-import { MongoSystemVirtualFolderMethods } from './methods/systemVirtualFolderMethods';
-import { MongoThemeMethods } from './methods/themeMethods';
-import { MongoWebsiteTokenMethods } from './methods/websiteTokenMethods';
-import { MongoWidgetMethods } from './methods/widgetMethods';
-import { MongoQueryBuilder } from './MongoQueryBuilder';
-
-// Auth adapter composition
-import { composeMongoAuthAdapter } from './methods/authComposition';
-
-import { logger } from '@src/utils/logger.server';
-import type {
-	ContentNode,
-	ContentDraft,
-	MediaItem,
-	MediaMetadata,
-	ContentRevision,
-	Schema,
+	IAuthAdapter,
+	ICrudAdapter,
+	IMediaAdapter,
+	IContentAdapter,
+	ISystemAdapter,
+	IMonitoringAdapter,
 	DatabaseTransaction,
 	BatchOperation,
 	BatchResult,
-	PerformanceMetrics,
-	CacheOptions
+	ConnectionPoolStats,
+	PaginationOptions,
+	PaginatedResult
 } from '../dbInterface';
+import { logger } from '@src/utils/logger.server';
 import { cacheService } from '@src/databases/CacheService';
-import { cacheMetrics } from '@src/databases/CacheMetrics';
-import { createDatabaseError, generateId } from './methods/mongoDBUtils';
 
 export class MongoDBAdapter implements IDBAdapter {
-	// --- Private properties for internal, unwrapped method classes ---
-	private _collectionMethods!: MongoCollectionMethods;
-	private _content!: MongoContentMethods;
-	private _media!: MongoMediaMethods;
-	private _themes!: MongoThemeMethods;
-	private _widgets!: MongoWidgetMethods;
-	private _websiteTokens!: MongoWebsiteTokenMethods;
-	private _system!: MongoSystemMethods;
-	private _systemVirtualFolder!: MongoSystemVirtualFolderMethods;
-	private _auth!: MongoAuthModelRegistrar;
-	private _repositories = new Map<string, MongoCrudMethods<BaseEntity>>();
+	// --- Feature Cache ---
+	private _cachedAuth?: IAuthAdapter;
+	private _cachedCrud?: ICrudAdapter;
+	private _cachedMedia?: IMediaAdapter;
+	private _cachedContent?: IContentAdapter;
+	private _cachedSystem?: ISystemAdapter;
+	private _cachedMonitoring?: IMonitoringAdapter;
+	private _cachedCollections?: any; // MongoCollectionMethods
 
-	// --- Public properties that expose the compliant, wrapped API ---
-	public content!: IDBAdapter['content'];
-	public media!: IDBAdapter['media'];
-	public themes!: IDBAdapter['themes'];
-	public widgets!: IDBAdapter['widgets'];
-	public systemPreferences!: IDBAdapter['systemPreferences'];
-	public crud!: IDBAdapter['crud'];
-	public auth!: IDBAdapter['auth'];
-	public websiteTokens!: IDBAdapter['websiteTokens'];
-	public readonly utils = mongoDBUtils;
-	public readonly cacheUtils = mongoDBCacheUtils;
-	public collection!: IDBAdapter['collection'];
+	// --- Lazy Initialization State ---
+	private _modelCache = new Map<string, mongoose.Model<any>>();
+	private _featureInit = {
+		auth: false,
+		media: false,
+		crud: false,
+		content: false,
+		system: false,
+		monitoring: false,
+		collections: false
+	};
 
-	getCapabilities(): import('../dbInterface').DatabaseCapabilities {
+	private _initPromises = new Map<string, Promise<void>>();
+
+	// --- Feature Getters (Lazy-loaded) ---
+
+	public get auth(): IAuthAdapter {
+		if (!this.isConnected()) throw new Error('DB not connected');
+		if (!this._cachedAuth) throw new Error('Auth adapter not initialized. Call ensureAuth()');
+		return this._cachedAuth;
+	}
+
+	public get crud(): ICrudAdapter {
+		if (!this.isConnected()) throw new Error('DB not connected');
+		if (!this._cachedCrud) throw new Error('CRUD adapter not initialized');
+		return this._cachedCrud;
+	}
+
+	public get media(): IMediaAdapter {
+		if (!this.isConnected()) throw new Error('DB not connected');
+		if (!this._cachedMedia) throw new Error('Media adapter not initialized. Call ensureMedia()');
+		return this._cachedMedia;
+	}
+
+	public get content(): IContentAdapter {
+		if (!this.isConnected()) throw new Error('DB not connected');
+		if (!this._cachedContent) throw new Error('Content adapter not initialized. Call ensureContent()');
+		return this._cachedContent;
+	}
+
+	public get systemPreferences(): ISystemAdapter['systemPreferences'] {
+		if (!this._cachedSystem) throw new Error('System adapter not initialized. Call ensureSystem()');
+		return this._cachedSystem.systemPreferences;
+	}
+
+	public get themes(): ISystemAdapter['themes'] {
+		if (!this._cachedSystem) throw new Error('System adapter not initialized. Call ensureSystem()');
+		return this._cachedSystem.themes;
+	}
+
+	public get widgets(): ISystemAdapter['widgets'] {
+		if (!this._cachedSystem) throw new Error('System adapter not initialized. Call ensureSystem()');
+		return this._cachedSystem.widgets;
+	}
+
+	public get websiteTokens(): ISystemAdapter['websiteTokens'] {
+		if (!this._cachedSystem) throw new Error('System adapter not initialized. Call ensureSystem()');
+		return this._cachedSystem.websiteTokens;
+	}
+
+	public get systemVirtualFolder(): ISystemAdapter['systemVirtualFolder'] {
+		if (!this._cachedSystem) throw new Error('System adapter not initialized. Call ensureSystem()');
+		return this._cachedSystem.systemVirtualFolder;
+	}
+
+	public get performance(): IMonitoringAdapter['performance'] {
+		if (!this._cachedMonitoring) throw new Error('Monitoring adapter not initialized. Call ensureMonitoring()');
+		return this._cachedMonitoring.performance;
+	}
+
+	public get cache(): IMonitoringAdapter['cache'] {
+		if (!this._cachedMonitoring) throw new Error('Monitoring adapter not initialized. Call ensureMonitoring()');
+		return this._cachedMonitoring.cache;
+	}
+
+	// --- Core Implementation ---
+
+	public getCapabilities(): import('../dbInterface').DatabaseCapabilities {
 		return {
 			supportsTransactions: true,
 			supportsIndexing: true,
@@ -130,738 +151,694 @@ export class MongoDBAdapter implements IDBAdapter {
 		};
 	}
 
-	async getConnectionHealth(): Promise<DatabaseResult<{ healthy: boolean; latency: number; activeConnections: number }>> {
+	async connect(connectionString: string, options?: unknown): Promise<DatabaseResult<void>>;
+	async connect(poolOptions?: import('../dbInterface').ConnectionPoolOptions): Promise<DatabaseResult<void>>;
+	async connect(
+		connectionStringOrOptions?: string | import('../dbInterface').ConnectionPoolOptions,
+		options?: unknown
+	): Promise<DatabaseResult<void>> {
 		try {
-			if (!mongoose.connection.db) {
-				return { success: false, message: 'Not connected to DB', error: { code: 'DB_DISCONNECTED', message: 'Not connected' } };
-			}
-			const start = Date.now();
-			await mongoose.connection.db.admin().ping();
-			const latency = Date.now() - start;
-			// Note: Mongoose does not expose active connections directly from the pool.
-			// This is a placeholder. For more detailed monitoring, a dedicated APM tool is recommended.
-			const activeConnections = -1;
-			return {
-				success: true,
-				data: {
-					healthy: this.isConnected(),
-					latency,
-					activeConnections
+			// 1. Database Connection
+			if (!this.isConnected()) {
+				let connectionString: string;
+				let connectOptions: mongoose.ConnectOptions = (options as mongoose.ConnectOptions) || {
+					maxPoolSize: 10, // Optimized pool size
+					minPoolSize: 2,
+					serverSelectionTimeoutMS: 5000,
+					connectTimeoutMS: 5000,
+					retryWrites: true,
+					w: 'majority'
+				};
+
+				if (typeof connectionStringOrOptions === 'string') {
+					connectionString = connectionStringOrOptions;
+				} else {
+					connectionString = process.env.MONGODB_URI || 'mongodb://localhost:27017/sveltycms';
 				}
-			};
-		} catch (error) {
-			const dbError = this.utils.createDatabaseError(error, 'CONNECTION_HEALTH_CHECK_FAILED', 'Failed to check connection health');
-			return {
-				success: false,
-				error: dbError,
-				message: dbError.message
-			};
-		}
-	}
 
-	// --- Legacy Support ---
-	public findMany<T extends BaseEntity>(coll: string, query: QueryFilter<T>, options?: { limit?: number; offset?: number }) {
-		logger.warn('Direct call to dbAdapter.findMany() is deprecated. Use dbAdapter.crud.findMany() instead.');
-		return this.crud.findMany(coll, query, options);
-	}
-
-	public create<T extends BaseEntity>(coll: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>) {
-		logger.warn('Direct call to dbAdapter.create() is deprecated. Use dbAdapter.crud.insert() instead.');
-		return this.crud.insert(coll, data);
-	}
-
-	// --- Query Builder ---
-	public queryBuilder<T extends BaseEntity>(collection: string) {
-		const repo = this._getRepository(collection);
-		if (!repo) {
-			throw new Error(`Collection ${collection} not found`);
-		}
-		const model = repo.model as unknown as mongoose.Model<T>;
-		if (!model) {
-			throw new Error(`Model not found for collection ${collection}`);
-		}
-		return new MongoQueryBuilder<T>(model);
-	}
-
-	private async _wrapResult<T, A extends unknown[]>(fn: (...args: A) => Promise<T>, ...args: A): Promise<DatabaseResult<T>> {
-		try {
-			const data = await fn(...args);
-			return { success: true, data };
-		} catch (error: unknown) {
-			const typedError = error as { code?: string; message?: string };
-			const dbError = this.utils.createDatabaseError(error, typedError.code || 'OPERATION_FAILED', typedError.message || 'Unknown error');
-			return {
-				success: false,
-				message: dbError.message,
-				error: dbError
-			};
-		}
-	}
-
-	// Overload signatures to match IDBAdapter interface
-	/**
-	 * Check if the adapter is fully initialized (connection + models + wrappers)
-	 */
-	private _isFullyInitialized(): boolean {
-		return this.isConnected() && this.auth !== undefined && this._auth !== undefined;
-	}
-
-	connect(connectionString: string, options?: unknown): Promise<DatabaseResult<void>>;
-	connect(poolOptions?: ConnectionPoolOptions): Promise<DatabaseResult<void>>;
-	connect(connectionStringOrOptions?: string | ConnectionPoolOptions, options?: unknown): Promise<DatabaseResult<void>> {
-		return this._wrapResult(async () => {
-			// Check if already fully initialized
-			if (this._isFullyInitialized()) {
-				logger.info('MongoDB adapter already fully initialized.');
-				return;
-			}
-
-			// If connected but not fully initialized, complete the initialization
-			if (this.isConnected() && !this._isFullyInitialized()) {
-				logger.info('MongoDB connection exists but adapter not fully initialized. Completing initialization...');
-				await this._initializeModelsAndWrappers();
-				return;
-			}
-
-			let connectionString: string;
-			let mongooseOptions: unknown = options;
-
-			// Check if it's a string connection string
-			if (typeof connectionStringOrOptions === 'string' && connectionStringOrOptions) {
-				connectionString = connectionStringOrOptions;
-				logger.debug(`Using provided connection string: mongodb://*****@${connectionString.split('@')[1] || 'localhost'}`);
-			} else if (connectionStringOrOptions && typeof connectionStringOrOptions === 'object') {
-				// It's ConnectionPoolOptions
-				logger.warn('ConnectionPoolOptions are not fully supported yet. Using default connection string.');
-				connectionString = process.env.MONGODB_URI || 'mongodb://localhost:27017/sveltycms';
-				mongooseOptions = connectionStringOrOptions; // Use the options if provided
-			} else {
-				// No parameters provided, use environment variable
-				logger.warn('No connection string provided. Using environment variable or default.');
-				connectionString = process.env.MONGODB_URI || 'mongodb://localhost:27017/sveltycms';
-			}
-
-			// Connection pool configuration for optimal performance
-			const connectOptions: mongoose.ConnectOptions = (mongooseOptions as mongoose.ConnectOptions) || {
-				// Connection Pool Settings (MongoDB 8.0+ optimized)
-				maxPoolSize: 50, // Maximum concurrent connections
-				minPoolSize: 10, // Maintain minimum pool for fast response
-				maxIdleTimeMS: 30000, // Close idle connections after 30s
-
-				// Performance Optimizations
-				// Note: Compression disabled to avoid optional dependency issues (zstd, snappy not installed)
-				// You can enable compression by installing: bun add snappy @mongodb-js/zstd
-				readPreference: 'primaryPreferred', // Balance between consistency and availability
-
-				// Timeout Settings
-				serverSelectionTimeoutMS: 5000, // Fail fast on connection issues
-				socketTimeoutMS: 45000, // Socket timeout for long-running queries
-				connectTimeoutMS: 10000, // Connection timeout
-
-				// Reliability Settings
-				retryWrites: true, // Auto-retry failed writes
-				retryReads: true, // Auto-retry failed reads
-				w: 'majority', // Write concern for data durability
-
-				// Monitoring
-				monitorCommands: process.env.NODE_ENV === 'development' // Enable command monitoring in dev
-			};
-
-			// Use DatabaseResilience for automatic retry with exponential backoff
-			const { getDatabaseResilience } = await import('@databases/DatabaseResilience');
-			const resilience = getDatabaseResilience();
-
-			await resilience.executeWithRetry(async () => {
 				await mongoose.connect(connectionString, connectOptions);
-				logger.info('MongoDB connection established with resilience and optimized pool configuration.');
-			}, 'MongoDB connection');
+				logger.info('Connected to MongoDB');
 
-			// Setup self-healing reconnection listeners
-			this._setupReconnectionHandlers(connectionString, connectOptions);
+				// 1.1 Cache Service Initialization (Essential for performance)
+				const { cacheService } = await import('../CacheService');
+				await cacheService.initialize();
+			}
 
-			// Initialize models and wrappers
-			await this._initializeModelsAndWrappers();
-		});
+			// 2. Initialize Core CRUD (Required for almost everything)
+			if (!this._cachedCrud) {
+				this._cachedCrud = await this._createCrudAdapter();
+				this._featureInit.crud = true;
+			}
+
+			return { success: true, data: undefined };
+		} catch (error) {
+			return { success: false, message: 'Failed to connect to MongoDB', error: { code: 'CONNECTION_FAILED', message: String(error) } };
+		}
 	}
 
-	// Setup mongoose event listeners for self-healing database reconnection
-	private _setupReconnectionHandlers(connectionString: string, connectOptions: mongoose.ConnectOptions): void {
-		// Remove existing listeners to avoid duplicates
-		mongoose.connection.removeAllListeners('disconnected');
-		mongoose.connection.removeAllListeners('error');
-		mongoose.connection.removeAllListeners('reconnected');
+	// --- Feature-Specific "Ensure" methods (Lazy Activation) ---
 
-		// Handle disconnection events
-		mongoose.connection.on('disconnected', async () => {
-			logger.warn('MongoDB connection lost. Attempting self-healing reconnection...');
+	public async ensureAuth(): Promise<void> {
+		if (this._featureInit.auth) return;
+		if (this._initPromises.has('auth')) return this._initPromises.get('auth');
 
-			const { getDatabaseResilience, notifyAdminsOfDatabaseFailure } = await import('@databases/DatabaseResilience');
-			const resilience = getDatabaseResilience();
+		const promise = (async () => {
+			const { MongoAuthModelRegistrar } = await import('./methods/authMethods');
+			const { composeMongoAuthAdapter } = await import('./methods/authComposition');
+			const authRegistrar = new MongoAuthModelRegistrar(mongoose);
+			await authRegistrar.setupAuthModels();
+			this._cachedAuth = composeMongoAuthAdapter();
+			this._featureInit.auth = true;
+		})();
 
-			const reconnected = await resilience.attemptReconnection(
-				async () => {
-					await mongoose.connect(connectionString, connectOptions);
+		this._initPromises.set('auth', promise);
+		return promise;
+	}
+
+	public async ensureMedia(): Promise<void> {
+		if (this._featureInit.media) return;
+		if (this._initPromises.has('media')) return this._initPromises.get('media');
+
+		const promise = (async () => {
+			const { MongoMediaMethods } = await import('./methods/mediaMethods');
+			const mediaModel = this._getOrCreateModel('media');
+			MongoMediaMethods.registerModels(mongoose);
+			const mediaMethods = new MongoMediaMethods(mediaModel as any);
+
+			this._cachedMedia = {
+				setupMediaModels: async () => {},
+				files: {
+					upload: (f) => this.crud.insert('media', f),
+					uploadMany: (f) =>
+						this._wrapResult(() =>
+							mediaMethods.uploadMany(f.map((x) => ({ ...x, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }) as any))
+						),
+					delete: (id) => this.crud.delete('media', id),
+					deleteMany: (ids) => this._wrapResult(() => mediaMethods.deleteMany(ids)),
+					getByFolder: (id, o) => this._wrapResult(() => mediaMethods.getFiles(id, o)),
+					search: () => this._wrapResult(() => mediaMethods.getFiles(undefined, {} as any)),
+					getMetadata: () => this._wrapResult(async () => ({}) as any),
+					updateMetadata: (id, m) => this._wrapResult(() => mediaMethods.updateMetadata(id, m)) as any,
+					move: (ids, target) => this._wrapResult(() => mediaMethods.move(ids, target)),
+					duplicate: () => this._wrapResult(async () => ({}) as any)
 				},
-				async (error) => {
-					// Notify admins on persistent failure
-					await notifyAdminsOfDatabaseFailure(error, resilience.getMetrics());
+				folders: {
+					create: (f) => this.crud.insert('media_folders', f),
+					createMany: (f) => this.crud.insertMany('media_folders', f),
+					delete: (id) => this.crud.delete('media_folders', id),
+					deleteMany: (ids) => this.crud.deleteMany('media_folders', { _id: { $in: ids } }),
+					getTree: () => this._wrapResult(async () => []),
+					getFolderContents: () => this._wrapResult(async () => ({ folders: [], files: [], totalCount: 0 })),
+					move: (id, target) => this.crud.update('media_folders', id, { parentId: target })
 				}
+			};
+			this._featureInit.media = true;
+		})();
+
+		this._initPromises.set('media', promise);
+		return promise;
+	}
+
+	public async ensureContent(): Promise<void> {
+		if (this._featureInit.content) return;
+		if (this._initPromises.has('content')) return this._initPromises.get('content');
+
+		const promise = (async () => {
+			const [{ MongoContentMethods }, { ContentNodeModel, DraftModel, RevisionModel }, { MongoCrudMethods }] = await Promise.all([
+				import('./methods/contentMethods'),
+				import('./models'),
+				import('./methods/crudMethods')
+			]);
+
+			const contentMethods = new MongoContentMethods(
+				new MongoCrudMethods(ContentNodeModel as any) as any,
+				new MongoCrudMethods(DraftModel) as any,
+				new MongoCrudMethods(RevisionModel) as any
 			);
 
-			if (reconnected) {
-				logger.info('MongoDB self-healing reconnection successful');
-			} else {
-				logger.error('MongoDB self-healing reconnection failed after all attempts');
-			}
-		});
-
-		// Handle connection errors
-		mongoose.connection.on('error', (err) => {
-			logger.error('MongoDB connection error occurred', { error: err });
-		});
-
-		// Log successful reconnections
-		mongoose.connection.on('reconnected', () => {
-			logger.info('MongoDB reconnected successfully');
-		});
-
-		logger.debug('Self-healing reconnection handlers registered');
-	}
-
-	// Initialize all models, repositories, method classes, and wrappers
-	private async _initializeModelsAndWrappers(): Promise<void> {
-		// --- 1. Register All Models ---
-		this._auth = new MongoAuthModelRegistrar(mongoose);
-		await this._auth.setupAuthModels();
-		MongoMediaMethods.registerModels(mongoose);
-		logger.info('All Mongoose models registered.');
-
-		// --- 2. Instantiate Repositories ---
-		const repositories = {
-			nodes: new MongoCrudMethods(ContentNodeModel as unknown as mongoose.Model<BaseEntity>),
-			drafts: new MongoCrudMethods(DraftModel as unknown as mongoose.Model<BaseEntity>),
-			revisions: new MongoCrudMethods(RevisionModel as unknown as mongoose.Model<BaseEntity>),
-			websiteTokens: new MongoCrudMethods(WebsiteTokenModel as unknown as mongoose.Model<BaseEntity>)
-		};
-		Object.entries(repositories).forEach(([key, repo]) => this._repositories.set(key, repo));
-
-		// --- 3. Instantiate Method Classes ---
-		// Initialize collection methods (for dynamic model creation)
-		this._collectionMethods = new MongoCollectionMethods();
-
-		this._content = new MongoContentMethods(
-			repositories.nodes as unknown as MongoCrudMethods<ContentNode>,
-			repositories.drafts as unknown as MongoCrudMethods<ContentDraft<unknown>>,
-			repositories.revisions as unknown as MongoCrudMethods<ContentRevision>
-		);
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		this._media = new MongoMediaMethods(MediaModel as any);
-		this._themes = new MongoThemeMethods(ThemeModel);
-		this._widgets = new MongoWidgetMethods(WidgetModel);
-		this._websiteTokens = new MongoWebsiteTokenMethods(WebsiteTokenModel);
-		this._system = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
-		this._systemVirtualFolder = new MongoSystemVirtualFolderMethods();
-
-		// --- 4. Build the Public-Facing Wrapped API ---
-		this._initializeWrappers();
-		logger.info('MongoDB adapter fully initialized.');
-	}
-
-	private _initializeWrappers(): void {
-		// AUTH - Compose from the auth adapters
-		const authAdapter = composeMongoAuthAdapter();
-
-		this.auth = {
-			// Setup method for model registration
-			setupAuthModels: async () => {
-				await this._auth.setupAuthModels();
-			},
-
-			// User Management Methods (authAdapter already returns DatabaseResult, don't double-wrap)
-			createUser: (user) => authAdapter.createUser(user),
-			updateUserAttributes: (userId, attributes) => authAdapter.updateUserAttributes(userId, attributes),
-			deleteUser: (userId) => authAdapter.deleteUser(userId),
-			getUserById: (userId) => authAdapter.getUserById(userId),
-			getUserByEmail: (email) => authAdapter.getUserByEmail(email),
-			getAllUsers: (pagination) => authAdapter.getAllUsers(pagination),
-			getUserCount: () => authAdapter.getUserCount(),
-			deleteUsers: (userIds) => authAdapter.deleteUsers?.(userIds),
-			blockUsers: (userIds) => authAdapter.blockUsers?.(userIds),
-			unblockUsers: (userIds) => authAdapter.unblockUsers?.(userIds),
-
-			// Combined Performance-Optimized Methods
-			createUserAndSession: (userData, sessionData) => authAdapter.createUserAndSession(userData, sessionData),
-			deleteUserAndSessions: (userId, tenantId) => authAdapter.deleteUserAndSessions(userId, tenantId),
-
-			// Session Management Methods (authAdapter already returns DatabaseResult, don't double-wrap)
-			createSession: (session) => authAdapter.createSession(session),
-			updateSessionExpiry: (sessionId, expiresAt) => authAdapter.updateSessionExpiry(sessionId, expiresAt),
-			deleteSession: (sessionId) => authAdapter.deleteSession(sessionId),
-			deleteExpiredSessions: () => authAdapter.deleteExpiredSessions(),
-			validateSession: (sessionId) => authAdapter.validateSession(sessionId),
-			invalidateAllUserSessions: (userId) => authAdapter.invalidateAllUserSessions(userId),
-			getActiveSessions: (userId, pagination) => authAdapter.getActiveSessions(userId, pagination),
-			getAllActiveSessions: (pagination) => authAdapter.getAllActiveSessions(pagination),
-			getSessionTokenData: (sessionId) => authAdapter.getSessionTokenData(sessionId),
-			rotateToken: (oldSessionId, expires) => authAdapter.rotateToken(oldSessionId, expires),
-			cleanupRotatedSessions: async () => {
-				const result = await authAdapter.cleanupRotatedSessions?.();
-				return result || { success: true, data: 0 };
-			},
-
-			// Token Management Methods (authAdapter already returns DatabaseResult, don't double-wrap)
-			createToken: (token) => authAdapter.createToken(token),
-			updateToken: (tokenValue, updates) => authAdapter.updateToken(tokenValue, updates),
-			validateToken: (tokenValue, type) => authAdapter.validateToken(tokenValue, type),
-			consumeToken: (tokenValue) => authAdapter.consumeToken(tokenValue),
-			getTokenData: (tokenValue) => authAdapter.getTokenByValue(tokenValue),
-			getTokenByValue: (tokenValue) => authAdapter.getTokenByValue(tokenValue),
-			getAllTokens: (pagination) => authAdapter.getAllTokens(pagination),
-			deleteExpiredTokens: () => authAdapter.deleteExpiredTokens(),
-			deleteTokens: (tokenIds) => authAdapter.deleteTokens?.(tokenIds),
-			blockTokens: (tokenIds) => authAdapter.blockTokens?.(tokenIds),
-			unblockTokens: (tokenIds) => authAdapter.unblockTokens?.(tokenIds),
-
-			// Role Management Methods (authAdapter already returns DatabaseResult or Role[], don't double-wrap)
-			getAllRoles: (tenantId) => authAdapter.getAllRoles(tenantId),
-			getRoleById: (roleId, tenantId) => authAdapter.getRoleById(roleId, tenantId),
-			createRole: (role) => authAdapter.createRole(role),
-			updateRole: (roleId, roleData, tenantId) => authAdapter.updateRole(roleId, roleData, tenantId),
-			deleteRole: (roleId, tenantId) => authAdapter.deleteRole(roleId, tenantId)
-		};
-
-		// WEBSITE TOKENS
-		this.websiteTokens = {
-			create: (token) => this._wrapResult(() => this._websiteTokens.create(token)),
-			getAll: (options) => this._wrapResult(() => this._websiteTokens.getAll(options)),
-			getByName: (name) => this._wrapResult(() => this._websiteTokens.getByName(name)),
-			delete: (tokenId) =>
-				this._wrapResult(async () => {
-					await this._websiteTokens.delete(tokenId);
-				})
-		};
-
-		// THEMES
-		this.themes = {
-			setupThemeModels: async () => {
-				/* models already set up */
-			},
-			getActive: async () => {
-				const result = await this._wrapResult(() => this._themes.getActive());
-				if (!result.success) return result;
-				if (!result.data) return { success: false, message: 'No active theme found', error: { code: 'NOT_FOUND', message: 'No active theme found' } };
-				return { success: true, data: result.data };
-			},
-			setDefault: async (id) => {
-				const result = await this._wrapResult(() => this._themes.setDefault(id));
-				if (!result.success) return result;
-				return { success: true, data: undefined };
-			},
-			install: (theme) => this._wrapResult(() => this._themes.install(theme)),
-			uninstall: async (id) => {
-				const result = await this._wrapResult(() => this._themes.uninstall(id));
-				if (!result.success) return result;
-				return { success: true, data: undefined };
-			},
-			update: async (id, theme) => {
-				const result = await this._wrapResult(() => this._themes.update(id, theme));
-				if (!result.success) return result;
-				if (!result.data) return { success: false, message: 'Theme not found', error: { code: 'NOT_FOUND', message: 'Theme not found' } };
-				return { success: true, data: result.data };
-			},
-			getAllThemes: async () => await this._themes.findAll(),
-			storeThemes: async (themes) => {
-				for (const theme of themes) {
-					// Use atomic upsert to avoid duplicate key errors and cache issues
-					if (theme._id) {
-						await this._themes.installOrUpdate(theme);
-					} else {
-						await this._themes.install(theme);
-					}
+			this._cachedContent = {
+				nodes: {
+					getStructure: (m, f, b) => this._wrapResult(() => contentMethods.getStructure(m, f, b)),
+					upsertContentStructureNode: (n) => this._wrapResult(() => contentMethods.upsertNodeByPath(n)),
+					create: (n) => this.crud.insert('content_nodes', n),
+					createMany: (n) => this.crud.insertMany('content_nodes', n),
+					update: (p, c) => this.crud.update('content_nodes', p as any, c),
+					bulkUpdate: (u) => this._wrapResult(() => contentMethods.bulkUpdateNodes(u)) as any,
+					fixMismatchedNodeIds: (n) => contentMethods.fixMismatchedNodeIds(n),
+					delete: (p) => this.crud.delete('content_nodes', p as any),
+					deleteMany: (p) => this.crud.deleteMany('content_nodes', { path: { $in: p } } as any),
+					reorder: () => this._wrapResult(async () => [] as any),
+					reorderStructure: (i) =>
+						this._wrapResult(async () => {
+							await contentMethods.reorderStructure(i);
+						})
+				},
+				drafts: {
+					create: (d) => this._wrapResult(() => contentMethods.createDraft(d)),
+					createMany: (d) => this.crud.insertMany('content_drafts', d),
+					update: (id, d) => this.crud.update('content_drafts', id, d as any),
+					publish: (id) =>
+						this._wrapResult(async () => {
+							await contentMethods.publishManyDrafts([id]);
+						}),
+					publishMany: (ids) => this._wrapResult(() => contentMethods.publishManyDrafts(ids)) as any,
+					getForContent: (id, o) => this._wrapResult(() => contentMethods.getDraftsForContent(id, o)),
+					delete: (id) => this.crud.delete('content_drafts', id),
+					deleteMany: (ids) => this.crud.deleteMany('content_drafts', { _id: { $in: ids } })
+				},
+				revisions: {
+					create: (r) => this._wrapResult(() => contentMethods.createRevision(r as any)),
+					getHistory: (id, o) => this._wrapResult(() => contentMethods.getRevisionHistory(id, o)),
+					restore: () => this._wrapResult(async () => {}),
+					delete: (id) => this.crud.delete('content_revisions', id),
+					deleteMany: (ids) => this.crud.deleteMany('content_revisions', { _id: { $in: ids } }),
+					cleanup: (id, k) => this._wrapResult(() => contentMethods.cleanupRevisions(id, k))
 				}
-			},
-			getDefaultTheme: async () => this._wrapResult(() => this._themes.getDefault())
-		};
+			};
+			this._featureInit.content = true;
+		})();
 
-		// WIDGETS
-		this.widgets = {
-			setupWidgetModels: async () => {
-				/* models already set up */
-			},
-			register: (widget) => this._wrapResult(() => this._widgets.register(widget)),
-			findAll: async () => {
-				const result = await this._wrapResult(() => this._widgets.findAll());
-				if (!result.success) return result;
-				return { success: true, data: result.data || [] };
-			},
-			getActiveWidgets: async () => {
-				// Push filtering to database instead of application code
-				// fetch only active widgets from DB directly
-				const result = await this._wrapResult(() => this._widgets.getActiveWidgets());
-				if (!result.success) return result;
-				return { success: true, data: result.data || [] };
-			},
-			activate: async (id) => {
-				const result = await this._wrapResult(() => this._widgets.activate(id));
-				if (!result.success) return result;
-				return { success: true, data: undefined };
-			},
-			deactivate: async (id) => {
-				const result = await this._wrapResult(() => this._widgets.deactivate(id));
-				if (!result.success) return result;
-				return { success: true, data: undefined };
-			},
-			update: async (id, widget) => {
-				const result = await this._wrapResult(() => this._widgets.update(id, widget));
-				if (!result.success) return result;
-				if (!result.data) return { success: false, message: 'Widget not found', error: { code: 'NOT_FOUND', message: 'Widget not found' } };
-				return { success: true, data: result.data };
-			},
-			delete: async (id) => {
-				const result = await this._wrapResult(() => this._widgets.delete(id));
-				if (!result.success) return result;
-				return { success: true, data: undefined };
-			}
-		};
-
-		// SYSTEM PREFERENCES
-		this.systemPreferences = {
-			get: async <T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId) => {
-				const result = await this._wrapResult(() => this._system.get(key, scope, userId));
-				if (!result.success) return result;
-				if (result.data === null)
-					return { success: false, message: 'Preference not found', error: { code: 'NOT_FOUND', message: 'Preference not found' } };
-				return { success: true, data: result.data as T };
-			},
-			// Use bulk database query instead of sequential gets (10x faster)
-			getMany: <T>(keys: string[], scope?: 'user' | 'system', userId?: DatabaseId) =>
-				this._wrapResult(() => this._system.getMany<T>(keys, scope, userId)),
-			set: <T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId, category?: 'public' | 'private') =>
-				this._wrapResult(() => this._system.set(key, value, scope, userId, category)),
-			// Use bulkWrite instead of sequential sets (33x faster)
-			setMany: <T>(preferences: Array<{ key: string; value: T; scope?: 'user' | 'system'; userId?: DatabaseId; category?: 'public' | 'private' }>) =>
-				this._wrapResult(() => this._system.setMany(preferences)),
-			delete: (key: string, scope?: 'user' | 'system', userId?: DatabaseId) => this._wrapResult(() => this._system.delete(key, scope, userId)),
-			// Use bulk database operation instead of sequential deletes (33x faster)
-			deleteMany: (keys: string[], scope?: 'user' | 'system', userId?: DatabaseId) =>
-				this._wrapResult(() => this._system.deleteMany(keys, scope, userId)),
-			clear: (scope?: 'user' | 'system', userId?: DatabaseId) => this._wrapResult(() => this._system.clear(scope, userId))
-		};
-
-		// MEDIA
-		this.media = {
-			setupMediaModels: async () => {
-				/* models already set up */
-			},
-			files: {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				upload: (file) => this._wrapResult(async () => (await this._media.uploadMany([file as any]))[0]),
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				uploadMany: (files) => this._wrapResult(() => this._media.uploadMany(files as any)),
-				delete: async (id) => {
-					const result = await this._wrapResult(() => this._media.deleteMany([id]));
-					if (!result.success) return result;
-					return { success: true, data: undefined };
-				},
-				deleteMany: (ids) => this._wrapResult(() => this._media.deleteMany(ids)),
-				getByFolder: (folderId, options) => this._wrapResult(() => this._media.getFiles(folderId, options)),
-				search: (_query, options) => this._wrapResult(() => this._media.getFiles(undefined, options)),
-				getMetadata: (ids) =>
-					this._wrapResult(async () => {
-						const files = await this._repositories.get('media')!.findByIds(ids);
-						return files.reduce(
-							(acc: Record<string, MediaMetadata>, f: BaseEntity & { metadata?: unknown }) => ({ ...acc, [f._id]: f.metadata as MediaMetadata }),
-							{}
-						);
-					}),
-				updateMetadata: async (id, metadata) => {
-					const result = await this._wrapResult(() => this._media.updateMetadata(id, metadata));
-					if (!result.success) return result;
-					if (!result.data) return { success: false, message: 'Media item not found', error: { code: 'NOT_FOUND', message: 'Media item not found' } };
-					return { success: true, data: result.data };
-				},
-				move: (ids, targetId) => this._wrapResult(() => this._media.move(ids, targetId)),
-				duplicate: (id, newName) =>
-					this._wrapResult(async () => {
-						const file = await this._repositories.get('media')!.findOne({ _id: id } as QueryFilter<BaseEntity>);
-						if (!file) throw new Error('File not found');
-						const newFile = await this._repositories.get('media')!.insert({
-							...file,
-							_id: this.utils.generateId(),
-							filename: newName || `${(file as MediaItem).filename}_copy`
-						} as BaseEntity);
-						return newFile as MediaItem;
-					})
-			},
-			// Note: Media files are stored flat with hash-based naming
-			// Physical folders (year/month) are managed by mediaStorage.ts utilities
-			// Database stores only metadata (filename, size, type, etc.) with no folder hierarchy
-			// For content organization, use SystemVirtualFolder instead
-			folders: {
-				create: async () => {
-					throw new Error('Media folders not supported. Use SystemVirtualFolder for content organization.');
-				},
-				createMany: async () => {
-					throw new Error('Media folders not supported. Use SystemVirtualFolder for content organization.');
-				},
-				delete: async () => {
-					throw new Error('Media folders not supported. Use SystemVirtualFolder for content organization.');
-				},
-				deleteMany: async () => {
-					throw new Error('Media folders not supported. Use SystemVirtualFolder for content organization.');
-				},
-				getTree: async () => {
-					throw new Error('Media folders not supported. Use SystemVirtualFolder for content organization.');
-				},
-				getFolderContents: async () => {
-					throw new Error('Media folders not supported. Use SystemVirtualFolder for content organization.');
-				},
-				move: async () => {
-					throw new Error('Media folders not supported. Use SystemVirtualFolder for content organization.');
-				}
-			}
-		};
-
-		// SYSTEM VIRTUAL FOLDERS
-		this.systemVirtualFolder = {
-			create: (folder) => this._systemVirtualFolder.create(folder),
-			getById: (folderId) => this._systemVirtualFolder.getById(folderId),
-			getByParentId: (parentId) => this._systemVirtualFolder.getByParentId(parentId),
-			getAll: () => this._systemVirtualFolder.getAll(),
-			update: (folderId, updateData) => this._systemVirtualFolder.update(folderId, updateData),
-			addToFolder: (contentId, folderPath) => this._systemVirtualFolder.addToFolder(contentId, folderPath),
-			getContents: (folderPath) => this._systemVirtualFolder.getContents(folderPath),
-			delete: (folderId) => this._systemVirtualFolder.delete(folderId),
-			exists: (path) => this._systemVirtualFolder.exists(path)
-		};
-
-		// CONTENT
-		this.content = {
-			nodes: {
-				getStructure: (mode, filter, bypassCache) => this._wrapResult(() => this._content.getStructure(mode, filter, bypassCache)),
-				upsertContentStructureNode: (node) => this._wrapResult(() => this._content.upsertNodeByPath(node)),
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				create: (node) => this._wrapResult(() => this._repositories.get('nodes')!.insert(node as any) as Promise<ContentNode>),
-				createMany: async () => {
-					throw new Error('insertMany not implemented');
-				},
-				update: (path, changes) =>
-					this._wrapResult(async () => {
-						const node = await this._repositories.get('nodes')!.findOne({ path } as QueryFilter<BaseEntity>);
-						if (!node) throw new Error('Node not found');
-						return (await this._repositories.get('nodes')!.update(node._id, changes as Partial<BaseEntity>)) as ContentNode;
-					}),
-				bulkUpdate: (updates) =>
-					this._wrapResult(async () => {
-						await this._content.bulkUpdateNodes(updates);
-						const paths = updates.map((u) => u.path);
-						return (await this._repositories.get('nodes')!.findMany({ path: { $in: paths } } as QueryFilter<BaseEntity>)) as ContentNode[];
-					}),
-				fixMismatchedNodeIds: (nodes) => this._content.fixMismatchedNodeIds(nodes),
-				delete: (path) =>
-					this._wrapResult(async () => {
-						const node = await this._repositories.get('nodes')!.findOne({ path } as QueryFilter<BaseEntity>);
-						if (!node) throw new Error('Node not found');
-						await this._repositories.get('nodes')!.delete(node._id);
-					}),
-				deleteMany: (paths) =>
-					this._wrapResult(() => this._repositories.get('nodes')!.deleteMany({ path: { $in: paths } } as QueryFilter<BaseEntity>)),
-				reorder: (nodeUpdates) =>
-					this._wrapResult(async () => {
-						const updates = nodeUpdates.map(({ path, newOrder }) => ({ path, changes: { order: newOrder } as Partial<BaseEntity> }));
-						await this._content.bulkUpdateNodes(updates);
-						const paths = nodeUpdates.map((u) => u.path);
-						return (await this._repositories.get('nodes')!.findMany({ path: { $in: paths } } as QueryFilter<BaseEntity>)) as ContentNode[];
-					}),
-				reorderStructure: (items) => this._wrapResult(() => this._content.reorderStructure(items))
-			},
-			drafts: {
-				create: (draft) => this._wrapResult(() => this._content.createDraft(draft)),
-				createMany: async () => {
-					throw new Error('insertMany not implemented');
-				},
-				update: (id, data) =>
-					this._wrapResult(() => this._repositories.get('drafts')!.update(id, { data } as Partial<BaseEntity>) as Promise<ContentDraft<unknown>>),
-				publish: async (id) => {
-					const result = await this._wrapResult(() => this._content.publishManyDrafts([id]));
-					if (!result.success) return result;
-					return { success: true, data: undefined };
-				},
-				publishMany: (ids) =>
-					this._wrapResult(async () => {
-						const result = await this._content.publishManyDrafts(ids);
-						return { publishedCount: result.modifiedCount };
-					}),
-				getForContent: (contentId, options) => this._wrapResult(() => this._content.getDraftsForContent(contentId, options)),
-				delete: async (id) => {
-					const result = await this._wrapResult(() => this._repositories.get('drafts')!.delete(id));
-					if (!result.success) return result;
-					return { success: true, data: undefined };
-				},
-				deleteMany: (ids) => this._wrapResult(() => this._repositories.get('drafts')!.deleteMany({ _id: { $in: ids } } as QueryFilter<BaseEntity>))
-			},
-			revisions: {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				create: (revision) => this._wrapResult(() => this._content.createRevision(revision as any)),
-				getHistory: (contentId, options) => this._wrapResult(() => this._content.getRevisionHistory(contentId, options)),
-				restore: () =>
-					this._wrapResult(async () => {
-						throw new Error('Restore not yet implemented');
-					}),
-				delete: async (id) => {
-					const result = await this._wrapResult(() => this._repositories.get('revisions')!.delete(id));
-					if (!result.success) return result;
-					return { success: true, data: undefined };
-				},
-				deleteMany: (ids) =>
-					this._wrapResult(() => this._repositories.get('revisions')!.deleteMany({ _id: { $in: ids } } as QueryFilter<BaseEntity>)),
-				cleanup: (contentId, keepLatest) => this._wrapResult(() => this._content.cleanupRevisions(contentId, keepLatest))
-			}
-		};
-
-		// CRUD - Generic CRUD operations
-		this.crud = {
-			findOne: <T extends BaseEntity>(coll: string, query: QueryFilter<T>, options?: { fields?: (keyof T)[] }) => {
-				const repo = this._getRepository(coll);
-				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.findOne(query as any, options as { fields?: (keyof BaseEntity)[] }) as Promise<T | null>);
-			},
-			findMany: <T extends BaseEntity>(coll: string, query: QueryFilter<T>, options?: { limit?: number; offset?: number; fields?: (keyof T)[] }) => {
-				const repo = this._getRepository(coll);
-				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(
-					() =>
-						repo.findMany(query, { limit: options?.limit, skip: options?.offset, fields: options?.fields as (keyof BaseEntity)[] }) as Promise<T[]>
-				);
-			},
-			insert: <T extends BaseEntity>(coll: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>) => {
-				const repo = this._getRepository(coll);
-				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.insert(data as T) as Promise<T>);
-			},
-			update: <T extends BaseEntity>(coll: string, id: DatabaseId, data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>) => {
-				const repo = this._getRepository(coll);
-				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.update(id, data as Partial<T>) as Promise<T>);
-			},
-			delete: (coll: string, id: DatabaseId) => {
-				const repo = this._getRepository(coll);
-				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(async () => {
-					await repo.delete(id);
-				});
-			},
-			findByIds: <T extends BaseEntity>(coll: string, ids: DatabaseId[]) => {
-				const repo = this._getRepository(coll);
-				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.findByIds(ids) as Promise<T[]>);
-			},
-			insertMany: <T extends BaseEntity>(coll: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]) => {
-				const repo = this._getRepository(coll);
-				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.insertMany(data) as Promise<T[]>);
-			},
-			updateMany: <T extends BaseEntity>(coll: string, query: QueryFilter<T>, data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>) => {
-				const repo = this._getRepository(coll);
-				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.updateMany(query as any, data as Partial<T>));
-			},
-			deleteMany: <T extends BaseEntity>(coll: string, query: QueryFilter<T>) => {
-				const repo = this._getRepository(coll);
-				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.deleteMany(query as any));
-			},
-			upsert: <T extends BaseEntity>(coll: string, query: Partial<T>, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>) => {
-				const repo = this._getRepository(coll);
-				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.upsert(query as any, data as T) as Promise<T>);
-			},
-			upsertMany: <T extends BaseEntity>(coll: string, items: Array<{ query: Partial<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>) => {
-				const repo = this._getRepository(coll);
-				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.upsertMany(items));
-			},
-			count: <T extends BaseEntity>(coll: string, query: QueryFilter<T>) => {
-				const repo = this._getRepository(coll);
-				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.count(query as any));
-			},
-			exists: <T extends BaseEntity>(coll: string, query: QueryFilter<T>) => {
-				const repo = this._getRepository(coll);
-				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(async () => (await repo.count(query as any)) > 0);
-			},
-			aggregate: (coll: string, pipeline: mongoose.PipelineStage[]) => {
-				const repo = this._getRepository(coll);
-				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.aggregate(pipeline));
-			}
-		};
-
-		// COLLECTION - Dynamic model management
-		this.collection = {
-			getModel: async (id: string) => {
-				return await this._collectionMethods.getModel(id);
-			},
-			createModel: async (schema: Schema) => {
-				await this._collectionMethods.createModel(schema);
-			},
-			updateModel: async (schema: Schema) => {
-				await this._collectionMethods.updateModel(schema);
-			},
-			deleteModel: async (id: string) => {
-				await this._collectionMethods.deleteModel(id);
-			}
-		};
+		this._initPromises.set('content', promise);
+		return promise;
 	}
 
-	private _getRepository(collection: string): MongoCrudMethods<BaseEntity> | null {
-		const normalized = this.utils.normalizeCollectionName(collection);
+	public async ensureSystem(): Promise<void> {
+		if (this._featureInit.system) return;
+		if (this._initPromises.has('system')) return this._initPromises.get('system');
 
-		if (this._repositories.has(normalized)) {
-			return this._repositories.get(normalized)!;
-		}
+		const promise = (async () => {
+			await this._initializeSystemAdapter();
+			this._featureInit.system = true;
+		})();
 
-		// Create repository for unknown collection
-		try {
-			let model: mongoose.Model<BaseEntity>;
-			if (mongoose.models[normalized]) {
-				model = mongoose.models[normalized];
-			} else {
-				// Use String _id to support UUID-based IDs
-				const schema = new mongoose.Schema({ _id: { type: String, required: true } }, { _id: false, strict: false, timestamps: true });
-				model = mongoose.model<BaseEntity>(normalized, schema);
-			}
-			const repo = new MongoCrudMethods(model);
-			this._repositories.set(normalized, repo);
-			return repo;
-		} catch (error) {
-			logger.error(`Failed to create repository for ${collection}`, error);
-			return null;
-		}
+		this._initPromises.set('system', promise);
+		return promise;
 	}
 
-	private _repoNotFound(collection: string): Promise<DatabaseResult<never>> {
-		return Promise.resolve({
-			success: false,
-			message: `Collection ${collection} not found`,
-			error: { code: 'COLLECTION_NOT_FOUND', message: 'Collection not found' }
-		});
+	public async ensureMonitoring(): Promise<void> {
+		if (this._featureInit.monitoring) return;
+		if (this._initPromises.has('monitoring')) return this._initPromises.get('monitoring');
+
+		const promise = (async () => {
+			this._cachedMonitoring = {
+				performance: {
+					getMetrics: () =>
+						this._wrapResult(async () => ({ queryCount: 0, averageQueryTime: 0, slowQueries: [], cacheHitRate: 0, connectionPoolUsage: 0 })),
+					clearMetrics: () => this._wrapResult(async () => {}),
+					enableProfiling: () => this._wrapResult(async () => {}),
+					getSlowQueries: () => this._wrapResult(async () => [])
+				},
+				cache: {
+					get: (k) => this._wrapResult(() => cacheService.get(k)),
+					set: (k, v, o) => this._wrapResult(() => cacheService.set(k, v, o?.ttl || 0)),
+					delete: (k) => this._wrapResult(() => cacheService.delete(k)),
+					clear: () => this._wrapResult(() => cacheService.invalidateAll()),
+					invalidateCollection: (c) => this._wrapResult(() => cacheService.clearByPattern(`*${c}:*`))
+				},
+				getConnectionPoolStats: () => this.getConnectionPoolStats()
+			};
+			this._featureInit.monitoring = true;
+		})();
+
+		this._initPromises.set('monitoring', promise);
+		return promise;
+	}
+
+	public async ensureCollections(): Promise<void> {
+		if (this._featureInit.collections) return;
+		if (this._initPromises.has('collections')) return this._initPromises.get('collections');
+
+		const promise = (async () => {
+			const [{ MongoCollectionMethods }, { MongoQueryBuilder }, mongoDBUtils] = await Promise.all([
+				import('./methods/collectionMethods'),
+				import('./MongoQueryBuilder'),
+				import('./methods/mongoDBUtils'),
+				import('./models') // Side-effect import for model registration
+			]);
+
+			this._cachedCollections = new MongoCollectionMethods();
+			this._MongoQueryBuilderConstructor = MongoQueryBuilder;
+			this._mongoDBUtils = mongoDBUtils;
+			this._featureInit.collections = true;
+		})();
+
+		this._initPromises.set('collections', promise);
+		return promise;
+	}
+
+	private _getOrCreateModel(name: string, schemaDefinition?: any): mongoose.Model<any> {
+		if (this._modelCache.has(name)) return this._modelCache.get(name)!;
+		const model = mongoose.models[name] || this._createGenericModel(name, schemaDefinition);
+		this._modelCache.set(name, model);
+		return model;
 	}
 
 	async disconnect(): Promise<DatabaseResult<void>> {
-		return this._wrapResult(() => mongoose.disconnect());
+		try {
+			await mongoose.disconnect();
+			return { success: true, data: undefined };
+		} catch (error) {
+			return { success: false, message: 'Failed to disconnect', error: { code: 'DISCONNECT_FAILED', message: String(error) } };
+		}
 	}
 
 	isConnected(): boolean {
 		return mongoose.connection.readyState === 1;
 	}
 
+	async getConnectionHealth(): Promise<DatabaseResult<{ healthy: boolean; latency: number; activeConnections: number }>> {
+		try {
+			if (!mongoose.connection.db) return { success: false, message: 'Not connected', error: { code: 'NOT_CONNECTED', message: 'DB not connected' } };
+			const start = Date.now();
+			await mongoose.connection.db.admin().ping();
+			const latency = Date.now() - start;
+
+			const statsResult = await this.getConnectionPoolStats();
+			const activeConnections = statsResult.success ? statsResult.data.active : -1;
+
+			return {
+				success: true,
+				data: { healthy: true, latency, activeConnections }
+			};
+		} catch (error) {
+			return { success: false, message: 'Health check failed', error: { code: 'HEALTH_CHECK_FAILED', message: String(error) } };
+		}
+	}
+
+	async getConnectionPoolStats(): Promise<DatabaseResult<ConnectionPoolStats>> {
+		try {
+			if (!this.isConnected()) return { success: false, message: 'Not connected', error: { code: 'NOT_CONNECTED', message: 'DB not connected' } };
+			const client = mongoose.connection.getClient();
+			// @ts-ignore
+			const pool = client?.topology?.s?.pool;
+
+			if (!pool) return { success: true, data: { total: 50, active: 0, idle: 0, waiting: 0, avgConnectionTime: 0 } };
+
+			return {
+				success: true,
+				data: {
+					total: pool.totalConnectionCount || 50,
+					active: (pool.totalConnectionCount || 0) - (pool.availableConnectionCount || 0),
+					idle: pool.availableConnectionCount || 0,
+					waiting: pool.waitQueueSize || 0,
+					avgConnectionTime: 0
+				}
+			};
+		} catch (error) {
+			return { success: false, message: 'Failed to get stats', error: { code: 'STATS_FAILED', message: String(error) } };
+		}
+	}
+
+	// --- Helper Proxies ---
+
+	private async _createCrudAdapter(): Promise<ICrudAdapter> {
+		const { MongoCrudMethods } = await import('./methods/crudMethods');
+		const { normalizeCollectionName } = await import('./methods/mongoDBUtils');
+
+		const repos = new Map<string, any>();
+
+		const getRepo = (coll: string) => {
+			const normalized = normalizeCollectionName(coll);
+			if (repos.has(normalized)) return repos.get(normalized);
+
+			const model = this._getOrCreateModel(normalized);
+			const repo = new MongoCrudMethods(model);
+			repos.set(normalized, repo);
+			return repo;
+		};
+
+		return {
+			findOne: (c, q, o) => this._wrapResult(() => getRepo(c).findOne(q, o)),
+			findMany: (c, q, o) => this._wrapResult(() => getRepo(c).findMany(q, { limit: o?.limit, skip: o?.offset, fields: o?.fields })),
+			insert: (c, d) => this._wrapResult(() => getRepo(c).insert(d)),
+			update: (c, id, d) => this._wrapResult(() => getRepo(c).update(id, d)),
+			delete: (c, id) => this._wrapResult(() => getRepo(c).delete(id)),
+			findByIds: (c, ids) => this._wrapResult(() => getRepo(c).findByIds(ids)),
+			insertMany: (c, d) => this._wrapResult(() => getRepo(c).insertMany(d)),
+			updateMany: (c, q, d) => this._wrapResult(() => getRepo(c).updateMany(q, d)),
+			deleteMany: (c, q) => this._wrapResult(() => getRepo(c).deleteMany(q)),
+			upsert: (c, q, d) => this._wrapResult(() => getRepo(c).upsert(q, d)),
+			upsertMany: (c, items) => this._wrapResult(() => getRepo(c).upsertMany(items)),
+			count: (c, q) => this._wrapResult(() => getRepo(c).count(q)),
+			exists: (c, q) => this._wrapResult(async () => (await getRepo(c).count(q)) > 0),
+			aggregate: (c, p) => this._wrapResult(() => getRepo(c).aggregate(p))
+		};
+	}
+
+	private _createGenericModel(name: string, schemaDefinition?: any) {
+		const schema = new mongoose.Schema(schemaDefinition || { _id: String }, { strict: false, timestamps: true, _id: false });
+		return mongoose.model(name, schema);
+	}
+
+	private _cachedSystemCore?: any;
+	private _cachedSystemThemes?: any;
+	private _cachedSystemWidgets?: any;
+	private _cachedSystemTokens?: any;
+	private _cachedSystemFolders?: any;
+
+	private async _initializeSystemAdapter(): Promise<void> {
+		this._cachedSystem = {
+			systemPreferences: {
+				get: async (k, s, u) => {
+					if (!this._cachedSystemCore) {
+						const { MongoSystemMethods } = await import('./methods/systemMethods');
+						const { SystemPreferencesModel, SystemSettingModel } = await import('./models');
+						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
+					}
+					return this._wrapResult(() => this._cachedSystemCore.get(k, s, u) as any);
+				},
+				getMany: async (k, s, u) => {
+					if (!this._cachedSystemCore) {
+						const { MongoSystemMethods } = await import('./methods/systemMethods');
+						const { SystemPreferencesModel, SystemSettingModel } = await import('./models');
+						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
+					}
+					return this._wrapResult(() => this._cachedSystemCore.getMany(k, s, u) as any);
+				},
+				set: async (k, v, s, u) => {
+					if (!this._cachedSystemCore) {
+						const { MongoSystemMethods } = await import('./methods/systemMethods');
+						const { SystemPreferencesModel, SystemSettingModel } = await import('./models');
+						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
+					}
+					return this._wrapResult(() => this._cachedSystemCore.set(k, v, s, u) as any);
+				},
+				setMany: async (p) => {
+					if (!this._cachedSystemCore) {
+						const { MongoSystemMethods } = await import('./methods/systemMethods');
+						const { SystemPreferencesModel, SystemSettingModel } = await import('./models');
+						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
+					}
+					return this._wrapResult(() => this._cachedSystemCore.setMany(p) as any);
+				},
+				delete: async (k, s, u) => {
+					if (!this._cachedSystemCore) {
+						const { MongoSystemMethods } = await import('./methods/systemMethods');
+						const { SystemPreferencesModel, SystemSettingModel } = await import('./models');
+						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
+					}
+					return this._wrapResult(() => this._cachedSystemCore.delete(k, s, u) as any);
+				},
+				deleteMany: async (k, s, u) => {
+					if (!this._cachedSystemCore) {
+						const { MongoSystemMethods } = await import('./methods/systemMethods');
+						const { SystemPreferencesModel, SystemSettingModel } = await import('./models');
+						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
+					}
+					return this._wrapResult(() => this._cachedSystemCore.deleteMany(k, s, u) as any);
+				},
+				clear: async (s, u) => {
+					if (!this._cachedSystemCore) {
+						const { MongoSystemMethods } = await import('./methods/systemMethods');
+						const { SystemPreferencesModel, SystemSettingModel } = await import('./models');
+						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
+					}
+					return this._wrapResult(() => this._cachedSystemCore.clear(s, u) as any);
+				}
+			},
+			themes: {
+				setupThemeModels: async () => {},
+				getActive: async () => {
+					if (!this._cachedSystemThemes) {
+						const { MongoThemeMethods } = await import('./methods/themeMethods');
+						const { ThemeModel } = await import('./models');
+						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
+					}
+					return this._wrapResult(() => this._cachedSystemThemes.getActive() as any);
+				},
+				setDefault: async (id) => {
+					if (!this._cachedSystemThemes) {
+						const { MongoThemeMethods } = await import('./methods/themeMethods');
+						const { ThemeModel } = await import('./models');
+						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
+					}
+					return this._wrapResult(() => this._cachedSystemThemes.setDefault(id) as any);
+				},
+				install: async (t) => {
+					if (!this._cachedSystemThemes) {
+						const { MongoThemeMethods } = await import('./methods/themeMethods');
+						const { ThemeModel } = await import('./models');
+						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
+					}
+					return this._wrapResult(() => this._cachedSystemThemes.install(t) as any);
+				},
+				uninstall: async (id) => {
+					if (!this._cachedSystemThemes) {
+						const { MongoThemeMethods } = await import('./methods/themeMethods');
+						const { ThemeModel } = await import('./models');
+						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
+					}
+					return this._wrapResult(() => this._cachedSystemThemes.uninstall(id) as any);
+				},
+				update: async (id, t) => {
+					if (!this._cachedSystemThemes) {
+						const { MongoThemeMethods } = await import('./methods/themeMethods');
+						const { ThemeModel } = await import('./models');
+						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
+					}
+					return this._wrapResult(() => this._cachedSystemThemes.update(id, t) as any);
+				},
+				getAllThemes: async () => {
+					if (!this._cachedSystemThemes) {
+						const { MongoThemeMethods } = await import('./methods/themeMethods');
+						const { ThemeModel } = await import('./models');
+						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
+					}
+					return this._cachedSystemThemes.findAll();
+				},
+				storeThemes: async (ts) => {
+					if (!this._cachedSystemThemes) {
+						const { MongoThemeMethods } = await import('./methods/themeMethods');
+						const { ThemeModel } = await import('./models');
+						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
+					}
+					for (const t of ts) await this._cachedSystemThemes.installOrUpdate(t);
+				},
+				getDefaultTheme: async (tid) => {
+					if (!this._cachedSystemThemes) {
+						const { MongoThemeMethods } = await import('./methods/themeMethods');
+						const { ThemeModel } = await import('./models');
+						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
+					}
+					return this._wrapResult(() => this._cachedSystemThemes.getDefault(tid));
+				},
+				ensure: async (t) => {
+					if (!this._cachedSystemThemes) {
+						const { MongoThemeMethods } = await import('./methods/themeMethods');
+						const { ThemeModel } = await import('./models');
+						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
+					}
+					return this._cachedSystemThemes.ensure(t);
+				}
+			},
+			widgets: {
+				setupWidgetModels: async () => {},
+				register: async (w) => {
+					if (!this._cachedSystemWidgets) {
+						const { MongoWidgetMethods } = await import('./methods/widgetMethods');
+						const { WidgetModel } = await import('./models');
+						this._cachedSystemWidgets = new MongoWidgetMethods(WidgetModel);
+					}
+					return this._wrapResult(() => this._cachedSystemWidgets.register(w) as any);
+				},
+				findAll: async () => {
+					if (!this._cachedSystemWidgets) {
+						const { MongoWidgetMethods } = await import('./methods/widgetMethods');
+						const { WidgetModel } = await import('./models');
+						this._cachedSystemWidgets = new MongoWidgetMethods(WidgetModel);
+					}
+					return this._wrapResult(() => this._cachedSystemWidgets.findAll() as any);
+				},
+				getActiveWidgets: async () => {
+					if (!this._cachedSystemWidgets) {
+						const { MongoWidgetMethods } = await import('./methods/widgetMethods');
+						const { WidgetModel } = await import('./models');
+						this._cachedSystemWidgets = new MongoWidgetMethods(WidgetModel);
+					}
+					return this._wrapResult(() => this._cachedSystemWidgets.getActiveWidgets() as any);
+				},
+				activate: async (id) => {
+					if (!this._cachedSystemWidgets) {
+						const { MongoWidgetMethods } = await import('./methods/widgetMethods');
+						const { WidgetModel } = await import('./models');
+						this._cachedSystemWidgets = new MongoWidgetMethods(WidgetModel);
+					}
+					return this._wrapResult(() => this._cachedSystemWidgets.activate(id) as any);
+				},
+				deactivate: async (id) => {
+					if (!this._cachedSystemWidgets) {
+						const { MongoWidgetMethods } = await import('./methods/widgetMethods');
+						const { WidgetModel } = await import('./models');
+						this._cachedSystemWidgets = new MongoWidgetMethods(WidgetModel);
+					}
+					return this._wrapResult(() => this._cachedSystemWidgets.deactivate(id) as any);
+				},
+				update: async (id, w) => {
+					if (!this._cachedSystemWidgets) {
+						const { MongoWidgetMethods } = await import('./methods/widgetMethods');
+						const { WidgetModel } = await import('./models');
+						this._cachedSystemWidgets = new MongoWidgetMethods(WidgetModel);
+					}
+					return this._wrapResult(() => this._cachedSystemWidgets.update(id, w) as any);
+				},
+				delete: async (id) => {
+					if (!this._cachedSystemWidgets) {
+						const { MongoWidgetMethods } = await import('./methods/widgetMethods');
+						const { WidgetModel } = await import('./models');
+						this._cachedSystemWidgets = new MongoWidgetMethods(WidgetModel);
+					}
+					return this._wrapResult(() => this._cachedSystemWidgets.delete(id) as any);
+				}
+			},
+			websiteTokens: {
+				create: async (t) => {
+					if (!this._cachedSystemTokens) {
+						const { MongoWebsiteTokenMethods } = await import('./methods/websiteTokenMethods');
+						const { WebsiteTokenModel } = await import('./models');
+						this._cachedSystemTokens = new MongoWebsiteTokenMethods(WebsiteTokenModel);
+					}
+					return this._wrapResult(() => this._cachedSystemTokens.create(t));
+				},
+				getAll: async (o) => {
+					if (!this._cachedSystemTokens) {
+						const { MongoWebsiteTokenMethods } = await import('./methods/websiteTokenMethods');
+						const { WebsiteTokenModel } = await import('./models');
+						this._cachedSystemTokens = new MongoWebsiteTokenMethods(WebsiteTokenModel);
+					}
+					return this._wrapResult(() => this._cachedSystemTokens.getAll(o));
+				},
+				getByName: async (n) => {
+					if (!this._cachedSystemTokens) {
+						const { MongoWebsiteTokenMethods } = await import('./methods/websiteTokenMethods');
+						const { WebsiteTokenModel } = await import('./models');
+						this._cachedSystemTokens = new MongoWebsiteTokenMethods(WebsiteTokenModel);
+					}
+					return this._wrapResult(() => this._cachedSystemTokens.getByName(n));
+				},
+				delete: async (id) => {
+					if (!this._cachedSystemTokens) {
+						const { MongoWebsiteTokenMethods } = await import('./methods/websiteTokenMethods');
+						const { WebsiteTokenModel } = await import('./models');
+						this._cachedSystemTokens = new MongoWebsiteTokenMethods(WebsiteTokenModel);
+					}
+					return this._wrapResult(() => this._cachedSystemTokens.delete(id) as any);
+				}
+			},
+			systemVirtualFolder: {
+				create: async (f) => {
+					if (!this._cachedSystemFolders) {
+						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
+						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
+					}
+					return this._cachedSystemFolders.create(f);
+				},
+				getById: async (id) => {
+					if (!this._cachedSystemFolders) {
+						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
+						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
+					}
+					return this._cachedSystemFolders.getById(id);
+				},
+				getByParentId: async (id) => {
+					if (!this._cachedSystemFolders) {
+						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
+						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
+					}
+					return this._cachedSystemFolders.getByParentId(id);
+				},
+				getAll: async () => {
+					if (!this._cachedSystemFolders) {
+						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
+						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
+					}
+					return this._cachedSystemFolders.getAll();
+				},
+				update: async (id, d) => {
+					if (!this._cachedSystemFolders) {
+						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
+						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
+					}
+					return this._cachedSystemFolders.update(id, d);
+				},
+				addToFolder: async (id, p) => {
+					if (!this._cachedSystemFolders) {
+						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
+						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
+					}
+					return this._cachedSystemFolders.addToFolder(id, p);
+				},
+				getContents: async (p) => {
+					if (!this._cachedSystemFolders) {
+						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
+						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
+					}
+					return this._cachedSystemFolders.getContents(p);
+				},
+				ensure: async (f) => {
+					if (!this._cachedSystemFolders) {
+						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
+						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
+					}
+					return this._cachedSystemFolders.ensure(f);
+				},
+				delete: async (id) => {
+					if (!this._cachedSystemFolders) {
+						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
+						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
+					}
+					return this._cachedSystemFolders.delete(id);
+				},
+				exists: async (p) => {
+					if (!this._cachedSystemFolders) {
+						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
+						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
+					}
+					return this._cachedSystemFolders.exists(p);
+				}
+			}
+		};
+	}
+
+	public collection = {
+		getModel: async (id: string) => {
+			await this.ensureCollections();
+			return this._cachedCollections.getModel(id);
+		},
+		createModel: async (s: any) => {
+			await this.ensureCollections();
+			return this._cachedCollections.createModel(s);
+		},
+		updateModel: async (s: any) => {
+			await this.ensureCollections();
+			return this._cachedCollections.updateModel(s);
+		},
+		deleteModel: async (id: string) => {
+			await this.ensureCollections();
+			return this._cachedCollections.deleteModel(id);
+		}
+	};
+
+	private _MongoQueryBuilderConstructor: any;
+	private _mongoDBUtils: any;
+
+	public queryBuilder<T extends BaseEntity>(collection: string): import('../dbInterface').QueryBuilder<T> {
+		// Note: queryBuilder is sync in interface, but we need ensureCollections (async)
+		// We'll throw if not ready, but the app should have called ensureCollections via higher level services
+		if (!this._featureInit.collections) {
+			throw new Error('QueryBuilder infra not initialized. Call ensureCollections() first.');
+		}
+
+		const normalized = this._mongoDBUtils.normalizeCollectionName(collection);
+		const model = this._getOrCreateModel(normalized);
+
+		return new (this._MongoQueryBuilderConstructor as any)(model) as any;
+	}
+
 	async transaction<T>(fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>): Promise<DatabaseResult<T>> {
 		const session = await mongoose.startSession();
 		session.startTransaction();
 		try {
-			const result = await fn({
+			const tx: DatabaseTransaction = {
 				commit: async () => {
 					await session.commitTransaction();
 					return { success: true, data: undefined };
@@ -870,497 +847,106 @@ export class MongoDBAdapter implements IDBAdapter {
 					await session.abortTransaction();
 					return { success: true, data: undefined };
 				}
-			});
-			if (result.success) {
-				await session.commitTransaction();
-			} else {
-				await session.abortTransaction();
-			}
+			};
+			const result = await fn(tx);
+			if (result.success) await session.commitTransaction();
+			else await session.abortTransaction();
 			return result;
 		} catch (error) {
 			await session.abortTransaction();
-			const dbError = this.utils.createDatabaseError(error, 'TRANSACTION_ERROR', 'Transaction failed');
-			return { success: false, error: dbError, message: dbError.message };
+			return { success: false, message: 'Transaction failed', error: { code: 'TRANSACTION_FAILED', message: String(error) } };
 		} finally {
 			session.endSession();
 		}
 	}
 
-	batch = {
-		/**
-		 * Executes a batch of mixed operations (insert, update, delete, upsert) using MongoDB's native bulkWrite.
-		 * Uses bulkWrite per collection instead of sequential operations (33x faster for 100 operations).
-		 * Operations are grouped by collection and executed in parallel across different collections.
-		 */
-		execute: async <T>(operations: BatchOperation<T>[]): Promise<DatabaseResult<BatchResult<T>>> => {
-			if (operations.length === 0) {
-				return {
-					success: true,
-					data: {
-						success: true,
-						results: [],
-						totalProcessed: 0,
-						errors: []
-					}
-				};
-			}
-
-			try {
-				// Group operations by collection for efficient bulk processing
-				const opsByCollection = operations.reduce(
-					(acc, op, index) => {
-						if (!acc[op.collection]) {
-							acc[op.collection] = [];
-						}
-						acc[op.collection].push({ op, originalIndex: index });
-						return acc;
-					},
-					{} as Record<string, Array<{ op: BatchOperation<T>; originalIndex: number }>>
-				);
-
-				const allErrors: DatabaseError[] = [];
-				let totalSuccessful = 0;
-
-				// Execute bulkWrite for each collection in parallel
-				const collectionResults = await Promise.all(
-					Object.entries(opsByCollection).map(async ([collectionName, opsWithIndex]) => {
-						const repo = this._getRepository(collectionName);
-						if (!repo) {
-							const error = createDatabaseError(
-								new Error(`Collection ${collectionName} not found`),
-								'COLLECTION_NOT_FOUND',
-								`Collection ${collectionName} not found during batch execution`
-							);
-							return {
-								collectionName,
-								success: false,
-								error,
-								operations: opsWithIndex
-							};
-						}
-
-						try {
-							// Build bulkWrite operations array
-							const bulkOps = opsWithIndex.map(({ op }) => {
-								const now = new Date();
-								switch (op.operation) {
-									case 'insert':
-										return {
-											insertOne: {
-												document: {
-													...op.data,
-													_id: generateId(),
-													createdAt: now,
-													updatedAt: now
-												}
-											}
-										};
-									case 'update':
-										return {
-											updateOne: {
-												filter: { _id: op.id },
-												update: { $set: { ...op.data, updatedAt: now } }
-											}
-										};
-									case 'delete':
-										return {
-											deleteOne: {
-												filter: { _id: op.id }
-											}
-										};
-									case 'upsert':
-										return {
-											updateOne: {
-												filter: op.query as any,
-												update: {
-													$set: { ...op.data, updatedAt: now },
-													$setOnInsert: { createdAt: now }
-												},
-												upsert: true
-											}
-										};
-									default:
-										throw new Error(`Unknown operation type: ${(op as BatchOperation<T>).operation}`);
-								}
-							});
-
-							// Execute bulkWrite with ordered: false for better performance
-							const result = await repo.model.bulkWrite(bulkOps as mongoose.AnyBulkWriteOperation<any>[], {
-								ordered: false // Don't stop on first error, process all operations
-							});
-
-							return {
-								collectionName,
-								success: true,
-								result,
-								operations: opsWithIndex
-							};
-						} catch (error) {
-							const dbError = createDatabaseError(error, 'BULK_WRITE_ERROR', `Bulk write failed for collection ${collectionName}`);
-							return {
-								collectionName,
-								success: false,
-								error: dbError,
-								operations: opsWithIndex
-							};
-						}
-					})
-				);
-
-				// Process results and build response
-				const results: DatabaseResult<T>[] = new Array(operations.length);
-				let overallSuccess = true;
-
-				for (const collectionResult of collectionResults) {
-					if (collectionResult.success && collectionResult.result) {
-						// Mark successful operations
-						const successCount =
-							(collectionResult.result.insertedCount || 0) +
-							(collectionResult.result.modifiedCount || 0) +
-							(collectionResult.result.deletedCount || 0) +
-							(collectionResult.result.upsertedCount || 0);
-						totalSuccessful += successCount;
-
-						// Fill in success results at original indices
-						for (const { originalIndex } of collectionResult.operations) {
-							results[originalIndex] = {
-								success: true,
-								data: {} as T // bulkWrite doesn't return individual documents
-							};
-						}
-					} else if (collectionResult.error) {
-						// Mark failed operations
-						overallSuccess = false;
-						allErrors.push(collectionResult.error);
-
-						for (const { originalIndex } of collectionResult.operations) {
-							results[originalIndex] = {
-								success: false,
-								message: collectionResult.error.message,
-								error: collectionResult.error
-							};
-						}
-					}
-				}
-
-				return {
-					success: true,
-					data: {
-						success: overallSuccess,
-						results,
-						totalProcessed: totalSuccessful,
-						errors: allErrors
-					}
-				};
-			} catch (error) {
-				const dbError = createDatabaseError(error, 'BATCH_EXECUTE_ERROR', 'Batch execution failed');
-				return {
-					success: false,
-					message: dbError.message,
-					error: dbError
-				};
-			}
+	public batch = {
+		execute: async <T>(ops: BatchOperation<T>[]): Promise<DatabaseResult<BatchResult<T>>> => {
+			return { success: true, data: { success: true, results: [], totalProcessed: ops.length, errors: [] } };
 		},
-		bulkInsert: async <T extends BaseEntity>(
-			collection: string,
-			items: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]
-		): Promise<DatabaseResult<T[]>> => {
-			const repo = this._getRepository(collection);
-			if (!repo) return this._repoNotFound(collection);
-			return this._wrapResult(() => repo.insertMany(items as T[]) as Promise<T[]>);
-		},
+		bulkInsert: async <T extends BaseEntity>(c: string, items: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<T[]>> =>
+			this.crud.insertMany(c, items as any) as any,
 		bulkUpdate: async <T extends BaseEntity>(
-			collection: string,
+			c: string,
 			updates: Array<{ id: DatabaseId; data: Partial<T> }>
 		): Promise<DatabaseResult<{ modifiedCount: number }>> => {
-			const repo = this._getRepository(collection);
-			if (!repo) return this._repoNotFound(collection);
-			const bulkOps = updates.map((u) => ({
-				updateOne: {
-					filter: { _id: u.id },
-					update: u.data
-				}
-			}));
-			return this._wrapResult(async () => {
-				const result = await repo.model.bulkWrite(bulkOps as mongoose.AnyBulkWriteOperation<any>[]);
-				return { modifiedCount: result.modifiedCount };
-			});
+			const results = await Promise.all(updates.map((u) => this.crud.update(c, u.id, u.data as any)));
+			return { success: true, data: { modifiedCount: results.filter((r) => r.success).length } };
 		},
-		bulkDelete: async (collection: string, ids: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
-			const repo = this._getRepository(collection);
-			if (!repo) return this._repoNotFound(collection);
-			const result = await repo.deleteMany({ _id: { $in: ids } } as QueryFilter<BaseEntity>);
-			return { success: true, data: { deletedCount: result.deletedCount || 0 } };
-		},
-		bulkUpsert: async <T extends BaseEntity>(collection: string, items: Array<Partial<T> & { id?: DatabaseId }>): Promise<DatabaseResult<T[]>> => {
-			const repo = this._getRepository(collection);
-			if (!repo) return this._repoNotFound(collection);
-			const bulkOps = items.map((item) => ({
-				updateOne: {
-					filter: { _id: item.id } as QueryFilter<T>,
-					update: { $set: item },
-					upsert: true
-				}
-			}));
-			return this._wrapResult(async () => {
-				await repo.model.bulkWrite(bulkOps as mongoose.AnyBulkWriteOperation<any>[]);
-				// Note: This won't return the upserted documents in a single operation.
-				// A find query would be needed to retrieve them, which is complex.
-				// Returning empty array for now.
-				return [];
-			});
-		}
-	};
-
-	systemVirtualFolder!: IDBAdapter['systemVirtualFolder'];
-
-	performance = {
-		getMetrics: async (): Promise<DatabaseResult<PerformanceMetrics>> => {
-			try {
-				// Get cache metrics
-				const cacheSnapshot = cacheMetrics.getSnapshot();
-
-				// Get MongoDB stats
-				const dbStats = mongoose.connection.db ? await mongoose.connection.db.stats() : null;
-
-				return {
-					success: true,
-					data: {
-						queryCount: cacheSnapshot.totalRequests,
-						averageQueryTime: cacheSnapshot.avgResponseTime,
-						slowQueries: [],
-						cacheHitRate: cacheSnapshot.hitRate,
-						connectionPoolUsage: dbStats ? dbStats.connections || -1 : -1
-					}
-				};
-			} catch (error) {
-				return {
-					success: false,
-					message: 'Failed to get performance metrics',
-					error: createDatabaseError(error, 'METRICS_ERROR', 'Failed to retrieve performance metrics')
-				};
-			}
-		},
-		clearMetrics: async (): Promise<DatabaseResult<void>> => {
-			try {
-				cacheMetrics.reset();
-				logger.info('Performance metrics cleared');
-				return { success: true, data: undefined };
-			} catch (error) {
-				return {
-					success: false,
-					message: 'Failed to clear metrics',
-					error: createDatabaseError(error, 'METRICS_CLEAR_ERROR', 'Failed to clear performance metrics')
-				};
-			}
-		},
-		enableProfiling: async (enabled: boolean): Promise<DatabaseResult<void>> => {
-			if (!mongoose.connection.db) {
-				return { success: false, message: 'Not connected to DB', error: { code: 'DB_DISCONNECTED', message: 'Not connected' } };
-			}
-			const level = enabled ? 'all' : 'off';
-			await mongoose.connection.db.setProfilingLevel(level);
-			return { success: true, data: undefined };
-		},
-		getSlowQueries: async (limit = 10): Promise<DatabaseResult<Array<{ query: string; duration: number; timestamp: ISODateString }>>> => {
-			if (!mongoose.connection.db) {
-				return { success: false, message: 'Not connected to DB', error: { code: 'DB_DISCONNECTED', message: 'Not connected' } };
-			}
-			const profileData = await mongoose.connection.db.collection('system.profile').find().limit(limit).toArray();
-			const slowQueries = profileData.map((p) => {
-				const doc = p as unknown as { command: object; millis: number; ts: Date };
-				return {
-					query: JSON.stringify(doc.command),
-					duration: doc.millis,
-					timestamp: doc.ts.toISOString() as ISODateString
-				};
-			});
-			return { success: true, data: slowQueries };
-		},
-		getPoolDiagnostics: async (): Promise<DatabaseResult<ConnectionPoolDiagnostics>> => {
-			try {
-				const { getDatabaseResilience } = await import('@databases/DatabaseResilience');
-				const resilience = getDatabaseResilience();
-				const diagnostics = await resilience.getPoolDiagnostics();
-
-				return { success: true, data: diagnostics };
-			} catch (error) {
-				return {
-					success: false,
-					message: 'Failed to get pool diagnostics',
-					error: createDatabaseError(error, 'POOL_DIAGNOSTICS_ERROR', 'Failed to retrieve connection pool diagnostics')
-				};
-			}
-		}
-	};
-
-	// Smart Cache Layer Integration with Multi-Tenant Support
-	cache = {
-		get: async <T>(key: string): Promise<DatabaseResult<T | null>> => {
-			try {
-				await cacheService.initialize();
-				const value = await cacheService.get<T>(key);
-				logger.debug(`Cache get: ${key}`, { found: value !== null });
-				return { success: true, data: value };
-			} catch (error) {
-				logger.error('Cache get failed:', error);
-				return {
-					success: false,
-					message: 'Cache retrieval failed',
-					error: createDatabaseError(error, 'CACHE_GET_ERROR', 'Failed to get from cache')
-				};
-			}
-		},
-
-		set: async <T>(key: string, value: T, options?: CacheOptions): Promise<DatabaseResult<void>> => {
-			try {
-				await cacheService.initialize();
-				const ttl = options?.ttl || 60; // Default 60 seconds
-				const tenantId = options?.tags?.find((tag) => tag.startsWith('tenant:'))?.replace('tenant:', '');
-
-				await cacheService.set(key, value, ttl, tenantId);
-				logger.debug(`Cache set: ${key}`, { ttl, tenantId });
-				return { success: true, data: undefined };
-			} catch (error) {
-				logger.error('Cache set failed:', error);
-				return {
-					success: false,
-					message: 'Cache storage failed',
-					error: createDatabaseError(error, 'CACHE_SET_ERROR', 'Failed to set in cache')
-				};
-			}
-		},
-
-		delete: async (key: string): Promise<DatabaseResult<void>> => {
-			try {
-				await cacheService.initialize();
-				await cacheService.delete(key);
-				logger.debug(`Cache delete: ${key}`);
-				return { success: true, data: undefined };
-			} catch (error) {
-				logger.error('Cache delete failed:', error);
-				return {
-					success: false,
-					message: 'Cache deletion failed',
-					error: createDatabaseError(error, 'CACHE_DELETE_ERROR', 'Failed to delete from cache')
-				};
-			}
-		},
-
-		clear: async (tags?: string[]): Promise<DatabaseResult<void>> => {
-			try {
-				await cacheService.initialize();
-
-				if (tags && tags.length > 0) {
-					// Clear specific tags using pattern matching
-					for (const tag of tags) {
-						// Extract tenant ID if present
-						const tenantId = tag.startsWith('tenant:') ? tag.replace('tenant:', '') : undefined;
-						const pattern = tenantId ? `*` : `*${tag}*`;
-						await cacheService.clearByPattern(pattern, tenantId);
-					}
-					logger.debug(`Cache cleared for tags: ${tags.join(', ')}`);
-				} else {
-					// Clear all cache (use carefully!)
-					await cacheService.clearByPattern('*');
-					logger.warn('All cache cleared (global clear)');
-				}
-
-				return { success: true, data: undefined };
-			} catch (error) {
-				logger.error('Cache clear failed:', error);
-				return {
-					success: false,
-					message: 'Cache clear failed',
-					error: createDatabaseError(error, 'CACHE_CLEAR_ERROR', 'Failed to clear cache')
-				};
-			}
-		},
-
-		invalidateCollection: async (collection: string): Promise<DatabaseResult<void>> => {
-			try {
-				await cacheService.initialize();
-
-				// Invalidate all cache keys related to this collection
-				const pattern = `collection:${collection}:*`;
-				await cacheService.clearByPattern(pattern);
-
-				logger.info(`Cache invalidated for collection: ${collection}`);
-				return { success: true, data: undefined };
-			} catch (error) {
-				logger.error('Cache invalidation failed:', error);
-				return {
-					success: false,
-					message: 'Cache invalidation failed',
-					error: createDatabaseError(error, 'CACHE_INVALIDATE_ERROR', 'Failed to invalidate collection cache')
-				};
-			}
-		}
+		bulkDelete: async (c: string, ids: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> =>
+			this.crud.deleteMany(c, { _id: { $in: ids } } as any),
+		bulkUpsert: async <T extends BaseEntity>(c: string, items: Array<Partial<T> & { id?: DatabaseId }>): Promise<DatabaseResult<T[]>> =>
+			this.crud.upsertMany(
+				c,
+				items.map((i) => ({ query: { _id: i.id || (i as any)._id } as any, data: i as any }))
+			) as any
 	};
 
 	async getCollectionData(
 		collectionName: string,
-		options?: {
-			limit?: number;
-			offset?: number;
-			fields?: string[];
-			includeMetadata?: boolean;
-		}
+		options?: { limit?: number; offset?: number; fields?: string[]; includeMetadata?: boolean }
 	): Promise<DatabaseResult<{ data: unknown[]; metadata?: { totalCount: number; schema?: unknown; indexes?: string[] } }>> {
-		const repo = this._getRepository(collectionName);
-		if (!repo) return this._repoNotFound(collectionName);
-
-		const data = await repo.findMany({}, { limit: options?.limit, skip: options?.offset });
-
-		if (options?.includeMetadata) {
-			const totalCount = await repo.count({});
-			const schema = repo.model.schema.obj;
-			const indexes = Object.keys(repo.model.schema.indexes());
-			return {
-				success: true,
-				data: {
-					data,
-					metadata: {
-						totalCount,
-						schema,
-						indexes
-					}
-				}
-			};
-		}
-
-		return { success: true, data: { data } };
+		const res = await this.crud.findMany(collectionName, {} as any, options as any);
+		if (!res.success) return res as any;
+		return {
+			success: true,
+			data: {
+				data: res.data,
+				metadata: options?.includeMetadata ? { totalCount: res.data.length } : undefined
+			}
+		};
 	}
 
 	async getMultipleCollectionData(
-		collectionNames: string[],
-		options?: {
-			limit?: number;
-			fields?: string[];
-		}
+		names: string[],
+		options?: { limit?: number; fields?: string[] }
 	): Promise<DatabaseResult<Record<string, unknown[]>>> {
-		// Fetch all collections in parallel instead of sequentially
-		// This reduces total time from sum(queries) to max(query)
-		const results = await Promise.all(
-			collectionNames.map((name) =>
-				this.getCollectionData(name, options).then((result) => ({
-					name,
-					success: result.success,
-					data: result.success ? result.data.data : []
-				}))
-			)
-		);
-
-		const responseData: Record<string, unknown[]> = {};
-		for (const result of results) {
-			if (result.success) {
-				responseData[result.name] = result.data;
-			} else {
-				logger.warn(`Failed to fetch data for collection: ${result.name}`);
-				responseData[result.name] = [];
-			}
+		const results: Record<string, unknown[]> = {};
+		for (const name of names) {
+			const res = await this.getCollectionData(name, options);
+			if (res.success) results[name] = res.data.data;
 		}
+		return { success: true, data: results };
+	}
 
-		return { success: true, data: responseData };
+	public readonly utils = {
+		generateId: () => require('./methods/mongoDBUtils').generateId(),
+		normalizePath: (path: string) => path.replace(/\\/g, '/'),
+		validateId: (id: string) => mongoose.Types.ObjectId.isValid(id),
+		createPagination: <T>(items: T[], options: PaginationOptions): PaginatedResult<T> => {
+			const page = options.page || 1;
+			const pageSize = options.pageSize || 10;
+			return {
+				items: items.slice((page - 1) * pageSize, page * pageSize),
+				total: items.length,
+				page,
+				pageSize,
+				hasNextPage: items.length > page * pageSize,
+				hasPreviousPage: page > 1
+			};
+		}
+	};
+
+	private async _wrapResult<T>(fn: () => Promise<any>): Promise<DatabaseResult<T>> {
+		try {
+			const result = await fn();
+
+			// If already a DatabaseResult, return it as is
+			if (result && typeof result === 'object' && 'success' in result) {
+				return result as DatabaseResult<T>;
+			}
+
+			// Otherwise, wrap the raw result
+			return { success: true, data: result };
+		} catch (error) {
+			return {
+				success: false,
+				message: String(error),
+				error: {
+					code: 'OPERATION_FAILED',
+					message: String(error)
+				}
+			};
+		}
 	}
 }

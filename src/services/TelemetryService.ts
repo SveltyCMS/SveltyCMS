@@ -140,15 +140,54 @@ export const telemetryService = {
 
 				try {
 					const { dbAdapter } = await import('@src/databases/db');
-					if (dbAdapter && dbAdapter.auth) {
+
+					if (!dbAdapter) {
+						logger.debug('[Telemetry] Skipped: Database adapter not available');
+						return { status: 'error', latest: pkg.version, security_issue: false };
+					}
+
+					// 1. Connection Guard
+					if (typeof dbAdapter.isConnected === 'function' && !dbAdapter.isConnected()) {
+						logger.debug('[Telemetry] Skipped: DB not connected yet');
+						return { status: 'error', latest: pkg.version, security_issue: false };
+					}
+
+					// 2. Monitoring Guard
+					if (dbAdapter.ensureMonitoring) {
+						await dbAdapter.ensureMonitoring().catch(() => {});
+					}
+
+					// 3. Auth Dependency
+					if (dbAdapter.ensureAuth) {
+						try {
+							await dbAdapter.ensureAuth();
+						} catch (err) {
+							logger.debug('[Telemetry] Auth module not ready yet, skipping metrics');
+						}
+					}
+
+					if (dbAdapter.auth) {
 						const userCountResult = await dbAdapter.auth.getUserCount();
 						if (userCountResult.success) userCount = userCountResult.data;
 						roleCount = (await dbAdapter.auth.getAllRoles()).length;
 					}
 
+					// 4. Content Dependency
 					const { ContentManager } = await import('@src/content/ContentManager');
-					const collections = await ContentManager.getInstance().getCollections();
-					collectionCount = collections.length;
+					const contentManager = ContentManager.getInstance();
+
+					if (dbAdapter.ensureContent) {
+						try {
+							await dbAdapter.ensureContent();
+						} catch (err) {
+							logger.debug('[Telemetry] Content module not ready yet, skipping collection count');
+						}
+					}
+
+					if (contentManager.isInitialized?.()) {
+						const collections = await contentManager.getCollections();
+						collectionCount = collections.length;
+					}
 				} catch (err) {
 					logger.debug('[Telemetry] Metrics collection failed:', err);
 				}

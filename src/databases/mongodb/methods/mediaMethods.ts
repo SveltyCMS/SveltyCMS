@@ -9,7 +9,7 @@
 
 import { logger } from '@utils/logger';
 import type Mongoose from 'mongoose';
-import type { DatabaseId, MediaItem, MediaMetadata, PaginatedResult, PaginationOptions } from '../../dbInterface';
+import type { DatabaseId, DatabaseResult, MediaItem, MediaMetadata, PaginatedResult, PaginationOptions } from '../../dbInterface';
 import { mediaSchema, type IMedia } from '../models/media';
 import { createDatabaseError } from './mongoDBUtils';
 import { withCache, CacheCategory, invalidateCategoryCache } from './mongoDBCacheUtils';
@@ -46,38 +46,46 @@ export class MongoMediaMethods {
 	// ============================================================
 
 	/// Uploads multiple media files in a single, efficient batch operation
-	async uploadMany(files: Omit<MediaItem, '_id'>[]): Promise<MediaItem[]> {
+	async uploadMany(files: Omit<MediaItem, '_id'>[]): Promise<DatabaseResult<MediaItem[]>> {
 		try {
 			const result = await this.mediaModel.insertMany(files);
 
 			// Invalidate media caches
 			await invalidateCategoryCache(CacheCategory.MEDIA);
 
-			return result.map((doc) => doc.toObject() as unknown as MediaItem);
+			return { success: true, data: result.map((doc) => doc.toObject() as unknown as MediaItem) };
 		} catch (error) {
-			throw createDatabaseError(error, 'MEDIA_UPLOAD_MANY_ERROR', 'Failed to upload media files');
+			return {
+				success: false,
+				message: 'Failed to upload media files',
+				error: createDatabaseError(error, 'MEDIA_UPLOAD_MANY_ERROR', 'Failed to upload media files')
+			};
 		}
 	}
 
 	// Deletes multiple media files in a single batch operation
-	async deleteMany(fileIds: DatabaseId[]): Promise<{ deletedCount: number }> {
+	async deleteMany(fileIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> {
 		try {
 			if (fileIds.length === 0) {
-				return { deletedCount: 0 };
+				return { success: true, data: { deletedCount: 0 } };
 			}
 			const result = await this.mediaModel.deleteMany({ _id: { $in: fileIds } });
 
 			// Invalidate media caches
 			await invalidateCategoryCache(CacheCategory.MEDIA);
 
-			return { deletedCount: result.deletedCount };
+			return { success: true, data: { deletedCount: result.deletedCount } };
 		} catch (error) {
-			throw createDatabaseError(error, 'MEDIA_DELETE_MANY_ERROR', 'Failed to delete media files');
+			return {
+				success: false,
+				message: 'Failed to delete media files',
+				error: createDatabaseError(error, 'MEDIA_DELETE_MANY_ERROR', 'Failed to delete media files')
+			};
 		}
 	}
 
 	// Updates metadata for a single file
-	async updateMetadata(fileId: DatabaseId, metadata: Partial<MediaMetadata>): Promise<MediaItem | null> {
+	async updateMetadata(fileId: DatabaseId, metadata: Partial<MediaMetadata>): Promise<DatabaseResult<MediaItem | null>> {
 		try {
 			const updateData = Object.entries(metadata).reduce(
 				(acc, [key, value]) => {
@@ -94,63 +102,76 @@ export class MongoMediaMethods {
 			// Invalidate media caches
 			await invalidateCategoryCache(CacheCategory.MEDIA);
 
-			return result as unknown as MediaItem | null;
+			return { success: true, data: result as unknown as MediaItem | null };
 		} catch (error) {
-			throw createDatabaseError(error, 'UPDATE_METADATA_ERROR', 'Failed to update metadata');
+			return {
+				success: false,
+				message: 'Failed to update metadata',
+				error: createDatabaseError(error, 'UPDATE_METADATA_ERROR', 'Failed to update metadata')
+			};
 		}
 	}
 
 	// Moves multiple files to a different folder
-	async move(fileIds: DatabaseId[], targetFolderId?: DatabaseId): Promise<{ movedCount: number }> {
+	async move(fileIds: DatabaseId[], targetFolderId?: DatabaseId): Promise<DatabaseResult<{ movedCount: number }>> {
 		try {
 			const result = await this.mediaModel.updateMany({ _id: { $in: fileIds } }, { $set: { folderId: targetFolderId, updatedAt: new Date() } });
 
 			// Invalidate media caches
 			await invalidateCategoryCache(CacheCategory.MEDIA);
 
-			return { movedCount: result.modifiedCount };
+			return { success: true, data: { movedCount: result.modifiedCount } };
 		} catch (error) {
-			throw createDatabaseError(error, 'MEDIA_MOVE_ERROR', 'Failed to move files');
+			return {
+				success: false,
+				message: 'Failed to move files',
+				error: createDatabaseError(error, 'MEDIA_MOVE_ERROR', 'Failed to move files')
+			};
 		}
 	}
 
 	// Retrieves a paginated list of media files, optionally filtered by folder
-	async getFiles(folderId?: DatabaseId, options: PaginationOptions = {}): Promise<PaginatedResult<MediaItem>> {
+	async getFiles(folderId?: DatabaseId, options: PaginationOptions = {}): Promise<DatabaseResult<PaginatedResult<MediaItem>>> {
 		const { page = 1, pageSize = 25, sortField = 'createdAt', sortDirection = 'desc' } = options;
 		const cacheKey = `media:files:${folderId || 'root'}:${page}:${pageSize}:${sortField}:${sortDirection}`;
 
-		return withCache(
-			cacheKey,
-			async () => {
-				try {
-					const query = folderId ? { folderId } : { folderId: { $in: [null, undefined] } }; // Root files
-					const skip = (page - 1) * pageSize;
-					const sort: Record<string, 1 | -1> = { [sortField]: sortDirection === 'asc' ? 1 : -1 };
+		const fetchData = async (): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
+			try {
+				const query = folderId ? { folderId } : { folderId: { $in: [null, undefined] } }; // Root files
+				const skip = (page - 1) * pageSize;
+				const sort: Record<string, 1 | -1> = { [sortField]: sortDirection === 'asc' ? 1 : -1 };
 
-					const [items, total] = await Promise.all([
-						this.mediaModel
-							.find(query as any)
-							.sort(sort)
-							.skip(skip)
-							.limit(pageSize)
-							.lean()
-							.exec(),
-						this.mediaModel.countDocuments(query as any)
-					]);
+				const [items, total] = await Promise.all([
+					this.mediaModel
+						.find(query as any)
+						.sort(sort)
+						.skip(skip)
+						.limit(pageSize)
+						.lean()
+						.exec(),
+					this.mediaModel.countDocuments(query as any)
+				]);
 
-					return {
+				return {
+					success: true,
+					data: {
 						items: items as unknown as MediaItem[],
 						total,
 						page,
 						pageSize,
 						hasNextPage: page * pageSize < total,
 						hasPreviousPage: page > 1
-					};
-				} catch (error) {
-					throw createDatabaseError(error, 'GET_FILES_ERROR', 'Failed to fetch media files');
-				}
-			},
-			{ category: CacheCategory.MEDIA }
-		);
+					}
+				};
+			} catch (error) {
+				return {
+					success: false,
+					message: 'Failed to fetch media files',
+					error: createDatabaseError(error, 'GET_FILES_ERROR', 'Failed to fetch media files')
+				};
+			}
+		};
+
+		return withCache(cacheKey, fetchData, { category: CacheCategory.MEDIA });
 	}
 }

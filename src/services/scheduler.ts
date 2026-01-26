@@ -12,7 +12,6 @@ import { webhookService } from './webhookService';
 const getDbAdapter = async () => (await import('@src/databases/db')).dbAdapter;
 
 export class SchedulerService {
-	private static instance: SchedulerService;
 	private intervalId: NodeJS.Timeout | null = null;
 	private isRunning = false;
 	private readonly CHECK_INTERVAL = 60 * 1000; // Check every minute
@@ -20,10 +19,11 @@ export class SchedulerService {
 	private constructor() {}
 
 	public static getInstance(): SchedulerService {
-		if (!SchedulerService.instance) {
-			SchedulerService.instance = new SchedulerService();
+		const g = globalThis as any;
+		if (!g.__SVELTY_SCHEDULER_INSTANCE__) {
+			g.__SVELTY_SCHEDULER_INSTANCE__ = new SchedulerService();
 		}
-		return SchedulerService.instance;
+		return g.__SVELTY_SCHEDULER_INSTANCE__;
 	}
 
 	/**
@@ -57,8 +57,8 @@ export class SchedulerService {
 	 * Main logic to find and publish scheduled items
 	 */
 	public async checkScheduledItems() {
-		if (this.isRunning) {
-			logger.debug('Scheduler already running, skipping cycle');
+		if (this.isRunning || !this.intervalId) {
+			if (!this.intervalId) logger.debug('Scheduler stopped, skipping cycle');
 			return;
 		}
 
@@ -66,20 +66,45 @@ export class SchedulerService {
 
 		try {
 			const db = await getDbAdapter();
+			if (!this.intervalId) return; // Check if stopped during await
+
 			if (!db) {
-				logger.warn('Database adapter not available for scheduler');
+				logger.debug('Scheduler skipped: Database adapter not available');
 				return;
 			}
 
-			// 1. Get all nodes with 'schedule' status
-			// We can't easily query JSON fields across all DB types, so we fetch all 'schedule' items
-			// and filter in memory. Assuming the number of *pending* scheduled items is small (hundreds, not millions).
-			// If this scales up, we need a dedicated index/column for 'scheduledAt'.
+			// 1. Connection Guard
+			// Skip cycle if DB is not connected to avoid unnecessary errors during boot
+			if (typeof db.isConnected === 'function' && !db.isConnected()) {
+				logger.debug('Scheduler skipped: DB not connected yet');
+				return;
+			}
 
-			// Using getStructure 'flat' to get all nodes
-			// Optimized: We should probably add a specific query method for this if volume grows
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			// 2. Capability Guard
+			// Ensure the adapter supports the required features
+			const caps = typeof db.getCapabilities === 'function' ? db.getCapabilities() : null;
+			if (caps && !caps.supportsAggregation) {
+				logger.debug('Scheduler skipped: DB does not support required features');
+				return;
+			}
+
+			// 3. Explicit Dependency Declaration (Lazy Activation)
+			// Declare dependency on the content module and attempt activation
+			if (db.ensureContent) {
+				try {
+					await db.ensureContent();
+					if (!this.intervalId) return; // Check if stopped during await
+				} catch (err) {
+					logger.debug('Scheduler skipped: content module not ready yet');
+					return;
+				}
+			}
+
+			// 4. Get all nodes with 'schedule' status
+			// We can't easily query JSON fields across all DB types, so we fetch all 'schedule' items
+			// and filter in memory. Assuming the number of *pending* scheduled items is small.
 			const result = await db.content.nodes.getStructure('flat', { status: StatusTypes.schedule } as any);
+			if (!this.intervalId) return; // Check if stopped during await
 
 			if (!result.success || !result.data) {
 				return;
@@ -100,6 +125,8 @@ export class SchedulerService {
 
 			// 2. Publish items
 			for (const node of nodesToPublish) {
+				if (!this.intervalId) return; // Stop processing if scheduler stopped
+
 				try {
 					logger.info(`Publishing scheduled item: ${node.name} (${node._id})`);
 
@@ -134,6 +161,9 @@ export class SchedulerService {
 				}
 			}
 		} catch (error) {
+			// Ignore errors if stopped (likely "module runner closed")
+			if (!this.intervalId) return;
+
 			logger.error('Scheduler check failed:', error instanceof Error ? error.message : JSON.stringify(error));
 			if (error instanceof Error && error.stack) {
 				logger.debug(error.stack);
@@ -142,6 +172,19 @@ export class SchedulerService {
 			this.isRunning = false;
 		}
 	}
+}
+
+const g = globalThis as any;
+
+// On module load, if an instance already exists, stop it AND remove it
+// This forces getInstance() to create a NEW instance with the NEW module context
+if (g.__SVELTY_SCHEDULER_INSTANCE__) {
+	try {
+		g.__SVELTY_SCHEDULER_INSTANCE__.stop();
+	} catch (e) {
+		// Ignore stop errors on old instances
+	}
+	delete g.__SVELTY_SCHEDULER_INSTANCE__;
 }
 
 export const scheduler = SchedulerService.getInstance();

@@ -8,6 +8,7 @@ import { logger } from '@utils/logger';
 import type { Model } from 'mongoose';
 import type { DatabaseId, Theme } from '../../dbInterface';
 import { createDatabaseError } from './mongoDBUtils';
+import { v4 as uuidv4 } from 'uuid';
 import { withCache, CacheCategory, invalidateCategoryCache } from './mongoDBCacheUtils';
 
 // Define the model type for dependency injection, making the class testable.
@@ -128,6 +129,32 @@ export class MongoThemeMethods {
 			return savedTheme.toObject();
 		} catch (error) {
 			throw createDatabaseError(error, 'THEME_INSTALL_FAILED', 'Failed to install theme');
+		}
+	}
+
+	/**
+	 * Ensures a theme exists in the database.
+	 * Atomic upsert: query by name, only insert if not exists.
+	 * @param {Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>} themeData - The theme data.
+	 * @returns {Promise<Theme>} The theme object.
+	 */
+	async ensure(themeData: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>): Promise<Theme> {
+		try {
+			// Strip timestamps and ID to let Mongoose handle them or avoid conflicts with $setOnInsert
+			const { _id, createdAt, updatedAt, ...rest } = themeData as any;
+			const result = await this.themeModel
+				.findOneAndUpdate(
+					{ name: themeData.name },
+					{ $setOnInsert: { ...rest, _id: _id || uuidv4().replace(/-/g, '') } },
+					{ upsert: true, new: true, setDefaultsOnInsert: true }
+				)
+				.lean()
+				.exec();
+
+			await invalidateCategoryCache(CacheCategory.THEME);
+			return result as Theme;
+		} catch (error) {
+			throw createDatabaseError(error, 'THEME_ENSURE_FAILED', 'Failed to ensure theme');
 		}
 	}
 

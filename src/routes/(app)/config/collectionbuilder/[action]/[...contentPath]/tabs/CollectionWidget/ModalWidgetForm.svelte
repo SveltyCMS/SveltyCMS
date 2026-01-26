@@ -31,14 +31,11 @@ It handles widget configuration, permissions, and specific options.
 		parent?: any;
 		value: any;
 		response?: (r: any) => void;
-		title?: string;
-		body?: string;
 	}
 
-	const { value, response, title, body }: Props = $props();
+	const { value, response }: Props = $props();
 
 	// Local variables
-	// const modalData = $derived($modalStore[0]);
 	// Use props directly instead of modalData
 	// Widget key is the folder name (lowercase), not the widget Name
 	const widgetKey = $derived(value?.widget?.key || (value?.widget?.Name?.toLowerCase() as string));

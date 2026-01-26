@@ -88,9 +88,12 @@ sequenceDiagram
     System->>System: Setup models
     State->>State: Set state = READY
 
+    System-->>System: Background task: startBackgroundWarmup()
+    Note over State: Transition to WARMING...
+
     DB-->>Setup: { status: 'success' }
 
-    Note over Setup,State: ✅ System fully operational<br/>NO RESTART NEEDED
+    Note over Setup,State: ✅ System READY for requests<br/>Hydration completes in background
 ```
 
 **Implementation:**
@@ -168,15 +171,31 @@ stateDiagram-v2
     IDLE --> INITIALIZING: First request arrives
     IDLE --> INITIALIZING: initializeWithConfig() called
 
-    INITIALIZING --> READY: All services healthy
-    INITIALIZING --> DEGRADED: Some services unhealthy
-    INITIALIZING --> FAILED: Critical service failed
+    INITIALIZING --> READY: Critical path healthy
+    READY --> WARMING: Background warmup begins
+    WARMING --> WARMED: All modules active
 
-    READY --> DEGRADED: Service becomes unhealthy
-    DEGRADED --> READY: Service recovered
-    DEGRADED --> FAILED: Critical service failed
+    READY --> DEGRADED: Non-critical failure
+    INITIALIZING --> FAILED: Critical service failed
+    WARMING --> DEGRADED: Background module failed
+
+    READY --> FAILED: Database disconnected
+    WARMED --> FAILED: Database disconnected
 
     FAILED --> [*]: Requires restart
+
+    note right of READY
+        - Database connected
+        - Auth models registered
+        - System settings cached
+        - API safe to browse
+    end note
+
+    note right of WARMING
+        - Themes initializing
+        - Widgets discovered
+        - Caches pre-filling
+    end note
 
     note right of IDLE
         - No database connection

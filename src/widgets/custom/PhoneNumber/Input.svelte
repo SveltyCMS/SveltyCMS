@@ -57,10 +57,10 @@
 	// Use current content language for translated fields, default for non-translated
 	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
-	// Initialize value
+	// Initialize value if null/undefined
 	$effect(() => {
-		if (!value) {
-			value = { [_language]: '' };
+		if (value === undefined || value === null) {
+			value = field.translated ? { [_language]: '' } : '';
 		}
 	});
 
@@ -128,10 +128,14 @@
 	// Handle input changes
 	function handleInput(e: Event) {
 		const target = e.currentTarget as HTMLInputElement;
-		if (!value) {
-			value = {};
+		if (field.translated) {
+			if (!value || typeof value !== 'object') {
+				value = {};
+			}
+			value = { ...value, [_language]: target.value };
+		} else {
+			value = target.value;
 		}
-		value = { ...value, [_language]: target.value };
 	}
 
 	// Handle blur
@@ -152,61 +156,69 @@
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 	});
 
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+
 	// Export WidgetData for data binding with Fields.svelte
 	export const WidgetData = async () => value;
 </script>
 
 <div class="input-container relative mb-4">
-	<div class="preset-filled-surface-500 btn-group flex w-full rounded" role="group">
-		{#if field?.prefix}
-			<button class="px-2!" type="button" aria-label={`${field.prefix} prefix`}>
-				{field?.prefix}
-			</button>
-		{/if}
+	<SystemTooltip title={validationError || ''} wFull={true}>
+		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600" role="group">
+			{#if field?.prefix}
+				<div
+					class="flex items-center bg-surface-200 px-3 text-surface-700 dark:bg-surface-800 dark:text-surface-200"
+					aria-label={`${field.prefix} prefix`}
+				>
+					{field?.prefix}
+				</div>
+			{/if}
 
-		<div class="relative w-full flex-1">
-			<input
-				type="tel"
-				value={safeValue || ''}
-				oninput={handleInput}
-				onblur={handleBlur}
-				use:tokenTarget={{
-					name: field.db_fieldName,
-					label: field.label,
-					collection: (field as any).collection
-				}}
-				name={field?.db_fieldName}
-				id={field?.db_fieldName}
-				placeholder={typeof field?.placeholder === 'string' && field.placeholder !== '' ? field.placeholder : String(field?.db_fieldName ?? '')}
-				required={field?.required as boolean | undefined}
-				readonly={field?.readonly as boolean | undefined}
-				disabled={field?.disabled as boolean | undefined}
-				class="input w-full rounded-none text-black dark:text-primary-500"
-				class:!border-error-500={!!validationError}
-				class:!ring-1={!!validationError || isValidating}
-				class:!ring-error-500={!!validationError}
-				class:!border-primary-500={isValidating && !validationError}
-				class:!ring-primary-500={isValidating && !validationError}
-				aria-invalid={!!validationError}
-				aria-describedby={validationError ? `${fieldName}-error` : undefined}
-				aria-required={field?.required}
-				data-testid="phone-input"
-			/>
-		</div>
-
-		{#if field?.suffix}
-			<button class="px-2!" type="button" aria-label={`${field.suffix} suffix`}>
-				{field?.suffix}
-			</button>
-		{/if}
-
-		<!-- Validation indicator -->
-		{#if isValidating}
-			<div class="flex items-center px-2" aria-label="Validating">
-				<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+			<div class="relative w-full flex-1">
+				<input
+					type="tel"
+					value={safeValue || ''}
+					oninput={handleInput}
+					onblur={handleBlur}
+					oninvalid={(e) => e.preventDefault()}
+					use:tokenTarget={{
+						name: field.db_fieldName,
+						label: field.label,
+						collection: (field as any).collection
+					}}
+					name={field?.db_fieldName}
+					id={field?.db_fieldName}
+					placeholder={typeof field?.placeholder === 'string' && field.placeholder !== '' ? field.placeholder : String(field?.db_fieldName ?? '')}
+					required={field?.required as boolean | undefined}
+					readonly={field?.readonly as boolean | undefined}
+					disabled={field?.disabled as boolean | undefined}
+					class="input w-full rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {!!validationError
+						? 'bg-error-500-10!'
+						: ''}"
+					aria-invalid={!!validationError}
+					aria-describedby={validationError ? `${fieldName}-error` : undefined}
+					aria-required={field?.required}
+					data-testid="phone-input"
+				/>
 			</div>
-		{/if}
-	</div>
+
+			{#if field?.suffix}
+				<div
+					class="flex items-center bg-surface-200 px-3 text-surface-700 dark:bg-surface-800 dark:text-surface-200"
+					aria-label={`${field.suffix} suffix`}
+				>
+					{field?.suffix}
+				</div>
+			{/if}
+
+			<!-- Validation indicator -->
+			{#if isValidating}
+				<div class="flex items-center bg-white px-2 dark:bg-surface-900" aria-label="Validating">
+					<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+				</div>
+			{/if}
+		</div>
+	</SystemTooltip>
 
 	<!-- Error Message -->
 	{#if validationError && isTouched}

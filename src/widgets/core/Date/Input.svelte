@@ -31,6 +31,7 @@ Part of the Three Pillars Architecture for widget system.
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import type { FieldType } from './';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	interface Props {
 		field: FieldType;
@@ -131,7 +132,36 @@ Part of the Three Pillars Architecture for widget system.
 	}
 </script>
 
-<div class="relative space-y-1">
+<div class="relative mb-4 min-h-10 w-full">
+	<SystemTooltip title={error || ''} wFull={true}>
+		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600" role="group">
+			<input
+				type="date"
+				id={field.db_fieldName}
+				name={field.db_fieldName}
+				required={field.required}
+				value={inputValue}
+				min={minDate}
+				max={maxDate}
+				oninput={handleInput}
+				onblur={handleBlur}
+				oninvalid={(e) => e.preventDefault()}
+				use:tokenTarget={{
+					name: field.db_fieldName,
+					label: field.label,
+					collection: (field as any).collection
+				}}
+				class="input w-full flex-1 rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {!!error
+					? 'bg-error-500-10!'
+					: ''}"
+				aria-invalid={!!error}
+				aria-describedby={error ? `${field.db_fieldName}-error` : field.helper ? `${field.db_fieldName}-helper` : undefined}
+				aria-required={field.required}
+				data-testid="date-input"
+			/>
+		</div>
+	</SystemTooltip>
+
 	<!-- Screen Reader Only Label -->
 	<label for={field.db_fieldName} class="sr-only">
 		{field.label}
@@ -140,43 +170,16 @@ Part of the Three Pillars Architecture for widget system.
 		{/if}
 	</label>
 
-	<!-- Date Input -->
-	<div class="relative w-full">
-		<input
-			type="date"
-			id={field.db_fieldName}
-			name={field.db_fieldName}
-			required={field.required}
-			value={inputValue}
-			min={minDate}
-			max={maxDate}
-			oninput={handleInput}
-			onblur={handleBlur}
-			use:tokenTarget={{
-				name: field.db_fieldName,
-				label: field.label,
-				collection: (field as any).collection
-			}}
-			class="input w-full rounded-none text-black dark:text-primary-500 focus:border-tertiary-500 focus:outline-none"
-			class:!border-error-500={!!error}
-			class:!bg-error-500-10={!!error}
-			aria-invalid={!!error}
-			aria-describedby={error ? `${field.db_fieldName}-error` : field.helper ? `${field.db_fieldName}-helper` : undefined}
-			aria-required={field.required}
-			data-testid="date-input"
-		/>
-	</div>
-
 	<!-- Helper Text -->
 	{#if field.helper && !error}
-		<p id={`${field.db_fieldName}-helper`} class="text-xs text-gray-600 dark:text-gray-400">
+		<p id={`${field.db_fieldName}-helper`} class="absolute bottom-0 left-0 w-full text-center text-xs text-surface-500 dark:text-surface-50">
 			{field.helper}
 		</p>
 	{/if}
 
 	<!-- Error Message -->
 	{#if error}
-		<p id={`${field.db_fieldName}-error`} class="text-xs text-error-500" role="alert" aria-live="polite">
+		<p id={`${field.db_fieldName}-error`} class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
 			{error}
 		</p>
 	{/if}

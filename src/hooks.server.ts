@@ -90,8 +90,8 @@ if (!building) {
 
 			// Prevent duplicate intervals during Hot Module Replacement (HMR)
 			if (globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__) {
-				logger.debug('Reusing existing telemetry interval (HMR detected)');
-				return;
+				logger.debug('Stopping old telemetry interval (HMR detected)');
+				clearInterval(globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__);
 			}
 
 			logger.info('📡 Initializing Telemetry Service...');

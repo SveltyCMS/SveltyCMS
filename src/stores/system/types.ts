@@ -4,7 +4,7 @@
  */
 
 // System-wide states
-export type SystemState = 'IDLE' | 'INITIALIZING' | 'READY' | 'DEGRADED' | 'FAILED';
+export type SystemState = 'IDLE' | 'INITIALIZING' | 'READY' | 'WARMING' | 'WARMED' | 'DEGRADED' | 'FAILED';
 
 // Individual service health statuses
 export type ServiceHealth = 'healthy' | 'unhealthy' | 'initializing';

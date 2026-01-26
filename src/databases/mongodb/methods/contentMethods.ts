@@ -21,6 +21,7 @@ import type {
 	BaseEntity,
 	ContentDraft as DBContentDraft,
 	ContentRevision as DBContentRevision,
+	DatabaseResult,
 	PaginatedResult,
 	PaginationOptions,
 	QueryFilter
@@ -111,19 +112,25 @@ export class MongoContentMethods {
 	 * Retrieves the content structure as a flat list or a hierarchical tree.
 	 * Cached with 180s TTL since structure is frequently accessed for navigation/menus
 	 */
-	async getStructure(mode: 'flat' | 'nested' = 'flat', filter: Partial<ContentNode> = {}, bypassCache = false): Promise<ContentNode[]> {
+	async getStructure(
+		mode: 'flat' | 'nested' = 'flat',
+		filter: Partial<ContentNode> = {},
+		bypassCache = false
+	): Promise<DatabaseResult<ContentNode[]>> {
 		// Create cache key based on mode and filter
 		const filterKey = JSON.stringify(filter);
 		const cacheKey = `content:structure:${mode}:${filterKey}`;
 
-		const fetchData = async () => {
-			const nodes = await this.nodesRepo.findMany(filter);
+		const fetchData = async (): Promise<DatabaseResult<ContentNode[]>> => {
+			const result = await this.nodesRepo.findMany(filter);
+			if (!result.success) return result;
+
 			if (mode === 'flat') {
-				return nodes;
+				return result;
 			}
 
 			// Build the nested tree structure using the utility function
-			return buildTree(nodes);
+			return { success: true, data: buildTree(result.data) };
 		};
 
 		// Bypass cache if requested (e.g., during sync operations)
@@ -135,7 +142,7 @@ export class MongoContentMethods {
 	}
 
 	// Atomically creates a new node or updates an existing one based on its path.
-	async upsertNodeByPath(nodeData: Omit<ContentNode, '_id' | 'createdAt' | 'updatedAt'>): Promise<ContentNode> {
+	async upsertNodeByPath(nodeData: Omit<ContentNode, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>> {
 		try {
 			const { path, parentId } = nodeData;
 
@@ -157,9 +164,13 @@ export class MongoContentMethods {
 			// Invalidate content structure caches
 			await invalidateCategoryCache(CacheCategory.CONTENT);
 
-			return result;
+			return { success: true, data: result as ContentNode };
 		} catch (error) {
-			throw createDatabaseError(error, 'NODE_UPSERT_ERROR', 'Failed to upsert content structure node.');
+			return {
+				success: false,
+				message: 'Failed to upsert content structure node.',
+				error: createDatabaseError(error, 'NODE_UPSERT_ERROR', 'Failed to upsert content structure node.')
+			};
 		}
 	}
 
@@ -169,8 +180,8 @@ export class MongoContentMethods {
 	 * IMPORTANT: For collections, the _id from compiled files is used as the document _id
 	 * to ensure navigation and caching work correctly.
 	 */
-	async bulkUpdateNodes(updates: Array<{ path: string; changes: Partial<ContentNode> }>): Promise<{ modifiedCount: number }> {
-		if (updates.length === 0) return { modifiedCount: 0 };
+	async bulkUpdateNodes(updates: Array<{ path: string; changes: Partial<ContentNode> }>): Promise<DatabaseResult<{ modifiedCount: number }>> {
+		if (updates.length === 0) return { success: true, data: { modifiedCount: 0 } };
 		try {
 			logger.trace(`[bulkUpdateNodes] Processing ${updates.length} updates`);
 			const operations = updates.map(({ path, changes }) => {
@@ -221,24 +232,38 @@ export class MongoContentMethods {
 			// Invalidate content structure caches
 			await invalidateCategoryCache(CacheCategory.CONTENT);
 
-			return { modifiedCount: result.modifiedCount + result.upsertedCount };
+			return { success: true, data: { modifiedCount: result.modifiedCount + result.upsertedCount } };
 		} catch (error) {
-			throw createDatabaseError(error, 'NODE_BULK_UPDATE_ERROR', 'Failed to perform bulk update on nodes.');
+			return {
+				success: false,
+				message: 'Failed to perform bulk update on nodes.',
+				error: createDatabaseError(error, 'NODE_BULK_UPDATE_ERROR', 'Failed to perform bulk update on nodes.')
+			};
 		}
 	}
 
 	// Persists a full or partial content structure reorder using the efficient Model method.
-	async reorderStructure(items: Array<{ id: string; parentId: string | null; order: number; path: string }>): Promise<void> {
+	async reorderStructure(items: Array<{ id: string; parentId: string | null; order: number; path: string }>): Promise<DatabaseResult<void>> {
 		try {
 			// Cast model to any to access the static method we added
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const result = await (this.nodesRepo.model as any).reorderStructure(items);
 			if (!result.success) {
-				throw result.error || new Error(result.message);
+				return {
+					// Propagate error from model static method if it follows the pattern, or wrap it
+					success: false,
+					message: result.message || 'Reorder failed',
+					error: result.error
+				};
 			}
 			await invalidateCategoryCache(CacheCategory.CONTENT);
+			return { success: true, data: undefined };
 		} catch (error) {
-			throw createDatabaseError(error, 'NODE_REORDER_ERROR', 'Failed to reorder content structure.');
+			return {
+				success: false,
+				message: 'Failed to reorder content structure.',
+				error: createDatabaseError(error, 'NODE_REORDER_ERROR', 'Failed to reorder content structure.')
+			};
 		}
 	}
 
@@ -247,8 +272,10 @@ export class MongoContentMethods {
 	 * This can happen when nodes were created before _id was properly set from compiled files.
 	 * For each node where the expected _id differs from the actual _id, delete and recreate.
 	 */
-	async fixMismatchedNodeIds(expectedNodes: Array<{ path: string; expectedId: string; changes: Partial<ContentNode> }>): Promise<{ fixed: number }> {
-		if (expectedNodes.length === 0) return { fixed: 0 };
+	async fixMismatchedNodeIds(
+		expectedNodes: Array<{ path: string; expectedId: string; changes: Partial<ContentNode> }>
+	): Promise<DatabaseResult<{ fixed: number }>> {
+		if (expectedNodes.length === 0) return { success: true, data: { fixed: 0 } };
 
 		try {
 			let fixedCount = 0;
@@ -279,9 +306,13 @@ export class MongoContentMethods {
 				logger.info(`[fixMismatchedNodeIds] Fixed ${fixedCount} nodes with mismatched IDs`);
 			}
 
-			return { fixed: fixedCount };
+			return { success: true, data: { fixed: fixedCount } };
 		} catch (error) {
-			throw createDatabaseError(error, 'NODE_FIX_IDS_ERROR', 'Failed to fix mismatched node IDs.');
+			return {
+				success: false,
+				message: 'Failed to fix mismatched node IDs.',
+				error: createDatabaseError(error, 'NODE_FIX_IDS_ERROR', 'Failed to fix mismatched node IDs.')
+			};
 		}
 	}
 
@@ -289,41 +320,55 @@ export class MongoContentMethods {
 	// Draft Methods
 	// ============================================================
 
-	async createDraft(draft: Omit<ContentDraft, '_id' | 'createdAt' | 'updatedAt'>): Promise<ContentDraft> {
+	async createDraft(draft: Omit<ContentDraft, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentDraft>> {
 		return this.draftsRepo.insert(draft);
 	}
 
-	async getDraftsForContent(contentId: DatabaseId, options?: PaginationOptions): Promise<PaginatedResult<ContentDraft>> {
+	async getDraftsForContent(contentId: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<ContentDraft>>> {
 		try {
 			const { page = 1, pageSize = 10 } = options || {};
 			const query = { contentId };
 
-			const [items, total] = await Promise.all([
+			const [itemsRes, totalRes] = await Promise.all([
 				this.draftsRepo.findMany(query, { skip: (page - 1) * pageSize, limit: pageSize }),
 				this.draftsRepo.count(query)
 			]);
 
+			if (!itemsRes.success) return itemsRes as any;
+			if (!totalRes.success) return totalRes as any;
+
 			return {
-				items,
-				total,
-				page,
-				pageSize,
-				hasNextPage: page * pageSize < total,
-				hasPreviousPage: page > 1
+				success: true,
+				data: {
+					items: itemsRes.data,
+					total: totalRes.data,
+					page,
+					pageSize,
+					hasNextPage: page * pageSize < totalRes.data,
+					hasPreviousPage: page > 1
+				}
 			};
 		} catch (error) {
-			throw createDatabaseError(error, 'DRAFT_FETCH_ERROR', 'Failed to fetch drafts for content.');
+			return {
+				success: false,
+				message: 'Failed to fetch drafts for content.',
+				error: createDatabaseError(error, 'DRAFT_FETCH_ERROR', 'Failed to fetch drafts for content.')
+			};
 		}
 	}
 
 	// Publishes multiple drafts in a single batch operation.
-	async publishManyDrafts(draftIds: DatabaseId[]): Promise<{ modifiedCount: number }> {
-		if (draftIds.length === 0) return { modifiedCount: 0 };
+	async publishManyDrafts(draftIds: DatabaseId[]): Promise<DatabaseResult<{ modifiedCount: number }>> {
+		if (draftIds.length === 0) return { success: true, data: { modifiedCount: 0 } };
 		try {
 			const result = await this.draftsRepo.model.updateMany({ _id: { $in: draftIds } }, { $set: { status: 'published', publishedAt: new Date() } });
-			return { modifiedCount: result.modifiedCount };
+			return { success: true, data: { modifiedCount: result.modifiedCount } };
 		} catch (error) {
-			throw createDatabaseError(error, 'DRAFT_BULK_PUBLISH_ERROR', 'Failed to publish drafts.');
+			return {
+				success: false,
+				message: 'Failed to publish drafts.',
+				error: createDatabaseError(error, 'DRAFT_BULK_PUBLISH_ERROR', 'Failed to publish drafts.')
+			};
 		}
 	}
 
@@ -331,41 +376,49 @@ export class MongoContentMethods {
 	// Revision Methods
 	// ============================================================
 
-	async createRevision(revision: Omit<ContentRevision, '_id' | 'createdAt'>): Promise<ContentRevision> {
+	async createRevision(revision: Omit<ContentRevision, '_id' | 'createdAt'>): Promise<DatabaseResult<ContentRevision>> {
 		return this.revisionsRepo.insert(revision);
 	}
 
-	async getRevisionHistory(contentId: DatabaseId, options?: PaginationOptions): Promise<PaginatedResult<ContentRevision>> {
+	async getRevisionHistory(contentId: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<ContentRevision>>> {
 		try {
 			const { page = 1, pageSize = 25 } = options || {};
 			const query = { contentId };
 
-			const [items, total] = await Promise.all([
-				this.revisionsRepo.model
-					.find(query)
-					.sort({ createdAt: -1 })
-					.skip((page - 1) * pageSize)
-					.limit(pageSize)
-					.lean()
-					.exec(),
-				this.revisionsRepo.count(query)
-			]);
+			// RevisionsRepo count returns DatabaseResult
+			const totalRes = await this.revisionsRepo.count(query);
+			if (!totalRes.success) return totalRes as any;
+
+			const items = await this.revisionsRepo.model
+				.find(query)
+				.sort({ createdAt: -1 })
+				.skip((page - 1) * pageSize)
+				.limit(pageSize)
+				.lean()
+				.exec();
 
 			return {
-				items,
-				total,
-				page,
-				pageSize,
-				hasNextPage: page * pageSize < total,
-				hasPreviousPage: page > 1
+				success: true,
+				data: {
+					items: items as ContentRevision[],
+					total: totalRes.data,
+					page,
+					pageSize,
+					hasNextPage: page * pageSize < totalRes.data,
+					hasPreviousPage: page > 1
+				}
 			};
 		} catch (error) {
-			throw createDatabaseError(error, 'REVISION_FETCH_ERROR', 'Failed to fetch revision history.');
+			return {
+				success: false,
+				message: 'Failed to fetch revision history.',
+				error: createDatabaseError(error, 'REVISION_FETCH_ERROR', 'Failed to fetch revision history.')
+			};
 		}
 	}
 
 	// Deletes old revisions for a piece of content, keeping only the specified number of recent ones.
-	async cleanupRevisions(contentId: DatabaseId, keepLatest: number): Promise<{ deletedCount: number }> {
+	async cleanupRevisions(contentId: DatabaseId, keepLatest: number): Promise<DatabaseResult<{ deletedCount: number }>> {
 		try {
 			const revisionsToKeep = await this.revisionsRepo.model
 				.find({ contentId })
@@ -377,12 +430,17 @@ export class MongoContentMethods {
 
 			const keepIds = revisionsToKeep.map((r: { _id: { toString(): string } }) => r._id.toString() as DatabaseId);
 
-			return this.revisionsRepo.deleteMany({
+			// deleteMany returns DatabaseResult
+			return await this.revisionsRepo.deleteMany({
 				contentId,
 				_id: { $nin: keepIds }
 			} as QueryFilter<ContentRevision>);
 		} catch (error) {
-			throw createDatabaseError(error, 'REVISION_CLEANUP_ERROR', 'Failed to cleanup old revisions.');
+			return {
+				success: false,
+				message: 'Failed to cleanup old revisions.',
+				error: createDatabaseError(error, 'REVISION_CLEANUP_ERROR', 'Failed to cleanup old revisions.')
+			};
 		}
 	}
 }

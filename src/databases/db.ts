@@ -15,6 +15,7 @@
  */
 
 import { building } from '$app/environment';
+import { cacheService } from './CacheService';
 
 // Handle private config that might not exist during setup
 let privateEnv: InferOutput<typeof privateConfigSchema> | null = null;
@@ -109,7 +110,7 @@ import type { DatabaseAdapter } from './dbInterface';
 // Settings loader
 import { privateConfigSchema, publicConfigSchema } from '@src/databases/schemas';
 import { invalidateSettingsCache, setSettingsCache, getPublicSetting } from '@src/services/settingsService';
-import { safeParse, type InferOutput } from 'valibot';
+import { type InferOutput } from 'valibot';
 
 // Type definition for private config schema
 
@@ -184,213 +185,110 @@ const INFRASTRUCTURE_KEYS = new Set([
 const KNOWN_PUBLIC_KEYS = Object.keys(publicConfigSchema.entries);
 const KNOWN_PRIVATE_KEYS = Object.keys(privateConfigSchema.entries).filter((key) => !INFRASTRUCTURE_KEYS.has(key));
 
-export async function loadSettingsFromDB() {
-	try {
-		// logger.debug('Loading settings from database...');
+// --- Optimization Constants ---
+const CRITICAL_SETTINGS = ['MEDIA_FOLDER', 'MULTI_TENANT', 'DEFAULT_LANGUAGE'];
 
-		// Check if database adapter is available
-		if (!dbAdapter || !dbAdapter.systemPreferences) {
-			logger.warn('Database adapter not available during settings load. Using empty cache.');
+// --- Resilience Utility (Singleton) ---
+let _resilienceInstance: any = null;
+async function getResilience() {
+	if (!_resilienceInstance) {
+		const { getDatabaseResilience } = await import('./DatabaseResilience');
+		_resilienceInstance = getDatabaseResilience({
+			maxAttempts: 3,
+			initialDelayMs: 500,
+			backoffMultiplier: 2,
+			maxDelayMs: 5000,
+			jitterMs: 200
+		});
+	}
+	return _resilienceInstance;
+}
+
+export async function loadSettingsFromDB(criticalOnly = false) {
+	try {
+		if (!dbAdapter) {
 			await invalidateSettingsCache();
 			return;
 		}
 
-		// Load both public and private settings in parallel (not sequential)
+		// Ensure system features are initialized in the adapter
+		if (dbAdapter.ensureSystem) {
+			await dbAdapter.ensureSystem();
+		}
+
+		const keysToLoad = criticalOnly ? CRITICAL_SETTINGS : KNOWN_PUBLIC_KEYS;
+		const privateKeys = criticalOnly ? [] : KNOWN_PRIVATE_KEYS;
+
+		// Parallel load of tiered settings
 		const [settingsResult, privateDynResult] = await Promise.all([
-			dbAdapter.systemPreferences.getMany(KNOWN_PUBLIC_KEYS, 'system'),
-			dbAdapter.systemPreferences.getMany(KNOWN_PRIVATE_KEYS, 'system')
+			dbAdapter.systemPreferences.getMany(keysToLoad, 'system'),
+			privateKeys.length > 0 ? dbAdapter.systemPreferences.getMany(privateKeys, 'system') : Promise.resolve({ success: true, data: {} })
 		]);
 
 		if (!settingsResult.success) {
-			logger.error('Failed to load settings from database:', settingsResult.error);
-			logger.error('Settings keys attempted:', KNOWN_PUBLIC_KEYS);
-			logger.error('Database adapter status:', {
-				hasAdapter: !!dbAdapter,
-				hasSystemPrefs: !!dbAdapter?.systemPreferences,
-				hasGetMany: !!dbAdapter?.systemPreferences?.getMany
-			});
-			throw new Error(`Could not load settings from DB: ${settingsResult.error?.message || 'Unknown error'}`);
+			throw new Error(`Could not load settings: ${settingsResult.error?.message}`);
 		}
 
 		const settings = settingsResult.data || {};
 		const privateDynamic = privateDynResult.success ? privateDynResult.data || {} : {};
 
-		// If no settings exist (initial setup), use empty objects and skip validation
-		if (Object.keys(settings).length === 0) {
-			logger.info('No settings found in database (initial setup). Using empty cache.');
-			// During initial setup, bypass validation by calling invalidateSettingsCache
-			// which sets empty cache without validation
+		if (Object.keys(settings).length === 0 && !criticalOnly) {
 			await invalidateSettingsCache();
 			return;
 		}
 
-		// All system settings are public in the current implementation
-		const publicSettings: Record<string, unknown> = settings;
-		const databasePrivateSettings: Record<string, unknown> = {};
+		// Get current env
+		const privateConfig = privateEnv || (await loadPrivateConfig(false));
+		if (!privateConfig) return;
 
-		// Get private config settings (infrastructure settings)
-		// Prefer in-memory config (set by initializeWithConfig) over filesystem import
-		// This eliminates unnecessary file I/O and Vite cache dependency
-		let privateConfig: InferOutput<typeof privateConfigSchema>;
-		if (privateEnv) {
-			// Use in-memory config when available (post-setup, zero-restart mode)
-			logger.debug('Using in-memory private config (bypassing filesystem)');
-			privateConfig = privateEnv;
-		} else {
-			try {
-				// Fall back to filesystem import (normal startup)
-				logger.debug('Loading private config from filesystem');
-				let imported;
-				if (process.env.TEST_MODE) {
-					const path = '@config/private.test';
-					imported = await import(/* @vite-ignore */ path);
-				} else {
-					// STRICT SAFETY: Never allow loading live config if NODE_ENV is 'test'
-					if (process.env.NODE_ENV === 'test') {
-						throw new Error('CRITICAL SAFETY ERROR: Attempted to load live config/private.ts in TEST environment via filesystem fallback.');
-					}
-					imported = await import('@config/private');
-				}
-				privateConfig = imported.privateEnv;
-			} catch (error) {
-				// Private config doesn't exist during setup - this is expected
-				logger.trace('Private config not found during setup - this is expected during initial setup', {
-					error: error instanceof Error ? error.message : String(error)
-				});
-				return;
-			}
+		// Merge and cache
+		const mergedPrivate = { ...privateConfig, ...privateDynamic } as any;
+		await setSettingsCache(mergedPrivate, settings as any);
+
+		if (!criticalOnly) {
+			logger.info('✅ Full system settings loaded and cached.');
 		}
-
-		// Merge private config file settings with database private settings
-		// Private config contains infrastructure settings (DB_*, JWT_*, ENCRYPTION_*)
-		// Database contains application private settings (SMTP_*, GOOGLE_*, etc.)
-		const privateSettings = {
-			...privateConfig, // Infrastructure settings from config (in-memory or file)
-			...databasePrivateSettings // Application settings from database
-		};
-
-		// Validate and parse the settings against the schemas
-		const parsedPublic = safeParse(publicConfigSchema, publicSettings);
-		const parsedPrivate = safeParse(privateConfigSchema, privateSettings);
-
-		// If validation fails, it might be during setup with incomplete settings
-		// In this case, just use empty cache to allow setup to continue
-		if (!parsedPublic.success || !parsedPrivate.success) {
-			logger.debug('Settings validation failed during startup - likely first run or setup mode');
-			if (!parsedPublic.success) {
-				logger.debug('Public settings validation issues:', parsedPublic.issues);
-			}
-			if (!parsedPrivate.success) {
-				logger.debug('Private settings validation issues:', parsedPrivate.issues);
-			}
-
-			// Clear invalid settings from database (silent cleanup)
-			try {
-				logger.debug('Clearing invalid settings from database...');
-				if (dbAdapter && dbAdapter.systemPreferences && typeof dbAdapter.systemPreferences.deleteMany === 'function') {
-					await dbAdapter.systemPreferences.deleteMany([]);
-					logger.debug('Invalid settings cleared successfully');
-				}
-			} catch (clearError) {
-				logger.debug('Failed to clear invalid settings:', clearError);
-			}
-
-			await invalidateSettingsCache();
-			logger.info('Settings validation failed - system will run with defaults until settings are configured');
-			return; // Return without throwing - allow system to continue in setup mode
-		}
-
-		// Populate the cache with validated settings, merging dynamic private flags into unified cache
-		const mergedPrivate = { ...(parsedPrivate.output as Record<string, unknown>), ...privateDynamic } as InferOutput<typeof privateConfigSchema>;
-		await setSettingsCache(mergedPrivate, parsedPublic.output);
-
-		logger.info('✅ System settings loaded and cached from database.');
 	} catch (error) {
-		logger.error('Failed to load settings from database:', error);
-		// Don't throw - invalidate cache and continue with defaults
+		if (!criticalOnly) logger.error('Failed to load settings:', error);
 		await invalidateSettingsCache();
-		logger.warn('Settings load failed - system will continue with default configuration');
 	}
 }
 
 // Load database and authentication adapters with resilience
 async function loadAdapters() {
-	if (adaptersLoaded && dbAdapter) {
-		logger.debug('Adapters already loaded, skipping');
-		return;
-	}
-
-	// Use privateEnv if already set (from initializeWithConfig), otherwise load from Vite
-	logger.debug('Loading adapters - checking privateEnv', {
-		hasPrivateEnv: !!privateEnv,
-		dbType: privateEnv?.DB_TYPE
-	});
+	if (adaptersLoaded && dbAdapter) return;
 
 	const config = privateEnv || (await loadPrivateConfig(false));
-
-	// If no DB_TYPE is provided in the config (even if it's the temporary setup config),
-	// log a warning and return, but don't prematurely exit if DB_TYPE *is* defined.
 	if (!config?.DB_TYPE) {
-		logger.debug('No DB_TYPE in config; cannot load adapters. Skipping adapter loading during setup.', { config });
-		// Set health to unhealthy and return without throwing to allow setup flow
-		updateServiceHealth('database', 'unhealthy', 'No DB_TYPE in config', 'Missing database configuration');
+		updateServiceHealth('database', 'unhealthy', 'No DB_TYPE in config');
 		return;
 	}
 
-	logger.debug(`🔌 Loading ${config.DB_TYPE} adapters...`);
-
-	// Use DatabaseResilience for adapter loading (handles transient import failures)
-	const { getDatabaseResilience } = await import('@src/databases/DatabaseResilience');
-	const resilience = getDatabaseResilience({
-		maxAttempts: 3, // Retry adapter loading up to 3 times
-		initialDelayMs: 500,
-		backoffMultiplier: 2,
-		maxDelayMs: 5000,
-		jitterMs: 200
-	});
+	const resilience = await getResilience();
 
 	try {
 		await resilience.executeWithRetry(async () => {
 			switch (config.DB_TYPE) {
 				case 'mongodb':
 				case 'mongodb+srv': {
-					logger.debug('Importing MongoDB adapter...');
-					const mongoAdapterModule = await import('./mongodb/mongoDBAdapter');
-					if (!mongoAdapterModule || !mongoAdapterModule.MongoDBAdapter) {
-						throw new Error('MongoDBAdapter is not exported correctly from mongoDBAdapter.ts');
-					}
-					const { MongoDBAdapter } = mongoAdapterModule;
+					const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
 					dbAdapter = new MongoDBAdapter() as unknown as DatabaseAdapter;
-
-					logger.debug('MongoDB adapter created');
 					break;
 				}
 				case 'mariadb': {
-					logger.debug('Importing MariaDB adapter...');
-					const mariadbAdapterModule = await import('./mariadb/mariadbAdapter');
-					if (!mariadbAdapterModule || !mariadbAdapterModule.MariaDBAdapter) {
-						throw new Error('MariaDBAdapter is not exported correctly from mariadbAdapter.ts');
-					}
-					const { MariaDBAdapter } = mariadbAdapterModule;
+					const { MariaDBAdapter } = await import('./mariadb/mariadbAdapter');
 					dbAdapter = new MariaDBAdapter() as unknown as DatabaseAdapter;
-
-					logger.debug('MariaDB adapter created');
 					break;
 				}
 				default:
-					logger.error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Supported types: mongodb, mongodb+srv, mariadb`);
-					throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Supported types: mongodb, mongodb+srv, mariadb`);
+					throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}`);
 			}
 		}, 'Database Adapter Loading');
 
 		adaptersLoaded = true;
-		logger.debug('All adapters loaded successfully');
 	} catch (err) {
-		const message = `Error loading adapters: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		adaptersLoaded = false; // Ensure flag is reset on error
-		// Re-throwing here will cause the initializationPromise to reject
-		throw new Error(message);
+		adaptersLoaded = false;
+		throw err;
 	}
 }
 
@@ -398,15 +296,10 @@ async function loadAdapters() {
 async function initializeDefaultTheme(): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize themes: dbAdapter is not available.');
 	try {
-		// Check if theme exists before writing (avoid unnecessary DB operation)
-		const existingThemes = await dbAdapter.themes.getAllThemes();
-		const themeExists = existingThemes.some((t) => t.name === DEFAULT_THEME.name && t.isDefault);
+		if (dbAdapter.ensureSystem) await dbAdapter.ensureSystem();
 
-		if (!themeExists) {
-			await dbAdapter.themes.storeThemes([DEFAULT_THEME]);
-			logger.debug('Default SveltyCMS theme initialized');
-		}
-		// Skip logging if theme already exists (save 1-2ms)
+		await dbAdapter.themes.ensure(DEFAULT_THEME);
+		logger.debug('Default SveltyCMS theme ensured');
 	} catch (err) {
 		// Log but don't fail - theme initialization is not critical for system startup
 		logger.warn(`Theme initialization issue: ${err instanceof Error ? err.message : String(err)}`);
@@ -416,6 +309,7 @@ async function initializeDefaultTheme(): Promise<void> {
 // Initialize ThemeManager
 async function initializeThemeManager(): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize ThemeManager: dbAdapter is not available.');
+	if (dbAdapter.ensureSystem) await dbAdapter.ensureSystem();
 	try {
 		logger.debug('Initializing ThemeManager...');
 		const themeManager = ThemeManager.getInstance();
@@ -447,57 +341,21 @@ async function initializeMediaFolder(): Promise<void> {
 // Initialize virtual folders using DatabaseResilience
 async function initializeVirtualFolders(): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize virtual folders: dbAdapter is not available.');
-	if (!dbAdapter.systemVirtualFolder) {
-		logger.warn('systemVirtualFolder adapter not available, skipping initialization.');
-		return;
-	}
+	if (!dbAdapter.systemVirtualFolder) return;
 
-	// Use DatabaseResilience for automatic retry with exponential backoff
-	const { getDatabaseResilience } = await import('@src/databases/DatabaseResilience');
-	const resilience = getDatabaseResilience();
+	const resilience = await getResilience();
 
 	await resilience.executeWithRetry(async () => {
 		if (!dbAdapter) throw new Error('dbAdapter is null');
-		// Verify the connection is still active before querying
-		if (dbAdapter.isConnected && !dbAdapter.isConnected()) {
-			throw new Error('Database connection lost - reconnection required');
-		}
+		if (dbAdapter.ensureSystem) await dbAdapter.ensureSystem();
 
-		const systemVirtualFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
-
-		if (!systemVirtualFoldersResult.success) {
-			const error = systemVirtualFoldersResult.error;
-			let errorMessage = 'Unknown error';
-
-			if (error instanceof Error) {
-				errorMessage = error.message;
-			} else if (error && typeof error === 'object' && 'message' in error) {
-				errorMessage = String((error as { message: unknown }).message);
-			} else if (error) {
-				errorMessage = String(error);
-			}
-
-			throw new Error(`Failed to get virtual folders: ${errorMessage}`);
-		}
-
-		const systemVirtualFolders = systemVirtualFoldersResult.data;
-
-		if (systemVirtualFolders.length === 0) {
-			// Create default virtual folder
-			const defaultMediaFolder = (await getPublicSetting('MEDIA_FOLDER')) || 'mediaFolder';
-			const creationResult = await dbAdapter.systemVirtualFolder.create({
-				name: defaultMediaFolder,
-				path: defaultMediaFolder,
-				order: 0,
-				type: 'folder' as const
-			});
-
-			if (!creationResult.success) {
-				const error = creationResult.error;
-				const errorMessage = error instanceof Error ? error.message : String(error);
-				throw new Error(`Failed to create root virtual folder: ${errorMessage}`);
-			}
-		}
+		const defaultMediaFolder = (await getPublicSetting('MEDIA_FOLDER')) || 'mediaFolder';
+		await dbAdapter.systemVirtualFolder.ensure({
+			name: defaultMediaFolder,
+			path: defaultMediaFolder,
+			order: 0,
+			type: 'folder' as const
+		});
 	}, 'Virtual Folders Initialization');
 }
 
@@ -570,18 +428,9 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			connectionString = '';
 		}
 
-		//  Run connection + model setup in parallel (overlapping I/O)
+		//  Run connection + simple model setup
 		const step2And3StartTime = performance.now();
-		const [connectionResult] = await Promise.all([
-			dbAdapter.connect(connectionString),
-			// Step 3: Setup Core Database Models (runs in parallel with connection)
-			// Models can be set up while connection is establishing
-			(async () => {
-				// Small delay to ensure connection is in progress before model setup
-				await new Promise((resolve) => setTimeout(resolve, 10));
-				return Promise.all([dbAdapter.media?.setupMediaModels(), dbAdapter.widgets?.setupWidgetModels(), dbAdapter.themes?.setupThemeModels()]);
-			})()
-		]);
+		const connectionResult = await dbAdapter.connect(connectionString);
 
 		if (!connectionResult.success) {
 			updateServiceHealth(
@@ -608,19 +457,11 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		const step5StartTime = performance.now();
 
 		// Auth (fast, required immediately)
-		logger.debug('Initializing Auth service...');
 		updateServiceHealth('auth', 'initializing', 'Initializing authentication service...');
-		if (!dbAdapter) {
-			logger.error('Cannot initialize Auth: dbAdapter is null');
-			throw new Error('Database adapter not initialized');
+		if (dbAdapter?.ensureAuth) {
+			await dbAdapter.ensureAuth();
 		}
-		auth = new Auth(dbAdapter, getDefaultSessionStore());
-		if (!auth) {
-			logger.error('Auth constructor returned null/undefined');
-			updateServiceHealth('auth', 'unhealthy', 'Auth initialization failed');
-			throw new Error('Auth initialization failed');
-		}
-		logger.debug('Auth service initialized successfully');
+		auth = new Auth(dbAdapter!, getDefaultSessionStore());
 		updateServiceHealth('auth', 'healthy', 'Authentication service ready');
 
 		// Settings (required for app configuration)
@@ -632,83 +473,65 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 
 		const authTime = performance.now() - step5StartTime;
 
-		// Run slow I/O operations in parallel
-		logger.debug('Starting parallel I/O operations...');
-		const parallelStartTime = performance.now();
-		updateServiceHealth('cache', 'initializing', 'Initializing media, revisions, and themes...');
-		updateServiceHealth('themeManager', 'initializing', 'Initializing theme manager...');
+		// Set critical system state to READY
+		setSystemState('READY', 'Critical services (DB, Auth, Settings) are ready');
 
-		// Collect timings for all parallel operations
-		let mediaTime = 0,
-			revisionsTime = 0,
-			virtualFoldersTime = 0,
-			themesTime = 0,
-			widgetsTime = 0;
+		// Run non-blocking I/O operations in background
+		logger.debug('Scheduling non-critical I/O operations in background...');
+		setTimeout(async () => {
+			const backgroundStartTime = performance.now();
 
-		await Promise.all([
-			(async () => {
-				const t = performance.now();
-				await initializeMediaFolder();
-				mediaTime = performance.now() - t;
-			})(),
-			(async () => {
-				const t = performance.now();
-				await initializeRevisions();
-				revisionsTime = performance.now() - t;
-			})(),
-			(async () => {
-				const t = performance.now();
-				await initializeVirtualFolders();
-				virtualFoldersTime = performance.now() - t;
-			})(),
-			(async () => {
-				const t = performance.now();
-				await initializeDefaultTheme();
-				await initializeThemeManager();
-				updateServiceHealth('themeManager', 'healthy', 'Theme manager initialized');
-				themesTime = performance.now() - t;
-			})(),
-			(async () => {
-				const t = performance.now();
-				updateServiceHealth('widgets', 'initializing', 'Initializing widget store...');
-				// Dynamic import to avoid circular dependency with client bundle
-				const { widgets } = await import('@stores/widgetStore.svelte.ts');
-				await widgets.initialize(undefined, dbAdapter);
-				updateServiceHealth('widgets', 'healthy', 'Widget store initialized');
-				widgetsTime = performance.now() - t;
-			})()
-		]);
+			// Mark non-critical services as initializing to trigger WARMING phase
+			updateServiceHealth('cache', 'initializing', 'Warming up cache...');
+			updateServiceHealth('themeManager', 'initializing', 'Initializing themes...');
+			updateServiceHealth('widgets', 'initializing', 'Initializing widgets...');
+			updateServiceHealth('contentManager', 'initializing', 'Preparing content manager...');
 
-		updateServiceHealth('cache', 'healthy', 'Media, revisions, and virtual folders initialized');
+			if (dbAdapter?.ensureMedia) {
+				await dbAdapter.ensureMedia().catch((e) => logger.warn('Media activation issue:', e));
+			}
 
-		const parallelTime = performance.now() - parallelStartTime;
-		logger.info(
-			`Parallel I/O completed in ${parallelTime.toFixed(2)}ms (Media: ${mediaTime.toFixed(2)}ms, Revisions: ${revisionsTime.toFixed(2)}ms, Virtual Folders: ${virtualFoldersTime.toFixed(2)}ms, Themes: ${themesTime.toFixed(2)}ms, Widgets: ${widgetsTime.toFixed(2)}ms)`
-		);
+			await Promise.all([
+				initializeMediaFolder().catch((e) => logger.warn('Media folder init failed:', e)),
+				initializeRevisions().catch((e) => logger.warn('Revisions init failed:', e)),
+				initializeVirtualFolders().catch((e) => logger.warn('Virtual folders init failed:', e)),
+				(async () => {
+					await initializeDefaultTheme();
+					await initializeThemeManager();
+					updateServiceHealth('themeManager', 'healthy', 'Theme manager initialized');
+				})().catch((e) => logger.warn('Theme init failed:', e)),
+				(async () => {
+					const { widgets } = await import('@stores/widgetStore.svelte.ts');
+					await widgets.initialize(undefined, dbAdapter!);
+					updateServiceHealth('widgets', 'healthy', 'Widget store initialized');
+				})().catch((e) => logger.warn('Widget init failed:', e)),
+				(async () => {
+					updateServiceHealth('cache', 'healthy', 'System cache warmed up');
+				})()
+			]);
+
+			// Step 7: Initialize Plugins
+			if (dbAdapter) {
+				await initializePlugins(dbAdapter).catch((e) => logger.warn('Plugins init failed:', e));
+			}
+
+			// Finalize lazy services
+			updateServiceHealth('contentManager', 'healthy', 'ContentManager ready (lazy)');
+
+			// FINAL: Signal end of bootstrapping
+			cacheService.setBootstrapping(false);
+
+			const bgTime = performance.now() - backgroundStartTime;
+			logger.info(`ℹ️ Background warm-up completed in ${bgTime.toFixed(2)}ms (non-blocking)`);
+		}, 0);
 
 		const step5Time = performance.now() - step5StartTime;
 		logger.info(
 			`Step 5: Critical components initialized in ${step5Time.toFixed(2)}ms (Auth: ${authTime.toFixed(2)}ms, Settings: ${settingsTime.toFixed(2)}ms)`
 		);
 
-		// Step 6: Initialize ContentManager (Moved here to ensure Settings & Widgets are ready)
-		logger.debug('Starting Step 6: ContentManager initialization...');
-		try {
-			// Update health status to initializing
-			updateServiceHealth('contentManager', 'initializing', 'Initializing ContentManager...');
-
-			const { ContentManager } = await import('@src/content/ContentManager');
-			const contentManagerInstance = ContentManager.getInstance();
-			logger.debug('ContentManager imported, initializing...');
-			await contentManagerInstance.initialize();
-
-			updateServiceHealth('contentManager', 'healthy', 'ContentManager initialized');
-			logger.info('Step 6: ContentManager initialized (Dependencies ready).');
-		} catch (cmError) {
-			logger.error('ContentManager initialization failed:', cmError);
-			updateServiceHealth('contentManager', 'unhealthy', 'ContentManager initialization failed');
-			throw cmError;
-		}
+		// Step 6: Initialize ContentManager (Deferred)
+		logger.debug('Step 6: ContentManager will initialize lazily on first request.');
 
 		// --- Demo Mode Cleanup Service ---
 		if (privateConfig?.DEMO) {
@@ -721,18 +544,13 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			});
 		}
 
-		// Step 7: Initialize Plugins
-		if (dbAdapter) {
-			await initializePlugins(dbAdapter);
-		}
-
 		isInitialized = true;
 
 		// Explicitly set system state to READY after all services are initialized
 		setSystemState('READY', 'All critical services initialized successfully');
 
 		const totalTime = performance.now() - systemStartTime;
-		logger.info(`🚀 System initialization completed successfully in ${totalTime.toFixed(2)}ms!`);
+		logger.info(`🚀 System initialization READY in ${totalTime.toFixed(2)}ms (Background tasks still running)`);
 	} catch (err) {
 		const message = `CRITICAL: System initialization failed: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, err);

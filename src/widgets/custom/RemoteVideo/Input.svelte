@@ -36,6 +36,7 @@ Part of the Three Pillars Architecture for widget system.
 
 	import { app } from '@src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	let {
 		field,
@@ -163,30 +164,36 @@ Part of the Three Pillars Architecture for widget system.
 	}
 </script>
 
-<div class="input-container relative mb-4" class:invalid={error || fetchError}>
-	<div class="flex items-center justify-between mb-1">
-		<label for={field.db_fieldName} class="text-sm font-medium text-surface-700 dark:text-surface-300">Video URL</label>
-	</div>
+<div class="input-container relative mb-4">
+	<SystemTooltip title={error || fetchError || ''} wFull={true}>
+		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600" role="group">
+			<input
+				type="url"
+				id={field.db_fieldName}
+				name={field.db_fieldName}
+				required={field.required}
+				placeholder={typeof field.placeholder === 'string' ? field.placeholder : 'e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ'}
+				bind:value={urlInput}
+				oninput={handleUrlInput}
+				oninvalid={(e) => e.preventDefault()}
+				class="input w-full rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {error ||
+				fetchError
+					? 'bg-error-500-10!'
+					: ''} {isLoading ? 'opacity-50' : ''}"
+				aria-invalid={!!error || !!fetchError}
+				aria-describedby={error || fetchError ? `${field.db_fieldName}-error` : undefined}
+			/>
 
-	<input
-		type="url"
-		id={field.db_fieldName}
-		name={field.db_fieldName}
-		required={field.required}
-		placeholder={typeof field.placeholder === 'string' ? field.placeholder : 'e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ'}
-		bind:value={urlInput}
-		oninput={handleUrlInput}
-		class="input w-full rounded-none text-black dark:text-primary-500 focus:border-tertiary-500 focus:outline-none"
-		class:!border-error-500={!!error || !!fetchError}
-		class:!bg-error-500-10={!!error || !!fetchError}
-		class:opacity-50={isLoading}
-		class:loading={isLoading}
-		aria-invalid={!!error || !!fetchError}
-		aria-describedby={error || fetchError ? `${field.db_fieldName}-error` : undefined}
-	/>
+			{#if isLoading}
+				<div class="flex items-center bg-white px-2 dark:bg-surface-900" aria-label="Loading">
+					<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+				</div>
+			{/if}
+		</div>
+	</SystemTooltip>
 
 	{#if error || fetchError}
-		<p id={`${field.db_fieldName}-error`} class="error-message" role="alert">
+		<p id={`${field.db_fieldName}-error`} class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert">
 			{error || fetchError}
 		</p>
 	{/if}
@@ -215,14 +222,7 @@ Part of the Three Pillars Architecture for widget system.
 		padding-bottom: 1.5rem;
 		width: 100%;
 	}
-	.input.loading {
-		/* Add a loading spinner or indicator to the input */
-		background-image: url('data:image/svg+xml;charset=utf8,<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8zM12 4V2c-5.523 0-10 4.477-10 10s4.477 10 10 10v-2c-4.411 0-8-3.589-8-8s3.589-8 8-8z" fill="%234A90E2"/></svg>'); /* Replace with actual spinner SVG */
-		background-repeat: no-repeat;
-		background-position: right 8px center;
-		background-size: 20px;
-		animation: spin 1s linear infinite;
-	}
+
 	@keyframes spin {
 		from {
 			transform: rotate(0deg);
@@ -260,14 +260,5 @@ Part of the Three Pillars Architecture for widget system.
 		color: #007bff;
 		text-decoration: underline;
 		font-size: 0.9em;
-	}
-	.error-message {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		width: 100%;
-		text-align: center;
-		font-size: 0.75rem;
-		color: #ef4444;
 	}
 </style>

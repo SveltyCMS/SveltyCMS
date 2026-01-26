@@ -210,10 +210,10 @@ describe('MongoDB Adapter Functional Tests', () => {
 
 			const qb = db.queryBuilder('websiteTokens');
 			const result = await qb.where('role', 'admin').execute();
-
-			expect(Array.isArray(result)).toBe(true);
-			expect(result.length).toBeGreaterThanOrEqual(1);
-			expect(result.some((items: any) => items.token === 'qb-2')).toBe(true);
+			expect(result.success).toBe(true);
+			expect(Array.isArray(result.data)).toBe(true);
+			expect(result.data.length).toBeGreaterThanOrEqual(1);
+			expect(result.data.some((items: any) => items.token === 'qb-2')).toBe(true);
 		});
 	});
 });

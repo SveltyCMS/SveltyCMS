@@ -10,7 +10,12 @@ import { logger } from '@utils/logger.server';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	// Security check: Only admins can view audit logs
-	if (!locals.user || locals.user.role !== 'admin') {
+	// Handle role as string or populated object
+	const userRole = locals.user?.role as any;
+	const roleName = typeof userRole === 'string' ? userRole : userRole?._id || userRole?.name;
+	const isAdmin = roleName === 'admin' || locals.permissions?.includes('admin');
+
+	if (!locals.user || !isAdmin) {
 		throw error(403, 'Forbidden: Admin access required');
 	}
 

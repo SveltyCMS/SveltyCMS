@@ -332,8 +332,248 @@ export interface DatabaseTransaction {
 	rollback(): Promise<DatabaseResult<void>>; // Roll back the transaction
 }
 
+/** Connection Pool Stats - Agnostic Health Monitoring **/
+export interface ConnectionPoolStats {
+	total: number;
+	active: number;
+	idle: number;
+	waiting: number;
+	avgConnectionTime: number;
+}
+
+/** Domain-Specific Adapters **/
+
+export interface IAuthAdapter {
+	setupAuthModels(): Promise<void>;
+
+	// User Management Methods
+	createUser(userData: Partial<User>): Promise<DatabaseResult<User>>;
+	updateUserAttributes(user_id: string, userData: Partial<User>, tenantId?: string): Promise<DatabaseResult<User>>;
+	deleteUser(user_id: string, tenantId?: string): Promise<DatabaseResult<void>>;
+	getUserById(user_id: string, tenantId?: string): Promise<DatabaseResult<User | null>>;
+	getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<DatabaseResult<User | null>>;
+	getAllUsers(options?: PaginationOption): Promise<DatabaseResult<User[]>>;
+	getUserCount(filter?: Record<string, unknown>): Promise<DatabaseResult<number>>;
+	deleteUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>>;
+	blockUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
+	unblockUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
+
+	// Role Management Methods
+	getAllRoles(tenantId?: string): Promise<Role[]>;
+	getRoleById(roleId: string, tenantId?: string): Promise<DatabaseResult<Role | null>>;
+	createRole(role: Role): Promise<DatabaseResult<Role>>;
+	updateRole(roleId: string, roleData: Partial<Role>, tenantId?: string): Promise<DatabaseResult<Role>>;
+	deleteRole(roleId: string, tenantId?: string): Promise<DatabaseResult<void>>;
+
+	// Combined Performance-Optimized Methods
+	createUserAndSession(
+		userData: Partial<User>,
+		sessionData: { expires: ISODateString; tenantId?: string }
+	): Promise<DatabaseResult<{ user: User; session: Session }>>;
+	deleteUserAndSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>>;
+
+	// Session Management Methods
+	createSession(sessionData: { user_id: string; expires: ISODateString; tenantId?: string }): Promise<DatabaseResult<Session>>;
+	updateSessionExpiry(session_id: string, newExpiry: ISODateString): Promise<DatabaseResult<Session>>;
+	deleteSession(session_id: string): Promise<DatabaseResult<void>>;
+	deleteExpiredSessions(): Promise<DatabaseResult<number>>;
+	validateSession(session_id: string): Promise<DatabaseResult<User | null>>;
+	invalidateAllUserSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<void>>;
+	getActiveSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<Session[]>>;
+	getAllActiveSessions(tenantId?: string): Promise<DatabaseResult<Session[]>>;
+	getSessionTokenData(session_id: string): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: string } | null>>;
+	rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>>;
+	cleanupRotatedSessions?(): Promise<DatabaseResult<number>>;
+
+	// Token Management Methods
+	createToken(data: { user_id: string; email: string; expires: ISODateString; type: string; tenantId?: string }): Promise<DatabaseResult<string>>;
+	updateToken(token_id: string, tokenData: Partial<Token>, tenantId?: string): Promise<DatabaseResult<Token>>;
+	validateToken(
+		token: string,
+		user_id?: string,
+		type?: string,
+		tenantId?: string
+	): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>>;
+	consumeToken(token: string, user_id?: string, type?: string, tenantId?: string): Promise<DatabaseResult<{ status: boolean; message: string }>>;
+	getTokenData(token: string, user_id?: string, type?: string, tenantId?: string): Promise<DatabaseResult<Token | null>>;
+	getTokenByValue(token: string, tenantId?: string): Promise<DatabaseResult<Token | null>>;
+	getAllTokens(filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>>;
+	deleteExpiredTokens(): Promise<DatabaseResult<number>>;
+	deleteTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>>;
+	blockTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
+	unblockTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
+}
+
+export interface ICrudAdapter {
+	findOne<T extends BaseEntity>(collection: string, query: QueryFilter<T>, options?: { fields?: (keyof T)[] }): Promise<DatabaseResult<T | null>>;
+	findMany<T extends BaseEntity>(
+		collection: string,
+		query: QueryFilter<T>,
+		options?: { limit?: number; offset?: number; fields?: (keyof T)[] }
+	): Promise<DatabaseResult<T[]>>;
+	insert<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<T>>;
+	update<T extends BaseEntity>(collection: string, id: DatabaseId, data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<T>>;
+	delete(collection: string, id: DatabaseId): Promise<DatabaseResult<void>>;
+	findByIds<T extends BaseEntity>(collection: string, ids: DatabaseId[], options?: { fields?: (keyof T)[] }): Promise<DatabaseResult<T[]>>;
+	insertMany<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<T[]>>;
+	updateMany<T extends BaseEntity>(
+		collection: string,
+		query: QueryFilter<T>,
+		data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>
+	): Promise<DatabaseResult<{ modifiedCount: number }>>;
+	deleteMany(collection: string, query: QueryFilter<BaseEntity>): Promise<DatabaseResult<{ deletedCount: number }>>;
+	upsert<T extends BaseEntity>(
+		collection: string,
+		query: QueryFilter<T>,
+		data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>
+	): Promise<DatabaseResult<T>>;
+	upsertMany<T extends BaseEntity>(
+		collection: string,
+		items: Array<{ query: QueryFilter<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>
+	): Promise<DatabaseResult<T[] | { upsertedCount: number; modifiedCount: number }>>;
+	count(collection: string, query?: QueryFilter<BaseEntity>): Promise<DatabaseResult<number>>;
+	exists(collection: string, query: QueryFilter<BaseEntity>): Promise<DatabaseResult<boolean>>;
+	aggregate<R>(collection: string, pipeline: unknown[]): Promise<DatabaseResult<R[]>>;
+}
+
+export interface IMediaAdapter {
+	setupMediaModels(): Promise<void>;
+	files: {
+		upload(file: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaItem>>;
+		uploadMany(files: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<MediaItem[]>>;
+		delete(fileId: DatabaseId): Promise<DatabaseResult<void>>;
+		deleteMany(fileIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>>;
+		getByFolder(folderId?: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
+		search(query: string, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
+		getMetadata(fileIds: DatabaseId[]): Promise<DatabaseResult<Record<string, MediaMetadata>>>;
+		updateMetadata(fileId: DatabaseId, metadata: Partial<MediaMetadata>): Promise<DatabaseResult<MediaItem>>;
+		move(fileIds: DatabaseId[], targetFolderId?: DatabaseId): Promise<DatabaseResult<{ movedCount: number }>>;
+		duplicate(fileId: DatabaseId, newName?: string): Promise<DatabaseResult<MediaItem>>;
+	};
+	folders: {
+		create(folder: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaFolder>>;
+		createMany(folders: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<MediaFolder[]>>;
+		delete(folderId: DatabaseId): Promise<DatabaseResult<void>>;
+		deleteMany(folderIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>>;
+		getTree(maxDepth?: number): Promise<DatabaseResult<MediaFolder[]>>;
+		getFolderContents(
+			folderId?: DatabaseId,
+			options?: PaginationOptions
+		): Promise<DatabaseResult<{ folders: MediaFolder[]; files: MediaItem[]; totalCount: number }>>;
+		move(folderId: DatabaseId, targetParentId?: DatabaseId): Promise<DatabaseResult<MediaFolder>>;
+	};
+}
+
+export interface IContentAdapter {
+	nodes: {
+		getStructure(mode: 'flat' | 'nested', filter?: Partial<ContentNode>, bypassCache?: boolean): Promise<DatabaseResult<ContentNode[]>>;
+		upsertContentStructureNode(node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>;
+		create(node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>;
+		createMany(nodes: Omit<ContentNode, 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<ContentNode[]>>;
+		update(path: string, changes: Partial<ContentNode>): Promise<DatabaseResult<ContentNode>>;
+		bulkUpdate(updates: { path: string; changes: Partial<ContentNode> }[]): Promise<DatabaseResult<ContentNode[]>>;
+		fixMismatchedNodeIds?(nodes: { path: string; expectedId: string; changes: Partial<ContentNode> }[]): Promise<DatabaseResult<{ fixed: number }>>;
+		delete(path: string): Promise<DatabaseResult<void>>;
+		deleteMany(paths: string[]): Promise<DatabaseResult<{ deletedCount: number }>>;
+		reorder(nodeUpdates: Array<{ path: string; newOrder: number }>): Promise<DatabaseResult<ContentNode[]>>;
+		reorderStructure(items: Array<{ id: string; parentId: string | null; order: number; path: string }>): Promise<DatabaseResult<void>>;
+	};
+	drafts: {
+		create(draft: Omit<ContentDraft, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentDraft>>;
+		createMany(drafts: Omit<ContentDraft, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<ContentDraft[]>>;
+		update(draftId: DatabaseId, data: unknown): Promise<DatabaseResult<ContentDraft>>;
+		publish(draftId: DatabaseId): Promise<DatabaseResult<void>>;
+		publishMany(draftIds: DatabaseId[]): Promise<DatabaseResult<{ publishedCount: number }>>;
+		getForContent(contentId: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<ContentDraft>>>;
+		delete(draftId: DatabaseId): Promise<DatabaseResult<void>>;
+		deleteMany(draftIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>>;
+	};
+	revisions: {
+		create(revision: Omit<ContentRevision, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentRevision>>;
+		getHistory(contentId: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<ContentRevision>>>;
+		restore(revisionId: DatabaseId): Promise<DatabaseResult<void>>;
+		delete(revisionId: DatabaseId): Promise<DatabaseResult<void>>;
+		deleteMany(revisionIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>>;
+		cleanup(contentId: DatabaseId, keepLatest: number): Promise<DatabaseResult<{ deletedCount: number }>>;
+	};
+}
+
+export interface ISystemAdapter {
+	systemPreferences: {
+		get<T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T>>;
+		getMany<T>(keys: string[], scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<Record<string, T>>>;
+		set<T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>;
+		setMany<T>(preferences: Array<{ key: string; value: T; scope?: 'user' | 'system'; userId?: DatabaseId }>): Promise<DatabaseResult<void>>;
+		delete(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>;
+		deleteMany(keys: string[], scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>;
+		clear(scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>;
+	};
+	themes: {
+		setupThemeModels(): Promise<void>;
+		getActive(): Promise<DatabaseResult<Theme>>;
+		setDefault(themeId: DatabaseId): Promise<DatabaseResult<void>>;
+		install(theme: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<Theme>>;
+		uninstall(themeId: DatabaseId): Promise<DatabaseResult<void>>;
+		update(themeId: DatabaseId, theme: Partial<Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Theme>>;
+		getAllThemes(): Promise<Theme[]>;
+		storeThemes(themes: Theme[]): Promise<void>;
+		ensure(theme: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>): Promise<Theme>;
+		getDefaultTheme(tenantId?: string): Promise<DatabaseResult<Theme | null>>;
+	};
+	widgets: {
+		setupWidgetModels(): Promise<void>;
+		register(widget: Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<Widget>>;
+		findAll(): Promise<DatabaseResult<Widget[]>>;
+		getActiveWidgets(): Promise<DatabaseResult<Widget[]>>;
+		activate(widgetId: DatabaseId): Promise<DatabaseResult<void>>;
+		deactivate(widgetId: DatabaseId): Promise<DatabaseResult<void>>;
+		update(widgetId: DatabaseId, widget: Partial<Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Widget>>;
+		delete(widgetId: DatabaseId): Promise<DatabaseResult<void>>;
+	};
+	websiteTokens: {
+		create(token: Omit<WebsiteToken, '_id' | 'createdAt'>): Promise<DatabaseResult<WebsiteToken>>;
+		getAll(options: {
+			limit?: number;
+			skip?: number;
+			sort?: string;
+			order?: string;
+		}): Promise<DatabaseResult<{ data: WebsiteToken[]; total: number }>>;
+		getByName(name: string): Promise<DatabaseResult<WebsiteToken | null>>;
+		delete(tokenId: DatabaseId): Promise<DatabaseResult<void>>;
+	};
+	systemVirtualFolder: {
+		create(folder: Omit<SystemVirtualFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<SystemVirtualFolder>>;
+		getById(folderId: DatabaseId): Promise<DatabaseResult<SystemVirtualFolder | null>>;
+		getByParentId(parentId: DatabaseId | null): Promise<DatabaseResult<SystemVirtualFolder[]>>;
+		getAll(): Promise<DatabaseResult<SystemVirtualFolder[]>>;
+		update(folderId: DatabaseId, updateData: Partial<SystemVirtualFolder>): Promise<DatabaseResult<SystemVirtualFolder>>;
+		addToFolder(contentId: DatabaseId, folderPath: string): Promise<DatabaseResult<void>>;
+		getContents(folderPath: string): Promise<DatabaseResult<{ folders: SystemVirtualFolder[]; files: MediaItem[] }>>;
+		ensure(folder: Omit<SystemVirtualFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<SystemVirtualFolder>>;
+		delete(folderId: DatabaseId): Promise<DatabaseResult<void>>;
+		exists(path: string): Promise<DatabaseResult<boolean>>;
+	};
+}
+
+export interface IMonitoringAdapter {
+	performance: {
+		getMetrics(): Promise<DatabaseResult<PerformanceMetrics>>;
+		clearMetrics(): Promise<DatabaseResult<void>>;
+		enableProfiling(enabled: boolean): Promise<DatabaseResult<void>>;
+		getSlowQueries(limit?: number): Promise<DatabaseResult<Array<{ query: string; duration: number; timestamp: ISODateString }>>>;
+	};
+	cache: {
+		get<T>(key: string): Promise<DatabaseResult<T | null>>;
+		set<T>(key: string, value: T, options?: CacheOptions): Promise<DatabaseResult<void>>;
+		delete(key: string): Promise<DatabaseResult<void>>;
+		clear(tags?: string[]): Promise<DatabaseResult<void>>;
+		invalidateCollection(collection: string): Promise<DatabaseResult<void>>;
+	};
+	getConnectionPoolStats?(): Promise<DatabaseResult<ConnectionPoolStats>>;
+}
+
 /** Database Adapter Interface **/
-export interface IDBAdapter {
+export interface IDBAdapter extends ISystemAdapter, IMonitoringAdapter {
 	/** Optional: Wait for DB connection to be ready (for adapters that support async connect) */
 	waitForConnection?(): Promise<void>;
 	// Performance and Capabilities
@@ -364,200 +604,15 @@ export interface IDBAdapter {
 		bulkUpsert<T extends BaseEntity>(collection: string, items: Array<Partial<T> & { id?: DatabaseId }>): Promise<DatabaseResult<T[]>>;
 	};
 
-	// Authentication & User Management (moved from authDBInterface)
-	auth: {
-		// Setup method for model registration
-		setupAuthModels(): Promise<void>;
-
-		// User Management Methods
-		createUser(userData: Partial<User>): Promise<DatabaseResult<User>>;
-		updateUserAttributes(user_id: string, userData: Partial<User>, tenantId?: string): Promise<DatabaseResult<User>>;
-		deleteUser(user_id: string, tenantId?: string): Promise<DatabaseResult<void>>;
-		getUserById(user_id: string, tenantId?: string): Promise<DatabaseResult<User | null>>;
-		getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<DatabaseResult<User | null>>;
-		getAllUsers(options?: PaginationOption): Promise<DatabaseResult<User[]>>;
-		getUserCount(filter?: Record<string, unknown>): Promise<DatabaseResult<number>>;
-		deleteUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>>;
-		blockUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
-		unblockUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
-
-		// Role Management Methods
-		getAllRoles(tenantId?: string): Promise<Role[]>;
-		getRoleById(roleId: string, tenantId?: string): Promise<DatabaseResult<Role | null>>;
-		createRole(role: Role): Promise<DatabaseResult<Role>>;
-		updateRole(roleId: string, roleData: Partial<Role>, tenantId?: string): Promise<DatabaseResult<Role>>;
-		deleteRole(roleId: string, tenantId?: string): Promise<DatabaseResult<void>>;
-
-		// Combined Performance-Optimized Methods
-		createUserAndSession(
-			userData: Partial<User>,
-			sessionData: { expires: ISODateString; tenantId?: string }
-		): Promise<DatabaseResult<{ user: User; session: Session }>>;
-		deleteUserAndSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>>;
-
-		// Session Management Methods
-		createSession(sessionData: { user_id: string; expires: ISODateString; tenantId?: string }): Promise<DatabaseResult<Session>>;
-		updateSessionExpiry(session_id: string, newExpiry: ISODateString): Promise<DatabaseResult<Session>>;
-		deleteSession(session_id: string): Promise<DatabaseResult<void>>;
-		deleteExpiredSessions(): Promise<DatabaseResult<number>>;
-		validateSession(session_id: string): Promise<DatabaseResult<User | null>>;
-		invalidateAllUserSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<void>>;
-		getActiveSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<Session[]>>;
-		getAllActiveSessions(tenantId?: string): Promise<DatabaseResult<Session[]>>;
-		getSessionTokenData(session_id: string): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: string } | null>>;
-		rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>>;
-		cleanupRotatedSessions?(): Promise<DatabaseResult<number>>;
-
-		// Token Management Methods
-		createToken(data: { user_id: string; email: string; expires: ISODateString; type: string; tenantId?: string }): Promise<DatabaseResult<string>>;
-		updateToken(token_id: string, tokenData: Partial<Token>, tenantId?: string): Promise<DatabaseResult<Token>>;
-		validateToken(
-			token: string,
-			user_id?: string,
-			type?: string,
-			tenantId?: string
-		): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>>;
-		consumeToken(token: string, user_id?: string, type?: string, tenantId?: string): Promise<DatabaseResult<{ status: boolean; message: string }>>;
-		getTokenData(token: string, user_id?: string, type?: string, tenantId?: string): Promise<DatabaseResult<Token | null>>;
-		getTokenByValue(token: string, tenantId?: string): Promise<DatabaseResult<Token | null>>;
-		getAllTokens(filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>>;
-		deleteExpiredTokens(): Promise<DatabaseResult<number>>;
-		deleteTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>>;
-		blockTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
-		unblockTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
-	};
-
-	//  System Preferences
-	systemPreferences: {
-		get<T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T>>;
-		getMany<T>(keys: string[], scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<Record<string, T>>>;
-		set<T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>;
-		setMany<T>(preferences: Array<{ key: string; value: T; scope?: 'user' | 'system'; userId?: DatabaseId }>): Promise<DatabaseResult<void>>;
-		delete(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>;
-		deleteMany(keys: string[], scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>;
-		clear(scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>;
-	};
-
-	// Theme Management
-	themes: {
-		setupThemeModels(): Promise<void>;
-		getActive(): Promise<DatabaseResult<Theme>>; // Retrieve the active theme
-		setDefault(themeId: DatabaseId): Promise<DatabaseResult<void>>; // Set a theme as default
-		install(theme: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<Theme>>; // Install a new theme
-		uninstall(themeId: DatabaseId): Promise<DatabaseResult<void>>; // Uninstall a theme
-		update(themeId: DatabaseId, theme: Partial<Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Theme>>; // Update a theme
-		getAllThemes(): Promise<Theme[]>; // Get all themes
-		storeThemes(themes: Theme[]): Promise<void>; // Store multiple themes
-		getDefaultTheme(tenantId?: string): Promise<DatabaseResult<Theme | null>>; // Get the default theme for a tenant
-	};
-
-	// Widget System
-	widgets: {
-		setupWidgetModels(): Promise<void>;
-		register(widget: Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<Widget>>; // Register a new widget
-		findAll(): Promise<DatabaseResult<Widget[]>>; // Get all widgets (active and inactive)
-		getActiveWidgets(): Promise<DatabaseResult<Widget[]>>; // Get all active widgets
-		activate(widgetId: DatabaseId): Promise<DatabaseResult<void>>; // Activate a widget
-		deactivate(widgetId: DatabaseId): Promise<DatabaseResult<void>>; // Deactivate a widget
-		update(widgetId: DatabaseId, widget: Partial<Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Widget>>; // Update widget configuration & details
-		delete(widgetId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a widget
-	};
-
-	// Website Tokens
-	websiteTokens: {
-		create(token: Omit<WebsiteToken, '_id' | 'createdAt'>): Promise<DatabaseResult<WebsiteToken>>;
-		getAll(options: {
-			limit?: number;
-			skip?: number;
-			sort?: string;
-			order?: string;
-		}): Promise<DatabaseResult<{ data: WebsiteToken[]; total: number }>>;
-		getByName(name: string): Promise<DatabaseResult<WebsiteToken | null>>;
-		delete(tokenId: DatabaseId): Promise<DatabaseResult<void>>;
-	};
-
-	//  Media Management
-	media: {
-		setupMediaModels(): Promise<void>;
-		files: {
-			upload(file: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaItem>>;
-			uploadMany(files: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<MediaItem[]>>;
-			delete(fileId: DatabaseId): Promise<DatabaseResult<void>>;
-			deleteMany(fileIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>>;
-			getByFolder(folderId?: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
-			search(query: string, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
-			getMetadata(fileIds: DatabaseId[]): Promise<DatabaseResult<Record<string, MediaMetadata>>>;
-			updateMetadata(fileId: DatabaseId, metadata: Partial<MediaMetadata>): Promise<DatabaseResult<MediaItem>>;
-			move(fileIds: DatabaseId[], targetFolderId?: DatabaseId): Promise<DatabaseResult<{ movedCount: number }>>;
-			duplicate(fileId: DatabaseId, newName?: string): Promise<DatabaseResult<MediaItem>>;
-		};
-		folders: {
-			create(folder: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaFolder>>;
-			createMany(folders: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<MediaFolder[]>>;
-			delete(folderId: DatabaseId): Promise<DatabaseResult<void>>;
-			deleteMany(folderIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>>;
-			getTree(maxDepth?: number): Promise<DatabaseResult<MediaFolder[]>>;
-			getFolderContents(
-				folderId?: DatabaseId,
-				options?: PaginationOptions
-			): Promise<DatabaseResult<{ folders: MediaFolder[]; files: MediaItem[]; totalCount: number }>>;
-			move(folderId: DatabaseId, targetParentId?: DatabaseId): Promise<DatabaseResult<MediaFolder>>;
-		};
-	};
-
+	auth: IAuthAdapter;
+	crud: ICrudAdapter;
+	media: IMediaAdapter;
+	content: IContentAdapter;
 	collection: {
 		getModel(id: string): Promise<CollectionModel>;
 		createModel(schema: Schema): Promise<void>;
 		updateModel(schema: Schema): Promise<void>;
 		deleteModel(id: string): Promise<void>;
-	};
-
-	// Content Management with Batch Operations
-	content: {
-		nodes: {
-			getStructure(mode: 'flat' | 'nested', filter?: Partial<ContentNode>, bypassCache?: boolean): Promise<DatabaseResult<ContentNode[]>>;
-			upsertContentStructureNode(node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>;
-			create(node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>;
-			createMany(nodes: Omit<ContentNode, 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<ContentNode[]>>;
-			update(path: string, changes: Partial<ContentNode>): Promise<DatabaseResult<ContentNode>>;
-			bulkUpdate(updates: { path: string; changes: Partial<ContentNode> }[]): Promise<DatabaseResult<ContentNode[]>>;
-			fixMismatchedNodeIds?(nodes: { path: string; expectedId: string; changes: Partial<ContentNode> }[]): Promise<{ fixed: number }>;
-			delete(path: string): Promise<DatabaseResult<void>>;
-			deleteMany(paths: string[]): Promise<DatabaseResult<{ deletedCount: number }>>;
-			reorder(nodeUpdates: Array<{ path: string; newOrder: number }>): Promise<DatabaseResult<ContentNode[]>>;
-			reorderStructure(items: Array<{ id: string; parentId: string | null; order: number; path: string }>): Promise<DatabaseResult<void>>;
-		};
-		drafts: {
-			create(draft: Omit<ContentDraft, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentDraft>>;
-			createMany(drafts: Omit<ContentDraft, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<ContentDraft[]>>;
-			update(draftId: DatabaseId, data: unknown): Promise<DatabaseResult<ContentDraft>>;
-			publish(draftId: DatabaseId): Promise<DatabaseResult<void>>;
-			publishMany(draftIds: DatabaseId[]): Promise<DatabaseResult<{ publishedCount: number }>>;
-			getForContent(contentId: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<ContentDraft>>>;
-			delete(draftId: DatabaseId): Promise<DatabaseResult<void>>;
-			deleteMany(draftIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>>;
-		};
-		revisions: {
-			create(revision: Omit<ContentRevision, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentRevision>>;
-			getHistory(contentId: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<ContentRevision>>>;
-			restore(revisionId: DatabaseId): Promise<DatabaseResult<void>>;
-			delete(revisionId: DatabaseId): Promise<DatabaseResult<void>>;
-			deleteMany(revisionIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>>;
-			cleanup(contentId: DatabaseId, keepLatest: number): Promise<DatabaseResult<{ deletedCount: number }>>;
-		};
-	};
-
-	// System Virtual Folders
-	systemVirtualFolder: {
-		create(folder: Omit<SystemVirtualFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<SystemVirtualFolder>>; // Create a virtual folder
-		getById(folderId: DatabaseId): Promise<DatabaseResult<SystemVirtualFolder | null>>; // Get a virtual folder by its ID
-		getByParentId(parentId: DatabaseId | null): Promise<DatabaseResult<SystemVirtualFolder[]>>; // Get folders by parent ID
-		getAll(): Promise<DatabaseResult<SystemVirtualFolder[]>>; // Get all virtual folders
-		update(folderId: DatabaseId, updateData: Partial<SystemVirtualFolder>): Promise<DatabaseResult<SystemVirtualFolder>>; // Update a virtual folder
-		addToFolder(contentId: DatabaseId, folderPath: string): Promise<DatabaseResult<void>>; // Add content to a virtual folder
-		getContents(folderPath: string): Promise<DatabaseResult<{ folders: SystemVirtualFolder[]; files: MediaItem[] }>>; // Specialized: Get contents of a virtual folder
-		delete(folderId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a virtual folder
-		exists(path: string): Promise<DatabaseResult<boolean>>; // Check if folder with given path exists
 	};
 
 	// Database Agnostic Utilities
@@ -568,65 +623,8 @@ export interface IDBAdapter {
 		createPagination<T>(items: T[], options: PaginationOptions): PaginatedResult<T>; // Paginate items (in-memory utility)
 	};
 
-	//  CRUD Operations
-	crud: {
-		// Single operations
-		findOne<T extends BaseEntity>(collection: string, query: QueryFilter<T>, options?: { fields?: (keyof T)[] }): Promise<DatabaseResult<T | null>>;
-		findMany<T extends BaseEntity>(
-			collection: string,
-			query: QueryFilter<T>,
-			options?: { limit?: number; offset?: number; fields?: (keyof T)[] }
-		): Promise<DatabaseResult<T[]>>;
-		insert<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<T>>;
-		update<T extends BaseEntity>(collection: string, id: DatabaseId, data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<T>>;
-		delete(collection: string, id: DatabaseId): Promise<DatabaseResult<void>>;
-
-		// Batch operations
-		findByIds<T extends BaseEntity>(collection: string, ids: DatabaseId[], options?: { fields?: (keyof T)[] }): Promise<DatabaseResult<T[]>>;
-		insertMany<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<T[]>>;
-		updateMany<T extends BaseEntity>(
-			collection: string,
-			query: QueryFilter<T>,
-			data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>
-		): Promise<DatabaseResult<{ modifiedCount: number }>>;
-		deleteMany(collection: string, query: QueryFilter<BaseEntity>): Promise<DatabaseResult<{ deletedCount: number }>>;
-
-		// Upsert operations
-		upsert<T extends BaseEntity>(
-			collection: string,
-			query: QueryFilter<T>,
-			data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>
-		): Promise<DatabaseResult<T>>;
-		upsertMany<T extends BaseEntity>(
-			collection: string,
-			items: Array<{ query: QueryFilter<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>
-		): Promise<DatabaseResult<T[] | { upsertedCount: number; modifiedCount: number }>>;
-
-		// Aggregation and analysis
-		count(collection: string, query?: QueryFilter<BaseEntity>): Promise<DatabaseResult<number>>;
-		exists(collection: string, query: QueryFilter<BaseEntity>): Promise<DatabaseResult<boolean>>;
-		aggregate<R>(collection: string, pipeline: unknown[]): Promise<DatabaseResult<R[]>>;
-	};
-
 	// Query Builder Entry Point with Collection Data Loading
 	queryBuilder<T extends BaseEntity>(collection: string): QueryBuilder<T>;
-
-	// Performance and Monitoring
-	performance: {
-		getMetrics(): Promise<DatabaseResult<PerformanceMetrics>>;
-		clearMetrics(): Promise<DatabaseResult<void>>;
-		enableProfiling(enabled: boolean): Promise<DatabaseResult<void>>;
-		getSlowQueries(limit?: number): Promise<DatabaseResult<Array<{ query: string; duration: number; timestamp: ISODateString }>>>;
-	};
-
-	// Caching Layer Integration
-	cache: {
-		get<T>(key: string): Promise<DatabaseResult<T | null>>;
-		set<T>(key: string, value: T, options?: CacheOptions): Promise<DatabaseResult<void>>;
-		delete(key: string): Promise<DatabaseResult<void>>;
-		clear(tags?: string[]): Promise<DatabaseResult<void>>;
-		invalidateCollection(collection: string): Promise<DatabaseResult<void>>;
-	};
 
 	// Collection Data Access (Optimized for your exportData use case)
 	getCollectionData(
@@ -656,6 +654,14 @@ export interface IDBAdapter {
 			fields?: string[];
 		}
 	): Promise<DatabaseResult<Record<string, unknown[]>>>;
+
+	// Lazy Initializers (Optional for Adapters that support them)
+	ensureAuth?(): Promise<void>;
+	ensureMedia?(): Promise<void>;
+	ensureContent?(): Promise<void>;
+	ensureSystem?(): Promise<void>;
+	ensureMonitoring?(): Promise<void>;
+	ensureCollections?(): Promise<void>;
 }
 
 // Type alias for backward compatibility

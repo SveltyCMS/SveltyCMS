@@ -52,7 +52,7 @@ Features:
 <BaseWidget
 	{label}
 	{theme}
-	endpoint="/api/audit?limit=10"
+	endpoint="/api/dashboard/audit?limit=10"
 	pollInterval={30000}
 	{icon}
 	{widgetId}

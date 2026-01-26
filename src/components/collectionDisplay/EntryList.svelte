@@ -803,7 +803,7 @@
 			<!-- Collection type with icon -->
 			<div class="mr-1 flex flex-col {!ui.state.leftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
 				{#if categoryName}
-					<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
+					<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-50 rtl:text-left">
 						{categoryName}
 					</div>
 				{/if}

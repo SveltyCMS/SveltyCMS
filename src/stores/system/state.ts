@@ -36,7 +36,7 @@ function transitionServiceState(
 		metrics.initializationDuration = duration;
 
 		// Update running statistics with EMA (Exponential Moving Average)
-		const alpha = 2 / (metrics.healthCheckCount + 1); // Smoothing factor
+		const alpha = 0.2; // Fixed smoothing factor for stable long-term behavior
 		if (!metrics.averageInitTime) {
 			metrics.averageInitTime = duration;
 			metrics.minInitTime = duration;
@@ -242,27 +242,28 @@ export function setSystemState(state: SystemState, reason?: string): void {
 // Derive overall system state from individual service statuses
 function deriveOverallState(services: SystemStateStore['services']): SystemState {
 	const criticalServices = ['database', 'auth'] as const;
-	const nonCriticalServices = ['cache', 'contentManager', 'themeManager'] as const;
+	const allServices = Object.keys(services) as ServiceName[];
 
-	// Check if any critical service is unhealthy
+	// 1. Check if any critical service is unhealthy
 	const criticalUnhealthy = criticalServices.some((service) => services[service].status === 'unhealthy');
-	if (criticalUnhealthy) {
-		return 'FAILED';
-	}
+	if (criticalUnhealthy) return 'FAILED';
 
-	// Check if any critical service is still initializing
+	// 2. Check if any critical service is still initializing
 	const criticalInitializing = criticalServices.some((service) => services[service].status === 'initializing');
-	if (criticalInitializing) {
-		return 'INITIALIZING';
-	}
+	if (criticalInitializing) return 'INITIALIZING';
 
-	// Check if any non-critical service is unhealthy
-	const nonCriticalUnhealthy = nonCriticalServices.some((service) => services[service].status === 'unhealthy');
-	if (nonCriticalUnhealthy) {
-		return 'DEGRADED';
-	}
+	// 3. Check if all services are healthy (WARMED)
+	const allHealthy = allServices.every((service) => services[service].status === 'healthy');
+	if (allHealthy) return 'WARMED';
 
-	// All critical services are healthy
+	// 4. Check if some services are unhealthy (DEGRADED)
+	const anyUnhealthy = allServices.some((service) => services[service].status === 'unhealthy');
+	if (anyUnhealthy) return 'DEGRADED';
+
+	// 5. If critical services are healthy but some non-critical services are still initializing (WARMING)
+	const anyInitializing = allServices.some((service) => services[service].status === 'initializing');
+	if (anyInitializing) return 'WARMING';
+
 	return 'READY';
 }
 
@@ -274,7 +275,7 @@ export function getSystemState(): SystemStateStore {
 // Check if the system is ready (synchronous)
 export function isSystemReady(): boolean {
 	const state = getSystemState();
-	return state.overallState === 'READY' || state.overallState === 'DEGRADED';
+	return state.overallState === 'READY' || state.overallState === 'WARMED' || state.overallState === 'WARMING' || state.overallState === 'DEGRADED';
 }
 
 // Check if a specific service is healthy (synchronous)
@@ -304,12 +305,22 @@ export const overallState: Readable<SystemState> = derived(systemStateStore, ($s
  * A derived store that returns true if the system is in a ready or degraded state.
  * Ideal for use in UI components to show/hide content based on system readiness.
  */
-export const isReady: Readable<boolean> = derived(overallState, ($s) => $s === 'READY' || $s === 'DEGRADED');
+export const isReady: Readable<boolean> = derived(overallState, ($s) => $s === 'READY' || $s === 'WARMED' || $s === 'WARMING' || $s === 'DEGRADED');
 
 /**
  * A derived store that returns true if the system is currently initializing.
  */
 export const isInitializing: Readable<boolean> = derived(overallState, ($s) => $s === 'INITIALIZING');
+
+/**
+ * A derived store that returns true if the system is currently serving traffic (READY, WARMING, or WARMED).
+ */
+export const isServing: Readable<boolean> = derived(overallState, ($s) => $s === 'WARMING' || $s === 'READY' || $s === 'WARMED');
+
+/**
+ * A derived store that returns true if the system is fully warmed up.
+ */
+export const isWarmed: Readable<boolean> = derived(overallState, ($s) => $s === 'WARMED');
 
 /**
  * A derived store that returns true if the system has failed.

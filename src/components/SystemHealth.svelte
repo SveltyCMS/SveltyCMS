@@ -35,11 +35,13 @@ Displays real-time system state and individual service health with comprehensive
 
 	// State configuration maps
 	const STATE_CONFIG = {
-		READY: { color: 'text-success-500', icon: '✅', label: 'Ready' },
-		DEGRADED: { color: 'text-warning-500', icon: '⚠️', label: 'Degraded' },
-		INITIALIZING: { color: 'text-primary-500', icon: '🔄', label: 'Initializing' },
-		FAILED: { color: 'text-error-500', icon: '❌', label: 'Failed' },
-		IDLE: { color: 'text-surface-500', icon: '⏸️', label: 'Idle' }
+		IDLE: { icon: '💤', color: 'text-surface-500', label: 'Idle' },
+		INITIALIZING: { icon: '⏳', color: 'text-primary-500', label: 'Initializing' },
+		WARMING: { icon: '🔥', color: 'text-tertiary-500', label: 'Warming Up' },
+		WARMED: { icon: '🚀', color: 'text-success-600', label: 'Warmed Up' },
+		READY: { icon: '✅', color: 'text-success-500', label: 'Ready' },
+		DEGRADED: { icon: '⚠️', color: 'text-warning-500', label: 'Degraded' },
+		FAILED: { icon: '❌', color: 'text-error-500', label: 'Failed' }
 	} as const;
 
 	const SERVICE_CONFIG = {

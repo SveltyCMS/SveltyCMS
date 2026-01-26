@@ -74,7 +74,8 @@ export function normalizeCollectionName(collection: string): string {
 export function isDateLike(val: unknown): val is { toISOString: () => string } {
 	// Using `!!val` handles null/undefined, and checking for the function is more robust
 	// than `instanceof Date` as it supports date-like objects from other libraries.
-	return !!val && typeof (val as Date).toISOString === 'function';
+	// We also ensure val is an object to avoid runtime errors on primitives.
+	return !!val && typeof val === 'object' && typeof (val as any).toISOString === 'function';
 }
 
 /**

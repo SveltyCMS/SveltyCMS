@@ -120,23 +120,26 @@ await loadSettingsFromDB();
 
 ### Key Features
 
-#### Lazy Initialization
+#### Phase-Based Initialization
 
 ```typescript
 let _dbInitPromise: Promise<void> | null = null;
 
-export function getDbInitPromise(): Promise<void> {
+// GATEWAY TO READY STATE
+// Connects on first request, optimized for <1s first-response.
+export async function getDbInitPromise(): Promise<void> {
 	if (!_dbInitPromise) {
-		_dbInitPromise = initializeOnRequest();
+		_dbInitPromise = initializeOnRequest(); // Transitions to READY
 	}
 	return _dbInitPromise;
 }
 
-// Database connects on first request, not at build time
-export const dbInitPromise = getDbInitPromise();
+// BACKGROUND WARM-UP (Non-blocking)
+// Once READY is reached, secondary services initialize in the background.
+dbInitPromise.then(() => startBackgroundWarmup());
 ```
 
-**Why This Matters**: Prevents database connection attempts during build process, which would fail since the database might not be available.
+**Why This Matters**: Distinguishes between **Critical-Blocking** (READY) and **Deferred-Non-Blocking** (WARMING) paths.
 
 #### Retry Mechanism
 
@@ -768,29 +771,30 @@ const tenantTheme = await themeManager.getTheme('tenant123');
 
 ## 🔄 How They Work Together
 
-### Startup Sequence
+### Startup Sequence (Phase-Based)
 
 ```
-1. Application Starts
+1. Application Starts (IDLE)
    ↓
-2. db.ts: loadPrivateConfig()
-   └─ Loads config/private.ts
+2. First Request / Manual Trigger (INITIALIZING)
+   ├─ loadPrivateConfig() - In-memory config preferred
+   └─ loadAdapters() - Dynamic import based on DB_TYPE
    ↓
-3. db.ts: loadAdapters()
-   └─ Imports correct adapter (MongoDB/PostgreSQL/etc)
+3. Critical Path Handshake (READY)
+   ├─ dbAdapter.connect() - Connection with retry
+   ├─ setupAuthModels() - Parallelized model caching
+   └─ loadSettingsFromDB() - Critical system preferences
    ↓
-4. db.ts: dbAdapter.connect()
-   └─ Establishes database connection (with retry)
+4. SYSTEM IS OPERATIONAL (READY signaled)
+   └─ Returning first request in <1s
    ↓
-5. db.ts: Initialize Services
-   ├─ Auth Service
-   ├─ Content Manager
-   └─ Theme Manager ← Uses dbInterface contract
+5. Background Task Scheduling (WARMING)
+   ├─ ThemeManager.initialize() - UI hydration
+   ├─ WidgetRegistry.scan() - Component discovery
+   └─ ContentManager - Remains LAZY until first use
    ↓
-6. db.ts: loadSettingsFromDB()
-   └─ Syncs database settings to memory cache
-   ↓
-7. Application Ready ✅
+6. FULL HYDRATION (WARMED)
+   └─ All background caches and registries active
 ```
 
 ### Request Flow Example
