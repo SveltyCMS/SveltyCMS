@@ -92,7 +92,8 @@ async function main() {
 			DB_NAME: privateEnv.DB_NAME,
 			DB_USER: privateEnv.DB_USER,
 			DB_PASSWORD: privateEnv.DB_PASSWORD,
-			PUBLIC_DISABLE_TELEMETRY: 'true'
+			PUBLIC_DISABLE_TELEMETRY: 'true',
+			NODE_ENV: 'test'
 		};
 
 		// Phase 1: Run Setup Test

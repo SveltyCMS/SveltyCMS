@@ -39,6 +39,31 @@ function openUrl(url: string) {
 }
 
 /**
+ * Plugin to alias @config/private to config/private.test.ts when running in TEST_MODE.
+ * This allows local tests to use an isolated configuration without modifying the production config.
+ */
+function testConfigAliasPlugin(): Plugin {
+	return {
+		name: 'test-config-alias',
+		enforce: 'pre',
+		resolveId(id) {
+			if (process.env.TEST_MODE !== 'true') return;
+
+			// Check for direct import or alias
+			if (id === '@config/private' || id.endsWith('config/private.ts')) {
+				const cwd = process.cwd();
+				const testConfigPath = path.resolve(cwd, 'config/private.test.ts');
+				// Only alias if the test config actually exists
+				if (existsSync(testConfigPath)) {
+					log.info('Test Mode: Aliasing @config/private to config/private.test.ts');
+					return testConfigPath;
+				}
+			}
+		}
+	};
+}
+
+/**
  * Vite plugin that provides a fallback for @config/private and @config/private.test when the file doesn't exist
  * This allows builds to succeed in fresh clones without committing sensitive credentials
  */
@@ -408,6 +433,8 @@ export default defineConfig((): UserConfig => {
 		plugins: [
 			// Suppress third-party warnings
 			suppressThirdPartyWarningsPlugin(),
+			// Test config alias - runs first to redirect to test config if needed
+			testConfigAliasPlugin(),
 			// Private config fallback - provides virtual module when file doesn't exist
 			privateConfigFallbackPlugin(),
 			// Security check plugin runs first to detect private setting imports

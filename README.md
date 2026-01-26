@@ -122,9 +122,6 @@ npm install
 # Development (CLI installer launches automatically if needed)
 npm run dev
 
-# Manual CLI Installer (optional)
-npm run installer
-
 # Build for production
 npm run build
 
@@ -147,9 +144,6 @@ pnpm install
 # Development (CLI installer launches automatically if needed)
 pnpm run dev
 
-# Manual CLI Installer (optional)
-pnpm run installer
-
 # Build for production
 pnpm run build
 
@@ -171,9 +165,6 @@ bun install
 
 # Development (CLI installer launches automatically if needed)
 bun run dev
-
-# Manual CLI Installer (optional)
-bun run installer
 
 # Build for production
 bun run build

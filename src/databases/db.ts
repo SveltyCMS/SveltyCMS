@@ -183,8 +183,20 @@ const INFRASTRUCTURE_KEYS = new Set([
 	'DEMO'
 ]);
 
-const KNOWN_PUBLIC_KEYS = Object.keys(publicConfigSchema.entries);
-const KNOWN_PRIVATE_KEYS = Object.keys(privateConfigSchema.entries).filter((key) => !INFRASTRUCTURE_KEYS.has(key));
+const KNOWN_PUBLIC_KEYS = publicConfigSchema && 'entries' in publicConfigSchema ? Object.keys(publicConfigSchema.entries) : [];
+const KNOWN_PRIVATE_KEYS =
+	privateConfigSchema && 'entries' in privateConfigSchema
+		? Object.keys(privateConfigSchema.entries).filter((key) => !INFRASTRUCTURE_KEYS.has(key))
+		: [];
+
+if (KNOWN_PUBLIC_KEYS.length === 0 || KNOWN_PRIVATE_KEYS.length === 0) {
+	console.error('CRITICAL: Failed to extract setting keys from Valibot schemas!', {
+		hasPublicSchema: !!publicConfigSchema,
+		hasPublicEntries: publicConfigSchema && 'entries' in publicConfigSchema,
+		hasPrivateSchema: !!privateConfigSchema,
+		hasPrivateEntries: privateConfigSchema && 'entries' in privateConfigSchema
+	});
+}
 
 // --- Optimization Constants ---
 const CRITICAL_SETTINGS = ['MEDIA_FOLDER', 'MULTI_TENANT', 'DEFAULT_LANGUAGE'];
@@ -220,11 +232,18 @@ export async function loadSettingsFromDB(criticalOnly = false) {
 		const keysToLoad = criticalOnly ? CRITICAL_SETTINGS : KNOWN_PUBLIC_KEYS;
 		const privateKeys = criticalOnly ? [] : KNOWN_PRIVATE_KEYS;
 
+		logger.debug(`Fetching settings from DB...`, { keysToLoadCount: keysToLoad.length, privateKeysCount: privateKeys.length });
+
 		// Parallel load of tiered settings
 		const [settingsResult, privateDynResult] = await Promise.all([
 			dbAdapter.systemPreferences.getMany(keysToLoad, 'system'),
-			privateKeys.length > 0 ? dbAdapter.systemPreferences.getMany(privateKeys, 'system') : Promise.resolve({ success: true, data: {} })
+			privateKeys.length > 0 ? dbAdapter.systemPreferences.getMany(privateKeys, 'system') : Promise.resolve({ success: true, data: {} } as any)
 		]);
+
+		logger.debug(`Settings fetch results received`, {
+			publicSuccess: settingsResult.success,
+			privateSuccess: privateDynResult.success
+		});
 
 		if (!settingsResult.success) {
 			throw new Error(`Could not load settings: ${settingsResult.error?.message}`);

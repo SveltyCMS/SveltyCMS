@@ -19,7 +19,7 @@ const TEST_COLLECTION_NAME = 'test_posts';
 const TEST_COLLECTION_PATH = `config/collections/${TEST_COLLECTION_NAME}.ts`;
 const TEST_COLLECTION_CONFIG = `
 import type { CollectionConfig } from '@src/types/CollectionConfig';
-const config: CollectionConfig = {
+export const schema: CollectionConfig = {
 	name: '${TEST_COLLECTION_NAME}',
 	slug: '${TEST_COLLECTION_NAME}',
 	fields: [
@@ -28,7 +28,6 @@ const config: CollectionConfig = {
 		{ name: 'status', label: 'Status', widget: 'text' }
 	]
 };
-export default config;
 `;
 
 describe('Collections & Content API', () => {

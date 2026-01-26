@@ -36,23 +36,6 @@ export async function cleanupTestDatabase(): Promise<void> {
 		console.log('[cleanupTestDatabase] Reset endpoint failed (ignored):', e);
 	}
 
-	// 2. Hard delete config files (double safety for local runner)
-	const fs = await import('fs/promises');
-	const path = await import('path');
-	const configDir = path.resolve(process.cwd(), 'config');
-
-	try {
-		if (process.env.TEST_MODE) {
-			// await fs.unlink(path.join(configDir, 'private.test.ts')).catch(() => {});
-		}
-		// Also clean private.ts if we are in a safe environment (extra safety: only if TEST_MODE is explicitly set)
-		if (process.env.TEST_MODE) {
-			await fs.unlink(path.join(configDir, 'private.ts')).catch(() => {});
-		}
-	} catch (e) {
-		// Ignore
-	}
-
 	// 3. Drop Test Database
 	// Note: basic drop logic, ideally use common DB helper if available
 	const { MongoClient } = await import('mongodb');

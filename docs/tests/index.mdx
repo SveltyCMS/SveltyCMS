@@ -18,19 +18,47 @@ tags:
 
 # SveltyCMS Testing Documentation
 
-**Last Updated:** January 14, 2026
+**Last Updated:** January 26, 2026
 **Total Tests:** ~615
-**Pass Rate:** ~98% (603 passing, 12 failing, 0 skipped)
+**Pass Rate:** ~98% (605 passing, 10 failing, 0 skipped)
 
-## Why Multiple Test Documentation Files?
+## Test Architecture & Isolation
 
-This testing documentation is organized into 12 specialized files for easy navigation and maintenance:
+SveltyCMS employs a strict isolation strategy to ensure tests never touch production data and run in a predictable environment.
 
-- **By Test Type**: Unit, Integration, E2E
-- **By Coverage Area**: APIs, Hooks, Stores, Widgets, Utilities
-- **By Purpose**: Status reports, workflow guides, coverage reports
+```mermaid
+graph TD
+    subgraph "Testing Levels"
+        Unit["<b>Unit Tests</b><br/>(tests/bun/*)"]
+        Int["<b>Integration Tests</b><br/>(tests/bun/api/*)"]
+        E2E["<b>E2E Tests</b><br/>(tests/playwright/*)"]
+    end
 
-This structure allows developers to quickly find relevant testing information without wading through a single massive document.
+    subgraph "Configuration Management"
+        PC["config/private.ts<br/>(Live/Production)"]
+        PT["config/private.test.ts<br/>(Test/Isolated)"]
+    end
+
+    Unit -.-> |Preload Mocks| PT
+    Int -.-> |TEST_MODE=true| PT
+    E2E -.-> |TEST_MODE=true| PT
+
+    subgraph "Protection Mechanisms"
+        VitePlugin["<b>Vite Alias Plugin</b><br/>Redirects @config/private"]
+        DBProtection["<b>db.ts Safety Checks</b><br/>Throws Error if Live in Test"]
+    end
+
+    VitePlugin --> |Alias| PT
+    DBProtection --> |Block| PC
+
+    classDef test fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef config fill:#bfb,stroke:#333,stroke-width:2px;
+    classDef protection fill:#fbb,stroke:#333,stroke-width:2px;
+
+    class Unit,Int,E2E test;
+    class PC,PT config;
+    class VitePlugin,DBProtection protection;
+```
 
 ---
 

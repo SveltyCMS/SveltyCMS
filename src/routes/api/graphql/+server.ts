@@ -435,17 +435,16 @@ const handler = async (event: RequestEvent) => {
 			tenantId: locals.tenantId
 		};
 
-		// Use GraphQL Yoga's handleRequest method which is designed for server environments
+		// Log request headers for transparency
+		logger.debug('GraphQL Request Headers:', {
+			headers: Object.fromEntries(request.headers.entries()),
+			method: request.method
+		});
+
+		// Use GraphQL Yoga's handleRequest method
 		const yogaResponse = await yogaApp.handleRequest(compatibleRequest, {
 			user: locals.user,
 			tenantId: locals.tenantId
-		});
-
-		logger.debug('GraphQL Yoga response:', {
-			status: yogaResponse?.status,
-			statusText: yogaResponse?.statusText,
-			headers: yogaResponse ? Object.fromEntries(yogaResponse.headers.entries()) : 'N/A',
-			isResponse: yogaResponse instanceof Response
 		});
 
 		if (!yogaResponse) {
@@ -454,9 +453,28 @@ const handler = async (event: RequestEvent) => {
 		}
 
 		// Return a SvelteKit-compatible Response
-		// FIX: We consume the body to ensure it's loaded and return a new Response
-		// This handles streaming issues where SvelteKit/Node might not like the Yoga stream format directly
 		const bodyBuffer = await yogaResponse.arrayBuffer();
+
+		// Robust Error Handling for failed requests
+		if (!yogaResponse.ok) {
+			try {
+				const bodyText = new TextDecoder().decode(bodyBuffer);
+				const bodyJson = JSON.parse(bodyText);
+
+				logger.error('GraphQL Execution Errors Detected:', {
+					status: yogaResponse.status,
+					statusText: yogaResponse.statusText,
+					errors: bodyJson.errors || 'No specific GraphQL errors provided',
+					requestId: request.headers.get('x-request-id') || 'N/A'
+				});
+			} catch (parseError) {
+				logger.error('GraphQL Failed (Raw Body):', {
+					status: yogaResponse.status,
+					statusText: yogaResponse.statusText,
+					rawBodyLength: bodyBuffer.byteLength
+				});
+			}
+		}
 
 		return new Response(bodyBuffer, {
 			status: yogaResponse.status,
