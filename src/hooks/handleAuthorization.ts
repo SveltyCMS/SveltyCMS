@@ -151,9 +151,10 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	// --- Handle authenticated users ---
 	if (user) {
 		const userRole = rolesData.find((r) => r._id === user.role);
-		const isAdmin = !!userRole?.isAdmin;
+		const isAdmin = !!userRole?.isAdmin || (user as any).isAdmin;
 
 		locals.isAdmin = isAdmin;
+		locals.hasAdminPermission = isAdmin;
 		locals.hasManageUsersPermission = isAdmin || hasPermissionByAction(user, 'manage', 'user', undefined, rolesData);
 
 		// Redirect authenticated users away from public routes

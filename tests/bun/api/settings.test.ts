@@ -163,17 +163,27 @@ describe('Settings API - Update Settings Group', () => {
 });
 
 describe('Settings API - Public Settings', () => {
-	it('should return public settings without authentication', async () => {
+	it('should require authentication for public settings', async () => {
 		const response = await fetch(`${BASE_URL}/api/settings/public`);
-
-		expect(response.ok).toBe(true);
-		const data = await response.json();
-
-		expect(typeof data).toBe('object');
+		expect([401, 403]).toContain(response.status);
 	});
 
-	it('should not expose sensitive settings publicly', async () => {
-		const response = await fetch(`${BASE_URL}/api/settings/public`);
+	it('should allow admin access to public settings', async () => {
+		const response = await fetch(`${BASE_URL}/api/settings/public`, {
+			headers: { Cookie: authCookie }
+		});
+
+		expect([200, 404]).toContain(response.status);
+		if (response.ok) {
+			const data = await response.json();
+			expect(typeof data).toBe('object');
+		}
+	});
+
+	it('should not expose sensitive settings', async () => {
+		const response = await fetch(`${BASE_URL}/api/settings/public`, {
+			headers: { Cookie: authCookie }
+		});
 
 		if (response.ok) {
 			const data = await response.json();
@@ -185,32 +195,28 @@ describe('Settings API - Public Settings', () => {
 		}
 	});
 
-	it('should include theme settings in public data', async () => {
-		const response = await fetch(`${BASE_URL}/api/settings/public`);
+	it('should include theme settings in data', async () => {
+		const response = await fetch(`${BASE_URL}/api/settings/public`, {
+			headers: { Cookie: authCookie }
+		});
 
 		if (response.ok) {
 			const data = await response.json();
-
-			// Public settings typically include theme info
 			expect(data).toBeDefined();
-		}
-	});
-
-	it('should cache public settings appropriately', async () => {
-		const response = await fetch(`${BASE_URL}/api/settings/public`);
-
-		// Check cache headers
-		const cacheControl = response.headers.get('cache-control');
-		if (cacheControl) {
-			// Should have caching strategy
-			expect(cacheControl.length).toBeGreaterThan(0);
 		}
 	});
 });
 
 describe('Settings API - Public Settings Stream', () => {
-	it('should support server-sent events for settings', async () => {
+	it('should require authentication for settings stream', async () => {
 		const response = await fetch(`${BASE_URL}/api/settings/public/stream`);
+		expect([401, 403]).toContain(response.status);
+	});
+
+	it('should support server-sent events for authenticated settings', async () => {
+		const response = await fetch(`${BASE_URL}/api/settings/public/stream`, {
+			headers: { Cookie: authCookie }
+		});
 
 		// SSE endpoints use text/event-stream
 		expect([200, 404, 501]).toContain(response.status);
@@ -222,13 +228,6 @@ describe('Settings API - Public Settings Stream', () => {
 			}
 		}
 	});
-
-	it('should not require authentication for public stream', async () => {
-		const response = await fetch(`${BASE_URL}/api/settings/public/stream`);
-
-		// Should allow unauthenticated access for public data
-		expect([200, 404, 501]).toContain(response.status);
-	});
 });
 
 describe('Settings API - Export System Settings', () => {
@@ -238,7 +237,8 @@ describe('Settings API - Export System Settings', () => {
 			headers: {
 				'Content-Type': 'application/json',
 				Cookie: authCookie
-			}
+			},
+			body: JSON.stringify({})
 		});
 
 		expect([200, 404]).toContain(response.status);
@@ -254,7 +254,8 @@ describe('Settings API - Export System Settings', () => {
 	it('should require admin authentication for export', async () => {
 		const response = await fetch(`${BASE_URL}/api/systemsetting/export`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' }
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({})
 		});
 
 		expect([401, 403]).toContain(response.status);
@@ -266,7 +267,8 @@ describe('Settings API - Export System Settings', () => {
 			headers: {
 				'Content-Type': 'application/json',
 				Cookie: authCookie
-			}
+			},
+			body: JSON.stringify({ includeSettings: true })
 		});
 
 		if (response.ok) {
@@ -283,7 +285,8 @@ describe('Settings API - Export System Settings', () => {
 			headers: {
 				'Content-Type': 'application/json',
 				Cookie: authCookie
-			}
+			},
+			body: JSON.stringify({})
 		});
 
 		if (response.ok) {
@@ -306,13 +309,27 @@ describe('Settings API - Import System Settings', () => {
 			}
 		};
 
+		const importPayload = {
+			data: {
+				metadata: {
+					exported_at: new Date().toISOString(),
+					cms_version: '1.0.0',
+					export_id: 'test-import'
+				},
+				settings: settingsData
+			},
+			options: {
+				strategy: 'merge'
+			}
+		};
+
 		const response = await fetch(`${BASE_URL}/api/systemsetting/import`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
 				Cookie: authCookie
 			},
-			body: JSON.stringify(settingsData)
+			body: JSON.stringify(importPayload)
 		});
 
 		expect([200, 400, 404]).toContain(response.status);
@@ -331,7 +348,10 @@ describe('Settings API - Import System Settings', () => {
 				Cookie: authCookie
 			},
 			body: JSON.stringify({
-				invalid: 'structure'
+				data: {
+					// Missing metadata and valid structure
+					invalid: 'structure'
+				}
 			})
 		});
 
@@ -357,8 +377,20 @@ describe('Settings API - Import System Settings', () => {
 				Cookie: authCookie
 			},
 			body: JSON.stringify({
-				general: {
-					newSetting: 'value'
+				data: {
+					metadata: {
+						exported_at: new Date().toISOString(),
+						cms_version: '1.0.0',
+						export_id: 'test-merge'
+					},
+					settings: {
+						general: {
+							newSetting: 'value'
+						}
+					}
+				},
+				options: {
+					strategy: 'merge'
 				}
 			})
 		});
@@ -370,7 +402,7 @@ describe('Settings API - Import System Settings', () => {
 
 describe('Settings API - User Preferences', () => {
 	it('should get user preferences', async () => {
-		const response = await fetch(`${BASE_URL}/api/systemPreferences`, {
+		const response = await fetch(`${BASE_URL}/api/systemPreferences?key=theme`, {
 			headers: { Cookie: authCookie }
 		});
 

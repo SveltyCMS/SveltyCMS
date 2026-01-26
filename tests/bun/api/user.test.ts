@@ -126,8 +126,11 @@ describe('User API Integration', () => {
 			const verify = await fetch(`${API_BASE_URL}/api/user`, {
 				headers: { Cookie: adminCookie }
 			});
-			const data = await verify.json();
-			expect(data.username).toBe('UpdatedAdminName');
+			const result = await verify.json();
+			// /api/user returns { success: true, data: users[], pagination: ... }
+			const updatedUser = result.data.find((u: any) => u.username === 'UpdatedAdminName');
+			expect(updatedUser).toBeDefined();
+			expect(updatedUser.username).toBe('UpdatedAdminName');
 		});
 
 		it('should reject unauthorized token', async () => {

@@ -73,11 +73,17 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 		const dbAdapter = db.dbAdapter;
 
 		// Guard against uninitialized adapter
-		if (!dbAdapter || !dbAdapter.auth) {
-			console.log('[setupCheck] DB adapter missing or auth module not ready');
-			if (process.env.NODE_ENV === 'development') {
-				console.log('[setupCheck] Database adapter not ready yet');
-			}
+		if (!dbAdapter) {
+			return false;
+		}
+
+		// Ensure auth is initialized before access
+		if (dbAdapter.ensureAuth) {
+			await dbAdapter.ensureAuth();
+		}
+
+		if (!dbAdapter.auth) {
+			console.log('[setupCheck] Auth module not ready after initialization');
 			return false;
 		}
 
@@ -90,9 +96,10 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 			console.log('[setupCheck] Config exists but NO ADMIN USERS found in DB. Marking setup as incomplete.');
 		}
 
-		// Update cache
+		// Update cache - only mark as checked if we found users
+		// This allows a background seeding process to finish and be detected on next request
 		setupStatus = hasUsers;
-		setupStatusCheckedDb = true;
+		setupStatusCheckedDb = hasUsers;
 		return hasUsers;
 	} catch (error) {
 		console.error(`[SveltyCMS] ❌ Database validation failed during setup check:`, error);

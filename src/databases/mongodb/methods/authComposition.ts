@@ -64,7 +64,7 @@ function getRoleModel(): mongoose.Model<Role> {
 			description: String,
 			isAdmin: Boolean,
 			permissions: [String],
-			tenantId: { type: String, index: true },
+			tenantId: { type: String },
 			groupName: String,
 			icon: String,
 			color: String

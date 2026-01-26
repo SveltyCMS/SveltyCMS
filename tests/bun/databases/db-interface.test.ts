@@ -62,18 +62,15 @@ describe('Database Interface Contract Tests', () => {
 		try {
 			await db.connect(connectionString);
 			console.log('DB Interface Test: Connected to', connectionString);
+
+			// CRITICAL: Initialize lazy-loaded features for interface testing
+			await Promise.all([db.ensureAuth(), db.ensureMedia(), db.ensureContent(), db.ensureSystem(), db.ensureMonitoring()]);
+			console.log('DB Interface Test: All features initialized');
 		} catch (err) {
-			console.error('DB Interface Test Check: Failed to connect', err);
+			console.error('DB Interface Test Check: Failed to connect or initialize features', err);
 			// We don't throw here to allow tests to fail gracefully with "db not connected"
 		}
 	});
-
-	// Cleanup
-	// afterAll(async () => {
-	// 	if (db && typeof db.disconnect === 'function') {
-	// 		await db.disconnect();
-	// 	}
-	// });
 
 	describe('Connection Management', () => {
 		it('should implement connect method', () => {

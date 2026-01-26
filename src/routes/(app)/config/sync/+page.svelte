@@ -1,12 +1,15 @@
 <!--
-@files src/routes/(app)/config/configurationManager/+page.svelte
+@files src/routes/(app)/config/sync/+page.svelte
 @component
-**This file implements the Configuration Manager page, allowing users to synchronize configuration between filesystem and database. It provides import/export functionality with detailed status and change tracking.**
+**Configuration Sync & Backup Manager**
+Allows synchronization between filesystem and database, and full system backup/restore.
 -->
 <script lang="ts">
 	import { fade, slide } from 'svelte/transition';
 	import { showToast } from '@utils/toast';
 	import PageTitle from '@components/PageTitle.svelte';
+	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import { onMount } from 'svelte';
 
 	type ConfigStatus = {
@@ -22,7 +25,7 @@
 	let status: ConfigStatus = $state(null);
 	let isLoading = $state(true);
 	let isProcessing = $state(false);
-	let activeTab: 'sync' | 'import' | 'export' | 'debug' = $state('sync');
+	let activeTab: 'sync' | 'backups' | 'debug' = $state('sync');
 
 	// prettier counts
 	const changeSummary = $derived(() => ({
@@ -47,14 +50,7 @@
 		}
 	}
 
-	let fileToImport: File | null = $state(null);
-
-	function handleFileSelect(e: Event) {
-		const target = e.target as HTMLInputElement;
-		fileToImport = target.files ? target.files[0] : null;
-	}
-
-	async function performImport() {
+	async function performSync() {
 		if (!status || status.unmetRequirements.length > 0) {
 			showToast('Sync blocked due to unmet requirements.', 'warning');
 			return;
@@ -62,15 +58,9 @@
 
 		isProcessing = true;
 		try {
-			const payload: { action: string; payload?: any } = { action: 'import' };
-
-			if (fileToImport) {
-				const fileContent = await fileToImport.text();
-				payload.payload = JSON.parse(fileContent);
-				showToast(`Importing from file: ${fileToImport.name}`, 'info');
-			} else {
-				showToast('No file selected, performing standard filesystem sync.', 'info');
-			}
+			// Standard filesystem sync
+			const payload = { action: 'import' };
+			showToast('Performing standard filesystem sync...', 'info');
 
 			const res = await fetch('/api/config_sync', {
 				method: 'POST',
@@ -82,41 +72,17 @@
 			if (!res.ok) throw new Error(result.message || `HTTP ${res.status}`);
 
 			showToast(result.message || 'Sync successful!', 'success');
-			await loadStatus(); // Refresh status after sync/import
+			await loadStatus(); // Refresh status after sync
 		} catch (err) {
 			const errorMsg = err instanceof Error ? err.message : String(err);
 			showToast(`Sync failed: ${errorMsg}`, 'error');
 		} finally {
 			isProcessing = false;
-			fileToImport = null;
 		}
 	}
 
-	function exportToJSON() {
-		if (!status || !status.changes) {
-			showToast('No changes to export.', 'warning');
-			return;
-		}
-		const jsonString = JSON.stringify(status.changes, null, 2);
-		const blob = new Blob([jsonString], { type: 'application/json' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = `svelty-config-changes-${new Date().toISOString()}.json`;
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
-		showToast('Configuration changes exported to JSON.', 'success');
-	}
-
-	function exportToCSV() {
-		showToast('CSV export is not yet implemented.', 'info');
-	}
-
-	// Sync all detected changes (filesystem -> DB)
 	function syncAllChanges() {
-		performImport();
+		performSync();
 	}
 
 	onMount(() => {
@@ -124,35 +90,39 @@
 	});
 </script>
 
-<!-- Page Title and Back Button (single instance, at top) -->
-<PageTitle name="Configuration Manager" icon="mdi:sync-circle" showBackButton={true} backUrl="/config" />
+<!-- Page Title and Back Button -->
+<PageTitle name="Config Sync & Backup" icon="mdi:sync-circle" showBackButton={true} backUrl="/config" />
 
 <div class="wrapper">
-	<!-- Header Description -->
+	<!-- Description -->
 	<div class="preset-tonal-surface mb-4 p-4">
 		<p class="text-surface-600 dark:text-surface-300">
-			This tool manages the synchronization between configuration defined in the filesystem (the "source of truth") and the configuration active in
-			the database. Use it to deploy structural changes between different environments (e.g., from development to live).
+			Manage your system configuration. Use <strong>Sync</strong> to deploy code changes to the database, and <strong>Backups</strong> to import/export
+			full system data.
 		</p>
 	</div>
 
 	<!-- Tabs -->
 	<div class="flex w-full overflow-x-auto border border-surface-300 bg-surface-100/70 dark:text-surface-50 dark:bg-surface-800/70">
-		{#each ['sync', 'import', 'export', 'debug'] as tab}
-			<!-- Explicitly type tab as 'sync' | 'import' | 'export' | 'debug' -->
+		{#each ['sync', 'backups', 'debug'] as tab}
 			{#key tab}
-				<button
-					class="flex-1 py-3 text-center text-sm font-medium transition-all duration-200"
-					class:!bg-tertiary-500={activeTab === tab}
-					class:!text-white={activeTab === tab}
-					class:!dark:bg-primary-500={activeTab === tab}
-					class:!dark:text-surface-900={activeTab === tab}
-					class:dark:text-surface-200={activeTab !== tab}
-					class:text-surface-700={activeTab !== tab}
-					onclick={() => (activeTab = tab as 'sync' | 'import' | 'export' | 'debug')}
+				<SystemTooltip
+					title={tab === 'sync' ? 'Deploy changes' : tab === 'backups' ? 'Import/Export Data' : 'Debug Info'}
+					positioning={{ placement: 'top' }}
 				>
-					{tab.charAt(0).toUpperCase() + tab.slice(1)}
-				</button>
+					<button
+						class="flex-1 py-3 text-center text-sm font-medium transition-all duration-200 px-6"
+						class:!bg-tertiary-500={activeTab === tab}
+						class:!text-white={activeTab === tab}
+						class:!dark:bg-primary-500={activeTab === tab}
+						class:!dark:text-surface-900={activeTab === tab}
+						class:dark:text-surface-200={activeTab !== tab}
+						class:text-surface-700={activeTab !== tab}
+						onclick={() => (activeTab = tab as 'sync' | 'backups' | 'debug')}
+					>
+						{tab.charAt(0).toUpperCase() + tab.slice(1)}
+					</button>
+				</SystemTooltip>
 			{/key}
 		{/each}
 	</div>
@@ -208,7 +178,7 @@
 						<iconify-icon icon="mdi:alert" class="text-warning-500"></iconify-icon>
 						Changes Detected
 					</h3>
-					<p class="text-surface-500">
+					<p class="">
 						{changeSummary().new} new, {changeSummary().updated} updated, {changeSummary().deleted} deleted.
 					</p>
 					<div class="overflow-hidden border border-surface-200 dark:text-surface-50">
@@ -227,7 +197,7 @@
 											<td>{item.name}</td>
 											<td><span class="preset-tonal-surface-500 badge capitalize">{item.type}</span></td>
 											<td>
-												{#if changeType === 'new'}<span class="preset-filled-success-500 badge">New</span>{/if}
+												{#if changeType === 'new'}<span class="preset-filled-primary-500 badge">New</span>{/if}
 												{#if changeType === 'updated'}<span class="variant-filled-warning badge">Updated</span>{/if}
 												{#if changeType === 'deleted'}<span class="preset-filled-error-500 badge">Deleted</span>{/if}
 											</td>
@@ -241,40 +211,9 @@
 			{/if}
 		{/if}
 
-		{#if activeTab === 'import'}
-			<div transition:slide|local class="rounded border bg-surface-50 p-4 dark:bg-surface-900/40">
-				<h3 class="mb-3 flex items-center gap-2 font-semibold">
-					<iconify-icon icon="mdi:database-import-outline"></iconify-icon> Import Configuration from File
-				</h3>
-				<p class="mb-4 text-sm text-surface-500">Upload a JSON or CSV file containing configuration changes to apply them to the database.</p>
-				<div class="flex flex-col gap-4">
-					<input type="file" class="input" accept=".json,.csv" onchange={handleFileSelect} />
-					<button
-						class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500"
-						disabled={!fileToImport || isProcessing}
-						onclick={performImport}
-					>
-						<iconify-icon icon="mdi:upload" class={isProcessing ? 'animate-spin' : ''}></iconify-icon>
-						{isProcessing ? 'Importing...' : 'Import from File'}
-					</button>
-				</div>
-			</div>
-		{/if}
-
-		{#if activeTab === 'export'}
-			<div transition:slide|local class="rounded border bg-surface-50 p-4 dark:bg-surface-900/40">
-				<h3 class="mb-3 flex items-center gap-2 font-semibold">
-					<iconify-icon icon="mdi:export"></iconify-icon> Export Configuration
-				</h3>
-				<p class="mb-4 text-sm text-surface-500">Save the detected configuration changes to a file.</p>
-				<div class="flex gap-4">
-					<button class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" disabled={isProcessing} onclick={exportToJSON}>
-						<iconify-icon icon="mdi:code-json"></iconify-icon> Export as JSON
-					</button>
-					<button class="variant-filled-secondary btn" disabled={isProcessing} onclick={exportToCSV}>
-						<iconify-icon icon="mdi:file-csv-outline"></iconify-icon> Export as CSV
-					</button>
-				</div>
+		{#if activeTab === 'backups'}
+			<div transition:slide|local class="space-y-4">
+				<ImportExportManager />
 			</div>
 		{/if}
 
@@ -283,7 +222,12 @@
 				<h3 class="mb-3 flex items-center gap-2 font-semibold">
 					<iconify-icon icon="mdi:bug-outline"></iconify-icon> Raw API Response
 				</h3>
-				<pre class="whitespace-pre-wrap text-xs">{JSON.stringify(status, null, 2)}</pre>
+				<pre
+					class="whitespace-pre-wrap text-xs max-h-[500px] overflow-y-auto p-2 border border-surface-200 dark:border-surface-700 rounded bg-surface-100 dark:bg-surface-800">{JSON.stringify(
+						status,
+						null,
+						2
+					)}</pre>
 			</div>
 		{/if}
 	</section>

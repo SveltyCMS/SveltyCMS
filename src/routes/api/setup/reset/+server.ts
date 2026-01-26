@@ -44,20 +44,26 @@ export const POST: RequestHandler = async ({ locals }) => {
 			);
 		}
 
-		// Delete config file
-		const configPath = path.join(process.cwd(), 'config', process.env.TEST_MODE ? 'private.test.ts' : 'private.ts');
+		// In TEST_MODE, we DO NOT delete the config file because it's required for the entire test suite run.
+		// Instead, we just invalidate the cache and clear internal state.
+		if (isTestMode) {
+			logger.info('Setup reset: Skipping file deletion in TEST_MODE to preserve test environment');
+		} else {
+			// Delete config file
+			const configPath = path.join(process.cwd(), 'config', 'private.ts');
 
-		try {
-			await fs.unlink(configPath);
-			logger.info('Setup reset: config/private.ts deleted successfully', {
-				by: locals.user?.username || 'system'
-			});
-		} catch (fsError: any) {
-			// If file doesn't exist, we consider the reset successful (idempotent)
-			if (fsError.code !== 'ENOENT') {
-				throw fsError;
+			try {
+				await fs.unlink(configPath);
+				logger.info('Setup reset: config/private.ts deleted successfully', {
+					by: locals.user?.username || 'system'
+				});
+			} catch (fsError: any) {
+				// If file doesn't exist, we consider the reset successful (idempotent)
+				if (fsError.code !== 'ENOENT') {
+					throw fsError;
+				}
+				logger.debug('Setup reset: config file already missing, proceeding with cache clear');
 			}
-			logger.debug('Setup reset: config file already missing, proceeding with cache clear');
 		}
 
 		// CRITICAL: Invalidate the global setup cache and DB config cache

@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'bun:test';
 
-const BASE_URL = 'http://localhost:5173';
+const BASE_URL = process.env.API_BASE_URL || 'http://localhost:4173';
 
 describe('Security Enhancements Verification', () => {
 	it('should block requests with blocked User-Agent (Firewall)', async () => {

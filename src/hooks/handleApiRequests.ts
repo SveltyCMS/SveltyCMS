@@ -55,7 +55,28 @@ function shouldBypassCache(searchParams: URLSearchParams): boolean {
 	return searchParams.get('refresh') === 'true' || searchParams.get('nocache') === 'true';
 }
 
-// --- MAIN HOOK ---
+import { API_PERMISSIONS } from '@src/databases/auth/apiPermissions';
+
+function isPublicApiRoute(pathname: string): boolean {
+	const relative = pathname.replace(/^\/api\//, '');
+
+	// Fast check for explicitly defined public endpoints
+	// We check if any permission key with '*' allows access to this path
+	for (const [key, roles] of Object.entries(API_PERMISSIONS)) {
+		if (roles.includes('*')) {
+			const permissionPath = key.replace('api:', '');
+			// Match exact or sub-path (e.g. 'settings/public' matches 'settings/public/stream')
+			if (relative === permissionPath || relative.startsWith(`${permissionPath}/`)) {
+				return true;
+			}
+		}
+	}
+
+	// Legacy hardcoded list fallback (can be removed if all moved to permissions)
+	return ['/api/system/version', '/api/user/login'].includes(pathname);
+}
+
+// ...
 
 export const handleApiRequests: Handle = async ({ event, resolve }) => {
 	const { url, locals, request } = event;
@@ -66,15 +87,12 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 	}
 
 	// Skip authentication check for setup API routes
-	// These are handled by handleSetup middleware for access control
 	if (url.pathname.startsWith('/api/setup')) {
 		return resolve(event);
 	}
 
-	// Allow public API endpoints without authentication
-	// - /api/system/version: Version check for login page
-	// - /api/user/login: Public login endpoint
-	if (['/api/system/version', '/api/user/login'].includes(url.pathname)) {
+	// Dynamic check for public API endpoints based on permissions configuration
+	if (isPublicApiRoute(url.pathname)) {
 		return resolve(event);
 	}
 

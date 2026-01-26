@@ -478,7 +478,7 @@ export class Auth {
 			value: sessionId,
 			attributes: {
 				httpOnly: true,
-				secure: !dev,
+				secure: !dev && process.env.NODE_ENV !== 'test' && process.env.TEST_MODE !== 'true',
 				sameSite: 'strict',
 				maxAge: 24 * 60 * 60,
 				path: '/'

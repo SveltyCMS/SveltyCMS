@@ -1,3 +1,8 @@
+/**
+ * @file src/routes/api/systemsetting/import/+server.ts
+ * @description Handles system settings import requests.
+ */
+
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { getDb } from '@src/databases/db';
 import { getAllSettings, invalidateSettingsCache } from '@src/services/settingsService';
@@ -220,7 +225,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			{ status: result.success ? 200 : 207 }
 		);
 	} catch (error) {
-		logger.error('Import error:', error);
+		logger.error(`Import error details: ${error instanceof Error ? error.message : String(error)}`);
+		if (error instanceof Error) logger.error(error.stack || 'No stack trace');
 		return json({ success: false, error: 'Import failed', message: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
 	}
 };

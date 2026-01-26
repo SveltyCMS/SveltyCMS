@@ -1,3 +1,8 @@
+/**
+ * @file src/routes/api/systemsetting/export/+server.ts
+ * @description Handles system settings export requests.
+ */
+
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { getAllSettings } from '@src/services/settingsService';
 import { logger } from '@utils/logger.server';
@@ -120,7 +125,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			}
 		});
 	} catch (error) {
-		logger.error('Export error:', error);
+		logger.error(`Export error: ${error instanceof Error ? error.message : String(error)}`);
+		if (error instanceof Error) logger.error(error.stack || 'No stack trace');
 		return json(
 			{
 				error: 'Export failed',

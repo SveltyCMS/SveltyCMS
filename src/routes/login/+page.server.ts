@@ -786,7 +786,7 @@ export const actions: Actions = {
 				path: '/',
 				httpOnly: true,
 				sameSite: 'lax',
-				secure: dev ? false : true,
+				secure: !dev && process.env.TEST_MODE !== 'true',
 				maxAge: 60 * 60 * 24 * 7 // 7 days to match session expiry
 			}); // Redirect to first collection
 			// Check if collections exist in the database

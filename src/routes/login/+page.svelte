@@ -73,9 +73,9 @@
 	$effect(() => {
 		// Only set initial background, don't override user interactions
 		if (active === undefined && !hasResetParams) {
-			if (publicEnv?.DEMO) {
+			if ((publicEnv as any)?.DEMO) {
 				background = '#242728';
-			} else if (publicEnv?.SEASONS) {
+			} else if ((publicEnv as any)?.SEASONS) {
 				background = 'white';
 			} else if (firstUserExists) {
 				background = 'white';
@@ -164,7 +164,7 @@
 	// Set up the interval to update the countdown every second
 	$effect(() => {
 		let interval: ReturnType<typeof setInterval> | undefined;
-		if (getPublicSetting('DEMO')) {
+		if (getPublicSetting('DEMO' as any)) {
 			updateTimeRemaining();
 			interval = setInterval(updateTimeRemaining, 1000);
 			return () => {
@@ -178,7 +178,7 @@
 		if (isTransitioning) return;
 		isTransitioning = true;
 		active = undefined;
-		background = data.demoMode ? '#242728' : getPublicSetting('SEASONS') ? '#242728' : firstUserExists ? 'white' : '#242728';
+		background = data.demoMode ? '#242728' : getPublicSetting('SEASONS' as any) ? '#242728' : firstUserExists ? 'white' : '#242728';
 		setTimeout(() => {
 			isTransitioning = false;
 		}, 300);
@@ -221,13 +221,13 @@
 
 	// Handle pointer enter events
 	function handleSignInPointerEnter() {
-		if (active === undefined && !data.demoMode && !getPublicSetting('SEASONS')) {
+		if (active === undefined && !data.demoMode && !getPublicSetting('SEASONS' as any)) {
 			background = 'white';
 		}
 	}
 
 	function handleSignUpPointerEnter() {
-		if (active === undefined && !data.demoMode && !getPublicSetting('SEASONS')) {
+		if (active === undefined && !data.demoMode && !getPublicSetting('SEASONS' as any)) {
 			background = '#242728';
 		}
 	}

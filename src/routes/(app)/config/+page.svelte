@@ -8,7 +8,7 @@
 	// Using iconify-icon web component
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
-	import * as m from '@src/paraglide/messages';
+
 	import { collections } from '@src/stores/collectionStore.svelte';
 	import { ui } from '@src/stores/UIStore.svelte.ts';
 	import { onMount } from 'svelte';
@@ -29,7 +29,7 @@
 		{
 			id: 'collectionbuilder',
 			href: '/config/collectionbuilder',
-			label: m.config_collectionbuilder(),
+			label: 'Collection Builder',
 			icon: 'fluent-mdl2:build-definition',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
@@ -46,7 +46,7 @@
 		{
 			id: 'graphql',
 			href: '/api/graphql',
-			label: m.config_graphql(),
+			label: 'GraphQL',
 			icon: 'teenyicons:graphql-solid',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
@@ -64,7 +64,7 @@
 		{
 			id: 'emailPreviews',
 			href: '/email-previews',
-			label: m.config_emailPreviews(),
+			label: 'Email Previews',
 			icon: 'mdi:email-outline',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
@@ -82,7 +82,7 @@
 		{
 			id: 'dashboard',
 			href: '/dashboard',
-			label: m.dashboard(),
+			label: 'Dashboard',
 			icon: 'bi:bar-chart-line',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
@@ -99,7 +99,7 @@
 		{
 			id: 'marketplace',
 			href: 'https://www.sveltyCMS.com',
-			label: m.marketplace(),
+			label: 'Marketplace',
 			icon: 'icon-park-outline:shopping-bag',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
@@ -127,11 +127,11 @@
 		{
 			id: 'settings',
 			href: '/config/systemsetting',
-			label: m.config_settings(),
+			label: 'Settings',
 			icon: 'uil:setting',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
-			iconColor: 'text-surface-500',
+			iconColor: 'text-surface-300',
 			permission: {
 				contextId: 'config:settings',
 				name: 'Settings',
@@ -143,7 +143,7 @@
 		},
 		{
 			id: 'audit',
-			href: '/api/audit?limit=50',
+			href: '/api/dashboard/audit?limit=50',
 			label: 'Audit Log (Raw)',
 			icon: 'mdi:history',
 			classes:
@@ -160,27 +160,8 @@
 			}
 		},
 		{
-			id: 'importExport',
-			href: '/config/import-export',
-			label: 'Import & Export',
-			icon: 'mdi:database-import',
-			classes:
-				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
-			iconColor: 'text-warning-500',
-			permission: {
-				contextId: 'config:importExport',
-				name: 'Import & Export',
-				description: 'Import and export system data',
-				requiredRole: 'admin',
-				action: 'manage',
-				contextType: 'system'
-			}
-		},
-		// START: New Configuration Manager Button
-		{
-			id: 'configurationManager',
-			href: '/config/configurationManager',
-			label: 'Config Manager',
+			href: '/config/sync',
+			label: 'Config Sync',
 			icon: 'mdi:sync-circle',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
@@ -218,7 +199,7 @@
 			id: 'accessManagement',
 			// FIX: Corrected typo from 'assessManagement'
 			href: '/config/accessManagement',
-			label: m.config_accessManagement(),
+			label: 'Access Management',
 			icon: 'mdi:account-group',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
@@ -235,12 +216,10 @@
 	];
 </script>
 
-<PageTitle name={m.config_pagetitle()} showBackButton={true} backUrl="/" icon="material-symbols:build-circle" />
+<PageTitle name="System Configuration" showBackButton={true} backUrl="/" icon="material-symbols:build-circle" />
 
 <div class="wrapper mb-2 max-h-[calc(100vh-65px)] overflow-auto p-2">
-	<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">
-		{m.config_body()}
-	</h2>
+	<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">Manage your system configuration</h2>
 
 	<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
 		{#each configItems as item (item.id)}

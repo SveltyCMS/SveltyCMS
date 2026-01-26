@@ -112,10 +112,10 @@ In GitHub Actions, E2E tests run in parallel with Unit and Integration tests.
 
 **"Server did not start in time"**
 
-- Check if port 5173 is in use.
-- Run `bun run dev` manually to see errors.
+- Check if port 4173 is already in use.
+- Run `bun run test:integration` manually to see errors.
 
 **"Login failed"**
 
 - Ensure `scripts/seed-test-db.ts` ran successfully.
-- Check `config/private.ts` exists.
+- Check `config/private.test.ts` exists (Isolated testing enforced).

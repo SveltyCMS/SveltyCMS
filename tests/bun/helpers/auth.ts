@@ -29,9 +29,11 @@ async function login(email: string, password: string): Promise<string> {
 		throw new Error(`Login failed (${response.status}): ${text.substring(0, 100)}...`);
 	}
 
-	const cookie = response.headers.get('set-cookie');
-	if (!cookie) throw new Error(`Login successful but no cookie returned for ${email}`);
-	return cookie;
+	const setCookie = response.headers.get('set-cookie');
+	if (!setCookie) {
+		throw new Error(`Login successful but no cookie returned for ${email}`);
+	}
+	return setCookie;
 }
 
 export async function loginAsAdmin(): Promise<string> {

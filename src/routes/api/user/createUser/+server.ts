@@ -39,7 +39,7 @@ import type { ISODateString } from '@src/content/types';
 import { logger } from '@utils/logger.server';
 
 // Input validation
-import { email, object, optional, parse, pipe, string } from 'valibot';
+import { email, forward, object, optional, parse, partialCheck, pipe, string } from 'valibot';
 
 // Helper function to parse session duration strings
 function parseSessionDuration(duration: string): number {
@@ -55,18 +55,34 @@ function parseSessionDuration(duration: string): number {
 }
 
 // Define a schema for the incoming user data to ensure type safety and prevent invalid data.
-const createUserSchema = object({
-	email: pipe(string(), email('Please provide a valid email address.')),
-	role: string('A role ID must be provided.'),
-	username: optional(string()),
-	password: string(),
-	createSession: optional(string()) // Optional: '1h', '1d', '7d', '30d', '90d' - session duration
-});
+const createUserSchema = pipe(
+	object({
+		email: pipe(string(), email('Please provide a valid email address.')),
+		role: string('A role ID must be provided.'),
+		username: optional(string()),
+		password: string(),
+		confirmPassword: optional(string()),
+		createSession: optional(string()) // Optional: '1h', '1d', '7d', '30d', '90d' - session duration
+	}),
+	forward(
+		partialCheck(
+			['password', 'confirmPassword'],
+			(input) => !input.confirmPassword || input.password === input.confirmPassword,
+			'Passwords do not match.'
+		),
+		['confirmPassword']
+	)
+);
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
-		const { user, tenantId } = locals; // Destructure user and tenantId from locals
-		// Authentication is handled by hooks.server.ts - user presence confirms access
+		const { user, tenantId, hasAdminPermission } = locals; // Destructure user and tenantId from locals
+
+		// SECURITY: Ensure only admins can create users directly
+		if (!user || !hasAdminPermission) {
+			logger.warn('Unauthorized attempt to create user', { byUser: user?._id, tenantId });
+			throw error(403, 'Forbidden: Only administrators can create users.');
+		}
 
 		if (!auth) {
 			logger.error('Authentication system is not initialized');

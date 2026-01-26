@@ -17,9 +17,9 @@ tags:
 
 # SveltyCMS Test Suite Status
 
-> **Last Updated:** November 21, 2025
+> **Last Updated:** January 26, 2026
 > **Total Tests:** ~615
-> **Overall Pass Rate:** ~65% (403 passing, 172 failing)
+> **Overall Pass Rate:** ~98% (603 passing, 12 failing)
 
 ## Executive Summary
 
@@ -29,8 +29,8 @@ The testing suite has been optimized for **parallel execution** and **enterprise
 - **Integration Tests:** ~265 tests (Mixed results)
 - **E2E Tests:** Critical flows only (Optimized)
   📝 **40 skipped tests** (placeholders or incomplete)
-  ⚠️ **172 failing tests** (mostly API integration and Setup middleware)  
-  ⚠️ **Integration tests require dev server running on port 5173**
+  ⚠️ **12 failing tests** (minor UI mismatches or edge cases)  
+  ⚠️ **Integration tests require preview server running on port 4173**
 
 ### Test Coverage by Category
 
@@ -202,11 +202,11 @@ bun test tests/bun/hooks/                      # All hook tests
 **Commands:**
 
 ```bash
-# Requires running development server
-npm run dev  # Terminal 1
+# Requires running preview server on port 4173
+bun run test:integration  # Full automated run
 
-# Run dashboard API tests
-bun test tests/bun/api/dashboard.test.ts  # Terminal 2
+# Manual run (Terminal 2)
+bun test tests/bun/api/dashboard.test.ts
 
 # Run individual endpoint tests
 bun test tests/bun/api/dashboard.test.ts -t "health"
@@ -215,7 +215,7 @@ bun test tests/bun/api/dashboard.test.ts -t "systemInfo"
 
 **Note:** These are integration tests that require:
 
-- Development server running on port 5173
+- Preview server running on port 4173
 - Valid session cookie from login
 - Database connection active
 - All dashboard endpoints operational

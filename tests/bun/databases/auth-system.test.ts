@@ -90,6 +90,7 @@ describe('Auth System Functional Tests', () => {
 
 		try {
 			await db.connect(connectionString, connectOptions);
+			await db.ensureAuth();
 
 			// Verify write access
 			try {
@@ -147,6 +148,15 @@ describe('Auth System Functional Tests', () => {
 			const result = await db.auth.getUserByEmail({ email: existingUser.email });
 			if (result.success && result.data) {
 				existingUserId = result.data._id;
+			} else {
+				// Seed if missing
+				const createResult = await db.auth.createUser({
+					...existingUser,
+					avatar: 'default.png'
+				});
+				if (createResult.success && createResult.data) {
+					existingUserId = createResult.data._id;
+				}
 			}
 		});
 

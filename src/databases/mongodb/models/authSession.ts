@@ -432,14 +432,14 @@ export class SessionAdapter {
 				expired: sessionExists ? new Date(sessionExists.expires) <= new Date() : null
 			});
 
-			// Use MongoDB aggregation pipeline to join session and user in a single query
-			// This replaces two sequential database calls with one optimized query
+			// Use MongoDB aggregation pipeline to join session, user, and role in a single query
+			// This replaces multiple sequential database calls with one optimized query
 			const results = await this.SessionModel.aggregate([
 				// Stage 1: Find the session by its ID (UUID string)
 				{ $match: { _id: session_id } },
 				// Stage 2: Check for expiration
 				{ $match: { expires: { $gt: new Date() } } },
-				// Stage 3: "Join" with the auth_users collection (both using UUID strings)
+				// Stage 3: "Join" with the auth_users collection
 				{
 					$lookup: {
 						from: 'auth_users',
@@ -450,14 +450,30 @@ export class SessionAdapter {
 				},
 				// Stage 4: Deconstruct the user array
 				{ $unwind: { path: '$user', preserveNullAndEmptyArrays: false } },
-				// Stage 5: Add rotation metadata to user object
+				// Stage 5: "Join" with the auth_roles collection to get role info
+				{
+					$lookup: {
+						from: 'auth_roles',
+						localField: 'user.role',
+						foreignField: '_id',
+						as: 'roleInfo'
+					}
+				},
+				// Stage 6: Deconstruct the role array (optional as user has one role)
+				{ $unwind: { path: '$roleInfo', preserveNullAndEmptyArrays: true } },
+				// Stage 7: Consolidate user data with role info and session metadata
 				{
 					$addFields: {
+						'user.isAdmin': { $ifNull: ['$roleInfo.isAdmin', false] },
+						// Consolidate permissions: Merge user specific permissions with role permissions
+						'user.permissions': {
+							$setUnion: [{ $ifNull: ['$user.permissions', []] }, { $ifNull: ['$roleInfo.permissions', []] }]
+						},
 						'user._sessionRotated': '$rotated',
 						'user._sessionRotatedTo': '$rotatedTo'
 					}
 				},
-				// Stage 6: Make user the root document
+				// Stage 8: Make user the root document
 				{ $replaceRoot: { newRoot: '$user' } }
 			]);
 

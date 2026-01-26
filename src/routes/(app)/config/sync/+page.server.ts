@@ -1,6 +1,6 @@
 /**
- * @file src/routes/(app)/config/configurationManager/+page.server.ts
- * @description Server-side logic for the Configuration Manager page.
+ * @file src/routes/(app)/config/sync/+page.server.ts
+ * @description Server-side logic for the Configuration Sync page.
  *
  * This handler ensures that only authenticated users with administrative
  * privileges can access the configuration synchronization UI.

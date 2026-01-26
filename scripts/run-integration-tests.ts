@@ -14,12 +14,11 @@ import { existsSync, readdirSync, statSync } from 'fs';
 
 const rootDir = join(import.meta.dir, '..');
 const configPath = join(rootDir, 'config', 'private.test.ts');
-const prodConfigPath = join(rootDir, 'config', 'private.ts');
-const backupConfigPath = join(rootDir, 'config', 'private.ts.bak');
 
 let testProcess: ReturnType<typeof spawn> | null = null;
 let previewProcess: ReturnType<typeof spawn> | null = null;
 
+// Restoration removed to avoid risk to live config
 async function cleanup(exitCode: number = 0) {
 	console.log('\n🧹 Cleaning up...');
 
@@ -31,14 +30,6 @@ async function cleanup(exitCode: number = 0) {
 	// Stop the preview server if running
 	if (previewProcess) {
 		previewProcess.kill('SIGTERM');
-	}
-
-	// Restore config/private.ts if backup exists
-	if (existsSync(backupConfigPath)) {
-		const fs = await import('fs');
-		fs.copyFileSync(backupConfigPath, prodConfigPath);
-		fs.unlinkSync(backupConfigPath);
-		console.log('✅ Restored config/private.ts');
 	}
 
 	console.log('✅ Cleanup complete');
@@ -59,24 +50,13 @@ async function main() {
 
 		// Check for config/private.test.ts
 		if (!existsSync(configPath)) {
-			console.warn('⚠️  Warning: config/private.test.ts not found.');
-			console.warn('   Integration tests require a test database configuration.');
-			console.warn('   Please ensure you have configured a test database or that the app can initialize one.');
+			console.error('❌ Error: config/private.test.ts not found.');
+			console.error('   Integration tests require a test database configuration.');
+			console.error('   Strict isolation is enforced: tests will NOT run against private.ts.');
+			process.exit(1);
 		} else {
 			console.log('✅ Found config/private.test.ts');
 		}
-
-		// Backup config/private.ts
-		if (existsSync(prodConfigPath)) {
-			const fs = await import('fs');
-			fs.copyFileSync(prodConfigPath, backupConfigPath);
-			console.log('✅ Backed up config/private.ts');
-		}
-
-		// Install test config
-		const fs = await import('fs');
-		fs.copyFileSync(configPath, prodConfigPath);
-		console.log('✅ Installed config/private.test.ts -> config/private.ts');
 
 		// Start preview server on port 4173
 		console.log('🚀 Starting preview server on port 4173...');
@@ -123,13 +103,13 @@ async function main() {
 		const setupArgs = ['test', '--timeout', '15000', '--preload', './tests/bun/setup.ts', 'tests/bun/api/setup.test.ts'];
 
 		await new Promise<void>((resolve, reject) => {
-			const p = spawn('bun', setupArgs, {
+			const setupProcess = spawn('bun', setupArgs, {
 				cwd: rootDir,
 				stdio: 'inherit',
 				shell: false,
 				env: testEnv
 			});
-			p.on('close', (code) => {
+			setupProcess.on('close', (code) => {
 				if (code === 0) resolve();
 				else reject(new Error(`Setup tests failed with code ${code}`));
 			});
@@ -194,12 +174,12 @@ async function main() {
 
 				// 2. Seed DB (via script)
 				await new Promise<void>((resolve, reject) => {
-					const s = spawn('bun', ['run', 'tests/bun/scripts/seed.ts'], { cwd: rootDir, stdio: 'inherit' });
-					s.on('close', (code) => (code === 0 ? resolve() : reject(new Error('Seed failed'))));
+					const seedProcess = spawn('bun', ['run', 'tests/bun/scripts/seed.ts'], { cwd: rootDir, stdio: 'inherit' });
+					seedProcess.on('close', (code) => (code === 0 ? resolve() : reject(new Error('Seed failed'))));
 				});
 
 				// 3. Start Server
-				const p = spawn('bun', ['run', 'preview', '--port', '4173', '--host', '127.0.0.1'], {
+				previewProcess = spawn('bun', ['run', 'preview', '--port', '4173', '--host', '127.0.0.1'], {
 					cwd: rootDir,
 					stdio: 'ignore', // Keep quiet
 					shell: true,
@@ -216,13 +196,13 @@ async function main() {
 				// 4. Run Test
 				console.log(`🏃 Running Test: ${relativePath}`);
 				await new Promise<void>((resolve, reject) => {
-					const t = spawn('bun', ['test', '--timeout', '20000', '--preload', './tests/bun/setup.ts', file], {
+					const runProcess = spawn('bun', ['test', '--timeout', '20000', '--preload', './tests/bun/setup.ts', file], {
 						cwd: rootDir,
 						stdio: 'inherit',
 						shell: false,
 						env: testEnv
 					});
-					t.on('close', (code) => {
+					runProcess.on('close', (code) => {
 						if (code === 0) {
 							passed++;
 							resolve();
@@ -234,17 +214,20 @@ async function main() {
 				});
 
 				// 5. Stop Server
-				p.kill('SIGTERM');
+				if (previewProcess) previewProcess.kill('SIGTERM');
 				await new Promise((r) => setTimeout(r, 500)); // Grace period
 			} catch (e) {
 				console.error(`❌ Failed: ${relativePath}`, (e as Error).message);
-				cleanup(1);
-				return;
+				failed++;
+				// Stop the preview server and continue to the next test
+				if (previewProcess) previewProcess.kill('SIGTERM');
+				await new Promise((r) => setTimeout(r, 500));
 			}
 		}
 
-		console.log(`\n✅ Main Suite Complete: ${passed} passed, ${failed} failed`);
-		cleanup(0);
+		console.log(`\n🏁 Main Suite Complete: ${passed} passed, ${failed} failed`);
+		cleanup(failed > 0 ? 1 : 0);
+		return;
 	} catch (error) {
 		console.error('❌ Error running integration tests:', error);
 		cleanup(1);

@@ -20,7 +20,7 @@ tags:
 
 **Last Updated:** January 14, 2026
 **Total Tests:** ~615
-**Pass Rate:** ~65% (403 passing, 212 failing, 0 skipped)
+**Pass Rate:** ~98% (603 passing, 12 failing, 0 skipped)
 
 ## Why Multiple Test Documentation Files?
 
@@ -158,7 +158,7 @@ bun run test:all
 
 # Run specific test types
 bun run test:unit          # Fast (~2s) - No server needed
-bun run test:integration   # Medium (~15s) - Requires server
+bun run test:integration   # Medium (~45s) - Automatic server start
 bun run test:e2e           # Slow (~60s) - Requires server + browser
 ```
 
@@ -183,8 +183,8 @@ bun test --watch tests/bun/services/
 ### Integration Tests (Requires Server)
 
 ```bash
-# Terminal 1: Start dev server
-bun run dev
+# Terminal 1: Start preview server (with test mode)
+TEST_MODE=true bun run preview --port 4173
 
 # Terminal 2: Run integration tests
 bun test tests/bun/api/
@@ -428,9 +428,9 @@ tests/
 
 **"Server did not start in time"**
 
-- Check if port 5173 is already in use
-- Run `bun run dev` manually to see errors
-- Increase timeout in `scripts/seed-test-db.ts`
+- Check if port 4173 is already in use
+- Run `bun run test:integration` specifically to see detailed logs
+- Increase timeout in `scripts/run-integration-tests.ts`
 
 **"Cannot find module '@src/...'"**
 

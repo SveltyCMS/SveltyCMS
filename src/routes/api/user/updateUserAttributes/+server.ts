@@ -59,7 +59,12 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 		}
 
 		const body = await request.json();
-		const { user_id: userIdToUpdate, newUserData } = body;
+		let { user_id: userIdToUpdate, newUserData } = body;
+
+		// Support 'self' keyword for the current authenticated user
+		if (userIdToUpdate === 'self' && user) {
+			userIdToUpdate = user._id;
+		}
 
 		// Validate the top-level request structure
 		if (!userIdToUpdate || typeof userIdToUpdate !== 'string' || userIdToUpdate.trim() === '') {

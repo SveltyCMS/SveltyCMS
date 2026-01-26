@@ -13,16 +13,22 @@ Handles all field types and validation automatically
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+
+	// Types
 	import type { Writable } from 'svelte/store';
 	import type { SettingGroup, SettingField } from './settingsGroups';
+
+	// Stores
 	import { toaster } from '@stores/store.svelte';
-	// getModalStore deprecated - use modalState from @utils/modalState.svelte;
+
+	// Utils
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';
-	import { logger } from '@utils/logger';
 	import { showConfirm } from '@utils/modalUtils';
+	import { logger } from '@utils/logger';
+
+	// Components
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
-	import * as m from '@src/paraglide/messages';
 
 	// Log levels from logger.svelte.ts
 	const LOG_LEVELS = ['none', 'fatal', 'error', 'warn', 'info', 'debug', 'trace'] as const;
@@ -759,7 +765,7 @@ Handles all field types and validation automatically
 													aria-controls="{localesField.key}-lang-picker"
 												>
 													<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
-													{m.button_add?.() || 'Add'}
+													Add
 												</button>
 											{/if}
 										</div>
@@ -864,7 +870,7 @@ Handles all field types and validation automatically
 								/>
 								<!-- Number Input -->
 							{:else if field.type === 'number'}
-								<div class="input-group input-group-divider grid-cols-[1fr_auto] flex flex-col sm:flex-row max-w-full text-center sm:text-left">
+								<div class="input-group input-group-divider grid-cols-[1fr_auto] max-w-full">
 									<input
 										id={field.key}
 										type="number"

@@ -672,7 +672,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		cookies.set(sessionCookie.name, sessionCookie.value, {
 			path: '/',
 			httpOnly: true,
-			secure: url.protocol === 'https:' || !dev,
+			secure: url.protocol === 'https:' || (!dev && process.env.TEST_MODE !== 'true'),
 			maxAge: cookieAttrs?.maxAge ?? 60 * 60 * 24,
 			sameSite: 'lax'
 		});

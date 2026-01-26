@@ -660,13 +660,6 @@ export const settingsGroups: SettingGroup[] = [
 				type: 'text',
 				category: 'public',
 				placeholder: './exports/data.json'
-			},
-			{
-				key: 'MULTI_TENANT',
-				label: 'Multi-Tenant Mode',
-				description: 'Enable multi-tenant database support',
-				type: 'boolean',
-				category: 'private'
 			}
 		]
 	},
