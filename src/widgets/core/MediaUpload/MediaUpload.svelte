@@ -115,37 +115,33 @@ functionality for image editing and basic file information display.
 		}, 300);
 	}
 
-	async function handleEditorSave(detail: { dataURL: string; file: File }) {
-		const { file: editedFile } = detail;
-		// Create form data for the API request
-		const formData = new FormData();
-		formData.append('processType', 'save');
-		formData.append('files', editedFile);
+	async function handleEditorSave(detail: { dataURL: string; file: File; operations?: any; focalPoint?: any; mediaId?: string }) {
+		const { file, operations, focalPoint, mediaId } = detail;
 
-		// Pass watermark options from field config if configured
-		if (watermarkPreset) {
-			formData.append('watermarkOptions', JSON.stringify(watermarkPreset));
-		}
+		const formData = new FormData();
+		formData.append('file', file);
+		if (mediaId) formData.append('mediaId', mediaId);
+		if (operations) formData.append('operations', JSON.stringify(operations));
+		if (focalPoint) formData.append('focalPoint', JSON.stringify(focalPoint));
 
 		try {
-			// Send to media API
-			const saveResponse = await fetch('/api/media/process', {
+			const response = await fetch('/api/media/edit', {
 				method: 'POST',
 				body: formData
 			});
 
-			if (!saveResponse.ok) {
-				const errorData = await saveResponse.json();
+			if (!response.ok) {
+				const errorData = await response.json();
 				throw new Error(errorData.error || 'Failed to save edited image');
 			}
 
-			const result = await saveResponse.json();
-			if (!result.success || !result.data.data[0]?.success) {
-				throw new Error(result.data.data[0]?.error || 'Failed to process edited image');
+			const result = await response.json();
+			if (!result.success) {
+				throw new Error(result.error || 'Failed to process edited image');
 			}
 
 			// Update the widget data with the new persisted image data
-			value = result.data.data[0].data; // Assign directly to the bindable prop
+			value = result.data; // Assign directly to the bindable prop
 			showEditor = false;
 		} catch (error) {
 			logger.error('Error saving edited image:', error);
@@ -328,6 +324,6 @@ functionality for image editing and basic file information display.
 
 	<!-- Editor Modal -->
 	{#if showEditor}
-		<ImageEditorModal image={value instanceof File ? null : value} {watermarkPreset} onsave={handleEditorSave} close={() => (showEditor = false)} />
+		<ImageEditorModal image={value} {watermarkPreset} onsave={handleEditorSave} close={() => (showEditor = false)} />
 	{/if}
 </div>

@@ -625,31 +625,42 @@ Displays a collection of media files (images, documents, audio, video) with:
 			return;
 		}
 
-		// Ensure we have a valid URL
-		const url = file.url || mediaUrl(file);
-		const imageWithUrl = { ...file, url };
+		// IMPORTANT: Always use mediaUrl() to construct the proper URL
+		// The file.url property contains a relative path (e.g., "images/xxx.jpg")
+		// but the image editor needs the full path (e.g., "/files/images/xxx.jpg")
+		const fullUrl = mediaUrl(file);
+		console.log('Image URL for editor:', { originalUrl: file.url, fullUrl });
+		
+		if (!fullUrl) {
+			console.error('Failed to construct URL for image:', file);
+			toaster.error({ description: 'Cannot edit image: Invalid URL' });
+			return;
+		}
 
-		// Check for mobile
-		const isMobile = window.innerWidth < 768;
+		const imageWithUrl = { ...file, url: fullUrl };
 
 		// Trigger the modal via modalState
+		// Always use fullscreen for image editor - provides best editing experience
+		// and ensures proper height propagation for the canvas
 		modalState.trigger(ImageEditorModal as any, {
 			image: imageWithUrl,
 			onsave: handleEditorSave,
-			modalClasses: 'w-full h-full max-w-none max-h-none p-0',
-			size: isMobile ? 'fullscreen' : 'large'
+			modalClasses: 'w-full h-full max-w-none max-h-none',
+			size: 'fullscreen'
 		});
-		// console.warn('Image Editor temporarily disabled');
 	}
 
-	async function handleEditorSave(detail: { dataURL: string; file: File }) {
-		const { file } = detail;
+	async function handleEditorSave(detail: { dataURL: string; file: File; operations?: any; focalPoint?: any; mediaId?: string }) {
+		const { file, operations, focalPoint, mediaId } = detail;
 
 		const formData = new FormData();
-		formData.append('files', file);
+		formData.append('file', file);
+		if (mediaId) formData.append('mediaId', mediaId);
+		if (operations) formData.append('operations', JSON.stringify(operations));
+		if (focalPoint) formData.append('focalPoint', JSON.stringify(focalPoint));
 
 		try {
-			const response = await fetch('/mediagallery?/upload', {
+			const response = await fetch('/api/media/edit', {
 				method: 'POST',
 				body: formData
 			});
@@ -657,10 +668,11 @@ Displays a collection of media files (images, documents, audio, video) with:
 				toaster.success({ description: 'Image saved successfully!' });
 				fetchMediaFiles(true); // Force refresh
 			} else {
-				throw new Error('Failed to save edited image');
+				const errorData = await response.json();
+				throw new Error(errorData.error || 'Failed to save edited image');
 			}
 		} catch (err) {
-			toaster.error({ description: 'Error saving image' });
+			toaster.error({ description: err instanceof Error ? err.message : 'Error saving image' });
 			logger.error('Error saving edited image', err);
 		}
 	}
