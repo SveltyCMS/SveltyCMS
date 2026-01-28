@@ -96,7 +96,7 @@ optional actions, and smooth animations.
 	});
 </script>
 
-<Toast.Group {toaster} class="fixed z-9999 flex {position.includes('bottom') ? 'flex-col-reverse' : 'flex-col'} gap-4 {positionClasses[position]}">
+<Toast.Group {toaster} class="fixed z-9999 flex {position.includes('bottom') ? 'flex-col-reverse' : 'flex-col'} gap {positionClasses[position]}">
 	{#snippet children(toast)}
 		<div in:fly={animParams} out:fade={{ duration: 200 }} class="relative" role="alert" aria-live="polite">
 			<Toast
@@ -106,7 +106,7 @@ optional actions, and smooth animations.
 				)} border-none flex flex-col pointer-events-auto text-white"
 			>
 				<!-- Row 1: Header (Absolute Edge Alignment) -->
-				<div class="grid grid-cols-[32px_1fr_32px] items-center p-4 pb-2 w-full">
+				<div class="grid grid-cols-[32px_1fr_32px] items-center w-full">
 					<!-- Icon -->
 					<div class="flex justify-start pl-1">
 						{#if getToastIcon(toast.type)}

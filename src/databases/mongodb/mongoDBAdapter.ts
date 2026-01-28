@@ -235,7 +235,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						),
 					delete: (id) => this.crud.delete('media', id),
 					deleteMany: (ids) => this._wrapResult(() => mediaMethods.deleteMany(ids)),
-					getByFolder: (id, o) => this._wrapResult(() => mediaMethods.getFiles(id, o)),
+					getByFolder: (id, o, recursive) => this._wrapResult(() => mediaMethods.getFiles(id, o, recursive)),
 					search: () => this._wrapResult(() => mediaMethods.getFiles(undefined, {} as any)),
 					getMetadata: () => this._wrapResult(async () => ({}) as any),
 					updateMetadata: (id, m) => this._wrapResult(() => mediaMethods.updateMetadata(id, m)) as any,

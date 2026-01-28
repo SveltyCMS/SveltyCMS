@@ -120,6 +120,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 			'/.well-known',
 			'/_',
 			'/api/system/version',
+			'/api/system', // Allow unified system API
 			'/api/debug' // Allow debug endpoints
 		];
 		const isLocalizedSetup = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register)/.test(pathname);
@@ -142,6 +143,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 			'/.well-known',
 			'/_',
 			'/api/system/version',
+			'/api/system', // Allow unified system API during initialization
 			'/api/debug'
 		];
 		const isLocalizedSetup = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register)/.test(pathname);
@@ -177,7 +179,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 		systemState.overallState === 'WARMING' ||
 		systemState.overallState === 'WARMED';
 	if (!isNowReady) {
-		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/api/setup', '/api/system/version', '/api/debug'];
+		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/api/setup', '/api/system/version', '/api/system', '/api/debug'];
 		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix));
 
 		if (isAllowedRoute) {

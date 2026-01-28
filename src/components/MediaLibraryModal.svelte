@@ -15,7 +15,7 @@
 	}
 	const { parent: _parent, selectionMode: _selectionMode = 'multiple', allowedTypes: _allowedTypes = [] }: Props = $props();
 
-	let activeTab = $state<'library' | 'local' | 'remote'>('library');
+	let activeTab = $state<'library' | 'local' | 'remote'>('local');
 	let files = $state<(MediaBase | MediaImage)[]>([]);
 	let selectedFiles = $state<Set<string>>(new Set());
 	let isLoading = $state(false);
@@ -25,10 +25,11 @@
 		isLoading = true;
 		error = null;
 		try {
-			// Fetch more files for the library, e.g., 50
-			const response = await fetch('/api/media?limit=50');
+			// Fetch more files for the library, e.g., 50, recursively from all folders
+			const response = await fetch('/api/media?limit=100&recursive=true');
 			if (!response.ok) throw new Error('Failed to fetch media');
 			const data = await response.json();
+			logger.debug('Fetched media files:', data);
 			files = data;
 		} catch (e) {
 			logger.error('Error fetching media for modal:', e);
@@ -55,21 +56,21 @@
 </script>
 
 {#if modalState.active}
-	<div class="modal-media-library card w-modal-wide h-[85vh] flex flex-col p-4 shadow-xl bg-white dark:bg-surface-800">
+	<div class="modal-media-library flex flex-col h-full grow p-4 shadow-xl bg-white dark:bg-surface-800">
 		<header class="flex items-center justify-between border-b border-surface-200 dark:border-surface-600 pb-2 mb-4">
 			<h2 class="text-xl font-bold text-primary-500">Media Library</h2>
 			<div class="flex gap-2">
-				<button
-					class="btn {activeTab === 'library' ? 'preset-filled-primary-500' : 'preset-outline-surface-500'}"
-					onclick={() => (activeTab = 'library')}
-				>
-					Library
-				</button>
 				<button
 					class="btn {activeTab === 'local' ? 'preset-filled-primary-500' : 'preset-outline-surface-500'}"
 					onclick={() => (activeTab = 'local')}
 				>
 					Local Upload
+				</button>
+				<button
+					class="btn {activeTab === 'library' ? 'preset-filled-primary-500' : 'preset-outline-surface-500'}"
+					onclick={() => (activeTab = 'library')}
+				>
+					Library
 				</button>
 				<button
 					class="btn {activeTab === 'remote' ? 'preset-filled-primary-500' : 'preset-outline-surface-500'}"
@@ -81,7 +82,15 @@
 		</header>
 
 		<main class="grow overflow-auto p-2">
-			{#if activeTab === 'library'}
+			{#if activeTab === 'local'}
+				<LocalUpload
+					redirectOnSuccess={false}
+					onUploadComplete={() => {
+						fetchMedia();
+						activeTab = 'library';
+					}}
+				/>
+			{:else if activeTab === 'library'}
 				{#if isLoading}
 					<div class="flex h-full items-center justify-center">
 						<iconify-icon icon="line-md:loading-twotone-loop" width="48" class="text-primary-500"></iconify-icon>
@@ -95,16 +104,13 @@
 				{:else}
 					<MediaGrid bind:filteredFiles={files} bind:selectedFiles isSelectionMode={true} gridSize="small" />
 				{/if}
-			{:else if activeTab === 'local'}
-				<LocalUpload
-					redirectOnSuccess={false}
+			{:else if activeTab === 'remote'}
+				<RemoteUpload
 					onUploadComplete={() => {
 						fetchMedia();
 						activeTab = 'library';
 					}}
 				/>
-			{:else if activeTab === 'remote'}
-				<RemoteUpload />
 			{/if}
 		</main>
 
@@ -118,10 +124,3 @@
 		</footer>
 	</div>
 {/if}
-
-<style>
-	.w-modal-wide {
-		width: 90%;
-		max-width: 1200px;
-	}
-</style>

@@ -38,14 +38,14 @@ Displays real-time system state and individual service health with comprehensive
 		IDLE: { icon: '💤', color: 'text-surface-500', label: 'Idle' },
 		INITIALIZING: { icon: '⏳', color: 'text-primary-500', label: 'Initializing' },
 		WARMING: { icon: '🔥', color: 'text-tertiary-500', label: 'Warming Up' },
-		WARMED: { icon: '🚀', color: 'text-success-600', label: 'Warmed Up' },
-		READY: { icon: '✅', color: 'text-success-500', label: 'Ready' },
+		WARMED: { icon: '🚀', color: 'text-primary-600', label: 'Warmed Up' },
+		READY: { icon: '✅', color: 'text-primary-500', label: 'Ready' },
 		DEGRADED: { icon: '⚠️', color: 'text-warning-500', label: 'Degraded' },
 		FAILED: { icon: '❌', color: 'text-error-500', label: 'Failed' }
 	} as const;
 
 	const SERVICE_CONFIG = {
-		healthy: { color: 'preset-filled-success-500', icon: '✓', label: 'Healthy' },
+		healthy: { color: 'preset-filled-primary-500', icon: '✓', label: 'Healthy' },
 		unhealthy: { color: 'preset-filled-error-500', icon: '✗', label: 'Unhealthy' },
 		initializing: { color: 'preset-filled-primary-500', icon: '⟳', label: 'Initializing' },
 		unknown: { color: 'preset-filled-surface-500', icon: '?', label: 'Unknown' }
@@ -142,11 +142,19 @@ Displays real-time system state and individual service health with comprehensive
 				}
 			});
 
-			if (!response.ok) {
+			// Even if status is 503, we should try to parse the body as it contains health report
+			const data = await response.json();
+
+			if (data && data.overallStatus) {
+				// Update local reactive state from API response
+				currentState = data.overallStatus;
+				services = data.components || {};
+				initializationStartedAt = data.initializationStartedAt || data.uptime ? Date.now() - data.uptime : null;
+				lastChecked = new Date().toISOString();
+				retryCount = 0; // Reset on success
+			} else if (!response.ok) {
 				throw new Error(`Health check failed: ${response.status}`);
 			}
-
-			retryCount = 0; // Reset on success
 		} catch (err) {
 			logger.error('Failed to fetch health:', err);
 
@@ -336,7 +344,7 @@ Displays real-time system state and individual service health with comprehensive
 			</label>
 
 			<button
-				class="preset-outlined-primary-500 btn-sm"
+				class="preset-outlined-secondary-500 btn"
 				onclick={fetchHealth}
 				disabled={isLoading}
 				title="Refresh now"
@@ -346,7 +354,7 @@ Displays real-time system state and individual service health with comprehensive
 			</button>
 
 			<button
-				class="preset-outlined-warning-500 btn-sm"
+				class="preset-outlined-secondary-500 btn"
 				onclick={reinitializeSystem}
 				disabled={isReinitializing || isLoading}
 				title="Reinitialize system"
@@ -386,7 +394,7 @@ Displays real-time system state and individual service health with comprehensive
 
 		<div class="card preset-outlined-surface-500p-3">
 			<p class="text-xs opacity-70">Health</p>
-			<p class="text-lg font-bold {healthPercentage >= 80 ? 'text-success-500' : healthPercentage >= 50 ? 'text-warning-500' : 'text-error-500'}">
+			<p class="text-lg font-bold {healthPercentage >= 80 ? 'text-primary-500' : healthPercentage >= 50 ? 'text-warning-500' : 'text-error-500'}">
 				{healthPercentage}%
 			</p>
 		</div>
@@ -404,7 +412,7 @@ Displays real-time system state and individual service health with comprehensive
 		>
 			<div
 				class="h-full {healthPercentage >= 80
-					? 'bg-success-500'
+					? 'bg-primary-500'
 					: healthPercentage >= 50
 						? 'bg-warning-500'
 						: 'bg-error-500'} transition-all duration-500"
@@ -454,7 +462,8 @@ Displays real-time system state and individual service health with comprehensive
 								</p>
 							{/if}
 							{#if service.lastChecked}
-								<p class="mt-1 text-xs opacity-50">
+								<p class="mt-1 text-[10px] opacity-50">
+									<span class="font-semibold">Last checked:</span>
 									{new Date(service.lastChecked).toLocaleTimeString()}
 								</p>
 							{/if}
@@ -475,7 +484,7 @@ Displays real-time system state and individual service health with comprehensive
 					<code class="code flex-1 p-2">{apiHealthUrl}</code>
 					<button
 						type="button"
-						class="btn-sm preset-outlined-primary-500"
+						class="btn-icon preset-outlined-primary-500"
 						onclick={copyEndpoint}
 						title="Copy to clipboard"
 						aria-label="Copy endpoint URL to clipboard"

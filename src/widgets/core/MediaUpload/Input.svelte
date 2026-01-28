@@ -72,19 +72,27 @@
 		logger.debug('Fetching data for IDs:', ids);
 		try {
 			const fetchedFiles: MediaFile[] = [];
+
+			// Helper to map DB path to URL path
+			const normalizePath = (p: string) => {
+				if (!p) return '';
+				let path = p.replace(/^mediaFolder\//, '').replace(/^files\//, '');
+				path = path.replace(/^\/+/, '');
+				return `/files/${path}`;
+			};
+
 			for (const id of ids) {
-				const response = await fetch(`/api/media?limit=100`);
+				const response = await fetch(`/api/media/${id}`);
 				if (response.ok) {
-					const data = await response.json();
-					const found = data.find((f: any) => f._id === id);
+					const found = await response.json();
 					if (found) {
 						fetchedFiles.push({
 							_id: found._id,
 							name: found.filename,
 							type: found.mimeType,
 							size: found.size,
-							url: found.url,
-							thumbnailUrl: found.thumbnails?.md?.url || found.url
+							url: normalizePath(found.path),
+							thumbnailUrl: found.thumbnails?.md?.url ? normalizePath(found.thumbnails.md.url) : normalizePath(found.path)
 						});
 					}
 				}
@@ -126,7 +134,9 @@
 			MediaLibraryModal as any,
 			{
 				selectionMode: field.multiupload ? 'multiple' : 'single',
-				allowedTypes: field.allowedTypes || []
+				allowedTypes: field.allowedTypes || [],
+				size: 'fullscreen',
+				modalClasses: 'w-full h-full max-w-none max-h-none'
 			},
 			(files: (MediaBase | MediaImage)[]) => {
 				if (files && Array.isArray(files)) {

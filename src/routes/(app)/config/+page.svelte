@@ -131,7 +131,7 @@
 			icon: 'uil:setting',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
-			iconColor: 'text-surface-300',
+			iconColor: 'text-secondary-500',
 			permission: {
 				contextId: 'config:settings',
 				name: 'Settings',
@@ -184,7 +184,7 @@
 			icon: 'mdi:heart-pulse',
 			classes:
 				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
-			iconColor: 'text-success-500',
+			iconColor: 'text-primary-500',
 			permission: {
 				contextId: 'config:systemHealth',
 				name: 'System Health',

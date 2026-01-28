@@ -62,7 +62,7 @@ Features:
 	}
 </script>
 
-<div class="mb-6 text-center text-surface-500 dark:text-surface-400">Manage installed plugins to extend your CMS functionality.</div>
+<div class="mb-6 text-center text-surface-500 dark:text-surface-50">Manage installed plugins to extend your CMS functionality.</div>
 
 <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
 	{#if !data.plugins || data.plugins.length === 0}
@@ -116,7 +116,7 @@ Features:
 					</div>
 				</div>
 				<!-- description -->
-				<p class="mb-4 line-clamp-2 grow text-sm text-surface-600 dark:text-surface-300">
+				<p class="mb-4 line-clamp-2 grow text-sm text-surface-500 dark:text-surface-50">
 					{plugin.description}
 				</p>
 

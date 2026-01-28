@@ -162,7 +162,7 @@ Key features:
 	}
 </script>
 
-<div class="flex flex-wrap items-start gap-4 overflow-auto p-4 content-start">
+<div class="flex flex-wrap items-start gap-4 overflow-auto content-start">
 	{#if filteredFiles.length === 0}
 		<div class="mx-auto text-center text-tertiary-500 dark:text-primary-500">
 			<iconify-icon icon="bi:exclamation-circle-fill" width={24} class="mb-2"></iconify-icon>
@@ -181,7 +181,7 @@ Key features:
 					aria-label="Toggle selection mode"
 				>
 					<iconify-icon icon={isSelectionMode ? 'mdi:close' : 'mdi:checkbox-multiple-marked'} width={20}></iconify-icon>
-					<span class="leading-none relative top-px">{isSelectionMode ? 'Cancel' : 'Select'}</span>
+					<span class="leading-none">{isSelectionMode ? 'Cancel' : 'Select'}</span>
 				</button>
 
 				{#if isSelectionMode}
@@ -210,7 +210,7 @@ Key features:
 			{@const fileId = file._id?.toString() || file.filename}
 			{@const isSelected = selectedFiles.has(fileId)}
 			<button
-				class="card card-hover relative flex flex-col overflow-hidden text-left transition-all duration-300 hover:z-10 hover:shadow-xl hover:scale-[1.02] border border-surface-200 bg-surface-100 dark:bg-transparent dark:border-transparent
+				class="card card-hover rounded-sm relative flex flex-col overflow-hidden text-left transition-all duration-300 hover:z-10 hover:shadow-xl hover:scale-[1.02] border border-surface-300/50 dark:border-surface-50 bg-surface-100 dark:bg-transparent
 					{gridSize === 'tiny' ? 'w-32' : gridSize === 'small' ? 'w-48' : gridSize === 'medium' ? 'w-64' : 'w-96'}"
 				onmouseenter={() => (showInfo[index] = true)}
 				onmouseleave={() => (showInfo[index] = false)}
@@ -374,13 +374,10 @@ Key features:
 									}
 								}}
 							>
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 								<!-- Aspect Ratio Container -->
 								<div
-									class="relative w-full overflow-hidden bg-surface-200 dark:bg-surface-700/50 aspect-square border border-surface-300/50 {gridSize ===
-									'tiny'
-										? 'rounded-xl'
+									class="relative w-full overflow-hidden bg-surface-200 dark:bg-surface-700/50 aspect-square {gridSize === 'tiny'
+										? 'rounded'
 										: 'rounded'}"
 								>
 									<img
@@ -414,7 +411,7 @@ Key features:
 							</div>
 						{:else}
 							<div
-								class={`flex items-center justify-center rounded bg-surface-200 dark:bg-surface-700/50 w-full aspect-square border border-surface-300/50`}
+								class={`flex items-center justify-center rounded-sm bg-surface-200 dark:bg-surface-700/50 w-full aspect-square border border-surface-300/50`}
 								aria-label={`Icon for ${file.type}`}
 								role="img"
 							>
@@ -427,7 +424,7 @@ Key features:
 						{/if}
 					{:else}
 						<div
-							class={`flex items-center justify-center rounded bg-surface-200 dark:bg-surface-700/50 w-full aspect-square border border-surface-300/50`}
+							class={`flex items-center justify-center rounded-sm bg-surface-200 dark:bg-surface-700/50 w-full aspect-square border border-surface-300/50`}
 							aria-label={`Icon for ${file.type}`}
 							role="img"
 						>
@@ -440,12 +437,9 @@ Key features:
 					{/if}
 				</section>
 
-				<div class="w-full px-2 py-1 text-center">
+				<div class="w-full px-2 py-1 text-center h-10 flex flex-col justify-center">
 					<SystemTooltip title={file.filename} positioning={{ placement: 'top' }}>
-						<div
-							class="text-xs font-bold leading-tight"
-							style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all;"
-						>
+						<div class="text-xs font-bold leading-tight line-clamp-2 overflow-hidden overflow-wrap-anywhere">
 							{file.filename}
 						</div>
 					</SystemTooltip>

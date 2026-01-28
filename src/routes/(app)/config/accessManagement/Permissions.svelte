@@ -202,7 +202,13 @@ It provides the following functionality:
 	</p>
 
 	<div class="sticky top-0 z-10 mb-4 flex items-center justify-between">
-		<input type="text" bind:value={searchTerm} placeholder="Search Permissions..." class="input mr-4 grow" aria-label="Search permissions" />
+		<input
+			type="text"
+			bind:value={searchTerm}
+			placeholder="Search Permissions..."
+			class="input mr-4 grow dark:text-surface-50"
+			aria-label="Search permissions"
+		/>
 	</div>
 
 	{#if filteredPermissions.length === 0}
@@ -213,7 +219,7 @@ It provides the following functionality:
 		<!-- Admin Notice -->
 		{#if adminRole}
 			<p class="mb-2 w-full overflow-auto text-nowrap text-center">
-				*
+				<span class="font-bold text-error-500">*</span>
 				<span class="text-tertiary-500 dark:text-primary-500">{adminRole.name}</span>
 				Role has all permissions
 			</p>
@@ -225,9 +231,7 @@ It provides the following functionality:
 					<tr class="divide-x text-tertiary-500 dark:text-primary-500">
 						<th class="py-2" aria-sort={sortBy === 'name' ? (sortOrder === 1 ? 'ascending' : 'descending') : 'none'}>
 							<button
-								class="flex w-full items-center justify-center font-bold inherit {sortBy === 'name'
-									? 'text-primary-500 dark:text-secondary-400'
-									: ''}"
+								class="flex w-full items-center justify-center font-bold inherit {sortBy === 'name' ? 'text-primary-500' : 'dark:text-primary-500'}"
 								onclick={() => handleSort('name')}
 								title="Click to sort by permission name"
 							>
@@ -265,7 +269,7 @@ It provides the following functionality:
 						<!-- List only non-admin roles -->
 						{#each roles as role}
 							{#if !role.isAdmin}
-								<th class="py-2" scope="col">{role.name}</th>
+								<th class="py-2 dark:text-surface-50" scope="col">{role.name}</th>
 							{/if}
 						{/each}
 					</tr>
@@ -278,7 +282,7 @@ It provides the following functionality:
 							<tr>
 								<td
 									colspan={nonAdminRolesCount + 2}
-									class="border-b bg-surface-500 px-1 py-2 font-semibold text-tertiary-500 dark:text-primary-500 lg:text-left"
+									class="border-b bg-surface-500 px-1 py-2 font-semibold text-tertiary-500 dark:text-surface-50 lg:text-left"
 								>
 									{group}:
 								</td>
@@ -293,12 +297,12 @@ It provides the following functionality:
 									<!-- Roles -->
 									{#each roles as role}
 										{#if !role.isAdmin}
-											<td class="px-1 py-1">
+											<td class="">
 												<input
 													type="checkbox"
 													checked={role.permissions.includes(permission._id)}
 													onchange={() => toggleRole(permission._id, role._id)}
-													class="form-checkbox cursor-pointer"
+													class="form-checkbox h-5 w-5 cursor-pointer"
 													aria-label={`Assign ${permission.name} (${permission.action}) to ${role.name}`}
 												/>
 											</td>

@@ -30,8 +30,13 @@
 
 	// Skeleton
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	import { goto } from '$app/navigation';
 
 	let tabSet = $state('0');
+
+	function handleUploadComplete() {
+		goto('/mediagallery');
+	}
 </script>
 
 <!-- PageTitle -->
@@ -68,12 +73,12 @@
 
 		<Tabs.Content value="0">
 			<div class="p-4">
-				<LocalUpload />
+				<LocalUpload onUploadComplete={handleUploadComplete} />
 			</div>
 		</Tabs.Content>
 		<Tabs.Content value="1">
 			<div class="p-4">
-				<RemoteUpload />
+				<RemoteUpload onUploadComplete={handleUploadComplete} />
 			</div>
 		</Tabs.Content>
 	</Tabs>

@@ -443,7 +443,7 @@ export interface IMediaAdapter {
 		uploadMany(files: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<MediaItem[]>>;
 		delete(fileId: DatabaseId): Promise<DatabaseResult<void>>;
 		deleteMany(fileIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>>;
-		getByFolder(folderId?: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
+		getByFolder(folderId?: DatabaseId, options?: PaginationOptions, recursive?: boolean): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
 		search(query: string, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
 		getMetadata(fileIds: DatabaseId[]): Promise<DatabaseResult<Record<string, MediaMetadata>>>;
 		updateMetadata(fileId: DatabaseId, metadata: Partial<MediaMetadata>): Promise<DatabaseResult<MediaItem>>;

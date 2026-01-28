@@ -27,7 +27,7 @@ import { logger } from '@utils/logger.server';
 import * as v from 'valibot';
 
 const QuerySchema = v.object({
-	limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(50)), 5)
+	limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(100)), 100)
 });
 
 export const GET: RequestHandler = async ({ locals, url }) => {
@@ -45,6 +45,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const query = v.parse(QuerySchema, {
 			limit: Number(url.searchParams.get('limit')) || undefined
 		});
+		const recursive = url.searchParams.get('recursive') === 'true';
 
 		if (!dbAdapter) {
 			logger.error('Database adapter not available');
@@ -53,12 +54,16 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		// --- MULTI-TENANCY: Scope the query by tenantId ---
 		// Filtering by tenantId should be handled by the adapter, not PaginationOptions
-		const result = await dbAdapter.media.files.getByFolder(undefined, {
-			page: 1,
-			pageSize: query.limit,
-			sortField: 'updatedAt',
-			sortDirection: 'desc'
-		});
+		const result = await dbAdapter.media.files.getByFolder(
+			undefined,
+			{
+				page: 1,
+				pageSize: query.limit,
+				sortField: 'updatedAt',
+				sortDirection: 'desc'
+			},
+			recursive
+		);
 
 		if (!result.success) {
 			logger.error('Failed to fetch media files from database', {

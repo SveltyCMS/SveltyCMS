@@ -722,9 +722,9 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 <div class="wrapper overflow-auto">
 	<div class="mb-8 flex w-full flex-col justify-center gap-1 md:hidden">
-		<label for="globalSearch">Search</label>
+		<p class="text-xs font-medium uppercase text-surface-500 dark:text-surface-50">Search</p>
 		<div class="flex gap-2">
-			<div class="input-group input-group-divider grid flex-1 grid-cols-[auto_1fr_auto]">
+			<div class="input-group input-group-divider grid flex-1 grid-cols-[1fr_auto]">
 				<input id="globalSearch" type="text" placeholder="Search Media" class="input" bind:value={globalSearchValue} />
 				{#if globalSearchValue}
 					<button onclick={() => (globalSearchValue = '')} aria-label="Clear search" class="preset-filled-surface-500 w-12">
@@ -738,194 +738,119 @@ Displays a collection of media files (images, documents, audio, video) with:
 			</button>
 		</div>
 
-		<div class="mt-4 flex justify-between">
-			<div class="flex flex-col">
-				<label for="mediaType">Type</label>
-				<select id="mediaType" bind:value={selectedMediaType} class="input">
-					{#each mediaTypes as type}
-						<option value={type.value}>{type.label}</option>
-					{/each}
-				</select>
+		<div class="mt-4 flex flex-row items-end justify-between gap-1 overflow-x-auto pb-2">
+			<div class="flex flex-col items-center gap-1">
+				<p class="text-xs font-medium uppercase text-surface-500 dark:text-surface-50">Type</p>
+				<div class="h-11 w-20">
+					<select id="mediaType" bind:value={selectedMediaType} class="select h-full text-[10px] p-1">
+						{#each mediaTypes as type}
+							<option value={type.value}>{type.label}</option>
+						{/each}
+					</select>
+				</div>
 			</div>
 
-			<div class="flex flex-col text-center">
-				<label for="sortButton">Sort</label>
-				<button id="sortButton" aria-label="Sort" class="preset-outline-surface-500 btn">
-					<iconify-icon icon="flowbite:sort-outline" width={24}></iconify-icon>
+			<div class="flex flex-col items-center gap-1">
+				<p class="text-xs font-medium uppercase text-surface-500 dark:text-surface-50">Sort</p>
+				<button id="sortButton" aria-label="Sort" class="preset-outline btn-icon h-11 w-11 flex flex-col items-center justify-center p-0">
+					<iconify-icon icon="flowbite:sort-outline" width={20}></iconify-icon>
+					<span class="text-xs">Asc</span>
 				</button>
 			</div>
 
-			<div class="flex items-center justify-center text-center text-xs md:hidden">
-				<div class="flex flex-col items-center justify-center">
-					<div class="flex sm:divide-x sm:divide-gray-500">
-						{#if view === 'grid'}
-							<SystemTooltip title="Switch to Table View">
-								<button onclick={() => handleViewChange('table')} aria-label="Table" class="btn flex flex-col items-center justify-center px-1">
-									<p class="text-center text-xs">Display</p>
-									<iconify-icon icon="material-symbols:list-alt-outline" width={24}></iconify-icon>
-									<p class="text-xs">Table</p>
-								</button>
-							</SystemTooltip>
-						{:else}
-							<SystemTooltip title="Switch to Grid View">
-								<button onclick={() => handleViewChange('grid')} aria-label="Grid" class="btn flex flex-col items-center justify-center px-1">
-									<p class="text-center text-xs">Display</p>
-									<iconify-icon icon="material-symbols:grid-view-rounded" width={24}></iconify-icon>
-									<p class="text-center text-xs">Grid</p>
-								</button>
-							</SystemTooltip>
-						{/if}
-					</div>
+			<div class="flex flex-col items-center gap-1">
+				<p class="text-xs font-medium uppercase text-surface-500 dark:text-surface-50">Display</p>
+				<div class="h-11">
+					{#if view === 'grid'}
+						<SystemTooltip title="Switch to Table View">
+							<button
+								onclick={() => handleViewChange('table')}
+								aria-label="Table"
+								class="preset-outline btn-icon h-11 w-12 flex flex-col items-center justify-center p-0"
+							>
+								<iconify-icon icon="material-symbols:list-alt-outline" width={20}></iconify-icon>
+								<p class="text-xs">Table</p>
+							</button>
+						</SystemTooltip>
+					{:else}
+						<SystemTooltip title="Switch to Grid View">
+							<button
+								onclick={() => handleViewChange('grid')}
+								aria-label="Grid"
+								class="preset-outline btn-icon h-11 w-12 flex flex-col items-center justify-center p-0"
+							>
+								<iconify-icon icon="material-symbols:grid-view-rounded" width={20}></iconify-icon>
+								<p class="text-xs">Grid</p>
+							</button>
+						</SystemTooltip>
+					{/if}
 				</div>
-				<div class="flex flex-col items-center">
-					<p class="text-xs">Size</p>
-					<div class="flex divide-x divide-gray-500">
-						{#if (view === 'grid' && gridSize === 'tiny') || (view === 'table' && tableSize === 'tiny')}
-							<SystemTooltip title="Change Display Size">
-								<button
-									onclick={() => {
-										const newSize =
-											view === 'grid'
-												? gridSize === 'tiny'
-													? 'small'
-													: gridSize === 'small'
-														? 'medium'
-														: gridSize === 'medium'
-															? 'large'
-															: 'tiny'
-												: tableSize === 'tiny'
-													? 'small'
-													: tableSize === 'small'
-														? 'medium'
-														: tableSize === 'medium'
-															? 'large'
-															: 'tiny';
+			</div>
 
-										if (view === 'grid') {
-											gridSize = newSize;
-										} else {
-											tableSize = newSize;
-										}
-										storeUserPreference(view, gridSize, tableSize);
-									}}
-									type="button"
-									aria-label="Tiny"
-									class="flex flex-col items-center justify-center px-1"
-								>
-									<iconify-icon icon="material-symbols:apps" width={24}></iconify-icon>
-									<p class="text-xs">Tiny</p>
-								</button>
-							</SystemTooltip>
-						{:else if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
-							<SystemTooltip title="Change Display Size">
-								<button
-									onclick={() => {
-										const newSize =
-											view === 'grid'
-												? gridSize === 'tiny'
-													? 'small'
-													: gridSize === 'small'
-														? 'medium'
-														: gridSize === 'medium'
-															? 'large'
-															: 'tiny'
-												: tableSize === 'tiny'
-													? 'small'
-													: tableSize === 'small'
-														? 'medium'
-														: tableSize === 'medium'
-															? 'large'
-															: 'tiny';
-
-										if (view === 'grid') {
-											gridSize = newSize;
-										} else {
-											tableSize = newSize;
-										}
-										storeUserPreference(view, gridSize, tableSize);
-									}}
-									type="button"
-									aria-label="Small"
-									class="flex flex-col items-center justify-center px-1"
-								>
-									<iconify-icon icon="material-symbols:background-grid-small-sharp" width={24}></iconify-icon>
-									<p class="text-xs">Small</p>
-								</button>
-							</SystemTooltip>
-						{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
-							<SystemTooltip title="Change Display Size">
-								<button
-									onclick={() => {
-										const newSize =
-											view === 'grid'
-												? gridSize === 'tiny'
-													? 'small'
-													: gridSize === 'small'
-														? 'medium'
-														: gridSize === 'medium'
-															? 'large'
-															: 'tiny'
-												: tableSize === 'tiny'
-													? 'small'
-													: tableSize === 'small'
-														? 'medium'
-														: tableSize === 'medium'
-															? 'large'
-															: 'tiny';
-
-										if (view === 'grid') {
-											gridSize = newSize;
-										} else {
-											tableSize = newSize;
-										}
-										storeUserPreference(view, gridSize, tableSize);
-									}}
-									type="button"
-									aria-label="Medium"
-									class="flex flex-col items-center justify-center px-1"
-								>
-									<iconify-icon icon="material-symbols:grid-on-sharp" width={24}></iconify-icon>
-									<p class="text-xs">Medium</p>
-								</button>
-							</SystemTooltip>
-						{:else}
-							<SystemTooltip title="Change Display Size">
-								<button
-									onclick={() => {
-										const newSize =
-											view === 'grid'
-												? gridSize === 'tiny'
-													? 'small'
-													: gridSize === 'small'
-														? 'medium'
-														: gridSize === 'medium'
-															? 'large'
-															: 'tiny'
-												: tableSize === 'tiny'
-													? 'small'
-													: tableSize === 'small'
-														? 'medium'
-														: tableSize === 'medium'
-															? 'large'
-															: 'tiny';
-
-										if (view === 'grid') {
-											gridSize = newSize;
-										} else {
-											tableSize = newSize;
-										}
-										storeUserPreference(view, gridSize, tableSize);
-									}}
-									type="button"
-									aria-label="Large"
-									class="flex flex-col items-center justify-center px-1"
-								>
-									<iconify-icon icon="material-symbols:grid-view" width={24}></iconify-icon>
-									<p class="text-xs">Large</p>
-								</button>
-							</SystemTooltip>
-						{/if}
-					</div>
+			<div class="flex flex-col items-center gap-1">
+				<p class="text-xs font-medium uppercase text-surface-500 dark:text-surface-50">Size</p>
+				<div class="h-11">
+					{#if (view === 'grid' && gridSize === 'tiny') || (view === 'table' && tableSize === 'tiny')}
+						<SystemTooltip title="Change Display Size">
+							<button
+								onclick={() => {
+									if (view === 'grid') gridSize = 'small';
+									else tableSize = 'small';
+									storeUserPreference(view, gridSize, tableSize);
+								}}
+								type="button"
+								class="preset-outline btn-icon h-11 w-12 flex flex-col items-center justify-center p-0"
+							>
+								<iconify-icon icon="material-symbols:apps" width={20}></iconify-icon>
+								<p class="text-xs">Tiny</p>
+							</button>
+						</SystemTooltip>
+					{:else if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
+						<SystemTooltip title="Change Display Size">
+							<button
+								onclick={() => {
+									if (view === 'grid') gridSize = 'medium';
+									else tableSize = 'medium';
+									storeUserPreference(view, gridSize, tableSize);
+								}}
+								type="button"
+								class="preset-outline-surface-500 btn h-11 w-12 flex flex-col items-center justify-center p-0"
+							>
+								<iconify-icon icon="material-symbols:background-grid-small-sharp" width={20}></iconify-icon>
+								<p class="text-xs">Small</p>
+							</button>
+						</SystemTooltip>
+					{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
+						<SystemTooltip title="Change Display Size">
+							<button
+								onclick={() => {
+									if (view === 'grid') gridSize = 'large';
+									else tableSize = 'large';
+									storeUserPreference(view, gridSize, tableSize);
+								}}
+								type="button"
+								class="preset-outline-surface-500 btn h-11 w-12 flex flex-col items-center justify-center p-0"
+							>
+								<iconify-icon icon="material-symbols:grid-on-sharp" width={20}></iconify-icon>
+								<p class="text-xs">Medium</p>
+							</button>
+						</SystemTooltip>
+					{:else}
+						<SystemTooltip title="Change Display Size">
+							<button
+								onclick={() => {
+									if (view === 'grid') gridSize = 'tiny';
+									else tableSize = 'tiny';
+									storeUserPreference(view, gridSize, tableSize);
+								}}
+								type="button"
+								class="preset-outline-surface-500 btn h-11 w-12 flex flex-col items-center justify-center p-0"
+							>
+								<iconify-icon icon="material-symbols:grid-view" width={20}></iconify-icon>
+								<p class="text-xs">Large</p>
+							</button>
+						</SystemTooltip>
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -936,7 +861,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 		<div class="flex items-end gap-2">
 			<div class="flex flex-col gap-1">
 				<label for="globalSearchMd" class="text-sm font-medium">Search</label>
-				<div class="input-group input-group-divider grid h-11 max-w-md grid-cols-[auto_1fr_auto_auto]">
+				<div class="input-group input-group-divider grid h-11 max-w-md grid-cols-[1fr_auto]">
 					<input bind:value={globalSearchValue} id="globalSearchMd" type="text" placeholder="Search" class="input" />
 					{#if globalSearchValue}
 						<button onclick={clearSearch} class="preset-filled-surface-500 w-12" aria-label="Clear search">
@@ -954,7 +879,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 		</div>
 
 		<!-- Right Side: Type, Sort, Display, Size -->
-		<div class="flex items-end gap-4">
+		<div class="flex items-center gap-4">
 			<div class="flex flex-col gap-1">
 				<label for="mediaTypeMd" class="text-sm font-medium">Type</label>
 				<div class="input-group h-11">
@@ -973,7 +898,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 				</button>
 			</div>
 
-			<div class="flex flex-col items-center gap-1">
+			<div class="flex flex-col items-start gap-1">
 				<span class="text-sm font-medium">Display</span>
 				<div class="h-11 flex border border-surface-500/30 rounded-token overflow-hidden">
 					<button
@@ -990,7 +915,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 				</div>
 			</div>
 
-			<div class="flex flex-col items-center gap-1">
+			<div class="flex flex-col items-start gap-1">
 				<span class="text-sm font-medium">Size</span>
 				<div class="h-11 flex divide-x divide-gray-500 border border-surface-500/30 rounded-token overflow-hidden">
 					{#if (view === 'grid' && gridSize === 'tiny') || (view === 'table' && tableSize === 'tiny')}

@@ -29,6 +29,12 @@
 		}
 	}
 
+	interface Props {
+		onUploadComplete?: () => void;
+	}
+
+	const { onUploadComplete }: Props = $props();
+
 	async function uploadRemoteUrls() {
 		if (remoteUrls.length === 0) {
 			showToast('No URLs entered for upload', 'warning');
@@ -39,7 +45,7 @@
 		formData.append('remoteUrls', JSON.stringify(remoteUrls));
 
 		try {
-			const response = await fetch('?/remoteUpload', {
+			const response = await fetch(`/mediagallery?/remoteUpload`, {
 				method: 'POST',
 				body: formData
 			});
@@ -49,10 +55,14 @@
 			}
 
 			const result = await response.json();
+			console.log('Remote Upload Result:', result); // Debug log
 
-			if (result.success) {
+			if (result.type === 'success' || result.success) {
 				showToast('URLs uploaded successfully', 'success');
 				remoteUrls = []; // Clear the remote URLs array after successful upload
+				if (onUploadComplete) {
+					onUploadComplete();
+				}
 			} else {
 				throw Error(result.error || 'Upload failed');
 			}

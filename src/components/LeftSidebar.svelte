@@ -355,11 +355,7 @@
 				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
 					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
 					<div class="flex items-center justify-center">
-						<ThemeToggle
-							showTooltip={false}
-							buttonClass="btn-icon preset-outlined-secondary-500 rounded-full hover:bg-surface-500/20"
-							iconSize={22}
-						/>
+						<ThemeToggle showTooltip={false} buttonClass="btn-icon  rounded-full hover:bg-surface-300/20" iconSize={32} />
 					</div>
 				</SystemTooltip>
 			</div>
@@ -452,7 +448,7 @@
 						aria-label="System Configuration"
 						class="btn-icon hover:bg-surface-500/20"
 					>
-						<iconify-icon icon="material-symbols:build-circle" width="34" class=""></iconify-icon>
+						<iconify-icon icon="material-symbols:build-circle" width="38" class=""></iconify-icon>
 					</button>
 				</SystemTooltip>
 			</div>

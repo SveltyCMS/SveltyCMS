@@ -1,12 +1,18 @@
 <!--
 @file src/components/media/tagEditor/TagEditorModal.svelte
 @component
-A modal for managing media tags.
+**A modal for managing media tags**
+
+Features:
+- AI Tagging
+- Manual Tagging
+- Tag Management
 -->
 <script lang="ts">
 	import type { MediaImage } from '@utils/media/mediaModels';
 
 	import { toaster } from '@stores/store.svelte';
+	import { logger } from '@utils/logger';
 
 	// Props
 	let {
@@ -40,9 +46,13 @@ A modal for managing media tags.
 		if (!file?._id) return;
 		isGenerating = true;
 		try {
-			const response = await fetch(`/api/media/${file._id}/tags`, { method: 'POST' });
+			const response = await fetch('/api/media/ai-tag', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ mediaId: file._id })
+			});
 			const result = await response.json();
-			if (!response.ok || !result.success) throw new Error(result.error || 'Failed.');
+			if (!response.ok || !result.success) throw new Error(result.error || 'Failed to generate tags');
 
 			if (file) {
 				file = result.data;
@@ -50,7 +60,8 @@ A modal for managing media tags.
 			}
 			toaster.success({ description: 'AI tags generated!' });
 		} catch (e: any) {
-			toaster.error({ description: e.message });
+			logger.error('AI Tagging error:', e);
+			toaster.error({ description: e.message || 'An unexpected error occurred' });
 		} finally {
 			isGenerating = false;
 		}

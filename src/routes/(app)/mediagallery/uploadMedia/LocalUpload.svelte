@@ -291,8 +291,8 @@
 				xhr.onerror = () => reject(new Error('Network error'));
 			});
 
-			// Post to the parent route's upload form action
-			xhr.open('POST', '/mediagallery?/upload');
+			// Post to the base mediagallery route's upload form action
+			xhr.open('POST', `/mediagallery?/upload`);
 			xhr.send(formData);
 
 			const result: any = await uploadPromise;
@@ -372,14 +372,12 @@
 				{@const previewUrl = objectUrls.get(fileKey)}
 				{@const iconName = getFileIcon(file)}
 
-				<div
-					class="group relative overflow-hidden rounded border border-surface-200 shadow-sm transition-all hover:shadow-md dark:border-surface-500"
-				>
+				<div class="group relative overflow-hidden rounded border border-surface-200 shadow-sm transition-all hover:shadow-md dark:border-surface-50">
 					<!-- Delete button -->
 					<div class="absolute right-1 top-1 z-10 flex cursor-pointer shadow-sm">
 						<SystemTooltip title="Remove file" positioning={{ placement: 'top' }}>
-							<button type="button" onclick={() => handleDeleteFile(file)} class="btn-icon rounded-full" aria-label="Remove file">
-								<iconify-icon icon="material-symbols:delete" width={24}></iconify-icon>
+							<button type="button" onclick={() => handleDeleteFile(file)} class="btn-icon bg-error-500 rounded-full" aria-label="Remove file">
+								<iconify-icon icon="material-symbols:delete" width={24} class="text-white"></iconify-icon>
 							</button>
 						</SystemTooltip>
 					</div>
@@ -398,15 +396,16 @@
 					</div>
 
 					<!-- Media Filename -->
-					<div
-						class="label overflow-hidden text-ellipsis whitespace-nowrap p-1 text-center font-bold text-xs text-tertiary-500 dark:text-primary-500"
-						title={file.name}
-					>
-						{file.name}
+					<div class="w-full px-2 py-1 text-center h-10 flex flex-col justify-center">
+						<SystemTooltip title={file.name} positioning={{ placement: 'top' }}>
+							<div class="text-xs font-bold leading-tight line-clamp-2 overflow-hidden overflow-wrap-anywhere">
+								{file.name}
+							</div>
+						</SystemTooltip>
 					</div>
 
 					<!-- Media Type & Size (Footer) -->
-					<div class="flex grow items-center justify-between p-1 text-white">
+					<div class="flex grow items-center justify-between p-1 text-white font-bold">
 						<!-- Type -->
 						<div class="bg-tertiary-500 dark:bg-primary-500/50 badge flex items-center gap-1 overflow-hidden" title={file.type}>
 							<iconify-icon icon={iconName} width="12"></iconify-icon>

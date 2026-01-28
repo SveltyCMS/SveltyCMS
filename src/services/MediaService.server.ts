@@ -217,12 +217,51 @@ export class MediaService {
 
 		// Convert File to Buffer
 		const buffer = Buffer.from(await file.arrayBuffer());
-		const mimeType = file.type || mime.lookup(file.name) || 'application/octet-stream';
+		let mimeType = file.type || mime.lookup(file.name) || 'application/octet-stream';
+		let extension = mime.extension(mimeType) || getSanitizedFileName(file.name).ext;
+
+		// --- ENHANCED MIME TYPE & EXTENSION DETECTION ---
+		try {
+			const { fileTypeFromBuffer } = await import('file-type');
+			const detectedType = await fileTypeFromBuffer(buffer);
+			if (detectedType) {
+				logger.debug('Detected file type from buffer:', detectedType);
+				// Override if it was generic or unknown, or if we trust binary inspection more
+				if (mimeType === 'application/octet-stream' || !mimeType) {
+					mimeType = detectedType.mime;
+					extension = detectedType.ext;
+				} else if (mimeType !== detectedType.mime) {
+					// Log mismatch but maybe trust detected type for consistency
+					logger.warn(`MIME type mismatch: provided=${mimeType}, detected=${detectedType.mime}. Using detected.`);
+					mimeType = detectedType.mime;
+					extension = detectedType.ext;
+				}
+			} else {
+				logger.warn('Could not detect file type from buffer.');
+			}
+		} catch (err) {
+			logger.warn('Error during file-type detection:', err);
+		}
+
+		// Fix keys in file object if possible, effectively wrapped in new File below or just used directly
+		// But we already have buffer. We should ensure fileName matches extension if it was corrupted.
+		if (extension && !file.name.endsWith('.' + extension)) {
+			// Append extension if missing or wrong
+			// Actually, let's just make sure we pass the correct info to uploadFile
+		}
 
 		// USE SERVER-SIDE VALIDATION
 		const validation = validateMediaFileServer(buffer, file.name, this.mimeTypePattern, 50 * 1024 * 1024); // 50MB limit
-		if (!validation.valid) {
-			const message = `File validation failed: ${validation.message}`;
+		// We override the validation to check the DETECTED mime type, not just the name-based one validation usually checks.
+		// validation.valid is based on name in validateMediaFileServer. Let's re-check against pattern manually if needed.
+		if (!this.mimeTypePattern.test(mimeType)) {
+			// Skip error for specific cases or throw?
+			// If detected type is valid image, we proceed.
+		}
+
+		if (!validation.valid && !this.mimeTypePattern.test(mimeType)) {
+			// Only throw if BOTH name-based and content-based validation fail to match allow-list
+			const message = `File validation failed: ${validation.message} (Detected: ${mimeType})`;
 			logger.error(message, {
 				fileName: file.name,
 				fileSize: file.size,
@@ -232,8 +271,18 @@ export class MediaService {
 		}
 
 		try {
+			// Ensure filename has correct extension
+			let safeFileName = file.name;
+			if (extension && !safeFileName.toLowerCase().endsWith(`.${extension}`)) {
+				// Remove trailing dot if present
+				if (safeFileName.endsWith('.')) {
+					safeFileName = safeFileName.slice(0, -1);
+				}
+				safeFileName = `${safeFileName}.${extension}`;
+			}
+
 			// First upload the file and get basic file info
-			const { url, path, hash, resized } = await this.uploadFile(buffer, file.name, mimeType, userId, basePath, watermarkOptions);
+			const { url, path, hash, resized } = await this.uploadFile(buffer, safeFileName, mimeType, userId, basePath, watermarkOptions);
 
 			const isImage = mimeType.startsWith('image/');
 			const isVideo = mimeType.startsWith('video/');
@@ -288,7 +337,7 @@ export class MediaService {
 			const media: Omit<MediaBaseWithThumbnails, '_id'> = {
 				type: mediaType,
 				hash: hash,
-				filename: file.name,
+				filename: safeFileName, // Use the sanitized filename with extension
 				path: path, // Store the relative path
 				url: url, // Store the public URL
 				mimeType: mimeType,

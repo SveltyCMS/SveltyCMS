@@ -63,7 +63,7 @@ Features:
 >
 	{#snippet children({ data })}
 		{#if !data || data.length === 0}
-			<div class="flex h-full items-center justify-center text-sm text-surface-500">No recent activity</div>
+			<div class="flex h-full items-center justify-center text-sm">No recent activity</div>
 		{:else}
 			<div class="flex-1 overflow-auto">
 				<table class="w-full text-left text-[11px]">
@@ -79,14 +79,14 @@ Features:
 							<tr class="group hover:bg-surface-50 dark:hover:bg-surface-700/50">
 								<td class="py-2 pr-2">
 									<div class="flex flex-col">
-										<span class="font-medium text-primary-600 dark:text-primary-400">{log.action}</span>
+										<span class="font-medium text-tertiary-500 dark:text-primary-500">{log.action}</span>
 										<span class="text-[9px] opacity-50">{formatDate(log.timestamp)}</span>
 									</div>
 								</td>
 								<td class="max-w-[80px] truncate py-2 pr-2 pt-3" title={log.actor?.email}>
 									{truncateEmail(log.actor?.email)}
 								</td>
-								<td class="py-2 pt-3 text-center text-success-500">
+								<td class="py-2 pt-3 text-center text-primary-500">
 									<iconify-icon icon="mdi:history" width={24}></iconify-icon>
 								</td>
 							</tr>

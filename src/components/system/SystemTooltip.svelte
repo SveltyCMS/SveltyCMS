@@ -68,7 +68,10 @@ This component provides a tooltip for any element.
 </script>
 
 <Tooltip {positioning}>
-	<Tooltip.Trigger class={`${triggerClass} p-0 m-0 border-none bg-transparent ${wFull ? 'block w-full' : 'inline-block'}`} style={triggerStyle}>
+	<Tooltip.Trigger
+		class={`p-0 m-0 border-none ${triggerClass ? '' : 'bg-transparent'} ${wFull ? 'block w-full' : 'inline-block'} ${triggerClass}`}
+		style={triggerStyle}
+	>
 		{@render children?.()}
 	</Tooltip.Trigger>
 	<Portal>
