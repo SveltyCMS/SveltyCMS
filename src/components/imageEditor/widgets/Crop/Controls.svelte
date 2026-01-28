@@ -17,7 +17,6 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 	}: {
 		onRotateLeft: () => void;
 		onRotateRight: () => void;
-		onFlipHorizontal: () => void;
 		onFlipVertical?: () => void;
 		onCropShapeChange: (shape: CropShape) => void;
 		onAspectRatio: (ratio: number | null) => void;

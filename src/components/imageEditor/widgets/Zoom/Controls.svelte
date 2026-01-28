@@ -112,8 +112,6 @@ Toolbar controls for the Zoom tool:
 		<span class="text-xs text-surface-500">%</span>
 	</div>
 
-
-
 	<!-- Fit to Screen -->
 	<button
 		onclick={onFitToScreen}
@@ -137,7 +135,6 @@ Toolbar controls for the Zoom tool:
 	</button>
 
 	<!-- 100% / Actual Size -->
-	<!-- 100% / Actual Size -->
 	<button
 		onclick={onActualSize}
 		class="btn-icon preset-outlined-surface-500 h-7 px-2 py-1 gap-1 text-xs rounded-full bg-surface-50/10 border-transparent hover:bg-surface-50/20 text-surface-400 hover:text-white transition-all ml-2"
@@ -147,7 +144,6 @@ Toolbar controls for the Zoom tool:
 		<iconify-icon icon="mdi:image-size-select-actual" width="16"></iconify-icon>
 		<span class="hidden sm:inline">100%</span>
 	</button>
-
 </div>
 
 <style>

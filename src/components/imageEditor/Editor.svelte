@@ -183,9 +183,7 @@ Comprehensive image editing interface with Konva.js integration.
 
 	// Load image and setup Konva
 	function loadImageAndSetupKonva(imageSrc: string, file?: File, retryAttempt = 0) {
-		// ... existing load function logic ...
 		console.log('[Editor] loadImageAndSetupKonva called:', { imageSrc, hasFile: !!file, attempt: retryAttempt });
-
 		// CRITICAL: Validate and clean the URL to prevent double /files/ prefix
 		let cleanedSrc = imageSrc;
 		if (imageSrc.startsWith('/files//files/')) {

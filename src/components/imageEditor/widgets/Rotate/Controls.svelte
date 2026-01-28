@@ -39,6 +39,13 @@ Professional rotate controls with straighten and snap features
 	// Preset angles
 	const presetAngles = [-90, 0, 90, 180];
 
+	function handleAngleNumber(e: Event) {
+		const target = e.currentTarget as HTMLInputElement;
+		let value = parseInt(target.value, 10) || 0;
+		value = Math.max(-180, Math.min(180, value));
+		onRotationChange(value);
+	}
+
 	// Normalize angle to -180 to 180 for display
 	const displayAngle = $derived.by(() => {
 		let angle = rotationAngle % 360;
