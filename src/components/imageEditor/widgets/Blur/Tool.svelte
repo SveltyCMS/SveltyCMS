@@ -243,7 +243,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 	export function cleanup() {
 		try {
 			unbindStageEvents();
-			cleanupBlurElements(true);
+			cleanupBlurElements(false); // Bake instead of destroy
 		} catch (e) {
 			/* ignore */
 		}

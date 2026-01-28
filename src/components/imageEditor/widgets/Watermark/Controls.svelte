@@ -8,11 +8,15 @@ Controls for the Watermark tool. Allows adding, deleting, and positioning waterm
 		onAddWatermark,
 		onDeleteWatermark,
 		onPositionChange,
+		onCancel,
+		onApply,
 		hasSelection
 	}: {
 		onAddWatermark: () => void;
 		onDeleteWatermark: () => void;
 		onPositionChange: (position: string) => void;
+		onCancel: () => void;
+		onApply: () => void;
 		hasSelection: boolean;
 	} = $props();
 
@@ -29,15 +33,15 @@ Controls for the Watermark tool. Allows adding, deleting, and positioning waterm
 	];
 </script>
 
-<div class="flex w-full items-center gap-4">
+<div class="flex w-full items-center gap-4 flex-wrap">
 	<button onclick={onAddWatermark} class="btn preset-outlined-surface-500">
 		<iconify-icon icon="mdi:plus-box-outline" width={24}></iconify-icon>
-		<span>Add Watermark</span>
+		<span class="hidden sm:inline">Add Watermark</span>
 	</button>
 
 	{#if hasSelection}
-		<div class="h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
-		<span class="text-sm">Position:</span>
+		<div class="h-6 w-px bg-surface-300 dark:bg-surface-600 hidden sm:block"></div>
+		<span class="text-sm hidden md:inline">Position:</span>
 		<div class="btn-group preset-outlined-surface-500">
 			{#each positions as pos}
 				<button class="btn-sm" onclick={() => onPositionChange(pos.value)} title={pos.value}>
@@ -46,11 +50,23 @@ Controls for the Watermark tool. Allows adding, deleting, and positioning waterm
 			{/each}
 		</div>
 
-		<div class="grow"></div>
-
-		<button onclick={onDeleteWatermark} class="btn preset-outlined-error-500">
+		<button onclick={onDeleteWatermark} class="btn preset-outlined-surface-500">
 			<iconify-icon icon="mdi:delete-outline" width={24}></iconify-icon>
-			<span>Delete</span>
+			<span class="hidden sm:inline">Delete</span>
 		</button>
 	{/if}
+
+	<div class="grow"></div>
+
+	<!-- Action Buttons -->
+	<div class="flex items-center gap-2 shrink-0">
+		<button class="btn preset-outlined-error-500" onclick={onCancel}>
+			<iconify-icon icon="mdi:close" width="18"></iconify-icon>
+			<span class="hidden sm:inline">Cancel</span>
+		</button>
+		<button class="btn preset-filled-success-500" onclick={onApply}>
+			<iconify-icon icon="mdi:check" width="18"></iconify-icon>
+			<span class="hidden sm:inline">Done</span>
+		</button>
+	</div>
 </div>

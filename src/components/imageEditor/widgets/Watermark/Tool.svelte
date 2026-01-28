@@ -30,6 +30,7 @@ Orchestrates the watermark lifecycle:
 	let _toolBound = $state(false);
 	// guard to prevent loading preset multiple times
 	let _presetLoaded = $state(false);
+	let { onCancel }: { onCancel: () => void } = $props();
 
 	// Get watermark preset from parent context (set by ImageEditorModal)
 	const getWatermarkPreset = getContext<(() => WatermarkOptions | null) | undefined>('watermarkPreset');
@@ -55,6 +56,7 @@ Orchestrates the watermark lifecycle:
 					onAddWatermark: () => fileInput?.click(),
 					onDeleteWatermark: () => deleteSelected(),
 					onPositionChange: (position: string) => selected?.snapTo(position),
+					onCancel: () => onCancel(),
 					onApply: () => apply()
 				}
 			});
@@ -238,7 +240,7 @@ Orchestrates the watermark lifecycle:
 	export function cleanup() {
 		try {
 			unbindTool();
-			cleanupWatermarks(true);
+			cleanupWatermarks(false); // Bake instead of destroy
 			transformer?.destroy();
 			transformer = null;
 		} catch (e) {

@@ -46,16 +46,26 @@ Comprehensive image editing interface with Konva.js integration.
 	interface Props {
 		imageFile?: File | null;
 		initialImageSrc?: string;
+		mediaId?: string; // Added missing mediaId
 		focalPoint?: { x: number; y: number };
-		onsave?: (detail: { dataURL: string; file: File }) => void;
+		onsave?: (detail: { dataURL: string; file: File; focalPoint?: any; mediaId?: string }) => void;
 		oncancel?: () => void;
 	}
 
-	const { imageFile = null, initialImageSrc = '', onsave = () => {}, oncancel = () => {} }: Props = $props();
+	const {
+		imageFile = null,
+		initialImageSrc = '',
+		mediaId = '', // Added missing mediaId
+		focalPoint = { x: 50, y: 50 },
+		onsave = () => {},
+		oncancel = () => {}
+	}: Props = $props();
 
 	// State
 	let selectedImage = $state('');
 	let containerRef = $state<HTMLDivElement | undefined>(undefined);
+	let containerWidth = $state(0);
+	let containerHeight = $state(0);
 	let initialImageLoaded = $state(false);
 	let isProcessing = $state(false);
 	let error = $state<string | null>(null);
@@ -88,24 +98,61 @@ Comprehensive image editing interface with Konva.js integration.
 		};
 	});
 
-	// Load initial image effect
+	// Load initial image effect - handles race conditions with modal animations
 	$effect(() => {
-		if (containerRef && !initialImageLoaded && (initialImageSrc || imageFile)) {
-			if (initialImageSrc) {
-				logger.debug('Loading initial image from src:', initialImageSrc);
-				selectedImage = initialImageSrc;
-				loadImageAndSetupKonva(selectedImage);
-			} else if (imageFile) {
-				logger.debug('Loading initial image from file');
-				selectedImage = URL.createObjectURL(imageFile);
-				loadImageAndSetupKonva(selectedImage, imageFile);
+		// Use local variables to track what we're loading
+		const src = initialImageSrc;
+		const file = imageFile;
+
+		// Skip if nothing to load
+		if (!containerRef || (!src && !file)) return;
+		
+		// Wait for container to have size before initializing (modal might be animating)
+		// Use a small delay to ensure the modal has finished its animation
+		if (containerWidth === 0 || containerHeight === 0) {
+			console.log('[Editor] Waiting for container size...', { containerWidth, containerHeight, hasContainerRef: !!containerRef });
+			// Schedule a re-check after a short delay for modal animation
+			const timeoutId = setTimeout(() => {
+				// Force a re-check by updating a tracked value
+				if (containerRef && containerRef.clientWidth > 0) {
+					containerWidth = containerRef.clientWidth;
+					containerHeight = containerRef.clientHeight;
+				}
+			}, 100);
+			return () => clearTimeout(timeoutId);
+		}
+
+		// Skip if already loaded with same source
+		if (initialImageLoaded && src === selectedImage && !file) return;
+
+		console.log('[Editor] Loading image:', { src: src || '(empty)', hasFile: !!file, containerWidth, containerHeight });
+
+		// Schedule loading after a microtask to ensure DOM is ready
+		queueMicrotask(() => {
+			if (src) {
+				selectedImage = src;
+				loadImageAndSetupKonva(src);
+			} else if (file) {
+				const blobUrl = URL.createObjectURL(file);
+				selectedImage = blobUrl;
+				loadImageAndSetupKonva(blobUrl, file);
 			}
 			initialImageLoaded = true;
-		}
+		});
 	});
 
 	// Load image and setup Konva
 	function loadImageAndSetupKonva(imageSrc: string, file?: File) {
+		console.log('[Editor] loadImageAndSetupKonva called:', { imageSrc, hasFile: !!file });
+		
+		// CRITICAL: Validate and clean the URL to prevent double /files/ prefix
+		let cleanedSrc = imageSrc;
+		if (imageSrc.startsWith('/files//files/')) {
+			console.warn('[Editor] Detected double /files/ prefix, fixing URL');
+			cleanedSrc = imageSrc.replace('/files//files/', '/files/');
+		}
+		console.log('[Editor] Final image URL:', cleanedSrc);
+		
 		if (!containerRef) {
 			logger.error('Container ref not available');
 			error = 'Container not ready';
@@ -125,23 +172,26 @@ Comprehensive image editing interface with Konva.js integration.
 			if (imageOrigin !== currentOrigin) {
 				img.crossOrigin = 'anonymous';
 			}
-			// For same-origin (including local relative paths), we don't set crossOrigin
-			// to ensure cookies/auth headers are sent if needed.
 		} catch (e) {
-			// Fallback for invalid URLs or other parsing errors
 			img.crossOrigin = 'anonymous';
 		}
 
-		img.onerror = () => {
+		img.onerror = (e) => {
 			error = 'Failed to load image';
 			isProcessing = false;
-			logger.error('Image load error');
+			console.error('[Editor] Image load FAILED for URL:', cleanedSrc, e);
+			logger.error('Image load failed for URL:', cleanedSrc);
 		};
 
 		img.onload = () => {
+			console.log('[Editor] Image loaded successfully:', { width: img.width, height: img.height });
 			try {
 				const containerWidth = containerRef!.clientWidth;
 				const containerHeight = containerRef!.clientHeight;
+
+				if (containerWidth === 0 || containerHeight === 0) {
+					logger.warn('Container dimensions are 0. Stage might not be visible.');
+				}
 
 				// Clear existing stage
 				const existingStage = imageEditorStore.state.stage;
@@ -152,8 +202,8 @@ Comprehensive image editing interface with Konva.js integration.
 				// Create stage
 				const stage = new Konva.Stage({
 					container: containerRef!,
-					width: containerWidth,
-					height: containerHeight
+					width: containerWidth || 800,
+					height: containerHeight || 600
 				});
 
 				const layer = new Konva.Layer();
@@ -206,7 +256,7 @@ Comprehensive image editing interface with Konva.js integration.
 			}
 		};
 
-		img.src = imageSrc;
+		img.src = cleanedSrc;
 	}
 
 	// Handle resize
@@ -449,7 +499,15 @@ Comprehensive image editing interface with Konva.js integration.
 			const newFileName = `edited-${timestamp}.${fileExtension}`;
 			const editedFile = new File([blob], newFileName, { type: mimeType });
 
-			onsave({ dataURL, file: editedFile });
+			const { file: originalFile } = imageEditorStore.state;
+			const storeMediaId = (originalFile as any)?._id;
+
+			onsave({ 
+				dataURL, 
+				file: editedFile,
+				focalPoint,
+				mediaId: storeMediaId || mediaId
+			});
 		} catch (err) {
 			logger.error('Save error:', err);
 			error = 'Failed to save image';
@@ -485,6 +543,28 @@ Comprehensive image editing interface with Konva.js integration.
 		window.addEventListener('resize', handleResize);
 		window.addEventListener('keydown', handleKeyDown);
 
+		// Wait for container to be ready with a polling mechanism
+		// This handles modal animation delays
+		let retryCount = 0;
+		const maxRetries = 20; // Max 2 seconds of waiting
+		
+		const checkContainerReady = () => {
+			if (containerRef && containerRef.clientWidth > 0 && containerRef.clientHeight > 0) {
+				containerWidth = containerRef.clientWidth;
+				containerHeight = containerRef.clientHeight;
+				console.log('[Editor] Container ready:', { containerWidth, containerHeight });
+			} else if (retryCount < maxRetries) {
+				retryCount++;
+				console.log(`[Editor] Container not ready, retry ${retryCount}/${maxRetries}...`);
+				setTimeout(checkContainerReady, 100);
+			} else {
+				console.error('[Editor] Container did not become ready after', maxRetries, 'retries');
+			}
+		};
+		
+		// Start checking after a small delay for modal animation
+		setTimeout(checkContainerReady, 50);
+
 		return () => {
 			window.removeEventListener('resize', handleResize);
 			window.removeEventListener('keydown', handleKeyDown);
@@ -515,7 +595,7 @@ Comprehensive image editing interface with Konva.js integration.
 
 	<div class="editor-main flex min-w-0 flex-1 flex-col">
 		<div class="canvas-wrapper relative flex flex-1 flex-col">
-			<EditorCanvas bind:containerRef {hasImage}>
+			<EditorCanvas bind:containerRef bind:containerWidth bind:containerHeight {hasImage} isLoading={isProcessing}>
 				{#if storeState.stage && storeState.layer && storeState.imageNode && storeState.imageGroup}
 					{#if activeToolComponent}
 						{@const Component = activeToolComponent}

@@ -20,12 +20,16 @@ for the image editor canvas with responsive behavior.
 		isLoading = false,
 		loadingMessage = 'Loading...',
 		containerRef = $bindable(),
+		containerWidth = $bindable(0),
+		containerHeight = $bindable(0),
 		children
 	}: {
 		hasImage?: boolean;
 		isLoading?: boolean;
 		loadingMessage?: string;
 		containerRef?: HTMLDivElement;
+		containerWidth?: number;
+		containerHeight?: number;
 		children?: Snippet;
 	} = $props();
 
@@ -40,7 +44,12 @@ for the image editor canvas with responsive behavior.
 	class="editor-canvas-wrapper relative flex-1 overflow-hidden rounded-lg border border-surface-200 transition-all duration-300 ease-in-out focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 focus-within:ring-offset-surface-50 dark:focus-within:ring-offset-surface-900 md:rounded-lg md:border md:border-surface-200 max-md:rounded-none max-md:border-0 max-md:border-b max-md:border-t"
 >
 	<!-- Canvas container - ALWAYS present for Konva stage -->
-	<div class="canvas-container h-full w-full transition-all duration-300 ease-in-out" bind:this={containerRef}>
+	<div 
+		class="canvas-container h-full w-full transition-all duration-300 ease-in-out" 
+		bind:this={containerRef}
+		bind:clientWidth={containerWidth}
+		bind:clientHeight={containerHeight}
+	>
 		<!-- Konva stage will be mounted here by ImageEditor -->
 	</div>
 

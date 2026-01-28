@@ -3,6 +3,7 @@
 	import RotateControls from './Controls.svelte';
 
 	let rotationAngle = $state(0);
+	let { onCancel }: { onCancel: () => void } = $props();
 
 	// bind/unbind the tool when active state changes
 	$effect(() => {
@@ -24,6 +25,7 @@
 					onFlipHorizontal: flipHorizontal,
 					onFlipVertical: flipVertical,
 					onReset: reset,
+					onCancel: () => onCancel(),
 					onApply: apply
 				}
 			});
@@ -111,6 +113,4 @@
 	}
 </script>
 
-// imageEditor/widgets/Rotate/Tool.svelte /** * @file src/components/imageEditor/widgets/Rotate/Tool.svelte * @component * Rotate tool for rotating
-and flipping images */
 <!-- No UI needed, all controls in toolbar -->

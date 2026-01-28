@@ -38,6 +38,7 @@ Orchestrates the annotation lifecycle:
 
 	// guard to avoid duplicate event bindings
 	let _toolBound = $state(false);
+	let { onCancel }: { onCancel: () => void } = $props();
 
 	// --- Lifecycle $effect ---
 	$effect(() => {
@@ -63,6 +64,7 @@ Orchestrates the annotation lifecycle:
 						selected?.node.setAttrs({ fill: v });
 					},
 					onDelete: () => deleteSelected(),
+					onCancel: () => onCancel(),
 					onApply: () => apply()
 				}
 			});
@@ -272,7 +274,7 @@ Orchestrates the annotation lifecycle:
 	export function cleanup() {
 		try {
 			unbindTool();
-			cleanupAnnotations(true);
+			cleanupAnnotations(false); // Bake instead of destroy
 			transformer?.destroy();
 			transformer = null;
 		} catch (e) {

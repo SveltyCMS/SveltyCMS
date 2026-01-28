@@ -17,12 +17,49 @@ A reusable modal that wraps the main Image Editor.
 		onsave = () => {},
 		close = () => {}
 	}: {
-		image: MediaImage | null;
+		image: MediaImage | File | string | null;
 		/** Optional watermark preset to auto-apply when editing */
 		watermarkPreset?: WatermarkOptions | null;
 		onsave?: (detail: any) => void;
 		close?: () => void;
 	} = $props();
+
+	// Computed image source and metadata
+	const imageSrc = $derived.by(() => {
+		if (!image) return '';
+		if (typeof image === 'string') return image;
+		if (image instanceof File) return ''; // File will be passed separately
+		return (image as MediaImage).url || '';
+	});
+
+	// File object to pass to editor (for direct file uploads)
+	const imageFile = $derived.by(() => {
+		if (image instanceof File) return image;
+		return null;
+	});
+
+	const initialFocalPoint = $derived.by(() => {
+		if (image && typeof image === 'object' && 'metadata' in image) {
+			return (image as MediaImage).metadata?.focalPoint as { x: number; y: number } | undefined;
+		}
+		return undefined;
+	});
+
+	const mediaId = $derived.by(() => {
+		if (image && typeof image === 'object' && '_id' in image) {
+			return (image as MediaImage)._id;
+		}
+		return undefined;
+	});
+
+	$effect(() => {
+		console.log('[ImageEditorModal] Props received:', { 
+			imageType: image ? (image instanceof File ? 'File' : typeof image === 'string' ? 'string' : 'MediaImage') : 'null',
+			imageSrc: imageSrc || '(empty)',
+			hasFile: !!imageFile,
+			mediaId: mediaId || '(none)'
+		});
+	});
 
 	// Provide watermark preset to child widgets via context
 	setContext('watermarkPreset', () => watermarkPreset);
@@ -73,6 +110,13 @@ A reusable modal that wraps the main Image Editor.
 			handleClose();
 		}
 	}
+	$effect(() => {
+		return () => {
+			if (imageSrc && imageSrc.startsWith('blob:')) {
+				URL.revokeObjectURL(imageSrc);
+			}
+		};
+	});
 </script>
 
 {#if image}
@@ -144,8 +188,10 @@ A reusable modal that wraps the main Image Editor.
 		<main class="flex-1 overflow-auto bg-surface-50/50 dark:bg-surface-900/50">
 			<Editor
 				bind:this={editorComponent}
-				initialImageSrc={image.url}
-				focalPoint={image?.metadata?.focalPoint as { x: number; y: number } | undefined}
+				initialImageSrc={imageSrc}
+				{imageFile}
+				{mediaId}
+				focalPoint={initialFocalPoint}
 				onsave={(detail) => onsave(detail)}
 				oncancel={handleClose}
 			/>

@@ -14,6 +14,7 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 		onStrokeColorChange,
 		onFillColorChange,
 		onDelete,
+		onCancel,
 		onApply
 	}: {
 		currentTool: ToolType;
@@ -23,6 +24,7 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 		onStrokeColorChange: (color: string) => void;
 		onFillColorChange: (color: string) => void;
 		onDelete: () => void;
+		onCancel: () => void;
 		onApply: () => void;
 	} = $props();
 </script>
@@ -74,13 +76,17 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 	<div class="grow"></div>
 
 	<!-- Actions -->
-	<button onclick={onDelete} class="btn preset-outlined-error-500">
+	<button onclick={onDelete} class="btn preset-outlined-surface-500">
 		<iconify-icon icon="mdi:delete-outline"></iconify-icon>
-		<span>Delete</span>
+		<span class="hidden sm:inline">Delete</span>
+	</button>
+	<button class="btn preset-outlined-error-500" onclick={onCancel}>
+		<iconify-icon icon="mdi:close"></iconify-icon>
+		<span class="hidden sm:inline">Cancel</span>
 	</button>
 	<button class="btn preset-filled-success-500" onclick={onApply}>
 		<iconify-icon icon="mdi:check"></iconify-icon>
-		<span>Done</span>
+		<span class="hidden sm:inline">Done</span>
 	</button>
 </div>
 
