@@ -324,8 +324,9 @@
 						textColor="white"
 						inputClass="text-white"
 						autocomplete="username"
+						invalid={!!signUpForm.errors.username}
+						errorMessage={signUpForm.errors.username?.[0] || ''}
 					/>
-					{#if signUpForm.errors.username}<span class="text-xs text-error-500">{signUpForm.errors.username[0]}</span>{/if}
 
 					<!-- Email field -->
 					<FloatingInput
@@ -346,8 +347,9 @@
 						textColor="white"
 						inputClass="text-white {isInviteFlow ? 'opacity-70' : ''}"
 						disabled={isInviteFlow}
+						invalid={!!signUpForm.errors.email}
+						errorMessage={signUpForm.errors.email?.[0] || ''}
 					/>
-					{#if signUpForm.errors.email}<span class="text-xs text-error-500">{signUpForm.errors.email[0]}</span>{/if}
 					{#if isInviteFlow}<span class="text-xs text-primary-400">✓ Email pre-filled from invitation</span>{/if}
 
 					<!-- Hidden email input to ensure form submission when disabled -->
@@ -373,10 +375,9 @@
 						passwordIconColor="white"
 						inputClass="text-white"
 						autocomplete="new-password"
+						invalid={!!signUpForm.errors.password}
+						errorMessage={signUpForm.errors.password?.[0] || ''}
 					/>
-					{#if signUpForm.errors.password}
-						<span class="text-xs text-error-500">{signUpForm.errors.password[0]}</span>
-					{/if}
 
 					<!-- Password Confirm -->
 					<FloatingInput
@@ -396,10 +397,9 @@
 						passwordIconColor="white"
 						inputClass="text-white"
 						autocomplete="new-password"
+						invalid={!!signUpForm.errors.confirm_password}
+						errorMessage={signUpForm.errors.confirm_password?.[0] || ''}
 					/>
-					{#if signUpForm.errors.confirm_password}
-						<span class="text-xs text-error-500">{signUpForm.errors.confirm_password[0]}</span>
-					{/if}
 					<!-- Password Strength Indicator -->
 					<PasswordStrength password={signUpForm.data.password} confirmPassword={signUpForm.data.confirm_password} />
 
@@ -420,10 +420,9 @@
 							passwordIconColor="white"
 							inputClass="text-white"
 							autocomplete="one-time-code"
+							invalid={!!signUpForm.errors.token}
+							errorMessage={signUpForm.errors.token?.[0] || ''}
 						/>
-						{#if signUpForm.errors.token}
-							<span class="text-xs text-error-500">{signUpForm.errors.token[0]}</span>
-						{/if}
 						{#if signUpForm.data.token && inviteError}
 							<span class="text-xs text-warning-400">⚠️ Token was pre-filled from URL and will be validated against the server</span>
 						{/if}

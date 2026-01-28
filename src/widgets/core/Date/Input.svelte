@@ -21,7 +21,6 @@ Part of the Three Pillars Architecture for widget system.
 - Min/max date constraints
 - Automatic validation
 - Required field support
-- Helper text support
 - Accessible with ARIA labels
 -->
 
@@ -169,13 +168,6 @@ Part of the Three Pillars Architecture for widget system.
 			<span>(required)</span>
 		{/if}
 	</label>
-
-	<!-- Helper Text -->
-	{#if field.helper && !error}
-		<p id={`${field.db_fieldName}-helper`} class="absolute bottom-0 left-0 w-full text-center text-xs text-surface-500 dark:text-surface-50">
-			{field.helper}
-		</p>
-	{/if}
 
 	<!-- Error Message -->
 	{#if error}

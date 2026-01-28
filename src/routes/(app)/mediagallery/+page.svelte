@@ -438,8 +438,8 @@ Displays a collection of media files (images, documents, audio, video) with:
 	async function handleDeleteImage(file: MediaBase) {
 		// Show confirmation modal
 		showConfirm({
-			title: 'Delete Media',
-			body: `Are you sure you want to delete "${file.filename}"? This action cannot be undone.`,
+			title: `Delete ${file.filename}`,
+			body: `Are you sure you want to delete <span class="text-tertiary-500 dark:text-primary-500 font-bold">"${file.filename}"</span>? This action cannot be undone.`,
 			onConfirm: async () => {
 				try {
 					logger.info('Delete image request:', { _id: file._id, filename: file.filename });
@@ -629,12 +629,17 @@ Displays a collection of media files (images, documents, audio, video) with:
 		const url = file.url || mediaUrl(file);
 		const imageWithUrl = { ...file, url };
 
+		// Check for mobile
+		const isMobile = window.innerWidth < 768;
+
 		// Trigger the modal via modalState
 		modalState.trigger(ImageEditorModal as any, {
 			image: imageWithUrl,
 			onsave: handleEditorSave,
-			modalClasses: 'w-full h-full max-w-none max-h-none p-0'
+			modalClasses: 'w-full h-full max-w-none max-h-none p-0',
+			size: isMobile ? 'fullscreen' : 'large'
 		});
+		// console.warn('Image Editor temporarily disabled');
 	}
 
 	async function handleEditorSave(detail: { dataURL: string; file: File }) {
@@ -805,7 +810,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 									}}
 									type="button"
 									aria-label="Tiny"
-									class="px-1"
+									class="flex flex-col items-center justify-center px-1"
 								>
 									<iconify-icon icon="material-symbols:apps" width={24}></iconify-icon>
 									<p class="text-xs">Tiny</p>
@@ -841,7 +846,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 									}}
 									type="button"
 									aria-label="Small"
-									class="px-1"
+									class="flex flex-col items-center justify-center px-1"
 								>
 									<iconify-icon icon="material-symbols:background-grid-small-sharp" width={24}></iconify-icon>
 									<p class="text-xs">Small</p>
@@ -877,7 +882,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 									}}
 									type="button"
 									aria-label="Medium"
-									class="px-1"
+									class="flex flex-col items-center justify-center px-1"
 								>
 									<iconify-icon icon="material-symbols:grid-on-sharp" width={24}></iconify-icon>
 									<p class="text-xs">Medium</p>
@@ -913,7 +918,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 									}}
 									type="button"
 									aria-label="Large"
-									class="px-1"
+									class="flex flex-col items-center justify-center px-1"
 								>
 									<iconify-icon icon="material-symbols:grid-view" width={24}></iconify-icon>
 									<p class="text-xs">Large</p>
@@ -970,24 +975,17 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 			<div class="flex flex-col items-center gap-1">
 				<span class="text-sm font-medium">Display</span>
-				<div class="h-11 flex divide-x divide-gray-500 border border-surface-500/30 rounded-token overflow-hidden">
+				<div class="h-11 flex border border-surface-500/30 rounded-token overflow-hidden">
 					<button
-						onclick={() => handleViewChange('grid')}
-						class={`h-full px-3 flex flex-col items-center justify-center transition-colors ${view === 'grid' ? 'bg-primary-500/20 text-primary-500' : 'hover:bg-surface-500/10'}`}
-						aria-label="Grid"
-						title="Grid View"
+						onclick={() => handleViewChange(view === 'grid' ? 'table' : 'grid')}
+						class="h-full px-3 flex items-center gap-2 transition-colors hover:bg-surface-500/10"
+						aria-label="Toggle View"
+						title="Toggle between Grid and Table"
 					>
-						<iconify-icon icon="material-symbols:grid-view-rounded" width={24}></iconify-icon>
-						<span class="text-[10px] hidden xl:inline">Grid</span>
-					</button>
-					<button
-						onclick={() => handleViewChange('table')}
-						class={`h-full px-3 flex flex-col items-center justify-center transition-colors ${view === 'table' ? 'bg-primary-500/20 text-primary-500' : 'hover:bg-surface-500/10'}`}
-						aria-label="Table"
-						title="Table View"
-					>
-						<iconify-icon icon="material-symbols:list-alt-outline" width={24}></iconify-icon>
-						<span class="text-[10px] hidden xl:inline">Table</span>
+						<iconify-icon icon="material-symbols:grid-view-rounded" width={24} class={view === 'grid' ? 'text-primary-500' : 'text-surface-500'}
+						></iconify-icon>
+						<iconify-icon icon="material-symbols:list-alt-outline" width={24} class={view === 'table' ? 'text-primary-500' : 'text-surface-500'}
+						></iconify-icon>
 					</button>
 				</div>
 			</div>
@@ -1002,7 +1000,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 								else tableSize = 'small';
 								storeUserPreference(view, gridSize, tableSize);
 							}}
-							class="h-full px-3 flex flex-col items-center justify-center transition-colors hover:bg-surface-500/10"
+							class="h-full px-3 flex flex-row items-center gap-2 transition-colors hover:bg-surface-500/10"
 							aria-label="Tiny - Click for Small"
 							title="Tiny (Click to change)"
 						>
@@ -1016,7 +1014,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 								else tableSize = 'medium';
 								storeUserPreference(view, gridSize, tableSize);
 							}}
-							class="h-full px-3 flex flex-col items-center justify-center transition-colors hover:bg-surface-500/10"
+							class="h-full px-3 flex flex-row items-center gap-2 transition-colors hover:bg-surface-500/10"
 							aria-label="Small - Click for Medium"
 							title="Small (Click to change)"
 						>
@@ -1030,7 +1028,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 								else tableSize = 'large';
 								storeUserPreference(view, gridSize, tableSize);
 							}}
-							class="h-full px-3 flex flex-col items-center justify-center transition-colors hover:bg-surface-500/10"
+							class="h-full px-3 flex flex-row items-center gap-2 transition-colors hover:bg-surface-500/10"
 							aria-label="Medium - Click for Large"
 							title="Medium (Click to change)"
 						>
@@ -1044,7 +1042,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 								else tableSize = 'tiny';
 								storeUserPreference(view, gridSize, tableSize);
 							}}
-							class="h-full px-3 flex flex-col items-center justify-center transition-colors hover:bg-surface-500/10"
+							class="h-full px-3 flex flex-row items-center gap-2 transition-colors hover:bg-surface-500/10"
 							aria-label="Large - Click for Tiny"
 							title="Large (Click to change)"
 						>

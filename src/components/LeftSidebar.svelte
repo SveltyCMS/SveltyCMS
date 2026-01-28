@@ -355,7 +355,11 @@
 				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
 					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
 					<div class="flex items-center justify-center">
-						<ThemeToggle showTooltip={false} buttonClass="btn-icon hover:bg-surface-500/20" iconSize={22} />
+						<ThemeToggle
+							showTooltip={false}
+							buttonClass="btn-icon preset-outlined-secondary-500 rounded-full hover:bg-surface-500/20"
+							iconSize={22}
+						/>
 					</div>
 				</SystemTooltip>
 			</div>
@@ -367,8 +371,8 @@
 						<Menu positioning={{ placement: 'right-start', gutter: 10 }}>
 							<Menu.Trigger
 								class="preset-filled-surface-500 hover:bg-surface-400 rounded-full btn-icon flex items-center justify-center uppercase transition-colors {isSidebarFull
-									? 'mb-3 w-8 h-8 text-sm'
-									: 'w-8 h-8 text-xs'}"
+									? 'mb-3 w-6.5 h-6.5 text-xs'
+									: 'w-6 h-6 text-xs'}"
 								aria-label="Select language"
 							>
 								{languageTag}

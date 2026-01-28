@@ -37,7 +37,7 @@ Comprehensive image editing interface with Konva.js integration.
 	import { logger } from '@utils/logger';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
-	import EditorSidebar from './EditorSidebar.svelte';
+	// import EditorSidebar from './EditorSidebar.svelte'; // Removed for unified layout
 	import EditorCanvas from './EditorCanvas.svelte';
 
 	import Konva from 'konva';
@@ -463,43 +463,6 @@ Comprehensive image editing interface with Konva.js integration.
 		oncancel();
 	}
 
-	// Toggle tool
-	function toggleTool(tool: string) {
-		const currentState = imageEditorStore.state.activeState;
-
-		if (currentState && currentState !== tool) {
-			imageEditorStore.saveToolState();
-			imageEditorStore.cleanupToolSpecific(currentState);
-
-			// Recenter if drifted
-			const { stage, imageGroup } = imageEditorStore.state;
-			if (stage && imageGroup) {
-				const expectedX = stage.width() / 2;
-				const expectedY = stage.height() / 2;
-				const currentX = imageGroup.x();
-				const currentY = imageGroup.y();
-
-				if (Math.abs(currentX - expectedX) > 5 || Math.abs(currentY - expectedY) > 5) {
-					imageGroup.position({ x: expectedX, y: expectedY });
-				}
-			}
-		}
-
-		const newState = currentState === tool ? '' : tool;
-
-		// Capture snapshot before entering a new tool for 'Cancel' functionality
-		if (newState !== '' && newState !== currentState) {
-			preToolSnapshot = imageEditorStore.undoState(true); // Get current state without undoing
-		}
-
-		imageEditorStore.setActiveState(newState);
-
-		if (newState === '') {
-			imageEditorStore.setToolbarControls(null);
-			preToolSnapshot = null;
-		}
-	}
-
 	// Cancel tool (Discard changes)
 	export function handleCancelTool() {
 		const currentState = imageEditorStore.state.activeState;
@@ -550,20 +513,16 @@ Comprehensive image editing interface with Konva.js integration.
 		</div>
 	{/if}
 
-	<div class="editor-layout flex h-full overflow-hidden">
-		<EditorSidebar activeState={activeState ?? ''} onToolSelect={toggleTool} {hasImage} />
-
-		<div class="editor-main flex min-w-0 flex-1 flex-col">
-			<div class="canvas-wrapper relative flex flex-1 flex-col">
-				<EditorCanvas bind:containerRef {hasImage}>
-					{#if storeState.stage && storeState.layer && storeState.imageNode && storeState.imageGroup}
-						{#if activeToolComponent}
-							{@const Component = activeToolComponent}
-							<Component onCancel={handleCancelTool} />
-						{/if}
+	<div class="editor-main flex min-w-0 flex-1 flex-col">
+		<div class="canvas-wrapper relative flex flex-1 flex-col">
+			<EditorCanvas bind:containerRef {hasImage}>
+				{#if storeState.stage && storeState.layer && storeState.imageNode && storeState.imageGroup}
+					{#if activeToolComponent}
+						{@const Component = activeToolComponent}
+						<Component onCancel={handleCancelTool} />
 					{/if}
-				</EditorCanvas>
-			</div>
+				{/if}
+			</EditorCanvas>
 		</div>
 	</div>
 </div>

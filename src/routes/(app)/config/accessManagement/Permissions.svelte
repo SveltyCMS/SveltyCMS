@@ -223,43 +223,49 @@ It provides the following functionality:
 				<!-- Header -->
 				<thead class="sticky top-0 border bg-surface-800">
 					<tr class="divide-x text-tertiary-500 dark:text-primary-500">
-						<th
-							class="cursor-pointer select-none py-2 {sortBy === 'name' ? 'font-semibold text-primary-500 dark:text-secondary-400' : ''}"
-							onclick={() => handleSort('name')}
-							title="Click to sort by permission name"
-						>
-							<div class="flex items-center justify-center">
+						<th class="py-2" aria-sort={sortBy === 'name' ? (sortOrder === 1 ? 'ascending' : 'descending') : 'none'}>
+							<button
+								class="flex w-full items-center justify-center font-bold inherit {sortBy === 'name'
+									? 'text-primary-500 dark:text-secondary-400'
+									: ''}"
+								onclick={() => handleSort('name')}
+								title="Click to sort by permission name"
+							>
 								Type
 								{#if sortBy === 'name' && sortOrder !== 0}
 									<iconify-icon
 										icon={sortOrder === 1 ? 'material-symbols:arrow-upward-rounded' : 'material-symbols:arrow-downward-rounded'}
 										width="16"
 										class="ml-1"
+										aria-hidden="true"
 									></iconify-icon>
 								{/if}
-							</div>
+							</button>
 						</th>
-						<th
-							class="cursor-pointer select-none py-2 {sortBy === 'action' ? 'font-semibold text-primary-500 dark:text-secondary-400' : ''}"
-							onclick={() => handleSort('action')}
-							title="Click to sort by action"
-						>
-							<div class="flex items-center justify-center">
+						<th class="py-2" aria-sort={sortBy === 'action' ? (sortOrder === 1 ? 'ascending' : 'descending') : 'none'}>
+							<button
+								class="flex w-full items-center justify-center font-bold inherit {sortBy === 'action'
+									? 'text-primary-500 dark:text-secondary-400'
+									: ''}"
+								onclick={() => handleSort('action')}
+								title="Click to sort by action"
+							>
 								Action
 								{#if sortBy === 'action' && sortOrder !== 0}
 									<iconify-icon
 										icon={sortOrder === 1 ? 'material-symbols:arrow-upward-rounded' : 'material-symbols:arrow-downward-rounded'}
 										width="16"
 										class="ml-1"
+										aria-hidden="true"
 									></iconify-icon>
 								{/if}
-							</div>
+							</button>
 						</th>
 
 						<!-- List only non-admin roles -->
 						{#each roles as role}
 							{#if !role.isAdmin}
-								<th class="py-2">{role.name}</th>
+								<th class="py-2" scope="col">{role.name}</th>
 							{/if}
 						{/each}
 					</tr>
@@ -292,7 +298,8 @@ It provides the following functionality:
 													type="checkbox"
 													checked={role.permissions.includes(permission._id)}
 													onchange={() => toggleRole(permission._id, role._id)}
-													class="form-checkbox"
+													class="form-checkbox cursor-pointer"
+													aria-label={`Assign ${permission.name} (${permission.action}) to ${role.name}`}
 												/>
 											</td>
 										{/if}

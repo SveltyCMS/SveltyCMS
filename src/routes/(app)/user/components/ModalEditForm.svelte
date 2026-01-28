@@ -374,13 +374,29 @@ Efficiently manages user data updates with validation, role selection, and delet
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.role()}</div>
 					<div class="flex-auto">
-						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
+						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start" role="radiogroup" aria-label="Select Role">
 							{#if roles && roles.length > 0}
 								{#each roles as r}
 									<button
 										type="button"
+										role="radio"
+										aria-checked={editForm.data.role === r._id}
+										tabindex={editForm.data.role === r._id ? 0 : -1}
 										class="chip {editForm.data.role === r._id ? 'preset-filled-tertiary-500' : 'preset-ghost-secondary-500'}"
 										onclick={() => (editForm.data.role = r._id)}
+										onkeydown={(e) => {
+											if (['ArrowRight', 'ArrowDown'].includes(e.key)) {
+												e.preventDefault();
+												const next = (roles.indexOf(r) + 1) % roles.length;
+												editForm.data.role = roles[next]._id;
+												((e.currentTarget as HTMLElement).parentElement?.children[next] as HTMLElement).focus();
+											} else if (['ArrowLeft', 'ArrowUp'].includes(e.key)) {
+												e.preventDefault();
+												const prev = (roles.indexOf(r) - 1 + roles.length) % roles.length;
+												editForm.data.role = roles[prev]._id;
+												((e.currentTarget as HTMLElement).parentElement?.children[prev] as HTMLElement).focus();
+											}
+										}}
 									>
 										{#if editForm.data.role === r._id}
 											<iconify-icon icon="fa:check" width={16}></iconify-icon>

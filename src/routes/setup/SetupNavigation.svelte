@@ -51,7 +51,11 @@ Features:
 		<div class="flex-1">
 			{#if currentStep > 0}
 				<SystemTooltip title={m.button_previous()}>
-					<button onclick={() => onprev()} class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 flex items-center gap-1">
+					<button
+						onclick={() => onprev()}
+						class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 flex items-center gap-1"
+						aria-label={m.button_previous?.() || 'Go to previous step'}
+					>
 						<iconify-icon icon="mdi:arrow-left-bold" class="h-5 w-5"></iconify-icon>
 						<span class="hidden sm:inline">{m.button_previous()}</span>
 					</button>
@@ -76,6 +80,7 @@ Features:
 						class="preset-filled-tertiary-500 btn transition-all dark:preset-filled-primary-500 {canProceed
 							? ''
 							: 'cursor-not-allowed opacity-60'} flex items-center gap-1"
+						aria-label={m.button_next?.() || 'Go to next step'}
 					>
 						{#if isLoading && currentStep === 0}
 							<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>
@@ -95,6 +100,7 @@ Features:
 						class="preset-filled-tertiary-500 btn transition-all dark:preset-filled-primary-500 {isLoading
 							? 'cursor-not-allowed opacity-60'
 							: ''} flex items-center gap-1"
+						aria-label={m.button_complete?.() || 'Complete setup'}
 					>
 						{#if isLoading}
 							<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>

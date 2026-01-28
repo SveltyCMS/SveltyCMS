@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
 	// Using iconify-icon web component
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 
 	// Stores
@@ -29,6 +29,7 @@
 
 	import DialogManager from '@components/system/DialogManager.svelte';
 	import { modalState } from '@utils/modalState.svelte';
+	import { showConfirm } from '@utils/modalUtils';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -115,6 +116,14 @@
 	// svelte-ignore non_reactive_update
 	let dbConfigComponent: any = null;
 
+	async function focusStepContent() {
+		await tick();
+		const stepContent = document.getElementById('step-content');
+		if (stepContent) {
+			stepContent.focus();
+		}
+	}
+
 	async function nextStep() {
 		if (!setupStore.canProceed) return;
 		if (wizard.currentStep === 0) {
@@ -131,14 +140,16 @@
 			if (wizard.currentStep > wizard.highestStepReached) {
 				wizard.highestStepReached = wizard.currentStep;
 			}
+			await focusStepContent();
 		}
 		setupStore.clearDbTestError();
 	}
 
-	function prevStep() {
+	async function prevStep() {
 		if (wizard.currentStep > 0) {
 			wizard.currentStep--;
 			wizard.errorMessage = '';
+			await focusStepContent();
 		}
 	}
 
@@ -166,30 +177,38 @@
 <div class="bg-surface-50-900 min-h-screen w-full transition-colors">
 	<DialogManager />
 
-	<div class="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+	<div class="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8" role="main" aria-label="SveltyCMS Setup Wizard">
 		<SetupHeader siteName={wizard.systemSettings.siteName} {systemLanguages} {currentLanguageTag} onselectLanguage={selectLanguage} />
 
 		<div class="flex flex-col gap-4 lg:flex-row lg:gap-6">
-			<SetupStepper
-				{steps}
-				currentStep={wizard.currentStep}
-				stepCompleted={setupStore.stepCompleted}
-				stepClickable={setupStore.stepClickable}
-				{legendItems}
-				onselectStep={(e: number) => (wizard.currentStep = e)}
-			/>
+			<div role="region" aria-label="Progress navigation">
+				<SetupStepper
+					{steps}
+					currentStep={wizard.currentStep}
+					stepCompleted={setupStore.stepCompleted}
+					stepClickable={setupStore.stepClickable}
+					{legendItems}
+					onselectStep={async (e: number) => {
+						wizard.currentStep = e;
+						await focusStepContent();
+					}}
+				/>
+			</div>
 
 			<div class="flex flex-1 flex-col rounded-xl border border-surface-200 bg-white shadow-xl dark:text-surface-50 dark:bg-surface-800">
 				<SetupCardHeader
 					currentStep={wizard.currentStep}
 					{steps}
 					onreset={() => {
-						if (typeof window !== 'undefined' && !confirm('Clear all setup data?')) return;
-						clearStore();
+						showConfirm({
+							title: 'Reset Setup Data',
+							body: 'Are you sure you want to clear all setup data? This cannot be undone.',
+							onConfirm: () => clearStore()
+						});
 					}}
 				/>
 
-				<div class="p-4 sm:p-6 lg:p-8">
+				<div class="p-4 sm:p-6 lg:p-8" role="region" aria-label="Current step content" id="step-content" tabindex="-1">
 					{#if wizard.currentStep === 0}
 						<DatabaseConfig
 							bind:dbConfig={wizard.dbConfig}
@@ -228,13 +247,15 @@
 							class="mt-4 flex flex-col rounded-md border-l-4 p-0 text-sm"
 							class:border-primary-400={!!wizard.successMessage}
 							class:border-error-400={!!wizard.errorMessage}
+							aria-live="polite"
+							aria-atomic="true"
 						>
 							<div
 								class="flex items-center gap-2 px-3.5 py-3"
 								class:bg-primary-50={!!wizard.successMessage}
-								class:text-green-800={!!wizard.successMessage}
+								class:text-emerald-800={!!wizard.successMessage}
 								class:bg-red-50={!!wizard.errorMessage}
-								class:text-error-600={!!wizard.errorMessage}
+								class:text-red-700={!!wizard.errorMessage}
 							>
 								<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									{#if wizard.successMessage}
@@ -298,8 +319,8 @@
 									{#if !wizard.lastDbTestResult.success}
 										<div class="border-t border-surface-200 p-3 dark:border-surface-600">
 											{#if wizard.lastDbTestResult.userFriendly}
-												<div class="mb-2 font-semibold text-error-600">Error:</div>
-												<div class="mb-3 rounded bg-red-50 p-2 text-sm text-error-700 dark:bg-error-900/20 dark:text-white">
+												<div class="mb-2 font-semibold text-red-700">Error:</div>
+												<div class="mb-3 rounded bg-red-50 p-2 text-sm text-red-700 dark:bg-error-900/20 dark:text-white">
 													{wizard.lastDbTestResult.userFriendly}
 												</div>
 											{/if}

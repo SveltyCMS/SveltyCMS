@@ -309,12 +309,7 @@
 		</div>
 	</SystemTooltip>
 
-	<!-- Helper Text -->
-	{#if field.helper}
-		<p id={`${fieldName}-helper`} class="absolute bottom-0 left-0 w-full text-center text-xs text-surface-500 dark:text-surface-50">
-			{field.helper}
-		</p>
-	{/if}
+	<!-- Helper Text removed (moved to label tooltip) -->
 
 	<!-- Error Message -->
 	{#if validationError}

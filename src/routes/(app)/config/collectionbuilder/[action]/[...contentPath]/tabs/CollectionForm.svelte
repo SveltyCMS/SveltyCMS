@@ -184,7 +184,6 @@
 				bind:value={name}
 				oninput={handleNameInput}
 				placeholder={m.collection_name_placeholder()}
-				aria-label={m.collection_name()}
 				class="input w-full text-black dark:text-primary-500"
 			/>
 			{#if name}

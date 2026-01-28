@@ -45,6 +45,13 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 						onmouseenter={() => handleStepHover(i)}
 						onfocus={() => handleStepHover(i)}
 						onclick={() => handleStepClick(i)}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								handleStepClick(i);
+							}
+						}}
+						tabindex={stepClickable[i] || i === currentStep ? 0 : -1}
 					>
 						<span class="text-[0.65rem]">
 							{stepCompleted[i] ? '✓' : i === currentStep ? '●' : '•'}
@@ -82,6 +89,13 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 						onmouseenter={() => handleStepHover(i)}
 						onfocus={() => handleStepHover(i)}
 						onclick={() => handleStepClick(i)}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								handleStepClick(i);
+							}
+						}}
+						tabindex={stepClickable[i] || i === currentStep ? 0 : -1}
 					>
 						<div
 							class="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm font-semibold ring-2 ring-white transition-all {stepCompleted[

@@ -531,6 +531,8 @@ Handles all field types and validation automatically
 										class="input w-full rounded {errors[defaultLangField.key] ? 'border-error-500' : ''}"
 										required={defaultLangField.required}
 										onchange={() => (errors[defaultLangField.key] = '')}
+										aria-invalid={!!errors[defaultLangField.key]}
+										aria-describedby={errors[defaultLangField.key] ? `${defaultLangField.key}-error` : undefined}
 									>
 										{#if (values.AVAILABLE_CONTENT_LANGUAGES as string[])?.length > 0}
 											{#each values.AVAILABLE_CONTENT_LANGUAGES as string[] as langCode}
@@ -541,7 +543,7 @@ Handles all field types and validation automatically
 										{/if}
 									</select>
 									{#if errors[defaultLangField.key]}
-										<div class="mt-1 text-xs text-error-500">{errors[defaultLangField.key]}</div>
+										<div id="{defaultLangField.key}-error" class="mt-1 text-xs text-error-500">{errors[defaultLangField.key]}</div>
 									{/if}
 								</div>
 							{/if}
@@ -867,6 +869,7 @@ Handles all field types and validation automatically
 									required={field.required}
 									disabled={field.readonly}
 									oninput={() => (errors[field.key] = '')}
+									aria-invalid={!!errors[field.key]}
 								/>
 								<!-- Number Input -->
 							{:else if field.type === 'number'}
@@ -881,6 +884,7 @@ Handles all field types and validation automatically
 										min={field.min}
 										max={field.max}
 										oninput={() => (errors[field.key] = '')}
+										aria-invalid={!!errors[field.key]}
 									/>
 									{#if field.unit}
 										<div class="input-group-shim text-sm">
@@ -907,6 +911,7 @@ Handles all field types and validation automatically
 										disabled={field.readonly}
 										oninput={() => (errors[field.key] = '')}
 										autocomplete="current-password"
+										aria-invalid={!!errors[field.key]}
 									/>
 									{#if !field.readonly}
 										<button
@@ -943,6 +948,7 @@ Handles all field types and validation automatically
 									bind:value={values[field.key]}
 									required={field.required}
 									onchange={() => (errors[field.key] = '')}
+									aria-invalid={!!errors[field.key]}
 								>
 									<option value="">Select {field.label}...</option>
 									{#each field.options as option}
@@ -963,6 +969,7 @@ Handles all field types and validation automatically
 										handleArrayInput(field, e);
 										errors[field.key] = '';
 									}}
+									aria-invalid={!!errors[field.key]}
 								/>
 								<p class="mt-1 text-xs text-surface-500 dark:text-surface-50">Enter values separated by commas</p>
 

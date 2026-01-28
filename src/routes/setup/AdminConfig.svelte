@@ -127,6 +127,7 @@
 					class="input w-full rounded {displayErrors.username ? 'border-error-500' : 'border-slate-200'}"
 					aria-invalid={!!displayErrors.username}
 					aria-describedby={displayErrors.username ? 'admin-username-error' : undefined}
+					aria-required="true"
 				/>
 				{#if displayErrors.username}
 					<div id="admin-username-error" class="mt-1 text-xs text-error-500" role="alert">
@@ -168,6 +169,7 @@
 					class="input w-full rounded {displayErrors.email ? 'border-error-500' : 'border-slate-200'}"
 					aria-invalid={!!displayErrors.email}
 					aria-describedby={displayErrors.email ? 'admin-email-error' : undefined}
+					aria-required="true"
 				/>
 				{#if displayErrors.email}
 					<div id="admin-email-error" class="mt-1 text-xs text-error-500" role="alert">
@@ -205,6 +207,7 @@
 						class="input w-full rounded {displayErrors.password ? 'border-error-500' : 'border-slate-200'}"
 						aria-invalid={!!displayErrors.password}
 						aria-describedby={displayErrors.password ? 'admin-password-error' : undefined}
+						aria-required="true"
 					/>
 					<button
 						type="button"
@@ -252,6 +255,7 @@
 						class="input w-full rounded {displayErrors.confirmPassword ? 'border-error-500' : 'border-slate-200'}"
 						aria-invalid={!!displayErrors.confirmPassword}
 						aria-describedby={displayErrors.confirmPassword ? 'admin-confirm-password-error' : undefined}
+						aria-required="true"
 					/>
 					<button
 						type="button"

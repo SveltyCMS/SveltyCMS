@@ -219,20 +219,42 @@ It provides the following functionality:
 				<p>No roles defined yet.</p>
 			{:else}
 				<div class="rounded-8">
-					<section
+					<p class="sr-only" id="roles-dnd-instructions">
+						Press Enter or Space to select a role for reordering. Use Up and Down arrow keys to move the selected role. Press Enter or Space again to
+						drop.
+					</p>
+					<ul
 						class="list-none space-y-2"
 						use:dndzone={{ items: items, flipDurationMs, type: 'column' }}
 						onconsider={handleSort}
 						onfinalize={handleFinalize}
+						aria-describedby="roles-dnd-instructions"
+						role="list"
 					>
 						{#each items as role (role.id)}
-							<div class="animate-flip flex items-center justify-between rounded border p-2 hover:bg-surface-500 md:flex-row">
+							<li class="animate-flip flex items-center justify-between rounded border p-2 hover:bg-surface-500 md:flex-row" role="listitem">
 								<div class="flex items-center gap-2">
 									<!-- Drag Icon -->
-									<iconify-icon icon="mdi:drag" width={24}></iconify-icon>
+									<div
+										class="cursor-grab active:cursor-grabbing"
+										role="button"
+										tabindex="0"
+										aria-label="Drag to reorder {role.name}"
+										onkeydown={() => {
+											/* Logic for keyboard reordering could be added here if not handled by library */
+										}}
+									>
+										<iconify-icon icon="mdi:drag" width={24}></iconify-icon>
+									</div>
 
 									{#if !role.isAdmin}
-										<input type="checkbox" checked={selectedRoles.has(role._id)} onchange={() => toggleRoleSelection(role._id)} class="mr-2" />
+										<input
+											type="checkbox"
+											checked={selectedRoles.has(role._id)}
+											onchange={() => toggleRoleSelection(role._id)}
+											class="mr-2"
+											aria-label="Select {role.name} for deletion"
+										/>
 									{/if}
 
 									<!-- Role Name with Tooltip -->
@@ -240,7 +262,9 @@ It provides the following functionality:
 										{role.name}
 
 										{#if role.description}
-											<iconify-icon icon="material-symbols:info" width={18} class="ml-1 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+											<div class="inline-block ml-1" role="tooltip" aria-hidden="false" aria-label={role.description}>
+												<iconify-icon icon="material-symbols:info" width={18} class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+											</div>
 										{/if}
 									</span>
 								</div>
@@ -251,13 +275,13 @@ It provides the following functionality:
 								</p>
 
 								<!-- Edit Button: changes layout depending on screen size -->
-								<button onclick={() => openModal(role)} aria-label="Edit role" class="preset-filled-secondary-500 btn">
+								<button onclick={() => openModal(role)} aria-label="Edit role {role.name}" class="preset-filled-secondary-500 btn">
 									<iconify-icon icon="mdi:pencil" class="text-white" width={18}></iconify-icon>
 									<span class="hidden md:block">Edit</span>
 								</button>
-							</div>
+							</li>
 						{/each}
-					</section>
+					</ul>
 				</div>
 			{/if}
 		</div>

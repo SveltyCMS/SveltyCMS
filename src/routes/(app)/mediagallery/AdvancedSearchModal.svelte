@@ -170,6 +170,7 @@ Structure optimized for LLM integration and AI-powered search.
 			handleKeydown(e);
 		}}
 		role="dialog"
+		aria-modal="true"
 		aria-labelledby="advanced-search-title"
 		tabindex="0"
 	>

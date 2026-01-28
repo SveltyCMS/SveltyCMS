@@ -136,11 +136,14 @@ Features:
 			: state === 'testing'
 				? 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'
 				: 'border-surface-200 bg-surface-50 dark:text-surface-50 dark:bg-surface-800/50'}"
+	role="region"
+	aria-live="polite"
+	aria-atomic="true"
 >
 	<!-- Status Header -->
 	<div class="p-4">
 		<div class="flex items-center gap-3">
-			<span class="text-2xl {state === 'testing' ? 'animate-pulse' : ''}">
+			<span class="text-2xl {state === 'testing' ? 'animate-pulse' : ''}" aria-hidden="true">
 				{getStatusIcon(state)}
 			</span>
 			<div class="flex-1">

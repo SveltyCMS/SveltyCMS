@@ -142,6 +142,7 @@
 <PageTitle name={m.userpage_title()} icon="mdi:account-circle" showBackButton={true} backUrl="/config" />
 
 <div class="max-h-[calc(100vh-65px)] overflow-auto">
+	<h2 class="sr-only">Profile Information</h2>
 	<div class="wrapper mb-2">
 		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
 			<!-- Avatar with user info -->
@@ -246,6 +247,7 @@
 		silent={true}
 	>
 		<div class="wrapper2">
+			<h2 class="h3 font-bold mb-4 px-2 dark:text-white">Admin Management</h2>
 			<AdminArea currentUser={{ ...user }} {isMultiTenant} roles={data.roles} />
 		</div>
 	</PermissionGuard>

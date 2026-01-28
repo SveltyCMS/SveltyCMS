@@ -185,19 +185,29 @@
 			{#each fields as field (field.id)}
 				<div
 					class="border-blue preset-outlined-surface-500 my-2 grid w-full grid-cols-6 items-center rounded-md border p-1 text-left hover:preset-filled-surface-500 dark:text-white"
+					role="row"
 				>
-					<div class="preset-ghost-tertiary-500 badge h-10 w-10 rounded-full dark:preset-ghost-primary-500">
+					<div class="preset-ghost-tertiary-500 badge h-10 w-10 rounded-full dark:preset-ghost-primary-500" role="cell">
 						{field.id}
 					</div>
 
-					<iconify-icon icon={field.icon} width="24" class="text-tertiary-500"></iconify-icon>
-					<div class="font-bold dark:text-primary-500">{field.label}</div>
-					<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
-					<div class=" ">{field.widget?.key}</div>
+					<div role="cell" class="flex justify-center">
+						<iconify-icon icon={field.icon} width="24" class="text-tertiary-500"></iconify-icon>
+					</div>
+					<div class="font-bold dark:text-primary-500" role="cell">{field.label}</div>
+					<div class=" " role="cell">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
+					<div class=" " role="cell">{field.widget?.key}</div>
 
-					<button type="button" onclick={() => modalWidgetForm(field)} aria-label={m.button_edit()} class="preset-ghost-primary-500 btn-icon ml-auto">
-						<iconify-icon icon="ic:baseline-edit" width={24}></iconify-icon>
-					</button>
+					<div role="cell" class="flex justify-end">
+						<button
+							type="button"
+							onclick={() => modalWidgetForm(field)}
+							aria-label={m.button_edit()}
+							class="preset-ghost-primary-500 btn-icon ml-auto"
+						>
+							<iconify-icon icon="ic:baseline-edit" width={24}></iconify-icon>
+						</button>
+					</div>
 				</div>
 			{/each}
 		</VerticalList>

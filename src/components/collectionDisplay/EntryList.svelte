@@ -66,12 +66,13 @@
 	// Components
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import Status from '@components/system/table/Status.svelte';
+	import PluginComponent from '@src/components/plugins/PluginComponent.svelte';
+	// import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import TableIcons from '@components/system/table/TableIcons.svelte';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
 	import TranslationStatus from './TranslationStatus.svelte';
-	import PluginComponent from '@components/plugins/PluginComponent.svelte';
 
 	// Skeleton
 	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modalUtils';
@@ -807,7 +808,7 @@
 						{categoryName}
 					</div>
 				{/if}
-				<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
+				<h1 class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
 					{#if currentCollection?.icon}
 						<span>
 							<iconify-icon icon={currentCollection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon>
@@ -821,7 +822,7 @@
 							{/if}
 						</div>
 					{/if}
-				</div>
+				</h1>
 			</div>
 		</div>
 		<div class="flex items-center justify-between gap-1">
@@ -981,19 +982,27 @@
 
 						{#each visibleTableHeaders as header (header.id)}
 							<th
-								class="cursor-pointer text-center text-xs sm:text-sm {cellPaddingClass} {(header as TableHeader).name ===
-								entryListPaginationSettings.sorting.sortedBy
-									? 'font-semibold text-primary-500 dark:text-secondary-400'
-									: 'text-tertiary-500 dark:text-primary-500'}"
-								onclick={() => onSortChange((header as TableHeader).name)}
+								class="text-center text-xs sm:text-sm {cellPaddingClass}"
+								aria-sort={(header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy
+									? entryListPaginationSettings.sorting.isSorted === 1
+										? 'ascending'
+										: 'descending'
+									: 'none'}
 							>
-								<div class="flex items-center justify-center">
+								<button
+									type="button"
+									class="flex w-full items-center justify-center font-bold uppercase focus:outline-none {(header as TableHeader).name ===
+									entryListPaginationSettings.sorting.sortedBy
+										? 'text-primary-500 dark:text-secondary-400'
+										: 'text-tertiary-500 dark:text-primary-500'}"
+									onclick={() => onSortChange((header as TableHeader).name)}
+								>
 									{(header as TableHeader).label}
 									{#if (header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
 										{@const sortIcon = entryListPaginationSettings.sorting.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
 										<iconify-icon icon={sortIcon} width="16" class="ml-1 origin-center"></iconify-icon>
 									{/if}
-								</div>
+								</button>
 							</th>
 						{/each}
 					</tr>
@@ -1117,6 +1126,8 @@
 													{:else}
 														{@html translatedValue}
 													{/if}
+												{:else if (header as TableHeader).name === 'plugin'}
+													<!-- <PluginComponent /> -->
 												{:else}
 													{@html entry[(header as TableHeader).name] || '-'}
 												{/if}

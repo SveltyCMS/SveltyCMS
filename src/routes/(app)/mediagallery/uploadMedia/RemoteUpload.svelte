@@ -70,6 +70,7 @@
 		rows="6"
 		class="textarea w-full bg-secondary-50 dark:bg-secondary-800"
 		oninput={handleRemoteUrlInput}
+		aria-label="Remote URLs to upload"
 	></textarea>
 	<!-- Upload Button -->
 	<button class="preset-filled-tertiary-500 btn mt-2 dark:preset-filled-primary-500" onclick={uploadRemoteUrls}> Upload URLs </button>

@@ -55,7 +55,7 @@ export interface ImageEditorState {
 // Create image editor store
 function createImageEditorStore() {
 	// State using $state rune
-	const state = $state<ImageEditorState>({
+	const state = $state<ImageEditorState & { viewportWidth: number }>({
 		file: null,
 		saveEditedImage: false,
 		editHistory: [],
@@ -69,8 +69,16 @@ function createImageEditorStore() {
 		toolbarControls: null,
 		preToolSnapshot: null,
 		actions: {},
-		error: null
+		error: null,
+		viewportWidth: 0
 	});
+
+	// Constants
+	const BREAKPOINTS = {
+		mobile: 768,
+		tablet: 1024,
+		desktop: 1280
+	} as const;
 
 	// Derived values using $derived rune
 	const canUndo = $derived(state.currentHistoryIndex >= 0);
@@ -78,6 +86,9 @@ function createImageEditorStore() {
 	const hasActiveImage = $derived(!!state.file && !!state.imageNode);
 	const canUndoState = $derived(state.stateHistory.length > 1 && state.currentHistoryIndex > 0);
 	const canRedoState = $derived(state.currentHistoryIndex < state.stateHistory.length - 1);
+
+	const isMobile = $derived(state.viewportWidth < BREAKPOINTS.mobile);
+	const isTablet = $derived(state.viewportWidth >= BREAKPOINTS.mobile && state.viewportWidth < BREAKPOINTS.tablet);
 
 	// Methods to update state
 	function setFile(file: File | null) {
@@ -449,6 +460,41 @@ function createImageEditorStore() {
 		state.stateHistory = [];
 	}
 
+	function switchTool(tool: string) {
+		const currentState = state.activeState;
+
+		// If clicking the same tool, toggle it off
+		const newState = currentState === tool ? '' : tool;
+
+		if (currentState && currentState !== newState) {
+			// Save the work done in the previous tool before switching
+			saveToolState();
+			cleanupToolSpecific(currentState);
+
+			// Recenter image if needed
+			if (state.stage && state.imageGroup) {
+				const stage = state.stage;
+				const imageGroup = state.imageGroup;
+				const expectedX = stage.width() / 2;
+				const expectedY = stage.height() / 2;
+				const currentX = imageGroup.x();
+				const currentY = imageGroup.y();
+
+				// Only recenter if significantly off-center
+				if (Math.abs(currentX - expectedX) > 5 || Math.abs(currentY - expectedY) > 5) {
+					imageGroup.position({ x: expectedX, y: expectedY });
+					stage.batchDraw();
+				}
+			}
+		}
+
+		setActiveState(newState);
+
+		if (newState === '') {
+			setToolbarControls(null);
+		}
+	}
+
 	return {
 		get state() {
 			return state;
@@ -468,6 +514,15 @@ function createImageEditorStore() {
 		get canRedoState() {
 			return canRedoState;
 		},
+		setViewportWidth: (width: number) => {
+			state.viewportWidth = width;
+		},
+		get isMobile() {
+			return isMobile;
+		},
+		get isTablet() {
+			return isTablet;
+		},
 		reset,
 		setStage,
 		setLayer,
@@ -475,6 +530,7 @@ function createImageEditorStore() {
 		setImageGroup,
 		setFile,
 		setActiveState,
+		switchTool,
 		setToolbarControls,
 		setError,
 		setActions,

@@ -493,6 +493,13 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		e.stopPropagation();
 		if (isDisabled) return;
 		isDropdownOpen = !isDropdownOpen;
+		if (isDropdownOpen) {
+			// Focus first item next tick
+			setTimeout(() => {
+				const firstBtn = document.querySelector('[role="menu"] button') as HTMLElement;
+				firstBtn?.focus();
+			}, 0);
+		}
 	}
 
 	function handleOptionClick(event: Event, action: ActionType) {
@@ -501,6 +508,34 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		listboxValue = action;
 		isDropdownOpen = false;
 		handleAction(action);
+	}
+
+	function handleDropdownKeydown(event: KeyboardEvent) {
+		if (!isDropdownOpen) return;
+
+		const menuItems = document.querySelectorAll('[role="menu"] button');
+		const currentIndex = Array.from(menuItems).indexOf(document.activeElement as HTMLElement);
+
+		switch (event.key) {
+			case 'ArrowDown':
+				event.preventDefault();
+				const nextIndex = (currentIndex + 1) % menuItems.length;
+				(menuItems[nextIndex] as HTMLElement).focus();
+				break;
+			case 'ArrowUp':
+				event.preventDefault();
+				const prevIndex = (currentIndex - 1 + menuItems.length) % menuItems.length;
+				(menuItems[prevIndex] as HTMLElement).focus();
+				break;
+			case 'Escape':
+				event.preventDefault();
+				isDropdownOpen = false;
+				(dropdownRef?.querySelector('[aria-haspopup="menu"]') as HTMLElement)?.focus();
+				break;
+			case 'Tab':
+				isDropdownOpen = false;
+				break;
+		}
 	}
 </script>
 
@@ -548,14 +583,20 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 				role="menu"
 				aria-label="Available actions"
 				transition:scale={{ duration: 150, easing: quintOut, start: 0.95, opacity: 0 }}
+				onkeydown={handleDropdownKeydown}
+				tabindex="-1"
 			>
 				<ul class="flex flex-col py-1">
 					{#each filteredActions as action}
 						{@const config = actionConfig[action]}
-						<li role="none" onmouseenter={() => (hoveredAction = action)} onmouseleave={() => (hoveredAction = null)}>
+						<li role="none">
 							<button
 								type="button"
 								onclick={(e) => handleOptionClick(e, action)}
+								onmouseenter={() => (hoveredAction = action)}
+								onmouseleave={() => (hoveredAction = null)}
+								onfocus={() => (hoveredAction = action)}
+								onblur={() => (hoveredAction = null)}
 								role="menuitem"
 								class="group/item relative flex w-full items-center gap-3 px-4 py-3 text-left text-white transition-all duration-200 hover:bg-white/5"
 							>

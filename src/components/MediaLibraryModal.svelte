@@ -1,34 +1,127 @@
-<!-- 
-@file src/components/MediaLibraryModal.svelte
-@component Media Library Selection Modal - Simple Test Version
--->
-
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { modalState } from '@utils/modalState.svelte';
+	import { logger } from '@utils/logger';
+	import type { MediaBase, MediaImage } from '@utils/media/mediaModels';
+	import MediaGrid from '@src/routes/(app)/mediagallery/MediaGrid.svelte';
+	import LocalUpload from '@src/routes/(app)/mediagallery/uploadMedia/LocalUpload.svelte';
+	import RemoteUpload from '@src/routes/(app)/mediagallery/uploadMedia/RemoteUpload.svelte';
 
-	// Props interface (required for modal components)
+	// Props interface
 	interface Props {
-		parent: any;
+		parent?: any;
+		selectionMode?: 'single' | 'multiple';
+		allowedTypes?: string[];
 	}
-	const { parent }: Props = $props();
+	const { parent: _parent, selectionMode: _selectionMode = 'multiple', allowedTypes: _allowedTypes = [] }: Props = $props();
 
-	// Get modal props if needed, but we rely on modalState
-	// const modalStore = getModalStore(); // Removed
+	let activeTab = $state<'library' | 'local' | 'remote'>('library');
+	let files = $state<(MediaBase | MediaImage)[]>([]);
+	let selectedFiles = $state<Set<string>>(new Set());
+	let isLoading = $state(false);
+	let error = $state<string | null>(null);
+
+	async function fetchMedia() {
+		isLoading = true;
+		error = null;
+		try {
+			// Fetch more files for the library, e.g., 50
+			const response = await fetch('/api/media?limit=50');
+			if (!response.ok) throw new Error('Failed to fetch media');
+			const data = await response.json();
+			files = data;
+		} catch (e) {
+			logger.error('Error fetching media for modal:', e);
+			error = 'Failed to load media library.';
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	onMount(() => {
+		fetchMedia();
+	});
+
+	function handleConfirm() {
+		const selectedItems = files.filter((f) => selectedFiles.has(f._id?.toString() || f.filename));
+		if (selectedItems.length > 0) {
+			modalState.close(selectedItems);
+		}
+	}
 
 	function handleClose() {
-		console.log('[MediaLibraryModal] Closing modal');
 		modalState.close();
 	}
 </script>
 
 {#if modalState.active}
-	<div class="modal-media-library card p-4 w-modal shadow-xl space-y-4 bg-white dark:bg-surface-800">
-		<header class="text-center text-primary-500 text-2xl font-bold">Media Library Modal Test</header>
+	<div class="modal-media-library card w-modal-wide h-[85vh] flex flex-col p-4 shadow-xl bg-white dark:bg-surface-800">
+		<header class="flex items-center justify-between border-b border-surface-200 dark:border-surface-600 pb-2 mb-4">
+			<h2 class="text-xl font-bold text-primary-500">Media Library</h2>
+			<div class="flex gap-2">
+				<button
+					class="btn {activeTab === 'library' ? 'preset-filled-primary-500' : 'preset-outline-surface-500'}"
+					onclick={() => (activeTab = 'library')}
+				>
+					Library
+				</button>
+				<button
+					class="btn {activeTab === 'local' ? 'preset-filled-primary-500' : 'preset-outline-surface-500'}"
+					onclick={() => (activeTab = 'local')}
+				>
+					Local Upload
+				</button>
+				<button
+					class="btn {activeTab === 'remote' ? 'preset-filled-primary-500' : 'preset-outline-surface-500'}"
+					onclick={() => (activeTab = 'remote')}
+				>
+					Remote Upload
+				</button>
+			</div>
+		</header>
 
-		<article class="text-center text-sm">This is a simple test modal. If you can see this, the modal system is working!</article>
+		<main class="grow overflow-auto p-2">
+			{#if activeTab === 'library'}
+				{#if isLoading}
+					<div class="flex h-full items-center justify-center">
+						<iconify-icon icon="line-md:loading-twotone-loop" width="48" class="text-primary-500"></iconify-icon>
+					</div>
+				{:else if error}
+					<div class="flex h-full flex-col items-center justify-center text-error-500">
+						<iconify-icon icon="mdi:alert-circle" width="48"></iconify-icon>
+						<p>{error}</p>
+						<button class="btn preset-filled-primary-500 mt-4" onclick={fetchMedia}>Retry</button>
+					</div>
+				{:else}
+					<MediaGrid bind:filteredFiles={files} bind:selectedFiles isSelectionMode={true} gridSize="small" />
+				{/if}
+			{:else if activeTab === 'local'}
+				<LocalUpload
+					redirectOnSuccess={false}
+					onUploadComplete={() => {
+						fetchMedia();
+						activeTab = 'library';
+					}}
+				/>
+			{:else if activeTab === 'remote'}
+				<RemoteUpload />
+			{/if}
+		</main>
 
-		<footer class="modal-footer flex justify-end gap-2 {parent.regionFooter}">
-			<button type="button" class="btn {parent.buttonNeutral}" onclick={handleClose}> Close </button>
+		<footer class="flex justify-end gap-2 pt-4 border-t border-surface-200 dark:border-surface-600 mt-4">
+			<button type="button" class="btn preset-outline-surface-500" onclick={handleClose}> Cancel </button>
+			{#if activeTab === 'library' && selectedFiles.size > 0}
+				<button type="button" class="btn preset-filled-primary-500 font-bold" onclick={handleConfirm}>
+					Select {selectedFiles.size} Item{selectedFiles.size > 1 ? 's' : ''}
+				</button>
+			{/if}
 		</footer>
 	</div>
 {/if}
+
+<style>
+	.w-modal-wide {
+		width: 90%;
+		max-width: 1200px;
+	}
+</style>

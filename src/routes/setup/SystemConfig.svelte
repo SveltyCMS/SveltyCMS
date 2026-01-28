@@ -375,6 +375,10 @@
 						</SystemTooltip>
 					</label>
 
+					<p class="text-[10px] text-slate-500 dark:text-slate-400" id="system-lang-help">
+						Select the primary language for the admin interface. This is important for screen readers.
+					</p>
+
 					<select id="default-system-lang" bind:value={systemSettings.defaultSystemLanguage} class="input w-full rounded">
 						{#each systemSettings.systemLanguages as lang (lang)}
 							<option value={lang}>{displayLang(lang)}</option>

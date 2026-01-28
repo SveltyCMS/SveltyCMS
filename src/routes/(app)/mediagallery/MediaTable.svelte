@@ -33,6 +33,7 @@ Key features:
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import TableIcons from '@components/system/table/TableIcons.svelte';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
+	// import Status from '@components/system/table/Status.svelte';
 	import TagEditorModal from '@components/media/tagEditor/TagEditorModal.svelte';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
@@ -41,9 +42,11 @@ Key features:
 		tableSize?: 'tiny' | 'small' | 'medium' | 'large';
 		ondeleteImage?: (file: MediaBase | MediaImage) => void;
 		onSelectionChange?: (selectedFiles: (MediaBase | MediaImage)[]) => void;
+		onBulkDelete?: () => void;
 		onUpdateImage?: (file: MediaImage) => void;
 		onEditImage?: (file: MediaImage) => void;
 		onDeleteFiles?: (files: (MediaBase | MediaImage)[]) => void;
+		isSelectionMode?: boolean;
 	}
 
 	interface SortableMedia extends MediaBase {
@@ -57,9 +60,11 @@ Key features:
 		tableSize = 'medium',
 		ondeleteImage = () => {},
 		onSelectionChange = () => {},
+		// onBulkDelete = () => {},
 		onUpdateImage = () => {},
 		onEditImage = () => {},
-		onDeleteFiles = () => {}
+		onDeleteFiles = () => {},
+		isSelectionMode = $bindable(false)
 	}: Props = $props();
 
 	// Filter state
@@ -182,15 +187,36 @@ Key features:
 						<th class="w-10">Select</th>
 						<th>Thumbnail</th>
 						<!-- Name -->
-						<th onclick={() => sort('filename')}>
+						<th
+							onclick={() => sort('filename')}
+							onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && sort('filename')}
+							aria-sort={sortColumn === 'filename' ? (sortOrder === 1 ? 'ascending' : 'descending') : 'none'}
+							tabindex="0"
+							role="columnheader"
+							class="cursor-pointer hover:text-primary-500 font-bold"
+						>
 							Name {sortColumn === 'filename' ? (sortOrder === 1 ? '▲' : '▼') : ''}
 						</th>
 						<!-- Size -->
-						<th onclick={() => sort('size')}>
+						<th
+							onclick={() => sort('size')}
+							onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && sort('size')}
+							aria-sort={sortColumn === 'size' ? (sortOrder === 1 ? 'ascending' : 'descending') : 'none'}
+							tabindex="0"
+							role="columnheader"
+							class="cursor-pointer hover:text-primary-500"
+						>
 							Size {sortColumn === 'size' ? (sortOrder === 1 ? '▲' : '▼') : ''}
 						</th>
 						<!-- Type -->
-						<th onclick={() => sort('type')}>
+						<th
+							onclick={() => sort('type')}
+							onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && sort('type')}
+							aria-sort={sortColumn === 'type' ? (sortOrder === 1 ? 'ascending' : 'descending') : 'none'}
+							tabindex="0"
+							role="columnheader"
+							class="cursor-pointer hover:text-primary-500"
+						>
 							Type {sortColumn === 'type' ? (sortOrder === 1 ? '▲' : '▼') : ''}
 						</th>
 						<!-- Path -->
@@ -271,7 +297,7 @@ Key features:
 											onclick={() => openTagEditor(file as MediaImage)}
 											aria-label="Manage Tags"
 										>
-											<iconify-icon icon="mdi:tag-edit" width={24}></iconify-icon>
+											<iconify-icon icon="mdi:tag-multiple" width="16"></iconify-icon>
 										</button>
 									</SystemTooltip>
 								</div>

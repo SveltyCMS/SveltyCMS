@@ -307,22 +307,30 @@
 						{/if}
 						<tr class="divide-x divide-preset-400 border-b border-black dark:border-white">
 							{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header: TableHeader}
-								<th
-									onclick={() => {
-										sorting = {
-											sortedBy: header.key,
-											isSorted: sorting.sortedBy === header.key ? (sorting.isSorted === 1 ? -1 : sorting.isSorted === -1 ? 0 : 1) : 1
-										};
-									}}
-								>
-									<div class="text-terriary-500 flex items-center justify-center text-center dark:text-primary-500">
+								<th aria-sort={sorting.sortedBy === header.key ? (sorting.isSorted === 1 ? 'ascending' : 'descending') : 'none'}>
+									<button
+										class="flex w-full items-center justify-center text-center font-bold text-tertiary-500 dark:text-primary-500"
+										onclick={() => {
+											sorting = {
+												sortedBy: header.key,
+												isSorted: sorting.sortedBy === header.key ? (sorting.isSorted === 1 ? -1 : sorting.isSorted === -1 ? 0 : 1) : 1
+											};
+										}}
+										aria-label={`Sort by ${header.label}`}
+									>
 										{header.label}
-										<iconify-icon icon="material-symbols:arrow-upward-rounded" width={22} class="origin-center duration-300 ease-in-out"
-										></iconify-icon>
-									</div>
+										{#if sorting.sortedBy === header.key && sorting.isSorted !== 0}
+											<iconify-icon
+												icon={sorting.isSorted === 1 ? 'material-symbols:arrow-upward-rounded' : 'material-symbols:arrow-downward-rounded'}
+												width={22}
+												class="ml-1 origin-center duration-300 ease-in-out"
+												aria-hidden="true"
+											></iconify-icon>
+										{/if}
+									</button>
 								</th>
 							{/each}
-							<th class="text-terriary-500 text-center dark:text-primary-500">Action</th>
+							<th class="text-center font-bold text-tertiary-500 dark:text-primary-500" scope="col">Action</th>
 						</tr>
 					</thead>
 					<tbody>

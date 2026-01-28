@@ -21,6 +21,7 @@ export const schema: Schema = {
 	fields: [
 		widgets.Email({
 			label: 'Email',
+			helper: 'This is the helper text for Email',
 			icon: 'material-symbols:mail',
 			display: async ({ data }: Parameters<NonNullable<FieldInstance['display']>>[0]) => {
 				// Since email is non-translatable, use default language
@@ -32,7 +33,7 @@ export const schema: Schema = {
 		widgets.Input({
 			label: 'Test',
 			db_fieldName: 'dbtest',
-			helper: 'This is the helper text',
+			helper: 'This is the helper text for Text',
 			translated: true,
 			required: true,
 			icon: 'ri:t-box-line',

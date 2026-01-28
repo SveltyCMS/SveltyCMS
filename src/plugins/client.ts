@@ -10,7 +10,7 @@ import { logger } from '@utils/logger';
  */
 export const pluginUIComponents: Record<string, Record<string, () => Promise<{ default: any }>>> = {
 	pagespeed: {
-		score: () => import('@components/plugins/PageSpeedScore.svelte')
+		// score: () => import('@components/plugins/PageSpeedScore.svelte')
 	}
 };
 

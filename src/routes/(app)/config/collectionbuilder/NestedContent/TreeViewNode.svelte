@@ -158,7 +158,7 @@ Features:
 			}}
 			title="Duplicate"
 		>
-			<iconify-icon icon="mdi:content-copy" width="24"></iconify-icon>
+			<iconify-icon icon="mdi:content-copy" width={24}></iconify-icon>
 		</button>
 
 		<!-- Delete Button -->

@@ -528,8 +528,9 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							iconColor="black"
 							textColor="black"
 							data-testid="signin-email"
+							invalid={!!loginForm.errors.email}
+							errorMessage={loginForm.errors.email?.[0] || ''}
 						/>
-						{#if loginForm.errors.email}<span class="invalid text-xs text-error-500">{loginForm.errors.email[0]}</span>{/if}
 
 						<!-- Password field -->
 						<FloatingInput
@@ -546,8 +547,9 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							iconColor="black"
 							textColor="black"
 							data-testid="signin-password"
+							invalid={!!loginForm.errors.password}
+							errorMessage={loginForm.errors.password?.[0] || ''}
 						/>
-						{#if loginForm.errors.password}<span class="invalid text-xs text-error-500">{loginForm.errors.password[0]}</span>{/if}
 					</form>
 
 					<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">

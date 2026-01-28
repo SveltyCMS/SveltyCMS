@@ -24,6 +24,7 @@
 	import { flip } from 'svelte/animate';
 	import type { FieldType } from './';
 	import type { MediaFile } from './types';
+	import type { MediaBase, MediaImage } from '@utils/media/mediaModels';
 	import { modalState } from '@utils/modalState.svelte';
 	import MediaLibraryModal from '@components/MediaLibraryModal.svelte';
 
@@ -44,7 +45,7 @@
 	const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 	const VALID_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp4', 'webm', 'ogg', 'pdf', 'mp3', 'wav'];
 
-	function validateFile(file: File): { valid: boolean; error?: string } {
+	function validateFile(file: { name: string; type: string; size: number }): { valid: boolean; error?: string } {
 		// Check MIME type
 		if (!ALLOWED_MIME_TYPES.includes(file.type)) {
 			return { valid: false, error: `Invalid file type: ${file.type}` };
@@ -58,10 +59,6 @@
 		if (!ext || !VALID_EXTENSIONS.includes(ext)) {
 			return { valid: false, error: `Invalid file extension: ${ext}` };
 		}
-		// Basic filename sanitization check (prevent path traversal)
-		if (file.name.includes('..') || file.name.includes('/') || file.name.includes('\\')) {
-			return { valid: false, error: 'Invalid filename characters detected' };
-		}
 		return { valid: true };
 	}
 
@@ -72,31 +69,43 @@
 
 	// Helper function to fetch full media data from an array of IDs.
 	async function fetchMediaData(ids: string[]): Promise<MediaFile[]> {
-		// In a real app, this would be an API call: GET /api/media?ids=id1,id2,...
-		// For this example, we'll simulate it with a timeout.
 		logger.debug('Fetching data for IDs:', ids);
-		return new Promise((resolve) =>
-			setTimeout(() => {
-				const files: MediaFile[] = ids.map((id) => ({
-					_id: id,
-					name: `Image ${id.slice(0, 4)}.jpg`,
-					type: 'image/jpeg',
-					size: 12345,
-					url: `https://picsum.photos/id/${parseInt(id.slice(0, 3), 10)}/1920/1080`,
-					thumbnailUrl: `https://picsum.photos/id/${parseInt(id.slice(0, 3), 10)}/200/200`
-				}));
-				resolve(files);
-			}, 300)
-		);
+		try {
+			const fetchedFiles: MediaFile[] = [];
+			for (const id of ids) {
+				const response = await fetch(`/api/media?limit=100`);
+				if (response.ok) {
+					const data = await response.json();
+					const found = data.find((f: any) => f._id === id);
+					if (found) {
+						fetchedFiles.push({
+							_id: found._id,
+							name: found.filename,
+							type: found.mimeType,
+							size: found.size,
+							url: found.url,
+							thumbnailUrl: found.thumbnails?.md?.url || found.url
+						});
+					}
+				}
+			}
+			return fetchedFiles;
+		} catch (e) {
+			logger.error('Error fetching media data:', e);
+			return [];
+		}
 	}
 
 	// Effect 1: When the parent `value` (the IDs) changes, fetch the full data.
 	$effect(() => {
 		const ids = Array.isArray(value) ? value : value ? [value] : [];
 		if (ids.length > 0) {
-			fetchMediaData(ids).then((files) => {
-				selectedFiles = files;
-			});
+			const missingIds = ids.filter((id) => !selectedFiles.some((f) => f._id === id));
+			if (missingIds.length > 0) {
+				fetchMediaData(ids).then((files) => {
+					selectedFiles = files;
+				});
+			}
 		} else {
 			selectedFiles = [];
 		}
@@ -112,38 +121,43 @@
 		}
 	});
 
-	// Function to open the Media Library modal.
 	function openMediaLibrary() {
-		modalState.trigger(MediaLibraryModal as any, { multiSelect: field.multiupload || false }, (files: any) => {
-			if (files) {
-				// SECURITY: Validate files before adding them
-				const validFiles = files.filter((file: MediaFile) => {
-					// Mock File object for validation since we only have MediaFile metadata here
-					// In a real upload scenario, we would validate the actual File object
-					const mockFile = {
-						name: file.name,
-						type: file.type,
-						size: file.size
-					} as File;
+		modalState.trigger(
+			MediaLibraryModal as any,
+			{
+				selectionMode: field.multiupload ? 'multiple' : 'single',
+				allowedTypes: field.allowedTypes || []
+			},
+			(files: (MediaBase | MediaImage)[]) => {
+				if (files && Array.isArray(files)) {
+					const mappedFiles: MediaFile[] = files.map((f) => ({
+						_id: f._id as string,
+						name: f.filename,
+						type: f.mimeType,
+						size: f.size,
+						url: (f as any).url,
+						thumbnailUrl: (f as any).thumbnails?.md?.url || (f as any).url
+					}));
 
-					const validation = validateFile(mockFile);
-					if (!validation.valid) {
-						logger.warn(`[MediaUpload Security] Rejected file ${file.name}: ${validation.error}`);
-						return false;
+					const validFiles = mappedFiles.filter((file) => {
+						const validation = validateFile(file);
+						if (!validation.valid) {
+							logger.warn(`Rejected file ${file.name}: ${validation.error}`);
+							return false;
+						}
+						return true;
+					});
+
+					if (field.multiupload) {
+						selectedFiles = [...selectedFiles, ...validFiles];
+					} else if (validFiles.length > 0) {
+						selectedFiles = [validFiles[0]];
 					}
-					return true;
-				});
-
-				if (field.multiupload) {
-					selectedFiles = [...selectedFiles, ...validFiles];
-				} else if (validFiles.length > 0) {
-					selectedFiles = [validFiles[0]];
 				}
 			}
-		});
+		);
 	}
 
-	// Function to remove a selected file.
 	function removeFile(fileId: string) {
 		selectedFiles = selectedFiles.filter((file) => file._id !== fileId);
 	}

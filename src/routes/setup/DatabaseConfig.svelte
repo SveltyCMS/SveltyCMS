@@ -408,11 +408,12 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					class="input w-full rounded {displayErrors.host ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
 					aria-invalid={!!displayErrors.host}
 					aria-describedby={displayErrors.host ? 'db-host-error' : undefined}
+					aria-required="true"
 				/>
 				{#if displayErrors.host}<div id="db-host-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.host}</div>{/if}
 				{#if showConnectionStringHelper}
 					<div
-						class="mt-2 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"
+						class="mt-2 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-emerald-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"
 						role="status"
 					>
 						<div class="flex items-center gap-2">
@@ -454,6 +455,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						class="input w-full rounded {displayErrors.port ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
 						aria-invalid={!!displayErrors.port}
 						aria-describedby={displayErrors.port ? 'db-port-error' : undefined}
+						aria-required="true"
 					/>
 					{#if displayErrors.port}<div id="db-port-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.port}</div>{/if}
 				</div>
@@ -490,6 +492,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					class="input w-full rounded {displayErrors.name ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
 					aria-invalid={!!displayErrors.name}
 					aria-describedby={displayErrors.name ? 'db-name-error' : undefined}
+					aria-required="true"
 				/>
 				{#if displayErrors.name}<div id="db-name-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.name}</div>{/if}
 			</div>

@@ -39,7 +39,7 @@ import type { ISODateString } from '@src/content/types';
 import { logger } from '@utils/logger.server';
 
 // Input validation
-import { email, forward, object, optional, parse, partialCheck, pipe, string } from 'valibot';
+import { email, forward, object, optional, parse, check, pipe, string } from 'valibot';
 
 // Helper function to parse session duration strings
 function parseSessionDuration(duration: string): number {
@@ -65,11 +65,7 @@ const createUserSchema = pipe(
 		createSession: optional(string()) // Optional: '1h', '1d', '7d', '30d', '90d' - session duration
 	}),
 	forward(
-		partialCheck(
-			['password', 'confirmPassword'],
-			(input) => !input.confirmPassword || input.password === input.confirmPassword,
-			'Passwords do not match.'
-		),
+		check((input) => !input.confirmPassword || input.password === input.confirmPassword, 'Passwords do not match.'),
 		['confirmPassword']
 	)
 );

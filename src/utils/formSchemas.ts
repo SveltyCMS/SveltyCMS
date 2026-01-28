@@ -38,9 +38,9 @@ const MIN_PPASSWORD_LENGTH = 8;
 const usernameSchema = pipe(
 	string(),
 	trim(),
-	minLength(2, 'Username must be at least 2 characters'),
-	maxLength(50, 'Username must be at most 50 characters'),
-	regex(/^[a-zA-Z0-9@$!%*#._-]+$/, 'Username contains invalid characters')
+	minLength(2, 'Please enter a username with at least 2 characters.'),
+	maxLength(50, 'Username is too long (max 50 characters).'),
+	regex(/^[a-zA-Z0-9@$!%*#._-]+$/, 'Username can only contain letters, numbers, and @$!%*#._- characters.')
 );
 
 // --- Reusable Email Schemas ---
@@ -48,7 +48,7 @@ const emailSchema = pipe(
 	string(),
 	trim(),
 	transform((value) => value.toLowerCase()),
-	emailValidator('Invalid email address')
+	emailValidator('Please enter a valid email address (e.g. user@example.com).')
 );
 
 // --- Reusable Password Schemas ---
@@ -91,7 +91,11 @@ export const resetFormSchema = pipe(
 		email: emailSchema
 	}),
 	forward(
-		partialCheck([['password'], ['confirm_password']], (input) => input.password === input.confirm_password, 'Passwords do not match'),
+		partialCheck(
+			[['password'], ['confirm_password']],
+			(input) => input.password === input.confirm_password,
+			'The passwords do not match. Please ensure both fields are identical.'
+		),
 		['confirm_password']
 	)
 );
@@ -105,7 +109,7 @@ export const signUpFormSchema = pipe(
 		confirm_password: confirmPasswordSchema,
 		token: optional(nullable(string()))
 	}),
-	check((input) => input.password === input.confirm_password, 'Passwords do not match')
+	check((input) => input.password === input.confirm_password, 'The passwords do not match. Please ensure both fields are identical.')
 );
 
 // Google OAuth Token Schema
@@ -155,7 +159,7 @@ export const editUserSchema = pipe(
 				return input.password === input.confirmPassword;
 			}
 			return true;
-		}, 'Passwords do not match'),
+		}, 'The passwords do not match. Please ensure both fields are identical.'),
 		['confirmPassword']
 	)
 );
@@ -168,7 +172,7 @@ export const setupAdminSchema = pipe(
 		password: passwordSchema,
 		confirmPassword: confirmPasswordSchema
 	}),
-	check((input) => input.password === input.confirmPassword, 'Passwords do not match')
+	check((input) => input.password === input.confirmPassword, 'The passwords do not match. Please ensure both fields are identical.')
 );
 
 // --- SMTP Configuration Schemas ---
@@ -190,7 +194,7 @@ const smtpHostSchema = pipe(
 		// Valid hostname: alphanumeric, hyphens, dots
 		// Must have at least one dot and valid format
 		return /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/.test(value);
-	}, 'Invalid hostname format. Use "smtp.domain.com" not "email@domain.com"')
+	}, 'Invalid hostname format. Please use a format like "smtp.domain.com" (not an email address).')
 );
 
 // SMTP Port Schema

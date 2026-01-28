@@ -311,7 +311,17 @@
 	function clearCollectionSelection() {
 		exportOptions.collections = [];
 	}
+
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			if (showExportModal) showExportModal = false;
+			if (showImportModal) showImportModal = false;
+			if (showResultsModal) showResultsModal = false;
+		}
+	}
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <div class="import-export-manager">
 	<div class="mb-6 flex items-center justify-between">
@@ -398,10 +408,15 @@
 </div>
 
 {#if showExportModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="export-modal-title"
+	>
 		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
-				<h3 class="text-lg font-semibold">Export Collections</h3>
+				<h3 id="export-modal-title" class="text-lg font-semibold">Export Collections</h3>
 				<button onclick={() => (showExportModal = false)} class="preset-outlined-surface-500 btn-icon" aria-label="Close export modal">
 					<iconify-icon icon="mdi:close" width={24}></iconify-icon>
 				</button>
@@ -472,10 +487,15 @@
 {/if}
 
 {#if showImportModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="import-modal-title"
+	>
 		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
-				<h3 class="text-lg font-semibold">Import Collections</h3>
+				<h3 id="import-modal-title" class="text-lg font-semibold">Import Collections</h3>
 				<button onclick={() => (showImportModal = false)} class="preset-outlined-surface-500 btn-icon" aria-label="Close import modal">
 					<iconify-icon icon="mdi:close" width={24}></iconify-icon>
 				</button>

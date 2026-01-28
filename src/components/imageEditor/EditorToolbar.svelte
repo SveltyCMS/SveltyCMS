@@ -8,20 +8,47 @@ It dynamically renders controls based on the active tool.
 	import { fade } from 'svelte/transition';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte.ts';
 
+	/* Restore Tool Icons Logic */
+	import { editorWidgets } from './widgets/registry';
+	const activeState = $derived(imageEditorStore.state.activeState);
+	const hasImage = $derived(!!imageEditorStore.state.imageNode);
 	const toolbarControls = $derived(imageEditorStore.state.toolbarControls);
 </script>
 
-<div class="border-t border-surface-300 bg-surface-100 p-2 shadow-lg dark:text-surface-50 dark:bg-surface-800">
-	<div class="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4">
-		<!-- Tool-Specific Controls (Dynamic) -->
-		<div class="flex h-full flex-1 items-center gap-3">
-			{#if toolbarControls?.component}
-				{@const Component = toolbarControls.component}
-				{#if Component}
-					<Component {...toolbarControls.props} />
-				{/if}
-			{/if}
+<div class="flex flex-col border-t border-surface-300 bg-surface-100 shadow-lg dark:text-surface-50 dark:bg-surface-800">
+	<!-- Sub-toolbar (Tool Controls) - Stacks ON TOP of icons -->
+	{#if toolbarControls?.component}
+		{@const Component = toolbarControls.component}
+		<div class="border-b border-surface-200 p-2 dark:border-surface-700">
+			<div class="mx-auto flex h-10 max-w-7xl items-center justify-center">
+				<Component {...toolbarControls.props} />
+			</div>
 		</div>
+	{/if}
+
+	<!-- Main Toolbar (Tool Icons) -->
+	<div class="no-scrollbar flex w-full items-center gap-1 overflow-x-auto p-2" role="toolbar" aria-label="Editor tools">
+		{#each editorWidgets as widget}
+			<button
+				class="tool-button shrink-0 flex flex-col items-center justify-center gap-1 transition-all min-w-16 rounded p-1"
+				class:text-primary-500={activeState === widget.key}
+				class:opacity-50={!hasImage}
+				onclick={() => hasImage && imageEditorStore.switchTool(widget.key)}
+				disabled={!hasImage}
+				aria-label={widget.title}
+			>
+				<div
+					class="flex h-10 w-10 items-center justify-center rounded-full transition-colors"
+					class:bg-primary-500={activeState === widget.key}
+					class:text-white={activeState === widget.key}
+					class:bg-surface-200={activeState !== widget.key}
+					class:dark:bg-surface-700={activeState !== widget.key}
+				>
+					<iconify-icon icon={widget.icon} width="20"></iconify-icon>
+				</div>
+				<span class="text-[10px] font-medium whitespace-nowrap">{widget.title}</span>
+			</button>
+		{/each}
 	</div>
 
 	<!-- Validation Error Banner -->

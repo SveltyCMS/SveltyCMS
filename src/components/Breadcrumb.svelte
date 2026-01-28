@@ -134,7 +134,7 @@ Accessible breadcrumb navigation with icons, keyboard support, and visual feedba
 						onclick={() => handleBreadcrumbClick(visibleIndex)}
 						onkeydown={(e) => handleKeydown(e, visibleIndex)}
 						class="flex items-center gap-1.5 rounded px-2 py-1 text-sm transition-all {isLast
-							? 'font-semibold text-primary-600 dark:text-primary-400'
+							? 'font-semibold text-tertiary-500 dark:text-primary-400'
 							: 'hover:bg-surface-100 hover:text-primary-500 focus:bg-surface-100 focus:text-primary-500 dark:hover:bg-surface-800 dark:focus:bg-surface-800'} focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1"
 						aria-current={isLast ? 'page' : undefined}
 						type="button"

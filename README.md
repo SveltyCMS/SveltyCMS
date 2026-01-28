@@ -230,6 +230,15 @@ If a language has not yet been defined, reach out to us, so that you can help ex
 </tr>
 </table>
 
+## ♿ Accessibility & Inclusivity
+
+SveltyCMS is designed with inclusivity at its core, aiming for **WCAG 2.2 AA** and **ATAG 2.0** compliance.
+
+- **Screen Reader Ready**: Semantic HTML landmarks, ARIA live regions for status updates, and descriptive labels.
+- **Keyboard Navigation**: Full support for keyboard-only users, including complex widgets like tree views and drag-and-drop interfaces.
+- **Cognitive Accessibility**: Clear input validation, consistent navigation, and focus management.
+- **For Developers**: We provide a comprehensive [Accessibility Guide](./docs/contributing/accessibility.mdx) to help you maintain these standards in your custom widgets.
+
 ## 📋 Easily create Data Collections
 
 Great Experience to designing user-friendly and intuitive interfaces for managing content.

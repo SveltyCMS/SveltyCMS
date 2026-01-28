@@ -1,0 +1,107 @@
+---
+path: docs/contributing/accessibility.mdx
+title: Accessibility Guide
+description: Validating and maintaining accessibility standards in SveltyCMS.
+order: 3
+icon: mdi:human-wheelchair
+author: admin
+created: 2026-01-27
+updated: 2026-01-27
+tags:
+  - accessibility
+  - wcag
+  - atag
+  - guide
+---
+
+# Accessibility Guide
+
+SveltyCMS strives to be accessible to all users. We strictly enforce **WCAG 2.2 AA** for compliance testing, but we **always aim for WCAG 3.0 (Functional Performance)** principles. This means prioritizing the actual human experience—cognitive load, error recovery, and clear navigation—over simple checkbox compliance.
+
+## WCAG 3.0 First: Cognitive & Functional Focus
+
+When building features, ask "Does this work for everyone?" before "Does it pass the validator?".
+
+- **Clear Language**: Use plain English. Avoid jargon.
+- **Error Prevention**: Help users fix mistakes (e.g., "Password must contain..." instead of "Invalid password").
+- **Consistent Navigation**: predictable patterns across the app.
+
+## WCAG 2.2 AA Checklist
+
+When developing new features, ensure:
+
+- [ ] **Color Contrast**: Text has at least 4.5:1 contrast against its background. Large text (18pt+ or 14pt+ bold) needs 3:1.
+- [ ] **Keyboard Navigation**: All interactive elements are reachable and operable via keyboard.
+  - Focus order is logical.
+  - Focus indicators are visible (do not remove `outline` without replacement).
+- [ ] **Screen Reader Support**:
+  - Interactive elements have accessible names (`aria-label`, `aria-labelledby`, or visible text).
+  - Status changes are announced via `aria-live` regions.
+  - Page structure uses HTML5 landmarks (`<main>`, `<nav>`, `<aside>`, `<header>`, `<footer>`).
+- [ ] **Forms**:
+  - All inputs have associated labels (`<label for="...">`).
+  - Error messages are associated with inputs via `aria-describedby`.
+  - Required fields are marked with `required` or `aria-required="true"`.
+
+## Future-Proofing: WCAG 3.0 (Draft)
+
+While **WCAG 2.2 AA** is our current strict compliance target, SveltyCMS aspires to the emerging **WCAG 3.0** principles (Functional Performance). To support this modernization:
+
+- **Focus on functional outcomes**, not just technical pass/fail. Does the feature _work_ for users with disabilities?
+- **Cognitive Accessibility**: Pay extra attention to clear language, consistent navigation, and error prevention, which are emphasized more heavily in WCAG 3.0.
+- **Holistic Rating**: We aim for an overall accessible experience, prioritizing critical user flows (Login, Content Creation, Setup).
+
+## ATAG 2.0 (Authoring Tool) Requirements
+
+Since SveltyCMS is an authoring tool (CMS), we must support authors with disabilities:
+
+1.  **Accessible UI**: The admin interface itself must be accessible (covered by WCAG).
+2.  **Support Accessible Content Creation**:
+    - Prompt users to add alt text for images.
+    - Ensure generated content relies on semantic HTML.
+    - Preserve accessibility information when pasting/importing content.
+
+## Setup Wizard Specific Patterns
+
+The Setup Wizard (`src/routes/setup`) uses specific patterns for accessibility:
+
+### Live Regions
+
+Use `aria-live="polite"` for status messages that appear dynamically without page reload.
+
+```svelte
+<div aria-live="polite" aria-atomic="true">
+	{#if message}{message}{/if}
+</div>
+```
+
+### Focus Management
+
+When using multi-step forms or wizards, move focus programmatically to the new content container when the step changes. This ensures screen reader users are aware of the new context.
+
+```typescript
+import { tick } from 'svelte';
+
+async function nextStep() {
+	currentStep++;
+	await tick();
+	document.getElementById('step-content')?.focus();
+}
+```
+
+### Modals
+
+Modals must:
+
+- Have `role="dialog"` and `aria-modal="true"`.
+- Trap focus within the modal.
+- Close on `Escape` key.
+- Return focus to the trigger element on close.
+
+## Testing
+
+Before submitting PRs:
+
+1.  **Keyboard Test**: Tab through the interface. Can you do everything without a mouse?
+2.  **Zoom Test**: Zoom to 200%. Does the layout break?
+3.  **Automated Test**: Run any available accessibility linters or audit tools (e.g., Lighthouse, Axe).

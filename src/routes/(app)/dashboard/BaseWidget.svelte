@@ -415,31 +415,33 @@ New Features:
 		class="widget-body relative min-h-[50px] flex-1 bg-white px-3 pb-2 dark:bg-surface-800"
 		style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: stretch; align-items: stretch;"
 	>
-		{#if endpoint && loading && !internalData}
-			<div class="loading-state text-text-400 absolute inset-0 flex items-center justify-center text-base">Loading...</div>
-		{:else if endpoint && error && !internalData}
-			<div class="error-state absolute inset-0 flex flex-col items-center justify-center p-2 text-center text-base text-error-500">
-				<iconify-icon icon="mdi:alert-circle" width={24} class="mb-1"></iconify-icon>
-				<span>{error}</span>
-			</div>
-		{:else if children}
-			{@render children({
-				data: internalData,
-				updateWidgetState,
-				getWidgetState,
-				refresh,
-				isLoading: loading,
-				error
-			})}
-		{:else if internalData}
-			<pre class="text-text-700 dark:text-text-200 whitespace-pre-wrap break-all text-sm" style="width: 100%; height: 100%;">{JSON.stringify(
-					internalData,
-					null,
-					2
-				)}</pre>
-		{:else}
-			<div class="text-text-400 absolute inset-0 flex items-center justify-center text-base">No content.</div>
-		{/if}
+		<div aria-live="polite" class="contents">
+			{#if endpoint && loading && !internalData}
+				<div class="loading-state text-text-400 absolute inset-0 flex items-center justify-center text-base">Loading...</div>
+			{:else if endpoint && error && !internalData}
+				<div class="error-state absolute inset-0 flex flex-col items-center justify-center p-2 text-center text-base text-error-500">
+					<iconify-icon icon="mdi:alert-circle" width={24} class="mb-1"></iconify-icon>
+					<span>{error}</span>
+				</div>
+			{:else if children}
+				{@render children({
+					data: internalData,
+					updateWidgetState,
+					getWidgetState,
+					refresh,
+					isLoading: loading,
+					error
+				})}
+			{:else if internalData}
+				<pre class="text-text-700 dark:text-text-200 whitespace-pre-wrap break-all text-sm" style="width: 100%; height: 100%;">{JSON.stringify(
+						internalData,
+						null,
+						2
+					)}</pre>
+			{:else}
+				<div class="text-text-400 absolute inset-0 flex items-center justify-center text-base">No content.</div>
+			{/if}
+		</div>
 	</section>
 	{#if resizable}
 		<div class="resize-handles pointer-events-none absolute inset-0">

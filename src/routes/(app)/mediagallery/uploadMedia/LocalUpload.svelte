@@ -24,6 +24,13 @@
 
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
+	interface Props {
+		onUploadComplete?: () => void;
+		redirectOnSuccess?: boolean;
+	}
+
+	const { onUploadComplete = () => {}, redirectOnSuccess = true }: Props = $props();
+
 	let files: File[] = $state([]);
 	let input: HTMLInputElement | null = $state(null);
 	let dropZone: HTMLDivElement | null = $state(null);
@@ -294,7 +301,10 @@
 			if (success) {
 				toaster.success({ description: 'Files uploaded successfully' });
 				handleCancel();
-				goto('/mediagallery', { invalidateAll: true });
+				onUploadComplete();
+				if (redirectOnSuccess) {
+					goto('/mediagallery', { invalidateAll: true });
+				}
 			} else {
 				throw new Error((Array.isArray(result) ? result[0]?.error : result?.error) || 'Upload failed');
 			}
@@ -441,7 +451,14 @@
 {#if isUploading}
 	<div class="mt-4 w-full rounded border border-surface-400 bg-surface-100 p-4 dark:bg-surface-700">
 		<!-- Progress Bar -->
-		<div class="mb-2 h-2 w-full overflow-hidden rounded-full bg-surface-300 dark:bg-surface-600">
+		<div
+			class="mb-2 h-2 w-full overflow-hidden rounded-full bg-surface-300 dark:bg-surface-600"
+			role="progressbar"
+			aria-label="Upload progress"
+			aria-valuenow={uploadProgress}
+			aria-valuemin={0}
+			aria-valuemax={100}
+		>
 			<div class="h-full bg-primary-500 transition-all duration-300" style="width: {uploadProgress}%"></div>
 		</div>
 		<div class="flex items-center justify-between text-xs text-surface-600 dark:text-surface-50">

@@ -53,6 +53,7 @@
 					{derivedClickable[i] ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}"
 					disabled={!derivedClickable[i]}
 					onclick={() => handleStepClick(i)}
+					aria-current={i === currentStep ? 'step' : undefined}
 				>
 					<span class="text-[0.65rem]">{derivedCompleted[i] ? '✓' : i + 1}</span>
 				</button>
@@ -90,6 +91,7 @@
 						{derivedClickable[i] ? 'hover:bg-surface-100 dark:hover:bg-surface-700' : 'cursor-not-allowed opacity-50'}"
 						disabled={!derivedClickable[i]}
 						onclick={() => handleStepClick(i)}
+						aria-current={i === currentStep ? 'step' : undefined}
 					>
 						<div
 							class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ring-2 ring-white transition-all dark:ring-surface-800

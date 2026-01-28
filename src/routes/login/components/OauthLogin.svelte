@@ -38,12 +38,12 @@
 		<button
 			form="oauth-login"
 			type="submit"
-			aria-label="OAuth"
+			aria-label="Sign in with Google"
 			class="preset-filled-surface-500 btn w-full sm:w-auto"
 			onmouseenter={prefetchFirstCollection}
 		>
 			<iconify-icon icon="flat-color-icons:google" width={24}></iconify-icon>
-			<p>OAuth</p>
+			<p>Sign in with Google</p>
 		</button>
 	</form>
 {/if}

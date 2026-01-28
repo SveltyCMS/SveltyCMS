@@ -232,7 +232,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 						url: buildUrl(basePath, mediaItem.hash, filename, extension, basePath),
 						thumbnail: {
 							url: thumbnailUrl
-						}
+						},
+						width: (mediaItem as any).width ?? (mediaItem.metadata as any)?.advancedMetadata?.width,
+						height: (mediaItem as any).height ?? (mediaItem.metadata as any)?.advancedMetadata?.height
 					};
 				} catch (err) {
 					logger.error('Error processing media item', {

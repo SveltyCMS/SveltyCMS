@@ -327,6 +327,10 @@
 	});
 </script>
 
+<h1 class="sr-only">
+	{collection.value?.name ? `Edit ${collection.value.name} Entry` : 'Edit Entry'}
+</h1>
+
 <Tabs value={localTabSet} onValueChange={(e) => (localTabSet = e.value)} class="flex flex-1 flex-col items-center">
 	<Tabs.List
 		class="flex justify-between md:justify-around rounded-tl-container rounded-tr-container border-b border-tertiary-500 dark:border-primary-500 w-full"
@@ -384,6 +388,11 @@
 										{field.label || field.db_fieldName}
 										{#if field.required}<span class="text-error-500">*</span>{/if}
 									</p>
+									{#if field.helper}
+										<SystemTooltip title={field.helper} positioning={{ placement: 'top' }}>
+											<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+										</SystemTooltip>
+									{/if}
 								</div>
 								<div class="flex items-center gap-2">
 									<SystemTooltip title="Insert Token">

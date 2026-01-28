@@ -257,12 +257,16 @@ Features:
 		{/if}
 
 		<!-- Tab Navigation -->
-		<div class="flex gap-2 border-b border-gray-200 dark:border-gray-700">
+		<div class="flex gap-2 border-b border-gray-200 dark:border-gray-700" role="tablist" aria-label="Widget Categories">
 			<button
 				onclick={() => (activeTab = 'installed')}
 				class="border-b-2 px-6 py-3 font-medium transition-colors {activeTab === 'installed'
 					? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
 					: 'border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}"
+				role="tab"
+				aria-selected={activeTab === 'installed'}
+				aria-controls="installed-panel"
+				id="tab-installed"
 			>
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:package-variant" width="24" class="text-xl"></iconify-icon>
@@ -274,6 +278,10 @@ Features:
 				class="border-b-2 px-6 py-3 font-medium transition-colors {activeTab === 'marketplace'
 					? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
 					: 'border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}"
+				role="tab"
+				aria-selected={activeTab === 'marketplace'}
+				aria-controls="marketplace-panel"
+				id="tab-marketplace"
 			>
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:store" width="24" class="text-xl"></iconify-icon>

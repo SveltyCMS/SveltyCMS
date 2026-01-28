@@ -42,21 +42,23 @@ Key features:
 		onEditImage?: (file: MediaImage) => void;
 		onsizechange?: (detail: { size: string; type: string }) => void;
 		onUpdateImage?: (file: MediaImage) => void;
+		isSelectionMode?: boolean;
+		selectedFiles?: Set<string>;
 	}
 
-	const {
+	let {
 		filteredFiles = $bindable([]),
 		gridSize = 'medium',
 		ondeleteImage = () => {},
 		onBulkDelete = () => {},
 		onEditImage = () => {},
 		onsizechange = () => {},
-		onUpdateImage = () => {}
+		onUpdateImage = () => {},
+		isSelectionMode = $bindable(false),
+		selectedFiles = $bindable(new Set())
 	}: Props = $props();
 
 	let showInfo = $state<boolean[]>([]);
-	let selectedFiles = $state<Set<string>>(new Set());
-	let isSelectionMode = $state(false);
 
 	// Tag Modal State
 	let showTagModal = $state(false);
@@ -76,7 +78,6 @@ Key features:
 
 	// Helper: Get icon string
 	function getFileIcon(file: MediaBase): string {
-		// Fallback if path is missing or not a string
 		const fileName = file.filename || '';
 		const fileExt = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
 
@@ -99,9 +100,8 @@ Key features:
 				return 'fa-solid:file-lines';
 			case fileExt === '.zip' || fileExt === '.rar':
 				return 'fa-solid:file-zipper';
-			default:
-				return 'vscode-icons:file';
 		}
+		return 'vscode-icons:file';
 	}
 
 	function handleDelete(file: MediaBase | MediaImage) {
@@ -115,11 +115,11 @@ Key features:
 		} else {
 			selectedFiles.add(fileId);
 		}
-		selectedFiles = selectedFiles; // Trigger reactivity
+		selectedFiles = new Set(selectedFiles); // Trigger reactivity
 	}
 
 	function selectAll() {
-		selectedFiles = new Set(filteredFiles.map((f) => f._id?.toString() || f.filename));
+		selectedFiles = new Set(filteredFiles.map((f: MediaBase | MediaImage) => f._id?.toString() || f.filename));
 	}
 
 	function deselectAll() {
@@ -127,7 +127,7 @@ Key features:
 	}
 
 	function handleBulkDelete() {
-		const filesToDelete = filteredFiles.filter((f) => selectedFiles.has(f._id?.toString() || f.filename));
+		const filesToDelete = filteredFiles.filter((f: MediaBase | MediaImage) => selectedFiles.has(f._id?.toString() || f.filename));
 		if (filesToDelete.length > 0) {
 			onBulkDelete(filesToDelete);
 			selectedFiles = new Set();
@@ -146,7 +146,6 @@ Key features:
 
 	function getThumbnail(file: MediaBase | MediaImage, size: string) {
 		const thumbnails = getThumbnails(file);
-		// Map UI grid sizes to DB keys
 		const sizeMap: Record<string, string> = {
 			tiny: 'thumbnail',
 			small: 'sm',
@@ -159,11 +158,11 @@ Key features:
 
 	function getImageUrl(file: MediaBase | MediaImage, size: string) {
 		const thumbnail = getThumbnail(file, size);
-		return thumbnail?.url || (file as any).url;
+		return thumbnail?.url || (file as MediaImage).url;
 	}
 </script>
 
-<div class="flex flex-wrap items-center gap-4 overflow-auto">
+<div class="flex flex-wrap items-start gap-4 overflow-auto p-4 content-start">
 	{#if filteredFiles.length === 0}
 		<div class="mx-auto text-center text-tertiary-500 dark:text-primary-500">
 			<iconify-icon icon="bi:exclamation-circle-fill" width={24} class="mb-2"></iconify-icon>
@@ -178,19 +177,19 @@ Key features:
 						isSelectionMode = !isSelectionMode;
 						selectedFiles = new Set();
 					}}
-					class="preset-outline-surface-500 btn-sm"
+					class="preset-outline-surface-500 btn-sm flex items-center gap-2"
 					aria-label="Toggle selection mode"
 				>
-					<iconify-icon icon={isSelectionMode ? 'mdi:close' : 'mdi:checkbox-multiple-marked'} width="20"></iconify-icon>
-					{isSelectionMode ? 'Cancel' : 'Select'}
+					<iconify-icon icon={isSelectionMode ? 'mdi:close' : 'mdi:checkbox-multiple-marked'} width={20}></iconify-icon>
+					<span class="leading-none relative top-px">{isSelectionMode ? 'Cancel' : 'Select'}</span>
 				</button>
 
 				{#if isSelectionMode}
-					<button onclick={selectAll} class="preset-outline-surface-500 btn-sm">
+					<button onclick={selectAll} class="preset-outline-surface-500 btn-sm flex items-center gap-2">
 						<iconify-icon icon="mdi:select-all" width={24}></iconify-icon>
 						Select All
 					</button>
-					<button onclick={deselectAll} class="preset-outline-surface-500 btn-sm">
+					<button onclick={deselectAll} class="preset-outline-surface-500 btn-sm flex items-center gap-2">
 						<iconify-icon icon="mdi:select-off" width={24}></iconify-icon>
 						Deselect All
 					</button>
@@ -200,18 +199,19 @@ Key features:
 			{#if selectedFiles.size > 0}
 				<div class="flex items-center gap-2">
 					<span class="text-sm">{selectedFiles.size} selected</span>
-					<button onclick={handleBulkDelete} class="preset-filled-error-500 btn-sm">
+					<button onclick={handleBulkDelete} class="preset-filled-error-500 btn-sm flex items-center gap-2">
 						<iconify-icon icon="mdi:delete" width={20}></iconify-icon>
 						Delete Selected
 					</button>
 				</div>
 			{/if}
 		</div>
-
 		{#each filteredFiles as file, index (file._id?.toString() || file.filename)}
 			{@const fileId = file._id?.toString() || file.filename}
 			{@const isSelected = selectedFiles.has(fileId)}
-			<div
+			<button
+				class="card card-hover relative flex flex-col overflow-hidden text-left transition-all duration-300 hover:z-10 hover:shadow-xl hover:scale-[1.02] border border-surface-200 bg-surface-100 dark:bg-transparent dark:border-transparent
+					{gridSize === 'tiny' ? 'w-32' : gridSize === 'small' ? 'w-48' : gridSize === 'medium' ? 'w-64' : 'w-96'}"
 				onmouseenter={() => (showInfo[index] = true)}
 				onmouseleave={() => (showInfo[index] = false)}
 				onclick={() => isSelectionMode && toggleSelection(file)}
@@ -221,10 +221,9 @@ Key features:
 						toggleSelection(file);
 					}
 				}}
-				role="button"
-				tabindex="0"
-				class="card relative border border-surface-300 dark:border-surface-500 {isSelected ? 'ring-2 ring-primary-500' : ''}"
-				in:scale={{ duration: 300, start: 0.9, opacity: 0, easing: quintOut }}
+				aria-label={`Media item: ${file.filename}`}
+				aria-pressed={selectedFiles.has(file._id?.toString() || file.filename)}
+				in:scale={{ duration: 200, easing: quintOut }}
 				out:scale={{ duration: 250, start: 0.95, opacity: 0, easing: quintOut }}
 			>
 				{#if isSelectionMode}
@@ -233,13 +232,18 @@ Key features:
 					</div>
 				{/if}
 
-				<header class="m-2 flex w-auto items-center justify-between">
+				<header class="mx-1 mb-1 mt-2 flex items-center justify-between gap-0.5">
 					<!-- Info Tooltip -->
 					<SystemTooltip positioning={{ placement: 'right' }}>
-						<button aria-label="File Info" class="btn-icon" title="File Info">
-							<iconify-icon icon="raphael:info" width={24}></iconify-icon>
+						<button
+							aria-label="File Info"
+							class="btn-icon text-tertiary-500 dark:text-primary-500
+								{gridSize === 'tiny' ? 'h-5 w-5 p-0!' : 'h-8 w-8'}"
+						>
+							<iconify-icon icon="raphael:info" width={gridSize === 'tiny' ? 16 : 22}></iconify-icon>
 						</button>
 						{#snippet content()}
+							<div class="mb-1 border-b border-surface-400 pb-1 text-center font-bold">File Info</div>
 							<table class="table-auto text-xs">
 								<thead class="text-tertiary-500">
 									<tr class="divide-x divide-surface-400 border-b-2 border-surface-400 text-center">
@@ -249,14 +253,18 @@ Key features:
 									</tr>
 								</thead>
 								<tbody>
-									{#if 'width' in file && file.width && 'height' in file && file.height}
-										<tr
-											><td class="px-2 font-semibold">Original:</td><td class="px-2">{file.width}x{file.height}</td><td class="px-2"
-												>{formatBytes(file.size)}</td
-											></tr
-										>
-									{/if}
-									{#each Object.keys(getThumbnails(file)) as size (size)}
+									<tr class="divide-x divide-surface-400 border-b border-surface-400">
+										<td class="px-2 font-bold text-tertiary-500">original</td>
+										<td class="px-2 text-right">
+											{#if (file as any).width && (file as any).height}
+												{(file as any).width}x{(file as any).height}
+											{:else}
+												N/A
+											{/if}
+										</td>
+										<td class="px-2 text-right">{formatBytes(file.size)}</td>
+									</tr>
+									{#each ['thumbnail', 'sm', 'md', 'lg'].filter((s) => Object.keys(getThumbnails(file)).includes(s)) as size (size)}
 										{@const thumbnail = getThumbnail(file, size)}
 										{#if thumbnail}
 											<tr
@@ -289,8 +297,6 @@ Key features:
 												<td class="px-2 text-right">
 													{#if thumbnail.size}
 														{formatBytes(thumbnail.size)}
-													{:else if size === 'original' && file.size}
-														{formatBytes(file.size)}
 													{:else}
 														N/A
 													{/if}
@@ -303,85 +309,170 @@ Key features:
 						{/snippet}
 					</SystemTooltip>
 
-					<div class="flex items-center gap-1">
+					<div class="flex items-center gap-0.5">
 						{#if file.type === 'image'}
 							<!-- Toggle Tags Tooltip -->
 							<SystemTooltip title="View/Edit Tags" positioning={{ placement: 'top' }}>
-								<button onclick={() => openTagEditor(file as MediaImage)} aria-label="Toggle Tags" class="btn-icon">
+								<button
+									onclick={() => {
+										openTagEditor(file as MediaImage);
+									}}
+									aria-label="Toggle Tags"
+									class="btn-icon text-surface-500 dark:text-surface-50
+										{gridSize === 'tiny' ? 'h-5 w-5 p-0!' : 'h-8 w-8'}"
+								>
 									{#if file.metadata?.aiTags?.length || file.metadata?.tags?.length}
-										<iconify-icon icon="mdi:tag-multiple" width={24}></iconify-icon>
+										<iconify-icon icon="mdi:tag-multiple" width={gridSize === 'tiny' ? 16 : 22}></iconify-icon>
 									{:else}
-										<iconify-icon icon="mdi:tag-outline" width={24}></iconify-icon>
+										<iconify-icon icon="mdi:tag-outline" width={gridSize === 'tiny' ? 16 : 22}></iconify-icon>
 									{/if}
 								</button>
 							</SystemTooltip>
 
 							<!-- Edit Tooltip -->
 							<SystemTooltip title="Edit Image" positioning={{ placement: 'top' }}>
-								<button onclick={() => onEditImage(file as MediaImage)} aria-label="Edit" class="btn-icon">
-									<iconify-icon icon="mdi:pen" width={24}></iconify-icon>
+								<button
+									onclick={() => onEditImage(file as MediaImage)}
+									aria-label="Edit"
+									class="btn-icon {gridSize === 'tiny' ? 'h-5 w-5 p-0!' : 'h-8 w-8'}"
+								>
+									<iconify-icon icon="mdi:pen" width={gridSize === 'tiny' ? 16 : 22} class="text-primary-500 dark:text-primary-500"></iconify-icon>
 								</button>
 							</SystemTooltip>
 						{/if}
 
 						<!-- Delete Tooltip -->
 						<SystemTooltip title="Delete Image" positioning={{ placement: 'top' }}>
-							<button onclick={() => handleDelete(file)} aria-label="Delete" class="btn-icon">
-								<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
+							<button onclick={() => handleDelete(file)} aria-label="Delete" class="btn-icon {gridSize === 'tiny' ? 'h-5 w-5 p-0!' : 'h-8 w-8'}">
+								<iconify-icon icon="icomoon-free:bin" width={gridSize === 'tiny' ? 16 : 20} class="text-error-500"></iconify-icon>
 							</button>
 						</SystemTooltip>
 					</div>
 				</header>
 
-				<section class="flex items-center justify-center p-2">
-					{#if file?.filename && file?.path && file?.hash}
-						<img
-							src={getImageUrl(file, gridSize) ?? '/static/Default_User.svg'}
-							alt={`Thumbnail for ${file.filename}`}
-							class={`rounded object-cover ${
-								gridSize === 'tiny' ? 'h-16 w-16' : gridSize === 'small' ? 'h-24 w-24' : gridSize === 'medium' ? 'h-48 w-48' : 'h-80 w-80'
-							}`}
-							onerror={(e: Event) => {
-								const target = e.target as HTMLImageElement;
-								if (target) {
-									logger.error('Failed to load media thumbnail for file:', file.filename);
-									target.src = '/static/Default_User.svg';
-									target.alt = 'Fallback thumbnail image';
-								}
-							}}
-							loading="lazy"
-							decoding="async"
-						/>
+				<section class="relative flex items-center justify-center {gridSize === 'tiny' ? 'p-2' : 'p-0.5'}">
+					{#if (file.type === 'image' || file.type === 'video') && file?.filename && file?.path && file?.hash}
+						{@const thumbUrl = getImageUrl(file, gridSize)}
+						{#if thumbUrl}
+							<div
+								class="group relative cursor-pointer"
+								role="button"
+								tabindex="0"
+								onclick={() => {
+									if (isSelectionMode) return;
+									if (file.type === 'video') {
+										const videoUrl = (file as any).url || thumbUrl.replace('/thumbnail/', '/original/').replace('.jpg', '.mp4');
+										window.open(videoUrl, '_blank');
+									}
+								}}
+								onkeydown={(e) => {
+									if (e.key === 'Enter' || e.key === ' ') {
+										if (file.type === 'video') {
+											const videoUrl = (file as any).url || thumbUrl.replace('/thumbnail/', '/original/').replace('.jpg', '.mp4');
+											window.open(videoUrl, '_blank');
+										}
+									}
+								}}
+							>
+								<!-- svelte-ignore a11y_click_events_have_key_events -->
+								<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+								<!-- Aspect Ratio Container -->
+								<div
+									class="relative w-full overflow-hidden bg-surface-200 dark:bg-surface-700/50 aspect-square border border-surface-300/50 {gridSize ===
+									'tiny'
+										? 'rounded-xl'
+										: 'rounded'}"
+								>
+									<img
+										src={thumbUrl}
+										alt={`Thumbnail for ${file.filename}`}
+										class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+										style:object-position={file.metadata?.focalPoint ? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%` : 'center'}
+										onerror={(e: Event) => {
+											const target = e.target as HTMLImageElement;
+											if (target) {
+												// Use warn instead of error to reduce noise for known broken items
+												logger.warn('Failed to load media thumbnail:', file.filename);
+												target.src = '/static/Default_User.svg';
+												target.alt = 'Fallback thumbnail image';
+											}
+										}}
+										loading="lazy"
+										decoding="async"
+									/>
+								</div>
+
+								{#if file.type === 'video'}
+									<div class="absolute inset-0 flex items-center justify-center bg-black/10 opacity-70 transition-opacity group-hover:opacity-100">
+										<iconify-icon
+											icon="mdi:play-circle-outline"
+											width={gridSize === 'tiny' ? 24 : gridSize === 'small' ? 32 : gridSize === 'medium' ? 64 : 128}
+											class="text-white drop-shadow-md"
+										></iconify-icon>
+									</div>
+								{/if}
+							</div>
+						{:else}
+							<div
+								class={`flex items-center justify-center rounded bg-surface-200 dark:bg-surface-700/50 w-full aspect-square border border-surface-300/50`}
+								aria-label={`Icon for ${file.type}`}
+								role="img"
+							>
+								<iconify-icon
+									icon={getFileIcon(file)}
+									width={gridSize === 'tiny' ? 32 : gridSize === 'small' ? 48 : gridSize === 'medium' ? 96 : 160}
+									class="opacity-50"
+								></iconify-icon>
+							</div>
+						{/if}
 					{:else}
-						<div class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-700" aria-label="Missing thumbnail" role="img">
-							<iconify-icon icon="bi:exclamation-triangle-fill" width={24} class="text-warning-500"></iconify-icon>
+						<div
+							class={`flex items-center justify-center rounded bg-surface-200 dark:bg-surface-700/50 w-full aspect-square border border-surface-300/50`}
+							aria-label={`Icon for ${file.type}`}
+							role="img"
+						>
+							<iconify-icon
+								icon={getFileIcon(file)}
+								width={gridSize === 'tiny' ? 32 : gridSize === 'small' ? 48 : gridSize === 'medium' ? 96 : 160}
+								class="opacity-50"
+							></iconify-icon>
 						</div>
 					{/if}
 				</section>
 
-				<!-- Media Filename (LocalUpload Style) -->
-				<div class="label overflow-hidden text-ellipsis whitespace-nowrap p-1 text-center font-bold text-xs" title={file.filename}>
-					{file.filename}
+				<div class="w-full px-2 py-1 text-center">
+					<SystemTooltip title={file.filename} positioning={{ placement: 'top' }}>
+						<div
+							class="text-xs font-bold leading-tight"
+							style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all;"
+						>
+							{file.filename}
+						</div>
+					</SystemTooltip>
 				</div>
 
-				<footer class="flex flex-col gap-2 p-1">
+				<footer class="mt-auto flex w-full flex-col gap-2 p-1">
 					<!-- Tags Overlay Removed -->
 
 					<!-- Media Type & Size (Footer - LocalUpload Style) -->
-					<div class="flex grow items-center justify-between p-1 text-white">
+					<div class="flex items-center justify-between gap-1 p-1">
 						<!-- Type -->
-						<div class="bg-tertiary-500 dark:bg-primary-500/50 badge flex items-center gap-1 overflow-hidden" title={file.type}>
-							<iconify-icon icon={getFileIcon(file)} width="12"></iconify-icon>
-							<span class="truncate text-[10px] uppercase">{formatMimeType(file.mimeType)}</span>
-						</div>
+						<SystemTooltip title="Media Type: {file.type}" positioning={{ placement: 'top' }}>
+							<div class="bg-tertiary-500 dark:bg-primary-500/50 badge flex items-center gap-1 overflow-hidden px-1 py-0.5 text-white">
+								<iconify-icon icon={getFileIcon(file)} width="12"></iconify-icon>
+								<span class="truncate text-[9px] uppercase font-bold">{formatMimeType(file.mimeType)}</span>
+							</div>
+						</SystemTooltip>
+
 						<!-- Size -->
-						<p class="bg-tertiary-500 dark:bg-primary-500/50 badge flex shrink-0 items-center gap-1 text-[10px]">
-							<span class="">{(file.size / 1024).toFixed(2)}</span>
-							KB
-						</p>
+						<SystemTooltip title="File Size" positioning={{ placement: 'top' }}>
+							<p class="bg-tertiary-500 dark:bg-primary-500/50 badge flex shrink-0 items-center gap-1 px-1 py-0.5 text-[9px] font-bold text-white">
+								{formatBytes(file.size)}
+							</p>
+						</SystemTooltip>
 					</div>
 				</footer>
-			</div>
+			</button>
 		{/each}
 	{/if}
 </div>

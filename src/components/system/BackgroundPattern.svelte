@@ -293,8 +293,8 @@ and configurable quality settings for weaker devices.
 	viewBox="0 0 696 316"
 	fill="none"
 	aria-label="Background Pattern"
-	role="img"
-	aria-hidden="false"
+	role="presentation"
+	aria-hidden="true"
 	style={`
 		z-index: 0; 
 		background-color: ${background};

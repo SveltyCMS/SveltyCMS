@@ -50,7 +50,7 @@
 		onkeydown={handleKeydown}
 		onclick={handleIconClick}
 		aria-checked={checked ? 'true' : 'false'}
-		aria-labelledby={checked ? 'true' : 'false'}
+		aria-label="Toggle selection"
 		role="checkbox"
 		class="mx-auto flex h-[26px] w-[26px] items-center justify-center rounded border-[3px] bg-white dark:bg-transparent
 			{iconStatus === StatusTypes.unpublish ? 'border-yellow-500' : ''}

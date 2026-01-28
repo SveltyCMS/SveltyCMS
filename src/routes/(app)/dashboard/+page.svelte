@@ -44,7 +44,7 @@
 
 	// Define the types for the widget registry
 	interface WidgetRegistryEntry {
-		component: WidgetComponent;
+		component: any;
 		name: string;
 		description: string;
 		icon: string;
@@ -393,6 +393,45 @@
 		document.removeEventListener('pointermove', handleDragMove as EventListener);
 	}
 
+	// Keyboard Reordering
+	function handleWidgetKeydown(event: KeyboardEvent, item: DashboardWidgetConfig) {
+		const currentWidgets = [...currentPreferences];
+		const currentIndex = currentWidgets.findIndex((w) => w.id === item.id);
+
+		if (currentIndex === -1) return;
+
+		let targetIndex = currentIndex;
+
+		if (event.ctrlKey || event.metaKey) {
+			if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+				event.preventDefault();
+				targetIndex = Math.max(0, currentIndex - 1);
+			} else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+				event.preventDefault();
+				targetIndex = Math.min(currentWidgets.length - 1, currentIndex + 1);
+			}
+		}
+
+		if (targetIndex !== currentIndex) {
+			// Perform swap/move
+			const [movedWidget] = currentWidgets.splice(currentIndex, 1);
+			currentWidgets.splice(targetIndex, 0, movedWidget);
+
+			const updatedWidgets = currentWidgets.map((w, index) => ({
+				...w,
+				order: index
+			}));
+
+			systemPreferences.updateWidgets(updatedWidgets);
+
+			// Maintain focus on the moved widget
+			setTimeout(() => {
+				const el = document.querySelector(`[data-widget-id="${item.id}"]`) as HTMLElement;
+				el?.focus();
+			}, 50);
+		}
+	}
+
 	onMount(() => {
 		loadWidgetRegistry();
 		systemPreferences.loadPreferences();
@@ -483,11 +522,15 @@
 					{/if}
 
 					{#each currentPreferences.sort((a: DashboardWidgetConfig, b: DashboardWidgetConfig) => (a.order || 0) - (b.order || 0)) as item (item.id)}
-						{@const WidgetComponent = loadedWidgets.get(item.id)}
+						{@const widgetName = item.label || item.component}
+						{@const WidgetComponent = widgetRegistry[item.component]?.component}
+						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 						<div
-							role="button"
+							role="article"
+							aria-label="{widgetName} widget. Press Ctrl + Arrow keys to reorder."
 							tabindex="0"
-							class="widget-container group relative select-none overflow-hidden rounded-lg border border-surface-200/80 bg-surface-50 shadow-sm transition-all duration-300 dark:text-surface-50 dark:bg-surface-800"
+							class="widget-container group relative select-none overflow-hidden rounded-lg border border-surface-200/80 bg-surface-50 shadow-sm transition-all duration-300 dark:text-surface-50 dark:bg-surface-800 focus:ring-2 focus:ring-primary-500 focus:outline-none"
 							data-widget-id={item.id}
 							style:grid-column="span {item.size.w}"
 							style:grid-row="span {item.size.h}"
@@ -495,6 +538,7 @@
 							style:min-height="{item.size.h * 180}px"
 							animate:flip={{ duration: 300 }}
 							onpointerdown={(event) => handleDragStart(event, item, event.currentTarget)}
+							onkeydown={(event) => handleWidgetKeydown(event, item)}
 							use:setupWidgetObserver={[item.id, item.component]}
 						>
 							{#if !WidgetComponent}

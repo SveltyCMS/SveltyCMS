@@ -552,6 +552,7 @@ Advanced icon picker with search, pagination, and favorites.
 			aria-controls="icon-dropdown"
 			aria-haspopup="listbox"
 			aria-expanded={showDropdown}
+			aria-activedescendant={selectedIndex >= 0 ? `icon-option-${selectedIndex}` : undefined}
 			aria-describedby={searchError ? 'search-error' : undefined}
 		/>
 		{#if searchQuery}
@@ -692,6 +693,7 @@ Advanced icon picker with search, pagination, and favorites.
 								selectedIndex
 									? 'ring-2 ring-primary-500'
 									: ''}"
+								id={`icon-option-${index}`}
 								aria-label={`Select icon ${fullIconName}`}
 							>
 								<iconify-icon icon={fullIconName} width="24" aria-hidden="true" class="transition-colors duration-200 group-hover:text-primary-500"

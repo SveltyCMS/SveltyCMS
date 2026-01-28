@@ -10,6 +10,8 @@ Displays logo, site name, language selector, and theme toggle.
 	import ThemeToggle from '@components/ThemeToggle.svelte';
 	import * as m from '@src/paraglide/messages';
 	import { getLanguageName } from '@utils/languageUtils';
+	import AccessibilityHelp from '@components/system/AccessibilityHelp.svelte';
+	import { modalState } from '@utils/modalState.svelte';
 
 	let { siteName, systemLanguages, currentLanguageTag, onselectLanguage = () => {} } = $props();
 
@@ -81,6 +83,7 @@ Displays logo, site name, language selector, and theme toggle.
 												bind:value={langSearch}
 												placeholder={m.setup_search_placeholder()}
 												class="w-full rounded-md bg-surface-50 dark:bg-surface-800 pl-9 pr-3 py-1.5 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 border border-surface-200 dark:text-surface-50"
+												aria-label={m.setup_search_placeholder?.() || 'Search languages'}
 												onclick={(e) => e.stopPropagation()}
 											/>
 										</div>
@@ -109,6 +112,17 @@ Displays logo, site name, language selector, and theme toggle.
 					</Portal>
 				</Menu>
 			</div>
+
+			<SystemTooltip title="Accessibility Help">
+				<button
+					type="button"
+					class="btn-icon btn-sm preset-outlined-surface-500 hover:variant-filled-surface"
+					onclick={() => modalState.trigger(AccessibilityHelp)}
+					aria-label="Accessibility Help & Shortcuts"
+				>
+					<iconify-icon icon="mdi:accessibility" width="22"></iconify-icon>
+				</button>
+			</SystemTooltip>
 
 			<ThemeToggle showTooltip={true} tooltipPlacement="bottom" iconSize={22} />
 		</div>

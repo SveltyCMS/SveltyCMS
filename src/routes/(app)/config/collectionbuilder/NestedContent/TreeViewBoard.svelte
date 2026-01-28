@@ -369,9 +369,16 @@
 			}}
 			onconsider={handleRootDndConsider}
 			onfinalize={handleRootDndFinalize}
+			role="tree"
 		>
 			{#each rootItems as item (item.id)}
-				<div class="tree-node-wrapper" animate:flip={{ duration: flipDurationMs }}>
+				<div
+					class="tree-node-wrapper"
+					animate:flip={{ duration: flipDurationMs }}
+					role="treeitem"
+					aria-expanded={expandedNodes.has(item.id)}
+					aria-selected="false"
+				>
 					{@render treeNode(item, 0)}
 				</div>
 			{/each}
@@ -413,9 +420,16 @@
 				}}
 				onconsider={(e) => handleNestedDndConsider(e, item.id)}
 				onfinalize={(e) => handleNestedDndFinalize(e, item.id)}
+				role="group"
 			>
 				{#each item.children as child (child.id)}
-					<div class="tree-node-wrapper" animate:flip={{ duration: flipDurationMs }}>
+					<div
+						class="tree-node-wrapper"
+						animate:flip={{ duration: flipDurationMs }}
+						role="treeitem"
+						aria-expanded={expandedNodes.has(child.id)}
+						aria-selected="false"
+					>
 						{@render treeNode(child, level + 1)}
 					</div>
 				{/each}
@@ -433,6 +447,7 @@
 				}}
 				onconsider={(e) => handleNestedDndConsider(e, item.id)}
 				onfinalize={(e) => handleNestedDndFinalize(e, item.id)}
+				role="group"
 			>
 				<span class="empty-hint">Drop items here</span>
 			</div>

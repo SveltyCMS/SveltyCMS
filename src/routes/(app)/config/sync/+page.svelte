@@ -103,7 +103,11 @@ Allows synchronization between filesystem and database, and full system backup/r
 	</div>
 
 	<!-- Tabs -->
-	<div class="flex w-full overflow-x-auto border border-surface-300 bg-surface-100/70 dark:text-surface-50 dark:bg-surface-800/70">
+	<div
+		class="flex w-full overflow-x-auto border border-surface-300 bg-surface-100/70 dark:text-surface-50 dark:bg-surface-800/70"
+		role="tablist"
+		aria-label="Sync Options"
+	>
 		{#each ['sync', 'backups', 'debug'] as tab}
 			{#key tab}
 				<SystemTooltip
@@ -119,6 +123,10 @@ Allows synchronization between filesystem and database, and full system backup/r
 						class:dark:text-surface-200={activeTab !== tab}
 						class:text-surface-700={activeTab !== tab}
 						onclick={() => (activeTab = tab as 'sync' | 'backups' | 'debug')}
+						role="tab"
+						aria-selected={activeTab === tab}
+						aria-controls="{tab}-panel"
+						id="{tab}-tab"
 					>
 						{tab.charAt(0).toUpperCase() + tab.slice(1)}
 					</button>

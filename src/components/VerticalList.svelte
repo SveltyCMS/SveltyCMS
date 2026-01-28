@@ -35,17 +35,25 @@
 	);
 </script>
 
-<div class="h-full overflow-y-auto">
+<div class="h-full overflow-y-auto" role="table" aria-label="List of items">
 	<!-- Header -->
 	{#if headers.length > 0}
-		<div class={gridClass}>
-			{#each headers as header, index (index)}
-				<div class="ml-2 text-left">{header}:</div>
-			{/each}
+		<div role="rowgroup">
+			<div class={gridClass} role="row">
+				{#each headers as header, index (index)}
+					<div class="ml-2 text-left" role="columnheader">{header}:</div>
+				{/each}
+			</div>
 		</div>
 	{/if}
 
-	<section use:dndzone={{ items: items, flipDurationMs }} onconsider={handleDndConsider} onfinalize={handleDndFinalize} class="my-1 w-full">
+	<section
+		use:dndzone={{ items: items, flipDurationMs }}
+		onconsider={handleDndConsider}
+		onfinalize={handleDndFinalize}
+		class="my-1 w-full"
+		role="rowgroup"
+	>
 		<!-- Data -->
 		{@render children?.()}
 	</section>

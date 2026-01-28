@@ -161,6 +161,54 @@
 
 	// Get the site name from publicEnv store (safer for SSR/CSR transitions)
 	const siteName = $derived(publicEnv?.SITE_NAME || 'SveltyCMS');
+
+	// Global Keyboard Shortcuts
+	onMount(() => {
+		if (!browser) return;
+
+		const controller = new AbortController();
+
+		(async () => {
+			try {
+				const AccessibilityHelp = (await import('@components/system/AccessibilityHelp.svelte')).default;
+				const { modalState } = await import('@utils/modalState.svelte');
+
+				if (controller.signal.aborted) return;
+
+				function handleGlobalKeydown(e: KeyboardEvent) {
+					// '?' key (Shift + /) to open accessibility help
+					if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+						// Avoid triggering if user is typing in an input/textarea
+						const target = e.target as HTMLElement;
+						if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+							return;
+						}
+
+						e.preventDefault();
+						modalState.trigger(AccessibilityHelp, { ariaLabel: 'Accessibility Help' });
+					}
+
+					// 'Alt + T' to toggle theme
+					if (e.altKey && e.key.toLowerCase() === 't') {
+						e.preventDefault();
+						// Based on themeStore.svelte.ts, the function is toggleDarkMode
+						import('@stores/themeStore.svelte').then(({ toggleDarkMode }) => {
+							toggleDarkMode();
+						});
+					}
+				}
+
+				window.addEventListener('keydown', handleGlobalKeydown);
+				controller.signal.addEventListener('abort', () => {
+					window.removeEventListener('keydown', handleGlobalKeydown);
+				});
+			} catch (err) {
+				console.error('Failed to setup global keyboard shortcuts:', err);
+			}
+		})();
+
+		return () => controller.abort();
+	});
 </script>
 
 <svelte:head>

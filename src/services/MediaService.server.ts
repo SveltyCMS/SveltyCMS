@@ -29,6 +29,12 @@
 import { error } from '@sveltejs/kit';
 import mime from 'mime-types';
 import Path from 'path';
+import { writeFileSync, unlinkSync, readFileSync } from 'node:fs';
+import os from 'node:os';
+import { promisify } from 'node:util';
+import { exec } from 'node:child_process';
+
+const execAsync = promisify(exec);
 
 // Database Interface
 import type { DatabaseId, IDBAdapter } from '@src/databases/dbInterface';
@@ -56,6 +62,8 @@ import type { BaseEntity, ISODateString } from '@src/content/types';
 interface MediaBaseWithThumbnails extends MediaBase {
 	thumbnails?: Record<string, ResizedImage>;
 	originalId?: DatabaseId | null;
+	width?: number;
+	height?: number;
 }
 
 export class MediaService {
@@ -227,21 +235,47 @@ export class MediaService {
 			// First upload the file and get basic file info
 			const { url, path, hash, resized } = await this.uploadFile(buffer, file.name, mimeType, userId, basePath, watermarkOptions);
 
-			// Extract advanced metadata
-			const sharpMeta = await sharp(buffer).metadata();
-			const advancedMetadata = {
-				format: sharpMeta.format,
-				width: sharpMeta.width,
-				height: sharpMeta.height,
-				space: sharpMeta.space,
-				channels: sharpMeta.channels,
-				density: sharpMeta.density,
-				hasProfile: sharpMeta.hasProfile,
-				hasAlpha: sharpMeta.hasAlpha,
-				exif: sharpMeta.exif?.toString('base64'), // Store as base64 to avoid binary issues
-				iptc: sharpMeta.iptc?.toString('base64'), // Store as base64
-				icc: sharpMeta.icc?.toString('base64')
-			};
+			const isImage = mimeType.startsWith('image/');
+			const isVideo = mimeType.startsWith('video/');
+			let advancedMetadata = {};
+			let width: number | undefined = undefined;
+			let height: number | undefined = undefined;
+			let thumbnailBuffer: Buffer | null = null;
+
+			if (isImage && !mimeType.includes('svg')) {
+				try {
+					const sharpMeta = await sharp(buffer).metadata();
+					width = sharpMeta.width;
+					height = sharpMeta.height;
+					advancedMetadata = {
+						format: sharpMeta.format,
+						width: sharpMeta.width,
+						height: sharpMeta.height,
+						space: sharpMeta.space,
+						channels: sharpMeta.channels,
+						density: sharpMeta.density,
+						hasProfile: sharpMeta.hasProfile,
+						hasAlpha: sharpMeta.hasAlpha,
+						exif: sharpMeta.exif?.toString('base64'),
+						iptc: sharpMeta.iptc?.toString('base64'),
+						icc: sharpMeta.icc?.toString('base64')
+					};
+				} catch (sharpError) {
+					logger.error('Failed to extract sharp metadata', { fileName: file.name, error: sharpError });
+				}
+			} else if (isVideo) {
+				try {
+					const dimensions = await this.getVideoDimensions(buffer);
+					width = dimensions.width;
+					height = dimensions.height;
+					advancedMetadata = { width, height };
+
+					// Generate a real thumbnail image from the video
+					thumbnailBuffer = await this.captureVideoThumbnail(buffer);
+				} catch (vError) {
+					logger.error('Video processing failed', { fileName: file.name, error: vError });
+				}
+			}
 
 			// Create media object with required properties
 			const mediaType = this.getMediaType(mimeType);
@@ -278,9 +312,22 @@ export class MediaService {
 						createdBy: userId as DatabaseId
 					}
 				],
+				width,
+				height,
 				access,
 				thumbnails: resized || {}
 			};
+
+			// If we have a video thumbnail, process it into resizing variants
+			if (isVideo && thumbnailBuffer) {
+				try {
+					const { fileNameWithoutExt } = getSanitizedFileName(file.name);
+					const videoResized = await saveResizedImages(thumbnailBuffer, hash, fileNameWithoutExt, 'jpg', basePath);
+					media.thumbnails = { ...media.thumbnails, ...videoResized };
+				} catch (rError) {
+					logger.error('Failed to process video thumbnail variants', { fileName: file.name, error: rError });
+				}
+			}
 
 			// Create clean media object for database storage
 			const cleanMedia = this.createCleanMediaObject(media);
@@ -352,7 +399,9 @@ export class MediaService {
 			metadata: object.metadata || {},
 			access: object.access, // Mapped access
 			user: object.user as DatabaseId,
-			type: object.type as any // Cast to avoid complex union matching issues here
+			type: object.type as any, // Cast to avoid complex union matching issues here
+			width: (object as any).width,
+			height: (object as any).height
 			// createdBy: object.user as DatabaseId,
 			// updatedBy: object.user as DatabaseId,
 			// originalId: object.originalId
@@ -579,6 +628,54 @@ export class MediaService {
 			const message = `Error listing media: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { error: err });
 			throw error(500, message);
+		}
+	}
+
+	/**
+	 * Extracts width and height from a video using ffprobe
+	 */
+	private async getVideoDimensions(buffer: Buffer): Promise<{ width: number; height: number }> {
+		const tempFile = Path.join(os.tmpdir(), `ffprobe-input-${Date.now()}.mp4`);
+		try {
+			writeFileSync(tempFile, buffer);
+			const { stdout } = await execAsync(`ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${tempFile}"`);
+			const [width, height] = stdout.trim().split('x').map(Number);
+			return { width: width || 0, height: height || 0 };
+		} catch (err) {
+			logger.error('Error extracting video dimensions', { error: err });
+			return { width: 0, height: 0 };
+		} finally {
+			try {
+				unlinkSync(tempFile);
+			} catch (e) {
+				/* ignore */
+			}
+		}
+	}
+
+	/**
+	 * Captures a thumbnail from a video at the 1s mark using ffmpeg
+	 */
+	private async captureVideoThumbnail(buffer: Buffer): Promise<Buffer | null> {
+		const tempInput = Path.join(os.tmpdir(), `ffmpeg-input-${Date.now()}.mp4`);
+		const tempOutput = Path.join(os.tmpdir(), `ffmpeg-output-${Date.now()}.jpg`);
+		try {
+			writeFileSync(tempInput, buffer);
+			// Capture frame at 1s mark
+			await execAsync(`ffmpeg -ss 00:00:01 -i "${tempInput}" -frames:v 1 -q:v 2 "${tempOutput}" -y`);
+			return readFileSync(tempOutput);
+		} catch (err) {
+			logger.error('Error capturing video thumbnail', { error: err });
+			return null;
+		} finally {
+			try {
+				if (os.platform() !== 'win32') {
+					unlinkSync(tempInput);
+					unlinkSync(tempOutput);
+				}
+			} catch (e) {
+				/* ignore */
+			}
 		}
 	}
 

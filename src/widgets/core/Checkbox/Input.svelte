@@ -83,10 +83,5 @@ Renders a checkbox with label, color, size, and helper text from field props
 				<span>{field.label}</span>
 			</label>
 		</div>
-		{#if field.helper}
-			<div id={`${field.db_fieldName}-helper`} class="mt-2 text-xs text-gray-500">
-				{field.helper}
-			</div>
-		{/if}
 	</fieldset>
 </div>

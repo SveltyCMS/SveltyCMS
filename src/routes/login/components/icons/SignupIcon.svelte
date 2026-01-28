@@ -31,7 +31,14 @@
 	class:pointer-events-none={!show || disabled}
 	class:opacity-50={disabled}
 >
-	<div onclick={handleClick} onkeydown={handleKeyDown} role="button" tabindex={disabled ? -1 : 0} class="flex cursor-pointer flex-col items-center">
+	<div
+		onclick={handleClick}
+		onkeydown={handleKeyDown}
+		role="button"
+		aria-label="Go to Sign Up"
+		tabindex={disabled ? -1 : 0}
+		class="flex cursor-pointer flex-col items-center"
+	>
 		<div class="relative w-max rounded-full border-4 border-white p-3">
 			<svg
 				class="over aspect-square h-12"
