@@ -52,11 +52,23 @@ export function mediaUrl(item: MediaBase, size?: string): string {
 	if (!item?.url) return '';
 
 	if (publicEnv.MEDIASERVER_URL) {
-		return `${publicEnv.MEDIASERVER_URL.replace(/\/+$/, '')}/${item.url}`;
+		// Remove leading /files/ from item.url if present when using external media server
+		const cleanUrl = item.url.replace(/^\/files\//, '');
+		return `${publicEnv.MEDIASERVER_URL.replace(/\/+$/, '')}/${cleanUrl}`;
 	}
 
 	if (size && 'thumbnails' in item && (item.thumbnails as any)?.[size]?.url) {
 		return (item.thumbnails as any)[size].url;
+	}
+
+	// Check if URL already has /files/ prefix to avoid duplication
+	if (item.url.startsWith('/files/')) {
+		return item.url;
+	}
+	
+	// Check if it's an absolute URL (http/https)
+	if (item.url.startsWith('http://') || item.url.startsWith('https://')) {
+		return item.url;
 	}
 
 	return `/files/${item.url}`;

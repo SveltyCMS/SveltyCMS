@@ -284,6 +284,11 @@ function createImageEditorStore() {
 				});
 				break;
 
+			case 'zoom':
+				// Clean up zoom-specific elements (cursor, pan state)
+				if (state.stage?.container()) {
+					state.stage.container().style.cursor = 'default';
+				}
 				break;
 
 			case 'watermark':
