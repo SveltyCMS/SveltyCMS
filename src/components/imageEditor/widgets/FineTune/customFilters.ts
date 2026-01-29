@@ -64,11 +64,17 @@ export function createCustomFilter(adj: Adjustments) {
 				b = mid + (b - mid) * clarityFactor;
 			}
 
-			// 5. Temperature (Warm/Cool)
-			if (adj.temperature !== 0) {
-				const shift = (adj.temperature / 100) * 20; // Max 20 unit shift
-				r += shift;
-				b -= shift;
+			// 5. Temperature (Warm/Cool) & Tint (Green/Magenta)
+			if (adj.temperature !== 0 || adj.tint !== 0) {
+				const tempShift = (adj.temperature / 100) * 20;
+				const tintShift = ((adj.tint || 0) / 100) * 20;
+
+				// Temp: Orange/Blue
+				r += tempShift;
+				b -= tempShift;
+
+				// Tint: Green/Magenta
+				g += tintShift;
 			}
 
 			// Clamp values

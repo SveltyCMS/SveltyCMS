@@ -21,8 +21,11 @@
 
 	// Skeleton v4
 	import { app } from '@stores/store.svelte';
+	import { screen } from '@stores/screenSizeStore.svelte.ts';
+	import { Portal } from '@skeletonlabs/skeleton-svelte';
 	import ToastManager from '@components/system/ToastManager.svelte';
-	// import DialogManager from '@components/system/DialogManager.svelte';
+	import DialogManager from '@components/system/DialogManager.svelte';
+	import FloatingNav from '@components/system/FloatingNav.svelte';
 
 	// Paraglide locale bridge
 	import { locales as availableLocales, getLocale, setLocale } from '@src/paraglide/runtime';
@@ -216,8 +219,14 @@
 </svelte:head>
 
 {#key currentLocale}
-	<!-- <DialogManager /> -->
+	<DialogManager />
 	<ToastManager position="bottom-center" />
+
+	{#if screen.isMobile}
+		<Portal>
+			<FloatingNav />
+		</Portal>
+	{/if}
 
 	{@render children?.()}
 {/key}

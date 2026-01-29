@@ -103,11 +103,28 @@ This structure unlocks powerful features for the Media Gallery UI:
 
 All editing tools operate in a non-destructive manner. When you apply a blur or add an annotation, you are creating a new object or filter on the Konva.js stage. These changes are only "baked" into a final image when you click the main "Save" button, which generates a new image variant.
 
-- **Crop:** Crop, rotate, and flip.
+- **Crop:** Crop, rotate, and flip. Supports multiple aspect ratios (Free, 1:1, 4:3, 16:9, 3:2, 9:16) and shapes (Rectangle, Circular).
+- **Rotate:** Fine-tune rotation with a slider (-180° to 180°), quick 90° rotation buttons, and horizontal/vertical flip.
+- **Zoom:** Zoom in/out with mouse wheel, slider, or buttons. Includes Fit to Screen, Fill Screen, and Actual Size (100%) options. Pan by dragging when zoomed in.
 - **Blur:** Apply regional blur or pixelation. Features a fully interactive UI with resizable, rotatable regions (Rectangle/Ellipse), independent strength settings, and easy add/remove controls.
-- **FineTune:** Adjust brightness, contrast, saturation, and more.
-- **Annotate:** Add text, arrows, and shapes to the image.
+- **Focal Point:** Set the focal point for intelligent, art-directed cropping in responsive layouts. Click anywhere on the image to set the focal point coordinates.
+- **FineTune:** Adjust brightness, contrast, saturation, exposure, and more using intuitive sliders.
+- **Annotate:** Add text, arrows, rectangles, circles, and lines to the image. All annotations are editable with resize/rotate handles.
 - **Watermark:** Overlay a watermark image. The position, scale, and opacity are configurable in the `MediaUpload` widget's options. Server-side processing applies the watermark upon saving.
+
+### Zoom Tool
+
+The Zoom tool provides precise viewport control for detailed editing:
+
+| Feature           | Description                                        |
+| ----------------- | -------------------------------------------------- |
+| **Mouse Wheel**   | Scroll to zoom in/out centered on cursor           |
+| **Zoom Slider**   | Precise zoom control from 10% to 500%              |
+| **Zoom Buttons**  | Quick +/- buttons for step zooming                 |
+| **Fit to Screen** | Zoom to fit entire image in viewport (90% padding) |
+| **Fill Screen**   | Zoom to fill viewport (may crop edges)             |
+| **Actual Size**   | View at 100% (native resolution)                   |
+| **Pan**           | Click and drag to pan when zoomed in               |
 
 ### Focal Point Selection
 
@@ -158,6 +175,57 @@ widgets.MediaUpload({
 
 When the user opens the Watermark tool, the preset watermark is automatically loaded and positioned. Upon saving, the watermark is baked into the image via Sharp.js.
 
+## 🔧 API Integration
+
+### Edit Endpoint
+
+The Image Editor integrates with the `/api/media/edit` endpoint for server-side processing:
+
+```http
+POST /api/media/edit
+Content-Type: multipart/form-data
+
+file: <edited image file>
+mediaId?: <original media ID for variant tracking>
+operations?: <JSON string of applied operations>
+focalPoint?: <JSON string of focal point {x, y}>
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "_id": "new_media_id",
+    "filename": "image-edited-1234567890-hash.webp",
+    "path": "mediaFolder/image-edited-1234567890-hash.webp",
+    "url": "/mediaFolder/image-edited-1234567890-hash.webp",
+    "width": 1920,
+    "height": 1080,
+    "size": 245760,
+    "metadata": {
+      "originalId": "original_media_id",
+      "focalPoint": { "x": 50, "y": 30 },
+      "operations": { "crop": {...}, "rotate": 90 }
+    }
+  }
+}
+```
+
+**Supported Operations:**
+
+- `rotate`: Rotation angle in degrees
+- `flip`: Vertical flip
+- `flop`: Horizontal flip
+- `crop`: Extract region with `{ left, top, width, height }`
+- `resize`: Resize with `{ width, height, fit }`
+- `brightness`, `saturation`, `lightness`: Color adjustments
+- `blur`: Blur intensity
+- `sharpen`: Apply sharpening
+- `grayscale`: Convert to grayscale
+- `watermark`: Apply watermark with `{ buffer, position, opacity }`
+
 ## 🔄 Integration Workflow
 
 ### From the Media Gallery
@@ -193,4 +261,4 @@ As SveltyCMS transitions to an NX monorepo, the Image Editor is a prime candidat
 - **[Media Gallery Guide](/docs/guides/content/media-gallery-guide.mdx):** A user-focused guide to the gallery UI.
 - **[Media Handling Guide](/docs/guides/development/media-handling.mdx):** Details on the `MediaService` and storage architecture.
 - **[Widget Development Guide](/docs/widgets/widget-development-guide.mdx):** Learn how to build custom widgets for the CMS.
-- **[Image Editor Architecture](/docs/architecture/image-editor-architecture.mdx):** A technical deep-dive into the editor's components.
+- **[Image Editor Architecture](/docs/architecture/image-editor.mdx):** A technical deep-dive into the editor's components.

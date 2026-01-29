@@ -56,8 +56,6 @@
 	import PageFooter from '@components/PageFooter.svelte';
 	import RightSidebar from '@components/RightSidebar.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
-	import FloatingNav from '@components/system/FloatingNav.svelte';
-	import DialogManager from '@components/system/DialogManager.svelte';
 
 	// =============================================
 	// TYPE DEFINITIONS
@@ -225,12 +223,6 @@
 	</div>
 {:else}
 	<div class="relative h-lvh w-full">
-		<DialogManager />
-
-		{#if screen.isMobile}
-			<FloatingNav />
-		{/if}
-
 		{#if $isSearchVisible}
 			<SearchComponent />
 		{/if}

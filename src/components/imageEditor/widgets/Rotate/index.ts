@@ -1,19 +1,17 @@
 /**
  * @file src/components/imageEditor/widgets/Rotate/index.ts
- * @description Rotate widget registration
+ * @description Rotate and straighten tool with visual guides
  */
-import type { EditorWidget } from '../registry';
+import type { Component } from 'svelte';
 import Tool from './Tool.svelte';
-import Controls from './Controls.svelte';
 
-const widget = {
+export default {
 	key: 'rotate',
 	title: 'Rotate',
 	icon: 'mdi:rotate-right',
-	tool: Tool,
-	controls: Controls
+	description: 'Rotate, flip, and straighten your image',
+	category: 'transform',
+	order: 15,
+	requiresImage: true,
+	tool: Tool as unknown as Component<Record<string, unknown>>
 };
-
-export const editorWidget = widget as unknown as EditorWidget;
-
-export default editorWidget;

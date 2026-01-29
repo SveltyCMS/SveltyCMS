@@ -21,11 +21,17 @@ import { lookup } from 'mime-types';
 
 export const GET: RequestHandler = async ({ params, request }) => {
 	try {
-		const filePath = params.path;
+		let filePath = params.path;
 
 		if (!filePath) {
 			logger.warn('File request missing path');
 			throw error(400, 'File path is required');
+		}
+
+		// Clean up the path - remove any leading /files/ prefix that might have been doubled
+		if (filePath.startsWith('/files/') || filePath.startsWith('files/')) {
+			console.warn('[Files Route] Detected /files/ prefix in path, cleaning:', filePath);
+			filePath = filePath.replace(/^\/?files\//, '');
 		}
 
 		// Check storage type

@@ -181,11 +181,13 @@ $effect(() => {
 
 **Location**: `widgets/Watermark/`
 
-**Features**: Upload watermark images, draggable positioning, opacity control, snap positions
+**Features**: Upload image (PNG/JPG/SVG) or add text watermarks, tiling support, opacity control, flexible positioning (9-point snap), and size presets.
 
 **Key Files**:
 
-- `regions.ts` - WatermarkItem class with async image loading
+- `regions.ts` - `WatermarkItem` class handling both image and text nodes
+- `Controls.svelte` - Tabbed interface for adding layout, opacity, and tiling controls
+- `Tool.svelte` - State management and transformer integration
 
 ---
 

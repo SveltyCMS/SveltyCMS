@@ -1,32 +1,53 @@
 /**
- * @file src/routes/(app)/imageEditor/widgets/Crop/highlight.ts
- * @description Highlight for Konva
- *
- * Features:
- * - Syncs the overlay cutout with the visible crop tool; optionally re-cache
+ * @file src/components/imageEditor/widgets/Crop/highlight.ts
+ * @description Sync overlay cutout with crop shape transform
  */
 import Konva from 'konva';
 
-/** Syncs the overlay cutout with the visible crop tool; optionally re-cache */
-export function syncHighlight(overlayGroup: Konva.Group, cropTool: Konva.Shape, shouldCache = true) {
-	const cut = overlayGroup.findOne('.cropCut') as Konva.Shape | undefined;
-	if (!cut) return;
-	if (cropTool instanceof Konva.Circle && cut instanceof Konva.Circle) {
-		cut.position(cropTool.position());
-		cut.radius((cropTool as Konva.Circle).radius());
-		cut.rotation(cropTool.rotation());
-	} else if (cropTool instanceof Konva.Rect && cut instanceof Konva.Rect) {
-		cut.setAttrs({
-			x: cropTool.x(),
-			y: cropTool.y(),
-			width: cropTool.width() * cropTool.scaleX(),
-			height: cropTool.height() * cropTool.scaleY(),
-			rotation: cropTool.rotation()
-		});
+/**
+ * Synchronizes the overlay cutout with the crop shape's current transform
+ *
+ * @param overlayGroup - The overlay group containing the cutout
+ * @param shape - The crop shape (Rect or Circle)
+ * @param shouldCache - Whether to re-cache the overlay (expensive)
+ */
+export function syncHighlight(overlayGroup: Konva.Group, shape: Konva.Rect | Konva.Circle, shouldCache = true): void {
+	const cutout = overlayGroup.findOne('.cropCut') as Konva.Rect | Konva.Circle;
+	if (!cutout) return;
+
+	try {
+		if (shape instanceof Konva.Circle && cutout instanceof Konva.Circle) {
+			// Sync circle properties
+			cutout.setAttrs({
+				x: shape.x(),
+				y: shape.y(),
+				radius: shape.radius() * shape.scaleX()
+			});
+		} else if (shape instanceof Konva.Rect && cutout instanceof Konva.Rect) {
+			// Sync rectangle properties
+			cutout.setAttrs({
+				x: shape.x(),
+				y: shape.y(),
+				width: shape.width() * shape.scaleX(),
+				height: shape.height() * shape.scaleY(),
+				rotation: shape.rotation()
+			});
+		}
+
+		if (shouldCache) {
+			const stage = overlayGroup.getStage();
+			if (stage) {
+				overlayGroup.clearCache();
+				overlayGroup.cache({
+					x: 0,
+					y: 0,
+					width: stage.width(),
+					height: stage.height(),
+					pixelRatio: 1
+				});
+			}
+		}
+	} catch (error) {
+		console.warn('[Crop] Failed to sync highlight:', error);
 	}
-	if (shouldCache) {
-		const s = overlayGroup.getStage();
-		overlayGroup.cache({ x: 0, y: 0, width: s?.width() ?? 0, height: s?.height() ?? 0, pixelRatio: 1 });
-	}
-	overlayGroup.getLayer()?.batchDraw();
 }
