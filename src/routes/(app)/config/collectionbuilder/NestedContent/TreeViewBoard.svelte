@@ -18,18 +18,13 @@
 - Enhanced visual feedback for drag & drop
 -->
 <script lang="ts">
-	// Component
 	import TreeViewNode from './TreeViewNode.svelte';
-
-	// DB / Types
-	import type { ContentNode } from '@databases/dbInterface';
-
-	// Drag and Drop
-	import { dndzone, TRIGGERS } from 'svelte-dnd-action';
+	import type { ContentNode, DatabaseId } from '@databases/dbInterface';
+	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
-
-	// Adapter
 	import { toTreeViewData, toFlatContentNodes, recalculatePaths, type TreeViewItem } from '@utils/treeViewAdapter';
+	import { tick } from 'svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	interface Props {
 		contentNodes: ContentNode[];
@@ -41,535 +36,675 @@
 
 	let { contentNodes = [], onNodeUpdate, onEditCategory, onDeleteNode, onDuplicateNode }: Props = $props();
 
-	// Search state
 	let searchText = $state('');
-
-	// Local state for the tree data - flat structure for dnd-action
-	let treeData = $state<TreeViewItem[]>([]);
+	let treeRoots = $state<EnhancedTreeViewItem[]>([]);
 	let initialized = false;
-
-	// Expanded nodes tracking
 	let expandedNodes = $state<Set<string>>(new Set());
-
-	// Drag state for visual feedback
 	let isDragging = $state(false);
 
+	// Accessibility: Live region for announcements
+	let announcement = $state('');
+	let announcementId = $state(0);
+
+	// Keyboard reordering state
+	let keyboardReorderMode = $state<string | null>(null);
+
+	// Enhanced Item Type
+	type EnhancedTreeViewItem = TreeViewItem & {
+		children: EnhancedTreeViewItem[];
+		level: number;
+		isDndShadowItem?: boolean;
+	};
+
+	// Initialize Tree from Props - only when contentNodes actually changes
+	let lastContentNodesHash = $state('');
+
 	$effect(() => {
-		if (contentNodes.length > 0 && (!initialized || treeData.length === 0)) {
-			treeData = toTreeViewData(contentNodes);
-			initialized = true;
-			// Auto-expand root level nodes
-			treeData.forEach((item) => {
-				if (!item.parent) {
-					expandedNodes.add(item.id);
-				}
-			});
-			expandedNodes = new Set(expandedNodes);
+		// Only rebuild if contentNodes actually changed (not during drag operations)
+		if (isDragging) return;
+
+		// Create a simple hash to detect actual changes
+		const currentHash = contentNodes.map((n) => `${n._id}-${n.order}-${n.parentId || 'root'}`).join('|');
+
+		if (currentHash !== lastContentNodesHash && contentNodes.length > 0) {
+			lastContentNodesHash = currentHash;
+
+			const flatItems = toTreeViewData(contentNodes);
+			const newRoots = buildTree(flatItems);
+			treeRoots = newRoots;
+
+			if (!initialized) {
+				initialized = true;
+				// Expand root items by default
+				const expandSet = new Set<string>();
+				treeRoots.forEach((item) => expandSet.add(item.id));
+				expandedNodes = expandSet;
+			}
 		}
 	});
 
-	// Filter items based on search
-	const filteredItems = $derived.by(() => {
-		if (!searchText.trim()) return treeData;
-		const searchLower = searchText.toLowerCase();
-		return treeData.filter((item) => item.name.toLowerCase().includes(searchLower));
+	// Filter Logic
+	const displayedTree = $derived.by(() => {
+		if (!searchText.trim()) return treeRoots;
+		return filterTree(treeRoots, searchText.toLowerCase());
 	});
 
-	// Build hierarchical structure for rendering
-	type EnhancedTreeViewItem = TreeViewItem & { children: EnhancedTreeViewItem[]; level: number };
+	// Auto-expand on search
+	$effect(() => {
+		if (searchText.trim()) {
+			const idsToExpand = new Set(expandedNodes);
+			collectIdsToExpand(treeRoots, searchText.toLowerCase(), idsToExpand);
+			expandedNodes = idsToExpand;
+		}
+	});
 
-	const hierarchicalData = $derived.by(() => {
-		const items = filteredItems;
+	// --- Helpers ---
+
+	function buildTree(flatItems: TreeViewItem[]): EnhancedTreeViewItem[] {
 		const itemMap = new Map<string, EnhancedTreeViewItem>();
-
-		// First pass: create enhanced items with children arrays
-		items.forEach((item) => {
+		flatItems.forEach((item) => {
 			itemMap.set(item.id, { ...item, children: [], level: 0 });
 		});
 
-		// Second pass: build hierarchy
 		const roots: EnhancedTreeViewItem[] = [];
-		items.forEach((item) => {
-			const enhanced = itemMap.get(item.id);
-			if (!enhanced) return; // Safety check
-
-			if (item.parent && itemMap.has(item.parent)) {
-				const parent = itemMap.get(item.parent);
-				if (parent) {
-					parent.children.push(enhanced);
-					enhanced.level = parent.level + 1;
-				}
+		flatItems.forEach((item) => {
+			const enhanced = itemMap.get(item.id)!;
+			if (item.parent && itemMap.get(item.parent)) {
+				const parent = itemMap.get(item.parent)!;
+				parent.children.push(enhanced);
+				enhanced.level = parent.level + 1;
 			} else {
 				roots.push(enhanced);
 			}
 		});
 
+		const sortFn = (a: EnhancedTreeViewItem, b: EnhancedTreeViewItem) => (a.order ?? 0) - (b.order ?? 0);
+		roots.sort(sortFn);
+		itemMap.forEach((node) => node.children.sort(sortFn));
+
 		return roots;
-	});
-
-	// Get root level items for top-level dnd zone
-	const rootItems = $derived(hierarchicalData);
-
-	// Expand all nodes
-	function expandAll(): void {
-		expandedNodes = new Set(treeData.map((item) => item.id));
 	}
 
-	// Collapse all nodes
-	function collapseAll(): void {
+	function flattenTree(nodes: EnhancedTreeViewItem[], parentId: string | null = null): TreeViewItem[] {
+		let flat: TreeViewItem[] = [];
+
+		nodes.forEach((node, index) => {
+			const { children, level, isDndShadowItem, ...rest } = node;
+			const newItem: TreeViewItem = { ...rest, parent: parentId, order: index };
+			flat.push(newItem);
+
+			if (children && children.length > 0) {
+				flat = flat.concat(flattenTree(children, node.id));
+			}
+		});
+
+		return flat;
+	}
+
+	function findNode(nodes: EnhancedTreeViewItem[], id: string): EnhancedTreeViewItem | null {
+		for (const node of nodes) {
+			if (node.id === id) return node;
+			if (node.children) {
+				const found = findNode(node.children, id);
+				if (found) return found;
+			}
+		}
+		return null;
+	}
+
+	function findAndRemoveNode(nodes: EnhancedTreeViewItem[], id: string): EnhancedTreeViewItem | null {
+		for (let i = 0; i < nodes.length; i++) {
+			if (nodes[i].id === id) {
+				const [removed] = nodes.splice(i, 1);
+				return removed;
+			}
+			if (nodes[i].children) {
+				const found = findAndRemoveNode(nodes[i].children, id);
+				if (found) return found;
+			}
+		}
+		return null;
+	}
+
+	function getParent(rootNodes: EnhancedTreeViewItem[], childId: string): EnhancedTreeViewItem | null {
+		for (const node of rootNodes) {
+			if (node.children.some((c) => c.id === childId)) return node;
+			const found = getParent(node.children, childId);
+			if (found) return found;
+		}
+		return null;
+	}
+
+	function filterTree(nodes: EnhancedTreeViewItem[], search: string): EnhancedTreeViewItem[] {
+		return nodes.reduce<EnhancedTreeViewItem[]>((acc, node) => {
+			const matches = node.name.toLowerCase().includes(search);
+			const childMatches = filterTree(node.children, search);
+
+			if (matches || childMatches.length > 0) {
+				acc.push({ ...node, children: childMatches });
+			}
+			return acc;
+		}, []);
+	}
+
+	function collectIdsToExpand(nodes: EnhancedTreeViewItem[], search: string, ids: Set<string>): boolean {
+		let hasMatch = false;
+		for (const node of nodes) {
+			const matches = node.name.toLowerCase().includes(search);
+			const childHasMatch = collectIdsToExpand(node.children, search, ids);
+			if (childHasMatch || (matches && node.children.length > 0)) {
+				ids.add(node.id);
+				hasMatch = true;
+			}
+			if (matches) hasMatch = true;
+		}
+		return hasMatch;
+	}
+
+	function expandAll() {
+		const allIds = new Set<string>();
+		const recurse = (nodes: EnhancedTreeViewItem[]) => {
+			nodes.forEach((n) => {
+				allIds.add(n.id);
+				recurse(n.children);
+			});
+		};
+		recurse(treeRoots);
+		expandedNodes = allIds;
+	}
+
+	function collapseAll() {
 		expandedNodes = new Set();
 	}
 
-	// Clear the search
-	function clearSearch(): void {
+	function clearSearch() {
 		searchText = '';
 	}
 
-	// Toggle node expansion
 	function toggleNode(id: string) {
-		if (expandedNodes.has(id)) {
-			expandedNodes.delete(id);
-		} else {
-			expandedNodes.add(id);
-		}
-		expandedNodes = new Set(expandedNodes);
+		const next = new Set(expandedNodes);
+		if (next.has(id)) next.delete(id);
+		else next.add(id);
+		expandedNodes = next;
 	}
 
-	// Handle drag and drop at root level
-	function handleRootDndConsider(e: CustomEvent) {
+	function announce(message: string) {
+		announcement = message;
+		announcementId++;
+		setTimeout(() => {
+			announcement = '';
+		}, 1000);
+	}
+
+	// --- Drag & Drop Handlers ---
+
+	function handleRootConsider(e: CustomEvent) {
 		const { items, info } = e.detail;
-		if (info.trigger === TRIGGERS.DRAG_STARTED) {
+
+		if (info.trigger === 'dragStarted') {
 			isDragging = true;
 		}
-		updateRootItems(items);
-	}
 
-	function handleRootDndFinalize(e: CustomEvent) {
-		const { items } = e.detail;
-		isDragging = false;
-
-		// Update items with null parent (root level)
-		const updatedItems = items.map((item: EnhancedTreeViewItem) => ({
-			...item,
-			parent: null
-		}));
-
-		updateRootItems(updatedItems);
-		saveTreeData();
-	}
-
-	function updateRootItems(newItems: EnhancedTreeViewItem[]) {
-		// Get IDs of items now at root level
-		const newRootIds = new Set(newItems.map((item) => item.id));
-
-		// For each item that moved TO root, we need to keep its descendants
-		// For items that moved AWAY from root, they'll be handled by the nested zone
-
-		// Start with items that are NOT in the new root list AND not descendants of moved items
-		const itemsToKeep: TreeViewItem[] = [];
-		const processedIds = new Set<string>();
-
-		// First, add all new root items with updated parent
-		newItems.forEach((item, index) => {
-			itemsToKeep.push({
-				...stripEnhanced(item),
-				parent: null,
-				order: index
-			});
-			processedIds.add(item.id);
-
-			// Also add all descendants of this item (they keep their relative parent refs)
-			const descendants = getAllDescendants(item.id, treeData);
-			descendants.forEach((desc) => {
-				if (!processedIds.has(desc.id)) {
-					itemsToKeep.push(desc);
-					processedIds.add(desc.id);
-				}
-			});
-		});
-
-		// Add remaining items that weren't processed (items still in nested zones)
-		treeData.forEach((item) => {
-			if (!processedIds.has(item.id) && !newRootIds.has(item.id)) {
-				// Check if this item's parent is still valid
-				const parentStillExists = itemsToKeep.some((i) => i.id === item.parent);
-				if (parentStillExists || item.parent === null) {
-					itemsToKeep.push(item);
-					processedIds.add(item.id);
-				}
+		// Simply update order at root level
+		treeRoots = items.map((item: EnhancedTreeViewItem, index: number) => {
+			const existing = findNode(treeRoots, item.id);
+			if (existing) {
+				return { ...existing, order: index, parent: null };
 			}
+			return { ...item, order: index, parent: null };
+		});
+	}
+
+	function handleRootFinalize(e: CustomEvent) {
+		const { items } = e.detail;
+
+		// Update order and ensure parent is null for root items
+		treeRoots = items.map((item: EnhancedTreeViewItem, index: number) => {
+			const existing = findNode(treeRoots, item.id);
+			if (existing) {
+				return { ...existing, order: index, parent: null };
+			}
+			return { ...item, order: index, parent: null };
 		});
 
-		treeData = recalculatePaths(itemsToKeep);
-	}
-
-	// Handle drag and drop at nested level
-	function handleNestedDndConsider(e: CustomEvent, parentId: string) {
-		const { items, info } = e.detail;
-		if (info.trigger === TRIGGERS.DRAG_STARTED) {
-			isDragging = true;
-		}
-		updateItemsAtLevel(items, parentId);
-	}
-
-	function handleNestedDndFinalize(e: CustomEvent, parentId: string) {
-		const { items } = e.detail;
 		isDragging = false;
-		updateItemsAtLevel(items, parentId);
 		saveTreeData();
 	}
 
-	function updateItemsAtLevel(newItems: EnhancedTreeViewItem[], parentId: string) {
-		// Get IDs of items now at this level
-		const newChildIds = new Set(newItems.map((item) => item.id));
+	function handleNestedConsider(e: CustomEvent, parentId: string) {
+		const { items, info } = e.detail;
 
-		const itemsToKeep: TreeViewItem[] = [];
-		const processedIds = new Set<string>();
+		if (info.trigger === 'dragStarted') {
+			isDragging = true;
+		}
 
-		// Add items at this level with updated parent reference
-		newItems.forEach((item, index) => {
-			itemsToKeep.push({
-				...stripEnhanced(item),
+		const parent = findNode(treeRoots, parentId);
+		if (!parent) return;
+
+		// Update parent's children
+		parent.children = items.map((item: EnhancedTreeViewItem, index: number) => {
+			// Try to find existing node anywhere in tree
+			const existing = findNode(treeRoots, item.id);
+			if (existing) {
+				return {
+					...existing,
+					order: index,
+					parent: parentId,
+					level: parent.level + 1
+				};
+			}
+			return {
+				...item,
+				order: index,
 				parent: parentId,
-				order: index
-			});
-			processedIds.add(item.id);
+				level: parent.level + 1
+			};
+		});
 
-			// Also add all descendants of this item (they keep their relative parent refs)
-			const descendants = getAllDescendants(item.id, treeData);
-			descendants.forEach((desc) => {
-				if (!processedIds.has(desc.id)) {
-					itemsToKeep.push(desc);
-					processedIds.add(desc.id);
+		// Auto-expand parent
+		if (!expandedNodes.has(parentId)) {
+			expandedNodes = new Set([...expandedNodes, parentId]);
+		}
+
+		// Trigger reactivity
+		treeRoots = [...treeRoots];
+	}
+
+	function handleNestedFinalize(e: CustomEvent, parentId: string) {
+		const { items } = e.detail;
+
+		const parent = findNode(treeRoots, parentId);
+		if (!parent) return;
+
+		// Get IDs of items that should be in this parent
+		const itemIds = new Set(items.map((i: EnhancedTreeViewItem) => i.id));
+
+		// Remove these items from anywhere else in the tree
+		const cleanTree = (nodes: EnhancedTreeViewItem[]): EnhancedTreeViewItem[] => {
+			return nodes
+				.filter((node) => !itemIds.has(node.id) || node.id === parentId)
+				.map((node) => ({
+					...node,
+					children: cleanTree(node.children)
+				}));
+		};
+
+		treeRoots = cleanTree(treeRoots);
+
+		// Now find parent again in cleaned tree and set its children
+		const cleanedParent = findNode(treeRoots, parentId);
+		if (cleanedParent) {
+			cleanedParent.children = items.map((item: EnhancedTreeViewItem, index: number) => {
+				const existing = findNode(treeRoots, item.id);
+				if (existing && existing.id !== item.id) {
+					// Found elsewhere, use existing data
+					return {
+						...existing,
+						order: index,
+						parent: parentId,
+						level: cleanedParent.level + 1
+					};
 				}
+				return {
+					...item,
+					order: index,
+					parent: parentId,
+					level: cleanedParent.level + 1
+				};
 			});
-		});
 
-		// Add all other items that weren't affected
-		treeData.forEach((item) => {
-			if (!processedIds.has(item.id) && !newChildIds.has(item.id) && item.parent !== parentId) {
-				itemsToKeep.push(item);
-				processedIds.add(item.id);
-			}
-		});
+			// Keep parent expanded
+			expandedNodes = new Set([...expandedNodes, parentId]);
+		}
 
-		// Also add items that are still children of this parent but not in newItems
-		// (they were removed from this zone, handled elsewhere)
+		// Trigger reactivity
+		treeRoots = [...treeRoots];
 
-		treeData = recalculatePaths(itemsToKeep);
-	}
-
-	// Helper: Get all descendants of an item
-	function getAllDescendants(itemId: string, items: TreeViewItem[]): TreeViewItem[] {
-		const descendants: TreeViewItem[] = [];
-		const directChildren = items.filter((item) => item.parent === itemId);
-
-		directChildren.forEach((child) => {
-			descendants.push(child);
-			descendants.push(...getAllDescendants(child.id, items));
-		});
-
-		return descendants;
-	}
-
-	// Helper: Strip enhanced properties from item
-	function stripEnhanced(item: EnhancedTreeViewItem): TreeViewItem {
-		const { children, level, ...base } = item;
-		return base;
+		isDragging = false;
+		saveTreeData();
 	}
 
 	function saveTreeData() {
-		// Convert back to ContentNodes and notify parent
-		const contentNodes = toFlatContentNodes(treeData);
-
-		// Defer update to prevent synchronous state update loop
 		setTimeout(() => {
-			onNodeUpdate(contentNodes);
+			const flatItems = flattenTree(treeRoots);
+			const withPaths = recalculatePaths(flatItems);
+			const nodes = toFlatContentNodes(withPaths);
+			onNodeUpdate(nodes);
 		}, 50);
 	}
 
-	// Helper to convert EnhancedTreeViewItem to Partial<ContentNode> for callbacks
-	function toPartialContentNode(item: TreeViewItem | EnhancedTreeViewItem): Partial<ContentNode> {
-		// Extract only the properties needed for ContentNode
-		const { children, level, parent, path, ...contentNodeProps } = item as any;
+	// --- Keyboard Reordering ---
+
+	async function moveItem(itemId: string, direction: 'up' | 'down') {
+		const parent = getParent(treeRoots, itemId);
+		const list = parent ? parent.children : treeRoots;
+		const index = list.findIndex((i) => i.id === itemId);
+
+		if (index === -1) return;
+
+		const newIndex = direction === 'up' ? index - 1 : index + 1;
+		if (newIndex < 0 || newIndex >= list.length) return;
+
+		const item = list[index];
+		list.splice(index, 1);
+		list.splice(newIndex, 0, item);
+
+		if (!parent) {
+			treeRoots = [...treeRoots];
+		} else {
+			parent.children = [...parent.children];
+			treeRoots = [...treeRoots];
+		}
+
+		saveTreeData();
+		announce(`Moved ${item.name} ${direction}`);
+		await tick();
+		document.querySelector(`[data-item-id="${itemId}"]`)?.querySelector('button')?.focus();
+	}
+
+	async function moveItemUp(itemId: string) {
+		await moveItem(itemId, 'up');
+	}
+
+	async function moveItemDown(itemId: string) {
+		await moveItem(itemId, 'down');
+	}
+
+	async function moveItemToParent(itemId: string) {
+		const parent = getParent(treeRoots, itemId);
+		if (!parent) return;
+
+		const item = parent.children.find((i) => i.id === itemId);
+		if (!item) return;
+
+		parent.children = parent.children.filter((i) => i.id !== itemId);
+
+		const grandparent = getParent(treeRoots, parent.id);
+		const targetList = grandparent ? grandparent.children : treeRoots;
+
+		const parentIndex = targetList.findIndex((i) => i.id === parent.id);
+		targetList.splice(parentIndex + 1, 0, item);
+
+		if (!grandparent) {
+			treeRoots = [...treeRoots];
+		} else {
+			grandparent.children = [...grandparent.children];
+			treeRoots = [...treeRoots];
+		}
+
+		saveTreeData();
+		announce(`Moved ${item.name} to higher level`);
+		await tick();
+		document.querySelector(`[data-item-id="${itemId}"]`)?.querySelector('button')?.focus();
+	}
+
+	function toPartialContentNode(item: TreeViewItem): Partial<ContentNode> {
 		return {
-			...contentNodeProps,
 			_id: item._id || item.id,
-			parentId: parent
+			name: item.name,
+			nodeType: item.nodeType,
+			parentId: (item.parent ?? undefined) as DatabaseId | undefined,
+			slug: item.slug,
+			description: item.description,
+			icon: item.icon,
+			path: item.path
 		};
 	}
 
-	// Flip animation duration
-	const flipDurationMs = 300;
+	const flipDurationMs = 200;
 </script>
+
+<!-- Accessibility: Live region for screen reader announcements -->
+<div aria-live="polite" aria-atomic="true" class="sr-only">
+	{#key announcementId}{announcement}{/key}
+</div>
 
 <!-- Toolbar -->
 <div class="mb-4 flex flex-wrap items-center gap-2">
-	<!-- Search Input -->
 	<div class="relative flex-1 min-w-[200px]">
 		<iconify-icon icon="mdi:magnify" width="18" class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"></iconify-icon>
-		<input type="text" placeholder="Search collections..." bind:value={searchText} class="input w-full h-12 pl-10 pr-8 rounded shadow-sm" />
+		<input
+			type="text"
+			placeholder="Search collections..."
+			bind:value={searchText}
+			class="input w-full h-12 pl-10 pr-8 rounded shadow-sm"
+			aria-label="Search collections"
+		/>
 		{#if searchText}
 			<button
 				type="button"
 				onclick={clearSearch}
-				class="absolute right-2 top-1/2 -translate-y-1/2 btn-icon preset-tonal-surface-500 hover:preset-filled-surface-500 transition-all"
+				class="absolute right-2 top-1/2 -translate-y-1/2 btn-icon preset-tonal-surface-500"
 				aria-label="Clear search"
 			>
 				<iconify-icon icon="mdi:close" width={16}></iconify-icon>
 			</button>
 		{/if}
 	</div>
-
-	<!-- Expand/Collapse Buttons -->
 	<div class="flex gap-2">
-		<button
-			type="button"
-			onclick={expandAll}
-			class="btn preset-tonal-surface-500 hover:preset-filled-surface-500 transition-all shadow-sm"
-			title="Expand All"
-		>
-			<iconify-icon icon="mdi:unfold-more-horizontal" width={24}></iconify-icon>
-			<span class="hidden sm:inline ml-1">Expand All</span>
-		</button>
-		<button
-			type="button"
-			onclick={collapseAll}
-			class="btn preset-tonal-surface-500 hover:preset-filled-surface-500 transition-all shadow-sm"
-			title="Collapse All"
-		>
-			<iconify-icon icon="mdi:unfold-less-horizontal" width={24}></iconify-icon>
-			<span class="hidden sm:inline ml-1">Collapse All</span>
-		</button>
+		<SystemTooltip title="Expand all categories">
+			<button
+				type="button"
+				onclick={expandAll}
+				class="btn preset-tonal-surface-500 hover:preset-filled-surface-500 transition-all shadow-sm"
+				aria-label="Expand all categories"
+			>
+				<iconify-icon icon="mdi:unfold-more-horizontal" width={24} aria-hidden="true"></iconify-icon>
+				<span class="hidden sm:inline ml-1">Expand All</span>
+			</button>
+		</SystemTooltip>
+		<SystemTooltip title="Collapse all categories">
+			<button
+				type="button"
+				onclick={collapseAll}
+				class="btn preset-tonal-surface-500 hover:preset-filled-surface-500 transition-all shadow-sm"
+				aria-label="Collapse all categories"
+			>
+				<iconify-icon icon="mdi:unfold-less-horizontal" width={24} aria-hidden="true"></iconify-icon>
+				<span class="hidden sm:inline ml-1">Collapse All</span>
+			</button>
+		</SystemTooltip>
 	</div>
 </div>
 
-<!-- Tree View with Drag and Drop -->
-<div class="collection-builder-tree relative w-full h-auto overflow-y-auto rounded p-2">
-	{#if hierarchicalData.length === 0}
+<!-- Tree View -->
+<div
+	class="collection-builder-tree relative w-full h-auto overflow-y-auto rounded p-2"
+	class:is-dragging={isDragging}
+	role="region"
+	aria-label="Collection tree. Use arrow keys to navigate, Space to expand/collapse. Press Enter on drag handle to enter keyboard reorder mode."
+>
+	{#if displayedTree.length === 0}
 		<div class="text-center p-8 text-surface-500">
-			{#if searchText}
-				<iconify-icon icon="mdi:magnify-close" width="48" class="opacity-50 mb-2"></iconify-icon>
-				<p>No results found for "{searchText}"</p>
-			{:else}
-				<iconify-icon icon="mdi:folder-outline" width="48" class="opacity-50 mb-2"></iconify-icon>
-				<p>No categories or collections yet</p>
-			{/if}
+			<iconify-icon icon={searchText ? 'mdi:magnify-close' : 'mdi:folder-outline'} width="48" class="opacity-50 mb-2" aria-hidden="true"
+			></iconify-icon>
+			<p>{searchText ? `No results found for "${searchText}"` : 'No categories or collections yet'}</p>
 		</div>
 	{:else}
-		<!-- Root Level DnD Zone -->
 		<div
-			class="root-dnd-zone"
+			class="dnd-zone root-zone"
 			use:dndzone={{
-				items: rootItems,
+				items: displayedTree,
 				flipDurationMs,
 				type: 'tree-items',
-				dropFromOthersDisabled: false,
-				dropTargetStyle: {}
+				dragDisabled: !!searchText,
+				morphDisabled: true,
+				centreDraggedOnCursor: true
 			}}
-			onconsider={handleRootDndConsider}
-			onfinalize={handleRootDndFinalize}
+			onconsider={handleRootConsider}
+			onfinalize={handleRootFinalize}
 			role="tree"
+			aria-label="Collection hierarchy"
 		>
-			{#each rootItems as item (item.id)}
+			{#each displayedTree as item (item.id)}
 				<div
-					class="tree-node-wrapper"
+					class="tree-node-wrapper mb-2"
 					animate:flip={{ duration: flipDurationMs }}
 					role="treeitem"
 					aria-expanded={expandedNodes.has(item.id)}
 					aria-selected="false"
+					data-item-id={item.id}
+					data-node-type={item.nodeType}
+					data-is-dnd-shadow-item={item.isDndShadowItem}
 				>
 					{@render treeNode(item, 0)}
 				</div>
 			{/each}
 		</div>
 	{/if}
-
-	<!-- Drop to Root Zone (visible during drag) -->
-	{#if isDragging}
-		<div class="drop-to-root-zone">
-			<iconify-icon icon="mdi:arrow-up" width="20"></iconify-icon>
-			<span>Drop here to move to root level</span>
-		</div>
-	{/if}
 </div>
 
-<!-- Recursive Tree Node Renderer -->
 {#snippet treeNode(item: EnhancedTreeViewItem, level: number)}
-	<div class="tree-node-container" style="margin-left: {level * 0.75}rem">
-		<!-- Render the node -->
+	<div class="tree-node-outer">
 		<TreeViewNode
-			item={{ ...item, hasChildren: item.children && item.children.length > 0 }}
+			item={{ ...item, hasChildren: item.children?.length > 0 }}
 			isOpen={expandedNodes.has(item.id)}
 			toggle={() => toggleNode(item.id)}
 			onEditCategory={() => onEditCategory(toPartialContentNode(item))}
 			onDelete={() => onDeleteNode?.(toPartialContentNode(item))}
 			onDuplicate={() => onDuplicateNode?.(toPartialContentNode(item))}
+			keyboardReorderMode={keyboardReorderMode === item.id}
+			onMoveUp={() => moveItemUp(item.id)}
+			onMoveDown={() => moveItemDown(item.id)}
+			onMoveToParent={() => moveItemToParent(item.id)}
+			onEnterReorderMode={() => {
+				keyboardReorderMode = item.id;
+				announce(`Keyboard reorder mode active for ${item.name}. Use arrow keys to move, Escape to cancel, Enter to confirm.`);
+			}}
+			onExitReorderMode={() => {
+				keyboardReorderMode = null;
+			}}
 		/>
 
-		<!-- Render children if expanded and has children -->
-		{#if expandedNodes.has(item.id) && item.children && item.children.length > 0}
-			<div
-				class="tree-children"
-				use:dndzone={{
-					items: item.children,
-					flipDurationMs,
-					type: 'tree-items',
-					dropFromOthersDisabled: false,
-					dropTargetStyle: {}
-				}}
-				onconsider={(e) => handleNestedDndConsider(e, item.id)}
-				onfinalize={(e) => handleNestedDndFinalize(e, item.id)}
-				role="group"
-			>
-				{#each item.children as child (child.id)}
-					<div
-						class="tree-node-wrapper"
-						animate:flip={{ duration: flipDurationMs }}
-						role="treeitem"
-						aria-expanded={expandedNodes.has(child.id)}
-						aria-selected="false"
-					>
-						{@render treeNode(child, level + 1)}
-					</div>
-				{/each}
-			</div>
-		{:else if expandedNodes.has(item.id) && item.nodeType === 'category'}
-			<!-- Empty drop zone for categories with no children -->
-			<div
-				class="tree-children empty-drop-zone"
-				use:dndzone={{
-					items: [],
-					flipDurationMs,
-					type: 'tree-items',
-					dropFromOthersDisabled: false,
-					dropTargetStyle: {}
-				}}
-				onconsider={(e) => handleNestedDndConsider(e, item.id)}
-				onfinalize={(e) => handleNestedDndFinalize(e, item.id)}
-				role="group"
-			>
-				<span class="empty-hint">Drop items here</span>
-			</div>
+		{#if expandedNodes.has(item.id)}
+			{#if item.children?.length > 0 || item.nodeType === 'category'}
+				<div
+					class="dnd-zone nested-zone mt-2"
+					style="margin-left: {Math.min(level + 1, 6) * 0.75}rem; padding-left: 0.5rem; border-left: 2px solid rgb(var(--color-surface-300));"
+					use:dndzone={{
+						items: item.children || [],
+						flipDurationMs,
+						type: 'tree-items',
+						dragDisabled: !!searchText,
+						morphDisabled: true,
+						centreDraggedOnCursor: true
+					}}
+					onconsider={(e) => handleNestedConsider(e, item.id)}
+					onfinalize={(e) => handleNestedFinalize(e, item.id)}
+					role="group"
+					aria-label={`Contents of ${item.name}`}
+				>
+					{#if item.children?.length > 0}
+						{#each item.children as child (child.id)}
+							<div
+								class="tree-node-wrapper mb-2"
+								animate:flip={{ duration: flipDurationMs }}
+								role="treeitem"
+								aria-expanded={expandedNodes.has(child.id)}
+								aria-selected="false"
+								data-item-id={child.id}
+								data-node-type={child.nodeType}
+								data-is-dnd-shadow-item={child.isDndShadowItem}
+							>
+								{@render treeNode(child, level + 1)}
+							</div>
+						{/each}
+					{:else}
+						<!-- Empty state for category drop zones -->
+						<div class="empty-drop-zone" role="none">
+							<span class="text-surface-500 text-sm italic">Drop items here</span>
+						</div>
+					{/if}
+				</div>
+			{/if}
 		{/if}
 	</div>
 {/snippet}
 
 <style>
-	/* Base Tree Styling */
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
 	.collection-builder-tree {
-		background: transparent;
-		color: inherit;
-		font-family: inherit;
-		padding: 0.5rem;
 		min-height: 200px;
+		padding: 0.5rem;
 	}
 
-	/* Root DnD Zone */
-	.root-dnd-zone {
-		min-height: 100px;
-	}
-
-	/* Tree Node Wrapper for animations */
-	.tree-node-wrapper {
-		margin-bottom: 0.5rem;
-	}
-
-	/* Tree Node Container */
-	.tree-node-container {
-		transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+	.dnd-zone {
+		min-height: 60px;
+		transition:
+			background-color 0.2s ease,
+			border-color 0.2s ease;
+		border-radius: 0.5rem;
 		position: relative;
 	}
 
-	/* Tree Children Container */
-	.tree-children {
-		padding-left: 0.5rem;
-		border-left: 2px solid rgb(var(--color-surface-300));
-		margin-left: 0.5rem;
-		margin-top: 0.5rem;
-		min-height: 40px;
-		transition: all 0.2s ease;
-	}
-
-	.tree-children.empty-drop-zone {
+	.dnd-zone:empty,
+	.empty-drop-zone {
+		min-height: 80px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		border: 2px dashed rgb(var(--color-surface-300));
-		border-left: 2px solid rgb(var(--color-surface-300));
-		border-radius: 4px;
-		background: rgb(var(--color-surface-50) / 0.3);
-	}
-
-	.empty-hint {
-		color: rgb(var(--color-surface-500));
-		font-size: 0.85rem;
-		font-style: italic;
-	}
-
-	/* Drop to Root Zone */
-	.drop-to-root-zone {
-		margin-top: 1rem;
+		background: rgb(var(--color-surface-200) / 0.3);
+		border: 2px dashed rgb(var(--color-surface-400));
+		border-radius: 0.5rem;
 		padding: 1rem;
-		border: 2px dashed rgb(var(--color-primary-500));
-		border-radius: 8px;
-		background: rgb(var(--color-primary-500) / 0.1);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		color: rgb(var(--color-primary-500));
-		font-weight: 500;
-		animation: pulse-border 1.5s ease-in-out infinite;
 	}
 
-	@keyframes pulse-border {
-		0%,
-		100% {
-			border-color: rgb(var(--color-primary-500));
-		}
-		50% {
-			border-color: rgb(var(--color-primary-300));
-		}
+	.tree-node-wrapper {
+		position: relative;
 	}
 
-	/* Dragging State - Applied by svelte-dnd-action */
-	:global(.tree-node-wrapper[aria-grabbed='true']) {
+	/* Active dragging state */
+	:global(.tree-node-wrapper.svelte-dnd-action-dragged-el) {
 		opacity: 0.5;
-		transform: scale(0.98);
+		transform: scale(0.95);
 	}
 
-	/* Drop target visual feedback */
-	:global(.tree-children:has([aria-grabbed='true'])) {
-		background: rgb(var(--color-primary-500) / 0.05);
-		border-left-color: rgb(var(--color-primary-500));
+	/* Drop target feedback */
+	:global(.dnd-zone.svelte-dnd-action-shadow-placeholder-active) {
+		background: rgb(var(--color-primary-500) / 0.08) !important;
+		border: 2px dashed rgb(var(--color-primary-500)) !important;
 	}
 
-	/* Hover Effects */
-	.tree-node-container:hover {
-		transform: translateX(2px);
+	/* Shadow item (placeholder) styling */
+	:global([aria-grabbed='true']) {
+		opacity: 0.4;
+		box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+		border-radius: 0.5rem;
 	}
 
-	/* Smooth Scrollbar */
-	.collection-builder-tree {
-		scrollbar-width: thin;
-		scrollbar-color: rgb(var(--color-surface-400)) transparent;
+	/* Category drop zone feedback */
+	:global(.nested-zone.svelte-dnd-action-shadow-placeholder-active) {
+		background: rgb(var(--color-tertiary-500) / 0.1) !important;
+		border-color: rgb(var(--color-tertiary-500)) !important;
 	}
 
-	.collection-builder-tree::-webkit-scrollbar {
-		width: 8px;
+	/* Disable selection during drag */
+	.collection-builder-tree.is-dragging {
+		user-select: none;
 	}
 
-	.collection-builder-tree::-webkit-scrollbar-track {
-		background: transparent;
+	.nested-zone {
+		position: relative;
 	}
 
-	.collection-builder-tree::-webkit-scrollbar-thumb {
-		background: rgb(var(--color-surface-400));
-		border-radius: 4px;
-	}
-
-	.collection-builder-tree::-webkit-scrollbar-thumb:hover {
-		background: rgb(var(--color-surface-500));
+	.nested-zone::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 0;
+		bottom: 0;
+		width: 2px;
+		background: rgb(var(--color-surface-300));
 	}
 </style>

@@ -99,26 +99,36 @@ Comprehensive image editing interface with Konva.js integration.
 	});
 
 	// Load initial image effect - handles race conditions with modal animations
+	let lastLoadedSrc = $state('');
+	let lastLoadedFile = $state<File | null>(null);
+
 	$effect(() => {
-		// Use local variables to track what we're loading
 		const src = initialImageSrc;
 		const file = imageFile;
+
+		// Reset load state when image source changes (e.g. modal opened with new image)
+		const srcChanged = src !== lastLoadedSrc;
+		const fileChanged = file !== lastLoadedFile;
+
+		if (srcChanged || fileChanged) {
+			initialImageLoaded = false;
+			selectedImage = '';
+		}
 
 		// Skip if nothing to load
 		if (!containerRef || (!src && !file)) return;
 
 		// Wait for container to have size before initializing (modal might be animating)
-		// Use a small delay to ensure the modal has finished its animation
 		if (containerWidth === 0 || containerHeight === 0) {
 			console.log('[Editor] Waiting for container size...', { containerWidth, containerHeight, hasContainerRef: !!containerRef });
 			// Schedule a re-check after a short delay for modal animation
 			const timeoutId = setTimeout(() => {
 				// Force a re-check by updating a tracked value
-				if (containerRef && containerRef.clientWidth > 0) {
+				if (containerRef && containerRef.clientWidth > 0 && containerRef.clientHeight > 0) {
 					containerWidth = containerRef.clientWidth;
 					containerHeight = containerRef.clientHeight;
 				}
-			}, 100);
+			}, 150);
 			return () => clearTimeout(timeoutId);
 		}
 
@@ -132,10 +142,14 @@ Comprehensive image editing interface with Konva.js integration.
 			if (src) {
 				selectedImage = src;
 				loadImageAndSetupKonva(src);
+				lastLoadedSrc = src;
+				lastLoadedFile = null;
 			} else if (file) {
 				const blobUrl = URL.createObjectURL(file);
 				selectedImage = blobUrl;
 				loadImageAndSetupKonva(blobUrl, file);
+				lastLoadedSrc = '';
+				lastLoadedFile = file;
 			}
 			initialImageLoaded = true;
 		});
@@ -169,6 +183,7 @@ Comprehensive image editing interface with Konva.js integration.
 
 	// Load image and setup Konva
 	function loadImageAndSetupKonva(imageSrc: string, file?: File, retryAttempt = 0) {
+		// ... existing load function logic ...
 		console.log('[Editor] loadImageAndSetupKonva called:', { imageSrc, hasFile: !!file, attempt: retryAttempt });
 
 		// CRITICAL: Validate and clean the URL to prevent double /files/ prefix
@@ -356,10 +371,8 @@ Comprehensive image editing interface with Konva.js integration.
 		}
 
 		// Zoom Shorcuts
-		// Check against imageEditorStore actions or dispatch directly if possible
-		// Since Zoom is a widget, ideally we'd switch to it, but for now we'll just log or try to access stage
 		if (event.key === '+' || event.key === '=') {
-			// zoomIn(); // Need to implement or delegate
+			// zoomIn();
 		}
 		if (event.key === '-') {
 			// zoomOut();
@@ -571,7 +584,6 @@ Comprehensive image editing interface with Konva.js integration.
 
 		if (preToolSnapshot) {
 			restoreFromStateData(preToolSnapshot);
-			// Also clear history forward if needed? No, undoState(true) just returns top.
 		}
 
 		imageEditorStore.cleanupToolSpecific(currentState);
@@ -587,27 +599,61 @@ Comprehensive image editing interface with Konva.js integration.
 		window.addEventListener('keydown', handleKeyDown);
 
 		// Use ResizeObserver for robust container dimension detection
-		const resizeObserver = new ResizeObserver((entries) => {
-			for (const entry of entries) {
-				if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
-					containerWidth = entry.contentRect.width;
-					containerHeight = entry.contentRect.height;
-					// Trigger resize handling if stage exists
-					if (imageEditorStore.state.stage) {
-						handleResize();
+		let ro: ResizeObserver | null = null;
+
+		const scheduleObserve = () => {
+			if (!containerRef) return;
+			const el = containerRef;
+			ro = new ResizeObserver((entries) => {
+				for (const e of entries) {
+					const { width, height } = e.contentRect;
+					if (width > 0 && height > 0) {
+						containerWidth = width;
+						containerHeight = height;
+						ro?.disconnect();
+						ro = null;
+						// Also trigger resize logic if needed immediately
+						if (imageEditorStore.state.stage) handleResize();
+						break;
 					}
 				}
-			}
-		});
+			});
+			ro.observe(el);
+		};
 
-		if (containerRef) {
-			resizeObserver.observe(containerRef);
-		}
+		// Poll until containerRef is set, then observe. Start after delay for modal open.
+		let observeRetries = 0;
+		const checkAndObserve = () => {
+			if (containerRef) {
+				scheduleObserve();
+				return;
+			}
+			if (observeRetries < 30) {
+				observeRetries++;
+				setTimeout(checkAndObserve, 50);
+			}
+		};
+		setTimeout(checkAndObserve, 120);
+
+		// Fallback polling in case ResizeObserver fires with 0 initially
+		let pollRetries = 0;
+		const poll = () => {
+			if (containerRef && containerRef.clientWidth > 0 && containerRef.clientHeight > 0) {
+				containerWidth = containerRef.clientWidth;
+				containerHeight = containerRef.clientHeight;
+				return;
+			}
+			if (pollRetries < 25) {
+				pollRetries++;
+				setTimeout(poll, 100);
+			}
+		};
+		setTimeout(poll, 200);
 
 		return () => {
+			ro?.disconnect();
 			window.removeEventListener('resize', handleResize);
 			window.removeEventListener('keydown', handleKeyDown);
-			resizeObserver.disconnect();
 			imageEditorStore.cleanupTempNodes();
 			imageEditorStore.reset();
 		};
