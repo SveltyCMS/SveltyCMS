@@ -431,6 +431,8 @@ export default defineConfig((): UserConfig => {
 
 	return {
 		plugins: [
+			// SvelteKit first so $app/* and other framework modules resolve before custom plugins
+			sveltekit(),
 			// Suppress third-party warnings
 			suppressThirdPartyWarningsPlugin(),
 			// Test config alias - runs first to redirect to test config if needed
@@ -444,7 +446,6 @@ export default defineConfig((): UserConfig => {
 				extensions: ['.svelte', '.ts', '.js']
 			}),
 			stubServerModulesPlugin(),
-			sveltekit(),
 			!setupComplete ? setupWizardPlugin() : cmsWatcherPlugin(),
 			tailwindcss(),
 			paraglideVitePlugin({
@@ -476,7 +477,11 @@ export default defineConfig((): UserConfig => {
 				'@config': path.resolve(__dirname, 'config'),
 				'@utils': path.resolve(CWD, './src/utils'),
 				'@stores': path.resolve(CWD, './src/stores'),
-				'@widgets': path.resolve(CWD, './src/widgets')
+				'@widgets': path.resolve(CWD, './src/widgets'),
+				// Fallback so $app/* resolves if SvelteKit plugin alias is overridden (e.g. by config merge)
+				'$app/navigation': path.resolve(CWD, 'node_modules/@sveltejs/kit/src/runtime/app/navigation.js'),
+				'$app/state': path.resolve(CWD, 'node_modules/@sveltejs/kit/src/runtime/app/state/client.js'),
+				'$app/environment': path.resolve(CWD, 'node_modules/@sveltejs/kit/src/runtime/app/environment/index.js')
 			}
 		},
 		define: {
