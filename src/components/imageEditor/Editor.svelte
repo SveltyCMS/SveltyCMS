@@ -113,9 +113,6 @@ Comprehensive image editing interface with Konva.js integration.
 	});
 
 	// Load initial image effect - handles race conditions with modal animations
-	let lastLoadedSrc = $state('');
-	let lastLoadedFile = $state<File | null>(null);
-
 	$effect(() => {
 		const src = initialImageSrc;
 		const file = imageFile;
@@ -297,14 +294,14 @@ Comprehensive image editing interface with Konva.js integration.
 				});
 
 				// Add touch support
-				imageGroup.on('touchstart', (_e) => {
+				imageGroup.on('touchstart', (_e: Konva.KonvaEventObject<TouchEvent>) => {
 					// Placeholder for touch start logic
 					// e.evt.preventDefault(); // Prevent scrolling if needed
 				});
-				imageGroup.on('touchmove', (_e) => {
+				imageGroup.on('touchmove', (_e: Konva.KonvaEventObject<TouchEvent>) => {
 					// Placeholder for touch move logic
 				});
-				imageGroup.on('touchend', (_e) => {
+				imageGroup.on('touchend', (_e: Konva.KonvaEventObject<TouchEvent>) => {
 					// Placeholder for touch end logic
 				});
 
