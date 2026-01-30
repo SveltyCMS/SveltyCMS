@@ -148,10 +148,11 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.75rem;
-		padding: 0.75rem;
-		background: rgb(var(--color-surface-100) / 1);
-		border-top: 1px solid rgb(var(--color-surface-200) / 1);
+		padding: 0;
+		background: transparent;
+		border: none;
 		width: 100%;
+		justify-content: center;
 	}
 
 	:global(.dark) .blur-controls {
