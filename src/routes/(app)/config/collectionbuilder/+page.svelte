@@ -287,10 +287,10 @@
 				onclick={handleAddCollectionClick}
 				type="button"
 				aria-label="Add New Collection"
-				class="preset-filled-surface-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1 rounded font-bold"
+				class="preset-filled-surface-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1 rounded"
 				disabled={isLoading}
 			>
-				<iconify-icon icon="mdi:plus-thick" width="24"></iconify-icon>
+				<iconify-icon icon="ic:round-plus" width="24"></iconify-icon>
 				<span>{m.collection_add()}</span>
 			</button>
 
