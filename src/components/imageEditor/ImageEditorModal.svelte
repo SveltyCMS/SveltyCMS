@@ -52,15 +52,6 @@ A reusable modal that wraps the main Image Editor.
 		return undefined;
 	});
 
-	$effect(() => {
-		console.log('[ImageEditorModal] Props received:', { 
-			imageType: image ? (image instanceof File ? 'File' : typeof image === 'string' ? 'string' : 'MediaImage') : 'null',
-			imageSrc: imageSrc || '(empty)',
-			hasFile: !!imageFile,
-			mediaId: mediaId || '(none)'
-		});
-	});
-
 	// Provide watermark preset to child widgets via context
 	setContext('watermarkPreset', () => watermarkPreset);
 

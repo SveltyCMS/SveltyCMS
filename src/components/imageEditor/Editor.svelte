@@ -89,6 +89,20 @@ Comprehensive image editing interface with Konva.js integration.
 		return null;
 	});
 
+	// Reset load state when image source changes (e.g. modal opened with new image)
+	let lastLoadedSrc = $state('');
+	let lastLoadedFile = $state<File | null>(null);
+	$effect(() => {
+		const src = initialImageSrc;
+		const file = imageFile;
+		const srcChanged = src !== lastLoadedSrc;
+		const fileChanged = file !== lastLoadedFile;
+		if (srcChanged || fileChanged) {
+			initialImageLoaded = false;
+			selectedImage = '';
+		}
+	});
+
 	// Cleanup effect for selected image
 	$effect(() => {
 		return () => {
@@ -100,42 +114,39 @@ Comprehensive image editing interface with Konva.js integration.
 
 	// Load initial image effect - handles race conditions with modal animations
 	$effect(() => {
-		// Use local variables to track what we're loading
 		const src = initialImageSrc;
 		const file = imageFile;
 
 		// Skip if nothing to load
 		if (!containerRef || (!src && !file)) return;
-		
+
 		// Wait for container to have size before initializing (modal might be animating)
-		// Use a small delay to ensure the modal has finished its animation
 		if (containerWidth === 0 || containerHeight === 0) {
-			console.log('[Editor] Waiting for container size...', { containerWidth, containerHeight, hasContainerRef: !!containerRef });
-			// Schedule a re-check after a short delay for modal animation
 			const timeoutId = setTimeout(() => {
-				// Force a re-check by updating a tracked value
-				if (containerRef && containerRef.clientWidth > 0) {
+				if (containerRef && containerRef.clientWidth > 0 && containerRef.clientHeight > 0) {
 					containerWidth = containerRef.clientWidth;
 					containerHeight = containerRef.clientHeight;
 				}
-			}, 100);
+			}, 150);
 			return () => clearTimeout(timeoutId);
 		}
 
 		// Skip if already loaded with same source
 		if (initialImageLoaded && src === selectedImage && !file) return;
 
-		console.log('[Editor] Loading image:', { src: src || '(empty)', hasFile: !!file, containerWidth, containerHeight });
-
 		// Schedule loading after a microtask to ensure DOM is ready
 		queueMicrotask(() => {
 			if (src) {
 				selectedImage = src;
 				loadImageAndSetupKonva(src);
+				lastLoadedSrc = src;
+				lastLoadedFile = null;
 			} else if (file) {
 				const blobUrl = URL.createObjectURL(file);
 				selectedImage = blobUrl;
 				loadImageAndSetupKonva(blobUrl, file);
+				lastLoadedSrc = '';
+				lastLoadedFile = file;
 			}
 			initialImageLoaded = true;
 		});
@@ -543,29 +554,57 @@ Comprehensive image editing interface with Konva.js integration.
 		window.addEventListener('resize', handleResize);
 		window.addEventListener('keydown', handleKeyDown);
 
-		// Wait for container to be ready with a polling mechanism
-		// This handles modal animation delays
-		let retryCount = 0;
-		const maxRetries = 20; // Max 2 seconds of waiting
-		
-		const checkContainerReady = () => {
+		// ResizeObserver: update dimensions as soon as container has size (fixes first-open in modal)
+		let ro: ResizeObserver | null = null;
+		const scheduleObserve = () => {
+			if (!containerRef) return;
+			const el = containerRef;
+			ro = new ResizeObserver((entries) => {
+				for (const e of entries) {
+					const { width, height } = e.contentRect;
+					if (width > 0 && height > 0) {
+						containerWidth = width;
+						containerHeight = height;
+						ro?.disconnect();
+						ro = null;
+						break;
+					}
+				}
+			});
+			ro.observe(el);
+		};
+
+		// Poll until containerRef is set, then observe. Start after delay for modal open.
+		let observeRetries = 0;
+		const checkAndObserve = () => {
+			if (containerRef) {
+				scheduleObserve();
+				return;
+			}
+			if (observeRetries < 30) {
+				observeRetries++;
+				setTimeout(checkAndObserve, 50);
+			}
+		};
+		setTimeout(checkAndObserve, 120);
+
+		// Fallback polling in case ResizeObserver fires with 0 initially
+		let pollRetries = 0;
+		const poll = () => {
 			if (containerRef && containerRef.clientWidth > 0 && containerRef.clientHeight > 0) {
 				containerWidth = containerRef.clientWidth;
 				containerHeight = containerRef.clientHeight;
-				console.log('[Editor] Container ready:', { containerWidth, containerHeight });
-			} else if (retryCount < maxRetries) {
-				retryCount++;
-				console.log(`[Editor] Container not ready, retry ${retryCount}/${maxRetries}...`);
-				setTimeout(checkContainerReady, 100);
-			} else {
-				console.error('[Editor] Container did not become ready after', maxRetries, 'retries');
+				return;
+			}
+			if (pollRetries < 25) {
+				pollRetries++;
+				setTimeout(poll, 100);
 			}
 		};
-		
-		// Start checking after a small delay for modal animation
-		setTimeout(checkContainerReady, 50);
+		setTimeout(poll, 200);
 
 		return () => {
+			ro?.disconnect();
 			window.removeEventListener('resize', handleResize);
 			window.removeEventListener('keydown', handleKeyDown);
 			imageEditorStore.cleanupTempNodes();
