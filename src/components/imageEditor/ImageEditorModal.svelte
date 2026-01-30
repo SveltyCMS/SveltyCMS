@@ -11,6 +11,8 @@ A reusable modal that wraps the main Image Editor.
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 	import { editorWidgets } from './widgets/registry';
 
+	import { onMount } from 'svelte';
+
 	let {
 		image = null,
 		watermarkPreset = null,
@@ -57,6 +59,39 @@ A reusable modal that wraps the main Image Editor.
 
 	let editorComponent: Editor | undefined = $state();
 
+	/* Error & Loading States */
+	let error = $state<string | null>(null);
+	let isSaving = $state(false);
+	// Initializing state - use the store to know when image node is ready
+	let isInitializing = $state(true);
+
+	$effect(() => {
+		if (imageEditorStore.state.imageNode) {
+			isInitializing = false;
+		}
+	});
+
+	function handleSaveError(err: Error) {
+		error = `Failed to save: ${err.message}`;
+		console.error('[ImageEditorModal] Save error:', err);
+		isSaving = false;
+	}
+
+	async function handleSaveClick() {
+		try {
+			isSaving = true;
+			error = null;
+			await editorComponent?.handleSave();
+		} catch (err) {
+			handleSaveError(err as Error);
+		} finally {
+			isSaving = false;
+		}
+	}
+
+	/* Unsaved Changes */
+	const hasUnsavedChanges = $derived(imageEditorStore.canUndoState);
+
 	const activeState = $derived(imageEditorStore.state.activeState);
 	const activeWidget = $derived(editorWidgets.find((w: any) => w.key === activeState));
 
@@ -101,76 +136,185 @@ A reusable modal that wraps the main Image Editor.
 			handleClose();
 		}
 	}
+	/* Fullscreen & Shortcuts */
+	let isFullscreen = $state(false);
+
+	function toggleFullscreen() {
+		isFullscreen = !isFullscreen;
+	}
+
+	function handleKeyDown(e: KeyboardEvent) {
+		const cmdOrCtrl = e.metaKey || e.ctrlKey;
+
+		// Ctrl/Cmd+S: Save
+		if (cmdOrCtrl && e.key === 's') {
+			e.preventDefault();
+			editorComponent?.handleSave();
+		}
+
+		// Escape: Close or exit tool
+		if (e.key === 'Escape') {
+			e.preventDefault();
+			handleCancelClick();
+		}
+	}
+
+	onMount(() => {
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	});
+
 	$effect(() => {
 		return () => {
 			if (imageSrc && imageSrc.startsWith('blob:')) {
 				URL.revokeObjectURL(imageSrc);
+			}
+			if (imageFile) {
+				const file = imageFile as any;
+				if (file._blobUrl) {
+					URL.revokeObjectURL(file._blobUrl);
+				}
 			}
 		};
 	});
 </script>
 
 {#if image}
-	<div class="relative flex h-full min-h-[500px] w-full flex-col overflow-hidden bg-surface-100 shadow-xl dark:bg-surface-800">
+	<div
+		class="relative flex h-full min-h-[500px] w-full flex-col overflow-hidden bg-surface-100 shadow-xl dark:bg-surface-800"
+		class:fixed={isFullscreen}
+		class:inset-0={isFullscreen}
+		class:z-50={isFullscreen}
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="image-editor-title"
+	>
+		<!-- Initial Loading Overlay -->
+		{#if isInitializing}
+			<div class="absolute inset-0 flex items-center justify-center bg-surface-50/80 dark:bg-surface-900/80 z-50">
+				<div class="text-center">
+					<iconify-icon icon="mdi:loading" width="48" class="animate-spin text-primary-500"></iconify-icon>
+					<p class="mt-2 text-sm text-surface-600 dark:text-surface-300">Loading editor...</p>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Error Banner -->
+		{#if error}
+			<div class="absolute top-16 left-1/2 -translate-x-1/2 z-50 max-w-md w-full px-4">
+				<div class="bg-error-50 border border-error-200 rounded-lg p-4 shadow-lg dark:bg-error-900/90 backdrop-blur-sm">
+					<div class="flex items-start gap-3">
+						<iconify-icon icon="mdi:alert-circle" width="24" class="text-error-500 shrink-0"></iconify-icon>
+						<div class="flex-1">
+							<p class="text-sm text-error-700 dark:text-error-100">{error}</p>
+						</div>
+						<button onclick={() => (error = null)} class="text-error-400 hover:text-error-600 dark:text-error-200 hover:dark:text-error-50">
+							<iconify-icon icon="mdi:close" width="20"></iconify-icon>
+						</button>
+					</div>
+				</div>
+			</div>
+		{/if}
+
 		<header
-			class="flex items-center justify-between border-b border-surface-300 p-3 lg:p-4 dark:text-surface-50 bg-surface-100/80 dark:bg-surface-800/80 sticky top-0 z-10"
+			class="flex items-center justify-between border-b border-surface-300 p-3 lg:p-4 dark:text-surface-50 bg-surface-100/80 dark:bg-surface-800/80 sticky top-0 z-10 backdrop-blur-sm"
 		>
 			<div class="flex items-center gap-3 overflow-hidden">
-				{#if activeWidget}
-					<div class="flex items-center gap-2 text-primary-500 shrink-0">
-						<iconify-icon icon={activeWidget.icon} width="24" class="max-sm:width-[20px]"></iconify-icon>
-					</div>
-					<div class="flex flex-col min-w-0">
-						<h2 id="image-editor-title" class="text-sm lg:text-lg font-bold truncate leading-tight flex items-center gap-1.5">
-							<span class="max-sm:hidden">{activeWidget.title}</span>
-							{#if subInfo}
-								<span class="max-sm:hidden text-surface-400">:</span>
-								<span class="flex items-center gap-1 text-primary-600 dark:text-primary-400 font-extrabold">
-									{#if subInfo.icon}
-										<iconify-icon icon={subInfo.icon} width="16" class="lg:width-[20px]"></iconify-icon>
-									{/if}
-									<span>{subInfo.label}</span>
-								</span>
-							{:else}
-								<span class="sm:hidden">{activeWidget.title}</span>
+				<!-- Mobile: Show compact title -->
+				<div class="sm:hidden">
+					{#if activeWidget}
+						<iconify-icon icon={activeWidget.icon} width="20" class="text-primary-500"></iconify-icon>
+					{:else}
+						<span class="text-sm font-semibold">Editor</span>
+					{/if}
+				</div>
+
+				<!-- Desktop/Tablet: Show full title -->
+				<div class="hidden sm:flex items-center gap-3 overflow-hidden">
+					{#if activeWidget}
+						<div class="flex items-center gap-2 text-primary-500 shrink-0">
+							<iconify-icon icon={activeWidget.icon} width="24"></iconify-icon>
+						</div>
+						<div class="flex flex-col min-w-0">
+							<h2 id="image-editor-title" class="text-sm lg:text-lg font-bold truncate leading-tight flex items-center gap-1.5">
+								<span>{activeWidget.title}</span>
+								{#if subInfo}
+									<span class="text-surface-400">:</span>
+									<span class="flex items-center gap-1 text-primary-600 dark:text-primary-400 font-extrabold">
+										{#if subInfo.icon}
+											<iconify-icon icon={subInfo.icon} width="16" class="lg:width-[20px]"></iconify-icon>
+										{/if}
+										<span>{subInfo.label}</span>
+									</span>
+								{/if}
+							</h2>
+						</div>
+					{:else}
+						<h2 id="image-editor-title" class="text-tertiary-500 dark:text-primary-400 text-lg font-semibold shrink-0 flex items-center gap-2">
+							Image Editor
+							{#if hasUnsavedChanges}
+								<span class="inline-block h-2 w-2 rounded-full bg-warning-500 animate-pulse" title="Unsaved changes"></span>
 							{/if}
 						</h2>
-					</div>
-				{:else}
-					<h2 id="image-editor-title" class="text-tertiary-500 dark:text-primary-400 text-lg font-semibold shrink-0">Image Editor</h2>
-				{/if}
+					{/if}
+				</div>
 			</div>
 
 			<!-- Global Actions -->
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-1 sm:gap-2">
+				<!-- Hide undo/redo on mobile to save space -->
+				<div class="hidden sm:flex items-center gap-2">
+					<button
+						onclick={() => editorComponent?.handleUndo()}
+						disabled={!imageEditorStore.canUndoState}
+						class="btn-icon preset-outlined-surface-500"
+						title="Undo (Ctrl+Z)"
+						aria-label="Undo"
+					>
+						<iconify-icon icon="mdi:undo" width="20"></iconify-icon>
+					</button>
+					<button
+						onclick={() => editorComponent?.handleRedo()}
+						disabled={!imageEditorStore.canRedoState}
+						class="btn-icon preset-outlined-surface-500"
+						title="Redo (Ctrl+Shift+Z)"
+						aria-label="Redo"
+					>
+						<iconify-icon icon="mdi:redo" width="20"></iconify-icon>
+					</button>
+					<div class="h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
+				</div>
+
+				<!-- Mobile: Compact buttons -->
+				<button onclick={handleCancelClick} class="btn preset-outlined-surface-500 max-sm:btn-sm">
+					<span class="max-sm:hidden">{activeState ? 'Exit Tool' : 'Cancel'}</span>
+					<span class="sm:hidden">
+						<iconify-icon icon="mdi:close" width="16"></iconify-icon>
+					</span>
+				</button>
+
+				<button onclick={handleSaveClick} disabled={isSaving} class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 max-sm:btn-sm">
+					{#if isSaving}
+						<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
+						<span class="max-sm:hidden">Saving...</span>
+					{:else}
+						<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
+						<span class="max-sm:hidden">Save</span>
+					{/if}
+				</button>
+
+				<!-- Desktop only: Close and Fullscreen -->
+				<div class="hidden sm:block h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
+
 				<button
-					onclick={() => editorComponent?.handleUndo()}
-					disabled={!imageEditorStore.canUndoState}
-					class="btn-icon preset-outlined-surface-500"
-					title="Undo (Ctrl+Z)"
-					aria-label="Undo"
+					onclick={toggleFullscreen}
+					class="btn-icon preset-outlined-surface-500 max-sm:hidden"
+					title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
 				>
-					<iconify-icon icon="mdi:undo" width="20"></iconify-icon>
+					<iconify-icon icon={isFullscreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'} width="20"></iconify-icon>
 				</button>
-				<button
-					onclick={() => editorComponent?.handleRedo()}
-					disabled={!imageEditorStore.canRedoState}
-					class="btn-icon preset-outlined-surface-500"
-					title="Redo (Ctrl+Shift+Z)"
-					aria-label="Redo"
-				>
-					<iconify-icon icon="mdi:redo" width="20"></iconify-icon>
-				</button>
-				<div class="h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
-				<button onclick={handleCancelClick} class="btn preset-outlined-surface-500">
-					{activeState ? 'Exit Tool' : 'Cancel'}
-				</button>
-				<button onclick={() => editorComponent?.handleSave()} class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500">
-					<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
-					<span>Save</span>
-				</button>
-				<div class="h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
-				<button onclick={handleClose} class="btn-icon preset-outlined-surface-500" aria-label="Close">
+
+				<button onclick={handleClose} class="btn-icon preset-outlined-surface-500 max-sm:hidden" aria-label="Close">
 					<iconify-icon icon="mdi:close" width="24"></iconify-icon>
 				</button>
 			</div>

@@ -65,7 +65,7 @@ export function mediaUrl(item: MediaBase, size?: string): string {
 	if (item.url.startsWith('/files/')) {
 		return item.url;
 	}
-	
+
 	// Check if it's an absolute URL (http/https)
 	if (item.url.startsWith('http://') || item.url.startsWith('https://')) {
 		return item.url;

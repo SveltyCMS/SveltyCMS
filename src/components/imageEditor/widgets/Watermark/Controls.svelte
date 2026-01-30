@@ -1,72 +1,433 @@
 <!--
-@file: src/components/imageEditor/toolbars/WatermarkControls.svelte
+@file: src/components/imageEditor/widgets/Watermark/Controls.svelte
 @component
-Controls for the Watermark tool. Allows adding, deleting, and positioning watermarks.
+Professional watermark controls with text, image, and advanced options
 -->
 <script lang="ts">
 	let {
-		onAddWatermark,
+		onAddImage,
+		onAddText,
 		onDeleteWatermark,
 		onPositionChange,
+		onOpacityChange,
+		onSizeChange,
+		onTileToggle,
 		onCancel,
 		onApply,
-		hasSelection
+		hasSelection,
+		currentOpacity = 0.8,
+		currentSize = 100,
+		isTiled = false,
+		watermarkCount = 0
 	}: {
-		onAddWatermark: () => void;
+		onAddImage: () => void;
+		onAddText?: () => void;
 		onDeleteWatermark: () => void;
 		onPositionChange: (position: string) => void;
+		onOpacityChange?: (opacity: number) => void;
+		onSizeChange?: (size: number) => void;
+		onTileToggle?: () => void;
 		onCancel: () => void;
 		onApply: () => void;
 		hasSelection: boolean;
+		currentOpacity?: number;
+		currentSize?: number;
+		isTiled?: boolean;
+		watermarkCount?: number;
 	} = $props();
 
+	// Position presets with better labels
 	const positions = [
-		{ value: 'top-left', icon: 'mdi:align-vertical-top' },
-		{ value: 'top-center', icon: 'mdi:align-vertical-center' },
-		{ value: 'top-right', icon: 'mdi:align-vertical-top' },
-		{ value: 'center-left', icon: 'mdi:align-horizontal-left' },
-		{ value: 'center', icon: 'mdi:align-horizontal-center' },
-		{ value: 'center-right', icon: 'mdi:align-horizontal-right' },
-		{ value: 'bottom-left', icon: 'mdi:align-vertical-bottom' },
-		{ value: 'bottom-center', icon: 'mdi:align-vertical-center' },
-		{ value: 'bottom-right', icon: 'mdi:align-vertical-bottom' }
+		{ label: '↖', value: 'northwest', title: 'Top Left' },
+		{ label: '↑', value: 'north', title: 'Top Center' },
+		{ label: '↗', value: 'northeast', title: 'Top Right' },
+		{ label: '←', value: 'west', title: 'Middle Left' },
+		{ label: '●', value: 'center', title: 'Center' },
+		{ label: '→', value: 'east', title: 'Middle Right' },
+		{ label: '↙', value: 'southwest', title: 'Bottom Left' },
+		{ label: '↓', value: 'south', title: 'Bottom Center' },
+		{ label: '↘', value: 'southeast', title: 'Bottom Right' }
 	];
+
+	// Size presets (percentage of image width)
+	const sizePresets = [
+		{ label: 'XS', value: 50 },
+		{ label: 'S', value: 75 },
+		{ label: 'M', value: 100 },
+		{ label: 'L', value: 150 },
+		{ label: 'XL', value: 200 }
+	];
+
+	function handleOpacityInput(e: Event) {
+		const target = e.currentTarget as HTMLInputElement;
+		onOpacityChange?.(parseFloat(target.value));
+	}
+
+	// Keyboard shortcuts
+	function handleKeyDown(e: KeyboardEvent) {
+		if ((e.target as HTMLElement).tagName === 'INPUT') return;
+
+		switch (e.key) {
+			case 'Delete':
+			case 'Backspace':
+				if (hasSelection) {
+					e.preventDefault();
+					onDeleteWatermark();
+				}
+				break;
+			case 't':
+			case 'T':
+				if (onAddText) {
+					e.preventDefault();
+					onAddText();
+				}
+				break;
+			case 'i':
+			case 'I':
+				e.preventDefault();
+				onAddImage();
+				break;
+		}
+	}
 </script>
 
-<div class="flex w-full items-center gap-4 flex-wrap">
-	<button onclick={onAddWatermark} class="btn preset-outlined-surface-500">
-		<iconify-icon icon="mdi:plus-box-outline" width={24}></iconify-icon>
-		<span class="hidden sm:inline">Add Watermark</span>
-	</button>
+<svelte:window onkeydown={handleKeyDown} />
 
-	{#if hasSelection}
-		<div class="h-6 w-px bg-surface-300 dark:bg-surface-600 hidden sm:block"></div>
-		<span class="text-sm hidden md:inline">Position:</span>
-		<div class="btn-group preset-outlined-surface-500">
-			{#each positions as pos}
-				<button class="btn-sm" onclick={() => onPositionChange(pos.value)} title={pos.value}>
-					<iconify-icon icon={pos.icon} width="18"></iconify-icon>
+<div class="watermark-controls" role="toolbar" aria-label="Watermark controls">
+	<!-- Group 1: Add Controls -->
+	<div class="control-group">
+		<div class="add-buttons">
+			<button class="btn btn-sm preset-filled-primary-500" onclick={onAddImage} title="Add Image Watermark (I)">
+				<iconify-icon icon="mdi:image-plus" width="18"></iconify-icon>
+				<span class="hidden sm:inline">Add Image</span>
+			</button>
+
+			{#if onAddText}
+				<button class="btn btn-sm preset-outlined-primary-500" onclick={onAddText} title="Add Text Watermark (T)">
+					<iconify-icon icon="mdi:text-box-plus" width="18"></iconify-icon>
+					<span class="hidden sm:inline">Add Text</span>
 				</button>
-			{/each}
+			{/if}
 		</div>
 
-		<button onclick={onDeleteWatermark} class="btn preset-outlined-surface-500">
-			<iconify-icon icon="mdi:delete-outline" width={24}></iconify-icon>
-			<span class="hidden sm:inline">Delete</span>
+		{#if watermarkCount > 0}
+			<div class="badge preset-filled-surface-200 text-xs">
+				<span class="font-bold">{watermarkCount}</span>
+			</div>
+		{/if}
+	</div>
+
+	{#if hasSelection}
+		<div class="divider"></div>
+
+		<div class="control-group">
+			<span class="control-label hidden md:flex">Position:</span>
+			<div class="position-grid">
+				{#each positions as pos}
+					<button class="position-btn" onclick={() => onPositionChange(pos.value)} title={pos.title} aria-label={pos.title}>
+						{pos.label}
+					</button>
+				{/each}
+			</div>
+		</div>
+
+		<div class="control-group flex-1">
+			{#if onOpacityChange}
+				<div class="slider-wrapper flex-1">
+					<div class="slider-track-container">
+						<input
+							type="range"
+							min="0"
+							max="1"
+							step="0.01"
+							value={currentOpacity}
+							oninput={handleOpacityInput}
+							class="slider"
+							aria-label="Watermark opacity"
+							title="Opacity: {Math.round(currentOpacity * 100)}%"
+						/>
+					</div>
+					<div class="slider-value">
+						{Math.round(currentOpacity * 100)}%
+					</div>
+				</div>
+			{/if}
+
+			{#if onSizeChange}
+				<div class="size-presets hidden sm:flex">
+					{#each sizePresets as preset}
+						<button
+							class="size-btn"
+							class:active={Math.abs(currentSize - preset.value) < 5}
+							onclick={() => onSizeChange(preset.value)}
+							title="{preset.label} ({preset.value}%)"
+						>
+							{preset.label}
+						</button>
+					{/each}
+				</div>
+			{/if}
+
+			{#if onTileToggle}
+				<button
+					class="btn btn-icon btn-sm"
+					class:preset-filled-primary-500={isTiled}
+					class:preset-outlined-surface-500={!isTiled}
+					onclick={onTileToggle}
+					title="Tile watermark across image"
+				>
+					<iconify-icon icon="mdi:view-grid" width="18"></iconify-icon>
+				</button>
+			{/if}
+		</div>
+
+		<div class="divider hidden lg:block"></div>
+
+		<button class="btn btn-icon btn-sm preset-outlined-error-500" onclick={onDeleteWatermark} title="Delete Watermark (Delete)">
+			<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
 		</button>
 	{/if}
 
-	<div class="grow"></div>
+	<div class="flex-1 hidden lg:block"></div>
 
-	<!-- Action Buttons -->
-	<div class="flex items-center gap-2 shrink-0">
-		<button class="btn preset-outlined-error-500" onclick={onCancel}>
+	<div class="actions">
+		<button class="btn btn-sm preset-outlined-surface-500 hidden sm:flex" onclick={onCancel}>
 			<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 			<span class="hidden sm:inline">Cancel</span>
 		</button>
-		<button class="btn preset-filled-success-500" onclick={onApply}>
+
+		<button class="btn btn-sm preset-filled-success-500" onclick={onApply}>
 			<iconify-icon icon="mdi:check" width="18"></iconify-icon>
 			<span class="hidden sm:inline">Done</span>
 		</button>
 	</div>
 </div>
+
+<style>
+	.watermark-controls {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.75rem;
+		background: rgb(var(--color-surface-100) / 1);
+		border-top: 1px solid rgb(var(--color-surface-200) / 1);
+		width: 100%;
+	}
+
+	:global(.dark) .watermark-controls {
+		background: rgb(var(--color-surface-800) / 1);
+		border-color: rgb(var(--color-surface-700) / 1);
+	}
+
+	.control-group {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
+	.control-label {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: rgb(var(--color-surface-500) / 1);
+		white-space: nowrap;
+	}
+
+	:global(.dark) .control-label {
+		color: rgb(var(--color-surface-400) / 1);
+	}
+
+	.add-buttons {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.position-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 2px;
+		padding: 2px;
+		background: rgb(var(--color-surface-200) / 1);
+		border-radius: 0.375rem;
+	}
+
+	:global(.dark) .position-grid {
+		background: rgb(var(--color-surface-700) / 1);
+	}
+
+	.position-btn {
+		width: 1.75rem;
+		height: 1.75rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: white;
+		border: none;
+		font-size: 0.875rem;
+		cursor: pointer;
+		transition: all 0.15s;
+		border-radius: 0.25rem;
+		color: rgb(var(--color-surface-600) / 1);
+	}
+
+	:global(.dark) .position-btn {
+		background: rgb(var(--color-surface-800) / 1);
+		color: rgb(var(--color-surface-300) / 1);
+	}
+
+	.position-btn:hover {
+		background: rgb(var(--color-primary-100) / 1);
+		color: rgb(var(--color-primary-600) / 1);
+	}
+
+	:global(.dark) .position-btn:hover {
+		background: rgb(var(--color-primary-900) / 0.3);
+		color: rgb(var(--color-primary-400) / 1);
+	}
+
+	/* Slider */
+	.slider-wrapper {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		background: rgb(var(--color-surface-50) / 0.5);
+		padding: 0.25rem 0.75rem;
+		border-radius: 9999px;
+		border: 1px solid rgb(var(--color-surface-200) / 1);
+		height: 2.25rem;
+		min-width: 160px;
+	}
+
+	:global(.dark) .slider-wrapper {
+		background: rgb(var(--color-surface-900) / 0.5);
+		border-color: rgb(var(--color-surface-700) / 1);
+	}
+
+	.slider-track-container {
+		flex: 1;
+		position: relative;
+		display: flex;
+		align-items: center;
+		height: 100%;
+	}
+
+	.slider {
+		-webkit-appearance: none;
+		appearance: none;
+		width: 100%;
+		height: 4px;
+		border-radius: 2px;
+		background: rgb(var(--color-surface-300) / 1);
+		outline: none;
+		cursor: pointer;
+		position: absolute;
+		margin: 0;
+	}
+
+	:global(.dark) .slider {
+		background: rgb(var(--color-surface-600) / 1);
+	}
+
+	.slider::-webkit-slider-thumb {
+		-webkit-appearance: none;
+		appearance: none;
+		width: 16px;
+		height: 16px;
+		border-radius: 50%;
+		background: white;
+		border: 2px solid rgb(var(--color-primary-500) / 1);
+		cursor: pointer;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+		transition: transform 0.1s;
+		margin-top: -6px;
+	}
+
+	.slider-value {
+		min-width: 2.5rem;
+		text-align: right;
+		font-size: 0.75rem;
+		font-weight: 600;
+		font-family: monospace;
+		color: rgb(var(--color-primary-500) / 1);
+	}
+
+	.size-presets {
+		display: flex;
+		gap: 0.25rem;
+	}
+
+	.size-btn {
+		padding: 0 0.5rem;
+		height: 2rem;
+		font-size: 0.75rem;
+		font-weight: 600;
+		border: 1px solid rgb(var(--color-surface-300) / 1);
+		border-radius: 0.375rem;
+		background: rgb(var(--color-surface-50) / 1);
+		color: rgb(var(--color-surface-700) / 1);
+		cursor: pointer;
+		transition: all 0.15s;
+		min-width: 2rem;
+	}
+
+	:global(.dark) .size-btn {
+		background: rgb(var(--color-surface-700) / 1);
+		border-color: rgb(var(--color-surface-600) / 1);
+		color: rgb(var(--color-surface-200) / 1);
+	}
+
+	.size-btn:hover {
+		background: rgb(var(--color-surface-100) / 1);
+		border-color: rgb(var(--color-primary-400) / 1);
+	}
+
+	:global(.dark) .size-btn:hover {
+		background: rgb(var(--color-surface-600) / 1);
+	}
+
+	.size-btn.active {
+		background: rgb(var(--color-primary-500) / 1);
+		border-color: rgb(var(--color-primary-500) / 1);
+		color: white;
+	}
+
+	.divider {
+		width: 1px;
+		height: 1.5rem;
+		background: rgb(var(--color-surface-300) / 1);
+		flex-shrink: 0;
+	}
+
+	:global(.dark) .divider {
+		background: rgb(var(--color-surface-600) / 1);
+	}
+
+	.actions {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+		flex-shrink: 0;
+		margin-left: auto;
+	}
+
+	/* Mobile */
+	@media (max-width: 1024px) {
+		.watermark-controls {
+			row-gap: 1rem;
+		}
+
+		.actions {
+			width: 100%;
+			justify-content: flex-end;
+			border-top: 1px solid rgb(var(--color-surface-200) / 0.5);
+			padding-top: 0.75rem;
+			margin-left: 0;
+		}
+	}
+</style>

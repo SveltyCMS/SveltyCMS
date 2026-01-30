@@ -30,7 +30,7 @@ Toolbar controls for the FocalPoint widget
 	<span class="text-xs text-surface-600 dark:text-surface-50"> Click on the image to set focal point </span>
 
 	<!-- Spacer -->
-	<div class="flex-1"></div>
+	<div class="grow"></div>
 
 	<!-- Actions -->
 	<div class="flex items-center gap-2">

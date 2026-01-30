@@ -1,5 +1,5 @@
 <!--
-@file: src/routes/(app)/imageEditor/widgets/Blur/Tool.svelte
+@file: src/components/imageEditor/widgets/Blur/Tool.svelte
 @component
 Controller for Blur tool: binds stage, manages BlurRegion instances,
 handles drawing, applies/bakes effects, and registers toolbar.
@@ -7,7 +7,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 <script lang="ts">
 	import Konva from 'konva';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-	import Controls from './Controls.svelte';
+	import Controls from '@src/components/imageEditor/toolbars/BlurControls.svelte';
 	import { BlurRegion, type RegionInit, type BlurPattern, type BlurShape } from './regions';
 
 	// reactive tool state (Svelte 5 runes)
@@ -24,6 +24,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 
 	// debounce timer for strength slider updates
 	let strengthDebounceTimer: number | null = null;
+	const DEBOUNCE_DELAY = 16; // ~60fps
 
 	// bind/unbind the tool when active state changes
 	$effect(() => {
@@ -36,46 +37,47 @@ handles drawing, applies/bakes effects, and registers toolbar.
 					blurStrength,
 					pattern,
 					shape,
-					onAdd: undefined, // Remove duplicates
-					onDelete: undefined, // Remove duplicates
+					hasActiveRegion: !!activeId,
+					regionCount: regions.length,
 					onStrengthChange: (v: number) => {
 						blurStrength = v;
 						if (strengthDebounceTimer) clearTimeout(strengthDebounceTimer);
 						strengthDebounceTimer = window.setTimeout(() => {
-							// ALWAYS update activeId if exists, or all regions
+							// Update all regions or just active one?
+							// UX decision: Global strength/pattern for simplicity,
+							// OR per-region. Let's do per-region but if none active, update defaults.
+							// Currently: Update active if exists, else generic setting.
+
 							if (activeId) {
 								regions.find((r) => r.id === activeId)?.setStrength(v);
 							} else {
-								regions.forEach((r) => r.setStrength(v));
+								// If we want "global" default, we'd update all?
+								// Let's stick to updating ACTIVE region if selected.
 							}
 							imageEditorStore.state.layer?.batchDraw();
-						}, 30); // Fast feedback
+						}, DEBOUNCE_DELAY);
 					},
 					onPatternChange: (p: BlurPattern) => {
 						pattern = p;
-						regions.forEach((r) => r.setPattern(p));
+						if (activeId) {
+							regions.find((r) => r.id === activeId)?.setPattern(p);
+						}
 					},
 					onShapeChange: (s: BlurShape) => {
 						shape = s;
-						// If there's an active region, change its shape
 						if (activeId) {
 							const r = regions.find((x) => x.id === activeId);
 							if (r) {
-								// Remove old region and create new one with same position but new shape
-								const oldShape = r.shapeNode;
-								const bounds = oldShape.getClientRect();
+								// Re-create region with new shape
+								const serialized = r.serialize();
 								deleteRegion(r.id);
 								createRegion({
-									x: bounds.x,
-									y: bounds.y,
-									width: bounds.width,
-									height: bounds.height,
+									...serialized, // maintain pos/size
 									shape: s
 								});
 							}
 						}
 					},
-					// NEW: Add, Delete, Rotate, Flip handlers
 					onAddRegion: () => {
 						const stage = imageEditorStore.state.stage;
 						const x = stage ? stage.width() / 2 : 100;
@@ -101,9 +103,24 @@ handles drawing, applies/bakes effects, and registers toolbar.
 			});
 		} else {
 			unbindStageEvents();
-			// only clear toolbar if ours
 			if (imageEditorStore.state.toolbarControls?.component === Controls) {
 				imageEditorStore.setToolbarControls(null);
+			}
+		}
+	});
+
+	// Keep properties in sync with UI when active selection changes
+	$effect(() => {
+		if (activeId) {
+			const r = regions.find((x) => x.id === activeId);
+			if (r) {
+				const s = r.serialize();
+				// Update local state to match active region
+				// Use untracked to avoid cyclic dependency if needed,
+				// but here we want UI to reflect selection.
+				blurStrength = s.strength;
+				pattern = s.pattern;
+				shape = s.shape;
 			}
 		}
 	});
@@ -115,7 +132,6 @@ handles drawing, applies/bakes effects, and registers toolbar.
 		}
 	});
 
-	// add stage event listeners once
 	function bindStageEvents() {
 		const { stage } = imageEditorStore.state;
 		if (!stage || _toolBound) return;
@@ -124,7 +140,6 @@ handles drawing, applies/bakes effects, and registers toolbar.
 		_toolBound = true;
 	}
 
-	// remove stage event listeners once
 	function unbindStageEvents() {
 		const { stage } = imageEditorStore.state;
 		if (!stage || !_toolBound) return;
@@ -133,28 +148,19 @@ handles drawing, applies/bakes effects, and registers toolbar.
 		_toolBound = false;
 	}
 
-	// deselect all regions when clicking outside overlays
 	function handleStageClick(e: Konva.KonvaEventObject<MouseEvent>) {
 		const { stage, imageNode, imageGroup } = imageEditorStore.state;
 		const t = e.target;
 		if (!stage) return;
-		// If clicking on stage, base image, or its group - create a new region
+		// If clicking on background (stage/image), usually deselect or create new.
+		// For Blur tool, user often wants to click to add.
 		if (t === stage || t === imageNode || t === imageGroup) {
-			const pos = stage.getPointerPosition();
-			if (pos) {
-				// Create a new region at click position with default size
-				createRegion({
-					x: pos.x - 100,
-					y: pos.y - 75,
-					width: 200,
-					height: 150,
-					shape
-				});
-			}
+			// Deselect first
+			activeId = null;
+			regions.forEach((r) => r.setActive(false));
 		}
 	}
 
-	// create a new region and wire lifecycle hooks
 	function createRegion(init?: Partial<RegionInit>) {
 		const { stage, layer, imageNode, imageGroup } = imageEditorStore.state;
 		if (!stage || !layer || !imageNode || !imageGroup) return;
@@ -172,15 +178,11 @@ handles drawing, applies/bakes effects, and registers toolbar.
 
 		newR.onSelect(() => selectRegion(newR.id));
 		newR.onClone(() => {
-			const bounds = newR.shapeNode.getClientRect();
+			const s = newR.serialize();
 			createRegion({
-				x: bounds.x + 20,
-				y: bounds.y + 20,
-				width: bounds.width,
-				height: bounds.height,
-				shape: newR.shapeNode instanceof Konva.Ellipse ? 'ellipse' : 'rectangle',
-				pattern: pattern,
-				strength: blurStrength
+				...s,
+				x: s.x + 20,
+				y: s.y + 20
 			});
 		});
 		newR.onDestroy(() => {
@@ -188,29 +190,24 @@ handles drawing, applies/bakes effects, and registers toolbar.
 			if (activeId === newR.id) activeId = null;
 		});
 
-		// Always finalize and apply effects for click-created regions
 		newR.setPattern(pattern);
 		newR.setStrength(blurStrength);
 		newR.finalize();
 
-		// Make the new region active to show handles
 		selectRegion(newR.id);
 	}
 
-	// make specified region active and hide others
 	function selectRegion(id: string) {
 		activeId = id;
 		regions.forEach((r) => r.setActive(r.id === id));
 		imageEditorStore.state.layer?.batchDraw();
 	}
 
-	// delete a region instance
 	function deleteRegion(id: string) {
 		const r = regions.find((x) => x.id === id);
 		r?.destroy();
 	}
 
-	// hide or destroy all regions (used before bake and during reset)
 	function cleanupBlurElements(destroyRegions = true) {
 		if (destroyRegions) {
 			[...regions].forEach((region) => region.destroy());
@@ -222,40 +219,35 @@ handles drawing, applies/bakes effects, and registers toolbar.
 		imageEditorStore.state.layer?.batchDraw();
 	}
 
-	// reset tool state and remove regions
 	export function reset() {
 		cleanupBlurElements(true);
+		// Optionally reset params
+		blurStrength = 20;
+		pattern = 'blur';
+		shape = 'rectangle';
+		createRegion();
 	}
 
-	// Apply blur: bake all blur regions into the image
 	export function apply() {
-		// Hide UI elements before baking
 		cleanupBlurElements(false);
-
-		// Take snapshot with blur regions visible
 		imageEditorStore.takeSnapshot();
-
-		// Clean up and exit
 		imageEditorStore.setActiveState('');
 	}
 
-	// cleanup invoked by parent store
 	export function cleanup() {
 		try {
 			unbindStageEvents();
-			cleanupBlurElements(false); // Bake instead of destroy
+			cleanupBlurElements(false);
 		} catch (e) {
 			/* ignore */
 		}
 	}
 
 	export function saveState() {
-		/* state captured by parent snapshots */
+		/* handled by snapshot */
 	}
 
 	export function beforeExit() {
 		cleanup();
 	}
 </script>
-
-<!-- Controls registered to master toolbar; no DOM toolbar here -->

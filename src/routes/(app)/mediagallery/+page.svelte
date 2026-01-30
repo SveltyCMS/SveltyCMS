@@ -664,6 +664,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 				method: 'POST',
 				body: formData
 			});
+
 			if (response.ok) {
 				toaster.success({ description: 'Image saved successfully!' });
 				fetchMediaFiles(true); // Force refresh

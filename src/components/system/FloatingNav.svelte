@@ -429,7 +429,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	title="Open Navigation Menu"
 	contentClass="z-[99999999]"
 	positioning={{ placement: 'top' }}
-	triggerClass="fixed z-99999999 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full bg-tertiary-500 active:scale-90"
+	triggerClass="fixed z-99999999 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full bg-tertiary-500 active:scale-90 !pointer-events-auto"
 	triggerStyle="top:{(Math.min(buttonInfo.y, browser ? window.innerHeight - BUTTON_RADIUS : 0) / (browser ? window.innerHeight : 1)) * 100}%;
 	              left:{(Math.min(isRightToLeft() ? BUTTON_RADIUS : buttonInfo.x, browser ? window.innerWidth - BUTTON_RADIUS : 0) /
 		(browser ? window.innerWidth : 1)) *

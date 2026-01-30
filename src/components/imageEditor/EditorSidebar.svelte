@@ -1,5 +1,5 @@
 <!--
-@file: /src/routes/(app)/imageEditor/EditorSidebar.svelte
+@file: src/components/imageEditor/EditorSidebar.svelte
 @component
 **Left sidebar with vertical tool layout**
 Provides easy access to all editing tools with clean, minimal design
@@ -12,6 +12,9 @@ and proper active state indication.
 -->
 
 <script lang="ts">
+	import { editorWidgets, type EditorWidget } from './widgets/registry';
+	import { onMount } from 'svelte';
+
 	// Props
 	const {
 		activeState,
@@ -23,10 +26,20 @@ and proper active state indication.
 		hasImage?: boolean;
 	} = $props();
 
-	// Drive tools from the widgets registry, with a focalpoint fallback
-	import { editorWidgets, type EditorWidget } from './widgets/registry';
+	// Tool list derived from registry
+	const tools = $derived(
+		editorWidgets.map((w: EditorWidget) => ({
+			id: w.key,
+			name: w.title,
+			icon: w.icon ?? 'mdi:cog',
+			description: w.description ?? '',
+			category: w.category ?? 'general'
+		}))
+	);
 
-	const tools = [...editorWidgets.map((w: EditorWidget) => ({ id: w.key, name: w.title, icon: w.icon ?? 'mdi:cog', description: '' }))];
+	// Keyboard navigation
+	let focusedIndex = $state(0);
+	let sidebarRef: HTMLDivElement | undefined;
 
 	function handleToolClick(tool: any) {
 		if (!hasImage) return;
@@ -36,18 +49,67 @@ and proper active state indication.
 	function isToolActive(tool: any): boolean {
 		return activeState === tool.id;
 	}
+
+	function handleKeyDown(e: KeyboardEvent) {
+		if (!hasImage) return;
+
+		switch (e.key) {
+			case 'ArrowDown':
+				e.preventDefault();
+				focusedIndex = Math.min(focusedIndex + 1, tools.length - 1);
+				focusToolButton(focusedIndex);
+				break;
+			case 'ArrowUp':
+				e.preventDefault();
+				focusedIndex = Math.max(focusedIndex - 1, 0);
+				focusToolButton(focusedIndex);
+				break;
+			case 'Enter':
+			case ' ':
+				e.preventDefault();
+				handleToolClick(tools[focusedIndex]);
+				break;
+			case 'Home':
+				e.preventDefault();
+				focusedIndex = 0;
+				focusToolButton(0);
+				break;
+			case 'End':
+				e.preventDefault();
+				focusedIndex = tools.length - 1;
+				focusToolButton(tools.length - 1);
+				break;
+		}
+	}
+
+	function focusToolButton(index: number) {
+		const buttons = sidebarRef?.querySelectorAll('.tool-button');
+		if (buttons && buttons[index]) {
+			(buttons[index] as HTMLElement).focus();
+		}
+	}
+
+	onMount(() => {
+		// Set initial focus to active tool
+		const activeIndex = tools.findIndex((t) => t.id === activeState);
+		if (activeIndex !== -1) {
+			focusedIndex = activeIndex;
+		}
+	});
 </script>
 
-<div class="editor-sidebar flex w-20 flex-col border-r lg:w-24">
-	<div class="sidebar-tools flex flex-1 flex-col gap-1 p-1.5 lg:p-2 max-lg:gap-0.5 max-lg:p-1">
+<div
+	bind:this={sidebarRef}
+	class="editor-sidebar flex w-20 flex-col border-r lg:w-24"
+	role="toolbar"
+	aria-label="Image editing tools"
+	aria-orientation="vertical"
+	onkeydown={handleKeyDown}
+	tabindex="0"
+>
+	<div class="sidebar-tools flex flex-1 flex-col gap-1 p-1.5 lg:p-2 max-lg:gap-0.5 max-lg:p-1 overflow-y-auto">
 		{#each tools as tool}
 			<button
-				class="btn preset-filled-primary-500 group relative flex flex-col items-center justify-center gap-1 py-2"
-				class:active={isToolActive(tool)}
-				class:disabled={!hasImage}
-				class:bg-primary-500={isToolActive(tool)}
-				class:text-white={isToolActive(tool)}
-				class:shadow-md={isToolActive(tool)}
 				class:hover:bg-primary-600={isToolActive(tool)}
 				class:cursor-not-allowed={!hasImage}
 				class:opacity-50={!hasImage}

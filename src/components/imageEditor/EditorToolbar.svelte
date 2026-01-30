@@ -27,7 +27,7 @@ It dynamically renders controls based on the active tool.
 	{/if}
 
 	<!-- Main Toolbar (Tool Icons) -->
-	<div class="no-scrollbar flex w-full items-center gap-1 overflow-x-auto p-2" role="toolbar" aria-label="Editor tools">
+	<div class="no-scrollbar flex w-full items-center justify-center gap-1 overflow-x-auto p-2" role="toolbar" aria-label="Editor tools">
 		{#each editorWidgets as widget}
 			<button
 				class="tool-button shrink-0 flex flex-col items-center justify-center gap-1 transition-all min-w-16 rounded p-1"

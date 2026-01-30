@@ -152,18 +152,41 @@ Comprehensive image editing interface with Konva.js integration.
 		});
 	});
 
+	// Handle resize
+	let resizeTimeout: ReturnType<typeof setTimeout>;
+	function handleResize() {
+		clearTimeout(resizeTimeout);
+		resizeTimeout = setTimeout(() => {
+			const { stage, imageGroup } = imageEditorStore.state;
+			if (!stage || !containerRef) return;
+
+			const containerWidth = containerRef.clientWidth;
+			const containerHeight = containerRef.clientHeight;
+
+			stage.width(containerWidth);
+			stage.height(containerHeight);
+
+			// Recenter image
+			if (imageGroup) {
+				imageGroup.position({
+					x: containerWidth / 2,
+					y: containerHeight / 2
+				});
+			}
+
+			stage.batchDraw();
+		}, 150);
+	}
+
 	// Load image and setup Konva
-	function loadImageAndSetupKonva(imageSrc: string, file?: File) {
-		console.log('[Editor] loadImageAndSetupKonva called:', { imageSrc, hasFile: !!file });
-		
+	function loadImageAndSetupKonva(imageSrc: string, file?: File, retryAttempt = 0) {
 		// CRITICAL: Validate and clean the URL to prevent double /files/ prefix
 		let cleanedSrc = imageSrc;
 		if (imageSrc.startsWith('/files//files/')) {
 			console.warn('[Editor] Detected double /files/ prefix, fixing URL');
 			cleanedSrc = imageSrc.replace('/files//files/', '/files/');
 		}
-		console.log('[Editor] Final image URL:', cleanedSrc);
-		
+
 		if (!containerRef) {
 			logger.error('Container ref not available');
 			error = 'Container not ready';
@@ -188,10 +211,20 @@ Comprehensive image editing interface with Konva.js integration.
 		}
 
 		img.onerror = (e) => {
-			error = 'Failed to load image';
-			isProcessing = false;
 			console.error('[Editor] Image load FAILED for URL:', cleanedSrc, e);
-			logger.error('Image load failed for URL:', cleanedSrc);
+
+			// Retry logic
+			if (retryAttempt < 3) {
+				const delay = 1000 * (retryAttempt + 1);
+				logger.warn(`Image load failed. Retrying in ${delay}ms... (Attempt ${retryAttempt + 1}/3)`);
+				setTimeout(() => {
+					loadImageAndSetupKonva(imageSrc, file, retryAttempt + 1);
+				}, delay);
+			} else {
+				error = 'Failed to load image after 3 attempts';
+				isProcessing = false;
+				logger.error('Image load failed permanently for URL:', cleanedSrc);
+			}
 		};
 
 		img.onload = () => {
@@ -204,21 +237,32 @@ Comprehensive image editing interface with Konva.js integration.
 					logger.warn('Container dimensions are 0. Stage might not be visible.');
 				}
 
-				// Clear existing stage
-				const existingStage = imageEditorStore.state.stage;
-				if (existingStage) {
-					existingStage.destroy();
+				// Reuse canvas pooling
+				let stage = imageEditorStore.state.stage;
+				let layer = imageEditorStore.state.layer;
+
+				if (stage && layer && stage.container() === containerRef) {
+					// Prepare for reuse
+					layer.destroyChildren();
+					layer.clear();
+					stage.width(containerWidth || 800);
+					stage.height(containerHeight || 600);
+				} else {
+					// Create new stage
+					if (stage) stage.destroy();
+
+					stage = new Konva.Stage({
+						container: containerRef!,
+						width: containerWidth || 800,
+						height: containerHeight || 600
+					});
+
+					layer = new Konva.Layer();
+					stage.add(layer);
+
+					imageEditorStore.setStage(stage);
+					imageEditorStore.setLayer(layer);
 				}
-
-				// Create stage
-				const stage = new Konva.Stage({
-					container: containerRef!,
-					width: containerWidth || 800,
-					height: containerHeight || 600
-				});
-
-				const layer = new Konva.Layer();
-				stage.add(layer);
 
 				// Calculate scale
 				const scaleX = (containerWidth * 0.8) / img.width;
@@ -242,13 +286,23 @@ Comprehensive image editing interface with Konva.js integration.
 					scaleY: scale
 				});
 
+				// Add touch support
+				imageGroup.on('touchstart', (_e) => {
+					// Placeholder for touch start logic
+					// e.evt.preventDefault(); // Prevent scrolling if needed
+				});
+				imageGroup.on('touchmove', (_e) => {
+					// Placeholder for touch move logic
+				});
+				imageGroup.on('touchend', (_e) => {
+					// Placeholder for touch end logic
+				});
+
 				imageGroup.add(imageNode);
-				layer.add(imageGroup);
-				layer.draw();
+				layer!.add(imageGroup);
+				layer!.draw();
 
 				// Update store
-				imageEditorStore.setStage(stage);
-				imageEditorStore.setLayer(layer);
 				imageEditorStore.setImageNode(imageNode);
 				imageEditorStore.setImageGroup(imageGroup);
 
@@ -268,28 +322,6 @@ Comprehensive image editing interface with Konva.js integration.
 		};
 
 		img.src = cleanedSrc;
-	}
-
-	// Handle resize
-	function handleResize() {
-		const { stage, imageGroup } = imageEditorStore.state;
-		if (!stage || !containerRef) return;
-
-		const containerWidth = containerRef.clientWidth;
-		const containerHeight = containerRef.clientHeight;
-
-		stage.width(containerWidth);
-		stage.height(containerHeight);
-
-		// Recenter image
-		if (imageGroup) {
-			imageGroup.position({
-				x: containerWidth / 2,
-				y: containerHeight / 2
-			});
-		}
-
-		stage.batchDraw();
 	}
 
 	// Handle keyboard shortcuts
@@ -334,6 +366,19 @@ Comprehensive image editing interface with Konva.js integration.
 				const deleteBtn = document.querySelector('.preset-filled-error-500.btn') as HTMLButtonElement;
 				deleteBtn?.click();
 			}
+		}
+
+		// Zoom Shorcuts
+		// Check against imageEditorStore actions or dispatch directly if possible
+		// Since Zoom is a widget, ideally we'd switch to it, but for now we'll just log or try to access stage
+		if (event.key === '+' || event.key === '=') {
+			// zoomIn(); // Need to implement or delegate
+		}
+		if (event.key === '-') {
+			// zoomOut();
+		}
+		if (event.key === '0') {
+			// resetZoom();
 		}
 	}
 
@@ -513,8 +558,8 @@ Comprehensive image editing interface with Konva.js integration.
 			const { file: originalFile } = imageEditorStore.state;
 			const storeMediaId = (originalFile as any)?._id;
 
-			onsave({ 
-				dataURL, 
+			onsave({
+				dataURL,
 				file: editedFile,
 				focalPoint,
 				mediaId: storeMediaId || mediaId
@@ -554,57 +599,28 @@ Comprehensive image editing interface with Konva.js integration.
 		window.addEventListener('resize', handleResize);
 		window.addEventListener('keydown', handleKeyDown);
 
-		// ResizeObserver: update dimensions as soon as container has size (fixes first-open in modal)
-		let ro: ResizeObserver | null = null;
-		const scheduleObserve = () => {
+		let resizeObserver: ResizeObserver | null = null;
+		const setupResizeObserver = () => {
 			if (!containerRef) return;
-			const el = containerRef;
-			ro = new ResizeObserver((entries) => {
-				for (const e of entries) {
-					const { width, height } = e.contentRect;
-					if (width > 0 && height > 0) {
-						containerWidth = width;
-						containerHeight = height;
-						ro?.disconnect();
-						ro = null;
-						break;
+			resizeObserver = new ResizeObserver((entries) => {
+				for (const entry of entries) {
+					if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+						containerWidth = entry.contentRect.width;
+						containerHeight = entry.contentRect.height;
+						if (imageEditorStore.state.stage) {
+							handleResize();
+						}
 					}
 				}
 			});
-			ro.observe(el);
+			resizeObserver.observe(containerRef);
 		};
 
-		// Poll until containerRef is set, then observe. Start after delay for modal open.
-		let observeRetries = 0;
-		const checkAndObserve = () => {
-			if (containerRef) {
-				scheduleObserve();
-				return;
-			}
-			if (observeRetries < 30) {
-				observeRetries++;
-				setTimeout(checkAndObserve, 50);
-			}
-		};
-		setTimeout(checkAndObserve, 120);
-
-		// Fallback polling in case ResizeObserver fires with 0 initially
-		let pollRetries = 0;
-		const poll = () => {
-			if (containerRef && containerRef.clientWidth > 0 && containerRef.clientHeight > 0) {
-				containerWidth = containerRef.clientWidth;
-				containerHeight = containerRef.clientHeight;
-				return;
-			}
-			if (pollRetries < 25) {
-				pollRetries++;
-				setTimeout(poll, 100);
-			}
-		};
-		setTimeout(poll, 200);
+		const t = setTimeout(setupResizeObserver, 100);
 
 		return () => {
-			ro?.disconnect();
+			clearTimeout(t);
+			resizeObserver?.disconnect();
 			window.removeEventListener('resize', handleResize);
 			window.removeEventListener('keydown', handleKeyDown);
 			imageEditorStore.cleanupTempNodes();
@@ -613,8 +629,22 @@ Comprehensive image editing interface with Konva.js integration.
 	});
 
 	onDestroy(() => {
+		const { stage } = imageEditorStore.state;
+		if (stage) {
+			stage.destroy();
+		}
+
 		if (selectedImage && selectedImage.startsWith('blob:')) {
 			URL.revokeObjectURL(selectedImage);
+		}
+
+		// Clear any cached images
+		if (typeof Konva !== 'undefined' && Konva.Image) {
+			try {
+				// Konva specific cleanup if needed
+			} catch (e) {
+				console.warn('Konva cleanup error', e);
+			}
 		}
 	});
 </script>
@@ -628,6 +658,15 @@ Comprehensive image editing interface with Konva.js integration.
 				<button onclick={() => (error = null)} class="ml-auto text-error-600 hover:text-error-800" aria-label="Dismiss error">
 					<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 				</button>
+			</div>
+		</div>
+	{/if}
+
+	{#if isProcessing}
+		<div class="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+			<div class="text-white flex flex-col items-center gap-2">
+				<iconify-icon icon="mdi:loading" class="animate-spin text-primary-500" width="48"></iconify-icon>
+				<p class="font-medium">Processing image...</p>
 			</div>
 		</div>
 	{/if}
