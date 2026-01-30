@@ -25,7 +25,6 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 
 	// Unused presets removed for Square Only enforcement
 
-
 	function handleRatio(ratio: number | null) {
 		onAspectRatio(ratio);
 	}
@@ -59,7 +58,7 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 					onFlipHorizontal();
 				}
 				break;
-			// Quick aspect ratio shortcuts
+			// Quick aspect ratio shortcut (square only)
 			case '1':
 				e.preventDefault();
 				handleRatio(1);
@@ -134,8 +133,7 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 	<!-- Spacer -->
 	<div class="flex-1 hidden lg:block"></div>
 
-	<!-- Action Buttons -->
-	<!-- Actions removed: Handled by global toolbar -->
+	<!-- Action Buttons: Handled by global toolbar -->
 	<div class="h-2"></div>
 </div>
 
