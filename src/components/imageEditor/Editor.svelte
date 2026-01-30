@@ -89,6 +89,20 @@ Comprehensive image editing interface with Konva.js integration.
 		return null;
 	});
 
+	// Reset load state when image source changes (e.g. modal opened with new image)
+	let lastLoadedSrc = $state('');
+	let lastLoadedFile = $state<File | null>(null);
+	$effect(() => {
+		const src = initialImageSrc;
+		const file = imageFile;
+		const srcChanged = src !== lastLoadedSrc;
+		const fileChanged = file !== lastLoadedFile;
+		if (srcChanged || fileChanged) {
+			initialImageLoaded = false;
+			selectedImage = '';
+		}
+	});
+
 	// Cleanup effect for selected image
 	$effect(() => {
 		return () => {
@@ -120,8 +134,6 @@ Comprehensive image editing interface with Konva.js integration.
 
 		// Wait for container to have size before initializing (modal might be animating)
 		if (containerWidth === 0 || containerHeight === 0) {
-			console.log('[Editor] Waiting for container size...', { containerWidth, containerHeight, hasContainerRef: !!containerRef });
-			// Schedule a re-check after a short delay for modal animation
 			const timeoutId = setTimeout(() => {
 				// Force a re-check by updating a tracked value
 				if (containerRef && containerRef.clientWidth > 0 && containerRef.clientHeight > 0) {
@@ -134,8 +146,6 @@ Comprehensive image editing interface with Konva.js integration.
 
 		// Skip if already loaded with same source
 		if (initialImageLoaded && src === selectedImage && !file) return;
-
-		console.log('[Editor] Loading image:', { src: src || '(empty)', hasFile: !!file, containerWidth, containerHeight });
 
 		// Schedule loading after a microtask to ensure DOM is ready
 		queueMicrotask(() => {
