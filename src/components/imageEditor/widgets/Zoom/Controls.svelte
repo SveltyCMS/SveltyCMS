@@ -135,6 +135,7 @@ Toolbar controls for the Zoom tool:
 	</button>
 
 	<!-- 100% / Actual Size -->
+	<!-- 100% / Actual Size -->
 	<button
 		onclick={onActualSize}
 		class="btn-icon preset-outlined-surface-500 h-7 px-2 py-1 gap-1 text-xs rounded-full bg-surface-50/10 border-transparent hover:bg-surface-50/20 text-surface-400 hover:text-white transition-all ml-2"
