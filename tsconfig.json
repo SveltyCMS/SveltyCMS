@@ -17,8 +17,78 @@
 		"allowArbitraryExtensions": true,
 		"resolveJsonModule": true,
 		"allowImportingTsExtensions": true,
-		"types": ["@types/bun"]
+		"types": [
+			"@types/bun"
+		],
+		"baseUrl": ".",
+		"paths": {
+			"$paraglide/*": [
+				"./src/paraglide/*"
+			],
+			"@api/*": [
+				"./src/routes/api/*"
+			],
+			"@auth/*": [
+				"./src/databases/auth/*"
+			],
+			"@collections/*": [
+				"./config/collections/*"
+			],
+			"@config/*": [
+				"./config/*"
+			],
+			"@components/*": [
+				"./src/components/*"
+			],
+			"@content/*": [
+				"./src/content/*"
+			],
+			"@databases/*": [
+				"./src/databases/*"
+			],
+			"@hooks/*": [
+				"./src/hooks/*"
+			],
+			"@root/*": [
+				"./*"
+			],
+			"@services/*": [
+				"./src/services/*"
+			],
+			"@src/*": [
+				"./src/*"
+			],
+			"@static/*": [
+				"./static/*"
+			],
+			"@stores/*": [
+				"./src/stores/*"
+			],
+			"@themes/*": [
+				"./src/themes/*"
+			],
+			"@types/*": [
+				"./src/types/*"
+			],
+			"@utils/*": [
+				"./src/utils/*"
+			],
+			"@widgets/*": [
+				"./src/widgets/*"
+			]
+		}
 	},
-	"include": ["src/**/*.js", "src/**/*.ts", "src/**/*.svelte", "config/**/*.ts", "types/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"],
-	"exclude": ["node_modules", ".svelte-kit"]
+	"include": [
+		"src/**/*.js",
+		"src/**/*.ts",
+		"src/**/*.svelte",
+		"config/**/*.ts",
+		"types/**/*.ts",
+		"scripts/**/*.ts",
+		"tests/**/*.ts"
+	],
+	"exclude": [
+		"node_modules",
+		".svelte-kit"
+	]
 }

@@ -522,7 +522,7 @@ jobs:
         run: |
           cat > config/private.ts <<EOF
           export default {
-            database: { type: 'mariadb', uri: '' }, # Placeholder
+            database: { type: 'mariadb', uri: '' },
             general: { siteURL: 'http://localhost:4173' }
           };
           EOF
