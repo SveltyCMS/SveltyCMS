@@ -30,6 +30,10 @@
 	import { flip } from 'svelte/animate';
 	import { tick } from 'svelte';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { validateTreeIntegrity, type TreeNode } from '$lib/utils/treeOperations';
+	import { serializeNode } from '$lib/utils/serialization';
+	import type { SerializableContentNode } from '$lib/utils/serialization';
+	import { toaster } from '@stores/store.svelte.ts';
 
 	export interface TreeViewItem extends Record<string, any> {
 		id: string;
@@ -422,6 +426,31 @@
 		const flatItems = flattenTree(treeRoots);
 		const withPaths = recalculatePaths(flatItems);
 		const nodes = toFlatContentNodes(withPaths);
+
+		// Validate tree integrity before saving
+		const serializableNodes: SerializableContentNode[] = nodes.map(node => ({
+			_id: node._id.toString(),
+			parentId: node.parentId?.toString(),
+			name: node.name,
+			path: node.path || '',
+			nodeType: node.nodeType,
+			order: node.order,
+			icon: node.icon,
+			slug: node.slug,
+			description: node.description,
+			updatedAt: node.updatedAt as string,
+			createdAt: node.createdAt as string,
+			translations: node.translations,
+			tenantId: node.tenantId
+		}));
+
+		const integrityError = validateTreeIntegrity(serializableNodes);
+		if (integrityError) {
+			toaster.error({ description: `Cannot save: ${integrityError.message}` });
+			console.error('[TreeViewBoard] Integrity validation failed:', integrityError);
+			isDragging = false;
+			return;
+		}
 
 		// Pre-emptively set hash to prevent race condition with parent updates
 		lastContentNodesHash = 
