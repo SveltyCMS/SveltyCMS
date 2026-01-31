@@ -1,69 +1,31 @@
-<!-- 
-@files src/routes/(app)/config/collectionbuilder/[...contentTypes]/+page.svelte
-@component  
-**This component sets up and displays the collection page.**
-
-It provides a user-friendly interface for creating, editing, and deleting collections.
-
-### Props
-- `data`: An object containing:
-- `collection`: The collection schema data (if editing an existing collection).
-- `contentLanguage`: The current content language setting.
-- `user`: The authenticated user information.
-
-### Features
-- Dynamically sets the page title based on whether the user is creating a new collection or editing an existing one.
-- Loads collection data when editing, and initializes state accordingly.
-- Provides tabs for editing collection forms and widget fields.
--->
-
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import axios from 'axios';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-
-	import { obj2formData } from '@utils/utils';
+	import { page } from '$app/state';
 
 	// Stores
-	import { page } from '$app/state';
-	import { tabSet } from '@stores/store.svelte.ts';
 	import { collection, setCollection } from '@src/stores/collectionStore.svelte';
 	import { setRouteContext } from '@src/stores/UIStore.svelte.ts';
+	import { validationStore, toaster } from '@src/stores/store.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Components
 	import CollectionForm from './tabs/CollectionForm.svelte';
-	import CollectionWidget from './tabs/CollectionWidget.svelte';
+	import CollectionWidgetOptimized from './tabs/CollectionWidgetOptimized.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
 
-	// Skeleton
-	import { Tabs } from '@skeletonlabs/skeleton-svelte';
-	// import { Tab, TabGroup } from '@skeletonlabs/skeleton-svelte';
-	import { toaster } from '@stores/store.svelte.ts';
+	// Utils
+	import { obj2formData } from '@utils/utils';
 	import { showConfirm } from '@utils/modalUtils';
-
 	import { widgetStoreActions } from '@stores/widgetStore.svelte.ts';
-
-	// Create local tabSet variable for binding
-	let localTabSet = $state(String(tabSet.value));
-
-	// Sync with store when local value changes
-	$effect(() => {
-		tabSet.set(Number(localTabSet));
-	});
-
-	// Sync local value when store changes
-	$effect(() => {
-		localTabSet = String(tabSet.value);
-	});
 
 	import type { User } from '@src/databases/auth/types';
 	import type { FieldInstance, Schema } from '@src/content/types';
 
-	// Extract the collection name from the URL
 	let collectionPath = $state(page.params.contentPath);
 	const action = $state(page.params.action);
 
@@ -76,219 +38,189 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	}
 
 	const { data }: Props = $props();
-
 	let originalName = $state('');
-	onMount(() => {
-		if (action === 'edit') {
-			loadCollection();
-		} else {
-			setCollection(null);
-			originalName = '';
-		}
-	});
+	let isLoading = $state(false);
 
-	function loadCollection() {
-		if (data.collection) {
+	onMount(() => {
+		widgetStoreActions.initializeWidgets();
+		if (action === 'edit' && data.collection) {
 			setCollection(data.collection);
 			originalName = String(data.collection.name || '');
 		} else {
-			logger.error('Collection data not found for editing.');
-			// Optionally, redirect or show a proper error message
-		}
-	}
-
-	// Default widget data (tab1)
-	// Unwrap the `collection` store value for TS and template usage
-	const collectionValue = $derived(collection.value);
-
-	// Page title
-	let pageTitle = $state('');
-	let highlightedPart = $state('');
-
-	// Effect to update page title based on action and collection name
-	$effect.root(() => {
-		// Set the base page title according to the action
-		if (action === 'edit') {
-			pageTitle = `Edit ${collectionPath} Collection`;
-		} else if (collectionPath) {
-			pageTitle = `Create ${collectionPath} Collection`;
-		} else {
-			pageTitle = 'Create new Collection';
+			setCollection({
+				name: 'new',
+				icon: 'bi:collection',
+				status: 'unpublished',
+				slug: '',
+				fields: []
+			} as any);
 		}
 
-		// Ensure the highlighted part (e.g., contentTypes) is unique in the title
-		highlightedPart = collectionPath || 'new';
-
-		// Avoid repeating the contentTypes if it's already included in the string
-		if (pageTitle.includes(highlightedPart)) {
-			pageTitle = pageTitle.replace(new RegExp(`\\b${highlightedPart}\\b`, 'g'), highlightedPart);
-		}
+		// Keyboard Shortcuts
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+				e.preventDefault();
+				handleCollectionSave();
+			}
+			if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+				e.preventDefault();
+				document.getElementById('save-status')?.focus();
+			}
+		};
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
 	});
 
-	function handlePageTitleUpdate(title: string) {
-		highlightedPart = title;
-		collectionPath = title;
-		if (action === 'edit') {
-			pageTitle = `Edit ${highlightedPart} Collection`;
-		} else {
-			pageTitle = `Create ${highlightedPart} Collection`;
-		}
-	}
+	const collectionValue = $derived(collection.value);
 
-	// Import validation store
-	import { validationStore } from '@src/stores/store.svelte';
-
-	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
-		const currentCollection = collection.value;
-		const currentName = String(currentCollection?.name || '');
-
-		// Check validation errors before submission
 		if (validationStore.errors && Object.keys(validationStore.errors).length > 0) {
 			toaster.error({ description: 'Please fix validation errors before saving' });
 			return;
 		}
 
-		// Prepare form data
-		const data =
-			action == 'edit'
-				? obj2formData({
-						originalName: originalName,
-						name: currentName,
-						icon: currentCollection?.icon,
-						status: currentCollection?.status,
-						slug: currentCollection?.slug,
-						description: currentCollection?.description,
-						permissions: currentCollection?.permissions,
-						fields: currentCollection?.fields
-					})
-				: obj2formData({
-						name: currentName,
-						icon: currentCollection?.icon,
-						status: currentCollection?.status,
-						slug: currentCollection?.slug,
-						description: currentCollection?.description,
-						permissions: currentCollection?.permissions,
-						fields: currentCollection?.fields
-					});
+		try {
+			isLoading = true;
+			const currentCollection = collection.value;
+			const payload = {
+				originalName,
+				...currentCollection
+			};
 
-		// Send the form data to the server
-		const resp = await axios.post(`?/saveCollection`, data, {
-			headers: {
-				'Content-Type': 'multipart/form-data'
-			}
-		});
+			const resp = await axios.post(`?/saveCollection`, obj2formData(payload), {
+				headers: { 'Content-Type': 'multipart/form-data' }
+			});
 
-		if (resp.data.status === 200) {
-			toaster.success({ description: "Collection Saved. You're all set to build your content." });
-			if (originalName && originalName !== currentName && currentName) {
-				const newPath = page.url.pathname.replace(originalName, currentName);
-				goto(newPath);
+			if (resp.status === 200) {
+				toaster.success({ description: 'Collection Saved Successfully' });
+				if (originalName !== currentCollection?.name) {
+					originalName = String(currentCollection?.name);
+					goto(`/config/collectionbuilder/edit/${originalName}`);
+				}
 			}
+		} catch (error) {
+			logger.error('Save failed', error);
+			toaster.error({ description: 'Failed to save collection' });
+		} finally {
+			isLoading = false;
 		}
 	}
 
 	function handleCollectionDelete() {
-		const currentCollection = collection.value;
-
 		showConfirm({
-			title: 'Please Confirm',
-			body: 'Are you sure you wish to delete this collection?',
+			title: 'Delete Collection?',
+			body: `Are you sure you want to delete "${collectionValue?.name}"? This cannot be undone.`,
 			onConfirm: async () => {
-				// Send the form data to the server
-				await axios.post(`?/deleteCollections`, obj2formData({ contentTypes: String(currentCollection?.name || '') }), {
-					headers: {
-						'Content-Type': 'multipart/form-data'
-					}
+				await axios.post(`?/deleteCollections`, obj2formData({ ids: JSON.stringify([collectionValue?._id]) }), {
+					headers: { 'Content-Type': 'multipart/form-data' }
 				});
-
-				// Notify via global toast helper
-				toaster.error({ description: 'Collection Deleted.' });
-				goto(`/collection`);
-			},
-			onCancel: () => {
-				// User cancelled, do not delete
-				logger.debug('User cancelled deletion.');
+				toaster.success({ description: 'Collection Deleted' });
+				goto('/config/collectionbuilder');
 			}
 		});
 	}
-
-	onMount(() => {
-		// Set the initial tab
-		widgetStoreActions.initializeWidgets();
-		tabSet.set(0);
-	});
 
 	$effect(() => {
 		setRouteContext({ isCollectionBuilder: true });
 		return () => setRouteContext({ isCollectionBuilder: false });
 	});
+
+	let activeSection = $state('general');
 </script>
 
-<!-- Page Title -->
-<div class="my-2 flex items-center justify-between gap-2">
-	<PageTitle name={pageTitle} highlight={highlightedPart} icon="ic:baseline-build" />
-
-	<!-- Back -->
-	<button onclick={() => history.back()} type="button" aria-label="Back" class="preset-outlined-primary-500 btn-icon">
-		<iconify-icon icon="mdi:arrow-left" width="24"></iconify-icon>
-	</button>
-</div>
-
-<div class="wrapper">
-	{#if action == 'edit'}
-		<div class="flex justify-center gap-3">
-			<button
-				type="button"
-				onclick={handleCollectionDelete}
-				class=" preset-filled-error-500 btn mb-3 mr-1 mt-1 justify-end dark:preset-filled-error-500 dark:text-black"
-				>{m.button_delete()}
-			</button>
-			<button
-				type="button"
-				onclick={handleCollectionSave}
-				class="preset-filled-tertiary-500 btn mb-3 mr-1 mt-1 justify-end dark:preset-filled-tertiary-500 dark:text-black">{m.button_save()}</button
-			>
-		</div>
-	{/if}
-
-	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">
-		{m.collection_helptext()}
-	</p>
-	<!-- Required Text  -->
-	<div class="mb-2 text-center text-xs text-error-500" data-testid="required-indicator">* {m.collection_required()}</div>
-	<Tabs value={localTabSet} onValueChange={(e) => (localTabSet = e.value)}>
-		<Tabs.List class="flex border-b border-surface-200-800 mb-4">
-			<!-- User Permissions -->
-			{#if page.data.isAdmin}
-				<!-- Edit -->
-				<Tabs.Trigger value="0">
-					<div class="flex items-center gap-1 py-2 px-4">
-						<iconify-icon icon="mdi:pencil" width="24"></iconify-icon>
-						<span class:active={tabSet.value === 0} class:text-tertiary-500={tabSet.value === 0} class:text-primary-500={tabSet.value === 0}
-							>{m.button_edit()}</span
-						>
-					</div>
-				</Tabs.Trigger>
-
-				<!-- Widget Fields -->
-				<Tabs.Trigger value="1" data-testid="widget-fields-tab">
-					<div class="flex items-center gap-1 py-2 px-4">
-						<iconify-icon icon="mdi:widgets" width="24"></iconify-icon>
-						<span class:active={tabSet.value === 1} class:text-tertiary-500={tabSet.value === 2} class:text-primary-500={tabSet.value === 2}
-							>{m.collection_widgetfields()}</span
-						>
-					</div>
-				</Tabs.Trigger>
+<PageTitle
+	name={action === 'edit' ? `Edit ${collectionValue?.name}` : 'Create Collection'}
+	icon={collectionValue?.icon || 'ic:baseline-build'}
+	showBackButton={true}
+	backUrl="/config/collectionbuilder"
+>
+	{#snippet children()}
+		<div class="flex gap-2">
+			{#if action === 'edit'}
+				<button onclick={handleCollectionDelete} class="preset-filled-error-500 btn flex items-center gap-1" disabled={isLoading}>
+					<iconify-icon icon="mdi:delete" width="20"></iconify-icon>
+					<span class="hidden sm:inline">{m.button_delete()}</span>
+				</button>
 			{/if}
-		</Tabs.List>
+			<button onclick={handleCollectionSave} class="preset-filled-primary-500 btn flex items-center gap-1 min-w-[100px]" disabled={isLoading}>
+				{#if isLoading}
+					<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
+				{:else}
+					<iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
+				{/if}
+				<span>{m.button_save()}</span>
+			</button>
+		</div>
+	{/snippet}
+</PageTitle>
 
-		<!-- Tab Panels -->
-		<Tabs.Content value="0">
-			<CollectionForm data={collectionValue} {handlePageTitleUpdate} />
-		</Tabs.Content>
-		<Tabs.Content value="1">
-			<CollectionWidget fields={collectionValue?.fields as FieldInstance[] | undefined} {handleCollectionSave} />
-		</Tabs.Content>
-	</Tabs>
+<div class="flex h-[calc(100vh-120px)] flex-col lg:flex-row">
+	<!-- Mini Sticky Nav -->
+	<nav class="flex border-b border-surface-200-800 p-2 lg:w-48 lg:flex-col lg:border-b-0 lg:border-r">
+		<button
+			class="flex items-center gap-2 rounded px-3 py-2 text-left text-sm transition-colors {activeSection === 'general'
+				? 'bg-primary-500/10 text-primary-500'
+				: 'hover:bg-surface-100-900'}"
+			onclick={() => {
+				activeSection = 'general';
+				document.getElementById('general-info')?.scrollIntoView({ behavior: 'smooth' });
+			}}
+		>
+			<iconify-icon icon="mdi:information" width="18"></iconify-icon>
+			General Info
+		</button>
+		<button
+			class="flex items-center gap-2 rounded px-3 py-2 text-left text-sm transition-colors {activeSection === 'fields'
+				? 'bg-primary-500/10 text-primary-500'
+				: 'hover:bg-surface-100-900'}"
+			onclick={() => {
+				activeSection = 'fields';
+				document.getElementById('fields-config')?.scrollIntoView({ behavior: 'smooth' });
+			}}
+		>
+			<iconify-icon icon="mdi:widgets" width="18"></iconify-icon>
+			Field Configuration
+		</button>
+	</nav>
+
+	<!-- Scrollable Content -->
+	<div
+		class="flex-1 overflow-y-auto p-6 scroll-smooth"
+		onscroll={(e) => {
+			const target = e.currentTarget as HTMLElement;
+			const fieldsTop = document.getElementById('fields-config')?.offsetTop || 0;
+			activeSection = target.scrollTop > fieldsTop - 100 ? 'fields' : 'general';
+		}}
+	>
+		<div class="mx-auto max-w-5xl space-y-12">
+			<!-- Section 1: General Info -->
+			<section id="general-info" class="rounded-xl border border-surface-200-800 bg-surface-50-950 p-6 shadow-sm">
+				<div class="mb-4 flex items-center gap-2 border-b border-surface-200-800 pb-2">
+					<iconify-icon icon="mdi:cog" width="24" class="text-primary-500"></iconify-icon>
+					<h2 class="text-xl font-bold">General Configuration</h2>
+				</div>
+				<CollectionForm data={collectionValue} handlePageTitleUpdate={(t) => collectionValue && (collectionValue.name = t)} />
+			</section>
+
+			<!-- Section 2: Fields -->
+			<section id="fields-config" class="rounded-xl border border-surface-200-800 bg-surface-50-950 p-6 shadow-sm">
+				<div class="mb-4 flex items-center justify-between border-b border-surface-200-800 pb-2">
+					<div class="flex items-center gap-2">
+						<iconify-icon icon="mdi:widgets" width="24" class="text-primary-500"></iconify-icon>
+						<h2 class="text-xl font-bold">Field Definitions</h2>
+					</div>
+					<span class="text-xs text-surface-500">
+						{collectionValue?.fields?.length || 0} fields total
+					</span>
+				</div>
+				<CollectionWidgetOptimized fields={collectionValue?.fields as FieldInstance[] | undefined} />
+			</section>
+		</div>
+	</div>
 </div>
+
+<style>
+	:global(.scroll-smooth) {
+		scroll-behavior: smooth;
+	}
+</style>
