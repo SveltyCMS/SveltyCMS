@@ -22,6 +22,7 @@ const config = {
 
 		alias: {
 			$paraglide: './src/paraglide',
+			'$lib': './src/lib',
 			'@api': './src/routes/api',
 			'@auth': './src/databases/auth',
 			'@collections': './config/collections',
