@@ -15,11 +15,14 @@
 
 	let { fields = [] } = $props<{ fields: FieldInstance[] }>();
 
+	// Generate a simple random ID for drag-and-drop (doesn't need crypto-strength)
+	const generateDragId = () => `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
 	let items = $state(
 		fields.map((f, i) => ({
 			id: i + 1,
 			...f,
-			_dragId: Math.random().toString(36).substring(7)
+			_dragId: generateDragId()
 		}))
 	);
 
@@ -78,7 +81,7 @@
 				} else {
 					items.push({
 						id: items.length + 1,
-						_dragId: Math.random().toString(36).substring(7),
+						_dragId: generateDragId(),
 						...r
 					});
 				}
@@ -97,7 +100,7 @@
 		const newField = {
 			...field,
 			id: items.length + 1,
-			_dragId: Math.random().toString(36).substring(7),
+			_dragId: generateDragId(),
 			label: `${field.label} (Copy)`,
 			db_fieldName: field.db_fieldName ? `${field.db_fieldName}_copy` : undefined
 		};
@@ -124,7 +127,7 @@
 			};
 			items.push({
 				id: items.length + 1,
-				_dragId: Math.random().toString(36).substring(7),
+				_dragId: generateDragId(),
 				...newWidget
 			});
 			updateStore();

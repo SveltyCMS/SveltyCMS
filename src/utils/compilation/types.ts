@@ -48,6 +48,21 @@ export interface CompilationResult {
 			dataLoss: boolean;
 		}>;
 	}>;
+	/** Schema drift detection results for enterprise migration workflows */
+	schemaDrift?: Array<{
+		collection: string;
+		changes: Array<{
+			type: string;
+			field: string;
+			severity: 'blocking' | 'warning';
+			dataLoss: boolean;
+			migrationPossible: boolean;
+			affectedCount: number;
+		}>;
+		requiresMigration: boolean;
+		documentCount: number;
+		severity: 'blocking' | 'warning';
+	}>;
 }
 
 export class CompilationError extends Error {

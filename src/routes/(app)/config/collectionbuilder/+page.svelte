@@ -26,6 +26,7 @@
 	import { showConfirm } from '@utils/modalUtils';
 	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
 	import type { ISODateString } from '@root/src/content/types';
+	import { generateStableId } from '$lib/utils/serialization';
 
 	interface NodeOperation {
 		type: 'create' | 'update' | 'move' | 'rename';
@@ -125,7 +126,7 @@
 		const original = currentConfig.find((n) => n._id.toString() === node._id!.toString());
 		if (!original) return;
 
-		const newId = (Math.random().toString(36).substring(2, 15) + Date.now().toString(36)) as unknown as DatabaseId;
+		const newId = generateStableId();
 		const newNode: ContentNode = JSON.parse(
 			JSON.stringify({
 				...original,
@@ -216,7 +217,7 @@
 					currentConfig = currentConfig.map((n) => (n._id === updated._id ? updated : n));
 					nodesToSave[updated._id.toString()] = { type: 'rename', node: updated };
 				} else {
-					const newId = Math.random().toString(36).substring(2, 15) as unknown as DatabaseId;
+					const newId = generateStableId();
 					const newCategory: ContentNode = {
 						_id: newId,
 						name: response.newCategoryName,
