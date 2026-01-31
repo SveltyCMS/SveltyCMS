@@ -1,0 +1,26 @@
+{
+  "name": "Bun Ubuntu MongoDB",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces",
+  
+  "features": {
+    "ghcr.io/junnplus/devcontainers-features/bun:1": {}
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Oven.bun-vscode",
+        "mongodb.mongodb-vscode",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
+
+  "remoteEnv": {
+    "DATABASE_URL": "mongodb://db:27017/mydb"
+  },
+
+  "postCreateCommand": "bun install"
+}
