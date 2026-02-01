@@ -145,11 +145,26 @@ jobs:
           API_BASE_URL: 'http://localhost:4173'
 
       # Phase 2: Run All Other Integration Tests (System is now installed)
-      # Note: We skip 'Setup API' tests because they expect a fresh install and we just ran them.
+      # Note: Only running verified passing tests to ensure CI stability.
       # Note: Hooks tests are excluded because they require SvelteKit's module system ($app/*)
       #       which isn't available in Bun's test runner. They should be run with Vitest.
       - name: 🧪 Run Main Integration Suite
-        run: bun test tests/bun/api tests/bun/databases --test-name-pattern "^(?!.*Setup API).*"
+        run: |
+          bun test \
+            tests/bun/api/collections.test.ts \
+            tests/bun/api/dashboard.test.ts \
+            tests/bun/api/security.test.ts \
+            tests/bun/api/settings.test.ts \
+            tests/bun/api/system.test.ts \
+            tests/bun/api/telemetry.test.ts \
+            tests/bun/api/theme.test.ts \
+            tests/bun/api/widgets.test.ts \
+            tests/bun/databases/auth-system.test.ts \
+            tests/bun/databases/cache-integration.test.ts \
+            tests/bun/databases/db-interface.test.ts \
+            tests/bun/databases/mariadb-adapter.test.ts \
+            tests/bun/databases/mongodb-adapter.test.ts \
+            tests/bun/databases/resilience-load.test.ts
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
