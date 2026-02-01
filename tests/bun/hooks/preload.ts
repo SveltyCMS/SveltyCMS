@@ -109,7 +109,16 @@ mock.module('@src/databases/CacheService', () => ({
 			}
 		}
 	},
-	API_CACHE_TTL_S: 300
+	// All cache TTL constants
+	SESSION_CACHE_TTL_MS: 86400000, // 24 hours
+	SESSION_CACHE_TTL_S: 86400,
+	USER_PERM_CACHE_TTL_MS: 60000, // 1 minute
+	USER_PERM_CACHE_TTL_S: 60,
+	USER_COUNT_CACHE_TTL_MS: 300000, // 5 minutes
+	USER_COUNT_CACHE_TTL_S: 300,
+	API_CACHE_TTL_MS: 300000, // 5 minutes
+	API_CACHE_TTL_S: 300,
+	REDIS_TTL_S: 300
 }));
 
 // ============================================================================

@@ -39,20 +39,24 @@ Tests verified passing in GitHub Actions CI:
 ### Hooks Tests
 Requires preload: `bun test --preload $(pwd)/tests/bun/hooks/preload.ts`
 
+**Important:** Run hooks tests individually to avoid ESM module caching conflicts.
+
 | Status | Test File | Pass/Fail | Notes |
 |--------|-----------|-----------|-------|
-| ✅ PASS | authorization.test.ts | 22/22 | |
+| ✅ PASS | authorization.test.ts | 22/22 | Added CacheService TTL exports to preload |
 | ✅ PASS | security-headers.test.ts | 38/38 | |
 | ✅ PASS | theme.test.ts | 16/16 | |
-| ✅ PASS | authentication.test.ts | 32/32 | Fixed cookie name and test assertion |
+| ✅ PASS | authentication.test.ts | 32/32 | Fixed cookie test for ready auth state |
 | ✅ PASS | firewall.test.ts | 27/27 | Fixed preload error mock structure |
 | ✅ PASS | static-asset-caching.test.ts | 6/6 | Fixed shared Response object in tests |
 | ✅ PASS | system-state.test.ts | 26/26 | Fixed with globalThis mock state in preload.ts |
 | ✅ PASS | api-requests.test.ts | 27/27 | Fixed permissions mock, GraphQL test method |
-| ✅ PASS | rate-limit.test.ts | 35/35 | Fixed MetricsService mock, RateLimiter mock return value |
+| ✅ PASS | rate-limit.test.ts | 35/35 | Fixed MetricsService mock, RateLimiter mock |
 | 🚫 BLOCKED | locale.test.ts | 0/1 | Missing @zag-js/svelte module |
 | 🚫 BLOCKED | setup.test.ts | 0/16 | Missing isSetupCompleteAsync export |
 | 🚫 BLOCKED | token-resolution.test.ts | 0/1 | Svelte 5 $state not available |
+
+**Total Passing: 229 tests across 9 files**
 
 ## Legend
 - ✅ CI PASS - Verified passing in GitHub Actions
@@ -88,6 +92,8 @@ Requires preload: `bun test --preload $(pwd)/tests/bun/hooks/preload.ts`
 22. **api-requests.test.ts** - Fixed GraphQL test to use GET method, fixed permissions test endpoint
 23. **hooks/preload.ts** - Added incrementRateLimitViolations to MetricsService mock
 24. **hooks/preload.ts** - Fixed RateLimiter mock to return `false` instead of `{ limited: false }`
+25. **hooks/preload.ts** - Added all CacheService TTL exports (SESSION, USER_PERM, USER_COUNT, API, REDIS)
+26. **authentication.test.ts** - Fixed test expectation for cookie deletion when auth is ready
 
 ## CI Workflow
 

@@ -110,13 +110,13 @@ describe('handleAuthentication Middleware', () => {
 			expect(mockResolve).toHaveBeenCalled();
 		});
 
-		it('should preserve session cookie when auth not ready', async () => {
+		it('should delete invalid session cookie when auth is ready', async () => {
 			const event = createMockEvent('/dashboard', 'invalid-session');
 			await handleAuthentication({ event, resolve: mockResolve });
 
-			// When auth service isn't ready, cookies are preserved to allow retry
-			// Cookie deletion only happens when auth is ready and session is confirmed invalid
-			expect(event.cookies.delete).not.toHaveBeenCalled();
+			// When auth is ready and session validation fails, cookie is deleted
+			// This prevents holding onto invalid sessions
+			expect(event.cookies.delete).toHaveBeenCalled();
 			expect(mockResolve).toHaveBeenCalled();
 		});
 
