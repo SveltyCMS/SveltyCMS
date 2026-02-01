@@ -157,7 +157,8 @@ jobs:
             tests/bun/api/collections.test.ts \
             tests/bun/api/dashboard.test.ts \
             tests/bun/api/security.test.ts \
-            tests/bun/api/settings.test.ts
+            tests/bun/api/settings.test.ts \
+            tests/bun/api/system.test.ts
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'

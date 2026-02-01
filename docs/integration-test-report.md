@@ -13,8 +13,8 @@ Tests verified passing in GitHub Actions CI:
 | ✅ CI PASS | collections.test.ts | Fixed content-structure action param |
 | ✅ CI PASS | dashboard.test.ts | Fixed WARMING/WARMED states |
 | ✅ CI PASS | security.test.ts | |
-| 🔄 TESTING | settings.test.ts | Added to CI |
-| ⬜ PENDING | system.test.ts | Locally passing, needs CI verification |
+| ✅ CI PASS | settings.test.ts | |
+| 🔄 TESTING | system.test.ts | Added to CI |
 | ⬜ PENDING | theme.test.ts | Locally passing, needs CI verification |
 | ⬜ PENDING | widgets.test.ts | Locally passing, needs CI verification |
 | ❌ FAILING | graphql.test.ts | 14 pass, 6 fail |
@@ -66,7 +66,8 @@ bun test \
   tests/bun/api/collections.test.ts \
   tests/bun/api/dashboard.test.ts \
   tests/bun/api/security.test.ts \
-  tests/bun/api/settings.test.ts
+  tests/bun/api/settings.test.ts \
+  tests/bun/api/system.test.ts
 ```
 
 Unit tests: Temporarily skipped
