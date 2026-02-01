@@ -2,7 +2,7 @@
  * @file tests/bun/api/media.test.ts
  * @description
  * Integration tests for all media-related API endpoints.
- * Optimized for current API contract supporting FormData and specific JSON structures.
+ * Tests focus on authentication, authorization, and request validation.
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
@@ -10,6 +10,19 @@ import { prepareAuthenticatedContext, cleanupTestDatabase } from '../helpers/tes
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
 
 const API_BASE_URL = getApiBaseUrl();
+
+// Minimal valid 1x1 PNG image (89 bytes)
+const VALID_PNG_BASE64 =
+	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+function createValidPngBlob(): Blob {
+	const binaryString = atob(VALID_PNG_BASE64);
+	const bytes = new Uint8Array(binaryString.length);
+	for (let i = 0; i < binaryString.length; i++) {
+		bytes[i] = binaryString.charCodeAt(i);
+	}
+	return new Blob([bytes], { type: 'image/png' });
+}
 
 describe('Media API Endpoints', () => {
 	let authCookie: string;
@@ -28,13 +41,14 @@ describe('Media API Endpoints', () => {
 	});
 
 	describe('GET /api/media/exists', () => {
-		it('should succeed with valid URL and authentication', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/media/exists?url=test-image.jpg`, {
+		it('should return exists:false for non-existent file', async () => {
+			const response = await fetch(`${API_BASE_URL}/api/media/exists?url=non-existent-file.jpg`, {
 				headers: { Cookie: authCookie }
 			});
 			expect(response.status).toBe(200);
 			const data = await response.json();
 			expect(data).toHaveProperty('exists');
+			expect(data.exists).toBe(false);
 		});
 
 		it('should fail without authentication', async () => {
@@ -42,22 +56,19 @@ describe('Media API Endpoints', () => {
 			expect(response.status).toBe(401);
 		});
 
-		it('should fail with missing URL parameter', async () => {
+		it('should return 400 with missing URL parameter', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/media/exists`, {
 				headers: { Cookie: authCookie }
 			});
-			// SvelteKit error(400) might be wrapped or caught as 500 in some environments.
-			expect([400, 500]).toContain(response.status);
+			expect(response.status).toBe(400);
 		});
 	});
 
 	describe('POST /api/media/process', () => {
-		it('should handle metadata extraction via FormData', async () => {
+		it('should extract metadata from valid image', async () => {
 			const formData = new FormData();
 			formData.append('processType', 'metadata');
-			// Create a mock image file
-			const mockFile = new Blob(['fake-image-content'], { type: 'image/jpeg' });
-			formData.append('file', mockFile, 'test.jpg');
+			formData.append('file', createValidPngBlob(), 'test.png');
 
 			const response = await fetch(`${API_BASE_URL}/api/media/process`, {
 				method: 'POST',
@@ -65,12 +76,12 @@ describe('Media API Endpoints', () => {
 				body: formData
 			});
 
-			// This might return 500 if the "image" content is invalid for metadata extraction,
-			// but it should at least not be 405 or 401.
-			expect([200, 500]).toContain(response.status);
+			expect(response.status).toBe(200);
+			const data = await response.json();
+			expect(data.success).toBe(true);
 		});
 
-		it('should fail with missing processType', async () => {
+		it('should return 400 with missing processType', async () => {
 			const formData = new FormData();
 			const response = await fetch(`${API_BASE_URL}/api/media/process`, {
 				method: 'POST',
@@ -79,36 +90,74 @@ describe('Media API Endpoints', () => {
 			});
 			expect(response.status).toBe(400);
 		});
+
+		it('should return 400 with missing file for metadata extraction', async () => {
+			const formData = new FormData();
+			formData.append('processType', 'metadata');
+			const response = await fetch(`${API_BASE_URL}/api/media/process`, {
+				method: 'POST',
+				headers: { Cookie: authCookie, Origin: API_BASE_URL },
+				body: formData
+			});
+			expect(response.status).toBe(400);
+		});
+
+		it('should fail without authentication', async () => {
+			const formData = new FormData();
+			formData.append('processType', 'metadata');
+			const response = await fetch(`${API_BASE_URL}/api/media/process`, {
+				method: 'POST',
+				headers: { Origin: API_BASE_URL },
+				body: formData
+			});
+			expect(response.status).toBe(401);
+		});
 	});
 
 	describe('DELETE /api/media/delete', () => {
-		it('should succeed with valid URL JSON', async () => {
+		it('should return 400 with missing URL', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/media/delete`, {
 				method: 'DELETE',
 				headers: { 'Content-Type': 'application/json', Cookie: authCookie },
-				body: JSON.stringify({ url: 'non-existent-file.jpg' })
+				body: JSON.stringify({})
 			});
-			// It might fail with 500 because the file doesn't exist, but the route should be valid.
-			expect([200, 500]).toContain(response.status);
+			expect(response.status).toBe(400);
+		});
+
+		it('should fail without authentication', async () => {
+			const response = await fetch(`${API_BASE_URL}/api/media/delete`, {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ url: 'test.jpg' })
+			});
+			expect(response.status).toBe(401);
 		});
 	});
 
 	describe('POST /api/media/trash', () => {
-		it('should succeed with valid URL and contentTypes', async () => {
+		it('should return 400 with missing parameters', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/media/trash`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Cookie: authCookie },
+				body: JSON.stringify({})
+			});
+			expect(response.status).toBe(400);
+		});
+
+		it('should fail without authentication', async () => {
+			const response = await fetch(`${API_BASE_URL}/api/media/trash`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ url: 'test.jpg', contentTypes: ['image/jpeg'] })
 			});
-			expect([200, 500]).toContain(response.status);
+			expect(response.status).toBe(401);
 		});
 	});
 
 	describe('POST /api/user/saveAvatar', () => {
-		it('should handle avatar upload via FormData', async () => {
+		it('should save avatar with valid image', async () => {
 			const formData = new FormData();
-			const mockFile = new Blob(['fake-avatar-content'], { type: 'image/jpeg' });
-			formData.append('avatar', mockFile, 'avatar.jpg');
+			formData.append('avatar', createValidPngBlob(), 'avatar.png');
 
 			const response = await fetch(`${API_BASE_URL}/api/user/saveAvatar`, {
 				method: 'POST',
@@ -116,8 +165,31 @@ describe('Media API Endpoints', () => {
 				body: formData
 			});
 
-			// Might fail 500 on fake content but route should be authenticated.
-			expect([200, 400, 500]).toContain(response.status);
+			expect(response.status).toBe(200);
+			const data = await response.json();
+			expect(data.success).toBe(true);
+			expect(data).toHaveProperty('avatarUrl');
+		});
+
+		it('should return 400 with missing avatar file', async () => {
+			const formData = new FormData();
+			const response = await fetch(`${API_BASE_URL}/api/user/saveAvatar`, {
+				method: 'POST',
+				headers: { Cookie: authCookie, Origin: API_BASE_URL },
+				body: formData
+			});
+			expect(response.status).toBe(400);
+		});
+
+		it('should fail without authentication', async () => {
+			const formData = new FormData();
+			formData.append('avatar', createValidPngBlob(), 'avatar.png');
+			const response = await fetch(`${API_BASE_URL}/api/user/saveAvatar`, {
+				method: 'POST',
+				headers: { Origin: API_BASE_URL },
+				body: formData
+			});
+			expect(response.status).toBe(401);
 		});
 	});
 
