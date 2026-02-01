@@ -70,25 +70,7 @@ Tests verified passing in GitHub Actions CI:
 Currently running in `.github/workflows/ci.yml`:
 ```yaml
 bun test \
-  tests/bun/api/telemetry.test.ts \
-  tests/bun/api/collections.test.ts \
-  tests/bun/api/dashboard.test.ts \
-  tests/bun/api/security.test.ts \
-  tests/bun/api/settings.test.ts \
-  tests/bun/api/system.test.ts \
-  tests/bun/api/theme.test.ts \
-  tests/bun/api/widgets.test.ts \
-  tests/bun/api/import-export.test.ts \
-  tests/bun/api/miscellaneous.test.ts \
-  tests/bun/api/media.test.ts \
-  tests/bun/api/user.test.ts \
-  tests/bun/api/graphql.test.ts \
-  tests/bun/api/auth-2fa.test.ts \
-  tests/bun/databases/auth-system.test.ts \
-  tests/bun/databases/cache-integration.test.ts \
-  tests/bun/databases/db-interface.test.ts \
-  tests/bun/databases/mongodb-adapter.test.ts \
-  tests/bun/databases/resilience-load.test.ts
+  tests/bun/api/miscellaneous.test.ts
 ```
 
 Unit tests: Temporarily skipped
