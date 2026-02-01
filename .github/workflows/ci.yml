@@ -121,6 +121,9 @@ jobs:
       # We want the server to start in "Fresh Install" mode (Setup Wizard).
       # tests/bun/api/setup.test.ts will call the API to "install" the system and create private.ts.
 
+      - name: Generate SvelteKit types
+        run: bunx svelte-kit sync
+
       - name: Build Production
         run: bun run build
 
