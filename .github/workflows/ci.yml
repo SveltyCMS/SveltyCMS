@@ -162,7 +162,8 @@ jobs:
             tests/bun/api/theme.test.ts \
             tests/bun/api/widgets.test.ts \
             tests/bun/databases/auth-system.test.ts \
-            tests/bun/databases/cache-integration.test.ts
+            tests/bun/databases/cache-integration.test.ts \
+            tests/bun/databases/db-interface.test.ts
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
