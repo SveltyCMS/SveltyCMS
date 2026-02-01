@@ -19,12 +19,12 @@ Tests verified passing in GitHub Actions CI:
 | ✅ CI PASS | widgets.test.ts | |
 | ❌ FAILING | graphql.test.ts | 14 pass, 6 fail |
 | ❌ FAILING | auth-2fa.test.ts | 9 pass, 9 fail |
-| ❌ FAILING | media.test.ts | Most pass, 3 fail |
+| 🔄 TESTING | media.test.ts | Added to CI - investigating failures |
 | ❌ FAILING | user.test.ts | Most pass, 3 fail |
 | ❌ FAILING | token.test.ts | Multiple failures |
 | ❌ FAILING | import-export.test.ts | 0 pass, 18 fail |
 | ❌ FAILING | miscellaneous.test.ts | Most fail |
-| ❌ FAILING | setup-utils.test.ts | 1 fail |
+| 🚫 BLOCKED | setup-utils.test.ts | Svelte 5 runes ($state) not available outside Svelte |
 
 ### Database Tests
 | Status | Test File | Notes |
