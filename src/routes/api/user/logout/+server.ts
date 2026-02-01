@@ -63,10 +63,12 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 				}
 			} // Destroy the session on the server-side (database, cache, etc.).
 
-			await auth.destroySession(session_id); // Also clear the session from cache
+			await auth.destroySession(session_id); // Also clear the session from ALL caches (in-memory + distributed)
 
 			try {
-				await cacheService.delete(session_id);
+				// Import and call invalidateSessionCache to clear in-memory caches
+				const { invalidateSessionCache } = await import('@src/hooks/handleAuthentication');
+				invalidateSessionCache(session_id, tenantId);
 			} catch (cacheError) {
 				logger.warn(`Failed to clear session cache: ${cacheError}`);
 			}

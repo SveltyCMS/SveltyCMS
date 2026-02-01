@@ -21,13 +21,6 @@ describe('User API Integration', () => {
 		// Ensure standard users (admin/editor) exist and get session
 		// This helper handles DB cleanup, user creation, and login
 		adminCookie = await prepareAuthenticatedContext();
-
-		// Get Admin ID (optional check, can be used for reference)
-		await fetch(`${API_BASE_URL}/api/user/batch`, {
-			method: 'POST',
-			headers: { Cookie: adminCookie, 'Content-Type': 'application/json' },
-			body: JSON.stringify({ operation: 'list', limit: 1 })
-		});
 	});
 
 	// --- TEST SUITE 1: USER CREATION ---
@@ -169,13 +162,11 @@ describe('User API Integration', () => {
 		});
 	});
 
-	// --- TEST SUITE 5: BATCH OPERATIONS ---
-	describe('POST /api/user/batch', () => {
+	// --- TEST SUITE 5: LIST USERS ---
+	describe('GET /api/user', () => {
 		it('should list users', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/user/batch`, {
-				method: 'POST',
-				headers: { Cookie: adminCookie, 'Content-Type': 'application/json' },
-				body: JSON.stringify({ operation: 'list', limit: 5 })
+			const response = await fetch(`${API_BASE_URL}/api/user`, {
+				headers: { Cookie: adminCookie }
 			});
 
 			const result = await response.json();
