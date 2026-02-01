@@ -67,56 +67,77 @@ interface MediaEntity extends BaseEntity {
 	tenantId?: string;
 }
 
+// MIME type patterns for media type filtering
+const MIME_PATTERNS = {
+	images: /^image\//,
+	documents: /^(application\/(pdf|msword|vnd\.(openxmlformats|oasis|ms-)|zip|x-rar)|text\/)/,
+	audio: /^audio\//,
+	videos: /^video\//,
+	remote: /^(https?:\/\/|data:)/ // Remote URLs or data URIs
+};
+
 // Builds resolvers for querying media data with pagination support.
 export function mediaResolvers(dbAdapter: DatabaseAdapter) {
 	if (!dbAdapter) {
 		throw new Error('Database adapter is not initialized');
 	}
 
-	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }, context: GraphQLContext) => {
+	const fetchMediaByType = async (
+		mimePattern: RegExp | null,
+		pagination: { page?: number; limit?: number } | undefined,
+		context: GraphQLContext
+	) => {
 		if (!context.user) throw new Error('Authentication required');
-
-		if (getPrivateSettingSync('MULTI_TENANT') && !context.tenantId) {
-			throw new Error('Internal Server Error: Tenant context is missing.');
-		}
 
 		const { page = 1, limit = 50 } = pagination || {};
 
 		try {
-			const query: Partial<MediaEntity> = {};
-			if (getPrivateSettingSync('MULTI_TENANT')) {
-				query.tenantId = context.tenantId;
+			// Build filter for multi-tenant and media type
+			const filter: Record<string, unknown> = {};
+			if (getPrivateSettingSync('MULTI_TENANT') && context.tenantId) {
+				filter.tenantId = context.tenantId;
 			}
 
-			const result = await dbAdapter
-				.queryBuilder<MediaEntity>(contentTypes)
-				.where(query)
-				.sort('createdAt', 'desc')
-				.paginate({ page, pageSize: limit })
-				.execute();
+			// Use crud.findMany to query media collection
+			const result = await dbAdapter.crud.findMany('media', filter, {
+				limit,
+				offset: (page - 1) * limit,
+				sort: { field: 'createdAt', order: 'desc' }
+			});
 
-			if (!result.success) throw new Error(result.error?.message || 'Query failed');
+			if (!result.success) {
+				throw new Error(result.error?.message || 'Query failed');
+			}
 
-			return result.data;
+			// Filter by MIME type pattern if specified
+			let data = result.data || [];
+			if (mimePattern) {
+				data = data.filter((item: MediaEntity) => {
+					const mimeType = (item as MediaEntity & { mimeType?: string }).mimeType;
+					return mimeType && mimePattern.test(mimeType);
+				});
+			}
+
+			return data;
 		} catch (error) {
-			logger.error(`Error fetching data for ${contentTypes}:`, {
+			logger.error('Error fetching media:', {
 				error: error instanceof Error ? error.message : String(error),
 				tenantId: context.tenantId
 			});
-			throw Error(`Failed to fetch data for ${contentTypes}`);
+			throw new Error('Failed to fetch media');
 		}
 	};
 
 	return {
 		mediaImages: async (_: MediaResolverParent, args: PaginationArgs, context: GraphQLContext) =>
-			await fetchWithPagination('media_images', args.pagination, context),
+			await fetchMediaByType(MIME_PATTERNS.images, args.pagination, context),
 		mediaDocuments: async (_: MediaResolverParent, args: PaginationArgs, context: GraphQLContext) =>
-			await fetchWithPagination('media_documents', args.pagination, context),
+			await fetchMediaByType(MIME_PATTERNS.documents, args.pagination, context),
 		mediaAudio: async (_: MediaResolverParent, args: PaginationArgs, context: GraphQLContext) =>
-			await fetchWithPagination('media_audio', args.pagination, context),
+			await fetchMediaByType(MIME_PATTERNS.audio, args.pagination, context),
 		mediaVideos: async (_: MediaResolverParent, args: PaginationArgs, context: GraphQLContext) =>
-			await fetchWithPagination('media_videos', args.pagination, context),
+			await fetchMediaByType(MIME_PATTERNS.videos, args.pagination, context),
 		mediaRemote: async (_: MediaResolverParent, args: PaginationArgs, context: GraphQLContext) =>
-			await fetchWithPagination('media_remote', args.pagination, context)
+			await fetchMediaByType(null, args.pagination, context) // Remote media doesn't have standard MIME types
 	};
 }

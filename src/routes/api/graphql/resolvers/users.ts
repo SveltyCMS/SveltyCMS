@@ -4,7 +4,7 @@
  */
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
-import type { ISODateString, BaseEntity } from '@src/databases/dbInterface';
+import type { ISODateString } from '@src/databases/dbInterface';
 import { logger } from '@utils/logger.server';
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
 import type { User } from '@src/databases/auth/types';
@@ -76,55 +76,46 @@ interface GraphQLContext {
 	tenantId?: string;
 }
 
-interface UserEntity extends BaseEntity {
-	email?: string;
-	tenantId?: string;
-}
-
 // Resolvers with pagination support and validation
 export function userResolvers(dbAdapter: DatabaseAdapter) {
 	if (!dbAdapter) {
 		throw new Error('Database adapter is not initialized');
 	}
 
-	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }, context: GraphQLContext) => {
-		if (!context.user) throw new Error('Authentication required');
-
-		if (getPrivateSettingSync('MULTI_TENANT') && !context.tenantId) {
-			throw new Error('Internal Server Error: Tenant context is missing.');
-		}
-
-		const { page = 1, limit = 10 } = pagination || {};
-
-		try {
-			// Tenant query
-			const query: Partial<UserEntity> = {};
-			if (getPrivateSettingSync('MULTI_TENANT')) {
-				query.tenantId = context.tenantId;
-			}
-
-			const result = await dbAdapter
-				.queryBuilder<UserEntity>(contentTypes)
-				.where(query)
-				.sort('updatedAt', 'desc')
-				.paginate({ page, pageSize: limit })
-				.execute();
-
-			if (!result.success) throw new Error(result.error?.message || 'Query failed');
-
-			return result.data;
-		} catch (error) {
-			logger.error(`Error fetching data for ${contentTypes}:`, {
-				error: error instanceof Error ? error.message : String(error),
-				tenantId: context.tenantId
-			});
-			throw Error(`Failed to fetch data for ${contentTypes}`);
-		}
-	};
-
 	return {
-		users: async (_: unknown, args: { pagination: { page: number; limit: number } }, context: GraphQLContext) =>
-			await fetchWithPagination('auth_users', args.pagination, context),
+		users: async (_: unknown, args: { pagination?: { page?: number; limit?: number } }, context: GraphQLContext) => {
+			if (!context.user) throw new Error('Authentication required');
+
+			const { page = 1, limit = 10 } = args.pagination || {};
+
+			try {
+				// Build filter for multi-tenant support
+				const filter: Record<string, unknown> = {};
+				if (getPrivateSettingSync('MULTI_TENANT') && context.tenantId) {
+					filter.tenantId = context.tenantId;
+				}
+
+				// Use auth.getAllUsers instead of queryBuilder for proper model access
+				const result = await dbAdapter.auth.getAllUsers({
+					filter,
+					sort: { field: 'updatedAt', order: 'desc' },
+					page,
+					limit
+				});
+
+				if (!result.success) {
+					throw new Error(result.error?.message || 'Query failed');
+				}
+
+				return result.data || [];
+			} catch (error) {
+				logger.error('Error fetching users:', {
+					error: error instanceof Error ? error.message : String(error),
+					tenantId: context.tenantId
+				});
+				throw new Error('Failed to fetch users');
+			}
+		},
 		me: async (_: unknown, __: unknown, context: GraphQLContext) => {
 			if (!context.user) throw new Error('Authentication required');
 			return context.user;
