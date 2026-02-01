@@ -21,7 +21,7 @@ Tests verified passing in GitHub Actions CI:
 | ✅ CI PASS | user.test.ts | Fixed status codes, logout cache invalidation |
 | ✅ CI PASS | graphql.test.ts | Fixed users/media resolvers to use proper DB methods |
 | ✅ CI PASS | auth-2fa.test.ts | Fixed error handling and response structure |
-| ⏭️ PENDING | token.test.ts | Needs GET endpoint, role/email fixes - removed from CI |
+| ✅ CI PASS | token.test.ts | Added GET endpoint, fixed auth hooks for public access |
 | ❌ FAILING | import-export.test.ts | 0 pass, 18 fail |
 | ❌ FAILING | miscellaneous.test.ts | Most fail |
 | 🚫 BLOCKED | setup-utils.test.ts | Svelte 5 runes ($state) not available outside Svelte |
