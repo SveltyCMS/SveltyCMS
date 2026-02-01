@@ -128,9 +128,9 @@ jobs:
           API_BASE_URL: 'http://localhost:4173'
 
       # Phase 2: Run Integration Tests (System is now installed)
-      # API and Database tests
+      # API and Database tests (excluding setup.test.ts which already ran in Phase 1)
       - name: 🧪 Run API & Database Tests
-        run: bun test tests/bun/api tests/bun/databases -t "!Setup API"
+        run: bun test $(find tests/bun/api -name "*.test.ts" ! -name "setup.test.ts") tests/bun/databases
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
