@@ -155,7 +155,8 @@ jobs:
           bun test \
             tests/bun/api/telemetry.test.ts \
             tests/bun/api/collections.test.ts \
-            tests/bun/api/dashboard.test.ts
+            tests/bun/api/dashboard.test.ts \
+            tests/bun/api/security.test.ts
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
