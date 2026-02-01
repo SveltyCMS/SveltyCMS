@@ -26,6 +26,8 @@ export const GET: RequestHandler = async ({ url }) => {
 		if (process.env.TEST_MODE === 'true' || process.env.NODE_ENV === 'test') {
 			return json({
 				status: 'match',
+				version: localVersion,
+				currentVersion: localVersion,
 				local: localVersion,
 				remote: localVersion,
 				checkUpdates: url.searchParams.get('checkUpdates') === 'true'
@@ -57,6 +59,8 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		return json({
 			status,
+			version: remoteVersion,
+			currentVersion: localVersion,
 			local: localVersion,
 			remote: remoteVersion
 		});
