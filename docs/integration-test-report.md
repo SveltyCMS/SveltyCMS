@@ -19,7 +19,7 @@ Tests verified passing in GitHub Actions CI:
 | ✅ CI PASS | widgets.test.ts | |
 | ❌ FAILING | graphql.test.ts | 14 pass, 6 fail |
 | ❌ FAILING | auth-2fa.test.ts | 9 pass, 9 fail |
-| ❌ FAILING | media.test.ts | 403 on POST with FormData - needs investigation |
+| 🔄 TESTING | media.test.ts | Fixed cookie header parsing for FormData requests |
 | ❌ FAILING | user.test.ts | Most pass, 3 fail |
 | ❌ FAILING | token.test.ts | Multiple failures |
 | ❌ FAILING | import-export.test.ts | 0 pass, 18 fail |
