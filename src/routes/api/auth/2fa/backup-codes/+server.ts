@@ -89,13 +89,13 @@ export const POST: RequestHandler = async ({ locals }) => {
 			message: 'New backup codes generated. Please save these codes in a secure location. Your old backup codes are no longer valid.'
 		});
 	} catch (err) {
-		const message = `Backup code regeneration failed: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-
-		if (err instanceof Response) {
+		// Re-throw HTTP errors (like error(400, 401))
+		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
 
+		const message = `Backup code regeneration failed: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
 		throw error(500, 'Failed to regenerate backup codes');
 	}
 };

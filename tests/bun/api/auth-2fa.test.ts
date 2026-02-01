@@ -16,7 +16,7 @@ import { prepareAuthenticatedContext, cleanupTestDatabase, testFixtures } from '
 
 const BASE_URL = getApiBaseUrl();
 let authCookie: string;
-let setupData: { secret: string; qrCode: string; backupCodes: string[] } | null = null;
+let setupData: { secret: string; qrCodeURL: string; backupCodes: string[] } | null = null;
 let userId: string;
 
 beforeAll(async () => {
@@ -56,15 +56,15 @@ describe('2FA Authentication API - Setup', () => {
 
 		const { data } = result;
 		expect(data).toHaveProperty('secret');
-		expect(data).toHaveProperty('qrCode');
+		expect(data).toHaveProperty('qrCodeURL');
 		expect(data).toHaveProperty('backupCodes');
 
 		// Secret should be base32 encoded string
 		expect(typeof data.secret).toBe('string');
 		expect(data.secret.length).toBeGreaterThan(0);
 
-		// QR code should be data URL
-		expect(data.qrCode).toMatch(/^data:image\//);
+		// QR code URL should be otpauth:// URL
+		expect(data.qrCodeURL).toMatch(/^otpauth:\/\//);
 
 		// Backup codes should be array of strings
 		expect(Array.isArray(data.backupCodes)).toBe(true);

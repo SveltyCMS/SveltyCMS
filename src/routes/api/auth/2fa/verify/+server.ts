@@ -63,13 +63,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			backupCodeUsed: result.backupCodeUsed
 		});
 	} catch (err) {
-		const message = `2FA verification failed: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-
-		if (err instanceof Response) {
+		// Re-throw HTTP errors (like error(400, 401))
+		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
 
+		const message = `2FA verification failed: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
 		throw error(500, 'Failed to verify 2FA code');
 	}
 };
