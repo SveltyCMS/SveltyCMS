@@ -168,9 +168,12 @@ async function main() {
 			try {
 				// 1. Clean DB (Drop)
 				const { MongoClient } = await import('mongodb');
-				const client = new MongoClient(`mongodb://admin:Getin1972!@127.0.0.1:27017/sveltycms_test?authSource=admin`);
+				const dbUrl = privateEnv.DB_USER
+					? `mongodb://${privateEnv.DB_USER}:${privateEnv.DB_PASSWORD}@${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${privateEnv.DB_NAME}?authSource=admin`
+					: `mongodb://${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${privateEnv.DB_NAME}`;
+				const client = new MongoClient(dbUrl);
 				await client.connect();
-				await client.db('sveltycms_test').dropDatabase();
+				await client.db(privateEnv.DB_NAME).dropDatabase();
 				await client.close();
 
 				// 2. Seed DB (via script)

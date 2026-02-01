@@ -29,6 +29,8 @@ mediaFiles/
 mediaFolder/
 compiledCollections/*
 logs/*
+*.pid
+*.log
 
 .node-version
 

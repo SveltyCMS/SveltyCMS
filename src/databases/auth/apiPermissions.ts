@@ -23,6 +23,10 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 	'api:systemPreferences': ['admin'], // System preferences (user dashboard layout/sizes)
 	'api:systemsetting': ['admin'], // System settings export/import
 	'api:config_sync': ['admin'], // Configuration sync (import/export)
+	'api:export': ['admin'], // Full system export
+	'api:import': ['admin'], // Full system import
+	'api:exportData': ['admin'], // Collection export
+	'api:importData': ['admin'], // Collection import
 	'api:system': ['admin', 'editor'], // System status (version, health)
 	'api:telemetry': ['admin', 'developer', 'editor'], // System telemetry
 
