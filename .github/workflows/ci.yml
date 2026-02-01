@@ -149,8 +149,12 @@ jobs:
           API_BASE_URL: 'http://localhost:4173'
 
       # Phase 2: Run Integration Tests (System is now installed)
+      # Verified passing tests - add more as they pass CI
       - name: 🧪 Run Main Integration Suite
-        run: bun test tests/bun/api/telemetry.test.ts
+        run: |
+          bun test \
+            tests/bun/api/telemetry.test.ts \
+            tests/bun/api/collections.test.ts
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
