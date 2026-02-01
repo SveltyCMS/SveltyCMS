@@ -51,12 +51,9 @@ yarn-error.log*
 /error-screenshot.png
 
 # Rust
-/data.json
 /indexes
 /*.bin
 
 #paraglide.js
 src/paraglide/**/*.js
-
-
-
+.idea
