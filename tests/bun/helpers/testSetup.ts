@@ -296,7 +296,8 @@ export async function prepareAuthenticatedContext(): Promise<string> {
 		});
 
 		if (completeResp.ok) {
-			// Setup complete - extract cookie from response
+			// Setup complete - seed additional data and extract cookie
+			await seedBasicRoles(); // Ensure theme and other data is seeded
 			const cookie = completeResp.headers.get('set-cookie');
 			if (cookie) {
 				return cookie;
