@@ -46,7 +46,7 @@ Requires preload: `bun test --preload $(pwd)/tests/bun/hooks/preload.ts`
 | ✅ PASS | theme.test.ts | 16/16 | |
 | ✅ PASS | authentication.test.ts | 32/32 | Fixed cookie name and test assertion |
 | ✅ PASS | firewall.test.ts | 27/27 | Fixed preload error mock structure |
-| ⚠️ PARTIAL | static-asset-caching.test.ts | 5/6 | Cache header assertion |
+| ✅ PASS | static-asset-caching.test.ts | 6/6 | Fixed shared Response object in tests |
 | ⚠️ PARTIAL | system-state.test.ts | 14/26 | Route pattern matching |
 | ⚠️ PARTIAL | api-requests.test.ts | 17/27 | Permission/metrics issues |
 | ⚠️ PARTIAL | rate-limit.test.ts | 10/35 | metricsService undefined |
