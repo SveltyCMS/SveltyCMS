@@ -21,7 +21,9 @@
  */
 
 import { logger } from '@utils/logger.server';
-import { building } from '$app/environment';
+
+// Detect build mode without $app/environment dependency (allows testing outside SvelteKit)
+const building = process.env.BUILDING === 'true' || (typeof import.meta.env?.SSR === 'undefined' && typeof window === 'undefined' && process.env.NODE_ENV === 'production');
 
 // --- TYPES ---
 

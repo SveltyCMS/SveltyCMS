@@ -37,13 +37,27 @@ Tests verified passing in GitHub Actions CI:
 | ⏭️ SKIPPED | mariadb-adapter.test.ts | Skipped (CI uses MongoDB) |
 
 ### Hooks Tests
-| Status | Test File | Notes |
-|--------|-----------|-------|
-| 🚫 BLOCKED | All hooks tests | Module resolution errors ($app/*, sveltekit-rate-limiter) |
+Requires preload: `bun test --preload $(pwd)/tests/bun/hooks/preload.ts`
+
+| Status | Test File | Pass/Fail | Notes |
+|--------|-----------|-----------|-------|
+| ✅ PASS | authorization.test.ts | 22/22 | |
+| ✅ PASS | security-headers.test.ts | 38/38 | |
+| ✅ PASS | theme.test.ts | 16/16 | |
+| ✅ PASS | authentication.test.ts | 32/32 | Fixed cookie name and test assertion |
+| ✅ PASS | firewall.test.ts | 27/27 | Fixed preload error mock structure |
+| ⚠️ PARTIAL | static-asset-caching.test.ts | 5/6 | Cache header assertion |
+| ⚠️ PARTIAL | system-state.test.ts | 14/26 | Route pattern matching |
+| ⚠️ PARTIAL | api-requests.test.ts | 17/27 | Permission/metrics issues |
+| ⚠️ PARTIAL | rate-limit.test.ts | 10/35 | metricsService undefined |
+| 🚫 BLOCKED | locale.test.ts | 0/1 | Missing @zag-js/svelte module |
+| 🚫 BLOCKED | setup.test.ts | 0/16 | Missing isSetupCompleteAsync export |
+| 🚫 BLOCKED | token-resolution.test.ts | 0/1 | Svelte 5 $state not available |
 
 ## Legend
 - ✅ CI PASS - Verified passing in GitHub Actions
 - ⬜ PENDING - Locally passing, awaiting CI verification
+- ⚠️ PARTIAL - Some tests pass, some need fixes
 - ❌ FAILING - Has test failures
 - 🚫 BLOCKED - Cannot run due to technical issues
 - ⏭️ SKIPPED - Intentionally skipped
@@ -66,6 +80,8 @@ Tests verified passing in GitHub Actions CI:
 14. **auth-2fa.test.ts** - Updated to use correct response structure (qrCodeURL not qrCode)
 15. **miscellaneous.test.ts** - Changed from multiple status assertions to single expected status codes
 16. **logger.server.ts** - Removed dependency on globalSettings.svelte.ts, use env vars directly for LOG_LEVELS
+17. **MetricsService.ts** - Removed `$app/environment` dependency, use process.env for build detection
+18. **hooks/preload.ts** - Created preload script to mock SvelteKit modules for hooks tests
 
 ## CI Workflow
 

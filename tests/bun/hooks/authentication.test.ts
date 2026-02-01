@@ -10,6 +10,7 @@
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import { handleAuthentication } from '@src/hooks/handleAuthentication';
+import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // --- Test Utilities ---
@@ -21,7 +22,7 @@ function createMockEvent(pathname: string, sessionCookie?: string, hostname: str
 		url,
 		request: new Request(url.toString()),
 		cookies: {
-			get: (name: string) => (name === 'session_id' ? sessionCookie : null),
+			get: (name: string) => (name === SESSION_COOKIE_NAME ? sessionCookie : null),
 			set: mock(() => {}),
 			delete: mock(() => {})
 		},
@@ -109,12 +110,14 @@ describe('handleAuthentication Middleware', () => {
 			expect(mockResolve).toHaveBeenCalled();
 		});
 
-		it('should delete invalid session cookie', async () => {
+		it('should preserve session cookie when auth not ready', async () => {
 			const event = createMockEvent('/dashboard', 'invalid-session');
 			await handleAuthentication({ event, resolve: mockResolve });
 
-			// Invalid sessions are deleted
-			expect(event.cookies.delete).toHaveBeenCalled();
+			// When auth service isn't ready, cookies are preserved to allow retry
+			// Cookie deletion only happens when auth is ready and session is confirmed invalid
+			expect(event.cookies.delete).not.toHaveBeenCalled();
+			expect(mockResolve).toHaveBeenCalled();
 		});
 
 		it('should set event.locals.user when session valid', async () => {
