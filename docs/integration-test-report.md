@@ -11,7 +11,7 @@ Tests verified passing in GitHub Actions CI:
 |--------|-----------|-------|
 | ✅ CI PASS | telemetry.test.ts | Added test_mode status |
 | ✅ CI PASS | collections.test.ts | Fixed content-structure action param |
-| ⬜ PENDING | dashboard.test.ts | Locally passing, needs CI verification |
+| 🔄 TESTING | dashboard.test.ts | Added to CI |
 | ⬜ PENDING | security.test.ts | Locally passing, needs CI verification |
 | ⬜ PENDING | settings.test.ts | Locally passing, needs CI verification |
 | ⬜ PENDING | system.test.ts | Locally passing, needs CI verification |
@@ -63,7 +63,8 @@ Currently running in `.github/workflows/ci.yml`:
 ```yaml
 bun test \
   tests/bun/api/telemetry.test.ts \
-  tests/bun/api/collections.test.ts
+  tests/bun/api/collections.test.ts \
+  tests/bun/api/dashboard.test.ts
 ```
 
 Unit tests: Temporarily skipped
