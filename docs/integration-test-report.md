@@ -14,8 +14,8 @@ Tests verified passing in GitHub Actions CI:
 | ✅ CI PASS | dashboard.test.ts | Fixed WARMING/WARMED states |
 | ✅ CI PASS | security.test.ts | |
 | ✅ CI PASS | settings.test.ts | |
-| 🔄 TESTING | system.test.ts | Added to CI |
-| ⬜ PENDING | theme.test.ts | Locally passing, needs CI verification |
+| ✅ CI PASS | system.test.ts | |
+| 🔄 TESTING | theme.test.ts | Added to CI |
 | ⬜ PENDING | widgets.test.ts | Locally passing, needs CI verification |
 | ❌ FAILING | graphql.test.ts | 14 pass, 6 fail |
 | ❌ FAILING | auth-2fa.test.ts | 9 pass, 9 fail |
@@ -67,7 +67,8 @@ bun test \
   tests/bun/api/dashboard.test.ts \
   tests/bun/api/security.test.ts \
   tests/bun/api/settings.test.ts \
-  tests/bun/api/system.test.ts
+  tests/bun/api/system.test.ts \
+  tests/bun/api/theme.test.ts
 ```
 
 Unit tests: Temporarily skipped
