@@ -124,6 +124,9 @@ async function seedBasicRoles(): Promise<void> {
 
 		// Seed settings
 		await seedBasicSettings(db);
+
+		// Seed default theme
+		await seedDefaultTheme(db);
 	} catch (e: any) {
 		console.warn('Warning: Failed to seed data:', e.message);
 	} finally {
@@ -220,6 +223,35 @@ async function seedBasicSettings(db: any): Promise<void> {
 		}
 	} catch (e: any) {
 		console.warn('Warning: Failed to seed settings:', e.message);
+	}
+}
+
+/**
+ * Seeds the default theme into the database.
+ * This matches the DEFAULT_THEME in themeManager.ts
+ */
+async function seedDefaultTheme(db: any): Promise<void> {
+	try {
+		const existingTheme = await db.collection('system_themes').findOne({ _id: '670e8b8c4d123456789abcde' });
+		if (!existingTheme) {
+			console.log('[testSetup] Seeding default theme...');
+			const now = new Date();
+			await db.collection('system_themes').insertOne({
+				_id: '670e8b8c4d123456789abcde',
+				path: '',
+				name: 'SveltyCMSTheme',
+				isActive: true,
+				isDefault: true,
+				config: {
+					tailwindConfigPath: '',
+					assetsPath: ''
+				},
+				createdAt: now,
+				updatedAt: now
+			});
+		}
+	} catch (e: any) {
+		console.warn('Warning: Failed to seed theme:', e.message);
 	}
 }
 

@@ -83,8 +83,7 @@ describe('Theme API Endpoints', () => {
 				})
 			});
 
-			// 200 if theme is updateable, 404 if it's a built-in theme not in DB
-			expect([200, 404]).toContain(response.status);
+			expect(response.status).toBe(200);
 		});
 
 		it('should fail with missing themeId', async () => {
