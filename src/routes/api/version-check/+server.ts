@@ -16,11 +16,13 @@ const compareSemver = (a: string, b: string) => {
 };
 
 export const GET: RequestHandler = async ({ url }) => {
+	let localVersion: string | undefined;
 	try {
 		// Use absolute path to ensure correct package.json is read
 		const packageJsonPath = path.resolve(__dirname, '../../../package.json');
 		const packageJsonContent = fs.readFileSync(packageJsonPath, 'utf-8');
-		const { version: localVersion } = JSON.parse(packageJsonContent);
+		const { version } = JSON.parse(packageJsonContent);
+		localVersion = version;
 
 		// In test mode, skip remote checks to keep responses stable
 		if (process.env.TEST_MODE === 'true' || process.env.NODE_ENV === 'test') {
@@ -66,6 +68,16 @@ export const GET: RequestHandler = async ({ url }) => {
 		});
 	} catch (error) {
 		const message = error instanceof Error ? error.message : 'Unknown error';
-		return json({ status: 'error', message }, { status: 200 });
+		return json(
+			{
+				status: 'error',
+				message,
+				version: localVersion,
+				currentVersion: localVersion,
+				local: localVersion,
+				remote: undefined
+			},
+			{ status: 200 }
+		);
 	}
 };
