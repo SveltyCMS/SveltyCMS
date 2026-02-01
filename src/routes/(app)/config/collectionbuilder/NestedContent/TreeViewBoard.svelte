@@ -1,7 +1,7 @@
 <!--
 @files src/routes/(app)/config/collectionbuilder/NestedContent/TreeViewBoard.svelte
 @component
-**Board component for managing nested collections using svelte-dnd-action**
+**Enhanced Board component for managing nested collections using svelte-dnd-action**
 
 ### Props
 - `contentNodes` {ContentNode[]} - Array of content nodes representing collections and categories
@@ -13,8 +13,14 @@
 ### Features:
 - Drag and drop reordering of collections using svelte-dnd-action
 - Support for nested categories with cross-level drag
-- Search/Filter functionality
+- Cycle detection (prevents dropping parent into own child)
+- Race condition prevention with hash synchronization
+- Search/Filter functionality with auto-expand
 - Expand/Collapse all
+- Full keyboard navigation (Arrow keys, Home/End, typeahead, * for siblings)
+- Roving tabindex for accessibility
+- Smart focus management after deletions
+- Memory leak prevention with cleanup effects
 - Enhanced visual feedback for drag & drop
 -->
 <script lang="ts">
@@ -22,9 +28,21 @@
 	import type { ContentNode, DatabaseId } from '@databases/dbInterface';
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
-	import { toTreeViewData, toFlatContentNodes, recalculatePaths, type TreeViewItem } from '@utils/treeViewAdapter';
 	import { tick } from 'svelte';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+
+	export interface TreeViewItem extends Record<string, any> {
+		id: string;
+		name: string;
+		parent: string | null;
+		nodeType: 'category' | 'collection';
+		icon?: string;
+		path: string;
+		order?: number;
+		_id?: any;
+		isDraggable?: boolean;
+		isDropAllowed?: boolean;
+	}
 
 	interface Props {
 		contentNodes: ContentNode[];
@@ -36,18 +54,26 @@
 
 	let { contentNodes = [], onNodeUpdate, onEditCategory, onDeleteNode, onDuplicateNode }: Props = $props();
 
+	// Search and UI State
 	let searchText = $state('');
 	let treeRoots = $state<EnhancedTreeViewItem[]>([]);
-	let initialized = false;
+	let initialized = $state(false);
 	let expandedNodes = $state<Set<string>>(new Set());
 	let isDragging = $state(false);
+	let nodeSnapshot = $state(new Map<string, EnhancedTreeViewItem>());
+	let lastContentNodesHash = $state('');
+	let lastSaveTime = $state(0);
+	let rebuildTimeout: ReturnType<typeof setTimeout> | null = null;
 
-	// Accessibility: Live region for announcements
+	// Accessibility State
 	let announcement = $state('');
 	let announcementId = $state(0);
-
-	// Keyboard reordering state
 	let keyboardReorderMode = $state<string | null>(null);
+	let rovingTabIndex = $state<string | null>(null); // ID of node with tabindex="0"
+	
+	// Typeahead State
+	let typeaheadBuffer = $state('');
+	let typeaheadTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	// Enhanced Item Type
 	type EnhancedTreeViewItem = TreeViewItem & {
@@ -56,37 +82,61 @@
 		isDndShadowItem?: boolean;
 	};
 
-	// Initialize Tree from Props - only when contentNodes actually changes
-	let lastContentNodesHash = $state('');
-
+	// Cleanup effect to prevent memory leaks
 	$effect(() => {
-		// Only rebuild if contentNodes actually changed (not during drag operations)
-		if (isDragging) return;
-
-		// Create a simple hash to detect actual changes
-		const currentHash = contentNodes.map((n) => `${n._id}-${n.order}-${n.parentId || 'root'}`).join('|');
-
-		if (currentHash !== lastContentNodesHash && contentNodes.length > 0) {
-			lastContentNodesHash = currentHash;
-
-			const flatItems = toTreeViewData(contentNodes);
-			const newRoots = buildTree(flatItems);
-			treeRoots = newRoots;
-
-			if (!initialized) {
-				initialized = true;
-				// Expand root items by default
-				const expandSet = new Set<string>();
-				treeRoots.forEach((item) => expandSet.add(item.id));
-				expandedNodes = expandSet;
-			}
-		}
+		return () => {
+			if (rebuildTimeout) clearTimeout(rebuildTimeout);
+			if (typeaheadTimeout) clearTimeout(typeaheadTimeout);
+		};
 	});
 
-	// Filter Logic
-	const displayedTree = $derived.by(() => {
-		if (!searchText.trim()) return treeRoots;
-		return filterTree(treeRoots, searchText.toLowerCase());
+	// Initialize Tree from Props - with race condition protection
+	$effect(() => {
+		if (isDragging || !contentNodes.length) return;
+
+		const currentHash =
+			contentNodes
+				.map((n) => `${n._id}:${n.parentId}:${n.order}`)
+				.sort()
+				.join('|') + contentNodes.length;
+
+		if (currentHash !== lastContentNodesHash) {
+			if (rebuildTimeout) clearTimeout(rebuildTimeout);
+			
+			rebuildTimeout = setTimeout(() => {
+				lastContentNodesHash = currentHash;
+				console.log('[TreeViewBoard] initializing tree from canonical contentNodes. Count:', contentNodes.length);
+
+				const flatItems: TreeViewItem[] = contentNodes.map((n) => ({
+					id: String(n._id),
+					_id: n._id,
+					name: n.name,
+					nodeType: n.nodeType || (n as any).type || 'collection',
+					parent: n.parentId ? String(n.parentId) : null,
+					order: n.order ?? 0,
+					path: n.path || '',
+					icon: n.icon,
+					slug: n.slug,
+					description: n.description,
+					isDraggable: true,
+					isDropAllowed: true
+				}));
+
+				treeRoots = buildTree(flatItems);
+
+				if (!initialized) {
+					initialized = true;
+					expandAll();
+				}
+				
+				// Set initial roving tabindex to first node
+				if (!rovingTabIndex && treeRoots.length > 0) {
+					rovingTabIndex = treeRoots[0].id;
+				}
+				
+				rebuildTimeout = null;
+			}, 50);
+		}
 	});
 
 	// Auto-expand on search
@@ -98,7 +148,7 @@
 		}
 	});
 
-	// --- Helpers ---
+	// --- Tree Building Helpers ---
 
 	function buildTree(flatItems: TreeViewItem[]): EnhancedTreeViewItem[] {
 		const itemMap = new Map<string, EnhancedTreeViewItem>();
@@ -107,9 +157,10 @@
 		});
 
 		const roots: EnhancedTreeViewItem[] = [];
+
 		flatItems.forEach((item) => {
 			const enhanced = itemMap.get(item.id)!;
-			if (item.parent && itemMap.get(item.parent)) {
+			if (item.parent && itemMap.has(item.parent)) {
 				const parent = itemMap.get(item.parent)!;
 				parent.children.push(enhanced);
 				enhanced.level = parent.level + 1;
@@ -152,20 +203,6 @@
 		return null;
 	}
 
-	function findAndRemoveNode(nodes: EnhancedTreeViewItem[], id: string): EnhancedTreeViewItem | null {
-		for (let i = 0; i < nodes.length; i++) {
-			if (nodes[i].id === id) {
-				const [removed] = nodes.splice(i, 1);
-				return removed;
-			}
-			if (nodes[i].children) {
-				const found = findAndRemoveNode(nodes[i].children, id);
-				if (found) return found;
-			}
-		}
-		return null;
-	}
-
 	function getParent(rootNodes: EnhancedTreeViewItem[], childId: string): EnhancedTreeViewItem | null {
 		for (const node of rootNodes) {
 			if (node.children.some((c) => c.id === childId)) return node;
@@ -175,16 +212,20 @@
 		return null;
 	}
 
-	function filterTree(nodes: EnhancedTreeViewItem[], search: string): EnhancedTreeViewItem[] {
-		return nodes.reduce<EnhancedTreeViewItem[]>((acc, node) => {
-			const matches = node.name.toLowerCase().includes(search);
-			const childMatches = filterTree(node.children, search);
-
-			if (matches || childMatches.length > 0) {
-				acc.push({ ...node, children: childMatches });
+	function getVisibleNodes(nodes: EnhancedTreeViewItem[]): EnhancedTreeViewItem[] {
+		const visible: EnhancedTreeViewItem[] = [];
+		
+		function traverse(items: EnhancedTreeViewItem[]) {
+			for (const item of items) {
+				visible.push(item);
+				if (expandedNodes.has(item.id) && item.children?.length) {
+					traverse(item.children);
+				}
 			}
-			return acc;
-		}, []);
+		}
+		
+		traverse(nodes);
+		return visible;
 	}
 
 	function collectIdsToExpand(nodes: EnhancedTreeViewItem[], search: string, ids: Set<string>): boolean {
@@ -201,6 +242,14 @@
 		return hasMatch;
 	}
 
+	// Filtering Helper - simplified since we auto-expand matches
+	function isNodeVisible(node: EnhancedTreeViewItem, search: string): boolean {
+		if (!search) return true;
+		return node.name.toLowerCase().includes(search.toLowerCase());
+	}
+
+	// --- UI Actions ---
+
 	function expandAll() {
 		const allIds = new Set<string>();
 		const recurse = (nodes: EnhancedTreeViewItem[]) => {
@@ -211,20 +260,28 @@
 		};
 		recurse(treeRoots);
 		expandedNodes = allIds;
+		announce('Expanded all categories');
 	}
 
 	function collapseAll() {
 		expandedNodes = new Set();
+		announce('Collapsed all categories');
 	}
 
 	function clearSearch() {
 		searchText = '';
+		announce('Search cleared');
 	}
 
 	function toggleNode(id: string) {
 		const next = new Set(expandedNodes);
-		if (next.has(id)) next.delete(id);
-		else next.add(id);
+		if (next.has(id)) {
+			next.delete(id);
+			announce('Collapsed');
+		} else {
+			next.add(id);
+			announce('Expanded');
+		}
 		expandedNodes = next;
 	}
 
@@ -232,145 +289,351 @@
 		announcement = message;
 		announcementId++;
 		setTimeout(() => {
-			announcement = '';
+			if (announcement === message) announcement = '';
 		}, 1000);
 	}
 
 	// --- Drag & Drop Handlers ---
 
-	function handleRootConsider(e: CustomEvent) {
-		const { items, info } = e.detail;
-
-		if (info.trigger === 'dragStarted') {
-			isDragging = true;
-		}
-
-		// Simply update order at root level
-		treeRoots = items.map((item: EnhancedTreeViewItem, index: number) => {
-			const existing = findNode(treeRoots, item.id);
-			if (existing) {
-				return { ...existing, order: index, parent: null };
-			}
-			return { ...item, order: index, parent: null };
+	/**
+	 * Takes a recursive snapshot of all nodes in the current tree.
+	 * Used to preserve children during zone-to-zone transfers.
+	 */
+	function updateNodeSnapshot(nodes: EnhancedTreeViewItem[]) {
+		nodes.forEach((node) => {
+			nodeSnapshot.set(node.id, { ...node });
+			if (node.children) updateNodeSnapshot(node.children);
 		});
 	}
 
-	function handleRootFinalize(e: CustomEvent) {
-		const { items } = e.detail;
-
-		// Update order and ensure parent is null for root items
-		treeRoots = items.map((item: EnhancedTreeViewItem, index: number) => {
-			const existing = findNode(treeRoots, item.id);
-			if (existing) {
-				return { ...existing, order: index, parent: null };
-			}
-			return { ...item, order: index, parent: null };
+	/**
+	 * Re-associates visual dnd items with their nested children from the snapshot.
+	 */
+	function rehydrateItems(items: EnhancedTreeViewItem[]): EnhancedTreeViewItem[] {
+		return items.map((item) => {
+			const snapped = nodeSnapshot.get(item.id);
+			return snapped ? { ...item, children: snapped.children || [] } : item;
 		});
+	}
 
-		isDragging = false;
-		saveTreeData();
+	function handleRootConsider(e: CustomEvent) {
+		const { items, info } = e.detail;
+		if (info.trigger === 'dragStarted') {
+			isDragging = true;
+			nodeSnapshot.clear();
+			updateNodeSnapshot(treeRoots);
+		}
+		treeRoots = rehydrateItems(items);
 	}
 
 	function handleNestedConsider(e: CustomEvent, parentId: string) {
 		const { items, info } = e.detail;
-
 		if (info.trigger === 'dragStarted') {
 			isDragging = true;
+			nodeSnapshot.clear();
+			updateNodeSnapshot(treeRoots);
 		}
 
 		const parent = findNode(treeRoots, parentId);
-		if (!parent) return;
+		if (parent) {
+			parent.children = rehydrateItems(items);
+			treeRoots = [...treeRoots];
 
-		// Update parent's children
-		parent.children = items.map((item: EnhancedTreeViewItem, index: number) => {
-			// Try to find existing node anywhere in tree
-			const existing = findNode(treeRoots, item.id);
-			if (existing) {
-				return {
-					...existing,
-					order: index,
-					parent: parentId,
-					level: parent.level + 1
-				};
+			if (!expandedNodes.has(parentId)) {
+				expandedNodes = new Set([...expandedNodes, parentId]);
 			}
-			return {
-				...item,
-				order: index,
-				parent: parentId,
-				level: parent.level + 1
-			};
-		});
-
-		// Auto-expand parent
-		if (!expandedNodes.has(parentId)) {
-			expandedNodes = new Set([...expandedNodes, parentId]);
 		}
-
-		// Trigger reactivity
-		treeRoots = [...treeRoots];
 	}
 
-	function handleNestedFinalize(e: CustomEvent, parentId: string) {
-		const { items } = e.detail;
+	function handleFinalize(e: CustomEvent, parentId: string | null) {
+		const { items: newZoneItems } = e.detail;
+		const rehydratedZoneItems = rehydrateItems(newZoneItems);
+		const movingIds = new Set(rehydratedZoneItems.map((i) => i.id));
 
-		const parent = findNode(treeRoots, parentId);
-		if (!parent) return;
+		// CYCLE DETECTION: Prevent dropping into own descendant
+		if (parentId && movingIds.size > 0) {
+			const ancestorMap = new Map<string, Set<string>>();
+			
+			function buildAncestorMap(nodes: EnhancedTreeViewItem[], ancestors: Set<string> = new Set()) {
+				for (const node of nodes) {
+					const nodeAncestors = new Set(ancestors);
+					ancestorMap.set(node.id, nodeAncestors);
+					
+					const childAncestors = new Set(nodeAncestors);
+					childAncestors.add(node.id);
+					buildAncestorMap(node.children, childAncestors);
+				}
+			}
+			
+			buildAncestorMap(treeRoots);
+			const targetAncestors = ancestorMap.get(parentId);
+			
+			if (targetAncestors) {
+				for (const movingId of movingIds) {
+					if (targetAncestors.has(movingId)) {
+						const movingNode = findNode(treeRoots, movingId);
+						announce(`Cannot move "${movingNode?.name || 'item'}" into its own sub-category`);
+						
+						// Revert visual state
+						treeRoots = [...treeRoots];
+						isDragging = false;
+						return;
+					}
+				}
+			}
+		}
 
-		// Get IDs of items that should be in this parent
-		const itemIds = new Set(items.map((i: EnhancedTreeViewItem) => i.id));
+		// Update parent references
+		rehydratedZoneItems.forEach((item) => {
+			item.parent = parentId;
+		});
 
-		// Remove these items from anywhere else in the tree
-		const cleanTree = (nodes: EnhancedTreeViewItem[]): EnhancedTreeViewItem[] => {
+		// Remove moving items from anywhere in tree
+		const cleanList = (nodes: EnhancedTreeViewItem[]): EnhancedTreeViewItem[] => {
 			return nodes
-				.filter((node) => !itemIds.has(node.id) || node.id === parentId)
-				.map((node) => ({
-					...node,
-					children: cleanTree(node.children)
+				.filter((n) => !movingIds.has(n.id))
+				.map((n) => ({
+					...n,
+					children: cleanList(n.children)
 				}));
 		};
 
-		treeRoots = cleanTree(treeRoots);
+		const finalZoneItems = rehydratedZoneItems.map((n) => ({
+			...n,
+			children: cleanList(n.children)
+		}));
 
-		// Now find parent again in cleaned tree and set its children
-		const cleanedParent = findNode(treeRoots, parentId);
-		if (cleanedParent) {
-			cleanedParent.children = items.map((item: EnhancedTreeViewItem, index: number) => {
-				const existing = findNode(treeRoots, item.id);
-				if (existing && existing.id !== item.id) {
-					// Found elsewhere, use existing data
-					return {
-						...existing,
-						order: index,
-						parent: parentId,
-						level: cleanedParent.level + 1
-					};
-				}
-				return {
-					...item,
-					order: index,
-					parent: parentId,
-					level: cleanedParent.level + 1
-				};
-			});
-
-			// Keep parent expanded
-			expandedNodes = new Set([...expandedNodes, parentId]);
+		if (parentId === null) {
+			treeRoots = finalZoneItems;
+		} else {
+			const cleanedRoots = cleanList(treeRoots);
+			treeRoots = cleanedRoots;
+			const parent = findNode(treeRoots, parentId);
+			if (parent) {
+				parent.children = finalZoneItems;
+			}
 		}
 
-		// Trigger reactivity
 		treeRoots = [...treeRoots];
-
-		isDragging = false;
 		saveTreeData();
 	}
 
 	function saveTreeData() {
+		const flatItems = flattenTree(treeRoots);
+		const withPaths = recalculatePaths(flatItems);
+		const nodes = toFlatContentNodes(withPaths);
+
+		// Pre-emptively set hash to prevent race condition with parent updates
+		lastContentNodesHash = 
+			nodes.map((n) => `${n._id}:${n.parentId}:${n.order}`)
+			.sort()
+			.join('|') + nodes.length;
+		
+		lastSaveTime = Date.now();
+		
+		console.log('[TreeViewBoard] saving tree data with', nodes.length, 'nodes');
+		onNodeUpdate(nodes);
+
+		// Delay releasing the dragging lock to ensure parent state updates
 		setTimeout(() => {
-			const flatItems = flattenTree(treeRoots);
-			const withPaths = recalculatePaths(flatItems);
-			const nodes = toFlatContentNodes(withPaths);
-			onNodeUpdate(nodes);
-		}, 50);
+			isDragging = false;
+		}, 100);
+	}
+
+	function recalculatePaths(items: TreeViewItem[]): TreeViewItem[] {
+		const itemMap = new Map<string, TreeViewItem>();
+		for (const item of items) {
+			itemMap.set(item.id, { ...item });
+		}
+
+		const childrenByParent = new Map<string, TreeViewItem[]>();
+		for (const item of items) {
+			const parentKey = item.parent || '__root__';
+			if (!childrenByParent.has(parentKey)) {
+				childrenByParent.set(parentKey, []);
+			}
+			childrenByParent.get(parentKey)!.push(itemMap.get(item.id)!);
+		}
+
+		for (const [, children] of childrenByParent) {
+			children.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+		}
+
+		function assignPaths(parentId: string | null, parentPath: string): void {
+			const key = parentId || '__root__';
+			const children = childrenByParent.get(key);
+			if (!children) return;
+
+			children.forEach((child, index) => {
+				const newPath = parentPath ? `${parentPath}.${child.id}` : child.id;
+				const item = itemMap.get(child.id);
+				if (item) {
+					item.path = newPath;
+					item.order = index;
+					item.parent = parentId;
+				}
+				assignPaths(child.id, newPath);
+			});
+		}
+
+		assignPaths(null, '');
+		return Array.from(itemMap.values());
+	}
+
+	function toFlatContentNodes(flatItems: TreeViewItem[]): ContentNode[] {
+		return flatItems.map((item) => {
+			return {
+				...item,
+				_id: item._id || item.id,
+				id: undefined,
+				parentId: item.parent || undefined,
+				name: item.name,
+				icon: item.icon,
+				nodeType: item.nodeType,
+				path: item.path,
+				order: item.order ?? 0,
+				parent: undefined,
+				text: undefined
+			} as unknown as ContentNode;
+		});
+	}
+
+	// --- Keyboard Navigation ---
+
+	function handleTreeKeyDown(e: KeyboardEvent) {
+		// Let keyboard reorder mode handle its own keys
+		if (keyboardReorderMode) return;
+
+		const visibleNodes = getVisibleNodes(treeRoots);
+		if (visibleNodes.length === 0) return;
+
+		const activeElement = document.activeElement?.closest('[data-item-id]') as HTMLElement | null;
+		const currentId = activeElement?.dataset.itemId;
+		let currentIndex = visibleNodes.findIndex((n) => n.id === currentId);
+
+		// If no focus yet, assume first
+		if (currentIndex === -1) currentIndex = 0;
+		const currentNode = visibleNodes[currentIndex];
+		
+		let nextNode: EnhancedTreeViewItem | null = null;
+		let handled = true;
+
+		switch (e.key) {
+			case 'ArrowUp': {
+				e.preventDefault();
+				if (currentIndex > 0) {
+					nextNode = visibleNodes[currentIndex - 1];
+				}
+				break;
+			}
+
+			case 'ArrowDown': {
+				e.preventDefault();
+				if (currentIndex < visibleNodes.length - 1) {
+					nextNode = visibleNodes[currentIndex + 1];
+				}
+				break;
+			}
+
+			case 'ArrowLeft': {
+				e.preventDefault();
+				if (expandedNodes.has(currentNode.id) && currentNode.children?.length) {
+					toggleNode(currentNode.id);
+				} else {
+					const parent = getParent(treeRoots, currentNode.id);
+					if (parent) nextNode = parent;
+				}
+				break;
+			}
+
+			case 'ArrowRight': {
+				e.preventDefault();
+				if (!expandedNodes.has(currentNode.id) && currentNode.children?.length) {
+					toggleNode(currentNode.id);
+				} else if (currentNode.children?.length) {
+					nextNode = currentNode.children[0];
+				}
+				break;
+			}
+
+			case 'Home': {
+				e.preventDefault();
+				nextNode = visibleNodes[0];
+				break;
+			}
+
+			case 'End': {
+				e.preventDefault();
+				nextNode = visibleNodes[visibleNodes.length - 1];
+				break;
+			}
+
+			case '*': {
+				e.preventDefault();
+				const parent = getParent(treeRoots, currentNode.id);
+				const siblings = parent ? parent.children : treeRoots;
+				const newExpanded = new Set(expandedNodes);
+				siblings.forEach((s) => {
+					if (s.children?.length) newExpanded.add(s.id);
+				});
+				expandedNodes = newExpanded;
+				announce('Expanded all siblings');
+				break;
+			}
+
+			default: {
+				// Typeahead search
+				if (e.key.length === 1 && e.key.match(/\S/)) {
+					handled = true;
+					handleTypeahead(e.key, visibleNodes, currentIndex);
+				} else {
+					handled = false;
+				}
+			}
+		}
+
+		if (nextNode) {
+			focusNode(nextNode.id);
+		}
+		
+		if (handled) {
+			e.preventDefault();
+		}
+	}
+
+	function handleTypeahead(char: string, visibleNodes: EnhancedTreeViewItem[], currentIndex: number) {
+		typeaheadBuffer += char.toLowerCase();
+		
+		if (typeaheadTimeout) clearTimeout(typeaheadTimeout);
+		typeaheadTimeout = setTimeout(() => {
+			typeaheadBuffer = '';
+		}, 500);
+
+		// Search from current position + 1, then wrap around
+		const searchNodes = [
+			...visibleNodes.slice(currentIndex + 1),
+			...visibleNodes.slice(0, currentIndex + 1)
+		];
+
+		const match = searchNodes.find((n) => 
+			n.name.toLowerCase().startsWith(typeaheadBuffer)
+		);
+
+		if (match) {
+			focusNode(match.id);
+			announce(`Jumped to ${match.name}`);
+		}
+	}
+
+	function focusNode(id: string) {
+		rovingTabIndex = id;
+		tick().then(() => {
+			const element = document.querySelector(`[data-item-id="${id}"] button`);
+			if (element) {
+				(element as HTMLElement).focus();
+				(element as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+			}
+		});
 	}
 
 	// --- Keyboard Reordering ---
@@ -399,7 +662,7 @@
 		saveTreeData();
 		announce(`Moved ${item.name} ${direction}`);
 		await tick();
-		document.querySelector(`[data-item-id="${itemId}"]`)?.querySelector('button')?.focus();
+		focusNode(itemId);
 	}
 
 	async function moveItemUp(itemId: string) {
@@ -435,8 +698,46 @@
 		saveTreeData();
 		announce(`Moved ${item.name} to higher level`);
 		await tick();
-		document.querySelector(`[data-item-id="${itemId}"]`)?.querySelector('button')?.focus();
+		focusNode(itemId);
 	}
+
+	// --- Smart Delete with Focus Management ---
+
+	function handleDeleteNode(node: Partial<ContentNode>) {
+		if (!node._id) return;
+		
+		// Calculate next focus target before deletion
+		const visibleNodes = getVisibleNodes(treeRoots);
+		const currentIndex = visibleNodes.findIndex(n => n.id === String(node._id));
+		let nextFocusId: string | null = null;
+		
+		if (visibleNodes.length > 1) {
+			// Prefer next sibling, then previous, then parent
+			const nextIndex = currentIndex < visibleNodes.length - 1 
+				? currentIndex + 1 
+				: Math.max(0, currentIndex - 1);
+			nextFocusId = visibleNodes[nextIndex]?.id || null;
+		} else if (treeRoots.length > 0) {
+			// If this was the last visible node, focus first root
+			nextFocusId = treeRoots[0]?.id;
+		}
+		
+		// Execute delete
+		onDeleteNode?.(node);
+		
+		// Restore focus after DOM update
+		if (nextFocusId) {
+			tick().then(() => {
+				rovingTabIndex = nextFocusId;
+				focusNode(nextFocusId!);
+				announce(`Deleted ${node.name}. Focus moved to next item.`);
+			});
+		} else {
+			announce(`Deleted ${node.name}. No items remaining.`);
+		}
+	}
+
+	// --- Helper ---
 
 	function toPartialContentNode(item: TreeViewItem): Partial<ContentNode> {
 		return {
@@ -511,10 +812,11 @@
 <div
 	class="collection-builder-tree relative w-full h-auto overflow-y-auto rounded p-2"
 	class:is-dragging={isDragging}
-	role="region"
-	aria-label="Collection tree. Use arrow keys to navigate, Space to expand/collapse. Press Enter on drag handle to enter keyboard reorder mode."
+	onkeydown={handleTreeKeyDown}
+	role="tree"
+	aria-label="Collection hierarchy. Use arrow keys to navigate, Space to expand/collapse, Home/End for first/last item, letters to jump to items."
 >
-	{#if displayedTree.length === 0}
+	{#if treeRoots.length === 0}
 		<div class="text-center p-8 text-surface-500">
 			<iconify-icon icon={searchText ? 'mdi:magnify-close' : 'mdi:folder-outline'} width="48" class="opacity-50 mb-2" aria-hidden="true"
 			></iconify-icon>
@@ -524,7 +826,7 @@
 		<div
 			class="dnd-zone root-zone"
 			use:dndzone={{
-				items: displayedTree,
+				items: treeRoots,
 				flipDurationMs,
 				type: 'tree-items',
 				dragDisabled: !!searchText,
@@ -532,13 +834,13 @@
 				centreDraggedOnCursor: true
 			}}
 			onconsider={handleRootConsider}
-			onfinalize={handleRootFinalize}
-			role="tree"
-			aria-label="Collection hierarchy"
+			onfinalize={(e) => handleFinalize(e, null)}
+			role="group"
 		>
-			{#each displayedTree as item (item.id)}
+			{#each treeRoots as item (item.id)}
 				<div
 					class="tree-node-wrapper mb-2"
+					class:hidden={!isNodeVisible(item, searchText)}
 					animate:flip={{ duration: flipDurationMs }}
 					role="treeitem"
 					aria-expanded={expandedNodes.has(item.id)}
@@ -561,7 +863,7 @@
 			isOpen={expandedNodes.has(item.id)}
 			toggle={() => toggleNode(item.id)}
 			onEditCategory={() => onEditCategory(toPartialContentNode(item))}
-			onDelete={() => onDeleteNode?.(toPartialContentNode(item))}
+			onDelete={() => handleDeleteNode(toPartialContentNode(item))}
 			onDuplicate={() => onDuplicateNode?.(toPartialContentNode(item))}
 			keyboardReorderMode={keyboardReorderMode === item.id}
 			onMoveUp={() => moveItemUp(item.id)}
@@ -573,7 +875,9 @@
 			}}
 			onExitReorderMode={() => {
 				keyboardReorderMode = null;
+				announce(`Exited reorder mode for ${item.name}`);
 			}}
+			tabindex={rovingTabIndex === item.id ? 0 : -1}
 		/>
 
 		{#if expandedNodes.has(item.id)}
@@ -590,7 +894,7 @@
 						centreDraggedOnCursor: true
 					}}
 					onconsider={(e) => handleNestedConsider(e, item.id)}
-					onfinalize={(e) => handleNestedFinalize(e, item.id)}
+					onfinalize={(e) => handleFinalize(e, item.id)}
 					role="group"
 					aria-label={`Contents of ${item.name}`}
 				>
@@ -598,6 +902,7 @@
 						{#each item.children as child (child.id)}
 							<div
 								class="tree-node-wrapper mb-2"
+								class:hidden={!isNodeVisible(child, searchText)}
 								animate:flip={{ duration: flipDurationMs }}
 								role="treeitem"
 								aria-expanded={expandedNodes.has(child.id)}
@@ -610,10 +915,7 @@
 							</div>
 						{/each}
 					{:else}
-						<!-- Empty state for category drop zones -->
-						<div class="empty-drop-zone" role="none">
-							<span class="text-surface-500 text-sm italic">Drop items here</span>
-						</div>
+						<div class="empty-drop-zone min-h-[40px]" role="none"></div>
 					{/if}
 				</div>
 			{/if}
@@ -622,6 +924,11 @@
 {/snippet}
 
 <style>
+	/* Filtering Hiding */
+	.hidden {
+		display: none !important;
+	}
+
 	.sr-only {
 		position: absolute;
 		width: 1px;
@@ -650,14 +957,24 @@
 
 	.dnd-zone:empty,
 	.empty-drop-zone {
-		min-height: 80px;
+		min-height: 2px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: rgb(var(--color-surface-200) / 0.3);
-		border: 2px dashed rgb(var(--color-surface-400));
+		background: transparent;
+		border: 2px dashed transparent;
 		border-radius: 0.5rem;
-		padding: 1rem;
+		padding: 0;
+		transition: all 0.2s ease;
+		margin: 0;
+	}
+
+	.is-dragging .empty-drop-zone {
+		min-height: 48px;
+		background: rgb(var(--color-surface-200) / 0.3);
+		border-color: rgb(var(--color-surface-400));
+		margin: 0.5rem 0;
+		padding: 0.5rem;
 	}
 
 	.tree-node-wrapper {

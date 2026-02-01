@@ -23,10 +23,7 @@ Toolbar controls for the Zoom tool:
 		onZoomChange = (_percent: number) => {},
 		onFitToScreen = () => {},
 		onFillScreen = () => {},
-		onActualSize = () => {},
-		onReset = () => {},
-		onCancel = () => {},
-		onApply = () => {}
+		onActualSize = () => {}
 	}: {
 		zoomLevel?: number;
 		minZoom?: number;
@@ -37,9 +34,6 @@ Toolbar controls for the Zoom tool:
 		onFitToScreen?: () => void;
 		onFillScreen?: () => void;
 		onActualSize?: () => void;
-		onReset?: () => void;
-		onCancel?: () => void;
-		onApply?: () => void;
 	} = $props();
 
 	// Local state for slider - derived from props but mutable for local interaction
@@ -70,7 +64,7 @@ Toolbar controls for the Zoom tool:
 	<!-- Zoom Out Button -->
 	<button
 		onclick={onZoomOut}
-		class="btn-icon preset-outlined-surface-500 shrink-0 h-7 w-7"
+		class="btn-icon preset-outlined-surface-500 shrink-0 h-7 w-7 rounded-full bg-surface-50/10 border-transparent hover:bg-surface-50/20 text-surface-400 hover:text-white transition-all flex items-center justify-center"
 		title="Zoom Out"
 		aria-label="Zoom out"
 		disabled={zoomLevel <= minZoom}
@@ -79,7 +73,7 @@ Toolbar controls for the Zoom tool:
 	</button>
 
 	<!-- Zoom Slider -->
-	<div class="flex items-center gap-2">
+	<div class="flex items-center gap-2 h-7 px-2 rounded-full bg-surface-50/5 border border-surface-50/10">
 		<input
 			type="range"
 			min={minZoom}
@@ -87,7 +81,7 @@ Toolbar controls for the Zoom tool:
 			step="5"
 			value={sliderValue}
 			oninput={handleSliderChange}
-			class="slider h-1.5 w-20 sm:w-28 md:w-36 cursor-pointer appearance-none rounded-lg bg-surface-300 accent-primary-500 dark:bg-surface-600"
+			class="slider h-1 sm:w-28 md:w-36 cursor-pointer appearance-none bg-surface-500/30 rounded-full"
 			aria-label="Zoom level slider"
 		/>
 	</div>
@@ -95,7 +89,7 @@ Toolbar controls for the Zoom tool:
 	<!-- Zoom In Button -->
 	<button
 		onclick={onZoomIn}
-		class="btn-icon preset-outlined-surface-500 shrink-0 h-7 w-7"
+		class="btn-icon preset-outlined-surface-500 shrink-0 h-7 w-7 rounded-full bg-surface-50/10 border-transparent hover:bg-surface-50/20 text-surface-400 hover:text-white transition-all flex items-center justify-center"
 		title="Zoom In"
 		aria-label="Zoom in"
 		disabled={zoomLevel >= maxZoom}
@@ -111,19 +105,17 @@ Toolbar controls for the Zoom tool:
 			max={maxZoom}
 			value={sliderValue}
 			onchange={handleInputChange}
-			class="input w-14 px-1 py-0.5 text-center text-sm"
+			class="input w-14 px-1 py-0.5 text-center text-sm bg-transparent border-none text-surface-300 font-mono focus:ring-0 focus:text-white"
+			style="background: transparent;"
 			aria-label="Zoom level percentage"
 		/>
-		<span class="text-xs text-surface-500 dark:text-surface-400">%</span>
+		<span class="text-xs text-surface-500">%</span>
 	</div>
-
-	<!-- Divider -->
-	<div class="hidden h-6 w-px bg-surface-300 sm:block dark:bg-surface-600"></div>
 
 	<!-- Fit to Screen -->
 	<button
 		onclick={onFitToScreen}
-		class="btn-icon preset-outlined-surface-500 h-7 w-7 sm:w-auto sm:px-2 sm:py-1 sm:gap-1"
+		class="btn-icon preset-outlined-surface-500 h-7 w-7 sm:w-auto sm:px-2 sm:py-1 sm:gap-1 rounded-full bg-surface-50/10 border-transparent hover:bg-surface-50/20 text-surface-400 hover:text-white transition-all ml-2"
 		title="Fit to Screen"
 		aria-label="Fit image to screen"
 	>
@@ -134,7 +126,7 @@ Toolbar controls for the Zoom tool:
 	<!-- Fill Screen -->
 	<button
 		onclick={onFillScreen}
-		class="btn-icon preset-outlined-surface-500 h-7 w-7 sm:w-auto sm:px-2 sm:py-1 sm:gap-1"
+		class="btn-icon preset-outlined-surface-500 h-7 w-7 sm:w-auto sm:px-2 sm:py-1 sm:gap-1 rounded-full bg-surface-50/10 border-transparent hover:bg-surface-50/20 text-surface-400 hover:text-white transition-all"
 		title="Fill Screen"
 		aria-label="Fill screen with image"
 	>
@@ -143,35 +135,15 @@ Toolbar controls for the Zoom tool:
 	</button>
 
 	<!-- 100% / Actual Size -->
+	<!-- 100% / Actual Size -->
 	<button
 		onclick={onActualSize}
-		class="btn-icon preset-outlined-surface-500 h-7 w-7 sm:w-auto sm:px-2 sm:py-1 sm:gap-1"
+		class="btn-icon preset-outlined-surface-500 h-7 px-2 py-1 gap-1 text-xs rounded-full bg-surface-50/10 border-transparent hover:bg-surface-50/20 text-surface-400 hover:text-white transition-all ml-2"
 		title="Actual Size (100%)"
 		aria-label="View at actual size"
 	>
 		<iconify-icon icon="mdi:image-size-select-actual" width="16"></iconify-icon>
-		<span class="hidden sm:inline text-xs">100%</span>
-	</button>
-
-	<!-- Divider -->
-	<div class="hidden h-6 w-px bg-surface-300 sm:block dark:bg-surface-600"></div>
-
-	<!-- Reset -->
-	<button onclick={onReset} class="btn preset-outlined-surface-500 gap-1 px-2 py-1 text-xs h-7" title="Reset Zoom" aria-label="Reset zoom to initial">
-		<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
-		<span class="hidden sm:inline">Reset</span>
-	</button>
-
-	<!-- Cancel -->
-	<button onclick={onCancel} class="btn preset-outlined-error-500 gap-1 px-2 py-1 text-xs h-7" title="Cancel Zoom" aria-label="Cancel zoom changes">
-		<iconify-icon icon="mdi:close" width="16"></iconify-icon>
-		<span class="hidden sm:inline">Cancel</span>
-	</button>
-
-	<!-- Apply -->
-	<button onclick={onApply} class="btn preset-filled-primary-500 gap-1 px-2 py-1 text-xs h-7" title="Apply Zoom" aria-label="Apply zoom changes">
-		<iconify-icon icon="mdi:check" width="16"></iconify-icon>
-		<span class="hidden sm:inline">Apply</span>
+		<span class="hidden sm:inline">100%</span>
 	</button>
 </div>
 

@@ -471,7 +471,7 @@ export interface IContentAdapter {
 		create(node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>;
 		createMany(nodes: Omit<ContentNode, 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<ContentNode[]>>;
 		update(path: string, changes: Partial<ContentNode>): Promise<DatabaseResult<ContentNode>>;
-		bulkUpdate(updates: { path: string; changes: Partial<ContentNode> }[]): Promise<DatabaseResult<ContentNode[]>>;
+		bulkUpdate(updates: { path: string; id?: string; changes: Partial<ContentNode> }[]): Promise<DatabaseResult<ContentNode[]>>;
 		fixMismatchedNodeIds?(nodes: { path: string; expectedId: string; changes: Partial<ContentNode> }[]): Promise<DatabaseResult<{ fixed: number }>>;
 		delete(path: string): Promise<DatabaseResult<void>>;
 		deleteMany(paths: string[]): Promise<DatabaseResult<{ deletedCount: number }>>;

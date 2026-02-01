@@ -4,7 +4,6 @@
 Modern, responsive crop controls with keyboard shortcuts and accessibility
 -->
 <script lang="ts">
-	import { ASPECT_RATIO_PRESETS } from './aspect';
 	import type { CropShape } from './regions';
 
 	let {
@@ -14,31 +13,19 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 		onFlipVertical,
 		onCropShapeChange,
 		onAspectRatio,
-		onApply,
-		onCancel,
-		onReset,
 		cropShape
 	}: {
 		onRotateLeft: () => void;
 		onRotateRight: () => void;
-		onFlipHorizontal: () => void;
 		onFlipVertical?: () => void;
 		onCropShapeChange: (shape: CropShape) => void;
 		onAspectRatio: (ratio: number | null) => void;
-		onApply: () => void;
-		onCancel: () => void;
-		onReset?: () => void;
 		cropShape: CropShape;
 	} = $props();
 
-	let activeRatio = $state<string>('free');
-	let showAllRatios = $state(false);
+	// Unused presets removed for Square Only enforcement
 
-	// Visible presets based on screen size
-	const visiblePresets = $derived(showAllRatios ? ASPECT_RATIO_PRESETS : ASPECT_RATIO_PRESETS.slice(0, 6));
-
-	function handleRatio(ratio: number | null, label: string) {
-		activeRatio = label;
+	function handleRatio(ratio: number | null) {
 		onAspectRatio(ratio);
 	}
 
@@ -71,30 +58,10 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 					onFlipHorizontal();
 				}
 				break;
-			case 'Enter':
-				e.preventDefault();
-				onApply();
-				break;
-			case 'Escape':
-				e.preventDefault();
-				onCancel();
-				break;
-			// Quick aspect ratio shortcuts
+			// Quick aspect ratio shortcut (square only)
 			case '1':
 				e.preventDefault();
-				handleRatio(1, '1:1');
-				break;
-			case '2':
-				e.preventDefault();
-				handleRatio(16 / 9, '16:9');
-				break;
-			case '3':
-				e.preventDefault();
-				handleRatio(4 / 3, '4:3');
-				break;
-			case '0':
-				e.preventDefault();
-				handleRatio(null, 'free');
+				handleRatio(1);
 				break;
 		}
 	}
@@ -103,30 +70,27 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 <svelte:window onkeydown={handleKeyDown} />
 
 <div class="crop-controls" role="toolbar" aria-label="Crop controls">
-	<!-- Group 1: Aspect Ratio Presets -->
+	<!-- Group 1: Aspect Ratio Presets (Square Only Enforced) -->
 	<div class="control-group">
 		<div class="aspect-ratios">
-			{#each visiblePresets as preset, i}
-				<button
-					class="aspect-btn"
-					class:active={activeRatio === preset.label}
-					onclick={() => handleRatio(preset.value, preset.label)}
-					title="{preset.description || preset.label}{i < 4 ? ` (${i})` : ''}"
-					aria-label="Aspect ratio {preset.label}"
-					aria-pressed={activeRatio === preset.label}
-				>
-					{#if preset.icon}
-						<iconify-icon icon={preset.icon} width="16"></iconify-icon>
-					{/if}
-					<span>{preset.label}</span>
-				</button>
-			{/each}
+			<!-- Only Square is allowed per requirements -->
+			<button
+				class="aspect-btn active"
+				onclick={() => handleRatio(1)}
+				title="Square (1:1)"
+				aria-label="Aspect ratio 1:1"
+				aria-pressed="true"
+			>
+				<iconify-icon icon="mdi:crop-square" width="16"></iconify-icon>
+				<span>Square</span>
+			</button>
 
-			{#if ASPECT_RATIO_PRESETS.length > 6}
-				<button class="aspect-btn more-btn" onclick={() => (showAllRatios = !showAllRatios)} title={showAllRatios ? 'Show less' : 'Show more ratios'}>
-					<iconify-icon icon={showAllRatios ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="16"></iconify-icon>
-				</button>
-			{/if}
+			<!-- Hidden other ratios for future expansion if needed -->
+			<!-- 
+			{#each visiblePresets as preset, i}
+				...
+			{/each}
+			-->
 		</div>
 	</div>
 
@@ -169,27 +133,8 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 	<!-- Spacer -->
 	<div class="flex-1 hidden lg:block"></div>
 
-	<!-- Action Buttons -->
-	<div class="actions">
-		{#if onReset}
-			<button class="btn btn-sm preset-outlined-surface-500 hidden sm:flex" onclick={onReset} title="Reset">
-				<iconify-icon icon="mdi:restore" width="18"></iconify-icon>
-				<span class="hidden lg:inline">Reset</span>
-			</button>
-		{/if}
-
-		<div class="flex gap-2">
-			<button class="btn btn-sm preset-outlined-error-500" onclick={onCancel} title="Cancel (Esc)">
-				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
-				<span class="hidden sm:inline">Cancel</span>
-			</button>
-
-			<button class="btn btn-sm preset-filled-success-500" onclick={onApply} title="Apply (Enter)">
-				<iconify-icon icon="mdi:check" width="18"></iconify-icon>
-				<span class="sm:inline">Apply</span>
-			</button>
-		</div>
-	</div>
+	<!-- Action Buttons: Handled by global toolbar -->
+	<div class="h-2"></div>
 </div>
 
 <style>
@@ -197,16 +142,12 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.75rem;
-		padding: 0.75rem;
-		background: rgb(var(--color-surface-100) / 1);
-		border-top: 1px solid rgb(var(--color-surface-200) / 1);
+		gap: 1rem;
+		padding: 0;
+		background: transparent;
+		border: none;
 		width: 100%;
-	}
-
-	:global(.dark) .crop-controls {
-		background: rgb(var(--color-surface-800) / 1);
-		border-color: rgb(var(--color-surface-700) / 1);
+		justify-content: center;
 	}
 
 	.control-group {
@@ -236,41 +177,31 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 	}
 
 	.aspect-btn {
-		height: 2rem;
+		height: 2.25rem;
 		display: flex;
 		align-items: center;
-		gap: 0.375rem;
-		padding: 0 0.75rem;
+		gap: 0.5rem;
+		padding: 0 1rem;
 		font-size: 0.75rem;
 		font-weight: 600;
-		border: 1px solid rgb(var(--color-surface-300) / 1);
-		border-radius: 0.375rem;
-		background: rgb(var(--color-surface-50) / 1);
-		color: rgb(var(--color-surface-700) / 1);
+		border-radius: 9999px;
+		background: rgba(255, 255, 255, 0.05);
+		color: #9ca3af;
 		cursor: pointer;
-		transition: all 0.15s;
+		transition: all 0.2s;
 		white-space: nowrap;
-	}
-
-	:global(.dark) .aspect-btn {
-		background: rgb(var(--color-surface-700) / 1);
-		border-color: rgb(var(--color-surface-600) / 1);
-		color: rgb(var(--color-surface-200) / 1);
+		border: 1px solid transparent;
 	}
 
 	.aspect-btn:hover {
-		background: rgb(var(--color-surface-100) / 1);
-		border-color: rgb(var(--color-primary-400) / 1);
-	}
-
-	:global(.dark) .aspect-btn:hover {
-		background: rgb(var(--color-surface-600) / 1);
+		background: rgba(255, 255, 255, 0.1);
+		color: white;
 	}
 
 	.aspect-btn.active {
-		background: rgb(var(--color-primary-500) / 1);
-		border-color: rgb(var(--color-primary-500) / 1);
+		background: #3b82f6; /* Primary-500 */
 		color: white;
+		box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
 	}
 
 	.more-btn {
@@ -281,36 +212,34 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 
 	.btn-group {
 		display: flex;
-		gap: 0;
-		border-radius: 0.375rem;
+		border-radius: 9999px;
 		overflow: hidden;
-		border: 1px solid rgb(var(--color-surface-300) / 1);
-		background: rgb(var(--color-surface-50) / 1);
-	}
-
-	:global(.dark) .btn-group {
-		border-color: rgb(var(--color-surface-600) / 1);
-		background: rgb(var(--color-surface-700) / 1);
+		background: rgba(0, 0, 0, 0.2);
+		padding: 2px;
+		gap: 2px;
 	}
 
 	.btn-group .btn {
-		border-radius: 0;
+		border-radius: 9999px;
 		border: none;
-		border-right: 1px solid rgb(var(--color-surface-300) / 1);
 		height: 2rem;
 		width: 2rem;
 		padding: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		background: transparent;
+		color: #9ca3af;
+		transition: all 0.2s;
 	}
 
-	.btn-group .btn:last-child {
-		border-right: none;
+	.btn-group .btn:hover {
+		color: white;
+		background: rgba(255, 255, 255, 0.1);
 	}
 
 	.btn-group .btn.active {
-		background: rgb(var(--color-primary-500) / 1);
+		background: #3b82f6;
 		color: white;
 	}
 

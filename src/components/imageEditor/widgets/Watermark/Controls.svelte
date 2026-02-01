@@ -12,8 +12,6 @@ Professional watermark controls with text, image, and advanced options
 		onOpacityChange,
 		onSizeChange,
 		onTileToggle,
-		onCancel,
-		onApply,
 		hasSelection,
 		currentOpacity = 0.8,
 		currentSize = 100,
@@ -27,8 +25,6 @@ Professional watermark controls with text, image, and advanced options
 		onOpacityChange?: (opacity: number) => void;
 		onSizeChange?: (size: number) => void;
 		onTileToggle?: () => void;
-		onCancel: () => void;
-		onApply: () => void;
 		hasSelection: boolean;
 		currentOpacity?: number;
 		currentSize?: number;
@@ -195,18 +191,8 @@ Professional watermark controls with text, image, and advanced options
 	<!-- Spacer -->
 	<div class="flex-1 hidden lg:block"></div>
 
-	<!-- Final Actions -->
-	<div class="actions">
-		<button class="btn btn-sm preset-outlined-surface-500 hidden sm:flex" onclick={onCancel}>
-			<iconify-icon icon="mdi:close" width="18"></iconify-icon>
-			<span class="hidden sm:inline">Cancel</span>
-		</button>
-
-		<button class="btn btn-sm preset-filled-success-500" onclick={onApply}>
-			<iconify-icon icon="mdi:check" width="18"></iconify-icon>
-			<span class="hidden sm:inline">Done</span>
-		</button>
-	</div>
+	<!-- Actions removed: Handled by global toolbar -->
+	<div class="h-2"></div>
 </div>
 
 <style>
@@ -214,16 +200,11 @@ Professional watermark controls with text, image, and advanced options
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.75rem;
-		padding: 0.75rem;
-		background: rgb(var(--color-surface-100) / 1);
-		border-top: 1px solid rgb(var(--color-surface-200) / 1);
+		gap: 1rem;
+		padding: 0;
+		background: transparent;
+		border: none;
 		width: 100%;
-	}
-
-	:global(.dark) .watermark-controls {
-		background: rgb(var(--color-surface-800) / 1);
-		border-color: rgb(var(--color-surface-700) / 1);
 	}
 
 	.control-group {
@@ -259,12 +240,8 @@ Professional watermark controls with text, image, and advanced options
 		grid-template-columns: repeat(3, 1fr);
 		gap: 2px;
 		padding: 2px;
-		background: rgb(var(--color-surface-200) / 1);
+		background: rgba(0, 0, 0, 0.2);
 		border-radius: 0.375rem;
-	}
-
-	:global(.dark) .position-grid {
-		background: rgb(var(--color-surface-700) / 1);
 	}
 
 	.position-btn {
@@ -273,28 +250,18 @@ Professional watermark controls with text, image, and advanced options
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: white;
+		background: transparent;
 		border: none;
 		font-size: 0.875rem;
 		cursor: pointer;
 		transition: all 0.15s;
 		border-radius: 0.25rem;
-		color: rgb(var(--color-surface-600) / 1);
-	}
-
-	:global(.dark) .position-btn {
-		background: rgb(var(--color-surface-800) / 1);
-		color: rgb(var(--color-surface-300) / 1);
+		color: #9ca3af;
 	}
 
 	.position-btn:hover {
-		background: rgb(var(--color-primary-100) / 1);
-		color: rgb(var(--color-primary-600) / 1);
-	}
-
-	:global(.dark) .position-btn:hover {
-		background: rgb(var(--color-primary-900) / 0.3);
-		color: rgb(var(--color-primary-400) / 1);
+		background: rgba(255, 255, 255, 0.1);
+		color: white;
 	}
 
 	/* Slider */
@@ -302,17 +269,12 @@ Professional watermark controls with text, image, and advanced options
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
-		background: rgb(var(--color-surface-50) / 0.5);
+		background: rgba(0, 0, 0, 0.2);
 		padding: 0.25rem 0.75rem;
 		border-radius: 9999px;
-		border: 1px solid rgb(var(--color-surface-200) / 1);
+		border: 1px solid rgba(255, 255, 255, 0.1);
 		height: 2.25rem;
 		min-width: 160px;
-	}
-
-	:global(.dark) .slider-wrapper {
-		background: rgb(var(--color-surface-900) / 0.5);
-		border-color: rgb(var(--color-surface-700) / 1);
 	}
 
 	.slider-track-container {

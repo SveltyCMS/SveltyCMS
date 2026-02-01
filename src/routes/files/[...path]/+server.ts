@@ -27,6 +27,12 @@ export const GET: RequestHandler = async ({ params, request }) => {
 			logger.warn('File request missing path');
 			throw error(400, 'File path is required');
 		}
+		
+		// Clean up the path - remove any leading /files/ prefix that might have been doubled
+		if (filePath.startsWith('/files/') || filePath.startsWith('files/')) {
+			console.warn('[Files Route] Detected /files/ prefix in path, cleaning:', filePath);
+			filePath = filePath.replace(/^\/?files\//, '');
+		}
 
 		// Clean up the path - remove any leading /files/ prefix that might have been doubled
 		if (filePath.startsWith('/files/') || filePath.startsWith('files/')) {

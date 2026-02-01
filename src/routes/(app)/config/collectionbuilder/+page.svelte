@@ -1,30 +1,8 @@
-<!--
- @file src/routes/(app)/config/collection/+page.svelte
- @component
- **This component sets up and displays the collection page with nested category support**
-
-### Props:
- - `collection` {object} - Collection object
-
- ### Features:
- - Collection Name
- - Collection Icon
- - Collection Description
- - Collection Status
- - Collection Slug
- - Collection Description
- - Collection Permissions
- - Collection Fields
- - Collection Categories
--->
-
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	// Simple ID generator (no need for crypto UUID)
-	function generateId(): string {
-		return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-	}
+	import axios from 'axios';
+	import { obj2formData } from '@utils/utils';
 
 	// Logger
 	import { logger } from '@utils/logger';
@@ -45,6 +23,7 @@
 	// Skeleton
 	import { toaster } from '@stores/store.svelte.ts';
 	import { modalState } from '@utils/modalState.svelte';
+	import { showConfirm } from '@utils/modalUtils';
 	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
 	import type { ISODateString } from '@root/src/content/types';
 
@@ -58,24 +37,11 @@
 		newCategoryIcon: string;
 	}
 
-	interface ApiResponse {
-		error?: string;
-		success?: boolean;
-		contentStructure?: ContentNode[];
-		[key: string]: any; // Allows for success, contentStructure, message
-	}
+	const { data } = $props();
 
-	interface CollectionBuilderProps {
-		data: { contentStructure: ContentNode[] };
-	}
-
-	const { data }: CollectionBuilderProps = $props();
-
-	// `currentConfig` holds the live, mutable state of the content structure for the UI.
-	// It's initialized from `data.contentStructure` and updated by DnD operations.
 	let currentConfig: ContentNode[] = $state([]);
-	// `nodesToSave` stores operations (create, update, move, rename) that need to be persisted to the backend.
 	let nodesToSave: Record<string, NodeOperation> = $state({});
+	let isLoading = $state(false);
 
 	$effect(() => {
 		if (data.contentStructure) {
@@ -83,117 +49,105 @@
 		}
 	});
 
-	// State for UI feedback
-	let isLoading = $state(false);
-	let apiError: string | null = $state(null);
+	// Function to prepare organizational data for server saving (Robust version)
+	function buildCategoryStructure(nodes: ContentNode[]) {
+		const byParent = new Map<string | null, ContentNode[]>();
+		nodes.forEach((node) => {
+			const pid = node.parentId || null;
+			if (!byParent.has(pid)) byParent.set(pid, []);
+			byParent.get(pid)!.push(node);
+		});
 
-	/**
-	 * Opens the modal for adding or editing a category.
-	 * @param existingCategory Optional Partial<DndItem> if editing an existing category.
-	 */
-	function modalAddCategory(existingCategory?: Partial<ContentNode>): void {
-		modalState.trigger(
-			ModalCategory as any,
-			{
-				existingCategory: existingCategory as ContentNode | undefined,
-				title: existingCategory ? 'Edit Category' : 'Add New Category',
-				body: existingCategory ? 'Modify Category Details' : 'Enter Unique Name and an Icon for your new category column'
-			},
-			async (response: CategoryModalResponse | boolean) => {
-				if (!response || typeof response === 'boolean') return;
-
-				try {
-					if (existingCategory && existingCategory._id) {
-						updateExistingCategory(existingCategory as ContentNode, response);
-					} else {
-						addNewCategory(response);
+		function buildLevel(parentId: string | null): any[] {
+			const levelNodes = byParent.get(parentId) || [];
+			return levelNodes
+				.map((node) => {
+					if (node.nodeType === 'category') {
+						return {
+							name: node.name,
+							icon: node.icon,
+							children: buildLevel(node._id.toString()),
+							collections: (byParent.get(node._id.toString()) || []).filter((n) => n.nodeType === 'collection').map((n) => n.name)
+						};
 					}
-				} catch (error) {
-					logger.error('Error handling category modal response:', error);
-					toaster.error({ description: 'Error updating categories' });
-				}
-			}
-		);
-	}
-
-	/**
-	 * Updates an existing category in `currentConfig` and marks it for saving.
-	 * @param existingCategory The original category node.
-	 * @param response The new data from the modal.
-	 */
-	function updateExistingCategory(existingCategory: ContentNode, response: CategoryModalResponse): void {
-		const updatedCategory: ContentNode = {
-			...existingCategory,
-			name: response.newCategoryName,
-			icon: response.newCategoryIcon,
-			updatedAt: new Date().toISOString() as ISODateString
-		};
-
-		// Update currentConfig immutably to trigger Svelte's reactivity
-		currentConfig = currentConfig.map((node) => (node._id === updatedCategory._id ? updatedCategory : node));
-
-		// Prepare operation for saving
-		if (existingCategory.name !== updatedCategory.name) {
-			nodesToSave[updatedCategory._id] = {
-				type: 'rename', // 'rename' specifically implies name change
-				node: updatedCategory
-			};
-		} else {
-			nodesToSave[updatedCategory._id] = {
-				type: 'update', // 'update' for icon or other property changes
-				node: updatedCategory
-			};
+					return null;
+				})
+				.filter(Boolean);
 		}
+
+		return buildLevel(null);
 	}
 
-	/**
-	 * Adds a new category to `currentConfig` and marks it for saving.
-	 * @param response The data for the new category from the modal.
-	 */
-	function addNewCategory(response: CategoryModalResponse): void {
-		const newCategoryId = generateId() as DatabaseId;
-
-		const newCategory: ContentNode = {
-			_id: newCategoryId,
-			name: response.newCategoryName,
-			icon: response.newCategoryIcon,
-			order: currentConfig.length, // Assign an initial order (can be refined later by DnD)
-			translations: [], // Initialize empty, assuming structure doesn't manage translations directly
-			updatedAt: new Date().toISOString() as ISODateString,
-			createdAt: new Date().toISOString() as ISODateString,
-			parentId: undefined, // New categories are top-level by default
-			nodeType: 'category'
-		};
-
-		currentConfig = [...currentConfig, newCategory]; // Add to current config
-		nodesToSave[newCategory._id] = {
-			type: 'create',
-			node: newCategory
-		};
-	}
-
-	/**
-	 * Callback from Board.svelte when nodes are reordered or moved between parents.
-	 * This updates the `currentConfig` and stages nodes for saving.
-	 * @param updatedNodes The complete, flattened list of ContentNodes after a DnD operation, with updated `parentId` and `order`.
-	 */
-	function handleNodeUpdate(updatedNodes: ContentNode[]) {
-		console.debug('Page: handleNodeUpdate received', updatedNodes);
-		// Update the local `currentConfig` to reflect the UI state
+	async function handleNodeUpdate(updatedNodes: ContentNode[]) {
+		console.debug('[CollectionBuilder] Hierarchy updated via DnD');
 		currentConfig = updatedNodes;
 
-		// Mark all updated nodes as 'move' operations for saving.
-		// The `contentManager` should handle 'move' operations by updating `parentId` and `order`.
+		// Optimization: Automatically stage all nodes as moved for consistency
 		updatedNodes.forEach((node) => {
-			nodesToSave[node._id] = {
+			nodesToSave[node._id.toString()] = {
 				type: 'move',
 				node: node
 			};
 		});
-		console.debug('Nodes to save (after move):', nodesToSave);
 	}
 
-	// Handles saving all pending changes (`nodesToSave`) to the backend.
+	function handleDeleteNode(node: Partial<ContentNode>) {
+		if (!node._id) return;
+		showConfirm({
+			title: 'Delete Item?',
+			body: `Are you sure you want to delete "${node.name}"? This action cannot be undone.`,
+			onConfirm: async () => {
+				const formData = new FormData();
+				formData.append('ids', JSON.stringify([node._id!.toString()]));
+				try {
+					isLoading = true;
+					const resp = await axios.post('?/deleteCollections', formData, {
+						headers: { 'Content-Type': 'multipart/form-data' }
+					});
+					if (resp.data.success) {
+						currentConfig = currentConfig.filter((n) => n._id.toString() !== node._id!.toString());
+						toaster.success({ description: 'Item deleted successfully' });
+					} else {
+						throw new Error(resp.data.error || 'Deletion failed');
+					}
+				} catch (err) {
+					logger.error('Delete failed', err);
+					toaster.error({ description: 'Failed to delete item' });
+				} finally {
+					isLoading = false;
+				}
+			}
+		});
+	}
+
+	function handleDuplicateNode(node: Partial<ContentNode>) {
+		if (!node._id) return;
+		const original = currentConfig.find((n) => n._id.toString() === node._id!.toString());
+		if (!original) return;
+
+		const newId = (Math.random().toString(36).substring(2, 15) + Date.now().toString(36)) as unknown as DatabaseId;
+		const newNode: ContentNode = JSON.parse(
+			JSON.stringify({
+				...original,
+				_id: newId,
+				name: `${original.name} (Copy)`,
+				updatedAt: new Date().toISOString() as ISODateString,
+				createdAt: new Date().toISOString() as ISODateString
+			})
+		);
+
+		// Ensure path is reset or adjusted so it's not a collision
+		newNode.path = `${newNode.path}_copy`;
+		if (newNode.collectionDef) {
+			newNode.collectionDef.name = newNode.name;
+			newNode.collectionDef.path = newNode.path;
+		}
+
+		currentConfig = [...currentConfig, newNode];
+		nodesToSave[newId.toString()] = { type: 'create', node: newNode };
+		toaster.success({ description: 'Item duplicated. Click Save to persist change.' });
+	}
+
 	async function handleSave() {
 		const items = Object.values(nodesToSave);
 		if (items.length === 0) {
@@ -203,39 +157,26 @@
 
 		try {
 			isLoading = true;
-			const response = await fetch('/api/content-structure', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					action: 'updateContentStructure',
-					items
-				})
+			const formData = new FormData();
+			formData.append('items', JSON.stringify(items));
+
+			const response = await axios.post('?/saveConfig', formData, {
+				headers: { 'Content-Type': 'multipart/form-data' }
 			});
 
-			const result: ApiResponse = await response.json();
-
-			if (response.ok && result.success) {
-				toaster.success({ description: 'Categories and Collections updated successfully' });
-				// Clear pending saves after successful API call
+			if (response.data.success) {
+				toaster.success({ description: 'Organization updated successfully' });
 				nodesToSave = {};
-				// Re-sync `currentConfig` with the *actual* structure returned by the server
-				// This is crucial for consistency, especially after complex reorders.
-				if (result.contentStructure) {
-					setContentStructure(result.contentStructure);
-					currentConfig = result.contentStructure;
+				if (response.data.contentStructure) {
+					currentConfig = response.data.contentStructure;
+					setContentStructure(currentConfig);
 				}
-				console.debug('API save successful. New contentStructure:', result.contentStructure);
 			} else {
-				// Revert currentConfig to the last known good state if save fails
-				currentConfig = contentStructure.value; // Revert to the state from the store
-				throw new Error(result.error || 'Failed to update categories');
+				throw new Error(response.data.error || 'Failed to save');
 			}
 		} catch (error) {
 			logger.error('Error saving categories:', error);
-			toaster.error({ description: error instanceof Error ? error.message : 'Failed to save categories' });
-			apiError = error instanceof Error ? error.message : 'Unknown error occurred';
+			toaster.error({ description: 'Failed to save configuration' });
 		} finally {
 			isLoading = false;
 		}
@@ -254,10 +195,48 @@
 		goto('/config/collectionbuilder/new');
 	}
 
+	function modalAddCategory(existingCategory?: Partial<ContentNode>): void {
+		modalState.trigger(
+			ModalCategory as any,
+			{
+				existingCategory: existingCategory as ContentNode | undefined,
+				title: existingCategory ? 'Edit Category' : 'Add New Category',
+				body: existingCategory ? 'Modify Category Details' : 'Enter Unique Name and an Icon for your new category'
+			},
+			async (response: CategoryModalResponse | boolean) => {
+				if (!response || typeof response === 'boolean') return;
+
+				if (existingCategory && existingCategory._id) {
+					const updated = {
+						...existingCategory,
+						name: response.newCategoryName,
+						icon: response.newCategoryIcon,
+						updatedAt: new Date().toISOString() as ISODateString
+					} as ContentNode;
+					currentConfig = currentConfig.map((n) => (n._id === updated._id ? updated : n));
+					nodesToSave[updated._id.toString()] = { type: 'rename', node: updated };
+				} else {
+					const newId = Math.random().toString(36).substring(2, 15) as unknown as DatabaseId;
+					const newCategory: ContentNode = {
+						_id: newId,
+						name: response.newCategoryName,
+						icon: response.newCategoryIcon,
+						order: currentConfig.length,
+						translations: [],
+						updatedAt: new Date().toISOString() as ISODateString,
+						createdAt: new Date().toISOString() as ISODateString,
+						parentId: undefined,
+						nodeType: 'category'
+					};
+					currentConfig = [...currentConfig, newCategory];
+					nodesToSave[newId.toString()] = { type: 'create', node: newCategory };
+				}
+			}
+		);
+	}
+
 	$effect(() => {
-		if (!ui.routeContext.isCollectionBuilder) {
-			setRouteContext({ isCollectionBuilder: true });
-		}
+		setRouteContext({ isCollectionBuilder: true });
 		return () => {
 			if (!page.url.pathname.includes('/config/collectionbuilder')) {
 				setRouteContext({ isCollectionBuilder: false });
@@ -267,106 +246,52 @@
 </script>
 
 <PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config">
-	<!-- Desktop action buttons - hidden on mobile/tablet -->
 	{#snippet children()}
-		{#if screen.isDesktop}
-			<!-- Add Category Button -->
-			<button
-				onclick={() => modalAddCategory()}
-				type="button"
-				aria-label="Add New Category"
-				class="preset-filled-tertiary-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1"
-				disabled={isLoading}
-			>
+		<div class="flex gap-2">
+			<button onclick={() => modalAddCategory()} class="preset-filled-tertiary-500 btn flex items-center gap-1" disabled={isLoading}>
 				<iconify-icon icon="mdi:folder-plus" width="24"></iconify-icon>
-				<span>{m.collection_addcategory()}</span>
+				<span class="hidden sm:inline">{m.collection_addcategory()}</span>
 			</button>
 
-			<!-- Add Collection Button -->
-			<button
-				onclick={handleAddCollectionClick}
-				type="button"
-				aria-label="Add New Collection"
-				class="preset-filled-surface-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1 rounded"
-				disabled={isLoading}
-			>
+			<button onclick={handleAddCollectionClick} class="preset-filled-surface-500 btn flex items-center gap-1 rounded" disabled={isLoading}>
 				<iconify-icon icon="ic:round-plus" width="24"></iconify-icon>
-				<span>{m.collection_add()}</span>
+				<span class="hidden sm:inline">{m.collection_add()}</span>
 			</button>
 
-			<!-- Save Button -->
 			<button
-				type="button"
 				onclick={handleSave}
-				aria-label="Save"
-				class="preset-filled-primary-500 btn flex w-auto min-w-[140px] items-center justify-center gap-1"
-				disabled={isLoading}
+				class="preset-filled-primary-500 btn flex items-center gap-1"
+				disabled={isLoading || Object.keys(nodesToSave).length === 0}
 			>
 				{#if isLoading}
 					<iconify-icon icon="mdi:loading" width="24" class="animate-spin"></iconify-icon>
 				{:else}
-					<iconify-icon icon="mdi:content-save" width="24" class="text-white"></iconify-icon>
+					<iconify-icon icon="mdi:content-save" width="24"></iconify-icon>
 				{/if}
 				<span>{m.button_save()}</span>
 			</button>
-		{/if}
+		</div>
 	{/snippet}
 </PageTitle>
 
-<!-- Mobile/Tablet action buttons (shown below title, horizontal row, equal width) -->
-{#if !screen.isDesktop}
-	<div class="flex gap-2 mb-2 px-2">
-		<button
-			onclick={() => modalAddCategory()}
-			type="button"
-			aria-label="Add New Category"
-			class="preset-filled-tertiary-500 btn flex flex-1 items-center justify-center gap-1"
-			disabled={isLoading}
-		>
-			<iconify-icon icon="mdi:folder-plus" width="24"></iconify-icon>
-			<span>{m.collection_addcategory()}</span>
-		</button>
-
-		<button
-			onclick={handleAddCollectionClick}
-			type="button"
-			aria-label="Add New Collection"
-			class="preset-filled-surface-500 btn flex flex-1 items-center justify-center gap-1 rounded font-bold"
-			disabled={isLoading}
-		>
-			<iconify-icon icon="mdi:plus-thick" width="24"></iconify-icon>
-			<span>{m.collection_add()}</span>
-		</button>
-
-		<button
-			type="button"
-			onclick={handleSave}
-			aria-label="Save"
-			class="preset-filled-primary-500 btn flex flex-1 items-center justify-center gap-1"
-			disabled={isLoading}
-		>
-			{#if isLoading}
-				<iconify-icon icon="mdi:loading" width="24" class="animate-spin"></iconify-icon>
-			{:else}
-				<iconify-icon icon="mdi:content-save" width="24" class="text-white"></iconify-icon>
-			{/if}
-			<span>{m.button_save()}</span>
-		</button>
-	</div>
-{/if}
-
-{#if apiError}
-	<div class="mb-4 rounded bg-error-500/10 p-4 text-error-500" role="alert">
-		{apiError}
-	</div>
-{/if}
-
-<div class="max-h-[calc(100vh-65px)] overflow-auto">
-	<div class="wrapper mb-2">
-		<p class="mb-4 text-center dark:text-primary-500">
+<div class="max-h-[calc(100vh-120px)] overflow-auto p-4">
+	<div class="mx-auto max-w-4xl">
+		<p class="mb-6 text-center text-surface-600-300 dark:text-primary-500">
 			{m.collection_description()}
 		</p>
 
-		<TreeViewBoard contentNodes={currentConfig ?? []} onNodeUpdate={handleNodeUpdate} onEditCategory={modalAddCategory} />
+		<TreeViewBoard
+			contentNodes={currentConfig}
+			onNodeUpdate={handleNodeUpdate}
+			onEditCategory={modalAddCategory}
+			onDeleteNode={handleDeleteNode}
+			onDuplicateNode={handleDuplicateNode}
+		/>
+
+		{#if Object.keys(nodesToSave).length > 0}
+			<div class="mt-4 rounded-lg bg-warning-500/10 p-3 text-center text-sm text-warning-600">
+				You have unsaved organizational changes. Click <strong>Save</strong> to persist.
+			</div>
+		{/if}
 	</div>
 </div>

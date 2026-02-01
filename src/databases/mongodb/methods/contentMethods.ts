@@ -180,11 +180,13 @@ export class MongoContentMethods {
 	 * IMPORTANT: For collections, the _id from compiled files is used as the document _id
 	 * to ensure navigation and caching work correctly.
 	 */
-	async bulkUpdateNodes(updates: Array<{ path: string; changes: Partial<ContentNode> }>): Promise<DatabaseResult<{ modifiedCount: number }>> {
+	async bulkUpdateNodes(
+		updates: Array<{ path: string; id?: string; changes: Partial<ContentNode> }>
+	): Promise<DatabaseResult<{ modifiedCount: number }>> {
 		if (updates.length === 0) return { success: true, data: { modifiedCount: 0 } };
 		try {
 			logger.trace(`[bulkUpdateNodes] Processing ${updates.length} updates`);
-			const operations = updates.map(({ path, changes }) => {
+			const operations = updates.map(({ path, id, changes }) => {
 				// Extract _id for potential use in $setOnInsert
 				const { _id, createdAt, ...safeChanges } = changes;
 
@@ -207,16 +209,18 @@ export class MongoContentMethods {
 
 				// Build setOnInsert with _id if provided (for collections, use their UUID as document _id)
 				const setOnInsert: Record<string, unknown> = { createdAt: new Date() };
-				if (_id) {
-					// Use the provided _id (from compiled collection file) as the MongoDB document _id
-					setOnInsert._id = _id;
+				const targetId = id || _id;
+
+				if (targetId) {
+					setOnInsert._id = targetId;
 				}
 
 				return {
 					updateOne: {
-						filter: { path },
+						// Prefer ID if available (handles path moves), fallback to path
+						filter: targetId ? { _id: targetId } : { path },
 						update: {
-							$set: { ...normalizedChanges, updatedAt: new Date() },
+							$set: { ...normalizedChanges, path, updatedAt: new Date() },
 							$setOnInsert: setOnInsert
 						},
 						upsert: true // Create the document if it doesn't exist

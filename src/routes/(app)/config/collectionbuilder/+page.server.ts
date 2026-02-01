@@ -56,7 +56,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		// - Ensure consistency when saving drag-and-drop changes back to DB
 		// - Work with the actual stored data, not cached/compiled schemas
 		// The database stores lightweight metadata without heavy collectionDef.fields arrays
-		const contentStructure = await contentManager.getContentStructureFromDatabase('nested');
+		const contentStructure = await contentManager.getContentStructureFromDatabase('flat');
 
 		// Use isAdmin from locals (already computed by handleAuthorization hook)
 		// No need to re-calculate from roles
@@ -87,5 +87,57 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const message = `Error in load function: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);
 		throw error(500, message);
+	}
+};
+
+export const actions = {
+	deleteCollections: async ({ request }) => {
+		const formData = await request.formData();
+		const ids = JSON.parse(formData.get('ids') as string);
+
+		if (!ids || !Array.isArray(ids)) {
+			throw error(400, 'Invalid IDs for deletion');
+		}
+
+		try {
+			// We need to find the paths for these IDs to delete from contentManager
+			const currentStructure = await contentManager.getContentStructureFromDatabase('flat');
+			const pathsToDelete = currentStructure.filter((node) => ids.includes(node._id.toString())).map((node) => node.path);
+
+			const operations = pathsToDelete.map((path) => ({
+				type: 'delete' as const,
+				node: { path } as any
+			}));
+
+			await contentManager.upsertContentNodes(operations);
+			return { success: true };
+		} catch (err) {
+			logger.error('Error deleting collections:', err);
+			return { success: false, error: 'Failed to delete collections' };
+		}
+	},
+
+	saveConfig: async ({ request }) => {
+		const formData = await request.formData();
+		const items = JSON.parse(formData.get('items') as string);
+
+		if (!items || !Array.isArray(items)) {
+			throw error(400, 'Invalid items for save');
+		}
+
+		try {
+			await contentManager.upsertContentNodes(items);
+			const updatedStructure = await contentManager.getContentStructureFromDatabase('flat');
+			const serializedStructure = updatedStructure.map((node) => ({
+				...node,
+				_id: node._id.toString(),
+				...(node.parentId ? { parentId: node.parentId.toString() } : {})
+			}));
+
+			return { success: true, contentStructure: serializedStructure };
+		} catch (err) {
+			logger.error('Error saving config:', err);
+			return { success: false, error: 'Failed to save configuration' };
+		}
 	}
 };

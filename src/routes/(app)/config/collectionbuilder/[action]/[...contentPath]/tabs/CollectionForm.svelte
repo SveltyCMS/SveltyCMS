@@ -159,99 +159,87 @@
 	// Import status types from the content types
 	import { StatusTypes } from '@src/content/types';
 	const statuses = Object.values(StatusTypes);
-
-	function handleNextClick() {
-		tabSet.set(1);
-	}
 </script>
 
 <!-- Single Column Layout Container -->
-<div class="flex w-full flex-col">
+<div class="flex w-full flex-col space-y-6">
 	<!-- Form Fields Section -->
-	<div class="flex flex-col gap-2 rounded border p-4">
-		<!-- Collection Name -->
-		<div class="flex flex-col">
-			<label for="name" class="mb-1 flex items-center font-medium">
-				{m.collection_name()} <span class="mx-1 text-error-500">*</span>
-				<iconify-icon icon="material-symbols:info" width={24}></iconify-icon>
-			</label>
-			<input
-				type="text"
-				required
-				id="name"
-				name="name"
-				data-testid="collection-name-input"
-				bind:value={name}
-				oninput={handleNameInput}
-				placeholder={m.collection_name_placeholder()}
-				class="input w-full text-black dark:text-primary-500"
-			/>
-			{#if name}
-				<!-- Show DBName if name is entered -->
-				<p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-					{m.collection_DBname()}
-					<span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
-				</p>
-			{/if}
+	<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+		<!-- Left Side: Basic Info -->
+		<div class="space-y-4">
+			<!-- Collection Name -->
+			<div class="flex flex-col">
+				<label for="name" class="mb-1 flex items-center font-bold text-sm">
+					{m.collection_name()} <span class="mx-1 text-error-500">*</span>
+					<iconify-icon icon="material-symbols:info-outline" width="16" class="ml-auto opacity-50"></iconify-icon>
+				</label>
+				<input
+					type="text"
+					required
+					id="name"
+					name="name"
+					bind:value={name}
+					oninput={handleNameInput}
+					placeholder={m.collection_name_placeholder()}
+					class="input w-full"
+				/>
+				{#if name}
+					<p class="mt-1 text-[10px] uppercase tracking-wider text-surface-500">
+						Database ID: <span class="font-bold text-primary-500">{DBName}</span>
+					</p>
+				{/if}
+			</div>
+
+			<!-- Slug -->
+			<div class="flex flex-col">
+				<label for="slug" class="mb-1 flex items-center font-bold text-sm">
+					{m.collection_slug()}
+					<iconify-icon icon="material-symbols:link" width="16" class="ml-auto opacity-50"></iconify-icon>
+				</label>
+				<div class="input-group grid-cols-[1fr_auto] overflow-hidden">
+					<input type="text" id="slug" bind:value={slug} placeholder={m.collection_slug_input()} />
+					<button class="bg-surface-200-800 px-2" onclick={() => (autoUpdateSlug = !autoUpdateSlug)} title="Toggle Auto-update">
+						<iconify-icon icon={autoUpdateSlug ? 'mdi:sync' : 'mdi:sync-off'} width="18"></iconify-icon>
+					</button>
+				</div>
+			</div>
+
+			<!-- Status -->
+			<div class="flex flex-col">
+				<label for="status" class="mb-1 flex items-center font-bold text-sm">
+					{m.collection_status()}
+				</label>
+				<select id="status" bind:value={status} class="select w-full">
+					{#each statuses as statusOption}
+						<option value={statusOption}>{statusOption}</option>
+					{/each}
+				</select>
+			</div>
 		</div>
 
-		<!-- Separator (Optional) -->
-		<hr class="my-2 border-gray-300 dark:border-gray-600" />
+		<!-- Right Side: Visuals & Desc -->
+		<div class="space-y-4">
+			<!-- Icon -->
+			<div class="flex flex-col">
+				<label for="icon" class="mb-1 flex items-center font-bold text-sm">
+					{m.collectionname_labelicon()}
+				</label>
+				<IconifyIconsPicker bind:iconselected={selectedIcon} bind:searchQuery />
+			</div>
 
-		<p class="base-font-color mb-0 text-center font-bold">{m.collectionname_optional()}:</p>
-
-		<!-- Icon -->
-		<div class="flex flex-col">
-			<label for="icon" class="mb-1 flex items-center font-medium">
-				{m.collectionname_labelicon()}
-				<iconify-icon icon="material-symbols:info" width={24}></iconify-icon>
-			</label>
-			<IconifyIconsPicker bind:iconselected={selectedIcon} bind:searchQuery />
+			<!-- Description -->
+			<div class="flex flex-col flex-1">
+				<label for="description" class="mb-1 flex items-center font-bold text-sm">
+					{m.collectionname_description()}
+				</label>
+				<textarea
+					id="description"
+					rows="4"
+					bind:value={description}
+					placeholder={m.collection_description_placeholder()}
+					class="input w-full flex-1 resize-none"
+				></textarea>
+			</div>
 		</div>
-
-		<!-- Slug -->
-		<div class="flex flex-col">
-			<label for="slug" class="mb-1 flex items-center font-medium">
-				{m.collection_slug()}
-				<iconify-icon icon="material-symbols:info" width={24}></iconify-icon>
-			</label>
-			<input type="text" id="slug" bind:value={slug} placeholder={m.collection_slug_input()} class="input w-full text-black dark:text-primary-500" />
-		</div>
-
-		<!-- Description -->
-		<div class="flex flex-col">
-			<label for="description" class="mb-1 flex items-center font-medium">
-				{m.collectionname_description()}
-				<iconify-icon icon="material-symbols:info" width={24}></iconify-icon>
-			</label>
-			<textarea
-				id="description"
-				rows="2"
-				bind:value={description}
-				placeholder={m.collection_description_placeholder()}
-				class="input w-full text-black dark:text-primary-500"
-			></textarea>
-		</div>
-
-		<!-- Status -->
-		<div class="flex flex-col">
-			<label for="status" class="mb-1 flex items-center font-medium">
-				{m.collection_status()}
-				<iconify-icon icon="material-symbols:info" width={24}></iconify-icon>
-			</label>
-			<select id="status" bind:value={status} class="select w-full text-black dark:text-primary-500">
-				{#each statuses as statusOption}
-					<option value={statusOption}>{statusOption}</option>
-				{/each}
-			</select>
-		</div>
-	</div>
-
-	<!-- Buttons Section -->
-	<div class="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-between">
-		<a href="/config/collectionbuilder" class="preset-outlined-secondary-500 btn sm:w-auto">{m.button_cancel()}</a>
-		<button type="button" onclick={handleNextClick} class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 sm:w-auto"
-			>{m.button_next()}</button
-		>
 	</div>
 </div>

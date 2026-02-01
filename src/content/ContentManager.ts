@@ -1578,40 +1578,29 @@ class ContentManager {
 	private _buildReconciliationOperations(
 		schemas: Schema[],
 		fileCategoryNodes: Map<string, { name: string }>,
-		dbNodeMap: Map<string, ContentNode>
+		dbNodeMapByPath: Map<string, ContentNode>
 	): ContentNode[] {
 		const operations: ContentNode[] = [];
 		const now = dateToISODateString(new Date());
 		const pathToIdMap = new Map<string, DatabaseId>();
 
+		// Build a second map for ID-based lookup to prioritize stable identifiers
+		const dbNodeMapById = new Map<string, ContentNode>();
+		for (const node of dbNodeMapByPath.values()) {
+			dbNodeMapById.set(node._id.toString(), node);
+		}
+
 		// Helper to cast string to DatabaseId
 		const toDatabaseId = (id: string) => id as DatabaseId;
 
-		// First pass: Create all operations with temporary IDs
-		for (const [path, fileNode] of fileCategoryNodes.entries()) {
-			const dbNode = dbNodeMap.get(path);
-			const nodeId = toDatabaseId(dbNode?._id ?? uuidv4().replace(/-/g, ''));
+		// 1. Process Collections first (Source of Truth for IDs)
+		const processedPaths = new Set<string>();
 
-			operations.push({
-				_id: nodeId,
-				parentId: undefined,
-				path,
-				name: (dbNode?.name ?? fileNode.name) as string,
-				icon: dbNode?.icon ?? 'bi:folder',
-				order: dbNode?.order ?? 999,
-				nodeType: 'category',
-				translations: dbNode?.translations ?? [],
-				createdAt: dbNode?.createdAt ? dateToISODateString(new Date(dbNode.createdAt)) : now,
-				updatedAt: now
-			});
-
-			pathToIdMap.set(path, nodeId);
-		}
-
-		// Add collection operations
 		for (const schema of schemas) {
 			if (!schema.path) continue;
-			const dbNode = dbNodeMap.get(schema.path);
+
+			// Priority lookup: 1. By ID (most stable), 2. By Path
+			const dbNode = dbNodeMapById.get(schema._id as string) || dbNodeMapByPath.get(schema.path);
 			const nodeId = toDatabaseId(schema._id as string);
 
 			operations.push({
@@ -1632,22 +1621,71 @@ class ContentManager {
 			});
 
 			pathToIdMap.set(schema.path, nodeId);
+			processedPaths.add(schema.path);
 		}
 
-		// Sort by depth and resolve parentIds in single pass
+		// 2. Process Categories (Derived from file paths or existing in DB)
+		for (const [path, fileNode] of fileCategoryNodes.entries()) {
+			if (processedPaths.has(path)) continue;
+
+			const dbNode = dbNodeMapByPath.get(path);
+			const nodeId = toDatabaseId(dbNode?._id ?? uuidv4().replace(/-/g, ''));
+
+			operations.push({
+				_id: nodeId,
+				parentId: undefined,
+				path,
+				name: (dbNode?.name ?? fileNode.name) as string,
+				icon: dbNode?.icon ?? 'bi:folder',
+				order: dbNode?.order ?? 999,
+				nodeType: 'category',
+				translations: dbNode?.translations ?? [],
+				createdAt: dbNode?.createdAt ? dateToISODateString(new Date(dbNode.createdAt)) : now,
+				updatedAt: now
+			});
+
+			pathToIdMap.set(path, nodeId);
+			processedPaths.add(path);
+		}
+
+		// 3. Add existing DB categories that might not be in fileCategoryNodes
+		for (const [path, dbNode] of dbNodeMapByPath.entries()) {
+			// CRITICAL: Only accept categories from DB if they have a valid absolute path
+			// and aren't already processed. This prevents "ID-as-path" garbage from re-infecting.
+			const isValidPath = typeof path === 'string' && path.startsWith('/') && path.length > 1;
+			const isNotUuid = !/^[0-9a-f]{32}$/i.test(path) && !/^[0-9a-f-]{36}$/i.test(path);
+
+			if (!processedPaths.has(path) && dbNode.nodeType === 'category' && isValidPath && isNotUuid) {
+				operations.push({
+					...dbNode,
+					_id: toDatabaseId(dbNode._id.toString()),
+					updatedAt: now
+				});
+				pathToIdMap.set(path, toDatabaseId(dbNode._id.toString()));
+			}
+		}
+
+		// Sort by depth to ensure parents exist before children during ID resolution
 		operations.sort((a, b) => {
 			const depthA = (a.path?.split('/').length ?? 0) - 1;
 			const depthB = (b.path?.split('/').length ?? 0) - 1;
 			return depthA - depthB;
 		});
 
-		// Resolve parentIds
+		// 4. Resolve parentIds using the built-up map
 		for (const op of operations) {
 			if (!op.path) continue;
 			const pathParts = op.path.split('/').filter(Boolean);
 			if (pathParts.length > 1) {
 				const parentPath = '/' + pathParts.slice(0, -1).join('/');
-				op.parentId = pathToIdMap.get(parentPath) ?? dbNodeMap.get(parentPath)?._id;
+				op.parentId = pathToIdMap.get(parentPath);
+
+				if (!op.parentId) {
+					const fallbackParent = dbNodeMapByPath.get(parentPath);
+					if (fallbackParent) {
+						op.parentId = toDatabaseId(fallbackParent._id.toString());
+					}
+				}
 			}
 		}
 
@@ -1657,8 +1695,11 @@ class ContentManager {
 	private async _bulkUpsertWithParentIds(dbAdapter: any, operations: ContentNode[]): Promise<void> {
 		const upsertOps = operations.map((op) => ({
 			path: op.path as string,
+			id: op._id.toString(),
 			changes: {
 				...op,
+				_id: op._id.toString(),
+				parentId: op.parentId ? op.parentId.toString() : null,
 				collectionDef: op.collectionDef
 					? ({
 							_id: op.collectionDef._id,
@@ -1675,14 +1716,31 @@ class ContentManager {
 
 		await dbAdapter.content.nodes.bulkUpdate(upsertOps);
 
+		// Cleanup: Remove nodes from DB that are NOT in the current operations list
+		const currentPaths = new Set(operations.map((op) => op.path));
+		const dbResult = await dbAdapter.content.nodes.getStructure('flat', {}, true);
+
+		if (dbResult.success && dbResult.data) {
+			const pathsToDelete = dbResult.data
+				.filter((node: ContentNode) => node.path && !currentPaths.has(node.path))
+				.map((node: ContentNode) => node.path);
+
+			if (pathsToDelete.length > 0) {
+				logger.info(`[ContentManager] Cleaning up ${pathsToDelete.length} orphaned DB nodes:`, pathsToDelete);
+				await dbAdapter.content.nodes.deleteMany(pathsToDelete);
+			}
+		}
+
 		// Fix any existing nodes that have mismatched IDs (from before this fix)
 		const nodesToFix = operations
 			.filter((op) => op.nodeType === 'collection' && op._id)
 			.map((op) => ({
 				path: op.path as string,
-				expectedId: op._id as string,
+				expectedId: op._id.toString(),
 				changes: {
 					...op,
+					_id: op._id.toString(),
+					parentId: op.parentId ? op.parentId.toString() : null,
 					collectionDef: op.collectionDef
 						? ({
 								_id: op.collectionDef._id,
@@ -1705,7 +1763,7 @@ class ContentManager {
 		}
 
 		await invalidateCategoryCache(CacheCategory.CONTENT);
-		logger.debug('[ContentManager] Single-pass bulk upsert completed');
+		logger.debug('[ContentManager] Single-pass bulk upsert and cleanup completed');
 	}
 
 	private async _loadFinalStructure(dbAdapter: any, operations: ContentNode[]): Promise<void> {

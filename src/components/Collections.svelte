@@ -164,9 +164,65 @@
 		};
 	}
 
+	function buildTree(nodes: ExtendedContentNode[]): ExtendedContentNode[] {
+		if (!nodes || nodes.length === 0) return [];
+
+		const nodeMap = new Map<string, ExtendedContentNode>();
+		const roots: ExtendedContentNode[] = [];
+
+		// First pass: flattened map of all unique nodes
+		function gatherNodes(itemList: ExtendedContentNode[]) {
+			for (const item of itemList) {
+				const id = String(item._id);
+				if (!nodeMap.has(id)) {
+					nodeMap.set(id, { ...item, children: [] });
+					if (item.children && item.children.length > 0) {
+						gatherNodes(item.children as ExtendedContentNode[]);
+					}
+				}
+			}
+		}
+
+		gatherNodes(nodes);
+
+		// Second pass: link using parentId
+		nodeMap.forEach((node) => {
+			if (node.parentId) {
+				const parentId = String(node.parentId);
+				const parent = nodeMap.get(parentId);
+				if (parent) {
+					parent.children = parent.children || [];
+					if (!parent.children.some((c) => String(c._id) === String(node._id))) {
+						parent.children.push(node);
+					}
+				} else {
+					// Parent not in map, promote to root
+					roots.push(node);
+				}
+			} else {
+				// No parentId, it's a root
+				roots.push(node);
+			}
+		});
+
+		return roots;
+	}
+
 	let treeNodes = $derived.by(() => {
 		countCache.clear();
-		const sorted = [...structure].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+		console.log('[Collections] Structure changed, building tree...', {
+			inputSize: structure.length,
+			roots: structure.filter((n) => !n.parentId).map((n) => n.name)
+		});
+
+		const nestedStructure = buildTree(structure as ExtendedContentNode[]);
+
+		console.log('[Collections] Tree results:', {
+			rootCount: nestedStructure.length,
+			roots: nestedStructure.map((n) => n.name)
+		});
+
+		const sorted = [...nestedStructure].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 		return sorted.map((n) => mapToTreeNode(n));
 	});
 
