@@ -54,9 +54,9 @@ Requires preload: `bun test --preload $(pwd)/tests/bun/hooks/preload.ts`
 | ✅ PASS | rate-limit.test.ts | 35/35 | Fixed MetricsService mock, RateLimiter mock |
 | ✅ PASS | locale.test.ts | 34/34 | Added store.svelte and paraglide mocks |
 | ✅ PASS | setup.test.ts | 18/18 | Added isSetupCompleteAsync mock, fixed test expectations |
-| 🚫 BLOCKED | token-resolution.test.ts | 0/1 | Svelte 5 $state not available |
+| ✅ PASS | token-resolution.test.ts | 5/5 | Added globalSettings.svelte mock for $state |
 
-**Total Passing: 281 tests across 11 files**
+**Total Passing: 286 tests across 12 files**
 
 ## Legend
 - ✅ CI PASS - Verified passing in GitHub Actions
@@ -98,6 +98,7 @@ Requires preload: `bun test --preload $(pwd)/tests/bun/hooks/preload.ts`
 28. **locale.test.ts** - Fixed empty string locale test to match actual behavior
 29. **hooks/preload.ts** - Added isSetupCompleteAsync to setupCheck mock
 30. **setup.test.ts** - Added isSetupCompleteAsync mock, fixed route expectations to match implementation
+31. **hooks/preload.ts** - Added globalSettings.svelte mock to prevent Svelte 5 $state error
 
 ## CI Workflow
 

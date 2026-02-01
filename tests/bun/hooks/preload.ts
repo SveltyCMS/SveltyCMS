@@ -187,6 +187,25 @@ mock.module('@src/paraglide/runtime', () => ({
 	isAvailableLanguageTag: (tag: string) => ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl', 'ru', 'ja', 'zh', 'ko'].includes(tag)
 }));
 
+// ============================================================================
+// Mock globalSettings.svelte - prevents Svelte 5 $state error
+// ============================================================================
+
+mock.module('@src/stores/globalSettings.svelte', () => ({
+	publicEnv: {
+		SITE_NAME: 'Test CMS',
+		DEFAULT_LANGUAGE: 'en',
+		AVAILABLE_LANGUAGES: ['en', 'de', 'fr'],
+		MEDIA_UPLOAD_MAX_SIZE: 10485760,
+		MEDIA_ALLOWED_TYPES: ['image/*', 'video/*', 'application/pdf']
+	},
+	initPublicEnv: () => {},
+	getPublicEnv: () => ({
+		SITE_NAME: 'Test CMS',
+		DEFAULT_LANGUAGE: 'en'
+	})
+}));
+
 // Mock $app/stores
 mock.module('$app/stores', () => ({
 	page: { subscribe: () => () => {} },
