@@ -17,9 +17,9 @@ Tests verified passing in GitHub Actions CI:
 | ✅ CI PASS | system.test.ts | |
 | ✅ CI PASS | theme.test.ts | Fixed collection name |
 | ✅ CI PASS | widgets.test.ts | |
+| ✅ CI PASS | media.test.ts | Fixed cookie extraction, Origin header, API error handling |
 | ❌ FAILING | graphql.test.ts | 14 pass, 6 fail |
 | ❌ FAILING | auth-2fa.test.ts | 9 pass, 9 fail |
-| 🔄 TESTING | media.test.ts | Fixed cookie header parsing for FormData requests |
 | ❌ FAILING | user.test.ts | Most pass, 3 fail |
 | ❌ FAILING | token.test.ts | Multiple failures |
 | ❌ FAILING | import-export.test.ts | 0 pass, 18 fail |
@@ -55,7 +55,9 @@ Tests verified passing in GitHub Actions CI:
 3. **dashboard.test.ts** - Accept WARMING/WARMED states in health endpoint
 4. **system.test.ts** - Fixed preferences value assertion
 5. **theme.test.ts** - Handle missing themes gracefully
-6. **testSetup.ts** - Added seedAdminUser with Argon2id, seedBasicSettings
+6. **testSetup.ts** - Added seedAdminUser with Argon2id, seedBasicSettings, extractCookieValue
+7. **media.test.ts** - Added Origin header for FormData requests, use valid PNG for tests
+8. **media API endpoints** - Fixed error handling to re-throw HTTP errors (400) instead of wrapping as 500
 
 ## CI Workflow
 
@@ -69,7 +71,13 @@ bun test \
   tests/bun/api/settings.test.ts \
   tests/bun/api/system.test.ts \
   tests/bun/api/theme.test.ts \
-  tests/bun/api/widgets.test.ts
+  tests/bun/api/widgets.test.ts \
+  tests/bun/api/media.test.ts \
+  tests/bun/databases/auth-system.test.ts \
+  tests/bun/databases/cache-integration.test.ts \
+  tests/bun/databases/db-interface.test.ts \
+  tests/bun/databases/mongodb-adapter.test.ts \
+  tests/bun/databases/resilience-load.test.ts
 ```
 
 Unit tests: Temporarily skipped
