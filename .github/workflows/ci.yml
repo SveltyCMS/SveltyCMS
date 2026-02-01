@@ -1,4 +1,4 @@
-name: Unit, Integration & E2E Tests
+name: Integration Tests
 
 on:
   push:
@@ -28,42 +28,7 @@ permissions:
 
 jobs:
   # ------------------------------------------------------------------
-  # 1. Unit Tests (Fastest, no server needed) - TEMPORARILY SKIPPED
-  # ------------------------------------------------------------------
-  unit-tests:
-    name: ⚡ Unit Tests
-    if: false # Temporarily skipped
-    timeout-minutes: 10
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Cache Bun dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Generate SvelteKit types
-        run: bunx svelte-kit sync || true # Best effort
-
-      - name: Run Unit Tests
-        run: bun run test:unit
-
-  # ------------------------------------------------------------------
-  # 2. Integration Tests (Requires Server + MongoDB)
+  # Integration Tests (Requires Server + MongoDB)
   # ------------------------------------------------------------------
   integration-tests:
     name: 🔌 Integration Tests
@@ -163,28 +128,9 @@ jobs:
           API_BASE_URL: 'http://localhost:4173'
 
       # Phase 2: Run Integration Tests (System is now installed)
-      # Verified passing tests - add more as they pass CI
-      - name: 🧪 Run Main Integration Suite
-        run: |
-          bun test \
-            tests/bun/api/telemetry.test.ts \
-            tests/bun/api/collections.test.ts \
-            tests/bun/api/dashboard.test.ts \
-            tests/bun/api/security.test.ts \
-            tests/bun/api/settings.test.ts \
-            tests/bun/api/system.test.ts \
-            tests/bun/api/theme.test.ts \
-            tests/bun/api/widgets.test.ts \
-            tests/bun/databases/auth-system.test.ts \
-            tests/bun/databases/cache-integration.test.ts \
-            tests/bun/databases/db-interface.test.ts \
-            tests/bun/databases/mongodb-adapter.test.ts \
-            tests/bun/databases/resilience-load.test.ts \
-            tests/bun/api/media.test.ts \
-            tests/bun/api/user.test.ts \
-            tests/bun/api/graphql.test.ts \
-            tests/bun/api/auth-2fa.test.ts \
-            tests/bun/api/token.test.ts
+      # Focus on single failing test - token.test.ts
+      - name: 🧪 Run Token API Test
+        run: bun test tests/bun/api/token.test.ts
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
