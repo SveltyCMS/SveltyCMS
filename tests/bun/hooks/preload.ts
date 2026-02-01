@@ -163,6 +163,28 @@ mock.module('$app/environment', () => ({
 	version: 'test'
 }));
 
+// ============================================================================
+// Mock stores for locale tests (prevents Skeleton UI dependency chain)
+// ============================================================================
+
+// Mock @stores/store.svelte - provides app object for locale handling
+mock.module('@stores/store.svelte', () => ({
+	app: {
+		systemLanguage: 'en',
+		contentLanguage: 'en'
+	}
+}));
+
+// Mock @src/paraglide/runtime - ParaglideJS i18n runtime
+mock.module('@src/paraglide/runtime', () => ({
+	locales: ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl', 'ru', 'ja', 'zh', 'ko'],
+	sourceLanguageTag: 'en',
+	languageTag: () => 'en',
+	setLanguageTag: () => {},
+	onSetLanguageTag: () => {},
+	isAvailableLanguageTag: (tag: string) => ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl', 'ru', 'ja', 'zh', 'ko'].includes(tag)
+}));
+
 // Mock $app/stores
 mock.module('$app/stores', () => ({
 	page: { subscribe: () => () => {} },
