@@ -52,6 +52,9 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 	'api:security': ['admin'], // Security monitoring and incident management
 	'api:search': ['admin', 'editor'], // Search functionality
 	'api:index': ['admin', 'editor'], // Index/search operations
+	'api:metrics': ['admin'], // Performance metrics
+	'api:cache': ['admin'], // Cache management
+	'api:version-check': ['admin'], // Version/updates
 
 	// Content Structure - Admin and Editor
 	'api:content-structure': ['admin', 'editor'], // Content structure management
@@ -67,9 +70,10 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 
 	// Widget Management - Admin and Developer
 	'api:widgets': ['admin', 'developer'], // Widget management and marketplace
+	'api:marketplace': ['admin'], // Marketplace access
 
 	// Public/Semi-public endpoints (authenticated users)
-	'api:sendMail': ['*'], // Email sending (used internally, but needs auth)
+	'api:sendMail': ['admin'], // Email sending (used internally, but needs auth)
 	'api:getTokensProvided': ['admin'] // Token information - admin only
 };
 

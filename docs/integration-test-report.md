@@ -23,7 +23,7 @@ Tests verified passing in GitHub Actions CI:
 | ✅ CI PASS | auth-2fa.test.ts | Fixed error handling and response structure |
 | ✅ CI PASS | token.test.ts | Added GET endpoint, fixed auth hooks for public access |
 | ✅ CI PASS | import-export.test.ts | |
-| ❌ FAILING | miscellaneous.test.ts | Most fail |
+| ⬜ PENDING | miscellaneous.test.ts | Added to CI run list |
 | 🚫 BLOCKED | setup-utils.test.ts | Svelte 5 runes ($state) not available outside Svelte |
 
 ### Database Tests
@@ -79,6 +79,7 @@ bun test \
   tests/bun/api/theme.test.ts \
   tests/bun/api/widgets.test.ts \
   tests/bun/api/import-export.test.ts \
+  tests/bun/api/miscellaneous.test.ts \
   tests/bun/api/media.test.ts \
   tests/bun/api/user.test.ts \
   tests/bun/api/graphql.test.ts \
