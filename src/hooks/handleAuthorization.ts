@@ -30,8 +30,16 @@ const rolesCache = new Map<string, { data: Role[]; timestamp: number }>();
 
 // --- UTILITIES ---
 
-function isPublicRoute(pathname: string): boolean {
+function isPublicRoute(pathname: string, method?: string): boolean {
 	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/sendMail', '/api/setup', '/api/system/version', '/api/user/login'];
+
+	// Token validation endpoint is public (GET only) for registration flow
+	// Format: /api/token/{tokenValue} where tokenValue is a UUID-like string
+	const tokenValidationPattern = /^\/api\/token\/[a-f0-9-]+$/i;
+	if (method === 'GET' && tokenValidationPattern.test(pathname)) {
+		return true;
+	}
+
 	return publicRoutes.some((route) => pathname.startsWith(route));
 }
 
@@ -108,12 +116,12 @@ async function getCachedRoles(tenantId?: string): Promise<Role[]> {
 // --- MAIN HANDLE ---
 
 export const handleAuthorization: Handle = async ({ event, resolve }) => {
-	const { url, locals } = event;
+	const { url, locals, request } = event;
 	const { user } = locals;
 
 	const pathname = url.pathname;
 	const isApi = pathname.startsWith('/api/');
-	const isPublic = isPublicRoute(pathname);
+	const isPublic = isPublicRoute(pathname, request.method);
 
 	// --- Skip static or internal routes early ---
 	const ASSET_REGEX =
