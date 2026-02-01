@@ -183,7 +183,8 @@ jobs:
             tests/bun/api/media.test.ts \
             tests/bun/api/user.test.ts \
             tests/bun/api/graphql.test.ts \
-            tests/bun/api/auth-2fa.test.ts
+            tests/bun/api/auth-2fa.test.ts \
+            tests/bun/api/token.test.ts
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
