@@ -23,8 +23,8 @@ Tests verified passing in GitHub Actions CI:
 | ✅ CI PASS | auth-2fa.test.ts | Fixed error handling and response structure |
 | ✅ CI PASS | token.test.ts | Added GET endpoint, fixed auth hooks for public access |
 | ✅ CI PASS | import-export.test.ts | |
-| ⬜ PENDING | miscellaneous.test.ts | Added to CI run list |
-| 🚫 BLOCKED | setup-utils.test.ts | Svelte 5 runes ($state) not available outside Svelte |
+| ✅ CI PASS | miscellaneous.test.ts | Fixed to use single status assertions |
+| ✅ CI PASS | setup-utils.test.ts | Fixed logger.server.ts to use env vars directly |
 
 ### Database Tests
 | Status | Test File | Notes |
@@ -64,6 +64,8 @@ Tests verified passing in GitHub Actions CI:
 12. **graphql media resolver** - Query 'media' collection with MIME type filtering instead of non-existent type-specific collections
 13. **2FA endpoints** - Fixed error re-throwing to use 'status' property check instead of Response instanceof
 14. **auth-2fa.test.ts** - Updated to use correct response structure (qrCodeURL not qrCode)
+15. **miscellaneous.test.ts** - Changed from multiple status assertions to single expected status codes
+16. **logger.server.ts** - Removed dependency on globalSettings.svelte.ts, use env vars directly for LOG_LEVELS
 
 ## CI Workflow
 
