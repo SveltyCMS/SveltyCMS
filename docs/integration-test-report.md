@@ -15,8 +15,8 @@ Tests verified passing in GitHub Actions CI:
 | ✅ CI PASS | security.test.ts | |
 | ✅ CI PASS | settings.test.ts | |
 | ✅ CI PASS | system.test.ts | |
-| 🔄 TESTING | theme.test.ts | Added to CI |
-| ⬜ PENDING | widgets.test.ts | Locally passing, needs CI verification |
+| ✅ CI PASS | theme.test.ts | Fixed collection name |
+| 🔄 TESTING | widgets.test.ts | Added to CI |
 | ❌ FAILING | graphql.test.ts | 14 pass, 6 fail |
 | ❌ FAILING | auth-2fa.test.ts | 9 pass, 9 fail |
 | ❌ FAILING | media.test.ts | Most pass, 3 fail |
@@ -68,7 +68,8 @@ bun test \
   tests/bun/api/security.test.ts \
   tests/bun/api/settings.test.ts \
   tests/bun/api/system.test.ts \
-  tests/bun/api/theme.test.ts
+  tests/bun/api/theme.test.ts \
+  tests/bun/api/widgets.test.ts
 ```
 
 Unit tests: Temporarily skipped
