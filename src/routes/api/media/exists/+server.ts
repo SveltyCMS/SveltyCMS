@@ -47,6 +47,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		return json({ exists });
 	} catch (err) {
+		// Re-throw HTTP errors as-is (e.g., 400 for missing URL)
+		if (err && typeof err === 'object' && 'status' in err) {
+			throw err;
+		}
 		const message = `Error checking file existence: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { userId: user?._id, tenantId });
 		throw error(500, message);
