@@ -160,7 +160,8 @@ jobs:
             tests/bun/api/settings.test.ts \
             tests/bun/api/system.test.ts \
             tests/bun/api/theme.test.ts \
-            tests/bun/api/widgets.test.ts
+            tests/bun/api/widgets.test.ts \
+            tests/bun/databases/auth-system.test.ts
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'

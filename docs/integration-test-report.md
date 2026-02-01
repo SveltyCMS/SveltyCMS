@@ -16,7 +16,7 @@ Tests verified passing in GitHub Actions CI:
 | ✅ CI PASS | settings.test.ts | |
 | ✅ CI PASS | system.test.ts | |
 | ✅ CI PASS | theme.test.ts | Fixed collection name |
-| 🔄 TESTING | widgets.test.ts | Added to CI |
+| ✅ CI PASS | widgets.test.ts | |
 | ❌ FAILING | graphql.test.ts | 14 pass, 6 fail |
 | ❌ FAILING | auth-2fa.test.ts | 9 pass, 9 fail |
 | ❌ FAILING | media.test.ts | Most pass, 3 fail |
@@ -29,7 +29,7 @@ Tests verified passing in GitHub Actions CI:
 ### Database Tests
 | Status | Test File | Notes |
 |--------|-----------|-------|
-| ⬜ PENDING | auth-system.test.ts | Locally passing, needs CI verification |
+| 🔄 TESTING | auth-system.test.ts | Added to CI |
 | ⬜ PENDING | cache-integration.test.ts | Locally passing, needs CI verification |
 | ⬜ PENDING | db-interface.test.ts | Locally passing, needs CI verification |
 | ⬜ PENDING | mongodb-adapter.test.ts | Locally passing, needs CI verification |
