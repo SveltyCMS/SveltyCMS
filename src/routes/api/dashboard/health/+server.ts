@@ -32,10 +32,11 @@ export const GET: RequestHandler = async () => {
 		const healthReport = getHealthCheckReport();
 
 		// Map system state to HTTP status codes
-		// READY/DEGRADED = 200 (service is operational)
+		// READY/WARMING/WARMED/DEGRADED = 200 (service is operational)
 		// INITIALIZING = 503 (service temporarily unavailable)
 		// FAILED/IDLE = 503 (service unavailable)
-		const statusCode = healthReport.overallStatus === 'READY' || healthReport.overallStatus === 'DEGRADED' ? 200 : 503;
+		const operationalStates = ['READY', 'WARMING', 'WARMED', 'DEGRADED'];
+		const statusCode = operationalStates.includes(healthReport.overallStatus) ? 200 : 503;
 
 		return json(healthReport, { status: statusCode });
 	} catch (error) {

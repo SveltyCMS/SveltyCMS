@@ -68,6 +68,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		return json({ success: true, theme: updatedTheme });
 	} catch (err) {
+		// Re-throw SvelteKit errors (they have a status property)
+		if (err && typeof err === 'object' && 'status' in err) {
+			throw err;
+		}
 		const errorMessage = err instanceof Error ? err.message : String(err);
 		logger.error('Error updating theme custom CSS:', { error: errorMessage, tenantId });
 		return json({ success: false, error: `Error updating theme custom CSS: ${errorMessage}` }, { status: 500 });

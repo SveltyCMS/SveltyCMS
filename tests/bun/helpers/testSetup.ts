@@ -225,16 +225,69 @@ async function seedBasicSettings(db: any): Promise<void> {
 
 /**
  * Prepare an authenticated context (login as admin).
+ * Uses the Setup API to properly initialize the system if needed.
  * @returns {Promise<string>} Authentication cookie.
  */
 export async function prepareAuthenticatedContext(): Promise<string> {
-	// 0. Ensure Roles and Settings exist (since DB might be clean)
+	const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:4173';
+
+	// Check if system is already set up
+	const statusResp = await fetch(`${API_BASE_URL}/api/setup/status`);
+	const status = await statusResp.json();
+
+	if (!status.setupComplete) {
+		// System needs setup - use the Setup API
+		const dbConfig = {
+			type: 'mongodb',
+			host: process.env.DB_HOST || 'localhost',
+			port: parseInt(process.env.DB_PORT || '27017'),
+			name: process.env.DB_NAME || 'sveltycms_test',
+			user: process.env.DB_USER || '',
+			password: process.env.DB_PASSWORD || ''
+		};
+
+		// Step 1: Seed database config
+		await fetch(`${API_BASE_URL}/api/setup/seed`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(dbConfig)
+		});
+
+		// Step 2: Complete setup with admin user
+		const completeResp = await fetch(`${API_BASE_URL}/api/setup/complete`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				admin: testFixtures.users.admin,
+				skipWelcomeEmail: true
+			})
+		});
+
+		if (completeResp.ok) {
+			// Setup complete - extract cookie from response
+			const cookie = completeResp.headers.get('set-cookie');
+			if (cookie) {
+				return cookie;
+			}
+		}
+	}
+
+	// System is already set up or setup completed - just login
+	// First ensure admin user exists via direct seeding (for cases where setup was done but user was cleaned)
 	await seedBasicRoles();
 
-	// 1. Create standard test users (idempotent)
-	await createTestUsers();
+	// Try to login
+	try {
+		const cookie = await loginAsAdmin();
+		if (cookie) {
+			return cookie;
+		}
+	} catch (e) {
+		// Login failed - user might not exist, try creating via API
+	}
 
-	// 2. Perform login
+	// Fallback: create user and login
+	await createTestUsers();
 	const cookie = await loginAsAdmin();
 
 	if (!cookie) {
