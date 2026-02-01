@@ -257,6 +257,20 @@ async function seedDefaultTheme(db: any): Promise<void> {
 }
 
 /**
+ * Extracts just the cookie name=value from a set-cookie header.
+ * The set-cookie header includes attributes like Path, HttpOnly, etc.
+ * but the Cookie request header should only contain name=value pairs.
+ *
+ * Example:
+ *   Input:  "sveltycms_session=abc123; Path=/; HttpOnly; SameSite=strict"
+ *   Output: "sveltycms_session=abc123"
+ */
+function extractCookieValue(setCookieHeader: string): string {
+	const cookiePart = setCookieHeader.split(';')[0].trim();
+	return cookiePart;
+}
+
+/**
  * Prepare an authenticated context (login as admin).
  * Uses the Setup API to properly initialize the system if needed.
  * @returns {Promise<string>} Authentication cookie.
@@ -299,9 +313,10 @@ export async function prepareAuthenticatedContext(): Promise<string> {
 		if (completeResp.ok) {
 			// Setup complete - seed additional data and extract cookie
 			await seedBasicRoles(); // Ensure theme and other data is seeded
-			const cookie = completeResp.headers.get('set-cookie');
-			if (cookie) {
-				return cookie;
+			const rawCookie = completeResp.headers.get('set-cookie');
+			if (rawCookie) {
+				// Extract just the cookie value, not the attributes like Path, HttpOnly, etc.
+				return extractCookieValue(rawCookie);
 			}
 		}
 	}

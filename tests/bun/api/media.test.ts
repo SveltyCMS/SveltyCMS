@@ -61,7 +61,7 @@ describe('Media API Endpoints', () => {
 
 			const response = await fetch(`${API_BASE_URL}/api/media/process`, {
 				method: 'POST',
-				headers: { Cookie: authCookie },
+				headers: { Cookie: authCookie, Origin: API_BASE_URL },
 				body: formData
 			});
 
@@ -74,7 +74,7 @@ describe('Media API Endpoints', () => {
 			const formData = new FormData();
 			const response = await fetch(`${API_BASE_URL}/api/media/process`, {
 				method: 'POST',
-				headers: { Cookie: authCookie },
+				headers: { Cookie: authCookie, Origin: API_BASE_URL },
 				body: formData
 			});
 			expect(response.status).toBe(400);
@@ -112,7 +112,7 @@ describe('Media API Endpoints', () => {
 
 			const response = await fetch(`${API_BASE_URL}/api/user/saveAvatar`, {
 				method: 'POST',
-				headers: { Cookie: authCookie },
+				headers: { Cookie: authCookie, Origin: API_BASE_URL },
 				body: formData
 			});
 
