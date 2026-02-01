@@ -3,8 +3,22 @@ name: Unit, Integration & E2E Tests
 on:
   push:
     branches: [main, next]
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.mdx'
+      - 'docs/**'
+      - '.github/*.md'
+      - 'LICENSE'
+      - '.gitignore'
   pull_request:
     branches: [main, next]
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.mdx'
+      - 'docs/**'
+      - '.github/*.md'
+      - 'LICENSE'
+      - '.gitignore'
   workflow_dispatch: {}
 
 permissions:
