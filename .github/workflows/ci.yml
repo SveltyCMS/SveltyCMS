@@ -132,7 +132,7 @@ jobs:
       - name: 🧪 Run Main Integration Suite
         run: |
           bun test \
-            tests/bun/api/miscellaneous.test.ts
+            tests/bun/api/setup-utils.test.ts
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
