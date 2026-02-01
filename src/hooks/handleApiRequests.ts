@@ -57,8 +57,14 @@ function shouldBypassCache(searchParams: URLSearchParams): boolean {
 
 import { API_PERMISSIONS } from '@src/databases/auth/apiPermissions';
 
-function isPublicApiRoute(pathname: string): boolean {
+function isPublicApiRoute(pathname: string, method?: string): boolean {
 	const relative = pathname.replace(/^\/api\//, '');
+
+	// Token validation endpoint is public for GET only (registration flow)
+	// Format: /api/token/{tokenValue} - not the list endpoint /api/token
+	if (method === 'GET' && pathname.startsWith('/api/token/') && pathname.length > 11) {
+		return true;
+	}
 
 	// Fast check for explicitly defined public endpoints
 	// We check if any permission key with '*' allows access to this path
@@ -92,7 +98,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 	}
 
 	// Dynamic check for public API endpoints based on permissions configuration
-	if (isPublicApiRoute(url.pathname)) {
+	if (isPublicApiRoute(url.pathname, request.method)) {
 		return resolve(event);
 	}
 
