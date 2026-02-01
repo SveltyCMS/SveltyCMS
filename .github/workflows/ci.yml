@@ -128,12 +128,19 @@ jobs:
           API_BASE_URL: 'http://localhost:4173'
 
       # Phase 2: Run Integration Tests (System is now installed)
-      # All verified passing tests
-      - name: 🧪 Run Main Integration Suite
-        run: bun test tests/bun/api tests/bun/databases tests/bun/hooks -t "!Setup API"
+      # API and Database tests
+      - name: 🧪 Run API & Database Tests
+        run: bun test tests/bun/api tests/bun/databases -t "!Setup API"
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
+
+      # Phase 3: Run Hooks Tests (require preload for SvelteKit mocks)
+      # Note: Hooks tests must run individually due to ESM module caching conflicts
+      - name: 🧪 Run Hooks Tests
+        run: bun run test:hooks
+        env:
+          TEST_MODE: 'true'
 
       - name: Upload Integration Server Logs
         if: failure()
