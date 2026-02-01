@@ -1,13 +1,6 @@
 version: '3.8'
 
 services:
-  app:
-    image: mcr.microsoft.com/devcontainers/base:ubuntu
-    volumes:
-      - ..:/workspaces:cached
-    # Agar container tetap menyala
-    command: sleep infinity
-
   db:
     image: mongodb/mongodb-community-server:latest
     restart: always
