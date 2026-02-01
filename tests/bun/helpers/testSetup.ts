@@ -266,8 +266,7 @@ async function seedDefaultTheme(db: any): Promise<void> {
  *   Output: "sveltycms_session=abc123"
  */
 function extractCookieValue(setCookieHeader: string): string {
-	const cookiePart = setCookieHeader.split(';')[0].trim();
-	return cookiePart;
+	return setCookieHeader.split(';')[0].trim();
 }
 
 /**

@@ -15,7 +15,7 @@ import { existsSync, readdirSync, statSync } from 'fs';
 const rootDir = join(import.meta.dir, '..');
 const configPath = join(rootDir, 'config', 'private.test.ts');
 
-let testProcess: ReturnType<typeof spawn> | null = null;
+const testProcess: ReturnType<typeof spawn> | null = null;
 let previewProcess: ReturnType<typeof spawn> | null = null;
 
 // Restoration removed to avoid risk to live config
