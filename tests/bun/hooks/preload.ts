@@ -35,7 +35,9 @@ mock.module('@src/databases/db', () => ({
 
 // Mock @utils/setupCheck
 mock.module('@utils/setupCheck', () => ({
-	isSetupComplete: () => globalThis.__mockIsSetupComplete
+	isSetupComplete: () => globalThis.__mockIsSetupComplete,
+	isSetupCompleteAsync: async () => globalThis.__mockIsSetupComplete,
+	invalidateSetupCache: () => {}
 }));
 
 // Mock @utils/logger.server to prevent console noise
