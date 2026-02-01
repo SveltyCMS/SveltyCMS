@@ -5,6 +5,51 @@
 
 import { mock, spyOn } from 'bun:test';
 
+// ============================================================================
+// Controllable mock state for system-state tests
+// ============================================================================
+
+// These can be modified by tests using globalThis
+declare global {
+	var __mockSystemState: { overallState: string; services: Record<string, any>; performanceMetrics: { stateTransitions: any[] } };
+	var __mockIsSystemReady: boolean;
+	var __mockIsSetupComplete: boolean;
+}
+
+globalThis.__mockSystemState = { overallState: 'READY', services: {}, performanceMetrics: { stateTransitions: [] } };
+globalThis.__mockIsSystemReady = true;
+globalThis.__mockIsSetupComplete = true;
+
+// Mock @src/stores/system/state
+mock.module('@src/stores/system/state', () => ({
+	getSystemState: () => globalThis.__mockSystemState,
+	isSystemReady: () => globalThis.__mockIsSystemReady
+}));
+
+// Mock @src/databases/db - prevent actual DB initialization
+mock.module('@src/databases/db', () => ({
+	dbInitPromise: Promise.resolve(),
+	dbAdapter: {},
+	auth: {}
+}));
+
+// Mock @utils/setupCheck
+mock.module('@utils/setupCheck', () => ({
+	isSetupComplete: () => globalThis.__mockIsSetupComplete
+}));
+
+// Mock @utils/logger.server to prevent console noise
+mock.module('@utils/logger.server', () => ({
+	logger: {
+		debug: () => {},
+		trace: () => {},
+		info: () => {},
+		warn: () => {},
+		fatal: () => {},
+		error: () => {}
+	}
+}));
+
 // Mock $app/environment
 mock.module('$app/environment', () => ({
 	browser: false,

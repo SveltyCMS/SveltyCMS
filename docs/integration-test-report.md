@@ -47,7 +47,7 @@ Requires preload: `bun test --preload $(pwd)/tests/bun/hooks/preload.ts`
 | ✅ PASS | authentication.test.ts | 32/32 | Fixed cookie name and test assertion |
 | ✅ PASS | firewall.test.ts | 27/27 | Fixed preload error mock structure |
 | ✅ PASS | static-asset-caching.test.ts | 6/6 | Fixed shared Response object in tests |
-| ⚠️ PARTIAL | system-state.test.ts | 14/26 | Route pattern matching |
+| ✅ PASS | system-state.test.ts | 26/26 | Fixed with globalThis mock state in preload.ts |
 | ⚠️ PARTIAL | api-requests.test.ts | 17/27 | Permission/metrics issues |
 | ⚠️ PARTIAL | rate-limit.test.ts | 10/35 | metricsService undefined |
 | 🚫 BLOCKED | locale.test.ts | 0/1 | Missing @zag-js/svelte module |
@@ -82,6 +82,8 @@ Requires preload: `bun test --preload $(pwd)/tests/bun/hooks/preload.ts`
 16. **logger.server.ts** - Removed dependency on globalSettings.svelte.ts, use env vars directly for LOG_LEVELS
 17. **MetricsService.ts** - Removed `$app/environment` dependency, use process.env for build detection
 18. **hooks/preload.ts** - Created preload script to mock SvelteKit modules for hooks tests
+19. **hooks/preload.ts** - Added globalThis mock state for system-state tests (ESM hoisting fix)
+20. **system-state.test.ts** - Refactored to use globalThis mock state instead of local mocks
 
 ## CI Workflow
 
