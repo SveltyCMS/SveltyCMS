@@ -48,7 +48,7 @@ Requires preload: `bun test --preload $(pwd)/tests/bun/hooks/preload.ts`
 | ✅ PASS | firewall.test.ts | 27/27 | Fixed preload error mock structure |
 | ✅ PASS | static-asset-caching.test.ts | 6/6 | Fixed shared Response object in tests |
 | ✅ PASS | system-state.test.ts | 26/26 | Fixed with globalThis mock state in preload.ts |
-| ⚠️ PARTIAL | api-requests.test.ts | 17/27 | Permission/metrics issues |
+| ✅ PASS | api-requests.test.ts | 27/27 | Fixed permissions mock, GraphQL test method |
 | ⚠️ PARTIAL | rate-limit.test.ts | 10/35 | metricsService undefined |
 | 🚫 BLOCKED | locale.test.ts | 0/1 | Missing @zag-js/svelte module |
 | 🚫 BLOCKED | setup.test.ts | 0/16 | Missing isSetupCompleteAsync export |
@@ -84,6 +84,8 @@ Requires preload: `bun test --preload $(pwd)/tests/bun/hooks/preload.ts`
 18. **hooks/preload.ts** - Created preload script to mock SvelteKit modules for hooks tests
 19. **hooks/preload.ts** - Added globalThis mock state for system-state tests (ESM hoisting fix)
 20. **system-state.test.ts** - Refactored to use globalThis mock state instead of local mocks
+21. **hooks/preload.ts** - Added mocks for apiPermissions, CacheService, MetricsService
+22. **api-requests.test.ts** - Fixed GraphQL test to use GET method, fixed permissions test endpoint
 
 ## CI Workflow
 

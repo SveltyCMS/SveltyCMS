@@ -50,6 +50,90 @@ mock.module('@utils/logger.server', () => ({
 	}
 }));
 
+// ============================================================================
+// Mock API permissions for api-requests tests
+// ============================================================================
+
+// Controllable permissions mock
+declare global {
+	var __mockHasApiPermission: (role: string, endpoint: string) => boolean;
+}
+
+// Default: admin and developer have all permissions, viewer has limited
+globalThis.__mockHasApiPermission = (role: string, _endpoint: string) => {
+	return role === 'admin' || role === 'developer';
+};
+
+// Mock @src/databases/auth/apiPermissions
+mock.module('@src/databases/auth/apiPermissions', () => ({
+	hasApiPermission: (role: string, endpoint: string) => globalThis.__mockHasApiPermission(role, endpoint),
+	API_PERMISSIONS: {
+		'api:collections': ['admin', 'developer', 'editor'],
+		'api:graphql': ['admin', 'developer', 'editor', 'viewer'],
+		'api:user': ['admin', 'developer', 'editor', 'viewer'],
+		'api:system': ['admin', 'developer'],
+		'api:admin': ['admin'],
+		'api:settings': ['admin', 'developer'],
+		'api:media': ['admin', 'developer', 'editor'],
+		'api:data': ['admin', 'developer', 'editor', 'viewer'],
+		'api:test': ['admin', 'developer', 'editor', 'viewer'],
+		'api:cached': ['admin', 'developer', 'editor', 'viewer'],
+		'api:uncached': ['admin', 'developer', 'editor', 'viewer'],
+		'api:large-data': ['admin', 'developer', 'editor', 'viewer'],
+		'api:download': ['admin', 'developer', 'editor', 'viewer'],
+		'api:error': ['admin', 'developer', 'editor', 'viewer']
+	}
+}));
+
+// ============================================================================
+// Mock CacheService for API caching tests
+// ============================================================================
+
+const mockCache = new Map<string, unknown>();
+
+mock.module('@src/databases/CacheService', () => ({
+	cacheService: {
+		get: async (key: string, _tenantId?: string) => mockCache.get(key),
+		set: async (key: string, value: unknown, _ttl?: number, _tenantId?: string) => {
+			mockCache.set(key, value);
+		},
+		delete: async (key: string, _tenantId?: string) => {
+			mockCache.delete(key);
+		},
+		clearByPattern: async (pattern: string, _tenantId?: string) => {
+			const prefix = pattern.replace('*', '');
+			for (const key of mockCache.keys()) {
+				if (key.startsWith(prefix)) {
+					mockCache.delete(key);
+				}
+			}
+		}
+	},
+	API_CACHE_TTL_S: 300
+}));
+
+// ============================================================================
+// Mock MetricsService for metrics tracking tests
+// ============================================================================
+
+mock.module('@src/services/MetricsService', () => ({
+	metricsService: {
+		incrementApiRequests: () => {},
+		incrementApiErrors: () => {},
+		recordApiCacheHit: () => {},
+		recordApiCacheMiss: () => {},
+		getReport: () => ({
+			api: {
+				cacheHits: 0,
+				cacheMisses: 0,
+				cacheHitRate: 0,
+				requests: 0,
+				errors: 0
+			}
+		})
+	}
+}));
+
 // Mock $app/environment
 mock.module('$app/environment', () => ({
 	browser: false,
