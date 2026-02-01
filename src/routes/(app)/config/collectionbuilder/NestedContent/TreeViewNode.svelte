@@ -9,10 +9,12 @@ Features:
 - Clear visual hierarchy between categories and collections
 - Action buttons with hover states
 - Drag handle with visual feedback
+- Full keyboard navigation support
+- Roving tabindex for accessibility
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import type { TreeViewItem } from '@utils/treeViewAdapter';
+	import type { TreeViewItem } from './TreeViewBoard.svelte';
 	import { screen } from '@stores/screenSizeStore.svelte.ts';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
@@ -30,6 +32,8 @@ Features:
 		onMoveToParent?: () => void;
 		onEnterReorderMode?: () => void;
 		onExitReorderMode?: () => void;
+		// Roving tabindex for keyboard navigation
+		tabindex?: number;
 	}
 
 	let {
@@ -44,7 +48,8 @@ Features:
 		onMoveDown,
 		onMoveToParent,
 		onEnterReorderMode,
-		onExitReorderMode
+		onExitReorderMode,
+		tabindex = -1
 	}: Props = $props();
 
 	// Computed properties
@@ -105,7 +110,7 @@ Features:
 	onclick={handleClick}
 	onkeydown={handleKeyDown}
 	role="button"
-	tabindex="0"
+	{tabindex}
 	aria-label={keyboardReorderMode
 		? `${name}, reorder mode active. Arrow up/down to move, arrow left to move to parent, Enter or Escape to exit.`
 		: `${name}, ${isCategory ? 'category' : 'collection'}. Press Enter to ${isOpen ? 'collapse' : 'expand'}.`}

@@ -89,6 +89,20 @@ Comprehensive image editing interface with Konva.js integration.
 		return null;
 	});
 
+	// Reset load state when image source changes (e.g. modal opened with new image)
+	let lastLoadedSrc = $state('');
+	let lastLoadedFile = $state<File | null>(null);
+	$effect(() => {
+		const src = initialImageSrc;
+		const file = imageFile;
+		const srcChanged = src !== lastLoadedSrc;
+		const fileChanged = file !== lastLoadedFile;
+		if (srcChanged || fileChanged) {
+			initialImageLoaded = false;
+			selectedImage = '';
+		}
+	});
+
 	// Cleanup effect for selected image
 	$effect(() => {
 		return () => {
@@ -99,9 +113,6 @@ Comprehensive image editing interface with Konva.js integration.
 	});
 
 	// Load initial image effect - handles race conditions with modal animations
-	let lastLoadedSrc = $state('');
-	let lastLoadedFile = $state<File | null>(null);
-
 	$effect(() => {
 		const src = initialImageSrc;
 		const file = imageFile;
@@ -120,8 +131,6 @@ Comprehensive image editing interface with Konva.js integration.
 
 		// Wait for container to have size before initializing (modal might be animating)
 		if (containerWidth === 0 || containerHeight === 0) {
-			console.log('[Editor] Waiting for container size...', { containerWidth, containerHeight, hasContainerRef: !!containerRef });
-			// Schedule a re-check after a short delay for modal animation
 			const timeoutId = setTimeout(() => {
 				// Force a re-check by updating a tracked value
 				if (containerRef && containerRef.clientWidth > 0 && containerRef.clientHeight > 0) {
@@ -134,8 +143,6 @@ Comprehensive image editing interface with Konva.js integration.
 
 		// Skip if already loaded with same source
 		if (initialImageLoaded && src === selectedImage && !file) return;
-
-		console.log('[Editor] Loading image:', { src: src || '(empty)', hasFile: !!file, containerWidth, containerHeight });
 
 		// Schedule loading after a microtask to ensure DOM is ready
 		queueMicrotask(() => {
@@ -183,9 +190,7 @@ Comprehensive image editing interface with Konva.js integration.
 
 	// Load image and setup Konva
 	function loadImageAndSetupKonva(imageSrc: string, file?: File, retryAttempt = 0) {
-		// ... existing load function logic ...
 		console.log('[Editor] loadImageAndSetupKonva called:', { imageSrc, hasFile: !!file, attempt: retryAttempt });
-
 		// CRITICAL: Validate and clean the URL to prevent double /files/ prefix
 		let cleanedSrc = imageSrc;
 		if (imageSrc.startsWith('/files//files/')) {
@@ -289,14 +294,14 @@ Comprehensive image editing interface with Konva.js integration.
 				});
 
 				// Add touch support
-				imageGroup.on('touchstart', (_e) => {
+				imageGroup.on('touchstart', (_e: Konva.KonvaEventObject<TouchEvent>) => {
 					// Placeholder for touch start logic
 					// e.evt.preventDefault(); // Prevent scrolling if needed
 				});
-				imageGroup.on('touchmove', (_e) => {
+				imageGroup.on('touchmove', (_e: Konva.KonvaEventObject<TouchEvent>) => {
 					// Placeholder for touch move logic
 				});
-				imageGroup.on('touchend', (_e) => {
+				imageGroup.on('touchend', (_e: Konva.KonvaEventObject<TouchEvent>) => {
 					// Placeholder for touch end logic
 				});
 
