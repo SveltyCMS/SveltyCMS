@@ -65,9 +65,9 @@ describe('Media API Endpoints', () => {
 				body: formData
 			});
 
-			// 200 for success, 500 if image content is invalid for metadata extraction,
-			// 403 if role lacks permission (handled by handleApiRequests hook)
-			expect([200, 403, 500]).toContain(response.status);
+			// This might return 500 if the "image" content is invalid for metadata extraction,
+			// but it should at least not be 405 or 401.
+			expect([200, 500]).toContain(response.status);
 		});
 
 		it('should fail with missing processType', async () => {
@@ -77,8 +77,7 @@ describe('Media API Endpoints', () => {
 				headers: { Cookie: authCookie },
 				body: formData
 			});
-			// 400 for missing processType, 403 if role lacks permission
-			expect([400, 403]).toContain(response.status);
+			expect(response.status).toBe(400);
 		});
 	});
 
@@ -117,9 +116,8 @@ describe('Media API Endpoints', () => {
 				body: formData
 			});
 
-			// 200 for success, 400/500 on processing errors,
-			// 403 if role lacks permission (handled by handleApiRequests hook)
-			expect([200, 400, 403, 500]).toContain(response.status);
+			// Might fail 500 on fake content but route should be authenticated.
+			expect([200, 400, 500]).toContain(response.status);
 		});
 	});
 

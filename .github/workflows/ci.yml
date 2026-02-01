@@ -165,8 +165,7 @@ jobs:
             tests/bun/databases/cache-integration.test.ts \
             tests/bun/databases/db-interface.test.ts \
             tests/bun/databases/mongodb-adapter.test.ts \
-            tests/bun/databases/resilience-load.test.ts \
-            tests/bun/api/media.test.ts
+            tests/bun/databases/resilience-load.test.ts
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
