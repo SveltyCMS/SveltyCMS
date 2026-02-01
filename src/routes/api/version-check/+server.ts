@@ -22,7 +22,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		const packageJsonPath = path.resolve(__dirname, '../../../package.json');
 		const packageJsonContent = fs.readFileSync(packageJsonPath, 'utf-8');
 		const { version } = JSON.parse(packageJsonContent);
-		localVersion = version;
+		localVersion = version || 'unknown';
 
 		// In test mode, skip remote checks to keep responses stable
 		if (process.env.TEST_MODE === 'true' || process.env.NODE_ENV === 'test') {
@@ -68,13 +68,14 @@ export const GET: RequestHandler = async ({ url }) => {
 		});
 	} catch (error) {
 		const message = error instanceof Error ? error.message : 'Unknown error';
+		const safeVersion = localVersion || 'unknown';
 		return json(
 			{
 				status: 'error',
 				message,
-				version: localVersion,
-				currentVersion: localVersion,
-				local: localVersion,
+				version: safeVersion,
+				currentVersion: safeVersion,
+				local: safeVersion,
 				remote: undefined
 			},
 			{ status: 200 }
