@@ -34,9 +34,10 @@ function isPublicRoute(pathname: string, method?: string): boolean {
 	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/sendMail', '/api/setup', '/api/system/version', '/api/user/login'];
 
 	// Token validation endpoint is public (GET only) for registration flow
-	// Format: /api/token/{tokenValue} where tokenValue is a UUID-like string
-	const tokenValidationPattern = /^\/api\/token\/[a-f0-9-]+$/i;
-	if (method === 'GET' && tokenValidationPattern.test(pathname)) {
+	// Format: /api/token/{tokenValue} where tokenValue is any non-empty string (not just the list endpoint)
+	// We check that it's NOT the base /api/token route and has something after /api/token/
+	if (method === 'GET' && pathname.startsWith('/api/token/') && pathname.length > 11) {
+		// /api/token/ is 11 chars, so pathname.length > 11 means there's a token value
 		return true;
 	}
 
