@@ -122,6 +122,11 @@ mock.module('@src/services/MetricsService', () => ({
 		incrementApiErrors: () => {},
 		recordApiCacheHit: () => {},
 		recordApiCacheMiss: () => {},
+		incrementRateLimitViolations: () => {},
+		incrementAuthValidations: () => {},
+		incrementAuthFailures: () => {},
+		incrementFirewallBlocks: () => {},
+		recordLatency: () => {},
 		getReport: () => ({
 			api: {
 				cacheHits: 0,
@@ -129,6 +134,13 @@ mock.module('@src/services/MetricsService', () => ({
 				cacheHitRate: 0,
 				requests: 0,
 				errors: 0
+			},
+			auth: {
+				validations: 0,
+				failures: 0
+			},
+			rateLimit: {
+				violations: 0
 			}
 		})
 	}
@@ -164,11 +176,12 @@ mock.module('$app/navigation', () => ({
 }));
 
 // Mock sveltekit-rate-limiter/server
+// isLimited() should return false (not limited) by default
 mock.module('sveltekit-rate-limiter/server', () => ({
 	RateLimiter: class MockRateLimiter {
 		constructor() {}
 		async isLimited() {
-			return { limited: false };
+			return false; // Not limited
 		}
 		cookieLimiter() {
 			return this;
@@ -177,7 +190,7 @@ mock.module('sveltekit-rate-limiter/server', () => ({
 	RetryAfterRateLimiter: class MockRetryAfterRateLimiter {
 		constructor() {}
 		async isLimited() {
-			return { limited: false, retryAfter: 0 };
+			return false; // Not limited
 		}
 	}
 }));
