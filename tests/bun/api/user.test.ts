@@ -105,7 +105,7 @@ describe('User API Integration', () => {
 					password: 'WrongPassword123!'
 				})
 			});
-			expect(response.status).toBe(400);
+			expect(response.status).toBe(401);
 		});
 	});
 
@@ -194,12 +194,11 @@ describe('User API Integration', () => {
 			});
 			expect(response.status).toBe(200);
 
-			// Verify old cookie is dead
+			// Verify old cookie is dead - should return 401 Unauthorized
 			const check = await fetch(`${API_BASE_URL}/api/user`, {
 				headers: { Cookie: adminCookie }
 			});
-			// Should be 401 Unauthorized or 403 Forbidden
-			expect([401, 403]).toContain(check.status);
+			expect(check.status).toBe(401);
 		});
 	});
 });
