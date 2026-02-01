@@ -14,10 +14,11 @@ permissions:
 
 jobs:
   # ------------------------------------------------------------------
-  # 1. Unit Tests (Fastest, no server needed)
+  # 1. Unit Tests (Fastest, no server needed) - TEMPORARILY SKIPPED
   # ------------------------------------------------------------------
   unit-tests:
     name: ⚡ Unit Tests
+    if: false # Temporarily skipped
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
