@@ -31,8 +31,8 @@ Tests verified passing in GitHub Actions CI:
 |--------|-----------|-------|
 | ✅ CI PASS | auth-system.test.ts | |
 | ✅ CI PASS | cache-integration.test.ts | |
-| 🔄 TESTING | db-interface.test.ts | Added to CI |
-| ⬜ PENDING | mongodb-adapter.test.ts | Locally passing, needs CI verification |
+| ✅ CI PASS | db-interface.test.ts | |
+| 🔄 TESTING | mongodb-adapter.test.ts | Added to CI |
 | ⬜ PENDING | resilience-load.test.ts | Locally passing, needs CI verification |
 | ⏭️ SKIPPED | mariadb-adapter.test.ts | Skipped (CI uses MongoDB) |
 
