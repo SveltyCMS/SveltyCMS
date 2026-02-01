@@ -232,11 +232,12 @@ async function seedBasicSettings(db: any): Promise<void> {
  */
 async function seedDefaultTheme(db: any): Promise<void> {
 	try {
-		const existingTheme = await db.collection('system_themes').findOne({ _id: '670e8b8c4d123456789abcde' });
+		// Note: collection name is 'system_theme' (singular) to match MongoDB model
+		const existingTheme = await db.collection('system_theme').findOne({ _id: '670e8b8c4d123456789abcde' });
 		if (!existingTheme) {
 			console.log('[testSetup] Seeding default theme...');
 			const now = new Date();
-			await db.collection('system_themes').insertOne({
+			await db.collection('system_theme').insertOne({
 				_id: '670e8b8c4d123456789abcde',
 				path: '',
 				name: 'SveltyCMSTheme',
