@@ -20,7 +20,7 @@ Tests verified passing in GitHub Actions CI:
 | ✅ CI PASS | media.test.ts | Fixed cookie extraction, Origin header, API error handling |
 | ✅ CI PASS | user.test.ts | Fixed status codes, logout cache invalidation |
 | ✅ CI PASS | graphql.test.ts | Fixed users/media resolvers to use proper DB methods |
-| ❌ FAILING | auth-2fa.test.ts | 9 pass, 9 fail |
+| ✅ CI PASS | auth-2fa.test.ts | Fixed error handling and response structure |
 | ❌ FAILING | token.test.ts | Multiple failures |
 | ❌ FAILING | import-export.test.ts | 0 pass, 18 fail |
 | ❌ FAILING | miscellaneous.test.ts | Most fail |
@@ -62,6 +62,8 @@ Tests verified passing in GitHub Actions CI:
 10. **logout endpoint** - Fixed to properly invalidate in-memory session cache
 11. **graphql users resolver** - Use dbAdapter.auth.getAllUsers() instead of queryBuilder('auth_users')
 12. **graphql media resolver** - Query 'media' collection with MIME type filtering instead of non-existent type-specific collections
+13. **2FA endpoints** - Fixed error re-throwing to use 'status' property check instead of Response instanceof
+14. **auth-2fa.test.ts** - Updated to use correct response structure (qrCodeURL not qrCode)
 
 ## CI Workflow
 
@@ -79,6 +81,7 @@ bun test \
   tests/bun/api/media.test.ts \
   tests/bun/api/user.test.ts \
   tests/bun/api/graphql.test.ts \
+  tests/bun/api/auth-2fa.test.ts \
   tests/bun/databases/auth-system.test.ts \
   tests/bun/databases/cache-integration.test.ts \
   tests/bun/databases/db-interface.test.ts \
