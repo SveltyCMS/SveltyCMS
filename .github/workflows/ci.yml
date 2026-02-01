@@ -132,6 +132,7 @@ jobs:
       - name: 🧪 Run Main Integration Suite
         run: |
           bun test \
+            tests/bun/api/import-export.test.ts \
             tests/bun/api/telemetry.test.ts \
             tests/bun/api/collections.test.ts \
             tests/bun/api/dashboard.test.ts \
