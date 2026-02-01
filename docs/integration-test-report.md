@@ -18,9 +18,9 @@ Tests verified passing in GitHub Actions CI:
 | ✅ CI PASS | theme.test.ts | Fixed collection name |
 | ✅ CI PASS | widgets.test.ts | |
 | ✅ CI PASS | media.test.ts | Fixed cookie extraction, Origin header, API error handling |
+| ✅ CI PASS | user.test.ts | Fixed status codes, logout cache invalidation |
 | ❌ FAILING | graphql.test.ts | 14 pass, 6 fail |
 | ❌ FAILING | auth-2fa.test.ts | 9 pass, 9 fail |
-| ❌ FAILING | user.test.ts | Most pass, 3 fail |
 | ❌ FAILING | token.test.ts | Multiple failures |
 | ❌ FAILING | import-export.test.ts | 0 pass, 18 fail |
 | ❌ FAILING | miscellaneous.test.ts | Most fail |
@@ -58,6 +58,8 @@ Tests verified passing in GitHub Actions CI:
 6. **testSetup.ts** - Added seedAdminUser with Argon2id, seedBasicSettings, extractCookieValue
 7. **media.test.ts** - Added Origin header for FormData requests, use valid PNG for tests
 8. **media API endpoints** - Fixed error handling to re-throw HTTP errors (400) instead of wrapping as 500
+9. **user.test.ts** - Fixed status code assertions (401 for invalid login, use GET /api/user for listing)
+10. **logout endpoint** - Fixed to properly invalidate in-memory session cache
 
 ## CI Workflow
 
@@ -73,6 +75,7 @@ bun test \
   tests/bun/api/theme.test.ts \
   tests/bun/api/widgets.test.ts \
   tests/bun/api/media.test.ts \
+  tests/bun/api/user.test.ts \
   tests/bun/databases/auth-system.test.ts \
   tests/bun/databases/cache-integration.test.ts \
   tests/bun/databases/db-interface.test.ts \
