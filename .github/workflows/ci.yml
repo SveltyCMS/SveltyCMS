@@ -145,9 +145,11 @@ jobs:
           API_BASE_URL: 'http://localhost:4173'
 
       # Phase 2: Run All Other Integration Tests (System is now installed)
-      # We skip 'Setup API' tests because they expect a fresh install and we just ran them.
+      # Note: We skip 'Setup API' tests because they expect a fresh install and we just ran them.
+      # Note: Hooks tests are excluded because they require SvelteKit's module system ($app/*)
+      #       which isn't available in Bun's test runner. They should be run with Vitest.
       - name: 🧪 Run Main Integration Suite
-        run: bun test tests/bun/api tests/bun/databases tests/bun/hooks -t "!Setup API"
+        run: bun test tests/bun/api tests/bun/databases --test-name-pattern "^(?!.*Setup API).*"
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'

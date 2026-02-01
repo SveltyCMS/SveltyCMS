@@ -119,12 +119,51 @@ async function seedBasicRoles(): Promise<void> {
 			});
 		}
 
+		// Seed admin user if not exists
+		await seedAdminUser(db);
+
 		// Seed settings
 		await seedBasicSettings(db);
 	} catch (e: any) {
 		console.warn('Warning: Failed to seed data:', e.message);
 	} finally {
 		await client.close();
+	}
+}
+
+/**
+ * Seeds the admin user with a properly hashed password.
+ * This allows tests to authenticate without going through the setup API.
+ */
+async function seedAdminUser(db: any): Promise<void> {
+	try {
+		const existingAdmin = await db.collection('auth_users').findOne({ email: 'admin@example.com' });
+		if (!existingAdmin) {
+			console.log('[testSetup] Seeding admin user...');
+			const argon2 = await import('argon2');
+			const crypto = await import('crypto');
+
+			// Hash the password using the same config as the app
+			const hashedPassword = await argon2.hash('Admin123!', {
+				memoryCost: 65536, // 64 MB
+				timeCost: 3,
+				parallelism: 4,
+				type: argon2.argon2id
+			});
+
+			await db.collection('auth_users').insertOne({
+				_id: crypto.randomUUID().replace(/-/g, ''),
+				email: 'admin@example.com',
+				username: 'admin',
+				password: hashedPassword,
+				role: 'admin',
+				blocked: false,
+				createdAt: new Date(),
+				updatedAt: new Date()
+			});
+		}
+	} catch (e: any) {
+		console.warn('Warning: Failed to seed admin user:', e.message);
 	}
 }
 

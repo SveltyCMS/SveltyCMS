@@ -1,0 +1,5 @@
+# Bun configuration for SveltyCMS
+
+[test]
+# Preload script to handle module resolution
+preload = ["./tests/bun/preload.ts"]
