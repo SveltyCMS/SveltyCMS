@@ -49,6 +49,59 @@ const editTokenSchema = object({
 	newTokenData: any() // Keep it flexible, specific validation can be added
 });
 
+/**
+ * GET /api/token/[tokenID]
+ * Validates an invitation token - public endpoint for registration flow
+ */
+export const GET: RequestHandler = async ({ params }) => {
+	try {
+		const tokenValue = params.tokenID;
+		if (!tokenValue) {
+			throw error(400, 'Token ID is required in the URL path.');
+		}
+
+		if (!auth) {
+			logger.error('Database authentication adapter not initialized');
+			throw error(500, 'Database authentication not available');
+		}
+
+		// Get token by value (invite tokens use the value, not _id)
+		const token = await auth.getTokenByValue(tokenValue);
+
+		if (!token) {
+			throw error(404, 'Token not found');
+		}
+
+		// Check if token is expired
+		const isExpired = token.expires ? new Date(token.expires) < new Date() : false;
+
+		return json({
+			success: true,
+			data: {
+				valid: !isExpired,
+				email: token.email,
+				expires: token.expires,
+				type: token.type
+			}
+		});
+	} catch (err) {
+		const httpError = err as HttpError;
+		const status = httpError.status || 500;
+		const message = httpError.body?.message || 'An unexpected error occurred.';
+
+		if (status === 404) {
+			return json({ success: false, message: 'Token not found' }, { status: 404 });
+		}
+
+		logger.error('Error validating token:', {
+			error: message,
+			stack: err instanceof Error ? err.stack : undefined,
+			status
+		});
+		return json({ success: false, message: status === 500 ? 'Internal Server Error' : message }, { status });
+	}
+};
+
 export const PUT: RequestHandler = async ({ request, params, locals }) => {
 	const { user, tenantId } = locals;
 	try {
