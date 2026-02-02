@@ -12,7 +12,7 @@
  * @security Admin-only endpoints with comprehensive logging
  */
 
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { securityResponseService } from '@src/services/SecurityResponseService';
 import { hasApiPermission } from '@src/databases/auth/apiPermissions';
 import { logger } from '@utils/logger.server';
@@ -21,7 +21,15 @@ import { logger } from '@utils/logger.server';
  * GET /api/security/incidents
  * Returns list of active security incidents with filtering options.
  */
-export const GET: RequestHandler = async ({ locals, url }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+/**
+ * GET /api/security/incidents
+ * Returns list of active security incidents with filtering options.
+ */
+export const GET = apiHandler(async ({ locals, url }) => {
 	try {
 		// Authorization check - admin only
 		if (!locals.user || !hasApiPermission(locals.user.role, 'security')) {
@@ -29,7 +37,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				userId: locals.user?._id,
 				role: locals.user?.role
 			});
-			return json({ error: 'Unauthorized - Admin access required' }, { status: 403 });
+			throw new AppError('Unauthorized - Admin access required', 403, 'FORBIDDEN');
 		}
 
 		// Get query parameters for filtering
@@ -81,20 +89,21 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		return json(response);
 	} catch (error) {
+		if (error instanceof AppError) throw error;
 		logger.error('Error fetching security incidents:', error);
-		return json({ error: 'Internal server error' }, { status: 500 });
+		throw new AppError('Internal server error', 500, 'FETCH_FAILED');
 	}
-};
+});
 
 /**
  * POST /api/security/incidents
  * Create a new security incident (for manual reporting).
  */
-export const POST: RequestHandler = async ({ locals, request }) => {
+export const POST = apiHandler(async ({ locals, request }) => {
 	try {
 		// Authorization check - admin only
 		if (!locals.user || !hasApiPermission(locals.user.role, 'security')) {
-			return json({ error: 'Unauthorized - Admin access required' }, { status: 403 });
+			throw new AppError('Unauthorized - Admin access required', 403, 'FORBIDDEN');
 		}
 
 		const body = await request.json();
@@ -102,22 +111,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		// Validate required fields
 		if (!ip || !eventType || !severity || !evidence) {
-			return json(
-				{
-					error: 'Missing required fields: ip, eventType, severity, evidence'
-				},
-				{ status: 400 }
-			);
+			throw new AppError('Missing required fields: ip, eventType, severity, evidence', 400, 'MISSING_FIELDS');
 		}
 
 		// Validate severity range
 		if (severity < 1 || severity > 10) {
-			return json(
-				{
-					error: 'Severity must be between 1 and 10'
-				},
-				{ status: 400 }
-			);
+			throw new AppError('Severity must be between 1 and 10', 400, 'INVALID_SEVERITY');
 		}
 
 		// Report the security event
@@ -140,7 +139,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			message: 'Security incident reported successfully'
 		});
 	} catch (error) {
+		if (error instanceof AppError) throw error;
 		logger.error('Error creating security incident:', error);
-		return json({ error: 'Internal server error' }, { status: 500 });
+		throw new AppError('Internal server error', 500, 'CREATE_FAILED');
 	}
-};
+});

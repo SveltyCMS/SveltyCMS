@@ -19,23 +19,27 @@
 import { auth, dbAdapter } from '@src/databases/db';
 import type { ISODateString } from '@src/databases/dbInterface';
 import { getPrivateSettingSync } from '@src/services/settingsService';
-import { error, json, type HttpError, type RequestHandler } from '@sveltejs/kit';
+import { json, type HttpError } from '@sveltejs/kit';
 import { addUserTokenSchema } from '@utils/formSchemas';
 import { safeParse } from 'valibot';
 
 // System Logger
 import { logger } from '@utils/logger.server';
 
-export const GET: RequestHandler = async ({ url, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ url, locals }) => {
 	const { user, tenantId, hasManageUsersPermission } = locals;
 
 	// Security: Ensure the user is authenticated and has admin-level permissions.
 	if (!user || !hasManageUsersPermission) {
-		throw error(403, 'Forbidden: You do not have permission to access users.');
+		throw new AppError('Forbidden: You do not have permission to access users.', 403, 'FORBIDDEN');
 	}
 
 	if (!auth || !dbAdapter) {
-		throw error(500, 'Authentication system is not initialized');
+		throw new AppError('Authentication system is not initialized', 500, 'AUTH_SYS_ERROR');
 	}
 
 	try {
@@ -71,11 +75,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const totalUsersResult = await dbAdapter.auth.getUserCount(filter);
 
 		if (!usersResult.success || !usersResult.data) {
-			throw error(500, 'Failed to fetch users from database');
+			throw new AppError('Failed to fetch users from database', 500, 'DB_FETCH_ERROR');
 		}
 
 		if (!totalUsersResult.success || totalUsersResult.data === undefined) {
-			throw error(500, 'Failed to get user count from database');
+			throw new AppError('Failed to get user count from database', 500, 'DB_COUNT_ERROR');
 		}
 
 		const users = usersResult.data;
@@ -84,7 +88,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		logger.info('Users retrieved successfully', {
 			count: users.length,
 			total: totalUsers,
-			requestedBy: user?._id,
+			requestedBy: user._id,
 			tenantId
 		});
 
@@ -99,29 +103,30 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			}
 		});
 	} catch (err: unknown) {
+		if (err instanceof AppError) throw err;
 		logger.error('Error fetching users:', err);
 		const errorMessage = err instanceof Error ? err.message : 'An internal server error occurred.';
-		throw error(500, errorMessage);
+		throw new AppError(errorMessage, 500, 'INTERNAL_SERVER_ERROR');
 	}
-};
+});
 
-export const POST: RequestHandler = async ({ request, locals, url }) => {
+export const POST = apiHandler(async ({ request, locals, url }) => {
 	const { user, tenantId } = locals;
 	try {
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
+			throw new AppError('Internal Server Error', 500, 'AUTH_SYS_ERROR');
 		}
 
 		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-			throw error(400, 'Tenant could not be identified for this operation.');
+			throw new AppError('Tenant could not be identified for this operation.', 400, 'TENANT_REQUIRED');
 		} // **SECURITY**: Authentication is handled by hooks.server.ts - user presence confirms access
 
 		const formData = await request.json();
 		const result = safeParse(addUserTokenSchema, formData);
 		if (!result.success) {
 			logger.warn('Invalid form data for user creation', { issues: result.issues });
-			return json({ message: 'Invalid form data' }, { status: 400 });
+			throw new AppError('Invalid form data', 400, 'VALIDATION_ERROR');
 		}
 
 		const { email, role, expiresIn } = result.output;
@@ -137,7 +142,7 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 		const expirationTime = expirationTimes[expiresIn];
 		if (!expirationTime) {
 			logger.warn('Invalid value for token validity', { expiresIn, tenantId });
-			return json({ message: 'Invalid value for token validity' }, { status: 400 });
+			throw new AppError('Invalid value for token validity', 400, 'INVALID_EXPIRATION');
 		}
 
 		const checkCriteria: { email: string; tenantId?: string } = { email };
@@ -147,7 +152,7 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 		const existingUser = await auth.checkUser(checkCriteria);
 		if (existingUser) {
 			logger.warn('Attempted to create a user that already exists in this tenant', { email, tenantId });
-			return json({ message: 'User already exists in this tenant' }, { status: 409 }); // 409 Conflict
+			throw new AppError('User already exists in this tenant', 409, 'USER_EXISTS');
 		}
 
 		const newUser = await auth.createUser({
@@ -169,14 +174,15 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 
 		return json(newUser, { status: 201 }); // 201 Created
 	} catch (err) {
+		if (err instanceof AppError) throw err;
 		const httpError = err as HttpError;
 		const status = httpError.status || 500;
 		const errMsg = err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err);
 		const message = httpError.body?.message || `Error creating user: ${errMsg}`;
 		logger.error('Error creating user', { error: message, status, tenantId });
-		return json({ success: false, error: message }, { status });
+		throw new AppError(message, status, 'USER_CREATION_FAILED');
 	}
-};
+});
 
 /**
  * Sends a user token via the sendMail API.

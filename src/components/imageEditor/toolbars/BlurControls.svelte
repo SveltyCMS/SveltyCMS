@@ -121,7 +121,7 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 
 	<!-- Shape Selection -->
 	<div class="control-group">
-		<label class="control-label">Shape:</label>
+		<span class="control-label">Shape:</span>
 		<div class="btn-group-compact" role="radiogroup" aria-label="Blur shape">
 			<button
 				class="btn btn-sm"
@@ -152,7 +152,7 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 
 	<!-- Pattern Selection -->
 	<div class="control-group">
-		<label class="control-label">Effect:</label>
+		<span class="control-label">Effect:</span>
 		<div class="btn-group-compact" role="radiogroup" aria-label="Blur pattern">
 			<button
 				class="btn btn-sm"
@@ -214,7 +214,7 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 
 	<!-- Transform Controls -->
 	<div class="control-group">
-		<label class="control-label sr-only">Transform:</label>
+		<span class="control-label sr-only">Transform:</span>
 		<div class="btn-group-compact">
 			<button class="btn btn-icon btn-sm" onclick={onRotateLeft} title="Rotate Left" aria-label="Rotate region left" disabled={!hasActiveRegion}>
 				<iconify-icon icon="mdi:rotate-left" width="18"></iconify-icon>

@@ -21,7 +21,7 @@ and accessibility features.
 
 <script lang="ts">
 	import Konva from 'konva';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 
 	let {
 		stage,
@@ -41,8 +41,8 @@ and accessibility features.
 
 	let crosshair: Konva.Group;
 	let isDragging = $state(false);
-	let currentX = $state(x);
-	let currentY = $state(y);
+	let currentX = $state(untrack(() => x));
+	let currentY = $state(untrack(() => y));
 
 	// Calculate initial position
 	function getInitialPosition() {

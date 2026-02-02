@@ -12,7 +12,7 @@ import { createStyledTransformer, attachStyledTransformer } from '../transformer
  * Uses more anchors than other tools for flexible annotation resizing.
  */
 export function createTransformer(layer: Konva.Layer): Konva.Transformer {
-	return createStyledTransformer(layer, {
+	return createStyledTransformer(layer, 'text', {
 		keepRatio: false,
 		enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right']
 	});

@@ -22,6 +22,7 @@ import {
 	USER_PERM_CACHE_TTL_S
 } from '@src/databases/CacheService';
 import { logger } from '@utils/logger.server';
+import { AppError, handleApiError } from '@utils/errorHandling';
 
 // --- SIMPLE IN-MEMORY CACHE ---
 
@@ -30,9 +31,16 @@ const rolesCache = new Map<string, { data: Role[]; timestamp: number }>();
 
 // --- UTILITIES ---
 
-function isPublicRoute(pathname: string): boolean {
+function isPublicRoute(pathname: string, method?: string): boolean {
 	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/sendMail', '/api/setup', '/api/system/version', '/api/user/login'];
-	return publicRoutes.some((route) => pathname.startsWith(route));
+	if (publicRoutes.some((route) => pathname.startsWith(route))) {
+		return true;
+	}
+	// Allow GET requests to /api/token/... (e.g. for registration/invitation)
+	if (pathname.startsWith('/api/token/') && method === 'GET') {
+		return true;
+	}
+	return false;
 }
 
 function isOAuthRoute(pathname: string): boolean {
@@ -113,7 +121,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 	const pathname = url.pathname;
 	const isApi = pathname.startsWith('/api/');
-	const isPublic = isPublicRoute(pathname);
+	const isPublic = isPublicRoute(pathname, event.request.method);
 
 	// --- Skip static or internal routes early ---
 	const ASSET_REGEX =
@@ -143,42 +151,55 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	if (rolesData.length === 0 && !pathname.startsWith('/setup') && !pathname.startsWith('/api/setup') && !isLocalizedSetup) {
 		logger.warn('No roles found in database - redirecting to setup', { pathname, tenantId: locals.tenantId });
 		if (isApi) {
-			throw error(503, 'Service Unavailable: System not initialized. Please run setup.');
+			const errorMsg = 'Service Unavailable: System not initialized. Please run setup.';
+			throw new AppError(errorMsg, 503, 'SYSTEM_NOT_INITIALIZED');
 		}
 		throw redirect(302, '/setup');
 	}
 
 	// --- Handle authenticated users ---
-	if (user) {
-		const userRole = rolesData.find((r) => r._id === user.role);
-		const isAdmin = !!userRole?.isAdmin || (user as any).isAdmin;
+	try {
+		if (user) {
+			const userRole = rolesData.find((r) => r._id === user.role);
+			const isAdmin = !!userRole?.isAdmin || (user as any).isAdmin;
 
-		locals.isAdmin = isAdmin;
-		locals.hasAdminPermission = isAdmin;
-		locals.hasManageUsersPermission = isAdmin || hasPermissionByAction(user, 'manage', 'user', undefined, rolesData);
+			locals.isAdmin = isAdmin;
+			locals.hasAdminPermission = isAdmin;
+			locals.hasManageUsersPermission = isAdmin || hasPermissionByAction(user, 'manage', 'user', undefined, rolesData);
 
-		// Redirect authenticated users away from public routes
-		if (isPublic && !isOAuthRoute(pathname) && !isApi) {
-			throw redirect(302, '/');
+			// Redirect authenticated users away from public routes
+			if (isPublic && !isOAuthRoute(pathname) && !isApi) {
+				throw redirect(302, '/');
+			}
+		} else {
+			// --- Handle unauthenticated users ---
+			locals.isAdmin = false;
+			locals.hasManageUsersPermission = false;
+
+			// Block access to protected pages
+			if (!isPublic && !locals.isFirstUser) {
+				if (isApi) throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+				throw redirect(302, '/login');
+			}
 		}
-	} else {
-		// --- Handle unauthenticated users ---
-		locals.isAdmin = false;
-		locals.hasManageUsersPermission = false;
 
-		// Block access to protected pages
-		if (!isPublic && !locals.isFirstUser) {
-			if (isApi) throw error(401, 'Unauthorized');
-			throw redirect(302, '/login');
+		// --- Allow OAuth routes to pass through ---
+		if (isOAuthRoute(pathname)) {
+			logger.trace('OAuth route detected, passing through');
 		}
-	}
 
-	// --- Allow OAuth routes to pass through ---
-	if (isOAuthRoute(pathname)) {
-		logger.trace('OAuth route detected, passing through');
-	}
+		return await resolve(event);
+	} catch (err) {
+		if (isApi) {
+			return handleApiError(err, event);
+		}
 
-	return resolve(event);
+		if (err instanceof AppError) {
+			throw error(err.status, err.message);
+		}
+
+		throw err;
+	}
 };
 
 // --- CACHE INVALIDATION UTILITIES ---

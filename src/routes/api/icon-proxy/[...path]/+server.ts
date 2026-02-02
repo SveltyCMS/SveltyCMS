@@ -23,8 +23,7 @@
  * → Proxies to https://api.iconify.design/mdi/account.svg
  */
 
-import type { RequestHandler } from './$types';
-import { error } from '@sveltejs/kit';
+// import { error } from '@sveltejs/kit'; // Removed
 
 // Allowlist of trusted icon providers
 const ALLOWED_PROVIDERS = {
@@ -52,11 +51,15 @@ type ProviderKey = keyof typeof ALLOWED_PROVIDERS;
 const iconCache = new Map<string, { data: Response; timestamp: number }>();
 const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours
 
-export const GET: RequestHandler = async ({ params, fetch }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ params, fetch }) => {
 	const fullPath = params.path; // e.g., "simpleicons/github" or "iconify/mdi:account"
 
 	if (!fullPath) {
-		throw error(400, 'Icon path is required');
+		throw new AppError('Icon path is required', 400, 'PATH_REQUIRED');
 	}
 
 	// Parse provider and icon path
@@ -65,11 +68,11 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
 
 	// Validate provider
 	if (!provider || !(provider in ALLOWED_PROVIDERS)) {
-		throw error(400, `Invalid icon provider. Allowed: ${Object.keys(ALLOWED_PROVIDERS).join(', ')}`);
+		throw new AppError(`Invalid icon provider. Allowed: ${Object.keys(ALLOWED_PROVIDERS).join(', ')}`, 400, 'INVALID_PROVIDER');
 	}
 
 	if (!iconPath) {
-		throw error(400, 'Icon path is required');
+		throw new AppError('Icon path is required', 400, 'PATH_REQUIRED');
 	}
 
 	const providerConfig = ALLOWED_PROVIDERS[provider as ProviderKey];
@@ -94,7 +97,7 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
 		});
 
 		if (!response.ok) {
-			throw error(response.status, `Failed to fetch icon from ${provider}`);
+			throw new AppError(`Failed to fetch icon from ${provider}`, response.status, 'FETCH_FAILED');
 		}
 
 		// Determine content type (default to SVG if not provided)
@@ -123,9 +126,10 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
 		return cachedResponse;
 	} catch (err) {
 		console.error(`[Icon Proxy] Failed to fetch ${externalUrl}:`, err);
-		throw error(502, 'Failed to fetch icon from external provider');
+		if (err instanceof AppError) throw err;
+		throw new AppError('Failed to fetch icon from external provider', 502, 'UPSTREAM_ERROR');
 	}
-};
+});
 
 /**
  * **Migration Guide:**

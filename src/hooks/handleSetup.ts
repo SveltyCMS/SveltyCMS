@@ -11,6 +11,8 @@
 import { redirect, type Handle } from '@sveltejs/kit';
 import { isSetupCompleteAsync } from '@utils/setupCheck';
 import { logger } from '@utils/logger.server';
+import { AppError, handleApiError } from '@utils/errorHandling';
+import { error } from '@sveltejs/kit';
 
 // --- CONSTANTS ---
 
@@ -53,48 +55,66 @@ function createSetupResolver() {
 
 export const handleSetup: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
+	const isApi = pathname.startsWith('/api/');
 
-	// --- Step 1: Check Setup Status ---
-	// We use the cached/memoized check from utils.
-	// This utility checks if the config exists AND if the database has admin users.
-	if (event.locals.__setupConfigExists === undefined) {
-		event.locals.__setupConfigExists = await isSetupCompleteAsync();
+	try {
+		// --- Step 1: Check Setup Status ---
+		// We use the cached/memoized check from utils.
+		// This utility checks if the config exists AND if the database has admin users.
+		if (event.locals.__setupConfigExists === undefined) {
+			event.locals.__setupConfigExists = await isSetupCompleteAsync();
+		}
+		const isComplete = event.locals.__setupConfigExists;
+
+		// --- Step 2: Handle Incomplete Setup ---
+		if (!isComplete) {
+			// Log warning only once per request flow to prevent spam
+			// AND only if the user is attempting to access a non-setup route
+			if (!event.locals.__setupLogged && !isAllowedDuringSetup(pathname)) {
+				logger.warn('System requires initial setup.');
+				event.locals.__setupLogged = true;
+			}
+
+			// Allow access to setup routes and assets
+			if (isAllowedDuringSetup(pathname)) {
+				return await resolve(event, createSetupResolver());
+			}
+
+			// For API requests, return a proper error instead of redirecting
+			if (isApi) {
+				throw new AppError('System setup required. Please complete the setup.', 503, 'SETUP_REQUIRED');
+			}
+
+			// Redirect everything else to /setup
+			if (!event.locals.__setupRedirectLogged) {
+				logger.debug(`Redirecting ${pathname} to /setup`);
+				event.locals.__setupRedirectLogged = true;
+			}
+			throw redirect(302, '/setup');
+		}
+
+		// --- Step 3: Handle Complete Setup ---
+		// If setup is complete, BLOCK access to /setup routes (including localized ones)
+		const isSetupRoute = pathname.startsWith('/setup') || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
+		if (isSetupRoute && !pathname.includes('/api/setup')) {
+			if (!event.locals.__setupLoginRedirectLogged) {
+				logger.trace(`Setup complete. Blocking access to ${pathname}, redirecting to /login`);
+				event.locals.__setupLoginRedirectLogged = true;
+			}
+			throw redirect(302, '/');
+		}
+
+		// Proceed normally
+		return await resolve(event);
+	} catch (err) {
+		if (isApi) {
+			return handleApiError(err, event);
+		}
+
+		if (err instanceof AppError) {
+			throw error(err.status, err.message);
+		}
+
+		throw err;
 	}
-	const isComplete = event.locals.__setupConfigExists;
-
-	// --- Step 2: Handle Incomplete Setup ---
-	if (!isComplete) {
-		// Log warning only once per request flow to prevent spam
-		// AND only if the user is attempting to access a non-setup route
-		if (!event.locals.__setupLogged && !isAllowedDuringSetup(pathname)) {
-			logger.warn('System requires initial setup.');
-			event.locals.__setupLogged = true;
-		}
-
-		// Allow access to setup routes and assets
-		if (isAllowedDuringSetup(pathname)) {
-			return resolve(event, createSetupResolver());
-		}
-
-		// Redirect everything else to /setup
-		if (!event.locals.__setupRedirectLogged) {
-			logger.debug(`Redirecting ${pathname} to /setup`);
-			event.locals.__setupRedirectLogged = true;
-		}
-		throw redirect(302, '/setup');
-	}
-
-	// --- Step 3: Handle Complete Setup ---
-	// If setup is complete, BLOCK access to /setup routes (including localized ones)
-	const isSetupRoute = pathname.startsWith('/setup') || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
-	if (isSetupRoute && !pathname.includes('/api/setup')) {
-		if (!event.locals.__setupLoginRedirectLogged) {
-			logger.trace(`Setup complete. Blocking access to ${pathname}, redirecting to /login`);
-			event.locals.__setupLoginRedirectLogged = true;
-		}
-		throw redirect(302, '/');
-	}
-
-	// Proceed normally
-	return resolve(event);
 };

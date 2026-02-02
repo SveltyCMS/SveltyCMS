@@ -13,7 +13,7 @@
 
 import { getErrorMessage } from '@utils/errorHandling';
 import { getPrivateSettingSync } from '@src/services/settingsService';
-import { error, json, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
@@ -26,14 +26,19 @@ import type { TokenContext } from '@src/services/token/types';
 import { logger } from '@utils/logger.server';
 
 // GET: Lists all collections accessible to the user
-export const GET: RequestHandler = async ({ locals, url }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+// GET: Lists all collections accessible to the user
+export const GET = apiHandler(async ({ locals, url }) => {
 	const start = performance.now();
 	const { tenantId } = locals; // User is guaranteed to exist due to hooks protection
 
 	// In multi-tenant mode, a tenantId is required.
 	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 		logger.error('List collections attempt failed: Tenant ID is missing in a multi-tenant setup.');
-		throw error(400, 'Could not identify the tenant for this request.');
+		throw new AppError('Could not identify the tenant for this request.', 400, 'TENANT_MISSING');
 	}
 
 	try {
@@ -118,6 +123,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	} catch (e) {
 		const duration = performance.now() - start;
 		logger.error(`Failed to get collections: ${getErrorMessage(e)} in ${duration.toFixed(2)}ms`);
-		throw error(500, 'Internal Server Error');
+		if (e instanceof AppError) throw e;
+		throw new AppError('Internal Server Error', 500, 'COLLECTION_LIST_ERROR');
 	}
-};
+});

@@ -3,7 +3,7 @@
  * @description Handles system settings export requests.
  */
 
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { getAllSettings } from '@src/services/settingsService';
 import { logger } from '@utils/logger.server';
 import { encryptData } from '@utils/crypto';
@@ -99,9 +99,13 @@ async function createExport(userId: string, options: ExportOptions): Promise<Exp
 	return exportData;
 }
 
-export const POST: RequestHandler = async ({ locals, request }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ locals, request }) => {
 	if (!locals.user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 	try {
 		const options: ExportOptions = await request.json();
@@ -125,14 +129,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			}
 		});
 	} catch (error) {
+		if (error instanceof AppError) throw error;
 		logger.error(`Export error: ${error instanceof Error ? error.message : String(error)}`);
 		if (error instanceof Error) logger.error(error.stack || 'No stack trace');
-		return json(
-			{
-				error: 'Export failed',
-				message: error instanceof Error ? error.message : 'Unknown error'
-			},
-			{ status: 500 }
-		);
+		throw new AppError(error instanceof Error ? error.message : 'Unknown error', 500, 'EXPORT_FAILED');
 	}
-};
+});

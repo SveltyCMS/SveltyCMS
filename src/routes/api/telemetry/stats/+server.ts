@@ -10,7 +10,6 @@
  * - Admin Access Secured
  */
 import { json } from '@sveltejs/kit';
-import type { RequestEvent } from './$types';
 
 // Mock Database for demonstration
 // In a real Receiver implementation, this would query the telemetry database.
@@ -26,7 +25,12 @@ const MOCK_DB_DATA = Array.from({ length: 50 }, (_, i) => ({
 	revenue_est: i % 5 === 0 ? '> $10M' : '< $1M'
 }));
 
-export async function GET({ locals }: RequestEvent) {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+
+// ... (MOCK_DB_DATA definition)
+
+export const GET = apiHandler(async ({ locals }) => {
 	const isAdmin = locals.user?.isAdmin || false;
 
 	// 1. Calculate Aggregations
@@ -45,7 +49,7 @@ export async function GET({ locals }: RequestEvent) {
 		data: responseData,
 		message: 'Telemetry statistics retrieved (Mock)'
 	});
-}
+});
 
 // Helper to group and count
 function aggregate(data: any[], key: string) {

@@ -11,23 +11,18 @@
  * - Graceful degradation & cleanup
  */
 
-import { publicEnv } from '@stores/globalSettings.svelte.ts';
+// Graceful degradation & cleanup
 
 if (typeof window !== 'undefined') {
 	throw new Error('logger.server.ts cannot be imported in browser code');
 }
 
-// Env helpers
-const getEnv = <T>(key: keyof typeof publicEnv, fallback: T): T => {
-	try {
-		const v = publicEnv[key];
-		return v !== undefined ? (v as T) : fallback;
-	} catch {
-		return fallback;
-	}
-};
+// get LOG_LEVELS from environment variables directly (avoids Svelte store dependency)
+const LOG_LEVELS_RAW = process.env.LOG_LEVELS || import.meta.env?.VITE_LOG_LEVELS || 'fatal,error,warn,info';
+const LOG_LEVELS = LOG_LEVELS_RAW.split(',')
+	.map((l: string) => l.trim().toLowerCase())
+	.filter(Boolean);
 
-const LOG_LEVELS = getEnv('LOG_LEVELS', ['fatal', 'error', 'warn', 'info']);
 const DISABLED = LOG_LEVELS.includes('none');
 
 // Log levels

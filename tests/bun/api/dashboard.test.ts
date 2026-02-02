@@ -46,7 +46,7 @@ describe('Dashboard API - Health Endpoint', () => {
 		expect(data).toHaveProperty('components');
 
 		// overallStatus should be one of the valid states
-		expect(['READY', 'INITIALIZING', 'DEGRADED', 'FAILED', 'IDLE']).toContain(data.overallStatus);
+		expect(['READY', 'WARMING', 'WARMED', 'INITIALIZING', 'DEGRADED', 'FAILED', 'IDLE']).toContain(data.overallStatus);
 
 		// uptime should be a positive number
 		expect(typeof data.uptime).toBe('number');
@@ -60,7 +60,8 @@ describe('Dashboard API - Health Endpoint', () => {
 
 		const data = await response.json();
 
-		if (data.overallStatus === 'READY' || data.overallStatus === 'DEGRADED') {
+		// READY, DEGRADED, WARMING, WARMED all return 200
+		if (['READY', 'DEGRADED', 'WARMING', 'WARMED'].includes(data.overallStatus)) {
 			expect(response.status).toBe(200);
 		} else {
 			expect(response.status).toBe(503);

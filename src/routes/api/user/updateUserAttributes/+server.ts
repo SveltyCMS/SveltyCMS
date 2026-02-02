@@ -20,7 +20,7 @@
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
-import { error, json, type HttpError } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth and permission helpers
@@ -31,6 +31,10 @@ import { verifyPassword } from '@src/databases/auth';
 
 // System Logger
 import { logger } from '@utils/logger.server';
+
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
 
 // Input validation
 import { email, maxLength, minLength, object, optional, parse, pipe, string } from 'valibot';
@@ -43,176 +47,146 @@ const baseUserDataSchema = object({
 	currentPassword: optional(string())
 });
 
-export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
-	try {
-		const { user, tenantId } = locals; // Destructure user and tenantId
+export const PUT: RequestHandler = apiHandler(async ({ request, locals, cookies }) => {
+	const { user, tenantId } = locals; // Destructure user and tenantId
 
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error: Auth system not initialized');
-		}
-
-		// Check if user is authenticated
-		if (!user) {
-			logger.warn('Unauthenticated request to updateUserAttributes');
-			throw error(401, 'Unauthorized: Please log in to continue');
-		}
-
-		const body = await request.json();
-		let { user_id: userIdToUpdate, newUserData } = body;
-
-		// Support 'self' keyword for the current authenticated user
-		if (userIdToUpdate === 'self' && user) {
-			userIdToUpdate = user._id;
-		}
-
-		// Validate the top-level request structure
-		if (!userIdToUpdate || typeof userIdToUpdate !== 'string' || userIdToUpdate.trim() === '') {
-			throw error(400, 'A valid user_id must be provided.');
-		}
-
-		if (!newUserData || typeof newUserData !== 'object') {
-			throw error(400, 'Valid newUserData must be provided.');
-		}
-
-		// **TWO-LEVEL PERMISSION SYSTEM**: Check if user is editing their own profile or has admin permissions
-		const isEditingSelf = user._id === userIdToUpdate;
-
-		// Permission checking is handled by hooks.server.ts
-		// Users can always edit their own profiles, admins can edit others (handled by hooks)
-
-		// --- MULTI-TENANCY SECURITY CHECK ---
-		// If an admin is editing another user, ensure the target user is in the same tenant.
-		if (getPrivateSettingSync('MULTI_TENANT') && !isEditingSelf) {
-			if (!tenantId) {
-				throw error(500, 'Tenant could not be identified for this operation.');
-			}
-			const userToUpdate = await auth.getUserById(userIdToUpdate);
-			if (!userToUpdate || userToUpdate.tenantId !== tenantId) {
-				logger.warn('Admin attempted to edit a user outside their tenant.', {
-					adminId: user?._id,
-					adminTenantId: tenantId,
-					targetUserId: userIdToUpdate,
-					targetTenantId: userToUpdate?.tenantId
-				});
-				throw error(403, 'Forbidden: You can only edit users within your own tenant.');
-			}
-		}
-
-		// **SECURITY FEATURE**: Prevent users from changing their own role
-		let schemaToUse = baseUserDataSchema;
-		if (newUserData.role) {
-			if (isEditingSelf) {
-				// If a user tries to submit a 'role' change for themselves, throw an error.
-				logger.warn('User attempted to change their own role.', { userId: user._id, attemptedRole: newUserData.role });
-				throw error(403, 'Forbidden: You cannot change your own role.');
-			} else {
-				// If an admin is editing another user, allow the role change.
-				// We add the 'role' field to the validation schema dynamically.
-				schemaToUse = object({ ...baseUserDataSchema.entries, role: optional(string()) });
-			}
-		}
-
-		// **SECURITY FEATURE**: Require current password when changing password (Self-Edit only)
-		if (isEditingSelf && newUserData.password) {
-			if (!newUserData.currentPassword) {
-				throw error(400, 'Current password is required to set a new password.');
-			}
-			// Verify current password
-			const currentUserFull = await auth.getUserById(user._id);
-			if (!currentUserFull || !currentUserFull.password) {
-				throw error(500, 'User record invalid.');
-			}
-			const isMatch = await verifyPassword(newUserData.currentPassword, currentUserFull.password);
-			if (!isMatch) {
-				throw error(401, 'Incorrect current password.');
-			}
-			// Remove currentPassword from newUserData so it doesn't get passed to DB update (even though schema filters it, it's safer)
-			delete newUserData.currentPassword;
-		}
-
-		// Validate the input against the appropriate schema (with or without 'role').
-		const validatedData = parse(schemaToUse, newUserData);
-
-		// Update user attributes in the database.
-		const updatedUser = await auth.updateUserAttributes(userIdToUpdate, validatedData);
-
-		if (!updatedUser) {
-			logger.error('updateUserAttributes returned null/undefined', {
-				userIdToUpdate,
-				validatedData
-			});
-			throw error(500, 'Failed to update user attributes');
-		}
-
-		// If the current user updated their own data, invalidate their session cache to reflect changes immediately.
-		if (isEditingSelf) {
-			const sessionId = cookies.get(SESSION_COOKIE_NAME);
-			if (sessionId) {
-				try {
-					// The session will be re-validated on the next request, so we can just delete the old cache entry.
-					await cacheService.delete(sessionId);
-					logger.debug(`Session cache invalidated for self-updated user ${userIdToUpdate}`);
-				} catch (cacheError) {
-					logger.warn(`Failed to invalidate session cache during self-update: ${cacheError}`);
-				}
-			}
-		}
-
-		// Note: We no longer cache user data by ID or email - session cache is the only cache
-		// This eliminates redundant caching and cache invalidation complexity
-
-		// Invalidate admin users list cache so UI updates immediately
-		try {
-			await cacheService.clearByPattern(`api:*:/api/user*`, tenantId);
-			logger.debug('Admin users list cache cleared after user update');
-		} catch (cacheError) {
-			logger.warn(`Failed to clear admin users cache: ${cacheError}`);
-		}
-
-		// Invalidate roles cache since user data may have changed
-		const { invalidateRolesCache } = await import('@src/hooks/handleAuthorization');
-		invalidateRolesCache(tenantId);
-
-		logger.info('User attributes updated successfully', {
-			user_id: userIdToUpdate,
-			updatedBy: user?._id,
-			tenantId: tenantId,
-			updatedFields: Object.keys(validatedData)
-		});
-
-		return json({
-			success: true,
-			message: 'User updated successfully.',
-			user: updatedUser
-		});
-	} catch (err) {
-		// Handle specific validation errors from Valibot.
-		if (err instanceof Error && err.name === 'ValiError') {
-			const valiError = err as unknown as { issues: Array<{ message: string }> };
-			const issues = valiError.issues.map((issue: { message: string }) => issue.message).join(', ');
-			logger.warn('Invalid input for updateUserAttributes API:', { issues });
-			throw error(400, `Invalid input: ${issues}`);
-		}
-
-		// Handle all other errors, including HTTP errors from `throw error()`.
-		const httpError = err as HttpError;
-		const status = httpError.status || 500;
-		const message = httpError.body?.message || 'An unexpected error occurred while updating user attributes.';
-
-		logger.error('Error in updateUserAttributes API:', {
-			error: message,
-			stack: err instanceof Error ? err.stack : undefined,
-			userId: locals.user?._id,
-			status
-		});
-
-		return json(
-			{
-				success: false,
-				message: status === 500 ? 'Internal Server Error' : message
-			},
-			{ status }
-		);
+	if (!auth) {
+		logger.error('Authentication system is not initialized');
+		throw new AppError('Internal Server Error: Auth system not initialized', 500, 'AUTH_SYS_ERROR');
 	}
-};
+
+	// Check if user is authenticated
+	if (!user) {
+		logger.warn('Unauthenticated request to updateUserAttributes');
+		throw new AppError('Unauthorized: Please log in to continue', 401, 'UNAUTHORIZED');
+	}
+
+	const body = await request.json();
+	let { user_id: userIdToUpdate, newUserData } = body;
+
+	// Support 'self' keyword for the current authenticated user
+	if (userIdToUpdate === 'self' && user) {
+		userIdToUpdate = user._id;
+	}
+
+	// Validate the top-level request structure
+	if (!userIdToUpdate || typeof userIdToUpdate !== 'string' || userIdToUpdate.trim() === '') {
+		throw new AppError('A valid user_id must be provided.', 400, 'INVALID_INPUT');
+	}
+
+	if (!newUserData || typeof newUserData !== 'object') {
+		throw new AppError('Valid newUserData must be provided.', 400, 'INVALID_INPUT');
+	}
+
+	// **TWO-LEVEL PERMISSION SYSTEM**: Check if user is editing their own profile or has admin permissions
+	const isEditingSelf = user._id === userIdToUpdate;
+
+	// Permission checking is handled by hooks.server.ts
+	// Users can always edit their own profiles, admins can edit others (handled by hooks)
+
+	// --- MULTI-TENANCY SECURITY CHECK ---
+	// If an admin is editing another user, ensure the target user is in the same tenant.
+	if (getPrivateSettingSync('MULTI_TENANT') && !isEditingSelf) {
+		if (!tenantId) {
+			throw new AppError('Tenant could not be identified for this operation.', 500, 'TENANT_ERROR');
+		}
+		const userToUpdate = await auth.getUserById(userIdToUpdate);
+		if (!userToUpdate || userToUpdate.tenantId !== tenantId) {
+			logger.warn('Admin attempted to edit a user outside their tenant.', {
+				adminId: user?._id,
+				adminTenantId: tenantId,
+				targetUserId: userIdToUpdate,
+				targetTenantId: userToUpdate?.tenantId
+			});
+			throw new AppError('Forbidden: You can only edit users within your own tenant.', 403, 'FORBIDDEN_TENANT');
+		}
+	}
+
+	// **SECURITY FEATURE**: Prevent users from changing their own role
+	let schemaToUse = baseUserDataSchema;
+	if (newUserData.role) {
+		if (isEditingSelf) {
+			// If a user tries to submit a 'role' change for themselves, throw an error.
+			logger.warn('User attempted to change their own role.', { userId: user._id, attemptedRole: newUserData.role });
+			throw new AppError('Forbidden: You cannot change your own role.', 403, 'FORBIDDEN_ROLE_CHANGE');
+		} else {
+			// If an admin is editing another user, allow the role change.
+			// We add the 'role' field to the validation schema dynamically.
+			schemaToUse = object({ ...baseUserDataSchema.entries, role: optional(string()) });
+		}
+	}
+
+	// **SECURITY FEATURE**: Require current password when changing password (Self-Edit only)
+	if (isEditingSelf && newUserData.password) {
+		if (!newUserData.currentPassword) {
+			throw new AppError('Current password is required to set a new password.', 400, 'MISSING_PASSWORD');
+		}
+		// Verify current password
+		const currentUserFull = await auth.getUserById(user._id);
+		if (!currentUserFull || !currentUserFull.password) {
+			throw new AppError('User record invalid.', 500, 'USER_INVALID');
+		}
+		const isMatch = await verifyPassword(newUserData.currentPassword, currentUserFull.password);
+		if (!isMatch) {
+			throw new AppError('Incorrect current password.', 401, 'INVALID_PASSWORD');
+		}
+		// Remove currentPassword from newUserData so it doesn't get passed to DB update (even though schema filters it, it's safer)
+		delete newUserData.currentPassword;
+	}
+
+	// Validate the input against the appropriate schema (with or without 'role').
+	const validatedData = parse(schemaToUse, newUserData);
+
+	// Update user attributes in the database.
+	const updatedUser = await auth.updateUserAttributes(userIdToUpdate, validatedData);
+
+	if (!updatedUser) {
+		logger.error('updateUserAttributes returned null/undefined', {
+			userIdToUpdate,
+			validatedData
+		});
+		throw new AppError('Failed to update user attributes', 500, 'UPDATE_FAILED');
+	}
+
+	// If the current user updated their own data, invalidate their session cache to reflect changes immediately.
+	if (isEditingSelf) {
+		const sessionId = cookies.get(SESSION_COOKIE_NAME);
+		if (sessionId) {
+			try {
+				// The session will be re-validated on the next request, so we can just delete the old cache entry.
+				await cacheService.delete(sessionId);
+				logger.debug(`Session cache invalidated for self-updated user ${userIdToUpdate}`);
+			} catch (cacheError) {
+				logger.warn(`Failed to invalidate session cache during self-update: ${cacheError}`);
+			}
+		}
+	}
+
+	// Note: We no longer cache user data by ID or email - session cache is the only cache
+	// This eliminates redundant caching and cache invalidation complexity
+
+	// Invalidate admin users list cache so UI updates immediately
+	try {
+		await cacheService.clearByPattern(`api:*:/api/user*`, tenantId);
+		logger.debug('Admin users list cache cleared after user update');
+	} catch (cacheError) {
+		logger.warn(`Failed to clear admin users cache: ${cacheError}`);
+	}
+
+	// Invalidate roles cache since user data may have changed
+	const { invalidateRolesCache } = await import('@src/hooks/handleAuthorization');
+	invalidateRolesCache(tenantId);
+
+	logger.info('User attributes updated successfully', {
+		user_id: userIdToUpdate,
+		updatedBy: user?._id,
+		tenantId: tenantId,
+		updatedFields: Object.keys(validatedData)
+	});
+
+	return json({
+		success: true,
+		message: 'User updated successfully.',
+		user: updatedUser
+	});
+});

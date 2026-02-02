@@ -9,6 +9,7 @@
  * - Tracks performance metrics (cache hits, misses, errors)
  * - Handles cache bypass with query parameters
  * - Optimizes streaming performance by using response clones
+ * - **Unified Error Handling**: Catches middleware errors and returns standardized JSON.
  *
  * ### Caching Strategy
  * - **Cached**: Successful GET requests (per user, per tenant, per endpoint)
@@ -29,9 +30,9 @@
  * @prerequisite User authentication and authorization are complete
  */
 
-import { error, type Handle } from '@sveltejs/kit';
-import { getErrorMessage } from '@utils/errorHandling';
-import { hasApiPermission } from '@src/databases/auth/apiPermissions';
+import { type Handle } from '@sveltejs/kit';
+import { getErrorMessage, AppError, handleApiError } from '@utils/errorHandling';
+import { hasApiPermission, API_PERMISSIONS } from '@src/databases/auth/apiPermissions';
 import { cacheService, API_CACHE_TTL_S } from '@src/databases/CacheService';
 import { metricsService } from '@src/services/MetricsService';
 import { logger } from '@utils/logger.server';
@@ -55,10 +56,13 @@ function shouldBypassCache(searchParams: URLSearchParams): boolean {
 	return searchParams.get('refresh') === 'true' || searchParams.get('nocache') === 'true';
 }
 
-import { API_PERMISSIONS } from '@src/databases/auth/apiPermissions';
-
-function isPublicApiRoute(pathname: string): boolean {
+function isPublicApiRoute(pathname: string, method?: string): boolean {
 	const relative = pathname.replace(/^\/api\//, '');
+
+	// Allow GET requests to /api/token/... for registration check
+	if (pathname.startsWith('/api/token/') && method === 'GET') {
+		return true;
+	}
 
 	// Fast check for explicitly defined public endpoints
 	// We check if any permission key with '*' allows access to this path
@@ -76,8 +80,6 @@ function isPublicApiRoute(pathname: string): boolean {
 	return ['/api/system/version', '/api/user/login'].includes(pathname);
 }
 
-// ...
-
 export const handleApiRequests: Handle = async ({ event, resolve }) => {
 	const { url, locals, request } = event;
 
@@ -92,44 +94,43 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 	}
 
 	// Dynamic check for public API endpoints based on permissions configuration
-	if (isPublicApiRoute(url.pathname)) {
+	if (isPublicApiRoute(url.pathname, request.method)) {
 		return resolve(event);
 	}
 
-	// Require authentication for all other API routes
-	if (!locals.user) {
-		logger.warn(`Unauthenticated API access attempt: ${url.pathname}`);
-		throw error(401, 'Authentication required');
-	}
-
-	metricsService.incrementApiRequests();
-
 	try {
+		// Require authentication for all other API routes
+		if (!locals.user) {
+			logger.warn(`Unauthenticated API access attempt: ${url.pathname}`);
+			throw new AppError('Authentication required', 401, 'UNAUTHORIZED');
+		}
+
+		metricsService.incrementApiRequests();
+
 		const apiEndpoint = getApiEndpoint(url.pathname);
 
 		if (!apiEndpoint) {
 			logger.warn(`Invalid API path: ${url.pathname}`);
-			throw error(400, 'Invalid API path');
+			throw new AppError('Invalid API path', 400, 'INVALID_PATH');
 		}
 
 		// --- 1. Authorization Check ---
 		if (url.pathname === '/api/user/logout') {
 			logger.trace('Logout endpoint - bypassing permission checks');
-			return resolve(event);
+			// Proceed to resolve
+		} else {
+			if (!hasApiPermission(locals.user.role, apiEndpoint)) {
+				logger.warn(
+					`User ${locals.user._id} (role: ${locals.user.role}, tenant: ${locals.tenantId || 'global'}) ` +
+						`denied access to /api/${apiEndpoint} - insufficient permissions`
+				);
+				throw new AppError(`Forbidden: Your role (${locals.user.role}) does not have permission to access this API endpoint.`, 403, 'FORBIDDEN');
+			}
+			logger.trace(`User ${locals.user._id} granted access to /api/${apiEndpoint}`, {
+				role: locals.user.role,
+				tenant: locals.tenantId || 'global'
+			});
 		}
-
-		if (!hasApiPermission(locals.user.role, apiEndpoint)) {
-			logger.warn(
-				`User ${locals.user._id} (role: ${locals.user.role}, tenant: ${locals.tenantId || 'global'}) ` +
-					`denied access to /api/${apiEndpoint} - insufficient permissions`
-			);
-			throw error(403, `Forbidden: Your role (${locals.user.role}) does not have permission to access this API endpoint.`);
-		}
-
-		logger.trace(`User ${locals.user._id} granted access to /api/${apiEndpoint}`, {
-			role: locals.user.role,
-			tenant: locals.tenantId || 'global'
-		});
 
 		// --- 2. Handle GET Requests with Caching ---
 		if (request.method === 'GET') {
@@ -160,7 +161,9 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 				}
 			} else {
 				logger.debug(`Cache bypass requested for ${url.pathname}`);
-			} // Resolve the request (cache miss or bypassed)
+			}
+
+			// Resolve the request (cache miss or bypassed)
 			const response = await resolve(event);
 
 			// --- OPTIMIZED: GraphQL bypass, no new Response created ---
@@ -174,42 +177,40 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 			if (response.ok) {
 				metricsService.recordApiCacheMiss();
 
-				// Clone the response to read body without consuming the original stream
-				const responseClone = response.clone();
+				// Check Content-Type to ensuring we only cache JSON responses
+				const contentType = response.headers.get('content-type');
+				if (contentType?.includes('application/json')) {
+					// Clone the response to read body without consuming the original stream
+					const responseClone = response.clone();
 
-				// Set cache header immediately
-				response.headers.set('X-Cache', 'MISS');
+					// Set cache header immediately on the response going to the user
+					response.headers.set('X-Cache', 'MISS');
 
-				// Cache in background - don't await to avoid blocking the response stream
-				// This is especially important for large payloads (e.g., file downloads, large JSON)
-				(async () => {
-					try {
-						const responseBody = await responseClone.text();
-						const responseData = JSON.parse(responseBody);
+					// Cache in background - don't await to avoid blocking the response stream
+					(async () => {
+						try {
+							const responseBody = await responseClone.text();
+							const responseData = JSON.parse(responseBody);
 
-						await cacheService.set(
-							cacheKey,
-							{
-								data: responseData,
-								headers: Object.fromEntries(responseClone.headers)
-							},
-							API_CACHE_TTL_S,
-							locals.tenantId
-						);
+							await cacheService.set(
+								cacheKey,
+								{
+									data: responseData,
+									headers: Object.fromEntries(responseClone.headers)
+								},
+								API_CACHE_TTL_S,
+								locals.tenantId
+							);
 
-						logger.trace(`Background cache set complete for ${url.pathname}`);
-					} catch (processingError) {
-						// Only log JSON parse errors if response is expected to be JSON
-						const contentType = responseClone.headers.get('content-type');
-						if (contentType?.includes('application/json')) {
+							logger.trace(`Background cache set complete for ${url.pathname}`);
+						} catch (processingError) {
 							logger.error(`Error caching API response for /api/${apiEndpoint}: ${getErrorMessage(processingError)}`);
-						} else {
-							logger.trace(`Skipped caching non-JSON response for /api/${apiEndpoint}`);
 						}
-					}
-				})();
+					})();
+				} else {
+					logger.trace(`Skipped caching non-JSON response for /api/${apiEndpoint}`);
+				}
 
-				// Return original response immediately (streaming not blocked)
 				return response;
 			}
 
@@ -237,8 +238,10 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
 		return response;
 	} catch (err) {
+		// --- UNIFIED ERROR HANDLING ---
+		// Catch any AppError thrown during Auth/Permissions checks above
 		metricsService.incrementApiErrors();
-		throw err;
+		return handleApiError(err, event);
 	}
 };
 

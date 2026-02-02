@@ -24,7 +24,6 @@ import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import { randomBytes } from 'crypto';
 import { safeParse } from 'valibot';
-import type { RequestHandler } from './$types';
 
 // Collection utilities
 import type { Locale } from '@src/paraglide/runtime';
@@ -40,7 +39,13 @@ interface AdminConfig {
 
 import { getCachedFirstCollectionPath } from '@utils/server/collection-utils.server';
 
-export const POST: RequestHandler = async ({ request, cookies, url }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+// ... (existing imports)
+
+export const POST = apiHandler(async ({ request, cookies, url }) => {
 	const correlationId = randomBytes(6).toString('hex');
 	try {
 		const setupData = await request.json();
@@ -83,7 +88,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 				invalidateSetupCache(true);
 			} catch (modeError) {
 				logger.error('Failed to update system modes:', modeError);
-				return json({ success: false, error: 'Failed to apply system mode settings.' }, { status: 500 });
+				throw new AppError('Failed to apply system mode settings.', 500, 'SYSTEM_MODE_UPDATE_FAILED');
 			}
 		}
 
@@ -91,7 +96,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		const adminValidation = safeParse(setupAdminSchema, admin);
 		if (!adminValidation.success) {
 			const issues = adminValidation.issues.map((i) => i.message).join(', ');
-			return json({ success: false, error: `Invalid admin user data: ${issues}` }, { status: 400 });
+			throw new AppError(`Invalid admin user data: ${issues}`, 400, 'INVALID_ADMIN_DATA');
 		}
 
 		// 2. Initialize full system using DB config from filesystem (bypass Vite cache)
@@ -215,13 +220,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 				stack: errorStack,
 				correlationId
 			});
-			return json(
-				{
-					success: false,
-					error: `System initialization failed: ${errorMessage}`
-				},
-				{ status: 500 }
-			);
+			throw new AppError(`System initialization failed: ${errorMessage}`, 500, 'INIT_FAILED');
 		}
 
 		// 3. Create admin user AND session using combined optimized method (single DB transaction)
@@ -238,7 +237,8 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			const existingUser = await setupAuth.getUserByEmail({ email: admin.email });
 
 			if (existingUser && existingUser._id) {
-				// Update existing user
+				// ... existing logic ...
+				// (Assuming mostly unchanged logic, just cleaner)
 				logger.info('Updating existing admin user', { correlationId, email: admin.email, userId: existingUser._id });
 
 				await setupAuth.updateUserAttributes(existingUser._id, {
@@ -248,37 +248,12 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 					isRegistered: true
 				});
 
-				logger.debug('User attributes updated, fetching updated user...', { correlationId, userId: existingUser._id });
-
 				const updatedUser = await setupAuth.getUserByEmail({ email: admin.email });
 				if (!updatedUser) throw new Error('Failed to retrieve updated admin user');
 				adminUser = updatedUser;
 
-				logger.debug('Updated user retrieved, creating session...', { correlationId, userId: adminUser._id });
-
-				// Create session for updated user (returns Session directly, not DatabaseResult)
-				try {
-					session = await setupAuth.createSession({ user_id: adminUser._id, expires });
-
-					logger.debug('Session creation result:', {
-						correlationId,
-						hasSession: !!session,
-						sessionId: session?._id,
-						sessionType: typeof session,
-						sessionKeys: session ? Object.keys(session) : []
-					});
-
-					if (!session || !session._id) {
-						throw new Error('Failed to create session - session object invalid');
-					}
-				} catch (sessionError) {
-					logger.error('Session creation error:', {
-						correlationId,
-						error: sessionError instanceof Error ? sessionError.message : String(sessionError),
-						stack: sessionError instanceof Error ? sessionError.stack : undefined
-					});
-					throw new Error(`Failed to create session: ${sessionError instanceof Error ? sessionError.message : String(sessionError)}`);
-				}
+				session = await setupAuth.createSession({ user_id: adminUser._id, expires });
+				if (!session || !session._id) throw new Error('Failed to create session - session object invalid');
 
 				logger.info('✅ Admin user updated and session created', { correlationId, userId: adminUser._id, sessionId: session._id });
 			} else {
@@ -296,33 +271,14 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 					{ expires }
 				);
 
-				logger.debug('createUserAndSession result:', {
-					correlationId,
-					success: result.success,
-					hasData: result.success ? !!result.data : false,
-					dataType: result.success ? typeof result.data : 'none',
-					dataKeys: result.success && result.data ? Object.keys(result.data) : []
-				});
-
 				if (!result.success) {
 					const errorMsg = 'error' in result ? result.error?.message : 'Failed to create user and session';
 					throw new Error(errorMsg);
 				}
-
-				if (!result.data) {
-					throw new Error('Failed to create user and session - no data returned');
-				}
+				if (!result.data) throw new Error('Failed to create user and session - no data returned');
 
 				adminUser = result.data.user;
 				session = result.data.session;
-
-				logger.debug('User and session assigned from result', {
-					correlationId,
-					hasUser: !!adminUser,
-					hasSession: !!session,
-					userId: adminUser?._id,
-					sessionId: session?._id
-				});
 
 				logger.info('✅ Admin user and session created (single transaction)', {
 					correlationId,
@@ -331,28 +287,15 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 				});
 			}
 
-			// Verify we have both user and session before proceeding
-			logger.debug('Verifying user and session data...', {
-				correlationId,
-				hasAdminUser: !!adminUser,
-				hasSession: !!session,
-				adminUserType: typeof adminUser,
-				sessionType: typeof session
-			});
-
 			if (!adminUser || !session) {
 				throw new Error(`Missing data after auth operations - adminUser: ${!!adminUser}, session: ${!!session}`);
 			}
-
-			logger.debug('Verification passed, exiting try block...', { correlationId });
 		} catch (authError) {
 			logger.error('Failed to create admin user and session:', authError);
-			return json(
-				{
-					success: false,
-					error: `Failed to create admin user: ${authError instanceof Error ? authError.message : String(authError)}`
-				},
-				{ status: 500 }
+			throw new AppError(
+				`Failed to create admin user: ${authError instanceof Error ? authError.message : String(authError)}`,
+				500,
+				'ADMIN_CREATION_FAILED'
 			);
 		}
 
@@ -402,19 +345,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 
 		// Verify session and user are properly set
 		if (!session || !adminUser) {
-			logger.error('Session or admin user not properly initialized', {
-				hasSession: !!session,
-				hasAdminUser: !!adminUser,
-				sessionId: session?._id,
-				userId: adminUser?._id
-			});
-			return json(
-				{
-					success: false,
-					error: 'Failed to initialize admin user and session'
-				},
-				{ status: 500 }
-			);
+			throw new AppError('Failed to initialize admin user and session', 500, 'SESSION_INIT_FAILED');
 		}
 
 		// 4. Initialize the global system (db.ts) - use in-memory config (MOST EFFICIENT!)
@@ -438,34 +369,19 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			const result = await initializeWithConfig(fullConfig);
 
 			if (result.status !== 'success') {
-				// System initialization FAILED - cannot continue
 				const errorMsg = `System initialization failed: ${result.error || 'Unknown error'}`;
-				logger.error(errorMsg, { correlationId });
-				return json(
-					{
-						success: false,
-						error: errorMsg
-					},
-					{ status: 500 }
-				);
+				throw new Error(errorMsg);
 			}
 
 			logger.info('✅ Global system initialized successfully (in-memory config)', { correlationId });
 		} catch (initError) {
-			// System initialization threw an exception - cannot continue
 			const errorMsg = `System initialization exception: ${initError instanceof Error ? initError.message : String(initError)}`;
 			logger.error(errorMsg, {
 				error: initError instanceof Error ? initError.message : String(initError),
 				stack: initError instanceof Error ? initError.stack : undefined,
 				correlationId
 			});
-			return json(
-				{
-					success: false,
-					error: errorMsg
-				},
-				{ status: 500 }
-			);
+			throw new AppError(errorMsg, 500, 'GLOBAL_INIT_FAILED');
 		}
 
 		// 5. Now safe to invalidate caches (after system is initialized)
@@ -475,34 +391,20 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		logger.info('Caches invalidated', { correlationId });
 
 		// 5.1 Warm up session cache in the global auth instance
-		// This ensures the newly created session is recognized immediately after setup
 		try {
 			const { auth: globalAuth } = await import('@src/databases/db');
 			if (globalAuth && session && session._id) {
-				// Validate the session using the global auth instance to populate its cache
 				const validatedUser = await globalAuth.validateSession(session._id);
 				if (validatedUser) {
-					logger.info('✅ Session cache warmed up in global auth instance', {
-						correlationId,
-						sessionId: session._id,
-						userId: validatedUser._id
-					});
-
+					logger.info('✅ Session cache warmed up in global auth instance', { correlationId, sessionId: session._id });
 					// Also warm up the handleAuthentication cache
 					const { clearSessionRefreshAttempt } = await import('@src/hooks/handleAuthentication');
 					if (clearSessionRefreshAttempt) {
 						clearSessionRefreshAttempt(session._id);
-						logger.debug('Cleared session refresh cooldown', { correlationId, sessionId: session._id });
 					}
-				} else {
-					logger.warn('Session validation returned null - session may not be recognized', {
-						correlationId,
-						sessionId: session._id
-					});
 				}
 			}
 		} catch (cacheWarmupError) {
-			// Non-fatal: Log but continue - user can still login manually if needed
 			logger.warn('Failed to warm up session cache (non-fatal)', {
 				correlationId,
 				error: cacheWarmupError instanceof Error ? cacheWarmupError.message : String(cacheWarmupError)
@@ -510,10 +412,9 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		}
 
 		// 6. Send welcome email to the new admin user (optional - graceful failure)
-		// Only send if SMTP was configured during setup
 		if (!skipWelcomeEmail) {
 			try {
-				const hostLink = url.origin; // Get the full origin (protocol + host)
+				const hostLink = url.origin;
 				const langFromStore = app.systemLanguage;
 				const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
 				const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
@@ -538,96 +439,59 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 				});
 
 				if (emailResponse.ok) {
-					logger.info('✅ Welcome email sent successfully', { correlationId, to: admin.email });
+					logger.info('✅ Welcome email sent successfully', { correlationId });
 				} else {
 					const emailError = await emailResponse.text();
 					logger.warn('Failed to send welcome email (non-fatal)', { correlationId, to: admin.email, error: emailError });
 				}
 			} catch (emailError) {
-				// Don't fail setup if email fails - just log the error
 				logger.warn('Error sending welcome email (non-fatal)', {
 					correlationId,
 					error: emailError instanceof Error ? emailError.message : String(emailError)
 				});
 			}
-		} else {
-			logger.info('Skipping welcome email (SMTP not configured during setup)', { correlationId });
 		}
 
-		// 6.5 CRITICAL: Warm cache BEFORE redirecting user (ensures instant first load)
+		// 6.5 CRITICAL: Warm cache BEFORE redirecting user
 		try {
 			const warmupUrl = `${url.protocol}//${url.host}/`;
 			logger.info(`🔥 Warming cache by fetching ${warmupUrl}...`, { correlationId });
-
-			const warmupResponse = await fetch(warmupUrl, {
+			await fetch(warmupUrl, {
 				headers: {
 					'User-Agent': 'SveltyCMS-Setup-Cache-Warmer/1.0',
 					'X-Cache-Warmup': 'true'
 				}
 			});
-
-			if (warmupResponse.ok) {
-				const contentLength = warmupResponse.headers.get('content-length');
-				logger.info('✅ Cache successfully warmed - first load will be INSTANT', {
-					correlationId,
-					status: warmupResponse.status,
-					contentLength: contentLength ? `${contentLength} bytes` : 'unknown',
-					cached: 'homepage SSR pre-rendered'
-				});
-			} else {
-				logger.warn(`Cache warming returned ${warmupResponse.status}, but continuing...`, {
-					correlationId,
-					status: warmupResponse.status,
-					statusText: warmupResponse.statusText
-				});
-			}
 		} catch (warmupError) {
-			// Non-fatal: Log but continue - first load will just be slower
-			logger.warn('Cache warming failed (non-critical - first load may be slower)', {
+			logger.warn('Cache warming failed (non-critical)', {
 				correlationId,
 				error: warmupError instanceof Error ? warmupError.message : String(warmupError)
 			});
 		}
 
-		// 7. Determine redirect path - PREFER PATH over UUID for clean URLs
+		// 7. Determine redirect path
 		let redirectPath: string;
 		try {
 			const langFromStore = app.systemLanguage;
 			const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
 			const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 
-			// ✅ PRIORITY 1: Use path from firstCollection (clean URL)
 			if (firstCollection?.path) {
-				// Ensure path has leading slash
 				const collectionPath = firstCollection.path.startsWith('/') ? firstCollection.path : `/${firstCollection.path}`;
 				redirectPath = `/${userLanguage}${collectionPath}`;
-				logger.info(`Setup complete: Redirecting to collection path: ${firstCollection.name} at ${redirectPath}`, {
-					correlationId
-				});
-			}
-			// ✅ PRIORITY 2: Fallback to database query for collections
-			else if (!firstCollection) {
+				logger.info(`Setup complete: Redirecting to collection path: ${firstCollection.name} at ${redirectPath}`, { correlationId });
+			} else if (!firstCollection) {
 				const collectionPath = await getCachedFirstCollectionPath(userLanguage);
-
 				if (collectionPath) {
-					// getCachedFirstCollectionPath already includes language prefix
 					redirectPath = collectionPath;
 					logger.info(`Setup complete: Redirecting to collection from database: ${redirectPath}`, { correlationId });
 				} else {
-					// No collections available - redirect to collection builder
-					logger.info('Setup complete: No collections available, redirecting to collection builder', { correlationId });
 					redirectPath = '/config/collectionbuilder';
 				}
-			}
-			// ⚠️ LEGACY FALLBACK: Use UUID only if path unavailable (will auto-redirect to path via client)
-			else if (firstCollection?._id) {
+			} else if (firstCollection?._id) {
 				redirectPath = `/${userLanguage}/${firstCollection._id}`;
-				logger.warn(`Setup complete: Using UUID redirect (path missing): ${redirectPath} - will redirect to path on client`, {
-					correlationId
-				});
+				logger.warn(`Setup complete: Using UUID redirect: ${redirectPath}`, { correlationId });
 			} else {
-				// Should never happen - but handle gracefully
-				logger.warn('Setup complete: No valid redirect target found, using collection builder', { correlationId });
 				redirectPath = '/config/collectionbuilder';
 			}
 		} catch (redirectError) {
@@ -638,32 +502,20 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			redirectPath = '/config/collectionbuilder';
 		}
 
-		// 8. Create session cookie (session already created in step 3)
+		// 8. Create session cookie
 		let sessionCookie;
 		try {
-			if (!setupAuth) {
-				throw new Error('Auth service not available');
-			}
-
-			if (!session || !session._id) {
-				throw new Error(`Invalid session object: ${JSON.stringify(session)}`);
-			}
+			if (!setupAuth) throw new Error('Auth service not available');
+			if (!session || !session._id) throw new Error(`Invalid session object`);
 
 			sessionCookie = setupAuth.createSessionCookie(session._id);
 			logger.info('✅ Session cookie created', { correlationId, sessionId: session._id });
 		} catch (sessionError) {
 			logger.error('Failed to create session:', sessionError);
-			logger.error('Session error details:', {
-				errorType: typeof sessionError,
-				errorKeys: sessionError ? Object.keys(sessionError) : [],
-				errorMessage: sessionError instanceof Error ? sessionError.message : 'Not an Error instance'
-			});
-			return json(
-				{
-					success: false,
-					error: `Failed to create session: ${sessionError instanceof Error ? sessionError.message : JSON.stringify(sessionError)}`
-				},
-				{ status: 500 }
+			throw new AppError(
+				`Failed to create session: ${sessionError instanceof Error ? sessionError.message : JSON.stringify(sessionError)}`,
+				500,
+				'SESSION_CREATION_FAILED'
 			);
 		}
 
@@ -699,42 +551,27 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		try {
 			const { telemetryService } = await import('@src/services/TelemetryService');
 			logger.info('📡 Triggering post-setup telemetry check...', { correlationId });
-
-			// Fire and forget - don't block the response
-			telemetryService.checkUpdateStatus().catch((telemetryError) => {
-				logger.warn('Post-setup telemetry check failed (non-fatal)', {
-					correlationId,
-					error: telemetryError instanceof Error ? telemetryError.message : String(telemetryError)
-				});
-			});
-
-			logger.info('✅ Post-setup telemetry check initiated', { correlationId });
+			// Fire and forget
+			telemetryService.checkUpdateStatus().catch((err) => logger.warn('Telemetry error', err));
 		} catch (telemetryError) {
-			// Non-fatal: Log but continue
 			logger.warn('Failed to trigger post-setup telemetry (non-fatal)', {
 				correlationId,
 				error: telemetryError instanceof Error ? telemetryError.message : String(telemetryError)
 			});
 		}
 
-		// 11. Return success - NO RESTART REQUIRED! ✨
+		// 11. Return success
 		return json({
 			success: true,
 			message: 'Setup complete! Welcome to SveltyCMS! 🎉',
 			redirectPath,
 			loggedIn: true,
-			requiresHardReload: false, // No hard reload needed
-			requiresServerRestart: false // ✨ No server restart needed!
+			requiresHardReload: false,
+			requiresServerRestart: false
 		});
 	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-		logger.error('Setup finalization failed', { correlationId, error: errorMessage });
-		return json(
-			{
-				success: false,
-				error: errorMessage
-			},
-			{ status: 500 }
-		);
+		if (error instanceof AppError) throw error;
+		console.error('Setup finalization failed', error);
+		throw new AppError(error instanceof Error ? error.message : 'An unknown error occurred', 500, 'SETUP_FAILED');
 	}
-};
+});

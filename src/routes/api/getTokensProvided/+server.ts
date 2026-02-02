@@ -17,7 +17,7 @@
  */
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 
 // Permissions
 
@@ -30,7 +30,10 @@ interface TokenStatus {
 	tiktok: boolean;
 }
 
-export const GET: RequestHandler = async () => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+
+export const GET = apiHandler(async () => {
 	// No permission checks needed - hooks already verified:
 	// 1. User is authenticated
 	// 2. User has correct role for this API endpoint
@@ -51,4 +54,4 @@ export const GET: RequestHandler = async () => {
 	logger.info('Tokens provided status', tokensProvided);
 
 	return json(tokensProvided);
-};
+});

@@ -10,16 +10,20 @@
  */
 
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+
 import { logger } from '@utils/logger.server';
 import { invalidateSetupCache } from '@utils/setupCheck';
 import type { DatabaseConfig } from '@src/databases/schemas';
 
-export const POST: RequestHandler = async ({ request }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ request }) => {
 	try {
 		const dbConfig = (await request.json()) as DatabaseConfig;
 
-		logger.info('� Starting setup initialization...', {
+		logger.info(' Starting setup initialization...', {
 			host: dbConfig.host,
 			port: dbConfig.port,
 			name: dbConfig.name
@@ -120,14 +124,9 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		logger.error('❌ Setup initialization failed:', errorDetails);
 
-		return json(
-			{
-				success: false,
-				error: error instanceof Error ? error.message : String(error),
-				details: errorDetails,
-				message: 'Initialization failed, but you can continue. Data will be created on first use.'
-			},
-			{ status: 500 }
-		);
+		throw new AppError(error instanceof Error ? error.message : String(error), 500, 'SETUP_INIT_FAILED', {
+			details: errorDetails,
+			message: 'Initialization failed, but you can continue. Data will be created on first use.'
+		});
 	}
-};
+});

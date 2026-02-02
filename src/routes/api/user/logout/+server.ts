@@ -15,21 +15,23 @@
  * - Robust error handling and logging.
  */
 
-import { error, json, type HttpError } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { json, type HttpError, type RequestHandler } from '@sveltejs/kit';
 // Auth
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
-import { cacheService } from '@src/databases/CacheService';
 import { auth } from '@src/databases/db';
 // System Logger
 import { logger } from '@utils/logger.server';
 
-export const POST: RequestHandler = async ({ cookies, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST: RequestHandler = apiHandler(async ({ cookies, locals }) => {
 	const { user, session_id, tenantId } = locals;
 	try {
 		if (!auth) {
 			logger.error('Authentication system is not initialized.');
-			throw error(500, 'Internal Server Error: Auth system not initialized');
+			throw new AppError('Internal Server Error: Auth system not initialized', 500, 'AUTH_SYS_ERROR');
 		} // Check if a user session actually exists for this request.
 
 		if (session_id && user) {
@@ -61,12 +63,16 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 					// Log the error but don't block the local logout process.
 					logger.error('Error while trying to revoke Google OAuth token', { userId: user._id, error: revokeError, tenantId });
 				}
-			} // Destroy the session on the server-side (database, cache, etc.).
+			}
 
-			await auth.destroySession(session_id); // Also clear the session from cache
+			// Destroy the session on the server-side (database, cache, etc.).
+			await auth.destroySession(session_id); // Also clear the session from ALL caches (in-memory + distributed)
 
 			try {
-				await cacheService.delete(session_id);
+				// Import and call invalidateSessionCache to clear in-memory caches
+				// Dynamic import avoids circular dependencies if any
+				const { invalidateSessionCache } = await import('@src/hooks/handleAuthentication');
+				invalidateSessionCache(session_id, tenantId);
 			} catch (cacheError) {
 				logger.warn(`Failed to clear session cache: ${cacheError}`);
 			}
@@ -94,6 +100,7 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 
 		return json({ success: true, message: 'You have been logged out successfully.' });
 	} catch (err) {
+		if (err instanceof AppError) throw err;
 		// This block catches unexpected errors during session destruction.
 		const httpError = err as HttpError;
 		const status = httpError.status || 500;
@@ -113,12 +120,6 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 			logger.error('Failed to clear cookie during logout error handling.', { cookieError });
 		}
 
-		return json(
-			{
-				success: false,
-				message: status === 500 ? 'Internal Server Error' : message
-			},
-			{ status }
-		);
+		throw new AppError(message, status, 'LOGOUT_FAILED');
 	}
-};
+});

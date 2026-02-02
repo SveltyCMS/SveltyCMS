@@ -73,7 +73,7 @@ describeOrSkip('Telemetry API Endpoints', () => {
 			// If disabled, should return { status: 'disabled' }
 			expect(response.status).toBe(200);
 			const result = await response.json();
-			expect(['disabled', 'error', 'active', 'rate_limited']).toContain(result.status);
+			expect(['disabled', 'error', 'active', 'rate_limited', 'test_mode']).toContain(result.status);
 		});
 
 		it('should fail gracefully when upstream telemetry server is unreachable', async () => {

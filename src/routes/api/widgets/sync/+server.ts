@@ -3,14 +3,17 @@
  * @description API endpoint to sync file system widgets with database
  * This ensures all widgets found in the file system are registered in the database
  */
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
-import type { RequestHandler } from './$types';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 
 import { widgets } from '@stores/widgetStore.svelte.ts';
 
-export const POST: RequestHandler = async ({ locals, request }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ locals, request }) => {
 	const start = performance.now();
 
 	try {
@@ -18,14 +21,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		// Check authentication
 		if (!user) {
-			return json(
-				{
-					success: false,
-					message: 'Unauthorized',
-					error: 'Authentication credentials missing'
-				},
-				{ status: 401 }
-			);
+			throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 		}
 
 		// Check permission - only admins can sync widgets
@@ -34,14 +30,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		if (!hasWidgetPermission || !isAdmin) {
 			logger.warn(`User ${user._id} denied access to widget sync due to insufficient permissions`);
-			return json(
-				{
-					success: false,
-					message: 'Insufficient permissions',
-					error: 'User lacks api:widgets permission or admin role'
-				},
-				{ status: 403 }
-			);
+			throw new AppError('Insufficient permissions', 403, 'FORBIDDEN');
 		}
 
 		const tenantId = request.headers.get('X-Tenant-ID') || locals.tenantId || 'default-tenant';
@@ -56,7 +45,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		if (!locals.dbAdapter?.widgets) {
 			logger.error('Widget database adapter not available');
-			throw error(500, 'Widget database adapter not available');
+			throw new AppError('Widget database adapter not available', 500, 'DB_ADAPTER_UNAVAILABLE');
 		}
 
 		// Get current widgets from database
@@ -159,15 +148,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const duration = performance.now() - start;
 		const message = `Failed to sync widgets: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
-
-		// Standardized error response
-		return json(
-			{
-				success: false,
-				message: 'Internal Server Error',
-				error: message
-			},
-			{ status: 500 }
-		);
+		if (err instanceof AppError) throw err;
+		throw new AppError(message, 500, 'WIDGET_SYNC_FAILED');
 	}
-};
+});

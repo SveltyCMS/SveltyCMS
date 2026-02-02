@@ -13,6 +13,8 @@ Toolbar controls for the Zoom tool:
 -->
 
 <script lang="ts">
+	import { untrack } from 'svelte';
+
 	// Props from Tool.svelte
 	let {
 		zoomLevel = 100,
@@ -43,7 +45,7 @@ Toolbar controls for the Zoom tool:
 	} = $props();
 
 	// Local state for slider - derived from props but mutable for local interaction
-	let sliderValue = $state(zoomLevel);
+	let sliderValue = $state(untrack(() => zoomLevel));
 
 	// Sync local state when prop changes
 	$effect(() => {

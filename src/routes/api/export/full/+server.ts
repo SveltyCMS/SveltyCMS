@@ -1,4 +1,4 @@
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { getAllSettings } from '@src/services/settingsService';
 import { logger } from '@utils/logger.server';
 import { encryptData } from '@utils/crypto';
@@ -173,11 +173,24 @@ async function createExport(userId: string, options: ExportOptions): Promise<Exp
  *
  * Permissions: config:settings:read (or admin)
  */
-export const POST: RequestHandler = async ({ locals, request }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+/**
+ * Export full system configuration
+ * POST /api/export/full
+ *
+ * Exports settings and optionally collections with metadata.
+ * Supports filtering by groups/collections and sensitive data inclusion.
+ *
+ * Permissions: config:settings:read (or admin)
+ */
+export const POST = apiHandler(async ({ locals, request }) => {
 	// Check authentication
 	// Authentication already handled by hooks.server.ts (API_PERMISSIONS)
 	if (!locals.user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
 	try {
@@ -212,12 +225,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		});
 	} catch (error) {
 		logger.error('Export error:', error);
-		return json(
-			{
-				error: 'Export failed',
-				message: error instanceof Error ? error.message : 'Unknown error'
-			},
-			{ status: 500 }
-		);
+		if (error instanceof AppError) throw error;
+		throw new AppError(error instanceof Error ? error.message : 'Unknown error', 500, 'EXPORT_FAILED');
 	}
-};
+});

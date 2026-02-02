@@ -630,7 +630,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 		// but the image editor needs the full path (e.g., "/files/images/xxx.jpg")
 		const fullUrl = mediaUrl(file);
 		console.log('Image URL for editor:', { originalUrl: file.url, fullUrl });
-		
+
 		if (!fullUrl) {
 			console.error('Failed to construct URL for image:', file);
 			toaster.error({ description: 'Cannot edit image: Invalid URL' });

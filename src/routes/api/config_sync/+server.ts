@@ -6,16 +6,19 @@
  * Security: Protected by hooks, admin-only.
  */
 
-import { error, json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { json } from '@sveltejs/kit';
 import { configService } from '@src/services/ConfigService';
 import { invalidateSettingsCache } from '@src/services/settingsService';
 import { logger } from '@utils/logger.server';
 
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
 // GET → Returns filesystem vs. database synchronization status
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET = apiHandler(async ({ locals }) => {
 	if (!locals.user || !locals.isAdmin) {
-		throw error(403, 'Forbidden: Administrator access required.');
+		throw new AppError('Forbidden: Administrator access required.', 403, 'FORBIDDEN');
 	}
 
 	try {
@@ -25,14 +28,14 @@ export const GET: RequestHandler = async ({ locals }) => {
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		logger.error('Failed to get configuration status:', err);
-		throw error(500, `Configuration status check failed: ${message}`);
+		throw new AppError(`Configuration status check failed: ${message}`, 500, 'CONFIG_STATUS_ERROR');
 	}
-};
+});
 
 // POST → Triggers an 'import' or 'export' synchronization action
-export const POST: RequestHandler = async ({ locals, request }) => {
+export const POST = apiHandler(async ({ locals, request }) => {
 	if (!locals.user || !locals.isAdmin) {
-		throw error(403, 'Forbidden: Administrator access required.');
+		throw new AppError('Forbidden: Administrator access required.', 403, 'FORBIDDEN');
 	}
 
 	try {
@@ -73,11 +76,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			}
 
 			default:
-				return json({ success: false, message: 'Invalid action specified.' }, { status: 400 });
+				throw new AppError('Invalid action specified.', 400, 'INVALID_ACTION');
 		}
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		logger.error('Configuration sync POST failed:', err);
-		throw error(500, `Configuration sync failed: ${message}`);
+		if (err instanceof AppError) throw err;
+		throw new AppError(`Configuration sync failed: ${message}`, 500, 'CONFIG_SYNC_ERROR');
 	}
-};
+});

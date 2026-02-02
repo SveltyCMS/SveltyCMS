@@ -1,15 +1,19 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger.server';
 import crypto from 'crypto';
 
-export async function GET({ locals, url }: { locals: App.Locals; url: URL }): Promise<Response> {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ locals, url }) => {
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
 	if (!dbAdapter) {
-		throw error(500, 'Database not available');
+		throw new AppError('Database not available', 500, 'DB_UNAVAILABLE');
 	}
 
 	const page = Number(url.searchParams.get('page') ?? 1);
@@ -30,7 +34,7 @@ export async function GET({ locals, url }: { locals: App.Locals; url: URL }): Pr
 
 	if (!result.success) {
 		logger.error('Failed to fetch website tokens:', result.error);
-		throw error(500, 'Failed to fetch website tokens');
+		throw new AppError('Failed to fetch website tokens', 500, 'FETCH_TOKENS_FAILED');
 	}
 
 	return json({
@@ -39,26 +43,26 @@ export async function GET({ locals, url }: { locals: App.Locals; url: URL }): Pr
 			totalItems: result.data.total
 		}
 	});
-}
+});
 
-export async function POST({ locals, request }: { locals: App.Locals; request: Request }): Promise<Response> {
+export const POST = apiHandler(async ({ locals, request }) => {
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
 	if (!dbAdapter) {
-		throw error(500, 'Database not available');
+		throw new AppError('Database not available', 500, 'DB_UNAVAILABLE');
 	}
 
 	const { name } = await request.json();
 
 	if (!name) {
-		throw error(400, 'Token name is required');
+		throw new AppError('Token name is required', 400, 'MISSING_NAME');
 	}
 
 	const existingToken = await dbAdapter.websiteTokens.getByName(name);
 	if (existingToken.success && existingToken.data) {
-		throw error(409, 'A token with this name already exists');
+		throw new AppError('A token with this name already exists', 409, 'TOKEN_EXISTS');
 	}
 
 	const token = `sv_${crypto.randomBytes(24).toString('hex')}`;
@@ -72,8 +76,8 @@ export async function POST({ locals, request }: { locals: App.Locals; request: R
 
 	if (!result.success) {
 		logger.error('Failed to create website token:', result.error);
-		throw error(500, 'Failed to create website token');
+		throw new AppError('Failed to create website token', 500, 'CREATE_TOKEN_FAILED');
 	}
 
 	return json(result.data, { status: 201 });
-}
+});

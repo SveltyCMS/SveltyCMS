@@ -58,13 +58,6 @@ Professional rotate controls with straighten and snap features
 		onRotationChange(parseFloat(target.value));
 	}
 
-	function handleAngleNumber(e: Event) {
-		const target = e.currentTarget as HTMLInputElement;
-		let value = parseFloat(target.value) || 0;
-		value = Math.max(-180, Math.min(180, value));
-		onRotationChange(value);
-	}
-
 	// Keyboard shortcuts
 	function handleKeyDown(e: KeyboardEvent) {
 		if ((e.target as HTMLElement).tagName === 'INPUT') return;
@@ -259,27 +252,6 @@ Professional rotate controls with straighten and snap features
 		flex-wrap: wrap;
 	}
 
-	/* Individual sections within groups */
-	.control-section {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		flex-shrink: 0;
-	}
-
-	.control-label {
-		font-size: 0.75rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: rgb(var(--color-surface-500) / 1);
-		white-space: nowrap;
-	}
-
-	:global(.dark) .control-label {
-		color: rgb(var(--color-surface-400) / 1);
-	}
-
 	.btn-group {
 		display: flex;
 		gap: 0;
@@ -465,17 +437,6 @@ Professional rotate controls with straighten and snap features
 		color: rgb(var(--color-primary-500) / 1);
 		min-width: 3.5rem;
 		text-align: right;
-	}
-
-	.divider {
-		width: 1px;
-		height: 1.5rem;
-		background: rgb(var(--color-surface-300) / 1);
-		flex-shrink: 0;
-	}
-
-	:global(.dark) .divider {
-		background: rgb(var(--color-surface-600) / 1);
 	}
 
 	.actions {

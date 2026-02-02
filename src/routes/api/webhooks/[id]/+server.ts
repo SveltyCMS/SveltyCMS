@@ -4,19 +4,23 @@
  */
 
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+
 import { webhookService } from '@src/services/webhookService';
 import { logger } from '@utils/logger.server';
 
-// DELETE: Remove a webhook
-export const DELETE: RequestHandler = async ({ params, locals }) => {
-	try {
-		if (!locals.user || locals.user.role !== 'admin') {
-			return json({ error: 'Unauthorized' }, { status: 403 });
-		}
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
 
+// DELETE: Remove a webhook
+export const DELETE = apiHandler(async ({ params, locals }) => {
+	if (!locals.user || locals.user.role !== 'admin') {
+		throw new AppError('Unauthorized', 403, 'FORBIDDEN');
+	}
+
+	try {
 		const { id } = params;
-		if (!id) return json({ error: 'Missing ID' }, { status: 400 });
+		if (!id) throw new AppError('Missing ID', 400, 'MISSING_ID');
 
 		await webhookService.deleteWebhook(id);
 		logger.info(`Webhook deleted: ${id} by ${locals.user.email}`);
@@ -24,21 +28,22 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		return json({ success: true });
 	} catch (error) {
 		logger.error('Failed to delete webhook:', error);
-		return json({ error: 'Internal Server Error' }, { status: 500 });
+		if (error instanceof AppError) throw error;
+		throw new AppError('Internal Server Error', 500, 'WEBHOOK_DELETE_FAILED');
 	}
-};
+});
 
 // PATCH: Update a webhook
-export const PATCH: RequestHandler = async ({ params, request, locals }) => {
+export const PATCH = apiHandler(async ({ params, request, locals }) => {
+	if (!locals.user || locals.user.role !== 'admin') {
+		throw new AppError('Unauthorized', 403, 'FORBIDDEN');
+	}
+
 	try {
-		if (!locals.user || locals.user.role !== 'admin') {
-			return json({ error: 'Unauthorized' }, { status: 403 });
-		}
-
 		const { id } = params;
-		const updates = await request.json();
+		if (!id) throw new AppError('Missing ID', 400, 'MISSING_ID');
 
-		if (!id) return json({ error: 'Missing ID' }, { status: 400 });
+		const updates = await request.json();
 
 		// Ensure we don't accidentally create a new one with a different ID via updates
 		const webhook = await webhookService.saveWebhook({ ...updates, id });
@@ -48,6 +53,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		return json({ success: true, data: webhook });
 	} catch (error) {
 		logger.error('Failed to update webhook:', error);
-		return json({ error: 'Internal Server Error' }, { status: 500 });
+		if (error instanceof AppError) throw error;
+		throw new AppError('Internal Server Error', 500, 'WEBHOOK_UPDATE_FAILED');
 	}
-};
+});

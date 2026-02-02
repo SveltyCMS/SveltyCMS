@@ -4,7 +4,7 @@
  */
 
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+
 import { logger } from '@utils/logger.server';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 
@@ -44,47 +44,30 @@ function scanWidgetCode(code: string, widgetId: string): { valid: boolean; issue
 	return { valid: true, issues: [] };
 }
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ request, locals }) => {
 	const start = performance.now();
 	try {
 		const { user } = locals;
 
 		if (!user) {
-			return json(
-				{
-					success: false,
-					message: 'Unauthorized',
-					error: 'Authentication credentials missing'
-				},
-				{ status: 401 }
-			);
+			throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 		}
 
 		// Check permission
 		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', locals.roles);
 		if (!hasWidgetPermission) {
 			logger.warn(`User ${user._id} denied access to widget install API due to insufficient permissions`);
-			return json(
-				{
-					success: false,
-					message: 'Insufficient permissions',
-					error: 'User lacks api:widgets permission'
-				},
-				{ status: 403 }
-			);
+			throw new AppError('Insufficient permissions', 403, 'FORBIDDEN');
 		}
 
 		const { widgetId, tenantId } = await request.json();
 
 		if (!widgetId) {
-			return json(
-				{
-					success: false,
-					message: 'Validation Error',
-					error: 'Widget ID is required'
-				},
-				{ status: 400 }
-			);
+			throw new AppError('Widget ID is required', 400, 'MISSING_WIDGET_ID');
 		}
 
 		const actualTenantId = tenantId || locals.tenantId || 'default-tenant';
@@ -144,14 +127,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const duration = performance.now() - start;
 		const message = `Failed to install widget: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
-
-		return json(
-			{
-				success: false,
-				message: 'Internal Server Error',
-				error: message
-			},
-			{ status: 500 }
-		);
+		if (err instanceof AppError) throw err;
+		throw new AppError(message, 500, 'WIDGET_INSTALL_FAILED');
 	}
-};
+});

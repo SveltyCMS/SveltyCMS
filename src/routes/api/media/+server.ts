@@ -11,8 +11,7 @@
  * - Consistent error handling with DatabaseResult<T>
  */
 
-import { error, json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { json } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Database
@@ -30,16 +29,20 @@ const QuerySchema = v.object({
 	limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(100)), 100)
 });
 
-export const GET: RequestHandler = async ({ locals, url }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ locals, url }) => {
 	const { user, tenantId } = locals;
 	try {
 		// Authentication is handled by hooks.server.ts
 		if (!user) {
-			throw error(401, 'Unauthorized');
+			throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 		}
 
 		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-			throw error(400, 'Tenant could not be identified for this operation.');
+			throw new AppError('Tenant could not be identified for this operation.', 400, 'TENANT_MISSING');
 		} // Validate query parameters
 
 		const query = v.parse(QuerySchema, {
@@ -49,7 +52,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		if (!dbAdapter) {
 			logger.error('Database adapter not available');
-			throw error(500, 'Database connection unavailable');
+			throw new AppError('Database connection unavailable', 500, 'DB_UNAVAILABLE');
 		}
 
 		// --- MULTI-TENANCY: Scope the query by tenantId ---
@@ -71,7 +74,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				requestedBy: user?._id,
 				tenantId
 			});
-			throw error(500, 'Failed to retrieve media files');
+			throw new AppError('Failed to retrieve media files', 500, 'FETCH_FAILED');
 		} // Transform the data to match widget expectations
 
 		const mediaFiles = result.data.items.map((file) => {
@@ -110,10 +113,11 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		return json(mediaFiles);
 	} catch (err) {
+		if (err instanceof AppError) throw err;
 		const httpError = err as { status?: number; body?: { message?: string }; message?: string };
 		const status = httpError.status || 500;
 		const message = httpError.body?.message || httpError.message || 'Internal Server Error';
 		logger.error('Error fetching media files:', { error: message, status, tenantId: locals.tenantId });
-		throw error(status, message);
+		throw new AppError(message, status, 'MEDIA_FETCH_ERROR');
 	}
-};
+});

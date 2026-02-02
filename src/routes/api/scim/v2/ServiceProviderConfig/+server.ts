@@ -9,10 +9,13 @@
  */
 
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+// type RequestHandler removed
 import { SCIM_SCHEMAS } from '@src/types/scim';
 
-export const GET: RequestHandler = async ({ url }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+
+export const GET = apiHandler(async ({ url }) => {
 	return json({
 		schemas: [SCIM_SCHEMAS.SERVICE_PROVIDER_CONFIG],
 		documentationUri: 'https://sveltycms.com/docs/scim',
@@ -40,4 +43,4 @@ export const GET: RequestHandler = async ({ url }) => {
 			version: 'v1'
 		}
 	});
-};
+});

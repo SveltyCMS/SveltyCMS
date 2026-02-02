@@ -26,8 +26,7 @@
  * @see /docs/architecture/quantum-security.mdx for security details
  */
 
-import { error, json, type HttpError } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { json, type HttpError } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Auth
@@ -39,7 +38,11 @@ import { logger } from '@utils/logger.server';
 // Password utility
 import { verifyPassword } from '@utils/password';
 
-export const POST: RequestHandler = async ({ request, cookies, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ request, cookies, locals }) => {
 	// The main try...catch block is for unexpected server errors (e.g., DB connection fails).
 	// Expected client errors (like 401) are handled by `throw error()`, which SvelteKit catches.
 	try {
@@ -47,24 +50,24 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 
 		if (!auth) {
 			logger.error('Authentication system is not initialized.');
-			throw error(500, 'Internal Server Error: Auth system not initialized');
+			throw new AppError('Internal Server Error: Auth system not initialized', 500, 'AUTH_SYS_ERROR');
 		}
 
 		// In multi-tenant mode, a tenantId is required for login.
 		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			logger.error('Login attempt failed: Tenant ID is missing in a multi-tenant setup.');
-			throw error(400, 'Could not identify the tenant for this request.');
+			throw new AppError('Could not identify the tenant for this request.', 400, 'TENANT_REQUIRED');
 		} // Prevent an already authenticated user from trying to log in again.
 
 		if (existingUser) {
 			logger.warn('Authenticated user attempted to log in again.', { userId: existingUser._id });
-			throw error(400, 'You are already authenticated.');
+			throw new AppError('You are already authenticated.', 400, 'ALREADY_AUTHENTICATED');
 		}
 
 		const { email, password } = await request.json();
 
 		if (!email || !password) {
-			throw error(400, 'Email and password are required.');
+			throw new AppError('Email and password are required.', 400, 'MISSING_CREDENTIALS');
 		}
 
 		// --- MULTI-TENANCY: Scope user lookup to the current tenant ---
@@ -77,12 +80,12 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 
 		if (!user || !user.password) {
 			logger.warn(`Login attempt failed: User not found or password not set for email: ${email}`, { tenantId });
-			throw error(401, 'Invalid credentials.');
+			throw new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS');
 		} // **SECURITY**: Check if the user account is blocked.
 
 		if (user.blocked) {
 			logger.warn(`Blocked user attempted to log in: ${email}`, { userId: user._id, tenantId });
-			throw error(403, 'Your account has been suspended. Please contact support.');
+			throw new AppError('Your account has been suspended. Please contact support.', 403, 'USER_BLOCKED');
 		}
 
 		// QUANTUM-RESISTANT PASSWORD VERIFICATION
@@ -94,7 +97,7 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 
 		if (!isValidPassword) {
 			logger.warn(`Login attempt failed: Invalid password for user: ${email}`, { userId: user._id, tenantId });
-			throw error(401, 'Invalid credentials.');
+			throw new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS');
 		}
 
 		// Credentials are valid, create a session.
@@ -114,6 +117,7 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 
 		return json({ success: true, message: 'Login successful.' });
 	} catch (err) {
+		if (err instanceof AppError) throw err;
 		// This block now only catches unexpected errors or deliberate `throw error()` calls.
 		const httpError = err as HttpError;
 		const status = httpError.status || 500;
@@ -128,6 +132,6 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 		} // Re-throw the error so SvelteKit can format the final response.
 		// Or return a JSON response for API clients.
 
-		return json({ success: false, message }, { status });
+		throw new AppError(message, status, 'LOGIN_FAILED');
 	}
-};
+});

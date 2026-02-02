@@ -38,6 +38,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 import { metricsService } from '@src/services/MetricsService';
 import { cacheService } from '@src/databases/CacheService';
 import { logger } from '@utils/logger.server';
+import { AppError, handleApiError } from '@utils/errorHandling';
 
 // --- RATE LIMITER CONFIGURATION ---
 
@@ -192,9 +193,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 	if (building) return resolve(event);
 
 	// 2. Localhost during development OR production
-	// Allow bypassing this check for testing purposes
 	const bypassLocalhost = event.request.headers.get('x-test-rate-limit-bypass-localhost') === 'true';
-	// console.log(`[RateLimit] IP: ${clientIp}, Localhost: ${isLocalhost(clientIp)}, Bypass: ${bypassLocalhost}, Path: ${url.pathname}`);
 	if (isLocalhost(clientIp) && !bypassLocalhost) {
 		return resolve(event);
 	}
@@ -202,26 +201,41 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 	// 3. Static assets (no need to rate limit CDN-cached content)
 	if (isStaticAsset(url.pathname)) return resolve(event);
 
-	// --- Apply Rate Limiting ---
-	let limiter = generalLimiter;
+	try {
+		// --- Apply Rate Limiting ---
+		let limiter = generalLimiter;
 
-	if (url.pathname.startsWith('/api/auth')) {
-		limiter = authLimiter;
-	} else if (url.pathname.startsWith('/api/')) {
-		limiter = apiLimiter;
+		if (url.pathname.startsWith('/api/auth')) {
+			limiter = authLimiter;
+		} else if (url.pathname.startsWith('/api/')) {
+			limiter = apiLimiter;
+		}
+
+		if (await limiter.isLimited(event)) {
+			metricsService.incrementRateLimitViolations();
+
+			logger.warn(
+				`Rate limit exceeded for IP: ${clientIp}, ` +
+					`endpoint: ${url.pathname}, ` +
+					`UA: ${event.request.headers.get('user-agent')?.substring(0, 50) || 'unknown'}`
+			);
+
+			// Unified Error: Throw AppError instead of SvelteKit error
+			throw new AppError('Too Many Requests. Please slow down and try again later.', 429, 'RATE_LIMIT_EXCEEDED');
+		}
+
+		return await resolve(event);
+	} catch (err) {
+		// Use unified error handling for API routes
+		if (url.pathname.startsWith('/api/')) {
+			return handleApiError(err, event);
+		}
+
+		// For UI routes, convert AppError back to SvelteKit error to show proper error page
+		if (err instanceof AppError) {
+			throw error(err.status, err.message);
+		}
+
+		throw err;
 	}
-
-	if (await limiter.isLimited(event)) {
-		metricsService.incrementRateLimitViolations();
-
-		logger.warn(
-			`Rate limit exceeded for IP: ${clientIp}, ` +
-				`endpoint: ${url.pathname}, ` +
-				`UA: ${event.request.headers.get('user-agent')?.substring(0, 50) || 'unknown'}`
-		);
-
-		throw error(429, 'Too Many Requests. Please slow down and try again later.');
-	}
-
-	return resolve(event);
 };

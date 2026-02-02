@@ -35,6 +35,7 @@ import { cacheService, SESSION_CACHE_TTL_MS } from '@src/databases/CacheService'
 import { logger } from '@utils/logger.server';
 import { metricsService } from '@src/services/MetricsService';
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
+import { AppError, handleApiError } from '@utils/errorHandling';
 
 // --- IN-MEMORY SESSION CACHE WITH WEAKREF-BASED CLEANUP ---
 
@@ -365,7 +366,7 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 			event.locals.user = null;
 			event.locals.session_id = undefined;
 			invalidateSessionCache(oldSessionId, event.locals.tenantId);
-			throw error(401, 'Session expired. Please log in again.');
+			throw new AppError('Session expired. Please log in again.', 401, 'SESSION_EXPIRED');
 		}
 	}
 }
@@ -390,115 +391,131 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 
-	// --- Setup Guard Removed ---
-	// handleSetup already handles unconfigured states, saving import overhead.
+	try {
+		// --- Setup Guard Removed ---
+		// handleSetup already handles unconfigured states, saving import overhead.
 
-	// Attach database adapter
-	locals.dbAdapter = dbAdapter;
-	if (!dbAdapter) {
-		logger.warn('Database adapter unavailable; system initializing.');
-		// During setup/initialization, skip authentication entirely
-		// handleSetup will enforce proper access control for setup routes
-		return resolve(event);
-	}
+		// Attach database adapter
+		locals.dbAdapter = dbAdapter;
+		if (!dbAdapter) {
+			logger.warn('Database adapter unavailable; system initializing.');
+			// During setup/initialization, skip authentication entirely
+			// handleSetup will enforce proper access control for setup routes
+			return await resolve(event);
+		}
 
-	// Step 1: Multi-tenancy (synchronous check)
-	const multiTenant = getPrivateSettingSync('MULTI_TENANT');
-	const isDemoMode = getPrivateSettingSync('DEMO');
+		// Step 1: Multi-tenancy (synchronous check)
+		const multiTenant = getPrivateSettingSync('MULTI_TENANT');
+		const isDemoMode = getPrivateSettingSync('DEMO');
 
-	if (multiTenant) {
-		let tenantId: string | null = null;
+		if (multiTenant) {
+			let tenantId: string | null = null;
 
-		if (isDemoMode) {
-			// For demo mode, try to get tenantId from cookie first
-			tenantId = cookies.get('demo_tenant_id') || null;
+			if (isDemoMode) {
+				// For demo mode, try to get tenantId from cookie first
+				tenantId = cookies.get('demo_tenant_id') || null;
 
-			if (!tenantId) {
-				// If no demo_tenant_id cookie, generate a new one
-				tenantId = crypto.randomUUID();
-				// Set the cookie for future requests in this session
-				cookies.set('demo_tenant_id', tenantId, {
-					path: '/',
-					httpOnly: true,
-					secure: url.protocol === 'https:' || (url.hostname !== 'localhost' && !dev && process.env.TEST_MODE !== 'true'),
-					sameSite: 'lax',
-					maxAge: 60 * 20 // 20 minutes for a demo session
-				});
-				logger.info(`New demo tenant generated: ${tenantId}`);
+				if (!tenantId) {
+					// If no demo_tenant_id cookie, generate a new one
+					tenantId = crypto.randomUUID();
+					// Set the cookie for future requests in this session
+					cookies.set('demo_tenant_id', tenantId, {
+						path: '/',
+						httpOnly: true,
+						secure: url.protocol === 'https:' || (url.hostname !== 'localhost' && !dev && process.env.TEST_MODE !== 'true'),
+						sameSite: 'lax',
+						maxAge: 60 * 20 // 20 minutes for a demo session
+					});
+					logger.info(`New demo tenant generated: ${tenantId}`);
 
-				// --- Trigger Tenant Seeding Here ---
-				try {
-					await seedDemoTenant(dbAdapter, tenantId);
-					logger.info(`✅ New demo tenant ${tenantId} seeded successfully.`);
-				} catch (e) {
-					logger.error(`Failed to seed demo tenant ${tenantId}:`, e);
+					// --- Trigger Tenant Seeding Here ---
+					try {
+						await seedDemoTenant(dbAdapter, tenantId);
+						logger.info(`✅ New demo tenant ${tenantId} seeded successfully.`);
+					} catch (e) {
+						logger.error(`Failed to seed demo tenant ${tenantId}:`, e);
+					}
+				} else {
+					logger.trace(`Existing demo tenant from cookie: ${tenantId}`);
 				}
 			} else {
-				logger.trace(`Existing demo tenant from cookie: ${tenantId}`);
+				// Standard multi-tenancy: resolve tenantId from hostname
+				tenantId = getTenantIdFromHostname(url.hostname);
 			}
-		} else {
-			// Standard multi-tenancy: resolve tenantId from hostname
-			tenantId = getTenantIdFromHostname(url.hostname);
+
+			if (!tenantId) {
+				logger.error(`Tenant not found for hostname: ${url.hostname}`);
+				throw new AppError(`Tenant not found for hostname: ${url.hostname}`, 404, 'TENANT_NOT_FOUND');
+			}
+			locals.tenantId = tenantId;
+			logger.trace(`Tenant identified: ${tenantId}`);
 		}
 
-		if (!tenantId) {
-			logger.error(`Tenant not found for hostname: ${url.hostname}`);
-			throw error(404, `Tenant not found for hostname: ${url.hostname}`);
-		}
-		locals.tenantId = tenantId;
-		logger.trace(`Tenant identified: ${tenantId}`);
-	}
+		// Step 2: Session validation
+		const sessionId = cookies.get(SESSION_COOKIE_NAME);
+		if (sessionId) {
+			metricsService.incrementAuthValidations();
 
-	// Step 2: Session validation
-	const sessionId = cookies.get(SESSION_COOKIE_NAME);
-	if (sessionId) {
-		metricsService.incrementAuthValidations();
+			// Check if auth service is ready before attempting validation
+			if (!auth) {
+				logger.debug('Auth service not ready during session validation - skipping validation but preserving cookie');
+				// Do NOT delete cookie here - allow retry on next request
+				return await resolve(event);
+			}
 
-		// Check if auth service is ready before attempting validation
-		if (!auth) {
-			logger.debug('Auth service not ready during session validation - skipping validation but preserving cookie');
-			// Do NOT delete cookie here - allow retry on next request
-			return resolve(event);
-		}
+			const user = await getUserFromSession(sessionId, locals.tenantId);
+			if (user) {
+				// Tenant isolation check
+				if (locals.tenantId && user.tenantId && user.tenantId !== locals.tenantId) {
+					logger.warn(`Tenant isolation violation: User ${user._id} (tenant: ${user.tenantId}) tried ${locals.tenantId}`);
+					metricsService.incrementAuthFailures();
+					cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+					throw new AppError('Access denied: Tenant isolation violation', 403, 'FORBIDDEN_TENANT');
+				}
 
-		const user = await getUserFromSession(sessionId, locals.tenantId);
-		if (user) {
-			// Tenant isolation check
-			if (locals.tenantId && user.tenantId && user.tenantId !== locals.tenantId) {
-				logger.warn(`Tenant isolation violation: User ${user._id} (tenant: ${user.tenantId}) tried ${locals.tenantId}`);
+				// Set user in locals
+				locals.user = user;
+				locals.session_id = sessionId;
+				locals.permissions = user.permissions || [];
+				logger.trace(`User authenticated: ${user._id}`);
+
+				// Step 3: Automatic session rotation (security enhancement)
+				// Rotates session token every 15 minutes for active users
+				try {
+					await handleSessionRotation(event, user, sessionId);
+				} catch (rotationError) {
+					// Rotation errors are already handled in handleSessionRotation
+					// Just log additional context here if needed
+					if (rotationError instanceof Error && !rotationError.message.includes('Session expired')) {
+						logger.debug(`Non-critical rotation issue: ${rotationError.message}`);
+					}
+					// If it was "Session expired", it was likely rethrown or handled.
+					// If session rotation throws explicit error, we should probably let it bubble if strict.
+					// But handleSessionRotation usually handles its own errors unless critical.
+					// One critical path: "Session expired" error in rotation.
+				}
+			} else {
+				// Only delete cookie if auth was ready but session was invalid
+				// getUserFromSession returns null if session not found/expired OR if auth not ready
+				// But we checked !auth above, so here it means session is truly invalid
 				metricsService.incrementAuthFailures();
 				cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-				throw error(403, 'Access denied: Tenant isolation violation');
+				logger.trace(`Invalid session removed: ${sessionId.substring(0, 8)}...`);
 			}
-
-			// Set user in locals
-			locals.user = user;
-			locals.session_id = sessionId;
-			locals.permissions = user.permissions || [];
-			logger.trace(`User authenticated: ${user._id}`);
-
-			// Step 3: Automatic session rotation (security enhancement)
-			// Rotates session token every 15 minutes for active users
-			try {
-				await handleSessionRotation(event, user, sessionId);
-			} catch (rotationError) {
-				// Rotation errors are already handled in handleSessionRotation
-				// Just log additional context here if needed
-				if (rotationError instanceof Error && !rotationError.message.includes('Session expired')) {
-					logger.debug(`Non-critical rotation issue: ${rotationError.message}`);
-				}
-			}
-		} else {
-			// Only delete cookie if auth was ready but session was invalid
-			// getUserFromSession returns null if session not found/expired OR if auth not ready
-			// But we checked !auth above, so here it means session is truly invalid
-			metricsService.incrementAuthFailures();
-			cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-			logger.trace(`Invalid session removed: ${sessionId.substring(0, 8)}...`);
 		}
-	}
 
-	return resolve(event);
+		return await resolve(event);
+	} catch (err) {
+		if (url.pathname.startsWith('/api/')) {
+			return handleApiError(err, event);
+		}
+
+		if (err instanceof AppError) {
+			throw error(err.status, err.message);
+		}
+
+		throw err;
+	}
 };
 
 // --- UTILITY EXPORTS ---

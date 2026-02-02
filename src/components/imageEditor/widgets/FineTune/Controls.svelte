@@ -167,9 +167,9 @@ Professional fine-tune controls with presets and categories
 		<!-- Adjustment Selector -->
 		<div class="adjustments-scroll">
 			<div class="adjustments-grid">
-				{#each getAdjustmentsByCategory(activeCategory) as adj}
+				{#each getAdjustmentsByCategory(activeCategory as any) as adj}
 					{@const adjConfig = getAdjustmentConfig(adj.key)}
-					{@const hasChange = adjustments?.[adj.key] !== 0}
+					{@const hasChange = (adjustments?.[adj.key] ?? 0) !== 0}
 					<button
 						class="adjustment-btn"
 						class:active={activeAdjustment === adj.key}
@@ -180,7 +180,7 @@ Professional fine-tune controls with presets and categories
 						<iconify-icon icon={adj.icon} width="24"></iconify-icon>
 						<span class="adjustment-label">{adj.label}</span>
 						{#if hasChange}
-							<span class="change-indicator">{adjustments[adj.key] > 0 ? '+' : ''}{adjustments[adj.key]}</span>
+							<span class="change-indicator">{(adjustments?.[adj.key] ?? 0) > 0 ? '+' : ''}{adjustments?.[adj.key] ?? 0}</span>
 						{/if}
 					</button>
 				{/each}

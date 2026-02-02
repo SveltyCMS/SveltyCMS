@@ -3,79 +3,54 @@
  * @description API endpoint for updating widget status (with dependency validation)
  * Database agnostic - uses dbAdapter interface
  */
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
-import type { RequestHandler } from './$types';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 
 import { cacheService } from '@src/databases/CacheService';
 
-export const POST: RequestHandler = async ({ locals, request }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ locals, request }) => {
 	const start = performance.now();
 	try {
 		const { user } = locals;
 
 		// Check authentication
 		if (!user) {
-			return json(
-				{
-					success: false,
-					message: 'Unauthorized',
-					error: 'Authentication credentials missing'
-				},
-				{ status: 401 }
-			);
+			throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 		}
 
 		// Check permission
 		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', locals.roles);
 		if (!hasWidgetPermission) {
 			logger.warn(`User ${user._id} (role: ${user.role}) denied access to API /api/widgets due to insufficient role permissions`);
-			return json(
-				{
-					success: false,
-					message: 'Insufficient permissions',
-					error: 'User lacks api:widgets permission'
-				},
-				{ status: 403 }
-			);
+			throw new AppError('Insufficient permissions', 403, 'FORBIDDEN');
 		} // Check database adapter availability
 		if (!locals.dbAdapter?.widgets) {
-			throw error(500, 'Widget database adapter not available');
+			throw new AppError('Widget database adapter not available', 500, 'DB_ADAPTER_UNAVAILABLE');
 		}
 
 		const tenantId = request.headers.get('X-Tenant-ID') || locals.tenantId;
 		const { widgetName, isActive } = await request.json();
 
 		if (!widgetName || typeof isActive !== 'boolean') {
-			return json(
-				{
-					success: false,
-					message: 'Validation Error',
-					error: 'Missing or invalid widgetName or isActive'
-				},
-				{ status: 400 }
-			);
+			throw new AppError('Missing or invalid widgetName or isActive', 400, 'VALIDATION_ERROR');
 		}
 
 		// Get all widgets to find the one we're updating
 		const allWidgetsResult = await locals.dbAdapter.widgets.findAll();
 		if (!allWidgetsResult.success) {
-			throw error(500, `Failed to fetch widgets: ${allWidgetsResult.error?.message || 'Unknown error'}`);
+			throw new AppError(`Failed to fetch widgets: ${allWidgetsResult.error?.message || 'Unknown error'}`, 500, 'FETCH_WIDGETS_FAILED');
 		}
 
 		const allWidgets = allWidgetsResult.data || [];
 		const widget = allWidgets.find((w) => w.name === widgetName);
 
 		if (!widget) {
-			return json(
-				{
-					success: false,
-					message: 'Not Found',
-					error: `Widget "${widgetName}" not found.`
-				},
-				{ status: 404 }
-			);
+			throw new AppError(`Widget "${widgetName}" not found.`, 404, 'WIDGET_NOT_FOUND');
 		}
 
 		// Note: Widget interface doesn't track isCore status in database
@@ -99,13 +74,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			}
 
 			if (usedInCollections.length > 0) {
-				return json(
-					{
-						success: false,
-						message: 'Dependency Error',
-						error: `Cannot deactivate widget "${widgetName}". It is currently used in collections: ${usedInCollections.join(', ')}.`
-					},
-					{ status: 400 }
+				throw new AppError(
+					`Cannot deactivate widget "${widgetName}". It is currently used in collections: ${usedInCollections.join(', ')}.`,
+					400,
+					'DEPENDENCY_ERROR'
 				);
 			}
 		}
@@ -121,22 +93,17 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			}
 
 			if (inactiveDependencies.length > 0) {
-				return json(
-					{
-						success: false,
-						message: 'Dependency Error',
-						error:
-							`Cannot activate widget "${widgetName}". Required dependencies are inactive: ${inactiveDependencies.join(', ')}. ` +
-							`Please activate the dependencies first.`
-					},
-					{ status: 400 }
+				throw new AppError(
+					`Cannot activate widget "${widgetName}". Required dependencies are inactive: ${inactiveDependencies.join(', ')}. Please activate the dependencies first.`,
+					400,
+					'DEPENDENCY_ERROR'
 				);
 			}
 		}
 
 		// Update widget status in database using dbAdapter
 		if (!widget._id) {
-			throw error(500, 'Widget ID not found');
+			throw new AppError('Widget ID not found', 500, 'MISSING_WIDGET_ID');
 		}
 
 		logger.debug(`Updating widget "${widgetName}" in database`, {
@@ -157,7 +124,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				widgetName,
 				error: errorMsg
 			});
-			throw error(500, `Failed to update widget status: ${errorMsg || 'Unknown error'}`);
+			throw new AppError(`Failed to update widget status: ${errorMsg || 'Unknown error'}`, 500, 'UPDATE_FAILED');
 		}
 
 		// Clear widget active cache for current tenant ID
@@ -199,14 +166,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const duration = performance.now() - start;
 		const message = `Failed to update widget status: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
-
-		return json(
-			{
-				success: false,
-				message: 'Internal Server Error',
-				error: message
-			},
-			{ status: 500 }
-		);
+		if (err instanceof AppError) throw err;
+		throw new AppError(message, 500, 'UPDATE_STATUS_FAILED');
 	}
-};
+});

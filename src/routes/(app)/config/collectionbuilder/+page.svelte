@@ -1,16 +1,49 @@
+<!--
+@file src/routes/(app)/config/collectionbuilder/+page.svelte
+@component
+**Collection Builder Management Interface**
+
+Main entry point for managing collections and categories with visual organization.
+Provides drag-and-drop hierarchical organization and quick create workflows.
+
+### Features
+- **Visual Organization**: TreeView with drag-and-drop support
+- **Quick Create**: Modal-based creation for categories and collections
+- **Batch Operations**: Stage multiple changes before saving
+- **Real-time Validation**: Prevent invalid hierarchies and duplicates
+- **Undo Support**: Track pending changes before persistence
+
+### Props
+- `data.contentStructure` - Array of ContentNode objects representing current hierarchy
+- `data.user` - Current authenticated user information
+- `data.isAdmin` - Whether user has admin privileges
+
+### State Management
+- `currentConfig` - Working copy of content structure
+- `nodesToSave` - Pending operations to persist
+- `isLoading` - Global loading state for async operations
+
+### Server Actions
+- `?/saveConfig` - Persists organizational changes
+- `?/deleteCollections` - Deletes collections or categories
+
+### Keyboard Shortcuts
+None (TreeView has its own keyboard navigation)
+
+@example
+<CollectionBuilder data={{ contentStructure, user, isAdmin }} />
+-->
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import axios from 'axios';
-	import { obj2formData } from '@utils/utils';
 
 	// Logger
 	import { logger } from '@utils/logger';
 
 	// Stores
-	import { setCollectionValue, setMode, setContentStructure, contentStructure } from '@src/stores/collectionStore.svelte';
-	import { setRouteContext, ui } from '@src/stores/UIStore.svelte.ts';
-	import { screen } from '@stores/screenSizeStore.svelte.ts';
+	import { setCollectionValue, setMode, setContentStructure } from '@src/stores/collectionStore.svelte';
+	import { setRouteContext } from '@src/stores/UIStore.svelte.ts';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -45,38 +78,9 @@
 
 	$effect(() => {
 		if (data.contentStructure) {
-			currentConfig = data.contentStructure;
+			currentConfig = data.contentStructure as unknown as ContentNode[];
 		}
 	});
-
-	// Function to prepare organizational data for server saving (Robust version)
-	function buildCategoryStructure(nodes: ContentNode[]) {
-		const byParent = new Map<string | null, ContentNode[]>();
-		nodes.forEach((node) => {
-			const pid = node.parentId || null;
-			if (!byParent.has(pid)) byParent.set(pid, []);
-			byParent.get(pid)!.push(node);
-		});
-
-		function buildLevel(parentId: string | null): any[] {
-			const levelNodes = byParent.get(parentId) || [];
-			return levelNodes
-				.map((node) => {
-					if (node.nodeType === 'category') {
-						return {
-							name: node.name,
-							icon: node.icon,
-							children: buildLevel(node._id.toString()),
-							collections: (byParent.get(node._id.toString()) || []).filter((n) => n.nodeType === 'collection').map((n) => n.name)
-						};
-					}
-					return null;
-				})
-				.filter(Boolean);
-		}
-
-		return buildLevel(null);
-	}
 
 	async function handleNodeUpdate(updatedNodes: ContentNode[]) {
 		console.debug('[CollectionBuilder] Hierarchy updated via DnD');

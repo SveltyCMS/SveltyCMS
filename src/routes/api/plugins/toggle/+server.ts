@@ -10,23 +10,27 @@
  */
 
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+// type RequestHandler removed
 import { pluginRegistry } from '@src/plugins';
 import { logger } from '@utils/logger.server';
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ request, locals }) => {
 	const { user, tenantId } = locals;
 
 	// 1. Authorization Check (Admin only)
 	if (!user || user.role !== 'admin') {
-		return json({ success: false, message: 'Unauthorized' }, { status: 403 });
+		throw new AppError('Unauthorized', 403, 'FORBIDDEN');
 	}
 
 	try {
 		const { pluginId, enabled } = await request.json();
 
 		if (!pluginId || typeof enabled !== 'boolean') {
-			return json({ success: false, message: 'Invalid request body' }, { status: 400 });
+			throw new AppError('Invalid request body', 400, 'INVALID_BODY');
 		}
 
 		logger.info(`🔌 Toggling plugin ${pluginId} to ${enabled} for tenant ${tenantId || 'global'}`);
@@ -37,16 +41,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (success) {
 			return json({ success: true, message: `Plugin ${enabled ? 'enabled' : 'disabled'} successfully` });
 		} else {
-			return json({ success: false, message: 'Failed to update plugin state' }, { status: 500 });
+			throw new AppError('Failed to update plugin state', 500, 'UPDATE_FAILED');
 		}
 	} catch (error: any) {
+		if (error instanceof AppError) throw error;
 		logger.error('Error toggling plugin state:', error);
-		return json(
-			{
-				success: false,
-				message: `Error toggling plugin: ${error.message || 'Unknown error'}`
-			},
-			{ status: 500 }
-		);
+		throw new AppError(`Error toggling plugin: ${error.message || 'Unknown error'}`, 500, 'TOGGLE_ERROR');
 	}
-};
+});

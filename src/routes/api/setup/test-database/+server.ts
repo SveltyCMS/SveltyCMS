@@ -5,7 +5,7 @@
 
 import { databaseConfigSchema, type DatabaseConfig } from '@src/databases/schemas';
 import { logger } from '@utils/logger.server';
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { exec } from 'child_process';
 import { existsSync } from 'fs';
 import { join } from 'path';
@@ -608,7 +608,15 @@ async function testMariaDbConnection(dbConfig: DatabaseConfig) {
  * Main API endpoint to test MongoDB connections.
  * Simplified to focus on MongoDB as the primary database.
  */
-export const POST: RequestHandler = async ({ request }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+/**
+ * Main API endpoint to test MongoDB connections.
+ * Simplified to focus on MongoDB as the primary database.
+ */
+export const POST = apiHandler(async ({ request }) => {
 	try {
 		logger.info('🚀 Starting database test request processing...');
 		let raw;
@@ -616,7 +624,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			raw = await request.json();
 		} catch (e) {
 			logger.error('Failed to parse request JSON:', e);
-			return json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
+			throw new AppError('Invalid JSON body', 400, 'INVALID_JSON');
 		}
 		logger.info('🔍 Raw request body received:', raw, typeof raw, Array.isArray(raw));
 		// IMPORTANT: All dbConfig validation is performed server-side only using databaseConfigSchema.
@@ -644,7 +652,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const { success: validationSuccess, issues, output: dbConfig } = safeParse(databaseConfigSchema, body);
 		if (!validationSuccess || !dbConfig) {
 			logger.error('Invalid database configuration received for testing.', { issues });
-			return json({ success: false, error: 'Invalid database configuration.', details: issues }, { status: 400 });
+			throw new AppError('Invalid database configuration.', 400, 'INVALID_DB_CONFIG', { details: issues });
 		}
 
 		logger.info(`🎯 Database type ${dbConfig.type} is supported, proceeding with test...`);
@@ -659,15 +667,10 @@ export const POST: RequestHandler = async ({ request }) => {
 			default:
 				// This should never happen due to schema validation, but TypeScript requires it
 				logger.warn(`Unsupported database type requested: ${dbConfig.type}`);
-				return json(
-					{
-						success: false,
-						error: `Database type '${dbConfig.type}' is not supported for testing.`
-					},
-					{ status: 400 }
-				);
+				throw new AppError(`Database type '${dbConfig.type}' is not supported for testing.`, 400, 'UNSUPPORTED_DB_TYPE');
 		}
 	} catch (error) {
+		if (error instanceof AppError) throw error;
 		// Simple, robust error logging to avoid recursive issues
 		logger.error('🚨 Critical error in POST handler');
 		// Try to log error details safely
@@ -702,14 +705,9 @@ export const POST: RequestHandler = async ({ request }) => {
 			errorMessage = 'Error processing failed';
 		}
 
-		return json(
-			{
-				success: false,
-				error: 'Internal server error',
-				userFriendly: 'An unexpected error occurred. Please try again.',
-				details: errorMessage
-			},
-			{ status: 500 }
-		);
+		throw new AppError('Internal server error', 500, 'INTERNAL_SERVER_ERROR', {
+			userFriendly: 'An unexpected error occurred. Please try again.',
+			details: errorMessage
+		});
 	}
-};
+});

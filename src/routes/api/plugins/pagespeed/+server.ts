@@ -3,8 +3,7 @@
  * @description API endpoint for PageSpeed Insights plugin
  */
 
-import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { json } from '@sveltejs/kit';
 import { getPublicSettingSync, getPrivateSettingSync } from '@src/services/settingsService';
 import { contentManager } from '@src/content/ContentManager';
 import { deriveEntryUrl, validateUrl } from '@src/plugins/pagespeed/urlUtils';
@@ -12,16 +11,20 @@ import { fetchPageSpeedInsights, storeResult, getCachedResult } from '@src/plugi
 import type { PageSpeedResult } from '@src/plugins/pagespeed/types';
 import { logger } from '@utils/logger.server';
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ request, locals }) => {
 	const { user, tenantId, dbAdapter } = locals;
 
 	// Authentication check
 	if (!user) {
-		throw error(401, 'Unauthorized');
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
 	if (!dbAdapter) {
-		throw error(500, 'Database adapter not available');
+		throw new AppError('Database adapter not available', 500, 'DB_UNAVAILABLE');
 	}
 
 	try {
@@ -31,12 +34,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Validate required parameters
 		if (!entryId || !collectionId || !language) {
-			throw error(400, 'Missing required parameters: entryId, collectionId, language');
+			throw new AppError('Missing required parameters: entryId, collectionId, language', 400, 'MISSING_PARAMS');
 		}
 
 		// Validate device
 		if (device !== 'mobile' && device !== 'desktop') {
-			throw error(400, 'Invalid device type. Must be "mobile" or "desktop"');
+			throw new AppError('Invalid device type. Must be "mobile" or "desktop"', 400, 'INVALID_DEVICE');
 		}
 
 		// Get collection schema
@@ -44,7 +47,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const schema = contentManager.getCollectionById(collectionId, tenantId);
 
 		if (!schema) {
-			throw error(404, `Collection ${collectionId} not found`);
+			throw new AppError(`Collection ${collectionId} not found`, 404, 'COLLECTION_NOT_FOUND');
 		}
 
 		// Get entry data to derive URL
@@ -52,14 +55,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const entryResult = await dbAdapter.crud.findOne(collectionTableName, { _id: entryId } as any);
 
 		if (!entryResult.success || !entryResult.data) {
-			throw error(404, `Entry ${entryId} not found`);
+			throw new AppError(`Entry ${entryId} not found`, 404, 'ENTRY_NOT_FOUND');
 		}
 
 		// Validate tenant isolation
 		const entry = entryResult.data as unknown as Record<string, unknown>;
 		const multiTenant = getPrivateSettingSync('MULTI_TENANT' as any);
 		if (multiTenant && entry.tenantId !== tenantId) {
-			throw error(403, 'Access denied: tenant mismatch');
+			throw new AppError('Access denied: tenant mismatch', 403, 'TENANT_MISMATCH');
 		}
 
 		// Check for cached result (unless force refresh)
@@ -81,18 +84,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const baseLocale = (getPublicSettingSync('BASE_LOCALE' as any) as string) || 'en';
 
 		if (!baseUrl) {
-			throw error(500, 'SITE_URL not configured in system settings');
+			throw new AppError('SITE_URL not configured in system settings', 500, 'CONFIG_ERROR');
 		}
 
 		const url = deriveEntryUrl(baseUrl, language, baseLocale, entry, schema);
 
 		if (!url) {
-			throw error(400, 'Could not derive URL for entry. Ensure entry has a slug field.');
+			throw new AppError('Could not derive URL for entry. Ensure entry has a slug field.', 400, 'URL_DERIVATION_FAILED');
 		}
 
 		// Validate URL (SSRF protection)
 		if (!validateUrl(url, baseUrl)) {
-			throw error(400, 'Invalid URL derived from entry');
+			throw new AppError('Invalid URL derived from entry', 400, 'INVALID_URL');
 		}
 
 		// Fetch PageSpeed Insights
@@ -100,7 +103,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const metrics = await fetchPageSpeedInsights(url, device);
 
 		if (!metrics) {
-			throw error(500, 'Failed to fetch PageSpeed Insights. Check API key configuration.');
+			throw new AppError('Failed to fetch PageSpeed Insights. Check API key configuration.', 500, 'API_ERROR');
 		}
 
 		// Store result in database
@@ -128,12 +131,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			cached: false
 		});
 	} catch (err: any) {
-		// Re-throw SvelteKit errors
-		if (err && typeof err === 'object' && 'status' in err) {
-			throw err;
-		}
+		// Re-throw AppError or SvelteKit errors
+		if (err instanceof AppError) throw err;
+		if (err && typeof err === 'object' && 'status' in err) throw err;
 
 		logger.error('PageSpeed API error', { error: err });
-		throw error(500, 'Internal server error');
+		throw new AppError('Internal server error', 500, 'INTERNAL_ERROR');
 	}
-};
+});

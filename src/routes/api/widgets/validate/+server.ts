@@ -5,11 +5,15 @@
 import { contentManager } from '@src/content/ContentManager';
 import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
-import type { RequestHandler } from './$types';
+
 // Helper to calculate file processing hash (Placeholder for future implementation)
 // async function calculateWidgetHash(widgetName: string): Promise<string | null> { ... }
 
-export const GET: RequestHandler = async ({ locals, request, url }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ locals, request, url }) => {
 	const start = performance.now();
 	const tenantId = request.headers.get('X-Tenant-ID') || locals.tenantId || 'default';
 
@@ -117,15 +121,7 @@ export const GET: RequestHandler = async ({ locals, request, url }) => {
 		const duration = performance.now() - start;
 		const message = `Failed to validate collections: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
-
-		// Use standardized error response even for 500
-		return json(
-			{
-				success: false,
-				message: 'Internal Server Error',
-				error: message
-			},
-			{ status: 500 }
-		);
+		if (err instanceof AppError) throw err;
+		throw new AppError(message, 500, 'VALIDATION_FAILED');
 	}
-};
+});

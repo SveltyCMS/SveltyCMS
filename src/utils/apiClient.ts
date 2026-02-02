@@ -1,15 +1,7 @@
 /**
  * @file src/utils/apiClient.ts
- * @description Modern API client for RESTful collection endpoints with enhanced performance and caching
- * @example GET /api/collections/posts?limit=10&offset=0
- *
- * Features:
- *    * Performance optimization with QueryBuilder
- *    * Caching support for efficient data fetching
- *    * Error handling and logging
- *    * Custom log formatters
- *    * Conditional source file tracking
- *    * Error tracking service integration
+ * @description Modern API client for RESTful collection endpoints.
+ * Includes unified error handling compatible with server-side apiHandler.
  */
 
 import type { ISODateString } from '@src/content/types';
@@ -17,10 +9,19 @@ import { logger } from '@utils/logger';
 import { publicEnv } from '@stores/globalSettings.svelte.ts';
 
 // --- Type Definitions ---
+
+/**
+ * Standardized API Response structure.
+ * Matches the shape returned by the server-side 'handleApiError'.
+ */
 export interface ApiResponse<T = unknown> {
 	success: boolean;
 	data?: T;
-	error?: string;
+	// Error fields
+	message?: string; // Primary error message
+	error?: string; // Alias for message (for backward compatibility)
+	code?: string; // Error code (e.g., 'VALIDATION_ERROR', 'FORBIDDEN')
+	issues?: string[]; // Validation specific issues
 }
 
 export interface RevisionDiff {
@@ -30,7 +31,7 @@ export interface RevisionDiff {
 
 export interface RevisionMeta {
 	_id: string;
-	revision_at: ISODateString; // ISO date string
+	revision_at: ISODateString;
 	revision_by: string;
 }
 
@@ -38,7 +39,6 @@ export interface Collection {
 	_id: string;
 	name: string;
 	fields: Record<string, unknown>[];
-	// Add other collection properties as needed
 }
 
 interface GetDataResponse {
@@ -50,26 +50,82 @@ interface GetDataResponse {
 }
 
 // --- Core API Functions ---
+
+/**
+ * Universal fetch wrapper that handles:
+ * 1. JSON parsing
+ * 2. HTTP Error status codes
+ * 3. Unified Error Response extraction
+ * 4. Network error catching
+ */
 async function fetchApi<T>(endpoint: string, options: RequestInit): Promise<ApiResponse<T>> {
 	try {
 		const response = await fetch(endpoint, {
 			headers: { 'Content-Type': 'application/json' },
-			credentials: 'include',
+			credentials: 'include', // Ensure cookies/auth are sent
 			...options
 		});
-		if (!response.ok) {
-			const errorData = await response.json().catch(() => ({ error: `HTTP error! Status: ${response.status}` }));
-			throw new Error(errorData.error || `An unknown error occurred.`);
+
+		// 1. Handle Successful Responses (2xx)
+		if (response.ok) {
+			// Handle 204 No Content
+			if (response.status === 204) {
+				return { success: true } as ApiResponse<T>;
+			}
+
+			// Attempt to parse JSON
+			try {
+				const data = await response.json();
+				// Some endpoints might return { success: true, ... } or just data
+				// We ensure the shape is consistent
+				return { success: true, ...data };
+			} catch (e) {
+				// Fallback if response is OK but not JSON (rare)
+				logger.warn(`[API] Response OK but invalid JSON at ${endpoint}`);
+				return { success: true } as ApiResponse<T>;
+			}
 		}
-		return await response.json();
+
+		// 2. Handle HTTP Error Responses (4xx, 5xx)
+		let errorData: Partial<ApiResponse> = {};
+		try {
+			errorData = await response.json();
+		} catch {
+			// Fallback if JSON parsing fails (e.g., raw 500 HTML or network gateway error)
+			errorData = { message: response.statusText || `HTTP Error ${response.status}` };
+		}
+
+		// Log significant errors
+		if (response.status >= 500) {
+			logger.error(`[API Server Error] ${response.status} on ${endpoint}`, errorData);
+		} else {
+			// 4xx errors are warnings (validation, auth, etc.)
+			logger.warn(`[API Client Fail] ${response.status} on ${endpoint}`, errorData);
+		}
+
+		// Return standardized error shape
+		return {
+			success: false,
+			message: errorData.message || 'An unknown error occurred',
+			error: errorData.message || errorData.error || 'An unknown error occurred', // Backward compat
+			code: errorData.code || `HTTP_${response.status}`,
+			issues: errorData.issues
+		};
 	} catch (error) {
+		// 3. Handle Network/Client Errors (Offline, DNS, etc)
 		const err = error as Error;
-		logger.error(`[API Client Error]`, err);
-		return { success: false, error: err.message };
+		logger.error(`[API Network Error] ${endpoint}`, err);
+		return {
+			success: false,
+			message: err.message || 'Network error occurred',
+			error: err.message,
+			code: 'NETWORK_ERROR'
+		};
 	}
 }
 
 // --- Entry Action Functions ---
+
 export function createEntry(collectionId: string, payload: Record<string, unknown>): Promise<ApiResponse<unknown>> {
 	return fetchApi(`/api/collections/${collectionId}`, {
 		method: 'POST',
@@ -85,18 +141,19 @@ export function updateEntry(collectionId: string, entryId: string, payload: Reco
 }
 
 export function batchUpdateEntries(collectionId: string, payload: Record<string, unknown>): Promise<ApiResponse<unknown>> {
-	// Use the status endpoint for batch status updates
 	const { ids, status, ...otherFields } = payload;
 	if (status && ids && Array.isArray(ids)) {
-		// Use status endpoint for status changes
 		return fetchApi(`/api/collections/${collectionId}/${ids[0]}/status`, {
 			method: 'PATCH',
 			body: JSON.stringify({ status, entries: ids, ...otherFields })
 		});
 	}
-	// For other batch operations, we might need a different approach
-	// For now, throw error if not status update
-	throw new Error('Batch updates only supported for status changes');
+	// Return unified error object instead of throwing, to prevent unhandled promise rejections
+	return Promise.resolve({
+		success: false,
+		message: 'Batch updates only supported for status changes',
+		code: 'NOT_IMPLEMENTED'
+	});
 }
 
 export function updateEntryStatus(collectionId: string, entryId: string, status: string): Promise<ApiResponse<unknown>> {
@@ -126,7 +183,6 @@ export function createClones(collectionId: string, entries: Record<string, unkno
 	});
 }
 
-// Batch operations for entries
 export function batchCloneEntries(collectionId: string, entryIds: string[]): Promise<ApiResponse<unknown>> {
 	return fetchApi(`/api/collections/${collectionId}/batch`, {
 		method: 'POST',
@@ -143,7 +199,6 @@ export function batchUpdateEntriesStatus(collectionId: string, entryIds: string[
 
 // --- Revision Functions ---
 
-// A wrapper for a POST request to compare a revision with current data
 export async function getRevisionDiff(params: {
 	collectionId: string;
 	entryId: string;
@@ -159,7 +214,6 @@ export async function getRevisionDiff(params: {
 	});
 }
 
-// Specialized function for revisions
 export async function getRevisions(
 	collectionId: string,
 	entryId: string,
@@ -179,7 +233,8 @@ export async function getRevisions(
 }
 
 // --- Data & Cache Functions ---
-const CACHE_TTL_MS = 30 * 1000; // 30 seconds cache TTL
+
+const CACHE_TTL_MS = 30 * 1000; // 30 seconds
 
 interface CacheEntry {
 	data: GetDataResponse;
@@ -216,7 +271,9 @@ export function invalidateCollectionCache(collectionId: string): void {
 	logger.info(`[Cache] Invalidated for collection ${collectionId}`);
 }
 
-// Enhanced getData function using new RESTful endpoints
+/**
+ * Enhanced getData function using unified error handling and caching.
+ */
 export async function getData(query: {
 	collectionId: string;
 	page?: number;
@@ -244,34 +301,25 @@ export async function getData(query: {
 
 	const result = await fetchApi<GetDataResponse>(endpoint, { method: 'GET' });
 
-	// Add debugging for production issues
+	// Cache successful responses
 	if (result.success && result.data) {
-		// Validate the response format
+		// Validation safety check
 		if (!result.data.items || !Array.isArray(result.data.items)) {
-			logger.error(`[getData] Invalid response format:`, {
-				endpoint,
-				hasItems: !!result.data.items,
-				itemsType: typeof result.data.items,
-				responseKeys: Object.keys(result.data)
-			});
-			return { success: false, error: 'Invalid response format from server' };
+			logger.error(`[getData] Invalid response format from ${endpoint}`, result.data);
+			return {
+				success: false,
+				message: 'Invalid response format from server',
+				code: 'INVALID_RESPONSE'
+			};
 		}
 
 		dataCache.set(cacheKey, { data: result.data, timestamp: Date.now(), ttl: CACHE_TTL_MS });
-		logger.info(`[getData] Success:`, {
-			endpoint,
-			itemCount: result.data.items.length,
-			total: result.data.total,
-			cached: true
-		});
-	} else if (!result.success) {
-		logger.error(`[getData] API Error:`, { endpoint, error: result.error });
+		logger.info(`[getData] Cached successfully. Items: ${result.data.items.length}`);
 	}
 
 	return result;
 }
 
-// Get all collections list
 export async function getCollections(
 	options: {
 		includeFields?: boolean;

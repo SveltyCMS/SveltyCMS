@@ -2,7 +2,7 @@
  * @file src/routes/api/system/version/+server.ts
  * @description API endpoint for checking system version and security updates.
  */
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import pkg from '../../../../../package.json';
 
 // In-memory cache to prevent hitting GitHub API rate limits
@@ -12,7 +12,10 @@ let cachedRelease = {
 };
 const CACHE_CHLL = 1000 * 60 * 60; // 1 hour
 
-export const GET: RequestHandler = async () => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+
+export const GET = apiHandler(async () => {
 	// Return cached version if valid
 	if (cachedRelease.tag && Date.now() - cachedRelease.timestamp < CACHE_CHLL) {
 		return json({
@@ -58,4 +61,4 @@ export const GET: RequestHandler = async () => {
 			message: 'Could not connect to GitHub'
 		});
 	}
-};
+});

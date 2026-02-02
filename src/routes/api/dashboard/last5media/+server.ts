@@ -3,8 +3,7 @@
  * @description API endpoint for last 5 media files for dashboard widgets using database-agnostic adapter.
  */
 
-import type { RequestHandler } from './$types';
-import { error, json } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Database
@@ -30,95 +29,90 @@ const MediaItemSchema = v.object({
 
 // --- API Handler ---
 
-export const GET: RequestHandler = async ({ locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ locals }) => {
 	const dbAdapter = locals.dbAdapter;
 	const { user, tenantId } = locals;
 
 	// Authentication is handled by hooks.server.ts
 	if (!user) {
 		logger.warn('Unauthorized attempt to access media data');
-		throw error(401, 'Unauthorized');
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
-	try {
-		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-			throw error(400, 'Tenant could not be identified for this operation.');
-		}
+	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
+		throw new AppError('Tenant could not be identified for this operation.', 400, 'TENANT_MISSING');
+	}
 
-		if (!dbAdapter) {
-			logger.error('Database adapter not available');
-			throw error(500, 'Database connection unavailable');
-		}
+	if (!dbAdapter) {
+		logger.error('Database adapter not available');
+		throw new AppError('Database connection unavailable', 500, 'DB_ERROR');
+	}
 
-		// Check if media adapter is available
-		if (!dbAdapter.media || !dbAdapter.media.files || !dbAdapter.media.files.getByFolder) {
-			logger.warn('Media adapter not available, returning empty result');
-			return json([]);
-		}
+	// Check if media adapter is available
+	if (!dbAdapter.media || !dbAdapter.media.files || !dbAdapter.media.files.getByFolder) {
+		logger.warn('Media adapter not available, returning empty result');
+		return json([]);
+	}
 
-		// Use database-agnostic adapter to get recent media files
-		const result = await dbAdapter.media.files.getByFolder(undefined, {
-			page: 1,
-			pageSize: 5,
-			sortField: 'updatedAt',
-			sortDirection: 'desc'
-		});
+	// Use database-agnostic adapter to get recent media files
+	const result = await dbAdapter.media.files.getByFolder(undefined, {
+		page: 1,
+		pageSize: 5,
+		sortField: 'updatedAt',
+		sortDirection: 'desc'
+	});
 
-		if (!result.success) {
-			logger.error('Failed to fetch media files from database', {
-				error: result.error,
-				requestedBy: user?._id,
-				tenantId
-			});
-			// Return empty array instead of throwing error for dashboard widgets
-			return json([]);
-		}
-
-		// Check if we have data and items
-		if (!result.data || !result.data.items || !Array.isArray(result.data.items)) {
-			logger.warn('No media items found or invalid response structure');
-			return json([]);
-		}
-
-		// Transform the data to match the expected format
-		let items = result.data.items;
-
-		// --- MULTI-TENANCY: Filter by tenantId if enabled ---
-		if (getPrivateSettingSync('MULTI_TENANT') && tenantId) {
-			items = items.filter((file) => (file as unknown as Record<string, unknown>).tenantId === tenantId);
-		}
-
-		const recentMedia = items.map((file) => {
-			let url = file.path || '';
-			// Strip 'mediaFolder/' or 'files/' prefix
-			url = url.replace(/^mediaFolder\//, '').replace(/^files\//, '');
-			// Ensure no leading slash before prepending /files/
-			url = url.replace(/^\/+/, '');
-
-			return {
-				name: file.filename || 'Unknown',
-				size: file.size || 0,
-				modified: new Date(file.updatedAt),
-				type: file.mimeType.split('/')[1] || 'unknown',
-				url: `/files/${url}`
-			};
-		});
-		const validatedData = v.parse(v.array(MediaItemSchema), recentMedia);
-
-		logger.info('Recent media fetched successfully via database adapter', {
-			count: validatedData.length,
-			total: result.data.total,
+	if (!result.success) {
+		logger.error('Failed to fetch media files from database', {
+			error: result.error,
 			requestedBy: user?._id,
 			tenantId
 		});
-
-		return json(validatedData);
-	} catch (err) {
-		if (err instanceof v.ValiError) {
-			logger.error('Media data failed validation', { error: err.issues });
-			throw error(500, 'Internal Server Error: Could not prepare media data.');
-		}
-		logger.error('Error fetching recent media:', err);
-		throw error(500, 'An unexpected error occurred.');
+		// Return empty array instead of throwing error for dashboard widgets
+		return json([]);
 	}
-};
+
+	// Check if we have data and items
+	if (!result.data || !result.data.items || !Array.isArray(result.data.items)) {
+		logger.warn('No media items found or invalid response structure');
+		return json([]);
+	}
+
+	// Transform the data to match the expected format
+	let items = result.data.items;
+
+	// --- MULTI-TENANCY: Filter by tenantId if enabled ---
+	if (getPrivateSettingSync('MULTI_TENANT') && tenantId) {
+		items = items.filter((file) => (file as unknown as Record<string, unknown>).tenantId === tenantId);
+	}
+
+	const recentMedia = items.map((file) => {
+		let url = file.path || '';
+		// Strip 'mediaFolder/' or 'files/' prefix
+		url = url.replace(/^mediaFolder\//, '').replace(/^files\//, '');
+		// Ensure no leading slash before prepending /files/
+		url = url.replace(/^\/+/, '');
+
+		return {
+			name: file.filename || 'Unknown',
+			size: file.size || 0,
+			modified: new Date(file.updatedAt),
+			type: file.mimeType.split('/')[1] || 'unknown',
+			url: `/files/${url}`
+		};
+	});
+	const validatedData = v.parse(v.array(MediaItemSchema), recentMedia);
+
+	logger.info('Recent media fetched successfully via database adapter', {
+		count: validatedData.length,
+		total: result.data.total,
+		requestedBy: user?._id,
+		tenantId
+	});
+
+	return json(validatedData);
+});

@@ -12,189 +12,95 @@
  * GET /api/collections/{collectionId}/export?format=json&limit=100&offset=0
  */
 
-import { error, json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-
-// Database adapter
-import { dbAdapter } from '@src/databases/db';
-
-// Content Management
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+import { json } from '@sveltejs/kit';
+import { logger } from '@utils/logger.server';
 import { contentManager } from '@src/content/ContentManager';
 
-// System Logger
-import { logger } from '@utils/logger.server';
-
-export const GET: RequestHandler = async ({ params, url, locals }) => {
-	const startTime = performance.now();
-	const { collectionId } = params;
-
-	try {
-		if (!locals.user) {
-			throw error(401, 'Unauthorized');
-		}
-
-		// Get collection schema
-		const schema = await contentManager.getCollection(collectionId);
-
-		if (!schema) {
-			throw error(404, `Collection '${collectionId}' not found`);
-		}
-
-		// Parse query parameters
-		const format = url.searchParams.get('format') || 'json';
-		const limit = parseInt(url.searchParams.get('limit') || '0');
-		const offset = parseInt(url.searchParams.get('offset') || '0');
-		const filter = url.searchParams.get('filter');
-		const sortField = url.searchParams.get('sortField');
-		const sortDirection = (url.searchParams.get('sortDirection') as 'asc' | 'desc') || 'desc';
-
-		// Build query options
-		const queryOptions: Record<string, unknown> = {};
-
-		if (limit > 0) {
-			queryOptions.limit = Math.min(limit, 10000); // Cap at 10k for safety
-		}
-
-		if (offset > 0) {
-			queryOptions.offset = offset;
-		}
-
-		if (sortField) {
-			queryOptions.sort = { [sortField]: sortDirection === 'asc' ? 1 : -1 };
-		}
-
-		// Build filter
-		let filterQuery = {};
-		if (filter) {
-			try {
-				// Simple filter parsing - in production you might want more sophisticated filtering
-				filterQuery = JSON.parse(filter);
-			} catch (err) {
-				const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-				logger.warn('Invalid filter format', { filter, error: errorMsg });
-			}
-		}
-
-		// Fetch data from collection
-		logger.trace(`Exporting collection ${collectionId}`, {
-			userId: locals.user._id,
-			format,
-			limit,
-			offset,
-			filter: filterQuery
-		});
-
-		if (!dbAdapter) {
-			throw error(500, 'Database adapter not initialized');
-		}
-
-		const result = await dbAdapter.crud.findMany(`collection_${schema._id}`, filterQuery, queryOptions);
-
-		if (!result.success) {
-			throw error(500, `Failed to export collection data: ${result.error}`);
-		}
-
-		const exportData = result.data || [];
-		const duration = performance.now() - startTime;
-
-		logger.info(`Collection ${collectionId} exported successfully`, {
-			userId: locals.user._id,
-			recordCount: exportData.length,
-			duration: `${duration.toFixed(2)}ms`,
-			format
-		});
-
-		// Return data based on format
-		if (format === 'csv') {
-			const csvData = convertToCSV(exportData);
-			return new Response(csvData, {
-				headers: {
-					'Content-Type': 'text/csv',
-					'Content-Disposition': `attachment; filename="${collectionId}-export.csv"`
-				}
-			});
-		} else {
-			// Default to JSON
-			return json({
-				success: true,
-				collection: collectionId,
-				data: exportData,
-				metadata: {
-					total: exportData.length,
-					offset: offset,
-					limit: limit,
-					exportedAt: new Date().toISOString(),
-					schema: {
-						name: schema.name,
-						label: schema.label,
-						fields: schema.fields?.map((f: unknown) => {
-							const field = f as Record<string, unknown>;
-							return {
-								name: field.name,
-								type: field.widget,
-								label: field.label,
-								required: field.required
-							};
-						})
-					}
-				}
-			});
-		}
-	} catch (err) {
-		const duration = performance.now() - startTime;
-		const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-		logger.error(`Collection export failed for ${collectionId}`, {
-			userId: locals.user?._id,
-			error: errorMsg,
-			duration: `${duration.toFixed(2)}ms`
-		});
-
-		if (typeof err === 'object' && err !== null && 'status' in err && 'body' in err) {
-			throw err;
-		}
-
-		throw error(500, `Export failed: ${errorMsg}`);
-	}
-};
-
-/**
- * Convert array of objects to CSV format
- */
+// Helper for CSV conversion
 function convertToCSV(data: unknown[]): string {
-	if (!data || data.length === 0) {
-		return '';
-	}
-
-	// Get all unique keys from the data
+	if (!data || data.length === 0) return '';
 	const allKeys = new Set<string>();
 	data.forEach((item) => {
-		if (item && typeof item === 'object') {
-			Object.keys(item as Record<string, unknown>).forEach((key) => allKeys.add(key));
-		}
+		if (item && typeof item === 'object') Object.keys(item as Record<string, unknown>).forEach((key) => allKeys.add(key));
 	});
-
 	const headers = Array.from(allKeys);
-
-	// Create CSV content
 	const csvRows = [
-		// Header row
 		headers.map((header) => `"${header}"`).join(','),
-		// Data rows
 		...data.map((item) => {
 			const record = item as Record<string, unknown>;
 			return headers
 				.map((header) => {
 					const value = record[header];
-					if (value === null || value === undefined) {
-						return '""';
-					}
-					// Escape quotes and wrap in quotes
-					const stringValue = String(value).replace(/"/g, '""');
-					return `"${stringValue}"`;
+					if (value === null || value === undefined) return '""';
+					return `"${String(value).replace(/"/g, '""')}"`;
 				})
 				.join(',');
 		})
 	];
-
 	return csvRows.join('\n');
 }
+
+export const GET = apiHandler(async ({ params, url, locals }) => {
+	const { collectionId } = params;
+	const { user, dbAdapter } = locals;
+
+	if (!user) throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+	if (!dbAdapter) throw new AppError('Database adapter not initialized', 500, 'DB_ERROR');
+
+	const schema = await contentManager.getCollection(collectionId);
+	if (!schema) throw new AppError(`Collection '${collectionId}' not found`, 404, 'NOT_FOUND');
+
+	const format = url.searchParams.get('format') || 'json';
+	const limit = parseInt(url.searchParams.get('limit') || '0');
+	const offset = parseInt(url.searchParams.get('offset') || '0');
+	const filterParam = url.searchParams.get('filter');
+	const sortField = url.searchParams.get('sortField');
+	const sortDirection = (url.searchParams.get('sortDirection') as 'asc' | 'desc') || 'desc';
+
+	const queryOptions: any = {};
+	if (limit > 0) queryOptions.limit = Math.min(limit, 10000);
+	if (offset > 0) queryOptions.offset = offset;
+	if (sortField) queryOptions.sort = { [sortField]: sortDirection === 'asc' ? 1 : -1 };
+
+	let filterQuery = {};
+	if (filterParam) {
+		try {
+			filterQuery = JSON.parse(filterParam);
+		} catch (e) {
+			logger.warn('Invalid filter', e);
+		}
+	}
+
+	const result = await dbAdapter.crud.findMany(`collection_${schema._id}`, filterQuery, queryOptions);
+	if (!result.success) throw new AppError(`Export failed: ${result.error}`, 500, 'DB_READ_ERROR');
+
+	const exportData = result.data || [];
+	logger.info(`Collection ${collectionId} exported`, { count: exportData.length, format });
+
+	if (format === 'csv') {
+		const csvData = convertToCSV(exportData);
+		return new Response(csvData, {
+			headers: { 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="${collectionId}-export.csv"` }
+		});
+	} else {
+		return json({
+			success: true,
+			collection: collectionId,
+			data: exportData,
+			metadata: {
+				total: exportData.length,
+				offset,
+				limit,
+				exportedAt: new Date().toISOString(),
+				schema: {
+					name: schema.name,
+					label: schema.label,
+					fields: schema.fields?.map((f: any) => ({ name: f.name, type: f.widget, label: f.label, required: f.required }))
+				}
+			}
+		});
+	}
+});

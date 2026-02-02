@@ -14,8 +14,8 @@
  * Authorization: Requires admin role
  */
 
-import { error as svelteError } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+// type RequestHandler removed
+// error removed
 import { createReadStream, existsSync, statSync, readdirSync } from 'fs';
 import { join, basename } from 'path';
 import { createGzip } from 'zlib';
@@ -27,15 +27,23 @@ import { logger } from '@utils/logger.server';
  * Download error logs from the server
  * GET /api/logs/download
  */
-export const GET: RequestHandler = async ({ url, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+/**
+ * Download error logs from the server
+ * GET /api/logs/download
+ */
+export const GET = apiHandler(async ({ url, locals }) => {
 	try {
 		// Check authentication and authorization
 		if (!locals.user) {
-			throw svelteError(401, 'Authentication required');
+			throw new AppError('Authentication required', 401, 'UNAUTHORIZED');
 		}
 
 		if (locals.user.role !== 'admin') {
-			throw svelteError(403, 'Admin access required to download logs');
+			throw new AppError('Admin access required to download logs', 403, 'FORBIDDEN');
 		}
 
 		// Get query parameters
@@ -46,11 +54,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		// Validate parameters
 		if (!['latest', 'all', 'archive'].includes(type)) {
-			throw svelteError(400, 'Invalid type parameter. Must be: latest, all, or archive');
+			throw new AppError('Invalid type parameter. Must be: latest, all, or archive', 400, 'INVALID_PARAM');
 		}
 
 		if (!['text', 'gzip'].includes(format)) {
-			throw svelteError(400, 'Invalid format parameter. Must be: text or gzip');
+			throw new AppError('Invalid format parameter. Must be: text or gzip', 400, 'INVALID_PARAM');
 		}
 
 		// Parse since date if provided
@@ -58,7 +66,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		if (sinceParam) {
 			sinceDate = new Date(sinceParam);
 			if (isNaN(sinceDate.getTime())) {
-				throw svelteError(400, 'Invalid since date format. Use ISO 8601 format');
+				throw new AppError('Invalid since date format. Use ISO 8601 format', 400, 'INVALID_PARAM');
 			}
 		}
 
@@ -92,7 +100,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		}
 
 		if (logFiles.length === 0) {
-			throw svelteError(404, 'No log files found');
+			throw new AppError('No log files found', 404, 'NOT_FOUND');
 		}
 
 		// If single file and format is text, stream it directly
@@ -181,14 +189,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			}
 		});
 	} catch (err) {
-		if (err && typeof err === 'object' && 'status' in err) {
-			throw err; // Re-throw SvelteKit errors
-		}
-
+		if (err instanceof AppError) throw err;
 		logger.error('Error downloading logs', { error: err });
-		throw svelteError(500, 'Failed to download logs');
+		throw new AppError('Failed to download logs', 500, 'DOWNLOAD_FAILED');
 	}
-};
+});
 
 // Filter logs by date and/or level
 async function filterLogs(logFile: string, since: Date | null, level: string | null): Promise<string> {

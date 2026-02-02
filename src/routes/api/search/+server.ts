@@ -13,7 +13,7 @@
  */
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
-import { json, error, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 
 // Auth
 
@@ -27,17 +27,22 @@ import type { CollectionModel } from '@src/databases/dbInterface';
 import { logger } from '@utils/logger.server';
 
 // GET: Advanced search across collections
-export const GET: RequestHandler = async ({ locals, url }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+// GET: Advanced search across collections
+export const GET = apiHandler(async ({ locals, url }) => {
 	const start = performance.now();
 	const { user, tenantId } = locals;
 
 	if (!user) {
-		throw error(401, 'Unauthorized');
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
 	try {
 		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-			throw error(400, 'Tenant could not be identified for this operation.');
+			throw new AppError('Tenant could not be identified for this operation.', 400, 'TENANT_MISSING');
 		} // Parse query parameters
 
 		const searchQuery = url.searchParams.get('q') || '';
@@ -63,7 +68,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			try {
 				additionalFilter = JSON.parse(filterParam);
 			} catch {
-				throw error(400, 'Invalid filter parameter');
+				throw new AppError('Invalid filter parameter', 400, 'INVALID_FILTER');
 			}
 		}
 
@@ -85,7 +90,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		if (!dbAdapter) {
 			logger.error('Database adapter not initialized');
-			throw error(500, 'Database not initialized');
+			throw new AppError('Database not initialized', 500, 'DB_UNAVAILABLE');
 		}
 
 		// Search across all specified collections in parallel
@@ -196,11 +201,12 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			performance: { duration }
 		});
 	} catch (e) {
+		if (e instanceof AppError) throw e;
 		if (e && typeof e === 'object' && 'status' in e) throw e; // Re-throw SvelteKit errors
 
 		const duration = performance.now() - start;
 		const errMsg = e instanceof Error ? e.message : String(e);
 		logger.error(`Search failed: ${errMsg} in ${duration.toFixed(2)}ms`);
-		throw error(500, 'Internal Server Error');
+		throw new AppError('Internal Server Error', 500, 'SEARCH_ERROR');
 	}
-};
+});

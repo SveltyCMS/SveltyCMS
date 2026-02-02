@@ -6,12 +6,15 @@
 
 import { json } from '@sveltejs/kit';
 import { metricsService } from '@src/services/MetricsService';
-import type { RequestHandler } from './$types';
 
 // System Logger
 import { logger } from '@utils/logger.server';
 
-export const GET: RequestHandler = async ({ url }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ url }) => {
 	try {
 		const metrics = metricsService.getReport();
 
@@ -39,6 +42,6 @@ export const GET: RequestHandler = async ({ url }) => {
 		return json(metrics);
 	} catch (err) {
 		logger.error('Dashboard metrics error:', err);
-		return json({ error: 'Failed to fetch dashboard metrics' }, { status: 500 });
+		throw new AppError('Failed to fetch dashboard metrics', 500, 'METRICS_ERROR');
 	}
-};
+});

@@ -364,35 +364,21 @@ async function initializeWebSocketServer(dbAdapter: DatabaseAdapter, tenantId?: 
 	}
 }
 
-const handler = async (event: RequestEvent) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+const handler = apiHandler(async (event: RequestEvent) => {
 	const { locals, request } = event;
 
 	// Authentication is handled by hooks.server.ts, but let's be extra sure
 	if (!locals.user) {
-		return new Response(
-			JSON.stringify({
-				error: 'Unauthorized',
-				message: 'You must be logged in to access the GraphQL endpoint.'
-			}),
-			{
-				status: 401,
-				headers: { 'Content-Type': 'application/json' }
-			}
-		);
+		throw new AppError('Unauthorized: You must be logged in to access the GraphQL endpoint.', 401, 'UNAUTHORIZED');
 	}
 
 	// Check if database adapter is available
 	if (!locals.dbAdapter) {
-		return new Response(
-			JSON.stringify({
-				error: 'Service Unavailable',
-				message: 'Database service is not available.'
-			}),
-			{
-				status: 503,
-				headers: { 'Content-Type': 'application/json' }
-			}
-		);
+		throw new AppError('Service Unavailable: Database service is not available.', 503, 'DB_UNAVAILABLE');
 	}
 
 	try {
@@ -403,7 +389,7 @@ const handler = async (event: RequestEvent) => {
 		}
 		const yogaApp = await yogaAppPromise;
 		if (!yogaApp) {
-			throw new Error('GraphQL Yoga app failed to initialize');
+			throw new AppError('GraphQL Yoga app failed to initialize', 500, 'GRAPHQL_INIT_FAILED');
 		}
 
 		// Initialize WebSocket server if not already done
@@ -449,7 +435,7 @@ const handler = async (event: RequestEvent) => {
 
 		if (!yogaResponse) {
 			logger.error('GraphQL Yoga returned undefined or null response');
-			throw new Error('GraphQL Yoga returned no response');
+			throw new AppError('GraphQL Yoga returned no response', 500, 'GRAPHQL_NO_RESPONSE');
 		}
 
 		// Return a SvelteKit-compatible Response
@@ -487,19 +473,10 @@ const handler = async (event: RequestEvent) => {
 			tenantId: locals.tenantId
 		});
 
-		// Return proper JSON error response
-		return new Response(
-			JSON.stringify({
-				error: 'Internal Server Error',
-				message: 'An error occurred while processing your GraphQL request.'
-			}),
-			{
-				status: 500,
-				headers: { 'Content-Type': 'application/json' }
-			}
-		);
+		if (error instanceof AppError) throw error;
+		throw new AppError('An error occurred while processing your GraphQL request.', 500, 'GRAPHQL_ERROR');
 	}
-};
+});
 
 // Export the handlers for GET and POST requests
 export { handler as GET, handler as POST };

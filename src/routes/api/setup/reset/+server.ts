@@ -16,9 +16,12 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { logger } from '@utils/logger.server';
 import { invalidateSetupCache } from '@utils/setupCheck';
-import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ locals }) => {
 	try {
 		// Security check: Only allow reset if user is admin OR system is in failed state
 		const { getSystemState } = await import('@src/stores/system/state');
@@ -34,14 +37,9 @@ export const POST: RequestHandler = async ({ locals }) => {
 				userRole: locals.user?.role,
 				systemState: systemState.overallState
 			});
-			return json(
-				{
-					success: false,
-					error: 'Unauthorized',
-					message: 'You do not have permission to reset the setup.'
-				},
-				{ status: 403 }
-			);
+			throw new AppError('Unauthorized', 403, 'FORBIDDEN', {
+				message: 'You do not have permission to reset the setup.'
+			});
 		}
 
 		// In TEST_MODE, we DO NOT delete the config file because it's required for the entire test suite run.
@@ -75,16 +73,12 @@ export const POST: RequestHandler = async ({ locals }) => {
 			message: 'Setup has been reset. Redirecting to setup wizard...'
 		});
 	} catch (error) {
+		if (error instanceof AppError) throw error;
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		logger.error('Failed to reset setup:', errorMessage);
 
-		return json(
-			{
-				success: false,
-				error: errorMessage,
-				message: 'Failed to reset setup. Check server logs.'
-			},
-			{ status: 500 }
-		);
+		throw new AppError(errorMessage, 500, 'RESET_FAILED', {
+			message: 'Failed to reset setup. Check server logs.'
+		});
 	}
-};
+});

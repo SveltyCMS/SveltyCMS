@@ -86,7 +86,13 @@ function shouldIgnoreViolation(report: CSPViolationReport): boolean {
 /**
  * Handles CSP violation reports sent by browsers.
  */
-export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+
+/**
+ * Handles CSP violation reports sent by browsers.
+ */
+export const POST = apiHandler(async ({ request, getClientAddress }) => {
 	try {
 		// Rate limiting check (prevent report spam)
 		const clientIp = getClientAddress();
@@ -175,7 +181,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		logger.error('Error processing CSP report:', error);
 		return json({ error: 'Internal server error' }, { status: 500 });
 	}
-};
+});
 
 /**
  * Handle OPTIONS requests for CORS preflight.

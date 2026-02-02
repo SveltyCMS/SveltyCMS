@@ -30,9 +30,8 @@
  * is properly set in environment variables for successful email delivery.
  */
 
-import { json, error as svelteKitError } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import type { ComponentType } from 'svelte';
-import type { RequestHandler } from './$types';
 
 // Database adapter for SMTP configuration
 import { dbAdapter } from '@src/databases/db';
@@ -123,14 +122,12 @@ const renderEmailToStrings = async (
 	}
 };
 
-// Generates a standardized JSON error response
-function createErrorResponse(message: string, status: number = 500): never {
-	logger.error(`API Error in /api/sendMail (${status}): ${message}`);
-	throw svelteKitError(status, message);
-}
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
 
 // --- POST Handler ---
-export const POST: RequestHandler = async ({ request, locals }): Promise<Response> => {
+export const POST = apiHandler(async ({ request, locals }) => {
 	const { user, tenantId } = locals;
 	// Check for internal API calls (from createToken API)
 	const isInternalCall = request.headers.get('x-internal-call') === 'true';
@@ -155,27 +152,31 @@ export const POST: RequestHandler = async ({ request, locals }): Promise<Respons
 		requestBody = await request.json();
 	} catch (error) {
 		logger.error('Invalid JSON in request body:', { error, tenantId });
-		return createErrorResponse('Invalid JSON in request body.', 400);
+		throw new AppError('Invalid JSON in request body.', 400, 'INVALID_JSON');
 	}
 
 	const { recipientEmail, subject, templateName, props = {}, languageTag = 'en' } = requestBody;
 	// Basic input validation
 	if (!recipientEmail || !subject || !templateName) {
-		return createErrorResponse('Missing required fields: recipientEmail, subject, or templateName.', 400);
+		throw new AppError('Missing required fields: recipientEmail, subject, or templateName.', 400, 'MISSING_FIELDS');
 	}
 	if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
-		return createErrorResponse('Invalid recipient email address format.', 400);
+		throw new AppError('Invalid recipient email address format.', 400, 'INVALID_EMAIL');
 	} // 1. Get the email template component dynamically
 
 	const SelectedTemplateComponent = await getEmailTemplate(templateName);
 	if (!SelectedTemplateComponent) {
 		const availableTemplateNames = Object.keys(svelteEmailModules).map((path) => path.split('/').pop()?.replace('.svelte', ''));
-		return createErrorResponse(`Invalid email template name: '${templateName}'. Available templates: ${availableTemplateNames.join(', ')}`, 400);
+		throw new AppError(
+			`Invalid email template name: '${templateName}'. Available templates: ${availableTemplateNames.join(', ')}`,
+			400,
+			'INVALID_TEMPLATE'
+		);
 	}
 
 	if (!dbAdapter) {
 		logger.error('Database adapter is not initialized');
-		return createErrorResponse('Database adapter is not available', 500);
+		throw new AppError('Database adapter is not available', 500, 'DB_UNAVAILABLE');
 	}
 
 	// Validate SMTP configuration from database settings
@@ -234,7 +235,7 @@ export const POST: RequestHandler = async ({ request, locals }): Promise<Respons
 		emailHtml = rendered.html;
 		emailText = rendered.text;
 	} catch (renderErr) {
-		return createErrorResponse((renderErr as Error).message, 500);
+		throw new AppError((renderErr as Error).message, 500, 'RENDER_FAILED');
 	}
 	// 3. Configure Nodemailer Transporter
 	const smtpPortNum = Number(smtpPort);
@@ -277,6 +278,7 @@ export const POST: RequestHandler = async ({ request, locals }): Promise<Respons
 		});
 		return json({ success: true, message: 'Email sent successfully.' });
 	} catch (err) {
+		if (err instanceof AppError) throw err;
 		const sendError = err as Error;
 		logger.error('Nodemailer failed to send email from /api/sendMail:', {
 			recipientEmail,
@@ -285,6 +287,6 @@ export const POST: RequestHandler = async ({ request, locals }): Promise<Respons
 			error: sendError.message,
 			tenantId
 		});
-		return createErrorResponse(`Email sending failed: ${sendError.message}`, 500);
+		throw new AppError(`Email sending failed: ${sendError.message}`, 500, 'SEND_FAILED');
 	}
-};
+});

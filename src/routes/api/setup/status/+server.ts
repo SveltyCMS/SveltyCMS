@@ -8,12 +8,15 @@
  * - Returns JSON response with setup status
  */
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+
 import { isSetupComplete } from '@src/utils/setupCheck';
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const GET: RequestHandler = async () => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+
+export const GET = apiHandler(async () => {
 	const privateConfigPath = path.join(process.cwd(), 'config', 'private.ts');
 	const privateTsExists = fs.existsSync(privateConfigPath);
 	const setupComplete = isSetupComplete();
@@ -26,4 +29,4 @@ export const GET: RequestHandler = async () => {
 			configValid: setupComplete
 		}
 	});
-};
+});

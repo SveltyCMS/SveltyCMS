@@ -11,8 +11,7 @@
  */
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
-import { error, json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { json } from '@sveltejs/kit';
 
 // Auth (Database Agnostic)
 import { auth, dbAdapter } from '@src/databases/db';
@@ -20,17 +19,21 @@ import { auth, dbAdapter } from '@src/databases/db';
 // System logger
 import { logger } from '@utils/logger.server';
 
-export const GET: RequestHandler = async ({ url, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ url, locals }) => {
 	const { user, tenantId, hasManageUsersPermission } = locals;
 
 	// Security: Ensure the user is authenticated and has admin-level permissions.
 	if (!user || !hasManageUsersPermission) {
-		throw error(403, 'Forbidden: You do not have permission to access tokens.');
+		throw new AppError('Forbidden: You do not have permission to access tokens.', 403, 'FORBIDDEN');
 	}
 
 	if (!auth || !dbAdapter) {
 		logger.error('Database authentication adapter not initialized');
-		throw error(500, 'Database authentication not available');
+		throw new AppError('Database authentication not available', 500, 'DB_AUTH_ERROR');
 	}
 
 	try {
@@ -57,7 +60,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const tokensResult = await dbAdapter.auth.getAllTokens(filter);
 
 		if (!tokensResult.success || !tokensResult.data) {
-			throw error(500, 'Failed to fetch tokens from database');
+			throw new AppError('Failed to fetch tokens from database', 500, 'DB_FETCH_ERROR');
 		}
 
 		const allTokens = tokensResult.data;
@@ -83,7 +86,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		logger.info('Tokens retrieved successfully', {
 			count: tokens.length,
 			total: totalTokens,
-			requestedBy: user?._id,
+			requestedBy: user._id,
 			tenantId
 		});
 
@@ -98,13 +101,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			}
 		});
 	} catch (err: unknown) {
+		if (err instanceof AppError) throw err;
 		const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
 		logger.error('Error retrieving tokens:', {
 			error: message,
 			stack: err instanceof Error ? err.stack : undefined,
-			userId: user?._id
+			userId: user._id
 		});
 
-		return json({ success: false, message: 'Internal Server Error' }, { status: 500 });
+		throw new AppError('Internal Server Error', 500, 'INTERNAL_SERVER_ERROR', { originalError: message });
 	}
-};
+});

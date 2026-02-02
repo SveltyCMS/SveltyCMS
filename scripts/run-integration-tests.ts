@@ -168,7 +168,9 @@ async function main() {
 			try {
 				// 1. Clean DB (Drop)
 				const { MongoClient } = await import('mongodb');
-				const client = new MongoClient(`mongodb://admin:Getin1972!@127.0.0.1:27017/sveltycms_test?authSource=admin`);
+				const client = new MongoClient(
+					`mongodb://${testEnv.DB_USER}:${testEnv.DB_PASSWORD}@${testEnv.DB_HOST}:${testEnv.DB_PORT}/${testEnv.DB_NAME}?authSource=admin`
+				);
 				await client.connect();
 				await client.db('sveltycms_test').dropDatabase();
 				await client.close();

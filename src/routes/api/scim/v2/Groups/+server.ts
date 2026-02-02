@@ -9,21 +9,24 @@
  *
  */
 
-import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { json } from '@sveltejs/kit';
 import { SCIM_SCHEMAS } from '@src/types/scim';
 import { auth } from '@src/databases/db';
 import { logger } from '@utils/logger.server';
 
-export const GET: RequestHandler = async ({ url, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ url, locals }) => {
 	// Security check
 	if (!locals.user || locals.user.role !== 'admin') {
-		throw error(403, 'Forbidden: Admin access required');
+		throw new AppError('Forbidden: Admin access required', 403, 'FORBIDDEN');
 	}
 
 	try {
 		if (!auth) {
-			throw error(500, 'Authentication service not available');
+			throw new AppError('Authentication service not available', 500, 'AUTH_UNAVAILABLE');
 		}
 
 		// Fetch roles from database
@@ -51,6 +54,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			Resources: resources
 		});
 	} catch (e: any) {
+		if (e instanceof AppError) throw e;
 		logger.error('SCIM Groups GET error', { error: e });
 		return json(
 			{
@@ -61,4 +65,4 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			{ status: 500 }
 		);
 	}
-};
+});

@@ -10,7 +10,7 @@
  * @route POST /api/setup/email-test
  */
 
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
@@ -43,7 +43,15 @@ interface SMTPTestResponse {
  * POST /api/setup/email-test
  * Tests SMTP configuration and optionally saves to database
  */
-export const POST: RequestHandler = async ({ request }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+/**
+ * POST /api/setup/email-test
+ * Tests SMTP configuration and optionally saves to database
+ */
+export const POST = apiHandler(async ({ request }) => {
 	const startTime = Date.now();
 
 	try {
@@ -53,13 +61,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Validate required fields
 		if (!testEmail) {
-			return json(
-				{
-					success: false,
-					error: 'Missing required field: testEmail'
-				} as SMTPTestResponse,
-				{ status: 400 }
-			);
+			throw new AppError('Missing required field: testEmail', 400, 'MISSING_EMAIL');
 		}
 
 		// Validate SMTP configuration using schema
@@ -68,13 +70,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		if (!validationResult.success) {
 			const errors = validationResult.issues.map((issue) => `${issue.path?.[0]?.key}: ${issue.message}`).join(', ');
-			return json(
-				{
-					success: false,
-					error: `Invalid SMTP configuration: ${errors}`
-				} as SMTPTestResponse,
-				{ status: 400 }
-			);
+			throw new AppError(`Invalid SMTP configuration: ${errors}`, 400, 'INVALID_SMTP_CONFIG');
 		}
 
 		logger.info('Testing SMTP configuration', { host, port, user, secure });
@@ -195,24 +191,12 @@ export const POST: RequestHandler = async ({ request }) => {
 				errorMessage = err.message;
 			}
 
-			return json(
-				{
-					success: false,
-					error: errorMessage,
-					latencyMs
-				} as SMTPTestResponse,
-				{ status: 400 }
-			);
+			throw new AppError(errorMessage, 400, 'SMTP_CONNECTION_FAILED', { latencyMs });
 		}
-	} catch (error: unknown) {
+	} catch (error) {
+		if (error instanceof AppError) throw error;
 		logger.error('Unexpected error in SMTP test endpoint', { error });
 		const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-		return json(
-			{
-				success: false,
-				error: errorMessage
-			} as SMTPTestResponse,
-			{ status: 500 }
-		);
+		throw new AppError(errorMessage, 500, 'SMTP_TEST_FAILED');
 	}
-};
+});

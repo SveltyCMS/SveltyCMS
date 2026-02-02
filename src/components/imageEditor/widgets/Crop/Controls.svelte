@@ -216,19 +216,6 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 		flex-wrap: wrap;
 	}
 
-	.control-label {
-		font-size: 0.75rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: rgb(var(--color-surface-500) / 1);
-		white-space: nowrap;
-	}
-
-	:global(.dark) .control-label {
-		color: rgb(var(--color-surface-400) / 1);
-	}
-
 	.aspect-ratios {
 		display: flex;
 		gap: 0.25rem;
@@ -312,17 +299,6 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 	.btn-group .btn.active {
 		background: rgb(var(--color-primary-500) / 1);
 		color: white;
-	}
-
-	.divider {
-		width: 1px;
-		height: 1.5rem;
-		background: rgb(var(--color-surface-300) / 1);
-		flex-shrink: 0;
-	}
-
-	:global(.dark) .divider {
-		background: rgb(var(--color-surface-600) / 1);
 	}
 
 	.actions {

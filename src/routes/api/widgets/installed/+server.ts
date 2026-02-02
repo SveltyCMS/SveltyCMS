@@ -4,13 +4,17 @@
  */
 
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+
 import { logger } from '@utils/logger.server';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 
 import { widgets, getWidgetFunction } from '@stores/widgetStore.svelte.ts';
 
-export const GET: RequestHandler = async ({ url, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ url, locals }) => {
 	const start = performance.now();
 	const tenantId = url.searchParams.get('tenantId') || locals.tenantId || 'default-tenant';
 
@@ -18,28 +22,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const { user } = locals;
 
 		if (!user) {
-			return json(
-				{
-					success: false,
-					message: 'Unauthorized',
-					error: 'Authentication credentials missing'
-				},
-				{ status: 401 }
-			);
+			throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 		}
 
 		// Check permission
 		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', locals.roles);
 		if (!hasWidgetPermission) {
 			logger.warn(`User ${user._id} denied access to widget API due to insufficient permissions`);
-			return json(
-				{
-					success: false,
-					message: 'Insufficient permissions',
-					error: 'User lacks api:widgets permission'
-				},
-				{ status: 403 }
-			);
+			throw new AppError('Insufficient permissions', 403, 'FORBIDDEN');
 		}
 
 		// Initialize widgets to get custom widgets list
@@ -84,15 +74,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const duration = performance.now() - start;
 		const message = `Failed to get installed widgets: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
+		if (err instanceof AppError) throw err;
 
 		// Standardized error response
-		return json(
-			{
-				success: false,
-				message: 'Internal Server Error',
-				error: message
-			},
-			{ status: 500 }
-		);
+		throw new AppError(message, 500, 'GET_INSTALLED_WIDGETS_FAILED');
 	}
-};
+});

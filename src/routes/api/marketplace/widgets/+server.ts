@@ -3,8 +3,7 @@
  * @description API endpoint for browsing marketplace widgets
  */
 
-import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 
@@ -102,19 +101,23 @@ const MARKETPLACE_WIDGETS = [
 	}
 ];
 
-export const GET: RequestHandler = async ({ url, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ url, locals }) => {
 	try {
 		const { user } = locals;
 
 		if (!user) {
-			throw error(401, 'Unauthorized');
+			throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 		}
 
 		// Check permission
 		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', locals.roles || []);
 		if (!hasWidgetPermission) {
 			logger.warn(`User ${user._id} denied access to marketplace API due to insufficient permissions`);
-			throw error(403, 'Insufficient permissions');
+			throw new AppError('Insufficient permissions', 403, 'FORBIDDEN');
 		}
 
 		// Get query parameters for filtering/searching
@@ -179,8 +182,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			}
 		});
 	} catch (err) {
+		if (err instanceof AppError) throw err;
 		const message = `Failed to get marketplace widgets: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);
-		throw error(500, message);
+		throw new AppError(message, 500, 'MARKETPLACE_ERROR');
 	}
-};
+});

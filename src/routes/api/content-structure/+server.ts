@@ -13,7 +13,7 @@
  */
 import { browser } from '$app/environment';
 import { getPrivateSettingSync } from '@src/services/settingsService';
-import { error, json, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 
 import type { ContentNodeOperation } from '@root/src/content/types';
 
@@ -29,21 +29,25 @@ import { logger } from '@utils/logger.server';
 
 const CACHE_TTL = 300; // 5 minutes
 
-export const GET: RequestHandler = async ({ url, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ url, locals }) => {
 	const { user, tenantId } = locals;
 
 	// Authentication is handled by hooks.server.ts
 	if (!user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
 	try {
 		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-			throw error(400, 'Tenant ID is required for this operation.');
+			throw new AppError('Tenant ID is required for this operation.', 400, 'TENANT_MISSING');
 		}
 
 		const action = url.searchParams.get('action');
-		logger.debug('GET request received', { action, tenantId }); // Try to get from Redis cache first
+		logger.debug('GET request received', { action, tenantId });
 
 		if (!browser) {
 			const cacheKey = `api:content-structure:${tenantId || 'global'}:${action || 'default'}`;
@@ -65,7 +69,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 				response = {
 					contentStructure: contentNodes,
 					version
-				}; // Cache the response if Redis is enabled
+				};
 
 				if (!browser) {
 					const cacheKey = `api:content-structure:${tenantId || 'global'}:${action}`;
@@ -85,12 +89,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 					contentNodes: contentStructure,
 					version
 				};
-				break; // Continue to caching and return
+				break;
 			}
 
 			default:
-				throw error(400, 'Invalid action');
-		} // Cache in Redis if available
+				throw new AppError('Invalid action', 400, 'INVALID_ACTION');
+		}
 
 		if (!browser) {
 			const cacheKey = `api:content-structure:${tenantId || 'global'}:${action || 'default'}`;
@@ -100,21 +104,22 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		logger.error('Error in GET /api/content-structure:', message);
-		throw error(500, `Failed to process content structure request: ${message}`);
+		if (err instanceof AppError) throw err;
+		throw new AppError(`Failed to process content structure request: ${message}`, 500, 'CONTENT_STRUCTURE_ERROR');
 	}
-};
+});
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST = apiHandler(async ({ request, locals }) => {
 	const { user, tenantId } = locals;
 
 	// Authentication is handled by hooks.server.ts
 	if (!user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
 	try {
 		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-			throw error(400, 'Tenant ID is required for this operation.');
+			throw new AppError('Tenant ID is required for this operation.', 400, 'TENANT_MISSING');
 		}
 
 		const data = await request.json();
@@ -126,7 +131,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				const { items }: { items: ContentNodeOperation[] } = data;
 
 				if (!items || !Array.isArray(items)) {
-					throw error(400, 'Items array is required for reorderContentStructure');
+					throw new AppError('Items array is required for reorderContentStructure', 400, 'INVALID_ITEMS');
 				}
 
 				const updatedContentStructure = await contentManager.reorderContentNodes(items);
@@ -149,7 +154,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				const { items }: { items: ContentNodeOperation[] } = data;
 
 				if (!items || !Array.isArray(items)) {
-					throw error(400, 'Items array is required for updateContentStructure');
+					throw new AppError('Items array is required for updateContentStructure', 400, 'INVALID_ITEMS');
 				}
 
 				const updatedContentStructure = await contentManager.upsertContentNodes(items);
@@ -200,41 +205,42 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				});
 			}
 			default:
-				throw error(400, 'Invalid action');
+				throw new AppError('Invalid action', 400, 'INVALID_ACTION');
 		}
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		logger.error('Error in POST /api/content-structure:', message);
-		throw error(500, `Failed to process content structure request: ${message}`);
+		if (err instanceof AppError) throw err;
+		throw new AppError(`Failed to process content structure request: ${message}`, 500, 'CONTENT_STRUCTURE_ERROR');
 	}
-};
+});
 
-export const PUT: RequestHandler = async ({ request, locals }) => {
+export const PUT = apiHandler(async ({ request, locals }) => {
 	const { user, tenantId } = locals;
 
 	// Authentication is handled by hooks.server.ts
 	if (!user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
 	try {
 		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-			throw error(400, 'Tenant ID is required for this operation.');
+			throw new AppError('Tenant ID is required for this operation.', 400, 'TENANT_MISSING');
 		}
 
 		const { _id, updates } = await request.json();
 
 		if (!_id || !updates) {
-			throw error(400, '_id and updates are required');
+			throw new AppError('_id and updates are required', 400, 'MISSING_PARAMS');
 		}
 
 		if (!dbAdapter) {
-			throw error(503, 'Database adapter not available');
+			throw new AppError('Database adapter not available', 503, 'DB_UNAVAILABLE');
 		}
 
 		const updateResult = await dbAdapter.content.nodes.update(_id, updates);
 		if (!updateResult.success || !updateResult.data) {
-			throw error(404, 'Node not found');
+			throw new AppError('Node not found', 404, 'NODE_NOT_FOUND');
 		}
 
 		const updatedNode = updateResult.data;
@@ -256,6 +262,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : String(err);
 		logger.error('Error in PUT /api/content-structure:', errorMessage);
-		throw error(500, `Failed to update content structure: ${errorMessage}`);
+		if (err instanceof AppError) throw err;
+		throw new AppError(`Failed to update content structure: ${errorMessage}`, 500, 'CONTENT_STRUCTURE_ERROR');
 	}
-};
+});

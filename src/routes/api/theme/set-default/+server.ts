@@ -11,11 +11,10 @@
  * - Returns the updated theme in the response.
  */
 
-import type { RequestHandler } from './$types';
 import { ThemeManager } from '@src/databases/themeManager';
 import { dbAdapter } from '@src/databases/db';
 import type { Theme, DatabaseId } from '@src/databases/dbInterface';
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Permission checking
@@ -26,23 +25,27 @@ import { logger } from '@utils/logger.server';
 // Initialize ThemeManager singleton
 const themeManager = ThemeManager.getInstance();
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ request, locals }) => {
 	const { user, tenantId } = locals;
 
 	// Authentication is handled by hooks.server.ts
 	if (!user) {
-		return json({ success: false, error: 'Unauthorized' }, { status: 401 });
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
 	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-		throw error(400, 'Tenant could not be identified for this operation.');
+		throw new AppError('Tenant could not be identified for this operation.', 400, 'TENANT_REQUIRED');
 	}
 
 	const { themeId } = await request.json();
 
 	if (!themeId || typeof themeId !== 'string') {
 		logger.warn(`Invalid theme ID provided: ${themeId}`, { tenantId });
-		throw error(400, 'Invalid theme ID.');
+		throw new AppError('Invalid theme ID.', 400, 'INVALID_THEME_ID');
 	}
 
 	try {
@@ -65,6 +68,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : String(err);
 		logger.error('Error setting default theme:', { error: errorMessage, tenantId });
-		return json({ success: false, error: `Error setting default theme: ${errorMessage}` }, { status: 500 });
+		throw new AppError(`Error setting default theme: ${errorMessage}`, 500, 'THEME_UPDATE_FAILED');
 	}
-};
+});

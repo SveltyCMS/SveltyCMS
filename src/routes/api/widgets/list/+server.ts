@@ -4,12 +4,16 @@
  */
 
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+
 import { logger } from '@utils/logger.server';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { widgets, getWidgetDependencies } from '@stores/widgetStore.svelte.ts';
 
-export const GET: RequestHandler = async ({ url, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ url, locals }) => {
 	const start = performance.now();
 	const tenantId = url.searchParams.get('tenantId') || 'default-tenant';
 
@@ -17,28 +21,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const { user } = locals;
 
 		if (!user) {
-			return json(
-				{
-					success: false,
-					message: 'Unauthorized',
-					error: 'Authentication credentials missing'
-				},
-				{ status: 401 }
-			);
+			throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 		}
 
 		// Check permission
 		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', locals.roles);
 		if (!hasWidgetPermission) {
 			logger.warn(`User ${user._id} denied access to widget API due to insufficient permissions`);
-			return json(
-				{
-					success: false,
-					message: 'Insufficient permissions',
-					error: 'User lacks api:widgets permission'
-				},
-				{ status: 403 }
-			);
+			throw new AppError('Insufficient permissions', 403, 'FORBIDDEN');
 		}
 
 		// Initialize widgets if not already loaded
@@ -47,12 +37,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		// Get active widgets from DATABASE (not cached widget store)
 		// This ensures the GUI always shows current database state
 		if (!locals.dbAdapter?.widgets?.getActiveWidgets) {
-			throw new Error('Widget database adapter not available');
+			throw new AppError('Widget database adapter not available', 500, 'DB_ADAPTER_UNAVAILABLE');
 		}
 
 		const activeWidgetsResult = await locals.dbAdapter.widgets.getActiveWidgets();
 		if (!activeWidgetsResult.success) {
-			throw new Error(`Failed to fetch active widgets: ${activeWidgetsResult.error?.message || 'Unknown error'}`);
+			throw new AppError(`Failed to fetch active widgets: ${activeWidgetsResult.error?.message || 'Unknown error'}`, 500, 'FETCH_ACTIVE_FAILED');
 		}
 
 		const activeWidgetNames = (activeWidgetsResult.data || []).map((w) => w.name);
@@ -134,14 +124,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const duration = performance.now() - start;
 		const message = `Failed to get widget list: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
-
-		return json(
-			{
-				success: false,
-				message: 'Internal Server Error',
-				error: message
-			},
-			{ status: 500 }
-		);
+		if (err instanceof AppError) throw err;
+		throw new AppError(message, 500, 'GET_WIDGET_LIST_FAILED');
 	}
-};
+});

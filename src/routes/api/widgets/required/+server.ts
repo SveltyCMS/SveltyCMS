@@ -5,9 +5,12 @@
 import { contentManager } from '@src/content/ContentManager';
 import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
-import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ locals }) => {
 	const start = performance.now();
 	const { tenantId } = locals; // User is guaranteed to exist due to hooks protection
 
@@ -82,14 +85,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		const duration = performance.now() - start;
 		const message = `Failed to analyze collection widget dependencies: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
-
-		return json(
-			{
-				success: false,
-				message: 'Internal Server Error',
-				error: message
-			},
-			{ status: 500 }
-		);
+		if (err instanceof AppError) throw err;
+		throw new AppError(message, 500, 'DEPENDENCY_ANALYSIS_FAILED');
 	}
-};
+});

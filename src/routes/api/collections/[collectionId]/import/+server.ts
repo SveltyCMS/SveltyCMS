@@ -14,8 +14,7 @@
  * Body: { data: [...], format: 'json|csv', options: {...} }
  */
 
-import { error, json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { json } from '@sveltejs/kit';
 
 // Database adapter
 import { dbAdapter } from '@src/databases/db';
@@ -36,63 +35,67 @@ interface ImportOptions {
 	csvDelimiter?: string;
 }
 
-export const POST: RequestHandler = async ({ params, request, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ params, request, locals }) => {
 	const startTime = performance.now();
 	const { collectionId } = params;
+	const { user } = locals;
 
+	if (!user) {
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+	}
+
+	// Get collection schema
+	const schema = await contentManager.getCollection(collectionId);
+
+	if (!schema) {
+		throw new AppError(`Collection '${collectionId}' not found`, 404, 'COLLECTION_NOT_FOUND');
+	}
+
+	// Parse request body
+	const body = await request.json();
+	const { data, format = 'json', options = {} } = body;
+
+	if (!data) {
+		throw new AppError('No data provided for import', 400, 'NO_DATA');
+	}
+
+	// Validate and parse options
+	const importOptions: ImportOptions = {
+		overwrite: options.overwrite ?? false,
+		validate: options.validate ?? true,
+		skipInvalid: options.skipInvalid ?? true,
+		batchSize: options.batchSize ?? 100,
+		csvHeaders: options.csvHeaders,
+		csvDelimiter: options.csvDelimiter ?? ','
+	};
+
+	logger.info(`Starting import into collection ${collectionId}`, {
+		userId: user._id,
+		format,
+		dataLength: Array.isArray(data) ? data.length : 'unknown',
+		options: importOptions
+	});
+
+	// Process data based on format
+	let entries: Record<string, unknown>[];
+
+	if (format === 'csv') {
+		entries = parseCSVData(data, importOptions);
+	} else {
+		entries = Array.isArray(data) ? data : [data];
+	}
+
+	// Import the entries
 	try {
-		if (!locals.user) {
-			throw error(401, 'Unauthorized');
-		}
-
-		// Get collection schema
-		const schema = await contentManager.getCollection(collectionId);
-
-		if (!schema) {
-			throw error(404, `Collection '${collectionId}' not found`);
-		}
-
-		// Parse request body
-		const body = await request.json();
-		const { data, format = 'json', options = {} } = body;
-
-		if (!data) {
-			throw error(400, 'No data provided for import');
-		}
-
-		// Validate and parse options
-		const importOptions: ImportOptions = {
-			overwrite: options.overwrite ?? false,
-			validate: options.validate ?? true,
-			skipInvalid: options.skipInvalid ?? true,
-			batchSize: options.batchSize ?? 100,
-			csvHeaders: options.csvHeaders,
-			csvDelimiter: options.csvDelimiter ?? ','
-		};
-
-		logger.info(`Starting import into collection ${collectionId}`, {
-			userId: locals.user._id,
-			format,
-			dataLength: Array.isArray(data) ? data.length : 'unknown',
-			options: importOptions
-		});
-
-		// Process data based on format
-		let entries: Record<string, unknown>[];
-
-		if (format === 'csv') {
-			entries = parseCSVData(data, importOptions);
-		} else {
-			entries = Array.isArray(data) ? data : [data];
-		}
-
-		// Import the entries
 		const result = await importEntries(`collection_${schema._id}`, entries, schema, importOptions);
-
 		const duration = performance.now() - startTime;
 
 		logger.info(`Collection import completed for ${collectionId}`, {
-			userId: locals.user._id,
+			userId: user._id,
 			imported: result.imported,
 			skipped: result.skipped,
 			errors: result.errors.length,
@@ -120,13 +123,10 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			duration: `${duration.toFixed(2)}ms`
 		});
 
-		if (typeof err === 'object' && err !== null && 'status' in err && 'body' in err) {
-			throw err;
-		}
-
-		throw error(500, `Import failed: ${errorMsg}`);
+		if (err instanceof AppError) throw err;
+		throw new AppError(`Import failed: ${errorMsg}`, 500, 'IMPORT_FAILED');
 	}
-};
+});
 
 /**
  * Parse CSV data into array of objects

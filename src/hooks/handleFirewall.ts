@@ -34,6 +34,7 @@ import type { Handle } from '@sveltejs/kit';
 import { metricsService } from '@src/services/MetricsService';
 import { logger } from '@utils/logger.server';
 import { getPrivateSettingSync } from '@src/services/settingsService';
+import { AppError, handleApiError } from '@utils/errorHandling';
 
 // --- THREAT DETECTION PATTERNS ---
 
@@ -157,36 +158,48 @@ export const handleFirewall: Handle = async ({ event, resolve }) => {
 	const pathname = url.pathname.toLowerCase();
 	const search = url.search.toLowerCase();
 
-	// Check if firewall is enabled (default to true if not set)
-	const firewallEnabled = getPrivateSettingSync('FIREWALL_ENABLED') ?? true;
-	if (!firewallEnabled) return resolve(event);
+	try {
+		// Check if firewall is enabled (default to true if not set)
+		const firewallEnabled = getPrivateSettingSync('FIREWALL_ENABLED') ?? true;
+		if (!firewallEnabled) return resolve(event);
 
-	// --- 1. Advanced Bot Detection ---
-	// Block automation tools but allow legitimate search engine crawlers
-	if (isAdvancedBot(userAgent) && !isLegitimateBot(userAgent)) {
-		metricsService.incrementSecurityViolations();
-		logger.warn(`Advanced bot detected and blocked: UA=${userAgent.substring(0, 50)}, Path=${pathname}`);
-		throw error(403, 'Forbidden: Automated access detected');
+		// --- 1. Advanced Bot Detection ---
+		// Block automation tools but allow legitimate search engine crawlers
+		if (isAdvancedBot(userAgent) && !isLegitimateBot(userAgent)) {
+			metricsService.incrementSecurityViolations();
+			logger.warn(`Advanced bot detected and blocked: UA=${userAgent.substring(0, 50)}, Path=${pathname}`);
+			throw new AppError('Forbidden: Automated access detected', 403, 'BOT_DETECTED');
+		}
+
+		// --- 2. Application-Level Threat Detection ---
+		// Check for patterns that Nginx can't detect (business logic abuse)
+		if (hasApplicationThreat(pathname, search)) {
+			metricsService.incrementSecurityViolations();
+			logger.warn(`Application threat detected: IP=${event.getClientAddress()}, ` + `Path=${pathname}, ` + `UA=${userAgent.substring(0, 50)}`);
+			throw new AppError('Forbidden: Request pattern not allowed', 403, 'THREAT_DETECTED');
+		}
+
+		// --- 3. Suspicious Pattern Detection ---
+		// Check for indicators of enumeration or abuse attempts
+		if (hasSuspiciousPattern(pathname)) {
+			metricsService.incrementSecurityViolations();
+			logger.warn(`Suspicious pattern detected: IP=${event.getClientAddress()}, Path=${pathname}`);
+			throw new AppError('Forbidden: Invalid request pattern', 403, 'SUSPICIOUS_PATTERN');
+		}
+
+		// --- 4. Request Passed All Checks ---
+		return await resolve(event);
+	} catch (err) {
+		if (url.pathname.startsWith('/api/')) {
+			return handleApiError(err, event);
+		}
+
+		if (err instanceof AppError) {
+			throw error(err.status, err.message);
+		}
+
+		throw err;
 	}
-
-	// --- 2. Application-Level Threat Detection ---
-	// Check for patterns that Nginx can't detect (business logic abuse)
-	if (hasApplicationThreat(pathname, search)) {
-		metricsService.incrementSecurityViolations();
-		logger.warn(`Application threat detected: IP=${event.getClientAddress()}, ` + `Path=${pathname}, ` + `UA=${userAgent.substring(0, 50)}`);
-		throw error(403, 'Forbidden: Request pattern not allowed');
-	}
-
-	// --- 3. Suspicious Pattern Detection ---
-	// Check for indicators of enumeration or abuse attempts
-	if (hasSuspiciousPattern(pathname)) {
-		metricsService.incrementSecurityViolations();
-		logger.warn(`Suspicious pattern detected: IP=${event.getClientAddress()}, Path=${pathname}`);
-		throw error(403, 'Forbidden: Invalid request pattern');
-	}
-
-	// --- 4. Request Passed All Checks ---
-	return resolve(event);
 };
 
 // --- UTILITY EXPORTS ---

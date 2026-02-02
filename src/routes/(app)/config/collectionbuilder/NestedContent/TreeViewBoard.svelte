@@ -62,7 +62,6 @@
 	let isDragging = $state(false);
 	let nodeSnapshot = $state(new Map<string, EnhancedTreeViewItem>());
 	let lastContentNodesHash = $state('');
-	let lastSaveTime = $state(0);
 	let rebuildTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	// Accessibility State
@@ -70,7 +69,7 @@
 	let announcementId = $state(0);
 	let keyboardReorderMode = $state<string | null>(null);
 	let rovingTabIndex = $state<string | null>(null); // ID of node with tabindex="0"
-	
+
 	// Typeahead State
 	let typeaheadBuffer = $state('');
 	let typeaheadTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -102,7 +101,7 @@
 
 		if (currentHash !== lastContentNodesHash) {
 			if (rebuildTimeout) clearTimeout(rebuildTimeout);
-			
+
 			rebuildTimeout = setTimeout(() => {
 				lastContentNodesHash = currentHash;
 				console.log('[TreeViewBoard] initializing tree from canonical contentNodes. Count:', contentNodes.length);
@@ -128,12 +127,12 @@
 					initialized = true;
 					expandAll();
 				}
-				
+
 				// Set initial roving tabindex to first node
 				if (!rovingTabIndex && treeRoots.length > 0) {
 					rovingTabIndex = treeRoots[0].id;
 				}
-				
+
 				rebuildTimeout = null;
 			}, 50);
 		}
@@ -214,7 +213,7 @@
 
 	function getVisibleNodes(nodes: EnhancedTreeViewItem[]): EnhancedTreeViewItem[] {
 		const visible: EnhancedTreeViewItem[] = [];
-		
+
 		function traverse(items: EnhancedTreeViewItem[]) {
 			for (const item of items) {
 				visible.push(item);
@@ -223,7 +222,7 @@
 				}
 			}
 		}
-		
+
 		traverse(nodes);
 		return visible;
 	}
@@ -353,27 +352,27 @@
 		// CYCLE DETECTION: Prevent dropping into own descendant
 		if (parentId && movingIds.size > 0) {
 			const ancestorMap = new Map<string, Set<string>>();
-			
+
 			function buildAncestorMap(nodes: EnhancedTreeViewItem[], ancestors: Set<string> = new Set()) {
 				for (const node of nodes) {
 					const nodeAncestors = new Set(ancestors);
 					ancestorMap.set(node.id, nodeAncestors);
-					
+
 					const childAncestors = new Set(nodeAncestors);
 					childAncestors.add(node.id);
 					buildAncestorMap(node.children, childAncestors);
 				}
 			}
-			
+
 			buildAncestorMap(treeRoots);
 			const targetAncestors = ancestorMap.get(parentId);
-			
+
 			if (targetAncestors) {
 				for (const movingId of movingIds) {
 					if (targetAncestors.has(movingId)) {
 						const movingNode = findNode(treeRoots, movingId);
 						announce(`Cannot move "${movingNode?.name || 'item'}" into its own sub-category`);
-						
+
 						// Revert visual state
 						treeRoots = [...treeRoots];
 						isDragging = false;
@@ -424,13 +423,12 @@
 		const nodes = toFlatContentNodes(withPaths);
 
 		// Pre-emptively set hash to prevent race condition with parent updates
-		lastContentNodesHash = 
-			nodes.map((n) => `${n._id}:${n.parentId}:${n.order}`)
-			.sort()
-			.join('|') + nodes.length;
-		
-		lastSaveTime = Date.now();
-		
+		lastContentNodesHash =
+			nodes
+				.map((n) => `${n._id}:${n.parentId}:${n.order}`)
+				.sort()
+				.join('|') + nodes.length;
+
 		console.log('[TreeViewBoard] saving tree data with', nodes.length, 'nodes');
 		onNodeUpdate(nodes);
 
@@ -514,7 +512,7 @@
 		// If no focus yet, assume first
 		if (currentIndex === -1) currentIndex = 0;
 		const currentNode = visibleNodes[currentIndex];
-		
+
 		let nextNode: EnhancedTreeViewItem | null = null;
 		let handled = true;
 
@@ -595,7 +593,7 @@
 		if (nextNode) {
 			focusNode(nextNode.id);
 		}
-		
+
 		if (handled) {
 			e.preventDefault();
 		}
@@ -603,21 +601,16 @@
 
 	function handleTypeahead(char: string, visibleNodes: EnhancedTreeViewItem[], currentIndex: number) {
 		typeaheadBuffer += char.toLowerCase();
-		
+
 		if (typeaheadTimeout) clearTimeout(typeaheadTimeout);
 		typeaheadTimeout = setTimeout(() => {
 			typeaheadBuffer = '';
 		}, 500);
 
 		// Search from current position + 1, then wrap around
-		const searchNodes = [
-			...visibleNodes.slice(currentIndex + 1),
-			...visibleNodes.slice(0, currentIndex + 1)
-		];
+		const searchNodes = [...visibleNodes.slice(currentIndex + 1), ...visibleNodes.slice(0, currentIndex + 1)];
 
-		const match = searchNodes.find((n) => 
-			n.name.toLowerCase().startsWith(typeaheadBuffer)
-		);
+		const match = searchNodes.find((n) => n.name.toLowerCase().startsWith(typeaheadBuffer));
 
 		if (match) {
 			focusNode(match.id);
@@ -705,26 +698,24 @@
 
 	function handleDeleteNode(node: Partial<ContentNode>) {
 		if (!node._id) return;
-		
+
 		// Calculate next focus target before deletion
 		const visibleNodes = getVisibleNodes(treeRoots);
-		const currentIndex = visibleNodes.findIndex(n => n.id === String(node._id));
+		const currentIndex = visibleNodes.findIndex((n) => n.id === String(node._id));
 		let nextFocusId: string | null = null;
-		
+
 		if (visibleNodes.length > 1) {
 			// Prefer next sibling, then previous, then parent
-			const nextIndex = currentIndex < visibleNodes.length - 1 
-				? currentIndex + 1 
-				: Math.max(0, currentIndex - 1);
+			const nextIndex = currentIndex < visibleNodes.length - 1 ? currentIndex + 1 : Math.max(0, currentIndex - 1);
 			nextFocusId = visibleNodes[nextIndex]?.id || null;
 		} else if (treeRoots.length > 0) {
 			// If this was the last visible node, focus first root
 			nextFocusId = treeRoots[0]?.id;
 		}
-		
+
 		// Execute delete
 		onDeleteNode?.(node);
-		
+
 		// Restore focus after DOM update
 		if (nextFocusId) {
 			tick().then(() => {
@@ -814,6 +805,7 @@
 	class:is-dragging={isDragging}
 	onkeydown={handleTreeKeyDown}
 	role="tree"
+	tabindex="0"
 	aria-label="Collection hierarchy. Use arrow keys to navigate, Space to expand/collapse, Home/End for first/last item, letters to jump to items."
 >
 	{#if treeRoots.length === 0}

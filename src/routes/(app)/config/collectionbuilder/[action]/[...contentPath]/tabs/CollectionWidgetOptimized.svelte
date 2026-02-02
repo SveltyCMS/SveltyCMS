@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { dndzone } from 'svelte-dnd-action';
+	import { dndzone, type DndEvent } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 	import { collection, setTargetWidget } from '@src/stores/collectionStore.svelte';
 	import { widgetFunctions } from '@stores/widgetStore.svelte.ts';
 	import { get } from 'svelte/store';
+	import { untrack } from 'svelte';
 	import { toaster } from '@src/stores/store.svelte';
 	import { modalState } from '@utils/modalState.svelte';
 	import { asAny, getGuiFields } from '@utils/utils';
-	import * as m from '@src/paraglide/messages';
 
 	import ModalSelectWidget from './CollectionWidget/ModalSelectWidget.svelte';
 	import ModalWidgetForm from './CollectionWidget/ModalWidgetForm.svelte';
@@ -16,27 +16,29 @@
 	let { fields = [] } = $props<{ fields: FieldInstance[] }>();
 
 	let items = $state(
-		fields.map((f, i) => ({
-			id: i + 1,
-			...f,
-			_dragId: Math.random().toString(36).substring(7)
-		}))
+		untrack(() =>
+			fields.map((f: FieldInstance, i: number) => ({
+				id: i + 1,
+				...f,
+				_dragId: Math.random().toString(36).substring(7)
+			}))
+		)
 	);
 
 	const flipDurationMs = 200;
 
-	function handleDndConsider(e: CustomEvent<{ items: any[] }>) {
+	function handleDndConsider(e: CustomEvent<DndEvent<typeof items>>) {
 		items = e.detail.items;
 	}
 
-	function handleDndFinalize(e: CustomEvent<{ items: any[] }>) {
+	function handleDndFinalize(e: CustomEvent<DndEvent<typeof items>>) {
 		items = e.detail.items;
 		updateStore();
 	}
 
 	function updateStore() {
 		if (collection.value) {
-			collection.value.fields = items.map(({ _dragId, id, ...rest }) => rest);
+			collection.value.fields = items.map(({ _dragId, id, ...rest }: { _dragId?: string; id?: number; [key: string]: any }) => rest as FieldInstance);
 		}
 	}
 
@@ -52,7 +54,7 @@
 				const widgetInstance = get(widgetFunctions)[r.selectedWidget];
 				if (widgetInstance) {
 					const newWidget = {
-						widget: { key: r.selectedWidget, Name: r.selectedWidget },
+						widget: { key: r.selectedWidget, Name: r.selectedWidget } as any,
 						GuiFields: getGuiFields({ key: r.selectedWidget }, asAny(widgetInstance.GuiSchema)),
 						permissions: {}
 					};
@@ -70,9 +72,9 @@
 				title: field.id ? 'Edit Field' : 'New Field',
 				value: field
 			},
-			(r: any) => {
+			(r: { id?: number; [key: string]: any } | undefined) => {
 				if (!r) return;
-				const idx = items.findIndex((i) => i.id === r.id);
+				const idx = items.findIndex((i: (typeof items)[number]) => i.id === r.id);
 				if (idx !== -1) {
 					items[idx] = { ...items[idx], ...r };
 				} else {
@@ -88,12 +90,12 @@
 	}
 
 	function deleteField(id: number) {
-		items = items.filter((i) => i.id !== id).map((item, idx) => ({ ...item, id: idx + 1 }));
+		items = items.filter((i: (typeof items)[number]) => i.id !== id).map((item: (typeof items)[number], idx: number) => ({ ...item, id: idx + 1 }));
 		updateStore();
 		toaster.info({ description: 'Field removed from collection' });
 	}
 
-	function duplicateField(field: any) {
+	function duplicateField(field: (typeof items)[number]) {
 		const newField = {
 			...field,
 			id: items.length + 1,
@@ -118,7 +120,7 @@
 			const newWidget = {
 				label: `New ${key}`,
 				db_fieldName: `new_${key.toLowerCase()}`,
-				widget: { key, Name: key },
+				widget: { key, Name: key } as any,
 				GuiFields: getGuiFields({ key }, asAny(widgetInstance.GuiSchema)),
 				permissions: {}
 			};

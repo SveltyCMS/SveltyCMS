@@ -5,14 +5,19 @@
  * It works by creating a `restart.txt` file, which can be watched by a process manager like pm2.
  */
 
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { setRestartNeeded } from '@src/utils/server/restartRequired';
 import { promises as fs } from 'fs';
+import { logger } from '@utils/logger.server';
 import path from 'path';
 
-export const POST = async ({ locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ locals }) => {
 	if (!locals.user || locals.user.role !== 'admin') {
-		throw error(403, 'Insufficient permissions');
+		throw new AppError('Insufficient permissions', 403, 'FORBIDDEN');
 	}
 
 	try {
@@ -23,7 +28,8 @@ export const POST = async ({ locals }) => {
 		setRestartNeeded(false);
 
 		return json({ success: true, message: 'Server restart initiated.' });
-	} catch {
-		return json({ success: false, error: 'Failed to initiate restart.' }, { status: 500 });
+	} catch (err) {
+		logger.error('Failed to initiate restart', err);
+		throw new AppError('Failed to initiate restart.', 500, 'RESTART_FAILED');
 	}
-};
+});

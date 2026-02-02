@@ -17,24 +17,34 @@
  * @monitoring Provides enterprise-grade metrics for system monitoring
  */
 
-import { json, type RequestHandler } from '@sveltejs/kit';
-import { logger } from '@utils/logger.server';
-import { metricsService } from '@src/services/MetricsService';
-import { error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 
 /**
  * GET /api/metrics
  * Returns comprehensive system metrics
  */
-export const GET: RequestHandler = async ({ url, locals }) => {
+// Unified Error Handling
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+// Services
+import { metricsService } from '@src/services/MetricsService';
+import { logger } from '@utils/logger.server';
+
+/**
+ * GET /api/metrics
+ * Returns comprehensive system metrics
+ */
+export const GET = apiHandler(async ({ url, locals }) => {
 	// Check authentication
 	if (!locals.user) {
-		throw error(401, 'Authentication required');
+		throw new AppError('Authentication required', 401, 'UNAUTHORIZED');
 	}
 
 	// Check admin permissions for metrics access
 	if (!locals.isAdmin) {
-		throw error(403, 'Admin privileges required to access metrics');
+		throw new AppError('Admin privileges required to access metrics', 403, 'FORBIDDEN');
 	}
 
 	const format = url.searchParams.get('format') || 'json';
@@ -63,23 +73,23 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		});
 	} catch (err) {
 		logger.error('Error retrieving metrics:', err);
-		throw error(500, 'Failed to retrieve metrics');
+		throw new AppError('Failed to retrieve metrics', 500, 'METRICS_ERROR');
 	}
-};
+});
 
 /**
  * POST /api/metrics/reset
  * Resets all metrics counters (admin only)
  */
-export const POST: RequestHandler = async ({ locals, request }) => {
+export const POST = apiHandler(async ({ locals, request }) => {
 	// Check authentication
 	if (!locals.user) {
-		throw error(401, 'Authentication required');
+		throw new AppError('Authentication required', 401, 'UNAUTHORIZED');
 	}
 
 	// Check admin permissions
 	if (!locals.isAdmin) {
-		throw error(403, 'Admin privileges required to reset metrics');
+		throw new AppError('Admin privileges required to reset metrics', 403, 'FORBIDDEN');
 	}
 
 	try {
@@ -96,13 +106,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			});
 		}
 
-		throw error(400, 'Invalid action. Use {"action": "reset"} to reset metrics.');
+		throw new AppError('Invalid action. Use {"action": "reset"} to reset metrics.', 400, 'INVALID_ACTION');
 	} catch (err) {
+		if (err instanceof AppError) throw err;
 		if (err instanceof Error && err.message.includes('Invalid action')) {
-			throw err;
+			throw new AppError(err.message, 400, 'INVALID_ACTION');
 		}
 
 		logger.error('Error resetting metrics:', err);
-		throw error(500, 'Failed to reset metrics');
+		throw new AppError('Failed to reset metrics', 500, 'METRICS_RESET_ERROR');
 	}
-};
+});

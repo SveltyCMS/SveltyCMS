@@ -12,6 +12,21 @@ import { getApiBaseUrl } from './server';
 
 const BASE_URL = getApiBaseUrl();
 
+/**
+ * Extracts just the cookie name=value from a set-cookie header.
+ * The set-cookie header includes attributes like Path, HttpOnly, etc.
+ * but the Cookie request header should only contain name=value pairs.
+ *
+ * Example:
+ * Input: "sveltycms_session=abc123; Path=/; HttpOnly; SameSite=strict"
+ * Output: "sveltycms_session=abc123"
+ */
+function extractCookieValue(setCookieHeader: string): string {
+	// The cookie value is the first part before any semicolon
+	const cookiePart = setCookieHeader.split(';')[0].trim();
+	return cookiePart;
+}
+
 // Internal helper using JSON (avoids CSRF protection issues with FormData)
 async function login(email: string, password: string): Promise<string> {
 	const response = await fetch(`${BASE_URL}/api/user/login`, {
@@ -33,7 +48,8 @@ async function login(email: string, password: string): Promise<string> {
 	if (!setCookie) {
 		throw new Error(`Login successful but no cookie returned for ${email}`);
 	}
-	return setCookie;
+	// Extract just the cookie name=value, not the attributes
+	return extractCookieValue(setCookie);
 }
 
 export async function loginAsAdmin(): Promise<string> {

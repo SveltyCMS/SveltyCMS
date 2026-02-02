@@ -4,7 +4,6 @@
  *
  * Supports multi-tenant mode with tenant-specific role isolation.
  */
-import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
 import { dbAdapter, dbInitPromise } from '@src/databases/db';
 import { getAllPermissions } from '@src/databases/auth/permissions';
@@ -15,18 +14,22 @@ import type { Role } from '@src/databases/auth/types';
 const MAX_ROLE_NAME_LENGTH = 50;
 const ROLE_NAME_PATTERN = /^[a-zA-Z0-9-_\s]+$/;
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ request, locals }) => {
 	const user = locals.user;
 	const tenantId = locals.tenantId;
 
 	if (!user) {
 		logger.warn('Unauthenticated attempt to update permissions', { tenantId });
-		return json({ success: false, error: 'Unauthorized' }, { status: 401 });
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
 	if (!locals.isAdmin) {
 		logger.warn('Unauthorized attempt to update permissions', { userId: user._id, tenantId });
-		return json({ success: false, error: 'Unauthorized' }, { status: 403 });
+		throw new AppError('Unauthorized', 403, 'FORBIDDEN');
 	}
 
 	try {
@@ -34,18 +37,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		if (!dbAdapter) {
 			logger.error('Database adapter not initialized');
-			return json({ success: false, error: 'Database not initialized' }, { status: 500 });
+			throw new AppError('Database not initialized', 500, 'DB_INIT_ERROR');
 		}
 
 		const { roles } = await request.json();
 
 		if (!Array.isArray(roles)) {
-			return json({ success: false, error: 'Roles must be provided as an array' }, { status: 400 });
+			throw new AppError('Roles must be provided as an array', 400, 'INVALID_FORMAT');
 		}
 
 		const validationResult = await validateRoles(roles);
 		if (!validationResult.isValid) {
-			return json({ success: false, error: validationResult.error }, { status: 400 });
+			throw new AppError(validationResult.error || 'Invalid roles', 400, 'VALIDATION_ERROR');
 		}
 
 		logger.info('Updating roles', { userId: user._id, roleCount: roles.length, tenantId });
@@ -72,12 +75,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		invalidateRolesCache(tenantId);
 		logger.info('Roles updated successfully', { userId: user._id, tenantId });
 
-		return json({ success: true }, { status: 200 });
+		return json({ success: true });
 	} catch (error) {
+		if (error instanceof AppError) throw error;
 		logger.error('Error updating permissions:', { error, userId: user._id, tenantId });
-		return json({ success: false, error: `Error: ${error}` }, { status: 500 });
+		throw new AppError(`Error: ${error}`, 500, 'UPDATE_FAILED');
 	}
-};
+});
 
 async function validateRoles(roles: Role[]): Promise<{ isValid: boolean; error?: string }> {
 	if (roles.length === 0) return { isValid: false, error: 'At least one role required' };

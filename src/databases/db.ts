@@ -43,8 +43,8 @@ async function loadPrivateConfig(forceReload = false) {
 				if (process.env.NODE_ENV === 'test') {
 					const msg =
 						'CRITICAL SAFETY ERROR: Attempted to load live config/private.ts in TEST environment. Strict isolation requires config/private.test.ts.';
-					console.error(msg);
-					throw new Error(msg);
+					logger.error(msg);
+					throw new AppError(msg, 500, 'TEST_ENV_SAFETY_VIOLATION');
 				}
 				module = await import('@config/private');
 			}
@@ -58,8 +58,8 @@ async function loadPrivateConfig(forceReload = false) {
 				!privateEnv.DB_NAME.endsWith('_functional')
 			) {
 				const msg = `⚠️ SAFETY ERROR: DB_NAME '${privateEnv.DB_NAME}' does not look like a test database! Tests must use isolated databases.`;
-				console.error(msg);
-				throw new Error(msg);
+				logger.error(msg);
+				throw new AppError(msg, 500, 'TEST_DB_SAFETY_VIOLATION');
 			}
 
 			logger.debug('Private config loaded successfully', {
@@ -103,6 +103,7 @@ export function clearPrivateConfigCache(keepPrivateEnv = false) {
 // Auth
 import { Auth } from '@src/databases/auth';
 import { getDefaultSessionStore } from '@src/databases/auth/sessionManager';
+import { AppError } from '@utils/errorHandling';
 
 // Adapters Interfaces
 import type { DatabaseAdapter } from './dbInterface';

@@ -2,14 +2,17 @@
  * @file src/routes/api/widgets/active/+server.ts
  * @description API endpoint for getting active widgets with 3-pillar architecture metadata
  */
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
-import type { RequestHandler } from './$types';
 import { widgets, getWidgetFunction, isWidgetCore } from '@stores/widgetStore.svelte.ts';
 import { cacheService } from '@src/databases/CacheService';
 import { CacheCategory } from '@src/databases/CacheCategory';
 
-export const GET: RequestHandler = async ({ locals, url }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ locals, url }) => {
 	const start = performance.now();
 	const { tenantId } = locals;
 
@@ -41,7 +44,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const dbAdapter = locals.dbAdapter;
 		if (!dbAdapter?.widgets?.getActiveWidgets) {
 			logger.error('Widget database adapter not available');
-			throw error(500, 'Widget database adapter not available');
+			throw new AppError('Widget database adapter not available', 500, 'DB_ADAPTER_UNAVAILABLE');
 		}
 
 		const result = await dbAdapter.widgets.getActiveWidgets();
@@ -136,14 +139,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const duration = performance.now() - start;
 		const message = `Failed to get active widgets: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms` });
-
-		return json(
-			{
-				success: false,
-				message: 'Internal Server Error',
-				error: message
-			},
-			{ status: 500 }
-		);
+		if (err instanceof AppError) throw err;
+		throw new AppError(message, 500, 'GET_ACTIVE_WIDGETS_FAILED');
 	}
-};
+});

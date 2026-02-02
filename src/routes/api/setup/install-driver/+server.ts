@@ -4,7 +4,7 @@
  */
 
 import * as m from '@src/paraglide/messages';
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import { exec } from 'child_process';
 import { existsSync } from 'fs';
@@ -124,32 +124,27 @@ async function installDriver(
 	}
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ request }) => {
 	try {
 		const { dbType } = await request.json();
 
 		if (!dbType || typeof dbType !== 'string') {
-			return json(
-				{
-					success: false,
-					error: 'Invalid request: dbType is required and must be a string'
-				},
-				{ status: 400 }
-			);
+			throw new AppError('Invalid request: dbType is required and must be a string', 400, 'INVALID_DB_TYPE');
 		}
 
 		const { package: packageName, valid } = getDriverPackage(dbType);
 
 		if (!valid) {
-			return json(
-				{
-					success: false,
-					error: `Unsupported database type: ${dbType}`,
-					supportedTypes: Object.keys(DRIVER_PACKAGES),
-					note: 'MongoDB is the default database. Other database types are optional and require manual driver installation.'
-				},
-				{ status: 400 }
-			);
+			const supportedTypes = Object.keys(DRIVER_PACKAGES);
+			const details = {
+				supportedTypes,
+				note: 'MongoDB is the default database. Other database types are optional and require manual driver installation.'
+			};
+			throw new AppError(`Unsupported database type: ${dbType}`, 400, 'UNSUPPORTED_DB_TYPE', details);
 		}
 
 		logger.info(`Starting automatic installation of ${packageName} for ${dbType}`);
@@ -184,29 +179,18 @@ export const POST: RequestHandler = async ({ request }) => {
 				output: installResult.output
 			});
 		} else {
-			return json(
-				{
-					success: false,
-					error: m.api_install_driver_failed({ driver: packageName, error: installResult.error || 'Unknown error' }),
-					package: packageName,
-					details: installResult.error,
-					manualCommand: installResult.manualCommand,
-					isPermissionError: installResult.isPermissionError,
-					output: installResult.output
-				},
-				{ status: 500 }
-			);
+			throw new AppError(m.api_install_driver_failed({ driver: packageName, error: installResult.error || 'Unknown error' }), 500, 'INSTALL_FAILED', {
+				package: packageName,
+				details: installResult.error,
+				manualCommand: installResult.manualCommand,
+				isPermissionError: installResult.isPermissionError,
+				output: installResult.output
+			});
 		}
 	} catch (error) {
+		if (error instanceof AppError) throw error;
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		logger.error('Install driver API error:', { error: errorMessage });
-
-		return json(
-			{
-				success: false,
-				error: 'Internal server error during driver installation'
-			},
-			{ status: 500 }
-		);
+		throw new AppError('Internal server error during driver installation', 500, 'DRIVER_INSTALL_ERROR');
 	}
-};
+});

@@ -20,8 +20,7 @@
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
-import { error, json, type HttpError } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { json, type HttpError } from '@sveltejs/kit';
 
 // Auth
 import { auth } from '@src/databases/db';
@@ -42,28 +41,31 @@ const batchTokenActionSchema = object({
 	action: picklist(['delete', 'block', 'unblock'], 'Invalid action specified.')
 });
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ request, locals }) => {
 	try {
 		const { user, tenantId } = locals; // Destructure user and tenantId
 		const body = await request.json().catch(() => {
-			throw error(400, 'Invalid JSON in request body');
+			throw new AppError('Invalid JSON in request body', 400, 'INVALID_JSON');
 		});
 		const parsed = parse(batchTokenActionSchema, body);
 		const { tokenIds, action } = parsed;
 		if (!Array.isArray(tokenIds) || tokenIds.length === 0) {
-			throw error(400, 'At least one token ID is required.');
+			throw new AppError('At least one token ID is required.', 400, 'MISSING_TOKEN_IDS');
 		}
-		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		if (!auth) {
 			logger.error('Database authentication adapter not initialized');
-			throw error(500, 'Database authentication not available');
+			throw new AppError('Database authentication not available', 500, 'DB_AUTH_ERROR');
 		}
 
 		// --- MULTI-TENANCY SECURITY CHECK ---
 		if (getPrivateSettingSync('MULTI_TENANT')) {
 			if (!tenantId) {
-				throw error(500, 'Tenant could not be identified for this operation.');
+				throw new AppError('Tenant could not be identified for this operation.', 500, 'TENANT_REQUIRED');
 			}
 			// Use auth.getAllTokens if available to verify ownership
 			try {
@@ -76,11 +78,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				const allOwned = tokenIds.every((id) => tokenSet.has(id));
 				if (!allOwned) {
 					logger.warn('Attempt to act on tokens outside of tenant', { userId: user?._id, tenantId, requestedTokenIds: tokenIds });
-					throw error(403, 'Forbidden: One or more tokens do not belong to your tenant or do not exist.');
+					throw new AppError('Forbidden: One or more tokens do not belong to your tenant or do not exist.', 403, 'FORBIDDEN');
 				}
 			} catch (verifyErr) {
+				if (verifyErr instanceof AppError) throw verifyErr;
 				logger.error('Failed to verify tenant token ownership', { error: verifyErr });
-				throw error(500, 'Failed to verify token ownership');
+				throw new AppError('Failed to verify token ownership', 500, 'VERIFY_OWNERSHIP_FAILED');
 			}
 		}
 
@@ -117,11 +120,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		return json({ success: true, message: successMessage });
 	} catch (err) {
+		if (err instanceof AppError) throw err;
 		if (err && typeof err === 'object' && 'name' in err && err.name === 'ValiError') {
 			const valiError = err as ValiError<typeof batchTokenActionSchema>;
 			const issues = valiError.issues.map((issue) => issue.message).join(', ');
 			logger.warn('Invalid input for token batch API:', { issues });
-			throw error(400, `Invalid input: ${issues}`);
+			throw new AppError(`Invalid input: ${issues}`, 400, 'VALIDATION_ERROR');
 		}
 		const httpError = err as HttpError;
 		const status = httpError.status || 500;
@@ -132,6 +136,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			userId: locals.user?._id,
 			status
 		});
-		return json({ success: false, message: status === 500 ? 'Internal Server Error' : message }, { status });
+		throw new AppError(message, status, 'BATCH_ACTION_FAILED');
 	}
-};
+});

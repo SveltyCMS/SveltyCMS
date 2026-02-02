@@ -12,7 +12,7 @@
  * @endpoint GET /api/metrics/unified
  */
 
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { metricsService } from '@src/services/MetricsService';
 import { logger } from '@utils/logger.server';
 
@@ -20,7 +20,15 @@ import { logger } from '@utils/logger.server';
  * GET /api/metrics/unified
  * Returns comprehensive system metrics for dashboard monitoring.
  */
-export const GET: RequestHandler = async ({ locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+/**
+ * GET /api/metrics/unified
+ * Returns comprehensive system metrics for dashboard monitoring.
+ */
+export const GET = apiHandler(async ({ locals }) => {
 	try {
 		// Get comprehensive metrics report
 		const metricsReport = metricsService.getReport();
@@ -102,15 +110,9 @@ export const GET: RequestHandler = async ({ locals }) => {
 		return json(enhancedMetrics);
 	} catch (error) {
 		logger.error('Error fetching unified metrics:', error);
-		return json(
-			{
-				error: 'Failed to fetch metrics',
-				timestamp: Date.now()
-			},
-			{ status: 500 }
-		);
+		throw new AppError('Failed to fetch metrics', 500, 'METRICS_ERROR');
 	}
-};
+});
 
 /**
  * Calculate overall performance score (0-100) based on multiple factors.

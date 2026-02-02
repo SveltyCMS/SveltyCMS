@@ -12,7 +12,7 @@
  * - Returns user data and content structure for client-side rendering.
  */
 
-import { error, redirect } from '@sveltejs/kit';
+import { error, redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth - Use cached roles from locals instead of global config
@@ -96,7 +96,7 @@ export const actions = {
 		const ids = JSON.parse(formData.get('ids') as string);
 
 		if (!ids || !Array.isArray(ids)) {
-			throw error(400, 'Invalid IDs for deletion');
+			return fail(400, { message: 'Invalid IDs for deletion' });
 		}
 
 		try {
@@ -113,7 +113,7 @@ export const actions = {
 			return { success: true };
 		} catch (err) {
 			logger.error('Error deleting collections:', err);
-			return { success: false, error: 'Failed to delete collections' };
+			return fail(500, { message: 'Failed to delete collections' });
 		}
 	},
 
@@ -122,7 +122,7 @@ export const actions = {
 		const items = JSON.parse(formData.get('items') as string);
 
 		if (!items || !Array.isArray(items)) {
-			throw error(400, 'Invalid items for save');
+			return fail(400, { message: 'Invalid items for save' });
 		}
 
 		try {
@@ -137,7 +137,7 @@ export const actions = {
 			return { success: true, contentStructure: serializedStructure };
 		} catch (err) {
 			logger.error('Error saving config:', err);
-			return { success: false, error: 'Failed to save configuration' };
+			return fail(500, { message: 'Failed to save configuration' });
 		}
 	}
 };

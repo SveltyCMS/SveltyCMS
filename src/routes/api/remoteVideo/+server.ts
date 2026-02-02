@@ -21,7 +21,11 @@ import { logger } from '@utils/logger.server';
 import type { RemoteVideoProps } from '@widgets/custom/RemoteVideo/types';
 import { getRemoteVideoData } from '@widgets/custom/RemoteVideo/video';
 
-export async function POST({ request }) {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ request }) => {
 	try {
 		// Expect a JSON body instead of FormData for cleaner data handling.
 		const { url, allowedPlatforms } = (await request.json()) as {
@@ -32,7 +36,7 @@ export async function POST({ request }) {
 		// Validate the incoming request body.
 		if (!url || typeof url !== 'string') {
 			logger.warn('API /remoteVideo: Invalid or missing URL in request body.');
-			return json({ success: false, error: 'A valid URL is required.' }, { status: 400 });
+			throw new AppError('A valid URL is required.', 400, 'INVALID_URL');
 		}
 
 		// All platform-specific parsing and fetching is now handled by this single function.
@@ -42,14 +46,14 @@ export async function POST({ request }) {
 		if (!videoData) {
 			const errorMsg = 'Could not fetch video metadata. The URL may be invalid or the platform is unsupported.';
 			logger.warn(`API /remoteVideo: ${errorMsg}`, { url });
-			return json({ success: false, error: errorMsg }, { status: 400 });
+			throw new AppError(errorMsg, 400, 'FETCH_FAILED');
 		}
 
 		// SECURITY: Enforce the `allowedPlatforms` rule on the server.
 		if (allowedPlatforms && allowedPlatforms.length > 0 && !allowedPlatforms.includes(videoData.platform)) {
 			const errorMsg = `The platform '${videoData.platform}' is not permitted for this field.`;
 			logger.warn(`API /remoteVideo: Forbidden platform.`, { url, platform: videoData.platform, allowed: allowedPlatforms });
-			return json({ success: false, error: errorMsg }, { status: 403 }); // 403 Forbidden
+			throw new AppError(errorMsg, 403, 'PLATFORM_FORBIDDEN');
 		}
 
 		// On success, return the unified data object.
@@ -57,8 +61,9 @@ export async function POST({ request }) {
 		return json({ success: true, data: videoData });
 	} catch (error) {
 		// Catch any unexpected errors during processing.
+		if (error instanceof AppError) throw error;
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		logger.error('API /remoteVideo critical error:', { error: errorMessage });
-		return json({ success: false, error: 'An internal server error occurred.' }, { status: 500 });
+		throw new AppError('An internal server error occurred.', 500, 'INTERNAL_ERROR');
 	}
-}
+});

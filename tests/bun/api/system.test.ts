@@ -105,7 +105,8 @@ describe('System Configuration API Endpoints', () => {
 			});
 			expect(getResp.status).toBe(200);
 			const data = await getResp.json();
-			expect(data.value).toEqual(value);
+			// The API returns the preference value directly, not wrapped in { value: ... }
+			expect(data).toEqual(value);
 		});
 	});
 });

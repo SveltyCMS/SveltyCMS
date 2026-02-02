@@ -3,7 +3,7 @@
  * @description Handles system settings import requests.
  */
 
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { getDb } from '@src/databases/db';
 import { getAllSettings, invalidateSettingsCache } from '@src/services/settingsService';
 import { logger } from '@utils/logger.server';
@@ -162,9 +162,13 @@ async function logImport(userId: string, metadata: ExportMetadata, result: Impor
 	});
 }
 
-export const POST: RequestHandler = async ({ locals, request }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ locals, request }) => {
 	if (!locals.user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 	try {
 		const body = await request.json();
@@ -225,8 +229,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			{ status: result.success ? 200 : 207 }
 		);
 	} catch (error) {
+		if (error instanceof AppError) throw error;
 		logger.error(`Import error details: ${error instanceof Error ? error.message : String(error)}`);
 		if (error instanceof Error) logger.error(error.stack || 'No stack trace');
-		return json({ success: false, error: 'Import failed', message: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
+		throw new AppError(error instanceof Error ? error.message : 'Unknown error', 500, 'IMPORT_FAILED');
 	}
-};
+});

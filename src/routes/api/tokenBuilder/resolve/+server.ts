@@ -5,9 +5,12 @@
 
 import { processTokensInResponse } from '@src/services/token/helper';
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ request, locals }) => {
 	try {
 		const { text } = await request.json();
 		const locale = (locals as any).locale || 'en';
@@ -21,6 +24,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		return json({ resolved });
 	} catch (error) {
-		return json({ error: 'Failed to resolve tokens' }, { status: 400 });
+		const message = error instanceof Error ? error.message : 'Unknown error';
+		throw new AppError('Failed to resolve tokens', 400, 'TOKEN_RESOLUTION_FAILED', { originalError: message });
 	}
-};
+});

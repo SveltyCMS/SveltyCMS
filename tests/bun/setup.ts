@@ -194,8 +194,26 @@ globalThis.URL = MockURL as any;
 // Mock @sveltejs/kit to expose global Request/URL using our mocks
 mock.module('@sveltejs/kit', () => ({
 	Request: globalThis.Request,
-	URL: globalThis.URL
-	// Add other exports from @sveltejs/kit that might be used by tests if needed
+	URL: globalThis.URL,
+	json: (data: any, init?: any) => {
+		const headers = new Headers(init?.headers);
+		if (!headers.has('content-type')) {
+			headers.set('content-type', 'application/json');
+		}
+		return new Response(JSON.stringify(data), {
+			...init,
+			headers
+		});
+	},
+	error: (status: number, body: any) => {
+		const err = { status, body: typeof body === 'string' ? { message: body } : body };
+		throw err;
+	},
+	redirect: (status: number, location: string) => {
+		throw { status, location, __is_redirect: true };
+	},
+	isRedirect: (err: any) => err && err.__is_redirect === true,
+	isHttpError: (err: any) => err && typeof err.status === 'number' && err.body !== undefined
 }));
 
 // --- Svelte 5 Runes Mocks ---
@@ -228,7 +246,7 @@ mock.module('@sveltejs/kit', () => ({
 (globalThis as any).$props = () => ({});
 
 // Mock loadingStore.svelte.ts to prevent $state error
-mock.module('@src/stores/loadingStore.svelte', () => {
+mock.module('@src/stores/loadingStore.svelte.ts', () => {
 	const loadingOps = {
 		navigation: 'navigation',
 		dataFetch: 'data-fetch',
@@ -293,7 +311,7 @@ mock.module('@src/stores/loadingStore.svelte', () => {
 });
 
 // Mock screenSizeStore.svelte.ts to prevent $state error
-mock.module('@src/stores/screenSizeStore.svelte', () => {
+mock.module('@src/stores/screenSizeStore.svelte.ts', () => {
 	const ScreenSize = { XS: 'XS', SM: 'SM', MD: 'MD', LG: 'LG', XL: 'XL', XXL: '2XL' };
 	const getScreenSizeName = (width: number): string => {
 		if (width < 640) return ScreenSize.XS;
@@ -334,7 +352,7 @@ mock.module('@src/stores/globalSettings.svelte.ts', () => ({
 	initPrivateEnv: () => {}
 }));
 
-mock.module('@src/stores/store.svelte', () => {
+mock.module('@src/stores/store.svelte.ts', () => {
 	const mockApp = {
 		systemLanguage: 'en',
 		contentLanguage: 'en',

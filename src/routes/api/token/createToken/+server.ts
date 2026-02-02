@@ -11,8 +11,7 @@
  */
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
-import { error, json, type HttpError } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { json, type HttpError } from '@sveltejs/kit';
 
 // Auth
 import type { ISODateString } from '@src/content/types';
@@ -33,7 +32,11 @@ import { parse } from 'valibot';
 // ParaglideJS
 import { getLocale } from '@src/paraglide/runtime';
 
-export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const POST = apiHandler(async ({ request, locals, fetch, url }) => {
 	try {
 		const { tenantId } = locals; // User and permissions are guaranteed by hooks
 
@@ -44,7 +47,7 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 
 		if (!auth || !dbAdapter) {
 			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error: Auth system not initialized');
+			throw new AppError('Internal Server Error: Auth system not initialized', 500, 'AUTH_SYS_ERROR');
 		}
 
 		// Note: tenantId validation is handled by hooks in multi-tenant mode
@@ -57,7 +60,7 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 
 		const roleInfo = getDefaultRoles().find((r) => r._id === validatedData.role);
 		if (!roleInfo) {
-			throw error(400, 'Invalid role selected.');
+			throw new AppError('Invalid role selected.', 400, 'INVALID_ROLE');
 		}
 
 		// --- MULTI-TENANCY: Scope checks to the current tenant ---
@@ -70,12 +73,16 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 
 		if (existingUser) {
 			logger.warn('Attempted to create token for an already existing user in this tenant', { email: validatedData.email, tenantId });
-			throw error(409, 'A user with this email address already exists in this tenant.');
+			throw new AppError('A user with this email address already exists in this tenant.', 409, 'USER_EXISTS');
 		}
 
 		if (existingTokens && existingTokens.success && existingTokens.data && existingTokens.data.length > 0) {
 			logger.warn('Attempted to create a token for an email that already has one in this tenant', { email: validatedData.email, tenantId });
-			throw error(409, 'An invitation token for this email already exists in this tenant. Please delete the existing token first.');
+			throw new AppError(
+				'An invitation token for this email already exists in this tenant. Please delete the existing token first.',
+				409,
+				'TOKEN_EXISTS'
+			);
 		}
 
 		// Calculate expiration date
@@ -89,7 +96,7 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		};
 		const expiresInSeconds = expirationInSeconds[validatedData.expiresIn];
 		if (!expiresInSeconds) {
-			throw error(400, 'Invalid expiration value provided.');
+			throw new AppError('Invalid expiration value provided.', 400, 'INVALID_EXPIRATION');
 		}
 		const expires = new Date(Date.now() + expiresInSeconds * 1000); // Create token with pre-generated user_id for when user actually registers
 
@@ -110,7 +117,7 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 
 		if (!tokenResult.success || !tokenResult.data) {
 			logger.error('Failed to create token', { email: validatedData.email, tenantId });
-			throw error(500, 'Failed to create token.');
+			throw new AppError('Failed to create token.', 500, 'TOKEN_CREATION_FAILED');
 		}
 
 		// Get the actual token string from the database result
@@ -204,11 +211,12 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 			email_sent: true
 		});
 	} catch (err) {
+		if (err instanceof AppError) throw err;
 		if (err instanceof Error && err.name === 'ValiError') {
 			const valiError = err as unknown as { issues: Array<{ message: string }> };
 			const issues = valiError.issues.map((issue) => issue.message).join(', ');
 			logger.warn('Invalid input for createToken API:', { issues });
-			throw error(400, `Invalid input: ${issues}`);
+			throw new AppError(`Invalid input: ${issues}`, 400, 'VALIDATION_ERROR');
 		}
 
 		const httpError = err as HttpError;
@@ -221,6 +229,6 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 			status
 		});
 
-		return json({ success: false, message: status === 500 ? 'Internal Server Error' : message }, { status });
+		throw new AppError(message, status, 'CREATE_TOKEN_FAILED');
 	}
-};
+});

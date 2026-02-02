@@ -12,13 +12,12 @@
  */
 
 import { publicEnv } from '@src/stores/globalSettings.svelte';
-import { error, json } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { createReadStream } from 'node:fs';
 import { open, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { createBrotliDecompress, createGunzip } from 'node:zlib';
-import type { RequestHandler } from './$types';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -237,139 +236,135 @@ async function getCompressedLogLines(filePath: string, isBrotli: boolean): Promi
 	return lines.reverse();
 }
 
-export const GET: RequestHandler = async ({ locals, url }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ locals, url }) => {
 	const { user } = locals;
 
-	try {
-		if (!user) {
-			throw error(401, 'Unauthorized');
-		}
+	if (!user) {
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+	}
 
-		const params = v.parse(QuerySchema, {
-			level: url.searchParams.get('level') || undefined,
-			search: url.searchParams.get('search') || undefined,
-			startDate: url.searchParams.get('startDate') || undefined,
-			endDate: url.searchParams.get('endDate') || undefined,
-			page: Number(url.searchParams.get('page')) || undefined,
-			limit: Number(url.searchParams.get('limit')) || undefined
+	const params = v.parse(QuerySchema, {
+		level: url.searchParams.get('level') || undefined,
+		search: url.searchParams.get('search') || undefined,
+		startDate: url.searchParams.get('startDate') || undefined,
+		endDate: url.searchParams.get('endDate') || undefined,
+		page: Number(url.searchParams.get('page')) || undefined,
+		limit: Number(url.searchParams.get('limit')) || undefined
+	});
+
+	const LOG_DIRECTORY = 'logs';
+	const LOG_FILE_NAME = 'app.log';
+	const LOG_RETENTION_DAYS = publicEnv.LOG_RETENTION_DAYS || 30;
+
+	const startDateTime = params.startDate ? new Date(params.startDate).getTime() : 0;
+	const endDateTime = params.endDate ? new Date(new Date(params.endDate).setHours(23, 59, 59, 999)).getTime() : Infinity;
+
+	// Calculate how many logs we need to skip and take
+	const neededSkip = (params.page - 1) * params.limit;
+	const neededTake = params.limit;
+	const totalNeeded = neededSkip + neededTake;
+
+	const collectedLogs: RawLogEntry[] = [];
+
+	// 1. Get Files and Sort Newest -> Oldest
+	const files = await readdir(LOG_DIRECTORY);
+	const logFiles = files
+		.filter((file) => file === LOG_FILE_NAME || file.startsWith(`${LOG_FILE_NAME}.`))
+		.sort((a, b) => {
+			// Custom sort: app.log is always newest/first
+			if (a === LOG_FILE_NAME) return -1;
+			if (b === LOG_FILE_NAME) return 1;
+			// Otherwise sort by string (usually app.log.1, app.log.2)
+			// Assuming lower number = newer rotated log, or use mtime if needed
+			return a.localeCompare(b);
 		});
 
-		const LOG_DIRECTORY = 'logs';
-		const LOG_FILE_NAME = 'app.log';
-		const LOG_RETENTION_DAYS = publicEnv.LOG_RETENTION_DAYS || 30;
+	// 2. Process files until we have enough logs
+	// Note: We iterate files Newest -> Oldest
+	for (const file of logFiles) {
+		// Early exit if we have enough logs
+		if (collectedLogs.length >= totalNeeded) break;
 
-		const startDateTime = params.startDate ? new Date(params.startDate).getTime() : 0;
-		const endDateTime = params.endDate ? new Date(new Date(params.endDate).setHours(23, 59, 59, 999)).getTime() : Infinity;
+		const filePath = join(LOG_DIRECTORY, file);
+		const fileStats = await stat(filePath);
 
-		// Calculate how many logs we need to skip and take
-		const neededSkip = (params.page - 1) * params.limit;
-		const neededTake = params.limit;
-		const totalNeeded = neededSkip + neededTake;
+		// Retention check
+		const isRotatedLog = file !== LOG_FILE_NAME;
+		if (isRotatedLog && fileStats.mtimeMs < Date.now() - LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000) {
+			continue;
+		}
 
-		const collectedLogs: RawLogEntry[] = [];
+		const isCompressed = file.endsWith('.gz') || file.endsWith('.br');
+		const isBrotli = file.endsWith('.br');
 
-		// 1. Get Files and Sort Newest -> Oldest
-		const files = await readdir(LOG_DIRECTORY);
-		const logFiles = files
-			.filter((file) => file === LOG_FILE_NAME || file.startsWith(`${LOG_FILE_NAME}.`))
-			.sort((a, b) => {
-				// Custom sort: app.log is always newest/first
-				if (a === LOG_FILE_NAME) return -1;
-				if (b === LOG_FILE_NAME) return 1;
-				// Otherwise sort by string (usually app.log.1, app.log.2)
-				// Assuming lower number = newer rotated log, or use mtime if needed
-				return a.localeCompare(b);
-			});
+		let linesGenerator: AsyncGenerator<string> | string[];
 
-		// 2. Process files until we have enough logs
-		// Note: We iterate files Newest -> Oldest
-		for (const file of logFiles) {
-			// Early exit if we have enough logs
+		if (isCompressed) {
+			// Compressed files must be read fully to memory (unavoidable for stream), then reversed
+			linesGenerator = await getCompressedLogLines(filePath, isBrotli);
+		} else {
+			// Plain text: Read BACKWARD efficiently
+			linesGenerator = readLinesReverse(filePath);
+		}
+
+		// Iterate lines (which are now guaranteed to be Newest -> Oldest)
+		for await (const line of linesGenerator) {
+			// Early exit loop
 			if (collectedLogs.length >= totalNeeded) break;
 
-			const filePath = join(LOG_DIRECTORY, file);
-			const fileStats = await stat(filePath);
+			// Handle AsyncGenerator vs Array
+			if (typeof line !== 'string') continue;
 
-			// Retention check
-			const isRotatedLog = file !== LOG_FILE_NAME;
-			if (isRotatedLog && fileStats.mtimeMs < Date.now() - LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000) {
-				continue;
-			}
+			const entry = parseLogLineWithColors(line);
+			if (!entry) continue;
 
-			const isCompressed = file.endsWith('.gz') || file.endsWith('.br');
-			const isBrotli = file.endsWith('.br');
+			const entryTimestamp = new Date(entry.timestamp).getTime();
 
-			let linesGenerator: AsyncGenerator<string> | string[];
+			// Date Filter Optimization:
+			// If we are reading Newest->Oldest, and we hit a log older than startDate,
+			// we can theoretically stop EVERYTHING if we assume strict ordering.
+			// However, async logging might not be strictly ordered to the millisecond, so we just filter.
+			// But if it's WAY before, we could break. For safety, we just filter.
+			if (entryTimestamp < startDateTime) continue; // Too old
+			if (entryTimestamp > endDateTime) continue; // Too new (rare if reading reverse, but possible)
 
-			if (isCompressed) {
-				// Compressed files must be read fully to memory (unavoidable for stream), then reversed
-				linesGenerator = await getCompressedLogLines(filePath, isBrotli);
-			} else {
-				// Plain text: Read BACKWARD efficiently
-				linesGenerator = readLinesReverse(filePath);
-			}
+			// Level & Search Filter
+			const levelMatch = params.level === 'all' || entry.level.toLowerCase() === params.level.toLowerCase();
+			const textMatch = !params.search || entry.message.toLowerCase().includes(params.search.toLowerCase());
 
-			// Iterate lines (which are now guaranteed to be Newest -> Oldest)
-			for await (const line of linesGenerator) {
-				// Early exit loop
-				if (collectedLogs.length >= totalNeeded) break;
-
-				// Handle AsyncGenerator vs Array
-				if (typeof line !== 'string') continue;
-
-				const entry = parseLogLineWithColors(line);
-				if (!entry) continue;
-
-				const entryTimestamp = new Date(entry.timestamp).getTime();
-
-				// Date Filter Optimization:
-				// If we are reading Newest->Oldest, and we hit a log older than startDate,
-				// we can theoretically stop EVERYTHING if we assume strict ordering.
-				// However, async logging might not be strictly ordered to the millisecond, so we just filter.
-				// But if it's WAY before, we could break. For safety, we just filter.
-				if (entryTimestamp < startDateTime) continue; // Too old
-				if (entryTimestamp > endDateTime) continue; // Too new (rare if reading reverse, but possible)
-
-				// Level & Search Filter
-				const levelMatch = params.level === 'all' || entry.level.toLowerCase() === params.level.toLowerCase();
-				const textMatch = !params.search || entry.message.toLowerCase().includes(params.search.toLowerCase());
-
-				if (levelMatch && textMatch) {
-					collectedLogs.push(entry);
-				}
+			if (levelMatch && textMatch) {
+				collectedLogs.push(entry);
 			}
 		}
-
-		// 3. Slice the specific page
-		// We might have collected slightly more than needed due to loop logic, so we slice exactly.
-		// Since we collected in Newest->Oldest order, index 0 is the newest log.
-		const paginatedLogs = collectedLogs.slice(neededSkip, neededSkip + neededTake);
-
-		const validatedLogs = v.parse(v.array(LogEntrySchema), paginatedLogs);
-
-		logger.info('Logs fetched (Optimized)', {
-			count: paginatedLogs.length,
-			page: params.page,
-			requestedBy: user._id
-		});
-
-		return json({
-			logs: validatedLogs,
-			// Note: Total count is now approximate or limited because we didn't read all files.
-			// For infinite scrolling/pagination, we usually return "hasMore" or just the length.
-			// If specific total is needed, we'd have to scan everything, which defeats optimization.
-			// We return collectedLogs.length as a proxy for "logs found so far".
-			total: collectedLogs.length,
-			page: params.page,
-			limit: params.limit,
-			// If we filled the buffer, assume there might be more pages.
-			hasMore: collectedLogs.length >= totalNeeded
-		});
-	} catch (err) {
-		if (err instanceof v.ValiError) {
-			throw error(400, 'Invalid request parameters');
-		}
-		logger.error('Error fetching logs:', err);
-		throw error(500, 'Failed to fetch logs');
 	}
-};
+
+	// 3. Slice the specific page
+	// We might have collected slightly more than needed due to loop logic, so we slice exactly.
+	// Since we collected in Newest->Oldest order, index 0 is the newest log.
+	const paginatedLogs = collectedLogs.slice(neededSkip, neededSkip + neededTake);
+
+	const validatedLogs = v.parse(v.array(LogEntrySchema), paginatedLogs);
+
+	logger.info('Logs fetched (Optimized)', {
+		count: paginatedLogs.length,
+		page: params.page,
+		requestedBy: user._id
+	});
+
+	return json({
+		logs: validatedLogs,
+		// Note: Total count is now approximate or limited because we didn't read all files.
+		// For infinite scrolling/pagination, we usually return "hasMore" or just the length.
+		// If specific total is needed, we'd have to scan everything, which defeats optimization.
+		// We return collectedLogs.length as a proxy for "logs found so far".
+		total: collectedLogs.length,
+		page: params.page,
+		limit: params.limit,
+		// If we filled the buffer, assume there might be more pages.
+		hasMore: collectedLogs.length >= totalNeeded
+	});
+});

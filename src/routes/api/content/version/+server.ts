@@ -6,10 +6,12 @@
  */
 
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { contentManager } from '@src/content/ContentManager';
 
-export const GET: RequestHandler = async () => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+
+export const GET = apiHandler(async () => {
 	const version = contentManager.getContentVersion();
 	return json({ version });
-};
+});

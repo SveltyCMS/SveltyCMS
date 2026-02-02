@@ -13,7 +13,7 @@
  */
 import type { Handle } from '@sveltejs/kit';
 import { processTokensInResponse } from '@src/services/token/helper';
-import { logger } from '@utils/logger';
+import { handleApiError } from '@utils/errorHandling';
 
 export const handleTokenResolution: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
@@ -57,12 +57,8 @@ export const handleTokenResolution: Handle = async ({ event, resolve }) => {
 			statusText: response.statusText,
 			headers: response.headers
 		});
-	} catch (error) {
-		logger.error('Token resolution middleware failed', {
-			error,
-			path: event.url.pathname
-		});
-		// Return original response on error to prevent breakage
-		return response;
+	} catch (err) {
+		// Unified error handling for token processing failures
+		return handleApiError(err, event);
 	}
 };

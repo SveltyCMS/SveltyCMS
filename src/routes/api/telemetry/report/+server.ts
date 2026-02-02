@@ -17,12 +17,11 @@
  * - Response caching (12h TTL per version)
  * - LRU cache eviction (max 100 entries)
  */
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { object, string, optional, safeParse, maxLength, pipe, boolean, number, union, array } from 'valibot';
 import { createHash, createHmac } from 'node:crypto';
 import { logger } from '@utils/logger.server';
-import type { RequestEvent } from './$types';
 
 // Telemetry payload validation schema
 const telemetrySchema = object({
@@ -76,9 +75,13 @@ const MAX_CACHE_SIZE = 100;
 const MAX_PAYLOAD_SIZE = 10000; // 10KB
 const REQUEST_TIMEOUT = 5000; // 5 seconds
 
-export async function POST({ request }: RequestEvent) {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+
+// ... (schema definition)
+
+export const POST = apiHandler(async ({ request }) => {
 	// 0. Strict Test Mode Check (Environment Variables)
-	// This ensures that even if the database setting is enabled, we never process telemetry in CI/Test
 	if (process.env.TEST_MODE === 'true' || process.env.CI === 'true' || process.env.VITEST === 'true' || process.env.NODE_ENV === 'test') {
 		return json({ status: 'test_mode' }, { status: 200 });
 	}
@@ -95,7 +98,8 @@ export async function POST({ request }: RequestEvent) {
 		const contentLength = request.headers.get('content-length');
 		if (contentLength && parseInt(contentLength) > MAX_PAYLOAD_SIZE) {
 			logger.warn('Telemetry payload too large:', contentLength);
-			throw error(413, 'Payload too large');
+			// Fail silently
+			return json({ status: 'error' }, { status: 200 });
 		}
 
 		// 3. Parse and validate input
@@ -103,8 +107,9 @@ export async function POST({ request }: RequestEvent) {
 		const validation = safeParse(telemetrySchema, rawData);
 
 		if (!validation.success) {
-			logger.warn('Invalid telemetry payload'); // simplified log
-			throw error(400, 'Invalid payload');
+			logger.warn('Invalid telemetry payload');
+			// Fail silently
+			return json({ status: 'error' }, { status: 200 });
 		}
 
 		const data = validation.output;
@@ -124,6 +129,7 @@ export async function POST({ request }: RequestEvent) {
 		const jwtSecret = (await getPrivateSettingSync('JWT_SECRET_KEY')) || 'fallback_secret';
 		const installationId = data.installation_id || createHash('sha256').update(jwtSecret).digest('hex');
 		const timestamp = data.timestamp || Date.now();
+		// eslint-disable-next-line @typescript-eslint/naming-convention
 		const current_version = data.current_version;
 
 		// Recompute signature to ensure authenticity
@@ -190,6 +196,7 @@ export async function POST({ request }: RequestEvent) {
 				logger.error(`Telemetry error: ${err.message}`);
 			}
 		}
+		// Return 200 OK even on error to avoid breaking client
 		return json({ status: 'error' }, { status: 200 });
 	}
-}
+});

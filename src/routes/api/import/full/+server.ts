@@ -12,7 +12,7 @@
  * - Audit logging of import actions
  */
 
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 
 import { getDb, dbAdapter } from '@src/databases/db';
 import { getAllSettings, invalidateSettingsCache } from '@src/services/settingsService';
@@ -377,128 +377,118 @@ async function logImport(userId: string, metadata: ExportMetadata, result: Impor
  *
  * Permissions: config:settings:write (or admin)
  */
-export const POST: RequestHandler = async ({ locals, request }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+/**
+ * Import full system configuration
+ * POST /api/import/full
+ *
+ * Imports settings and optionally collections with validation and conflict resolution.
+ * Supports three strategies: skip, overwrite, merge.
+ * Can run in dry-run mode for validation only.
+ *
+ * Permissions: config:settings:write (or admin)
+ */
+export const POST = apiHandler(async ({ locals, request }) => {
 	// Check authentication
 	if (!locals.user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
-	try {
-		// Parse request body
-		const body = await request.json();
-		const importData: ExportData = body.data;
-		const options: ImportOptions = body.options || {};
+	// Parse request body
+	const body = await request.json();
+	const importData: ExportData = body.data;
+	const options: ImportOptions = body.options || {};
 
-		// Default options
-		const importOptions: ImportOptions = {
-			strategy: options.strategy || 'skip',
-			dryRun: options.dryRun ?? false,
-			validateOnly: options.validateOnly ?? false,
-			sensitivePassword: options.sensitivePassword
-		};
+	// Default options
+	const importOptions: ImportOptions = {
+		strategy: options.strategy || 'skip',
+		dryRun: options.dryRun ?? false,
+		validateOnly: options.validateOnly ?? false,
+		sensitivePassword: options.sensitivePassword
+	};
 
-		// Handle encrypted sensitive data
-		if (importData.hasSensitiveData && importData.encryptedSensitive) {
-			if (!importOptions.sensitivePassword) {
-				return json(
-					{
-						success: false,
-						error: 'Password required',
-						message: 'This import contains encrypted sensitive data. Please provide the password.'
-					},
-					{ status: 400 }
-				);
-			}
-
-			try {
-				// Decrypt sensitive data
-				const decryptedSensitive = decryptSensitiveData(importData.encryptedSensitive, importOptions.sensitivePassword);
-
-				// Merge decrypted sensitive data back into settings
-				importData.settings = {
-					...importData.settings,
-					...decryptedSensitive
-				};
-
-				logger.info(`Decrypted ${Object.keys(decryptedSensitive).length} sensitive settings`);
-			} catch (decryptError) {
-				return json(
-					{
-						success: false,
-						error: 'Decryption failed',
-						message: decryptError instanceof Error ? decryptError.message : 'Failed to decrypt sensitive data'
-					},
-					{ status: 400 }
-				);
-			}
+	// Handle encrypted sensitive data
+	if (importData.hasSensitiveData && importData.encryptedSensitive) {
+		if (!importOptions.sensitivePassword) {
+			throw new AppError('Password required. This import contains encrypted sensitive data.', 400, 'PASSWORD_REQUIRED');
 		}
 
-		// Step 1: Validate import data structure
-		const validation = await validateImportData(importData);
+		try {
+			// Decrypt sensitive data
+			const decryptedSensitive = await decryptSensitiveData(importData.encryptedSensitive, importOptions.sensitivePassword);
 
-		if (!validation.valid) {
-			return json(
-				{
-					success: false,
-					errors: validation.errors,
-					warnings: validation.warnings
-				},
-				{ status: 400 }
-			);
+			// Merge decrypted sensitive data back into settings
+			importData.settings = {
+				...importData.settings,
+				...decryptedSensitive
+			};
+
+			logger.info(`Decrypted ${Object.keys(decryptedSensitive).length} sensitive settings`);
+		} catch (decryptError) {
+			// Re-throw as AppError
+			throw new AppError(decryptError instanceof Error ? decryptError.message : 'Failed to decrypt sensitive data', 400, 'DECRYPTION_FAILED');
 		}
+	}
 
-		// If validate only, return validation result
-		if (importOptions.validateOnly) {
-			return json({
-				success: true,
-				valid: true,
-				errors: validation.errors,
-				warnings: validation.warnings
-			});
-		}
+	// Step 1: Validate import data structure
+	const validation = await validateImportData(importData);
 
-		// Step 2: Detect conflicts
-		const conflicts = await detectConflicts(importData);
-
-		// If dry run, return conflicts without applying
-		if (importOptions.dryRun) {
-			return json({
-				success: true,
-				dryRun: true,
-				conflicts,
-				validation
-			});
-		}
-
-		// Step 3: Apply import with conflict resolution
-		const result: ImportResult = await applyImport(importData, importOptions, conflicts);
-
-		// Step 4: Log import for audit trail
-		await logImport(locals.user._id, importData.metadata, result);
-
-		// Return result
-		return json(
-			{
-				success: result.success,
-				imported: result.imported,
-				skipped: result.skipped,
-				merged: result.merged,
-				conflicts: result.conflicts,
-				errors: result.errors,
-				warnings: validation.warnings,
-				metadata: importData.metadata
-			},
-			{ status: result.success ? 200 : 207 } // 207 Multi-Status if partial success
-		);
-	} catch (error) {
-		logger.error('Import error:', error);
+	if (!validation.valid) {
+		// Return 400 with validation errors - explicitly formatted for frontend
 		return json(
 			{
 				success: false,
-				error: 'Import failed',
-				message: error instanceof Error ? error.message : 'Unknown error'
+				errors: validation.errors,
+				warnings: validation.warnings
 			},
-			{ status: 500 }
+			{ status: 400 }
 		);
 	}
-};
+
+	// If validate only, return validation result
+	if (importOptions.validateOnly) {
+		return json({
+			success: true,
+			valid: true,
+			errors: validation.errors,
+			warnings: validation.warnings
+		});
+	}
+
+	// Step 2: Detect conflicts
+	const conflicts = await detectConflicts(importData);
+
+	// If dry run, return conflicts without applying
+	if (importOptions.dryRun) {
+		return json({
+			success: true,
+			dryRun: true,
+			conflicts,
+			validation
+		});
+	}
+
+	// Step 3: Apply import with conflict resolution
+	const result: ImportResult = await applyImport(importData, importOptions, conflicts);
+
+	// Step 4: Log import for audit trail
+	await logImport(locals.user._id, importData.metadata, result);
+
+	// Return result
+	return json(
+		{
+			success: result.success,
+			imported: result.imported,
+			skipped: result.skipped,
+			merged: result.merged,
+			conflicts: result.conflicts,
+			errors: result.errors,
+			warnings: validation.warnings,
+			metadata: importData.metadata
+		},
+		{ status: result.success ? 200 : 207 } // 207 Multi-Status if partial success
+	);
+});

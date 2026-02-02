@@ -36,8 +36,7 @@
  * Ensure proper access controls are in place.
  */
 
-import type { RequestHandler } from '@sveltejs/kit';
-import { error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import os from 'os';
 import { createOSUtils } from 'node-os-utils';
 import { exec } from 'child_process';
@@ -545,17 +544,22 @@ const getSystemInfo = async (type?: string) => {
 };
 
 // Fetches and returns system information including CPU, disk, memory, and OS details.
-export const GET: RequestHandler = async ({ url, locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+// Fetches and returns system information including CPU, disk, memory, and OS details.
+export const GET = apiHandler(async ({ url, locals }) => {
+	// Authentication is handled by hooks.server.ts
+	if (!locals.user) {
+		logger.warn('Unauthorized attempt to access system info');
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+	}
+
+	// Check if specific type of information is requested
+	const type = url.searchParams.get('type') || 'all';
+
 	try {
-		// Authentication is handled by hooks.server.ts
-		if (!locals.user) {
-			logger.warn('Unauthorized attempt to access system info');
-			throw error(401, 'Unauthorized');
-		}
-
-		// Check if specific type of information is requested
-		const type = url.searchParams.get('type') || 'all';
-
 		// Fetch system information
 		const systemInfo = await getSystemInfo(type);
 
@@ -572,23 +576,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		});
 
 		// Return the system information as a JSON response
-		return new Response(JSON.stringify(systemInfo), {
-			status: 200,
+		// using json helper from SvelteKit which sets appropriate headers
+		return json(systemInfo, {
 			headers: {
-				'Content-Type': 'application/json',
 				'Cache-Control': 'no-cache, no-store, must-revalidate'
 			}
 		});
-	} catch (err) {
-		const httpError = err as { status?: number; body?: { message?: string }; message?: string };
-		const status = httpError.status || 500;
-		const message = httpError.body?.message || httpError.message || 'Internal Server Error';
-		logger.error('Error fetching system info:', { error: message, status });
-
-		// Return an error response in case of failure
-		return new Response(JSON.stringify({ error: message }), {
-			status,
-			headers: { 'Content-Type': 'application/json' }
-		});
+	} catch (error) {
+		logger.error('Error fetching system info:', error instanceof Error ? error.message : String(error));
+		throw new AppError('Failed to fetch system information', 500, 'SYSTEM_INFO_ERROR');
 	}
-};
+});

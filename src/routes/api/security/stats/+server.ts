@@ -12,7 +12,7 @@
  * @security Admin-only endpoint with rate limiting
  */
 
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { securityResponseService } from '@src/services/SecurityResponseService';
 import { metricsService } from '@src/services/MetricsService';
 import { hasApiPermission } from '@src/databases/auth/apiPermissions';
@@ -22,7 +22,15 @@ import { logger } from '@utils/logger.server';
  * GET /api/security/stats
  * Returns comprehensive security statistics for dashboard monitoring.
  */
-export const GET: RequestHandler = async ({ locals, getClientAddress }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+/**
+ * GET /api/security/stats
+ * Returns comprehensive security statistics for dashboard monitoring.
+ */
+export const GET = apiHandler(async ({ locals, getClientAddress }) => {
 	try {
 		// Authorization check - admin only
 		if (!locals.user || !hasApiPermission(locals.user.role, 'security')) {
@@ -31,7 +39,7 @@ export const GET: RequestHandler = async ({ locals, getClientAddress }) => {
 				role: locals.user?.role,
 				ip: getClientAddress()
 			});
-			return json({ error: 'Unauthorized - Admin access required' }, { status: 403 });
+			throw new AppError('Unauthorized - Admin access required', 403, 'FORBIDDEN');
 		}
 
 		// Get security statistics from the security response service
@@ -88,10 +96,11 @@ export const GET: RequestHandler = async ({ locals, getClientAddress }) => {
 
 		return json(response);
 	} catch (error) {
+		if (error instanceof AppError) throw error;
 		logger.error('Error fetching security stats:', error);
-		return json({ error: 'Internal server error' }, { status: 500 });
+		throw new AppError('Internal server error', 500, 'FETCH_FAILED');
 	}
-};
+});
 
 /**
  * Calculate overall security status based on multiple factors.

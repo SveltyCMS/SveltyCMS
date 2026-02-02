@@ -8,11 +8,10 @@
  * - **Input Validation:** Safely validates and caps the `limit` query parameter.
  */
 
-import { error, json } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import type { RequestHandler } from './$types';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -74,11 +73,15 @@ async function readLastLines(filePath: string, maxLines: number): Promise<string
 
 // --- API Handler ---
 
-export const GET: RequestHandler = async ({ locals, url }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ locals, url }) => {
 	// Authentication is handled by hooks.server.ts
 	if (!locals.user) {
 		logger.warn('Unauthorized attempt to access system messages');
-		throw error(401, 'Unauthorized');
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
 	try {
@@ -124,9 +127,9 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		return json(messages);
 	} catch (err) {
 		if (err instanceof v.ValiError) {
-			return json({ error: 'Invalid "limit" parameter.', issues: err.issues }, { status: 400 });
+			throw new AppError('Invalid "limit" parameter.', 400, 'VALIDATION_ERROR');
 		}
 		logger.error('An unexpected error occurred while fetching system messages:', err);
-		throw error(500, 'An unexpected error occurred.');
+		throw new AppError('An unexpected error occurred.', 500, 'SYSTEM_MESSAGES_ERROR');
 	}
-};
+});

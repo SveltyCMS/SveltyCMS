@@ -6,8 +6,7 @@
  * Respects authentication and authorization patterns from hooks.server.ts
  */
 
-import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { json } from '@sveltejs/kit';
 import { invalidateSettingsCache } from '@src/services/settingsService';
 import { dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger.server';
@@ -20,22 +19,30 @@ import { setRestartNeeded } from '@src/utils/server/restartRequired';
  * GET - Retrieve current settings for a group
  * Strategy: Seed defaults as source of truth, overlay with database overrides
  */
-export const GET: RequestHandler = async ({ locals, params }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+/**
+ * GET - Retrieve current settings for a group
+ * Strategy: Seed defaults as source of truth, overlay with database overrides
+ */
+export const GET = apiHandler(async ({ locals, params }) => {
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
 	const { group: groupId } = params;
 	const groupDef = getSettingGroup(groupId);
 
 	if (!groupDef) {
-		throw error(404, `Settings group '${groupId}' not found`);
+		throw new AppError(`Settings group '${groupId}' not found`, 404, 'GROUP_NOT_FOUND');
 	}
 
 	// Authorization check
 	if (groupDef.adminOnly && locals.user.role !== 'admin') {
 		logger.warn(`User ${locals.user._id} (role: ${locals.user.role}) attempted to access admin-only group: ${groupId}`);
-		throw error(403, 'Insufficient permissions');
+		throw new AppError('Insufficient permissions', 403, 'FORBIDDEN');
 	}
 
 	try {
@@ -60,7 +67,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		// 2. Fetch database overrides
 		if (!dbAdapter) {
 			logger.error('Database adapter not initialized');
-			throw error(500, 'Database not initialized');
+			throw new AppError('Database not initialized', 500, 'DB_UNAVAILABLE');
 		}
 
 		const dbResult = await dbAdapter.systemPreferences.getMany(fieldKeys);
@@ -92,33 +99,34 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 			values: finalValues
 		});
 	} catch (err) {
+		if (err instanceof AppError) throw err;
 		const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 		const errorStack = err instanceof Error ? err.stack : undefined;
 		logger.error(`Failed to get settings for group '${groupId}':`, { message: errorMessage, stack: errorStack, err });
-		throw error(500, 'Failed to retrieve settings');
+		throw new AppError('Failed to retrieve settings', 500, 'FETCH_FAILED');
 	}
-};
+});
 
 /**
  * PUT - Update settings for a group
  * Validates all input and saves to database
  */
-export const PUT: RequestHandler = async ({ request, locals, params }) => {
+export const PUT = apiHandler(async ({ request, locals, params }) => {
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
 	const { group: groupId } = params;
 	const groupDef = getSettingGroup(groupId);
 
 	if (!groupDef) {
-		throw error(404, `Settings group '${groupId}' not found`);
+		throw new AppError(`Settings group '${groupId}' not found`, 404, 'GROUP_NOT_FOUND');
 	}
 
 	// Authorization check
 	if (groupDef.adminOnly && locals.user.role !== 'admin') {
 		logger.warn(`User ${locals.user._id} attempted to update admin-only group: ${groupId}`);
-		throw error(403, 'Insufficient permissions');
+		throw new AppError('Insufficient permissions', 403, 'FORBIDDEN');
 	}
 
 	try {
@@ -130,13 +138,7 @@ export const PUT: RequestHandler = async ({ request, locals, params }) => {
 
 		for (const key of updateKeys) {
 			if (!validKeys.includes(key)) {
-				return json(
-					{
-						success: false,
-						error: `Invalid setting key for this group: ${key}`
-					},
-					{ status: 400 }
-				);
+				throw new AppError(`Invalid setting key for this group: ${key}`, 400, 'INVALID_KEY');
 			}
 		}
 
@@ -221,14 +223,14 @@ export const PUT: RequestHandler = async ({ request, locals, params }) => {
 
 		if (!dbAdapter) {
 			logger.error('Database adapter not initialized');
-			throw error(500, 'Database not initialized');
+			throw new AppError('Database not initialized', 500, 'DB_UNAVAILABLE');
 		}
 
 		const updateResult = await dbAdapter.systemPreferences.setMany(settingsArray);
 
 		if (!updateResult.success) {
 			logger.error('Failed to update settings in database:', updateResult.error);
-			throw error(500, 'Failed to save settings to database');
+			throw new AppError('Failed to save settings to database', 500, 'SAVE_FAILED');
 		}
 
 		// Invalidate cache and reload settings from database to make changes immediately available
@@ -253,34 +255,32 @@ export const PUT: RequestHandler = async ({ request, locals, params }) => {
 			requiresRestart: groupDef.requiresRestart || false
 		});
 	} catch (err) {
-		if (err instanceof Error && 'status' in err) {
-			throw err; // Re-throw SvelteKit errors
-		}
+		if (err instanceof AppError) throw err;
 		logger.error(`Failed to update settings for group '${groupId}':`, err);
-		throw error(500, 'Failed to update settings');
+		throw new AppError('Failed to update settings', 500, 'UPDATE_FAILED');
 	}
-};
+});
 
 /**
  * DELETE - Reset settings to defaults for a group
  * Removes database overrides, allowing defaults to take effect
  */
-export const DELETE: RequestHandler = async ({ locals, params }) => {
+export const DELETE = apiHandler(async ({ locals, params }) => {
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
 	// Must be admin to reset settings
 	if (locals.user.role !== 'admin') {
 		logger.warn(`User ${locals.user._id} attempted to reset settings without admin privileges`);
-		throw error(403, 'Insufficient permissions - admin only');
+		throw new AppError('Insufficient permissions - admin only', 403, 'FORBIDDEN');
 	}
 
 	const { group: groupId } = params;
 	const groupDef = getSettingGroup(groupId);
 
 	if (!groupDef) {
-		throw error(404, `Settings group '${groupId}' not found`);
+		throw new AppError(`Settings group '${groupId}' not found`, 404, 'GROUP_NOT_FOUND');
 	}
 
 	try {
@@ -288,7 +288,7 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 
 		if (!dbAdapter) {
 			logger.error('Database adapter not initialized');
-			throw error(500, 'Database not initialized');
+			throw new AppError('Database not initialized', 500, 'DB_UNAVAILABLE');
 		}
 
 		// Delete database overrides - settings will revert to seed defaults
@@ -296,7 +296,7 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 
 		if (!deleteResult.success) {
 			logger.error('Failed to delete settings:', deleteResult.error);
-			throw error(500, 'Failed to reset settings to defaults');
+			throw new AppError('Failed to reset settings to defaults', 500, 'RESET_FAILED');
 		}
 
 		// Invalidate cache and reload settings from database to make changes immediately available
@@ -319,10 +319,8 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 			requiresRestart: groupDef.requiresRestart || false
 		});
 	} catch (err) {
-		if (err instanceof Error && 'status' in err) {
-			throw err; // Re-throw SvelteKit errors
-		}
+		if (err instanceof AppError) throw err;
 		logger.error(`Failed to reset settings for group '${groupId}':`, err);
-		throw error(500, 'Failed to reset settings');
+		throw new AppError('Failed to reset settings', 500, 'RESET_FAILED');
 	}
-};
+});

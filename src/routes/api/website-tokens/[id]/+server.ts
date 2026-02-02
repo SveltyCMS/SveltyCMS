@@ -1,29 +1,32 @@
-import { error } from '@sveltejs/kit';
 import { dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger.server';
 import type { DatabaseId } from '@src/databases/dbInterface';
 
-export async function DELETE({ locals, params }) {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const DELETE = apiHandler(async ({ locals, params }) => {
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
 	if (!dbAdapter) {
-		throw error(500, 'Database not available');
+		throw new AppError('Database not available', 500, 'DB_UNAVAILABLE');
 	}
 
 	const { id } = params;
 
 	if (!id) {
-		throw error(400, 'Token ID is required');
+		throw new AppError('Token ID is required', 400, 'MISSING_ID');
 	}
 
 	const result = await dbAdapter.websiteTokens.delete(id as DatabaseId);
 
 	if (!result.success) {
 		logger.error(`Failed to delete website token ${id}:`, result.error);
-		throw error(500, 'Failed to delete website token');
+		throw new AppError('Failed to delete website token', 500, 'DELETE_TOKEN_FAILED');
 	}
 
 	return new Response(null, { status: 204 });
-}
+});

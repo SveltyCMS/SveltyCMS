@@ -65,8 +65,15 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 	'api:widgets': ['admin', 'developer'], // Widget management and marketplace
 
 	// Public/Semi-public endpoints (authenticated users)
-	'api:sendMail': ['*'], // Email sending (used internally, but needs auth)
-	'api:getTokensProvided': ['admin'] // Token information - admin only
+	'api:sendMail': ['admin'], // Email sending (restricted to admin)
+	'api:getTokensProvided': ['admin'], // Token information - admin only
+
+	// System & Maintenance
+	'api:export': ['admin'], // Content export
+	'api:import': ['admin'], // Content import
+	'api:metrics': ['admin', 'editor'], // System metrics
+	'api:cache': ['admin'], // Cache management
+	'api:marketplace': ['admin', 'developer'] // Marketplace access
 };
 
 /**

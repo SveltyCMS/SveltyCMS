@@ -11,8 +11,7 @@
  * - ModifyRequest support for widget-based data processing.
  */
 
-import { error, json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { json } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Database
@@ -26,28 +25,32 @@ import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 import type { DatabaseId } from '@src/content/types';
 
 // GET /api/systemVirtualFolder - Fetches all system virtual folders for the current tenant
-export const GET: RequestHandler = async ({ locals }) => {
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+export const GET = apiHandler(async ({ locals }) => {
 	const { user, tenantId } = locals;
 	try {
 		// Check authentication
 		if (!user) {
-			throw error(401, 'Authentication required');
+			throw new AppError('Authentication required', 401, 'UNAUTHORIZED');
 		}
 
 		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-			throw error(400, 'Tenant could not be identified for this operation.');
+			throw new AppError('Tenant could not be identified for this operation.', 400, 'TENANT_MISSING');
 		}
 
 		// Check if dbAdapter is initialized
 		if (!dbAdapter) {
 			logger.error('Database adapter not initialized');
-			throw error(500, 'Database adapter not initialized');
+			throw new AppError('Database adapter not initialized', 500, 'DB_UNAVAILABLE');
 		}
 
 		// Check if dbAdapter has systemVirtualFolder interface
 		if (!dbAdapter.systemVirtualFolder) {
 			logger.error('Database adapter systemVirtualFolder interface not available');
-			throw error(500, 'Database adapter systemVirtualFolder interface not available');
+			throw new AppError('Database adapter systemVirtualFolder interface not available', 500, 'FEATURE_UNAVAILABLE');
 		}
 
 		// --- MULTI-TENANCY: Scope the query by tenantId ---
@@ -55,7 +58,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		if (!result.success) {
 			logger.error('Database query failed', { error: result.error });
-			throw error(500, result.error?.message || 'Database query failed');
+			throw new AppError(result.error?.message || 'Database query failed', 500, 'DB_QUERY_FAILED');
 		}
 
 		const folders = result.data || [];
@@ -67,37 +70,38 @@ export const GET: RequestHandler = async ({ locals }) => {
 			data: folders
 		});
 	} catch (err) {
+		if (err instanceof AppError) throw err;
 		const message = err instanceof Error ? err.message : 'Unknown error occurred';
 		logger.error(`Error fetching system virtual folders: ${message}`, { tenantId });
 
-		throw error(500, message);
+		throw new AppError(message, 500, 'FETCH_FAILED');
 	}
-};
+});
 
 // POST /api/systemVirtualFolder - Creates a new system virtual folder for the current tenant
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST = apiHandler(async ({ request, locals }) => {
 	const { user, tenantId } = locals;
 	try {
 		// Check authentication
 		if (!user) {
-			throw error(401, 'Authentication required');
+			throw new AppError('Authentication required', 401, 'UNAUTHORIZED');
 		}
 
 		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-			throw error(400, 'Tenant could not be identified for this operation.');
+			throw new AppError('Tenant could not be identified for this operation.', 400, 'TENANT_MISSING');
 		} // Parse request body
 
 		const body = await request.json();
 		const { name, parentId } = body; // Validate required fields
 
 		if (!name || typeof name !== 'string') {
-			throw error(400, 'Name is required and must be a string');
+			throw new AppError('Name is required and must be a string', 400, 'INVALID_NAME');
 		}
 
 		// Check if dbAdapter is initialized
 		if (!dbAdapter) {
 			logger.error('Database adapter not initialized');
-			throw error(500, 'Database adapter not initialized');
+			throw new AppError('Database adapter not initialized', 500, 'DB_UNAVAILABLE');
 		}
 
 		// Build the path based on parent folder
@@ -107,7 +111,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			if (parentResult.success && parentResult.data) {
 				folderPath = `${parentResult.data.path}/${name.trim()}`;
 			} else {
-				throw error(400, 'Parent folder not found');
+				throw new AppError('Parent folder not found', 400, 'PARENT_NOT_FOUND');
 			}
 		} else {
 			// Root level folder
@@ -128,7 +132,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		if (!result.success) {
 			logger.error('Database insert failed', { error: result.error });
-			throw error(500, result.error?.message || 'Database insert failed');
+			throw new AppError(result.error?.message || 'Database insert failed', 500, 'CREATE_FAILED');
 		}
 
 		const newFolder = result.data;
@@ -140,41 +144,42 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			folder: newFolder
 		});
 	} catch (err) {
+		if (err instanceof AppError) throw err;
 		const message = err instanceof Error ? err.message : 'Unknown error occurred';
 		logger.error(`Error creating system virtual folder: ${message}`, { tenantId });
 
-		throw error(500, message);
+		throw new AppError(message, 500, 'CREATE_FAILED');
 	}
-};
+});
 
 // PATCH /api/systemVirtualFolder - Handles folder reordering
-export const PATCH: RequestHandler = async ({ request, locals }) => {
+export const PATCH = apiHandler(async ({ request, locals }) => {
 	const { user, tenantId } = locals;
 	try {
 		// Check authentication
 		if (!user) {
-			throw error(401, 'Authentication required');
+			throw new AppError('Authentication required', 401, 'UNAUTHORIZED');
 		}
 
 		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-			throw error(400, 'Tenant could not be identified for this operation.');
+			throw new AppError('Tenant could not be identified for this operation.', 400, 'TENANT_MISSING');
 		}
 
 		const body = await request.json();
 		const { action, orderUpdates } = body;
 
 		if (action !== 'reorder') {
-			throw error(400, 'Invalid action');
+			throw new AppError('Invalid action', 400, 'INVALID_ACTION');
 		}
 
 		if (!Array.isArray(orderUpdates)) {
-			throw error(400, 'orderUpdates must be an array');
+			throw new AppError('orderUpdates must be an array', 400, 'INVALID_DATA');
 		}
 
 		// Check if dbAdapter is initialized
 		if (!dbAdapter) {
 			logger.error('Database adapter not initialized');
-			throw error(500, 'Database adapter not initialized');
+			throw new AppError('Database adapter not initialized', 500, 'DB_UNAVAILABLE');
 		}
 
 		// Store reference for use in async callbacks
@@ -217,19 +222,23 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 			})
 		);
 
+		// Check for failures in individual updates
+		// Note: Promise.all won't fail here because we catch errors inside map but we're returning status objects
 		const errors = results.filter((r) => !r.success);
 		if (errors.length > 0) {
 			logger.error('Error reordering folders', { errors });
-			throw error(500, 'Error reordering folders');
+			// We can decide to return partial success or fail completely. Fails completely is safer.
+			throw new AppError('Error reordering folders', 500, 'REORDER_FAILED');
 		}
 
 		logger.info('Reordered folders successfully', { tenantId });
 
 		return json({ success: true });
 	} catch (err) {
+		if (err instanceof AppError) throw err;
 		const message = err instanceof Error ? err.message : 'Unknown error occurred';
 		logger.error(`Error reordering folders: ${message}`, { tenantId });
 
-		throw error(500, message);
+		throw new AppError(message, 500, 'REORDER_FAILED');
 	}
-};
+});

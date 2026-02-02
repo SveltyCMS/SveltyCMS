@@ -9,17 +9,24 @@
  *  - POST: backup - Trigger system backup (future)
  */
 
-import { json, error as svelteError } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { json } from '@sveltejs/kit';
+
+// Unified Error Handling
+import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
+
+// System Utilities
 import { getHealthCheckReport } from '@src/stores/system/reporting';
 import { reinitializeSystem } from '@src/databases/db';
+
+// Logging
 import { logger } from '@utils/logger.server';
 
 /**
  * GET /api/system?action=health
  * Public health check endpoint for monitoring system status
  */
-export const GET: RequestHandler = async ({ url, locals }) => {
+export const GET = apiHandler(async ({ url, locals }) => {
 	const action = url.searchParams.get('action') || 'health';
 
 	try {
@@ -36,7 +43,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			case 'metrics': {
 				// Future: Return detailed metrics
 				if (!locals.user || (locals.user.role !== 'admin' && locals.user.role !== 'superadmin')) {
-					throw svelteError(403, 'Admin access required');
+					throw new AppError('Admin access required', 403, 'FORBIDDEN');
 				}
 
 				return json({
@@ -46,151 +53,126 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			}
 
 			default:
-				throw svelteError(400, `Unknown action: ${action}`);
+				throw new AppError(`Unknown action: ${action}`, 400, 'INVALID_ACTION');
 		}
 	} catch (err) {
+		if (err instanceof AppError) throw err;
 		if (err && typeof err === 'object' && 'status' in err) {
-			throw err; // Re-throw SvelteKit errors
+			throw err; // Re-throw SvelteKit errors if any remain
 		}
 
 		logger.error('System GET request failed', { action, error: err });
-		return json(
-			{
-				error: err instanceof Error ? err.message : 'Unknown error',
-				action
-			},
-			{ status: 500 }
-		);
+		throw new AppError(err instanceof Error ? err.message : 'Unknown error', 500, 'SYSTEM_ERROR');
 	}
-};
+});
 
 /**
  * POST /api/system
  * Admin-only system management operations
  */
-export const POST: RequestHandler = async ({ request, locals }) => {
-	try {
-		// Authentication check
-		if (!locals.user) {
-			throw svelteError(401, 'Authentication required');
-		}
+export const POST = apiHandler(async ({ request, locals }) => {
+	// Authentication check
+	if (!locals.user) {
+		throw new AppError('Authentication required', 401, 'UNAUTHORIZED');
+	}
 
-		// Authorization check - require admin role
-		if (locals.user.role !== 'admin' && locals.user.role !== 'superadmin') {
-			throw svelteError(403, 'Admin access required');
-		}
+	// Authorization check - require admin role
+	if (locals.user.role !== 'admin' && locals.user.role !== 'superadmin') {
+		throw new AppError('Admin access required', 403, 'FORBIDDEN');
+	}
 
-		const body = await request.json();
-		const { action, ...params } = body;
+	const body = await request.json();
+	const { action, ...params } = body;
 
-		logger.info('System management action requested', {
-			action,
-			userId: locals.user._id,
-			userEmail: locals.user.email,
-			params
-		});
+	logger.info('System management action requested', {
+		action,
+		userId: locals.user._id,
+		userEmail: locals.user.email,
+		params
+	});
 
-		switch (action) {
-			case 'reinitialize': {
-				const force = params.force ?? true;
-				const result = await reinitializeSystem(force);
+	switch (action) {
+		case 'reinitialize': {
+			const force = params.force ?? true;
+			const result = await reinitializeSystem(force);
 
-				if (result.status === 'initialized') {
-					logger.info('System reinitialized successfully', { userId: locals.user._id });
-					return json({
-						success: true,
-						status: result.status,
-						message: 'System reinitialized successfully'
-					});
-				} else {
-					logger.error('System reinitialization failed', {
-						result,
-						userId: locals.user._id
-					});
-					return json(
-						{
-							success: false,
-							status: result.status,
-							error: result.error || 'Unknown error'
-						},
-						{ status: 500 }
-					);
-				}
-			}
-
-			case 'restart-service': {
-				// Future: Restart specific service
-				const serviceName = params.service;
-
-				if (!serviceName) {
-					throw svelteError(400, 'Service name required');
-				}
-
-				// Validate service name
-				const validServices = ['database', 'auth', 'cache', 'contentManager', 'themeManager'];
-				if (!validServices.includes(serviceName)) {
-					throw svelteError(400, `Invalid service name. Valid services: ${validServices.join(', ')}`);
-				}
-
-				logger.info('Service restart requested', {
-					service: serviceName,
+			if (result.status === 'initialized') {
+				logger.info('System reinitialized successfully', { userId: locals.user._id });
+				return json({
+					success: true,
+					status: result.status,
+					message: 'System reinitialized successfully'
+				});
+			} else {
+				logger.error('System reinitialization failed', {
+					result,
 					userId: locals.user._id
 				});
-
-				return json(
-					{
-						success: false,
-						message: 'Service-specific restart not yet implemented',
-						service: serviceName,
-						note: 'Use "reinitialize" action to restart all services'
-					},
-					{ status: 501 }
-				); // Not Implemented
+				// Return failure JSON but still 200/500? Use AppError for failure?
+				// The original code returned 500 JSON.
+				throw new AppError(result.error || 'Unknown error', 500, 'REINIT_FAILED');
 			}
-
-			case 'backup': {
-				// Future: Trigger system backup
-				logger.info('System backup requested', { userId: locals.user._id });
-
-				return json(
-					{
-						success: false,
-						message: 'Backup endpoint - coming soon',
-						note: 'Will trigger database backup and export system configuration'
-					},
-					{ status: 501 }
-				); // Not Implemented
-			}
-
-			case 'clear-cache': {
-				// Future: Clear system caches
-				logger.info('Cache clear requested', { userId: locals.user._id });
-
-				return json(
-					{
-						success: false,
-						message: 'Cache clear endpoint - coming soon',
-						note: 'Will clear session cache, content cache, and other caches'
-					},
-					{ status: 501 }
-				); // Not Implemented
-			}
-
-			default:
-				throw svelteError(400, `Unknown action: ${action}`);
-		}
-	} catch (err) {
-		if (err && typeof err === 'object' && 'status' in err) {
-			throw err; // Re-throw SvelteKit errors
 		}
 
-		logger.error('System POST request failed', { error: err });
-		return json(
-			{
-				success: false,
-				error: err instanceof Error ? err.message : 'Unknown error'
-			},
-			{ status: 500 }
-		);
+		case 'restart-service': {
+			// Future: Restart specific service
+			const serviceName = params.service;
+
+			if (!serviceName) {
+				throw new AppError('Service name required', 400, 'MISSING_SERVICE');
+			}
+
+			// Validate service name
+			const validServices = ['database', 'auth', 'cache', 'contentManager', 'themeManager'];
+			if (!validServices.includes(serviceName)) {
+				throw new AppError(`Invalid service name. Valid services: ${validServices.join(', ')}`, 400, 'INVALID_SERVICE');
+			}
+
+			logger.info('Service restart requested', {
+				service: serviceName,
+				userId: locals.user._id
+			});
+
+			return json(
+				{
+					success: false,
+					message: 'Service-specific restart not yet implemented',
+					service: serviceName,
+					note: 'Use "reinitialize" action to restart all services'
+				},
+				{ status: 501 }
+			); // Not Implemented
+		}
+
+		case 'backup': {
+			// Future: Trigger system backup
+			logger.info('System backup requested', { userId: locals.user._id });
+
+			return json(
+				{
+					success: false,
+					message: 'Backup endpoint - coming soon',
+					note: 'Will trigger database backup and export system configuration'
+				},
+				{ status: 501 }
+			); // Not Implemented
+		}
+
+		case 'clear-cache': {
+			// Future: Clear system caches
+			logger.info('Cache clear requested', { userId: locals.user._id });
+
+			return json(
+				{
+					success: false,
+					message: 'Cache clear endpoint - coming soon',
+					note: 'Will clear session cache, content cache, and other caches'
+				},
+				{ status: 501 }
+			); // Not Implemented
+		}
+
+		default:
+			throw new AppError(`Unknown action: ${action}`, 400, 'INVALID_ACTION');
 	}
-};
+});

@@ -26,7 +26,6 @@
 	import type { User } from '@src/databases/auth/types';
 	import type { FieldInstance, Schema } from '@src/content/types';
 
-	let collectionPath = $state(page.params.contentPath);
 	const action = $state(page.params.action);
 
 	interface Props {
@@ -199,7 +198,7 @@
 					<iconify-icon icon="mdi:cog" width="24" class="text-primary-500"></iconify-icon>
 					<h2 class="text-xl font-bold">General Configuration</h2>
 				</div>
-				<CollectionForm data={collectionValue} handlePageTitleUpdate={(t) => collectionValue && (collectionValue.name = t)} />
+				<CollectionForm data={collectionValue} handlePageTitleUpdate={(t: string) => collectionValue && (collectionValue.name = t)} />
 			</section>
 
 			<!-- Section 2: Fields -->
@@ -213,7 +212,7 @@
 						{collectionValue?.fields?.length || 0} fields total
 					</span>
 				</div>
-				<CollectionWidgetOptimized fields={collectionValue?.fields as FieldInstance[] | undefined} />
+				<CollectionWidgetOptimized fields={(collectionValue?.fields as FieldInstance[]) || []} />
 			</section>
 		</div>
 	</div>
