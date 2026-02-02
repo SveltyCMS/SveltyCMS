@@ -18,10 +18,7 @@ Professional rotate controls with straighten and snap features
 		onStraighten,
 		onAutoStraighten,
 		onGridToggle,
-		onSnapToggle,
-		onReset,
-		onCancel,
-		onApply
+		onSnapToggle
 	}: {
 		rotationAngle: number;
 		isFlippedH?: boolean;
@@ -37,13 +34,17 @@ Professional rotate controls with straighten and snap features
 		onAutoStraighten?: () => void;
 		onGridToggle?: () => void;
 		onSnapToggle?: () => void;
-		onReset: () => void;
-		onCancel: () => void;
-		onApply: () => void;
 	} = $props();
 
 	// Preset angles
 	const presetAngles = [-90, 0, 90, 180];
+
+	function handleAngleNumber(e: Event) {
+		const target = e.currentTarget as HTMLInputElement;
+		let value = parseInt(target.value, 10) || 0;
+		value = Math.max(-180, Math.min(180, value));
+		onRotationChange(value);
+	}
 
 	// Normalize angle to -180 to 180 for display
 	const displayAngle = $derived.by(() => {
@@ -202,29 +203,8 @@ Professional rotate controls with straighten and snap features
 	</div>
 
 	<!-- Actions -->
-	<div class="actions">
-		<button
-			class="btn btn-sm preset-outlined-surface-500 hidden sm:flex"
-			onclick={onReset}
-			disabled={displayAngle === 0 && !isFlippedH && !isFlippedV}
-			title="Reset"
-		>
-			<iconify-icon icon="mdi:restore" width="18"></iconify-icon>
-			<span class="hidden lg:inline">Reset</span>
-		</button>
-
-		<div class="flex gap-2">
-			<button class="btn btn-sm preset-outlined-error-500" onclick={onCancel}>
-				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
-				<span class="hidden sm:inline">Cancel</span>
-			</button>
-
-			<button class="btn btn-sm preset-filled-success-500" onclick={onApply}>
-				<iconify-icon icon="mdi:check" width="18"></iconify-icon>
-				<span class="sm:inline">Apply</span>
-			</button>
-		</div>
-	</div>
+	<!-- Actions removed: Handled by global toolbar -->
+	<div class="h-2"></div>
 </div>
 
 <style>
@@ -232,16 +212,11 @@ Professional rotate controls with straighten and snap features
 		display: flex;
 		flex-wrap: wrap; /* Always allow wrapping */
 		align-items: center;
-		gap: 0.75rem;
-		padding: 0.75rem;
-		background: rgb(var(--color-surface-100) / 1);
-		border-top: 1px solid rgb(var(--color-surface-200) / 1);
+		gap: 1rem;
+		padding: 0;
+		background: transparent;
+		border: none;
 		width: 100%;
-	}
-
-	:global(.dark) .rotate-controls {
-		background: rgb(var(--color-surface-800) / 1);
-		border-color: rgb(var(--color-surface-700) / 1);
 	}
 
 	/* Groups of controls */
@@ -254,28 +229,35 @@ Professional rotate controls with straighten and snap features
 
 	.btn-group {
 		display: flex;
-		gap: 0;
-		border-radius: 0.375rem;
+		border-radius: 9999px;
 		overflow: hidden;
-		border: 1px solid rgb(var(--color-surface-300) / 1);
-		background: rgb(var(--color-surface-50) / 1);
-	}
-
-	:global(.dark) .btn-group {
-		border-color: rgb(var(--color-surface-600) / 1);
-		background: rgb(var(--color-surface-700) / 1);
+		background: rgba(0, 0, 0, 0.2);
+		padding: 2px;
+		gap: 2px;
 	}
 
 	.btn-group .btn {
-		border-radius: 0;
+		border-radius: 9999px;
 		border: none;
-		border-right: 1px solid rgb(var(--color-surface-300) / 1);
 		height: 2rem;
 		width: 2rem;
 		padding: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		background: transparent;
+		color: #9ca3af;
+		transition: all 0.2s;
+	}
+
+	.btn-group .btn:hover {
+		color: white;
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	.btn-group .btn.active {
+		background: #3b82f6;
+		color: white;
 	}
 
 	.btn-group .btn:last-child {
@@ -297,34 +279,24 @@ Professional rotate controls with straighten and snap features
 		padding: 0 0.75rem;
 		font-size: 0.75rem;
 		font-weight: 600;
-		border: 1px solid rgb(var(--color-surface-300) / 1);
-		border-radius: 0.375rem;
-		background: rgb(var(--color-surface-50) / 1);
-		color: rgb(var(--color-surface-700) / 1);
+		border-radius: 9999px;
+		background: rgba(255, 255, 255, 0.05);
+		color: #9ca3af;
 		cursor: pointer;
-		transition: all 0.15s;
+		transition: all 0.2s;
 		white-space: nowrap;
-	}
-
-	:global(.dark) .preset-btn {
-		background: rgb(var(--color-surface-700) / 1);
-		border-color: rgb(var(--color-surface-600) / 1);
-		color: rgb(var(--color-surface-200) / 1);
+		border: 1px solid transparent;
 	}
 
 	.preset-btn:hover {
-		border-color: rgb(var(--color-primary-400) / 1);
-		background: rgb(var(--color-surface-100) / 1);
-	}
-
-	:global(.dark) .preset-btn:hover {
-		background: rgb(var(--color-surface-600) / 1);
+		background: rgba(255, 255, 255, 0.1);
+		color: white;
 	}
 
 	.preset-btn.active {
-		background: rgb(var(--color-primary-500) / 1);
-		border-color: rgb(var(--color-primary-500) / 1);
+		background: #3b82f6; /* Primary-500 */
 		color: white;
+		box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
 	}
 
 	/* Enhanced Slider Styling */
@@ -333,16 +305,11 @@ Professional rotate controls with straighten and snap features
 		align-items: center;
 		gap: 0.75rem;
 		flex: 1;
-		min-width: 240px; /* Ensure decent width */
-		background: rgb(var(--color-surface-50) / 0.5);
+		min-width: 200px;
+		background: rgba(0, 0, 0, 0.2);
 		padding: 0.25rem 0.75rem;
 		border-radius: 9999px;
-		border: 1px solid rgb(var(--color-surface-200) / 1);
-	}
-
-	:global(.dark) .slider-wrapper {
-		background: rgb(var(--color-surface-900) / 0.5);
-		border-color: rgb(var(--color-surface-700) / 1);
+		border: 1px solid rgba(255, 255, 255, 0.1);
 	}
 
 	.slider-track-container {
@@ -351,6 +318,7 @@ Professional rotate controls with straighten and snap features
 		display: flex;
 		align-items: center;
 		height: 1.5rem;
+		padding: 0 0.5rem; /* Add padding for thumb */
 	}
 
 	.slider {

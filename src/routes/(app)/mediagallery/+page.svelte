@@ -400,15 +400,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 		view = newView;
 		storeUserPreference(view, gridSize, tableSize);
 	}
-	function handleSizeChange(detail: { type: string; size: string }) {
-		view = detail.type as 'grid' | 'table'; // Update the view based on the type in detail
-		if (detail.type === 'grid') {
-			gridSize = detail.size as 'tiny' | 'small' | 'medium' | 'large';
-		} else {
-			tableSize = detail.size as 'tiny' | 'small' | 'medium' | 'large';
-		}
-		storeUserPreference(view, gridSize, tableSize);
-	}
+
 
 	// Clear search
 	function clearSearch() {
@@ -1010,7 +1002,6 @@ Displays a collection of media files (images, documents, audio, video) with:
 				{gridSize}
 				ondeleteImage={handleDeleteImage}
 				onBulkDelete={handleBulkDelete}
-				onsizechange={handleSizeChange}
 				onEditImage={handleEditImage}
 				onUpdateImage={handleUpdateImage}
 			/>

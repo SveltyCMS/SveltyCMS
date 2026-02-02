@@ -19,11 +19,8 @@ Professional fine-tune controls with presets and categories
 		onCategoryChange,
 		onPresetApply,
 		onReset,
-		onResetAll,
 		onCompareToggle,
-		onAutoAdjust,
-		onCancel,
-		onApply
+		onAutoAdjust
 	}: {
 		activeAdjustment: keyof Adjustments;
 		activeCategory?: string;
@@ -36,11 +33,8 @@ Professional fine-tune controls with presets and categories
 		onCategoryChange?: (category: string) => void;
 		onPresetApply?: (preset: string) => void;
 		onReset: () => void;
-		onResetAll?: () => void;
 		onCompareToggle?: () => void;
 		onAutoAdjust?: () => void;
-		onCancel: () => void;
-		onApply: () => void;
 	} = $props();
 
 	const config = $derived(getAdjustmentConfig(activeAdjustment));
@@ -143,19 +137,21 @@ Professional fine-tune controls with presets and categories
 		{/if}
 	</div>
 
-	<!-- Presets Panel -->
+	<!-- Presets Panel (Horizontal Scroll) -->
 	{#if showPresetsPanel && onPresetApply}
-		<div class="presets-panel">
+		<div class="presets-scroll-container">
 			{#each FILTER_PRESETS as preset}
 				<button
 					class="preset-card"
 					onclick={() => {
 						onPresetApply(preset.name);
-						showPresetsPanel = false;
+						// Don't close panel immediately for quick browsing
 					}}
 					title={preset.description}
 				>
-					<iconify-icon icon={preset.icon} width="24"></iconify-icon>
+					<div class="preset-icon-wrapper">
+						<iconify-icon icon={preset.icon} width="24"></iconify-icon>
+					</div>
 					<span class="preset-name">{preset.name}</span>
 				</button>
 			{/each}
@@ -167,7 +163,7 @@ Professional fine-tune controls with presets and categories
 		<!-- Adjustment Selector -->
 		<div class="adjustments-scroll">
 			<div class="adjustments-grid">
-				{#each getAdjustmentsByCategory(activeCategory as any) as adj}
+				{#each getAdjustmentsByCategory(activeCategory as 'basic' | 'tone' | 'color' | 'detail') as adj}
 					{@const adjConfig = getAdjustmentConfig(adj.key)}
 					{@const hasChange = (adjustments?.[adj.key] ?? 0) !== 0}
 					<button
@@ -220,42 +216,19 @@ Professional fine-tune controls with presets and categories
 	</div>
 
 	<!-- Actions -->
-	<div class="controls-footer">
-		{#if onResetAll}
-			<button class="btn btn-sm preset-outlined-surface-500" onclick={onResetAll} title="Reset all adjustments">
-				<iconify-icon icon="mdi:restore-alert" width="16"></iconify-icon>
-				<span class="hidden sm:inline">Reset All</span>
-			</button>
-		{/if}
-
-		<div class="flex-1"></div>
-
-		<button class="btn btn-sm preset-outlined-error-500" onclick={onCancel}>
-			<iconify-icon icon="mdi:close" width="16"></iconify-icon>
-			<span class="hidden sm:inline">Cancel</span>
-		</button>
-
-		<button class="btn btn-sm preset-filled-success-500" onclick={onApply}>
-			<iconify-icon icon="mdi:check" width="16"></iconify-icon>
-			<span class="hidden sm:inline">Apply</span>
-		</button>
-	</div>
+	<!-- Footer removed: Actions are handled by global toolbar or live updates -->
+	<div class="h-2"></div>
 </div>
 
 <style>
 	.finetune-controls {
 		display: flex;
 		flex-direction: column;
-		gap: 0.75rem;
-		padding: 0.75rem;
-		background: rgb(var(--color-surface-100) / 1);
-		border-top: 1px solid rgb(var(--color-surface-200) / 1);
+		gap: 1rem;
+		padding: 0;
+		background: transparent;
+		border: none;
 		width: 100%;
-	}
-
-	:global(.dark) .finetune-controls {
-		background: rgb(var(--color-surface-800) / 1);
-		border-color: rgb(var(--color-surface-700) / 1);
 	}
 
 	/* Header */
@@ -270,9 +243,10 @@ Professional fine-tune controls with presets and categories
 		display: flex;
 		gap: 0.25rem;
 		padding: 0.25rem;
-		background: rgb(var(--color-surface-200) / 0.5);
-		border-radius: 0.5rem;
-		flex-wrap: wrap; /* Allow wrapping on very small screens */
+		background: rgba(0, 0, 0, 0.2);
+		border-radius: 9999px;
+		flex-wrap: nowrap;
+		overflow-x: auto;
 	}
 
 	.category-tab {
@@ -280,37 +254,28 @@ Professional fine-tune controls with presets and categories
 		align-items: center;
 		justify-content: center;
 		gap: 0.5rem;
-		padding: 0.375rem 0.75rem;
-		min-height: 2rem;
-		border-radius: 0.375rem;
+		padding: 0.375rem 1rem;
+		border-radius: 9999px;
 		font-size: 0.75rem;
 		font-weight: 600;
-		text-transform: capitalize;
-		color: rgb(var(--color-surface-600) / 1);
-		transition: all 0.15s;
-		cursor: pointer;
+		color: #9ca3af;
+		transition: all 0.2s;
 		background: transparent;
 		border: none;
+		white-space: nowrap;
 	}
 
 	.category-tab:hover {
-		background: rgb(var(--color-surface-300) / 0.5);
-		color: rgb(var(--color-surface-900) / 1);
+		color: white;
+		background: rgba(255, 255, 255, 0.05);
 	}
 
 	.category-tab.active {
-		background: white;
-		color: rgb(var(--color-primary-600) / 1);
-		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-	}
-
-	:global(.dark) .category-tab {
-		color: rgb(var(--color-surface-400) / 1);
-	}
-
-	:global(.dark) .category-tab.active {
-		background: rgb(var(--color-surface-700) / 1);
-		color: rgb(var(--color-primary-400) / 1);
+		background: #3b82f6; /* Primary-500 */
+		color: white;
+		box-shadow:
+			0 4px 6px -1px rgba(0, 0, 0, 0.1),
+			0 2px 4px -1px rgba(0, 0, 0, 0.06);
 	}
 
 	/* Controls Container */
@@ -346,38 +311,29 @@ Professional fine-tune controls with presets and categories
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 0.375rem;
-		padding: 0.5rem 0.75rem;
-		min-width: 80px;
-		min-height: 64px; /* Touch friendly height */
-		border: 1px solid rgb(var(--color-surface-300) / 1);
-		border-radius: 0.5rem;
-		background: white;
+		gap: 0.5rem;
+		padding: 0.75rem;
+		min-width: 72px;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-radius: 1rem;
+		background: rgba(255, 255, 255, 0.03);
 		cursor: pointer;
-		transition: all 0.15s;
-	}
-
-	:global(.dark) .adjustment-btn {
-		background: rgb(var(--color-surface-700) / 1);
-		border-color: rgb(var(--color-surface-600) / 1);
+		transition: all 0.2s;
+		color: #9ca3af;
 	}
 
 	.adjustment-btn:hover {
-		border-color: rgb(var(--color-primary-400) / 1);
-		background: rgb(var(--color-surface-50) / 1);
-	}
-
-	:global(.dark) .adjustment-btn:hover {
-		background: rgb(var(--color-surface-600) / 1);
+		background: rgba(255, 255, 255, 0.1);
+		border-color: rgba(255, 255, 255, 0.2);
+		color: white;
+		transform: translateY(-2px);
 	}
 
 	.adjustment-btn.active {
-		background: rgb(var(--color-primary-50) / 1);
-		border-color: rgb(var(--color-primary-500) / 1);
-	}
-
-	:global(.dark) .adjustment-btn.active {
-		background: rgb(var(--color-primary-900) / 0.2);
+		background: rgba(59, 130, 246, 0.2); /* Primary with opacity */
+		border-color: #3b82f6;
+		color: #60a5fa;
+		box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
 	}
 
 	.adjustment-btn.has-change {
@@ -518,6 +474,66 @@ Professional fine-tune controls with presets and categories
 
 	:global(.dark) .controls-footer {
 		border-color: rgb(var(--color-surface-700) / 1);
+	}
+
+	.presets-scroll-container {
+		display: flex;
+		gap: 0.75rem;
+		overflow-x: auto;
+		padding: 0.5rem 0.25rem;
+		width: 100%;
+		scrollbar-width: none; /* Firefox */
+	}
+
+	.presets-scroll-container::-webkit-scrollbar {
+		display: none; /* Chrome/Safari */
+	}
+
+	.preset-card {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.5rem;
+		min-width: 4.5rem;
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		opacity: 0.7;
+		transition: all 0.2s;
+	}
+
+	.preset-card:hover {
+		opacity: 1;
+		transform: translateY(-2px);
+	}
+
+	.preset-icon-wrapper {
+		width: 3.5rem;
+		height: 3.5rem;
+		border-radius: 0.5rem;
+		background: rgba(255, 255, 255, 0.1);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		color: white;
+	}
+
+	.preset-card:hover .preset-icon-wrapper {
+		background: rgba(255, 255, 255, 0.2);
+		border-color: rgba(255, 255, 255, 0.4);
+		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+	}
+
+	.preset-name {
+		font-size: 0.7rem;
+		font-weight: 500;
+		color: #9ca3af;
+		text-align: center;
+	}
+
+	.preset-card:hover .preset-name {
+		color: white;
 	}
 
 	.btn {
