@@ -49,6 +49,10 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 
 		return json({ success: true });
 	} catch (err) {
+		// Re-throw HTTP errors as-is (e.g., 400 for missing URL)
+		if (err && typeof err === 'object' && 'status' in err) {
+			throw err;
+		}
 		const message = `Error deleting file: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { user: user?.email || 'unknown', tenantId });
 		throw error(500, message);

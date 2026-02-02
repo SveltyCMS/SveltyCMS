@@ -59,8 +59,9 @@ function shouldBypassCache(searchParams: URLSearchParams): boolean {
 function isPublicApiRoute(pathname: string, method?: string): boolean {
 	const relative = pathname.replace(/^\/api\//, '');
 
-	// Allow GET requests to /api/token/... for registration check
-	if (pathname.startsWith('/api/token/') && method === 'GET') {
+	// Token validation endpoint is public for GET only (registration flow)
+	// Format: /api/token/{tokenValue} - not the list endpoint /api/token
+	if (method === 'GET' && pathname.startsWith('/api/token/') && pathname.length > 11) {
 		return true;
 	}
 

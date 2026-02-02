@@ -9,7 +9,7 @@
  * - POST /api/import/full - Full system import
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'bun:test';
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
 import { prepareAuthenticatedContext, cleanupTestDatabase } from '../helpers/testSetup';
 
@@ -18,6 +18,9 @@ let authCookie: string;
 
 beforeAll(async () => {
 	await waitForServer();
+});
+
+beforeEach(async () => {
 	authCookie = await prepareAuthenticatedContext();
 });
 
@@ -26,7 +29,7 @@ afterAll(async () => {
 });
 
 describe('Import/Export API - Export Collection Data', () => {
-	it('should export collection data', async () => {
+	it('should export collection data or return 404 for non-existent collection', async () => {
 		const response = await fetch(`${BASE_URL}/api/exportData`, {
 			method: 'POST',
 			headers: {
@@ -38,7 +41,8 @@ describe('Import/Export API - Export Collection Data', () => {
 			})
 		});
 
-		expect([200, 404, 400]).toContain(response.status);
+		// Collection may not exist yet, so 404 is acceptable
+		expect(response.status).toBe(response.ok ? 200 : 404);
 
 		if (response.ok) {
 			const data = await response.json();
@@ -56,7 +60,7 @@ describe('Import/Export API - Export Collection Data', () => {
 			body: JSON.stringify({})
 		});
 
-		expect([400, 422]).toContain(response.status);
+		expect(response.status).toBe(400);
 	});
 
 	it('should require authentication for export', async () => {
@@ -66,7 +70,7 @@ describe('Import/Export API - Export Collection Data', () => {
 			body: JSON.stringify({ collectionName: 'Posts' })
 		});
 
-		expect([401, 403]).toContain(response.status);
+		expect(response.status).toBe(401);
 	});
 
 	it('should handle non-existent collections', async () => {
@@ -81,7 +85,7 @@ describe('Import/Export API - Export Collection Data', () => {
 			})
 		});
 
-		expect([404, 400]).toContain(response.status);
+		expect(response.status).toBe(404);
 	});
 
 	it('should support export format options', async () => {
@@ -97,7 +101,8 @@ describe('Import/Export API - Export Collection Data', () => {
 			})
 		});
 
-		expect([200, 404, 400]).toContain(response.status);
+		// Collection may not exist, so 404 is acceptable
+		expect(response.status).toBe(response.ok ? 200 : 404);
 	});
 
 	it('should include metadata in export', async () => {
@@ -113,9 +118,11 @@ describe('Import/Export API - Export Collection Data', () => {
 			})
 		});
 
+		// Collection may not exist
+		expect(response.status).toBe(response.ok ? 200 : 404);
+
 		if (response.ok) {
 			const data = await response.json();
-			// May include version, timestamp, etc.
 			expect(typeof data).toBeDefined();
 		}
 	});
@@ -133,7 +140,8 @@ describe('Import/Export API - Export Collection Data', () => {
 			})
 		});
 
-		expect([200, 404, 400]).toContain(response.status);
+		// Collection may not exist
+		expect(response.status).toBe(response.ok ? 200 : 404);
 	});
 });
 
@@ -156,11 +164,11 @@ describe('Import/Export API - Import Collection Data', () => {
 			})
 		});
 
-		expect([200, 400, 422]).toContain(response.status);
+		expect(response.status).toBe(200);
 
 		if (response.ok) {
 			const result = await response.json();
-			expect(result.success || result.imported).toBeTruthy();
+			expect(result.success || result.imported !== undefined).toBeTruthy();
 		}
 	});
 
@@ -177,7 +185,7 @@ describe('Import/Export API - Import Collection Data', () => {
 			})
 		});
 
-		expect([400, 422]).toContain(response.status);
+		expect(response.status).toBe(422);
 	});
 
 	it('should require authentication for import', async () => {
@@ -190,7 +198,7 @@ describe('Import/Export API - Import Collection Data', () => {
 			})
 		});
 
-		expect([401, 403]).toContain(response.status);
+		expect(response.status).toBe(401);
 	});
 
 	it('should support replace vs merge import mode', async () => {
@@ -207,7 +215,7 @@ describe('Import/Export API - Import Collection Data', () => {
 			})
 		});
 
-		expect([200, 400, 422]).toContain(response.status);
+		expect(response.status).toBe(200);
 	});
 
 	it('should return import statistics', async () => {
@@ -223,9 +231,10 @@ describe('Import/Export API - Import Collection Data', () => {
 			})
 		});
 
+		expect(response.status).toBe(200);
+
 		if (response.ok) {
 			const result = await response.json();
-			// Should report how many imported, skipped, errors
 			expect(typeof result).toBe('object');
 		}
 	});
@@ -243,8 +252,7 @@ describe('Import/Export API - Import Collection Data', () => {
 			})
 		});
 
-		// May partially succeed or fail with validation errors
-		expect([200, 400, 422]).toContain(response.status);
+		expect(response.status).toBe(200);
 	});
 
 	it('should support duplicate handling strategies', async () => {
@@ -261,7 +269,7 @@ describe('Import/Export API - Import Collection Data', () => {
 			})
 		});
 
-		expect([200, 400, 422]).toContain(response.status);
+		expect(response.status).toBe(200);
 	});
 });
 
@@ -278,7 +286,7 @@ describe('Import/Export API - General Export', () => {
 			})
 		});
 
-		expect([200, 404, 400]).toContain(response.status);
+		expect(response.status).toBe(200);
 	});
 
 	it('should support multiple export types', async () => {
@@ -294,7 +302,7 @@ describe('Import/Export API - General Export', () => {
 				body: JSON.stringify({ type })
 			});
 
-			expect([200, 404, 400, 501]).toContain(response.status);
+			expect(response.status).toBe(200);
 		}
 	});
 
@@ -305,7 +313,7 @@ describe('Import/Export API - General Export', () => {
 			body: JSON.stringify({ type: 'collections' })
 		});
 
-		expect([401, 403]).toContain(response.status);
+		expect(response.status).toBe(401);
 	});
 
 	it('should return downloadable export file', async () => {
@@ -321,11 +329,7 @@ describe('Import/Export API - General Export', () => {
 			})
 		});
 
-		if (response.ok) {
-			// May set content-disposition header for download
-			// Header may or may not be present depending on implementation
-			expect(response.status).toBe(200);
-		}
+		expect(response.status).toBe(200);
 	});
 });
 
@@ -346,7 +350,7 @@ describe('Import/Export API - Full System Import', () => {
 			})
 		});
 
-		expect([200, 400, 422, 404]).toContain(response.status);
+		expect(response.status).toBe(400); // Will fail validation as data structure is incomplete
 	});
 
 	it('should validate full import data structure', async () => {
@@ -361,7 +365,7 @@ describe('Import/Export API - Full System Import', () => {
 			})
 		});
 
-		expect([400, 422]).toContain(response.status);
+		expect(response.status).toBe(400);
 	});
 
 	it('should require admin authentication for full import', async () => {
@@ -373,7 +377,7 @@ describe('Import/Export API - Full System Import', () => {
 			})
 		});
 
-		expect([401, 403]).toContain(response.status);
+		expect(response.status).toBe(401);
 	});
 
 	it('should support incremental vs full replace import', async () => {
@@ -391,7 +395,7 @@ describe('Import/Export API - Full System Import', () => {
 			})
 		});
 
-		expect([200, 400, 422, 404]).toContain(response.status);
+		expect(response.status).toBe(400); // Missing required metadata
 	});
 
 	it('should return comprehensive import results', async () => {
@@ -409,9 +413,10 @@ describe('Import/Export API - Full System Import', () => {
 			})
 		});
 
+		expect(response.status).toBe(400); // Missing metadata
+
 		if (response.ok) {
 			const result = await response.json();
-			// Should have results for each import type
 			expect(typeof result).toBe('object');
 		}
 	});
@@ -431,8 +436,7 @@ describe('Import/Export API - Full System Import', () => {
 			})
 		});
 
-		// Should report partial success/failure
-		expect([200, 400, 422, 404]).toContain(response.status);
+		expect(response.status).toBe(400); // Invalid structure
 	});
 });
 
@@ -450,10 +454,12 @@ describe('Import/Export API - Data Integrity', () => {
 			})
 		});
 
+		// Collection may not exist, both statuses are acceptable
+		expect(exportResponse.status).toBe(exportResponse.ok ? 200 : 404);
+
 		if (exportResponse.ok) {
 			const exportData = await exportResponse.json();
 
-			// Import same data
 			const importResponse = await fetch(`${BASE_URL}/api/importData`, {
 				method: 'POST',
 				headers: {
@@ -462,11 +468,11 @@ describe('Import/Export API - Data Integrity', () => {
 				},
 				body: JSON.stringify({
 					collectionName: 'Posts',
-					data: exportData
+					data: Array.isArray(exportData) ? exportData : []
 				})
 			});
 
-			expect([200, 400, 422]).toContain(importResponse.status);
+			expect(importResponse.status).toBe(200);
 		}
 	});
 
@@ -488,8 +494,7 @@ describe('Import/Export API - Data Integrity', () => {
 			})
 		});
 
-		// Should handle without timeout or memory issues
-		expect([200, 400, 422, 413]).toContain(response.status);
+		expect(response.status).toBe(200);
 	});
 
 	it('should validate data integrity after import', async () => {
@@ -506,6 +511,6 @@ describe('Import/Export API - Data Integrity', () => {
 			})
 		});
 
-		expect([200, 400, 422]).toContain(response.status);
+		expect(response.status).toBe(200);
 	});
 });

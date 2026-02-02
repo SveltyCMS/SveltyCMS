@@ -11,18 +11,15 @@
  * - Graceful degradation & cleanup
  */
 
-// Graceful degradation & cleanup
-
 if (typeof window !== 'undefined') {
 	throw new Error('logger.server.ts cannot be imported in browser code');
 }
 
-// get LOG_LEVELS from environment variables directly (avoids Svelte store dependency)
+// Get LOG_LEVELS from environment variables directly (avoids Svelte store dependency)
 const LOG_LEVELS_RAW = process.env.LOG_LEVELS || import.meta.env?.VITE_LOG_LEVELS || 'fatal,error,warn,info';
 const LOG_LEVELS = LOG_LEVELS_RAW.split(',')
 	.map((l: string) => l.trim().toLowerCase())
 	.filter(Boolean);
-
 const DISABLED = LOG_LEVELS.includes('none');
 
 // Log levels

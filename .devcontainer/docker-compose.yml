@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  db:
+    image: mongodb/mongodb-community-server:latest
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  mariadb:
+    image: mariadb:latest
+    restart: always
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: sveltycms
+      MYSQL_USER: sveltycms
+      MYSQL_PASSWORD: sveltycms
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+volumes:
+  mongodb_data:
+  mariadb_data:

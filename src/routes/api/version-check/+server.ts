@@ -1,3 +1,7 @@
+/**
+ * @file src/routes/api/version-check/+server.ts
+ * @description API endpoint for checking application version against remote releases.
+ */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { versionCheckService } from '@src/services/VersionCheckService';
@@ -8,6 +12,6 @@ export const GET: RequestHandler = apiHandler(async ({ url }) => {
 	const result = await versionCheckService.checkVersion({ checkUpdates });
 
 	return json(result, {
-		status: result.status === 'error' ? 200 : 200 // Consistent 200 OK unless critical failure
+		status: 200 // Consistent 200 OK unless critical failure
 	});
 });

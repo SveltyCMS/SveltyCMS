@@ -23,6 +23,10 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 	'api:systemPreferences': ['admin'], // System preferences (user dashboard layout/sizes)
 	'api:systemsetting': ['admin'], // System settings export/import
 	'api:config_sync': ['admin'], // Configuration sync (import/export)
+	'api:export': ['admin'], // Full system export
+	'api:import': ['admin'], // Full system import
+	'api:exportData': ['admin'], // Collection export
+	'api:importData': ['admin'], // Collection import
 	'api:system': ['admin', 'editor'], // System status (version, health)
 	'api:telemetry': ['admin', 'developer', 'editor'], // System telemetry
 
@@ -48,6 +52,9 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 	'api:security': ['admin'], // Security monitoring and incident management
 	'api:search': ['admin', 'editor'], // Search functionality
 	'api:index': ['admin', 'editor'], // Index/search operations
+	'api:metrics': ['admin'], // Performance metrics
+	'api:cache': ['admin'], // Cache management
+	'api:version-check': ['admin'], // Version/updates
 
 	// Content Structure - Admin and Editor
 	'api:content-structure': ['admin', 'editor'], // Content structure management
@@ -63,17 +70,11 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 
 	// Widget Management - Admin and Developer
 	'api:widgets': ['admin', 'developer'], // Widget management and marketplace
+	'api:marketplace': ['admin'], // Marketplace access
 
 	// Public/Semi-public endpoints (authenticated users)
-	'api:sendMail': ['admin'], // Email sending (restricted to admin)
-	'api:getTokensProvided': ['admin'], // Token information - admin only
-
-	// System & Maintenance
-	'api:export': ['admin'], // Content export
-	'api:import': ['admin'], // Content import
-	'api:metrics': ['admin', 'editor'], // System metrics
-	'api:cache': ['admin'], // Cache management
-	'api:marketplace': ['admin', 'developer'] // Marketplace access
+	'api:sendMail': ['admin'], // Email sending (used internally, but needs auth)
+	'api:getTokensProvided': ['admin'] // Token information - admin only
 };
 
 /**

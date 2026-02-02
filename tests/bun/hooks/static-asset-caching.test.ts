@@ -26,12 +26,11 @@ function createMockEvent(pathname: string): RequestEvent {
 
 describe('Middleware: handleStaticAssetCaching', () => {
 	let mockResolve: any;
-	const mockResponse = new Response('test body');
 
 	beforeEach(() => {
-		// strictly typed mock resolve function
+		// strictly typed mock resolve function - create fresh Response each call
 		mockResolve = mock(async (_event: RequestEvent, _opts?: ResolveOptions) => {
-			return mockResponse;
+			return new Response('test body');
 		});
 	});
 

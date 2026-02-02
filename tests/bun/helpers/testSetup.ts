@@ -119,12 +119,54 @@ async function seedBasicRoles(): Promise<void> {
 			});
 		}
 
+		// Seed admin user if not exists
+		await seedAdminUser(db);
+
 		// Seed settings
 		await seedBasicSettings(db);
+
+		// Seed default theme
+		await seedDefaultTheme(db);
 	} catch (e: any) {
 		console.warn('Warning: Failed to seed data:', e.message);
 	} finally {
 		await client.close();
+	}
+}
+
+/**
+ * Seeds the admin user with a properly hashed password.
+ * This allows tests to authenticate without going through the setup API.
+ */
+async function seedAdminUser(db: any): Promise<void> {
+	try {
+		const existingAdmin = await db.collection('auth_users').findOne({ email: 'admin@example.com' });
+		if (!existingAdmin) {
+			console.log('[testSetup] Seeding admin user...');
+			const argon2 = await import('argon2');
+			const crypto = await import('crypto');
+
+			// Hash the password using the same config as the app
+			const hashedPassword = await argon2.hash('Admin123!', {
+				memoryCost: 65536, // 64 MB
+				timeCost: 3,
+				parallelism: 4,
+				type: argon2.argon2id
+			});
+
+			await db.collection('auth_users').insertOne({
+				_id: crypto.randomUUID().replace(/-/g, ''),
+				email: 'admin@example.com',
+				username: 'admin',
+				password: hashedPassword,
+				role: 'admin',
+				blocked: false,
+				createdAt: new Date(),
+				updatedAt: new Date()
+			});
+		}
+	} catch (e: any) {
+		console.warn('Warning: Failed to seed admin user:', e.message);
 	}
 }
 
@@ -185,17 +227,115 @@ async function seedBasicSettings(db: any): Promise<void> {
 }
 
 /**
+ * Seeds the default theme into the database.
+ * This matches the DEFAULT_THEME in themeManager.ts
+ */
+async function seedDefaultTheme(db: any): Promise<void> {
+	try {
+		// Note: collection name is 'system_theme' (singular) to match MongoDB model
+		const existingTheme = await db.collection('system_theme').findOne({ _id: '670e8b8c4d123456789abcde' });
+		if (!existingTheme) {
+			console.log('[testSetup] Seeding default theme...');
+			const now = new Date();
+			await db.collection('system_theme').insertOne({
+				_id: '670e8b8c4d123456789abcde',
+				path: '',
+				name: 'SveltyCMSTheme',
+				isActive: true,
+				isDefault: true,
+				config: {
+					tailwindConfigPath: '',
+					assetsPath: ''
+				},
+				createdAt: now,
+				updatedAt: now
+			});
+		}
+	} catch (e: any) {
+		console.warn('Warning: Failed to seed theme:', e.message);
+	}
+}
+
+/**
+ * Extracts just the cookie name=value from a set-cookie header.
+ * The set-cookie header includes attributes like Path, HttpOnly, etc.
+ * but the Cookie request header should only contain name=value pairs.
+ *
+ * Example:
+ *   Input:  "sveltycms_session=abc123; Path=/; HttpOnly; SameSite=strict"
+ *   Output: "sveltycms_session=abc123"
+ */
+function extractCookieValue(setCookieHeader: string): string {
+	return setCookieHeader.split(';')[0].trim();
+}
+
+/**
  * Prepare an authenticated context (login as admin).
+ * Uses the Setup API to properly initialize the system if needed.
  * @returns {Promise<string>} Authentication cookie.
  */
 export async function prepareAuthenticatedContext(): Promise<string> {
-	// 0. Ensure Roles and Settings exist (since DB might be clean)
+	const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:4173';
+
+	// Check if system is already set up
+	const statusResp = await fetch(`${API_BASE_URL}/api/setup/status`);
+	const status = await statusResp.json();
+
+	if (!status.setupComplete) {
+		// System needs setup - use the Setup API
+		const dbConfig = {
+			type: 'mongodb',
+			host: process.env.DB_HOST || 'localhost',
+			port: parseInt(process.env.DB_PORT || '27017'),
+			name: process.env.DB_NAME || 'sveltycms_test',
+			user: process.env.DB_USER || '',
+			password: process.env.DB_PASSWORD || ''
+		};
+
+		// Step 1: Seed database config
+		await fetch(`${API_BASE_URL}/api/setup/seed`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(dbConfig)
+		});
+
+		// Step 2: Complete setup with admin user
+		const completeResp = await fetch(`${API_BASE_URL}/api/setup/complete`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				admin: testFixtures.users.admin,
+				skipWelcomeEmail: true
+			})
+		});
+
+		if (completeResp.ok) {
+			// Setup complete - seed additional data and extract cookie
+			await seedBasicRoles(); // Ensure theme and other data is seeded
+			const rawCookie = completeResp.headers.get('set-cookie');
+			if (rawCookie) {
+				// Extract just the cookie value, not the attributes like Path, HttpOnly, etc.
+				return extractCookieValue(rawCookie);
+			}
+		}
+	}
+
+	// System is already set up or setup completed - just login
+	// First ensure admin user exists via direct seeding (for cases where setup was done but user was cleaned)
 	await seedBasicRoles();
 
-	// 1. Create standard test users (idempotent)
-	await createTestUsers();
+	// Try to login
+	try {
+		const cookie = await loginAsAdmin();
+		if (cookie) {
+			return cookie;
+		}
+	} catch (e) {
+		// Login failed - user might not exist, try creating via API
+	}
 
-	// 2. Perform login
+	// Fallback: create user and login
+	await createTestUsers();
 	const cookie = await loginAsAdmin();
 
 	if (!cookie) {

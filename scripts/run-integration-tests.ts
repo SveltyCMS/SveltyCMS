@@ -15,7 +15,7 @@ import { existsSync, readdirSync, statSync } from 'fs';
 const rootDir = join(import.meta.dir, '..');
 const configPath = join(rootDir, 'config', 'private.test.ts');
 
-let testProcess: ReturnType<typeof spawn> | null = null;
+const testProcess: ReturnType<typeof spawn> | null = null;
 let previewProcess: ReturnType<typeof spawn> | null = null;
 
 // Restoration removed to avoid risk to live config
@@ -168,11 +168,12 @@ async function main() {
 			try {
 				// 1. Clean DB (Drop)
 				const { MongoClient } = await import('mongodb');
-				const client = new MongoClient(
-					`mongodb://${testEnv.DB_USER}:${testEnv.DB_PASSWORD}@${testEnv.DB_HOST}:${testEnv.DB_PORT}/${testEnv.DB_NAME}?authSource=admin`
-				);
+				const dbUrl = privateEnv.DB_USER
+					? `mongodb://${privateEnv.DB_USER}:${privateEnv.DB_PASSWORD}@${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${privateEnv.DB_NAME}?authSource=admin`
+					: `mongodb://${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${privateEnv.DB_NAME}`;
+				const client = new MongoClient(dbUrl);
 				await client.connect();
-				await client.db('sveltycms_test').dropDatabase();
+				await client.db(privateEnv.DB_NAME).dropDatabase();
 				await client.close();
 
 				// 2. Seed DB (via script)

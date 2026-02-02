@@ -51,6 +51,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		logger.info('Media file moved to trash successfully', { url, userId: user?._id, tenantId });
 		return json({ success: true });
 	} catch (err) {
+		// Re-throw HTTP errors as-is (e.g., 400 for missing parameters)
+		if (err && typeof err === 'object' && 'status' in err) {
+			throw err;
+		}
 		const message = `Error moving file to trash: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { tenantId });
 		throw error(500, message);

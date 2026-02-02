@@ -33,14 +33,15 @@ const rolesCache = new Map<string, { data: Role[]; timestamp: number }>();
 
 function isPublicRoute(pathname: string, method?: string): boolean {
 	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/sendMail', '/api/setup', '/api/system/version', '/api/user/login'];
-	if (publicRoutes.some((route) => pathname.startsWith(route))) {
+	// Token validation endpoint is public (GET only) for registration flow
+	// Format: /api/token/{tokenValue} where tokenValue is any non-empty string (not just the list endpoint)
+	// We check that it's NOT the base /api/token route and has something after /api/token/
+	if (method === 'GET' && pathname.startsWith('/api/token/') && pathname.length > 11) {
+		// /api/token/ is 11 chars, so pathname.length > 11 means there's a token value
 		return true;
 	}
-	// Allow GET requests to /api/token/... (e.g. for registration/invitation)
-	if (pathname.startsWith('/api/token/') && method === 'GET') {
-		return true;
-	}
-	return false;
+
+	return publicRoutes.some((route) => pathname.startsWith(route));
 }
 
 function isOAuthRoute(pathname: string): boolean {
@@ -116,12 +117,12 @@ async function getCachedRoles(tenantId?: string): Promise<Role[]> {
 // --- MAIN HANDLE ---
 
 export const handleAuthorization: Handle = async ({ event, resolve }) => {
-	const { url, locals } = event;
+	const { url, locals, request } = event;
 	const { user } = locals;
 
 	const pathname = url.pathname;
 	const isApi = pathname.startsWith('/api/');
-	const isPublic = isPublicRoute(pathname, event.request.method);
+	const isPublic = isPublicRoute(pathname, request.method);
 
 	// --- Skip static or internal routes early ---
 	const ASSET_REGEX =

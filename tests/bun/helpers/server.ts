@@ -27,14 +27,11 @@ export async function waitForServer(timeoutMs = 30000, intervalMs = 500): Promis
 
 	while (Date.now() - start < timeoutMs) {
 		try {
-			// Use /api/system/version as a health check endpoint (doesn't redirect)
-			// Also disable redirect following to avoid "too many redirects" errors
 			const res = await fetch(`${BASE_URL}/api/system/version`, {
 				method: 'GET',
 				redirect: 'manual'
 			});
-			// Accept 200 (healthy), 302/307 (setup redirect - server is running), or even 404
-			if (res.ok || res.status === 302 || res.status === 307 || res.status === 404) {
+			if (res.ok) {
 				console.log('✓ Ready');
 
 				// CRITICAL: Wait for Vite module runner to register collection models

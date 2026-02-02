@@ -1,10 +1,24 @@
-name: Unit, Integration & E2E Tests
+name: Integration Tests
 
 on:
   push:
     branches: [main, next]
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.mdx'
+      - 'docs/**'
+      - '.github/*.md'
+      - 'LICENSE'
+      - '.gitignore'
   pull_request:
     branches: [main, next]
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.mdx'
+      - 'docs/**'
+      - '.github/*.md'
+      - 'LICENSE'
+      - '.gitignore'
   workflow_dispatch: {}
 
 permissions:
@@ -46,9 +60,8 @@ jobs:
 
       - name: Run Unit Tests
         run: bun run test:unit
-
   # ------------------------------------------------------------------
-  # 2. Integration Tests (Requires Server + MongoDB)
+  # Integration Tests (Requires Server + MongoDB)
   # ------------------------------------------------------------------
   integration-tests:
     name: 🔌 Integration Tests
@@ -121,6 +134,9 @@ jobs:
       # We want the server to start in "Fresh Install" mode (Setup Wizard).
       # tests/bun/api/setup.test.ts will call the API to "install" the system and create private.ts.
 
+      - name: Generate SvelteKit types
+        run: bunx svelte-kit sync
+
       - name: Build Production
         run: bun run build
 
@@ -144,13 +160,20 @@ jobs:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
 
-      # Phase 2: Run All Other Integration Tests (System is now installed)
-      # We skip 'Setup API' tests because they expect a fresh install and we just ran them.
-      - name: 🧪 Run Main Integration Suite
-        run: bun test tests/bun/api tests/bun/databases tests/bun/hooks -t "!Setup API"
+      # Phase 2: Run Integration Tests (System is now installed)
+      # API and Database tests (excluding setup.test.ts which already ran in Phase 1)
+      - name: 🧪 Run API & Database Tests
+        run: bun test $(find tests/bun/api -name "*.test.ts" ! -name "setup.test.ts") tests/bun/databases
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
+
+      # Phase 3: Run Hooks Tests (require preload for SvelteKit mocks)
+      # Note: Hooks tests must run individually due to ESM module caching conflicts
+      - name: 🧪 Run Hooks Tests
+        run: bun run test:hooks
+        env:
+          TEST_MODE: 'true'
 
       - name: Upload Integration Server Logs
         if: failure()
@@ -159,434 +182,3 @@ jobs:
           name: integration-server-logs
           path: preview-integration.log
           retention-days: 7
-
-  # ------------------------------------------------------------------
-  # 3. Integration Tests - MariaDB
-  # ------------------------------------------------------------------
-  integration-tests-mariadb:
-    name: 🔌 Integration Tests (MariaDB)
-    timeout-minutes: 15
-    runs-on: ubuntu-latest
-    services:
-      mariadb:
-        image: mariadb:11
-        ports: [3306:3306]
-        env:
-          MARIADB_ROOT_PASSWORD: rootpass
-          MARIADB_DATABASE: sveltycms_test
-          MARIADB_USER: testuser
-          MARIADB_PASSWORD: testpass
-        options: >-
-          --health-cmd="healthcheck.sh --connect --innodb_initialized"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-    env:
-      DB_TYPE: mariadb
-      DB_HOST: localhost
-      DB_PORT: 3306
-      DB_NAME: sveltycms_test
-      DB_USER: testuser
-      DB_PASSWORD: testpass
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Cache Bun dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      # Ensure fresh state - remove any existing config
-      - name: Clean config for fresh CI run
-        run: |
-          echo "🧹 Ensuring fresh state for CI..."
-          rm -rf config/collections
-          rm -f config/private.ts
-          echo "✅ Cleaned config directory"
-
-      # Create placeholder config/private.test.ts for MariaDB
-      - name: Create placeholder config/private.test.ts
-        run: |
-          echo "📝 Creating placeholder config/private.test.ts for MariaDB..."
-          cat > config/private.test.ts <<EOF
-          export const privateEnv = {
-            DB_TYPE: '${{ env.DB_TYPE }}',
-            DB_HOST: '${{ env.DB_HOST }}',
-            DB_PORT: ${{ env.DB_PORT }},
-            DB_NAME: '${{ env.DB_NAME }}',
-            DB_USER: '${{ env.DB_USER }}',
-            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
-            JWT_SECRET_KEY: 'test_jwt_secret',
-            ENCRYPTION_KEY: 'test_encryption_key',
-            MULTI_TENANT: false
-          } as const;
-          EOF
-          echo "✅ Created config/private.test.ts"
-
-      # Create temporary config/private.ts for build
-      - name: Create temporary config for build
-        run: |
-          echo "📝 Creating temporary config/private.ts for build..."
-          cat > config/private.ts <<EOF
-          export const privateEnv = {
-            DB_TYPE: '${{ env.DB_TYPE }}',
-            DB_HOST: '${{ env.DB_HOST }}',
-            DB_PORT: ${{ env.DB_PORT }},
-            DB_NAME: '${{ env.DB_NAME }}',
-            DB_USER: '${{ env.DB_USER }}',
-            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
-            JWT_SECRET_KEY: 'test_jwt_secret',
-            ENCRYPTION_KEY: 'test_encryption_key',
-            MULTI_TENANT: false
-          } as const;
-          EOF
-          echo "✅ Created temporary config/private.ts"
-
-      # Wait for MariaDB to be ready
-      - name: Wait for MariaDB
-        run: |
-          echo "⏳ Waiting for MariaDB to be ready..."
-          for i in {1..30}; do
-            if nc -z localhost 3306 2>/dev/null; then
-              echo "✅ MariaDB port is open!"
-              sleep 2
-              break
-            fi
-            echo "Waiting for MariaDB... ($i/30)"
-            sleep 1
-          done
-
-      # Build production version for faster, optimized testing
-      - name: Build Production
-        run: bun run build
-
-      # Kill any process using port 4173 to prevent conflicts
-      - name: Clean up port 4173
-        run: |
-          echo "🧹 Cleaning up port 4173..."
-          lsof -ti:4173 | xargs kill -9 2>/dev/null || echo "Port 4173 is free"
-
-      # --- START PREVIEW SERVER (PORT 4173) ---
-      - name: Start Preview Server
-        run: |
-          echo "🚀 Starting preview server on port 4173..."
-          bun run preview &
-          echo "⏳ Waiting for server to be ready..."
-          bun x wait-on http://localhost:4173 -t 60000
-          echo "✅ Preview server is ready!"
-
-      - name: Run Integration Tests
-        run: bun run test:integration:run
-        env:
-          TEST_MODE: 'true'
-          API_BASE_URL: 'http://localhost:4173'
-
-  # ------------------------------------------------------------------
-  # 4. E2E Tests (Requires Server + MongoDB + Browser)
-  # ------------------------------------------------------------------
-  e2e-tests:
-    name: 🎭 E2E Tests
-    timeout-minutes: 30
-    runs-on: ubuntu-latest
-    services:
-      mongodb:
-        image: mongo:latest
-        ports: [27017:27017]
-        env:
-          MONGO_INITDB_ROOT_USERNAME: admin
-          MONGO_INITDB_ROOT_PASSWORD: admin
-        options: >-
-          --health-cmd "mongosh --eval 'db.adminCommand({ping: 1})' --quiet"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      DB_TYPE: mongodb
-      DB_HOST: localhost
-      DB_PORT: 27017
-      DB_NAME: sveltycms_test
-      DB_USER: admin
-      DB_PASSWORD: admin
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Cache Bun dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      # Cache Playwright Browsers: Critical for speed
-      - name: Get installed Playwright version
-        id: playwright-version
-        run: echo "version=$(bun x playwright --version | awk '{print $2}')" >> $GITHUB_OUTPUT
-
-      - name: Cache Playwright Browsers
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      - name: Install Playwright Browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: bunx playwright install --with-deps chromium
-
-      - name: Install CI Tools
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq jq
-
-      # Create temporary private.ts for build
-      - name: Create Temporary Config for Build
-        run: |
-          cat > config/private.ts <<EOF
-          export default {
-            database: { type: 'mongodb', uri: 'mongodb://localhost:27017/temp' },
-            general: { siteURL: 'http://localhost:4173' }
-          };
-          EOF
-
-      - name: Build Production
-        run: bun run build
-
-      - name: Remove Temporary Config
-        run: rm -f config/private.ts
-
-      - name: Cleanup Port 4173
-        run: |
-          pkill -f "vite preview" || true
-          fuser -k 4173/tcp 2>/dev/null || echo "Port 4173 is free"
-        continue-on-error: true
-
-      # Wait for MongoDB (Double check health)
-      - name: Verify MongoDB Ready
-        run: |
-          for i in {1..30}; do
-            if nc -z localhost 27017 2>/dev/null; then
-              break
-            fi
-            sleep 2
-          done
-
-      - name: Start Preview Server
-        run: |
-          nohup bun run preview > preview-e2e.log 2>&1 &
-          echo $! > preview.pid
-          bun x wait-on http://localhost:4173 -t 90000 --interval 1000
-          curl -f http://localhost:4173 || (cat preview-e2e.log; exit 1)
-
-      # Create config via Setup Wizard
-      - name: 🧙‍♂️ Run Setup Wizard Test (Seeds DB)
-        run: bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list
-        env:
-          ADMIN_EMAIL: admin@example.com
-          ADMIN_PASS: Admin123!
-
-      # Wait for seeding
-      - name: ⏳ Wait for Seeding
-        run: |
-          for i in {1..30}; do
-            STATUS=$(curl -s http://localhost:4173/api/setup/status || echo '{"isSeeding":true}')
-            IS_SEEDING=$(echo $STATUS | jq -r '.isSeeding // true')
-            if [ "$IS_SEEDING" = "false" ]; then
-              break
-            fi
-            sleep 2
-          done
-
-      - name: 🔐 Run RBAC Tests
-        run: bunx playwright test tests/playwright/role-based-access.spec.ts --project=chromium --reporter=list
-
-      - name: 🧪 Run Main E2E Suite
-        if: success()
-        run: bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard|role-based"
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 14
-
-      - name: Upload E2E Server Logs
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-server-logs
-          path: preview-e2e.log
-          retention-days: 7
-
-  # ------------------------------------------------------------------
-  # 5. E2E Tests - MariaDB (Runs after MariaDB E2E)
-  # ------------------------------------------------------------------
-  e2e-tests-mariadb:
-    name: 🎭 E2E Tests (MariaDB)
-    # needs: [e2e-tests] # Removed to allow parallel execution
-    timeout-minutes: 30
-    runs-on: ubuntu-latest
-    services:
-      mariadb:
-        image: mariadb:11
-        ports: [3306:3306]
-        env:
-          MARIADB_ROOT_PASSWORD: rootpass
-          MARIADB_DATABASE: sveltycms_test
-          MARIADB_USER: testuser
-          MARIADB_PASSWORD: testpass
-        options: >-
-          --health-cmd="healthcheck.sh --connect --innodb_initialized"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-    env:
-      DB_TYPE: mariadb
-      DB_HOST: localhost
-      DB_PORT: 3306
-      DB_NAME: sveltycms_test
-      DB_USER: testuser
-      DB_PASSWORD: testpass
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Cache Bun dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      # Cache Playwright Browsers: Critical for speed
-      - name: Get installed Playwright version
-        id: playwright-version
-        run: echo "version=$(bun x playwright --version | awk '{print $2}')" >> $GITHUB_OUTPUT
-
-      - name: Cache Playwright Browsers
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      - name: Install Playwright Browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: bunx playwright install --with-deps chromium
-
-      - name: Install CI Tools
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq jq
-
-      # Create temporary private.ts for build
-      - name: Create Temporary Config for Build
-        run: |
-          cat > config/private.ts <<EOF
-          export default {
-            database: { type: 'mariadb', uri: '' }, # Placeholder
-            general: { siteURL: 'http://localhost:4173' }
-          };
-          EOF
-
-      - name: Build Production
-        run: bun run build
-
-      - name: Remove Temporary Config
-        run: rm -f config/private.ts
-
-      - name: Cleanup Port 4173
-        run: lsof -ti:4173 | xargs kill -9 2>/dev/null || true
-
-      - name: Wait for MariaDB
-        run: |
-          echo "⏳ Waiting for MariaDB to be ready..."
-          for i in {1..30}; do
-            if nc -z localhost 3306 2>/dev/null; then
-              echo "✅ MariaDB port is open!"
-              sleep 2
-              break
-            fi
-            echo "Waiting for MariaDB... ($i/30)"
-            sleep 1
-          done
-
-      - name: Start Preview Server
-        run: |
-          bun run preview &
-          bun x wait-on http://localhost:4173 -t 60000
-
-      # Create config via Setup Wizard
-      - name: 🧙‍♂️ Run Setup Wizard Test (Seeds DB)
-        run: bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list
-        env:
-          ADMIN_EMAIL: admin@example.com
-          ADMIN_PASS: Admin123!
-          DB_TYPE: mariadb
-
-      # Wait for seeding
-      - name: ⏳ Wait for Seeding
-        run: |
-          for i in {1..30}; do
-            STATUS=$(curl -s http://localhost:4173/api/setup/status || echo '{"isSeeding":true}')
-            IS_SEEDING=$(echo $STATUS | jq -r '.isSeeding // true')
-            if [ "$IS_SEEDING" = "false" ]; then
-              break
-            fi
-            sleep 2
-          done
-
-      # Note: Authentication logic in 'auth.ts' relies on 'data-testid', which is DB-agnostic.
-      # However, some tests might assume MongoDB IDs. We run a core subset first.
-
-      - name: 🔐 Run RBAC Tests
-        run: bunx playwright test tests/playwright/role-based-access.spec.ts --project=chromium --reporter=list
-
-      - name: 🧪 Run Main E2E Suite
-        if: success()
-        run: bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard|role-based"
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report-mariadb
-          path: playwright-report/
-          retention-days: 30

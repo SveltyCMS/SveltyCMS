@@ -1,0 +1,14 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"baseUrl": ".",
+		"paths": {
+			"$app/environment": ["./tests/bun/mocks/app-environment.ts"],
+			"$app/stores": ["./tests/bun/mocks/app-stores.ts"],
+			"$app/navigation": ["./tests/bun/mocks/app-navigation.ts"],
+			"$app/forms": ["./tests/bun/mocks/app-forms.ts"],
+			"@src/*": ["./src/*"]
+		}
+	},
+	"include": ["tests/**/*.ts", "src/**/*.ts"]
+}

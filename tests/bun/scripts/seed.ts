@@ -10,7 +10,14 @@ import { randomUUID } from 'crypto';
 // Load config/private.test.ts like runner does?
 // Simplest is to assume standard test env
 const DB_NAME = process.env.DB_NAME || 'sveltycms_test';
-const MONGO_URI = process.env.MONGODB_URI || `mongodb://admin:admin@127.0.0.1:27017/${DB_NAME}?authSource=admin`;
+const DB_HOST = process.env.DB_HOST || '127.0.0.1';
+const DB_PORT = process.env.DB_PORT || '27017';
+const DB_USER = process.env.DB_USER || '';
+const DB_PASSWORD = process.env.DB_PASSWORD || '';
+
+const MONGO_URI = DB_USER
+	? `mongodb://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?authSource=admin`
+	: `mongodb://${DB_HOST}:${DB_PORT}/${DB_NAME}`;
 
 // Load hash utility (bun supports typescript via runtime transpilation)
 import { hashPassword } from '../../../src/utils/password';

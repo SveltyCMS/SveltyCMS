@@ -1,167 +1,239 @@
-import type { ContentNode } from '@src/content/types';
+/**
+ * @file src/utils/treeViewAdapter.ts
+ * @description Adapter for converting ContentNode to TreeView data.
+ *
+ * This module provides functions for converting ContentNode structures to TreeView data
+ * and vice versa. It is used for hierarchical organization of content in the CMS.
+ */
 
-export interface TreeViewItem {
+import type { ContentNode } from '@databases/dbInterface';
+
+export interface TreeViewItem extends Record<string, any> {
 	id: string;
 	name: string;
-	nodeType: 'category' | 'collection';
-	path: string;
 	parent: string | null;
-	order?: number;
+	// children is NOT part of the flat item structure for TreeView
+	// element references are handled by TreeView via path/id
+	nodeType: 'category' | 'collection';
 	icon?: string;
-	children?: TreeViewItem[];
+	path: string;
+	order?: number;
+	_id?: any; // Preserve original ID reference
+	// Drag-and-drop control
+	isDraggable?: boolean;
+	isDropAllowed?: boolean;
 }
 
 /**
- * Converts a flat list of ContentNodes to a nested TreeViewItem structure.
- * Note: standard svelte-treeview might expect flat list with 'parent' props,
- * but this utility seems to return a flat list or nested?
- * The test says "should convert a flat list of root nodes" -> result length 2.
- * "should convert nested nodes" -> result length 3 (flat list with parent refs).
- * So it returns a FLAT list of TreeViewItems.
+ * Flattens a recursive ContentNode structure into a flat array for svelte-treeview
  */
-export function toTreeViewData(nodes: ContentNode[], parentId: string | null = null, parentPath: string | null = null): TreeViewItem[] {
+export function toTreeViewData(nodes: ContentNode[], parentPath: string = ''): TreeViewItem[] {
 	let result: TreeViewItem[] = [];
 
-	nodes.forEach((node) => {
-		const currentPath = parentPath ? `${parentPath}.${node._id}` : node._id.toString();
+	for (const node of nodes) {
+		// Access properties safely. ContentNode uses _id usually.
+		const n = node as any;
+		const id = String(n.id || n._id || crypto.randomUUID());
+
+		// Create LTree path: e.g. "root.child.grandchild"
+		const path = parentPath ? `${parentPath}.${id}` : id;
+
+		// Destructure to exclude children from the rest spread
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		const { children, ...rest } = n;
+
 		const item: TreeViewItem = {
-			id: node._id.toString(),
-			name: node.name,
-			nodeType: node.nodeType as 'category' | 'collection',
-			path: currentPath,
-			parent: parentId,
-			order: node.order,
-			icon: node.icon
+			...rest,
+			id,
+			name: n.name || 'Untitled',
+			nodeType: n.type || n.nodeType || 'collection',
+			icon: n.icon,
+			path: path,
+			parent: parentPath ? parentPath.split('.').pop() || null : null,
+			// Enable drag-and-drop for all items
+			isDraggable: true,
+			isDropAllowed: true
 		};
+
 		result.push(item);
 
-		if (node.children && node.children.length > 0) {
-			result = result.concat(toTreeViewData(node.children, node._id.toString(), currentPath)); // Recurse with flat concatenation
-		} else if (node.nodeType === 'category') {
-			// Logic in test "nested nodes" expects result[1].path to be 'cat1.col1'.
-			// If input nodes are already nested (ContentNode has children), we flatten them.
-			// See helper below if deeper logic is needed.
+		if (children && Array.isArray(children) && children.length > 0) {
+			const childItems = toTreeViewData(children, path);
+			result = result.concat(childItems);
 		}
-	});
-	return result; // But wait, test 'should convert nested nodes' pass in nested ContentNodes.
-}
-
-/**
- * Converts TreeViewItems back to nested ContentNodes
- */
-export function fromTreeViewData(items: TreeViewItem[]): ContentNode[] {
-	const nodeMap = new Map<string, ContentNode>();
-	const rootNodes: ContentNode[] = [];
-
-	// First pass: create nodes
-	items.forEach((item) => {
-		const node: ContentNode = {
-			_id: item.id as any,
-			name: item.name,
-			nodeType: item.nodeType,
-			icon: item.icon,
-			order: item.order || 0,
-			children: []
-			// These will be populated or left undefined
-			// parentId is optional in ContentNode
-		} as unknown as ContentNode;
-		nodeMap.set(item.id, node);
-	});
-
-	// Second pass: structure them
-	items.forEach((item) => {
-		const node = nodeMap.get(item.id)!;
-		if (item.parent) {
-			const parent = nodeMap.get(item.parent);
-			if (parent) {
-				parent.children = parent.children || [];
-				parent.children.push(node);
-				node.parentId = item.parent as any;
-			} else {
-				// Orphan, add to root
-				rootNodes.push(node);
-			}
-		} else {
-			rootNodes.push(node);
-		}
-	});
-
-	return rootNodes;
-}
-
-/**
- * Converts TreeViewItems to flat ContentNodes (for DB storage presumably)
- */
-export function toFlatContentNodes(items: TreeViewItem[]): ContentNode[] {
-	// This seems similar to fromTreeViewData but maybe just flat list with parentIds?
-	// Test says: expect result length 2, parentId set.
-	return items
-		.map(
-			(item, index) =>
-				({
-					_id: item.id as any,
-					name: item.name,
-					nodeType: item.nodeType,
-					icon: item.icon,
-					order: item.order !== undefined ? item.order : index, // Fallback to index if needed, or maintain order
-					parentId: item.parent as any // string | null -> any to satisfy type?
-				}) as ContentNode
-		)
-		.map((n) => {
-			if (!n.parentId) delete n.parentId;
-			return n;
-		});
-}
-
-/**
- * Recalculates path and parent properties based on new hierarchy/order
- */
-export function recalculatePaths(items: TreeViewItem[]): TreeViewItem[] {
-	// This usually implies we have a list where 'parent' might be changed,
-	// and we need to update 'path' and 'order'.
-	// Or maybe we treat the input list as the source of truth for order?
-
-	// Sort logic from test: "update order based on sibling position"
-	// But wait, the input list order matters?
-	// "Should be sorted by order: c(1), b(3), a(5) -> new orders 0, 1, 2"
-	// This implies we re-sort them based on current 'order' prop IF provided, then re-index?
-	// OR we just take the list order?
-	// Test says: items list order is a(5), b(3), c(1). Result orders: c->0, b->1, a->2.
-	// So it logic sorts by existing order then re-assigns 0,1,2.
-
-	// Implementation:
-	// 1. Group by parent
-	// 2. Sort siblings by order
-	// 3. Update order to 0, 1, 2...
-	// 4. Update paths recursively
-
-	const byParent = new Map<string | null, TreeViewItem[]>();
-	items.forEach((item) => {
-		const pid = item.parent || null;
-		if (!byParent.has(pid)) byParent.set(pid, []);
-		byParent.get(pid)!.push(item);
-	});
-
-	// Sort siblings
-	for (const siblings of byParent.values()) {
-		siblings.sort((a, b) => (a.order || 0) - (b.order || 0));
 	}
-
-	const result: TreeViewItem[] = [];
-
-	function processLevel(parentId: string | null, parentPath: string | null) {
-		const siblings = byParent.get(parentId) || [];
-		siblings.forEach((item, index) => {
-			item.order = index; // Re-index
-			item.path = parentPath ? `${parentPath}.${item.id}` : item.id;
-
-			result.push(item);
-
-			processLevel(item.id, item.path);
-		});
-	}
-
-	processLevel(null, null);
 
 	return result;
+}
+
+/**
+ * Reconstructs recursive ContentNode structure from flat TreeView items
+ */
+export function fromTreeViewData(flatItems: TreeViewItem[]): ContentNode[] {
+	const nodeMap = new Map<string, ContentNode>();
+	const roots: ContentNode[] = [];
+
+	// Create nodes
+	for (const item of flatItems) {
+		const { path, parent, text, ...rest } = item;
+
+		const node: any = {
+			...rest,
+			// Restore _id if available, else map id
+			_id: rest._id || item.id,
+			// Ensure children array exists
+			children: []
+		};
+
+		// delete internal tree props if they leaked
+		delete node.path;
+		delete node.parent;
+		delete node.text;
+
+		nodeMap.set(String(item.id), node as ContentNode);
+	}
+
+	// Build hierarchy
+	for (const item of flatItems) {
+		const node = nodeMap.get(String(item.id));
+		if (!node) continue;
+
+		if (item.path && item.path.includes('.')) {
+			const segments = item.path.split('.');
+			segments.pop(); // remove self
+			const parentId = segments.pop(); // get parent id
+
+			if (parentId) {
+				const parent = nodeMap.get(parentId);
+				if (parent && parent.children) {
+					parent.children.push(node);
+				} else {
+					roots.push(node);
+				}
+			} else {
+				roots.push(node);
+			}
+		} else {
+			roots.push(node);
+		}
+	}
+
+	return roots;
+}
+
+/**
+ * Converts flat TreeView items directly to flat ContentNodes for the backend.
+ * Handles parentId mapping and recalculates order based on sibling position.
+ */
+export function toFlatContentNodes(flatItems: TreeViewItem[]): ContentNode[] {
+	// Group items by parent to calculate order within siblings
+	const siblingGroups = new Map<string, TreeViewItem[]>();
+
+	for (const item of flatItems) {
+		const parentKey = item.parent || '__root__';
+		if (!siblingGroups.has(parentKey)) {
+			siblingGroups.set(parentKey, []);
+		}
+		siblingGroups.get(parentKey)!.push(item);
+	}
+
+	// Sort each sibling group by their path order (lexicographic within same level)
+	for (const [, siblings] of siblingGroups) {
+		siblings.sort((a, b) => {
+			// Sort by path to maintain visual order
+			const aSegments = a.path.split('.');
+			const bSegments = b.path.split('.');
+			// Compare the last segment (their position at this level)
+			return aSegments[aSegments.length - 1].localeCompare(bSegments[bSegments.length - 1]);
+		});
+	}
+
+	// Create order lookup
+	const orderLookup = new Map<string, number>();
+	for (const [, siblings] of siblingGroups) {
+		siblings.forEach((item, index) => {
+			orderLookup.set(item.id, index);
+		});
+	}
+
+	return flatItems.map((item) => {
+		// Extract parentId from path (second-to-last segment)
+		let parentId: string | undefined;
+		if (item.path && item.path.includes('.')) {
+			const segments = item.path.split('.');
+			segments.pop(); // Remove self
+			parentId = segments.pop(); // Get parent id
+		}
+
+		return {
+			...item,
+			_id: item._id || item.id,
+			id: undefined, // ContentNode uses _id
+			parentId: parentId,
+			name: item.name,
+			icon: item.icon,
+			nodeType: item.nodeType,
+			path: item.path,
+			order: orderLookup.get(item.id) ?? 0,
+
+			// Clean up internal props
+			parent: undefined,
+			text: undefined
+		} as unknown as ContentNode;
+	});
+}
+
+/**
+ * Recalculates paths for TreeView items after a drag-and-drop operation.
+ * This is essential because svelte-treeview may not automatically maintain
+ * consistent paths after complex moves.
+ *
+ * @param items Flat array of TreeView items with potentially stale paths
+ * @returns Items with recalculated paths based on parent relationships
+ */
+export function recalculatePaths(items: TreeViewItem[]): TreeViewItem[] {
+	// Build a map of id -> item for quick lookup
+	const itemMap = new Map<string, TreeViewItem>();
+	for (const item of items) {
+		itemMap.set(item.id, { ...item });
+	}
+
+	// Group by parent to determine order
+	const childrenByParent = new Map<string, TreeViewItem[]>();
+	for (const item of items) {
+		const parentKey = item.parent || '__root__';
+		if (!childrenByParent.has(parentKey)) {
+			childrenByParent.set(parentKey, []);
+		}
+		childrenByParent.get(parentKey)!.push(itemMap.get(item.id)!);
+	}
+
+	// Sort children within each parent group by their original order
+	for (const [, children] of childrenByParent) {
+		children.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+	}
+
+	// Recursively assign new paths starting from roots
+	function assignPaths(parentId: string | null, parentPath: string): void {
+		const key = parentId || '__root__';
+		const children = childrenByParent.get(key);
+		if (!children) return;
+
+		children.forEach((child, index) => {
+			const newPath = parentPath ? `${parentPath}.${child.id}` : child.id;
+			const item = itemMap.get(child.id);
+			if (item) {
+				item.path = newPath;
+				item.order = index;
+				item.parent = parentId;
+			}
+			// Recurse into children
+			assignPaths(child.id, newPath);
+		});
+	}
+
+	// Start from roots
+	assignPaths(null, '');
+
+	return Array.from(itemMap.values());
 }

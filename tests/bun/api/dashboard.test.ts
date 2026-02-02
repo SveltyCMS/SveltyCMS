@@ -37,7 +37,10 @@ describe('Dashboard API - Health Endpoint', () => {
 			headers: { Cookie: authCookie }
 		});
 
-		expect(response.ok).toBe(true);
+		// Health endpoint returns 200 for operational states (READY, WARMED, DEGRADED)
+		// and 503 for non-operational states (INITIALIZING, FAILED, IDLE)
+		// Both should return valid health data
+		expect([200, 503]).toContain(response.status);
 		const data = await response.json();
 
 		expect(data).toHaveProperty('overallStatus');

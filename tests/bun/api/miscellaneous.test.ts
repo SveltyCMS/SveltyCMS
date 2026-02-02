@@ -36,20 +36,18 @@ describe('Search API - Global Search', () => {
 			headers: { Cookie: authCookie }
 		});
 
-		expect([200, 404]).toContain(response.status);
+		expect(response.status).toBe(200);
 
-		if (response.ok) {
-			const data = await response.json();
-			expect(typeof data).toBe('object');
-		}
+		const data = await response.json();
+		expect(typeof data).toBe('object');
 	});
 
-	it('should require search query parameter', async () => {
+	it('should handle empty search query', async () => {
 		const response = await fetch(`${BASE_URL}/api/search`, {
 			headers: { Cookie: authCookie }
 		});
 
-		expect([400, 200]).toContain(response.status);
+		expect(response.status).toBe(200);
 	});
 
 	it('should filter by collection type', async () => {
@@ -57,7 +55,7 @@ describe('Search API - Global Search', () => {
 			headers: { Cookie: authCookie }
 		});
 
-		expect([200, 404]).toContain(response.status);
+		expect(response.status).toBe(200);
 	});
 
 	it('should support pagination', async () => {
@@ -65,12 +63,12 @@ describe('Search API - Global Search', () => {
 			headers: { Cookie: authCookie }
 		});
 
-		expect([200, 404]).toContain(response.status);
+		expect(response.status).toBe(200);
 	});
 
 	it('should require authentication', async () => {
 		const response = await fetch(`${BASE_URL}/api/search?q=test`);
-		expect([401, 403]).toContain(response.status);
+		expect(response.status).toBe(401);
 	});
 
 	it('should return relevant search results', async () => {
@@ -78,16 +76,15 @@ describe('Search API - Global Search', () => {
 			headers: { Cookie: authCookie }
 		});
 
-		if (response.ok) {
-			const data = await response.json();
-			// Should have results array or object with results
-			expect(typeof data).toBe('object');
-		}
+		expect(response.status).toBe(200);
+
+		const data = await response.json();
+		expect(typeof data).toBe('object');
 	});
 });
 
 describe('Email API - Send Mail', () => {
-	it('should send email', async () => {
+	it('should reject email when not configured', async () => {
 		const response = await fetch(`${BASE_URL}/api/sendMail`, {
 			method: 'POST',
 			headers: {
@@ -101,7 +98,7 @@ describe('Email API - Send Mail', () => {
 			})
 		});
 
-		expect([200, 400, 500, 503]).toContain(response.status);
+		expect(response.status).toBe(400);
 	});
 
 	it('should validate email parameters', async () => {
@@ -117,7 +114,7 @@ describe('Email API - Send Mail', () => {
 			})
 		});
 
-		expect([400, 422]).toContain(response.status);
+		expect(response.status).toBe(400);
 	});
 
 	it('should validate email addresses', async () => {
@@ -134,7 +131,7 @@ describe('Email API - Send Mail', () => {
 			})
 		});
 
-		expect([400, 422, 200]).toContain(response.status);
+		expect(response.status).toBe(400);
 	});
 
 	it('should require authentication', async () => {
@@ -148,10 +145,10 @@ describe('Email API - Send Mail', () => {
 			})
 		});
 
-		expect([401, 403]).toContain(response.status);
+		expect(response.status).toBe(401);
 	});
 
-	it('should support HTML email', async () => {
+	it('should reject HTML email when not configured', async () => {
 		const response = await fetch(`${BASE_URL}/api/sendMail`, {
 			method: 'POST',
 			headers: {
@@ -166,7 +163,7 @@ describe('Email API - Send Mail', () => {
 			})
 		});
 
-		expect([200, 400, 500, 503]).toContain(response.status);
+		expect(response.status).toBe(400);
 	});
 });
 
@@ -180,7 +177,7 @@ describe('Cache API - Clear Cache', () => {
 			}
 		});
 
-		expect([200, 404]).toContain(response.status);
+		expect(response.status).toBe(200);
 	});
 
 	it('should support selective cache clearing', async () => {
@@ -195,7 +192,7 @@ describe('Cache API - Clear Cache', () => {
 			})
 		});
 
-		expect([200, 404]).toContain(response.status);
+		expect(response.status).toBe(200);
 	});
 
 	it('should require admin authentication', async () => {
@@ -204,7 +201,7 @@ describe('Cache API - Clear Cache', () => {
 			headers: { 'Content-Type': 'application/json' }
 		});
 
-		expect([401, 403]).toContain(response.status);
+		expect(response.status).toBe(401);
 	});
 
 	it('should return cache clear results', async () => {
@@ -216,10 +213,10 @@ describe('Cache API - Clear Cache', () => {
 			}
 		});
 
-		if (response.ok) {
-			const data = await response.json();
-			expect(data.success || data.cleared).toBeDefined();
-		}
+		expect(response.status).toBe(200);
+
+		const data = await response.json();
+		expect(data.success || data.cleared).toBeDefined();
 	});
 });
 
@@ -229,12 +226,10 @@ describe('Metrics API - Performance Metrics', () => {
 			headers: { Cookie: authCookie }
 		});
 
-		expect([200, 404]).toContain(response.status);
+		expect(response.status).toBe(200);
 
-		if (response.ok) {
-			const data = await response.json();
-			expect(typeof data).toBe('object');
-		}
+		const data = await response.json();
+		expect(typeof data).toBe('object');
 	});
 
 	it('should include system metrics', async () => {
@@ -242,16 +237,15 @@ describe('Metrics API - Performance Metrics', () => {
 			headers: { Cookie: authCookie }
 		});
 
-		if (response.ok) {
-			const data = await response.json();
-			// May include CPU, memory, response times, etc.
-			expect(typeof data).toBe('object');
-		}
+		expect(response.status).toBe(200);
+
+		const data = await response.json();
+		expect(typeof data).toBe('object');
 	});
 
 	it('should require authentication', async () => {
 		const response = await fetch(`${BASE_URL}/api/metrics`);
-		expect([401, 403]).toContain(response.status);
+		expect(response.status).toBe(401);
 	});
 
 	it('should support metric filtering', async () => {
@@ -259,12 +253,12 @@ describe('Metrics API - Performance Metrics', () => {
 			headers: { Cookie: authCookie }
 		});
 
-		expect([200, 404]).toContain(response.status);
+		expect(response.status).toBe(200);
 	});
 });
 
 describe('Permission API - Update Permissions', () => {
-	it('should update user permissions', async () => {
+	it('should reject invalid user permissions', async () => {
 		const response = await fetch(`${BASE_URL}/api/permission/update`, {
 			method: 'POST',
 			headers: {
@@ -277,7 +271,7 @@ describe('Permission API - Update Permissions', () => {
 			})
 		});
 
-		expect([200, 404, 400]).toContain(response.status);
+		expect(response.status).toBe(400);
 	});
 
 	it('should validate permission data', async () => {
@@ -292,7 +286,7 @@ describe('Permission API - Update Permissions', () => {
 			})
 		});
 
-		expect([400, 422]).toContain(response.status);
+		expect(response.status).toBe(400);
 	});
 
 	it('should require admin authentication', async () => {
@@ -302,7 +296,7 @@ describe('Permission API - Update Permissions', () => {
 			body: JSON.stringify({})
 		});
 
-		expect([401, 403]).toContain(response.status);
+		expect(response.status).toBe(401);
 	});
 });
 
@@ -312,12 +306,10 @@ describe('Version Check API - Version Information', () => {
 			headers: { Cookie: authCookie }
 		});
 
-		expect([200, 404]).toContain(response.status);
+		expect(response.status).toBe(200);
 
-		if (response.ok) {
-			const data = await response.json();
-			expect(typeof data).toBe('object');
-		}
+		const data = await response.json();
+		expect(typeof data).toBe('object');
 	});
 
 	it('should check for updates', async () => {
@@ -325,7 +317,7 @@ describe('Version Check API - Version Information', () => {
 			headers: { Cookie: authCookie }
 		});
 
-		expect([200, 404]).toContain(response.status);
+		expect(response.status).toBe(200);
 	});
 
 	it('should include current version', async () => {
@@ -333,10 +325,10 @@ describe('Version Check API - Version Information', () => {
 			headers: { Cookie: authCookie }
 		});
 
-		if (response.ok) {
-			const data = await response.json();
-			expect(data.version || data.currentVersion).toBeDefined();
-		}
+		expect(response.status).toBe(200);
+
+		const data = await response.json();
+		expect(data.version || data.currentVersion).toBeDefined();
 	});
 });
 
@@ -346,12 +338,10 @@ describe('Marketplace API - Widget Marketplace', () => {
 			headers: { Cookie: authCookie }
 		});
 
-		expect([200, 404, 503]).toContain(response.status);
+		expect(response.status).toBe(200);
 
-		if (response.ok) {
-			const data = await response.json();
-			expect(Array.isArray(data) || typeof data === 'object').toBe(true);
-		}
+		const data = await response.json();
+		expect(Array.isArray(data) || typeof data === 'object').toBe(true);
 	});
 
 	it('should search marketplace', async () => {
@@ -359,7 +349,7 @@ describe('Marketplace API - Widget Marketplace', () => {
 			headers: { Cookie: authCookie }
 		});
 
-		expect([200, 404, 503]).toContain(response.status);
+		expect(response.status).toBe(200);
 	});
 
 	it('should filter by category', async () => {
@@ -367,12 +357,12 @@ describe('Marketplace API - Widget Marketplace', () => {
 			headers: { Cookie: authCookie }
 		});
 
-		expect([200, 404, 503]).toContain(response.status);
+		expect(response.status).toBe(200);
 	});
 
 	it('should require authentication', async () => {
 		const response = await fetch(`${BASE_URL}/api/marketplace`);
-		expect([401, 403]).toContain(response.status);
+		expect(response.status).toBe(401);
 	});
 });
 
@@ -382,38 +372,34 @@ describe('Config Sync API - Configuration Synchronization', () => {
 			headers: { Cookie: authCookie }
 		});
 
-		expect([200, 404]).toContain(response.status);
+		expect(response.status).toBe(200);
 	});
 
 	it('should require admin authentication', async () => {
 		const response = await fetch(`${BASE_URL}/api/config_sync`);
-		expect([401, 403]).toContain(response.status);
+		expect(response.status).toBe(401);
 	});
 });
 
 describe('Debug API - Debug Information', () => {
-	it('should get debug information', async () => {
+	it('should restrict debug information', async () => {
 		const response = await fetch(`${BASE_URL}/api/debug`, {
 			headers: { Cookie: authCookie }
 		});
 
-		expect([200, 404, 403]).toContain(response.status);
+		expect(response.status).toBe(403);
 	});
 
 	it('should require admin authentication', async () => {
 		const response = await fetch(`${BASE_URL}/api/debug`);
-		expect([401, 403]).toContain(response.status);
+		expect(response.status).toBe(401);
 	});
 
-	it('should include system information', async () => {
+	it('should restrict system information access', async () => {
 		const response = await fetch(`${BASE_URL}/api/debug`, {
 			headers: { Cookie: authCookie }
 		});
 
-		if (response.ok) {
-			const data = await response.json();
-			// Should have env, config, dependencies info
-			expect(typeof data).toBe('object');
-		}
+		expect(response.status).toBe(403);
 	});
 });
