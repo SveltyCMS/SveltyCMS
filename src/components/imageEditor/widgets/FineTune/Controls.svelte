@@ -462,20 +462,6 @@ Professional fine-tune controls with presets and categories
 		color: rgb(var(--color-primary-500) / 1);
 	}
 
-	/* Footer */
-	.controls-footer {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding-top: 0.75rem;
-		border-top: 1px solid rgb(var(--color-surface-200) / 1);
-		flex-wrap: wrap; /* Allow wrapping on very small screens */
-	}
-
-	:global(.dark) .controls-footer {
-		border-color: rgb(var(--color-surface-700) / 1);
-	}
-
 	.presets-scroll-container {
 		display: flex;
 		gap: 0.75rem;

@@ -340,7 +340,9 @@ Implements custom virtual scrolling without external dependencies.
 
 <div class="flex h-full flex-col">
 	<!-- Batch Operations Toolbar (Glass) -->
-	<div class="mb-4 flex w-full flex-wrap items-center justify-between gap-4 rounded-2xl border border-surface-200/50 bg-white/80 p-3 shadow-sm backdrop-blur-xl dark:border-surface-700/50 dark:bg-surface-900/80">
+	<div
+		class="mb-4 flex w-full flex-wrap items-center justify-between gap-4 rounded-2xl border border-surface-200/50 bg-white/80 p-3 shadow-sm backdrop-blur-xl dark:border-surface-700/50 dark:bg-surface-900/80"
+	>
 		<div class="flex flex-wrap items-center gap-2">
 			<button
 				onclick={() => {
@@ -413,7 +415,7 @@ Implements custom virtual scrolling without external dependencies.
 					{#each visibleItems as file (file._id?.toString() || file.filename)}
 						{@const fileId = file._id?.toString() || file.filename}
 						{@const isSelected = selectedFiles.has(fileId)}
-						
+
 						<div
 							class="group relative flex flex-col overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition-all duration-300 hover:z-10 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900
 							{isSelected ? 'border-primary-500 ring-2 ring-primary-500/20' : 'border-surface-200 dark:border-surface-800'}"
@@ -435,44 +437,67 @@ Implements custom virtual scrolling without external dependencies.
 							{#if isSelectionMode || isSelected}
 								<div class="absolute left-3 top-3 z-20">
 									<div class="relative flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-md dark:bg-surface-800">
-										<input 
-											type="checkbox" 
-											checked={isSelected} 
-											onchange={() => toggleSelection(file)} 
-											class="checkbox h-4 w-4 rounded-sm border-2 border-surface-400 checked:border-primary-500 checked:bg-primary-500 focus:ring-0" 
+										<input
+											type="checkbox"
+											checked={isSelected}
+											onchange={() => toggleSelection(file)}
+											class="checkbox h-4 w-4 rounded-sm border-2 border-surface-400 checked:border-primary-500 checked:bg-primary-500 focus:ring-0"
 										/>
 									</div>
 								</div>
 							{/if}
 
 							<!-- Floating Actions (Reveal on Hover) -->
-							<div class="absolute right-2 top-2 z-20 flex flex-col gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100 {isSelectionMode ? 'pointer-events-none' : ''}">
+							<div
+								class="absolute right-2 top-2 z-20 flex flex-col gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100 {isSelectionMode
+									? 'pointer-events-none'
+									: ''}"
+							>
 								<!-- Info Button (Replaces Popup) -->
 								<button
 									onclick={(e) => {
 										e.stopPropagation();
 										activePopup = activePopup === fileId ? null : fileId;
 									}}
+									onkeydown={(e) => {
+										if (e.key === 'Enter' || e.key === ' ') {
+											e.stopPropagation();
+											activePopup = activePopup === fileId ? null : fileId;
+										}
+									}}
 									class="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-surface-600 shadow-sm backdrop-blur-sm transition-all hover:bg-white hover:text-primary-600 hover:shadow-md dark:bg-surface-800/90 dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-primary-400"
+									aria-label="View file details"
+									title="View file details"
 								>
 									<iconify-icon icon="raphael:info" width={18}></iconify-icon>
 								</button>
-								
+
 								<!-- Info Popup (Absolute positioned relative to card or action) -->
 								{#if activePopup === fileId}
 									<div
 										class="absolute right-10 top-0 z-50 w-48 rounded-xl border border-surface-200 bg-white/95 p-3 shadow-xl backdrop-blur-md dark:border-surface-700 dark:bg-surface-800/95"
 										onclick={(e) => e.stopPropagation()}
+										onkeydown={(e) => e.stopPropagation()}
 										role="dialog"
+										tabindex="-1"
+										aria-label="File information"
 									>
 										<div class="mb-2 text-xs font-bold uppercase tracking-wider text-surface-500">Details</div>
 										<table class="w-full text-xs">
 											<tbody>
 												<tr><td class="text-surface-500 pr-2">Size:</td><td class="text-right font-mono">{formatBytes(file.size || 0)}</td></tr>
 												{#if (file as any).width}
-													<tr><td class="text-surface-500 pr-2">Dims:</td><td class="text-right font-mono">{(file as any).width}x{(file as any).height}</td></tr>
+													<tr
+														><td class="text-surface-500 pr-2">Dims:</td><td class="text-right font-mono"
+															>{(file as any).width}x{(file as any).height}</td
+														></tr
+													>
 												{/if}
-												<tr><td class="text-surface-500 pr-2">Type:</td><td class="text-right truncate max-w-[80px]">{file.mimeType?.split('/')[1] || 'N/A'}</td></tr>
+												<tr
+													><td class="text-surface-500 pr-2">Type:</td><td class="text-right truncate max-w-[80px]"
+														>{file.mimeType?.split('/')[1] || 'N/A'}</td
+													></tr
+												>
 											</tbody>
 										</table>
 									</div>
@@ -481,16 +506,26 @@ Implements custom virtual scrolling without external dependencies.
 								{#if !isSelectionMode}
 									{#if file.type === 'image'}
 										<button
-											onclick={(e) => { e.stopPropagation(); onEditImage(file as MediaImage); }}
+											onclick={(e) => {
+												e.stopPropagation();
+												onEditImage(file as MediaImage);
+											}}
 											class="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-surface-600 shadow-sm backdrop-blur-sm transition-all hover:bg-white hover:text-primary-600 hover:shadow-md dark:bg-surface-800/90 dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-primary-400"
+											aria-label="Edit image"
+											title="Edit image"
 										>
 											<iconify-icon icon="mdi:pencil" width={16}></iconify-icon>
 										</button>
 									{/if}
 
 									<button
-										onclick={(e) => { e.stopPropagation(); handleDelete(file); }}
+										onclick={(e) => {
+											e.stopPropagation();
+											handleDelete(file);
+										}}
 										class="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-error-500 shadow-sm backdrop-blur-sm transition-all hover:bg-error-50 hover:text-error-600 hover:shadow-md dark:bg-surface-800/90 dark:hover:bg-error-900/30"
+										aria-label="Delete file"
+										title="Delete file"
 									>
 										<iconify-icon icon="mdi:trash-can-outline" width={16}></iconify-icon>
 									</button>
@@ -516,9 +551,11 @@ Implements custom virtual scrolling without external dependencies.
 										<iconify-icon icon="bi:exclamation-triangle-fill" width={48}></iconify-icon>
 									</div>
 								{/if}
-								
+
 								<!-- Gradient Overlay -->
-								<div class="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+								<div
+									class="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+								></div>
 							</div>
 
 							<!-- Footer -->

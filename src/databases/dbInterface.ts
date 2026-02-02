@@ -409,7 +409,7 @@ export interface ICrudAdapter {
 	findMany<T extends BaseEntity>(
 		collection: string,
 		query: QueryFilter<T>,
-		options?: { limit?: number; offset?: number; fields?: (keyof T)[] }
+		options?: { limit?: number; offset?: number; fields?: (keyof T)[]; sort?: SortOption }
 	): Promise<DatabaseResult<T[]>>;
 	insert<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<T>>;
 	update<T extends BaseEntity>(collection: string, id: DatabaseId, data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<T>>;

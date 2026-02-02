@@ -165,8 +165,10 @@ Key features:
 			<p class="text-lg">No media found</p>
 		</div>
 	{:else}
-	<!-- Batch Operations Toolbar (Glass) -->
-		<div class="sticky top-0 z-30 mb-6 flex w-full items-center justify-between gap-4 rounded-2xl border border-surface-200/50 bg-white/80 p-3 shadow-sm backdrop-blur-xl dark:border-surface-700/50 dark:bg-surface-900/80">
+		<!-- Batch Operations Toolbar (Glass) -->
+		<div
+			class="sticky top-0 z-30 mb-6 flex w-full items-center justify-between gap-4 rounded-2xl border border-surface-200/50 bg-white/80 p-3 shadow-sm backdrop-blur-xl dark:border-surface-700/50 dark:bg-surface-900/80"
+		>
 			<div class="flex items-center gap-3">
 				<button
 					onclick={() => {
@@ -209,7 +211,7 @@ Key features:
 		{#each filteredFiles as file, index (file._id?.toString() || file.filename)}
 			{@const fileId = file._id?.toString() || file.filename}
 			{@const isSelected = selectedFiles.has(fileId)}
-			
+
 			<div
 				class="group relative flex flex-col overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition-all duration-300 hover:z-10 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900
 				{isSelected ? 'border-primary-500 ring-2 ring-primary-500/20' : 'border-surface-200 dark:border-surface-800'}
@@ -232,23 +234,31 @@ Key features:
 				{#if isSelectionMode || isSelected}
 					<div class="absolute left-3 top-3 z-20" in:scale={{ duration: 200 }}>
 						<div class="relative flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-md dark:bg-surface-800">
-							<input 
-								type="checkbox" 
-								checked={isSelected} 
-								onchange={() => toggleSelection(file)} 
-								class="checkbox h-4 w-4 rounded-sm border-2 border-surface-400 checked:border-primary-500 checked:bg-primary-500 focus:ring-0" 
+							<input
+								type="checkbox"
+								checked={isSelected}
+								onchange={() => toggleSelection(file)}
+								class="checkbox h-4 w-4 rounded-sm border-2 border-surface-400 checked:border-primary-500 checked:bg-primary-500 focus:ring-0"
 							/>
 						</div>
 					</div>
 				{/if}
 
 				<!-- Floating Actions (Reveal on Hover) -->
-				<div class="absolute right-2 top-2 z-20 flex flex-col gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100 {isSelectionMode ? 'pointer-events-none' : ''}">
+				<div
+					class="absolute right-2 top-2 z-20 flex flex-col gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100 {isSelectionMode
+						? 'pointer-events-none'
+						: ''}"
+				>
 					<!-- Info -->
 					<SystemTooltip title="Info" positioning={{ placement: 'left' }}>
 						<button
 							class="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-surface-600 shadow-sm backdrop-blur-sm transition-all hover:bg-white hover:text-primary-600 hover:shadow-md dark:bg-surface-800/90 dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-primary-400"
-							onclick={(e) => { e.stopPropagation(); /* Logic for Info Modal if needed */ }}
+							onclick={(e) => {
+								e.stopPropagation(); /* Logic for Info Modal if needed */
+							}}
+							aria-label="View info"
+							title="View info"
 						>
 							<iconify-icon icon="mdi:information-variant" width={18}></iconify-icon>
 						</button>
@@ -273,8 +283,13 @@ Key features:
 						<!-- Edit -->
 						<SystemTooltip title="Edit" positioning={{ placement: 'left' }}>
 							<button
-								onclick={(e) => { e.stopPropagation(); onEditImage(file as MediaImage); }}
+								onclick={(e) => {
+									e.stopPropagation();
+									onEditImage(file as MediaImage);
+								}}
 								class="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-surface-600 shadow-sm backdrop-blur-sm transition-all hover:bg-white hover:text-primary-600 hover:shadow-md dark:bg-surface-800/90 dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-primary-400"
+								aria-label="Edit image"
+								title="Edit image"
 							>
 								<iconify-icon icon="mdi:pencil" width={16}></iconify-icon>
 							</button>
@@ -283,8 +298,13 @@ Key features:
 						<!-- Tags -->
 						<SystemTooltip title="Tags" positioning={{ placement: 'left' }}>
 							<button
-								onclick={(e) => { e.stopPropagation(); openTagEditor(file as MediaImage); }}
+								onclick={(e) => {
+									e.stopPropagation();
+									openTagEditor(file as MediaImage);
+								}}
 								class="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-surface-600 shadow-sm backdrop-blur-sm transition-all hover:bg-white hover:text-primary-600 hover:shadow-md dark:bg-surface-800/90 dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-primary-400"
+								aria-label="Edit tags"
+								title="Edit tags"
 							>
 								<iconify-icon icon="mdi:tag-outline" width={16}></iconify-icon>
 							</button>
@@ -295,8 +315,13 @@ Key features:
 					{#if !isSelectionMode}
 						<SystemTooltip title="Delete" positioning={{ placement: 'left' }}>
 							<button
-								onclick={(e) => { e.stopPropagation(); handleDelete(file); }}
+								onclick={(e) => {
+									e.stopPropagation();
+									handleDelete(file);
+								}}
 								class="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-error-500 shadow-sm backdrop-blur-sm transition-all hover:bg-error-50 hover:text-error-600 hover:shadow-md dark:bg-surface-800/90 dark:hover:bg-error-900/30"
+								aria-label="Delete file"
+								title="Delete file"
 							>
 								<iconify-icon icon="mdi:trash-can-outline" width={16}></iconify-icon>
 							</button>
@@ -305,7 +330,7 @@ Key features:
 				</div>
 
 				<!-- Media Preview Area -->
-				<div 
+				<div
 					class="relative aspect-square w-full overflow-hidden bg-surface-100 dark:bg-surface-800"
 					onclick={(e) => {
 						if (!isSelectionMode && file.type === 'video') {
@@ -314,6 +339,19 @@ Key features:
 							window.open(video.url, '_blank');
 						}
 					}}
+					onkeydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							if (!isSelectionMode && file.type === 'video') {
+								e.preventDefault();
+								e.stopPropagation();
+								const video = file as any;
+								window.open(video.url, '_blank');
+							}
+						}
+					}}
+					role="button"
+					tabindex="0"
+					aria-label={file.type === 'video' ? 'Play video' : 'Media preview'}
 				>
 					{#if (file.type === 'image' || file.type === 'video') && file?.filename}
 						{@const thumbUrl = getImageUrl(file, gridSize)}
@@ -324,15 +362,17 @@ Key features:
 							style:object-position={file.metadata?.focalPoint ? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%` : 'center'}
 							loading="lazy"
 							onerror={(e) => {
-								const target = e.currentTarget;
+								const target = e.currentTarget as HTMLImageElement;
 								if (target) target.src = '/static/Default_User.svg';
 							}}
 						/>
-						
+
 						<!-- Video Overlay -->
 						{#if file.type === 'video'}
 							<div class="absolute inset-0 flex items-center justify-center bg-black/20 transition-all group-hover:bg-black/10">
-								<div class="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
+								<div
+									class="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm transition-transform duration-300 group-hover:scale-110"
+								>
 									<iconify-icon icon="mdi:play" width={32} class="text-white drop-shadow-lg"></iconify-icon>
 								</div>
 							</div>
@@ -345,7 +385,9 @@ Key features:
 					{/if}
 
 					<!-- Gradient Overlay for Text Readability -->
-					<div class="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+					<div
+						class="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+					></div>
 				</div>
 
 				<!-- Card Footer -->
@@ -354,7 +396,7 @@ Key features:
 					<div class="truncate text-xs font-semibold text-surface-900 dark:text-surface-100" title={file.filename}>
 						{file.filename}
 					</div>
-					
+
 					<!-- Metadata Badges -->
 					<div class="flex items-center gap-2 text-[10px] text-surface-500 dark:text-surface-400">
 						<span class="flex items-center gap-1 rounded bg-surface-100 px-1.5 py-0.5 font-medium uppercase tracking-wide dark:bg-surface-800">
@@ -371,11 +413,6 @@ Key features:
 <TagEditorModal bind:show={showTagModal} bind:file={taggingFile} onUpdate={onUpdateImage} />
 
 <style>
-	/* Smooth transitions for grid layout changes */
-	.card {
-		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-	}
-
 	/* Smooth grid item repositioning */
 	:global(.flex.flex-wrap) {
 		transition: all 0.3s ease-out;

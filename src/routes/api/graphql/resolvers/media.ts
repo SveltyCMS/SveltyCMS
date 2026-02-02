@@ -82,11 +82,7 @@ export function mediaResolvers(dbAdapter: DatabaseAdapter) {
 		throw new Error('Database adapter is not initialized');
 	}
 
-	const fetchMediaByType = async (
-		mimePattern: RegExp | null,
-		pagination: { page?: number; limit?: number } | undefined,
-		context: GraphQLContext
-	) => {
+	const fetchMediaByType = async (mimePattern: RegExp | null, pagination: { page?: number; limit?: number } | undefined, context: GraphQLContext) => {
 		if (!context.user) throw new Error('Authentication required');
 
 		const { page = 1, limit = 50 } = pagination || {};
@@ -102,7 +98,7 @@ export function mediaResolvers(dbAdapter: DatabaseAdapter) {
 			const result = await dbAdapter.crud.findMany('media', filter, {
 				limit,
 				offset: (page - 1) * limit,
-				sort: { field: 'createdAt', order: 'desc' }
+				sort: { createdAt: 'desc' }
 			});
 
 			if (!result.success) {

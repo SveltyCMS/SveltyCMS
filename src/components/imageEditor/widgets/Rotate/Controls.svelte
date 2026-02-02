@@ -39,13 +39,6 @@ Professional rotate controls with straighten and snap features
 	// Preset angles
 	const presetAngles = [-90, 0, 90, 180];
 
-	function handleAngleNumber(e: Event) {
-		const target = e.currentTarget as HTMLInputElement;
-		let value = parseInt(target.value, 10) || 0;
-		value = Math.max(-180, Math.min(180, value));
-		onRotationChange(value);
-	}
-
 	// Normalize angle to -180 to 180 for display
 	const displayAngle = $derived.by(() => {
 		let angle = rotationAngle % 360;
@@ -407,14 +400,6 @@ Professional rotate controls with straighten and snap features
 		text-align: right;
 	}
 
-	.actions {
-		display: flex;
-		gap: 0.5rem;
-		align-items: center;
-		flex-shrink: 0;
-		margin-left: auto;
-	}
-
 	/* Responsive Breakpoints */
 	@media (max-width: 1024px) {
 		/* Tablet/Mobile: Stack the main sections */
@@ -429,14 +414,6 @@ Professional rotate controls with straighten and snap features
 
 		.slider-wrapper {
 			width: 100%;
-		}
-
-		.actions {
-			margin-left: 0;
-			width: 100%;
-			justify-content: flex-end;
-			border-top: 1px solid rgb(var(--color-surface-200) / 0.5);
-			padding-top: 0.75rem;
 		}
 	}
 </style>

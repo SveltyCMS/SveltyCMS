@@ -98,8 +98,8 @@ export function userResolvers(dbAdapter: DatabaseAdapter) {
 				// Use auth.getAllUsers instead of queryBuilder for proper model access
 				const result = await dbAdapter.auth.getAllUsers({
 					filter,
-					sort: { field: 'updatedAt', order: 'desc' },
-					page,
+					sort: { updatedAt: 'desc' },
+					offset: (page - 1) * limit,
 					limit
 				});
 

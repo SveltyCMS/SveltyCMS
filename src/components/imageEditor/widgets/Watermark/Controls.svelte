@@ -376,26 +376,10 @@ Professional watermark controls with text, image, and advanced options
 		background: rgb(var(--color-surface-600) / 1);
 	}
 
-	.actions {
-		display: flex;
-		gap: 0.5rem;
-		align-items: center;
-		flex-shrink: 0;
-		margin-left: auto;
-	}
-
 	/* Mobile */
 	@media (max-width: 1024px) {
 		.watermark-controls {
 			row-gap: 1rem;
-		}
-
-		.actions {
-			width: 100%;
-			justify-content: flex-end;
-			border-top: 1px solid rgb(var(--color-surface-200) / 0.5);
-			padding-top: 0.75rem;
-			margin-left: 0;
 		}
 	}
 </style>

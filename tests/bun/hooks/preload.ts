@@ -3,7 +3,7 @@
  * @description Preload script that mocks SvelteKit modules for hooks tests
  */
 
-import { mock, spyOn } from 'bun:test';
+import { mock } from 'bun:test';
 
 // ============================================================================
 // Controllable mock state for system-state tests
@@ -266,10 +266,11 @@ mock.module('@sveltejs/kit', () => ({
 		};
 		throw err;
 	},
-	json: (data: unknown, init?: ResponseInit) => new Response(JSON.stringify(data), {
-		...init,
-		headers: { 'Content-Type': 'application/json', ...init?.headers }
-	}),
+	json: (data: unknown, init?: ResponseInit) =>
+		new Response(JSON.stringify(data), {
+			...init,
+			headers: { 'Content-Type': 'application/json', ...init?.headers }
+		}),
 	text: (data: string, init?: ResponseInit) => new Response(data, init)
 }));
 

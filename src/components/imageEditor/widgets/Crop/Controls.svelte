@@ -17,6 +17,7 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 	}: {
 		onRotateLeft: () => void;
 		onRotateRight: () => void;
+		onFlipHorizontal: () => void;
 		onFlipVertical?: () => void;
 		onCropShapeChange: (shape: CropShape) => void;
 		onAspectRatio: (ratio: number | null) => void;
@@ -74,13 +75,7 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 	<div class="control-group">
 		<div class="aspect-ratios">
 			<!-- Only Square is allowed per requirements -->
-			<button
-				class="aspect-btn active"
-				onclick={() => handleRatio(1)}
-				title="Square (1:1)"
-				aria-label="Aspect ratio 1:1"
-				aria-pressed="true"
-			>
+			<button class="aspect-btn active" onclick={() => handleRatio(1)} title="Square (1:1)" aria-label="Aspect ratio 1:1" aria-pressed="true">
 				<iconify-icon icon="mdi:crop-square" width="16"></iconify-icon>
 				<span>Square</span>
 			</button>
@@ -191,65 +186,15 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 		box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
 	}
 
-	.more-btn {
-		padding: 0 0.5rem;
-		min-width: 2rem;
-		justify-content: center;
-	}
-
-	.btn-group {
-		display: flex;
-		border-radius: 9999px;
-		overflow: hidden;
-		background: rgba(0, 0, 0, 0.2);
-		padding: 2px;
-		gap: 2px;
-	}
-
-	.btn-group .btn {
-		border-radius: 9999px;
-		border: none;
-		height: 2rem;
-		width: 2rem;
-		padding: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: transparent;
-		color: #9ca3af;
-		transition: all 0.2s;
-	}
-
-	.btn-group .btn:hover {
-		color: white;
-		background: rgba(255, 255, 255, 0.1);
-	}
-
 	.btn-group .btn.active {
 		background: #3b82f6;
 		color: white;
-	}
-
-	.actions {
-		display: flex;
-		gap: 0.5rem;
-		align-items: center;
-		flex-shrink: 0;
-		margin-left: auto;
 	}
 
 	/* Mobile optimizations */
 	@media (max-width: 1024px) {
 		.crop-controls {
 			row-gap: 1rem;
-		}
-
-		.actions {
-			margin-left: 0;
-			width: 100%;
-			justify-content: flex-end;
-			border-top: 1px solid rgb(var(--color-surface-200) / 0.5);
-			padding-top: 0.75rem;
 		}
 	}
 </style>

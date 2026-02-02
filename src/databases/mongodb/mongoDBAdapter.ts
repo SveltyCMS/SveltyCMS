@@ -469,7 +469,7 @@ export class MongoDBAdapter implements IDBAdapter {
 
 		return {
 			findOne: (c, q, o) => this._wrapResult(() => getRepo(c).findOne(q, o)),
-			findMany: (c, q, o) => this._wrapResult(() => getRepo(c).findMany(q, { limit: o?.limit, skip: o?.offset, fields: o?.fields })),
+			findMany: (c, q, o) => this._wrapResult(() => getRepo(c).findMany(q, { limit: o?.limit, skip: o?.offset, fields: o?.fields, sort: o?.sort })),
 			insert: (c, d) => this._wrapResult(() => getRepo(c).insert(d)),
 			update: (c, id, d) => this._wrapResult(() => getRepo(c).update(id, d)),
 			delete: (c, id) => this._wrapResult(() => getRepo(c).delete(id)),

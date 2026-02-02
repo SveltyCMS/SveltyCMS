@@ -36,22 +36,22 @@ export const appStores = {
 
 // $app/navigation mock
 export const appNavigation = {
-	goto: async (url: string) => {},
-	invalidate: async (url: string) => {},
+	goto: async (_url: string) => {},
+	invalidate: async (_url: string) => {},
 	invalidateAll: async () => {},
-	prefetch: async (url: string) => {},
-	prefetchRoutes: async (routes?: string[]) => {},
-	beforeNavigate: (fn: any) => {},
-	afterNavigate: (fn: any) => {},
+	prefetch: async (_url: string) => {},
+	prefetchRoutes: async (_routes?: string[]) => {},
+	beforeNavigate: (_fn: any) => {},
+	afterNavigate: (_fn: any) => {},
 	disableScrollHandling: () => {},
-	onNavigate: (fn: any) => () => {},
-	pushState: (url: string, state: any) => {},
-	replaceState: (url: string, state: any) => {}
+	onNavigate: (_fn: any) => () => {},
+	pushState: (_url: string, _state: any) => {},
+	replaceState: (_url: string, _state: any) => {}
 };
 
 // $app/forms mock
 export const appForms = {
-	enhance: (form: any, options?: any) => ({ destroy: () => {} }),
-	applyAction: async (result: any) => {},
+	enhance: (_form: any, _options?: any) => ({ destroy: () => {} }),
+	applyAction: async (_result: any) => {},
 	deserialize: (data: string) => JSON.parse(data)
 };
