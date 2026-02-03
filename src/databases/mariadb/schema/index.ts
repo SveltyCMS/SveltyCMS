@@ -338,6 +338,46 @@ export const pluginPagespeedResults = mysqlTable(
 	})
 );
 
+// Plugin States Table
+export const pluginStates = mysqlTable(
+	'plugin_states',
+	{
+		_id: uuidPk(),
+		pluginId: varchar('pluginId', { length: 255 }).notNull(),
+		tenantId: tenantField(),
+		enabled: boolean('enabled').notNull().default(false),
+		settings: json('settings'),
+		updatedBy: varchar('updatedBy', { length: 36 }),
+		...timestamps
+	},
+	(table) => ({
+		pluginIdx: index('plugin_idx').on(table.pluginId),
+		tenantIdx: index('tenant_idx').on(table.tenantId),
+		pluginTenantUnique: unique('plugin_tenant_unique').on(table.pluginId, table.tenantId)
+	})
+);
+
+// Plugin Migrations Table
+export const pluginMigrations = mysqlTable(
+	'plugin_migrations',
+	{
+		_id: uuidPk(),
+		pluginId: varchar('pluginId', { length: 255 }).notNull(),
+		migrationId: varchar('migrationId', { length: 255 }).notNull(),
+		version: int('version').notNull(),
+		tenantId: tenantField(),
+		appliedAt: datetime('appliedAt')
+			.notNull()
+			.default(sql`CURRENT_TIMESTAMP`),
+		...timestamps
+	},
+	(table) => ({
+		pluginIdx: index('plugin_idx').on(table.pluginId),
+		tenantIdx: index('tenant_idx').on(table.tenantId),
+		pluginMigrationUnique: unique('plugin_migration_unique').on(table.pluginId, table.migrationId, table.tenantId)
+	})
+);
+
 // Export all tables as a schema object for Drizzle
 export const schema = {
 	authUsers,
@@ -353,5 +393,7 @@ export const schema = {
 	systemVirtualFolders,
 	systemPreferences,
 	websiteTokens,
-	pluginPagespeedResults
+	pluginPagespeedResults,
+	pluginStates,
+	pluginMigrations
 };

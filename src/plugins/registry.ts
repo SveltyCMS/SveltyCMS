@@ -246,7 +246,7 @@ class PluginRegistry implements IPluginService {
 
 	// Ensure migration table exists
 	private async ensureMigrationTable(dbAdapter: IDBAdapter): Promise<void> {
-		const table = 'plugin_migrations';
+		const table = 'pluginMigrations';
 		try {
 			const count = await dbAdapter.crud.count(table);
 			if (count.success) return;
@@ -259,7 +259,7 @@ class PluginRegistry implements IPluginService {
 			pluginId: '__INIT__',
 			migrationId: '__INIT__',
 			version: 0,
-			appliedAt: nowISODateString(),
+			appliedAt: new Date(),
 			tenantId: 'system'
 		} as any);
 		await dbAdapter.crud.deleteMany(table, { pluginId: '__INIT__' } as any);
@@ -268,7 +268,7 @@ class PluginRegistry implements IPluginService {
 	// Get applied migrations from database
 	private async getAppliedMigrations(dbAdapter: IDBAdapter, pluginId: string, tenantId: string): Promise<DatabaseResult<PluginMigrationRecord[]>> {
 		try {
-			const result = await dbAdapter.crud.findMany<PluginMigrationRecord>('plugin_migrations', {
+			const result = await dbAdapter.crud.findMany<PluginMigrationRecord>('pluginMigrations', {
 				pluginId,
 				tenantId
 			} as any);
@@ -287,12 +287,12 @@ class PluginRegistry implements IPluginService {
 
 	// Record a successful migration
 	private async recordMigration(dbAdapter: IDBAdapter, pluginId: string, migrationId: string, version: number, tenantId: string): Promise<void> {
-		await dbAdapter.crud.insert('plugin_migrations', {
+		await dbAdapter.crud.insert('pluginMigrations', {
 			pluginId,
 			migrationId,
 			version,
 			tenantId,
-			appliedAt: nowISODateString()
+			appliedAt: new Date()
 		} as any);
 	}
 }

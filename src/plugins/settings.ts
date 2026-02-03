@@ -5,11 +5,10 @@
 
 import type { IDBAdapter } from '@databases/dbInterface';
 import { logger } from '@utils/logger.server';
-import { nowISODateString } from '@utils/dateUtils';
 import type { PluginState } from './types';
 
 export class PluginSettingsService {
-	private readonly COLLECTION = 'plugin_states';
+	private readonly COLLECTION = 'pluginStates';
 
 	constructor(private dbAdapter: IDBAdapter) {}
 
@@ -21,12 +20,9 @@ export class PluginSettingsService {
 				logger.info(`Creating ${this.COLLECTION} collection...`);
 				// Create by inserting and deleting a dummy record if createCollection not explicitly available
 				await this.dbAdapter.crud.insert(this.COLLECTION, {
-					// Corrected `dbAdapter.crud.insert(table, ...)` to `this.dbAdapter.crud.insert(this.COLLECTION, ...)`
 					pluginId: '__INIT__',
 					tenantId: 'system',
-					enabled: false,
-					createdAt: nowISODateString(),
-					updatedAt: nowISODateString()
+					enabled: false
 				} as any);
 				await this.dbAdapter.crud.deleteMany(this.COLLECTION, { pluginId: '__INIT__' } as any);
 			}
@@ -75,19 +71,16 @@ export class PluginSettingsService {
 				// Update
 				const updateResult = await this.dbAdapter.crud.update<PluginState>(this.COLLECTION, existing._id, {
 					enabled,
-					updatedAt: nowISODateString(),
+					updatedAt: new Date(),
 					updatedBy: userId
 				} as any);
 				return updateResult.success;
 			} else {
 				// Insert
 				const insertResult = await this.dbAdapter.crud.insert<PluginState>(this.COLLECTION, {
-					_id: this.dbAdapter.utils.generateId(), // Ensure _id is generated
 					pluginId,
 					tenantId,
 					enabled,
-					createdAt: nowISODateString(),
-					updatedAt: nowISODateString(),
 					updatedBy: userId
 				} as any);
 				return insertResult.success;
