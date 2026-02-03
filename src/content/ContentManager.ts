@@ -1741,7 +1741,12 @@ class ContentManager {
 			}
 		}));
 
-		await dbAdapter.content.nodes.bulkUpdate(upsertOps);
+		const bulkResult = await dbAdapter.content.nodes.bulkUpdate(upsertOps);
+
+		if (!bulkResult.success) {
+			logger.error('[ContentManager] Bulk upsert failed:', bulkResult.error);
+			throw new Error(`Bulk upsert failed: ${bulkResult.error?.message || 'unknown error'}`);
+		}
 
 		// Cleaning up: Remove nodes from DB that are NOT in the current operations list
 		const currentPaths = new Set(operations.map((op) => op.path));
