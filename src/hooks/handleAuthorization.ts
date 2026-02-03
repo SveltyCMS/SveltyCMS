@@ -150,12 +150,20 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	// --- Redirect to setup if database not initialized (no roles found) ---
 	const isLocalizedSetup = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
 	if (rolesData.length === 0 && !pathname.startsWith('/setup') && !pathname.startsWith('/api/setup') && !isLocalizedSetup) {
-		logger.warn('No roles found in database - redirecting to setup', { pathname, tenantId: locals.tenantId });
-		if (isApi) {
-			const errorMsg = 'Service Unavailable: System not initialized. Please run setup.';
-			throw new AppError(errorMsg, 503, 'SYSTEM_NOT_INITIALIZED');
+		// If handleSetup already declared setup complete, don't redirect
+		// back to /setup — use fallback roles instead to prevent a redirect loop
+		if (locals.__setupConfigExists === true) {
+			logger.warn('No roles in DB but setup marked complete — using fallback roles to prevent redirect loop');
+			const { getDefaultRoles } = await import('@src/databases/auth/defaultRoles');
+			locals.roles = getDefaultRoles();
+		} else {
+			logger.warn('No roles found in database - redirecting to setup', { pathname, tenantId: locals.tenantId });
+			if (isApi) {
+				const errorMsg = 'Service Unavailable: System not initialized. Please run setup.';
+				throw new AppError(errorMsg, 503, 'SYSTEM_NOT_INITIALIZED');
+			}
+			throw redirect(302, '/setup');
 		}
-		throw redirect(302, '/setup');
 	}
 
 	// --- Handle authenticated users ---

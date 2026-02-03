@@ -101,13 +101,23 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 		const hasUsers = result.success && result.data && result.data.length > 0;
 		if (!hasUsers) {
 			console.log('[setupCheck] Config exists but NO ADMIN USERS found in DB. Marking setup as incomplete.');
+			// Don't cache — allow retry so background seeding can complete
+			return false;
 		}
 
-		// Update cache - only mark as checked if we found users
-		// This allows a background seeding process to finish and be detected on next request
-		setupStatus = hasUsers;
-		setupStatusCheckedDb = hasUsers;
-		return hasUsers;
+		// After confirming users exist, also verify roles were seeded
+		const roles = await dbAdapter.auth.getAllRoles();
+		const hasRoles = Array.isArray(roles) && roles.length > 0;
+		if (!hasRoles) {
+			console.log('[setupCheck] Config and users exist but NO ROLES found. Setup incomplete.');
+			// Don't cache — allow retry so background seeding can complete
+			return false;
+		}
+
+		// Update cache - only mark as checked if we found users and roles
+		setupStatus = true;
+		setupStatusCheckedDb = true;
+		return true;
 	} catch (error) {
 		console.error(`[SveltyCMS] ❌ Database validation failed during setup check:`, error);
 		// Don't cache failures - allow retry on next request (e.g., if DB is temporarily down)
