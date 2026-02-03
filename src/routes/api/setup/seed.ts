@@ -361,8 +361,9 @@ export const defaultPublicSettings: Array<{ key: string; value: unknown; descrip
 	{ key: 'LOG_RETENTION_DAYS', value: 30, description: 'Number of days to keep log files' },
 	{ key: 'LOG_ROTATION_SIZE', value: 10485760, description: 'Maximum size of a log file in bytes before rotation (10MB)' },
 
-	// Demo Mode
-	{ key: 'DEMO', value: false, description: 'Enable demo mode (restricts certain features)' }
+	// NOTE: DEMO mode is controlled exclusively via config/private.ts (INFRASTRUCTURE_KEYS).
+	// Do NOT add a DEMO key here — it would create a split-brain where the server
+	// reads private config (true) but the client reads the DB-seeded default (false).
 ];
 
 /**

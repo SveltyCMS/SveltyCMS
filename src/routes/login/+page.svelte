@@ -73,7 +73,7 @@
 	$effect(() => {
 		// Only set initial background, don't override user interactions
 		if (active === undefined && !hasResetParams) {
-			if ((publicEnv as any)?.DEMO) {
+			if (data.demoMode) {
 				background = '#242728';
 			} else if ((publicEnv as any)?.SEASONS) {
 				background = 'white';
@@ -164,7 +164,7 @@
 	// Set up the interval to update the countdown every second
 	$effect(() => {
 		let interval: ReturnType<typeof setInterval> | undefined;
-		if (getPublicSetting('DEMO' as any)) {
+		if (data.demoMode) {
 			updateTimeRemaining();
 			interval = setInterval(updateTimeRemaining, 1000);
 			return () => {
