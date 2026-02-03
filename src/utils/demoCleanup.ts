@@ -27,7 +27,7 @@ export async function cleanupExpiredDemoTenants() {
 	// Safety check: ONLY run in demo mode
 	if (!isDemo) return;
 
-	// Threshold: 60 minutes
+	// Cleanup TTL: 60 minutes (3x the 20-minute session/cookie TTL as a grace period)
 	const EXPIRATION_MS = 60 * 60 * 1000;
 	const cutoffDate = new Date(Date.now() - EXPIRATION_MS);
 

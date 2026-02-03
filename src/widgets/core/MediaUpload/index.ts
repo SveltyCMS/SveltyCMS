@@ -56,6 +56,7 @@ const MediaWidget = createWidget<MediaProps>({
 
 	GuiSchema: {
 		multiupload: { widget: 'Checkbox', label: 'Allow Multiple Files' },
+		placeholder: { widget: 'Input', label: 'Placeholder Text', required: false },
 		watermark: {
 			widget: 'group',
 			label: 'Watermark Options',

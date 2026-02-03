@@ -580,7 +580,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		// Initialize if DEMO is true OR if MULTI_TENANT is true (to allow runtime DEMO toggling)
 		if (privateConfig?.DEMO || privateConfig?.MULTI_TENANT) {
 			import('@src/utils/demoCleanup').then(({ cleanupExpiredDemoTenants }) => {
-				logger.info('🧹 Demo Cleanup Service initialized (Interval: 5m, TTL: 60m)');
+				logger.info('🧹 Demo Cleanup Service initialized (Interval: 5m, Session: 20m, Cleanup TTL: 60m)');
 				// Run immediately on startup
 				cleanupExpiredDemoTenants();
 				// Run every 5 minutes

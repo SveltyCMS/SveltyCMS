@@ -148,8 +148,8 @@
 		const now = new Date();
 		const minutes = now.getMinutes();
 		const seconds = now.getSeconds();
-		const timePassed = (minutes % 10) * 60 + seconds;
-		const timeRemainingInSeconds = 600 - timePassed;
+		const timePassed = (minutes % 20) * 60 + seconds;
+		const timeRemainingInSeconds = 1200 - timePassed;
 		return {
 			minutes: Math.floor(timeRemainingInSeconds / 60),
 			seconds: timeRemainingInSeconds % 60
