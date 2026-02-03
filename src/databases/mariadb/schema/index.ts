@@ -313,6 +313,31 @@ export const websiteTokens = mysqlTable(
 	})
 );
 
+// Plugin: PageSpeed Results Table
+export const pluginPagespeedResults = mysqlTable(
+	'plugin_pagespeed_results',
+	{
+		_id: uuidPk(),
+		entryId: varchar('entryId', { length: 36 }).notNull(),
+		collectionId: varchar('collectionId', { length: 36 }).notNull(),
+		tenantId: tenantField(),
+		language: varchar('language', { length: 10 }).notNull().default('en'),
+		device: varchar('device', { length: 20 }).notNull().default('mobile'),
+		url: varchar('url', { length: 2000 }).notNull(),
+		performanceScore: int('performanceScore').notNull().default(0),
+		fetchedAt: datetime('fetchedAt')
+			.notNull()
+			.default(sql`CURRENT_TIMESTAMP`),
+		...timestamps
+	},
+	(table) => ({
+		entryIdx: index('entry_idx').on(table.entryId),
+		collectionIdx: index('collection_idx').on(table.collectionId),
+		tenantIdx: index('tenant_idx').on(table.tenantId),
+		deviceIdx: index('device_idx').on(table.device)
+	})
+);
+
 // Export all tables as a schema object for Drizzle
 export const schema = {
 	authUsers,
@@ -327,5 +352,6 @@ export const schema = {
 	mediaItems,
 	systemVirtualFolders,
 	systemPreferences,
-	websiteTokens
+	websiteTokens,
+	pluginPagespeedResults
 };

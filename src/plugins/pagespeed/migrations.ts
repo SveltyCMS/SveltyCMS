@@ -8,38 +8,25 @@ import type { PageSpeedResult } from './types';
 import type { IDBAdapter } from '@databases/dbInterface';
 import { logger } from '@utils/logger.server';
 
-// Create plugin_pagespeed_results table
+// Validate plugin_pagespeed_results table exists (created via db:push from Drizzle schema)
 export const createPageSpeedResultsTable: PluginMigration = {
 	id: '001_create_pagespeed_results_table',
 	pluginId: 'pagespeed',
 	version: 1,
-	description: 'Create plugin_pagespeed_results table with indexes',
+	description: 'Validate plugin_pagespeed_results table exists',
 
 	async up(dbAdapter: IDBAdapter) {
-		logger.info('Creating plugin_pagespeed_results table...');
+		logger.info('Validating plugin_pagespeed_results table...');
 
-		// Create initial record to ensure table exists
-		const testRecord = {
-			entryId: '__INIT__',
-			collectionId: '__INIT__',
-			tenantId: 'system',
-			language: 'en',
-			device: 'mobile' as const,
-			url: 'https://example.com',
-			performanceScore: 0,
-			fetchedAt: new Date()
-		};
-
-		const result = await dbAdapter.crud.insert<PageSpeedResult>('plugin_pagespeed_results', testRecord as any);
+		// Read-based validation: check the table exists by querying it
+		const result = await dbAdapter.crud.findMany<PageSpeedResult>('pluginPagespeedResults', {});
 
 		if (result.success) {
-			// Delete the init record
-			await dbAdapter.crud.deleteMany('plugin_pagespeed_results', {
-				entryId: '__INIT__'
-			} as any);
-			logger.info('✅ plugin_pagespeed_results table created');
+			logger.info('✅ plugin_pagespeed_results table validated');
 		} else {
-			throw new Error(`Failed to create table: ${result.error?.message}`);
+			logger.warn(
+				'⚠ plugin_pagespeed_results table not found. Run `bun run db:push` to create it from the Drizzle schema.'
+			);
 		}
 	}
 };
