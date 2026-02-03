@@ -201,18 +201,26 @@ export class ContentModule {
 					const id = (update.changes as any)._id || utils.generateId();
 					const now = new Date();
 
+					// Strip date fields from sanitized to handle them explicitly as Date objects for Drizzle
+					const { createdAt, updatedAt, publishedAt, ...sanitizedWithoutDates } = sanitized as any;
+
 					// Atomic upsert using ON DUPLICATE KEY UPDATE (path has unique constraint)
 					await this.db
 						.insert(schema.contentNodes)
 						.values({
-							...sanitized,
+							...sanitizedWithoutDates,
 							_id: id,
 							path: update.path,
+							publishedAt: publishedAt ? new Date(publishedAt) : null,
 							createdAt: now,
 							updatedAt: now
 						} as any)
 						.onDuplicateKeyUpdate({
-							set: { ...sanitized, updatedAt: now } as any
+							set: {
+								...sanitizedWithoutDates,
+								publishedAt: publishedAt ? new Date(publishedAt) : undefined,
+								updatedAt: now
+							} as any
 						});
 
 					// Return the upserted record

@@ -1683,6 +1683,7 @@ class ContentManager {
 				operations.push({
 					...dbNode,
 					_id: toDatabaseId(dbNode._id.toString()),
+					createdAt: dbNode.createdAt ? dateToISODateString(new Date(dbNode.createdAt)) : now,
 					updatedAt: now
 				});
 				pathToIdMap.set(path, toDatabaseId(dbNode._id.toString()));
