@@ -1,304 +1,289 @@
 ---
 path: 'src/widgets/core/Input/input.mdx'
-title: 'Input Widget'
-description: 'A versatile input widget supporting text, email, phone, and number types with multilingual validation and database aggregation.'
+title: 'Text Input Widget'
+description: 'A foundational widget for handling multilingual text input with validation, prefixes, suffixes, and character counting.'
 order: 1
 icon: 'mdi:form-textbox'
 author: 'admin'
 created: '2025-01-01'
-updated: '2025-10-02'
+updated: '2026-02-03'
 tags:
   - 'widget'
   - 'input'
-  - 'form'
+  - 'text'
   - 'validation'
   - 'core'
 ---
 
-# Input Widget
+# Text Input Widget
 
-The **Input Widget** is a versatile, foundational widget for handling text-based user input in SveltyCMS. It supports multiple input types and provides dynamic validation based on field configuration.
+The **Input Widget** is the fundamental building block for text-based content in SveltyCMS. It is strictly specialized for standard text strings.
 
-## Overview
+> [!NOTE]
+> For specific data formats like Email, Phone, or Numbers, please use their respective dedicated widgets defined in `src/widgets/custom/`.
 
-The Input widget implements the Three Pillars Architecture and features:
+---
 
-- **Dynamic Validation**: Schema adapts to field configuration (`required`, `minLength`, `maxLength`, etc.)
-- **Multiple Input Types**: Supports text, email, phone, and number inputs via `inputType` property
-- **Translatable**: Full multilingual content support by default
-- **Database Aggregation**: Case-insensitive text search and sorting
-- **Configurable GUI**: Easy configuration in the Collection Builder
+## Architecture
 
-## Key Features
+The following diagram illustrates the data flow, sanitization, and storage logic:
 
-### Input Types
+```mermaid
+graph TD
+    User[User Input] --> Sanitize[Sanitization]
+    Sanitize -->|Remove zero-width chars| Normalize[Unicode Normalization]
+    Normalize --> Update[Update Local State]
 
-The widget supports several input types through the `inputType` property:
+    subgraph Validation Logic
+        Update -->|Debounced| Validate[Valibot Schema]
+        Config[Field Config] -->|Generates| Schema[Validation Schema]
+        Schema --> Validate
+    end
 
-| Input Type       | Description         | Validation                     |
-| ---------------- | ------------------- | ------------------------------ |
-| `text` (default) | Standard text input | Length constraints, patterns   |
-| `email`          | Email address input | Email format validation        |
-| `phone`          | Phone number input  | E.164 format or custom pattern |
-| `number`         | Numeric input       | Min/max value constraints      |
+    subgraph Data Storage
+        Update -->|Translated| LangObj[Language Object]
+        Update -->|Raw| RawString[String Value]
+    end
 
-> **Note**: For specialized email, number, and phone inputs, you can use the dedicated custom widgets (`src/widgets/custom/Email`, `src/widgets/custom/Number`, `src/widgets/custom/PhoneNumber`) which extend this core widget with enhanced features.
+    Validate -->|Error| ErrorStore[Validation Store]
+    Validate -->|Success| Valid[Valid State]
 
-### Dynamic Validation
-
-The widget automatically generates validation schemas based on field configuration:
-
-```typescript
-{
-  required: true,           // Requires non-empty value
-  minLength: 3,            // Minimum character length
-  maxLength: 100,          // Maximum character length
-  inputType: 'email',      // Applies email validation
-  pattern: '/^\\+[1-9]\\d{1,14}$/' // Custom regex for phone
-}
+    ErrorStore --> UI[UI Feedback]
+    Data Storage --> UI
 ```
 
-### Translation Support
+---
 
-When `translated: true`, the widget stores values as objects with language keys:
+## Component Structure
 
-```typescript
-{
-  "en": "Hello World",
-  "de": "Hallo Welt",
-  "fr": "Bonjour le monde"
-}
-```
+The widget follows the **Three Pillars Architecture**:
+
+| Component      | Path                                     | Purpose                                             |
+| -------------- | ---------------------------------------- | --------------------------------------------------- |
+| **Definition** | `/src/widgets/core/Input/index.ts`       | Widget configuration, validation schema, GUI schema |
+| **Input**      | `/src/widgets/core/Input/Input.svelte`   | User input component with validation                |
+| **Display**    | `/src/widgets/core/Input/Display.svelte` | Read-only display of stored values                  |
+
+---
 
 ## Configuration Options
 
-### GuiSchema Fields
+Configure the widget in your collection schema:
 
-Configure the widget in the Collection Builder with these options:
+| Field          | Widget             | Description                                      | Required |
+| -------------- | ------------------ | ------------------------------------------------ | -------- |
+| `label`        | Input              | Display label for the field                      | ✅       |
+| `db_fieldName` | Input              | Database field name                              |          |
+| `required`     | Toggles            | Make field mandatory (min length 1)              |          |
+| `translated`   | Toggles            | Enable multilingual storage (Default: `true`)    |          |
+| `icon`         | IconifyIconsPicker | Display icon for the field                       |          |
+| `helper`       | Input              | Helper text shown below the input                |          |
+| `width`        | Input              | Field width in the admin grid (e.g. `"50%"`)     |          |
+| `permissions`  | PermissionsSetting | Access control per role                          |          |
+| `placeholder`  | Input              | Placeholder text inside the input                |          |
+| `minLength`    | Input              | Minimum character length required                |          |
+| `maxLength`    | Input              | Maximum character length allowed                 |          |
+| `prefix`       | Input              | Visual text to display before input              |          |
+| `suffix`       | Input              | Visual text to display after input               |          |
+| `count`        | Input              | Expected character count (shows distinct visual) |          |
 
-| Field          | Type               | Description                    | Required |
-| -------------- | ------------------ | ------------------------------ | -------- |
-| `label`        | Input              | Display label for the field    | Yes      |
-| `db_fieldName` | Input              | Database field name            | No       |
-| `required`     | Toggle             | Make field mandatory           | No       |
-| `translated`   | Toggle             | Enable multilingual support    | No       |
-| `icon`         | IconPicker         | Display icon                   | No       |
-| `helper`       | Input              | Helper text shown below field  | No       |
-| `width`        | Input              | Field width (CSS value)        | No       |
-| `permissions`  | PermissionsSetting | Access control                 | No       |
-| `placeholder`  | Input              | Placeholder text               | No       |
-| `minLength`    | Input              | Minimum character/value length | No       |
-| `maxLength`    | Input              | Maximum character/value length | No       |
-| `prefix`       | Input              | Text prefix (e.g., "$")        | No       |
-| `suffix`       | Input              | Text suffix (e.g., "USD")      | No       |
-| `count`        | Input              | Show character counter         | No       |
+---
 
-### Widget Defaults
+## Data Structure
 
-```typescript
+The storage format depends on the `translated` setting.
+
+### Translated (Default)
+
+```json
 {
-	translated: true; // Multilingual by default
+	"title": {
+		"en": "Hello World",
+		"de": "Hallo Welt",
+		"fr": "Bonjour le monde"
+	}
 }
 ```
 
+### Non-Translated
+
+```json
+{
+	"slug": "hello-world"
+}
+```
+
+---
+
 ## Usage Examples
 
-### Basic Text Input
+### Basic Title Field
+
+Standard configuration for a page title with character limits.
 
 ```typescript
 {
   widget: InputWidget,
-  label: "Title",
-  placeholder: "Enter page title",
+  label: "Page Title",
+  db_fieldName: "title",
   required: true,
-  minLength: 3,
+  translated: true,
+  placeholder: "Enter the page title",
+  minLength: 5,
   maxLength: 100
 }
 ```
 
-### Email Input
+### Slug / Identifier
+
+For technical IDs or URLs where translation is disabled.
 
 ```typescript
 {
   widget: InputWidget,
-  label: "Email Address",
-  inputType: "email",
-  required: true,
-  placeholder: "user@example.com"
-}
-```
-
-### Phone Input
-
-```typescript
-{
-  widget: InputWidget,
-  label: "Phone Number",
-  inputType: "phone",
-  pattern: "^\\+[1-9]\\d{1,14}$",  // E.164 format
-  placeholder: "+1234567890"
-}
-```
-
-### Number Input
-
-```typescript
-{
-  widget: InputWidget,
-  label: "Age",
-  inputType: "number",
-  minLength: 18,  // minLength acts as minValue for numbers
-  maxLength: 120, // maxLength acts as maxValue for numbers
-  required: true
-}
-```
-
-### Non-Translated Input
-
-```typescript
-{
-  widget: InputWidget,
-  label: "Slug",
+  label: "URL Slug",
+  db_fieldName: "slug",
   translated: false,
-  pattern: "^[a-z0-9-]+$",
+  required: true,
+  prefix: "/",
   helper: "URL-friendly identifier"
 }
 ```
 
+### Contextual Display (Price)
+
+Using prefixes and suffixes for visual context (Note: data is stored as a string).
+
+```typescript
+{
+  widget: InputWidget,
+  label: "Price Display",
+  prefix: "$",
+  suffix: "USD",
+  width: "50%",
+  translated: false
+}
+```
+
+---
+
+## Validation & Sanitization
+
+The widget includes built-in security and validation features:
+
+### Security Features
+
+| Feature                          | Description                                             |
+| -------------------------------- | ------------------------------------------------------- |
+| **Zero-width Character Removal** | Strips `\u200B-\u200D\uFEFF` to prevent spoofing        |
+| **Unicode Normalization**        | Applies NFKC normalization to prevent homograph attacks |
+| **Length Protection**            | Truncates input > 100KB to prevent ReDoS attacks        |
+| **Automatic Trimming**           | Trims whitespace from start and end                     |
+
+### Validation Schema Generation
+
+The `createValidationSchema` function dynamically builds Valibot schemas:
+
+```typescript
+// From index.ts - SSOT for validation
+export const createValidationSchema = (field) => {
+	const stringRules = [transform((s) => s.trim())];
+
+	if (field.required) stringRules.push(minLength(1, 'This field is required.'));
+	if (field.minLength) stringRules.push(minLength(field.minLength, `Must be at least ${field.minLength} characters.`));
+	if (field.maxLength) stringRules.push(maxLength(field.maxLength, `Must be no more than ${field.maxLength} characters.`));
+
+	// For translated fields, use record<string, string>
+	if (field.translated) return optional(record(string(), string()), {});
+
+	return field.required ? schema : optional(schema, '');
+};
+```
+
+### Validation Behavior
+
+- **On Input**: Validation is debounced (300ms)
+- **On Blur**: Immediate validation when field loses focus
+- **Touch State**: Errors only show after user interaction
+- **Visual Feedback**: Error styling and validation spinner
+
+---
+
 ## Database Aggregations
 
-The widget supports MongoDB aggregation for filtering and sorting:
+The widget provides built-in MongoDB aggregation logic:
 
 ### Filtering
 
+Performs case-insensitive regex search on the language-specific key:
+
 ```typescript
-// Case-insensitive text search
-aggregations: {
-	filters: async ({ field, filter, contentLanguage }) => [
-		{
-			$match: {
-				[`${field.db_fieldName}.${contentLanguage}`]: {
-					$regex: filter,
-					$options: 'i'
-				}
-			}
-		}
-	];
-}
+filters: async ({ field, filter, contentLanguage }) => [
+	{ $match: { [`${field.db_fieldName}.${contentLanguage}`]: { $regex: filter, $options: 'i' } } }
+];
 ```
 
 ### Sorting
 
-```typescript
-// Sort by field value
-aggregations: {
-	sorts: async ({ field, sortDirection, contentLanguage }) => ({
-		[`${field.db_fieldName}.${contentLanguage}`]: sortDirection
-	});
-}
-```
-
-## Component Structure
-
-### Input Component
-
-- **Path**: `/src/widgets/core/Input/Input.svelte`
-- **Purpose**: Renders the form input with validation feedback
-
-### Display Component
-
-- **Path**: `/src/widgets/core/Input/Display.svelte`
-- **Purpose**: Displays the field value in read-only mode
-
-## Type Exports
+Sorts alphabetically based on the current content language:
 
 ```typescript
-// Field configuration type
-export type FieldType = ReturnType<typeof InputWidget>;
-
-// Input data type with validation
-export type InputWidgetData = ValibotInput<ReturnType<typeof createValidationSchema>>;
+sorts: async ({ field, sortDirection, contentLanguage }) => ({
+	[`${field.db_fieldName}.${contentLanguage}`]: sortDirection
+});
 ```
 
-## Validation Schema Details
-
-The validation schema is built dynamically:
-
-1. **Base Schema**: Starts with `string()` or `number()` based on `inputType`
-2. **Required Check**: Adds `minLength(1)` if `required: true`
-3. **Length Constraints**: Applies `minLength` and `maxLength` rules
-4. **Format Validation**: Adds email or regex validation based on `inputType`
-5. **Translation Handling**: Switches to flexible object schema if `translated: true`
-6. **Optional Wrapper**: Wraps in `optional()` if not required
-
-## Migration from Custom Widgets
-
-If you're using the specialized custom widgets (`email`, `number`, `phoneNumber`), you can migrate to using the core Input widget with `inputType`:
-
-**Before** (Custom Widget):
-
-```typescript
-import EmailWidget from '@widgets/custom/email';
-
-{
-  widget: EmailWidget,
-  label: "Email"
-}
-```
-
-**After** (Core Input Widget):
-
-```typescript
-import InputWidget from '@widgets/core/input';
-
-{
-  widget: InputWidget,
-  inputType: "email",
-  label: "Email"
-}
-```
-
-## Related Widgets
-
-- **Email Widget** (`/src/widgets/custom/Email`): Extended email input with additional features
-- **Number Widget** (`/src/widgets/custom/Number`): Enhanced numeric input with step control
-- **Phone Number Widget** (`/src/widgets/custom/PhoneNumber`): Advanced phone validation with country codes
+---
 
 ## Best Practices
 
-1. **Use Appropriate Input Types**: Choose the correct `inputType` for your data
-2. **Provide Clear Labels**: Use descriptive `label` and `helper` text
-3. **Set Reasonable Constraints**: Don't over-constrain with `minLength`/`maxLength`
-4. **Test Validation**: Verify validation messages are clear and helpful
-5. **Consider Translation**: Enable `translated` for user-facing content
-6. **Use Placeholders**: Provide example values in `placeholder` text
+1. **Use Placeholders**: Provide example values in placeholder text to guide the user.
+2. **Set Reasonable Constraints**: Don't over-constrain with `minLength`/`maxLength` unless necessary.
+3. **Consider Translation**: Keep `translated: true` (default) unless data is technically invariant (slug, ID, SKU).
+4. **Use Helper Text**: Explain why the field is needed or specific format requirements.
+5. **Security First**: Input is automatically sanitized, but always validate server-side too.
+
+---
 
 ## Troubleshooting
 
 ### Validation Not Working
 
-- Check that `validationSchema` is properly configured
-- Verify `minLength` and `maxLength` values are correct
-- Ensure `inputType` matches the data format
+- Verify `minLength` and `maxLength` values are numbers, not strings.
+- If using `required: true`, ensure the field isn't explicitly set to `null` in the database.
+- Check browser console for Valibot validation errors.
 
 ### Translation Issues
 
-- Confirm `translated: true` in field config
-- Check that language keys match `contentLanguage`
-- Verify data structure is `{ "en": "value", "de": "Wert" }`
+- Confirm `translated: true` is set in the field config.
+- Check that the system's `contentLanguage` matches the keys in your data object.
+- Verify data structure is an object `{ "en": "val" }` and not a flat string `"val"`.
 
 ### Database Queries Failing
 
-- Ensure field name in database matches `db_fieldName`
-- Check that aggregation pipeline syntax is correct
-- Verify translated fields use proper language key paths
+- Ensure `db_fieldName` matches your query exactly.
+- Remember that sorting relies on the current content language context.
+- Ensure your API request includes the `lang` parameter.
+
+---
 
 ## API Reference
 
-### Widget Properties
+### InputProps Interface
 
 ```typescript
 interface InputProps {
+	// Basic UI
+	placeholder?: string;
+	prefix?: string;
+	suffix?: string;
+
+	// Constraints
+	count?: number; // Target character count
+	minLength?: number;
+	maxLength?: number;
+
+	// Standard Widget Props
 	label: string;
 	db_fieldName?: string;
 	required?: boolean;
@@ -307,21 +292,27 @@ interface InputProps {
 	helper?: string;
 	width?: string;
 	permissions?: PermissionConfig;
-	placeholder?: string;
-	minLength?: number;
-	maxLength?: number;
-	prefix?: string;
-	suffix?: string;
-	count?: boolean;
-	inputType?: 'text' | 'email' | 'phone' | 'number';
-	pattern?: string;
 }
 ```
 
-### Validation Function
+### Exported Functions
 
 ```typescript
-createValidationSchema(field: FieldType): BaseSchema<unknown, unknown, BaseIssue<unknown>>
+// Validation schema generator - use in custom components
+export const createValidationSchema: (field: FieldType) => BaseSchema;
+
+// Widget factory function
+export default InputWidget;
+
+// Type exports
+export type FieldType = ReturnType<typeof InputWidget>;
+export type InputWidgetData = ValibotInput<ReturnType<typeof createValidationSchema>>;
 ```
 
-Generates a Valibot schema based on field configuration.
+---
+
+## Related Widgets
+
+- [Email Widget](/src/widgets/custom/Email/email.mdx) - For email addresses with format validation
+- [Number Widget](/src/widgets/custom/Number/number.mdx) - For numeric values with min/max constraints
+- [PhoneNumber Widget](/src/widgets/custom/PhoneNumber/phonenumber.mdx) - For phone numbers with E.164 validation

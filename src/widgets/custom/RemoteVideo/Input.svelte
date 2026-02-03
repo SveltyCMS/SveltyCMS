@@ -34,9 +34,16 @@ Part of the Three Pillars Architecture for widget system.
 
 	import { debounce } from '@utils/utils';
 
-	import { app } from '@src/stores/store.svelte';
+	import { app, validationStore } from '@src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { getFieldName } from '@utils/utils';
+
+	// Valibot validation
+	import { string, url, pipe, parse, custom, optional } from 'valibot';
+
+	// Unified error handling
+	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
 
 	let {
 		field,
@@ -73,23 +80,44 @@ Part of the Three Pillars Architecture for widget system.
 		}
 	});
 
-	// ... (validation logic unchanged) ...
+	// Validation
+	const fieldName = $derived(getFieldName(field));
 
-	// Define simple validation function
-	function validateVideoUrl(url: string): { valid: boolean; error?: string } {
-		if (!url) return { valid: false, error: 'URL is required' };
-		// Basic URL validation
-		try {
-			new URL(url);
-			// Check for supported platforms (basic check)
-			const supported = ['youtube.com', 'youtu.be', 'vimeo.com', 'twitch.tv', 'tiktok.com'];
-			if (!supported.some((domain) => url.includes(domain))) {
-				return { valid: false, error: 'Unsupported video platform' };
-			}
+	// Supported video platforms
+	const supportedPlatforms = ['youtube.com', 'youtu.be', 'vimeo.com', 'twitch.tv', 'tiktok.com'];
+
+	// Video URL validation schema
+	const videoUrlSchema = $derived(
+		field?.required
+			? pipe(
+					string(),
+					url('Invalid URL format'),
+					custom(
+						(val) => supportedPlatforms.some((domain) => (val as string).includes(domain)),
+						'Unsupported video platform. Supported: YouTube, Vimeo, Twitch, TikTok'
+					)
+				)
+			: optional(
+					pipe(
+						string(),
+						url('Invalid URL format'),
+						custom(
+							(val) => (val as string) === '' || supportedPlatforms.some((domain) => (val as string).includes(domain)),
+							'Unsupported video platform'
+						)
+					),
+					''
+				)
+	);
+
+	// Validation function using unified handler
+	function validateVideoUrl(urlValue: string): { valid: boolean; error?: string } {
+		if (!urlValue && !field?.required) {
+			validationStore.clearError(fieldName);
 			return { valid: true };
-		} catch {
-			return { valid: false, error: 'Invalid URL format' };
 		}
+		const result = handleWidgetValidation(() => parse(videoUrlSchema, urlValue), { fieldName, updateStore: true });
+		return { valid: result.valid, error: result.message ?? undefined };
 	}
 
 	// Helper to update parent value

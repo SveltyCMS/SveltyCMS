@@ -6,7 +6,7 @@ order: 302
 icon: 'ic:outline-colorize'
 author: 'admin'
 created: '2025-01-15'
-updated: '2025-01-15'
+updated: '2026-02-03'
 tags:
   - widget
   - custom
@@ -236,26 +236,22 @@ ColorPicker({
 
 // Validation rules generated automatically:
 // - Must be a string
-// - Must match regex: /^#[0-9a-f]{6}$/i
-// - If required: must not be empty
-// - If not required: can be empty or valid hex
+// - Must match regex: /^#([0-9A-Fa-f]{3,4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/
+// - Supports #RGB, #RRGGBB, #RGBA, #RRGGBBAA formats
+// - Uses unified handleWidgetValidation for consistent error handling
+// - Integrates with validationStore for form-wide validation state
 ```
 
 ### Valid Hex Formats
 
 ```typescript
 // ✅ Valid formats
-'#FF5733'; // Uppercase
-'#ff5733'; // Lowercase
-'#Ff5733'; // Mixed case
-
-// ❌ Invalid formats
-'FF5733'; // Missing #
-'#FFF'; // 3-digit shorthand (must expand to 6)
-'#FF57330'; // 7 digits
-'#GGGGGG'; // Invalid hex characters
-'rgb(255, 87, 51)'; // RGB format not supported
-'red'; // Named colors not supported
+'#FF5733'; // 6-digit uppercase
+'#ff5733'; // 6-digit lowercase
+'#Ff5733'; // 6-digit mixed case
+'#FFF'; // 3-digit shorthand
+'#FFFA'; // 4-digit with alpha
+'#FF5733AA'; // 8-digit with alpha
 ```
 
 ### Validation Messages
@@ -687,6 +683,13 @@ type ColorPickerValue = string | null | undefined;
 ---
 
 ## Changelog
+
+### Version 1.1.0 (2026-02-03)
+
+- ✅ Added unified `handleWidgetValidation` integration
+- ✅ Extended hex format support (#RGB, #RRGGBB, #RGBA, #RRGGBBAA)
+- ✅ Improved error messages with format examples
+- ✅ Integration with `validationStore` for form-wide validation state
 
 ### Version 1.0.0 (2025-01-15)
 

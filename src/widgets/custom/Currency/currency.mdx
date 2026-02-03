@@ -6,7 +6,7 @@ order: 301
 icon: 'mdi:currency-usd'
 author: 'admin'
 created: '2025-01-15'
-updated: '2025-01-15'
+updated: '2026-02-03'
 tags:
   - widget
   - custom
@@ -254,13 +254,15 @@ Currency({
 
 ### Validation Messages
 
-| Scenario                    | Error Message                       |
-| --------------------------- | ----------------------------------- |
-| Empty required field        | "This field is required"            |
-| Not a number                | "Value must be a number"            |
-| Below minimum               | "Value must be at least {minValue}" |
-| Above maximum               | "Value must not exceed {maxValue}"  |
-| Invalid format during input | Auto-corrects on blur               |
+| Scenario                    | Error Message                             |
+| --------------------------- | ----------------------------------------- |
+| Empty required field        | "This field is required"                  |
+| Not a number                | "Amount must be a number"                 |
+| Below minimum               | "Amount must be at least {formatted min}" |
+| Above maximum               | "Amount must not exceed {formatted max}"  |
+| Invalid format during input | Auto-corrects on blur                     |
+
+> **Note**: Error messages display formatted currency values (e.g., "Amount must be at least €10.00") for better UX.
 
 ### Custom Validation
 

@@ -167,7 +167,14 @@ export const websiteTokenSchema = object({
 		string(),
 		transform((input) => input as ISODateString)
 	) as BaseSchema<string, ISODateString, BaseIssue<string>>,
-	createdBy: string()
+	createdBy: string(),
+	permissions: optional(array(string())),
+	expiresAt: optional(
+		pipe(
+			string(),
+			transform((input) => input as ISODateString)
+		) as BaseSchema<string, ISODateString, BaseIssue<string>>
+	)
 });
 
 export const databaseConfigSchema = object({

@@ -105,55 +105,6 @@ Tests complete user workflows using Playwright browser automation.
 
 **Location**: `tests/playwright`
 
-## Current Issues
-
-### 🔴 Critical: TypeScript Configuration Errors
-
-**Status**: Blocking all tests
-
-**Issue**: 1821 TypeScript errors related to missing module declarations and path aliases:
-
-- `@src/widgets/proxy` - Module not found
-- `@root/src/content/types` - Module not found
-- Path alias resolution issues in collection configuration files
-
-**Impact**:
-
-- Prevents proper type checking
-- Causes compilation errors
-- Blocks integration test execution
-
-**Next Steps**: Fix TypeScript path aliases in `tsconfig.json` and ensure all module declarations are properly configured.
-
-### 🟡 Integration Tests: State Machine Blocking
-
-**Status**: In Progress
-
-**Issue**: The system's smart state machine enters `FAILED` state when MongoDB disconnects during tests, blocking all subsequent requests.
-
-**Root Cause**:
-
-- MongoDB Memory Server connection becomes unstable mid-test
-- System detects database failure and transitions to `FAILED` state
-- `handleSystemState` middleware blocks all requests with 503 errors
-
-**Attempted Fix**: Added `TEST_MODE` awareness to bypass blocking during tests, but environment variable propagation to built server needs verification.
-
-**Current Test Results**: 134 failures (255 pass, 40 skip)
-
-### 🟡 Port Configuration Inconsistencies
-
-**Status**: Fixed
-
-**Issue**: Multiple test scripts were using port 5173 (dev) instead of 4173 (preview).
-
-**Fixed Files**:
-
-- ✅ `package.json` - Updated `test:integration:run` and `test:e2e:run`
-- ✅ `scripts/seed-test-db.ts` - Now accepts `API_BASE_URL` env var
-- ✅ `scripts/run-integration-tests.ts` - Passes `API_BASE_URL=http://localhost:4173`
-- ✅ `scripts/test-smart.ts` - Updated to use port 4173
-
 ## Test Scripts
 
 ### `scripts/run-integration-tests.ts`

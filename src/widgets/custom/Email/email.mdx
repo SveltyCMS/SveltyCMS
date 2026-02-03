@@ -1,40 +1,46 @@
 ---
 path: 'src/widgets/custom/Email/email.mdx'
 title: 'Email Widget'
-description: 'Email input widget with HTML5 validation and semantic mobile keyboards.'
+description: 'Email input widget with HTML5 validation, disposable email blocking, and semantic mobile keyboards.'
 order: 1
 icon: 'ic:outline-email'
 author: 'admin'
 created: '2025-10-01'
-updated: '2025-10-01'
+updated: '2026-02-03'
 tags:
   - 'widget'
   - 'email'
   - 'form'
   - 'validation'
+  - 'security'
   - 'custom'
 ---
 
 # Email Widget
 
-The **Email Widget** is a specialized input component designed exclusively for email address entry. It provides HTML5 email validation, semantic mobile keyboards, and proper data handling for email fields.
+The **Email Widget** is a specialized input component designed exclusively for email address entry. It provides HTML5 email validation, disposable email blocking, semantic mobile keyboards, and proper data handling for email fields.
+
+---
 
 ## Overview
 
-The Email widget is part of the SveltyCMS specialized widget collection and provides features specifically tailored for email address input. Unlike the generic Input widget, it correctly treats email addresses as non-translatable data and provides email-specific validation.
+The Email widget is part of the SveltyCMS specialized widget collection and provides features specifically tailored for email address input. Unlike the generic Input widget, it correctly treats email addresses as non-translatable data and provides email-specific validation with security enhancements.
 
 ### Key Features
 
-- ✅ **Email-Specific Validation**: HTML5 email format validation with Valibot schema
-- ✅ **Non-Translatable**: Correctly treats email addresses as universal data (not language-specific)
-- ✅ **Semantic HTML**: Uses `type="email"` for proper mobile keyboards
-- ✅ **Mobile Optimized**: Email-specific keyboard layout on mobile devices
-- ✅ **Enhanced Validation**: Integration with validation store
-- ✅ **Touch State Management**: Proper error display based on user interaction
-- ✅ **Debounced Validation**: Performance-optimized validation
-- ✅ **Accessibility**: Full ARIA support and semantic HTML
-- ✅ **Auto-Focus**: Focus management for required fields
-- ✅ **Auto-Complete**: Supports browser email auto-complete
+| Feature                          | Description                                                |
+| -------------------------------- | ---------------------------------------------------------- |
+| ✅ **Email Validation**          | Valibot's `email()` validator for strong format checking   |
+| ✅ **Disposable Email Blocking** | Blocks common disposable email domains                     |
+| ✅ **Non-Translatable**          | Correctly treats email as universal data                   |
+| ✅ **Semantic HTML**             | Uses `type="email"` for proper mobile keyboards            |
+| ✅ **Security Sanitization**     | Removes zero-width characters and homograph attack vectors |
+| ✅ **Debounced Validation**      | Performance-optimized validation (300ms)                   |
+| ✅ **Touch State Management**    | Errors only show after user interaction                    |
+| ✅ **Full Accessibility**        | ARIA support and semantic HTML                             |
+| ✅ **Auto-Focus**                | Focus management for required fields                       |
+
+---
 
 ## When to Use
 
@@ -50,6 +56,44 @@ The Email widget is part of the SveltyCMS specialized widget collection and prov
 - Plain text that happens to contain @ symbol
 - Usernames (use Input widget instead)
 - Complex text with email-like patterns
+
+---
+
+## Security Features
+
+### Disposable Email Blocking
+
+The widget blocks common disposable email domains to prevent abuse:
+
+```typescript
+// Blocked domains (from index.ts)
+const DISPOSABLE_DOMAINS = [
+	'tempmail.com',
+	'guerrillamail.com',
+	'10minutemail.com',
+	'mailinator.com',
+	'throwaway.email',
+	'yopmail.com',
+	'temp-mail.org',
+	'getnada.com'
+];
+```
+
+### Input Sanitization
+
+The Input component applies security sanitization:
+
+```typescript
+function sanitizeInput(input: string): string {
+	// Remove zero-width characters that could be used for spoofing
+	const sanitized = input.replace(/[\u200B-\u200D\uFEFF]/g, '');
+
+	// Normalize Unicode to prevent homograph attacks
+	return sanitized.normalize('NFKC');
+}
+```
+
+---
 
 ## Configuration
 
@@ -88,6 +132,8 @@ widgets.Email({
 });
 ```
 
+---
+
 ## Properties
 
 ### Required Properties
@@ -108,6 +154,8 @@ widgets.Email({
 | `icon`         | `string`  | -              | Iconify icon name             |
 | `width`        | `number`  | -              | Column width (1-12)           |
 | `helper`       | `string`  | -              | Helper text displayed below   |
+| `prefix`       | `string`  | -              | Visual text before input      |
+| `suffix`       | `string`  | -              | Visual text after input       |
 
 ### Fixed Properties
 
@@ -116,44 +164,54 @@ These properties are set automatically and cannot be changed:
 | Property     | Value   | Reason                                    |
 | ------------ | ------- | ----------------------------------------- |
 | `translated` | `false` | Email addresses are not language-specific |
-| `inputType`  | `email` | HTML5 email input type                    |
+
+---
 
 ## Validation
 
 The Email widget provides comprehensive email validation:
 
-### Validation Rules
+### Validation Schema
 
-1. **Required Validation**: Ensures non-empty value when `required: true`
-2. **Email Format Validation**: Validates email format using Valibot's email validator
-3. **Trim Whitespace**: Automatically trims leading/trailing whitespace
+```typescript
+// From index.ts - validation includes disposable email blocking
+const validationSchema = (field: FieldInstance) => {
+	const baseSchema = pipe(string(), email('Please enter a valid email address.'), blockDisposableEmail);
+
+	const schema = field.required
+		? pipe(string(), minLength(1, 'This field is required.'), email('Please enter a valid email address.'), blockDisposableEmail)
+		: baseSchema;
+
+	return field.required ? schema : optional(schema, '');
+};
+```
 
 ### Validation Messages
 
-```typescript
-// Required field error
-'This field is required';
-
-// Invalid email format
-'Please enter a valid email address';
-```
+| Condition            | Error Message                                |
+| -------------------- | -------------------------------------------- |
+| Empty required field | `This field is required`                     |
+| Invalid email format | `Please enter a valid email address`         |
+| Disposable email     | `Disposable email addresses are not allowed` |
 
 ### Validation Behavior
 
-- **On Input**: Validation is debounced (300ms) to prevent excessive checks
+- **On Input**: Validation debounced (300ms) for performance
 - **On Blur**: Immediate validation when field loses focus
-- **Touch State**: Errors only show after user has interacted with the field
+- **Touch State**: Errors only show after user has interacted
 - **Visual Feedback**: Blue border with spinner during validation, red border on error
+
+---
 
 ## Data Structure
 
 ### Storage Format
 
-Email addresses are stored as non-translatable data in the default language:
+Email addresses are stored as non-translatable data:
 
-```typescript
+```json
 {
-	en: 'user@example.com'; // Stored in default language only
+	"email": "user@example.com"
 }
 ```
 
@@ -165,6 +223,8 @@ Email addresses are universal identifiers that don't change based on language:
 - No need for translations
 - Reduces storage complexity
 - Prevents data inconsistency
+
+---
 
 ## Examples
 
@@ -219,6 +279,8 @@ widgets.Email({
 });
 ```
 
+---
+
 ## Mobile Experience
 
 ### Email Keyboard
@@ -235,6 +297,8 @@ The widget automatically triggers the email-specific keyboard on mobile devices:
 - iOS: Email keyboard with @ and .com shortcuts
 - Android: Email keyboard layout
 - Desktop: Standard keyboard with email auto-complete
+
+---
 
 ## Best Practices
 
@@ -266,33 +330,18 @@ The widget automatically triggers the email-specific keyboard on mobile devices:
 3. **Unique constraints**: Enforce email uniqueness at database level if needed
 4. **Validation backend**: Always validate email on server-side too
 
+---
+
 ## Technical Details
-
-### HTML5 Email Validation
-
-The widget uses native HTML5 email validation:
-
-```html
-<input type="email" />
-```
-
-This provides:
-
-- Browser-native validation
-- Appropriate mobile keyboard
-- Auto-complete support
-- Accessibility improvements
 
 ### Valibot Schema
 
-The validation schema is generated dynamically:
-
 ```typescript
-// Required email
-pipe(string(), minLength(1, 'This field is required'), email('Please enter a valid email address'));
+// Required email with disposable blocking
+pipe(string(), minLength(1, 'This field is required'), email('Please enter a valid email address'), blockDisposableEmail);
 
 // Optional email
-optional(pipe(string(), email('Please enter a valid email address')), '');
+optional(pipe(string(), email('Please enter a valid email address'), blockDisposableEmail), '');
 ```
 
 ### State Management
@@ -301,7 +350,7 @@ Uses Svelte 5 runes for reactive state:
 
 ```typescript
 $state: isTouched, isValidating, inputElement
-$derived: safeValue, validationError
+$derived: safeValue, validationError, emailSchema, fieldName, _language
 $effect: value initialization, cleanup
 ```
 
@@ -315,17 +364,22 @@ validationStore.clearError(fieldName);
 validationStore.getError(fieldName);
 ```
 
+---
+
 ## Comparison with Input Widget
 
-| Feature             | Email Widget     | Input Widget      |
-| ------------------- | ---------------- | ----------------- |
-| **Data Type**       | string (email)   | string (text)     |
-| **Translatable**    | ❌ false (fixed) | ✅ true (default) |
-| **HTML Type**       | email            | text              |
-| **Validation**      | Email format     | Length only       |
-| **Mobile Keyboard** | Email-specific   | Standard          |
-| **Use Case**        | Email addresses  | General text      |
-| **Auto-complete**   | email            | off               |
+| Feature             | Email Widget         | Input Widget       |
+| ------------------- | -------------------- | ------------------ |
+| **Data Type**       | string (email)       | string (text)      |
+| **Translatable**    | ❌ false (fixed)     | ✅ true (default)  |
+| **HTML Type**       | email                | text               |
+| **Validation**      | Email + disposable   | Length only        |
+| **Mobile Keyboard** | Email-specific       | Standard           |
+| **Security**        | Homograph protection | Basic sanitization |
+| **Use Case**        | Email addresses      | General text       |
+| **Auto-complete**   | email                | off                |
+
+---
 
 ## Migration Guide
 
@@ -351,8 +405,11 @@ widgets.Email({
 	label: 'Email',
 	db_fieldName: 'email'
 	// translated: false is automatic
+	// disposable email blocking is automatic
 });
 ```
+
+---
 
 ## Troubleshooting
 
@@ -369,6 +426,12 @@ widgets.Email({
 - Check browser console for errors
 - Verify validationStore is initialized
 
+**Disposable email not blocked**
+
+- Verify the domain is in the blocklist
+- Check that validation is running (not debounced)
+- Server-side validation should also block these
+
 **Mobile keyboard not showing**
 
 - Verify you're using the Email widget (not Input)
@@ -381,6 +444,8 @@ widgets.Email({
 - Check browser settings allow auto-complete
 - Verify the field name suggests email context
 
+---
+
 ## Security Considerations
 
 ### Input Validation
@@ -389,6 +454,7 @@ widgets.Email({
 2. **Server-side validation**: Always validate email format on backend
 3. **SQL injection**: Use parameterized queries
 4. **XSS prevention**: Sanitize email output in display context
+5. **Homograph attacks**: Widget applies NFKC normalization
 
 ### Privacy
 
@@ -397,11 +463,7 @@ widgets.Email({
 3. **Encryption**: Store emails securely in database
 4. **Access control**: Limit who can view email addresses
 
-## Related Widgets
-
-- [Input Widget](/src/widgets/core/Input/input.mdx) - For general text input
-- [Number Widget](/src/widgets/custom/Number/number.mdx) - For numeric values
-- [PhoneNumber Widget](/src/widgets/custom/phonenumber/phonenumber.mdx) - For phone numbers
+---
 
 ## API Reference
 
@@ -421,6 +483,8 @@ type EmailProps = {
 	helper?: string;
 	readonly?: boolean;
 	disabled?: boolean;
+	prefix?: string;
+	suffix?: string;
 
 	// Fixed (cannot be changed)
 	translated: false; // Always false for email
@@ -432,9 +496,26 @@ type EmailProps = {
 ```typescript
 interface EmailInputProps {
 	field: FieldType;
-	value?: any; // Bindable
+	value?: string | Record<string, string> | null | undefined; // Bindable
 }
 ```
+
+### Exported Types
+
+```typescript
+export type FieldType = ReturnType<typeof EmailWidget>;
+export type EmailWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
+```
+
+---
+
+## Related Widgets
+
+- [Input Widget](/src/widgets/core/Input/input.mdx) - For general text input
+- [Number Widget](/src/widgets/custom/Number/number.mdx) - For numeric values
+- [PhoneNumber Widget](/src/widgets/custom/PhoneNumber/phonenumber.mdx) - For phone numbers
+
+---
 
 ## Support
 

@@ -24,7 +24,7 @@
 	import { app } from '@stores/store.svelte';
 	import { widgets } from '@stores/widgetStore.svelte.ts';
 
-	import { validateSchemaWidgets } from '@utils/widgetValidation';
+	import { validateSchemaWidgets } from '@widgets/widgetValidation';
 	import { debounce } from '@utils/utils';
 
 	import TreeView from '@components/system/TreeView.svelte';

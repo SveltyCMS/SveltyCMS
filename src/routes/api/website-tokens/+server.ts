@@ -54,7 +54,7 @@ export const POST = apiHandler(async ({ locals, request }) => {
 		throw new AppError('Database not available', 500, 'DB_UNAVAILABLE');
 	}
 
-	const { name } = await request.json();
+	const { name, permissions, expiresAt } = await request.json();
 
 	if (!name) {
 		throw new AppError('Token name is required', 400, 'MISSING_NAME');
@@ -71,7 +71,9 @@ export const POST = apiHandler(async ({ locals, request }) => {
 		name,
 		token,
 		updatedAt: new Date().toISOString() as import('@databases/dbInterface').ISODateString,
-		createdBy: locals.user._id
+		createdBy: locals.user._id,
+		permissions: permissions || [],
+		expiresAt: expiresAt || undefined
 	});
 
 	if (!result.success) {

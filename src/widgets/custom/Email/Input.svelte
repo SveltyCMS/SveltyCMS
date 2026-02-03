@@ -36,7 +36,10 @@
 	import { getFieldName } from '@utils/utils';
 
 	// Valibot validation
-	import { string, email as emailValidator, pipe, parse, type ValiError, minLength, optional } from 'valibot';
+	import { string, email as emailValidator, pipe, parse, minLength, optional } from 'valibot';
+
+	// Unified error handling
+	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
 
 	interface Props {
 		field: FieldType;
@@ -76,8 +79,8 @@
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 
 		const doValidation = () => {
+			isValidating = true;
 			try {
-				isValidating = true;
 				const currentValue = safeValue;
 
 				// First validate if required
@@ -88,16 +91,12 @@
 
 				// Then validate email format if value exists
 				if (currentValue && currentValue.trim() !== '') {
-					parse(emailSchema, currentValue);
+					// ✅ UNIFIED: Use handleWidgetValidation for standardized error handling
+					handleWidgetValidation(() => parse(emailSchema, currentValue), { fieldName, updateStore: true });
+					return;
 				}
 
 				validationStore.clearError(fieldName);
-			} catch (error) {
-				if ((error as ValiError<any>).issues) {
-					const valiError = error as ValiError<any>;
-					const errorMessage = valiError.issues[0]?.message || 'Invalid input';
-					validationStore.setError(fieldName, errorMessage);
-				}
 			} finally {
 				isValidating = false;
 			}

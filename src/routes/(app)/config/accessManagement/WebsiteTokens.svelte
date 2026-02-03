@@ -22,8 +22,9 @@
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 	import type { WebsiteToken } from '@src/databases/schemas';
-	import type { User } from '@src/databases/auth/types';
+	import type { User, Permission } from '@src/databases/auth/types';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
+	import { showConfirm } from '@utils/modalUtils';
 
 	interface TableHeader {
 		label: string;
@@ -36,6 +37,14 @@
 	let users: User[] = $state([]);
 	const userMap = $derived(new Map(users.map((u) => [u._id, u.username || u.email])));
 	let newTokenName = $state('');
+
+	// Permissions & Expiration State
+	let { permissions = [] }: { permissions: Permission[] } = $props();
+
+	let availablePermissions: Permission[] = $state([]);
+	let selectedPermissions: string[] = $state([]);
+	let expirationOption = $state('90d');
+	let customExpirationDate = $state('');
 
 	// Filter state
 	let globalSearchValue = $state('');
@@ -55,6 +64,7 @@
 	const tableHeaders = [
 		{ label: 'Name', key: 'name' },
 		{ label: 'Token', key: 'token' },
+		{ label: 'Expiration', key: 'expiresAt' },
 		{ label: 'Created At', key: 'createdAt' },
 		{ label: 'Created By', key: 'createdBy' }
 	];
@@ -92,35 +102,33 @@
 
 	onMount(async () => {
 		await Promise.all([fetchTokens(), fetchUsers()]);
+		availablePermissions = permissions;
 	});
 
 	async function fetchUsers() {
-		// Capture current state of 'users' into a local variable (or object reference if updated within async block)
 		const usersRef = { value: users };
 		try {
 			const response = await fetch('/api/user');
 			if (response.ok) {
 				const result = await response.json();
-				usersRef.value = result.data; // Update the referenced value
+				usersRef.value = result.data;
 			} else {
 				toaster.error({ description: 'Failed to fetch users' });
 			}
 		} catch (error) {
 			toaster.error({ description: 'An error occurred while fetching users' });
 		}
-		// Assign back to the $state variable after async operation
 		users = usersRef.value;
 	}
 
 	async function fetchTokens() {
-		// Capture current state values into local variables for the async block
 		const currentPageVal = currentPage;
 		const rowsPerPageVal = rowsPerPage;
 		const sortingVal = sorting;
 		const globalSearchValueVal = globalSearchValue;
 		const filtersVal = filters;
-		const tokensRef = { value: tokens }; // Use an object to hold the reference for tokens
-		const totalItemsRef = { value: totalItems }; // Use an object to hold the reference for totalItems
+		const tokensRef = { value: tokens };
+		const totalItemsRef = { value: totalItems };
 
 		await globalLoadingStore.withLoading(
 			loadingOperations.tokenGeneration,
@@ -147,8 +155,8 @@
 					const response = await fetch(`/api/website-tokens?${params.toString()}`);
 					if (response.ok) {
 						const result = await response.json();
-						tokensRef.value = result.data; // Assign to the ref's value
-						totalItemsRef.value = result.pagination.totalItems; // Assign to the ref's value
+						tokensRef.value = result.data;
+						totalItemsRef.value = result.pagination.totalItems;
 					} else {
 						toaster.error({ description: 'Failed to fetch tokens' });
 					}
@@ -158,12 +166,39 @@
 			},
 			'Fetching website tokens'
 		);
-		// Assign back to the $state variables after async operation
 		tokens = tokensRef.value;
 		totalItems = totalItemsRef.value;
 	}
+
+	function getExpirationDate(): string | null {
+		if (expirationOption === 'never') return null;
+		if (expirationOption === 'custom') return customExpirationDate ? new Date(customExpirationDate).toISOString() : null;
+
+		const now = new Date();
+		switch (expirationOption) {
+			case '30d':
+				now.setDate(now.getDate() + 30);
+				break;
+			case '90d':
+				now.setDate(now.getDate() + 90);
+				break;
+			case '1y':
+				now.setFullYear(now.getFullYear() + 1);
+				break;
+		}
+		return now.toISOString();
+	}
+
+	function togglePermission(permissionId: string) {
+		if (selectedPermissions.includes(permissionId)) {
+			selectedPermissions = selectedPermissions.filter((id) => id !== permissionId);
+		} else {
+			selectedPermissions = [...selectedPermissions, permissionId];
+		}
+	}
+
 	async function generateToken() {
-		const currentNewTokenName = newTokenName; // Capture current state
+		const currentNewTokenName = newTokenName;
 		if (!currentNewTokenName) {
 			toaster.error({ description: 'Please enter a name for the token.' });
 			return;
@@ -173,13 +208,19 @@
 			const response = await fetch('/api/website-tokens', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: currentNewTokenName })
+				body: JSON.stringify({
+					name: currentNewTokenName,
+					permissions: selectedPermissions,
+					expiresAt: getExpirationDate()
+				})
 			});
 
 			if (response.ok) {
-				await fetchTokens(); // Refetch to get the new token and update pagination
+				await fetchTokens();
 				toaster.success({ description: `Token generated for ${currentNewTokenName}` });
-				newTokenName = ''; // Clear input
+				newTokenName = '';
+				selectedPermissions = [];
+				expirationOption = '90d';
 			} else {
 				if (response.status === 409) {
 					toaster.error({ description: 'A token with this name already exists' });
@@ -191,7 +232,6 @@
 			toaster.error({ description: 'An error occurred while generating the token' });
 		}
 	}
-	import { showConfirm } from '@utils/modalUtils';
 
 	async function deleteToken(id: string, name: string) {
 		showConfirm({
@@ -204,7 +244,7 @@
 					});
 
 					if (response.ok) {
-						await fetchTokens(); // Refetch to update the list
+						await fetchTokens();
 						toaster.success({ description: 'Token deleted.' });
 					} else {
 						toaster.error({ description: 'Failed to delete token' });
@@ -234,9 +274,70 @@
 	<div class="card mb-4">
 		<div class="p-4">
 			<h4 class="h4 mb-2 font-bold text-tertiary-500 dark:text-primary-500">Generate New Website Token</h4>
-			<div class="flex gap-2">
-				<input type="text" class="input" placeholder="Token Name" bind:value={newTokenName} />
-				<button class="preset-filled-primary-500 btn" onclick={generateToken}>Generate</button>
+
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+				<!-- Name -->
+				<label class="label">
+					<span>Token Name</span>
+					<input type="text" class="input" placeholder="e.g. Production Website" bind:value={newTokenName} />
+				</label>
+
+				<!-- Expiration -->
+				<div class="flex flex-col gap-2">
+					<label class="label">
+						<span>Expiration</span>
+						<select class="select" bind:value={expirationOption}>
+							<option value="30d">30 Days</option>
+							<option value="90d">90 Days</option>
+							<option value="1y">1 Year</option>
+							<option value="never">Never (Use with caution)</option>
+							<option value="custom">Custom Date</option>
+						</select>
+					</label>
+					{#if expirationOption === 'custom'}
+						<label class="label">
+							<span>Custom Date</span>
+							<input type="date" class="input" bind:value={customExpirationDate} />
+						</label>
+					{/if}
+				</div>
+			</div>
+
+			<div class="mt-4">
+				<h5 class="h5 mb-2 font-bold">Permissions</h5>
+				<div class="card max-h-60 overflow-y-auto p-4 bg-surface-100 dark:bg-surface-800">
+					<p class="text-sm text-gray-500 mb-2">
+						Select permissions to grant to this token. If none selected, the token will have <strong>Read Only</strong> access.
+					</p>
+
+					{#if availablePermissions.length > 0}
+						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+							{#each availablePermissions as permission}
+								<label class="flex items-center space-x-2 p-2 rounded hover:bg-surface-200 dark:hover:bg-surface-700">
+									<input
+										type="checkbox"
+										class="checkbox"
+										checked={selectedPermissions.includes(permission._id)}
+										onchange={() => togglePermission(permission._id)}
+									/>
+									<span class="text-sm">
+										<span class="font-bold">{permission.name}</span>
+										<span class="text-xs opacity-70 block">{permission.action}</span>
+									</span>
+								</label>
+							{/each}
+						</div>
+					{:else}
+						<div class="text-xs text-center p-4">Loading permissions...</div>
+					{/if}
+				</div>
+			</div>
+
+			<div class="mt-4 flex justify-end">
+				<button class="preset-filled-primary-500 btn" onclick={generateToken}>
+					<iconify-icon icon="mdi:key-plus" class="mr-2"></iconify-icon>
+					Generate Token
+				</button>
 			</div>
 		</div>
 	</div>
@@ -354,6 +455,17 @@
 											</div>
 										{:else if header.key === 'createdAt'}
 											{new Date(token.createdAt).toLocaleDateString()}
+										{:else if header.key === 'expiresAt'}
+											{#if token.expiresAt}
+												{@const daysLeft = Math.ceil((new Date(token.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}
+												<span class={daysLeft < 7 && daysLeft > 0 ? 'text-warning-500 font-bold' : daysLeft <= 0 ? 'text-error-500 font-bold' : ''}>
+													{new Date(token.expiresAt).toLocaleDateString()}
+													{#if daysLeft < 0}
+														(Expired){/if}
+												</span>
+											{:else}
+												<span class="opacity-50">Never</span>
+											{/if}
 										{:else if header.key === 'createdBy'}
 											{userMap.get(token.createdBy) || token.createdBy}
 										{:else}

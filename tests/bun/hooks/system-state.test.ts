@@ -53,11 +53,7 @@ const mockResolve = mock(() => {
 /**
  * Helper to set mock system state
  */
-function setMockState(state: {
-	overallState: string;
-	services?: Record<string, any>;
-	performanceMetrics?: { stateTransitions: any[] };
-}) {
+function setMockState(state: { overallState: string; services?: Record<string, any>; performanceMetrics?: { stateTransitions: any[] } }) {
 	globalThis.__mockSystemState = {
 		overallState: state.overallState,
 		services: state.services || {},

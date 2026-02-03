@@ -25,9 +25,9 @@ It dynamically renders controls based on the active tool.
 	const toolbarControls = $derived(imageEditorStore.state.toolbarControls);
 	const canUndo = $derived(imageEditorStore.canUndoState);
 	const canRedo = $derived(imageEditorStore.canRedoState);
-	
+
 	// Get active widget title
-	const activeWidget = $derived(editorWidgets.find(w => w.key === activeState));
+	const activeWidget = $derived(editorWidgets.find((w) => w.key === activeState));
 </script>
 
 <div
@@ -38,25 +38,22 @@ It dynamically renders controls based on the active tool.
 	<!-- Drawer: Tool Controls (Slides up from within the dock) -->
 	{#if toolbarControls?.component}
 		{@const Component = toolbarControls.component}
-		<div
-			class="flex flex-col border-b border-surface-700 bg-surface-800/50 backdrop-blur-md"
-			transition:slide={{ axis: 'y', duration: 250 }}
-		>
+		<div class="flex flex-col border-b border-surface-700 bg-surface-800/50 backdrop-blur-md" transition:slide={{ axis: 'y', duration: 250 }}>
 			<!-- Optional: Tool Title Header in Drawer -->
 			{#if activeWidget}
 				<div class="flex items-center justify-between px-4 py-2 border-b border-surface-700/50">
 					<span class="text-xs font-bold uppercase tracking-wider text-surface-400">{activeWidget.title}</span>
 					<div class="flex gap-2">
 						<!-- Inline Undo/Redo for precision editing -->
-						<button 
-							class="text-surface-400 hover:text-white disabled:opacity-30"	
+						<button
+							class="text-surface-400 hover:text-white disabled:opacity-30"
 							onclick={() => imageEditorStore.handleUndo()}
 							disabled={!canUndo}
 							aria-label="Undo"
 						>
 							<iconify-icon icon="mdi:undo" width="16"></iconify-icon>
 						</button>
-						<button 
+						<button
 							class="text-surface-400 hover:text-white disabled:opacity-30"
 							onclick={() => imageEditorStore.handleRedo()}
 							disabled={!canRedo}
@@ -77,7 +74,6 @@ It dynamically renders controls based on the active tool.
 
 	<!-- Main Dock: Navigation & Actions -->
 	<div class="flex h-16 items-center justify-between px-2 sm:px-4">
-		
 		<!-- Left: Cancel -->
 		<button
 			class="flex flex-col items-center justify-center rounded-lg px-2 py-1 text-surface-400 transition-colors hover:text-white hover:bg-surface-800"
@@ -100,12 +96,14 @@ It dynamically renders controls based on the active tool.
 						title={widget.title}
 					>
 						<div
-							class="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 {activeState === widget.key ? 'bg-primary-500/20 text-primary-400' : 'group-hover:bg-surface-800'}"
+							class="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 {activeState === widget.key
+								? 'bg-primary-500/20 text-primary-400'
+								: 'group-hover:bg-surface-800'}"
 						>
 							<iconify-icon icon={widget.icon} width="20"></iconify-icon>
 						</div>
 						<span class="text-[10px] font-medium whitespace-nowrap {activeState === widget.key ? 'text-primary-400' : ''}">{widget.title}</span>
-						
+
 						{#if activeState === widget.key}
 							<div class="absolute -bottom-1 h-1 w-1 rounded-full bg-primary-500"></div>
 						{/if}

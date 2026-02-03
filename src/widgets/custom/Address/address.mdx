@@ -6,7 +6,7 @@ order: 304
 icon: 'mdi:home-map-marker'
 author: 'admin'
 created: '2025-01-15'
-updated: '2025-01-15'
+updated: '2026-02-03'
 tags:
   - widget
   - custom
@@ -37,7 +37,8 @@ The **Address widget** provides a comprehensive solution for capturing structure
 - ✅ **Coordinate Capture**: Automatic latitude/longitude tracking
 - ✅ **Field Visibility**: Configurable hidden fields for flexible layouts
 - ✅ **Default Values**: Smart defaults from field configuration
-- ✅ **Validation**: Valibot schema ensures complete, valid addresses
+- ✅ **Validation**: Valibot schema ensures complete, valid addresses with required field checks
+- ✅ **Unified Error Handler**: Uses `handleWidgetValidation` for consistent error management
 - ✅ **Non-Translatable**: Addresses are universal (not language-specific)
 - ✅ **Autocomplete**: HTML5 address autocomplete for better UX
 
@@ -620,6 +621,12 @@ interface AddressData {
 ---
 
 ## Changelog
+
+### Version 1.2.0 (2026-02-03)
+
+- ✅ **Validation**: Added unified `handleWidgetValidation` integration
+- ✅ **Required Fields**: Street, city, postal code, country validation when required
+- ✅ **Error Display**: Improved error messaging through `validationStore`
 
 ### Version 1.1.0 (2025-01-25)
 

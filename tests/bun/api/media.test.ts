@@ -12,8 +12,7 @@ import { getApiBaseUrl, waitForServer } from '../helpers/server';
 const API_BASE_URL = getApiBaseUrl();
 
 // Minimal valid 1x1 PNG image (89 bytes)
-const VALID_PNG_BASE64 =
-	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+const VALID_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
 function createValidPngBlob(): Blob {
 	const binaryString = atob(VALID_PNG_BASE64);

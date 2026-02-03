@@ -30,9 +30,12 @@
 	import { untrack } from 'svelte';
 
 	// Valibot validation
-	import { parse, type ValiError } from 'valibot';
+	import { parse } from 'valibot';
 	import { app, validationStore } from '@src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
+
+	// Unified error handling
+	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
 
 	// Props
 	interface Props {
@@ -123,20 +126,14 @@
 			isValidating = true;
 
 			try {
-				// ✅ SSOT: Valibot schema validation using shared schema
-				try {
-					parse(validationSchema, field.translated ? (value ?? undefined) : currentValue);
-					validationStore.clearError(fieldName);
-					return null;
-				} catch (error) {
-					if ((error as ValiError<typeof validationSchema>).issues) {
-						const valiError = error as ValiError<typeof validationSchema>;
-						const errorMessage = valiError.issues[0]?.message || 'Invalid input';
-						validationStore.setError(fieldName, errorMessage);
-						return errorMessage;
-					}
-					throw error;
-				}
+				// ✅ UNIFIED: Use handleWidgetValidation for standardized error handling
+				const result = handleWidgetValidation(() => parse(validationSchema, field.translated ? (value ?? undefined) : currentValue), {
+					fieldName,
+					updateStore: true,
+					requireTouch: false,
+					isTouched
+				});
+				return result.valid ? null : (result.message ?? null);
 			} catch (error) {
 				logger.error('Validation error:', error);
 				const errorMessage = 'An unexpected error occurred during validation';

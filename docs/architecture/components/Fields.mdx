@@ -1,12 +1,12 @@
 ---
 path: 'docs/architecture/components/Fields.mdx'
 title: 'Fields Component'
-description: 'Documentation for the dynamic field renderer with widget loading, validation, and revision history.'
+description: 'Documentation for the dynamic field renderer with widget loading, validation store integration, and revision history.'
 order: 3
 icon: 'mdi:form-textbox'
 author: 'admin'
 created: '2026-01-04'
-updated: '2026-01-04'
+updated: '2026-02-03'
 tags:
   - 'components'
   - 'fields'
@@ -18,6 +18,62 @@ tags:
 # Fields Component
 
 The `Fields` component is responsible for rendering collection fields dynamically, loading appropriate widgets, handling validation, and managing revision history.
+
+---
+
+## Collection Entry Editing Ecosystem
+
+The Fields component is part of a larger system for editing collection entries. The following components work together:
+
+```mermaid
+flowchart TB
+    subgraph Header["Header Actions"]
+        HE[HeaderEdit<br/>Mobile]
+        RS[RightSidebar<br/>Desktop]
+    end
+
+    subgraph Content["Content Editing"]
+        F[Fields Component]
+        WL[WidgetLoader]
+        W[Widgets]
+    end
+
+    subgraph Support["Supporting Components"]
+        TS[TranslationStatus]
+        TP[TokenPicker]
+        REV[Revisions]
+    end
+
+    subgraph Stores["State Stores"]
+        VS[validationStore]
+        CV[collectionValue]
+        DC[dataChangeStore]
+        TRP[translationProgress]
+    end
+
+    HE --> VS
+    RS --> VS
+    F --> WL
+    WL --> W
+    W --> CV
+    W --> VS
+    F --> REV
+    TS --> TRP
+    TP --> W
+    CV --> DC
+```
+
+### Component Roles
+
+| Component             | Path                                                        | Role                                                 |
+| --------------------- | ----------------------------------------------------------- | ---------------------------------------------------- |
+| **HeaderEdit**        | `src/components/HeaderEdit.svelte`                          | Mobile save/cancel/delete actions, validation gating |
+| **RightSidebar**      | `src/components/RightSidebar.svelte`                        | Desktop save/status/scheduling actions               |
+| **Fields**            | `src/components/collectionDisplay/Fields.svelte`            | Dynamic field rendering, validation                  |
+| **WidgetLoader**      | `src/components/collectionDisplay/WidgetLoader.svelte`      | Async widget loading with error handling             |
+| **TranslationStatus** | `src/components/collectionDisplay/TranslationStatus.svelte` | Translation progress per language                    |
+| **TokenPicker**       | `src/components/TokenPicker.svelte`                         | Dynamic token insertion for fields                   |
+| **Revisions**         | (within Fields)                                             | Historical snapshots with revert capability          |
 
 ---
 
@@ -43,6 +99,7 @@ flowchart TB
 
     subgraph Stores["State Stores"]
         CV[collectionValue]
+        VS[validationStore]
         TP[translationProgress]
         DC[dataChangeStore]
     end
@@ -51,7 +108,8 @@ flowchart TB
     WL --> Widgets
     Widgets --> CV
     CV --> VL
-    VL --> DC
+    VL --> VS
+    VS --> DC
     RH --> CV
 ```
 
@@ -59,14 +117,187 @@ flowchart TB
 
 ## Features
 
-| Feature                    | Description                                  |
-| -------------------------- | -------------------------------------------- |
-| **Dynamic Widget Loading** | Lazy-loads widgets based on field type       |
-| **Real-Time Validation**   | Field-level validation with instant feedback |
-| **Revision History**       | View and revert to previous versions         |
-| **Translation Progress**   | Visual indicators for multilingual content   |
-| **Role-Based Filtering**   | Show/hide fields based on user permissions   |
-| **Two-Way Binding**        | Sync between local and global state          |
+| Feature                          | Description                                                 |
+| -------------------------------- | ----------------------------------------------------------- |
+| **Dynamic Widget Loading**       | Lazy-loads widgets based on field type using `WidgetLoader` |
+| **Validation Store Integration** | Real-time field validation with `validationStore`           |
+| **Translation Progress**         | Visual indicators for multilingual content completion       |
+| **Revision History**             | View and revert to previous versions                        |
+| **Role-Based Filtering**         | Show/hide fields based on user permissions                  |
+| **Two-Way Binding**              | Sync between local and global state                         |
+
+---
+
+## HeaderEdit & RightSidebar (Save Actions)
+
+The save functionality is split between mobile and desktop views:
+
+### HeaderEdit (Mobile)
+
+Visible on screens < 1024px. Provides:
+
+- **Save Button**: Disabled when `validationStore.isValid === false`
+- **Cancel/Delete**: With confirmation modals
+- **Clone**: Duplicate entry functionality
+- **Scheduling**: Publish/unpublish scheduling
+
+```typescript
+// Save validation gating
+const canSave = $derived(validationStore.isValid && dataChangeStore.hasChanges);
+```
+
+### RightSidebar (Desktop)
+
+Visible on screens >= 1024px. Additionally provides:
+
+- **Entry Status**: Draft/Published/Scheduled
+- **Metadata Display**: Created/Updated timestamps
+- **Scheduling Panel**: Date/time pickers for publish schedule
+
+Both components integrate with `validationStore` to prevent saving invalid entries.
+
+---
+
+## TranslationStatus
+
+Displays translation completion progress for multilingual collections:
+
+```mermaid
+flowchart LR
+    F[Fields] --> TS[TranslationStatus]
+    TS --> |tracks| TP[translationProgress]
+    TS --> |displays| Languages
+    Languages --> Progress[% Complete]
+```
+
+### Features
+
+- **Per-Language Progress**: Shows completion % for each language
+- **Field-Level Tracking**: Tracks individual translatable fields
+- **Widget-Aware**: Handles complex widgets (e.g., SEO) with nested language data
+- **Language Switcher**: Click to switch content language
+
+### Progress Calculation
+
+```typescript
+// Translation progress per language
+translationProgress[language] = {
+	total: new SvelteSet<string>(), // All translatable fields
+	translated: new SvelteSet<string>() // Completed translations
+};
+
+// Progress percentage
+const progress = (translated.size / total.size) * 100;
+```
+
+---
+
+## TokenPicker
+
+A floating panel for inserting dynamic tokens into input fields:
+
+### Features
+
+- **Token Categories**: Entry, User, Site, System tokens
+- **Modifier Support**: date, upper, lower, truncate, etc.
+- **Live Preview**: Shows resolved token value
+- **Smart Detection**: Detects existing tokens in active input
+- **Draggable Window**: Repositionable UI
+
+### Usage
+
+Tokens are inserted with `{{ }}` syntax:
+
+```typescript
+{
+	{
+		entry: title;
+	}
+} // Simple token
+{
+	{
+		entry: date | date(short);
+	}
+} // With modifier
+{
+	{
+		user: displayName | upper;
+	}
+} // Uppercase modifier
+```
+
+---
+
+## Validation Integration
+
+The Fields component integrates with the global `validationStore` for real-time validation feedback.
+
+### Validation Flow
+
+```mermaid
+sequenceDiagram
+    participant F as Fields
+    participant W as Widget
+    participant VS as validationStore
+    participant UI as Save Button
+
+    F->>W: Render with field config
+    W->>W: User input
+    W->>VS: setError(fieldName, message)
+    VS->>UI: isValid = false
+    Note over UI: Save disabled
+
+    W->>W: User fixes input
+    W->>VS: clearError(fieldName)
+    VS->>UI: isValid = true
+    Note over UI: Save enabled
+```
+
+### Required Field Validation
+
+The component automatically validates required fields:
+
+```typescript
+$effect(() => {
+	const values = currentCollectionValue;
+
+	filteredFields.forEach((field) => {
+		if (field.required) {
+			const fieldName = getFieldName(field, false);
+			const value = values[fieldName];
+
+			const isEmpty =
+				value === null || value === undefined || (typeof value === 'string' && value.trim() === '') || (Array.isArray(value) && value.length === 0);
+
+			if (isEmpty) {
+				validationStore.setError(fieldName, `${field.label || fieldName} is required`);
+			} else {
+				validationStore.clearError(fieldName);
+			}
+		}
+	});
+});
+```
+
+### Widget-Level Validation
+
+Individual widgets can implement their own validation using Valibot schemas:
+
+```typescript
+// In widget Input.svelte
+import { validationStore } from '@stores/store.svelte';
+import { parse } from 'valibot';
+
+function validateInput() {
+	try {
+		parse(validationSchema, currentValue);
+		validationStore.clearError(fieldName);
+	} catch (error) {
+		const message = error.issues?.[0]?.message || 'Invalid input';
+		validationStore.setError(fieldName, message);
+	}
+}
+```
 
 ---
 
@@ -85,6 +316,14 @@ sequenceDiagram
     WL->>W: Mount with props
     W->>F: bind:value updates
 ```
+
+### WidgetLoader Error Handling
+
+The `WidgetLoader` component handles loading failures gracefully:
+
+- **Loading State**: Shows skeleton UI while widget loads
+- **Error State**: Displays error with retry button
+- **Fallback State**: Shows warning for unavailable widgets
 
 ---
 
@@ -106,16 +345,72 @@ interface FieldsProps {
 
 ## Tabs
 
-The component uses a tabbed interface:
+The component uses a tabbed interface with up to 4 tabs (conditional based on settings):
 
-1. **Edit Tab** - Form fields for data entry
-2. **Revisions Tab** - Historical snapshots with revert capability
+### Tab 0: Edit
+
+The primary editing interface with all field widgets.
+
+### Tab 1: Revisions
+
+Only visible if `collection.revision` is enabled. Shows historical snapshots with:
+
+- Version timeline
+- Compare functionality
+- Revert capability
+
+### Tab 2: Preview (Live Preview)
+
+Only visible if `collection.livePreview` is configured. Displays an **iframe** with the frontend preview:
+
+```mermaid
+sequenceDiagram
+    participant CMS as Fields Component
+    participant IFrame as Preview IFrame
+    participant Frontend as Frontend /api/preview
+
+    CMS->>IFrame: Load {HOST_PROD}?preview={entryId}
+    IFrame->>Frontend: GET with preview param
+    Frontend->>Frontend: Set draft cookies
+    Frontend-->>IFrame: Render draft content
+```
+
+**Features:**
+
+- **Live iframe preview** at `{HOST_PROD}?preview={entryId}`
+- **Copy URL button** for sharing preview link
+- **Open in new tab** link
+- **Sandboxed iframe** with `allow-same-origin allow-scripts allow-forms allow-popups`
+
+> [!NOTE]
+> For the full handshake architecture (cookies, security, multi-tenancy), see [Live Preview Architecture](/docs/guides/Live_Preview_Architecture.mdx).
+
+### Tab 3: API (Admin Only)
+
+Only visible for admin users. Shows:
+
+- **API URL** for the current entry: `/api/collection/{collectionId}/{entryId}`
+- **Copy button** for the URL
+- **Raw JSON view** of the entry data
+
+---
+
+## Best Practices
+
+1. **Field Configuration**: Always set `db_fieldName` for consistent validation keys
+2. **Required Fields**: Use `required: true` for mandatory fields (handled automatically)
+3. **Custom Validation**: Implement Valibot schemas in widget `index.ts` for type-specific validation
+4. **Error Messages**: Provide clear, user-friendly validation messages
+5. **Permissions**: Use `permissions` field config to control access per role
+6. **Token Support**: Use `TokenPicker` for dynamic content like slugs, dates, metadata
 
 ---
 
 ## Related Documentation
 
-- [EntryList Component](./EntryList.mdx)
-- [Widget System Overview](/docs/widgets/widget-system-overview.mdx)
-- [Validation Instant Feedback](/docs/architecture/validation-instant-feedback.mdx)
-- [Multilingual Data Loading](/docs/architecture/multilingual-data-loading.mdx)
+- [WidgetLoader Component](/docs/architecture/components/WidgetLoader.mdx) - Async widget loading
+- [Widget System Overview](/docs/widgets/widget-system-overview.mdx) - Widget architecture
+- [Unified Error Handling](/docs/guides/development/error-handling.mdx) - Error handling patterns
+- [Live Preview Architecture](/docs/guides/Live_Preview_Architecture.mdx) - Preview system
+- [Validation Instant Feedback](/docs/architecture/validation-instant-feedback.mdx) - Validation UX
+- [Multilingual Data Loading](/docs/architecture/multilingual-data-loading.mdx) - Translation handling

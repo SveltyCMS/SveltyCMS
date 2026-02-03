@@ -24,7 +24,9 @@ export const websiteTokenSchema = new Schema<WebsiteToken>(
 		token: { type: String, required: true, unique: true },
 		createdAt: { type: String, default: () => nowISODateString() },
 		updatedAt: { type: String, default: () => nowISODateString() },
-		createdBy: { type: String, required: true }
+		createdBy: { type: String, required: true },
+		permissions: { type: [String], default: [] },
+		expiresAt: { type: String, required: false }
 	},
 	{
 		timestamps: true,

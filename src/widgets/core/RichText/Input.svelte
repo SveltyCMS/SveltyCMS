@@ -26,6 +26,8 @@
 	import type { MediaFile } from '../MediaUpload/types';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
 
+	import SystemTooltip from '@src/components/system/SystemTooltip.svelte';
+
 	let {
 		field,
 		value = $bindable(),
@@ -470,29 +472,30 @@
 						{#each group.buttons as btn}
 							{#if btn.type === 'dropdown'}
 								<div class="relative">
-									<button
-										class="flex items-center gap-1 rounded px-2 py-1.5 text-sm font-medium hover:bg-surface-200 dark:hover:bg-white/20 transition {activeDropdown ===
-										btn.label
-											? 'bg-surface-200 dark:bg-white/20'
-											: ''} text-surface-900 dark:text-white"
-										onclick={(e) => toggleDropdown(btn.label, e)}
-										title={btn.label}
-									>
-										{#if btn.icon}
-											<iconify-icon icon="mdi:{btn.icon}" width="24"></iconify-icon>
-										{/if}
-										{#if !btn.icon || btn.label !== 'Table'}
-											<span class={btn.icon ? 'hidden sm:inline' : ''}>{btn.label}</span>
-											<iconify-icon icon="mdi:chevron-down" width="16"></iconify-icon>
-										{/if}
-									</button>
+									<SystemTooltip title={btn.label}>
+										<button
+											class="flex items-center gap-1 rounded px-2 py-1.5 text-sm font-medium hover:bg-surface-200 dark:hover:bg-white/20 transition {activeDropdown ===
+											btn.label
+												? 'bg-surface-200 dark:bg-white/20'
+												: ''} text-surface-900 dark:text-white"
+											onclick={(e) => toggleDropdown(btn.label, e)}
+										>
+											{#if btn.icon}
+												<iconify-icon icon="mdi:{btn.icon}" width="24"></iconify-icon>
+											{/if}
+											{#if !btn.icon || btn.label !== 'Table'}
+												<span class={btn.icon ? 'hidden sm:inline' : ''}>{btn.label}</span>
+												<iconify-icon icon="mdi:chevron-down" width="16"></iconify-icon>
+											{/if}
+										</button>
+									</SystemTooltip>
 									{#if activeDropdown === btn.label}
 										<div
-											class="absolute top-full left-0 mt-1 min-w-[180px] rounded-lg border border-surface-200 bg-white p-1 shadow-lg dark:text-surface-50 dark:bg-surface-900 z-50 ring-1 ring-black/5"
+											class="absolute top-full left-0 mt-1 min-w-[180px] rounded-lg border border-surface-200 bg-white p-1 shadow-xl dark:border-surface-700 dark:bg-surface-800 dark:text-white z-60 ring-1 ring-black/5"
 										>
 											{#if btn.label === 'Table'}
 												<div class="p-2 w-48">
-													<div class="mb-2 text-xs font-medium text-surface-500 dark:text-surface-50 text-center">
+													<div class="mb-2 text-xs font-medium text-surface-500 dark:text-surface-300 text-center">
 														{hoverRows || 1} x {hoverCols || 1}
 													</div>
 													<div
@@ -508,8 +511,8 @@
 															{#each Array(5) as _, c}
 																<button
 																	class="w-8 h-8 rounded-sm border transition-colors {r < hoverRows && c < hoverCols
-																		? 'bg-blue-100 border-blue-500 dark:bg-blue-500/30 dark:border-blue-400'
-																		: 'bg-surface-50 border-surface-200 dark:bg-surface-800 dark:text-surface-50'}"
+																		? 'bg-blue-100 border-blue-500 dark:bg-blue-600 dark:border-blue-400'
+																		: 'bg-surface-50 border-surface-200 dark:bg-surface-700 dark:border-surface-600'}"
 																	onmouseover={() => {
 																		hoverRows = r + 1;
 																		hoverCols = c + 1;
@@ -533,12 +536,58 @@
 														{/each}
 													</div>
 												</div>
+											{:else if btn.label === 'Color'}
+												<div class="p-2 w-48">
+													<button
+														class="mb-2 flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-surface-100 dark:hover:bg-surface-700/50 transition text-surface-700 dark:text-white"
+														onclick={() => {
+															editor?.chain().focus().unsetColor().run();
+															closeDropdowns();
+														}}
+													>
+														<iconify-icon icon="mdi:format-color-clear" width="18"></iconify-icon>
+														Reset Color
+													</button>
+
+													<div class="mb-2 grid grid-cols-5 gap-1">
+														{#each ['#000000', '#4b5563', '#9ca3af', '#ffffff', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7'] as color}
+															<button
+																class="w-8 h-8 rounded-full border border-surface-200 dark:border-surface-600 transition-transform hover:scale-110 focus:scale-110 focus:outline-none"
+																style="background-color: {color};"
+																onclick={(e) => {
+																	e.stopPropagation();
+																	editor?.chain().focus().setColor(color).run();
+																	closeDropdowns();
+																}}
+																aria-label="Color {color}"
+																title={color}
+															></button>
+														{/each}
+													</div>
+
+													<div class="relative pt-2 border-t border-surface-200 dark:border-surface-700">
+														<div class="relative w-full h-8 group overflow-hidden rounded cursor-pointer">
+															<div
+																class="absolute inset-0 flex items-center justify-center bg-linear-to-r from-red-500 via-green-500 to-blue-500 opacity-90 group-hover:opacity-100 transition-opacity"
+															>
+																<iconify-icon icon="mdi:palette" class="text-white drop-shadow-md" width="18"></iconify-icon>
+															</div>
+															<input
+																type="color"
+																class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+																onchange={handleColorChange}
+																onclick={(e) => e.stopPropagation()}
+																title="Custom Color"
+															/>
+														</div>
+													</div>
+												</div>
 											{:else if btn.items}
 												{#each btn.items as item}
 													<button
-														class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-surface-100 dark:hover:bg-white/20 {item.active()
+														class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-surface-100 dark:hover:bg-surface-700/50 transition {item.active()
 															? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20'
-															: 'text-surface-700 dark:text-surface-300'}"
+															: 'text-surface-700 dark:text-white'}"
 														onclick={(e) => {
 															e.stopPropagation();
 															item.cmd();
@@ -553,16 +602,17 @@
 									{/if}
 								</div>
 							{:else}
-								<button
-									class="rounded-lg p-2 hover:bg-surface-100 dark:hover:bg-white/10 transition-all {btn.active?.()
-										? 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500'
-										: 'text-surface-900 dark:text-white'}"
-									aria-label={btn.label}
-									title={btn.shortcut ? `${btn.label} (${btn.shortcut})` : btn.label}
-									onclick={btn.cmd}
-								>
-									<iconify-icon icon="mdi:{btn.icon}" width="24"></iconify-icon>
-								</button>
+								<SystemTooltip title={btn.label}>
+									<button
+										aria-label={btn.label}
+										class="rounded-lg p-2 hover:bg-surface-100 dark:hover:bg-white/10 transition-all {btn.active?.()
+											? 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500'
+											: 'text-surface-900 dark:text-white'}"
+										onclick={btn.cmd}
+									>
+										<iconify-icon icon="mdi:{btn.icon}" width="24"></iconify-icon>
+									</button>
+								</SystemTooltip>
 							{/if}
 						{/each}
 						<div class="h-5 w-px bg-surface-300 dark:bg-surface-700 mx-1"></div>
@@ -573,11 +623,12 @@
 	</div>
 
 	<!-- Editor -->
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		bind:this={element}
-		class="prose dark:prose-invert max-w-none px-6 py-4 min-h-96 focus:outline-none leading-relaxed caret-blue-600 dark:caret-blue-400 {showSource
-			? 'hidden'
-			: ''}"
+		onclick={() => editor?.chain().focus().run()}
+		class="prose dark:prose-invert max-w-none px-6 py-4 min-h-96 focus:outline-none leading-relaxed cursor-text {showSource ? 'hidden' : ''}"
 	>
 		<!-- Tiptap content -->
 	</div>
@@ -620,6 +671,34 @@
 	<style>
 		:global(.ProseMirror) {
 			outline: none;
+			min-height: inherit;
+			height: 100%;
+			text-align: left;
+		}
+		/* Ensure the editor fills the container and is clickable everywhere */
+		:global(.ProseMirror > *:first-child) {
+			margin-top: 0;
+		}
+		:global(.ProseMirror > *:last-child) {
+			margin-bottom: 0;
+		}
+		/* Dark mode cursor visibility */
+		:global(.dark .ProseMirror) {
+			caret-color: #60a5fa; /* blue-400 */
+			color: #f9fafb; /* gray-50 - high contrast white text */
+		}
+		:global(.dark .ProseMirror p),
+		:global(.dark .ProseMirror h1),
+		:global(.dark .ProseMirror h2),
+		:global(.dark .ProseMirror h3),
+		:global(.dark .ProseMirror li) {
+			color: #f9fafb; /* gray-50 */
+		}
+		:global(.ProseMirror-focused) {
+			caret-color: #2563eb; /* blue-600 */
+		}
+		:global(.dark .ProseMirror-focused) {
+			caret-color: #60a5fa; /* blue-400 */
 		}
 		:global(.ProseMirror p.is-editor-empty:first-child::before) {
 			color: #adb5bd;
@@ -627,6 +706,9 @@
 			float: left;
 			height: 0;
 			pointer-events: none;
+		}
+		:global(.dark .ProseMirror p.is-editor-empty:first-child::before) {
+			color: #6b7280; /* gray-500 for better dark mode visibility */
 		}
 		:global(.ProseMirror table) {
 			border-collapse: collapse;

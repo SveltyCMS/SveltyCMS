@@ -28,12 +28,7 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 <div class="annotate-controls">
 	<!-- Tool Selection Group -->
 	<div class="tool-group">
-		<button
-			class="tool-btn"
-			class:active={currentTool === 'text'}
-			onclick={() => onSetTool(currentTool === 'text' ? null : 'text')}
-			title="Add Text"
-		>
+		<button class="tool-btn" class:active={currentTool === 'text'} onclick={() => onSetTool(currentTool === 'text' ? null : 'text')} title="Add Text">
 			<iconify-icon icon="mdi:format-text" width="20"></iconify-icon>
 		</button>
 		<button
@@ -67,23 +62,13 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 	<!-- Color Pickers -->
 	<div class="color-group">
 		<label class="color-picker-label" title="Stroke Color">
-			<input
-				type="color"
-				class="input-color"
-				oninput={(e) => onStrokeColorChange(e.currentTarget.value)}
-				value={strokeColor}
-			/>
+			<input type="color" class="input-color" oninput={(e) => onStrokeColorChange(e.currentTarget.value)} value={strokeColor} />
 			<div class="color-swatch" style:background-color={strokeColor}></div>
 			<iconify-icon icon="mdi:pencil-outline" class="picker-icon" width="12"></iconify-icon>
 		</label>
-		
+
 		<label class="color-picker-label" title="Fill Color">
-			<input
-				type="color"
-				class="input-color"
-				oninput={(e) => onFillColorChange(e.currentTarget.value)}
-				value={fillColor}
-			/>
+			<input type="color" class="input-color" oninput={(e) => onFillColorChange(e.currentTarget.value)} value={fillColor} />
 			<div class="color-swatch" style:background-color={fillColor}></div>
 			<iconify-icon icon="mdi:format-color-fill" class="picker-icon" width="12"></iconify-icon>
 		</label>
@@ -143,7 +128,7 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 	.delete-btn {
 		color: #ef4444; /* Error-500 */
 	}
-	
+
 	.delete-btn:hover {
 		background: rgba(239, 68, 68, 0.1);
 		color: #f87171;

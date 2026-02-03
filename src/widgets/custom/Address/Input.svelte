@@ -28,13 +28,20 @@ Interactive form with map, country selector, and address validation
 -->
 
 <script lang="ts">
-	import { app } from '@src/stores/store.svelte';
+	import { app, validationStore } from '@src/stores/store.svelte';
 	import { onDestroy, onMount } from 'svelte';
 	import type { FieldType } from './';
 	import type { AddressData } from './types';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
 	import { countryStore } from './countryStore.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { getFieldName } from '@utils/utils';
+
+	// Valibot validation
+	import { string, pipe, parse, minLength, optional, object } from 'valibot';
+
+	// Unified error handling
+	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
 
 	let {
 		field,
@@ -86,6 +93,43 @@ Interactive form with map, country selector, and address validation
 			// Direct update
 			value = updatedAddress;
 		}
+
+		// Validate after update
+		validateAddress(updatedAddress);
+	}
+
+	// Validation
+	const fieldName = $derived(getFieldName(field));
+
+	// Address validation schema
+	const addressSchema = $derived(
+		field?.required
+			? object({
+					street: pipe(string(), minLength(1, 'Street is required')),
+					city: pipe(string(), minLength(1, 'City is required')),
+					postalCode: pipe(string(), minLength(1, 'Postal code is required')),
+					country: pipe(string(), minLength(2, 'Country is required'))
+				})
+			: optional(
+					object({
+						street: optional(string()),
+						city: optional(string()),
+						postalCode: optional(string()),
+						country: optional(string())
+					})
+				)
+	);
+
+	function validateAddress(addressData: AddressData | undefined) {
+		if (!addressData && !field?.required) {
+			validationStore.clearError(fieldName);
+			return;
+		}
+		if (!addressData && field?.required) {
+			validationStore.setError(fieldName, 'Address is required');
+			return;
+		}
+		handleWidgetValidation(() => parse(addressSchema, addressData), { fieldName, updateStore: true });
 	}
 
 	// --- 2. Country Data & Search ---

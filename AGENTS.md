@@ -9,6 +9,7 @@ SveltyCMS is a headless CMS built with SvelteKit 2, Svelte 5, TypeScript, and Ta
 ## Development Commands
 
 ### Daily Development
+
 ```bash
 # Development server (auto-launches setup wizard if needed)
 bun run dev              # Preferred (fastest)
@@ -25,6 +26,7 @@ bun run preview         # Runs on localhost:4173
 ```
 
 ### Code Quality
+
 ```bash
 # Type checking
 bun run check           # Run once
@@ -36,6 +38,7 @@ bun run format          # Auto-fix formatting
 ```
 
 ### Testing
+
 ```bash
 # Unit tests (fast, no server needed)
 bun run test:unit       # Tests services, utils, stores, widgets
@@ -51,6 +54,7 @@ bun run test:all        # Runs all test suites sequentially
 ```
 
 ### Database Operations
+
 ```bash
 # Drizzle ORM (MariaDB/MySQL/PostgreSQL)
 bun run db:push         # Push schema changes
@@ -59,12 +63,14 @@ bun run db:studio       # Open Drizzle Studio GUI
 ```
 
 ### Internationalization
+
 ```bash
 bun run paraglide       # Compile i18n messages
 bun run translate       # Machine translate missing keys
 ```
 
 ### Diagnostics
+
 ```bash
 bun run check:mongodb   # Test MongoDB connection
 bun run build:stats     # Generate bundle size report
@@ -77,18 +83,20 @@ bun run build:stats     # Generate bundle size report
 SveltyCMS is **database-agnostic**. All database operations MUST use the adapter interface.
 
 **✅ CORRECT - Use adapter pattern:**
+
 ```typescript
 import { dbAdapter } from '$databases/db';
 
 export async function GET({ locals }) {
-  // Access via adapter interface
-  const items = await dbAdapter.crud.findMany('collection_name', filter);
-  const user = await dbAdapter.auth.user.findOne({ email });
-  return json(items);
+	// Access via adapter interface
+	const items = await dbAdapter.crud.findMany('collection_name', filter);
+	const user = await dbAdapter.auth.user.findOne({ email });
+	return json(items);
 }
 ```
 
 **❌ WRONG - Direct database access:**
+
 ```typescript
 import mongoose from 'mongoose';
 import { db } from 'drizzle-orm';
@@ -99,6 +107,7 @@ const items = await db.select().from(table);
 ```
 
 **Key adapter interfaces:**
+
 - `dbAdapter.crud.*` - CRUD operations for collections
 - `dbAdapter.auth.user.*` - User management
 - `dbAdapter.auth.session.*` - Session management
@@ -134,32 +143,34 @@ Widgets follow a **3-pillar architecture**:
    - Props: `{ field, value, ... }`
 
 **Creating a widget:**
+
 ```typescript
 // src/widgets/myWidget/index.ts
 import { createWidget } from '@widgets/widgetFactory';
 import * as v from 'valibot';
 
 interface MyWidgetProps {
-  maxLength?: number;
-  placeholder?: string;
+	maxLength?: number;
+	placeholder?: string;
 }
 
 export default createWidget<MyWidgetProps>({
-  Name: 'myWidget',
-  Icon: 'mdi:widget-icon',
-  Description: 'My custom widget',
-  inputComponentPath: '/src/widgets/myWidget/Input.svelte',
-  displayComponentPath: '/src/widgets/myWidget/Display.svelte',
-  validationSchema: (field) => v.string([v.maxLength(field.maxLength ?? 100)]),
-  defaults: { maxLength: 100, placeholder: 'Enter text...' },
-  GuiSchema: {
-    maxLength: { widget: 'number', label: 'Max Length' },
-    placeholder: { widget: 'text', label: 'Placeholder' }
-  }
+	Name: 'myWidget',
+	Icon: 'mdi:widget-icon',
+	Description: 'My custom widget',
+	inputComponentPath: '/src/widgets/myWidget/Input.svelte',
+	displayComponentPath: '/src/widgets/myWidget/Display.svelte',
+	validationSchema: (field) => v.string([v.maxLength(field.maxLength ?? 100)]),
+	defaults: { maxLength: 100, placeholder: 'Enter text...' },
+	GuiSchema: {
+		maxLength: { widget: 'number', label: 'Max Length' },
+		placeholder: { widget: 'text', label: 'Placeholder' }
+	}
 });
 ```
 
 **Widget storage:**
+
 - Widget definitions: File system (`src/widgets/`)
 - Widget configuration (enabled/disabled, tenant-specific): Database (`widgets` table)
 - Widget state management: `widgetStore.svelte.ts` (Svelte 5 singleton)
@@ -167,10 +178,12 @@ export default createWidget<MyWidgetProps>({
 ### Content & Collection System
 
 **Collections** are content types defined via:
+
 - **Code**: TypeScript files in `config/collections/` (developer-friendly)
 - **GUI**: Collection Builder interface (user-friendly)
 
 **Collection compilation flow:**
+
 1. User creates/edits collection in `config/collections/*.ts`
 2. Vite watcher detects change
 3. `compile()` processes TypeScript → JavaScript
@@ -180,6 +193,7 @@ export default createWidget<MyWidgetProps>({
 7. Client receives full-reload signal
 
 **Key files:**
+
 - `src/content/collectionScanner.ts` - Scans compiled collections
 - `src/content/types.ts` - TypeScript interfaces for Schema, FieldInstance, etc.
 - `src/utils/compilation/compile.ts` - Collection compilation logic
@@ -188,6 +202,7 @@ export default createWidget<MyWidgetProps>({
 ### Middleware Pipeline (hooks.server.ts)
 
 Request processing order:
+
 1. **handleCompression** - GZIP/Brotli compression
 2. **handleStaticAssetCaching** - Skip processing for static files
 3. **handleSystemState** - Validate system health (gatekeeper)
@@ -205,6 +220,7 @@ Request processing order:
 ### Multi-Tenant Architecture
 
 SveltyCMS supports optional multi-tenancy:
+
 - Enabled via `MULTI_TENANT` in `config/private.ts`
 - `tenantId` field added to collections, users, widgets, etc.
 - Tenant isolation enforced at database query level
@@ -213,11 +229,13 @@ SveltyCMS supports optional multi-tenancy:
 ### State Management
 
 **Svelte 5 Runes** are used throughout:
+
 - `$state()` - Reactive state
 - `$derived()` - Computed values
 - `$effect()` - Side effects
 
 **Key stores:**
+
 - `widgetStore.svelte.ts` - Widget registry (singleton pattern)
 - `stores/system/state.ts` - System state machine (IDLE → INITIALIZING → READY/DEGRADED/FAILED)
 - `stores/system/async.ts` - Async utilities like `waitForServiceHealthy()`
@@ -225,11 +243,13 @@ SveltyCMS supports optional multi-tenancy:
 ### Configuration Files
 
 **IMPORTANT - Never commit sensitive data:**
+
 - `config/private.ts` - Database credentials, JWT secrets (gitignored)
 - `config/private.test.ts` - Test database config (auto-generated, gitignored)
 - `config/collections/` - User-defined collection schemas
 
 **Public configuration:**
+
 - `config/public.ts` - Public settings (safe to commit)
 - `svelte.config.js` - SvelteKit configuration
 - `vite.config.ts` - Build and dev server configuration
@@ -238,17 +258,20 @@ SveltyCMS supports optional multi-tenancy:
 ### Testing Strategy
 
 **Test isolation:**
+
 - Production config: `config/private.ts` (never touched)
 - Test config: `config/private.test.ts` (dynamically generated)
 - `TEST_MODE=true` environment variable enables strict isolation
-- Test database names must include "test" or end with "_functional"
+- Test database names must include "test" or end with "\_functional"
 
 **Test structure:**
+
 - Unit tests: `tests/bun/services`, `tests/bun/utils`, `tests/bun/stores`, `tests/bun/widgets`
 - Integration tests: `tests/bun/api`, `tests/bun/databases`, `tests/bun/hooks`
 - E2E tests: `tests/playwright`
 
 **Running tests locally:**
+
 ```bash
 # Unit tests only (fast)
 bun run test:unit
@@ -263,6 +286,7 @@ bun run test:e2e
 ## Path Aliases
 
 Defined in `svelte.config.js` and `vite.config.ts`:
+
 ```typescript
 '@src'          → './src'
 '@components'   → './src/components'
@@ -289,6 +313,7 @@ Defined in `svelte.config.js` and `vite.config.ts`:
 ### 1. Security - Never Expose Secrets
 
 **❌ NEVER do this:**
+
 ```typescript
 // Importing server-only files in client components
 import { privateEnv } from '@config/private'; // BREAKS BUILD
@@ -296,11 +321,12 @@ import { getPrivateSettingSync } from '@utils/privateSettings.server'; // BREAKS
 ```
 
 **✅ Use appropriate patterns:**
+
 ```typescript
 // In +page.server.ts or +server.ts
 import { privateEnv } from '@config/private'; // OK - server-only
 export async function load() {
-  return { publicData: transform(privateEnv) };
+	return { publicData: transform(privateEnv) };
 }
 ```
 
@@ -309,6 +335,7 @@ Files ending in `.server.ts` or `.server.js` are automatically stubbed in client
 ### 2. Async Initialization
 
 Database and authentication are initialized lazily on first request. Use:
+
 ```typescript
 import { dbInitPromise } from '$databases/db';
 
@@ -326,6 +353,7 @@ await dbInitPromise;
 ### 4. Error Handling
 
 **Preferred pattern:**
+
 ```typescript
 import { logger } from '@utils/logger';
 
@@ -341,6 +369,7 @@ try {
 ### 5. Logging
 
 Use the structured logger:
+
 ```typescript
 import { logger } from '@utils/logger';
 
@@ -353,61 +382,64 @@ logger.debug('Debug info', { data }); // Only in dev mode
 ### 6. Permissions
 
 Check permissions in API endpoints:
+
 ```typescript
 import { hasPermissionWithRoles } from '@auth/utils';
 
 export async function POST({ locals }) {
-  const { user, roles } = locals;
-  
-  if (!hasPermissionWithRoles(user, 'api:collections:write', roles)) {
-    return json({ error: 'Unauthorized' }, { status: 403 });
-  }
-  
-  // Proceed with operation
+	const { user, roles } = locals;
+
+	if (!hasPermissionWithRoles(user, 'api:collections:write', roles)) {
+		return json({ error: 'Unauthorized' }, { status: 403 });
+	}
+
+	// Proceed with operation
 }
 ```
 
 ### 7. Validation
 
 Use Valibot for input validation:
+
 ```typescript
 import * as v from 'valibot';
 
 const schema = v.object({
-  name: v.string([v.minLength(3)]),
-  email: v.string([v.email()]),
-  age: v.optional(v.number([v.minValue(0)]))
+	name: v.string([v.minLength(3)]),
+	email: v.string([v.email()]),
+	age: v.optional(v.number([v.minValue(0)]))
 });
 
 try {
-  const data = v.parse(schema, input);
+	const data = v.parse(schema, input);
 } catch (error) {
-  // Handle validation error
+	// Handle validation error
 }
 ```
 
 ### 8. Internationalization
 
 Use Paraglide for i18n:
+
 ```svelte
 <script>
-  import * as m from '$paraglide/messages';
-  import { languageTag } from '$paraglide/runtime';
+	import * as m from '$paraglide/messages';
+	import { languageTag } from '$paraglide/runtime';
 </script>
 
-<h1>{m.welcome()}</h1>
-<p>{languageTag()}</p> <!-- Current language: 'en', 'de', etc. -->
+<h1>{m.welcome()}</h1><p>{languageTag()}</p> <!-- Current language: 'en', 'de', etc. -->
 ```
 
 ### 9. API Response Format
 
 Consistent API response structure:
+
 ```typescript
 // Success
 return json({ data: result, message: 'Operation successful' });
 
 // Error
-return json({ 
+return json({
   error: 'Error message',
   code: 'ERROR_CODE',
   details: {...}
@@ -430,16 +462,18 @@ return json({
 ### 1. Circular Dependencies
 
 The system uses dynamic imports to avoid circular dependencies in:
+
 - `widgetStore.svelte.ts` → widgets
 - `settingsService.ts` → database
 - `db.ts` → various services
 
 If adding new service dependencies, prefer dynamic imports for initialization:
+
 ```typescript
 // ✅ Correct
 async function initService() {
-  const { someService } = await import('./someService');
-  await someService.init();
+	const { someService } = await import('./someService');
+	await someService.init();
 }
 
 // ❌ Wrong
@@ -449,6 +483,7 @@ import { someService } from './someService'; // May cause circular dependency
 ### 2. Hot Module Replacement (HMR)
 
 Vite HMR is configured for:
+
 - Collection changes: Auto-recompiles and registers models
 - Widget changes: Reloads widget store and client
 - Theme changes: Applies theme without full reload
@@ -458,6 +493,7 @@ When working with these, full page reload is expected behavior.
 ### 3. Setup Wizard
 
 On first run (no `config/private.ts`):
+
 - Setup wizard auto-opens at http://localhost:5173/setup
 - Creates database credentials and admin user
 - Generates `config/private.ts` with real credentials
@@ -466,6 +502,7 @@ On first run (no `config/private.ts`):
 ### 4. Database Seeding in Tests
 
 Integration tests use:
+
 1. `scripts/run-integration-tests.ts` orchestrator
 2. MongoDB Memory Server (random port)
 3. `config/private.test.ts` (auto-generated with test DB config)
@@ -475,6 +512,7 @@ Integration tests use:
 ### 5. TypeScript Errors During Build
 
 If you see "Module not found" errors for `@src/widgets/proxy` or path aliases:
+
 - Run `bunx svelte-kit sync` to regenerate types
 - Check `tsconfig.json` paths match `svelte.config.js` aliases
 - Ensure all imports use path aliases consistently
@@ -482,6 +520,7 @@ If you see "Module not found" errors for `@src/widgets/proxy` or path aliases:
 ## Key Files Reference
 
 **Database & Auth:**
+
 - `src/databases/db.ts` - Database initialization and adapter
 - `src/databases/dbInterface.ts` - Database adapter interface
 - `src/databases/auth/` - Authentication system
@@ -489,6 +528,7 @@ If you see "Module not found" errors for `@src/widgets/proxy` or path aliases:
 - `src/databases/mariadb/` - MariaDB adapter
 
 **Content & Collections:**
+
 - `src/content/types.ts` - Schema, FieldInstance, ContentNode types
 - `src/content/collectionScanner.ts` - Collection discovery
 - `src/content/index.ts` - ContentManager
@@ -496,23 +536,27 @@ If you see "Module not found" errors for `@src/widgets/proxy` or path aliases:
 - `compiledCollections/` - Compiled collection output (gitignored)
 
 **Widgets:**
+
 - `src/widgets/widgetFactory.ts` - createWidget() factory
 - `src/widgets/types.ts` - Widget type definitions
 - `src/stores/widgetStore.svelte.ts` - Widget registry
 - `src/widgets/*/` - Individual widget implementations
 
 **API Endpoints:**
+
 - `src/routes/api/` - All API endpoints
 - `src/hooks.server.ts` - Request middleware pipeline
 - `src/hooks/` - Individual middleware hooks
 
 **Services:**
+
 - `src/services/settingsService.ts` - Settings cache
 - `src/services/MetricsService.ts` - Performance metrics
 - `src/services/TelemetryService.ts` - Update checking
 - `src/services/scheduler/` - Background task scheduler
 
 **Build & Config:**
+
 - `vite.config.ts` - Vite configuration (HMR, plugins)
 - `svelte.config.js` - SvelteKit configuration
 - `tailwind.config.js` - Tailwind CSS configuration

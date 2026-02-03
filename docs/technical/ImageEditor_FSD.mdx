@@ -12,12 +12,14 @@ This document outlines the technical specifications for the **Svelte Image Edito
 ## 2. Architecture
 
 ### 2.1 Core Technologies
+
 - **Framework**: Svelte 5 (Runes for state management) + SvelteKit
 - **Rendering**: Konva (Canvas 2d) for high-performance 2D manipulation.
 - **Styling**: TailwindCSS + Skeleton (Premium aesthetic, Glassmorphism).
 - **Processing**: Client-side Canvas API (Export) + Optional server-side SharpJS (via `/api/media/edit`).
 
 ### 2.2 Directory Structure
+
 The editor follows a Feature-Sliced / Modular Widget architecture:
 
 ```
@@ -40,40 +42,47 @@ src/components/imageEditor/
 ## 3. Features & Requirements
 
 ### 3.1 Core Editing
-- **Crop**: 
+
+- **Crop**:
   - **Constraint**: Square-only (Primary mode) / Presets.
   - **Interactions**: Drag corners, pan image.
 - **Rotation**: 90-degree steps (Left/Right) + Flip (H/V).
 - **Zoom**: Pan & Zoom support with mouse wheel and gestures.
 
 ### 3.2 Adjustments (FineTune)
+
 - Non-destructive filters using Konva filters.
 - **Brightness, Contrast, Saturation, Exposure**.
 - Real-time preview.
 
 ### 3.3 Annotations
+
 - **Text**: Editable text nodes with color/font-size support.
 - **Shapes**: Rectangle, Circle, Arrow, Line.
 - **Interactions**: Select, Move, Resize, Delete.
 
 ### 3.4 Effects
+
 - **Blur**: Region-based blur (Rectangle/Ellipse shapes).
 - **Pixelate**: Region-based pixelation.
 
 ### 3.5 Output
+
 - **Format**: exports to base64/Blob (WebP/AVIF preferred).
 - **Metadata**: Focal point (x,y) preservation.
 
 ## 4. UX/UI Design System
 
 ### 4.1 Aesthetic "Pintura-Like"
+
 - **Dark Mode First**: Deep charcoal backgrounds (`bg-surface-900`) for image contrast.
 - **Glassmorphism**: Floating toolbars with `backdrop-blur-md` and semi-transparent backgrounds.
 - **Micro-animations**: Smooth transitions for toolbar switches (`fly`, `fade`).
 - **Tactile Controls**: Sliders and buttons should feel responsive.
 
 ### 4.2 Responsiveness
-- **Desktop**: 
+
+- **Desktop**:
   - Canvas centered, max utilized space.
   - Floating bottom toolbar.
 - **Mobile**:
@@ -86,10 +95,10 @@ The `imageEditorStore.svelte.ts` manages the global state:
 
 ```typescript
 interface ImageEditorState {
-  stage: Konva.Stage | null;
-  activeState: string; // Current tool ID
-  editHistory: EditAction[]; // Undo/Redo stack
-  // ...
+	stage: Konva.Stage | null;
+	activeState: string; // Current tool ID
+	editHistory: EditAction[]; // Undo/Redo stack
+	// ...
 }
 ```
 
@@ -104,5 +113,4 @@ interface ImageEditorState {
 - [x] **Blur Tool** (Region based)
 - [x] **Annotate Tool** (Text, Shapes)
 - [x] **Undo/Redo System**
-- [ ] **Premium UI Polish** (Glassmorphism, Animations) -> *In Progress*
-
+- [ ] **Premium UI Polish** (Glassmorphism, Animations) -> _In Progress_

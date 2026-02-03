@@ -42,7 +42,10 @@
 	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	// Valibot validation
-	import { number as numberSchema, pipe, parse, minValue, maxValue, optional, type ValiError } from 'valibot';
+	import { number as numberSchema, pipe, parse, minValue, maxValue, optional } from 'valibot';
+
+	// Unified error handling
+	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
 
 	interface Props {
 		field: FieldType;
@@ -145,8 +148,8 @@
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 
 		const doValidation = () => {
+			isValidating = true;
 			try {
-				isValidating = true;
 				const currentValue = safeValue;
 
 				// Required validation
@@ -161,15 +164,8 @@
 					return;
 				}
 
-				// Valibot validation
-				parse(validationSchemaFunc, currentValue);
-				validationStore.clearError(fieldName);
-			} catch (error) {
-				if ((error as ValiError<any>).issues) {
-					const valiError = error as ValiError<any>;
-					const errorMessage = valiError.issues[0]?.message || 'Invalid input';
-					validationStore.setError(fieldName, errorMessage);
-				}
+				// ✅ UNIFIED: Use handleWidgetValidation for standardized error handling
+				handleWidgetValidation(() => parse(validationSchemaFunc, currentValue), { fieldName, updateStore: true });
 			} finally {
 				isValidating = false;
 			}

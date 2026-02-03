@@ -28,10 +28,17 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 -->
 
 <script lang="ts">
-	import { app } from '@src/stores/store.svelte';
+	import { app, validationStore } from '@src/stores/store.svelte';
 	import type { FieldType } from './';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { getFieldName } from '@utils/utils';
+
+	// Valibot validation
+	import { number as numberSchema, pipe, parse, minValue, maxValue, optional } from 'valibot';
+
+	// Unified error handling
+	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
 
 	let { field, value, error }: { field: FieldType; value: number | null | undefined; error?: string | null } = $props();
 
@@ -75,6 +82,39 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 		if (typeof value === 'number') {
 			formattedValue = formatter.format(value);
 		}
+		// Validate on blur
+		validateCurrency(value);
+	}
+
+	// Validation
+	const fieldName = $derived(getFieldName(field));
+
+	// Currency validation schema
+	const currencySchema = $derived.by(() => {
+		const rules: Array<any> = [];
+
+		if (typeof field.min === 'number') {
+			rules.push(minValue(field.min, `Amount must be at least ${formatter.format(field.min)}`));
+		}
+		if (typeof field.max === 'number') {
+			rules.push(maxValue(field.max, `Amount must not exceed ${formatter.format(field.max)}`));
+		}
+
+		const schema = rules.length > 0 ? pipe(numberSchema('Amount must be a number'), ...(rules as [])) : numberSchema('Amount must be a number');
+
+		return field.required ? schema : optional(schema);
+	});
+
+	function validateCurrency(currencyValue: number | null | undefined) {
+		if ((currencyValue === null || currencyValue === undefined) && !field?.required) {
+			validationStore.clearError(fieldName);
+			return;
+		}
+		if (field?.required && (currencyValue === null || currencyValue === undefined)) {
+			validationStore.setError(fieldName, 'This field is required');
+			return;
+		}
+		handleWidgetValidation(() => parse(currencySchema, currencyValue), { fieldName, updateStore: true });
 	}
 
 	// A helper function to parse a localized number string (e.g., "1.234,56") into a JS number.

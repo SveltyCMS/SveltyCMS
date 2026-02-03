@@ -74,7 +74,8 @@ export function createEditor(element: HTMLElement, content: string, language: st
 			TableHeader,
 			TableCell,
 			TextAlign.configure({
-				types: ['heading', 'paragraph', 'image']
+				types: ['heading', 'paragraph', 'image'],
+				defaultAlignment: 'left'
 			}),
 			Youtube.configure({
 				modestBranding: true,

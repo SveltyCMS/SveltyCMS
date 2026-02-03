@@ -401,7 +401,6 @@ Displays a collection of media files (images, documents, audio, video) with:
 		storeUserPreference(view, gridSize, tableSize);
 	}
 
-
 	// Clear search
 	function clearSearch() {
 		globalSearchValue = '';

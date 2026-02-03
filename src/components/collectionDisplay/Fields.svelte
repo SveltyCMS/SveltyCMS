@@ -368,6 +368,7 @@
 				</div>
 			</Tabs.Trigger>
 		{/if}
+		<Tabs.Indicator />
 	</Tabs.List>
 
 	<Tabs.Content value="0" class="w-full">

@@ -9,11 +9,13 @@ Fully integrated Image Editor in the SveltyCMS with responsive UX, modular desig
 ## Deliverables Completed
 
 ### Full CMS Integration
+
 - Media Gallery edit button opens editor via `/imageEditor?mediaId=...`
 - MediaUpload widget opens editor modal and updates selected media
 - Direct editor route `/imageEditor` supports uploads
 
 ### Responsive UX
+
 - Desktop, tablet, and mobile layouts
 - Footer toolbar embedded and always visible
 - Tool controls wrap and scroll on smaller widths
@@ -21,35 +23,40 @@ Fully integrated Image Editor in the SveltyCMS with responsive UX, modular desig
 - All tool footers (Crop, Blur, FineTune, Annotate, Watermark, Zoom) are responsive with `flex-wrap`, `overflow-x-auto`, and mobile-friendly controls
 
 ### Modular Architecture
+
 - Widget registry for adding new tools
 - Each tool in its own widget folder (Tool + Controls)
 - `ImageEditor.svelte` as main orchestrator; `EditorCanvas`, `EditorSidebar`, `EditorToolPanel`, `MasterToolbar`, `MobileToolbar`
 - Crop-specific `CropTopToolbar` and `CropBottomBar`
 
 ### Tool Coverage
-| Tool | Status |
-|------|--------|
-| Rotation | Implemented |
-| Crop (Free, 1:1, 4:3, 16:9, 3:2, 9:16) | Implemented |
-| Blur (Square/Round + intensity) | Implemented |
-| Focal Point (x, y) | Implemented + metadata save |
-| Zoom | Implemented + toolbar controls |
-| Text overlays | Implemented |
-| Shapes overlays | Implemented |
-| Filters (FineTune) | Implemented |
-| Watermarks | Implemented |
+
+| Tool                                   | Status                         |
+| -------------------------------------- | ------------------------------ |
+| Rotation                               | Implemented                    |
+| Crop (Free, 1:1, 4:3, 16:9, 3:2, 9:16) | Implemented                    |
+| Blur (Square/Round + intensity)        | Implemented                    |
+| Focal Point (x, y)                     | Implemented + metadata save    |
+| Zoom                                   | Implemented + toolbar controls |
+| Text overlays                          | Implemented                    |
+| Shapes overlays                        | Implemented                    |
+| Filters (FineTune)                     | Implemented                    |
+| Watermarks                             | Implemented                    |
 
 ### Undo/Redo (Operation-Based)
+
 - Stores only operations, not full canvas
 - Reconstructs from base image
 - Handles missing ops, async load, and crop/finetune undo correctly
 
 ### API Integration
+
 - Uses `api/media` for saving and editing
 - `/api/media/edit` supports direct file upload and `mediaId`
 - Metadata update for focal points
 
 ### Documentation
+
 - User guide: `docs/guides/content/image-editor-guide.mdx`
 - API reference: `docs/api/image-editor-api.mdx`
 - Architecture docs updated
@@ -73,26 +80,26 @@ Fully integrated Image Editor in the SveltyCMS with responsive UX, modular desig
 
 ## Main Files Updated/Added
 
-| Path | Description |
-|------|-------------|
-| `src/components/imageEditor/Editor.svelte` | Core editor with Konva stage |
-| `src/components/imageEditor/ImageEditorModal.svelte` | Modal wrapper component |
-| `src/components/imageEditor/EditorToolbar.svelte` | Dynamic bottom toolbar |
-| `src/components/imageEditor/EditorCanvas.svelte` | Responsive canvas wrapper |
-| `src/components/imageEditor/EditorSidebar.svelte` | Tool selection sidebar |
-| `src/stores/imageEditorStore.svelte.ts` | State, operation-based history |
-| `src/routes/api/media/edit/+server.ts` | Server-side Sharp.js processing |
-| `src/routes/(app)/mediagallery/+page.svelte` | Media Gallery integration |
-| `src/widgets/core/MediaUpload/MediaUpload.svelte` | MediaUpload widget integration |
-| `src/components/imageEditor/widgets/Crop/` | Tool + Controls |
-| `src/components/imageEditor/widgets/Rotate/` | Tool + Controls |
-| `src/components/imageEditor/widgets/Zoom/` | Tool + Controls (NEW) |
-| `src/components/imageEditor/widgets/Blur/` | Tool + Controls |
-| `src/components/imageEditor/widgets/FocalPoint/` | Tool + Controls |
-| `src/components/imageEditor/widgets/FineTune/` | Tool + Controls |
-| `src/components/imageEditor/widgets/Annotate/` | Tool + Controls |
-| `src/components/imageEditor/widgets/Watermark/` | Tool + Controls |
-| `docs/guides/development/image-editor-guide.mdx` | Development guide |
+| Path                                                 | Description                     |
+| ---------------------------------------------------- | ------------------------------- |
+| `src/components/imageEditor/Editor.svelte`           | Core editor with Konva stage    |
+| `src/components/imageEditor/ImageEditorModal.svelte` | Modal wrapper component         |
+| `src/components/imageEditor/EditorToolbar.svelte`    | Dynamic bottom toolbar          |
+| `src/components/imageEditor/EditorCanvas.svelte`     | Responsive canvas wrapper       |
+| `src/components/imageEditor/EditorSidebar.svelte`    | Tool selection sidebar          |
+| `src/stores/imageEditorStore.svelte.ts`              | State, operation-based history  |
+| `src/routes/api/media/edit/+server.ts`               | Server-side Sharp.js processing |
+| `src/routes/(app)/mediagallery/+page.svelte`         | Media Gallery integration       |
+| `src/widgets/core/MediaUpload/MediaUpload.svelte`    | MediaUpload widget integration  |
+| `src/components/imageEditor/widgets/Crop/`           | Tool + Controls                 |
+| `src/components/imageEditor/widgets/Rotate/`         | Tool + Controls                 |
+| `src/components/imageEditor/widgets/Zoom/`           | Tool + Controls (NEW)           |
+| `src/components/imageEditor/widgets/Blur/`           | Tool + Controls                 |
+| `src/components/imageEditor/widgets/FocalPoint/`     | Tool + Controls                 |
+| `src/components/imageEditor/widgets/FineTune/`       | Tool + Controls                 |
+| `src/components/imageEditor/widgets/Annotate/`       | Tool + Controls                 |
+| `src/components/imageEditor/widgets/Watermark/`      | Tool + Controls                 |
+| `docs/guides/development/image-editor-guide.mdx`     | Development guide               |
 
 ---
 

@@ -44,7 +44,10 @@
 	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	// Valibot validation
-	import { string, regex, pipe, parse, type ValiError, minLength, optional } from 'valibot';
+	import { string, regex, pipe, parse, minLength, optional } from 'valibot';
+
+	// Unified error handling
+	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
 
 	interface Props {
 		field: FieldType;
@@ -91,8 +94,8 @@
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 
 		const doValidation = () => {
+			isValidating = true;
 			try {
-				isValidating = true;
 				const currentValue = safeValue;
 
 				// First validate if required
@@ -103,16 +106,12 @@
 
 				// Then validate phone format if value exists
 				if (currentValue && currentValue.trim() !== '') {
-					parse(phoneSchema, currentValue);
+					// ✅ UNIFIED: Use handleWidgetValidation for standardized error handling
+					handleWidgetValidation(() => parse(phoneSchema, currentValue), { fieldName, updateStore: true });
+					return;
 				}
 
 				validationStore.clearError(fieldName);
-			} catch (error) {
-				if ((error as ValiError<any>).issues) {
-					const valiError = error as ValiError<any>;
-					const errorMessage = valiError.issues[0]?.message || 'Invalid input';
-					validationStore.setError(fieldName, errorMessage);
-				}
 			} finally {
 				isValidating = false;
 			}

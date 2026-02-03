@@ -24,8 +24,15 @@ Renders a color input with label, helper, and validation
 <script lang="ts">
 	import type { FieldType } from './';
 	import * as m from '@src/paraglide/messages';
-	import { app } from '@src/stores/store.svelte';
+	import { app, validationStore } from '@src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { getFieldName } from '@utils/utils';
+
+	// Valibot validation
+	import { string, regex, pipe, parse, optional } from 'valibot';
+
+	// Unified error handling
+	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
 
 	let {
 		field,
@@ -68,10 +75,31 @@ Renders a color input with label, helper, and validation
 		} else {
 			value = newVal;
 		}
+		// Validate hex color format
+		validateColor(newVal);
+	}
+
+	// Validation
+	const fieldName = $derived(getFieldName(field));
+	const validationError = $derived(validationStore.getError(fieldName));
+
+	// Hex color schema (accepts #RGB, #RRGGBB, #RGBA, #RRGGBBAA)
+	const hexColorSchema = $derived(
+		field?.required
+			? pipe(string(), regex(/^#([0-9A-Fa-f]{3,4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/, 'Invalid hex color format (e.g., #FFF or #FFFFFF)'))
+			: optional(pipe(string(), regex(/^#([0-9A-Fa-f]{3,4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/, 'Invalid hex color format')), '')
+	);
+
+	function validateColor(colorValue: string) {
+		if (!colorValue && !field?.required) {
+			validationStore.clearError(fieldName);
+			return;
+		}
+		handleWidgetValidation(() => parse(hexColorSchema, colorValue), { fieldName, updateStore: true });
 	}
 </script>
 
-<div class="relative rounded p-1" class:invalid={error}>
+<div class="relative rounded p-1" class:invalid={error || validationError}>
 	<div class="flex items-center rounded gap-0.5 border border-surface-400 pr-1">
 		<input
 			type="color"
@@ -94,7 +122,7 @@ Renders a color input with label, helper, and validation
 			/>
 		</div>
 	</div>
-	{#if error}
-		<p class="absolute bottom-0 left-0 w-full text-center text-xs text-error-500" role="alert">{error}</p>
+	{#if error || validationError}
+		<p class="absolute bottom-0 left-0 w-full text-center text-xs text-error-500" role="alert">{error || validationError}</p>
 	{/if}
 </div>

@@ -1,0 +1,183 @@
+---
+path: 'docs/widgets/development.mdx'
+title: 'Widget Development Guide'
+description: 'Complete guide to creating, translating, and testing custom widgets for SveltyCMS.'
+order: 3
+icon: 'mdi:code-tags'
+author: 'admin'
+created: '2025-10-17'
+updated: '2026-02-03'
+tags:
+  - 'developer'
+  - 'widgets'
+  - 'tutorial'
+  - 'testing'
+  - 'i18n'
+---
+
+# Widget Development Guide
+
+This guide covers everything you need to know about building 3-Pillar widgets, from your first component to advanced multilingual support and testing.
+
+## 🚀 Quick Start: Creating a Widget
+
+### 1. Planning & Folder Structure
+
+Create a new directory in `src/widgets/custom/`. The folder name must match your widget name exactly.
+
+```
+src/widgets/custom/MyWidget/
+├── index.ts           # Definition Pillar
+├── Input.svelte       # Input Pillar
+├── Display.svelte     # Display Pillar
+└── types.ts           # Type Definitions
+```
+
+### 2. The Definition Pillar (`index.ts`)
+
+This file defines your widget's capabilities, validation, and metadata.
+
+```typescript
+import { createWidget } from '@widgets/widgetFactory';
+import * as v from 'valibot';
+
+export default createWidget({
+	Name: 'MyWidget',
+	Icon: 'mdi:star',
+	Description: 'A custom widget example',
+
+	// Component Paths
+	inputComponentPath: '/src/widgets/custom/MyWidget/Input.svelte',
+	displayComponentPath: '/src/widgets/custom/MyWidget/Display.svelte',
+
+	// Validation Schema (Valibot)
+	validationSchema: (field) => {
+		const schema = v.string([v.minLength(1)]);
+		// Handle multilingual object structure if translated
+		return field.translated ? v.record(v.string(), schema) : schema;
+	},
+
+	defaults: {
+		translated: true
+	}
+});
+```
+
+### 3. The Input Pillar (`Input.svelte`)
+
+Handles user interaction and data binding.
+
+```svelte
+<script lang="ts">
+	import { app } from '@stores/store.svelte';
+	import { DEFAULT_CONTENT_LANGUAGE } from '@src/utils/constants';
+
+	let { field, value = $bindable() } = $props();
+
+	// Reactive Language Selection
+	const _language = $derived(field.translated ? app.contentLanguage : DEFAULT_CONTENT_LANGUAGE);
+
+	// Safe Value Access
+	const safeValue = $derived(field.translated && value ? (value[_language] ?? '') : (value ?? ''));
+
+	function update(newValue) {
+		if (field.translated) {
+			value = { ...(value || {}), [_language]: newValue };
+		} else {
+			value = newValue;
+		}
+	}
+</script>
+
+<input type="text" value={safeValue} oninput={(e) => update(e.currentTarget.value)} placeholder={field.label} />
+```
+
+### 4. The Display Pillar (`Display.svelte`)
+
+Read-only rendering for lists and previews.
+
+```svelte
+<script lang="ts">
+	import { app } from '@stores/store.svelte';
+
+	let { field, value } = $props();
+
+	const displayValue = $derived(() => {
+		if (field.translated && value) {
+			return value[app.contentLanguage] || '—';
+		}
+		return value || '—';
+	});
+</script>
+
+<span>{displayValue}</span>
+```
+
+---
+
+## 🌍 Multilingual Support
+
+SveltyCMS uses a **dual-language system**:
+
+1.  **`systemLanguage`**: For UI text (labels, buttons). Handled by Paraglide-JS.
+2.  **`contentLanguage`**: For user content. Handled by `app.contentLanguage`.
+
+### Best Practices
+
+- **Always check `field.translated`**: Don't assume data is an object or a string.
+- **Use `$derived`**: Language switching must be reactive.
+- **Preserve Translations**: When updating, merge with existing object properties: `value = { ...value, [lang]: new }`.
+- **Validation**: Your schema must accept both `string` (untranslated) and `Record<string, string>` (translated).
+
+---
+
+## 🧪 Testing Your Widget
+
+We use **Vitest** and **Testing Library**.
+
+### Unit Testing (`Input.test.ts`)
+
+```typescript
+import { render, fireEvent, screen } from '@testing-library/svelte';
+import { app } from '@stores/store.svelte';
+import Input from './Input.svelte';
+
+test('updates correct language', async () => {
+	app.contentLanguage = 'en';
+	let value = { en: '', de: 'Hallo' };
+
+	const { getByRole } = render(Input, {
+		field: { translated: true },
+		value
+	});
+
+	const input = getByRole('textbox');
+	await fireEvent.input(input, { target: { value: 'Hello' } });
+
+	expect(value.en).toBe('Hello');
+	expect(value.de).toBe('Hallo'); // Preserved
+});
+```
+
+### Validation Testing
+
+```typescript
+import { parse } from 'valibot';
+import Widget from './index';
+
+test('validates multilingual structure', () => {
+	const schema = Widget.validationSchema({ translated: true });
+
+	expect(() => parse(schema, { en: 'Valid' })).not.toThrow();
+	expect(() => parse(schema, 'Invalid String')).toThrow();
+});
+```
+
+---
+
+## 📋 Security Checklist
+
+- [ ] **Sanitization**: Encode HTML output in `Display.svelte` unless explicitly using a sanitizer.
+- [ ] **Validation**: Ensure strict schemas (e.g., regex for colors/phones).
+- [ ] **Input Limits**: Set `maxLength` defaults to prevent DB bloat.
+- [ ] **Dependencies**: Avoid heavyweight libraries if native browser features suffice.

@@ -181,7 +181,7 @@
 		</Tabs.Content>
 		<Tabs.Content value="3">
 			<div class="p-4">
-				<WebsiteTokens />
+				<WebsiteTokens permissions={page.data.permissions} />
 			</div>
 		</Tabs.Content>
 	</Tabs>

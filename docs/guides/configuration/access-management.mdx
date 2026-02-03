@@ -1,0 +1,117 @@
+---
+path: 'docs/guides/configuration/access-management.mdx'
+title: 'Access Management'
+description: 'Guide to managing Roles, Permissions, and Website Tokens in SveltyCMS.'
+order: 3
+icon: 'mdi:shield-account'
+author: 'admin'
+created: '2026-02-03'
+updated: '2026-02-03'
+tags:
+  - 'security'
+  - 'roles'
+  - 'permissions'
+  - 'tokens'
+  - 'configuration'
+---
+
+# Access Management
+
+SveltyCMS provides a robust **Role-Based Access Control (RBAC)** system combined with granular permissions to secure your content and sensitive settings.
+
+The Access Management dashboard is located at `/config/accessManagement`.
+
+---
+
+## 👥 Roles & Permissions
+
+Users are assigned a **Role**, and Roles are assigned **Permissions**. This allows you to manage access for groups of users efficiently (e.g., "Editors", "Authors", "Admins").
+
+### Admin Role
+
+The **Admin** role is special. A role with the `isAdmin: true` flag has **all permissions enabled automatically**. You cannot modify individual permissions for an Admin role.
+
+### Creating & Managing Roles
+
+1.  Navigate to **Config > Access Management**.
+2.  Click **Create New Role**.
+3.  Enter a Role Name (e.g., "Content Editor") and optional Description.
+4.  Toggle **Is Admin** if you want this role to have unrestricted access.
+
+### Permission Matrix
+
+For non-admin roles, you must explicitly grant permissions. The system organizes permissions into logical groups:
+
+#### 1. Collection Permissions
+
+Control access to specific content types.
+
+- **read**: View entries in the collection.
+- **create**: Add new entries.
+- **update**: Edit existing entries.
+- **delete**: Remove entries.
+- **publish**: (If enabled) Publish/Unpublish entries.
+
+#### 2. System Permissions
+
+Control access to core system features:
+
+- **User Management**: Create, edit, or delete users (`user:create`, `user:read`, etc.).
+- **Configuration**: Access system settings, logs, and server info.
+- **Content Management**: General content access (`content:files`, etc.).
+- **Media Management**: Upload and manage files in the Media Library.
+- **API Access**: Permission to use system API endpoints (`api:read`, `api:write`).
+
+> [!TIP]
+> Changes to permissions take effect immediately for new requests, but users may need to refresh their session (logout/login) for UI elements to update fully.
+
+---
+
+## 🔑 Website Tokens
+
+**Website Tokens** are persistent API keys designed for **machine-to-machine** communication. They are ideal for:
+
+- Connecting your frontend website (Next.js, SvelteKit, etc.) to the CMS.
+- Running automated build scripts.
+- Third-party integrations.
+
+### Website Tokens vs. User Tokens
+
+| Feature         | Website Token               | User Token                  |
+| :-------------- | :-------------------------- | :-------------------------- |
+| **Purpose**     | Server-side integration     | User authentication (Login) |
+| **Expiration**  | Permanent (until revoked)   | Temporary (Session-based)   |
+| **Permissions** | Scoped to specific actions  | Inherits User's Role        |
+| **Creation**    | Manually generated in Admin | Generated via Login API     |
+
+### Managing Website Tokens
+
+1.  **Generate Token**:
+    - Enter a descriptive name (e.g., "Production Website").
+    - Click **Generate**.
+    - **Copy the token immediately**. For security, it is shown only once.
+
+2.  **Usage**:
+    - Include the token in the `Authorization` header of your API requests:
+      ```bash
+      Authorization: Bearer <your_token>
+      ```
+
+3.  **Revocation**:
+    - Click **Delete** next to a token to immediately invalidate it. All applications using that token will lose access.
+
+### Permissions for Tokens
+
+You can now assign **Granular Permissions** to Website Tokens. By default, a token has **Read Only** access. During creation, you can select specific permissions (e.g., `user:create`, `collection:update`) to grant precise access rights.
+
+### Token Expiration
+
+For enhanced security, Website Tokens can have an expiration date:
+
+- **30 Days** (Short-term)
+- **90 Days** (Standard rotation)
+- **1 Year** (Long-term integration)
+- **Custom Date**
+- **Never** (Use with caution)
+
+Tokens nearing expiration (less than 7 days) are highlighted in the management table. Expired tokens are automatically rejected by the API.

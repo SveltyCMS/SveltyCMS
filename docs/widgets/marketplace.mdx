@@ -1,0 +1,100 @@
+---
+path: 'docs/widgets/marketplace.mdx'
+title: 'Widget Marketplace'
+description: 'Guide to the SveltyCMS Marketplace ecosystem, installing widgets, and publishing your own extensions.'
+order: 4
+icon: 'mdi:store'
+author: 'admin'
+created: '2025-10-17'
+updated: '2026-02-03'
+tags:
+  - 'marketplace'
+  - 'publishing'
+  - 'widgets'
+  - 'ecosystem'
+---
+
+# Widget Marketplace
+
+The SveltyCMS Widget Marketplace allows users to discover, install, and manage custom widgets. It supports multi-tenant installations with proper isolation and security.
+
+## 🏪 Using the Marketplace
+
+The marketplace is integrated into the dashboard at `/config/widgetManagement`.
+
+### Installing Widgets
+
+1.  Navigate to the **Marketplace** tab.
+2.  Browse or search for widgets (e.g., "SEO", "E-commerce").
+3.  Click **Install**. The widget files are downloaded to `src/widgets/marketplace/{widgetName}`.
+4.  The widget is automatically discovered by the Runtime System and available immediately (Zero-Downtime).
+
+### Widget Management
+
+- **Activation**: Installed widgets can be toggled On/Off per tenant.
+- **Updates**: One-click updates when new versions are available.
+- **Uninstallation**: Removes the widget files and database configuration.
+
+---
+
+## 📢 Publishing a Widget
+
+Ready to share your widget? Follow this guide to ensure your submission is accepted.
+
+### 1. Preparation Checklist
+
+- [ ] **3-Pillars**: Implements Definition, Input, and Display properly.
+- [ ] **Manifest**: Includes a valid `widget.json`.
+- [ ] **Security**: No forbidden patterns (`eval`, unsanitized HTML).
+- [ ] **Documentation**: Includes a clear `README.md`.
+- [ ] **License**: License file included.
+
+### 2. The Manifest (`widget.json`)
+
+Your widget must include this file in its root directory:
+
+```json
+{
+	"name": "MyCoolWidget",
+	"version": "1.0.0",
+	"description": "Short description for the listing",
+	"author": "Your Name <you@example.com>",
+	"license": "MIT",
+	"icon": "mdi:rocket",
+	"category": "custom",
+	"tags": ["productivity", "form"],
+	"compatibility": {
+		"sveltycms": "^2.0.0"
+	},
+	"permissions": ["collection:read"]
+}
+```
+
+### 3. Submission
+
+1.  **Validate**: Run `bun check` to ensure no type errors.
+2.  **Package**: Create a zip file excluding `node_modules` and git files.
+    ```bash
+    zip -r MyWidget.zip MyWidget/ -x "*.git*" "node_modules/*"
+    ```
+3.  **Upload**: Submit via the Developer Portal.
+
+---
+
+## 🔒 Security Standards
+
+Marketplace submissions are scanned for:
+
+- **Forbidden Patterns**: `eval()`, `new Function()`, `innerHTML` (without sanitization).
+- **Secrets**: Hardcoded API keys are rejected.
+- **External Calls**: Unauthorized external API calls must be declared and documented.
+
+---
+
+## 🔧 API Reference
+
+| Endpoint                   | Method | Description                          |
+| :------------------------- | :----- | :----------------------------------- |
+| `/api/marketplace/widgets` | `GET`  | Search and filter available widgets. |
+| `/api/widgets/install`     | `POST` | Download and install a widget.       |
+| `/api/widgets/uninstall`   | `POST` | Remove a widget from the system.     |
