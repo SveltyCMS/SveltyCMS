@@ -304,6 +304,12 @@ async function loadAdapters() {
 				default:
 					throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}`);
 			}
+
+			// Apply Webhook Proxy Wrapper
+			if (dbAdapter) {
+				const { wrapAdapterWithWebhooks } = await import('./webhookWrapper');
+				dbAdapter = await wrapAdapterWithWebhooks(dbAdapter);
+			}
 		}, 'Database Adapter Loading');
 
 		adaptersLoaded = true;

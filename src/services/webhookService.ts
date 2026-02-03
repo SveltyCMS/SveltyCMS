@@ -6,6 +6,7 @@
 
 import { logger } from '@utils/logger.server';
 import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 
 // Types
 export interface Webhook {
@@ -49,6 +50,22 @@ export class WebhookService {
 		this._dispatch(event, payload).catch((err) => logger.error(`Error dispatching webhook event ${event}:`, err));
 	}
 
+	/**
+	 * Send a test event to a specific webhook
+	 */
+	public async testWebhook(id: string, userEmail: string) {
+		const webhooks = await this.getWebhooks();
+		const webhook = webhooks.find((w) => w.id === id);
+		if (!webhook) throw new Error('Webhook not found');
+
+		// We dispatch only to this one
+		await this._dispatchTo(webhook, 'entry:create', {
+			test: true,
+			message: 'This is a test event from SveltyCMS',
+			triggeredBy: userEmail
+		});
+	}
+
 	private async _dispatch(event: WebhookEvent, payload: any) {
 		const webhooks = await this.getWebhooks();
 		const matchingHooks = webhooks.filter((wh) => wh.active && (wh.events.includes(event) || wh.events.includes('*' as any)));
@@ -57,50 +74,59 @@ export class WebhookService {
 
 		logger.debug(`Dispatching ${event} to ${matchingHooks.length} webhooks`);
 
-		const promises = matchingHooks.map(async (webhook) => {
-			try {
-				const controller = new AbortController();
-				const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-
-				const headers: Record<string, string> = {
-					'Content-Type': 'application/json',
-					'X-SveltyCMS-Event': event,
-					'User-Agent': 'SveltyCMS-Webhook/1.0',
-					...(webhook.headers || {})
-				};
-
-				// Calculate signature if secret exists
-				if (webhook.secret) {
-					// TODO: Implement HMAC signature
-					// headers['X-SveltyCMS-Signature'] = ...
-				}
-
-				const response = await fetch(webhook.url, {
-					method: 'POST',
-					headers,
-					body: JSON.stringify({
-						event,
-						timestamp: new Date().toISOString(),
-						payload
-					}),
-					signal: controller.signal
-				});
-
-				clearTimeout(timeoutId);
-
-				if (!response.ok) {
-					throw new Error(`HTTP ${response.status}`);
-				}
-
-				// Update success stats (fire and forget)
-				this.updateStatus(webhook.id, true);
-			} catch (error) {
-				logger.warn(`Webhook ${webhook.name} failed:`, error);
-				this.updateStatus(webhook.id, false);
-			}
-		});
+		const promises = matchingHooks.map((webhook) => this._dispatchTo(webhook, event, payload));
 
 		await Promise.allSettled(promises);
+	}
+
+	private async _dispatchTo(webhook: Webhook, event: WebhookEvent, payload: any) {
+		try {
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+			const payloadStr = JSON.stringify({
+				event,
+				timestamp: new Date().toISOString(),
+				payload,
+				webhookId: webhook.id,
+				deliveryId: uuidv4()
+			});
+
+			const headers: Record<string, string> = {
+				'Content-Type': 'application/json',
+				'X-SveltyCMS-Event': event,
+				'X-SveltyCMS-Delivery': uuidv4(),
+				'X-SveltyCMS-Timestamp': Math.floor(Date.now() / 1000).toString(),
+				'User-Agent': 'SveltyCMS-Webhook/1.0',
+				...(webhook.headers || {})
+			};
+
+			// Calculate signature if secret exists
+			if (webhook.secret) {
+				const signature = crypto.createHmac('sha256', webhook.secret).update(payloadStr).digest('hex');
+				headers['X-SveltyCMS-Signature'] = `sha256=${signature}`;
+			}
+
+			const response = await fetch(webhook.url, {
+				method: 'POST',
+				headers,
+				body: payloadStr,
+				signal: controller.signal
+			});
+
+			clearTimeout(timeoutId);
+
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`);
+			}
+
+			// Update success stats (fire and forget)
+			this.updateStatus(webhook.id, true);
+		} catch (error) {
+			logger.warn(`Webhook ${webhook.name} failed:`, error);
+			this.updateStatus(webhook.id, false);
+			throw error; // Re-throw for testWebhook to catch if needed
+		}
 	}
 
 	/**

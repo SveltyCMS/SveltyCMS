@@ -49,7 +49,13 @@ This module handles the low-level details of content loading and processing.
 
 A utility specifically for production environments to scan the filesystem for compiled collection definitions. This bypasses the need for dynamic imports in the built application, ensuring robust loading in various deployment environments (Node.js, Bun, Docker).
 
-## Reactivity Model
+### 4. Migration Engine (`src/services/MigrationEngine.ts`)
+
+A safety-critical service that handles the synchronization gap between Code Definitions and Database Schema in a **database-agnostic** manner.
+
+- **Agnostic Schema Retrieval**: Uses `dbAdapter.collection.getSchema()` to fetch the current database state, regardless of the underlying database (MongoDB, MariaDB, etc.).
+- **Drift Detection**: Uses `src/utils/schema/comparison.ts` to identify changes (field removal, type changes).
+- **Safe Mode**: Prevents destructive updates without explicit confirmation if data loss is detected.
 
 SveltyCMS uses a **Pull-based Reactivity Model** for content updates:
 

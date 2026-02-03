@@ -259,7 +259,7 @@ The roadmap includes plans to improve this system further:
 
 1. **Sandboxed Compilation**: Compile to JSON to prevent typos from crashing the server
 2. **Field-Level Types**: Generate types for individual fields, not just collections
-3. **Runtime Validation**: Use generated types for runtime schema validation
+3. **Runtime Validation**: Use generated types for runtime schema validation (Now partially implemented via `src/utils/schema/comparison.ts` which uses these types to detect drift).
 4. **GraphQL Schema Generation**: Auto-generate GraphQL schemas from collection types
 
 See the Architecture documentation for details on Phase 4: The "Sandboxed" DIL Engine.

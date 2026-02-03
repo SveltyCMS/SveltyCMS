@@ -1,0 +1,126 @@
+---
+path: 'docs/api/Webhooks.mdx'
+title: 'HTTP Webhooks Guide'
+description: 'How to configure, secure, and use HTTP webhooks for real-time CMS events.'
+order: 15
+icon: 'mdi:webhook'
+author: 'admin'
+created: '2026-02-03'
+updated: '2026-02-03'
+---
+
+# HTTP Webhooks Guide
+
+SveltyCMS provides a robust, secure HTTP webhook system that allows you to trigger external systems whenever content or media changes occur.
+
+> [!TIP]
+> **Looking for WebSockets?** If you prefer a persistent connection for real-time updates, check out our **[GraphQL Subscriptions](GraphQL_API.mdx)**.
+
+Unlike GraphQL subscriptions which require a persistent WebSocket connection, Webhooks use standard HTTP POST requests, making them ideal for serverless functions, CI/CD pipelines, and third-party integrations (e.g., Zapier, IFTTT).
+
+---
+
+## 🚀 Getting Started
+
+To manage your webhooks, navigate to **Settings > Webhooks** in the SveltyCMS admin panel.
+
+### Adding a Webhook
+
+1. Click **Add Webhook**.
+2. **Name**: Provide a descriptive name (e.g., "Production Static Site Rebuild").
+3. **Payload URL**: The external endpoint that will receive the `POST` requests.
+4. **Secret Key**: A unique string used to sign the request. You can regenerate this at any time.
+5. **Trigger Events**: Select one or more events that should trigger this webhook.
+
+### Testing Connectivity
+
+Use the **Test** button on any configured webhook to send a sample payload to your endpoint. This is the fastest way to verify your integration logic and HMAC verification.
+
+---
+
+## 🔒 Security & Verification
+
+All webhooks sent by SveltyCMS include security headers to ensure the request is authentic and has not been tampered with.
+
+### HMAC Signature
+
+Every request includes an `X-SveltyCMS-Signature` header containing a **SHA-256 HMAC hex digest** of the raw request body, using your webhook's secret key.
+
+**Verification Example (Node.js):**
+
+```javascript
+const crypto = require('crypto');
+
+function verifyWebhook(payload, signature, secret) {
+	const expectedSignature = 'sha256=' + crypto.createHmac('sha256', secret).update(payload).digest('hex');
+
+	return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+}
+```
+
+### Request Headers
+
+| Header                  | Description                                     |
+| :---------------------- | :---------------------------------------------- |
+| `X-SveltyCMS-Event`     | The type of event (e.g., `entry:publish`)       |
+| `X-SveltyCMS-Delivery`  | A unique UUID for this specific delivery        |
+| `X-SveltyCMS-Timestamp` | Unix timestamp of the dispatch                  |
+| `X-SveltyCMS-Signature` | HMAC-SHA256 signature (prefixed with `sha256=`) |
+
+---
+
+## 📡 Event Reference
+
+SveltyCMS triggers webhooks for the following events:
+
+### Content Events
+
+| Event             | Trigger                                                          |
+| :---------------- | :--------------------------------------------------------------- |
+| `entry:create`    | A new entry is created in a collection.                          |
+| `entry:update`    | An existing entry is saved or modified.                          |
+| `entry:delete`    | An entry is deleted.                                             |
+| `entry:publish`   | An entry's status is changed to "publish".                       |
+| `entry:unpublish` | An entry's status is changed from "publish" to any other status. |
+
+### Media Events
+
+| Event          | Trigger                                      |
+| :------------- | :------------------------------------------- |
+| `media:upload` | A new file is uploaded to the media gallery. |
+| `media:delete` | A file is deleted from the media gallery.    |
+
+---
+
+## 📦 Payload Structure
+
+The payload sent is a JSON object with the following schema:
+
+```json
+{
+	"event": "entry:publish",
+	"timestamp": "2026-02-03T21:44:55.123Z",
+	"webhookId": "uuid-of-webhook",
+	"deliveryId": "uuid-for-this-delivery",
+	"payload": {
+		"collection": "Posts",
+		"id": "64f1...",
+		"data": {
+			"title": "Hello World",
+			"status": "publish",
+			"...": "..."
+		}
+	}
+}
+```
+
+> [!NOTE]
+> For `delete` events, the payload typically only contains the `id` and `collection` name as the data no longer exists.
+
+---
+
+## 🛠 Troubleshooting
+
+- **5-Second Timeout**: SveltyCMS expects your endpoint to respond within 5 seconds. Long-running tasks should be queued on your end.
+- **Async Dispatch**: Webhooks are dispatched in the background and do not block CMS user actions.
+- **Failures**: If an endpoint returns a non-2xx status code, it will be logged in the system as a failure.

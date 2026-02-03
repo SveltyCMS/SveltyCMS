@@ -380,6 +380,8 @@ export class MongoCollectionMethods {
 	async createModel(schema: Schema): Promise<void>;
 	async updateModel(schema: Schema): Promise<void>;
 	async deleteModel(id: string): Promise<void>;
+	async getSchema(collectionName: string): Promise<Schema | null>;
+	async listSchemas(): Promise<Schema[]>;
 	async collectionExists(collectionName: string): Promise<boolean>;
 	getMongooseModel(id: string): Model<unknown> | null;
 	getRegisteredModelIds(): string[];
@@ -442,6 +444,22 @@ async deleteModel(id: string): Promise<void>
 ```
 
 **Warning:** Drops MongoDB collection and all data!
+
+#### getSchema()
+
+Retrieves the persistent schema definition for a collection from the database.
+
+```typescript
+async getSchema(collectionName: string): Promise<Schema | null>
+```
+
+#### listSchemas()
+
+Lists all persistent schema definitions stored in the database.
+
+```typescript
+async listSchemas(): Promise<Schema[]>
+```
 
 #### collectionExists()
 

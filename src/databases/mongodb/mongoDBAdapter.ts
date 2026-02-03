@@ -815,6 +815,15 @@ export class MongoDBAdapter implements IDBAdapter {
 		deleteModel: async (id: string) => {
 			await this.ensureCollections();
 			return this._cachedCollections.deleteModel(id);
+		},
+		getSchema: async (collectionName: string) => {
+			await this.ensureCollections();
+			// Explicitly type the expected result from _wrapResult to match IDBAdapter interface
+			return this._wrapResult<import('../../content/types').Schema | null>(() => this._cachedCollections.getSchema(collectionName));
+		},
+		listSchemas: async () => {
+			await this.ensureCollections();
+			return this._wrapResult<import('../../content/types').Schema[]>(() => this._cachedCollections.listSchemas());
 		}
 	};
 

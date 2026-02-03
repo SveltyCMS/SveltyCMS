@@ -22,6 +22,8 @@ import type { PageServerLoad } from './$types';
 // Collections
 import { contentManager } from '@src/content/ContentManager';
 import { compile } from '@src/utils/compilation/compile';
+import { MigrationEngine } from '@src/services/MigrationEngine';
+import type { Schema } from '@src/content/types';
 
 // Widgets
 import { widgets } from '@stores/widgetStore.svelte.ts';
@@ -192,9 +194,32 @@ export const actions: Actions = {
 			const collectionSlug = formData.get('slug') as string;
 			const collectionDescription = formData.get('description');
 			const collectionStatus = formData.get('status') as string;
+			const confirmDeletions = formData.get('confirmDeletions') === 'true';
 
 			// Widgets Fields
 			const fields = JSON.parse(fieldsData) as FieldsData;
+
+			// 1. Drift Detection & Safety Check
+			// Construct a temporary schema for comparison
+			const tempSchema: Schema = {
+				name: contentName,
+				icon: collectionIcon,
+				status: collectionStatus as any,
+				slug: collectionSlug,
+				description: String(collectionDescription || ''),
+				fields: Object.values(fields) as any[]
+			};
+
+			const migrationPlan = await MigrationEngine.createPlan(tempSchema);
+			if (migrationPlan.requiresMigration && !confirmDeletions) {
+				logger.warn(`Drift detected for collection ${contentName}. Save blocked pending confirmation.`);
+				return {
+					status: 202, // Accepted for check but not yet processed
+					driftDetected: true,
+					plan: migrationPlan
+				};
+			}
+
 			const imports = await goThrough(fields, fieldsData);
 
 			// Generate collection file using AST transformation

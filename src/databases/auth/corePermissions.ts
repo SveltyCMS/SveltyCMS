@@ -264,6 +264,13 @@ export const corePermissions: Permission[] = [
 		type: PermissionType.SYSTEM,
 		contextId: 'config/adminArea'
 	},
+	{
+		_id: 'config:webhooks',
+		name: 'Webhooks Management',
+		action: PermissionAction.MANAGE,
+		type: PermissionType.CONFIGURATION,
+		contextId: 'config/webhooks'
+	},
 
 	// Admin permissions
 	{ _id: 'admin:access', name: 'Admin Access', action: PermissionAction.MANAGE, type: PermissionType.SYSTEM, contextId: 'admin/access' },

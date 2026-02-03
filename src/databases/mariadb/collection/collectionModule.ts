@@ -8,7 +8,7 @@
  * - Delete collection
  */
 
-import type { CollectionModel } from '../../dbInterface';
+import type { CollectionModel, DatabaseResult } from '../../dbInterface';
 import type { Schema } from '@src/content/types';
 import { AdapterCore } from '../adapter/adapterCore';
 
@@ -66,5 +66,13 @@ export class CollectionModule {
 
 	async deleteModel(id: string): Promise<void> {
 		this.collectionRegistry.delete(id);
+	}
+
+	async getSchema(_collectionName: string): Promise<DatabaseResult<Schema | null>> {
+		return (this.core as any).notImplemented('getSchema');
+	}
+
+	async listSchemas(): Promise<DatabaseResult<Schema[]>> {
+		return (this.core as any).notImplemented('listSchemas');
 	}
 }

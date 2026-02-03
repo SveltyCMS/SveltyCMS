@@ -16,6 +16,7 @@
 	// Components
 	import CollectionForm from './tabs/CollectionForm.svelte';
 	import CollectionWidgetOptimized from './tabs/CollectionWidgetOptimized.svelte';
+	import ModalSchemaWarning from '../../ModalSchemaWarning.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
 
 	// Utils
@@ -39,6 +40,8 @@
 	const { data }: Props = $props();
 	let originalName = $state('');
 	let isLoading = $state(false);
+	let migrationPlan = $state<any>(null);
+	let showWarningModal = $state(false);
 
 	onMount(() => {
 		widgetStoreActions.initializeWidgets();
@@ -72,7 +75,7 @@
 
 	const collectionValue = $derived(collection.value);
 
-	async function handleCollectionSave() {
+	async function handleCollectionSave(confirmDeletions = false) {
 		if (validationStore.errors && Object.keys(validationStore.errors).length > 0) {
 			toaster.error({ description: 'Please fix validation errors before saving' });
 			return;
@@ -81,17 +84,31 @@
 		try {
 			isLoading = true;
 			const currentCollection = collection.value;
-			const payload = {
+			const payload: any = {
 				originalName,
 				...currentCollection
 			};
+
+			if (confirmDeletions) {
+				payload.confirmDeletions = 'true';
+			}
 
 			const resp = await axios.post(`?/saveCollection`, obj2formData(payload), {
 				headers: { 'Content-Type': 'multipart/form-data' }
 			});
 
-			if (resp.status === 200) {
+			// Check for drift detection from server (status 202)
+			if (resp.data.data && resp.data.data.driftDetected) {
+				migrationPlan = resp.data.data.plan;
+				showWarningModal = true;
+				toaster.info({ description: 'Manual confirmation required for schema changes' });
+				return;
+			}
+
+			if (resp.status === 200 || (resp.data && resp.data.status === 200)) {
 				toaster.success({ description: 'Collection Saved Successfully' });
+				showWarningModal = false;
+				migrationPlan = null;
 				if (originalName !== currentCollection?.name) {
 					originalName = String(currentCollection?.name);
 					goto(`/config/collectionbuilder/edit/${originalName}`);
@@ -141,7 +158,7 @@
 					<span class="hidden sm:inline">{m.button_delete()}</span>
 				</button>
 			{/if}
-			<button onclick={handleCollectionSave} class="preset-filled-primary-500 btn flex items-center gap-1 min-w-[100px]" disabled={isLoading}>
+			<button onclick={() => handleCollectionSave()} class="preset-filled-primary-500 btn flex items-center gap-1 min-w-[100px]" disabled={isLoading}>
 				{#if isLoading}
 					<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
 				{:else}
@@ -217,6 +234,24 @@
 		</div>
 	</div>
 </div>
+
+{#if showWarningModal && migrationPlan}
+	<ModalSchemaWarning
+		breakingChanges={migrationPlan.changes.map((c: any) => ({
+			type: c.type,
+			fieldName: c.fieldName,
+			message: c.message,
+			suggestion: c.suggestion,
+			dataLoss: c.severity === 'critical'
+		}))}
+		collectionName={collectionValue?.name || ''}
+		onConfirm={() => handleCollectionSave(true)}
+		onCancel={() => {
+			showWarningModal = false;
+			migrationPlan = null;
+		}}
+	/>
+{/if}
 
 <style>
 	:global(.scroll-smooth) {

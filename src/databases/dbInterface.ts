@@ -613,6 +613,8 @@ export interface IDBAdapter extends ISystemAdapter, IMonitoringAdapter {
 		createModel(schema: Schema): Promise<void>;
 		updateModel(schema: Schema): Promise<void>;
 		deleteModel(id: string): Promise<void>;
+		getSchema(collectionName: string): Promise<DatabaseResult<Schema | null>>;
+		listSchemas(): Promise<DatabaseResult<Schema[]>>;
 	};
 
 	// Database Agnostic Utilities

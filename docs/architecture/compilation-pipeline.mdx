@@ -95,6 +95,13 @@ The system uses a unified `Logger` interface defined in `types.ts`. This allows 
 - **Build Time**: Uses Vite's colored console output.
 - **Runtime**: Can use the server-side `logger` instance for persistent logs in `app.log`.
 
+## Schema Integrity & Drift Detection
+
+While the compilation pipeline handles the _transformation_ of code to checks, the system also now includes a **Drift Detection layer** (`src/utils/schema/comparison.ts`).
+
+- **Post-Compile Check**: After compilation, the system can compare the new `compiledCollections` (Code Truth) against the database state.
+- **Safety**: This ensures that changes made in code (e.g., removing a field) are flagged if they pose a risk to existing data in the database.
+
 ## Usage Guide
 
 To manually trigger compilation or use it in a script:

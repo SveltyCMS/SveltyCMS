@@ -147,6 +147,45 @@ export class MongoCollectionMethods {
 	}
 
 	/**
+	 * Gets a saved schema definition by name/id
+	 */
+	async getSchema(collectionName: string): Promise<Schema | null> {
+		try {
+			// We need to access the collection where schemas are stored.
+			// Typically, this might be 'system_content_structure' if that's where structure is kept,
+			// or if we are just reverse-engineering from Mongoose models (which is lossy).
+			// Assuming there is a persistent store for schemas as per the Architecture Doc (ContentManager syncs to DB).
+
+			// Let's assume we query the system_content_structure collection
+			const structureCollection = mongoose.connection.collection('system_content_structure');
+			const result = await structureCollection.findOne({ name: collectionName });
+
+			if (result && result.collectionDef) {
+				return result.collectionDef as Schema;
+			}
+			return null;
+		} catch (error) {
+			logger.error(`Failed to get schema for ${collectionName}:`, error);
+			return null;
+		}
+	}
+
+	/**
+	 * Lists all saved schemas
+	 */
+	async listSchemas(): Promise<Schema[]> {
+		try {
+			const structureCollection = mongoose.connection.collection('system_content_structure');
+			const nodes = await structureCollection.find({ nodeType: 'collection' }).toArray();
+
+			return nodes.filter((node) => node.collectionDef).map((node) => node.collectionDef as Schema);
+		} catch (error) {
+			logger.error('Failed to list schemas:', error);
+			return [];
+		}
+	}
+
+	/**
 	 * Updates an existing collection model
 	 */
 	async updateModel(schema: Schema): Promise<void> {
